@@ -135,9 +135,21 @@ laborer never dies: `slump` is its 0 HP; die pitches it face down and 29 voxels 
 | `activate` | 90 (3 s) | Stop | PlayTillEnd | The first awakening, from `hung`: the spine's clamps let go and the body lurches forward off the mast at its back (frame 3) and drops onto its feet, knees giving (8, `ACTIVATE_LAND`), sinking into them (12); it stirs (22), the hands open (32), it straightens (40), steps forward away from the spine, right foot (lifted 48, down 56) then left (lifted 64, down 72), to stand where the entity is, looks left and right (78, 84) and stands at rest (89). |
 | `slump` | 50 | **Hold** | PlayTillEnd | At 0 HP: the knees give (8), it drops onto its knees (20) and sinks forward, head down and arms limp (32), with a settle (40); held on frame 49, kneeling on the ground. |
 | `standup` | 60 | Stop | PlayTillEnd | From slump's last frame: straightens on its knees (14), up onto the right knee with the left foot planted (30), rising (44), standing at rest (59). Start it before stopping slump. |
+| `strike-jab` | 24 (0.8 s) | Stop | PlayTillEnd | A straight right on the move, **the upper body only** (`STRIKE_ELEMENTS`: chest, head, arms, hands): from a guard (fists up before the chest) the right fist is drawn back as the chest turns away (4), then driven out as it turns in and leans after it, the left pulled back; **it lands on frame 9**, the fist 1.9 blocks in front of the centre (`STRIKE_FIST_JAB`), then back to the guard. |
+| `strike-hammer` | 30 (1 s) | Stop | PlayTillEnd | A two-fisted hammer blow on the move, the upper body only: both fists raised over the head as the chest leans back (7), then brought down together as it bends forward over them; **it lands on frame 14**, the fists 1.4 blocks in front and a block up (`STRIKE_FIST_HAMMER`; the arms reach no lower with the hips the walk's), then back to the guard. |
 
-The event frames (cut, grab, release) are also in `EVENTS` in the generator; the gameplay must key
-off them.
+The event frames (cut, grab, release, hit) are also in `EVENTS` in the generator; the gameplay must key
+off them (the strikes' in `Eidolon/Core/EidolonStrikes.cs`, which `tools/tests/test_eidolon_model.py`
+holds to these and to how far the fists get).
+
+**Strikes on the move.** Vanilla's punch, kick and slam move the whole body, the legs planted, so
+played while it walks they stop it in its tracks (or slide it). The two strikes move only the upper
+body, and the entity type (`entities/eidolon.json`) gives them weight 10 on exactly those elements and
+0.001 elsewhere (the game's own player does it so: an element every playing animation weights 0 is
+not drawn right), so the game plays them over `stand-walk` or `stand-run`, whose legs, hips and skirts
+go on, or over the idle when it stands. Both start and end on the same guard, so the blend in and out
+is short. The game weights each element by name, not by its parents, so the list names every element
+they move.
 
 **Thick trunks** are carried across the body, low, by the near side. A thick trunk's section is 32
 voxels, more than half the body's height, and the arms are about 28 long: cradled on the forearms it

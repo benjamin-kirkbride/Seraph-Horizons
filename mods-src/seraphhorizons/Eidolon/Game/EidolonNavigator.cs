@@ -1,6 +1,7 @@
 using SeraphHorizons.Mod.Eidolon.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
+using Vintagestory.Essentials;
 
 namespace SeraphHorizons.Mod.Eidolon;
 
@@ -43,6 +44,9 @@ public sealed class GameWideSpace(IBlockAccessor blocks, Cuboidf box, EnumAICrea
 public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
 {
     private string? _animation;
+    private bool _steering;
+    private bool _steerRun;
+    private long _retargetedAt;
 
     /// <summary>Whether it is walking a path now.</summary>
     public bool Active => eidolon.TaskAi?.PathTraverser?.Active == true;
@@ -91,6 +95,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
             return true;
         }
         var config = EidolonSystem.Of(eidolon.Api)?.Config ?? EidolonConfig.Defaults;
+        _steering = false;
         Animate(eidolon.MoveAnimation(run));
         traverser.FollowRoute(waypoints, run ? config.RunSpeed : config.WalkSpeed, arriveWithin,
             () => { Animate(null); onArrived(); },
@@ -98,8 +103,44 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         return true;
     }
 
+    /// <summary>Walks (or runs) straight at <paramref name="target"/>, with no search: for a creature
+    /// close by on open ground, called every tick with where it is now, which only moves the goal (as
+    /// the game's own seek task does), so it follows it without stopping. The traverser counts it
+    /// stuck when its distance to the goal holds for a few seconds, as it does keeping pace with a
+    /// creature, so the goal is set again (<c>Retarget</c>) every second, which leaves its other stuck
+    /// checks (pressing against a wall) as they are. <paramref name="onStuck"/>: stuck all the same,
+    /// and it stands.</summary>
+    public bool Steer(Vec3d target, bool run, Action onStuck)
+    {
+        if (eidolon.TaskAi?.PathTraverser is not WaypointsTraverser traverser)
+            return false;
+        if (_steering && _steerRun == run && traverser.Active && traverser.CurrentTarget is { } goal)
+        {
+            goal.Set(target);
+            if (eidolon.World.ElapsedMilliseconds - _retargetedAt > 1000)
+            {
+                _retargetedAt = eidolon.World.ElapsedMilliseconds;
+                traverser.Retarget();
+            }
+            return true;
+        }
+        var config = EidolonSystem.Of(eidolon.Api)?.Config ?? EidolonConfig.Defaults;
+        _steering = true;
+        _steerRun = run;
+        _retargetedAt = eidolon.World.ElapsedMilliseconds;
+        Animate(eidolon.MoveAnimation(run));
+        traverser.WalkTowards(target.Clone(), run ? config.RunSpeed : config.WalkSpeed, 0.2f,
+            () => { _steering = false; Animate(null); },
+            () => { _steering = false; Animate(null); onStuck(); });
+        return true;
+    }
+
+    /// <summary>Whether it is steering straight at a goal (<see cref="Steer"/>) rather than walking a path.</summary>
+    public bool Steering => _steering && Active;
+
     public void Stop()
     {
+        _steering = false;
         eidolon.TaskAi?.PathTraverser?.Stop();
         Animate(null);
     }
