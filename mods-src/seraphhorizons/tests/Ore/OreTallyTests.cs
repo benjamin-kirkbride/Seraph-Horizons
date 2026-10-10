@@ -17,7 +17,7 @@ public class OreTallyTests
 
     [Theory]
     [InlineData("ore-rich-nativecopper-granite", "copper", "nativecopper", "rich", "granite")]
-    [InlineData("ore-poor-galena_nativesilver-andesite", "silver", "galena_nativesilver", "poor", "andesite")]
+    [InlineData("ore-poor-galena_nativesilver-andesite", "lead", "galena_nativesilver", "poor", "andesite")]
     [InlineData("ore-lignite-shale", "coal", "lignite", "-", "shale")]
     public void ParsesOreRockAndGrade(string path, string metal, string ore, string grade, string rock) =>
         Assert.Equal(new OreBlockKind(metal, ore, grade, rock), OreTally.Parse(path));
