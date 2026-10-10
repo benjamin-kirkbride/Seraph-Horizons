@@ -3837,9 +3837,10 @@ native copper 968 by hand, 1,600 at tier 4.
 ### Ore processing: items, crushing and smelting (`OreProcessing`)
 
 The epic's items and the rules every station will work by (#686, #687, #688), in `Ore/Processing/`
-(rules in `Ore/Core/OreProducts.cs`). **Off by default**: raw ore with nothing to work it would strand
-players, so it is switched on together with the hand tier (#747 and the rest). Server side; a client
-builds its items from the server's, so it follows the server's switch. With it off the server leaves
+(rules in `Ore/Core/OreProducts.cs`). **On by default** since the hand tier landed (spalling #747,
+the rocker, roasting, leaching, the still, the cupel and the liquation pan); it was added off, since
+raw ore with nothing to work it would have stranded players. Server side; a client builds its items
+from the server's, so it follows the server's switch. With it off the server leaves
 every item, patch and change below out (the item types are marked disabled, the patch is emptied),
 and the game is as before.
 
@@ -3930,8 +3931,9 @@ Each form is one handbook group (crushed ore one per grain, `groupBy` in its typ
 Variants follows for its tiles (it honours shipped `groupBy`; an override rule would be unused, and
 reported, in a world with the switch off). Item values (#689) price every new item on concentrate,
 from its 5 units and the labour of each stage along a tier 2 line, with the switch's own value
-switch (`tools/item-values/ore-processing.json`, its README's "Ore processing"; the export made with
-the switch off lacks the items, so the tool adds them); the galena silver share (#690) is #685's figures. Code: `Ore/Processing/`
+switch (`tools/item-values/ore-processing.json`, its README's "Ore processing"; the table is built
+from the default export, which has the switch on, and an export made with it off lacks the items, so
+the tool adds them); the galena silver share (#690) is #685's figures. Code: `Ore/Processing/`
 (`OreProcessingSystem`, `OreProcessingItems`, `ItemGradedOre`, `ItemOreProduct`, `AlloyStackSize`,
 `SmexBurden`). Tests: `tests/Ore/OreProductsTests.cs` (grades, codes, crushing, exact rates, the type
 files against the figures); `tests/PackTests/OreProcessingScenarios.cs` (Atlas, the switch on: the
@@ -3943,7 +3945,7 @@ smex's burden, the crucible furnace) and `SwitchesOffScenarios` (off, the defaul
 
 The hand tier's crusher (#747): raw ore and chunks broken with a hammer where they lie, the way miners
 spalled ore with sledges before there were stamp mills. No station and no model: it works at the rock
-face from the first day. Part of `OreProcessing` (off by default); server side, and a client follows the
+face from the first day. Part of `OreProcessing`; server side, and a client follows the
 server's items.
 
 - **Setting down.** Raw ore, chunks and crystallised ore (every grade) go on the ground one at a time:
@@ -4015,7 +4017,8 @@ items, so every recipe that takes them keeps working unchanged.
 
 With the switch off the two recipe files are emptied, the item types marked disabled, and the
 minerals are as before. Item values: raw saltpeter is a raw at saltpeter's price and the liquors are
-priced by their barrel routes (`tools/item-values/ore-processing.json`'s `singles`, `routes.json`).
+priced by their barrel recipes (`tools/item-values/ore-processing.json`'s `singles`), so borax and
+alum powder, which only the pot makes with the switch on, cost the leaching and the pot.
 Code: `Ore/Processing/Leaching.cs`, `Ore/Core/OreLeaching.cs`. Tests: `tests/Ore/OreLeachingTests.cs`;
 `OreProcessingScenarios` (the raw forms, the saltpeter drops, a barrel of alum, the pot, diluted alum)
 and `SwitchesOffScenarios`.
@@ -4108,11 +4111,11 @@ mercury" (`config/handbook/oreretorting.json`) is hidden with the switch off. Th
 record per input (type `oreretorting`, `tools/recipe-export/Recipes/OreRetortingExport.cs`,
 docs/recipe-browser/schema.md): the boiler and condenser as stations, the mercury in portions and
 litres, an amalgam's sponge. Item values: the amalgam-to-sponge routes are in
-`tools/item-values/routes.json` (switch `OreProcessing`; the export made with the switch off has no
-records), and the sponge is an item of `ore-processing.json`, priced from its amalgam; the mercury the
-amalgam returns is not credited, since the amalgam's price leaves out the pan's. Mercury keeps its price
-from Expanded Matter's recipe (the same 10 portions a powder), which that export still has; a still
-route for it would make mercury look like it exists only with the switch. Tests: `tests/Ore/MercuryRetortTests.cs` (the inputs and
+`tools/item-values/routes.json` (switch `OreProcessing`; the tool routes only a record's first
+output, the mercury), and the sponge is an item of `ore-processing.json`, priced from its amalgam; the
+mercury the amalgam returns is not credited, since the amalgam's price leaves out the pan's. Mercury
+is priced by the still's records from cinnabar (Expanded Matter's recipe is off with the switch on),
+charging nothing for the boiler and condenser (kind `oreretorting`, `toolFraction` 0). Tests: `tests/Ore/MercuryRetortTests.cs` (the inputs and
 figures, whole stacks and fractions); `tests/PackTests/OreProcessingScenarios.cs`
 (`Still_retorts_cinnabar_and_amalgam`: EM's recipe off, amalgam to mercury and sponge step by step,
 taking it out part way, cinnabar, a bucket of water refusing it, and the game's own boiler tick running
@@ -4121,7 +4124,7 @@ it; `Retorting_is_exported`: the records and the guide, with the switch on) and 
 ### Cupellation (`OreProcessing`)
 
 Galena's silver (#690) and the bone-ash cupel that parts it at the forge (#722, hand and tier 1),
-with ore processing (the switch above; off by default, and with it off nothing here exists and
+with ore processing (the switch above; with it off nothing here exists and
 vanilla's silver galena hammers into native silver as before). Rules in `Ore/Core/Cupellation.cs`,
 the game side in `Ore/Processing/` (`BlockCupel`, `BlockCupelBead`, `CupelForge`, `ContainerText`).
 
@@ -4184,8 +4187,8 @@ bits, the cupel in crucibulum's forge with the gate, the bead and breaking it).
 ### Liquation (`OreProcessing`)
 
 Teallite's and franckeite's lead (#685: 40 % and 30 % of their tin) parted from the tin in a clay
-liquation pan, in a firepit or crucibulum's forge (#724, hand and tier 1), with ore processing (off by
-default; with it off nothing here exists). **Liquation is tin first**: tin melts at 232 °C and lead at
+liquation pan, in a firepit or crucibulum's forge (#724, hand and tier 1), with ore processing (with it off
+nothing here exists). **Liquation is tin first**: tin melts at 232 °C and lead at
 327 °C, so a gentle heat sweats the tin out of the roasted concentrate and leaves the lead behind. Rules
 in `Ore/Core/Liquation.cs`, the game side in `Ore/Processing/` (`BlockLiquationPan`,
 `BlockLiquationPanSmelted`, `BlockLiquationResidue`; `OreContainers` and `ContainerText` are shared with

@@ -93,7 +93,7 @@
   "SupplySpreadFraction": 0.1,
   "PlacerFields": true,
   "PlacerCellSizeMetres": 1500,
-  "OreProcessing": false,
+  "OreProcessing": true,
   "SpallingSettings": {
     "BlowsRawOre": 6,
     "BlowsChunk": 3,
