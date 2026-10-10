@@ -144,6 +144,19 @@ public class OreMetalsTests
     [InlineData("ore-x", null)]
     public void ReadsTheOreOfAnOreBlock(string path, string? ore) => Assert.Equal(ore, OreMetals.OreOfBlockPath(path));
 
+    // #690: argentiferous galena is a lead ore; silver deposits are silver quartz and freibergite.
+    // Worldgen still places and sizes it as silver, as it did before.
+    [Fact]
+    public void ArgentiferousGalenaIsLeadButWorldgenKeepsItSilver()
+    {
+        Assert.Equal("lead", OreMetals.MetalOf("galena_nativesilver"));
+        Assert.Equal(["freibergite", "quartz_nativesilver"], OreMetals.OresOf("silver"));
+        Assert.Contains("galena_nativesilver", OreMetals.OresOf("lead"));
+        Assert.Equal("silver", OreMetals.WorldgenMetalOf("galena_nativesilver"));
+        Assert.Equal("lead", OreMetals.WorldgenMetalOf("galena"));
+        Assert.Null(OreMetals.WorldgenMetalOf("quartz"));
+    }
+
     [Fact]
     public void ListsEveryGroup()
     {

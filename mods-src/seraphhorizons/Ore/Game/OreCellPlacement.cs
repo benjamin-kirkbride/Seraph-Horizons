@@ -306,7 +306,7 @@ public sealed class OreCellPlacement
         var table = new string?[blocks.Count];
         for (int id = 0; id < table.Length; id++)
             if (blocks[id]?.Code is { } code)
-                table[id] = OreMetals.MetalOf(OreMetals.OreOfBlockPath(code.Path));
+                table[id] = OreMetals.WorldgenMetalOf(OreMetals.OreOfBlockPath(code.Path));
         return table;
     }
 

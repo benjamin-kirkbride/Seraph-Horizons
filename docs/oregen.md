@@ -183,8 +183,9 @@ the distance instead.
 
 **What a map names (#692).** An ore map says the ore actually there, never the metal: its name,
 waypoint and description come from the deposit's makeup. `ores`: the ores holding at least a tenth
-of the deposit's metal (the richest always), richest first, at most three (`DepositMakeup.MainOres`),
-named by `orename-{ore}` ("galena and cerussite"; `ItemOreMap.OreList`); `grades`: `only:poor` (90 %
+of the deposit's metal (the richest always), richest first, at most three (`DepositMakeup.MainOres`;
+argentiferous galena is named whenever a lead deposit holds any, taking the last place if need be,
+since it is that deposit's silver, #690), named by `orename-{ore}` ("galena and cerussite"; `ItemOreMap.OreList`); `grades`: `only:poor` (90 %
 of the graded blocks or more), `mostly:poor` (60 %), else `mixed:poor,medium`, the two commonest
 (`GradeMix`, read "mostly poor", "poor and medium"); `rock`: the rock most of the ore sits in. The
 size tier is the metal in the ground as measured above (each block worth its drops' `metalUnits`),
@@ -239,6 +240,33 @@ deposits.Verify(candidate.Key, result =>
   rest show "being surveyed" while a check runs, ahead of players nearing a camp); the sale
   reserves the deposit, verifies it again and issues the map, or refunds. `ItemOreMap` implements the game's
   `ITradeableCollectible` through `ItemOreMap.Hooks`, which the trading side sets.
+
+## Argentiferous galena (#690)
+
+Vanilla's silver galena (`galena_nativesilver`, "Native silver in galena") is renamed argentiferous
+galena and is a lead ore: `OreMetals` lists it under lead, so lead deposits, their measurement and
+their maps count it ("galena and argentiferous galena"), and silver deposits are silver quartz and
+freibergite. With ore processing on, every form of it smelts to lead (its nugget is galena's,
+`OreProducts.NuggetOf`), its loose ore drops a galena nugget, and its silver, 38 % of its lead
+against plain galena's 3 % (`config/ore-processing.json`), is won only in the cupel (#722; the mod's
+README, "Cupellation"). With the switch off the game hammers it into native silver as before.
+
+**Worldgen is unchanged.** Interesting Ore Gen's galena subdeposit (sedimentary rock) and the
+felsic districts' lenses (`config/hydrothermal/magmatic-felsic-shallow.json`) still place it. Two
+places read an ore's metal for worldgen, and both keep it silver (`OreMetals.WorldgenMetalOf`): the
+district rules, which keep silver's lenses and drop lead's (as lead, its lenses would vanish), and
+an ore cell's anchor check. The deposit variants' codes (`galena`) never named it, so vein scaling
+and the cell rule are as they were.
+
+**The world's silver.** The 5-seed survey of #435 found silver galena 4.6 % of galena blocks, all
+of it silver then. Galena now carries 3 % and argentiferous galena 38 %, so galena as a whole
+carries 0.954 × 3 % + 0.046 × 38 % ≈ 4.6 % of its metal as silver: the same silver, now spread over
+every lead deposit, more of it where the argentiferous ore is, and won at the cupel's 85 % by hand.
+The survey has not been rerun for this (worldgen did not change, only how the ore is counted):
+`config/ore-sizes.json`'s silver and lead medians were measured with it counted as silver
+(`tools/ore-survey` counts it as lead from now on), and silver's 348-ingot median includes the
+galena subdeposits; the factors stand, since the veins they scale are unchanged. A rerun would give
+lead's and silver's medians as now counted.
 
 ## Survey (#445)
 
