@@ -368,6 +368,16 @@ copper), fractional since whole items are drawn when the cupel is done. `extra` 
 (`leadUnits`, `metalUnits` per metal), the cupel's `capacityUnits` and the `seconds` with the
 blast gate open; `requirements` says the heat and the gate.
 
+**Liquation** (type `liquation`, shape `generic`, seraphhorizons with `OreProcessing` on): one
+record per ore the clay liquation pan takes (teallite, franckeite), a full pan of it kept under the
+lead point, id `liquation|seraphhorizons:roastedconcentrate-<ore>|0`. The ingredients are the fired
+pan (role `kept`: it is reused), the roasted concentrate and `game:firepit-cold` (role `station`;
+crucibulum's forge works too, which `requirements` says); the outputs are the metal poured, in ingots
+of 100 units (`game:ingot-tin`, molten in the pan and poured into a mold), and what stays in the pan
+as metal bits (`game:metalbit-lead`), an average, since whole bits are drawn when the pan is done.
+`extra` has the `units` poured, the `residueUnits` per metal, the pan's `capacityUnits`, the
+`tinPoint` and `leadPoint` and the `seconds` a full pan takes; `requirements` says the heat.
+
 These shapes and blocks are optional additions, so `schemaVersion` stayed 1: an export that
 lacks them is still valid, and the site falls back to the generic card for a record of a
 shape it has no layout for.

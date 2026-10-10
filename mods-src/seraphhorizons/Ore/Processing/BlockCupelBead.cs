@@ -69,18 +69,11 @@ public class BlockCupelBead : Block
     {
         var bead = stackInSlot.Itemstack?.Clone();
         base.OnConsumedByCrafting(allInputSlots, stackInSlot, recipe, fromIngredient, byPlayer, quantity);
-        var world = byPlayer?.Entity?.World;
-        if (bead == null || world == null || world.Side != EnumAppSide.Server) return;
+        if (bead == null || byPlayer?.Entity?.World is not { } world) return;
         var give = Bits(bead).ToList();
         // Litharge past one stack (a cupel holding more than the output can) comes this way too.
         if (world.GetItem(new AssetLocation(OreProducts.LithargeCode)) is { } litharge && Litharge(bead) > litharge.MaxStackSize)
             give.Add((OreProducts.LithargeCode, Litharge(bead) - litharge.MaxStackSize));
-        foreach (var (code, count) in give)
-        {
-            if (world.GetItem(new AssetLocation(code)) is not { } item) continue;
-            var stack = new ItemStack(item, count);
-            if (!byPlayer!.InventoryManager.TryGiveItemstack(stack, slotNotifyEffect: true))
-                world.SpawnItemEntity(stack, byPlayer.Entity.Pos.XYZ);
-        }
+        OreContainers.Give(byPlayer, give);
     }
 }

@@ -66,10 +66,11 @@ public partial class WoodworkingScenarios
             .Where(p => p.Page != null)
             .Select(p => (p.Domain, Code: (string?)p.Page["pageCode"], Title: (string?)p.Page["title"], Text: (string?)p.Page["text"]))
             .ToList();
-        // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, spalling's, ore roasting's and ore retorting's pages
+        // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, spalling's, ore roasting's, ore retorting's and liquation's pages
         // are not woodworking ones (the assets are there whatever the switches; a switched-off page is hidden)
         var ours = pages.Where(p => p.Domain == "seraphhorizons" && p.Code != SeraphHorizons.Mod.MachineOil.MachineOilSystem.GuidePageCode
                                     && p.Code != SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuidePage
+                                    && p.Code != SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuidePage
                                     && p.Code != SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuidePage
                                     && p.Code != SeraphHorizons.Mod.GearReclamation.GearReclamationSystem.GuidePageCode
                                     && p.Code != SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode

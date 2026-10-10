@@ -996,8 +996,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(choppingBlock.BlockEntityBehaviors ?? [], b => b.Name == BEBehaviorSplittingBlockTier.Name);
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
-        // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, spalling's, ore roasting's
-        // and ore retorting's pages, whose switches are off here too).
+        // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, spalling's, ore roasting's,
+        // liquation's and ore retorting's pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
                 .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
                 .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey))
@@ -1005,6 +1005,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
                 .Append((SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuidePageCode, SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuideTitleKey))
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuideTitle))
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuideTitleKey))
+                .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuideTitleKey))
                 .Append((SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuidePage, SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
@@ -1302,6 +1303,12 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         // No cupel (#722) nor its recipes; argentiferous galena is hammered into native silver as vanilla has it.
         Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons:cupel-fired")));
         Assert.DoesNotContain(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Domain == "seraphhorizons" && r.Output.Code.Path.StartsWith("cupel-"));
+        // No liquation pan (#724) nor its recipes, and its guide page is hidden.
+        Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons:liquationpan-fired")));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Path?.StartsWith("liquationpan-") == true);
+        Assert.DoesNotContain(World.Api.GetClayformingRecipes(), r => r.Output?.Code?.Path?.StartsWith("liquationpan-") == true);
+        Assert.Contains((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuideTitleKey),
+            (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
         Assert.Contains(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Path == "nugget-nativesilver");
         Assert.Equal("game:nugget-nativesilver",
             W.GetBlock(new AssetLocation("game:looseores-galena_nativesilver-shale-free"))?.Drops?[0].ResolvedItemstack?.Collectible.Code.ToString());

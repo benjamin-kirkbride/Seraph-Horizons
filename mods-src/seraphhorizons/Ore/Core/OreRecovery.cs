@@ -149,6 +149,13 @@ public sealed class OreRecovery
         if (!(Cupel.LeadPerOreUnit >= 0)) _problems.Add($"cupel.leadPerOreUnit {Cupel.LeadPerOreUnit} is negative");
         if (!(Cupel.MeltingPoint > 0)) _problems.Add($"cupel.meltingPoint {Cupel.MeltingPoint} is not positive");
         if (!(Cupel.SecondsPerIngot > 0)) _problems.Add($"cupel.secondsPerIngot {Cupel.SecondsPerIngot} is not positive");
+
+        var pan = config.Liquation ?? new OreProcessingConfig.LiquationEntry();
+        Liquation = new LiquationSettings(pan.CapacityUnits, pan.TinPoint, pan.LeadPoint, pan.SecondsPerIngot);
+        if (!(Liquation.CapacityUnits > 0)) _problems.Add($"liquation.capacityUnits {Liquation.CapacityUnits} is not positive");
+        if (!(Liquation.TinPoint > 0)) _problems.Add($"liquation.tinPoint {Liquation.TinPoint} is not positive");
+        if (!(Liquation.LeadPoint > Liquation.TinPoint)) _problems.Add($"liquation.leadPoint {Liquation.LeadPoint} is not above the tin point");
+        if (!(Liquation.SecondsPerIngot > 0)) _problems.Add($"liquation.secondsPerIngot {Liquation.SecondsPerIngot} is not positive");
     }
 
     /// <summary>The still's retort (#726): the mercury, what an amalgam holds and returns, what
@@ -164,6 +171,9 @@ public sealed class OreRecovery
 
     /// <summary>The bone-ash cupel's figures (#722).</summary>
     public CupelSettings Cupel { get; }
+
+    /// <summary>The clay liquation pan's figures (#724).</summary>
+    public LiquationSettings Liquation { get; }
 
     /// <summary>An ore's properties; an ore the config doesn't list is an oxide at density 1.</summary>
     public OreSpec Ore(string ore) =>

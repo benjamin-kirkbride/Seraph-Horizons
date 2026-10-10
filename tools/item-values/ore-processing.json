@@ -60,7 +60,7 @@
   "parting": {
     "about": "Parting methods with a station (true) or none yet (false). A by-product is a share of the main metal's units (the config's byProducts), won only at a parting step at the line's parting tier. Where a method has a station, the form that is parted (roasted concentrate for a sulfide, else concentrate and amalgam) is worth at least what parting wins from it: its main metal at the ore's unparted share, plus each by-product at its share times the method's recovery, both at the metals' unit values. A method without a station leaves the by-product out (it is lost unparted), so turning one on when its station lands (cupellation #722, liquation #724, acid parting) is the whole change.",
     "cupellation": true,
-    "liquation": false,
+    "liquation": true,
     "acidparting": false
   },
 
