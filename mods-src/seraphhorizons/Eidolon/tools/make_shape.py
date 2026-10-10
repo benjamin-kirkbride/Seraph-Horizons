@@ -15,8 +15,8 @@ silently changing the snapshot. Elements, their geometry and the vanilla animati
 copied unchanged, but for the spine (`SPINE_ROOT` and everything under it: the charred-wood mast
 down the back with its pulley, ropes, staples, hooks and clamps), which is cut off: it belongs to
 the gantry, which the body is clamped to while it is built and which it leaves behind when it wakes.
-The spine goes to EidolonGantry/spine.json as it is and out of every animation. Textures point at the game's own files by `game:` path (none are copied), with
-one restyle (`RESTYLE`, undone by --vanilla-look). Everything else is authored here: three anchor
+The spine goes to EidolonGantry/spine.json as it is and out of every animation. Textures point at the game's own files by `game:` path (none are copied), the
+aged ones swapped for new (`RESTYLE`, undone by --vanilla-look). Everything else is authored here: three anchor
 elements, five attachment points and the laborer's animations, posed by `kin.py`'s copy of the
 game's pose maths (arms reach their grips by a deterministic solver, feet are flattened and set on
 the ground). See ../README.md.
@@ -54,9 +54,13 @@ FPS = 30
 
 # ---------------------------------------------------------------------------------------------
 # Textures. The vanilla map has no domain, so from our namespace each would resolve to
-# seraphhorizons:...; every path is made game: explicit. One restyle, so the body reads as
-# player-built: the rusty iron armour (hood, plates, tassets, bracers, staples) becomes tarnished
-# brass, Jonas's metal. --vanilla-look writes the original map.
+# seraphhorizons:...; every path is made game: explicit. The vanilla body is a ruin, rusted,
+# charred and worn; a laborer is built new, so the restyle swaps every aged texture for the same
+# material new (the textures are all 32x32, so the UVs still fit): the rusty iron armour (hood,
+# plates, tassets, bracers, staples) becomes brass plate, Jonas's metal; the rusted steel joints and
+# bars steel plate; the charred wooden bones debarked oak; the worn leather sash plain leather; the
+# rusty chain skirt steel chain. The vessel and the heart keep their glow (rustyglow), the inner
+# lattice its own. --vanilla-look writes the original map.
 VANILLA_TEXTURES = {
     "steel": "block/metal/tarnished/steel",
     "lattice": "block/machine/lattice",
@@ -68,7 +72,13 @@ VANILLA_TEXTURES = {
     "fire-red": "block/fire-red",
     "reedrope": "block/cloth/reedrope",
 }
-RESTYLE = {"rusty-iron": "block/metal/tarnished/brass"}
+RESTYLE = {
+    "steel": "block/metal/plate/steel",
+    "charred": "block/wood/debarked/oak",
+    "poor": "block/leather/plain",
+    "chain-rust": "block/metal/armor-generic/chain-steel",
+    "rusty-iron": "block/metal/plate/brass",
+}
 
 # ---------------------------------------------------------------------------------------------
 # Vanilla animations: kept unchanged, or dropped. Every vanilla code is in exactly one list.
