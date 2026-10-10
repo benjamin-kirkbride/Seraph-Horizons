@@ -21,12 +21,10 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// Ore processing's items, crushing and smelting (#686, #687, #688; README "Ore processing: items,
-/// crushing and smelting"), on a server of its own with the <c>OreProcessing</c> switch on
-/// (fixtures/oreprocessing; it is off by default, and its off check is in
-/// <see cref="SwitchesOffScenarios"/>).
+/// crushing and smelting"), on a server of its own with the default config, where the
+/// <c>OreProcessing</c> switch is on (its off check is in <see cref="SwitchesOffScenarios"/>).
 /// </summary>
 [AtlasWorld]
-[AtlasDataFiles("fixtures/oreprocessing", TargetPath = "ModConfig")]
 [TestCaseOrderer(BootLogFirst.Name, BootLogFirst.Assembly)]
 public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
