@@ -36,6 +36,11 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// On each side whose own setting is on, a transpiler makes the game's alloy maths count a smelted
 /// stack's size (<see cref="AlloyStackSize"/>), as its single-metal maths already does, so a chunk's
 /// exact half (7 ingots per 40 chunks) holds in an alloy too.
+///
+/// Roasting (#720): a sulfide's concentrate cooks in the game's firepit into roasted concentrate at
+/// the firepit's share (<see cref="ItemOreProduct.DoSmelt"/>); the fraction each firepit holds over
+/// toward its next roasted item is <see cref="RoastCarry"/>, saved with the world. The guide page
+/// "Roasting sulfide ore" (<c>config/handbook/oreroasting.json</c>) is hidden with the switch off.
 /// </summary>
 public class OreProcessingSystem : ModSystem
 {
@@ -45,6 +50,13 @@ public class OreProcessingSystem : ModSystem
     public static readonly AssetLocation OrePatch = new(Domain, "patches/oreprocessing-ore.json");
     public static readonly AssetLocation RecoveryAsset = new(Domain, "config/ore-processing.json");
     public static readonly AssetLocation NuggetRecipes = new("game", "recipes/grid/nuggets.json");
+
+    /// <summary>The roasting guide page (<c>config/handbook/oreroasting.json</c>).</summary>
+    public const string RoastingGuidePage = "seraphhorizons-oreroasting";
+    public const string RoastingGuideTitleKey = "seraphhorizons:oreroasting-title";
+
+    /// <summary>The save key of <see cref="RoastCarry"/>.</summary>
+    public const string RoastCarryKey = "seraphhorizons:oreroastcarry";
 
     /// <summary>The item types ore processing adds; marked disabled with the switch off.</summary>
     public static readonly AssetLocation[] TypeAssets =
@@ -105,6 +117,12 @@ public class OreProcessingSystem : ModSystem
     private static readonly JsonLoadSettings Lenient = new() { CommentHandling = CommentHandling.Ignore };
 
     private Harmony? _harmony;
+
+    /// <summary>What each firepit holds over toward its next roasted item, by its inventory and the
+    /// roasted item (<c>smelting-x/y/z|seraphhorizons:roastedconcentrate-galena</c>); on the server,
+    /// saved with the world. A firepit broken mid-item leaves its fraction here, under a unit of
+    /// metal.</summary>
+    public UnitCarry RoastCarry { get; } = new();
 
     /// <summary>The recovery figures (<c>config/ore-processing.json</c>), read on the server with the
     /// switch on; null otherwise.</summary>
@@ -172,15 +190,18 @@ public class OreProcessingSystem : ModSystem
     {
         if (!On(api))
         {
-            // The spalling guide is not in the handbook, nor in the recipe export (as the eidolon's).
+            // The spalling and roasting guides are not in the handbook, nor in the recipe export (as the eidolon's).
             var hidden = api.ObjectCache.TryGetValue(WoodworkingGuide.HiddenGuidesKey, out var listed)
                          && listed is IEnumerable<(string, string)> pages
                 ? pages.ToList()
                 : [];
             hidden.Add((SpallingGuidePage, SpallingGuideTitle));
+            hidden.Add((RoastingGuidePage, RoastingGuideTitleKey));
             api.ObjectCache[WoodworkingGuide.HiddenGuidesKey] = hidden;
             return;
         }
+        api.Event.SaveGameLoaded += () => LoadRoastCarry(api);
+        api.Event.GameWorldSave += () => SaveRoastCarry(api);
         var config = SeraphHorizonsSystem.ConfigFor(api);
         var settings = config.SpallingSettings ??= new SpallingConfig();
         foreach (var fix in settings.Sanitise())
@@ -188,8 +209,8 @@ public class OreProcessingSystem : ModSystem
         Spalling = new OreSpalling(api, settings);
     }
 
-    // The client follows the server's switch: its spalling guide shows only when the server's items
-    // are ore processing's (vanilla's ore item has the pack's class).
+    // The client follows the server's switch: its spalling and roasting guides show only when the
+    // server's items are ore processing's (vanilla's ore item has the pack's class).
     public override void StartClientSide(ICoreClientAPI api)
     {
         if (api.ModLoader.GetModSystem<ModSystemSurvivalHandbook>() is not { } handbook)
@@ -198,10 +219,28 @@ public class OreProcessingSystem : ModSystem
         _hidePage = pages =>
         {
             if (api.World.GetItem(new AssetLocation("game:ore-medium-hematite-granite")) is not ItemGradedOre)
-                pages.RemoveAll(p => p.PageCode == SpallingGuidePage);
+                pages.RemoveAll(p => p.PageCode == SpallingGuidePage || p.PageCode == RoastingGuidePage);
         };
         handbook.OnInitCustomPages += _hidePage;
     }
+
+    private void LoadRoastCarry(ICoreServerAPI api)
+    {
+        try
+        {
+            if (api.WorldManager.SaveGame.GetData(RoastCarryKey) is { Length: > 0 } data
+                && Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, double>>(Encoding.UTF8.GetString(data)) is { } held)
+                RoastCarry.Restore(held);
+        }
+        catch (Exception e)
+        {
+            api.Logger.Warning("[seraphhorizons] Ore processing: the firepits' roasting carry-over did not load ({0}); it starts empty", e.Message);
+        }
+    }
+
+    private void SaveRoastCarry(ICoreServerAPI api) =>
+        api.WorldManager.SaveGame.StoreData(RoastCarryKey,
+            Encoding.UTF8.GetBytes(Newtonsoft.Json.JsonConvert.SerializeObject(RoastCarry.Held)));
 
     public override void AssetsLoaded(ICoreAPI api)
     {
@@ -220,7 +259,8 @@ public class OreProcessingSystem : ModSystem
         if (api.Side != EnumAppSide.Server || !On(api))
             return;
         Recovery ??= LoadRecovery(api);
-        Applied = OreProcessingItems.Apply(api.World, Recovery, api.Logger);
+        Applied = OreProcessingItems.Apply(api.World, Recovery, api.Logger,
+            OreRoasting.Seconds(SeraphHorizonsSystem.ConfigFor(api).FirepitRoastSeconds));
         SpallingHammers = GiveHammersSpalling(api.World);
         api.Logger.Notification("[seraphhorizons] Ore processing: {0} hammers spall ore set down on the ground", SpallingHammers);
         Leached = Leaching.Apply(api.World, api.Logger);
