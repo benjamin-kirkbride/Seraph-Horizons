@@ -33,7 +33,12 @@ namespace SeraphHorizons.Mod.Trading.Maps;
 /// gravel map (every list): the nearest unsold field within <c>gravelRadius</c>; the settlement
 /// ground lead (every list, when the shelf's tier has <c>mapsToTraders</c>). With deposits in range
 /// but none left, a sold-out entry (stock 0, shown unavailable). Prices from
-/// <c>config/trading/map-prices.json</c>.</item>
+/// <c>config/trading/map-prices.json</c>. Offers name what the deposit is (#692: its ores, grades
+/// and host rock; a gravel field's rock and metals).</item>
+/// <item><b>Checked first</b> (#693): only a checked deposit is offered; one not checked yet is a
+/// "being surveyed" entry (stock 0) while <see cref="Surveys"/> checks it, ahead of players nearing a
+/// camp or at once when a trade opens on it, and <see cref="RefreshShelves"/> puts the real offer in
+/// its place when the check lands.</item>
 /// <item><b>Camp leads</b> are not on the shelf: they are per buyer (<see cref="CampLeadsFor"/>,
 /// <see cref="CampLeads"/>), listed on the trade window's Maps &amp; leads tab and bought there
 /// (<see cref="BuyCampLead"/>), the group's history in <see cref="Leads"/> (saved as
@@ -82,6 +87,9 @@ public class MapsSystem : ModSystem
     /// <summary>Deposits whose sale is being checked: no trader offers them meanwhile.</summary>
     public IReadOnlyCollection<string> Reserved => _reserved;
 
+    /// <summary>The background deposit checks (#693); null while maps are off.</summary>
+    public DepositSurveys? Surveys { get; private set; }
+
     public override double ExecuteOrder() => 0.68;
 
     public override void Start(ICoreAPI api)
@@ -124,10 +132,16 @@ public class MapsSystem : ModSystem
         EntitySeraphTrader.Restocked += OnRestocked;
         TradingGlueSystem.TradingPlayerPriced += OnPriced;
         EntitySeraphTrader.Met += OnMet;
+        EntitySeraphTrader.TradeOpened += OnTradeOpened;
+        var config = SeraphHorizonsSystem.ConfigFor(api);
+        Surveys = new DepositSurveys(api, this, config.DepositCheckApproachMetres, config.DepositCheckPauseSeconds);
         Active = true;
-        api.Logger.Notification("[seraphhorizons] Trader maps: on (ore maps within {0}, gravel maps within {1}, camp leads {2})",
+        api.Logger.Notification("[seraphhorizons] Trader maps: on (ore maps within {0}, gravel maps within {1}, camp leads {2};"
+                                + " deposits checked {3}, {4} s apart)",
             Prices.OreRadius, Prices.GravelRadius,
-            string.Join(", ", Prices.CampLeads.Tiers.Select(t => $"{t.Key} {t.Value.Maps} within {t.Value.Reach} rings")));
+            string.Join(", ", Prices.CampLeads.Tiers.Select(t => $"{t.Key} {t.Value.Maps} within {t.Value.Reach} rings")),
+            Surveys.ApproachMetres > 0 ? $"as a player comes within {Surveys.ApproachMetres} blocks of a camp" : "only when a trade opens",
+            Surveys.Queue.PauseSeconds);
     }
 
     private void LoadLeads()
@@ -149,6 +163,8 @@ public class MapsSystem : ModSystem
         EntitySeraphTrader.Restocked -= OnRestocked;
         TradingGlueSystem.TradingPlayerPriced -= OnPriced;
         EntitySeraphTrader.Met -= OnMet;
+        EntitySeraphTrader.TradeOpened -= OnTradeOpened;
+        Surveys?.Dispose();
         if (_trading?.Offers == Expand) _trading.Offers = null;
         ItemOreMap.Hooks = null;
     }
@@ -169,23 +185,19 @@ public class MapsSystem : ModSystem
         {
             case MapOfferAttrs.OreMap when Deposits is { HasOre: true } deposits:
             {
-                var options = deposits.Candidates(x, z, Prices.OreRadius).Select(Option);
-                var (offers, soldOut) = MapOffers.PickOre(options, Prices.MaxOreOffers, _reserved);
-                foreach (var o in offers)
-                    if (OrePrice(o.Metal, o.SizeClass, MapPrecision.Rough) is { } price)
-                        yield return Entry(OfferOreCode, OreAttrs(o, MapPrecision.Rough), price, 1, false);
+                var (offers, soldOut) = PickOre(deposits, x, z);
+                bool urgent = PlayerTrading(trader) != null;
+                foreach (var c in offers)
+                    if (OreEntry(c, urgent) is { } e)
+                        yield return e;
                 if (soldOut) yield return Entry(OfferOreCode, new JObject { [MapOfferAttrs.Offer] = MapOfferAttrs.SoldOut }, 1, 1, false);
                 break;
             }
             case MapOfferAttrs.GravelMap when Deposits is { HasGravel: true } deposits:
             {
-                var (offer, soldOut) = MapOffers.PickGravel(deposits.GravelFields(x, z, Prices.GravelRadius).Select(Option), _reserved);
-                if (offer is { } o)
-                    yield return Entry(OfferGravelCode, new JObject
-                    {
-                        [MapOfferAttrs.Offer] = MapOfferAttrs.GravelMap, [MapOfferAttrs.Deposit] = o.Id, [MapOfferAttrs.Metal] = PlacerCells.Kind,
-                        [MapOfferAttrs.Distance] = Math.Round(o.Distance),
-                    }, Prices.GravelPrice(), 1, false);
+                var (offer, soldOut) = PickGravel(deposits, x, z);
+                if (offer is { } c)
+                    yield return GravelEntry(c, PlayerTrading(trader) != null);
                 else if (soldOut) yield return Entry(OfferGravelCode, new JObject { [MapOfferAttrs.Offer] = MapOfferAttrs.SoldOut }, 1, 1, false);
                 break;
             }
@@ -222,16 +234,89 @@ public class MapsSystem : ModSystem
     private static DepositOption Option(DepositCandidate c) =>
         new(c.Key.Id, c.Metal, c.Distance, c.Record.State == DepositState.Unsold, c.Record.Tier?.ToString().ToLowerInvariant());
 
-    private static JObject OreAttrs(DepositOption o, int precision)
+    /// <summary>The deposits a prospector at (x, z) offers maps to (<see cref="MapOffers.PickOre"/>:
+    /// per metal the nearest unsold, unreserved and not in <paramref name="skip"/>, at most
+    /// <c>maxOreOffers</c>, optionally of one metal), checked or not; and whether the trader is sold out.</summary>
+    public (List<DepositCandidate> Offers, bool SoldOut) PickOre(DepositService deposits, int x, int z, string? metal = null, ISet<string>? skip = null)
     {
+        var candidates = deposits.Candidates(x, z, Prices.OreRadius, metal);
+        var reserved = Skipped(skip);
+        var (offers, soldOut) = MapOffers.PickOre(candidates.Select(Option), Prices.MaxOreOffers, reserved);
+        var byId = candidates.ToDictionary(c => c.Key.Id);
+        return (offers.Select(o => byId[o.Id]).ToList(), soldOut);
+    }
+
+    /// <summary>What no offer goes to: deposits being sold, those a check could not settle
+    /// (<see cref="DepositSurveys.GaveUp"/>), and <paramref name="skip"/>.</summary>
+    private ISet<string> Skipped(ISet<string>? skip)
+    {
+        if (skip is null && Surveys is not { GaveUp.Count: > 0 }) return _reserved;
+        var set = new HashSet<string>(_reserved);
+        if (skip != null) set.UnionWith(skip);
+        if (Surveys != null) set.UnionWith(Surveys.GaveUp);
+        return set;
+    }
+
+    /// <summary>The gravel field a trader at (x, z) offers a map to, checked or not; and whether it is sold out.</summary>
+    public (DepositCandidate? Offer, bool SoldOut) PickGravel(DepositService deposits, int x, int z, ISet<string>? skip = null)
+    {
+        var fields = deposits.GravelFields(x, z, Prices.GravelRadius);
+        var reserved = Skipped(skip);
+        var (offer, soldOut) = MapOffers.PickGravel(fields.Select(Option), reserved);
+        return (offer is { } o ? fields.First(f => f.Key.Id == o.Id) : null, soldOut);
+    }
+
+    /// <summary>The shelf entry for an ore deposit: its map offer once checked (#693), named by what
+    /// it is (#692); until then a "being surveyed" entry for its metal, and the check is asked for
+    /// (<paramref name="urgent"/>: a player is trading). None when the metal has no price.</summary>
+    private TradeEntry? OreEntry(DepositCandidate c, bool urgent)
+    {
+        if (OrePrice(c.Metal, c.Record.Tier?.ToString().ToLowerInvariant(), MapPrecision.Rough) is not { } price) return null;
+        if (!c.Surveyed)
+        {
+            Surveys?.Want(c.Key, urgent);
+            return Entry(OfferOreCode, SurveyingAttrs(c), 1, 1, false);
+        }
         var attrs = new JObject
         {
-            [MapOfferAttrs.Offer] = MapOfferAttrs.OreMap, [MapOfferAttrs.Deposit] = o.Id, [MapOfferAttrs.Metal] = o.Metal,
-            [MapOfferAttrs.Precision] = precision, [MapOfferAttrs.Distance] = Math.Round(o.Distance),
+            [MapOfferAttrs.Offer] = MapOfferAttrs.OreMap, [MapOfferAttrs.Deposit] = c.Key.Id, [MapOfferAttrs.Metal] = c.Metal,
+            [MapOfferAttrs.Precision] = MapPrecision.Rough, [MapOfferAttrs.Distance] = Math.Round(c.Distance),
+            [MapOfferAttrs.SizeTier] = c.Record.Tier!.Value.ToString().ToLowerInvariant(),
         };
-        if (o.SizeClass != null) attrs[MapOfferAttrs.SizeTier] = o.SizeClass;
-        return attrs;
+        var makeup = c.Record.Makeup!;
+        if (makeup.MainOres() is { Count: > 0 } ores) attrs[MapOfferAttrs.Ores] = OreNames.Csv(ores);
+        if (makeup.Mix() is { } mix) attrs[MapOfferAttrs.Grades] = mix.Code;
+        if (makeup.HostRock() is { } rock) attrs[MapOfferAttrs.Rock] = rock;
+        return Entry(OfferOreCode, attrs, price, 1, false);
     }
+
+    /// <summary>The shelf entry for a gravel field: its map offer once placed (#693), with its rock
+    /// and the metals it pans (#692); until then a "being surveyed" entry, and the check is asked for.</summary>
+    private TradeEntry GravelEntry(DepositCandidate c, bool urgent)
+    {
+        if (!c.Surveyed)
+        {
+            Surveys?.Want(c.Key, urgent);
+            return Entry(OfferGravelCode, SurveyingAttrs(c), 1, 1, false);
+        }
+        var attrs = new JObject
+        {
+            [MapOfferAttrs.Offer] = MapOfferAttrs.GravelMap, [MapOfferAttrs.Deposit] = c.Key.Id, [MapOfferAttrs.Metal] = PlacerCells.Kind,
+            [MapOfferAttrs.Distance] = Math.Round(c.Distance),
+        };
+        if (Deposits?.FieldOf(c.Key)?.Rock is { } rock)
+        {
+            attrs[MapOfferAttrs.Rock] = rock;
+            if (Deposits.PanMetals(rock) is { Count: > 0 } metals) attrs[MapOfferAttrs.Metals] = OreNames.Csv(metals);
+        }
+        return Entry(OfferGravelCode, attrs, Prices.GravelPrice(), 1, false);
+    }
+
+    private static JObject SurveyingAttrs(DepositCandidate c) => new()
+    {
+        [MapOfferAttrs.Offer] = MapOfferAttrs.Surveying, [MapOfferAttrs.Deposit] = c.Key.Id, [MapOfferAttrs.Metal] = c.Metal,
+        [MapOfferAttrs.Distance] = Math.Round(c.Distance),
+    };
 
     private static TradeEntry Entry(AssetLocation code, JObject attrs, int price, int stock, bool optional) => new()
     {
@@ -268,7 +353,7 @@ public class MapsSystem : ModSystem
         {
             if (slot.Itemstack?.Attributes.GetString(MapOfferAttrs.Offer) is not { } offer || slot.TradeItem is null) continue;
             any = true;
-            if (offer == MapOfferAttrs.SoldOut) slot.TradeItem.Stock = 0;
+            if (offer is MapOfferAttrs.SoldOut or MapOfferAttrs.Surveying) slot.TradeItem.Stock = 0;
         }
         if (!any) return;
         Price(trader, PlayerTrading(trader));
@@ -296,6 +381,11 @@ public class MapsSystem : ModSystem
             int price;
             switch (a.GetString(MapOfferAttrs.Offer))
             {
+                case MapOfferAttrs.Surveying:
+                    // Unavailable until its check lands and the real offer takes its place (RefreshShelves).
+                    item.Stock = 0;
+                    slot.MarkDirty();
+                    continue;
                 case MapOfferAttrs.OreMap or MapOfferAttrs.GravelMap when Gone(a):
                     // Sold, being sold, or the cell turned out to have none since the restock.
                     item.Stock = 0;
@@ -343,6 +433,80 @@ public class MapsSystem : ModSystem
         trader.WatchedAttributes.MarkPathDirty("traderInventory");
     }
 
+    // ---- Deposit checks (#693) ----
+
+    /// <summary>The fallback: a trade window opens on a shelf still showing deposits "being
+    /// surveyed" (a player who teleported or travelled fast): their checks go first, at once.</summary>
+    private void OnTradeOpened(IServerPlayer player, EntitySeraphTrader trader)
+    {
+        if (trader.Api != _sapi || Surveys is null) return;
+        foreach (var slot in trader.Inventory.SellingSlots)
+            if (slot.Itemstack?.Attributes is { } a && a.GetString(MapOfferAttrs.Offer) == MapOfferAttrs.Surveying
+                && DepositKey.TryParse(a.GetString(MapOfferAttrs.Deposit), out var key))
+                Surveys.Want(key, urgent: true);
+    }
+
+    /// <summary>A camp's site for the background checks (<see cref="DepositSurveys"/>): the placed
+    /// camp, else the spot it waits for; null if it can take none.</summary>
+    public (int X, int Z, string Type)? SiteOf(CellKey cell) => Site(cell) is { } s ? (s.X, s.Z, s.Type) : null;
+
+    /// <summary>Asks for checks of what a trader at (x, z) would offer that is not checked yet: a
+    /// prospector's ore maps (<paramref name="ore"/>) and anyone's gravel map. Returns how many were
+    /// asked for (none when everything is checked).</summary>
+    public int QueueChecks(int x, int z, bool ore, bool urgent)
+    {
+        if (Deposits is not { } deposits || Surveys is null) return 0;
+        int asked = 0;
+        if (ore && deposits.HasOre)
+            foreach (var c in PickOre(deposits, x, z).Offers)
+                if (!c.Surveyed && OrePrice(c.Metal, null, MapPrecision.Rough) != null && Surveys.Want(c.Key, urgent, (x, z, ore)))
+                    asked++;
+        if (deposits.HasGravel && PickGravel(deposits, x, z).Offer is { Surveyed: false } field && Surveys.Want(field.Key, urgent, (x, z, ore)))
+            asked++;
+        return asked;
+    }
+
+    /// <summary>
+    /// A deposit's check has landed: every loaded trader whose shelf shows it "being surveyed" gets
+    /// the real offer in its place (<see cref="EntitySeraphTrader.ReplaceSelling"/>), or, when the
+    /// cell turned out to have none or the deposit is worked out, its metal's next deposit (itself
+    /// checked, or "being surveyed" while its own check runs), or nothing. Re-priced for the player
+    /// trading, and their window told.
+    /// </summary>
+    public void RefreshShelves(DepositKey key)
+    {
+        if (_sapi is null || Deposits is not { } deposits) return;
+        var traders = _sapi.World.LoadedEntities.Values.OfType<EntitySeraphTrader>().Where(t => t.Alive && t.Inventory != null).ToList();
+        foreach (var trader in traders)
+        {
+            var slots = trader.Inventory.SellingSlots;
+            bool changed = false;
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (slots[i].Itemstack?.Attributes is not { } a || a.GetString(MapOfferAttrs.Offer) != MapOfferAttrs.Surveying
+                    || a.GetString(MapOfferAttrs.Deposit) != key.Id)
+                    continue;
+                // Deposits already on this shelf are not offered twice.
+                var shelf = slots.Select(s => s.Itemstack?.Attributes?.GetString(MapOfferAttrs.Deposit)).OfType<string>().Where(id => id != key.Id).ToHashSet();
+                int x = (int)trader.Pos.X, z = (int)trader.Pos.Z;
+                bool urgent = PlayerTrading(trader) != null;
+                TradeEntry? entry = key.IsGravel
+                    ? PickGravel(deposits, x, z, shelf).Offer is { } field ? GravelEntry(field, urgent) : null
+                    : PickOre(deposits, x, z, key.Kind, shelf).Offers.FirstOrDefault() is { } c ? OreEntry(c, urgent) : null;
+                trader.ReplaceSelling(i, entry);
+                changed = true;
+            }
+            if (!changed) continue;
+            foreach (var slot in slots)
+                if (slot.TradeItem != null && slot.Itemstack?.Attributes.GetString(MapOfferAttrs.Offer) is MapOfferAttrs.SoldOut or MapOfferAttrs.Surveying)
+                    slot.TradeItem.Stock = 0;
+            var player = PlayerTrading(trader);
+            Price(trader, player);
+            Store(trader);
+            if (player != null) Window.TradeWindowSystem.Of(_sapi)?.SendState(player, trader);
+        }
+    }
+
     // ---- A sale ----
 
     private static string OfferId(ITreeAttribute a) =>
@@ -370,6 +534,7 @@ public class MapsSystem : ModSystem
         string offer = a.GetString(MapOfferAttrs.Offer) ?? "";
         if (_trading is null) return ("trading-window-failed", []);
         if (offer == MapOfferAttrs.SoldOut) return ("trading-maps-error-soldout", []);
+        if (offer == MapOfferAttrs.Surveying) return ("trading-maps-error-surveying", []);
         var unlocks = _trading.Standing.UnlocksFor(player, trader);
         switch (offer)
         {
@@ -425,7 +590,7 @@ public class MapsSystem : ModSystem
         if (Refusal(trader, player, cartSlot.Itemstack, cartSlot as ItemSlotTrade) is { } refusal)
         {
             Error(player, refusal.Key, refusal.Args);
-            return refusal.Key is "trading-maps-error-soldout" or "trading-maps-error-sold" or "trading-maps-error-gone"
+            return refusal.Key is "trading-maps-error-soldout" or "trading-maps-error-sold" or "trading-maps-error-gone" or "trading-maps-error-surveying"
                 ? EnumTransactionResult.TraderNotEnoughSupplyOrDemand
                 : EnumTransactionResult.Failure;
         }

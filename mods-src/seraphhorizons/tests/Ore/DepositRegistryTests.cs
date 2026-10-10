@@ -105,6 +105,30 @@ public class DepositRegistryTests
         Assert.Contains("\"soldOut\"", registry.Serialize(), StringComparison.OrdinalIgnoreCase);
         Assert.Empty(DepositRegistry.Parse("").All());
     }
+
+    [Fact]
+    public void AMeasurementKeepsWhatTheOreIs()
+    {
+        var registry = new DepositRegistry();
+        Assert.False(registry.Get(Copper).Surveyed);
+        // Measured before makeups were kept: not surveyed, so it is checked again before it is offered.
+        registry.RecordMeasure(Copper, 400, SizeTier.Medium, 1, 2, 3, 4, false);
+        Assert.False(registry.Get(Copper).Surveyed);
+        var makeup = new DepositMakeup
+        {
+            Ores = new() { ["malachite"] = 900, ["azurite"] = 100 },
+            Grades = new() { ["poor"] = 60, ["medium"] = 10 },
+            Rocks = new() { ["limestone"] = 70 },
+        };
+        registry.RecordMeasure(Copper, 400, SizeTier.Medium, 1, 2, 3, 5, false, makeup);
+        Assert.True(registry.Get(Copper).Surveyed);
+        var back = DepositRegistry.Parse(registry.Serialize()).Get(Copper);
+        Assert.True(back.Surveyed);
+        Assert.Equal(["malachite", "azurite"], back.Makeup!.MainOres());
+        Assert.Equal("mostly:poor", back.Makeup.Mix()!.Code);
+        Assert.Equal("limestone", back.Makeup.HostRock());
+        Assert.DoesNotContain("surveyed", registry.Serialize(), StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public class DepositSizingTests

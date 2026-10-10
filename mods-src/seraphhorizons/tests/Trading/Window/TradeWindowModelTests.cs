@@ -185,8 +185,38 @@ public class TradeWindowModelTests
     [InlineData("lead", "prospector", 2, false, MapOfferStatus.Locked)]
     [InlineData("lead", "settlement", 2, false, MapOfferStatus.Locked)]
     [InlineData("lead", "far", 2, true, MapOfferStatus.Available)]
+    [InlineData("surveying", null, 0, true, MapOfferStatus.Surveying)]
+    [InlineData("surveying", null, 1, true, MapOfferStatus.Surveying)]
     public void MapOffersAreSoldOutLockedOrForSale(string offer, string? kind, int stock, bool leads, MapOfferStatus expected) =>
         Assert.Equal(expected, TradeWindowModel.MapStatus(offer, kind, stock, leads));
+
+    [Fact]
+    public void AnOreMapOfferNamesTheOreItsGradesAndRock()
+    {
+        var line = TradeWindowModel.OreMapLine("lead", ["galena", "cerussite"], "medium", "mostly:poor", "Limestone", 2400.4, 2);
+        Assert.Equal("trading-window-map-ore-named(ore-list-and(orename-galena, orename-cerussite), "
+                     + "ore-list-comma(ore-list-comma(ore-size-medium, ore-grades-mostly(ore-grade-poor)), trading-window-map-ore-host(Limestone)), 2400, 2)",
+            line.ToString());
+        // Three ores; no grades or rock known.
+        Assert.Equal("trading-window-map-ore-named(ore-list-and(ore-list-comma(orename-a, orename-b), orename-c), ore-size-small, 10, 1)",
+            TradeWindowModel.OreMapLine("x", ["a", "b", "c"], "small", null, null, 10, 1).ToString());
+        // Shelved before maps named the ore: the metal.
+        Assert.Equal("trading-window-map-ore", TradeWindowModel.OreMapLine("copper", [], null, null, null, 10, 1).Key);
+        Assert.Equal("ore-grades-mixed(ore-grade-poor, ore-grade-medium)", TradeWindowModel.GradeText("mixed:poor,medium")!.ToString());
+        Assert.Null(TradeWindowModel.GradeText("nonsense"));
+    }
+
+    [Fact]
+    public void AGravelMapOfferNamesItsRockAndMetalsAndASurveyIsSaid()
+    {
+        Assert.Equal("trading-window-map-gravel-pans(Granite, ore-list-and(ore-metal-tin, ore-metal-gold), 300)",
+            TradeWindowModel.GravelMapLine("Granite", ["tin", "gold"], 300).ToString());
+        Assert.Equal("trading-window-map-gravel-rock", TradeWindowModel.GravelMapLine("Granite", [], 300).Key);
+        Assert.Equal("trading-window-map-gravel", TradeWindowModel.GravelMapLine(null, [], 300).Key);
+        Assert.Equal("trading-window-map-ore-surveying(oremap-metal-lead)", TradeWindowModel.SurveyingLine("lead").ToString());
+        Assert.Equal("trading-window-map-gravel-surveying", TradeWindowModel.SurveyingLine("gravel").Key);
+        Assert.Equal("trading-window-map-surveying", TradeWindowModel.MapStatusText(MapOfferStatus.Surveying, null)!.Key);
+    }
 
     [Fact]
     public void AMapThePlayerHasIsGreyedOutWithYouHaveThis()

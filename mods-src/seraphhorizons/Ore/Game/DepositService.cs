@@ -2,6 +2,7 @@ using System.Text;
 using SeraphHorizons.Mod.Ore.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
+using Vintagestory.API.Util;
 
 namespace SeraphHorizons.Mod.Ore;
 
@@ -14,6 +15,11 @@ namespace SeraphHorizons.Mod.Ore;
 public sealed record DepositCandidate(DepositKey Key, int Spot, int X, int Y, int Z, bool Generated, double Distance, DepositRecord Record)
 {
     public string Metal => Key.Kind;
+
+    /// <summary>Checked (#693): an ore deposit measured with its makeup, a gravel field placed. The
+    /// seed gives a cell's spots, not which takes the deposit or what ore it is (that follows the
+    /// host rock), so traders offer maps only to these.</summary>
+    public bool Surveyed => Key.IsGravel ? Generated : Record.Surveyed;
 }
 
 public enum VerifyStatus
@@ -29,7 +35,7 @@ public enum VerifyStatus
 
 /// <summary>What <see cref="DepositService.Verify"/> found.</summary>
 public sealed record VerifyResult(VerifyStatus Status, DepositCandidate? Candidate, double Ingots = 0, int OreBlocks = 0,
-    SizeTier? Tier = null, bool WorkedOut = false, PlacedField? Field = null, string? Why = null);
+    SizeTier? Tier = null, bool WorkedOut = false, PlacedField? Field = null, string? Why = null, DepositMakeup? Makeup = null);
 
 /// <summary>
 /// The deposit registry's service (#443), behind ore and gravel maps (<see cref="MapIssuer"/>) and
@@ -43,7 +49,8 @@ public sealed record VerifyResult(VerifyStatus Status, DepositCandidate? Candida
 /// column isn't generated yet is generated first (the cell rule then places the vein, or moves to
 /// the next spot, which is followed); then its column and the eight around it are generated and
 /// the metal's ore in them counted, as ingots (<see cref="DepositSizing"/>), classed small, medium or
-/// large for the metal, and recorded; below a tenth of the metal's small size it is marked sold
+/// large for the metal, and recorded with its makeup (#692: per ore, grade and host rock,
+/// <see cref="DepositMakeup"/>); below a tenth of the metal's small size it is marked sold
 /// out. A gravel field's column is generated, which places it or not.</item>
 /// <item><see cref="Registry"/>: unsold / sold / sold out per deposit, saved under
 /// <see cref="RegistryKey"/>.</item>
@@ -59,6 +66,8 @@ public sealed class DepositService
     private readonly PlacerFields? _gravel;
     private readonly OreSizeTable _sizes;
     private readonly Dictionary<string, double[]> _unitsByMetal = new();
+    private readonly Dictionary<string, OreBlockKind?[]> _kindsByMetal = new();
+    private readonly Dictionary<string, IReadOnlyList<string>> _panMetals = new();
 
     public DepositRegistry Registry { get; }
 
@@ -184,10 +193,12 @@ public sealed class DepositService
     private VerifyResult Measure(DepositKey key, List<ChunkPos> columns)
     {
         var units = UnitsTable(key.Kind);
+        var kinds = KindTable(key.Kind);
         const int size = OreCells.ChunkSize;
         double total = 0;
         long sx = 0, sy = 0, sz = 0;
         int blocks = 0;
+        var perId = new Dictionary<int, long>();
         int chunksHigh = _api.WorldManager.MapSizeY / size;
         foreach (var column in columns)
             for (int cy = 0; cy < chunksHigh; cy++)
@@ -201,11 +212,18 @@ public sealed class DepositService
                     if (id <= 0 || id >= units.Length || units[id] <= 0) continue;
                     total += units[id];
                     blocks++;
+                    perId[id] = perId.GetValueOrDefault(id) + 1;
                     sx += column.X * size + i % size;
                     sz += column.Z * size + i / size % size;
                     sy += cy * size + i / (size * size);
                 }
             }
+        // What the ore is (#692): per ore, grade and host rock.
+        var tally = new OreTally();
+        foreach (var (id, n) in perId)
+            if (kinds[id] is { } kind)
+                tally.Add(kind, n, n * units[id]);
+        var makeup = tally.Makeup(key.Kind);
         var targets = _sizes.TargetsFor(key.Kind)!.Value;
         double ingots = DepositSizing.Ingots(total);
         var tier = DepositSizing.Classify(ingots, targets);
@@ -214,11 +232,64 @@ public sealed class DepositService
         int x = blocks > 0 ? (int)(sx / blocks) : spot.X;
         int y = blocks > 0 ? (int)(sy / blocks) : 0;
         int z = blocks > 0 ? (int)(sz / blocks) : spot.Z;
-        Registry.RecordMeasure(key, Math.Round(ingots, 1), tier, x, y, z, _api.World.Calendar.TotalDays, workedOut);
-        _api.Logger.Notification("[seraphhorizons] Deposits: {0} measured: {1} ore blocks, {2:0} ingots, {3}{4}",
-            key, blocks, ingots, tier, workedOut ? ", worked out: sold out" : "");
-        SeraphHorizons.Mod.Admin.AdminLogs.Ore?.Write("verify", $"{key} at {x},{y},{z}: {blocks} ore blocks, {ingots:0} ingots, {tier}{(workedOut ? ", worked out: sold out" : "")}");
-        return new VerifyResult(VerifyStatus.Measured, Candidate(key), ingots, blocks, tier, workedOut);
+        Registry.RecordMeasure(key, Math.Round(ingots, 1), tier, x, y, z, _api.World.Calendar.TotalDays, workedOut, makeup);
+        string what = $"{string.Join(" and ", makeup.MainOres())}, {makeup.Mix()?.Code ?? "ungraded"}, in {makeup.HostRock() ?? "?"}";
+        _api.Logger.Notification("[seraphhorizons] Deposits: {0} measured: {1} ore blocks, {2:0} ingots, {3} ({4}){5}",
+            key, blocks, ingots, tier, what, workedOut ? ", worked out: sold out" : "");
+        SeraphHorizons.Mod.Admin.AdminLogs.Ore?.Write("verify", $"{key} at {x},{y},{z}: {blocks} ore blocks, {ingots:0} ingots, {tier} ({what}){(workedOut ? ", worked out: sold out" : "")}");
+        return new VerifyResult(VerifyStatus.Measured, Candidate(key), ingots, blocks, tier, workedOut, Makeup: makeup);
+    }
+
+    /// <summary>Per block id, what a metal's ore block is (<see cref="OreTally.Parse"/>), null for
+    /// any other block.</summary>
+    private OreBlockKind?[] KindTable(string metal)
+    {
+        if (_kindsByMetal.TryGetValue(metal, out var table)) return table;
+        var blocks = _api.World.Blocks;
+        table = new OreBlockKind?[blocks.Count];
+        for (int id = 0; id < table.Length; id++)
+            if (blocks[id]?.Code is { } code && OreTally.Parse(code.Path) is { } kind && kind.Metal == metal)
+                table[id] = kind;
+        return _kindsByMetal[metal] = table;
+    }
+
+    /// <summary>The metals the pan gives from a rock's rich gravel (#692), the likeliest first: the
+    /// pan's table for <c>richgravel-{rock}</c> (the last key that matches, as the pan reads it),
+    /// each nugget's smelted metal. Empty when the pan or its table can't be read.</summary>
+    public IReadOnlyList<string> PanMetals(string rock)
+    {
+        if (_panMetals.TryGetValue(rock, out var metals)) return metals;
+        var list = new List<(string Metal, double Chance)>();
+        try
+        {
+            var pan = _api.World.Blocks.FirstOrDefault(b => b is Vintagestory.GameContent.BlockPan);
+            if (pan?.Attributes?["panningDrops"]?.Token is Newtonsoft.Json.Linq.JObject table)
+            {
+                string path = "richgravel-" + rock;
+                Newtonsoft.Json.Linq.JArray? drops = null;
+                foreach (var entry in table.Properties())
+                    if (entry.Value is Newtonsoft.Json.Linq.JArray arr && WildcardUtil.Match(entry.Name, path))
+                        drops = arr;
+                foreach (var drop in drops?.OfType<Newtonsoft.Json.Linq.JObject>() ?? [])
+                {
+                    string code = drop["code"]?.ToString() ?? "";
+                    if (!new AssetLocation(code).Path.StartsWith("nugget-", StringComparison.Ordinal)) continue;
+                    if (_api.World.GetItem(new AssetLocation(code)) is not { } nugget) continue;
+                    var smelted = nugget.CombustibleProps?.SmeltedStack?.ResolvedItemstack?.Collectible?.Code?.Path;
+                    if (smelted is null || !smelted.StartsWith("ingot-", StringComparison.Ordinal)) continue;
+                    var chance = drop["chance"];
+                    double avg = chance is Newtonsoft.Json.Linq.JObject c ? c["avg"]?.ToObject<double>() ?? 0 : chance?.ToObject<double>() ?? 0;
+                    list.Add((smelted["ingot-".Length..], avg));
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            _api.Logger.Warning("[seraphhorizons] Deposits: could not read the pan's table for {0} rich gravel: {1}", rock, e.Message);
+        }
+        metals = list.GroupBy(m => m.Metal).OrderByDescending(g => g.Sum(m => m.Chance)).ThenBy(g => g.Key, StringComparer.Ordinal)
+            .Select(g => g.Key).ToList();
+        return _panMetals[rock] = metals;
     }
 
     /// <summary>Metal units per block id for a metal's ore blocks (0 for any other block): the sum
