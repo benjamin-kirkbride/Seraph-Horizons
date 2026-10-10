@@ -1949,8 +1949,9 @@ cast, banded iron and steel; copper and lead pipe is soldered. So its copper and
 this mod's own models, `shapes/block/pipes/soldered-{straight,bend,tjunction,xjunction}.json`: ppex's
 cross-section (a 6 x 6 tube with 1-voxel walls round a 4 x 4 bore, its block's 5..11, so they meet ppex's
 pipes and fittings flush), no band or bolts, the pipe's cube where arms meet, and at each open end half a
-**wiped joint**, a smooth swelling of solder over the seam in three rings each way (0.6, 0.4 and 0.2
-voxels proud, 3.25 long), so two pipes end to end make one joint 6.5 long over the face between them. The
+**joint**: a thin bead of solder round the seam, as a sweated or wiped joint on pipe this size is, one
+ring 0.75 voxels long and 0.2 proud (`JOINT_LENGTH`, `JOINT_SWELL`), so two pipes end to end make one
+bead 1.5 long over the face between them. The
 solder is the game's lead solder (`game:block/metal/ingot/leadsolder`); the pipe keeps ppex's texture
 code (`iron4`), so the patch's copper4 and lead4 land on it. Iron and steel keep ppex's own model, band
 and bolts. `patches/unifiedpipes-solderedjoints.json` replaces each pipe's `shapebytype` with ppex's own

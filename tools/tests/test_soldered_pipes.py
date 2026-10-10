@@ -75,15 +75,18 @@ class SolderedShapes(unittest.TestCase):
                 for arm in arms:
                     k, sgn = solderedpipe.FACE_NORMAL[arm]
                     face = 0.0 if sgn < 0 else 16.0
+                    # one thin bead round the tube: four plates from the block face, JOINT_LENGTH into the
+                    # block, JOINT_SWELL proud
                     rings = [b for b in boxes if b.name.startswith(f"joint_{arm}")]
-                    self.assertEqual(4 * len(solderedpipe.JOINT), len(rings), arm)
-                    # the fattest ring reaches the block face, the joint runs JOINT_LENGTH into the block
-                    at_face = [b for b in rings if (b.lo[k] if sgn < 0 else b.hi[k]) == face]
-                    self.assertEqual(4, len(at_face), arm)
+                    self.assertEqual(4, len(rings), arm)
+                    self.assertTrue(all((b.lo[k] if sgn < 0 else b.hi[k]) == face for b in rings), arm)
                     reach = max(abs(face - (b.hi[k] if sgn < 0 else b.lo[k])) for b in rings)
                     self.assertAlmostEqual(solderedpipe.JOINT_LENGTH, reach, places=6)
-                    across = [b.hi[a] - b.lo[a] for b in at_face for a in range(3) if a != k]
-                    self.assertAlmostEqual(2 * (solderedpipe.HALF + solderedpipe.JOINT[0][1]), max(across), places=6)
+                    across = [b.hi[a] - b.lo[a] for b in rings for a in range(3) if a != k]
+                    self.assertAlmostEqual(2 * (solderedpipe.HALF + solderedpipe.JOINT_SWELL), max(across), places=6)
+                    # a thin bead, not a collar: at most 1.5 voxels a whole joint, at most 1/4 voxel proud
+                    self.assertLessEqual(2 * solderedpipe.JOINT_LENGTH, 1.5)
+                    self.assertLessEqual(solderedpipe.JOINT_SWELL, 0.25)
 
     def test_each_face_maps_its_texture_one_texel_a_voxel(self):
         for kind in KINDS:
