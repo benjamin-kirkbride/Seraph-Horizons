@@ -118,12 +118,24 @@ Anchors are recognised by their shape, so a new rig gets overlays without code c
 
 | In the rig | Drawn as |
 |---|---|
-| `cells` | Block cells (outlined, the origin cell `[0,0,0]` in orange, a floor grid) and collision boxes. A cell with `"hollow": true` and no `boxes` has none (it is solid only where the trunk is, which the game adds); any other cell without boxes is a full cube. A cell's `lid` (a collision-only deck over the whole cell, 1/16 thick, on the top cell of a column: every column of the mill and the gear cutter, the rosser's station only) is drawn with the collision boxes in its own shade, violet, so the deck the game adds reads apart from the boxes under it |
+| `cells` | Block cells (outlined, the origin cell `[0,0,0]` in orange, a floor grid) and collision boxes. A cell with `"hollow": true` and no `boxes` has none (it is solid only where the trunk is, which the game adds); any other cell without boxes is a full cube. A cell's `lid` (a collision-only deck over the whole cell, 1/16 thick, on the top cell of a column: every column of the mill and the gear cutter, the rosser's station only) is drawn with the collision boxes in its own shade, violet, so the deck the game adds reads apart from the boxes under it. A cell's `fitted` boxes (below) are drawn only while their part is |
 | `"<name>Cell": [x, y, z]` | That cell outlined; with `"<name>Face": "<side>"`, the face shaded and an arrow into it |
 | `"<name>Side": "<side>"` | An arrow into that side of the footprint, on a line anchor running that way if there is one |
 | `"<name>": { "pos": [x, y, z] }` | A point; with `"<name>Side"`, an arrow out that way. With `"part": "<part id>"` it rides that part, posed by the part's matrix (the handcar's grips on its beam); a part the rig does not have fails the build |
 | `"<name>": { "origin", "axis", "length" }` | A line along the axis, centred on origin; with `"stations": { "<name>": x }`, a labelled mark at each place along the axis |
 | `"<name>": { "<x>Y": number, ... }` | A level line across the footprint at each such height |
+
+**Collision by what is fitted.** A machine upgraded in place (the ore line's machines, #711: a frame,
+then each level's parts fitted into it) collides with what is fitted, not with every level at once. A
+cell may carry `fitted`, `{ "<requires value>": [[x0, y0, z0, x1, y1, z1], ...] }`, boxes in the cell's
+own 0..1 frame that are there only while a part with that `requires` is fitted; its `boxes` are then what
+is there whatever is fitted (the frame), and a cell with `fitted` but no `boxes` has none of its own (not
+a full cube). The collision overlay draws the frame's boxes and the fitted boxes of every `requires`
+value whose parts are drawn (ticked, in the state picked, and shown for the class), and redraws as they
+change (`cellBoxes` in `site/src/lib/model-anchors.ts`). The data step refuses a `fitted` key that is not
+one of the rig's `requires` values, or a box that is not six numbers inside the cell with lo below hi
+(`checkFittedBoxes`). The game's rig loader (`Machines/Core`) does not read `fitted` yet: a machine
+that uses it needs that first.
 
 Keys starting with `_` are comments. Any other key is listed under the overlays as not drawn
 (the rosser's `feed`, its gearing figures, is one: the viewer reads its `blocksPerRadian` for φ

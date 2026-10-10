@@ -13,7 +13,9 @@
 //
 // Keys starting with "_" are comments; "cells", "parts" and "work" (the rig's progress, a quantity, not a place) are not anchors. Everything is in
 // blocks, in the rig's frame. A cell with "hollow": true and no boxes of its own has no
-// collision box (a trunk path's cells: solid only where the trunk is, which the game adds).
+// collision box (a trunk path's cells: solid only where the trunk is, which the game adds). A
+// cell's "fitted" boxes are there only while their requires value is fitted (a machine upgraded
+// in place); its "boxes" are then the frame's.
 import type { Axis, Rig, RigCell, Vec3 } from "./rig.ts";
 
 export const SIDES = ["north", "east", "south", "west", "up", "down"] as const;
@@ -112,13 +114,43 @@ export function footprintBounds(cells: readonly RigCell[] | undefined): Bounds |
   return { lo, hi };
 }
 
-/** A cell's collision boxes in blocks: its `boxes` (cell-local 0..1) moved to the cell, else none for a hollow cell and the whole cell for any other. */
-export function cellBoxes(cell: RigCell): Bounds[] {
+/**
+ * A cell's collision boxes in blocks: its `boxes` (cell-local 0..1) moved to the cell, else none for a
+ * hollow cell or one with `fitted` boxes, and the whole cell for any other; then, with `fitted` (the
+ * requires values fitted), the cell's `fitted` boxes of each of them. Without `fitted`, only the
+ * frame's: what is there whatever is fitted.
+ */
+export function cellBoxes(cell: RigCell, fitted?: ReadonlySet<string>): Bounds[] {
   const own = cell.boxes && cell.boxes.length > 0 ? cell.boxes : null;
-  if (!own && cell.hollow === true) return [];
-  const boxes = own ?? [[0, 0, 0, 1, 1, 1]];
+  const extra = cell.fitted && fitted ? Object.entries(cell.fitted).flatMap(([req, bs]) => (fitted.has(req) ? bs : [])) : [];
+  const boxes = own ?? (cell.hollow === true || cell.fitted !== undefined ? [] : [[0, 0, 0, 1, 1, 1]]);
   const [x, y, z] = cell.pos;
-  return boxes.map((b) => ({ lo: [x + b[0]!, y + b[1]!, z + b[2]!], hi: [x + b[3]!, y + b[4]!, z + b[5]!] }));
+  return [...boxes, ...extra].map((b) => ({ lo: [x + b[0]!, y + b[1]!, z + b[2]!], hi: [x + b[3]!, y + b[4]!, z + b[5]!] }));
+}
+
+/** Problems with the cells' `fitted` boxes: each keyed by a `requires` value of the rig's parts, each box six numbers, 0 <= lo < hi <= 1. */
+export function checkFittedBoxes(cells: readonly RigCell[] | undefined, requires: readonly string[]): string[] {
+  const problems: string[] = [];
+  const known = new Set(requires);
+  for (const c of cells ?? []) {
+    if (c.fitted === undefined) continue;
+    const at = `cell ${Array.isArray(c.pos) ? c.pos.join(",") : "?"}`;
+    if (!isObject(c.fitted)) {
+      problems.push(`${at}: fitted must be an object of requires values`);
+      continue;
+    }
+    for (const [req, bs] of Object.entries(c.fitted)) {
+      if (!known.has(req)) problems.push(`${at}: fitted "${req}" is not a requires value of the rig's parts`);
+      if (!Array.isArray(bs)) {
+        problems.push(`${at}: fitted "${req}" must be a list of boxes`);
+        continue;
+      }
+      for (const b of bs as unknown[])
+        if (!Array.isArray(b) || b.length !== 6 || !b.every((n) => typeof n === "number" && n >= 0 && n <= 1) || [0, 1, 2].some((k) => (b[k] as number) >= (b[k + 3] as number)))
+          problems.push(`${at}: fitted "${req}" has a box that is not [x0, y0, z0, x1, y1, z1] within the cell, lo below hi`);
+    }
+  }
+  return problems;
 }
 
 /** A lid's thickness in blocks (`RigCell.LidThickness` in the mod). */

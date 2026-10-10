@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { cellBoxes, discoverAnchors, footprintBounds, humanize, lidBox, sideArrow, type Anchor } from "../src/lib/model-anchors.ts";
+import { cellBoxes, checkFittedBoxes, discoverAnchors, footprintBounds, humanize, lidBox, sideArrow, type Anchor } from "../src/lib/model-anchors.ts";
 import { checkManifest, publishModels, type ManifestModel } from "../src/lib/model-manifest.ts";
 import {
   advance,
@@ -22,7 +22,7 @@ import {
   type Scenario,
 } from "../src/lib/model-scenario.ts";
 import { STATIC_COLOUR, buildModelView, elementDetails, modelBounds, textureColour } from "../src/lib/model-view.ts";
-import { partMatrices, trunkPathOf, tripEnd, workEnd, workOf, type Rig, type Shape } from "../src/lib/rig.ts";
+import { partMatrices, trunkPathOf, tripEnd, workEnd, workOf, type Rig, type RigCell, type Shape } from "../src/lib/rig.ts";
 
 const repo = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 const readRepoJson = (path: string) => {
@@ -82,6 +82,8 @@ describe("site/models.json", () => {
     expect(() => publishModels({ models: [model] }, (p) => files[p])).toThrow(/unknown driver type "spin"/);
     files["r.json"] = { parts: [{ id: "a", match: ["*"], ride: "a" }] };
     expect(() => publishModels({ models: [model] }, (p) => files[p])).toThrow(/cycle/);
+    files["r.json"] = { cells: [{ pos: [0, 0, 0], fitted: { jig: [[0, 0, 0, 1, 1, 1]] } }], parts: [{ id: "a", match: ["*"], requires: "sluice", drivers: [] }] };
+    expect(() => publishModels({ models: [model] }, (p) => files[p])).toThrow(/fitted "jig" is not a requires value/);
     files["s.json"] = { nope: [] };
     expect(() => publishModels({ models: [model] }, (p) => files[p])).toThrow(/no "elements" array/);
   });
@@ -130,6 +132,35 @@ describe("anchors", () => {
     expect(footprintBounds([])).toBeNull();
     expect(cellBoxes({ pos: [2, 0, -1], boxes: [[0, 0, 0.5, 1, 0.25, 1]] })).toEqual([{ lo: [2, 0, -0.5], hi: [3, 0.25, 0] }]);
     expect(cellBoxes({ pos: [1, 1, 1] })).toEqual([{ lo: [1, 1, 1], hi: [2, 2, 2] }]);
+  });
+
+  it("adds a cell's fitted boxes only while their part is fitted, over the frame's", () => {
+    const cell = { pos: [1, 0, 0] as [number, number, number], boxes: [[0, 0, 0, 1, 0.25, 1]], fitted: { jig: [[0, 0.25, 0, 0.5, 1, 1]], table: [[0.5, 0.25, 0, 1, 0.5, 1]] } };
+    const frame = { lo: [1, 0, 0], hi: [2, 0.25, 1] };
+    const jig = { lo: [1, 0.25, 0], hi: [1.5, 1, 1] };
+    const table = { lo: [1.5, 0.25, 0], hi: [2, 0.5, 1] };
+    expect(cellBoxes(cell)).toEqual([frame]);
+    expect(cellBoxes(cell, new Set())).toEqual([frame]);
+    expect(cellBoxes(cell, new Set(["jig"]))).toEqual([frame, jig]);
+    expect(cellBoxes(cell, new Set(["jig", "table", "other"]))).toEqual([frame, jig, table]);
+    // With fitted boxes and none of the frame's, a cell is empty until a part is fitted, not a full cube.
+    const bare = { pos: [0, 0, 0] as [number, number, number], fitted: { jig: [[0, 0, 0, 1, 0.5, 1]] } };
+    expect(cellBoxes(bare)).toEqual([]);
+    expect(cellBoxes(bare, new Set(["jig"]))).toEqual([{ lo: [0, 0, 0], hi: [1, 0.5, 1] }]);
+    expect(cellBoxes({ pos: [0, 0, 0], hollow: true, fitted: { jig: [[0, 0, 0, 1, 1, 1]] } }, new Set(["jig"]))).toEqual([{ lo: [0, 0, 0], hi: [1, 1, 1] }]);
+  });
+
+  it("checks fitted boxes: keyed by a part's requires value, each a box within its cell", () => {
+    const cells: RigCell[] = [
+      { pos: [0, 0, 0], fitted: { jig: [[0, 0, 0, 1, 1, 1]] } },
+      { pos: [1, 0, 0], fitted: { lathe: [[0, 0, 0, 1, 1, 1]], jig: [[0, 0, 0, 1, 1.5, 1], [0.5, 0, 0, 0.5, 1, 1], [0, 0, 0]] } },
+    ];
+    expect(checkFittedBoxes(cells.slice(0, 1), ["jig"])).toEqual([]);
+    expect(checkFittedBoxes(undefined, [])).toEqual([]);
+    const problems = checkFittedBoxes(cells, ["jig"]);
+    expect(problems).toHaveLength(4);
+    expect(problems[0]).toMatch(/cell 1,0,0: fitted "lathe" is not a requires value/);
+    expect(problems.slice(1).every((p) => /fitted "jig" has a box that is not/.test(p))).toBe(true);
   });
 
   it("turns a cell's lid into a deck over the whole cell, 1/16 thick, and nothing without one", () => {

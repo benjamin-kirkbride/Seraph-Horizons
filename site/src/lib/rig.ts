@@ -122,6 +122,12 @@ export interface RigCell {
   hollow?: boolean;
   /** On the top cell of a column: the cell-local height of the top of a collision-only box over the whole cell, 1/16 thick, so the machine's top walks as a deck. Not selectable; the viewer draws it with the collision boxes, in its own shade. */
   lid?: number;
+  /**
+   * Boxes (cell-local, as `boxes`) that are there only while a part is fitted, by its `requires` value: a
+   * machine upgraded in place collides with what is fitted, not with every level at once. `boxes` is then
+   * what is there whatever is fitted (the frame), and a cell with `fitted` but no `boxes` has none of its own.
+   */
+  fitted?: Record<string, number[][]>;
 }
 
 /** rig.json: `parts` and `cells` are read as such; every other key is an anchor (model-anchors.ts). */

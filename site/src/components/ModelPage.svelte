@@ -168,6 +168,16 @@
         )
       : [],
   );
+  // The requires values drawn, whose cells' fitted collision boxes the collision overlay shows.
+  const shownRequires = $derived(
+    new Set(
+      view
+        ? view.requires
+            .map((r) => r.value)
+            .filter((r) => fitted(r, fittedState) && classShows(r, classIndex(motion.size), scenario) && statesShow(r, fittedState, groupsOfStates))
+        : [],
+    ),
+  );
   // While a cycle runs (or is paused part-way) it decides whether the prop is on; posed by hand, the choice does.
   const propShown = $derived(motion.phase !== null ? motion.propOn : propOption !== null);
   const box = $derived(
@@ -250,6 +260,7 @@
   });
 
   $effect(() => scene?.pose(matrices, visible, jointMatrices));
+  $effect(() => scene?.setFittedCollision(shownRequires));
   $effect(() => scene?.colourBy(colourMode));
   $effect(() => scene?.setEdges(edges));
   $effect(() => scene?.setProp(box));

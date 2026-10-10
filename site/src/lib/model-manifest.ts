@@ -3,7 +3,7 @@
 // truth, under mods-src/); scripts/models.ts copies them into the site at build time and serves
 // them in dev, so the site never keeps a second copy in git. See docs/recipe-browser/models.md.
 import { animateShape, checkAnimations } from "./keyframes.ts";
-import { discoverAnchors } from "./model-anchors.ts";
+import { checkFittedBoxes, discoverAnchors } from "./model-anchors.ts";
 import { checkScenario, type Scenario } from "./model-scenario.ts";
 import { checkVehicle, vehicleOf, withBogies } from "./model-vehicle.ts";
 import { compileGlobs, driverMatrix, flattenShape, partOf, requiresValues, rideOrder, workOf, type Pose, type Rig, type Shape } from "./rig.ts";
@@ -130,6 +130,8 @@ export function checkModelFiles(model: ManifestModel, shape: unknown, rig: unkno
       } catch (e) {
         problems.push(`${model.rig}: ${(e as Error).message}`);
       }
+      // A cell's fitted boxes are keyed by the parts' requires values.
+      problems.push(...checkFittedBoxes(r.cells, requiresValues(ps)).map((p) => `${model.rig}: ${p}`));
       // A point that rides a part names one of the rig's.
       const ids = new Set(ps.map((p) => p.id));
       for (const a of discoverAnchors(r).anchors)
