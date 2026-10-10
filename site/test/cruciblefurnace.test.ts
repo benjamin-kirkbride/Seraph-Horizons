@@ -5,7 +5,7 @@ import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rideO
 // The crucible furnace's shipped files, and the poses CrucibleFurnace/tools/make_shape.py computes from them with
 // machinegen's reference maths. Its rig reads depth (the hinged lid: 0 open, resting just past upright, 1 shut; the
 // lid is the only part that moves) and θ (the melter's clock, carried by a ratio-0 rotate so the viewer offers Play);
-// everything else is a requires. tools/tests/test_cruciblefurnace_model.py replays the same file in Python.
+// everything else is a requires, the build's stages (brickwork, lining, lid) among them; the iron frame has none. tools/tests/test_cruciblefurnace_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
 const rig = read("assets/seraphhorizons/config/cruciblefurnace-rig.json") as Rig;
@@ -71,9 +71,9 @@ describe("the crucible furnace's rig against its rig-reference.json", () => {
     }
   });
 
-  it("shows the pots, the coke, the damper and the cap by requires, with their own texture codes, and glows only where it burns", () => {
+  it("shows the build's stages, the pots, the coke, the damper and the cap by requires, with their own texture codes, and glows only where it burns", () => {
     const req = requiresValues(parts);
-    expect(req).toEqual(["pot1", "pot2", "charge1", "charge2", "melt1", "melt2", "coke1", "coke2", "coke3", "fire1", "fire2", "fire3", "damperopen", "damperhalf", "dampershut", "outletcap"]);
+    expect(req).toEqual(["brickwork", "lining", "lid", "pot1", "pot2", "charge1", "charge2", "melt1", "melt2", "coke1", "coke2", "coke3", "fire1", "fire2", "fire3", "damperopen", "damperhalf", "dampershut", "outletcap"]);
     const codes: Record<string, Set<string>> = {};
     const flat = flattenShape(shape.elements);
     const globs = compileGlobs(parts);
@@ -88,8 +88,10 @@ describe("the crucible furnace's rig against its rig-reference.json", () => {
     expect([...codes.charge!]).toEqual(["charge"]);
     expect([...codes.damper!]).toEqual(["iron"]);
     expect([...codes.outletcap!]).toEqual(["iron"]);
-    expect(new Set(codes.lid)).toEqual(new Set(["iron", "brick"]));
-    expect(new Set(codes.frame)).toEqual(new Set(["brick", "iron", "clay"]));
+    expect(new Set(codes.lid)).toEqual(new Set(["iron", "lining"]));
+    expect([...codes.brickwork!]).toEqual(["brick"]);
+    expect([...codes.lining!]).toEqual(["lining"]);
+    expect([...codes.frame!]).toEqual(["iron"]);
     for (const f of flat) {
       const glows = Object.values(f.element.faces ?? {}).map((face) => (face as { glow?: number }).glow ?? 0);
       const id = parts[partOf(globs, f.chain)]!.id;

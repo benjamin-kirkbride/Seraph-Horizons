@@ -2,10 +2,12 @@
 """Generate the crucible furnace's shapes, rig and reference poses.
 
 The crucible furnace is one Huntsman (Sheffield) melting hole of the late nineteenth century, built whole as one
-machine: a block of tier-3 refractory brickwork three blocks wide, three deep and two high, bound with iron on its
-front and back, with one hole set into its top, centred left to right, its walls 10 voxels and more of brick. The hole
-is lined with firebrick and holds two fireclay pots side by side, each on a fireclay stand on a grate of iron
-firebars, packed round in one bed of coke up to their shoulders. A hinged lid (firebrick in an iron frame, with a
+machine: a block of brickwork three blocks wide, three deep and two high, bound with iron on its front and back, with
+one hole set into its top, centred left to right, its walls 10 voxels and more of brick. The brickwork is any one type
+of fired brick (its texture the renderer's, from the rig's bricks); the hot faces, the hole's walls and the flue, are
+lined with tier-3 refractory brick. The hole holds two fireclay pots side by side, each on a refractory stand on a
+grate of iron firebars, packed round in one bed of coke up to their shoulders. It is built in stages: an iron frame,
+then the brickwork, the lining, and the lid with the damper (the rig's build). A hinged lid (firebrick in an iron frame, with a
 handle) closes the hole flush with the floor; it turns about its top back edge on two pins bedded in the side walls,
 through iron knuckles at its back corners, and swings up and back to rest past upright against two small iron stops
 behind it. Under the grate is the ash pit, reached from the front through the ash mouth, which an iron damper slides
@@ -39,8 +41,9 @@ The rig's inputs, as this furnace uses them:
     theta  the melter's clock: a ratio-0 rotate on the lid carries it and moves nothing (so the viewer offers Play,
            which opens and shuts the lid). Nothing in the furnace turns.
 
-Everything else that shows or not (the two pots, their charges, their melts, the coke in three layers and the same
-coke burning, the damper's three places, the outlet's cap) is a `requires`: gameplay's state, not a motion.
+Everything else that shows or not (the build's stages, the brickwork, the lining and the lid; the two pots, their
+charges, their melts, the coke in three layers and the same coke burning, the damper's three places, the outlet's
+cap) is a `requires`: gameplay's state, not a motion. The iron frame has none.
 """
 
 from __future__ import annotations
@@ -88,7 +91,8 @@ FREE_CELLS = ((0, 2, 2), (2, 2, 2))
 ROW_MAX = 6                                  # furnaces in a row, side by side along x, sharing one chimney
 
 TEXTURES = {
-    "brick": "game:block/clay/refractory/tier3/front1",    # the old hole's brick: tier-3 refractory
+    "brick": "game:block/clay/brick/four/running/red1",     # the common brickwork: the red brick's colour (BRICKS)
+    "lining": "game:block/clay/refractory/tier3/front1",    # the hot-face lining, the stands, the lid: tier-3 refractory
     "iron": "game:block/metal/plate/iron",
     "clay": "game:block/clay/hardened/fire",                # the fired pot's (meltingpot-fired)
     "coke": "game:block/coal/coke",
@@ -202,14 +206,63 @@ LUMP_AT = 5.0                                # their place from a pot's axis, al
 FLUE_OPENING = ((20.0, 28.0), (25.0, 28.0), (HOLE_Z[1], 30.0))   # through the hole's back wall, near its top
 BACK_FLUE = ((20.0, 28.0), (23.0, 28.0), (30.0, 44.0))
 STACK = ((20.0, 28.0), (23.0, 31.5), (36.0, 44.0))
-CURB = ((18.0, 30.0), (30.0, FLOOR_TOP), (34.0, 46.0))   # the outlet's iron curb, flush: a ring to 31.5 round the
-CURB_RIM = 1.0                                           # stack, then a rim 1 wide round the cap's seat
-CAP_Y = (31.5, FLOOR_TOP)                    # the cap: a flat iron plate set flush in the rim, on the ring
+CURB = ((18.0, 30.0), (30.0, FLOOR_TOP), (34.0, 46.0))   # the outlet's curb, of the lining's refractory brick, flush:
+CURB_RIM = 1.0                                           # a rim 1 wide round the cap's seat, the seat a ledge 1 wide
+CAP_Y = (31.5, FLOOR_TOP)                    # round the stack's mouth; the cap, a flat iron plate, set flush in it
+CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y, (CURB[2][0] + CURB_RIM, CURB[2][1] - CURB_RIM))
+
+# The brick, in two roles. The common brickwork (the base, the ash pit and the ash mouth, the thick outer walls) is
+# any one type of the game's fired brick (BRICKS); the hot faces are lined with tier-3 refractory brick LINING_T thick:
+# the hole's walls from the grate's bearers up (and the seat's ledge round its mouth), the flue's opening, the back
+# flue and the stack, and the outlet's curb; the pots' stands are of it too.
+LINING_T = 3.0
 
 # the iron binding, on the front and back faces only (the sides meet the row's neighbours and are plain brick)
 BIND_T = 0.5                                 # set into the brick, flush
 STRAP_X = ((0.5, 3.0), (45.0, 47.5))         # a flat strap up each end of the front and the back
 KERB_Y = (30.5, FLOOR_TOP)                   # a band along the top edge of the front and the back, between the straps
+
+# ---------------------------------------------------------------- the build
+# Built in stages (the rig's `build`; their requires values are the viewer's Build states): the iron frame, a grid
+# recipe placed as the machine (the controller and its ghosts), then the brickwork, the lining, and the lid with the
+# damper. The brickwork's and the lining's counts are measured from the model's volume at the game's rates: a
+# claybricks block is 2 fired bricks (8 and a mortar make 4), a refractory brick block 4 (8 and a mortar make 2),
+# rounded up; the lining's fire clay is one for every LINING_PER_FIRECLAY of its bricks, rounded up.
+FRAME_RECIPE = (("game:metalplate-iron", 2), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 4))
+BRICKS_PER_BLOCK = 2
+LINING_PER_BLOCK = 4
+LINING_PER_FIRECLAY = 2.5
+FIRED_BRICK = "game:burnedbrick-*"
+LINING_BRICK = "game:refractorybrick-fired-tier3"
+FIRECLAY = "game:clay-fire"
+LID_STAGE = ((LINING_BRICK, 4), ("game:metalplate-iron", 2))
+CAP_ITEM = ("game:metalplate-iron", 1)
+STAGES = ("brickwork", "lining", "lid")       # the stages after the frame, in order: their requires values
+STAGE_STATES = (                             # the viewer's Build select: (id, the stages fitted)
+    ("frame", ()),
+    ("brickwork", ("brickwork",)),
+    ("lining", ("brickwork", "lining")),
+    ("complete", ("brickwork", "lining", "lid")),
+)
+
+# The fired bricks the brickwork takes: game:burnedbrick-{type}, every type the game has (its burnedbrick item type,
+# in its order), each with the block its bricks make (the grid recipe's: claybricks for fire, the running brick course
+# for the others; no recipe makes clinker's, which is a ruin's) and that block's texture, which the renderer sets the
+# `brick` code to: the course draws the cream brick with the type's colour over it as an overlay. The first of each
+# block's textures (the game picks among alternates; the furnace's walls take one). (type, block, base, overlay)
+RUNNING = "game:block/clay/brick/four/running/"
+BRICKS = (
+    ("fire", "game:claybricks-good-fire", RUNNING + "fire1", None),
+    ("black", "game:brickcourse-four-running-black", RUNNING + "cream1", RUNNING + "black1"),
+    ("brown", "game:brickcourse-four-running-brown", RUNNING + "cream1", RUNNING + "brown1"),
+    ("cream", "game:brickcourse-four-running-cream", RUNNING + "cream1", None),
+    ("gray", "game:brickcourse-four-running-gray", RUNNING + "cream1", RUNNING + "gray1"),
+    ("orange", "game:brickcourse-four-running-orange", RUNNING + "cream1", RUNNING + "orange1"),
+    ("red", "game:brickcourse-four-running-red", RUNNING + "cream1", RUNNING + "red1"),
+    ("tan", "game:brickcourse-four-running-tan", RUNNING + "cream1", RUNNING + "tan1"),
+    ("clinker", "game:brickcourse-four-running-clinker", RUNNING + "clinker1", None),
+)
+BRICK_DEFAULT = "red"                        # the shape's own `brick` is its colour layer (a shape names one texture)
 
 # The scenario's states of the hole's contents, as the viewer gives them (site/models.json; tools/tests holds the two
 # together). Each is the requires values fitted.
@@ -413,6 +466,8 @@ def front_steps():
         out.append((FLOOR_TOP - c, top, math.ceil(back * 200 - 1e-9) / 200))
         top = FLOOR_TOP - c
     return out
+
+
 KNUCKLE_X = ((SEAT_X[0], SEAT_X[0] + KNUCKLE_L), (SEAT_X[1] - KNUCKLE_L, SEAT_X[1]))
 BED = KNUCKLE_R / math.cos(math.pi / 8) + 0.02           # a knuckle's or a pin's bed: its turning corners clear
 PIN_BED = PIN_R / math.cos(math.pi / 8) + 0.02
@@ -432,10 +487,11 @@ def binding():
 
 
 def brick_voids():
-    """Every space cut out of the brickwork, as (lo, hi) in voxels: the hole from the bearers up and the lid's seat;
-    the cave and the ash mouth's passage; the flue opening, the back flue and the stack; and the room for the iron
-    set into the brick (the bearers' ends, the lintel, the damper's recess with its guides, the beds of the hinge's
-    knuckles and pins, the stops' feet, the curb, the binding). The top is flat but for the seat and the outlet."""
+    """Every space cut out of the brick, as (lo, hi) in voxels: the hole from the bearers up and the lid's seat; the
+    cave and the ash mouth's passage; the flue opening, the back flue, the stack and the cap's seat in the curb; and
+    the room for the iron set into the brick (the bearers' ends, the lintel, the damper's recess with its guides, the
+    beds of the hinge's knuckles and pins, the stops' feet, the binding, the frame's ties). The top is flat but for
+    the seat and the outlet."""
     v = [([HOLE_X[0], BEARER_Y[0], HOLE_Z[0]], [HOLE_X[1], SEAT_Y, HOLE_Z[1]]),                # the hole, the grate's level
          ([SEAT_X[0], SEAT_Y, SEAT_Z[0]], [SEAT_X[1], FLOOR_TOP, SEAT_Z[1]])]                # the lid's seat
     for x0, x1 in BEARER_X:
@@ -453,10 +509,60 @@ def brick_voids():
     v.append(([lx[0], ly[0], lz[0]], [lx[1], ly[1], lz[1]]))                                  # its lintel
     (rx, ry, rz) = RECESS
     v.append(([rx[0], ry[0], rz[0]], [rx[1], ry[1], rz[1]]))                                  # the damper's recess
-    for (x0, x1), (y0, y1), (z0, z1) in (CAVE, FLUE_OPENING, BACK_FLUE, STACK, CURB):
+    for (x0, x1), (y0, y1), (z0, z1) in (CAVE, FLUE_OPENING, BACK_FLUE, STACK, CAP_SEAT):
         v.append(([x0, y0, z0], [x1, y1, z1]))
     v += [(lo, hi) for _, lo, hi in binding()]
+    v += [(lo, hi) for _, lo, hi in ties()]
     return v
+
+
+PIN_TIE = 3.25                               # a pin's tie: a bar on from its outer end along the wall, under the floor
+PIN_TIE_Y = (31.5, 31.9)
+STOP_TIE = 1.8                               # a stop's tie: a bar back from its foot, under the floor
+STOP_TIE_Y = (31.0, 31.9)
+
+
+def ties():
+    """The iron frame's ties, as (name, lo, hi): so that nothing of the frame floats before the brick is in, the least
+    iron that joins each piece to the ground, all of it inside the brick (voids are cut for it), so it is hidden once
+    the brick is in. A post under the front end of each outer bearer, and under the back end of the middle one (the
+    ash mouth is under its front end), each half a voxel clear of the ash pit; a post each side of the ash mouth,
+    behind the damper's recess, under the lintel's ends (the guides stand against the lintel's face); a bar on from
+    each hinge pin's outer end, along the side wall under the floor, on a post; and a bar back from each stop's foot
+    under the floor, on a post. The bars by the pins and the stops are in the lining's zone near them, the posts in the
+    brickwork's."""
+    out = []
+    for side, n, (z0, z1) in (("w", 0, (BEARER_Z[0], BEARER_Z[0] + 0.5)), ("m", 1, (BEARER_Z[1] - 0.5, BEARER_Z[1])),
+                              ("e", 2, (BEARER_Z[0], BEARER_Z[0] + 0.5))):
+        x0, x1 = BEARER_X[n]
+        out.append((f"fr_tie_bearer_{side}", [x0, 0.0, z0], [x1, BEARER_Y[0], z1]))
+    (lx, ly, lz) = LINTEL
+    for side, (x0, x1) in (("w", (lx[0] - 1.0, lx[0])), ("e", (lx[1], lx[1] + 1.0))):
+        out.append((f"fr_tie_lintel_{side}", [x0, 0.0, lz[0]], [x1, ly[1], lz[1]]))
+    zb = PIVOT[1]
+    for side, xe, sgn in (("w", SEAT_X[0] - PIN_IN, -1.0), ("e", SEAT_X[1] + PIN_IN, 1.0)):
+        xf = xe + sgn * PIN_TIE
+        x0, x1 = sorted((xe, xf))
+        out.append((f"fr_tie_pin_{side}", [x0, PIN_TIE_Y[0], zb - 0.15], [x1, PIN_TIE_Y[1], zb + 0.15]))
+        p0, p1 = sorted((xf, xf - sgn * 0.5))
+        out.append((f"fr_tie_pinpost_{side}", [p0, 0.0, zb - 0.25], [p1, PIN_TIE_Y[0], zb + 0.25]))
+    for side, (x0, x1) in zip(("w", "e"), STOP_X):
+        xm, z0 = (x0 + x1) / 2, STOP_Z + STOP_D
+        out.append((f"fr_tie_stop_{side}", [xm - 0.5, STOP_TIE_Y[0], z0], [xm + 0.5, STOP_TIE_Y[1], z0 + STOP_TIE]))
+        out.append((f"fr_tie_stoppost_{side}", [xm - 0.5, 0.0, z0 + STOP_TIE - 0.5], [xm + 0.5, STOP_TIE_Y[0], z0 + STOP_TIE]))
+    return out
+
+
+def lining_zones():
+    """Where the brick is the lining's, as (lo, hi): LINING_T round the hole from the bearers' level up to the floor
+    (its walls and the seat's ledge), and round the flue (the opening, the back flue, the stack and the outlet's curb)
+    from its floor up. The rest of the brick is the brickwork's: the base, the ash pit, the ash mouth, the outer
+    walls."""
+    t = LINING_T
+    (hx0, hx1), (hz0, hz1) = HOLE_X, HOLE_Z
+    (fx0, fx1), (fy0, _), _ = BACK_FLUE
+    return [([hx0 - t, CAVE[1][1], hz0 - t], [hx1 + t, FLOOR_TOP, hz1 + t]),
+            ([fx0 - t, fy0 - t, hz1], [fx1 + t, FLOOR_TOP, STACK[2][1] + t])]
 
 
 def _inside(p, lo, hi):
@@ -464,31 +570,41 @@ def _inside(p, lo, hi):
 
 
 def brick_lattice():
-    """The brickwork as a lattice: the breakpoints along each axis (every void's faces and every block's), and for
-    each lattice box whether it is brick (its middle in no void)."""
+    """The brick as a lattice: the breakpoints along each axis (every void's faces, the lining's zones' and every
+    block's), and for each lattice box what it is: "bk" (the brickwork's), "ln" (the lining's) or None (a void)."""
     voids = brick_voids()
+    zones = lining_zones()
     axes = []
     for k, n in enumerate((CELLS_X, CELLS_Y, CELLS_Z)):
         pts = {round(B * c, 6) for c in range(n + 1)}
-        for lo, hi in voids:
+        for lo, hi in voids + zones:
             pts.add(round(min(max(lo[k], 0.0), n * B), 6))
             pts.add(round(min(max(hi[k], 0.0), n * B), 6))
         axes.append(sorted(pts))
     xs, ys, zs = axes
-    solid = {}
+    mat = {}
     for i in range(len(xs) - 1):
         for j in range(len(ys) - 1):
             for k in range(len(zs) - 1):
                 mid = ((xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2, (zs[k] + zs[k + 1]) / 2)
-                solid[(i, j, k)] = not any(_inside(mid, lo, hi) for lo, hi in voids)
-    return xs, ys, zs, solid
+                if any(_inside(mid, lo, hi) for lo, hi in voids):
+                    mat[(i, j, k)] = None
+                else:
+                    mat[(i, j, k)] = "ln" if any(_inside(mid, lo, hi) for lo, hi in zones) else "bk"
+    return xs, ys, zs, mat
+
+
+BRICK_ROLES = {"bk": ("brickwork", "brick"), "ln": ("lining", "lining")}   # (part, texture)
 
 
 def build_brick():
-    """The brickwork: the lattice's brick merged greedily into boxes (along x, then z, then y), none crossing a
-    block's boundary, each world-mapped so the boxes read as one wall. Faces that lie against brick on their whole
-    area are left out (they are inside the wall)."""
-    xs, ys, zs, solid = brick_lattice()
+    """The brick: the lattice's brickwork and lining each merged greedily into boxes (along x, then z, then y), none
+    crossing a block's boundary or the other's, each world-mapped so the boxes read as one wall; `bk_brick_NNN` in the
+    `brickwork` part, `ln_brick_NNN` in the `lining`. A face that lies on its whole area against brick always there
+    with it is left out (inside the wall): a brickwork face against brickwork, a lining face against either (the
+    lining goes in after the brickwork). A brickwork face against the lining is kept: until the lining is in, it is
+    the wall's face."""
+    xs, ys, zs, mat = brick_lattice()
     nx, ny, nz = len(xs) - 1, len(ys) - 1, len(zs) - 1
 
     def blk(vals, i):
@@ -499,11 +615,12 @@ def build_brick():
     for j in range(ny):
         for k in range(nz):
             for i in range(nx):
-                if not solid[(i, j, k)] or (i, j, k) in used:
+                m0 = mat[(i, j, k)]
+                if m0 is None or (i, j, k) in used:
                     continue
 
                 def free(a, b, c):
-                    return solid[(a, b, c)] and (a, b, c) not in used
+                    return mat[(a, b, c)] == m0 and (a, b, c) not in used
                 i1 = i
                 while i1 + 1 < nx and blk(xs, i1 + 1) == blk(xs, i) and free(i1 + 1, j, k):
                     i1 += 1
@@ -518,10 +635,14 @@ def build_brick():
                     for b in range(j, j1 + 1):
                         for c in range(k, k1 + 1):
                             used.add((a, b, c))
-                spans.append(((i, i1), (j, j1), (k, k1)))
+                spans.append((m0, (i, i1), (j, j1), (k, k1)))
     out = []
-    for n, ((i0, i1), (j0, j1), (k0, k1)) in enumerate(spans, 1):
-        el = wbox([xs[i0], ys[j0], zs[k0]], [xs[i1 + 1], ys[j1 + 1], zs[k1 + 1]], f"fr_brick_{n:03d}", "frame", "brick")
+    count = {"bk": 0, "ln": 0}
+    hides = {"bk": ("bk",), "ln": ("bk", "ln")}
+    for m0, (i0, i1), (j0, j1), (k0, k1) in spans:
+        count[m0] += 1
+        part, tex = BRICK_ROLES[m0]
+        el = wbox([xs[i0], ys[j0], zs[k0]], [xs[i1 + 1], ys[j1 + 1], zs[k1 + 1]], f"{m0}_brick_{count[m0]:03d}", part, tex)
         faces = {"west": [(i0 - 1, b, c) for b in range(j0, j1 + 1) for c in range(k0, k1 + 1)],
                  "east": [(i1 + 1, b, c) for b in range(j0, j1 + 1) for c in range(k0, k1 + 1)],
                  "down": [(a, j0 - 1, c) for a in range(i0, i1 + 1) for c in range(k0, k1 + 1)],
@@ -529,7 +650,7 @@ def build_brick():
                  "north": [(a, b, k0 - 1) for a in range(i0, i1 + 1) for b in range(j0, j1 + 1)],
                  "south": [(a, b, k1 + 1) for a in range(i0, i1 + 1) for b in range(j0, j1 + 1)]}
         for d, nbrs in faces.items():
-            if all(solid.get(q, False) for q in nbrs):
+            if all(mat.get(q) in hides[m0] for q in nbrs):
                 del el.faces[d]
         out.append(el)
     return out
@@ -537,9 +658,10 @@ def build_brick():
 
 # ---------------------------------------------------------------- builders
 def build_iron():
-    """The iron set into the brickwork: the three bearers (front to back) and the firebars (two lengths a row), the
-    ash mouth's lintel and the damper's guides, the hinge's two pins (bedded in the side walls) and the lid's two
-    stops, the outlet's curb (a ring round the stack, a rim round the cap's seat), and the binding."""
+    """The iron frame (`frame`): what the frame stage puts down, set into the brick once it is in. The three bearers
+    (front to back) and the firebars (two lengths a row), the ash mouth's lintel and the damper's guides, the hinge's
+    two pins (bedded in the side walls) and the lid's two stops, the binding, and the ties that hold them up until the
+    brick is in (`ties`)."""
     f, t = "frame", "iron"
     out = []
     for n, (x0, x1) in enumerate(BEARER_X, 1):
@@ -559,32 +681,29 @@ def build_iron():
         out += oct_rod_x(x0, x1, PIVOT[0], PIVOT[1], PIN_R, f"fr_pin_{side}", f, t)
     for side, (x0, x1) in zip(("w", "e"), STOP_X):
         out.append(box([x0, FLOOR_TOP - STOP_SET, STOP_Z], [x1, FLOOR_TOP + STOP_H, STOP_Z + STOP_D], f"fr_stop_{side}", f, t))
-    (x0, x1), (y0, y1), (z0, z1) = CURB
-    (sx0, sx1), _, (sz0, sz1) = STACK
-    yr = CAP_Y[0]
-    out += [box([x0, y0, z0], [x1, yr, sz0], "fr_curb_n", f, t), box([x0, y0, sz1], [x1, yr, z1], "fr_curb_s", f, t),
-            box([x0, y0, sz0], [sx0, yr, sz1], "fr_curb_w", f, t), box([sx1, y0, sz0], [x1, yr, sz1], "fr_curb_e", f, t)]
-    r = CURB_RIM
-    out += [box([x0, yr, z0], [x1, y1, z0 + r], "fr_rim_n", f, t), box([x0, yr, z1 - r], [x1, y1, z1], "fr_rim_s", f, t),
-            box([x0, yr, z0 + r], [x0 + r, y1, z1 - r], "fr_rim_w", f, t), box([x1 - r, yr, z0 + r], [x1, y1, z1 - r], "fr_rim_e", f, t)]
     out += [box(lo, hi, name, f, t) for name, lo, hi in binding()]
+    out += [box(lo, hi, name, f, t) for name, lo, hi in ties()]
     return out
 
 
 def build_stands():
-    """Each pot's fireclay stand on the grate (the hole's: they stay when the pots are pulled)."""
+    """Each pot's stand on the grate, of the lining's refractory (`ln_stand<i>`, the lining's: they stay when the
+    pots are pulled)."""
     y0, y1, a = STAND
-    return [el for i in POTS for el in oct_disc(POT_X[i], POT_Z, y0, y1, a, f"fr_stand{i}", "frame", "clay")]
+    return [el for i in POTS for el in oct_disc(POT_X[i], POT_Z, y0, y1, a, f"ln_stand{i}", "lining", "lining")]
 
 
 def build_frame():
+    """Everything that stands still and is not the hole's contents: the brick (brickwork and lining), the iron frame
+    and the stands."""
     return build_brick() + build_iron() + build_stands()
 
 
 def build_lid():
-    """The lid (`lid`), shut, then turned open about the hinge's axis (the rest pose): an iron frame round firebrick
-    (its front bar stepped back down the face, front_steps), an iron knuckle round the axis at each back corner (the pins run through them into the side walls), with a pocket
-    near its front edge and an iron handle bar across the pocket, under its top."""
+    """The lid (`lid`), shut, then turned open about the hinge's axis (the rest pose): an iron frame round tier-3
+    firebrick (its front bar stepped back down the face, front_steps), an iron knuckle round the axis at each back
+    corner (the pins run through them into the side walls), with a pocket near its front edge and an iron handle bar
+    across the pocket, under its top."""
     p = "lid"
     (x0, x1), (z0, z1) = SEAT_X, SEAT_Z
     y0, y1 = SEAT_Y, FLOOR_TOP
@@ -602,7 +721,7 @@ def build_lid():
     for name, lo, hi in (("fill_w", [fx0, y0, fz0], [cx - q, y1, fz1]), ("fill_e", [cx + q, y0, fz0], [fx1, y1, fz1]),
                          ("fill_n", [cx - q, y0, fz0], [cx + q, y1, pz - q]), ("fill_s", [cx - q, y0, pz + q], [cx + q, y1, fz1]),
                          ("pocket", [cx - q, y0, pz - q], [cx + q, y1 - deep, pz + q])):
-        out += [wbox(l2, h2, f"{p}_{n2}", p, "brick") for n2, l2, h2 in split_cells(name, lo, hi)]
+        out += [wbox(l2, h2, f"{p}_{n2}", p, "lining") for n2, l2, h2 in split_cells(name, lo, hi)]
     hw, under = HANDLE
     out.append(box([cx - q - 0.5, y1 - under - 0.7, pz - hw], [cx + q + 0.5, y1 - under, pz + hw], f"{p}_handle", p, "iron"))
     for side, (kx0, kx1) in zip(("w", "e"), KNUCKLE_X):
@@ -723,8 +842,8 @@ def build_damper(place):
 
 
 def build_cap():
-    """The outlet's cap (`outletcap`): a flat iron plate set flush in the curb's rim, on its ring, closing the outlet
-    of a furnace whose chimney is another's in the row."""
+    """The outlet's cap (`outletcap`): a flat iron plate set flush in the curb's seat, closing the outlet of a furnace
+    whose chimney is another's in the row."""
     (x0, x1), _, (z0, z1) = CURB
     r = CURB_RIM
     return [box([x0 + r, CAP_Y[0], z0 + r], [x1 - r, CAP_Y[1], z1 - r], "outletcap_plate", "outletcap", "iron")]
@@ -764,7 +883,8 @@ def lid_drivers():
              "amount": r6(-math.radians(OPEN_DEG))}]
 
 
-PART_IDS = ("lid",) + CONTENTS + tuple(f"damper{d}" for d in DAMPERS) + ("outletcap",)
+PART_IDS = STAGES + CONTENTS + tuple(f"damper{d}" for d in DAMPERS) + ("outletcap",)
+MATCH = {"brickwork": "bk_*", "lining": "ln_*"}
 
 _PARTS = []
 
@@ -778,10 +898,8 @@ def rig_parts():
 def _rig_parts():
     parts = []
     for pid in PART_IDS:
-        if pid == "lid":
-            parts.append({"id": pid, "match": [f"{pid}_*"], "requires": None, "drivers": lid_drivers()})
-        else:
-            parts.append({"id": pid, "match": [f"{pid}_*"], "requires": pid, "drivers": []})
+        parts.append({"id": pid, "match": [MATCH.get(pid, f"{pid}_*")], "requires": pid,
+                      "drivers": lid_drivers() if pid == "lid" else []})
     parts.append({"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []})
     for p in parts:
         p["ride"] = None
@@ -793,8 +911,9 @@ def _rig_parts():
 
 # ---------------------------------------------------------------- poses
 # A pose is (theta, depth, scene): the clock, the lid, and what is fitted. A scene is (the pots' state, the damper's
-# place, whether the outlet is capped): gameplay's requires.
-DEFAULT_SCENE = ("charged", "open", False)
+# place, whether the outlet is capped, the build's state): gameplay's requires. The hole's contents and the damper are
+# fitted only once the furnace is built (the lid stage), the cap once the curb is in (the lining).
+DEFAULT_SCENE = ("charged", "open", False, "complete")
 REST = (0.0, 0.0, DEFAULT_SCENE)
 SHUT = 1.0
 
@@ -809,17 +928,19 @@ def pm(parts, pid, pose):
 
 def fitted(scene):
     """The requires values fitted in a scene."""
-    state, damper, capped = scene
-    out = set(dict((s[0], s[2]) for s in POT_STATES)[state])
-    out.add(f"damper{damper}")
-    if capped:
+    state, damper, capped, stage = scene
+    out = set(dict(STAGE_STATES)[stage])
+    if "lid" in out:
+        out |= set(dict((s[0], s[2]) for s in POT_STATES)[state])
+        out.add(f"damper{damper}")
+    if capped and "lining" in out:
         out.add("outletcap")
     return out
 
 
 def on_show(part, scene):
-    """Whether a part is drawn in a scene: the lid and the frame always, the rest when fitted."""
-    return part in ("frame", "lid") or part in fitted(scene)
+    """Whether a part is drawn in a scene: the iron frame always, the rest when fitted."""
+    return part == "frame" or part in fitted(scene)
 
 
 def shown(parts, posed_els, pose):
@@ -877,6 +998,78 @@ MIN_CHIMNEY = 6                              # CrucibleFurnaceConfig.MinChimneyH
 #                                              counted from it up (the stack's base in the furnace does not count)
 
 
+def box_volume(el):
+    return abs(el.size[0] * el.size[1] * el.size[2])
+
+
+def build_volumes(els):
+    """The brickwork's and the lining's volumes, in blocks, measured from their elements: the brick boxes (each lattice
+    box in exactly one) and the stands (octagonal discs: their strips overlap, so oct_area by height)."""
+    bk = sum(box_volume(e) for e in els if e.name.startswith("bk_brick_"))
+    ln = sum(box_volume(e) for e in els if e.name.startswith("ln_brick_"))
+    y0, y1, a = STAND
+    ln += len(POTS) * oct_area(a) * (y1 - y0)
+    return bk / B ** 3, ln / B ** 3
+
+
+def build_counts(els):
+    """What the brickwork and the lining stages take, from their volumes: fired bricks at BRICKS_PER_BLOCK, refractory
+    bricks at LINING_PER_BLOCK, fire clay one per LINING_PER_FIRECLAY of those, each rounded up."""
+    bk, ln = build_volumes(els)
+    bricks = math.ceil(bk * BRICKS_PER_BLOCK - 1e-9)
+    lining = math.ceil(ln * LINING_PER_BLOCK - 1e-9)
+    return {"brickVolume": bk, "liningVolume": ln, "bricks": bricks, "lining": lining,
+            "fireclay": math.ceil(lining / LINING_PER_FIRECLAY - 1e-9)}
+
+
+_COUNTS = {}
+
+
+def counts():
+    """build_counts of the model as built (before the z-fighting fix, which steps faces in)."""
+    if not _COUNTS:
+        _COUNTS.update(build_counts(build_frame()))
+    return dict(_COUNTS)
+
+
+def materials(pairs):
+    return [{"code": code, "quantity": q} for code, q in pairs]
+
+
+def build_json():
+    c = counts()
+    return {
+        "frame": {"recipe": "grid", "tool": "hammer", "ingredients": materials(FRAME_RECIPE)},
+        "stages": [
+            {"requires": "brickwork", "volumeBlocks": r6(c["brickVolume"]), "oneType": True, "perClick": "stack",
+             "materials": materials(((FIRED_BRICK, c["bricks"]),))},
+            {"requires": "lining", "volumeBlocks": r6(c["liningVolume"]), "perClick": "stack",
+             "materials": materials(((LINING_BRICK, c["lining"]), (FIRECLAY, c["fireclay"])))},
+            {"requires": "lid", "also": [f"damper{d}" for d in DAMPERS], "materials": materials(LID_STAGE)},
+        ],
+        "outletCap": materials((CAP_ITEM,))[0],
+        "_comment": "The build's stages, in order. frame: the iron frame's grid recipe (with a hammer); placing it puts "
+                    "down the controller and its ghosts, and draws the frame part. Each stage then fits its requires "
+                    "when its materials are all in: brickwork, then lining, then lid (with the damper: also, its "
+                    "places). volumeBlocks: the stage's brick measured from the model, in blocks; its quantities are "
+                    "that at 2 fired bricks or 4 refractory bricks a block (the game's brick block recipes), rounded "
+                    "up, fire clay one per 2.5 refractory bricks. perClick stack: a click puts in as many of the held "
+                    "stack as are still needed. oneType: the first fired brick put in sets the furnace's brick type "
+                    "(bricks), and the rest must match. outletCap: an item interaction, not a stage. The hole's "
+                    "contents and the damper are drawn once the lid stage is in, the cap once the lining is."}
+
+
+def bricks_json():
+    return {"code": "brick", "item": "game:burnedbrick-{type}", "default": BRICK_DEFAULT,
+            "types": {t: {"block": block, "base": base, **({"overlays": [over]} if over else {})}
+                      for t, block, base, over in BRICKS},
+            "_comment": "The fired brick types the brickwork takes (every game:burnedbrick type), each with the block "
+                        "its bricks make and that block's texture: the renderer sets the shape's 'brick' code to the "
+                        "furnace's type's base, with its overlays drawn over it (the brick course's cream brick under "
+                        "the type's colour). The furnace's type is the first brick put in; until then no brick is "
+                        "drawn. A type missing here (another mod's) is refused."}
+
+
 def make_rig(parts):
     sx, sz = (STACK[0][0] + STACK[0][1]) / 2, (STACK[2][0] + STACK[2][1]) / 2
     return {
@@ -887,9 +1080,11 @@ def make_rig(parts):
                     "No power and no forced air: natural draught, in at the ash mouth (ash, ashSide) under the damper. "
                     "depth is the lid: 0 open, resting past upright on its two stops (the rest pose), 1 shut, turned "
                     "about the hinge's axis (hinge), its top back edge. theta is the melter's clock, carried by a "
-                    "ratio-0 rotate on the lid: nothing turns. requires: pot1, pot2, charge1, charge2, melt1, melt2, "
-                    "the coke's three layers coke1..3 (from the grate up) and the same burning, fire1..3; the damper's "
-                    "place, damperopen, damperhalf or dampershut (one at a time); and outletcap. The six cells over the "
+                    "ratio-0 rotate on the lid: nothing turns. requires: the build's stages, brickwork, lining and lid "
+                    "(build; the frame, iron, has none); pot1, pot2, charge1, charge2, melt1, melt2, the coke's three "
+                    "layers coke1..3 (from the grate up) and the same burning, fire1..3; the damper's place, "
+                    "damperopen, damperhalf or dampershut (one at a time); and outletcap. The brickwork's texture is "
+                    "the furnace's brick type's (bricks). The six cells over the "
                     "front two rows are hollow: the lid stands open over the middle row (gameplay's collision for it) "
                     "and sweeps the front row's as it turns. holeCell: the cell over the hole's middle, worked from its "
                     "top (a click on the hole is the nearer pot's, pot1 or pot2); outletCell: the stack, in the back "
@@ -908,6 +1103,8 @@ def make_rig(parts):
         "hinge": {"origin": pt((SEAT_X[0] + SEAT_X[1]) / 2, PIVOT[0], PIVOT[1]), "axis": "x",
                   "length": r6((SEAT_X[1] - SEAT_X[0]) / B)},
         "chimney": {"origin": pt(sx, FLOOR_TOP + MIN_CHIMNEY * B / 2, sz), "axis": "y", "length": float(MIN_CHIMNEY)},
+        "build": build_json(),
+        "bricks": bricks_json(),
         "furnace": {"pots": len(POTS), "potUnits": POT_UNITS, "cokeLayers": len(COKE_LAYERS), "cokePerLayer": COKE_PER_LAYER,
                     "minChimney": MIN_CHIMNEY, "rowMax": ROW_MAX, "rowAxis": "x", "lidOpenDegrees": OPEN_DEG,
                     "_comment": "pots: the pots in the hole, pot1 and pot2; potUnits: what each pot's drawn melt holds "
@@ -944,7 +1141,7 @@ def shipped(els, parts, rig):
     return ship_els, ship_parts, ship
 
 
-CELL_PARTS = ("frame", "lid")                # what the cells' boxes are made of: the brickwork, its iron and the lid shut
+CELL_PARTS = ("frame", "brickwork", "lining", "lid")   # the cells' boxes: the furnace built, the lid shut
 CELL_POSE = (0.0, SHUT, DEFAULT_SCENE)
 
 
@@ -1011,9 +1208,10 @@ def reference_json(ship_parts):
 # ---------------------------------------------------------------- shape files
 def shape_json(els):
     shape = machine_shape_json(
-        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. Texture codes the renderer may "
-             "set: 'melt' and 'charge' (the pots' metal). The burning coke ('ember') and the melt glow. Keep element "
-             "names when editing: the rig finds its parts by them.",
+        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. Texture codes the renderer "
+             "sets: 'brick' (the common brickwork: the furnace's brick type's block texture, from the rig's bricks; "
+             "the shape's own is the red brick's colour layer), 'melt' and 'charge' (the pots' metal). The burning coke "
+             "('ember') and the melt glow. Keep element names when editing: the rig finds its parts by them.",
         TEXTURES, tex_size=TEX)
     for e in shape["elements"]:
         stem = e["name"].split("_")[0]
@@ -1025,8 +1223,9 @@ def shape_json(els):
 
 
 def coplanar_poses():
-    scenes = [(st, "open", False) for st in ("charged", "melted", "burntlow", "pulled", "pots")]
-    scenes += [("cold", "half", True), ("cold", "shut", True)]
+    scenes = [(st, "open", False, "complete") for st in ("charged", "melted", "burntlow", "pulled", "pots")]
+    scenes += [("cold", "half", True, "complete"), ("cold", "shut", True, "complete")]
+    scenes += [("cold", "open", False, "frame"), ("cold", "open", False, "brickwork"), ("cold", "open", True, "lining")]
     return tuple((0.0, dp, sc) for sc in scenes for dp in (0.0, 0.5, 1.0))
 
 

@@ -8,7 +8,9 @@ origin shift; `check_shipped` in make_shape.py proves the shipped files are this
 from __future__ import annotations
 
 import math
+import os
 import re
+from pathlib import Path
 
 from machinegen.checks import coplanar_faces, euler_round_trip, frame_floating, obb_obb
 from machinegen.geometry import aabb_of
@@ -62,7 +64,14 @@ def same_box(a, b, tol=1e-6):
 
 
 def brick(v):
-    return [e for e in v.by_part["frame"] if e.name.startswith("fr_brick")]
+    """Every brick box, the brickwork's and the lining's."""
+    return [e for e in v.by_part["brickwork"] + v.by_part["lining"] if e.name.startswith(("bk_brick_", "ln_brick_"))]
+
+
+def static(v):
+    """Everything that stands still and is not the hole's contents, the furnace built: the iron frame, the brickwork and
+    the lining (with the stands)."""
+    return v.by_part["frame"] + v.by_part["brickwork"] + v.by_part["lining"]
 
 
 # ---------------------------------------------------------------- parts, frame, textures
@@ -81,23 +90,63 @@ def check_basic(v):
     if empty:
         v.fail(f"parts with no elements: {empty}")
     counts = {p["id"]: len(v.by_part.get(p["id"], [])) for p in v.parts}
-    print(f"parts: {len(v.parts)}, elements {len(v.els)}; frame {counts['frame']} ({len(brick(v))} of brick); "
+    print(f"parts: {len(v.parts)}, elements {len(v.els)}; the iron frame {counts['frame']}; "
           + ", ".join(f"{p} {n}" for p, n in counts.items() if p != "frame"))
 
 
-def check_floating(v):
-    seen, loose = frame_floating(v.by_part["frame"])
-    print(f"frame: {len(seen)} elements joined to the ground, {len(loose)} not")
-    if loose:
-        v.fail(f"frame elements float: {loose[:8]}")
+def check_stages(v):
+    """The build *(review)*: at each stage (the iron frame alone, with the brickwork, with the lining too) nothing
+    floats: every element drawn is joined to the ground. The frame is iron only, and its ties are hidden once the brick
+    is in: points just off every face of every tie lie in brick or in other iron; the posts are in the brickwork, so
+    only the bars by the pins and the stops show while the lining is not in."""
+    m = v.m
+    out = []
+    for sid, fitted in m.STAGE_STATES:
+        drawn = v.by_part["frame"] + [e for f in fitted if f != "lid" for e in v.by_part[f]]
+        seen, loose = frame_floating(drawn)
+        out.append(f"{sid} {len(seen)}")
+        if loose:
+            v.fail(f"at the {sid} stage, elements float: {loose[:8]}")
+    tex = {f["texture"].lstrip("#") for e in v.by_part["frame"] for f in e.faces.values()}
+    if tex != {"iron"}:
+        v.fail(f"the iron frame is not iron only: {sorted(tex)}")
+    frame = v.by_part["frame"]
+    ties = [e for e in frame if e.name.startswith("fr_tie")]
+    bk = v.by_part["brickwork"]
+    bare, showing = 0, set()
+    for t in ties:
+        others = [e for e in frame if e is not t]
+        lo, hi = t.aabb()
+        for k in range(3):
+            for side in (lo[k] - 0.02, hi[k] + 0.02):
+                a, b = [q for q in range(3) if q != k]
+                for fa in (0.1, 0.5, 0.9):
+                    for fb in (0.1, 0.5, 0.9):
+                        pnt = [0.0, 0.0, 0.0]
+                        pnt[k] = side
+                        pnt[a] = lo[a] + (hi[a] - lo[a]) * fa
+                        pnt[b] = lo[b] + (hi[b] - lo[b]) * fb
+                        if pnt[1] < 0.0 or any(inside(e, pnt) for e in others):
+                            continue                       # the ground, or other iron
+                        if not any(inside(e, pnt) for e in brick(v)):
+                            bare += 1
+                        elif not any(inside(e, pnt) for e in bk):
+                            showing.add(t.name)
+    print(f"stages: nothing floats at any stage (elements joined to the ground: {', '.join(out)}); the frame iron only, "
+          f"{len(ties)} ties hidden once the brick is in ({bare} points off their faces bare); with the brickwork alone "
+          f"these show in the lining's place: {sorted(showing) or 'none'}")
+    if bare:
+        v.fail(f"{bare} points off the ties' faces are in no brick or iron: a tie shows")
+    if any(not n.startswith(("fr_tie_pin_", "fr_tie_stop_")) for n in showing):
+        v.fail(f"a post shows before the lining is in: {sorted(showing)}")
 
 
 ROLES = [
-    (r"^fr_brick_", {"brick"}),
-    (r"^fr_(bearer|bar|lintel|guide|pin|stop|curb|rim|strap|kerb)", {"iron"}),
-    (r"^fr_stand\d", {"clay"}),
+    (r"^bk_brick_", {"brick"}),
+    (r"^ln_(brick_|stand\d)", {"lining"}),
+    (r"^fr_(bearer|bar|lintel|guide|pin|stop|strap|kerb|tie)", {"iron"}),
     (r"^lid_(frame|handle|knuckle)", {"iron"}),
-    (r"^lid_(fill|pocket)", {"brick"}),
+    (r"^lid_(fill|pocket)", {"lining"}),
     (r"^pot\d_", {"clay"}),
     (r"^charge\d_", {"charge"}),
     (r"^melt\d_", {"melt"}),
@@ -184,6 +233,7 @@ def check_top(v):
     frame and the lid shut) is under GROOVE_MAX."""
     m = v.m
     frame = v.by_part["frame"]
+    solid = static(v)
     (cx0, cx1), _, (cz0, cz1) = m.CURB
     beds = hinge_beds(m)
 
@@ -200,7 +250,7 @@ def check_top(v):
         while z < m.D:
             if not opening(x, z):
                 n += 1
-                under = [e for e in frame if inside(e, (x, m.FLOOR_TOP - 0.05, z))]
+                under = [e for e in solid if inside(e, (x, m.FLOOR_TOP - 0.05, z))]
                 if not under or any(abs(e.aabb()[1][1] - m.FLOOR_TOP) > 1e-6 for e in under):
                     bad.append((x, z))
             z += 0.5
@@ -210,7 +260,7 @@ def check_top(v):
     pins = max((e.aabb()[1][1] - m.FLOOR_TOP for e in high if e.name.startswith("fr_pin")), default=0.0)
     # the groove: lines across the hinge, along z through each knuckle, pin and stop and the lid's back edge between,
     # across its front edge (clear of the handle's pocket), and along x across the seat's sides
-    near = [e for e in frame + v.posed("lid", m.SHUT) if e.aabb()[1][1] > m.FLOOR_TOP - 1.0]
+    near = [e for e in solid + v.posed("lid", m.SHUT) if e.aabb()[1][1] > m.FLOOR_TOP - 1.0]
     y = m.FLOOR_TOP - 0.02
     lines = [[(xa, y, m.PIVOT[1] - 1.0 + q * 0.01) for q in range(301)] for x0, x1, _, _ in beds for xa in (x0 + 0.3, (x0 + x1) / 2)]
     lines += [[(xa, y, m.PIVOT[1] - 1.0 + q * 0.01) for q in range(301)] for xa in (m.W / 2, m.SEAT_X[0] + 2.5, m.SEAT_X[1] - 2.5)]
@@ -243,7 +293,7 @@ def check_sides(v):
     half voxel), and nothing but brick reaches either side plane, of any part at any depth; two furnaces side by side
     (one moved a furnace's width along x) touch nowhere but at their shared walls, over the lid's whole swing."""
     m = v.m
-    bricks = brick(v)
+    bricks = v.by_part["brickwork"]
     bad, n = [], 0
     for x in (0.05, m.W - 0.05):
         y = 0.25
@@ -262,7 +312,7 @@ def check_sides(v):
         for pid in v.by_part:
             for e in v.posed(pid, dp):
                 lo, hi = e.aabb()
-                if (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not e.name.startswith("fr_brick"):
+                if (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not e.name.startswith("bk_brick"):
                     reach.add(e.name)
     if reach:
         v.fail(f"not brick at a side plane: {sorted(reach)[:4]}")
@@ -300,7 +350,7 @@ def check_walls(v):
                            ("stack", m.STACK[0]), ("outlet's curb", m.CURB[0])):
         if abs((x0 + x1) / 2 - mid) > 1e-9:
             v.fail(f"the {what} is not centred left to right")
-    near = [e for e in frame if e.name.startswith(("fr_brick", "fr_strap", "fr_kerb", "fr_bearer", "fr_pin", "fr_guide"))]
+    near = brick(v) + [e for e in frame if e.name.startswith(("fr_strap", "fr_kerb", "fr_bearer", "fr_pin", "fr_guide", "fr_tie"))]
 
     def solid(p):
         return any(inside(e, p, eps=-1e-9) for e in near)
@@ -338,6 +388,137 @@ def check_walls(v):
     for k, (t, at) in worst.items():
         if t < m.MIN_WALL - 1e-9:
             v.fail(f"the {k} wall is {t:.2f} thick at {at}")
+
+
+def what_is(v, p):
+    """What lies at p: "ln" (the lining's brick), "bk" (the brickwork's), "iron" (the frame), or None (open)."""
+    for e in v.by_part["lining"]:
+        if e.name.startswith("ln_brick_") and inside(e, p):
+            return "ln"
+    for e in v.by_part["brickwork"]:
+        if inside(e, p):
+            return "bk"
+    if any(inside(e, p) for e in v.by_part["frame"]):
+        return "iron"
+    return None
+
+
+def face_samples(lo, hi, k, sign, step=1.0):
+    """Points on the face of box (lo, hi) normal to axis k on the `sign` side, every `step`, a quarter in from its
+    edges, with the direction out of the box."""
+    a, b = [q for q in range(3) if q != k]
+    out = []
+    ua = lo[a] + 0.25
+    while ua < hi[a] - 0.2:
+        ub = lo[b] + 0.25
+        while ub < hi[b] - 0.2:
+            pnt = [0.0, 0.0, 0.0]
+            pnt[k] = hi[k] if sign > 0 else lo[k]
+            pnt[a], pnt[b] = ua, ub
+            out.append(pnt)
+            ub += step
+        ua += step
+    return out
+
+
+def check_lining(v):
+    """The lining *(review)*: on the hot faces (the hole's walls from the bearers up to the seat, and every face of the
+    flue opening, the back flue and the stack that brick stands behind) the brick is the lining's for at least
+    LINING_T from the face out, unless the brick ends sooner (the lining then reaches through), sampled every voxel and
+    walked out every quarter; the ash pit's and the ash mouth's faces are the brickwork's."""
+    m = v.m
+    t = m.LINING_T
+    hot = [([m.HOLE_X[0], m.BEARER_Y[1], m.HOLE_Z[0]], [m.HOLE_X[1], m.SEAT_Y, m.HOLE_Z[1]])]
+    for (x0, x1), (y0, y1), (z0, z1) in (m.FLUE_OPENING, m.BACK_FLUE, m.STACK):
+        hot.append(([x0, y0, z0], [x1, y1, z1]))
+    thinnest, where, n = 1e9, None, 0
+    for lo, hi in hot:
+        for k in range(3):
+            if k == 1 and lo is hot[0][0]:
+                continue                                   # the hole's floor is the grate, its top the lid
+            for sign in (-1, 1):
+                for pnt in face_samples(lo, hi, k, sign):
+                    first = list(pnt)
+                    first[k] += sign * 0.125
+                    if what_is(v, first) != "ln":
+                        if what_is(v, first) == "bk":
+                            v.fail(f"a hot face is the brickwork's at {first}")
+                        continue
+                    n += 1
+                    d = 0.125
+                    while d < t + 0.5:
+                        q = list(pnt)
+                        q[k] += sign * d
+                        w = what_is(v, q) if 0.0 < q[k] < (m.W, m.H, m.D)[k] else None
+                        if w != "ln":
+                            if w == "bk" and d - 0.125 < t - 1e-6:
+                                if d - 0.125 < thinnest:
+                                    thinnest, where = d - 0.125, pnt
+                            break
+                        d += 0.25
+    cold, wrong = 0, []
+    (mx0, mx1), (my0, my1) = m.MOUTH
+    for (lo, hi) in ((m.CAVE[0][0], m.CAVE[1][0], m.CAVE[2][0]), (m.CAVE[0][1], m.CAVE[1][1], m.CAVE[2][1])), \
+                    ((mx0, my0, 1.0), (mx1, my1, m.CAVE[2][0])):
+        for k in range(3):
+            for sign in (-1, 1):
+                for pnt in face_samples(lo, hi, k, sign, step=2.0):
+                    q = list(pnt)
+                    q[k] += sign * 0.125
+                    w = what_is(v, q)
+                    if w in ("ln", "bk"):
+                        cold += 1
+                        if w == "ln":
+                            wrong.append(q)
+    if thinnest < 1e9:
+        v.fail(f"the lining is {thinnest:.2f} thick at {where}")
+    if wrong:
+        v.fail(f"the ash pit or the ash mouth is lined at {len(wrong)} points, e.g. {wrong[:3]}")
+    print(f"lining: at least {t} of the lining's brick behind the hot faces ({n} points, walked out every quarter) or "
+          f"the lining reaching through; the ash pit and the ash mouth the brickwork's ({cold} points)")
+
+
+def check_build(v):
+    """The stages' counts *(review)*: the brickwork's and the lining's volumes, measured from their elements (each
+    lattice box in exactly one brick box: their volumes add up to the lattice's), give the rig's quantities at the
+    game's rates, rounded up; the lid stage and the frame's recipe are as settled; every stage's requires is a part's."""
+    m = v.m
+    xs, ys, zs, mat = m.brick_lattice()
+    lat = {"bk": 0.0, "ln": 0.0}
+    for (i, j, k), w in mat.items():
+        if w:
+            lat[w] += (xs[i + 1] - xs[i]) * (ys[j + 1] - ys[j]) * (zs[k + 1] - zs[k])
+    els = {w: sum(abs(e.size[0] * e.size[1] * e.size[2]) for e in brick(v) if e.name.startswith(f"{w}_brick_"))
+           for w in ("bk", "ln")}
+    for w in ("bk", "ln"):
+        if abs(lat[w] - els[w]) > 0.05:             # the z-fighting fix steps a few faces in by 0.015
+            v.fail(f"the {w} boxes hold {els[w]:.2f} cubic voxels, the lattice {lat[w]:.2f}")
+    c = m.build_counts(m.build_frame())
+    build = v.rig["build"]
+    st = {s["requires"]: s for s in build["stages"]}
+    got = {"bricks": st["brickwork"]["materials"][0]["quantity"], "lining": st["lining"]["materials"][0]["quantity"],
+           "fireclay": st["lining"]["materials"][1]["quantity"]}
+    want = {"bricks": math.ceil(lat["bk"] / m.B ** 3 * m.BRICKS_PER_BLOCK - 1e-9)}
+    stands = len(m.POTS) * m.oct_area(m.STAND[2]) * (m.STAND[1] - m.STAND[0])
+    want["lining"] = math.ceil((lat["ln"] + stands) / m.B ** 3 * m.LINING_PER_BLOCK - 1e-9)
+    want["fireclay"] = math.ceil(want["lining"] / m.LINING_PER_FIRECLAY - 1e-9)
+    if got != want or any(got[k] != c[k] for k in got):
+        v.fail(f"the stages' counts {got} are not the measured {want}")
+    if [s["requires"] for s in build["stages"]] != list(m.STAGES):
+        v.fail("the stages are not brickwork, lining, lid")
+    if st["brickwork"]["materials"][0]["code"] != "game:burnedbrick-*" or not st["brickwork"].get("oneType"):
+        v.fail("the brickwork does not take one type of any fired brick")
+    if [(x["code"], x["quantity"]) for x in st["lid"]["materials"]] != list(m.LID_STAGE):
+        v.fail("the lid stage's materials are not the settled ones")
+    if [(x["code"], x["quantity"]) for x in build["frame"]["ingredients"]] != list(m.FRAME_RECIPE):
+        v.fail("the frame's recipe is not the settled one")
+    requires = {p["requires"] for p in v.parts}
+    if not set(m.STAGES) <= requires or any(f"damper{d}" not in requires for d in m.DAMPERS):
+        v.fail("a stage's requires is no part's")
+    print(f"build: brickwork {lat['bk'] / m.B ** 3:.2f} blocks -> {got['bricks']} fired bricks; lining "
+          f"{(lat['ln'] + stands) / m.B ** 3:.2f} blocks (the stands {stands / m.B ** 3:.3f}) -> {got['lining']} "
+          f"refractory bricks and {got['fireclay']} fire clay; lid and damper {dict(m.LID_STAGE)}; the frame "
+          f"{dict(m.FRAME_RECIPE)}")
 
 
 # ---------------------------------------------------------------- the lid
@@ -487,9 +668,10 @@ def touches(items, movers=None):
 
 
 def scenes(m):
-    """Every state of the pots with the damper open and the outlet open, and every place of the damper with the
-    outlet capped."""
-    return [(st, "open", False) for st in m.POT_STATE_IDS] + [("cold", d, True) for d in m.DAMPERS]
+    """The furnace built: every state of the pots with the damper open and the outlet open, and every place of the
+    damper with the outlet capped; and each stage of the build before it is."""
+    return ([(st, "open", False, "complete") for st in m.POT_STATE_IDS] + [("cold", d, True, "complete") for d in m.DAMPERS]
+            + [("cold", "open", False, "frame"), ("cold", "open", False, "brickwork"), ("cold", "open", True, "lining")])
 
 
 def check_clearances(v, step):
@@ -545,7 +727,7 @@ def check_pots(v):
     m = v.m
     rooms, helds = [], []
     for i in m.POTS:
-        stand = aabb_of([e for e in v.by_part["frame"] if e.name.startswith(f"fr_stand{i}_")])
+        stand = aabb_of([e for e in v.by_part["lining"] if e.name.startswith(f"ln_stand{i}_")])
         pot = aabb_of(v.by_part[f"pot{i}"])
         foot = aabb_of([e for e in v.by_part[f"pot{i}"] if "_foot" in e.name])
         if abs(stand[0][1] - m.GRATE_TOP) > 1e-9 or abs(pot[0][1] - stand[1][1]) > 1e-9:
@@ -666,32 +848,40 @@ def check_damper(v):
 
 def check_outlet(v):
     """The outlet *(review)*: open, its mouth clear to the sky through the stack; capped, a flat iron plate flush with
-    the floor in the curb's rim, resting on its ring, covering the stack's mouth."""
+    the floor in the curb's seat, covering the stack's mouth; the curb, the lining's refractory brick, a rim round the
+    cap (sampled every half voxel) and a ledge under its edge all round."""
     m = v.m
     cap = aabb_of(v.by_part["outletcap"])
     (cx0, cx1), _, (cz0, cz1) = m.CURB
     r = m.CURB_RIM
     if not same_box(cap, ([cx0 + r, m.CAP_Y[0], cz0 + r], [cx1 - r, m.FLOOR_TOP, cz1 - r])):
-        v.fail(f"the cap is not flush in the curb's rim: {cap}")
-    ring = [e for e in v.by_part["frame"] if e.name.startswith("fr_curb")]
-    if not ring or any(abs(e.aabb()[1][1] - m.CAP_Y[0]) > 1e-9 for e in ring):
-        v.fail("the curb's ring is not under the cap")
+        v.fail(f"the cap is not flush in the curb's seat: {cap}")
+    lining = [e for e in v.by_part["lining"] if e.name.startswith("ln_brick_")]
+    (sx0, sx1), _, (sz0, sz1) = m.STACK
+    rim = [(x + 0.25, m.FLOOR_TOP - 0.25, z + 0.25) for x in range(int(cx0), int(cx1)) for z in range(int(cz0), int(cz1))
+           if not (cx0 + r <= x + 0.25 <= cx1 - r and cz0 + r <= z + 0.25 <= cz1 - r)]
+    ledge = [(x + 0.25, m.CAP_Y[0] - 0.1, z + 0.25) for x in range(int(cx0 + r), int(cx1 - r)) for z in range(int(cz0 + r), int(cz1 - r))
+             if not (sx0 <= x + 0.25 <= sx1 and sz0 <= z + 0.25 <= sz1)]
+    missing = [p for p in rim + ledge if not any(inside(e, p) for e in lining)]
+    if missing:
+        v.fail(f"the curb is not the lining's brick at {len(missing)} points, e.g. {missing[:3]}")
     (sx0, sx1), _, (sz0, sz1) = m.STACK
     if not (cap[0][0] < sx0 and cap[1][0] > sx1 and cap[0][2] < sz0 and cap[1][2] > sz1):
         v.fail("the cap does not cover the stack's mouth")
-    print(f"outlet: open to the sky through the stack; capped by a plate flush in the rim ({cap[1][0] - cap[0][0]:.0f} "
-          f"square, {m.CAP_Y[1] - m.CAP_Y[0]} thick, on the ring), over the stack's mouth")
+    print(f"outlet: open to the sky through the stack; capped by a plate flush in the curb's seat ({cap[1][0] - cap[0][0]:.0f} "
+          f"square, {m.CAP_Y[1] - m.CAP_Y[0]} thick), over the stack's mouth; the curb the lining's brick, rim and ledge "
+          f"({len(rim) + len(ledge)} points)")
 
 
 # ---------------------------------------------------------------- the draught: grate, cave, flue, stack
 def empty(v, p):
-    return not any(inside(e, p) for e in v.by_part["frame"])
+    return not any(inside(e, p) for e in static(v))
 
 
 def check_draught(v):
     """The way the air goes, natural draught only: in at the ash mouth into the cave, up between the firebars, through
     the fire, out at the flue opening near the top of the hole's back wall, along the back flue and up the stack to
-    the outlet. Sampled points along it lie in no element of the frame, and the stack and the outlet's mouth in no
+    the outlet. Sampled points along it lie in no element of the brick or the frame, and the stack and the outlet's mouth in no
     element at all at any depth but the cap. The firebars lie on their bearers and the bearers' ends are built into
     the walls."""
     m = v.m
@@ -770,12 +960,14 @@ def check_zfight(v):
 def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
-    check_floating(v)
+    check_stages(v)
     check_textures(v)
     check_containment(v)
     check_top(v)
     check_sides(v)
     check_walls(v)
+    check_lining(v)
+    check_build(v)
     check_lid(v)
     check_pots(v)
     check_coke(v)
@@ -788,6 +980,79 @@ def validate(m, els, parts, rig, quick=False):
     return v.ok
 
 
+def game_assets():
+    """The game's assets folder: $VINTAGE_STORY/assets, else ~/Games/vintagestory/assets; None if neither is there."""
+    for root in (os.environ.get("VINTAGE_STORY"), str(Path.home() / "Games" / "vintagestory")):
+        if root and (Path(root) / "assets" / "survival").is_dir():
+            return Path(root) / "assets"
+    return None
+
+
+def game_texture(assets, code):
+    """The file of a game texture code (game:block/...), in the survival or the game domain, or None."""
+    rel = code.split(":", 1)[1] + ".png"
+    for domain in ("survival", "game"):
+        f = assets / domain / "textures" / rel
+        if f.is_file():
+            return f
+    return None
+
+
+def game_brick_types(assets):
+    """The type states of the game's burnedbrick item (its itemtype file is JSON5, so read by pattern)."""
+    text = (assets / "survival" / "itemtypes" / "resource" / "burnedbrick.json").read_text()
+    found = re.search(r'code:\s*"type",\s*states:\s*\[([^\]]*)\]', text)
+    return re.findall(r'"([^"]+)"', found.group(1)) if found else []
+
+
+def game_block_exists(assets, code):
+    """Whether a brick block code is one of the game's: claybricks-good-fire, or a four-high running brick course of a
+    colour its brickcourse block type has."""
+    clay = assets / "survival" / "blocktypes" / "clay"
+    if code == "game:claybricks-good-fire":
+        text = (clay / "brick.json").read_text()
+        return '"good"' in text and '"fire"' in text
+    hit = re.fullmatch(r"game:brickcourse-four-running-(\w+)", code)
+    if not hit:
+        return False
+    text = (clay / "brickcourse.json").read_text()
+    colours = re.search(r'"code":\s*"color",\s*"states":\s*\[([^\]]*)\]', text)
+    return bool(colours) and f'"{hit.group(1)}"' in colours.group(1) and '"four"' in text and '"running"' in text
+
+
+def check_bricks(m, shape, ship, fail):
+    """Any fired brick *(review)*: the rig's bricks name every type of the game's burnedbrick and nothing else, each
+    with the block its bricks make and that block's textures; the shape's own `brick` is the default type's colour
+    layer. With the game's assets at hand, every texture of the mapping and of the shape is a file there, every block
+    one of the game's, and the types the game's."""
+    bricks = ship["bricks"]
+    types = [t for t, *_ in m.BRICKS]
+    if list(bricks["types"]) != types or bricks["default"] not in types or bricks["code"] != "brick":
+        fail("the rig's bricks are not the furnace's types")
+    d = bricks["types"][bricks["default"]]
+    if shape["textures"]["brick"] != (d.get("overlays") or [d["base"]])[-1]:
+        fail("the shape's brick is not the default type's colour")
+    assets = game_assets()
+    if assets is None:
+        print("bricks: SKIPPED the game's assets (no $VINTAGE_STORY or ~/Games/vintagestory): the textures, blocks and "
+              "types are not checked against the game")
+        return
+    paths = {t: [d["base"]] + d.get("overlays", []) for t, d in bricks["types"].items()}
+    missing = [(t, c) for t, cs in paths.items() for c in cs if game_texture(assets, c) is None]
+    missing += [("shape", c) for c in shape["textures"].values() if game_texture(assets, c) is None]
+    if missing:
+        fail(f"textures that are not the game's: {missing}")
+    blocks = [d["block"] for d in bricks["types"].values() if not game_block_exists(assets, d["block"])]
+    if blocks:
+        fail(f"blocks that are not the game's: {blocks}")
+    game = game_brick_types(assets)
+    if sorted(game) != sorted(types):
+        fail(f"the game's fired brick types are {game}, the rig's {types}")
+    print(f"bricks: {len(types)} types ({', '.join(types)}), the game's burnedbrick types; each type's block one of the "
+          f"game's and its {sum(len(c) for c in paths.values())} textures, and the shape's {len(shape['textures'])}, "
+          f"files in {assets}")
+
+
 def validate_files(m, shape, frame_shape, ship):
     ok = True
 
@@ -795,6 +1060,9 @@ def validate_files(m, shape, frame_shape, ship):
         nonlocal ok
         ok = False
         print("FAIL", msg)
+    check_bricks(m, shape, ship, fail)
+    if {f["texture"].lstrip("#") for e in frame_shape["elements"] for f in e["faces"].values()} != {"iron"}:
+        fail("the frame's shape is not the iron frame alone")
     used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
     missing = used - set(shape["textures"])
     if missing:

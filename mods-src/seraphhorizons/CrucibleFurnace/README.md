@@ -21,46 +21,51 @@ handle**, the pots on firebars over an ash pit worked from a cellar, each hole w
 served five or six holes in a line, fired on natural draught only, which a "cellar lad" worked at the ash-pit
 opening; and by the late nineteenth century a hole held two crucibles (HMS Archaeology Datasheet 302; Historic
 England's listings for Hillsborough and Sanderson Kayser's Darnall works; Sheffield Museums on Abbeydale). The model
-is one such hole, as one block of tier-3 refractory brickwork **three blocks wide (x), three deep (z) and two
-high**, bound with iron on its front and back. **Its top is flat**, the melting floor, broken only by the lid's seat
-and the outlet; the hinge's knuckles and pins, and the two stops behind the lid, are all that stands on it.
+is one such hole, as one block of brickwork **three blocks wide (x), three deep (z) and two high**, bound with iron on
+its front and back. The brick is in **two roles**: the **brickwork** (the base, the ash pit and the ash mouth, the
+thick outer walls) is **any one type of the game's fired brick**, and the walls take that brick's texture ("The
+brick", below); the **hot faces are lined** with tier-3 refractory brick 3 voxels thick. **Its top is flat**, the
+melting floor, broken only by the lid's seat and the outlet; the hinge's knuckles and pins, and the two stops behind
+the lid, are all that stands on it.
 
-- **The hole** is 28 voxels wide and 14 deep inside, **centred left to right** in the front two rows, lined with the
-  firebrick, with **thick walls**: 10 voxels of brick on each side (9.25 beside the lid's seat), 11 in front (10
-  behind the damper's recess, 10.25 in front of the seat) and 23 behind, outside the flue's way. It holds **two pots
-  side by side**, each on a **fireclay stand** on the **grate** (seven rows of iron firebars, two lengths a row,
+- **The hole** is 28 voxels wide and 14 deep inside, **centred left to right** in the front two rows, with **thick
+  walls**: 10 voxels of brick on each side (9.25 beside the lid's seat), 11 in front (10 behind the damper's recess,
+  10.25 in front of the seat) and 23 behind, outside the flue's way. The inner 3 of them, from the grate's bearers up
+  to the floor, are the **lining**; the seat's ledge round the hole's mouth is the lining's too. It holds **two pots
+  side by side**, each on a **refractory stand** on the **grate** (seven rows of iron firebars, two lengths a row,
   lying on three iron bearers that run front to back and are built into the front and back walls), packed round in
   **one bed of coke** up to their shoulders: 2.7 of coke between a belly and a side wall, 5.4 between the two, 2.7
   before and behind.
 - **Each pot** is a fireclay crucible, an octagonal barrel 8.6 across at the belly and 12 tall from its narrow foot,
   a little larger than the game's `meltingpot` block (8 by 11), as it holds 300 units ("A full pot", below): 600 a
   firing, teemed from both into one mould for #639's cylinder blank.
-- **The lid** is firebrick in an iron frame, 29.5 by 15.5 and 2 thick, flush with the floor when shut, with a pocket
-  near its front edge and an iron handle bar across the pocket, under its top. It is **hinged at the back, about its
-  own top back edge**: an iron **knuckle** at each back corner turns on an iron **pin** that runs on 1.5 into the side
-  wall, bedded in the brick. The knuckles lie in beds behind the seat that they fill (0.06 clear at the floor) and
-  stand 0.45 over the floor, the pins 0.25. Hinged there, nothing of the lid passes behind its back edge under the
-  floor as it turns, so **there is no hinge pit and no groove** behind the shut lid. The lid's front face is stepped
-  back down its height (0.005 at the floor to 0.13 at its underside), so that it clears the seat's front wall: turning
-  about its top back edge, the face's lower part swings forward first. It swings back 100° and **rests just past
-  upright on two iron stops** behind it (1.5 wide, standing 1.6 over the floor), its back face on their top front
-  edges, its weight 0.34 behind the axis (past 97.4° it falls back onto them by itself). Open, it stands over the
-  middle row, 15.5 high and at most 2.7 behind the axis, out of the chimney's cell behind.
+- **The lid** is tier-3 firebrick in an iron frame, 29.5 by 15.5 and 2 thick, flush with the floor when shut, with a
+  pocket near its front edge and an iron handle bar across the pocket, under its top. It is **hinged at the back,
+  about its own top back edge**: an iron **knuckle** at each back corner turns on an iron **pin** that runs on 1.5
+  into the side wall, bedded in the brick. The knuckles lie in beds behind the seat that they fill (0.06 clear at the
+  floor) and stand 0.45 over the floor, the pins 0.25. Hinged there, nothing of the lid passes behind its back edge
+  under the floor as it turns, so **there is no hinge pit and no groove** behind the shut lid. The lid's front face
+  is stepped back down its height (0.005 at the floor to 0.13 at its underside), so that it clears the seat's front
+  wall: turning about its top back edge, the face's lower part swings forward first. It swings back 100° and **rests
+  just past upright on two iron stops** behind it (1.5 wide, standing 1.6 over the floor), its back face on their top
+  front edges, its weight 0.34 behind the axis (past 97.4° it falls back onto them by itself). Open, it stands over
+  the middle row, 15.5 high and at most 2.7 behind the axis, out of the chimney's cell behind.
 - **The ash pit** (the cave) runs under the grate across the hole's plan, 8 voxels high, open at the front through
   the **ash mouth**, centred on the front face (12 wide, 6 high, through the 11 of the front wall, an iron lintel over
-  it): natural draught only, the air comes in there. Over the mouth the **damper**, an iron plate with a knob, slides
-  in a shallow recess in the front face between iron guides, in three places: **open** (clear of the mouth), **half**
-  (over its upper half) and **shut** (over all of it). There is no air port.
+  it): natural draught only, the air comes in there. Both are the brickwork's. Over the mouth the **damper**, an iron
+  plate with a knob, slides in a shallow recess in the front face between iron guides, in three places: **open**
+  (clear of the mouth), **half** (over its upper half) and **shut** (over all of it). There is no air port.
 - **The flue.** Near the top of the hole's back wall, above the coke and under the lid, a **flue opening** (8 wide,
   3 high) leads into a flue in the back wall and up a **stack** to an **outlet** on the top **in the middle of the
-  back row**, centred behind the hole and clear of the lid's swing and its stops: a square mouth in an iron curb,
-  flush. **The model stops at the outlet**: the player stands the chimney on it ("The chimney", below). The outlet
-  has **two states**: open, with the chimney on it, or **capped** with a flat iron plate set flush in the curb's rim,
-  as every other furnace in a row sharing one chimney is.
+  back row**, centred behind the hole and clear of the lid's swing and its stops; all of it is lined, 3 thick. The
+  outlet's **curb** is the lining's brick, flush: a rim round a seat a voxel down, a ledge round the stack's mouth.
+  **The model stops at the outlet**: the player stands the chimney on it ("The chimney", below). The outlet has
+  **two states**: open, with the chimney on it, or **capped** with a flat iron plate set flush in the curb's seat, as
+  every other furnace in a row sharing one chimney is.
 - **Furnaces stand in a row**, up to six side by side along their width (x), sharing walls: the side faces are flush,
-  plain brick with nothing beyond the footprint (the binding is on the front and back only), so two furnaces' side
-  walls meet and touch nowhere else. A row of six is **18 blocks** long. The flues under the floor between them are
-  implied, not modelled.
+  plain brickwork with nothing beyond the footprint (the binding is on the front and back only), so two furnaces'
+  side walls meet and touch nowhere else. A row of six is **18 blocks** long. The flues under the floor between them
+  are implied, not modelled.
 
 **Footprint and cells.** The brickwork's 18 cells, and the 6 cells over its front two rows, **hollow**: the lid
 stands open over the middle row, and while it is under about 50° open its front edge sweeps the front row's. Cells
@@ -96,13 +101,89 @@ and the damper face them, the stack and the outlet are behind.
 | `mouth` | `[0.5,2,1.125]` | The middle of the hole's mouth at the floor: flames, the glow's light and the fire's sound while the lid is open |
 | `hinge` | origin `[0.5,2,1.6094]`, `x` | The lid's axis, its top back edge, drawn as a line |
 | `chimney` | origin `[0.5,5,2.5]`, `y`, 6 | The shortest chimney, six blocks counted from the outlet up (y 2 to 8), drawn as a line |
+| `build` | | The build's stages and their materials ("The build", below); not drawn |
+| `bricks` | | The fired brick types and their textures ("The brick", below); not drawn |
 | `furnace` | | `pots` 2, `potUnits` 300, `cokeLayers` 3, `cokePerLayer` 2, `minChimney` 6, `rowMax` 6, `rowAxis` `x`, `lidOpenDegrees` 100; not drawn |
 
 **Decks, boxes.** Each of the nine top cells of the brickwork has a `lid` (a collision deck) at the floor: a player
-walks over the open hole and cannot fall in. The cells' boxes are built from the brickwork, its iron and the lid
-shut; the box splitter cannot leave a hole open in three boxes, so every cell's box is the whole cell. The open lid
-has no box in the rig's cells: it moves, so its collision is gameplay's. The knuckles and the stops stand in the
-hollow cells and have no box either.
+walks over the open hole and cannot fall in. The cells' boxes are built from the furnace as built (the iron, the
+brickwork, the lining and the lid shut); the box splitter cannot leave a hole open in three boxes, so every cell's
+box is the whole cell. The open lid has no box in the rig's cells: it moves, so its collision is gameplay's. The
+knuckles and the stops stand in the hollow cells and have no box either.
+
+## The build
+
+Settled by the owner. Four stages, each a `requires` value of its parts but the frame's (the rig's `build`, in
+order), and the viewer's **Build** select steps through them:
+
+| | Stage | `requires` | What it puts in | Materials | Gear |
+|---|---|---|---|---|---|
+| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | The binding's straps and bands, the grate's bearers and firebars, the ash mouth's lintel and the damper's guides, the hinge's pins and stops, and 13 ties that hold them up (below) | 2 iron plates, 4 iron rods, 4 iron nails and strips | 34.44 |
+| 1 | **Brickwork** | `brickwork` | The base, the ash pit and the ash mouth, the outer walls: 12.34 blocks of brick | **25 fired bricks**, any one type (`game:burnedbrick-*`) | 8.50 (brown brick: 4.38) |
+| 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on the hot faces (the hole's walls and the seat's ledge, the flue and the stack), the outlet's curb and the pots' stands: 2.15 blocks | **9 tier-3 refractory bricks** (`game:refractorybrick-fired-tier3`), **4 fire clay** (`game:clay-fire`) | 17.09 |
+| 3 | **Lid and damper** | `lid` (and the damper's place) | The lid, and the damper in its recess | 4 tier-3 refractory bricks, 2 iron plates | 22.96 |
+| | *Outlet cap* | `outletcap` | Not a stage: put on (or taken off) by hand, any time after the lining | 1 iron plate | 7.71 |
+
+A furnace costs **82.99** in gear (78.86 in brown brick), and each capped furnace in a row 7.71 more. Values from
+`assets/seraphhorizons/config/item-values.json`: iron plate 7.712, iron rod 3.84, iron nails and strips 0.914, fired
+brick 0.34 (brown 0.175), tier-3 refractory brick 1.885, fire clay 0.03. The file's tier-3 brick is 1.885, not the
+0.987 the brief gave; at 0.987 a furnace would cost 71.32.
+
+**The counts are measured from the model.** The generator builds the brick as a lattice (every void's faces, the
+lining's zones' and the blocks' boundaries along each axis) and merges it into boxes, the brickwork's and the
+lining's apart; the stages' volumes are those boxes' volumes added up (each lattice box is in exactly one, which a
+check holds), the stands' octagons with the lining's: 50,533 cubic voxels of brickwork (12.34 blocks) and 8,803 of
+lining (2.15 blocks). At the game's rates, 2 fired bricks a block (8 bricks and a mortar make 4 `claybricks` blocks)
+and 4 refractory bricks a block (8 and a mortar make 2), rounded up, that is 25 fired bricks (24.67) and 9 refractory
+bricks (8.60); fire clay one per 2.5 refractory bricks, 4. The owner's estimate was about 24 and 10. The lid stage's
+materials and the frame's recipe are as the owner settled them (the lid's firebrick alone measures 0.16 blocks).
+
+**Brickwork and lining take a stack a click**: as many of the held stack as the stage still needs; the stage is
+complete when all its materials are in. The hole's contents, the lid and the damper are drawn only once the furnace
+is built, the cap only once the lining (its curb) is in.
+
+**The frame's ties.** So that nothing of the iron frame floats before the brick is in, the least iron joins each
+piece to the ground, all of it inside the brick (voids are cut for it), so it is hidden once the brick is in: a post
+under the front end of each outer bearer and under the back end of the middle one (the ash mouth is under its front
+end), each half a voxel clear of the ash pit; a post each side of the ash mouth under the lintel's ends, behind the
+damper's recess (the guides stand against the lintel's face); a bar on from each hinge pin along the side wall under
+the floor, on a post; a bar back from each stop under the floor, on a post. The posts are in the brickwork; the bars
+by the pins and the stops reach into the lining's place, where the pins and the stops themselves are, so with the
+brickwork alone in, they show there with what they hold.
+
+### The brick
+
+**Any fired brick.** The brickwork takes any `game:burnedbrick-*`. **The first brick put in sets the furnace's
+brick type**; the rest of the stage must match, and a different type is refused with a message. The walls then take
+that type's block texture: the renderer sets the shape's `brick` code to it from the rig's `bricks`. These are every
+type the game's `burnedbrick` item has (1.22.7; there is no blue fired brick, though the recipes' skip lists still
+name one), with the block their bricks make by the game's grid recipe and that block's first texture (the game picks
+among a course's alternates; the furnace's walls take one). A type not in the list, another mod's, is refused.
+
+| Type (`game:burnedbrick-…`) | Block its bricks make | `brick` texture (`game:block/clay/brick/four/running/…`) |
+|---|---|---|
+| `fire` | `claybricks-good-fire` | `fire1` |
+| `black` | `brickcourse-four-running-black` | `cream1`, overlay `black1` |
+| `brown` | `brickcourse-four-running-brown` | `cream1`, overlay `brown1` |
+| `cream` | `brickcourse-four-running-cream` | `cream1` |
+| `gray` | `brickcourse-four-running-gray` | `cream1`, overlay `gray1` |
+| `orange` | `brickcourse-four-running-orange` | `cream1`, overlay `orange1` |
+| `red` (the default) | `brickcourse-four-running-red` | `cream1`, overlay `red1` |
+| `tan` | `brickcourse-four-running-tan` | `cream1`, overlay `tan1` |
+| `clinker` | `brickcourse-four-running-clinker` (no recipe makes it: a ruin's) | `clinker1` |
+
+The coloured courses are the cream brick with the colour drawn over it, a partly transparent overlay (alpha 0.64
+to 1), so the renderer must draw the base with its overlays. A shape names one texture per code, so the shape's own
+`brick` is the red brick's colour layer, `red1`, alone: never what the game should draw.
+
+**In the viewer**, no Brick select: the viewer draws no texture images, only a flat colour per texture code (by the
+material its code or path names), and nothing in a scenario can change a code's texture. The smallest change that
+would give one, without a rig driver: a scenario key `textures`, a list of `{ "label", "code", "default",
+"options": [{ "id", "label", "path", "colour" }] }`, shown as a select that sets the code's path (in the legend and
+the picked element's details) and its colour in the texture colouring; in `site/src/lib/model-scenario.ts` (the type
+and `checkScenario`: the code one of the shape's, the default one of the options), `site/src/lib/model-view.ts` (the
+texture's path and colour from the pick) and `site/src/components/ModelPage.svelte` (the select). The furnace's entry
+would then list the nine types, each with its colour.
 
 ### No power, no forced air
 
@@ -128,18 +209,19 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/cruciblefurnace.json` | The whole furnace, every part (432 elements) |
-| `assets/seraphhorizons/shapes/block/cruciblefurnace_frame.json` | The static frame only (185 elements): the brickwork (125 boxes), its iron (the grate, the lintel and the damper's guides, the hinge's pins and stops, the curb, the binding) and the stands. A block draws it |
-| `assets/seraphhorizons/config/cruciblefurnace-rig.json` | Cells, anchors and the part rig (18 parts) |
+| `assets/seraphhorizons/shapes/block/cruciblefurnace.json` | The whole furnace, every part (536 elements) |
+| `assets/seraphhorizons/shapes/block/cruciblefurnace_frame.json` | The iron frame only (57 elements): what the placed frame draws, before any stage. The brick, the lining and the lid are stages |
+| `assets/seraphhorizons/config/cruciblefurnace-rig.json` | Cells, anchors, the build and the brick types, and the part rig (20 parts) |
 | `tests/CrucibleFurnace/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths |
 
-**Textures** (all the game's; the shape names them, a blocktype may map them):
+**Textures** (all the game's; the shape names them, a blocktype or the renderer may map them):
 
 | Code | Texture | On |
 |---|---|---|
-| `brick` | `game:block/clay/refractory/tier3/front1` (the old melting hole's) | The brickwork and the lid's infill: world-mapped, so the many boxes read as one wall |
-| `iron` | `game:block/metal/plate/iron` (the other machines' iron) | Firebars, bearers, the lintel and the damper's guides, the hinge's pins and stops, the curb, the binding, the lid's frame, knuckles and handle, the damper, the cap |
-| `clay` | `game:block/clay/hardened/fire` (the fired pot's) | The pots and their stands |
+| `brick` | The furnace's brick type's block texture, set by the renderer (`bricks`); the shape's own is `game:block/clay/brick/four/running/red1` | The brickwork: world-mapped, so the many boxes read as one wall |
+| `lining` | `game:block/clay/refractory/tier3/front1` (the old melting hole's) | The lining, the curb, the stands, the lid's infill: world-mapped |
+| `iron` | `game:block/metal/plate/iron` (the other machines' iron) | The iron frame (firebars, bearers, the lintel and the damper's guides, the hinge's pins and stops, the binding, the ties), the lid's frame, knuckles and handle, the damper, the cap |
+| `clay` | `game:block/clay/hardened/fire` (the fired pot's) | The pots |
 | `coke` | `game:block/coal/coke` | The coke |
 | `ember` | `game:block/coal/ember` | The same coke, burning; its faces glow 200 (the game's lit firepit's embers glow 160) |
 | `melt` | `game:block/metal/ingot/stainlesssteel` | The melts; glow 255. The renderer may set a pot's metal |
@@ -152,17 +234,18 @@ state.
 
 | Part (rig id) | Driven by | Drives |
 |---|---|---|
-| The brickwork, its iron binding (`frame`) | fixed | carries everything; its voids are the hole, the seat, the knuckles' and pins' beds, the stops' feet, the cave, the ash mouth and the damper's recess, the flue opening, the back flue and the stack; its top is flat, its sides plain |
+| The iron frame (`frame`, no requires) | fixed: placed as the machine | carries the grate and the hinge; its binding holds the brick; its ties hold it all up before the brick is in |
+| The brickwork (`brickwork`) | stage 1 | the base, the ash pit and the ash mouth, the outer walls; plain brick on the side faces for a row |
+| The lining (`lining`) | stage 2 | the hot faces: the hole's walls, the flue and the stack; the outlet's curb; the pots' stands |
 | The bearers and firebars (`frame`) | fixed: the bearers built into the front and back walls, the bars lying across them | carry the stands and the coke; the draught comes up between the bars |
-| The stands (`frame`) | fixed, on the grate | carry the pots |
 | The hinge: pins and stops (`frame`) | fixed: the pins bedded in the side walls, the stops set into the floor behind the lid | carry the lid at its back corners through its knuckles; the stops hold it open |
-| The lid, with its knuckles (`lid`, no requires) | depth: turned about its top back edge from open (0, 100° back, resting on the stops) to shut (1, flush in its seat). The melter, with tongs while it is too hot to touch | shuts the hole: the fire then draws only up through the grate, out at the flue opening |
-| The pots (`pot1`, `pot2`) | put in, pulled: fitted or not | hold the charges, then the melts |
+| The lid, with its knuckles (`lid`) | stage 3; then depth: turned about its top back edge from open (0, 100° back, resting on the stops) to shut (1, flush in its seat). The melter, with tongs while it is too hot to touch | shuts the hole: the fire then draws only up through the grate, out at the flue opening |
+| The pots (`pot1`, `pot2`) | put in, pulled: fitted or not, once the furnace is built | hold the charges, then the melts |
 | The charges (`charge1`, `charge2`) | charged | fill each pot to 24.5 (a full pot, 300 units) with pieces standing up to 27.9, over the rim |
 | The melts (`melt1`, `melt2`) | the charge melted | each pot's molten surface at 24.5, a full pot of 300 units, 1.5 under the rim, glowing |
 | The coke, three layers (`coke1`..`3`) | the coke in the hole: two coke a layer, from the grate up | one bed packed round both pots to their shoulders, lumps of coke on each layer's top |
 | The coke burning (`fire1`..`3`) | lit: the same layers in their burning texture, glowing; the bottom one also drops cinders on the cave's floor under the pots | the glow: from above when the lid is open, at the ash mouth and up through the bars when it is shut |
-| The damper (`damperopen`, `damperhalf`, `dampershut`) | the cellar lad: one of its three places | sets the draught (#796: open full, half at half the heating, shut banked) |
+| The damper (`damperopen`, `damperhalf`, `dampershut`) | fitted with the lid (stage 3); then the cellar lad: one of its three places | sets the draught (#796: open full, half at half the heating, shut banked) |
 | The cap (`outletcap`) | fitted on every furnace in a row but the one carrying the chimney | closes the outlet |
 | The draught (no part) | the chimney on the outlet, natural draught only | in at the ash mouth, up through the grate and the coke, out at the flue opening, along the back flue, up the stack and the chimney |
 
@@ -187,13 +270,17 @@ python3 mods-src/seraphhorizons/CrucibleFurnace/tools/make_shape.py --out DIR   
 python3 mods-src/seraphhorizons/CrucibleFurnace/tools/make_shape.py --quick     # skips the z-fighting fix and the fine sweeps
 ```
 
-A full run takes about 50 s and is deterministic (two runs into two folders are byte-identical, logs included). It
-exits non-zero if a check fails (`tools/validate_cruciblefurnace.py`). Those marked *(review)* came from the owner's
-review:
+A full run takes about three minutes and is deterministic (two runs into two folders are byte-identical, logs
+included). It exits non-zero if a check fails (`tools/validate_cruciblefurnace.py`). The brick types are checked
+against the game's files when they are at hand (`$VINTAGE_STORY`, else `~/Games/vintagestory`); without them that
+check says it was skipped. Those marked *(review)* came from the owner's review:
 
 - **Parts:** every element in its intended part; no part without elements; Euler angles round-trip.
-- **Frame:** joined to the ground as one piece (185 elements).
-- **Textures by role:** brick, iron, clay, coke, ember, melt and charge where the table above puts them.
+- **The stages** *(review)*: at each stage (the iron frame alone, with the brickwork, with the lining) nothing floats:
+  every element drawn is joined to the ground. The frame is iron only; the ties are hidden once the brick is in
+  (points just off every face of every tie lie in brick or other iron); the posts are in the brickwork, so only the
+  bars by the pins and the stops show while the lining is not in.
+- **Textures by role:** brick, lining, iron, clay, coke, ember, melt and charge where the table above puts them.
 - **Containment:** nothing leaves the brickwork and the six cells over its front two rows over the lid's whole swing
   (every 0.01 of depth), so nothing reaches the chimney's cell or its neighbours; with the lid shut nothing stands
   over the floor but the hinge (the knuckles and the pins) and the stops, to at most the stops' 1.6, and with it open
@@ -202,13 +289,21 @@ review:
   beds, is brick or flush iron whose top is the floor (6868 points); of the frame only the pins and the stops stand
   above it. Along lines across the hinge, the lid's front edge and the seat's sides, every hundredth of a voxel just
   under the floor, the widest run in no element with the lid shut is at most 0.1 (it is 0.06, the knuckles' beds).
-- **A row** *(review)*: each side face is plain brick over its whole area (12288 points over the two), nothing but
-  brick reaches either side plane at any depth, and two furnaces side by side touch nowhere but at their shared
-  walls over the lid's whole swing.
+- **A row** *(review)*: each side face is plain brickwork over its whole area (12288 points over the two), nothing
+  but the brickwork reaches either side plane at any depth, and two furnaces side by side touch nowhere but at their
+  shared walls over the lid's whole swing.
 - **Centred, thick walls** *(review)*: the hole, the ash mouth, the damper's recess, the stack and the outlet's curb
   are centred left to right; the brick (or iron set into it) round the hole and the seat, sampled every half voxel
   from the grate to the floor, runs at least `MIN_WALL` (8) out to the face: 9.25 west and east, 10 in front, 22.25
   behind outside the flue's way.
+- **The lining** *(review)*: behind every hot face (the hole's walls from the bearers to the seat, every face of the
+  flue opening, the back flue and the stack with brick behind it; 2434 points, walked out every quarter) the brick is
+  the lining's for at least `LINING_T` (3), or to where the brick ends; the ash pit's and the ash mouth's faces are
+  the brickwork's.
+- **The stages' counts** *(review)*: the brick boxes' volumes add up to the lattice's, the brickwork's and the
+  lining's apart, and give the rig's quantities at the game's rates, rounded up (25 fired bricks, 9 refractory bricks,
+  4 fire clay); the lid stage's materials and the frame's recipe are the settled ones; every stage's `requires` is a
+  part's.
 - **The lid** *(review)*: shut, flush in its seat, on the seat's ledge all round; every corner of it within its top
   front edge's distance of the axis, so it never swings into the seat's front wall; nothing of it but the knuckles
   behind its back edge under the floor at any depth (no pit); the pins through both knuckles at every depth and 1.5
@@ -226,28 +321,38 @@ review:
 - **The damper** *(review)*: in each place a plate in its recess behind the front face, between its guides; shut it
   covers the whole ash mouth, half its upper half (the mouth open below its middle), open none of it.
 - **The outlet** *(review)*: open, clear to the sky through the stack; the cap flush with the floor in the curb's
-  rim, on its ring, over the stack's mouth.
+  seat, over the stack's mouth; the curb the lining's brick, its rim round the cap and its ledge under the cap's edge
+  (sampled every voxel).
 - **Draught:** sampled points from outside the ash mouth, through the front wall and the cave, up through every gap
   of the grate, out at the flue opening, along the back flue and up the stack to the outlet, in no element of the
-  frame; the flue opening, the back flue and the stack run into each other; the stack and the outlet's mouth clear
-  of every element at every depth but the cap; every firebar on a bearer at each end, the bearers built into the
-  walls; the bars' gaps at least 0.8.
-- **Clearances:** in each of ten scenes (the seven states of the pots, the damper's three places with the cap on), no
-  two parts overlap with the lid open (lumps of a coke layer inside the layer over them, and the pins in the lid's
-  knuckles, excepted), and the lid, swung every 0.02 of depth, touches nothing.
-- **No z-fighting** at 21 poses (seven scenes, three depths) with only what each shows, after the fix (254 faces
-  pressed against their own part removed).
-- **Files:** every texture code declared; glow on the burning coke and the melts only; no power cell and no air port;
-  the hollow cells the lid's; decks on the top cells at the floor; the hole's cell a top cell holding both pots'
-  mouths, pot 1 west; the outlet in the back row's middle under the chimney's cell, which is not the furnace's, nor
-  are its neighbours; the chimney's line six blocks from the outlet up, its top 8 over the ground; the ash mouth on
-  the controller's front face; the hinge's line the lid's axis; the shipped files are the checked model.
+  brick or the frame; the flue opening, the back flue and the stack run into each other; the stack and the outlet's
+  mouth clear of every element at every depth but the cap; every firebar on a bearer at each end, the bearers built
+  into the walls; the bars' gaps at least 0.8.
+- **Clearances:** in each of thirteen scenes (the seven states of the pots, the damper's three places with the cap on,
+  and the three stages before the furnace is built), no two parts overlap with the lid open (the iron, the
+  brickwork and the lining are parts apart: the brick's voids hold the iron; lumps of a coke layer inside the layer
+  over them, and the pins in the lid's knuckles, excepted), and the lid, swung every 0.02 of depth, touches nothing.
+- **No z-fighting** at 30 poses (ten scenes, among them the three stages before the furnace is built, three depths)
+  with only what each shows, after the fix (150 faces pressed against their own part removed). A brickwork face
+  against the lining is kept (it is the wall's face until the lining is in); a lining face against the brickwork is
+  left out.
+- **Any fired brick** *(review)*: the rig's `bricks` name every type of the game's `burnedbrick` and nothing else,
+  each with the block its bricks make; with the game's files at hand, every texture of the mapping (15) and of the
+  shape (8) is a file there, every block one of the game's (`claybricks-good-fire`, or a running brick course of a
+  colour its block type has), and the types the game's; the shape's own `brick` is the default type's colour layer.
+- **Files:** every texture code declared; glow on the burning coke and the melts only; the frame's shape iron alone;
+  no power cell and no air port; the hollow cells the lid's; decks on the top cells at the floor; the hole's cell a
+  top cell holding both pots' mouths, pot 1 west; the outlet in the back row's middle under the chimney's cell, which
+  is not the furnace's, nor are its neighbours; the chimney's line six blocks from the outlet up, its top 8 over the
+  ground; the ash mouth on the controller's front face; the hinge's line the lid's axis; the shipped files are the
+  checked model.
 
-`tools/tests/test_cruciblefurnace_model.py` holds the written files to these without the generator (the lid shut and
-open and its swing in its own cells with no pit, the melts' level for 300 units, both pots in the hole's cell, the
-centring and the walls, the side faces for a row, the chimney's six from the outlet), and `site/models.json`'s
-states, choice and Play to the generator's; `site/test/cruciblefurnace.test.ts` replays the reference poses in the
-viewer's maths.
+`tools/tests/test_cruciblefurnace_model.py` holds the written files to these without the generator (the stages,
+their requires and their counts measured again from the shape's brick, the frame's shape iron alone, the brick types
+and, with the game's files at hand, their textures; the lid shut and open and its swing in its own cells with no pit,
+the melts' level for 300 units, both pots in the hole's cell, the centring and the walls, the side faces for a row,
+the chimney's six from the outlet), and `site/models.json`'s states and Play to the generator's;
+`site/test/cruciblefurnace.test.ts` replays the reference poses in the viewer's maths.
 
 ### Rig schema (`cruciblefurnace-rig.json`)
 
@@ -258,80 +363,106 @@ maths: two inputs, and parts gated by `requires`.
   or oil.
 - **Drivers.** The lid: a `rotate` of ratio 0 (θ), then a `step` rotation about x through its top back edge, −100°
   over depth 0..1 (from open to shut). Every other part has none.
-- **`requires`** values: `pot1`, `pot2`, `charge1`, `charge2`, `melt1`, `melt2`, `coke1..3`, `fire1..3`,
-  `damperopen`, `damperhalf`, `dampershut` (one at a time) and `outletcap`; the lid and the frame have none.
+- **`requires`** values: the stages, `brickwork`, `lining` and `lid`; `pot1`, `pot2`, `charge1`, `charge2`, `melt1`,
+  `melt2`, `coke1..3`, `fire1..3`, `damperopen`, `damperhalf`, `dampershut` (one at a time) and `outletcap`; the iron
+  frame has none.
 - **Keys:** `cells`, `holeCell`/`holeFace`, `pot1`, `pot2`, `outletCell`/`outletFace`, `ash`/`ashSide`, `mouth`,
-  `hinge`, `chimney`, `furnace` and `parts`.
+  `hinge`, `chimney`, `build`, `bricks`, `furnace` and `parts`.
+- **`build`**: `frame` (`recipe` grid, `tool` hammer, `ingredients`), `stages` in order (`requires`, `materials` as
+  `{ code, quantity }`, the brickwork's and the lining's `volumeBlocks` and `perClick` `stack`, the brickwork's
+  `oneType`, the lid's `also`: the damper's places it fits one of), `outletCap`.
+- **`bricks`**: `code` (`brick`), `item` (`game:burnedbrick-{type}`), `default` (`red`), and `types`: for each,
+  `block`, `base` and, for the coloured courses, `overlays`.
 
 **In the viewer** (`site/models.json`, `crucible-furnace`): the "Lid" slider is depth, and Play opens and shuts it
-(open 2 s, shut in 1.4 s, firing 3 s, open in 1.4 s). Two selects of states: **The pots and the fire** (cold and
-empty, two pots on their stands, charged with the coke packed round, lit, melted, melted with the coke burnt low, the
-pots pulled with the fire still lit) and **Outlet** (open, the chimney standing on it, or capped); and a choice,
-**Ash-pit damper** (open, half, shut). The page opens with the lid open, the pots melted, the damper open and the
-outlet open.
+(open 2 s, shut in 1.4 s, firing 3 s, open in 1.4 s). Four selects of states: **Build** (the iron frame, 1:
+brickwork, 2: lining, 3: lid and damper, complete; each with its materials, the page opening complete), **The pots
+and the fire** (cold and empty, two pots on their stands, charged with the coke packed round, lit, melted, melted
+with the coke burnt low, the pots pulled with the fire still lit; it waits for the furnace to be built), **Ash-pit
+damper** (open, half, shut; it waits for the lid stage) and **Outlet** (open, the chimney standing on it, or capped;
+it waits for the lining). The page opens with the furnace built, the lid open, the pots melted, the damper open and
+the outlet open. There is no Brick select ("The brick", above).
 
 ### Editing by hand
 
-Element names are the rig's interface (first-match globs, in the rig's order): `lid_*` (`frame_na`..`frame_nd`, the
-front bar's steps, `frame_s`, `frame_w`, `frame_e`, `fill_*`, `pocket`, `handle`, `knuckle_w`, `knuckle_e`),
-`pot1_*` and `pot2_*` (`foot`, `lower`, `belly`, `upper`), `charge1_*`, `charge2_*`, `melt1_*`, `melt2_*`,
-`coke<j>_*` and `fire<j>_*` (`n`, `s`, `w`, `m`, `e`, the corner fills `ne1`..`sw2`, the lumps, the burning bottom
-layer's cinders), `damperopen_*`, `damperhalf_*`, `dampershut_*` (`plate`, `knob`), `outletcap_*`; and `fr_*` for
-the frame (`fr_brick_NNN`, `fr_bearer`, `fr_bar`, `fr_lintel`, `fr_guide`, `fr_pin`, `fr_stop`, `fr_curb`, `fr_rim`,
-`fr_strap`, `fr_kerb`, `fr_stand`). Hand edits are lost when the script runs again: port them into `make_shape.py`,
-or stop regenerating.
+Element names are the rig's interface (first-match globs, in the rig's order): `bk_*` the brickwork (`bk_brick_NNN`),
+`ln_*` the lining (`ln_brick_NNN`, `ln_stand<i>`), `lid_*` (`frame_na`..`frame_nd`, the front bar's steps,
+`frame_s`, `frame_w`, `frame_e`, `fill_*`, `pocket`, `handle`, `knuckle_w`, `knuckle_e`), `pot1_*` and `pot2_*`
+(`foot`, `lower`, `belly`, `upper`), `charge1_*`, `charge2_*`, `melt1_*`, `melt2_*`, `coke<j>_*` and `fire<j>_*`
+(`n`, `s`, `w`, `m`, `e`, the corner fills `ne1`..`sw2`, the lumps, the burning bottom layer's cinders),
+`damperopen_*`, `damperhalf_*`, `dampershut_*` (`plate`, `knob`), `outletcap_*`; and `fr_*` the iron frame
+(`fr_bearer`, `fr_bar`, `fr_lintel`, `fr_guide`, `fr_pin`, `fr_stop`, `fr_strap`, `fr_kerb`, `fr_tie_*`). Hand edits
+are lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Known weak spots, and what is not checked
 
 The model has been reviewed in projections rendered from the written files and in the site's viewer (a standalone
 copy). No one has looked at it in a client.
 
-1. **Texture seams.** The brickwork is 125 boxes, world-mapped by the mandrel station's reading of the game's face
-   directions; that the brick runs on across them is not yet seen in the game.
-2. **The glow is fixed**: 200 on the burning coke, 255 on the melts, whatever the temperature (scaling it is the
+1. **Texture seams.** The brick is 224 boxes (129 of brickwork, 95 of lining), world-mapped by the
+   mandrel station's reading of the game's face directions; that the brick runs on across them is not yet seen in the
+   game.
+2. **One texture a brick type**: the game draws a brick course with one of several textures per block; the furnace's
+   walls take the first throughout.
+3. **The glow is fixed**: 200 on the burning coke, 255 on the melts, whatever the temperature (scaling it is the
    renderer's, below).
-3. **The coke is flat-topped** but for its lumps.
-4. **The lid's swing** is checked against the frame and the hole's contents and kept in its hollow cells; a player
+4. **The coke is flat-topped** but for its lumps.
+5. **The lid's swing** is checked against the frame and the hole's contents and kept in its hollow cells; a player
    standing in the front row's, where its front edge passes, is gameplay's.
-5. **Whole-cell boxes**: the cells' boxes are full cubes, and the decks make the top one floor: no falling into the
-   hole, and no clicking a single part inside it.
-6. **A pot is drawn full**, 300 units, whatever is in it; the pot in the furnace is a little larger than the game's
+6. **Whole-cell boxes**: the cells' boxes are full cubes, and the decks make the top one floor: no falling into the
+   hole, and no clicking a single part inside it. They are the built furnace's; a part-built one's are gameplay's.
+7. **A pot is drawn full**, 300 units, whatever is in it; the pot in the furnace is a little larger than the game's
    `meltingpot` block (8.6 by 12 against 8 by 11).
-7. **The hinge stands on the top**: the knuckles 0.45 and the pins 0.25 over the floor at the lid's back corners, and
+8. **The hinge stands on the top**: the knuckles 0.45 and the pins 0.25 over the floor at the lid's back corners, and
    the two stops 1.6. A pin on the lid's top edge stands its radius proud, and a stop under the floor would need the
    pit back (the lid's back face, through the axis, meets nothing at the floor behind it short of lying flat).
-8. **The lid's front face is stepped** back from the seat's front wall, by 0.13 at its underside; at the floor the
+9. **The lid's front face is stepped** back from the seat's front wall, by 0.13 at its underside; at the floor the
    gap is 0.005.
+10. **The ties show while the lining is not in**: the bars by the pins and the stops, which hold iron that sits in
+    the lining's place.
 
 ## Open for the owner
 
-The model is settled. Still open:
-
-1. **The build stages**, to be worked out next.
+Nothing for the model: the build is settled. For the viewer, one thing: **a Brick select** needs the viewer change
+proposed under "The brick" (a scenario `textures` select); say if it should be made.
 
 ## Wiring it into the game
 
 The game-side rules are #796 ("crucible furnace: one two-pot hole per furnace, natural draught by chimney height,
-shared chimneys, ash-pit damper"). A follow-up, after the build stages. It will take:
+shared chimneys, ash-pit damper"). It will take:
 
-- **A ghost-cell machine**: a controller `seraphhorizons:cruciblefurnace-frame-{side}` at the front middle cell
-  drawing `cruciblefurnace_frame.json` (its textures every code of both shapes), a ghost for the other seventeen
-  brickwork cells and one for the six hollow cells over the front two rows, placed from the rig's cells by the
-  player's look (`Footprint.PlacedFacing`), as the press brake and the mandrel station are; selection boxes from the
-  cells, collision with their decks, and the open lid's collision in the middle row's hollow cells while it is open.
+- **The iron frame**: an item from a grid recipe with a hammer (2 iron plates, 4 iron rods, 4 iron nails and strips;
+  the rig's `build.frame`), placed as the machine: a controller `seraphhorizons:cruciblefurnace-frame-{side}` at the
+  front middle cell drawing `cruciblefurnace_frame.json` (the iron frame; its textures every code of both shapes), a
+  ghost for the other seventeen brickwork cells and one for the six hollow cells over the front two rows, placed from
+  the rig's cells by the player's look (`Footprint.PlacedFacing`), as the press brake and the mandrel station are.
+  While it is being built, its selection and collision boxes are gameplay's (the rig's are the built furnace's).
+- **The stages** (`build.stages`, in order): a click with a stage's material puts in as many of the held stack as it
+  still needs (`perClick` `stack`); when all its materials are in, the stage is complete and fits its `requires`;
+  a stage takes nothing before the one ahead of it is complete. **Brickwork**: 25 fired bricks (`oneType`): the first
+  brick put in sets the furnace's brick type, saved with it; a brick of another type is refused with a message
+  naming the furnace's ("This furnace is built of red brick"), and a type not in `bricks.types` is refused. **Lining**:
+  9 tier-3 refractory bricks and 4 fire clay, in any order. **Lid and damper**: 4 tier-3 refractory bricks and 2 iron
+  plates; it fits the lid and the damper, open. Nothing is fired, charged or capped before its stage: the hole and
+  the damper take nothing until the furnace is built, the cap nothing until the lining is in. What breaking a
+  part-built furnace gives back is gameplay's.
+- **The outlet's cap**: not a stage. A click on the outlet's top with an iron plate caps it (`outletcap`), and a
+  click with an empty hand takes the plate back; on any member of a row but the one carrying the chimney.
+- **The brick's texture**: the renderer sets the shape's `brick` code to the furnace's type's texture from the rig's
+  `bricks.types` (a composite texture, `base` with its `overlays` over it); before any brick is in, the brickwork is
+  not drawn.
 - **The lid with tongs when hot**: a click opens or shuts it; it needs tongs (any `heatResistant` item in the off
   hand) only while it is too hot to touch, the same heat test as pulling a pot, and a cold furnace's lid moves
   bare-handed; without tongs on a hot lid the click is refused with a message, as a hot pull is.
-- **Two pots in one hole**: one block entity for the hole (two pots, each with its heats, charge and melt; one coke
-  bed, temperature and fire; the lid; the damper; the cap). Both pots stand under one cell (`holeCell`): a click
-  there goes to the pot whose mouth (`pot1`, `pot2`) is nearer the hit. A pot holds `PotCapacityUnits` (300 after
-  #768, the rig's `furnace.potUnits`, which a test should hold to it): 600 a firing. The bed's `CokeCapacity` is
-  drawn as `cokeLayers` layers of `cokePerLayer` (two at today's six); if #796 raises it for two pots,
-  `cokePerLayer` follows.
+- **Two pots in one hole**: one block entity for the hole (the stages, the brick type; two pots, each with its heats,
+  charge and melt; one coke bed, temperature and fire; the lid; the damper; the cap). Both pots stand under one cell
+  (`holeCell`): a click there goes to the pot whose mouth (`pot1`, `pot2`) is nearer the hit. A pot holds
+  `PotCapacityUnits` (300 after #768, the rig's `furnace.potUnits`, which a test should hold to it): 600 a firing.
+  The bed's `CokeCapacity` is drawn as `cokeLayers` layers of `cokePerLayer` (two at today's six); if #796 raises it
+  for two pots, `cokePerLayer` follows.
 - **Rows of up to six**, **18 blocks** long: furnaces side by side along their width (`furnace.rowAxis`, `rowMax`),
-  sharing one chimney stood on any member's outlet; every other member's outlet capped (`outletcap`, set on the
-  outlet's top by a click with an iron plate, say); an uncapped outlet with no chimney on it leaks the row's
-  draught. The flues between them are implied.
+  sharing one chimney stood on any member's outlet; every other member's outlet capped; an uncapped outlet with no
+  chimney on it leaks the row's draught. The flues between them are implied.
 - **Draught set by the chimney's height**: counted from the row's chimney-carrying `outletCell`'s top up, in
   `ChimneyBlocks` (clay bricks, clay brick chimney, refractory bricks, stone bricks; not smex's smoke stack), the
   furnace's own stack base not counted. Six blocks (`MinChimneyHeight`) give 200 °C an hour up to 1600 °C; each
@@ -341,15 +472,17 @@ shared chimneys, ash-pit damper"). A follow-up, after the build stages. It will 
   cooling at a quarter of the normal rate and the coke burning at 0.25.
 - **No forced air**: today's air from exlib pipes (`Game/ForcedAir.cs`, `ForcedHeatingPerHour`,
   `ForcedMaxTemperature`, `AirLitresPerSecond`) goes; the furnace has no air port.
-- **A renderer** on `Machines/Core` (`RigAnimation`) drawing the lid at depth from its eased place (0 open, 1 shut),
-  and the parts by the hole's state (the pots, charges and melts per pot; the coke layers by `ceil(coke /
-  cokePerLayer)`, `fire` in place of `coke` while lit; the damper's place; the cap), `melt` and `charge` textures set
-  from each pot's contents, the glow scaled to the temperature (the model's are fixed); flames, light and sound at
-  `mouth` while the lid is open, smoke at the chimney's top.
+- **A renderer** on `Machines/Core` (`RigAnimation`) drawing the parts by the furnace's state: the stages fitted (the
+  brickwork in its brick type's texture, the lining, the lid at depth from its eased place, 0 open, 1 shut), then the
+  hole's contents (the pots, charges and melts per pot; the coke layers by `ceil(coke / cokePerLayer)`, `fire` in
+  place of `coke` while lit; the damper's place; the cap), `melt` and `charge` textures set from each pot's contents,
+  the glow scaled to the temperature (the model's are fixed); flames, light and sound at `mouth` while the lid is
+  open, smoke at the chimney's top.
 - **Old holes removed**: the `meltinghole` block, its grid recipe and the chimney row (`FurnaceRow`) are simply
   removed, with no migration: holes already in a world go.
-- **Recipes and data**: the frame's recipe (refractory bricks and iron) and its stages; the recipe browser's
-  multiblock data for the new block; the handbook.
+- **Recipes and data**: the frame's grid recipe; the recipe browser's multiblock data for the new block, with its
+  stages' materials; the handbook (the stages, any fired brick, the brick type rule).
 - **Tests**: the rig and its reference poses replayed in C#, as the mandrel station's are; Atlas scenarios for
-  placement, the two pots, the lid and its tongs, the damper, a row sharing a chimney with caps, and the draught by
-  chimney height.
+  placing the frame, each stage (a stack a click, the counts, one brick type and a different one refused, a type not
+  in `bricks` refused), the two pots, the lid and its tongs, the damper, a row sharing a chimney with caps, and the
+  draught by chimney height.

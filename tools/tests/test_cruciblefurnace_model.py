@@ -1,8 +1,10 @@
 """The crucible furnace's generated model files (mods-src/seraphhorizons/CrucibleFurnace/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
-maths and uses the `requires` vocabulary (two pots and their charges and melts, the coke and the burning coke, the
-damper's three places, the outlet's cap), its reference poses are its own maths, the cells are rebuilt from the shipped
+maths and uses the `requires` vocabulary (the build's stages, brickwork, lining and lid; two pots and their charges and
+melts, the coke and the burning coke, the damper's three places, the outlet's cap), its reference poses are its own
+maths, the stages' counts are measured from the shape's brick, the brick types map to the game's textures (checked
+against the game's files when they are at hand: $VINTAGE_STORY or ~/Games/vintagestory), the cells are rebuilt from the shipped
 shape, the hinged lid is the only part that moves (flush in its seat shut, resting just past upright open, swinging
 in its own cells with no pit), each pot's melt holds a full pot of 300 units, the hole, the ash mouth and the outlet
 are centred with thick walls round the hole, the side faces are plain brick for a row, the textures are the game's own
@@ -14,6 +16,8 @@ up), and the model viewer's scenario (site/models.json) gives the generator's st
 import importlib.util
 import json
 import math
+import os
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -36,9 +40,11 @@ FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "cr
 REFERENCE = json.loads((MOD / "tests" / "CrucibleFurnace" / "rig-reference.json").read_text())
 MODELS = json.loads((ROOT / "site" / "models.json").read_text())
 CONTENTS = ("pot1", "pot2", "charge1", "charge2", "melt1", "melt2", "coke1", "coke2", "coke3", "fire1", "fire2", "fire3")
-REQUIRES = {None, "damperopen", "damperhalf", "dampershut", "outletcap", *CONTENTS}
+STAGES = ("brickwork", "lining", "lid")
+REQUIRES = {None, *STAGES, "damperopen", "damperhalf", "dampershut", "outletcap", *CONTENTS}
 GAME_TEXTURES = {
-    "brick": "game:block/clay/refractory/tier3/front1",
+    "brick": "game:block/clay/brick/four/running/red1",
+    "lining": "game:block/clay/refractory/tier3/front1",
     "iron": "game:block/metal/plate/iron",
     "clay": "game:block/clay/hardened/fire",
     "coke": "game:block/coal/coke",
@@ -68,11 +74,13 @@ class Rig(unittest.TestCase):
             for d in p["drivers"]:
                 rigmath.validate_driver(d)
         self.assertEqual({p["requires"] for p in RIG["parts"]}, REQUIRES)
-        # the lid has no requires (it is the furnace's) and is the only part that moves: a step turn about its pin
+        # the lid is the last stage's and the only part that moves: a step turn about its top back edge; the iron
+        # frame has no requires (placing it puts the machine down)
         moving = {p["id"] for p in RIG["parts"] if p["drivers"]}
         self.assertEqual(moving, {"lid"})
+        req = {p["id"]: p["requires"] for p in RIG["parts"]}
+        self.assertEqual((req["lid"], req["brickwork"], req["lining"], req["frame"]), ("lid", "brickwork", "lining", None))
         lid = next(p for p in RIG["parts"] if p["id"] == "lid")
-        self.assertIsNone(lid["requires"])
         self.assertEqual([(d["type"], d.get("motion")) for d in lid["drivers"]], [("rotate", None), ("step", "rotate")])
 
     def test_every_element_has_a_part_and_every_part_an_element(self):
@@ -227,8 +235,64 @@ class Furnace(unittest.TestCase):
         for el in FLAT:
             lo, hi = el.aabb()
             if lo[0] < west + 1e-6 or hi[0] > east - 1e-6:
-                self.assertTrue(el.name.startswith("fr_brick"), el.name)
+                self.assertTrue(el.name.startswith("bk_brick"), el.name)
                 self.assertEqual({f["texture"] for f in next(e for e in SHAPE["elements"] if e["name"] == el.name)["faces"].values()}, {"#brick"})
+
+
+def game_assets():
+    for root in (os.environ.get("VINTAGE_STORY"), str(Path.home() / "Games" / "vintagestory")):
+        if root and (Path(root) / "assets" / "survival").is_dir():
+            return Path(root) / "assets"
+    return None
+
+
+def element_volume(e):
+    return math.prod(e["to"][k] - e["from"][k] for k in range(3))
+
+
+class Build(unittest.TestCase):
+    def test_the_stages_counts_are_measured_from_the_brick(self):
+        # 2 fired bricks a block of brickwork, 4 refractory bricks a block of lining (the stands' octagons with it),
+        # fire clay one per 2.5 of those, each rounded up; the shipped shape's faces are stepped in by at most 0.015
+        build = RIG["build"]
+        self.assertEqual([s["requires"] for s in build["stages"]], list(STAGES))
+        st = {s["requires"]: s for s in build["stages"]}
+        bk = sum(element_volume(e) for e in SHAPE["elements"] if e["name"].startswith("bk_brick_")) / 4096
+        ln = sum(element_volume(e) for e in SHAPE["elements"] if e["name"].startswith("ln_brick_")) / 4096
+        y0, y1, a = make_shape.STAND
+        ln += 2 * make_shape.oct_area(a) * (y1 - y0) / 4096
+        self.assertAlmostEqual(bk, st["brickwork"]["volumeBlocks"], delta=0.01)
+        self.assertAlmostEqual(ln, st["lining"]["volumeBlocks"], delta=0.01)
+        bricks, lining = math.ceil(st["brickwork"]["volumeBlocks"] * 2), math.ceil(st["lining"]["volumeBlocks"] * 4)
+        self.assertEqual([(m["code"], m["quantity"]) for m in st["brickwork"]["materials"]], [("game:burnedbrick-*", bricks)])
+        self.assertTrue(st["brickwork"]["oneType"])
+        self.assertEqual([(m["code"], m["quantity"]) for m in st["lining"]["materials"]],
+                         [("game:refractorybrick-fired-tier3", lining), ("game:clay-fire", math.ceil(lining / 2.5))])
+        self.assertEqual([(m["code"], m["quantity"]) for m in st["lid"]["materials"]],
+                         [("game:refractorybrick-fired-tier3", 4), ("game:metalplate-iron", 2)])
+        self.assertEqual([(m["code"], m["quantity"]) for m in build["frame"]["ingredients"]],
+                         [("game:metalplate-iron", 2), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 4)])
+        self.assertEqual((build["outletCap"]["code"], build["outletCap"]["quantity"]), ("game:metalplate-iron", 1))
+
+    def test_the_frame_is_the_iron_frame(self):
+        # the block draws the iron frame alone: the brick, the lining and the lid are stages
+        self.assertEqual({f["texture"] for e in FRAME["elements"] for f in e["faces"].values()}, {"#iron"})
+        self.assertTrue(all(e["name"].startswith("fr_") for e in FRAME["elements"]))
+
+    def test_any_fired_brick_maps_to_its_blocks_texture(self):
+        bricks = RIG["bricks"]
+        self.assertEqual((bricks["code"], bricks["default"], bricks["item"]), ("brick", "red", "game:burnedbrick-{type}"))
+        self.assertEqual(list(bricks["types"]), ["fire", "black", "brown", "cream", "gray", "orange", "red", "tan", "clinker"])
+        self.assertEqual(SHAPE["textures"]["brick"], bricks["types"]["red"]["overlays"][0])
+        assets = game_assets()
+        if assets is None:
+            self.skipTest("no game assets ($VINTAGE_STORY or ~/Games/vintagestory)")
+        for t, d in bricks["types"].items():
+            for code in [d["base"]] + d.get("overlays", []):
+                self.assertTrue((assets / "survival" / "textures" / (code.split(":", 1)[1] + ".png")).is_file(), (t, code))
+        text = (assets / "survival" / "itemtypes" / "resource" / "burnedbrick.json").read_text()
+        states = re.search(r'code:\s*"type",\s*states:\s*\[([^\]]*)\]', text).group(1)
+        self.assertEqual(sorted(re.findall(r'"([^"]+)"', states)), sorted(bricks["types"]))
 
 
 class Scenario(unittest.TestCase):
@@ -237,10 +301,19 @@ class Scenario(unittest.TestCase):
         self.assertEqual(model["rig"], "mods-src/seraphhorizons/assets/seraphhorizons/config/cruciblefurnace-rig.json")
         sc = model["scenario"]
         self.assertEqual(set(sc["requires"]), REQUIRES - {None})
-        self.assertEqual(sc["choices"], [{"label": "Ash-pit damper", "values": ["damperopen", "damperhalf", "dampershut"],
-                                          "default": "damperopen"}])
+        self.assertNotIn("choices", sc)
         groups = {g["id"]: g for g in sc["states"]}
-        self.assertEqual(set(groups), {"pots", "outlet"})
+        self.assertEqual(set(groups), {"build", "pots", "damper", "outlet"})
+        # the build, stage by stage, the furnace built by default; the contents and the damper wait for it, the cap
+        # for the lining (its curb)
+        build = groups["build"]
+        self.assertEqual((build["values"], build["default"]), (list(STAGES), "complete"))
+        self.assertEqual([(o["id"], tuple(o["fitted"])) for o in build["options"]], list(make_shape.STAGE_STATES))
+        self.assertEqual(groups["pots"]["needs"], list(STAGES))
+        self.assertEqual(groups["damper"]["needs"], list(STAGES))
+        self.assertEqual(groups["outlet"]["needs"], ["brickwork", "lining"])
+        self.assertEqual([(o["id"], o["fitted"]) for o in groups["damper"]["options"]],
+                         [("open", ["damperopen"]), ("half", ["damperhalf"]), ("shut", ["dampershut"])])
         pots = groups["pots"]
         self.assertEqual(pots["values"], list(CONTENTS))
         got = [(o["id"], o["label"], tuple(o["fitted"])) for o in pots["options"]]
