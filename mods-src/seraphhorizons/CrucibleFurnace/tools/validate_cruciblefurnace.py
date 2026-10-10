@@ -94,9 +94,9 @@ def check_floating(v):
 
 ROLES = [
     (r"^fr_brick_", {"brick"}),
-    (r"^fr_(bearer|bar|lintel|guide|pin|bracket|stop|curb|rim|strap|kerb)", {"iron"}),
+    (r"^fr_(bearer|bar|lintel|guide|pin|stop|curb|rim|strap|kerb)", {"iron"}),
     (r"^fr_stand\d", {"clay"}),
-    (r"^lid_(frame|handle)", {"iron"}),
+    (r"^lid_(frame|handle|knuckle)", {"iron"}),
     (r"^lid_(fill|pocket)", {"brick"}),
     (r"^pot\d_", {"clay"}),
     (r"^charge\d_", {"charge"}),
@@ -121,6 +121,9 @@ def check_textures(v):
 
 
 # ---------------------------------------------------------------- containment, the top, the sides
+GROOVE_MAX = 0.1                             # the widest gap the shut lid may show round its hinge (review: no groove)
+
+
 def overhang(m, lo, hi):
     """How far (voxels) a box pokes out of where the model may be: the brickwork's box, and the cells over the hole
     (where the lid stands open); negative when inside."""
@@ -132,12 +135,14 @@ def overhang(m, lo, hi):
 
 
 def check_containment(v):
-    """Nothing leaves the brickwork and the two cells over the hole over the lid's whole swing (so nothing reaches the
-    chimney's cell or the one beside it); with the lid shut nothing stands over the floor, and with it open only the
-    lid does."""
+    """Nothing leaves the brickwork and the six cells over its front two rows (the lid's swing: it stands open over
+    the middle row and sweeps the front row's as it turns) over the lid's whole swing, so nothing reaches the
+    chimney's cell or its neighbours; with the lid shut nothing stands over the floor but the hinge (the knuckles and
+    the pins, their radius proud) and the two stops, and with it open only the lid besides."""
     m = v.m
     worst, where = -1e9, None
-    over = {}
+    over, high = {}, 0.0
+    hinge = re.compile(r"^(lid_knuckle|fr_pin|fr_stop)")
     for dp in depths(0.01):
         for pid in v.by_part:
             for el in v.posed(pid, dp):
@@ -145,27 +150,47 @@ def check_containment(v):
                 o = overhang(m, lo, hi)
                 if o > worst:
                     worst, where = o, (el.name, dp)
-                if dp in (0.0, m.SHUT) and hi[1] > m.H + 1e-6:
-                    over.setdefault(dp, set()).add(pid)
+                if dp in (0.0, m.SHUT) and hi[1] > m.H + 1e-4:      # the lid's turn is written to 6 places
+                    over.setdefault(dp, set()).add(pid if not hinge.match(el.name) else "hinge")
+                    if dp == m.SHUT:
+                        high = max(high, hi[1] - m.H)
     print(f"containment over the lid's swing (every 0.01): worst overhang {worst:.3f} voxels ({where[0]} at depth "
-          f"{where[1]:.2f}); over the floor with the lid shut: {sorted(over.get(m.SHUT, [])) or 'nothing'}, open: "
-          f"{sorted(over.get(0.0, [])) or 'nothing'}")
+          f"{where[1]:.2f}); over the floor with the lid shut: {sorted(over.get(m.SHUT, [])) or 'nothing'} (to "
+          f"{high:.2f}), open: {sorted(over.get(0.0, [])) or 'nothing'}")
     if worst > 0.01:
         v.fail(f"{where[0]} leaves the furnace's cells at depth {where[1]}")
-    if over.get(m.SHUT) or over.get(0.0, set()) != {"lid"}:
-        v.fail("something but the open lid stands over the floor")
+    if over.get(m.SHUT, set()) - {"hinge"} or over.get(0.0, set()) - {"hinge", "lid"} or "lid" not in over.get(0.0, set()):
+        v.fail("something but the hinge, its stops and the open lid stands over the floor")
+    if high > m.STOP_H + 1e-6:
+        v.fail(f"the hinge stands {high:.2f} over the floor with the lid shut")
+
+
+def hinge_beds(m):
+    """The hinge's places in the top, as (x0, x1, z0, z1): each knuckle's bed behind the seat, each pin's in its side
+    wall, each stop's foot."""
+    zb = m.PIVOT[1]
+    out = [(x0, x1, zb, zb + m.BED) for x0, x1 in m.KNUCKLE_X]
+    out += [(x0, x1, zb - m.PIN_BED, zb + m.PIN_BED) for x0, x1 in ((m.SEAT_X[0] - m.PIN_IN, m.SEAT_X[0]),
+                                                                   (m.SEAT_X[1], m.SEAT_X[1] + m.PIN_IN))]
+    out += [(x0, x1, m.STOP_Z, m.STOP_Z + m.STOP_D) for x0, x1 in m.STOP_X]
+    return out
 
 
 def check_top(v):
-    """The top is flat *(review)*: no recess but the lid's seat, the hinge pit behind it and the outlet's mouth.
-    Every half voxel of it, just under the floor, is brick or flush iron whose top is the floor; nothing of the frame
-    stands above it."""
+    """The top is flat *(review)*: no recess but the lid's seat and the outlet's mouth, and the hinge's beds, which
+    its iron fills. Every half voxel of it, just under the floor, is brick or flush iron whose top is the floor; of the
+    frame only the pins (their radius) and the two stops stand above it. And the shut lid shows no groove *(review)*:
+    along lines across the hinge every hundredth of a voxel, just under the floor, the widest run in no element (the
+    frame and the lid shut) is under GROOVE_MAX."""
     m = v.m
     frame = v.by_part["frame"]
     (cx0, cx1), _, (cz0, cz1) = m.CURB
+    beds = hinge_beds(m)
 
     def opening(x, z):
-        if m.SEAT_X[0] <= x <= m.SEAT_X[1] and m.SEAT_Z[0] <= z <= m.PIT_BACK:
+        if m.SEAT_X[0] <= x <= m.SEAT_X[1] and m.SEAT_Z[0] <= z <= m.SEAT_Z[1]:
+            return True
+        if any(x0 <= x <= x1 and z0 <= z <= z1 for x0, x1, z0, z1 in beds):
             return True
         return cx0 + m.CURB_RIM <= x <= cx1 - m.CURB_RIM and cz0 + m.CURB_RIM <= z <= cz1 - m.CURB_RIM
     bad, n = [], 0
@@ -180,13 +205,37 @@ def check_top(v):
                     bad.append((x, z))
             z += 0.5
         x += 0.5
-    high = [e.name for e in frame if e.aabb()[1][1] > m.FLOOR_TOP + 1e-6]
-    print(f"top: flat at the floor at {n - len(bad)} of {n} points (every half voxel, the seat, the hinge pit and the "
-          f"outlet aside); {len(high)} frame elements above it")
+    high = [e for e in frame if e.aabb()[1][1] > m.FLOOR_TOP + 1e-6]
+    odd = [e.name for e in high if not re.match(r"^fr_(pin|stop)_", e.name)]
+    pins = max((e.aabb()[1][1] - m.FLOOR_TOP for e in high if e.name.startswith("fr_pin")), default=0.0)
+    # the groove: lines across the hinge, along z through each knuckle, pin and stop and the lid's back edge between,
+    # across its front edge (clear of the handle's pocket), and along x across the seat's sides
+    near = [e for e in frame + v.posed("lid", m.SHUT) if e.aabb()[1][1] > m.FLOOR_TOP - 1.0]
+    y = m.FLOOR_TOP - 0.02
+    lines = [[(xa, y, m.PIVOT[1] - 1.0 + q * 0.01) for q in range(301)] for x0, x1, _, _ in beds for xa in (x0 + 0.3, (x0 + x1) / 2)]
+    lines += [[(xa, y, m.PIVOT[1] - 1.0 + q * 0.01) for q in range(301)] for xa in (m.W / 2, m.SEAT_X[0] + 2.5, m.SEAT_X[1] - 2.5)]
+    lines += [[(xa, y, m.SEAT_Z[0] - 1.5 + q * 0.01) for q in range(301)] for xa in (m.W / 2 - 6.0, m.SEAT_X[0] + 2.5, m.SEAT_X[1] - 2.5)]
+    lines += [[(xa + q * 0.01, y, za) for q in range(301)] for xa in (m.SEAT_X[0] - 1.5, m.SEAT_X[1] - 1.5)
+              for za in ((m.SEAT_Z[0] + m.SEAT_Z[1]) / 2, m.PIVOT[1] - 0.5)]
+    widest, at = 0.0, None
+    for line in lines:
+        run = 0
+        for p in line:
+            if any(inside(e, p) for e in near):
+                run = 0
+            else:
+                run += 1
+                if run * 0.01 > widest:
+                    widest, at = run * 0.01, p
+    print(f"top: flat at the floor at {n - len(bad)} of {n} points (every half voxel, the seat, the outlet and the "
+          f"hinge's beds aside); above it only the pins ({pins:.2f}) and the stops ({m.STOP_H}); with the lid shut the "
+          f"widest groove across the hinge is {widest:.2f} (at {at and tuple(round(c, 2) for c in at)})")
     if bad:
         v.fail(f"the top is not flat at {len(bad)} points, e.g. {bad[:4]}")
-    if high:
-        v.fail(f"frame elements stand above the top: {high[:4]}")
+    if odd:
+        v.fail(f"frame elements stand above the top: {odd[:4]}")
+    if widest > GROOVE_MAX:
+        v.fail(f"the shut lid shows a groove {widest:.2f} wide at {at}")
 
 
 def check_sides(v):
@@ -239,57 +288,142 @@ def check_sides(v):
           f"furnaces side by side clear of each other but at the shared walls")
 
 
+def check_walls(v):
+    """Thick walls, everything centred *(review)*: the hole, the ash mouth with its damper and the outlet are centred
+    left to right; the brick round the hole and the lid's seat, sampled every half voxel from the grate to the floor
+    along the west, east and front walls (and the back outside the flue's way), is solid (brick, or iron set into it)
+    out to the furnace's face for at least MIN_WALL."""
+    m = v.m
+    frame = v.by_part["frame"]
+    mid = m.W / 2
+    for what, (x0, x1) in (("hole", m.HOLE_X), ("ash mouth", m.MOUTH[0]), ("damper's recess", m.RECESS[0]),
+                           ("stack", m.STACK[0]), ("outlet's curb", m.CURB[0])):
+        if abs((x0 + x1) / 2 - mid) > 1e-9:
+            v.fail(f"the {what} is not centred left to right")
+    near = [e for e in frame if e.name.startswith(("fr_brick", "fr_strap", "fr_kerb", "fr_bearer", "fr_pin", "fr_guide"))]
+
+    def solid(p):
+        return any(inside(e, p, eps=-1e-9) for e in near)
+
+    def run(p, axis, sign, limit):
+        """How far solid goes from p along axis (sign), in steps of a quarter voxel, up to limit."""
+        t = 0.0
+        while t < limit:
+            q = list(p)
+            q[axis] += sign * (t + 0.125)
+            if not solid(q):
+                return t
+            t += 0.25
+        return limit
+    walls = {}
+    ys = [m.GRATE_TOP + 0.25 + 0.5 * k for k in range(int((m.FLOOR_TOP - m.GRATE_TOP) * 2))]
+    for y in ys:
+        sx = m.SEAT_X if y > m.SEAT_Y else m.HOLE_X
+        sz = m.SEAT_Z if y > m.SEAT_Y else m.HOLE_Z
+        zs = [sz[0] + 0.25 + 0.5 * k for k in range(int((sz[1] - sz[0]) * 2))]
+        xs = [sx[0] + 0.25 + 0.5 * k for k in range(int((sx[1] - sx[0]) * 2))]
+        for z in zs:
+            if abs(z - m.PIVOT[1]) < 0.75 and y > m.FLOOR_TOP - 1.0:
+                continue                                  # the pin's bed, in the top corner behind the seat
+            walls.setdefault("west", []).append((run((sx[0], y, z), 0, -1, sx[0]), (y, z)))
+            walls.setdefault("east", []).append((run((sx[1], y, z), 0, 1, m.W - sx[1]), (y, z)))
+        for x in xs:
+            walls.setdefault("front", []).append((run((x, y, sz[0]), 2, -1, sz[0]), (x, y)))
+            fx = m.CURB[0]                                  # the flue's way, to the outlet's curb
+            if not (fx[0] - 0.5 <= x <= fx[1] + 0.5) and y <= m.FLOOR_TOP - 1.0:
+                walls.setdefault("back", []).append((run((x, y, sz[1]), 2, 1, m.D - sz[1]), (x, y)))
+    worst = {k: min(w) for k, w in walls.items()}
+    print("walls: the hole, the ash mouth, the damper and the outlet centred; brick round the hole and the seat at least "
+          + ", ".join(f"{k} {t:.2f}" for k, (t, _) in worst.items()) + f" (MIN_WALL {m.MIN_WALL})")
+    for k, (t, at) in worst.items():
+        if t < m.MIN_WALL - 1e-9:
+            v.fail(f"the {k} wall is {t:.2f} thick at {at}")
+
+
 # ---------------------------------------------------------------- the lid
 def lid_body(v, depth):
     return v.posed("lid", depth)
 
 
 def check_lid(v):
-    """The lid *(review)*: shut, flush in its seat (its box the seat's), on the seat's ledge at its front and sides and
-    on the pin at its back; open, turned OPEN_DEG about the pin, resting just past upright with its weight behind the
-    pin, its back face against the stop's edge, standing in the cells over the hole (out of the chimney's). The lid is
-    the only part that moves, and theta moves nothing."""
+    """The lid *(review)*: shut, flush in its seat (its box, the knuckles aside, the seat's, its front face stepped
+    back inside the arc its top front edge swings on, so it clears the seat's front wall), on the seat's ledge all
+    round; hinged about its top back edge, so nothing of it passes behind that edge under the floor (no pit): its two
+    knuckles turn about the axis in their beds, the pins run through them and PIN_IN into the side walls, bedded in
+    brick. Open, turned OPEN_DEG about the axis, it rests just past upright with its weight behind the axis, its back
+    face on the two stops' top front edges, standing in the cells over the hole (out of the chimney's). The lid is the
+    only part that moves, and theta moves nothing."""
     m = v.m
+    zb = m.PIVOT[1]
     seat = ([m.SEAT_X[0], m.SEAT_Y, m.SEAT_Z[0]], [m.SEAT_X[1], m.FLOOR_TOP, m.SEAT_Z[1]])
-    shut = aabb_of(lid_body(v, m.SHUT))
+    shut = aabb_of([e for e in v.posed("lid", m.SHUT) if not e.name.startswith("lid_knuckle")])
+    steps = m.front_steps()
+    seat[0][2] += steps[0][2]
     if not same_box(shut, seat, tol=1e-4):
         v.fail(f"the lid is not flush in its seat when shut: {shut}")
+    length = m.SEAT_Z[1] - m.SEAT_Z[0]                # the top front edge's distance from the axis
+    reach = max(math.hypot(c[1] - m.PIVOT[0], c[2] - m.PIVOT[1]) for e in v.posed("lid", m.SHUT)
+                if not e.name.startswith("lid_knuckle") for c in box_corners(e))
+    if reach > length + 1e-6:
+        v.fail(f"a corner of the lid is {reach - length:.3f} farther from the axis than its top front edge: it swings "
+               "into the seat's front wall")
+    if steps[0][2] > 0.01 or steps[0][1] != m.FLOOR_TOP:
+        v.fail("the lid's front face is set back at the floor")
     bricks = brick(v)
     frame = v.by_part["frame"]
     y = m.SEAT_Y - 0.1
-    for p in ((m.SEAT_X[0] + 0.25, y, (m.HOLE_Z[0] + m.HOLE_Z[1]) / 2), (m.SEAT_X[1] - 0.25, y, (m.HOLE_Z[0] + m.HOLE_Z[1]) / 2),
-              ((m.SEAT_X[0] + m.SEAT_X[1]) / 2, y, m.SEAT_Z[0] + 0.25)):
+    xm, zm = (m.SEAT_X[0] + m.SEAT_X[1]) / 2, (m.HOLE_Z[0] + m.HOLE_Z[1]) / 2
+    for p in ((m.SEAT_X[0] + 0.25, y, zm), (m.SEAT_X[1] - 0.25, y, zm), (xm - 6.0, y, m.SEAT_Z[0] + 0.25),
+              (m.SEAT_X[0] + 3.0, y, m.SEAT_Z[1] - 0.25), (m.SEAT_X[1] - 3.0, y, m.SEAT_Z[1] - 0.25)):
         if not any(inside(e, p) for e in bricks):
             v.fail(f"no ledge under the shut lid at {p}")
-    pin = [e for e in frame if e.name.startswith("fr_pin")]
-    back = [e for e in v.by_part["lid"] if e.name.startswith("lid_frame_s")]
+    # the hinge: nothing of the lid behind its top back edge under the floor, at any depth, but the knuckles
+    behind = 0.0
+    for d in depths(0.02):
+        for e in v.posed("lid", d):
+            if e.name.startswith("lid_knuckle"):
+                continue
+            lo, hi = e.aabb()
+            if lo[1] < m.FLOOR_TOP - 1e-6 and hi[2] > zb + 1e-6:
+                corners = [c for c in box_corners(e) if c[1] < m.FLOOR_TOP - 1e-6]
+                behind = max(behind, max(c[2] - zb for c in corners))
+    if behind > 1e-4:
+        v.fail(f"the lid passes {behind:.3f} behind its back edge under the floor: it would need a pit")
+    pins = [e for e in frame if e.name.startswith("fr_pin")]
     for d in (0.0, 0.5, m.SHUT):
-        bars = [e for e in v.posed("lid", d) if e.name.startswith("lid_frame_s")]
-        if not all(any(inside(b, (x, m.PIVOT[0], m.PIVOT[1])) for b in bars) for x in (m.SEAT_X[0] + 1.0, m.SEAT_X[1] - 1.0)):
-            v.fail(f"the pin is not in the lid's back bar at depth {d}")
-    if not pin or not back:
-        v.fail("no hinge pin or no back bar")
-    for side, x in (("w", m.BRACKET[0]), ("e", m.BRACKET[1])):
-        if not any(inside(e, ((x[0] + x[1]) / 2, m.PIVOT[0], m.PIVOT[1])) for e in pin):
-            v.fail(f"the pin does not reach its {side} bracket")
-    # open: its weight behind the pin, its back face on the stop's edge
-    els = lid_body(v, 0.0)
+        kn = [e for e in v.posed("lid", d) if e.name.startswith("lid_knuckle")]
+        for x0, x1 in m.KNUCKLE_X:
+            for x in (x0 + 0.2, (x0 + x1) / 2, x1 - 0.2):
+                if not any(inside(k, (x, m.PIVOT[0], zb)) for k in kn) or not any(inside(q, (x, m.PIVOT[0], zb)) for q in pins):
+                    v.fail(f"the pin is not in the knuckle at x {x}, depth {d}")
+    bedded = 0
+    for x0, x1 in ((m.SEAT_X[0] - m.PIN_IN, m.SEAT_X[0]), (m.SEAT_X[1], m.SEAT_X[1] + m.PIN_IN)):
+        xc = (x0 + x1) / 2
+        if not any(inside(q, (x0 + 0.05, m.PIVOT[0], zb)) for q in pins) or not any(inside(q, (x1 - 0.05, m.PIVOT[0], zb)) for q in pins):
+            v.fail(f"a pin does not run {m.PIN_IN} into its side wall")
+        out = x0 - 0.1 if x0 < m.SEAT_X[0] else x1 + 0.1                       # beyond the pin's end
+        for p in ((xc, m.FLOOR_TOP - m.PIN_BED - 0.1, zb), (xc, m.FLOOR_TOP - 0.1, zb - m.PIN_BED - 0.1),
+                  (xc, m.FLOOR_TOP - 0.1, zb + m.PIN_BED + 0.1), (out, m.FLOOR_TOP - 0.1, zb)):
+            if any(inside(e, p) for e in bricks):
+                bedded += 1
+            else:
+                v.fail(f"a pin's bed is not in brick at {p}")
+    # open: its weight behind the axis, its back face on the stops' top front edges
+    els = v.posed("lid", 0.0)
     vol = sum(abs(e.size[0] * e.size[1] * e.size[2]) for e in els)
     cz = sum(e.c[2] * abs(e.size[0] * e.size[1] * e.size[2]) for e in els) / vol
-    if cz <= m.PIVOT[1]:
-        v.fail(f"the open lid's weight is not behind its pin ({cz - m.PIVOT[1]:+.3f}): it would fall shut")
+    if cz <= zb:
+        v.fail(f"the open lid's weight is not behind its axis ({cz - zb:+.3f}): it would fall shut")
     a = math.radians(m.OPEN_DEG)
-    n = [0.0, math.cos(a), math.sin(a)]               # the lid's top face's normal, turned open
-    top = (0.0, m.FLOOR_TOP, m.PIVOT[1])             # a point of the top face (shut), turned about the pin
-    dy, dz = top[1] - m.PIVOT[0], top[2] - m.PIVOT[1]
-    p0 = (0.0, m.PIVOT[0] + dy * math.cos(a) - dz * math.sin(a), m.PIVOT[1] + dy * math.sin(a) + dz * math.cos(a))
-    edge = (0.0, m.FLOOR_TOP, m.STOP_Z)
-    gap = sum(n[k] * (edge[k] - p0[k]) for k in range(3))
-    if abs(gap) > 0.01:
-        v.fail(f"the open lid does not rest on the stop's edge: {gap:+.4f}")
-    stop = aabb_of([e for e in frame if e.name.startswith("fr_stop")])
-    if abs(stop[0][2] - m.STOP_Z) > 1e-6 or abs(stop[1][1] - m.FLOOR_TOP) > 1e-6:
-        v.fail("the stop's edge is not where the lid rests")
+    n = (math.cos(a), math.sin(a))                    # the lid's top face's normal (y, z), turned open; the face holds the axis
+    stops = [e.aabb() for e in frame if e.name.startswith("fr_stop")]
+    gaps = [n[0] * (s[1][1] - m.PIVOT[0]) + n[1] * (s[0][2] - zb) for s in stops]
+    if len(stops) != 2 or any(abs(g) > 0.01 for g in gaps):
+        v.fail(f"the open lid does not rest on the stops' edges: {gaps}")
+    if any(abs(s[1][1] - (m.FLOOR_TOP + m.STOP_H)) > 1e-6 or abs(s[0][2] - m.STOP_Z) > 1e-6 for s in stops):
+        v.fail("the stops' edges are not where the lid rests")
+    if any(s[0][0] < m.SEAT_X[0] or s[1][0] > m.SEAT_X[1] for s in stops):
+        v.fail("a stop is not behind the lid")
     lo, hi = aabb_of(els)
     for pid in (p["id"] for p in v.parts):
         for d in (0.3, 0.8):
@@ -301,17 +435,30 @@ def check_lid(v):
             mc = m.pm(v.parts, pid, (0.0, 0.6, None))
             if max(abs(mc[r][q] - (1.0 if r == q else 0.0)) for r in range(3) for q in range(4)) > 1e-12:
                 v.fail(f"depth moves {pid}")
-    print(f"lid: shut flush in its seat (on the ledge and the pin); open {m.OPEN_DEG} degrees about the pin, its weight "
-          f"{cz - m.PIVOT[1]:.2f} behind it, its back face {gap:+.4f} off the stop's edge, standing to y {hi[1]:.2f} and "
-          f"z {hi[2]:.2f} (the cells over the hole end at {m.B:.0f}); theta moves nothing, depth only the lid")
+    print(f"lid: shut flush in its seat on the ledge all round; nothing of it behind its back edge under the floor over "
+          f"its swing (worst {behind:.1e}, no pit); the pins through both knuckles and {m.PIN_IN} into each side wall, "
+          f"bedded ({bedded} points of brick round them); open {m.OPEN_DEG} degrees, its weight {cz - zb:.2f} behind the "
+          f"axis, its back face {max(abs(g) for g in gaps):.1e} off the stops' edges, standing to y {hi[1]:.2f} and z "
+          f"{hi[2]:.2f} (the cells over the hole end at {2 * m.B:.0f}); theta moves nothing, depth only the lid")
+
+
+def box_corners(e):
+    out = []
+    for sx in (-0.5, 0.5):
+        for sy in (-0.5, 0.5):
+            for sz in (-0.5, 0.5):
+                loc = (sx * e.size[0], sy * e.size[1], sz * e.size[2])
+                out.append([e.c[k] + sum(e.r[k][q] * loc[q] for q in range(3)) for k in range(3)])
+    return out
 
 
 # ---------------------------------------------------------------- clearances
 def allowed(pa, pb, ea, eb):
     """Intended overlaps: a lump lying on a coke layer's top is inside the layer over it (the same kind), and the
-    hinge's pin runs through the lid's back bar."""
+    hinge's pins run through the lid's knuckles, along its back bar's top back edge."""
     names = {ea.name, eb.name}
-    if {pa, pb} == {"lid", "frame"} and any(n.startswith("fr_pin") for n in names) and any(n.startswith("lid_frame_s") for n in names):
+    if {pa, pb} == {"lid", "frame"} and any(n.startswith("fr_pin") for n in names) and any(
+            n.startswith(("lid_knuckle", "lid_frame_s")) for n in names):
         return True
     ra, rb = re.fullmatch(r"(coke|fire)(\d)", pa), re.fullmatch(r"(coke|fire)(\d)", pb)
     if not (ra and rb and ra.group(1) == rb.group(1)):
@@ -549,23 +696,30 @@ def check_draught(v):
     the walls."""
     m = v.m
     (mx0, mx1), (my0, my1) = m.MOUTH
-    xm = (mx0 + mx1) / 2
-    path = [(xm, 4.0, -0.5), (xm, 4.0, 1.0), (xm, 4.0, 3.0), (xm, 5.0, m.POT_Z)]
-    path += [(x, 5.0, m.POT_Z) for x in range(5, 28, 2)]
+    xm, ym = (mx0 + mx1) / 2, (my0 + my1) / 2
+    (cx0, cx1), (cy0, cy1), _ = m.CAVE
+    path = [(xm, ym, z) for z in (-0.5, 0.5, 1.5) + tuple(range(3, int(m.HOLE_Z[0]) + 1, 2))]
+    path += [(x + 0.5, (cy0 + cy1) / 2, m.POT_Z) for x in range(int(cx0), int(cx1), 2)]
     bars = sorted((e.aabb() for e in v.by_part["frame"] if e.name.startswith("fr_bar") and e.name.endswith("w")), key=lambda b: b[0][2])
+    hx0, hx1 = m.HOLE_X
     for (alo, ahi), (blo, _) in zip(bars, bars[1:]):
         gz = (ahi[2] + blo[2]) / 2
-        path += [(x, (m.BAR_Y[0] + m.BAR_Y[1]) / 2, gz) for x in (7.0, 13.0, 19.0, 25.0)]
-    (fx0, fx1), (fy0, fy1), _ = m.FLUE_OPENING
+        path += [(hx0 + (hx1 - hx0) * f, (m.BAR_Y[0] + m.BAR_Y[1]) / 2, gz) for f in (0.15, 0.3, 0.4, 0.6, 0.7, 0.85)]
+    (fx0, fx1), (fy0, fy1), (fz0, fz1) = m.FLUE_OPENING
     fx, fy = (fx0 + fx1) / 2, (fy0 + fy1) / 2
-    path += [(fx, fy, m.POT_Z), (fx, fy, m.HOLE_Z[1] + 0.5), (fx, fy, 18.0), (fx, fy, 24.0)]
-    sx, sz = (m.STACK[0][0] + m.STACK[0][1]) / 2, (m.STACK[2][0] + m.STACK[2][1]) / 2
-    path += [(fx + (sx - fx) * t / 8, 25.5, sz) for t in range(9)]
-    path += [(sx, y / 2, sz) for y in range(51, 65)]
+    (bx0, bx1), (by0, by1), (bz0, bz1) = m.BACK_FLUE
+    (sx0, sx1), (sy0, _), (sz0, sz1) = m.STACK
+    sx, sz = (sx0 + sx1) / 2, (sz0 + sz1) / 2
+    path += [(fx, fy, m.POT_Z), (fx, fy, m.HOLE_Z[1] - 0.5)] + [(fx, fy, fz0 + 0.5 + q) for q in range(int(fz1 - fz0))]
+    path += [((bx0 + bx1) / 2, (by0 + by1) / 2, bz0 + 0.5 + q) for q in range(int(bz1 - bz0))]
+    path += [(sx, sy0 + 0.5 + q * 0.5, sz) for q in range(int((m.FLOOR_TOP + m.B - sy0) * 2) - 1)]
+    if not (fx0 >= bx0 and fx1 <= bx1 and fy0 >= by0 and fy1 <= by1 and abs(fz1 - bz0) < 1e-9 and sx0 >= bx0 and sx1 <= bx1
+            and sz0 >= bz0 and sz1 <= bz1 and sy0 <= by0):
+        v.fail("the flue opening, the back flue and the stack do not run into each other")
     blocked = [p for p in path if not empty(v, p)]
     if blocked:
         v.fail(f"the draught's way is blocked at {blocked[:5]}")
-    mouth_lo, mouth_hi = [m.STACK[0][0], m.STACK[1][0], m.STACK[2][0]], [m.STACK[0][1], m.FLOOR_TOP + 16.0, m.STACK[2][1]]
+    mouth_lo, mouth_hi = [sx0, sy0, sz0], [sx1, m.FLOOR_TOP + m.B, sz1]
     for dp in depths(0.05):
         for pid in v.by_part:
             if pid == "outletcap":
@@ -621,6 +775,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v)
     check_top(v)
     check_sides(v)
+    check_walls(v)
     check_lid(v)
     check_pots(v)
     check_coke(v)
@@ -666,12 +821,14 @@ def validate_files(m, shape, frame_shape, ship):
     if any(not cells[p].get("boxes") for p in cells if p not in lidcells):
         fail("a cell of the brickwork has no boxes")
     chim = tuple(m.CHIMNEY_CELL[k] - m.ORIGIN_CELL[k] for k in range(3))
-    free = tuple(m.FREE_CELL[k] - m.ORIGIN_CELL[k] for k in range(3))
-    if chim in cells or free in cells:
-        fail("the chimney's cell or the one beside it is the furnace's")
+    free = [tuple(c[k] - m.ORIGIN_CELL[k] for k in range(3)) for c in m.FREE_CELLS]
+    if chim in cells or any(f in cells for f in free):
+        fail("the chimney's cell or a cell beside or before it is the furnace's")
     out = tuple(ship["outletCell"])
     if (out[0], out[1] + 1, out[2]) != chim or ship["outletFace"] != "up":
         fail("the outlet is not under the chimney's cell")
+    if out[0] != 0 or out[2] != m.CELLS_Z - 1 - m.ORIGIN_CELL[2]:
+        fail("the outlet is not in the back row's middle")
     line = ship["chimney"]
     if abs(line["origin"][1] - line["length"] / 2 - m.CELLS_Y) > 1e-9 or line["axis"] != "y" or line["length"] != m.MIN_CHIMNEY:
         fail("the chimney's line does not stand on the outlet")
@@ -679,15 +836,24 @@ def validate_files(m, shape, frame_shape, ship):
         fail("the chimney's line is not the minimum counted from the outlet up")
     if not (out[0] <= line["origin"][0] <= out[0] + 1 and out[2] <= line["origin"][2] <= out[2] + 1):
         fail("the chimney's line is not over the outlet")
+    hole = tuple(ship["holeCell"])
+    if ship["holeFace"] != "up" or hole not in cells or hole[1] != m.CELLS_Y - 1:
+        fail("the hole's cell is not a top cell worked from above")
     for i in m.POTS:
-        if ship[f"pot{i}Face"] != "up" or tuple(ship[f"pot{i}Cell"]) not in cells:
-            fail(f"pot {i}'s cell")
-    if ship["ashSide"] != "north" or abs(ship["ash"]["pos"][2]) > 1e-9:
-        fail("the ash mouth is not on the front face")
+        p = ship[f"pot{i}"]["pos"]
+        if any(not (hole[k] <= p[k] <= hole[k] + 1) for k in range(3)):
+            fail(f"pot {i}'s mouth is not in the hole's cell")
+    if ship["pot1"]["pos"][0] >= ship["pot2"]["pos"][0]:
+        fail("pot 1 is not west of pot 2")
+    ash = ship["ash"]["pos"]
+    if ship["ashSide"] != "north" or abs(ash[2]) > 1e-9 or not (0.0 <= ash[0] <= 1.0 and 0.0 <= ash[1] <= 1.0):
+        fail("the ash mouth is not on the controller cell's front face")
     hinge = ship["hinge"]
     if hinge["axis"] != "x" or abs(hinge["origin"][1] * m.B - m.PIVOT[0]) > 1e-3 or abs(hinge["origin"][2] * m.B - m.PIVOT[1]) > 1e-3:
-        fail("the hinge's line is not the pin's")
+        fail("the hinge's line is not the lid's axis")
     print(f"files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; {len(ship['cells'])} cells, "
           f"{len(hollow)} hollow (the lid's), decks on {len(lids)}; glow on the burning coke and the melt only; no power "
-          f"cell, no air port; the outlet under the chimney's cell {list(chim)}, the chimney six blocks from it up")
+          f"cell, no air port; the hole's cell {list(hole)} holding both pots' mouths; the ash mouth on the controller's "
+          f"front face; the outlet under the chimney's cell {list(chim)}, the chimney {m.MIN_CHIMNEY} blocks from it up; "
+          f"the cells round the chimney ({len(free)}) left free")
     return ok

@@ -49,7 +49,7 @@ describe("the crucible furnace's rig against its rig-reference.json", () => {
     expect(worst).toBeLessThanOrEqual(1e-6 + 1e-12);
   });
 
-  it("moves nothing with θ, and only the lid with depth: turned down about its pin from open to shut", () => {
+  it("moves nothing with θ, and only the lid with depth: turned down about its top back edge from open to shut", () => {
     const at = (theta: number, depth: number) => partMatrices(parts, pose(theta, depth), order);
     for (const depth of [0.3, 0.8]) {
       const a = at(0, depth);

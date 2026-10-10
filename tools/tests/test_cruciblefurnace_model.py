@@ -3,11 +3,12 @@
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
 maths and uses the `requires` vocabulary (two pots and their charges and melts, the coke and the burning coke, the
 damper's three places, the outlet's cap), its reference poses are its own maths, the cells are rebuilt from the shipped
-shape, the hinged lid is the only part that moves (flush in its seat shut, resting just past upright open), each
-pot's melt holds a full pot of 300 units, the side faces are plain brick for a row, the textures are the game's own
+shape, the hinged lid is the only part that moves (flush in its seat shut, resting just past upright open, swinging
+in its own cells with no pit), each pot's melt holds a full pot of 300 units, the hole, the ash mouth and the outlet
+are centred with thick walls round the hole, the side faces are plain brick for a row, the textures are the game's own
 (no new texture), only the burning coke and the melts glow, the anchors are where the contract puts them (no power
-cell, no air port; the outlet under the chimney's cell, the chimney six blocks from it up), and the model viewer's
-scenario (site/models.json) gives the generator's states. Run with `python3 -m unittest discover -s tools/tests`.
+cell, no air port; both pots in the hole's cell; the outlet under the chimney's cell, the chimney six blocks from it
+up), and the model viewer's scenario (site/models.json) gives the generator's states. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -116,21 +117,38 @@ class Textures(unittest.TestCase):
 
 class Lid(unittest.TestCase):
     def test_shut_flush_in_its_seat_and_open_just_past_upright(self):
-        lo, hi = aabb_of(posed_part("lid", theta=0.0, depth=1.0))
-        want = ([make_shape.SEAT_X[0], make_shape.SEAT_Y, make_shape.SEAT_Z[0]], [make_shape.SEAT_X[1], make_shape.FLOOR_TOP, make_shape.SEAT_Z[1]])
+        # shut: its box (the hinge's knuckles aside) is the seat's, in the shipped frame (moved a block west)
+        body = [e for e in posed_part("lid", theta=0.0, depth=1.0) if not e.name.startswith("lid_knuckle")]
+        lo, hi = aabb_of(body)
+        dx = -16.0 * make_shape.ORIGIN_CELL[0]
+        want = ([make_shape.SEAT_X[0] + dx, make_shape.SEAT_Y, make_shape.SEAT_Z[0]],
+                [make_shape.SEAT_X[1] + dx, make_shape.FLOOR_TOP, make_shape.SEAT_Z[1]])
         for a, b in zip(lo + hi, want[0] + want[1]):
-            self.assertAlmostEqual(a, b, places=4)
+            self.assertAlmostEqual(a, b, delta=0.01)
         open_deg = RIG["furnace"]["lidOpenDegrees"]
         self.assertGreater(open_deg, 90.0)
-        self.assertLess(open_deg, 95.0)
-        # open: standing over the hole, in the cells over it (not the chimney's behind), its weight behind the pin
+        self.assertLessEqual(open_deg, 100.0)
+        # open: standing over the middle row, in the cells over it (not the chimney's behind), its weight behind the axis
         els = posed_part("lid", theta=0.0, depth=0.0)
         lo, hi = aabb_of(els)
-        self.assertLessEqual(hi[2], 16.0)
+        self.assertLessEqual(hi[2], 32.0)
         self.assertLessEqual(hi[1], 48.0)
         vol = sum(abs(e.size[0] * e.size[1] * e.size[2]) for e in els)
         cz = sum(e.c[2] * abs(e.size[0] * e.size[1] * e.size[2]) for e in els) / vol
         self.assertGreater(cz, RIG["hinge"]["origin"][2] * 16.0)
+
+    def test_swings_in_its_own_cells_with_no_pit(self):
+        # hinged about its top back edge: over the whole swing nothing of it but the knuckles round the axis goes
+        # behind that edge under the floor, and all of it stays over the front two rows, under three blocks
+        zb, yb = RIG["hinge"]["origin"][2] * 16.0, RIG["hinge"]["origin"][1] * 16.0
+        self.assertAlmostEqual(yb, make_shape.FLOOR_TOP)
+        for k in range(51):
+            for e in posed_part("lid", theta=0.0, depth=k / 50):
+                lo, hi = e.aabb()
+                self.assertLessEqual(hi[2], 32.0 + 1e-6)
+                self.assertLessEqual(hi[1], 48.0 + 1e-6)
+                if not e.name.startswith("lid_knuckle") and lo[1] < yb - 1e-3:
+                    self.assertLessEqual(hi[2], zb + 1e-3, (e.name, k))
 
     def test_theta_moves_nothing_and_depth_only_the_lid(self):
         for pid in (p["id"] for p in RIG["parts"]):
@@ -157,14 +175,20 @@ class Pots(unittest.TestCase):
         p1, p2 = aabb_of(posed_part("pot1", depth=0.0)), aabb_of(posed_part("pot2", depth=0.0))
         self.assertLess(p1[1][0], p2[0][0])
         self.assertAlmostEqual((p1[0][2] + p1[1][2]) / 2, (p2[0][2] + p2[1][2]) / 2)
-        self.assertEqual((RIG["pot1Cell"], RIG["pot2Cell"]), ([0, 1, 0], [1, 1, 0]))
+        # both over one cell, the hole's (the controller's, a row back, at the top): a click there is the nearer pot's
+        self.assertEqual((RIG["holeCell"], RIG["holeFace"]), ([0, 1, 1], "up"))
+        for i, box in ((1, p1), (2, p2)):
+            pos = RIG[f"pot{i}"]["pos"]
+            self.assertTrue(all(RIG["holeCell"][k] <= pos[k] <= RIG["holeCell"][k] + 1 for k in range(3)), i)
+            self.assertAlmostEqual(pos[0] * 16.0, (box[0][0] + box[1][0]) / 2, places=4)
+        self.assertAlmostEqual(RIG["pot1"]["pos"][0] + RIG["pot2"]["pos"][0], 1.0)       # symmetric about the middle
 
 
 class Furnace(unittest.TestCase):
     def test_cells_decks_and_anchors(self):
         cells = {tuple(c["pos"]): c for c in RIG["cells"]}
-        box = {(x, y, z) for x in (0, 1) for y in (0, 1) for z in (0, 1)}
-        lidcells = {(0, 2, 0), (1, 2, 0)}
+        box = {(x, y, z) for x in (-1, 0, 1) for y in (0, 1) for z in (0, 1, 2)}
+        lidcells = {(x, 2, z) for x in (-1, 0, 1) for z in (0, 1)}
         self.assertEqual(set(cells), box | lidcells)
         self.assertTrue(all(cells[p].get("hollow") and not cells[p].get("boxes") for p in lidcells))
         self.assertTrue(all(cells[p].get("boxes") for p in box))
@@ -172,10 +196,12 @@ class Furnace(unittest.TestCase):
         # fired with coke on natural draught: no power cell, no air port
         for key in ("powerCell", "powerFace", "airCell", "airFace"):
             self.assertNotIn(key, RIG)
-        self.assertEqual((RIG["ashSide"], RIG["ash"]["pos"][2]), ("north", 0.0))
-        # the outlet over the east back cell, the chimney's cell over it not the furnace's; six from the outlet up
-        self.assertEqual((RIG["outletCell"], RIG["outletFace"]), ([1, 1, 1], "up"))
-        self.assertNotIn((1, 2, 1), cells)
+        self.assertEqual((RIG["ashSide"], RIG["ash"]["pos"][0], RIG["ash"]["pos"][2]), ("north", 0.5, 0.0))
+        # the outlet in the back row's middle, the chimney's cell over it and its neighbours not the furnace's; six
+        # from the outlet up
+        self.assertEqual((RIG["outletCell"], RIG["outletFace"]), ([0, 1, 2], "up"))
+        for c in ((0, 2, 2), (-1, 2, 2), (1, 2, 2)):
+            self.assertNotIn(c, cells)
         line = RIG["chimney"]
         self.assertEqual((line["axis"], line["length"]), ("y", 6.0))
         self.assertAlmostEqual(line["origin"][1] - line["length"] / 2, 2.0)
@@ -184,11 +210,23 @@ class Furnace(unittest.TestCase):
         self.assertEqual((RIG["furnace"]["rowMax"], RIG["furnace"]["rowAxis"]), (6, "x"))
         self.assertEqual(RIG["furnace"]["cokeLayers"] * RIG["furnace"]["cokePerLayer"], 6)   # CokeCapacity
 
+    def test_centred_with_thick_walls(self):
+        # the hole, the ash mouth and its damper, and the outlet on the middle line; brick round the hole's seat at
+        # least MIN_WALL on the sides and the front (the front's less the damper's recess)
+        m = make_shape
+        for x0, x1 in (m.HOLE_X, m.MOUTH[0], m.RECESS[0], m.STACK[0], m.CURB[0]):
+            self.assertAlmostEqual(x0 + x1, m.W)
+        self.assertGreaterEqual(m.SEAT_X[0], m.MIN_WALL)
+        self.assertGreaterEqual(m.W - m.SEAT_X[1], m.MIN_WALL)
+        self.assertGreaterEqual(m.HOLE_Z[0] - m.RECESS[2][1], m.MIN_WALL)
+        self.assertGreaterEqual(m.MIN_WALL, 8.0)
+
     def test_side_faces_are_plain_brick_for_a_row(self):
         # nothing but brick reaches the side planes, so furnaces stand side by side, walls meeting
+        west, east = -16.0 * make_shape.ORIGIN_CELL[0], 16.0 * (make_shape.CELLS_X - make_shape.ORIGIN_CELL[0])
         for el in FLAT:
             lo, hi = el.aabb()
-            if lo[0] < 1e-6 or hi[0] > 32.0 - 1e-6:
+            if lo[0] < west + 1e-6 or hi[0] > east - 1e-6:
                 self.assertTrue(el.name.startswith("fr_brick"), el.name)
                 self.assertEqual({f["texture"] for f in next(e for e in SHAPE["elements"] if e["name"] == el.name)["faces"].values()}, {"#brick"})
 
