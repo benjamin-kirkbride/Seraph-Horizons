@@ -13,7 +13,7 @@
 			"P": { type: "item", code: "game:jonasparts-pumphead" },
 			"T": { type: "item", code: "game:jonasparts-tank01" },
 			"U": { type: "item", code: "game:jonasparts-tank02" },
-			"M": { type: "item", code: "game:metal-parts", quantity: 4 },
+			"M": { type: "block", code: "game:metal-parts", quantity: 4 },
 			"G": { type: "item", code: "seraphhorizons:gear-stainless", quantity: 3 }
 		},
 		output: { type: "item", code: "seraphhorizons:eidolontorso" }

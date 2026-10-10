@@ -297,5 +297,8 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
                 if (value is IntAttribute n)
                     snapshot[key] = n.value;
         _parts = BodyParts.Restore(snapshot);
+        // a live block entity given an old body's state (a schematic, a command): its spare goes back too
+        if (Api?.Side == EnumAppSide.Server && _parts.Spare.Count > 0)
+            Blockentity.RegisterDelayedCallback(_ => GiveBackSpare(), 500);
     }
 }

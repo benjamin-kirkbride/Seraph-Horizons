@@ -67,6 +67,8 @@ public class EidolonBodyTests
         var used = pattern.Where(c => c != '_').Select(c => keys[c.ToString()]!)
             .Select(i => new FittingIngredient((string)i["code"]!, (int?)i["quantity"] ?? 1));
         Assert.Equal(EidolonFittings.TorsoRecipe.OrderBy(i => i.Code), used.OrderBy(i => i.Code));
+        // the metal parts are a block (game:metal-parts), the rest items
+        Assert.All(keys.Properties(), k => Assert.Equal((string)k.Value["code"]! == EidolonFittings.MetalParts ? "block" : "item", (string?)k.Value["type"]));
         // the eidolon schematic gates it, as the gantry's frame
         var gates = JObject.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "schematic-gates.json")),
             new JsonLoadSettings { CommentHandling = CommentHandling.Ignore });
