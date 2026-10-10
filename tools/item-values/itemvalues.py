@@ -530,7 +530,7 @@ def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, st
     out: dict[str, tuple[float, str]] = {}
     for ore, spec in (fig.get("ores") or {}).items():
         spec = spec or {}
-        u, metal = per_unit(nugget_of(ore))
+        u, metal = per_unit((op.get("nuggetOf") or {}).get(ore) or nugget_of(ore))
         crushed = {}
         for grain, grades in (("fine", ("poor",)), ("coarse", ("medium", "rich", "bountiful"))):
             costs = [stage("crush", units_of(ore, g) * u, units_of(ore, g) / per_item) for g in grades]
