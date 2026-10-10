@@ -87,7 +87,7 @@ on unbroken across the boxes it is built of. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/roaster.json` | The whole machine, both levels' parts in one shape (609 elements: 102 in the frame, 194 drawn at level 1, 525 at level 2). A renderer draws the fitted level's parts. |
+| `assets/seraphhorizons/shapes/block/roaster.json` | The whole machine, both levels' parts in one shape (600 elements: 102 in the frame, 194 drawn at level 1, 516 at level 2). A renderer draws the fitted level's parts. |
 | `assets/seraphhorizons/shapes/block/roaster_frame.json` | The frame only (102 elements): plinth, pit and spout, flue chamber, stack. |
 | `assets/seraphhorizons/config/roaster-rig.json` | Footprint and collision by what is fitted, anchors, the levels, the gearing and the part rig (20 parts). |
 | `tests/Roaster/rig-reference.json` | Every part's matrix at a spread of axle angles, from the reference maths. |
@@ -109,7 +109,7 @@ post, into the southern stall.
 (y 5) to the springing at y 21. Inside them (x 8..40): the firebox z 6..20, the bridge wall z 20..25 to y 17, the
 hearth z 25..80 with its floor at y 12, opening at the cold end into the flue chamber's throat (x 18..30,
 y 12..24). The arch spans x 8..40 with a rise of 5 (intrados 26 at the crown, extrados 30), seven firebrick
-strips round its centre, from z 11 (the coal bunker's back) to 80. The buckstays (x 0.6..2 and 46..47.4, four
+strips round its centre, from z 11 (the coal bunker's back) to 80. The buckstays (x 1..2 and 46..47, four
 pairs, at z 12, 22, 52.5 and 79.2) stand from the plinth to y 32, tied over the arch at y 30.3..31.1, and press
 the skewback bars. The work doors (16 wide, y 12..20) are through the side walls beside each rabble, each in an
 iron frame with its plate raised in two guides above it. The discharge hole (x 33..39, z 31..37) goes down through

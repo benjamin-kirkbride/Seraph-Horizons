@@ -110,7 +110,7 @@ PLINTH = 5.0                                 # the stone plinth under everything
 PIT = ((32.0, 40.0), (30.0, 38.0))           # (x, z) of the discharge pit sunk in the plinth (y 1..5), by the bridge
 CHANNEL = ((40.0, 48.0), (32.0, 38.0), (1.0, 4.0))   # (x, z, y): the tunnel from the pit to the spout on the east face
 SPOUT_X = (46.5, 48.0)                       # the spout: an iron lining in the tunnel's mouth, flush with the plinth's face
-SPOUT_T = 0.5
+SPOUT_T = 0.75
 FLUEBOX = ((2.0, 46.0), (PLINTH, 32.0), (80.0, 96.0))   # the flue chamber at the cold end (x, y, z)
 FB_T = 3.0                                   # its walls' thickness
 INLET = ((18.0, 30.0), (12.0, 24.0))         # (x, y): the throat in its north wall, the stalls' header's or the hearth's flue
@@ -119,7 +119,7 @@ STACK_TOP = 80.0                             # five blocks up
 STACK_FLUE = ((21.0, 27.0), (85.0, 91.0))
 CAP_Y = (76.0, 80.0)                         # the stone cap
 BANDS_Y = ((50.0, 51.0), (66.0, 67.0))       # iron bands round the stack
-BAND_T = 0.4
+BAND_T = 0.8
 SULFUR_DOOR = ((84.0, 92.0), (7.0, 14.0))    # (z, y) of the clean-out door on the chamber's east face: sulfur condenses in the chamber
 
 # ---------------------------------------------------------------- level 1: the stall roaster
@@ -137,7 +137,7 @@ LOG_H = 2.5                                  # the firewood under a heap
 # the hopper, fitted at level 1 and kept at level 2: an open iron box, its mouth the infeed cell's top
 HOPPER = ((16.5, 31.5), (42.0, 48.0), (71.5, 80.0))
 HOPPER_T = 1.0
-HOPPER_SLOT = ((21.0, 27.0), (73.0, 78.0))   # (x, z): the slot in its floor, over the trough (level 1) or the feed roll (level 2)
+HOPPER_SLOT = ((21.0, 27.0), (73.5, 78.0))   # (x, z): the slot in its floor, over the trough (level 1) or the feed roll (level 2)
 # level 1's trestle: the hopper's legs on the header, and the trough from its slot into the southern stall
 LEGS_X = ((17.0, 19.0), (29.0, 31.0))
 LEGS_Z = ((74.5, 76.5), (77.8, 79.8))
@@ -161,8 +161,8 @@ ARCH_Z = (11.0, 80.0)                        # from the coal bunker's back to th
 SKEW_X = ((3.0, 9.0), (39.0, 45.0))          # the firebrick skewbacks on the walls' tops, the arch's springing
 SKEW_Y = (SPRING_Y, 25.0)
 SKEWBAR_X = ((2.0, 3.0), (45.0, 46.0))       # the iron skewback bars outside them
-STAY_X = ((0.6, 2.0), (46.0, 47.4))          # buckstays, outside the walls
-NUT_X = ((0.0, 0.6), (47.4, 48.0))
+STAY_X = ((1.0, 2.0), (46.0, 47.0))          # buckstays, outside the walls
+NUT_X = ((0.0, 1.0), (47.0, 48.0))
 STAY_Z = (12.0, 22.0, 52.5, 79.2)            # buckstay pairs (centres): clear of the doors, the pedestals and the feed seat
 STAY_W = 2.0
 STAY_TOP = 32.0
@@ -216,18 +216,18 @@ BLADES_R = (4.0, 7.5, 10.8)                  # each arm's three ploughs (their m
 BLADE = (2.6, 1.0, (12.3, 13.8))             # length, thickness, y
 BLADE_SET = 40.0                             # degrees the ploughs are set across their arm
 GLAND_Z = 1.6                                # half length of a spindle's gland, filling its hole in the crown strip
-BRACKET = ((21.5, 26.5), 3.0, (30.0, 30.5), 2.0, (30.5, WHEEL_HUB[0]))   # base plate x, half length z, y; bearing half side, y
+BRACKET = ((21.5, 26.5), 3.0, (30.0, 31.0), 2.0, (31.0, WHEEL_HUB[0]))   # base plate x, half length z, y; bearing half side, y
 
 # ---------------------------------------------------------------- level 2: the feeder under the hopper
-CASING = ((20.0, 28.0), (31.3, HOPPER[1][0]), (72.0, 79.0))   # the feed roll's casing (x, y, z), on its flange, under the hopper
+CASING = ((20.0, 28.0), (32.0, HOPPER[1][0]), (72.0, 79.0))   # the feed roll's casing (x, y, z), on its flange, under the hopper
 CASING_T = 1.0
-ROLL_Z = (73.3, 77.7)
+ROLL_Z = (73.6, 77.6)
 ROLL_R, ROLL_FLUTES, ROLL_FLUTE_R = 2.0, 6, 2.6   # the fluted roll on the line shaft's end: its body, its flutes
 CHUTE = ((21.5, 26.5), (73.5, 77.5))         # (x, z): the feed chute from under the roll down through the arch
 CHUTE_T = 1.0
 CHUTE_Y = (25.5, 34.0)                       # its foot just inside the arch; its top in the casing, under the roll
-SEAT = ((19.5, 28.5), (72.0, 79.0), (30.0, 30.8))     # (x, z, y): the chute's iron seat on the arch
-FLANGE = ((19.5, 28.5), (72.0, 79.0), (30.8, CASING[1][0]))   # the casing's flange on the seat
+SEAT = ((19.5, 28.5), (72.0, 79.0), (30.0, 31.0))     # (x, z, y): the chute's iron seat on the arch
+FLANGE = ((19.5, 28.5), (72.0, 79.0), (31.0, CASING[1][0]))   # the casing's flange on the seat
 CHARGE_HOLE_Z = (73.3, 77.7)                 # the hole through the arch's crown strip
 
 # ---------------------------------------------------------------- the levels (the gameplay's sets and the scenario's states)
@@ -296,6 +296,14 @@ def wall(lo, hi, name, part, tex):
         el = El(f"{name}_{i + 1}" if len(pieces) > 1 else name, [b[k] - a[k] for k in range(3)], c, [r[:] for r in IDENT], {}, part)
         out.append(skin_world(el, tex, a, b))
     return out
+
+
+def bar_y(lo, hi, name, part, tex):
+    """An iron bar standing up: cut at the block grid along y only (so its faces do not stretch past one
+    texture), whole across x and z."""
+    pieces = splits(lo[1], hi[1])
+    return [box([lo[0], a, lo[2]], [hi[0], b, hi[2]], f"{name}_{i + 1}" if len(pieces) > 1 else name, part, tex)
+            for i, (a, b) in enumerate(pieces)]
 
 
 AX = {"x": 0, "y": 1, "z": 2}
@@ -503,10 +511,10 @@ def build_frame():
     out += wall([sx0, ry[0], sz1], [sx1, ry[1], fz1], "fr_chamber_roofs", f, "brick")
     # the sulfur door on its east face
     (dz0, dz1), (dy0, dy1) = SULFUR_DOOR
-    out += frame_bars([fx1, dy0, dz0], [fx1 + 0.6, dy1, dz1], [fx1, dy0 + 1.0, dz0 + 1.0], [fx1 + 0.6, dy1 - 1.0, dz1 - 1.0],
+    out += frame_bars([fx1, dy0, dz0], [fx1 + 1.0, dy1, dz1], [fx1, dy0 + 1.0, dz0 + 1.0], [fx1 + 1.0, dy1 - 1.0, dz1 - 1.0],
                       "x", "fr_sulfurdoor_frame", f, "iron")
-    out.append(box([fx1 + 0.1, dy0 + 1.0, dz0 + 1.0], [fx1 + 0.5, dy1 - 1.0, dz1 - 1.0], "fr_sulfurdoor_plate", f, "iron"))
-    out.append(box([fx1 + 0.5, (dy0 + dy1) / 2 - 0.4, dz1 - 3.0], [fx1 + 0.9, (dy0 + dy1) / 2 + 0.4, dz1 - 1.6], "fr_sulfurdoor_handle", f, "iron"))
+    out.append(box([fx1 + 0.1, dy0 + 1.0, dz0 + 1.0], [fx1 + 0.9, dy1 - 1.0, dz1 - 1.0], "fr_sulfurdoor_plate", f, "iron"))
+    out.append(box([fx1 + 0.9, (dy0 + dy1) / 2 - 0.5, dz1 - 3.2], [fx1 + 1.7, (dy0 + dy1) / 2 + 0.5, dz1 - 1.6], "fr_sulfurdoor_handle", f, "iron"))
     # the stack: four walls round its flue, a stone cap, iron bands
     (kx0, kx1), (kz0, kz1) = STACK_XZ
     y0 = fy1
@@ -677,8 +685,8 @@ def build_ironwork():
     for i, zc in enumerate(STAY_Z, 1):
         z0, z1 = zc - STAY_W / 2, zc + STAY_W / 2
         for s, (x0, x1) in zip("we", STAY_X):
-            out += wall([x0, PLINTH, z0], [x1, STAY_TOP, z1], f"ironwork_stay{i}{s}", p, "iron")
-        out += wall([0.6, ROD_Y[0], zc - ROD_T / 2], [47.4, ROD_Y[1], zc + ROD_T / 2], f"ironwork_rod{i}", p, "iron")
+            out += bar_y([x0, PLINTH, z0], [x1, STAY_TOP, z1], f"ironwork_stay{i}{s}", p, "iron")
+        out += wall([STAY_X[0][0], ROD_Y[0], zc - ROD_T / 2], [STAY_X[1][1], ROD_Y[1], zc + ROD_T / 2], f"ironwork_rod{i}", p, "iron")
         for s, (x0, x1) in zip("we", NUT_X):
             out.append(box([x0, ROD_Y[0] - 0.4, zc - 0.8], [x1, ROD_Y[1] + 0.4, zc + 0.8], f"ironwork_nut{i}{s}", p, "iron"))
     for s, (x0, x1) in zip("we", SKEWBAR_X):
@@ -693,22 +701,19 @@ def build_ironwork():
 
             def xs(d0, d1):
                 return sorted((face + sgn * d0, face + sgn * d1))
-            fa, fb = xs(0.0, 0.6)
+            fa, fb = xs(0.0, 0.8)
             out += frame_bars([fa, y0 - fr, zc - hw - fr], [fb, y1 + fr, zc + hw + fr], [fa, y0, zc - hw], [fb, y1, zc + hw], "x",
                               f"ironwork_door{k}{s}_frame", p, "iron")
-            ga, gb = xs(0.0, 1.4)
+            ga, gb = xs(0.0, 2.0)
             for g, (gz0, gz1) in enumerate(((zc - hw - fr - 1.0, zc - hw - fr), (zc + hw + fr, zc + hw + fr + 1.0)), 1):
                 out.append(box([ga, y0 - fr, gz0], [gb, py1 + 0.5, gz1], f"ironwork_door{k}{s}_guide{g}", p, "iron"))
-            pa, pb = xs(0.6, 1.1)
+            pa, pb = xs(0.8, 1.8)
             out.append(box([pa, py0, zc - hw - fr - 0.5], [pb, py1, zc + hw + fr + 0.5], f"ironwork_door{k}{s}_plate", p, "iron"))
-            ha, hb = xs(1.1, 1.6)
-            out.append(box([ha, py0 + 0.6, zc - 1.5], [hb, py0 + 1.6, zc + 1.5], f"ironwork_door{k}{s}_handle", p, "iron"))
     (ax0, ax1), (ay0, ay1) = ASH_DOOR
     f0 = FRONT_Z[0]
-    out += frame_bars([ax0 - fr, ay0, f0 - 0.5], [ax1 + fr, ay1 + fr, f0], [ax0, ay0, f0 - 0.5], [ax1, ay1, f0], "z",
+    out += frame_bars([ax0 - fr, ay0, f0 - 0.8], [ax1 + fr, ay1 + fr, f0], [ax0, ay0, f0 - 0.8], [ax1, ay1, f0], "z",
                       "ironwork_ashframe", p, "iron")
-    out.append(box([ax0, ay0, f0 - 0.6], [ax1, ay1, f0 - 0.1], "ironwork_ashdoor", p, "iron"))
-    out.append(box([ax1 - 4.0, (ay0 + ay1) / 2 - 0.5, f0 - 1.0], [ax1 - 2.0, (ay0 + ay1) / 2 + 0.5, f0 - 0.6], "ironwork_ashhandle", p, "iron"))
+    out.append(box([ax0, ay0, f0 - 0.7], [ax1, ay1, f0 - 0.1], "ironwork_ashdoor", p, "iron"))
     return out
 
 
@@ -788,8 +793,8 @@ def build_drive():
         out += bevel("z", SHAFT_C, zp, RP, CONE_P, NP, f"lineshaft_pinion{k}", p, "iron", toward=1.0, phase=math.pi, ded=PINION_DED)
     q = "pedestals"
     for k, (a, b) in enumerate(PEDESTALS, 1):
-        out.append(box([PED_BASE_X[0], CROWN_Y[1], a], [PED_BASE_X[1], CROWN_Y[1] + 0.6, b], f"pedestal{k}_base", q, "iron"))
-        out.append(box([PED_COL_X[0], CROWN_Y[1] + 0.6, a + 0.6], [PED_COL_X[1], y - PED_BEARING, b - 0.6], f"pedestal{k}_column", q, "iron"))
+        out.append(box([PED_BASE_X[0], CROWN_Y[1], a], [PED_BASE_X[1], CROWN_Y[1] + 1.0, b], f"pedestal{k}_base", q, "iron"))
+        out.append(box([PED_COL_X[0], CROWN_Y[1] + 1.0, a + 0.6], [PED_COL_X[1], y - PED_BEARING, b - 0.6], f"pedestal{k}_column", q, "iron"))
         out.append(box([x - PED_BEARING, y - PED_BEARING, a], [x + PED_BEARING, y + PED_BEARING, b], f"pedestal{k}_bearing", q, "iron"))
     return out
 
@@ -962,7 +967,7 @@ def make_rig(parts):
         "fuel": {"pos": pt((FUEL_CELL[0] + 0.5) * B, by1, (bz0 + bz1) / 2)},
         "charge": {"pos": pt((hx0 + hx1) / 2, HEARTH_Y, (hz0 + hz1) / 2)},
         "discharge": {"pos": pt((DISCHARGE[0][0] + DISCHARGE[0][1]) / 2, HEARTH_Y, (DISCHARGE[1][0] + DISCHARGE[1][1]) / 2)},
-        "sulfur": {"pos": pt(fx1 + 0.6, (dy0 + dy1) / 2, (dz0 + dz1) / 2)},
+        "sulfur": {"pos": pt(fx1 + 1.0, (dy0 + dy1) / 2, (dz0 + dz1) / 2)},
         "sulfurSide": "east",
         "smoke": {"pos": pt(SHAFT[0], STACK_TOP, (STACK_XZ[1][0] + STACK_XZ[1][1]) / 2)},
         "levels": {k: list(v) for k, v in LEVELS.items()},
