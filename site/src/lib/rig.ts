@@ -58,11 +58,12 @@ export type DriverInput = "theta" | "travel" | "feed" | "work" | "trunk" | "oil"
 /** What a stretch reads: the depth (the default) or the oil tank's fill. */
 export type StretchInput = "depth" | "oil";
 
-/** A number per trunk class (thin 1×1, thick 2×2); class 0, no trunk, has none. */
-export interface PerClass {
-  thin: number;
-  thick: number;
-}
+/**
+ * A number per class, keyed by class: "thin" (1), "thick" (2), and from 3 on the class's number ("3" .. "9").
+ * It names one class or more (a window's gain may name none); a class it does not name has none of it
+ * (amount and amplitude 0, gain 1, a work's end 0). Class 0, none, never has any.
+ */
+export type PerClass = Partial<Record<string, number>>;
 
 /** A gauge's window along the trunk path, in blocks: occupied while any part of the trunk lies over [from, to]. */
 export interface GaugeWindow {
@@ -152,9 +153,46 @@ export interface Pose {
   oil?: number;
 }
 
-/** The trunk classes after 0 (none), by index − 1. */
+/** The named classes after 0 (none), by index − 1: a trunk's two sizes, and the first two classes of any work. */
 export const TRUNK_CLASSES = ["thin", "thick"] as const;
 export type TrunkClass = (typeof TRUNK_CLASSES)[number];
+
+/** The last class: classes 3 .. MAX_CLASS are keyed by their number, "3" .. "9" (the mandrel station's spring is 3). */
+export const MAX_CLASS = 9;
+
+/** Class k's per-class key ("thin", "thick", "3" .. "9"), or null for none or a class out of range. */
+export function classKey(k: number): string | null {
+  if (!Number.isInteger(k) || k < 1 || k > MAX_CLASS) return null;
+  return k <= TRUNK_CLASSES.length ? TRUNK_CLASSES[k - 1]! : String(k);
+}
+
+/** The class a per-class key names (1 .. MAX_CLASS), or null for any other key ("1", "03", "10", "medium"). */
+export function classOfKey(key: string): number | null {
+  const named = (TRUNK_CLASSES as readonly string[]).indexOf(key);
+  if (named >= 0) return named + 1;
+  if (!/^[1-9][0-9]*$/.test(key)) return null;
+  const k = Number(key);
+  return k > TRUNK_CLASSES.length && k <= MAX_CLASS ? k : null;
+}
+
+/** Class k's value in a per-class object, `missing` when it names none for k (or k is none). */
+export function perClassValue(v: PerClass | undefined, k: number, missing = 0): number {
+  const key = classKey(k);
+  const x = key === null || v === undefined ? undefined : v[key];
+  return x === undefined ? missing : x;
+}
+
+/** Checks a per-class object (keyed by class, each a number, naming a class or more unless `mayBeEmpty`); throws naming `what`. */
+export function checkPerClass(v: unknown, what: string, mayBeEmpty = false): PerClass {
+  if (typeof v !== "object" || v === null || Array.isArray(v)) throw new Error(`${what} must be an object keyed by class`);
+  const keys = Object.keys(v);
+  for (const key of keys) {
+    if (classOfKey(key) === null) throw new Error(`${what}: "${key}" is not a class (thin, thick, or 3 .. ${MAX_CLASS})`);
+    if (!isNum((v as Record<string, unknown>)[key])) throw new Error(`${what}.${key} must be a number`);
+  }
+  if (keys.length === 0 && !mayBeEmpty) throw new Error(`${what} names no class`);
+  return v as PerClass;
+}
 
 /**
  * A rig's progress, W: what its gauge windows and rolls are placed on. The rig's `work` is a
@@ -172,10 +210,10 @@ export interface Work {
   step: number;
   /** The leading point at W = 0: 0 for work, a trunkPath's nose0. */
   nose0: number;
-  /** L_k, indexed by class: [0, thin, thick]; 0 for work. */
-  lengths: [number, number, number];
-  /** Where W ends, indexed by class: [0, thin, thick]. */
-  ends: [number, number, number];
+  /** L_k, indexed by class 0 .. MAX_CLASS: [0, thin, thick, 0, ...] (a trunk has the two classes); 0 for work. */
+  lengths: number[];
+  /** Where W ends, indexed by class 0 .. MAX_CLASS ([0] 0): a work's per class (0 for a class it has no end for). */
+  ends: number[];
 }
 
 /**
@@ -194,7 +232,11 @@ export interface TrunkPath extends Work {
 }
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
-const isPerClass = (v: unknown): v is PerClass => typeof v === "object" && v !== null && isNum((v as PerClass).thin) && isNum((v as PerClass).thick);
+/** A trunkPath's lengths: thin and thick numbers (a trunk's two sizes). */
+const isTrunkLengths = (v: unknown): v is { thin: number; thick: number } =>
+  typeof v === "object" && v !== null && isNum((v as Record<string, unknown>).thin) && isNum((v as Record<string, unknown>).thick);
+/** An array indexed by class 0 .. MAX_CLASS from `at(k)` for the classes ([0] 0). */
+const byClass = (at: (k: number) => number): number[] => Array.from({ length: MAX_CLASS + 1 }, (_, k) => (k === 0 ? 0 : at(k)));
 
 /** The rig's trunkPath, or null when it has none; throws when it has one that is malformed. */
 export function trunkPathOf(rig: Rig | null | undefined): TrunkPath | null {
@@ -208,7 +250,7 @@ export function trunkPathOf(rig: Rig | null | undefined): TrunkPath | null {
   if (!isNum(length) || length <= 0) throw problem("length must be a number above 0");
   if (!isNum(nose0)) throw problem("nose0 must be a number");
   if (!isNum(tailStop)) throw problem("tailStop must be a number");
-  if (!isPerClass(lengths) || lengths.thin <= 0 || lengths.thick <= 0) throw problem("lengths needs thin and thick above 0");
+  if (!isTrunkLengths(lengths) || lengths.thin <= 0 || lengths.thick <= 0) throw problem("lengths needs thin and thick above 0");
   const st: Record<string, number> = {};
   if (stations !== undefined) {
     if (typeof stations !== "object" || stations === null || Array.isArray(stations)) throw problem("stations must map names to numbers");
@@ -217,7 +259,7 @@ export function trunkPathOf(rig: Rig | null | undefined): TrunkPath | null {
       st[k] = v;
     }
   }
-  const ls: [number, number, number] = [0, lengths.thin, lengths.thick];
+  const ls = byClass((k) => (k === 1 ? lengths.thin : k === 2 ? lengths.thick : 0));
   return {
     kind: "trunk",
     name: "trunk travel",
@@ -228,7 +270,7 @@ export function trunkPathOf(rig: Rig | null | undefined): TrunkPath | null {
     length,
     nose0,
     lengths: ls,
-    ends: [0, tailStop + ls[1] - nose0, tailStop + ls[2] - nose0],
+    ends: byClass((k) => tailStop + ls[k]! - nose0),
     tailStop,
     stations: st,
   };
@@ -244,9 +286,23 @@ export function workQuantityOf(rig: Rig | null | undefined): Work | null {
   if (typeof unit !== "string" || unit === "") throw problem("needs a unit");
   if (name !== undefined && (typeof name !== "string" || name === "")) throw problem("name must be a non-empty string");
   if (step !== undefined && !(isNum(step) && step > 0)) throw problem("step must be above 0");
-  if (!isPerClass(end) || !(end.thin > 0) || !(end.thick > 0)) throw problem("end needs thin and thick above 0");
+  let ends: PerClass;
+  try {
+    ends = checkPerClass(end, "end");
+  } catch (e) {
+    throw problem((e as Error).message);
+  }
+  for (const [key, v] of Object.entries(ends)) if (!(v! > 0)) throw problem(`end.${key} must be above 0`);
   for (const key of ["nose0", "lengths", "tailStop"]) if (key in raw) throw problem(`has no ${key}: that is a trunkPath's`);
-  return { kind: "work", name: (name as string | undefined) ?? unit, unit, step: (step as number | undefined) ?? 1 / 16, nose0: 0, lengths: [0, 0, 0], ends: [0, end.thin, end.thick] };
+  return {
+    kind: "work",
+    name: (name as string | undefined) ?? unit,
+    unit,
+    step: (step as number | undefined) ?? 1 / 16,
+    nose0: 0,
+    lengths: byClass(() => 0),
+    ends: byClass((k) => perClassValue(ends, k)),
+  };
 }
 
 /** The rig's progress: its `work`, its `trunkPath`, or null; a rig with both is refused. */
@@ -260,10 +316,10 @@ export function workAt(pose: Pose): number {
   return pose.work ?? pose.trunk ?? 0;
 }
 
-/** A pose's class as 0 (none), 1 (thin) or 2 (thick): rounded and clamped. */
-export function classIndex(size: number | undefined): 0 | 1 | 2 {
+/** A pose's class, rounded: 1 .. MAX_CLASS, or 0 (none) for anything else (as the C# and the Python have it). */
+export function classIndex(size: number | undefined): number {
   const k = Math.round(size ?? 0);
-  return k <= 0 ? 0 : k >= 2 ? 2 : 1;
+  return k >= 1 && k <= MAX_CLASS ? k : 0;
 }
 
 /** Where the nose is at travel T. */
@@ -274,7 +330,7 @@ export function noseAt(path: Work, work: number): number {
 /** Where W ends for a class (a trunk's, the tail at tailStop); 0 for no class. */
 export function workEnd(path: Work, size: number): number {
   const k = classIndex(size);
-  return k === 0 ? 0 : path.ends[k];
+  return k === 0 ? 0 : (path.ends[k] ?? 0);
 }
 
 /** The trunk-flavoured name of workEnd. */
@@ -505,8 +561,7 @@ function inputValue(d: Driver, pose: Pose): number {
 }
 
 function perClass(d: Driver, v: unknown, key: string): PerClass {
-  if (!isPerClass(v)) throw new Error(`a ${d.type} driver's ${key} needs thin and thick numbers`);
-  return v;
+  return checkPerClass(v, `a ${d.type} driver's ${key}`);
 }
 
 function needPath(d: Driver, path: Work | null | undefined): Work {
@@ -530,8 +585,7 @@ export function gaugeEngagement(d: Driver, pose: Pose, path: Work | null | undef
       if (!isNum(w.from) || !isNum(w.to) || !isNum(w.ease)) throw new Error("a gauge window needs from, to and ease");
       if (!(w.ease > 0)) throw new Error("a gauge window's ease must be above 0");
       if (!(w.to > w.from)) throw new Error("a gauge window's to must be above its from");
-      if (w.gain !== undefined && (typeof w.gain !== "object" || w.gain === null || !Object.values(w.gain).every(isNum)))
-        throw new Error("a gauge window's gain needs thin and thick numbers (each 1 when left out)");
+      if (w.gain !== undefined) checkPerClass(w.gain, "a gauge window's gain", true);
     }
   }
   const k = classIndex(pose.size);
@@ -540,10 +594,10 @@ export function gaugeEngagement(d: Driver, pose: Pose, path: Work | null | undef
   if (mode === "present") return p;
   const pt = needPath(d, path);
   const nose = noseAt(pt, workAt(pose));
-  const tail = nose - pt.lengths[k];
+  const tail = nose - (pt.lengths[k] ?? 0);
   let best = 0;
   for (const w of d.windows!) {
-    const gain = w.gain?.[TRUNK_CLASSES[k - 1]!] ?? 1;
+    const gain = perClassValue(w.gain, k, 1);
     const occ = clamp01((nose - w.from) / w.ease) * clamp01((w.to - tail) / w.ease);
     best = Math.max(best, Math.min(1, gain * occ));
   }
@@ -591,9 +645,8 @@ export function driverMatrix(d: Driver, pose: Pose, path?: Work | null): Mat4 {
       const k = classIndex(pose.size);
       let a = 0;
       if (k > 0) {
-        const c = TRUNK_CLASSES[k - 1]!;
-        a = amount[c] * e;
-        if (d.lobes) a += e * d.lobes.amplitude[c] * Math.cos(d.lobes.ratio * (pose.travel ?? Math.abs(pose.theta)) + (d.lobes.phase ?? 0));
+        a = perClassValue(amount, k) * e;
+        if (d.lobes) a += e * perClassValue(d.lobes.amplitude, k) * Math.cos(d.lobes.ratio * (pose.travel ?? Math.abs(pose.theta)) + (d.lobes.phase ?? 0));
       }
       return pivot ? about(rotation(d.axis, a), pivot) : along(d.axis, a);
     }
@@ -604,7 +657,7 @@ export function driverMatrix(d: Driver, pose: Pose, path?: Work | null): Mat4 {
       const k = classIndex(pose.size);
       if (k === 0) return identity();
       const pt = needPath(d, path);
-      const over = Math.min(pt.lengths[k], Math.max(0, noseAt(pt, workAt(pose)) - d.at));
+      const over = Math.min(pt.lengths[k] ?? 0, Math.max(0, noseAt(pt, workAt(pose)) - d.at));
       return about(rotation(d.axis, (d.ratio ?? 1) * over), pivot);
     }
     default:

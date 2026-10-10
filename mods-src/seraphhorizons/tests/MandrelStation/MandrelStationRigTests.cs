@@ -142,6 +142,7 @@ public class MandrelStationRigTests
             poses++;
         }
         Assert.True(poses >= 20, $"only {poses} poses");
-        Assert.Equal([0, 1, 2], classes.Order());
+        // none, the hollows' metals (1 lead, 2 copper) and the spring's own class, 3
+        Assert.Equal([0, 1, 2, 3], classes.Order());
     }
 }

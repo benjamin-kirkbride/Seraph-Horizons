@@ -8,16 +8,31 @@
 import type { AnimationsSpec } from "./keyframes.ts";
 import type { Anchor } from "./model-anchors.ts";
 import type { VehicleSpec } from "./model-vehicle.ts";
-import { TRUNK_CLASSES, workEnd, workOf, type Rig, type TrunkClass, type Vec3, type Work } from "./rig.ts";
+import { classOfKey, MAX_CLASS, TRUNK_CLASSES, workEnd, workOf, type Rig, type TrunkClass, type Vec3, type Work } from "./rig.ts";
 
 export interface InputLabel {
   label?: string;
   hint?: string;
 }
 
-/** The size input's labels, and a name for each class: none, thin, thick. */
+/** The size input's labels, and a name for none and each class in order: none, thin, thick, then 3 .. (as the rig has them). */
 export interface SizeInput extends InputLabel {
-  names?: [string, string, string];
+  names?: string[];
+}
+
+/**
+ * Parts drawn hot, as the game draws hot metal: the glow vanilla's renderers give a stack by its temperature
+ * (`hotGlow`). The page shows a temperature slider; the parts needing any of `requires` glow at it.
+ */
+export interface HeatSpec {
+  /** The requires values of the parts drawn hot. */
+  requires: string[];
+  label?: string;
+  hint?: string;
+  /** The temperature the page opens at, °C. */
+  default: number;
+  /** The slider's top, °C; 1600 when not given. */
+  max?: number;
 }
 
 export interface PropOption {
@@ -108,8 +123,10 @@ export interface Scenario {
     oil?: InputLabel;
   };
   requires?: Record<string, string>;
-  /** Requires values that belong to one class only (one master's set-up, say): shown only while that class is chosen. */
-  requiresClass?: Record<string, TrunkClass>;
+  /** Requires values that belong to one class only (one master's set-up, a job of its own): shown only while that class is chosen. The class by its key: "thin", "thick", "3" .. "9". */
+  requiresClass?: Record<string, string>;
+  /** Parts drawn hot, as the game draws hot metal (vanilla's glow by temperature): a temperature slider and the glow on the parts needing these requires values. */
+  heat?: HeatSpec;
   /** Requires values of which exactly one is fitted at a time (the handcar's branch lever): a select, not checkboxes. */
   choices?: RequiresChoice[];
   /**
@@ -441,7 +458,46 @@ export interface PlayTrip {
 export function classShows(requires: string | null | undefined, size: number, scenario?: Scenario): boolean {
   const cls = requires ? scenario?.requiresClass?.[requires] : undefined;
   if (cls === undefined) return true;
-  return size === TRUNK_CLASSES.indexOf(cls) + 1;
+  return size === classOfKey(cls);
+}
+
+/** The classes a rig's progress has work for (1 .. MAX_CLASS with an end above 0); a trunk path has its two. */
+export function progressClasses(path: Work | null): number[] {
+  if (!path) return [1, 2];
+  if (path.kind === "trunk") return [1, 2];
+  return path.ends.map((e, k) => (k > 0 && e > 0 ? k : 0)).filter((k) => k > 0);
+}
+
+/**
+ * The size select's names: the scenario's (none, then each class in order), else `defaults` (none, thin, thick)
+ * with "Class k" for each further class the rig's work has.
+ */
+export function sizeNames(names: readonly string[] | undefined, defaults: readonly string[], path: Work | null): string[] {
+  if (names) return [...names];
+  const top = Math.max(2, ...progressClasses(path));
+  return Array.from({ length: top + 1 }, (_, k) => defaults[k] ?? `Class ${k}`);
+}
+
+/** Vanilla's hot-metal glow (VintagestoryAPI ColorUtil.GetIncandescenceColorAsColor4f): r, g, b, a at a temperature (°C, whole degrees). */
+export function incandescence(temperature: number): [number, number, number, number] {
+  const t = Math.trunc(temperature);
+  if (t < 500) return [0, 0, 0, 0];
+  const c = (v: number) => Math.min(1, Math.max(0, v));
+  return [c((t - 500) / 400), c((t - 900) / 200), c((t - 1100) / 200), c((t - 525) / 2)];
+}
+
+/** Vanilla's extra glow for hot work (AnvilPartRenderer, AnvilWorkItemRenderer, ToolMoldRenderer...): clamp((t − 550) / 2, 0, 255), in whole steps. */
+export function extraGlow(temperature: number): number {
+  return Math.min(255, Math.max(0, Math.trunc((Math.trunc(temperature) - 550) / 2)));
+}
+
+/**
+ * How the game's standard shader draws a hot part (standard.fsh): its lit colour mixed towards the glow colour by
+ * glowLevel × rgbaGlow.a, glowLevel = extraGlow / 255. Returns the glow colour and that mix, 0 below glowing heat.
+ */
+export function hotGlow(temperature: number): { rgb: [number, number, number]; mix: number } {
+  const [r, g, b, a] = incandescence(temperature);
+  return { rgb: [r, g, b], mix: (extraGlow(temperature) / 255) * a };
 }
 
 /** The trip for a chosen option on a trunk path; undefined when the prop does not move with the trunk. */
@@ -587,7 +643,15 @@ export function checkScenario(s: Scenario, rig: Rig | null, anchors: readonly An
   for (const key of Object.keys(s.requires ?? {})) if (!requires.includes(key)) out.push(`requires label "${key}" names no part's requires value`);
   for (const [key, cls] of Object.entries(s.requiresClass ?? {})) {
     if (!requires.includes(key)) out.push(`requiresClass "${key}" names no part's requires value`);
-    if (!(TRUNK_CLASSES as readonly string[]).includes(cls)) out.push(`requiresClass "${key}": class must be "thin" or "thick"`);
+    if (typeof cls !== "string" || classOfKey(cls) === null) out.push(`requiresClass "${key}": class must be "thin", "thick" or "3" .. "${MAX_CLASS}"`);
+  }
+  if (s.heat !== undefined) {
+    const h = s.heat;
+    if (!Array.isArray(h.requires) || h.requires.length === 0) out.push("heat.requires needs the requires values of the parts drawn hot");
+    for (const r of h.requires ?? []) if (!requires.includes(r)) out.push(`heat.requires: "${r}" is no part's requires value`);
+    const max = h.max ?? 1600;
+    if (!(typeof max === "number" && max > 0)) out.push("heat.max must be a temperature above 0");
+    if (!(typeof h.default === "number" && h.default >= 0 && h.default <= max)) out.push("heat.default must be a temperature from 0 to heat.max");
   }
   const chosen = new Set<string>();
   for (const c of s.choices ?? []) {
@@ -610,8 +674,13 @@ export function checkScenario(s: Scenario, rig: Rig | null, anchors: readonly An
   }
   if (s.inputs?.work && s.inputs?.trunk) out.push("inputs: label the work as work or trunk, not both");
   const names = s.inputs?.size?.names;
-  if (names !== undefined && (!Array.isArray(names) || names.length !== 3 || !names.every((n) => typeof n === "string" && n !== "")))
-    out.push("inputs.size.names needs three names: none, thin, thick");
+  const top = Math.max(2, ...progressClasses(path));
+  if (names !== undefined && (!Array.isArray(names) || names.length < top + 1 || names.length > MAX_CLASS + 1 || !names.every((n) => typeof n === "string" && n !== "")))
+    out.push(`inputs.size.names needs a name for none and each class up to the rig's last, ${top}: ${top + 1} names (none, thin, thick${top > 2 ? ", ..." : ""})`);
+  for (const [key, cls] of Object.entries(s.requiresClass ?? {})) {
+    const k = typeof cls === "string" ? classOfKey(cls) : null;
+    if (k !== null && path?.kind === "work" && !progressClasses(path).includes(k)) out.push(`requiresClass "${key}": the rig's work has no end for class ${cls}`);
+  }
   const moving = s.prop?.moves === "trunk";
   if (s.prop) {
     const line = anchors.find((a) => a.kind === "line" && a.key === s.prop!.on);

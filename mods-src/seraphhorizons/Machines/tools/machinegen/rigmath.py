@@ -14,19 +14,28 @@ Inputs (a dict; every key is optional, see `full_inputs`):
     work      W, the machine's work: how far its job has got, in the unit its rig's progress names
               (0 .. end(size)). "trunk" is the same input under its trunk-flavoured name (a trunk's
               travel along the rig's trunkPath, blocks); a dict may give either key.
-    size      k, the work's class: 0 none, 1 thin, 2 thick (a trunk's class; the gear cutter's master)
+    size      k, the work's class: 0 none, 1 thin, 2 thick (a trunk's class; the gear cutter's master),
+              3 .. MAX_CLASS further classes (the mandrel station's spring is 3)
     presence  p, 0..1: how far the work (a loaded trunk, a fitted master) has eased in (renderer-side)
     feed      phi, radians: the shaft's travel while the feed runs (renderer-side, never decreasing)
     oil       0..1, how full the machine's oil tank is (MachineOil; the gear cutter's sight-feed cup)
 
+Classes. k is 0 (none) or a class 1 .. MAX_CLASS. A per-class value in a rig (a gauge's `amount`, a
+window's `gain`, lobes' `amplitude`, a work's `end`) is an object keyed by class: "thin" (1), "thick"
+(2), and from 3 on the class's number ("3" .. "9"); any other key is refused. It names one class or
+more (a `gain` may name none), and a class it does not name has none of it: amount and amplitude 0,
+gain 1, a work's end 0 (no work of that class). So a part that moves only for class 3 gives its
+amount for "3" alone, and stands still for 1 and 2. A class outside 1 .. MAX_CLASS is none.
+
 The rig's progress (what gauges and rolls read; `progress_of`) is one of two things:
 
-    work       {"name", "unit", "step"?, "end": {"thin", "thick"}}: a named quantity, W in its unit,
+    work       {"name", "unit", "step"?, "end": {class: end, ...}}: a named quantity, W in its unit,
                running 0 .. end[k]. It is a point: nose(W) = tail(W) = W, so a gauge window is
                occupied while from <= W <= to (eased at both ends).
     trunkPath  the trunk-flavoured case, a trunk travelling along a line: nose(W) = nose0 + W and
-               tail(W, k) = nose - L_k, with L = [0, lengths.thin, lengths.thick]; it ends when the
-               tail reaches tailStop. Its unit is blocks and its step 1/16.
+               tail(W, k) = nose - L_k, with L = [0, lengths.thin, lengths.thick] (a trunk has the two
+               classes; L is 0 for any other); it ends when the tail reaches tailStop. Its unit is
+               blocks and its step 1/16.
 
 A rig has at most one of them.
 
@@ -46,7 +55,7 @@ Drivers (design: build/rosser/design.md section 2.3; the mill's README has the o
     step     a ramp of depth over [from, to] with lift gates hold / block / trip, times amount
     stretch  scales along axis about anchor: (length + travel * x) / length, x its "input": "depth"
              (the default) or "oil"
-    gauge    e = 0 if k == 0; p if mode == "present"; else
+    gauge    e = 0 if k is none; p if mode == "present"; else
                  p * max over windows w of min(1, gain_w[k] * occ_w),
                  occ_w = clamp((nose - from_w) / ease_w, 0, 1) * clamp((to_w - tail) / ease_w, 0, 1)
              a = amount[k] * e, plus e * lobes.amplitude[k] * cos(lobes.ratio * psi + lobes.phase)
@@ -63,7 +72,8 @@ import re
 from .geometry import IDENT, El, mmul, mvec, rot
 
 AXES = {"x": 0, "y": 1, "z": 2}
-CLASSES = ("none", "thin", "thick")          # k = 0, 1, 2; the per-class JSON keys are CLASSES[1:]
+CLASSES = ("none", "thin", "thick")          # k = 0, 1, 2 by name; the named per-class JSON keys are CLASSES[1:]
+MAX_CLASS = 9                                # classes 3 .. MAX_CLASS are keyed by their number, "3" .. "9"
 INPUTS = ("theta", "travel", "feed", "work", "trunk", "oil")
 INPUT_ALIASES = {"trunk": "work"}            # the trunk-flavoured spelling of the work input
 STRETCH_INPUTS = ("depth", "oil")
@@ -92,6 +102,31 @@ def apply(m, p):
 
 
 # ---------------------------------------------------------------- inputs and the rig's progress
+def class_key(k):
+    """Class k's per-class JSON key: "thin", "thick", "3" .. "9"; None for none or a class out of range."""
+    k = int(k)
+    if k < 1 or k > MAX_CLASS:
+        return None
+    return CLASSES[k] if k < len(CLASSES) else str(k)
+
+
+def class_of_key(key):
+    """The class a per-class JSON key names (1 .. MAX_CLASS), or None for any other key."""
+    if key in CLASSES[1:]:
+        return CLASSES.index(key)
+    if isinstance(key, str) and key.isdigit() and str(int(key)) == key and len(CLASSES) <= int(key) <= MAX_CLASS:
+        return int(key)
+    return None
+
+
+def per_class(v, k, missing=0.0):
+    """Class k's value in a per-class object, `missing` when it names no value for k (or k is none)."""
+    key = class_key(k)
+    if key is None or not isinstance(v, dict) or key not in v:
+        return missing
+    return float(v[key])
+
+
 def full_inputs(inputs):
     """Every input key, with its default: 0, except travel, which defaults to |theta|. W may be
     given as "work" or as "trunk"."""
@@ -119,9 +154,9 @@ def validate_work(work):
         raise ValueError("work.name must be a non-empty string")
     if "step" in work and not (isinstance(work["step"], (int, float)) and work["step"] > 0):
         raise ValueError("work.step must be above 0")
-    end = work.get("end")
-    if not isinstance(end, dict) or not all(isinstance(end.get(c), (int, float)) and end[c] > 0 for c in CLASSES[1:]):
-        raise ValueError("work.end needs thin and thick above 0")
+    end = _per_class(work.get("end"), "work.end")
+    if not all(v > 0 for v in end.values()):
+        raise ValueError("work.end must be above 0 for every class it names")
     for key in ("nose0", "lengths", "tailStop"):
         if key in work:
             raise ValueError(f"work has no {key}: that is a trunkPath's")
@@ -138,8 +173,9 @@ def progress_of(rig):
 
 
 def trunk_length(path, k: int) -> float:
-    """L_k: 0 for no class or a work quantity, else the trunk's length for that class (blocks)."""
-    return 0.0 if k == 0 or not is_trunk_path(path) else float(path["lengths"][CLASSES[k]])
+    """L_k: 0 for no class or a work quantity, else the trunk's length for that class (blocks; 0 for a
+    class a trunk does not have)."""
+    return 0.0 if not is_trunk_path(path) else per_class(path["lengths"], k)
 
 
 def nose(path, work: float) -> float:
@@ -151,9 +187,10 @@ def tail(path, work: float, k: int) -> float:
 
 
 def work_end(path, k: int) -> float:
-    """end(k): a work quantity's end for the class; a trunk's travel when its tail reaches tailStop."""
+    """end(k): a work quantity's end for the class (0 for none, or a class it has no end for); a trunk's
+    travel when its tail reaches tailStop."""
     if not is_trunk_path(path):
-        return 0.0 if k == 0 else float(path["end"][CLASSES[k]])
+        return per_class(path["end"], k)
     return path["tailStop"] + trunk_length(path, k) - path["nose0"]
 
 
@@ -176,10 +213,22 @@ def driver_input(d) -> str:
     return "travel" if d.get("rectified") else "theta"
 
 
-def _per_class(v, what, default=None):
-    if not isinstance(v, dict) or (default is None and not all(c in v for c in CLASSES[1:])):
-        raise ValueError(f"{what} needs both 'thin' and 'thick'")
-    return [0.0] + [float(v.get(c, default)) for c in CLASSES[1:]]
+def _per_class(v, what, empty=False):
+    """A per-class object checked: keyed by class ("thin", "thick", "3" .. "9"), each value a number, naming one
+    class or more (none at all when `empty`). Returns {class: value}."""
+    if not isinstance(v, dict):
+        raise ValueError(f"{what} must be an object keyed by class")
+    out = {}
+    for key, val in v.items():
+        k = class_of_key(key)
+        if k is None:
+            raise ValueError(f"{what}: {key!r} is not a class (thin, thick, or 3 .. {MAX_CLASS})")
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            raise ValueError(f"{what}.{key} must be a number")
+        out[k] = float(val)
+    if not out and not empty:
+        raise ValueError(f"{what} names no class")
+    return out
 
 
 def validate_driver(d):
@@ -210,7 +259,7 @@ def validate_driver(d):
             if not w["to"] > w["from"]:
                 raise ValueError("a gauge window's 'to' must be past its 'from'")
             if "gain" in w:
-                _per_class(w["gain"], "gauge gain", default=1.0)
+                _per_class(w["gain"], "gauge gain", empty=True)
         if "lobes" in d:
             if d["motion"] == "slide":
                 raise ValueError("lobes on a sliding gauge")
@@ -245,7 +294,7 @@ def step_amount(d, depth, lifting):
 def gauge_fraction(d, inputs, path):
     """A gauge's e in [0, 1] (inputs as from `full_inputs`)."""
     k = inputs["size"]
-    if k == 0:
+    if class_key(k) is None:
         return 0.0
     if d.get("mode", "occupy") == "present":
         return inputs["presence"]
@@ -255,25 +304,25 @@ def gauge_fraction(d, inputs, path):
     best = 0.0
     for w in d["windows"]:
         occ = _clamp01((n - w["from"]) / w["ease"]) * _clamp01((w["to"] - t) / w["ease"])
-        gain = w.get("gain", {}).get(CLASSES[k], 1.0)
+        gain = per_class(w.get("gain", {}), k, 1.0)
         best = max(best, min(1.0, gain * occ))
     return inputs["presence"] * best
 
 
 def gauge_amount(d, inputs, path):
-    """A gauge's motion: blocks for a slide, radians for a rotate."""
+    """A gauge's motion: blocks for a slide, radians for a rotate (0 for a class its amount does not name)."""
     e = gauge_fraction(d, inputs, path)
     k = inputs["size"]
-    a = d["amount"][CLASSES[k]] * e if k else 0.0
+    a = per_class(d["amount"], k) * e
     lobes = d.get("lobes")
-    if lobes and k:
-        a += e * lobes["amplitude"][CLASSES[k]] * math.cos(lobes["ratio"] * inputs["travel"] + lobes.get("phase", 0.0))
+    if lobes and class_key(k) is not None:
+        a += e * per_class(lobes["amplitude"], k) * math.cos(lobes["ratio"] * inputs["travel"] + lobes.get("phase", 0.0))
     return a
 
 
 def roll_angle(d, inputs, path):
     k = inputs["size"]
-    if k == 0:
+    if class_key(k) is None:
         return 0.0
     if path is None or not is_trunk_path(path):
         raise ValueError("a roll driver needs the rig's trunkPath")

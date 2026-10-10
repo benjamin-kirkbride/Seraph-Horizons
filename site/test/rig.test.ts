@@ -2,9 +2,13 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   apply,
+  classIndex,
+  classKey,
+  classOfKey,
   compileGlobs,
   corners,
   driverMatrix,
+  MAX_CLASS,
   flattenShape,
   globRegExp,
   multiply,
@@ -302,7 +306,8 @@ function expectMatrix(got: Mat4, want: number[][], what: string) {
 describe("trunk-path drivers against driver-fixture.json", () => {
   it("is the format this test reads, with the trunk path every case uses", () => {
     expect(fixture.format).toBe(2);
-    expect(fixturePath.lengths).toEqual([0, 4, 5]);
+    // indexed by class: the trunk's two sizes, and no length for the classes past thick
+    expect(fixturePath.lengths).toEqual([0, 4, 5, ...Array(MAX_CLASS - 2).fill(0)]);
     expect(tripEnd(fixturePath, 1)).toBe(9 + 4 - 0.5);
     expect(tripEnd(fixturePath, 2)).toBe(9 + 5 - 0.5);
     expect(tripEnd(fixturePath, 0)).toBe(0);
@@ -332,9 +337,16 @@ describe("trunk-path drivers against driver-fixture.json", () => {
     }
   });
 
+  it("keys classes as the Python and the C# do: thin, thick, then the number; anything else is none", () => {
+    expect([0, 1, 2, 3, 9, 10, -1].map(classKey)).toEqual([null, "thin", "thick", "3", "9", null, null]);
+    expect(["thin", "thick", "3", "9"].map(classOfKey)).toEqual([1, 2, 3, 9]);
+    for (const key of ["none", "0", "1", "2", "03", "10", "medium"]) expect(classOfKey(key), key).toBeNull();
+    expect([0, 1, 2, 3, 9, 10, -1, 2.6].map(classIndex)).toEqual([0, 1, 2, 3, 9, 0, 0, 3]);
+  });
+
   it("rejects every driver the parsers must, whatever the pose", () => {
     for (const { id, driver } of fixture.invalid)
-      for (const size of [0, 1, 2]) {
+      for (const size of [0, 1, 2, 3]) {
         const pose: Pose = { theta: 0.5, depth: 0.5, lifting: 0, travel: 0.5, trunk: 2.5, size, presence: 1, feed: 0.5 };
         expect(() => driverMatrix(driver, pose, fixturePath), `${id} at class ${size}`).toThrow();
       }
@@ -407,8 +419,10 @@ describe("work-quantity drivers against driver-fixture.json", () => {
   const work = workOf({ work: fixture.work })!;
 
   it("reads the work quantity: a point with its unit, step and ends", () => {
-    expect(work).toMatchObject({ kind: "work", name: "parts made", unit: "parts", step: 0.25, nose0: 0, lengths: [0, 0, 0], ends: [0, 6, 9] });
-    expect([0, 1, 2].map((k) => workEnd(work, k))).toEqual([0, 6, 9]);
+    expect(work).toMatchObject({ kind: "work", name: "parts made", unit: "parts", step: 0.25, nose0: 0 });
+    expect(work.lengths).toEqual(Array(MAX_CLASS + 1).fill(0));
+    // an end per class it names (thin, thick and 3); none for the classes it does not, nor past the last
+    expect([0, 1, 2, 3, 4, MAX_CLASS, MAX_CLASS + 1].map((k) => workEnd(work, k))).toEqual([0, 6, 9, 4, 0, 0, 0]);
     expect(fixturePath.kind).toBe("trunk");
     expect(fixturePath.unit).toBe("blocks");
     expect(workOf({ trunkPath: fixture.trunkPath })).toEqual(fixturePath);

@@ -46,8 +46,8 @@ The rig's inputs, as this station uses them (the press brake's README, "Rig sche
            by a ratio-0 rotate on the mandrel, it moves nothing
     W      the rig's work, 0..1: the forging of one hollow (blows struck over blows needed), or the
            winding of one spring (a twenty-fourth of it a side)
-    k      the work's class: 0 none, 1 lead (thin), 2 copper (thick); a spring is 1, and its parts pose
-           the same for 1 and 2
+    k      the work's class, which is the job: 0 none, 1 a lead hollow (thin), 2 a copper hollow (thick), 3 a
+           spring; each job's parts move for its class alone
     p      its presence, 0..1, eased as the work goes on and after it is delivered
 """
 
@@ -370,7 +370,16 @@ def per_class(thin, thick=None):
     return {"thin": r6(thin), "thick": r6(thin if thick is None else thick)}
 
 
-WORK = {"name": "blows", "unit": "hollows", "step": 0.005, "end": {"thin": 1.0, "thick": 1.0}}
+SPRING_CLASS = 3                             # the spring job's class: its own, past the hollows' lead (1) and copper (2)
+
+
+def spring_amount(v):
+    """A spring part's amount: for the spring's class alone (it stands still for the hollows' classes)."""
+    return {str(SPRING_CLASS): r6(v)}
+
+
+# W is one hollow's forging or one spring's winding: each of the three classes has a job of 1
+WORK = {"name": "blows", "unit": "hollows", "step": 0.005, "end": {"thin": 1.0, "thick": 1.0, str(SPRING_CLASS): 1.0}}
 PATH = WORK
 FOREVER = 1000.0
 
@@ -413,8 +422,8 @@ def spring_parts():
       - its swing: quarter j, about its start, from along the edge across its face into the coil (Coil.swing);
       - back (j >= 1): quarter j - 1, while side j - 1 swings: the same turn undone about its start, so it stays along the
         edge and its start follows side j - 1's end round a quarter circle to the next edge.
-    The far end (`sptail`) rides the head (the last side) and runs back into it by TAIL_IN. Every amount is the same for
-    both classes: a spring is posed alike whatever k gameplay gives it."""
+    The far end (`sptail`) rides the head (the last side) and runs back into it by TAIL_IN. Every amount is for the
+    spring's class alone (SPRING_CLASS, 3): with a hollow's class, or none, the spring's parts stand still."""
     out = []
     pieces = [(i / FWD_PIECES, (i + 1) / FWD_PIECES) for i in range(FWD_PIECES)]
     for j in range(COIL.sides):
@@ -422,18 +431,18 @@ def spring_parts():
         if j >= 2:
             for e0, e1 in pieces:
                 drv.append({"type": "gauge", "motion": "slide", "axis": "z",
-                            "amount": per_class((spring_ahead(e1) - spring_ahead(e0)) / B), "windows": [quarter_win(j - 2, e0, e1)]})
+                            "amount": spring_amount((spring_ahead(e1) - spring_ahead(e0)) / B), "windows": [quarter_win(j - 2, e0, e1)]})
         piv = pt(*spring_pivot(j))
         axis, ang = COIL.swing(j)
-        drv.append({"type": "gauge", "motion": "rotate", "axis": axis, "pivot": piv, "amount": per_class(ang), "windows": [quarter_win(j)]})
+        drv.append({"type": "gauge", "motion": "rotate", "axis": axis, "pivot": piv, "amount": spring_amount(ang), "windows": [quarter_win(j)]})
         if j >= 1:
             axis, ang = COIL.swing(j - 1)
-            drv.append({"type": "gauge", "motion": "rotate", "axis": axis, "pivot": piv, "amount": per_class(-ang),
+            drv.append({"type": "gauge", "motion": "rotate", "axis": axis, "pivot": piv, "amount": spring_amount(-ang),
                         "windows": [quarter_win(j - 1)]})
         out.append({"id": spring_name(j), "match": [f"{spring_name(j)}_*"], "requires": "rodsteel", "drivers": drv,
                     "ride": spring_name(j - 1) if j else None})
     out.append({"id": "sptail", "match": ["sptail_*"], "requires": "rodsteel",
-                "drivers": [{"type": "gauge", "motion": "slide", "axis": "z", "amount": per_class(-TAIL_BACK / B),
+                "drivers": [{"type": "gauge", "motion": "slide", "axis": "z", "amount": spring_amount(-TAIL_BACK / B),
                              "windows": [win(0.0, TAIL_IN)]}],
                 "ride": spring_name(COIL.sides - 1)})
     return out
@@ -475,11 +484,10 @@ def _rig_parts():
 
 # ---------------------------------------------------------------- poses
 REST = (0.0, 0.0, 0, 0.0)                     # (theta, W, k, p): no work; the authored pose
-SPRING = "spring"                            # a pose's fifth item: the job on the mandrel is a spring (else a hollow)
 
 
 def inputs_of(pose):
-    th, W, k, p = pose[:4]
+    th, W, k, p = pose
     return {"theta": th, "work": W, "size": k, "presence": p}
 
 
@@ -493,13 +501,9 @@ def pose_at(k, W, theta=None, p=1.0):
     return (th, W, k, p)
 
 
-def spring_at(W, p=1.0, k=1):
-    """A spring at W (class 1, as gameplay gives it; k 2 poses it alike), the held clock at its pace."""
-    return (TAU * WIND_TURNS * W, W, k, p, SPRING)
-
-
-def job_of(pose):
-    return pose[4] if len(pose) > 4 else "hollow"
+def spring_at(W, p=1.0, k=SPRING_CLASS):
+    """A spring at W (its class, 3), the held clock at its pace."""
+    return (TAU * WIND_TURNS * W, W, k, p)
 
 
 # ---------------------------------------------------------------- the rig file
@@ -526,8 +530,8 @@ def make_rig(parts):
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the stump, nearest the "
                     "player who placed it; the mandrel points south. A hand station: no power cell. work is the forging of one "
-                    "hollow, W 0..1 (blows struck over blows needed), or the winding of one spring (wind); k is the hollow's "
-                    "metal (1 lead, 2 copper), a spring's 1; gauge windows are placed in work units. theta is the hammer's (or "
+                    "hollow, W 0..1 (blows struck over blows needed), or the winding of one spring (wind); k is the job: the "
+                    "hollow's metal (1 lead, 2 copper) or 3 a spring; gauge windows are placed in work units. theta is the hammer's (or "
                     "the held right-click's) clock, carried by a ratio-0 rotate on the mandrel. See the mandrel station's README "
                     "for the schema.",
         "cells": [],
@@ -542,10 +546,12 @@ def make_rig(parts):
                   "sectionsPerHollow": 2,
                   "_comment": "blowsPerHollow: the pace, hammer blows (right-clicks) a hollow; copper half as much again. "
                               "hollows: each class's work. sections: what a hollow makes, sectionsPerHollow of them."},
-        "wind": {"turnsPerRod": r6(WIND_TURNS), "rod": SPRING_ROD, "class": 1, "spring": SPRING_ITEM, "springsPerRod": 1,
-                 "_comment": "The spring job: rod is its work, given class 1 (its parts, requires rodsteel, pose alike for "
-                             "1 and 2), wound over W 0..1 a twenty-fourth a side; turnsPerRod: the pace, turns of the held "
-                             "right-click's clock (a turn a second) a rod. spring: what a rod makes, springsPerRod of them."},
+        "wind": {"turnsPerRod": r6(WIND_TURNS), "rod": SPRING_ROD, "class": SPRING_CLASS, "spring": SPRING_ITEM, "springsPerRod": 1,
+                 "hot": ["rodsteel"],
+                 "_comment": "The spring job: rod is its work, of its own class 3 (its parts, requires rodsteel, move for that "
+                             "class alone), wound over W 0..1 a twenty-fourth a side; turnsPerRod: the pace, turns of the held "
+                             "right-click's clock (a turn a second) a rod. spring: what a rod makes, springsPerRod of them. hot: "
+                             "the requires values whose parts are drawn hot, with vanilla's glow by the rod's temperature."},
         "parts": parts,
     }
 
@@ -613,11 +619,11 @@ REF_SPRING = (0.005, 0.0208, 0.0365, 0.0417, 0.0547, 0.4635, 0.4792, 0.5052, 0.9
 
 
 def reference_poses():
-    """theta in {0, 1.1, -2.3, 2.9} with no work; for each class, W over the cycle's edges and the spring's with p 1,
-    and every fifth also at p 0.4 (every part's matrix at every pose, so each serves the hollows and the spring)."""
+    """theta in {0, 1.1, -2.3, 2.9} with no work; for each metal, W over the cycle's edges, and for the spring (its class
+    3) over its own and a few of them, with p 1 and every fifth also at p 0.4 (every part's matrix at every pose)."""
     out = [(th, 0.0, 0, 0.0) for th in (0.0, 1.1, -2.3, 2.9)]
-    for k in (1, 2):
-        for i, W in enumerate(sorted(REF_EDGES + REF_SPRING)):
+    for k, edges in ((1, REF_EDGES), (2, REF_EDGES), (SPRING_CLASS, sorted(REF_SPRING + (0.0, 0.25, 0.5, 0.75, 0.99, 1.0)))):
+        for i, W in enumerate(edges):
             th = (0.0, 1.1, -2.3, 2.9)[i % 4]
             for p in ((1.0,) if i % 5 else (1.0, 0.4)):
                 out.append((th, W, k, p))
@@ -659,13 +665,13 @@ def is_spring(part):
 
 
 def on_show(part, pose):
-    """Whether a part can be seen at a pose: each metal's hollow only with that metal and a hollow's job, the spring
-    only with a spring's (and a class: gameplay gives it 1)."""
-    k, job = pose[2], job_of(pose)
+    """Whether a part can be seen at a pose: each metal's hollow only with that metal's class, the spring only with its
+    own (the class is the job)."""
+    k = pose[2]
     if is_spring(part):
-        return job == SPRING and k >= 1
+        return k == SPRING_CLASS
     if part[:1] in ("l", "c"):
-        return job != SPRING and k == ("l", "c").index(part[0]) + 1
+        return k == ("l", "c").index(part[0]) + 1
     return True
 
 

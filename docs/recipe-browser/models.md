@@ -46,7 +46,7 @@ drivers read up to nine inputs, and the viewer shows a control only for those so
 | depth, 0..1 | `feed`, `step`, `stretch` (unless its `input` is `"oil"`) | Slider |
 | lifting, 0 or 1 | `step` with a `lifting` gate | Checkbox |
 | W, the work, in the rig's unit (a trunk's travel in blocks; teeth cut) | `"input": "work"` (or `"trunk"`), an `occupy` `gauge`, `roll` | Slider in the work's unit and step, 0 to its end for the class shown, labelled with the work's name |
-| k, the work's class: 0 none, 1 thin, 2 thick | `gauge`, `roll` | The prop's choice when the prop moves with the trunk (below), else a select |
+| k, the work's class: 0 none, 1 thin, 2 thick, 3 .. 9 further classes ([Classes](#classes)) | `gauge`, `roll` | The prop's choice when the prop moves with the trunk (below), else a select of none and each class the rig's work has |
 | p, the work's presence, 0..1 | `gauge` | Slider; posed by hand it is 1 with a class chosen, and Play eases a trunk's |
 | φ, the feed's travel | `"input": "feed"` | Follows W: grows by ΔW over the rig's `feed.blocksPerRadian`, never going back; shown under the slider |
 | oil, how full the machine's oil tank is, 0..1 | `"input": "oil"` on `rotate`, `slide`, `swing` or `stretch` | Slider, starting full (the gear cutter's sight-feed cup) |
@@ -80,9 +80,10 @@ A rig whose drivers read W, k or p declares its **work**, the machine's progress
 rig with both is refused; `workOf` in `site/src/lib/rig.ts`, `progress_of` in `rigmath.py`,
 `RigProgress.Of` in `Machines/Core/WorkProgress.cs`):
 
-- `work`: `{ "name", "unit", "step", "end": { "thin", "thick" } }`, a named quantity in its own unit
+- `work`: `{ "name", "unit", "step", "end": { class: end, ... } }`, a named quantity in its own unit
   (the gear cutter's `{ "name": "teeth cut", "unit": "teeth", "step": 0.005, "end": { "thin": 12,
-  "thick": 20 } }`). `unit` and `end` (both above 0) are required; `name` defaults to the unit, `step`
+  "thick": 20 } }`; the mandrel station's end names three classes, the spring's `"3"` among them). `unit`
+  and `end` (each class it names above 0) are required; `name` defaults to the unit, `step`
   (the slider's) to 1/16. W runs from 0 to `end[k]`. It is a point on its own scale: a window is
   occupied while W is in it (nose = tail = W), so windows are written in the work's unit. A trunkPath's
   keys (`nose0`, `lengths`, `tailStop`) are refused here, and a `roll` needs a trunkPath.
@@ -102,14 +103,30 @@ The drivers (`site/src/lib/rig.ts`; the Python reference is `Machines/tools/mach
   `stretch`, `"input"` is `"depth"` (the default) or `"oil"`: it scales by (length + travel × that
   input) / length, so a liquid's level can follow the oil tank.
 - `gauge`, a motion set by the work at a place: `motion` (`slide` or `rotate`, the latter with a
-  `pivot`), `axis`, `amount: { "thin", "thick" }`, `mode` (`occupy`, the default, or `present`),
-  `windows: [{ "from", "to", "ease", "gain": { "thin", "thick" } }]` (for `occupy`; a gain left out
-  is 1) and optional `lobes: { "ratio", "phase", "amplitude": { "thin", "thick" } }` (rotate only).
+  `pivot`), `axis`, `amount` (per class: `{ "thin", "thick", "3", ... }`, [Classes](#classes)), `mode`
+  (`occupy`, the default, or `present`), `windows: [{ "from", "to", "ease", "gain": { per class } }]` (for
+  `occupy`; a gain left out is 1) and optional `lobes: { "ratio", "phase", "amplitude": { per class } }`
+  (rotate only).
   Its engagement e is 0 without a class, p when `present`, else p times the most engaged window's
   min(1, gain × occupancy), occupancy easing in over `ease` (in the work's unit) as the nose arrives
   and out as the tail leaves. It moves by amount[k] × e, plus e × amplitude[k] × cos(ratio × ψ + phase).
 - `roll`, an idle roller the trunk turns: `axis`, `pivot`, `at`, `ratio` (radians per block); it
   turns by ratio × clamp(nose − `at`, 0, L_k), and not at all without a trunk.
+
+#### Classes
+
+k is 0 (none) or a class, 1 to 9. Classes 1 and 2 are named, `thin` and `thick` (a trunk's two sizes, the
+gear cutter's masters, a hollow's metal); from 3 on a class is keyed by its number, `"3"` .. `"9"`. A
+per-class value (a gauge's `amount`, a window's `gain`, lobes' `amplitude`, a work's `end`) is an object
+keyed by class that names one class or more (a `gain` may name none); any other key (`"1"`, `"03"`,
+`"10"`, `"none"`) is refused. A class it does not name has none of it: amount and amplitude 0, gain 1, a
+work's end 0 (no work of that class). So a job of its own is a class of its own: the mandrel station's
+spring is class 3, its parts' amounts name `"3"` alone and stand still for the hollows' 1 and 2, and the
+hollows' parts name `thin` and `thick` and stand still for 3. A class outside 1 .. 9 is none. A trunk
+has its two classes only (`trunkPath.lengths` names `thin` and `thick`; L is 0 for any other). The rule is
+the same in `rigmath.py` (`class_key`, `per_class`), `RigClasses` (C#) and `classKey`, `perClassValue`
+(`rig.ts`), and `tests/Machines/driver-fixture.json` pins it: cases with classes 3, 9 and 10, values that
+name some classes only, and the keys every parser must refuse.
 
 ### Overlays
 
@@ -247,11 +264,23 @@ Everything specific to one machine lives here, as data; the viewer has no machin
 - `inputs`: labels for the controls, `{ "theta" | "depth" | "lifting" | "reverse" | "work" | "size" | "presence" | "feed" | "oil": { "label", "hint" } }`.
   The work's label may be written `trunk` instead (the mill's and the rosser's are), not both; the
   work's unit, step and ends are the rig's (`work`, or the trunkPath's), not the scenario's. `size`
-  takes `names`: three names for none, thin and thick, for the select.
+  takes `names`: a name for none and each class up to the rig's last (three for none, thin and thick; the
+  mandrel station's four: none, the two hollows and the steel rod), for the select. Without names the select
+  offers None, Thin, Thick and "Class k" for each further class the rig's work has.
 - `requires`: a label for each `requires` value, e.g. `{ "sash1": "Sash 1" }`. Unlabelled values show as they are.
-- `requiresClass`: `{ "<requires value>": "thin" | "thick" }`, parts that belong to one class's set-up
-  (the gear cutter's master and blank for each size): shown only while that class is chosen, and not
-  with none, whatever their checkbox says, as the game only ever has one fitted.
+- `requiresClass`: `{ "<requires value>": "thin" | "thick" | "3" .. "9" }`, parts that belong to one class's
+  set-up (the gear cutter's master and blank for each size; the mandrel station's hollow by its metal and
+  its spring, a job of its own, by class 3): shown only while that class is chosen, and not with none,
+  whatever their checkbox says, as the game only ever has one fitted. A class a work quantity has no end
+  for is refused.
+- `heat`: parts drawn hot, as the game draws hot metal: `{ "requires": [...], "label", "hint", "default",
+  "max" }` (°C; `max` 1600 when not given). The page shows a temperature slider, opening at `default`, and the
+  parts needing any of `requires` glow at it by vanilla's rule (`hotGlow` in `model-scenario.ts`, from the game's
+  `ColorUtil.GetIncandescenceColorAsColor4f` and the anvil's and the molds' renderers): the colour R =
+  (t − 500)/400, G = (t − 900)/200, B = (t − 1100)/200, A = (t − 525)/2, each clamped to 0..1 (none below 500
+  °C), and extraGlow = clamp((t − 550)/2, 0, 255); the standard shader mixes a part's lit colour towards that
+  colour by extraGlow/255 × A, which the scene does with the part's material (its colour scaled down and the
+  glow as its emission). The mandrel station's steel rod opens at 1000 °C, orange.
 - `choices`: `[{ "label", "values": ["<requires value>", ...], "default" }]`, requires values of which
   exactly one is fitted at a time, shown as a select (labelled `label`, its options by `requires`) in
   place of their checkboxes: the handcar's branch lever, whose three `TNL_*` levers Yang's renderer
@@ -520,6 +549,9 @@ the eidolon gantry's two selects: the bare frame, the winch stage by stage, no b
 and "Departed", which shows the winch, the ring and the spine and no stage of the body; and the
 eidolon's page, a part per stage, every shown element where the game poses it in four animations with
 several sets of stages hidden.
+`site/test/model-classes.test.ts` covers a class past thick in a scenario (the mandrel station's spring:
+its select's names, `requiresClass`, the checks) and the hot-metal glow, held to vanilla's formula at
+whole-degree temperatures.
 `site/test/models.test.ts` covers the manifest, anchors, the play script and the view, the mill's
 and a trunk travelling through a machine (a small rig on the rosser's trunk path);
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL (the handcar's `pump` for the

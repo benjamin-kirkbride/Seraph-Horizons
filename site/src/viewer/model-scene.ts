@@ -484,6 +484,21 @@ export class ModelScene {
     this.dirty = true;
   }
 
+  /**
+   * Draws the parts in `parts` (indices into the view's parts) hot, the rest not: their lit colour mixed `mix` of the
+   * way towards `rgb`, which is also their emission (so it shows in shadow), as the game's standard shader mixes a hot
+   * part's (model-scenario's hotGlow). A mix of 0 (or no parts) draws everything as usual.
+   */
+  setGlow(parts: ReadonlySet<number>, rgb: readonly [number, number, number], mix: number) {
+    for (const o of this.partObjects) {
+      const m = o.mesh.material as MeshLambertMaterial;
+      const f = parts.has(o.part) ? Math.min(1, Math.max(0, mix)) : 0;
+      m.color.setScalar(1 - f);
+      m.emissive.setRGB(rgb[0] * f, rgb[1] * f, rgb[2] * f);
+    }
+    this.dirty = true;
+  }
+
   colourBy(mode: ColourMode) {
     for (const o of this.partObjects) {
       const a = o.mesh.geometry.getAttribute("color") as BufferAttribute;

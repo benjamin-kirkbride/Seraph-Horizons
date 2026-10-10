@@ -57,6 +57,8 @@ const en = {
   playHintRoll: "Rolls it along the track at the input speed.",
   rolling: "Rolling",
   oil: "Oil",
+  temperature: "Temperature",
+  degrees: (t: number) => `${Math.round(t)} °C`,
   posedByHand: "Posed by hand",
   paused: (phase: string) => `Paused: ${phase}`,
   animation: "Animation",

@@ -26,7 +26,9 @@ describe("the mandrel station's rig against its rig-reference.json", () => {
     expect(rig.trunkPath).toBeUndefined();
     expect(workEnd(path, 1)).toBe(1);
     expect(workEnd(path, 2)).toBe(1);
-    expect(new Set(reference.poses.map((p) => p.size))).toEqual(new Set([0, 1, 2]));
+    // the spring is its own class, 3, with a job of 1 too
+    expect(workEnd(path, 3)).toBe(1);
+    expect(new Set(reference.poses.map((p) => p.size))).toEqual(new Set([0, 1, 2, 3]));
     for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
     // the viewer shows θ (so Play), W, the metal and its presence; no depth, lifting, feed or oil
     expect(rigInputs(parts)).toMatchObject({ theta: true, depth: false, lifting: false, work: true, size: true, presence: true });
@@ -78,7 +80,7 @@ describe("the mandrel station's rig against its rig-reference.json", () => {
     expect(new Set(codes.frame!)).toEqual(new Set(["oak", "iron"]));
     // the spring: one steel rod wound into one spring, its sides a chain of rides (each on the one before it)
     const wind = (rig as unknown as { wind: { rod: string; spring: string; springsPerRod: number; class: number } }).wind;
-    expect(wind).toMatchObject({ rod: "game:rod-steel", spring: "seraphhorizons:spring-steel", springsPerRod: 1, class: 1 });
+    expect(wind).toMatchObject({ rod: "game:rod-steel", spring: "seraphhorizons:spring-steel", springsPerRod: 1, class: 3, hot: ["rodsteel"] });
     const spring = parts.filter((p) => p.requires === "rodsteel");
     expect(spring).toHaveLength(25);
     spring.slice(1).forEach((p, i) => expect(p.ride).toBe(spring[i]!.id));

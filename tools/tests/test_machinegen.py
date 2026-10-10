@@ -68,7 +68,8 @@ class FixtureFile(unittest.TestCase):
         gates = {d["driver"].get("lifting") for d in fx["drivers"] if d["driver"]["type"] == "step"}
         self.assertEqual(gates, {None, "hold", "block", "trip"})
         cases = [c["inputs"] for d in fx["drivers"] for c in d["cases"]]
-        self.assertEqual({c["size"] for c in cases}, {0, 1, 2})
+        # none, the two trunk classes, class 3, the last class, and one past it (none)
+        self.assertEqual({c["size"] for c in cases}, {0, 1, 2, 3, rigmath.MAX_CLASS, rigmath.MAX_CLASS + 1})
         self.assertTrue({0.0, 0.3, 1.0} <= {c["presence"] for c in cases})
         for c in cases:
             self.assertEqual(list(c), fx["inputs"])
@@ -238,10 +239,15 @@ class Work(unittest.TestCase):
         self.assertIs(rigmath.progress_of({"trunkPath": PATH}), PATH)
         self.assertIsNone(rigmath.progress_of({}))
         for bad in ({"work": self.WORK, "trunkPath": PATH}, {"work": {"end": {"thin": 1.0, "thick": 1.0}}},
-                    {"work": {"unit": "t", "end": {"thin": 1.0}}}, {"work": {"unit": "t", "step": 0, "end": {"thin": 1.0, "thick": 1.0}}},
+                    {"work": {"unit": "t", "end": {}}}, {"work": {"unit": "t", "end": {"thin": 1.0, "medium": 1.0}}},
+                    {"work": {"unit": "t", "step": 0, "end": {"thin": 1.0, "thick": 1.0}}},
                     {"work": dict(self.WORK, lengths={"thin": 1.0, "thick": 1.0})}):
             with self.assertRaises(ValueError):
                 rigmath.progress_of(bad)
+        # an end may name any classes: one thin only has no thick work
+        thin_only = {"unit": "t", "end": {"thin": 1.0}}
+        self.assertIs(rigmath.progress_of({"work": thin_only}), thin_only)
+        self.assertEqual(rigmath.work_end(thin_only, 2), 0.0)
 
     def test_a_work_quantity_is_a_point_with_an_end_per_class(self):
         self.assertEqual([rigmath.work_end(self.WORK, k) for k in (0, 1, 2)], [0.0, 12.0, 20.0])
@@ -254,6 +260,23 @@ class Work(unittest.TestCase):
         self.assertAlmostEqual(frac(3.38), 1.0)
         self.assertAlmostEqual(frac(3.54), 0.5)
         self.assertEqual(frac(3.68), 0.0)
+
+    def test_classes_past_thick(self):
+        # keys: thin, thick, then the class's number up to MAX_CLASS; anything else is no class
+        self.assertEqual([rigmath.class_key(k) for k in (0, 1, 2, 3, 9, 10, -1)], [None, "thin", "thick", "3", "9", None, None])
+        self.assertEqual([rigmath.class_of_key(k) for k in ("thin", "thick", "3", "9")], [1, 2, 3, 9])
+        for key in ("none", "0", "1", "2", "03", "10", "medium", 3):
+            self.assertIsNone(rigmath.class_of_key(key), key)
+        # a part that moves only for class 3 stands still for the others, and a work's end is per class
+        work = {"unit": "t", "end": {"thin": 2.0, "thick": 2.0, "3": 1.0}}
+        d = {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"3": 0.5}, "windows": [{"from": 0.0, "to": 1000.0, "ease": 1.0}]}
+        rigmath.validate_driver(d)
+        at = lambda k: rigmath.driver_matrix(d, {"work": 0.5, "size": k, "presence": 1.0}, work)[1][3]  # noqa: E731
+        self.assertEqual([at(k) for k in (0, 1, 2, 10)], [0.0, 0.0, 0.0, 0.0])
+        self.assertAlmostEqual(at(3), 0.25)
+        self.assertEqual([rigmath.work_end(work, k) for k in (0, 1, 2, 3, 4)], [0.0, 2.0, 2.0, 1.0, 0.0])
+        # a trunk has the two classes: no length for class 3
+        self.assertEqual(rigmath.trunk_length(PATH, 3), 0.0)
 
     def test_trunk_is_the_same_input_as_work(self):
         d = {"type": "rotate", "axis": "x", "pivot": [0.0, 0.0, 0.0], "ratio": 2.0, "input": "trunk"}

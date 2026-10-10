@@ -134,7 +134,10 @@ public class DriverFixtureTests
         var work = WorkQuantity.Parse(root.GetProperty("work"));
         Assert.Equal(6, work.End(1), 6);
         Assert.Equal(9, work.End(2), 6);
+        Assert.Equal(4, work.End(3), 6);
         Assert.Equal(0, work.End(0));
+        Assert.Equal(0, work.End(4));
+        Assert.Equal(0, work.End(RigClasses.Max + 1));
         int cases = 0;
         foreach (var entry in root.GetProperty("workDrivers").EnumerateArray())
         {

@@ -258,7 +258,9 @@ as before:
   cut, 0..12 or 0..20) or, the trunk-flavoured case, as a `trunkPath` (a trunk travelling along a line,
   in blocks: the nose at `nose0` + W and the tail L_k behind it; the rosser's), never both. `"trunk"`
   is W's trunk-flavoured spelling as a driver input and in a pose;
-- k, the work's class: 0 none, 1 thin, 2 thick (a trunk's size; the gear cutter's master);
+- k, the work's class: 0 none, 1 thin, 2 thick (a trunk's size; the gear cutter's master), 3 .. 9 further
+  classes keyed by number (a job of its own: the mandrel station's spring is 3); a per-class value names the
+  classes it has, and the others have none of it (`docs/recipe-browser/models.md`, "Classes");
 - p, its presence, 0..1, eased in as a trunk is loaded (or a master fitted) and out as it is taken away
   (k is held while p eases out, so parts ease back rather than jump);
 - φ, the feed's travel, an angle that only grows;

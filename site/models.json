@@ -254,7 +254,7 @@
           "theta": { "label": "Blows, or the held click", "hint": "The player's right-clicks with a hammer, one turn a blow, or, for a spring, right-click held, a turn a second; this is that clock. The model is posed by the work below, which Play moves with it at a lead hollow's nine turns (in the game copper takes fourteen blows, and a spring four turns: 2.25 RPS shows a spring at the game's pace)" },
           "reverse": { "label": "Count backwards", "hint": "Play's clock runs either way; the work only goes forward" },
           "work": { "label": "Work", "hint": "A hollow: it closes from 8 to 6 across onto the mandrel and stretches from 8 to 16 long, evenly, into one tube, its two pipe sections end to end; at 1 it is on the mandrel and the game delivers the sections. A spring: the rod's leading piece, along the mandrel's edge, is bent across the next face, a twenty-fourth of the job a side, the rest of the rod following round to the next edge, so the coil grows from the shoulder and the straight rod shortens; at 1 the spring is wound and the game delivers it." },
-          "size": { "label": "Work on the mandrel", "hint": "Copper takes half as many blows again; the model moves the same. A spring job is the game's class 1, so it shows with the first: its rod is posed the same for both", "names": ["None", "Lead hollow, or the steel rod", "Copper hollow"] },
+          "size": { "label": "Work on the mandrel", "hint": "The job, each its own class: a lead hollow (1) or a copper hollow (2), forged into two pipe sections (copper takes half as many blows again; the model moves the same), or a hot steel rod (3), wound into a spring", "names": ["None", "Lead hollow", "Copper hollow", "Steel rod: a spring"] },
           "presence": { "label": "Work presence", "hint": "Eases in as the work goes on; in the game the work is no longer drawn once it is delivered" }
         },
         "requires": {
@@ -263,17 +263,14 @@
           "hollowcopper": "Copper hollow and its two sections",
           "rodsteel": "Steel rod and the spring it is wound into"
         },
-        "requiresClass": { "hollowlead": "thin", "hollowcopper": "thick", "rodsteel": "thin" },
-        "states": [
-          {
-            "id": "job", "label": "Job", "default": "sections",
-            "values": ["hollowlead", "hollowcopper", "rodsteel"],
-            "options": [
-              { "id": "sections", "label": "Pipe sections from a hollow", "fitted": ["hollowlead", "hollowcopper"] },
-              { "id": "spring", "label": "A spring from a steel rod", "fitted": ["rodsteel"], "hint": "Choose “Lead hollow, or the steel rod” under Work on the mandrel to see it: a spring job is the game's class 1" }
-            ]
-          }
-        ],
+        "requiresClass": { "hollowlead": "thin", "hollowcopper": "thick", "rodsteel": "3" },
+        "heat": {
+          "requires": ["rodsteel"],
+          "label": "Rod temperature",
+          "hint": "The steel rod is wound hot: drawn as the game draws hot metal, its glow by temperature (steel works from 751 °C, half its melting point; it glows from 525 °C, red to orange, yellow past 900 °C)",
+          "default": 1000,
+          "max": 1500
+        },
         "play": { "turnsPerWork": "forge.blowsPerHollow.thin", "phases": [] }
       }
     },

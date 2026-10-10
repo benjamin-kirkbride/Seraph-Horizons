@@ -115,7 +115,8 @@ public enum LiftGate { None, Hold, Block, Trip }
 /// ψ (<see cref="Travel"/>) the shaft's travel, the total angle it has turned through either way,
 /// |θ| when null; W (<see cref="Work"/>) how far the machine's work has got, in its progress's unit
 /// (a trunk's travel along a trunkPath, blocks; the gear cutter's teeth cut); k
-/// (<see cref="Class"/>) the work's class, 0 none, 1 thin, 2 thick; p (<see cref="Presence"/>) its
+/// (<see cref="Class"/>) the work's class, 0 none, 1 thin, 2 thick, 3 .. <see cref="RigClasses.Max"/>
+/// further classes (<see cref="RigClasses"/>); p (<see cref="Presence"/>) its
 /// eased presence, 0..1; φ (<see cref="Feed"/>) the feed's travel, radians; <see cref="Oil"/>
 /// how full the machine's oil tank is, 0..1.
 /// </summary>
@@ -126,13 +127,13 @@ public readonly record struct RigInput(double Theta, double Depth = 0, double Li
     /// <summary>ψ: <see cref="Travel"/>, or |θ| when it is null.</summary>
     public double Psi => Travel ?? Math.Abs(Theta);
 
-    /// <summary>k when it is 1 or 2, else 0 (no trunk).</summary>
-    public int K => Class is 1 or 2 ? Class : 0;
+    /// <summary>k when it is a class (1 .. <see cref="RigClasses.Max"/>), else 0 (none).</summary>
+    public int K => RigClasses.IsClass(Class) ? Class : 0;
 }
 
 /// <summary>A stretch of the trunk path a <see cref="DriverType.Gauge"/> feels the trunk over, from
 /// <see cref="From"/> to <see cref="To"/> (positions along the path, blocks), eased in and out over
-/// <see cref="Ease"/> blocks. <see cref="Gains"/> is per class, [none, thin, thick].</summary>
+/// <see cref="Ease"/> blocks. <see cref="Gains"/> is indexed by class (<see cref="RigClasses"/>), 1 where not given.</summary>
 public sealed record GaugeWindow(float From, float To, float Ease, IReadOnlyList<float> Gains)
 {
     /// <summary>occ = clamp((nose − from) / ease, 0, 1) · clamp((to − tail) / ease, 0, 1).</summary>
@@ -141,7 +142,7 @@ public sealed record GaugeWindow(float From, float To, float Ease, IReadOnlyList
 }
 
 /// <summary>A gauge's four-lobe term: amplitude[k] · cos(ratio · ψ + phase), scaled by the gauge's
-/// engagement. <see cref="Amplitudes"/> is per class, [none, thin, thick].</summary>
+/// engagement. <see cref="Amplitudes"/> is indexed by class (<see cref="RigClasses"/>), 0 where not given.</summary>
 public sealed record GaugeLobes(float Ratio, float Phase, IReadOnlyList<float> Amplitudes);
 
 /// <summary>
@@ -157,7 +158,8 @@ public sealed record GaugeLobes(float Ratio, float Phase, IReadOnlyList<float> A
 /// <param name="Input">rotate, slide, swing: the input in place of θ. <see cref="DriverInput.Travel"/>
 /// (ψ, the shaft's travel) keeps turning the same way whichever way the shaft turns (a one-way
 /// catch's gear); the mill writes it as <c>"rectified": true</c>.</param>
-/// <param name="Amounts">gauge: the full motion per class, [none, thin, thick].</param>
+/// <param name="Amounts">gauge: the full motion, indexed by class (<see cref="RigClasses"/>), 0 for a class it
+/// does not name.</param>
 /// <param name="Windows">gauge, <c>occupy</c> mode: where the trunk is felt.</param>
 /// <param name="Present">gauge: <c>"mode": "present"</c>, engaged by presence alone.</param>
 /// <param name="Lobes">gauge, rotating only: the four-lobe term, or null.</param>
@@ -570,19 +572,15 @@ public sealed class RigParts
         return new GaugeWindow(from, to, ease, PerClass(w, "gain", where + " window", 1));
     }
 
-    /// <summary>A <c>{"thin": a, "thick": b}</c> object as [0, a, b]. With a
-    /// <paramref name="fallback"/> the object and each key are optional; without one both keys are
-    /// required.</summary>
+    /// <summary>A per-class object (<see cref="RigClasses"/>) as an array indexed by class. With a
+    /// <paramref name="fallback"/> (a gain's 1) the object is optional, may name no class, and a class it
+    /// does not name has the fallback; without one (an amount, an amplitude) it is required, names a class
+    /// or more, and a class it does not name has 0.</summary>
     private static float[] PerClass(JsonElement obj, string key, string where, float? fallback)
     {
         if (!obj.TryGetProperty(key, out var v))
-            return fallback is float f ? [0, f, f] : throw new FormatException($"{where}: needs an {key} of {{\"thin\", \"thick\"}}");
-        if (v.ValueKind != JsonValueKind.Object)
-            throw new FormatException($"{where}: {key} must be an object of {{\"thin\", \"thick\"}}");
-        float One(string name) => v.TryGetProperty(name, out var n) && n.ValueKind == JsonValueKind.Number ? n.GetSingle()
-            : fallback is float f ? f
-            : throw new FormatException($"{where}: {key} needs a {name}");
-        return [0, One("thin"), One("thick")];
+            return fallback is float f ? RigClasses.Uniform(f) : throw new FormatException($"{where}: needs an {key}, keyed by class");
+        return RigClasses.Parse(v, $"{where}: {key}", fallback ?? 0, mayBeEmpty: fallback != null);
     }
 
     private static Float3 Point(JsonElement d, string key, string where, string type)

@@ -418,8 +418,8 @@ def check_spring(v):
     east edge from the shoulder. Every 1/96 of W: one unbroken wire, each side's start at the end of the one before it,
     the rod's next piece (the follower) along the edge from the end of the side being wound, the head (the last side) on
     it with the rod's far end; the sides still to come inside the head; no two pieces that are not joined overlapping.
-    The straight rod at the start of each side's swing never longer than at the one before. Classes 1 and 2 pose the
-    spring alike."""
+    The straight rod at the start of each side's swing never longer than at the one before. The spring moves for its own
+    class (3) alone, the hollows never for it."""
     m = v.m
     C, n, Q = m.COIL, m.COIL.sides, m.QUARTER
     head = m.spring_name(n - 1)
@@ -539,16 +539,17 @@ def check_spring(v):
           f"{worst_axial:.1e}), the sides to come and the far end inside the head, no pieces not joined overlapping; the straight "
           f"rod {lengths[0]:.2f} long as the first side is bent, {lengths[-1]:.2f} as the last, shorter at every side")
 
-    # classes 1 and 2 pose it alike
+    # the class is the job: the spring moves for its class alone, the hollows never for it
+    hollows = [p["id"] for p in v.parts if p["requires"] in ("hollowlead", "hollowcopper")]
     worst = 0.0
     for i in range(0, 4 * n + 1, 3):
         W = i / (4 * n)
-        for pid in sides + ["sptail"]:
-            a = v.mat(pid, m.spring_at(W, k=1))
-            b = v.mat(pid, m.spring_at(W, k=2))
-            worst = max(worst, max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)))
+        for k, pids in ((0, sides + ["sptail"]), (1, sides + ["sptail"]), (2, sides + ["sptail"]), (m.SPRING_CLASS, hollows)):
+            for pid in pids:
+                a = v.mat(pid, m.spring_at(W, k=k))
+                worst = max(worst, max(abs(a[r][c] - (1.0 if r == c else 0.0)) for r in range(3) for c in range(4)))
     if worst > 1e-12:
-        v.fail(f"the spring poses differently for classes 1 and 2 ({worst:.1e})")
+        v.fail(f"a job's parts move with another job's class ({worst:.1e})")
 
 
 def check_item(m, item):

@@ -90,7 +90,7 @@ class Rig(unittest.TestCase):
     def test_reference_poses_are_the_rigs_own_maths(self):
         poses = REFERENCE["poses"]
         self.assertGreater(len(poses), 40)
-        self.assertEqual({p["size"] for p in poses}, {0, 1, 2})
+        self.assertEqual({p["size"] for p in poses}, {0, 1, 2, 3})
         for pose in poses[::2]:
             for pid, want in pose["matrices"].items():
                 got = rigmath.part_matrix(RIG["parts"], pid, inputs(pose), RIG["work"])
@@ -108,7 +108,7 @@ class Forge(unittest.TestCase):
         self.assertNotIn("trunkPath", RIG)
         w = rigmath.progress_of(RIG)
         self.assertEqual((w["name"], w["unit"]), ("blows", "hollows"))
-        self.assertEqual(w["end"], {"thin": 1.0, "thick": 1.0})
+        self.assertEqual(w["end"], {"thin": 1.0, "thick": 1.0, "3": 1.0})
         forge = RIG["forge"]
         self.assertEqual(forge["hollows"], {"thin": "game:chutesection-lead", "thick": "game:chutesection-copper"})
         self.assertEqual(forge["sections"], {"thin": "seraphhorizons:pipesection-lead", "thick": "seraphhorizons:pipesection-copper"})
@@ -174,9 +174,11 @@ def posed_parts(pids, **ins):
 class Spring(unittest.TestCase):
     def test_one_rod_makes_one_spring_wound_as_one_chain(self):
         wind = RIG["wind"]
-        self.assertEqual((wind["rod"], wind["spring"], wind["springsPerRod"], wind["class"]),
-                         ("game:rod-steel", "seraphhorizons:spring-steel", 1, 1))
+        self.assertEqual((wind["rod"], wind["spring"], wind["springsPerRod"], wind["class"], wind["hot"]),
+                         ("game:rod-steel", "seraphhorizons:spring-steel", 1, 3, ["rodsteel"]))
         self.assertAlmostEqual(wind["turnsPerRod"], make_shape.WIND_TURNS)
+        # its own class: a job of 1 for it as for each hollow's
+        self.assertEqual(rigmath.work_end(RIG["work"], 3), 1.0)
         parts = [p for p in RIG["parts"] if p["requires"] == "rodsteel"]
         self.assertEqual([p["id"] for p in parts], SIDES + ["sptail"])
         # each side rides the one before it, the rod's far end the last side
@@ -184,7 +186,7 @@ class Spring(unittest.TestCase):
 
     def test_wound_it_is_the_coil_machinegen_draws(self):
         coil = Coil((make_shape.X0, make_shape.YM), make_shape.MH, make_shape.WIRE, make_shape.COIL_PITCH, make_shape.SPRING_Z0, 6)
-        els = posed_parts(set(SIDES), work=1.0, size=1, presence=1.0)
+        els = posed_parts(set(SIDES), work=1.0, size=3, presence=1.0)
         for j, pid in enumerate(SIDES):
             want = coil.side(j, "x", "x", "spring")
             self.assertLess(max(abs(els[pid].c[i] - want.c[i]) for i in range(3)), 1e-3, pid)
@@ -195,7 +197,7 @@ class Spring(unittest.TestCase):
         self.assertLessEqual(hi[2], make_shape.NOSE_Z[0])
 
     def test_at_w0_a_straight_rod_along_the_top_east_edge(self):
-        els = posed_parts(set(SIDES + ["sptail"]), work=0.0, size=1, presence=1.0)
+        els = posed_parts(set(SIDES + ["sptail"]), work=0.0, size=3, presence=1.0)
         x, y = make_shape.X0 + make_shape.MH + make_shape.WIRE / 2, make_shape.YM + make_shape.MH + make_shape.WIRE / 2
         for pid, el in els.items():
             self.assertAlmostEqual(el.r[2][2], 1.0, places=9, msg=pid)
@@ -205,15 +207,23 @@ class Spring(unittest.TestCase):
         self.assertLess(lo[2] - make_shape.SHOULDER_Z[1], 0.2)
         self.assertGreater(hi[2] - lo[2], 15.0)
 
-    def test_both_classes_pose_it_alike(self):
-        for W in (0.0, 0.02, 0.31, 0.5, 0.77, 0.96, 1.0):
-            for pid in SIDES + ["sptail"]:
-                a = matrix(pid, work=W, size=1, presence=1.0)
-                b = matrix(pid, work=W, size=2, presence=1.0)
-                self.assertEqual([[round(v, 12) for v in r] for r in a], [[round(v, 12) for v in r] for r in b], pid)
+    def test_the_class_is_the_job(self):
+        # the spring moves for its class (3) alone; the hollows never with it
+        ident = [[1.0 if r == c else 0.0 for c in range(4)] for r in range(3)]
+        hollows = [p["id"] for p in RIG["parts"] if p["requires"] in ("hollowlead", "hollowcopper")]
+        for W in (0.02, 0.31, 0.5, 0.77, 1.0):
+            for k, pids in ((0, SIDES), (1, SIDES), (2, SIDES), (3, hollows)):
+                for pid in pids:
+                    got = matrix(pid, work=W, size=k, presence=1.0)
+                    self.assertEqual([[round(v, 12) + 0.0 for v in r] for r in got[:3]], ident, f"{pid} with class {k}")
+            self.assertNotEqual(matrix("sp1u", work=W, size=3, presence=1.0)[0][0], 1.0)
+        for p in RIG["parts"]:
+            if p["requires"] == "rodsteel":
+                for d in p["drivers"]:
+                    self.assertEqual(list(d["amount"]), ["3"], p["id"])
 
     def test_the_item_is_the_wound_coil(self):
-        wound = posed_parts(set(SIDES), work=1.0, size=1, presence=1.0)
+        wound = posed_parts(set(SIDES), work=1.0, size=3, presence=1.0)
         item = {el.name: el for el in flatten(ITEM["elements"], textures={})}
         self.assertEqual(sorted(item), sorted(f"{pid}_wire" for pid in SIDES))
         d = None

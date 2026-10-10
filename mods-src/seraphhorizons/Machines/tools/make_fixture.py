@@ -25,9 +25,14 @@ The file (format 2):
     badProgress  [{id, rig, error}]: rig progress declarations every parser must reject
 
 `inputs` always carries all nine keys (theta, depth, lifting, travel, work, size, presence,
-feed, oil; size is the class 0 none / 1 thin / 2 thick; "work" is W, a trunk's travel on a
-trunkPath). Matrices are 4 rows of 4, block units, row-major (row i, column j; translation in
-column 3), rounded to 9 places: compare within 1e-6.
+feed, oil; size is the class 0 none / 1 thin / 2 thick / 3 (and on, to 9) a further class keyed by
+its number; "work" is W, a trunk's travel on a trunkPath). Matrices are 4 rows of 4, block units,
+row-major (row i, column j; translation in column 3), rounded to 9 places: compare within 1e-6.
+
+Per-class values (amount, gain, lobes' amplitude, work's end) are keyed "thin", "thick", "3" .. "9";
+a class a value does not name has none of it (amount and amplitude 0, gain 1, end 0). The cases with
+class 3, and the drivers and parts that name it, come after the older ones in each list, so the older
+cases keep their inputs.
 """
 
 from __future__ import annotations
@@ -41,7 +46,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from machinegen.rigmath import (driver_matrix, full_inputs, part_matrix, progress_of, trunk_end,  # noqa: E402
-                                trunk_length, validate_driver)
+                                trunk_length, validate_driver, work_end)
 
 OUT = Path(__file__).resolve().parents[2] / "tests" / "Machines" / "driver-fixture.json"
 
@@ -105,11 +110,18 @@ DRIVERS = [
     # `input` "work", the generic spelling of "trunk"
     ("rotate_input_work", {"type": "rotate", "axis": "z", "pivot": P2, "ratio": 0.8125, "input": "work"}),
     ("slide_input_work", {"type": "slide", "axis": "y", "amplitude": 0.125, "ratio": 2.5, "phase": 0.5, "input": "work"}),
+    # classes past thick, and per-class values that name only some classes (the others have none)
+    ("gauge_occupy_thin_only", {"type": "gauge", "motion": "slide", "axis": "x", "amount": {"thin": 0.4375}, "windows": [W1]}),
+    ("gauge_occupy_class3", {"type": "gauge", "motion": "rotate", "axis": "y", "pivot": P3, "amount": {"thin": 0.25, "3": -0.625},
+                             "windows": [W1, {"from": 5.0, "to": 8.0, "ease": 0.75, "gain": {"3": 2.0}}]}),
+    ("gauge_present_class3_lobes", {"type": "gauge", "motion": "rotate", "axis": "z", "pivot": P1, "mode": "present",
+                                    "amount": {"3": 0.5}, "lobes": {"ratio": 3.0, "phase": 0.5, "amplitude": {"3": 0.0625}}}),
+    ("gauge_present_class9", {"type": "gauge", "motion": "slide", "axis": "z", "mode": "present", "amount": {"thick": 0.125, "9": -0.25}}),
 ]
 
 # The generic progress: a quantity counted in its own unit (parts made, say), a point on its own
 # scale. Its drivers' windows are where W is, with nothing behind it.
-WORK = {"name": "parts made", "unit": "parts", "step": 0.25, "end": {"thin": 6.0, "thick": 9.0}}
+WORK = {"name": "parts made", "unit": "parts", "step": 0.25, "end": {"thin": 6.0, "thick": 9.0, "3": 4.0}}
 WORK_DRIVERS = [
     ("work_gauge_occupy_rotate_lobes", {"type": "gauge", "motion": "rotate", "axis": "x", "pivot": P1,
                                         "amount": {"thin": 0.35, "thick": -0.2}, "windows": [W1, W2], "lobes": LOBES}),
@@ -121,6 +133,9 @@ WORK_DRIVERS = [
     ("work_gauge_present", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"thin": 0.1, "thick": 0.3}}),
     ("work_rotate_input_work", {"type": "rotate", "axis": "z", "pivot": P1, "ratio": -1.9, "input": "work"}),
     ("work_slide_input_trunk", {"type": "slide", "axis": "x", "amplitude": 0.2, "ratio": 1.5, "input": "trunk"}),
+    # a part that moves only for class 3, in quarters of its work (the mandrel station's spring's kind)
+    ("work_gauge_class3_only", {"type": "gauge", "motion": "rotate", "axis": "x", "pivot": P2, "amount": {"3": 1.25},
+                                "windows": [{"from": 1.0, "to": 1000.0, "ease": 1.0}, {"from": 2.5, "to": 3.5, "ease": 0.5, "gain": {"3": 0.5}}]}),
 ]
 WORK_INVALID = [
     ("roll_on_work", {"type": "roll", "axis": "z", "pivot": P2, "at": 4.0, "ratio": 2.5}, "a roll needs a trunkPath"),
@@ -128,8 +143,13 @@ WORK_INVALID = [
 BAD_PROGRESS = [
     ("both", {"trunkPath": PATH, "work": WORK}, "work and a trunkPath"),
     ("no_unit", {"work": {"end": {"thin": 1.0, "thick": 2.0}}}, "no unit"),
-    ("end_thin_only", {"work": {"unit": "parts", "end": {"thin": 1.0}}}, "end without thick"),
+    ("end_no_class", {"work": {"unit": "parts", "end": {}}}, "end names no class"),
+    ("end_not_object", {"work": {"unit": "parts", "end": 3.0}}, "end not an object keyed by class"),
+    ("end_unknown_class", {"work": {"unit": "parts", "end": {"thin": 1.0, "medium": 2.0}}}, "end names a key that is no class"),
+    ("end_class_by_number", {"work": {"unit": "parts", "end": {"1": 1.0}}}, "thin is \"thin\", not \"1\""),
+    ("end_class_too_high", {"work": {"unit": "parts", "end": {"10": 1.0}}}, "a class past 9"),
     ("end_zero", {"work": {"unit": "parts", "end": {"thin": 0.0, "thick": 2.0}}}, "end not above 0"),
+    ("end_class3_zero", {"work": {"unit": "parts", "end": {"thin": 1.0, "3": 0.0}}}, "end not above 0 for class 3"),
     ("step_zero", {"work": {"unit": "parts", "step": 0.0, "end": {"thin": 1.0, "thick": 2.0}}}, "step not above 0"),
     ("trunk_keys", {"work": {"unit": "parts", "end": {"thin": 1.0, "thick": 2.0}, "lengths": {"thin": 1.0, "thick": 1.0}}},
      "a trunkPath's key in work"),
@@ -149,8 +169,25 @@ INVALID = [
                              "windows": [W1, {"from": 1.0, "to": 2.0, "ease": -0.5}]}, "ease <= 0"),
     ("gauge_to_not_past_from", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0, "thick": 1.0},
                                 "windows": [{"from": 2.0, "to": 2.0, "ease": 0.5}]}, "to <= from"),
-    ("gauge_amount_thin_only", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0}, "windows": [W1]},
-     "amount without thick"),
+    ("gauge_amount_empty", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {}, "windows": [W1]}, "amount names no class"),
+    ("gauge_amount_unknown_class", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0, "medium": 1.0},
+                                    "windows": [W1]}, "a key that is no class"),
+    ("gauge_amount_class_by_number", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"2": 1.0}},
+     "thick is \"thick\", not \"2\""),
+    ("gauge_amount_class_zero", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"0": 1.0}},
+     "0 is none, not a class"),
+    ("gauge_amount_class_too_high", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"10": 1.0}},
+     "a class past 9"),
+    ("gauge_amount_class_padded", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"03": 1.0}},
+     "class 3 is \"3\", not \"03\""),
+    ("gauge_amount_not_number", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"thin": "1"}},
+     "an amount that is not a number"),
+    ("gauge_amount_not_object", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": 1.0},
+     "a gauge's amount is per class"),
+    ("gauge_gain_unknown_class", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0},
+                                  "windows": [{"from": 1.0, "to": 2.0, "ease": 0.5, "gain": {"huge": 1.0}}]}, "a gain keyed by no class"),
+    ("gauge_lobes_amplitude_empty", {"type": "gauge", "motion": "rotate", "axis": "x", "pivot": P1, "mode": "present",
+                                     "amount": {"3": 1.0}, "lobes": {"ratio": 1.0, "amplitude": {}}}, "lobes' amplitude names no class"),
     ("gauge_amount_missing", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present"}, "no amount"),
     ("gauge_occupy_no_windows", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0, "thick": 1.0}},
      "occupy (the default) without windows"),
@@ -213,8 +250,17 @@ RIG_PARTS = [
     {"id": "trip", "match": ["trip_*"], "requires": "levers",
      "drivers": [{"type": "step", "motion": "rotate", "axis": "x", "pivot": P1, "amount": -0.5, "from": 0.9375, "to": 1.0,
                   "lifting": "trip", "top": 0.0625}]},
+    # a coil that winds only for class 3, riding the ring, and a link riding it that turns back with it (a chain of rides)
+    {"id": "coil", "match": ["coil_*"], "requires": "heads", "ride": "ring",
+     "drivers": [{"type": "gauge", "motion": "rotate", "axis": "y", "pivot": P1, "amount": {"3": 1.5},
+                  "windows": [{"from": 1.0, "to": 1000.0, "ease": 2.0}]}]},
+    {"id": "link", "match": ["link_*"], "requires": "heads", "ride": "coil",
+     "drivers": [{"type": "gauge", "motion": "rotate", "axis": "y", "pivot": P3, "amount": {"3": -1.5},
+                  "windows": [{"from": 1.0, "to": 1000.0, "ease": 2.0}]},
+                 {"type": "gauge", "motion": "slide", "axis": "z", "mode": "present", "amount": {"thin": 0.0625, "3": 0.25}}]},
     {"id": "frame", "match": ["*"], "requires": None, "drivers": []},
 ]
+CLASS_SWEEP = (3, 9, 10)                     # class 3 and the last class; 10 is past the last, so none
 
 
 def r9(v):
@@ -249,6 +295,9 @@ def general():
             pose(19, 0.25, 1, 0.3, 0.03, 1.0), pose(20, 9.0, 2, 0.0, 0.5, 0.25)]
     for p in out[-5:]:
         p["theta"] = -p["theta"]                 # negative angles, so rectified and theta differ
+    # the classes past thick, after the older cases (clocks seeded from small indices: a float32 matrix keeps
+    # 1e-6 only while the shaft's travel stays modest)
+    out += [pose(2 + j, r6(1.5 + 2.25 * j), k, (1.0, 0.3)[j % 2]) for j, k in enumerate(CLASS_SWEEP)]
     return out
 
 
@@ -286,6 +335,18 @@ def trunk_cases(d, path=None):
         for p in (0.0, 0.3):
             out.append(pose(i, t, k, p))
             i += 1
+    # the classes past thick, after the older cases: the same travels and the class's own end, full and eased
+    ts3 = set(ts) | {work_end(path, k) for k in CLASS_SWEEP}
+    for t in sorted(ts3):
+        for k in CLASS_SWEEP:
+            out.append(pose(i, t, k, 1.0))
+            i += 1
+    for w in d.get("windows", []) if d.get("mode", "occupy") == "occupy" else []:
+        t = ((w["from"] + w["ease"] + w["to"]) / 2 if w["to"] < 100 else w["from"] + 2 * w["ease"]) - nose0
+        for k in CLASS_SWEEP[:2]:
+            for p in (0.0, 0.3):
+                out.append(pose(i, t, k, p))
+                i += 1
     return out
 
 
@@ -298,6 +359,8 @@ def rig_poses():
         plan.append((trunk_end(PATH, k), k, 1.0))
         plan.append((trunk_end(PATH, k) - 0.125, k, 0.3))
     plan += [(2.75, 1, 0.3), (2.75, 2, 0.0), (6.0, 2, 0.3), (1.0, 2, 0.3)]
+    # the classes past thick, after the older poses
+    plan += [(t, 3, 1.0) for t in (0.0, 1.0, 2.0, 2.75, 3.0, 6.0)] + [(2.0, 3, 0.3), (2.0, 9, 1.0), (2.0, 10, 1.0)]
     return [pose(i, t, k, p) for i, (t, k, p) in enumerate(plan)]
 
 

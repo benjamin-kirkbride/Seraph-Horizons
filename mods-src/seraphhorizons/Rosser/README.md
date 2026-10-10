@@ -684,8 +684,10 @@ trunk-flavoured spelling, in a driver's `input` and a pose).
 | `gauge` | `motion` (`slide` or `rotate`), `axis`, `pivot` (rotate), `amount: {thin, thick}`, `mode` (`occupy`, the default, or `present`), `windows: [{from, to, ease, gain: {thin, thick}}]` (occupy), `lobes: {ratio, phase, amplitude: {thin, thick}}` (rotate only) | A motion set by the trunk at a place. With no trunk e = 0; `present`: e = p; `occupy`: e = p × the most engaged window's min(1, gain[k] × occupancy), occupancy = clamp((nose − from) / ease, 0, 1) × clamp((to − tail) / ease, 0, 1). It moves by amount[k] × e, plus e × amplitude[k] × cos(ratio × ψ + phase). A window's gain defaults to 1; windows combine by max (held in by any contact), not sum. |
 | `roll` | `axis`, `pivot`, `at` (a place on the path), `ratio` (radians per block) | An idle roller the trunk turns: by ratio × clamp(nose − at, 0, L_k) while k > 0, the identity without a trunk. It ignores p. |
 
-Parse errors (the same in Python, C# and TypeScript): `ease` ≤ 0, `to` ≤ `from`, an `amount` without
-both classes, an `occupy` gauge without windows, `lobes` on a slide or without `ratio`, an unknown
+Parse errors (the same in Python, C# and TypeScript): `ease` ≤ 0, `to` ≤ `from`, an `amount` that names no
+class or a key that is no class (per-class values are keyed `thin`, `thick` and `"3"` .. `"9"`, and a class
+one does not name has none of it: `docs/recipe-browser/models.md`, "Classes"), an `occupy` gauge without
+windows, `lobes` on a slide or without `ratio`, an unknown
 `motion` or `mode`, a rotating gauge or a roll without `pivot`, a roll without `at` or `ratio`, and a
 roll or `occupy` gauge in a rig without a `trunkPath`.
 
