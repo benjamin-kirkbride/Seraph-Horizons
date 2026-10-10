@@ -7,7 +7,7 @@ import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs,
 
 // The classifier's shipped files, and the poses Classifier/tools/make_shape.py computes from them with
 // machinegen's reference maths. Its rig reads θ alone (the entry shaft; the screen's linkage as Fourier
-// series; the trommel turned about its inclined axis between two ratio-0 swings); its scenario has one
+// series; the trommel turned about its inclined axis between two ratio-0 swings, tier 4's outer jacket riding it); its scenario has one
 // select of build states, the frame and a state per tier, which must fit the rig's `tiers`.
 // tools/tests/test_classifier_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
@@ -64,9 +64,9 @@ describe("the classifier's rig against its rig-reference.json", () => {
       feedCell: [[0, 2, 0], "west"],
       finesCell: [[1, 0, 0], "north"],
       oversizeCell: [[3, 0, 0], "east"],
-      returnCell: [[2, 0, 1], "south"],
+      middlingsCell: [[2, 0, 1], "south"],
     });
-    expect(anchors.filter((a) => a.kind === "point").map((a) => a.key).sort()).toEqual(["feed", "fines", "oversize", "return"]);
+    expect(anchors.filter((a) => a.kind === "point").map((a) => a.key).sort()).toEqual(["feed", "fines", "middlings", "oversize"]);
   });
 });
 
@@ -88,10 +88,17 @@ describe("the classifier's build states in the viewer", () => {
 
   it("takes the last tier's working parts off when the next tier's are fitted", () => {
     const all = Object.fromEntries(requires.map((r) => [r, true]));
-    const tier3 = applyState(all, group.options.find((o) => o.id === "tier3")!, groups[0]!.owns);
+    const tier2 = applyState(all, group.options.find((o) => o.id === "tier2")!, groups[0]!.owns);
+    expect(Object.keys(tier2).filter((k) => tier2[k]).sort()).toEqual(["eccentric", "grizzly", "screen"]);
+    const tier3 = applyState(tier2, group.options.find((o) => o.id === "tier3")!, groups[0]!.owns);
     expect(Object.keys(tier3).filter((k) => tier3[k]).sort()).toEqual(["bevel", "discharge", "trommel"]);
+    // tier 4 keeps tier 3's trommel and spout and adds the outer jacket and the middlings spout
     const tier4 = applyState(tier3, group.options.find((o) => o.id === "tier4")!, groups[0]!.owns);
-    expect(tier4.discharge).toBe(false);
-    expect(tier4.return).toBe(true);
+    expect(Object.keys(tier4).filter((k) => tier4[k]).sort()).toEqual(["bevel", "discharge", "jacket", "middlings", "trommel"]);
+  });
+
+  it("carries the jacket on the drum", () => {
+    const jacket = parts.find((p) => p.id === "jacket")!;
+    expect([jacket.requires, jacket.ride, jacket.drivers]).toEqual(["jacket", "drum", []]);
   });
 });

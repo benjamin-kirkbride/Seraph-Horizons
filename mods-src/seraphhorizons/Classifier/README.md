@@ -35,16 +35,14 @@ the face, in blocks):
 |---|---|---|---|---|
 | Power | `[3,1,0]`, north | (3.5, 1.5, 0) | all | The vanilla axle |
 | Feed inlet | `[0,2,0]`, west | (0, 2.6766, 0.8438) | all | Crushed ore, high at the west end: a chute from upstream (the crusher) comes in here |
-| Fines (undersize) | `[1,0,0]`, north | (1.4844, 0.1625, 0) | all | What went through the screen or the trommel's jacket: out of the fines bin's spout, low on the north side, to the next machine |
-| Oversize | `[3,0,0]`, east | (4, 0.1187, 0.75) | 2, 3 | What rode over the screen or out of the trommel's low end: down a spout, out of the east end, low |
-| Return | `[2,0,1]`, south | (2.8312, 0.1375, 2) | 4 | The trommel's oversize, back to the crusher: down the return chute, out of the south side, low |
+| Fines (undersize) | `[1,0,0]`, north | (1.375, 0.1625, 0) | all | What went through the screen, the trommel's drum (tier 3) or its outer jacket (tier 4): out of the fines bin's spout, low on the north side |
+| Oversize | `[3,0,0]`, east | (4, 0.1187, 0.75) | all | What rode over the screen or out of the drum's open low end: down a spout, out of the east end, low |
+| Middlings | `[2,0,1]`, south | (2.5312, 0.1125, 2) | 4 | Tier 4's third product, what passed the drum but not the outer jacket: off the jacket's low end, down the middlings spout, out of the south side, low (meant for the grinder) |
 
-The feed is on the top row and the three outlets on the bottom one; no two ports share a face, and none is the
-power's. The fines go on downstream; the oversize and the return go back upstream, the return to the crusher
-by the line's hand-off (#711), which is not part of this machine. The return leaves the south side at the
-discharge end rather than running back along the machine to the feed end: a chute to the feed end would fall
-under 20 degrees, too flat for coarse rock, and a machine tall enough for 30 degrees there would be four blocks
-high. A chute cannot lift the return to the crusher's feed in any layout; how it gets there is the hand-off's.
+The feed is on the top row and the outlets on the bottom one; no two ports share a face, and none is the
+power's. The middlings port is on the south side at the discharge end because that is where the jacket's
+lip drops them: between the fines bin's east end (x 38) and the discharge spout's back (x 44), a spout runs
+straight down south from under it, the shortest steep path to a face. It is unused before tier 4.
 
 **The tiers.** Each tier fits a set of parts (the rig's `requires` values and its `tiers` key); fitting a
 tier's set replaces the last tier's working parts (#711), and the frame alone is the bare machine with its
@@ -52,9 +50,9 @@ shaft turning:
 
 | Tier | Fitted | What it is | Notes |
 |---|---|---|---|
-| 2 | `grizzly`, `screen`, `eccentric` | Grizzly and screen | Batch-ish: the feed in at the inlet, the fines and the oversize collect at their outlets |
-| 3 | `trommel`, `bevel`, `discharge` | Trommel | Continuous: the outlets hand off by chute to the next machine |
-| 4 | `trommel`, `bevel`, `return` | Trommel with oversize return | The return chute in place of the discharge spout: the oversize goes back to the crusher |
+| 2 | `grizzly`, `screen`, `eccentric` | Grizzly and screen | Two products, batch-ish: the feed in at the inlet, the fines and the oversize collect at their outlets |
+| 3 | `trommel`, `bevel`, `discharge` | Trommel | Two products, continuous: the outlets hand off by chute to the next machine |
+| 4 | `trommel`, `bevel`, `discharge`, `jacket`, `middlings` | Compound trommel | Three products: tier 3's trommel and spout kept, an outer jacket and a middlings spout added |
 
 The fitting order inside a tier (what each item is and when it goes on) is not designed here; the owner sets it.
 
@@ -80,6 +78,15 @@ The fitting order inside a tier (what each item is and when it goes on) is not d
   and the fixed turn back. No driver is new, and the site's viewer and the game's rig maths already compose
   them. (A conical drum on a level shaft, the Harz pattern, would have needed only the `rotate`; it is the
   other period choice.)
+- **Tier 4 is a compound (double) trommel**, so the top tier sorts three sizes where the lower tiers sort two.
+  The drum is wrapped in a concentric outer jacket of finer mesh, carried on iron spacers from the drum's
+  middle and band rings and closed at its high end by a head ring against the drum's feed ring: it turns with
+  the drum (it rides it in the rig, no new driver). As period compound trommels were, the jacket is shorter
+  than the drum (29.6 voxels against 35): the drum's oversize runs off its own open low end, past the jacket,
+  as at tier 3; what the drum lets through but the jacket does not (the middlings) runs along the jacket's
+  bottom, over its blank band and its lip, off its low end; what the jacket lets through (the fines) falls to
+  the bin. The jacket's rings are 9.4 in radius, as large as the frame's north mid post (z 4) and the bin
+  allow: the bin's rim came down a voxel to 14.5 for it.
 - **The grizzly is replaced at tier 3, not kept as a scalper.** #711 has a tier's set replace the last
   tier's working parts, and the grizzly stands where the trommel's feed chute does. Keeping it ahead of the
   trommel would be realistic: see "Open for the owner".
@@ -98,8 +105,8 @@ divided by 16.
 top rails, end ties and three top cross beams (x 13, 38, 46: the grizzly's straps and the screen's head
 hangers; the screen's tail hangers; the trommel's east bearing); knee braces in the side frames; a west tie
 under the **feed inlet chute** (planks, x 0..5, its lip at y 39.9, an iron lip bearer under it); the **fines
-bin** (plank sides on the sills, rim at y 15.5, a V floor falling 35 degrees from both ends to its middle and a
-spout out of the north side); the **entry shaft** in its two pillow blocks.
+bin** (plank sides on the sills, x 6..38, rim at y 14.5, a V floor falling 36 degrees from both ends to its
+middle and a spout out of the north side); the **entry shaft** in its two pillow blocks.
 
 **Tier 2: grizzly and screen.**
 
@@ -109,10 +116,11 @@ spout out of the north side); the **entry shaft** in its two pillow blocks.
   the lumps run off the foot onto the screen.
 - The **screen**: a tray 12 wide, its deck of wire cloth (the punched or woven screen) between plank side
   boards, a blank feed plate at its head under the grizzly and a blank tail plate, iron cross bars under it,
-  falling 6 degrees to the east. It hangs on four iron **hangers**, 13 long, from brackets under the top cross
-  beams; its stroke is 2.5 voxels, the hangers swinging 5.5 degrees either way. What goes through the deck falls
-  into the fines bin; what rides over it goes off the tail lip into the **tail spout** (planks, falling 39
-  degrees to the oversize outlet).
+  falling 6 degrees to the east. Its wire cloth ends at x 36.5, so at every point of its stroke it is over the
+  bin. It hangs on four iron **hangers**, 13 long, from brackets under the top cross beams; its stroke is 2.5
+  voxels, the hangers swinging 5.5 degrees either way. What goes through the deck falls into the fines bin;
+  what rides over it goes off the tail lip into the **tail spout** (planks, falling 39 degrees to the oversize
+  outlet).
 - The **eccentrics** and their **rods**: a sheave on each end of the entry shaft (throw 1.25), a strap round
   it and a bar to an eye on the screen's tail pin on that side (13.1 long).
 
@@ -121,19 +129,29 @@ spout out of the north side); the **entry shaft** in its two pillow blocks.
 - The **trommel**: a drum 15 voxels across and 35 long, its axis falling 1 in 12 from (x 10.2, y 27.8) at the
   feed end to (45.0, 24.9) at the discharge, through the entry shaft's axis at (56, 24). Its jacket is wire
   cloth in two lengths between iron rings (a feed ring with the feed opening, 6.4 in radius; a middle ring; a
-  lip ring at the low end, which the oversize rides over), with a blank band before the lip, on two spiders
-  (a hub and six arms) on a steel shaft. The shaft runs in a pillow block at the feed end, on a pedestal on a
-  cross timber across the girts, and in one at the discharge end, hung from the third top cross beam.
+  band ring where the cloth ends at 37; a lip ring at the low end, which the oversize rides over), with a blank
+  band before the lip, on two spiders (a hub and six arms) on a steel shaft. The shaft runs in a pillow block
+  at the feed end, on a pedestal on a cross timber across the girts, and in one at the discharge end, hung from
+  the third top cross beam.
 - The **feed chute** (sheet iron): its head under the inlet's lip, a funnel plate falling 60 degrees down the
   chute and 15 across, south into a throat 2.2 wide that runs beside the shaft into the feed opening.
 - The **bevel pair**: the pinion of 8 on the entry shaft, the wheel of 24 on the trommel's shaft past its
   east bearing, module 0.5, their pitch cones meeting at the apex.
-- What goes through the jacket falls into the fines bin; the oversize goes over the lip into the
-  **discharge spout** (planks, 31 degrees, to the oversize outlet).
+- What goes through the drum falls into the fines bin; the oversize goes over the lip into the **discharge
+  spout** (planks, 32 degrees, to the oversize outlet).
 
-**Tier 4: trommel with oversize return.** The same trommel and bevel pair; the **return chute** (planks,
-falling 29 degrees south) takes the oversize from under the lip out of the south side, the return outlet, in
-place of the discharge spout.
+**Tier 4: compound trommel.** The same drum, bevel pair and discharge spout, and:
+
+- The **outer jacket**: fine mesh (`game:block/metal/mesh5`, finer than the drum's `mesh2`) 17.9 across, from
+  the drum's feed ring to 5.4 voxels short of its lip, in two lengths and a blank band before its own lip ring;
+  a head ring closing its high end against the drum's feed ring; a middle ring outside the mesh (no lip in the
+  annulus); six iron spacers at each of the drum's middle and band rings, out to the jacket. The annulus
+  between the drum's rings and the jacket's mesh is 0.7 voxels clear (1.15 from the drum's cloth).
+- The **middlings spout** (planks, falling 28 degrees south): its back board north of where the middlings fall,
+  between the bin's east end and the discharge spout, down to the middlings outlet on the south face.
+- So three products: the **oversize** off the drum's open low end down the discharge spout (east), the
+  **middlings** off the jacket's low end down the middlings spout (south), and the **fines** through the
+  jacket into the bin (north).
 
 ### Every moving part
 
@@ -152,11 +170,12 @@ generator, which holds every pin to within 3e-5 voxels.
 | Tail spout (`tailspout`) [screen] | Fixed | — | none |
 | Grizzly (`grizzly`) [grizzly] | Fixed | — | none |
 | Bevel pinion (`pinion`) [bevel] | Keyed on the entry shaft | The bevel wheel | ride `entry` |
-| Trommel: drum, spiders, shaft (`drum`) [trommel] | The bevel wheel | — (screens the ore) | `swing` z ratio 0 (the tilt, levelled), `rotate` x ratio −1/3 about the apex, `swing` z ratio 0 (tilted back) |
+| Trommel: drum, spiders, shaft (`drum`) [trommel] | The bevel wheel | The outer jacket (tier 4) | `swing` z ratio 0 (the tilt, levelled), `rotate` x ratio −1/3 about the apex, `swing` z ratio 0 (tilted back) |
 | Bevel wheel (`wheel`) [bevel] | The pinion | The trommel's shaft | ride `drum` |
+| Outer jacket, its rings and spacers (`jacket`) [jacket] | The drum (on its spacers) | — (screens the middlings from the fines) | ride `drum` |
 | Bearings, timber, hanger, feed chute (`mount`) [trommel] | Fixed | — | none |
 | Discharge spout (`discharge`) [discharge] | Fixed | — | none |
-| Return chute (`return`) [return] | Fixed | — | none |
+| Middlings spout (`middlings`) [middlings] | Fixed | — | none |
 | Frame (`frame`) | Fixed | — | none |
 
 Toothed wheels and what they mesh: the bevel pinion and the bevel wheel, nothing else.
@@ -165,16 +184,17 @@ Toothed wheels and what they mesh: the bevel pinion and the bevel wheel, nothing
 
 Everything in the model was made for this mod; no other mod's model is used. It wears the game's textures:
 debarked oak for the frame's timbers and the axle's continuation (`oak`), oak planks for the chutes, the bin and
-the screen's sides (`planks`), the iron plate for castings, bars, rings, spiders and fittings (`iron`), plain
-steel for the shafts and gears (`steel`), iron sheet for the blank plates and the feed chute (`sheet`), and the
-game's wire mesh `game:block/metal/mesh2` for the screen's deck and the trommel's jacket (`mesh`, a texture
-with holes: whether the renderer draws it see-through is for the game to show). `tools/make_shape.py` writes:
+the screen's sides (`planks`), the iron plate for castings, bars, rings, spiders, spacers and fittings (`iron`),
+plain steel for the shafts and gears (`steel`), iron sheet for the blank plates and the feed chute (`sheet`), the
+game's wire mesh `game:block/metal/mesh2` for the screen's deck and the drum (`mesh`), and its finer
+`game:block/metal/mesh5` for the outer jacket (`finemesh`). Both meshes are textures with holes: whether the
+renderer draws them see-through is for the game to show. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/classifier.json` | The whole machine, every tier's parts (341 elements). Tier 2's grizzly and screen and tier 3's trommel stand in the same space: the rig says which are fitted. |
+| `assets/seraphhorizons/shapes/block/classifier.json` | The whole machine, every tier's parts (489 elements). Tier 2's grizzly and screen and tier 3's trommel stand in the same space: the rig says which are fitted. |
 | `assets/seraphhorizons/shapes/block/classifier_frame.json` | The static frame only (52 elements): what a block would draw. |
-| `assets/seraphhorizons/config/classifier-rig.json` | Footprint, power and ports, the tiers' sets, the trommel's figures and the part rig (20 parts). |
+| `assets/seraphhorizons/config/classifier-rig.json` | Footprint, power and ports, the tiers' sets, the trommel's figures and the part rig (21 parts). |
 | `tests/Classifier/rig-reference.json` | Every part's matrix at 15 axle angles, from the reference maths. |
 
 The cells' boxes are rebuilt from the shipped, rounded shape posed at rest by the shipped rig, from the frame
@@ -187,11 +207,13 @@ no oil: θ is the only input.
 
 - `cells`, `powerCell` and `powerFace`.
 - The ports: `feedCell`/`feedFace`, `finesCell`/`finesFace`, `oversizeCell`/`oversizeFace` and
-  `returnCell`/`returnFace`, and `feed`, `fines`, `oversize` and `return` as `{ "pos": [x, y, z] }`, where
-  material crosses each face (the inlet's middle; each outlet chute's floor at its face, a little above it).
+  `middlingsCell`/`middlingsFace`, and `feed`, `fines`, `oversize` and `middlings` as `{ "pos": [x, y, z] }`,
+  where material crosses each face (the inlet's middle; each outlet chute's floor at its face, a little above
+  it).
 - `tiers`: `{ "2": [...], "3": [...], "4": [...] }`, the `requires` values each tier fits.
-- `trommel`: `turnsPerAxleTurn` (1/3, the bevel pair's 8:24) and `slope` (1/12). A gameplay pace that
-  counts the trommel's turns should take it from here, or a test should hold the two together.
+- `trommel`: `turnsPerAxleTurn` (1/3, the bevel pair's 8:24; tier 4's jacket turns with the drum) and `slope`
+  (1/12). A gameplay pace that counts the trommel's turns should take it from here, or a test should hold the
+  two together.
 - `parts`: `{id, match, requires, ride, drivers}`, first match wins, `frame` last.
 
 **In the viewer** (`site/models.json`, id `classifier`): a select of the build state ("The frame" and one
@@ -206,7 +228,7 @@ python3 mods-src/seraphhorizons/Classifier/tools/make_shape.py --out DIR    # or
 python3 mods-src/seraphhorizons/Classifier/tools/make_shape.py --quick      # skips the z-fighting fix and check (not for files that ship)
 ```
 
-A full run takes about ten seconds. Output is deterministic: two runs into two folders `diff -r` clean.
+A full run takes about fifteen seconds. Output is deterministic: two runs into two folders `diff -r` clean.
 
 ## Validation (`tools/validate_classifier.py`)
 
@@ -220,26 +242,32 @@ or a tier's set fitted): tier 2's and tier 3's parts share space, so every check
 - **Containment:** nothing leaves the 4 × 3 × 2 box, in any state, over the trommel's cycle.
 - **Power and ports:** the entry shaft meets the power face at the cell's centre; each port's point on its
   cell's face, on the outside of the footprint, the feed on the top row and the outlets on the bottom, no two
-  on one face; each outlet chute's floor (the fines spout, both oversize spouts, the return chute) and the
+  on one face; each outlet chute's floor (the fines spout, both oversize spouts, the middlings spout) and the
   inlet's floor under its port's point.
 - **Textures** by role (oak timbers, plank chutes, iron fittings, steel shafts and gears, sheet-iron blank
-  plates, wire-cloth screens), and every element under a rule.
+  plates, wire-cloth screens, the finer jacket), and every element under a rule.
 - **The bevel pair:** the pitch cones share their cone distance, the radii are the teeth's ratio, and the
   pitch point moves alike on both gears at 13 angles (finite differences of the posed rig); the trommel turns
   about its own inclined axis (a point on the axis stays put) and three axle turns turn it once, the other way.
+- **The compound trommel:** the jacket turns with the drum (its matrix the drum's at every angle); it is
+  concentric with the drum (its mesh and band 8.9 to 9.2 from the axis), its mesh at least 0.5 clear of the
+  drum's rings; it is at least 4 voxels shorter than the drum at the low end; and its middlings fall between
+  the bin's end and the discharge spout's back.
 - **The linkage:** over a turn, each rod's big end on its eccentric's centre and its small end on the screen's
   pin, each hanger's top on its bracket's pin and its foot on the screen's; the screen moves without turning;
   its stroke the eccentric's throw twice.
 - **Supports:** the entry shaft in its two pillow blocks; the trommel's shaft, looked at level, in its two.
 - **Where material falls** (rays straight down, at several angles as the screen and the drum move): off the
-  inlet's lip onto the grizzly's bars (tier 2) or into the feed chute (tier 3); between the grizzly's bars and
-  off its foot onto the screen; through the screen's deck and the trommel's jacket into the fines bin; off the
-  screen's tail into its spout; off the feed chute's lip into the drum (clear of its shaft); off the trommel's
-  lip into the discharge spout (tier 3) or the return chute (tier 4).
+  inlet's lip onto the grizzly's bars (tier 2) or into the feed chute (tiers 3 and 4); between the grizzly's
+  bars and off its foot onto the screen; through the screen's deck and the drum into the fines bin; off the
+  screen's tail into its spout; off the feed chute's lip into the drum (clear of its shaft); off the drum's lip
+  into the discharge spout (tiers 3 and 4); and at tier 4 the three products: what passes the drum onto the
+  outer jacket, the fines through the jacket into the bin, the middlings off the jacket's lip into the
+  middlings spout.
 - **Clearances:** over each state's cycle (114 poses) no two parts touch except the intended contacts
-  (`ALLOWED`: shafts in bearings, fittings on their shafts, the bevel pair, the rods' straps and eyes, the
-  hangers' pins, fixed parts on the frame).
-- **No z-fighting** (full runs): no coplanar overlapping faces among what one state shows, at six poses.
+  (`ALLOWED`: shafts in bearings, fittings on their shafts, the bevel pair, the jacket's head ring and spacers on
+  the drum's rings, the rods' straps and eyes, the hangers' pins, fixed parts on the frame).
+- **No z-fighting** (full runs): no coplanar overlapping faces among what one state shows, at seven poses.
 - **Files:** every texture declared; a lid over every column; the shipped model is the checked one moved.
 
 `tools/tests/test_classifier_model.py` holds the written files to these without the generator's state (and
@@ -250,8 +278,8 @@ the site's rig maths and checks the viewer's states against the rig's tiers.
 
 Element names are the rig's interface (first-match globs, in the rig's order): `entry_*`, `eccn_*`, `eccs_*`,
 `rodn_*`, `rods_*`, `screen_*`, `hanger1_*`..`hanger4_*`, `brackets_*`, `tailspout_*`, `grizzly_*`,
-`pinion_*`, `drum_*`, `wheel_*`, `mount_*`, `discharge_*`, `return_*`, and `fr_*` for the frame. Hand edits are
-lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
+`pinion_*`, `drum_*`, `wheel_*`, `mount_*`, `discharge_*`, `jacket_*`, `middlings_*`, and `fr_*` for the frame.
+Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Open for the owner
 
@@ -262,22 +290,23 @@ lost when the script runs again: port them into `make_shape.py`, or stop regener
    water port, which would be a fifth fixed face) is the period wet-screening practice; whether the classifier
    draws water at any tier is undecided in the epic.
 3. **The fitting order inside each tier**, and what each set costs: the `requires` ids are one per set
-   (`grizzly`, `screen`, `eccentric`; `trommel`, `bevel`, `discharge`; `return`), not a build order.
-4. **The return outlet's place.** On the south side at the discharge end, low. From there the hand-off (#711)
-   has to carry the oversize up to the crusher's feed, which no chute can do; a bucket elevator would, and is
-   not modelled.
-5. **One shaking screen under the grizzly** stands for tier 2's "screens". A second deck (a finer screen
-   under the first, its oversize to a middlings outlet) would mean a third product the line has no stage for.
-6. **Tailings.** The classifier makes none: both its products go on (the fines down the line, the oversize
-   back). If the epic's "every stage after crushing leaves tailings" covers classifying, a tailings face is
-   missing.
-7. **Collision boxes at every tier are the finished machine's** (tier 4): at tier 2 the trommel's space is
+   (`grizzly`, `screen`, `eccentric`; `trommel`, `bevel`, `discharge`; `jacket`, `middlings`), not a build order.
+4. **Where the middlings go.** The model gives them an outlet (south, at the discharge end), meant for the
+   grinder; the line has no rule for a third product yet, and whether tier 2 or 3 should leave the middlings in
+   the fines (as they do now) or in the oversize is the gameplay's.
+5. **The middlings spout falls 28 degrees**, the most the space between the jacket and the floor allows (the
+   oversize spouts fall 32 and 39). Fine middlings slide on it; wet, they would anyway.
+6. **One shaking screen under the grizzly** stands for tier 2's "screens". A second deck (a finer screen
+   under the first) would give tier 2 middlings too.
+7. **Tailings.** The classifier makes none: its products all go on. If the epic's "every stage after crushing
+   leaves tailings" covers classifying, a tailings face is missing.
+8. **Collision boxes at every tier are the finished machine's** (tier 4): at tier 2 the trommel's space is
    solid. Per-tier boxes would need the rig to carry a set per tier.
-8. **The trommel's shape**: cylindrical on an inclined shaft (the brief), against a conical drum on a level
+9. **The trommel's shape**: cylindrical on an inclined shaft (the brief), against a conical drum on a level
    shaft (the Harz pattern, one plain `rotate`). The east bearing hangs from a top beam; a pedestal there would
    stand in the oversize's path.
-9. **The power input**: the north face at the discharge end, a block and a half up, chosen so the bevel's apex
-   is the entry shaft's own axis. The other faces and ends were free of ports too.
+10. **The power input**: the north face at the discharge end, a block and a half up, chosen so the bevel's apex
+    is the entry shaft's own axis.
 
 ## Known weak spots, and what is not checked
 
@@ -289,8 +318,10 @@ standalone copy). No one has looked at it in a client.
 2. **Plates as boxes.** The bin's V floor, the spouts and the feed chute are flat boards; the spouts narrow in a
    step, and the feed chute's funnel plate is a rectangle in a plane that falls two ways, so its far edge is
    skewed a voxel in plan.
-3. **The screen's arc** is on its hangers (it rises 0.06 voxels at the ends of its stroke), drawn exactly by the
+3. **A narrow annulus.** The compound trommel's middlings run in an annulus 1.15 voxels deep between the drum's
+   cloth and the jacket; the jacket could not be larger in this frame without moving the bin or the posts.
+4. **The screen's arc** is on its hangers (it rises 0.06 voxels at the ends of its stroke), drawn exactly by the
    series; the deck's blank plates are the period feed and tail plates, not modelled holes.
-4. **Material is not drawn.** The ports, the falls and the clear paths are checked; no ore is shown moving.
-5. **What only the game shows:** lighting, the mesh texture's holes in the renderer, z-fighting at distance,
+5. **Material is not drawn.** The ports, the falls and the clear paths are checked; no ore is shown moving.
+6. **What only the game shows:** lighting, the mesh textures' holes in the renderer, z-fighting at distance,
    sounds, item forms, placement in four facings.

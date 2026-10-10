@@ -14,8 +14,11 @@ the feed inlet, the outlets and the power input never move as it is upgraded.
              from the entry shaft by a bevel pair (8:24); a feed chute from the inlet into its high
              end, its oversize off the low end into a discharge spout to the oversize outlet, its fines
              through the jacket into the same bin
-    tier 4   the trommel with an oversize return: a return chute in place of the discharge spout takes
-             the oversize out of the south side, the return outlet, back to the crusher
+    tier 4   compound trommel: the same drum wrapped in a shorter outer jacket of fine mesh, carried on
+             spacers from its rings and turning with it, so it sorts three sizes: the drum's oversize off
+             its low end down the discharge spout to the oversize outlet, the middlings (through the drum,
+             not the jacket) off the jacket's low end down a spout to the middlings outlet on the south
+             side, the fines through the jacket into the bin
 
 Fitting a tier's set replaces the previous tier's working parts (#711): the grizzly is not kept as a
 scalper ahead of the trommel (README, "Open for the owner").
@@ -79,12 +82,12 @@ POWER_CELL, POWER_FACE = (3, 1, 0), "north"  # the vanilla axle comes in along z
 ZD = 13.5                                    # the work's centre line (z): grizzly, screen, drum, bin
 
 # The four ports, fixed from the frame on: (cell, face, point in voxels). The feed comes in high at the
-# west end; the fines leave low on the north side, the oversize low on the east end (tiers 2 and 3), and
-# the oversize return low on the south side (tier 4).
+# west end; the fines leave low on the north side, the oversize low on the east end, and the middlings
+# (tier 4's third product) low on the south side.
 FEED = ((0, 2, 0), "west")
 FINES = ((1, 0, 0), "north")
 OVERSIZE = ((3, 0, 0), "east")
-RETURN = ((2, 0, 1), "south")
+MIDDLINGS = ((2, 0, 1), "south")
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",            # the frame's timbers and the axle's continuation
@@ -92,7 +95,8 @@ TEXTURES = {
     "iron": "game:block/metal/plate/iron",             # castings, bars, bearings, rings, spiders, hangers
     "steel": "game:block/metal/sheet-plain/steel1",    # shafts and gears
     "sheet": "game:block/metal/sheet/iron1",           # blank plates and chute linings
-    "mesh": "game:block/metal/mesh2",                  # the screening surfaces: the screen's deck, the drum's jacket
+    "mesh": "game:block/metal/mesh2",                  # the coarse screens: the screen's deck, the drum's jacket
+    "finemesh": "game:block/metal/mesh5",              # the fine screen: the compound trommel's outer jacket (tier 4)
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
@@ -100,7 +104,7 @@ TEX = 64                                     # shape texture units; 4 per voxel,
 POSTS_X = ((0.0, 4.0), (30.0, 34.0), (60.0, 64.0))
 SIDES_Z = ((0.0, 4.0), (28.0, 32.0))         # the north and south side frames
 SILL_Y = (0.0, 3.0)                          # cross sills along z, on the ground
-SILLS_X = ((0.0, 4.0), (6.0, 9.0), (30.0, 34.0), (38.5, 41.5))      # across the machine; the east posts on short sills
+SILLS_X = ((0.0, 4.0), (6.0, 9.0), (30.0, 34.0), (35.0, 38.0))      # across the machine; the east posts on short sills
 EAST_SILLS_Z = ((0.0, 5.0), (27.0, 32.0))   # the east posts' sills, either side of the oversize outlet
 GIRT_Y = (18.0, 21.5)                        # side girts along x, between the posts; the entry shaft's bearings on them
 TOP_Y = (44.5, 48.0)                         # top side rails, end ties and cross beams
@@ -115,12 +119,12 @@ INLET_TOP = 44.3                             # its sides' top, under the top end
 BOARD = 0.6                                  # a plank's thickness
 
 # ---------------------------------------------------------------- the fines bin (frame)
-BIN_X = (6.0, 41.5)
+BIN_X = (6.0, 38.0)                          # it ends west of the middlings' fall (tier 4)
 BIN_Z = (ZD - 8.5, ZD + 8.5)                 # 5 .. 22
-BIN_RIM = 15.5
+BIN_RIM = 14.5                               # under the compound trommel's jacket
 BIN_FLOOR = 2.5                              # its sides' foot, on the sills
-BIN_LOW = (23.75, 3.0)                       # (x, y) of the V floor's bottom: the spout's mouth
-SPOUT_X = (21.0, 26.5)                       # the fines spout, through the north side
+BIN_LOW = (22.0, 3.0)                        # (x, y) of the V floor's bottom: the spout's mouth
+SPOUT_X = (19.25, 24.75)                     # the fines spout, through the north side
 SPOUT_FACE_Y = 1.6                           # its floor's top at the north face
 
 # ---------------------------------------------------------------- the entry shaft (frame)
@@ -154,7 +158,7 @@ SCREEN_IN = (ZD - 6.0, ZD + 6.0)             # the deck between the side boards 
 SIDE_W = 1.5                                 # the side boards' thickness (z)
 SIDE_UP, SIDE_DOWN = 2.2, 1.6                # how far they stand above and below the deck's top
 DECK_T = 0.3
-MESH_X = (12.0, 40.0)                        # the perforated deck; blank plates at the head (the feed plate) and the tail
+MESH_X = (12.0, 36.5)                        # the perforated deck (over the bin at every point of its stroke); blank plates at the head (the feed plate) and the tail
 HANGERS_X = (14.5, 39.5)                     # head and tail hangers, either side
 HANGER_H = 13.0                              # every hanger the same length, so the screen moves without turning
 HANGER_W, HANGER_T = 0.9, 0.6
@@ -179,7 +183,20 @@ RING_OUT = 8.1
 FEED_RING_IN, MID_RING_IN, LIP_RING_IN = 6.4, 6.9, 6.6
 RING_T = 0.8
 MID_RING_X = (27.0, 28.0)
-JACKET_SPANS = ((DRUM_X[0] + RING_T, MID_RING_X[0]), (MID_RING_X[1], 40.5))   # the mesh; then a blank band to the lip
+BAND_RING_X = (37.0, 37.8)                   # where the drum's mesh ends and its blank band begins (the jacket's spacers bear on it)
+JACKET_SPANS = ((DRUM_X[0] + RING_T, MID_RING_X[0]), (MID_RING_X[1], BAND_RING_X[0]))   # the mesh; then a blank band to the lip
+# tier 4: the compound trommel's outer jacket, concentric, carried on the drum's rings by iron spacers, turning with it.
+# Shorter than the drum, so the drum's oversize runs off its own open low end; what passes the drum but not the jacket
+# (the middlings) runs off the jacket's low end; what passes the jacket (the fines) falls to the bin.
+OUTER_R, OUTER_T = 8.95, 0.3                 # the jacket's middle radius (its fine mesh 8.8 .. 9.1) and thickness
+OUTER_RING_OUT = 9.4                         # its rings' outside: clear of the north mid post (z 4) and the bin's rim
+OUTER_X = (DRUM_X[0], 39.6)                  # its length, from the drum's feed ring (a head ring closes that end) to its lip
+OUTER_HEAD_IN = RING_OUT - 0.05              # the head ring closes the annulus against the drum's feed ring
+OUTER_MESH = ((DRUM_X[0] + RING_T, MID_RING_X[0]), (MID_RING_X[1], 35.8))   # its fine mesh; a blank band to the lip
+OUTER_LIP_IN = 8.3                           # its lip ring, which the middlings ride over
+OUTER_MID_IN = OUTER_R + OUTER_T / 2         # its middle ring stands outside the mesh: no lip inside the annulus
+SPACERS = 6                                  # spacers at each of the drum's middle and band rings
+
 SPIDERS_X = ((13.5, 14.3), (41.0, 41.8))
 SPIDER_ARMS = 6
 DRUM_SHAFT_X = (4.0, 54.6)
@@ -199,25 +216,26 @@ FEED_WING_X = 7.4                            # the head plate's east edge at its
 FEED_LIP_X = 11.0                            # the throat's lip, inside the drum's feed opening
 FEED_CHUTE_SIDE = 1.0
 
-# ---------------------------------------------------------------- tiers 2-4: the oversize spouts and the return chute
+# ---------------------------------------------------------------- tiers 2-4: the oversize spouts and the middlings spout
 OUTLET_Y = 0.9                               # both oversize spouts' floor's top at the east face: the oversize outlet
 TAIL_SPOUT_X0 = 41.6                         # tier 2's spout: its back board, under the screen's tail
 TAIL_SPOUT_Y0 = 19.0                         # its floor's top at its back board (its sides' top under the screen)
-DISCHARGE_X0 = 43.4                          # tier 3's spout, under the drum's lip
+DISCHARGE_X0 = 44.6                          # tiers 3 and 4's spout, under the drum's lip (clear of tier 4's middlings spout)
 DISCHARGE_Y0 = 13.2                          # (its sides' top under the drum)
 SPOUT_Z = (ZD - 5.0, ZD + 5.0)               # their inside, narrowing to the outlet
 OUTLET_Z = (ZD - 5.0, ZD + 2.0)              # the oversize outlet: within the east end's north cell
 SPOUT_SIDE = 3.0
-RETURN_X = (43.0, 47.6)                      # the return chute's inside (x), under the drum's lip, within its cell
-RETURN_Z0, RETURN_Y0 = 9.5, 13.5             # its back board (north of where the oversize falls) and its floor's top there
-RETURN_FACE_Y = 1.2                          # its floor's top at the south face
-RETURN_SIDE = 2.5                            # (its sides' top under the drum)
+MIDDLINGS_X = (39.0, 42.0)                   # tier 4's middlings spout: its inside (x), under the jacket's lip, east of the bin
+MIDDLINGS_Z0, MIDDLINGS_Y0 = 9.2, 12.8       # its back board (north of where the middlings fall, south of the discharge
+#                                              spout's side) and its floor's top there
+MIDDLINGS_FACE_Y = 0.8                       # its floor's top at the south face: the middlings outlet
+MIDDLINGS_SIDE = 2.5                         # (its sides' top under the jacket)
 
 TIERS = (
     ("frame", "The frame", ()),
     ("tier2", "Tier 2: grizzly and screen", ("grizzly", "screen", "eccentric")),
     ("tier3", "Tier 3: trommel", ("trommel", "bevel", "discharge")),
-    ("tier4", "Tier 4: trommel with oversize return", ("trommel", "bevel", "return")),
+    ("tier4", "Tier 4: compound trommel", ("trommel", "bevel", "discharge", "jacket", "middlings")),
 )
 STATES = {k: set(v) for k, _, v in TIERS}
 FINISHED = "tier4"                           # the finished machine: what the cells' boxes are built from
@@ -640,19 +658,23 @@ def build_discharge():
     return spout("discharge", "discharge", DISCHARGE_X0, DISCHARGE_Y0)
 
 
-def build_return():
-    """Tier 4's return chute: under the drum's lip, a plank chute down south to the return outlet on the
-    south face, in place of the discharge spout; a leg under its back end."""
-    p = "return"
-    x0, x1 = RETURN_X
+def build_middlings():
+    """Tier 4's middlings spout: under the compound trommel's jacket lip, east of the fines bin and west of
+    the discharge spout, a plank chute straight down south to the middlings outlet on the south face; a leg
+    under its back end."""
+    p = "middlings"
+    x0, x1 = MIDDLINGS_X
     zf = CELLS_Z * B
-    out = [plate_zy((RETURN_Z0, RETURN_Y0), (zf, RETURN_FACE_Y), x0, x1, BOARD, "return_floor", p, "planks")]
+    out = [plate_zy((MIDDLINGS_Z0, MIDDLINGS_Y0), (zf, MIDDLINGS_FACE_Y), x0, x1, BOARD, "middlings_floor", p, "planks")]
     for tag, (xa, xb) in (("w", (x0 - BOARD, x0)), ("e", (x1, x1 + BOARD))):
-        out.append(plate_zy((RETURN_Z0, RETURN_Y0 + RETURN_SIDE), (zf, RETURN_FACE_Y + RETURN_SIDE), xa, xb, RETURN_SIDE + BOARD, f"return_side{tag}", p, "planks"))
-    out.append(box([x0 - BOARD, RETURN_Y0 - BOARD, RETURN_Z0 - BOARD], [x1 + BOARD, RETURN_Y0 + RETURN_SIDE, RETURN_Z0], "return_back", p, "planks"))
-    slope = (RETURN_Y0 - RETURN_FACE_Y) / (zf - RETURN_Z0)
-    zl = RETURN_Z0 + 1.2
-    out.append(box([(x0 + x1) / 2 - 1.0, 0.0, zl - 0.6], [(x0 + x1) / 2 + 1.0, RETURN_Y0 - BOARD - 1.2 * slope, zl + 0.6], "return_leg", p, "oak"))
+        out.append(plate_zy((MIDDLINGS_Z0, MIDDLINGS_Y0 + MIDDLINGS_SIDE), (zf, MIDDLINGS_FACE_Y + MIDDLINGS_SIDE), xa, xb,
+                            MIDDLINGS_SIDE + BOARD, f"middlings_side{tag}", p, "planks"))
+    out.append(box([x0 - BOARD, MIDDLINGS_Y0 - BOARD, MIDDLINGS_Z0 - BOARD], [x1 + BOARD, MIDDLINGS_Y0 + MIDDLINGS_SIDE, MIDDLINGS_Z0],
+                   "middlings_back", p, "planks"))
+    slope = (MIDDLINGS_Y0 - MIDDLINGS_FACE_Y) / (zf - MIDDLINGS_Z0)
+    zl = MIDDLINGS_Z0 + 1.2
+    out.append(box([(x0 + x1) / 2 - 1.0, 0.0, zl - 0.6], [(x0 + x1) / 2 + 1.0, MIDDLINGS_Y0 - BOARD - 1.2 * slope, zl + 0.6],
+                   "middlings_leg", p, "oak"))
     return out
 
 
@@ -667,15 +689,37 @@ def build_drum():
     x0, x1 = DRUM_X
     for i, (a0, a1) in enumerate(JACKET_SPANS, 1):
         out += annulus("x", c, a0, a1, DRUM_R - JACKET_T / 2, DRUM_R + JACKET_T / 2, 16, f"drum_jacket{i}_", d, "mesh")
-    out += annulus("x", c, JACKET_SPANS[1][1], x1 - RING_T, DRUM_R - JACKET_T / 2, DRUM_R + JACKET_T / 2, 16, "drum_band", d, "sheet")
+    out += annulus("x", c, BAND_RING_X[1], x1 - RING_T, DRUM_R - JACKET_T / 2, DRUM_R + JACKET_T / 2, 16, "drum_band", d, "sheet")
     out += annulus("x", c, x0, x0 + RING_T, FEED_RING_IN, RING_OUT, 16, "drum_feedring", d, "iron", phase=math.pi / 16)
     out += annulus("x", c, *MID_RING_X, MID_RING_IN, RING_OUT, 16, "drum_midring", d, "iron", phase=math.pi / 16)
+    out += annulus("x", c, *BAND_RING_X, MID_RING_IN, RING_OUT, 16, "drum_bandring", d, "iron", phase=math.pi / 16)
     out += annulus("x", c, x1 - RING_T, x1, LIP_RING_IN, RING_OUT, 16, "drum_lipring", d, "iron", phase=math.pi / 16)
     for i, (a0, a1) in enumerate(SPIDERS_X, 1):
         out += disc("x", c, a0 - 0.3, a1 + 0.3, 1.8, f"drum_spider{i}_hub", d, "iron", k=4)
         for k in range(SPIDER_ARMS):
             out.append(radial("x", c, a0, a1, 1.4, DRUM_R - JACKET_T / 2 + 0.02, 0.9, TAU * k / SPIDER_ARMS + 0.3 * i, f"drum_spider{i}_arm{k + 1}", d, "iron"))
     out += disc("x", c, DRUM_SHAFT_X[0], DRUM_SHAFT_X[1], DRUM_SHAFT_R, "drum_shaft", d, "steel")
+    return tilt(out)
+
+
+def build_jacket():
+    """Tier 4's outer jacket, built level about the drum's axis and tilted with it: fine mesh in two lengths
+    and a blank band to its lip ring; a head ring closing its high end against the drum's feed ring; a middle
+    ring outside the mesh; iron spacers from the drum's middle and band rings out to it, so it is carried on the
+    drum and turns with it."""
+    j = "jacket"
+    c = (0.0, APEX[1], APEX[2])
+    out = []
+    lo, hi = OUTER_R - OUTER_T / 2, OUTER_R + OUTER_T / 2
+    for i, (a0, a1) in enumerate(OUTER_MESH, 1):
+        out += annulus("x", c, a0, a1, lo, hi, 20, f"jacket_mesh{i}_", j, "finemesh")
+    out += annulus("x", c, OUTER_MESH[1][1], OUTER_X[1] - RING_T, lo, hi, 20, "jacket_band", j, "sheet")
+    out += annulus("x", c, OUTER_X[0], OUTER_X[0] + RING_T, OUTER_HEAD_IN, OUTER_RING_OUT, 20, "jacket_headring", j, "iron", phase=math.pi / 20)
+    out += annulus("x", c, *MID_RING_X, OUTER_MID_IN, OUTER_RING_OUT, 20, "jacket_midring", j, "iron", phase=math.pi / 20)
+    out += annulus("x", c, OUTER_X[1] - RING_T, OUTER_X[1], OUTER_LIP_IN, OUTER_RING_OUT, 20, "jacket_lipring", j, "iron", phase=math.pi / 20)
+    for i, ((a0, a1), r1) in enumerate(((MID_RING_X, OUTER_MID_IN + 0.05), (BAND_RING_X, lo + 0.05)), 1):
+        for k in range(SPACERS):
+            out.append(radial("x", c, a0 + 0.1, a1 - 0.1, RING_OUT - 0.05, r1, 0.7, TAU * (k + 0.5) / SPACERS, f"jacket_spacer{i}_{k + 1}", j, "iron"))
     return tilt(out)
 
 
@@ -812,7 +856,7 @@ def build_feed_chute():
 
 def build():
     els = build_entry() + build_grizzly() + build_screen() + build_hangers() + build_hanger_brackets() + build_eccentrics()
-    els += build_tailspout() + build_drum() + build_bevel() + build_mount() + build_discharge() + build_return() + build_frame()
+    els += build_tailspout() + build_drum() + build_jacket() + build_bevel() + build_mount() + build_discharge() + build_middlings() + build_frame()
     return els
 
 
@@ -944,7 +988,8 @@ def _rig_parts():
         {"id": "wheel", "match": ["wheel_*"], "requires": "bevel", "ride": "drum", "drivers": []},
         {"id": "mount", "match": ["mount_*"], "requires": "trommel", "drivers": []},
         {"id": "discharge", "match": ["discharge_*"], "requires": "discharge", "drivers": []},
-        {"id": "return", "match": ["return_*"], "requires": "return", "drivers": []},
+        {"id": "jacket", "match": ["jacket_*"], "requires": "jacket", "ride": "drum", "drivers": []},
+        {"id": "middlings", "match": ["middlings_*"], "requires": "middlings", "drivers": []},
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
     ]
     out = []
@@ -989,11 +1034,11 @@ def port_points():
         "feed": (0.0, (INLET_FLOOR[0][1] + INLET_TOP) / 2, ZD),
         "fines": ((SPOUT_X[0] + SPOUT_X[1]) / 2, SPOUT_FACE_Y + 1.0, 0.0),
         "oversize": (x1, oy + 1.0, sum(OUTLET_Z) / 2),
-        "return": ((RETURN_X[0] + RETURN_X[1]) / 2, RETURN_FACE_Y + 1.0, zf),
+        "middlings": ((MIDDLINGS_X[0] + MIDDLINGS_X[1]) / 2, MIDDLINGS_FACE_Y + 1.0, zf),
     }
 
 
-PORTS = {"feed": FEED, "fines": FINES, "oversize": OVERSIZE, "return": RETURN}
+PORTS = {"feed": FEED, "fines": FINES, "oversize": OVERSIZE, "middlings": MIDDLINGS}
 
 
 def make_rig(parts):
@@ -1003,7 +1048,7 @@ def make_rig(parts):
                     "the screen once a turn, the trommel turns a third of a turn a turn). requires: one value per fitted part set, "
                     "tiers lists which a tier fits (fitting a tier's set replaces the last tier's: the frame alone needs none). "
                     "The ports are fixed at every tier: feedCell and feedFace where the feed comes in, finesCell/finesFace, "
-                    "oversizeCell/oversizeFace (tiers 2 and 3) and returnCell/returnFace (tier 4) where it leaves, each with a "
+                    "oversizeCell/oversizeFace and middlingsCell/middlingsFace (tier 4's third product) where it leaves, each with a "
                     "point where material crosses the face. The cells' boxes are the finished machine's (tier 4). See the "
                     "classifier's README for the schema.",
         "cells": [],
@@ -1017,14 +1062,15 @@ def make_rig(parts):
         rig[key] = {"pos": pt(*pts[key])}
     rig["tiers"] = {k[-1]: list(v) for k, _, v in TIERS if v}
     rig["trommel"] = {"turnsPerAxleTurn": r6(-DRUM_RATIO), "slope": r6(math.tan(TILT)),
-                      "_comment": "turnsPerAxleTurn: the drum's turns per axle turn, the bevel pair's 8:24; slope: its shaft's fall per "
-                                  "unit length towards the discharge (1 in 12). The screen (tier 2) shakes once per axle turn."}
+                      "_comment": "turnsPerAxleTurn: the drum's turns per axle turn, the bevel pair's 8:24 (tier 4's outer jacket rides "
+                                  "the drum); slope: its shaft's fall per unit length towards the discharge (1 in 12). The screen (tier 2) "
+                                  "shakes once per axle turn."}
     rig["parts"] = parts
     return rig
 
 
 # ---------------------------------------------------------------- shipped
-ANCHORS = ("feed", "fines", "oversize", "return")
+ANCHORS = ("feed", "fines", "oversize", "middlings")
 
 
 def shipped(els, parts, rig):
@@ -1113,7 +1159,7 @@ def shape_json(els):
 
 
 def coplanar_poses():
-    return ((0.0, "tier4"), (0.0, "tier2"), (1.9, "tier2"), (4.1, "tier2"), (2.6, "tier3"), (0.0, "frame"))
+    return ((0.0, "tier4"), (5.3, "tier4"), (0.0, "tier2"), (1.9, "tier2"), (4.1, "tier2"), (2.6, "tier3"), (0.0, "frame"))
 
 
 def shown(posed_els, pose, by_id):

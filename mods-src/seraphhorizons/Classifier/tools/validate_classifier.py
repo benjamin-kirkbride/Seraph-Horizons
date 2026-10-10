@@ -182,11 +182,11 @@ def check_ports(v):
         faces.add((cell, face))
     # each chute's floor at its port: the port's point stands over it, within its sides
     for key, pid, rx_floor in (("fines", "frame", r"fr_bin_spoutfloor"), ("oversize", "tailspout", r"_floor2"),
-                               ("oversize", "discharge", r"_floor2"), ("return", "return", r"_floor"), ("feed", "frame", r"fr_inlet_floor")):
+                               ("oversize", "discharge", r"_floor2"), ("middlings", "middlings", r"_floor"), ("feed", "frame", r"fr_inlet_floor")):
         p = [c * 16 for c in rig[key]["pos"]]
-        state = {"tailspout": "tier2", "discharge": "tier3", "return": "tier4"}.get(pid, "tier4")
+        state = {"tailspout": "tier2", "discharge": "tier3", "middlings": "tier4"}.get(pid, "tier4")
         floor = v.named(pid, rx_floor, 0.0)
-        hit = ray_down([p[0] - (0.05 if key == "oversize" else -0.3 if key == "feed" else 0.0), p[1], p[2] + (0.05 if key == "fines" else -0.05 if key == "return" else 0.0)],
+        hit = ray_down([p[0] - (0.05 if key == "oversize" else -0.3 if key == "feed" else 0.0), p[1], p[2] + (0.05 if key == "fines" else -0.05 if key == "middlings" else 0.0)],
                        [e for _, e in v.state_els((0.0, state))])
         good = hit is not None and hit[0].name in {e.name for e in floor} and hit[1] < 2.5
         print(f"port {key} ({pid}): under its point {('nothing' if hit is None else f'{hit[0].name} {hit[1]:.2f} below')}")
@@ -197,13 +197,14 @@ def check_ports(v):
 # ---------------------------------------------------------------- textures by role
 TEX_RULES = [
     (r"^(fr_post|fr_sill|fr_girt|fr_rail|fr_endtie|fr_beam|fr_westtie|fr_knee|fr_bin_rim|fr_bin_spoutfoot|entry_shaft[ab]|mount_timberw|"
-     r"(tailspout|discharge|return)_leg)", "oak"),
-    (r"^(fr_inlet_(floor|side)|fr_bin_(floor|side|spout)|screen_(side|headboard)|(tailspout|discharge|return)_(floor|side|step|back))", "planks"),
-    (r"^(fr_inlet_lip|fr_bearing|grizzly_|screen_(bar|pin|rodpin|lug)|hanger\d_|brackets_|ecc[ns]_|rod[ns]_|drum_(feedring|midring|lipring|spider)|"
-     r"mount_(bearing|pedestal|hanger))", "iron"),
+     r"(tailspout|discharge|middlings)_leg)", "oak"),
+    (r"^(fr_inlet_(floor|side)|fr_bin_(floor|side|spout)|screen_(side|headboard)|(tailspout|discharge|middlings)_(floor|side|step|back))", "planks"),
+    (r"^(fr_inlet_lip|fr_bearing|grizzly_|screen_(bar|pin|rodpin|lug)|hanger\d_|brackets_|ecc[ns]_|rod[ns]_|drum_(feedring|midring|bandring|lipring|spider)|"
+     r"mount_(bearing|pedestal|hanger)|jacket_(headring|midring|lipring|spacer))", "iron"),
     (r"^(entry_shaft_|drum_shaft|wheel_|pinion_)", "steel"),
-    (r"^(screen_(feedplate|tailplate)|drum_band|mount_feed)", "sheet"),
+    (r"^(screen_(feedplate|tailplate)|drum_band\d|jacket_band|mount_feed)", "sheet"),
     (r"^(screen_deck|drum_jacket)", "mesh"),
+    (r"^jacket_mesh", "finemesh"),
 ]
 
 
@@ -219,7 +220,7 @@ def check_textures(v):
         else:
             unruled.append(el.name)
     print(f"textures: {len(TEX_RULES)} rules (oak timbers and the axle's continuation, plank chutes, bin and screen sides, iron "
-          f"castings, bars and fittings, steel shafts and gears, sheet-iron blank plates, a wire-cloth deck and jacket): "
+          f"castings, bars and fittings, steel shafts and gears, sheet-iron blank plates, a wire-cloth deck and drum, a fine outer jacket): "
           f"{len(bad)} elements break them, {len(unruled)} have no rule")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")
@@ -300,6 +301,43 @@ def mm3(a, b):
     return [[sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
 
 
+# ---------------------------------------------------------------- the compound trommel (tier 4)
+def check_compound(v):
+    """Tier 4's outer jacket: it turns with the drum (its matrix the drum's at every angle); it is concentric with
+    the drum, its mesh clear outside the drum's rings (the annulus the middlings run in); it is shorter than the
+    drum at the low end, so the drum's oversize leaves past it; and its lip ends east of the fines bin and west of
+    the discharge spout's back, so the three products fall apart (the falls themselves are check_flow's)."""
+    m = v.m
+    worst = 0.0
+    for th in thetas(12):
+        a, b = v.mat("jacket", th), v.mat("drum", th)
+        worst = max(worst, max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)))
+    gap = (m.OUTER_R - m.OUTER_T / 2) - m.RING_OUT
+    short = m.DRUM_X[1] - m.OUTER_X[1]
+    lip = m.drum_axis_point(m.OUTER_X[1])
+    fall_x = lip[0] + m.OUTER_LIP_IN * math.sin(m.TILT)          # the lip ring's bottom edge, tilted
+    print(f"compound trommel: the jacket turns with the drum (off by {worst:.1e}); the annulus between the drum's rings and "
+          f"the jacket's mesh {gap:.2f}; the jacket {short:.1f} shorter than the drum at the low end; the middlings fall at x "
+          f"{fall_x:.1f}, between the bin's end ({m.BIN_X[1]}) and the discharge spout's back ({m.DISCHARGE_X0 - m.BOARD:.1f})")
+    if worst > 1e-9 or gap < 0.5 or short < 4.0 or not (m.BIN_X[1] < fall_x < m.DISCHARGE_X0 - m.BOARD):
+        v.fail("the compound trommel's jacket does not sit, turn or end where it should")
+    # concentric: every jacket element's corners within its radii of the drum's axis
+    a0, a1 = m.drum_axis_point(0.0), m.drum_axis_point(60.0)
+    ax = [a1[k] - a0[k] for k in range(3)]
+    n = math.sqrt(sum(c * c for c in ax))
+    ax = [c / n for c in ax]
+    rmin, rmax = 1e9, 0.0
+    for el in v.named("jacket", r"_(mesh|band)"):
+        for p in el.corners():
+            d = [p[k] - a0[k] for k in range(3)]
+            along = sum(d[k] * ax[k] for k in range(3))
+            r = math.sqrt(max(0.0, sum(c * c for c in d) - along * along))
+            rmin, rmax = min(rmin, r), max(rmax, r)
+    print(f"compound trommel: the jacket's mesh and band lie {rmin:.2f} .. {rmax:.2f} from the drum's axis")
+    if rmin < m.RING_OUT + 0.3 or rmax > m.OUTER_RING_OUT + 0.2:
+        v.fail("the jacket is not concentric with the drum")
+
+
 # ---------------------------------------------------------------- the linkage
 def check_linkage(v):
     """Tier 2's linkage, every pin on its pin: each rod's big end on its eccentric's centre and its small end
@@ -365,6 +403,8 @@ ALLOWED = [
     ("entry", r"_shaft", "frame", r"fr_bearing\d"),
     ("ecc[ns]", None, "entry", None), ("pinion", None, "entry", None),
     ("drum", r"_shaft", "mount", r"_bearing"), ("wheel", None, "drum", r"_shaft"),
+    # the compound trommel's jacket on the drum: its head ring against the feed ring, its spacers on the middle and band rings
+    ("jacket", r"_(headring|spacer)", "drum", r"_(feedring|midring|bandring)"),
     # the bevel pair (its pitch circles are checked by check_gearing)
     ("pinion", None, "wheel", None),
     # the rods: straps round the sheaves, eyes round the screen's pins
@@ -373,7 +413,7 @@ ALLOWED = [
     ("hanger\\d", None, "screen", r"_pin[ns]\d"), ("hanger\\d", None, "brackets", r"_pin"),
     # fixed parts on the frame: the brackets and straps into the beams, the grizzly's heads under the inlet's lip,
     # the trommel's timber on the girts and its hanger in the beam, the feed chute under the inlet's lip, the spouts'
-    # and the return chute's legs and ends on the sills
+    # and the middlings spout's legs and ends on the sills
     ("brackets", None, "frame", r"fr_beam"), ("grizzly", r"_strap", "frame", r"fr_beam"),
     ("grizzly", r"_bar", "frame", r"fr_inlet"),
     ("mount", r"_timberw", "frame", r"fr_girt|fr_post_w"), ("mount", r"_hangere", "frame", r"fr_beam3"),
@@ -485,7 +525,11 @@ FLOWS = [
     ("tier3", "the feed off the feed chute into the drum", "feed_lip", r"^drum_(jacket|feedring)"),
     ("tier3", "the drum's fines through its jacket into the bin", "jacket", r"^fr_bin_floor"),
     ("tier3", "the drum's oversize off its lip into the discharge spout", "drum_lip", r"^discharge_floor1"),
-    ("tier4", "the drum's oversize off its lip into the return chute", "drum_lip", r"^return_floor"),
+    ("tier4", "the feed off the feed chute into the drum", "feed_lip", r"^drum_(jacket|feedring)"),
+    ("tier4", "what passes the drum onto the outer jacket", "jacket", r"^jacket_(mesh|band)"),
+    ("tier4", "the fines through the outer jacket into the bin", "outer", r"^fr_bin_floor"),
+    ("tier4", "the middlings off the outer jacket's lip into the middlings spout", "outer_lip", r"^middlings_floor"),
+    ("tier4", "the oversize off the drum's lip into the discharge spout", "drum_lip", r"^discharge_floor1"),
 ]
 
 
@@ -525,10 +569,19 @@ def flow_points(m, v, what, theta):
         return [(x1 + 0.3, y1 - 0.05, z) for z in (z0 + 0.3, (z0 + z1) / 2, z1 - 0.3)]
     if what == "jacket":
         out = []
-        for xl in (16.0, 22.0, 33.0, 39.0):
+        for xl in (16.0, 22.0, 31.0, 35.0):
             a = m.drum_axis_point(xl)
             out += [(a[0], a[1] - m.DRUM_R - m.JACKET_T / 2 - 0.3, z) for z in (m.ZD - 2.0, m.ZD, m.ZD + 2.0)]
         return out
+    if what == "outer":
+        out = []
+        for xl in (16.0, 22.0, 31.0, 35.0):
+            a = m.drum_axis_point(xl)
+            out += [(a[0], a[1] - m.OUTER_R - m.OUTER_T / 2 - 0.3, z) for z in (m.ZD - 2.0, m.ZD, m.ZD + 2.0)]
+        return out
+    if what == "outer_lip":
+        a = m.drum_axis_point(m.OUTER_X[1] + 0.9)
+        return [(a[0], a[1] - m.OUTER_LIP_IN + 0.15, z) for z in (m.ZD - 2.5, m.ZD, m.ZD + 2.5)]
     if what == "drum_lip":
         a = m.drum_axis_point(m.DRUM_X[1] + 0.9)
         return [(a[0], a[1] - m.LIP_RING_IN + 0.2, z) for z in (m.ZD - 3.0, m.ZD, m.ZD + 3.0)]
@@ -538,7 +591,7 @@ def flow_points(m, v, what, theta):
 def check_flow(v):
     """Where material falls: from each surface it leaves, straight down, the first thing below is the surface
     meant to take it (at several angles, as the screen and the drum move): feed, grizzly, screen, bin, spouts,
-    feed chute, drum, discharge spout and return chute. Clear paths, by a ray, not by eye."""
+    feed chute, drum, outer jacket, discharge spout and middlings spout. Clear paths, by a ray, not by eye."""
     m = v.m
     n = 0
     for state, label, what, rx in FLOWS:
@@ -580,6 +633,7 @@ def validate(m, els, parts, rig, quick=False):
     check_textures(v)
     check_gearing(v)
     check_linkage(v)
+    check_compound(v)
     check_supports(v)
     check_flow(v)
     check_clearances(v, clearance_poses())
