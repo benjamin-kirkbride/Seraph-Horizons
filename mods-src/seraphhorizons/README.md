@@ -4098,10 +4098,12 @@ they stay and nothing is marked or patched. `MercuryStillSystem` holds it; the g
 mercury" (`config/handbook/oreretorting.json`) is hidden with the switch off. The recipe export has a
 record per input (type `oreretorting`, `tools/recipe-export/Recipes/OreRetortingExport.cs`,
 docs/recipe-browser/schema.md): the boiler and condenser as stations, the mercury in portions and
-litres, an amalgam's sponge. Item values: the still's routes are in `tools/item-values/routes.json`
-(switch `OreProcessing`; the export made with the switch off has no records), and the sponge is an item
-of `ore-processing.json`, priced from its amalgam; the mercury the amalgam returns is not credited, since
-the amalgam's price leaves out the pan's. Tests: `tests/Ore/MercuryRetortTests.cs` (the inputs and
+litres, an amalgam's sponge. Item values: the amalgam-to-sponge routes are in
+`tools/item-values/routes.json` (switch `OreProcessing`; the export made with the switch off has no
+records), and the sponge is an item of `ore-processing.json`, priced from its amalgam; the mercury the
+amalgam returns is not credited, since the amalgam's price leaves out the pan's. Mercury keeps its price
+from Expanded Matter's recipe (the same 10 portions a powder), which that export still has; a still
+route for it would make mercury look like it exists only with the switch. Tests: `tests/Ore/MercuryRetortTests.cs` (the inputs and
 figures, whole stacks and fractions); `tests/PackTests/OreProcessingScenarios.cs`
 (`Still_retorts_cinnabar_and_amalgam`: EM's recipe off, amalgam to mercury and sponge step by step,
 taking it out part way, cinnabar, a bucket of water refusing it, and the game's own boiler tick running
