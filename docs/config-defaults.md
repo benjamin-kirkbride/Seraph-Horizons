@@ -143,7 +143,8 @@ The values the pack sets instead of a mod's own default are repo data in `pack/c
 a `.yaml` file of `key: scalar` lines for a ConfigKit file, a `.json` object for a JSON one (each
 leaf is a value), named after the file they go into. Today that is BetterRuins' ruin spacing and
 vanilla structure chance (`betterruins.yaml`), and Primitive Survival's Living Dead spawn multiplier
-at 0, which turns that creature's spawning off (`primitivesurvival5.json`). They go into each
+at 0, which turns that creature's spawning off (`primitivesurvival5.json`), and Candela's burning
+down, weather snuffing and torch time off, which leaves lights as in vanilla (`candela.json`). They go into each
 snapshot's `index.json` (`packValues`), and a version's defaults are its snapshot's files with its
 pack values set: so changing or adding a value moves untouched installs like any other default
 change, and a value someone set by hand stays.

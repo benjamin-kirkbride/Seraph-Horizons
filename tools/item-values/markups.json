@@ -116,7 +116,8 @@
     "jewelryscrap",
     "salvage",
     "uncraft",
-    "/disassembl"
+    "/disassembl",
+    "^hardening\\|candela:beeswax-molten\\|"
   ],
   "scrapFloor": {
     "found": 5,

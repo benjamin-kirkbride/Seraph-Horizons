@@ -4249,6 +4249,26 @@
       "dependencies": {}
     },
     {
+      "id": "candela",
+      "version": "1.0.0",
+      "assetId": 72556,
+      "releaseId": 60668,
+      "fileId": 129022,
+      "fileName": "candela_1.0.0.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/candela_1.0.0_fcda1784bb82c70d7ad310c23575aa8a.zip?dl=candela_1.0.0.zip",
+      "sha256": "8f846dc42b937d26e86137f86b3e82f37b46d18e7200bc2a09b0c7d3f0eff126",
+      "size": 396938,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
       "id": "allowedvariantsfix",
       "version": "1.0.1",
       "assetId": 71427,
