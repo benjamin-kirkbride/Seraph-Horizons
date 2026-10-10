@@ -10,8 +10,8 @@ that barrel, and fails if it no longer matches the cylinder modelled here. The t
 same shape; they differ in metal (ppex draws the Watt's iron and the Cornish's steel), so the rig's two
 classes are the casting's metal, not its size.
 
-The cast cylinder lies on its side, fixed in a timber cradle: bedded in two V-blocks and held down by two
-chains. A slender iron boring bar runs right through it, carried in a bearing at each end (Wilkinson's
+The cast cylinder, square outside as ppex draws it, its bore round, lies on its side in a timber cradle: flat
+on two bearers between their cleats, and held down by two chains. A slender iron boring bar runs right through it, carried in a bearing at each end (Wilkinson's
 improvement on Smeaton's cantilevered borer, which wandered), and is turned from the vanilla axle by a
 pinion and a great wheel, 1:4, a slow, heavy cut. A cutter head keyed on the bar by a feather (it turns
 with the bar and slides along it) carries four cutters held by wedges; it is drawn through the bore by a
@@ -82,7 +82,6 @@ SCRIPT = "mods-src/seraphhorizons/CylinderBorer/tools/make_shape.py"
 B = 16.0
 TAU = 2 * math.pi
 DEG = math.pi / 180
-COS30 = math.cos(30 * DEG)
 
 # ---------------------------------------------------------------- the box, the cells
 CELLS_X, CELLS_Y, CELLS_Z = 1, 2, 4          # one wide, two high, four long (z)
@@ -140,11 +139,13 @@ TRANSOM_Y = (11.6, BAR[1] - BRG_HALF)
 # ---------------------------------------------------------------- the cylinder (one shape; k is its metal)
 CLASSES = ("thin", "thick")
 METALS = {"thin": ("i", "iron", "castiron"), "thick": ("s", "steel", "caststeel")}
-NGON = 12                                    # a 12-gon, a flat at the top and the bottom (it beds on two flats in the V)
+NGON = 12                                    # the bore is a 12-gon, a flat at the top, the bottom and the sides (the square's inner faces)
 R_OUT = PPEX["outside"] / 2                  # 5: the barrel's apothem
 R_BORE = PPEX["bore"] / 2                    # 4
 R_ROUGH = 3.6                                # the cast skin: the cored hole the cut takes out to the bore
 R_BAND = PPEX["band_outside"] / 2            # 6
+STAVE_WIDE = 1.15                            # the bore's diagonal staves overlap at their corners, so the section is solid
+FILLET = (3.0, 4.0)                          # the fillets that close the square's inner corners behind the round bore (from the axis, in x and y)
 CYL_Z = (32.0, 32.0 + PPEX["length"])        # its bottom end (ppex's y 10) north, at 32; its top end south, at the drive
 Z_DRIVE_MOUTH = CYL_Z[1]
 PORT_UP = 7.5                                # the port bosses stand on the barrel's top, out to this radius
@@ -189,8 +190,8 @@ WROPE_SEGS = 4
 # ---------------------------------------------------------------- the frame
 SILLS = ((0.5, 3.5), (12.5, 15.5))           # the long oak sills (x), y 0..3, the machine's whole length
 SILL_Y, SILL_Z = (0.0, 3.0), (0.3, 63.7)
-CROSS = {"far": (0.6, 4.4), "benchmid": (16.4, 19.6), "benchnear": (28.8, 31.8), "vblock1": (32.8, 35.6),
-         "vblock2": (39.0, 41.8), "entry": (49.6, 52.8), "face": (61.2, 63.8)}
+CROSS = {"far": (0.6, 4.4), "benchmid": (16.4, 19.6), "benchnear": (28.8, 31.8), "bed1": (32.8, 35.6),
+         "bed2": (39.0, 41.8), "entry": (49.6, 52.8), "face": (61.2, 63.8)}
 POSTS = ((0.5, 3.0), (13.0, 15.5))           # the bench end's posts (x), z 1..4, up to the top beam
 POST_Z, POST_TOP = (1.0, 4.0), 23.0
 RAILS = ((3.5, 5.5), (10.5, 12.5))           # the bench's oak rails (x), iron ways on them
@@ -200,13 +201,11 @@ LEGS_Z = ((16.8, 19.2), (29.2, 31.4))
 FARBEAM = {"y": (4.5, RAIL_Y[0]), "z": (POST_Z[1], 6.5)}
 
 # ---------------------------------------------------------------- the cradle
-VBLOCK_Z = ((33.0, 35.4), (39.2, 41.6))      # under the barrel, clear of the band and the ports
-V_HALF = 30 * DEG                            # the V's faces rise 30 degrees: they bed the casting's flats either side of the bottom one
-V_VERTEX = BAR[1] - R_OUT / COS30            # the V's bottom, so the cylinder lies concentric with the bar
-V_X = (3.6, 12.4)
-CHEEK_T = 2.5
-CHEEK_U = (0.25, 4.9)                        # along each face from the V's bottom
-CHAIN_Z = (37.0, 46.9)                       # two chains over the barrel, between the V-blocks and between the top port and the end
+BED_Z = ((33.0, 35.4), (39.2, 41.6))         # two bearers under the barrel, clear of the band and the ports
+BED_TOP = BAR[1] - R_OUT                     # the casting's flat bottom: on the bearers, its bore is concentric with the bar
+BED_X = (1.5, 14.5)                          # across the cradle, on the cross sill and the long sills either side
+CLEAT_H = 1.5                                # a cleat either side of the casting's foot
+CHAIN_Z = (37.0, 46.9)                       # two chains over the barrel, between the bearers and between the top port and the end
 LINK = {"pitch": 1.2, "wide": (0.9, 0.6), "narrow": (0.55, 0.8)}   # (across, i.e. along z; deep, i.e. radial)
 CHAIN_OFF = 0.4                              # the chain's centre line stands this far off the casting's flats
 HOOK_Y = 3.6                                 # the chains' staples, on the sills
@@ -359,22 +358,6 @@ def gear(axis, c, a0, a1, pitch_r, n, module, name, part, tex, phase=0.0, body_k
     body = disc(axis, c, a0, a1, root, f"{name}_body", part, tex, k=body_k, phase=phase)
     return body + [radial(axis, c, a0 + 0.03, a1 - 0.03, root - 0.25, tip, width, phase + TAU * i / n, f"{name}_tooth{i + 1}", part, tex)
                    for i in range(n)]
-
-
-def strut(a, b, w, d, name, part, tex, axis="x"):
-    """A bar from point a to point b in the plane normal to `axis`, `w` wide in that plane, `d` along it."""
-    ia = AX[axis]
-    u, v = [(1, 2), (2, 0), (0, 1)][ia]
-    du, dv = b[u] - a[u], b[v] - a[v]
-    length = math.hypot(du, dv)
-    mid = [(a[i] + b[i]) / 2 for i in range(3)]
-    lo, hi = list(mid), list(mid)
-    lo[u], hi[u] = mid[u] - length / 2, mid[u] + length / 2
-    lo[v], hi[v] = mid[v] - w / 2, mid[v] + w / 2
-    lo[ia], hi[ia] = mid[ia] - d / 2, mid[ia] + d / 2
-    el = box(lo, hi, name, part, tex)
-    rotate([el], axis, math.degrees(math.atan2(dv, du)), mid)
-    return el
 
 
 def eye(axis, c, a0, a1, r_in, r_out, name, part, tex):
@@ -591,15 +574,49 @@ def blank_parts(cls):
     return t, f"blank{metal}", f"chain{metal}", f"s{t}", tex
 
 
+def square_tube(z0, z1, half_out, half_in, name, part, tex, inner=None):
+    """A square tube along z round the bar: a slab top and bottom the full width, the two sides between them,
+    as ppex builds its barrel (`inner` retextures the faces towards the bar)."""
+    x, y = BAR
+    ho, hi = half_out, half_in
+    slabs = [("top", [x - ho, y + hi, z0], [x + ho, y + ho, z1], "down"),
+             ("bottom", [x - ho, y - ho, z0], [x + ho, y - hi, z1], "up"),
+             ("west", [x - ho, y - hi, z0], [x - hi, y + hi, z1], "east"),
+             ("east", [x + hi, y - hi, z0], [x + ho, y + hi, z1], "west")]
+    out = []
+    for tag, lo, hi_, face in slabs:
+        el = box(lo, hi_, f"{name}_{tag}", part, tex)
+        if inner:
+            el.faces[face]["texture"] = "#" + inner
+        out.append(el)
+    return out
+
+
 def build_cylinder(cls):
-    """The casting (the work), ppex's engine cylinder lying on its side: its barrel (outside the casting's
-    metal, its bore bright), the band near its top end, the two steam ports' bosses on its top, and the cast
-    skin in the bore, slice by slice, a quarter of the 12-gon to a rig part."""
+    """The casting (the work), ppex's engine cylinder lying on its side: square outside, as ppex draws it (a tube
+    of four slabs, their inner faces the bore's top, bottom and side flats), its bore round (the 12-gon's eight
+    other flats are staves within the square, and four fillets close the square's inner corners behind them);
+    the band near its top end, square too; the two steam ports' bosses on its top; and the cast skin in the round
+    bore, slice by slice, a quarter of the 12-gon to a rig part. The outside wears the casting's metal, the bore
+    bright."""
     t, part, _, sp, tex = blank_parts(cls)
     z0, z1 = CYL_Z
-    out = ngon_ring(BAR_C, z0, z1, R_BORE, R_OUT, f"bl{t}_wall", part, tex, inner="bored")
+    out = square_tube(z0, z1, R_OUT, R_BORE, f"bl{t}_wall", part, tex, inner="bored")
+    # a flat of the round bore, and a little more: past its corners its face runs into its neighbour, out of the bore
+    w = 2 * R_BORE * math.tan(math.pi / NGON) * STAVE_WIDE
+    for k in range(NGON):
+        if k % 3 == 0:
+            continue                                           # the slabs' inner faces are these flats
+        s = 0.01 * (1 + k % 3)
+        el = radial("z", BAR_C, z0 + s, z1 - s, R_BORE, R_OUT, w, TAU * k / NGON, f"bl{t}_wall_d{k}", part, tex)
+        el.faces["down"]["texture"] = "#bored"
+        out.append(el)
+    for i, (sx, sy) in enumerate(((1, 1), (-1, 1), (-1, -1), (1, -1)), 1):
+        lo = [BAR[0] + min(sx * FILLET[0], sx * FILLET[1]), BAR[1] + min(sy * FILLET[0], sy * FILLET[1]), z0 + 0.04]
+        hi = [BAR[0] + max(sx * FILLET[0], sx * FILLET[1]), BAR[1] + max(sy * FILLET[0], sy * FILLET[1]), z1 - 0.04]
+        out.append(box(lo, hi, f"bl{t}_wall_c{i}", part, tex))
     b0, b1 = PPEX["band"]
-    out += ngon_ring(BAR_C, z0 + b0 + 0.004, z0 + b1 - 0.004, R_OUT - 0.3, R_BAND, f"bl{t}_band", part, tex)
+    out += square_tube(z0 + b0, z0 + b1, R_BAND, R_OUT - 0.3, f"bl{t}_band", part, tex)
     for i, (a, b) in enumerate(PPEX["ports"], 1):
         hp = PPEX["port"] / 2
         out.append(box([BAR[0] - hp, BAR[1] + R_OUT - 0.5, z0 + a], [BAR[0] + hp, BAR[1] + PORT_UP, z0 + b], f"bl{t}_port{i}", part, tex))
@@ -616,16 +633,10 @@ def build_cylinder(cls):
 
 
 def chain_path():
-    """The chain's centre line, as a polyline in the x-y plane: up from the west staple, round the casting's
-    upper flats CHAIN_OFF off them, down to the east staple."""
+    """The chain's centre line, as a polyline in the x-y plane: up the casting's west side from the west staple,
+    over its top and down its east side to the east staple, CHAIN_OFF off its faces, bending at its corners."""
     rc = R_OUT + CHAIN_OFF
-    rv = rc / math.cos(math.pi / NGON)
-    pts = [(BAR[0] - rc, HOOK_Y)]
-    for a in (75, 45, 15, -15, -45, -75):
-        dx, dy = ang_dir(a * DEG)
-        pts.append((BAR[0] + rv * dx, BAR[1] + rv * dy))
-    pts.append((BAR[0] + rc, HOOK_Y))
-    return pts
+    return [(BAR[0] - rc, HOOK_Y), (BAR[0] - rc, BAR[1] + rc), (BAR[0] + rc, BAR[1] + rc), (BAR[0] + rc, HOOK_Y)]
 
 
 def build_chains(cls):
@@ -656,30 +667,16 @@ def build_chains(cls):
 
 
 # ---------------------------------------------------------------- the cradle
-def v_cheek(side, vertex_y):
-    """One face of a V-block: the centre line of a box whose top face is the V's face on `side` (-1 west, +1
-    east), from CHEEK_U along it from the V's bottom, CHEEK_T thick below it."""
-    u0, u1 = CHEEK_U
-    tx, ty = side * math.cos(V_HALF), math.sin(V_HALF)       # along the face, away from the bottom
-    nx, ny = -side * math.sin(V_HALF), math.cos(V_HALF)      # the face's normal, into the V
-    p0 = (BAR[0] + tx * u0, vertex_y + ty * u0)
-    p1 = (BAR[0] + tx * u1, vertex_y + ty * u1)
-    a = (p0[0] - nx * CHEEK_T / 2, p0[1] - ny * CHEEK_T / 2)
-    b = (p1[0] - nx * CHEEK_T / 2, p1[1] - ny * CHEEK_T / 2)
-    return a, b
-
-
-def build_vblocks():
-    """Two V-blocks of oak across the cradle, on their cross sills (the frame's): a base, and a cheek for
-    each face of the V."""
+def build_beds():
+    """Two oak bearers across the cradle, on their cross sills (the frame's), their tops level at the casting's
+    flat bottom (R_OUT under the bar's axis, so the bore is concentric with the bar), each with an oak cleat either
+    side of the casting's foot, so it cannot shift sideways."""
     out = []
-    v = V_VERTEX
-    for i, (z0, z1) in enumerate(VBLOCK_Z, 1):
-        out.append(box([V_X[0], SILL_Y[1], z0], [V_X[1], v - 0.3, z1], f"fr_vblock{i}_base", "frame", "oak"))
-        for side, tag in ((-1, "w"), (1, "e")):
-            a, b = v_cheek(side, v)
-            zm = (z0 + z1) / 2
-            out.append(strut((a[0], a[1], zm), (b[0], b[1], zm), CHEEK_T, z1 - z0, f"fr_vblock{i}_cheek_{tag}", "frame", "oak", axis="z"))
+    top = BED_TOP
+    for i, (z0, z1) in enumerate(BED_Z, 1):
+        out.append(box([BED_X[0], SILL_Y[1], z0], [BED_X[1], top, z1], f"fr_bed{i}", "frame", "oak"))
+        for tag, (x0, x1) in (("w", (BED_X[0], BAR[0] - R_OUT)), ("e", (BAR[0] + R_OUT, BED_X[1]))):
+            out.append(box([x0, top, z0 + 0.3], [x1, top + CLEAT_H, z1 - 0.3], f"fr_bed{i}_cleat_{tag}", "frame", "oak"))
     return out
 
 
@@ -747,8 +744,8 @@ def build_frame():
         h = ENTRY_HALF
         out.append(box([x - h, y - h, z0], [x + h, y + h, z1], f"fr_entry_bearing{i}", f, "iron"))
         out.append(box([x - h + 0.4, SILL_Y[1], z0 + 0.4], [x + h - 0.4, y - h, z1 - 0.4], f"fr_entry_post{i}", f, "oak"))
-    # the V-blocks the cylinder beds in
-    out += build_vblocks()
+    # the bearers the cylinder sits on
+    out += build_beds()
     # the chains' staples on the sills, under the chains' ends
     rc = R_OUT + CHAIN_OFF
     for zi, zc in enumerate(CHAIN_Z, 1):
@@ -928,7 +925,7 @@ def make_rig(parts):
         "powerFace": POWER_FACE,
         "infeedSide": "east",
         "outputSide": "west",
-        "output": {"pos": pt(0.01, 4.0, (VBLOCK_Z[0][1] + VBLOCK_Z[1][0]) / 2)},
+        "output": {"pos": pt(0.01, 4.0, (BED_Z[0][1] + BED_Z[1][0]) / 2)},
         "chips": {"pos": pt(BAR[0], BAR[1] - R_ROUGH, Z_DRIVE_MOUTH)},
         "drip": {"pos": pt(BAR[0] - BRG_HALF, CUP["y"][0] - 0.15, sum(CUP["far_z"]) / 2)},
         "work": dict(WORK),

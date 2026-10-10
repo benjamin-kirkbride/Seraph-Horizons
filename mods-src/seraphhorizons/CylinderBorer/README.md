@@ -12,8 +12,8 @@ one side; they differ in metal: ppex draws the Watt's iron (`sheet-plain/iron5`)
 metal, not a size. The generator reads both engine shapes from `build/mods/ppex_*.zip` on every run, measures the
 barrel, and fails if it no longer matches the cylinder modelled here.
 
-The cast **cylinder** lies on its side, fixed in a timber **cradle**: bedded in two **V-blocks** and held down by
-two **chains**. A slender iron **boring bar** runs right through it, carried in a **bearing at each end**
+The cast **cylinder**, square outside as ppex draws it and with a round bore, lies on its side in a timber
+**cradle**: on two flat **bearers** between their cleats, held down by two **chains**. A slender iron **boring bar** runs right through it, carried in a **bearing at each end**
 (Wilkinson's improvement on Smeaton's cantilevered borer, which wandered), and is turned from the vanilla axle by a
 **pinion and a great wheel**, 1:4: a slow, heavy cut. A **cutter head** keyed on the bar by a feather (it turns
 with the bar and slides along it) carries four **cutters held by wedges**; it is drawn through the bore by a
@@ -58,17 +58,20 @@ Cube74), and built to those figures (voxels):
 
 | | ppex (both engines) | This model |
 |---|---|---|
-| Outside | 10 × 10 (square, walls 1 thick) | a 12-gon 10 across the flats |
-| Bore | 8 × 8 (the piston is 8 × 8) | 8 across the flats, bright once bored; cast skin 7.2 across before |
+| Outside | 10 × 10 (square, walls 1 thick) | 10 × 10, square: four slabs as ppex's |
+| Bore | 8 × 8 square (the piston is 8 × 8) | round: a 12-gon 8 across the flats, concentric with the bar, bright once bored; cast skin 7.2 across before |
 | Length | 16 (y 10..26) | 16 (z 32..48, lying along the bar) |
-| Band | 12 × 12, 2 long, at 11..13 from the bottom | 12 across the flats, at 11..13 from its bottom end |
+| Band | 12 × 12, 2 long, at 11..13 from the bottom | 12 × 12 square, at 11..13 from its bottom end |
 | Steam ports | 2 × 2 on the south face at 2..4 and 12..14 from the bottom | 2 × 2 bosses on top at 2..4 and 12..14, 2.5 proud |
 | Covers | a top cover with the stuffing box, a bottom plate, inside the barrel | none: a bored casting is open at both ends; the covers come with the engine |
 | Metal | Watt `game:block/metal/sheet-plain/iron5`, Cornish `.../steel5` | the same textures, as `castiron` (k = 1) and `caststeel` (k = 2) |
 
 The cylinder lies with its bottom end north (towards the bench) and its top end, with the band, at the drive end;
-its ports face up, clear of the V-blocks and the chains. ppex draws its barrel square, the voxel style of the
-engine; this one is a 12-gon of the same size because a bored bore is round (see "Open for the owner").
+its ports face up, clear of the bearers and the chains. Outside it is ppex's square barrel (the owner's ruling: it
+should look like the engine's); inside, the bore is round, as a bored bore is. The square tube's four slabs give the
+bore its top, bottom and side flats (their inner faces, 4 from the axis); eight staves within the square give its
+other eight flats; four fillets close the square's inner corners behind them, so the section is solid from the bore
+to the outside (a check samples it).
 
 **Power.** The vanilla axle comes in on the south face of `[0,0,3]` (the drive cell, at ground level), along z at
 the cell's centre (x 8, y 8 voxels), into the entry shaft, which runs under the bar: its pinion meshes the great
@@ -84,7 +87,7 @@ bounds: the cells' boxes leave the work out (see "Rig schema").
 **Fitted parts** (the rig's `requires`, **provisional**: the stages are the owner's to settle). The frame carries
 everything with `requires` null: the sills and cross sills, the bench with its ways, the bench end's posts and top
 beam, the drum shaft's bearings, the far bearing's pedestal, the drive portal, the entry shaft with its pinion and
-its bearings, the cradle's V-blocks and the chains' staples, and the two oil cups.
+its bearings, the cradle's bearers and the chains' staples, and the two oil cups.
 
 | `requires` | Item (provisional; #639's first list) | Draws |
 |---|---|---|
@@ -115,7 +118,7 @@ code of `cylinderborer.json`, as the draw bench's does. `tools/make_shape.py` wr
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/cylinderborer.json` | The whole machine, every moving part and both castings (638 elements). |
+| `assets/seraphhorizons/shapes/block/cylinderborer.json` | The whole machine, every moving part and both castings (646 elements). |
 | `assets/seraphhorizons/shapes/block/cylinderborer_frame.json` | The static frame only (79 elements). |
 | `assets/seraphhorizons/config/cylinderborer-rig.json` | Footprint, anchors, the work, the bore's figures and the part rig (64 parts: 40 quarters of cast skin, 10 rope pieces). |
 | `tests/CylinderBorer/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
@@ -128,7 +131,7 @@ own corner cell, so the shipped files are the build frame divided by 16.
 
 **The frame.** Two oak sills run the machine's length (x 0.5..3.5 and 12.5..15.5, y 0..3), joined by seven oak cross
 sills between them, each carrying something: the far bearing's pedestal, the bench's two pairs of legs, the two
-V-blocks, and the entry shaft's two bearing posts. At the north end, the **bench end**: two oak posts (z 1..4) up to a
+bearers, and the entry shaft's two bearing posts. At the north end, the **bench end**: two oak posts (z 1..4) up to a
 top beam (y 23..25.5), the drum shaft in iron bearings on the posts, the far bar bearing on its pedestal between them,
 and a cross beam carrying the bench's rails. The **bench**, the drawing's "sturdy frame": two oak rails (x 3.5..5.5 and
 10.5..12.5, y 7.5..10) with iron ways on them, from the bench end (z 4) to the cradle (z 31.8), on legs at their middle
@@ -168,14 +171,16 @@ crosshead takes up into its top rail as it comes (each rides with it from when i
 weight's rope is a fixed piece above the weight's eye and four pieces that start inside the weight, under its cap, and
 each rides down with it until it reaches its place in the rope.
 
-**The cradle.** Two oak **V-blocks** (z 33..35.4 and 39.2..41.6, under the barrel between its ends and its band), their
-faces rising 30 degrees, bed the casting on the two flats either side of its bottom one; the V's bottom is R / cos 30
-below the bar's axis (R = 5, the casting's apothem), so it lies concentric with the bar. Two **chains** (z 37 and 46.9,
-clear of the ports and the band) go over the casting's upper flats, 0.4 off them, and down its sides to iron
-**staples** on the sills.
+**The cradle.** The casting is square, so it sits flat: two oak **bearers** across the cradle (z 33..35.4 and
+39.2..41.6, under the barrel between its ends and its band, x 1.5..14.5, on their cross sill and the long sills either
+side), their tops level with the casting's flat bottom, 5 under the bar's axis, so the bore lies concentric with the
+bar; an oak **cleat** on each bearer either side of the casting's foot keeps it from shifting sideways. Two **chains**
+(z 37 and 46.9, clear of the ports and the band) go up its sides, over its top, 0.4 off its faces and bending at its
+corners, and down to iron **staples** on the sills.
 
-**The bore.** The casting's cast skin (the cored hole, 0.4 thick inside the bored face) is drawn in five slices along
-the bore, each in four quarters of three staves (the top, the west side, the bottom, the east side). A quarter stays
+**The bore.** The casting's cast skin (the cored hole, 0.4 thick inside the round bored face) is drawn in five slices
+along the bore, each in four quarters of three staves of the bore's 12-gon (the top, the west side, the bottom, the east
+side). A quarter stays
 where it was cast until the cutters reach its slice; while the cutters cross the slice (from their leading face reaching
 its drive-end edge to their trailing face leaving its far edge) it sinks 0.7 radially into the wall, and from then on it
 lies wholly inside the wall, so the bright bored face shows. W runs from 0 (the cutters 0.4 outside the drive-end face)
@@ -227,23 +232,27 @@ exits non-zero if one fails:
 
 - **ppex's cylinder:** both engine shapes' barrels, measured from the zip, are the figures this model is built to
   (outside 10, bore 8, length 16, the band 12 across at 11..13, the ports 2 square at 2..4 and 12..14, the piston 8),
-  square as ppex draws them, and the same in both engines; and each casting as built has those figures (its walls'
-  outer and inner apothems, its length, its band's size and place, its ports' places). If ppex changes its engine
-  cylinder, the run fails.
+  square as ppex draws them, and the same in both engines; and each casting as built has those figures: square outside,
+  10 × 10 round the bar's axis, 16 long, its band 12 × 12 square at 11..13, its ports in their places; its bore round
+  and clear of the wall (no corner, edge middle or face centre of a wall element inside the 12-gon); and its section
+  solid from the bore to the square outside (every point of a 0.1 grid between them inside a wall element: the staves
+  and fillets leave no gap at the square's inner corners). If ppex changes its engine cylinder, the run fails.
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty part; no
   part but the frame that a renderer would never draw (one with no `requires`, ride or driver).
 - **Containment:** nothing leaves the 1 × 2 × 4 box over 21 poses of both metals.
 - **Anchors:** the entry shaft meets the south power face at the power cell's centre; the output on the west face beside
   the cylinder, the infeed east, every anchor inside the machine.
-- **Textures** by role: oak timber, the axle's continuation, the V-blocks, the drums and the crosshead; iron castings,
+- **Textures** by role: oak timber, the axle's continuation, the bearers, the drums and the crosshead; iron castings,
   bearings, gears, the bar, the head, the crosshead's shoes, the weight and the chains; steel bits, wedges, the feather
-  and the yoke; each casting in its metal's texture (ppex's iron5 or steel5) with its bored face towards the bar, the
-  rough skin; rope; a glass and brass oiler with oil in it.
+  and the yoke; each casting in its metal's texture (ppex's iron5 or steel5), the rough skin; rope; a glass and brass
+  oiler with oil in it. Every bright face is a flat of the bore, facing the bar 4 from its axis, and each casting has
+  twelve of them a twelfth of a turn apart: the bore is round.
 - **Gearing:** the pinion's and the great wheel's centres are the sum of their pitch radii apart, and the arcs they roll
   are equal and opposite (finite differences of the posed rig), either way round; no pinion tooth runs more than 0.12
   into a wheel tooth over 40 angles; the head turns with the bar.
-- **Cradle:** each casting concentric with the bar, its two bedding flats on the V-blocks' faces (to 1e-15); the chains
-  on its upper flats, down to their staples; the cutters 0.009 inside the bore.
+- **Cradle:** each casting concentric with the bar, its flat bottom on both bearers' tops (exactly) with the bearers
+  under its whole width, its foot between the cleats; the chains 0.4 off its sides and top, down to their staples; the
+  cutters 0.009 inside the bore.
 - **Feed:** the head, the yoke, the rod and the crosshead travel together, W blocks; the yoke in the head's groove; the
   big drum's turn times its radius is the travel and the weight falls the small drum's share; the crosshead's rope whole
   from the big drum's top (level, tangent to it) to the crosshead, every piece taken up inside its top rail; the weight's
@@ -308,7 +317,7 @@ Element names are the rig's interface (first-match globs, in the rig's order): `
 `xr1_*`..`xr7_*` (`xrope1`..`xrope7`); `wr2_*`..`wr4_*` (`wrope2`..`wrope4`); `ropes_*` (`feedropes`); `oillevel_*`;
 `bli_*` (`blankiron`), `chi*` (`chainiron`), `bls_*` (`blanksteel`), `chs*` (`chainsteel`); `si1t_*`..`si5r_*` and
 `ss1t_*`..`ss5r_*` (the skin's quarters: slice 1 at the drive end, t top, l west, b bottom, r east); and `fr_*` for the
-frame (the V-blocks `fr_vblock*`, the oil cups `fr_cupfar_*` and `fr_cupdrive_*`). Hand edits are lost when the script
+frame (the bearers and their cleats `fr_bed*`, the oil cups `fr_cupfar_*` and `fr_cupdrive_*`). Hand edits are lost when the script
 runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Known weak spots, and what is not checked
@@ -330,7 +339,9 @@ cylinder. No one has yet looked at it in a client; there is no renderer yet.
 6. **The head comes back with p.** As a bored cylinder is cleared, the head, the crosshead, the drum and the weight go
    back with p (the handle pushing, the weight wound up) over the gameplay's ease, a fraction of a second; a renderer
    should stop drawing the casting when it is delivered (its skin would come back with p too).
-7. **The V-blocks are boxes:** each face a rotated box through a base.
+7. **The bore's corners.** The round bore's eight diagonal flats are staves within the square, a little wider than a
+   flat so they overlap at its corners; seen end-on the casting's face is the square ring with a 12-gon hole, its
+   inner pieces meeting in steps a hundredth of a voxel deep where the z-fighting fix set their ends apart.
 8. **Tight clearances in one block's width:** the weight hangs 0.15 from the far bearing, the two drums' flanges stand
    0.25 apart, the crosshead's boss 0.28 under the bar's feather; all checked, none generous.
 9. **The lids.** Every column's top cell gets a lid at the highest top in the top layer, the bench end's top beam (25.5
@@ -354,9 +365,8 @@ Decided provisionally, to be settled:
 3. **One cylinder, two metals.** ppex's two engines share one barrel, so there is one geometry; the classes are iron
    (the Watt's) and steel (the Cornish's, which ppex draws in steel; #639 asks whether the Cornish should move to iron).
    If both engines take one iron cylinder, the classes collapse to one and the steel set goes.
-4. **Round, not square.** ppex draws its cylinder square (the engine's voxel style); this one is a 12-gon of the same
-   size, as a bore is round. A square casting with a round bore drawn inside it is possible if the bored cylinder should
-   look exactly like the engine's.
+4. **Square outside, round bore** (settled by the owner): the casting is ppex's square barrel outside, its bore round
+   inside, sitting flat on bearers with cleats rather than in V-blocks.
 5. **The casting's details.** Its band and its two south-face ports are ppex's, the ports' bosses 2.5 proud (ppex's
    pipes stand 3 and 4 off); ppex's third port (Cube28, north face near the top) and its covers are left off.
 6. **Passes.** The model bores in one traverse, W the head's travel in blocks, rather than #639's `TurnsPerPass` ×

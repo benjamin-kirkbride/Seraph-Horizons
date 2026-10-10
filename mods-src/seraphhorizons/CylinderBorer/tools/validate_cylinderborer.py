@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 import re
 
-from machinegen.checks import box_overhang, coplanar_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb
+from machinegen.checks import FACE_NORMAL, box_overhang, coplanar_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb
 from machinegen.checks import supports as shaft_supports
 from machinegen.checks import sight_glass
 from machinegen.geometry import aabb_of, mvec
@@ -169,8 +169,8 @@ ALLOWED = [
     ("xrope\\d|feedropes", None, "feed", r"feed_toprail|feed_ropeeye"), ("xrope\\d|feedropes", None, "drum", None),
     ("xrope\\d|feedropes", None, "xrope\\d|feedropes", None),
     ("wrope\\d|feedropes", None, "weight", None), ("wrope\\d|feedropes", None, "wrope\\d|feedropes", None),
-    # the casting in its V-blocks and chains, the chains on their staples
-    ("blank(iron|steel)", None, "frame", r"fr_vblock\d_cheek"), ("chain(iron|steel)", None, "blank(iron|steel)", None),
+    # the casting on its bearers and in its chains, the chains on their staples
+    ("blank(iron|steel)", None, "frame", r"fr_bed\d"), ("chain(iron|steel)", None, "blank(iron|steel)", None),
     ("chain(iron|steel)", None, "frame", r"fr_staple"),
     # the skin is the casting's: it lies on and sinks into its wall; the cutters cut it (check_bore holds the rest)
     (SKIN, None, "blank(iron|steel)", None), (SKIN, None, SKIN, None),
@@ -314,7 +314,7 @@ def check_swept(v):
 
 
 TEX_RULES = [
-    (r"^(fr_sill|fr_cross|fr_post|fr_topbeam|fr_farbeam|fr_rail|fr_leg|fr_farbrg_post|fr_portal|fr_drivebrg_transom|fr_entry_post|fr_vblock|entry_shaft[ab]|drum_big|drum_small|feed_(grip|base|upright|toprail))", "oak"),
+    (r"^(fr_sill|fr_cross|fr_post|fr_topbeam|fr_farbeam|fr_rail|fr_leg|fr_farbrg_post|fr_portal|fr_drivebrg_transom|fr_entry_post|fr_bed|entry_shaft[ab]|drum_big|drum_small|feed_(grip|base|upright|toprail))", "oak"),
     (r"^(fr_way|fr_drum_bearing|fr_entry_bearing|fr_staple|brg_|bar_(seg|collar)|wheel_|entry_(rod|pinion|hub)|head_(body|lip|backhub)|head_cut\d_holder|feed_(shoe|boss|ropeeye|handlearm|rod)|drum_(shaft|flange|sflange)|weight_|ch[is]\d_link)", "iron"),
     (r"^(head_groove|head_cut\d_(bit|wedge)|feed_yoke|bar_key)", "steel"),
     (r"^bli_", "castiron"),
@@ -334,26 +334,37 @@ def check_textures(v):
             if re.match(rx, el.name):
                 got = {f["texture"].lstrip("#") for f in el.faces.values()}
                 want = {tex}
-                if re.match(r"^bl[is]_wall", el.name):
-                    want = {tex, "bored"}               # the barrel's bore face is bright, the rest is the casting
+                if re.match(r"^bl[is]_wall_(top|bottom|west|east|d\d+)$", el.name):
+                    want = {tex, "bored"}               # one face of each is a flat of the bright bore, the rest is the casting
                 if got != want:
                     bad.append((el.name, sorted(got), sorted(want)))
                 break
         else:
             bad.append((el.name, "no rule", ""))
-    print(f"textures: {len(TEX_RULES)} rules (oak timber, the axle's continuation, the V-blocks, the drums and the crosshead; "
+    print(f"textures: {len(TEX_RULES)} rules (oak timber, the axle's continuation, the bearers, the drums and the crosshead; "
           f"iron castings, bearings, gears, the bar, the head, the crosshead's shoes, the weight and the chains; steel bits, "
           f"wedges, the feather and the yoke; the casting in ppex's iron or steel with its bore bright, the rough skin; rope; a "
           f"glass and brass oiler with oil in it): {len(bad)} elements break them")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")
-    # the bore face of each barrel stave is the one towards the bar
+    # each bright face is a flat of the round bore: it faces the bar, R_BORE from its axis
+    flats = set()
     for el in v.els:
-        if re.match(r"^bl[is]_wall\d", el.name):
-            down = mvec(el.r, [0.0, -1.0, 0.0])
-            to_axis = [v.m.BAR[0] - el.c[0], v.m.BAR[1] - el.c[1], 0.0]
-            if sum(down[i] * to_axis[i] for i in range(3)) <= 0 or el.faces["down"]["texture"] != "#bored":
-                v.fail(f"{el.name}'s bored face does not face the bar")
+        for d, f in el.faces.items():
+            if f["texture"] != "#bored":
+                continue
+            k, sgn = FACE_NORMAL[d]
+            n = mvec(el.r, [sgn * (1.0 if i == k else 0.0) for i in range(3)])
+            centre = [el.c[i] + n[i] * abs(el.size[k]) / 2 for i in range(3)]
+            dist = -sum((centre[i] - v.m.BAR[i]) * n[i] for i in range(2))
+            if abs(n[2]) > 1e-9 or abs(dist - v.m.R_BORE) > 1e-6:
+                v.fail(f"{el.name}'s {d} face is bright but not a flat of the bore ({dist:.4f} from the axis)")
+            flats.add((el.name[:3], round(math.degrees(math.atan2(-n[0], -n[1])) % 360, 3)))
+    for t in ("bli", "bls"):
+        angles = sorted(a for p, a in flats if p == t)
+        if angles != [30.0 * i for i in range(v.m.NGON)]:
+            v.fail(f"the {t} casting's bore is not a round 12-gon: its bright flats face {angles}")
+    print(f"textures: every bright face a flat of the round bore, {v.m.NGON} of them round each casting, {v.m.R_BORE} from the axis")
 
 
 def check_anchors(v):
@@ -429,8 +440,8 @@ def check_gearing(v):
 def check_ppex(v, measured):
     """The cylinder is ppex's: both engine shapes' barrels, measured from the zip, match the figures this model is
     built to (outside, bore, length, the band and its place, the ports and their places, the piston that fits the
-    bore), and each other; and the casting as built has those figures (its walls' apothems, its length, its band's and
-    its ports' places along it)."""
+    bore), and each other; and the casting as built has those figures: square outside as ppex's, its band square, its
+    ports in their places along it, its bore round and clear of the wall, the section solid between them."""
     m = v.m
     want = m.PPEX
     for engine, got in sorted(measured.items()):
@@ -453,30 +464,54 @@ def check_ppex(v, measured):
     print(f"ppex: {' and '.join(engines)} share one cylinder, measured from build/mods: outside {w['outside']:g}, bore "
           f"{w['bore']:g}, length {w['length']:g}, a band {w['band_outside']:g} across at {w['band'][0]:g}..{w['band'][1]:g}, "
           f"ports {w['port']:g} square at {', '.join(f'{a:g}..{b:g}' for a, b in w['ports'])}, the piston {w['piston']:g} across")
-    # the casting as built, each metal: its walls' outer and inner apothems, its length, the band and the ports
+    # the casting as built, each metal: square outside to ppex's size, the band square too, the ports in their places,
+    # its length; the bore round and concentric (check_textures holds its flats); the section solid between them
     for cls in m.CLASSES:
         _, part, _, _, _ = m.blank_parts(cls)
         metal = m.METALS[cls][1]
         els = v.by_part[part]
         walls = [e for e in els if "_wall" in e.name]
-        z0 = min(e.aabb()[0][2] for e in walls)
-        z1 = max(e.aabb()[1][2] for e in walls)
-        radial = [(math.hypot(e.c[0] - m.BAR[0], e.c[1] - m.BAR[1]), abs(e.size[1]) / 2) for e in walls]
-        outer = sorted({round(c + h, 3) for c, h in radial})
-        inner = sorted({round(c - h, 3) for c, h in radial})
+        (wlo, whi) = aabb_of(walls)
+        z0, z1 = wlo[2], whi[2]
+        out_x, out_y = whi[0] - wlo[0], whi[1] - wlo[1]
+        centred = abs((wlo[0] + whi[0]) / 2 - m.BAR[0]) < 1e-6 and abs((wlo[1] + whi[1]) / 2 - m.BAR[1]) < 1e-6
         band = [e for e in els if "_band" in e.name]
-        b0 = min(e.aabb()[0][2] for e in band) - z0
-        b1 = max(e.aabb()[1][2] for e in band) - z0
-        brad = max(round(math.hypot(e.c[0] - m.BAR[0], e.c[1] - m.BAR[1]) + abs(e.size[1]) / 2, 3) for e in band)
+        blo, bhi = aabb_of(band)
         ports = sorted((round(e.aabb()[0][2] - z0, 4), round(e.aabb()[1][2] - z0, 4), round(abs(e.size[0]), 4)) for e in els if "_port" in e.name)
-        ok = (outer == [want["outside"] / 2] and inner == [want["bore"] / 2] and abs((z1 - z0) - want["length"]) < 0.05
-              and abs(b0 - want["band"][0]) < 0.01 and abs(b1 - want["band"][1]) < 0.01 and abs(brad - want["band_outside"] / 2) < 1e-6
+        ok = (abs(out_x - want["outside"]) < 1e-6 and abs(out_y - want["outside"]) < 1e-6 and centred
+              and abs((z1 - z0) - want["length"]) < 0.05
+              and abs(blo[2] - z0 - want["band"][0]) < 0.01 and abs(bhi[2] - z0 - want["band"][1]) < 0.01
+              and abs(bhi[0] - blo[0] - want["band_outside"]) < 1e-6 and abs(bhi[1] - blo[1] - want["band_outside"]) < 1e-6
               and [(a, b) for a, b, _ in ports] == [tuple(p) for p in want["ports"]] and all(abs(w_ - want["port"]) < 1e-6 for _, _, w_ in ports))
-        print(f"casting ({metal}): its walls {outer[0]:g} out and {inner[0]:g} in (apothems: {2 * outer[0]:g} and {2 * inner[0]:g} across "
-              f"the flats), {z1 - z0:.2f} long, the band {2 * brad:g} across at {b0:.2f}..{b1:.2f}, the ports at "
-              f"{', '.join(f'{a:g}..{b:g}' for a, b, _ in ports)}: ppex's")
+        # nothing of the casting inside the round bore, and the section solid from the bore to the square outside
+        zm = (z0 + z1) / 2
+        normals = [m.ang_dir(math.tau * k / m.NGON) for k in range(m.NGON)]
+
+        def in_bore(x, y):
+            return all((x - m.BAR[0]) * nx + (y - m.BAR[1]) * ny < m.R_BORE - 1e-6 for nx, ny in normals)
+        intrude = [e.name for e in walls if any(in_bore(p[0], p[1]) for p in corners_and_faces(e))]
+        holes, n_pts = [], 0
+        step = 0.1
+        h = want["outside"] / 2 - 0.02
+        for i in range(int(2 * h / step) + 1):
+            for j in range(int(2 * h / step) + 1):
+                x, y = m.BAR[0] - h + i * step, m.BAR[1] - h + j * step
+                ring = max((x - m.BAR[0]) * nx + (y - m.BAR[1]) * ny for nx, ny in normals)
+                if ring < m.R_BORE + 0.02:
+                    continue
+                n_pts += 1
+                if not any(inside(e, (x, y, zm), eps=1e-6) for e in walls):
+                    holes.append((round(x - m.BAR[0], 2), round(y - m.BAR[1], 2)))
+        print(f"casting ({metal}): square outside {out_x:g} x {out_y:g} round the bar, {z1 - z0:.2f} long, the band {bhi[0] - blo[0]:g} "
+              f"square at {blo[2] - z0:.2f}..{bhi[2] - z0:.2f}, the ports at {', '.join(f'{a:g}..{b:g}' for a, b, _ in ports)}: ppex's; "
+              f"its round bore clear of the wall ({len(intrude)} intrusions), the section solid from the bore to the outside "
+              f"({n_pts} points, {len(holes)} holes)")
         if not ok:
-            v.fail(f"the {metal} casting is not ppex's cylinder: walls {outer} / {inner}, length {z1 - z0}, band {b0}..{b1} to {brad}, ports {ports}")
+            v.fail(f"the {metal} casting is not ppex's cylinder: outside {out_x} x {out_y}, length {z1 - z0}, band {blo}..{bhi}, ports {ports}")
+        if intrude:
+            v.fail(f"the {metal} casting's wall reaches into the round bore: {intrude[:4]}")
+        if holes:
+            v.fail(f"the {metal} casting's section has holes between the bore and the outside, e.g. {holes[:6]}")
 
 
 def axis_of(els):
@@ -485,9 +520,11 @@ def axis_of(els):
 
 
 def check_concentric(v):
-    """The casting lies concentric with the bar, its two lower flats either side of the bottom bedded on the V-blocks'
-    faces; the chains lie on its upper flats and come down to their staples; the cutters reach just inside its bore."""
+    """The casting lies concentric with the bar, its flat bottom on the two bearers' tops and between their cleats;
+    the chains lie on its top and sides and come down to their staples; the cutters reach just inside its bore."""
     m = v.m
+    beds = v.named("frame", r"^fr_bed\d$")
+    cleats = v.named("frame", r"^fr_bed\d_cleat_[we]$")
     for k, cls in ((1, "thin"), (2, "thick")):
         _, part, chain, _, _ = m.blank_parts(cls)
         metal = m.METALS[cls][1]
@@ -496,31 +533,27 @@ def check_concentric(v):
         cx, cy = axis_of(walls)
         if math.hypot(cx - m.BAR[0], cy - m.BAR[1]) > 1e-6:
             v.fail(f"the {metal} casting's axis is at ({cx:.3f}, {cy:.3f}), not the bar's")
-        worst = 0.0
-        for cheek in v.named("frame", r"fr_vblock\d_cheek"):
-            n = mvec(cheek.r, [0.0, 1.0, 0.0])
-            if n[1] < 0:
-                n = [-x for x in n]
-            face_c = [cheek.c[i] + n[i] * abs(cheek.size[1]) / 2 for i in range(3)]
-            dist = sum((m.BAR[i] - face_c[i]) * n[i] for i in range(2))
-            worst = max(worst, abs(dist - m.R_OUT))
-        print(f"cradle: the {metal} casting concentric with the bar; its bedding flats lie on the V-blocks' faces (within {worst:.1e})")
-        if worst > 1e-3:
-            v.fail(f"the {metal} casting does not bed on its V-blocks")
+        lo, hi = aabb_of(walls)
+        seat = max(abs(b.aabb()[1][1] - lo[1]) for b in beds)
+        under = all(b.aabb()[0][0] <= lo[0] and b.aabb()[1][0] >= hi[0] and lo[2] <= b.aabb()[0][2] and b.aabb()[1][2] <= hi[2] for b in beds)
+        hold = [abs(c.aabb()[1][0] - lo[0]) if c.name.endswith("_w") else abs(c.aabb()[0][0] - hi[0]) for c in cleats]
+        print(f"cradle: the {metal} casting concentric with the bar, its flat bottom on {len(beds)} bearers (within {seat:.1e}), "
+              f"between {len(cleats)} cleats (within {max(hold):.1e})")
+        if seat > 1e-6 or not under or len(beds) != 2 or max(hold) > 1e-6:
+            v.fail(f"the {metal} casting does not sit on its bearers between their cleats")
         links = v.named(chain, r"_link", pose)
         rc = m.R_OUT + m.CHAIN_OFF
         worst = 0.0
         for ln in links:
             x, y = ln.c[0] - m.BAR[0], ln.c[1] - m.BAR[1]
-            if y > rc * math.tan(math.pi / m.NGON) - 1e-6:
-                a = round(math.degrees(math.atan2(-x, y)) / 30) * 30
-                dx, dy = m.ang_dir(a * m.DEG)
-                worst = max(worst, abs(x * dx + y * dy - rc))
+            if abs(x) < rc - 1e-6 and y > 0:
+                worst = max(worst, abs(y - rc))                  # over the top face
             else:
-                worst = max(worst, abs(abs(x) - rc))
+                worst = max(worst, abs(abs(x) - rc))             # down a side face
         ends = sorted(links, key=lambda e: e.c[1])[:4]
         low = max(e.aabb()[0][1] for e in ends)
-        print(f"chains: {len(links)} links over the {metal} casting, on its flats (within {worst:.3f}), down to their staples at y {m.HOOK_Y}")
+        print(f"chains: {len(links)} links over the {metal} casting, {m.CHAIN_OFF} off its top and sides (within {worst:.3f}), down to "
+              f"their staples at y {m.HOOK_Y}")
         if worst > 0.05 or low > m.HOOK_Y + 0.2:
             v.fail(f"the {metal} casting's chains are not on it and its staples")
     tips = []

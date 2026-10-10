@@ -120,14 +120,28 @@ class Bore(unittest.TestCase):
         self.assertEqual(RIG["bore"]["cylinder"], {"outside": 10.0, "bore": 8.0, "length": 16.0})
         self.assertEqual((make_shape.R_OUT * 2, make_shape.R_BORE * 2, make_shape.CYL_Z[1] - make_shape.CYL_Z[0]), (10.0, 8.0, 16.0))
         els = flatten(SHAPE["elements"], textures={})
+        named = {e["name"]: e for e in SHAPE["elements"]}
         for t, tex in (("i", "castiron"), ("s", "caststeel")):
             walls = [e for e in els if e.name.startswith(f"bl{t}_wall")]
-            self.assertEqual(len(walls), 12)
-            outer = {round(math.hypot(e.c[0] - make_shape.BAR[0], e.c[1] - make_shape.BAR[1]) + abs(e.size[1]) / 2, 2) for e in walls}
-            inner = {round(math.hypot(e.c[0] - make_shape.BAR[0], e.c[1] - make_shape.BAR[1]) - abs(e.size[1]) / 2, 2) for e in walls}
-            self.assertEqual((outer, inner), ({5.0}, {4.0}))
+            # square outside, as ppex draws it: 10 x 10 round the bar, 16 long
+            xs = [p[0] for e in walls for p in e.corners()]
+            ys = [p[1] for e in walls for p in e.corners()]
             zs = [p[2] for e in walls for p in e.corners()]
+            self.assertAlmostEqual(max(xs) - min(xs), 10.0, places=3)
+            self.assertAlmostEqual(max(ys) - min(ys), 10.0, places=3)
             self.assertAlmostEqual(max(zs) - min(zs), 16.0, places=2)
+            # the bore round: twelve bright flats, 4 from the bar's axis, a 12-gon
+            angles = set()
+            for e in walls:
+                for d, f in named[e.name]["faces"].items():
+                    if f["texture"] != "#bored":
+                        continue
+                    k, sgn = {"east": (0, 1), "west": (0, -1), "up": (1, 1), "down": (1, -1)}[d]
+                    n = [sgn * e.r[i][k] for i in range(3)]
+                    centre = [e.c[i] + n[i] * abs(e.size[k]) / 2 for i in range(3)]
+                    self.assertAlmostEqual(-sum((centre[i] - make_shape.BAR[i]) * n[i] for i in range(2)), 4.0, places=3, msg=e.name)
+                    angles.add(round(math.degrees(math.atan2(-n[0], -n[1])) % 360, 1))
+            self.assertEqual(sorted(angles), [30.0 * i for i in range(12)])
             # ppex's Watt cylinder is iron5, its Cornish's steel5: each casting wears its metal's
             faces = {f["texture"] for e in SHAPE["elements"] if e["name"].startswith(f"bl{t}_") for f in e["faces"].values()}
             self.assertEqual(faces - {"#bored"}, {f"#{tex}"})
