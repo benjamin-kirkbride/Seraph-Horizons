@@ -4,9 +4,9 @@ These hold what the generator wrote to its own rules, without running it: the sh
 the shared rig maths and uses the `requires` vocabulary of the contract, its reference poses are its own
 maths, the cells are rebuilt from the shipped shape, the work is one hollow's forging or one spring's
 winding, theta moves nothing, the box closes from 8 to 6 across onto the mandrel, the two sections come
-off the tip, the rod is wound side by side into the coil machinegen.coil draws (the spring item's shape), fed
-square to the mandrel as one wire whose far end alone grows,
-and the anchors are where the contract puts them. Run with `python3 -m unittest discover -s tools/tests`.
+off the tip, the rod laid along the mandrel is wound side by side into the coil machinegen.coil draws (the
+spring item's shape), one wire, used up from its shoulder end while its far end stays put, and the anchors are
+where the contract puts them. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -161,6 +161,7 @@ class Forge(unittest.TestCase):
 
 
 SIDES = [f"sp{t}{f}" for t in range(1, 7) for f in "uwde"]       # the coil's sides, in winding order: turn, face
+RODS = [f"spr{j}" for j in range(24)]                              # the straight rod as each side is bent off it
 
 
 def posed_parts(pids, **ins):
@@ -182,9 +183,8 @@ class Spring(unittest.TestCase):
         # its own class: a job of 1 for it as for each hollow's
         self.assertEqual(rigmath.work_end(RIG["work"], 3), 1.0)
         parts = [p for p in RIG["parts"] if p["requires"] == "rodsteel"]
-        # the sides in winding order, then the rod's far end (each one a growth leaves) and the pieces it grows by
-        self.assertEqual([p["id"] for p in parts][:24], SIDES)
-        self.assertTrue(all(re.fullmatch(r"sp(t\d+|g\d+[abc])", p["id"]) for p in parts[24:]))
+        # the sides in winding order, then the straight rod, a stretch a side (each a wire's width shorter)
+        self.assertEqual([p["id"] for p in parts], SIDES + RODS)
         # each piece on its own, moved by gauges alone: turns about fixed axes and slides, nothing stretched
         for p in parts:
             self.assertIsNone(p["ride"], p["id"])
@@ -203,81 +203,94 @@ class Spring(unittest.TestCase):
         self.assertGreaterEqual(lo[2], make_shape.SHOULDER_Z[1])
         self.assertLessEqual(hi[2], make_shape.NOSE_Z[0])
 
-    def test_at_w0_the_rod_lies_level_and_square_across_the_mandrel(self):
-        # what can be seen at W 0: the first side on the top face from the top east corner, the rest of the rod running
-        # on west past the mandrel; everything else waits inside the mandrel's body
+    def test_at_w0_the_rod_lies_straight_along_the_mandrel(self):
+        # what can be seen at W 0: the straight rod alone, along the mandrel's top east edge from the shoulder to past the
+        # nose; everything else waits inside the mandrel's body
         spring = [p["id"] for p in RIG["parts"] if p["requires"] == "rodsteel"]
         seen = [pid for pid in spring if make_shape.spring_seen(pid, 0.0)]
-        self.assertEqual(seen, ["sp1u", "sp1w", "spt0"])
+        self.assertEqual(seen, ["spr0"])
         els = posed_parts(set(spring), work=0.0, size=3, presence=1.0)
-        tilt = math.sin(make_shape.COIL.tilt) + 1e-9
-        for pid in seen:
-            ax = [els[pid].r[i][2] for i in range(3)]
-            self.assertAlmostEqual(ax[1], 0.0, places=6, msg=pid)
-            self.assertLessEqual(abs(ax[2]), tilt, pid)
-        lo, hi = aabb_of([els[pid] for pid in seen])
-        self.assertGreater(lo[0], 0.0)
-        self.assertLess(lo[0], 1.0)
-        self.assertAlmostEqual(hi[1], make_shape.YM + make_shape.MH + make_shape.WIRE, delta=0.05)
+        rod = els["spr0"]
+        self.assertEqual([round(rod.r[i][2], 9) for i in range(3)], [0.0, 0.0, 1.0])
+        corner = make_shape.COIL.corner(0)
+        self.assertAlmostEqual(rod.c[0], corner[0], places=4)
+        self.assertAlmostEqual(rod.c[1], corner[1], places=4)
+        lo, hi = rod.aabb()
+        self.assertGreaterEqual(lo[2], make_shape.SHOULDER_Z[1])
+        self.assertLess(lo[2], make_shape.SHOULDER_Z[1] + 0.2)
+        self.assertAlmostEqual(hi[2], make_shape.ROD_END + make_shape.ROD / 2, delta=1e-3)
+        self.assertGreater(hi[2], make_shape.TIP)
+        self.assertLess(hi[2], 32.0)
         body = [el for el in flatten(SHAPE["elements"], textures={}) if el.name == "mandrel_body"][0]
         blo, bhi = body.aabb()
         for pid in set(spring) - set(seen):
             plo, phi = els[pid].aabb()
             self.assertTrue(all(blo[i] <= plo[i] and phi[i] <= bhi[i] for i in range(3)), pid)
 
-    def test_every_feed_runs_square_to_the_mandrel(self):
-        # over each feed of the plan (a side fed out of the one before it, or the far end grown), whatever moves moves
-        # square to the mandrel's axis, give or take the coil's 7.4 degree lean
+    def test_every_step_moves_one_piece_and_the_rod_only_square_across_a_face(self):
+        # over each bend one side turns, over each slide the straight rod alone moves, square to the mandrel (no z), one
+        # face across
         spring = [p["id"] for p in RIG["parts"] if p["requires"] == "rodsteel"]
         make_shape.plan()
-        feeds = [(a / make_shape.US, b / make_shape.US) for kind, a, b in make_shape.WINDOWS if kind in ("feed", "grow")]
-        self.assertEqual(len(feeds), 11 + 3 * 11)
-        for a, b in feeds:
-            moved = 0
+        steps = [(kind, a / make_shape.US, b / make_shape.US) for kind, a, b in make_shape.WINDOWS if kind != "instant"]
+        self.assertEqual(sorted({k for k, _, _ in steps}), ["bend", "slide"])
+        self.assertEqual(sum(1 for k, _, _ in steps if k == "bend"), 24)
+        self.assertEqual(sum(1 for k, _, _ in steps if k == "slide"), 23)
+        for kind, a, b in steps:
+            moved = []
             for pid in spring:
                 ma, mb = matrix(pid, work=a, size=3, presence=1.0), matrix(pid, work=b, size=3, presence=1.0)
-                d = [(mb[i][3] - ma[i][3]) * 16 for i in range(3)]
-                size = math.sqrt(sum(x * x for x in d))
-                if size > 1e-3:
-                    moved += 1
-                    self.assertLess(abs(d[2]) / size, math.sin(math.radians(8.0)), f"{pid} over {a:.4f}..{b:.4f}")
-            self.assertGreater(moved, 0)
+                if max(abs(ma[r][c] - mb[r][c]) for r in range(3) for c in range(4)) > 1e-7:
+                    moved.append((pid, [(mb[i][3] - ma[i][3]) * 16 for i in range(3)]))
+            self.assertEqual(len(moved), 1, f"{kind} at {a:.4f}: {[m[0] for m in moved]}")
+            pid, d = moved[0]
+            if kind == "bend":
+                self.assertIn(pid, SIDES)
+            else:
+                self.assertIn(pid, RODS)
+                self.assertAlmostEqual(d[2], 0.0, places=4)
+                self.assertAlmostEqual(math.hypot(d[0], d[1]), 2 * make_shape.COIL.h, places=3)
 
-    def test_the_rod_is_one_wire_and_only_its_far_end_grows(self):
-        # every 1/200 of W, each piece that can be seen starts on another one's centre line (a side's start at the one
-        # before it, the far end at the side it runs on from, a growing piece inside the far end), all one wire from
-        # the first side; and the sides never change length (rigid bars, one element each, a side's run and a wire)
+    def test_the_rod_is_one_wire_used_up_from_its_shoulder_end(self):
+        # every 1/200 of W: each side that can be seen starts at the end of the one before it; one stretch of the straight
+        # rod (none once the last side, the rod's last length, is out), along the mandrel, its far end where it was at
+        # W 0, its bar meeting the newest side's (their axes within half a wire); the sides keep their length (rigid bars)
         spring = [p["id"] for p in RIG["parts"] if p["requires"] == "rodsteel"]
         for pid in SIDES:
             el = posed_parts({pid}, work=0.0, size=3, presence=1.0)[pid]
             self.assertAlmostEqual(el.size[2], make_shape.COIL.length + make_shape.WIRE, delta=2e-4, msg=pid)
+
+        def axis(el, pc):
+            ax = [el.r[q][2] for q in range(3)]
+            mid = (pc.lo + pc.hi) / 2
+            start = [el.c[q] - ax[q] * mid for q in range(3)]
+            return ([start[q] + ax[q] * pc.lo for q in range(3)], [start[q] + ax[q] * pc.hi for q in range(3)],
+                    start, [start[q] + ax[q] * pc.run for q in range(3)])
+
+        def near(p, a, b):
+            d = [b[q] - a[q] for q in range(3)]
+            t = max(0.0, min(1.0, sum((p[q] - a[q]) * d[q] for q in range(3)) / sum(x * x for x in d)))
+            return math.dist(p, [a[q] + t * d[q] for q in range(3)])
+
         for i in range(201):
             W = i / 200
             els = posed_parts(set(spring), work=W, size=3, presence=1.0)
             seen = [pid for pid in spring if make_shape.spring_seen(pid, W)]
-            line = {}
-            for pid in seen:
-                pc = make_shape.piece(pid)
-                ax = [els[pid].r[q][2] for q in range(3)]
-                mid = (pc.lo + pc.hi) / 2
-                line[pid] = ([els[pid].c[q] - ax[q] * mid for q in range(3)], ax, pc)
-            reached, todo = {"sp1u"}, ["sp1u"]
-            while todo:
-                cur = todo.pop()
-                for pid in seen:
-                    if pid in reached:
-                        continue
-                    for a, b in ((pid, cur), (cur, pid)):
-                        start = line[a][0]
-                        o, ax, pc = line[b]
-                        rel = [start[q] - o[q] for q in range(3)]
-                        along = sum(rel[q] * ax[q] for q in range(3))
-                        off = math.sqrt(max(0.0, sum(x * x for x in rel) - along * along))
-                        if off < 2e-3 and pc.lo - 2e-3 <= along <= pc.hi + 2e-3:
-                            reached.add(pid)
-                            todo.append(pid)
-                            break
-            self.assertEqual(sorted(reached), sorted(seen), f"W {W}")
+            sides = [pid for pid in seen if pid in SIDES]
+            rods = [pid for pid in seen if pid in RODS]
+            lines = {pid: axis(els[pid], make_shape.piece(pid)) for pid in seen}
+            for x, pid in enumerate(sides[1:], 1):
+                self.assertEqual(SIDES.index(pid), SIDES.index(sides[x - 1]) + 1, f"W {W}")
+                self.assertLess(math.dist(lines[sides[x - 1]][3], lines[pid][2]), 2e-3, f"{pid} at W {W}")
+            self.assertEqual(len(rods), 0 if "sp6e" in seen else 1, f"W {W}")
+            for pid in rods:
+                lo, hi, start, end = lines[pid]
+                self.assertAlmostEqual(end[2], make_shape.ROD_END, delta=1e-3, msg=f"{pid} at W {W}")
+                self.assertAlmostEqual(abs(start[2] - end[2]), make_shape.piece(pid).run, delta=1e-3)
+                if sides:
+                    newest = lines[sides[-1]]
+                    gap = min(near([lo[q] + (hi[q] - lo[q]) * f / 50 for q in range(3)], newest[0], newest[1]) for f in range(51))
+                    self.assertLessEqual(gap, make_shape.WIRE / 2 + 1e-3, f"{pid} off {sides[-1]} at W {W}")
 
     def test_the_class_is_the_job(self):
         # the spring moves for its class (3) alone; the hollows never with it

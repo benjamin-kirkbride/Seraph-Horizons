@@ -169,8 +169,8 @@ RING = re.compile(r"([lc])(\d+)[udew]+")
 def allowed(m, pa, pb, pose):
     """Intended overlaps, all inside the work, whose union is the tube (the volumes inside each other are
     never seen): a ring's own walls and corner bars, which overlap as they close, and the rings, which
-    overlap until the hollow is stretched; and the spring's pieces, one wire, whose joints and the head
-    that hides the sides to come check_spring holds to account instead."""
+    overlap until the hollow is stretched; and the spring's pieces, one wire, whose joints and the pieces
+    out of sight check_spring holds to account instead."""
     if m.is_spring(pa) and m.is_spring(pb):
         return True
     ra, rb = RING.fullmatch(pa), RING.fullmatch(pb)
@@ -385,8 +385,7 @@ def check_mandrel(v):
 # the rig's windows, pivots and angles are rounded to 6 places (blocks, radians): a wound side lies up to 1e-5 off where
 # the coil puts it, and a joint between two pieces as far apart
 AX_TOL = 1e-4
-JOIN_TOL = 2e-3                              # a piece's start on the piece it runs on from (or inside)
-SQUARE_TOL = math.radians(8.0)               # how far from square to the mandrel a feed may run (the coil's tilt is 7.4)
+JOIN_TOL = 2e-3                              # a side's start on the end of the side before it
 CORNER = 0.45                                # a side's corners: half a wire's diagonal, and a little
 SKIN = 0.035                                 # an instant may change a surface by this much (pieces' sizes step 0.0075 a face)
 
@@ -415,62 +414,57 @@ def point_in(p, box, tol=1e-6):
     return all(abs(sum(box.r[i][k] * rel[i] for i in range(3))) <= abs(box.size[k]) / 2 + tol for k in range(3))
 
 
+def seg_dist(p0, p1, q0, q1):
+    """The least distance between the segments p0..p1 and q0..q1 (sampled finely: the pieces are short)."""
+    best, n = 1e9, 60
+    for i in range(n + 1):
+        f = i / n
+        p = [p0[k] + (p1[k] - p0[k]) * f for k in range(3)]
+        d = [q1[k] - q0[k] for k in range(3)]
+        dd = sum(x * x for x in d)
+        t = max(0.0, min(1.0, sum((p[k] - q0[k]) * d[k] for k in range(3)) / dd)) if dd else 0.0
+        best = min(best, math.sqrt(sum((p[k] - q0[k] - t * d[k]) ** 2 for k in range(3))))
+    return best
+
+
 class Rod:
-    """The rod's pieces posed at W: each one's element, its centre line's start and end, and whether it can be seen."""
+    """The rod's pieces posed at W: each one's element, its centre line's start and end, its bar's axis from end to end
+    (the centre line and the overhang past either end), and whether it can be seen."""
 
     def __init__(self, v, W):
         m = v.m
         self.W, self.pose = W, m.spring_at(W)
         self.pcs = m.plan()
-        self.el, self.a, self.b, self.seen = {}, {}, {}, {}
+        self.el, self.a, self.b, self.axis, self.seen = {}, {}, {}, {}, {}
         for pc in self.pcs:
             el = v.posed(pc.pid, self.pose)[0]
             ax = axis_of(el)
             mid = (pc.lo + pc.hi) / 2
             a = [el.c[i] - ax[i] * mid for i in range(3)]
             self.el[pc.pid], self.a[pc.pid], self.b[pc.pid] = el, a, [a[i] + ax[i] * pc.run for i in range(3)]
+            self.axis[pc.pid] = ([a[i] + ax[i] * pc.lo for i in range(3)], [a[i] + ax[i] * pc.hi for i in range(3)])
             self.seen[pc.pid] = m.seen(pc.pid, self.pose)
 
     def shown(self):
         return [pc for pc in self.pcs if self.seen[pc.pid]]
 
-    def on(self, p, pid):
-        """How far the point p lies from piece pid's centre line (its run, start to end)."""
-        a, b = self.a[pid], self.b[pid]
-        d = [b[i] - a[i] for i in range(3)]
-        dd = sum(x * x for x in d)
-        t = max(0.0, min(1.0, sum((p[i] - a[i]) * d[i] for i in range(3)) / dd)) if dd else 0.0
-        return math.sqrt(sum((p[i] - a[i] - t * d[i]) ** 2 for i in range(3)))
+    def joined(self, pa, pb):
+        """Two pieces are one wire where they meet: a side starts at the end of the side before it (within JOIN_TOL); the
+        straight rod's bar and a side's bar cross or touch end to side (their axes within half a wire of each other)."""
+        if pa.kind == pb.kind == "side":
+            if abs(pa.j - pb.j) != 1:
+                return False
+            first, then = (pa, pb) if pa.j < pb.j else (pb, pa)
+            return dist(self.b[first.pid], self.a[then.pid]) <= JOIN_TOL
+        return seg_dist(*self.axis[pa.pid], *self.axis[pb.pid]) <= self.m_wire / 2 + 1e-4
 
-    def run_length(self):
-        """The length of the rod's centre line that can be seen: every seen piece's run, the stretches two of them share
-        counted once."""
-        shown, total, step = self.shown(), 0.0, 0.01
-        for x, pc in enumerate(shown):
-            a, b = self.a[pc.pid], self.b[pc.pid]
-            n = max(1, int(round(pc.run / step)))
-            for i in range(n):
-                f = (i + 0.5) / n
-                p = [a[q] + (b[q] - a[q]) * f for q in range(3)]
-                if not any(self.on(p, o.pid) < 1e-3 for o in shown[:x]):
-                    total += pc.run / n
-        return total
-
-    def links(self):
-        """Which seen pieces are joined: one starts on the other's centre line (along its run, or its bar's overhang
-        past it), so the two are one wire there; each seen piece's joined pieces."""
+    def links(self, wire):
+        self.m_wire = wire
         shown = self.shown()
         out = {pc.pid: set() for pc in shown}
-        for pa in shown:
-            for pb in shown:
-                if pa is pb:
-                    continue
-                el, ax = self.el[pb.pid], axis_of(self.el[pb.pid])
-                p = self.a[pa.pid]
-                rel = [p[i] - el.c[i] for i in range(3)]
-                along = sum(rel[i] * ax[i] for i in range(3))
-                off = math.sqrt(max(0.0, sum(x * x for x in rel) - along * along))
-                if off <= JOIN_TOL and abs(along) <= abs(el.size[2]) / 2 + JOIN_TOL:
+        for x, pa in enumerate(shown):
+            for pb in shown[x + 1:]:
+                if self.joined(pa, pb):
                     out[pa.pid].add(pb.pid)
                     out[pb.pid].add(pa.pid)
         return out
@@ -496,8 +490,7 @@ class Rod:
         return any(point_in(p, self.el[pc.pid], tol) for pc in self.shown())
 
     def side_hidden(self, pc):
-        """How much of a side's run, away from its corners (where the bar's corner swings through its neighbour's as it
-        is bent), lies inside a bigger piece that can be seen."""
+        """How much of a side's run, away from its corners, lies inside a bigger piece that can be seen."""
         a, b = self.a[pc.pid], self.b[pc.pid]
         lo, hi = CORNER / pc.run, 1.0 - CORNER / pc.run
         n, hid = 40, 0
@@ -511,18 +504,29 @@ class Rod:
         return hid / (n + 1) * (hi - lo) * pc.run
 
 
+def on_layer(m, p, tol=2e-3):
+    """Whether a point lies on the coil's centre-line square (the layer of wire lying on the mandrel's faces): on one of
+    its four sides, give or take tol."""
+    x, y = p[0] - m.X0, p[1] - m.YM
+    h = m.COIL.h
+    return max(abs(x), abs(y)) <= h + tol and min(h - abs(x), h - abs(y)) <= tol
+
+
 def check_spring(v):
     """The spring job, held to the plan's promises. Wound (W 1): every side where machinegen.coil puts it, on the
-    mandrel's faces; every other piece back in the mandrel. At W 0: the rod level and square to the mandrel. Every 1/2000
-    of W: what cannot be seen is inside the mandrel's body or inside a piece that can; the rod is one wire (every piece
-    starts on the one it runs on from); no side is covered away from its corners unless it is being fed out (the far end
-    is the only part that grows); no two pieces that are not joined overlap. Over each step of the plan: a bend, swing,
-    sweep or turn of the far end leaves the rod's seen length as it was, a feed or a growth only lengthens it, an instant
-    changes nothing that can be seen, and every feed runs square to the mandrel (within 8 degrees)."""
+    mandrel's faces; every stretch of the straight rod back in the mandrel. At W 0: the straight rod alone, along the
+    mandrel's top east edge from the shoulder to past the nose. Every 1/1000 of W: what cannot be seen is inside the
+    mandrel's body or inside a piece that can; one stretch of the straight rod, along the mandrel on the coil's layer, its
+    far end where it was at W 0; the wire one piece (each side on the end of the one before, the rod on the newest side);
+    no side covered away from its corners but the newest, and that only while it is bent off the rod or, by the rod's end,
+    while the rod slides along it; no two pieces overlapping that are not neighbours on the wire. Over each step of the
+    plan: an instant changes nothing that can be seen; a bend turns one side in its face's layer and nothing else; a slide
+    moves the straight rod square to the mandrel across one face and nothing else."""
     m = v.m
     C, n = m.COIL, m.COIL.sides
     pcs = m.plan()
     sides = [pc for pc in pcs if pc.kind == "side"]
+    rods = [pc for pc in pcs if pc.kind == "rod"]
     body = next(el for el in v.by_part["mandrel"] if el.name == "mandrel_body")
 
     # wound
@@ -541,28 +545,28 @@ def check_spring(v):
             v.fail(f"{pc.pid} is not between the shoulder and the nose when wound")
     if worst > AX_TOL:
         v.fail(f"a wound side is not where the coil puts it ({worst:.1e})")
-    left = [pc.pid for pc in pcs if pc.kind != "side" and (end.seen[pc.pid] or not inside(end.el[pc.pid], body))]
+    left = [pc.pid for pc in rods if end.seen[pc.pid] or not inside(end.el[pc.pid], body)]
     if left:
-        v.fail(f"pieces of the rod left out when the spring is wound: {left[:5]}")
+        v.fail(f"stretches of the rod left out when the spring is wound: {left[:5]}")
     print(f"spring wound: {n} sides, {C.turns} turns of {m.WIRE} wire at pitch {C.pitch}, each where the coil puts it (within "
-          f"{worst:.1e}); the {len(pcs) - n} pieces of the far end back in the mandrel")
+          f"{worst:.1e}); the {len(rods)} stretches of the straight rod back in the mandrel")
 
     # W 0
     start = Rod(v, 0.0)
     first = [pc.pid for pc in start.shown()]
-    tilt = math.sin(C.tilt) + 1e-6
-    level = all(abs(axis_of(start.el[p])[1]) < 1e-6 and abs(axis_of(start.el[p])[2]) <= tilt for p in first)
-    print(f"spring at W 0: {', '.join(first)}, level and square to the mandrel (within the coil's {math.degrees(C.tilt):.1f} "
-          f"degree tilt): {level}; the rod reaches x {min(start.el[p].aabb()[0][0] for p in first):.2f}..")
-    if first != ["sp1u", "sp1w", "spt0"] or not level:
-        v.fail("at W 0 the rod is not the first side on the mandrel's top and the rest of it level and square to the mandrel")
+    r0 = start.el["spr0"]
+    lo, hi = r0.aabb()
+    along = abs(axis_of(r0)[2] - 1.0) < 1e-9 and dist(start.a["spr0"], C.corner(0)) < AX_TOL
+    print(f"spring at W 0: {', '.join(first)}, along the mandrel's top east edge from z {lo[2]:.2f} (the shoulder at "
+          f"{m.SHOULDER_Z[1]}) to {hi[2]:.2f} (the tip at {m.TIP}), {hi[2] - lo[2]:.2f} long: {along}")
+    if first != ["spr0"] or not along or lo[2] < m.SHOULDER_Z[1] or lo[2] > m.SHOULDER_Z[1] + 0.2:
+        v.fail("at W 0 the rod is not the straight rod alone, along the mandrel's top east edge from the shoulder")
 
     # every 1/1000 of W
     samples = 1000
-    hidden_bad, broken, covered, clash = [], [], [], set()
-    worst_cover = 0.0
-    lengths = []
-    feeds = [(a, b) for kind, a, b in m.WINDOWS if kind == "feed"]
+    hidden_bad, broken, covered, clash, off, moved = [], [], [], set(), [], []
+    worst_cover, worst_far = 0.0, 0.0
+    windows = [(kind, a, b) for kind, a, b in m.WINDOWS if kind != "instant"]
     for i in range(samples + 1):
         W = i / samples
         rod = Rod(v, W)
@@ -574,14 +578,25 @@ def check_spring(v):
             el = rod.el[pc.pid]
             if not (inside(el, body, 1e-4) or any(inside(el, rod.el[o.pid], 1e-4) for o in shown)):
                 hidden_bad.append((pc.pid, round(W, 4)))
-        links = rod.links()
-        near = {}
-        for pid in links:
-            two = set(links[pid])
-            for q in links[pid]:
-                two |= links[q]
-            near[pid] = two
-        reached, todo = {"sp1u"}, ["sp1u"]
+        straight = [pc for pc in shown if pc.kind == "rod"]
+        seen_sides = [pc for pc in shown if pc.kind == "side"]
+        newest = max(seen_sides, key=lambda pc: pc.j) if seen_sides else None
+        # one stretch at a time, until the last side, the rod's last length, is bent off it
+        if len(straight) != (0 if rod.seen[sides[-1].pid] else 1):
+            off.append((round(W, 4), "stretches seen", [pc.pid for pc in straight]))
+        for pc in straight:
+            el = rod.el[pc.pid]
+            if abs(axis_of(el)[2] - 1.0) > 1e-9 or not (on_layer(m, rod.a[pc.pid]) and on_layer(m, rod.b[pc.pid])):
+                off.append((round(W, 4), pc.pid, "not along the mandrel on the coil's layer"))
+            far = abs(rod.b[pc.pid][2] - m.ROD_END)
+            worst_far = max(worst_far, far)
+            if far > AX_TOL:
+                moved.append((pc.pid, round(W, 4), round(far, 4)))
+        links = rod.links(m.WIRE)
+        if straight and newest is not None and newest.pid not in links[straight[0].pid]:
+            broken.append((round(W, 4), f"{straight[0].pid} not on {newest.pid}"))
+        reached = {pc.pid for pc in straight} or ({"sp1u"} if shown else set())
+        todo = list(reached)
         while todo:
             for q in links[todo.pop()]:
                 if q not in reached:
@@ -590,66 +605,80 @@ def check_spring(v):
         lost = [pc.pid for pc in shown if pc.pid not in reached]
         if lost:
             broken.append((round(W, 4), lost[:3]))
-        fed = {pc.pid for pc in sides if pc.seen and any(a == pc.seen[0][0] and a <= u <= b for a, b in feeds)}
-        for pc in shown:
-            if pc.kind == "side" and pc.pid not in fed:
-                h = rod.side_hidden(pc)
+        step = next(((kind, a, b) for kind, a, b in windows if a <= u <= b), None)
+        for pc in seen_sides:
+            h = rod.side_hidden(pc)
+            if pc is newest and step and step[0] == "bend":
+                continue
+            limit = m.ROD + 0.05 if pc is newest and step and step[0] == "slide" else 0.05
+            if pc is not newest or not step or step[0] != "slide":
                 worst_cover = max(worst_cover, h)
-                if h > 0.05:
-                    covered.append((pc.pid, round(W, 4), round(h, 3)))
+            if h > limit:
+                covered.append((pc.pid, round(W, 4), round(h, 3)))
+        near = {}
+        for pid in links:
+            two = set(links[pid])
+            for q in links[pid]:
+                two |= links[q]
+            near[pid] = two
         for x, pa in enumerate(shown):
             for pb in shown[x + 1:]:
                 if pb.pid not in near[pa.pid] and obb_obb(rod.el[pa.pid], rod.el[pb.pid]):
                     clash.add((pa.pid, pb.pid, round(W, 4)))
-        if i % 4 == 0:
-            lengths.append((W, rod.run_length()))
-    print(f"spring winding: every 1/{samples} of W one wire (every piece seen starts on another, within {JOIN_TOL}); every "
-          f"piece out of sight inside the mandrel or a piece that can be seen; sides covered away from their corners at most "
-          f"{worst_cover:.3f} (but the side being fed out); no two pieces overlap but neighbours on the wire")
+    print(f"spring winding: every 1/{samples} of W one stretch of the straight rod, along the mandrel on the coil's layer, its "
+          f"far end fixed (within {worst_far:.1e}); one wire (the rod on the newest side); every piece out of sight inside "
+          f"the mandrel or a piece that can be seen; sides covered away from their corners at most {worst_cover:.3f} (but "
+          f"the newest, while it is bent off the rod and the rod slides along it); no two pieces overlap but neighbours")
     if hidden_bad:
         v.fail(f"pieces neither seen nor hidden: {hidden_bad[:5]}")
+    if off:
+        v.fail(f"the straight rod is not one stretch along the mandrel: {off[:5]}")
+    if moved:
+        v.fail(f"the straight rod's far end moves: {moved[:5]}")
     if broken:
         v.fail(f"the rod comes apart: {broken[:5]}")
     if covered:
-        v.fail(f"a side not being fed out is partly covered: {covered[:5]}")
+        v.fail(f"a side is covered: {covered[:5]}")
     if clash:
         v.fail(f"pieces of the rod not joined overlap: {sorted(clash)[:5]}")
 
-    # over each step: the rod's seen length, the feeds' direction; and an instant changes nothing that can be seen
-    still, shrink, pops, slanted = [], [], [], []
+    # over each step: an instant changes nothing seen; a bend turns one side in its layer; a slide moves the rod square
+    pops, wrong = [], []
+    lengths = []
     for kind, a, b in m.WINDOWS:
+        ra, rb = Rod(v, a / m.US), Rod(v, b / m.US)
         if kind == "instant":
-            ra, rb = Rod(v, a / m.US), Rod(v, b / m.US)
             out = [p for p in ra.skin() if not rb.holds(p, SKIN)] + [p for p in rb.skin() if not ra.holds(p, SKIN)]
             if out:
                 pops.append((round(a / m.US, 6), len(out), [round(x, 2) for x in out[0]]))
             continue
-        la, lb = Rod(v, a / m.US).run_length(), Rod(v, b / m.US).run_length()
-        if kind in ("feed", "grow"):
-            if lb < la - 0.03:
-                shrink.append((kind, round(a / m.US, 4), round(la, 3), round(lb, 3)))
-            ra, rb = Rod(v, a / m.US), Rod(v, b / m.US)
-            for pc in pcs:
-                if not (ra.seen[pc.pid] or rb.seen[pc.pid]):
-                    continue
-                d = [rb.a[pc.pid][q] - ra.a[pc.pid][q] for q in range(3)]
-                size = math.sqrt(sum(x * x for x in d))
-                if size > 1e-3 and abs(d[2]) / size > math.sin(SQUARE_TOL):
-                    slanted.append((pc.pid, kind, round(a / m.US, 4), round(math.degrees(math.asin(abs(d[2]) / size)), 1)))
+        mid = Rod(v, (a + b) / 2 / m.US)
+        movers = [pc.pid for pc in pcs if max(dist(ra.el[pc.pid].c, rb.el[pc.pid].c), dist(ra.el[pc.pid].c, mid.el[pc.pid].c)) > 1e-6
+                  or max(abs(ra.el[pc.pid].r[p][q] - rb.el[pc.pid].r[p][q]) for p in range(3) for q in range(3)) > 1e-9]
+        if len(movers) != 1:
+            wrong.append((kind, round(a / m.US, 4), f"moves {movers}"))
+            continue
+        pc = m.piece(movers[0])
+        if kind == "bend":
+            for r in (ra, mid, rb):
+                if pc.kind != "side" or not (on_layer(m, r.a[pc.pid]) and on_layer(m, r.b[pc.pid])
+                                             and on_layer(m, [(r.a[pc.pid][q] + r.b[pc.pid][q]) / 2 for q in range(3)])):
+                    wrong.append((kind, round(a / m.US, 4), f"{pc.pid} leaves its face's layer"))
+                    break
         else:
-            mid = Rod(v, (a + b) / 2 / m.US).run_length()
-            if max(abs(lb - la), abs(mid - la)) > 0.03:
-                still.append((kind, round(a / m.US, 4), round(la, 3), round(mid, 3), round(lb, 3)))
-    print(f"spring steps: {len(m.WINDOWS)} ({sum(1 for w in m.WINDOWS if w[0] == 'instant')} instants); the rod's seen length "
-          f"{lengths[0][1]:.2f} at W 0, {lengths[-1][1]:.2f} wound; bends keep it, feeds lengthen it, instants leave it")
+            d = [rb.a[pc.pid][q] - ra.a[pc.pid][q] for q in range(3)]
+            if pc.kind != "rod" or abs(d[2]) > AX_TOL or abs(math.hypot(d[0], d[1]) - 2 * C.h) > AX_TOL:
+                wrong.append((kind, round(a / m.US, 4), f"{pc.pid} does not slide across a face square to the mandrel ({d})"))
+            lengths.append(ra.el[pc.pid].size[2])
+    print(f"spring steps: {len(m.WINDOWS)} ({sum(1 for w in m.WINDOWS if w[0] == 'instant')} instants, "
+          f"{sum(1 for w in m.WINDOWS if w[0] == 'bend')} bends, {sum(1 for w in m.WINDOWS if w[0] == 'slide')} slides); the "
+          f"straight rod {lengths[0]:.2f} long at the first slide, {lengths[-1]:.2f} at the last; instants change nothing seen")
     if pops:
         v.fail(f"an instant changes the rod that can be seen: {pops[:4]}")
-    if still:
-        v.fail(f"a bend, swing, sweep or turn changes the rod's length: {still[:4]}")
-    if shrink:
-        v.fail(f"a feed shortens the rod: {shrink[:4]}")
-    if slanted:
-        v.fail(f"a feed not square to the mandrel: {slanted[:4]}")
+    if wrong:
+        v.fail(f"a step moves more or other than it should: {wrong[:4]}")
+    if any(b > a + 1e-9 for a, b in zip(lengths, lengths[1:])):
+        v.fail("the straight rod gets longer")
 
     # the class is the job: the spring moves for its class alone, the hollows never for it
     hollows = [p["id"] for p in v.parts if p["requires"] in ("hollowlead", "hollowcopper")]
@@ -684,7 +713,7 @@ def check_zfight(v):
     m = v.m
     bad = 0
     for pose in m.coplanar_poses():
-        # what can be seen: the spring's sides still hidden in its head are not
+        # what can be seen: the spring's pieces out of sight are not
         els = [e for pid in v.by_part if m.seen(pid, pose) for e in v.posed(pid, pose)]
         pairs = coplanar_faces(els)
         if pairs:

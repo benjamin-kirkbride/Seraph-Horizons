@@ -78,14 +78,14 @@ describe("the mandrel station's rig against its rig-reference.json", () => {
     expect([...codes.hollowcopper!]).toEqual(["copper"]);
     expect([...codes.rodsteel!]).toEqual(["spring"]);
     expect(new Set(codes.frame!)).toEqual(new Set(["oak", "iron"]));
-    // the spring: one steel rod wound into one spring: its 24 sides in winding order, then the rod's far end (each one
-    // a growth leaves) and the pieces it grows by, each on its own (no rides), moved by gauges alone
+    // the spring: one steel rod wound into one spring: its 24 sides in winding order, then the straight rod, a stretch a
+    // side (each a wire's width shorter), each on its own (no rides), moved by gauges alone
     const wind = (rig as unknown as { wind: { rod: string; spring: string; springsPerRod: number; class: number } }).wind;
     expect(wind).toMatchObject({ rod: "game:rod-steel", spring: "seraphhorizons:spring-steel", springsPerRod: 1, class: 3, hot: ["rodsteel"] });
     const spring = parts.filter((p) => p.requires === "rodsteel");
     const sides = [1, 2, 3, 4, 5, 6].flatMap((t) => ["u", "w", "d", "e"].map((f) => `sp${t}${f}`));
     expect(spring.slice(0, 24).map((p) => p.id)).toEqual(sides);
-    expect(spring.slice(24).every((p) => /^sp(t\d+|g\d+[abc])$/.test(p.id))).toBe(true);
+    expect(spring.slice(24).map((p) => p.id)).toEqual(Array.from({ length: 24 }, (_, j) => `spr${j}`));
     spring.forEach((p) => expect(p.ride ?? null).toBeNull());
     spring.forEach((p) => (p.drivers ?? []).forEach((d) => expect(d.type).toBe("gauge")));
     const forge = (rig as unknown as { forge: { blowsPerHollow: { thin: number; thick: number }; sectionsPerHollow: number; sections: Record<string, string>; hollows: Record<string, string> } }).forge;
