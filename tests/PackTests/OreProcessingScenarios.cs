@@ -528,4 +528,101 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         if (!string.IsNullOrEmpty(dump))
             File.WriteAllText(dump, doc.ToString());
     }
+
+    // Leaching (#742): borax and alum ore and raw saltpeter are heavy raw forms that no quern or
+    // crusher takes, and the leaching section is on their handbook pages.
+    [AtlasScenario]
+    public void Leached_minerals_come_raw()
+    {
+        Assert.NotNull(System.Leached);
+        Assert.Empty(System.Leached!.Missing);
+        foreach (var m in OreLeaching.Minerals)
+        {
+            var raw = Item(m.RawCode);
+            Assert.Equal(OreProducts.RawStack, raw.MaxStackSize);
+            Assert.Null(raw.GrindingProps);
+            Assert.Null(raw.CrushingProps);
+            Assert.Contains(raw.Attributes["handbook"]["extraSections"].AsArray(),
+                s => s["title"].AsString() == Leaching.SectionTitle);
+            Assert.NotNull(Item(m.LiquorCode));
+            Assert.NotNull(Item(m.CrystalCode));
+        }
+        Assert.Equal("Raw saltpeter", new ItemStack(Item(OreLeaching.RawSaltpeter)).GetName());
+        Assert.Equal("Crude borax liquor", new ItemStack(Item(OreLeaching.LiquorCode("borax"))).GetName());
+        // Today's crystals are as they were.
+        Assert.Equal(64, Item("game:saltpeter").MaxStackSize);
+    }
+
+    // Every block that dropped saltpeter (vanilla's cave coating, Interesting Ore Gen's saltpeter ore,
+    // Saltpeter Production's buds) drops raw saltpeter at the same rate.
+    [AtlasScenario]
+    public void Saltpeter_blocks_drop_raw_saltpeter()
+    {
+        var coating = W.GetBlock(new AssetLocation("game:saltpeter-d"))!;
+        var drop = Assert.Single(coating.Drops);
+        Assert.Equal(OreLeaching.RawSaltpeter, drop.ResolvedItemstack.Collectible.Code.ToString());
+        Assert.Equal(0.5f, drop.Quantity.avg);
+        var changed = System.Leached!.SaltpeterBlocks;
+        Assert.Contains(changed, c => c.StartsWith("interestingoregen:saltpeterore", StringComparison.Ordinal));
+        Assert.Contains(changed, c => c.StartsWith("saltpeterproduction:saltpeterbud", StringComparison.Ordinal));
+        Assert.DoesNotContain(W.Blocks, b => b?.Drops?.Any(d => d?.ResolvedItemstack?.Collectible.Code.ToString() == OreLeaching.Saltpeter) == true);
+    }
+
+    // A barrel of raw borax and water, sealed a day, holds crude borax liquor: a litre a piece.
+    [AtlasScenario]
+    public async Task Barrel_leaches_raw_mineral_into_crude_liquor()
+    {
+        // (Hydrate or Diedrate copies every recipe taking water for each of its waters.)
+        Assert.Equal(OreLeaching.Minerals.Select(m => m.LiquorCode).Order(),
+            World.Api.GetBarrelRecipes().Where(r => r.Code.StartsWith("seraphhorizons-leach-", StringComparison.Ordinal))
+                .Select(r => r.Output.Code.ToString()).Distinct().Order());
+        var pos = World.Spawn.AddCopy(64, 8, 56);
+        World.SetBlock("game:rock-granite", pos.DownCopy());
+        World.SetBlock("game:barrel", pos);
+        await World.Ticks(2);
+        var barrel = Assert.IsType<BlockEntityBarrel>(W.BlockAccessor.GetBlockEntity(pos));
+        barrel.Inventory[0].Itemstack = Stack("game:ore-alum", 4);
+        barrel.Inventory[0].MarkDirty();
+        barrel.Inventory[1].Itemstack = Stack("game:waterportion", 400);
+        barrel.Inventory[1].MarkDirty();
+        AccessTools.Method(typeof(BlockEntityBarrel), "FindMatchingRecipe", []).Invoke(barrel, []);
+        Assert.Equal("seraphhorizons-leach-alum", barrel.CurrentRecipe?.Code);
+        Assert.Equal(OreLeaching.SealHours, barrel.CurrentRecipe!.SealHours);
+        barrel.SealBarrel();
+        barrel.SealedSinceTotalHours -= OreLeaching.SealHours + 0.1;
+        AccessTools.Method(typeof(BlockEntityBarrel), "OnEvery3Second").Invoke(barrel, [3f]);
+        Assert.False(barrel.Sealed);
+        var liquor = barrel.Inventory.Select(s => s.Itemstack).Single(s => s != null);
+        Assert.Equal(OreLeaching.LiquorCode("alum"), liquor.Collectible.Code.ToString());
+        Assert.Equal(400, liquor.StackSize);
+        World.SetBlock("game:air", pos);
+    }
+
+    // A cooking pot boils crude liquor down into today's crystals, a crystal a litre.
+    [AtlasScenario]
+    public void Pot_boils_crude_liquor_into_crystals()
+    {
+        Assert.Equal(3, World.Api.GetCookingRecipes().Count(r => r.Code.StartsWith("seraphhorizons-evaporate-", StringComparison.Ordinal)));
+        var pot = (BlockCookingContainer)W.GetBlock(new AssetLocation("game:claypot-blue-fired"))!;
+        foreach (var m in OreLeaching.Minerals)
+        {
+            var cooking = new CookingSlots(Stack(m.LiquorCode, 600));
+            Assert.Equal($"seraphhorizons-evaporate-{m.Mineral}",
+                pot.GetMatchingCookingRecipe(W, pot.GetCookingStacks(cooking), out int servings)!.Code);
+            Assert.Equal(6, servings);
+            pot.DoSmelt(W, cooking, new DummySlot(new ItemStack(pot)), new DummySlot());
+            Assert.Equal(m.CrystalCode, cooking.Slots[0].Itemstack.Collectible.Code.ToString());
+            Assert.Equal(6, cooking.Slots[0].Itemstack.StackSize);
+        }
+    }
+
+    // Vanilla's diluted alum took crushed alum, which raw alum no longer crushes to: it takes alum powder.
+    [AtlasScenario]
+    public void Diluted_alum_takes_alum_powder()
+    {
+        var recipes = World.Api.GetBarrelRecipes().Where(r => r.Code == "dilutedalum").ToList();
+        Assert.NotEmpty(recipes);
+        Assert.All(recipes, r => Assert.Contains(r.Ingredients, i => i.SatisfiesAsIngredient(Stack("game:powder-alum", 1), false)));
+        Assert.Contains("game:recipes/barrel/dilutedalum.json", System.RetargetedRecipes);
+    }
 }

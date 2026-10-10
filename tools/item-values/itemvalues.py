@@ -465,6 +465,19 @@ def augment_export(export: dict, rules: Rules) -> list[str]:
                        "attributes": {"maxStackSize": int(spec.get("stack", 64))},
                        "switch": op.get("switch"), "addedBy": "tools/item-values/ore-processing.json"}
         added.append(code)
+    # Single items of the switch with no rule of their own (leaching's raw saltpeter and crude
+    # liquors): priced by routes.json or a raw value. A liquid carries its items per litre.
+    for spec in (op.get("singles") or {}).get("items", []):
+        code = spec["code"]
+        if code in items:
+            continue
+        attributes = {"maxStackSize": int(spec.get("stack", 64))}
+        if spec.get("itemsPerLitre"):
+            attributes["extra"] = {"liquid": {"itemsPerLitre": spec["itemsPerLitre"]}}
+        items[code] = {"kind": "item", "name": spec.get("name", code), "mod": code.split(":", 1)[0],
+                       "handbookVisible": True, "attributes": attributes,
+                       "switch": op.get("switch"), "addedBy": "tools/item-values/ore-processing.json"}
+        added.append(code)
     return added
 
 
@@ -564,8 +577,10 @@ def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, st
 
 
 def extra_routes(export: dict, rules: Rules) -> list[Route]:
-    """routes.json's routes, for stations the export does not carry (the crucible furnace). A slot
-    is a list of alternatives [code, items], or {"take": [...], "kept": true} for a kept tool."""
+    """routes.json's routes, for stations the export does not carry (the crucible furnace) and
+    recipes of a switch the export is made without (leaching). A slot is a list of alternatives
+    [code, items], or {"take": [...], "kept": true} for a kept tool; "liquid" is a liquid output's
+    items per litre."""
     routes = []
     for r in rules.extra_routes:
         slots = []
@@ -576,6 +591,8 @@ def extra_routes(export: dict, rules: Rules) -> list[Route]:
         rt = Route(r["kind"], r["id"], r["output"][0], float(r["output"][1]), slots,
                    [(c, float(n)) for c, n in r.get("byproducts", [])], r.get("switch"))
         rt.stack = stack_size(export, rt.output)
+        # A liquid output (the barrel's crude liquors): its items per litre, as a recipe's in litres.
+        rt.liquid = float(r.get("liquid", 0))
         routes.append(rt)
     return routes
 

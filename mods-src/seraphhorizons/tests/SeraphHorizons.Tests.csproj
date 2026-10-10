@@ -51,6 +51,8 @@
     <!-- Ore processing's item types (#686), so the tests check their ore lists against the figures. -->
     <None Include="../assets/seraphhorizons/itemtypes/oreprocessing/*.json" Link="oreprocessing/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/game/itemtypes/resource/crushedore.json" Link="oreprocessing/crushedore.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Leaching's recipes (#742), so the tests hold them to OreLeaching. -->
+    <None Include="../assets/seraphhorizons/recipes/*/oreprocessing-*.json" Link="oreprocessing/recipes/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../Trading/Core/**/*.cs" Link="Trading/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Trader standing and companies (#452, #463), and the shipped tiers file. -->
     <Compile Include="../Trading/Standing/Core/**/*.cs" Link="Trading/Standing/Core/%(RecursiveDir)%(Filename)%(Extension)" />

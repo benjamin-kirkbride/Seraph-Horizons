@@ -1,0 +1,48 @@
+// Raw saltpeter (OreProcessing, #742): nitre earth as the saltpeter blocks drop it (vanilla's cave
+// coating, Interesting Ore Gen's saltpeter ore, Saltpeter Production's nitre beds; set in code).
+// Heavy, like raw ore: leached in a barrel and boiled down in a cooking pot into saltpeter. Shaped
+// as vanilla's halite lump, textured with its saltpeter. Marked disabled with the switch off.
+{
+	"code": "rawsaltpeter",
+	"behaviors": [
+		{ "name": "GroundStorable", "properties": { "layout": "Messy12", "collisionBox": { "x1": 0, "y1": 0, "z1": 0, "x2": 1, "y2": 0.125, "z2": 1 } } }
+	],
+	"shape": { "base": "game:item/ore/ungraded/halite" },
+	"textures": {
+		"halite": { "base": "game:block/stone/ore/saltpeter" }
+	},
+	"attributes": {
+		"placeSound": "game:block/charcoal",
+		"handbook": {
+			"extraSections": [
+				{ "title": "seraphhorizons:oreprocessing-leaching-title", "text": "seraphhorizons:oreprocessing-leaching-text" }
+			]
+		},
+		"displaycaseable": true,
+		"shelvable": true,
+		"inContainerTexture": { "base": "game:block/stone/ore/saltpeter" },
+		"inBarrelShape": "game:block/wood/barrel/contents-ore"
+	},
+	"storageFlags": 5,
+	"maxstacksize": 4,
+	"materialDensity": 1200,
+	"creativeinventory": { "general": ["*"], "items": ["*"] },
+	"guiTransform": {
+		"translation": { "x": 3, "y": 2, "z": 0 },
+		"rotation": { "x": 150, "y": -38, "z": 0 },
+		"origin": { "x": 0.5, "y": 0.1, "z": 0.5 },
+		"scale": 3.8
+	},
+	"tpHandTransform": {
+		"translation": { "x": -0.93, "y": -0.19, "z": -0.77 },
+		"rotation": { "x": -48, "y": -180, "z": 23 },
+		"origin": { "x": 0.5, "y": 0.12, "z": 0.5 },
+		"scale": 0.6
+	},
+	"groundTransform": {
+		"translation": { "x": 0, "y": 0, "z": 0 },
+		"rotation": { "x": 0, "y": 0, "z": 0 },
+		"origin": { "x": 0.5, "y": 0, "z": 0.5 },
+		"scale": 4.5
+	}
+}
