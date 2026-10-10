@@ -284,22 +284,33 @@ public static class EidolonFittings
 
 /// <summary>
 /// How much material each layer takes, by part (<see cref="EidolonFittings.MaterialCodes"/>'s
-/// order). **PLACEHOLDERS**: today's metal counts (13 plates; 8 rods and 36 nails and strips) and
-/// stand-ins for the new layers (6 beams, 3 leather or cloth, 4 chain), to be replaced by counts
-/// derived from the model (how much of each layer's material the shape shows, scaled so a layer
-/// costs what it looks like; the derivation is to be written down here with the numbers). This is
-/// the one place they are kept.
+/// order): the one place the counts are kept. They are scaled to the model (Eidolon/tools/make_shape.py,
+/// <c>layer_bill</c>; <c>config/eidolon-stages.json</c>'s <c>measure</c> carries the numbers, held to
+/// these by a test): a layer's material count is the face area its own elements show (half a box's
+/// surface, model voxels squared) over the area one item covers, rounded. Metal sets the scale: the
+/// limb-by-limb bill before fittings, 13 plates, 8 rods and 36 nails and strips, was 43 ingots (a plate
+/// 2, a rod 1, nails and strips 4 to the ingot) and bought the plates' and joints' area, so an ingot
+/// covers 115.65; a plate, a chain, a leather or a cloth (a sheet) two ingots', 231.31; a support beam
+/// is the game's 16 × 4 × 4 beam, 144.
+/// <list type="bullet">
+/// <item>bones: 1439.4 of wood / 144 = 10.0, 10 support beams;</item>
+/// <item>joints: rods 411.0 / 115.7 = 3.55, 4; nails and strips 531.3 / 28.9 (a quarter ingot) = 18.38, 20
+///   (rounded up to a whole ingot's four);</item>
+/// <item>plates: 4030.8 / 231.3 = 17.43, 17;</item>
+/// <item>sash: 527.8 / 231.3 = 2.28, 2;</item>
+/// <item>skirt: 434.0 / 231.3 = 1.88, 2.</item>
+/// </list>
 /// </summary>
 public static class FittingCounts
 {
     public static readonly IReadOnlyDictionary<FittingLayer, IReadOnlyList<int>> ByLayer =
         new Dictionary<FittingLayer, IReadOnlyList<int>>
         {
-            [FittingLayer.Bones] = [6],      // support beams (placeholder)
-            [FittingLayer.Joints] = [8, 36], // rods, nails and strips (today's)
-            [FittingLayer.Plates] = [13],    // metal plates (today's)
-            [FittingLayer.Sash] = [3],       // leather or cloth (placeholder)
-            [FittingLayer.Skirt] = [4],      // chain (placeholder)
+            [FittingLayer.Bones] = [10],     // support beams
+            [FittingLayer.Joints] = [4, 20], // rods, nails and strips
+            [FittingLayer.Plates] = [17],    // metal plates
+            [FittingLayer.Sash] = [2],       // leather or cloth
+            [FittingLayer.Skirt] = [2],      // chain
         };
 
     public static IReadOnlyList<int> Of(FittingLayer layer) => ByLayer[layer];

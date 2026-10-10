@@ -4,6 +4,7 @@ using SeraphHorizons.Mod.Eidolon.Core;
 using SeraphHorizons.Mod.Trading.Standing;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
@@ -102,10 +103,13 @@ public class EidolonSystem : ModSystem
     /// Spawns an eidolon at <paramref name="pos"/> facing <paramref name="yaw"/>, owned by
     /// <paramref name="owner"/> (null: nobody), charged with <paramref name="gears"/> temporal gears'
     /// worth; with <paramref name="activate"/> it plays <c>activate</c> as it appears, the gantry's
-    /// waking (#672: place it at the gantry's <c>body</c> point, facing out of its front). Server side;
-    /// null when eidolons are off.
+    /// waking (#672: place it at the gantry's <c>body</c> point, facing out of its front). It wears
+    /// <paramref name="build"/>'s layers (written on its watched attributes before it enters the world,
+    /// <see cref="EidolonBuild.AttributeKey"/>); with none it has no record and is the old build. Server
+    /// side; null when eidolons are off.
     /// </summary>
-    public EntityLaborEidolon? Spawn(IWorldAccessor world, Vec3d pos, float yaw, IPlayer? owner, bool activate, double gears = 1)
+    public EntityLaborEidolon? Spawn(IWorldAccessor world, Vec3d pos, float yaw, IPlayer? owner, bool activate, double gears = 1,
+                                     EidolonBuild? build = null)
     {
         if (!Enabled || world.Side != EnumAppSide.Server || world.GetEntityType(EntityCode) is not { } type)
             return null;
@@ -116,6 +120,13 @@ public class EidolonSystem : ModSystem
         eidolon.PositionBeforeFalling.Set(pos);
         eidolon.SetOwner(owner?.PlayerUID, owner?.PlayerName);
         eidolon.WatchedAttributes.SetBool("noSpawnAnim", true);
+        if (build != null)
+        {
+            var fittings = new TreeAttribute();
+            foreach (var (layer, material) in build.ToAttributes())
+                fittings.SetString(layer, material);
+            eidolon.WatchedAttributes[EidolonBuild.AttributeKey] = fittings;
+        }
         world.SpawnEntity(eidolon);
         if (eidolon.GetBehavior<EntityBehaviorEidolonCharge>() is { } charge)
             charge.ChargeDays = gears * charge.DaysPerGear;

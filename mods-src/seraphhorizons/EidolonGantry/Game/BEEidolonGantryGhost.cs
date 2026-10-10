@@ -18,6 +18,9 @@ public class BEEidolonGantryGhost : BlockEntity, IMachineGhost
     public Cuboidf[]? CellBoxes(IBlockAccessor blockAccessor) =>
         Principal is { } principal && blockAccessor.GetBlockEntity(principal) is BEEidolonGantry gantry ? gantry.CellBoxes(Pos) : null;
 
+    public Cuboidf[]? SelectionBoxes(IBlockAccessor blockAccessor) =>
+        Principal is { } principal && blockAccessor.GetBlockEntity(principal) is BEEidolonGantry gantry ? gantry.SelectionBoxes(Pos) : null;
+
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);

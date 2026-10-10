@@ -125,6 +125,8 @@
     <None Include="../EidolonGantry/README.md" Link="eidolongantry-readme.md" CopyToOutputDirectory="PreserveNewest" />
     <!-- The body bill (#672), held to the eidolon's stages file. -->
     <None Include="../assets/seraphhorizons/config/eidolon-stages.json" Link="eidolon-stages.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The torso's grid recipe and the eidolon schematic's gate, held to EidolonFittings.TorsoRecipe. -->
+    <None Include="../assets/seraphhorizons/recipes/grid/eidolontorso.json" Link="eidolontorso-recipe.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The handcar's drive, controls and animation timing, and its generated rig, reference poses,
          rider targets and entity type (Handcar/tools/make_shape.py), which the tests hold together. -->
     <Compile Include="../Handcar/Core/**/*.cs" Link="Handcar/Core/%(RecursiveDir)%(Filename)%(Extension)" />

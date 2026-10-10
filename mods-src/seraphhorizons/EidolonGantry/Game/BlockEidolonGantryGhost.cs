@@ -53,7 +53,7 @@ public class BlockEidolonGantryGhost : Block
     public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
     {
         if (Controller(world.BlockAccessor, blockSel.Position, out _, out var principal))
-            return BlockEidolonGantry.InteractAt(world, byPlayer, principal);
+            return BlockEidolonGantry.InteractAt(world, byPlayer, principal, blockSel.Position);
         return base.OnBlockInteractStart(world, byPlayer, blockSel);
     }
 
@@ -88,5 +88,5 @@ public class BlockEidolonGantryGhost : Block
         (blockAccessor.GetBlockEntity(pos) as BEEidolonGantryGhost)?.CellBoxes(blockAccessor) ?? base.GetCollisionBoxes(blockAccessor, pos);
 
     public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BEEidolonGantryGhost)?.CellBoxes(blockAccessor) ?? base.GetSelectionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BEEidolonGantryGhost)?.SelectionBoxes(blockAccessor) ?? base.GetSelectionBoxes(blockAccessor, pos);
 }

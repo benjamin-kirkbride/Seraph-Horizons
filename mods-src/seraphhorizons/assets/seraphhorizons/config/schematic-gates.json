@@ -62,10 +62,11 @@
 		{ "machine": "cablecar", "outputs": [ { "mod": "gondolacablecar", "code": "gondolacablecar:routeplanner" } ] },
 		// The trestles are the first stage; the airframe is built on them.
 		{ "machine": "biplane", "outputs": [ { "mod": "flyingmachine", "code": "flyingmachine:trestles" } ] },
-		// The eidolon (#668): the gantry frame, its first stage, in which the body is built, and the
-		// command tool that orders it.
+		// The eidolon (#668): the gantry frame, its first stage, in which the body is built, the torso,
+		// the body's first stage, and the command tool that orders it.
 		{ "machine": "eidolon", "outputs": [
 			{ "mod": "seraphhorizons", "code": "seraphhorizons:eidolongantry-*" },
+			{ "mod": "seraphhorizons", "code": "seraphhorizons:eidolontorso" },
 			{ "mod": "seraphhorizons", "code": "seraphhorizons:eidoloncommander" }
 		] }
 	],

@@ -1,0 +1,21 @@
+// The eidolon's torso (Eidolon/README.md, "Build stages"), placed on a built gantry's spine. Part of the
+// eidolon: the server disables it with Eidolon off. The eidolon schematic is not written here: its gate
+// (config/schematic-gates.json, machine "eidolon") adds it, kept on crafting. The ingredients are
+// EidolonFittings.TorsoRecipe's (Eidolon/Core/EidolonFittings.cs), held to it by a test.
+[
+	{
+		// The Jonas pump head and its two tanks, the torso's mechanism of 4 machine parts and 3
+		// stainless gears; its plates and nails are the layers' (fitted on the gantry).
+		ingredientPattern: "PTU,MG_",
+		width: 3,
+		height: 2,
+		ingredients: {
+			"P": { type: "item", code: "game:jonasparts-pumphead" },
+			"T": { type: "item", code: "game:jonasparts-tank01" },
+			"U": { type: "item", code: "game:jonasparts-tank02" },
+			"M": { type: "item", code: "game:metal-parts", quantity: 4 },
+			"G": { type: "item", code: "seraphhorizons:gear-stainless", quantity: 3 }
+		},
+		output: { type: "item", code: "seraphhorizons:eidolontorso" }
+	}
+]
