@@ -5331,7 +5331,9 @@ and Hydrate's `ContainersConfig`. With the switch off, `SwitchesOffScenarios` re
 refuse a keg. The rack's look and the client's side of the interactions
 are checked by hand in the game.
 
-`tests/PackTests/MapRevealScenarios.cs` (Atlas) has a test player run `/revealmap`, decodes what
+`tests/PackTests/MapRevealScenarios.cs` (Atlas, a plain world of its own whose ModConfig turns
+trader maps' approach deposit checks off, as they generate columns near the player) has a test
+player run `/revealmap`, decodes what
 it is sent as the client would, and requires it to agree with the loaded chunks (so the savegame
 reader reads the blocks the game does: when it fails after a game update, check `StoredChunk`'s
 field numbers and `ChunkData.DecompressFrom`), the columns not generated yet skipped and still

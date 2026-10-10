@@ -2,6 +2,7 @@ using Atlas.Api;
 using Atlas.XUnit;
 using SeraphHorizons.Mod.MapReveal;
 using SeraphHorizons.Mod.MapReveal.Core;
+using SeraphHorizons.Mod.Trading.Maps;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
@@ -15,8 +16,16 @@ namespace SeraphHorizons.PackTests;
 /// loaded chunks show, so the savegame reader (its own connection, the saved chunk's protobuf
 /// fields, the game's internal decompression) reads the same blocks the game does. The client half
 /// (drawing the pieces into the world map and its database) needs a game client and is not run here.
+/// <para>A plain world of its own rather than a part of <see cref="SharedWorldScenarios"/>: the main
+/// scenario requires that nothing generates the columns at the rim of its area, and trader maps'
+/// deposit checks (#693) generate a deposit's nine columns as a player nears a camp, wherever the
+/// deposit lies. Its ModConfig (fixtures/mapreveal) turns those approach checks off
+/// (<c>DepositCheckApproachMetres</c> 0), which the shared world, starting from an empty ModConfig,
+/// cannot. In CI it rides in the <c>woodworking-eidolon</c> shard, which has the room.</para>
 /// </summary>
-public partial class SharedWorldScenarios
+[AtlasWorld]
+[AtlasDataFiles("fixtures/mapreveal", TargetPath = "ModConfig")]
+public class MapRevealScenarios : AtlasScenarioBase
 {
     private ICoreServerAPI Api => World.Api;
 
@@ -34,6 +43,8 @@ public partial class SharedWorldScenarios
     [AtlasScenario(TimeoutMs = 600_000)]
     public async Task Reveals_the_saved_terrain_as_the_loaded_chunks_show_it_and_generates_nothing()
     {
+        // The fixture's ModConfig holds: no deposit check generates columns as the player nears a camp.
+        Assert.Equal(0, Api.ModLoader.GetModSystem<MapsSystem>().Surveys?.ApproachMetres);
         var player = await Admin("revealer");
         const int radius = 24;
         int cx = (int)player.Position.X / 32, cz = (int)player.Position.Z / 32;
