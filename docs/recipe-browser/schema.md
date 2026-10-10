@@ -324,6 +324,16 @@ hammer), each a right-click, and `work` says so (`amount` that many, `unit` `blo
 a hammer of a higher tool tier forges in proportionally fewer blows, which the record does not carry.
 There is no `oil`.
 
+**Spalling** (type `spalling`, shape `machine`, present with seraphhorizons' `OreProcessing` on): one
+record per ore item kind spalled, id `spalling|game:<ore|crystalizedore>-<grade>-<ore>-*|0`. The
+ingredients are the ore (consumed; its code a wildcard over the host rock, every rock an alternative
+in the one variant) and the hammer (`isTool`, its `toolDurabilityCost` the blows times the wear a blow;
+`machine.wear` names it, rule `fixed`); the output is the crushed ore of the 5-unit rule
+(`game:crushed-<ore>-<fine|coarse>`). There is no station: the ore is set down on the ground and struck
+where it lies, which `requirements` says. `power` is `hand`, `turns` the blows (each a left-click with a
+hammer), and `work` says so (`amount` that many, `unit` `strikes`). `extra` has the `ore`, `grade`,
+`form` (`raw` or `chunk`) and `blows`.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).
@@ -391,7 +401,8 @@ prepare-data writes the section as it is to `power.json`; an export without it g
   plus, with a failure, what a lost gear becomes.
 - A `lottery` record has one ingredient; its outcomes' chances add up to 1, and each output
   belongs to exactly one outcome.
-- A `machine` record has an ingredient with role `station`; `kept`, `wear.ingredient` and
+- A `machine` record has an ingredient with role `station`, unless it is worked by hand in place
+  (`power` `hand` and a `requirements` entry saying where, as spalling); `kept`, `wear.ingredient` and
   `oil.ingredient` name different ingredients, a kept one is not a tool and the worn one is.
 
 ## `extra`

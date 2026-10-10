@@ -3927,6 +3927,45 @@ items, the grades, a medium ore block still measuring 1.25 × its units plus cry
 no nugget recipe, the retargeted recipes, the crucible and an alloy, the bloomery, crucibulum's forge,
 smex's burden, the crucible furnace) and `SwitchesOffScenarios` (off, the default).
 
+### Ore processing: spalling (`OreProcessing`, `SpallingSettings`)
+
+The hand tier's crusher (#747): raw ore and chunks broken with a hammer where they lie, the way miners
+spalled ore with sledges before there were stamp mills. No station and no model: it works at the rock
+face from the first day. Part of `OreProcessing` (off by default); server side, and a client follows the
+server's items.
+
+- **Setting down.** Raw ore, chunks and crystallised ore (every grade) go on the ground one at a time:
+  shift + right-click on a solid block, ground storage holding a single ore in the middle of the block
+  (`SingleCenter` in place of vanilla's messy pile of 12, by `patches/oreprocessing-ore.json`), never a
+  pile. Shift + right-click on a placed ore with another in hand sets that one on the next block: beside
+  the face clicked, or, clicking its top, the next block the player faces (never on top, and never
+  picking the placed one up). An empty hand takes it back as before.
+- **Striking.** A left-click on a placed ore with a game hammer (`game:hammer-*`) is a blow, as on the
+  anvil: the hammer swings, the block is not broken, and the hammer loses `HammerWearPerBlow` (1). Raw
+  ore (poor, medium) breaks after `BlowsRawOre` (6) blows, a chunk (rich, bountiful) after `BlowsChunk`
+  (3). It breaks into crushed ore by the 5-unit rule with no loss, the ore's own crushing (fine from
+  poor ore, coarse from the rest: a medium galena's 20 units give 4 coarse, a bountiful's 35 give 7),
+  which pops out where it lay. A player strikes no faster than a blow every 0.3 s
+  (`Spalling.BlowIntervalMs`); the server counts the blows in memory, so an ore left half struck and
+  unloaded starts again.
+- **Anything else** (a pick, an empty hand, any other item) keeps the game's behaviour: breaking the
+  block picks the ore up.
+
+`SpallingSettings` in `ModConfig/seraphhorizons.json` (`BlowsRawOre`, `BlowsChunk`, `HammerWearPerBlow`;
+a value out of range falls back to its default with a warning). The hammers get the behaviour
+(`CollectibleBehaviorSpalling`, first among their behaviours so it runs before the hammer's swing,
+`AnimationAuthoritative`) on the server in `AssetsFinalize`, and clients get it with the items; with the
+switch off no hammer has it. The handbook has a guide page, "Spalling ore"
+(`config/handbook/spalling.json`), hidden with the switch off (and left out of the recipe export), and
+the placed ore's help shows the hammers and the left-click. The recipe export has a `spalling` record per
+ore item kind (`machine` shape, power `hand`, `turns` the blows, `work` in `strikes`, the hammer worn a
+point a blow, no station: `requirements` says it is worked on the ground). A speed bonus for striking on
+stone or a metal plate is left out. Code: `Ore/Core/Spalling.cs` (figures and rules),
+`Ore/Processing/OreSpalling.cs` (the blows, the next block, the hammer behaviour), `ItemGradedOre`.
+Tests: `tests/Ore/SpallingTests.cs`; `tests/PackTests/OreProcessingScenarios.cs` (Atlas: the hammers
+and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, fine from
+poor and a chunk in three blows, the next block, the export records) and `SwitchesOffScenarios` (off).
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is
