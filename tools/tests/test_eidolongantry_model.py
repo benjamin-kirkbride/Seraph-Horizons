@@ -185,6 +185,7 @@ class Body(unittest.TestCase):
         glowing = {e["name"] for e in SHAPE["elements"] if any(f.get("glow") for f in e["faces"].values())}
         self.assertTrue(glowing)
         self.assertTrue(any(n.startswith("b_mind_") for n in glowing))
+        self.assertTrue(any(n.startswith("b_bones_brain") for n in glowing))   # the vessel, with the bones
 
     def test_let_down_brings_the_lowest_toe_from_three_voxels_to_the_floor(self):
         for depth, want in ((0.0, 3.0), (1.0, 0.0)):
@@ -322,14 +323,27 @@ class Build(unittest.TestCase):
             self.assertLessEqual(spine[name], {"#wood", "#wood-end"}, name)
         for name in make_shape.SPINE_TIMBERS:
             self.assertEqual(spine[name], {"#wood", "#wood-end"}, name)       # side grain and its two ends
-        # the four hooks are iron; the pulley and its handle keep vanilla's charred look; the clamps, staples and ropes theirs
+        # the four hooks are iron; the pulley and its handle oak, the clamps and staples steel, in the spine's own
+        # codes (never the body's layer codes, which each body's layers draw over); the ropes vanilla's
         for name in make_shape.SPINE_IRON:
             self.assertEqual(spine[name], {"#iron"}, name)
         for name in ("pulley-capL", "winch-handle1"):
-            self.assertEqual(spine[name], {"#charred"}, name)
-        self.assertEqual(spine["bar-spine1"], {"#steel"})
+            self.assertEqual(spine[name], {"#spine-oak"}, name)
+        self.assertEqual(spine["bar-spine1"], {"#spine-steel"})
         self.assertEqual(spine["spine-rope1"], {"#reedrope"})
-        self.assertEqual(spine["spine-staple1"], {"#rusty-iron"})
+        self.assertEqual(spine["spine-staple1"], {"#spine-steel"})
+        layers = {"#bones", "#joints", "#plates", "#sash", "#skirt"}
+        self.assertFalse(set().union(*spine.values()) & layers)
+
+    def test_the_block_type_declares_the_shapes_textures(self):
+        # blocktypes/eidolongantry/frame.json draws the whole gantry with its own map: every code, the shape's
+        # path, but the two wood codes, which take the gantry's wood
+        text = (MOD / "assets" / "seraphhorizons" / "blocktypes" / "eidolongantry" / "frame.json").read_text()
+        block = text[text.index("textures: {"):]
+        block = block[:block.index("\n\t},")]
+        declared = dict(re.findall(r'"([\w-]+)":\s*\{ base: "([^"]+)" \}', block))
+        want = {k: v.replace("/oak", "/{wood}") if k in make_shape.WOOD_CODES else v for k, v in SHAPE["textures"].items()}
+        self.assertEqual(declared, want)
 
     def test_the_readme_holds_the_generators_stages(self):
         rows = re.findall(r"^\| (\d+) \| `(\w+)` \| (\d+) × `([^`]+)`", README, re.M)
