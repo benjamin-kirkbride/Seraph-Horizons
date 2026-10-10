@@ -4107,7 +4107,7 @@ route for it would make mercury look like it exists only with the switch. Tests:
 figures, whole stacks and fractions); `tests/PackTests/OreProcessingScenarios.cs`
 (`Still_retorts_cinnabar_and_amalgam`: EM's recipe off, amalgam to mercury and sponge step by step,
 taking it out part way, cinnabar, a bucket of water refusing it, and the game's own boiler tick running
-it), `OreProcessingExportScenarios.cs` and `SwitchesOffScenarios` (off).
+it; `Retorting_is_exported`: the records and the guide, with the switch on) and `SwitchesOffScenarios` (off).
 
 ## Trading
 
