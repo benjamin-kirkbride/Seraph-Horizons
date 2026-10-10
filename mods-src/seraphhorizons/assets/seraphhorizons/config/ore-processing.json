@@ -35,6 +35,10 @@
 //   unit of an ore whose main metal is not lead (tetrahedrite, freibergite); meltingPoint: the heat
 //   (°C) the forge must hold the cupel at; secondsPerIngot: the time per 100 units of charge with the
 //   blast gate open (divided by the gate's air: half 0.85, quarter 0.7; shut, nothing happens).
+// - liquation: the clay liquation pan in a firepit or the forge (#724; README "Liquation").
+//   capacityUnits: the most metal units a charge holds; tinPoint: the heat (°C) the tin sweats out at
+//   (the pan's melting point); leadPoint: over it, the lead runs with the tin and the charge gives no
+//   lead; secondsPerIngot: the time at the tin point per 100 units of charge.
 // - retort: the still (the game's boiler with a condenser beside it, #726). "mercury" is the
 //   mercury item (a liquid portion, 100 to the litre); "amalgamMercury" the portions the amalgam pan
 //   puts into one amalgam (#718), of which the still returns "mercuryReturn" while the gold or silver
@@ -53,6 +57,7 @@
     "acidparting": { "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 }
   },
   "cupel": { "capacityUnits": 200, "leadPerOreUnit": 1, "meltingPoint": 950, "secondsPerIngot": 60 },
+  "liquation": { "capacityUnits": 100, "tinPoint": 240, "leadPoint": 327, "secondsPerIngot": 15 },
   "smelt": { "raw": 0, "chunk": 0.5, "crushed": 0.5, "ground": 0, "concentrate": 1.0, "roastedconcentrate": 1.0, "sponge": 1.0 },
   "retort": {
     "mercury": "em:mercuryportion",

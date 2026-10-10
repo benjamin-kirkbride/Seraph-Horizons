@@ -1,0 +1,16 @@
+// The clay liquation pan (OreProcessing, #724; README "Liquation"). Its tin poured, the pan with lead
+// residue is knocked out with a hammer: the pan is the output, and the lead's metal bits go to the
+// player (Ore/Processing/BlockLiquationResidue.cs). Emptied by OreProcessingSystem with the switch off.
+[
+	{
+		ingredientPattern: "P,H",
+		ingredients: {
+			"P": { type: "block", code: "seraphhorizons:liquationpan-residue" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		width: 1,
+		height: 2,
+		shapeless: true,
+		output: { type: "block", code: "seraphhorizons:liquationpan-fired" }
+	}
+]
