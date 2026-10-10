@@ -518,6 +518,9 @@ collision boxes the way `make_shape.py` does, which must give back the rig file'
 `site/test/rosser.test.ts` does the same for the rosser: every pose of
 `mods-src/seraphhorizons/tests/Rosser/rig-reference.json` (with T, k, p and φ), and every cell's boxes
 rebuilt from the shipped shape, hollow cells with none.
+`site/test/concentrator.test.ts` replays `mods-src/seraphhorizons/tests/Concentrator/rig-reference.json` (θ
+alone) and checks its two selects of states (the level, and the amalgamation plates, which wait for the jig)
+and its collision by what is fitted: the frame's boxes always, each level's only while it is fitted.
 `site/test/handcar.test.ts` replays `mods-src/seraphhorizons/tests/Handcar/rig-reference.json` (θ alone) and
 checks the handcar's anchors, its grips riding the beam, and the handcar as a vehicle: a stroke's
 three turns, `distancePerCycle` rolled in one, and its axle boxes on its axles.
