@@ -8,7 +8,6 @@
 	],
 	"powerCell": [0, 0, 3],
 	"powerFace": "west",
-	"infeedSide": "north",
 	"outputSide": "east",
 	"output": {"pos": [0.9994, 0.2329, 0.26]},
 	"die": {"pos": [0.3125, 0.7188, 1.5125]},

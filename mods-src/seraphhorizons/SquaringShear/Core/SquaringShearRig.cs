@@ -18,8 +18,6 @@ public sealed class SquaringShearRig
     public const string CrossheadPart = "crosshead";
 
     public IReadOnlyList<RigCell> Cells { get; }
-    /// <summary>The face a chest or hopper feeds plates through (beyond the gauge's end).</summary>
-    public Side InfeedSide { get; }
     /// <summary>The face the half plates leave by (over the table, towards the operator).</summary>
     public Side OutputSide { get; }
     /// <summary>Where the half plates lie at W = 1.</summary>
@@ -40,7 +38,7 @@ public sealed class SquaringShearRig
     /// <summary>The middle of each stroke, the blade at the bottom: where the cut is heard.</summary>
     public IReadOnlyList<double> CutMoments => Strokes.Select(f => (f.From + (double)f.To) / 2).ToList();
 
-    public SquaringShearRig(IReadOnlyList<RigCell> cells, Side infeedSide, Side outputSide, Float3 output, Float3 plate, Float3 edge,
+    public SquaringShearRig(IReadOnlyList<RigCell> cells, Side outputSide, Float3 output, Float3 plate, Float3 edge,
                             WorkQuantity work, float strokesLead, float strokesCopper, RigParts? movingParts = null)
     {
         var positions = cells.Select(c => c.Pos).ToHashSet();
@@ -50,14 +48,11 @@ public sealed class SquaringShearRig
             throw new FormatException("a cell is listed twice");
         if (cells.Any(c => c.Hollow))
             throw new FormatException("the squaring shear has no hollow cells");
-        if (infeedSide == outputSide)
-            throw new FormatException("infeedSide and outputSide are the same face");
         if (!(strokesLead > 0) || !float.IsFinite(strokesLead) || !(strokesCopper > 0) || !float.IsFinite(strokesCopper))
             throw new FormatException("cut.strokesPerPlate must be above 0 for both metals");
         if (work.Ends[1] != 1 || work.Ends[2] != 1)
             throw new FormatException("work.end must be {thin: 1, thick: 1}, one plate's cut cycle");
         Cells = cells;
-        InfeedSide = infeedSide;
         OutputSide = outputSide;
         Output = output;
         Plate = plate;
@@ -83,20 +78,8 @@ public sealed class SquaringShearRig
     /// <summary>The cells other than the controller's, in file order.</summary>
     public IEnumerable<RigCell> GhostCells => Cells.Where(c => c.Pos != Int3.Zero);
 
-    /// <summary>The cells just outside a face of the footprint: where a container against that
-    /// face stands.</summary>
-    public IEnumerable<Int3> Neighbours(Side side)
-    {
-        var step = side.Normal();
-        var occupied = Cells.Select(c => c.Pos).ToHashSet();
-        return Cells.Select(c => c.Pos + step).Where(p => !occupied.Contains(p)).Distinct();
-    }
-
-    /// <summary>Where a chest or hopper feeds plates from.</summary>
-    public IEnumerable<Int3> InfeedNeighbours() => Neighbours(InfeedSide);
-
-    /// <summary>The cell just beyond the output face from <see cref="Output"/>'s cell: a container
-    /// there takes the half plates.</summary>
+    /// <summary>The cell just beyond the output face from <see cref="Output"/>'s cell, where the half
+    /// plates are dropped.</summary>
     public Int3 OutputNeighbour()
     {
         var cell = new Int3((int)MathF.Floor(Output.X), (int)MathF.Floor(Output.Y), (int)MathF.Floor(Output.Z));
@@ -107,7 +90,7 @@ public sealed class SquaringShearRig
         return cell;
     }
 
-    /// <summary>Where the half plates are dropped when no container takes them: <see cref="Output"/>
+    /// <summary>Where the half plates are dropped: <see cref="Output"/>
     /// moved out through the output face to <paramref name="beyond"/> blocks past it.</summary>
     public Float3 OutputDrop(float beyond = 0.15f)
     {
@@ -156,7 +139,6 @@ public sealed class SquaringShearRig
         Float3 Anchor(string key) => Float3Of(Required(Required(root, key, JsonValueKind.Object), "pos", JsonValueKind.Array), key + ".pos");
         return new SquaringShearRig(
             Cells(root),
-            SideOf(Required(root, "infeedSide", JsonValueKind.String), "infeedSide"),
             SideOf(Required(root, "outputSide", JsonValueKind.String), "outputSide"),
             Anchor("output"),
             Anchor("plate"),

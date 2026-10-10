@@ -55,7 +55,7 @@ along x at the cell's centre, into the column. The cutter turns with the axle ei
 through a rectifier, so the cut always advances (see the drive below).
 
 **Anchors** (in `assets/seraphhorizons/config/gearcutter-rig.json`): `powerCell` and `powerFace`;
-`infeedSide` north (a chest or hopper there feeds blanks) and `outputSide` south with `output.pos`
+`outputSide` south with `output.pos`
 (where a finished gear drops); `chips.pos` (the cutter, for chips and sparks) and `drip.pos` (the mouth
 of the injection valve's nozzle, just over the cutter's teeth, where its spray starts). There is no
 oil anchor: the oil is MachineOil's.
@@ -432,7 +432,7 @@ regenerate unchanged):
   fall; the knee's and the pusher's setting and the shield's are `present` gauges with amount 0 for the
   small master. Gauge windows are in teeth and are not shifted with the model.
 
-**Keys.** `cells`, `powerCell` and `powerFace`, `infeedSide`, `outputSide`, `output`, `chips`, `drip`,
+**Keys.** `cells`, `powerCell` and `powerFace`, `outputSide`, `output`, `chips`, `drip`,
 `work`, `cut` (`turnsPerTooth`, `masters`) and `parts`. `requires` values: `spindle`, `feedscrew`,
 `camfeed`, `camindex`, `liftcam`, `index`, `oiler`, `head`, `cutter`, `master`, `masterlarge`,
 `blanksmall`, `blanklarge`, `cover`, or null. A
@@ -497,11 +497,9 @@ master only with the head, as the rules could have fitted them.
 master's size. W runs from 0 to 12 or 20 by `TeethFor(radians, TurnsPerTooth)` while
 `GearCut.Running` (complete, a blank on, the shaft at `MinSpeed`). `BEGearCutter.Cut(radians)` is
 the step (the server's 50 ms tick calls it with the shaft's advance; the Atlas scenarios call it to
-finish a gear without minutes of turning). A finished gear goes into a container in
-`GearCutterRig.OutputNeighbour()` (the cell beyond `output.pos` across the output face), else drops at
-`OutputDrop()` (`output.pos` moved 0.15 beyond that face, pushed outward). The infeed is every cell
-just beyond the infeed face, both levels (`InfeedNeighbours`); the first container slot holding a
-blank of the master's size gives one, on the slow tick and after each gear, while the shaft turns.
+finish a gear without minutes of turning). A finished gear drops at `OutputDrop()` (`output.pos`
+moved 0.15 beyond the output face, into `GearCutterRig.OutputNeighbour()`, pushed outward). Blanks go
+on by hand only: the cutter never takes from or puts into a chest or other container beside it.
 
 **Oil and wear** (`GearCutterWear`). `Oil.NewOwn(api, OilMachine.GearCutter)`: the tank, pouring,
 saving, syncing and smoke are MachineOil's. `BEBehaviorGearCutterMP.GetResistance` is `Resistance`
@@ -544,8 +542,7 @@ either way, as the rosser's are.
 
 **Open questions, decided the simplest way.** The blank can be taken back by Ctrl + right-click
 (after the kit, before the master), its cut lost, since otherwise only breaking the frame would free
-it to change the master; the kit's wear rounds up per gear; a cutter with no MachineOil tank wears at its base; the
-infeed only feeds while the shaft turns; and the frame has no schematic yet.
+it to change the master; the kit's wear rounds up per gear; a cutter with no MachineOil tank wears at its base; and the frame has no schematic yet.
 
 ## Tests
 

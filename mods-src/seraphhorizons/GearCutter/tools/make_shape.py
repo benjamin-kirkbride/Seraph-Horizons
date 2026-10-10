@@ -1500,7 +1500,6 @@ def make_rig(parts):
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
-        "infeedSide": "north",
         "outputSide": "south",
         "output": {"pos": pt(29.0, BED_TOP, 29.0)},
 

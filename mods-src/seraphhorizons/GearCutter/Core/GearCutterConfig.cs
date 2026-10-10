@@ -18,7 +18,7 @@ public class GearCutterConfig
     /// <summary>Resistance the assembled cutter puts on its shaft, oiled or dry. An unassembled frame puts 0.005.</summary>
     public float Resistance { get; set; } = 0.2f;
 
-    /// <summary>The shaft speed below which the cutter does not cut or take a blank from its infeed.</summary>
+    /// <summary>The shaft speed below which the cutter does not cut.</summary>
     public float MinSpeed { get; set; } = 0.05f;
 
     public static readonly GearCutterConfig Defaults = new();

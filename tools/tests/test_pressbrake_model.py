@@ -169,7 +169,8 @@ class Anchors(unittest.TestCase):
         self.assertEqual(checks.lid_gaps(RIG["cells"]), [])
         self.assertNotIn("powerCell", RIG)
         self.assertNotIn("powerFace", RIG)
-        self.assertEqual((RIG["infeedSide"], RIG["outputSide"]), ("south", "north"))
+        self.assertNotIn("infeedSide", RIG)
+        self.assertEqual(RIG["outputSide"], "north")
         for key in ("output", "plate", "edge"):
             self.assertEqual(len(RIG[key]["pos"]), 3)
         # the edge anchor is on the hinge axis; the output over the leaf at the near end

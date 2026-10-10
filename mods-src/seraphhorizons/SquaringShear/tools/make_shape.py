@@ -474,7 +474,6 @@ def make_rig(parts):
                     "are placed in plates. theta is the treadle's work (the hold-to-work clock), carried by a ratio-0 rotate "
                     "on the treadle. See the squaring shear's README for the schema.",
         "cells": [],
-        "infeedSide": "south",
         "outputSide": "north",
         "output": {"pos": pt(8.0, YB + T, ZB - DRAW)},
         "plate": {"pos": pt(8.0, YB + T, ZB)},

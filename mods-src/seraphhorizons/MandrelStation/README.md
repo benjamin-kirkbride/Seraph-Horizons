@@ -25,9 +25,8 @@ unchanged by this one (no new driver: every motion is a `gauge`).
 the controller at `[0,0,0]`: x 0, y 0, z 0..1. The controller is the stump, `[0,0,0]`, the block the
 player clicks. Placed like the press brake and the draw bench, the station extends away from the
 player along their line of sight, the stump nearest them and the mandrel pointing away: the block's
-`side` is the way they look. A chest of hollows can stand beside the stump (native west, `infeedSide`);
-when a hollow is done, gameplay delivers its two sections beyond the tip (native south, `outputSide`),
-into a container standing there, or onto the ground at `output.pos`. The model draws nothing coming off.
+`side` is the way they look. When a hollow is done, gameplay drops its two sections beyond the tip
+(native south, `outputSide`), onto the ground at `output.pos`. The model draws nothing coming off.
 
 **Why 1 × 1 × 2.** The finished tube is 16 long (two sections) on a mandrel that also needs a root
 held in a bracket: the hollow starts against the shoulder at z 7 and the finished tube ends at z 23, half a
@@ -165,9 +164,9 @@ nothing added to the shared rig maths: a `work` quantity, gauges, and one θ-dri
 - **`forge`**: `blowsPerHollow` (lead 9, copper 14: the pace), `hollows` (each class's work), `sections`
   (what a hollow makes) and `sectionsPerHollow` (2).
 - **Anchors**: `output.pos` (on the ground beyond the tip, where gameplay drops the two sections), `strike.pos` (the top of the box's
-  middle, where the hammer lands: sparks and the blow's sound), `infeedSide` west, `outputSide` south.
+  middle, where the hammer lands: sparks and the blow's sound), `outputSide` south.
 
-**Keys.** `cells`, `infeedSide`, `outputSide`, `output`, `strike`, `work`, `forge` and `parts`.
+**Keys.** `cells`, `outputSide`, `output`, `strike`, `work`, `forge` and `parts`.
 `requires` values: `mandrel`, `hollowlead`, `hollowcopper`, or null. The texture code the renderer sets:
 `mandrel` (the fitted rod's metal; iron plate in the shape).
 
@@ -254,14 +253,11 @@ blows of a copper hammer, 6 of a bronze one, 5 of an iron one and 4 of a steel o
 (iron) and 6 (steel). The blow that brings W to 1 finishes it (the overshoot is dropped). A blow plays the anvil's `game:sounds/effect/anvilhit` and throws a few
 small glowing sparks at `strike.pos`, and costs the hammer `HammerWearPerBlow` durability (not in
 creative mode), one a blow whatever the hammer. At W = 1 the hollow is used up and `forge.sectionsPerHollow` (2)
-`forge.sections[k]` (`seraphhorizons:pipesection-{metal}`) go into a container in
-`MandrelStationRig.OutputNeighbour()` (the cell beyond the tip, native south), else drop just past it at
-`OutputDrop()`, pushed outward, as the press brake's angle does. Each blow syncs W and the blow count.
+`forge.sections[k]` (`seraphhorizons:pipesection-{metal}`) drop just past the tip (into
+`MandrelStationRig.OutputNeighbour()`, native south) at `OutputDrop()`, pushed outward, as the press brake's angle does. Each blow syncs W and the blow count.
 Ctrl + right-click takes a hollow back only before the first blow (the work, not a part); after it, it
-stays (an error says so). **Infeed:** a hand station takes nothing by itself. A blow on a bare
-mandrel takes one hollow from a container in a cell beside the station (`InfeedNeighbours`, native
-west: beside the stump or beside the tip's cell) and loads it; that click is not a blow. **Hotbar
-refill:** with no hollow from the infeed, a hammer click on a bare mandrel while right-click is held since
+stays (an error says so). The station never takes from or puts into a chest or other container
+beside it. **Hotbar refill:** a hammer click on a bare mandrel while right-click is held since
 a hollow was finished (the same player's hammer clicks on the station no more than
 `Forging.HeldClickGapMs`, 750, apart: the client repeats a held click every 250 ms) puts another of the
 same item on from the first of the player's hotbar slots holding one (`Forging.RefillSlot`: slots 0..9,

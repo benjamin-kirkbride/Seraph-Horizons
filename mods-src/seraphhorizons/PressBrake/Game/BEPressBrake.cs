@@ -17,8 +17,7 @@ namespace SeraphHorizons.Mod.PressBrake;
 /// plate on the bed as its item stack and the fold (<see cref="FoldJob"/>: W, 0..1), and who is working
 /// the lever (<see cref="LeverHolds"/>). The player works it by holding right-click on it, as on the
 /// quern: the server advances W while anyone holds, sounds the fold, and at W = 1 drops one angle
-/// at the output face (or puts them in a container there); a lever worked on an empty bed
-/// takes the next half plate from a chest or hopper at the infeed face. Its work, the half plate, is
+/// at the output face. Its work, the half plate, is
 /// the squaring shear's item: with that switch off there is none, and the brake refuses work. The server keeps the ghost cell
 /// stamped; the client draws the brake (<see cref="PressBrakeRenderer"/>, through
 /// <see cref="IPressBrakeView"/>). The rules are PressBrake/Core's.
@@ -33,24 +32,15 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     private const string PartKeyPrefix = "part-";
     // The server syncs W at least this often (plates); the renderer follows the lever between.
     private const double SyncStep = 0.02;
-    // After a plate is done, the infeed waits this long, so the angle clears off the leaf (the
-    // model eases the bar and screws back) before the next plate goes on.
-    private const long ClearMs = 600;
     // A client's own player holding right-click counts as working for this long after its last step.
     private const long LocalHoldMs = 250;
-    // A client keeps the lever worked on an empty bed this long, for the server to load a plate from
-    // the infeed.
-    private const long EmptyGraceMs = 1200;
 
     private PressBrakeParts _parts = new();
     private ItemStack? _plate;
     private FoldJob _job = FoldJob.None;
     private readonly LeverHolds _holds = new();
     private bool _held;
-    private long _finishedAt = long.MinValue / 2;
     private long _localHeldAt = long.MinValue / 2;
-    private long _clientEmptySince = long.MinValue / 2;
-    private bool _clientPlateWasOn;
     private float _creakSeconds;
     private float? _serverTurnsLead;
     private float? _serverTurnsCopper;
@@ -260,8 +250,6 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         if (!server)
             return true;
         if (!PlateOn)
-            PullFromInfeed(waitForClear: false);
-        if (!PlateOn)
             return Error(byPlayer, "error-no-plate");
         return StartWork(byPlayer);
     }
@@ -276,8 +264,7 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
     /// <summary>
     /// Right-click still held on the brake (both sides, every tick, as the quern's grinding): the
     /// server counts the player as working the lever; the client marks its own player as working for
-    /// the renderer. Whether the player goes on: while the brake is complete and has a plate on, and
-    /// on the server just after a plate is done while the infeed has another for the next.
+    /// the renderer. Whether the player goes on: while the brake is complete and has a plate on.
     /// </summary>
     public bool OnWorkStep(IPlayer byPlayer, float secondsUsed)
     {
@@ -285,19 +272,14 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         if (Api.Side == EnumAppSide.Client)
         {
             _localHeldAt = now;
-            return _parts.Complete && (PlateOn || secondsUsed < 0.5f || now - _clientEmptySince <= EmptyGraceMs);
+            return _parts.Complete && (PlateOn || secondsUsed < 0.5f);
         }
         if (!_parts.Complete)
             return false;
         if (!PlateOn)
         {
-            if (now - _finishedAt >= ClearMs)
-                PullFromInfeed(waitForClear: true);
-            if (!PlateOn && !(now - _finishedAt < ClearMs && InfeedHasPlate()))
-            {
-                Release(byPlayer);
-                return false;
-            }
+            Release(byPlayer);
+            return false;
         }
         _holds.Hold(byPlayer.PlayerUID, now);
         UpdateHeld();
@@ -486,7 +468,6 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         {
             int k = _job.Class;
             ClearJob();
-            _finishedAt = Api.World.ElapsedMilliseconds;
             if (AngleItem(k) is { } angle)
                 Deliver(new ItemStack(angle, Folding.AnglesPerPlate));
             UpdateHeld();
@@ -498,67 +479,15 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
         return 0;
     }
 
-    /// <summary>Puts <paramref name="stack"/> into a container just beyond the output face, else
-    /// drops it there.</summary>
+    /// <summary>Drops <paramref name="stack"/> just beyond the output face.</summary>
     public void Deliver(ItemStack stack)
     {
         if (Rig is not { } rig)
             return;
-        var dummy = new DummySlot(stack);
-        if (Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.OutputNeighbour())) is BlockEntityContainer container)
-        {
-            foreach (var slot in container.Inventory)
-            {
-                if (dummy.Empty)
-                    break;
-                if (slot.CanHold(dummy))
-                    dummy.TryPutInto(Api.World, slot, dummy.StackSize);
-            }
-            container.MarkDirty(true);
-        }
-        if (dummy.Empty)
-            return;
         var at = WorldPoint(rig.OutputDrop());
         var n = Footprint.ToWorld(rig.OutputSide, Side).Normal();
-        Api.World.SpawnItemEntity(dummy.Itemstack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
+        Api.World.SpawnItemEntity(stack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
         Api.World.PlaySoundAt(AngleSound, at.X, at.Y, at.Z);
-    }
-
-    /// <summary>A half plate a container at the infeed face holds that the brake would take.</summary>
-    private IEnumerable<(BlockEntityContainer Container, ItemSlot Slot)> InfeedPlates()
-    {
-        if (Rig is not { } rig)
-            yield break;
-        foreach (var local in rig.InfeedNeighbours())
-        {
-            if (Api.World.BlockAccessor.GetBlockEntity(CellPos(local)) is not BlockEntityContainer container)
-                continue;
-            foreach (var slot in container.Inventory)
-            {
-                string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-                if (Folding.ClassOfPlate(code) != 0 && AngleItem(Folding.ClassOfPlate(code)) != null)
-                    yield return (container, slot);
-            }
-        }
-    }
-
-    private bool InfeedHasPlate() => InfeedPlates().Any();
-
-    /// <summary>A complete brake with nothing on its bed takes one half plate from a container at the
-    /// infeed face; it does so when the lever is worked on it, and, <paramref name="waitForClear"/>,
-    /// only a moment after the last plate was done. Returns whether one went on.</summary>
-    public bool PullFromInfeed(bool waitForClear = true)
-    {
-        if (Api.Side != EnumAppSide.Server || PlateOn || !_parts.Complete)
-            return false;
-        if (waitForClear && Api.World.ElapsedMilliseconds - _finishedAt < ClearMs)
-            return false;
-        if (InfeedPlates().FirstOrDefault() is not ({ } container, { } slot))
-            return false;
-        Load(slot.TakeOut(1));
-        slot.MarkDirty();
-        container.MarkDirty(true);
-        return true;
     }
 
     // Once a second: the ghost.
@@ -575,9 +504,6 @@ public class BEPressBrake : BlockEntity, IPressBrakeView
             Api.World.BlockAccessor.RemoveBlockEntity(Pos);
             return;
         }
-        if (_clientPlateWasOn && !PlateOn)
-            _clientEmptySince = Api.World.ElapsedMilliseconds;
-        _clientPlateWasOn = PlateOn;
         if (Api is not ICoreClientAPI capi || Rig is not { } rig || !Running)
         {
             _creakSeconds = 0.3f;

@@ -17,9 +17,7 @@ namespace SeraphHorizons.Mod.SquaringShear;
 /// on the table as its item stack and the cut (<see cref="CutJob"/>: W, 0..1), and who is working the
 /// treadle (<see cref="TreadleHolds"/>). The player works it by holding right-click on it, as on the
 /// quern: the server advances W while anyone holds, sounds the cut, and at W = 1 drops two half
-/// plates at the output face (or puts them in a container there); a treadle worked on an empty table
-/// takes the next plate from a chest or hopper at the infeed face. The server keeps the ghost cell
-/// stamped; the client draws the shear (<see cref="SquaringShearRenderer"/>, through
+/// plates at the output face. The server keeps the ghost cell stamped; the client draws the shear (<see cref="SquaringShearRenderer"/>, through
 /// <see cref="ISquaringShearView"/>). The rules are SquaringShear/Core's.
 /// </summary>
 public class BESquaringShear : BlockEntity, ISquaringShearView
@@ -32,24 +30,15 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
     private const string PartKeyPrefix = "part-";
     // The server syncs W at least this often (plates); the renderer follows the treadle between.
     private const double SyncStep = 0.02;
-    // After a plate is done, the infeed waits this long, so the halves clear off the table (the
-    // model eases the hold-down back) before the next plate goes on.
-    private const long ClearMs = 600;
     // A client's own player holding right-click counts as working for this long after its last step.
     private const long LocalHoldMs = 250;
-    // A client keeps the treadle worked on an empty table this long, for the server to load a plate from
-    // the infeed.
-    private const long EmptyGraceMs = 1200;
 
     private SquaringShearParts _parts = new();
     private ItemStack? _plate;
     private CutJob _job = CutJob.None;
     private readonly TreadleHolds _holds = new();
     private bool _held;
-    private long _finishedAt = long.MinValue / 2;
     private long _localHeldAt = long.MinValue / 2;
-    private long _clientEmptySince = long.MinValue / 2;
-    private bool _clientPlateWasOn;
     private float _creakSeconds;
     private float? _serverStrokesLead;
     private float? _serverStrokesCopper;
@@ -256,8 +245,6 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
         if (!server)
             return true;
         if (!PlateOn)
-            PullFromInfeed(waitForClear: false);
-        if (!PlateOn)
             return Error(byPlayer, "error-no-plate");
         return StartWork(byPlayer);
     }
@@ -272,8 +259,7 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
     /// <summary>
     /// Right-click still held on the shear (both sides, every tick, as the quern's grinding): the
     /// server counts the player as working the treadle; the client marks its own player as working for
-    /// the renderer. Whether the player goes on: while the shear is complete and has a plate on, and
-    /// on the server just after a plate is done while the infeed has another for the next.
+    /// the renderer. Whether the player goes on: while the shear is complete and has a plate on.
     /// </summary>
     public bool OnWorkStep(IPlayer byPlayer, float secondsUsed)
     {
@@ -281,19 +267,14 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
         if (Api.Side == EnumAppSide.Client)
         {
             _localHeldAt = now;
-            return _parts.Complete && (PlateOn || secondsUsed < 0.5f || now - _clientEmptySince <= EmptyGraceMs);
+            return _parts.Complete && (PlateOn || secondsUsed < 0.5f);
         }
         if (!_parts.Complete)
             return false;
         if (!PlateOn)
         {
-            if (now - _finishedAt >= ClearMs)
-                PullFromInfeed(waitForClear: true);
-            if (!PlateOn && !(now - _finishedAt < ClearMs && InfeedHasPlate()))
-            {
-                Release(byPlayer);
-                return false;
-            }
+            Release(byPlayer);
+            return false;
         }
         _holds.Hold(byPlayer.PlayerUID, now);
         UpdateHeld();
@@ -477,7 +458,6 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
         {
             int k = _job.Class;
             ClearJob();
-            _finishedAt = Api.World.ElapsedMilliseconds;
             if (HalfPlateItem(k) is { } half)
                 Deliver(new ItemStack(half, Cutting.HalfPlatesPerPlate));
             UpdateHeld();
@@ -489,67 +469,15 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
         return 0;
     }
 
-    /// <summary>Puts <paramref name="stack"/> into a container just beyond the output face, else
-    /// drops it there.</summary>
+    /// <summary>Drops <paramref name="stack"/> just beyond the output face.</summary>
     public void Deliver(ItemStack stack)
     {
         if (Rig is not { } rig)
             return;
-        var dummy = new DummySlot(stack);
-        if (Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.OutputNeighbour())) is BlockEntityContainer container)
-        {
-            foreach (var slot in container.Inventory)
-            {
-                if (dummy.Empty)
-                    break;
-                if (slot.CanHold(dummy))
-                    dummy.TryPutInto(Api.World, slot, dummy.StackSize);
-            }
-            container.MarkDirty(true);
-        }
-        if (dummy.Empty)
-            return;
         var at = WorldPoint(rig.OutputDrop());
         var n = Footprint.ToWorld(rig.OutputSide, Side).Normal();
-        Api.World.SpawnItemEntity(dummy.Itemstack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
+        Api.World.SpawnItemEntity(stack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
         Api.World.PlaySoundAt(HalvesSound, at.X, at.Y, at.Z);
-    }
-
-    /// <summary>A plate a container at the infeed face holds that the shear would take.</summary>
-    private IEnumerable<(BlockEntityContainer Container, ItemSlot Slot)> InfeedPlates()
-    {
-        if (Rig is not { } rig)
-            yield break;
-        foreach (var local in rig.InfeedNeighbours())
-        {
-            if (Api.World.BlockAccessor.GetBlockEntity(CellPos(local)) is not BlockEntityContainer container)
-                continue;
-            foreach (var slot in container.Inventory)
-            {
-                string? code = slot.Itemstack?.Collectible?.Code?.ToString();
-                if (Cutting.ClassOfPlate(code) != 0 && HalfPlateItem(Cutting.ClassOfPlate(code)) != null)
-                    yield return (container, slot);
-            }
-        }
-    }
-
-    private bool InfeedHasPlate() => InfeedPlates().Any();
-
-    /// <summary>A complete shear with nothing on its table takes one plate from a container at the
-    /// infeed face; it does so when the treadle is worked on it, and, <paramref name="waitForClear"/>,
-    /// only a moment after the last plate was done. Returns whether one went on.</summary>
-    public bool PullFromInfeed(bool waitForClear = true)
-    {
-        if (Api.Side != EnumAppSide.Server || PlateOn || !_parts.Complete)
-            return false;
-        if (waitForClear && Api.World.ElapsedMilliseconds - _finishedAt < ClearMs)
-            return false;
-        if (InfeedPlates().FirstOrDefault() is not ({ } container, { } slot))
-            return false;
-        Load(slot.TakeOut(1));
-        slot.MarkDirty();
-        container.MarkDirty(true);
-        return true;
     }
 
     // Once a second: the ghost.
@@ -566,9 +494,6 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
             Api.World.BlockAccessor.RemoveBlockEntity(Pos);
             return;
         }
-        if (_clientPlateWasOn && !PlateOn)
-            _clientEmptySince = Api.World.ElapsedMilliseconds;
-        _clientPlateWasOn = PlateOn;
         if (Api is not ICoreClientAPI capi || Rig is not { } rig || !Running)
         {
             _creakSeconds = 0.3f;

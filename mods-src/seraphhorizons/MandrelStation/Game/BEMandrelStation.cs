@@ -17,9 +17,8 @@ namespace SeraphHorizons.Mod.MandrelStation;
 /// forges as on the anvil: each right-click with a hammer is a blow (the anvil's sound and sparks at
 /// <c>strike.pos</c>, the hammer's durability paid; a hammer of a higher tool tier forges more a blow),
 /// and at the blow that finishes the hollow two pipe sections of the
-/// hollow's metal go into a container beyond the tip, or drop there. A blow on a bare mandrel takes a
-/// hollow from a chest or hopper beside the stump, or, with right-click held after a hollow is finished,
-/// another of the same from the player's hotbar. The mandrel, once fitted, comes out only by breaking. The server keeps the ghost cell stamped; the client
+/// hollow's metal drop beyond the tip. With right-click held after a hollow is finished, a blow on
+/// the bare mandrel puts another of the same on from the player's hotbar. The mandrel, once fitted, comes out only by breaking. The server keeps the ghost cell stamped; the client
 /// draws the station (<see cref="MandrelStationRenderer"/>, through <see cref="IMandrelStationView"/>).
 /// The rules are MandrelStation/Core's.
 /// </summary>
@@ -195,8 +194,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
     /// Right-click on the station or its ghost. Ctrl takes back: in creative mode with no mandrel it
     /// fits an iron one with nothing taken; else a hollow not yet struck comes off (the mandrel is a part,
     /// not a consumable: it comes out only by breaking the station). A rod of iron, meteoric iron or steel is fitted as the mandrel; a lead
-    /// or copper hollow section goes on a bare mandrel; a hammer strikes a blow (on a bare mandrel it
-    /// takes a hollow from the infeed instead). Anything else is the item's own business. Decided and
+    /// or copper hollow section goes on a bare mandrel; a hammer strikes a blow. Anything else is the item's own business. Decided and
     /// done on the server; the client says whether the click is the station's.
     /// </summary>
     public bool OnInteract(IPlayer byPlayer)
@@ -369,8 +367,7 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
 
     // ---- Forging ----
 
-    /// <summary>A right-click with a hammer (server side): on a bare mandrel, takes a hollow from the
-    /// infeed, else, with right-click held since a hollow was finished (<see cref="Forging.Held"/>),
+    /// <summary>A right-click with a hammer (server side): on a bare mandrel, with right-click held since a hollow was finished (<see cref="Forging.Held"/>),
     /// puts another of the same on from the player's hotbar once a blow would be struck
     /// (<see cref="RefillFromHotbar"/>); on a hollow, strikes a blow, no faster than
     /// <see cref="Forging.BlowIntervalMs"/>.</summary>
@@ -384,8 +381,6 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
             return Error(byPlayer, "error-no-mandrel");
         if (!HollowOn)
         {
-            if (PullFromInfeed())
-                return true;
             if (held && _lastFinished != null)
             {
                 if (!Forging.Ready(now - _lastBlowAt))
@@ -453,62 +448,15 @@ public class BEMandrelStation : BlockEntity, IMandrelStationView
         Api.World.SpawnParticles(props);
     }
 
-    /// <summary>Puts <paramref name="stack"/> into a container just beyond the output face, else
-    /// drops it there.</summary>
+    /// <summary>Drops <paramref name="stack"/> just beyond the output face.</summary>
     public void Deliver(ItemStack stack)
     {
         if (Rig is not { } rig)
             return;
-        var dummy = new DummySlot(stack);
-        if (Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.OutputNeighbour())) is Vintagestory.GameContent.BlockEntityContainer container)
-        {
-            foreach (var slot in container.Inventory)
-            {
-                if (dummy.Empty)
-                    break;
-                if (slot.CanHold(dummy))
-                    dummy.TryPutInto(Api.World, slot, dummy.StackSize);
-            }
-            container.MarkDirty(true);
-        }
-        if (dummy.Empty)
-            return;
         var at = WorldPoint(rig.OutputDrop());
         var n = Footprint.ToWorld(rig.OutputSide, Side).Normal();
-        Api.World.SpawnItemEntity(dummy.Itemstack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
+        Api.World.SpawnItemEntity(stack, at, new Vec3d(n.X * 0.05, 0.02, n.Z * 0.05));
         Api.World.PlaySoundAt(SectionSound, at.X, at.Y, at.Z);
-    }
-
-    /// <summary>A hollow a container at the infeed face holds that the station would take.</summary>
-    private IEnumerable<(Vintagestory.GameContent.BlockEntityContainer Container, ItemSlot Slot)> InfeedHollows()
-    {
-        if (Rig is not { } rig)
-            yield break;
-        foreach (var local in rig.InfeedNeighbours())
-        {
-            if (Api.World.BlockAccessor.GetBlockEntity(CellPos(local)) is not Vintagestory.GameContent.BlockEntityContainer container)
-                continue;
-            foreach (var slot in container.Inventory)
-            {
-                int k = Forging.ClassOfHollow(slot.Itemstack?.Collectible?.Code?.ToString());
-                if (k != 0 && SectionItem(k) != null)
-                    yield return (container, slot);
-            }
-        }
-    }
-
-    /// <summary>A station with a mandrel and nothing on it takes one hollow from a container at the
-    /// infeed face (when struck). Returns whether one went on.</summary>
-    public bool PullFromInfeed()
-    {
-        if (Api.Side != EnumAppSide.Server || HollowOn || !Complete)
-            return false;
-        if (InfeedHollows().FirstOrDefault() is not ({ } container, { } slot))
-            return false;
-        Load(slot.TakeOut(1));
-        slot.MarkDirty();
-        container.MarkDirty(true);
-        return true;
     }
 
     // The client's own: the client removes a broken station at once, and an update the server sent
