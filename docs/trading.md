@@ -1209,13 +1209,43 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   the top tier (`SchematicTests`), the carpenter's sticks and aged crate, the mechanic's rope and
   metal parts and the smith's tin bronze and steel ingots moved from the core to the rotating pool.
 - **Offers.** An offer is an ordinary trade item whose stack carries `offer` and what it is for
-  (`MapOfferAttrs`): ore map offers the deposit id, metal, precision and last measured size; leads
-  the kind, cell, camp type and position. One ore map offer per metal, the nearest deposit of
-  `DepositService.Candidates(x, z, 5000)` that is unsold and not being sold, at most four metals
-  (`MapOffers.PickOre`); the gravel map the nearest such field of `GravelFields(x, z, 2000)`. Deposits
-  in range but none left: a `soldout` offer with stock 0 (drawn unavailable by the game). The
-  `lead` entry expands to the 8 km settlement cell's centre (`LeadTargets.Settlement`) when the
+  (`MapOfferAttrs`): ore map offers the deposit id, metal, precision, measured size and what the ore
+  is (#692: `ores`, `grades`, `rock`, the map's own keys, `docs/oregen.md` "What a map names"); gravel
+  map offers the field's `rock` and the `metals` it pans; leads the kind, cell, camp type and
+  position. One ore map offer per metal, the nearest deposit of `DepositService.Candidates(x, z,
+  5000)` that is unsold and not being sold, at most four metals (`MapsSystem.PickOre`, over
+  `MapOffers.PickOre`); the gravel map the nearest such field of `GravelFields(x, z, 2000)`
+  (`PickGravel`). Only a checked deposit (`DepositCandidate.Surveyed`) is offered: one not checked yet
+  is a `surveying` offer in its place (its metal, or a gravel field; stock 0, "Lead ore map: being
+  surveyed", refused with `trading-maps-error-surveying`), and its check is asked for (below).
+  Deposits in range but none left: a `soldout` offer with stock 0 (drawn unavailable by the game).
+  The `lead` entry expands to the 8 km settlement cell's centre (`LeadTargets.Settlement`) when the
   shelf tier has `mapsToTraders`, and to nothing else: camp leads are not shelf offers.
+- **Deposit checks** (#693, `Game/DepositSurveys.cs`, queue `Core/SurveyQueue.cs`). The seed gives each
+  ore cell's eight spots, not which takes the deposit or what ore it is (both follow the host rock,
+  known once terrain generates), so the checks run ahead of the player:
+  - *Approach*: every 5 s, each camp cell of the grid whose site (the placed camp, or the spot it
+    waits for) is within `DepositCheckApproachMetres` (1,500) of an online player has what it would
+    offer queued (`MapsSystem.QueueChecks`): a prospector cell's ore maps (up to four metals within
+    5 km) and every camp's gravel map, the unchecked ones. A camp is queued again after 5 minutes.
+    Prospectors sit on the lattice (one within two cells of anywhere), so a walking player reaches a
+    camp about 7 minutes after it is queued (4m55 per km).
+  - *Throttled*: one background check at a time, `DepositCheckPauseSeconds` (5) after the last that
+    did work. A check is `DepositService.Verify`: an ore deposit's nine columns (loaded from disk
+    when generated, else generated, its spot's column first) and counted; a gravel field's one
+    column. The count is on the main thread (nine columns of 32³ chunks, a few milliseconds);
+    generating is the world generator's.
+  - *Fallback*: a trade window opening on a `surveying` offer (teleport, fast travel) asks for its
+    check urgently: urgent checks go first, at once, beside a background one. A restock with a
+    player trading does the same.
+  - *Landing*: every loaded trader showing the deposit `surveying` gets its real offer in that slot
+    (`MapsSystem.RefreshShelves`, `EntitySeraphTrader.ReplaceSelling`, which keeps the slot's key for
+    the next restock), priced for the player trading, whose window is told; a cell that turned out
+    to have none, or a worked-out deposit, brings the metal's next deposit (itself `surveying` while
+    its check runs) or nothing. A camp the check was queued for has its offers queued again.
+  - A check that could not settle a cell (every spot tried) is given up until the server restarts
+    (`DepositSurveys.GaveUp`): not offered or checked again, so it can't loop.
+  - Never filled over restocks: an earlier idea, a few offers more at each restock, was too slow.
 - **Camp leads** (the user's goal: "you can always buy a map to a trader within some radius that you
   don't already have"; radius and count grow with standing, so learning from local traders is
   cheaper than buying the whole map from one). Per buyer, so off the shelf: the shared shelf has 16
@@ -1387,8 +1417,11 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
 - **Never bought back**: the economy's `refused` prefixes (`seraphhorizons:oremap`, `gravelmap`,
   `traderlead`, `game:locatormap`) refuse them off-list, and no list buys them
   (`TradingMapsScenarios` checks the quote).
-- **Known limits.** The size class priced is the last measurement (unsurveyed until someone verifies
-  the deposit); the deal's own verify may find it different, and the map says what it found. A camp
+- **Known limits.** The size class priced is the last measurement; the deal's own verify may find it
+  different (players dug there since), and the map says what it found. Map prices count the metal
+  in the ground, as sizes do, not what hand-tier processing recovers of it (22–58 %, #684): #692
+  left them as they are for now; discounting them is open. Approach checks follow the grid's camps
+  only: a trader elsewhere (a test, a story trader) shows `surveying` until its trade opens. A camp
   lead to a pending cell is offered at its waiting spot's distance and price; only the sale settles
   where the camp is. A cell `_noCamp` skips is forgotten at a restart (its spots are all tried
   then, so it is skipped anyway unless a second chance places it later). Settlement grounds are reserved but empty until settlements exist (#468). The pending sheet

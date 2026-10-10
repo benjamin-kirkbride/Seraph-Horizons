@@ -691,6 +691,17 @@ public class SeraphHorizonsConfig
     /// deposit registry (ore cells or placer fields) for maps. Server side.</summary>
     public bool TraderMaps { get; set; } = true;
 
+    /// <summary>Trader maps: offers list only deposits that have been checked (#693), and a player
+    /// coming within this many blocks of a trader camp has the deposits it would sell maps to checked
+    /// in the background (generated if need be and measured), so the offers are ready when they
+    /// arrive. 0: checked only when a trade window opens on one still unchecked. Server side.</summary>
+    public int DepositCheckApproachMetres { get; set; } = 1500;
+
+    /// <summary>Trader maps: seconds between one background deposit check and the next (one runs at a
+    /// time; a check loads, or generates, an ore deposit's nine chunk columns or a gravel field's
+    /// one). Raise it if the checks show as lag on a busy server. Server side.</summary>
+    public double DepositCheckPauseSeconds { get; set; } = 5;
+
     /// <summary>Admin tools (#458, #459, docs/admin-tools.md): the debugging subcommands under
     /// <c>/sh ore</c> and <c>/sh trade</c> (privilege controlserver), <c>--json</c> answers, the admin
     /// logs and the admin map layer. Changes nothing in play. Server side.</summary>
