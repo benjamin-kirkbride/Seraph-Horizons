@@ -30,6 +30,9 @@ public sealed class OreProcessingConfig
     /// name.</summary>
     public Dictionary<string, double> Smelt { get; set; } = new();
 
+    /// <summary>The bone-ash cupel at the forge (#722).</summary>
+    public CupelEntry Cupel { get; set; } = new();
+
     /// <summary>Per ore (the ore part of its code: <c>galena</c>, <c>quartz_nativegold</c>).</summary>
     public Dictionary<string, OreEntry> Ores { get; set; } = new();
 
@@ -69,9 +72,19 @@ public sealed class OreProcessingConfig
         public string Metal { get; set; } = "";
         /// <summary>Units of the by-product per unit of the main metal recovered.</summary>
         public double Share { get; set; }
-        /// <summary>The share in ore from a hydrothermal district, when it differs (galena 15 %).</summary>
-        public double? DistrictShare { get; set; }
         /// <summary>A <see cref="PartingMethod"/>'s lower-case name.</summary>
         public string PartedBy { get; set; } = "";
+    }
+
+    public sealed class CupelEntry
+    {
+        /// <summary>The most metal units a charge holds, ore and lead added together.</summary>
+        public double CapacityUnits { get; set; } = 200;
+        /// <summary>Lead units a charge needs per unit of an ore whose main metal is not lead.</summary>
+        public double LeadPerOreUnit { get; set; } = 1;
+        /// <summary>The heat (°C) the forge must hold the cupel at.</summary>
+        public double MeltingPoint { get; set; } = 950;
+        /// <summary>Seconds per 100 units of charge with the blast gate open.</summary>
+        public double SecondsPerIngot { get; set; } = 60;
     }
 }
