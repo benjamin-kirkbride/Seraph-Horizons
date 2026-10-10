@@ -83,7 +83,7 @@ def check_basic(v):
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
     per_state = {s: sum(len(v.by_part[p]) for p in v.parts_in(s)) for s in ("frame",) + STATES}
     print(f"elements drawn per level: {per_state}")
-    want = {None} | set(v.m.LEVELS["level2"])
+    want = {None} | set(v.m.LEVELS["level2"]) | set(v.m.PIPE_REQUIRES)
     if {p["requires"] for p in v.parts} != want or not set(v.m.LEVELS["level1"]) <= set(v.m.LEVELS["level2"]):
         v.fail("the parts' requires are not the levels' sets, or level 2 does not keep level 1's")
 
@@ -131,7 +131,6 @@ ALLOWED = [
     ("stamp\\d", r"_shoe", "mortar", r"_die"), ("stamp\\d", r"_tappet", "camshaft", r"_cam\d"),
     ("stamp\\d", r"_stem", "frame", r"fr_guide"),
     ("mortar", r"_block", "frame", r"fr_sill"), ("mortar", r"_apron", "mortar", None),
-    ("mortar", r"_pipe", "frame", r"fr_water"),
     # level 2: the breaker on its stand, the eccentric shaft in its bearings and the pitman's strap, the toggles in their
     # seats and on the pitman's foot, the swinging jaw on its hinge pin, the rods pinned to it, through the back wall to
     # their nuts, the buffers on the rods; its belt on its pulleys; the grizzly on the back tie and the cheeks
@@ -242,7 +241,8 @@ TEX_RULES = [
      r"swingjaw_(slab|boss|web|lug)|grizzly_)", "iron"),
     (r"^(line_|camshaft_shaft|stamp\d_(shoe|stem)|mortar_die|jawframe_(backseat|fixedjaw|hingepin)|eshaft_(shaft|eccentric|collar)|"
      r"backtoggle|fronttoggle|swingjaw_(face|seat)|rods_)", "steel"),
-    (r"^(fr_waterflange|mortar_pipe)", "pipe"),
+    (r"^pipecopper_", "pipecopper"),
+    (r"^pipelead_", "pipelead"),
     (r"^mortar_screen", "mesh"),
     (r"^(camframe_belt|jawframe_belt)", "leather"),
     (r"^buffer\d", "rubber"),
@@ -261,7 +261,7 @@ def check_textures(v):
         else:
             unruled.append(el.name)
     print(f"textures: {len(TEX_RULES)} rules (oak timber, planks for the launder and the feed box, iron castings, steel shafts and "
-          f"wearing parts, the water pipe, a mesh screen, leather belts, rubber buffers): {len(bad)} break them, {len(unruled)} have no rule")
+          f"wearing parts, the water line's copper or lead, a mesh screen, leather belts, rubber buffers): {len(bad)} break them, {len(unruled)} have no rule")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")
     if unruled:
@@ -291,7 +291,7 @@ def check_anchors(v):
         print(f"anchors: {name} at {[round(c, 2) for c in pos]}, on cell {cell}'s {face} face: {good}")
         if not good:
             v.fail(f"the {name} anchor is not on its cell's {face} face")
-    flange = aabb_of(v.named("frame", r"fr_waterflange"))
+    inlet = aabb_of(v.named("pipecopper", r"_inlet_"))
     water = [c * 16 for c in rig["water"]["pos"]]
     spout = aabb_of(v.named("mortar", r"_spout_floor"))
     out = [c * 16 for c in rig["output"]["pos"]]
@@ -299,7 +299,8 @@ def check_anchors(v):
     floor = aabb_of(v.named("mortar", r"_feed_floor"))
     infeed = [c * 16 for c in rig["infeed"]["pos"]]
     head = aabb_of(v.named("grizzly", r"_head"))
-    checks = [("the water flange is at the water face, round the anchor", abs(flange[1][0] - water[0]) < 0.01 and flange[0][1] < water[1] < flange[1][1]),
+    checks = [("the water line's inlet reaches the water face, on the anchor's axis", abs(inlet[0][0] - water[0]) < 0.01
+               and abs((inlet[0][1] + inlet[1][1]) / 2 - water[1]) < 0.01 and abs((inlet[0][2] + inlet[1][2]) / 2 - water[2]) < 0.01),
               ("the launder's spout runs out to the output face under the anchor", spout[0][2] <= 0.01 and spout[0][0] < out[0] < spout[1][0]
                and abs(spout[1][1] - out[1]) < 0.01),
               ("the feed anchor is over the feed box's floor", floor[0][0] < feed[0] < floor[1][0] and floor[0][2] < feed[2] < floor[1][2]),
@@ -365,6 +366,18 @@ def check_drive(v):
         if ls * m.LINE_RATIO <= 0:
             v.fail(f"the line shaft turns {ls:+.3f} for the axle's {th:+}")
     print("rectifier: the line shaft turns the same way for either sign of the axle")
+    # the axle either way: with the same travel, every part but the entry shaft stands the same whichever sign the
+    # axle's angle has (they are all behind the rectifier, on psi)
+    worst = 0.0
+    for psi in (0.9, 3.7, 12.2, 40.1):
+        for pid in v.by_part:
+            a, b = v.mat(pid, (psi, psi)), v.mat(pid, (-psi, psi))
+            d = max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4))
+            if pid != "entry":
+                worst = max(worst, d)
+    print(f"reverse: with the axle turning backwards every part but the entry shaft moves as forwards (worst {worst:.1e})")
+    if worst > 1e-12:
+        v.fail("a part behind the rectifier depends on the axle's direction")
     belts = [("bull belt", "linepulley", m.LINE, m.LINE_PULLEY_R, "camshaft", m.CAM_C, m.BULL_R, "camframe", r"camframe_belt"),
              ("breaker's belt", "jawpulley", m.LINE, m.JAWDRIVE_R, "eshaft", m.jaw_to_build(m.E_C), m.FLY_R, "jawframe", r"jawframe_belt")]
     for label, pa, ca, ra, pb, cb, rb, bpart, brx in belts:
@@ -576,7 +589,7 @@ def validate_files(m, shape, frame_shape, ship):
     gaps = lid_gaps(ship["cells"], lidded)
     hollow = sum(1 for c in ship["cells"] if c.get("hollow"))
     keys = {k for c in ship["cells"] for k in c.get("fitted", {})}
-    bad_keys = keys - set(m.LEVELS["level2"])
+    bad_keys = keys - set(m.LEVELS["level2"]) - set(m.PIPE_REQUIRES)
     by = {k: sum(1 for c in ship["cells"] if k in c.get("fitted", {})) for k in sorted(keys)}
     print(f"files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; {len(ship['cells'])} cells, {hollow} hollow; "
           f"fitted boxes in {by}; lids over the battery's columns: {'yes' if not gaps else gaps}")

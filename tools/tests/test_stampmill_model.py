@@ -36,6 +36,7 @@ MANIFEST = json.loads((ROOT / "site" / "models.json").read_text())
 README = (MOD / "StampMill" / "README.md").read_text()
 LEVEL1 = ["mortar", "camshaft", "stamps"]
 LEVEL2 = LEVEL1 + ["jaw", "grizzly"]
+PIPES = ["pipecopper", "pipelead"]
 
 
 def matrix(pid, theta=0.0, travel=None):
@@ -61,7 +62,7 @@ class Rig(unittest.TestCase):
                 rigmath.validate_driver(d)
         self.assertIsNone(rigmath.progress_of(RIG))
         self.assertEqual({k: v for k, v in RIG["levels"].items() if not k.startswith("_")}, {"1": LEVEL1, "2": LEVEL2})
-        self.assertEqual({p["requires"] for p in RIG["parts"]}, {None} | set(LEVEL2))
+        self.assertEqual({p["requires"] for p in RIG["parts"]}, {None} | set(LEVEL2) | set(PIPES))
         for pid in ("entry", "line", "frame"):
             self.assertIsNone(part(pid)["requires"], pid)
 
@@ -87,7 +88,7 @@ class Rig(unittest.TestCase):
         self.assertEqual(make_shape.shipped_cells(SHAPE, RIG["parts"]), RIG["cells"])
         self.assertEqual(len(RIG["cells"]), 48)
         for c in RIG["cells"]:
-            self.assertLessEqual(set(c.get("fitted", {})), set(LEVEL2), c["pos"])
+            self.assertLessEqual(set(c.get("fitted", {})), set(LEVEL2) | set(PIPES), c["pos"])
             # the battery's columns are a deck; the breaker's, behind it, are not
             top = c["pos"][1] == 3
             self.assertEqual("lid" in c, top and c["pos"][2] <= 1, c["pos"])
@@ -110,7 +111,7 @@ class Rig(unittest.TestCase):
                 self.assertAlmostEqual(pos[axis], cell[axis] + side, places=6, msg=name)
                 for k in range(3):
                     self.assertTrue(cell[k] - 1e-6 <= pos[k] <= cell[k] + 1 + 1e-6, name)
-        self.assertEqual([RIG[f"{n}Face"] for n in ("power", "water", "feed", "infeed", "output")], ["east", "east", "up", "up", "north"])
+        self.assertEqual([RIG[f"{n}Face"] for n in ("power", "water", "feed", "infeed", "output")], ["east", "west", "up", "up", "north"])
 
 
 class Drive(unittest.TestCase):
@@ -119,6 +120,13 @@ class Drive(unittest.TestCase):
             turned = angle_x(matrix("line", th)) - angle_x(matrix("line", 0.0))
             self.assertLess(turned, 0.0)
             self.assertAlmostEqual(turned, -0.6, places=6)
+
+    def test_everything_but_the_entry_shaft_ignores_the_axles_direction(self):
+        for psi in (0.8, 5.3, 21.0):
+            for p in RIG["parts"]:
+                a, b = matrix(p["id"], psi, psi), matrix(p["id"], -psi, psi)
+                same = all(abs(a[r][c] - b[r][c]) < 1e-12 for r in range(3) for c in range(4))
+                self.assertEqual(same, p["id"] != "entry", p["id"])
 
     def test_the_belts_run_their_pulleys_at_the_drawn_ratios(self):
         line = next(d for d in part("line")["drivers"] if d["type"] == "rotate")
@@ -182,10 +190,20 @@ class Manifest(unittest.TestCase):
     def test_the_viewer_shows_each_level(self):
         model = next(m for m in MANIFEST["models"] if m["id"] == "stamp-mill")
         self.assertTrue(model["rig"].endswith("stampmill-rig.json"))
-        (group,) = model["scenario"]["states"]
+        group, pipes = model["scenario"]["states"]
         got = {o["id"]: o["fitted"] for o in group["options"]}
         self.assertEqual(got, {"frame": [], "level1": LEVEL1, "level2": LEVEL2})
         self.assertEqual((group["default"], group["values"]), ("level2", LEVEL2))
+        self.assertEqual({o["id"]: o["fitted"] for o in pipes["options"]}, {m: [m] for m in PIPES})
+        self.assertEqual((pipes["default"], pipes["values"], pipes["needs"]), ("pipecopper", PIPES, ["mortar"]))
+
+    def test_the_water_line_is_the_same_pipe_in_either_metal(self):
+        names = [e["name"] for e in SHAPE["elements"]]
+        copper = [n[len("pipecopper_"):] for n in names if n.startswith("pipecopper_")]
+        lead = [n[len("pipelead_"):] for n in names if n.startswith("pipelead_")]
+        self.assertEqual(copper, lead)
+        self.assertEqual(SHAPE["textures"]["pipecopper"], "game:block/metal/sheet-plain/copper4")
+        self.assertEqual(SHAPE["textures"]["pipelead"], "game:block/metal/sheet-plain/lead4")
 
     def test_the_readme_names_every_part(self):
         for p in RIG["parts"]:

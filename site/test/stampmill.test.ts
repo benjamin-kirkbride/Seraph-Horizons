@@ -21,6 +21,7 @@ const parts = rig.parts!;
 const order = rideOrder(parts);
 const LEVEL1 = ["mortar", "camshaft", "stamps"];
 const LEVEL2 = [...LEVEL1, "jaw", "grizzly"];
+const PIPES = ["pipecopper", "pipelead"];
 
 const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 + r]!));
 const pose = (theta: number, travel: number): Pose => ({ theta, depth: 0, lifting: 0, travel, work: 0, size: 0, presence: 0, feed: 0, oil: 0 });
@@ -29,7 +30,7 @@ describe("the stamp mill's rig against its rig-reference.json", () => {
   it("reads the axle's angle and travel, has no work, and fits each level's parts", () => {
     expect(rigInputs(parts)).toEqual({ theta: true, travel: true, depth: false, lifting: false });
     expect(workOf(rig)).toBeNull();
-    expect(new Set(parts.map((p) => p.requires ?? null))).toEqual(new Set([null, ...LEVEL2]));
+    expect(new Set(parts.map((p) => p.requires ?? null))).toEqual(new Set([null, ...LEVEL2, ...PIPES]));
     const byId = Object.fromEntries(parts.map((p) => [p.id, p]));
     for (const id of ["entry", "line", "frame"]) expect(byId[id]!.requires ?? null).toBeNull();
     const levels = rig.levels as Record<string, string[]>;
@@ -98,7 +99,7 @@ describe("the stamp mill's rig against its rig-reference.json", () => {
   it("puts its anchors on the faces they name", () => {
     const { anchors } = discoverAnchors(rig);
     expect(anchors.find((a) => a.key === "powerCell")).toMatchObject({ kind: "cell", pos: [1, 0, 2], face: "east" });
-    expect(anchors.find((a) => a.key === "waterCell")).toMatchObject({ kind: "cell", pos: [1, 1, 1], face: "east" });
+    expect(anchors.find((a) => a.key === "waterCell")).toMatchObject({ kind: "cell", pos: [-1, 1, 2], face: "west" });
     expect(anchors.find((a) => a.key === "output")).toMatchObject({ kind: "point" });
   });
 });
@@ -107,8 +108,8 @@ describe("the stamp mill's page", () => {
   const model = manifest.models.find((m) => m.id === "stamp-mill")!;
 
   it("builds the machine level by level from a select, each level keeping the last one's parts", () => {
-    const groups = stateGroups(model.scenario!.states, LEVEL2);
-    expect(groups.map((g) => [g.id, g.owns])).toEqual([["level", LEVEL2]]);
+    const groups = stateGroups(model.scenario!.states, [...LEVEL2, ...PIPES]);
+    expect(groups.map((g) => [g.id, g.owns])).toEqual([["level", LEVEL2], ["pipes", PIPES]]);
     const none = Object.fromEntries(LEVEL2.map((r) => [r, false]));
     const spec = groups[0]!.spec;
     const at = (id: string) => applyState(none, spec.options.find((o) => o.id === id)!, groups[0]!.owns);
@@ -116,5 +117,19 @@ describe("the stamp mill's page", () => {
     expect(at("level1")).toEqual({ mortar: true, camshaft: true, stamps: true, jaw: false, grizzly: false });
     expect(Object.values(at("level2")).every((v) => v)).toBe(true);
     expect(spec.default).toBe("level2");
+  });
+
+  it("draws the water line in one metal at a time, copper by default, once the mortar is fitted", () => {
+    const groups = stateGroups(model.scenario!.states, [...LEVEL2, ...PIPES]);
+    const pipes = groups[1]!;
+    expect(pipes.spec.default).toBe("pipecopper");
+    expect(pipes.spec.needs).toEqual(["mortar"]);
+    const none = { pipecopper: false, pipelead: false };
+    expect(applyState(none, pipes.spec.options.find((o) => o.id === "pipelead")!, pipes.owns)).toEqual({ pipecopper: false, pipelead: true });
+    // the two metals are the same elements in their own textures
+    const flat = flattenShape(shape.elements);
+    const names = (m: string) => flat.map((f) => f.element.name).filter((n) => n.startsWith(`pipe${m}_`)).map((n) => n.slice(`pipe${m}_`.length));
+    expect(names("lead")).toEqual(names("copper"));
+    expect(names("copper").length).toBeGreaterThan(10);
   });
 });

@@ -6,11 +6,11 @@ whose footprint is its final (mill level) size from the start, and the parts eac
 adds parts; it never takes the earlier ones off.
 
     frame    the battery's two end frames, its guide girts and ties; the power train (the entry shaft from the
-             vanilla axle into a closed rectifier gear case, and the line shaft along the back of the machine);
-             the water inlet's flange on the east face
+             vanilla axle into a closed rectifier gear case, and the line shaft along the back of the machine)
     level 1  (water) a five-stamp battery: the mortar box on its block, with its dies, the mesh discharge
              screen in its front wall, the apron and launder out to the north face, the feed box at its back,
-             where the player shovels ore, and the water pipe into it (`mortar`); the camshaft with ten
+             where the player shovels ore (`mortar`); the water line from the west face into the feed box, ppex's
+             straight pipe soldered in copper or lead (`pipecopper`, `pipelead`); the camshaft with ten
              involute cams and the bull pulley, belted from the line shaft (`camshaft`); five stamps (`stamps`)
     level 2  (mill) a Blake jaw rock breaker in front of the battery, on its own stand, belted from the same line
              shaft, its discharge falling on the feed box's floor, which is the chute into the battery (`jaw`);
@@ -46,7 +46,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Pipes" / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import solderedpipe  # noqa: E402
 
 from machinegen.checks import cell_boxes, cells_touched, with_lids  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
@@ -71,7 +74,7 @@ TAU = 2 * math.pi
 CELLS_X, CELLS_Y, CELLS_Z = 3, 4, 4          # the mill level's size, fixed from the frame on
 ORIGIN_CELL = (1, 0, 0)                      # the controller: the bottom middle cell of the north face, over the launder's spout
 POWER_CELL, POWER_FACE = (2, 0, 2), "east"   # the vanilla axle, along x at (y 8, z 40), into the gear case
-WATER_CELL, WATER_FACE = (2, 1, 1), "east"   # the ppex pipe, along x at (y 24, z 24), into the feed box
+WATER_CELL, WATER_FACE = (0, 1, 2), "west"   # the ppex pipe, along x at (y 24, z 40), the water line into the feed box
 FEED_CELL, FEED_FACE = (1, 1, 1), "up"       # the feed box's open top: the player shovels ore in here (level 1 on)
 INFEED_CELL, INFEED_FACE = (1, 3, 1), "up"   # the grizzly's head: ore comes in here by chute (level 2)
 OUTPUT_CELL, OUTPUT_FACE = (1, 0, 0), "north"   # the launder's spout: the pulp goes out here
@@ -81,7 +84,9 @@ TEXTURES = {
     "planks": "game:block/wood/planks/oak1",
     "iron": "game:block/metal/plate/iron",
     "steel": "game:block/metal/sheet-plain/steel1",
-    "pipe": "game:block/metal/sheet-plain/iron1",
+    # the water line wears ppex's pipe textures as UnifiedPipes gives them, as the rosser's drip pipes do
+    **{f"pipe{m}": f"game:block/metal/sheet-plain/{m}4" for m in ("copper", "lead")},
+    "solder": solderedpipe.SOLDER_TEXTURE,
     "mesh": "game:block/metal/mesh1",
     "leather": "game:block/leather/plain",
     "rubber": "game:block/leather/black",
@@ -152,9 +157,19 @@ FEED_SIDE = 3.2                              # its sides' height over the floor
 LAUNDER_Z = (1.0, 5.0)
 LAUNDER_Y = (3.6, 8.4)                       # its floor's underside, its sides' top
 SPOUT_X = (21.0, 27.0)
-WATER_Y, WATER_Z = 24.0, 24.0                # the water pipe's axis (the water cell's centre)
-PIPE_R = 0.8
-NOZZLE_X = 26.5                              # the pipe turns down into the feed box here
+# The water line: Pipes and Power Expanded's straight pipe in copper or lead, drawn as UnifiedPipes draws those
+# pipes, soldered (Pipes/tools/solderedpipe.py), as the rosser's drip pipes are: ppex's tube round its bore, a
+# hub where two lengths meet. From the west face's inlet it runs east under the breaker's west flywheel, north
+# beside the stand to the west end frame's back post (which it bears against), east along the battery's back
+# and down into the feed box over the lip. The part is drawn in each metal (`pipecopper`, `pipelead`); a renderer
+# draws the fitted metal's.
+PIPE_METALS = ("copper", "lead")
+PIPE_HALF = solderedpipe.HALF
+WATER_Y, WATER_Z = 24.0, 40.0                # the inlet's axis: the water cell's centre, on the ppex pipe beyond the face
+PIPE_X1 = END_W[1] + PIPE_HALF               # the north run (x): against the west end frame's back post
+PIPE_Z2 = 21.4                               # the east run (z): between the guide girts (18) and the feed box's west side
+PIPE_X3 = 22.0                               # the drop into the feed box (x)
+PIPE_END_Y = 18.5                            # the drop's open end, over the feed lip
 
 # ---------------------------------------------------------------- the power train (the frame's)
 ENTRY = (8.0, 40.0)                          # (y, z): the entry shaft and the line shaft (the power cell's centre)
@@ -680,7 +695,7 @@ def build_guides():
 
 def build_power_frame():
     """The power train's fixed parts: the rectifier's gear case at the power cell (its gears are inside it, not
-    drawn), the line shaft's two pedestals, the water inlet's flange on the east face and its bracket."""
+    drawn) and the line shaft's two pedestals."""
     f = "frame"
     (gx0, gx1), (gy0, gy1), (gz0, gz1) = GEARCASE_X, GEARCASE_Y, GEARCASE_Z
     ly, lz = LINE
@@ -691,8 +706,6 @@ def build_power_frame():
     for tag, (x0, x1) in (("w", PED_W_X), ("m", PED_M_X)):
         out += [box([x0 - 0.6, 0.0, lz - 3.6], [x1 + 0.6, 1.2, lz + 3.6], f"fr_ped{tag}_foot", f, "iron"),
                 box([x0, 1.2, lz - 2.6], [x1, ly + 2.6, lz + 2.6], f"fr_ped{tag}", f, "iron")]
-    out += disc("x", yz((WATER_Y, WATER_Z)), 47.2, 48.0, 1.6, "fr_waterflange", f, "pipe")
-    out.append(box([END_E[0] + 0.5, WATER_Y - PIPE_R - 1.0, POST_B[1]], [48.0 - 0.6, WATER_Y - PIPE_R, WATER_Z + 1.2], "fr_waterbracket", f, "iron"))
     return out
 
 
@@ -756,7 +769,6 @@ def build_mortar():
             box([sx0 - PLANK, ly0, 0.0], [sx0, ly1 - 1.5, lz0], "mortar_spout_w", p, "planks"),
             box([sx1, ly0, 0.0], [sx1 + PLANK, ly1 - 1.5, lz0], "mortar_spout_e", p, "planks")]
     out += build_feed_box()
-    out += build_water_pipe()
     return out
 
 
@@ -783,13 +795,51 @@ def build_feed_box():
     return out
 
 
-def build_water_pipe():
-    """The water pipe: from the east face's flange, along x over the feed box's east side, then down into it near
-    the lip, so the ore goes into the mortar wet."""
-    p = "mortar"
-    c = yz((WATER_Y, WATER_Z))
-    out = disc("x", c, NOZZLE_X - PIPE_R, 47.2, PIPE_R, "mortar_pipe", p, "pipe")
-    out += disc("y", (NOZZLE_X, 0.0, WATER_Z), feed_floor_y(WATER_Z) + 2.4, WATER_Y + PIPE_R - 0.05, PIPE_R - 0.05, "mortar_pipedrop", p, "pipe")
+def pipe_boxes():
+    """The water line as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels): the inlet from the
+    west face on the axis of the ppex pipe beyond it, a hub, a run north, a hub against the west end frame's back
+    post, a run east along the battery's back, a hub, and a short drop down into the feed box, open at its end over
+    the feed lip. Every run is shorter than a block, so there are no seams and no joints but the hubs; the inlet has
+    no joint at the face (the pipe beyond brings its own half joint, as a soldered ppex pipe does)."""
+    h, wy = PIPE_HALF, WATER_Y
+    out = solderedpipe.hub("hub1", (PIPE_X1, wy, WATER_Z), ("west", "north"))
+    out += solderedpipe.tube("inlet", 0, 0.0, PIPE_X1 - h, (WATER_Z, wy))
+    out += solderedpipe.tube("north", 2, PIPE_Z2 + h, WATER_Z - h, (PIPE_X1, wy))
+    out += solderedpipe.hub("hub2", (PIPE_X1, wy, PIPE_Z2), ("south", "east"))
+    out += solderedpipe.tube("east", 0, PIPE_X1 + h, PIPE_X3 - h, (PIPE_Z2, wy))
+    out += solderedpipe.hub("hub3", (PIPE_X3, wy, PIPE_Z2), ("west", "down"))
+    out += solderedpipe.tube("drop", 1, PIPE_END_Y, wy - h, (PIPE_X3, PIPE_Z2))
+    return solderedpipe.cull_pressed(out)
+
+
+def build_pipes(metal_=PIPE_METALS[0]):
+    """The water line as elements of the part `pipe<metal_>` (`pipe_boxes`): the body in that metal's pipe texture,
+    the joints (none here) in solder, each face's UVs solderedpipe's on this model's texture scale. Built in copper;
+    `pipe_copies` makes lead."""
+    p = f"pipe{metal_}"
+    codes = {solderedpipe.BODY: f"#{p}", solderedpipe.SOLDER: "#solder"}
+    out = []
+    for b in pipe_boxes():
+        size = b.size()
+        faces = {d: {"texture": codes[b.role], "uv": solderedpipe.uv(d, size, TEX / 16)} for d in b.faces}
+        out.append(El(f"{p}_{b.name}", size, [(b.lo[k] + b.hi[k]) / 2 for k in range(3)], [row[:] for row in IDENT], faces, p))
+    return out
+
+
+def pipe_copies(els):
+    """The water line in the other metals: the first metal's elements as they are (after the z-fighting fix, so every
+    copy gets the same insets), renamed and in their own metal's texture. Only one metal's is ever drawn, so the
+    copies are not checked against each other."""
+    first = f"pipe{PIPE_METALS[0]}"
+    out = []
+    for m in PIPE_METALS[1:]:
+        for el in els:
+            if el.part == first:
+                copy_ = el.clone(f"pipe{m}" + el.name[len(first):], f"pipe{m}")
+                for face in copy_.faces.values():
+                    if face["texture"] == f"#{first}":
+                        face["texture"] = f"#pipe{m}"
+                out.append(copy_)
     return out
 
 
@@ -1017,7 +1067,7 @@ def build_grizzly():
 def build():
     els = build_frame() + build_drive() + build_line_pulleys()
     els += build_mortar() + build_camshaft() + build_stamps()
-    els += build_jaw() + build_grizzly()
+    els += build_jaw() + build_grizzly() + build_pipes()
     return els
 
 
@@ -1025,8 +1075,14 @@ def build():
 LEVELS = {"level1": ("mortar", "camshaft", "stamps"), "level2": ("mortar", "camshaft", "stamps", "jaw", "grizzly")}
 
 
+PIPE_REQUIRES = tuple(f"pipe{m}" for m in PIPE_METALS)
+
+
 def in_state(requires, state):
-    """Whether a part with this `requires` is drawn in a build state ("frame", "level1", "level2")."""
+    """Whether a part with this `requires` is drawn in a build state ("frame", "level1", "level2"): at each level
+    the water line in its first metal (the others are copies, never drawn with it)."""
+    if requires == PIPE_REQUIRES[0]:
+        return state != "frame"
     return requires is None or (state != "frame" and requires in LEVELS[state])
 
 
@@ -1112,6 +1168,8 @@ def _rig_parts():
     parts += [
         {"id": "jawframe", "match": ["jawframe_*"], "requires": "jaw", "drivers": []},
         {"id": "grizzly", "match": ["grizzly_*"], "requires": "grizzly", "drivers": []},
+        # the water line, one part per metal (requires pipecopper, pipelead): only the fitted metal's is drawn
+        *({"id": r, "match": [f"{r}_*"], "requires": r, "drivers": []} for r in PIPE_REQUIRES),
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
     ]
     for p in parts:
@@ -1164,8 +1222,8 @@ CELL_ANCHORS = (("power", POWER_CELL, POWER_FACE), ("water", WATER_CELL, WATER_F
 def anchor_points():
     """The anchors' points (build frame, voxels): the water flange's face, the feed box's mouth on its cell's top, the
     grizzly's head on the top face, the launder spout's lip."""
-    return {"water": (48.0, WATER_Y, WATER_Z),
-            "feed": (sum(FEED_X) / 2, FEED_CELL[1] * B + B, WATER_Z),
+    return {"water": (0.0, WATER_Y, WATER_Z),
+            "feed": (sum(FEED_X) / 2, FEED_CELL[1] * B + B, FEED_CELL[2] * B + 8.0),
             "infeed": (sum(GRIZ_X) / 2, CELLS_Y * B, GRIZ_HEAD[0]),
             "output": (sum(SPOUT_X) / 2, LAUNDER_Y[0] + PLANK, 0.0)}
 
@@ -1173,7 +1231,8 @@ def anchor_points():
 def make_rig(parts):
     rig = {"_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the bottom middle cell of the "
                        "north face, over the launder's spout. One machine upgraded in place (#711): the frame's parts have no "
-                       "requires; level 1 (water) fits mortar, camshaft and stamps, level 2 (mill) adds jaw and grizzly (levels). "
+                       "requires; level 1 (water) fits mortar, camshaft and stamps, level 2 (mill) adds jaw and grizzly (levels); the "
+                       "water line is pipecopper or pipelead, the same pipe in the fitted metal. "
                        "A cell's boxes are the frame's; its fitted boxes are there while that requires value is fitted. theta "
                        "turns the entry shaft; everything behind the rectifier's gear case follows travel (psi): the line shaft, "
                        "the camshaft, the stamps (harmonics of the camshaft's turn) and the breaker. No work. See the stamp "
@@ -1192,7 +1251,8 @@ def make_rig(parts):
                   "_comment": f"Axle turns per turn of the eccentric shaft (the line's pulley's radius {JAWDRIVE_R} to the "
                               f"pulley-flywheel's {FLY_R}): the swinging jaw closes once a turn."}
     rig["levels"] = {"1": list(LEVELS["level1"]), "2": list(LEVELS["level2"]),
-                     "_comment": "The requires values fitted at each level; a level adds parts to the last and takes none off."}
+                     "_comment": "The requires values fitted at each level; a level adds parts to the last and takes none off. "
+                                 "From level 1 the water line is fitted too, in one metal: pipecopper or pipelead."}
     rig["parts"] = parts
     return rig
 
@@ -1237,7 +1297,7 @@ def shipped_cells(shape, ship_parts):
         for c in cells_touched(lo, hi):
             by_cell.setdefault(c, {}).setdefault(requires[pid], []).append(el)
     out = []
-    order = [None] + list(LEVELS["level2"])
+    order = [None] + list(LEVELS["level2"]) + list(PIPE_REQUIRES)
     for c in footprint():
         pos = tuple(c[k] - ORIGIN_CELL[k] for k in range(3))
         groups = by_cell.get(pos, {})
@@ -1356,6 +1416,7 @@ def main():
         for pose, pairs in before.items():
             print(f"coplanar faces before the fix at {pose}: {len(pairs)} pairs")
         print(f"coplanar faces: {hidden} faces pressed against their own part removed")
+    els += pipe_copies(els)
     rig = make_rig(parts)
     ok = validate_stampmill.validate(sys.modules[__name__], els, parts, rig, quick=args.quick)
     if args.out:

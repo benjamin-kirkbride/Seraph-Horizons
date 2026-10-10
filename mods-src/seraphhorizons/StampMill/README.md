@@ -6,8 +6,8 @@ mill level's from the start, and the parts each level fits into it. A level adds
 
 | Level | Tier | Fitted (`requires`) | What it adds |
 |---|---|---|---|
-| (frame) | | none | The battery's end frames, guide girts and ties; the gear case at the power cell and the line shaft; the water inlet's flange |
-| 1 | water | `mortar`, `camshaft`, `stamps` | A five-stamp battery, wet: the mortar with its mesh discharge screen, apron and launder; the feed box the player shovels ore into; the water pipe; the camshaft and its belt drive; five stamps |
+| (frame) | | none | The battery's end frames, guide girts and ties; the gear case at the power cell and the line shaft |
+| 1 | water | `mortar`, `camshaft`, `stamps`, and `pipecopper` or `pipelead` | A five-stamp battery, wet: the mortar with its mesh discharge screen, apron and launder; the feed box the player shovels ore into; the camshaft and its belt drive; five stamps; the water line into the feed box, ppex's straight pipe soldered in copper or lead |
 | 2 | mill | adds `jaw`, `grizzly` | A Blake jaw rock breaker behind the battery, on its own stand, belted from the same line shaft; a grizzly over its mouth, chute-fed from the top |
 
 **Status: the model only.** This folder holds the generator (`tools/`); there is no block, block entity or renderer
@@ -30,7 +30,7 @@ the ore runs north, from the breaker (south) into the battery and out of its scr
 | Anchor | Cell, face | Point | What comes or goes there |
 |---|---|---|---|
 | `powerCell`, `powerFace` | `[1, 0, 2]`, east | the face's centre | The vanilla axle, into the gear case |
-| `waterCell`, `waterFace`, `water` | `[1, 1, 1]`, east | `[2.0, 1.5, 1.5]`, the flange | Process water, by ppex pipe, down into the feed box (level 1 on) |
+| `waterCell`, `waterFace`, `water` | `[-1, 1, 2]`, west | `[-1.0, 1.5, 2.5]`, the water line's inlet | Process water, from a ppex pipe on the west face, through the water line into the feed box (level 1 on) |
 | `feedCell`, `feedFace`, `feed` | `[0, 1, 1]`, up | `[0.5, 2.0, 1.5]`, over the feed box | Ore the player shovels in (level 1); at level 2 the grizzly and the breaker feed it |
 | `infeedCell`, `infeedFace`, `infeed` | `[0, 3, 1]`, up | `[0.5, 4.0, 1.3125]`, over the grizzly's head | Ore by chute from above (level 2) |
 | `outputCell`, `outputFace`, `output` | `[0, 0, 0]`, north | `[0.5, 0.2875, 0.0]`, the spout's lip | The crushed, classified ore (pulp) out of the launder |
@@ -42,21 +42,37 @@ along the back of the machine at the power cell's height, in the case's boss and
 belts the **bull pulley** on the camshaft (level 1); near its east end a second pulley belts the breaker's
 pulley-flywheel (level 2). Both belts are open, so every shaft turns the line shaft's way.
 
+**Either way round.** The vanilla axle may turn either way, and the machine works either way. Only the entry shaft
+follows the axle's angle θ; everything else is behind the rectifier and follows the axle's travel ψ, which grows
+whichever way the axle turns:
+
+| Motion | With the axle reversed |
+|---|---|
+| Entry shaft | Turns backwards with the axle, into the gear case |
+| Line shaft and its two pulleys | The rectifier's other gear pair carries it: it turns as forwards |
+| Camshaft, bull pulley and cams | As forwards (an open belt from the line shaft): the cams' involutes only lift turning that way, and they always do |
+| Stamps | As forwards: their lift is a function of ψ |
+| Eccentric shaft and flywheels | As forwards (an open belt from the line shaft) |
+| Pitman, toggles, swinging jaw, rods, buffers | As forwards: their harmonics read ψ. (A Blake breaker would also work turning the other way; it never has to.) |
+
+A check holds this: at the same ψ, every part but the entry shaft stands alike for θ and −θ.
+
 ## Model
 
 Everything was made for this mod: no other mod's model is used, so the generator needs nothing from `build/mods`.
 Textures by role: debarked oak (`game:block/wood/debarked/oak`) for the frame's timbers, the breaker's stand, the entry
 shaft (the vanilla axle's continuation) and the bull pulley's rim and arms; oak planks for the launder and the feed box;
 iron plate for castings (the mortar, the gear case, the pillow blocks, the cams, the breaker's frame, the grizzly);
-plain steel sheet for shafts and wearing parts (stems, shoes, dies, the jaw's faces, toggles, rods); plain iron sheet
-for the water pipe; `game:block/metal/mesh1` for the screen; plain leather for the belts; black leather for the
-breaker's india-rubber buffers. `tools/make_shape.py` writes:
+plain steel sheet for shafts and wearing parts (stems, shoes, dies, the jaw's faces, toggles, rods); the water line in
+`game:block/metal/sheet-plain/copper4` or `lead4` (with `game:block/metal/ingot/leadsolder` declared for its joints);
+`game:block/metal/mesh1` for the screen; plain leather for the belts; black leather for the breaker's india-rubber
+buffers. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/stampmill.json` | The whole machine, every level's parts (451 elements: 39 drawn with nothing fitted, 274 at level 1, 451 at level 2) |
-| `assets/seraphhorizons/shapes/block/stampmill_frame.json` | The frame only (33 elements). A block would draw it and the inventory show it. |
-| `assets/seraphhorizons/config/stampmill-rig.json` | Footprint (cells with the frame's boxes and each level's fitted boxes), anchors, the battery's and the breaker's figures, the levels and the part rig (23 parts) |
+| `assets/seraphhorizons/shapes/block/stampmill.json` | The whole machine, every level's parts and the water line in both metals (510 elements; drawn: 34 with nothing fitted, 297 at level 1, 474 at level 2) |
+| `assets/seraphhorizons/shapes/block/stampmill_frame.json` | The frame only (28 elements). A block would draw it and the inventory show it. |
+| `assets/seraphhorizons/config/stampmill-rig.json` | Footprint (cells with the frame's boxes and each level's fitted boxes), anchors, the battery's and the breaker's figures, the levels and the part rig (25 parts) |
 | `tests/StampMill/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths |
 
 ### How the machine works
@@ -75,8 +91,20 @@ box** (x 8..40, z 10.5..21.5, its rim at y 16.5, low enough that the heads show 
 over a steel die. The **screen** (mesh) is in the front wall over the dies; the crushed ore splashes through it onto
 the iron **apron** and runs down into the plank **launder** along the front, whose spout leaves through the north
 face. At the back the **feed box**: a plank floor falling 40° from under the breaker's discharge to the feed lip in the
-mortar's back wall, with low sides; the player shovels ore into it, and the **water pipe** from the east face's
-flange runs over its east side and turns down into it, so the ore goes into the mortar wet.
+mortar's back wall, with low sides; the player shovels ore into it, and the water line runs down into it, so the ore
+goes into the mortar wet.
+
+**The water line** is Pipes and Power Expanded's straight pipe (`ppex:pipe-straight-*`) in copper or lead, the metals
+`UnifiedPipes` adds to ppex's pipes, drawn as `UnifiedPipes` draws them, soldered, and built by the same module as the
+rosser's drip pipes (`Pipes/tools/solderedpipe.py`): ppex's tube 6 voxels across round its 4 × 4 bore, the same
+texture mapping, a hub where two lengths meet. From the inlet on the west face (on the axis of the ppex pipe beyond it,
+`water`) it runs east under the breaker's west flywheel, turns north beside the stand to bear against the west end
+frame's back post, turns east along the battery's back between the guide girts and the feed box, and drops into the
+feed box over the lip, open at its end. Its runs are each shorter than a block, so it has no seams and no joints but
+its three hubs; the inlet has none at the face (the pipe beyond brings its own half joint, as a soldered ppex pipe
+does). The rig has a part per metal, `pipecopper` and `pipelead`, the same elements in
+`game:block/metal/sheet-plain/copper4` and `lead4`, the textures `UnifiedPipes` gives ppex's copper and lead pipes;
+a renderer draws the fitted metal's. It is level 1's (water tier) and stays at level 2.
 
 The **camshaft** (y 34, z 10.5, north of the stems) runs in pillow blocks on the end frames' cam rails and carries ten
 involute **cams**, a double cam beside each stem, lifting its tappet's north edge; and at its west end, outside the
@@ -133,7 +161,8 @@ Every moving part (θ the axle's angle, ψ its travel):
 | Camshaft, cams, hubs, bull pulley (`camshaft`) [camshaft] | The bull belt | The tappets | `rotate` x −0.5 (ψ) |
 | Pillow blocks, bull belt (`camframe`) [camshaft] | Static | — | none |
 | Stamps 1 to 5: shoe, head, stem, tappet (`stamp1`..`stamp5`) [stamps] | Its double cam | The ore on its die | ten `slide` y, harmonics of the camshaft's turn (ψ) |
-| Mortar, dies, screen, apron, launder, feed box, water pipe (`mortar`) [mortar] | Static | — | none |
+| Mortar, dies, screen, apron, launder, feed box (`mortar`) [mortar] | Static | — | none |
+| Water line, copper (`pipecopper`) [pipecopper] or lead (`pipelead`) [pipelead] | Static, one metal drawn | — | none |
 | Line pulley for the breaker (`jawpulley`) [jaw] | Keyed to the line shaft | The breaker's belt | `rotate` x −1 (ψ) |
 | Eccentric shaft, eccentric, both flywheels (`eshaft`) [jaw] | The breaker's belt | The pitman | `rotate` x −0.75 (ψ) |
 | Pitman (`pitman`) [jaw] | The eccentric | The toggles' inner ends | `swing` x ×4, `slide` y ×4, `slide` z ×4 (ψ) |
@@ -144,7 +173,7 @@ Every moving part (θ the axle's angle, ψ its travel):
 | Rubber buffers (`buffer1`..`buffer2`) [jaw] | The nuts | — | `slide` z ×4, each its share of the nuts' travel |
 | Breaker's cheeks, walls, fixed jaw, hinge pin, stand, belt (`jawframe`) [jaw] | Static | — | none |
 | Grizzly bars, head, cross bar, brackets, throat plate (`grizzly`) [grizzly] | Static | — | none |
-| Frame, gear case, pedestals, guides, water flange (`frame`) | Static | — | none |
+| Frame, gear case, pedestals, guides (`frame`) | Static | — | none |
 
 There are no gears outside the closed gear case, so nothing toothed meshes with nothing.
 
@@ -170,8 +199,8 @@ that set parts against each other run per build state: the frame; level 1; level
   throat plate falls at least 38° and ends past the front wall's face; the breaker's discharge falls on the feed
   box's floor, which falls at least 35° to the feed lip; the apron starts under the screen and ends over the launder.
 - **Textures** by role, every element ruled.
-- **Drive:** the line shaft turns one way for either sign of the axle; each belt's two rims move alike and its runs are
-  tangent to both rims.
+- **Drive:** the line shaft turns one way for either sign of the axle; at the same travel every part but the entry shaft
+  stands alike for either sign of the axle; each belt's two rims move alike and its runs are tangent to both rims.
 - **Stamps:** over 60 poses in the lifts every tappet rides its cam (never into it, at most 0.15 over); resting, each
   shoe within 0.12 of its die and never into it; two drops a stamp a camshaft turn, in the order 1-3-5-2-4.
 - **Breaker:** through a turn of the eccentric (72 steps) the pitman's strap on the eccentric, its foot on both
@@ -204,11 +233,13 @@ maths. Rotations on θ and ψ, swings and slides on ψ.
   ([1, 3, 5, 2, 4]) and `lift` (0.25 blocks).
 - **`jaw`:** `turnsPerStroke` (1.333, axle turns a turn of the eccentric).
 - **`levels`:** `{ "1": [mortar, camshaft, stamps], "2": [those, jaw, grizzly] }`.
+- **The water line's metal:** `pipecopper` or `pipelead`, one of them fitted from level 1 on (the rosser's pattern).
 - **Keys.** `cells`, `powerCell`/`powerFace`, `waterCell`/`waterFace`/`water`, `feedCell`/`feedFace`/`feed`,
   `infeedCell`/`infeedFace`/`infeed`, `outputCell`/`outputFace`/`output`, `stamps`, `jaw`, `levels` and `parts`.
 
 **In the viewer** (`site/models.json`, `stamp-mill`): a **Level** select (the scenario's `states`): the frame, level
-1 and level 2 (the default), each with a note. Play turns the axle at 1.5 turns a second, a camshaft turn in 1.3
+1 and level 2 (the default), each with a note; and a **Water pipes** select, copper (the default) or lead, which waits
+for the mortar (level 1). Play turns the axle at 1.5 turns a second, a camshaft turn in 1.3
 seconds (about 90 drops a minute a stamp, a period battery's pace).
 
 ### Editing by hand
@@ -216,7 +247,9 @@ seconds (about 90 drops a minute a stamp, a period battery's pace).
 Element names are the rig's interface (first-match globs, in the rig's order): `entry_*`, `line_*`, `linepulley*`,
 `camshaft_*` (the shaft, hubs, cams `camshaft_cam<stamp><a|b><n>` and the bull pulley `camshaft_bull_*`),
 `camframe_*`, `stamp1_*`..`stamp5_*`, `mortar_*`, `jawpulley*`, `eshaft_*`, `pitman_*`, `backtoggle_*`,
-`fronttoggle_*`, `swingjaw_*`, `rods_*`, `buffer1_*`..`buffer2_*`, `jawframe_*`, `grizzly_*`, and `fr_*` for the frame.
+`fronttoggle_*`, `swingjaw_*`, `rods_*`, `buffer1_*`..`buffer2_*`, `jawframe_*`, `grizzly_*`, `pipecopper_*` and
+`pipelead_*` (solderedpipe's box names: `inlet_*`, `hub1_*`, `north_*`, `hub2_*`, `east_*`, `hub3_*`, `drop_*`), and
+`fr_*` for the frame.
 Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Choices made, and why
