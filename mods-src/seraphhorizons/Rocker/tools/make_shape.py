@@ -6,10 +6,9 @@ curved rockers, its floor falling gently to its open foot, with low riffles acro
 riddle box) sits on the head of the box, its bottom an iron riddle plate; under it an inclined canvas
 apron on a frame catches what falls through the riddle and carries it back to the head of the box, and
 the water washes it down over the riffles and out at the foot. The operator rocks it from the side by an
-upright handle. Here the box rolls on its rockers on two oak sills, and water comes either by bucket,
-poured into the hopper, or by a Pipes and Power Expanded pipe on the south face, through a lead
-gooseneck on a post whose spout stands over the hopper. Everything is built here from plain boxes; no
-other mod's model is used.
+upright handle. Here the box rolls on its rockers on two oak sills, and its only water is what the player
+pours into the hopper from a bucket held in hand: no pipe, no spout, nothing fixed beside it. Everything is
+built here from plain boxes; no other mod's model is used.
 
 It writes, deterministically,
 
@@ -23,9 +22,9 @@ non-zero if a check fails.
 
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the
 cell's north-west-bottom corner (the "build frame"); the rocker is one cell, the controller [0,0,0], so
-the shipped files are the build frame divided by 16. The box runs along x: its head (the hopper, under
-the spout) at the east end, its open foot at the west end, where the tailings leave; the operator stands
-on the north side, at the handle, and the pipe comes in on the south face.
+the shipped files are the build frame divided by 16. The box runs along x: its head (the hopper) at the
+east end, its open foot at the west end, where the tailings leave; the operator stands on the north side,
+at the handle.
 
 The rig's one input, as this machine uses it (README "Rig schema"):
 
@@ -75,7 +74,6 @@ TEXTURES = {
     "iron": "game:block/metal/plate/iron",
     "riddle": "game:block/metal/mesh4",          # the riddle plate: the game's rusty iron mesh, cut out (it shows the apron through it)
     "canvas": "game:block/linen",                # the apron
-    "pipe": "game:block/metal/sheet-plain/lead4",   # the gooseneck: lead pipe, in the pipes' own lead texture
     "water": "game:block/liquid/water",
     "charge": "game:block/stone/gravel/granite",       # a charge in the hopper: the renderer sets it to the material's texture
     "concentrate": "game:block/stone/sand/basalt",     # the heavy sand behind the riffles: the renderer sets it to the ore's
@@ -141,26 +139,6 @@ HANDLE_Z = (BOX_Z[0] - 1.0, BOX_Z[0])        # against the north side, where the
 HANDLE_TOP = 14.5                            # a hand's height for a standing player
 BANDS = (1.2, 3.8)                           # the iron bands, this far over the handle's foot
 BAND_H = 0.45
-
-# ---------------------------------------------------------------- the water inlet and spout (static)
-FACE = 16.0                                  # the water face: the cell's south face
-PPEX_PIPE = (5.0, 11.0)                      # Pipes and Power Expanded's pipe: a square tube 6 across, its block's 5..11
-PIPE_AXIS = (8.0, 8.0)                       # (x, y): its axis, the water face's middle, where the inlet ends
-UNION = 1.0                                  # half the small square union on the inlet's end, at the face
-UNION_T = 0.3
-PIPE_H = 0.5                                 # half the gooseneck's section: a 1-voxel lead pipe
-PIPE_Y = PIPE_AXIS[1]                        # the run from the inlet: the face's middle
-PIPE_Z = FACE - UNION_T - 0.075 - PIPE_H     # the run, the riser and the post (z): just inside the face, past the union
-SPOUT_X = 13.3                               # the riser and the arm (x): over the hopper's head half
-ARM_Y = 14.5                                 # the arm over the hopper (y)
-NOZZLE = 0.4                                 # the spout's half section, over the rocking axis
-NOZZLE_L = 0.5
-POST_X = (SPOUT_X + PIPE_H, SPOUT_X + PIPE_H + 1.4)
-POST_TOP = ARM_Y - 0.2                       # its top beside the arm
-CLIP_Y = (10.0, 12.9)                        # iron clips round the riser and the post
-CLIP_H = 0.4
-STREAM_HALF = 0.175                          # the stream from the spout while piped water runs
-STREAM_FOOT = 11.04                          # its foot, in the water on the riddle plate at every point of the rock
 
 SLOPE_TAN = math.tan(SLOPE * DEG)
 
@@ -351,9 +329,10 @@ def build_handle():
 
 
 def build_water():
-    """Water while it is washed (level frame, but the curtain off the foot, built upright): standing on the
-    riddle plate, running down the apron and off its low end, a sheet down the floor with pools behind the
-    riffles, and a curtain off the open foot."""
+    """Water while it is worked, poured into the hopper from the player's bucket as it rocks (level frame, but
+    the curtain off the foot, built upright): standing on the riddle plate, running down the apron and off its
+    low end, a sheet down the floor with pools behind the riffles, and a curtain off the open foot. The pour
+    itself is not modelled: it comes from the bucket in the player's hand, wherever that is."""
     out = []
     (rx0, rx1), (rz0, rz1), ry = riddle_box()
     out.append(box([rx0, ry, rz0], [rx1, ry + HOP_WATER, rz1], "water_hopper", "water", "water"))
@@ -400,43 +379,10 @@ def build_concentrate():
             for i, x in enumerate(RIFFLE_X)]
 
 
-def nozzle_mouth():
-    return (SPOUT_X, ARM_Y - PIPE_H - NOZZLE_L, AXIS_Z)
-
-
-def build_spout():
-    """The water inlet, fixed: a lead pipe whose end, with a small union, lies on the south face's middle, on
-    the axis of a ppex pipe beyond it; from it a lead gooseneck (a run east, a riser, an arm north over the hopper and a short spout down over the
-    rocking axis); an oak post on the ground beside the riser and two iron clips round both."""
-    h, p = PIPE_H, "spout"
-    ax, ay = PIPE_AXIS
-    out = [
-        box([ax - UNION, ay - UNION, FACE - UNION_T], [ax + UNION, ay + UNION, FACE], "spout_union", p, "pipe"),
-        box([ax - h, ay - h, PIPE_Z - h], [ax + h, ay + h, FACE - UNION_T], "spout_inlet", p, "pipe"),
-        box([ax + h, PIPE_Y - h, PIPE_Z - h], [SPOUT_X - h, PIPE_Y + h, PIPE_Z + h], "spout_run", p, "pipe"),
-        box([SPOUT_X - h, PIPE_Y - h, PIPE_Z - h], [SPOUT_X + h, ARM_Y - h, PIPE_Z + h], "spout_riser", p, "pipe"),
-        box([SPOUT_X - h, ARM_Y - h, AXIS_Z - NOZZLE], [SPOUT_X + h, ARM_Y + h, PIPE_Z + h], "spout_arm", p, "pipe"),
-        box([SPOUT_X - NOZZLE, ARM_Y - h - NOZZLE_L, AXIS_Z - NOZZLE], [SPOUT_X + NOZZLE, ARM_Y - h, AXIS_Z + NOZZLE], "spout_nozzle", p, "pipe"),
-        box([POST_X[0], 0.0, PIPE_Z - h], [POST_X[1], POST_TOP, PIPE_Z + h], "spout_post", p, "oak"),
-    ]
-    for i, y in enumerate(CLIP_Y):
-        out.append(box([SPOUT_X - h - 0.1, y, PIPE_Z - h - 0.07], [POST_X[1] + 0.1, y + CLIP_H, PIPE_Z + h + 0.07], f"spout_clip{i + 1}", p, "iron"))
-    return out
-
-
-def build_stream():
-    """The stream from the spout into the hopper while piped water runs: fixed, the hopper rocks under it."""
-    mx, my, mz = nozzle_mouth()
-    el = box([mx - STREAM_HALF, STREAM_FOOT, mz - STREAM_HALF], [mx + STREAM_HALF, my, mz + STREAM_HALF], "stream_fall", "stream", "water")
-    el.render_pass = TRANSPARENT
-    return [el]
-
-
 def build():
     level = build_box() + build_riffles() + build_apron() + build_hopper() + build_charge() + build_concentrate()
     tilt(level)
-    return (build_rockers() + level[:4] + build_handle() + level[4:] + build_water() + build_spout() + build_stream()
-            + build_sills())
+    return build_rockers() + level[:4] + build_handle() + level[4:] + build_water() + build_sills()
 
 
 # ---------------------------------------------------------------- rig
@@ -477,8 +423,6 @@ def _rig_parts():
         ("water", "water_*", "water", "cradle", []),
         ("charge", "charge_*", "charge", "cradle", []),
         ("concentrate", "conc_*", "concentrate", "cradle", []),
-        ("spout", "spout_*", "spout", None, []),
-        ("stream", "stream_*", "stream", None, []),
         ("frame", "fr_*", None, None, []),
     ]
     parts = [{"id": i, "match": [g], "requires": r, "ride": ride, "drivers": d} for i, g, r, ride, d in spec]
@@ -491,7 +435,7 @@ def _rig_parts():
 # ---------------------------------------------------------------- poses
 REST = 0.0                                   # theta: the cradle level, the authored pose
 MOVING = ("cradle", "handle", "riffles", "apron", "hopper", "riddle", "water", "charge", "concentrate")
-STATIC = ("spout", "stream", "frame")
+STATIC = ("frame",)
 
 
 def inputs_of(theta):
@@ -512,7 +456,7 @@ def footprint():
     return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
 
 
-POINT_ANCHORS = ("spout", "hopper", "outflow", "concentrate", "tailings")
+POINT_ANCHORS = ("hopper", "outflow", "concentrate", "tailings")
 
 
 def make_rig(parts):
@@ -522,14 +466,12 @@ def make_rig(parts):
     conc = tilt_point([RIFFLE_X[1] + RIFFLE_W + CONC_L / 2, FLOOR_TOP + CONC_H, AXIS_Z])
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, one cell, the controller [0,0,0]: the box runs along x, "
-                    "its head (the hopper) east and its open foot west; the operator stands at the handle on the north side, "
-                    "and a ppex pipe comes in on the south face. A hand station: no power cell. theta is the rocking, the "
-                    "hold-to-work clock: one turn is one rock (over to the south and back over to the north). Points with a "
-                    "part ride it. See the rocker's README for the schema.",
+                    "its head (the hopper) east and its open foot west; the operator stands at the handle on the north side. "
+                    "A hand station: no power cell, and no water cell: its only water is poured into the hopper from the "
+                    "bucket the player holds while rocking it. theta is the rocking, the hold-to-work clock: one turn is one "
+                    "rock (over to the south and back over to the north). Points with a part ride it. See the rocker's README "
+                    "for the schema.",
         "cells": [],
-        "waterCell": [0, 0, 0],
-        "waterFace": "south",
-        "spout": {"pos": pt(*nozzle_mouth())},
         "hopper": {"pos": pt(*hopper), "part": "cradle"},
         "outflow": {"pos": pt(*lip), "part": "cradle"},
         "concentrate": {"pos": pt(*conc), "part": "cradle"},
@@ -560,7 +502,6 @@ def shipped(els, parts, rig):
                     drv[key] = [r6(drv[key][k] + db[k]) for k in range(3)]
     ship = copy.deepcopy(rig)
     ship["cells"] = [{**c, "pos": shift_cell(c["pos"], ORIGIN_CELL)} for c in rig["cells"]]
-    ship["waterCell"] = shift_cell(rig["waterCell"], ORIGIN_CELL)
     for key in POINT_ANCHORS:
         ship[key] = {**rig[key], "pos": shift_point(rig[key]["pos"], db)}
     ship["parts"] = ship_parts
