@@ -224,11 +224,11 @@ KERB_Y = (30.5, FLOOR_TOP)                   # a band along the top edge of the 
 
 # ---------------------------------------------------------------- the build
 # Built in stages (the rig's `build`; their requires values are the viewer's Build states): the iron frame, a grid
-# recipe placed as the machine (the controller and its ghosts), then the brickwork, the lining, and the lid with the
-# damper. The brickwork's and the lining's counts are measured from the model's volume at the game's rates: a
+# recipe placed as the machine (the controller and its ghosts), then the brickwork (which also fits the hinge's iron,
+# its pins and stops on their ties, at no cost of its own), the lining, and the lid with the damper. The brickwork's and the lining's counts are measured from the model's volume at the game's rates: a
 # claybricks block is 2 fired bricks (8 and a mortar make 4), a refractory brick block 4 (8 and a mortar make 2),
 # rounded up; the lining's fire clay is one for every LINING_PER_FIRECLAY of its bricks, rounded up.
-FRAME_RECIPE = (("game:metalplate-iron", 2), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 4))
+FRAME_RECIPE = (("game:metalplate-iron", 2), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 10))
 BRICKS_PER_BLOCK = 2
 LINING_PER_BLOCK = 4
 LINING_PER_FIRECLAY = 2.5
@@ -523,14 +523,14 @@ STOP_TIE_Y = (31.0, 31.9)
 
 
 def ties():
-    """The iron frame's ties, as (name, lo, hi): so that nothing of the frame floats before the brick is in, the least
-    iron that joins each piece to the ground, all of it inside the brick (voids are cut for it), so it is hidden once
-    the brick is in. A post under the front end of each outer bearer, and under the back end of the middle one (the
-    ash mouth is under its front end), each half a voxel clear of the ash pit; a post each side of the ash mouth,
-    behind the damper's recess, under the lintel's ends (the guides stand against the lintel's face); a bar on from
-    each hinge pin's outer end, along the side wall under the floor, on a post; and a bar back from each stop's foot
-    under the floor, on a post. The bars by the pins and the stops are in the lining's zone near them, the posts in the
-    brickwork's."""
+    """The ties, as (name, lo, hi): the least iron that joins each piece of iron to the ground before the brick is in,
+    all of it inside the brickwork (voids are cut for it), so it is hidden once the brick is in. The iron frame's
+    (`fr_tie_*`): a post under the front end of each outer bearer, and under the back end of the middle one (the ash
+    mouth is under its front end), each half a voxel clear of the ash pit; a post each side of the ash mouth, behind
+    the damper's recess, under the lintel's ends (the guides stand against the lintel's face). The hinge's (`hg_tie_*`,
+    fitted with the brickwork, so they never stand alone): a bar on from each pin's outer end, along the side wall
+    under the floor, on a post; and a bar back from each stop's foot under the floor, on a post. The bars by the pins
+    and the stops are in the lining's zone near them, the posts in the brickwork's."""
     out = []
     for side, n, (z0, z1) in (("w", 0, (BEARER_Z[0], BEARER_Z[0] + 0.5)), ("m", 1, (BEARER_Z[1] - 0.5, BEARER_Z[1])),
                               ("e", 2, (BEARER_Z[0], BEARER_Z[0] + 0.5))):
@@ -543,13 +543,13 @@ def ties():
     for side, xe, sgn in (("w", SEAT_X[0] - PIN_IN, -1.0), ("e", SEAT_X[1] + PIN_IN, 1.0)):
         xf = xe + sgn * PIN_TIE
         x0, x1 = sorted((xe, xf))
-        out.append((f"fr_tie_pin_{side}", [x0, PIN_TIE_Y[0], zb - 0.15], [x1, PIN_TIE_Y[1], zb + 0.15]))
+        out.append((f"hg_tie_pin_{side}", [x0, PIN_TIE_Y[0], zb - 0.15], [x1, PIN_TIE_Y[1], zb + 0.15]))
         p0, p1 = sorted((xf, xf - sgn * 0.5))
-        out.append((f"fr_tie_pinpost_{side}", [p0, 0.0, zb - 0.25], [p1, PIN_TIE_Y[0], zb + 0.25]))
+        out.append((f"hg_tie_pinpost_{side}", [p0, 0.0, zb - 0.25], [p1, PIN_TIE_Y[0], zb + 0.25]))
     for side, (x0, x1) in zip(("w", "e"), STOP_X):
         xm, z0 = (x0 + x1) / 2, STOP_Z + STOP_D
-        out.append((f"fr_tie_stop_{side}", [xm - 0.5, STOP_TIE_Y[0], z0], [xm + 0.5, STOP_TIE_Y[1], z0 + STOP_TIE]))
-        out.append((f"fr_tie_stoppost_{side}", [xm - 0.5, 0.0, z0 + STOP_TIE - 0.5], [xm + 0.5, STOP_TIE_Y[0], z0 + STOP_TIE]))
+        out.append((f"hg_tie_stop_{side}", [xm - 0.5, STOP_TIE_Y[0], z0], [xm + 0.5, STOP_TIE_Y[1], z0 + STOP_TIE]))
+        out.append((f"hg_tie_stoppost_{side}", [xm - 0.5, 0.0, z0 + STOP_TIE - 0.5], [xm + 0.5, STOP_TIE_Y[0], z0 + STOP_TIE]))
     return out
 
 
@@ -658,10 +658,10 @@ def build_brick():
 
 # ---------------------------------------------------------------- builders
 def build_iron():
-    """The iron frame (`frame`): what the frame stage puts down, set into the brick once it is in. The three bearers
-    (front to back) and the firebars (two lengths a row), the ash mouth's lintel and the damper's guides, the hinge's
-    two pins (bedded in the side walls) and the lid's two stops, the binding, and the ties that hold them up until the
-    brick is in (`ties`)."""
+    """The iron frame (`frame`): what the frame stage puts down, all of it standing on its own, set into the brick once
+    it is in. The three bearers (front to back) and the firebars (two lengths a row), the ash mouth's lintel and the
+    damper's guides, the binding, and the frame's ties (`ties`, hidden in the brickwork) under the bearers and the
+    lintel."""
     f, t = "frame", "iron"
     out = []
     for n, (x0, x1) in enumerate(BEARER_X, 1):
@@ -677,12 +677,22 @@ def build_iron():
     (_, ry, rz) = RECESS
     for side, (x0, x1) in zip(("w", "e"), GUIDES):
         out.append(box([x0, ry[0], rz[0]], [x1, ry[1], rz[1]], f"fr_guide_{side}", f, t))
-    for side, (x0, x1) in zip(("w", "e"), ((SEAT_X[0] - PIN_IN, KNUCKLE_X[0][1]), (KNUCKLE_X[1][0], SEAT_X[1] + PIN_IN))):
-        out += oct_rod_x(x0, x1, PIVOT[0], PIVOT[1], PIN_R, f"fr_pin_{side}", f, t)
-    for side, (x0, x1) in zip(("w", "e"), STOP_X):
-        out.append(box([x0, FLOOR_TOP - STOP_SET, STOP_Z], [x1, FLOOR_TOP + STOP_H, STOP_Z + STOP_D], f"fr_stop_{side}", f, t))
     out += [box(lo, hi, name, f, t) for name, lo, hi in binding()]
-    out += [box(lo, hi, name, f, t) for name, lo, hi in ties()]
+    out += [box(lo, hi, name, f, t) for name, lo, hi in ties() if name.startswith("fr_")]
+    return out
+
+
+def build_hinge():
+    """The hinge's iron (`hinge`, fitted with the brickwork): the two pins, bedded in the side walls, the lid's two
+    stops, and their ties (`ties`), whose posts stand in the brickwork. Fitted with the frame, the pins and the stops
+    would stand on thin posts with nothing round them."""
+    f, t = "hinge", "iron"
+    out = []
+    for side, (x0, x1) in zip(("w", "e"), ((SEAT_X[0] - PIN_IN, KNUCKLE_X[0][1]), (KNUCKLE_X[1][0], SEAT_X[1] + PIN_IN))):
+        out += oct_rod_x(x0, x1, PIVOT[0], PIVOT[1], PIN_R, f"hg_pin_{side}", f, t)
+    for side, (x0, x1) in zip(("w", "e"), STOP_X):
+        out.append(box([x0, FLOOR_TOP - STOP_SET, STOP_Z], [x1, FLOOR_TOP + STOP_H, STOP_Z + STOP_D], f"hg_stop_{side}", f, t))
+    out += [box(lo, hi, name, f, t) for name, lo, hi in ties() if name.startswith("hg_")]
     return out
 
 
@@ -694,9 +704,9 @@ def build_stands():
 
 
 def build_frame():
-    """Everything that stands still and is not the hole's contents: the brick (brickwork and lining), the iron frame
-    and the stands."""
-    return build_brick() + build_iron() + build_stands()
+    """Everything that stands still and is not the hole's contents: the brick (brickwork and lining), the iron frame,
+    the hinge's iron and the stands."""
+    return build_brick() + build_iron() + build_hinge() + build_stands()
 
 
 def build_lid():
@@ -883,8 +893,14 @@ def lid_drivers():
              "amount": r6(-math.radians(OPEN_DEG))}]
 
 
-PART_IDS = STAGES + CONTENTS + tuple(f"damper{d}" for d in DAMPERS) + ("outletcap",)
-MATCH = {"brickwork": "bk_*", "lining": "ln_*"}
+PART_IDS = ("brickwork", "hinge", "lining", "lid") + CONTENTS + tuple(f"damper{d}" for d in DAMPERS) + ("outletcap",)
+MATCH = {"brickwork": "bk_*", "hinge": "hg_*", "lining": "ln_*"}
+REQUIRES_OF = {"hinge": "brickwork"}         # a part fitted with another's requires: the hinge's iron with the brickwork
+
+
+def requires_of(pid):
+    """The requires value a part is fitted by (None for the iron frame)."""
+    return None if pid == "frame" else REQUIRES_OF.get(pid, pid)
 
 _PARTS = []
 
@@ -898,7 +914,7 @@ def rig_parts():
 def _rig_parts():
     parts = []
     for pid in PART_IDS:
-        parts.append({"id": pid, "match": [MATCH.get(pid, f"{pid}_*")], "requires": pid,
+        parts.append({"id": pid, "match": [MATCH.get(pid, f"{pid}_*")], "requires": requires_of(pid),
                       "drivers": lid_drivers() if pid == "lid" else []})
     parts.append({"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []})
     for p in parts:
@@ -939,8 +955,8 @@ def fitted(scene):
 
 
 def on_show(part, scene):
-    """Whether a part is drawn in a scene: the iron frame always, the rest when fitted."""
-    return part == "frame" or part in fitted(scene)
+    """Whether a part is drawn in a scene: the iron frame always, the rest when what fits them is fitted."""
+    return part == "frame" or requires_of(part) in fitted(scene)
 
 
 def shown(parts, posed_els, pose):
@@ -1042,7 +1058,7 @@ def build_json():
         "frame": {"recipe": "grid", "tool": "hammer", "ingredients": materials(FRAME_RECIPE)},
         "stages": [
             {"requires": "brickwork", "volumeBlocks": r6(c["brickVolume"]), "oneType": True, "perClick": "stack",
-             "materials": materials(((FIRED_BRICK, c["bricks"]),))},
+             "materials": materials(((FIRED_BRICK, c["bricks"]),)), "alsoParts": ["hinge"]},
             {"requires": "lining", "volumeBlocks": r6(c["liningVolume"]), "perClick": "stack",
              "materials": materials(((LINING_BRICK, c["lining"]), (FIRECLAY, c["fireclay"])))},
             {"requires": "lid", "also": [f"damper{d}" for d in DAMPERS], "materials": materials(LID_STAGE)},
@@ -1050,7 +1066,8 @@ def build_json():
         "outletCap": materials((CAP_ITEM,))[0],
         "_comment": "The build's stages, in order. frame: the iron frame's grid recipe (with a hammer); placing it puts "
                     "down the controller and its ghosts, and draws the frame part. Each stage then fits its requires "
-                    "when its materials are all in: brickwork, then lining, then lid (with the damper: also, its "
+                    "when its materials are all in: brickwork (its alsoParts, the hinge's pins and stops on their "
+                    "ties, come with it at no cost of their own), then lining, then lid (with the damper: also, its "
                     "places). volumeBlocks: the stage's brick measured from the model, in blocks; its quantities are "
                     "that at 2 fired bricks or 4 refractory bricks a block (the game's brick block recipes), rounded "
                     "up, fire clay one per 2.5 refractory bricks. perClick stack: a click puts in as many of the held "
@@ -1141,7 +1158,7 @@ def shipped(els, parts, rig):
     return ship_els, ship_parts, ship
 
 
-CELL_PARTS = ("frame", "brickwork", "lining", "lid")   # the cells' boxes: the furnace built, the lid shut
+CELL_PARTS = ("frame", "brickwork", "hinge", "lining", "lid")   # the cells' boxes: the furnace built, the lid shut
 CELL_POSE = (0.0, SHUT, DEFAULT_SCENE)
 
 

@@ -69,9 +69,17 @@ def brick(v):
 
 
 def static(v):
-    """Everything that stands still and is not the hole's contents, the furnace built: the iron frame, the brickwork and
-    the lining (with the stands)."""
-    return v.by_part["frame"] + v.by_part["brickwork"] + v.by_part["lining"]
+    """Everything that stands still and is not the hole's contents, the furnace built: the iron frame, the brickwork
+    with the hinge's iron, and the lining (with the stands)."""
+    return v.by_part["frame"] + v.by_part["brickwork"] + v.by_part["hinge"] + v.by_part["lining"]
+
+
+def iron(v):
+    """The iron that stands still: the frame's and the hinge's."""
+    return v.by_part["frame"] + v.by_part["hinge"]
+
+
+THIN_POST = 1.5                              # a post: a vertical element under this across both ways (a strap is wider)
 
 
 # ---------------------------------------------------------------- parts, frame, textures
@@ -95,27 +103,43 @@ def check_basic(v):
 
 
 def check_stages(v):
-    """The build *(review)*: at each stage (the iron frame alone, with the brickwork, with the lining too) nothing
-    floats: every element drawn is joined to the ground. The frame is iron only, and its ties are hidden once the brick
-    is in: points just off every face of every tie lie in brick or in other iron; the posts are in the brickwork, so
-    only the bars by the pins and the stops show while the lining is not in."""
+    """The build *(review)*: at each stage (the iron frame alone, with the brickwork and the hinge's iron, with the
+    lining too) nothing floats: every element drawn is joined to the ground. The iron frame stands on its own: it is
+    iron only, and no thin post stands in it taller than half the furnace (a vertical element under THIN_POST across
+    both ways; the corner straps are bands, wider): the hinge's pins and stops, and the posts that hold them, come with
+    the brickwork *(review)*. Every tie is hidden once the brick is in: points just off every face of it lie in brick
+    or in other iron; the posts are in the brickwork, so only the bars by the pins and the stops show while the lining
+    is not in."""
     m = v.m
     out = []
     for sid, fitted in m.STAGE_STATES:
-        drawn = v.by_part["frame"] + [e for f in fitted if f != "lid" for e in v.by_part[f]]
+        drawn = [e for p in v.parts if p["requires"] is None or (p["requires"] in fitted and not p["drivers"])
+                 for e in v.by_part[p["id"]]]
         seen, loose = frame_floating(drawn)
         out.append(f"{sid} {len(seen)}")
         if loose:
             v.fail(f"at the {sid} stage, elements float: {loose[:8]}")
-    tex = {f["texture"].lstrip("#") for e in v.by_part["frame"] for f in e.faces.values()}
+    frame = v.by_part["frame"]
+    tex = {f["texture"].lstrip("#") for e in frame for f in e.faces.values()}
     if tex != {"iron"}:
         v.fail(f"the iron frame is not iron only: {sorted(tex)}")
-    frame = v.by_part["frame"]
-    ties = [e for e in frame if e.name.startswith("fr_tie")]
+    posts = []
+    for e in frame:
+        lo, hi = e.aabb()
+        if hi[1] - lo[1] > m.H / 2 and hi[0] - lo[0] < THIN_POST and hi[2] - lo[2] < THIN_POST:
+            posts.append(e.name)
+    tallest = max(e.aabb()[1][1] - e.aabb()[0][1] for e in frame if e.aabb()[1][0] - e.aabb()[0][0] < THIN_POST
+                  and e.aabb()[1][2] - e.aabb()[0][2] < THIN_POST)
+    if posts:
+        v.fail(f"thin posts stand in the iron frame: {posts}")
+    if any(e.name.startswith(("fr_pin", "fr_stop")) for e in frame) or not v.by_part.get("hinge"):
+        v.fail("the hinge's iron is not the brickwork stage's")
+    allin = iron(v)
+    ties = [e for e in allin if e.name.startswith(("fr_tie", "hg_tie"))]
     bk = v.by_part["brickwork"]
     bare, showing = 0, set()
     for t in ties:
-        others = [e for e in frame if e is not t]
+        others = [e for e in allin if e is not t]
         lo, hi = t.aabb()
         for k in range(3):
             for side in (lo[k] - 0.02, hi[k] + 0.02):
@@ -132,19 +156,21 @@ def check_stages(v):
                             bare += 1
                         elif not any(inside(e, pnt) for e in bk):
                             showing.add(t.name)
-    print(f"stages: nothing floats at any stage (elements joined to the ground: {', '.join(out)}); the frame iron only, "
-          f"{len(ties)} ties hidden once the brick is in ({bare} points off their faces bare); with the brickwork alone "
-          f"these show in the lining's place: {sorted(showing) or 'none'}")
+    print(f"stages: nothing floats at any stage (elements joined to the ground: {', '.join(out)}); the iron frame iron "
+          f"only, with no thin post over {m.H / 2:.0f} (its tallest thin piece {tallest:.1f}); {len(ties)} ties hidden "
+          f"once the brick is in ({bare} points off their faces bare); with the brickwork alone these show in the "
+          f"lining's place: {sorted(showing) or 'none'}")
     if bare:
         v.fail(f"{bare} points off the ties' faces are in no brick or iron: a tie shows")
-    if any(not n.startswith(("fr_tie_pin_", "fr_tie_stop_")) for n in showing):
+    if any(not n.startswith(("hg_tie_pin_", "hg_tie_stop_")) for n in showing):
         v.fail(f"a post shows before the lining is in: {sorted(showing)}")
 
 
 ROLES = [
     (r"^bk_brick_", {"brick"}),
     (r"^ln_(brick_|stand\d)", {"lining"}),
-    (r"^fr_(bearer|bar|lintel|guide|pin|stop|strap|kerb|tie)", {"iron"}),
+    (r"^fr_(bearer|bar|lintel|guide|strap|kerb|tie)", {"iron"}),
+    (r"^hg_(pin|stop|tie)", {"iron"}),
     (r"^lid_(frame|handle|knuckle)", {"iron"}),
     (r"^lid_(fill|pocket)", {"lining"}),
     (r"^pot\d_", {"clay"}),
@@ -191,7 +217,7 @@ def check_containment(v):
     m = v.m
     worst, where = -1e9, None
     over, high = {}, 0.0
-    hinge = re.compile(r"^(lid_knuckle|fr_pin|fr_stop)")
+    hinge = re.compile(r"^(lid_knuckle|hg_pin|hg_stop)")
     for dp in depths(0.01):
         for pid in v.by_part:
             for el in v.posed(pid, dp):
@@ -255,9 +281,9 @@ def check_top(v):
                     bad.append((x, z))
             z += 0.5
         x += 0.5
-    high = [e for e in frame if e.aabb()[1][1] > m.FLOOR_TOP + 1e-6]
-    odd = [e.name for e in high if not re.match(r"^fr_(pin|stop)_", e.name)]
-    pins = max((e.aabb()[1][1] - m.FLOOR_TOP for e in high if e.name.startswith("fr_pin")), default=0.0)
+    high = [e for e in iron(v) if e.aabb()[1][1] > m.FLOOR_TOP + 1e-6]
+    odd = [e.name for e in high if not re.match(r"^hg_(pin|stop)_", e.name)]
+    pins = max((e.aabb()[1][1] - m.FLOOR_TOP for e in high if e.name.startswith("hg_pin")), default=0.0)
     # the groove: lines across the hinge, along z through each knuckle, pin and stop and the lid's back edge between,
     # across its front edge (clear of the handle's pocket), and along x across the seat's sides
     near = [e for e in solid + v.posed("lid", m.SHUT) if e.aabb()[1][1] > m.FLOOR_TOP - 1.0]
@@ -350,7 +376,7 @@ def check_walls(v):
                            ("stack", m.STACK[0]), ("outlet's curb", m.CURB[0])):
         if abs((x0 + x1) / 2 - mid) > 1e-9:
             v.fail(f"the {what} is not centred left to right")
-    near = brick(v) + [e for e in frame if e.name.startswith(("fr_strap", "fr_kerb", "fr_bearer", "fr_pin", "fr_guide", "fr_tie"))]
+    near = brick(v) + [e for e in iron(v) if e.name.startswith(("fr_strap", "fr_kerb", "fr_bearer", "hg_pin", "fr_guide", "fr_tie", "hg_tie"))]
 
     def solid(p):
         return any(inside(e, p, eps=-1e-9) for e in near)
@@ -398,7 +424,7 @@ def what_is(v, p):
     for e in v.by_part["brickwork"]:
         if inside(e, p):
             return "bk"
-    if any(inside(e, p) for e in v.by_part["frame"]):
+    if any(inside(e, p) for e in iron(v)):
         return "iron"
     return None
 
@@ -570,7 +596,7 @@ def check_lid(v):
                 behind = max(behind, max(c[2] - zb for c in corners))
     if behind > 1e-4:
         v.fail(f"the lid passes {behind:.3f} behind its back edge under the floor: it would need a pit")
-    pins = [e for e in frame if e.name.startswith("fr_pin")]
+    pins = [e for e in v.by_part["hinge"] if e.name.startswith("hg_pin")]
     for d in (0.0, 0.5, m.SHUT):
         kn = [e for e in v.posed("lid", d) if e.name.startswith("lid_knuckle")]
         for x0, x1 in m.KNUCKLE_X:
@@ -597,7 +623,7 @@ def check_lid(v):
         v.fail(f"the open lid's weight is not behind its axis ({cz - zb:+.3f}): it would fall shut")
     a = math.radians(m.OPEN_DEG)
     n = (math.cos(a), math.sin(a))                    # the lid's top face's normal (y, z), turned open; the face holds the axis
-    stops = [e.aabb() for e in frame if e.name.startswith("fr_stop")]
+    stops = [e.aabb() for e in v.by_part["hinge"] if e.name.startswith("hg_stop")]
     gaps = [n[0] * (s[1][1] - m.PIVOT[0]) + n[1] * (s[0][2] - zb) for s in stops]
     if len(stops) != 2 or any(abs(g) > 0.01 for g in gaps):
         v.fail(f"the open lid does not rest on the stops' edges: {gaps}")
@@ -638,7 +664,7 @@ def allowed(pa, pb, ea, eb):
     """Intended overlaps: a lump lying on a coke layer's top is inside the layer over it (the same kind), and the
     hinge's pins run through the lid's knuckles, along its back bar's top back edge."""
     names = {ea.name, eb.name}
-    if {pa, pb} == {"lid", "frame"} and any(n.startswith("fr_pin") for n in names) and any(
+    if {pa, pb} == {"lid", "hinge"} and any(n.startswith("hg_pin") for n in names) and any(
             n.startswith(("lid_knuckle", "lid_frame_s")) for n in names):
         return True
     ra, rb = re.fullmatch(r"(coke|fire)(\d)", pa), re.fullmatch(r"(coke|fire)(\d)", pb)

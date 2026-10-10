@@ -92,6 +92,7 @@ describe("the crucible furnace's rig against its rig-reference.json", () => {
     expect([...codes.brickwork!]).toEqual(["brick"]);
     expect([...codes.lining!]).toEqual(["lining"]);
     expect([...codes.frame!]).toEqual(["iron"]);
+    expect([...codes.hinge!]).toEqual(["iron"]);
     for (const f of flat) {
       const glows = Object.values(f.element.faces ?? {}).map((face) => (face as { glow?: number }).glow ?? 0);
       const id = parts[partOf(globs, f.chain)]!.id;

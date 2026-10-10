@@ -80,6 +80,8 @@ class Rig(unittest.TestCase):
         self.assertEqual(moving, {"lid"})
         req = {p["id"]: p["requires"] for p in RIG["parts"]}
         self.assertEqual((req["lid"], req["brickwork"], req["lining"], req["frame"]), ("lid", "brickwork", "lining", None))
+        # the hinge's pins and stops, on their ties, come with the brickwork
+        self.assertEqual(req["hinge"], "brickwork")
         lid = next(p for p in RIG["parts"] if p["id"] == "lid")
         self.assertEqual([(d["type"], d.get("motion")) for d in lid["drivers"]], [("rotate", None), ("step", "rotate")])
 
@@ -271,13 +273,21 @@ class Build(unittest.TestCase):
         self.assertEqual([(m["code"], m["quantity"]) for m in st["lid"]["materials"]],
                          [("game:refractorybrick-fired-tier3", 4), ("game:metalplate-iron", 2)])
         self.assertEqual([(m["code"], m["quantity"]) for m in build["frame"]["ingredients"]],
-                         [("game:metalplate-iron", 2), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 4)])
+                         [("game:metalplate-iron", 2), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 10)])
         self.assertEqual((build["outletCap"]["code"], build["outletCap"]["quantity"]), ("game:metalplate-iron", 1))
 
     def test_the_frame_is_the_iron_frame(self):
-        # the block draws the iron frame alone: the brick, the lining and the lid are stages
+        # the block draws the iron frame alone: the brick, the lining and the lid are stages, and the hinge's pins and
+        # stops come with the brickwork; what is left stands on its own, with no thin post taller than half the
+        # furnace (the corner straps are bands, wider)
         self.assertEqual({f["texture"] for e in FRAME["elements"] for f in e["faces"].values()}, {"#iron"})
         self.assertTrue(all(e["name"].startswith("fr_") for e in FRAME["elements"]))
+        names = {e["name"] for e in FRAME["elements"]}
+        self.assertFalse(any(n.startswith(("fr_pin", "fr_stop", "hg_")) for n in names))
+        for e in FRAME["elements"]:
+            size = [e["to"][k] - e["from"][k] for k in range(3)]
+            if size[0] < 1.5 and size[2] < 1.5:
+                self.assertLessEqual(size[1], 16.0, e["name"])
 
     def test_any_fired_brick_maps_to_its_blocks_texture(self):
         bricks = RIG["bricks"]
