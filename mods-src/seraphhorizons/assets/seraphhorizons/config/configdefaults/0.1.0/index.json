@@ -20,6 +20,7 @@
     "bloodtrail": "1.2.9",
     "brickyard": "1.0.0",
     "butchering": "1.14.3",
+    "candela": "1.0.0",
     "carryon": "2.0.0-pre.8",
     "carryonlib": "1.0.0-pre.8",
     "cartwrightscaravan": "1.9.1",
@@ -48,7 +49,6 @@
     "foodshelves": "3.1.0",
     "footprints": "1.2.11",
     "geoaddons": "1.4.8",
-    "gondolacablecar": "0.4.43",
     "goodhunting": "1.4.7",
     "grindablebonearrows": "1.0.1",
     "handcrank": "1.0.1",
@@ -174,12 +174,6 @@
       "format": "json",
       "owners": [
         "footprints"
-      ]
-    },
-    "GondolaCableCarConfig.json": {
-      "format": "json",
-      "owners": [
-        "gondolacablecar"
       ]
     },
     "HardcoreWater.json": {
@@ -525,6 +519,12 @@
         "configkit"
       ]
     },
+    "candela.json": {
+      "format": "json",
+      "owners": [
+        "candela"
+      ]
+    },
     "cartwrightscaravan.yaml": {
       "format": "yaml",
       "owners": [
@@ -751,6 +751,27 @@
         "vanilla_structures_spawn_chance"
       ],
       "value": "1.5"
+    },
+    {
+      "file": "candela.json",
+      "path": [
+        "BurnoutMode"
+      ],
+      "value": "\"None\""
+    },
+    {
+      "file": "candela.json",
+      "path": [
+        "WeatherPutsOut"
+      ],
+      "value": "false"
+    },
+    {
+      "file": "candela.json",
+      "path": [
+        "TorchesKeepTheirTime"
+      ],
+      "value": "false"
     },
     {
       "file": "primitivesurvival5.json",

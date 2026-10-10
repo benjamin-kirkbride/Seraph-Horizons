@@ -66,7 +66,9 @@ press) and distillation (the still). The rules are data:
   `lottery`, `smelting`, `baking`, `crushing`, `grinding`, `pressing`, `distilling`, `mod` for every other mod
   registry; any recipe type can have an entry of its own by its type code, as `curing` has), the
   tool fraction, recipe ids never used as
-  routes (uncrafting and recycling, among them chiselling found jewellery and curiosities into metal bits),
+  routes (uncrafting and recycling, among them chiselling found jewellery and curiosities into metal bits,
+  and Candela's molten beeswax hardening back into beeswax: as a route it makes beeswax a made item
+  priced from itself, so it never gets the trader fallback a leaf does and the candle loses its cheap route),
   the scrap floor's multipliers (`scrapFloor`, below), how smithing and clay forming use material by volume, and the
   schematic patterns.
 - `overrides.json`: hand overrides, fixed and winning over everything, each with its reason.
