@@ -277,7 +277,10 @@ class Stages(unittest.TestCase):
                          ["gantry", "torso", "pelvis", "legs", "arms", "head", "mind"])
         self.assertEqual(STAGES["stages"][0]["elements"], [])
         mind = set(STAGES["stages"][-1]["elements"])
-        self.assertEqual(mind, {"brain", "bar-head1", "heart", "bar-heart1", "bar-heart2", "Eye-out"})
+        self.assertEqual(mind, {"heart", "bar-heart1", "bar-heart2", "Eye-out"})
+        # the elucidatory vessel is fitted with the head, so its element, the brain, is the head's
+        # and shows in the head hung in the gantry
+        self.assertLessEqual({"brain", "bar-head1"}, set(STAGES["stages"][-2]["elements"]))
 
     def test_ingredients_are_the_body_bill(self):
         # the epic's bill (#668): "N code" for N of an item; the gantry's BodyBill is held to this file
