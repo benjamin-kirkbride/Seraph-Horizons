@@ -638,6 +638,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Pipes.UnifiedPipesSystem.HarmonyId));
         string[] added = ["copper", "lead", "tinbronze", "bismuthbronze", "blackbronze"];
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "ppex" } c && c.Path.StartsWith("pipe-") && added.Contains(b.Variant?["material"]));
+        Assert.DoesNotContain(W.Blocks, b => b?.Shape?.Base?.Path.StartsWith("block/pipes/soldered-") == true);
         Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && (c.Path.StartsWith("angle-") || c.Path.StartsWith("pipesection-")));
         Assert.Equal(["game:chutesection-copper"], W.Items.Where(i => i?.Code is { Domain: "game" } c && c.Path.StartsWith("chutesection-"))
             .Select(i => i.Code.ToString()));

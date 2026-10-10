@@ -6,7 +6,7 @@
        machines' shared rig maths, footprint and trunk path (../Machines/Core), the bucking
        sawmill's assembly rules and cut arithmetic (../BuckingSawmill/Core), the rosser's
        (../Rosser/Core), the item value table's lookup (../Trading/Values/Core), the ore
-       cells' grid, state and vein scaling (../Ore/Core), the traders' grid, regions, lists
+       cells' grid, state and vein scaling and ore processing's recovery (../Ore/Core), the traders' grid, regions, lists
        and restock (../Trading/Core), standing (../Trading/Standing/Core) and their economy's
        prices and supply (../Trading/Economy/Core), the schematics' table and grid placement
        (../Trading/Schematics/Core), orders and deliveries (../Trading/Orders/Core,
@@ -46,6 +46,8 @@
     <!-- Rarer battle towers (#519): the shipped rates, so the tests check that they parse. -->
     <None Include="../assets/seraphhorizons/config/battletowers-rates.json" Link="battletowers-rates.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../Ore/Core/**/*.cs" Link="Ore/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Ore processing's recovery figures (#685), so the tests check the design's worked examples on them. -->
+    <None Include="../assets/seraphhorizons/config/ore-processing.json" Link="ore-processing.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../Trading/Core/**/*.cs" Link="Trading/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Trader standing and companies (#452, #463), and the shipped tiers file. -->
     <Compile Include="../Trading/Standing/Core/**/*.cs" Link="Trading/Standing/Core/%(RecursiveDir)%(Filename)%(Extension)" />
@@ -125,6 +127,10 @@
     <None Include="../assets/seraphhorizons/entities/handcar.json" Link="handcar-entity.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Handcar/rig-reference.json" Link="handcar-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Handcar/rider-reference.json" Link="handcar-rider-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The amalgam pan's shipped rig and its reference poses (AmalgamPan/tools/make_shape.py): a model
+         with no gameplay yet, held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/amalgampan-rig.json" Link="amalgampan-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="AmalgamPan/rig-reference.json" Link="amalgampan-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />
@@ -170,6 +176,10 @@
     <Compile Include="../Pipes/Core/**/*.cs" Link="Pipes/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/patches/unifiedpipes-ppex.json" Link="unifiedpipes-ppex.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/grid/unifiedpipes.json" Link="unifiedpipes-grid.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Soldered joints: the patch putting ppex's copper and lead pipes on this mod's soldered
+         models, and ppex 0.7.1's four pipe blocktypes trimmed to their shape tables. -->
+    <None Include="../assets/seraphhorizons/patches/unifiedpipes-solderedjoints.json" Link="unifiedpipes-solderedjoints.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Pipes/fixtures/ppex-pipe-shapes.json" Link="ppex-pipe-shapes.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The chain: the patch on the game's chute section (the hollow section), its anvil recipe and
          the chute recipes; this mod's soldering recipe, the angle (item and shape) and the pipe
          section; and the game's three files (1.22.7), the item and chutes trimmed to what the guard reads. -->
