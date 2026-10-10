@@ -24,7 +24,8 @@
     "ground": { "code": "seraphhorizons:groundore-{ore}", "stack": 16, "name": "Ground ore ({ore})" },
     "concentrate": { "code": "seraphhorizons:concentrate-{ore}", "stack": 128, "name": "Concentrate ({ore})" },
     "roastedconcentrate": { "code": "seraphhorizons:roastedconcentrate-{ore}", "stack": 128, "only": "sulfide", "name": "Roasted concentrate ({ore})" },
-    "amalgam": { "code": "seraphhorizons:amalgam-{ore}", "stack": 128, "only": "free", "name": "Amalgam ({ore})" }
+    "amalgam": { "code": "seraphhorizons:amalgam-{ore}", "stack": 128, "only": "free", "name": "Amalgam ({ore})" },
+    "sponge": { "code": "seraphhorizons:sponge-{ore}", "stack": 128, "only": "free", "name": "Retorted sponge ({ore})" }
   },
 
   "litharge": {

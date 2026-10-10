@@ -392,7 +392,14 @@ concentrate costs 0.20, against 0.10 for its lead and 3 % silver. Sulfur from ro
 **Later items.** A station that makes a new item from these (the cupel's silver, the still's
 mercury) adds a route to `routes.json`, with its switch, if the export does not carry it; an item of
 its own that exists only with `OreProcessing` and is missing from the export goes into
-`ore-processing.json` (`items`, by form, or a single item like `litharge`) so the tool adds it.
+`ore-processing.json` (`items`, by form, or a single item like `litharge`) so the tool adds it. The
+still (#726) is the first: its routes (an amalgam into its retorted sponge, kind `distilling`) are in
+`routes.json`, and the sponge is an item of `items`, priced by that route from its amalgam (the mercury
+the still returns is not credited: the amalgam's price leaves out the amalgam pan's mercury, which
+goes round between the pan and the still). Its cinnabar-to-mercury route is left out on purpose: it
+would undercut Expanded Matter's cooking recipe, which the export (switch off) still has, and so mark
+mercury as existing only with `OreProcessing`, which it does not; EM's recipe gives the same 10
+portions a powder, so the price holds either way.
 
 **Leaching** (#742): raw saltpeter and the three crude liquors are `singles` in
 `ore-processing.json`, added like the forms (a liquid with its `itemsPerLitre`) and priced by
