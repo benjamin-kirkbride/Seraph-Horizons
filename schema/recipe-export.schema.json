@@ -712,12 +712,12 @@
           }
         },
         "machine": {
-          "description": "shape machine only: a powered machine (an ingredient with role station) turns the consumed ingredients into the outputs, one job at a time. Ingredients in `kept` are fitted to it and never consumed; a tool ingredient (isTool) loses its toolDurabilityCost per job.",
+          "description": "shape machine only: a powered machine (an ingredient with role station; a hand job worked in place has none and says where in requirements) turns the consumed ingredients into the outputs, one job at a time. Ingredients in `kept` are fitted to it and never consumed; a tool ingredient (isTool) loses its toolDurabilityCost per job.",
           "type": "object",
           "required": ["power", "turns"],
           "additionalProperties": false,
           "properties": {
-            "power": { "description": "mechanical: the game's mechanical power network, `turns` the input shaft's. hand: worked by a player holding right-click on it, `turns` those of its hand clock (the press brake's lever, the squaring shear's treadle, a turn a second).", "type": "string", "minLength": 1 },
+            "power": { "description": "mechanical: the game's mechanical power network, `turns` the input shaft's. hand: worked by a player holding right-click on it, `turns` those of its hand clock (the press brake's lever, the squaring shear's treadle, a turn a second), or blows struck with a hammer (`work.unit` blows: right-clicks; strikes: left-clicks on ore on the ground).", "type": "string", "minLength": 1 },
             "turns": { "description": "Turns of the machine's input shaft one job takes.", "type": "number", "exclusiveMinimum": 0 },
             "work": {
               "description": "What a job is made of: `amount` of `unit` (12 teeth), `turnsPerUnit` each.",

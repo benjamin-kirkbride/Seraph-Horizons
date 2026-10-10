@@ -92,6 +92,23 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private static List<ItemSlotTrade> Offers(EntitySeraphTrader trader, string offer) =>
         trader.Inventory.SellingSlots.Where(s => s.Itemstack?.Attributes.GetString(MapOfferAttrs.Offer) == offer).ToList();
 
+    /// <summary>
+    /// After a long wait with the trade open (checks landing, chunks generating), the player steps
+    /// back up to the trader before asking anything of it: the trader's AI keeps wandering meanwhile,
+    /// and the window's server check turns a request from past vanilla's reach away
+    /// (<c>trading-window-toofar</c>), as on CI where surveys took minutes. If the trade dropped
+    /// meanwhile (vanilla ends it when the two part), the player is its trading player again.
+    /// </summary>
+    private async Task BackAt(EntitySeraphTrader trader, IServerPlayer player)
+    {
+        player.Entity.TeleportTo(trader.Pos.AsBlockPos.AddCopy(1, 0, 0));
+        await World.Ticks(5);
+        if (trader.WatchedAttributes.GetString("tradingPlayerUID") != player.PlayerUID)
+            Assert.True(trader.BeginTrade(player));
+        double d2 = player.Entity.Pos.SquareDistanceTo(trader.Pos);
+        Assert.True(d2 <= TradeGuard.MaxDistanceSq, $"{player.PlayerName} is {Math.Sqrt(d2):0.0} blocks from the trader");
+    }
+
     /// <summary>Buys one lot of a selling slot through the trade window: its Buy request, as a
     /// completed hold sends it.</summary>
     private void Buy(EntitySeraphTrader trader, IServerPlayer player, ItemSlotTrade selling)
@@ -208,6 +225,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(DepositKey.TryParse(offer.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit), out var bought));
         string offeredOres = offer.Itemstack.Attributes.GetString(MapOfferAttrs.Ores);
         int price = offer.TradeItem.Price;
+        await BackAt(trader, buyer);
         int gearsBefore = InventoryTrader.GetPlayerAssets(buyer.Entity);
         Buy(trader, buyer, offer);
         Assert.Null(trader.Inventory.GetBuyingCartSlot(0).Itemstack);
@@ -367,12 +385,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         await World.Until(() => Holding(player, ItemTraderLead.LeadCode, Drawn) != null, 600_000);
         var slot = Holding(player, ItemTraderLead.LeadCode, Drawn)!;
         Assert.True(Mod.Trading.Core.CellKey.TryParse(slot.Itemstack.Attributes.GetString(MapOfferAttrs.Cell), out var cell));
-        if (trader != null && trader.WatchedAttributes.GetString("tradingPlayerUID") != player.PlayerUID)
-        {
-            player.Entity.TeleportTo(trader.Pos.AsBlockPos.AddCopy(1, 0, 0));
-            await World.Ticks(5);
-            Assert.True(trader.BeginTrade(player));
-        }
+        if (trader != null) await BackAt(trader, player);
         return (slot, cell);
     }
 
@@ -382,12 +395,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private async Task<ItemSlot> DrawnLead(IServerPlayer player, Mod.Trading.Core.CellKey cell, EntitySeraphTrader? trader = null)
     {
         await World.Until(() => Holding(player, ItemTraderLead.LeadCode, s => LeadTo(s, cell)) != null, 300_000);
-        if (trader != null && trader.WatchedAttributes.GetString("tradingPlayerUID") != player.PlayerUID)
-        {
-            player.Entity.TeleportTo(trader.Pos.AsBlockPos.AddCopy(1, 0, 0));
-            await World.Ticks(5);
-            Assert.True(trader.BeginTrade(player));
-        }
+        if (trader != null) await BackAt(trader, player);
         return Holding(player, ItemTraderLead.LeadCode, s => LeadTo(s, cell))!;
     }
 
@@ -594,6 +602,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
         foreach (var offer in plain.Where(o => Camp(o.Cell) is not { Status: Mod.Trading.Core.CampStatus.Placed }).OrderBy(o => o.Distance).Take(3))
         {
+            await BackAt(store, buyer);
             int gears = InventoryTrader.GetPlayerAssets(buyer.Entity);
             Assert.True(BuyLead(buyer, store, offer).Ok);
             // Drawn, or refunded when the cell turned out to have no camp.

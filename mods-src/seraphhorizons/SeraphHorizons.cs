@@ -670,6 +670,18 @@ public class SeraphHorizonsConfig
     /// hand tier that works the ore lands. Server side (clients follow the server's items).</summary>
     public bool OreProcessing { get; set; } = false;
 
+    /// <summary>Spalling (#747, Ore/Processing/OreSpalling.cs, README "Ore processing: spalling"), part
+    /// of <see cref="OreProcessing"/>: the hammer blows a raw ore and a chunk set down on the ground take
+    /// to break into crushed ore, and the hammer's wear a blow; a value out of range falls back to its
+    /// default with a warning. The server's are used.</summary>
+    public Ore.Core.SpallingConfig SpallingSettings { get; set; } = new();
+
+    /// <summary>Ore processing, roasting in the firepit (#720, README "Ore processing: roasting in the
+    /// firepit"): seconds a firepit takes to roast one sulfide concentrate once the stack is at 600 °C
+    /// (it roasts one item at a time; at least twice as hot, twice as fast). Not positive: the default.
+    /// Server side.</summary>
+    public double FirepitRoastSeconds { get; set; } = Ore.Core.OreRoasting.DefaultSeconds;
+
     /// <summary>Schematics are sold only by traders (#468, Trading/Schematics/, README
     /// "Schematics"): every schematic in the pack is taken out of loot, stack randomizers and
     /// structures' chests, no recipe copies or makes one, and every recipe using one keeps it.

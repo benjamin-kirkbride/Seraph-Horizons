@@ -1,0 +1,27 @@
+// The clay liquation pan (OreProcessing, #724; README "Liquation"): any clay, a wide shallow dish seven
+// voxels across and two high, fired like the game's crucible (blocktypes/oreprocessing/liquationpan.json).
+// Emptied by OreProcessingSystem with the switch off.
+[
+	{
+		ingredient: { type: "item", code: "game:clay-*", name: "color", allowedVariants: ["blue", "fire", "red"] },
+		pattern: [[
+			"#######",
+			"#######",
+			"#######",
+			"#######",
+			"#######",
+			"#######",
+			"#######"
+		], [
+			"#######",
+			"#_____#",
+			"#_____#",
+			"#_____#",
+			"#_____#",
+			"#_____#",
+			"#######"
+		]],
+		name: "Liquation pan",
+		output: { type: "block", code: "seraphhorizons:liquationpan-raw" }
+	}
+]

@@ -24,7 +24,8 @@ interface Recipe {
   transition?: { type: string };
   tub?: { lossEveryHours?: number; lossChance?: number; failure?: number };
   lottery?: { outcomes: { chance: number; outputs: number[] }[] };
-  machine?: { kept?: number[]; wear?: { ingredient: number }; oil?: { ingredient: number } };
+  machine?: { power?: string; kept?: number[]; wear?: { ingredient: number }; oil?: { ingredient: number } };
+  requirements?: string[];
 }
 export interface ExportV1 {
   schemaVersion: number;
@@ -438,12 +439,15 @@ function checkLottery(r: Recipe, at: string, report: ErrorReport): void {
 }
 
 /**
- * The machine is an ingredient with role station; `kept`, `wear` and `oil` name distinct
+ * The machine is an ingredient with role station (unless worked by hand in place, which says where
+ * in `requirements`); `kept`, `wear` and `oil` name distinct
  * ingredients; the worn one is a tool and a kept one is not.
  */
 function checkMachine(r: Recipe, at: string, report: ErrorReport): void {
   const m = r.machine!;
-  if (!r.ingredients.some((i) => i.role === "station")) {
+  // A hand job worked in place (spalling ore on the ground) has no machine; its requirements say where.
+  const inPlace = m.power === "hand" && (r.requirements?.length ?? 0) > 0;
+  if (!inPlace && !r.ingredients.some((i) => i.role === "station")) {
     report.add("machine-shape", `${at}/ingredients`, "an ingredient with role \"station\" (the machine)", "none");
   }
   const named = new Map<number, string>();

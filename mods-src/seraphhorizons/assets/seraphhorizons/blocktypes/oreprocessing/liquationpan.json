@@ -1,0 +1,149 @@
+// The clay liquation pan (OreProcessing, #724; README "Liquation"): formed from any clay
+// (recipes/clayforming/liquationpan.json) and fired like the game's crucible in a pit kiln or a beehive
+// kiln; then a smelting container (Ore/Processing/BlockLiquationPan.cs) in a firepit, through its four
+// cooking slots, or in crucibulum's forge. Done, it is a pan of molten tin (BlockLiquationPanSmelted.cs,
+// the game's smelted crucible class, poured into molds), never set on the ground since the stack holds
+// the lead left in it; emptied, a pan with lead residue (BlockLiquationResidue.cs), knocked out with a
+// hammer in the grid into the pan and lead bits. The pan is reused. The shape is the game's clay bowl (its
+// contents face the tin or the lead).
+// Marked disabled with the switch off.
+{
+	code: "liquationpan",
+	classByType: {
+		"liquationpan-raw": "Block",
+		"liquationpan-fired": "seraphhorizons.BlockLiquationPan",
+		"liquationpan-smelted": "seraphhorizons.BlockLiquationPanSmelted",
+		"liquationpan-residue": "seraphhorizons.BlockLiquationResidue"
+	},
+	behaviorsByType: {
+		"liquationpan-smelted": [
+			{ name: "Unplaceable" }
+		],
+		"*": [
+			{ name: "GroundStorable", properties: { layout: "Quadrants", placeRemoveSound: "game:sounds/player/build", collisionBox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.125, z2: 1 } } },
+			{ name: "Unplaceable" },
+			{ name: "RightClickPickup" }
+		]
+	},
+	variantgroups: [
+		{ code: "type", states: ["raw", "fired", "smelted", "residue"] }
+	],
+	shapeByType: {
+		"liquationpan-smelted": { base: "game:block/clay/bowl-ground" },
+		"liquationpan-residue": { base: "game:block/clay/bowl-ground" },
+		"*": { base: "game:block/clay/bowl-empty-ground" }
+	},
+	texturesByType: {
+		"liquationpan-raw": { mat: { base: "game:block/clay/redclay" } },
+		"liquationpan-fired": { mat: { base: "game:block/clay/hardened/earthyorange" } },
+		"liquationpan-smelted": { mat: { base: "game:block/clay/hardened/earthyorange" }, content: { base: "game:block/metal/ingot/tin" } },
+		"liquationpan-residue": { mat: { base: "game:block/clay/hardened/earthyorange" }, content: { base: "game:block/metal/ingot/lead" } }
+	},
+	attributes: {
+		tempGlowMode: 1,
+		tongOpening: "wide",
+		onMetalTongTransform: {
+			translation: { x: -1.025, y: -0.12, z: -0.31 },
+			rotation: { x: -90, y: -9, z: 0 },
+			origin: { x: 0.5, y: 0, z: 0.5 }
+		}
+	},
+	attributesByType: {
+		"liquationpan-raw": {
+			beehivekiln: {
+				"0": { type: "block", code: "seraphhorizons:liquationpan-fired" },
+				"1": { type: "block", code: "seraphhorizons:liquationpan-fired" },
+				"2": { type: "block", code: "seraphhorizons:liquationpan-fired" },
+				"3": { type: "block", code: "seraphhorizons:liquationpan-fired" }
+			},
+			handbook: {
+				extraSections: [{ title: "seraphhorizons:liquation-handbook-title", text: "seraphhorizons:liquation-handbook-text" }]
+			}
+		},
+		"liquationpan-fired": {
+			// The firepit's cooking slots, and crucibulum's forge's crucible slot and charge slots, read
+			// these as they read the crucible's.
+			cookingContainerSlots: 4,
+			maxContentDimensions: { width: 0.125, height: 0.25, length: 0.125 },
+			storageType: 4,
+			maxHeatableTemp: 1200,
+			inFirePitProps: {
+				transform: { translation: { x: 0, y: 0.0625, z: 0 } },
+				useFirepitModel: "Wide"
+			},
+			inForgeTransform: {
+				translation: { x: 0, y: 0, z: 0 },
+				rotation: { x: 0, y: 0, z: 0 },
+				origin: { x: 0.5, y: 0, z: 0.5 },
+				scale: 1
+			},
+			handbook: {
+				extraSections: [{ title: "seraphhorizons:liquation-handbook-title", text: "seraphhorizons:liquation-handbook-text" }]
+			}
+		},
+		"liquationpan-smelted": {
+			emptiedBlockCode: "seraphhorizons:liquationpan-fired",
+			handbook: { exclude: true }
+		},
+		"liquationpan-residue": {
+			handbook: {
+				extraSections: [{ title: "seraphhorizons:liquation-handbook-title", text: "seraphhorizons:liquation-handbook-text" }]
+			}
+		}
+	},
+	combustiblePropsByType: {
+		"liquationpan-raw": {
+			meltingPoint: 600,
+			meltingDuration: 30,
+			smeltedRatio: 1,
+			smeltingType: "fire",
+			smeltedStack: { type: "block", code: "seraphhorizons:liquationpan-fired" },
+			requiresContainer: false
+		},
+		// As the game's smelted crucible: warmed in a fire, never smelted.
+		"liquationpan-smelted": {
+			meltingPoint: 2400,
+			meltingDuration: 45,
+			smeltedRatio: 1,
+			smeltingType: "bake",
+			smeltedStack: { type: "block", code: "seraphhorizons:liquationpan-fired" },
+			requiresContainer: false
+		}
+	},
+	creativeinventory: { "general": ["liquationpan-raw", "liquationpan-fired"], "decorative": ["liquationpan-raw", "liquationpan-fired"] },
+	heldTpIdleAnimation: "holdbothhands",
+	doNotRenderAtLod2: true,
+	blockmaterial: "Ceramic",
+	replaceable: 300,
+	resistance: 1,
+	maxStackSizeByType: {
+		"liquationpan-smelted": 1,
+		"liquationpan-residue": 1,
+		"*": 4
+	},
+	lightAbsorption: 0,
+	sounds: {
+		walk: "game:walk/stone"
+	},
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	emitsideao: { all: false },
+	collisionbox: { x1: 0.3125, y1: 0, z1: 0.3125, x2: 0.6875, y2: 0.1875, z2: 0.6875 },
+	selectionbox: { x1: 0.3125, y1: 0, z1: 0.3125, x2: 0.6875, y2: 0.1875, z2: 0.6875 },
+	guiTransform: {
+		translation: { x: 0, y: 2, z: 0 },
+		rotation: { x: -25, y: 45, z: 0 },
+		origin: { x: 0.5, y: 0.05, z: 0.5 },
+		scale: 2.6
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 3
+	},
+	tpHandTransform: {
+		translation: { x: -0.7, y: 0.05, z: -0.5 },
+		rotation: { x: 0, y: 0, z: -90 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 0.8
+	}
+}

@@ -1,0 +1,154 @@
+// Retorted sponge (OreProcessing): the gold or silver an amalgam leaves in the still once its mercury
+// is driven off (#726), 5 units of metal each. Smelts whole (set in code). Marked disabled with the
+// switch off.
+{
+	"code": "sponge",
+	"class": "seraphhorizons.ItemOreProduct",
+	"variantgroups": [
+		{
+			"code": "ore",
+			"states": [
+				"quartz_nativegold",
+				"quartz_nativesilver"
+			]
+		}
+	],
+	"behaviors": [
+		{
+			"name": "GroundStorable",
+			"properties": {
+				"layout": "Messy12",
+				"collisionBox": {
+					"x1": 0,
+					"y1": 0,
+					"z1": 0,
+					"x2": 1,
+					"y2": 0.125,
+					"z2": 1
+				}
+			}
+		}
+	],
+	"shape": {
+		"base": "game:item/resource/crushed/normal"
+	},
+	"textureByType": {
+		"*-quartz_nativegold": {
+			"base": "game:item/resource/nugget/nativegold",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/bonemeal",
+					"blendMode": "Multiply"
+				}
+			]
+		},
+		"*": {
+			"base": "game:item/resource/nugget/nativesilver",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/bonemeal",
+					"blendMode": "Multiply"
+				}
+			]
+		}
+	},
+	"attributes": {
+		"oreForm": "sponge",
+		"metalUnits": 5,
+		"handbook": {
+			"groupBy": [
+				"sponge-*"
+			]
+		},
+		"displaycaseable": true,
+		"shelvable": true,
+		"onDisplayTransform": {
+			"translation": {
+				"x": 0.05,
+				"y": 0,
+				"z": 0
+			},
+			"origin": {
+				"x": 0.5,
+				"y": 0,
+				"z": 0.5
+			},
+			"scale": 0.65
+		},
+		"groundStorageTransform": {
+			"translation": {
+				"x": 0.025,
+				"y": -0.055,
+				"z": 0.025
+			},
+			"rotation": {
+				"x": 0.1,
+				"y": 8,
+				"z": 0
+			},
+			"scale": 0.9
+		}
+	},
+	"creativeinventory": {
+		"general": [
+			"*"
+		],
+		"items": [
+			"*"
+		]
+	},
+	"heldTpIdleAnimation": "holdbothhands",
+	"heldRightReadyAnimation": "holdbothhands",
+	"maxstacksize": 128,
+	"storageFlags": 5,
+	"dimensions": {
+		"width": 0.0625,
+		"height": 0.0625,
+		"length": 0.0625
+	},
+	"materialDensity": 3000,
+	"guiTransform": {
+		"translation": {
+			"x": 0,
+			"y": 0,
+			"z": -25
+		},
+		"rotation": {
+			"x": 171,
+			"y": 57,
+			"z": -20
+		},
+		"origin": {
+			"x": 0.46,
+			"y": 0.11,
+			"z": 0.39
+		},
+		"scale": 2.64
+	},
+	"tpHandTransform": {
+		"translation": {
+			"x": -1.67,
+			"y": -1.1,
+			"z": -0.7
+		},
+		"rotation": {
+			"x": 19,
+			"y": 26,
+			"z": -83
+		},
+		"scale": 0.48
+	},
+	"groundTransform": {
+		"translation": {
+			"x": 0,
+			"y": 0.46,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0.1,
+			"y": 8,
+			"z": 0
+		},
+		"scale": 4.5
+	}
+}

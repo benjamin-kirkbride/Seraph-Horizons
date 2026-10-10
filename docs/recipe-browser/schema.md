@@ -324,12 +324,59 @@ hammer), each a right-click, and `work` says so (`amount` that many, `unit` `blo
 a hammer of a higher tool tier forges in proportionally fewer blows, which the record does not carry.
 There is no `oil`.
 
+**Spalling** (type `spalling`, shape `machine`, present with seraphhorizons' `OreProcessing` on): one
+record per ore item kind spalled, id `spalling|game:<ore|crystalizedore>-<grade>-<ore>-*|0`. The
+ingredients are the ore (consumed; its code a wildcard over the host rock, every rock an alternative
+in the one variant) and the hammer (`isTool`, its `toolDurabilityCost` the blows times the wear a blow;
+`machine.wear` names it, rule `fixed`); the output is the crushed ore of the 5-unit rule
+(`game:crushed-<ore>-<fine|coarse>`). There is no station: the ore is set down on the ground and struck
+where it lies, which `requirements` says. `power` is `hand`, `turns` the blows (each a left-click with a
+hammer), and `work` says so (`amount` that many, `unit` `strikes`). `extra` has the `ore`, `grade`,
+`form` (`raw` or `chunk`) and `blows`.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).
 The metal is its ingot, `game:ingot-*`, the quantity in ingots and the units in
 `extra.units`; the outputs are the mold's drops with `{metal}` in their code;
 `requirements` says to pour it from a crucible.
+
+**Roasting** (type `oreroasting`, shape `generic`; seraphhorizons, switch `OreProcessing`, so only in an
+export with it on): a sulfide's concentrate roasted in the game's firepit. One record per ore, id
+`oreroasting|seraphhorizons:concentrate-<ore>|0`: the concentrate (one, consumed) and the firepit (role
+`station`); the output is the roasted concentrate (`seraphhorizons:roastedconcentrate-<ore>`) at the
+firepit's share, a fraction (0.85), since each firepit carries what falls short of a whole item over to
+the next. `extra` has the `share`, the `meltingPoint` and the `seconds` one item takes at it, and
+`requirements` says so in words. The concentrate's own `attributes.smelting` gives one roasted item per
+item, the game's terms; the record's quantity is what a player gets.
+
+**Retorting** (type `oreretorting`, shape `generic`; seraphhorizons, switch `OreProcessing`, so only in
+an export with it on): cinnabar and amalgam retorted in the game's still. One record per input, id
+`oreretorting|<input>|0`: the input (one, consumed), the boiler (`game:verticalboiler-west`) and the
+condenser (`game:condenser-west`), both role `station`; the outputs are the mercury
+(`em:mercuryportion`) in portions with its `litres`, and for an amalgam its retorted sponge
+(`seraphhorizons:sponge-<ore>`, one). `extra` has the `portions` one item gives and the
+`portionsPerSecond`; `requirements` says how the still is set up.
+
+**Cupellation** (type `cupellation`, shape `generic`, seraphhorizons with `OreProcessing` on):
+one record per ore the bone-ash cupel takes, a full cupel of it, id
+`cupellation|seraphhorizons:roastedconcentrate-<ore>|0`. The ingredients are the fired cupel
+(used up), the roasted concentrate, lead bits for an ore whose main metal is not lead, and
+`game:forge` (role `station`, crucibulum's forge); the outputs are what the cupel with its
+silver bead breaks into in the grid, as averages: litharge (the lead) and metal bits (silver,
+copper), fractional since whole items are drawn when the cupel is done. `extra` has the units
+(`leadUnits`, `metalUnits` per metal), the cupel's `capacityUnits` and the `seconds` with the
+blast gate open; `requirements` says the heat and the gate.
+
+**Liquation** (type `liquation`, shape `generic`, seraphhorizons with `OreProcessing` on): one
+record per ore the clay liquation pan takes (teallite, franckeite), a full pan of it kept under the
+lead point, id `liquation|seraphhorizons:roastedconcentrate-<ore>|0`. The ingredients are the fired
+pan (role `kept`: it is reused), the roasted concentrate and `game:firepit-cold` (role `station`;
+crucibulum's forge works too, which `requirements` says); the outputs are the metal poured, in ingots
+of 100 units (`game:ingot-tin`, molten in the pan and poured into a mold), and what stays in the pan
+as metal bits (`game:metalbit-lead`), an average, since whole bits are drawn when the pan is done.
+`extra` has the `units` poured, the `residueUnits` per metal, the pan's `capacityUnits`, the
+`tinPoint` and `leadPoint` and the `seconds` a full pan takes; `requirements` says the heat.
 
 These shapes and blocks are optional additions, so `schemaVersion` stayed 1: an export that
 lacks them is still valid, and the site falls back to the generic card for a record of a
@@ -391,7 +438,8 @@ prepare-data writes the section as it is to `power.json`; an export without it g
   plus, with a failure, what a lost gear becomes.
 - A `lottery` record has one ingredient; its outcomes' chances add up to 1, and each output
   belongs to exactly one outcome.
-- A `machine` record has an ingredient with role `station`; `kept`, `wear.ingredient` and
+- A `machine` record has an ingredient with role `station`, unless it is worked by hand in place
+  (`power` `hand` and a `requirements` entry saying where, as spalling); `kept`, `wear.ingredient` and
   `oil.ingredient` name different ingredients, a kept one is not a tool and the worn one is.
 
 ## `extra`

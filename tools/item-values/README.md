@@ -383,16 +383,36 @@ franckeite's lead, gold quartz's silver) are won only at a parting step, and unp
 lost. `parting` in the file says which methods have a station; for each that has, the parted form (a
 sulfide's roasted concentrate, another ore's concentrate and amalgam) is worth at least what parting
 wins from it: 5 x (u x the ore's `unparted` share + each by-product's share x its metal's u x the
-method's recovery at the line's tier). No method has one yet (the cupel #722, the liquation pan #724,
-acid parting), so today no by-product is priced; turning a method on when its station lands is the
-whole change. Today's costs would hide all but rich by-products anyway: a galena roasted
-concentrate costs 0.20, against 0.10 for its lead and 3 % silver. Sulfur from roasting
+method's recovery at the line's tier). Cupellation has one (the bone-ash cupel, #722) and liquation
+one (the clay liquation pan, #724); acid parting does not yet, and turning a method on when its
+station lands is the whole change. Costs hide all but rich by-products: a galena roasted concentrate
+costs 0.20, against 0.10 for its lead and 3 % silver, while argentiferous galena's (38 %, #690) is
+worth 0.44 by its silver; teallite's (0.38 by its tin's cost) is above what its tin and lead win, so
+turning liquation on changed no value.
+`nuggetOf` names ores priced as another nugget's metal: argentiferous galena's forms as lead (its
+raw ore stays silver, what the game hammers it into with the switch off). Sulfur from roasting
 (`roastingByProduct`, #736) is credited against roasted concentrate once its roaster exists.
 
 **Later items.** A station that makes a new item from these (the cupel's silver, the still's
 mercury) adds a route to `routes.json`, with its switch, if the export does not carry it; an item of
 its own that exists only with `OreProcessing` and is missing from the export goes into
-`ore-processing.json` (`items`, by form, or a single item like `litharge`) so the tool adds it.
+`ore-processing.json` (`items`, by form, or a single item like `litharge`) so the tool adds it. The
+still (#726) is the first: its routes (an amalgam into its retorted sponge, kind `distilling`) are in
+`routes.json`, and the sponge is an item of `items`, priced by that route from its amalgam (the mercury
+the still returns is not credited: the amalgam's price leaves out the amalgam pan's mercury, which
+goes round between the pan and the still). Its cinnabar-to-mercury route is left out on purpose: it
+would undercut Expanded Matter's cooking recipe, which the export (switch off) still has, and so mark
+mercury as existing only with `OreProcessing`, which it does not; EM's recipe gives the same 10
+portions a powder, so the price holds either way.
+
+**Leaching** (#742): raw saltpeter and the three crude liquors are `singles` in
+`ore-processing.json`, added like the forms (a liquid with its `itemsPerLitre`) and priced by
+`routes.json`: raw saltpeter is a raw at saltpeter's price, a liquor its barrel route (a raw mineral
+and a litre of water to a litre, `liquid` 100 so the barrel's flat is per litre as for a recipe).
+The cooking pot's routes back to borax powder, saltpeter and alum powder are there too, dearer than
+the quern's and pulverizer's with the switch off, so no shipped price moved. Borax and alum ore are
+priced by `game:ore-*` (0.05), not their `game:ore-borax-*` and `game:ore-alum-*` patterns, which
+match nothing (ungraded ore has no grade or rock variant); the liquors take that price.
 
 Before and after (gears per item; the crucible furnace's routes are `routes.json`, `crucible` +20 %
 and 2 a pot of 200 units: about 8 coke and the tending):

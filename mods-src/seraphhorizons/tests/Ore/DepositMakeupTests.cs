@@ -42,6 +42,24 @@ public class DepositMakeupTests
         Assert.Null(new DepositMakeup().Mix());
     }
 
+    // #690: a lead deposit names argentiferous galena whenever it holds any, in the last place if full.
+    [Fact]
+    public void ArgentiferousGalenaIsAlwaysNamed()
+    {
+        var m = Galena();
+        m.Add(new OreBlockKind("lead", "galena_nativesilver", "poor", "limestone"), 5, 5 * 1.25 * 15);
+        Assert.Equal(["galena", "cerussite", "galena_nativesilver"], m.Makeup("lead").MainOres());
+        var full = new DepositMakeup { Ores = new() { ["a"] = 30, ["b"] = 29, ["c"] = 28, ["galena_nativesilver"] = 1 } };
+        Assert.Equal(["a", "b", "galena_nativesilver"], full.MainOres());
+        Assert.Equal(["galena_nativesilver"], new DepositMakeup { Ores = new() { ["galena_nativesilver"] = 3 } }.MainOres());
+    }
+
+    [Fact]
+    public void EmptyMakeupHasNoMix()
+    {
+        Assert.Null(new DepositMakeup().Mix());
+    }
+
     [Theory]
     [InlineData(95, 5, 0, "only:poor")]
     [InlineData(65, 35, 0, "mostly:poor")]

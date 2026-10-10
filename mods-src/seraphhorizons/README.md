@@ -3821,11 +3821,11 @@ lists what is wrong with the file (`Problems`, for the server log; a missing fig
   reverberatory at 3 and 4; grinding from tier 2.
 - Smelting (`SmeltShare(ore, form)`): concentrate and roasted concentrate 100 %, crushed ore and
   chunks 50 %, raw and ground ore nothing, sulfide concentrate nothing until roasted.
-- Parting (`Parting(method, tier)`, `Smelted(ore, mainUnits, partingTier, district)`): a
+- Parting (`Parting(method, tier)`, `Smelted(ore, mainUnits, partingTier)`): a
   by-product is a share of the main metal's recovered units, won only at a parting step at
   cupellation or liquation 85 / 95 / 100 % (hand and tier 1 / tiers 2–3 / tier 4) or acid
-  parting 95 / 100 % (tiers 2–3 / 4; none by hand). Galena carries silver 3 % (15 % in a
-  district's ore), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %,
+  parting 95 / 100 % (tiers 2–3 / 4; none by hand). Galena carries silver 3 %, argentiferous
+  galena 38 % (#690), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %,
   franckeite lead 30 %, gold quartz silver 15 %. Unparted, the by-product is lost and the main
   metal comes out at the ore's `unparted` share (gold quartz 85 %).
 - Units: raw ore and chunks keep their grade's units (`ore-graded.json`'s `metalUnitsByType`);
@@ -3878,18 +3878,19 @@ nugget texture retinted by a blended overlay of a vanilla texture (no texture of
 |---|---|---|---|
 | Crushed ore, coarse and fine | `game:crushed-{ore}-{coarse,fine}` | 16 | at half |
 | Ground ore | `seraphhorizons:groundore-{ore}` | 16 | no |
-| Concentrate | `seraphhorizons:concentrate-{ore}` | 128 | whole; a sulfide's not at all |
+| Concentrate | `seraphhorizons:concentrate-{ore}` | 128 | whole; a sulfide's not at all (it roasts in the firepit, next section) |
 | Roasted concentrate (the 13 sulfides) | `seraphhorizons:roastedconcentrate-{ore}` | 128 | whole |
-| Amalgam (gold and silver quartz) | `seraphhorizons:amalgam-{ore}` | 128 | no (retorted first, #726) |
+| Amalgam (gold and silver quartz) | `seraphhorizons:amalgam-{ore}` | 128 | no (retorted in the still first, below) |
+| Retorted sponge (gold and silver quartz) | `seraphhorizons:sponge-{ore}` | 128 | whole |
 | Litharge | `seraphhorizons:litharge` | 64 | to lead, 20 in 21 (95 %) |
 
 Crushed ore is vanilla's crushed item with a grain: an item type of the pack's in the game's domain
 (`assets/game/itemtypes/resource/crushedore.json`), next to vanilla's `game:crushed-{material}`, which
-stays. Argentiferous galena (`galena_nativesilver`) is a sulfide like galena; it smelts to silver as
-vanilla has it until #690 gives it lead and a silver share.
+stays. Argentiferous galena (`galena_nativesilver`) is a sulfide like galena, and a lead ore (#690,
+"Cupellation" below): every form of it smelts to lead.
 
 **Smelting** (#688). What every form smelts to is what the ore's nugget smelts to (metal, melting
-point, smelting type; `nugget-{ore}` without `quartz_` or `galena_`), at #685's share
+point, smelting type; `nugget-{ore}` without `quartz_`, argentiferous galena's galena's), at #685's share
 (`OreRecovery.SmeltShare`: concentrate and roasted concentrate 1, crushed ore and chunks 0.5, raw and
 ground ore 0, a sulfide's concentrate 0 until roasted). The game's rate is a whole number of items per
 ingot, so the rate is the smallest exact one (`OreProducts.Rate`): a 25-unit chunk 1 ingot per 8, a
@@ -3943,6 +3944,309 @@ files against the figures); `tests/PackTests/OreProcessingScenarios.cs` (Atlas, 
 items, the grades, a medium ore block still measuring 1.25 × its units plus crystallised ore, crushing,
 no nugget recipe, the retargeted recipes, the crucible and an alloy, the bloomery, crucibulum's forge,
 smex's burden, the crucible furnace) and `SwitchesOffScenarios` (off, the default).
+
+### Ore processing: spalling (`OreProcessing`, `SpallingSettings`)
+
+The hand tier's crusher (#747): raw ore and chunks broken with a hammer where they lie, the way miners
+spalled ore with sledges before there were stamp mills. No station and no model: it works at the rock
+face from the first day. Part of `OreProcessing` (off by default); server side, and a client follows the
+server's items.
+
+- **Setting down.** Raw ore, chunks and crystallised ore (every grade) go on the ground one at a time:
+  shift + right-click on a solid block, ground storage holding a single ore in the middle of the block
+  (`SingleCenter` in place of vanilla's messy pile of 12, by `patches/oreprocessing-ore.json`), never a
+  pile. Shift + right-click on a placed ore with another in hand sets that one on the next block: beside
+  the face clicked, or, clicking its top, the next block the player faces (never on top, and never
+  picking the placed one up). An empty hand takes it back as before.
+- **Striking.** A left-click on a placed ore with a game hammer (`game:hammer-*`) is a blow, as on the
+  anvil: the hammer swings, the block is not broken, and the hammer loses `HammerWearPerBlow` (1). Raw
+  ore (poor, medium) breaks after `BlowsRawOre` (6) blows, a chunk (rich, bountiful) after `BlowsChunk`
+  (3). It breaks into crushed ore by the 5-unit rule with no loss, the ore's own crushing (fine from
+  poor ore, coarse from the rest: a medium galena's 20 units give 4 coarse, a bountiful's 35 give 7),
+  which pops out where it lay. A player strikes no faster than a blow every 0.3 s
+  (`Spalling.BlowIntervalMs`); the server counts the blows in memory, so an ore left half struck and
+  unloaded starts again.
+- **Anything else** (a pick, an empty hand, any other item) keeps the game's behaviour: breaking the
+  block picks the ore up.
+
+`SpallingSettings` in `ModConfig/seraphhorizons.json` (`BlowsRawOre`, `BlowsChunk`, `HammerWearPerBlow`;
+a value out of range falls back to its default with a warning). The hammers get the behaviour
+(`CollectibleBehaviorSpalling`, first among their behaviours so it runs before the hammer's swing,
+`AnimationAuthoritative`) on the server in `AssetsFinalize`, and clients get it with the items; with the
+switch off no hammer has it. The handbook has a guide page, "Spalling ore"
+(`config/handbook/spalling.json`), hidden with the switch off (and left out of the recipe export), and
+the placed ore's help shows the hammers and the left-click. The recipe export has a `spalling` record per
+ore item kind (`machine` shape, power `hand`, `turns` the blows, `work` in `strikes`, the hammer worn a
+point a blow, no station: `requirements` says it is worked on the ground). A speed bonus for striking on
+stone or a metal plate is left out. Code: `Ore/Core/Spalling.cs` (figures and rules),
+`Ore/Processing/OreSpalling.cs` (the blows, the next block, the hammer behaviour), `ItemGradedOre`.
+Tests: `tests/Ore/SpallingTests.cs`; `tests/PackTests/OreProcessingScenarios.cs` (Atlas: the hammers
+and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, fine from
+poor and a chunk in three blows, the next block, the export records) and `SwitchesOffScenarios` (off).
+
+### Ore processing: leaching borax, saltpeter and alum (`OreProcessing`)
+
+The non-metals are leached with blocks players already have (#742): no station, no model. With the
+switch on, borax, saltpeter and alum come out of the ground as a heavy raw form that no longer works
+where today's items are used; leached in a barrel and boiled down in a cooking pot, they give today's
+items, so every recipe that takes them keeps working unchanged.
+
+| Mineral | Raw form (stack 4) | Crude liquor (barrel) | Crystals (cooking pot) |
+|---|---|---|---|
+| borax | `game:ore-borax` (no longer ground in the quern) | `seraphhorizons:crudeliquorportion-borax` | `game:powder-borax` |
+| saltpeter | `seraphhorizons:rawsaltpeter`, "Raw saltpeter" | `seraphhorizons:crudeliquorportion-saltpeter` | `game:saltpeter` |
+| alum | `game:ore-alum` (no longer crushed in the pulverizer) | `seraphhorizons:crudeliquorportion-alum` | `game:powder-alum` |
+
+- **Raw form.** Borax and alum are vanilla's ungraded ore items, restacked to 4 (as raw ore,
+  `OreProducts.RawStack`) with their grinding and crushing taken off. Saltpeter had no mined form
+  (its cave coating dropped the crystals), so it gets one: every block that dropped `game:saltpeter`
+  drops raw saltpeter instead at the same rate (vanilla's coating, Interesting Ore Gen's saltpeter ore,
+  Saltpeter Production's nitre bed buds; Oils Resoaped's grid recipe for saltpeter from salt, potash
+  and sulfur is left alone). Expanded Matter's kernite liquor still settles into `game:ore-borax`,
+  now raw borax to leach.
+- **Leach** (`recipes/barrel/oreprocessing-leaching.json`): a raw mineral and a litre of water,
+  sealed a day, give a litre of the mineral's crude liquor; the rock left behind is lost. The liquors
+  are new on purpose: vanilla's diluted borax and Expanded Matter's diluted alum and saltpeter have
+  uses of their own and would let raw mineral skip the pot. Textured with vanilla's brine, weak tannin
+  and lime water.
+- **Evaporate** (`recipes/cooking/oreprocessing-evaporating.json`): a litre of liquor boils down to
+  one crystal item, so one mined item makes one crystal item (the quern made 2 borax powder from a
+  borax; a starting figure for playtesting). A pot of 6 litres gives 6.
+- Alum's crushed item, which nothing makes now, is alum powder in the recipes that took it (vanilla's
+  diluted alum; `OreProcessingSystem.LegacyExact`, rewritten with the legacy crushed ores).
+- The figures are in the two recipe files, and `Ore/Core/OreLeaching.cs` holds them (litres a raw
+  mineral, crystals a litre, a day sealed) with a test checking the files against it. The liquors and
+  the raw forms carry a handbook section, "Leaching borax, saltpeter and alum" (the type files' for the
+  new items, set in code for vanilla's ores, `Leaching`).
+
+With the switch off the two recipe files are emptied, the item types marked disabled, and the
+minerals are as before. Item values: raw saltpeter is a raw at saltpeter's price and the liquors are
+priced by their barrel routes (`tools/item-values/ore-processing.json`'s `singles`, `routes.json`).
+Code: `Ore/Processing/Leaching.cs`, `Ore/Core/OreLeaching.cs`. Tests: `tests/Ore/OreLeachingTests.cs`;
+`OreProcessingScenarios` (the raw forms, the saltpeter drops, a barrel of alum, the pot, diluted alum)
+and `SwitchesOffScenarios`.
+
+### Ore processing: roasting in the firepit (`OreProcessing`, `FirepitRoastSeconds`)
+
+Hand-tier roasting (#720): a sulfide's concentrate (the 13 sulfides of `config/ore-processing.json`,
+argentiferous galena among them) does not smelt, and cooks in the game's firepit into its roasted
+concentrate, which smelts whole. No station and no model: the concentrate goes in the firepit's input
+slot, not in a crucible.
+
+- **Any fuel.** It roasts at 600 °C (`OreRoasting.MeltingPoint`), which dry grass (600) and firewood
+  (700) reach. Its smelting needs no container (`requiresContainer: false`, smelting type `convert`,
+  "When heated, turns into" in the handbook), so the crucible, crucibulum's forge and the other furnaces
+  refuse it.
+- **One at a time.** The game's firepit heats the whole stack in its input slot together (a big stack
+  heats slowly), then turns one item per cook time (`meltingDuration`) once the stack is at the point,
+  faster in a fire at least twice as hot (it counts the cook time by whole multiples of the point).
+  The cook time per item is `FirepitRoastSeconds` (10 s; not positive: the default), so a stack of 128
+  takes about 21 minutes in a firewood fire.
+- **85 %, nothing rounded away.** An item has one smelting, which says one roasted item per item;
+  `ItemOreProduct.DoSmelt` (virtual in 1.22.7, called by the firepit for each item) instead takes one
+  concentrate and gives the whole roasted items that 85 % of its 5 units makes together with what the
+  firepit held over (`UnitCarry`, keyed by the firepit's inventory and the roasted item): 20 concentrate
+  give exactly 17. The share is `roasters.firepit` in `config/ore-processing.json` (#685's
+  `OreRecovery.Roasting(ore, Roaster.Firepit)`). The carry-over is `OreProcessingSystem.RoastCarry`,
+  saved with the world; a firepit broken mid-item leaves under a unit there.
+- **No sulfur**: the firepit has one output slot, and open roasting lost its sulfur to the air. Sulfur
+  is recovered from the roasting stall on (#736).
+
+`OreProcessingItems` sets it with the rest of the smelting (in `AssetsFinalize`): a sulfide's
+concentrate gets the roasting (`Roasting`) and its `RoastShare`; every other form is as above. The
+guide page "Roasting sulfide ore" (`config/handbook/oreroasting.json`, text in `lang/en.json`) is hidden
+with the switch off (on the client, when the roasted concentrate does not exist; the recipe export
+through the hidden-guides list). The recipe export has a record per sulfide (type `oreroasting`,
+`tools/recipe-export/Recipes/OreRoastingExport.cs`, docs/recipe-browser/schema.md), its output the
+share (0.85 of a roasted item). Tests: `tests/Ore/OreRoastingTests.cs` (the share, runs of any split,
+the cook time); `tests/PackTests/OreProcessingScenarios.cs` (`Firepit_roasts_sulfide_concentrate`: the
+props, and 20 concentrate through a firepit's own `smeltItems` giving 17; `Roasting_is_exported`: the
+records and the guide in the export, with the switch on).
+
+### Ore processing: retorting mercury in the still (`OreProcessing`)
+
+Hand-tier mercury (#726): cinnabar and amalgam are retorted in the game's still, with no station and
+no model. **The game's still is not a cooking pot**: in 1.22.7 it is the boiler (`game:verticalboiler`,
+`BlockBoiler` / `BlockEntityBoiler`, a firepit built under it from dry grass and firewood) and the copper
+condenser (`game:condenser`, `BlockEntityCondenser`) on one of its four sides, with a bucket (or any
+top-opened container of 1 to 20 L) under the spout and water in it. The boiler holds one liquid stack
+(30 L); once it is at 75 °C, every 0.2 / `ratio` seconds it hands the condenser one portion of the
+stack's `distillationProps.distilledStack`, and the condenser takes `ceil(1 / ratio)` of the liquid for
+it (vanilla's grain cider at 0.05: 20 portions for one of spirits). Without water half the portions are
+lost; with it, half of them use up a portion of the water. So the game's distilling takes only liquids
+(the boiler is filled from a bucket) and can never give more than one portion an item, which is why
+cinnabar (10 portions an item) and amalgam need code, in `Ore/Processing/MercuryStill.cs` (Harmony id
+`seraphhorizons.oreprocessing.still`):
+
+- **Into the boiler by hand.** Right-click the boiler with a retortable item to put the held stack in
+  (an empty boiler, or onto the same item, up to its stack size); right-click it with an empty hand to
+  take a solid content back out. A prefix on `BlockBoiler.OnBlockInteractStart`; the boiler's liquid
+  transfers refuse a solid on their own (`TryPutLiquid` compares contents, a bucket takes only
+  liquids). `BlockBoiler.GetPlacedBlockInfo` names a solid by count, not litres.
+- **Distilling.** A postfix on `BlockEntityBoiler.DistProps` gives the item the still's distillation
+  (mercury, at `portionsPerSecond`, default 2, as the game's ratio, `MercuryRetort.Pace`), and a prefix
+  on `BlockEntityCondenser.ReceiveDistillate` takes over for it: one portion into the bucket a step,
+  water as the game does, and the portion counted against the item being retorted
+  (`MercuryRetort.Portion`); once less than a portion is left in it the item is used up and the
+  fraction carried to the next, so a stack's mercury comes out exactly (the last item's fraction under a
+  portion is lost). A bucket holding something else, or full, takes nothing and uses nothing.
+- **What stays behind.** An amalgam leaves a **retorted sponge** (`seraphhorizons:sponge-{ore}`, one per
+  amalgam, 5 units, stack 128, `smelt.sponge` 1: whole, as concentrate), counted on the stack in the
+  boiler and taking its slot when the last amalgam is done; take it out with an empty hand. Taken out
+  early, the amalgam still to do comes back (the one under way whole) with the sponge so far. Sponge,
+  not nuggets: a nugget is pure metal and crushes back into ore, while the sponge keeps the ore (gold
+  quartz's silver, its `unparted` share) for acid parting. Cinnabar leaves nothing.
+- **Figures** (`config/ore-processing.json` `retort`): the mercury is Expanded Matter's
+  `em:mercuryportion` (a liquid, 100 to the litre), kept rather than an item of our own; cinnabar,
+  crushed (`game:crushed-cinnabar`) or ground (`game:powder-cinnabar`), gives 10 portions (0.1 L) an
+  item; an amalgam returns `amalgamMercury` (10, what the amalgam pan #718 is to put into one) ×
+  `mercuryReturn` (0.9): 9 portions. The progress (`seraphhorizonsRetortOwed`,
+  `seraphhorizonsRetortResidue`) rides on the stack, so it survives a save and a broken boiler.
+
+The server marks the inputs in `AssetsFinalize` (`MercuryStill.Mark`, the item attribute
+`seraphhorizonsRetort`: mercury, portions, residue, pace), before the items go to clients; the patches
+check that mark, so they touch nothing else, and a client patches once it has the server's items if any
+carries it, so it follows the server's switch (its condenser then shows the drip). Expanded Matter's
+cooking pot recipes for mercury (`em:recipes/cooking/mercury.json`, cinnabar powder into 10 portions,
+crushed into 20) are switched off in `AssetsLoaded`, so the still is the only way; with the switch off
+they stay and nothing is marked or patched. `MercuryStillSystem` holds it; the guide page "Retorting
+mercury" (`config/handbook/oreretorting.json`) is hidden with the switch off. The recipe export has a
+record per input (type `oreretorting`, `tools/recipe-export/Recipes/OreRetortingExport.cs`,
+docs/recipe-browser/schema.md): the boiler and condenser as stations, the mercury in portions and
+litres, an amalgam's sponge. Item values: the amalgam-to-sponge routes are in
+`tools/item-values/routes.json` (switch `OreProcessing`; the export made with the switch off has no
+records), and the sponge is an item of `ore-processing.json`, priced from its amalgam; the mercury the
+amalgam returns is not credited, since the amalgam's price leaves out the pan's. Mercury keeps its price
+from Expanded Matter's recipe (the same 10 portions a powder), which that export still has; a still
+route for it would make mercury look like it exists only with the switch. Tests: `tests/Ore/MercuryRetortTests.cs` (the inputs and
+figures, whole stacks and fractions); `tests/PackTests/OreProcessingScenarios.cs`
+(`Still_retorts_cinnabar_and_amalgam`: EM's recipe off, amalgam to mercury and sponge step by step,
+taking it out part way, cinnabar, a bucket of water refusing it, and the game's own boiler tick running
+it; `Retorting_is_exported`: the records and the guide, with the switch on) and `SwitchesOffScenarios` (off).
+
+### Cupellation (`OreProcessing`)
+
+Galena's silver (#690) and the bone-ash cupel that parts it at the forge (#722, hand and tier 1),
+with ore processing (the switch above; off by default, and with it off nothing here exists and
+vanilla's silver galena hammers into native silver as before). Rules in `Ore/Core/Cupellation.cs`,
+the game side in `Ore/Processing/` (`BlockCupel`, `BlockCupelBead`, `CupelForge`, `ContainerText`).
+
+**Argentiferous galena.** Vanilla's silver galena (`galena_nativesilver`) is renamed "Argentiferous
+galena" (its ore, raw ore, chunks, crystallised ore, loose bits and processing forms; lang overrides
+of the game's keys and the Tidy Variants groups) and is a lead ore: `OreMetals` lists it under lead
+(lead deposits and maps count and name it, silver deposits are silver quartz and freibergite), every
+form of it smelts to lead (its nugget is galena's), its loose bits drop a galena nugget, and its
+silver is lost unless cupelled. Plain galena carries 3 % silver, argentiferous galena 38 %
+(`config/ore-processing.json`, by-products of the ore; the `districtShare` of #756 is gone): with
+silver galena 4.6 % of galena blocks in the survey of #435, 0.954 × 3 % + 0.046 × 38 % ≈ 4.6 % of
+galena's metal, the world's silver as it was. Worldgen is unchanged: the district rules and the ore
+cells' anchor check still count it as silver (`OreMetals.WorldgenMetalOf`), so its felsic-district
+lenses stay. `docs/oregen.md`, "Argentiferous galena", has the details and why the survey was not
+rerun.
+
+**The cupel** (`seraphhorizons:cupel-{raw,fired,bead}`, `blocktypes/oreprocessing/cupel.json`, a
+small dish kept a block as the game's crucible is): four bone meal in the grid make a raw cupel,
+fired like clay in a pit kiln or a beehive kiln. The fired cupel is a smelting container
+(`BlockCupel`, on the game's `BlockSmeltingContainer`), and crucibulum's forge takes it as a
+crucible with no change to crucibulum: crucibulum tests the class, not the code
+(`BlockEntityCrucibulumForge.IsCrucible`, `ItemSlotCrucibleCharge.IsFiredCrucible`). It is loaded
+like the crucible, through the forge's four charge slots, at most 200 units of metal:
+
+- roasted galena or argentiferous galena concentrate; or roasted tetrahedrite or freibergite
+  concentrate with at least as many units of lead (lead bits, a galena nugget, roasted galena:
+  anything that smelts to lead, except litharge). Anything else is refused.
+- The forge must hold it at 950 °C (the forge's 400 °C crucible bonus reaches it with the blast
+  gate open, half or a quarter), and it takes 60 s per 100 units of charge, divided by the gate's
+  air (open 1, half 0.85, quarter 0.7, crucibulum's figures); shut, nothing happens. Its own
+  `CanSmelt` refuses anywhere but a forge (a firepit). Which forge its charge slots belong to is
+  not on the slots, so a postfix on crucibulum's `BlockEntityCrucibulumForge.Initialize` (found by
+  name, Harmony id `seraphhorizons.oreprocessing`) notes each forge by its charge slots
+  (`CupelForge`); without crucibulum (or with it changed) the server warns and the cupel works
+  nowhere. The forge's dialog line ("Will part 64.6 units of silver, the 200 units of lead going
+  into litharge", or why not) is the cupel's: a postfix on the game's `GetOutputText` (`ContainerText`).
+- Done, it is a **cupel with silver bead**, holding what it breaks into: the lead (the ore's and
+  the added) as litharge, 5 units each, and each other metal as metal bits, 5 units each: the
+  silver at 85 % of the charge's (`OreRecovery.Smelted` at the hand tier: galena 3 %, argentiferous
+  galena 38 %, tetrahedrite 5 % of its units; freibergite all of it, its main metal), and copper
+  (tetrahedrite all of its own, freibergite 30 % at 85 %). Copper does not stay in a real bead, it
+  oxidises with the lead; the pack gives it back as copper bits beside the litharge instead of
+  losing it. Units to items: the whole ones, and one more at the chance of the fraction left, drawn
+  once when the cupel is done, so a charge gives its units on average (`Cupellation.Whole`): a full
+  cupel of argentiferous galena 64.6 units of silver (12 or 13 bits) and 40 litharge, of plain
+  galena 5.1 units (one bit, a second at 2 %).
+- Broken with a hammer in the grid (`recipes/grid/cupel.json`), the bead's litharge is the output
+  (`ItemOreProduct.OnCreatedByCrafting` sets the count) and its bits go to the player
+  (`BlockCupelBead.OnConsumedByCrafting`). Litharge smelts back to lead at 20 in 21. The cupel is
+  used up.
+
+The figures are `cupel` in `config/ore-processing.json` (`capacityUnits`, `leadPerOreUnit`,
+`meltingPoint`, `secondsPerIngot`). The handbook has a Cupellation section on each cupel. The
+recipe browser has a `cupellation` record per ore (`tools/recipe-export/RecipeSection.Cupellation.cs`)
+when the switch is on. Tests: `tests/Ore/CupellationTests.cs` (the ores it takes, yields, refusals,
+the rounding), `OreRecoveryTests`, `OreProductsTests`, `DepositMakeupTests`;
+`tests/PackTests/OreProcessingScenarios.cs` (Atlas: the names, the smelting to lead, the loose
+bits, the cupel in crucibulum's forge with the gate, the bead and breaking it).
+
+### Liquation (`OreProcessing`)
+
+Teallite's and franckeite's lead (#685: 40 % and 30 % of their tin) parted from the tin in a clay
+liquation pan, in a firepit or crucibulum's forge (#724, hand and tier 1), with ore processing (off by
+default; with it off nothing here exists). **Liquation is tin first**: tin melts at 232 °C and lead at
+327 °C, so a gentle heat sweats the tin out of the roasted concentrate and leaves the lead behind. Rules
+in `Ore/Core/Liquation.cs`, the game side in `Ore/Processing/` (`BlockLiquationPan`,
+`BlockLiquationPanSmelted`, `BlockLiquationResidue`; `OreContainers` and `ContainerText` are shared with
+the cupel).
+
+**The pan** (`seraphhorizons:liquationpan-{raw,fired,smelted,residue}`,
+`blocktypes/oreprocessing/liquationpan.json`, the game's clay bowl shape): clay-formed from any clay
+(`recipes/clayforming/liquationpan.json`, a dish seven voxels across and two high), fired like the
+crucible in a pit kiln or a beehive kiln. The fired pan is a smelting container (`BlockLiquationPan`, on
+the game's `BlockSmeltingContainer`, with the crucible's `cookingContainerSlots`), so it works in both:
+the firepit's four cooking slots (crucibulum leaves crucibles in the firepit on, `CrucibleOnlyInForge`
+off) and crucibulum's forge, which takes any smelting container as a crucible (as the cupel). It needs
+no air: the forge's blast gate only changes the heat. Reused, unlike the cupel.
+
+- **Charge**: roasted teallite or franckeite concentrate (mixed is fine: one main metal), at most 100
+  units (20 concentrate). Anything else is refused, and so is a firepit whose output slot is full.
+- **Heat**: its melting point is the tin point, 240 °C, so the firepit and the forge heat it toward the
+  fire's heat and count the time from 240 °C, 15 s per 100 units of charge (the engine's own, slowed
+  by eleven once at the point). If the charge is over 327 °C when it is done, the lead has run with the
+  tin: it gives the tin as an unparted smelt would and no lead (`Liquation.Yield` with no parting). It is
+  the charge's heat when it finishes (its coolest stack's, as the firepit reads it), not its peak: in a
+  lit fire the heat only climbs, and a charge left to cool below 240 °C stops working. The dialog line
+  (`ContainerText`) says what it will pour and leave, and "Too hot" over the lead point.
+- **What the engine makes of it** (Atlas, the firepit's own burn tick, the fire at full heat first): a
+  full pan in a wood fire (700 °C) is done at about 298 °C, so a wood or grass fire is easy; in a
+  charcoal fire (1,300 °C) at about 370 °C, so charcoal or coal in a firepit is too hot for a full pan
+  (a small charge, done sooner, can make it). A fire lit with the pan already in it is gentler (about
+  268 and 297 °C), since a firepit takes a while to reach its fuel's heat. Crucibulum's forge heats a
+  crucible more gently than a firepit (its `HeatRate` 0.5 and the charge's thermal mass; worked from
+  its code, not run): a full pan there finishes at about 290 °C with the gate open, lower half open,
+  quarter or shut. So the design's "the forge needs the gate shut and little fuel" does not hold with
+  crucibulum's defaults; the forge is the easy place and the charcoal firepit the one to avoid.
+- **Done** (`BlockLiquationPan.DoSmelt`): a **liquation pan of molten tin** (`BlockLiquationPanSmelted`,
+  on the game's smelted crucible class), all the charge's tin (100 units from a full pan), poured into
+  any mold as from a crucible, and the lead the tin left behind, 85 % of the ore's share
+  (`OreRecovery.Smelted` at the hand tier: a full pan of teallite 34 units, of franckeite 25.5), held as
+  whole lead bits drawn once when it is done (`Cupellation.Whole`: 6, a 7th at 80 %). One output slot,
+  two metals: the tin is the pour and the lead stays in the pan. The stack carries the lead, so the
+  smelted pan is never set on the ground. Emptied (the last unit poured), it is a **liquation pan with
+  lead residue** (`BlockLiquationResidue`), or the fired pan if no lead is left; knocked out with a
+  hammer in the grid (`recipes/grid/liquationpan.json`), the pan is the output and the lead bits go to
+  the player.
+- **Unparted** (any other furnace, the crucible), these ores still give their tin and lose the lead, as
+  before. Vanilla's lead solder (45–55 % lead) would take teallite's 40 % nearly as it is; that is an
+  open question, not done.
+
+The figures are `liquation` in `config/ore-processing.json` (`capacityUnits`, `tinPoint`, `leadPoint`,
+`secondsPerIngot`). The guide page "Liquation: tin from lead" (`config/handbook/liquation.json`) and a
+Liquation section on each pan; the page is hidden with the switch off. The recipe browser has a
+`liquation` record per ore (`tools/recipe-export/RecipeSection.Liquation.cs`) when the switch is on, and
+item values count liquation as a station (`tools/item-values/ore-processing.json`, `parting`). Tests:
+`tests/Ore/LiquationTests.cs` (the ores, yields, overheating, refusals, the figures);
+`tests/PackTests/OreProcessingScenarios.cs` (Atlas: a full pan through a firepit's own tick in a wood
+fire and in a charcoal fire, the pan in crucibulum's forge with the gate shut, emptying and the residue,
+the clay forming and firing, the export) and `SwitchesOffScenarios` (off).
 
 ## Trading
 
@@ -5307,7 +5611,9 @@ and Hydrate's `ContainersConfig`. With the switch off, `SwitchesOffScenarios` re
 refuse a keg. The rack's look and the client's side of the interactions
 are checked by hand in the game.
 
-`tests/PackTests/MapRevealScenarios.cs` (Atlas) has a test player run `/revealmap`, decodes what
+`tests/PackTests/MapRevealScenarios.cs` (Atlas, a plain world of its own whose ModConfig turns
+trader maps' approach deposit checks off, as they generate columns near the player) has a test
+player run `/revealmap`, decodes what
 it is sent as the client would, and requires it to agree with the loaded chunks (so the savegame
 reader reads the blocks the game does: when it fails after a game update, check `StoredChunk`'s
 field numbers and `ChunkData.DecompressFrom`), the columns not generated yet skipped and still

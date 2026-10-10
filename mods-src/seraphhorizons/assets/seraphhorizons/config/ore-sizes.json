@@ -18,6 +18,10 @@
 // Gold, silver (apart from the silver inside copper and lead veins), nickel, titanium and chromium
 // come mostly from hydrothermal districts. District veins are sized to smallIngots / targetIngots /
 // largeIngots directly (config/ore-districts.json, Ore/Core/DistrictVeins.cs), not by the factor.
+// Argentiferous galena (galena_nativesilver) is a lead ore since #690, but the silver and lead medians
+// were measured with it counted as silver, so silver's includes the galena subdeposits. Worldgen did
+// not change (Ore/Core/OreMetals.cs, WorldgenMetalOf), so the factors stand; docs/oregen.md,
+// "Argentiferous galena".
 // These began as a first cut from volume ∝ radius² × thickness (discs) and count × length (tubes).
 // Correction from the survey of #445 (docs/oregen.md): the anchored veins of copper, iron, bismuth,
 // zinc and platinum came out at about twice the target (eight veins pooled over three seeds, median

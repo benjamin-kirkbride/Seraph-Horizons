@@ -68,8 +68,11 @@ public class OreRecoveryTests
         Assert.Equal(new MetalUnits("lead", 1584), parted[0]);
         Assert.Equal("silver", parted[1].Metal);
         Assert.Equal(48, Math.Round(parted[1].Units)); // 3 % of 1584, cupelled at 100 %
-        // Felsic districts' galena: 15 %.
-        Assert.Equal(1584 * 0.15, R.Smelted(galena, lead, OreTier.Tier4, district: true)[1].Units, 6);
+        // Argentiferous galena (#690): a lead ore with 38 %; smelted unparted, the lead and no silver.
+        var argentiferous = R.Ore("galena_nativesilver");
+        Assert.Equal("lead", argentiferous.Metal);
+        Assert.Equal(1584 * 0.38, R.Smelted(argentiferous, lead, OreTier.Tier4)[1].Units, 6);
+        Assert.Equal([new MetalUnits("lead", 1584)], R.Smelted(argentiferous, lead, null));
         // By hand, the bone-ash cupel: 85 %.
         Assert.Equal(1584 * 0.03 * 0.85, R.Smelted(galena, lead, OreTier.Hand)[1].Units, 6);
         // Unparted, the lead and no silver.

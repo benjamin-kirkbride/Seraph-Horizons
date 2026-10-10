@@ -21,8 +21,9 @@ public enum PartingMethod { Cupellation, Liquation, AcidParting }
 public enum OreClass { Oxide, Sulfide, Native, Placer }
 
 /// <summary>The forms ore takes on the line. Raw ore and chunks hold their grade's units; the rest
-/// hold <see cref="OreRecovery.ConcentrateUnits"/>.</summary>
-public enum OreForm { Raw, Chunk, Crushed, Ground, Concentrate, RoastedConcentrate }
+/// hold <see cref="OreRecovery.ConcentrateUnits"/>. A sponge is the gold or silver amalgam leaves in
+/// the still once its mercury is driven off (#726).</summary>
+public enum OreForm { Raw, Chunk, Crushed, Ground, Concentrate, RoastedConcentrate, Sponge }
 
 /// <summary>What has been done to the feed reaching a concentrator.</summary>
 /// <param name="FineGrained">Poor ore: fine-grained, it loses heavily unless ground.</param>
@@ -36,12 +37,9 @@ public readonly record struct OreFeed(bool FineGrained, bool Classified, bool Gr
 }
 
 /// <summary>A by-product of an ore, won only at a parting step.</summary>
-/// <param name="Share">Units of it per unit of the main metal recovered, in vein ore.</param>
-/// <param name="DistrictShare">The same in ore from a hydrothermal district, when it differs.</param>
-public sealed record ByProduct(string Metal, double Share, double? DistrictShare, PartingMethod PartedBy)
-{
-    public double ShareIn(bool district) => district && DistrictShare is { } d ? d : Share;
-}
+/// <param name="Share">Units of it per unit of the main metal recovered. The ore itself carries its
+/// share: argentiferous galena 38 %, plain galena 3 % (#690).</param>
+public sealed record ByProduct(string Metal, double Share, PartingMethod PartedBy);
 
 /// <summary>One ore's processing properties (<c>ores</c> in the config).</summary>
 /// <param name="Ore">The ore part of its code (<c>galena</c>).</param>
@@ -136,7 +134,33 @@ public sealed class OreRecovery
         }
         foreach (var (ore, entry) in config.Ores ?? new())
             _ores[ore] = Spec(ore, entry ?? new());
+        var retort = config.Retort ?? new();
+        CheckShare("retort.mercuryReturn", retort.MercuryReturn);
+        if (string.IsNullOrWhiteSpace(retort.Mercury)) _problems.Add("retort.mercury: no mercury item");
+        if (!(retort.AmalgamMercury * retort.MercuryReturn >= 1))
+            _problems.Add($"retort: an amalgam returns {retort.AmalgamMercury * retort.MercuryReturn} portions of mercury, under one");
+        foreach (var (code, portions) in retort.Cinnabar ?? new())
+            if (!(portions >= 1)) _problems.Add($"retort.cinnabar.{code}: {portions} portions is under one");
+        if (!(retort.PortionsPerSecond > 0)) _problems.Add($"retort.portionsPerSecond {retort.PortionsPerSecond} is not positive");
+
+        var cupel = config.Cupel ?? new OreProcessingConfig.CupelEntry();
+        Cupel = new CupelSettings(cupel.CapacityUnits, cupel.LeadPerOreUnit, cupel.MeltingPoint, cupel.SecondsPerIngot);
+        if (!(Cupel.CapacityUnits > 0)) _problems.Add($"cupel.capacityUnits {Cupel.CapacityUnits} is not positive");
+        if (!(Cupel.LeadPerOreUnit >= 0)) _problems.Add($"cupel.leadPerOreUnit {Cupel.LeadPerOreUnit} is negative");
+        if (!(Cupel.MeltingPoint > 0)) _problems.Add($"cupel.meltingPoint {Cupel.MeltingPoint} is not positive");
+        if (!(Cupel.SecondsPerIngot > 0)) _problems.Add($"cupel.secondsPerIngot {Cupel.SecondsPerIngot} is not positive");
+
+        var pan = config.Liquation ?? new OreProcessingConfig.LiquationEntry();
+        Liquation = new LiquationSettings(pan.CapacityUnits, pan.TinPoint, pan.LeadPoint, pan.SecondsPerIngot);
+        if (!(Liquation.CapacityUnits > 0)) _problems.Add($"liquation.capacityUnits {Liquation.CapacityUnits} is not positive");
+        if (!(Liquation.TinPoint > 0)) _problems.Add($"liquation.tinPoint {Liquation.TinPoint} is not positive");
+        if (!(Liquation.LeadPoint > Liquation.TinPoint)) _problems.Add($"liquation.leadPoint {Liquation.LeadPoint} is not above the tin point");
+        if (!(Liquation.SecondsPerIngot > 0)) _problems.Add($"liquation.secondsPerIngot {Liquation.SecondsPerIngot} is not positive");
     }
+
+    /// <summary>The still's retort (#726): the mercury, what an amalgam holds and returns, what
+    /// cinnabar gives, the pace. <see cref="MercuryRetort"/> reads it.</summary>
+    public OreProcessingConfig.RetortEntry Retort => _config.Retort ?? new();
 
     /// <summary>What is wrong with the config, for the server log; empty when it is sound. Missing
     /// figures read as 0 (a device that recovers nothing), so they show in play too.</summary>
@@ -144,6 +168,12 @@ public sealed class OreRecovery
 
     /// <summary>Units of metal in one crushed, ground or concentrate item.</summary>
     public double ConcentrateUnits => _config.ConcentrateUnits;
+
+    /// <summary>The bone-ash cupel's figures (#722).</summary>
+    public CupelSettings Cupel { get; }
+
+    /// <summary>The clay liquation pan's figures (#724).</summary>
+    public LiquationSettings Liquation { get; }
 
     /// <summary>An ore's properties; an ore the config doesn't list is an oxide at density 1.</summary>
     public OreSpec Ore(string ore) =>
@@ -198,15 +228,15 @@ public sealed class OreRecovery
     /// Unparted (<paramref name="partingTier"/> null, or no station at that tier for the ore's
     /// by-products): the main metal × the ore's <c>unparted</c> share, by-products lost. Parted at a
     /// tier: all of the main metal, plus each by-product whose method has a station there, at its
-    /// share × that station's recovery. <paramref name="district"/> picks the district share.
+    /// share × that station's recovery.
     /// </summary>
-    public IReadOnlyList<MetalUnits> Smelted(OreSpec ore, double mainUnits, OreTier? partingTier, bool district = false)
+    public IReadOnlyList<MetalUnits> Smelted(OreSpec ore, double mainUnits, OreTier? partingTier)
     {
         var parted = new List<MetalUnits>();
         if (partingTier is { } tier)
             foreach (var bp in ore.ByProducts)
                 if (Parting(bp.PartedBy, tier) is { } p)
-                    parted.Add(new MetalUnits(bp.Metal, mainUnits * bp.ShareIn(district) * p));
+                    parted.Add(new MetalUnits(bp.Metal, mainUnits * bp.Share * p));
         if (parted.Count == 0) return [new MetalUnits(ore.Metal, mainUnits * ore.Unparted)];
         return [new MetalUnits(ore.Metal, mainUnits), .. parted];
     }
@@ -231,8 +261,8 @@ public sealed class OreRecovery
                 _problems.Add($"ores.{ore}: by-product {b.Metal} has unknown partedBy '{b.PartedBy}'");
                 continue;
             }
-            if (!(b.Share >= 0) || b.DistrictShare is < 0) _problems.Add($"ores.{ore}: by-product {b.Metal} has a negative share");
-            byProducts.Add(new ByProduct(b.Metal, b.Share, b.DistrictShare, method));
+            if (!(b.Share >= 0)) _problems.Add($"ores.{ore}: by-product {b.Metal} has a negative share");
+            byProducts.Add(new ByProduct(b.Metal, b.Share, method));
         }
         return new OreSpec(ore, OreMetals.MetalOf(ore) ?? ore, cls, e.Density, e.Free, e.Unparted, byProducts);
     }
