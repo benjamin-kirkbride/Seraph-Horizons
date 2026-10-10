@@ -666,9 +666,9 @@ public class SeraphHorizonsConfig
     /// and smelting"): poor and medium ore become raw ore (stack 4, does not smelt), rich and bountiful
     /// ore chunks (stack 16, smelt at half); crushed, ground, concentrate, roasted concentrate, amalgam
     /// and litharge items; crushing yields the ore's units in 5-unit crushed ore, and no grid recipe
-    /// or hammer turns ore into nuggets; every furnace takes concentrate. Off by default until the
-    /// hand tier that works the ore lands. Server side (clients follow the server's items).</summary>
-    public bool OreProcessing { get; set; } = false;
+    /// or hammer turns ore into nuggets; every furnace takes concentrate. Server side (clients follow
+    /// the server's items).</summary>
+    public bool OreProcessing { get; set; } = true;
 
     /// <summary>Spalling (#747, Ore/Processing/OreSpalling.cs, README "Ore processing: spalling"), part
     /// of <see cref="OreProcessing"/>: the hammer blows a raw ore and a chunk set down on the ground take
