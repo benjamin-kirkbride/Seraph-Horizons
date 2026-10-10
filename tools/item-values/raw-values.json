@@ -94,6 +94,7 @@
       "game:ore-anthracite-*": 0.08, "game:ore-anthracite": 0.08,
       "game:ore-*": 0.05,
       "game:saltpeter": 0.15,
+      "seraphhorizons:rawsaltpeter": 0.15,
       "game:salt": 0.04,
       "game:lime": 0.05,
       "game:crystal-*": 0.3

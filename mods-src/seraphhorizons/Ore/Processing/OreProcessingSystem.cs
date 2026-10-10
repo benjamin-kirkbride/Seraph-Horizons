@@ -27,7 +27,8 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// ore of that ore, either grain, instead (<see cref="LegacyCrushed"/>).</item>
 /// <item><see cref="AssetsFinalize"/>, with every item loaded and patched (so it holds whatever order
 /// Expanded Matter's and smex's crushing patches ran in): stack sizes, crushing and smelting set on
-/// the items (<see cref="OreProcessingItems"/>), smex's blast furnace burden counted in 5-unit
+/// the items (<see cref="OreProcessingItems"/>), borax, alum and saltpeter's raw forms made raw for
+/// leaching (<see cref="Leaching"/>, #742), smex's blast furnace burden counted in 5-unit
 /// items (<see cref="SmexBurden"/>), and the game's hammers given spalling
 /// (<see cref="CollectibleBehaviorSpalling"/>, #747). The server sends the items to clients as they
 /// are then.</item>
@@ -54,6 +55,15 @@ public class OreProcessingSystem : ModSystem
         new(Domain, "itemtypes/oreprocessing/roastedconcentrate.json"),
         new(Domain, "itemtypes/oreprocessing/amalgam.json"),
         new(Domain, "itemtypes/oreprocessing/litharge.json"),
+        new(Domain, "itemtypes/oreprocessing/crudeliquor.json"),
+        new(Domain, "itemtypes/oreprocessing/rawsaltpeter.json"),
+    ];
+
+    /// <summary>The recipe files ore processing adds (leaching, #742); emptied with the switch off.</summary>
+    public static readonly AssetLocation[] RecipeAssets =
+    [
+        new(Domain, "recipes/barrel/oreprocessing-leaching.json"),
+        new(Domain, "recipes/cooking/oreprocessing-evaporating.json"),
     ];
 
     /// <summary>
@@ -81,6 +91,16 @@ public class OreProcessingSystem : ModSystem
         ["em:crushed-metal-uranium"] = "uranium",
     };
 
+    /// <summary>
+    /// Items nothing makes with ore processing on that a recipe takes, and the item it takes
+    /// instead: alum's crushed item, which raw alum no longer crushes to, is alum powder, the crystals
+    /// leaching gives (#742).
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> LegacyExact = new Dictionary<string, string>
+    {
+        [OreLeaching.CrushedAlum] = "game:powder-alum",
+    };
+
     // The files open with a comment, and the game's recipes use its lenient JSON.
     private static readonly JsonLoadSettings Lenient = new() { CommentHandling = CommentHandling.Ignore };
 
@@ -98,6 +118,9 @@ public class OreProcessingSystem : ModSystem
     /// switched off.</summary>
     public IReadOnlyList<string> RetargetedRecipes { get; private set; } = [];
     public int NuggetRecipesOff { get; private set; }
+
+    /// <summary>What leaching set (#742); null until <see cref="AssetsFinalize"/>, or with the switch off.</summary>
+    public Leaching.Report? Leached { get; private set; }
 
     /// <summary>What happened to smex's burden; null without smex or with the switch off.</summary>
     public SmexBurden.Status? Smex { get; private set; }
@@ -200,6 +223,7 @@ public class OreProcessingSystem : ModSystem
         Applied = OreProcessingItems.Apply(api.World, Recovery, api.Logger);
         SpallingHammers = GiveHammersSpalling(api.World);
         api.Logger.Notification("[seraphhorizons] Ore processing: {0} hammers spall ore set down on the ground", SpallingHammers);
+        Leached = Leaching.Apply(api.World, api.Logger);
         if (api.ModLoader.IsModEnabled(SmexBurden.ModId))
         {
             Smex = SmexBurden.Apply(api.World, api.Logger);
@@ -243,6 +267,9 @@ public class OreProcessingSystem : ModSystem
     {
         if (api.Assets.TryGet(OrePatch) is { } patch)
             patch.Data = "[]"u8.ToArray();
+        foreach (var location in RecipeAssets)
+            if (api.Assets.TryGet(location) is { } recipes)
+                recipes.Data = "[]"u8.ToArray();
         foreach (var location in TypeAssets)
         {
             if (api.Assets.TryGet(location) is not { } asset)
@@ -292,8 +319,8 @@ public class OreProcessingSystem : ModSystem
     }
 
     /// <summary>Every recipe file whose ingredients name a crushed item of <see cref="LegacyCrushed"/>
-    /// takes <c>game:crushed-{ore}-*</c> there instead; returns the files changed. Outputs are left
-    /// alone.</summary>
+    /// takes <c>game:crushed-{ore}-*</c> there instead, and one of <see cref="LegacyExact"/> its
+    /// replacement; returns the files changed. Outputs are left alone.</summary>
     public static List<string> RetargetRecipes(ICoreAPI api)
     {
         var changed = new List<string>();
@@ -321,8 +348,8 @@ public class OreProcessingSystem : ModSystem
         return changed;
     }
 
-    /// <summary>Rewrites, in place, every ingredient code naming a legacy crushed item; returns how
-    /// many. A code without a domain is in <paramref name="domain"/>, the file's.</summary>
+    /// <summary>Rewrites, in place, every ingredient code naming a legacy crushed item (or one of
+    /// <see cref="LegacyExact"/>); returns how many. A code without a domain is in <paramref name="domain"/>, the file's.</summary>
     public static int Retarget(JToken token, string domain)
     {
         int count = 0;
@@ -334,9 +361,12 @@ public class OreProcessingSystem : ModSystem
                 continue;
             string code = (string)value!;
             string full = code.Contains(':') ? code : domain + ":" + code;
-            if (!LegacyCrushed.TryGetValue(full, out var ore))
+            if (LegacyExact.TryGetValue(full, out var instead))
+                value.Value = instead;
+            else if (LegacyCrushed.TryGetValue(full, out var ore))
+                value.Value = $"game:crushed-{ore}-*";
+            else
                 continue;
-            value.Value = $"game:crushed-{ore}-*";
             count++;
         }
         return count;

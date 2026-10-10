@@ -394,6 +394,15 @@ mercury) adds a route to `routes.json`, with its switch, if the export does not 
 its own that exists only with `OreProcessing` and is missing from the export goes into
 `ore-processing.json` (`items`, by form, or a single item like `litharge`) so the tool adds it.
 
+**Leaching** (#742): raw saltpeter and the three crude liquors are `singles` in
+`ore-processing.json`, added like the forms (a liquid with its `itemsPerLitre`) and priced by
+`routes.json`: raw saltpeter is a raw at saltpeter's price, a liquor its barrel route (a raw mineral
+and a litre of water to a litre, `liquid` 100 so the barrel's flat is per litre as for a recipe).
+The cooking pot's routes back to borax powder, saltpeter and alum powder are there too, dearer than
+the quern's and pulverizer's with the switch off, so no shipped price moved. Borax and alum ore are
+priced by `game:ore-*` (0.05), not their `game:ore-borax-*` and `game:ore-alum-*` patterns, which
+match nothing (ungraded ore has no grade or rock variant); the liquors take that price.
+
 Before and after (gears per item; the crucible furnace's routes are `routes.json`, `crucible` +20 %
 and 2 a pot of 200 units: about 8 coke and the tending):
 

@@ -3968,6 +3968,48 @@ Tests: `tests/Ore/SpallingTests.cs`; `tests/PackTests/OreProcessingScenarios.cs`
 and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, fine from
 poor and a chunk in three blows, the next block, the export records) and `SwitchesOffScenarios` (off).
 
+### Ore processing: leaching borax, saltpeter and alum (`OreProcessing`)
+
+The non-metals are leached with blocks players already have (#742): no station, no model. With the
+switch on, borax, saltpeter and alum come out of the ground as a heavy raw form that no longer works
+where today's items are used; leached in a barrel and boiled down in a cooking pot, they give today's
+items, so every recipe that takes them keeps working unchanged.
+
+| Mineral | Raw form (stack 4) | Crude liquor (barrel) | Crystals (cooking pot) |
+|---|---|---|---|
+| borax | `game:ore-borax` (no longer ground in the quern) | `seraphhorizons:crudeliquorportion-borax` | `game:powder-borax` |
+| saltpeter | `seraphhorizons:rawsaltpeter`, "Raw saltpeter" | `seraphhorizons:crudeliquorportion-saltpeter` | `game:saltpeter` |
+| alum | `game:ore-alum` (no longer crushed in the pulverizer) | `seraphhorizons:crudeliquorportion-alum` | `game:powder-alum` |
+
+- **Raw form.** Borax and alum are vanilla's ungraded ore items, restacked to 4 (as raw ore,
+  `OreProducts.RawStack`) with their grinding and crushing taken off. Saltpeter had no mined form
+  (its cave coating dropped the crystals), so it gets one: every block that dropped `game:saltpeter`
+  drops raw saltpeter instead at the same rate (vanilla's coating, Interesting Ore Gen's saltpeter ore,
+  Saltpeter Production's nitre bed buds; Oils Resoaped's grid recipe for saltpeter from salt, potash
+  and sulfur is left alone). Expanded Matter's kernite liquor still settles into `game:ore-borax`,
+  now raw borax to leach.
+- **Leach** (`recipes/barrel/oreprocessing-leaching.json`): a raw mineral and a litre of water,
+  sealed a day, give a litre of the mineral's crude liquor; the rock left behind is lost. The liquors
+  are new on purpose: vanilla's diluted borax and Expanded Matter's diluted alum and saltpeter have
+  uses of their own and would let raw mineral skip the pot. Textured with vanilla's brine, weak tannin
+  and lime water.
+- **Evaporate** (`recipes/cooking/oreprocessing-evaporating.json`): a litre of liquor boils down to
+  one crystal item, so one mined item makes one crystal item (the quern made 2 borax powder from a
+  borax; a starting figure for playtesting). A pot of 6 litres gives 6.
+- Alum's crushed item, which nothing makes now, is alum powder in the recipes that took it (vanilla's
+  diluted alum; `OreProcessingSystem.LegacyExact`, rewritten with the legacy crushed ores).
+- The figures are in the two recipe files, and `Ore/Core/OreLeaching.cs` holds them (litres a raw
+  mineral, crystals a litre, a day sealed) with a test checking the files against it. The liquors and
+  the raw forms carry a handbook section, "Leaching borax, saltpeter and alum" (the type files' for the
+  new items, set in code for vanilla's ores, `Leaching`).
+
+With the switch off the two recipe files are emptied, the item types marked disabled, and the
+minerals are as before. Item values: raw saltpeter is a raw at saltpeter's price and the liquors are
+priced by their barrel routes (`tools/item-values/ore-processing.json`'s `singles`, `routes.json`).
+Code: `Ore/Processing/Leaching.cs`, `Ore/Core/OreLeaching.cs`. Tests: `tests/Ore/OreLeachingTests.cs`;
+`OreProcessingScenarios` (the raw forms, the saltpeter drops, a barrel of alum, the pot, diluted alum)
+and `SwitchesOffScenarios`.
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is

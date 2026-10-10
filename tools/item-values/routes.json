@@ -1,5 +1,5 @@
 {
-  "about": "Routes the recipe export does not carry: stations whose recipes are code, not recipe files or export records (the crucible furnace's pot recipes, CrucibleFurnace/Core/PotRecipes.cs). Each is one batch: 'slots' are the ingredients (each a list of alternatives [code, items]; 'kept': true for a tool or station part not consumed), 'output' is [code, items], 'byproducts' are [code, expected items] credited at their value, 'kind' a markups.json kind, 'switch' the seraphhorizons config switch that owns it. A route is priced exactly as a recipe of the export (README.md, Rules); a route whose output the export lacks prices nothing. A new station that adds no export record adds its routes here, with its switch; a better home for any of them is an export record (tools/recipe-export), which also shows it in the recipe browser.",
+  "about": "Routes the recipe export does not carry: stations whose recipes are code, not recipe files or export records (the crucible furnace's pot recipes, CrucibleFurnace/Core/PotRecipes.cs), and recipe files of a switch the export is made without (OreProcessing's leaching, #742; 'liquid' is a liquid output's items per litre). Each is one batch: 'slots' are the ingredients (each a list of alternatives [code, items]; 'kept': true for a tool or station part not consumed), 'output' is [code, items], 'byproducts' are [code, expected items] credited at their value, 'kind' a markups.json kind, 'switch' the seraphhorizons config switch that owns it. A route is priced exactly as a recipe of the export (README.md, Rules); a route whose output the export lacks prices nothing. A new station that adds no export record adds its routes here, with its switch; a better home for any of them is an export record (tools/recipe-export), which also shows it in the recipe browser.",
   "routes": [
     {
       "id": "cruciblefurnace|ferrosilicon",
@@ -36,6 +36,57 @@
         [["seraphhorizons:ferrochrome", 8]]
       ],
       "output": ["game:ingot-stainlesssteel", 2]
+    },
+    {
+      "id": "barrel|seraphhorizons-leach-borax",
+      "about": "Leaching (#742; the recipe file is OreProcessing's, absent from an export made with it off): a raw borax and a litre of water, sealed a day, give a litre of crude borax liquor.",
+      "kind": "barrel",
+      "switch": "OreProcessing",
+      "slots": [[["game:ore-borax", 1]], [["game:waterportion", 100]]],
+      "output": ["seraphhorizons:crudeliquorportion-borax", 100],
+      "liquid": 100
+    },
+    {
+      "id": "barrel|seraphhorizons-leach-saltpeter",
+      "about": "Leaching: a raw saltpeter and a litre of water give a litre of crude saltpeter liquor.",
+      "kind": "barrel",
+      "switch": "OreProcessing",
+      "slots": [[["seraphhorizons:rawsaltpeter", 1]], [["game:waterportion", 100]]],
+      "output": ["seraphhorizons:crudeliquorportion-saltpeter", 100],
+      "liquid": 100
+    },
+    {
+      "id": "barrel|seraphhorizons-leach-alum",
+      "about": "Leaching: a raw alum and a litre of water give a litre of crude alum liquor.",
+      "kind": "barrel",
+      "switch": "OreProcessing",
+      "slots": [[["game:ore-alum", 1]], [["game:waterportion", 100]]],
+      "output": ["seraphhorizons:crudeliquorportion-alum", 100],
+      "liquid": 100
+    },
+    {
+      "id": "cooking|seraphhorizons-evaporate-borax",
+      "about": "Evaporating (#742): a litre of crude borax liquor boils down in the cooking pot to a borax powder. Dearer than the quern's route with the switch off, so it prices nothing but itself.",
+      "kind": "cooking",
+      "switch": "OreProcessing",
+      "slots": [[["seraphhorizons:crudeliquorportion-borax", 100]]],
+      "output": ["game:powder-borax", 1]
+    },
+    {
+      "id": "cooking|seraphhorizons-evaporate-saltpeter",
+      "about": "Evaporating: a litre of crude saltpeter liquor boils down to a saltpeter (a raw: unchanged).",
+      "kind": "cooking",
+      "switch": "OreProcessing",
+      "slots": [[["seraphhorizons:crudeliquorportion-saltpeter", 100]]],
+      "output": ["game:saltpeter", 1]
+    },
+    {
+      "id": "cooking|seraphhorizons-evaporate-alum",
+      "about": "Evaporating: a litre of crude alum liquor boils down to an alum powder.",
+      "kind": "cooking",
+      "switch": "OreProcessing",
+      "slots": [[["seraphhorizons:crudeliquorportion-alum", 100]]],
+      "output": ["game:powder-alum", 1]
     }
   ]
 }
