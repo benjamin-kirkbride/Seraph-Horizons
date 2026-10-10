@@ -1,10 +1,12 @@
 """The concentrator's generated model files (mods-src/seraphhorizons/Concentrator/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the
-shared rig maths and uses its `requires` vocabulary (a level's parts, the plates and their dressing), its
+shared rig maths and uses its `requires` vocabulary (a level's parts, the plates and their dressing, the
+water line in each metal), its
 levels add parts and only level 2 takes one out (the sluice), its reference poses are its own maths, the
 cells and their per-level collision are rebuilt from the shipped shape, every sheave's yoke follows its
-sheave exactly, the vanner's belt creeps a tooth of its worm wheel a turn, the anchors are on their faces
+sheave exactly, the vanner's belt creeps to its head whichever way the axle turns (its ratchet), the water
+line is the same soldered pipe in either metal, the anchors are on their faces
 (one water inlet; the return water and the tailings leave by cells of their own), the site's states are
 the rig's levels, and the README's parts table lists the rig's parts.
 Run with `python3 -m unittest discover -s tools/tests`.
@@ -38,14 +40,15 @@ README = (MOD / "Concentrator" / "README.md").read_text()
 MANIFEST = json.loads((ROOT / "site" / "models.json").read_text())
 LEVEL_REQUIRES = ["sluice", "lineshaft", "jig", "table", "vanner"]
 PLATES = ["plates", "dressing"]
+PIPES = ["pipecopper", "pipelead"]
 
 
-def matrix(pid, theta):
-    return rigmath.part_matrix(RIG["parts"], pid, {"theta": theta}, None)
+def matrix(pid, theta, travel=None):
+    return rigmath.part_matrix(RIG["parts"], pid, {"theta": theta, "travel": abs(theta) if travel is None else travel}, None)
 
 
 def point(pid, theta, p):
-    """A point (voxels) moved by a part's matrix."""
+    """A point (voxels) moved by a part's matrix (turned from rest: the travel is |theta|)."""
     q = rigmath.apply(matrix(pid, theta), [c / 16 for c in p])
     return [c * 16 for c in q]
 
@@ -54,13 +57,15 @@ class Rig(unittest.TestCase):
     def test_parts_parse_and_use_the_vocabulary(self):
         ids = [p["id"] for p in RIG["parts"]]
         for p in RIG["parts"]:
-            self.assertIn(p["requires"], [*LEVEL_REQUIRES, *PLATES, None], p["id"])
+            self.assertIn(p["requires"], [*LEVEL_REQUIRES, *PLATES, *PIPES, None], p["id"])
             if p.get("ride"):
                 self.assertIn(p["ride"], ids)
             for d in p["drivers"]:
                 rigmath.validate_driver(d)
-                self.assertEqual(rigmath.driver_input(d), "theta", p["id"])     # nothing is rectified
-        self.assertEqual({p["requires"] for p in RIG["parts"]}, {*LEVEL_REQUIRES, *PLATES, None})
+                # the ratchet's train alone reads the travel: it only ever turns forward
+                want = "travel" if p["id"] in ("vannerworm", "vannerhead", "vannerfoot") else "theta"
+                self.assertEqual(rigmath.driver_input(d), want, p["id"])
+        self.assertEqual({p["requires"] for p in RIG["parts"]}, {*LEVEL_REQUIRES, *PLATES, *PIPES, None})
         self.assertEqual([p["id"] for p in RIG["parts"] if p["requires"] is None], ["frame"])
         self.assertIsNone(rigmath.progress_of(RIG))
 
@@ -79,7 +84,7 @@ class Rig(unittest.TestCase):
         for pose in poses:
             self.assertEqual(set(pose["matrices"]), {p["id"] for p in RIG["parts"]})
             for pid, want in pose["matrices"].items():
-                got = matrix(pid, pose["theta"])
+                got = matrix(pid, pose["theta"], pose["travel"])
                 for r in range(3):
                     for c in range(4):
                         self.assertAlmostEqual(got[r][c], want[r][c], places=5, msg=f"{pid} at theta {pose['theta']}")
@@ -120,7 +125,7 @@ class Collision(unittest.TestCase):
 
     def test_collision_is_per_level_not_the_union(self):
         fitted = {r for c in RIG["cells"] for r in c.get("fitted", {})}
-        self.assertEqual(fitted, {*LEVEL_REQUIRES, *PLATES})
+        self.assertEqual(fitted, {*LEVEL_REQUIRES, *PLATES, *PIPES})
         # the frame's boxes never hold a level's parts: a box per level only where that level is fitted
         frame_only = [c for c in RIG["cells"] if c.get("boxes")]
         self.assertTrue(frame_only)
@@ -164,15 +169,19 @@ class Mechanism(unittest.TestCase):
         self.assertLessEqual(2 * m.TABLE_E, 1.0)     # the deck's
         self.assertLessEqual(2 * m.VN_E, 1.0)        # the vanner's shake
 
-    def test_the_vanner_belt_creeps_a_tooth_a_turn_to_the_head(self):
+    def test_the_vanner_belt_creeps_to_the_head_whichever_way_the_axle_turns(self):
         m = make_shape
-        a = matrix("vannerhead", 0.0)
-        b = matrix("vannerhead", 1.0)
-        turn = math.atan2(b[1][0], b[0][0]) - math.atan2(a[1][0], a[0][0])
-        self.assertAlmostEqual(abs(turn), 1.0 / m.WORM_N, places=5)
+        worm = [math.atan2(matrix("vannerworm", th)[2][1], matrix("vannerworm", th)[1][1]) for th in (0.0, 1.0, -1.0)]
+        head = [math.atan2(matrix("vannerhead", th)[1][0], matrix("vannerhead", th)[0][0]) for th in (0.0, 1.0, -1.0)]
+        for i in (1, 2):
+            self.assertAlmostEqual(worm[i] - worm[0], m.WORM_RATIO, places=5)              # forward, a push a turn
+            self.assertAlmostEqual(abs(head[i] - head[0]), m.WORM_RATIO / m.WORM_N, places=5)
         top = [m.HEAD[0], m.HEAD[1] + m.ROLL_R, 37.0]
-        moved = point("vannerhead", 0.3, top)[0] - point("vannerframe", 0.3, top)[0]
-        self.assertGreater(moved, 0.0)               # the upper run moves east, to the head
+        for th in (0.3, -0.3):
+            moved = point("vannerhead", th, top)[0] - point("vannerframe", th, top)[0]
+            self.assertGreater(moved, 0.0)           # the upper run moves east, to the head
+        # the pawl pushes a tooth's worth each stroke: the shake's stroke is the ratchet's pitch
+        self.assertAlmostEqual(m.PAWL_TRAVEL, 2 * math.pi * m.RATCHET_R / m.RATCHET_N, delta=0.1)
 
 
 class Anchors(unittest.TestCase):
@@ -190,6 +199,38 @@ class Anchors(unittest.TestCase):
         self.assertEqual(len(cells), len(set(cells)))
         # nothing carries water back inside the machine: no pump, sump or return launder
         self.assertFalse([e["name"] for e in SHAPE["elements"] if re.search(r"pump|sump|return", e["name"])])
+
+    def test_the_inlet_is_ppex_pipe_end_to_end_on_the_water_face(self):
+        for pid in PIPES:
+            inlet = [e for e in SHAPE["elements"] if e["name"].startswith(f"{pid}_inlet_")]
+            lo = [min(min(e["from"][k], e["to"][k]) for e in inlet) for k in range(3)]
+            hi = [max(max(e["from"][k], e["to"][k]) for e in inlet) for k in range(3)]
+            self.assertEqual(lo[2], 0.0)
+            self.assertEqual((hi[0] - lo[0], hi[1] - lo[1]), (6.0, 6.0))
+            cell = RIG["waterCell"]
+            self.assertEqual(((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2), (cell[0] * 16 + 8.0, cell[1] * 16 + 8.0))
+
+
+class Pipes(unittest.TestCase):
+    def els(self, pid):
+        return [e for e in SHAPE["elements"] if e["name"].startswith(pid + "_")]
+
+    def test_one_part_per_metal_the_same_elements_in_its_texture_the_joints_in_solder(self):
+        cu, pb = self.els("pipecopper"), self.els("pipelead")
+        self.assertTrue(cu)
+        self.assertEqual([(e["name"][len("pipecopper"):], e["from"], e["to"]) for e in cu],
+                         [(e["name"][len("pipelead"):], e["from"], e["to"]) for e in pb])
+        for pid, metal in (("pipecopper", "copper4"), ("pipelead", "lead4")):
+            self.assertEqual(SHAPE["textures"][pid], f"game:block/metal/sheet-plain/{metal}")
+            for e in self.els(pid):
+                codes = {f["texture"] for f in e["faces"].values()}
+                self.assertLessEqual(codes, {f"#{pid}", "#solder"}, e["name"])
+                if "joint" in e["name"] or e["name"].endswith("_cap"):
+                    self.assertEqual(codes, {"#solder"}, e["name"])
+        self.assertEqual(SHAPE["textures"]["solder"], "game:block/metal/ingot/leadsolder")
+        for pid in PIPES:
+            (part,) = [p for p in RIG["parts"] if p["id"] == pid]
+            self.assertEqual((part["requires"], part["drivers"]), (pid, []))
 
 
 class Files(unittest.TestCase):

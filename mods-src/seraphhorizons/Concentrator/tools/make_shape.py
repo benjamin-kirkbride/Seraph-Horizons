@@ -15,8 +15,10 @@ adds parts to the last; only the sluice is retired, when the jig takes its place
                                length by an eccentric on the line shaft, its concentrate off the far end
                                and its tailings off the low edge
     level 4 (mill)   vanner    a Frue vanner taking the table's tailings: an endless belt on a frame
-                               shaken sideways, crept up to its head by a worm, on a countershaft belted
-                               from the line shaft. Its water is recirculated, a gameplay rule: nothing in
+                               shaken sideways from a countershaft belted from the line shaft, crept up to
+                               its head by a worm whose shaft a ratchet turns, a pawl on the shaking frame
+                               pushing it a tooth a stroke, so it creeps the right way whichever way the
+                               axle turns. Its water is recirculated, a gameplay rule: nothing in
                                the machine carries it back (the owner's ruling); the tail box's overflow is
                                an outlet anchor of its own beside the tailings' spigot
 
@@ -24,9 +26,12 @@ From level 2, amalgamation plates (`plates`, one fitted part, not a level) can l
 concentrate runs over on its way out, bare or dressed with mercury (`dressing`).
 
 Every power take-off is the same: an eccentric sheave keyed on a shaft, running in an iron yoke (a slotted
-crosshead, the Scotch yoke's way), so each motion is exactly a sine of the shaft's angle. The line shaft is
-the axle's continuation; nothing in it is rectified. Everything is built here from plain boxes; no other
-mod's model is used.
+crosshead, the Scotch yoke's way), so each motion is exactly a sine of the shaft's angle and looks the same
+either way the axle turns; the vanner's creep alone needs a direction, and its ratchet gives it one. The
+water line, from the one inlet to its three outlets, is Pipes and Power Expanded's straight pipe as
+UnifiedPipes draws it in copper and lead, soldered (Pipes/tools/solderedpipe.py, as the rosser's drip): one
+rig part per metal, `pipecopper` and `pipelead`, the same elements, only the supplied metal's drawn.
+Everything else is built here from plain boxes; no other mod's model is used.
 
 It writes, deterministically,
 
@@ -43,9 +48,11 @@ machine box's north-west-bottom corner (the "build frame"); the controller cell 
 [0,0,0], so the shipped files are the build frame divided by 16. The line shaft runs along x, from the
 power face at the west end.
 
-The rig's one input (README "Rig"):
+The rig's inputs (README "Rig"):
 
-    theta  the axle's angle: the line shaft turns with it, and everything is driven from the line shaft
+    theta   the axle's angle: the line shaft turns with it, and everything is driven from the line shaft
+    travel  psi, the axle's travel either way: the ratchet, the worm and the vanner's rollers, which only
+            ever turn forward
 """
 
 from __future__ import annotations
@@ -59,6 +66,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Pipes" / "tools"))
 
 from machinegen.checks import cell_boxes, cells_touched, with_lids  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
@@ -68,6 +76,8 @@ from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_d
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
 from machinegen.rigmath import part_of, posed, validate_driver  # noqa: E402
 from machinegen.rigmath import part_matrix as _part_matrix  # noqa: E402
+
+import solderedpipe  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[4]
 MOD = ROOT / "mods-src" / "seraphhorizons"
@@ -97,6 +107,8 @@ LEVELS = (                                   # (level, tier, what it fits, its n
 REQUIRES = ("sluice", "lineshaft", "jig", "table", "vanner")
 PLATES = ("plates", "dressing")              # the amalgamation plates and their mercury dressing
 PLATES_FROM = 2
+PIPE_METALS = ("copper", "lead")             # the water line's metals: one part each, the supplied one drawn
+PIPES = tuple(f"pipe{m}" for m in PIPE_METALS)
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",         # timber: posts, beams, sills, braces, trestles, legs, rollers
@@ -105,8 +117,9 @@ TEXTURES = {
     "steel": "game:block/metal/sheet-plain/steel1",  # shafts, sheaves, pulleys, rods, the worm and its wheel
     "screen": "game:block/metal/mesh1",            # the jig's sieve
     "leather": "game:block/leather/plain",         # the belts
-    "pipe": "game:block/metal/sheet-plain/lead4",  # the water pipes: ppex's pipe in UnifiedPipes' lead
-    "brass": "game:block/metal/sheet/brass1",      # the cocks
+    "pipecopper": "game:block/metal/sheet-plain/copper4",   # the water line in copper (UnifiedPipes' copper pipe)
+    "pipelead": "game:block/metal/sheet-plain/lead4",       # ... in lead (UnifiedPipes' lead pipe)
+    "solder": solderedpipe.SOLDER_TEXTURE,         # the pipes' joints
     "copper": "game:block/metal/sheet-plain/copper1",  # the amalgamation plates, bare
     "mercury": "seraphhorizons:block/liquid/mercury",  # their dressing (the amalgam pan's mercury texture)
 }
@@ -146,17 +159,21 @@ FS_X = (6.0, 10.0)                           # its spout trough
 FS_Z = (7.7, 11.5)
 FS_Y = 25.0                                  # the spout's floor's underside; its floor's top is 25.6
 FEED_LIP = (8.0, FS_Y, FS_Z[1])              # where the feed falls from, onto the sluice's head or the jig's sieve
-# the water: the inlet on the north face, a header along the north wall, three cocks
-PIPE_H = 3.0                                 # ppex's pipe: a square tube 6 across at the inlet
+# the water line: ppex's straight pipe, soldered (solderedpipe: a square tube 6 across round a 4 x 4 bore).
+# The inlet runs south from the water face to a tee; west from it to the head of the line, east along the
+# house and down under the line shaft, then south to the vanner; a nozzle under each outlet.
+PIPE_HALF = solderedpipe.HALF                # 3: ppex's pipe is 6 across
 WATER_IN = (24.0, 24.0)                      # (x, y): the inlet's axis on the water cell's north face
-HEADER = (26.5, 4.5)                         # (y, z): the header along x, 3 x 3
-HEADER_H = 1.5
-HEADER_X = (12.5, 36.0)
-HEAD_COCK_X = 14.5                           # the head cock: over the sluice's head, or the jig's sieve
-WATER_LIP = (HEAD_COCK_X, 22.8, 10.5)        # its nozzle's mouth
-TABLE_COCK_X = 22.5                          # the table's cock (shut until the table is fitted)
-VANNER_COCK_X = 29.6                         # the vanner's branch and cock (shut until the vanner is fitted)
-BRACKETS_X = (19.0, 34.0)                    # the header's brackets from the north plate
+TEE_Z = 13.0                                 # the tee, where the inlet meets the cross line
+HEAD_OUT_X = 14.0                            # the head of the line's outlet (the sluice's head, the jig's sieve)
+TABLE_OUT_Z = 14.9                           # the table's nozzle, under the tee, over its water launder
+VAN_X = 45.5                                 # the vanner's branch: down at x 45.5 ...
+VAN_Y = 16.5                                 # ... to run south under the line shaft at y 16.5 ...
+VAN_Z1 = 41.1                                # ... to its capped end over the belt's south edge
+VAN_SEAM = 30.0                              # the seam (a joint) between its two lengths
+VAN_NOZZLES_Z = (36.0, 37.5, 39.0)           # its nozzles over the belt, inside its raised edges
+NOZZLE_Y = 1.0                               # a nozzle hangs this far under its pipe
+WATER_LIP = (HEAD_OUT_X, WATER_IN[1] - PIPE_HALF - NOZZLE_Y, TEE_Z)   # the head of the line's nozzle's mouth
 # the tailings: launder N (the north side) and launder S (the south side) into the tail box at the east end
 LN_X = (18.0, 55.8)
 LN_Z = (8.5, 15.5)
@@ -192,12 +209,12 @@ TRAP_H = 0.8
 COAT_T = 0.08                                # the mercury dressing on each plate
 
 # ---------------------------------------------------------------- level 1: the sluice
-SL_X = (6.0, 46.0)                           # head .. tail (open, over launder N)
+SL_X = (6.0, 40.0)                           # head .. tail (open, over launder N)
 SL_Z = (6.5, 15.5)                           # outside; sides 1 thick: the channel 7.5..14.5
-SL_HEAD_Y = 21.5                             # its floor's top at the head; it falls 1 in 12
+SL_HEAD_Y = 18.3                             # its floor's top at the head (under the water line); it falls 1 in 12
 SL_SLOPE = 1 / 12
 SL_SIDE = 3.0
-RIFFLE_XS = [12.0 + 4.0 * i for i in range(9)]   # the riffles across the floor (their downstream faces)
+RIFFLE_XS = [12.0 + 4.0 * i for i in range(7)]   # the riffles across the floor (their downstream faces)
 RIFFLE_H = 1.2
 RIFFLE_T = 1.0
 SL_TRESTLES = (14.0, 38.0)
@@ -210,7 +227,7 @@ JG_TOP = 20.3
 JG_PART_Z = (16.6, 17.6)                     # the partition: the sieve compartment north, the plunger's south
 JG_PART_Y0 = 9.0                             # it stops this far up: the water passes under it
 SIEVE_Y = 16.5                               # the sieve's top
-WEIR_Z = (9.4, 13.6)                         # the overflow weir: a notch in the east wall over the sieve
+WEIR_Z = (8.6, 11.9)                         # the overflow weir: a notch in the east wall over the sieve
 WEIR_Y = 19.6                                # its sill (the water's level)
 SPOUT_X1 = 23.4                              # the weir's spout trough runs east to here, over the table's feed box
 PLUNGER_X = (6.5, 13.5)
@@ -231,20 +248,20 @@ DECK_LIP = (27.0, 29.5)                      # the concentrate lip past the sout
 JOISTS_X = ((23.0, 25.0), (33.0, 35.0))
 JOIST_H = 2.0
 LEGS_Z = ((5.0, 7.0), (18.6, 20.6))
-RIFFLES = ((25.0, 26.5), (28.5, 25.0), (32.0, 23.0), (35.0, 21.0))   # (x, its south end): the riffles along z from z 14.5
+RIFFLES = ((27.5, 26.5), (30.0, 25.0), (32.5, 23.0), (35.0, 21.0))   # (x, its south end): the riffles along z
 DECK_RIFFLE_H = 1.0
-FEEDBOX_Z = (9.0, 14.0)
+FEEDBOX_Z = (8.0, 12.5)
 FEEDBOX_X1 = 26.0
 FEEDBOX_H = 1.8
-WL_X1 = 24.0                                 # the water launder along the upper edge, z 14.5..26.5
-WL_Z = (14.5, 26.5)
+WL_X1 = 26.0                                 # the water launder along the upper edge
+WL_Z = (13.0, 26.5)
 TT_X = (37.4, 40.4)                          # the tails launder along the low edge, falling south to P3
 TT_Z = (4.0, 37.8)
 TT_Y = (14.6, 14.3)                          # its floor's top at the north end and at its spout
 TT_SIDE = 1.0
 TT_LEGS_Z = ((4.6, 5.6), (17.0, 18.0), (26.6, 27.6))
 
-# ---------------------------------------------------------------- level 4: the vanner and the return pump
+# ---------------------------------------------------------------- level 4: the vanner
 HEAD = (46.0, 9.1)                           # (x, y): the head roller's axis (the belt rises to the head)
 FOOT = (22.0, 8.3)
 ROLL_R = 2.5
@@ -256,22 +273,27 @@ RAIL_X = (18.0, 49.9)
 VN_E = 0.5                                   # the shake: half a voxel either side
 CS = (14.1, 43.9)                            # (y, z): the countershaft along x, by the south rail
 CS_R = 0.7
-CS_X = (17.2, 52.6)
-CS_SHEAVES_X = (25.5, 36.0)
-CS_PEDESTALS = ((19.4, 20.8), (28.6, 30.0), (50.6, 51.9))
+CS_X = (17.2, 38.5)                          # the countershaft: the drive pulley, the two sheaves
+CS_SHEAVES_X = (25.5, 34.6)
+CS_PEDESTALS = ((19.4, 20.8), (28.6, 30.0), (36.9, 38.3), (40.0, 41.4), (50.6, 51.9))   # the last two the worm shaft's
+WS_X = (38.7, 52.4)                          # the worm shaft, in line with the countershaft beyond its end
+RATCHET_X = (38.8, 39.7)                     # the ratchet wheel on it: 12 teeth, module 0.5
+RATCHET_N = 12
+RATCHET_MOD = 0.5
 WORM_N = 12                                  # the head roller's worm wheel: 12 teeth, module 0.6, a single-start worm
 WHEEL_MOD = 0.6
 WHEEL_R = WORM_N * WHEEL_MOD / 2             # its pitch radius, 3.6
 WORM_R = CS[0] - HEAD[1] - WHEEL_R           # the worm's pitch radius: the countershaft over the wheel's top
 WHEEL_Z = (43.2, 44.6)
+RATCHET_R = 2.0                              # the ratchet's pitch radius (its teeth module RATCHET_MOD, 2 pi R / N apart)
+PAWL_TRAVEL = 2 * VN_E                       # the pawl pushes the ratchet round by the shake's stroke each turn
+RATCHET_RATIO = PAWL_TRAVEL / RATCHET_R / (2 * math.pi)   # radians of the ratchet per radian of the axle's travel
 TANK_X = (42.0, 50.0)                        # the concentrate box under the head
 TANK_Z = (34.3, 41.2)
 TANK_Y = (4.8, 5.9)                          # its floor's top and its walls' top
 TANK_SPOUT_X = (44.5, 47.5)
 VFEED_X = (37.5, 42.5)                       # the vanner's feed box over the belt, under P3
 VFEED_Y = (12.3, 13.5)
-DIST_X = (43.9, 45.1)                        # the water distributor across the belt near the head
-DIST_Y = (12.4, 13.6)
 VSLIDES_X = (25.5, 33.0, 39.5)
 
 
@@ -489,18 +511,6 @@ def belt(axis, c1, r1, c2, r2, a0, a1, name, part, tex="leather", t=0.3, n_wrap=
     return out
 
 
-def pipe_x(x0, x1, y, z, name, part, h=PIPE_H, tex="pipe"):
-    return box([x0, y - h, z - h], [x1, y + h, z + h], name, part, tex)
-
-
-def pipe_y(y0, y1, x, z, name, part, h=PIPE_H, tex="pipe"):
-    return box([x - h, y0, z - h], [x + h, y1, z + h], name, part, tex)
-
-
-def pipe_z(z0, z1, x, y, name, part, h=PIPE_H, tex="pipe"):
-    return box([x - h, y - h, z0], [x + h, y + h, z1], name, part, tex)
-
-
 def sheave(x, c, off, name, part):
     """An eccentric sheave keyed on a shaft along x through c = (y, z): a 12-sided disc SHEAVE_R across
     its flats, its centre `off` = (dy, dz) from the shaft's, SHEAVE_W thick about x."""
@@ -596,45 +606,18 @@ def build_feed():
 
 
 def build_water():
-    """The water: the inlet on the north face (ppex's 6 x 6 section, flanged), the header along the north
-    wall on brackets from the plate, its end caps, and three cocks: the head cock over the head of the line,
-    the table's (its outlet down) and the vanner's branch south (both shut until their level)."""
+    """The water line's supports (the line itself is the pipes' parts): an iron strap from the middle tie
+    beam down to the cross line, an oak post under the vanner's branch where it runs south, and an iron
+    hanger from the south plate to its capped end."""
     f = "frame"
-    out = []
-    x, y = WATER_IN
-    hy, hz = HEADER
-    out.append(pipe_z(0.6, hz - HEADER_H, x, y, "fr_pipe_inlet", f))
-    out.append(box([x - 4.0, y - 4.0, 0.0], [x + 4.0, y + 4.0, 0.6], "fr_pipe_flange", f, "iron"))
-    for i, (dx, dy) in enumerate(((-3.0, -3.0), (3.0, -3.0), (3.0, 3.0), (-3.0, 3.0)), 1):
-        out.append(box([x + dx - 0.5, y + dy - 0.5, 0.6], [x + dx + 0.5, y + dy + 0.5, 1.1], f"fr_pipe_bolt{i}", f, "iron"))
-    out.append(pipe_x(HEADER_X[0], HEADER_X[1], hy, hz, "fr_pipe_header", f, h=HEADER_H))
-    for i, xe in enumerate((HEADER_X[0] - 0.5, HEADER_X[1]), 1):
-        out.append(box([xe, hy - HEADER_H - 0.3, hz - HEADER_H - 0.3], [xe + 0.5, hy + HEADER_H + 0.3, hz + HEADER_H + 0.3],
-                       f"fr_pipe_cap{i}", f, "pipe"))
-    for i, xb in enumerate(BRACKETS_X, 1):
-        out.append(box([xb - 0.6, hy - HEADER_H - 0.6, POST], [xb + 0.6, PLATE_Y[0], POST + 0.6], f"fr_pipe_bracket{i}", f, "iron"))
-        out.append(box([xb - 0.6, hy - HEADER_H - 0.6, POST + 0.6], [xb + 0.6, hy - HEADER_H, hz + HEADER_H + 0.6],
-                       f"fr_pipe_arm{i}", f, "iron"))
-    # the head cock: a drop, the cock, a run south over the sluice's side, the nozzle
-    cx = HEAD_COCK_X
-    wx, wy, wz = WATER_LIP
-    yb = hy - HEADER_H                           # the header's underside
-    out.append(box([cx - 1.0, yb - 1.6, hz - 1.0], [cx + 1.0, yb, hz + 1.0], "fr_cock1_body", f, "brass"))
-    out.append(box([cx - 2.2, yb - 1.1, hz - 0.3], [cx - 1.0, yb - 0.6, hz + 0.3], "fr_cock1_handle", f, "brass"))
-    ry0 = yb - 0.9                               # the run south, over the sluice's north side
-    out.append(box([cx - 0.6, ry0, hz + 1.0], [cx + 0.6, yb, wz + 0.6], "fr_pipe_run1", f, "pipe"))
-    out.append(box([cx - 0.6, wy, wz - 0.6], [cx + 0.6, ry0, wz + 0.6], "fr_cock1_nozzle", f, "brass"))
-    # the table's cock: on the header's underside, its outlet down (the table's pipe meets it)
-    tx = TABLE_COCK_X
-    out.append(box([tx - 1.0, hy - HEADER_H - 1.6, hz - 1.0], [tx + 1.0, hy - HEADER_H, hz + 1.0], "fr_cock2_body", f, "brass"))
-    out.append(box([tx - 2.2, hy - HEADER_H - 1.1, hz - 0.3], [tx - 1.0, hy - HEADER_H - 0.6, hz + 0.3], "fr_cock2_handle", f, "brass"))
-    out.append(box([tx - 0.6, hy - HEADER_H - 2.2, hz - 0.6], [tx + 0.6, hy - HEADER_H - 1.6, hz + 0.6], "fr_cock2_outlet", f, "brass"))
-    # the vanner's branch: south off the header, the cock on it (the vanner's pipe meets its outlet)
-    vx = VANNER_COCK_X
-    out.append(box([vx - 0.6, hy - 0.6, hz + HEADER_H], [vx + 0.6, hy + 0.6, hz + HEADER_H + 1.4], "fr_pipe_branch", f, "pipe"))
-    out.append(box([vx - 1.0, hy - 1.0, hz + HEADER_H + 1.4], [vx + 1.0, hy + 1.0, hz + HEADER_H + 3.0], "fr_cock3_body", f, "brass"))
-    out.append(box([vx - 0.3, hy + 1.0, hz + HEADER_H + 1.9], [vx + 0.3, hy + 2.0, hz + HEADER_H + 2.5], "fr_cock3_stem", f, "brass"))
-    out.append(box([vx - 1.4, hy + 2.0, hz + HEADER_H + 1.9], [vx + 1.4, hy + 2.4, hz + HEADER_H + 2.5], "fr_cock3_handle", f, "brass"))
+    y, z = WATER_IN[1], TEE_Z
+    top = y + PIPE_HALF
+    out = [box([31.2, top, z - 0.8], [32.8, PLATE_Y[0], z + 0.8], "fr_pipe_strap", f, "iron")]
+    vy = VAN_Y - PIPE_HALF
+    out.append(box([VAN_X - 0.75, 0.0, 21.0], [VAN_X + 0.75, vy, 22.5], "fr_pipe_post", f, "oak"))
+    zh = VAN_Z1 - 1.6
+    out.append(box([VAN_X - 0.4, VAN_Y + PIPE_HALF, zh - 0.4], [VAN_X + 0.4, PLATE_Y[0] - 0.8, zh + 0.4], "fr_pipe_hangrod", f, "iron"))
+    out.append(box([VAN_X - 0.6, PLATE_Y[0] - 0.8, zh - 0.6], [VAN_X + 0.6, PLATE_Y[0], Z_LEN - POST + 0.6], "fr_pipe_hanger", f, "iron"))
     return out
 
 
@@ -917,7 +900,7 @@ def tt_floor(z):
 def build_table():
     """The fixed parts: four legs with iron slide plates under the joists, braced along; the tails launder
     along the low edge, falling south past the deck's end to its spout (P3) over launder S, or the
-    vanner's feed box; the water pipe from the table's cock down to the water launder's north end."""
+    vanner's feed box. Its water comes from the water line's nozzle under the tee."""
     p = "table"
     out = []
     for i, (jx0, jx1) in enumerate(JOISTS_X, 1):
@@ -931,19 +914,10 @@ def build_table():
     for i, (lz0, lz1) in enumerate(TT_LEGS_Z, 1):
         y = under_slope(TT_Y[0], TT_Y[1], TT_Z[0], TT_Z[1], lz0, lz1, LAUNDER_T)
         out.append(box([TT_X[0] + 0.9, 0.0, lz0], [TT_X[1] - 0.9, y, lz1], f"tb_tt_leg{i}", p, "oak"))
-    # the water: from the table's cock down, south over the jig's spout, and down to the water launder
-    hy, hz = HEADER
-    x = TABLE_COCK_X
-    ytop = hy - HEADER_H - 2.2
-    yrun = WEIR_Y + 1.2 + 0.4
-    zn = WL_Z[0] + 2.0
-    out.append(box([x - 0.6, yrun + 1.2, hz - 0.6], [x + 0.6, ytop, hz + 0.6], "tb_pipe_drop", p, "pipe"))
-    out.append(box([x - 0.6, yrun, hz - 0.6], [x + 0.6, yrun + 1.2, zn + 0.6], "tb_pipe_run", p, "pipe"))
-    out.append(box([x - 0.6, DECK_TOP + 2.0, zn - 0.6], [x + 0.6, yrun, zn + 0.6], "tb_pipe_nozzle", p, "pipe"))
     return out
 
 
-# ---------------------------------------------------------------- builders: level 4, the vanner and the pump
+# ---------------------------------------------------------------- builders: level 4, the vanner
 CS_C = (0.0, CS[0], CS[1])
 
 
@@ -960,27 +934,34 @@ def belt_loop(name, part):
 
 
 def build_vanner_moving():
-    """The vanner's drive pulley on the line shaft; the countershaft (its pulley, two sheaves, the worm);
-    the shaking frame: two rails, the end ties, the rollers' bearings, the belt and its raised edges, the
-    yokes the sheaves run in (upright slots: the frame follows them across); the head roller with its worm
-    wheel; the foot roller."""
+    """The vanner's drive pulley on the line shaft; the countershaft (its pulley, two sheaves); the worm
+    shaft in line beyond it (the ratchet wheel, the worm); the shaking frame: two rails, the end ties, the
+    rollers' bearings, the belt and its raised edges, the yokes the sheaves run in (upright slots: the frame
+    follows them across), the pawl under the ratchet; the head roller with its worm wheel; the foot roller."""
     out = pulley("x", LS_C, *VPULLEY_X, VPULLEY_R, "vannerpulley", "vannerpulley")
     c = "vannershaft"
     hx = HEAD[0]
-    out += disc("x", CS_C, CS_X[0], hx - 2.2, CS_R, f"{c}_rod", c, "steel")
-    out += disc("x", CS_C, hx + 2.2, CS_X[1], CS_R, f"{c}_rod2", c, "steel")
+    out += disc("x", CS_C, CS_X[0], CS_X[1], CS_R, f"{c}_rod", c, "steel")
     out += pulley("x", CS_C, *VPULLEY_X, VPULLEY_R, f"{c}_pulley", c)
     for i, xs in enumerate(CS_SHEAVES_X, 1):
         out += sheave(xs, CS, (VN_E, 0.0), f"{c}_sheave{i}", c)
     for i, (px0, px1) in enumerate(CS_PEDESTALS, 1):
+        pid = c if i <= 3 else "vannerworm"
         for j, xc in enumerate((px0 - 0.5, px1), 1):
-            out += disc("x", CS_C, xc, xc + 0.5, 1.15, f"{c}_collar{i}{j}", c, "steel", k=4)
-    # the worm: a core and four thread rings, pitched so a turn moves the wheel a tooth
+            if (i, j) in ((3, 2), (4, 1)):
+                continue                              # the countershaft's end and the worm shaft's start face the ratchet
+            out += disc("x", CS_C, xc, xc + 0.5, 1.15, f"{pid}_collar{i}{j}", pid, "steel", k=4)
+    # the worm shaft: its rod, the ratchet wheel at its west end, and the worm over the head roller's wheel,
+    # a core and four thread rings pitched so a turn moves the wheel a tooth
+    w = "vannerworm"
+    out += disc("x", CS_C, WS_X[0], hx - 2.3, CS_R, f"{w}_rod", w, "steel")
+    out += disc("x", CS_C, hx + 2.3, WS_X[1], CS_R, f"{w}_rod2", w, "steel")
+    out += gear("x", CS_C, *RATCHET_X, RATCHET_R, RATCHET_N, RATCHET_MOD, f"{w}_ratchet", w, "steel", body_k=6)
     lead = math.pi * WHEEL_MOD
-    out += disc("x", CS_C, hx - 2.3, hx + 2.3, WORM_R - 1.25 * WHEEL_MOD + 0.15, f"{c}_worm_core", c, "steel", k=4)
+    out += disc("x", CS_C, hx - 2.3, hx + 2.3, WORM_R - 1.25 * WHEEL_MOD + 0.15, f"{w}_worm_core", w, "steel", k=4)
     for i in range(4):
         xt = hx - 1.5 * lead + i * lead
-        ring = disc("x", CS_C, xt - 0.35, xt + 0.35, WORM_R + WHEEL_MOD * 0.8, f"{c}_worm_thread{i + 1}", c, "steel", k=4)
+        ring = disc("x", CS_C, xt - 0.35, xt + 0.35, WORM_R + WHEEL_MOD * 0.8, f"{w}_worm_thread{i + 1}", w, "steel", k=4)
         rotate(ring, "z", -7.0, (xt, CS[0], CS[1]))
         out += ring
     f = "vannerframe"
@@ -1005,6 +986,12 @@ def build_vanner_moving():
         north = next(e for e in ys if e.name.endswith("_n"))
         lo, hi = north.aabb()
         out.append(box([lo[0], RAIL_Y[1], lo[2]], [hi[0], lo[1], hi[2]], f"{f}_yoke{i}_hanger", f, "iron"))
+    # the pawl: an iron bracket up from the south rail, its tip under the ratchet's lowest teeth; it pushes
+    # them along with the shake, a tooth a stroke, and rides back over them
+    rx0, rx1 = RATCHET_X
+    tip = CS[0] - RATCHET_R - RATCHET_MOD - 0.05
+    out.append(box([rx0, RAIL_Y[1], RAILS_Z[1][0] + 0.2], [rx1, tip - 0.6, RAILS_Z[1][1]], f"{f}_pawl_arm", f, "iron"))
+    out.append(box([rx0, tip - 0.6, RAILS_Z[1][0] + 0.2], [rx1, tip, CS[1] + 0.9], f"{f}_pawl", f, "iron"))
     hc = (HEAD[0], HEAD[1], 0.0)
     out += disc("z", hc, BELT_Z[0] - 0.2, BELT_Z[1] + 0.2, ROLL_R, "vannerhead_drum", "vannerhead", "oak", k=6)
     out += disc("z", hc, RAILS_Z[0][0] - 0.3, WHEEL_Z[0] + 0.1, 0.5, "vannerhead_journal", "vannerhead", "steel")
@@ -1016,11 +1003,10 @@ def build_vanner_moving():
 
 
 def build_vanner():
-    """The fixed parts: slide posts with iron plates under the rails; the countershaft's pedestals; the
-    concentrate box under the head roller on two bearers over launder S, its spout north into the
-    concentrate launder; the feed box over the belt under the table's spout, on two posts; the water pipe
-    from the vanner's cock along the middle tie beam and down to the distributor across the belt; the drive
-    belt."""
+    """The fixed parts: slide posts with iron plates under the rails; the pedestals of the countershaft and
+    the worm shaft; the concentrate box under the head roller on two bearers over launder S, its spout north
+    into the concentrate launder; the feed box over the belt under the table's spout, hung from the water
+    line's run beside it; the drive belt. Its wash water comes from the water line's nozzles."""
     p = "vanner"
     out = []
     for i, x in enumerate(VSLIDES_X, 1):
@@ -1060,23 +1046,72 @@ def build_vanner():
     out.append(box([fx1 - 0.6, fy0 + 0.4, bz0], [fx1, fy1, bz1], "vn_fb_e", p, "planks"))
     out.append(box([fx0, fy0 + 0.4, bz0], [fx1 - 0.6, fy1, bz0 + 0.6], "vn_fb_n", p, "planks"))
     out.append(box([fx0, fy0 + 0.4, bz1 - 0.6], [fx1 - 0.6, fy1, bz1], "vn_fb_s", p, "planks"))
-    for i, (px0, px1) in enumerate(((38.0, 38.8), (40.8, 41.6)), 1):
-        out.append(box([px0, 0.0, 43.8], [px1, fy0 + 0.4, 44.8], f"vn_fb_post{i}", p, "oak"))
-        out.append(box([px0, fy0 + 0.4, bz1 - 0.6], [px1, fy0 + 0.9, 44.8], f"vn_fb_arm{i}", p, "iron"))
-    # the water: from the vanner's cock south along the middle tie beam, east, and down to the distributor
-    hy, hz = HEADER
-    vx = VANNER_COCK_X
-    yp = hy
-    zl = 37.4
-    z_out = hz + HEADER_H + 3.0
-    out.append(box([vx - 0.6, yp - 0.6, z_out], [vx + 0.6, yp + 0.6, zl + 0.6], "vn_pipe_run", p, "pipe"))
-    out.append(box([vx + 0.6, yp - 0.6, zl - 0.6], [DIST_X[1], yp + 0.6, zl + 0.6], "vn_pipe_run2", p, "pipe"))
-    dx = sum(DIST_X) / 2
-    out.append(box([dx - 0.6, DIST_Y[1], zl - 0.6], [dx + 0.6, yp - 0.6, zl + 0.6], "vn_pipe_drop", p, "pipe"))
-    out.append(box([DIST_X[0], DIST_Y[0], BELT_Z[0] + 1.4], [DIST_X[1], DIST_Y[1], BELT_Z[1] - 1.4], "vn_dist", p, "pipe"))
-    for i, zc in enumerate((12.0, 30.0), 1):
-        out.append(box([vx + 0.6, yp - 0.6, zc - 0.5], [MID_X[0], yp + 0.6, zc + 0.5], f"vn_pipe_clip{i}", p, "iron"))
+    vx0 = VAN_X - PIPE_HALF
+    out.append(box([fx1 - 0.6, fy1, 36.0], [vx0, VAN_Y - PIPE_HALF + 1.6, 39.0], "vn_fb_hanger", p, "iron"))
     out += belt("x", LS_C, VPULLEY_R, CS_C, VPULLEY_R, VPULLEY_X[0] + 0.15, VPULLEY_X[1] - 0.15, "vn_belt", p)
+    return out
+
+
+# ---------------------------------------------------------------- builders: the water line (soldered pipe)
+def pipe_boxes():
+    """The water line as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels): the inlet
+    from the water face, on the axis of the ppex pipe beyond it, to a tee; west from the tee to a closed hub
+    over the head of the line; east from it to an elbow, down to a second elbow under the line shaft, and
+    south in two lengths, a joint at their seam, to its end over the belt, plugged with solder. A nozzle
+    under the head of the line's hub, one under the tee (the table's), three along the vanner's run. As in
+    the rosser's drip, the inlet has no joint at the face: the pipe beyond brings its own."""
+    h = PIPE_HALF
+    x, y = WATER_IN
+    z = TEE_Z
+    out = solderedpipe.tube("inlet", 2, 0.0, z - h, (x, y))
+    out += solderedpipe.hub("tee", (x, y, z), ("north", "west", "east"))
+    out += solderedpipe.tube("head", 0, HEAD_OUT_X + h, x - h, (z, y))
+    out += solderedpipe.hub("headend", (HEAD_OUT_X, y, z), ("east",))
+    out += solderedpipe.tube("cross", 0, x + h, VAN_X - h, (z, y))
+    out += solderedpipe.hub("elbow1", (VAN_X, y, z), ("west", "down"))
+    out += solderedpipe.tube("drop", 1, VAN_Y + h, y - h, (VAN_X, z))
+    out += solderedpipe.hub("elbow2", (VAN_X, VAN_Y, z), ("up", "south"))
+    out += solderedpipe.tube("van1", 2, z + h, VAN_SEAM, (VAN_X, VAN_Y))
+    out += solderedpipe.tube("van2", 2, VAN_SEAM, VAN_Z1, (VAN_X, VAN_Y))
+    out += solderedpipe.joint("joint_van", 2, VAN_SEAM, (VAN_X, VAN_Y))
+    i_ = h - solderedpipe.WALL
+    out.append(solderedpipe.Box("cap", [VAN_X - i_, VAN_Y - i_, VAN_Z1 - solderedpipe.WALL], [VAN_X + i_, VAN_Y + i_, VAN_Z1],
+                                solderedpipe.SOLDER))
+    noz = [("nozzle_head", HEAD_OUT_X, y, z), ("nozzle_table", x, y, TABLE_OUT_Z)]
+    noz += [(f"nozzle_van{i}", VAN_X, VAN_Y, zn) for i, zn in enumerate(VAN_NOZZLES_Z, 1)]
+    for name, nx, ny, nz in noz:
+        out.append(solderedpipe.Box(name, [nx - 0.6, ny - h - NOZZLE_Y, nz - 0.6], [nx + 0.6, ny - h, nz + 0.6], solderedpipe.BODY))
+    return solderedpipe.cull_pressed(out)
+
+
+def build_pipes(metal_=PIPE_METALS[0]):
+    """The water line as elements of the part `pipe<metal_>` (`pipe_boxes`): the body in that metal's pipe
+    texture, the joints in solder, each face's UVs solderedpipe's on this model's texture scale. Built in
+    copper; `pipe_copies` makes lead."""
+    p = f"pipe{metal_}"
+    codes = {solderedpipe.BODY: f"#{p}", solderedpipe.SOLDER: "#solder"}
+    out = []
+    for b in pipe_boxes():
+        size = b.size()
+        faces = {d: {"texture": codes[b.role], "uv": solderedpipe.uv(d, size, TEX / 16)} for d in b.faces}
+        out.append(El(f"{p}_{b.name}", size, [(b.lo[k] + b.hi[k]) / 2 for k in range(3)], [row[:] for row in IDENT], faces, p))
+    return out
+
+
+def pipe_copies(els):
+    """The water line in the other metals: the first metal's elements as they are (after the z-fighting
+    fix, so every copy has the same insets), renamed and in their own metal's texture; the joints stay
+    solder. Only one metal's are ever drawn, so the copies are not checked against each other."""
+    first = PIPES[0]
+    out = []
+    for m in PIPE_METALS[1:]:
+        for el in els:
+            if el.part == first:
+                c = el.clone(f"pipe{m}" + el.name[len(first):], f"pipe{m}")
+                for face in c.faces.values():
+                    if face["texture"] == f"#{first}":
+                        face["texture"] = f"#pipe{m}"
+                out.append(c)
     return out
 
 
@@ -1101,7 +1136,7 @@ def build_plates():
 
 def build():
     return (build_lineshaft() + build_jig_moving() + build_table_moving() + build_vanner_moving()
-            + build_sluice() + build_jig() + build_table() + build_vanner() + build_plates() + build_frame())
+            + build_sluice() + build_jig() + build_table() + build_vanner() + build_plates() + build_pipes() + build_frame())
 
 
 # ---------------------------------------------------------------- rig
@@ -1113,13 +1148,17 @@ def pt(*v):
     return [r6(x / B) for x in v]
 
 
-HEAD_RATIO = -1.0 / WORM_N                   # the head roller: its top runs east (up the belt, to the head) as the axle turns +
+WORM_RATIO = RATCHET_RATIO                   # the worm shaft turns with the ratchet
+HEAD_RATIO = -WORM_RATIO / WORM_N            # the head roller: its top runs east (up the belt, to the head), always
 FOOT_RATIO = HEAD_RATIO                      # the same radius, the same belt
 
 
-def rot(axis, c, ratio):
-    """A rotate about `axis` through c (x, y, z voxels) by ratio x theta."""
-    return {"type": "rotate", "axis": axis, "pivot": pt(*c), "ratio": r6(ratio)}
+def rot(axis, c, ratio, travel=False):
+    """A rotate about `axis` through c (x, y, z voxels) by ratio x theta (or x psi, the travel)."""
+    d = {"type": "rotate", "axis": axis, "pivot": pt(*c), "ratio": r6(ratio)}
+    if travel:
+        d["input"] = "travel"
+    return d
 
 
 def slide(axis, amplitude):
@@ -1146,14 +1185,16 @@ def _rig_parts():
         # each yoke follows its sheave's centre exactly: up and down (the jig's plunger), across (the deck)
         {"id": "jigplunger", "match": ["jigplunger_*"], "requires": "jig", "drivers": [slide("y", JIG_E)]},
         {"id": "tabledeck", "match": ["tabledeck_*"], "requires": "table", "drivers": [slide("z", TABLE_E)]},
-        # the vanner: its countershaft belted 1:1 from the line shaft, the frame shaken by its two sheaves,
-        # the head roller crept by the worm, the foot roller turned by the belt
+        # the vanner: its countershaft belted 1:1 from the line shaft, the frame shaken by its two sheaves;
+        # the worm shaft turned forward by the ratchet the pawl on the frame pushes a tooth a stroke (so by the
+        # travel, either way), the head roller crept by the worm, the foot roller turned by the belt
         {"id": "vannershaft", "match": ["vannershaft_*"], "requires": "vanner", "drivers": [rot("x", (0.0, *CS), 1.0)]},
+        {"id": "vannerworm", "match": ["vannerworm_*"], "requires": "vanner", "drivers": [rot("x", (0.0, *CS), WORM_RATIO, True)]},
         {"id": "vannerframe", "match": ["vannerframe_*"], "requires": "vanner", "drivers": [slide("z", VN_E)]},
         {"id": "vannerhead", "match": ["vannerhead_*"], "requires": "vanner", "ride": "vannerframe",
-         "drivers": [rot("z", (HEAD[0], HEAD[1], 0.0), HEAD_RATIO)]},
+         "drivers": [rot("z", (HEAD[0], HEAD[1], 0.0), HEAD_RATIO, True)]},
         {"id": "vannerfoot", "match": ["vannerfoot_*"], "requires": "vanner", "ride": "vannerframe",
-         "drivers": [rot("z", (FOOT[0], FOOT[1], 0.0), FOOT_RATIO)]},
+         "drivers": [rot("z", (FOOT[0], FOOT[1], 0.0), FOOT_RATIO, True)]},
         # the fixed parts of each level, and the frame
         {"id": "sluice", "match": ["sl_*"], "requires": "sluice", "drivers": []},
         {"id": "linehangers", "match": ["ls_*"], "requires": "lineshaft", "drivers": []},
@@ -1162,6 +1203,8 @@ def _rig_parts():
         {"id": "vanner", "match": ["vn_*"], "requires": "vanner", "drivers": []},
         {"id": "plates", "match": ["pl_*"], "requires": "plates", "drivers": []},
         {"id": "dressing", "match": ["pd_*"], "requires": "dressing", "drivers": []},
+        # the water line, one part per metal: only the supplied metal's is drawn
+        *[{"id": pid, "match": [f"{pid}_*"], "requires": pid, "drivers": []} for pid in PIPES],
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
     ]
     for p in parts:
@@ -1172,26 +1215,29 @@ def _rig_parts():
 
 
 # ---------------------------------------------------------------- poses and states
-REST = (0.0,)                                 # a pose is (theta,) or (theta, state)
+REST = (0.0,)                                 # a pose is (theta,) or (theta, state): turned from 0, so the travel is |theta|
 
 
 def inputs_of(pose):
-    return {"theta": pose[0]}
+    return {"theta": pose[0], "travel": abs(pose[0])}
 
 
 def pm(parts, pid, pose, path=None):
     return _part_matrix(parts, pid, inputs_of(pose), path)
 
 
-STATES = {                                    # what is fitted in each state: the levels, alone and with the plates
+LEVEL_STATES = {                              # what each level fits
     "frame": (),
     "level1": ("sluice",),
     "level2": ("lineshaft", "jig"),
     "level3": ("lineshaft", "jig", "table"),
     "level4": ("lineshaft", "jig", "table", "vanner"),
-    "level2plates": ("lineshaft", "jig", "plates"),
-    "level3dressed": ("lineshaft", "jig", "table", "plates", "dressing"),
-    "level4dressed": ("lineshaft", "jig", "table", "vanner", "plates", "dressing"),
+}
+STATES = {                                    # what is fitted in each state checked: the levels, alone and with the
+    **{k: v + (PIPES[0],) for k, v in LEVEL_STATES.items()},     # plates, with the water line in copper (lead is
+    "level2plates": ("lineshaft", "jig", "plates", PIPES[0]),    # the same elements, never drawn with it)
+    "level3dressed": ("lineshaft", "jig", "table", "plates", "dressing", PIPES[0]),
+    "level4dressed": ("lineshaft", "jig", "table", "vanner", "plates", "dressing", PIPES[0]),
 }
 
 
@@ -1228,15 +1274,19 @@ def make_rig(parts):
         "returnWaterCell": list(RETURN_CELL),
         "returnWaterFace": RETURN_FACE,
         "levels": [{"level": n, "tier": tier, "name": name, "requires": list(req)} for n, tier, req, name in LEVELS],
+        "pipes": {"requires": {m: f"pipe{m}" for m in PIPE_METALS},
+                  "_comment": "The water line, from the inlet to its nozzles: ppex's straight pipe, soldered, one part per "
+                              "metal (the same elements); only the supplied metal's is drawn."},
         "plates": {"requires": PLATES[0], "dressing": PLATES[1], "fromLevel": PLATES_FROM,
                    "_comment": "The amalgamation plates: one fitted part from fromLevel on, not a level of their own; "
                                "dressing is their mercury coat, drawn over them while they are dressed."},
         "drive": {"strokesPerTurn": {"jig": 1.0, "table": 1.0, "vanner": 1.0},
                   "beltPerTurn": r6(abs(HEAD_RATIO) * ROLL_R / B * TAU),
+                  "ratchet": {"teeth": RATCHET_N, "turnsPerTurn": r6(RATCHET_RATIO)},
                   "_comment": "strokesPerTurn: each machine's working strokes (the plunger's, the deck's, the vanner's "
                               "shakes) per turn of the axle, the line shaft turning with it. beltPerTurn: "
-                              "blocks the vanner's belt creeps to its head per turn (a single-start worm on a 12-tooth "
-                              "wheel); it runs backwards with the axle."},
+                              "blocks the vanner's belt creeps to its head per turn of the axle, either way (the ratchet "
+                              "turns the worm shaft forward a tooth a stroke; a single-start worm on a 12-tooth wheel)."},
         "parts": parts,
     }
 
@@ -1280,7 +1330,7 @@ def shipped_cells(shape, ship_parts):
         lo, hi = el.aabb()
         for c in cells_touched(lo, hi):
             by_cell.setdefault(c, {}).setdefault(r, []).append(el)
-    order = [None, *REQUIRES, *PLATES]
+    order = [None, *REQUIRES, *PLATES, *PIPES]
     out = []
     for c in footprint():
         pos = tuple(c[k] - ORIGIN_CELL[k] for k in range(3))
@@ -1318,16 +1368,22 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
 
 # ---------------------------------------------------------------- reference poses
 def reference_poses():
-    return [(th,) for th in (0.0, 0.7, -1.9, 2.6, 4.1, -5.3, 11.05)]
+    """(theta, travel): turned from rest either way, and with travel run up both ways first."""
+    out = []
+    for th in (0.0, 0.7, -1.9, 2.6, 4.1, -5.3, 11.05):
+        for extra in (0.0, 3.7):
+            out.append((th, round(abs(th) + extra, 6)))
+    return out
 
 
 def reference_json(ship_parts):
     poses = []
-    for pose in reference_poses():
-        mats = {q["id"]: round_matrix(_part_matrix(ship_parts, q["id"], inputs_of(pose))) for q in ship_parts}
-        poses.append({"theta": pose[0], "matrices": mats})
+    for th, ps in reference_poses():
+        mats = {q["id"]: round_matrix(_part_matrix(ship_parts, q["id"], {"theta": th, "travel": ps})) for q in ship_parts}
+        poses.append({"theta": th, "travel": ps, "matrices": mats})
     return {"_comment": f"Generated by {SCRIPT} from the shipped concentrator-rig.json's parts: each part's matrix as 3 rows of 4 "
-                        "(block units) at each pose (theta the axle's angle, radians). The site's and the mod's tests check "
+                        "(block units) at each pose (theta the axle's angle, travel its total travel either way, radians). The site's "
+                        "and the mod's tests check "
                         "their rig maths against it.",
             "poses": poses}
 
@@ -1337,7 +1393,8 @@ def shape_json(els):
     return machine_shape_json(
         els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. The wash house frame (fr_*) and "
              "each level's parts (sl_: sluice; lineshaft / ls_: line shaft; jig* / jg_: jig; table* / tb_: table; "
-             "vanner* / vn_: vanner; pl_ / pd_: amalgamation plates and dressing). Keep element "
+             "vanner* / vn_: vanner; pl_ / pd_: amalgamation plates and dressing; pipecopper_ / pipelead_: the water "
+             "line in each metal). Keep element "
              "names when editing: the rig finds its parts by them.",
         TEXTURES, tex_size=TEX)
 
@@ -1392,6 +1449,7 @@ def main():
         before, hidden = fix_coplanar(els, parts)
         n = sum(len(v) for v in before.values())
         print(f"coplanar faces before the fix: {n} pairs over {len(before)} poses; {hidden} faces pressed against their own part removed")
+    els += pipe_copies(els)
     rig = make_rig(parts)
     ok = validate_concentrator.validate(sys.modules[__name__], els, parts, rig, quick=args.quick)
     if args.out:
