@@ -79,8 +79,9 @@ The eidolon's model (`assets/seraphhorizons/shapes/entity/eidolon/eidolon.json`)
 own mobile eidolon by Anego Studios, the game's `shapes/entity/lore/eidolon/normal.json` (game
 1.22.7), copied into this mod as a snapshot by `Eidolon/tools/make_shape.py`. Its elements and their
 geometry, and the vanilla animations the file keeps (`stand-*`, `weapon-*`, `toppleover`), are that
-model's, unchanged. Its textures are not copied: the shape points at the game's own files, one of
-them swapped for another of the game's (rusty iron for tarnished brass). Its spine (`spine1` and
+model's, unchanged. Its textures are not copied: the shape points at the game's own files, with
+the aged ones swapped for others of the game's, the same materials new (brass and steel plate for
+rusty iron and steel, oak for charred wood, plain leather, steel chain). Its spine (`spine1` and
 everything under it) is cut off the eidolon unchanged and drawn as part of the gantry (below); its
 copy, `EidolonGantry/spine.json`, is that model's too. Added for this mod: the three
 anchor elements (`carry-anchor`, `trunk-anchor`, `thick-trunk-anchor`), the `RightHand`, `LeftHand`,
