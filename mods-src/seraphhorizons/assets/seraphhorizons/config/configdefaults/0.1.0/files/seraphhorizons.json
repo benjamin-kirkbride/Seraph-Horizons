@@ -99,6 +99,7 @@
     "BlowsChunk": 3,
     "HammerWearPerBlow": 1
   },
+  "FirepitRoastSeconds": 10.0,
   "TraderSchematics": true,
   "MachineSchematics": true,
   "TraderOrders": true,
