@@ -4044,8 +4044,8 @@ through the hidden-guides list). The recipe export has a record per sulfide (typ
 `tools/recipe-export/Recipes/OreRoastingExport.cs`, docs/recipe-browser/schema.md), its output the
 share (0.85 of a roasted item). Tests: `tests/Ore/OreRoastingTests.cs` (the share, runs of any split,
 the cook time); `tests/PackTests/OreProcessingScenarios.cs` (`Firepit_roasts_sulfide_concentrate`: the
-props, and 20 concentrate through a firepit's own `smeltItems` giving 17) and
-`OreProcessingExportScenarios.cs` (the records, the guide, the schema, with the switch on).
+props, and 20 concentrate through a firepit's own `smeltItems` giving 17; `Roasting_is_exported`: the
+records and the guide in the export, with the switch on).
 
 ## Trading
 

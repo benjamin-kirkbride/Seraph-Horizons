@@ -532,6 +532,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var dump = Environment.GetEnvironmentVariable("SPALLING_EXPORT_DUMP");
         if (!string.IsNullOrEmpty(dump))
             File.WriteAllText(dump, doc.ToString());
+    }
 
     // Roasting in the firepit (#720): any fuel, one item at a time, 85 % with the fraction carried,
     // so 20 concentrate give 17 roasted; no sulfur.
@@ -670,5 +671,31 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.NotEmpty(recipes);
         Assert.All(recipes, r => Assert.Contains(r.Ingredients, i => i.SatisfiesAsIngredient(Stack("game:powder-alum", 1), false)));
         Assert.Contains("game:recipes/barrel/dilutedalum.json", System.RetargetedRecipes);
+    }
+
+    // The recipe export (the one the spalling scenario reads, built once per server): a roasting
+    // record per sulfide, the firepit a station, 0.85 of a roasted concentrate out of one
+    // concentrate; and the roasting guide page.
+    [AtlasScenario(TimeoutMs = 600_000)]
+    public void Roasting_is_exported()
+    {
+        var doc = ExportUnderTest.Get(World.Api);
+        var type = doc["recipeTypes"]![RecipeSection.OreRoastingType]!;
+        Assert.Equal("generic", (string?)type["shape"]);
+        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string?)r["type"] == RecipeSection.OreRoastingType).ToList();
+        Assert.Equal(System.Applied!.Roasting, records.Count);
+        Assert.Equal(records.Count, (int)type["count"]!);
+        var galena = records.Single(r => (string?)r["id"] == "oreroasting|seraphhorizons:concentrate-galena|0");
+        Assert.Equal("OreProcessing", (string?)galena["switch"]);
+        var ingredients = (JArray)galena["ingredients"]!;
+        Assert.Equal("seraphhorizons:concentrate-galena", (string?)ingredients[0]["code"]);
+        Assert.Equal(1, (double)ingredients[0]["quantity"]!);
+        Assert.Equal("game:firepit-cold", (string?)ingredients[1]["code"]);
+        Assert.Equal("station", (string?)ingredients[1]["role"]);
+        var output = galena["outputs"]![0]!;
+        Assert.Equal("seraphhorizons:roastedconcentrate-galena", (string?)output["code"]);
+        Assert.Equal(0.85, (double)output["quantity"]!, 9);
+        Assert.Equal(OreRoasting.MeltingPoint, (int)galena["extra"]!["meltingPoint"]!);
+        Assert.Contains(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == OreProcessingSystem.RoastingGuidePage);
     }
 }

@@ -50,7 +50,7 @@ public partial class RecipeExportScenarios
             foreach (var pattern in hand.CodePatterns)
                 Assert.True(Matches(pattern), $"{hand.Switch}: no registered code matches {pattern}");
         // A recipe type of a switch off here (OreProcessing's oreroasting) is checked where it is on
-        // (OreProcessingExportScenarios).
+        // (OreProcessingScenarios.Roasting_is_exported).
         foreach (var owned in registry.Owned.Where(o => On(o.Switch)))
         {
             foreach (var type in owned.RecipeTypes)
