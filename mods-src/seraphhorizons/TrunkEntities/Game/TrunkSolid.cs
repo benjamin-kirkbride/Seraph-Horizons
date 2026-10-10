@@ -11,7 +11,8 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// A trunk as good as solid to whoever walks into it: an agent whose collision box (as a cylinder)
 /// is in the trunk's oriented footprint is moved out the shortest way (<see cref="TrunkPush"/>), at most
 /// <see cref="TrunkPush.MaxStep"/> a step, and its motion into the trunk is stopped; one whose
-/// feet are near the top is lifted onto it and stands there. The trunk itself is never moved by
+/// feet are near the top, its middle over the trunk or near its edge, is lifted onto it and stands
+/// there. The trunk itself is never moved by
 /// this, and its driver (mounted, standing just beyond its end) is left alone. The game's
 /// <c>repulseagents</c> shoves only by the trunk's square middle hitbox, at most 0.1 blocks per
 /// 1/60 s of motion; this acts on the whole trunk, by position.
