@@ -81,8 +81,9 @@ neither set of animations has to move the other's anchor away from rest. It cost
 | `ObjectR`, `ObjectL` | `wristR`, `wristL` | Vanilla's, kept | Unused by vanilla's mobile eidolon. |
 
 Carry On's own player point is `carryon:FrontCarry` (patched onto the seraph by Carry On); the
-eidolon draws its carried block itself at `Carry` (`Eidolon/Game/EidolonCarrySystem.cs`'s
-`EidolonCarryRenderer`, through `EidolonAttachmentRender`, which any point can use).
+eidolon draws its carried block itself at `Carry`, and its carried trunk at `Trunk` or `ThickTrunk`, in
+its own renderer (`Eidolon/Game/EidolonShapeRenderer.cs`, through `EidolonAttachmentRender`, which any
+point can use); the axe at `RightHand` is the game's held-item drawing.
 
 ## Animations
 

@@ -15,7 +15,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// watched attributes (<see cref="LoadKey"/>) in Carry On's own carried form (<see cref="EidolonCarryOn"/>:
 /// the block's stack, its block entity's data, the block it was and its turn, wall signs on it), so
 /// it is saved with the entity, outlives a chunk unload, and is drawn by every client
-/// (<see cref="EidolonCarryRenderer"/>, at the shape's <c>Carry</c> point).
+/// (<see cref="EidolonShapeRenderer"/>, at the shape's <c>Carry</c> point).
 ///
 /// <para>While it holds a load it walks with <c>carry-walk</c> (<see cref="IEidolonStance"/>) and stands
 /// with <c>carry-idle</c>. Set down (<see cref="TryPlace"/>, the set-down order's release frame) the
@@ -50,16 +50,6 @@ public class EntityBehaviorEidolonCarry(Entity entity) : EntityBehavior(entity),
     public bool Busy { get; set; }
 
     public override string PropertyName() => Code;
-
-    /// <summary>The eidolons loaded on this client, for <see cref="EidolonCarryRenderer"/>.</summary>
-    internal static readonly HashSet<Entity> Tracked = [];
-
-    public override void Initialize(EntityProperties properties, JsonObject attributes)
-    {
-        base.Initialize(properties, attributes);
-        if (entity.Api.Side == EnumAppSide.Client)
-            Tracked.Add(entity);
-    }
 
     /// <summary>The load (Carry On's carried form), or null.</summary>
     public ITreeAttribute? Load => entity.WatchedAttributes.GetTreeAttribute(LoadKey) is { } tree && tree.HasAttribute("Stack") ? tree : null;
@@ -256,7 +246,6 @@ public class EntityBehaviorEidolonCarry(Entity entity) : EntityBehavior(entity),
         base.OnEntityDespawn(despawn);
         if (entity.Api.Side == EnumAppSide.Client)
         {
-            Tracked.Remove(entity);
             _dialog?.TryClose();
             return;
         }
