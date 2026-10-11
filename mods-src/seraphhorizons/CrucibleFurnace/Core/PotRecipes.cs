@@ -71,7 +71,7 @@ public readonly record struct PotProducts(int Units, int Lumps, int Byproducts);
 
 /// <summary>
 /// The pot recipes and the rules for charging a pot and melting it: what may go in, whether a charge
-/// makes anything, and what it makes. Game-independent, with the default recipes built in (the four of
+/// makes anything, and what it makes. Game-independent, with the default recipes built in (the five of
 /// README "Crucible furnace"); the game side drops a recipe whose mods are not loaded.
 /// </summary>
 public sealed class PotRecipes(IReadOnlyList<PotRecipe> recipes)
@@ -111,7 +111,15 @@ public sealed class PotRecipes(IReadOnlyList<PotRecipe> recipes)
         new("stainless", [Stainless.Bit, Stainless.Ingot], 1, 1),
     ], Stainless.Ingot, Pourable: true, Yield: 1, Temperature: 1530);
 
-    public static readonly PotRecipes Default = new([FerrosiliconRecipe, FerrochromeRecipe, StainlessRecipe, RemeltRecipe]);
+    /// <summary>Iron for large castings (#768): iron ingots and bits alone, melted at iron's melting
+    /// point into molten iron, unit for unit. Steel and meteoric iron stay out. A pot of it pours only
+    /// into <see cref="CrucibleFurnaceConfig.LargeCastingMolds"/>, so iron tools stay smithed.</summary>
+    public static readonly PotRecipe IronRecipe = new("iron",
+    [
+        new("iron", [Stainless.IronIngot, Stainless.IronBit], 1, 1),
+    ], Stainless.IronIngot, Pourable: true, Yield: 1, Temperature: 1538);
+
+    public static readonly PotRecipes Default = new([FerrosiliconRecipe, FerrochromeRecipe, StainlessRecipe, RemeltRecipe, IronRecipe]);
 
     /// <summary>The recipe by its code, or null.</summary>
     public PotRecipe? Get(string? code) => Recipes.FirstOrDefault(r => r.Code == code);
