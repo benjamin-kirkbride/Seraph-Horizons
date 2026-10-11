@@ -281,12 +281,12 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
     {
         if (_parts.NextPart is not { } next)
             return false;
-        if (Api.World.GetItem(new AssetLocation(next)) is not { } item)
+        if (PartStack(Api.World, next) is not { } stack)
         {
             Api.Logger.Warning("[seraphhorizons] Cylinder borer: no {0} for the creative shortcut", next);
             return false;
         }
-        return TryFitPart(new DummySlot(new ItemStack(item)), byPlayer, free: true);
+        return TryFitPart(new DummySlot(stack), byPlayer, free: true);
     }
 
     /// <summary>Fits the part in <paramref name="slot"/> if it is the next stage's (server side);
@@ -593,11 +593,21 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
                 if (HeadStack(left) is { } head)
                     yield return head;
             }
-            else if (Api.World.GetItem(new AssetLocation(drop.Code)) is { } item)
-                yield return new ItemStack(item);
+            else if (PartStack(Api.World, drop.Code) is { } stack)
+                yield return stack;
         }
         if (BlankOn)
             yield return _blank!.Clone();
+    }
+
+    /// <summary>One of a part, by its code: an item, or a block (the bushings' metal parts are one);
+    /// null when the game has neither.</summary>
+    public static ItemStack? PartStack(IWorldAccessor world, string code)
+    {
+        var loc = new AssetLocation(code);
+        if (world.GetItem(loc) is { } item)
+            return new ItemStack(item);
+        return world.GetBlock(loc) is { Id: > 0 } block ? new ItemStack(block) : null;
     }
 
     public override void OnBlockRemoved()

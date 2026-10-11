@@ -246,13 +246,15 @@ class Bushings(unittest.TestCase):
             self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#cupronickel"}, e["name"])
         others = [e["name"] for e in SHAPE["elements"] if e not in bush and any(f["texture"] == "#cupronickel" for f in e["faces"].values())]
         self.assertEqual(others, [])
-        item = json.loads((ITEMS / "bushings.json").read_text())
-        self.assertEqual(item["textures"], {"cupronickel": cupronickel})
+
+    def test_the_bushings_stage_takes_the_games_metal_parts_not_an_item_of_its_own(self):
+        self.assertFalse((ITEMS / "bushings.json").exists())
+        self.assertFalse((MOD / "assets" / "seraphhorizons" / "itemtypes" / "cylinderborer" / "bushings.json").exists())
 
 
 class Items(unittest.TestCase):
     def test_each_item_shape_sits_in_the_item_box(self):
-        for name in ("bushings", "bar", "feed", "cutterhead", "cylinderblank", "cylinder"):
+        for name in ("bar", "feed", "cutterhead", "cylinderblank", "cylinder"):
             with self.subTest(item=name):
                 shape = json.loads((ITEMS / f"{name}.json").read_text())
                 els = flatten(shape["elements"], textures={})
