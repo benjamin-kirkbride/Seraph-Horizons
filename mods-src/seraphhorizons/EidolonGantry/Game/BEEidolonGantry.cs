@@ -1,6 +1,7 @@
 using System.Text;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.EidolonGantry.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -96,11 +97,8 @@ public class BEEidolonGantry : BlockEntity
 
     /// <summary>A native-frame point (the rig's anchors: <c>body</c>, <c>hang</c>, <c>fit</c>,
     /// <c>exit</c>) as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native)
-    {
-        var w = Footprint.ToWorld(native, Side);
-        return new Vec3d(Pos.X + w.X, Pos.Y + w.Y, Pos.Z + w.Z);
-    }
+    public Vec3d WorldPoint(Float3 native) =>
+        MachinePoints.WorldPoint(Pos, native, Side);
 
     /// <summary>How far from where the body hangs (the rig's <c>body</c> point) an eidolon counts as
     /// standing in the gantry, its dock (<see cref="Docks"/>), blocks.</summary>
