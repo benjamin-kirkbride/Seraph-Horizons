@@ -1,6 +1,7 @@
 using System.Text;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.CrucibleFurnace.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -115,13 +116,8 @@ public class BECrucibleFurnace : BlockEntity
     }
 
     /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native)
-    {
-        var w = Footprint.ToWorld(native, Side);
-        // in doubles: an int and a float add up to a float, which far from 0 (the world is about
-        // 512000 across) keeps only a thirty-second of a block
-        return new Vec3d(Pos.X + (double)w.X, Pos.Y + (double)w.Y, Pos.Z + (double)w.Z);
-    }
+    public Vec3d WorldPoint(Float3 native) =>
+        MachinePoints.WorldPoint(Pos, native, Side);
 
     /// <summary>A world position's cell in the native frame.</summary>
     public Int3 LocalCell(BlockPos cellPos) => Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side);
@@ -362,8 +358,7 @@ public class BECrucibleFurnace : BlockEntity
         bool server = Api.Side == EnumAppSide.Server;
         var cell = LocalCell(sel.Position);
         var hit = sel.HitPosition ?? new Vec3d(0.5, 0.5, 0.5);
-        var native = Footprint.ToLocal(new Float3((float)(sel.Position.X - Pos.X + hit.X), (float)(sel.Position.Y - Pos.Y + hit.Y),
-            (float)(sel.Position.Z - Pos.Z + hit.Z)), Side);
+        var native = MachinePoints.NativeHit(Pos, sel.Position, hit, Side);
 
         if (CreativeShortcutApplies(byPlayer))
         {

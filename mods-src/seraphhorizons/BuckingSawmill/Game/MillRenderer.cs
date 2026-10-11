@@ -290,11 +290,8 @@ public sealed class MillRenderer : IRenderer
     // the middle of the machine (native frame): over the bed's centre, where the trunk lies
     private Float3 Middle => _bed?.Origin ?? new Float3(0.5f, 0.5f, 0.5f);
 
-    private Vec3d WorldPoint(Float3 native)
-    {
-        var w = Footprint.ToWorld(native, _be.Side);
-        return new Vec3d(_be.Pos.X + w.X, _be.Pos.Y + w.Y, _be.Pos.Z + w.Z);
-    }
+    private Vec3d WorldPoint(Float3 native) =>
+        MachinePoints.WorldPoint(_be.Pos, native, _be.Side);
 
     public void Dispose()
     {

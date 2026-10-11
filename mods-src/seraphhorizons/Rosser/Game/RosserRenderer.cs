@@ -377,11 +377,8 @@ public sealed class RosserRenderer : IRenderer
         return _be.CellPos(new Int3(x, top + 1, z));
     }
 
-    private Vec3d WorldPoint(Float3 native)
-    {
-        var w = Footprint.ToWorld(native, _be.Side);
-        return new Vec3d(_be.Pos.X + w.X, _be.Pos.Y + w.Y, _be.Pos.Z + w.Z);
-    }
+    private Vec3d WorldPoint(Float3 native) =>
+        MachinePoints.WorldPoint(_be.Pos, native, _be.Side);
 
     public void Dispose()
     {
