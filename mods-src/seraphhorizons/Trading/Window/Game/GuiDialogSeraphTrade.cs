@@ -558,7 +558,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         {
             MapOfferAttrs.OreMap => TradeWindowModel.OreMapRow(a.GetString(MapOfferAttrs.Metal) ?? "", OreNames.Split(a.GetString(MapOfferAttrs.Ores)),
                 a.GetString(MapOfferAttrs.SizeTier), a.GetString(MapOfferAttrs.Grades), RockName(a.GetString(MapOfferAttrs.Rock)),
-                a.GetDouble(MapOfferAttrs.Distance), a.GetAsInt(MapOfferAttrs.Precision, 1), price, status),
+                a.GetDouble(MapOfferAttrs.Distance), a.GetAsInt(MapOfferAttrs.Precision, 1), price, status, a.GetBool(MapOfferAttrs.Underwater)),
             MapOfferAttrs.GravelMap => TradeWindowModel.GravelMapRow(RockName(a.GetString(MapOfferAttrs.Rock)), OreNames.Split(a.GetString(MapOfferAttrs.Metals)),
                 a.GetDouble(MapOfferAttrs.Distance), price, status),
             MapOfferAttrs.Lead => TradeWindowModel.ShelfLeadRow(a.GetString(MapOfferAttrs.LeadKind), a.GetString(MapOfferAttrs.Type) ?? "",

@@ -58,6 +58,8 @@ public class ItemOreMap : Item, ITradeableCollectible
     public const string AttrGrades = "grades";
     /// <summary>The metals a gravel field pans (#692), comma-separated.</summary>
     public const string AttrMetals = "metals";
+    /// <summary>The deposit is under water (<see cref="DepositWater"/>): named so, and sold cheap.</summary>
+    public const string AttrUnderwater = "underwater";
     public const string AttrX = "x";
     public const string AttrY = "y";
     public const string AttrZ = "z";
@@ -105,8 +107,9 @@ public class ItemOreMap : Item, ITradeableCollectible
             EnumChatType.Notification);
     }
 
-    /// <summary>"Galena and cerussite deposit (medium)", "Rich gravel (granite)"; a map made before
-    /// maps named the ore (#692) says the metal: "Copper deposit (large)".</summary>
+    /// <summary>"Galena and cerussite deposit (medium)", "Galena deposit (medium, underwater)", "Rich
+    /// gravel (granite)"; a map made before maps named the ore (#692) says the metal: "Copper
+    /// deposit (large)".</summary>
     public static string WaypointTitle(string lang, ITreeAttribute a)
     {
         string metal = a.GetString(AttrMetal) ?? "";
@@ -115,10 +118,19 @@ public class ItemOreMap : Item, ITradeableCollectible
                 ? Lang.GetL(lang, "seraphhorizons:oremap-waypoint-gravel-rock", RockName(lang, rock))
                 : Lang.GetL(lang, "seraphhorizons:oremap-waypoint-gravel");
         string name = DepositName(lang, a);
-        return a.GetString(AttrSizeTier) is { } tier
-            ? Lang.GetL(lang, "seraphhorizons:oremap-waypoint-sized", name, Lang.GetL(lang, "seraphhorizons:ore-size-" + tier))
-            : Lang.GetL(lang, "seraphhorizons:oremap-waypoint", name);
+        string? size = a.GetString(AttrSizeTier) is { } tier ? Lang.GetL(lang, "seraphhorizons:ore-size-" + tier) : null;
+        if (a.GetBool(AttrUnderwater))
+            return size is null
+                ? Lang.GetL(lang, "seraphhorizons:oremap-waypoint-underwater", name)
+                : Lang.GetL(lang, "seraphhorizons:oremap-waypoint-sized-underwater", name, size);
+        return size is null
+            ? Lang.GetL(lang, "seraphhorizons:oremap-waypoint", name)
+            : Lang.GetL(lang, "seraphhorizons:oremap-waypoint-sized", name, size);
     }
+
+    /// <summary>An ore map's or offer's name: "Galena ore map", "Galena ore map (underwater)".</summary>
+    public static string OreMapName(string lang, ITreeAttribute a) => Lang.GetL(lang,
+        a.GetBool(AttrUnderwater) ? "seraphhorizons:oremap-name-underwater" : "seraphhorizons:oremap-name", DepositName(lang, a));
 
     public static string MetalName(string lang, string metal) => Lang.GetL(lang, "seraphhorizons:oremap-metal-" + metal);
 
@@ -202,7 +214,7 @@ public class ItemOreMap : Item, ITradeableCollectible
         if (metal == PlacerCells.Kind && a.GetString(AttrRock) is { } rock)
             return Lang.Get("seraphhorizons:gravelmap-name", RockName(Lang.CurrentLocale, rock));
         if (metal == null || metal == PlacerCells.Kind) return base.GetHeldItemName(itemStack);
-        return Lang.Get("seraphhorizons:oremap-name", DepositName(Lang.CurrentLocale, a));
+        return OreMapName(Lang.CurrentLocale, a);
     }
 
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
