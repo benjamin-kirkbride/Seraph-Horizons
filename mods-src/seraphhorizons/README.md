@@ -2848,7 +2848,10 @@ would also hide it from AI, since players' clicks need that to repair it.
 **Oil** (#674, `EntityBehaviorEidolonOil`). With the `MachineOil` switch on it has a reservoir like a
 machine's tank, `OilTank` points (100 to the litre: 1000, a bucket), filled by right-click with what
 oils a machine (MachineOil's oils from any liquid container, or rendered fat; `MachineOilSettings`'
-lists), as much as fits, refused when full. It wakes with `InitialOilShare` of it (a quarter). Each job
+lists), as much as fits, refused when full. Docked, a click on any gantry cell pours into it too
+(`BEBehaviorEidolonBody.OnGantryInteract`). Holding oil, the click always pours: the game gives a click on
+an entity to the held item first, and rendered fat is food, so it was eaten instead; a prefix on
+`CollectibleObject.OnHeldUseStart` (`EidolonHeldClicks`, both sides) leaves such a click to the eidolon. It wakes with `InitialOilShare` of it (a quarter). Each job
 done drains it: a tree felled `OilPerTreeFelled` (5), a trunk delivered `OilPerTrunkDelivered` (3), a
 load carried somewhere and set down `OilPerLoadCarried` (2), a strike mining an area
 `OilPerMiningStrike` (0.5), so a full reservoir fells 200 trees;

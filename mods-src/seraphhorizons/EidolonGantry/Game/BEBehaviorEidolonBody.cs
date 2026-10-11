@@ -104,6 +104,9 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
 
     public bool OnGantryInteract(BEEidolonGantry gantry, IPlayer byPlayer, ItemSlot? slot)
     {
+        // Oil, on any cell: the docked eidolon's (the cells round it can take the click before it).
+        if (DockedEidolon?.Oil is { } oil && oil.PourFrom(byPlayer))
+            return true;
         var stack = slot?.Itemstack;
         string? code = stack?.Collectible?.Code?.ToString();
         // a body item, or a material of the open layer's kind that it does not take (refused with why)
