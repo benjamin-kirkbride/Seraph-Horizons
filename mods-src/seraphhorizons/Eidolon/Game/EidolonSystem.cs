@@ -42,6 +42,7 @@ public class EidolonSystem : ModSystem
     private ICoreAPI? _api;
     private EidolonConfig? _config;
     private Harmony? _harmony;
+    private Harmony? _heldClicks;
 
     public static EidolonSystem? Of(ICoreAPI? api) => api?.ModLoader.GetModSystem<EidolonSystem>();
 
@@ -72,6 +73,10 @@ public class EidolonSystem : ModSystem
         }
         else
             Enabled = RunsOnServer(api);
+        // Whatever the switch (a client may learn it late, and it only acts on an eidolon); once per
+        // process: in singleplayer the other side's system may have patched already.
+        if (!Harmony.HasAnyPatches(EidolonHeldClicks.HarmonyId))
+            EidolonHeldClicks.Patch(_heldClicks = new Harmony(EidolonHeldClicks.HarmonyId));
     }
 
     // Types are read from the assets later in this phase (the game's loaders run at 0.2), on the
@@ -107,6 +112,8 @@ public class EidolonSystem : ModSystem
     {
         _harmony?.UnpatchAll(EidolonDownedTargeting.HarmonyId);
         _harmony = null;
+        _heldClicks?.UnpatchAll(EidolonHeldClicks.HarmonyId);
+        _heldClicks = null;
     }
 
     /// <summary>

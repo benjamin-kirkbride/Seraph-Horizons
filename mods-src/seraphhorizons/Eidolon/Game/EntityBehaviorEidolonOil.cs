@@ -100,18 +100,34 @@ public class EntityBehaviorEidolonOil(Entity entity) : EntityBehavior(entity), I
         (entity as EntityLaborEidolon)?.Check();
     }
 
+    /// <summary>Whether a right-click holding <paramref name="held"/> is the oil's: it has a reservoir
+    /// and <paramref name="held"/> oils (<see cref="Oil.KindOf"/>). Either side: a client reads the
+    /// reservoir the server sent. <see cref="EidolonHeldClicks"/> leaves such a click to the eidolon.</summary>
+    public bool Takes(ItemStack? held) =>
+        Tank != null && MachineOilSystem.Of(entity.Api) is { } oil && Oil.KindOf(held, oil.Config, oil.Liquids) != OilKind.None;
+
     public override void OnInteract(EntityAgent byEntity, ItemSlot itemslot, Vec3d hitPosition, EnumInteractMode mode, ref EnumHandling handled)
     {
-        if (mode != EnumInteractMode.Interact || Tank is not { } tank || MachineOilSystem.Of(entity.Api) is not { } oil
-            || Oil.KindOf(itemslot.Itemstack, oil.Config, oil.Liquids) == OilKind.None)
+        if (mode != EnumInteractMode.Interact || !Takes(itemslot.Itemstack) || (byEntity as EntityPlayer)?.Player is not { } player)
             return;
         handled = EnumHandling.PreventSubsequent;
-        if (entity.Api.Side != EnumAppSide.Server || (byEntity as EntityPlayer)?.Player is not { } player)
-            return;
+        PourFrom(player);
+    }
+
+    /// <summary>A right-click holding oil, on it or on the gantry it is docked in
+    /// (<c>BEBehaviorEidolonBody</c>): whether it is the oil's (<see cref="Takes"/>, the player's
+    /// held item), pouring what fits on the server.</summary>
+    public bool PourFrom(IPlayer player)
+    {
+        if (!Takes(player.InventoryManager.ActiveHotbarSlot?.Itemstack))
+            return false;
+        if (entity.Api.Side != EnumAppSide.Server || Tank is not { } tank || MachineOilSystem.Of(entity.Api) is not { } oil)
+            return true;
         if (Oil.Pour(entity.World, player, ref tank, oil.Config, oil.Liquids, entity.Pos.AsBlockPos) <= 0)
-            return;
+            return true;
         Tank = tank;
         (entity as EntityLaborEidolon)?.Check();
+        return true;
     }
 
     public override void GetInfoText(StringBuilder infotext)
