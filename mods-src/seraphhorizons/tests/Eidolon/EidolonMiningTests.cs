@@ -316,6 +316,36 @@ public class EidolonMiningTests
     }
 
     [Fact]
+    public void ABlockLeftForALiquidBesideItHoldsNothingUpUnlessItFalls()
+    {
+        // A pit three deep (layers 1 to 3) with water beside (2, 2, 0), just outside it: that block is left,
+        // and the one under it, which touches no liquid, is mined.
+        var area = MarkArea.Between(new MarkPos(0, 1, 0), new MarkPos(3, 3, 3));
+        MineRule Rule(MarkPos c) => c == new MarkPos(2, 2, 0) ? MineRule.LiquidBeside : MineRule.Mine;
+        bool Gone(MarkPos c) => c.Y == 3;
+        var scan = EidolonMining.Scan(area, (_, _) => true, c => Gone(c) ? MineRule.Air : Rule(c), _ => false);
+        Assert.Equal(2, scan.Layer);
+        Assert.DoesNotContain(new MarkPos(2, 2, 0), scan.Left);
+        Assert.Contains(new MarkPos(2, 1, 0), scan.Left);
+        Assert.Equal(15 + 16, scan.Left.Count);
+        // Sand or gravel by the water would fall into the hole and open the pit onto it: it holds its column.
+        Assert.Equal(MineRule.LiquidBesideFalls, EidolonMining.Rule(Stone with { LiquidBeside = true, Falls = true }));
+        Assert.Equal(MineRule.LiquidBeside, EidolonMining.Rule(Stone with { LiquidBeside = true }));
+        scan = EidolonMining.Scan(area, (_, _) => true,
+            c => Gone(c) ? MineRule.Air : c == new MarkPos(2, 2, 0) ? MineRule.LiquidBesideFalls : MineRule.Mine, _ => false);
+        Assert.DoesNotContain(new MarkPos(2, 1, 0), scan.Left);
+        Assert.True(EidolonMining.Holds(MineRule.LiquidBesideFalls));
+        // Left in a column already held (under a chest), it stays held.
+        scan = EidolonMining.Scan(area, (_, _) => true, c => (c.X, c.Y, c.Z) switch
+        {
+            (2, 3, 0) => MineRule.BlockEntity,
+            (2, 2, 0) => MineRule.LiquidBeside,
+            _ => MineRule.Mine,
+        }, _ => false);
+        Assert.DoesNotContain(new MarkPos(2, 1, 0), scan.Left);
+    }
+
+    [Fact]
     public void ABlockGivenUpIsPassedOverAndWhatIsUnderItStillMined()
     {
         // (1, 3, 1) given up for want of a way: not held up, so (1, 2, 1) is still to mine

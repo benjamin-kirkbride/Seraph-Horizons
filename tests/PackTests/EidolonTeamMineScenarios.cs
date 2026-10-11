@@ -621,4 +621,90 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         west.Die(EnumDespawnReason.Removed);
         east.Die(EnumDespawnReason.Removed);
     }
+
+    [AtlasScenario(TimeoutMs = 300_000)]
+    public async Task Two_eidolons_drive_a_tunnel_4_wide_a_2_wide_heading_each_side_by_side()
+    {
+        var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2400), reach: 14);
+        var blocks = W.BlockAccessor;
+        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        // A hill of granite (x 0 to 10, seven high, z -3 to 6), a cliff face to the west onto the floor.
+        for (int x = 0; x <= 10; x++)
+        for (int y = 0; y <= 6; y++)
+        for (int z = -3; z <= 6; z++)
+            blocks.SetBlock(granite, site.AddCopy(x, y, z));
+        // A tunnel 4 wide, 4 high and 8 long into it: two headings, z 0 to 1 and 2 to 3.
+        var a = site.AddCopy(0, 0, 0);
+        var b = site.AddCopy(7, 3, 3);
+        var area = Area(a, b);
+        var toMine = Cells(area);
+
+        var (_, player, tool) = await Commander("eidolontunnels2", site.AddCopy(-10, 0, 2));
+        var e1 = await Spawn(site.AddCopy(-6, 0, 0), player);
+        var e2 = await Spawn(site.AddCopy(-6, 0, 4), player);
+        OrderMine(player, tool, [e1, e2], a, b);
+        var o1 = Assert.IsType<MineOrder>(e1.Orders!.Current);
+        var o2 = Assert.IsType<MineOrder>(e2.Orders!.Current);
+        var home1 = e1.Pos.XYZ;
+        var home2 = e2.Pos.XYZ;
+
+        // Watch each tick: each strikes only in its own heading, never a column held by both, nothing
+        // broken under either's box; and how near they come.
+        var standing = toMine.ToHashSet();
+        var faults = new List<string>();
+        var headings = new HashSet<string>();
+        double nearest = double.MaxValue;
+        int ticks = 0, lastMined = -1;
+        await World.Until(() =>
+        {
+            if (Jobs.Mining.Held(e1.EntityId).Intersect(Jobs.Mining.Held(e2.EntityId)).Any())
+                faults.Add("both hold a column");
+            foreach (var (o, e) in new[] { (o1, e1), (o2, e2) })
+            {
+                if (o.Driving && o.Sector is { } sector)
+                    headings.Add($"{e.EntityId} {sector}");
+                if (o.Driving && o.Group is { } g && !g.Cells.All(c => o.Sector is { } s && s.Contains(c.X, c.Z)))
+                    faults.Add($"{e.EntityId} strikes {string.Join(" ", g.Cells)} out of its heading {o.Sector}");
+            }
+            var broke = standing.Where(c => blocks.GetBlock(c).Id == 0).ToList();
+            foreach (var c in broke)
+            {
+                foreach (var e in new[] { e1, e2 })
+                    if (EidolonMining.Undermines(e.Pos.X, Feet(e), e.Pos.Z, new MarkPos(c.X, c.Y, c.Z)) && c.Y < e.Pos.Y)
+                        faults.Add($"{c} broke under {e.EntityId} at {e.Pos.XYZ}");
+                standing.Remove(c);
+            }
+            if (OverArea(area, e1) && OverArea(area, e2))
+                nearest = Math.Min(nearest, Math.Sqrt(e1.Pos.XYZ.HorizontalSquareDistanceTo(e2.Pos.XYZ)));
+            if (o1.Mined + o2.Mined != lastMined || ++ticks % 300 == 0)
+            {
+                Log($"{o1.Mined} + {o2.Mined} mined, at {e1.Pos.XYZ} and {e2.Pos.XYZ}: {State(e1)} || {State(e2)}");
+                lastMined = o1.Mined + o2.Mined;
+            }
+            return e1.Orders.OrderCode == null && e2.Orders.OrderCode == null;
+        }, 9000);
+        var lines = Reports(o1, o2);
+        Log("reports: " + string.Join(" | ", lines));
+        Log($"headings: {string.Join(", ", headings)}; nearest in the tunnel {nearest:0.00}");
+        Log($"after: {o1.Mined} + {o2.Mined}, {o1.Unreachable} + {o2.Unreachable} out of reach, {o1.EmptyStrikes} + {o2.EmptyStrikes} empty; standing: "
+            + string.Join(" ", toMine.Where(c => blocks.GetBlock(c).Id != 0).Select(c => $"({c.X - site.X},{c.Y - site.Y},{c.Z - site.Z})")));
+        Assert.Empty(faults);
+        Assert.Equal((1, 0), (o1.Tunnel!.DriveX, o1.Tunnel.DriveZ));
+        Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
+        Assert.Equal(toMine.Count, o1.Mined + o2.Mined);
+        Assert.Equal(0, o1.Unreachable + o2.Unreachable);
+        Assert.Equal(0, o1.EmptyStrikes + o2.EmptyStrikes);
+        // A heading each, the nearer: e1 the north one (z 0 to 1), e2 the south; both worked theirs.
+        Assert.Contains($"{e1.EntityId} ({a.X},{a.Z})-({b.X},{a.Z + 1})", headings);
+        Assert.Contains($"{e2.EntityId} ({a.X},{a.Z + 2})-({b.X},{b.Z})", headings);
+        Assert.True(o1.Mined > 0 && o2.Mined > 0, $"{o1.Mined} and {o2.Mined}");
+        // Side by side, never in each other's way: their boxes (1.7 wide) never overlapped.
+        Assert.True(nearest >= 1.6, $"nearest {nearest}");
+        var report = Assert.Single(lines);
+        Assert.Contains("Your 2 eidolons", report);
+        Assert.True(e1.Pos.XYZ.HorizontalSquareDistanceTo(home1) <= 2.5 * 2.5, $"{e1.EntityId} at {e1.Pos.XYZ}, ordered at {home1}");
+        Assert.True(e2.Pos.XYZ.HorizontalSquareDistanceTo(home2) <= 2.5 * 2.5, $"{e2.EntityId} at {e2.Pos.XYZ}, ordered at {home2}");
+        e1.Die(EnumDespawnReason.Removed);
+        e2.Die(EnumDespawnReason.Removed);
+    }
 }

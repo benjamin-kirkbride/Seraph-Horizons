@@ -3095,7 +3095,10 @@ square it makes for or a group it may strike, not of every block a search finds,
 claimed is left for the order's life) and anything harder or unbreakable (the mantle). What it leaves in
 place holds up what is under it: the blocks below a block it leaves, in the area or just over it (a
 chest, a sign or farmland on the surface: a block entity, too hard or claimed, `EidolonMining.Holds`),
-down to the first air, are left too (`EidolonMining.Scan`), so nothing is left hanging. A block given
+down to the first air, are left too (`EidolonMining.Scan`), so nothing is left hanging; but not under
+a block left only for a liquid beside it, which is passed over: what is under it touches no liquid,
+and mining it opens nothing onto one (one that falls, sand or gravel, `MineRule.LiquidBesideFalls`, does
+hold its column, or it would drop into the pit and let the liquid in). A block given
 up for want of a way to it holds nothing up: it is only passed over, and what is under it is mined. It quarries top down, with no ramp: the highest layer with a block left that it may break is
 the one it works, a strike at a time, each breaking up to four blocks: a 2 × 2 group on that layer
 (flat), or two side by side on it and the two under them (upright, at a wall where both layers are
@@ -3111,6 +3114,43 @@ square only out of its way for now (under an eidolon, held by another, mined out
 given up: it goes back to its search, and waits at the rim if nothing else is free. With no ramp, it gets out of its
 pit as it walks anywhere, up steps of two at most ("Steps and drops"): a pit deeper than two with no step
 left beside it (a shelf outside the area, say) keeps it down there, and the order ends with it in the pit.
+
+*Tunnels* (`Eidolon/Core/EidolonTunnels.cs`). Quarried top down, an area dug into a hillside would start
+on its ceiling, out of reach from the mouth, and give the rest up. So a column of the area with a full
+block of ground (stone, ore, soil, gravel, sand, brick or clay work, its underside solid: not a tree,
+leaves, plants, snow or a loose stone) within 3 blocks over the area's top layer is *covered*
+(`EidolonTunnels.Covered`, per column), and the covered part is dug as a tunnel; the rest of the area is
+open and quarried as above, and an area covered in part does both, the tunnel first. Its *heading* is
+the top 4 layers of the covered columns (`EidolonTunnels.HeadingHeight`, what it reaches from its floor):
+it is driven in face-first from the open face, in lanes 2 wide across the way in (an odd width's last
+lane 3), each lane's face struck upright, two blocks across and two high at a time, the top half first,
+then the bottom half, then a step in to the next slice (`EidolonTunnels.LaneFront`); the slice furthest
+back of its lanes first, so the face goes in level (`EidolonTunnels.Front`). It stands on the heading's
+floor in the lane behind its face, never over it, and still never breaks a block of its own footprint.
+A covered part taller than 4 is *benched*: once the top heading is driven (every member at work has
+nothing left in it), the next 4 layers down are a heading of their own (`MineTunnel.Below`, the last one's
+floor its ceiling, so the ceiling is always the first thing struck), driven the same way from its own
+open face, on the same side at its own level (`EidolonTunnels.Opens` again, as the world is then: a
+hillside's face usually runs down, a step out for each heading), and so on down to the area's bottom.
+Each heading's floor leads straight out of its own mouth, so it walks out at that level and is never
+stranded inside. Where a lower heading has no open face (the hill's face does not reach that low: the
+area dips under the ground outside, or a ledge runs right up to the cliff), the tunnel ends there, and
+what is left of it is quarried top down from the floor over it, as the open part is (the heading over
+it gives it headroom, and each layer is in reach as it works down). The tunnel starts from the side of the covered part that already opens onto a
+place it can stand to strike a lane's first face from, in front of the mouth (`EidolonTunnels.Opens`,
+`InFront`: a stand `EidolonMining.Stands` finds, on the ground, its box clear), and of several such
+sides, the one whose mouth is nearest the eidolon, or the job's members (`EidolonTunnels.Plan`). It is
+planned once, by the job's first search, and kept (`MineJobCells.Tunnel`). The area is refused as it is
+marked (`EidolonCommandMode.CheckArea`, `MineOrder.PlanTunnel`; the first corner kept, as for an area too
+large) when its covered part is under 4 high (the eidolon is 3.75 tall, `eidoloncommander-mine-toolow`),
+when no side of it opens (`eidoloncommander-mine-noface`: a heading higher than it reaches from the
+ground at the cliff's foot has none), or when the sides that do are under 2 across
+(`eidoloncommander-mine-narrow`); an area with nothing covered is never refused for this. Planned when
+the order starts, an area the world has changed under since it was marked tells the owner why
+(`eidolon-mine-tunnel-refused`) and is quarried as one with nothing covered. Several members drive it
+side by side (below). Only the part quarried from a floor above for want of a face of its own can
+strand it, as an open pit can: dug more than two below the way out, with no step beside it, it stays
+down there.
 
 *A strike* takes as long as a seraph with a steel pickaxe takes to break the slowest block of its
 group, at three quarters of their pace. The game takes the pick's mining speed for the block's material
@@ -3142,7 +3182,13 @@ area is its `WorkAreas`. It is not part of the crew order. Several given the sam
 job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs` and
 `tests/PackTests/EidolonMineScenarios.cs` (Atlas: the granite pits; a 10 × 10 soil area two deep, its
 middle out of reach from the rim, with a worn Desire Paths path across it all mined and a chest left
-on the soil under it; a dry reservoir).
+on the soil under it; a dry reservoir; a tunnel 2 wide, 4 high and 8 long into a granite hillside,
+refused three high as it is marked, driven in from its open face a slice at a time, each slice's top
+half before its bottom half, all mined, none out of reach, no slam at nothing, and walked back out; a
+tunnel 6 high benched, its top heading driven from a ledge in front of the cliff, then the lower one
+from the floor at the cliff's foot, and out by the lower mouth),
+and `tests/Eidolon/EidolonTunnelsTests.cs` (covered and open, the refusals, the open face and the
+nearest, the face's order, benching and each heading's own face at its level, the headings).
 
 **Working together** (`Eidolon/Game/EidolonJobSystem.cs`, `RimWait.cs`, rules in
 `Eidolon/Core/EidolonTeamwork.cs`; mining and felling, not the crew order). Eidolons of one owner given the very same area (the same two corners)
@@ -3150,7 +3196,7 @@ for the same work are one job (`JobKey`: the owner's uid, the order's code, the 
 gave it to them together or one later, which joins the job running; an overlapping area, or another
 owner's eidolons, is a job of its own. A job is the server's (`JobBoard`, one per kind of work), not
 saved. *Sectors* (mining; `Eidolon/Core/MineSectors.cs`): the area is split into a sector for each
-member at work (`EidolonSectors.Split`): strips across its long side for two or three, a grid of
+member at work (`EidolonSectors.Split`; while a tunnel is driven, its headings instead, below): strips across its long side for two or three, a grid of
 near-square blocks for more (rows across the short side, the members spread over them, the rows chosen
 for the most sectors, then the squarest), each at least 4 blocks wide either way (`EidolonSectors.MinSide`,
 room for the strikes and the 1.7-wide box; a side of the area under 4 is not cut) and cut only at the 2 × 2
@@ -3165,7 +3211,20 @@ member, if that half has work; and its own is let go, no one's until a member wi
 Finding neither, it lets its own go and waits at the rim. The area is split afresh only when who is at
 work changes (one joins, leaves, is away or back: `MineSectors.Sync`), never on a timer; a member whose
 sector moved finishes its strike, frees its square and walks to its new one. The sectors are the job's
-(`MineJobCells.Sectors`), not saved. *Reservations*: before it walks to a 2 × 2 square or strikes in one, a miner reserves the
+(`MineJobCells.Sectors`), not saved. *Headings* (a tunnel, above): while the tunnel is driven, its
+lanes are split among the members at work into runs side by side, a heading each, as evenly as they go
+(`EidolonTunnels.Headings`, with `MineSectors.Sync`): one alone works them all, and members past the
+number of lanes get none and wait at the rim, which on a hillside is the mouth's side (the rim's other
+places are in the hill, with no ground to stand on). Each works its own lanes' faces only, side by side
+(two in lanes 2 wide stand 2 apart, their 1.7-wide boxes clear of each other's and of the paths' margin,
+`Others.Margin`, and of the spacing push, `EidolonSpacing`, which acts only on overlap); a face group is
+reserved by its own columns, the lanes being laid from the tunnel's edge, not the area's squares. One
+whose heading is done takes a heading let go (one whose member left or is away) but never steals: a
+heading's far half lies past its member's face, in the rock (`MineSectors.Take`, `steal: false`), so it
+waits at the rim. Once no member at work has anything left in the tunnel it may work
+(`MineJobCells.TunnelIdle`, counted only for the split it found nothing in), the tunnel is done for the
+job (`MineJobCells.TunnelDone`), the area is split afresh into sectors, and what is under the heading and
+the open part are quarried as above (a heading's cell some member gave up is passed over then). *Reservations*: before it walks to a 2 × 2 square or strikes in one, a miner reserves the
 square's columns, and passes over a square another holds, in its job or any other (reservations are
 the board's, by block column, so jobs over the same place with their squares laid differently do not
 meet either); it holds one square at a time, and frees it at once when it stops working (another
@@ -3220,7 +3279,9 @@ back with no report of its own, so nothing is counted twice; an order given anew
 mates saved) makes a new job. Reservations are not saved, and the shares after a restart count from then. Chunks, oil and
 the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` and
 `tests/Eidolon/MineSectorsTests.cs` (the split, the least width, the grid, who gets which, splitting afresh,
-the steal) and `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit, never holding the
+the steal) and `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two driving a tunnel 4 wide into a
+hillside, a 2-wide heading each, side by side and never closer than their boxes, each striking only in its
+own, one report; two of one owner sharing a pit, never holding the
 same square, the floors within a climb, one report with both shares, each back to its place; three on a
 16 × 3 × 12 area each breaking only in its sector, on average 5 or more apart, never overlapping, the floors
 within a climb, no slam at nothing, one report; one whose sector is mined out stealing the far half of
@@ -3560,12 +3621,16 @@ player's log pillar and a sapling standing; and an axe that breaks stops it unti
 `tests/Eidolon/EidolonMiningTests.cs` covers mining's rules (the area's limits, what it breaks up to the
 steel pickaxe's tier, the strike's length against a steel pickaxe and its slam, its reach, never under
 its box, the next group flat or upright, where it stands, the search: the highest layer and the one under,
-an unloaded column read as air never done) and `tests/PackTests/EidolonMineScenarios.cs` (Atlas) orders it
+an unloaded column read as air never done, a block left for a liquid beside it holding nothing up unless
+it falls) and `tests/PackTests/EidolonMineScenarios.cs` (Atlas) orders it
 with the tool over a pit two layers deep in granite: it mines every block top down, never under its box,
 the granite's drops lying in the world, half a point of oil a strike, leaves a block touching water and
 a chest, and walks back up a terrace to where it was ordered; digs a pit three deep with no ramp, down
-to its floor, and climbs out two blocks onto a shelf beside it and walks back; and a dry reservoir stops
-it until oiled;
+to its floor, and climbs out two blocks onto a shelf beside it and walks back; a dry reservoir stops
+it until oiled; it drives a tunnel into a hillside from its open face, a face at a time; and it benches
+a tunnel 6 high, a heading at a time, each from its own face, out by the lower mouth;
+`tests/Eidolon/EidolonTunnelsTests.cs` covers tunnels (covered and open, the refusals, the open face,
+the face's order, benching and each heading's own face, the headings);
 `tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
 `tests/PackTests/EidolonCrewScenarios.cs` (Atlas, `WoodworkingEidolonScenarios` on the woodworking world) orders a crew with the tool
 (refused without an axe) over two grown oaks and a running rosser: it fells each, hauls each trunk to

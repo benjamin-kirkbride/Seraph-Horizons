@@ -128,6 +128,7 @@ public sealed class MineSectors
     private readonly List<(MineSector Sector, long? Owner)> _sectors = new();
     private long[] _splitFor = [];
     private MarkArea? _area;
+    private MineTunnel? _tunnel;
 
     /// <summary>Every sector and its member, null for one let go.</summary>
     public IReadOnlyList<(MineSector Sector, long? Owner)> All => _sectors;
@@ -157,18 +158,20 @@ public sealed class MineSectors
     }
 
     /// <summary>Splits <paramref name="area"/> afresh among <paramref name="present"/> (in the order they
-    /// joined) when they are not those it was last split for (or there is no split yet): each member
-    /// given the sector nearest where it is (<paramref name="at"/>, null where it is not known), nearest
-    /// pair first. True when it split.</summary>
-    public bool Sync(MarkArea area, IReadOnlyList<long> present, Func<long, (double X, double Z)?> at)
+    /// joined) when they are not those it was last split for, or the tunnel is not (or there is no split
+    /// yet): into <paramref name="tunnel"/>'s headings while it is driven (<see cref="EidolonTunnels.Headings"/>),
+    /// else the area's sectors; each member given the sector nearest where it is (<paramref name="at"/>,
+    /// null where it is not known), nearest pair first. True when it split.</summary>
+    public bool Sync(MarkArea area, IReadOnlyList<long> present, Func<long, (double X, double Z)?> at, MineTunnel? tunnel = null)
     {
         var members = present.OrderBy(id => id).ToArray();
-        if (_area == area && members.SequenceEqual(_splitFor))
+        if (_area == area && ReferenceEquals(_tunnel, tunnel) && members.SequenceEqual(_splitFor))
             return false;
         _area = area;
+        _tunnel = tunnel;
         _splitFor = members;
         _sectors.Clear();
-        var sectors = EidolonSectors.Split(area, present.Count);
+        var sectors = tunnel != null ? EidolonTunnels.Headings(tunnel, present.Count) : EidolonSectors.Split(area, present.Count);
         var owners = new long?[sectors.Count];
         var pairs = new List<(int Member, int Sector, bool Known, double D2)>();
         for (int m = 0; m < present.Count; m++)
@@ -194,9 +197,10 @@ public sealed class MineSectors
     /// first; else a steal, from the sector of another with the most work, of the half of it away from
     /// its member (<see cref="EidolonSectors.Halves"/>, by where it is, <paramref name="at"/>), if that
     /// half has work and the sector halves; and the member's own sector is let go. True when it has a
-    /// new sector.
+    /// new sector. No steal from a tunnel's heading (<paramref name="steal"/> false): its far half lies
+    /// past its member's face, in the rock.
     /// </summary>
-    public bool Take(long member, Func<MineSector, int> work, Func<long, (double X, double Z)?> at)
+    public bool Take(long member, Func<MineSector, int> work, Func<long, (double X, double Z)?> at, bool steal = true)
     {
         var from = at(member);
         int best = -1, most = 0;
@@ -219,6 +223,8 @@ public sealed class MineSectors
             Version++;
             return true;
         }
+        if (!steal)
+            return false;
         var busiest = Enumerable.Range(0, _sectors.Count)
             .Where(i => _sectors[i].Owner is { } o && o != member)
             .Select(i => (Index: i, Work: work(_sectors[i].Sector)))
