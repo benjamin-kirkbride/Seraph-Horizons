@@ -232,21 +232,28 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     {
         // The variant's attributes keep the deposit file's values; its generator has the scaled ones.
         // Native copper's chimney, scaled on its tendrils by copper's factor in config/ore-sizes.json
-        // (half of 400 / 3567 since the survey of #445).
+        // (half of 400 / 3567 since the survey of #445), four times over with ore processing on (#863:
+        // an ore item holds about a quarter of vanilla's units, so a deposit is four times the blocks).
         var chimney = IogVeins("nativecopper").Single();
         var shape = new VeinShape("chimney",
             new SizeRange(Attribute(chimney, "radius"), chimney.Attributes["radius"]["var"].AsFloat()),
             new SizeRange(Attribute(chimney, "branchCount"), chimney.Attributes["branchCount"]["var"].AsFloat()),
             new SizeRange(Attribute(chimney, "branchLength"), chimney.Attributes["branchLength"]["var"].AsFloat()));
-        var expected = VeinScaling.Scale(shape, 0.0561);
+        Assert.Equal(OreProducts.DepositBlocks, OreSystem.GradedOreBlocks(World.Api));
+        var expected = VeinScaling.Scale(shape, 0.0561 * OreProducts.DepositBlocks);
         output.WriteLine($"native copper chimney {shape} -> {expected}");
         Assert.NotEqual(shape, expected);
         Assert.Equal(expected.BranchCount.Avg, Field(chimney, "BranchCount").avg, 3);
         Assert.Equal(expected.BranchLength.Avg, Field(chimney, "BranchLength").avg, 3);
 
-        // Hematite's seam, by the square root of iron's factor (half of 400 / 4806) on the radius.
+        // Hematite's seam, by the square root of iron's factor (half of 400 / 4806) on the radius,
+        // four times over.
         var seam = IogVeins("hematite").Single();
-        Assert.Equal(Attribute(seam, "radius") * Math.Sqrt(0.0416), Field(seam, "Radius").avg, 3);
+        Assert.Equal(Attribute(seam, "radius") * Math.Sqrt(0.0416 * 4), Field(seam, "Radius").avg, 3);
+
+        // Coal is not graded ore: its quarter cut only.
+        var coal = IogVeins("bituminouscoal").First();
+        Assert.Equal(Attribute(coal, "radius") * Math.Sqrt(0.75), Field(coal, "Radius").avg, 3);
 
         // Gems are left alone.
         var garnet = IogVeins("garnetpyrope").Single();
@@ -309,7 +316,7 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     /// <summary>District veins (under SmallerDeposits): a district built from the granite config,
     /// as IOG builds one when a chunk near it generates, comes out with at most the configured
-    /// number of veins of each base metal, most cut to a band of heights under sea level (a thin
+    /// number of veins of each base metal, some cut to a band of heights under sea level (a thin
     /// vein whose whole column holds less than its drawn size keeps it), and its gold untouched in
     /// number.</summary>
     [AtlasScenario]
@@ -360,7 +367,10 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             }
         }
         output.WriteLine($"{zones} zones; veins {string.Join(", ", veins.Select(kv => $"{kv.Key} {kv.Value}"))}; gold zones {gold}; tin and bismuth veins banded {banded}, whole {whole}");
-        Assert.True(banded > whole, $"tin and bismuth veins banded {banded}, whole {whole}");
+        // Since #863 an ore block holds a fifth to a quarter of the units, so a vein needs four to five
+        // times the height for its size: many thin veins hold less than that in their whole column
+        // and keep it (10 of 15 here, 5 banded). Some are still banded.
+        Assert.True(banded > 0, $"tin and bismuth veins banded {banded}, whole {whole}");
         Assert.InRange(veins.GetValueOrDefault("tin"), 1, 8);
         Assert.InRange(veins.GetValueOrDefault("bismuth"), 1, 8);
         Assert.True(gold > 8, $"gold zones {gold}: gold keeps every lens IOG makes");
