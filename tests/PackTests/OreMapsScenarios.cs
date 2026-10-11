@@ -275,7 +275,7 @@ public partial class OreMapsScenarios : AtlasScenarioBase
         var map = Ore.Maps!.Issue(null, key, MapPrecision.Rough);
         Assert.NotNull(map);
         Assert.Equal(MapIssuer.GravelMapCode, map.Collectible.Code);
-        Assert.Equal(MapPrecision.Exact, map.Attributes.GetInt(ItemOreMap.AttrPrecision)); // gravel maps are exact
+        Assert.Equal(MapPrecision.Fine, map.Attributes.GetInt(ItemOreMap.AttrPrecision)); // gravel maps are exact
         Assert.Equal(placed.X, map.Attributes.GetInt(ItemOreMap.AttrX));
         Assert.Equal(placed.Rock, map.Attributes.GetString(ItemOreMap.AttrRock));
         // What it pans (#692): the metals of the rock's rich gravel table, native copper at least.

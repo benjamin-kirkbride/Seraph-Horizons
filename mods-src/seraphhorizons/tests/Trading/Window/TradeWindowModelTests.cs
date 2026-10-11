@@ -195,10 +195,10 @@ public class TradeWindowModelTests
     {
         var line = TradeWindowModel.OreMapLine("lead", ["galena", "cerussite"], "medium", "mostly:poor", "Limestone", 2400.4, 2);
         Assert.Equal("trading-window-map-ore-named(ore-list-and(orename-galena, orename-cerussite), "
-                     + "ore-list-comma(ore-list-comma(ore-size-medium, ore-grades-mostly(ore-grade-poor)), trading-window-map-ore-host(Limestone)), map-distance-km(2), 2)",
+                     + "ore-list-comma(ore-list-comma(ore-size-medium, ore-grades-mostly(ore-grade-poor)), trading-window-map-ore-host(Limestone)), map-distance-km(2), oremap-tier-2, 50)",
             line.ToString());
         // Three ores; no grades or rock known.
-        Assert.Equal("trading-window-map-ore-named(ore-list-and(ore-list-comma(orename-a, orename-b), orename-c), ore-size-small, map-distance-under, 1)",
+        Assert.Equal("trading-window-map-ore-named(ore-list-and(ore-list-comma(orename-a, orename-b), orename-c), ore-size-small, map-distance-under, oremap-tier-1, 150)",
             TradeWindowModel.OreMapLine("x", ["a", "b", "c"], "small", null, null, 10, 1).ToString());
         // Shelved before maps named the ore: the metal.
         Assert.Equal("trading-window-map-ore", TradeWindowModel.OreMapLine("copper", [], null, null, null, 10, 1).Key);
