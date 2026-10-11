@@ -54,7 +54,7 @@ public class ItemTraderLead : Item, ITradeableCollectible
         var a = stack.Attributes;
         int y = a.GetInt(MapOfferAttrs.Y);
         var pos = new Vec3d(a.GetInt(MapOfferAttrs.X) + 0.5, y > 0 ? y + 0.5 : api.World.SeaLevel, a.GetInt(MapOfferAttrs.Z) + 0.5);
-        string title = MapMarksSystem.Title(lang, Title(lang, stack), MapMarks.LeadPrecision, lead: true);
+        string title = MapMarksSystem.Title(lang, Title(lang, stack), lead: true);
         var outcome = MapMarksSystem.Of(api) is { } marks && MapMarksSystem.TargetOf(stack) is { } target
             ? marks.Mark(player, target, pos, title, "trader", MapMarksSystem.TraderColor)
             : MapMarksSystem.Outcome.NoMap;
@@ -63,7 +63,7 @@ public class ItemTraderLead : Item, ITradeableCollectible
             case MapMarksSystem.Outcome.NoMap:
                 var d = pos.Clone().Sub(byEntity.Pos.XYZ);
                 d.Y = 0;
-                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:trading-maps-lead-distance", title, (int)d.Length()),
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:trading-maps-lead-distance", title, MapMarksSystem.DistanceText(lang, d.Length())),
                     EnumChatType.Notification);
                 return;
             case MapMarksSystem.Outcome.Already:
@@ -101,7 +101,7 @@ public class ItemTraderLead : Item, ITradeableCollectible
             return;
         }
         dsc.AppendLine(Lang.Get("seraphhorizons:trading-maps-lead-info", Title(Lang.CurrentLocale, stack)));
-        dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-use"));
+        MapMarksSystem.AppendDistance(world, stack.Attributes.GetInt(MapOfferAttrs.X) + 0.5, stack.Attributes.GetInt(MapOfferAttrs.Z) + 0.5, dsc);
     }
 
     public override WorldInteraction[] GetHeldInteractionHelp(ItemSlot inSlot) =>

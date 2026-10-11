@@ -6,7 +6,7 @@ import { animateShape, checkAnimations } from "./keyframes.ts";
 import { discoverAnchors } from "./model-anchors.ts";
 import { checkScenario, type Scenario } from "./model-scenario.ts";
 import { checkVehicle, vehicleOf, withBogies } from "./model-vehicle.ts";
-import { compileGlobs, driverMatrix, flattenShape, partOf, requiresValues, rideOrder, workOf, type Pose, type Rig, type Shape } from "./rig.ts";
+import { compileGlobs, driverMatrix, flattenShape, partOf, requiresValues, rideOrder, textureCodes, workOf, type Pose, type Rig, type Shape } from "./rig.ts";
 
 // Poses every driver is evaluated at: each class, part-way through its work.
 const CHECK_POSES: Pose[] = [1, 2].map((size) => ({ theta: 0.3, depth: 0.5, lifting: 0.5, travel: 0.3, work: 1, size, presence: 0.5, feed: 0.3, oil: 0.5 }));
@@ -19,12 +19,19 @@ export interface ManifestModel {
   /** Shown on the model's page, always: who made the model and on what terms. */
   credit: string;
   creditUrl?: string;
+  /** A page of the recipe browser about the model, linked from its page: `page` the address after the version (`eidolon`). */
+  link?: ModelLink;
   /** Repository paths, from the repository's root. */
   shape: string;
   rig?: string;
   /** A vehicle's bogie shape, drawn at each of its scenario's vehicle.bogies places. */
   bogie?: string;
   scenario?: Scenario;
+}
+
+export interface ModelLink {
+  label: string;
+  page: string;
 }
 
 export interface Manifest {
@@ -38,6 +45,7 @@ export interface PublishedModel {
   description: string;
   credit: string;
   creditUrl?: string;
+  link?: ModelLink;
   /** Site paths, relative to the page. */
   shape: string;
   rig?: string;
@@ -57,6 +65,8 @@ export const MODELS_DIR = "models";
 export const MODEL_INDEX = `${MODELS_DIR}/index.json`;
 
 const ID = /^[a-z0-9][a-z0-9-]*$/;
+// A recipe browser page with no more to its address than the version: #/<version>/<page>.
+const LINK_PAGE = /^[a-z-]+$/;
 const REPO_PATH = /^(?!\/)(?!.*(^|\/)\.\.?(\/|$))[\w./-]+\.json$/;
 
 /** Throws an Error listing every problem with a manifest, or returns it typed. */
@@ -77,6 +87,8 @@ export function checkManifest(raw: unknown): Manifest {
     for (const key of ["title", "description", "credit"] as const)
       if (typeof model[key] !== "string" || model[key].trim() === "") problems.push(`${at}: ${key} is required`);
     if (model.creditUrl !== undefined && !/^https:\/\/\S+$/.test(model.creditUrl)) problems.push(`${at}: creditUrl must be an https URL`);
+    if (model.link !== undefined && (typeof model.link?.label !== "string" || model.link.label.trim() === "" || typeof model.link.page !== "string" || !LINK_PAGE.test(model.link.page)))
+      problems.push(`${at}: link needs a label and a page, the address after the version (lower-case letters and dashes)`);
     if (typeof model.shape !== "string" || !REPO_PATH.test(model.shape)) problems.push(`${at}: shape must be a .json path inside the repository`);
     if (model.rig !== undefined && (typeof model.rig !== "string" || !REPO_PATH.test(model.rig))) problems.push(`${at}: rig must be a .json path inside the repository`);
     if (model.bogie !== undefined && (typeof model.bogie !== "string" || !REPO_PATH.test(model.bogie))) problems.push(`${at}: bogie must be a .json path inside the repository`);
@@ -136,7 +148,7 @@ export function checkModelFiles(model: ManifestModel, shape: unknown, rig: unkno
         if (a.kind === "point" && a.part !== undefined && !ids.has(a.part)) problems.push(`${model.rig}: ${a.key} rides "${a.part}", which is not one of its parts`);
       if (model.scenario) {
         const { anchors } = discoverAnchors(r);
-        problems.push(...checkScenario(model.scenario, r, anchors, requiresValues(ps)).map((p) => `scenario: ${p}`));
+        problems.push(...checkScenario(model.scenario, r, anchors, requiresValues(ps), [...new Set(flat.flatMap((f) => textureCodes(f.element)))]).map((p) => `scenario: ${p}`));
       }
       const vehicle = model.scenario?.vehicle;
       if (vehicle) {
@@ -185,6 +197,7 @@ export function publishModels(raw: unknown, readJson: (repoPath: string) => unkn
       description: m.description,
       credit: m.credit,
       ...(m.creditUrl ? { creditUrl: m.creditUrl } : {}),
+      ...(m.link ? { link: m.link } : {}),
       shape: shapePath,
       ...(rigPath ? { rig: rigPath } : {}),
       ...(bogiePath ? { bogie: bogiePath } : {}),

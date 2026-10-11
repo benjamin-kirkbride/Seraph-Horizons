@@ -41,7 +41,8 @@ public enum SizeTier { Small = 1, Medium = 2, Large = 3 }
 
 /// <summary>What the world knows of one deposit beyond the seed: whether a map to it was sold
 /// (to whom, when, in game days) or it is worked out, and its last measurement (remaining ingots,
-/// its tier then, and the centre of the ore counted).</summary>
+/// its tier then, the centre of the ore counted, and what the ore is: <see cref="Makeup"/>, #692;
+/// none for a measurement made before it was kept).</summary>
 public sealed record DepositRecord
 {
     public DepositState State { get; init; }
@@ -54,6 +55,11 @@ public sealed record DepositRecord
     public int? Y { get; init; }
     public int? Z { get; init; }
     public double? MeasuredAtDays { get; init; }
+    public DepositMakeup? Makeup { get; init; }
+
+    /// <summary>Measured with its makeup (#692): a trader may offer a map to it.</summary>
+    [JsonIgnore]
+    public bool Surveyed => Tier != null && Makeup != null;
 
     public static readonly DepositRecord Fresh = new();
 }
@@ -109,11 +115,12 @@ public sealed class DepositRegistry
 
     /// <summary>Records a measurement; a worked-out one (<see cref="DepositSizing.IsWorkedOut"/>,
     /// decided by the caller) marks it sold out.</summary>
-    public void RecordMeasure(DepositKey key, double ingots, SizeTier tier, int x, int y, int z, double days, bool workedOut)
+    public void RecordMeasure(DepositKey key, double ingots, SizeTier tier, int x, int y, int z, double days, bool workedOut,
+        DepositMakeup? makeup = null)
     {
         lock (_lock)
         {
-            var r = Get(key) with { Ingots = ingots, Tier = tier, X = x, Y = y, Z = z, MeasuredAtDays = days };
+            var r = Get(key) with { Ingots = ingots, Tier = tier, X = x, Y = y, Z = z, MeasuredAtDays = days, Makeup = makeup };
             if (workedOut) r = r with { State = DepositState.SoldOut };
             _records[key] = r;
         }
@@ -202,32 +209,32 @@ public static class DepositSizing
 }
 
 /// <summary>
-/// How far an ore map's marker may be from the deposit (#444): tier 1 within 400 m, tier 2
-/// within 150 m, tier 3 on it. The offset is a fixed point of the deposit (from the seed and its
+/// How far an ore map's marker may be from the deposit (#444): rough (1) within 150 m, fair (2)
+/// within 50 m, fine (3) within 15 m; players see the names (<c>oremap-tier-n</c>), never the numbers. The offset is a fixed point of the deposit (from the seed and its
 /// key), scaled by the tier's reach: every copy of a tier marks the same place, and a better tier's
-/// marker lies between the worse one's and the deposit.
+/// marker lies between the worse one's and the deposit. A gravel field is marked exactly.
 /// </summary>
 public static class MapPrecision
 {
     public const int Rough = 1;
     public const int Fair = 2;
-    public const int Exact = 3;
+    public const int Fine = 3;
 
-    public static bool IsValid(int precision) => precision is >= Rough and <= Exact;
+    public static bool IsValid(int precision) => precision is >= Rough and <= Fine;
 
     public static int ReachOf(int precision) => precision switch
     {
-        Rough => 400,
-        Fair => 150,
-        _ => 0,
+        Rough => 150,
+        Fair => 50,
+        _ => 15,
     };
 
     private static readonly ulong Salt = OreCells.Fnv1a("oremap:offset");
 
     public static (int Dx, int Dz) Offset(long seed, DepositKey key, int precision)
     {
+        if (key.IsGravel) return (0, 0);
         int reach = ReachOf(precision);
-        if (reach == 0) return (0, 0);
         ulong h = OreCells.Hash(seed, Salt ^ OreCells.Fnv1a(key.Kind), key.Cell.X, key.Cell.Z, 0);
         // Uniform over the disc: angle uniform, radius by the square root.
         double angle = (h & 0xffffffffUL) / 4294967296.0 * 2 * Math.PI;

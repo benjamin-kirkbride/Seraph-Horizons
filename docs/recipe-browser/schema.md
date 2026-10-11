@@ -24,6 +24,7 @@ below that JSON Schema cannot express.
 | `variantGroups` | Optional. The pack's own mod's Tidy Variants groups, keyed by group id. |
 | `power` | Optional. Mechanical power producers, consumers and the wind ([power.md](power.md)). |
 | `multiblocks` | Optional. Structures built block by block, with the shapes of their blocks ([multiblocks.md](multiblocks.md)). |
+| `eidolon` | Optional. The eidolon's fittings, for its fitting sheet ([below](#the-eidolons-fittings)). |
 
 ## Codes
 
@@ -51,6 +52,10 @@ a liquid: the item's `waterTightContainerProps` are `containable`, and `itemsPer
 many of it make a litre (100 for a portion, 5 for Expanded Foods' hard lard). A liquid block in
 the world (water, 0.001 per litre) is containable only through its portion item, so anything
 under one item per litre has no `liquid`.
+
+`attributes.groundStorage`, optional, says how the item is put down on the ground (placed, a
+loose pile or a pile) and how many one block holds ([item-data.md](item-data.md#ground-storage)).
+It is an optional addition, so `schemaVersion` stayed 1.
 
 `sources` lists ways to get the item other than a recipe: block drops, entity drops and
 trader stock. Much of this is driven by code in the game, so the list is best effort.
@@ -186,6 +191,21 @@ ingredient) and a later stage can ask for the same variant with a `{name}` place
 the water wheel's planks are of the wood of its support beams. Each value is a variant with
 a binding, as for recipes.
 
+The eidolon's two builds (seraphhorizons) are records of this type too, though no engine
+behavior builds them: the gantry's winch (`construction|seraphhorizons:eidolongantry-acacia-north|0`,
+output `seraphhorizons:eidolongantry-{wood}-north`, the placed frame and nine stages, a variant per
+wood binding the drum's planks and the spine's beams) and the eidolon's body
+(`construction|seraphhorizons:creature-eidolon|0`, output the eidolon's creature item). The body's
+first stage is a gantry, an ingredient with role `station`: needed, never consumed, so a reader
+leaves it out of what the build uses up; then the torso (its own grid recipe), five layers and the
+mind. A layer is built in one material of the builder's choice: each piece of its material is one
+ingredient, a wildcard with `allowedVariants` (the sash, leather or cloth, is `game:*` over both
+families' paths), and the record's one variant lists every allowed material's stack for it, the
+default build's first. That all of a layer is one material is in `extra.layers`: per layer, `layer`,
+its `materials` as the mod writes them, the `default`, and the indices of its material `ingredients`.
+`extra.wake` is the crank's action, which wakes it after the last stage. Their `extra.behavior` names
+the mod's classes and `extra.stages` the stages' codes.
+
 ### Butchery
 
 With the Butchering mod a dead creature is picked up whole, skinned on a hook, left there to
@@ -287,6 +307,16 @@ input shaft one hollow takes, the `work` it is made of (4 sections, `turnsPerUni
 `wear` (`fixed`: one point per hollow) and `oil` (`points` drained per hollow from a `tank`, 2 a
 pipe section).
 
+**The cylinder borer** (type `cylinderborer`, shape `machine`): one record per metal, id
+`cylinderborer|seraphhorizons:cylinderblank-<metal>|0` (iron, the Watt engine's; steel, the Cornish's). The
+ingredients are the rough cast cylinder (consumed), the fitted parts (the bushings' metal parts, a block, the bar and the feed, in
+`machine.kept`), the cutter head (`isTool`, its `toolDurabilityCost` the head's wear per cylinder with a full
+tank), the oil (each listed oil in the variant, with the litres one cylinder drains) and the machine (role
+`station`); the output is the bored cylinder (`seraphhorizons:cylinder-<metal>`). `machine` has `power`
+(`mechanical`), the `turns` of the input shaft one cylinder takes, the `work` it is made of (the cutter head's
+travel, 1.125 `blocks`, `turnsPerUnit` each), `kept`, `wear` (`dividedByOilFill`, as the gear cutter's kit) and
+`oil` (`points` drained per cylinder from a `tank`). The cylinder mold's casting is an ordinary `casting` record.
+
 **The press brake** (type `pressbrake`, shape `machine`): one record per half plate metal, id
 `pressbrake|seraphhorizons:halfplate-<metal>|0`. The ingredients are the half plate (consumed), the
 screws (`game:metal-parts`, a block) and the edges (both in `machine.kept`) and the machine (role `station`); the output is one angle
@@ -315,12 +345,59 @@ amount a spring), the machine; `power` `hand`, `turns` the held clock's turns a 
 `work` that many `seconds`; the rod must be at working temperature, which the schema has no field for, so
 `requirements` says it (and `extra.workableTemperature` gives it in °C).
 
+**Spalling** (type `spalling`, shape `machine`, present with seraphhorizons' `OreProcessing` on): one
+record per ore item kind spalled, id `spalling|game:<ore|crystalizedore>-<grade>-<ore>-*|0`. The
+ingredients are the ore (consumed; its code a wildcard over the host rock, every rock an alternative
+in the one variant) and the hammer (`isTool`, its `toolDurabilityCost` the blows times the wear a blow;
+`machine.wear` names it, rule `fixed`); the output is the crushed ore of the 5-unit rule
+(`game:crushed-<ore>-<fine|coarse>`). There is no station: the ore is set down on the ground and struck
+where it lies, which `requirements` says. `power` is `hand`, `turns` the blows (each a left-click with a
+hammer), and `work` says so (`amount` that many, `unit` `strikes`). `extra` has the `ore`, `grade`,
+`form` (`raw` or `chunk`) and `blows`.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).
 The metal is its ingot, `game:ingot-*`, the quantity in ingots and the units in
 `extra.units`; the outputs are the mold's drops with `{metal}` in their code;
 `requirements` says to pour it from a crucible.
+
+**Roasting** (type `oreroasting`, shape `generic`; seraphhorizons, switch `OreProcessing`, so only in an
+export with it on): a sulfide's concentrate roasted in the game's firepit. One record per ore, id
+`oreroasting|seraphhorizons:concentrate-<ore>|0`: the concentrate (one, consumed) and the firepit (role
+`station`); the output is the roasted concentrate (`seraphhorizons:roastedconcentrate-<ore>`) at the
+firepit's share, a fraction (0.85), since each firepit carries what falls short of a whole item over to
+the next. `extra` has the `share`, the `meltingPoint` and the `seconds` one item takes at it, and
+`requirements` says so in words. The concentrate's own `attributes.smelting` gives one roasted item per
+item, the game's terms; the record's quantity is what a player gets.
+
+**Retorting** (type `oreretorting`, shape `generic`; seraphhorizons, switch `OreProcessing`, so only in
+an export with it on): cinnabar and amalgam retorted in the game's still. One record per input, id
+`oreretorting|<input>|0`: the input (one, consumed), the boiler (`game:verticalboiler-west`) and the
+condenser (`game:condenser-west`), both role `station`; the outputs are the mercury
+(`em:mercuryportion`) in portions with its `litres`, and for an amalgam its retorted sponge
+(`seraphhorizons:sponge-<ore>`, one). `extra` has the `portions` one item gives and the
+`portionsPerSecond`; `requirements` says how the still is set up.
+
+**Cupellation** (type `cupellation`, shape `generic`, seraphhorizons with `OreProcessing` on):
+one record per ore the bone-ash cupel takes, a full cupel of it, id
+`cupellation|seraphhorizons:roastedconcentrate-<ore>|0`. The ingredients are the fired cupel
+(used up), the roasted concentrate, lead bits for an ore whose main metal is not lead, and
+`game:forge` (role `station`, crucibulum's forge); the outputs are what the cupel with its
+silver bead breaks into in the grid, as averages: litharge (the lead) and metal bits (silver,
+copper), fractional since whole items are drawn when the cupel is done. `extra` has the units
+(`leadUnits`, `metalUnits` per metal), the cupel's `capacityUnits` and the `seconds` with the
+blast gate open; `requirements` says the heat and the gate.
+
+**Liquation** (type `liquation`, shape `generic`, seraphhorizons with `OreProcessing` on): one
+record per ore the clay liquation pan takes (teallite, franckeite), a full pan of it kept under the
+lead point, id `liquation|seraphhorizons:roastedconcentrate-<ore>|0`. The ingredients are the fired
+pan (role `kept`: it is reused), the roasted concentrate and `game:firepit-cold` (role `station`;
+crucibulum's forge works too, which `requirements` says); the outputs are the metal poured, in ingots
+of 100 units (`game:ingot-tin`, molten in the pan and poured into a mold), and what stays in the pan
+as metal bits (`game:metalbit-lead`), an average, since whole bits are drawn when the pan is done.
+`extra` has the `units` poured, the `residueUnits` per metal, the pan's `capacityUnits`, the
+`tinPoint` and `leadPoint` and the `seconds` a full pan takes; `requirements` says the heat.
 
 These shapes and blocks are optional additions, so `schemaVersion` stayed 1: an export that
 lacks them is still valid, and the site falls back to the generic card for a record of a
@@ -352,6 +429,42 @@ before it lack it.
 
 prepare-data writes the section as it is to `power.json`; an export without it gives no file.
 
+## The eidolon's fittings
+
+`eidolon`, an optional top-level object, holds what the site's eidolon fitting sheet shows
+([site.md](site.md#the-eidolons-fitting-sheet)), all of it from the pack's mod
+(`tools/recipe-export/EidolonSection.cs` reads its `Eidolon/Core` classes by reflection and the
+loaded config), so the page shows what ships. Like the other optional additions it left
+`schemaVersion` at 1; exports made before it, and exports with the mod's `Eidolon` switch off, lack it.
+
+- `mod`; `item`, the eidolon's creature item; `torso`: its `item` (null while it is not
+  registered) and the grid `recipe` it is crafted from; `mind`, what is fitted after the layers.
+- `layers`, in build order (`EidolonFittings.Layers`): `id` (`bones`, `joints`, `plates`, `sash`,
+  `skirt`, also the layer's texture code in the eidolon's shape), `name` (the stages file's,
+  `config/eidolon-stages.json`), `default` (the material an eidolon from before fittings has:
+  the shape's default look), `materials` and `parts` (the Jonas parts the layer takes whatever its
+  material, given back when it is stripped). A material has its `id` as the mod stores it (a wood,
+  a metal code such as `stainlesssteel`, `leather-<colour>` or `cloth-<colour>`), the `texture` it
+  draws with (`domain:path` under `textures/`, no extension) and the `items` a layer of it takes
+  (`EidolonFittings.Bill` less the parts). Only materials whose items are registered are listed;
+  the bones also list any wood a registered support beam comes in that the rules allow.
+- `settings`: EidolonSettings as the server has them: `allSteelHealth`, `baseHealth` (all iron),
+  the health, damage and move-speed multipliers keyed by material, `plateArmour` per plate metal
+  (`protectionTier`, `relativeProtection`, `flatDamageReduction`), `armourLoss`, and the base
+  `walkSpeed`, `runSpeed`, `defenceDamage` and `slamDamage`.
+- `builds`: every joints, plates and skirt metal with the stats `EidolonStats.Of` gives it
+  (`maxHealth`, the speeds, the blows' damage, `armour`); bones and sash change nothing.
+- `shapeTextures`: the eidolon shape's texture codes and paths.
+
+The section carries texture paths, never images: CI's game is the dedicated server, which has no
+textures. The images are imported by hand from a game client into the repository's texture store
+(`textures/`, `tools/textures.py`; [icons.md](icons.md#game-textures)), and prepare-data adds the
+ones the section names to `eidolon.json` as PNG data URIs; a path the store lacks is left out with
+a warning, and the site draws it as a colour.
+
+The exporter also warns when a layer's bill and the model's measured counts in the stages file
+disagree.
+
 ## Rules beyond the schema
 
 - Every recipe `type` is a key of `recipeTypes`, and `count` equals the number of records.
@@ -364,6 +477,9 @@ prepare-data writes the section as it is to `power.json`; an export without it g
 - In `multiblocks`: structure ids are unique and their `mod` a key of `mods`; every cell names
   an existing part and no two cells of a size share a place; a part has a `block` or `air`, and
   its `block` is a key of `multiblocks.shapes`; `defaultSize` is a size that exists.
+- In `eidolon`: every code is a key of `items` and the `mod` a key of `mods`; layer ids and each
+  layer's material ids are unique, and a layer's `default` is one of its materials; a build's
+  joints, plates and skirt are materials of those layers and no build is listed twice.
 - `variants[].ingredients` is as long as `ingredients`.
 - Power entry ids are unique within `producers` and within `consumers`; an entry's `item` is a
   key of `items` (or null) and its `mod` a key of `mods`; `loadMax` is at least `load`, a wind
@@ -382,7 +498,8 @@ prepare-data writes the section as it is to `power.json`; an export without it g
   plus, with a failure, what a lost gear becomes.
 - A `lottery` record has one ingredient; its outcomes' chances add up to 1, and each output
   belongs to exactly one outcome.
-- A `machine` record has an ingredient with role `station`; `kept`, `wear.ingredient` and
+- A `machine` record has an ingredient with role `station`, unless it is worked by hand in place
+  (`power` `hand` and a `requirements` entry saying where, as spalling); `kept`, `wear.ingredient` and
   `oil.ingredient` name different ingredients, a kept one is not a tool and the worn one is.
 
 ## `extra`

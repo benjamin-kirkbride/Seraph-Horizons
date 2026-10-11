@@ -2,8 +2,9 @@
 
 The committed files are checked as they are: strict JSON, every animation naming only elements that
 exist and moving only the joints the vanilla animations move (plus the three anchors), the textures
-the game's own, the attachment points in place, the build stages covering every element exactly once
-with the body one piece after every stage, the viewer's rig a part per stage that puts every element in
+the game's own and coded by layer, the attachment points in place, the build stages covering every
+element exactly once with the body one piece after every stage, each layer the elements of its texture
+code and its material counted from the model, the viewer's rig a part per stage that puts every element in
 its own stage's part, and the poses doing what they are for (feet on the ground, hands on their grips,
 objects on the ground staying put). With a game install ($VINTAGE_STORY) the generator is run too
 and its output must equal the committed files. Run with `python3 -m unittest discover -s tools/tests`.
@@ -11,6 +12,7 @@ and its output must equal the committed files. Run with `python3 -m unittest dis
 
 import importlib.util
 import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -55,9 +57,58 @@ AUTHORED = {
     "trunk-thick-carry-idle": (60, "Repeat"), "trunk-thick-carry-walk": (30, "Repeat"),
     "trunk-thick-pickup": (60, "Hold"), "trunk-thick-setdown": (50, "Stop"),
     "guard-idle": (80, "Repeat"), "hung": (1, "Hold"), "activate": (90, "Stop"),
+    "dock": (60, "Hold"),
     "slump": (50, "Hold"), "standup": (60, "Stop"),
+    "strike-jab": (24, "Stop"), "strike-hammer": (30, "Stop"),
 }
 KEY_FIELDS = {n for names in kin.GROUPS.values() for n in names}
+
+
+class Codes(unittest.TestCase):
+    """The texture codes are the layers, their paths the default build's: all steel, oak bones, plain leather."""
+
+    def test_the_default_build(self):
+        self.assertEqual({c: SHAPE["textures"][c] for c in make_shape.LAYERS}, {
+            "bones": "game:block/wood/debarked/oak", "joints": "game:block/metal/plate/steel",
+            "plates": "game:block/metal/plate/steel", "sash": "game:block/leather/plain",
+            "skirt": "game:block/metal/armor-generic/chain-steel"})
+        self.assertEqual(SHAPE["textures"]["glow"], "game:block/machine/statictranslocator/rustyglow")
+        self.assertFalse(set(SHAPE["textures"]) & {"rusty-iron", "steel", "charred", "poor", "chain-rust", "rustyglow"})
+
+    def test_every_layer_is_worn_and_the_recodes_wear_theirs(self):
+        used = {f["texture"].lstrip("#") for n in RIG.order for f in RIG.elements[n].get("faces", {}).values()
+                if f.get("enabled", True)}
+        self.assertLessEqual(set(make_shape.LAYERS), used)
+        for n, code in make_shape.RECODE.items():
+            faces = [f for f in RIG.elements[n]["faces"].values() if f.get("enabled", True)]
+            self.assertTrue(faces and all(f["texture"] == "#" + code for f in faces), n)
+
+    def test_the_spine_is_recoded_alike(self):
+        def codes(e):
+            return {f["texture"].lstrip("#") for f in e.get("faces", {}).values() if f.get("enabled", True)} | {
+                c for ch in e.get("children", []) for c in codes(ch)}
+
+        self.assertEqual(codes(SPINE["elements"][0]), {"bones", "joints", "plates", "reedrope"})
+
+    def test_recode_maps_vanillas_codes_and_keeps_the_rest(self):
+        shape = {"elements": [{"name": "a", "from": [0, 0, 0], "to": [1, 2, 3], "faces": {
+            "north": {"texture": "#rusty-iron"}, "up": {"texture": "#lattice"}}}]}
+        make_shape.recode(shape["elements"])
+        self.assertEqual([f["texture"] for f in shape["elements"][0]["faces"].values()], ["#plates", "#lattice"])
+
+    def test_an_element_in_several_codes_goes_by_the_most_area(self):
+        # 3 x 1 north and south (bones) against 1 x 1 east and west and 3 x 1 up (plates): bones, 6 to 5;
+        # an even split goes to the earlier layer
+        e = {"name": "x", "from": [0, 0, 0], "to": [3, 1, 1], "faces": {
+            "north": {"texture": "#charred"}, "south": {"texture": "#bones"}, "east": {"texture": "#plates"},
+            "west": {"texture": "#plates"}, "up": {"texture": "#plates"}}}
+        self.assertEqual(make_shape.main_code(e), "bones")
+        e["faces"]["down"] = {"texture": "#plates"}
+        self.assertEqual(make_shape.main_code(e), "plates")
+        e["faces"]["down"] = {"texture": "#bones"}
+        e["faces"]["up"] = {"texture": "#bones"}
+        e["faces"]["east"] = e["faces"]["west"] = {"texture": "#joints", "enabled": False}
+        self.assertEqual(make_shape.main_code(e), "bones")
 
 
 class Files(unittest.TestCase):
@@ -100,7 +151,8 @@ class Shape(unittest.TestCase):
         self.assertFalse(names & keyed)
 
     def test_textures_are_the_games(self):
-        self.assertEqual(set(SHAPE["textures"]), set(make_shape.VANILLA_TEXTURES))
+        self.assertEqual(set(SHAPE["textures"]), set(make_shape.TEXTURES))
+        self.assertEqual({make_shape.CODES.get(c, c) for c in make_shape.VANILLA_TEXTURES}, set(make_shape.TEXTURES))
         for code, path in SHAPE["textures"].items():
             self.assertTrue(path.startswith("game:"), code)
         for n in RIG.order:
@@ -170,10 +222,11 @@ class Animations(unittest.TestCase):
         same("trunk-thick-setdown", 0, "trunk-thick-carry-idle", 0)
         same("slump", 49, "standup", 0)
         same("hung", 0, "activate", 0)
+        same("dock", 59, "hung", 0)
 
     def test_ends_at_rest(self):
         for code, frame in (("setdown", 44), ("trunk-setdown", 49), ("trunk-thick-setdown", 49),
-                            ("standup", 59), ("activate", 89)):
+                            ("standup", 59), ("activate", 89), ("dock", 0)):
             pose = kin.sample(ANIMS[code], frame)
             for n, entry in pose.items():
                 if n in make_shape.ANCHORS:
@@ -195,7 +248,7 @@ class Poses(unittest.TestCase):
             self.assertGreater(lo, -0.5, code)
             self.assertLess(hi, 0.5, code)
         for code in ("fell", "guard-idle", "lift", "setdown", "trunk-pickup", "trunk-setdown", "trunk-thick-pickup",
-                     "trunk-thick-setdown", "trunk-thick-carry-idle", "standup", "activate"):
+                     "trunk-thick-setdown", "trunk-thick-carry-idle", "standup", "activate", "dock"):
             self.assertLess(r[code + ": worst sole height at planted keys"], 0.05, code)
         self.assertAlmostEqual(r["hung: lowest sole y"], make_shape.HUNG_CLEAR, delta=0.05)
         self.assertAlmostEqual(r["slump (held frame): lowest leg point y"], 0.0, delta=0.05)
@@ -216,6 +269,34 @@ class Poses(unittest.TestCase):
         for f in range(make_shape.ACTIVATE_LAND, 90):
             low = min(c[1] for sd in "RL" for c in b.sole_corners(sd, kin.sample(a, f)))
             self.assertLess(abs(low), 0.4, f"activate frame {f}: lowest sole {low:.2f}")
+
+    def test_dock_backs_onto_the_spine_and_hangs(self):
+        # activate in reverse: from rest at the entity's position it steps back, one foot down at every frame
+        # until the clamps take it (DOCK_CLAMP), then is lifted to hang HUNG_BACK behind, as hung
+        a, b = ANIMS["dock"], make_shape.Builder(SHAPE)
+
+        def hip_x(f):
+            return RIG.matrix("hip-inside", kin.sample(a, f))[0][3] * 16
+
+        rest = RIG.matrix("hip-inside", {})[0][3] * 16
+        self.assertAlmostEqual(hip_x(0), rest, delta=0.01)
+        self.assertAlmostEqual(hip_x(59) - rest, make_shape.HUNG_BACK, delta=1.0)
+        self.assertGreater(hip_x(make_shape.DOCK_CLAMP), hip_x(0) + 3.0)
+        for f in range(make_shape.DOCK_CLAMP + 1):
+            low = min(c[1] for sd in "RL" for c in b.sole_corners(sd, kin.sample(a, f)))
+            self.assertLess(abs(low), 0.4, f"dock frame {f}: lowest sole {low:.2f}")
+        low = min(c[1] for sd in "RL" for c in b.sole_corners(sd, kin.sample(a, 59)))
+        self.assertAlmostEqual(low, make_shape.HUNG_CLEAR, delta=0.05)
+        self.assertEqual(make_shape.EVENTS["dock"], {"clamp": make_shape.DOCK_CLAMP})
+
+    def test_docking_clamps_on_the_dock_animations_frame(self):
+        # the gantry takes hold on the clamp frame (Eidolon/Core/EidolonDocking.cs), and hung follows dock's end
+        core = (MOD / "Eidolon" / "Core" / "EidolonDocking.cs").read_text(encoding="utf-8")
+        frames = int(re.search(r"public const int DockFrames = (\d+);", core).group(1))
+        clamp = int(re.search(r"public const int ClampFrame = (\d+);", core).group(1))
+        self.assertEqual(frames, make_shape.DOCK_FRAMES)
+        self.assertEqual(frames, ANIMS["dock"]["quantityframes"])
+        self.assertEqual(clamp, make_shape.EVENTS["dock"]["clamp"])
 
     def test_hands_on_their_grips(self):
         for k, v in self.report.items():
@@ -251,33 +332,158 @@ class Poses(unittest.TestCase):
             self.assertAlmostEqual(r[f"{code}: thick trunk underside height at the {event}"], 0.0, delta=0.5)
 
 
+class Strikes(unittest.TestCase):
+    """Self-defence's blows (Eidolon/Core/EidolonStrikes.cs): each the entity type's animation, of the
+    length the C# says, landing on the frame it says (the moving ones on their EVENTS "hit" frame), with
+    the striking fist or foot then at least as far past the body's 1.7-wide box as the C#'s reach. The
+    moving ones move only the upper body, which the entity type alone weights, so the walk's legs go on."""
+
+    CORE = (MOD / "Eidolon" / "Core" / "EidolonStrikes.cs").read_text(encoding="utf-8")
+    ENTITY = (MOD / "assets" / "seraphhorizons" / "entities" / "eidolon.json").read_text(encoding="utf-8")
+    STRIKERS = {"stand-punch": ("palmR",), "stand-kick": ("footR",), "stand-slam": ("palmR", "palmL"),
+                "strike-jab": ("palmR",), "strike-hammer": ("palmR", "palmL")}
+
+    @classmethod
+    def strikes(cls):
+        found = re.findall(r'new\("([\w-]+)", Frames: (\d+), HitFrame: (\d+), Reach: ([\d.]+), Moving: (true|false)\)', cls.CORE)
+        out = []
+        for code, frames, hit, reach, moving in found:
+            m = re.search(r'code: "%s", animation: "([\w-]+)"' % re.escape(code), cls.ENTITY)
+            assert m, code
+            out.append((m.group(1), int(frames), int(hit), float(reach), moving == "true"))
+        return out
+
+    def test_every_strike_is_found(self):
+        self.assertEqual(sorted(a for a, *_ in self.strikes()), sorted(self.STRIKERS))
+
+    def test_lengths_and_hit_frames(self):
+        for anim, frames, hit, _, moving in self.strikes():
+            self.assertEqual(ANIMS[anim]["quantityframes"], frames, anim)
+            if moving:
+                self.assertEqual(make_shape.EVENTS[anim]["hit"], hit, anim)
+
+    def test_the_blow_reaches_as_far_as_the_core_says(self):
+        for anim, _, hit, reach, _ in self.strikes():
+            pose = kin.sample(ANIMS[anim], hit)
+            front = max(0.5 - RIG.centre(n, RIG.matrix(n, pose))[0] / 16 for n in self.STRIKERS[anim])
+            # the striking part's centre, so a fist's own half width (about 0.15) more is its face
+            self.assertGreater(front - 0.85 + 0.15, reach - 0.05, f"{anim}: {front:.2f} in front at frame {hit}")
+
+    def test_moving_strikes_move_only_the_upper_body(self):
+        for code in ("strike-jab", "strike-hammer"):
+            moved = {n for k in ANIMS[code]["keyframes"] for n in k["elements"]}
+            self.assertLessEqual(moved, make_shape.STRIKE_ELEMENTS, code)
+
+    def test_moving_strikes_weigh_only_the_upper_body(self):
+        for code in ("strike-jab", "strike-hammer"):
+            m = re.search(r'\{ code: "%s", animation: "%s", weight: ([\d.]+), blendMode: "Average",\s*elementWeight: \{([^}]*)\} \}'
+                          % (code, code), self.ENTITY)
+            self.assertTrue(m, code)
+            self.assertLess(float(m.group(1)), 0.01, code)  # but not 0, which breaks the blend
+            weighted = dict(re.findall(r'"([\w-]+)": ([\d.]+)', m.group(2)))
+            self.assertEqual(set(weighted), make_shape.STRIKE_ELEMENTS, code)
+            self.assertEqual(set(weighted.values()), {"10"}, code)
+
+    def test_moving_strikes_start_and_end_on_the_same_guard(self):
+        for code in ("strike-jab", "strike-hammer"):
+            a = ANIMS[code]
+            first, last = kin.sample(a, 0), kin.sample(a, a["quantityframes"] - 1)
+            for n in set(first) | set(last):
+                for g in ("rot", "off"):
+                    for x, y in zip(first.get(n, {}).get(g, (0, 0, 0)), last.get(n, {}).get(g, (0, 0, 0))):
+                        self.assertAlmostEqual(x, y, delta=0.01, msg=f"{code}: {n} {g}")
+
+
 class Stages(unittest.TestCase):
+    def stage(self, code):
+        return next(s for s in STAGES["stages"] if s["code"] == code)
+
     def test_every_element_in_exactly_one_stage_one_piece_after_each(self):
         self.assertEqual(make_shape.check_stages(SHAPE, STAGES), [])
         counted = [n for st in STAGES["stages"] for n in st["elements"]]
         self.assertEqual(sorted(counted), sorted(RIG.order))
 
     def test_the_check_catches_a_floating_stage(self):
-        # the torso's plates without the chest block they are on: two pieces after the torso
+        # the arms' bones without the upper-arm blocks they hang from: pieces after the bones
         bad = json.loads(json.dumps(STAGES))
-        bad["stages"][1]["elements"].remove("chest-inside")
-        bad["stages"][2]["elements"].append("chest-inside")
-        self.assertTrue(any("pieces" in p for p in make_shape.check_stages(SHAPE, bad)))
+        bad["stages"][2]["elements"].remove("upper-armR")
+        bad["stages"][3]["elements"].append("upper-armR")
+        self.assertTrue(any("after bones" in p and "pieces" in p for p in make_shape.check_stages(SHAPE, bad)))
 
-    def test_the_torso_comes_first(self):
-        torso = set(STAGES["stages"][1]["elements"])
-        self.assertLessEqual({"chest-inside", "chest-backplate", *make_shape.ANCHORS}, torso)
-        self.assertEqual(make_shape.SPINE_PARENT, "chest-inside")  # the gantry's spine is clamped to the torso
-        # before its parent: the chest block hangs off the hip block in the shape's hierarchy
-        self.assertEqual(RIG.parent["chest-inside"], "hip-inside")
-        self.assertIn("hip-inside", STAGES["stages"][2]["elements"])
-
-    def test_stages_are_the_proposal(self):
+    def test_torso_layers_mind(self):
         self.assertEqual([s["code"] for s in STAGES["stages"]],
-                         ["gantry", "torso", "pelvis", "legs", "arms", "head", "mind"])
+                         ["gantry", "torso", "bones", "joints", "plates", "sash", "skirt", "mind"])
         self.assertEqual(STAGES["stages"][0]["elements"], [])
-        mind = set(STAGES["stages"][-1]["elements"])
-        self.assertEqual(mind, {"brain", "bar-head1", "heart", "bar-heart1", "bar-heart2", "Eye-out"})
+        # the torso is the trunk's frame, the lattice chest and hip blocks, with the faceless root and anchors
+        self.assertEqual(set(self.stage("torso")["elements"]),
+                         {"origin", "hip-inside", "chest-inside", *make_shape.ANCHORS})
+        self.assertEqual(make_shape.SPINE_PARENT, "chest-inside")  # the gantry's spine is clamped to the torso
+        self.assertEqual(set(self.stage("mind")["elements"]), {"heart", "bar-heart1", "bar-heart2", "Eye-out"})
+        # the head's lattice block and the elucidatory vessel go with the bones, which take the vessel
+        self.assertLessEqual({"head-inside", "brain"}, set(self.stage("bones")["elements"]))
+        self.assertIn("game:rustypart-eidolon2tr", self.stage("bones")["ingredients"])
+
+    def test_each_layer_is_the_elements_of_its_code(self):
+        for code in make_shape.LAYERS:
+            st = self.stage(code)
+            self.assertEqual(st["texture"], code)
+            for n in st["elements"]:
+                c = make_shape.element_code(RIG.elements[n])
+                if code == "bones" and c in ("lattice", "glow"):
+                    continue
+                self.assertEqual(c, code, n)
+            # and every element wearing the code is in it, but the mind's
+            mind = set(self.stage("mind")["elements"])
+            self.assertEqual({n for n in RIG.order if make_shape.element_code(RIG.elements[n]) == code} - mind,
+                             set(st["elements"]) - {"head-inside", "brain"}, code)
+
+    def test_ingredients(self):
+        # "N code" for N of an item, {tokens} the builder's choice; with the default build's materials
+        totals = {}
+        for st in STAGES["stages"][1:]:
+            for ing in st["ingredients"] + st.get("recipe", []):
+                n, _, code = ing.rpartition(" ")
+                for k, v in st.get("material", {}).items():
+                    code = code.replace("{" + k + "}", v)
+                self.assertNotIn("{", code, st["code"])
+                totals[code] = totals.get(code, 0) + (int(n) if n else 1)
+        self.assertEqual(self.stage("torso")["ingredients"], ["seraphhorizons:eidolontorso"])
+        self.assertEqual(totals.get("seraphhorizons:gear-stainless"), 12)
+        self.assertEqual(totals.get("game:metal-parts"), 16)
+        self.assertEqual(totals.get("game:rustypart-eidolon2tr"), 1)
+        self.assertEqual(totals.get("game:gear-temporal"), 1)
+        self.assertFalse(any("largegear" in c for c in totals), "no large gears")
+        jonas = {c: n for c, n in totals.items() if c.startswith(("game:jonasparts-", "game:jonasframes-"))}
+        self.assertEqual((len(jonas), sum(jonas.values())), (14, 16))
+        steel = (2 * totals["game:metalplate-steel"] + totals["game:rod-steel"]
+                 + totals["game:metalnailsandstrips-steel"] / 4)
+        self.assertEqual(steel, 43)   # the metal's scale: today's 43 ingots, spread by area
+        self.assertEqual((totals["game:supportbeam-oak"], totals["game:leather-normal-plain"],
+                          totals["game:metalchain-steel"]), (30, 4, 4))
+        self.assertEqual(self.stage("mind")["ingredients"], ["game:gear-temporal"])
+        for code in ("plates", "sash", "skirt"):
+            self.assertEqual(len(self.stage(code)["ingredients"]), 1, "their material only")
+
+    def test_counts_are_scaled_to_the_model(self):
+        area = {c: sum(make_shape.half_area(RIG.elements[n]) for n in self.stage(c)["elements"]
+                       if make_shape.element_code(RIG.elements[n]) == c) for c in make_shape.LAYERS}
+        ingot = (area["plates"] + area["joints"]) / 43
+        self.assertAlmostEqual(STAGES["scale"]["ingot"], ingot, delta=0.01)
+        self.assertAlmostEqual(STAGES["scale"]["sheet"], 2 * ingot, delta=0.01)
+        self.assertEqual(STAGES["scale"]["beam"], 144)
+        for c in make_shape.LAYERS:
+            m = self.stage(c)["measure"]
+            self.assertAlmostEqual(sum(x["area"] for x in m), area[c], delta=0.2, msg=c)
+            for x in m:
+                self.assertAlmostEqual(x["exact"], x["area"] / x["per"], delta=0.01)
+                step = 4 if "nails" in x["item"] else 1
+                floor = (make_shape.SMALL_LAYER_FLOOR if c in ("sash", "skirt")
+                         else make_shape.BONES_FLOOR if c == "bones" else 0)
+                if x["count"] > floor:
+                    self.assertLessEqual(abs(x["count"] - x["exact"]), step / 2 + 0.01, x["item"])
+                else:
+                    self.assertGreaterEqual(x["count"], round(x["exact"]), x["item"])
+                self.assertIn(f"{x['count']} {x['item']}", self.stage(c)["ingredients"])
 
     def test_the_stage_file_is_the_stage_map(self):
         self.assertEqual(STAGES, make_shape.stages_file(SHAPE))
@@ -313,16 +519,16 @@ class StageRig(unittest.TestCase):
 
     def test_listed_with_each_stage_before_those_its_elements_hang_from(self):
         order = [p["id"] for p in STAGE_RIG["parts"]]
-        for deep, under in (("mind", "head"), ("mind", "torso"), ("head", "torso"), ("arms", "torso"),
-                            ("torso", "pelvis"), ("legs", "pelvis")):
+        for deep, under in (("mind", "torso"), ("bones", "torso"), ("joints", "bones"), ("plates", "joints"),
+                            ("sash", "plates"), ("skirt", "torso")):
             self.assertLess(order.index(deep), order.index(under), (deep, under))
 
     def test_the_order_check_catches_a_part_listed_too_late(self):
         bad = json.loads(json.dumps(STAGE_RIG))
-        bad["parts"].sort(key=lambda p: p["id"] != "pelvis")     # the pelvis first: it would take everything
+        bad["parts"].sort(key=lambda p: p["id"] != "torso")      # the torso first: it would take everything
         saved, STAGE_RIG["parts"] = STAGE_RIG["parts"], bad["parts"]
         try:
-            self.assertEqual(self.part_of("neck"), "pelvis")
+            self.assertEqual(self.part_of("neck"), "torso")
         finally:
             STAGE_RIG["parts"] = saved
 

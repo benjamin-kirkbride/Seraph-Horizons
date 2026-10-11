@@ -10,28 +10,35 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.CrucibleFurnace;
 
 /// <summary>
-/// Stainless steel's crucible furnace (<c>StainlessSteel</c>, #484 part C, README "Crucible furnace"):
-/// a row of melting holes on one brick chimney, fired with coke, each holding a fireclay melting pot
-/// whose charge melts into ferrosilicon, ferrochrome or stainless steel (<see cref="PotRecipes"/>).
-/// Registers the classes on both sides; on the server, with the switch off, leaves the holes, the
+/// Stainless steel's crucible furnace (<c>StainlessSteel</c>, #484 part C, #796, README "Crucible
+/// furnace"): a 3 x 3 x 2 machine of ghost cells placed from its iron frame and built in stages, one
+/// two-pot hole fired with coke on natural draught, its chimney (shared along a row) setting the draught,
+/// each fireclay melting pot's charge melting into ferrosilicon, ferrochrome, stainless steel or iron
+/// (<see cref="PotRecipes"/>). Holds what its blocks share: its settings, the pot recipes, the rig
+/// (assets/seraphhorizons/config/cruciblefurnace-rig.json) and the lid's boxes measured from the shape.
+/// Registers the classes on both sides; on the server, with the switch off, leaves the furnace, the
 /// pots, the two ferroalloys, their recipes, the handbook patch and the guide page out of the game.
 /// Settings in <c>CrucibleFurnaceSettings</c>.
 /// </summary>
 public class CrucibleFurnaceSystem : ModSystem
 {
     public const string Domain = "seraphhorizons";
-    public const string HoleClass = "seraphhorizons.MeltingHole";
+    public const string FrameCode = "seraphhorizons:cruciblefurnace-frame-north";
+    public const string FurnaceClass = "seraphhorizons.CrucibleFurnace";
+    public const string GhostClass = "seraphhorizons.CrucibleFurnaceGhost";
     public const string PotClass = "seraphhorizons.MeltingPot";
     public const string SmeltedPotClass = "seraphhorizons.MeltingPotSmelted";
     public const string GuidePageCode = "seraphhorizons-cruciblefurnace";
     public const string GuideTitleKey = "seraphhorizons:cruciblefurnace-title";
     public const string FiredPot = "seraphhorizons:meltingpot-fired";
     public const string SmeltedPot = "seraphhorizons:meltingpot-smelted";
-    public const string ClosedHole = "seraphhorizons:meltinghole-closed";
+    public static readonly AssetLocation RigAsset = new(Domain, "config/cruciblefurnace-rig.json");
+    public static readonly AssetLocation ShapeAsset = new(Domain, "shapes/block/cruciblefurnace.json");
 
     public static readonly AssetLocation[] TypeAssets =
     [
-        new(Domain, "blocktypes/cruciblefurnace/meltinghole.json"),
+        new(Domain, "blocktypes/cruciblefurnace/frame.json"),
+        new(Domain, "blocktypes/cruciblefurnace/ghost.json"),
         new(Domain, "blocktypes/cruciblefurnace/meltingpot.json"),
         new(Domain, "itemtypes/ferrosilicon.json"),
         new(Domain, "itemtypes/ferrochrome.json"),
@@ -49,6 +56,9 @@ public class CrucibleFurnaceSystem : ModSystem
 
     private ICoreAPI? _api;
     private CrucibleFurnaceConfig? _config;
+    private CrucibleFurnaceRig? _rig;
+    private bool _rigLoaded;
+    private LidSweep? _lid;
     private PotRecipes? _recipes;
     private ModSystemSurvivalHandbook? _handbook;
     private InitCustomPagesDelegate? _hidePage;
@@ -69,11 +79,34 @@ public class CrucibleFurnaceSystem : ModSystem
     /// not installed is left out, with a line in the log).</summary>
     public PotRecipes Recipes => _recipes ??= LoadRecipes(_api!);
 
+    /// <summary>The rig, or null when the file is missing or broken (logged once); the frame then
+    /// cannot be placed.</summary>
+    public CrucibleFurnaceRig? Rig
+    {
+        get
+        {
+            if (!_rigLoaded && _api != null)
+            {
+                _rigLoaded = true;
+                _rig = LoadRig(_api);
+                if (_rig != null)
+                    _lid = LoadLid(_api, _rig);
+            }
+            return _rig;
+        }
+    }
+
+    /// <summary>The lid's boxes (native blocks) open and swept, from the shape; null without the rig or
+    /// the shape (the lid then has no collision of its own).</summary>
+    public LidSweep? Lid => Rig != null ? _lid : null;
+
     public override void Start(ICoreAPI api)
     {
         _api = api;
-        api.RegisterBlockClass(HoleClass, typeof(BlockMeltingHole));
-        api.RegisterBlockEntityClass(HoleClass, typeof(BEMeltingHole));
+        api.RegisterBlockClass(FurnaceClass, typeof(BlockCrucibleFurnace));
+        api.RegisterBlockEntityClass(FurnaceClass, typeof(BECrucibleFurnace));
+        api.RegisterBlockClass(GhostClass, typeof(BlockCrucibleFurnaceGhost));
+        api.RegisterBlockEntityClass(GhostClass, typeof(BECrucibleFurnaceGhost));
         api.RegisterBlockClass(PotClass, typeof(BlockMeltingPot));
         api.RegisterBlockClass(SmeltedPotClass, typeof(BlockMeltingPotSmelted));
         // Before the game's patch loader, which applies the patches in AssetsLoaded. On the server
@@ -89,6 +122,9 @@ public class CrucibleFurnaceSystem : ModSystem
     // and 1, this system at the default 0.1), on the server only.
     public override void AssetsLoaded(ICoreAPI api)
     {
+        // The rig and the lid's boxes are loaded here so the collision box lookups, which can run off
+        // the main thread, find them ready.
+        _ = Rig;
         if (api.Side == EnumAppSide.Server && !Applies(api))
             Disable(api);
         if (BessemerStainless.Applies(api) && BessemerStainless.Bound)
@@ -181,9 +217,12 @@ public class CrucibleFurnaceSystem : ModSystem
         var kept = new List<PotRecipe>();
         foreach (var recipe in PotRecipes.Default.Recipes)
         {
-            var missing = recipe.Ingredients.SelectMany(i => i.Codes).Append(recipe.Output)
-                .Concat(recipe.Byproduct is { } b ? [b] : [])
-                .Where(c => !c.Contains('*') && Resolve(api.World, c) == null).ToList();
+            bool Present(string c) => c.Contains('*') || Resolve(api.World, c) != null;
+            // An ingredient is there if any of its codes is (chromite concentrate exists only with
+            // OreProcessing on, crushed chromite always).
+            var missing = recipe.Ingredients.Where(i => !i.Codes.Any(Present)).Select(i => string.Join(" or ", i.Codes))
+                .Concat(new[] { recipe.Output }.Concat(recipe.Byproduct is { } b ? [b] : []).Where(c => !Present(c)))
+                .ToList();
             if (missing.Count == 0)
                 kept.Add(recipe);
             else
@@ -191,6 +230,47 @@ public class CrucibleFurnaceSystem : ModSystem
                     recipe.Code, string.Join(", ", missing));
         }
         return new PotRecipes(kept);
+    }
+
+    private static CrucibleFurnaceRig? LoadRig(ICoreAPI api)
+    {
+        var asset = api.Assets.TryGet(RigAsset);
+        if (asset == null)
+        {
+            api.Logger.Error("[seraphhorizons] Crucible furnace: {0} is missing; the crucible furnace cannot be placed", RigAsset);
+            return null;
+        }
+        try
+        {
+            return CrucibleFurnaceRig.Parse(asset.ToText());
+        }
+        catch (FormatException e)
+        {
+            api.Logger.Error("[seraphhorizons] Crucible furnace: {0} is broken, so the crucible furnace cannot be placed: {1}", RigAsset, e.Message);
+            return null;
+        }
+    }
+
+    private static LidSweep? LoadLid(ICoreAPI api, CrucibleFurnaceRig rig)
+    {
+        int lid = rig.MovingParts.IndexOf(FurnaceRequires.Lid);
+        if (lid < 0 || api.Assets.TryGet(ShapeAsset) is not { } shape)
+        {
+            api.Logger.Warning("[seraphhorizons] Crucible furnace: no lid in {0} or {1}; the lid has no collision box", RigAsset, ShapeAsset);
+            return null;
+        }
+        try
+        {
+            var elements = LidBoxes.Elements(shape.ToText(), rig.MovingParts.Parts[lid]);
+            if (LidBoxes.At(elements, rig.MovingParts, lid, 0) is not { } open || LidBoxes.Swept(elements, rig.MovingParts, lid) is not { } swept)
+                return null;
+            return new LidSweep(open, swept);
+        }
+        catch (Exception e) when (e is FormatException or System.Text.Json.JsonException or KeyNotFoundException)
+        {
+            api.Logger.Warning("[seraphhorizons] Crucible furnace: {0} could not be read for the lid's boxes: {1}", ShapeAsset, e.Message);
+            return null;
+        }
     }
 
     private static CrucibleFurnaceConfig LoadConfig(ICoreAPI api)

@@ -21,8 +21,10 @@
     INPUT_SPEED_MAX,
     needsMet,
     openingFitted,
+    openingTextures,
     optionClass,
     pickChoice,
+    pickedTextures,
     playTrip,
     propBox,
     rigNumber,
@@ -46,7 +48,7 @@
     withBogies,
     type Vehicle,
   } from "../lib/model-vehicle.ts";
-  import { buildModelView, elementDetails, type ModelView } from "../lib/model-view.ts";
+  import { buildModelView, elementDetails, withPickedTextures, type ModelView } from "../lib/model-view.ts";
   import { formatRoute } from "../lib/route.ts";
   import { classIndex, fitted, partMatrices, thetaTurns, workEnd, wrappedDelta, type Rig } from "../lib/rig.ts";
   import { mt } from "../lib/model-strings.ts";
@@ -54,7 +56,8 @@
   import type { ColourMode, ModelScene, SceneColours, ViewName } from "../viewer/model-scene.ts";
   import { webglAvailable } from "../viewer/webgl.ts";
 
-  let { model }: { model: PublishedModel } = $props();
+  // `version`: the recipe data a model's link (to a page of the recipe browser) opens in, or null when none is published.
+  let { model, version = null }: { model: PublishedModel; version?: string | null } = $props();
   const s = mt;
 
   // ---- data
@@ -87,6 +90,7 @@
           // A rig whose parts all stand still (the eidolon's stages) opens in its textures, as one without a rig.
           colourMode = view.hasRig && view.parts.some((p) => p.moving) ? "part" : "texture";
           propChoice = m.scenario?.prop?.default ?? "none";
+          textureChoice = openingTextures(m.scenario?.textures);
           inputSpeed = defaultInputSpeed(m.scenario?.play, v?.speed ? turnsPerSecondAt(v.speed, v) : null);
           choose();
           selectAnimation(m.scenario?.animations?.default?.toLowerCase() ?? "");
@@ -117,11 +121,15 @@
   let edges = $state(true);
   let colourMode = $state<ColourMode>("part");
   let propChoice = $state("none");
+  // The option picked in each of the scenario's texture selects, by texture code.
+  let textureChoice = $state<Record<string, string>>({});
   let picked = $state<number | null>(null);
   let hovered = $state<number | null>(null);
   let tip = $state<{ x: number; y: number } | null>(null);
   let openGroups = $state<Record<string, boolean>>({});
 
+  const textureColours = $derived(pickedTextures(scenario?.textures, textureChoice));
+  const textures = $derived(view ? withPickedTextures(view.textures, textureColours) : []);
   const propOption = $derived(propSpec?.options.find((o) => o.id === propChoice) ?? null);
   // A prop that is the trunk of the rig's trunk path: it travels with W, and its option is the class.
   const trunkProp = $derived(propSpec?.moves === "trunk" && view?.path?.kind === "trunk" ? view.path : null);
@@ -265,6 +273,7 @@
     scene?.setGlow(hotParts, g.rgb, g.mix);
   });
   $effect(() => scene?.colourBy(colourMode));
+  $effect(() => scene?.setTextureColours(new Map([...textureColours].map(([code, t]) => [code, t.colour]))));
   $effect(() => scene?.setEdges(edges));
   $effect(() => scene?.setProp(box));
   $effect(() => {
@@ -540,7 +549,7 @@
             elements: p.elements,
             on: visible[i] ?? true,
           }))
-        : view.textures.map((tx) => ({ key: `tex:${tx.code}`, colour: tx.colour, name: `#${tx.code}`, note: tx.path ?? "", elements: tx.elements, on: true })),
+        : textures.map((tx) => ({ key: `tex:${tx.code}`, colour: tx.colour, name: `#${tx.code}`, note: tx.path ?? "", elements: tx.elements, on: true })),
   );
   const viewNames = ["angled", "opposite", "front", "side", "top", "reset"] as const;
   const sourceUrl = (path: string) => `${REPO_URL}/blob/main/${path}`;
@@ -556,6 +565,9 @@
   {model.credit}
   {#if model.creditUrl}<a href={model.creditUrl} rel="noopener noreferrer" target="_blank">{s.creditMore}</a>{/if}
 </p>
+{#if model.link && version}
+  <p class="link" data-testid="model-link"><a href={`#/${encodeURIComponent(version)}/${model.link.page}`}>{model.link.label}</a></p>
+{/if}
 
 <!-- Colours for three.js, read from the theme's tokens. -->
 <div class="probe" aria-hidden="true" bind:this={probe}>
@@ -869,6 +881,28 @@
               {/each}
             </div>
           {/if}
+        </fieldset>
+      {/if}
+
+      {#if scenario?.textures?.length}
+        <fieldset>
+          <legend>{s.textures}</legend>
+          {#each scenario.textures as c (c.code)}
+            <label class="stack">
+              <span>{c.label}</span>
+              <select
+                value={textureChoice[c.code] ?? c.default}
+                onchange={(e) => {
+                  textureChoice = { ...textureChoice, [c.code]: e.currentTarget.value };
+                  // The pick shows only in texture colours.
+                  colourMode = "texture";
+                }}
+                data-texture={c.code}
+              >
+                {#each c.options as o (o.id)}<option value={o.id}>{o.label}</option>{/each}
+              </select>
+            </label>
+          {/each}
         </fieldset>
       {/if}
 

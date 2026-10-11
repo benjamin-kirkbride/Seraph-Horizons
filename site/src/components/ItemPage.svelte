@@ -8,6 +8,7 @@
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
   import { isFloorZero, isPerLitre } from "../lib/values.ts";
+  import { groundStorageLines } from "../lib/ground-storage.ts";
   import Hint from "./Hint.svelte";
   import Icon from "./Icon.svelte";
   import ItemLink from "./ItemLink.svelte";
@@ -132,6 +133,9 @@
           <div><dt>{t.code}</dt><dd><code data-testid="item-code">{ref.code}</code></dd></div>
           <div><dt>{t.mod}</dt><dd data-testid="item-mod"><ModLink id={ref.mod} mods={meta.mods} /></dd></div>
         </dl>
+        {#if meta.eidolon?.items.includes(ref.code)}
+          <p class="eidolon-link" data-testid="eidolon-link"><a href={formatRoute({ view: "eidolon", version: data.id })}>{t.eidolonFittings}</a></p>
+        {/if}
       </div>
     </header>
 
@@ -157,6 +161,15 @@
             {/if}
           </tbody>
         </table>
+      </section>
+    {/if}
+
+    {#if detail.attributes?.groundStorage}
+      <section aria-labelledby="ground-h" data-testid="ground-storage">
+        <h2 id="ground-h">{t.groundStorage}</h2>
+        {#each groundStorageLines(detail.attributes.groundStorage) as line, i (i)}
+          <p class="ground">{#if i === 0}<Hint text={t.groundStorageHint}>{line}</Hint>{:else}{line}{/if}</p>
+        {/each}
       </section>
     {/if}
 
@@ -309,6 +322,9 @@
   .description {
     white-space: pre-line;
     max-width: 48rem;
+  }
+  .ground {
+    margin: 0.25rem 0;
   }
   .scroll {
     overflow-x: auto;

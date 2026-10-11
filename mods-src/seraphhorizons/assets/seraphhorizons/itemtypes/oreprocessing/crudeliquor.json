@@ -1,0 +1,59 @@
+// Crude liquor (OreProcessing, #742): raw borax, saltpeter or alum soaked out in water in a barrel.
+// Boils down in a cooking pot into the mineral's crystals. A liquid of its own, not vanilla's diluted
+// borax or Expanded Matter's diluted alum and saltpeter. Marked disabled with the switch off.
+{
+	"code": "crudeliquorportion",
+	"class": "ItemLiquidPortion",
+	"matterState": "liquid",
+	"variantgroups": [
+		{ "code": "mineral", "states": ["borax", "saltpeter", "alum"] }
+	],
+	"attributes": {
+		"handbook": {
+			"ignoreCreativeInvStacks": true,
+			"groupBy": ["crudeliquorportion-*"],
+			"extraSections": [
+				{ "title": "seraphhorizons:oreprocessing-leaching-title", "text": "seraphhorizons:oreprocessing-leaching-text" }
+			]
+		},
+		"waterTightContainerProps": {
+			"containable": true,
+			"itemsPerLitre": 100,
+			"textureByType": {
+				"*-borax": { "base": "game:block/liquid/brine" },
+				"*-saltpeter": { "base": "game:block/liquid/weaktannin" },
+				"*-alum": { "base": "game:block/liquid/limewater" }
+			},
+			"allowSpill": true,
+			"whenSpilled": {
+				"action": "DropContents",
+				"stack": { "type": "item", "code": "seraphhorizons:crudeliquorportion-{mineral}" }
+			}
+		}
+	},
+	"shape": { "base": "game:item/liquid" },
+	"textureByType": {
+		"*-borax": { "base": "game:block/liquid/brine" },
+		"*-saltpeter": { "base": "game:block/liquid/weaktannin" },
+		"*-alum": { "base": "game:block/liquid/limewater" }
+	},
+	"creativeinventoryStacks": [
+		{
+			"tabs": ["general", "liquids"],
+			"stacks": [
+				{ "type": "block", "code": "game:woodbucket", "attributes": { "ucontents": [ { "type": "item", "code": "seraphhorizons:crudeliquorportion-{mineral}", "makefull": true } ] } }
+			]
+		}
+	],
+	"maxstacksize": 5000,
+	"materialDensity": 200,
+	"guiTransform": {
+		"translation": { "x": 0, "y": 1, "z": 0 },
+		"rotation": { "x": 123, "y": -33, "z": -13 },
+		"origin": { "x": 0.5, "y": 0, "z": 0.5 },
+		"scale": 1.4
+	},
+	"tpHandTransform": {
+		"translation": { "x": -1.5, "y": -1, "z": -1.4 }
+	}
+}

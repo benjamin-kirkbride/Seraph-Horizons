@@ -21,7 +21,6 @@
 			{"code": "seraphhorizons:schematic-pulverizer", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 50, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
 			{"code": "seraphhorizons:schematic-buckingmill", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 80, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
 			{"code": "seraphhorizons:schematic-rosser", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 80, "priceReason": "schematic: a hand-set gate", "standingTier": 2},
-			{"code": "seraphhorizons:schematic-cablecar", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 200, "priceReason": "schematic: a hand-set gate", "standingTier": 4},
 			{"code": "seraphhorizons:schematic-biplane", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "price": 250, "priceReason": "schematic: a hand-set gate", "standingTier": 4}
 		],
 		"rotating": { "maxItems": 10,

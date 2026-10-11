@@ -46,6 +46,8 @@ public sealed class SwitchOwnership
         new("GearCutter", [], [], ["gearcutter"]),
         // The exporter's own recipe type for the draw bench's process (tools/recipe-export, Recipes/DrawBenchExport.cs).
         new("DrawBench", [], [], ["drawbench"]),
+        // The exporter's own recipe type for the cylinder borer's process (tools/recipe-export, Recipes/CylinderBorerExport.cs).
+        new("CylinderBorer", [], [], ["cylinderborer"]),
         // The exporter's own recipe type for the press brake's process (tools/recipe-export, Recipes/PressBrakeExport.cs).
         new("PressBrake", [], [], ["pressbrake"]),
         // The exporter's own recipe type for the squaring shear's process (tools/recipe-export, Recipes/SquaringShearExport.cs).
@@ -61,6 +63,15 @@ public sealed class SwitchOwnership
         new("UnifiedPipes", [], ["ppex:pipe-*-copper", "ppex:pipe-*-lead", "ppex:pipe-*-tinbronze",
                                  "ppex:pipe-*-bismuthbronze", "ppex:pipe-*-blackbronze",
                                  "game:chutesection-lead"], []),
+        // The eidolon's stainless rods, nails and strips and chain are the game's own items with another
+        // metal state, added by a JSON patch (patches/eidolon-stainless.json).
+        new("Eidolon", [], ["game:rod-stainlesssteel", "game:metalnailsandstrips-stainlesssteel", "game:metalchain-stainlesssteel"], []),
+        // Crushed ore is an item type in the game's domain whose code, "crushed", is vanilla's
+        // crushed item's too (game:crushed-{material}), so its codes are listed by their grain. The
+        // exporter's own recipe types for roasting in the firepit, retorting in the still and cupellation
+        // in the cupel and liquation in the pan (tools/recipe-export, Recipes/OreRoastingExport.cs, OreRetortingExport.cs,
+        // RecipeSection.Cupellation.cs, RecipeSection.Liquation.cs).
+        new("OreProcessing", [], ["game:crushed-*-coarse", "game:crushed-*-fine"], ["oreroasting", "oreretorting", "cupellation", "liquation"]),
     ];
 
     private readonly List<OwnedBySwitch> _owned;

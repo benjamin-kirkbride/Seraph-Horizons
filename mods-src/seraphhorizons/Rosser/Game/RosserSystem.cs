@@ -17,7 +17,9 @@ namespace SeraphHorizons.Mod.Rosser;
 /// Woodworking's and the game's parts, takes Logging Expanded's trunks and gives the debarked
 /// trunk the <c>Rosser</c> switch adds (<see cref="DebarkedTrunks"/>), so with the switch off,
 /// either mod missing or the debarked trunk not there, the server leaves its blocks and recipe out
-/// of the game (<see cref="Disable"/>). Pipes and Power Expanded is optional (<see cref="PpexWater"/>).
+/// of the game (<see cref="Disable"/>). Pipes and Power Expanded is optional: it waters the drip
+/// (<see cref="PpexWater"/>), and with UnifiedPipes' copper and lead pipes the drip's pipes are a
+/// stage of the build (<see cref="PipesNeeded"/>).
 /// </summary>
 public class RosserSystem : ModSystem
 {
@@ -111,6 +113,14 @@ public class RosserSystem : ModSystem
         _api != null && SeraphHorizonsSystem.ConfigFor(_api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(_api)
             ? RosserParts.IronMetals
             : null;
+
+    /// <summary>Whether the rosser needs its drip pipes (<see cref="RosserParts.PipesNeeded"/>): Pipes
+    /// and Power Expanded's straight pipe exists in copper and lead, the metals UnifiedPipes adds.
+    /// Without ppex, or with UnifiedPipes off, it does not, and the rosser is built without pipes.
+    /// Each side asks its own world, which has the same blocks.</summary>
+    public bool PipesNeeded =>
+        _api?.World is { } world
+        && RosserParts.PipeMetals.All(m => world.GetBlock(new AssetLocation(RosserParts.PipeCode(m))) is { Id: > 0, IsMissing: false });
 
     /// <summary>
     /// The tool tier of scraper heads of <paramref name="metal"/>, as the mill finds its blade

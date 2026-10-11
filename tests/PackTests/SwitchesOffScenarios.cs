@@ -292,10 +292,12 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var off = registry.Switches.Where(Off).ToList();
         Assert.Contains("GearCutter", off);
         Assert.Contains("DrawBench", off);
+        Assert.Contains("CylinderBorer", off);
         Assert.Contains("PressBrake", off);
         Assert.Contains("SquaringShear", off);
         Assert.Contains("MandrelStation", off);
         Assert.Contains("Rosser", off);
+        Assert.Contains("Eidolon", off);
         var left = W.Collectibles.Where(c => c?.Code != null && !c.IsMissing)
             .Select(c => (Code: c.Code.ToString(), Owner: registry.SwitchForCode(c.Code.ToString())))
             .Where(c => c.Owner != null && off.Contains(c.Owner))
@@ -372,6 +374,74 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>CylinderBorer</c>: no cylinder borer blocks, parts, molds, castings or bored
+    /// cylinders and no recipe for them, ppex's engines taking their plates and pipes again (the patch
+    /// emptied), no link to them in the mod's own text, the machine oil page without it whatever the
+    /// gear cutter's and the draw bench's switches (all off here, and their edits to that page touch
+    /// different passages), and nothing logged about them.</summary>
+    [AtlasScenario]
+    public void Cylinder_borer_off_there_is_no_cylinder_borer()
+    {
+        Assert.True(Off("CylinderBorer"));
+        Assert.False(SeraphHorizons.Mod.CylinderBorer.CylinderBorerSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("cylinder"));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("cylinder"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("cylinder"));
+        Assert.DoesNotContain(World.Api.GetSmithingRecipes(), r => r.Output?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("cylinder"));
+        Assert.DoesNotContain(World.Api.GetClayformingRecipes(), r => r.Output?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("cylindermold"));
+        // ppex's engines as it ships them: the bottom row's plates and pipes, no cylinder
+        foreach (var engine in new[] { "ppex:enginewatt-north", "ppex:enginecornish-north" })
+        {
+            var recipes = W.GridRecipes.Where(r => r.Output?.Code?.ToString() == engine).ToList();
+            Assert.NotEmpty(recipes);
+            Assert.All(recipes, r => Assert.Contains(GearConsumerUses.Codes(r), c => c?.StartsWith("ppex:pipe-straight-") == true));
+            Assert.All(recipes, r => Assert.DoesNotContain(GearConsumerUses.Codes(r), c => c?.StartsWith("seraphhorizons:cylinder") == true));
+        }
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://(block|item)-seraphhorizons:cylinder"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the cylinder borer: " + string.Join(", ", linked));
+        var oil = Lang.Get("seraphhorizons:machineoil-text");
+        Assert.DoesNotContain("cylinder borer", oil);
+        Assert.Contains("automated sawmill</a>, the <a href=\"handbook://block-immersivewoodworking:chopper-frame-north\">", oil);
+        Assert.Contains("the sawmill 2 points a log, the chopper", oil);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("cylinderborer", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("cylinder borer", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("cylindermold", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("cylinderblank", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("machineoil-text", StringComparison.Ordinal))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>Eidolon</c>: no eidolon gantry blocks and no recipe for its frame, no link to it in
+    /// the mod's own text, and nothing logged about it. The parts it takes are the game's.</summary>
+    [AtlasScenario]
+    public void Eidolon_off_there_is_no_gantry()
+    {
+        Assert.True(Off("Eidolon"));
+        Assert.False(SeraphHorizons.Mod.EidolonGantry.EidolonGantrySystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("eidolongantry"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("eidolongantry") == true);
+        Assert.True(W.GetBlock(new AssetLocation(SeraphHorizons.Mod.EidolonGantry.Core.GantryParts.AxleCode)) is { Id: > 0 });
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && e.Value.Contains("handbook://block-seraphhorizons:eidolongantry", StringComparison.Ordinal))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the gantry: " + string.Join(", ", linked));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("eidolongantry", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("eidolon gantry", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>PressBrake</c>: no press brake blocks and no recipe for its frame, no link to it in
     /// the mod's own text, and nothing logged about it. The angles it makes are UnifiedPipes' items
     /// (here off too); the half plates it folds are the squaring shear's (here off too).</summary>
@@ -395,6 +465,26 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>Eidolon</c>: no command tool and no recipe for it, and the curio dealer stocks
+    /// neither the eidolon schematic nor the Jonas pump head (the pump head is left out by the
+    /// eidolon's own rule: MachineSchematics, off here too, only takes the schematic). The schematic
+    /// item and the pump head still exist.</summary>
+    [AtlasScenario]
+    public void Eidolon_off_there_is_no_command_tool_and_no_eidolon_stock()
+    {
+        Assert.True(Off("Eidolon"));
+        Assert.False(SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path == "eidoloncommander");
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.ToString() == SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.CommanderCode);
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.SchematicCode)));
+        Assert.NotNull(W.GetItem(new AssetLocation(SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.PumpHeadCode)));
+        var lists = SeraphHorizons.Mod.Trading.TradingSystem.Of(World.Api)!.Lists!;
+        var core = lists.For("curiodealer")!.Selling.Core;
+        Assert.DoesNotContain(core, e => SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.IsTradeStock(e.Code));
+        Assert.Contains(core, e => e.Code == "game:schematic-glider");
+        Assert.DoesNotContain(lists.Unresolved, u => u.Contains("pumphead") || u.Contains("schematic-eidolon"));
     }
 
     /// <summary><c>SquaringShear</c>: no squaring shear blocks, no half plate and no recipe for the
@@ -479,7 +569,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
-    /// <summary><c>StainlessSteel</c>: no melting holes or melting pots, no ferroalloys, no recipe for
+    /// <summary><c>StainlessSteel</c>: no crucible furnace (its frame and ghosts) or melting pots, no ferroalloys, no recipe for
     /// any of them, the game's stainless ingot and bits hidden from the handbook as it ships them, the
     /// guide page hidden, smex's converter not patched and its handbook page as it ships, and nothing
     /// logged about it.</summary>
@@ -492,10 +582,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(SeraphHorizons.Mod.SteelBits.SmexScrap.Status.Off,
             SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.Of(World.Api).BessemerScrapStatus);
         Assert.DoesNotContain("Ferrochrome makes it stainless", Lang.GetL("en", "smex:handbook-bessemer-text"));
-        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && (c.Path.StartsWith("meltinghole") || c.Path.StartsWith("meltingpot")));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && (c.Path.StartsWith("cruciblefurnace") || c.Path.StartsWith("meltingpot")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:ferrochrome")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:ferrosilicon")));
-        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("meltinghole") == true);
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("cruciblefurnace") == true);
         Assert.DoesNotContain(World.Api.GetClayformingRecipes(), r => r.Output?.Code?.Path?.StartsWith("meltingpot") == true);
         Assert.True(W.GetItem(new AssetLocation("game:ingot-stainlesssteel"))!.Attributes["handbook"]["exclude"].AsBool());
         var hidden = World.Api.ObjectCache.TryGetValue(WoodworkingGuide.HiddenGuidesKey, out var listed) && listed is IEnumerable<(string, string)> pages
@@ -504,7 +594,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains(SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, hidden);
         var logged = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
-            .Where(e => e.Message.Contains("meltinghole", StringComparison.OrdinalIgnoreCase)
+            .Where(e => e.Message.Contains("cruciblefurnace", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("meltingpot", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("stainless-steel", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("Crucible furnace", StringComparison.Ordinal))
@@ -535,6 +625,30 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var logged = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("handcar", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>Eidolon</c>: no eidolon entity type, no creative spawner, no <c>/sh eidolon</c>, its
+    /// handbook guide hidden (the export leaves it out), and nothing logged about it.</summary>
+    [AtlasScenario]
+    public void Eidolon_off_there_is_no_eidolon()
+    {
+        Assert.True(Off("Eidolon"));
+        var eidolons = SeraphHorizons.Mod.Eidolon.EidolonSystem.Of(World.Api)!;
+        Assert.False(eidolons.Enabled);
+        Assert.False(World.Api.World.Config.GetBool(SeraphHorizons.Mod.Eidolon.EidolonSystem.RunningKey, true));
+        Assert.Null(W.GetEntityType(SeraphHorizons.Mod.Eidolon.EidolonSystem.EntityCode));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path == "creature-eidolon");
+        Assert.Null(eidolons.Spawn(W, World.Spawn.ToVec3d(), 0, null, activate: false));
+        var sh = ((Vintagestory.API.Server.ICoreServerAPI)World.Api).ChatCommands.Get("sh");
+        Assert.True(sh == null || !sh.AllSubcommands.ContainsKey("eidolon"));
+        Assert.Contains((SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuidePageCode, SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuideTitleKey),
+            (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("eidolon", StringComparison.OrdinalIgnoreCase))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
@@ -595,6 +709,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Pipes.UnifiedPipesSystem.HarmonyId));
         string[] added = ["copper", "lead", "tinbronze", "bismuthbronze", "blackbronze"];
         Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "ppex" } c && c.Path.StartsWith("pipe-") && added.Contains(b.Variant?["material"]));
+        Assert.DoesNotContain(W.Blocks, b => b?.Shape?.Base?.Path.StartsWith("block/pipes/soldered-") == true);
         Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && (c.Path.StartsWith("angle-") || c.Path.StartsWith("pipesection-")));
         Assert.Equal(["game:chutesection-copper"], W.Items.Where(i => i?.Code is { Domain: "game" } c && c.Path.StartsWith("chutesection-"))
             .Select(i => i.Code.ToString()));
@@ -952,11 +1067,17 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(choppingBlock.BlockEntityBehaviors ?? [], b => b.Name == BEBehaviorSplittingBlockTier.Name);
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
-        // machine oil's, gear reclamation's and the crucible furnace's pages, whose switches are off here too).
+        // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, spalling's, ore roasting's,
+        // liquation's and ore retorting's pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
                 .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
                 .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey))
-                .Append((SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuideTitleKey)).Order(),
+                .Append((SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuideTitleKey))
+                .Append((SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuidePageCode, SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuideTitleKey))
+                .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuideTitle))
+                .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuideTitleKey))
+                .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuideTitleKey))
+                .Append((SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuidePage, SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 
@@ -965,7 +1086,9 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     {
         Assert.True(Off("UnifiedWoodworking"));
         var guides = Exporter.Guides((ICoreServerAPI)World.Api).OfType<JObject>().ToList();
-        Assert.DoesNotContain(guides, g => (string?)g["mod"] == "seraphhorizons");
+        // every seraphhorizons guide is switched off here but the ore maps', shown in every world as the items are
+        Assert.DoesNotContain(guides, g => (string?)g["mod"] == "seraphhorizons"
+                                           && (string?)g["code"] != SeraphHorizons.Mod.Ore.OreMapsSystem.GuidePage);
         foreach (var (mod, code) in new[] { (WoodworkingMods.IwModId, "craftinginfo-woodworking"), (WoodworkingMods.LeModId, "introduction") })
             Assert.Single(guides, g => (string?)g["mod"] == mod && (string?)g["code"] == code);
     }
@@ -1235,5 +1358,63 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(40, site.Hand.StackSize);
         site.Click(site.Stack(CoffinSite.IronIngot, 1));
         Assert.Equal(1, site.Coffin.IngotCount);
+    }
+
+    /// <summary><c>OreProcessing</c>: vanilla's ore item as it ships, none of ore
+    /// processing's items, the nugget grid recipes in, and the alloy maths unpatched.</summary>
+    [AtlasScenario]
+    public void Ore_processing_off_ore_is_as_it_ships()
+    {
+        Assert.True(Off("OreProcessing"));
+        var medium = W.GetItem(new AssetLocation("game:ore-medium-galena-shale"))!;
+        Assert.Equal(typeof(ItemOre), medium.GetType());
+        Assert.Equal(64, medium.MaxStackSize);
+        Assert.Equal("game:crushed-galena", medium.CrushingProps?.CrushedStack?.ResolvedItemstack?.Collectible.Code.ToString());
+        Assert.Null(W.GetItem(new AssetLocation("game:crushed-galena-coarse")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:concentrate-galena")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:litharge")));
+        // No cupel (#722) nor its recipes; argentiferous galena is hammered into native silver as vanilla has it.
+        Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons:cupel-fired")));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Domain == "seraphhorizons" && r.Output.Code.Path.StartsWith("cupel-"));
+        // No liquation pan (#724) nor its recipes, and its guide page is hidden.
+        Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons:liquationpan-fired")));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Path?.StartsWith("liquationpan-") == true);
+        Assert.DoesNotContain(World.Api.GetClayformingRecipes(), r => r.Output?.Code?.Path?.StartsWith("liquationpan-") == true);
+        Assert.Contains((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuideTitleKey),
+            (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
+        Assert.Contains(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Path == "nugget-nativesilver");
+        Assert.Equal("game:nugget-nativesilver",
+            W.GetBlock(new AssetLocation("game:looseores-galena_nativesilver-shale-free"))?.Drops?[0].ResolvedItemstack?.Collectible.Code.ToString());
+        Assert.Contains(W.GridRecipes, r => r.Enabled && r.Output?.Code?.Path?.StartsWith("nugget-") == true);
+        Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.HarmonyId));
+        Assert.Null(SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.Of(World.Api).Applied);
+        // No spalling: the hammers are as they ship, and the spalling guide is hidden.
+        Assert.Null(SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.Of(World.Api).Spalling);
+        Assert.DoesNotContain(W.Items, i => i?.HasBehavior<SeraphHorizons.Mod.Ore.Processing.CollectibleBehaviorSpalling>() == true);
+        Assert.Contains((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuideTitle),
+            (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
+        // Leaching (#742): borax grinds and alum crushes as before, the saltpeter blocks drop
+        // saltpeter, and none of its items or recipes are in.
+        Assert.Equal(64, W.GetItem(new AssetLocation("game:ore-borax"))!.MaxStackSize);
+        Assert.NotNull(W.GetItem(new AssetLocation("game:ore-borax"))!.GrindingProps);
+        Assert.NotNull(W.GetItem(new AssetLocation("game:ore-alum"))!.CrushingProps);
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:rawsaltpeter")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:crudeliquorportion-borax")));
+        Assert.Equal("game:saltpeter", W.GetBlock(new AssetLocation("game:saltpeter-d"))!.Drops[0].ResolvedItemstack.Collectible.Code.ToString());
+        Assert.DoesNotContain(World.Api.GetBarrelRecipes(), r => r.Code.StartsWith("seraphhorizons-leach-"));
+        Assert.DoesNotContain(World.Api.GetCookingRecipes(), r => r.Code.StartsWith("seraphhorizons-evaporate-"));
+        // The roasting guide page (#720) is hidden.
+        Assert.Contains((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuideTitleKey),
+            (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
+        // The still (#726): nothing retorts, its patches are out, Expanded Matter's mercury recipe is in,
+        // and its guide page is hidden.
+        Assert.Empty(SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.Of(World.Api).Marked);
+        Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Ore.Processing.MercuryStill.HarmonyId));
+        Assert.False(W.GetItem(new AssetLocation("game:powder-cinnabar"))!.Attributes?[SeraphHorizons.Mod.Ore.Processing.MercuryStill.AttributeKey].Exists == true);
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:sponge-quartz_nativegold")));
+        Assert.Contains(World.Api.ModLoader.GetModSystem<RecipeRegistrySystem>().CookingRecipes,
+            r => r.CooksInto?.Code?.ToString() == "em:mercuryportion");
+        Assert.Contains((SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuidePage, SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuideTitleKey),
+            (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
     }
 }

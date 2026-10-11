@@ -290,9 +290,51 @@ Push as usual. The pre-push hook uploads the images to LFS.
   when `icons/index.json` has changed, and then only the new images: every download
   counts against the LFS bandwidth quota.
 
+## Game textures
+
+The eidolon's fitting sheet dresses its model in the game's own textures: the woods, metal
+plates, chain, leather and cloth its layers draw with, and the rest of its shape's. CI's game is
+the dedicated server, which has no textures, so the recipe export carries only their paths
+(`domain:path` under `textures/`, schema.md, The eidolon's fittings). The images are imported by
+hand from a game client into a store beside the icons, with the same layout:
+
+```
+textures/index.json            { "schemaVersion": 1, "textures": { "game:block/wood/debarked/oak": "<sha256>" } }
+textures/<xx>/<sha256>.png     one file per distinct image, in Git LFS
+```
+
+`tools/textures.py import` reads each path from a client install's assets (the `game` domain
+from `assets/survival`, `assets/game` and `assets/creative`) or from the pack's own mods'
+assets (`mods-src/*/assets`, so the pack's stainless chain), re-encodes it as an RGBA PNG with
+no metadata at its own size, stores it under its sha256 and updates the index. The paths come
+from a recipe export's eidolon section (any export: the paths are the same whichever game made
+it), or are given on the command line:
+
+```sh
+uv run tools/textures.py import --game ~/Games/vintagestory --export build/recipes.json
+uv run tools/textures.py import --game ~/Games/vintagestory game:block/cloth/basic/red
+python3 tools/textures.py verify            # every entry has a file, every file matches its hash
+python3 tools/textures.py drift --export build/recipes.json   # paths the store lacks
+python3 tools/textures.py prune [--delete]
+git add textures/ && git lfs status         # the PNGs are LFS objects
+```
+
+Re-run the import when the eidolon takes a new material or its shape a new texture: CI's
+`drift` warns about a path the store lacks, and the Atlas scenario
+`Eidolon_section_carries_every_build_and_its_textures` fails on one.
+
+`prepare-data` (`--textures`, by default the repository's `textures/`) gives `eidolon.json` the
+image of each path the version's export names, as a PNG data URI (about 1 kB each). A path the
+store lacks, or has only as an LFS pointer, is left out with a warning, and the page draws it in
+the viewer's colours, saying so. The site deploy fetches `textures/` from LFS with the icons and
+fails on pointer files; CI's `icons` job keeps both in the same cache.
+
 ## Rights and removal
 
 The icons are renders of the base game's assets and of the pack's third-party mods. The site
+also shows a few of the game's textures themselves, on the eidolon's fitting sheet: the woods,
+metal plates, chain, leather and cloth its layers draw with, with the pack's own stainless
+chain, stored in `textures/` (Game textures, above). The site
 hosts them and says that it is unofficial and fan-made. It credits the game and every mod,
 and gives a contact for removal requests. To remove a mod's icons, delete its entries from
 the index and prune the files it no longer references:

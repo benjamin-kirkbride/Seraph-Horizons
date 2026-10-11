@@ -81,6 +81,10 @@ public partial class WoodworkingRosserScenarios
         foreach (var code in new[] { RosserParts.ShaftCode, RosserParts.RingCode, RosserParts.LeversCode, "game:hoop-iron", "game:rod-iron",
                                      "game:metalplate-iron", $"{Iw}:barkspudhead-copper", $"{Iw}:barkspudhead-steel", "game:chutesection-copper" })
             Assert.NotNull(ItemOf(code));
+        // the drip's pipes: ppex's straight pipe in UnifiedPipes' copper and lead, so they are a stage
+        foreach (var metal in RosserParts.PipeMetals)
+            Assert.NotNull(PipeOf(metal));
+        Assert.True(RosserMod.PipesNeeded);
         Assert.Equal(4 * 2250, RosserMod.HeadCapacity("steel"));
         Assert.Equal(5, RosserMod.HeadTier("steel"));
         Assert.Equal(2, RosserMod.HeadTier("copper"));
@@ -231,6 +235,22 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal((1000, 1000), (rosser.Parts.HeadsLeft, rosser.Parts.HeadsCapacity));
         Assert.Null(Click(player, pos, ItemOf(RosserParts.ShaftCode)));
         Assert.Null(Click(player, pos, ItemOf("game:metalplate-steel", 2)));
+        // the drip's pipes: copper or lead (not iron), four of one metal from one stack, drawn in that metal
+        Assert.True(RosserMod.PipesNeeded);
+        Assert.Contains("Straight pipes, copper or lead", Info(rosser, player));
+        Assert.Contains(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-fitpipes");
+        Assert.Equal(4, Click(player, pos, PipeOf("iron", 4))?.StackSize);
+        Assert.True(_handled);
+        Assert.Equal(3, Click(player, ghost, PipeOf("lead", 3))?.StackSize);
+        Assert.Equal(2, Click(player, ghost, PipeOf("lead", 6))?.StackSize);
+        Assert.Equal("lead", rosser.Parts.PipeMetal);
+        Assert.True(rosser.Fitted("pipelead"));
+        Assert.False(rosser.Fitted("pipecopper"));
+        Assert.Contains("Drip pipes: Lead", Info(rosser, player));
+        Assert.DoesNotContain(RosserHelp(pos, player), wi => wi.ActionLangCode == "seraphhorizons:blockhelp-rosser-fitpipes");
+        // once they are in, a pipe in hand is not the rosser's: the click places it, as on the water face
+        Assert.NotNull(Click(player, ghost, PipeOf("copper", 4)));
+        Assert.False(_handled);
         // something that is not a part: the click is not the rosser's
         Assert.NotNull(Click(player, ghost, ItemOf($"{Iw}:sawmillsash")));
         Assert.False(_handled);
@@ -269,6 +289,7 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(1, drops.GetValueOrDefault("game:rod-iron"));
         Assert.Equal(2, drops.GetValueOrDefault("game:metalplate-steel"));
         Assert.Equal(4, drops.GetValueOrDefault(RosserParts.RingCode));
+        Assert.Equal(4, drops.GetValueOrDefault(RosserParts.PipeCode("lead")));
         Assert.Equal(0, drops.GetValueOrDefault($"{Iw}:barkspudhead-copper"));
         KillItemsNear(pos, 20);
     }

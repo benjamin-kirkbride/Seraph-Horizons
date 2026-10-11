@@ -359,16 +359,21 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
                ?? throw new Xunit.Sdk.XunitException($"no rosser block entity at {pos}");
     }
 
-    /// <summary>Every stage by right-clicks with real stacks, through the frame and a ghost.</summary>
-    protected void AssembleRosser(BERosser rosser, IPlayer player, string heads = "steel")
+    /// <summary>Every stage by right-clicks with real stacks, through the frame and a ghost; the
+    /// drip's pipes in <paramref name="pipes"/>.</summary>
+    protected void AssembleRosser(BERosser rosser, IPlayer player, string heads = "steel", string pipes = "copper")
     {
         var ghost = rosser.GhostCells().First().Pos;
         foreach (var (code, count) in new[] { (RosserParts.ShaftCode, 1), (RosserParts.RingCode, 4), ("game:hoop-iron", 2), ("game:rod-iron", 4),
                                               ("game:metalplate-iron", 2), (RosserParts.LeversCode, 1), ($"{Iw}:barkspudhead-{heads}", 4) })
             Assert.True(Click(player, code.Contains("rod") ? ghost : rosser.Pos, ItemOf(code, count)) == null, $"{code} ×{count} not all fitted");
+        Assert.True(Click(player, ghost, PipeOf(pipes, 4)) == null, $"{pipes} pipes not fitted");
         Assert.True(rosser.Complete);
         Oil(rosser.Oiling);
     }
+
+    /// <summary>Pipes and Power Expanded's straight pipe in <paramref name="metal"/>, as it is held (the ns block).</summary>
+    protected ItemStack PipeOf(string metal, int size = 1) => new(BlockOf(RosserParts.PipeCode(metal)), size);
 
     /// <summary>A creative rotor at full speed against the power face; waits until the shaft turns fast.</summary>
     protected async Task PowerRosser(BERosser rosser)

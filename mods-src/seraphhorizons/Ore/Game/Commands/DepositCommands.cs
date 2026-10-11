@@ -84,9 +84,9 @@ internal sealed class DepositCommands
                 .EndSubCommand()
             .EndSubCommand()
             .BeginSubCommand("givemap")
-                .WithDescription("Give a player a map to the nearest unsold deposit of a metal (or gravel field), precision 1 (±400 m) to 3 (exact); marks it sold to them")
+                .WithDescription("Give a player a map to the nearest unsold deposit of a metal (or gravel field), precision 1 (rough, ±150 m), 2 (fair, ±50 m) or 3 (fine, ±15 m); gravel is exact; marks it sold to them")
                 .RequiresPrivilege(Privilege.controlserver)
-                .WithArgs(parsers.OnlinePlayer("player"), parsers.Word("metal"), parsers.IntRange("precision", MapPrecision.Rough, MapPrecision.Exact))
+                .WithArgs(parsers.OnlinePlayer("player"), parsers.Word("metal"), parsers.IntRange("precision", MapPrecision.Rough, MapPrecision.Fine))
                 .HandleWith(OnGiveMap)
             .EndSubCommand();
     }
@@ -214,6 +214,10 @@ internal sealed class DepositCommands
     {
         VerifyStatus.Measured => Msg(lang, "verify-measured", result.Candidate!.Key.Id, result.OreBlocks, Math.Round(result.Ingots),
             Msg(lang, "size-" + result.Tier.ToString()!.ToLowerInvariant()), result.Candidate.X, result.Candidate.Y, result.Candidate.Z)
+            + (result.Makeup is { } m && m.MainOres().Count > 0
+                ? " " + Msg(lang, "verify-makeup", ItemOreMap.OreList(lang, m.MainOres()), ItemOreMap.GradeText(lang, m.Mix()?.Code) ?? "-",
+                    m.HostRock() is { } rock ? ItemOreMap.RockName(lang, rock) : "?")
+                : "")
             + (result.WorkedOut ? " " + Msg(lang, "verify-workedout") : ""),
         VerifyStatus.Field => result.Field is { } f
             ? Msg(lang, "verify-field", result.Candidate!.Key.Id, f.Blocks, f.Rock, f.X, f.Y, f.Z)

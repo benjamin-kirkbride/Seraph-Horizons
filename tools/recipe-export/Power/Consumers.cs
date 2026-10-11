@@ -56,8 +56,6 @@ public static class Consumers
     private const string Smex = "SteelmakingExpanded.SmexValues";
     private const string SmexFrom = "ModConfig (smex)";
     private const string Ppex = "PipesAndPowerExpanded.PpexValues";
-    private const string Gondola = "GondolaCableCar.GondolaCableCarModSystem";
-    private const string GondolaFrom = "ModConfig (gondolacablecar)";
     private const string MwConfig = "Millwright.ModConfig.ModConfig";
 
     private static Load Times(Load a, Figure b) => new(a.Value * b.Value, a.Sources.Append(b).ToArray());
@@ -171,28 +169,6 @@ public static class Consumers
             Mod = "ppex", Note = "an engine's output; it drives the network, this is only its friction",
         },
 
-        // Gondola Cable Car
-        new("BEBehaviorStationPowerConsumer", "machine", Cfg("ActiveStationResistance", Gondola, "Config.ActiveStationResistance", 2.25, GondolaFrom))
-        {
-            Mod = "gondolacablecar", Id = "gondolacablecar:station", ItemPrefix = "gondolacablecar:kit-station", Name = "Cable car station, running",
-            Idle = Cfg("IdleStationResistance", Gondola, "Config.IdleStationResistance", 0.02, GondolaFrom),
-        },
-        new("BEBehaviorStationPowerConsumer", "machine", live => Times(
-            Load.Of(live.Number("ActiveStationResistance", Gondola, "Config.ActiveStationResistance", 2.25, GondolaFrom)),
-            Live.Constant("× 1.6 with Viking cabins", 1.6, "GondolaPower")))
-        {
-            Mod = "gondolacablecar", Id = "gondolacablecar:station@viking", ItemPrefix = "gondolacablecar:kit-station", Name = "Cable car station, running Viking cabins",
-            Idle = Cfg("IdleStationResistance", Gondola, "Config.IdleStationResistance", 0.02, GondolaFrom),
-        },
-        new("BEBehaviorSmallStationConsumer", "machine", live => Times(
-            Load.Of(live.Number("ActiveStationResistance", Gondola, "Config.ActiveStationResistance", 2.25, GondolaFrom)),
-            Live.Constant("× cabins / 5", 0.2, "SmallStationControl")))
-        {
-            Mod = "gondolacablecar", Id = "gondolacablecar:smallstation@1", ItemPrefix = "gondolacablecar:kit-small-station", Name = "Small cable car station, 1 cabin",
-            Idle = Cfg("IdleStationResistance", Gondola, "Config.IdleStationResistance", 0.02, GondolaFrom),
-            Note = "ActiveStationResistance × cabins / 5: each more cabin adds the same",
-        },
-
         // The pack's own mod (mods-src/seraphhorizons)
         new("BEBehaviorMillMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.BuckingSawmill.BuckingSawmillSystem", "Config.Resistance", 0.17, "ModConfig/seraphhorizons.json (BuckingSawmillSettings)"))
         {
@@ -216,6 +192,12 @@ public static class Consumers
             Max = Cfg("ResistanceCopper", "SeraphHorizons.Mod.DrawBench.DrawBenchSystem", "Config.ResistanceCopper", 0.35, "ModConfig/seraphhorizons.json (DrawBenchSettings)"),
             Idle = SeraphIdle, Oil = "DrawBench",
             Note = "ResistanceLead empty or drawing lead, ResistanceCopper drawing copper",
+        },
+        new("BEBehaviorCylinderBorerMP", "machine", Cfg("Resistance", "SeraphHorizons.Mod.CylinderBorer.CylinderBorerSystem", "Config.Resistance", 0.3, "ModConfig/seraphhorizons.json (CylinderBorerSettings)"))
+        {
+            Mod = Seraph, Id = "seraphhorizons:cylinderborer", ItemPrefix = "seraphhorizons:cylinderborer-frame", Name = "Cylinder borer",
+            Idle = SeraphIdle, Oil = "CylinderBorer", OilDryLoadFixed = true,
+            Note = "a dry tank does not raise its load: it wears the cutter head faster instead",
         },
     };
 

@@ -6,14 +6,14 @@
        machines' shared rig maths, footprint and trunk path (../Machines/Core), the bucking
        sawmill's assembly rules and cut arithmetic (../BuckingSawmill/Core), the rosser's
        (../Rosser/Core), the item value table's lookup (../Trading/Values/Core), the ore
-       cells' grid, state and vein scaling (../Ore/Core), the traders' grid, regions, lists
+       cells' grid, state and vein scaling and ore processing's recovery (../Ore/Core), the traders' grid, regions, lists
        and restock (../Trading/Core), standing (../Trading/Standing/Core) and their economy's
        prices and supply (../Trading/Economy/Core), the schematics' table and grid placement
        (../Trading/Schematics/Core), orders and deliveries (../Trading/Orders/Core,
        ../Trading/Deliveries/Core), the traders' maps and leads (../Trading/Maps/Core), and the
        travelling merchants' inns (../Trading/Visitors/Core), the trade window's view model
        (../Trading/Window/Core), the trunk entities' weights
-       and boxes (../TrunkEntities/Core), the draw bench's rules (../DrawBench/Core), the press brake's (../PressBrake/Core), the squaring shear's (../SquaringShear/Core), the mandrel station's (../MandrelStation/Core), the pack version check (../PackCheck/Core) and the NaN motion diagnostics' tracker and report formatting (../NanMotion/Core).
+       and boxes (../TrunkEntities/Core), the draw bench's rules (../DrawBench/Core), the cylinder borer's (../CylinderBorer/Core), the press brake's (../PressBrake/Core), the squaring shear's (../SquaringShear/Core), the mandrel station's (../MandrelStation/Core), the pack version check (../PackCheck/Core) and the NaN motion diagnostics' tracker and report formatting (../NanMotion/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->
@@ -46,6 +46,13 @@
     <!-- Rarer battle towers (#519): the shipped rates, so the tests check that they parse. -->
     <None Include="../assets/seraphhorizons/config/battletowers-rates.json" Link="battletowers-rates.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../Ore/Core/**/*.cs" Link="Ore/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Ore processing's recovery figures (#685), so the tests check the design's worked examples on them. -->
+    <None Include="../assets/seraphhorizons/config/ore-processing.json" Link="ore-processing.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Ore processing's item types (#686), so the tests check their ore lists against the figures. -->
+    <None Include="../assets/seraphhorizons/itemtypes/oreprocessing/*.json" Link="oreprocessing/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/game/itemtypes/resource/crushedore.json" Link="oreprocessing/crushedore.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Leaching's recipes (#742), so the tests hold them to OreLeaching. -->
+    <None Include="../assets/seraphhorizons/recipes/*/oreprocessing-*.json" Link="oreprocessing/recipes/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../Trading/Core/**/*.cs" Link="Trading/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Trader standing and companies (#452, #463), and the shipped tiers file. -->
     <Compile Include="../Trading/Standing/Core/**/*.cs" Link="Trading/Standing/Core/%(RecursiveDir)%(Filename)%(Extension)" />
@@ -85,6 +92,12 @@
           Condition="Exists('../assets/seraphhorizons/config/drawbench-rig.json')" />
     <None Include="DrawBench/rig-reference.json" Link="drawbench-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('DrawBench/rig-reference.json')" />
+    <!-- The cylinder borer's gameplay rules (#639): parts, the bore, the head's wear, the renderer's
+         clock, settings and its rig; and the shipped rig and its reference poses
+         (CylinderBorer/tools/make_shape.py). -->
+    <Compile Include="../CylinderBorer/Core/**/*.cs" Link="CylinderBorer/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/cylinderborer-rig.json" Link="cylinderborer-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="CylinderBorer/rig-reference.json" Link="cylinderborer-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The press brake's gameplay rules: parts, the fold, the renderer's clock, settings and its rig;
          and the shipped rig and its reference poses (PressBrake/tools/make_shape.py), once they exist
          (the rig tests skip until then). -->
@@ -104,13 +117,29 @@
     <!-- The mandrel station's gameplay rules: the mandrel, the forging, the renderer's clock, settings
          and its rig; and the shipped rig and its reference poses (MandrelStation/tools/make_shape.py),
          once they exist (the rig tests skip until then). -->
-    <!-- The crucible furnace's rules: pot recipes and charging, the heat model, the row, the pour window. -->
+    <!-- The crucible furnace's rules: pot recipes and charging, the heat model (draught, damper), the
+         row, the build's stages, the pour window; its shipped rig, reference poses and shape (the lid's
+         boxes), and its settings' defaults against the rig. -->
     <Compile Include="../CrucibleFurnace/Core/**/*.cs" Link="CrucibleFurnace/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/cruciblefurnace-rig.json" Link="cruciblefurnace-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/shapes/block/cruciblefurnace.json" Link="cruciblefurnace-shape.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="CrucibleFurnace/rig-reference.json" Link="cruciblefurnace-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../MandrelStation/Core/**/*.cs" Link="MandrelStation/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/mandrelstation-rig.json" Link="mandrelstation-rig.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />
     <None Include="MandrelStation/rig-reference.json" Link="mandrelstation-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('MandrelStation/rig-reference.json')" />
+    <!-- The eidolon gantry's winch stages and rig reader, its shipped rig, and its README, whose
+         stage table the stages are held to. -->
+    <Compile Include="../EidolonGantry/Core/**/*.cs" Link="EidolonGantry/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/eidolongantry-rig.json" Link="eidolongantry-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../EidolonGantry/README.md" Link="eidolongantry-readme.md" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The body bill (#672), held to the eidolon's stages file. -->
+    <None Include="../assets/seraphhorizons/config/eidolon-stages.json" Link="eidolon-stages.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The eidolon's shape, whose hierarchy decides what a stripped layer takes with it (EidolonLayerElements). -->
+    <None Include="../assets/seraphhorizons/shapes/entity/eidolon/eidolon.json" Link="eidolon-shape.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The torso's grid recipe and the eidolon schematic's gate, held to EidolonFittings.TorsoRecipe. -->
+    <None Include="../assets/seraphhorizons/recipes/grid/eidolontorso.json" Link="eidolontorso-recipe.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The handcar's drive, controls and animation timing, and its generated rig, reference poses,
          rider targets and entity type (Handcar/tools/make_shape.py), which the tests hold together. -->
     <Compile Include="../Handcar/Core/**/*.cs" Link="Handcar/Core/%(RecursiveDir)%(Filename)%(Extension)" />
@@ -118,6 +147,10 @@
     <None Include="../assets/seraphhorizons/entities/handcar.json" Link="handcar-entity.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Handcar/rig-reference.json" Link="handcar-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Handcar/rider-reference.json" Link="handcar-rider-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The amalgam pan's shipped rig and its reference poses (AmalgamPan/tools/make_shape.py): a model
+         with no gameplay yet, held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/amalgampan-rig.json" Link="amalgampan-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="AmalgamPan/rig-reference.json" Link="amalgampan-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />
@@ -163,6 +196,10 @@
     <Compile Include="../Pipes/Core/**/*.cs" Link="Pipes/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/patches/unifiedpipes-ppex.json" Link="unifiedpipes-ppex.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/grid/unifiedpipes.json" Link="unifiedpipes-grid.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Soldered joints: the patch putting ppex's copper and lead pipes on this mod's soldered
+         models, and ppex 0.7.1's four pipe blocktypes trimmed to their shape tables. -->
+    <None Include="../assets/seraphhorizons/patches/unifiedpipes-solderedjoints.json" Link="unifiedpipes-solderedjoints.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Pipes/fixtures/ppex-pipe-shapes.json" Link="ppex-pipe-shapes.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The chain: the patch on the game's chute section (the hollow section), its anvil recipe and
          the chute recipes; this mod's soldering recipe, the angle (item and shape) and the pipe
          section; and the game's three files (1.22.7), the item and chutes trimmed to what the guard reads. -->
@@ -181,6 +218,8 @@
     <None Include="../assets/seraphhorizons/patches/castpipes-smexmold.json" Link="castpipes-smexmold.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/clayforming/pipemold.json" Link="castpipes-pipemold.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Pipes/fixtures/smex-toolmold*.json" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The eidolon (#673): charge, stops, the slump pose, ownership and the wide pathfinder. -->
+    <Compile Include="../Eidolon/Core/**/*.cs" Link="Eidolon/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>

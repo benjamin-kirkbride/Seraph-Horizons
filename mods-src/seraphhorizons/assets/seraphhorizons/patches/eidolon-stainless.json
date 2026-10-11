@@ -1,0 +1,27 @@
+// seraphhorizons' Eidolon switch (README "Eidolon", "Stainless fittings"): stainless steel variants of
+// the game's rods, nails and strips and chain, which the game lacks, for the eidolon's joints and
+// skirt. The rod's and the chain's metal group is a list of states, the nails' the metal properties
+// narrowed by allowedVariants (stainless steel is in the properties). Each takes the steel variant's
+// other figures (the nails' reinforcement strength, steel's 1200), its density stainless steel's
+// (7700, worldproperties/block/metal.json), and the rod melts back into an ingot as the steel rod does (at stainless's melting
+// point, the pack's ingot's: patches/stainless-ingot-melting.json); the steel nails and the steel
+// chain have none. The chain's handbook hides stainless (a variant that did not exist); that is
+// taken off. The textures are the game's stainless steel ingot and sheet, and for the chain the
+// pack's (game:textures/entity/humanoid/serapharmor/chain/stainlesssteel.png, the steel chain
+// lightened and desaturated). The recipes: recipes/smithing/eidolon-stainless.json. With the switch
+// off EidolonGantrySystem empties this file before the patch loader runs.
+[
+  {"file": "game:itemtypes/part/rod.json", "op": "add", "path": "/variantgroups/0/states/-", "value": "stainlesssteel", "side": "server"},
+  {"file": "game:itemtypes/part/rod.json", "op": "add", "path": "/materialDensityByType/*-stainlesssteel", "value": 7700, "side": "server"},
+  {
+    "file": "game:itemtypes/part/rod.json", "op": "add", "path": "/combustiblePropsByType/rod-stainlesssteel",
+    "value": {"meltingPoint": 1530, "meltingDuration": 30, "smeltedRatio": 1, "smeltedStack": {"type": "item", "code": "ingot-stainlesssteel"}},
+    "side": "server"
+  },
+  {"file": "game:itemtypes/resource/metalnailsandstrips.json", "op": "add", "path": "/allowedVariants/-", "value": "*-stainlesssteel", "side": "server"},
+  {"file": "game:itemtypes/resource/metalnailsandstrips.json", "op": "add", "path": "/attributes/reinforcementStrengthByType/*-stainlesssteel", "value": 1200, "side": "server"},
+  {"file": "game:itemtypes/resource/metalnailsandstrips.json", "op": "add", "path": "/materialDensityByType/*-stainlesssteel", "value": 7700, "side": "server"},
+  {"file": "game:itemtypes/resource/metalchain.json", "op": "add", "path": "/variantgroups/0/states/-", "value": "stainlesssteel", "side": "server"},
+  {"file": "game:itemtypes/resource/metalchain.json", "op": "add", "path": "/materialDensityByType/*-stainlesssteel", "value": 7700, "side": "server"},
+  {"file": "game:itemtypes/resource/metalchain.json", "op": "remove", "path": "/attributes/handbook/excludeByType/*-stainlesssteel", "side": "server"}
+]

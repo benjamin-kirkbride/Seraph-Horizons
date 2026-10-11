@@ -1,6 +1,6 @@
 <script lang="ts">
   // The model viewer's pages: #/models and #/models/<id>. App.svelte loads this component
-  // lazily, and it needs no recipe data.
+  // lazily, and it needs no recipe data (`version`, the default, only for a model's link to a page of it).
   import { loadModelIndex } from "../lib/model-data.ts";
   import type { ModelIndex } from "../lib/model-manifest.ts";
   import { formatRoute } from "../lib/route.ts";
@@ -8,7 +8,7 @@
   import { t } from "../lib/strings.ts";
   import ModelPage from "./ModelPage.svelte";
 
-  let { id }: { id: string | null } = $props();
+  let { id, version = null }: { id: string | null; version?: string | null } = $props();
 
   let index = $state<ModelIndex | null>(null);
   let failed = $state(false);
@@ -54,7 +54,7 @@
   <p><a href={formatRoute({ view: "models" })}>{mt.allModels}</a></p>
 {:else}
   {#key model.id}
-    <ModelPage {model} />
+    <ModelPage {model} {version} />
   {/key}
 {/if}
 

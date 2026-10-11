@@ -55,7 +55,7 @@ public class SchematicTests
             string text = (string)lang[$"itemdesc-schematic-{gate.Machine}"]!;
             // The handbook says who sells it and from which tier, as the table does.
             Assert.Contains($"standing tier {sale.Tier} ", text);
-            Assert.Contains(sale.Sellers[0] == "generalstore" ? "general store" : sale.Sellers[0], text);
+            Assert.Contains(sale.Sellers[0] switch { "generalstore" => "general store", "curiodealer" => "curio dealer", var other => other }, text);
         }
     }
 

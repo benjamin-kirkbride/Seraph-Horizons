@@ -1,3 +1,5 @@
+using SeraphHorizons.Mod.Ore;
+using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Trading.Economy;
 using SeraphHorizons.Mod.Trading.Economy.Core;
 using SeraphHorizons.Mod.Trading.Maps;
@@ -512,9 +514,12 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         var a = stack.Attributes;
         string what = a.GetString(MapOfferAttrs.Offer) switch
         {
-            MapOfferAttrs.OreMap => T(TradeWindowModel.OreMapLine(a.GetString(MapOfferAttrs.Metal) ?? "", a.GetString(MapOfferAttrs.SizeTier),
+            MapOfferAttrs.OreMap => T(TradeWindowModel.OreMapLine(a.GetString(MapOfferAttrs.Metal) ?? "", OreNames.Split(a.GetString(MapOfferAttrs.Ores)),
+                a.GetString(MapOfferAttrs.SizeTier), a.GetString(MapOfferAttrs.Grades), RockName(a.GetString(MapOfferAttrs.Rock)),
                 a.GetDouble(MapOfferAttrs.Distance), a.GetAsInt(MapOfferAttrs.Precision, 1))),
-            MapOfferAttrs.GravelMap => L("trading-window-map-gravel", TradeWindowModel.F(Math.Round(a.GetDouble(MapOfferAttrs.Distance)))),
+            MapOfferAttrs.GravelMap => T(TradeWindowModel.GravelMapLine(RockName(a.GetString(MapOfferAttrs.Rock)), OreNames.Split(a.GetString(MapOfferAttrs.Metals)),
+                a.GetDouble(MapOfferAttrs.Distance))),
+            MapOfferAttrs.Surveying => T(TradeWindowModel.SurveyingLine(stack.Collectible.Code == MapsSystem.OfferGravelCode ? null : a.GetString(MapOfferAttrs.Metal))),
             MapOfferAttrs.Lead => T(TradeWindowModel.LeadLine(a.GetString(MapOfferAttrs.LeadKind), a.GetString(MapOfferAttrs.Type) ?? "",
                 Math.Sqrt(Sq(a.GetAsInt(MapOfferAttrs.X) - _trader.Pos.X) + Sq(a.GetAsInt(MapOfferAttrs.Z) - _trader.Pos.Z)),
                 TradeWindowModel.Direction(a.GetAsInt(MapOfferAttrs.X) - _trader.Pos.X, a.GetAsInt(MapOfferAttrs.Z) - _trader.Pos.Z))),
@@ -528,6 +533,8 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
     }
 
     private static double Sq(double v) => v * v;
+
+    private static string? RockName(string? rock) => rock is null ? null : ItemOreMap.RockName(Lang.CurrentLocale, rock);
 
     // ---- Changing text ----
 

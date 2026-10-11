@@ -57,7 +57,7 @@ Every answer:
 | `ore here` | `x`, `z`, `deposits[] {metal, cell, spot, x, z, distance, bearing, status}` |
 | `ore list` | `radius`, `metal`, `filter`, `deposits[]` (below) |
 | `ore gravel` | `radius`, `fields[]` (deposit rows plus `rock`, `blocks`) |
-| `ore verify` | `verify {status, id, oreBlocks, ingots, tier, workedOut, x, y, z, seconds}` when answered at once |
+| `ore verify` | `verify {status, id, oreBlocks, ingots, tier, workedOut, ores, grades, rock, x, y, z, seconds}` when answered at once (`ores`, `grades`, `rock`: what the ore is, #692) |
 | `ore count` | `radius`, `columns`, `unloadedColumns`, `blocks`, `rows[] {metal, grade, blocks, units, ingots}` (`grade` `-` for ungraded ores) |
 | `ore districts` | `tileSize`, `tiles[] {tile {x, z}, district, centre, built, config, radius, majorFaults, minorFaults, horsetails, oreZones}` |
 | `ore markers` | `added`, `deposits[] {id, x, z, state}`; with `clear`: `removed` |

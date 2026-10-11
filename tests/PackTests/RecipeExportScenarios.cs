@@ -414,7 +414,11 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         Assert.NotEmpty(blocks);
         // exlib's behavior, its own class since exlib 0.8: fails if ppex's machines stop using it.
         Assert.Contains("ppex:mpfluidpump-north", blocks);
-        var covered = Doc["recipes"]!.Where(r => (string)r["type"]! == "construction")
+        // The eidolon's gantry and body (#681) are construction records too, but built by the pack's own
+        // fitting (EidolonExport), not the game's constructable behaviour.
+        var covered = Doc["recipes"]!.Where(r => (string)r["type"]! == "construction"
+                && !((string)r["id"]!).StartsWith("construction|seraphhorizons:eidolongantry-", StringComparison.Ordinal)
+                && (string)r["id"]! != "construction|seraphhorizons:creature-eidolon|0")
             .SelectMany(r => r["extra"]?["members"]?.Select(m => (string)m!) ?? new[] { (string)r["outputs"]![0]!["code"]! })
             .OrderBy(c => c, StringComparer.Ordinal)
             .ToList();
@@ -906,11 +910,14 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         // ConfigKit's settings sync is a registry to the engine, but not one of recipes.
         Assert.DoesNotContain("configkit:configs", codes);
         // Each one the engine can look up by code (GameMain.GetRecipeRegistry) is in recipeTypes.
-        // Blocks built in place, butchery, transitions, the gear chain, casting, the draw bench, the press brake, the squaring shear and the
-        // mandrel station are the types not read from a registry.
+        // Blocks built in place, butchery, transitions, the gear chain, casting, the draw bench, the cylinder borer, the press brake,
+        // the squaring shear, the mandrel station and ore processing's spalling, roasting, retorting, cupellation and liquation are
+        // the types not read from a registry.
         var registries = ((JObject)Doc["recipeTypes"]!).Properties()
             .Where(p => p.Name != RecipeSection.InPlaceType && p.Name != RecipeSection.ButcheryType)
-            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.PressBrakeType or RecipeSection.SquaringShearType or RecipeSection.MandrelStationType))
+            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.CylinderBorerType or RecipeSection.PressBrakeType or RecipeSection.SquaringShearType or RecipeSection.MandrelStationType
+                or RecipeSection.SpallingType or RecipeSection.OreRoastingType or RecipeSection.OreRetortingType
+                or RecipeSection.CupellationType or RecipeSection.LiquationType))
             .Where(p => (string)p.Value["shape"]! != "transition")
             .Select(p => (string)p.Value["registry"]!).ToHashSet();
         Assert.Equal(codes.OrderBy(c => c, StringComparer.Ordinal), registries.OrderBy(c => c, StringComparer.Ordinal));

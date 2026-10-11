@@ -325,6 +325,14 @@ is left out when its switch is off or what it names is not registered.
   four pipe sections of the metal (`seraphhorizons:pipesection-{metal}`, work unit `sections`), and a
   metal whose hollow or pipe section is not registered (lead's chute section with `UnifiedPipes` off)
   has no record. The `DrawBench` switch leaves it out when off.
+- The cylinder borer (`Recipes/CylinderBorerExport.cs`, `RecipeSection.CylinderBorer.cs`, type `cylinderborer`,
+  shape `machine`): one record per metal, `cylinderborer|seraphhorizons:cylinderblank-{metal}|0`.
+  `config/cylinderborer-rig.json` gives the cutter head's travel (`work.end`), each class's cast and bored cylinder
+  (`bore.blanks`, `bore.cylinders`) and the turns a block as a fallback; `SeraphHorizonsConfig.CylinderBorerSettings`
+  gives the turns a block (`TurnsPerBlockIron`, `TurnsPerBlockSteel`) and the head's wear (`HeadWearPerCylinder`,
+  rule `dividedByOilFill`); `MachineOilSettings.CylinderBorer` the oil per cylinder and the tank. The bushings (the
+  game's metal parts, a block), bar and feed are `kept`; the output is the bored cylinder (work unit `blocks`). The `CylinderBorer` switch leaves it
+  out when off. Its mold's casting comes from the tool molds' reader, as every mold's does.
 - The press brake (`Recipes/PressBrakeExport.cs`, `RecipeSection.PressBrake.cs`, type `pressbrake`,
   shape `machine`): one record per metal, `pressbrake|seraphhorizons:halfplate-{metal}|0`.
   `config/pressbrake-rig.json` gives each class's half plate and angle (`fold.plates`,
@@ -346,6 +354,16 @@ is left out when its switch is off or what it names is not registered.
   are `kept`, their alternatives the variant's stacks; the output is two half plates of the metal
   (`seraphhorizons:halfplate-{metal}`). The `SquaringShear` switch leaves it out when off (and the
   half plate with it).
+- The eidolon (`Recipes/EidolonExport.cs`, `RecipeSection.Eidolon.cs`, type `construction`): the
+  gantry's winch and the body on its spine, two blocks built in place that no engine behavior builds.
+  What each stage takes is read by reflection from the mod's game-independent rules,
+  `EidolonGantry/Core/GantryParts.cs` (`Woods`, `CodesFor(stage, wood)`, `Needed`) and `BodyParts.cs`
+  (`BodyBill.Stages`, `Order`), so the records cannot drift from the game. A stage's alternatives
+  (iron, meteoric iron or steel) are one wildcard ingredient with `allowedVariants`; the gantry's wood
+  is a `{wood}` binding, a variant per wood whose gantry is registered, the record named after the first
+  by code. The body's first stage is the gantry (role `station`) and its output the creature item
+  `seraphhorizons:creature-eidolon`. The stages' actions are the gantry's own help lines. The `Eidolon`
+  switch leaves both out when off (and they are owned by it through their codes).
 - The mandrel forging station (`Recipes/MandrelStationExport.cs`, `RecipeSection.MandrelStation.cs`,
   type `mandrelstation`, shape `machine`): one record per metal, `mandrelstation|game:chutesection-{metal}|0`.
   `config/mandrelstation-rig.json` gives each class's hollow and pipe section (`forge.hollows`,
@@ -442,6 +460,9 @@ details and the limits (facing, connectors).
   link of the gear chain's handbook page;
 - the draw bench (`RecipeExportDrawBenchScenarios.cs`): a record per metal, a hollow section in, its
   kept stages, the dies that draw it, the oil and four pipe sections;
+- the cylinder borer (`RecipeExportCylinderBorerScenarios.cs`): a record per metal, a rough cast cylinder in, its kept
+  stages, the cutter head worn by the oil's fill, the oil and the bored cylinder; the mold's six-ingot casting; and
+  ppex's engines' grid records taking the bored cylinder;
 - the press brake (`RecipeExportPressBrakeScenarios.cs`): a record per metal, a half plate in, its
   kept stages, power `hand` at the lever's turns, and one angle;
 - the squaring shear (`RecipeExportSquaringShearScenarios.cs`): a record per metal, its kept stages,
@@ -451,6 +472,9 @@ details and the limits (facing, connectors).
   mandrel, the hammer worn by its blows, power `hand` at the blows, and two pipe sections; and the
   spring record, the steel rod, the tongs worn a point, power `hand` at four seconds, one spring, the heat
   in `requirements`;
+- the eidolon (`RecipeExportEidolonScenarios.cs`): the gantry's winch, nine stages in order with their
+  counts and a variant per wood, the body on a gantry (a station) to the mind's temporal gear, the
+  bill's totals, and the eidolon's guide in `guides`;
 - the power section (`RecipeExportPowerScenarios.cs`): the producers' models and the
   consumers' loads against figures worked out from the code, no figure a fallback, a quern's and
   a grinding wheel's exported load against the placed block's `GetResistance`, and the wind

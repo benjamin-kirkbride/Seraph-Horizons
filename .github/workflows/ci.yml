@@ -147,19 +147,26 @@ jobs:
     # classes are the exception: each builds the pack's export (over a minute) and fills parts of
     # it again to compare, so each has a shard to itself. `fixes` is the fix mods' class and `tidy`
     # is Tidy Variants', both matched by name, so a new class of either kind joins its shard.
-    # `woodworking` and `woodworking-rosser` are the two woodworking classes, each a world of real
+    # `woodworking`, `woodworking-rosser` and `woodworking-eidolon` (the eidolon's haul and crew
+    # orders, WoodworkingEidolonScenarios) are the three woodworking classes, each a world of real
     # machine runs (the machines turn in wall-clock time, so their tests cannot be hurried), kept
-    # out of `rest` and apart from each other to keep every shard under five minutes; the terms are
+    # out of `rest` and apart from each other to keep every shard under five minutes; the shortest,
+    # `woodworking-eidolon`, also runs MapRevealScenarios (a plain world with deposit checks off in
+    # its ModConfig, so nothing but the reveal touches the columns it watches); the terms are
     # anchored on `PackTests.` and end in `.` so that only that class name matches, not a test
     # method named after a feature or a class whose name extends another's. `ore` is every Ore*
     # class (ore maps with the ore admin tools, ore cells, each a seeded standard world of its
-    # own). The trading shards split the Trading* classes: `trading-core` is the camp grid
+    # own; ore processing, the plain world with its switch on). The trading shards split the Trading* classes: `trading-core` is the camp grid
     # (TradingCoreScenarios, a seeded standard world) with TradingScenarios; `trading-features` is
     # the rest of Trading* (maps and admin, each a seeded standard world), so a new seeded Trading
     # class lands there, and a new plain-world trading feature joins TradingScenarios. `switches`
     # is four classes that cannot share the plain world: SwitchesOffScenarios and
     # ConfigDefaultsScenarios (each its own ModConfig), ClearCommandScenarios (a survival world)
-    # and HandcarScenarios (three players, and the shared world has no slots left). `trunks` is the trunk entity classes and the
+    # and HandcarScenarios (three players, and the shared world has no slots left). The eidolon's
+    # Eidolon* classes (each its own plain world, a server boot apiece) are three shards: `eidolon` the
+    # entity and the command tool, `eidolon-fittings` its fittings (EidolonFittedScenarios) and docking
+    # to strip and refit them (EidolonDockScenarios), and `eidolon-jobs` every other Eidolon* class
+    # (carrying, felling, guarding), so a new one joins it. `trunks` is the trunk entity classes and the
     # pickling tub, each joining more players than the plain world has slots left for. `rest` is
     # the complement filter, so any other new class lands there without anyone having to list it.
     # Each shard's dotnet test run should stay under about four minutes, and the job under five.
@@ -179,6 +186,14 @@ jobs:
             filter: FullyQualifiedName~PackTests.WoodworkingScenarios.
           - shard: woodworking-rosser
             filter: FullyQualifiedName~PackTests.WoodworkingRosserScenarios.
+          - shard: woodworking-eidolon
+            filter: FullyQualifiedName~PackTests.WoodworkingEidolonScenarios.|FullyQualifiedName~PackTests.MapRevealScenarios.
+          - shard: eidolon
+            filter: FullyQualifiedName~PackTests.EidolonScenarios.|FullyQualifiedName~PackTests.EidolonCommanderScenarios.
+          - shard: eidolon-jobs
+            filter: FullyQualifiedName~PackTests.Eidolon&FullyQualifiedName!~PackTests.EidolonScenarios.&FullyQualifiedName!~PackTests.EidolonCommanderScenarios.&FullyQualifiedName!~PackTests.EidolonFittedScenarios.&FullyQualifiedName!~PackTests.EidolonDockScenarios.
+          - shard: eidolon-fittings
+            filter: FullyQualifiedName~PackTests.EidolonFittedScenarios.|FullyQualifiedName~PackTests.EidolonDockScenarios.
           - shard: ore
             filter: FullyQualifiedName~PackTests.Ore
           - shard: trading-core
@@ -190,7 +205,7 @@ jobs:
           - shard: trunks
             filter: FullyQualifiedName~PackTests.TrunkEntityScenarios.|FullyQualifiedName~PackTests.TrunkCarryScenarios.|FullyQualifiedName~PackTests.PicklingTubScenarios.
           - shard: rest
-            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading&FullyQualifiedName!~PackTests.SwitchesOffScenarios.&FullyQualifiedName!~PackTests.ConfigDefaultsScenarios.&FullyQualifiedName!~PackTests.ClearCommandScenarios.&FullyQualifiedName!~PackTests.HandcarScenarios.&FullyQualifiedName!~PackTests.TrunkEntityScenarios.&FullyQualifiedName!~PackTests.TrunkCarryScenarios.&FullyQualifiedName!~PackTests.PicklingTubScenarios.
+            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Eidolon&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading&FullyQualifiedName!~PackTests.SwitchesOffScenarios.&FullyQualifiedName!~PackTests.ConfigDefaultsScenarios.&FullyQualifiedName!~PackTests.ClearCommandScenarios.&FullyQualifiedName!~PackTests.HandcarScenarios.&FullyQualifiedName!~PackTests.TrunkEntityScenarios.&FullyQualifiedName!~PackTests.TrunkCarryScenarios.&FullyQualifiedName!~PackTests.PicklingTubScenarios.&FullyQualifiedName!~PackTests.MapRevealScenarios.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack
@@ -379,6 +394,8 @@ jobs:
       # Works on the LFS pointer files this checkout has: no image is downloaded.
       - name: Icon index matches the icon files
         run: python3 tools/icons.py verify
+      - name: Texture index matches the texture files
+        run: python3 tools/textures.py verify
       - name: tools/site-data
         run: |
           npm ci --prefix tools/site-data
@@ -424,6 +441,9 @@ jobs:
       # Warns about items without an icon; never fails for them (the site shows placeholders).
       - name: Icon drift
         run: python3 tools/icons.py drift --export "$RUNNER_TEMP/recipe-export/recipes.json"
+      # Warns about textures the eidolon section names that textures/ lacks (drawn as colours).
+      - name: Texture drift
+        run: python3 tools/textures.py drift --export "$RUNNER_TEMP/recipe-export/recipes.json"
 
   site:
     name: Recipe browser end to end
@@ -460,7 +480,8 @@ jobs:
             site/playwright-report/
           if-no-files-found: ignore
 
-  # Keeps the icons' LFS objects in the Actions cache for pages.yml. That
+  # Keeps the icons' (and textures/', the same kind of store) LFS objects in
+  # the Actions cache for pages.yml. That
   # workflow is started by workflow_run, which gets a read-only cache, so it
   # cannot save one itself; without a cache every deploy downloads all the
   # icons, and each download counts against the LFS bandwidth quota. Here LFS
@@ -478,11 +499,11 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .git/lfs
-          key: lfs-icons-${{ hashFiles('icons/index.json') }}
+          key: lfs-icons-${{ hashFiles('icons/index.json', 'textures/index.json') }}
           restore-keys: lfs-icons-
-      - name: Fetch the icons the cache does not hold
+      - name: Fetch the icons and textures the cache does not hold
         if: steps.cache.outputs.cache-hit != 'true'
-        run: git lfs fetch origin "$GITHUB_SHA" --include "icons/**"
+        run: git lfs fetch origin "$GITHUB_SHA" --include "icons/**,textures/**"
 
   # The one required status check (branch protection and .mergify.yml). A
   # needed job that fails leaves a plain `needs:` job *skipped*, and GitHub and

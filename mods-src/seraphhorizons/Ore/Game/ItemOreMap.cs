@@ -1,8 +1,10 @@
+using System.Globalization;
 using System.Text;
 using SeraphHorizons.Mod.Ore.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
@@ -48,7 +50,14 @@ public class ItemOreMap : Item, ITradeableCollectible
     public const string AttrMetal = "metal";
     public const string AttrPrecision = "precision";
     public const string AttrSizeTier = "sizeTier";
+    /// <summary>A gravel field's rock, or the rock most of an ore deposit sits in (#692).</summary>
     public const string AttrRock = "rock";
+    /// <summary>The ores named (#692, <see cref="DepositMakeup.MainOres"/>), comma-separated.</summary>
+    public const string AttrOres = "ores";
+    /// <summary>The grades in words (#692, <see cref="GradeMix.Code"/>).</summary>
+    public const string AttrGrades = "grades";
+    /// <summary>The metals a gravel field pans (#692), comma-separated.</summary>
+    public const string AttrMetals = "metals";
     public const string AttrX = "x";
     public const string AttrY = "y";
     public const string AttrZ = "z";
@@ -69,8 +78,9 @@ public class ItemOreMap : Item, ITradeableCollectible
         int y = a.GetInt(AttrY);
         var pos = new Vec3d(a.GetInt(AttrX) + 0.5, y > 0 ? y + 0.5 : api.World.SeaLevel, a.GetInt(AttrZ) + 0.5);
         bool gravel = metal == PlacerCells.Kind;
-        int precision = gravel ? MapPrecision.Exact : a.GetInt(AttrPrecision, MapPrecision.Exact);
-        string title = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Title(lang, WaypointTitle(lang, a), precision);
+        int precision = gravel ? MapPrecision.Fine : a.GetInt(AttrPrecision, MapPrecision.Fine);
+        string title = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Title(lang, WaypointTitle(lang, a),
+            gravel ? 0 : MapPrecision.ReachOf(precision));
         var marks = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Of(api);
         var target = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.TargetOf(slot.Itemstack);
         var outcome = marks is null || target is null
@@ -82,7 +92,8 @@ public class ItemOreMap : Item, ITradeableCollectible
             case SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Outcome.NoMap:
                 var d = pos.Clone().Sub(byEntity.Pos.XYZ);
                 d.Y = 0;
-                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:oremap-distance", title, (int)d.Length()),
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:oremap-distance", title,
+                    SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.DistanceText(lang, d.Length())),
                     EnumChatType.Notification);
                 return;
             case SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Outcome.Already:
@@ -90,19 +101,20 @@ public class ItemOreMap : Item, ITradeableCollectible
                 return;
         }
         player.SendMessage(GlobalConstants.GeneralChatGroup,
-            Lang.GetL(lang, precision == MapPrecision.Exact ? "seraphhorizons:oremap-marked" : "seraphhorizons:oremap-marked-near", title),
+            Lang.GetL(lang, gravel ? "seraphhorizons:oremap-marked" : "seraphhorizons:oremap-marked-near", title),
             EnumChatType.Notification);
     }
 
-    /// <summary>"Copper deposit (large)", "Rich gravel (granite)".</summary>
-    public static string WaypointTitle(string lang, Vintagestory.API.Datastructures.ITreeAttribute a)
+    /// <summary>"Galena and cerussite deposit (medium)", "Rich gravel (granite)"; a map made before
+    /// maps named the ore (#692) says the metal: "Copper deposit (large)".</summary>
+    public static string WaypointTitle(string lang, ITreeAttribute a)
     {
         string metal = a.GetString(AttrMetal) ?? "";
         if (metal == PlacerCells.Kind)
             return a.GetString(AttrRock) is { } rock
-                ? Lang.GetL(lang, "seraphhorizons:oremap-waypoint-gravel-rock", Lang.GetL(lang, "game:rock-" + rock))
+                ? Lang.GetL(lang, "seraphhorizons:oremap-waypoint-gravel-rock", RockName(lang, rock))
                 : Lang.GetL(lang, "seraphhorizons:oremap-waypoint-gravel");
-        string name = MetalName(lang, metal);
+        string name = DepositName(lang, a);
         return a.GetString(AttrSizeTier) is { } tier
             ? Lang.GetL(lang, "seraphhorizons:oremap-waypoint-sized", name, Lang.GetL(lang, "seraphhorizons:ore-size-" + tier))
             : Lang.GetL(lang, "seraphhorizons:oremap-waypoint", name);
@@ -110,13 +122,87 @@ public class ItemOreMap : Item, ITradeableCollectible
 
     public static string MetalName(string lang, string metal) => Lang.GetL(lang, "seraphhorizons:oremap-metal-" + metal);
 
+    public static string RockName(string lang, string rock) => Lang.GetL(lang, "game:rock-" + rock);
+
+    /// <summary>What an ore map or offer names (#692): its ores, capitalised ("Galena and
+    /// cerussite"), or for a map without them its metal ("Copper").</summary>
+    public static string DepositName(string lang, ITreeAttribute a)
+    {
+        var ores = OreNames.Split(a.GetString(AttrOres));
+        return ores.Count > 0 ? Capitalise(OreList(lang, ores)) : MetalName(lang, a.GetString(AttrMetal) ?? "");
+    }
+
+    /// <summary>"galena", "galena and cerussite", "galena, cerussite and wulfenite".</summary>
+    public static string OreList(string lang, IReadOnlyList<string> ores) =>
+        List(lang, ores.Select(o => Lang.GetL(lang, "seraphhorizons:" + OreNames.LangKey(o))).ToList());
+
+    /// <summary>"copper", "tin and gold", "tin, silver and gold".</summary>
+    public static string MetalList(string lang, IReadOnlyList<string> metals) =>
+        List(lang, metals.Select(m => Lang.GetL(lang, "seraphhorizons:ore-metal-" + m)).ToList());
+
+    private static string List(string lang, IReadOnlyList<string> items) => items.Count switch
+    {
+        0 => "",
+        1 => items[0],
+        _ => Lang.GetL(lang, "seraphhorizons:ore-list-and",
+            items.Take(items.Count - 1).Aggregate((acc, next) => Lang.GetL(lang, "seraphhorizons:ore-list-comma", acc, next)), items[^1]),
+    };
+
+    /// <summary>"mostly poor", "poor and medium", "rich"; null for a code that does not read.</summary>
+    public static string? GradeText(string lang, string? code) => GradeMix.Parse(code) is not { } mix ? null : mix.Kind switch
+    {
+        GradeMix.Mixed => Lang.GetL(lang, "seraphhorizons:ore-grades-mixed", Grade(lang, mix.Grades[0]), Grade(lang, mix.Grades[1])),
+        _ => Lang.GetL(lang, "seraphhorizons:ore-grades-" + mix.Kind, Grade(lang, mix.Grades[0])),
+    };
+
+    private static string Grade(string lang, string grade) => Lang.GetL(lang, "seraphhorizons:ore-grade-" + grade);
+
+    private static string Capitalise(string s) => s.Length == 0 ? s : char.ToUpper(s[0], CultureInfo.CurrentCulture) + s[1..];
+
+    /// <summary>Writes a deposit's makeup on a map or an offer (#692): its ores, grades and host rock.</summary>
+    public static void SetMakeup(ITreeAttribute a, DepositMakeup makeup)
+    {
+        if (makeup.MainOres() is { Count: > 0 } ores) a.SetString(AttrOres, OreNames.Csv(ores));
+        if (makeup.Mix() is { } mix) a.SetString(AttrGrades, mix.Code);
+        if (makeup.HostRock() is { } rock) a.SetString(AttrRock, rock);
+    }
+
+    /// <summary>
+    /// The lines that say what a deposit is (#692), for a map and its trader's offer alike: an ore
+    /// deposit's ores, grades, host rock and size (the metal in the ground, not what a given way of
+    /// working the ore wins from it); a gravel field's rock and the metals it pans.
+    /// </summary>
+    public static void AppendDeposit(string lang, ITreeAttribute a, StringBuilder dsc)
+    {
+        string metal = a.GetString(AttrMetal) ?? "";
+        if (metal == PlacerCells.Kind)
+        {
+            if (a.GetString(AttrRock) is { } rock)
+                dsc.AppendLine(Lang.GetL(lang, "seraphhorizons:oremap-info-rock", RockName(lang, rock)));
+            if (OreNames.Split(a.GetString(AttrMetals)) is { Count: > 0 } metals)
+                dsc.AppendLine(Lang.GetL(lang, "seraphhorizons:oremap-info-pans", MetalList(lang, metals)));
+            return;
+        }
+        if (OreNames.Split(a.GetString(AttrOres)) is { Count: > 0 } ores)
+            dsc.AppendLine(Lang.GetL(lang, "seraphhorizons:oremap-info-ores", OreList(lang, ores)));
+        if (GradeText(lang, a.GetString(AttrGrades)) is { } grades)
+            dsc.AppendLine(Lang.GetL(lang, "seraphhorizons:oremap-info-grades", grades));
+        if (a.GetString(AttrRock) is { } host)
+            dsc.AppendLine(Lang.GetL(lang, "seraphhorizons:oremap-info-host", RockName(lang, host)));
+        dsc.AppendLine(a.GetString(AttrSizeTier) is { } tier
+            ? Lang.GetL(lang, "seraphhorizons:oremap-info-size", Lang.GetL(lang, "seraphhorizons:ore-size-" + tier))
+            : Lang.GetL(lang, "seraphhorizons:oremap-info-unsurveyed"));
+    }
+
     public override string GetHeldItemName(ItemStack itemStack)
     {
         if (Hooks?.HeldName(itemStack) is { } offerName) return offerName;
         var a = itemStack.Attributes;
         string? metal = a.GetString(AttrMetal);
+        if (metal == PlacerCells.Kind && a.GetString(AttrRock) is { } rock)
+            return Lang.Get("seraphhorizons:gravelmap-name", RockName(Lang.CurrentLocale, rock));
         if (metal == null || metal == PlacerCells.Kind) return base.GetHeldItemName(itemStack);
-        return Lang.Get("seraphhorizons:oremap-name", MetalName(Lang.CurrentLocale, metal));
+        return Lang.Get("seraphhorizons:oremap-name", DepositName(Lang.CurrentLocale, a));
     }
 
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
@@ -129,19 +215,11 @@ public class ItemOreMap : Item, ITradeableCollectible
             dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-blank"));
             return;
         }
-        if (metal == PlacerCells.Kind)
-        {
-            if (a.GetString(AttrRock) is { } rock)
-                dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-rock", Lang.Get("game:rock-" + rock)));
-        }
-        else
-        {
-            dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-precision-" + a.GetInt(AttrPrecision, MapPrecision.Exact)));
-            dsc.AppendLine(a.GetString(AttrSizeTier) is { } tier
-                ? Lang.Get("seraphhorizons:oremap-info-size", Lang.Get("seraphhorizons:ore-size-" + tier))
-                : Lang.Get("seraphhorizons:oremap-info-unsurveyed"));
-        }
-        dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-use"));
+        if (metal != PlacerCells.Kind)
+            dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-precision-" + a.GetInt(AttrPrecision, MapPrecision.Fine)));
+        AppendDeposit(Lang.CurrentLocale, a, dsc);
+        if (a.HasAttribute(AttrX))
+            SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.AppendDistance(world, a.GetInt(AttrX) + 0.5, a.GetInt(AttrZ) + 0.5, dsc);
     }
 
     public override WorldInteraction[] GetHeldInteractionHelp(ItemSlot inSlot) =>

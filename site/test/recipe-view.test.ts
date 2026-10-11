@@ -267,6 +267,14 @@ describe("construction", () => {
       [["game:resin", 10]],
     ]);
   });
+
+  it("leaves a station out of the totals: it is needed, not consumed", () => {
+    const r: Recipe = {
+      ...waterwheel,
+      ingredients: waterwheel.ingredients.map((ing, i) => (i === 0 ? { ...ing, role: "station" } : ing)),
+    };
+    expect(constructionTotals(r, 1).map((slot) => slot.map((s) => s.code))).toEqual([["game:plank-oak"], ["game:resin"]]);
+  });
 });
 
 describe("butchery", () => {

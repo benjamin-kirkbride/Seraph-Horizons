@@ -22,6 +22,8 @@ public enum OilMachine
     GearCutter,
     /// <summary>This mod's draw bench.</summary>
     DrawBench,
+    /// <summary>This mod's cylinder borer: its oil wears the cutter head, never its shaft load, as the gear cutter's.</summary>
+    CylinderBorer,
 }
 
 /// <summary>
@@ -191,6 +193,10 @@ public class MachineOilConfig
     /// <summary>Per pipe section drawn (four a hollow section).</summary>
     public OilMachineConfig DrawBench { get; set; } = new(1000, 2f);
 
+    /// <summary>Per cylinder bored, either metal. As the gear cutter's, the borer's load on its shaft never
+    /// changes with its oil: the oil wears its cutter head instead (CylinderBorerSettings).</summary>
+    public OilMachineConfig CylinderBorer { get; set; } = new(1000, 10f);
+
     public static readonly MachineOilConfig Defaults = new();
 
     public OilMachineConfig For(OilMachine machine) => machine switch
@@ -203,6 +209,7 @@ public class MachineOilConfig
         OilMachine.Rosser => Rosser,
         OilMachine.GearCutter => GearCutter,
         OilMachine.DrawBench => DrawBench,
+        OilMachine.CylinderBorer => CylinderBorer,
         _ => throw new ArgumentOutOfRangeException(nameof(machine)),
     };
 
@@ -271,6 +278,7 @@ public class MachineOilConfig
             case OilMachine.Rosser: Rosser = value; break;
             case OilMachine.GearCutter: GearCutter = value; break;
             case OilMachine.DrawBench: DrawBench = value; break;
+            case OilMachine.CylinderBorer: CylinderBorer = value; break;
         }
     }
 }

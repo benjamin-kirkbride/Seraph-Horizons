@@ -18,6 +18,7 @@ MOD = ROOT / "mods-src" / "seraphhorizons"
 sys.path.insert(0, str(MOD / "Machines" / "tools"))
 
 from machinegen import checks, rigmath  # noqa: E402
+from test_gear_consumers import PATCHES, loads  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location("rosser_make_shape", MOD / "Rosser" / "tools" / "make_shape.py")
 make_shape = importlib.util.module_from_spec(_spec)
@@ -27,7 +28,10 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "rosser-rig.jso
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "rosser.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "rosser_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "Rosser" / "rig-reference.json").read_text())
-REQUIRES = {"shaft", "ring", "tyres", "rollsin", "rollsout", "breaker", "levers", "heads", None}
+BLOCKTYPE = loads((MOD / "assets" / "seraphhorizons" / "blocktypes" / "rosser" / "frame.json").read_text())
+SOLDERED = MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "pipes"   # UnifiedPipes' copper and lead ppex pipes
+# the stages' requires (RosserRequires.KnownRequires): the drip's pipes are one per metal, the fitted one drawn
+REQUIRES = {"shaft", "ring", "tyres", "rollsin", "rollsout", "breaker", "levers", "pipecopper", "pipelead", "heads", None}
 
 
 class Rig(unittest.TestCase):
@@ -146,6 +150,115 @@ class Anchors(unittest.TestCase):
         self.assertAlmostEqual(2 * math.pi * m.RING_PITCH_R / m.RING_TEETH, 2 * math.pi * m.PINION_R / m.PINION_TEETH)
         dist = math.hypot(m.MAIN_Y - m.H, m.MAIN_Z - m.TZ)
         self.assertAlmostEqual(dist, m.RING_PITCH_R + m.PINION_R, delta=0.05)
+
+
+class Pipes(unittest.TestCase):
+    """The drip's pipes: a part per metal the rosser takes (copper, lead), the same elements in each
+    metal's pipe texture, the one UnifiedPipes gives that metal's ppex pipes, and their joints in
+    solder; the inlet meets a pipe on the water face end to end; and they are UnifiedPipes' soldered
+    pipe, the copper and lead ppex pipes' own model (shapes/block/pipes/soldered-*.json): the same
+    tube, texture mapping and wiped joint."""
+
+    @staticmethod
+    def elements(metal):
+        return sorted((e for e in SHAPE["elements"] if e["name"].startswith(f"pipe{metal}_")), key=lambda e: e["name"])
+
+    def test_the_block_declares_every_texture_of_the_shape(self):
+        # the renderer draws the moving parts, the pipes among them, with the frame block's textures
+        self.assertEqual({code: t["base"] for code, t in BLOCKTYPE["textures"].items()}, SHAPE["textures"])
+        for code, path in FRAME["textures"].items():
+            self.assertEqual(SHAPE["textures"][code], path, code)
+        for shape in (SHAPE, FRAME):
+            used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
+            self.assertLessEqual(used, set(shape["textures"]))
+
+    def test_each_metal_wears_its_ppex_pipe_texture(self):
+        patch = loads((PATCHES / "unifiedpipes-ppex.json").read_text())
+        straight = {op["path"].rsplit("/", 1)[1]: op["value"]["iron4"]["base"] for op in patch
+                    if op["file"] == "ppex:blocktypes/pipes/straight.json" and op["path"].startswith("/texturesByType/")}
+        self.assertEqual(list(make_shape.PIPE_METALS), ["copper", "lead"])
+        for metal in make_shape.PIPE_METALS:
+            self.assertEqual(SHAPE["textures"][f"pipe{metal}"], straight[f"*-{metal}"], metal)
+            els = self.elements(metal)
+            self.assertTrue(els, metal)
+            self.assertEqual({f["texture"] for e in els for f in e["faces"].values()}, {f"#pipe{metal}", "#solder"})
+        # the solder is the soldered ppex pipes'
+        soldered = json.loads((SOLDERED / "soldered-straight.json").read_text())
+        self.assertEqual(SHAPE["textures"]["solder"], soldered["textures"]["solder"])
+        # no other element wears a pipe's metal or solder, and the frame has no pipes (they are a stage)
+        others = {f["texture"] for e in SHAPE["elements"] if not e["name"].startswith("pipe") for f in e["faces"].values()}
+        self.assertFalse({t for t in others if t.startswith("#pipe") or t == "#solder"})
+        self.assertFalse([e["name"] for e in FRAME["elements"] if e["name"].startswith("pipe")])
+
+    def test_the_metals_are_the_same_pipes(self):
+        copper, lead = self.elements("copper"), self.elements("lead")
+        self.assertEqual([e["name"][len("pipecopper"):] for e in copper], [e["name"][len("pipelead"):] for e in lead])
+        for a, b in zip(copper, lead):
+            strip = {k: v for k, v in a.items() if k not in ("name", "faces")}
+            self.assertEqual(strip, {k: v for k, v in b.items() if k not in ("name", "faces")}, a["name"])
+            self.assertEqual({d: {**f, "texture": "#pipelead" if f["texture"] == "#pipecopper" else f["texture"]} for d, f in a["faces"].items()},
+                             b["faces"], a["name"])
+        for metal in ("copper", "lead"):
+            part = next(p for p in RIG["parts"] if p["id"] == f"pipe{metal}")
+            self.assertEqual((part["requires"], part["drivers"], part.get("ride")), (f"pipe{metal}", [], None))
+
+    def test_the_inlet_meets_a_pipe_on_the_water_face(self):
+        # shipped voxels: the water cell's south face, the inlet on its middle in ppex's 6 x 6 section
+        wx, wy, wz = RIG["waterCell"]
+        self.assertEqual(RIG["waterFace"], "south")
+        inlet = [e for e in self.elements("copper") if e["name"].startswith("pipecopper_inlet")]
+        self.assertTrue(inlet)
+        lo = [min(e["from"][k] for e in inlet) for k in range(3)]
+        hi = [max(e["to"][k] for e in inlet) for k in range(3)]
+        self.assertAlmostEqual(hi[2], (wz + 1) * 16, places=2)
+        self.assertAlmostEqual((lo[0] + hi[0]) / 2, (wx + 0.5) * 16, places=2)
+        self.assertAlmostEqual((lo[1] + hi[1]) / 2, (wy + 0.5) * 16, places=2)
+        self.assertAlmostEqual(hi[0] - lo[0], 6, places=2)
+        self.assertAlmostEqual(hi[1] - lo[1], 6, places=2)
+
+    @staticmethod
+    def relative(els, origin):
+        """Each element's (from, to) less `origin`, rounded, by name order."""
+        return sorted((tuple(round(e["from"][k] - origin[k], 4) for k in range(3)), tuple(round(e["to"][k] - origin[k], 4) for k in range(3)))
+                      for e in els)
+
+    def test_the_pipes_are_the_soldered_ppex_pipe(self):
+        """A rosser pipe and a copper or lead ppex pipe read as the same pipe: the inlet's tube is the
+        soldered straight's in section about the axis, every face maps its texture as the soldered
+        pipes' do (one texel a voxel from the corner, on this model's 64-texel scale), and each of the
+        header's joints is two soldered straights' half joints where they meet."""
+        straight = json.loads((SOLDERED / "soldered-straight.json").read_text())
+        pipe = self.elements("copper")
+        scale = SHAPE["textureSizes"]["pipecopper"][0] / straight["textureWidth"]
+        self.assertEqual(SHAPE["textureSizes"]["solder"], SHAPE["textureSizes"]["pipecopper"])
+        for e in pipe:
+            size = [e["to"][k] - e["from"][k] for k in range(3)]
+            self.assertFalse({"rotationX", "rotationY", "rotationZ"} & set(e), e["name"])
+            for d, f in e["faces"].items():
+                self.assertEqual([round(v, 3) for v in make_shape.solderedpipe.uv(d, size, scale)], f["uv"], f"{e['name']} {d}")
+        # the tube: the inlet's walls about its axis are the soldered straight's about the block's middle
+        wx, wy, wz = RIG["waterCell"]
+        section = lambda els, cx, cy: sorted((round(e["from"][0] - cx, 4), round(e["from"][1] - cy, 4),  # noqa: E731
+                                              round(e["to"][0] - cx, 4), round(e["to"][1] - cy, 4)) for e in els)
+        body = [e for e in straight["elements"] if e["name"].startswith("pipe_")]
+        inlet = [e for e in pipe if e["name"].startswith("pipecopper_inlet_")]
+        self.assertEqual(4, len(inlet))
+        self.assertEqual(section(body, 8, 8), section(inlet, (wx + 0.5) * 16, (wy + 0.5) * 16))
+        # the header's joints: each a straight's south half joint and the next straight's north one,
+        # about a seam of the header's lengths, as two blocks' pipes meet at their faces
+        halves = [e for e in straight["elements"] if e["name"].startswith("joint_south")]
+        halves += [{**e, "from": [e["from"][0], e["from"][1], e["from"][2] + 16], "to": [e["to"][0], e["to"][1], e["to"][2] + 16]}
+                   for e in straight["elements"] if e["name"].startswith("joint_north")]
+        header = [e for e in pipe if e["name"].startswith("pipecopper_header")]
+        cx = (min(e["from"][0] for e in header) + max(e["to"][0] for e in header)) / 2
+        cy = (min(e["from"][1] for e in header) + max(e["to"][1] for e in header)) / 2
+        inner_seams = sorted({round(e["to"][2], 4) for e in header})[:-1]   # the last is the hub's face
+        self.assertEqual(len(make_shape.HEADER_SEAMS), len(inner_seams))
+        for i, seam in enumerate(inner_seams, 1):
+            joint = [e for e in pipe if e["name"].startswith(f"pipecopper_joint_header{i}")]
+            self.assertEqual(seam, round((min(e["from"][2] for e in joint) + max(e["to"][2] for e in joint)) / 2, 4))
+            self.assertEqual(self.relative(halves, (8, 8, 16)), self.relative(joint, (cx, cy, seam)))
+            self.assertEqual({"#solder"}, {f["texture"] for e in joint for f in e["faces"].values()})
 
 
 if __name__ == "__main__":

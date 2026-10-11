@@ -1,0 +1,114 @@
+// The bone-ash cupel (OreProcessing, #722; README "Cupellation"): bone meal pressed into a dish in the
+// grid (recipes/grid/cupel.json), fired like the game's clay in a pit kiln or a beehive kiln, then a
+// smelting container in crucibulum's forge (Ore/Processing/BlockCupel.cs). Done, it is the cupel with
+// its silver bead (BlockCupelBead.cs), broken with a hammer in the grid into litharge and metal bits.
+// Single use. Kept a block, as the game's crucible is, for the smelting container class; ground
+// stored, never placed. Marked disabled with the switch off.
+{
+	code: "cupel",
+	classByType: {
+		"cupel-raw": "Block",
+		"cupel-fired": "seraphhorizons.BlockCupel",
+		"cupel-bead": "seraphhorizons.BlockCupelBead"
+	},
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "Quadrants", placeRemoveSound: "game:sounds/player/build", collisionBox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.125, z2: 1 } } },
+		{ name: "Unplaceable" },
+		{ name: "RightClickPickup" }
+	],
+	variantgroups: [
+		{ code: "type", states: ["raw", "fired", "bead"] }
+	],
+	shapeByType: {
+		"cupel-bead": { base: "seraphhorizons:block/oreprocessing/cupel-bead" },
+		"*": { base: "seraphhorizons:block/oreprocessing/cupel" }
+	},
+	texturesByType: {
+		"cupel-raw": { cupel: { base: "game:item/resource/crushed/bonemeal" } },
+		"cupel-fired": { cupel: { base: "game:item/resource/crushed/lime" } },
+		"cupel-bead": {
+			cupel: { base: "game:item/resource/crushed/lime", blendedOverlays: [{ base: "game:item/resource/crushed/limonite", blendMode: "Multiply" }] },
+			bead: { base: "game:block/metal/ingot/silver" }
+		}
+	},
+	attributesByType: {
+		"cupel-raw": {
+			beehivekiln: {
+				"0": { type: "block", code: "seraphhorizons:cupel-fired" },
+				"1": { type: "block", code: "seraphhorizons:cupel-fired" },
+				"2": { type: "block", code: "seraphhorizons:cupel-fired" },
+				"3": { type: "block", code: "seraphhorizons:cupel-fired" }
+			},
+			handbook: {
+				extraSections: [{ title: "seraphhorizons:cupel-handbook-title", text: "seraphhorizons:cupel-handbook-text" }]
+			}
+		},
+		"cupel-fired": {
+			tempGlowMode: 1,
+			// The forge's crucible slot and charge slots (crucibulum) read these as they read the crucible's.
+			maxContentDimensions: { width: 0.125, height: 0.25, length: 0.125 },
+			maxHeatableTemp: 1100,
+			storageType: 4,
+			inForgeTransform: {
+				translation: { x: 0, y: 0, z: 0 },
+				rotation: { x: 0, y: 0, z: 0 },
+				origin: { x: 0.5, y: 0, z: 0.5 },
+				scale: 1
+			},
+			handbook: {
+				extraSections: [{ title: "seraphhorizons:cupel-handbook-title", text: "seraphhorizons:cupel-handbook-text" }]
+			}
+		},
+		"cupel-bead": {
+			tempGlowMode: 1,
+			handbook: {
+				extraSections: [{ title: "seraphhorizons:cupel-handbook-title", text: "seraphhorizons:cupel-handbook-text" }]
+			}
+		}
+	},
+	combustiblePropsByType: {
+		"cupel-raw": {
+			meltingPoint: 600,
+			meltingDuration: 30,
+			smeltedRatio: 1,
+			smeltingType: "fire",
+			smeltedStack: { type: "block", code: "seraphhorizons:cupel-fired" },
+			requiresContainer: false
+		}
+	},
+	creativeinventory: { "general": ["*"], "decorative": ["cupel-raw", "cupel-fired"] },
+	blockmaterial: "Ceramic",
+	replaceable: 300,
+	resistance: 1,
+	maxStackSizeByType: {
+		"cupel-bead": 1,
+		"*": 16
+	},
+	lightAbsorption: 0,
+	sounds: {
+		walk: "game:walk/stone"
+	},
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	emitsideao: { all: false },
+	doNotRenderAtLod2: true,
+	collisionbox: { x1: 0.375, y1: 0, z1: 0.375, x2: 0.625, y2: 0.125, z2: 0.625 },
+	selectionbox: { x1: 0.375, y1: 0, z1: 0.375, x2: 0.625, y2: 0.125, z2: 0.625 },
+	heldTpIdleAnimation: "holdbothhands",
+	guiTransform: {
+		translation: { x: 0, y: 2, z: 0 },
+		rotation: { x: -25, y: 45, z: 0 },
+		origin: { x: 0.5, y: 0.05, z: 0.5 },
+		scale: 3.2
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 3.5
+	},
+	tpHandTransform: {
+		translation: { x: -0.7, y: 0.05, z: -0.5 },
+		rotation: { x: 0, y: 0, z: -90 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 0.8
+	}
+}

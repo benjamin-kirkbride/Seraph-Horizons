@@ -1,4 +1,5 @@
 using System.Globalization;
+using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Trading.Deliveries.Core;
 using SeraphHorizons.Mod.Trading.Economy.Core;
 using SeraphHorizons.Mod.Trading.Maps.Core;
@@ -43,7 +44,7 @@ public sealed record TierLine(Text Line, bool Current);
 public sealed record SpeechLine(Text Voice, IReadOnlyList<Text> Facts);
 
 /// <summary>What a map or lead offer on the shelf is to this player.</summary>
-public enum MapOfferStatus { Available, SoldOut, Locked, Owned }
+public enum MapOfferStatus { Available, SoldOut, Locked, Owned, Surveying }
 
 /// <summary>
 /// The trade window's view model (#436, the playtest's mockup "A · Tabs"): tabs, header, footer, and
@@ -60,6 +61,13 @@ public static class TradeWindowModel
     public static Text TierName(string code) => new("trading-standing-tier-" + code);
 
     public static Text TypeName(string type) => new("trading-type-" + type);
+
+    /// <summary>How far a map's target is (<see cref="MapDistance"/>): "about 3 km", "under a km".</summary>
+    public static Text Distance(double blocks)
+    {
+        var (key, args) = MapDistance.Of(blocks);
+        return new Text(key, args);
+    }
 
     // ---- Tabs ----
 
@@ -256,6 +264,7 @@ public static class TradeWindowModel
     /// is shown as such, unless it is sold out anyway.</summary>
     public static MapOfferStatus MapStatus(string? offer, string? leadKind, int stock, bool playerLeads, bool owned = false)
     {
+        if (offer == "surveying") return MapOfferStatus.Surveying;
         if (offer == "soldout" || stock <= 0) return MapOfferStatus.SoldOut;
         if (owned) return MapOfferStatus.Owned;
         if (offer == "lead" && LeadTargets.TryParse(leadKind, out var kind) && kind != LeadKind.Camp && !playerLeads) return MapOfferStatus.Locked;
@@ -270,21 +279,60 @@ public static class TradeWindowModel
         MapOfferStatus.SoldOut => new Text("trading-window-map-soldout"),
         MapOfferStatus.Locked => new Text("trading-window-map-locked", (object?)lockedTier ?? ""),
         MapOfferStatus.Owned => new Text("trading-window-map-owned"),
+        MapOfferStatus.Surveying => new Text("trading-window-map-surveying"),
         _ => null,
     };
 
-    /// <summary>An ore map offer: metal, size class, distance, precision.</summary>
-    public static Text OreMapLine(string metal, string? sizeClass, double distance, int precision) =>
-        new("trading-window-map-ore", new Text("oremap-metal-" + metal), sizeClass is null ? new Text("trading-window-map-unsurveyed") : new Text("ore-size-" + sizeClass),
-            F(Math.Round(distance)), precision);
+    /// <summary>An ore map offer (#692): the ores, size class, grades and host rock
+    /// (<paramref name="rockName"/>, the rock's name as the game side reads it), distance and
+    /// precision. An offer without ores (shelved before maps named the ore) names the metal.</summary>
+    public static Text OreMapLine(string metal, IReadOnlyList<string> ores, string? sizeClass, string? grades, object? rockName,
+        double distance, int precision)
+    {
+        var size = sizeClass is null ? new Text("trading-window-map-unsurveyed") : new Text("ore-size-" + sizeClass);
+        if (ores.Count == 0) return new("trading-window-map-ore", new Text("oremap-metal-" + metal), size, Distance(distance), MapTierName(precision), MapPrecision.ReachOf(precision));
+        var details = new List<object> { size };
+        if (GradeText(grades) is { } g) details.Add(g);
+        if (rockName != null) details.Add(new Text("trading-window-map-ore-host", rockName));
+        return new("trading-window-map-ore-named", ListText(ores.Select(o => (object)new Text(OreNames.LangKey(o))).ToList()),
+            details.Aggregate((a, b) => new Text("ore-list-comma", a, b)), Distance(distance), MapTierName(precision), MapPrecision.ReachOf(precision));
+    }
 
-    /// <summary>A camp lead offered to this player: the camp's type, how far and which way from the
-    /// trader, the price and the ring of cells it is in; the prospector kept for first says so, and
-    /// the player's very first map (the pity map) says it is on the trader.</summary>
+    /// <summary>An ore map tier's name: rough, fair or fine (1–3).</summary>
+    public static Text MapTierName(int precision) => new("oremap-tier-" + Math.Clamp(precision, MapPrecision.Rough, MapPrecision.Fine));
+
+    /// <summary>A gravel map offer (#692): the field's rock (its name, as the game side reads it), the
+    /// metals it pans and its distance; without a rock (shelved before), the distance alone.</summary>
+    public static Text GravelMapLine(object? rockName, IReadOnlyList<string> metals, double distance) =>
+        rockName is null ? new Text("trading-window-map-gravel", Distance(distance))
+        : metals.Count == 0 ? new Text("trading-window-map-gravel-rock", rockName, Distance(distance))
+        : new Text("trading-window-map-gravel-pans", rockName, ListText(metals.Select(m => (object)new Text("ore-metal-" + m)).ToList()),
+            Distance(distance));
+
+    /// <summary>A deposit being checked (#693): an ore map of a metal, or a gravel map.</summary>
+    public static Text SurveyingLine(string? metal) =>
+        metal is null or PlacerCells.Kind ? new Text("trading-window-map-gravel-surveying") : new Text("trading-window-map-ore-surveying", new Text("oremap-metal-" + metal));
+
+    /// <summary>"a", "a and b", "a, b and c".</summary>
+    public static object ListText(IReadOnlyList<object> items) => items.Count switch
+    {
+        0 => "",
+        1 => items[0],
+        _ => new Text("ore-list-and", items.Take(items.Count - 1).Aggregate((a, b) => new Text("ore-list-comma", a, b)), items[^1]),
+    };
+
+    /// <summary>A grade mix's words (<see cref="GradeMix"/>): "mostly poor", "poor and medium"; null if the code does not read.</summary>
+    public static Text? GradeText(string? code) => GradeMix.Parse(code) is not { } mix ? null : mix.Kind == GradeMix.Mixed
+        ? new Text("ore-grades-mixed", new Text("ore-grade-" + mix.Grades[0]), new Text("ore-grade-" + mix.Grades[1]))
+        : new Text("ore-grades-" + mix.Kind, new Text("ore-grade-" + mix.Grades[0]));
+
+    /// <summary>A camp lead offered to this player: the camp's type, how far (<see cref="Distance(double)"/>,
+    /// never its ring) and which way from the trader, and the price; the prospector kept for first
+    /// says so, and the player's very first map (the pity map) says it is on the trader.</summary>
     public static Text LeadOfferLine(LeadOfferRow row) =>
         new(row.Pity ? row.Prospector ? "trading-window-lead-offer-pity" : "trading-window-lead-offer-pity-any"
             : row.Prospector ? "trading-window-lead-offer-prospector" : "trading-window-lead-offer", TypeName(row.Type),
-            F(Math.Round(row.Distance)), Direction(row.Dx, row.Dz), row.Price, row.Ring);
+            Distance(row.Distance), Direction(row.Dx, row.Dz), row.Price);
 
     /// <summary>Under the camp leads: why there are none, or how buying here raises the next price.</summary>
     public static Text? LeadOffersNote(TradeWindowState state) =>
@@ -293,8 +341,8 @@ public static class TradeWindowModel
 
     public static Text LeadLine(string? leadKind, string type, double distance, Text direction) =>
         LeadTargets.TryParse(leadKind, out var kind) && kind == LeadKind.Settlement
-            ? new Text("trading-window-map-lead-settlement", F(Math.Round(distance)), direction)
-            : new Text("trading-window-map-lead", TypeName(type), F(Math.Round(distance)), direction);
+            ? new Text("trading-window-map-lead-settlement", Distance(distance), direction)
+            : new Text("trading-window-map-lead", TypeName(type), Distance(distance), direction);
 
     // ---- Standing ----
 
@@ -317,10 +365,11 @@ public static class TradeWindowModel
                 : new Text("trading-window-fact-deliveries", F(DeliveryPlanner.Reach(u.DeliveryScale) / 1000)));
         if (sw.Maps)
         {
-            facts.Add(new Text("trading-window-fact-maps", t.MapPrecision));
-            facts.Add(t.LeadMaps <= 0 ? new Text("trading-window-fact-leads-stranger")
-                : t.LeadReach <= 1 ? new Text("trading-window-fact-leads-one", t.LeadMaps)
-                : new Text("trading-window-fact-leads", t.LeadMaps, t.LeadReach));
+            facts.Add(new Text("trading-window-fact-maps", MapTierName(t.MapPrecision), MapPrecision.ReachOf(t.MapPrecision)));
+            // Reach in rings of grid cells, said in km (MapDistance.ReachKm), never as rings.
+            int km = MapDistance.ReachKm(t.LeadReach);
+            facts.Add(t.LeadMaps <= 0 ? new Text("trading-window-fact-leads-stranger", km)
+                : new Text("trading-window-fact-leads", t.LeadMaps, km));
             if (u.MapsToTraders) facts.Add(new Text("trading-window-fact-settlement"));
         }
         if (u.RareStock) facts.Add(new Text("trading-window-fact-rare"));

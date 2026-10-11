@@ -5,7 +5,9 @@ namespace SeraphHorizons.Mod.Ore.Core;
 /// not per ore: copper is one deposit per cell whether the rock there makes it malachite or native
 /// copper. Coal and each industrial mineral count as their own "metal". Gems, quartz and olivine
 /// are not managed (<see cref="MetalOf"/> gives null), so Interesting Ore Gen places them as it
-/// always did.
+/// always did. Argentiferous galena (<c>galena_nativesilver</c>) is a lead ore whose silver is won
+/// by cupellation (#690): lead deposits and their maps count it, silver deposits are silver quartz and
+/// freibergite.
 /// </summary>
 public static class OreMetals
 {
@@ -15,10 +17,10 @@ public static class OreMetals
         ["iron"] = ["hematite", "magnetite", "limonite", "pyrite"],
         ["tin"] = ["cassiterite", "teallite", "franckeite"],
         ["zinc"] = ["sphalerite", "smithsonite", "hemimorphite"],
-        ["lead"] = ["galena", "cerussite", "vanadinite", "wulfenite"],
+        ["lead"] = ["galena", "galena_nativesilver", "cerussite", "vanadinite", "wulfenite"],
         ["bismuth"] = ["bismuthinite"],
         ["nickel"] = ["pentlandite"],
-        ["silver"] = ["quartz_nativesilver", "galena_nativesilver", "freibergite"],
+        ["silver"] = ["quartz_nativesilver", "freibergite"],
         ["gold"] = ["quartz_nativegold"],
         ["platinum"] = ["nativeplatinum", "sperrylite"],
         ["titanium"] = ["ilmenite"],
@@ -44,6 +46,18 @@ public static class OreMetals
     /// block's code), or null if it is not managed.</summary>
     public static string? MetalOf(string? ore) =>
         ore != null && ByOre.TryGetValue(ore, out var metal) ? metal : null;
+
+    /// <summary>
+    /// The metal group worldgen sizes and places an ore by: <see cref="MetalOf"/>, except argentiferous
+    /// galena, which stays silver here as it was when the ore cells and the district veins were set
+    /// up. #690 made it a lead ore without changing worldgen: its felsic-district lenses are kept as
+    /// silver's are (lead's are not placed), and an ore cell's anchor check counts it as before.
+    /// </summary>
+    public static string? WorldgenMetalOf(string? ore) =>
+        ore == WorldgenSilver ? "silver" : MetalOf(ore);
+
+    /// <summary>The ore <see cref="WorldgenMetalOf"/> keeps in its old group.</summary>
+    public const string WorldgenSilver = "galena_nativesilver";
 
     /// <summary>The ores of a metal group.</summary>
     public static IEnumerable<string> OresOf(string metal) =>

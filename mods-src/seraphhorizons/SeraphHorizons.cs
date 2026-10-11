@@ -664,6 +664,26 @@ public class SeraphHorizonsConfig
     /// <summary>The placer cell's side in blocks (at least 500). Fixed when a world is created.</summary>
     public int PlacerCellSizeMetres { get; set; } = 1500;
 
+    /// <summary>Ore processing (epic #684, Ore/Processing/, README "Ore processing: items, crushing
+    /// and smelting"): poor and medium ore become raw ore (stack 4, does not smelt), rich and bountiful
+    /// ore chunks (stack 16, smelt at half); crushed, ground, concentrate, roasted concentrate, amalgam
+    /// and litharge items; crushing yields the ore's units in 5-unit crushed ore, and no grid recipe
+    /// or hammer turns ore into nuggets; every furnace takes concentrate. Server side (clients follow
+    /// the server's items).</summary>
+    public bool OreProcessing { get; set; } = true;
+
+    /// <summary>Spalling (#747, Ore/Processing/OreSpalling.cs, README "Ore processing: spalling"), part
+    /// of <see cref="OreProcessing"/>: the hammer blows a raw ore and a chunk set down on the ground take
+    /// to break into crushed ore, and the hammer's wear a blow; a value out of range falls back to its
+    /// default with a warning. The server's are used.</summary>
+    public Ore.Core.SpallingConfig SpallingSettings { get; set; } = new();
+
+    /// <summary>Ore processing, roasting in the firepit (#720, README "Ore processing: roasting in the
+    /// firepit"): seconds a firepit takes to roast one sulfide concentrate once the stack is at 600 °C
+    /// (it roasts one item at a time; at least twice as hot, twice as fast). Not positive: the default.
+    /// Server side.</summary>
+    public double FirepitRoastSeconds { get; set; } = Ore.Core.OreRoasting.DefaultSeconds;
+
     /// <summary>Schematics are sold only by traders (#468, Trading/Schematics/, README
     /// "Schematics"): every schematic in the pack is taken out of loot, stack randomizers and
     /// structures' chests, no recipe copies or makes one, and every recipe using one keeps it.
@@ -692,6 +712,17 @@ public class SeraphHorizonsConfig
     /// within 2 km and leads to other camps; precision and the further leads by standing. Needs the
     /// deposit registry (ore cells or placer fields) for maps. Server side.</summary>
     public bool TraderMaps { get; set; } = true;
+
+    /// <summary>Trader maps: offers list only deposits that have been checked (#693), and a player
+    /// coming within this many blocks of a trader camp has the deposits it would sell maps to checked
+    /// in the background (generated if need be and measured), so the offers are ready when they
+    /// arrive. 0: checked only when a trade window opens on one still unchecked. Server side.</summary>
+    public int DepositCheckApproachMetres { get; set; } = 1500;
+
+    /// <summary>Trader maps: seconds between one background deposit check and the next (one runs at a
+    /// time; a check loads, or generates, an ore deposit's nine chunk columns or a gravel field's
+    /// one). Raise it if the checks show as lag on a busy server. Server side.</summary>
+    public double DepositCheckPauseSeconds { get; set; } = 5;
 
     /// <summary>Admin tools (#458, #459, docs/admin-tools.md): the debugging subcommands under
     /// <c>/sh ore</c> and <c>/sh trade</c> (privilege controlserver), <c>--json</c> answers, the admin
@@ -792,6 +823,21 @@ public class SeraphHorizonsConfig
     /// warning. The server's are used.</summary>
     public DrawBench.Core.DrawBenchConfig DrawBenchSettings { get; set; } = new();
 
+    /// <summary>The cylinder borer (#639, CylinderBorer/, README "Cylinder borer"): John Wilkinson's
+    /// boring mill, mechanically powered, built on a frame in four stages (bushings, a boring bar, a
+    /// weighted feed and a steel cutter head, the wearing part), that bores a cast iron or steel
+    /// cylinder blank (cast from Steelmaking Expanded's canal in a clay cylinder mold) into the cylinder
+    /// of Pipes and Power Expanded's Watt (iron) or Cornish (steel) engine, which their recipes then
+    /// take in place of two plates and their pipes; a MachineOil machine whose oil wears its cutter
+    /// head, not its shaft load (off means its blocks, its parts, the mold, the blanks, the cylinders
+    /// and their recipes do not exist, borers already placed are lost, and the engines take their plates
+    /// and pipes again). The server's setting decides.</summary>
+    public bool CylinderBorer { get; set; } = true;
+
+    /// <summary>The cylinder borer's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public CylinderBorer.Core.CylinderBorerConfig CylinderBorerSettings { get; set; } = new();
+
     /// <summary>The press brake (PressBrake/, README "Press brake"): a hand-worked leaf brake of oak
     /// with iron edges and screws, built on a frame in two stages (a rod as its clamp screws, a plate
     /// as its wearing edges), that folds a lead or copper half plate (the squaring shear's) once across
@@ -843,16 +889,32 @@ public class SeraphHorizonsConfig
     /// decides.</summary>
     public bool RodsOnForge { get; set; } = true;
 
-    /// <summary>Stainless steel (#484, CrucibleFurnace/, README "Crucible furnace"): a crucible
-    /// furnace of melting holes lined with tier-3 refractory brick, in a row of up to four on a brick
-    /// chimney at least six blocks tall, fired with coke under iron lids (faster with forced air piped
-    /// in from Steelmaking Expanded's blowers), each holding a fireclay melting pot of 200 units that
-    /// lasts three heats. Its charges, by ratio: quartz, iron bits and coke into ferrosilicon; chromite,
-    /// ferrosilicon and lime into ferrochrome and slag; iron and ferrochrome, about 4 to 1, into
-    /// stainless steel; stainless bits back into stainless. A pulled pot of stainless pours like the
-    /// game's crucible into any mold, for about 20 seconds before it freezes and the pot is lost (off
-    /// means the holes, the pots, the ferroalloys and their recipes do not exist, and those already in
-    /// a world are lost). The server's setting decides.</summary>
+    /// <summary>The player-built eidolon (#668; EidolonGantry/, Eidolon/, README "Eidolon"): a laborer
+    /// automaton behind the eidolon schematic the curio dealer sells, raised in a wooden gantry built
+    /// from support beams and fitted with a winch and a spine in nine stages, its body built on the
+    /// spine and woken, run by temporal gear charge, slumping disabled at 0 HP or out of charge and
+    /// never killed, and ordered with a command tool (off means the gantry, the eidolon, its creative
+    /// spawner, the command tool and their recipes do not exist, those already in a world are lost,
+    /// and the curio dealer does not stock the schematic or the Jonas pump head). The server's
+    /// setting decides.</summary>
+    public bool Eidolon { get; set; } = true;
+
+    /// <summary>The eidolon's figures; a value out of range falls back to its default with a warning.
+    /// The server's are used.</summary>
+    public SeraphHorizons.Mod.Eidolon.Core.EidolonConfig EidolonSettings { get; set; } = new();
+
+    /// <summary>Stainless steel (#484, #796, CrucibleFurnace/, README "Crucible furnace"): a crucible
+    /// furnace, a 3 x 3 x 2 machine placed from its iron frame and built up in stages (fired brick of one
+    /// type, a tier-3 refractory lining, the lid and the ash-pit damper), one hole holding two fireclay
+    /// melting pots of 300 units that last three heats each, fired with coke on natural draught from a
+    /// chimney on its outlet (taller draws harder, up to eleven blocks; up to six furnaces side by side
+    /// share one chimney, the other outlets capped), throttled at the ash-pit damper. Its charges, by
+    /// ratio: quartz, iron bits and coke into ferrosilicon; chromite, ferrosilicon and lime into
+    /// ferrochrome and slag; iron and ferrochrome, about 4 to 1, into stainless steel; stainless bits
+    /// back into stainless; iron alone into molten iron, which casts only into ingot and cylinder molds.
+    /// A pulled pot of stainless pours like the game's crucible into any mold, for about 20 seconds
+    /// before it freezes and the pot is lost (off means the furnace, the pots, the ferroalloys and their
+    /// recipes do not exist, and those already in a world are lost). The server's setting decides.</summary>
     public bool StainlessSteel { get; set; } = true;
 
     /// <summary>The crucible furnace's figures; a value out of range falls back to its default with a

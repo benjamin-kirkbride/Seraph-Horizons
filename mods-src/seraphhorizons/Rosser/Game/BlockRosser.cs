@@ -40,12 +40,17 @@ public class BlockRosser : Block
     }
 
     /// <summary>The items each stage takes that exist here: the metal parts in every metal the
-    /// rosser takes, the heads in every metal there is.</summary>
+    /// rosser takes, the heads in every metal there is, the straight pipes in copper and lead.</summary>
     private static Dictionary<RosserStage, ItemStack[]> PartStacks(ICoreAPI api)
     {
         var metals = RosserSystem.Of(api).PartMetals;
         ItemStack[] Exact(string code, int count) =>
             api.World.GetItem(new AssetLocation(code)) is { } item ? [new ItemStack(item, count)] : [];
+        ItemStack[] Pipes() => RosserParts.PipeMetals
+            .Select(m => api.World.GetBlock(new AssetLocation(RosserParts.PipeCode(m))))
+            .Where(b => b is { Id: > 0, IsMissing: false })
+            .Select(b => new ItemStack(b, RosserParts.Needed(RosserStage.Pipes)))
+            .ToArray();
         ItemStack[] Prefixed(string prefix, int count, bool anyMetal) => api.World.Items
             .Where(i => i?.Code is { } c && c.ToString().StartsWith(prefix, StringComparison.Ordinal)
                         && RosserParts.StageOf(c.ToString(), out var metal) != null
@@ -61,6 +66,7 @@ public class BlockRosser : Block
             [RosserStage.RollsOut] = Prefixed(RosserParts.RodPrefix, 2, false),
             [RosserStage.Breaker] = Prefixed(RosserParts.PlatePrefix, 2, false),
             [RosserStage.Levers] = Exact(RosserParts.LeversCode, 1),
+            [RosserStage.Pipes] = Pipes(),
             [RosserStage.Heads] = Prefixed(RosserParts.HeadPrefix, 4, true),
         };
     }
@@ -153,16 +159,19 @@ public class BlockRosser : Block
             var parts = rosser.Parts;
             if (!parts.Complete)
             {
-                // the tyres and the heads go on the ring, so they are offered once it is in
+                // the tyres and the heads go on the ring, so they are offered once it is in; the pipes
+                // and the heads, sets of one metal, have lines of their own
                 var stacks = parts.Missing()
                     .Where(m => m.Stage is not (RosserStage.Tyres or RosserStage.Heads) || parts.Has(RosserStage.Ring))
-                    .Where(m => m.Stage != RosserStage.Heads)
+                    .Where(m => m.Stage is not (RosserStage.Heads or RosserStage.Pipes))
                     .SelectMany(m => _partStacks.GetValueOrDefault(m.Stage) ?? [])
                     .GroupBy(s => s.Collectible.Code)
                     .Select(g => g.First())
                     .ToArray();
                 if (stacks.Length > 0)
                     help.Add(new WorldInteraction { ActionLangCode = Key("fitpart"), MouseButton = EnumMouseButton.Right, Itemstacks = stacks });
+                if (parts.Missing().Any(m => m.Stage == RosserStage.Pipes) && _partStacks.GetValueOrDefault(RosserStage.Pipes) is { Length: > 0 } pipes)
+                    help.Add(new WorldInteraction { ActionLangCode = Key("fitpipes"), MouseButton = EnumMouseButton.Right, Itemstacks = pipes });
                 if (!parts.Has(RosserStage.Heads) && parts.Has(RosserStage.Ring) && _partStacks.GetValueOrDefault(RosserStage.Heads) is { Length: > 0 } heads)
                     help.Add(new WorldInteraction { ActionLangCode = Key("fitheads"), MouseButton = EnumMouseButton.Right, Itemstacks = heads });
             }

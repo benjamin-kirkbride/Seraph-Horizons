@@ -249,11 +249,13 @@ export function constructionStages(recipe: Recipe): { ingredients: number[]; act
 
 /**
  * What a whole build consumes: slots accepting the same stacks are added up, in order of
- * first use. The stacks carry the summed quantity.
+ * first use. The stacks carry the summed quantity. A station (the eidolon's gantry, which its
+ * body is built in and which stays) is needed but not consumed, so it is not in the totals.
  */
 export function constructionTotals(recipe: Recipe, variant: number): Stack[][] {
   const totals = new Map<string, Stack[]>();
   recipe.ingredients.forEach((ing, i) => {
+    if (ing.role === "station") return;
     const stacks = slotStacks(recipe, variant, i);
     if (stacks.length === 0) return;
     const key = JSON.stringify(stacks.map((s) => [s.code, s.litres ?? null]));

@@ -3,8 +3,11 @@
 Part of the Seraph Horizons mod (`../README.md`): the frame the player-built eidolon (`../Eidolon/README.md`)
 is assembled in, stage by stage, and its dock afterwards, for repair and recharge.
 
-**Status: the model only.** This folder holds the generator (`tools/`). There is no block, block entity
-or renderer yet; the model and its rig are what those will be built against.
+**Status: the gantry and its winch are built** (#671): the block, its ghost cells, the frame's recipe,
+the nine winch stages and the renderer are in `Core/` and `Game/` ("Gameplay", below, and the mod's
+README, "Eidolon"). The body's stages on the spine and the waking are built too (#672:
+`Game/BEBehaviorEidolonBody.cs`, `Core/BodyParts.cs`; the mod's README, "The body and waking it"). This
+folder also holds the model's generator (`tools/`).
 
 Paths here are from this folder unless they start with `assets/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/`, which is the repository's.
@@ -88,10 +91,12 @@ corner, iron fish plates and angle brackets at the post tops and trenail heads o
   (`../Eidolon/README.md`, "The spine is the gantry's"), made from three support beams of the gantry's
   wood, its mast and platforms drawn in that wood ("Wood", below), and is hung on the chain once the winch is built,
   empty, in `hung`'s pose: an iron ring from the eye over its top peg (`spine-hook1`), the ring's bottom bar
-  under the peg. The torso, the first stage, is clamped onto it: the spine's steel clamps (`bar-spine1` and
-  `bar-spine2`) run forward through the chest's backplate, and every stage after fits onto what already
-  hangs. When the eidolon wakes (its `activate`) the clamps let go, it drops onto its feet, steps forward
-  off the spine and walks out of the front, and the spine is left hanging empty, as before the build.
+  under the peg. The torso, the first stage (crafted, placed onto the spine), is clamped onto it: the spine's
+  steel clamps (`bar-spine1` and `bar-spine2`) run forward through the chest's backplate, and every layer
+  after fits onto what already hangs. When the eidolon wakes (its `activate`) the clamps let go, it drops
+  onto its feet, steps forward off the spine and walks out of the front, and the spine is left hanging
+  empty, as before the build. Docked again (its `dock`, `activate` in reverse; "Gameplay", the dock) it
+  backs onto the spine and is clamped and hung as when it was built.
 
 The body's pose is `hung` (limp, head down, the lowest toe 3 voxels off the floor), and the spine is
 baked with it where vanilla has it on the chest (tilted with the chest's lean). Searching the posed
@@ -109,7 +114,8 @@ maps per wood; the shape's own map points them at oak, so the model renders as o
 | `wood-end` | End grain, the rings: the two ends of every timber, knee and cheek, of the drum and the handle, and of each of the mast's three lengths and the platforms (UVs the middle of the texture) | `game:block/wood/treetrunk/debarked/oak` | `game:block/wood/treetrunk/debarked/{wood}` |
 | `mechanics` | What is fitted from vanilla's mechanical power blocks, drawn as the game draws them whatever their wood: the wooden shafts (wooden axles), the lanterns' discs and staves and the wheels' rims, arms and cogs (spur gears) | `game:block/wood/planks/generic` | the same: not wood-typed |
 | `iron`, `chain` | Plates, brackets, pegs, bearings, hangers, the sheave's pin, hoops, collars, gudgeons, the crank shaft, ratchet, pawl and its pin and bracket, crank web, ring, eye; the chains | iron plate, iron chain | the same: not wood-typed |
-| The eidolon's | The body, and the rest of the spine as vanilla draws it: its steel clamps (`steel`), its staples (`rusty-iron`, restyled to tarnished brass with the body), its ropes (`reedrope`), and the small pulley and its winch handle (`charred`); its four hooks are drawn in the gantry's `iron` | the eidolon's map | the same: not wood-typed |
+| `spine-steel`, `spine-oak` | The rest of the spine, in codes of its own: its steel clamps and staples steel plate, the small pulley and its winch handle debarked oak; its four hooks are drawn in the gantry's `iron`, its ropes in the eidolon's `reedrope` | steel plate, debarked oak | the same: not wood-typed |
+| The eidolon's | The body, in its layer codes (`bones`, `joints`, `plates`, `sash`, `skirt`, and `lattice`, `glow`, `fire-red`), the default build's paths, which each body's own layers draw over | the eidolon's map | the same |
 
 The blockType, when it is written, takes a `wood` variant group from the game's wood properties
 (`{ code: "wood", loadFromProperties: "block/wood" }`: birch, oak, maple, pine, acacia, kapok, baldcypress,
@@ -127,18 +133,21 @@ A renderer drawing the moving parts (the winch, the sheave) tessellates them wit
 viewer colours by texture code, not by the textures, so it cannot show another wood: its Texture colouring
 shows which faces are `wood`, `wood-end` and iron.
 
-**The spine is in the gantry's wood too.** Vanilla's mast is charred wood (`#charred`); the spine stage makes it
-from support beams of the gantry's wood, so the generator (`spine_wood()`) redraws the charred faces of the mast's
+**The spine is in the gantry's wood too.** Vanilla's mast is charred wood (`#charred`, the eidolon's `#bones` in
+`spine.json`, recoded with the body); the spine stage makes it from support beams of the gantry's wood, so the
+generator (`spine_wood()`) redraws the bones faces of the mast's
 three lengths (`spine1`..`3`, `SPINE_TIMBERS`) and of the two platforms cut from the same beams in `wood`, and
 the two faces across each one's long axis in `wood-end`, as the frame's timbers are drawn. Its four hooks
 (`spine-hook1`..`4`, `SPINE_IRON`) are iron, the frame's `iron` plate: the top one carries the body on the ring.
-The pulley's caps and its winch handle are small vanilla fittings, not the mast's timber, and keep vanilla's
-charred texture, as the clamps, staples and ropes keep theirs. The body's own charred parts (its wooden bones) are the eidolon's
-and are unchanged.
+The pulley's caps and its winch handle are small vanilla fittings, not the mast's timber: debarked oak, the
+look they had, as the clamps and staples steel. They take the spine's own codes (`SPINE_CODES`: `spine-oak`,
+`spine-steel`), not the body's layer codes they have in `spine.json`, because the gantry draws each hung body
+with that body's layers over the layer codes, and the spine is the gantry's, not the body's. The body's own
+bones (its wooden skeleton) are the eidolon's, in the eidolon's `bones` code.
 
-## The build (proposal)
+## The build
 
-**A proposal for the gameplay to come**: there is no block yet. The frame is crafted and placed whole;
+The frame is crafted and placed whole;
 the winch is fitted onto the placed frame stage by stage, as the pack's other multiblock machines are
 (`../DrawBench/README.md`, "Stages"; `../GearCutter/README.md`; `../PressBrake/README.md`): the stages go
 in a fixed order, a right-click on the frame holding the next stage's item takes the stage's count of it
@@ -163,7 +172,7 @@ wood of its beams (`seraphhorizons:eidolongantry-{wood}`, "Wood" above).
 
 | Slot | Item | Count |
 |---|---|---|
-| Schematic | `seraphhorizons:schematic-eidolon` (sold by a trader; the item does not exist yet), not consumed | 1 |
+| Schematic | `seraphhorizons:schematic-eidolon`, sold by the curio dealer, not consumed: added by its gate (`config/schematic-gates.json`, machine `eidolon`), not written in the recipe | 1 |
 | Beams | 24 × `game:supportbeam-{wood}`, all of one wood (birch, oak, maple, pine, acacia, kapok, baldcypress, larch, redwood, ebony, walnut, purpleheart) | 24 |
 | Nails and strips | `game:metalnailsandstrips-{metal}`: iron, meteoric iron or steel | 16 |
 | Tools | A hammer and a saw (`tool-hammer`, `tool-saw`), worn as the game's mechanical power recipes wear them | — |
@@ -178,7 +187,8 @@ sheave's pin and 12 trenail heads.
 **The winch's stages**, in order. Each is one rig `requires`, so the viewer shows the bare frame and then
 each stage on top of the ones before. `{metal}` is iron, meteoric iron or steel, as the pack's
 woodworking machines take them (`assets/seraphhorizons/patches/woodworking-machine-costs.json`); `{wood}`
-is any wood (the frame's would match).
+is the gantry's own wood: the drum's planks and the spine's beams are drawn in it, so the gameplay takes
+no other (the eidolon epic's decision, #668).
 
 | # | `requires` | Item | In the model | Taken back |
 |---|---|---|---|---|
@@ -212,7 +222,7 @@ is any wood (the frame's would match).
   its mill pattern (a lantern of six staves into a 30-cog wheel), which the gearing checks hold.
 - **Spine.** Vanilla's mast is three lengths of timber (2 × 2 voxels, 16, 16 and 11 long) pegged end to end, so
   the stage takes a support beam for each (`spine_stage()` counts `SPINE_TIMBERS`), of the gantry's wood
-  (`{wood}`, the frame's would match): the mast is drawn in it. Its small fittings (the steel clamps, staples,
+  (`{wood}`, the gantry's own): the mast is drawn in it. Its small fittings (the steel clamps, staples,
   hooks, pulley, handle and ropes) are not paid for, as the frame's trenail heads are not: one item a stage. A
   steel plate for the clamps would be a second stage of a part the player hangs as one.
 - **Drum, strapping, ratchet, crank, chain.** Planks of a wood for the drum and the sheave; one nails and
@@ -226,6 +236,54 @@ comes before what it is fitted onto (`NEEDS`: a gear its shaft, the drum its sha
 the ratchet and crank the crank shaft, the crank the ratchet, the chain the drum and the sheave, the spine
 the ring, the body the spine). The body's stages then fit onto the spine as before.
 
+## Gameplay (`Core/`, `Game/`)
+
+What the gameplay holds to here, beyond the mod's README ("Eidolon"):
+
+- **Placing.** `GantryRig.PlacedSide`: the open front (native west) faces the player, and the front's
+  middle cell (`exit`'s, `[0, 0, 2]`, `GantryRig.PlaceCell`) is the block they click; the controller,
+  `[0, 0, 0]`, is two cells to its side. Every cell must be free. Hollow cells get a ghost with no boxes.
+- **Stages.** `GantryParts`: the table above, in order, by full code, a stage's whole count from one
+  stack; breaking returns every fitted code and count (`Returns`). `GantryRequires.KnownRequires` is the
+  rig's vocabulary: the nine stages and the body's six (`BodyStages`), which `GantryParts` never claims.
+  A test holds `GantryParts` to this README's stage table, as `tools/tests/test_eidolongantry_model.py`
+  holds the generator to it.
+- **Drawing.** `EidolonGantryRenderer` draws every part with a `requires`, a ride or a driver (the frame
+  is the block's own shape) when its stage is fitted, posed by `BEEidolonGantry.WinchDepth` (eased at
+  1/8 a second). The rig's `crank` part's `rotate` driver runs at ratio 0, so θ is fed 0.
+- **The body's seam.** `IEidolonGantryExtension` (`Game/IEidolonGantryExtension.cs`): a block entity
+  behavior of the controller, asked after the winch for clicks, a turn of the crank (`OnCrank`), the
+  creative shortcut, which body stages are drawn, drops and help. `BEEidolonGantry.WinchComplete` is the spine fitted; `WorldPoint` turns the
+  rig's anchors (`body`, `hang`, `fit`, `exit`) to the world; ghosts implement `IMachineGhost`.
+- **The body.** `BEBehaviorEidolonBody`, the one extension: seven stages after the spine (`BodyParts`,
+  `BodyBill`: the crafted torso, used on the gantry; the five layers, each fitted item by item in a
+  material its first piece fixes; the mind), drawn when each is complete, the layers in their materials
+  (the renderer's body meshes take `EidolonBuild.Textures()` over the layer codes). Old limb-by-limb
+  saves are migrated (`BodyParts.Migrate`; the mod's README, "Old builds").
+- **The crank.** Its cell stays hollow (no collision), but once the `crank` stage is fitted it has a
+  selection box (`BEEidolonGantry.CrankBox`, cell-local: the web, handle and ratchet from the post's outer
+  face out), and a right-click there turns the crank: the extensions' `OnCrank`, which wakes a complete
+  body. The eidolon is spawned at `body`, facing `exitSide`, wearing the body's build, sent 3 blocks past
+  `exit`, and the body is cleared. `BEEidolonGantry.DockAt`/`Docks`: whether a point is in the dock (1.25
+  blocks round `body`).
+- **The dock** (`../Eidolon/README.md`, "Docking"). A woken eidolon on a dock order backs onto a free
+  spine (`BEBehaviorEidolonBody.SpineFreeFor`: the winch complete, no body started, no other eidolon
+  held) and on its `dock` clamp frame the body behaviour takes hold (`TakeHold`): it keeps the entity's id
+  (`eidolonDocked` in its tree, synced) and its `BodyParts` become the eidolon's build
+  (`BodyParts.Docked`: the torso, the worn layers whole, the mind). So the gantry's own fitting code refits
+  a stripped layer (clicks on the gantry, or on the eidolon, forwarded), and a layer completed is written
+  to the eidolon (`DressDocked`). Stripping (`Strip`, Ctrl+right-click on the eidolon) gives back loose
+  pieces of a layer part fitted first, then, at full health, the outermost layer's bill, emptying its stage
+  and taking it off the eidolon's record. While one is docked `Shows` is false for every body stage (the
+  entity is drawn, hung), `Drops` is only the loose pieces, and the crank wakes it once all five layers are
+  on (`WakeDocked`: the entity's `Wake`, a `goto` out of the front, then its old order), else names the
+  missing layer. Breaking the gantry (`OnBlockRemoved`) lets it go, layers and all. Every 2 s the server
+  frees the spine of an eidolon loaded but not docked here, or missing from a loaded chunk three checks
+  running. Bodies and docked eidolons never share a spine: an eidolon docks only on a bare one, and a body
+  item fits a docked eidolon's build only.
+- **Hand-off at activation** (below, "Open questions"): the eidolon is spawned standing at `body`
+  whatever the winch's depth (nothing drives the depth yet), and `activate` plays from `hung`.
+
 ## The body: baked, not animated
 
 The gantry's shape carries the eidolon's elements **baked into the hung pose**: each element is posed
@@ -234,8 +292,8 @@ static element, its hierarchy flattened, the body's renamed `b_<stage>_<name>` b
 (`assets/seraphhorizons/config/eidolon-stages.json`) and the spine's `sp_<name>`: the spine
 (`spine.json`, written from vanilla by the eidolon's generator) is hung back on the chest block to be
 posed with it. Elements with no drawn face (`origin` and the
-invisible anchors) are left out; disabled faces and wind data are dropped; glow is kept (the mind's
-cores glow).
+invisible anchors) are left out; disabled faces and wind data are dropped; glow is kept (the brain,
+the vessel the bones bring, glows in the hung head; the mind's heart and eye are never drawn here).
 
 Why baked, for the in-game renderer: a block draws static elements in the chunk mesh, or a renderer
 tessellates them once per stage into a mesh it draws with one matrix (the hook's let-down), as the
@@ -271,7 +329,7 @@ units, controller cell `[0,0,0]` the foot of the front right (north-west) post.
 | `hook` (the swivel eye) | `chain` | `feed`: down by the drop at depth 1 |
 | `ring` | `chain` | rides `hook` |
 | `spine` | `spine` | rides `hook` |
-| `torso`, `pelvis`, `legs`, `arms`, `head`, `mind` | the same | ride `hook`: the body comes down with the eye and the spine |
+| `torso`, `bones`, `joints`, `plates`, `sash`, `skirt`, `mind` | the same | ride `hook`: the body comes down with the eye and the spine |
 | `frame` | | |
 
 What is fitted onto a shaft in a later stage rides the shaft's part, so it turns with it whatever is fitted.
@@ -337,14 +395,15 @@ cog); the ratchet (the pawl's nose in a gap at hung, the
 ratchet turned the let-down way running into it, and no contact as it is thrown off and after); the
 body touching nothing of the gantry but the spine, and the spine nothing but the ring's bottom bar under its peg, at depth 0, 0.5 and 1; the
 eidolon's `activate`, frame by frame where it hung, touching nothing of the gantry and clear of the
-spine by frame 56 (it is from 51); the peg inside the ring;
+spine by frame 56 (it is from 51); its `dock`, frame by frame where it will hang, touching nothing of the
+gantry and not on the spine before frame 22 (it is from 28); the peg inside the ring;
 the lead chain tangent to drum and sheave, the fall on the sheave's tangent and on the eye at every
 depth, drum and sheave turning with the chain; the frame one piece from the ground, the layshaft and
 the drum's shaft on their gudgeons in both cheeks' bearings, each gudgeon driven into its shaft, the crank
 shaft in the left's and the pillow block and out of the frame, the pawl on its pin, the sheave's pin in both hangers and the sheave on it; the eidolon
 standing where it woke (vanilla's rest pose) walking out west touching nothing, the empty spine included; at least a block to walk past the body on every side; textures by
 role (the wood-variant codes on the frame, drum, sheave and handle, `wood-end` only on wood, `mechanics` on the axles and gears; the spine's mast and platforms in the wood codes and nothing else of it); no z-fighting among the gantry's own faces (after `fix_coplanar`); and in the written rig, the
-crank's cell in the footprint, hollow, with no boxes. `tools/tests/test_eidolongantry_model.py`
+crank's cell in the footprint, hollow, with no boxes (its selection box is gameplay's, `CrankBox`). `tools/tests/test_eidolongantry_model.py`
 holds the written files to these without the generator's state, and this README's stage table to the
 generator's.
 

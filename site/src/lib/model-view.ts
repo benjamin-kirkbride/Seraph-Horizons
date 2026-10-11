@@ -3,7 +3,7 @@
 // need, and its overlays. Pure, so the page and the tests read the same thing.
 import { animateShape, type AnimatedShape } from "./keyframes.ts";
 import { discoverAnchors, footprintBounds, type Anchor, type Bounds } from "./model-anchors.ts";
-import type { Scenario } from "./model-scenario.ts";
+import { openingTextures, pickedTextures, type Scenario } from "./model-scenario.ts";
 import {
   compileGlobs,
   corners,
@@ -78,6 +78,9 @@ const TEXTURE_FAMILIES: [RegExp, string][] = [
   [/glass/, "#cfe3ea"],
   [/^oil\b|honey|lubric/, "#c8902a"],
   [/oak|wood|plank|log|debarked|bark|timber/, "#b88a58"],
+  // Contents that would otherwise take the metal colour of the pan they lie in (the amalgam pan's).
+  [/mercury|quicksilver/, "#dce2ea"],
+  [/amalgam/, "#b0aa9c"],
   [/metal|iron|steel|copper|bronze|tin|plate|ingot|gold|silver/, "#8e98a4"],
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],
   [/stone|rock|granite|andesite|cobble|brick|clay/, "#9a9a92"],
@@ -147,6 +150,7 @@ export function buildModelView(shape: Shape, rig: Rig | null, scenario?: Scenari
       const path = shape.textures?.[code] ?? null;
       return { code, path, colour: textureColour(code, path), elements };
     });
+  const opening = withPickedTextures(textures, pickedTextures(scenario?.textures, openingTextures(scenario?.textures)));
 
   const labels = scenario?.requires ?? {};
   const requires = requiresValues(parts).map((value) => ({ value, label: labels[value] ?? value }));
@@ -158,7 +162,7 @@ export function buildModelView(shape: Shape, rig: Rig | null, scenario?: Scenari
     elementTextures,
     parts: view,
     order,
-    textures,
+    textures: opening,
     inputs: rigInputs(parts),
     requires,
     anchors,
@@ -169,6 +173,14 @@ export function buildModelView(shape: Shape, rig: Rig | null, scenario?: Scenari
     path: workOf(rig),
     animation: animateShape(shape, flat),
   };
+}
+
+/** The textures with each picked code's path and colour (pickedTextures) in place of the shape's own. */
+export function withPickedTextures(textures: readonly ViewTexture[], picked: ReadonlyMap<string, { path: string; colour: string }>): ViewTexture[] {
+  return textures.map((t) => {
+    const p = picked.get(t.code);
+    return p ? { ...t, path: p.path, colour: p.colour } : t;
+  });
 }
 
 /** The model's bounding box, in whole blocks. */

@@ -58,7 +58,7 @@ def load_json(path: Path) -> dict:
 
 @dataclass
 class Rules:
-    """raw-values.json, markups.json and overrides.json."""
+    """raw-values.json, markups.json and overrides.json; ore-processing.json and routes.json if present."""
 
     raws: dict[str, float]  # exact code -> gears per item
     raw_patterns: list[tuple[str, float, str]]  # (glob, gears, note), first match wins
@@ -73,6 +73,11 @@ class Rules:
     schematics: list[str] = field(default_factory=list)  # globs: kept, worth nothing, never block
     # The scrap floor's multipliers of salvage: {"found": x, "made": y}; none, no floor.
     scrap_floor: dict = field(default_factory=dict)
+    # ore-processing.json: ore processing's chain (ore_processing_raws), with the mod's figures
+    # (config/ore-processing.json) under "figures"; empty without the file.
+    ore_processing: dict = field(default_factory=dict)
+    # routes.json: routes the export does not carry (extra_routes).
+    extra_routes: list[dict] = field(default_factory=list)
 
     @staticmethod
     def load(directory: Path = HERE) -> "Rules":
@@ -88,6 +93,11 @@ class Rules:
                 else:
                     raws[code] = float(value)
         defaults = [(d["match"], float(d["value"]), d["category"]) for d in raw.get("defaults", [])]
+        op = load_json(directory / "ore-processing.json") if (directory / "ore-processing.json").exists() else {}
+        if op:
+            cfg = Path(op["config"])
+            op["figures"] = _lenient_json((cfg if cfg.is_absolute() else REPO / cfg).read_text(encoding="utf-8"))
+        extra = load_json(directory / "routes.json").get("routes", []) if (directory / "routes.json").exists() else []
         return Rules(
             raws=raws,
             raw_patterns=patterns,
@@ -101,6 +111,8 @@ class Rules:
             trader_fallback=raw.get("traderFallback", {}),
             schematics=list(mk.get("schematics", [])),
             scrap_floor={k: float(v) for k, v in (mk.get("scrapFloor") or {}).items() if k in ("found", "made")},
+            ore_processing=op,
+            extra_routes=extra,
         )
 
     def is_schematic(self, code: str) -> bool:
@@ -126,6 +138,12 @@ class Rules:
         if not route.liquid and route.quantity < items:
             flat *= route.quantity / items
         return flat
+
+    def tools(self, kind: str) -> float:
+        """The share of a kept tool's value a route of this kind charges: the kind's toolFraction,
+        else the file's (a still's boiler and condenser retort many items, one record each)."""
+        m = self.markups.get(kind) or self.markups["mod"]
+        return float(m.get("toolFraction", self.tool_fraction))
 
     def per_item(self, kind: str) -> float:
         """Gears the kind adds to each output item, after the division by the output quantity."""
@@ -356,45 +374,237 @@ def routes_from_attributes(export: dict) -> list[Route]:
 GRADES = ("poor", "medium", "rich", "bountiful")
 
 
-def ore_raws(export: dict, rules: Rules) -> dict[str, tuple[float, str]]:
-    """Graded ore chunks, crystallized ores and nuggets, priced by their metal units."""
+def _ore_units(export: dict, rules: Rules):
+    """The ores' metal: per_unit(nugget) -> (gears per unit, metal), nugget_of(ore) and units(ore, grade)."""
     spec = rules.ores
-    if not spec:
-        return {}
-    items = export["items"]
     unit_value = spec.get("unitValue", {})
     no_metal = set(spec.get("noMetal", []))
     fallback = float(spec.get("noMetalUnitValue", 0))
     metal: dict[str, str | None] = {}
-    for code, item in items.items():
+    for code, item in export["items"].items():
         if code.startswith("game:nugget-"):
             sm = (item.get("attributes") or {}).get("smelting") or {}
             metal[code[len("game:nugget-"):]] = (sm.get("output") or {}).get("code")
 
-    def per_unit(ore: str) -> tuple[float, str]:
-        m = None if ore in no_metal else metal.get(ore)
+    def per_unit(nugget: str) -> tuple[float, str]:
+        m = None if nugget in no_metal else metal.get(nugget)
         if m in unit_value:
             return float(unit_value[m]), m
         return fallback, "no metal"
 
-    out: dict[str, tuple[float, str]] = {}
+    def nugget_of(ore: str) -> str:
+        # Host rock and ore: quartz_nativegold breaks into nativegold nuggets.
+        return ore if ore in metal else ore.split("_")[-1]
+
     grade_units = spec.get("gradeUnits", {})
     by_ore = spec.get("unitsByOre", {})
-    for code in items:
+
+    crystal = spec.get("crystalUnits") or {}
+
+    def units(ore: str, grade: str, crystallized: bool = False) -> float:
+        # Crystallized ore has its own units (crystalUnits, about twice a chunk's), else a chunk's.
+        gu, bo = (crystal.get("gradeUnits", grade_units), crystal.get("unitsByOre", by_ore)) if crystallized else (grade_units, by_ore)
+        return float(bo.get(ore, gu).get(grade, gu.get(grade, 15)))
+
+    return per_unit, nugget_of, units
+
+
+def ore_raws(export: dict, rules: Rules) -> dict[str, tuple[float, str]]:
+    """Graded ore chunks, crystallized ores and nuggets, priced by their metal units; and ore
+    processing's items (ore_processing_raws)."""
+    spec = rules.ores
+    if not spec:
+        return {}
+    per_unit, nugget_of, units_of = _ore_units(export, rules)
+    out: dict[str, tuple[float, str]] = {}
+    for code in export["items"]:
         dom, path = code.split(":", 1)
         parts = path.split("-")
         if dom == "game" and parts[0] in ("ore", "crystalizedore") and len(parts) >= 4 and parts[1] in GRADES:
-            ore = parts[2]
-            # Host rock and ore: quartz_nativegold breaks into nativegold nuggets.
-            nugget = ore if ore in metal else ore.split("_")[-1]
-            units = float(by_ore.get(ore, grade_units).get(parts[1], grade_units.get(parts[1], 15)))
-            v, m = per_unit(nugget)
+            units = units_of(parts[2], parts[1], parts[0] == "crystalizedore")
+            v, m = per_unit(nugget_of(parts[2]))
             out[code] = (units * v, f"raw:ore {units:g} units of {m}")
         elif dom == "game" and parts[0] == "nugget" and len(parts) == 2:
             v, m = per_unit(parts[1])
             n = float(spec.get("nuggetUnits", 5))
             out[code] = (n * v, f"raw:nugget {n:g} units of {m}")
+    out.update(ore_processing_raws(export, rules))
     return out
+
+
+# ------------------------------------------------------------------ ore processing
+
+
+def _ore_forms(rules: Rules) -> list[tuple[str, str, str, dict]]:
+    """Ore processing's items: (code, form, ore, item spec) for every ore of the mod's figures and
+    form of ore-processing.json's items (crushed ore once per grain, as form crushed-<grain>), and
+    litharge (ore "")."""
+    op = rules.ore_processing
+    if not op:
+        return []
+    out = []
+    for ore, spec in (op["figures"].get("ores") or {}).items():
+        spec = spec or {}
+        for form, item in op.get("items", {}).items():
+            if not isinstance(item, dict):
+                continue
+            only = item.get("only")
+            if (only == "sulfide" and spec.get("class") != "sulfide") or (only == "free" and not spec.get("free")):
+                continue
+            for grain in (("coarse", "fine") if "{grain}" in item["code"] else ("",)):
+                out.append((item["code"].format(ore=ore, grain=grain), f"{form}-{grain}" if grain else form, ore, item))
+    if (lith := op.get("litharge")):
+        out.append((lith["code"], "litharge", "", lith))
+    return out
+
+
+def augment_export(export: dict, rules: Rules) -> list[str]:
+    """Adds ore processing's items to an export that lacks them (one made with the switch off, the
+    default, leaves them out): each an item of ore-processing.json's switch, with its stack, so the
+    table prices them, its switches say they exist only by it, and floorZero reads their stacks.
+    An export made with the switch on has them and keeps its own. Returns the codes added."""
+    op = rules.ore_processing
+    added = []
+    items = export["items"]
+    for code, form, ore, spec in _ore_forms(rules):
+        if code in items:
+            continue
+        grain = form.split("-", 1)[1] if "-" in form else ""
+        items[code] = {"kind": "item", "name": spec.get("name", code).format(ore=ore, grain=grain),
+                       "mod": code.split(":", 1)[0], "handbookVisible": True,
+                       "attributes": {"maxStackSize": int(spec.get("stack", 64))},
+                       "switch": op.get("switch"), "addedBy": "tools/item-values/ore-processing.json"}
+        added.append(code)
+    # Single items of the switch with no rule of their own (leaching's raw saltpeter and crude
+    # liquors): priced by routes.json or a raw value. A liquid carries its items per litre.
+    for spec in (op.get("singles") or {}).get("items", []):
+        code = spec["code"]
+        if code in items:
+            continue
+        attributes = {"maxStackSize": int(spec.get("stack", 64))}
+        if spec.get("itemsPerLitre"):
+            attributes["extra"] = {"liquid": {"itemsPerLitre": spec["itemsPerLitre"]}}
+        items[code] = {"kind": "item", "name": spec.get("name", code), "mod": code.split(":", 1)[0],
+                       "handbookVisible": True, "attributes": attributes,
+                       "switch": op.get("switch"), "addedBy": "tools/item-values/ore-processing.json"}
+        added.append(code)
+    return added
+
+
+def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, str]]:
+    """Ore processing's items priced on concentrate (#689): each form from its metal units and the
+    labour of every stage that reaches it, along ore-processing.json's reference line. An item holds
+    the figures' concentrateUnits (5). With a stage's kind (pct, flat) from markups.json, per item
+    (u: the ore's metal's gears per unit, as its ore and nugget are priced):
+
+        crushed     = min over the grades of its grain of (units x u x (1 + pct) + flat) / (units / 5),
+                      for coarse also a nugget's 5 units
+        ground      = min(crushed) x (1 + pct) + flat
+        concentrate = (ground x (1 + pct) + flat) / r, r = the line's concentrator x the ore's
+                      density (x freeUnamalgamated for free gold and silver), at most 1
+        amalgam     = the same without freeUnamalgamated
+        roasted     = (concentrate x (1 + pct) + flat - sulfur credit) / the line's roaster
+
+    The parted form (a sulfide's roasted concentrate, another's concentrate and amalgam) is worth at
+    least what parting wins from it once its by-products' methods have a station (ore-processing.json
+    parting): 5 x (u x unparted + by-product share x its metal's u x the method's recovery at the
+    line's tier). Litharge is the lead it smelts back to; the game's legacy crushed ores
+    (game:crushed-chromite, ...) are their ore's coarse crushed ore. Only codes of the export are
+    priced (augment_export adds the switch's items to an export without them)."""
+    op = rules.ore_processing
+    if not op or not rules.ores:
+        return {}
+    items = export["items"]
+    fig = op["figures"]
+    per_unit, nugget_of, units_of = _ore_units(export, rules)
+    unit_value = rules.ores.get("unitValue", {})
+    per_item = float(fig.get("concentrateUnits", 5))
+    line = op.get("line", {})
+    kinds = op.get("kinds", {})
+
+    def stage(kind: str, cost: float, out: float = 1.0) -> float:
+        pct, flat = rules.markup(kinds.get(kind, "mod"))
+        return (cost * (1 + pct) + flat) / out
+
+    base = float(fig["concentrators"][line["concentrator"]])
+    roast_r = float(fig["roasters"][line["roaster"]])
+    sulfur = op.get("roastingByProduct") or {}
+    sulfur_credit = 0.0
+    if sulfur.get("enabled"):
+        sv = rules.raw_value(sulfur["code"])
+        sulfur_credit = float(sulfur.get("perItem", 0)) * (sv[0] if sv else 0.0)
+    parting_on = {k for k, v in (op.get("parting") or {}).items() if v is True}
+    tier = line.get("parting")
+    forms = {(ore, form): code for code, form, ore, _ in _ore_forms(rules)}
+
+    out: dict[str, tuple[float, str]] = {}
+    for ore, spec in (fig.get("ores") or {}).items():
+        spec = spec or {}
+        u, metal = per_unit((op.get("nuggetOf") or {}).get(ore) or nugget_of(ore))
+        crushed = {}
+        for grain, grades in (("fine", ("poor",)), ("coarse", ("medium", "rich", "bountiful"))):
+            costs = [stage("crush", units_of(ore, g) * u, units_of(ore, g) / per_item) for g in grades]
+            if grain == "coarse":
+                costs.append(stage("crush", per_item * u))  # a nugget crushes into one coarse
+            crushed[grain] = min(costs)
+        ground = stage("grind", min(crushed.values()))
+        r_free = min(1.0, base * float(spec.get("density", 1.0)))
+        r = min(1.0, r_free * (float(fig.get("freeUnamalgamated", 1.0)) if spec.get("free") else 1.0))
+        conc = stage("concentrate", ground, r)
+        vals = {"crushed-coarse": crushed["coarse"], "crushed-fine": crushed["fine"], "ground": ground, "concentrate": conc}
+        why = {"crushed-coarse": "crushed", "crushed-fine": "crushed", "ground": "crushed, ground",
+               "concentrate": f"ground, {line['concentrator']} {r:.3g}"}
+        if spec.get("free"):
+            vals["amalgam"] = stage("amalgamate", ground, r_free)
+            why["amalgam"] = f"ground, amalgamated {r_free:.3g}"
+        if spec.get("class") == "sulfide":
+            pct, flat = rules.markup(kinds.get("roast", "mod"))
+            vals["roastedconcentrate"] = max(conc * (1 + pct) + flat - sulfur_credit, 0.0) / roast_r
+            why["roastedconcentrate"] = f"concentrate, {line['roaster']} {roast_r:.3g}"
+        # Parting: the parted form is worth at least what its stationed methods win from it.
+        bys = [b for b in spec.get("byProducts") or [] if b.get("partedBy") in parting_on]
+        if bys:
+            content = per_item * u * float(spec.get("unparted", 1.0))
+            for b in bys:
+                rec = float(((fig.get("parting") or {}).get(b["partedBy"]) or {}).get(tier, 0.0))
+                content += per_item * float(b["share"]) * float(unit_value.get(f"game:ingot-{b['metal']}", 0.0)) * rec
+            for form in (("roastedconcentrate",) if spec.get("class") == "sulfide" else ("concentrate", "amalgam")):
+                if form in vals and content > vals[form]:
+                    vals[form] = content
+                    why[form] = "parted: " + ", ".join(f"{b['metal']} {b['share']:g} by {b['partedBy']}" for b in bys)
+        for form, v in vals.items():
+            code = forms.get((ore, form))
+            if code in items:
+                out[code] = (v, f"raw:oreprocessing {per_item:g} units of {metal}: {why[form]}")
+        legacy = f"game:crushed-{ore}"
+        if ore in (op.get("legacyCrushed") or {}).get("ores", []) and legacy in items:
+            out[legacy] = (crushed["coarse"], f"raw:oreprocessing legacy crushed ore, {per_item:g} units of {metal}")
+    lith = op.get("litharge")
+    if lith and lith["code"] in items and lith.get("metal") in unit_value:
+        out[lith["code"]] = (float(lith["units"]) * float(unit_value[lith["metal"]]),
+                             f"raw:oreprocessing {float(lith['units']):g} units of {lith['metal']}")
+    return out
+
+
+def extra_routes(export: dict, rules: Rules) -> list[Route]:
+    """routes.json's routes, for stations the export does not carry (the crucible furnace) and
+    recipes of a switch the export is made without (leaching). A slot is a list of alternatives
+    [code, items], or {"take": [...], "kept": true} for a kept tool; "liquid" is a liquid output's
+    items per litre."""
+    routes = []
+    for r in rules.extra_routes:
+        slots = []
+        for slot in r["slots"]:
+            kept = isinstance(slot, dict) and bool(slot.get("kept"))
+            alts = slot["take"] if isinstance(slot, dict) else slot
+            slots.append(Slot([(c, float(n)) for c, n in alts], not kept))
+        rt = Route(r["kind"], r["id"], r["output"][0], float(r["output"][1]), slots,
+                   [(c, float(n)) for c, n in r.get("byproducts", [])], r.get("switch"))
+        rt.stack = stack_size(export, rt.output)
+        # A liquid output (the barrel's crude liquors): its items per litre, as a recipe's in litres.
+        rt.liquid = float(r.get("liquid", 0))
+        routes.append(rt)
+    return routes
 
 
 def trader_value(item: dict, rules: Rules) -> float | None:
@@ -506,7 +716,7 @@ def route_eval(route: Route, value: dict[str, float], rules: Rules,
         picks.append(code)
     pct, _ = rules.markup(route.kind)
     flat = rules.flat(route)
-    cost = (total * (1 + pct) + flat + tools * rules.tool_fraction - credit) / max(route.quantity, EPS)
+    cost = (total * (1 + pct) + flat + tools * rules.tools(route.kind) - credit) / max(route.quantity, EPS)
     return max(cost, 0.0) + rules.per_item(route.kind), picks
 
 
@@ -551,14 +761,19 @@ class Siblings:
 
 def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: dict[str, str], rules: Rules,
             picks: dict[str, list[str]] | None = None, hint: dict[str, float] | None = None,
-            floors: dict[str, "Floor"] | None = None,
+            floors: dict[str, "Floor"] | None = None, item_switch: dict[str, str] | None = None,
+            deps: dict[str, frozenset[str]] | None = None,
             ) -> tuple[dict[str, float], dict[str, str], dict[str, Route], int]:
     """Knuth's generalisation of Dijkstra: settle items cheapest first, each at its cheapest route over
     items already settled. A settled value never drops again, so a cycle that makes more than it
     consumes (two linen -> four sails -> eight linen) cannot pull prices down: the sail is priced
     from settled linen, and the linen was settled before any sail existed. A route's cost is at
     least its output's scrap floor (`floors`), and an item settled at its floor has the floor as
-    its source."""
+    its source. Of routes tying for an item's value, the one needing the fewest config switches wins
+    (`item_switch`: the switch adding each item; `deps`, shared across calls: the switches each
+    settled value needs), so a value never looks as if it existed only with a switch because a
+    switch's route ties with one that needs none (litharge smelts to lead at a galena nugget's
+    price)."""
     floors = floors or {}
     value = dict(fixed_value)
     source = dict(fixed_source)
@@ -586,6 +801,23 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
     tentative: dict[str, tuple[float, int, list[str], bool]] = {}
     heap: list[tuple[float, str, int]] = []
     picks = {} if picks is None else picks
+    item_switch = item_switch or {}
+    deps = {} if deps is None else deps
+    tdeps: dict[str, frozenset[str]] = {}
+
+    def needs(code: str) -> frozenset[str]:
+        got = deps.get(code)
+        if got is None:
+            got = frozenset([item_switch[code]]) if code in item_switch else frozenset()
+        return got
+
+    def route_needs(rt: Route, used: list[str]) -> frozenset[str]:
+        out = set(needs(rt.output) if rt.output in item_switch else ())
+        if rt.switch:
+            out.add(rt.switch)
+        for c in used:
+            out |= needs(c)
+        return frozenset(out)
 
     def consider(i: int, wait: set[str] | None) -> None:
         rt = routes[i]
@@ -600,8 +832,11 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
         if bound:
             cost = fl.value
         cur = tentative.get(rt.output)
-        if cur is None or cost < cur[0] - EPS * max(1.0, cur[0]):
+        need = route_needs(rt, used)
+        if cur is None or cost < cur[0] - EPS * max(1.0, cur[0]) or (
+                cost <= cur[0] + EPS * max(1.0, cur[0]) and len(need) < len(tdeps[rt.output])):
             tentative[rt.output] = (cost, i, used, bound)
+            tdeps[rt.output] = need
             heapq.heappush(heap, (cost, rt.output, i))
 
     settled = 0
@@ -616,6 +851,7 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
             source[code] = floors[code].label if tentative[code][3] else routes[i].recipe
             best_route[code] = routes[i]
             picks[code] = tentative[code][2]
+            deps[code] = tdeps[code]
             settled += 1
             for j in uses.get(code, ()):
                 consider(j, reachable)
@@ -638,6 +874,7 @@ def _settle(routes: list[Route], fixed_value: dict[str, float], fixed_source: di
             break
         cost, i, used, bound = knot
         tentative[routes[i].output] = (cost, i, used, bound)
+        tdeps[routes[i].output] = route_needs(routes[i], used)
         heapq.heappush(heap, (cost, routes[i].output, i))
     return value, source, best_route, settled
 
@@ -653,9 +890,10 @@ def solve(export: dict, rules: Rules) -> Valuation:
     back per item. A raised item raises what is made from it, which can raise another's salvage, so
     the solve repeats with the floors found until none grows: values only rise, and a salvage priced
     from the item itself is never used, so it ends. Overrides keep their value."""
+    augment_export(export, rules)
     items = export["items"]
     recipe_routes, _ = routes_from_recipes(export, rules)
-    routes = recipe_routes + routes_from_attributes(export)
+    routes = recipe_routes + routes_from_attributes(export) + extra_routes(export, rules)
     by_out: dict[str, list[Route]] = defaultdict(list)
     for rt in routes:
         by_out[rt.output].append(rt)
@@ -756,6 +994,7 @@ def scrap_floors(scrap: list[Route], val: Valuation, by_out: dict[str, list[Rout
 def _solve(export: dict, rules: Rules, routes: list[Route], by_out: dict[str, list[Route]],
            floors: dict[str, Floor]) -> Valuation:
     items = export["items"]
+    item_switch = {code: sw for code, item in items.items() if (sw := (item or {}).get("switch"))}
 
     def floored(code: str, got: tuple[float, str] | None) -> tuple[float, str] | None:
         """A fixed value (raw, default, fallback) raised to the code's scrap floor."""
@@ -796,7 +1035,9 @@ def _solve(export: dict, rules: Rules, routes: list[Route], by_out: dict[str, li
     # still cannot be priced its floor (only then: a route the fallbacks make priceable wins).
     def layers(hint: dict[str, float] | None):
         picks: dict[str, list[str]] = {}
-        val, src, best_route, settled = _settle(routes, dict(value), dict(source), rules, picks, hint, floors)
+        deps: dict[str, frozenset[str]] = {}
+        val, src, best_route, settled = _settle(routes, dict(value), dict(source), rules, picks, hint, floors,
+                                                item_switch, deps)
         sibling = Siblings(val)
         late = 0
         for code in items:
@@ -812,14 +1053,14 @@ def _solve(export: dict, rules: Rules, routes: list[Route], by_out: dict[str, li
                 val[code], src[code] = dv
                 late += 1
         if late:
-            val, src, more, n = _settle(routes, val, src, rules, picks, hint, floors)
+            val, src, more, n = _settle(routes, val, src, rules, picks, hint, floors, item_switch, deps)
             best_route.update(more)
             settled += n
         unrouted = [c for c in floors if c in by_out and c not in val and c in items and c not in schematic]
         for code in unrouted:
             val[code], src[code] = floors[code].value, floors[code].label
         if unrouted:
-            val, src, more, n = _settle(routes, val, src, rules, picks, hint, floors)
+            val, src, more, n = _settle(routes, val, src, rules, picks, hint, floors, item_switch, deps)
             best_route.update(more)
             settled += n
         return val, src, best_route, settled, picks
@@ -974,7 +1215,7 @@ def below_ingredients(export: dict, val: Valuation, rules: Rules) -> list[tuple[
             pct, _ = rules.markup(rt.kind)
             flat = rules.flat(rt)
             tools = sum(min((val.value.get(a, 0.0) * n for a, n in s.alternatives), default=0.0)
-                        for s in rt.slots if not s.consumed) * rules.tool_fraction
+                        for s in rt.slots if not s.consumed) * rules.tools(rt.kind)
             # Ingredients alone, without the labour markup.
             ing = (((c - rules.per_item(rt.kind)) * rt.quantity - flat - tools) / (1 + pct)) / rt.quantity
             if best is None or ing < best[0]:
@@ -1175,7 +1416,7 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
             out.append(f"{pad}  - {n:g} x {c}{alts} = {cost:.4f}{ret}")
         else:
             tools += cost
-            out.append(f"{pad}  - tool/kept {c}: {cost:.4f} x {rules.tool_fraction} = {cost * rules.tool_fraction:.4f}")
+            out.append(f"{pad}  - tool/kept {c}: {cost:.4f} x {rules.tools(rt.kind)} = {cost * rules.tools(rt.kind):.4f}")
         explain(export, val, rules, c, depth + 2, seen, out, max_depth)
     credit = 0.0
     for c, n in rt.byproducts:
@@ -1186,7 +1427,7 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
         credit += cv * n
         out.append(f"{pad}  - other outcome {n:g} x {c} = {cv * n:.4f}, credited")
     less = f" - {credit:.4f}" if rt.byproducts else ""
-    cost = (total * (1 + pct) + flat + tools * rules.tool_fraction - credit) / rt.quantity
+    cost = (total * (1 + pct) + flat + tools * rules.tools(rt.kind) - credit) / rt.quantity
     per = rules.per_item(rt.kind)
     plus = f" + {per:g} per item" if per else ""
     each = max(cost, 0.0) + per
@@ -1196,7 +1437,7 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
         result = f"{each:.6g} a portion = {each * ipl:.4f} gears/L"
     else:
         result = f"{each:.4f}"
-    out.append(f"{pad}  = ({total:.4f} x (1 + {pct}) + {flat:.4g} + {tools * rules.tool_fraction:.4f}{less}) / {rt.quantity:g}{plus} "
+    out.append(f"{pad}  = ({total:.4f} x (1 + {pct}) + {flat:.4g} + {tools * rules.tools(rt.kind):.4f}{less}) / {rt.quantity:g}{plus} "
                f"[{rt.kind}] = {result}" + (" (quotient floored at 0)" if cost < 0 else ""))
     sw = val.switches.get(code)
     if sw and depth == 0:

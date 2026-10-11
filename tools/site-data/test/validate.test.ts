@@ -129,6 +129,45 @@ describe("validate: cross-references", () => {
     expect(report.problems.map((p) => [p.kind, p.path])).toEqual([["variant-group-size", "/variantGroups/auto:game:plank/members"]]);
   });
 
+  it("accepts an export without the eidolon's fittings", () => {
+    const d = example();
+    delete d.eidolon;
+    expect(problems(d)).toEqual([]);
+  });
+
+  it("rejects an eidolon code that is not an item", () => {
+    const d = example();
+    d.eidolon.layers[1].parts[0].code = "game:jonasframes-joint02";
+    d.eidolon.torso.item = "seraphhorizons:eidolontorso-old";
+    expect(problems(d)).toEqual([
+      ["eidolon-item", "/eidolon/torso/item"],
+      ["eidolon-item", "/eidolon/layers/1/parts/0/code"],
+    ]);
+  });
+
+  it("rejects a duplicate eidolon layer or material, and a default it does not list", () => {
+    const d = example();
+    d.eidolon.layers[0].materials[1].id = "oak";
+    d.eidolon.layers[3].default = "cloth-plain";
+    d.eidolon.layers[4].id = "sash";
+    expect(problems(d)).toEqual([
+      ["eidolon-material", "/eidolon/layers/0/materials/1/id"],
+      ["eidolon-default", "/eidolon/layers/3/default"],
+      ["eidolon-layer", "/eidolon/layers/4/id"],
+      // the skirt layer is gone, so no build's skirt is one of its materials
+      ["eidolon-build", "/eidolon/builds/0/skirt"],
+      ["eidolon-build", "/eidolon/builds/1/skirt"],
+    ]);
+  });
+
+  it("rejects an eidolon build of a material its layer does not take, or listed twice", () => {
+    const d = example();
+    d.eidolon.builds[1].plates = "steel";
+    expect(problems(d)).toEqual([["eidolon-build", "/eidolon/builds/1"]]);
+    d.eidolon.builds[1].joints = "brass";
+    expect(problems(d)).toEqual([["eidolon-build", "/eidolon/builds/1/joints"]]);
+  });
+
   it("accepts an export without power, and power without wind", () => {
     const d = example();
     d.power.wind = null;
@@ -473,6 +512,16 @@ describe("validate: cross-references", () => {
     const e = example();
     e.recipes[7].machine.wear.rule = "sometimes";
     expect(problems(e)).toEqual([["schema:enum", "/recipes/7/machine/wear/rule"]]);
+  });
+
+  it("takes a hand job worked in place with no station when its requirements say where", () => {
+    const d = example();
+    d.recipes[7].ingredients.splice(4, 1);
+    d.recipes[7].variants[0].ingredients.splice(4, 1);
+    d.recipes[7].machine.power = "hand";
+    expect(problems(d)).toEqual([["machine-shape", "/recipes/7/ingredients"]]);
+    d.recipes[7].requirements = ["Set down on the ground; each left-click with a hammer is a blow"];
+    expect(problems(d)).toEqual([]);
   });
 
   it("rejects a variant with too few ingredient lists", () => {

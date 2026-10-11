@@ -140,6 +140,76 @@ export interface Scenario {
   vehicle?: VehicleSpec;
   /** The shape's own keyframe animations: which is selected first, labels, speeds and groups (keyframes.ts). The only key a model without a rig may have. */
   animations?: AnimationsSpec;
+  /** Selects that each set one texture code's path and colour (the crucible furnace's brick type). */
+  textures?: TextureChoice[];
+}
+
+/** A select for one texture code of the shape: each option a texture it may take, as the game picks one (a block's type). */
+export interface TextureChoice {
+  label: string;
+  /** A texture code the shape's faces use, without the "#"; one select per code. */
+  code: string;
+  /** The option the page opens with. */
+  default: string;
+  /** Two or more. */
+  options: TextureOption[];
+}
+
+export interface TextureOption {
+  /** Unique within its select. */
+  id: string;
+  label: string;
+  /** The texture's path ("game:block/..."), shown in the legend. */
+  path: string;
+  /** What the viewer draws the code's faces in: "#rrggbb". */
+  colour: string;
+}
+
+/** The option each texture select opens with, by code. */
+export function openingTextures(choices: readonly TextureChoice[] | undefined): Record<string, string> {
+  return Object.fromEntries((choices ?? []).map((c) => [c.code, c.default]));
+}
+
+/** The path and colour each texture code takes from the options picked (by code); codes with no select, or an unknown pick, are left out. */
+export function pickedTextures(
+  choices: readonly TextureChoice[] | undefined,
+  picked: Readonly<Record<string, string>>,
+): Map<string, { path: string; colour: string }> {
+  const out = new Map<string, { path: string; colour: string }>();
+  for (const c of choices ?? []) {
+    const o = c.options.find((q) => q.id === (picked[c.code] ?? c.default));
+    if (o) out.set(c.code, { path: o.path, colour: o.colour });
+  }
+  return out;
+}
+
+const COLOUR = /^#[0-9a-f]{6}$/i;
+
+function checkTextures(choices: TextureChoice[], codes: readonly string[] | undefined): string[] {
+  if (!Array.isArray(choices)) return ["textures must be a list of selects"];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const c of choices) {
+    const at = `texture select "${c.code}"`;
+    if (typeof c.code !== "string" || c.code === "") out.push("a texture select needs a code");
+    else if (seen.has(c.code)) out.push(`${at} is there twice`);
+    else if (codes !== undefined && !codes.includes(c.code)) out.push(`${at}: no face of the shape uses #${c.code}`);
+    seen.add(c.code);
+    if (typeof c.label !== "string" || c.label === "") out.push(`${at} needs a label`);
+    const options = Array.isArray(c.options) ? c.options : [];
+    if (options.length < 2) out.push(`${at} needs two options or more`);
+    const ids = new Set<string>();
+    for (const o of options) {
+      if (typeof o.id !== "string" || o.id === "") out.push(`${at}: an option needs an id`);
+      else if (ids.has(o.id)) out.push(`${at}: option "${o.id}" is there twice`);
+      ids.add(o.id);
+      if (typeof o.label !== "string" || o.label === "") out.push(`${at}: option "${o.id}" needs a label`);
+      if (typeof o.path !== "string" || o.path === "") out.push(`${at}: option "${o.id}" needs a path`);
+      if (typeof o.colour !== "string" || !COLOUR.test(o.colour)) out.push(`${at}: option "${o.id}" needs a colour as #rrggbb`);
+    }
+    if (!ids.has(c.default)) out.push(`${at}: default "${c.default}" is not one of its options`);
+  }
+  return out;
 }
 
 export interface RequiresChoice {
@@ -637,9 +707,13 @@ function run(ctx: PlayContext, m: Motion, dt: number): Motion {
   return next;
 }
 
-/** Problems with a scenario against its rig's anchors, as messages; empty when it is sound. */
-export function checkScenario(s: Scenario, rig: Rig | null, anchors: readonly Anchor[], requires: readonly string[]): string[] {
+/**
+ * Problems with a scenario against its rig's anchors, as messages; empty when it is sound. `textureCodes`, the codes
+ * the shape's faces use, checks the texture selects' codes (without it they are not checked against the shape).
+ */
+export function checkScenario(s: Scenario, rig: Rig | null, anchors: readonly Anchor[], requires: readonly string[], textureCodes?: readonly string[]): string[] {
   const out: string[] = [];
+  if (s.textures !== undefined) out.push(...checkTextures(s.textures, textureCodes));
   for (const key of Object.keys(s.requires ?? {})) if (!requires.includes(key)) out.push(`requires label "${key}" names no part's requires value`);
   for (const [key, cls] of Object.entries(s.requiresClass ?? {})) {
     if (!requires.includes(key)) out.push(`requiresClass "${key}" names no part's requires value`);

@@ -1,0 +1,61 @@
+{
+  "about": "Routes the recipe export does not carry: stations whose recipes are code, not recipe files or export records (the crucible furnace's pot recipes, CrucibleFurnace/Core/PotRecipes.cs). The table is built from an export of the default config, which has every switch on that is on by default, so a recipe file of such a switch needs no route here (ore processing's leaching and evaporating are export recipes; its still's records route only their first output, the mercury, so the sponges are here). Each is one batch: 'slots' are the ingredients (each a list of alternatives [code, items]; 'kept': true for a tool or station part not consumed), 'output' is [code, items], 'byproducts' are [code, expected items] credited at their value, 'kind' a markups.json kind, 'switch' the seraphhorizons config switch that owns it, 'liquid' (optional) a liquid output's items per litre. A route is priced exactly as a recipe of the export (README.md, Rules); a route whose output the export lacks prices nothing. A new station that adds no export record adds its routes here, with its switch; a better home for any of them is an export record (tools/recipe-export), which also shows it in the recipe browser.",
+  "routes": [
+    {
+      "id": "cruciblefurnace|ferrosilicon",
+      "about": "A full pot, 300 units (PotCapacityUnits, #768) at the middle of the ratios: 50 % crushed quartz (30), 30 % iron bits (18), 20 % coke (12), melted at yield 0.5 into 150 units, 30 lumps of 5.",
+      "kind": "crucible",
+      "switch": "StainlessSteel",
+      "slots": [
+        [["game:crushed-quartz", 30]],
+        [["game:metalbit-iron", 18]],
+        [["game:coke", 12]]
+      ],
+      "output": ["seraphhorizons:ferrosilicon", 30]
+    },
+    {
+      "id": "cruciblefurnace|ferrochrome",
+      "about": "A full pot: 50 % chromite (30 chromite concentrate, 5 units each), 30 % ferrosilicon (18 lumps), 20 % lime (12), at yield 0.5: 30 lumps, and a slag per 25 units charged (12). The pot also takes the legacy crushed chromite (PotRecipes), which nothing makes with OreProcessing on (the default the table is built for), so it is no alternative here: it would price ferrochrome from an item no player can get.",
+      "kind": "crucible",
+      "switch": "StainlessSteel",
+      "slots": [
+        [["seraphhorizons:concentrate-chromite", 30]],
+        [["seraphhorizons:ferrosilicon", 18]],
+        [["game:lime", 12]]
+      ],
+      "output": ["seraphhorizons:ferrochrome", 30],
+      "byproducts": [["smex:slag", 12]]
+    },
+    {
+      "id": "cruciblefurnace|stainless",
+      "about": "A full pot: 80 % iron (240 units: 2.4 ingots or 48 bits), 20 % ferrochrome (12 lumps), at yield 1: 300 units, poured into 3 ingots. The iron melt (iron ingots into molten iron, unit for unit) is no route: it makes iron from iron, at a markup.",
+      "kind": "crucible",
+      "switch": "StainlessSteel",
+      "slots": [
+        [["game:ingot-iron", 2.4], ["game:metalbit-iron", 48]],
+        [["seraphhorizons:ferrochrome", 12]]
+      ],
+      "output": ["game:ingot-stainlesssteel", 3]
+    },
+    {
+      "id": "stillretort|seraphhorizons:amalgam-quartz_nativegold",
+      "about": "The still retorts one amalgam (the export's oreretorting record, whose first output, the mercury, is the only one the tool routes): its gold stays behind as one retorted sponge (5 units, smelts whole). The mercury it returns (9 portions, 90 % of the amalgam pan's 10) is not credited: the amalgam's own price leaves out the pan's mercury, which goes round between the pan and the still.",
+      "kind": "distilling",
+      "switch": "OreProcessing",
+      "slots": [
+        [["seraphhorizons:amalgam-quartz_nativegold", 1]]
+      ],
+      "output": ["seraphhorizons:sponge-quartz_nativegold", 1]
+    },
+    {
+      "id": "stillretort|seraphhorizons:amalgam-quartz_nativesilver",
+      "about": "As gold amalgam: one silver sponge from one.",
+      "kind": "distilling",
+      "switch": "OreProcessing",
+      "slots": [
+        [["seraphhorizons:amalgam-quartz_nativesilver", 1]]
+      ],
+      "output": ["seraphhorizons:sponge-quartz_nativesilver", 1]
+    }
+  ]
+}

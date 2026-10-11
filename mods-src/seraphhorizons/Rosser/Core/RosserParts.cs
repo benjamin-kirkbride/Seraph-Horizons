@@ -2,7 +2,7 @@ namespace SeraphHorizons.Mod.Rosser.Core;
 
 /// <summary>The rosser's sub-assemblies, in the order the creative shortcut fits them. Each is a
 /// <c>requires</c> name of the rig (<see cref="RosserRequires"/>).</summary>
-public enum RosserStage { Shaft, Ring, Tyres, RollsIn, RollsOut, Breaker, Levers, Heads }
+public enum RosserStage { Shaft, Ring, Tyres, RollsIn, RollsOut, Breaker, Levers, Pipes, Heads }
 
 /// <summary>Why a held item can or cannot be fitted.</summary>
 public enum RosserFitVerdict
@@ -13,9 +13,11 @@ public enum RosserFitVerdict
     AlreadyFitted,
     /// <summary>The tyres and the scraper heads go on the ring, which is not complete.</summary>
     NeedsRing,
-    /// <summary>A hoop, rod or plate of a metal the rosser does not take.</summary>
+    /// <summary>A hoop, rod or plate of a metal the rosser does not take, or a pipe that is not
+    /// copper or lead.</summary>
     WrongMetal,
-    /// <summary>The heads go on as a set of four of one metal from one stack; fewer are held.</summary>
+    /// <summary>The heads, or the pipes, go on as a set of four of one metal from one stack; fewer
+    /// are held.</summary>
     NeedsFullSet,
 }
 
@@ -39,13 +41,20 @@ public static class RosserRequires
         RosserStage.RollsOut => "rollsout",
         RosserStage.Breaker => "breaker",
         RosserStage.Levers => "levers",
+        RosserStage.Pipes => "pipes",
         _ => "heads",
     };
 
     public static readonly IReadOnlyList<RosserStage> Stages = Enum.GetValues<RosserStage>();
 
-    /// <summary>The <c>requires</c> values the gameplay knows.</summary>
-    public static readonly IReadOnlySet<string> KnownRequires = Stages.Select(Name).ToHashSet();
+    /// <summary>The drip's pipes in one metal (<c>pipecopper</c>, <c>pipelead</c>): the rig has a
+    /// part per metal, and only the fitted metal's is drawn.</summary>
+    public static string Pipe(string metal) => "pipe" + metal;
+
+    /// <summary>The <c>requires</c> values the rig may use: each stage's but the pipes', which are
+    /// per metal.</summary>
+    public static readonly IReadOnlySet<string> KnownRequires =
+        Stages.Where(s => s != RosserStage.Pipes).Select(Name).Concat(RosserParts.PipeMetals.Select(Pipe)).ToHashSet();
 
     public static bool TryParse(string? name, out RosserStage stage)
     {
@@ -70,13 +79,16 @@ public static class RosserRequires
 /// <item><c>rollsin</c>, <c>rollsout</c>: 2 <c>game:rod-{metal}</c> each, the infeed's first</item>
 /// <item><c>breaker</c>: 2 <c>game:metalplate-{metal}</c></item>
 /// <item><c>levers</c>: 1 <c>immersivewoodworking:sawmilllevers</c></item>
+/// <item><c>pipes</c>: 4 <c>ppex:pipe-straight-*-{copper,lead}</c> of one metal from one stack: the
+/// drip's water line, drawn in that metal (<c>pipecopper</c>, <c>pipelead</c>); only while those
+/// pipes exist (<see cref="PipesNeeded"/>)</item>
 /// <item><c>heads</c>: 4 <c>immersivewoodworking:barkspudhead-{metal}</c> of one metal from one
 /// stack, after the ring; the wearing part</item>
 /// </list>
 /// A click takes from the held stack as many as the stages taking that item still need. Hoops,
 /// rods and plates must be of the allowed metals (iron work, <see cref="IronMetals"/>, unless the
-/// caller allows any); the heads may be of any metal. Every fitted item's code is kept, so breaking
-/// returns exactly what went in, the heads only while unworn.
+/// caller allows any); the heads may be of any metal, the pipes copper or lead. Every fitted item's
+/// code is kept, so breaking returns exactly what went in, the heads only while unworn.
 /// </summary>
 public sealed class RosserParts
 {
@@ -87,6 +99,18 @@ public sealed class RosserParts
     public const string RodPrefix = "game:rod-";
     public const string PlatePrefix = "game:metalplate-";
     public const string HeadPrefix = "immersivewoodworking:barkspudhead-";
+    /// <summary>Pipes and Power Expanded's straight pipe, <c>ppex:pipe-straight-{orientation}-{metal}</c>.</summary>
+    public const string PipePrefix = "ppex:pipe-straight-";
+
+    /// <summary>The metals the drip's pipes may be: UnifiedPipes' soldered pipes (its
+    /// <c>PipeSections.SolderedMetals</c>), copper first (the creative shortcut's).</summary>
+    public static readonly IReadOnlyList<string> PipeMetals = ["copper", "lead"];
+
+    /// <summary>A straight pipe's orientations; the item form is <c>ns</c>.</summary>
+    private static readonly string[] PipeOrientations = ["ns", "we", "ud"];
+
+    /// <summary>The straight pipe of <paramref name="metal"/> as the item it is: its <c>ns</c> block.</summary>
+    public static string PipeCode(string metal) => PipePrefix + "ns-" + metal;
 
     /// <summary>The metals hoops, rods and plates must be of while the woodworking machines are
     /// iron work (<c>WoodworkingMachineCosts.Metals</c>; keep the two the same).</summary>
@@ -96,12 +120,20 @@ public sealed class RosserParts
     public static int Needed(RosserStage stage) => stage switch
     {
         RosserStage.Shaft or RosserStage.Levers => 1,
-        RosserStage.Ring or RosserStage.Heads => 4,
+        RosserStage.Ring or RosserStage.Pipes or RosserStage.Heads => 4,
         _ => 2,
     };
 
+    /// <summary>The stages that go on as a set from one stack, so are one metal.</summary>
+    private static bool FullSet(RosserStage stage) => stage is RosserStage.Pipes or RosserStage.Heads;
+
     private readonly Dictionary<RosserStage, List<string>> _fitted = RosserRequires.Stages.ToDictionary(s => s, _ => new List<string>());
     private readonly IReadOnlySet<string>? _metals;
+
+    /// <summary>Whether the rosser needs its pipes: the copper and lead straight pipes exist in this
+    /// game (Pipes and Power Expanded with UnifiedPipes' metals). Without them the stage is left
+    /// out: the rosser is complete without it, and no pipe is a part.</summary>
+    public bool PipesNeeded { get; }
 
     /// <summary>The heads' remaining capacity, in wear points; 0 without heads.</summary>
     public int HeadsLeft { get; private set; }
@@ -111,19 +143,26 @@ public sealed class RosserParts
 
     /// <param name="allowedMetals">The metals hoops, rods and plates may be of; null takes any.
     /// Defaults to <see cref="IronMetals"/>.</param>
-    public RosserParts(IReadOnlySet<string>? allowedMetals = null, bool anyMetal = false)
+    /// <param name="pipesNeeded">Whether the pipes are a stage (<see cref="PipesNeeded"/>).</param>
+    public RosserParts(IReadOnlySet<string>? allowedMetals = null, bool anyMetal = false, bool pipesNeeded = true)
     {
         _metals = anyMetal ? null : allowedMetals ?? IronMetals;
+        PipesNeeded = pipesNeeded;
     }
+
+    /// <summary>Whether a stage must be in for the rosser to be complete: every one, the pipes only
+    /// while they are needed.</summary>
+    public bool Required(RosserStage stage) => stage != RosserStage.Pipes || PipesNeeded;
 
     /// <summary>Restored state, as <see cref="Snapshot"/> gave it. Codes that are not the stage's
     /// part, or of a metal no longer allowed, are dropped, as are items beyond a stage's need; tyres
-    /// and heads without a complete ring, and heads that are not four of one metal, are dropped as
-    /// they could not have been fitted. Heads with no capacity left are spent and dropped.</summary>
+    /// and heads without a complete ring, and heads or pipes that are not four of one metal, are
+    /// dropped as they could not have been fitted. Heads with no capacity left are spent and
+    /// dropped. A save from before the pipes has none, so that rosser needs them fitted.</summary>
     public static RosserParts Restore(IReadOnlyDictionary<string, IReadOnlyList<string>> fitted, int headsLeft, int headsCapacity,
-                                      IReadOnlySet<string>? allowedMetals = null, bool anyMetal = false)
+                                      IReadOnlySet<string>? allowedMetals = null, bool anyMetal = false, bool pipesNeeded = true)
     {
-        var parts = new RosserParts(allowedMetals, anyMetal);
+        var parts = new RosserParts(allowedMetals, anyMetal, pipesNeeded);
         foreach (var stage in RosserRequires.Stages)
         {
             if (!fitted.TryGetValue(RosserRequires.Name(stage), out var codes))
@@ -137,6 +176,9 @@ public sealed class RosserParts
             parts._fitted[RosserStage.Tyres].Clear();
             parts._fitted[RosserStage.Heads].Clear();
         }
+        var pipes = parts._fitted[RosserStage.Pipes];
+        if (pipes.Count != Needed(RosserStage.Pipes) || pipes.Distinct().Count() != 1)
+            pipes.Clear();
         var heads = parts._fitted[RosserStage.Heads];
         if (heads.Count != Needed(RosserStage.Heads) || heads.Distinct().Count() != 1 || headsLeft <= 0)
             heads.Clear();
@@ -150,10 +192,11 @@ public sealed class RosserParts
 
     /// <summary>The same fitted parts and heads under another metal rule, for what is fitted next:
     /// a save is restored with any metal (what went in passed the rule of its day and is kept), then
-    /// given the rule in force now.</summary>
-    public RosserParts WithMetals(IReadOnlySet<string>? allowedMetals = null, bool anyMetal = false)
+    /// given the rule in force now. Whether the pipes are needed stays as it is unless
+    /// <paramref name="pipesNeeded"/> says.</summary>
+    public RosserParts WithMetals(IReadOnlySet<string>? allowedMetals = null, bool anyMetal = false, bool? pipesNeeded = null)
     {
-        var parts = new RosserParts(allowedMetals, anyMetal) { HeadsLeft = HeadsLeft, HeadsCapacity = HeadsCapacity };
+        var parts = new RosserParts(allowedMetals, anyMetal, pipesNeeded ?? PipesNeeded) { HeadsLeft = HeadsLeft, HeadsCapacity = HeadsCapacity };
         foreach (var (stage, codes) in _fitted)
             parts._fitted[stage].AddRange(codes);
         return parts;
@@ -170,21 +213,36 @@ public sealed class RosserParts
     public bool Has(RosserStage stage) => _fitted[stage].Count >= Needed(stage);
 
     /// <summary>Whether a rig part needing <paramref name="requires"/> is drawn: null always, a stage
-    /// name when that stage is complete, anything else never.</summary>
+    /// name when that stage is complete, a metal's pipes (<see cref="RosserRequires.Pipe"/>) when the
+    /// pipes fitted are that metal, anything else never.</summary>
     public bool Fitted(string? requires) =>
-        requires == null || RosserRequires.TryParse(requires, out var stage) && Has(stage);
+        requires == null
+        || RosserRequires.TryParse(requires, out var stage) && Has(stage)
+        || PipeMetal is { } metal && requires == RosserRequires.Pipe(metal);
 
     /// <summary>The fitted heads' metal; null without heads (spent heads are gone).</summary>
     public string? HeadMetal => Has(RosserStage.Heads) ? _fitted[RosserStage.Heads][0][HeadPrefix.Length..] : null;
 
+    /// <summary>The fitted pipes' metal, copper or lead; null without pipes.</summary>
+    public string? PipeMetal =>
+        Has(RosserStage.Pipes) && StageOf(_fitted[RosserStage.Pipes][0], out var metal) == RosserStage.Pipes ? metal : null;
+
     /// <summary>Whether the heads are fitted and have never been used (they can come back out).</summary>
     public bool HeadsUnworn => HeadMetal != null && HeadsLeft >= HeadsCapacity;
 
-    /// <summary>Every stage is in (spent heads are removed, so a rosser whose heads are spent is not complete).</summary>
-    public bool Complete => RosserRequires.Stages.All(Has);
+    /// <summary>Every stage is in (spent heads are removed, so a rosser whose heads are spent is not
+    /// complete), the pipes only while they are needed.</summary>
+    public bool Complete => RosserRequires.Stages.All(s => !Required(s) || Has(s));
+
+    /// <summary>Whether a click holding <paramref name="code"/> is the rosser's, to fit it: any part,
+    /// except a straight pipe once the pipes are in or while they are not needed. That pipe is
+    /// placed against the rosser as any pipe is, as on the water face.</summary>
+    public bool TakesClick(string? code) =>
+        StageOf(code, out _) is { } stage && (stage != RosserStage.Pipes || PipesNeeded && !Has(RosserStage.Pipes));
 
     /// <summary>The stage an item code is for (the rods' first: the infeed rolls), and the metal of
-    /// a hoop, rod, plate or head; null when it is not a part.</summary>
+    /// a hoop, rod, plate, head or straight pipe (any pipe metal: only copper and lead fit); null
+    /// when it is not a part.</summary>
     public static RosserStage? StageOf(string? code, out string? metal)
     {
         metal = null;
@@ -203,6 +261,12 @@ public sealed class RosserParts
                 metal = code[prefix.Length..];
                 return stage;
             }
+        if (code.StartsWith(PipePrefix, StringComparison.Ordinal)
+            && code[PipePrefix.Length..].Split('-') is [var orientation, { Length: > 0 } pipeMetal] && PipeOrientations.Contains(orientation))
+        {
+            metal = pipeMetal;
+            return RosserStage.Pipes;
+        }
         return null;
     }
 
@@ -223,6 +287,8 @@ public sealed class RosserParts
         if (stage is RosserStage.Tyres or RosserStage.RollsIn or RosserStage.RollsOut or RosserStage.Breaker
             && _metals != null && !_metals.Contains(metal!))
             return RosserFitVerdict.WrongMetal;
+        if (stage == RosserStage.Pipes && !PipeMetals.Contains(metal!))
+            return RosserFitVerdict.WrongMetal;
         return RosserFitVerdict.Fits;
     }
 
@@ -231,7 +297,7 @@ public sealed class RosserParts
     public RosserFit CanFit(string? code, int available)
     {
         var first = StageOf(code, out _);
-        if (first is not { } f || available <= 0)
+        if (first is not { } f || available <= 0 || !Required(f))
             return new(RosserFitVerdict.NotAPart, 0);
         var stages = StagesFor(f).ToList();
         int room = stages.Sum(s => Needed(s) - _fitted[s].Count);
@@ -242,7 +308,7 @@ public sealed class RosserParts
             return new(verdict, 0);
         if (f is RosserStage.Tyres or RosserStage.Heads && !Has(RosserStage.Ring))
             return new(RosserFitVerdict.NeedsRing, 0);
-        if (f == RosserStage.Heads && available < Needed(RosserStage.Heads))
+        if (FullSet(f) && available < Needed(f))
             return new(RosserFitVerdict.NeedsFullSet, 0);
         return new(RosserFitVerdict.Fits, Math.Min(available, room));
     }
@@ -309,13 +375,13 @@ public sealed class RosserParts
     }
 
     /// <summary>What still has to go in, in the creative shortcut's order: per stage, the code
-    /// (metal parts with <c>*</c> for the metal) and how many.</summary>
+    /// (metal parts with <c>*</c> for the metal) and how many. The pipes only while needed.</summary>
     public IEnumerable<(RosserStage Stage, string Code, int Count)> Missing()
     {
         foreach (var stage in RosserRequires.Stages)
         {
             int count = Needed(stage) - _fitted[stage].Count;
-            if (count > 0)
+            if (count > 0 && Required(stage))
                 yield return (stage, stage switch
                 {
                     RosserStage.Shaft => ShaftCode,
@@ -324,16 +390,19 @@ public sealed class RosserParts
                     RosserStage.Tyres => HoopPrefix + "*",
                     RosserStage.RollsIn or RosserStage.RollsOut => RodPrefix + "*",
                     RosserStage.Breaker => PlatePrefix + "*",
+                    RosserStage.Pipes => PipeCode("*"),
                     _ => HeadPrefix + "*",
                 }, count);
         }
     }
 
     /// <summary>The creative shortcut's next stage: the first missing stage's code with
-    /// <paramref name="metal"/> for the metal parts (the heads too) and its count; null when
-    /// complete. It always fits: the ring comes before the tyres and the heads.</summary>
+    /// <paramref name="metal"/> for the metal parts (the heads too; the pipes copper, unless
+    /// <paramref name="metal"/> is a pipe metal) and its count; null when complete. It always
+    /// fits: the ring comes before the tyres and the heads.</summary>
     public (string Code, int Count)? NextPart(string metal) =>
-        Missing().Select(m => ((string Code, int Count)?)(m.Code.Replace("*", metal, StringComparison.Ordinal), m.Count)).FirstOrDefault();
+        Missing().Select(m => ((string Code, int Count)?)(m.Code.Replace("*",
+            m.Stage == RosserStage.Pipes && !PipeMetals.Contains(metal) ? PipeMetals[0] : metal, StringComparison.Ordinal), m.Count)).FirstOrDefault();
 
     /// <summary>What breaking the rosser gives back: every fitted item, by code with its count, in
     /// stage order; the heads only while unworn.</summary>

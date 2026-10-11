@@ -46,7 +46,7 @@ public sealed class MapIssuer
         if (!_deposits.Registry.MarkSold(deposit, player?.PlayerUID, player?.PlayerName, _api.World.Calendar.TotalDays))
             return null;
         _api.Logger.Notification("[seraphhorizons] Deposits: map to {0} (precision {1}) issued to {2}",
-            deposit, deposit.IsGravel ? MapPrecision.Exact : precision, player?.PlayerName ?? "nobody");
+            deposit, deposit.IsGravel ? MapPrecision.Fine : precision, player?.PlayerName ?? "nobody");
         return stack;
     }
 
@@ -54,7 +54,7 @@ public sealed class MapIssuer
     /// cell has none, the map item is missing, or the precision is not 1–3.</summary>
     public ItemStack? Build(DepositKey deposit, int precision)
     {
-        if (deposit.IsGravel) precision = MapPrecision.Exact;
+        if (deposit.IsGravel) precision = MapPrecision.Fine;
         if (!MapPrecision.IsValid(precision) || _deposits.Candidate(deposit) is not { } candidate) return null;
         var item = _api.World.GetItem(deposit.IsGravel ? GravelMapCode : OreMapCode);
         if (item == null) return null;
@@ -65,8 +65,14 @@ public sealed class MapIssuer
         a.SetString(ItemOreMap.AttrMetal, deposit.Kind);
         a.SetInt(ItemOreMap.AttrPrecision, precision);
         if (candidate.Record.Tier is { } tier) a.SetString(ItemOreMap.AttrSizeTier, tier.ToString().ToLowerInvariant());
-        // A gravel field's rock, so the map can say what the pan will give.
-        if (_deposits.FieldOf(deposit)?.Rock is { } rock) a.SetString(ItemOreMap.AttrRock, rock);
+        // What the ore is (#692): the ores, their grades and the host rock; for a gravel field its
+        // rock and the metals the pan gives from it.
+        if (candidate.Record.Makeup is { } makeup) ItemOreMap.SetMakeup(a, makeup);
+        if (_deposits.FieldOf(deposit)?.Rock is { } rock)
+        {
+            a.SetString(ItemOreMap.AttrRock, rock);
+            if (_deposits.PanMetals(rock) is { Count: > 0 } metals) a.SetString(ItemOreMap.AttrMetals, OreNames.Csv(metals));
+        }
         a.SetInt(ItemOreMap.AttrX, candidate.X + dx);
         a.SetInt(ItemOreMap.AttrY, candidate.Y);
         a.SetInt(ItemOreMap.AttrZ, candidate.Z + dz);

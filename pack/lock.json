@@ -3252,46 +3252,6 @@
       "dependencies": {}
     },
     {
-      "id": "gondolacablecar",
-      "version": "0.4.43",
-      "assetId": 63652,
-      "releaseId": 58702,
-      "fileId": 125520,
-      "fileName": "GondolaCableCar_0.4.43.zip",
-      "fileUrl": "https://moddbcdn.vintagestory.at/GondolaCableCar_0.4._59eff9161082b945ccce9b9729199549.zip?dl=GondolaCableCar_0.4.43.zip",
-      "sha256": "95946be2e16449dc85ba0f71e6cc7096b38b821f6d5cff01f66782ea19b27a70",
-      "size": 3673141,
-      "side": "universal",
-      "license": "unknown",
-      "redistribute": false,
-      "compatibleGameVersions": [
-        "1.22.0",
-        "1.22.0-pre.1",
-        "1.22.0-pre.2",
-        "1.22.0-pre.3",
-        "1.22.0-pre.4",
-        "1.22.0-pre.5",
-        "1.22.0-rc.1",
-        "1.22.0-rc.10",
-        "1.22.0-rc.2",
-        "1.22.0-rc.3",
-        "1.22.0-rc.4",
-        "1.22.0-rc.5",
-        "1.22.0-rc.6",
-        "1.22.0-rc.7",
-        "1.22.0-rc.8",
-        "1.22.0-rc.9",
-        "1.22.1",
-        "1.22.2",
-        "1.22.3",
-        "1.22.4",
-        "1.22.5",
-        "1.22.6",
-        "1.22.7"
-      ],
-      "dependencies": {}
-    },
-    {
       "id": "flyingmachine",
       "version": "0.1.0",
       "assetId": 71735,
@@ -3929,6 +3889,28 @@
       }
     },
     {
+      "id": "morepiles",
+      "version": "3.0.1",
+      "assetId": 941,
+      "releaseId": 41003,
+      "fileId": 91027,
+      "fileName": "MorePiles-v3.0.1.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/MorePiles-v3.0.1_8fc4bbe53103345c253ab42e15a39c51.zip?dl=MorePiles-v3.0.1.zip",
+      "sha256": "878ed3ecff17661e8a2f9b9155cffa4779e6b7970df0f2f5ce13d83dcbdc0755",
+      "size": 226620,
+      "side": "universal",
+      "license": "MIT",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
       "id": "toolbelt",
       "version": "0.3.5",
       "assetId": 37790,
@@ -4225,6 +4207,26 @@
         "1.22.6"
       ],
       "dependencies": {}
+    },
+    {
+      "id": "candela",
+      "version": "1.0.0",
+      "assetId": 72556,
+      "releaseId": 60668,
+      "fileId": 129022,
+      "fileName": "candela_1.0.0.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/candela_1.0.0_fcda1784bb82c70d7ad310c23575aa8a.zip?dl=candela_1.0.0.zip",
+      "sha256": "8f846dc42b937d26e86137f86b3e82f37b46d18e7200bc2a09b0c7d3f0eff126",
+      "size": 396938,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
     },
     {
       "id": "allowedvariantsfix",

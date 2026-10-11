@@ -14,7 +14,9 @@ namespace SeraphHorizons.Mod.Pipes;
 /// water, steam and exhaust. ppex's straight, bend, T- and X-junction pipes get copper and lead as
 /// material states, and its valves and pressure valves the three bronzes, by JSON patch
 /// (<see cref="PatchAsset"/>), which also switches off ppex's plate-and-nails pipe recipes and its
-/// iron and steel valve recipes. The chain (<see cref="PipeSections"/>): this mod's angle (copper or
+/// iron and steel valve recipes; the copper and lead pipes are drawn soldered, on this mod's own
+/// models in place of ppex's banded one (<see cref="SolderedJointsPatchAsset"/>, checked by
+/// <see cref="SolderedJoints"/> and emptied alone if ppex's shape tables have changed). The chain (<see cref="PipeSections"/>): this mod's angle (copper or
 /// lead, folded on the press brake from a half plate cut on the squaring shear); the game's chute section, the hollow
 /// section, which gets a lead state by a second JSON patch (<see cref="ChutePatchAsset"/>, checked by
 /// <see cref="ChuteSections"/>) that also switches off the game's anvil and plate recipes for it, so
@@ -62,6 +64,9 @@ public class UnifiedPipesSystem : ModSystem
 
     /// <summary>Better Ruins' five solderless bulk chute recipes off (<see cref="ChuteSections.BetterRuinsChutes"/>).</summary>
     public static readonly AssetLocation BetterRuinsPatchAsset = new(Domain, "patches/unifiedpipes-betterruins.json");
+
+    /// <summary>ppex's copper and lead pipes on this mod's soldered models (<see cref="SolderedJoints"/>).</summary>
+    public static readonly AssetLocation SolderedJointsPatchAsset = new(Domain, "patches/unifiedpipes-solderedjoints.json");
 
     public static readonly AssetLocation[] TypeAssets =
     [
@@ -114,7 +119,10 @@ public class UnifiedPipesSystem : ModSystem
             Disable(api);
         }
         if (_on && api.Side == EnumAppSide.Server)
+        {
             GuardBetterRuins(api);
+            GuardSolderedJoints(api);
+        }
         if (_on && !Harmony.HasAnyPatches(HarmonyId))
             Patch(_harmony = new Harmony(HarmonyId), api.Logger);
         _hydratePipes = HydratePipes.Start(api, _on);
@@ -191,10 +199,33 @@ public class UnifiedPipesSystem : ModSystem
             patch.Data = "[]"u8.ToArray();
     }
 
+    /// <summary>ppex's pipe shape tables, checked against <see cref="SolderedJointsPatchAsset"/> on the
+    /// server before the patch loader runs: if ppex has changed one, one warning and that patch alone
+    /// is emptied (copper and lead pipes keep ppex's banded model; the rest goes ahead).</summary>
+    private static void GuardSolderedJoints(ICoreAPI api)
+    {
+        if (api.Assets.TryGet(SolderedJointsPatchAsset) is not { } patch)
+            return;
+        string? problem;
+        try
+        {
+            problem = SolderedJoints.Check(patch.ToText(), file => api.Assets.TryGet(new AssetLocation(PpexId, file))?.ToText());
+        }
+        catch (Exception e)
+        {
+            problem = e.Message;
+        }
+        if (problem == null)
+            return;
+        api.Logger.Warning($"[seraphhorizons] Unified pipes: Pipes and Power Expanded changed {problem}, so its copper and "
+                           + "lead pipes keep its own model (an iron band and bolts, not soldered joints)");
+        patch.Data = "[]"u8.ToArray();
+    }
+
     /// <summary>Empties the patch files, so the patch loader applies none of them.</summary>
     public static void DisablePatches(ICoreAPI api)
     {
-        foreach (var location in new[] { PatchAsset, ChutePatchAsset, BetterRuinsPatchAsset })
+        foreach (var location in new[] { PatchAsset, ChutePatchAsset, BetterRuinsPatchAsset, SolderedJointsPatchAsset })
             if (api.Assets.TryGet(location) is { } asset)
                 asset.Data = "[]"u8.ToArray();
     }

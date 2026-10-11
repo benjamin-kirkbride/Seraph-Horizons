@@ -13,7 +13,9 @@ namespace SeraphHorizons.Mod.Rosser;
 /// <c>shapes/block/rosser.json</c> (<see cref="MachineMeshes.PartMeshes"/>, one tessellation split
 /// by part, shared by every rosser through <see cref="MachinePartMeshes"/>), each drawn with its rig
 /// matrix turned to the rosser's facing, and only when its <c>requires</c> is fitted; the scraper
-/// tips (<c>heads</c>) take the ingot texture of the heads' metal (a cached set per metal). The static frame part is not
+/// tips (<c>heads</c>) take the ingot texture of the heads' metal (a cached set per metal). The
+/// drip's pipes are a part per metal (<c>pipecopper</c>, <c>pipelead</c>, in the block's pipe
+/// textures), and only the fitted metal's is drawn (<see cref="RosserParts.Fitted"/>). The static frame part is not
 /// drawn here: the block's own shape (rosser_frame.json, the same elements) draws it in the chunk
 /// mesh. Everything is read from the rig at load; no element name or coordinate is known here.
 /// <para>The rig is posed every frame from: θ, the shaft angle about the input shaft's native z

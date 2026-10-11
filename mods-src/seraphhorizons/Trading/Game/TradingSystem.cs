@@ -50,8 +50,17 @@ public class TradingSystem : ModSystem
     public IStandingSource Standing { get; set; } = NoStanding.Instance;
 
     /// <summary>Entries left out of the lists when they load (set before GameReady): the machines'
-    /// schematics with their switch off (#469).</summary>
+    /// schematics with their switch off (#469), the eidolon's stock with the Eidolon switch off
+    /// (#670). Add rules with <see cref="Exclude"/>.</summary>
     public Predicate<TradeEntry>? ExcludeEntry { get; set; }
+
+    /// <summary>Adds a rule to <see cref="ExcludeEntry"/>: an entry is left out when any rule says so
+    /// (the machines' schematics, the eidolon's stock with its switch off).</summary>
+    public void Exclude(Predicate<TradeEntry> rule)
+    {
+        var prior = ExcludeEntry;
+        ExcludeEntry = prior is null ? rule : e => prior(e) || rule(e);
+    }
 
     /// <summary>Expands a list's special entries (<see cref="TradeEntry.Kind"/>: maps, leads) into
     /// the offers a trader makes at a restock (#455, <c>TraderMaps</c>); null leaves them out.</summary>

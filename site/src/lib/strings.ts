@@ -87,6 +87,18 @@ const en = {
   noRecipesUse: "No recipe uses this item.",
   smeltedFrom: "Obtained by heating",
   smeltsInto: "Heating it gives",
+  groundStorage: "Ground storage",
+  groundStorageHint: "Shift + right click on the ground to put it down; right click to take it back.",
+  // Kinds of ground storage by the export's layout; the placed layouts' names follow "Placeable".
+  groundKinds: { messy12: "Loose pile", stacking: "Pile" } as Record<string, string>,
+  groundPlaced: "Placeable",
+  groundLayouts: { singlecenter: "centre", halves: "halves", wallhalves: "against a wall", quadrants: "quadrants" } as Record<string, string>,
+  groundCapacity: (n: string) => (n === "1" ? "one per block" : `up to ${n} per block`),
+  groundPerClick: (n: string) => `${n} per click`,
+  groundPerBulkClick: (n: string) => `${n} per Ctrl click`,
+  groundNeedsCtrl: "Hold Ctrl as well to put it down.",
+  groundSolidTop: (high?: string) => `A full pile can be built on${high ? `, up to ${high} piles high` : ""}.`,
+  groundFullHeight: (h: string) => `A full pile is ${h} block${h === "1" ? "" : "s"} tall.`,
   itemNotInVersion: (code: string, version: string) => `${code} is not in version ${version}.`,
   keptItem: (code: string) => `Showing ${code} in the version you picked.`,
   lostItem: (code: string) => `${code} does not exist in that version, so you are on its start page.`,
@@ -201,6 +213,8 @@ const en = {
       ? `By hand: ${turns} blows a job, each a right-click with a hammer`
       : power === "hand" && work?.unit === "seconds"
       ? `By hand, with tongs: ${turns} ${turns === "1" ? "second" : "seconds"} of winding a job, while right-click is held`
+      : power === "hand" && work?.unit === "strikes"
+      ? `By hand where it lies: ${turns} ${turns === "1" ? "blow" : "blows"} a job, each a left-click with a hammer`
       : power === "hand" && work?.unit === "strokes"
       ? `By hand: ${turns} ${turns === "1" ? "stroke" : "strokes"} of the treadle a job, a stroke a second while right-click is held`
       : (power === "hand"
@@ -314,6 +328,7 @@ const en = {
   sortBy: (column: string) => `Sort by ${column.toLowerCase()}`,
   modelsLink: "Models",
   powerLink: "Power",
+  eidolonFittings: "The eidolon's fitting sheet: choose its materials, see its stats and bill",
   power: {
     heading: "Mechanical power",
     intro:

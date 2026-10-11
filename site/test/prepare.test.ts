@@ -32,6 +32,19 @@ function reader(files: Map<string, unknown>) {
 describe("prepareData on schema/examples/minimal.json", () => {
   const r = reader(prepareData(minimal).files);
 
+  it("carries ground storage into the item chunks", () => {
+    expect(r.detail("game:ingot-copper").attributes?.groundStorage).toEqual({
+      layout: "stacking",
+      capacity: 64,
+      transfer: 1,
+      bulkTransfer: 4,
+      solidTop: true,
+      fullHeight: 1,
+    });
+    expect(r.detail("game:saw-copper").attributes?.groundStorage).toEqual({ layout: "wallhalves", capacity: 2 });
+    expect(r.detail("game:stick").attributes?.groundStorage).toBeUndefined();
+  });
+
   it("lists birch plank as used by the ladder recipe although the recipe says game:plank-*", () => {
     expect(r.ids(r.detail("game:plank-birch").usedIn)).toEqual({
       construction: ["construction|game:waterwheel-3m-north|2"],
@@ -103,7 +116,7 @@ describe("prepareData on schema/examples/minimal.json", () => {
     ]);
     expect(r.detail("game:ingot-copper").description).toBe("A bar of copper.");
     expect(r.meta.recipeTypes["examplemod:press"]).toEqual({ name: "Press", shape: "generic", count: 1, start: 6, mod: "examplemod" });
-    expect(r.meta.itemCount).toBe(50);
+    expect(r.meta.itemCount).toBe(59);
     expect(r.meta.recipeCount).toBe(13);
   });
 

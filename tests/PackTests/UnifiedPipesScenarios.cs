@@ -60,11 +60,39 @@ public partial class SharedWorldScenarios
             Assert.Equal(figures.IronBurstPressure, BurstPressure($"ppex:pipe-{shape}-iron"));
             Assert.Equal(figures.SteelBurstPressure, BurstPressure($"ppex:pipe-{shape}-steel"));
         }
-        // ppex's own model (a server's block holds no resolved textures: test_unified_pipes.py checks the patch's)
         var copper = W.GetBlock(new AssetLocation("ppex:pipe-straight-ns-copper"))!;
-        Assert.Equal(W.GetBlock(new AssetLocation("ppex:pipe-straight-ns-iron"))!.Shape.Base, copper.Shape.Base);
         Assert.Contains("ppex", copper.CreativeInventoryTabs);
         Assert.Contains("Copper", copper.GetHeldItemName(new ItemStack(copper)));
+    }
+
+    [AtlasScenario]
+    public void UnifiedPipes_copper_and_lead_pipes_are_soldered_and_iron_and_steel_keep_ppex_band()
+    {
+        // Every orientation of every pipe: copper and lead on this mod's soldered model, turned as ppex
+        // turns its own, iron and steel on ppex's (its band and bolts). A server's block holds no resolved
+        // textures: test_soldered_pipes.py checks the shapes' and test_unified_pipes.py the patch's.
+        var checkedBlocks = 0;
+        foreach (var iron in W.Blocks.Where(b => b?.Code?.Domain == "ppex" && b.Code.Path.StartsWith("pipe-") && b.Code.Path.EndsWith("-iron")))
+        {
+            var type = iron.Variant["type"];
+            if (!PipeShapes.Any(s => s.StartsWith(type + "-", StringComparison.Ordinal)))
+                continue;
+            Assert.Equal(new AssetLocation($"ppex:pipes/{type}"), iron.Shape.Base);
+            var steel = W.GetBlock(iron.CodeWithVariant("material", "steel"))!;
+            Assert.Equal(iron.Shape.Base, steel.Shape.Base);
+            foreach (var metal in PipeRules.AddedPipeMaterials)
+            {
+                var soldered = W.GetBlock(iron.CodeWithVariant("material", metal))!;
+                Assert.False(soldered.IsMissing, soldered.Code.ToString());
+                Assert.Equal(new AssetLocation(SolderedJoints.ShapePrefix + type), soldered.Shape.Base);
+                Assert.Equal((iron.Shape.rotateX, iron.Shape.rotateY, iron.Shape.rotateZ),
+                    (soldered.Shape.rotateX, soldered.Shape.rotateY, soldered.Shape.rotateZ));
+                checkedBlocks++;
+            }
+        }
+        Assert.Equal(2 * (3 + 12 + 12 + 3), checkedBlocks);
+        foreach (var type in new[] { "straight", "bend", "tjunction", "xjunction" })
+            Assert.True(World.Api.Assets.Exists(new AssetLocation(SolderedJoints.ShapePrefix + type).WithPathPrefixOnce("shapes/").WithPathAppendixOnce(".json")), type);
     }
 
     [AtlasScenario]

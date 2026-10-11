@@ -24,7 +24,8 @@ namespace SeraphHorizons.Mod;
 /// log count) when it made one. This tweak (server side, by name; Logging Expanded is not
 /// referenced at build time):
 /// - hears <c>OnTreeFelled</c> and notes the player and the stump;
-/// - a prefix on <c>ItemAxe.OnBlockBrokenWith</c> for that player, when the tree it is about to
+/// - a prefix on <c>ItemAxe.OnBlockBrokenWith</c> for that player (or the entity felling as one,
+///   <see cref="FellerId"/>: the eidolon), when the tree it is about to
 ///   break holds that stump, takes the note, decides thick or thin from the tree's blocks, and
 ///   opens a window in which a prefix on <c>CollectibleObject.DamageItem</c> skips every hit on the
 ///   axe's slot;
@@ -106,11 +107,33 @@ public static class FellingWear
         Patched = false;
     }
 
-    private static void OnTreeFelled(IServerPlayer player, BlockPos stump, string wood, int logs)
+    private static void OnTreeFelled(IServerPlayer player, BlockPos stump, string wood, int logs) => NoteFelled(player.PlayerUID, stump);
+
+    /// <summary>Notes that Logging Expanded made a trunk of the tree at <paramref name="stump"/> felled
+    /// by <paramref name="fellerId"/> (<see cref="FellerId"/>), as its <c>OnTreeFelled</c> does for a
+    /// player: the eidolon's felling (#677), which fells without a player, calls this before the axe
+    /// breaks the tree. Server thread.</summary>
+    public static void NoteFelled(string fellerId, BlockPos stump)
     {
-        _felledBy = player.PlayerUID;
+        if (!Patched)
+            return;
+        _felledBy = fellerId;
         _stump = stump.Copy();
     }
+
+    /// <summary>The prefix of the uid an entity that is no player fells as (<see cref="FellerId"/>).</summary>
+    public const string EntityFellerPrefix = "seraphhorizons-entity-";
+
+    /// <summary>Who a felling is known as: a player's uid, or for another entity that fells with an
+    /// axe (the eidolon, #677, <c>Eidolon/Game/EidolonFeller.cs</c>) <see cref="EntityFellerPrefix"/>
+    /// and its entity id, as it notes its felling (<see cref="NoteFelled"/>), so its axe wears the
+    /// same flat figure.</summary>
+    public static string? FellerId(Entity? entity) => entity switch
+    {
+        null => null,
+        EntityPlayer player => player.PlayerUID,
+        _ => EntityFellerPrefix + entity.EntityId,
+    };
 
     /// <summary>The felling cost of a tree of these blocks.</summary>
     public static int Cost(IEnumerable<Block> tree) =>
@@ -123,7 +146,7 @@ public static class FellingWear
         var stump = _stump;
         _felledBy = null;
         _stump = null;
-        if (felledBy == null || stump == null || __0.Side != EnumAppSide.Server || __1 is not EntityPlayer { PlayerUID: var uid } || uid != felledBy)
+        if (felledBy == null || stump == null || __0.Side != EnumAppSide.Server || FellerId(__1) is not { } uid || uid != felledBy)
             return;
         var tree = __instance.FindTree(__0, __3.Position, out _, out _);
         if (!tree.Contains(stump))

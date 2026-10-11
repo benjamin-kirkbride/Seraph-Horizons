@@ -4,6 +4,7 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.TrunkEntities;
 
@@ -11,7 +12,8 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// A trunk as good as solid to whoever walks into it: an agent whose collision box (as a cylinder)
 /// is in the trunk's oriented footprint is moved out the shortest way (<see cref="TrunkPush"/>), at most
 /// <see cref="TrunkPush.MaxStep"/> a step, and its motion into the trunk is stopped; one whose
-/// feet are near the top is lifted onto it and stands there. The trunk itself is never moved by
+/// feet are near the top, its middle over the trunk or near its edge, is lifted onto it and stands
+/// there. The trunk itself is never moved by
 /// this, and its driver (mounted, standing just beyond its end) is left alone. The game's
 /// <c>repulseagents</c> shoves only by the trunk's square middle hitbox, at most 0.1 blocks per
 /// 1/60 s of motion; this acts on the whole trunk, by position.
@@ -52,11 +54,21 @@ public static class TrunkSolid
     }
 
     /// <summary>Pushes every agent near <paramref name="trunk"/> out of it. Server side.</summary>
+    /// <remarks>Found through the game's entity partitioning (<see cref="EntityPartitioning"/>,
+    /// rebuilt from every loaded entity's position each tick, as the game's own
+    /// <c>repulseagents</c> finds what it pushes), not <c>GetEntitiesAround</c>: that walks the
+    /// chunks' entity lists, which the server moves an entity between only once a second, so an
+    /// agent that had just teleported (or walked) in from another chunk went unseen, and stood in
+    /// the trunk, for up to a second (#843). <see cref="PushOut"/> tests the range itself.</remarks>
     public static void PushAll(EntityTrunk trunk)
     {
-        float reach = TrunkBoxes.Radius(trunk.TypeClass) + 2;
-        foreach (var e in trunk.World.GetEntitiesAround(trunk.Pos.XYZ, reach, 4, e => e is EntityAgent && e != trunk))
+        // wide enough for PushOut's own reach: Radius + 2 across, 4 up or down
+        double reach = TrunkBoxes.Radius(trunk.TypeClass) + 4;
+        trunk.Api.ModLoader.GetModSystem<EntityPartitioning>().WalkEntityPartitions(trunk.Pos.XYZ, reach, e =>
+        {
             PushOut(trunk, e);
+            return true;
+        });
     }
 
     /// <summary>The local player's push, every frame right after the game's player physics

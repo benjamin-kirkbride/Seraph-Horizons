@@ -79,13 +79,16 @@ The eidolon's model (`assets/seraphhorizons/shapes/entity/eidolon/eidolon.json`)
 own mobile eidolon by Anego Studios, the game's `shapes/entity/lore/eidolon/normal.json` (game
 1.22.7), copied into this mod as a snapshot by `Eidolon/tools/make_shape.py`. Its elements and their
 geometry, and the vanilla animations the file keeps (`stand-*`, `weapon-*`, `toppleover`), are that
-model's, unchanged. Its textures are not copied: the shape points at the game's own files, one of
-them swapped for another of the game's (rusty iron for tarnished brass). Its spine (`spine1` and
+model's, unchanged. Its textures are not copied: the shape points at the game's own files, its
+texture codes renamed for the layers of material the body is built in (and six elements recoded to
+another layer, their geometry unchanged), the aged textures swapped for others of the game's, the same
+materials new (steel plate for rusty iron and steel, oak for charred wood, plain leather, steel chain),
+which each eidolon's own layers replace. Its spine (`spine1` and
 everything under it) is cut off the eidolon unchanged and drawn as part of the gantry (below); its
 copy, `EidolonGantry/spine.json`, is that model's too. Added for this mod: the three
 anchor elements (`carry-anchor`, `trunk-anchor`, `thick-trunk-anchor`), the `RightHand`, `LeftHand`,
 `Carry`, `Trunk` and `ThickTrunk` attachment points and the laborer's animations (`fell`, `carry-*`, `lift`, `setdown`, `trunk-*`,
-`guard-idle`, `hung`, `activate`, `slump`, `standup`).
+`guard-idle`, `hung`, `activate`, `dock`, `slump`, `standup`, `strike-*`).
 
 The model belongs to Anego Studios and is not covered by this repository's Apache License; it is
 used here as part of a mod for their game. The additions are covered by the repository's license.
@@ -95,3 +98,16 @@ mod, and is covered by the repository's license, except for the body hung in it:
 `b_<stage>_<name>` are a copy of the eidolon's elements above, and those named `sp_<name>` the
 eidolon's spine, which this mod draws as part of the gantry (Anego Studios' model, both), posed in the
 `hung` animation by `EidolonGantry/tools/make_shape.py`, and are that model's as above.
+
+The stainless steel chain textures (`assets/seraphhorizons/textures/block/metal/armor-generic/chain-stainlesssteel.png`
+and `assets/game/textures/entity/humanoid/serapharmor/chain/stainlesssteel.png`) are the game's steel
+chain textures by Anego Studios (`block/metal/armor-generic/chain-steel.png` and
+`entity/humanoid/serapharmor/chain/steel.png`, game 1.22.7), lightened and desaturated by
+`Eidolon/tools/make_stainless_chain.py`, and are those textures' as above.
+
+The eidolon command tool's model (`assets/seraphhorizons/shapes/item/eidoloncommander.json`) was made
+for this mod and is covered by the repository's license, except for the two Jonas parts on it: the
+elements named `cylinder-<name>` and `connector-<name>` are the game's Jonas cylinder and connector
+by Anego Studios (`shapes/item/jonas/parts/cylinder01.json` and `connector01.json`, game 1.22.7),
+copied unchanged but moved into place by `Eidolon/tools/make_commander.py`, and are that model's as
+above. Its textures are the game's own files.

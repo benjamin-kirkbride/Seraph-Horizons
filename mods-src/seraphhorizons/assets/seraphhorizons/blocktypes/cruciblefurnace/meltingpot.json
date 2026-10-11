@@ -1,6 +1,6 @@
 // The fireclay melting pot of the crucible furnace (StainlessSteel, CrucibleFurnace/, README "Crucible
 // furnace"): clay-formed raw, fired in a pit kiln (ground stored) or a beehive kiln like the game's
-// crucible; a fired pot goes into a melting hole, holds 200 units and lasts three heats. Pulled full of
+// crucible; a fired pot goes into the crucible furnace (two to its hole), holds 300 units and lasts three heats. Pulled full of
 // molten metal it is meltingpot-smelted, on the game's smelted crucible class (it pours into any mold),
 // and emptied it is a fired pot again.
 {

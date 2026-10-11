@@ -15,7 +15,7 @@ namespace SeraphHorizons.Mod.Trading.Maps;
 /// <summary>
 /// The waypoints ore maps, gravel maps and leads put on a player's map, and the trader camps
 /// marked when their trader is met (server side; the rule is <see cref="MapMarks"/>). Every marker
-/// the mod makes carries its precision in its title ("Copper deposit (precision 2, ±150 m)",
+/// the mod makes carries its precision in its title ("Copper deposit (±50 m)",
 /// "Trader camp (cook) (approximate, ±64 m)", "… (exact)") and is remembered by its guid with its
 /// target and precision (<see cref="Book"/>, saved under <see cref="SaveKey"/>), so a map whose
 /// target is marked already is refused at the trader, a better map replaces a rougher marker, and
@@ -146,12 +146,33 @@ public class MapMarksSystem : ModSystem
 
     // ---- Titles ----
 
-    /// <summary>A marker's title with its precision: "… (exact)", "… (precision 2, ±150 m)", or for a
-    /// lead "… (approximate, ±64 m)".</summary>
-    public static string Title(string lang, string name, int precision, bool lead = false) =>
+    /// <summary>A marker's title with how far off it may be: "… (exact)" when <paramref name="reach"/>
+    /// is 0, "… (±50 m)", or for a lead "… (approximate, ±64 m)".</summary>
+    public static string Title(string lang, string name, int reach = 0, bool lead = false) =>
         lead ? Lang.GetL(lang, "seraphhorizons:map-waypoint-lead", name, MapMarks.LeadReach)
-        : precision >= MapMarks.Exact ? Lang.GetL(lang, "seraphhorizons:map-waypoint-exact", name)
-        : Lang.GetL(lang, "seraphhorizons:map-waypoint-precision", name, precision, MapMarks.ReachOf(precision));
+        : reach == 0 ? Lang.GetL(lang, "seraphhorizons:map-waypoint-exact", name)
+        : Lang.GetL(lang, "seraphhorizons:map-waypoint-precision", name, reach);
+
+    /// <summary>How far a map's target is, in <paramref name="lang"/> (<see cref="MapDistance"/>):
+    /// "about 3 km", "under a km".</summary>
+    public static string DistanceText(string lang, double blocks)
+    {
+        var (key, args) = MapDistance.Of(blocks);
+        return Lang.GetL(lang, "seraphhorizons:" + key, args);
+    }
+
+    /// <summary>The flat distance from <paramref name="from"/> to the block column (x, z).</summary>
+    public static double FlatDistance(Vec3d from, double x, double z) =>
+        Math.Sqrt((x - from.X) * (x - from.X) + (z - from.Z) * (z - from.Z));
+
+    /// <summary>A map item's tooltip line, "Distance from here: about 3 km.", from the player holding
+    /// it on the client to (x, z); nothing where no player is known (the server, a thumbnail).</summary>
+    public static void AppendDistance(IWorldAccessor world, double x, double z, System.Text.StringBuilder dsc)
+    {
+        if (world.Side != EnumAppSide.Client || (world as Vintagestory.API.Client.IClientWorldAccessor)?.Player?.Entity?.Pos is not { } pos) return;
+        string lang = Lang.CurrentLocale;
+        dsc.AppendLine(Lang.GetL(lang, "seraphhorizons:oremap-info-distance", DistanceText(lang, FlatDistance(pos.XYZ, x, z))));
+    }
 
     // ---- What a stack points at ----
 

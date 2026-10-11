@@ -12,7 +12,6 @@
 	],
 	"powerCell": [-1, 0, 0],
 	"powerFace": "west",
-	"infeedSide": "north",
 	"outputSide": "south",
 	"output": {"pos": [0.8125, 0.1562, 1.8125]},
 	"chips": {"pos": [0.2437, 1.55, 0.9844]},

@@ -112,6 +112,16 @@ public static class Oil
     /// </summary>
     public static double Pour(IWorldAccessor world, IPlayer player, OilState state, MachineOilConfig config, OilCodes liquids, BlockPos at)
     {
+        var tank = state.Tank;
+        double poured = Pour(world, player, ref tank, config, liquids, at);
+        state.Tank = tank;
+        return poured;
+    }
+
+    /// <summary><see cref="Pour(IWorldAccessor, IPlayer, OilState, MachineOilConfig, OilCodes, BlockPos)"/>
+    /// into a bare <paramref name="tank"/> (the eidolon's reservoir).</summary>
+    public static double Pour(IWorldAccessor world, IPlayer player, ref OilTank tank, MachineOilConfig config, OilCodes liquids, BlockPos at)
+    {
         var slot = player.InventoryManager.ActiveHotbarSlot;
         var held = slot?.Itemstack;
         if (slot == null || held == null)
@@ -123,9 +133,9 @@ public static class Oil
                 var source = (ILiquidSource)held.Collectible;
                 var content = source.GetContent(held)!;
                 double per = OilTank.PointsPerItem(BlockLiquidContainerBase.GetContainableProps(content)?.ItemsPerLitre ?? 0);
-                int fit = state.Tank.ItemsThatFit(per, content.StackSize);
+                int fit = tank.ItemsThatFit(per, content.StackSize);
                 if (fit <= 0)
-                    return Full(player, state);
+                    return Full(player, tank.Capacity);
                 int taken;
                 if (held.StackSize > 1 && source is BlockLiquidContainerBase container)
                     taken = container.SplitStackAndPerformAction(player.Entity, slot, one => container.TryTakeContent(one, fit)?.StackSize ?? 0);
@@ -134,7 +144,7 @@ public static class Oil
                 slot.MarkDirty();
                 if (taken <= 0)
                     return 0;
-                state.Tank = state.Tank.Fill(taken * per);
+                tank = tank.Fill(taken * per);
                 if (source is BlockLiquidContainerBase effects)
                     effects.DoLiquidMovedEffects(player, content, taken, BlockLiquidContainerBase.EnumLiquidDirection.Pour);
                 return taken * per;
@@ -142,12 +152,12 @@ public static class Oil
             case OilKind.Lump:
             {
                 double per = config.LumpLitres(held.Collectible.Code.ToString()) * OilTank.PointsPerLitre;
-                int fit = state.Tank.ItemsThatFit(per, held.StackSize);
+                int fit = tank.ItemsThatFit(per, held.StackSize);
                 if (fit <= 0)
-                    return Full(player, state);
+                    return Full(player, tank.Capacity);
                 slot.TakeOut(fit);
                 slot.MarkDirty();
-                state.Tank = state.Tank.Fill(fit * per);
+                tank = tank.Fill(fit * per);
                 world.PlaySoundAt(LumpSound, at.X + 0.5, at.Y + 0.5, at.Z + 0.5, player);
                 return fit * per;
             }
@@ -156,10 +166,10 @@ public static class Oil
         }
     }
 
-    private static double Full(IPlayer player, OilState state)
+    private static double Full(IPlayer player, double capacity)
     {
         if (player is IServerPlayer sp)
-            sp.SendIngameError("machineoil-full", Lang.GetL(sp.LanguageCode, Domain + ":machineoil-error-full", Shown(state.Tank.Capacity)));
+            sp.SendIngameError("machineoil-full", Lang.GetL(sp.LanguageCode, Domain + ":machineoil-error-full", Shown(capacity)));
         return 0;
     }
 

@@ -1,6 +1,7 @@
 // Types for schema/recipe-export.schema.json (schemaVersion 1). The schema is the
 // contract; these mirror it and are only as strict as the app needs.
 
+import type { EidolonExport } from "./eidolon-fittings.ts";
 import type { PowerData } from "./power-data.ts";
 
 export type Kind = "item" | "block";
@@ -26,6 +27,25 @@ export interface Stack {
   name?: string;
 }
 
+/** The game's ground storage layouts, lower case. */
+export type GroundStorageLayout = "singlecenter" | "halves" | "wallhalves" | "quadrants" | "messy12" | "stacking";
+
+export interface GroundStorage {
+  layout: GroundStorageLayout;
+  /** Items one block holds. */
+  capacity: number;
+  /** Items per click and per Ctrl click: messy12 and stacking only. */
+  transfer?: number;
+  bulkTransfer?: number;
+  /** Ctrl must be held as well to put it down. */
+  requiresCtrl?: true;
+  /** A full pile can be built on. */
+  solidTop?: true;
+  maxPilesHigh?: number;
+  /** A full pile's height in blocks. */
+  fullHeight?: number;
+}
+
 export interface ItemAttributes {
   maxStackSize?: number;
   durability?: number;
@@ -47,6 +67,8 @@ export interface ItemAttributes {
     output?: Stack;
   };
   storageFlags?: string[];
+  /** Putting the item down on the ground (the game's GroundStorable behavior). */
+  groundStorage?: GroundStorage;
   extra?: Record<string, unknown>;
 }
 
@@ -280,6 +302,8 @@ export interface RecipeExport {
   variantGroups?: Record<string, VariantGroup>;
   /** Mechanical power producers, consumers and the wind (power-data.ts). Absent in older exports. */
   power?: PowerData;
+  /** The eidolon's fittings, for its fitting sheet (eidolon-fittings.ts). Absent in older exports. */
+  eidolon?: EidolonExport;
   /** Structures built block by block (docs/recipe-browser/multiblocks.md); absent from older exports. */
   multiblocks?: Multiblocks;
   extra?: Record<string, unknown>;

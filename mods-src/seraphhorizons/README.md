@@ -11,8 +11,9 @@ and the rosser, which strips their branches and bark first; the gears (#484): ru
 into stainless gears through the pot, the pickling tub and the barrel (`GearReclamation`), every machine
 recipe taking the stainless gear (`GearConsumers`), steel bits back into steel (`SteelBitsRecovery`),
 stainless gear blanks (`GearBlanks`) and the gear cutter that cuts them into stainless gears
-(`GearCutter`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
-bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+(`GearCutter`); the cylinder borer, which bores the cast cylinder of Pipes and Power Expanded's steam engines
+(`CylinderBorer`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
+bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -30,7 +31,7 @@ that has it (a server with the steam source switched off, or without ppex, has n
 Unified woodworking runs on both sides too (the server does the work, the client draws the
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
-sawmill's, the rosser's, the gear cutter's, the draw bench's, the press brake's and the squaring shear's blocks: the server runs the machines, the client draws
+sawmill's, the rosser's, the gear cutter's, the draw bench's, the cylinder borer's, the press brake's and the squaring shear's blocks: the server runs the machines, the client draws
 their moving parts. Machine oil runs on both sides too: the server pours, drains and loads the
 shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
 the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
@@ -338,8 +339,8 @@ System.ArgumentException: Given pos contained NaN: XYZ: 511823.82/114/512083.63,
 ```
 
 The position is finite and the player's `Pos.Motion` is NaN: `EntityBehaviorControlledPhysics.ApplyTests`
-checks both before anything else, and throws (the frame shown is `SimPhysics` because gondolacablecar's
-finalizer on it rethrows, which restarts the trace there). It has happened standing still and AFK, and
+checks both before anything else, and throws (the frame shown is `SimPhysics` because Gondola Cable Car,
+in the pack then, had a finalizer on it that rethrows, which restarts the trace there). It has happened standing still and AFK, and
 nobody has reproduced it. This finds what made the motion NaN and leaves the crash as it is: nothing is
 repaired, dropped or caught.
 
@@ -358,8 +359,8 @@ player's motion, not its own entity's, because another entity's behavior can pus
   `SetState`, `MotionAndCollision`, `ApplyTests`, `AfterPhysicsTick` (the traversed blocks'
   `OnEntityInside`) and `CollisionTester.ApplyTerrainCollision`; and `SimPhysics` with a checkpoint
   before every mod's prefix and one after them all, so a NaN made in the physics step, one that arrives
-  from outside and one a mod's patch on `SimPhysics` makes (gondolacablecar's prefix moves the player)
-  are told apart;
+  from outside and one a mod's patch on `SimPhysics` makes (a prefix there can move the player, as
+  Gondola Cable Car's did while it was in the pack) are told apart;
 - everything else on the client's main thread that runs mods' code: tick listeners
   (`GameTickListener.OnTriggered`, naming the handler), each renderer (a transpiler on
   `ClientEventManager.TriggerRenderStage` calls each `OnRenderFrame` through a traced wrapper), queued
@@ -1097,7 +1098,7 @@ creative only:
 
 - the rosser (`Rosser/README.md`, "Creative shortcut"), one stage per click on an incomplete
   rosser: the crankshaft, the ring's four gear sections, the hoops, each set of feed-roll rods, the
-  breaker plates, the levers and four steel bark spud heads. It is the rosser's own interaction too,
+  breaker plates, the levers, four copper straight pipes and four steel bark spud heads. It is the rosser's own interaction too,
   and runs while this tweak does; on the complete rosser Ctrl takes the trunk or the unused heads
   back, as in survival.
 
@@ -1300,17 +1301,19 @@ on the ring, tipped with bark spud heads, strip its bark, which falls as Immersi
 for the trunk's wood, log by log; and the trunk comes out debarked. Its frame is crafted from four
 Immersive Woodworking sawmill frames, thirty-two support beams, thirty-two nails and strips and two
 copper chute sections, placed as a sixteen by five by four multiblock (long, wide, high), and fitted in the world with existing items only: a sawmill
-crankshaft, four large gear sections, two hoops, four rods, two metal plates, sawmill feed levers and
-four bark spud heads of one metal, which are its wearing part and last four times their metal's bark
-spud. The axle connects on a side face beside the ring and may turn either way. A trunk goes on by
+crankshaft, four large gear sections, two hoops, four rods, two metal plates, sawmill feed levers,
+four straight Pipes and Power Expanded pipes of one metal, copper or lead (`UnifiedPipes`' metals),
+which are the drip's water line and are drawn as those pipes are, soldered, in their metal, and four bark spud heads
+of one metal, which are its wearing part and last four times their metal's bark spud (without ppex's
+copper and lead pipes, the pipes are left out of the build). The axle connects on a side face beside the ring and may turn either way. A trunk goes on by
 hand or from a Trunk Storage Rack at the far end; its weight on a treadle starts a geared feed, at
 one speed for every thin trunk and a slower one for every thick trunk (about 68 and 169 shaft turns with
 copper heads; better heads feed faster by their tool tier, as the mill's blade kit cuts). The
 debarked trunk waits on the outfeed bed until a hand takes it, a rack at the near end with room takes
 it, or a bucking mill placed in line takes it at the top of its saws' cycle; it leaves this way even
 when it was the trunk that wore the heads out (only a new trunk needs heads). A Pipes and Power
-Expanded water pipe on its other side fills a drip, and wet logs give more bark, and more often the
-special kinds. In creative, Ctrl + right click fits the next stage, as on the woodworking stations.
+Expanded water pipe on its other side, where its own pipes come out, fills a drip, and wet logs give
+more bark, and more often the special kinds. In creative, Ctrl + right click fits the next stage, as on the woodworking stations.
 Its model is generated and checked like the mill's.
 
 `RosserSettings` holds its figures (shaft load, the typical trunks and turns per log and per branch
@@ -1374,8 +1377,9 @@ Logging Expanded, and is not in the creative inventory: the rosser makes it.
 
 The game, Immersive Woodworking (`immersivewoodworking`, 1.3.11) and this mod's two machines. The
 heavy mechanical power machines have an oil tank: the game's helve hammer and pulverizer, Immersive
-Woodworking's plank sawmill and powered chopper, the bucking sawmill, the rosser, the draw bench and the gear
-cutter (whose oil wears its cutter kit instead of loading its shaft: "Gear cutter" below). Nothing else
+Woodworking's plank sawmill and powered chopper, the bucking sawmill, the rosser, the draw bench, the gear
+cutter and the cylinder borer (whose oil wears their cutter kit and cutter head instead of loading their shafts: "Gear
+cutter" and "Cylinder borer" below). Nothing else
 does: the quern, axles, gears and every other transmission part are exempt. A machine is built
 **dry**, and runs dry again when its oil is used up. Dry, its load on its shaft is
 `DryResistanceMultiplier` (3) times what it is otherwise; nothing else changes (it wears and works
@@ -1400,7 +1404,7 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
   with work on it, the pulverizer per item crushed, the plank sawmill per log sawn, the chopper per
   log chopped, the bucking sawmill and the rosser per log stored in the trunk, rounded up over
   the trunk (as their blade and head wear are), the gear cutter per gear cut (a large one
-  double), and the draw bench per pipe section drawn.
+  double), the draw bench per pipe section drawn, and the cylinder borer per cylinder bored.
 - **Block info:** `Oil: <points> of <tank>` (rounded up, so a tank with any oil never shows 0, and
   an empty one 0, not -0), then the load on its shaft: oiled `Load: 17 kN`, and while dry the load
   now against the load it takes oiled (`Dry: a load of 51 kN on its shaft, 3× the 17 kN it takes
@@ -1426,6 +1430,7 @@ as before). Any oil at all is not dry. While dry and turning, it puffs dark smok
 | `Rosser` | tank 1000, 2 a stored log | |
 | `GearCutter` | tank 1000, 10 a gear | A large gear drains double; never a dry load ("Gear cutter") |
 | `DrawBench` | tank 1000, 2 a pipe section | Four pipe sections a hollow, 8 points ("Draw bench") |
+| `CylinderBorer` | tank 1000, 10 a cylinder | Either metal; never a dry load ("Cylinder borer") |
 
 Each machine's entry is `{ "Tank": points, "DrainPerJob": points }`; a value out of range falls back
 to its default with a warning.
@@ -1691,8 +1696,8 @@ number, and Pipes and Power Expanded's anvil gears go, so no hand-forged shortcu
 | Butchering | temporal butcher box (16; it ships switched off) |
 
 The pack's own machines pay the same way, in their own recipes rather than a patch (so whatever this
-switch says): the draw bench frame 2, for the gearing it carries ("Draw bench"), and the gear cutter
-frame 3 ("Gear cutter"). The first stainless gears come from reclamation, so neither waits on the cutter.
+switch says): the draw bench frame 2, for the gearing it carries ("Draw bench"), the cylinder borer
+frame 2, for its pinion and drive ("Cylinder borer"), and the gear cutter frame 3 ("Gear cutter"). The first stainless gears come from reclamation, so no frame waits on the cutter. The cylinder borer's boring bar does: its great wheel is a large stainless gear, which is only cut new.
 
 ppex and smex give each machine two recipes, one taking the rusty gear and one ppex's gears
 (`ppex:gear-*`); the first takes the stainless gear and the second is switched off. ppex's anvil gears
@@ -1884,15 +1889,14 @@ which drops the frame, every fitted item by code, the kit with its durability an
 keeps every fitted code and the kit's durability.
 
 **Work.** Complete is every stage in, the kit with durability left. A blank goes on the arbor by
-right-click, or from a chest or hopper (any container) against the infeed face (native north, the
-gearbox end, the end nearest the placed block), one at a time while the shaft turns. The master
+right-click, one at a time; the cutter never takes from or puts into a chest or other container
+beside it. The master
 decides the size: the temporal gear takes `seraphhorizons:gearblank-stainlesssteel` and cuts
 `seraphhorizons:gear-stainless`, the large temporal gear takes `seraphhorizons:largegearblank-stainlesssteel` and
 cuts `seraphhorizons:largegear-stainless`; the other size is refused with a message. The cut needs the
 shaft at `MinSpeed` and advances by its angle as the mill's saws do (`ShaftClock.AngleAdvance`), one
 tooth per `TurnsPerTooth` turns: 144 turns a small gear and 240 a large one at 12. The finished gear
-goes into a container against the output face (native south, the cell beyond `output.pos`), else
-drops just outside that face, and the next blank comes in. W, the rig's `work`, is the teeth cut;
+drops just outside the output face (native south, the cell beyond `output.pos`). W, the rig's `work`, is the teeth cut;
 the server syncs it every tenth of a tooth and the renderer runs it on with the shaft between.
 
 **Oil and wear (#481).** The cutter is a MachineOil machine (`MachineOilSettings.GearCutter`: tank
@@ -1921,7 +1925,7 @@ in the tank a spray from the injection valve's nozzle at `drip.pos`.
 | `TurnsPerTooth` | 12 | Axle turns per tooth; the rig's `cut.turnsPerTooth` (a test holds them together) |
 | `CutterWearPerGear` | 10 | Kit durability a small gear costs at a full tank |
 | `Resistance` | 0.2 | The complete cutter's load, as the rosser's |
-| `MinSpeed` | 0.05 | Below it the cutter neither cuts nor takes a blank from its infeed |
+| `MinSpeed` | 0.05 | Below it the cutter does not cut |
 
 With the switch off the server marks the three block types, the five new item types and both
 recipe files disabled before the game loads them, so none of it exists and cutters already placed
@@ -1933,11 +1937,37 @@ are in the machine (`shapes/item/gearcutter/`, generated with the machine's mode
 
 One pipe network for water, steam and exhaust: Pipes and Power Expanded's (`ppex` 0.7.1, on
 ExpandedLib's `exlib` 0.8.4). Its straight, bend, T- and X-junction pipes come in **copper** and
-**lead** as well as iron and steel: new states of their `material` variant, on ppex's own models with
+**lead** as well as iron and steel: new states of their `material` variant, textured
 `game:block/metal/sheet-plain/copper4` and `lead4` in place of its `iron4`
-(`patches/unifiedpipes-ppex.json`). Every metal couples with every other (ppex joins pipes by family,
+(`patches/unifiedpipes-ppex.json`), and drawn **soldered** (below). Every metal couples with every other (ppex joins pipes by family,
 not metal), so a run may mix them. ppex's fluid intake, outlet and passthroughs have no metal and are
 left as they are. The display name is ppex's, with the game's metal name: "Piping (Straight) (Copper)".
+The rosser's drip is four straight copper or lead pipes, fitted as a stage of its build and drawn in
+their metal, soldered as these are (`Rosser/README.md`, **Assembly**); without these two metals the
+rosser is built without them.
+
+**Soldered joints.** ppex draws every pipe with an iron band and bolts round each end, right for its
+cast, banded iron and steel; copper and lead pipe is soldered. So its copper and lead pipes are drawn on
+this mod's own models, `shapes/block/pipes/soldered-{straight,bend,tjunction,xjunction}.json`: ppex's
+cross-section (a 6 x 6 tube with 1-voxel walls round a 4 x 4 bore, its block's 5..11, so they meet ppex's
+pipes and fittings flush), no band or bolts, the pipe's cube where arms meet, and at each open end half a
+**joint**: a thin bead of solder round the seam, as a sweated or wiped joint on pipe this size is, one
+ring 0.75 voxels long and 0.2 proud (`JOINT_LENGTH`, `JOINT_SWELL`), so two pipes end to end make one
+bead 1.5 long over the face between them. The
+solder is the game's lead solder (`game:block/metal/ingot/leadsolder`); the pipe keeps ppex's texture
+code (`iron4`), so the patch's copper4 and lead4 land on it. Iron and steel keep ppex's own model, band
+and bolts. `patches/unifiedpipes-solderedjoints.json` replaces each pipe's `shapebytype` with ppex's own
+table, a copper and a lead entry before each of its entries with that entry's rotations: the game takes
+the first key that matches a block's code (`RegistryObjectType.solveByType`), and a key added by a patch
+goes last, so the whole table is replaced. The shapes and the patch are written by
+`Pipes/tools/make_pipe_shapes.py` from ppex's zip, the geometry by `Pipes/tools/solderedpipe.py`, which
+the rosser's generator builds its drip pipes with too; the generator checks the tube against ppex's
+section and its own boxes for overlaps and z-fighting faces. Before the patch loader runs, the server
+checks each of ppex's four tables against the patch (`Pipes/Core/SolderedJoints.cs`: the patch's table,
+less the copper and lead entries, must be ppex's, key for key in order); if ppex has changed one, one
+warning (`Unified pipes: Pipes and Power Expanded changed ...`) and that patch alone is emptied, so copper
+and lead pipes keep ppex's banded model and the rest goes ahead. `tools/tests/test_soldered_pipes.py`
+holds the shapes to the generator and the patch to ppex's zip.
 
 **Valves are bronze.** ppex's valve and pressure valve get tin, bismuth and black bronze states
 (`sheet-plain/<bronze>4`); the creative inventory and the handbook list only those. The iron and steel
@@ -2075,7 +2105,7 @@ cost levels may change this mod's pipe recipes, and the rest goes ahead.
 operations do not depend on which is applied first, and `tools/tests/test_unified_pipes.py` holds this
 patch to ppex's zip and to that file.
 
-With the switch off, or without ppex, the three patch files are emptied in `Start`, the angle, the pipe
+With the switch off, or without ppex, the four patch files are emptied in `Start`, the angle, the pipe
 section and this mod's recipes (pipe, soldering the hollow) are marked disabled, and
 nothing is patched: ppex's pipes, the game's chute section and its anvil, chute and plate recipes, and
 Better Ruins' chutes are as they ship, and copper, lead and bronze pipes and valves already placed, and
@@ -2240,19 +2270,19 @@ Ctrl + right-click on an incomplete bench fits its next stage with nothing taken
 bench. Every other stage comes back only by breaking the frame, which drops the frame, every fitted
 item, the die with its durability, and a hollow no pipe section has been drawn from yet.
 
-**Work.** A lead or copper hollow section goes on by right-click, or from a chest or hopper in front of
-the die end (native north), one at a time while the shaft turns; an ingot, an angle or a pipe section
+**Work.** A lead or copper hollow section goes on by right-click, one at a time (the bench never takes
+from or puts into a chest or other container beside it); an ingot, an angle or a pipe section
 (what comes off) is never taken.
 **The die decides the metal:** an iron die draws lead only, a steel die lead and copper (`DieMetals`);
 copper on an iron die is refused with a message. The draw needs the shaft at `MinSpeed` and advances W,
 the pipe sections drawn, with its angle: one section per `TurnsPerSectionLead` (1.373) turns for lead, the
 fast gear, and `TurnsPerSectionCopper` (2.746) for copper. Each section is handed out as its draw finishes,
 the jaws open on it (W passing 0.43125, 1.43125, 2.43125 and 3.43125, the rig's `draw.handOut`), not a
-return and a pause later: a pipe section of the metal goes into a container against the output face by
-the die end (native east), else drops just outside it, and the model stops showing it there. At 4, the
+return and a pause later: a pipe section of the metal drops just outside the output face by
+the die end (native east), and the model stops showing it there. At 4, the
 dog back at the die after the fourth stroke, the hollow is used up and the die
 loses `DieWearPerHollow` (1), whatever the oil; a worn-out die is gone (the tool-break sound) and the
-bench stops until a new one goes in. The next hollow comes in from the infeed a moment after.
+bench stops until a new one goes in.
 
 **Oil.** A MachineOil machine (`MachineOilSettings.DrawBench`: tank 1000, 2 points a pipe section, 8 a
 hollow), with the
@@ -2274,13 +2304,117 @@ drips from the oiler with oil in the tank, and the gears' sound.
 | `TurnsPerSectionCopper` | 2.746 | Axle turns per copper pipe section; the rig's `draw.turnsPerSection.thick` |
 | `ResistanceLead` | 0.2 | The complete bench's load, empty or drawing lead |
 | `ResistanceCopper` | 0.35 | Its load drawing copper |
-| `MinSpeed` | 0.05 | Below it the bench neither draws nor takes a hollow from its infeed |
+| `MinSpeed` | 0.05 | Below it the bench does not draw |
 | `DieMetals` | iron: lead; steel: lead, copper | What each die draws (lead and copper only) |
 
 With the switch off the server marks the three block types, the die's item type and both recipe files
 disabled before the game loads them, so none of it exists and benches already placed are lost; the
 machine oil page and the mod's own text no longer name it. The hollow and pipe sections exist either
 way. With `UnifiedPipes` off there is no lead chute section, so the bench draws copper only. Not yet: a schematic for the frame (`MachineSchematics`).
+
+### Cylinder borer (`CylinderBorer`, `CylinderBorerSettings`)
+
+The steam engine's cylinder, bored true (#639): a mechanically powered cylinder boring mill after John
+Wilkinson's of 1774-75, which bores the cast cylinder of Pipes and Power Expanded's engines, the Watt
+engine's in iron and the Cornish engine's in steel, and those engines' recipes then take the bored
+cylinder (`seraphhorizons:cylinder-iron`, `-steel`) in place of their bottom row's two plates and pipes.
+Its model, rig and generator are described in `CylinderBorer/README.md`, which also records the
+gameplay's decisions; this is the gameplay, in `CylinderBorer/` (rules in `CylinderBorer/Core/`, the game
+side in `CylinderBorer/Game/`).
+
+**Blocks.** `seraphhorizons:cylinderborer-frame-{side}` is the controller: the bench end, with the feed's
+drum and weight, the block the player clicks, with the borer running four blocks away from them along
+their line of sight, two high, a ghost in each of the rig's other cells (`cylinderborer-ghost`) and the
+power ghost (`cylinderborer-ghostpower-{side}`) at the far end at ground level, which takes the axle in
+line with the borer (native south). The frame is a grid recipe: two oak logs (placed, upright) and two oak
+planks, two metal plates and two rods of iron, meteoric iron or steel, 12 nails and strips of the same, two
+stainless gears (the entry shaft's pinion and its drive, #473; the great wheel comes with the bar) and a
+hammer.
+
+**Stages.** Fitted by right-click on the frame or any ghost with the item, one at a time, in this order
+only; anything of a later stage is refused with a message naming the next:
+
+| # | Stage (`requires`) | Item | Made |
+|---|---|---|---|
+| 1 | `bushings` | `game:metal-parts` (a block), one, made up into the pair the bar turns in (drawn in cupronickel, as the gear cutter draws metal parts) | Salvage, or the mechanic trader |
+| 2 | `bar` | `seraphhorizons:cylinderborerbar`, the boring bar with its feather, collars and great wheel | Grid: three rods of iron, meteoric iron or steel in a column, metal parts, and a large stainless gear (`seraphhorizons:largegear-stainless`, from the gear cutter) beside the bottom rod for the great wheel (`R_,RM,RG`) |
+| 3 | `feed` | `seraphhorizons:cylinderborerfeed`: the crosshead, control rod, drum, ropes and weight | Grid: two oak planks, a rod and a plate of iron, meteoric iron or steel, two ropes |
+| 4 | `cutterhead` | `seraphhorizons:cylinderborerhead-steel` (8 durability), the wearing part | Smithing, one steel ingot (26 voxels), steel only |
+
+The cutter head's recipe is named `cylinderborerhead`, not `plate`, so the helve hammer does not work it.
+In creative mode Ctrl + right-click on an incomplete borer fits its next stage with nothing taken.
+**Ctrl + right-click** takes the cutter head back, with the durability it has left (taking it out wears it
+no further), then the casting in the cradle, its bore lost. Every other stage comes back only by breaking
+the frame, which drops the frame, every fitted item, the head with its durability, and the casting. The
+bushings had an item of their own (`seraphhorizons:cylinderborerbushings`, one lot of metal parts on the
+grid) until they took metal parts directly; a borer saved with one restores with metal parts in its place.
+
+**The castings.** A cylinder is cast, never forged: clay-form a cylinder mold
+(`seraphhorizons:cylindermold-{color}-raw`, blue, red or fire clay, `recipes/clayforming/cylindermold.json`:
+a box round the casting lying on its side with a core for the bore, about 52 clay), fire it in a pit kiln
+or a beehive kiln as the gear blank molds are fired (`seraphhorizons:cylindermold-{color}-fired`), and fill
+it with 600 units of molten iron or steel, six ingots: it is the game's own `BlockToolMold`
+(`requiredUnits` 600, `fillHeight` 10, `drop` `seraphhorizons:cylinderblank-{metal}`), so Steelmaking
+Expanded's canal pedestal, which takes any small `BlockToolMold`, fills it from the canal, and a crucible
+pours into it as into any tool mold (six ingots' worth in turn). Before the blast furnace, the crucible
+furnace's iron melt fills it: two melting pots of 300 units (two holes fired together), teemed one after
+the other (README "Crucible furnace"). The game's mold takes a second pour whatever the first has cooled to:
+its `CanReceive` asks only for the same metal and room, never whether it has hardened, and the second pour
+sets the whole fill to its own temperature. Only iron and steel have a blank: a
+crucible refuses other metals (the game asks for the drop first), and, as with the gear blank molds, smex's
+pedestal does not check, so a canal of another metal fills it with metal that casts nothing. Filling does not
+break the mold. The mold is coded `cylindermold`, not `toolmold` as the gear blank molds are, so the switch
+registry (which reads a type file's code) gives it to this switch; the game's mold code wants only the
+`materialtype` variant and the attributes.
+
+**Work.** A rough cast iron or steel cylinder (`seraphhorizons:cylinderblank-iron`, `-steel`) goes in the cradle
+by right-click, or from a chest or hopper against the cradle's side (native east: on the left as you look
+along the borer from the bench end), one at a time while the shaft turns; a bored cylinder or an ingot is
+never taken. The bore needs the shaft at `MinSpeed` and advances W, the cutter head's travel through the
+bore, with its angle: one block per `TurnsPerBlockIron` (64) turns for iron and `TurnsPerBlockSteel` (96)
+for the harder steel, the head's whole travel being 18/16 blocks (72 and 108 turns a cylinder). At the end
+the bored cylinder of its metal goes into a container against the output face (native west, the other side
+of the cradle), else drops just outside it, and the next casting comes in from the infeed a moment later,
+once the head has eased back. The casting in the cradle has a collision and selection box (the rig's
+`bore.box`).
+
+**Oil and wear.** A MachineOil machine (`MachineOilSettings.CylinderBorer`: tank 1000, 10 points a cylinder,
+either metal) that, as the gear cutter, never takes a dry load: dry or oiled its load is `Resistance` (0.3).
+The oil spares the cutter head: it loses `HeadWearPerCylinder` (1) a cylinder with a full tank, divided by
+the tank's fill when the cylinder is done (rounded up: twice at half full, ten times at a tenth), and a
+cylinder bored dry takes all it has left, so it breaks on it (the tool-break sound) and the borer stops
+until a new head goes in. 8 points: 8 cylinders on a full tank. It smokes while it cuts dry. The block info
+shows the next stage, the head's durability and the cylinders it has left at this oil, the casting's metal
+and how far it is bored, the oil and the wear, and the speed.
+
+**Drawn.** The block draws `cylinderborer_frame.json`; the renderer splits `cylinderborer.json` into the
+rig's parts and draws each whose stage is fitted, and the casting of the job's metal, with its cast skin and
+chains, only while it is in the cradle (each metal's casting is its own parts, in ppex's iron or steel
+texture). θ is the power ghost's angle about native z; W runs on with the shaft between the server's syncs;
+when a cylinder is done the head, the crosshead and the weight ease back over 0.4 s. While it cuts: chips at
+the bore's mouth, oil drips from the far bushing's cup with oil in the tank, and the gears' sound.
+
+**The engines.** `patches/cylinderborer-ppex.json` gives Pipes and Power Expanded's engines (`recipes/grid/
+machines.json`) the bored cylinder: the Watt engine `GH_,PRP,PIP` (its iron or steel plates and rods, one
+pipe) becomes `GH_,PRP,_C_`, C one `seraphhorizons:cylinder-iron`; the Cornish engine `GHR,PNP,PIP` (steel
+plates, rods, nails and strips, two steel pipes) becomes `GHR,PNP,_C_`, C one `seraphhorizons:cylinder-steel`.
+Both recipes of each pair are patched, the rusty gear's (/4, /5) and ppex's gears' (/9, /10), so it holds
+whatever `GearConsumers`, which changes their gears and switches the second pair off, says;
+`tools/tests/test_cylinderborer_engines.py` holds the patch to ppex's recipes and to that patch.
+
+| Setting | Default | |
+|---|---|---|
+| `TurnsPerBlockIron` | 64 | Axle turns per block of the head's travel through iron; the rig's `bore.turnsPerBlock.thin` (a test holds them together) |
+| `TurnsPerBlockSteel` | 96 | The same through steel; the rig's `bore.turnsPerBlock.thick` |
+| `HeadWearPerCylinder` | 1 | Cutter head durability a cylinder costs with a full tank, divided by the tank's fill |
+| `Resistance` | 0.3 | The complete borer's load, oiled or dry |
+| `MinSpeed` | 0.05 | Below it the borer neither bores nor takes a casting from its infeed |
+
+With the switch off the server marks the three block types, the parts', the castings' and the cylinders'
+item types, the two mold block types and the grid, smithing and clay forming recipe files disabled before
+the game loads them, and empties the engines' patch, so none of it exists, borers already placed are lost,
+and ppex's engines take their plates and pipes again; the machine oil page and the mod's own text no longer
+name it. Not yet: a schematic for the frame (`MachineSchematics`).
 
 ### Squaring shear (`SquaringShear`, `SquaringShearSettings`)
 
@@ -2322,11 +2456,9 @@ the cut runs only while someone holds. The treadle clock makes a stroke a second
 cut cycle W (0..1) advances by its strokes over the plate's `StrokesPerPlateLead` (1) or
 `StrokesPerPlateCopper` (1.5): about a second of work for lead, a second and a half for copper. The
 hold-down clamps the plate, the treadle brings the blade down through it (the cut is heard at the
-bottom of the stroke), and at W = 1 the plate is used up and two half plates of its metal go into a
-container against the output face (native north, in front of the table end), else drop just outside
-it. Worked with nothing on the table, the shear takes the next plate from a chest or hopper beyond its
-far end (native south), so a player can hold from one plate to the next; it never takes a plate by
-itself. The block info shows the next stage and the plate on, how far cut.
+bottom of the stroke), and at W = 1 the plate is used up and two half plates of its metal drop just
+outside the output face (native north, in front of the table end). Plates go on by hand only: the
+shear never takes from or puts into a chest or other container beside it. The block info shows the next stage and the plate on, how far cut.
 
 **Drawn.** The block draws `squaringshear_frame.json`; the renderer splits `squaringshear.json` into the
 rig's parts and draws each whose stage is fitted (the blades, the gauge and the hold-down in their
@@ -2389,10 +2521,8 @@ the fold cycle W (0..1) advances by its turns over the half plate's `LeverTurnsP
 `LeverTurnsPerPlateCopper` (2.25): about a second and a half of work for lead, two and a quarter for
 copper. The bar clamps the half on the bed and the leaf folds the other half up; the bend is heard at
 the leaf's one fold; at W = 1 the half plate is used up and one angle of its metal (two 4-wide legs, 4
-long) goes into a container against the output face (native north, in front of the leaf end), else drop
-just outside it. Worked with nothing on the bed, the brake takes the next half plate from a chest or
-hopper beyond its far end (native south), so a player can hold from one to the next; it never takes one
-by itself. The block info shows the next stage and the half plate on, how far folded.
+long) drops just outside the output face (native north, in front of the leaf end). Half plates go on
+by hand only: the brake never takes from or puts into a chest or other container beside it. The block info shows the next stage and the half plate on, how far folded.
 
 **Drawn.** The block draws `pressbrake_frame.json`; the renderer splits `pressbrake.json` into the
 rig's parts and draws each whose stage is fitted (the edges in their plate's metal, the screws always cupronickel) and the sheet of
@@ -2444,9 +2574,8 @@ tier over `BaseHammerTier` (2, the copper hammer's), over the hollow's `BlowsPer
 `BlowsPerHollowCopper` (14), at most half a hollow a blow; a hammer with no tier counts as the base. With
 the game's tiers (copper, gold, silver 2; bronzes 3; iron, meteoric iron 4; steel 5) lead takes 9, 6, 5
 and 4 blows and copper 14, 10, 7 and 6. When W reaches 1 the hollow is used up
-and two pipe sections of its metal go into a container beyond the tip (native south), else drop just
-past it. A blow on a bare mandrel takes the next hollow from a chest or hopper beside the station (native
-west), so a player can keep striking; it never takes one by itself. Without one there, right-click held
+and two pipe sections of its metal drop just past the tip (native south). The station never takes
+from or puts into a chest or other container beside it. Right-click held
 with the hammer as a hollow is finished puts the next of the same item on from the player's hotbar (not
 the backpack, and not one of the other metal), once a blow would be struck, so the hammering carries on. The block info shows what the
 station needs and the hollow on, its blows struck and how far it is forged.
@@ -2464,8 +2593,8 @@ mode) winds it, as the press brake's lever is worked: a turn a second, `TurnsPer
 It winds only while the rod is at working temperature: the rod keeps its stack on the station and cools
 there as any stack does, and below working heat the winding stops (the winder is told once). **Ctrl +
 right-click** takes the rod back at any time, straight (the winding so far is lost, the metal is not),
-as hot as it is, to reheat on the forge. At the end the rod is used up and one spring goes into a
-container beyond the tip, or drops past it, at the rod's temperature (the game then cools it and draws
+as hot as it is, to reheat on the forge. At the end the rod is used up and one spring drops past the
+tip at the rod's temperature (the game then cools it and draws
 it glowing); the winder's tongs pay `TongsWearPerRod`. Breaking the station gives back a rod not yet
 wound; a part-wound one is lost. A save keeps the rod's stack, its heat and the winding. The spring
 melts back into a steel ingot, as the rod does. With `MandrelSprings` off (or `MandrelStation`) the
@@ -2507,47 +2636,805 @@ flat on the coals, turned 30°. A forgeable item goes on one at a time (the forg
 plates), and comes off with a right-click, hot, as an ingot does. No code runs; with the switch off the
 patch file is emptied before the patch loader reads it, and rods are as the game ships them.
 
+### Eidolon (`Eidolon`, `EidolonSettings`)
+
+The player-built eidolon (#668): a laborer automaton built in a wooden gantry from Jonas parts, steel,
+stainless gears and the Resonance Archives' eidolon's elucidatory vessel. One switch covers all of it.
+Its models are described in `EidolonGantry/README.md` and `Eidolon/README.md`.
+
+**The gantry** (#671, `EidolonGantry/`: rules in `EidolonGantry/Core/`, the game side in
+`EidolonGantry/Game/`). `seraphhorizons:eidolongantry-{wood}-{side}`, a wood-typed block (the game's
+`block/wood` woods; its timbers drawn in that wood), is the controller, the foot of the front right post
+of a frame 6 deep, 5 wide and 5.5 high, plus a ghost (`eidolongantryghost`) in each of the rig's other
+180 cells. 88 of them are hollow, with no boxes (the space the body hangs in and walks out of, and the
+crank's cell outside the box, south of the back left post, a block up), so nothing can be built there. It
+is placed with its open front towards the player, its middle on the block they click. The frame is a
+grid recipe: 24 `game:supportbeam-{wood}` of one wood (two slots of 12), 16 nails and strips of iron,
+meteoric iron or steel, a hammer and a saw; the eidolon schematic's gate (`config/schematic-gates.json`,
+machine `eidolon`) adds the schematic, kept. The gantry takes the beams' wood.
+
+Then nine stages are fitted by right-click on any of its cells, in order, each taking its whole count
+from the held stack in one click (fewer is refused, as is a later stage's item, and nothing is taken):
+8 `game:woodenaxle-ud`, a `game:rod-{metal}` (the crank shaft), 4 `game:spurgear-s`, 10
+`game:plank-{wood}`, 10 `game:metalnailsandstrips-{metal}`, a `game:metalplate-{metal}` (the ratchet and
+pawl), a `game:rod-{metal}` (the crank), 4 `game:metalchain-{metal}` and 3 `game:supportbeam-{wood}` (the
+spine), `{metal}` iron, meteoric iron or steel. The drum's planks and the spine's beams must be of the
+gantry's own wood (the epic's decision; the model's README allowed any). Nothing comes back but by
+breaking the gantry, which drops the frame and every item that went in. In creative mode Ctrl +
+right-click fits the next stage with nothing taken (a body layer whose material is not yet chosen in any
+allowed material at random: wood, metal, leather or cloth and colour), and the creative inventory has an assembled oak
+gantry (the stack attribute `assembled`) that places with the winch and spine fitted. The block info
+names the next stage and what it takes.
+
+**Drawn.** The block draws `eidolongantry_frame.json`; the renderer splits `eidolongantry.json` by the
+rig's parts (one mesh set per wood, shared) and draws each winch stage once fitted, posed by the winch's
+depth (`BEEidolonGantry.WinchDepth`, 0 hung, 1 let down: the crank, layshaft, drum and sheave turn, the
+pawl is thrown off, the chain pays out and the spine comes down; nothing drives it yet). The body's
+baked stages (`torso` to `mind`) are drawn only when a gantry extension says so.
+
+**Extending it** (the body stages, #672): a block entity behavior on the gantry's controller that
+implements `IEidolonGantryExtension` is asked, after the winch, for every click the winch does not take
+(`OnGantryInteract`), for the creative shortcut once the winch is complete (`CreativeFitNext`,
+`Complete`), whether a body stage's rig parts are drawn (`Shows`), what breaking returns (`Drops`) and its
+help lines (`Help`); it saves its own state and writes its own block info as a behavior does.
+
+**The body and waking it** (#672 and the fittings, `EidolonGantry/Game/BEBehaviorEidolonBody.cs`, the
+gantry's one extension; rules in `EidolonGantry/Core/BodyParts.cs` over `Eidolon/Core/EidolonFittings.cs`).
+Once the spine hangs, the body is built on it in seven stages, in order: the torso, the five layers of
+material (bones; joints, bars and clamps; plates; sash and fauld; chain skirt) and the mind (`BodyBill`,
+whose layers are `EidolonFittings.Bill`, counts `FittingCounts`; the stages file
+`config/eidolon-stages.json` lists the same with the default build's materials as {tokens}, each layer's
+count scaled to the model, `Eidolon/README.md` "Build stages", and a test holds the three together). Each
+stage is finished before the next takes anything; within a stage any order, and each right-click fits
+what the held stack can give toward one item the stage still needs (all of it, up to what is missing). A
+later stage's item is refused as out of order, one the stage has all of as already in, and nothing is
+taken. Rods, plates, nails and chain go to the body once the winch is done (before, they are winch parts).
+
+**A layer is of one material, the builder's choice**: the first piece of material fitted fixes it
+(`BodyParts.Material`, read from what is in, not stored), and a piece of another material, or of one the
+layer does not take (a copper plate, a rotten beam), is refused with the reason ("This layer, the plates,
+is of brass"). The Jonas parts go in whatever the material and do not fix it. The block info shows each
+finished layer with its material, and an open layer's material once chosen; the help shows every
+material's item until one is.
+
+| Stage | Takes |
+|---|---|
+| Torso | The eidolon torso (`seraphhorizons:eidolontorso`), used on the gantry: crafted on the grid from the Jonas pump head, tank 1 and tank 2, 4 metal parts and 3 stainless gears (`recipes/grid/eidolontorso.json`, `EidolonFittings.TorsoRecipe`; the eidolon schematic's gate adds the schematic, kept) |
+| Bones | 30 support beams of one wood, any but rotten and very rotten; Jonas gearbox 1 and 2, oscillator, cylinder 2, connector, and the Eidolon elucidatory vessel (`game:rustypart-eidolon2tr`, its brain) |
+| Joints, bars and clamps | 4 rods and 20 nails and strips of one of iron, steel and stainless steel; 2 Jonas joints (the knees), 2 Jonas springs, Jonas gears 1 and 2, cylinder 1, valve; 9 stainless gears, 12 metal parts |
+| Plates | 17 plates of one of iron, steel, stainless steel and brass |
+| Sash and fauld | 2 normal leather or 2 cloth, one colour |
+| Chain skirt | 2 chains of one of iron, steel and stainless steel |
+| Mind | A temporal gear, its first charge |
+
+The torso item (`itemtypes/eidolontorso.json`, its shape the torso stage's two lattice blocks,
+`shapes/item/eidolontorso.json`) is one of the gantry's switch-owned assets (`EidolonGantrySystem.TypeAssets`,
+`RecipeAssets`). Each finished stage is drawn on the spine (`Shows`), the layers in their materials: the
+renderer draws the body's rig parts with the body's `EidolonBuild.Textures()` over the block's layer codes
+(one mesh set per set of materials, shared). **A turn of the winch's crank wakes it**: the crank's cell
+(`crankCell`, hollow, nothing to collide with) has a selection box once the crank stage is fitted
+(`BEEidolonGantry.CrankBox`), and a right-click there goes to the extensions' `OnCrank` instead of
+fitting. With nothing on the spine it does nothing; with a body still being built it names the next stage;
+with every stage in, the mind too, `EidolonSystem.Spawn` puts the eidolon at the rig's `body` point,
+facing out of the open front, owned by the player who turned the crank (and so their company), charged
+with the mind's gear, wearing its layers (the `EidolonBuild` written on its watched attributes under
+`eidolonFittings` before it enters the world), playing `activate`; it is given a `goto` order 3 blocks
+past the front's middle (`exit`), which it starts once `activate` has played, and walks out. The body is
+cleared, so the gantry is an empty dock with its spine again. Breaking the gantry mid-build returns every
+item fitted to the body, with the winch's. In creative mode Ctrl + right-click fits the winch's next stage,
+then the body's (a layer in its chosen material, or the default build's), up to the mind; the crank wakes
+it. The body has no settings.
+
+**Old builds.** A body saved under the limb stages (torso, pelvis, legs, arms, head: all steel) loads on
+the new ones (`BodyParts.Migrate`): everything fitted is pooled; a complete old torso becomes the crafted
+torso, from its recipe's parts (pump head, tanks, 4 metal parts, 3 stainless gears, all the old torso's),
+its 4 plates and 8 nails and strips going to the pool; the pool then fills each layer in order as far as it
+goes, in steel: the bones' Jonas parts and vessel (the old head and pelvis had them), the joints' Jonas
+parts, gears, metal parts, 4 steel rods and 20 nails and strips, the plates' steel plates (13 of 17 for a
+whole old body). The old build had no wood, leather or chain, so the bones, sash and skirt wait for theirs
+(the joints and plates keep what they hold behind the bones). What is left over (an old torso not
+finished, and for a whole old body 16 nails and strips and 4 rods) is spare: kept in the save and returned
+on breaking, and given back as items at the open front once the gantry loads. An eidolon woken before
+the fittings has no `eidolonFittings` and reads as the old build: oak bones, steel joints, plates and
+skirt, a plain leather sash.
+
+**The dock.** `BEEidolonGantry.DockAt(blockAccessor, pos)` is the gantry whose dock an entity standing at
+`pos` is in (within `DockRadius`, 1.25 blocks, of the `body` point, level with its floor), or null;
+`gantry.Docks(pos)` asks one gantry. For repair in the gantry (#674).
+
+**Docking, stripping and refitting** (`Eidolon/Game/EntityBehaviorEidolonDock.cs`, `DockOrder.cs`, the
+gantry's side in `BEBehaviorEidolonBody`; rules in `Eidolon/Core/EidolonDocking.cs`; `Eidolon/README.md`,
+"Docking"). The command tool's *Dock in a gantry* mode (wheel place 90, the map's home icon) sends a woken
+eidolon to a built gantry: point at any cell of one, or at the air for the nearest within 24 blocks whose
+spine is free (a gantry with a body being built on it, another eidolon docked, or another on its way is
+passed over, or refused when pointed at). It walks in to where the body hangs (the rig's `body` point), is
+set on it facing out of the open front and plays `dock` (`activate` in reverse); on its clamp frame (46 of
+60) the gantry takes hold, and `hung` holds the pose. It stays the same entity: owner, charge, oil and
+fittings kept, and the order it was doing kept to go back to. Docked it does not work or walk, its charge
+does not run down, it hangs rather than slumps, and it is put back on its point every tick, so nothing
+pushes it off. The gantry keeps its entity id and the entity its gantry (`seraphhorizons:dock`, watched:
+the gantry's position, the point, the yaw, the phase, the order to go back to), so both survive a save
+and either chunk being unloaded; a docked eidolon whose gantry has gone or holds another lets go, and a
+gantry whose eidolon has been missing from a loaded chunk for three checks (6 s) frees its spine. While
+docked the gantry draws no body of its own: the entity is drawn, hung, and a layer it does not wear is left
+out of its shape (every eidolon's, docked or not: the layer's elements from the stages file are deleted at
+tessellation, `EidolonLayerElements`).
+
+Docked and **at full health only** (a damaged one is repaired first, double in the dock as before),
+Ctrl+right-click on it by its owner or their company strips its outermost layer: skirt, sash, plates, joints, bones, never the torso or
+the mind. Each strip gives the player the layer's whole bill (`EidolonFittings.Bill`: its material and its
+Jonas parts; what does not fit drops at their feet), and its `eidolonFittings` record loses the layer, so
+its look and figures follow (its most health keeps its share: a whole one stays whole). The gantry's body
+stages are the docked eidolon's build (`BodyParts.Docked`: the torso and mind in, each worn layer whole),
+so a stripped layer is fitted again item by item through the build's own rules, in any material the layer
+allows (its first piece fixes it), by right-clicking the eidolon or the gantry; the layer goes onto the
+eidolon the moment it is complete. Pieces of a layer part fitted are the gantry's: Ctrl+right-click takes
+them back first, and breaking the gantry or waking the eidolon gives them back. **A turn of the crank
+wakes it** once all five layers are on (else it names the first that is not): it plays `activate`, walks
+3 blocks out of the front and goes back to the order it docked from (follow, stay, guard, a job; not a
+`goto`), or to one given it while docked, which it holds until then. **Breaking the gantry** with an eidolon docked lets it go, layers and all, standing up where it
+hung; the gantry gives back its frame, its winch and only a layer's loose pieces. Tests:
+`tests/Eidolon/EidolonDockingTests.cs` and `tests/PackTests/EidolonDockScenarios.cs` (Atlas: docked by
+the tool's mode at the nearest gantry and held hung, pushed and not moved; stripping refused away from a
+gantry and below full health, then the skirt, sash and plates, each bill to the player; brass plates, a
+blue cloth sash and a stainless skirt fitted back, its build, textures and figures following; the crank
+refusing until then, and waking it out of the front and back to its stay order; unloaded and loaded again
+still docked, both sides knowing each other; the gantry broken letting it go whole with only a loose
+chain dropped; one removed while docked freeing the spine).
+
+With the switch off the server marks the gantry's block types and recipe file disabled before the game
+loads them, so none of it exists and gantries already placed are lost; the mod's own text no longer
+links it. The parts it takes are the game's and exist either way. Tests: `tests/EidolonGantry/`
+(stages, returns, the rig, held to `EidolonGantry/README.md`'s stage table) and
+`tests/PackTests/EidolonGantryScenarios.cs` (Atlas: placing, stages in and out of order, returns, the
+creative shortcut and the assembled stack); the body's in `tests/EidolonGantry/EidolonBodyTests.cs` (the
+bill, its order and counts, held to the stages file and the torso's recipe; materials fixed and refused;
+the old-build migration) and `tests/PackTests/EidolonBodyScenarios.cs` (Atlas: a full build from real
+stacks in mixed materials, the crank waking one owned eidolon in those layers outside the gantry and the
+spine empty; a partial build saved, loaded and broken returning everything; a limb-by-limb save loaded,
+its spare given back, finished and woken all steel).
+
+**The gate** (#670). The eidolon schematic, `seraphhorizons:schematic-eidolon` (a `machine` variant of
+the machines' schematic item, the translocator's drawing), is sold only by the curio dealer, from
+standing tier 3, at 180 gears, and gates the gantry frame (`seraphhorizons:eidolongantry-*`) and the
+command tool (`config/schematic-gates.json`, machine `eidolon`; "Schematics" below). The curio dealer
+also stocks the Jonas pump head (`game:jonasparts-pumphead`), which the eidolon's torso takes and
+nothing else gives (vanilla's loot randomizers leave it out, BetterRuins' part conversion skips it),
+from tier 3, one at a time, at a hand-set 40 gears.
+
+**The command tool**, `seraphhorizons:eidoloncommander` (`itemtypes/eidoloncommander.json`): a Jonas
+connector on a Jonas cylinder in a casing of one brass or steel plate with four nails and strips of
+the same metal, made on the grid with a hammer (`recipes/grid/eidoloncommander.json`) and the
+schematic, kept. Its shape (`shapes/item/eidoloncommander.json`) is generated by
+`Eidolon/tools/make_commander.py` from the game's two Jonas parts, pinned by sha256 (`CREDITS.md`);
+`tools/tests/test_eidoloncommander_model.py` holds the committed file to it. What it does is its class,
+`ItemEidolonCommander` (#675, below).
+
+Off: the command tool and its recipe do not exist (those already in a world are lost), and the
+curio dealer does not stock the schematic or the pump head (`EidolonCommanderSystem`,
+`TradingSystem.Exclude`); the schematic item itself stays, as every machine schematic does.
+
+**The entity.** `seraphhorizons:eidolon` (class `seraphhorizons.EntityLaborEidolon`; the game's own
+`EntityEidolon` is the boss's), the frozen mobile eidolon at size 1: a 1.7 × 3.75 box, 300 HP,
+mechanical (no breathing, hunger or fall damage), knockback-proof, its hurt sound the boss's. Its
+animation codes are the shape's (`slump`, `standup`, `activate`, `fell`, `carry-walk`, ...), with
+`idle`, `walk`, `run` and `hurt` mapped to `stand-idle1`, `stand-walk`, `stand-run` and
+`stand-stagger`. It is saved with its chunk and never despawns. Its AI runs, as any creature's, only
+while a player is within the server's simulation range.
+
+**Ownership.** An owner (uid and name, in its watched attributes): `EidolonSystem.Spawn` sets it, the
+creative spawner sets the player who used it. The owner and their company (the trading standing's
+company; with standing off, any group the two share) command it and open what it carries
+(`EntityLaborEidolon.MayCommand`, `RefuseUnlessCommander`, which tells anyone else whose it is). One
+with no owner answers anyone. Recharging, oiling and repairing are open to all.
+
+**Charge.** A temporal gear runs it a quarter of the world's year (27 days at 9 days a month,
+`ChargeYearsPerGear`). Right-click it with a gear anywhere to add a gear's worth, up to
+`MaxChargeGears` (a gear that would go over is refused and kept). Charge drains with game time while
+it stands and its chunk is loaded, not while it is slumped. Out of charge it slumps where it stands
+and holds there until recharged, then plays `standup`. Its info shows the days left.
+
+**Never killed.** At 0 HP it slumps disabled instead of dying: no drops, no corpse, and a `Die` for
+death or lava does nothing but that. Down, it takes no more damage but can be repaired, and stands
+up once repaired to `StandUpHealthShare` of its health. Its info says why it is stopped. It never
+heals by itself, whole or down: the game's health behaviour heals every creature over time at its
+watched `regenSpeed`, which the eidolon holds at 0 on every load, so only repair restores health.
+Down, creatures lose it (`EidolonDownedTargeting`): a Harmony postfix on the two vanilla targeting
+bases' `CanSense` (`AiTaskBaseTargetable`, `AiTaskBaseTargetableR`, which every target search and
+retaliation goes through) makes a downed eidolon unsensed, and while it is down it stops, once a
+second, any running targeting task within 48 blocks aimed at it. It stays `IsInteractable`, which
+would also hide it from AI, since players' clicks need that to repair it.
+
+**Oil** (#674, `EntityBehaviorEidolonOil`). With the `MachineOil` switch on it has a reservoir like a
+machine's tank, `OilTank` points (100 to the litre: 1000, a bucket), filled by right-click with what
+oils a machine (MachineOil's oils from any liquid container, or rendered fat; `MachineOilSettings`'
+lists), as much as fits, refused when full. It wakes with `InitialOilShare` of it (a quarter). Each job
+done drains it: a tree felled `OilPerTreeFelled` (5), a trunk delivered `OilPerTrunkDelivered` (3), a
+load carried somewhere and set down `OilPerLoadCarried` (2), so a full reservoir fells 200 trees;
+idling, following, staying and guarding cost nothing. Dry, it stops and waits standing (no slump; its
+order is kept) until oiled, then carries on. Its info shows the reservoir. With `MachineOil` off it has
+none, is never dry and takes no oil; turned on later, it starts as a new one.
+
+**Repair** (#674, `EntityBehaviorEidolonRepair`). Right-click with `game:metal-parts` or
+`game:metalplate-iron`, one item a click: each restores `RepairShare` (a tenth) of its most health,
+`GantryRepairMultiplier` (2) times that while it stands in a gantry's dock (where
+its body hung, `BEEidolonGantry.DockAt`). A slumped one is repaired where it lies and stands up past `StandUpHealthShare`: three items
+from 0 HP in the open, two in a gantry. A whole one refuses the item.
+
+**Orders.** One at a time, in its watched attributes (saved with it, shown in its info with how it is
+going): `stay` holds a place (given, or where it stands), `goto` walks to a point and is done on
+arrival, `follow` follows a player (below). No order: it stands at rest.
+
+**Commanding** (#675; `Eidolon/Game/ItemEidolonCommander.cs`, `EidolonCommandModes.cs`, rules in
+`Eidolon/Core/EidolonMarking.cs` and `EidolonCommanding.cs`). The command tool is **bound** to
+eidolons one by one: right-click an eidolon with it to bind it (refused, with whose it is, unless you
+may command it), sneak + right-click to unbind. The tool keeps the bound entity ids (at most 16), so it
+orders only the eidolons it was bound to, not every one its holder could command; a company's members
+each bind their own tools. A **mode wheel** (the tool mode key, as the prospecting pick's) picks the
+order; right-click anywhere but on an eidolon gives it to every bound eidolon loaded within
+`CommandRange` of the holder that the holder may still command (the others are counted in a refusal
+message), and a chat line says how many took it. Modes that work in a place have the player **mark**
+it first: a block (one right-click on it, which then gives the order) or an area (a first corner,
+then the opposite corner, which closes it and gives the order; wider than the mode's limit is refused
+and the first corner kept; a third click starts a new area). The tool keeps each mode's marks; while it
+is held, the client highlights the selected mode's (an area as a green box, a first corner or block in
+yellow; highlight slot 6750), and sneak + right-click on a block or the air clears them. Everything is
+decided on the server.
+
+**Follow and stay**, the first two modes. *Follow me* gives the `follow` order (`FollowOrder`, the
+player's uid): it keeps `FollowDistance` blocks off them by the wide pathfinder, walking, or running
+beyond `FollowRunDistance` (with slack both ways so it does not shuffle or flip gait each step), and
+searches again as they move on (when they are a quarter of the remaining way, at least 2 blocks, from
+where its path leads). The goal is the ground under them, so a jump or a ladder does not throw it.
+Where it finds no way to them (a gap or drop it cannot cross, a doorway under 2 × 4) it stands, its info
+says "It can find no way to {player} and waits", the player is told once in chat, and it tries again
+every 3 seconds; logged off, dead or more than twice `CommandRange` away, it waits where it is.
+*Stay here* gives `stay` with the eidolon's position: it holds that place and walks back to it if drawn
+off (by self-defence). Following drains no oil (#674's oil drains per job).
+
+**Hauling** (#678; `Eidolon/Game/HaulOrder.cs`, `TrunkHauler.cs`, `EntityBehaviorEidolonTrunk.cs`,
+`MachineInfeeds.cs`, `EidolonShapeRenderer.cs`; rules in `Eidolon/Core/HaulPlan.cs`). *Haul trunks*
+(wheel place 60) marks an area, then a machine: two corners as for any area, then a right-click on any
+cell of a rosser or a bucking mill (another block is refused and the area kept, so a misclick costs
+nothing). It gives `haul` (the area's corners and the machine's cell). Every `ScanSeconds` (2) it looks
+over the area for a trunk entity whose middle's column is inside it (from the area's lowest mark to 4
+above its highest), that the machine takes at all (the rosser none already debarked, the mill none
+branched while Logging Expanded requires debranching; any with logs) and that nobody is driving, and
+goes for the nearest. It stands square to the trunk, either side, 1.4 blocks off a thin one and 2 off a
+thick one (clear of the trunk, so TrunkEntities' solidity leaves it be), on the floor there (a trunk
+resting on a stump or a log lies above it, and the game's traverser never counts a waypoint off the
+floor reached, so the navigator also ends every path at the height its search ended), and takes it up: a thin trunk
+(Logging Expanded's xs to lg) onto its left shoulder (`trunk-pickup`, taken on frame 24), a thick one
+(xl, xxl) in both arms in front (`trunk-thick-pickup`, frame 26). The trunk entity is removed and its
+stack, unchanged, is kept in the eidolon's watched attribute `seraphhorizons:carriedTrunk`
+(`EntityBehaviorEidolonTrunk`), so it is saved with the eidolon and shown in its info. It walks to the
+machine with `trunk-carry-walk` (or `trunk-thick-carry-walk`), never running, to stand `Reach` beyond
+the infeed cell nearest the middle of the machine's infeed cells (the ground cells the machine takes a
+trunk lying in), facing the machine. While any trunk lies in those cells it waits there holding its
+own (`trunk-carry-idle`, "Waiting for the infeed to clear"); then it lays it down (`trunk-setdown`, let
+go on frame 36; thick, frame 32) as a trunk entity in the middle of that cell, across the machine's
+line, where the machine takes it as it takes any trunk lying there (`PullFromGround`), and spends
+`OilPerTrunkDelivered`. A trunk it cannot reach (no path, or not reached within `HaulPlan.FetchSeconds`, 45, or its third
+stuck walk, `StuckTries`) is left alone for 30 seconds; with none left it says so
+and waits, still looking, so trunks felled into the area later are hauled too. The order is never done.
+Interrupted (self-defence, dry, out of charge), it keeps a trunk it has taken up and carries on with it;
+given any order that does not haul (`EntityBehaviorEidolonTrunk.Holders`: haul and crew), or none, it
+lays a carried trunk down in front of it at once. Without trunk entities the mode refuses. Clients draw
+the carried trunk with the eidolon's renderer (below, *Drawn at its attachment points*). `tests/Eidolon/EidolonHaulTests.cs` covers the marking, the stands, the drop, the
+area and the event frames; `tests/PackTests/EidolonHaulScenarios.cs` (Atlas, `WoodworkingEidolonScenarios`)
+marks an area and a rosser with the tool, and the eidolon delivers a thin and a thick trunk, the second
+once the first is off the infeed, its trunk kept through a save, and the rosser takes both.
+
+**Self-defence** (`AiTaskEidolonDefend`, `seraphhorizons-eidolondefend`, priority 1.6 above the order
+task's 1.5). When something hurts it, the cause of the damage (the archer, not the arrow) is
+remembered unless it is a player or another eidolon. While that creature lives, is within 24 blocks
+and hurt it within the last 12 seconds (each blow landed renews that), the task runs: it goes for it at
+a run, by the wide pathfinder from afar and straight at it within 8 blocks on the level (moving the
+traverser's goal each tick, as the game's seek task does), aiming where the creature's motion
+(measured each tick, smoothed) takes it by the time it gets there, up to a second ahead, and turning to
+face it at 4.5 radians a second. It strikes on the move: a jab, a jab and a two-fisted hammer in turn
+(only hammers at a creature under 1.5 blocks tall, which a jab would go over), the shape's
+`strike-jab` and `strike-hammer`, upper-body animations the entity type plays over the walk or run
+(weighted on the chest, head and arms only, so the legs keep walking), and it keeps closing while it
+strikes. Only at a creature standing still (under half a block a second) within reach does it stop for
+the standing blows, a punch, a kick and a slam in turn (vanilla's `stand-punch`, `stand-kick` and
+`stand-slam`). A blow is started only when the gap between their boxes, the creature's motion and its
+own carried on to the frame the blow lands on, will be within that blow's reach (the jab 1.1 blocks,
+the hammer 0.6, the punch 0.8, the kick 1.0, the slam 0.8: how far past its own 1.7-wide box the fists
+or foot get on that frame); it is judged on that frame from where the creature is then, landing only
+within its reach and half a block more, within 75° of where it faces and level with it, so a creature
+walking away is still hit and a blow that cannot land does not count (`EidolonStrikes` in
+`Eidolon/Core/EidolonStrikes.cs`). It stands off once their boxes are 0.4 apart. Each blow is
+`DefenceDamage`, every third (the slam or a hammer) `SlamDamage`, × the world's creature damage
+multiplier, blunt, tier 3. Then the order task starts its
+order again (a stay walks back to its place, a follow picks up the player). It starts only while the
+eidolon can work, and never strikes a player, whoever hurts it.
+
+**Carrying** (#676; `Eidolon/Game/EidolonCarrySystem.cs`, `CarryOrders.cs`, `EntityBehaviorEidolonCarry.cs`,
+the Carry On bridge `EidolonCarryOn.cs`; rules in `Eidolon/Core/EidolonCarrying.cs`). Two modes, each
+marking a block. *Carry that* (`carry`): the eidolon walks up to the block (to one of its four sides,
+`EidolonCarrying.Reach` from its centre, its box clear of the block's cell, nearest first), turns to it,
+plays `lift` and takes it out of the world on the grab frame (22), then carries it with `carry-idle`
+standing and `carry-walk` moving, following the player who gave the order as *Follow me* does, until told
+to set it down. It carries any block Carry On lets a player carry (in the hands or on the back), lifted
+through Carry On's own `GetCarriedFromWorld` (its checks, too hot to carry among them, and its block entity
+data and wall signs with it) and kept in Carry On's carried form in its watched attributes, so the load
+saves with the entity and outlives a chunk unload. A multiblock's part stands for the whole. Refused (the
+order is not given) without Carry On, for a block Carry On does not carry, one the player may not take
+(Carry On's permission check: claims, reinforcement), or while it already carries something. *Set it
+down there* (`setdown`): on the marked block if the load can replace it (grass), else on the block above
+it; it walks up the same way, plays `setdown` and on the release frame (28) puts the block back as it
+stood when lifted (its own block and turn, its block entity's data, so a container's contents, and its
+wall signs), which costs `OilPerLoadCarried`. Setting down needs no Carry On, so a load outlives the
+mod. Refused while it carries nothing or with no room there. The animations reach 1.09 blocks and the box
+needs 1.35, so the block is taken and set down 0.31 blocks beyond the hands. A job that fails on the way
+(the block gone or no longer liftable, the place taken) ends and tells its commander in chat.
+
+The owner and their company open a carried container (a generic typed container: a chest, a trunk, a
+storage vessel) by right-click with an empty hand on the eidolon, when no other interaction takes the
+click (charge, oil, repair and the command tool come first): the load's own contents, written back
+into the load as they change; the dialog closes when it walks out of reach or sets the load down.
+Removed from the world for good (anything but an unload) while carrying, it sets its load down on the
+nearest free cell with ground within 3 blocks, or drops it and its contents there. Each client draws
+the load with the eidolon's renderer (below).
+
+**Drawn at its attachment points** (client; `Eidolon/Game/EidolonShapeRenderer.cs`,
+`EidolonAttachmentRender.cs`). One path draws whatever it holds: the entity type's renderer,
+`seraphhorizons.EidolonShape` (`EidolonShapeRenderer`, registered by `EidolonRenderSystem`), is the
+game's shape renderer, which draws the axe at `RightHand` as any held item (`RightHandItemSlot`), and
+after the entity, in the same passes (the shadow pass included), it draws the carried trunk and the
+carried block, each with its attachment point's matrix this frame (`EidolonAttachmentRender.TryGetMatrix`:
+the matrix the game uses for a held item, the renderer's model matrix, the animator's pose of the
+point's element, then the point's offset and turn) and lit as the eidolon is. The trunk: Logging
+Expanded's block of its display class (lg, xxl, debarked if it is), as TrunkEntities draws a trunk
+lying, at `Trunk` (thin, on the left shoulder) or `ThickTrunk` (in both arms). The block: its stack's
+own mesh as the game draws it on the ground (a chest by its type), at `Carry`, its corner origin set
+half a block back. (Carrying had its own renderer drawing after the entities until #679, unshadowed
+and lit by the block above the eidolon; it now goes the trunk's way.)
+
+**Guarding** (#680; `Eidolon/Game/GuardOrder.cs`, `EidolonGuardSystem.cs`, rules in
+`Eidolon/Core/EidolonGuarding.cs`). The tool's *Guard this place* mode (wheel place 80) marks a block:
+the `guard` order holds the point on top of it, standing in its guard stance (`guard-idle`) at a post
+of its own about the point (`EidolonGuard.Post`): a block within 4 of the point across where its whole
+body fits with a floor under it (`WidePath.Feet`, up to 2 above or below the point's floor; never in
+lava or fire), at random among those at least 3 blocks across from every other guarding eidolon's post
+and from where each of them stands, so several guarding one point spread out round it rather than
+standing in each other; the point itself when there is none. Once it has stood at its post a random 15
+to 45 seconds it takes another the same way (away from the one it held, or that one again if there is
+none), so guards wander about their point; it takes one again too when it finds no way to its post.
+Constants, not settings. Once a second it looks about the point, and the nearest hostile creature
+within `GuardRadius` of it (nearest to the eidolon) goes to self-defence (`Engage`, above), leashed to
+the point: it lets one go that gets more than `GuardRadius` + 4 blocks from it. After the fight the
+order starts again, the next hostile one or the walk back to its post. Guarding drains no oil.
+
+*Hostile* is read from the game's own data for the creature, its entity type's AI tasks (the
+`taskai` behaviour's `aitasks`, as its variant resolves them; `EidolonHostiles`): one is hostile when
+one of its attack tasks (a code with "attack" in it, or `throwatentity`, `shootatentity`,
+`turretmode`, `eidolonslam`; not the mech helper's `meleeattacktargetingentity`, which strikes only what
+its owner fights) targets players (`entityCodes`, the game's default `player`, wildcards as the game
+reads them) and may run now: its `whenInEmotionState` and `whenNotInEmotionState` against the
+creature's emotion states, its `minGeneration` and `maxGeneration`. So drifters, bowtorns, shivers,
+locusts, wolves, bears, hyenas and moose are; sheep, boars, foxes, raccoons, chickens and deer are only
+while angry (`aggressiveondamage`, or `aggressivearoundentities`, a sow by her piglets). An attack the game drops as a species is bred (a
+task with a `maxGeneration`: the wild sheep's and boar's charge at a player who comes too close) counts
+only while angry, so wild animals just penned are safe. Never: a creature with an owner (`ownedby`, a
+mount or a hacked locust; `guardedPlayerUid`/`guardedEntityId`), a type marked `tamed`, one bred by
+players (`generation` 1 and on), a player, an eidolon, or a person (`EntityDressedHumanoid`:
+traders and villagers, angry by their tasks once a player hits one). The world's `creatureHostility` holds as the
+game's targeting reads it: `passive`, only angry ones; `off`, none.
+
+**Felling** (#677; `Eidolon/Game/FellOrder.cs`, `EidolonFeller.cs`, `EntityBehaviorEidolonAxe.cs`,
+`EidolonFellSystem.cs`, rules in `Eidolon/Core/EidolonFelling.cs`). *The axe*: one who may command it
+gives it an axe (the game's `ItemAxe`, any metal) by right-clicking it with one; it holds one at a time,
+in its right hand, where the game's shape renderer draws it (`RightHandItemSlot`, the shape's
+`RightHand` point; the axe is kept in its watched attributes, saved and sent to clients). Its commander
+takes it back by sneaking and right-clicking it with an empty hand. Its info shows the axe and its
+durability. *Fell trees here* (wheel order 50) marks an area (two corners, at most
+32 blocks a side) and gives the `fell` order; without an axe it is refused. It looks for the nearest
+grown wild tree whose stump stands in the area (between 8 blocks below the lower corner and 8 above the
+higher), at most every 2 seconds, weighing at most 24 a search (the axe's own tree search). A wild log
+is one with the game's tree felling group that is grown, not placed (`log-grown-*`, `logsection-grown-*`,
+`lognarrow-grown-*`, the resin logs), never a fruit tree; a stump is such a log upright with no log of the
+same tree under it. A tree is grown when the axe's search from its stump finds at least `FellMinLogs`
+(5) wood blocks: a sapling is no log, and a small young tree is left. A player's log building (placed
+logs, which have no felling group) is never touched, and neither is a tree in a land claim its owner may
+not break in (or, its owner unknown to the server, any claimed one). It walks to a place beside the trunk
+(a block corner 1.5 to 3.6 blocks from the trunk's centre, those within 2.8 and nearest it first, its
+box free and on the ground; three tried by the wide pathfinder before the tree is given up), faces it and
+swings `fell` three times (1.33 s each); the third cut, on frame 15, fells it. A tree it cannot reach is
+given up for the order's life. Done when no grown tree it can reach is left, when it tells its owner how
+many it felled (and how many were out of reach).
+
+*Felled as a player's axe fells.* The server raises its `BreakBlock` event only for players, which
+is where Logging Expanded fells, its handler starting from the player's hotbar, and no stand-in player
+can be made (the game's `IPlayer` has an internal member). So `EidolonFeller` runs that handler's steps
+itself with Logging Expanded's own members, found by name on its listener
+(`LoggingMod.Core._fellingListener`): its tree manager's `GetWoodType` and `IsResinBearingLog`, its
+`FindTreeCompat`, `IsLeafBlock`, `IsBranchyLeaf` and `SpawnTrunk` (with no player), its
+`FellingDropSuppression.MarkRange` and its config's `MinLogsForTrunk` and `StickYieldRatio`, counting
+as the handler counts; then it calls the axe's own `ItemAxe.OnBlockBrokenWith` with the eidolon as the
+entity, the order the server uses for a player. Left out is what needs a player: Logging Expanded's
+`LogYieldModifier` and `OnTreeFelled` callbacks (no mod in the pack sets the modifier; `FellingWear`,
+the one listener, is told directly with `FellingWear.NoteFelled` and knows the felling by
+`FellingWear.FellerId` of the eidolon). The trunk falls as a trunk entity (`TrunkEntities`), and the axe
+wears as a player's: `FellingWear` charges its flat figure (4, or 8 for a thick tree). Without Logging
+Expanded (or its members not as expected: one warning) the axe alone fells it and the game's logs drop.
+An axe that breaks stops the job: it waits, its info says it has no axe,
+its owner is told once, and it goes on when given another.
+
+*Replanting.* After each tree, if what it carries (`IEidolonCarrier`, below) holds a sapling of that
+tree's wood (`game:sapling-{wood}-*`) or its seed (`game:treeseed-{wood}`), it takes one and plants
+`game:sapling-{wood}-free` in the stump's place, as a tree seed plants one (where the sapling can
+stand: on soil). Leaves drop their saplings and seeds as the game's felling does.
+
+*Oil*: each tree costs `OilPerTreeFelled` (`SpendOil(EidolonJob.TreeFelled)`), after the felling and
+replanting. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh.
+
+**The crew** (#679; `Eidolon/Game/CrewOrder.cs`, rules in `Eidolon/Core/EidolonCrew.cs`). *Fell and
+haul* (wheel place 70) marks a fell area (at most 32 blocks a side), then a rosser or bucking mill, as
+*Haul trunks* marks (any of its cells; another block is refused and the area kept), and gives `crew`
+(the haul order's arguments). Refused without an axe, as felling is, and with a block in its arms, as
+hauling is. It fells and hauls in a loop: one tree, by a `FellOrder` run `once` (the same one
+throughout, so trees it gave up stay given up; it replants as felling does and spends the tree's oil);
+then, after 1.5 seconds for the trunk to settle, it looks (for up to 6 seconds) for the trunk that tree
+threw: a trunk entity not lying there before it started on the tree, within 14 blocks across and 10 up
+or down of the stump. That trunk it hauls with a `TrunkHauler` to the machine (the trunk's oil), then it
+walks back to the next tree. A trunk the machine does not take is left; one lost to the hauler three
+times (it rolled, no way to it, or not reached: the hauler gives a trunk up after 45 seconds or its
+third stuck walk, `HaulPlan.FetchSeconds` and `StuckTries`, as for a trunk thrown into another tree's
+crown) is put by until the next tree falls, which may open the way, and left once the area is clear
+(its status then says how many it left lying); trunks the machine takes lying in the area are hauled too, at most
+every 2 seconds, before the next tree (so a crew picks up after a save, which forgets which trunks were
+its own). A tree that throws no trunk (too small for one, or no Logging Expanded or trunk entities: its
+logs fall as items) is simply passed on from. With no grown tree it can reach left in the area and no
+trunk waiting, it tells its owner (trees felled, trunks hauled), says "Its area is clear" and waits,
+its order kept; every 60 seconds it looks again with a fresh felling (trees given up are tried again,
+and a replanted tree once grown is felled). The machine gone, it waits. Without an axe it waits as
+felling does. Self-defence, a dry reservoir or running out of charge interrupt it; it keeps its state
+(the trunk it carries, the trunks it has yet to haul, a tree felled whose trunk it has not looked for)
+and carries on where it was. It may hold a trunk (`EntityBehaviorEidolonTrunk.Holders`).
+
+**Fittings** (the rules so far; `Eidolon/Core/EidolonFittings.cs`, `EidolonStats.cs`, `Eidolon/README.md`
+"Fittings"). The body is built in five layers of material on a crafted torso, in order: bones (support beams
+of any wood but rotten and very rotten), joints (rods and nails and strips of iron, steel or stainless),
+plates (iron, steel, stainless or brass plate), the sash (leather or cloth of one colour) and the chain
+skirt (iron, steel or stainless), then the mind; layers come off outermost first, only at full health,
+each giving back its material and its Jonas parts. An eidolon's layers are an `EidolonBuild`, kept as a
+tree of strings under `eidolonFittings`; one with none is the old build (oak, steel, steel, plain
+leather, steel). Its figures (`EidolonStats.Of`): health is `AllSteelHealth` (300) over the steel
+multipliers, times the plates', joints' and skirt's multipliers (`PlateHealth`, `JointHealth`,
+`SkirtHealth`, each against iron), so an all-steel eidolon keeps 300; the plates' metal also scales the
+blows (`PlateDamage`, brass 0.8) and walking and running (`PlateMoveSpeed`, brass 1.25), and gives the
+armour (`PlateArmour`: protection tier, relative protection, flat reduction; iron 3/0.96/1.7 and steel
+4/0.97/1.8 the game's plate armour, stainless 5/0.98/1.9, brass 2/0.92/1.6), applied to a hit as the game
+applies a full suit of armour to a player (`EidolonArmour`, with `ArmourLoss` the game's per-tier losses).
+Bones and sash are looks only. The material counts per layer are the model's (`FittingCounts`,
+`Eidolon/README.md` "Build stages").
+
+**Stainless fittings.** The game has no stainless rod, nails and strips or chain; with the switch on
+`patches/eidolon-stainless.json` adds `game:rod-stainlesssteel`, `game:metalnailsandstrips-stainlesssteel`
+and `game:metalchain-stainlesssteel` as states of the game's own item types (taking steel's other figures;
+the rod melts back into an ingot), and `recipes/smithing/eidolon-stainless.json` smiths them from a
+stainless steel ingot with the game's steel recipes voxel for voxel (a rod, 4 or 8 nails and strips, a
+chain; a steel anvil). Lang names the two the game does not. The chain item's texture is the pack's
+(`assets/game/textures/entity/humanoid/serapharmor/chain/stainlesssteel.png`), as is the skirt's
+(`textures/block/metal/armor-generic/chain-stainlesssteel.png`): the game's steel chain, lightened and
+desaturated by `Eidolon/tools/make_stainless_chain.py`. With the switch off `EidolonGantrySystem` empties
+the patch and disables the recipes; `SwitchOwnership.HandListed` owns the three codes for `Eidolon`.
+
+**Pathfinding.** The game's A* centres a creature near a block's middle, so a 1.7-wide box always
+spans three blocks and never fits vanilla's 2 × 4 gate. `Eidolon/Core/WidePath.cs` searches on block
+corners instead, testing the whole box with the game's collision tester at each step (level, up one
+block, down at most `MaxFallBlocks`, no corner cutting on diagonals, lava and the like refused, water
+and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's own waypoint
+traverser then walks the path. A first pass: following (#675) proves it on real terrain.
+
+**Spacing** (`Eidolon/Core/EidolonSpacing.cs`). Its `repulseagents` is `movable: false`, so nothing
+shoves it, another eidolon included: two spawned in one place, or following one player to the same
+spot, stood wholly inside each other for good. Each now pushes itself away from any other eidolon
+whose circle (half its box's width) overlaps its own, every server tick, by motion (so blocks still
+stop it), harder the deeper, at most 0.05 blocks per 1/60 s, a little under a walk; two in the very
+same place go opposite ways along a direction both work out alike from their ids. Not while either is
+mounted. Players and creatures still do not move it.
+
+**The guide** (#681, `Eidolon/Game/EidolonGuideSystem.cs`). The handbook has a page of its own,
+"Building and commanding an eidolon" (`config/handbook/eidolon.json`, page code
+`seraphhorizons-eidolon`, text `eidolon-guide-text`): the schematic, the gantry and its nine winch
+stages, the body bill, waking it, charge, oil, repair, the command tool (binding, the wheel, marks) and
+every order, self-defence and its limits. Its text quotes the default settings. The gantry's "Building
+the gantry" and the command tool's "Giving orders" sections are short and link it. With the switch off
+the client drops the page and the server lists it under `handbook-hiddenGuides`, so the recipe export
+leaves it out (`SwitchesOffScenarios`).
+
+**In the recipe browser** (#681, `tools/recipe-export/Recipes/EidolonExport.cs`,
+`RecipeSection.Eidolon.cs`). The frame's grid recipe exports as any recipe; the two builds are records
+of type `construction` (blocks built in place, `docs/recipe-browser/schema.md`), read by reflection
+from `GantryParts` and `BodyBill`, so they cannot drift from the rules: the gantry's winch
+(`construction|seraphhorizons:eidolongantry-<wood>-north|0`, the placed frame then the nine stages, a
+variant per wood binding the drum's planks and the spine's beams) and the body
+(`construction|seraphhorizons:creature-eidolon|0`, a gantry as its first stage, role `station`, never
+consumed, then the six body stages; its output is the eidolon's creature item). The command tool's grid
+recipe exports as any recipe. Item values follow from these: the gantry (every wood) and the command
+tool from their grid recipes; the schematic has none, by rule, and neither has the creature item, as no
+creature has: its body build takes the elucidatory vessel, a boss drop with no value.
+
+**For testing.** The creative spawner `seraphhorizons:creature-eidolon` (creative tabs only, no
+recipe; the eidolon it places is fitted at random, any allowed material in every layer), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blocks: `spawn [player]`
+(one in front of you, owned, charged, waking), `come [run]`, `stay`, `clear`, `charge <days>`,
+`health <hp>`, `oil <points>`, `info`.
+
+**Seams for the next tasks.**
+- Spawning: `EidolonSystem.Of(api).Spawn(world, pos, yaw, owner, activate: true, gears: 1)`
+  spawns it owned and charged and plays `activate`; it cannot work until that has played. The gantry's
+  mind stage uses it (above).
+- Upkeep (#674): an entity behaviour implementing `IEidolonUpkeep` (`Stop`: an `EidolonStop`, slumping
+  or only waiting, e.g. `new EidolonStop("dry", false, 20)`; `OnCheck(eidolon, running)`, four times a
+  second) is weighed with damage and charge into `Stop` and `CanWork`; nothing works while one stops
+  it. Repair: heal through `ReceiveDamage` with `EnumDamageType.Heal`, then `Check()`; the stand-up
+  threshold is `StandUpHealthShare`. Right-clicks reach each behaviour's `OnInteract` in the entity
+  type's order: charge, oil, repair, then orders.
+- Oil (#676 on): a job order calls `eidolon.SpendOil(EidolonJob.X)` as each job finishes (a tree
+  felled, a trunk delivered, a load set down); a new kind of job adds an `EidolonJob` value and its
+  figure in `EidolonSettings`. Dry stops the eidolon at once; the order is kept and resumes when oiled.
+- Inside a gantry: `EntityBehaviorEidolonRepair.GantryAround(entity)` (the gantry whose dock it
+  stands in, or null, by `BEEidolonGantry.DockAt`) is the one lookup.
+- Command tool modes (#676 on): `EidolonCommandModes.Register(new EidolonCommandMode { Code, Order,
+  Icon, Mark, MaxAreaSide, CheckTarget, Command })` in a mod system's `Start` (both sides: the wheel is chosen by
+  index). `Code` names it (lang `seraphhorizons:eidoloncommander-mode-{code}`); `Order` places it on the
+  wheel (follow 10, stay 20; carry 30, set down 40, fell 50, haul 60, crew 70, guard 80 suggested);
+  `Icon` is an SVG (the game's are `game:textures/icons/...`); `Mark` is `None`, `Block`, `Area` or
+  `AreaThenBlock` (an area's two corners, then a block: the third click gives the order, and the
+  context has both `Area` and `Target`; a fourth click starts a new area; haul uses it, and the crew
+  order's fell area and infeed should); `CheckTarget(world, pos)` may refuse a marked block (return
+  `EidolonCommand.Refuse(key)`) before it is kept, the area staying;
+  `Command(context)` gets the eidolon, the player, and the marked block (`Target`) or area (`Area`,
+  a `MarkArea` with `Min`, `Max`, `Contains`) and returns `EidolonCommand.Order(code, args)` or
+  `EidolonCommand.Refuse(langKey, args)` (a mode whose bridge's mod is missing refuses here; it stays on
+  the wheel). `ItemEidolonCommander.GetMarks(stack, mode)` reads a tool's marks.
+- Self-defence: `TaskManager.GetTask<AiTaskEidolonDefend>().Engage(creature, leashPoint, leash)` sends
+  it after a creature as if it had been hurt by it, letting it go past `leash` blocks from `leashPoint`
+  when given (the guard order uses it); `DefenceDamage` and `SlamDamage` are the blows.
+- Hostility (#680): `EidolonHostiles.IsHostile(entity, EidolonHostiles.WorldHostility(world))` says
+  whether a creature would attack a player now, by its type's data (above).
+- Orders (#675 on): `EidolonOrders.Register(code, (eidolon, args) => new MyOrder(...))`, an
+  `IEidolonOrder` (`Start`, `Continue` each tick, `Stop` when done, replaced or interrupted);
+  `eidolon.Orders.SetOrder(code, args)` gives one, `SetStatus(langKey, args)` says how it goes.
+  `AiTaskEidolonOrder` runs it at priority 1.5; self-defence runs above it, and the order is
+  stopped (`Stop(cancelled: true)`) and started again after, so an order keeps what it needs to resume. `EidolonNavigator.GoTo(target, run, onArrived, onStuck, tolerance)` walks
+  it by the wide pathfinder.
+- The crew (#679): `CrewOrder` (`Felled`, `Delivered`, `Waiting`, `Done`) composes the two below; a
+  loop of other jobs can follow it.
+- Hauling (#678; the crew order, #679): `new TrunkHauler(eidolon, machinePos)` moves one trunk entity
+  to a machine's infeed: `Fetch(trunk)`, then `Step()` each tick of the order (`HaulStep.Working`,
+  `Delivered` with the oil spent, `Lost` when the trunk is gone or unreachable, `Idle`), `Interrupt()`
+  in the order's `Stop`; a trunk already carried is delivered without fetching. `MachineInfeeds.Find(world,
+  pos)` resolves a rosser or mill from any of its cells (its infeed cells, way out and `Takes`).
+  `EntityBehaviorEidolonTrunk` holds the carried trunk (`Carrying`, `Trunk`, `TakeUp`, `Hold`,
+  `LayDown`); an order that may hold one adds its code to `EntityBehaviorEidolonTrunk.Holders`.
+  Carrying, it walks with `trunk-carry-walk` (its `IEidolonStance`, below).
+- Carrying (#676) and replanting: an entity behaviour that carries a container implements
+  `IEidolonCarrier` (`CarriedInventory`, null while it carries none); `eidolon.CarriedInventory()` is
+  the first one carrying something: a carried container (`EntityBehaviorEidolonCarry`, #676). The fell
+  order replants from it (`EidolonFeller.Replant`).
+- Felling (the crew order): `new FellOrder(area, once: true)` (or `FellOrder.Args(area, once: true)`)
+  fells one tree since it was last started and is done, its stump in `LastStump`, `Clear` when it
+  found no tree left; `Felled` and `Unreachable` count the order's trees. `EidolonFeller.Fell(eidolon, hand, stump)` fells one tree as the eidolon;
+  `GetBehavior<EntityBehaviorEidolonAxe>()` holds the axe (`Axe`, `Hold`, `Save`).
+- The game's `commandable` and `openablecontainer` entity behaviours (the hacked locust's and the mech
+  helper's) may serve the command tool and the carried container.
+- Holding something (#676 on): an entity behaviour implementing `IEidolonStance` names the animation it
+  moves with while it holds something (`carry-walk`); `eidolon.MoveAnimation(run)` asks them and
+  `EidolonNavigator.GoTo` uses it, so following with a load walks with it. `GoTo`'s `arriveWithin` sets
+  how near the last waypoint counts as there.
+- Drawing at an attachment point (client): something new it holds is drawn by `EidolonShapeRenderer`
+  (add a `Render...` step to its `DoRender3DOpaque` and draw with its `Draw`, shadows included).
+  `EidolonAttachmentRender.TryGetMatrix(renderer, entity, "Carry" | "Trunk" | "ThickTrunk", matrix)` is
+  the point's model matrix as drawn this frame (the entity renderer's, the animator's pose, the point's
+  offset and turn); `TryGetMatrix(entity, code, matrix)` the same from another renderer (opaque stage,
+  render order above 0.5).
+- Working at a block: `BlockApproach(pos).Step(eidolon, navigator, now)` walks it to a side of a
+  block (`EidolonCarrying.Stands`) and puts it there facing it; `CarryOrderBase` holds the walk-up,
+  one-shot and tell-the-commander parts of the carry orders.
+- The carried load: `eidolon.GetBehavior<EntityBehaviorEidolonCarry>()` (`Carrying`, `LoadStack`,
+  `Hold(load)`, `TryPlace(pos)`, `Release()`; the tree under `LoadKey` is Carry On's carried form).
+
+| Setting | Default | |
+|---|---|---|
+| `ChargeYearsPerGear` | 0.25 | Years of the world's calendar one temporal gear runs it |
+| `MaxChargeGears` | 2 | The most charge it holds, in gears' worth |
+| `StandUpHealthShare` | 0.25 | Down at 0 HP, it stands up once repaired to this share of its health |
+| `WalkSpeed` | 0.022 | Its walking speed (creature scale; a player walks at about 0.03) |
+| `RunSpeed` | 0.04 | Its running speed |
+| `PathSearchNodes` | 3000 | The most nodes one path search visits |
+| `MaxFallBlocks` | 3 | The highest drop it walks off on a path |
+| `OilTank` | 1000 | Points its oil reservoir holds (100 to the litre); none with `MachineOil` off |
+| `InitialOilShare` | 0.25 | The share of the reservoir a new eidolon wakes with |
+| `OilPerTreeFelled` | 5 | Oil points a tree felled costs |
+| `OilPerTrunkDelivered` | 3 | Oil points a trunk delivered costs |
+| `OilPerLoadCarried` | 2 | Oil points a load carried and set down costs |
+| `RepairShare` | 0.1 | The share of its most health one item of metal parts or iron plate restores |
+| `GantryRepairMultiplier` | 2 | What a repair is multiplied by inside a gantry |
+| `CommandRange` | 64 | How far a command tool's orders reach, in blocks |
+| `FollowDistance` | 4 | Following, how many blocks it keeps off the player |
+| `FollowRunDistance` | 10 | Following, it runs while further than this |
+| `DefenceDamage` | 10 | Each blow when it defends itself or guards (times the world's creature damage multiplier) |
+| `SlamDamage` | 16 | Every third blow, the slam or a hammer (the same multiplier) |
+| `GuardRadius` | 16 | Guarding, how far from its point it goes for a hostile creature, in blocks |
+| `FellMinLogs` | 5 | Felling an area, the fewest logs (wood blocks) a tree must have to be felled |
+
+With the switch off the server marks the entity type and the spawner disabled before the game loads
+them and registers no command, so none of it exists; eidolons already in a world are lost. A client
+follows the server. `tests/Eidolon/` covers charge, stops, the slump pose, ownership, oil per job,
+repair amounts and the pathfinder (a 2 × 4 gate passes, a narrower or lower one does not, steps, drops, corners, lava, the
+node budget); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
+stranger, runs its charge out over simulated days (slumped, alive, a gear wakes it, the cap holds),
+knocks it to 0 HP (slumped, alive, no drops, standing again once repaired) and walks it through a
+2 × 4 gate and not through a 1 × 4 one, drains its oil with a stand-in job until dry stops it standing
+(tallow starts it again), repairs it in a gantry (double) and in the open (a slumped one stands after
+three items, a whole one refuses), and flips `MachineOil` off (no reservoir, never dry);
+`tests/Eidolon/EidolonCommandingTests.cs` covers marking, binding, the follow gait and self-defence's
+rules, `tests/Eidolon/EidolonStrikesTests.cs` its blows (which, by the creature's motion; when one lands;
+the lead; each an animation of the shape of its length), and `tests/PackTests/EidolonCommanderScenarios.cs` (Atlas) uses the tool as a player does:
+bound by its owner it follows them over rough ground (steps of one and two, a pillar) and then stays,
+waits and says so at a doorway too narrow, a stranger can neither bind it nor order it with a tool
+bound to it, and it strikes a wolf that hurt it until dead, never the player who hurt it, and walks
+back to its stay, and it runs down a drifter and then a wolf walking steadily away from it (1.5 blocks a
+second), striking each on the move until dead; `tests/Eidolon/EidolonCarryingTests.cs` covers the carry timings and stand points,
+and `tests/PackTests/EidolonCarryScenarios.cs` (Atlas) has it lift a chest of flint, refuse granite,
+open the chest while carried (what goes in stays in, and the load is in the entity's saved bytes),
+follow its commander 20 blocks and set the chest down with everything in it for a load's oil, and set
+its load down where it stood when removed; `tests/Eidolon/EidolonGuardingTests.cs` covers hostility (vanilla's task shapes:
+drifter, bowtorn, wolf, sheep, fox, the mech helper; owned, tamed and bred ones; the world's setting)
+and the guard's radius and posts (standable, within range, clear of other guards, none when walled in, the
+random wander), and `tests/PackTests/EidolonGuardScenarios.cs` (Atlas) reads the game's own
+creature types (drifters, bowtorns, shivers, locusts, wolves, bears and hyenas hostile; sheep, boars,
+chickens, foxes, deer, the mech helper, hacked locusts and tamed elk not; a sheep hostile when
+angry; a trader never) and guards a point given with the tool: a drifter 10 blocks off is gone for and killed, one 25
+off and a bred wolf 6 off are left alone, it stands at its post again after, and the wolf, unbred,
+is gone for; and three eidolons guarding one point each stand at a post of their own, 3 or more apart;
+`tests/Eidolon/EidolonSpacingTests.cs` covers the spacing (no push apart or touching,
+straight away and harder the deeper, capped, two in one place opposite ways and clear in a few dozen
+ticks), and `tests/PackTests/EidolonFootingScenarios.cs` (Atlas) walks one off a thin and a thick trunk
+to the floor beside it, and to a point close beside a thin one (where it hung on the edge), two
+together off a thin trunk to their own points and following their leader, two spawned in one place
+apart and each to its own point, and one and two together up a one-block step and down it, by order
+and following, logging where each is as it goes;
+`tests/Eidolon/EidolonFellingTests.cs` covers felling's rules (wild logs and
+stumps, grown trees, where it stands, the swing, what replants) and
+`tests/PackTests/EidolonFellScenarios.cs` (Atlas) orders it with the tool: refused without an axe,
+then given one it fells an area of three grown oaks (three trunks holding every log, the axe worn by
+the flat figure per tree, oil per tree), replants two from a carried sapling and seed, and leaves a
+player's log pillar and a sapling standing; and an axe that breaks stops it until it is given another;
+`tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
+`tests/PackTests/EidolonCrewScenarios.cs` (Atlas, `WoodworkingEidolonScenarios` on the woodworking world) orders a crew with the tool
+(refused without an axe) over two grown oaks and a running rosser: it fells each, hauls each trunk to
+the infeed (the second trunk comes to rest on the first tree's stump, a block above the floor), the
+rosser takes both (every log of both trees), oil per tree and per trunk, and it ends waiting with its
+area clear; it fails within five minutes, not at the watchdog, when the trunks do not arrive or the
+crew gives one up;
+`SwitchesOffScenarios` requires none of it with the switch
+off. Not yet: icons for the recipe browser, which need the game client (`tools/icon-export`,
+`docs/recipe-browser/icons.md`): the gantry (`seraphhorizons:eidolongantry-{wood}-north`, each of the
+12 woods), the command tool (`seraphhorizons:eidoloncommander`), the schematic
+(`seraphhorizons:schematic-eidolon`), the creature item (`seraphhorizons:creature-eidolon`) and the
+stainless rod, nails and strips and chain (`game:rod-stainlesssteel`, `game:metalnailsandstrips-stainlesssteel`,
+`game:metalchain-stainlesssteel`); `tools/icons.py drift` lists them.
+
 ### Crucible furnace (`StainlessSteel`, `CrucibleFurnaceSettings`)
 
 Stainless steel, the gears epic's metal (#484): the Huntsman (Sheffield) crucible furnace, the
 mid-game route, small batches in clay pots. Stainless melts at 1530 °C and coke burns at 1340 °C, so
-no forge or crucible melts it; the furnace's own temperature model, a stack's draft through a bed of
-coke, is what gets there. In `CrucibleFurnace/` (rules in `CrucibleFurnace/Core/`, the game side in
-`CrucibleFurnace/Game/`).
+no forge or crucible melts it; the furnace's own temperature model, a chimney's natural draught
+through a bed of coke, is what gets there. In `CrucibleFurnace/` (rules in `CrucibleFurnace/Core/`, the
+game side in `CrucibleFurnace/Game/`, the model and its generator in `CrucibleFurnace/README.md` and
+`CrucibleFurnace/tools/`).
 
-**Build.** `seraphhorizons:meltinghole-{closed|open}` is one block set into the floor: eight fired
-tier-3 refractory bricks (the game's, made with chromite) round an iron plate, its lid, in the grid.
-The lid is the block's variant (Shift and right-click with an empty hand opens and shuts it). Holes
-stand side by side in a row along x or z, up to `MaxHolesInRow` (4), and the row needs a stack at one
-end: a chimney block in line with the holes at their level, with at least `MinChimneyHeight` (6)
-chimney blocks in a column from it up (`ChimneyBlocks`: the game's clay bricks, clay brick chimney,
-refractory bricks and stone bricks, and smex's smoke stack). The flue runs under the floor, so it is
-not built. `Core/FurnaceRow.cs` finds a hole's row (x first, then z) or says what is wrong: no
-chimney, a chimney too short, or too many holes; the block info shows it. The hole's block type
-carries a `multiblockStructure` and `multiblockSizes` (1 to 4 holes, the shortest chimney) for the
-recipe browser's multiblock viewer; nothing in the game reads them.
+**One furnace, one hole, two pots** (#796, model #753). A furnace is a ghost-cell machine 3 blocks
+wide, 3 deep and 2 high, as the late nineteenth century's were: one hole holding two pots side by side
+under a hinged firebrick lid, an ash pit under the grate with an iron damper over its mouth, a lined
+flue and stack to an outlet at the back. The controller is the front middle cell, the ash mouth's
+(`seraphhorizons:cruciblefurnace-frame-{side}`); placing it (from the iron frame, the item) needs room for
+every cell, puts the furnace running away from the player, ash mouth towards them, and stamps
+`cruciblefurnace-ghost` into the other 17 brickwork cells and the 6 hollow cells over the hole's two rows,
+where the lid opens. Breaking any cell drops the frame, every item fitted, the outlet's cap, the unburnt
+coke and each pot (with its charge; a melted charge as its products, molten metal as bits, the pot
+lost), and clears the ghosts.
+
+**Building it**, the rig's `build` (counts measured from the model, not written in code):
+
+| | Stage | Materials |
+|---|---|---|
+| | Iron frame (grid, with a hammer) | 2 iron plates, 4 iron rods, 10 iron nails and strips |
+| 1 | Brickwork (with the hinge's pins and the lid's stops, at no extra cost) | 25 fired bricks (`game:burnedbrick-*`) of **one** type |
+| 2 | Lining | 9 tier-3 refractory bricks, 4 fire clay |
+| 3 | Lid and damper | 4 tier-3 refractory bricks, 2 iron plates |
+
+A right-click with a stage's material on any cell fits as many of the held stack as the stage still
+needs, in stage order (a later stage's material is refused with the stage it waits for). The first
+brick sets the furnace's brick type, saved with it; a brick of another type is refused with a message
+naming the furnace's, and one the rig has no texture for (another mod's) too. The walls are drawn in
+that type's brick (the rig's `bricks`: the six coloured courses are the cream brick with the colour
+drawn over it, composed into one texture). In creative mode Ctrl + right-click fits the next stage
+free (red brick if none is set). The lid and the damper go in open. Nothing is fired, charged or
+opened until the furnace is built; the cap goes on once the lining (the outlet's curb) is in.
+`Core/FurnaceBuild.cs`.
+
+**Collision.** Before the brickwork, only the ground row is solid (the grate and the binding's feet),
+though every brickwork cell is clicked whole; after it, the rig's boxes, with a deck over each top cell
+so a player walks over the open hole. The hollow cells have no box but the lid's: open, its box where
+it stands over the middle row; while it swings (1.4 s), the box of everything it sweeps, over both rows.
+The boxes are measured from the shape's `lid_*` elements posed by the rig's lid driver
+(`Core/LidBoxes.cs`). The outlet's cell is solid to its top whether capped or not, so the cap needs no
+box of its own.
+
+**The chimney and the draught.** Natural draught only: a column of `ChimneyBlocks` (the game's clay
+bricks, clay brick chimney, refractory bricks and stone bricks; smex's smoke stack is a 3 x 3
+multiblock and cannot stand on the outlet) stood on the outlet, counted from it up. Under
+`MinChimneyHeight` (6) there is no draught. Six blocks heat a lit furnace under its shut lid at
+`ChimneyHeatingPerHour` (200 °C an hour) up to `ChimneyMaxTemperature` (1600 °C); each block above
+adds `ChimneyHeatingPerExtraBlock` (40 °C an hour) and `ChimneyMaxPerExtraBlock` (10 °C), counted up to
+`MaxChimneyHeight` (11 blocks: 400 °C an hour, up to 1650 °C). From cold, stainless melts in about 7.6
+hours on six blocks and 3.8 on eleven (`Core/FurnaceHeat.cs`, `DraughtOf`).
+
+**Rows and shared chimneys.** Up to `MaxFurnacesInRow` (6) furnaces of the same facing side by side
+along their width, touching (each a furnace's width, 3 blocks, from the next, and with its lining in),
+are a row, 18 blocks long at most: one chimney on any member's outlet serves all of them, each at its
+full draught, as the per-hole flues in one stack did. Every other outlet must be capped: a right-click
+on an outlet's top with an iron plate caps it, and with an empty hand takes the plate back. An uncapped
+outlet (bare, or carrying a second, shorter chimney) leaks the draught: the whole row has none until it
+is capped, and the block info says which furnace's outlet is open ("the furnace 2 to the left", seen
+from the front). With more than six side by side none has draught. `Core/FurnaceRow.cs` finds the row
+both ways from the furnace asking, its chimney (the tallest on an uncapped outlet) and what is wrong.
+
+**The ash-pit damper.** An empty-hand right-click on the furnace's front (the controller's face, the
+ash mouth's) moves the damper open, half, shut, open:
+
+| Damper | Heating | Coke | Cooling (lid shut) |
+|---|---|---|---|
+| Open | the chimney's | 1 coke an hour (`HoursPerCoke`) | `CoolingPerHour` (300 °C an hour) |
+| Half | `DamperHalfHeating` (0.5) of it | `DamperHalfBurn` (0.6) of the open rate | the same |
+| Shut (banked) | none | `DamperShutBurn` (0.25) of the open rate | `DamperShutCooling` (0.25) of it |
+
+With the lid open it cools at `LidOpenCoolingPerHour` (600 °C an hour), damper or not, and the coke burns
+at the damper's rate. Banked, a fill of coke lasts 48 hours and a melt cools 75 °C an hour.
+
+**The lid.** An empty-hand right-click on the hole opens a shut lid; on an open lid (its box), or on
+the hole where there is no pot to pull, it shuts it; Shift with an empty hand opens or shuts it from
+any cell. While the furnace is too hot to touch (the game's `TooHotToTouchTemperature`) it needs tongs
+(any `heatResistant` item) in the off hand, the same test as pulling a pot; a cold furnace's lid moves
+bare-handed. It swings through its 100° in 1.4 s, drawn eased.
 
 **The pot.** `seraphhorizons:meltingpot-raw` is clay-formed from fire clay only (a deep pot 7 voxels
 across and 10 high) and fired in a pit kiln or a beehive kiln, as the game's crucible is, into
-`meltingpot-fired`. A pot holds `PotCapacityUnits` (200, two ingots) and lasts `PotHeats` (3) heats:
-its heats are an attribute of the stack, and it cracks when the last is emptied (or broken out). One
-pot goes in a hole, by right-click with the lid open.
+`meltingpot-fired`. A pot holds `PotCapacityUnits` (300, three ingots, so the furnace's two pots cast a
+600-unit cylinder blank, #768) and lasts `PotHeats` (3) heats: its heats are an attribute of the stack,
+and it cracks when the last is emptied (or broken out). Two go in the hole, by right-click with the lid
+open: a click on the hole goes to the nearer of the two places (the rig's `pot1`, west, and `pot2`,
+east), for putting a pot in, charging it and pulling it.
+
+**Two pots, one fire.** The pots share the furnace's one coke bed and temperature, but each is its own
+charge: they **may hold different recipes**, and each melts when the fire reaches its own recipe's
+temperature (stainless at 1530 °C in one, iron at 1538 °C in the other: the first melts first). A
+furnace lights only when neither pot holds a charge that makes nothing. `Core/FurnacePot.cs`.
 
 **Charging.** With the lid open and a pot in, a right-click with anything a pot recipe takes puts as
-much of the stack in as fits: a recipe must take every item already in the pot and this one, the pot
-must not go over its capacity, and this ingredient not over its largest share of a full pot
-(`PotRecipes.CanAdd`). Anything else is refused with a word: no recipe takes it, it does not go with
+much of the stack in the nearer pot as fits: a recipe must take every item already in the pot and this
+one, the pot must not go over its capacity, and this ingredient not over its largest share of a full
+pot (`PotRecipes.CanAdd`). Anything else is refused with a word: no recipe takes it, it does not go with
 what is in, the pot is full, or more would spoil the ratio. An ingot is 100 units, anything else 5. A
-right-click with coke puts it on the fire, up to `CokeCapacity` (6); with Shift, into the pot. The
-recipes are ratios only, no chemistry tracked (`Core/PotRecipes.cs`, built in, not settings); a recipe
-naming an item not in the game is left out with a log line:
+right-click with coke puts it on the fire, up to `CokeCapacity` (12, the one bed round both pots, drawn as
+three layers of four); with Shift, into the nearer pot. Iron alone is a charge of its own (the iron melt),
+so a pot holding only iron takes iron to the brim: for stainless, the ferrochrome goes in first, and then
+iron stops at its share. The recipes are ratios only, no chemistry tracked (`Core/PotRecipes.cs`, built
+in, not settings); a recipe naming an item not in the game is left out with a log line:
 
 | Recipe | Charge (share of the units) | Melts at | Gives | Full pot |
 |---|---|---|---|---|
-| Ferrosilicon | crushed quartz 45-55 %, iron bits 25-35 %, coke 15-25 % | 1400 °C | `seraphhorizons:ferrosilicon`, half the units in lumps of 5 | 20 quartz, 12 iron bits, 8 coke: 20 ferrosilicon |
-| Ferrochrome (low carbon, silicon reduction) | crushed chromite 45-55 %, ferrosilicon 25-35 %, lime 15-25 % | 1550 °C | `seraphhorizons:ferrochrome`, half the units in lumps; `smex:slag`, one per 25 units | 20 chromite, 12 ferrosilicon, 8 lime: 20 ferrochrome, 8 slag |
-| Stainless | iron (ingots or bits; no steel) 78-82 %, ferrochrome 18-22 % | 1530 °C | molten `game:ingot-stainlesssteel`, unit for unit | 1 iron ingot, 12 iron bits, 8 ferrochrome: 200 units |
-| Stainless remelt | stainless bits or ingots, all of it | 1530 °C | molten stainless, unit for unit | 40 bits: 200 units (20 bits = 100) |
+| Ferrosilicon | crushed quartz 45-55 %, iron bits 25-35 %, coke 15-25 % | 1400 °C | `seraphhorizons:ferrosilicon`, half the units in lumps of 5 | 30 quartz, 18 iron bits, 12 coke: 30 ferrosilicon (150 units) |
+| Ferrochrome (low carbon, silicon reduction) | crushed chromite 45-55 %, ferrosilicon 25-35 %, lime 15-25 % | 1550 °C | `seraphhorizons:ferrochrome`, half the units in lumps; `smex:slag`, one per 25 units | 30 chromite, 18 ferrosilicon, 12 lime: 30 ferrochrome (150 units), 12 slag |
+| Stainless | iron (ingots or bits; no steel) 78-82 %, ferrochrome 18-22 % | 1530 °C | molten `game:ingot-stainlesssteel`, unit for unit | 2 iron ingots, 8 iron bits, 12 ferrochrome (240 iron, 60 ferrochrome): 300 units |
+| Stainless remelt | stainless bits or ingots, all of it | 1530 °C | molten stainless, unit for unit | 60 bits: 300 units (20 bits = 100) |
+| Iron (for large castings, #768) | iron (ingots or bits; no steel or meteoric iron), all of it | 1538 °C | molten `game:ingot-iron`, unit for unit; casts only into `LargeCastingMolds` | 3 iron ingots: 300 units |
 
 The game has no crushed coke (smex retired it), so ferrosilicon takes the game's coke. Ferrochrome is
 about two thirds chromium, so 4 iron to 1 ferrochrome by units is about 13 % chromium. The ratio is in
@@ -2555,40 +3442,53 @@ about two thirds chromium, so 4 iron to 1 ferrochrome by units is about 13 % chr
 (`Stainless.Ferrochrome`, `seraphhorizons:ferrochrome`), for anything else that makes stainless from
 ferrochrome to share (smex's Bessemer converter, below).
 
-**Firing.** A firestarter or a lit torch (Shift) lights the coke as it lights a forge, with the lid
-open; it will not light with no coke, or with a charge in the pot that makes nothing (the block info
-gives each ingredient's share and the range it needs). Each piece of coke burns `HoursPerCoke` (1)
-hour, lit whatever the lid; a fire out of coke goes out. Under a closed lid with a working stack a lit
-hole heats at `ChimneyHeatingPerHour` (200 °C) up to `ChimneyMaxTemperature` (1600 °C) on the
-chimney's draft, and at `ForcedHeatingPerHour` (400 °C) up to `ForcedMaxTemperature` (1650 °C) with
-forced air; otherwise it cools at `CoolingPerHour` (300 °C), with its lid open at
-`LidOpenCoolingPerHour` (600 °C) (`Core/FurnaceHeat.cs`, piecewise linear, run each second by the
-calendar's hours since the last). From cold, stainless melts in about 3.8 hours with forced air and
-7.6 on the chimney alone, so a chimney firing needs its coke topped up. When the fire reaches the
-charge's recipe temperature the charge melts.
+**Firing.** A firestarter or a lit torch (Shift) on any of the furnace's cells lights the coke as it
+lights a forge, with the lid open; it will not light with no coke, or with a charge in either pot that
+makes nothing (the block info gives each ingredient's share and the range it needs). Each piece of coke
+burns `HoursPerCoke` (1) hour with the damper open, lit whatever the lid; a fire out of coke goes out.
+Under a shut lid with a draught a lit furnace heats as above, up to its draught's highest (and above it
+falls back to it at the cooling rate); otherwise it cools (`Core/FurnaceHeat.cs`, piecewise linear, run
+each second by the calendar's hours since the last). One fill of coke, 12 hours, melts stainless from cold
+on the shortest chimney with four hours to spare. When the fire reaches a pot's recipe temperature that
+pot's charge melts.
 
-**Forced air.** A lit, lidded hole draws `AirLitresPerSecond` (10 L a real second) from the first
-pipe beside (or under) any hole of its row that carries air, through exlib's pipe node
-(`ExpandedLib.Industry.Pipes.IPipeNode`: `Medium`, `TryConsume`, found by name, as smex's blast
-furnace draws its blast through its tuyeres), and runs on forced air while it gets half of it, for
-five seconds after. A pipe end against a hole is not open to the air, so it does not leak. The air
-comes from smex's twin-tub blower (up to 110 L/s) or its steam engine's air blower, piped in with
-ppex pipe. Without exlib, or with its interface changed (logged once), there is none.
+**Pulling and teeming.** With the lid open and an empty hand, a right-click on the hole pulls the nearer
+pot, with tongs in the off hand while the furnace is too hot to touch. A pot not yet melted comes back
+with its charge (and goes back in with it). A ferroalloy is broken out of the pot: its lumps and slag go
+into the inventory, hot, and the pot, a heat older, into the hand (or it cracks on its last). Molten
+stainless or iron comes out as `meltingpot-smelted`, on the game's smelted crucible class
+(`BlockSmeltedContainer`), so it pours into any `ILiquidMetalSink` (ingot molds, tool molds, the gear
+blank molds) exactly as a crucible does, and emptied it is a fired pot a heat older, or cracks. It is
+given the cooldown speed that takes it from the furnace's temperature to the game's solid point (0.9 of
+the melting point) in `PourWindowSeconds` (20) real seconds (`Core/FurnaceHeat.cs`, `PourWindow`);
+frozen, a right-click breaks the pot, which is lost, and knocks the metal out as bits of its metal (a bit
+per 5 units), which go back in a pot. A pot left in the furnace until the fire falls below that point is
+lost the same way when pulled.
 
-**Pulling and teeming.** With the lid open, an empty hand and tongs (any `heatResistant` item) in the
-off hand, a right-click pulls the pot; without tongs a pot hotter than the game's too-hot-to-touch is
-refused. A pot not yet melted comes back with its charge (and goes back in with it). A ferroalloy is
-broken out of the pot: its lumps and slag go into the inventory, hot, and the pot, a heat older, into
-the hand (or it cracks on its last). Molten stainless comes out as `meltingpot-smelted`, on the game's
-smelted crucible class (`BlockSmeltedContainer`), so it pours into any `ILiquidMetalSink` (ingot
-molds, tool molds, the gear blank molds) exactly as a crucible does, and emptied it is a fired pot a
-heat older, or cracks. It is given the cooldown speed that takes it from the furnace's temperature to
-the game's solid point (0.9 of the melting point) in `PourWindowSeconds` (20) real seconds
-(`Core/FurnaceHeat.cs`, `PourWindow`); frozen, a right-click breaks the pot, which is lost, and knocks
-the metal out as stainless bits (a bit per 5 units), which go back in a pot. A pot left in the hole
-until the fire falls below that point is lost the same way when pulled. Breaking a hole drops it, the
-unburnt coke and its pot with its charge; a melted charge drops as its products (stainless as bits),
-the pot lost.
+**Iron for large castings** (#768). The iron melt (1538 °C, which every chimney reaches) is for castings
+too big to forge, the cylinder blank (#639) above all: a cylinder mold takes 600 units, the furnace's two
+pots, poured one after the other. The game's mold takes the second pour whatever the first has cooled
+to (its `CanReceive` asks only for the same metal and room, and a pour sets the fill to its own
+temperature), so nothing was changed there (an Atlas scenario pours the second pot into a fill already
+hardened). Molten iron from a pot casts only into large-casting molds: the pulled pot
+(`BlockMeltingPotSmelted`) checks the mold it pours into, and a metal in `LargeCastingMetals`
+(`game:ingot-iron`) pours only into a block in `LargeCastingMolds` (the game's ingot molds and the
+cylinder mold, so bits can go back into ingots); every tool-head mold is refused with a word, so iron
+tools stay smithed (cast iron is brittle, and real iron tools were wrought or steel). The rule is the pot's
+(`CrucibleFurnaceConfig.PourAllowed`), so the game's crucible, which cannot melt iron anyway, is not
+touched, and stainless pours into any mold as before.
+
+**Drawn.** The frame is the block's own shape (`cruciblefurnace_frame.json`); everything else is drawn by
+`Game/CrucibleFurnaceRenderer.cs` from the full shape's parts by the furnace's state: the stages fitted
+(the brickwork in its brick), the lid at its eased depth, the damper in its place, the cap, each pot, its
+charge or its melt (in the melt's metal), the coke's layers (`ceil(coke / 4)`, burning while lit), and the
+burning coke and the melts glowing by the fire's temperature (none below 500 °C, full at 1300 °C). Flames
+show at the hole while it burns with the lid open, and smoke at the row's chimney top while it draws.
+
+**Block info.** The stage built and what the next still needs; the brick; the lid; the damper; the fire's
+temperature and coke; each pot's charge (with what it makes and the temperature it needs against the
+fire's), molten or melted contents and heats; the chimney's height and draught (or what is wrong: none,
+too short, too many, or which outlet is open); and the row's members and which carries the chimney.
 
 **The game's stainless.** The game gives `game:ingot-stainlesssteel` no melting point, so molds never
 count it hardened: `patches/stainless-ingot-melting.json` adds 1530 °C (unswitched; the stainless gear
@@ -2639,46 +3539,69 @@ page one, "In bulk". If any of smex's members is missing or changed, a warning i
 patched and ferrochrome stays off its scrap list. A heat that sets solid in the vessel before it pours
 comes out as smex makes it, steel bits, its ferrochrome with them; ferrochrome charged as scrap into a
 vessel that is then filled with molten steel (not blown) stays cold scrap, as smex keeps any scrap
-until a blow.
+until a blow. The Bessemer route is the only part of the furnace's code that touches smex; the furnace
+itself uses neither smex, ppex nor exlib (there is no forced air: the old exlib pipe hook is gone).
 
-**Handbook.** A guide page, "Making stainless steel" (`config/handbook/cruciblefurnace.json`), and a
-section linking it on the hole, the pots and the two ferroalloys.
+**Handbook.** A guide page, "Making stainless steel" (`config/handbook/cruciblefurnace.json`), on the
+furnace, its chimney and rows, the pots, the charges, firing and the damper, pulling and teeming; the
+frame's page has "Building it" and a section linking the guide, as the pots and the two ferroalloys do.
 
 | Setting | Default | |
 |---|---|---|
-| `PotCapacityUnits` | 200 | Units a pot holds |
+| `PotCapacityUnits` | 300 | Units a pot holds |
 | `PotHeats` | 3 | Heats a pot lasts |
-| `PourWindowSeconds` | 20 | Real seconds a pulled pot of stainless pours before it freezes |
-| `CokeCapacity` | 6 | Coke a hole holds |
-| `HoursPerCoke` | 1 | Game hours a coke burns |
-| `ChimneyHeatingPerHour` | 200 | °C an hour on the chimney's draft |
-| `ForcedHeatingPerHour` | 400 | °C an hour with forced air |
-| `ChimneyMaxTemperature` | 1600 | The hottest on the chimney |
-| `ForcedMaxTemperature` | 1650 | The hottest with forced air |
-| `CoolingPerHour` | 300 | °C an hour a hole cools, lid closed |
+| `PourWindowSeconds` | 20 | Real seconds a pulled pot of molten metal pours before it freezes |
+| `CokeCapacity` | 12 | Coke the furnace's bed holds round its two pots |
+| `HoursPerCoke` | 1 | Game hours a coke burns, damper open |
+| `ChimneyHeatingPerHour` | 200 | °C an hour on the shortest chimney |
+| `ChimneyMaxTemperature` | 1600 | The hottest on the shortest chimney |
+| `ChimneyHeatingPerExtraBlock` | 40 | °C an hour each block over the shortest adds |
+| `ChimneyMaxPerExtraBlock` | 10 | °C of maximum each block over the shortest adds |
+| `MinChimneyHeight` | 6 | Chimney blocks on the outlet the furnace needs to draw |
+| `MaxChimneyHeight` | 11 | The tallest chimney that draws harder |
+| `MaxFurnacesInRow` | 6 | Furnaces side by side one chimney serves |
+| `CoolingPerHour` | 300 | °C an hour a furnace cools, lid shut |
 | `LidOpenCoolingPerHour` | 600 | °C an hour it cools, lid open |
-| `MinChimneyHeight` | 6 | Chimney blocks a row's stack needs |
-| `MaxHolesInRow` | 4 | Holes a stack serves |
-| `AirLitresPerSecond` | 10 | Air a hole draws for forced air, L a real second |
-| `ChimneyBlocks` | clay bricks, clay brick chimney, refractory bricks, stone bricks, smex's smoke stack | What a chimney is built of |
+| `DamperHalfHeating` | 0.5 | Damper half shut: the share of the heating |
+| `DamperHalfBurn` | 0.6 | Damper half shut: the share of the coke's burn |
+| `DamperShutBurn` | 0.25 | Damper shut: the share of the coke's burn |
+| `DamperShutCooling` | 0.25 | Damper shut: the share of the closed cooling |
+| `ChimneyBlocks` | clay bricks, clay brick chimney, refractory bricks, stone bricks | What a chimney is built of |
+| `LargeCastingMetals` | `game:ingot-iron` | Metals a pot pours only into `LargeCastingMolds` |
+| `LargeCastingMolds` | `game:ingotmold-*`, `seraphhorizons:cylindermold-*` | The molds those metals pour into |
 
-With the switch off the server marks the hole, the pots, the two ferroalloys and both recipe files
-disabled before the game loads them, empties the handbook patch and hides the guide page, so none of
-it exists and holes and pots already in a world are lost, and smex's converter is not patched and
-its scrap list and handbook are as it ships them. Not yet: the pot recipes in the recipe
-export (the hole and the pot's own recipes are there), and a model past simple boxes (no coke or glow
-drawn in the hole). `tests/PackTests/CrucibleFurnaceScenarios.cs`
-(Atlas) builds a row and breaks its stack, melts stainless from a charge on the chimney's draft with a
-top-up, pulls it with and without tongs, checks the pour window and an ingot mold, freezes it to
-bits, refuses wrong charges and an unlit bad ratio, breaks out both ferroalloys and cracks a pot on
-its last heat, takes back an unmelted pot and breaks a hole, and finds a ppex pipe as an air source.
-`BessemerStainlessScenarios.cs` (Atlas, `SharedWorldScenarios`) can raise no whole converter (vessel
-stages, transmission, steam, blast), so it places a lone control block, sets its heat as smex leaves
-it and runs smex's own methods through the patches: a blow completing with ferrochrome scrap, the save,
-the block info, a stainless pour, an off-ratio and a too-cold one, and ferrochrome into molten steel;
-a real blow, a player's click at the hatch (smex's checks before it), the canal run and the client's
-view are not driven. `tests/BessemerHeatTests.cs` covers the decision. `SwitchesOffScenarios`
-requires none of it with the switch off.
+#796 dropped `ForcedHeatingPerHour`, `ForcedMaxTemperature`, `AirLitresPerSecond` and `MaxHolesInRow`
+(forced air and the row of holes are gone) and smex's smoke stack from `ChimneyBlocks`, and raised
+`CokeCapacity` from 6 to 12; an install that kept the old defaults follows the new ones
+(docs/config-defaults.md), and a dropped key left in a file is ignored. **The old melting holes**
+(`meltinghole-{closed|open}`, their grid recipe and shapes, and their `multiblockStructure`) are removed
+with no migration: holes in a world vanish, with whatever was in them. The recipe browser's multiblock
+viewer no longer has the furnace; the model viewer has it as `crucible-furnace`.
+
+With the switch off the server marks the furnace's frame and ghost, the pots, the two ferroalloys and
+both recipe files disabled before the game loads them, empties the handbook patch and hides the guide
+page, so none of it exists and furnaces and pots already in a world are lost, and smex's converter is
+not patched and its scrap list and handbook are as it ships them. Not yet: the pot recipes in the recipe
+export (the frame and the pot's own recipes are there), and the furnace seen in a game client.
+
+`tests/CrucibleFurnace/` (unit) covers the pot recipes and charging, the draught by height, the damper,
+the row (caps, leaks, at most six, a gap ending it), the build (the order, a stack a click, one brick
+type), two pots of different recipes, and the rig (its contract, the reference poses, the lid's boxes,
+and `potUnits` and the coke's layers held to the settings). `tests/PackTests/CrucibleFurnaceScenarios.cs`
+(Atlas) places the frame on all four facings and breaks it, builds every stage by clicks and refuses a
+second brick type and a stage out of order, breaks a built furnace for everything fitted, fits the stages
+by the creative shortcut, fires a 6-block and an 11-block chimney side by side and compares them, works
+the damper through its three places, needs tongs for a hot lid, runs a row of three on one chimney with
+an open outlet and then capped, melts two pots of different recipes at their own temperatures and pulls
+them with and without tongs, melts stainless from cold on its coke and pours and freezes it, teems iron
+from both pots into one cylinder blank while a tool mold refuses it, and breaks out both ferroalloys and
+cracks a pot on its last heat. `BessemerStainlessScenarios.cs` (Atlas, `SharedWorldScenarios`) can raise
+no whole converter (vessel stages, transmission, steam, blast), so it places a lone control block, sets
+its heat as smex leaves it and runs smex's own methods through the patches: a blow completing with
+ferrochrome scrap, the save, the block info, a stainless pour, an off-ratio and a too-cold one, and
+ferrochrome into molten steel; a real blow, a player's click at the hatch (smex's checks before it), the
+canal run and the client's view are not driven. `tests/BessemerHeatTests.cs` covers the decision.
+`SwitchesOffScenarios` requires none of it with the switch off.
 
 ### Handcar (`Handcar`, `HandcarSettings`)
 
@@ -2748,7 +3671,8 @@ per wood block; leaves cost nothing. Logging Expanded fells in the server's `Bre
 which runs first: it marks the tree's blocks to drop nothing, throws the trunk (a trunk entity,
 with `TrunkEntities`) and raises its public `FellingListener.OnTreeFelled` when it made one.
 `FellingWear.cs` (server side, by name): hears that callback and notes the player and the stump; a
-prefix on `ItemAxe.OnBlockBrokenWith` for that player, when the tree the axe is about to break
+prefix on `ItemAxe.OnBlockBrokenWith` for that player (or an eidolon felling as one, known by
+`FellingWear.FellerId`: "Eidolon", felling), when the tree the axe is about to break
 holds that stump, takes the note, decides thick or thin from the tree's blocks
 (`Core/FellingWearRules.cs`: any `logsection-` block) and opens a window in which a prefix on
 `CollectibleObject.DamageItem` skips every hit on the axe's slot; a finalizer closes it and charges
@@ -3232,15 +4156,27 @@ not listed.
 
 **Ore and gravel maps** (#444): `seraphhorizons:oremap` and `seraphhorizons:gravelmap`
 (`Ore/Game/ItemOreMap.cs`, after the game's locator map), stack size 1, ordinary items. A map holds
-its deposit, metal, size tier, precision and marker position; right-click adds a pinned waypoint
-titled with its precision ("Copper deposit (large) (precision 1, ±400 m)", "Rich gravel (granite)
-(exact)"; see "Maps and leads" for how a better map replaces a rougher marker) and keeps the map. Precision 1 marks within
-400 m, 2 within 150 m, 3 the deposit itself (its measured centre); the offset is seeded from the
+its deposit, metal, size tier, precision and marker position, and what the deposit is (#692): an
+ore map names the ores there, never the metal (those holding a tenth of its metal or more, at most
+three: "galena and cerussite"), their grades ("mostly poor", "poor and medium") and the rock most of
+it sits in, from the ore counted when the deposit was measured; its size is the metal in the
+ground, not what a given way of working the ore wins. A gravel map names its field's rock and the
+metals the pan gives there. Right-click adds a pinned waypoint titled with its precision ("Galena
+and cerussite deposit (medium) (±150 m)", "Rich gravel (granite) (exact)"; see "Maps
+and leads" for how a better map replaces a rougher marker) and keeps the map. Precision 1 (rough) marks within
+150 m, 2 (fair) within 50 m, 3 (fine) within 15 m of the deposit (its measured centre); the offset is seeded from the
 deposit, so every copy agrees and a better tier's marker lies between the worse one's and the
 deposit (`MapPrecision`). Gravel maps are exact. `OreSystem.Maps.Issue(player, deposit, precision)`
 (`Ore/Game/MapIssuer.cs`) builds the map and marks the deposit sold, refusing one already sold or
 sold out: the call the traders make (#455). The items exist in every world; without ore cells or
 placer fields there is nothing to issue.
+
+The ore map's description is one line (what it is, right-click to mark), and its tooltip lists only
+the map's facts: precision, ores, grades, host rock and size (on a trader's shelf too). The rest is
+in the handbook guide "Ore maps" (`config/handbook/oremaps.json`, page code
+`OreMapsSystem.GuidePage`, shown in every world as the items are), which the map's own handbook page
+links to: what the facts mean, marking and keeping the map, the precision tiers and standing, the
+survey and its check at sale, one sale per deposit, and finite deposits.
 
 Admin commands (`controlserver`), under `/sh ore`: `list [metal] [radius] [--unsold|--sold|--soldout]`
 (default radius 6,000; ids `copper:102,102`), `gravel [radius]`, `verify <id>` (answers when the
@@ -3253,6 +4189,462 @@ suitability, the placer book, the registry's states, size tiers, map offsets);
 `tests/PackTests/OreMapsScenarios.cs` (Atlas, a fixed seed: the switch recorded, the scattered gravel
 cut, every rock panning copper, the registry listing from the seed, verifying an ungenerated deposit,
 `givemap` and the waypoint, a gravel cell resolving to a field of rich gravel and its map).
+
+### Ore processing: recovery (no switch of its own)
+
+Ore processing (epic #684) turns the mine into an 1800s mill chain: hand stations and machines at
+tiers 1–4 for crushing, classifying, grinding, gravity concentration, roasting, amalgamation and
+parting. Its recovery maths (#685) is game-independent and comes first; the stations and machines
+that call it are the epic's other tasks. Its smelting shares are in play with `OreProcessing` on
+(next section).
+
+The figures are `config/ore-processing.json` (an asset; every one a starting value for
+playtesting), read into `OreProcessingConfig` and wrapped by `OreRecovery` (`Ore/Core/`), which also
+lists what is wrong with the file (`Problems`, for the server log; a missing figure reads as 0):
+
+- Overall recovery is the product of the stages' multipliers (`Overall(ore, line, fineGrained)`,
+  with `OreLine.AtTier(tier)` the standard line at a tier). Concentration (`Concentration(ore,
+  concentrator, feed)`): the concentrator's base (pan 45 %, rocker 55 %, long-tom sluice 65 %,
+  jig 80 %, table 92 %, table and vanner 99 %), × 0.85 for feed not classified, × 0.4 for
+  fine-grained (poor) feed not ground, × 0.7 for free gold and silver not amalgamated, × the ore's
+  density (cassiterite and chromite 1.05, native copper 1.1, smithsonite 0.9), capped at 100 %.
+  Crushing and grinding lose nothing.
+- Roasting (`Roasting(ore, roaster)`): firepit 85 %, stall 92 %, reverberatory 100 %; unroasted
+  sulfide concentrate doesn't smelt at all, and a non-sulfide is not roasted (1).
+- Which device a stage has at each tier is code, not config (`OreTiers`): concentrators rocker
+  (hand), sluice, jig, table, table and vanner; roasting by firepit to tier 1, stall at 2,
+  reverberatory at 3 and 4; grinding from tier 2.
+- Smelting (`SmeltShare(ore, form)`): concentrate and roasted concentrate 100 %, crushed ore and
+  chunks 50 %, raw and ground ore nothing, sulfide concentrate nothing until roasted.
+- Parting (`Parting(method, tier)`, `Smelted(ore, mainUnits, partingTier)`): a
+  by-product is a share of the main metal's recovered units, won only at a parting step at
+  cupellation or liquation 85 / 95 / 100 % (hand and tier 1 / tiers 2–3 / tier 4) or acid
+  parting 95 / 100 % (tiers 2–3 / 4; none by hand). Galena carries silver 3 %, argentiferous
+  galena 38 % (#690), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %,
+  franckeite lead 30 %, gold quartz silver 15 %. Unparted, the by-product is lost and the main
+  metal comes out at the ore's `unparted` share (gold quartz 85 %).
+- Units: raw ore and chunks keep their grade's units (`ore-graded.json`'s `metalUnitsByType`);
+  crushed, ground and concentrate items hold 5 (`concentrateUnits`). A station turns units into
+  items through a `UnitCarry` (per output, saved with the station), which holds the fraction
+  over for the next item, so nothing is lost to rounding.
+
+Tests (`tests/Ore/OreRecoveryTests.cs`) hold the shipped figures to the design's worked examples,
+each a pocket of 64 blocks at 1.25 ore a block: poor hematite 1,600 units gives 352 by hand,
+1,280 at tier 2 and 1,584 at tier 4; medium chromite 924 / 1,344 / 1,600; medium galena 748 by
+hand with a firepit roast, 1,472 at tier 3, 1,584 at tier 4 plus about 48 units of silver; medium
+gold quartz (800) 308 with the rocker alone, 440 with the amalgam pan, 792 at tier 4; medium
+native copper 968 by hand, 1,600 at tier 4.
+
+### Ore processing: items, crushing and smelting (`OreProcessing`)
+
+The epic's items and the rules every station will work by (#686, #687, #688), in `Ore/Processing/`
+(rules in `Ore/Core/OreProducts.cs`). **On by default** since the hand tier landed (spalling #747,
+the rocker, roasting, leaching, the still, the cupel and the liquation pan); it was added off, since
+raw ore with nothing to work it would have stranded players. Server side; a client builds its items
+from the server's, so it follows the server's switch. With it off the server leaves
+every item, patch and change below out (the item types are marked disabled, the patch is emptied),
+and the game is as before.
+
+**Raw ore and chunks are vanilla's ore item**, `game:ore-{grade}-{ore}-{rock}`, by grade (its host
+rock stays the `{rock}` variant):
+
+| Grade | Becomes | Stack | Smelts | Crushes to |
+|---|---|---|---|---|
+| poor | raw ore ("Raw Galena ore (poor)") | 4 | no | fine crushed ore |
+| medium | raw ore | 4 | no | coarse |
+| rich | chunk ("Galena chunk (rich)") | 16 | at half | coarse |
+| bountiful | chunk | 16 | at half | coarse |
+
+Every grade keeps its `metalUnits` (the metal it holds, not what it smelts to) and the ore blocks keep
+their drops (1.25 ore items a block, plus 0.01 crystallised ore): deposit sizes, size tiers, map prices
+and district vein sizing value a block by them (`DepositService.BlockUnits`), so the half and the
+"does not smelt" come from the items' smelting, never from their units. Crystallised ore crushes and
+smelts the same by its grade. `patches/oreprocessing-ore.json` gives both items the pack's class
+(`ItemGradedOre`: the names, the text, and no breaking ore into nuggets with a hammer where it lies on
+the ground, vanilla's ground storage interaction, which #747's spalling replaces); the rest is set in
+code once every item is loaded (`OreProcessingItems`, in `AssetsFinalize`), so it holds whatever order
+other mods' patches ran in.
+
+**New items**, one per ore (the 32 graded metal ores of vanilla, GeologyAdditions and
+MaterialNeedsGeology, `OreProducts.Ores`; each in `config/ore-processing.json`), each holding 5 units
+(`metalUnits`, #685's `concentrateUnits`), shaped as vanilla's crushed item and textured with the ore's
+nugget texture retinted by a blended overlay of a vanilla texture (no texture of the pack's):
+
+| Item | Code | Stack | Smelts |
+|---|---|---|---|
+| Crushed ore, coarse and fine | `game:crushed-{ore}-{coarse,fine}` | 16 | at half |
+| Ground ore | `seraphhorizons:groundore-{ore}` | 16 | no |
+| Concentrate | `seraphhorizons:concentrate-{ore}` | 128 | whole; a sulfide's not at all (it roasts in the firepit, next section) |
+| Roasted concentrate (the 13 sulfides) | `seraphhorizons:roastedconcentrate-{ore}` | 128 | whole |
+| Amalgam (gold and silver quartz) | `seraphhorizons:amalgam-{ore}` | 128 | no (retorted in the still first, below) |
+| Retorted sponge (gold and silver quartz) | `seraphhorizons:sponge-{ore}` | 128 | whole |
+| Litharge | `seraphhorizons:litharge` | 64 | to lead, 20 in 21 (95 %) |
+
+Crushed ore is vanilla's crushed item with a grain: an item type of the pack's in the game's domain
+(`assets/game/itemtypes/resource/crushedore.json`), next to vanilla's `game:crushed-{material}`, which
+stays. Argentiferous galena (`galena_nativesilver`) is a sulfide like galena, and a lead ore (#690,
+"Cupellation" below): every form of it smelts to lead.
+
+**Smelting** (#688). What every form smelts to is what the ore's nugget smelts to (metal, melting
+point, smelting type; `nugget-{ore}` without `quartz_`, argentiferous galena's galena's), at #685's share
+(`OreRecovery.SmeltShare`: concentrate and roasted concentrate 1, crushed ore and chunks 0.5, raw and
+ground ore 0, a sulfide's concentrate 0 until roasted). The game's rate is a whole number of items per
+ingot, so the rate is the smallest exact one (`OreProducts.Rate`): a 25-unit chunk 1 ingot per 8, a
+35-unit one 7 per 40 (a `smeltedStack` of 7), crushed ore 1 per 40, concentrate 1 per 20. Every
+furnace then takes them as it takes the nugget:
+
+- the game's crucible on a firepit or in a forge (chunks are given a nugget's size so they fit it, and
+  every new item has the metallurgy storage flag). Its alloy maths left out `smeltedStack`'s size,
+  which its single-metal maths counts, so a transpiler (`AlloyStackSize`, Harmony id
+  `seraphhorizons.oreprocessing`, each side by its own setting) makes it count it;
+- the bloomery (iron ore smelts to a bloom: 20 concentrate, or 40 crushed ore, a bloom);
+- crucibulum's forge, which counts a charge as the crucible does;
+- the crucible furnace: ferrochrome takes chromite concentrate as it takes crushed chromite, 5 units
+  (`PotRecipes`; not crushed ore, a crude feed outside its ratios);
+- Steelmaking Expanded's blast furnace (`SmexBurden`): smex values a nugget and its crushed iron at
+  8.5 units of iron; the live settings (not its file) make a nugget and an iron ore's concentrate
+  (pyrite's roasted) 5 and crushed iron ore 2.5 (`HopperIronOreRequired` 40, `HopperNuggetRequired` 20,
+  `BfIronPerMeltCycle` 100: a batch is 20 nuggets or 40 crushed for 100 units), and our iron ore forms
+  join its feed lists (`IronOreCompat`, kept there by a postfix on its `Init`).
+
+**Crushing** (#687): every crushed item is 5 units, so crushing yields the input's units ÷ 5, exactly
+and with no loss (a medium chromite raw ore, 20 units, gives 4; every grade is a multiple of 5, so no
+fraction arises and the pulverizer needs no `UnitCarry`), fine from poor ore, coarse from the rest; a
+nugget gives one coarse crushed ore of its ore (native gold and silver: of the quartz ore). The game's
+pulverizer, the tier 1 crusher, crushes by these. Set in code after every patch, they replace Expanded
+Matter's nugget crushing (its `patches/survival-itemtypes-resource-nugget.json` replaces vanilla's
+whole table) and its ore crushing, and smex's 1:1 nugget patch (which smex already skips with Expanded
+Matter installed), so the three never fight. The quern takes no ore form (none has grinding).
+Vanilla's grid recipes hammering ore into nuggets (`recipes/grid/nuggets.json`) are switched off;
+nuggets still come from panning and traders.
+
+**Expanded Matter's crushed items**: ours are the crushed form of every ore, so one rule holds (grain,
+5 units, half smelting). EM's `em:crushed-ore-*` and `em:crushed-metal-*` stay in the game (its quern
+powders are made from them) but crushing no longer makes them. Every recipe that took one of them, or
+one of vanilla's ore crushed items (`game:crushed-chromite`, `-cassiterite`, `-galena`, `-ilmenite`,
+`-sphalerite`), takes our crushed ore of that ore, either grain, instead
+(`OreProcessingSystem.LegacyCrushed`, rewritten in every recipe file's ingredients before the recipes
+load): the tier 3 refractory bricks, vanilla's sulfates and diluted portions, EM's pigments and
+verdigris, Tailor's Delight's leather. EM's powders of those ores are left without a source (a
+follow-up, with the grinding stage). EM's coal crushing in the grid is left as it is (#734).
+
+Each form is one handbook group (crushed ore one per grain, `groupBy` in its type file), which Tidy
+Variants follows for its tiles (it honours shipped `groupBy`; an override rule would be unused, and
+reported, in a world with the switch off). Item values (#689) price every new item on concentrate,
+from its 5 units and the labour of each stage along a tier 2 line, with the switch's own value
+switch (`tools/item-values/ore-processing.json`, its README's "Ore processing"; the table is built
+from the default export, which has the switch on, and an export made with it off lacks the items, so
+the tool adds them); the galena silver share (#690) is #685's figures. Code: `Ore/Processing/`
+(`OreProcessingSystem`, `OreProcessingItems`, `ItemGradedOre`, `ItemOreProduct`, `AlloyStackSize`,
+`SmexBurden`). Tests: `tests/Ore/OreProductsTests.cs` (grades, codes, crushing, exact rates, the type
+files against the figures); `tests/PackTests/OreProcessingScenarios.cs` (Atlas, the switch on: the
+items, the grades, a medium ore block still measuring 1.25 × its units plus crystallised ore, crushing,
+no nugget recipe, the retargeted recipes, the crucible and an alloy, the bloomery, crucibulum's forge,
+smex's burden, the crucible furnace) and `SwitchesOffScenarios` (off, the default).
+
+### Ore processing: spalling (`OreProcessing`, `SpallingSettings`)
+
+The hand tier's crusher (#747): raw ore and chunks broken with a hammer where they lie, the way miners
+spalled ore with sledges before there were stamp mills. No station and no model: it works at the rock
+face from the first day. Part of `OreProcessing`; server side, and a client follows the
+server's items.
+
+- **Setting down.** Raw ore, chunks and crystallised ore (every grade) go on the ground one at a time:
+  shift + right-click on a solid block, ground storage holding a single ore in the middle of the block
+  (`SingleCenter` in place of vanilla's messy pile of 12, by `patches/oreprocessing-ore.json`), never a
+  pile. Shift + right-click on a placed ore with another in hand sets that one on the next block: beside
+  the face clicked, or, clicking its top, the next block the player faces (never on top, and never
+  picking the placed one up). An empty hand takes it back as before.
+- **Striking.** A left-click on a placed ore with a game hammer (`game:hammer-*`) is a blow, as on the
+  anvil: the hammer swings, the block is not broken, and the hammer loses `HammerWearPerBlow` (1). Raw
+  ore (poor, medium) breaks after `BlowsRawOre` (6) blows, a chunk (rich, bountiful) after `BlowsChunk`
+  (3). It breaks into crushed ore by the 5-unit rule with no loss, the ore's own crushing (fine from
+  poor ore, coarse from the rest: a medium galena's 20 units give 4 coarse, a bountiful's 35 give 7),
+  which pops out where it lay. A player strikes no faster than a blow every 0.3 s
+  (`Spalling.BlowIntervalMs`); the server counts the blows in memory, so an ore left half struck and
+  unloaded starts again.
+- **Anything else** (a pick, an empty hand, any other item) keeps the game's behaviour: breaking the
+  block picks the ore up.
+
+`SpallingSettings` in `ModConfig/seraphhorizons.json` (`BlowsRawOre`, `BlowsChunk`, `HammerWearPerBlow`;
+a value out of range falls back to its default with a warning). The hammers get the behaviour
+(`CollectibleBehaviorSpalling`, first among their behaviours so it runs before the hammer's swing,
+`AnimationAuthoritative`) on the server in `AssetsFinalize`, and clients get it with the items; with the
+switch off no hammer has it. The handbook has a guide page, "Spalling ore"
+(`config/handbook/spalling.json`), hidden with the switch off (and left out of the recipe export), and
+the placed ore's help shows the hammers and the left-click. The recipe export has a `spalling` record per
+ore item kind (`machine` shape, power `hand`, `turns` the blows, `work` in `strikes`, the hammer worn a
+point a blow, no station: `requirements` says it is worked on the ground). A speed bonus for striking on
+stone or a metal plate is left out. Code: `Ore/Core/Spalling.cs` (figures and rules),
+`Ore/Processing/OreSpalling.cs` (the blows, the next block, the hammer behaviour), `ItemGradedOre`.
+Tests: `tests/Ore/SpallingTests.cs`; `tests/PackTests/OreProcessingScenarios.cs` (Atlas: the hammers
+and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, fine from
+poor and a chunk in three blows, the next block, the export records) and `SwitchesOffScenarios` (off).
+
+### Ore processing: leaching borax, saltpeter and alum (`OreProcessing`)
+
+The non-metals are leached with blocks players already have (#742): no station, no model. With the
+switch on, borax, saltpeter and alum come out of the ground as a heavy raw form that no longer works
+where today's items are used; leached in a barrel and boiled down in a cooking pot, they give today's
+items, so every recipe that takes them keeps working unchanged.
+
+| Mineral | Raw form (stack 4) | Crude liquor (barrel) | Crystals (cooking pot) |
+|---|---|---|---|
+| borax | `game:ore-borax` (no longer ground in the quern) | `seraphhorizons:crudeliquorportion-borax` | `game:powder-borax` |
+| saltpeter | `seraphhorizons:rawsaltpeter`, "Raw saltpeter" | `seraphhorizons:crudeliquorportion-saltpeter` | `game:saltpeter` |
+| alum | `game:ore-alum` (no longer crushed in the pulverizer) | `seraphhorizons:crudeliquorportion-alum` | `game:powder-alum` |
+
+- **Raw form.** Borax and alum are vanilla's ungraded ore items, restacked to 4 (as raw ore,
+  `OreProducts.RawStack`) with their grinding and crushing taken off. Saltpeter had no mined form
+  (its cave coating dropped the crystals), so it gets one: every block that dropped `game:saltpeter`
+  drops raw saltpeter instead at the same rate (vanilla's coating, Interesting Ore Gen's saltpeter ore,
+  Saltpeter Production's nitre bed buds; Oils Resoaped's grid recipe for saltpeter from salt, potash
+  and sulfur is left alone). Expanded Matter's kernite liquor still settles into `game:ore-borax`,
+  now raw borax to leach.
+- **Leach** (`recipes/barrel/oreprocessing-leaching.json`): a raw mineral and a litre of water,
+  sealed a day, give a litre of the mineral's crude liquor; the rock left behind is lost. The liquors
+  are new on purpose: vanilla's diluted borax and Expanded Matter's diluted alum and saltpeter have
+  uses of their own and would let raw mineral skip the pot. Textured with vanilla's brine, weak tannin
+  and lime water.
+- **Evaporate** (`recipes/cooking/oreprocessing-evaporating.json`): a litre of liquor boils down to
+  one crystal item, so one mined item makes one crystal item (the quern made 2 borax powder from a
+  borax; a starting figure for playtesting). A pot of 6 litres gives 6.
+- Alum's crushed item, which nothing makes now, is alum powder in the recipes that took it (vanilla's
+  diluted alum; `OreProcessingSystem.LegacyExact`, rewritten with the legacy crushed ores).
+- The figures are in the two recipe files, and `Ore/Core/OreLeaching.cs` holds them (litres a raw
+  mineral, crystals a litre, a day sealed) with a test checking the files against it. The liquors and
+  the raw forms carry a handbook section, "Leaching borax, saltpeter and alum" (the type files' for the
+  new items, set in code for vanilla's ores, `Leaching`).
+
+With the switch off the two recipe files are emptied, the item types marked disabled, and the
+minerals are as before. Item values: raw saltpeter is a raw at saltpeter's price and the liquors are
+priced by their barrel recipes (`tools/item-values/ore-processing.json`'s `singles`), so borax and
+alum powder, which only the pot makes with the switch on, cost the leaching and the pot.
+Code: `Ore/Processing/Leaching.cs`, `Ore/Core/OreLeaching.cs`. Tests: `tests/Ore/OreLeachingTests.cs`;
+`OreProcessingScenarios` (the raw forms, the saltpeter drops, a barrel of alum, the pot, diluted alum)
+and `SwitchesOffScenarios`.
+
+### Ore processing: roasting in the firepit (`OreProcessing`, `FirepitRoastSeconds`)
+
+Hand-tier roasting (#720): a sulfide's concentrate (the 13 sulfides of `config/ore-processing.json`,
+argentiferous galena among them) does not smelt, and cooks in the game's firepit into its roasted
+concentrate, which smelts whole. No station and no model: the concentrate goes in the firepit's input
+slot, not in a crucible.
+
+- **Any fuel.** It roasts at 600 °C (`OreRoasting.MeltingPoint`), which dry grass (600) and firewood
+  (700) reach. Its smelting needs no container (`requiresContainer: false`, smelting type `convert`,
+  "When heated, turns into" in the handbook), so the crucible, crucibulum's forge and the other furnaces
+  refuse it.
+- **One at a time.** The game's firepit heats the whole stack in its input slot together (a big stack
+  heats slowly), then turns one item per cook time (`meltingDuration`) once the stack is at the point,
+  faster in a fire at least twice as hot (it counts the cook time by whole multiples of the point).
+  The cook time per item is `FirepitRoastSeconds` (10 s; not positive: the default), so a stack of 128
+  takes about 21 minutes in a firewood fire.
+- **85 %, nothing rounded away.** An item has one smelting, which says one roasted item per item;
+  `ItemOreProduct.DoSmelt` (virtual in 1.22.7, called by the firepit for each item) instead takes one
+  concentrate and gives the whole roasted items that 85 % of its 5 units makes together with what the
+  firepit held over (`UnitCarry`, keyed by the firepit's inventory and the roasted item): 20 concentrate
+  give exactly 17. The share is `roasters.firepit` in `config/ore-processing.json` (#685's
+  `OreRecovery.Roasting(ore, Roaster.Firepit)`). The carry-over is `OreProcessingSystem.RoastCarry`,
+  saved with the world; a firepit broken mid-item leaves under a unit there.
+- **No sulfur**: the firepit has one output slot, and open roasting lost its sulfur to the air. Sulfur
+  is recovered from the roasting stall on (#736).
+
+`OreProcessingItems` sets it with the rest of the smelting (in `AssetsFinalize`): a sulfide's
+concentrate gets the roasting (`Roasting`) and its `RoastShare`; every other form is as above. The
+guide page "Roasting sulfide ore" (`config/handbook/oreroasting.json`, text in `lang/en.json`) is hidden
+with the switch off (on the client, when the roasted concentrate does not exist; the recipe export
+through the hidden-guides list). The recipe export has a record per sulfide (type `oreroasting`,
+`tools/recipe-export/Recipes/OreRoastingExport.cs`, docs/recipe-browser/schema.md), its output the
+share (0.85 of a roasted item). Tests: `tests/Ore/OreRoastingTests.cs` (the share, runs of any split,
+the cook time); `tests/PackTests/OreProcessingScenarios.cs` (`Firepit_roasts_sulfide_concentrate`: the
+props, and 20 concentrate through a firepit's own `smeltItems` giving 17; `Roasting_is_exported`: the
+records and the guide in the export, with the switch on).
+
+### Ore processing: retorting mercury in the still (`OreProcessing`)
+
+Hand-tier mercury (#726): cinnabar and amalgam are retorted in the game's still, with no station and
+no model. **The game's still is not a cooking pot**: in 1.22.7 it is the boiler (`game:verticalboiler`,
+`BlockBoiler` / `BlockEntityBoiler`, a firepit built under it from dry grass and firewood) and the copper
+condenser (`game:condenser`, `BlockEntityCondenser`) on one of its four sides, with a bucket (or any
+top-opened container of 1 to 20 L) under the spout and water in it. The boiler holds one liquid stack
+(30 L); once it is at 75 °C, every 0.2 / `ratio` seconds it hands the condenser one portion of the
+stack's `distillationProps.distilledStack`, and the condenser takes `ceil(1 / ratio)` of the liquid for
+it (vanilla's grain cider at 0.05: 20 portions for one of spirits). Without water half the portions are
+lost; with it, half of them use up a portion of the water. So the game's distilling takes only liquids
+(the boiler is filled from a bucket) and can never give more than one portion an item, which is why
+cinnabar (10 portions an item) and amalgam need code, in `Ore/Processing/MercuryStill.cs` (Harmony id
+`seraphhorizons.oreprocessing.still`):
+
+- **Into the boiler by hand.** Right-click the boiler with a retortable item to put the held stack in
+  (an empty boiler, or onto the same item, up to its stack size); right-click it with an empty hand to
+  take a solid content back out. A prefix on `BlockBoiler.OnBlockInteractStart`; the boiler's liquid
+  transfers refuse a solid on their own (`TryPutLiquid` compares contents, a bucket takes only
+  liquids). `BlockBoiler.GetPlacedBlockInfo` names a solid by count, not litres.
+- **Distilling.** A postfix on `BlockEntityBoiler.DistProps` gives the item the still's distillation
+  (mercury, at `portionsPerSecond`, default 2, as the game's ratio, `MercuryRetort.Pace`), and a prefix
+  on `BlockEntityCondenser.ReceiveDistillate` takes over for it: one portion into the bucket a step,
+  water as the game does, and the portion counted against the item being retorted
+  (`MercuryRetort.Portion`); once less than a portion is left in it the item is used up and the
+  fraction carried to the next, so a stack's mercury comes out exactly (the last item's fraction under a
+  portion is lost). A bucket holding something else, or full, takes nothing and uses nothing.
+- **What stays behind.** An amalgam leaves a **retorted sponge** (`seraphhorizons:sponge-{ore}`, one per
+  amalgam, 5 units, stack 128, `smelt.sponge` 1: whole, as concentrate), counted on the stack in the
+  boiler and taking its slot when the last amalgam is done; take it out with an empty hand. Taken out
+  early, the amalgam still to do comes back (the one under way whole) with the sponge so far. Sponge,
+  not nuggets: a nugget is pure metal and crushes back into ore, while the sponge keeps the ore (gold
+  quartz's silver, its `unparted` share) for acid parting. Cinnabar leaves nothing.
+- **Figures** (`config/ore-processing.json` `retort`): the mercury is Expanded Matter's
+  `em:mercuryportion` (a liquid, 100 to the litre), kept rather than an item of our own; cinnabar,
+  crushed (`game:crushed-cinnabar`) or ground (`game:powder-cinnabar`), gives 10 portions (0.1 L) an
+  item; an amalgam returns `amalgamMercury` (10, what the amalgam pan #718 is to put into one) ×
+  `mercuryReturn` (0.9): 9 portions. The progress (`seraphhorizonsRetortOwed`,
+  `seraphhorizonsRetortResidue`) rides on the stack, so it survives a save and a broken boiler.
+
+The server marks the inputs in `AssetsFinalize` (`MercuryStill.Mark`, the item attribute
+`seraphhorizonsRetort`: mercury, portions, residue, pace), before the items go to clients; the patches
+check that mark, so they touch nothing else, and a client patches once it has the server's items if any
+carries it, so it follows the server's switch (its condenser then shows the drip). Expanded Matter's
+cooking pot recipes for mercury (`em:recipes/cooking/mercury.json`, cinnabar powder into 10 portions,
+crushed into 20) are switched off in `AssetsLoaded`, so the still is the only way; with the switch off
+they stay and nothing is marked or patched. `MercuryStillSystem` holds it; the guide page "Retorting
+mercury" (`config/handbook/oreretorting.json`) is hidden with the switch off. The recipe export has a
+record per input (type `oreretorting`, `tools/recipe-export/Recipes/OreRetortingExport.cs`,
+docs/recipe-browser/schema.md): the boiler and condenser as stations, the mercury in portions and
+litres, an amalgam's sponge. Item values: the amalgam-to-sponge routes are in
+`tools/item-values/routes.json` (switch `OreProcessing`; the tool routes only a record's first
+output, the mercury), and the sponge is an item of `ore-processing.json`, priced from its amalgam; the
+mercury the amalgam returns is not credited, since the amalgam's price leaves out the pan's. Mercury
+is priced by the still's records from cinnabar (Expanded Matter's recipe is off with the switch on),
+charging nothing for the boiler and condenser (kind `oreretorting`, `toolFraction` 0). Tests: `tests/Ore/MercuryRetortTests.cs` (the inputs and
+figures, whole stacks and fractions); `tests/PackTests/OreProcessingScenarios.cs`
+(`Still_retorts_cinnabar_and_amalgam`: EM's recipe off, amalgam to mercury and sponge step by step,
+taking it out part way, cinnabar, a bucket of water refusing it, and the game's own boiler tick running
+it; `Retorting_is_exported`: the records and the guide, with the switch on) and `SwitchesOffScenarios` (off).
+
+### Cupellation (`OreProcessing`)
+
+Galena's silver (#690) and the bone-ash cupel that parts it at the forge (#722, hand and tier 1),
+with ore processing (the switch above; with it off nothing here exists and
+vanilla's silver galena hammers into native silver as before). Rules in `Ore/Core/Cupellation.cs`,
+the game side in `Ore/Processing/` (`BlockCupel`, `BlockCupelBead`, `CupelForge`, `ContainerText`).
+
+**Argentiferous galena.** Vanilla's silver galena (`galena_nativesilver`) is renamed "Argentiferous
+galena" (its ore, raw ore, chunks, crystallised ore, loose bits and processing forms; lang overrides
+of the game's keys and the Tidy Variants groups) and is a lead ore: `OreMetals` lists it under lead
+(lead deposits and maps count and name it, silver deposits are silver quartz and freibergite), every
+form of it smelts to lead (its nugget is galena's), its loose bits drop a galena nugget, and its
+silver is lost unless cupelled. Plain galena carries 3 % silver, argentiferous galena 38 %
+(`config/ore-processing.json`, by-products of the ore; the `districtShare` of #756 is gone): with
+silver galena 4.6 % of galena blocks in the survey of #435, 0.954 × 3 % + 0.046 × 38 % ≈ 4.6 % of
+galena's metal, the world's silver as it was. Worldgen is unchanged: the district rules and the ore
+cells' anchor check still count it as silver (`OreMetals.WorldgenMetalOf`), so its felsic-district
+lenses stay. `docs/oregen.md`, "Argentiferous galena", has the details and why the survey was not
+rerun.
+
+**The cupel** (`seraphhorizons:cupel-{raw,fired,bead}`, `blocktypes/oreprocessing/cupel.json`, a
+small dish kept a block as the game's crucible is): four bone meal in the grid make a raw cupel,
+fired like clay in a pit kiln or a beehive kiln. The fired cupel is a smelting container
+(`BlockCupel`, on the game's `BlockSmeltingContainer`), and crucibulum's forge takes it as a
+crucible with no change to crucibulum: crucibulum tests the class, not the code
+(`BlockEntityCrucibulumForge.IsCrucible`, `ItemSlotCrucibleCharge.IsFiredCrucible`). It is loaded
+like the crucible, through the forge's four charge slots, at most 200 units of metal:
+
+- roasted galena or argentiferous galena concentrate; or roasted tetrahedrite or freibergite
+  concentrate with at least as many units of lead (lead bits, a galena nugget, roasted galena:
+  anything that smelts to lead, except litharge). Anything else is refused.
+- The forge must hold it at 950 °C (the forge's 400 °C crucible bonus reaches it with the blast
+  gate open, half or a quarter), and it takes 60 s per 100 units of charge, divided by the gate's
+  air (open 1, half 0.85, quarter 0.7, crucibulum's figures); shut, nothing happens. Its own
+  `CanSmelt` refuses anywhere but a forge (a firepit). Which forge its charge slots belong to is
+  not on the slots, so a postfix on crucibulum's `BlockEntityCrucibulumForge.Initialize` (found by
+  name, Harmony id `seraphhorizons.oreprocessing`) notes each forge by its charge slots
+  (`CupelForge`); without crucibulum (or with it changed) the server warns and the cupel works
+  nowhere. The forge's dialog line ("Will part 64.6 units of silver, the 200 units of lead going
+  into litharge", or why not) is the cupel's: a postfix on the game's `GetOutputText` (`ContainerText`).
+- Done, it is a **cupel with silver bead**, holding what it breaks into: the lead (the ore's and
+  the added) as litharge, 5 units each, and each other metal as metal bits, 5 units each: the
+  silver at 85 % of the charge's (`OreRecovery.Smelted` at the hand tier: galena 3 %, argentiferous
+  galena 38 %, tetrahedrite 5 % of its units; freibergite all of it, its main metal), and copper
+  (tetrahedrite all of its own, freibergite 30 % at 85 %). Copper does not stay in a real bead, it
+  oxidises with the lead; the pack gives it back as copper bits beside the litharge instead of
+  losing it. Units to items: the whole ones, and one more at the chance of the fraction left, drawn
+  once when the cupel is done, so a charge gives its units on average (`Cupellation.Whole`): a full
+  cupel of argentiferous galena 64.6 units of silver (12 or 13 bits) and 40 litharge, of plain
+  galena 5.1 units (one bit, a second at 2 %).
+- Broken with a hammer in the grid (`recipes/grid/cupel.json`), the bead's litharge is the output
+  (`ItemOreProduct.OnCreatedByCrafting` sets the count) and its bits go to the player
+  (`BlockCupelBead.OnConsumedByCrafting`). Litharge smelts back to lead at 20 in 21. The cupel is
+  used up.
+
+The figures are `cupel` in `config/ore-processing.json` (`capacityUnits`, `leadPerOreUnit`,
+`meltingPoint`, `secondsPerIngot`). The handbook has a Cupellation section on each cupel. The
+recipe browser has a `cupellation` record per ore (`tools/recipe-export/RecipeSection.Cupellation.cs`)
+when the switch is on. Tests: `tests/Ore/CupellationTests.cs` (the ores it takes, yields, refusals,
+the rounding), `OreRecoveryTests`, `OreProductsTests`, `DepositMakeupTests`;
+`tests/PackTests/OreProcessingScenarios.cs` (Atlas: the names, the smelting to lead, the loose
+bits, the cupel in crucibulum's forge with the gate, the bead and breaking it).
+
+### Liquation (`OreProcessing`)
+
+Teallite's and franckeite's lead (#685: 40 % and 30 % of their tin) parted from the tin in a clay
+liquation pan, in a firepit or crucibulum's forge (#724, hand and tier 1), with ore processing (with it off
+nothing here exists). **Liquation is tin first**: tin melts at 232 °C and lead at
+327 °C, so a gentle heat sweats the tin out of the roasted concentrate and leaves the lead behind. Rules
+in `Ore/Core/Liquation.cs`, the game side in `Ore/Processing/` (`BlockLiquationPan`,
+`BlockLiquationPanSmelted`, `BlockLiquationResidue`; `OreContainers` and `ContainerText` are shared with
+the cupel).
+
+**The pan** (`seraphhorizons:liquationpan-{raw,fired,smelted,residue}`,
+`blocktypes/oreprocessing/liquationpan.json`, the game's clay bowl shape): clay-formed from any clay
+(`recipes/clayforming/liquationpan.json`, a dish seven voxels across and two high), fired like the
+crucible in a pit kiln or a beehive kiln. The fired pan is a smelting container (`BlockLiquationPan`, on
+the game's `BlockSmeltingContainer`, with the crucible's `cookingContainerSlots`), so it works in both:
+the firepit's four cooking slots (crucibulum leaves crucibles in the firepit on, `CrucibleOnlyInForge`
+off) and crucibulum's forge, which takes any smelting container as a crucible (as the cupel). It needs
+no air: the forge's blast gate only changes the heat. Reused, unlike the cupel.
+
+- **Charge**: roasted teallite or franckeite concentrate (mixed is fine: one main metal), at most 100
+  units (20 concentrate). Anything else is refused, and so is a firepit whose output slot is full.
+- **Heat**: its melting point is the tin point, 240 °C, so the firepit and the forge heat it toward the
+  fire's heat and count the time from 240 °C, 15 s per 100 units of charge (the engine's own, slowed
+  by eleven once at the point). If the charge is over 327 °C when it is done, the lead has run with the
+  tin: it gives the tin as an unparted smelt would and no lead (`Liquation.Yield` with no parting). It is
+  the charge's heat when it finishes (its coolest stack's, as the firepit reads it), not its peak: in a
+  lit fire the heat only climbs, and a charge left to cool below 240 °C stops working. The dialog line
+  (`ContainerText`) says what it will pour and leave, and "Too hot" over the lead point.
+- **What the engine makes of it** (Atlas, the firepit's own burn tick, the fire at full heat first): a
+  full pan in a wood fire (700 °C) is done at about 298 °C, so a wood or grass fire is easy; in a
+  charcoal fire (1,300 °C) at about 370 °C, so charcoal or coal in a firepit is too hot for a full pan
+  (a small charge, done sooner, can make it). A fire lit with the pan already in it is gentler (about
+  268 and 297 °C), since a firepit takes a while to reach its fuel's heat. Crucibulum's forge heats a
+  crucible more gently than a firepit (its `HeatRate` 0.5 and the charge's thermal mass; worked from
+  its code, not run): a full pan there finishes at about 290 °C with the gate open, lower half open,
+  quarter or shut. So the design's "the forge needs the gate shut and little fuel" does not hold with
+  crucibulum's defaults; the forge is the easy place and the charcoal firepit the one to avoid.
+- **Done** (`BlockLiquationPan.DoSmelt`): a **liquation pan of molten tin** (`BlockLiquationPanSmelted`,
+  on the game's smelted crucible class), all the charge's tin (100 units from a full pan), poured into
+  any mold as from a crucible, and the lead the tin left behind, 85 % of the ore's share
+  (`OreRecovery.Smelted` at the hand tier: a full pan of teallite 34 units, of franckeite 25.5), held as
+  whole lead bits drawn once when it is done (`Cupellation.Whole`: 6, a 7th at 80 %). One output slot,
+  two metals: the tin is the pour and the lead stays in the pan. The stack carries the lead, so the
+  smelted pan is never set on the ground. Emptied (the last unit poured), it is a **liquation pan with
+  lead residue** (`BlockLiquationResidue`), or the fired pan if no lead is left; knocked out with a
+  hammer in the grid (`recipes/grid/liquationpan.json`), the pan is the output and the lead bits go to
+  the player.
+- **Unparted** (any other furnace, the crucible), these ores still give their tin and lose the lead, as
+  before. Vanilla's lead solder (45–55 % lead) would take teallite's 40 % nearly as it is; that is an
+  open question, not done.
+
+The figures are `liquation` in `config/ore-processing.json` (`capacityUnits`, `tinPoint`, `leadPoint`,
+`secondsPerIngot`). The guide page "Liquation: tin from lead" (`config/handbook/liquation.json`) and a
+Liquation section on each pan; the page is hidden with the switch off. The recipe browser has a
+`liquation` record per ore (`tools/recipe-export/RecipeSection.Liquation.cs`) when the switch is on, and
+item values count liquation as a station (`tools/item-values/ore-processing.json`, `parting`). Tests:
+`tests/Ore/LiquationTests.cs` (the ores, yields, overheating, refusals, the figures);
+`tests/PackTests/OreProcessingScenarios.cs` (Atlas: a full pan through a firepit's own tick in a wood
+fire and in a charcoal fire, the pan in crucibulum's forge with the gate shut, emptying and the residue,
+the clay forming and firing, the export) and `SwitchesOffScenarios` (off).
 
 ## Trading
 
@@ -3481,7 +4873,8 @@ switch's patch adds to Logging Expanded's trunk (`loggingmod:treetrunk-*-debarke
 the CastPipes switch's patch adds to smex's tool mold (`smex:toolmold-*-pipe`), and the
 exporter's own recipe types for the gear chain (`picklingtub` and `lottery`: `GearReclamation`;
 `gearcutter`: `GearCutter`; `drawbench`: `DrawBench`, whose type and recipe files are
-`DrawBenchSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
+`DrawBenchSystem.TypeAssets` and `RecipeAssets`; `cylinderborer`: `CylinderBorer`, whose files are
+`CylinderBorerSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
 `PressBrakeSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
 `SquaringShearSystem.TypeAssets`, the half plate's among them, and `RecipeAssets`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
 id's type, its source file, or the code it is keyed by, as a transition or a casting is) and
@@ -3495,12 +4888,15 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `GearBlanks` | the blanks, their molds (`seraphhorizons:toolmold-*`), their clay forming and smithing recipes, the molds' casting |
 | `GearCutter` | the cutter's blocks and parts, its grid and smithing recipes, the cutter records |
 | `DrawBench` | the bench's blocks and dies, its grid and smithing recipes, the draw bench records |
+| `CylinderBorer` | the borer's blocks and parts, the cylinder molds (`seraphhorizons:cylindermold-*`), the cast and bored cylinders (`seraphhorizons:cylinderblank-*`, `seraphhorizons:cylinder-*`), its grid, smithing and clay forming recipes, the molds' casting, the cylinder borer records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
 | `SquaringShear` | the shear's blocks, the half plate (`seraphhorizons:halfplate-*`), its grid recipe, the squaring shear records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
 | `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |
 | `CreativeSteamSource` | the creative steam source block |
 | `CastPipes` | the cast pipe blanks, the pipe molds (`smex:toolmold-*-pipe`), `recipes/clayforming/pipemold.json` and `recipes/grid/castpipe.json`, the molds' casting |
+| `Eidolon` | the gantry (`seraphhorizons:eidolongantry*`), the command tool, the eidolon's creature item, `recipes/grid/eidolongantry.json` and `eidoloncommander.json`, the gantry's and the body's construction records |
+| `OreProcessing` | crushed ore (`game:crushed-*-coarse`, `-fine`, hand-listed: its type's code is vanilla's crushed item's), ground ore, concentrate, roasted concentrate, amalgam, litharge |
 
 A switch that only takes things away (`HydrateTunRetired`, `IrrigationVesselRetired`,
 `BloodSausageInMixingBowl`, `PanningDropsTrimmed`, `GearPartsRemoved`, `TraderSchematics`, the retired stations of
@@ -3658,8 +5054,8 @@ machine's first-stage grid recipe, kept on crafting:
 | `sawmill`, `chopper` | Immersive Woodworking's frames | carpenter, 2 |
 | `buckingmill`, `rosser` | this mod's frames | mechanic, 2 |
 | `gearbox`, `centeredspurgear` | Mechanical Power Expanded's | smith, 2 |
-| `cablecar` | Gondola's route planner, which places every station and tower | mechanic, 4 |
 | `biplane` | the biplane's trestles | mechanic, 4 |
+| `eidolon` | the eidolon gantry's frame and the eidolon command tool | curio dealer, 3 |
 
 The schematic takes the recipe's first empty slot. A narrow or short recipe gets a column or a row.
 In a full 3×3 grid, two slots of the ingredient filling the most slots become one at double quantity
@@ -3670,8 +5066,8 @@ they are. Off, the recipes are as their mods ship them and no trader lists the m
 **Sellers**: each schematic is in its seller's core from its standing tier (`standingTier` on the
 trade list entry; the core shows it once the buyer's tier reaches it). Everyday BetterRuins families
 are tier 1 at the carpenter, mason, smith, tailor, farmer, general store or curio dealer; the cart and
-ship wrights and Cartwright's carts are tier 2 at the mechanic; the glider, translocator, flintlock
-and diving gear are tier 3 at the curio dealer. Prices are hand-set in the lists, 10 to 250 gears.
+ship wrights and Cartwright's carts are tier 2 at the mechanic; the glider, translocator, flintlock,
+diving gear and eidolon are tier 3 at the curio dealer. Prices are hand-set in the lists, 10 to 250 gears.
 Cartwright's canopies and sides schematics gate nothing in 1.9.1 and are not sold.
 
 Tests: `tests/Trading/Schematics/` (the table, the item variants and their text, every sale in its
@@ -3689,26 +5085,38 @@ on; notes in `docs/trading.md` and `docs/oregen.md`). Prices are in
 carry their own discount instead).
 
 - **Ore maps**, from prospectors: one offer per metal, the nearest unsold deposit of the deposit
-  registry within 5 km (whether or not anyone has generated its chunks), at most four metals,
-  nearest first. A stranger is offered precision 1 (within 400 m); standing's map tier buys
-  precision 2 (tier 1, "known") and exact maps (tier 2 up). The price is a share of the deposit's
+  registry within 5 km, at most four metals, nearest first, each named by its ores, grades, host
+  rock and size (#692). Only a deposit that has been checked is offered (#693): the seed tells where
+  a cell's deposit may be, not which spot takes it or what ore it is. So when a player comes within
+  `DepositCheckApproachMetres` (1,500) blocks of a trader camp, the deposits it would sell maps to
+  (and its gravel map's field) are checked in the background, generated if need be and measured,
+  one at a time, `DepositCheckPauseSeconds` (5) apart, and are ready when they arrive on foot.
+  A deposit still being checked shows as "Lead ore map: being surveyed" (unavailable) until its
+  check lands and the map takes its place; anything unchecked when a trade window opens (a player
+  who teleported) is checked then, first. `DepositCheckApproachMetres` 0 checks only then. A stranger is offered rough maps (precision 1, within 150 m); standing's map tier buys
+  fair maps (2, 50 m, tier 1, "known") and fine maps (3, 15 m, tier 2 up). Players see the tier's
+  name (`oremap-tier-n`), never its number. The price is a share of the deposit's
   worth: the ingots in the middle of its size class's band (small, medium and large are the bottom,
   middle and top third of the metal's range in `config/ore-sizes.json`; a deposit not yet measured
-  counts as medium) times the item value of the metal's ingot, times 3% (precision 1), 6% (2) or 10%
-  (exact), times 3 for gold, silver, nickel, titanium, chromium and platinum. Always the band's
+  counts as medium) times the item value of the metal's ingot, times 3% (rough), 6% (fair) or 10%
+  (fine), times 3 for gold, silver, nickel, titanium, chromium and platinum. Always the band's
   middle, never the measured size. A medium copper deposit's map costs 36, 71 or 119 gears, a medium
   gold one's 571, 1143 or 1904.
-- **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears.
+- **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears,
+  naming its rock and the metals the pan gives there; checked like ore maps (one column).
 - **Leads to other camps** (`seraphhorizons:traderlead`), from every trader: you can always buy a
   map to a trader within some radius that you don't already have, and the radius and count grow
   with your standing, so it pays to travel and learn from local traders rather than buy the whole
   map from one. The offers are your own (not on the shelf): the Maps & leads tab lists them with
-  their price, the ring they are in, and a Buy button.
+  how far and which way the camp is, their price, and a Buy button.
 
   **Distance is in rings of grid cells** (2,048 blocks a cell), from the selling trader's cell to
   the camp's, diagonals adjacent: ring 1 is the eight cells around the trader's own, ring 2 the
   sixteen around those, and so on. Reach and price both go by the ring, so both are known before a
-  camp generates, and a price never changes when its camp settles.
+  camp generates, and a price never changes when its camp settles. Players never see a ring: an
+  offer says how far its camp is in km, and the Standing tab says a tier's reach in km, to the far
+  edge of its last ring straight out from the middle of the trader's cell ((rings + ½) × 2,048
+  blocks, rounded): about 3 km for 1 ring, 5 for 2, 7 for 3 and 11 for 5.
 
   | Standing | Leads on offer | Within | Ease | Discount |
   |---|---|---|---|---|
@@ -3746,9 +5154,11 @@ carry their own discount instead).
   | partner | 5 | 12 | 55 |
 
   **Your very first map** is 10 gears and leads to a prospector. Every trader but a prospector
-  offers it, at the top of the Maps & leads tab ("First map's on me: 10 g to the nearest
-  prospector"), until you buy it; it is yours alone, so every new member of a company gets their
-  own. It goes to the nearest prospector cell to the selling trader (the grid puts one within two
+  offers it, at any standing, a stranger's included, at the top of the Maps & leads tab ("First
+  map's on me: 10 g to the nearest prospector, about 3 km northeast."), until you buy it; it is
+  yours alone, so every new member of a company gets their own, even where their company has had
+  its stranger's map from that trader (and so does a player from a world saved before the first
+  map, at a trader that already sold them their stranger's map). It goes to the nearest prospector cell to the selling trader (the grid puts one within two
   rings of every cell), generating its camp as you buy; if that cell can't take a camp, the next
   nearest prospector cell, out to ring 10; and if no prospector camp can be placed that far, the
   nearest camp of any kind, still 10 gears. No cell's kind is ever changed for it. It is that
@@ -3764,9 +5174,16 @@ carry their own discount instead).
 - **Settlement ground**: with `mapsToTraders` (tier 2 up), a lead to the nearest ground kept for a
   settlement, on the shelf (6 gears).
 
-Every marker a map puts on your world map says how precise it is, in the tiers the Standing tab
-lists: "Copper deposit (large) (precision 1, ±400 m)", "(precision 2, ±150 m)", "(exact)"; a gravel
-field is exact; a lead marks the camp's site, not where its trader stands: "Trader camp (cook)
+Every map and lead says how far its target is in whole kilometres, rounded to the nearest (1 km =
+1,000 blocks), "about 3 km", and "under a km" under half of one (`Trading/Maps/Core/MapDistance.cs`):
+its offer on the Maps & leads tab from the trader ("Ore map: galena (medium), about 2 km away,
+rough (±150 m)", "Lead to the cook's camp, about 4 km north: 24 g"), the map or lead in your bags from
+where you stand ("Distance from here: about 3 km."), and the chat when reading one on a server
+without a world map. None names a ring.
+
+Every marker a map puts on your world map says how far off it may be:
+"Copper deposit (large) (±150 m)", "(±50 m)", "(±15 m)"; a gravel
+field is "(exact)"; a lead marks the camp's site, not where its trader stands: "Trader camp (cook)
 (approximate, ±64 m)". Meeting a camp's trader (talking to it, or opening its trade window) marks the
 camp exactly where the trader stands, "Trader camp (cook) (exact)", once, and takes the lead's rougher
 marker of it away (a marker from before this, with the lead's title and icon within 96 blocks,
@@ -3811,8 +5228,10 @@ marker replaced by the met trader's, old markers matched by icon, place and titl
 (`CampLeadsTests`): rings between cells, the shipped tiers, reach in rings, the price by the formula
 in a table, prices never rising with standing, count and reach per tier, the prospector first, the
 refill, the stranger's one lead in ring 1 and chaining, the trader's own camp never a target, the
-first map alone to a stranger and on top from known up, and its target: the nearest seeded
-prospector cell, the next when one can take no camp, out to ring 10, then any camp; the lead
+first map alone to a stranger (even one whose group had its stranger's map there) and on top from
+known up, and its target: the nearest seeded
+prospector cell, the next when one can take no camp, out to ring 10, then any camp; distances
+(`MapDistanceTests`): rounding to the nearest km, under a km, a tier's reach in km; the lead
 history (`LeadBookTests`): counts that never reset, the stranger's lead, visits, pooling by company,
 the first map per player and not per company, the saved version and its migration from version 1);
 `tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's ore map offers,
@@ -3821,7 +5240,9 @@ gravel map offered exactly when a field is in reach, standing changing a trader'
 precision; a fresh player at a store offered their first map alone, 10 gears to a prospector,
 buying it generating the camp and marking it, nothing more from that trader, and one onward in
 ring 1 at the prospector's camp; a prospector offering no first map and a stranger's one lead in
-ring 1 at the formula's price, and `/sh trade leads` naming the ring and the first map; a known
+ring 1 at the formula's price, and `/sh trade leads` naming the ring and the first map; a stranger
+whose group had its stranger's map at a store still offered their first map there, its line in km;
+a known
 customer offered two leads in ring 1 at the formula's price, buying one bringing the next; a
 partner's lead to a camp nobody generated settling it and marking it where it
 stands; a lead bought not offered again, carried or marked, while the gravel map bought after it
@@ -4042,7 +5463,10 @@ optional ingredients, held to the shipped gear item types (none of which rusts),
 drops, cut arithmetic, kit wear by oil, settings and rig (`GearCutter/Core/`,
 `tests/GearCutter/GearCutterGameplayTests.cs`), the draw bench's build order, die metal, take-back,
 drops, draw arithmetic, die wear, renderer clock, settings and rig (`DrawBench/Core/`,
-`tests/DrawBench/DrawBenchGameplayTests.cs`, `DrawBenchRigTests.cs`), the press brake's build order,
+`tests/DrawBench/DrawBenchGameplayTests.cs`, `DrawBenchRigTests.cs`), the cylinder borer's build order,
+cutter head durability, wear by the oil and take-back, a save's restore, bore arithmetic per metal, renderer clock,
+settings, placement and rig, the shipped rig held to its reader, its contract and the reference poses
+(`CylinderBorer/Core/`, `tests/CylinderBorer/CylinderBorerGameplayTests.cs`, `CylinderBorerRigTests.cs`), the press brake's build order,
 half plates by metal (whole plates refused), fold arithmetic (W only while held, one angle at
 1), lever holds, renderer
 clock, settings and rig (`PressBrake/Core/`, `tests/PressBrake/PressBrakeGameplayTests.cs`,
@@ -4056,7 +5480,9 @@ facing, solo and pair, braking and holding, load), branch selector, distance rol
 easing, settings and rig, held to its entity type and rider reference (`Handcar/Core/`, `tests/Handcar/`), the pickling tub's rules, timings,
 over-pickling order, early take-out, passivation, a rule's loss at done and settings (`PicklingTub/Core/`, `tests/PicklingTub/`),
 and the unified pipes' burst figures, lead rule, recipe cost filter and the guard on ppex's assets, held
-to the shipped patch and recipes (`Pipes/Core/`, `tests/Pipes/UnifiedPipesTests.cs`), the guard on the
+to the shipped patch and recipes (`Pipes/Core/`, `tests/Pipes/UnifiedPipesTests.cs`), the guard on
+ppex's four pipe shape tables, held to a copy of ppex 0.7.1's and to the shipped soldered joints' patch
+(`Pipes/Core/SolderedJoints.cs`, `tests/Pipes/SolderedJointsTests.cs`), the guard on the
 game's chute section, its anvil recipe and the chute recipes (held to copies of 1.22.7's, the item and
 chutes trimmed, and to the shipped patch applied to them) and the two-angle soldering recipe
 (`Pipes/Core/ChuteSections.cs`, `tests/Pipes/ChuteSectionsTests.cs`), the angle's item and 4 + 4
@@ -4364,9 +5790,8 @@ dropped beyond the output face, the master changed over, the wrong size refused 
 to a large gear (oil drained 10 and 20, kit worn 10 and 17); the kit's wear at full, half and a
 tenth of a tank, the load the same dry, a dry gear breaking the kit and no blank going on after, and
 a refit resuming a half-cut blank; Ctrl + right-click giving back the kit, the blank and the master
-in turn, and breaking giving back every part, the kit with its wear and the blank; and blanks taken
-from a chest at the infeed (not while the shaft stands, never the other size) and gears put in a
-chest at the output. With the switch off, `SwitchesOffScenarios` requires none of its blocks, items
+in turn, and breaking giving back every part, the kit with its wear and the blank; and a chest at
+either end left alone (no blank taken from it, the gear dropped rather than put in it). With the switch off, `SwitchesOffScenarios` requires none of its blocks, items
 or recipes.
 
 `tests/PackTests/DrawBenchScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires
@@ -4385,19 +5810,42 @@ hollow is on, and the four pipe sections dropped beyond the output face, the hol
 lead too, a point a hollow; a die wearing only when a hollow is done and out on its last one, the load
 three times dry, no hollow without a die, a worn-out die refused and a new one drawing again; the die
 back by Ctrl from a ghost, and breaking giving back every part, the die with its wear and an undrawn
-hollow (not one with a pipe section off it); and hollows taken from a chest at the infeed (not while the
-shaft stands, never copper on an iron die, a pipe section or an ingot, the next a moment after the last)
-and pipe sections put in a chest at the output. With the switch off, `SwitchesOffScenarios` requires none of its blocks,
+hollow (not one with a pipe section off it); and a chest in front of the die
+end and one by the output face left alone (no hollow taken from the first, the pipe sections dropped
+rather than put in the second). With the switch off, `SwitchesOffScenarios` requires none of its blocks,
 dies or recipes, no link to them and the machine oil page without it, and nothing logged.
 `RecipeExportDrawBenchScenarios.cs` requires one `machine` record per metal (`drawbench|game:chutesection-{metal}|0`):
 the hollow, the four kept stages (two chains and two rods among them), the dies that draw it as a tool worn 1 (`fixed`), 8 points of oil, the
 frame, four pipe sections.
 
+`tests/PackTests/CylinderBorerScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires the
+cylinder borer's blocks, the parts every stage takes, the cast and bored cylinders, the head's durability (8),
+its grid, smithing and clay forming recipes (the head steel only and not helve-able), the molds, the settings'
+pace the rig's and the machine oil page naming it; the fired mold refusing copper, taking six ingots of iron and
+then of steel as a crucible pours (no more), hot until it hardens, and handing out the blank of its metal while it
+stays, and smex's `MoldKinds.FitsPedestal` taking it; placing on all four facings, the borer running away along the
+facing, every ghost pointing home, the power ghost at the far end with its face along the facing, and every cell
+cleared and the frame dropped on breaking; the stages fitted in order by real clicks, a later stage's part, a
+second pair of bushings, a casting before the head and a spent head refused, and a save keeping every code; the
+creative shortcut fitting the four stages; under a creative rotor, the shaft moving the head through a cast iron
+cylinder by itself, a bored cylinder or an ingot never handled, one casting at a time with its collision box, and
+the bored cylinder dropped beyond the output face (head 7 of 8, oil 990); steel at 1.5 times iron's turns, a head
+worn two points at half a tank and broken by a cylinder bored dry, the load the same, and no casting without a
+head; the head back by Ctrl with its durability, then the casting, and breaking giving back every part, the head
+with its wear and the casting; castings taken from a chest at the infeed (not while the shaft stands, never a bored
+cylinder or an ingot, the next once the head is back) and cylinders put in a chest at the output; and ppex's
+engines taking the bored cylinder and no pipe. With the switch off, `SwitchesOffScenarios` requires none of its
+blocks, items, molds or recipes, ppex's engines taking their pipes again, no link to them, the machine oil page
+without it, and nothing logged. `RecipeExportCylinderBorerScenarios.cs` requires one `machine` record per metal
+(`cylinderborer|seraphhorizons:cylinderblank-{metal}|0`): the casting, the three kept stages, the cutter head as a
+tool worn 1 divided by the oil's fill, 10 points of oil, the frame, the bored cylinder, the turns 72 and 108; the
+mold's casting record (six ingots, iron and steel); and the engines' grid records taking the cylinder.
+
 `tests/PackTests/PressBrakeScenarios.cs` (Atlas, the shared world, the gear cutter's player) requires
 the press brake's blocks, the metal parts and plates its stages take, the lead and copper half plates it folds
 and the angles it makes, no anvil or grid recipe for an angle, its recipe, and the settings' pace the
 rig's; placing on all four facings, the brake running away along the facing, the ghost pointing home,
-both cells' lids, the infeed and outfeed cells, and both cells cleared and the frame dropped on
+both cells' lids, the outfeed cell, and both cells cleared and the frame dropped on
 breaking; the stages fitted in order by real clicks on the frame and the ghost, the edges before the
 screws, a half plate before both, an empty hand on a bare frame and a rod (the screws' old part) refused, a save keeping
 every code, Ctrl taking the edges then the screws back, and the creative shortcut; a lead half plate
@@ -4406,9 +5854,9 @@ moving when let go, a whole lead or copper plate, a chute section, a pipe sectio
 and an angle never taken, a half plate in hand working the lever on a loaded bed, and one angle dropped
 beyond the output face, the half plate used up; copper at half as many turns again; a flat half plate
 back by Ctrl, a part-folded one and the parts staying, and breaking giving back the parts and a flat
-half plate (not a part-folded one); and half plates taken from a chest at the infeed only when the lever
-is worked (never an ingot, an angle, a chute section or a whole plate) and angles put in a chest at the
-output. With the switch off, `SwitchesOffScenarios` requires none of its blocks or recipes, no link to
+half plate (not a part-folded one); and a chest beyond the far end and one in front of the leaf end left
+alone (no half plate taken from the first when the lever is worked, the angle dropped rather than put in
+the second). With the switch off, `SwitchesOffScenarios` requires none of its blocks or recipes, no link to
 it, no half plate (`SquaringShear` is off there too), and nothing logged. No Atlas world has the brake on
 and the shear off, so the brake's refusal there (`pressbrake-error-no-halfplates`) is not run.
 `RecipeExportPressBrakeScenarios.cs` requires one `machine` record per metal
@@ -4419,7 +5867,7 @@ angle, power `hand` at the lever's 1.5 or 2.25 turns, no wear and no oil.
 requires the shear's blocks and half plates (their names, a half plate melting into one ingot), the
 plates and rods its stages take, the lead and copper plates, its recipe and no other recipe for a half
 plate, and the settings' pace the rig's; placing on all four facings, the shear running away along the
-facing, the ghost pointing home, both cells' lids, the infeed and outfeed cells, and both cells cleared
+facing, the ghost pointing home, both cells' lids, the outfeed cell, and both cells cleared
 and the frame dropped on breaking; the stages fitted in order by real clicks on the frame and the
 ghost, the gauge before the blades, a plate before both, an empty hand on a bare frame and a copper rod
 refused, a save keeping every code, Ctrl taking the gauge then the blades back, and the creative
@@ -4428,8 +5876,8 @@ the ghost), nothing moving when let go, its own half plates, an angle, an ingot 
 taken, a plate in hand working the treadle on a loaded table, and two half plates dropped beyond the
 output face, the plate used up; copper at half as many strokes again; a whole plate back by Ctrl, a
 half-cut one and the parts staying, and breaking giving back the parts and a whole plate (not a half-cut
-one); and plates taken from a chest at the infeed only when the treadle is worked (never an ingot, a half
-plate or an angle) and half plates put in a chest at the output. With the switch off,
+one); and a chest beyond the far end and one in front of the table end left alone (no plate taken from
+the first when the treadle is worked, the half plates dropped rather than put in the second). With the switch off,
 `SwitchesOffScenarios` requires none of its blocks, no half plate and no recipe, no link to either, and
 nothing logged. `RecipeExportSquaringShearScenarios.cs` requires one `machine` record per metal
 (`squaringshear|game:metalplate-{metal}|0`): the plate, the two kept stages, the frame, two half plates,
@@ -4440,7 +5888,7 @@ the half plates and the frame's recipe owned by `SquaringShear`.
 requires the station's blocks, the rods it takes as its mandrel, the lead and copper hollows and pipe
 sections and a hammer, its recipe, its place in the mechanics tab, and the settings' pace the rig's;
 placing on all four facings, the station running away along the facing, the ghost pointing home, both
-cells' lids, the infeed and outfeed cells, and both cells cleared and the frame dropped on breaking; the
+cells' lids, the outfeed cell, and both cells cleared and the frame dropped on breaking; the
 mandrel fitted by a real click on the ghost, a hollow and a blow before it, a copper rod and an empty
 hand refused, a second rod refused, a save keeping it, Ctrl not taking it back (no help line for it), breaking giving it back, and the
 creative shortcut on a new station; a
@@ -4450,9 +5898,9 @@ a point a blow, a save keeping the blows, and two lead pipe sections dropped bey
 the hollow used up; copper at fourteen blows; a steel hammer forging lead in four blows, each two and a half
 of a copper one's, and copper in six; right-click held refilling from the hotbar a lead hollow at a time
 once a blow would be struck (never the copper one beside it), and nothing once the lead runs out; a steel hammer with its tier taken away forging as the copper one; an unstruck hollow back by Ctrl, a struck one and the mandrel staying, and
-breaking giving back the mandrel and an unstruck hollow (not a struck one); and hollows taken from a
-chest beside the stump only when struck (never an ingot, an angle or a pipe section) and sections put in
-a chest beyond the tip. With the switch off, `SwitchesOffScenarios` requires none of its blocks or
+breaking giving back the mandrel and an unstruck hollow (not a struck one); and a chest
+beside the stump and one beyond the tip left alone (no hollow taken from the first when struck, the
+sections dropped rather than put in the second). With the switch off, `SwitchesOffScenarios` requires none of its blocks or
 recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios.cs` requires one
 `machine` record per metal (`mandrelstation|game:chutesection-{metal}|0`): the hollow, the kept mandrel,
 the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 9 or 14
@@ -4490,8 +5938,9 @@ switches off, `SwitchesOffScenarios` requires nothing patched and the check answ
 standard locomotive.
 
 `tests/PackTests/UnifiedPipesScenarios.cs` (Atlas, the shared world) requires the switch bound with
-nothing logged; every pipe shape in copper and lead, at the default figures with iron and steel, on
-ppex's model with the metal's texture; the valves and pressure valves in the three bronzes at the
+nothing logged; every pipe shape in copper and lead, at the default figures with iron and steel; every
+orientation of every pipe in copper and lead on this mod's soldered model, turned as ppex turns its own,
+and in iron and steel on ppex's; the valves and pressure valves in the three bronzes at the
 bronze figure, and the iron and steel ones unlisted; none of ppex's plate-and-nails or valve recipes
 left, and this mod's resolving (every shape in all four metals from pipe sections of the metal, in
 the right number, with a solder bar a section and the soldering iron or one nails and strips and a
@@ -4506,8 +5955,10 @@ steam power page's figures and "water only"; and, beside a creative steam source
 bursting within seconds and dropping as itself while copper holds. With the switch off,
 `SwitchesOffScenarios` requires ppex's pipes as they ship (no new states, its recipes back, its text
 and figures), the chute section copper alone with its anvil and plate recipes back, chutes from
-sections alone and Better Ruins' back, no angle or pipe section and nothing patched. `tools/tests/test_unified_pipes.py` holds the patch to ppex's zip, and the chute section patch
-to the game's files.
+sections alone and Better Ruins' back, no angle, pipe section or pipe on a soldered model and nothing patched. `tools/tests/test_unified_pipes.py` holds the patch to ppex's zip, and the chute section patch
+to the game's files; `tools/tests/test_soldered_pipes.py` holds the soldered shapes to their generator
+(their joints, bore and texture mapping) and the soldered joints' patch and the C# tests' copy of ppex's
+tables to ppex's zip.
 
 `tests/PackTests/HydratePipesScenarios.cs` (Atlas, the shared world) requires Hydrate or Diedrate's
 pipes, valves and pipe sections without a recipe, out of the creative inventory and the handbook, and
@@ -4611,7 +6062,9 @@ and Hydrate's `ContainersConfig`. With the switch off, `SwitchesOffScenarios` re
 refuse a keg. The rack's look and the client's side of the interactions
 are checked by hand in the game.
 
-`tests/PackTests/MapRevealScenarios.cs` (Atlas) has a test player run `/revealmap`, decodes what
+`tests/PackTests/MapRevealScenarios.cs` (Atlas, a plain world of its own whose ModConfig turns
+trader maps' approach deposit checks off, as they generate columns near the player) has a test
+player run `/revealmap`, decodes what
 it is sent as the client would, and requires it to agree with the loaded chunks (so the savegame
 reader reads the blocks the game does: when it fails after a game update, check `StoredChunk`'s
 field numbers and `ChunkData.DecompressFrom`), the columns not generated yet skipped and still
@@ -4689,7 +6142,8 @@ features on the plain world, sharing its players; `WoodworkingScenarios`
 (`fixtures/buckingsawmill`, which shortens the mill's cut and cycle and the rosser's trip), and
 `WoodworkingRosserScenarios` (`WoodworkingRosserScenarios.cs`), the rosser and the debarked trunk
 on the same fixture, a class of its own only because its real-time trips would otherwise make the
-one class's CI shard too long. Only a different world (a play style, ModConfig fixtures, a seeded
+one class's CI shard too long, and `WoodworkingEidolonScenarios` (`WoodworkingEidolonScenarios.cs`),
+the eidolon's haul and crew orders on the same fixture, for the same reason. Only a different world (a play style, ModConfig fixtures, a seeded
 standard world) gets a class of its own, as `/clear`'s, the off checks and the ore and trading
 camp scenarios do. Their doc
 comments say what sharing a world asks of a scenario: its own build sites and player names, and
@@ -4715,7 +6169,7 @@ a world created with them off to have none of it.
 Add a class next to `BoilerLidRelief.cs`, a `bool` setting for it in `SeraphHorizonsConfig`, and
 the call in `SeraphHorizonsSystem` behind that setting. Then add scenarios, in a new partial file
 of `SharedWorldScenarios` (`WoodworkingScenarios` for woodworking, `WoodworkingRosserScenarios` for
-the rosser, `TradingScenarios` for trading), and a section above. Its
+the rosser, `WoodworkingEidolonScenarios` for the eidolon's work at the machines, `TradingScenarios` for trading), and a section above. Its
 off check goes in `SwitchesOffScenarios`, with its key in `fixtures/switches-off`, not in a class of
 its own, unless what it requires needs another switch on. A
 tweak big enough for mod systems of its own gets a folder, as `TidyVariants/` does; its systems

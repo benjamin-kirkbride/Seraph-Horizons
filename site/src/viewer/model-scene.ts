@@ -5,6 +5,11 @@
 // overlays. Posing only sets matrices: the geometry is built once. Units are blocks; the rig's frame is three's (y up, VS north is −z).
 import {
   ArrowHelper,
+  type Material,
+  NearestFilter,
+  SRGBColorSpace,
+  Texture,
+  TextureLoader,
   BoxGeometry,
   BufferAttribute,
   BufferGeometry,
@@ -36,7 +41,7 @@ import { pieceMatrix } from "../lib/keyframes.ts";
 import { SIDE_NORMAL, cellBoxes, lidBox, sideArrow, type Anchor, type Bounds } from "../lib/model-anchors.ts";
 import type { ModelView } from "../lib/model-view.ts";
 import { TRACK_OVERLAY, type TrackLayout } from "../lib/model-vehicle.ts";
-import { FACE_NAMES, collapsed, corners, type FaceName, type Mat4, type Vec3 } from "../lib/rig.ts";
+import { FACE_NAMES, collapsed, corners, faceUv, type FaceName, type Mat4, type Vec3 } from "../lib/rig.ts";
 
 export interface SceneColours {
   background: string;
@@ -68,6 +73,8 @@ const FACE_CORNERS: Record<FaceName, [number, number, number, number]> = {
   north: [0, 2, 3, 1],
   south: [4, 5, 7, 6],
 };
+const DIMMED = new Color(0x5a6168);
+const WHITE = new Color(0xffffff);
 const EDGES: [number, number][] = [
   [0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7],
 ];
@@ -97,6 +104,10 @@ interface PartObject {
   colourTexture: Float32Array;
   /** The element each triangle belongs to. */
   triangles: Int32Array;
+  /** The vertex-coloured material (part or texture colours). */
+  coloured: MeshLambertMaterial;
+  /** The texture code of each of the geometry's groups, one per code its faces draw with. */
+  groupCodes: string[];
 }
 
 export class ModelScene {
@@ -140,6 +151,12 @@ export class ModelScene {
   private readonly labelLayer: HTMLElement;
   private readonly view: ModelView;
   private edgesOn = true;
+  private colourMode: ColourMode = "part";
+  /** setTextures's materials, one per texture code, and its textures by URL. */
+  private readonly textured = new Map<string, MeshLambertMaterial>();
+  private readonly textureCache = new Map<string, Texture>();
+  private readonly loader = new TextureLoader();
+  private dimmedExcept: string | null = null;
 
   /** Builds the scene into `canvas`, with the overlays' labels in `labelLayer` (and a vehicle's track under it); throws when WebGL cannot start. */
   constructor(canvas: HTMLCanvasElement, labelLayer: HTMLElement, view: ModelView, colours: SceneColours, propColour = "#8b5a2b", track: TrackLayout | null = null) {
@@ -231,8 +248,11 @@ export class ModelScene {
     const nor: number[] = [];
     const colPart: number[] = [];
     const colTex: number[] = [];
+    const uvs: number[] = [];
     const tri: number[] = [];
     const edge: number[] = [];
+    // Faces are drawn grouped by texture code, so a textured scene (setTextures) gives each code its material.
+    const faceList: { ei: number; code: string; corners: number[]; uv: Map<number, [number, number]> }[] = [];
     for (const ei of elements) {
       const cs = this.cornersBlocks[ei]!;
       const e = this.view.flat[ei]!.element;
@@ -240,36 +260,54 @@ export class ModelScene {
       // VS draws only the faces an element lists; a shape with no faces at all is drawn whole.
       const faces = e.faces ? FACE_NAMES.filter((n) => e.faces![n] && e.faces![n]!.enabled !== false) : FACE_NAMES;
       for (const name of faces) {
-        const q = FACE_CORNERS[name].map((i) => cs[i]!);
-        let [a, b, c, d] = q as [Vec3, Vec3, Vec3, Vec3];
+        const corners = [...FACE_CORNERS[name]];
+        const [a, b, c] = corners.map((i) => cs[i]!) as [Vec3, Vec3, Vec3];
         const u = new Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
         const v = new Vector3(c[0] - a[0], c[1] - a[1], c[2] - a[2]);
-        const n = u.cross(v);
         const out = new Vector3((a[0] + c[0]) / 2 - centre[0], (a[1] + c[1]) / 2 - centre[1], (a[2] + c[2]) / 2 - centre[2]);
-        if (n.dot(out) < 0) {
-          [b, d] = [d, b];
-          n.negate();
-        }
-        n.normalize();
-        const code = e.faces?.[name]?.texture?.replace(/^#/, "") ?? "?";
-        const tc = textureColour.get(code) ?? new Color(0xc0c0c0);
-        for (const p of [a, b, c, a, c, d]) {
-          pos.push(...p);
-          nor.push(n.x, n.y, n.z);
-          colPart.push(partColour.r, partColour.g, partColour.b);
-          colTex.push(tc.r, tc.g, tc.b);
-        }
-        tri.push(ei, ei);
+        if (u.cross(v).dot(out) < 0) [corners[1], corners[3]] = [corners[3]!, corners[1]!];
+        const face = e.faces?.[name];
+        faceList.push({ ei, code: face?.texture?.replace(/^#/, "") ?? "?", corners, uv: faceUv(name, face) });
       }
       for (const [i, j] of EDGES) edge.push(...cs[i]!, ...cs[j]!);
     }
+    const groupCodes: string[] = [];
+    const byCode = new Map<string, typeof faceList>();
+    for (const f of faceList) {
+      let list = byCode.get(f.code);
+      if (!list) {
+        byCode.set(f.code, (list = []));
+        groupCodes.push(f.code);
+      }
+      list.push(f);
+    }
     const geo = new BufferGeometry();
+    groupCodes.forEach((code, gi) => {
+      const list = byCode.get(code)!;
+      geo.addGroup(pos.length / 3, list.length * 6, gi);
+      const tc = textureColour.get(code) ?? new Color(0xc0c0c0);
+      for (const f of list) {
+        const cs = this.cornersBlocks[f.ei]!;
+        const [a, b, c] = f.corners.map((i) => cs[i]!) as [Vec3, Vec3, Vec3];
+        const n = new Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).cross(new Vector3(c[0] - a[0], c[1] - a[1], c[2] - a[2])).normalize();
+        for (const k of [0, 1, 2, 0, 2, 3]) {
+          pos.push(...cs[f.corners[k]!]!);
+          nor.push(n.x, n.y, n.z);
+          uvs.push(...f.uv.get(f.corners[k]!)!);
+          colPart.push(partColour.r, partColour.g, partColour.b);
+          colTex.push(tc.r, tc.g, tc.b);
+        }
+        tri.push(f.ei, f.ei);
+      }
+    });
     geo.setAttribute("position", new Float32BufferAttribute(pos, 3));
     geo.setAttribute("normal", new Float32BufferAttribute(nor, 3));
+    geo.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
     const colourPart = new Float32Array(colPart);
     geo.setAttribute("color", new BufferAttribute(colourPart.slice(), 3));
     geo.computeBoundingSphere();
-    const mesh = new Mesh(geo, new MeshLambertMaterial({ vertexColors: true, side: DoubleSide }));
+    const coloured = new MeshLambertMaterial({ vertexColors: true, side: DoubleSide });
+    const mesh = new Mesh(geo, groupCodes.map(() => coloured));
     const edges = lines(edge, 0);
     edges.material = this.edgeMaterial;
     for (const o of [mesh, edges]) {
@@ -277,7 +315,7 @@ export class ModelScene {
       this.scene.add(o);
     }
     mesh.userData.object = this.partObjects.length;
-    return { part: pi, joint, mesh, edges, colourPart, colourTexture: new Float32Array(colTex), triangles: new Int32Array(tri) };
+    return { part: pi, joint, mesh, edges, colourPart, colourTexture: new Float32Array(colTex), triangles: new Int32Array(tri), coloured, groupCodes };
   }
 
   private overlay(id: string): Group {
@@ -485,6 +523,13 @@ export class ModelScene {
     this.dirty = true;
   }
 
+  /** Turns the camera slowly round the model (OrbitControls' autoRotate), or stops it. */
+  setAutoRotate(on: boolean) {
+    this.controls.autoRotate = on;
+    this.controls.autoRotateSpeed = 1.2;
+    this.dirty = true;
+  }
+
   setEdges(on: boolean) {
     this.edgesOn = on;
     for (const o of this.partObjects) o.edges.visible = on && this.shown(o.part);
@@ -506,11 +551,81 @@ export class ModelScene {
     this.dirty = true;
   }
 
+  /** Redraws the faces of each texture code given in its colour (a scenario's texture select), in texture colours. */
+  setTextureColours(colours: ReadonlyMap<string, string>) {
+    for (const o of this.partObjects) {
+      const groups = o.mesh.geometry.groups;
+      o.groupCodes.forEach((code, gi) => {
+        const hex = colours.get(code);
+        const g = groups[gi];
+        if (hex === undefined || !g) return;
+        const c = new Color(hex);
+        for (let v = g.start; v < g.start + g.count; v++) o.colourTexture.set([c.r, c.g, c.b], v * 3);
+      });
+    }
+    this.colourBy(this.colourMode);
+  }
+
   colourBy(mode: ColourMode) {
+    this.colourMode = mode;
     for (const o of this.partObjects) {
       const a = o.mesh.geometry.getAttribute("color") as BufferAttribute;
       (a.array as Float32Array).set(mode === "texture" ? o.colourTexture : o.colourPart);
       a.needsUpdate = true;
+    }
+    this.dirty = true;
+  }
+
+  /**
+   * Draws each texture code with its image (a URL, here a data URI), the game's texture on the
+   * face's uv, or with the vertex colours again when `images` is null; a code with no image keeps
+   * its vertex colour. `size` is the shape's texture size in its units (textureWidth, textureHeight).
+   */
+  setTextures(images: ReadonlyMap<string, string> | null, size: readonly [number, number] = [16, 16]) {
+    for (const [code, m] of this.textured) {
+      const url = images?.get(code);
+      if (!url) {
+        m.dispose();
+        this.textured.delete(code);
+      }
+    }
+    if (images) {
+      for (const [code, url] of images) {
+        let tex = this.textureCache.get(url);
+        if (!tex) {
+          tex = this.loader.load(url, () => (this.dirty = true));
+          tex.magFilter = NearestFilter;
+          tex.minFilter = NearestFilter;
+          tex.generateMipmaps = false;
+          tex.colorSpace = SRGBColorSpace;
+          // The uv is in the shape's units with v negated: scale it to 0..1 and lift v into range.
+          tex.repeat.set(1 / size[0], 1 / size[1]);
+          tex.offset.set(0, 1);
+          this.textureCache.set(url, tex);
+        }
+        const m = this.textured.get(code);
+        if (m) {
+          m.map = tex;
+          m.needsUpdate = true;
+        } else this.textured.set(code, new MeshLambertMaterial({ map: tex, side: DoubleSide, alphaTest: 0.1 }));
+      }
+    }
+    for (const o of this.partObjects) {
+      o.mesh.material = o.groupCodes.map((code): Material => this.textured.get(code) ?? o.coloured);
+    }
+    this.dim(this.dimmedExcept);
+  }
+
+  /** Greys out and fades every textured code but `code` (null: none). */
+  dim(code: string | null) {
+    this.dimmedExcept = code;
+    for (const [c, m] of this.textured) {
+      const faded = code !== null && c !== code;
+      m.color.copy(faded ? DIMMED : WHITE);
+      m.transparent = faded;
+      m.opacity = faded ? 0.5 : 1;
+      m.depthWrite = !faded;
+      m.needsUpdate = true;
     }
     this.dirty = true;
   }
@@ -630,6 +745,8 @@ export class ModelScene {
     this.resizeObserver.disconnect();
     this.controls.dispose();
     for (const l of this.labels) l.el.remove();
+    for (const m of this.textured.values()) m.dispose();
+    for (const t of this.textureCache.values()) t.dispose();
     this.scene.traverse((o) => {
       const m = o as Mesh;
       m.geometry?.dispose();

@@ -226,7 +226,7 @@ describe("the eidolon gantry's build states", () => {
   };
 
   const winch = ["axles", "crankshaft", "gears", "drum", "strapping", "ratchet", "crank", "chain"];
-  const body = ["torso", "pelvis", "legs", "arms", "head", "mind"];
+  const body = ["torso", "bones", "joints", "plates", "sash", "skirt", "mind"];
 
   it("has two selects, the gantry's and the eidolon's, opening both fully built", () => {
     expect(groups.map((g) => [g.id, g.spec.label, g.spec.default])).toEqual([
@@ -273,15 +273,15 @@ describe("the eidolon gantry's build states", () => {
 
   it("builds the body on the spine stage by stage, and leaves the spine hanging empty once departed", () => {
     expect(shown({ eidolon: "torso" })).toEqual(expect.arrayContaining(["spine", "torso"]));
-    expect(shown({ eidolon: "torso" })).not.toContain("pelvis");
+    expect(shown({ eidolon: "torso" })).not.toContain("bones");
     const departed = shown({ eidolon: "departed" });
     expect(departed).toEqual(expect.arrayContaining(["spine", "ring", "hook", "frame", "crank", "drum", "sheave"]));
     for (const stage of body) expect(departed).not.toContain(stage);
     expect(departed).toEqual(shown({ eidolon: "none" }));
     // the eidolon's pick is kept while the gantry is taken back and built up again
-    expect(shown({ eidolon: "legs", gantry: "frame" })).toEqual(["frame"]);
-    expect(shown({ gantry: "frame", eidolon: "legs" })).toEqual(["frame"]);
-    expect(shown({ eidolon: "legs" })).toEqual(expect.arrayContaining(["torso", "pelvis", "legs"]));
+    expect(shown({ eidolon: "plates", gantry: "frame" })).toEqual(["frame"]);
+    expect(shown({ gantry: "frame", eidolon: "plates" })).toEqual(["frame"]);
+    expect(shown({ eidolon: "plates" })).toEqual(expect.arrayContaining(["torso", "bones", "joints", "plates"]));
   });
 });
 
@@ -291,7 +291,7 @@ describe("the eidolon's page: its stages with any animation", () => {
   const rigFile = read(model.rig!) as Rig;
   const view = buildModelView(shape, rigFile, model.scenario);
   const stages = (read("mods-src/seraphhorizons/assets/seraphhorizons/config/eidolon-stages.json") as { stages: { code: string; elements: string[] }[] }).stages;
-  const body = ["torso", "pelvis", "legs", "arms", "head", "mind"];
+  const body = ["torso", "bones", "joints", "plates", "sash", "skirt", "mind"];
   const values = view.requires.map((r) => r.value);
   const groups = stateGroups(model.scenario!.states, values);
   const partId = (ei: number) => view.parts[view.elementPart[ei]!]!.id;
@@ -329,13 +329,13 @@ describe("the eidolon's page: its stages with any animation", () => {
   };
 
   const cases: [string, string[]][] = [
-    ["the head alone: its joints hang from the hidden chest and hip blocks", ["head"]],
-    ["the torso alone: the hip block it hangs from hidden, the head and arms on it hidden", ["torso"]],
-    ["the legs and the mind: two pieces, each moved by hidden joints", ["legs", "mind"]],
-    ["everything but the torso", ["pelvis", "legs", "arms", "head", "mind"]],
+    ["the bones alone: its joints hang from the hidden chest and hip blocks", ["bones"]],
+    ["the torso alone: the bones and joints on it hidden", ["torso"]],
+    ["the plates and the mind: pieces, each moved by hidden joints", ["plates", "mind"]],
+    ["everything but the torso", ["bones", "joints", "plates", "sash", "skirt", "mind"]],
   ];
 
-  for (const code of ["fell", "activate", "stand-walk", "trunk-thick-pickup"]) {
+  for (const code of ["fell", "activate", "dock", "stand-walk", "trunk-thick-pickup"]) {
     it(`draws every shown element where the game poses it, in ${code}, whatever stages are shown`, () => {
       const anim = view.animation.animations.find((a) => a.code === code)!;
       expect(anim).toBeDefined();
@@ -362,17 +362,17 @@ describe("the eidolon's page: its stages with any animation", () => {
   it("exercises both: a shown element moved by a joint in a hidden stage, and a shown joint over hidden elements", () => {
     const parents = view.animation.parents;
     const joints = view.animation.joints;
-    // the head alone: its elements move with joints whose ancestors (the chest, the hips) are hidden
-    const head = view.flat.filter((f) => partId(f.index) === "head");
-    const hiddenAbove = head.filter((f) => {
-      for (let p = parents[f.index]!; p >= 0; p = parents[p]!) if (partId(p) !== "head" && joints.includes(p)) return true;
+    // the bones alone: their elements move with joints whose ancestors (the chest, the hips) are hidden
+    const bones = view.flat.filter((f) => partId(f.index) === "bones");
+    const hiddenAbove = bones.filter((f) => {
+      for (let p = parents[f.index]!; p >= 0; p = parents[p]!) if (partId(p) !== "bones" && joints.includes(p)) return true;
       return false;
     });
     expect(hiddenAbove.length).toBeGreaterThan(0);
     // some shown element's own joint is an element of a hidden stage
     const borrowed = view.flat.filter((f) => joints[f.index]! >= 0 && partId(joints[f.index]!) !== partId(f.index));
     expect(borrowed.length).toBeGreaterThan(0);
-    // the torso alone: the chest is a joint, and elements moved by it are in the hidden head or arms
+    // the torso alone: the chest is a joint, and elements moved by it are in the hidden layers
     const chest = byName.get("chest-inside")!;
     expect(view.animation.jointList).toContain(chest);
     const under = view.flat.filter((f) => {

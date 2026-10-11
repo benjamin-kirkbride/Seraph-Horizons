@@ -117,7 +117,8 @@ public static class DrawBenchExport
         return data;
     }
 
-    private static List<Oil> OilsOf(ICoreServerAPI api, object? oilSettings)
+    /// <summary>The oils that fill a machine's tank, from MachineOilSettings (the cylinder borer's export reads them too).</summary>
+    internal static List<Oil> OilsOf(ICoreServerAPI api, object? oilSettings)
     {
         var oils = new List<Oil>();
         foreach (var pattern in GearChain.Prop(oilSettings, "OilLiquids") as IEnumerable<string> ?? Array.Empty<string>())

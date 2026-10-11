@@ -93,11 +93,20 @@
   "SupplySpreadFraction": 0.1,
   "PlacerFields": true,
   "PlacerCellSizeMetres": 1500,
+  "OreProcessing": true,
+  "SpallingSettings": {
+    "BlowsRawOre": 6,
+    "BlowsChunk": 3,
+    "HammerWearPerBlow": 1
+  },
+  "FirepitRoastSeconds": 10.0,
   "TraderSchematics": true,
   "MachineSchematics": true,
   "TraderOrders": true,
   "TraderDeliveries": true,
   "TraderMaps": true,
+  "DepositCheckApproachMetres": 1500,
+  "DepositCheckPauseSeconds": 5.0,
   "AdminTools": true,
   "TravellingMerchants": true,
   "TravellingMerchantMinSupply": 2.0,
@@ -144,6 +153,10 @@
     "DrawBench": {
       "Tank": 1000.0,
       "DrainPerJob": 2.0
+    },
+    "CylinderBorer": {
+      "Tank": 1000.0,
+      "DrainPerJob": 10.0
     }
   },
   "TrunkEntities": true,
@@ -244,6 +257,14 @@
       ]
     }
   },
+  "CylinderBorer": true,
+  "CylinderBorerSettings": {
+    "TurnsPerBlockIron": 64.0,
+    "TurnsPerBlockSteel": 96.0,
+    "HeadWearPerCylinder": 1,
+    "Resistance": 0.3,
+    "MinSpeed": 0.05
+  },
   "PressBrake": true,
   "PressBrakeSettings": {
     "LeverTurnsPerPlateLead": 1.5,
@@ -265,28 +286,120 @@
   },
   "MandrelSprings": true,
   "RodsOnForge": true,
+  "Eidolon": true,
+  "EidolonSettings": {
+    "ChargeYearsPerGear": 0.25,
+    "MaxChargeGears": 2.0,
+    "StandUpHealthShare": 0.25,
+    "WalkSpeed": 0.022,
+    "RunSpeed": 0.04,
+    "PathSearchNodes": 3000,
+    "MaxFallBlocks": 3,
+    "OilTank": 1000.0,
+    "InitialOilShare": 0.25,
+    "OilPerTreeFelled": 5.0,
+    "OilPerTrunkDelivered": 3.0,
+    "OilPerLoadCarried": 2.0,
+    "RepairShare": 0.1,
+    "GantryRepairMultiplier": 2.0,
+    "CommandRange": 64.0,
+    "FollowDistance": 4.0,
+    "FollowRunDistance": 10.0,
+    "DefenceDamage": 10.0,
+    "SlamDamage": 16.0,
+    "GuardRadius": 16.0,
+    "FellMinLogs": 5,
+    "AllSteelHealth": 300.0,
+    "PlateHealth": {
+      "Brass": 0.8,
+      "Iron": 1.0,
+      "Steel": 1.5,
+      "Stainless": 2.0
+    },
+    "JointHealth": {
+      "Iron": 1.0,
+      "Steel": 1.5,
+      "Stainless": 2.0
+    },
+    "SkirtHealth": {
+      "Iron": 1.0,
+      "Steel": 1.25,
+      "Stainless": 1.5
+    },
+    "PlateDamage": {
+      "Brass": 0.8,
+      "Iron": 1.0,
+      "Steel": 1.0,
+      "Stainless": 1.0
+    },
+    "PlateMoveSpeed": {
+      "Brass": 1.25,
+      "Iron": 1.0,
+      "Steel": 1.0,
+      "Stainless": 1.0
+    },
+    "PlateArmour": {
+      "Iron": {
+        "ProtectionTier": 3,
+        "RelativeProtection": 0.96,
+        "FlatDamageReduction": 1.7
+      },
+      "Steel": {
+        "ProtectionTier": 4,
+        "RelativeProtection": 0.97,
+        "FlatDamageReduction": 1.8
+      },
+      "Stainless": {
+        "ProtectionTier": 5,
+        "RelativeProtection": 0.98,
+        "FlatDamageReduction": 1.9
+      },
+      "Brass": {
+        "ProtectionTier": 2,
+        "RelativeProtection": 0.92,
+        "FlatDamageReduction": 1.6
+      }
+    },
+    "ArmourLoss": {
+      "RelativeLossWithinTier": 0.03,
+      "RelativeLossAboveTier": 0.15,
+      "FlatLossWithinTier": 0.1,
+      "FlatLossAboveTier": 0.2,
+      "HighDamageTierResistant": true
+    }
+  },
   "StainlessSteel": true,
   "CrucibleFurnaceSettings": {
-    "PotCapacityUnits": 200,
+    "PotCapacityUnits": 300,
     "PotHeats": 3,
     "PourWindowSeconds": 20.0,
-    "CokeCapacity": 6,
+    "CokeCapacity": 12,
     "HoursPerCoke": 1.0,
     "ChimneyHeatingPerHour": 200.0,
-    "ForcedHeatingPerHour": 400.0,
     "ChimneyMaxTemperature": 1600.0,
-    "ForcedMaxTemperature": 1650.0,
+    "ChimneyHeatingPerExtraBlock": 40.0,
+    "ChimneyMaxPerExtraBlock": 10.0,
     "CoolingPerHour": 300.0,
     "LidOpenCoolingPerHour": 600.0,
     "MinChimneyHeight": 6,
-    "MaxHolesInRow": 4,
-    "AirLitresPerSecond": 10.0,
+    "MaxChimneyHeight": 11,
+    "MaxFurnacesInRow": 6,
+    "DamperHalfHeating": 0.5,
+    "DamperHalfBurn": 0.6,
+    "DamperShutBurn": 0.25,
+    "DamperShutCooling": 0.25,
     "ChimneyBlocks": [
       "game:claybricks-*",
       "game:claybrickchimney-*",
       "game:refractorybricks-*",
-      "game:stonebricks-*",
-      "smex:smokestack-*"
+      "game:stonebricks-*"
+    ],
+    "LargeCastingMetals": [
+      "game:ingot-iron"
+    ],
+    "LargeCastingMolds": [
+      "game:ingotmold-*",
+      "seraphhorizons:cylindermold-*"
     ]
   },
   "CastPipes": true,

@@ -832,8 +832,9 @@ goods (× the fit).
   rework) takes its cheapest route, like any item: the gear cutter, or the reclamation lottery (ten
   neutralized gears less the nine stainless bits the failed rolls give). The large stainless gear
   (`seraphhorizons:largegear-stainless`) takes its gear cutter route. Neither is a hand price.
-  Stainless steel itself is a raw at 12 an ingot until the crucible furnace gives it a route.
-  (#506, #523, #484)
+  Stainless steel itself is the crucible furnace's (its pot recipes are `tools/item-values/routes.json`),
+  about 8.3 an ingot, from crushed chromite counted at the 5 units the pot takes it for (#689; it
+  was a raw at 12 before). (#506, #523, #484, #689)
 
 ### Everything has a price
 
@@ -1033,7 +1034,7 @@ built). A gated recipe gets a new key in `Ingredients`, a new pattern and size, 
 (`GridGate.Place`: first empty slot, else a column, else a row, else two slots of the most frequent
 consumable ingredient merged at double quantity if the stack fits). `GridRecipe.Enabled` is only read
 at load, so removed recipes are taken out of `World.GridRecipes`. Non-grid construction (the water
-wheel's stages, ppex's exlib construction, Gondola's construction sites, the biplane on its trestles)
+wheel's stages, ppex's exlib construction, the biplane on its trestles)
 is gated through the grid recipe of its first stage. A one-slot, consumed, make-one recipe is a
 conversion (Scrolled, MadMechanics) and is neither gated, removed nor made to keep its input.
 
@@ -1209,13 +1210,43 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   the top tier (`SchematicTests`), the carpenter's sticks and aged crate, the mechanic's rope and
   metal parts and the smith's tin bronze and steel ingots moved from the core to the rotating pool.
 - **Offers.** An offer is an ordinary trade item whose stack carries `offer` and what it is for
-  (`MapOfferAttrs`): ore map offers the deposit id, metal, precision and last measured size; leads
-  the kind, cell, camp type and position. One ore map offer per metal, the nearest deposit of
-  `DepositService.Candidates(x, z, 5000)` that is unsold and not being sold, at most four metals
-  (`MapOffers.PickOre`); the gravel map the nearest such field of `GravelFields(x, z, 2000)`. Deposits
-  in range but none left: a `soldout` offer with stock 0 (drawn unavailable by the game). The
-  `lead` entry expands to the 8 km settlement cell's centre (`LeadTargets.Settlement`) when the
+  (`MapOfferAttrs`): ore map offers the deposit id, metal, precision, measured size and what the ore
+  is (#692: `ores`, `grades`, `rock`, the map's own keys, `docs/oregen.md` "What a map names"); gravel
+  map offers the field's `rock` and the `metals` it pans; leads the kind, cell, camp type and
+  position. One ore map offer per metal, the nearest deposit of `DepositService.Candidates(x, z,
+  5000)` that is unsold and not being sold, at most four metals (`MapsSystem.PickOre`, over
+  `MapOffers.PickOre`); the gravel map the nearest such field of `GravelFields(x, z, 2000)`
+  (`PickGravel`). Only a checked deposit (`DepositCandidate.Surveyed`) is offered: one not checked yet
+  is a `surveying` offer in its place (its metal, or a gravel field; stock 0, "Lead ore map: being
+  surveyed", refused with `trading-maps-error-surveying`), and its check is asked for (below).
+  Deposits in range but none left: a `soldout` offer with stock 0 (drawn unavailable by the game).
+  The `lead` entry expands to the 8 km settlement cell's centre (`LeadTargets.Settlement`) when the
   shelf tier has `mapsToTraders`, and to nothing else: camp leads are not shelf offers.
+- **Deposit checks** (#693, `Game/DepositSurveys.cs`, queue `Core/SurveyQueue.cs`). The seed gives each
+  ore cell's eight spots, not which takes the deposit or what ore it is (both follow the host rock,
+  known once terrain generates), so the checks run ahead of the player:
+  - *Approach*: every 5 s, each camp cell of the grid whose site (the placed camp, or the spot it
+    waits for) is within `DepositCheckApproachMetres` (1,500) of an online player has what it would
+    offer queued (`MapsSystem.QueueChecks`): a prospector cell's ore maps (up to four metals within
+    5 km) and every camp's gravel map, the unchecked ones. A camp is queued again after 5 minutes.
+    Prospectors sit on the lattice (one within two cells of anywhere), so a walking player reaches a
+    camp about 7 minutes after it is queued (4m55 per km).
+  - *Throttled*: one background check at a time, `DepositCheckPauseSeconds` (5) after the last that
+    did work. A check is `DepositService.Verify`: an ore deposit's nine columns (loaded from disk
+    when generated, else generated, its spot's column first) and counted; a gravel field's one
+    column. The count is on the main thread (nine columns of 32³ chunks, a few milliseconds);
+    generating is the world generator's.
+  - *Fallback*: a trade window opening on a `surveying` offer (teleport, fast travel) asks for its
+    check urgently: urgent checks go first, at once, beside a background one. A restock with a
+    player trading does the same.
+  - *Landing*: every loaded trader showing the deposit `surveying` gets its real offer in that slot
+    (`MapsSystem.RefreshShelves`, `EntitySeraphTrader.ReplaceSelling`, which keeps the slot's key for
+    the next restock), priced for the player trading, whose window is told; a cell that turned out
+    to have none, or a worked-out deposit, brings the metal's next deposit (itself `surveying` while
+    its check runs) or nothing. A camp the check was queued for has its offers queued again.
+  - A check that could not settle a cell (every spot tried) is given up until the server restarts
+    (`DepositSurveys.GaveUp`): not offered or checked again, so it can't loop.
+  - Never filled over restocks: an earlier idea, a few offers more at each restock, was too slow.
 - **Camp leads** (the user's goal: "you can always buy a map to a trader within some radius that you
   don't already have"; radius and count grow with standing, so learning from local traders is
   cheaper than buying the whole map from one). Per buyer, so off the shelf: the shared shelf has 16
@@ -1266,8 +1297,11 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
     | partner | 5 | 12 | 2.34 | 4.85 | 55 |
   - *The pity map* (a player's very first map, `campLeads.pity`: `price` 10, `reach` 10 rings): a
     flat 10 gears, to a prospector. Offered by every trader but a prospector, first on the tab, while
-    the player has not had it (`LeadBook.PityUsed`), nothing of theirs is being drawn, and, for a
-    stranger, the group's stranger map from this trader is unspent. Its camp (`PityMap.Target`): the
+    the player has not had it (`LeadBook.PityUsed`) and nothing of theirs is being drawn, at any
+    standing: a stranger gets it too, even when the group's stranger map from this trader is spent
+    (a company member had it, or a version 1 save recorded it before the first map existed; until
+    this change that withheld it from strangers only, `CampLeadsFor`'s `pityHere` and `Pick`'s early
+    `StrangerUsed` return, while known and up got it). Its camp (`PityMap.Target`): the
     nearest seeded prospector cell (`TraderGrid.IsProspector`; the lattice puts one within ring 2 of
     every cell) to the selling trader, ring by ring, that the buyer lacks and that can take a camp
     or has one (`Site`: placed, or a spot left; Failed and Open cells can't); none out to ring 10,
@@ -1287,10 +1321,20 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   - *The window*: `TradeWindowState.LeadOffers` (cell, type, distance, dx, dz, price, prospector,
     ring, pity), `LeadsWhy` (stranger used, none in reach) and `LeadsBought`; the Maps & leads tab
     lists them under the shelf's offers with a Buy button (`TradeAction.BuyLead`, the cell, or
-    `pity`, as `Code`, the price seen as `Price`). A lead's line names its ring; the pity map's
-    reads "First map's on me: 10 g to the nearest prospector, ... blocks ...". The Standing tab's
-    tier lines say "maps to n traders within r rings" (`TierView.LeadMaps`, `LeadReach`) or, for a
-    stranger, "one map onward, to the nearest trader you haven't found within 1 ring".
+    `pity`, as `Code`, the price seen as `Price`). A lead's line says how far and which way its camp
+    is from the trader, never its ring ("Lead to the cook's camp, about 4 km north: 24 g"); the pity
+    map's reads "First map's on me: 10 g to the nearest prospector, about 3 km northeast.". The
+    Standing tab's tier lines say "maps to n traders within about k km" (`TierView.LeadMaps`, and
+    `LeadReach` in rings as k = `MapDistance.ReachKm`: (rings + ½) × 2,048 blocks rounded, 3, 5, 7
+    and 11 km for 1, 2, 3 and 5 rings) or, for a stranger, "one map onward, to the nearest trader
+    you haven't found within about 3 km".
+  - *Distances shown* (`Trading/Maps/Core/MapDistance.cs`): every player-facing distance of a map
+    or lead is whole km rounded to the nearest (1 km = 1,000 blocks, half rounds up), "about 3 km",
+    and "under a km" below 500 blocks (`map-distance-km`, `map-distance-under`): the Maps & leads
+    tab's ore, gravel, settlement and camp lead lines (from the trader), the map and lead items'
+    tooltip line "Distance from here: ..." (client side, from the player), and the chat lines when
+    there is no world map to mark (`oremap-distance`, `trading-maps-lead-distance`, also used by a
+    delivery's mark). Rings stay in prices, reach and the admin commands' output.
   - *The buy* (`MapsSystem.BuyCampLead`): refused, nothing taken, when the cell is not among the
     buyer's offers at that price (the why key, or `trading-window-changed`), one of theirs is still
     being drawn, their bags have no room (`TradeWindowSystem.HasRoom`) or they lack the gears. Paid
@@ -1347,9 +1391,9 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   `MapMarksSystem.Mark`, which sets the waypoint's `Guid` and remembers it with the target and
   precision (`MarkBook`, saved as `seraphhorizons:mapmarks`; records whose waypoint is gone are
   pruned). Targets: `deposit:<id>` (ore or gravel), the camp's standing id `camp:x,z`,
-  `settlement:x,z`. Precision is the ore maps' (1 ±400 m, 2 ±150 m, 3 exact); a gravel map is 3,
+  `settlement:x,z`. Precision is the ore maps' (1 rough ±150 m, 2 fair ±50 m, 3 fine ±15 m); a gravel map is 3 and exact,
   a lead `LeadPrecision` (2: the camp's site, the trader within about `LeadReach`, 64 blocks), a met
-  trader 3. Titles carry it: `map-waypoint-precision` "{name} (precision n, ±r m)",
+  trader 3. Titles carry it: `map-waypoint-precision` "{name} (±r m)",
   `map-waypoint-lead` "{name} (approximate, ±64 m)", `map-waypoint-exact` "{name} (exact)". Marking
   a target that has a marker as precise or better adds nothing ("already marked"); a rougher one is
   removed and replaced. An unremembered waypoint with the same icon on the very spot (made before
@@ -1387,8 +1431,11 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
 - **Never bought back**: the economy's `refused` prefixes (`seraphhorizons:oremap`, `gravelmap`,
   `traderlead`, `game:locatormap`) refuse them off-list, and no list buys them
   (`TradingMapsScenarios` checks the quote).
-- **Known limits.** The size class priced is the last measurement (unsurveyed until someone verifies
-  the deposit); the deal's own verify may find it different, and the map says what it found. A camp
+- **Known limits.** The size class priced is the last measurement; the deal's own verify may find it
+  different (players dug there since), and the map says what it found. Map prices count the metal
+  in the ground, as sizes do, not what hand-tier processing recovers of it (22–58 %, #684): #692
+  left them as they are for now; discounting them is open. Approach checks follow the grid's camps
+  only: a trader elsewhere (a test, a story trader) shows `surveying` until its trade opens. A camp
   lead to a pending cell is offered at its waiting spot's distance and price; only the sale settles
   where the camp is. A cell `_noCamp` skips is forgotten at a restart (its spots are all tried
   then, so it is skipped anyway unless a second chance places it later). Settlement grounds are reserved but empty until settlements exist (#468). The pending sheet

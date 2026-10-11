@@ -305,8 +305,8 @@
               "game:metalplate-steel": 1,
               "game:rod-steel": 4,
               "seraphhorizons:gear-stainless": 4,
-              "ppex:pipe-straight-*-steel": 2,
-              "game:metalnailsandstrips-steel": 4
+              "game:metalnailsandstrips-steel": 4,
+              "seraphhorizons:cylinder-steel": 1
             },
             "Quantity": null,
             "Stages": null,
@@ -317,8 +317,8 @@
               "game:metalplate-steel": 1,
               "game:rod-steel": 2,
               "seraphhorizons:gear-stainless": 2,
-              "ppex:pipe-straight-*-steel": 1,
-              "game:metalnailsandstrips-steel": 2
+              "game:metalnailsandstrips-steel": 2,
+              "seraphhorizons:cylinder-steel": 1
             },
             "Quantity": null,
             "Stages": null,
@@ -335,7 +335,7 @@
               "game:metalplate-iron": 1,
               "game:rod-iron": 2,
               "seraphhorizons:gear-stainless": 2,
-              "ppex:pipe-straight-*": 1,
+              "seraphhorizons:cylinder-iron": 1,
               "game:metalplate-steel": 1,
               "game:rod-steel": 2
             },
@@ -348,7 +348,7 @@
               "game:metalplate-iron": 1,
               "game:rod-iron": 1,
               "seraphhorizons:gear-stainless": 1,
-              "ppex:pipe-straight-*": 1,
+              "seraphhorizons:cylinder-iron": 1,
               "game:metalplate-steel": 1,
               "game:rod-steel": 1
             },

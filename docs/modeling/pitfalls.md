@@ -97,6 +97,13 @@ at the machine in the game. Where a check now exists, it is named, so a new mode
   trunk's patch adds to `/variantgroups/2/states`; if Logging Expanded reorders its groups, it would
   patch the wrong one. `DebarkedTrunks.Bind` checks the group is `branches` with states `yes` and `no`
   before the patch loader runs, and empties the patch with one warning if not.
+- **A `*ByType` entry added by a JSON patch goes last, and the game takes the first key that matches.**
+  `RegistryObjectType.solveByType` walks a `shapeByType` (or any `...ByType`) table in order and keeps
+  the first key whose wildcard matches the code, so a narrower key a patch adds after ppex's
+  `*-straight-ns-*` never applies. To give copper and lead pipe its own model, `UnifiedPipes` replaces
+  the whole table with the new keys first (`patches/unifiedpipes-solderedjoints.json`, generated from
+  ppex's zip), and `Pipes/Core/SolderedJoints.cs` checks the table is still ppex's before the patch
+  loader runs.
 
 ## Licence and credit
 

@@ -34,9 +34,8 @@ thick: the spring is a job of its own, class 3 (`docs/recipe-browser/models.md`,
 the controller at `[0,0,0]`: x 0, y 0, z 0..1. The controller is the stump, `[0,0,0]`, the block the
 player clicks. Placed like the press brake and the draw bench, the station extends away from the
 player along their line of sight, the stump nearest them and the mandrel pointing away: the block's
-`side` is the way they look. A chest of hollows can stand beside the stump (native west, `infeedSide`);
-when a hollow is done, gameplay delivers its two sections beyond the tip (native south, `outputSide`),
-into a container standing there, or onto the ground at `output.pos`. The model draws nothing coming off.
+`side` is the way they look. When a hollow is done, gameplay drops its two sections beyond the tip
+(native south, `outputSide`), onto the ground at `output.pos`. The model draws nothing coming off.
 
 **Why 1 × 1 × 2.** The finished tube is 16 long (two sections) on a mandrel that also needs a root
 held in a bracket: the hollow starts against the shoulder at z 7 and the finished tube ends at z 23, half a
@@ -277,7 +276,7 @@ nothing added to the shared rig maths: a `work` quantity, gauges, rides, and one
 - **The work's end** names the three classes, each a job of 1: `{ "thin": 1, "thick": 1, "3": 1 }`.
 - **Anchors**: `output.pos` (on the ground beyond the tip, where gameplay drops the two sections or the
   spring), `strike.pos` (the top of the box's middle, where the hammer lands: sparks and the blow's sound),
-  `infeedSide` west, `outputSide` south.
+  `outputSide` south.
 - **The spring's parts** (`requires` `rodsteel`): the sides `sp1u` .. `sp6e` and the straight rod `spr`, 25 in all,
   none riding another; every driver a `gauge`. A side has one, a `stretch` along its own axis (`rotation` its
   element's, `origin` its start corner, the first side's its start face) with `amount` −1 for class `"3"` and one
@@ -289,7 +288,7 @@ nothing added to the shared rig maths: a `work` quantity, gauges, rides, and one
   (one rising over a step of the plan, or a millionth of W wide for an instant, and open to the end), its
   amount for class `"3"` alone.
 
-**Keys.** `cells`, `infeedSide`, `outputSide`, `output`, `strike`, `work`, `forge`, `wind` and `parts`.
+**Keys.** `cells`, `outputSide`, `output`, `strike`, `work`, `forge`, `wind` and `parts`.
 `requires` values: `mandrel`, `hollowlead`, `hollowcopper`, `rodsteel`, or null. The texture code the renderer
 sets: `mandrel` (the fitted rod's metal; iron plate in the shape). The spring's elements wear `spring`
 (`game:block/metal/sheet-plain/steel1`, declared on the block too), and glow by the renderer's shader when
@@ -412,14 +411,11 @@ blows of a copper hammer, 6 of a bronze one, 5 of an iron one and 4 of a steel o
 (iron) and 6 (steel). The blow that brings W to 1 finishes it (the overshoot is dropped). A blow plays the anvil's `game:sounds/effect/anvilhit` and throws a few
 small glowing sparks at `strike.pos`, and costs the hammer `HammerWearPerBlow` durability (not in
 creative mode), one a blow whatever the hammer. At W = 1 the hollow is used up and `forge.sectionsPerHollow` (2)
-`forge.sections[k]` (`seraphhorizons:pipesection-{metal}`) go into a container in
-`MandrelStationRig.OutputNeighbour()` (the cell beyond the tip, native south), else drop just past it at
-`OutputDrop()`, pushed outward, as the press brake's angle does. Each blow syncs W and the blow count.
+`forge.sections[k]` (`seraphhorizons:pipesection-{metal}`) drop just past the tip (into
+`MandrelStationRig.OutputNeighbour()`, native south) at `OutputDrop()`, pushed outward, as the press brake's angle does. Each blow syncs W and the blow count.
 Ctrl + right-click takes a hollow back only before the first blow (the work, not a part); after it, it
-stays (an error says so). **Infeed:** a hand station takes nothing by itself. A blow on a bare
-mandrel takes one hollow from a container in a cell beside the station (`InfeedNeighbours`, native
-west: beside the stump or beside the tip's cell) and loads it; that click is not a blow. **Hotbar
-refill:** with no hollow from the infeed, a hammer click on a bare mandrel while right-click is held since
+stays (an error says so). The station never takes from or puts into a chest or other container
+beside it. **Hotbar refill:** a hammer click on a bare mandrel while right-click is held since
 a hollow was finished (the same player's hammer clicks on the station no more than
 `Forging.HeldClickGapMs`, 750, apart: the client repeats a held click every 250 ms) puts another of the
 same item on from the first of the player's hotbar slots holding one (`Forging.RefillSlot`: slots 0..9,
@@ -524,8 +520,8 @@ is read from the rig (`wind`, `requires`, the anchors), never element names. The
   shader's `RgbaGlowIn` from `ColorUtil.GetIncandescenceColorAsColor4f(temp)` with alpha extraGlow / 255 and
   `ExtraGlow` = `Winding.ExtraGlow(temp)` = Clamp((temp − 550) / 2, 0, 255), and zero glow for every other part
   (and after the loop), the rod's temperature read on the client from the synced stack each frame.
-- **Delivery.** At W 1 the rod is used up and one spring, at the rod's temperature (`SetTemperature`), goes into
-  a container in `OutputNeighbour()`, else drops at `OutputDrop()`, as the sections do; the station clears. The
+- **Delivery.** At W 1 the rod is used up and one spring, at the rod's temperature (`SetTemperature`), drops at
+  `OutputDrop()`, as the sections do; the station clears. The
   last winder's tongs (the hand holding them) pay `TongsWearPerRod` (1), not in creative mode.
 - **Breaking, saving.** Breaking gives back a rod not yet wound (W 0); a part-wound one is lost. A save keeps the
   rod's stack (its temperature attributes), W and, for the client, whether someone winds and the server's pace.
