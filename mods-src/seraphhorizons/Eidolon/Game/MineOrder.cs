@@ -6,7 +6,6 @@ using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
-using Vintagestory.GameContent.Mechanics;
 
 namespace SeraphHorizons.Mod.Eidolon;
 
@@ -106,6 +105,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private double? _waitingSince;
     private bool _stalled;
     private int _maxTier = EidolonMining.SteelPickTier;
+    private string[] _mineThrough = EidolonMining.GroundBlockEntities;
+    private int _underOthers;
+    private bool _waitingUnder;
     private EidolonNavigator? _nav;
     private EntityLaborEidolon? _eidolon;
     private Phase _phase;
@@ -193,6 +195,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _eidolon = eidolon;
         _pick ??= eidolon.World.GetItem(new AssetLocation(EidolonMining.PickCode));
         _maxTier = EidolonMining.PickTier(_pick?.ToolTier);
+        _mineThrough = (EidolonSystem.Of(eidolon.Api)?.Config ?? EidolonConfig.Defaults).MineThroughBlockEntities;
         _jobs ??= EidolonJobSystem.Of(eidolon.Api);
         _group = null;
         _rescanAt = 0;
@@ -204,6 +207,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         {
             Join(eidolon);
             _phase = Phase.Seek;
+            // back (from dry, or loaded again) to a job reported while it was away: back to its place,
+            // with no report of its own
+            if (_job is { Closed: true })
+            {
+                Told(eidolon);
+                GoHome(eidolon);
+            }
         }
     }
 
@@ -216,10 +226,22 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 return Seek(eidolon, now);
             case Phase.Walk:
                 if (_nav!.Active)
+                {
+                    // its square kept while it walks to it, however long the way
+                    Board?.Struck(eidolon.EntityId, now);
                     return true;
+                }
                 if (Next(eidolon, now) is { } group && Reserve(eidolon, group.Cells, now))
                 {
                     BeginStrike(eidolon, group, now);
+                    return true;
+                }
+                if (Blocked(eidolon, now))
+                {
+                    _nav.Stop();
+                    Board?.Release(eidolon.EntityId);
+                    _square = null;
+                    _phase = Phase.Seek;
                     return true;
                 }
                 // Arrived short of the place (on a ledge's edge, its box over the block beside): step
@@ -270,7 +292,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 if (_finished)
                 {
                     if (Board?.TryClose(eidolon.EntityId, now) == true)
+                    {
+                        _jobs!.SaveDone(_job!);
                         return Report(eidolon);
+                    }
                     if (now < _rescanAt)
                         return true;
                 }
@@ -303,8 +328,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         if (_jobs is not { } jobs)
             return;
         long id = eidolon.EntityId;
+        // A job closed while it was away is rejoined (closed: it goes back) unless the order is new (a
+        // player's, with no mates saved): one ordered again to the same area starts a new job.
         _job = jobs.Mining.Join(id, id.ToString(CultureInfo.InvariantCulture), EidolonJobSystem.KeyOf(eidolon, OrderCode, area),
-            _expectMates ? _mates : null, EidolonJobSystem.Now(eidolon.World) + EidolonTeamwork.ExpectSeconds);
+            _expectMates ? _mates : null, EidolonJobSystem.Now(eidolon.World) + EidolonTeamwork.ExpectSeconds,
+            rejoinClosed: !_expectMates || _mates.Count > 0);
         _expectMates = false;
         jobs.Track(jobs.Mining, eidolon, this);
         _finished = false;
@@ -342,19 +370,34 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>The other eidolons loaded within <see cref="OthersRange"/> of a point, where each stands
     /// and its feet' block: none of them may be undermined.</summary>
-    private static List<(double X, int Feet, double Z)> Others(EntityLaborEidolon eidolon, Vec3d at) =>
-        eidolon.World.GetEntitiesAround(at, OthersRange, OthersRange, e => e is EntityLaborEidolon && e.EntityId != eidolon.EntityId && e.Alive)
+    private static List<(double X, int Feet, double Z)> Others(EntityLaborEidolon eidolon, Vec3d at,
+        float range = OthersRange, float rise = OthersRange) =>
+        eidolon.World.GetEntitiesAround(at, range, rise, e => e is EntityLaborEidolon && e.EntityId != eidolon.EntityId && e.Alive)
             .Select(e => (e.Pos.X, Feet(e), e.Pos.Z)).ToList();
 
-    /// <summary>Where the others in its job that are at work stand: a square under one of them is
-    /// left for now, as it moves on.</summary>
-    private List<(double X, int Feet, double Z)> MatesAtWork(EntityLaborEidolon eidolon)
+    /// <summary>Every other eidolon loaded over the area, where each stands: a square under one, its
+    /// job's or not, at work or idle, is passed over for now, and taken once it has moved.</summary>
+    private List<(double X, int Feet, double Z)> OthersOverArea(EntityLaborEidolon eidolon)
     {
-        if (_job == null || _jobs == null)
-            return [];
-        return _job.Present.Where(id => id != eidolon.EntityId && !_job.IsFinished(id))
-            .Select(id => _jobs.Member(id)).OfType<EntityLaborEidolon>()
-            .Select(e => (e.Pos.X, Feet(e), e.Pos.Z)).ToList();
+        var centre = new Vec3d((area.Min.X + area.Max.X + 1) / 2.0, (area.Min.Y + area.Max.Y + 1) / 2.0, (area.Min.Z + area.Max.Z + 1) / 2.0);
+        float range = area.LongestSide / 2f + OthersRange;
+        return Others(eidolon, centre, range, area.SizeY / 2f + OthersRange);
+    }
+
+    /// <summary>Whether the square it walked to is not for it now, though it may be later: mined out by
+    /// another, held by another, or every block of it left under an eidolon's box. It goes back to its
+    /// search (which waits if nothing else is free) rather than giving the square up.</summary>
+    private bool Blocked(EntityLaborEidolon eidolon, double now)
+    {
+        if (_square == null)
+            return false;
+        var cells = _square.Where(Left).ToList();
+        if (cells.Count == 0)
+            return true;
+        if (Board is { } board && !SquareOf(cells[0]).All(u => board.Free(eidolon.EntityId, u, now)))
+            return true;
+        var others = Others(eidolon, eidolon.Pos.XYZ);
+        return cells.All(c => EidolonMining.Undermines(others, c));
     }
 
     private bool Seek(EntityLaborEidolon eidolon, double now)
@@ -362,8 +405,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         // Waiting for a part of the area to load: search again only now and then.
         if (_waitingSince != null && now < _rescanAt)
             return true;
-        if (_layer == null || now >= _rescanAt || !_left.Any(c => c.Y == _layer))
+        // (with only blocks under eidolons left, it searches again only every RescanSeconds)
+        if ((_layer == null && !_waitingUnder) || now >= _rescanAt || !_left.Any(c => c.Y == _layer))
         {
+            _waitingUnder = false;
             eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-seeking");
             Scan(eidolon);
             _rescanAt = now + RescanSeconds;
@@ -371,28 +416,39 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             SaveMates(eidolon);
         }
         if (_layer is not { } layer)
+        {
+            // what is left is under eidolons: it waits for them to move
+            if (_underOthers > 0 && _unloaded.Count == 0)
+            {
+                _waitingUnder = true;
+                Unfinish(eidolon);
+                return Wait(eidolon, now);
+            }
             return _unloaded.Count == 0 ? Finish(eidolon, now) : Travel(eidolon, now);
+        }
         _waitingSince = null;
         _stalled = false;
         Unfinish(eidolon);
         // Same layer together: another member still works a layer above its own.
         if (_job?.Level is { } level && level > layer)
             return Wait(eidolon, now);
-        if (Next(eidolon, now) is { } group && Reserve(eidolon, group.Cells, now))
+        var others = OthersOverArea(eidolon);
+        if (Next(eidolon, now, others) is { } group && Reserve(eidolon, group.Cells, now))
         {
             BeginStrike(eidolon, group, now);
             return true;
         }
         // The nearest square with a block its owner may break (the claim asked only now), not held by
-        // another nor under a member at work.
+        // another; of it, the blocks under no eidolon. One held, or wholly under an eidolon, is passed
+        // over for now and tried again (it waits if nothing else is free).
         bool taken = false;
-        var mates = MatesAtWork(eidolon);
         foreach (var (_, cells) in EidolonMining.Squares(area, _left, layer, eidolon.Pos.X, eidolon.Pos.Z))
         {
-            var breakable = cells.Where(Left).ToList();
-            if (breakable.Count == 0)
+            var left = cells.Where(Left).ToList();
+            if (left.Count == 0)
                 continue;
-            if (breakable.All(c => EidolonMining.Undermines(mates, c)) || !Reserve(eidolon, breakable, now))
+            var breakable = left.Where(c => !EidolonMining.Undermines(others, c)).ToList();
+            if (breakable.Count == 0 || !Reserve(eidolon, breakable, now))
             {
                 taken = true;
                 continue;
@@ -467,8 +523,22 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             return loaded;
         }
         var shared = _job?.Shared.Skip;
+        // Under an eidolon now: passed over for this search, so the layer under goes on round it (no
+        // pit held up by one parked in it), and counted, so the order is not done while it stands there.
+        var others = OthersOverArea(eidolon);
+        int underOthers = 0;
+        bool Pass(MarkPos c)
+        {
+            if (_unreachable.Contains(c))
+                return true;
+            if (!EidolonMining.Undermines(others, c))
+                return false;
+            underOthers++;
+            return true;
+        }
         var scan = EidolonMining.Scan(area, Loaded, c => Rule(eidolon, pos.Set(c.X, c.Y, c.Z), claims: false),
-            c => _skip.Contains(c) || shared?.Contains(c) == true);
+            c => _skip.Contains(c) || shared?.Contains(c) == true, Pass);
+        _underOthers = underOthers;
         _layer = scan.Layer;
         _left.Clear();
         _left.UnionWith(scan.Left);
@@ -549,16 +619,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         int tier = block.GetRequiredMiningTier(world, pos);
         bool pickHas = _pick?.MiningSpeed?.ContainsKey(block.GetBlockMaterial(blocks, pos)) == true;
-        // A block entity is left only on a player's thing (EidolonMining.LeavesBlockEntity), not on
-        // natural ground that has one (Desire Paths' worn soil).
-        bool leaves = false;
-        if (block.EntityClass != null || blocks.GetBlockEntity(pos) != null)
-        {
-            var be = blocks.GetBlockEntity(pos);
-            bool inventory = be is IBlockEntityContainer || be?.Behaviors?.Any(b => b is IBlockEntityContainer) == true;
-            bool device = be?.Behaviors?.Any(b => b is BEBehaviorMPBase) == true;
-            leaves = EidolonMining.LeavesBlockEntity(block.GetBlockMaterial(blocks, pos).ToString(), inventory, device);
-        }
+        // A block entity is left but on the ground blocks it mines through (Desire Paths' worn soil).
+        bool leaves = (block.EntityClass != null || blocks.GetBlockEntity(pos) != null)
+            && EidolonMining.LeavesBlockEntity(block.Code.ToString(), _mineThrough);
         var info = new MineBlock(false, liquid, beside, leaves, true,
             tier, EidolonMining.PickBreaks(tier, pickHas));
         var rule = EidolonMining.Rule(info, _maxTier);
@@ -606,11 +669,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>The group it strikes next from where it stands: of the cells left, those in squares no
     /// other eidolon holds and under no eidolon's box (<see cref="EidolonMining.Undermines(double, int, double, MarkPos)"/>).</summary>
-    private MineGroup? Next(EntityLaborEidolon eidolon, double now)
+    private MineGroup? Next(EntityLaborEidolon eidolon, double now, List<(double X, int Feet, double Z)>? others = null)
     {
         if (_layer is not { } layer)
             return null;
-        var others = Others(eidolon, eidolon.Pos.XYZ);
+        others ??= Others(eidolon, eidolon.Pos.XYZ);
         var board = Board;
         long id = eidolon.EntityId;
         bool Takes(MarkPos c) => Left(c) && (board == null || SquareOf(c).All(u => board.Free(id, u, now))) && !EidolonMining.Undermines(others, c);
@@ -640,14 +703,15 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         return false;
     }
 
-    /// <summary>Gives up the square it was making for: no way to a place that reaches it.</summary>
+    /// <summary>Gives up the square it was making for: no way to a place that reaches it (not held by
+    /// another, nor under an eidolon: those it waits out, <see cref="Blocked"/>).</summary>
     private void GiveUp(EntityLaborEidolon eidolon)
     {
         _nav?.Stop();
+        // passed over, not left in place: what is under them is still mined
         foreach (var cell in _square ?? [])
         {
             _left.Remove(cell);
-            _skip.Add(cell);
             _unreachable.Add(cell);
             _job?.Shared.Unreachable.Add(cell);
         }
@@ -761,8 +825,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             _finished = true;
             Board?.SetFinished(eidolon.EntityId, true);
         }
-        if (Board is { } board && _job != null && !board.TryClose(eidolon.EntityId, now))
-            return Wait(eidolon, now);
+        if (Board is { } board && _job != null)
+        {
+            if (!board.TryClose(eidolon.EntityId, now))
+                return Wait(eidolon, now);
+            // every member's order saved done, so none mines and reports again after a restart
+            _jobs!.SaveDone(_job);
+        }
         return Report(eidolon);
     }
 

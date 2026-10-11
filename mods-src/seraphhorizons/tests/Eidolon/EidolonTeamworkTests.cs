@@ -69,6 +69,27 @@ public class EidolonTeamworkTests
         Assert.Same(b, board.Join(1, "1", Key()));
     }
 
+    [Fact]
+    public void OneAwayWhenItsJobClosedRejoinsItClosedUnlessItsOrderIsNew()
+    {
+        var board = Board();
+        var job = board.Join(1, "1", Key());
+        board.Join(2, "2", Key());
+        // 2 dry (or unloaded) while 1 finishes and reports
+        board.Away(2);
+        board.SetFinished(1, true);
+        Assert.True(board.TryClose(1, 0));
+        board.Leave(1);
+        // 2 back: its job, closed, so it goes back with no report of its own
+        var back = board.Join(2, "2", Key(), rejoinClosed: true);
+        Assert.Same(job, back);
+        Assert.True(back.Closed);
+        // given the same area again by its player: a new job
+        var fresh = board.Join(2, "2", Key(), rejoinClosed: false);
+        Assert.NotSame(job, fresh);
+        Assert.False(fresh.Closed);
+    }
+
     // ---- reservations ----
 
     [Fact]

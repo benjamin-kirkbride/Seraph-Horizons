@@ -170,10 +170,16 @@ public sealed class JobBoard<TUnit, TShared> where TUnit : notnull where TShared
     /// any other job first. <paramref name="expect"/>: the ids of members it worked with before (saved
     /// with its order), which the job waits for until <paramref name="expectUntil"/> before it may be
     /// done, so a job loaded again does not report while its other members have yet to load.
+    /// <paramref name="rejoinClosed"/>: its own job, closed while it was away (dry, unloaded) and still
+    /// listing it, is returned as it is, closed, so its order goes back with no report of its own (a new
+    /// order to the same area passes false, and makes a new job).
     /// </summary>
-    public SharedJob<TShared> Join(long member, string name, JobKey key, IEnumerable<long>? expect = null, double expectUntil = 0)
+    public SharedJob<TShared> Join(long member, string name, JobKey key, IEnumerable<long>? expect = null, double expectUntil = 0,
+        bool rejoinClosed = false)
     {
         var job = _of.GetValueOrDefault(member);
+        if (rejoinClosed && job is { Closed: true } && job.Key == key && job.Has(member))
+            return job;
         if (job == null || job.Closed || job.Key != key)
         {
             if (job != null)

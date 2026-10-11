@@ -38,7 +38,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// (<c>mates</c>), which the job, formed again on load, waits for
 /// (<see cref="EidolonTeamwork.ExpectSeconds"/>). Not with <c>once</c>: the crew order fells alone.</para>
 /// </summary>
-public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mates = null) : IEidolonOrder
+public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mates = null, bool done = false) : IEidolonOrder
 {
     public const string OrderCode = "fell";
 
@@ -88,7 +88,7 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
     private IReadOnlyList<long> _mates = mates ?? [];
     private bool _expectMates = true;
     private bool _finished;
-    private bool _done;
+    private bool _done = done;
     private double _waitCheckAt;
 
     public string Code => OrderCode;
@@ -137,7 +137,8 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
             new MarkPos(args.GetInt("maxX"), args.GetInt("maxY"), args.GetInt("maxZ"))),
         args.GetBool("once"),
         (args.GetString("mates") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
-            .Select(m => long.TryParse(m, NumberStyles.Integer, CultureInfo.InvariantCulture, out long id) ? id : 0).Where(id => id != 0).ToList());
+            .Select(m => long.TryParse(m, NumberStyles.Integer, CultureInfo.InvariantCulture, out long id) ? id : 0).Where(id => id != 0).ToList(),
+        args.GetBool("done"));
 
     /// <summary>The report it made to its owner, in the server's language, if it made its job's (the
     /// last of its job to finish makes it; the others none). Not with <c>once</c>.</summary>
@@ -158,11 +159,15 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
         _felledAtStart = Felled;
         Clear = false;
         _rim.Leave(eidolon, _jobs);
-        Join(eidolon);
+        if (!_done)
+            Join(eidolon);
     }
 
     public bool Continue(EntityLaborEidolon eidolon, float dt)
     {
+        // its job reported (while it was away, or before a restart): the order ends, no report of its own
+        if (_done)
+            return false;
         double now = eidolon.World.ElapsedMilliseconds / 1000.0;
         var hand = eidolon.GetBehavior<EntityBehaviorEidolonAxe>();
         if (hand?.Axe == null)
@@ -187,6 +192,8 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
             _toldNoAxe = false;
             _nextScan = 0;
             Join(eidolon);
+            if (_done)
+                return false;
         }
 
         switch (_phase)
@@ -231,7 +238,10 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
                     return true;
                 _waitCheckAt = now + WaitCheckSeconds;
                 if (_finished && Board?.TryClose(eidolon.EntityId, now) == true)
+                {
+                    _jobs!.SaveDone(_job!);
                     return Report(eidolon);
+                }
                 return Seek(eidolon, hand, now);
         }
         return true;
@@ -260,9 +270,17 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
         if (_jobs is not { } jobs)
             return;
         long id = eidolon.EntityId;
+        // A job closed while it was away (no axe, dry, unloaded) is rejoined, closed: the order ends with
+        // no report of its own. A new order (a player's, no mates saved) to the same area makes a new job.
         _job = jobs.Felling.Join(id, id.ToString(CultureInfo.InvariantCulture), EidolonJobSystem.KeyOf(eidolon, OrderCode, area),
-            _expectMates ? _mates : null, EidolonJobSystem.Now(eidolon.World) + EidolonTeamwork.ExpectSeconds);
+            _expectMates ? _mates : null, EidolonJobSystem.Now(eidolon.World) + EidolonTeamwork.ExpectSeconds,
+            rejoinClosed: !_expectMates || _mates.Count > 0);
         _expectMates = false;
+        if (_job.Closed)
+        {
+            Told(eidolon);
+            return;
+        }
         jobs.Track(jobs.Felling, eidolon, this);
         _finished = false;
         jobs.Felling.SetFinished(id, false);
@@ -536,10 +554,15 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
             _finished = true;
             Board?.SetFinished(eidolon.EntityId, true);
         }
-        if (Board is { } board && _job != null && !board.TryClose(eidolon.EntityId, now))
+        if (Board is { } board && _job != null)
         {
-            _nextScan = now + WaitScanSeconds;
-            return Wait(eidolon, now);
+            if (!board.TryClose(eidolon.EntityId, now))
+            {
+                _nextScan = now + WaitScanSeconds;
+                return Wait(eidolon, now);
+            }
+            // every member's order saved done, so none fells and reports again after a restart
+            _jobs!.SaveDone(_job);
         }
         return Report(eidolon);
     }

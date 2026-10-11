@@ -296,9 +296,23 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var e = await Spawn(site.AddCopy(0, 0, -12), player);
         OrderMine(player, tool, e, a, b);
         var order = Assert.IsType<MineOrder>(e.Orders!.Current);
-        int ticks = 0;
+        // Exposed soil may grow tallgrass in a cell already mined, which it mines too: count what grew
+        // back, so the count is exact.
+        var mined = new HashSet<BlockPos>();
+        int regrown = 0, ticks = 0;
         await World.Until(() =>
         {
+            foreach (var c in toMine)
+            {
+                bool air = blocks.GetBlock(c).Id == 0;
+                if (air)
+                    mined.Add(c);
+                else if (mined.Remove(c))
+                {
+                    regrown++;
+                    Log($"grew back at ({c.X - site.X},{c.Y - site.Y},{c.Z - site.Z}): {blocks.GetBlock(c).Code}");
+                }
+            }
             if (++ticks % 300 == 0)
                 Log($"{order.Mined} mined, at {e.Pos.XYZ}: " + State(e));
             return e.Orders.OrderCode == null;
@@ -308,7 +322,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
         Assert.NotNull(blocks.GetBlockEntity(chest));
         Assert.Equal(soil, blocks.GetBlock(underChest).Id);
-        Assert.Equal(toMine.Count, order.Mined);
+        Assert.Equal(toMine.Count + regrown, order.Mined);
         Assert.Equal(0, order.Unreachable);
         // the chest and the soil holding it up left, nothing out of reach
         Assert.Contains("2 left as they were, 0 out of its reach", order.Reported);

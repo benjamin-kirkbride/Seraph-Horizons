@@ -15,9 +15,9 @@ public enum MineRule
     /// <summary>A liquid touches one of its six faces: left, so the pit never opens onto it.</summary>
     LiquidBeside,
 
-    /// <summary>It has a block entity that is a player's thing (a chest, a machine:
-    /// <see cref="EidolonMining.LeavesBlockEntity"/>): left. Natural ground with one (Desire Paths' worn
-    /// soil) is mined.</summary>
+    /// <summary>It has a block entity (a chest, a machine, chiseled stone, farmland): left, unless its
+    /// code is one of the ground blocks it mines through (<see cref="EidolonMining.LeavesBlockEntity"/>:
+    /// Desire Paths' worn soil).</summary>
     BlockEntity,
 
     /// <summary>In a land claim its owner may not break in: left.</summary>
@@ -29,8 +29,8 @@ public enum MineRule
 }
 
 /// <summary>What the mine order reads of one block: whether it is air or a liquid, whether a liquid
-/// touches it, has a block entity it leaves (<see cref="EidolonMining.LeavesBlockEntity"/>: a
-/// player's thing, not natural ground that happens to have one), its owner may break there, the tier it needs and whether a pickaxe
+/// touches it, has a block entity it leaves (<see cref="EidolonMining.LeavesBlockEntity"/>: any but
+/// the ground blocks it mines through), its owner may break there, the tier it needs and whether a pickaxe
 /// breaks it at all (the game refuses a block that needs a tier when the pick has no speed for its
 /// material).</summary>
 public readonly record struct MineBlock(bool Air, bool Liquid, bool LiquidBeside, bool HasBlockEntity, bool MayBreak,
@@ -147,18 +147,48 @@ public static class EidolonMining
     /// has a speed for its material.</summary>
     public static bool PickBreaks(int requiredTier, bool pickHasSpeed) => requiredTier <= 0 || pickHasSpeed;
 
-    /// <summary>The block materials of natural ground: a block of one of these with a block entity
-    /// (Desire Paths' worn soil, <c>desirepaths:soilpath-*</c>) is still ground, and mined, unless it
-    /// holds an inventory or is a device.</summary>
-    public static readonly IReadOnlySet<string> NaturalMaterials =
-        new HashSet<string> { "Soil", "Gravel", "Sand", "Stone", "Ore", "Plant", "Leaves" };
+    /// <summary>The ground blocks with a block entity it mines through by default
+    /// (<see cref="EidolonConfig.MineThroughBlockEntities"/>): Desire Paths' worn soil, whole and as a
+    /// slab (with Terrain Slabs). The pinned mods' other blocks of soil, stone or gravel with a block
+    /// entity are all a player's (doors, ovens, aqueducts, canals, a nitre bed, a manure stack).</summary>
+    public static readonly string[] GroundBlockEntities = ["desirepaths:soilpath-*", "desirepaths:soilpathslab-*"];
 
-    /// <summary>Whether a block with a block entity is one it leaves: anything holding an inventory
-    /// (a chest, a crate, a barrel), a device (a mechanical power part), or of any material but natural
-    /// ground's (<see cref="NaturalMaterials"/>, <paramref name="material"/> the game's
-    /// <c>EnumBlockMaterial</c> by name: a wooden machine, a placed tool rack).</summary>
-    public static bool LeavesBlockEntity(string material, bool holdsInventory, bool device) =>
-        holdsInventory || device || !NaturalMaterials.Contains(material);
+    /// <summary>Whether a block with a block entity, <paramref name="code"/> (<c>domain:path</c>), is
+    /// one it leaves: every one but those <paramref name="mineThrough"/> matches (codes, <c>*</c> any
+    /// run of characters). A block's material says nothing here: one whose type gives none is stone to
+    /// the game, chiseled blocks, farmland, a berry bush and a tapestry among them.</summary>
+    public static bool LeavesBlockEntity(string code, IEnumerable<string> mineThrough) =>
+        !mineThrough.Any(pattern => CodeMatches(pattern, code));
+
+    /// <summary>Whether <paramref name="code"/> matches <paramref name="pattern"/>, <c>*</c> any run of
+    /// characters, ignoring case; a pattern with no domain is the game's.</summary>
+    public static bool CodeMatches(string pattern, string code)
+    {
+        if (!pattern.Contains(':'))
+            pattern = "game:" + pattern;
+        if (!code.Contains(':'))
+            code = "game:" + code;
+        var parts = pattern.Split('*');
+        int at = 0;
+        for (int i = 0; i < parts.Length; i++)
+        {
+            string part = parts[i];
+            if (i == 0)
+            {
+                if (!code.StartsWith(part, StringComparison.OrdinalIgnoreCase))
+                    return false;
+                at = part.Length;
+                continue;
+            }
+            if (i == parts.Length - 1)
+                return code.Length - at >= part.Length && code.EndsWith(part, StringComparison.OrdinalIgnoreCase);
+            int found = code.IndexOf(part, at, StringComparison.OrdinalIgnoreCase);
+            if (found < 0)
+                return false;
+            at = found + part.Length;
+        }
+        return at == code.Length;
+    }
 
     // ---- how long ----
 
@@ -324,11 +354,16 @@ public static class EidolonMining
     /// <paramref name="rule"/> says it mines (<see cref="MineRule.Mine"/>) and not <paramref name="skip"/>ped,
     /// and that layer's such cells and the next one's down (for upright strikes). Only in the block
     /// columns <paramref name="loaded"/>: a column not loaded reads as air, so it is not searched but
-    /// listed, unfinished until it loads. A block of the area it leaves (any rule but mine and air, or
-    /// skipped) holds up what is under it: the blocks below it in its column, down to the first air, are
-    /// left too, so nothing it leaves is left floating, nor walls the pit off with blocks hanging in it.
+    /// listed, unfinished until it loads. A block it leaves in place (any rule but mine and air, or
+    /// <paramref name="skip"/>ped: one its owner may not break, one that would not break) holds up what
+    /// is under it: the blocks below it in its column, down to the first air, are left too, so nothing
+    /// it leaves is left floating, nor walls the pit off with blocks hanging in it; so does one it
+    /// leaves just over the area (<see cref="Holds"/>: a chest, a sign, farmland on the surface). A block
+    /// <paramref name="pass"/>ed (given up for want of a way to it) is only passed over: what is under it
+    /// is mined.
     /// </summary>
-    public static MineScan Scan(MarkArea area, Func<int, int, bool> loaded, Func<MarkPos, MineRule> rule, Func<MarkPos, bool> skip)
+    public static MineScan Scan(MarkArea area, Func<int, int, bool> loaded, Func<MarkPos, MineRule> rule, Func<MarkPos, bool> skip,
+        Func<MarkPos, bool>? pass = null)
     {
         var columns = new List<(int X, int Z)>();
         var unloaded = new List<(int X, int Z)>();
@@ -337,6 +372,9 @@ public static class EidolonMining
             (loaded(x, z) ? columns : unloaded).Add((x, z));
         var left = new HashSet<MarkPos>();
         var held = new HashSet<(int X, int Z)>();
+        foreach (var (x, z) in columns)
+            if (Holds(rule(new MarkPos(x, area.Max.Y + 1, z))))
+                held.Add((x, z));
         int? layer = null;
         for (int y = area.Max.Y; y >= Math.Max(BottomY, area.Min.Y) && (layer == null || y >= layer - 1); y--)
         foreach (var (x, z) in columns)
@@ -353,11 +391,18 @@ public static class EidolonMining
                 held.Add((x, z));
                 continue;
             }
+            if (pass?.Invoke(cell) == true)
+                continue;
             layer ??= y;
             left.Add(cell);
         }
         return new MineScan(layer, left, unloaded);
     }
+
+    /// <summary>Whether a block just over the area, which it never breaks, holds up the column under it:
+    /// one it would leave were it in the area for what it is (a block entity, too hard, claimed). Not a
+    /// liquid, whose block under it is left already (a liquid beside it), nor a block beside one.</summary>
+    public static bool Holds(MineRule over) => over is MineRule.BlockEntity or MineRule.TooHard or MineRule.Claimed;
 
     /// <summary>The block column of <paramref name="columns"/> nearest (<paramref name="x"/>,
     /// <paramref name="z"/>), or null for none.</summary>

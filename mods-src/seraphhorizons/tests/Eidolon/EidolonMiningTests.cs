@@ -282,21 +282,70 @@ public class EidolonMiningTests
     }
 
     [Fact]
-    public void NaturalGroundWithABlockEntityIsMinedAPlayersThingIsLeft()
+    public void EveryBlockEntityIsLeftButTheGroundItMinesThrough()
     {
-        // Desire Paths' worn soil, a gravel or stone block some mod gave a block entity
-        Assert.False(EidolonMining.LeavesBlockEntity("Soil", false, false));
-        Assert.False(EidolonMining.LeavesBlockEntity("Stone", false, false));
-        Assert.False(EidolonMining.LeavesBlockEntity("Gravel", false, false));
-        Assert.False(EidolonMining.LeavesBlockEntity("Leaves", false, false));
-        // a chest (wood), a stone container, a mechanical part, anything built
-        Assert.True(EidolonMining.LeavesBlockEntity("Wood", true, false));
-        Assert.True(EidolonMining.LeavesBlockEntity("Stone", true, false));
-        Assert.True(EidolonMining.LeavesBlockEntity("Stone", false, true));
-        Assert.True(EidolonMining.LeavesBlockEntity("Metal", false, false));
-        Assert.True(EidolonMining.LeavesBlockEntity("Ceramic", false, false));
+        var through = EidolonConfig.Defaults.MineThroughBlockEntities;
+        Assert.Equal(EidolonMining.GroundBlockEntities, through);
+        // Desire Paths' worn soil, whole and as a slab: mined
+        Assert.False(EidolonMining.LeavesBlockEntity("desirepaths:soilpath-low-5", through));
+        Assert.False(EidolonMining.LeavesBlockEntity("desirepaths:soilpathslab-forest-0-down", through));
+        // a chest, farmland, chiseled stone (stone to the game), a berry bush, a door of stone: left
+        Assert.True(EidolonMining.LeavesBlockEntity("game:chest-east", through));
+        Assert.True(EidolonMining.LeavesBlockEntity("game:farmland-dry-medium", through));
+        Assert.True(EidolonMining.LeavesBlockEntity("game:chiseledblock", through));
+        Assert.True(EidolonMining.LeavesBlockEntity("game:bigberrybush-blueberry-ripe", through));
+        Assert.True(EidolonMining.LeavesBlockEntity("doorvariants:cobbledoor-granite", through));
         // and the rule leaves what it is told to
         Assert.Equal(MineRule.BlockEntity, EidolonMining.Rule(Stone with { HasBlockEntity = true }));
+    }
+
+    [Fact]
+    public void CodesMatchWithWildcardsAndTheGameIsTheDefaultDomain()
+    {
+        Assert.True(EidolonMining.CodeMatches("desirepaths:soilpath-*", "desirepaths:soilpath-low-5"));
+        Assert.False(EidolonMining.CodeMatches("desirepaths:soilpath-*", "desirepaths:soilpathslab-low-5"));
+        Assert.True(EidolonMining.CodeMatches("soil-*-none", "game:soil-medium-none"));
+        Assert.False(EidolonMining.CodeMatches("soil-*-none", "game:soil-medium-normal"));
+        Assert.True(EidolonMining.CodeMatches("GAME:Chest-*", "game:chest-east"));
+        Assert.True(EidolonMining.CodeMatches("game:chest-east", "game:chest-east"));
+        Assert.False(EidolonMining.CodeMatches("game:chest", "game:chest-east"));
+        Assert.True(EidolonMining.CodeMatches("*:*", "anything:at-all"));
+        Assert.False(EidolonMining.CodeMatches("*", "anything:at-all"));
+        Assert.True(EidolonMining.CodeMatches("a:*b*c", "a:xbyc"));
+        Assert.False(EidolonMining.CodeMatches("a:*b*c", "a:xcyb"));
+    }
+
+    [Fact]
+    public void ABlockGivenUpIsPassedOverAndWhatIsUnderItStillMined()
+    {
+        // (1, 3, 1) given up for want of a way: not held up, so (1, 2, 1) is still to mine
+        var scan = EidolonMining.Scan(Quarry, (_, _) => true, _ => MineRule.Mine, _ => false, c => c == new MarkPos(1, 3, 1));
+        Assert.Equal(3, scan.Layer);
+        Assert.DoesNotContain(new MarkPos(1, 3, 1), scan.Left);
+        Assert.Contains(new MarkPos(1, 2, 1), scan.Left);
+        Assert.Equal(15 + 16, scan.Left.Count);
+    }
+
+    [Fact]
+    public void ABlockItLeavesJustOverTheAreaHoldsUpTheColumnUnderIt()
+    {
+        // A chest on the surface over (2, 3, 2), a liquid over (0, 3, 0): only the chest holds its column
+        MineRule Rule(MarkPos c) => (c.X, c.Y, c.Z) switch
+        {
+            (2, 4, 2) => MineRule.BlockEntity,
+            (0, 4, 0) => MineRule.Liquid,
+            (_, 4, _) => MineRule.Air,
+            _ => MineRule.Mine,
+        };
+        var scan = EidolonMining.Scan(Quarry, (_, _) => true, Rule, _ => false);
+        Assert.Equal(3, scan.Layer);
+        Assert.DoesNotContain(new MarkPos(2, 3, 2), scan.Left);
+        Assert.DoesNotContain(new MarkPos(2, 2, 2), scan.Left);
+        Assert.Contains(new MarkPos(0, 3, 0), scan.Left);
+        Assert.True(EidolonMining.Holds(MineRule.TooHard));
+        Assert.True(EidolonMining.Holds(MineRule.Claimed));
+        Assert.False(EidolonMining.Holds(MineRule.LiquidBeside));
+        Assert.False(EidolonMining.Holds(MineRule.Mine));
     }
 
     [Fact]

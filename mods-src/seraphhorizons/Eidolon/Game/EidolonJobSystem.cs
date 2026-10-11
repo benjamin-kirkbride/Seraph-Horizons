@@ -80,11 +80,34 @@ public class EidolonJobSystem : ModSystem
             var eidolon = Member(id);
             if (eidolon is { Alive: true } && _orders.TryGetValue((board, id), out var order) && ReferenceEquals(eidolon.Orders?.Current, order))
                 continue;
-            board.Leave(id);
+            // Unloaded: away, still in its job, so loaded again it finds the job (closed, it goes
+            // back with no report of its own); otherwise it has left.
+            if (eidolon == null)
+                board.Away(id);
+            else
+                board.Leave(id);
             _orders.Remove((board, id));
             _rims.Remove(id);
         }
         board.Expire(Now(_api!.World));
+    }
+
+    /// <summary>A job just closed: writes <c>done</c> into the saved order of each of its members
+    /// loaded whose order is still the job's (its kind over its area), so none starts the work again
+    /// after a restart and reports twice.</summary>
+    public void SaveDone<TShared>(SharedJob<TShared> job) where TShared : new()
+    {
+        var a = job.Key.Area;
+        foreach (long id in job.Members)
+        {
+            if (Member(id) is not { Orders: { } orders } eidolon || orders.OrderCode != job.Key.Kind || orders.OrderArgs is not { } args)
+                continue;
+            if (args.GetInt("minX") != a.Min.X || args.GetInt("minY") != a.Min.Y || args.GetInt("minZ") != a.Min.Z
+                || args.GetInt("maxX") != a.Max.X || args.GetInt("maxY") != a.Max.Y || args.GetInt("maxZ") != a.Max.Z)
+                continue;
+            args.SetBool("done", true);
+            eidolon.WatchedAttributes.MarkPathDirty(EntityBehaviorEidolonOrders.OrderKey);
+        }
     }
 
     /// <summary>A job's report for more than one, in the server's language: <paramref name="doneKey"/>

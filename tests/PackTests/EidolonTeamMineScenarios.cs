@@ -15,8 +15,9 @@ namespace SeraphHorizons.PackTests;
 /// working together), with the pack's default settings, ordered with the command tool as a player
 /// orders them. Two given the same area never hold the same column, take the pit down a layer at a
 /// time together, report once with both shares and walk back each to its own place; an eidolon standing
-/// in the area with no order is never mined out from under; one ordered later joins the job running;
-/// one with no square free waits at the area's rim. On floors of their own in the sky
+/// in the area with no order is never mined out from under, waited for, and its squares mined once it
+/// moves, no pillar left; one dry when its job is reported goes back once oiled with no report of its
+/// own; one ordered later joins the job running; one with no square free waits at the area's rim. On floors of their own in the sky
 /// (<see cref="Felling.Sky"/>).
 /// </summary>
 [AtlasWorld]
@@ -193,7 +194,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
     }
 
     [AtlasScenario(TimeoutMs = 480_000)]
-    public async Task An_eidolon_standing_in_the_area_with_no_order_is_never_mined_out_from_under()
+    public async Task An_eidolon_standing_in_the_area_with_no_order_is_waited_for_and_its_squares_mined_once_it_moves()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 1700), reach: 15);
         var blocks = W.BlockAccessor;
@@ -211,17 +212,15 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         idle.Orders!.ClearOrder();
         await World.Ticks(20);
         double idleY = idle.Pos.Y;
-        var under = toMine.Where(c => EidolonMining.UnderFoot(idle.Pos.X, idle.Pos.Z, new MarkPos(c.X, c.Y, c.Z))).ToList();
-        Log($"idle at {idle.Pos.XYZ}, {under.Count} blocks under it");
-        Assert.NotEmpty(under);
         OrderMine(player, tool, [miner], a, b);
         var order = Assert.IsType<MineOrder>(miner.Orders!.Current);
         Assert.Null(idle.Orders.OrderCode);
 
+        // It mines all it may and waits: never a block under the idle one at or below its feet.
         var standing = toMine.ToHashSet();
         var faults = new List<string>();
         int ticks = 0;
-        await World.Until(() =>
+        void Watch()
         {
             foreach (var c in standing.Where(c => blocks.GetBlock(c).Id == 0).ToList())
             {
@@ -229,24 +228,76 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
                     faults.Add($"{c} broke under the idle one at {idle.Pos.XYZ}");
                 standing.Remove(c);
             }
+        }
+        await World.Until(() =>
+        {
+            Watch();
             if (++ticks % 300 == 0)
                 Log($"{order.Mined} mined: {State(miner)}");
-            return miner.Orders.OrderCode == null || faults.Count > 0;
+            // every block left is under the idle one, and the miner waits for it
+            return faults.Count > 0 || miner.Orders.OrderCode == null
+                || (Status(miner).EndsWith("mine-waiting") && standing.All(c => EidolonMining.UnderFoot(idle.Pos.X, idle.Pos.Z, new MarkPos(c.X, c.Y, c.Z))));
         }, 12000);
-        Log($"after: {order.Mined} mined, {order.Unreachable} out of reach; idle at {idle.Pos.XYZ}; " + State(miner));
+        Log($"waiting: {order.Mined} mined, {standing.Count} left; idle at {idle.Pos.XYZ}; " + State(miner));
         Assert.Empty(faults);
-        Assert.Null(miner.Orders.OrderCode);
-        // It stands as high as it stood, on what is under it (spacing may have nudged it aside as the
-        // miner passed); the rest is mined.
+        Assert.Equal(MineOrder.OrderCode, miner.Orders.OrderCode);
+        Assert.NotEmpty(standing);
         Assert.Equal(idleY, idle.Pos.Y, 1);
-        var below = toMine.Where(c => c.Y < idle.Pos.Y && EidolonMining.UnderFoot(idle.Pos.X, idle.Pos.Z, new MarkPos(c.X, c.Y, c.Z))).ToList();
-        Assert.NotEmpty(below);
-        Assert.Contains(below, c => blocks.GetBlock(c).Id != 0);
-        // the rest mined, but for what lay under the idle one wherever spacing nudged it while the
-        // miner passed, and what that held up
-        Assert.True(order.Mined >= (toMine.Count - under.Count) * 3 / 4, $"{order.Mined} of {toMine.Count - under.Count}");
+        Assert.Equal(0, order.Unreachable);
+
+        // The idle one walks off: the miner takes what was under it, and leaves no pillar.
+        idle.TeleportTo(site.AddCopy(8, 0, -11).ToVec3d().Add(0.5, 0, 0.5));
+        await World.Until(() => miner.Orders.OrderCode == null, 6000);
+        Log($"after: {order.Mined} mined, {order.Unreachable} out of reach; {order.Reported}");
+        Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
+        Assert.Equal(toMine.Count, order.Mined);
+        Assert.Equal(0, order.Unreachable);
+        Assert.Contains("0 out of its reach", order.Reported);
         miner.Die(EnumDespawnReason.Removed);
         idle.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 480_000)]
+    public async Task One_dry_when_its_job_is_reported_goes_back_once_oiled_with_no_report_of_its_own()
+    {
+        var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2000), reach: 15);
+        var blocks = W.BlockAccessor;
+        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        Ground(site, granite);
+        var a = site.AddCopy(-2, -2, -2);
+        var b = site.AddCopy(1, -1, 1);
+        var area = Area(a, b);
+
+        var (test, player, tool) = await Commander("eidolondrymate", site.AddCopy(0, 0, -12));
+        var e1 = await Spawn(site.AddCopy(-3, 0, -10), player);
+        var e2 = await Spawn(site.AddCopy(3, 0, -10), player);
+        if (e2.Oil?.Tank == null)
+            return; // MachineOil off: never dry.
+        OrderMine(player, tool, [e1, e2], a, b);
+        var o1 = Assert.IsType<MineOrder>(e1.Orders!.Current);
+        var o2 = Assert.IsType<MineOrder>(e2.Orders!.Current);
+        await World.Ticks(5);
+        Assert.Same(o1.Job, o2.Job);
+        var home2 = e2.Pos.XYZ;
+        // The second runs dry before it reaches the area: away from the job, which the first finishes.
+        e2.Oil.SetPoints(0);
+        await World.Until(() => !e2.CanWork, 400);
+        await World.Until(() => e1.Orders.OrderCode == null, 8000);
+        Log($"first done: {o1.Mined} + {o2.Mined}; {o1.Reported}; second: {State(e2)}");
+        Assert.All(Cells(area), c => Assert.Equal(0, blocks.GetBlock(c).Id));
+        Assert.NotNull(o1.Reported);
+        Assert.True(o1.Job!.Closed);
+        // the job's report saved done on the second's order too
+        Assert.True(e2.Orders.OrderArgs!.GetBool("done"));
+        // Oiled, it goes back to its place and makes no report of its own.
+        e2.Oil.SetPoints(Mod.Config.OilTank / 2);
+        await World.Until(() => e2.Orders.OrderCode == null, 4000);
+        Log($"second after: {o2.Mined}, {o2.Reported ?? "no report"}; at {e2.Pos.XYZ}, ordered at {home2}");
+        Assert.Null(o2.Reported);
+        Assert.Equal(0, o2.Mined);
+        Assert.True(e2.Pos.XYZ.HorizontalSquareDistanceTo(home2) <= 2.5 * 2.5, $"at {e2.Pos.XYZ}, ordered at {home2}");
+        e1.Die(EnumDespawnReason.Removed);
+        e2.Die(EnumDespawnReason.Removed);
     }
 
     [AtlasScenario(TimeoutMs = 480_000)]
