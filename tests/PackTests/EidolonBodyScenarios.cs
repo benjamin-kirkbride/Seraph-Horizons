@@ -271,7 +271,7 @@ public partial class SharedWorldScenarios
         CutterKillItems(gantry.Pos, 10);
 
         // finished: the bones' beams, the plates' last four, a plain leather sash, a steel skirt, the mind
-        Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:supportbeam-oak", 10)));
+        Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:supportbeam-oak", 30)));
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:metalplate-steel", 4)));
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:leather-normal-plain", 4)));
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:metalchain-steel", 4)));

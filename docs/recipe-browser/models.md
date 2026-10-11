@@ -26,7 +26,8 @@ recipe data is published. A version can therefore never be called `models`.
 - **Controls generated from the rig**: a slider or toggle for each input the rig's drivers read
   (below), a checkbox per distinct `requires` value (or a select for a scenario's choice of them),
   a select for each group of the scenario's named states of them when it has some (a build, stage by
-  stage: the gantry's and the eidolon's), and an overlay checkbox per anchor.
+  stage: the gantry's and the eidolon's), a select for each of the scenario's texture selects (the
+  crucible furnace's brick type), and an overlay checkbox per anchor.
 - **The shape's own animations** (its `animations`, [below](#keyframe-animations)), when it has any:
   a select, Play and Pause, a frame slider, a speed and a loop toggle.
 - **A vehicle** (the handcar; [Vehicles](#vehicles)): the distance rolled and the speed in blocks a
@@ -336,6 +337,37 @@ Everything specific to one machine lives here, as data; the viewer has no machin
   | `labels` | A label per code, in place of "Name (code)" in the select. |
   | `speeds` | Per code, above 0: where the speed control starts for it (the entity's `animationSpeed`), 1 when not given. |
   | `groups` | `[{ "label", "codes" }]`: the select's option groups, in order, each code in one group at most; animations in none follow under "Other". |
+- `textures`: selects that each set one texture code's path and colour, for a block whose texture the game
+  picks from its type (the crucible furnace's brickwork takes the fired brick it is built of). The viewer
+  draws flat colours per code, so the colour is what shows; the path is kept for the legend and for when
+  the viewer draws textures. Picking an option switches the model to texture colours, where it shows;
+  the page opens with each select's default in place of the shape's own colour for the code.
+
+  ```json
+  "textures": [
+    {
+      "label": "Brick", "code": "brick", "default": "red",
+      "options": [
+        { "id": "red", "label": "Red brick", "path": "game:block/clay/brick/four/running/red1", "colour": "#754e40" },
+        { "id": "cream", "label": "Cream brick", "path": "game:block/clay/brick/four/running/cream1", "colour": "#b6aa8e" }
+      ]
+    }
+  ]
+  ```
+
+  | Field | |
+  |---|---|
+  | `label` | The select's label. |
+  | `code` | A texture code the shape's faces use, without `#`; one select per code. |
+  | `default` | The option the page opens with. |
+  | `options` | Two or more: `id` (unique in the select), `label`, `path` (the texture, `game:...`) and `colour` (`#rrggbb`, what the code's faces are drawn in). |
+
+  The checks (`checkScenario`, given the shape's codes by the manifest check): a code some face uses and
+  no other select's, two options or more with unique ids, a label, a path and a colour each, and the
+  default one of them. A machine whose types come from its rig keeps the two in step with a test: the
+  crucible furnace's options are its rig's `bricks.types` in order, each path the type's overlay (its
+  colour layer over the cream base) or else its base, the default the rig's (`site/test/cruciblefurnace.test.ts`);
+  their colours are each texture's mean, the overlay composited over its base, taken from the game's files.
 - `prop`: a box laid on one of the rig's line anchors, such as a trunk on the bed.
   - `label`; `on`, the anchor's key; `colour`; `default`, an option id or `"none"`.
   - `options`: `{ "id", "label", "size": [length along the line, width, height], "class" }`, in blocks. The box is centred on the line's origin with its underside on it.
@@ -490,7 +522,7 @@ cd site && node --import tsx scripts/standalone-viewer.ts draw-bench ../build/dr
 | `site/src/lib/rig.ts` | Shape flattening (VS's rotation order, element scale and child frames) and the rig maths: globs, drivers (with the trunk path's), ride order, part matrices. Pure. |
 | `site/src/lib/keyframes.ts` | A shape's keyframe animations: reading them, resolving keyframes, the pose at a frame, element and joint matrices, Play's frame, and the scenario's `animations`. Pure. |
 | `site/src/lib/model-anchors.ts` | Anchor discovery, footprint, side arrows. |
-| `site/src/lib/model-scenario.ts` | Scenario types, props, choices, groups of states, contact depth and the play state machine. |
+| `site/src/lib/model-scenario.ts` | Scenario types, props, choices, groups of states, texture selects, contact depth and the play state machine. |
 | `site/src/lib/model-vehicle.ts` | Vehicles: distance rolled, speed, bogies added to the model, the track's layout and scroll. |
 | `site/src/lib/model-view.ts` | What the page shows for a shape and rig: parts, textures, colours, controls. |
 | `site/src/lib/model-manifest.ts` | Manifest and model checks, what the build publishes. |
@@ -523,6 +555,8 @@ the eidolon gantry's two selects: the bare frame, the winch stage by stage, no b
 and "Departed", which shows the winch, the ring and the spine and no stage of the body; and the
 eidolon's page, a part per stage, every shown element where the game poses it in four animations with
 several sets of stages hidden.
+`site/test/model-textures.test.ts` covers texture selects: their checks, the opening pick, and the
+picked code's path and colour in the view.
 `site/test/models.test.ts` covers the manifest, anchors, the play script and the view, the mill's
 and a trunk travelling through a machine (a small rig on the rosser's trunk path);
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL (the handcar's `pump` for the
