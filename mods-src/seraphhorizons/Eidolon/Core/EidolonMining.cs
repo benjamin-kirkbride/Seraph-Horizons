@@ -21,8 +21,8 @@ public enum MineRule
     /// <summary>In a land claim its owner may not break in: left.</summary>
     Claimed,
 
-    /// <summary>Above its tier (<see cref="EidolonMining.MaxTier"/>), unbreakable, or nothing a
-    /// pickaxe breaks: left.</summary>
+    /// <summary>Above the steel pickaxe's tier (<see cref="EidolonMining.PickTier"/>), unbreakable, or
+    /// nothing a pickaxe breaks: left.</summary>
     TooHard,
 }
 
@@ -39,6 +39,15 @@ public sealed record MineGroup(IReadOnlyList<MarkPos> Cells, bool Upright)
     public double CentreX => Cells.Average(c => c.X + 0.5);
     public double CentreY => Cells.Average(c => c.Y + 0.5);
     public double CentreZ => Cells.Average(c => c.Z + 0.5);
+}
+
+/// <summary>What a search of the area found (<see cref="EidolonMining.Scan"/>): the layer it works (the
+/// highest with a block left it may break; null for none), that layer's cells left and the next one's
+/// down, and the block columns of the area not loaded, which read as air and so are never done.</summary>
+public sealed record MineScan(int? Layer, IReadOnlySet<MarkPos> Left, IReadOnlyList<(int X, int Z)> Unloaded)
+{
+    /// <summary>Whether the area is done: no block left it may break, and none of it unloaded.</summary>
+    public bool Done => Layer == null && Unloaded.Count == 0;
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>
@@ -59,8 +68,10 @@ public static class EidolonMining
     public const int MaxAreaBlocks = 16384;
     public const int MaxAreaSide = 1024;
 
-    /// <summary>The highest mining tier it breaks, bare-handed: a tier 3 pickaxe's.</summary>
-    public const int MaxTier = 3;
+    /// <summary>The highest mining tier it breaks, bare-handed, when the steel pickaxe's own
+    /// (<c>ToolTier</c>, read at runtime: <see cref="PickTier"/>) cannot be read: the game's steel
+    /// pickaxe's in 1.22.</summary>
+    public const int SteelPickTier = 5;
 
     /// <summary>Its pace against a seraph with a steel pickaxe.</summary>
     public const double PlayerShare = 0.75;
@@ -97,7 +108,12 @@ public static class EidolonMining
 
     // ---- what it breaks ----
 
-    public static MineRule Rule(in MineBlock block)
+    /// <summary>The highest mining tier it breaks: the steel pickaxe's tier (<paramref name="toolTier"/>,
+    /// as read from <see cref="PickCode"/>), or <see cref="SteelPickTier"/> without one.</summary>
+    public static int PickTier(int? toolTier) => toolTier is > 0 and { } tier ? tier : SteelPickTier;
+
+    /// <summary>What a block is to it, breaking up to <paramref name="maxTier"/> (<see cref="PickTier"/>).</summary>
+    public static MineRule Rule(in MineBlock block, int maxTier = SteelPickTier)
     {
         if (block.Air)
             return MineRule.Air;
@@ -107,7 +123,7 @@ public static class EidolonMining
             return MineRule.BlockEntity;
         if (block.LiquidBeside)
             return MineRule.LiquidBeside;
-        if (block.RequiredTier > MaxTier || !block.PickBreaks)
+        if (block.RequiredTier > maxTier || !block.PickBreaks)
             return MineRule.TooHard;
         return block.MayBreak ? MineRule.Mine : MineRule.Claimed;
     }
@@ -246,14 +262,56 @@ public static class EidolonMining
         }
     }
 
+    /// <summary>The squares of the area with a cell of <paramref name="layer"/> among
+    /// <paramref name="cells"/>, nearest (<paramref name="x"/>, <paramref name="z"/>) first, each with
+    /// those cells.</summary>
+    public static IEnumerable<((int X, int Z) Square, IReadOnlyList<MarkPos> Cells)> Squares(MarkArea area, IEnumerable<MarkPos> cells, int layer, double x, double z) =>
+        cells.Where(c => c.Y == layer).GroupBy(c => Square(area, c.X, c.Z)).ToList()
+            .OrderBy(g => Distance2(g.Key.X + 1, g.Key.Z + 1, x, z)).ThenBy(g => g.Key.X).ThenBy(g => g.Key.Z)
+            .Select(g => (g.Key, (IReadOnlyList<MarkPos>)g.ToList()));
+
     /// <summary>The square of the area nearest (<paramref name="x"/>, <paramref name="z"/>) with a cell of
     /// <paramref name="layer"/> among <paramref name="cells"/>, and those cells; null for none.</summary>
-    public static ((int X, int Z) Square, IReadOnlyList<MarkPos> Cells)? Nearest(MarkArea area, IEnumerable<MarkPos> cells, int layer, double x, double z)
+    public static ((int X, int Z) Square, IReadOnlyList<MarkPos> Cells)? Nearest(MarkArea area, IEnumerable<MarkPos> cells, int layer, double x, double z) =>
+        Squares(area, cells, layer, x, z).Select(s => (((int X, int Z) Square, IReadOnlyList<MarkPos> Cells)?)s).FirstOrDefault();
+
+    // ---- the search ----
+
+    /// <summary>The lowest layer it mines: the world's bottom layer is the mantle.</summary>
+    public const int BottomY = 1;
+
+    /// <summary>
+    /// Searches the area (<see cref="MineScan"/>): from the top down, the highest layer with a cell
+    /// <paramref name="rule"/> says it mines (<see cref="MineRule.Mine"/>) and not <paramref name="skip"/>ped,
+    /// and that layer's such cells and the next one's down (for upright strikes). Only in the block
+    /// columns <paramref name="loaded"/>: a column not loaded reads as air, so it is not searched but
+    /// listed, unfinished until it loads.
+    /// </summary>
+    public static MineScan Scan(MarkArea area, Func<int, int, bool> loaded, Func<MarkPos, MineRule> rule, Func<MarkPos, bool> skip)
     {
-        var bySquare = cells.Where(c => c.Y == layer).GroupBy(c => Square(area, c.X, c.Z));
-        var best = bySquare.OrderBy(g => Distance2(g.Key.X + 1, g.Key.Z + 1, x, z)).ThenBy(g => g.Key.X).ThenBy(g => g.Key.Z).FirstOrDefault();
-        return best == null ? null : (best.Key, best.ToList());
+        var columns = new List<(int X, int Z)>();
+        var unloaded = new List<(int X, int Z)>();
+        for (int x = area.Min.X; x <= area.Max.X; x++)
+        for (int z = area.Min.Z; z <= area.Max.Z; z++)
+            (loaded(x, z) ? columns : unloaded).Add((x, z));
+        var left = new HashSet<MarkPos>();
+        int? layer = null;
+        for (int y = area.Max.Y; y >= Math.Max(BottomY, area.Min.Y) && (layer == null || y >= layer - 1); y--)
+        foreach (var (x, z) in columns)
+        {
+            var cell = new MarkPos(x, y, z);
+            if (skip(cell) || rule(cell) != MineRule.Mine)
+                continue;
+            layer ??= y;
+            left.Add(cell);
+        }
+        return new MineScan(layer, left, unloaded);
     }
+
+    /// <summary>The block column of <paramref name="columns"/> nearest (<paramref name="x"/>,
+    /// <paramref name="z"/>), or null for none.</summary>
+    public static (int X, int Z)? NearestColumn(IEnumerable<(int X, int Z)> columns, double x, double z) =>
+        columns.Select(c => ((int X, int Z)?)c).MinBy(c => Distance2(c!.Value.X + 0.5, c.Value.Z + 0.5, x, z));
 
     /// <summary>
     /// Where it may stand to reach every one of <paramref name="cells"/> (one square's cells on the

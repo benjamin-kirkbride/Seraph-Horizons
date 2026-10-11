@@ -17,8 +17,15 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// in the world. Each strike costs oil (<see cref="EidolonJob.MiningStrike"/>). It never breaks under
 /// its own box; for what it stood on it walks to a place beside (<see cref="EidolonMining.Stands"/>).
 ///
+/// <para>The land claim is asked only of a block it comes to (a square it makes for, a group it may
+/// strike), not of every block a search finds; a block its owner may not break is left for the
+/// order's life. A column of the area not loaded reads as air, so it is never done: with no block
+/// it may break left in the loaded part, it walks toward the nearest unloaded column (its own
+/// chunks, held while it works, load ahead of it), or waits for it to load
+/// (<see cref="EidolonMining.Scan"/>).</para>
+///
 /// <para>Blocks it cannot reach (no way to any place beside them) are given up for the order's life.
-/// Done when no block it may break and reach is left: it tells its owner how many it mined and how
+/// Done when no block it may break and reach is left and none of the area is unloaded: it tells its owner how many it mined and how
 /// many it left, walks back to where it was ordered (if it can) and the order ends. Interrupted
 /// (self-defence, a slump, dry), it starts again by looking afresh; interrupted on its way back, it
 /// goes on back.</para>
@@ -47,14 +54,35 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
     /// <summary>How far past its place it aims when it steps onto it from short of it.</summary>
     private const double SettlePast = 0.15;
 
+    /// <summary>How far short of its place, on its level, it steps onto it straight; further off, or
+    /// on another level (below a step it would have to climb, above a drop), it walks a path again.</summary>
+    private const double SettleWithin = 1.0;
+
+    /// <summary>How far at most it walks at a time toward a part of the area not loaded: well inside
+    /// the columns it holds round it (<see cref="EidolonConfig.ChunkLoadRadius"/>, a chunk is 32).</summary>
+    private const int TravelBlocks = 24;
+
+    /// <summary>How far up or down from its feet it looks for ground to walk to toward an unloaded part.</summary>
+    private const int TravelRise = 8;
+
+    /// <summary>Waiting this long for a part of the area to load, with no way toward it, it waits on a
+    /// player and lets its chunks go (<see cref="HasWorkLeft"/>).</summary>
+    private const double StallSeconds = 30;
+
     private const string SlamAnimation = "slam";
 
-    private enum Phase { Seek, Walk, Strike, Return }
+    private enum Phase { Seek, Walk, Strike, Return, Travel }
 
     private readonly HashSet<MarkPos> _unreachable = new();
     private readonly HashSet<MarkPos> _skip = new();
     private readonly HashSet<MarkPos> _left = new();
+    private readonly Dictionary<MarkPos, bool> _mayBreak = new();
+    private IReadOnlyList<(int X, int Z)> _unloaded = [];
+    private double? _waitingSince;
+    private bool _stalled;
+    private int _maxTier = EidolonMining.SteelPickTier;
     private EidolonNavigator? _nav;
+    private EntityLaborEidolon? _eidolon;
     private Phase _phase;
     private int? _layer;
     private double _rescanAt;
@@ -83,9 +111,16 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
     /// <summary>Blocks it gave up for want of a way to them.</summary>
     public int Unreachable => _unreachable.Count;
 
-    /// <summary>Whether it still has blocks to mine: false once it has told its owner it is done
-    /// (walking back is not work). For keeping its chunks loaded.</summary>
-    public bool WorkLeft => !_done;
+    /// <summary>The block columns of the area not loaded at its last search, which it has yet to mine.</summary>
+    public int UnloadedColumns => _unloaded.Count;
+
+    /// <summary>Whether it still has blocks to mine (README "Eidolon", chunk loading): false once it has
+    /// told its owner it is done (walking back is not work), and while it has waited
+    /// <see cref="StallSeconds"/> for a part of the area to load with no way toward it.</summary>
+    public bool HasWorkLeft => !_done && !_stalled;
+
+    /// <summary>Its area, held loaded while it has work left (unless it covers too many columns).</summary>
+    public IEnumerable<MarkArea> WorkAreas => [area];
 
     public static ITreeAttribute Args(MarkArea area, Vec3d? home)
     {
@@ -113,7 +148,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
     public void Start(EntityLaborEidolon eidolon)
     {
         _nav ??= new EidolonNavigator(eidolon);
+        _eidolon = eidolon;
         _pick ??= eidolon.World.GetItem(new AssetLocation(EidolonMining.PickCode));
+        _maxTier = EidolonMining.PickTier(_pick?.ToolTier);
         _group = null;
         _rescanAt = 0;
         _square = null;
@@ -141,11 +178,18 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
                 // Arrived short of the place (on a ledge's edge, its box over the block beside): step
                 // onto it, straight, once, before counting the walk a miss. Aimed a little past it,
                 // as the steer stops 0.2 short, so it ends within 0.15, its box over the place's own
-                // columns.
-                if (_stand is { } stand && !_settled)
+                // columns. Only from close by on its level: the steer never climbs, and must not
+                // walk it off a drop, so from anywhere else it walks a path again.
+                double dx = 0, dz = 0, d = double.MaxValue;
+                if (_stand is { } s)
+                {
+                    dx = s.X - eidolon.Pos.X;
+                    dz = s.Z - eidolon.Pos.Z;
+                    d = Math.Sqrt(dx * dx + dz * dz);
+                }
+                if (_stand is { } stand && !_settled && Feet(eidolon) == stand.Y && d <= SettleWithin)
                 {
                     _settled = true;
-                    double dx = stand.X - eidolon.Pos.X, dz = stand.Z - eidolon.Pos.Z, d = Math.Sqrt(dx * dx + dz * dz);
                     var aim = new Vec3d(stand.X, stand.Y, stand.Z);
                     if (d > 0.01)
                         aim.Add(dx / d * SettlePast, 0, dz / d * SettlePast);
@@ -159,6 +203,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
                 return Strike(eidolon, now);
             case Phase.Return:
                 return _nav!.Active;
+            case Phase.Travel:
+                if (_nav!.Active)
+                    return true;
+                // there (or as far as it got): search again at once
+                _phase = Phase.Seek;
+                _rescanAt = 0;
+                return true;
         }
         return true;
     }
@@ -171,6 +222,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
 
     private bool Seek(EntityLaborEidolon eidolon, double now)
     {
+        // Waiting for a part of the area to load: search again only now and then.
+        if (_waitingSince != null && now < _rescanAt)
+            return true;
         if (_layer == null || now >= _rescanAt || !_left.Any(c => c.Y == _layer))
         {
             eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-seeking");
@@ -178,46 +232,104 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
             _rescanAt = now + RescanSeconds;
         }
         if (_layer is not { } layer)
-            return Finish(eidolon);
+            return _unloaded.Count == 0 ? Finish(eidolon) : Travel(eidolon, now);
+        _waitingSince = null;
+        _stalled = false;
         if (Next(eidolon) is { } group)
         {
             BeginStrike(eidolon, group, now);
             return true;
         }
-        if (EidolonMining.Nearest(area, _left, layer, eidolon.Pos.X, eidolon.Pos.Z) is not { } nearest)
+        // The nearest square with a block its owner may break (the claim asked only now).
+        foreach (var (_, cells) in EidolonMining.Squares(area, _left, layer, eidolon.Pos.X, eidolon.Pos.Z))
         {
-            _layer = null;
+            var breakable = cells.Where(Left).ToList();
+            if (breakable.Count == 0)
+                continue;
+            _square = breakable;
+            _approaches = 0;
+            if (!Approach(eidolon, _square))
+                GiveUp(eidolon);
             return true;
         }
-        _square = nearest.Cells;
-        _approaches = 0;
-        if (!Approach(eidolon, _square))
-            GiveUp(eidolon);
+        _layer = null;
         return true;
     }
 
     /// <summary>Finds the highest layer with a block left it may break and has not given up, and
-    /// gathers that layer's and the next one down's (for upright strikes) into <see cref="_left"/>.</summary>
+    /// gathers that layer's and the next one down's (for upright strikes) into <see cref="_left"/>; and
+    /// the columns of the area not loaded, which it has yet to mine. The land claim is left to
+    /// <see cref="Left"/>.</summary>
     private void Scan(EntityLaborEidolon eidolon)
     {
-        _left.Clear();
-        _layer = null;
+        var blocks = eidolon.World.BlockAccessor;
         var pos = new BlockPos(eidolon.Pos.Dimension);
-        for (int y = area.Max.Y; y >= Math.Max(1, area.Min.Y) && (_layer == null || y >= _layer - 1); y--)
-        for (int x = area.Min.X; x <= area.Max.X; x++)
-        for (int z = area.Min.Z; z <= area.Max.Z; z++)
+        var chunks = new Dictionary<(int, int), bool>();
+        int probeY = Math.Clamp(area.Max.Y, 0, blocks.MapSizeY - 1);
+        bool Loaded(int x, int z)
         {
-            var cell = new MarkPos(x, y, z);
-            if (_skip.Contains(cell) || Rule(eidolon, pos.Set(x, y, z)) != MineRule.Mine)
-                continue;
-            _layer ??= y;
-            _left.Add(cell);
+            var key = (x >> 5, z >> 5);
+            if (!chunks.TryGetValue(key, out bool loaded))
+                chunks[key] = loaded = blocks.GetChunkAtBlockPos(pos.Set(x, probeY, z)) != null;
+            return loaded;
         }
+        var scan = EidolonMining.Scan(area, Loaded, c => Rule(eidolon, pos.Set(c.X, c.Y, c.Z), claims: false), _skip.Contains);
+        _layer = scan.Layer;
+        _left.Clear();
+        _left.UnionWith(scan.Left);
+        _unloaded = scan.Unloaded;
+        _mayBreak.Clear();
+    }
+
+    /// <summary>With nothing left it may break in the loaded part of the area: walks toward the nearest
+    /// part not loaded, at most <see cref="TravelBlocks"/> to ground that is loaded, or waits for it to
+    /// load, searching again every <see cref="RescanSeconds"/>.</summary>
+    private bool Travel(EntityLaborEidolon eidolon, double now)
+    {
+        if (EidolonMining.NearestColumn(_unloaded, eidolon.Pos.X, eidolon.Pos.Z) is { } column && TravelTo(eidolon, column))
+        {
+            _phase = Phase.Travel;
+            _waitingSince = null;
+            _stalled = false;
+            eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-travelling");
+            return true;
+        }
+        _waitingSince ??= now;
+        _stalled = now - _waitingSince >= StallSeconds;
+        eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-unloaded");
+        return true;
+    }
+
+    // Sets off toward a block column: to the furthest ground on the way, loaded, it finds a path to.
+    private bool TravelTo(EntityLaborEidolon eidolon, (int X, int Z) column)
+    {
+        var blocks = eidolon.World.BlockAccessor;
+        var space = new GameWideSpace(blocks, eidolon.CollisionBox);
+        var pos = new BlockPos(eidolon.Pos.Dimension);
+        double dx = column.X + 0.5 - eidolon.Pos.X, dz = column.Z + 0.5 - eidolon.Pos.Z, d = Math.Sqrt(dx * dx + dz * dz);
+        int feet = Feet(eidolon);
+        for (double step = Math.Min(d, TravelBlocks); step >= 2; step -= 4)
+        {
+            int x = (int)Math.Round(eidolon.Pos.X + dx / d * step), z = (int)Math.Round(eidolon.Pos.Z + dz / d * step);
+            // the node's four columns, its box over them, loaded
+            if (blocks.GetChunkAtBlockPos(pos.Set(x - 1, feet, z - 1)) == null || blocks.GetChunkAtBlockPos(pos.Set(x, feet, z)) == null)
+                continue;
+            for (int rise = 0; rise <= TravelRise; rise++)
+            foreach (int y in rise == 0 ? [feet] : new[] { feet + rise, feet - rise })
+            {
+                if (y < 1 || !space.Free(x, y, z) || space.Free(x, y - 1, z))
+                    continue;
+                if (_nav!.GoTo(new Vec3d(x, y, z), false, () => { }, () => { }, tolerance: 1))
+                    return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>What a block is to the order (<see cref="EidolonMining.Rule"/>), read from the world;
-    /// the land claim, the dearest test, only for one it would otherwise break.</summary>
-    private MineRule Rule(EntityLaborEidolon eidolon, BlockPos pos)
+    /// the land claim, the dearest test, only for one it would otherwise break, and only when
+    /// <paramref name="claims"/>.</summary>
+    private MineRule Rule(EntityLaborEidolon eidolon, BlockPos pos, bool claims = true)
     {
         var world = eidolon.World;
         var blocks = world.BlockAccessor;
@@ -240,8 +352,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
         bool pickHas = _pick?.MiningSpeed?.ContainsKey(block.GetBlockMaterial(blocks, pos)) == true;
         var info = new MineBlock(false, liquid, beside, block.EntityClass != null || blocks.GetBlockEntity(pos) != null, true,
             tier, EidolonMining.PickBreaks(tier, pickHas));
-        var rule = EidolonMining.Rule(info);
-        return rule == MineRule.Mine && !MayBreak(eidolon, pos) ? MineRule.Claimed : rule;
+        var rule = EidolonMining.Rule(info, _maxTier);
+        return claims && rule == MineRule.Mine && !MayBreak(eidolon, pos) ? MineRule.Claimed : rule;
     }
 
     /// <summary>Whether its owner may break blocks at <paramref name="pos"/> (land claims), as felling
@@ -254,7 +366,23 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
         return world.Claims.Get(pos) is not { Length: > 0 };
     }
 
-    private bool Left(MarkPos cell) => _left.Contains(cell);
+    /// <summary>Whether a cell is left to mine: found by the search, and its owner may break it there,
+    /// asked the first time (a block they may not is left for the order's life).</summary>
+    private bool Left(MarkPos cell)
+    {
+        if (!_left.Contains(cell))
+            return false;
+        if (!_mayBreak.TryGetValue(cell, out bool may))
+        {
+            may = _mayBreak[cell] = _eidolon != null && MayBreak(_eidolon, new BlockPos(cell.X, cell.Y, cell.Z, _eidolon.Pos.Dimension));
+            if (!may)
+            {
+                _left.Remove(cell);
+                _skip.Add(cell);
+            }
+        }
+        return may;
+    }
 
     private static int Feet(EntityLaborEidolon eidolon) => (int)Math.Floor(eidolon.Pos.Y + 0.01);
 
@@ -391,11 +519,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
         var blocks = eidolon.World.BlockAccessor;
         var pos = new BlockPos(eidolon.Pos.Dimension);
         int left = 0, unreachable = 0;
-        for (int y = Math.Max(1, area.Min.Y); y <= area.Max.Y; y++)
+        for (int y = Math.Max(EidolonMining.BottomY, area.Min.Y); y <= area.Max.Y; y++)
         for (int x = area.Min.X; x <= area.Max.X; x++)
         for (int z = area.Min.Z; z <= area.Max.Z; z++)
         {
-            var block = blocks.GetBlock(pos.Set(x, y, z));
+            if (blocks.GetChunkAtBlockPos(pos.Set(x, y, z)) == null)
+                continue;
+            var block = blocks.GetBlock(pos);
             if (block.Id == 0 || block.IsLiquid())
                 continue;
             if (_unreachable.Contains(new MarkPos(x, y, z)))

@@ -14,7 +14,8 @@ namespace SeraphHorizons.PackTests;
 /// the command tool as a player orders it. A pit two layers deep in granite: it quarries it top down
 /// (no block broken while one two layers higher is left), never under its own box, the stone's drops
 /// lying in the world, half a point of oil a strike; a block touching water and a chest are left; done,
-/// it walks back up a terrace to where it was ordered. On a floor of its own in the sky
+/// it walks back up a terrace to where it was ordered. A pit three deep with no ramp: it climbs out two
+/// blocks up onto a shelf and walks back. On a floor of its own in the sky
 /// (<see cref="Felling.Sky"/>).
 /// </summary>
 [AtlasWorld]
@@ -164,7 +165,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
             + string.Join(" ", toMine.Where(c => blocks.GetBlock(c).Id != 0).Select(c => $"({c.X - site.X},{c.Y - site.Y},{c.Z - site.Z})")));
         Assert.Empty(faults);
         Assert.Null(e.Orders.OrderCode);
-        Assert.False(order.WorkLeft);
+        Assert.False(order.HasWorkLeft);
 
         // Every block but the two is gone, and they are not.
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
@@ -183,6 +184,62 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Log($"{drops} granite drops");
         Assert.True(drops > 0, "no drops");
         // It walked back up the terrace to where it was ordered.
+        Assert.True(e.Pos.XYZ.HorizontalSquareDistanceTo(ordered) <= 2.5 * 2.5, $"at {e.Pos.XYZ}, ordered at {ordered}");
+        Assert.Equal(ordered.Y, e.Pos.Y, 0.6);
+        e.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 480_000)]
+    public async Task It_digs_a_pit_three_deep_and_climbs_out_two_blocks_up_to_walk_back()
+    {
+        var site = await Felling.Sky(World, World.Spawn.AddCopy(-520, 90, 1800), reach: 13);
+        var blocks = W.BlockAccessor;
+        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        // Ground four blocks thick on a base; to the north of the pit (z -6 to -4) a shelf a block
+        // lower than the ground and two over the pit's floor: no ramp, so it climbs out two blocks up
+        // onto the shelf, then one to the ground.
+        for (int x = -10; x <= 10; x++)
+        for (int z = -13; z <= 10; z++)
+        for (int y = -5; y <= -1; y++)
+            blocks.SetBlock(y == -1 && z is >= -6 and <= -4 ? 0 : granite, site.AddCopy(x, y, z));
+        var a = site.AddCopy(-3, -3, -3);
+        var b = site.AddCopy(2, -1, 2);
+        var area = MarkArea.Between(new MarkPos(a.X, a.Y, a.Z), new MarkPos(b.X, b.Y, b.Z));
+        var cells = new List<BlockPos>();
+        for (int x = area.Min.X; x <= area.Max.X; x++)
+        for (int y = area.Min.Y; y <= area.Max.Y; y++)
+        for (int z = area.Min.Z; z <= area.Max.Z; z++)
+            cells.Add(new BlockPos(x, y, z));
+
+        var (player, tool) = await Commander("eidolonpitminer", site.AddCopy(0, 0, -12));
+        var e = await Spawn(site.AddCopy(0, 0, -10), player);
+        OrderMine(player, tool, e, a, b);
+        var order = Assert.IsType<MineOrder>(e.Orders!.Current);
+        Assert.True(order.HasWorkLeft);
+        Assert.Equal([area], order.WorkAreas);
+        var ordered = e.Pos.XYZ;
+
+        double lowest = e.Pos.Y;
+        int ticks = 0;
+        bool climbed = false;
+        await World.Until(() =>
+        {
+            lowest = Math.Min(lowest, e.Pos.Y);
+            climbed |= e.AnimManager.IsAnimationActive(EidolonClimb.Animation);
+            if (++ticks % 300 == 0)
+                Log($"{order.Mined} mined, at {e.Pos.XYZ}: " + State(e));
+            return e.Orders.OrderCode == null;
+        }, 12000);
+        Log($"after: {order.Mined} mined, {order.Unreachable} out of reach, lowest {lowest - site.Y}, climbed {climbed}: " + State(e));
+        Log("standing: " + string.Join(" ", cells.Where(c => blocks.GetBlock(c).Id != 0).Select(c => $"({c.X - site.X},{c.Y - site.Y},{c.Z - site.Z})")));
+        Assert.Null(e.Orders.OrderCode);
+        Assert.False(order.HasWorkLeft);
+        Assert.Equal(0, order.UnloadedColumns);
+        Assert.All(cells, c => Assert.Equal(0, blocks.GetBlock(c).Id));
+        Assert.Equal(cells.Count, order.Mined);
+        // It was down on the pit's floor, three below the ground, and climbed out to where it was ordered.
+        Assert.True(lowest <= site.Y - 3 + 0.1, $"lowest {lowest - site.Y}");
+        Assert.True(climbed, "it never climbed");
         Assert.True(e.Pos.XYZ.HorizontalSquareDistanceTo(ordered) <= 2.5 * 2.5, $"at {e.Pos.XYZ}, ordered at {ordered}");
         Assert.Equal(ordered.Y, e.Pos.Y, 0.6);
         e.Die(EnumDespawnReason.Removed);

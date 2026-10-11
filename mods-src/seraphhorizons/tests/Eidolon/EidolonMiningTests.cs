@@ -52,15 +52,22 @@ public class EidolonMiningTests
     private static readonly MineBlock Stone = new(false, false, false, false, true, 2, true);
 
     [Fact]
-    public void ItBreaksWhatASteelPickBreaksUpToTierThree()
+    public void ItBreaksWhatASteelPickBreaksUpToItsTier()
     {
-        Assert.Equal(MineRule.Mine, EidolonMining.Rule(Stone));
-        Assert.Equal(MineRule.Mine, EidolonMining.Rule(Stone with { RequiredTier = 3 }));
-        Assert.Equal(MineRule.Mine, EidolonMining.Rule(Stone with { RequiredTier = 0 }));
-        Assert.Equal(MineRule.TooHard, EidolonMining.Rule(Stone with { RequiredTier = 4 }));
+        // The game's steel pickaxe is tier 5.
+        int tier = EidolonMining.PickTier(5);
+        Assert.Equal(MineRule.Mine, EidolonMining.Rule(Stone, tier));
+        Assert.Equal(MineRule.Mine, EidolonMining.Rule(Stone with { RequiredTier = 5 }, tier));
+        Assert.Equal(MineRule.Mine, EidolonMining.Rule(Stone with { RequiredTier = 0 }, tier));
+        Assert.Equal(MineRule.TooHard, EidolonMining.Rule(Stone with { RequiredTier = 6 }, tier));
         // The mantle: tier 99.
-        Assert.Equal(MineRule.TooHard, EidolonMining.Rule(Stone with { RequiredTier = 99 }));
-        Assert.Equal(MineRule.TooHard, EidolonMining.Rule(Stone with { PickBreaks = false }));
+        Assert.Equal(MineRule.TooHard, EidolonMining.Rule(Stone with { RequiredTier = 99 }, tier));
+        Assert.Equal(MineRule.TooHard, EidolonMining.Rule(Stone with { PickBreaks = false }, tier));
+        // Another pick's tier counts as read; none read, the steel pick's.
+        Assert.Equal(MineRule.TooHard, EidolonMining.Rule(Stone with { RequiredTier = 4 }, EidolonMining.PickTier(3)));
+        Assert.Equal(EidolonMining.SteelPickTier, EidolonMining.PickTier(null));
+        Assert.Equal(EidolonMining.SteelPickTier, EidolonMining.PickTier(0));
+        Assert.Equal(5, EidolonMining.SteelPickTier);
     }
 
     [Fact]
@@ -224,6 +231,55 @@ public class EidolonMiningTests
         var nearest = EidolonMining.Nearest(Pit, Box(2, 3, 1, 1, 2, 3), 1, 3, 3);
         Assert.NotNull(nearest);
         Assert.Equal((2, 2), nearest!.Value.Square);
+    }
+
+    // ---- the search ----
+
+    private static readonly MarkArea Quarry = MarkArea.Between(new MarkPos(0, 1, 0), new MarkPos(3, 3, 3));
+
+    [Fact]
+    public void ASearchFindsTheHighestLayerItMinesAndTheOneUnder()
+    {
+        // Stone in layers 1 and 2 everywhere, layer 3 air; a block given up in layer 2.
+        var scan = EidolonMining.Scan(Quarry, (_, _) => true, c => c.Y <= 2 ? MineRule.Mine : MineRule.Air,
+            c => c == new MarkPos(0, 2, 0));
+        Assert.Equal(2, scan.Layer);
+        Assert.Equal(15 + 16, scan.Left.Count);
+        Assert.DoesNotContain(new MarkPos(0, 2, 0), scan.Left);
+        Assert.Empty(scan.Unloaded);
+        Assert.False(scan.Done);
+        // Only what it may not break left: done.
+        Assert.True(EidolonMining.Scan(Quarry, (_, _) => true, _ => MineRule.LiquidBeside, _ => false).Done);
+    }
+
+    [Fact]
+    public void AnUnloadedColumnReadsAsAirButIsNeverDone()
+    {
+        // Columns x 2 and 3 unloaded: read as air, they are not searched, and the area is not done
+        // with nothing left in the loaded half.
+        bool Loaded(int x, int z) => x < 2;
+        var scan = EidolonMining.Scan(Quarry, Loaded, c => c.X < 2 ? MineRule.Air : MineRule.Mine, _ => false);
+        Assert.Null(scan.Layer);
+        Assert.Equal(8, scan.Unloaded.Count);
+        Assert.All(scan.Unloaded, c => Assert.True(c.X >= 2));
+        Assert.False(scan.Done);
+        // What is left in the loaded half is worked first.
+        scan = EidolonMining.Scan(Quarry, Loaded, c => c.Y == 1 ? MineRule.Mine : MineRule.Air, _ => false);
+        Assert.Equal(1, scan.Layer);
+        Assert.All(scan.Left, c => Assert.True(c.X < 2));
+        Assert.False(scan.Done);
+        // The nearest unloaded column, to walk toward.
+        Assert.Equal((2, 0), EidolonMining.NearestColumn(scan.Unloaded, 0.5, 0.5));
+        Assert.Null(EidolonMining.NearestColumn([], 0, 0));
+    }
+
+    [Fact]
+    public void SquaresComeNearestFirst()
+    {
+        var squares = EidolonMining.Squares(Pit, Box(0, 5, 1, 1, 0, 5), 1, 5.5, 5.5).Select(s => s.Square).ToList();
+        Assert.Equal(9, squares.Count);
+        Assert.Equal((4, 4), squares[0]);
+        Assert.Equal((0, 0), squares[^1]);
     }
 
     // ---- where it stands ----
