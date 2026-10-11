@@ -768,11 +768,28 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
                               (float)(p.X - trunk.Pos.X + cb.X2), (float)(p.Y - trunk.Pos.Y + cb.Y2), (float)(p.Z - trunk.Pos.Z + cb.Z2));
             return TrunkPush.Inside(TrunkPush.Footprint.Of(trunk.TypeClass, trunk.Pos.Yaw), box);
         }
-        await World.Ticks(2);
-        Log($"insider at {player.Entity.Pos.XYZ}, inside {Inside()}");
-        await World.Until(() => !Inside(), 20);
+        // Every tick's position, so a failure says how far the push got and on which ticks it
+        // moved; `chunk` is whether the player is yet in the entity lists of the chunks around the
+        // trunk, which the server updates only once a second (the push once looked there, and
+        // waited up to a second for a player who had just teleported in, #843).
+        var log = new System.Text.StringBuilder();
+        var last = player.Entity.Pos.XYZ;
+        bool inside = Inside();
+        log.Append($"trunk at {trunk.Pos.XYZ}; placed at {last}, inside {inside}\n");
+        // a push is at most TrunkPush.MaxStep a tick, and this one is under a block
+        for (int tick = 1; tick <= 22 && inside; tick++)
+        {
+            await World.Ticks(1);
+            var now = player.Entity.Pos.XYZ;
+            inside = Inside();
+            bool listed = W.GetEntitiesAround(trunk.Pos.XYZ, 8, 8, e => e == player.Entity).Length > 0;
+            log.Append($"tick {tick} (sim {World.EntitySimulationTicks}): {now}, moved {now.DistanceTo(last):F3}, inside {inside}, chunk {listed}\n");
+            last = now;
+        }
+        Log("insider\n" + log);
+        output.WriteLine(log.ToString());
         output.WriteLine($"player out at {player.Entity.Pos.XYZ}; trunk {startTrunk} -> {trunk.Pos.XYZ}");
-        Assert.False(Inside());
+        Assert.False(inside, "the player was not pushed out of the trunk:\n" + log);
         // out across the trunk (+x, the near side), and the trunk itself stayed put
         Assert.True(player.Entity.Pos.X > trunk.Pos.X + 0.5);
         Assert.True(Flat(trunk.Pos.XYZ, startTrunk.X, startTrunk.Z) < 0.15, "the trunk was moved");
