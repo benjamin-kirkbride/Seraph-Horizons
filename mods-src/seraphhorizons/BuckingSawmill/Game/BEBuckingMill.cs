@@ -235,8 +235,7 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     {
         if (hit == null || _trunkClass == TrunkClass.None || Rig?.TrunkBed is not { } bed)
             return false;
-        var local = Footprint.ToLocal(new Float3(
-            (float)(cellPos.X - Pos.X + hit.X), (float)(cellPos.Y - Pos.Y + hit.Y), (float)(cellPos.Z - Pos.Z + hit.Z)), Side);
+        var local = MachinePoints.NativeHit(Pos, cellPos, hit, Side);
         return TrunkBox.Contains(TrunkBox.Bounds(bed, _trunkClass), local);
     }
 
@@ -878,9 +877,8 @@ public class BEBuckingMill : BlockEntity, IMillVisualState
     private (Vec3d At, Vec3d Velocity) OutputPoint()
     {
         var rig = Rig!;
-        var p = Footprint.ToWorld(rig.OutputPos, Side);
         var n = Footprint.ToWorld(rig.OutputSide, Side).Normal();
-        return (new Vec3d(Pos.X + p.X, Pos.Y + p.Y, Pos.Z + p.Z), new Vec3d(n.X * 0.05, 0, n.Z * 0.05));
+        return (MachinePoints.WorldPoint(Pos, rig.OutputPos, Side), new Vec3d(n.X * 0.05, 0, n.Z * 0.05));
     }
 
     /// <summary>Wears the blade kit by <paramref name="wear"/>; one worn to 0 breaks, and the mill

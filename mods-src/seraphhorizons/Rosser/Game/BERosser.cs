@@ -218,8 +218,7 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     {
         if (hit == null || _boxes is not { Class: not TrunkClass.None } table)
             return false;
-        var local = Footprint.ToLocal(new Float3(
-            (float)(cellPos.X - Pos.X + hit.X), (float)(cellPos.Y - Pos.Y + hit.Y), (float)(cellPos.Z - Pos.Z + hit.Z)), Side);
+        var local = MachinePoints.NativeHit(Pos, cellPos, hit, Side);
         return TrunkBox.Contains(table.Trunk, local);
     }
 
@@ -615,9 +614,8 @@ public class BERosser : BlockEntity, IRosserVisualState, ITrunkFeeder
     private (Vec3d At, Vec3d Velocity) ChutePoint()
     {
         var chute = Rig!.Chute;
-        var p = Footprint.ToWorld(chute.Pos, Side);
         var n = Footprint.ToWorld(chute.Side, Side).Normal();
-        return (new Vec3d(Pos.X + p.X, Pos.Y + p.Y, Pos.Z + p.Z), new Vec3d(n.X * 0.08, 0.02, n.Z * 0.08));
+        return (MachinePoints.WorldPoint(Pos, chute.Pos, Side), new Vec3d(n.X * 0.08, 0.02, n.Z * 0.08));
     }
 
     private void Spawn(ItemStack stack)
