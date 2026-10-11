@@ -11,8 +11,8 @@ public readonly record struct DepositOption(string Id, string Metal, double Dist
 /// </summary>
 public static class MapOffers
 {
-    /// <summary>The best precision a buyer's <c>mapTier</c> unlock allows: 1 (within 400 m) for a
-    /// stranger, 2 at map tier 1, 3 (exact) from 2.</summary>
+    /// <summary>The best precision a buyer's <c>mapTier</c> unlock allows: 1 (within 150 m) for a
+    /// stranger, 2 (50 m) at map tier 1, 3 (15 m) from 2.</summary>
     public static int MaxPrecision(int mapTier) => Math.Clamp(mapTier + 1, 1, 3);
 
     /// <summary>One offer per metal, the nearest deposit neither sold nor <paramref name="reserved"/>

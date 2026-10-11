@@ -197,7 +197,7 @@ gravel (`metals`, `DepositService.PanMetals`: the pan's last `panningDrops` key 
 `richgravel-{rock}`, each nugget's smelted metal, the likeliest first): "Gravel map (Granite)",
 "The pan gives tin, silver, gold and copper here." A map made before keeps naming its metal.
 
-Precision tiers (`MapPrecision`): 1 within 400 m, 2 within 150 m, 3 exact. The offset is a point of
+Precision tiers (`MapPrecision`), named to players: 1 rough, within 150 m; 2 fair, within 50 m; 3 fine, within 15 m. The offset is a point of
 the unit disc from the seed and the deposit key, scaled by the tier's reach, so every copy of a tier
 agrees and a better tier lies between a worse one and the deposit. Gravel maps are always exact.
 

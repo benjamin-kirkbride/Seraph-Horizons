@@ -46,7 +46,7 @@ public sealed class MapIssuer
         if (!_deposits.Registry.MarkSold(deposit, player?.PlayerUID, player?.PlayerName, _api.World.Calendar.TotalDays))
             return null;
         _api.Logger.Notification("[seraphhorizons] Deposits: map to {0} (precision {1}) issued to {2}",
-            deposit, deposit.IsGravel ? MapPrecision.Exact : precision, player?.PlayerName ?? "nobody");
+            deposit, deposit.IsGravel ? MapPrecision.Fine : precision, player?.PlayerName ?? "nobody");
         return stack;
     }
 
@@ -54,7 +54,7 @@ public sealed class MapIssuer
     /// cell has none, the map item is missing, or the precision is not 1–3.</summary>
     public ItemStack? Build(DepositKey deposit, int precision)
     {
-        if (deposit.IsGravel) precision = MapPrecision.Exact;
+        if (deposit.IsGravel) precision = MapPrecision.Fine;
         if (!MapPrecision.IsValid(precision) || _deposits.Candidate(deposit) is not { } candidate) return null;
         var item = _api.World.GetItem(deposit.IsGravel ? GravelMapCode : OreMapCode);
         if (item == null) return null;
