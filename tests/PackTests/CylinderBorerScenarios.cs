@@ -121,8 +121,8 @@ public partial class SharedWorldScenarios
         Assert.Equal(8, head.Collectible.GetMaxDurability(head));
         Assert.Equal("Cylinder borer frame", new ItemStack(W.GetBlock(BlockCylinderBorer.ItemCode)).GetName());
         Assert.Equal("Steel cutter head", head.GetName());
-        Assert.Equal("Cast iron engine cylinder", CutterItem(Boring.BlankIron).GetName());
-        Assert.Equal("Bored steel engine cylinder", CutterItem(Boring.CylinderSteel).GetName());
+        Assert.Equal("Rough cast iron cylinder", CutterItem(Boring.BlankIron).GetName());
+        Assert.Equal("Steel engine cylinder", CutterItem(Boring.CylinderSteel).GetName());
 
         // the grid: the frame, of oak and iron (two plates in one slot, two rods in one, 12 nails and
         // strips), two stainless gears and a hammer
@@ -134,13 +134,15 @@ public partial class SharedWorldScenarios
         Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.ToString() == "game:plank-oak"));
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-stainless" && i.Quantity == 2);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
-        // the bushings from metal parts alone; the bar from three rods and metal parts; the feed from two
-        // planks, a rod, two ropes and a plate
+        // the bushings from metal parts alone; the bar from three rods, metal parts and a large stainless
+        // gear (its great wheel); the feed from two planks, a rod, two ropes and a plate
         var bushings = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == CylinderBorerParts.BushingsCode && r.Enabled);
         Assert.Equal(new[] { "game:metal-parts" }, bushings.ResolvedIngredients!.Where(i => i != null).Select(i => i!.Code?.ToString()));
         var bar = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == CylinderBorerParts.BarCode && r.Enabled);
         Assert.Equal(3, bar.ResolvedIngredients!.Count(i => i?.Code?.Path == "rod-*"));
         Assert.Single(bar.ResolvedIngredients!, i => i?.Code?.ToString() == "game:metal-parts");
+        Assert.Single(bar.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:largegear-stainless" && i.Quantity == 1);
+        Assert.Equal(5, bar.ResolvedIngredients!.Count(i => i != null));
         var feed = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == CylinderBorerParts.FeedCode && r.Enabled);
         Assert.Equal(2, feed.ResolvedIngredients!.Count(i => i?.Code?.ToString() == "game:rope"));
         Assert.Equal(2, feed.ResolvedIngredients!.Count(i => i?.Code?.ToString() == "game:plank-oak"));
@@ -359,11 +361,11 @@ public partial class SharedWorldScenarios
 
         await World.Ticks(10);
         Assert.Equal(0, borer.Job.Work);
-        Assert.Contains("Stopped with a cast iron cylinder in: 0%", BorerInfo(borer, player));
+        Assert.Contains("Stopped with a rough cast iron cylinder in: 0%", BorerInfo(borer, player));
         var rotor = await PowerBorer(borer);
         await World.Until(() => borer.Job.Work > 0.002, 60000);
         Assert.True(borer.Running);
-        Assert.Contains("Boring a cast iron cylinder:", BorerInfo(borer, player));
+        Assert.Contains("Boring a rough cast iron cylinder:", BorerInfo(borer, player));
 
         Assert.True(borer.Bore(RestOfBore(borer)));
         Assert.False(borer.BlankOn);

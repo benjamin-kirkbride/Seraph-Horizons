@@ -1,4 +1,4 @@
-// A cast engine cylinder (#639; CylinderBorer/, README "Cylinder borer"): iron or steel, cast in a
+// A rough cast cylinder (#639; CylinderBorer/, README "Cylinder borer"): iron or steel, cast in a
 // fired cylinder mold from Steelmaking Expanded's canal (600 units, six ingots), its bore cored
 // rough. The cylinder borer bores it into seraphhorizons:cylinder-{metal}. The variant is the game's
 // metal code, which the mold's drop fills in. Drawn as the casting is on the borer
