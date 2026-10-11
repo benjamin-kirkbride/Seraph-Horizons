@@ -652,7 +652,8 @@ public class SeraphHorizonsConfig
 
     /// <summary>Rock and earth stack to 16 (#863, <see cref="RockStackSystem"/>, README "Rock and earth
     /// stack to 16"): rock, cobblestone, stone bricks, polished rock, ore-bearing rock, soil, sand,
-    /// gravel, clay and peat deposits and earth blocks stack to at most 16, and their slabs, stairs,
+    /// gravel, clay and peat deposits, earth blocks and clay brick, tile and shingle blocks stack to
+    /// at most 16, and their slabs, stairs,
     /// fences, paths, roads and roofing to at most 32 (support beams, wooden shapes, every other block
     /// and every item keep theirs); traders judge them by the 64 they stacked to before, so they
     /// stay sellable as they were (server side; clients follow the server's blocks). Off, they stack

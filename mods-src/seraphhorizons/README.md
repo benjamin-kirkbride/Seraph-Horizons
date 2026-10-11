@@ -4489,7 +4489,8 @@ Both tiers (`Core/RockStackRules.cs`) are lists of codes, each block also of a r
 material and without a block entity; the game gives a block type that names no material stone, so
 the material only guards the lists.
 
-**To 16**, of stone, ore, soil, sand or gravel, 4,888 blocks in the pack:
+**To 16**, of stone, ore, soil, sand, gravel or ceramic (the fired clay ones), 5,054 blocks in the
+pack:
 
 - **Rock**: raw and cracked rock, cobblestone (mossy and lichen), stone bricks (cracked, mossy,
   lichen and aged), polished rock (mossy and lichen), drystone, and ore-bearing rock
@@ -4499,8 +4500,10 @@ the material only guards the lists.
   muddy), packed and dry packed dirt, the clay and peat deposits (`rawclay`, `peat`), and earth
   laid into blocks: cob, rammed earth and mud brick, the game's and Material Needs' colours. The
   sand and gravel layer blocks go with their family.
+- **Fired clay**: the full building blocks of clay brick (with its brick courses and ruined
+  bricks), tile and clay shingle, 166 blocks. Material Needs adds no fired clay blocks.
 
-**To 32**, the building shapes of stone, soil, sand, gravel or ceramic (the clay ones), 8,487
+**To 32**, the building shapes of stone, soil, sand, gravel or ceramic (the clay ones), 8,479
 blocks in the pack:
 
 - **Slabs and stairs**: cobblestone, stone brick, polished rock (slabs only in the game), clay
@@ -4509,14 +4512,14 @@ blocks in the pack:
 - **Paths and roads**: the game's stone path (with its slab, stairs and full block), Splittable
   Stone Paths' quarter, smex's slag path, and MoreRoads' stone paths and footpaths, its ancient,
   clay and stone roads with their slabs and stairs, and its stone, brick and clay edges.
-- **Roofing**: clay shingles (block, slab and stairs) and the slanted roofing of clay and slate.
+- **Roofing**: clay shingle slabs and stairs and the slanted roofing of clay and slate.
   The slanted roofing of wood, bamboo, thatch, sod and copper is wood, plant or metal, and stays.
 
 Not cut: support beams (32, which the rosser's schematic gate needs); every wooden shape (planks
 slabs and stairs, fences, MoreRoads' wood edges, wooden paths, roofing); cobblestone fans, quartz
-slabs, stairs and pillars, clay brick courses and ruins, copper shingles, Industrial Deco's iron
-roads (metal, 256) and VS Roofing's roofs (a block entity); the full blocks of fired clay (clay
-bricks, tiles, shingles: ceramic); peat bricks (fuel); and every item: stones, clay, bricks and the
+slabs, stairs and pillars, copper shingles, Industrial Deco's iron roads (metal, 256) and VS
+Roofing's roofs (a block entity); clay brick chimneys and refractory bricks (a kiln's and a
+chimney's, not building stock); peat bricks (fuel); and every item: stones, clay, bricks and the
 ore items (which Ore processing sizes) keep theirs, so MoreRoads' temporal roads, which take 32
 stones a slot, still craft. Nothing else in the pack takes more than 16 of one of these blocks in
 a slot; constructions add up the whole hotbar.
@@ -4542,8 +4545,8 @@ The recipe export carries it (`attributes.tradeStack`), and the item value table
 follows it (`tools/item-values`). Orders keep sizing a block by its stack: at most four stacks.
 
 With the switch off, every block stacks as its mod ships it and nothing carries a trade stack. The
-switch that counts is the server's. `RockStackScenarios` checks the sizes (rock and earth at 16; a
-slab, a stair, a fence, a road and roofing at 32; wooden shapes, beams and items unchanged), the
+switch that counts is the server's. `RockStackScenarios` checks the sizes (rock, earth and clay brick,
+tile and shingle blocks at 16; a slab, a stair, a fence, a road and roofing at 32; wooden shapes, beams and items unchanged), the
 packet and a rubble storage drenched into 16 muddy gravel, `TradingScenarios` a sale of a cut
 block across the slots, and `SwitchesOffScenarios` the switch off.
 

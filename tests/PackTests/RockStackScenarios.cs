@@ -40,9 +40,12 @@ public partial class SharedWorldScenarios
                  {
                      "game:rock-granite", "game:cobblestone-granite", "game:stonebricks-granite", "game:ore-medium-nativecopper-granite",
                      "game:sand-granite", "game:gravel-granite", "game:muddygravel", "game:soil-medium-none", "game:rawclay-blue-none", "game:peat-none",
+                     "game:claybricks-good-fire", "game:tile-2x2-plain-travertine", "game:clayshingleblock-black",
                  })
             AssertRockStack(code, RockStackRules.Cap);
-        Assert.True(RockStackSystem.Of(World.Api)!.Cut > 1000, $"only {RockStackSystem.Of(World.Api)!.Cut} blocks cut");
+        var system = RockStackSystem.Of(World.Api)!;
+        output.WriteLine($"cut: {system.Cut} to 16, {system.ShapesCut} to 32");
+        Assert.True(system.Cut > 1000, $"only {system.Cut} blocks cut");
     }
 
     [AtlasScenario]
@@ -106,7 +109,7 @@ public partial class SharedWorldScenarios
         foreach (var (code, stack) in new[]
                  {
                      ("game:supportbeam-oak", 32), ("game:torch-basic-lit-up", 64),
-                     ("game:claybricks-good-fire", 64), ("game:plankslab-oak-north-free", 64), ("game:plankstairs-oak-up-north-free", 64),
+                     ("game:claybrickchimney-four-black-ns", 64), ("game:plankslab-oak-north-free", 64), ("game:plankstairs-oak-up-north-free", 64),
                      ("game:woodenfence-oak-empty-free", 64), ("game:slantedroofing-oak-north-free", 64),
                      ("game:slantedroofing-thatch-north-free", 64), ("moreroads:edgewood-oak-straight-north-free", 64),
                  })

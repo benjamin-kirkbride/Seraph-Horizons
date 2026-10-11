@@ -19,10 +19,11 @@ public static class RockStackRules
 
     /// <summary>The block materials a cut block may have (<c>EnumBlockMaterial</c> by name). The game
     /// gives a block type that names none <c>Stone</c>, so the material only guards the codes below,
-    /// never picks a block on its own.</summary>
+    /// never picks a block on its own. Ceramic is for the fired clay building blocks, whose other
+    /// ceramic blocks (pots, molds, vessels, chimneys) the codes leave out.</summary>
     public static readonly IReadOnlySet<string> Materials = new HashSet<string>(StringComparer.Ordinal)
     {
-        "Stone", "Ore", "Soil", "Sand", "Gravel",
+        "Stone", "Ore", "Soil", "Sand", "Gravel", "Ceramic",
     };
 
     /// <summary>The rock and earth blocks, <c>domain:path</c> with <c>*</c> wildcards: the full blocks
@@ -36,9 +37,11 @@ public static class RockStackRules
     /// packed dirt, clay and peat deposits, and earth laid into blocks: cob, rammed earth and mud
     /// brick (the game's and Material Needs' colours). Stone Quarry's bucket still makes 16 muddy
     /// gravel (<c>StoneQuarryDrench</c>).</item>
+    /// <item>Fired clay: the full building blocks of clay brick (with its courses and ruined
+    /// bricks), tile and clay shingle.</item>
     /// </list>
     /// Not here: slabs, stairs, fences, paths, roads and roofing (building shapes: <see cref="Shapes"/>);
-    /// fired clay blocks (bricks, tiles and shingles are ceramic); peat bricks (fuel); and every item
+    /// clay brick chimneys, refractory bricks and copper shingles; peat bricks (fuel); and every item
     /// (stones, clay, bricks).</summary>
     public static readonly IReadOnlyList<string> Blocks =
     [
@@ -76,6 +79,11 @@ public static class RockStackRules
         "game:mudbrick-*",
         "materialneeds:rammed-*",
         "materialneeds:*mudbrick-*",
+        "game:claybricks-*",
+        "game:brickcourse-*",
+        "game:brickruin-*",
+        "game:tile-*",
+        "game:clayshingleblock-*",
     ];
 
     /// <summary>The block materials a cut building shape may have: rock and earth's, and ceramic for
@@ -94,10 +102,10 @@ public static class RockStackRules
     /// <item>Paths and roads: the game's stone path (and its slab, stairs and full block),
     /// Splittable Stone Paths' quarter, smex's slag path, and MoreRoads' stone paths, footpaths,
     /// ancient, clay and stone roads (with their slabs and stairs) and stone, brick and clay edges.</item>
-    /// <item>Roofing: clay shingles (block, slab and stairs) and the slanted roofing of clay and slate.</item>
+    /// <item>Roofing: clay shingle slabs and stairs, and the slanted roofing of clay and slate (the
+    /// full shingle block is in <see cref="Blocks"/>).</item>
     /// </list>
-    /// Not here: cobblestone fans, quartz slabs, stairs and pillars, clay brick courses and ruins,
-    /// copper shingles, Industrial Deco's iron roads (256 a stack, metal), VS Roofing's roofs (a block
+    /// Not here: cobblestone fans, quartz slabs, stairs and pillars, copper shingles, Industrial Deco's iron roads (256 a stack, metal), VS Roofing's roofs (a block
     /// entity) and every wooden shape (MoreRoads' wood edges, wooden paths, fences and roofing).</summary>
     public static readonly IReadOnlyList<string> Shapes =
     [
@@ -123,7 +131,6 @@ public static class RockStackRules
         "moreroads:edgestone-*",
         "moreroads:edgebrick-*",
         "moreroads:edgeclay-*",
-        "game:clayshingleblock-*",
         "game:clayshinglelabs-*",
         "game:clayshinglestairs-*",
         "game:slantedroofing*",

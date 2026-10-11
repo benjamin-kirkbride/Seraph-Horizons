@@ -25,6 +25,11 @@ public class RockStackRulesTests
     [InlineData("game:dirtygravel-dry-cracked", "Gravel")]
     [InlineData("game:sludgygravel", "Soil")]
     [InlineData("game:muddygravel", "Soil")]
+    [InlineData("game:claybricks-good-fire", "Ceramic")]
+    [InlineData("game:brickcourse-four-header-black", "Ceramic")]
+    [InlineData("game:brickruin-irregular-gray", "Ceramic")]
+    [InlineData("game:tile-2x2-plain-travertine", "Ceramic")]
+    [InlineData("game:clayshingleblock-black", "Ceramic")]
     [InlineData("game:packeddirt", "Soil")]
     [InlineData("game:packeddirt-trampledearth", "Soil")]
     [InlineData("game:drypackeddirt", "Soil")]
@@ -65,7 +70,6 @@ public class RockStackRulesTests
     [InlineData("moreroads:clayroad-tan-free", "Stone")]
     [InlineData("moreroads:stoneroad3slab-andesite-free", "Stone")]
     [InlineData("moreroads:edgebrick-andesite-straight-north-free", "Stone")]
-    [InlineData("game:clayshingleblock-black", "Ceramic")]
     [InlineData("game:clayshinglelabs-black-north-free", "Ceramic")]
     [InlineData("game:slantedroofing-blackclay-north-free", "Ceramic")]
     [InlineData("game:slantedroofingridge-slate-ns-free", "Stone")]
@@ -76,7 +80,7 @@ public class RockStackRulesTests
         Assert.Equal(RockStackRules.ShapeCap, RockStackRules.CapOf(code, material, hasBlockEntity: false));
     }
 
-    // Fired clay blocks, fuel, wooden, thatch and metal shapes, machines and decor
+    // Chimneys, refractory bricks, pots, fuel, wooden, thatch and metal shapes, machines and decor
     // keep their stacks.
     [Theory]
     [InlineData("game:slantedroofing-oak-north-free", "Wood")]
@@ -87,9 +91,10 @@ public class RockStackRulesTests
     [InlineData("industrialdeco:industrialroad-iron-free", "Stone")]
     [InlineData("game:cobblestonefan-granite-north", "Stone")]
     [InlineData("game:quartzslab-north-free", "Stone")]
-    [InlineData("game:brickcourse-four-header-black", "Ceramic")]
     [InlineData("game:shingleblock-copper", "Ceramic")]
-    [InlineData("game:claybricks-good-fire", "Ceramic")]
+    [InlineData("game:claybrickchimney-four-black-ns", "Ceramic")]
+    [InlineData("game:refractorybricks-good-tier1", "Ceramic")]
+    [InlineData("game:claypot-blue-fired", "Ceramic")]
     [InlineData("game:peatbrick", "Soil")]
     [InlineData("game:supportbeam-oak", "Wood")]
     [InlineData("game:torch-basic-lit-up", "Wood")]
