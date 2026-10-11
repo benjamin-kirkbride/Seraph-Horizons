@@ -163,10 +163,20 @@ jobs:
     # is four classes that cannot share the plain world: SwitchesOffScenarios and
     # ConfigDefaultsScenarios (each its own ModConfig), ClearCommandScenarios (a survival world)
     # and HandcarScenarios (three players, and the shared world has no slots left). The eidolon's
-    # Eidolon* classes (each its own plain world, a server boot apiece) are three shards: `eidolon` the
-    # entity and the command tool, `eidolon-fittings` its fittings (EidolonFittedScenarios) and docking
-    # to strip and refit them (EidolonDockScenarios), and `eidolon-jobs` every other Eidolon* class
-    # (carrying, felling, guarding), so a new one joins it. `trunks` is the trunk entity classes and the
+    # Eidolon* classes (each its own plain world, a server boot apiece) are nine shards, its jobs
+    # running in game time (a pit is mined a strike at a time, a tree walked to and felled), so each
+    # shard holds about three minutes of them: `eidolon` the entity and the command tool,
+    # `eidolon-fittings` its fittings (EidolonFittedScenarios) and docking to strip and refit them
+    # (EidolonDockScenarios), `eidolon-mine` mining alone (EidolonMineScenarios), `eidolon-team-mine`
+    # every EidolonTeamMine* class (several sharing a pit; matched by prefix, so a new team-mining class
+    # joins it, and it is kept short, about two minutes, to leave room for one), `eidolon-team` waiting in a shared job
+    # (EidolonTeamWaitScenarios: for a square, a tree or a bystander, dry), `eidolon-fell` felling alone
+    # and together (EidolonFellScenarios, EidolonTeamFellScenarios), `eidolon-move` where it walks and
+    # climbs (EidolonFootingScenarios), `eidolon-orders` carrying and guarding (EidolonCarryScenarios,
+    # EidolonGuardScenarios), and `eidolon-jobs` every other Eidolon* class (chunk loading), the
+    # complement of the others, kept short so a new one can join it. A class's scenarios run one
+    # after another on its server (a boot is about a minute); keep each shard's sum, boots included,
+    # near three and a half minutes, splitting a class or a shard that grows. `trunks` is the trunk entity classes and the
     # pickling tub, each joining more players than the plain world has slots left for. `rest` is
     # the complement filter, so any other new class lands there without anyone having to list it.
     # Each shard's dotnet test run should stay under about four minutes, and the job under five.
@@ -190,8 +200,20 @@ jobs:
             filter: FullyQualifiedName~PackTests.WoodworkingEidolonScenarios.|FullyQualifiedName~PackTests.MapRevealScenarios.
           - shard: eidolon
             filter: FullyQualifiedName~PackTests.EidolonScenarios.|FullyQualifiedName~PackTests.EidolonCommanderScenarios.
+          - shard: eidolon-mine
+            filter: FullyQualifiedName~PackTests.EidolonMineScenarios.
+          - shard: eidolon-team-mine
+            filter: FullyQualifiedName~PackTests.EidolonTeamMine
+          - shard: eidolon-team
+            filter: FullyQualifiedName~PackTests.EidolonTeamWaitScenarios.
+          - shard: eidolon-fell
+            filter: FullyQualifiedName~PackTests.EidolonFellScenarios.|FullyQualifiedName~PackTests.EidolonTeamFellScenarios.
+          - shard: eidolon-move
+            filter: FullyQualifiedName~PackTests.EidolonFootingScenarios.
+          - shard: eidolon-orders
+            filter: FullyQualifiedName~PackTests.EidolonCarryScenarios.|FullyQualifiedName~PackTests.EidolonGuardScenarios.
           - shard: eidolon-jobs
-            filter: FullyQualifiedName~PackTests.Eidolon&FullyQualifiedName!~PackTests.EidolonScenarios.&FullyQualifiedName!~PackTests.EidolonCommanderScenarios.&FullyQualifiedName!~PackTests.EidolonFittedScenarios.&FullyQualifiedName!~PackTests.EidolonDockScenarios.
+            filter: FullyQualifiedName~PackTests.Eidolon&FullyQualifiedName!~PackTests.EidolonScenarios.&FullyQualifiedName!~PackTests.EidolonCommanderScenarios.&FullyQualifiedName!~PackTests.EidolonFittedScenarios.&FullyQualifiedName!~PackTests.EidolonDockScenarios.&FullyQualifiedName!~PackTests.EidolonMineScenarios.&FullyQualifiedName!~PackTests.EidolonTeamMine&FullyQualifiedName!~PackTests.EidolonTeamWaitScenarios.&FullyQualifiedName!~PackTests.EidolonFellScenarios.&FullyQualifiedName!~PackTests.EidolonTeamFellScenarios.&FullyQualifiedName!~PackTests.EidolonFootingScenarios.&FullyQualifiedName!~PackTests.EidolonCarryScenarios.&FullyQualifiedName!~PackTests.EidolonGuardScenarios.
           - shard: eidolon-fittings
             filter: FullyQualifiedName~PackTests.EidolonFittedScenarios.|FullyQualifiedName~PackTests.EidolonDockScenarios.
           - shard: ore

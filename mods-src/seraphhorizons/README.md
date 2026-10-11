@@ -3138,9 +3138,9 @@ order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts ag
 (done, it goes on back). `MineOrder.HasWorkLeft` holds until it has told its owner it is done, and its
 area is its `WorkAreas`. It is not part of the crew order. Several given the same area work it as one
 job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs` and
-`tests/PackTests/EidolonMineScenarios.cs` (Atlas: the granite pits; a 10 × 10 soil area two deep, its
-middle out of reach from the rim, with a worn Desire Paths path across it all mined and a chest left
-on the soil under it; a dry reservoir).
+`tests/PackTests/EidolonMineScenarios.cs` (Atlas: the granite pit; an 8 × 8 soil layer, its
+middle out of reach from the rim, with a worn Desire Paths path across it all mined and a chest left;
+a dry reservoir).
 
 **Working together** (`Eidolon/Game/EidolonJobSystem.cs`, `RimWait.cs`, rules in
 `Eidolon/Core/EidolonTeamwork.cs`; mining and felling, not the crew order). Eidolons of one owner given the very same area (the same two corners)
@@ -3198,10 +3198,11 @@ back with no report of its own, so nothing is counted twice; an order given anew
 mates saved) makes a new job. Reservations are not saved, and the shares after a restart count from then. Chunks, oil and
 the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` and
 `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit, never holding the
-same square, a layer at a time, one report with both shares, each back to its place; an eidolon with no
-order standing in the area never mined out from under, waited for, and its squares mined once it moves,
-no pillar left; one dry when the job is reported going back once oiled with no report of its own; one
-ordered later joining the job running; one with no square free waiting at the rim).
+same square, a layer at a time, one report with both shares, each back to its place; one
+ordered later joining the job running) and `tests/PackTests/EidolonTeamWaitScenarios.cs` (Atlas: an
+eidolon with no order standing in the area never mined out from under, waited for, and its squares mined
+once it moves, no pillar left; one dry when the job is reported going back once oiled with no report of
+its own; one with no square free waiting at the rim).
 
 *Felling together* (`FellOrder`, `EidolonJobSystem.Felling`) works the same way with a tree for the unit:
 a feller reserves the tree it makes for (its stump) before it sets off, again as it comes to swing (a
@@ -3224,7 +3225,8 @@ a feller is away from its job (its tree freed, the report not held up for it) un
 Each saves `mates` as a miner does, and the report writes `done` into each loaded member's order, which ends it on load; one away when the job is reported (no axe, dry, unloaded) finds it closed when it comes back and its order ends with no report of its own. With `once`
 (the crew order) it joins no job. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` and
 `tests/PackTests/EidolonTeamFellScenarios.cs` (Atlas: two of one owner felling five oaks, never holding
-the same tree, one report with both shares, the job closed; one with no tree free waiting at the rim).
+the same tree, one report with both shares, the job closed) and `tests/PackTests/EidolonTeamWaitScenarios.cs`
+(Atlas: one with no tree free waiting at the rim).
 
 **The crew** (#679; `Eidolon/Game/CrewOrder.cs`, rules in `Eidolon/Core/EidolonCrew.cs`). *Fell and
 haul* (wheel place 70) marks a fell area (at most 32 blocks a side), then a rosser or bucking mill, as
@@ -3484,7 +3486,7 @@ follows the server. `tests/Eidolon/` covers charge, stops, the slump pose, owner
 repair amounts and the pathfinder (a 2 × 4 gate passes, a narrower or lower one does not, steps, drops, corners, lava, the
 node budget; climbs of two but not three, the headroom at the foot and the top, diagonally too, their cost, a
 drop of two but not three), and `tests/Eidolon/EidolonClimbTests.cs` the climb (which steps, where it is as it
-goes, never forward before it is up, the setting's range); `tests/PackTests/EidolonClimbScenarios.cs` (Atlas)
+goes, never forward before it is up, the setting's range); `tests/PackTests/EidolonFootingScenarios.cs` (Atlas, its `F_` scenarios)
 sends one up a ledge two high (it climbs, playing `climb`, and gets there) and back down off it, and to and from
 the top of one three high (no way, either way); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
 stranger, runs its charge out over simulated days (slumped, alive, a gear wakes it, the cap holds),
@@ -3529,11 +3531,10 @@ player's log pillar and a sapling standing; and an axe that breaks stops it unti
 steel pickaxe's tier, the strike's length against a steel pickaxe and its slam, its reach, never under
 its box, the next group flat or upright, where it stands, the search: the highest layer and the one under,
 an unloaded column read as air never done) and `tests/PackTests/EidolonMineScenarios.cs` (Atlas) orders it
-with the tool over a pit two layers deep in granite: it mines every block top down, never under its box,
-the granite's drops lying in the world, half a point of oil a strike, leaves a block touching water and
-a chest, and walks back up a terrace to where it was ordered; digs a pit three deep with no ramp, down
-to its floor, and climbs out two blocks onto a shelf beside it and walks back; and a dry reservoir stops
-it until oiled;
+with the tool over a pit three layers deep in granite with no ramp: it mines every block top down,
+never under its box, the granite's drops lying in the world, half a point of oil a strike, leaves a block
+touching water and a chest with the column under it, down to its floor, and climbs out two blocks onto a
+shelf beside it and walks back to where it was ordered; and a dry reservoir stops it until oiled;
 `tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
 `tests/PackTests/EidolonCrewScenarios.cs` (Atlas, `WoodworkingEidolonScenarios` on the woodworking world) orders a crew with the tool
 (refused without an axe) over two grown oaks and a running rosser: it fells each, hauls each trunk to
@@ -3544,7 +3545,7 @@ crew gives one up;
 `tests/Eidolon/EidolonChunksTests.cs` covers chunk loading's rules (when it holds, which columns for a
 place, a radius and work areas, a quarry too wide to hold, the counted holds, a column forced for
 something else, what is saved) and `tests/PackTests/EidolonChunkScenarios.cs` (Atlas, no player joined,
-each far from spawn) has one fell two oaks with no player near (inactive until ordered, its columns and
+each far from spawn) has one fell an oak with no player near (inactive until ordered, its columns and
 area forced while it works, every one let go when it is done), let its columns go dry, staying, without
 an axe, slumped and removed and hold them again at work, and saves its holds and restores them (a hold
 whose eidolon never loads let go after its wait); Atlas pauses the chunk unloader, so they read the

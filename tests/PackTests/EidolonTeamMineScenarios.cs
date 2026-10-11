@@ -14,11 +14,9 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons/Eidolon, several eidolons mining one area as one job (README "Eidolon",
 /// working together), with the pack's default settings, ordered with the command tool as a player
 /// orders them. Two given the same area never hold the same column, take the pit down a layer at a
-/// time together, report once with both shares and walk back each to its own place; an eidolon standing
-/// in the area with no order is never mined out from under, waited for, and its squares mined once it
-/// moves, no pillar left; one dry when its job is reported goes back once oiled with no report of its
-/// own; one ordered later joins the job running; one with no square free waits at the area's rim. On floors of their own in the sky
-/// (<see cref="Felling.Sky"/>).
+/// time together, report once with both shares and walk back each to its own place; one ordered later
+/// joins the job running. Waiting (for a square, for a bystander, dry) is <see cref="EidolonTeamWaitScenarios"/>.
+/// On floors of their own in the sky (<see cref="Felling.Sky"/>).
 /// </summary>
 [AtlasWorld]
 public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -93,15 +91,6 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         return cells;
     }
 
-    private static bool OverArea(MarkArea area, EntityLaborEidolon e)
-    {
-        var f = EidolonMining.Footprint(e.Pos.X, e.Pos.Z);
-        return f.MaxX >= area.Min.X && f.MinX <= area.Max.X && f.MaxZ >= area.Min.Z && f.MinZ <= area.Max.Z;
-    }
-
-    private static string Status(EntityLaborEidolon e) =>
-        e.WatchedAttributes.GetTreeAttribute(EntityBehaviorEidolonOrders.StatusKey)?.GetString("key") ?? "";
-
     private static int Feet(Entity e) => (int)Math.Floor(e.Pos.Y + 0.01);
 
     /// <summary>Ground of granite three blocks thick round the site, a terrace a block lower to the north
@@ -118,15 +107,16 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         }
     }
 
-    [AtlasScenario(TimeoutMs = 480_000)]
+    [AtlasScenario(TimeoutMs = 300_000)]
     public async Task Two_eidolons_share_a_pit_a_layer_at_a_time_report_once_and_walk_back_each_to_its_place()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 1600), reach: 15);
         var blocks = W.BlockAccessor;
         int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
         Ground(site, granite);
-        var a = site.AddCopy(-4, -2, -3);
-        var b = site.AddCopy(3, -1, 2);
+        // 6 × 4 and two deep, its north edge on the terrace: six squares, enough for both.
+        var a = site.AddCopy(-3, -2, -3);
+        var b = site.AddCopy(2, -1, 0);
         var area = Area(a, b);
         var toMine = Cells(area);
 
@@ -169,7 +159,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
                 lastMined = o1.Mined + o2.Mined;
             }
             return e1.Orders.OrderCode == null && e2.Orders.OrderCode == null;
-        }, 12000);
+        }, 6000);
         var lines = Reports(o1, o2);
         Log("reports: " + string.Join(" | ", lines));
         Log($"after: {o1.Mined} + {o2.Mined}; standing: "
@@ -193,122 +183,16 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         e2.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 480_000)]
-    public async Task An_eidolon_standing_in_the_area_with_no_order_is_waited_for_and_its_squares_mined_once_it_moves()
-    {
-        var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 1700), reach: 15);
-        var blocks = W.BlockAccessor;
-        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
-        Ground(site, granite);
-        var a = site.AddCopy(-4, -2, -3);
-        var b = site.AddCopy(3, -1, 2);
-        var area = Area(a, b);
-        var toMine = Cells(area);
-
-        var (test, player, tool) = await Commander("eidolonbystander", site.AddCopy(0, 0, -12));
-        var miner = await Spawn(site.AddCopy(0, 0, -10), player);
-        // Standing on the area's top, its box over columns -1 and 0 each way, with no order.
-        var idle = await Spawn(site.AddCopy(0, 0, 0), player);
-        idle.Orders!.ClearOrder();
-        await World.Ticks(20);
-        double idleY = idle.Pos.Y;
-        OrderMine(player, tool, [miner], a, b);
-        var order = Assert.IsType<MineOrder>(miner.Orders!.Current);
-        Assert.Null(idle.Orders.OrderCode);
-
-        // It mines all it may and waits: never a block under the idle one at or below its feet.
-        var standing = toMine.ToHashSet();
-        var faults = new List<string>();
-        int ticks = 0;
-        void Watch()
-        {
-            foreach (var c in standing.Where(c => blocks.GetBlock(c).Id == 0).ToList())
-            {
-                if (EidolonMining.Undermines(idle.Pos.X, Feet(idle), idle.Pos.Z, new MarkPos(c.X, c.Y, c.Z)))
-                    faults.Add($"{c} broke under the idle one at {idle.Pos.XYZ}");
-                standing.Remove(c);
-            }
-        }
-        await World.Until(() =>
-        {
-            Watch();
-            if (++ticks % 300 == 0)
-                Log($"{order.Mined} mined: {State(miner)}");
-            // every block left is under the idle one, and the miner waits for it
-            return faults.Count > 0 || miner.Orders.OrderCode == null
-                || (Status(miner).EndsWith("mine-waiting") && standing.All(c => EidolonMining.UnderFoot(idle.Pos.X, idle.Pos.Z, new MarkPos(c.X, c.Y, c.Z))));
-        }, 12000);
-        Log($"waiting: {order.Mined} mined, {standing.Count} left; idle at {idle.Pos.XYZ}; " + State(miner));
-        Assert.Empty(faults);
-        Assert.Equal(MineOrder.OrderCode, miner.Orders.OrderCode);
-        Assert.NotEmpty(standing);
-        Assert.Equal(idleY, idle.Pos.Y, 1);
-        Assert.Equal(0, order.Unreachable);
-
-        // The idle one walks off: the miner takes what was under it, and leaves no pillar.
-        idle.TeleportTo(site.AddCopy(8, 0, -11).ToVec3d().Add(0.5, 0, 0.5));
-        await World.Until(() => miner.Orders.OrderCode == null, 6000);
-        Log($"after: {order.Mined} mined, {order.Unreachable} out of reach; {order.Reported}");
-        Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
-        Assert.Equal(toMine.Count, order.Mined);
-        Assert.Equal(0, order.Unreachable);
-        Assert.Contains("0 out of its reach", order.Reported);
-        miner.Die(EnumDespawnReason.Removed);
-        idle.Die(EnumDespawnReason.Removed);
-    }
-
-    [AtlasScenario(TimeoutMs = 480_000)]
-    public async Task One_dry_when_its_job_is_reported_goes_back_once_oiled_with_no_report_of_its_own()
-    {
-        var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2000), reach: 15);
-        var blocks = W.BlockAccessor;
-        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
-        Ground(site, granite);
-        var a = site.AddCopy(-2, -2, -2);
-        var b = site.AddCopy(1, -1, 1);
-        var area = Area(a, b);
-
-        var (test, player, tool) = await Commander("eidolondrymate", site.AddCopy(0, 0, -12));
-        var e1 = await Spawn(site.AddCopy(-3, 0, -10), player);
-        var e2 = await Spawn(site.AddCopy(3, 0, -10), player);
-        if (e2.Oil?.Tank == null)
-            return; // MachineOil off: never dry.
-        OrderMine(player, tool, [e1, e2], a, b);
-        var o1 = Assert.IsType<MineOrder>(e1.Orders!.Current);
-        var o2 = Assert.IsType<MineOrder>(e2.Orders!.Current);
-        await World.Ticks(5);
-        Assert.Same(o1.Job, o2.Job);
-        var home2 = e2.Pos.XYZ;
-        // The second runs dry before it reaches the area: away from the job, which the first finishes.
-        e2.Oil.SetPoints(0);
-        await World.Until(() => !e2.CanWork, 400);
-        await World.Until(() => e1.Orders.OrderCode == null, 8000);
-        Log($"first done: {o1.Mined} + {o2.Mined}; {o1.Reported}; second: {State(e2)}");
-        Assert.All(Cells(area), c => Assert.Equal(0, blocks.GetBlock(c).Id));
-        Assert.NotNull(o1.Reported);
-        Assert.True(o1.Job!.Closed);
-        // the job's report saved done on the second's order too
-        Assert.True(e2.Orders.OrderArgs!.GetBool("done"));
-        // Oiled, it goes back to its place and makes no report of its own.
-        e2.Oil.SetPoints(Mod.Config.OilTank / 2);
-        await World.Until(() => e2.Orders.OrderCode == null, 4000);
-        Log($"second after: {o2.Mined}, {o2.Reported ?? "no report"}; at {e2.Pos.XYZ}, ordered at {home2}");
-        Assert.Null(o2.Reported);
-        Assert.Equal(0, o2.Mined);
-        Assert.True(e2.Pos.XYZ.HorizontalSquareDistanceTo(home2) <= 2.5 * 2.5, $"at {e2.Pos.XYZ}, ordered at {home2}");
-        e1.Die(EnumDespawnReason.Removed);
-        e2.Die(EnumDespawnReason.Removed);
-    }
-
-    [AtlasScenario(TimeoutMs = 480_000)]
+    [AtlasScenario(TimeoutMs = 300_000)]
     public async Task One_ordered_later_joins_the_job_running()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 1800), reach: 15);
         var blocks = W.BlockAccessor;
         int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
         Ground(site, granite);
-        var a = site.AddCopy(-4, -2, -3);
-        var b = site.AddCopy(3, -1, 2);
+        // 6 × 4 and two deep, its north edge on the terrace: six squares, enough for both.
+        var a = site.AddCopy(-3, -2, -3);
+        var b = site.AddCopy(2, -1, 0);
         var area = Area(a, b);
         var toMine = Cells(area);
 
@@ -318,7 +202,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         e2.Orders!.ClearOrder();
         OrderMine(player, tool, [e1], a, b);
         var o1 = Assert.IsType<MineOrder>(e1.Orders!.Current);
-        await World.Until(() => o1.Mined >= 8, 4000);
+        await World.Until(() => o1.Mined >= 6, 2000);
         var job = o1.Job;
         Assert.NotNull(job);
         Assert.False(job!.Closed);
@@ -328,7 +212,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         await World.Ticks(5);
         Assert.Same(job, o2.Job);
         Assert.Equal(2, job.Members.Count);
-        await World.Until(() => e1.Orders.OrderCode == null && e2.Orders.OrderCode == null, 12000);
+        await World.Until(() => e1.Orders.OrderCode == null && e2.Orders.OrderCode == null, 6000);
         var lines = Reports(o1, o2);
         Log($"after: {o1.Mined} + {o2.Mined}; reports: " + string.Join(" | ", lines));
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
@@ -336,59 +220,6 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.True(o2.Mined > 0, "the late one mined nothing");
         var report = Assert.Single(lines);
         Assert.Contains("Your 2 eidolons", report);
-        e1.Die(EnumDespawnReason.Removed);
-        e2.Die(EnumDespawnReason.Removed);
-    }
-
-    [AtlasScenario(TimeoutMs = 480_000)]
-    public async Task One_with_no_square_free_waits_at_the_rim()
-    {
-        var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 1900), reach: 12);
-        var blocks = W.BlockAccessor;
-        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
-        // A granite pillar 2 × 2 and 4 high on the floor: one square, so one works it at a time.
-        var a = site.AddCopy(0, 0, 0);
-        var b = site.AddCopy(1, 3, 1);
-        var area = Area(a, b);
-        var toMine = Cells(area);
-        foreach (var c in toMine)
-            blocks.SetBlock(granite, c);
-
-        var (test, player, tool) = await Commander("eidolonspare", site.AddCopy(0, 0, -10));
-        var e1 = await Spawn(site.AddCopy(-2, 0, 1), player);
-        var e2 = await Spawn(site.AddCopy(5, 0, 5), player);
-        OrderMine(player, tool, [e1, e2], a, b);
-        var o1 = Assert.IsType<MineOrder>(e1.Orders!.Current);
-        var o2 = Assert.IsType<MineOrder>(e2.Orders!.Current);
-
-        // Who waited, and whether it stood clear of the area once there.
-        var waited = new HashSet<long>();
-        var atRim = new HashSet<long>();
-        var faults = new List<string>();
-        int ticks = 0;
-        await World.Until(() =>
-        {
-            foreach (var e in new[] { e1, e2 })
-            {
-                if (!Status(e).EndsWith("mine-waiting"))
-                    continue;
-                waited.Add(e.EntityId);
-                if (e.Pos.Motion.HorLength() < 0.001 && !OverArea(area, e))
-                    atRim.Add(e.EntityId);
-                if (Jobs.Mining.Held(e.EntityId).Count > 0)
-                    faults.Add($"{e.EntityId} waits holding {string.Join(" ", Jobs.Mining.Held(e.EntityId))}");
-            }
-            if (++ticks % 120 == 0)
-                Log($"{o1.Mined} + {o2.Mined}: {State(e1)} || {State(e2)}");
-            return e1.Orders.OrderCode == null && e2.Orders.OrderCode == null;
-        }, 12000);
-        var lines = Reports(o1, o2);
-        Log($"after: {o1.Mined} + {o2.Mined}, waited {string.Join(",", waited)}, at the rim {string.Join(",", atRim)}; reports: " + string.Join(" | ", lines));
-        Assert.Empty(faults);
-        Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
-        Assert.NotEmpty(waited);
-        Assert.NotEmpty(atRim);
-        Assert.Single(lines);
         e1.Die(EnumDespawnReason.Removed);
         e2.Die(EnumDespawnReason.Removed);
     }
