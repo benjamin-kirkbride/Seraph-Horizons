@@ -13,7 +13,9 @@ namespace SeraphHorizons.Mod.CrucibleFurnace;
 /// keeps its heats when it is emptied and cracks after its last; and once the metal has frozen (the
 /// game's own test: below 0.9 of its melting point, reached at the end of the pour window the pot was
 /// given) a right-click breaks the pot, which is lost, and knocks the metal out as bits, a bit for every
-/// 5 units.
+/// 5 units. A metal of <see cref="Core.CrucibleFurnaceConfig.LargeCastingMetals"/> (molten iron) pours
+/// only into <see cref="Core.CrucibleFurnaceConfig.LargeCastingMolds"/> (ingot molds and the cylinder
+/// mold), and every other mold is refused with a word (#768); the game's own crucible is not affected.
 /// </summary>
 public class BlockMeltingPotSmelted : BlockSmeltedContainer
 {
@@ -38,12 +40,21 @@ public class BlockMeltingPotSmelted : BlockSmeltedContainer
             handHandling = EnumHandHandling.PreventDefault;
             return;
         }
+        if (Refuses(byEntity.World, contents.Key, blockSel))
+        {
+            if (byEntity.World.Side == EnumAppSide.Server)
+                Tell(byEntity, "meltingpot-largecastonly", MetalName(contents.Key));
+            handHandling = EnumHandHandling.PreventDefault;
+            return;
+        }
         base.OnHeldInteractStart(slot, byEntity, blockSel, entitySel, firstEvent, ref handHandling);
     }
 
     public override bool OnHeldInteractStep(float secondsUsed, ItemSlot slot, EntityAgent byEntity, BlockSelection blockSel, EntitySelection entitySel)
     {
         var before = slot.Itemstack;
+        if (before != null && Refuses(byEntity.World, GetContents(byEntity.World, before).Key, blockSel))
+            return false;
         bool more = base.OnHeldInteractStep(secondsUsed, slot, byEntity, blockSel, entitySel);
         // The game swaps in the emptied pot (emptiedBlockCode) once the last unit is poured.
         if (before != null && slot.Itemstack != before && slot.Itemstack?.Collectible is BlockMeltingPot)
@@ -54,6 +65,20 @@ public class BlockMeltingPotSmelted : BlockSmeltedContainer
         }
         return more;
     }
+
+    /// <summary>Whether the mold at <paramref name="sel"/> refuses this pot's <paramref name="metal"/>:
+    /// a large-casting metal into any mold but a large-casting one.</summary>
+    private static bool Refuses(IWorldAccessor world, ItemStack? metal, BlockSelection? sel)
+    {
+        if (metal?.Collectible?.Code is not { } code || sel?.Position is not { } pos
+            || world.BlockAccessor.GetBlockEntity(pos) is not ILiquidMetalSink)
+            return false;
+        var mold = world.BlockAccessor.GetBlock(pos);
+        return !CrucibleFurnaceSystem.Of(world.Api).Config.PourAllowed(code.ToString(), mold.Code.ToString());
+    }
+
+    private static string MetalName(ItemStack metal) =>
+        metal.Collectible.Variant["metal"] is { } m ? Lang.Get("material-" + m) : metal.GetName();
 
     /// <summary>The pot, emptied: back to a fired pot with its heats, or cracked after its last.</summary>
     private void Empty(ItemSlot slot, EntityAgent byEntity, ItemStack pot, float? temperature = null)
@@ -118,6 +143,9 @@ public class BlockMeltingPotSmelted : BlockSmeltedContainer
         var contents = GetContents(world, stack);
         if (contents.Key != null && HasSolidifed(stack, contents.Key, world))
             dsc.AppendLine(Lang.Get(CrucibleFurnaceSystem.Domain + ":meltingpot-frozen-info", contents.Value / 5));
+        else if (contents.Key?.Collectible?.Code is { } code
+                 && CrucibleFurnaceSystem.Of(world.Api).Config.IsLargeCastingMetal(code.ToString()))
+            dsc.AppendLine(Lang.Get(CrucibleFurnaceSystem.Domain + ":meltingpot-largecastonly-info"));
         dsc.AppendLine(PotStack.HeatsLine(PotStack.Heats(stack), CrucibleFurnaceSystem.Of(world.Api).Config.PotHeats));
     }
 }

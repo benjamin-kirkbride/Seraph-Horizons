@@ -8,8 +8,9 @@ namespace SeraphHorizons.Mod.CrucibleFurnace.Core;
 /// </summary>
 public class CrucibleFurnaceConfig
 {
-    /// <summary>Metal units a melting pot holds: two ingots.</summary>
-    public int PotCapacityUnits { get; set; } = 200;
+    /// <summary>Metal units a melting pot holds: three ingots, so a firing of two pots casts a
+    /// 600-unit cylinder blank (#768).</summary>
+    public int PotCapacityUnits { get; set; } = 300;
 
     /// <summary>Heats a melting pot lasts: it cracks when the last one is emptied (or broken out).</summary>
     public int PotHeats { get; set; } = 3;
@@ -63,7 +64,30 @@ public class CrucibleFurnaceConfig
         "smex:smokestack-*",
     ];
 
+    /// <summary>Metals (the ingot codes a pot's melt is, <c>*</c> for any run of characters) that a
+    /// pulled melting pot pours only into <see cref="LargeCastingMolds"/>: molten iron, so iron tools
+    /// stay smithed (#768). The game's crucible is not affected.</summary>
+    public List<string> LargeCastingMetals { get; set; } = ["game:ingot-iron"];
+
+    /// <summary>The molds (block codes, <c>*</c> for any run of characters) a melting pot of a
+    /// <see cref="LargeCastingMetals"/> metal pours into: the game's ingot molds and the cylinder mold.
+    /// Every other mold refuses it.</summary>
+    public List<string> LargeCastingMolds { get; set; } =
+    [
+        "game:ingotmold-*",
+        "seraphhorizons:cylindermold-*",
+    ];
+
     public static readonly CrucibleFurnaceConfig Defaults = new();
+
+    /// <summary>Whether a melting pot of <paramref name="metal"/> (its ingot code) pours into the mold
+    /// <paramref name="mold"/> (its block code): any mold, unless the metal is one of
+    /// <see cref="LargeCastingMetals"/>, which pours only into <see cref="LargeCastingMolds"/>.</summary>
+    public bool PourAllowed(string metal, string mold) =>
+        !IsLargeCastingMetal(metal) || LargeCastingMolds.Any(m => PotRecipes.CodeMatches(m, mold));
+
+    /// <summary>Whether <paramref name="metal"/> (an ingot code) pours only into large-casting molds.</summary>
+    public bool IsLargeCastingMetal(string metal) => LargeCastingMetals.Any(m => PotRecipes.CodeMatches(m, metal));
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
     public IReadOnlyList<string> Sanitise()
@@ -95,6 +119,16 @@ public class CrucibleFurnaceConfig
         {
             ChimneyBlocks = [.. d.ChimneyBlocks];
             fixes.Add($"{nameof(ChimneyBlocks)} is empty or has a blank entry, using the defaults");
+        }
+        if (LargeCastingMetals == null || LargeCastingMetals.Any(string.IsNullOrWhiteSpace))
+        {
+            LargeCastingMetals = [.. d.LargeCastingMetals];
+            fixes.Add($"{nameof(LargeCastingMetals)} is missing or has a blank entry, using the defaults");
+        }
+        if (LargeCastingMolds == null || LargeCastingMolds.Any(string.IsNullOrWhiteSpace))
+        {
+            LargeCastingMolds = [.. d.LargeCastingMolds];
+            fixes.Add($"{nameof(LargeCastingMolds)} is missing or has a blank entry, using the defaults");
         }
         return fixes;
     }

@@ -274,7 +274,7 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   priced well above vanilla's ratios, to be worth the hunt: silver 0.2 (22.2), gold 0.5 (55.2),
   platinum 0.4 (44.2); electrum, half gold and half silver, comes to 40.7. Iron comes from a bloom
   forged on the anvil (ingot 3.5); blister steel, made in the cementation furnace the export does not carry, is a raw at 5 (steel ingot 8). Stainless steel is the crucible furnace's
-  (`routes.json`, below): 8.31 an ingot, about a steel ingot (it was a raw at 12, half again a
+  (`routes.json`, below): 8.72 an ingot, about a steel ingot (it was a raw at 12, half again a
   steel ingot, before the furnace had a route).
 - **Smithing** carries the most labour (+30% and 1.5 gears a piece): a tin bronze pickaxe head is
   0.57 ingot and lands at 4.6 with the stick, against vanilla's 4 to buy and 11 to sell.
@@ -473,6 +473,12 @@ chromite concentrate (0.547), the only chromite a player can make, so stainless 
 
 The cupel and the liquation pan (raw, fired, the bead and the residue) are valued now that the
 export has them.
+
+A melting pot holds 300 units (#768), so the crucible furnace's routes are full pots of 300 and the
+crucible's 2 gears a pot are spread over half as much again: the stainless steel ingot 9.333 to
+8.724, ferrochrome 1.041 to 0.983, ferrosilicon 0.361 to 0.328, the stainless gear blank and gear
+2.629 / 6.869 to 2.461 / 6.705, the large stainless gear 28.04 to 26.59, and what is built with
+stainless gears a little cheaper. The pot's iron melt is no route: it makes iron from iron.
 
 Steelmaking Expanded's blast furnace (its burden, solidified iron, pig iron) is not in the export
 and has no value, so nothing priced from crushed iron changed: `game:crushed-iron` is still an iron

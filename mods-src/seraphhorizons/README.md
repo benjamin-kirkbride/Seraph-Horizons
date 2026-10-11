@@ -2349,7 +2349,11 @@ or a beehive kiln as the gear blank molds are fired (`seraphhorizons:cylindermol
 it with 600 units of molten iron or steel, six ingots: it is the game's own `BlockToolMold`
 (`requiredUnits` 600, `fillHeight` 10, `drop` `seraphhorizons:cylinderblank-{metal}`), so Steelmaking
 Expanded's canal pedestal, which takes any small `BlockToolMold`, fills it from the canal, and a crucible
-pours into it as into any tool mold (six ingots' worth in turn). Only iron and steel have a blank: a
+pours into it as into any tool mold (six ingots' worth in turn). Before the blast furnace, the crucible
+furnace's iron melt fills it: two melting pots of 300 units (two holes fired together), teemed one after
+the other (README "Crucible furnace"). The game's mold takes a second pour whatever the first has cooled to:
+its `CanReceive` asks only for the same metal and room, never whether it has hardened, and the second pour
+sets the whole fill to its own temperature. Only iron and steel have a blank: a
 crucible refuses other metals (the game asks for the drop first), and, as with the gear blank molds, smex's
 pedestal does not check, so a canal of another metal fills it with metal that casts nothing. Filling does not
 break the mold. The mold is coded `cylindermold`, not `toolmold` as the gear blank molds are, so the switch
@@ -3291,7 +3295,7 @@ recipe browser's multiblock viewer; nothing in the game reads them.
 
 **The pot.** `seraphhorizons:meltingpot-raw` is clay-formed from fire clay only (a deep pot 7 voxels
 across and 10 high) and fired in a pit kiln or a beehive kiln, as the game's crucible is, into
-`meltingpot-fired`. A pot holds `PotCapacityUnits` (200, two ingots) and lasts `PotHeats` (3) heats:
+`meltingpot-fired`. A pot holds `PotCapacityUnits` (300, three ingots, so two pots cast a 600-unit cylinder blank, #768) and lasts `PotHeats` (3) heats:
 its heats are an attribute of the stack, and it cracks when the last is emptied (or broken out). One
 pot goes in a hole, by right-click with the lid open.
 
@@ -3300,16 +3304,18 @@ much of the stack in as fits: a recipe must take every item already in the pot a
 must not go over its capacity, and this ingredient not over its largest share of a full pot
 (`PotRecipes.CanAdd`). Anything else is refused with a word: no recipe takes it, it does not go with
 what is in, the pot is full, or more would spoil the ratio. An ingot is 100 units, anything else 5. A
-right-click with coke puts it on the fire, up to `CokeCapacity` (6); with Shift, into the pot. The
-recipes are ratios only, no chemistry tracked (`Core/PotRecipes.cs`, built in, not settings); a recipe
+right-click with coke puts it on the fire, up to `CokeCapacity` (6); with Shift, into the pot. Iron alone
+is a charge of its own (the iron melt), so a pot holding only iron takes iron to the brim: for stainless,
+the ferrochrome goes in first, and then iron stops at its share. The recipes are ratios only, no chemistry tracked (`Core/PotRecipes.cs`, built in, not settings); a recipe
 naming an item not in the game is left out with a log line:
 
 | Recipe | Charge (share of the units) | Melts at | Gives | Full pot |
 |---|---|---|---|---|
-| Ferrosilicon | crushed quartz 45-55 %, iron bits 25-35 %, coke 15-25 % | 1400 °C | `seraphhorizons:ferrosilicon`, half the units in lumps of 5 | 20 quartz, 12 iron bits, 8 coke: 20 ferrosilicon |
-| Ferrochrome (low carbon, silicon reduction) | crushed chromite 45-55 %, ferrosilicon 25-35 %, lime 15-25 % | 1550 °C | `seraphhorizons:ferrochrome`, half the units in lumps; `smex:slag`, one per 25 units | 20 chromite, 12 ferrosilicon, 8 lime: 20 ferrochrome, 8 slag |
-| Stainless | iron (ingots or bits; no steel) 78-82 %, ferrochrome 18-22 % | 1530 °C | molten `game:ingot-stainlesssteel`, unit for unit | 1 iron ingot, 12 iron bits, 8 ferrochrome: 200 units |
-| Stainless remelt | stainless bits or ingots, all of it | 1530 °C | molten stainless, unit for unit | 40 bits: 200 units (20 bits = 100) |
+| Ferrosilicon | crushed quartz 45-55 %, iron bits 25-35 %, coke 15-25 % | 1400 °C | `seraphhorizons:ferrosilicon`, half the units in lumps of 5 | 30 quartz, 18 iron bits, 12 coke: 30 ferrosilicon (150 units) |
+| Ferrochrome (low carbon, silicon reduction) | crushed chromite 45-55 %, ferrosilicon 25-35 %, lime 15-25 % | 1550 °C | `seraphhorizons:ferrochrome`, half the units in lumps; `smex:slag`, one per 25 units | 30 chromite, 18 ferrosilicon, 12 lime: 30 ferrochrome (150 units), 12 slag |
+| Stainless | iron (ingots or bits; no steel) 78-82 %, ferrochrome 18-22 % | 1530 °C | molten `game:ingot-stainlesssteel`, unit for unit | 2 iron ingots, 8 iron bits, 12 ferrochrome (240 iron, 60 ferrochrome): 300 units |
+| Stainless remelt | stainless bits or ingots, all of it | 1530 °C | molten stainless, unit for unit | 60 bits: 300 units (20 bits = 100) |
+| Iron (for large castings, #768) | iron (ingots or bits; no steel or meteoric iron), all of it | 1538 °C | molten `game:ingot-iron`, unit for unit; casts only into `LargeCastingMolds` | 3 iron ingots: 300 units |
 
 The game has no crushed coke (smex retired it), so ferrosilicon takes the game's coke. Ferrochrome is
 about two thirds chromium, so 4 iron to 1 ferrochrome by units is about 13 % chromium. The ratio is in
@@ -3341,16 +3347,28 @@ ppex pipe. Without exlib, or with its interface changed (logged once), there is 
 off hand, a right-click pulls the pot; without tongs a pot hotter than the game's too-hot-to-touch is
 refused. A pot not yet melted comes back with its charge (and goes back in with it). A ferroalloy is
 broken out of the pot: its lumps and slag go into the inventory, hot, and the pot, a heat older, into
-the hand (or it cracks on its last). Molten stainless comes out as `meltingpot-smelted`, on the game's
+the hand (or it cracks on its last). Molten stainless or iron comes out as `meltingpot-smelted`, on the game's
 smelted crucible class (`BlockSmeltedContainer`), so it pours into any `ILiquidMetalSink` (ingot
 molds, tool molds, the gear blank molds) exactly as a crucible does, and emptied it is a fired pot a
 heat older, or cracks. It is given the cooldown speed that takes it from the furnace's temperature to
 the game's solid point (0.9 of the melting point) in `PourWindowSeconds` (20) real seconds
 (`Core/FurnaceHeat.cs`, `PourWindow`); frozen, a right-click breaks the pot, which is lost, and knocks
-the metal out as stainless bits (a bit per 5 units), which go back in a pot. A pot left in the hole
+the metal out as bits of its metal (a bit per 5 units), which go back in a pot. A pot left in the hole
 until the fire falls below that point is lost the same way when pulled. Breaking a hole drops it, the
 unburnt coke and its pot with its charge; a melted charge drops as its products (stainless as bits),
 the pot lost.
+
+**Iron for large castings** (#768). The iron melt (1538 °C, which both drafts reach) is for castings
+too big to forge, the cylinder blank (#639) above all: a cylinder mold takes 600 units, the two pots of a
+firing, poured one after the other. The game's mold takes the second pour whatever the first has cooled
+to (its `CanReceive` asks only for the same metal and room, and a pour sets the fill to its own
+temperature), so nothing was changed there (an Atlas scenario pours the second pot into a fill already hardened). Molten iron from a pot casts only into large-casting molds: the pulled pot
+(`BlockMeltingPotSmelted`) checks the mold it pours into, and a metal in `LargeCastingMetals`
+(`game:ingot-iron`) pours only into a block in `LargeCastingMolds` (the game's ingot molds and the
+cylinder mold, so bits can go back into ingots); every tool-head mold is refused with a word, so iron
+tools stay smithed (cast iron is brittle, and real iron tools were wrought or steel). The rule is the pot's
+(`CrucibleFurnaceConfig.PourAllowed`), so the game's crucible, which cannot melt iron anyway, is not
+touched, and stainless pours into any mold as before.
 
 **The game's stainless.** The game gives `game:ingot-stainlesssteel` no melting point, so molds never
 count it hardened: `patches/stainless-ingot-melting.json` adds 1530 °C (unswitched; the stainless gear
@@ -3408,9 +3426,9 @@ section linking it on the hole, the pots and the two ferroalloys.
 
 | Setting | Default | |
 |---|---|---|
-| `PotCapacityUnits` | 200 | Units a pot holds |
+| `PotCapacityUnits` | 300 | Units a pot holds |
 | `PotHeats` | 3 | Heats a pot lasts |
-| `PourWindowSeconds` | 20 | Real seconds a pulled pot of stainless pours before it freezes |
+| `PourWindowSeconds` | 20 | Real seconds a pulled pot of molten metal pours before it freezes |
 | `CokeCapacity` | 6 | Coke a hole holds |
 | `HoursPerCoke` | 1 | Game hours a coke burns |
 | `ChimneyHeatingPerHour` | 200 | °C an hour on the chimney's draft |
@@ -3423,6 +3441,8 @@ section linking it on the hole, the pots and the two ferroalloys.
 | `MaxHolesInRow` | 4 | Holes a stack serves |
 | `AirLitresPerSecond` | 10 | Air a hole draws for forced air, L a real second |
 | `ChimneyBlocks` | clay bricks, clay brick chimney, refractory bricks, stone bricks, smex's smoke stack | What a chimney is built of |
+| `LargeCastingMetals` | `game:ingot-iron` | Metals a pot pours only into `LargeCastingMolds` |
+| `LargeCastingMolds` | `game:ingotmold-*`, `seraphhorizons:cylindermold-*` | The molds those metals pour into |
 
 With the switch off the server marks the hole, the pots, the two ferroalloys and both recipe files
 disabled before the game loads them, empties the handbook patch and hides the guide page, so none of
@@ -3433,9 +3453,10 @@ drawn in the hole): a generated model of the furnace as one machine, one two-pot
 lid, grate, ash pit and damper, flue and outlet, built in stages (an iron frame, brickwork of any fired
 brick, a refractory lining, the lid and damper), is in `CrucibleFurnace/README.md` (#753; the game side is
 #796), and the game does not use it yet. `tests/PackTests/CrucibleFurnaceScenarios.cs`
-(Atlas) builds a row and breaks its stack, melts stainless from a charge on the chimney's draft with a
-top-up, pulls it with and without tongs, checks the pour window and an ingot mold, freezes it to
-bits, refuses wrong charges and an unlit bad ratio, breaks out both ferroalloys and cracks a pot on
+(Atlas) builds a row and breaks its stack, melts a full pot of stainless from a charge on the chimney's
+draft with a top-up, pulls it with and without tongs, checks the pour window and an ingot mold, freezes it to
+bits, melts iron in two pots and teems both into one cylinder mold for a blank while a tool mold refuses
+it, refuses wrong charges and an unlit bad ratio, breaks out both ferroalloys and cracks a pot on
 its last heat, takes back an unmelted pot and breaks a hole, and finds a ppex pipe as an air source.
 `BessemerStainlessScenarios.cs` (Atlas, `SharedWorldScenarios`) can raise no whole converter (vessel
 stages, transmission, steam, blast), so it places a lone control block, sets its heat as smex leaves

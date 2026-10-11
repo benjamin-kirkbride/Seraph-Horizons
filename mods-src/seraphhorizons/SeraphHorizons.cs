@@ -889,10 +889,11 @@ public class SeraphHorizonsConfig
     /// <summary>Stainless steel (#484, CrucibleFurnace/, README "Crucible furnace"): a crucible
     /// furnace of melting holes lined with tier-3 refractory brick, in a row of up to four on a brick
     /// chimney at least six blocks tall, fired with coke under iron lids (faster with forced air piped
-    /// in from Steelmaking Expanded's blowers), each holding a fireclay melting pot of 200 units that
+    /// in from Steelmaking Expanded's blowers), each holding a fireclay melting pot of 300 units that
     /// lasts three heats. Its charges, by ratio: quartz, iron bits and coke into ferrosilicon; chromite,
     /// ferrosilicon and lime into ferrochrome and slag; iron and ferrochrome, about 4 to 1, into
-    /// stainless steel; stainless bits back into stainless. A pulled pot of stainless pours like the
+    /// stainless steel; stainless bits back into stainless; iron alone into molten iron, which casts only
+    /// into ingot and cylinder molds. A pulled pot of stainless pours like the
     /// game's crucible into any mold, for about 20 seconds before it freezes and the pot is lost (off
     /// means the holes, the pots, the ferroalloys and their recipes do not exist, and those already in
     /// a world are lost). The server's setting decides.</summary>
