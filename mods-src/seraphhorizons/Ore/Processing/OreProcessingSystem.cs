@@ -200,7 +200,7 @@ public class OreProcessingSystem : ModSystem
             _harmony = new Harmony(HarmonyId);
             if (!AlloyStackSize.Patch(_harmony))
                 api.Logger.Warning("[seraphhorizons] Ore processing: the game's AlloyRecipe.mergeAndCompareStacks is not as expected; "
-                                   + "an alloy counts a chunk at a whole number of chunks per ingot, which can be off its exact half");
+                                   + "an alloy counts rock at a whole number of items per ingot, which can be off its grade's exact share");
             ContainerText.Patch(_harmony);
             if (!CupelForge.Patch(_harmony))
                 api.Logger.Warning("[seraphhorizons] Ore processing: crucibulum's forge ({0}) is missing or not as expected; "
