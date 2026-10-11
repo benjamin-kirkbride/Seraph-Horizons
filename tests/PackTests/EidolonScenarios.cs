@@ -16,7 +16,8 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons/Eidolon (#673): the eidolon entity with the pack's default settings. It
 /// spawns owned and charged and wakes; only its owner commands it; its charge runs out over simulated
 /// days (the calendar moved on), it slumps without dying and a temporal gear wakes it; at 0 HP it
-/// slumps disabled, never dies and drops nothing, and stands up once repaired past its threshold; and
+/// slumps disabled, never dies and drops nothing, and stands up once repaired past its threshold; it
+/// never heals by itself, and a drifter going for it lets it go once it is down; and
 /// the wide pathfinder walks it through a two-wide, four-high gate and finds no way through a narrower
 /// one. Its oil and repair (#674): jobs drain the oil and dry stops a job, which waits standing until
 /// oiled; repair restores its share, doubled inside a gantry, stands a slumped one up where it lies,
@@ -187,6 +188,57 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
         e.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Internal, Type = EnumDamageType.Heal }, health.MaxHealth * 0.3f);
         await World.Until(() => e.CanWork, 400);
         Log("repaired: " + State(e));
+        e.Die(EnumDespawnReason.Removed);
+    }
+
+    /// <summary>It never heals by itself, whole or down (only repair restores health); and a drifter
+    /// it struck, coming for it, lets it go once it is down and does not take it up again while it is.
+    /// A player in creative watches (the game runs AI only near a player, and a drifter ignores one in
+    /// creative).</summary>
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task It_never_heals_by_itself_and_creatures_lose_it_once_it_is_down()
+    {
+        var p = await World.JoinPlayer("eidolonbystander");
+        var at = await Floor(440, 0, reach: 12);
+        await p.TeleportTo(at.AddCopy(-10, 0, -10));
+        ((IServerPlayer)p.Player).WorldData.CurrentGameMode = EnumGameMode.Creative;
+        var e = await Spawn(at, null);
+        var health = e.GetBehavior<EntityBehaviorHealth>()!;
+
+        // Hurt, it stays hurt: the health behaviour's regeneration is held at 0.
+        Assert.Equal(0, e.WatchedAttributes.GetFloat(EntityLaborEidolon.RegenSpeedKey, 1));
+        health.Health = health.MaxHealth / 2;
+        await World.Ticks(120);
+        Assert.Equal(health.MaxHealth / 2, health.Health);
+
+        // A drifter it struck comes for it (struck again until one of its tasks has it).
+        var drifter = (EntityAgent)W.ClassRegistry.CreateEntity(W.GetEntityType(new AssetLocation("game:drifter-normal"))!);
+        drifter.Pos.SetPos(e.Pos.XYZ.AddCopy(4, 0, 0));
+        W.SpawnEntity(drifter);
+        var tasks = drifter.GetBehavior<EntityBehaviorTaskAI>()!.TaskManager;
+        bool GoesForIt() => tasks.ActiveTasksBySlot.Any(t => EidolonDownedTargeting.Targets(t, e));
+        for (int i = 0; i < 20 && !GoesForIt(); i++)
+        {
+            drifter.GetBehavior<EntityBehaviorHealth>()!.Health = 20;
+            drifter.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Entity, SourceEntity = e, Type = EnumDamageType.BluntAttack }, 0.1f);
+            await World.Ticks(20);
+        }
+        Log("drifter: " + string.Join(", ", tasks.ActiveTasksBySlot.Where(t => t != null).Select(t => t!.Id)));
+        Assert.True(GoesForIt(), "the drifter never went for the eidolon");
+
+        // Down: the drifter lets it go, and leaves it be while it is down, though it struck it last.
+        e.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Internal, Type = EnumDamageType.BluntAttack }, health.MaxHealth * 3);
+        Assert.True(e.Downed);
+        await World.Ticks(5);
+        Assert.False(GoesForIt());
+        for (int i = 0; i < 10; i++)
+        {
+            await World.Ticks(20);
+            Assert.False(GoesForIt(), "the drifter took up the downed eidolon again");
+        }
+        Assert.Equal(0, health.Health);
+        Log("down and left: " + State(e));
+        drifter.Die(EnumDespawnReason.Removed);
         e.Die(EnumDespawnReason.Removed);
     }
 
