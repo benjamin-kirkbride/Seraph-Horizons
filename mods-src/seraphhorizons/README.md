@@ -3080,10 +3080,16 @@ eidolon stands then. Bare-handed, as the game's steel pickaxe, it breaks everyth
 breaks: a block needing no more than the steel pickaxe's tier (its `ToolTier`, read from
 `game:pickaxe-steel` at runtime: 5; `EidolonMining.SteelPickTier`, 5, if it cannot be read), one needing a
 tier only if the steel pickaxe has a speed for its material (as the game refuses a player). It leaves liquids, any block a liquid touches on one of its six
-faces (so the pit never opens onto water or lava), blocks with a block entity (a chest, a machine),
+faces (so the pit never opens onto water or lava), blocks with a block entity that are a player's
+things (`EidolonMining.LeavesBlockEntity`: one holding an inventory, a chest or a barrel, a mechanical
+power part, or anything not of natural ground's materials, soil, gravel, sand, stone, ore, plant or
+leaves; natural ground with a block entity, Desire Paths' worn soil `desirepaths:soilpath-*`, is mined,
+where it had been left floating with the soil dug from under it, walling off the pit's corners),
 blocks in a land claim its owner may not break in (as felling; asked only of a block it comes to, the
 square it makes for or a group it may strike, not of every block a search finds, and a block found
-claimed is left for the order's life) and anything harder or unbreakable (the mantle). It quarries top down, with no ramp: the highest layer with a block left that it may break is
+claimed is left for the order's life) and anything harder or unbreakable (the mantle). What it leaves in the area holds up what is under it:
+the blocks below a block it leaves, down to the first air, are left too (`EidolonMining.Scan`), so
+nothing is left hanging. It quarries top down, with no ramp: the highest layer with a block left that it may break is
 the one it works, a strike at a time, each breaking up to four blocks: a 2 × 2 group on that layer
 (flat), or two side by side on it and the two under them (upright, at a wall where both layers are
 left), whichever breaks more, flat on ties. The groups tile the area in 2 × 2 squares from its lower
@@ -3116,7 +3122,57 @@ and reach is left and none of the area is unloaded: it tells its owner how many 
 left and how many were out of its reach, walks back to where it was ordered (if it finds a way) and the
 order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
 (done, it goes on back). `MineOrder.HasWorkLeft` holds until it has told its owner it is done, and its
-area is its `WorkAreas`. It is not part of the crew order.
+area is its `WorkAreas`. It is not part of the crew order. Several given the same area work it as one
+job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs` and
+`tests/PackTests/EidolonMineScenarios.cs` (Atlas: the granite pits; a 10 × 10 soil area two deep, its
+middle out of reach from the rim, with a worn Desire Paths path across it all mined and a chest left
+on the soil under it; a dry reservoir).
+
+**Working together** (`Eidolon/Game/EidolonJobSystem.cs`, rules in `Eidolon/Core/EidolonTeamwork.cs`;
+mining so far, felling to follow). Eidolons of one owner given the very same area (the same two corners)
+for the same work are one job (`JobKey`: the owner's uid, the order's code, the area), whether the tool
+gave it to them together or one later, which joins the job running; an overlapping area, or another
+owner's eidolons, is a job of its own. A job is the server's (`JobBoard`, one per kind of work), not
+saved. *Reservations*: before it walks to a 2 × 2 square or strikes in one, a miner reserves the
+square's columns, and passes over a square another holds, in its job or any other (reservations are
+the board's, by block column, so jobs over the same place with their squares laid differently do not
+meet either); it holds one square at a time, and frees it at once when it stops working (another
+order, none, dry, slumped, down, a fight, unloaded or gone: the order's `Stop`, and a sweep every
+second, `EidolonJobSystem.Sweep`, for an eidolon unloaded, removed or given another order), and a
+reservation not struck within 30 seconds (`EidolonTeamwork.ReserveSeconds`) lapses. *The same layer
+together*: each tells the job the highest layer it has a block left on (after each search), and the
+job works the highest of its members at work; one whose own is lower (the rest of the layer is out of
+its reach, given up, or held) starts nothing until that layer is done, so the pit's floor stays even.
+What is skipped is shared, what is out of reach is not: a block left for what it is (in a claim its
+owner may not break in, or one that would not break) is left by the whole job (`MineJobCells.Skip`),
+but one a member found no way to stays its own, since another may reach it, and the report counts
+what any gave up (`MineJobCells.Unreachable`). *Waiting at the rim*: one with no square free to walk to
+or strike (all held by others or under a member at work) or a layer above still worked frees its
+square and walks to a place on the area's rim (`EidolonTeamwork.Rim`: its box two columns clear of the
+area first, the miners' stands being at most one, then one and none; the nearest with ground under it,
+none within 2.5 blocks of another eidolon or of where another waits), out of the pit and out of the
+way, and every second looks again, taking the next square that comes free. *Footing*: no miner breaks
+a block under any eidolon's box at or below its feet (`EidolonMining.Undermines`), its job's or not,
+with an order or not, asked at the strike for each block of the group against the eidolons loaded within
+8 blocks of it (a block so left is struck once the eidolon has moved), and its next group is chosen from
+blocks under no one; a square under a member at work is passed over for now. *The report*: a member
+with nothing left it may break and reach tells the job and waits at the rim; the job is done when every
+member at work has nothing left (one interrupted, dry say, does not hold it up, and one that left does
+not count), and the last to finish tells the owner once: how many eidolons, all they mined, each one's
+share (`eidolon-mine-share`, "40 by eidolon 1234", by entity id as `/sh eidolon` names one, most first;
+those that left the job included), what was left and what was out of reach; alone, the message is the
+one above. Then each walks back to where it was ordered. *Restarts*: each saves its own order (area and
+home) and the ids of the others in its job (`mates`), and once told the job is done, `done`, so after a
+restart it goes on back rather than mining again. On load the eidolons of a job find each other by
+their key and form it again; a job waits for the mates its members saved, up to 2 minutes
+(`EidolonTeamwork.ExpectSeconds`, the chunk holds' restore time), so it does not report while they are
+still loading, and one loading after that joins it as any late one does, or makes a new job if it was
+reported. Reservations are not saved, and the shares after a restart count from then. Chunks, oil and
+the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` and
+`tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit, never holding the
+same square, a layer at a time, one report with both shares, each back to its place; an eidolon with no
+order standing in the area never mined out from under; one ordered later joining the job running; one
+with no square free waiting at the rim).
 
 **The crew** (#679; `Eidolon/Game/CrewOrder.cs`, rules in `Eidolon/Core/EidolonCrew.cs`). *Fell and
 haul* (wheel place 70) marks a fell area (at most 32 blocks a side), then a rosser or bucking mill, as

@@ -15,7 +15,9 @@ public enum MineRule
     /// <summary>A liquid touches one of its six faces: left, so the pit never opens onto it.</summary>
     LiquidBeside,
 
-    /// <summary>It has a block entity (a chest, a machine): left.</summary>
+    /// <summary>It has a block entity that is a player's thing (a chest, a machine:
+    /// <see cref="EidolonMining.LeavesBlockEntity"/>): left. Natural ground with one (Desire Paths' worn
+    /// soil) is mined.</summary>
     BlockEntity,
 
     /// <summary>In a land claim its owner may not break in: left.</summary>
@@ -27,7 +29,8 @@ public enum MineRule
 }
 
 /// <summary>What the mine order reads of one block: whether it is air or a liquid, whether a liquid
-/// touches it, has a block entity, its owner may break there, the tier it needs and whether a pickaxe
+/// touches it, has a block entity it leaves (<see cref="EidolonMining.LeavesBlockEntity"/>: a
+/// player's thing, not natural ground that happens to have one), its owner may break there, the tier it needs and whether a pickaxe
 /// breaks it at all (the game refuses a block that needs a tier when the pick has no speed for its
 /// material).</summary>
 public readonly record struct MineBlock(bool Air, bool Liquid, bool LiquidBeside, bool HasBlockEntity, bool MayBreak,
@@ -48,6 +51,17 @@ public sealed record MineScan(int? Layer, IReadOnlySet<MarkPos> Left, IReadOnlyL
 {
     /// <summary>Whether the area is done: no block left it may break, and none of it unloaded.</summary>
     public bool Done => Layer == null && Unloaded.Count == 0;
+}
+
+/// <summary>What the miners of one shared job share (README "Eidolon", working together): the cells
+/// every member leaves for the order's life for what they are (a land claim its owner may not break in,
+/// a block that would not break), and the cells some member gave up for want of a way to them, for the
+/// report. A cell one member cannot reach another may, so each keeps its own unreachable cells for its
+/// search; only the report reads them all here.</summary>
+public sealed class MineJobCells
+{
+    public HashSet<MarkPos> Skip { get; } = new();
+    public HashSet<MarkPos> Unreachable { get; } = new();
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>
@@ -133,6 +147,19 @@ public static class EidolonMining
     /// has a speed for its material.</summary>
     public static bool PickBreaks(int requiredTier, bool pickHasSpeed) => requiredTier <= 0 || pickHasSpeed;
 
+    /// <summary>The block materials of natural ground: a block of one of these with a block entity
+    /// (Desire Paths' worn soil, <c>desirepaths:soilpath-*</c>) is still ground, and mined, unless it
+    /// holds an inventory or is a device.</summary>
+    public static readonly IReadOnlySet<string> NaturalMaterials =
+        new HashSet<string> { "Soil", "Gravel", "Sand", "Stone", "Ore", "Plant", "Leaves" };
+
+    /// <summary>Whether a block with a block entity is one it leaves: anything holding an inventory
+    /// (a chest, a crate, a barrel), a device (a mechanical power part), or of any material but natural
+    /// ground's (<see cref="NaturalMaterials"/>, <paramref name="material"/> the game's
+    /// <c>EnumBlockMaterial</c> by name: a wooden machine, a placed tool rack).</summary>
+    public static bool LeavesBlockEntity(string material, bool holdsInventory, bool device) =>
+        holdsInventory || device || !NaturalMaterials.Contains(material);
+
     // ---- how long ----
 
     /// <summary>
@@ -183,6 +210,18 @@ public static class EidolonMining
         var f = Footprint(x, z);
         return cell.X >= f.MinX && cell.X <= f.MaxX && cell.Z >= f.MinZ && cell.Z <= f.MaxZ;
     }
+
+    /// <summary>Whether breaking a cell would undermine an eidolon standing centred at (<paramref name="x"/>,
+    /// <paramref name="z"/>), its feet in block <paramref name="feet"/>: the cell is in a column its box
+    /// stands over, at or below its feet. A miner never breaks such a cell under any eidolon, its own job's
+    /// or not, working or not (README "Eidolon", working together); under itself, it never breaks one at
+    /// any height (<see cref="InReach"/>).</summary>
+    public static bool Undermines(double x, int feet, double z, MarkPos cell) => cell.Y <= feet && UnderFoot(x, z, cell);
+
+    /// <summary>Whether breaking a cell would undermine any of <paramref name="eidolons"/> (each where it
+    /// stands and its feet' block: <see cref="Undermines(double, int, double, MarkPos)"/>).</summary>
+    public static bool Undermines(IEnumerable<(double X, int Feet, double Z)> eidolons, MarkPos cell) =>
+        eidolons.Any(e => Undermines(e.X, e.Feet, e.Z, cell));
 
     /// <summary>Whether it reaches a cell standing centred at (<paramref name="x"/>, <paramref name="z"/>),
     /// its feet in block <paramref name="feet"/>: within <see cref="Reach"/> of its box sideways, from
@@ -285,7 +324,9 @@ public static class EidolonMining
     /// <paramref name="rule"/> says it mines (<see cref="MineRule.Mine"/>) and not <paramref name="skip"/>ped,
     /// and that layer's such cells and the next one's down (for upright strikes). Only in the block
     /// columns <paramref name="loaded"/>: a column not loaded reads as air, so it is not searched but
-    /// listed, unfinished until it loads.
+    /// listed, unfinished until it loads. A block of the area it leaves (any rule but mine and air, or
+    /// skipped) holds up what is under it: the blocks below it in its column, down to the first air, are
+    /// left too, so nothing it leaves is left floating, nor walls the pit off with blocks hanging in it.
     /// </summary>
     public static MineScan Scan(MarkArea area, Func<int, int, bool> loaded, Func<MarkPos, MineRule> rule, Func<MarkPos, bool> skip)
     {
@@ -295,13 +336,23 @@ public static class EidolonMining
         for (int z = area.Min.Z; z <= area.Max.Z; z++)
             (loaded(x, z) ? columns : unloaded).Add((x, z));
         var left = new HashSet<MarkPos>();
+        var held = new HashSet<(int X, int Z)>();
         int? layer = null;
         for (int y = area.Max.Y; y >= Math.Max(BottomY, area.Min.Y) && (layer == null || y >= layer - 1); y--)
         foreach (var (x, z) in columns)
         {
             var cell = new MarkPos(x, y, z);
-            if (skip(cell) || rule(cell) != MineRule.Mine)
+            var what = rule(cell);
+            if (what == MineRule.Air)
+            {
+                held.Remove((x, z));
                 continue;
+            }
+            if (held.Contains((x, z)) || skip(cell) || what != MineRule.Mine)
+            {
+                held.Add((x, z));
+                continue;
+            }
             layer ??= y;
             left.Add(cell);
         }

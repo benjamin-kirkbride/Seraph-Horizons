@@ -13,7 +13,8 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons/Eidolon, mining a marked area with the pack's default settings, ordered with
 /// the command tool as a player orders it. A pit two layers deep in granite: it quarries it top down
 /// (no block broken while one two layers higher is left), never under its own box, the stone's drops
-/// lying in the world, half a point of oil a strike; a block touching water and a chest are left; done,
+/// lying in the world, half a point of oil a strike; a block touching water and a chest are left, and the
+/// block under the chest; done,
 /// it walks back up a terrace to where it was ordered. A pit three deep with no ramp: it climbs out two
 /// blocks up onto a shelf and walks back. On a floor of its own in the sky
 /// (<see cref="Felling.Sky"/>).
@@ -125,7 +126,8 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         for (int y = area.Min.Y; y <= area.Max.Y; y++)
         for (int z = area.Min.Z; z <= area.Max.Z; z++)
             cells.Add(new BlockPos(x, y, z));
-        var kept = new[] { wet, chest };
+        // the chest, and the block under it, which holds it up
+        var kept = new[] { wet, chest, chest.DownCopy() };
         var toMine = cells.Where(c => !kept.Contains(c)).ToList();
 
         var (player, tool) = await Commander("eidolonminer", site.AddCopy(0, 0, -12));
@@ -242,6 +244,74 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(climbed, "it never climbed");
         Assert.True(e.Pos.XYZ.HorizontalSquareDistanceTo(ordered) <= 2.5 * 2.5, $"at {e.Pos.XYZ}, ordered at {ordered}");
         Assert.Equal(ordered.Y, e.Pos.Y, 0.6);
+        e.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 480_000)]
+    public async Task It_mines_worn_paths_and_the_middle_of_a_wide_area_and_leaves_a_chest_on_what_holds_it_up()
+    {
+        var site = await Felling.Sky(World, World.Spawn.AddCopy(-520, 90, 1900), reach: 16);
+        var blocks = W.BlockAccessor;
+        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        int soil = W.GetBlock(new AssetLocation("game:soil-medium-normal"))!.Id;
+        var path = W.GetBlock(new AssetLocation("desirepaths:soilpath-low-5"));
+        Assert.NotNull(path);
+        Assert.NotNull(path!.EntityClass);
+        // Soil two blocks deep on granite, a terrace a block lower to the north (z -9 to -7).
+        for (int x = -13; x <= 13; x++)
+        for (int z = -14; z <= 13; z++)
+        {
+            blocks.SetBlock(granite, site.AddCopy(x, -3, z));
+            blocks.SetBlock(soil, site.AddCopy(x, -2, z));
+            blocks.SetBlock(z is >= -9 and <= -7 ? 0 : soil, site.AddCopy(x, -1, z));
+        }
+        // 10 × 10 and two deep: its middle is out of reach from the rim.
+        var a = site.AddCopy(-5, -2, -5);
+        var b = site.AddCopy(4, -1, 4);
+        var area = MarkArea.Between(new MarkPos(a.X, a.Y, a.Z), new MarkPos(b.X, b.Y, b.Z));
+        // A worn path across the top layer (Desire Paths' soil, with a block entity), a chest in a corner.
+        for (int x = -5; x <= 4; x++)
+            blocks.SetBlock(path.Id, site.AddCopy(x, -1, 0));
+        var chest = site.AddCopy(-5, -1, -5);
+        World.SetBlock("game:chest-east", chest);
+        await World.Ticks(5);
+        Assert.NotNull(blocks.GetBlockEntity(site.AddCopy(0, -1, 0)));
+        Assert.NotNull(blocks.GetBlockEntity(chest));
+        var underChest = chest.DownCopy();
+        var cells = new List<BlockPos>();
+        for (int x = area.Min.X; x <= area.Max.X; x++)
+        for (int y = area.Min.Y; y <= area.Max.Y; y++)
+        for (int z = area.Min.Z; z <= area.Max.Z; z++)
+            cells.Add(new BlockPos(x, y, z));
+        var kept = new[] { chest, underChest };
+        var toMine = cells.Where(c => !kept.Contains(c)).ToList();
+
+        var p = await World.JoinPlayer("eidolonpathminer");
+        var player = (IServerPlayer)p.Player;
+        player.WorldData.CurrentGameMode = EnumGameMode.Creative;
+        await p.TeleportTo(site.AddCopy(0, 0, -13));
+        var tool = player.InventoryManager.ActiveHotbarSlot;
+        tool.Itemstack = new ItemStack(W.GetItem(new AssetLocation(EidolonCommanderSystem.CommanderCode)));
+        tool.MarkDirty();
+        var e = await Spawn(site.AddCopy(0, 0, -12), player);
+        OrderMine(player, tool, e, a, b);
+        var order = Assert.IsType<MineOrder>(e.Orders!.Current);
+        int ticks = 0;
+        await World.Until(() =>
+        {
+            if (++ticks % 300 == 0)
+                Log($"{order.Mined} mined, at {e.Pos.XYZ}: " + State(e));
+            return e.Orders.OrderCode == null;
+        }, 15000);
+        Log($"after: {order.Mined} mined, {order.Unreachable} out of reach; report: {order.Reported}; standing: "
+            + string.Join(" ", toMine.Where(c => blocks.GetBlock(c).Id != 0).Select(c => $"({c.X - site.X},{c.Y - site.Y},{c.Z - site.Z})")));
+        Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
+        Assert.NotNull(blocks.GetBlockEntity(chest));
+        Assert.Equal(soil, blocks.GetBlock(underChest).Id);
+        Assert.Equal(toMine.Count, order.Mined);
+        Assert.Equal(0, order.Unreachable);
+        // the chest and the soil holding it up left, nothing out of reach
+        Assert.Contains("2 left as they were, 0 out of its reach", order.Reported);
         e.Die(EnumDespawnReason.Removed);
     }
 
