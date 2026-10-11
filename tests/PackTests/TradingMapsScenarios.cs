@@ -444,7 +444,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(row.Pity);
         Assert.Equal(offer.Cell.ToString(), row.Cell);
         Assert.Equal(10, row.Price);
-        Assert.Equal("trading-window-lead-offer-pity", Mod.Trading.Window.Core.TradeWindowModel.LeadOfferLine(row).Key);
+        Assert.Contains("trading-window-offer-firstmap", Mod.Trading.Window.Core.TradeWindowModel.CampLeadRow(row).Details.Select(d => ((Mod.Trading.Window.Core.Text)d).Key));
 
         int gears = InventoryTrader.GetPlayerAssets(buyer.Entity);
         Assert.True(BuyLead(buyer, store, offer).Ok);
@@ -545,7 +545,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(CampLeadsWhy.None, view.Why);
         // Its line says how far in km, and no ring.
         var row = Assert.Single(WindowSystem.BuildState(buyer, store).LeadOffers);
-        string line = Mod.Trading.Window.Core.TradeWindowModel.LeadOfferLine(row).ToString();
+        string line = Mod.Trading.Window.Core.TradeWindowModel.CampLeadRow(row).ToString();
         output.WriteLine(line);
         Assert.Contains("map-distance-", line);
         Close(store);
