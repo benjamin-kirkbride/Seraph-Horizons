@@ -6,6 +6,7 @@ using SeraphHorizons.Mod.EidolonGantry.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
+using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.GameContent;
@@ -424,6 +425,42 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         e.Die(EnumDespawnReason.Removed);
         await World.Until(() => !BodyOf(gantry2).HoldsEidolon, 400);
         Assert.False(BodyOf(gantry2).Parts.Started);
+        W.BlockAccessor.GetBlock(origin).OnBlockBroken(W, origin, player);
+    }
+
+    // A docked body saved when the bones took 10 support beams (before #831 raised them to 30) loads short
+    // of the eidolon it holds: its bones part fitted. The crank, before the gantry's own check has seen
+    // the eidolon, wakes it in its whole build and gives back nothing; the gantry's body is not stripped.
+    [AtlasScenario(TimeoutMs = 240_000)]
+    public async Task A_docked_body_saved_under_an_older_bill_wakes_without_dropping_its_layers()
+    {
+        var (origin, player) = await Floor(-640, 760, "dockrestorer");
+        var gantry = await Gantry(origin);
+        var e = await Woken(gantry, player, EidolonBuild.OldBuild, west: 1.5);
+        Assert.True(e.Dock!.Begin(gantry, null));
+        await Docked(e, 400);
+        AssertHung(e, gantry);
+
+        var tree = new TreeAttribute();
+        gantry.ToTreeAttributes(tree);
+        ((ITreeAttribute)tree["eidolonBody"]).SetInt("bones/game:supportbeam-oak", 10);
+        gantry.FromTreeAttributes(tree, W);
+        Assert.Equal("bones", BodyOf(gantry).Parts.Next); // short
+        Assert.Equal(EidolonBuild.OldBuild, e.Build);
+
+        foreach (var drop in W.GetEntitiesAround(origin.ToVec3d(), 12, 8, x => x is EntityItem))
+            drop.Die(EnumDespawnReason.Removed);
+        Empty(player);
+        Assert.Null(ClickGantry(player, Crank(gantry), null));
+        await World.Ticks(5);
+        Assert.Equal(DockPhase.None, e.Dock!.Phase);
+        Assert.False(BodyOf(gantry).HoldsEidolon);
+        Assert.Equal(EidolonBuild.OldBuild, e.Build);
+        var dropped = W.GetEntitiesAround(origin.ToVec3d(), 12, 8, x => x is EntityItem).OfType<EntityItem>()
+            .Select(i => $"{i.Itemstack.StackSize} {i.Itemstack.Collectible.Code}").ToList();
+        Assert.True(dropped.Count == 0, "dropped: " + string.Join(", ", dropped));
+
+        e.Die(EnumDespawnReason.Removed);
         W.BlockAccessor.GetBlock(origin).OnBlockBroken(W, origin, player);
     }
 }
