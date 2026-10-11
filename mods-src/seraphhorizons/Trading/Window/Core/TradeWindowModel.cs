@@ -285,10 +285,11 @@ public static class TradeWindowModel
     }
 
     /// <summary>An ore map offer (#692) as a row: the ores named (or the metal, for an offer shelved
-    /// before maps named the ore), then its size class, grades, host rock (<paramref name="rockName"/>,
-    /// the rock's name as the game side reads it), distance and precision.</summary>
+    /// before maps named the ore), marked when the deposit is under water, then its size class, grades,
+    /// host rock (<paramref name="rockName"/>, the rock's name as the game side reads it), distance and
+    /// precision.</summary>
     public static OfferRow OreMapRow(string metal, IReadOnlyList<string> ores, string? sizeClass, string? grades, object? rockName,
-        double distance, int precision, int price, MapOfferStatus status)
+        double distance, int precision, int price, MapOfferStatus status, bool underwater = false)
     {
         var details = new List<object> { sizeClass is null ? new Text("trading-window-map-unsurveyed") : new Text("ore-size-" + sizeClass) };
         if (ores.Count > 0)
@@ -298,7 +299,8 @@ public static class TradeWindowModel
         }
         details.Add(Distance(distance));
         details.Add(new Text("trading-window-offer-precision", MapTierName(precision), MapPrecision.ReachOf(precision)));
-        return new OfferRow(OfferGroup.OreMaps, OreTitle(metal, ores), details, price, status);
+        var title = OreTitle(metal, ores);
+        return new OfferRow(OfferGroup.OreMaps, underwater ? new Text("trading-window-offer-underwater", title) : title, details, price, status);
     }
 
     private static Text OreTitle(string? metal, IReadOnlyList<string> ores) => ores.Count > 0

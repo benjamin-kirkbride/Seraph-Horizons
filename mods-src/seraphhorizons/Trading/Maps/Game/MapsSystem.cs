@@ -219,12 +219,12 @@ public class MapsSystem : ModSystem
     }
 
     /// <summary>An ore map's price before standing (<see cref="MapPriceTable.OrePrice"/>), from the
-    /// metal's size range (<c>config/ore-sizes.json</c>) and its ingot's item value; null, with a
-    /// warning once per metal, when either is missing.</summary>
-    private int? OrePrice(string metal, string? sizeClass, int precision)
+    /// metal's size range (<c>config/ore-sizes.json</c>) and its ingot's item value, cut for a
+    /// deposit under water; null, with a warning once per metal, when either is missing.</summary>
+    private int? OrePrice(string metal, string? sizeClass, int precision, bool underwater = false)
     {
         int? price = Prices.OrePrice(metal, sizeClass, precision, Deposits?.TargetsFor(metal),
-            ItemValuesSystem.For(_sapi!).ValueOf(MapPriceTable.IngotCode(metal)));
+            ItemValuesSystem.For(_sapi!).ValueOf(MapPriceTable.IngotCode(metal)), underwater);
         if (price is null && _unpriced.Add(metal))
             _sapi!.Logger.Warning("[seraphhorizons] Trader maps: no price for {0} ore maps (no size range in ore-sizes.json, or no value for {1}); not offered",
                 metal, MapPriceTable.IngotCode(metal));
@@ -271,7 +271,8 @@ public class MapsSystem : ModSystem
     /// (<paramref name="urgent"/>: a player is trading). None when the metal has no price.</summary>
     private TradeEntry? OreEntry(DepositCandidate c, bool urgent)
     {
-        if (OrePrice(c.Metal, c.Record.Tier?.ToString().ToLowerInvariant(), MapPrecision.Rough) is not { } price) return null;
+        bool underwater = c.Record.Underwater == true;
+        if (OrePrice(c.Metal, c.Record.Tier?.ToString().ToLowerInvariant(), MapPrecision.Rough, underwater) is not { } price) return null;
         if (!c.Surveyed)
         {
             Surveys?.Want(c.Key, urgent);
@@ -287,6 +288,7 @@ public class MapsSystem : ModSystem
         if (makeup.MainOres() is { Count: > 0 } ores) attrs[MapOfferAttrs.Ores] = OreNames.Csv(ores);
         if (makeup.Mix() is { } mix) attrs[MapOfferAttrs.Grades] = mix.Code;
         if (makeup.HostRock() is { } rock) attrs[MapOfferAttrs.Rock] = rock;
+        if (underwater) attrs[MapOfferAttrs.Underwater] = true;
         return Entry(OfferOreCode, attrs, price, 1, false);
     }
 
@@ -393,7 +395,8 @@ public class MapsSystem : ModSystem
                     continue;
                 case MapOfferAttrs.OreMap:
                     a.SetInt(MapOfferAttrs.Precision, maxPrecision);
-                    if (OrePrice(a.GetString(MapOfferAttrs.Metal) ?? "", a.GetString(MapOfferAttrs.SizeTier), maxPrecision) is not { } orePrice)
+                    if (OrePrice(a.GetString(MapOfferAttrs.Metal) ?? "", a.GetString(MapOfferAttrs.SizeTier), maxPrecision,
+                            a.GetBool(MapOfferAttrs.Underwater)) is not { } orePrice)
                     {
                         item.Stock = 0;
                         slot.MarkDirty();

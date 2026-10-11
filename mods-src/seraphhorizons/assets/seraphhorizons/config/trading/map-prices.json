@@ -5,7 +5,7 @@
 // mapsToTraders, a lead to the nearest settlement ground.
 // An ore map's price (Trading/Maps/Core/MapPrices.cs, OrePrice): the ingots in the middle of the
 // deposit's size band × the item value of the metal's ingot (game:ingot-<metal>, config/item-values.json)
-// × share[precision − 1] × scarcity, rounded, at least 1. The size class is the deposit's last
+// × share[precision − 1] × scarcity (× underwater for a deposit under water), rounded, at least 1. The size class is the deposit's last
 // measurement, "unsurveyed" until it has one; the bands are the bottom, middle and top third of the
 // metal's smallIngots..largeIngots (config/ore-sizes.json, DepositSizing), and "unsurveyed" takes the
 // medium band's middle. Always the band's middle, never the measured size.
@@ -19,6 +19,9 @@
 	"share": [0.03, 0.06, 0.10],
 	// Times the price, by metal (1 when not listed): the metals hydrothermal districts hide.
 	"scarcity": {"gold": 3, "silver": 3, "nickel": 3, "titanium": 3, "chromium": 3, "platinum": 3},
+	// Times the price for a deposit under water: more than half of its ore's columns under more than
+	// 2 blocks of water or ice (Ore/Core/DepositWater.cs). Its maps say "underwater".
+	"underwater": 0.1,
 	"gravel": 5,
 	"settlement": 6,
 	// Leads to other trader camps, per buyer (Trading/Maps/Core/CampLeads.cs). Distance is in rings

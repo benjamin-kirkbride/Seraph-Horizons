@@ -1,6 +1,7 @@
 using System.Text;
 using SeraphHorizons.Mod.Ore.Core;
 using Vintagestory.API.Common;
+using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
 
@@ -199,6 +200,7 @@ public sealed class DepositService
         long sx = 0, sy = 0, sz = 0;
         int blocks = 0;
         var perId = new Dictionary<int, long>();
+        var oreColumns = new HashSet<(int X, int Z)>();
         int chunksHigh = _api.WorldManager.MapSizeY / size;
         foreach (var column in columns)
             for (int cy = 0; cy < chunksHigh; cy++)
@@ -213,6 +215,7 @@ public sealed class DepositService
                     total += units[id];
                     blocks++;
                     perId[id] = perId.GetValueOrDefault(id) + 1;
+                    oreColumns.Add((column.X * size + i % size, column.Z * size + i / size % size));
                     sx += column.X * size + i % size;
                     sz += column.Z * size + i / size % size;
                     sy += cy * size + i / (size * size);
@@ -232,13 +235,37 @@ public sealed class DepositService
         int x = blocks > 0 ? (int)(sx / blocks) : spot.X;
         int y = blocks > 0 ? (int)(sy / blocks) : 0;
         int z = blocks > 0 ? (int)(sz / blocks) : spot.Z;
-        Registry.RecordMeasure(key, Math.Round(ingots, 1), tier, x, y, z, _api.World.Calendar.TotalDays, workedOut, makeup);
-        string what = $"{string.Join(" and ", makeup.MainOres())}, {makeup.Mix()?.Code ?? "ungraded"}, in {makeup.HostRock() ?? "?"}";
+        bool underwater = DepositWater.IsUnderwater(oreColumns.Select(c => WaterDepth(c.X, c.Z)).ToList());
+        Registry.RecordMeasure(key, Math.Round(ingots, 1), tier, x, y, z, _api.World.Calendar.TotalDays, workedOut, makeup, underwater);
+        string what = $"{string.Join(" and ", makeup.MainOres())}, {makeup.Mix()?.Code ?? "ungraded"}, in {makeup.HostRock() ?? "?"}"
+            + (underwater ? ", under water" : "");
         _api.Logger.Notification("[seraphhorizons] Deposits: {0} measured: {1} ore blocks, {2:0} ingots, {3} ({4}){5}",
             key, blocks, ingots, tier, what, workedOut ? ", worked out: sold out" : "");
         SeraphHorizons.Mod.Admin.AdminLogs.Ore?.Write("verify", $"{key} at {x},{y},{z}: {blocks} ore blocks, {ingots:0} ingots, {tier} ({what}){(workedOut ? ", worked out: sold out" : "")}");
         return new VerifyResult(VerifyStatus.Measured, Candidate(key), ingots, blocks, tier, workedOut, Makeup: makeup);
     }
+
+    /// <summary>Blocks of water or ice (<see cref="IsWaterOrIce"/>) standing over the terrain of
+    /// column (x, z), from the block over its worldgen height up (the height placer fields use);
+    /// 0 when its chunk is not loaded.</summary>
+    private int WaterDepth(int x, int z)
+    {
+        const int size = OreCells.ChunkSize;
+        if (_api.WorldManager.GetMapChunk(x / size, z / size) is not { WorldGenTerrainHeightMap: { } heights }) return 0;
+        var accessor = _api.World.BlockAccessor;
+        var pos = new BlockPos(x, heights[z % size * size + x % size] + 1, z, 0);
+        int depth = 0;
+        for (; pos.Y < _api.WorldManager.MapSizeY; pos.Y++, depth++)
+            if (!IsWaterOrIce(accessor.GetBlock(pos, BlockLayersAccess.Fluid)) && !IsWaterOrIce(accessor.GetBlock(pos, BlockLayersAccess.Solid)))
+                break;
+        return depth;
+    }
+
+    /// <summary>Water of any kind (fresh, salt, boiling, a river's), or ice (lake and glacier ice), in
+    /// either layer: what a diver or a coffer dam has to get past to reach ground.</summary>
+    private static bool IsWaterOrIce(Block block) =>
+        block.BlockMaterial == EnumBlockMaterial.Ice
+        || (block.IsLiquid() && block.LiquidCode is { } code && code.Contains("water"));
 
     /// <summary>Per block id, what a metal's ore block is (<see cref="OreTally.Parse"/>), null for
     /// any other block.</summary>
