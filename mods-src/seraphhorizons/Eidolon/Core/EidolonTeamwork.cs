@@ -263,6 +263,11 @@ public sealed class JobBoard<TUnit, TShared> where TUnit : notnull where TShared
     public long? Holder(TUnit unit, double now) =>
         _held.TryGetValue(unit, out var h) && !Lapsed(h.Since, now) ? h.Member : null;
 
+    /// <summary>Every unit held at <paramref name="now"/> by a member other than <paramref name="member"/>,
+    /// in any job (where a spare one must not wait).</summary>
+    public IReadOnlyList<TUnit> HeldByOthers(long member, double now) =>
+        _held.Where(e => e.Value.Member != member && !Lapsed(e.Value.Since, now)).Select(e => e.Key).ToList();
+
     /// <summary>Frees reservations that have lapsed (they are never counted after
     /// <see cref="EidolonTeamwork.ReserveSeconds"/> anyway; this only tidies).</summary>
     public void Expire(double now)

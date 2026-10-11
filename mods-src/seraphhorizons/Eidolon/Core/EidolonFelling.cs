@@ -1,5 +1,16 @@
 namespace SeraphHorizons.Mod.Eidolon.Core;
 
+/// <summary>What the fellers of one shared job share (README "Eidolon", working together): the stumps
+/// every member passes over for what they are (a young tree, one in a land claim its owner may not break
+/// in, one that would not fall), and the stumps some member gave up for want of a way to them, for the
+/// report. A tree one member cannot reach another may, so each keeps its own unreachable stumps for its
+/// search; only the report reads them all here.</summary>
+public sealed class FellJobCells
+{
+    public HashSet<MarkPos> Skip { get; } = new();
+    public HashSet<MarkPos> Unreachable { get; } = new();
+}
+
 /// <summary>
 /// The fell order's rules (#677; README "Eidolon", felling), game-independent: which logs are a wild
 /// tree's stump, when a tree is grown enough to fell, where it stands to swing, how long the swing

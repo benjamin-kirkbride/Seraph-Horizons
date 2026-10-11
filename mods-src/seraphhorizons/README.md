@@ -3045,7 +3045,8 @@ not break in (or, its owner unknown to the server, any claimed one). It walks to
 box free and on the ground; three tried by the wide pathfinder before the tree is given up), faces it and
 swings `fell` three times (1.33 s each); the third cut, on frame 15, fells it. A tree it cannot reach is
 given up for the order's life. Done when no grown tree it can reach is left, when it tells its owner how
-many it felled (and how many were out of reach).
+many it felled (and how many were out of reach) and the order ends where it stands. Several given the
+same area fell it as one job, with one report (below).
 
 *Felled as a player's axe fells.* The server raises its `BreakBlock` event only for players, which
 is where Logging Expanded fells, its handler starting from the player's hotbar, and no stand-in player
@@ -3128,8 +3129,8 @@ job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs` and
 middle out of reach from the rim, with a worn Desire Paths path across it all mined and a chest left
 on the soil under it; a dry reservoir).
 
-**Working together** (`Eidolon/Game/EidolonJobSystem.cs`, rules in `Eidolon/Core/EidolonTeamwork.cs`;
-mining so far, felling to follow). Eidolons of one owner given the very same area (the same two corners)
+**Working together** (`Eidolon/Game/EidolonJobSystem.cs`, `RimWait.cs`, rules in
+`Eidolon/Core/EidolonTeamwork.cs`; mining and felling, not the crew order). Eidolons of one owner given the very same area (the same two corners)
 for the same work are one job (`JobKey`: the owner's uid, the order's code, the area), whether the tool
 gave it to them together or one later, which joins the job running; an overlapping area, or another
 owner's eidolons, is a job of its own. A job is the server's (`JobBoard`, one per kind of work), not
@@ -3137,7 +3138,8 @@ saved. *Reservations*: before it walks to a 2 × 2 square or strikes in one, a m
 square's columns, and passes over a square another holds, in its job or any other (reservations are
 the board's, by block column, so jobs over the same place with their squares laid differently do not
 meet either); it holds one square at a time, and frees it at once when it stops working (another
-order, none, dry, slumped, down, a fight, unloaded or gone: the order's `Stop`, and a sweep every
+order, none, dry, slumped, down, a fight, unloaded or gone: the order's `Stop`; or walks off toward
+a part of the area not loaded, or to wait: `Travel`, `Wait`; and a sweep every
 second, `EidolonJobSystem.Sweep`, for an eidolon unloaded, removed or given another order), and a
 reservation not struck within 30 seconds (`EidolonTeamwork.ReserveSeconds`) lapses. *The same layer
 together*: each tells the job the highest layer it has a block left on (after each search), and the
@@ -3151,7 +3153,11 @@ or strike (all held by others or under a member at work) or a layer above still 
 square and walks to a place on the area's rim (`EidolonTeamwork.Rim`: its box two columns clear of the
 area first, the miners' stands being at most one, then one and none; the nearest with ground under it,
 none within 2.5 blocks of another eidolon or of where another waits), out of the pit and out of the
-way, and every second looks again, taking the next square that comes free. *Footing*: no miner breaks
+way, and every second looks again, taking the next square that comes free. One that finds no way to
+the rim (deeper in the pit than it climbs, say) steps aside instead (`RimWait`: the nearest path node
+within 6 whose four columns have no block left it would mine and none another holds, on ground a climb
+or a drop from its feet), says so in its status (`eidolon-status-mine-waiting-aside`) rather than that
+it waits at the edge, and tries the rim again every 10 seconds. *Footing*: no miner breaks
 a block under any eidolon's box at or below its feet (`EidolonMining.Undermines`), its job's or not,
 with an order or not, asked at the strike for each block of the group against the eidolons loaded within
 8 blocks of it (a block so left is struck once the eidolon has moved), and its next group is chosen from
@@ -3173,6 +3179,27 @@ the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamwo
 same square, a layer at a time, one report with both shares, each back to its place; an eidolon with no
 order standing in the area never mined out from under; one ordered later joining the job running; one
 with no square free waiting at the rim).
+
+*Felling together* (`FellOrder`, `EidolonJobSystem.Felling`) works the same way with a tree for the unit:
+a feller reserves the tree it makes for (its stump) before it sets off, again as it comes to swing (a
+reservation may lapse on a long walk), keeps it with each swing and frees it once the tree is down or
+given up; its search passes over the trees another holds (they do not count to the 24 it weighs). A tree
+passed over for what it is (young, in a claim its owner may not break in, or one that would not fall) is
+passed over by the whole job (`FellJobCells.Skip`); one a member found no way to stays its own, and the
+report counts those some member gave up that still stand (`FellJobCells.Unreachable`). One with no tree
+free, while trees are held by others, waits at the rim as a miner does (`RimWait`, looking for ground
+from 8 blocks below the area to 8 above, as stumps are; finding no way there, it steps aside to the
+nearest place more than 4.6 blocks from every tree another holds, `eidolon-status-fell-waiting-aside`),
+searching again every 2 seconds; with nothing
+left, it tells the job, waits at the rim and searches again every 10. There is no level and no footing
+rule. The last to finish tells the owner once: how many eidolons, all they felled, each one's share
+(`eidolon-fell-share`, "3 by eidolon 1234") and, if any, how many were out of their reach (alone, the
+message is the one above); then each one's order ends where it stands, as one alone ends. Without an axe
+a feller is away from its job (its tree freed, the report not held up for it) until it is given one.
+Each saves `mates` as a miner does; no `done`, since its order ends the moment it is told. With `once`
+(the crew order) it joins no job. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` and
+`tests/PackTests/EidolonTeamFellScenarios.cs` (Atlas: two of one owner felling five oaks, never holding
+the same tree, one report with both shares, the job closed; one with no tree free waiting at the rim).
 
 **The crew** (#679; `Eidolon/Game/CrewOrder.cs`, rules in `Eidolon/Core/EidolonCrew.cs`). *Fell and
 haul* (wheel place 70) marks a fell area (at most 32 blocks a side), then a rosser or bucking mill, as

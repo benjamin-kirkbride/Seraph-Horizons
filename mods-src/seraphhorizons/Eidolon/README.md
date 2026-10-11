@@ -16,7 +16,7 @@ and jobs plug into; the body stages and the waking (#672: the gantry's `BEBehavi
 following, staying and self-defence (#675) are built too, and hauling trunks to the rosser and the
 bucking mill (#678), mining a marked area (`Game/MineOrder.cs`, `Core/EidolonMining.cs`, its slam
 the shape's vanilla `stand-slam`), several eidolons working one area as one job (`Game/EidolonJobSystem.cs`,
-`Core/EidolonTeamwork.cs`; mining so far), climbing steps of two (`Core/EidolonClimb.cs`, the `climb` animation)
+`Core/EidolonTeamwork.cs`, `Game/RimWait.cs`; mining and felling), climbing steps of two (`Core/EidolonClimb.cs`, the `climb` animation)
 and keeping its chunks loaded while it works (`Game/EidolonChunkSystem.cs`, `Core/EidolonChunks.cs`).
 The other jobs are not built yet.
 

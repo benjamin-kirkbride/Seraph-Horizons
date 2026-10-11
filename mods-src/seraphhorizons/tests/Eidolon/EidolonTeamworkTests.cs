@@ -219,6 +219,40 @@ public class EidolonTeamworkTests
     }
 
     [Fact]
+    public void FellersReserveStumpsAcrossJobsShareWhatTheyPassOverAndCountTreesEach()
+    {
+        var fell = new JobBoard<MarkPos, FellJobCells>();
+        var a = fell.Join(1, "1", Key(kind: "fell"));
+        Assert.Same(a, fell.Join(2, "2", Key(kind: "fell")));
+        var overlapping = fell.Join(3, "3", Key(kind: "fell", area: MarkArea.Between(new MarkPos(4, 10, 4), new MarkPos(12, 12, 12))));
+        Assert.NotSame(a, overlapping);
+        var oak = new MarkPos(5, 11, 5);
+        Assert.True(fell.TryReserve(1, [oak], 0));
+        // a mate and an eidolon of the job over the overlapping area pass it over
+        Assert.False(fell.TryReserve(2, [oak], 1));
+        Assert.False(fell.TryReserve(3, [oak], 1));
+        Assert.Equal(1L, fell.Holder(oak, 1));
+        // where a spare one must not wait: every tree held by another, in any job
+        Assert.Equal([oak], fell.HeldByOthers(2, 1));
+        Assert.Empty(fell.HeldByOthers(1, 1));
+        Assert.Empty(fell.HeldByOthers(2, 31));
+        // a swing keeps it; felled, it is freed
+        fell.Struck(1, 25);
+        Assert.False(fell.Free(2, oak, 40));
+        fell.Release(1);
+        Assert.True(fell.TryReserve(2, [oak], 41));
+        // a young tree one passes over, all of its job do
+        a.Shared.Skip.Add(new MarkPos(1, 11, 1));
+        Assert.Contains(new MarkPos(1, 11, 1), fell.JobOf(2)!.Shared.Skip);
+        Assert.Empty(overlapping.Shared.Skip);
+        a.Tally(1, 1);
+        a.Tally(2, 1);
+        a.Tally(1, 1);
+        Assert.Equal(3, a.Total);
+        Assert.Equal("2 by eidolon 1, 1 by eidolon 2", EidolonTeamwork.ShareText(a.Shares, "{1} by eidolon {0}"));
+    }
+
+    [Fact]
     public void EqualSharesKeepTheOrderTheyJoinedIn()
     {
         var board = Board();
