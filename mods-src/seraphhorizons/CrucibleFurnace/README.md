@@ -177,14 +177,11 @@ The coloured courses are the cream brick with the colour drawn over it, a partly
 to 1), so the renderer must draw the base with its overlays. A shape names one texture per code, so the shape's own
 `brick` is the red brick's colour layer, `red1`, alone: never what the game should draw.
 
-**In the viewer**, no Brick select: the viewer draws no texture images, only a flat colour per texture code (by the
-material its code or path names), and nothing in a scenario can change a code's texture. The smallest change that
-would give one, without a rig driver: a scenario key `textures`, a list of `{ "label", "code", "default",
-"options": [{ "id", "label", "path", "colour" }] }`, shown as a select that sets the code's path (in the legend and
-the picked element's details) and its colour in the texture colouring; in `site/src/lib/model-scenario.ts` (the type
-and `checkScenario`: the code one of the shape's, the default one of the options), `site/src/lib/model-view.ts` (the
-texture's path and colour from the pick) and `site/src/components/ModelPage.svelte` (the select). The furnace's entry
-would then list the nine types, each with its colour.
+**In the viewer**, a Brick select: the viewer draws no texture images, only a flat colour per texture code, so the
+scenario's `textures` key (docs/recipe-browser/models.md) gives the `brick` code one option per type, each with its
+path (the overlay, else the base) and its colour, the mean of the texture as the game composes it (the overlay over
+`cream1`, from the game's 1.22.7 files): fire `#9b7f5e`, black `#494339`, brown `#6a5740`, cream `#b6aa8e`, gray
+`#5b574c`, orange `#815d41`, red `#754e40`, tan `#7c6547`, clinker `#413329`.
 
 ### No power, no forced air
 
@@ -387,7 +384,10 @@ and the fire** (cold and empty, two pots on their stands, charged with the coke 
 with the coke burnt low, the pots pulled with the fire still lit; it waits for the furnace to be built), **Ash-pit
 damper** (open, half, shut; it waits for the lid stage) and **Outlet** (open, the chimney standing on it, or capped;
 it waits for the lining). The page opens with the furnace built, the lid open, the pots melted, the damper open and
-the outlet open. There is no Brick select ("The brick", above).
+the outlet open. A **Brick** select (a scenario `textures` select for the `brick` code) offers the rig's nine
+`bricks.types`, opening at red: the viewer draws flat colours, so each option is its texture's mean colour (the
+overlay over the cream base, from the game's files), and picking one shows the model in texture colours. A test
+(`site/test/cruciblefurnace.test.ts`) holds the options to the rig's types, their order, paths and default.
 
 ### Editing by hand
 
@@ -429,8 +429,7 @@ copy). No one has looked at it in a client.
 
 ## Open for the owner
 
-Nothing for the model: the build is settled. A follow-up for the viewer: **a Brick select**, which needs the viewer
-change proposed under "The brick" (a scenario `textures` select); left out of this model for now.
+Nothing for the model: the build is settled.
 
 ## Wiring it into the game
 
