@@ -20,10 +20,11 @@ public enum PartingMethod { Cupellation, Liquation, AcidParting }
 /// <summary>The design's ore classes: the path an ore takes.</summary>
 public enum OreClass { Oxide, Sulfide, Native, Placer }
 
-/// <summary>The forms ore takes on the line. Raw ore and chunks hold their grade's units; the rest
-/// hold <see cref="OreRecovery.ConcentrateUnits"/>. A sponge is the gold or silver amalgam leaves in
-/// the still once its mercury is driven off (#726).</summary>
-public enum OreForm { Raw, Chunk, Crushed, Ground, Concentrate, RoastedConcentrate, Sponge }
+/// <summary>The forms ore takes on the line. The rock forms (raw ore, crushed and ground ore, and a
+/// sulfide's roasted rock) hold the raw ore's units, which its grade and ore set, from one form to the
+/// next (#847); the rest hold <see cref="OreRecovery.ConcentrateUnits"/>. A sponge is the gold or
+/// silver amalgam leaves in the still once its mercury is driven off (#726).</summary>
+public enum OreForm { Raw, Crushed, Ground, RoastedRock, Concentrate, RoastedConcentrate, Sponge }
 
 /// <summary>What has been done to the feed reaching a concentrator.</summary>
 /// <param name="FineGrained">Poor ore: fine-grained, it loses heavily unless ground.</param>
@@ -102,6 +103,7 @@ public sealed class OreRecovery
     private readonly Dictionary<string, double> _concentrators;
     private readonly Dictionary<string, double> _roasters;
     private readonly Dictionary<string, double> _smelt;
+    private readonly Dictionary<string, double> _smeltByGrade;
     private readonly Dictionary<string, Dictionary<string, double>> _parting;
     private readonly Dictionary<string, OreSpec> _ores = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<string> _problems = [];
@@ -112,6 +114,7 @@ public sealed class OreRecovery
         _concentrators = new(config.Concentrators ?? new(), StringComparer.OrdinalIgnoreCase);
         _roasters = new(config.Roasters ?? new(), StringComparer.OrdinalIgnoreCase);
         _smelt = new(config.Smelt ?? new(), StringComparer.OrdinalIgnoreCase);
+        _smeltByGrade = new(config.SmeltByGrade ?? new(), StringComparer.OrdinalIgnoreCase);
         _parting = new(StringComparer.OrdinalIgnoreCase);
         foreach (var (method, byTier) in config.Parting ?? new())
             _parting[method] = new(byTier ?? new(), StringComparer.OrdinalIgnoreCase);
@@ -119,7 +122,8 @@ public sealed class OreRecovery
         if (!(config.ConcentrateUnits > 0)) _problems.Add($"concentrateUnits {config.ConcentrateUnits} is not positive");
         foreach (var c in Enum.GetValues<Concentrator>()) CheckShare("concentrators", _concentrators, Key(c));
         foreach (var r in Enum.GetValues<Roaster>()) CheckShare("roasters", _roasters, Key(r));
-        foreach (var f in Enum.GetValues<OreForm>()) CheckShare("smelt", _smelt, Key(f));
+        foreach (var f in Enum.GetValues<OreForm>().Where(f => !IsRock(f))) CheckShare("smelt", _smelt, Key(f));
+        foreach (var grade in OreProducts.Grades) CheckShare("smeltByGrade", _smeltByGrade, grade);
         CheckShare("unclassified", config.Unclassified);
         CheckShare("fineUnground", config.FineUnground);
         CheckShare("freeUnamalgamated", config.FreeUnamalgamated);
@@ -166,7 +170,7 @@ public sealed class OreRecovery
     /// figures read as 0 (a device that recovers nothing), so they show in play too.</summary>
     public IReadOnlyList<string> Problems => _problems;
 
-    /// <summary>Units of metal in one crushed, ground or concentrate item.</summary>
+    /// <summary>Units of metal in one concentrate, roasted concentrate or sponge item.</summary>
     public double ConcentrateUnits => _config.ConcentrateUnits;
 
     /// <summary>The bone-ash cupel's figures (#722).</summary>
@@ -208,14 +212,29 @@ public sealed class OreRecovery
     public double? Parting(PartingMethod method, OreTier tier) =>
         _parting.TryGetValue(Key(method), out var byTier) && byTier.TryGetValue(Key(tier), out var v) ? v : null;
 
-    /// <summary>The share of its units a form gives in a furnace: concentrate 1, crushed ore and
-    /// chunks a half, raw and ground ore nothing (config <c>smelt</c>); sulfide concentrate nothing until
-    /// roasted (#720). Crushed sulfide and sulfide chunks take the half like any other.</summary>
-    public double SmeltShare(OreSpec ore, OreForm form)
+    /// <summary>Whether a form is rock (#847): raw, crushed or ground ore, or roasted rock. A slot of
+    /// rock holds the same rock at any grade, and its grade is how much metal is in it.</summary>
+    public static bool IsRock(OreForm form) => form is OreForm.Raw or OreForm.Crushed or OreForm.Ground or OreForm.RoastedRock;
+
+    /// <summary>The share of its units rock of <paramref name="grade"/> gives in a furnace (config
+    /// <c>smeltByGrade</c>: poor 10 %, medium 25 %, rich 40 %, bountiful 55 %); 0 for no grade.</summary>
+    public double GradeShare(string? grade) => grade != null ? _smeltByGrade.GetValueOrDefault(grade) : 0;
+
+    /// <summary>
+    /// The share of its units a form gives in a furnace (#847). Rock smelts by its grade
+    /// (<see cref="GradeShare"/>), whether raw, crushed or ground: the furnace slags the rock off and
+    /// loses metal with it, so how rich the ore is matters, not how fine. Sulfide rock does not smelt
+    /// until roasted, and roasted rock (a sulfide's raw or crushed ore roasted in the firepit) smelts at
+    /// its grade's share times the firepit's (<see cref="Roasting"/>). Concentrate, roasted concentrate
+    /// and sponge are config <c>smelt</c> (1), a sulfide's concentrate nothing until roasted (#720).
+    /// </summary>
+    public double SmeltShare(OreSpec ore, OreForm form, string? grade = null) => form switch
     {
-        if (ore.IsSulfide && form == OreForm.Concentrate) return 0;
-        return _smelt.GetValueOrDefault(Key(form));
-    }
+        OreForm.Raw or OreForm.Crushed or OreForm.Ground => ore.IsSulfide ? 0 : GradeShare(grade),
+        OreForm.RoastedRock => ore.IsSulfide ? GradeShare(grade) * Roasting(ore, Roaster.Firepit) : 0,
+        OreForm.Concentrate when ore.IsSulfide => 0,
+        _ => _smelt.GetValueOrDefault(Key(form)),
+    };
 
     /// <summary>A whole line's recovery of the main metal, into smeltable concentrate: concentration
     /// times roasting (crushing and grinding lose nothing).</summary>

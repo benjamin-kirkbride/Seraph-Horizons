@@ -1,30 +1,23 @@
 namespace SeraphHorizons.Mod.Ore.Core;
 
 /// <summary>
-/// Spalling's figures (#747): <c>SpallingSettings</c> in ModConfig/seraphhorizons.json. Raw ore and
-/// chunks set down one at a time on the ground are broken with a hammer where they lie, a left-click a
-/// blow, into crushed ore by the 5-unit rule (<see cref="OreProducts.CrushedCount"/>), with no loss.
+/// Spalling's figures (#747): <c>SpallingSettings</c> in ModConfig/seraphhorizons.json. Raw ore set
+/// down one at a time on the ground is broken with a hammer where it lies, a left-click a blow, into
+/// crushed ore of its grade, one for one (#847), with no loss.
 /// </summary>
 public class SpallingConfig
 {
-    /// <summary>Hammer blows a raw ore (poor or medium: a heavy lump) takes.</summary>
+    /// <summary>Hammer blows a raw ore takes, any grade: every grade is the same lump of rock (#847),
+    /// and crystallised ore the same.</summary>
     public int BlowsRawOre { get; set; } = 6;
-
-    /// <summary>Hammer blows a chunk (rich or bountiful, crystallised ore of those grades too) takes.</summary>
-    public int BlowsChunk { get; set; } = 3;
 
     /// <summary>Durability the hammer loses a blow, as a blow on the anvil costs it one.</summary>
     public int HammerWearPerBlow { get; set; } = 1;
 
     public static readonly SpallingConfig Defaults = new();
 
-    /// <summary>Blows an ore item of <paramref name="form"/> takes; 0 for a form that is not spalled.</summary>
-    public int BlowsFor(OreForm? form) => form switch
-    {
-        OreForm.Raw => BlowsRawOre,
-        OreForm.Chunk => BlowsChunk,
-        _ => 0,
-    };
+    /// <summary>Blows an ore item of <paramref name="grade"/> takes; 0 for one that is not spalled.</summary>
+    public int BlowsFor(string? grade) => OreProducts.IsGrade(grade) ? BlowsRawOre : 0;
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
     public IReadOnlyList<string> Sanitise()
@@ -32,8 +25,6 @@ public class SpallingConfig
         var fixes = new List<string>();
         if (BlowsRawOre is < 1 or > 1000)
             Fix(nameof(BlowsRawOre), BlowsRawOre, BlowsRawOre = Defaults.BlowsRawOre, fixes);
-        if (BlowsChunk is < 1 or > 1000)
-            Fix(nameof(BlowsChunk), BlowsChunk, BlowsChunk = Defaults.BlowsChunk, fixes);
         if (HammerWearPerBlow is < 0 or > 1000)
             Fix(nameof(HammerWearPerBlow), HammerWearPerBlow, HammerWearPerBlow = Defaults.HammerWearPerBlow, fixes);
         return fixes;
@@ -51,9 +42,9 @@ public static class Spalling
     public const int BlowIntervalMs = 300;
 
     /// <summary>Whether an ore item code's first part and grade make it spallable: vanilla's graded
-    /// <c>ore</c> and <c>crystalizedore</c> items of a grade with a form.</summary>
+    /// <c>ore</c> and <c>crystalizedore</c> items of a grade.</summary>
     public static bool Spalls(string? firstPart, string? grade) =>
-        firstPart is "ore" or "crystalizedore" && OreProducts.FormOfGrade(grade) != null;
+        firstPart is "ore" or "crystalizedore" && OreProducts.IsGrade(grade);
 
     /// <summary>
     /// One blow on an ore with <paramref name="before"/> blows struck: the blows after it, and whether

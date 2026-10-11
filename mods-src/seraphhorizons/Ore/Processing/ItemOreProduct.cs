@@ -6,11 +6,13 @@ using Vintagestory.API.Config;
 namespace SeraphHorizons.Mod.Ore.Processing;
 
 /// <summary>
-/// Ore processing's own items (#686): crushed ore (<c>game:crushed-{ore}-{grain}</c>), ground ore,
-/// concentrate, roasted concentrate, amalgam (<c>seraphhorizons:{form}-{ore}</c>) and litharge. The
-/// form is the item type's <c>oreForm</c> attribute; the name is the form's with the ore's
-/// (vanilla's <c>ore-{ore}</c>), and the text says the metal it holds (<c>metalUnits</c>) and what
-/// the form is for. Smelting is set on the server by <see cref="OreProcessingSystem"/>.
+/// Ore processing's own items (#686, #847): the rock forms by ore and grade, crushed ore, ground ore
+/// and roasted rock (<c>seraphhorizons:{crushedore,groundore,roastedore}-{ore}-{grade}</c>), and
+/// concentrate, roasted concentrate, amalgam, sponge (<c>seraphhorizons:{form}-{ore}</c>) and
+/// litharge. The form is the item type's <c>oreForm</c> attribute; the name is the form's with the
+/// ore's (vanilla's <c>ore-{ore}</c>) and a rock form's grade, and the text says the metal it holds
+/// (<c>metalUnits</c>) and what the form is for. Smelting is set on the server by
+/// <see cref="OreProcessingSystem"/>.
 ///
 /// A sulfide's concentrate cooks in the firepit into its roasted concentrate (#720): its smelting
 /// points there, and <see cref="DoSmelt"/> gives the firepit's share of it (<see cref="RoastShare"/>),
@@ -78,8 +80,9 @@ public class ItemOreProduct : Item
             return base.GetHeldItemName(itemStack);
         if (Ore is not { } ore)
             return Lang.Get("seraphhorizons:oreproduct-" + form);
-        string key = form == "crushed" ? $"seraphhorizons:oreproduct-crushed-{Variant["grain"]}" : "seraphhorizons:oreproduct-" + form;
-        return Lang.Get(key, Lang.Get("ore-" + ore));
+        return Variant["grade"] is { } grade
+            ? Lang.Get("seraphhorizons:oreproduct-" + form, Lang.Get("ore-" + ore), Lang.Get("seraphhorizons:oreprocessing-grade-" + grade))
+            : Lang.Get("seraphhorizons:oreproduct-" + form, Lang.Get("ore-" + ore));
     }
 
     /// <summary>Litharge out of a broken cupel (<see cref="BlockCupelBead"/>): as many as the cupel
@@ -100,11 +103,33 @@ public class ItemOreProduct : Item
         if (units > 0 && Metal is { } metal)
             dsc.AppendLine(Lang.Get("seraphhorizons:oreproduct-units", units.ToString("0.#"), Lang.Get("material-" + metal)));
         string form = Form;
+        if (form is "crushed" or "ground" or "roastedrock")
+        {
+            dsc.AppendLine(SmeltText(this, "seraphhorizons:oreproduct-" + form));
+            return;
+        }
         // A sulfide's concentrate does not smelt: it roasts in the firepit into roasted concentrate
         // (the server sets it).
         if (form == "concentrate" && CombustibleProps?.SmeltedStack?.Code?.Path.StartsWith("roastedconcentrate-") == true)
             form = "concentrate-sulfide";
         if (form.Length > 0)
             dsc.AppendLine(Lang.Get("seraphhorizons:oreproduct-" + form + "-info"));
+    }
+
+    /// <summary>
+    /// What a rock form's smelting (as the server set it) does, under <paramref name="key"/>: a share
+    /// of its metal (<c>{key}-info</c>, the share in per cent), a sulfide's roast first
+    /// (<c>{key}-roasts-info</c>), or nothing (<c>{key}-nosmelt-info</c>, a sulfide's ground ore).
+    /// </summary>
+    public static string SmeltText(CollectibleObject item, string key)
+    {
+        var props = item.CombustibleProps;
+        if (props?.SmeltedStack == null)
+            return Lang.Get(key + "-nosmelt-info");
+        if (!props.RequiresContainer)
+            return Lang.Get(key + "-roasts-info");
+        double units = UnitsOf(item);
+        double share = units > 0 ? 100.0 * props.SmeltedStack.StackSize / props.SmeltedRatio / units : 0;
+        return Lang.Get(key + "-info", (share * 100).ToString("0.#"));
     }
 }

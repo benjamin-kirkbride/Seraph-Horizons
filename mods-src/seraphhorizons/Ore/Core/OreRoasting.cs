@@ -5,7 +5,9 @@ namespace SeraphHorizons.Mod.Ore.Core;
 /// concentrate cooks in the game's firepit, on any fuel, into roasted concentrate at the firepit's
 /// share (<see cref="OreRecovery.Roasting"/> with <see cref="Roaster.Firepit"/>, 85 %), the fraction
 /// carried over from one item to the next (<see cref="UnitCarry"/>), so a run of 20 concentrate
-/// gives exactly 17. No sulfur: open roasting lost it to the air.
+/// gives exactly 17. A sulfide's raw and crushed ore roast there too (#847), one for one into roasted
+/// rock of the same grade, which keeps the units and smelts at its grade's share times the firepit's
+/// (<see cref="OreRecovery.SmeltShare"/>). No sulfur: open roasting lost it to the air.
 ///
 /// The firepit cooks one item at a time: the whole stack in its input slot heats together, and
 /// once it is at <see cref="MeltingPoint"/>, one item turns every cook time (the game's
@@ -26,6 +28,14 @@ public static class OreRoasting
     /// not a number.</summary>
     public static float Seconds(double configured) =>
         (float)(configured > 0 && double.IsFinite(configured) ? configured : DefaultSeconds);
+
+    /// <summary>
+    /// Seconds of cooking a rock item of <paramref name="units"/> takes (#847): the cook time is per
+    /// concentrate item's units (<paramref name="concentrateUnits"/>, 5), so a 20-unit raw ore takes
+    /// four concentrates' time. Never under one concentrate's.
+    /// </summary>
+    public static float RockSeconds(float seconds, double units, double concentrateUnits) =>
+        concentrateUnits > 0 && units > concentrateUnits ? (float)(seconds * units / concentrateUnits) : seconds;
 
     /// <summary>
     /// Roasts one concentrate item of <paramref name="unitsIn"/> at <paramref name="share"/>: the

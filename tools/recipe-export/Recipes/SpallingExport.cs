@@ -17,10 +17,10 @@ public sealed class SpallingData
 }
 
 /// <summary>
-/// Spalling (seraphhorizons, Ore/Processing/OreSpalling.cs, #747): raw ore and chunks set down on the
-/// ground and broken with a hammer into crushed ore. Read from the loaded items (vanilla's graded ore
-/// and crystallised ore with the pack's class, <c>ItemGradedOre</c>, and their crushing, set with ore
-/// processing on) and the gameplay's SpallingSettings (BlowsRawOre, BlowsChunk, HammerWearPerBlow),
+/// Spalling (seraphhorizons, Ore/Processing/OreSpalling.cs, #747): raw ore set down on the ground and
+/// broken with a hammer into crushed ore of its grade, one for one (#847). Read from the loaded items
+/// (vanilla's graded ore and crystallised ore with the pack's class, <c>ItemGradedOre</c>, and their
+/// crushing, set with ore processing on) and the gameplay's SpallingSettings (BlowsRawOre, HammerWearPerBlow),
 /// read live from the server's config. Null when the mod is not loaded or OreProcessing is off.
 /// </summary>
 public static class SpallingExport
@@ -31,17 +31,13 @@ public static class SpallingExport
     private static int Int(object? o, string name, int fallback) =>
         GearChain.Prop(o, name) is { } v ? Convert.ToInt32(v) : fallback;
 
-    /// <summary>The form of a grade: raw ore (poor, medium) or chunk (rich, bountiful), as
-    /// OreProducts.FormOfGrade.</summary>
-    public static bool IsRaw(string grade) => grade is "poor" or "medium";
-
     public static SpallingData? Read(ICoreServerAPI api)
     {
         if (GearChain.System(api, GearChain.MainSystem) is not { } mainSystem) return null;
         var config = mainSystem.GetType().GetMethod("ConfigFor")?.Invoke(null, new object[] { api });
         if (GearChain.Prop(config, "OreProcessing") is not true) return null;
         var settings = GearChain.Prop(config, "SpallingSettings");
-        int raw = Int(settings, "BlowsRawOre", 6), chunk = Int(settings, "BlowsChunk", 3);
+        int blows = Int(settings, "BlowsRawOre", 6);
 
         var data = new SpallingData { Mod = GearChain.Mod, HammerWearPerBlow = Math.Max(0, Int(settings, "HammerWearPerBlow", 1)) };
         data.Hammers = api.World.Items
@@ -58,7 +54,6 @@ public static class SpallingExport
             string pattern = $"game:{parts[0]}-{parts[1]}-{parts[2]}-*";
             if (!classes.TryGetValue(pattern, out var k))
             {
-                int blows = IsRaw(parts[1]) ? raw : chunk;
                 if (blows < 1) continue;
                 classes[pattern] = k = new SpallClass(pattern, parts[0], parts[1], parts[2], new List<Item>(), crushed, stack.StackSize, blows);
             }

@@ -11,11 +11,12 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// <c>HopperIronOreRequired</c> (12) of them, a piece of crushed iron ore <c>HopperNuggetRequired</c>
 /// (12), a batch is their product (144), and a batch melts to <c>BfIronPerMeltCycle</c> (102) units
 /// of iron, so smex's crushed iron and a nugget are each worth 8.5 units. With ore processing a nugget
-/// and a concentrate hold 5 units and crushed ore 2.5 (its half), so the live settings become 40, 20
-/// and 100 (a batch is 20 nuggets or concentrates, or 40 crushed, for 100 units), and the furnace
-/// takes our iron ore forms in smex's own lists (<c>IronOreCompat</c>): the iron ores' concentrate and
-/// pyrite's roasted concentrate as nuggets, their crushed ore as crushed. smex's own crushed iron
-/// stays in its list, now at 2.5. The settings are set live, not written to smex's file (as
+/// and a concentrate hold 5 units, so the live settings become 40, 20 and 100 (a batch is 20 nuggets
+/// or concentrates for 100 units, or 40 of smex's crushed iron at 2.5), and the furnace takes the iron
+/// ores' concentrate and pyrite's roasted concentrate as nuggets in smex's own list
+/// (<c>IronOreCompat</c>). Not our crushed ore: rock smelts by its grade (#847), 2 to 22 units an
+/// item, which smex's one figure per list cannot count, so the blast furnace takes concentrate. smex's
+/// own crushed iron stays in its list, now at 2.5. The settings are set live, not written to smex's file (as
 /// <see cref="SteelBits.SmexScrap"/> does); exlib sends the server's live settings to clients.
 /// smex is not referenced: its members are found by name, and if one is missing nothing is done.
 /// </summary>
@@ -44,10 +45,6 @@ public static class SmexBurden
         OreProducts.Ores.Where(OreProcessingSystem.IsIron)
             .Select(ore => IronSulfides.Contains(ore) ? "roastedconcentrate-" + ore : "concentrate-" + ore);
 
-    /// <summary>The item paths smex counts as crushed iron ore (2.5 units).</summary>
-    public static IEnumerable<string> CrushedPaths =>
-        OreProducts.Ores.Where(OreProcessingSystem.IsIron).SelectMany(ore => new[] { $"crushed-{ore}-coarse", $"crushed-{ore}-fine" });
-
     private static FieldInfo? Set(string name) => AccessTools.TypeByName(CompatType) is { } t ? AccessTools.Field(t, name) : null;
 
     public static Status Apply(IWorldAccessor world, ILogger logger)
@@ -56,7 +53,7 @@ public static class SmexBurden
         var store = values == null ? null : AccessTools.Field(values, "_store")?.GetValue(null);
         var config = store?.GetType().GetProperty("Config", BindingFlags.Public | BindingFlags.Instance)?.GetValue(store);
         var props = Settings.Keys.Select(k => config?.GetType().GetProperty(k, BindingFlags.Public | BindingFlags.Instance)).ToList();
-        if (config == null || props.Any(p => p == null || !p.CanWrite) || Set("IronNuggetPaths") == null || Set("CrushedIronOrePaths") == null)
+        if (config == null || props.Any(p => p == null || !p.CanWrite) || Set("IronNuggetPaths") == null)
         {
             logger.Warning("[seraphhorizons] Ore processing: Steelmaking Expanded's {0} or {1} is not as expected; smex changed, "
                            + "so its blast furnace counts its burden as it does itself and takes none of ore processing's iron ore", ValuesType, CompatType);
@@ -66,17 +63,14 @@ public static class SmexBurden
             prop!.SetValue(config, Convert.ChangeType(Settings[key], prop.PropertyType));
         AddPaths();
         logger.Notification("[seraphhorizons] Ore processing: Steelmaking Expanded's blast furnace burden counts 5 units a nugget or "
-                            + "concentrate and 2.5 a crushed ore (live settings, the file unchanged)");
+                            + "concentrate (live settings, the file unchanged)");
         return Status.Applied;
     }
 
-    /// <summary>Adds our iron ore forms to smex's lists (they are cleared and refilled whenever smex
-    /// starts, so a postfix on its <c>Init</c> adds them again).</summary>
-    public static void AddPaths()
-    {
+    /// <summary>Adds our iron concentrates to smex's nugget list (it is cleared and refilled whenever
+    /// smex starts, so a postfix on its <c>Init</c> adds them again).</summary>
+    public static void AddPaths() =>
         (Set("IronNuggetPaths")?.GetValue(null) as HashSet<string>)?.UnionWith(NuggetPaths);
-        (Set("CrushedIronOrePaths")?.GetValue(null) as HashSet<string>)?.UnionWith(CrushedPaths);
-    }
 
     public static void Patch(Harmony harmony, ILogger logger)
     {

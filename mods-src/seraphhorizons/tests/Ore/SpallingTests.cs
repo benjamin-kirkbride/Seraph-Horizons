@@ -19,15 +19,14 @@ public class SpallingTests
     public void Graded_ore_and_crystallised_ore_spall(string firstPart, string? grade, bool spalls) =>
         Assert.Equal(spalls, Spalling.Spalls(firstPart, grade));
 
+    // #847: every grade is the same lump of rock, so the same blows.
     [Fact]
-    public void Raw_ore_takes_more_blows_than_a_chunk()
+    public void Every_grade_takes_the_same_blows()
     {
         var config = new SpallingConfig();
-        Assert.Equal(6, config.BlowsFor(OreProducts.FormOfGrade("poor")));
-        Assert.Equal(6, config.BlowsFor(OreProducts.FormOfGrade("medium")));
-        Assert.Equal(3, config.BlowsFor(OreProducts.FormOfGrade("rich")));
-        Assert.Equal(3, config.BlowsFor(OreProducts.FormOfGrade("bountiful")));
-        Assert.Equal(0, config.BlowsFor(OreForm.Crushed));
+        foreach (var grade in OreProducts.Grades)
+            Assert.Equal(6, config.BlowsFor(grade));
+        Assert.Equal(0, config.BlowsFor("lignite"));
         Assert.Equal(0, config.BlowsFor(null));
         Assert.Equal(1, config.HammerWearPerBlow);
     }
@@ -49,24 +48,23 @@ public class SpallingTests
         Assert.Equal((1, true), Spalling.Strike(-4, 0));
     }
 
-    // With no loss: a raw ore and a chunk give their units in crushed ore, fine from poor.
+    // With no loss (#847): a raw ore breaks into one crushed ore of its grade, which holds its units;
+    // crystallised ore, twice its grade's units, into two.
     [Theory]
-    [InlineData("poor", 15, 3, OreGrain.Fine)]
-    [InlineData("medium", 20, 4, OreGrain.Coarse)]
-    [InlineData("rich", 25, 5, OreGrain.Coarse)]
-    [InlineData("bountiful", 35, 7, OreGrain.Coarse)]
-    public void It_breaks_into_its_units_of_crushed_ore(string grade, int units, int crushed, OreGrain grain)
-    {
-        Assert.Equal(crushed, OreProducts.CrushedCount(units, 5));
-        Assert.Equal(grain, OreProducts.GrainOfGrade(grade));
-    }
+    [InlineData("poor", 15, 1)]
+    [InlineData("medium", 20, 1)]
+    [InlineData("rich", 25, 1)]
+    [InlineData("bountiful", 35, 1)]
+    [InlineData("bountiful", 70, 2)]
+    public void It_breaks_into_crushed_ore_one_for_one(string grade, int units, int crushed) =>
+        Assert.Equal(crushed, OreProducts.CrushedCount(units, OreProducts.RawUnits("galena", grade)!.Value));
 
     [Fact]
     public void Settings_out_of_range_fall_back()
     {
-        var config = new SpallingConfig { BlowsRawOre = 0, BlowsChunk = 5000, HammerWearPerBlow = -1 };
-        Assert.Equal(3, config.Sanitise().Count);
-        Assert.Equal((6, 3, 1), (config.BlowsRawOre, config.BlowsChunk, config.HammerWearPerBlow));
-        Assert.Empty(new SpallingConfig { BlowsRawOre = 1, BlowsChunk = 1, HammerWearPerBlow = 0 }.Sanitise());
+        var config = new SpallingConfig { BlowsRawOre = 0, HammerWearPerBlow = -1 };
+        Assert.Equal(2, config.Sanitise().Count);
+        Assert.Equal((6, 1), (config.BlowsRawOre, config.HammerWearPerBlow));
+        Assert.Empty(new SpallingConfig { BlowsRawOre = 1, HammerWearPerBlow = 0 }.Sanitise());
     }
 }

@@ -1,54 +1,37 @@
-// Crushed ore (OreProcessing; README "Ore processing: items, crushing and smelting"): vanilla's crushed
-// item gains a grain, coarse (from medium ore, chunks and nuggets) or fine (from poor ore), one per
-// ore: game:crushed-{ore}-{grain}. A second item type next to vanilla's game:crushed-{material}, which
-// stays as it is. 5 units of metal each; smelts at half (set in code). The texture is the ore's nugget
-// texture on vanilla's crushed shape, the fine grain lighter. Marked disabled with the switch off.
+// Roasted rock (OreProcessing): a sulfide's raw or crushed ore roasted in the firepit (#720, #847),
+// one per sulfide and grade (seraphhorizons:roastedore-{ore}-{grade}). One roasts to one, carrying the
+// grade and metal units unchanged, 4 a stack; it smelts at its grade's share times the firepit's
+// (set in code). The ore's nugget texture darkened on vanilla's crushed shape. Marked disabled with
+// the switch off.
 {
-	"code": "crushed",
+	"code": "roastedore",
 	"class": "seraphhorizons.ItemOreProduct",
 	"variantgroups": [
 		{
 			"code": "ore",
 			"states": [
-				"azurite",
 				"bismuthinite",
-				"cassiterite",
-				"cerussite",
 				"chalcocite",
 				"chalcopyrite",
-				"chromite",
 				"franckeite",
 				"freibergite",
 				"galena",
 				"galena_nativesilver",
-				"hematite",
-				"hemimorphite",
-				"ilmenite",
-				"limonite",
-				"magnetite",
-				"malachite",
-				"nativecopper",
-				"nativeplatinum",
 				"pentlandite",
 				"pyrite",
-				"quartz_nativegold",
-				"quartz_nativesilver",
-				"rhodochrosite",
-				"smithsonite",
 				"sperrylite",
 				"sphalerite",
 				"teallite",
-				"tetrahedrite",
-				"uranium",
-				"vanadinite",
-				"wulfenite"
+				"tetrahedrite"
 			]
 		},
 		{
-			"code": "grain",
+			"code": "grade",
 			"states": [
-				"coarse",
-				"fine"
+				"poor",
+				"medium",
+				"rich",
+				"bountiful"
 			]
 		}
 	],
@@ -72,61 +55,36 @@
 		"base": "game:item/resource/crushed/normal"
 	},
 	"textureByType": {
-		"crushed-quartz_nativegold-fine": {
-			"base": "game:item/resource/nugget/nativegold",
-			"blendedOverlays": [
-				{
-					"base": "game:item/resource/crushed/quartz",
-					"blendMode": "Overlay"
-				}
-			]
-		},
-		"crushed-quartz_nativesilver-fine": {
+		"roastedore-galena_nativesilver-*": {
 			"base": "game:item/resource/nugget/nativesilver",
 			"blendedOverlays": [
 				{
-					"base": "game:item/resource/crushed/quartz",
-					"blendMode": "Overlay"
+					"base": "game:item/resource/crushed/charcoal",
+					"blendMode": "Multiply"
 				}
 			]
 		},
-		"crushed-galena_nativesilver-fine": {
-			"base": "game:item/resource/nugget/nativesilver",
-			"blendedOverlays": [
-				{
-					"base": "game:item/resource/crushed/quartz",
-					"blendMode": "Overlay"
-				}
-			]
-		},
-		"*-fine": {
+		"*": {
 			"base": "game:item/resource/nugget/{ore}",
 			"blendedOverlays": [
 				{
-					"base": "game:item/resource/crushed/quartz",
-					"blendMode": "Overlay"
+					"base": "game:item/resource/crushed/charcoal",
+					"blendMode": "Multiply"
 				}
 			]
-		},
-		"crushed-quartz_nativegold-coarse": {
-			"base": "game:item/resource/nugget/nativegold"
-		},
-		"crushed-quartz_nativesilver-coarse": {
-			"base": "game:item/resource/nugget/nativesilver"
-		},
-		"crushed-galena_nativesilver-coarse": {
-			"base": "game:item/resource/nugget/nativesilver"
-		},
-		"*-coarse": {
-			"base": "game:item/resource/nugget/{ore}"
 		}
 	},
 	"attributes": {
-		"oreForm": "crushed",
-		"metalUnits": 5,
+		"oreForm": "roastedrock",
+		"metalUnitsByType": {
+			"*-poor": 15,
+			"*-medium": 20,
+			"*-rich": 25,
+			"*-bountiful": 35
+		},
 		"handbook": {
 			"groupBy": [
-				"crushed-*-{grain}"
+				"roastedore-{ore}-*"
 			]
 		},
 		"displaycaseable": true,
@@ -168,7 +126,7 @@
 	},
 	"heldTpIdleAnimation": "holdbothhands",
 	"heldRightReadyAnimation": "holdbothhands",
-	"maxstacksize": 16,
+	"maxstacksize": 4,
 	"storageFlags": 5,
 	"dimensions": {
 		"width": 0.0625,

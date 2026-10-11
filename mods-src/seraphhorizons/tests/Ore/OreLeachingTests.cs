@@ -65,6 +65,6 @@ public class OreLeachingTests
         var liquor = Read("crudeliquor.json");
         Assert.Equal(OreLeaching.Minerals.Select(m => m.Mineral),
             liquor["variantgroups"]![0]!["states"]!.AsArray().Select(s => (string)s!));
-        Assert.Equal(OreProducts.RawStack, (int)Read("rawsaltpeter.json")["maxstacksize"]!);
+        Assert.Equal(OreProducts.RockStack, (int)Read("rawsaltpeter.json")["maxstacksize"]!);
     }
 }

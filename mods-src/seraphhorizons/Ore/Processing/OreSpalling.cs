@@ -10,10 +10,10 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.Ore.Processing;
 
 /// <summary>
-/// Spalling (#747; README "Ore processing: spalling"): raw ore and chunks set down one at a time on
-/// the ground (ground storage, one item a block, <c>patches/oreprocessing-ore.json</c>) are broken
-/// where they lie with a hammer, a left-click a blow, into crushed ore by the 5-unit rule (the item's
-/// own crushing, <see cref="OreProcessingItems"/>), with no loss. The server counts the blows (in
+/// Spalling (#747; README "Ore processing: spalling"): raw ore set down one at a time on the ground
+/// (ground storage, one item a block, <c>patches/oreprocessing-ore.json</c>) is broken where it lies
+/// with a hammer, a left-click a blow, into crushed ore of its grade, one for one (the item's own
+/// crushing, <see cref="OreProcessingItems"/>, #847), with no loss. The server counts the blows (in
 /// memory: an ore left half struck and unloaded starts again) and wears the hammer a blow.
 /// </summary>
 public class OreSpalling(ICoreServerAPI api, SpallingConfig config)
@@ -32,7 +32,7 @@ public class OreSpalling(ICoreServerAPI api, SpallingConfig config)
 
     /// <summary>Blows the ore in <paramref name="slot"/> takes in all.</summary>
     public int BlowsNeeded(ItemSlot slot) =>
-        Config.BlowsFor(OreProducts.FormOfGrade(slot.Itemstack?.Collectible.Variant["grade"]));
+        Config.BlowsFor(slot.Itemstack?.Collectible.Variant["grade"]);
 
     /// <summary>
     /// The ground storage slot at <paramref name="pos"/> holding an ore that spalls, or null. On the
