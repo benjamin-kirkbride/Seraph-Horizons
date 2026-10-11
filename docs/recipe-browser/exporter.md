@@ -330,8 +330,8 @@ is left out when its switch is off or what it names is not registered.
   `config/cylinderborer-rig.json` gives the cutter head's travel (`work.end`), each class's cast and bored cylinder
   (`bore.blanks`, `bore.cylinders`) and the turns a block as a fallback; `SeraphHorizonsConfig.CylinderBorerSettings`
   gives the turns a block (`TurnsPerBlockIron`, `TurnsPerBlockSteel`) and the head's wear (`HeadWearPerCylinder`,
-  rule `dividedByOilFill`); `MachineOilSettings.CylinderBorer` the oil per cylinder and the tank. The bushings, bar
-  and feed are `kept`; the output is the bored cylinder (work unit `blocks`). The `CylinderBorer` switch leaves it
+  rule `dividedByOilFill`); `MachineOilSettings.CylinderBorer` the oil per cylinder and the tank. The bushings (the
+  game's metal parts, a block), bar and feed are `kept`; the output is the bored cylinder (work unit `blocks`). The `CylinderBorer` switch leaves it
   out when off. Its mold's casting comes from the tool molds' reader, as every mold's does.
 - The press brake (`Recipes/PressBrakeExport.cs`, `RecipeSection.PressBrake.cs`, type `pressbrake`,
   shape `machine`): one record per metal, `pressbrake|seraphhorizons:halfplate-{metal}|0`.
