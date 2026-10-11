@@ -1391,9 +1391,9 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   `MapMarksSystem.Mark`, which sets the waypoint's `Guid` and remembers it with the target and
   precision (`MarkBook`, saved as `seraphhorizons:mapmarks`; records whose waypoint is gone are
   pruned). Targets: `deposit:<id>` (ore or gravel), the camp's standing id `camp:x,z`,
-  `settlement:x,z`. Precision is the ore maps' (1 ±400 m, 2 ±150 m, 3 exact); a gravel map is 3,
+  `settlement:x,z`. Precision is the ore maps' (1 rough ±150 m, 2 fair ±50 m, 3 fine ±15 m); a gravel map is 3 and exact,
   a lead `LeadPrecision` (2: the camp's site, the trader within about `LeadReach`, 64 blocks), a met
-  trader 3. Titles carry it: `map-waypoint-precision` "{name} (precision n, ±r m)",
+  trader 3. Titles carry it: `map-waypoint-precision` "{name} (±r m)",
   `map-waypoint-lead` "{name} (approximate, ±64 m)", `map-waypoint-exact` "{name} (exact)". Marking
   a target that has a marker as precise or better adds nothing ("already marked"); a rougher one is
   removed and replaced. An unremembered waypoint with the same icon on the very spot (made before
