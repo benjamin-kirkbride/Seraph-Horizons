@@ -179,6 +179,13 @@ public class SeraphHorizonsSystem : ModSystem
             FellingWear.Patch(_harmony ??= new Harmony(HarmonyId), api, Config(api).FlatFellingWearSettings ?? new FellingWearConfig());
         if (Config(api).LocomotiveRidersBreathe && LocomotiveSeats.Applies(api))
             LocomotiveSeats.PatchBreathe(_locomotiveBreatheHarmony = new Harmony(LocomotiveSeats.BreatheHarmonyId));
+        if (Config(api).SlowerRailVehicles && RailVehicleSpeed.Applies(api))
+        {
+            if (!RailSpeedScale.ValidFactor(Config(api).RailVehicleSpeedFactor))
+                api.Logger.Warning($"[seraphhorizons] ModConfig/{ConfigFile}: RailVehicleSpeedFactor {Config(api).RailVehicleSpeedFactor} "
+                                   + $"is not above 0 and at most 1, using {RailSpeedScale.DefaultFactor}");
+            RailVehicleSpeed.Patch(_harmony ??= new Harmony(HarmonyId), api.Logger, Config(api).RailVehicleSpeedFactor);
+        }
         if (Config(api).RuinsOnMedianGround)
             RuinSurfaceMedian.Patch(_harmony ??= new Harmony(HarmonyId), api.Logger);
         ClearSky = new ClearSky(api);
@@ -576,6 +583,16 @@ public class SeraphHorizonsConfig
     /// suffocate in a block their head passes through, though they still drown under water
     /// (server side).</summary>
     public bool LocomotiveRidersBreathe { get; set; } = true;
+
+    /// <summary>Yang's Transport Tycoon: every vehicle of it runs at <see cref="RailVehicleSpeedFactor"/>
+    /// of its top speed, its engine's figure and the track's cap alike, offscreen timetabled convoys
+    /// too (RailVehicleSpeed.cs, README "Slower rail vehicles"; server side; off means Yang's speeds as
+    /// it ships them). The handcar has its own figures and is not changed.</summary>
+    public bool SlowerRailVehicles { get; set; } = true;
+
+    /// <summary>The share of its top speed a vehicle of Yang's keeps, above 0 and at most 1; out of
+    /// range falls back to 0.5 with a warning.</summary>
+    public double RailVehicleSpeedFactor { get; set; } = RailSpeedScale.DefaultFactor;
 
     /// <summary>Ore cells (Ore/, README "Ore cells"): Interesting Ore Gen places at most one deposit
     /// of each metal (and of coal and each industrial mineral) per <see cref="OreCellSizeMetres"/>

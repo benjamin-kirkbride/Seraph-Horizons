@@ -211,6 +211,18 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True((bool)check.Invoke(null, [loco])!);
     }
 
+    /// <summary><c>SlowerRailVehicles</c>: none of Yang's speed methods is patched, so its vehicles
+    /// keep their full top speed.</summary>
+    [AtlasScenario]
+    public void Slower_rail_vehicles_off_Yangs_speeds_are_as_it_ships_them()
+    {
+        Assert.True(Off("SlowerRailVehicles"));
+        Assert.False(RailVehicleSpeed.Patched);
+        var cap = AccessTools.DeclaredMethod(AccessTools.TypeByName(RailVehicleSpeed.RailGraphType), RailVehicleSpeed.CapMethod);
+        Assert.NotNull(cap);
+        Assert.DoesNotContain(Harmony.GetPatchInfo(cap)?.Postfixes ?? [], p => p.PatchMethod.DeclaringType == typeof(RailVehicleSpeed));
+    }
+
     /// <summary><c>FlatFellingWear</c>: nothing is patched, and felling a tree that leaves a trunk
     /// costs the axe the game's one durability per log.</summary>
     [AtlasScenario(TimeoutMs = 180_000)]

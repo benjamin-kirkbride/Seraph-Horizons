@@ -3843,6 +3843,53 @@ In game 1.22.7 the game's block test never takes the air away anywhere but near 
 entity's own), so for now this is a guard for when the game fixes it: the postfix only acts when
 `Check` has taken the air.
 
+### Slower rail vehicles (`SlowerRailVehicles`, `RailVehicleSpeedFactor`)
+
+Yang's Transport Tycoon (`yangtransport`, 1.0.3): every vehicle of it runs at `RailVehicleSpeedFactor`
+(0.5) of its top speed (#847). Ore is meant to be dressed at the mine; hauling rock to a central plant
+is possible but slow. In `RailVehicleSpeed.cs`, the figures in `Core/RailSpeedScale.cs`.
+
+Only a steam engine moves a convoy: an engine cart (`yangtransport.minecart`) on wagon rails, a
+locomotive (`yangtransport.sglocomotive`) on standard gauge. Minecarts and wagons are pulled and only
+add weight. Yang works a moving convoy's top speed out each tick, on the server, as the least of two
+figures, times the track piece's own speed factor (0.7 on a turn, for one): the engine's, its raw power
+times its heat (°C / 100) less the convoy's weight
+(`EngineCartDrive.TryComputeLoadedKinematicLimits`), and the track's material cap
+(`config/trackmaterialspeeds.json`). Each is scaled where Yang reads it, so their least is too:
+
+- **The engine**: a postfix on `EntityMinecart.TryComputeConvoyDrive` and
+  `EntityStandardGaugeLocomotive.TryComputeConvoyDrive` scales the top speed the steam engine gave.
+  A lead without Yang's `SteamPowered` behaviour is left alone, so the handcar keeps its own figures.
+- **The track**: a postfix on `RailGraphLive.TryGetEdgeMaterialSpeedCapBPS` scales the cap of the
+  edge a vehicle is on (rounded, never below 1). In code rather than a patch on the asset: Yang's rail
+  graph keeps each edge's cap in the savegame, so a patched asset would leave track laid before it at
+  the old cap.
+- **Offscreen**: a timetabled convoy no player is near is simulated without its entities, cruising at
+  80 % of its engine's figure capped by the track (`OffscreenConvoySimSystem.VirtualConvoy.ComputeAutomationCruiseSpeed`);
+  a postfix scales that, with the cap read unscaled inside it.
+
+Acceleration, braking and coasting are Yang's. The top speeds at the engine's top heat, bare (its own
+weight only), on a straight:
+
+| Vehicle | Track | Power x heat - weight | Before (wood / metal) | After |
+|---|---|---|---|---|
+| Engine cart, primitive | wagon rails, cap 8 / 14 | 1 x 8 - 1 = 7 | 7 / 7 | 3.5 / 3.5 |
+| Engine cart, simple | wagon rails | 1.65 x 11 - 3 = 15.15 | 8 / 14 | 4 / 7 |
+| Engine cart, standard | wagon rails | 2.65 x 12 - 5 = 26.8 | 8 / 14 | 4 / 7 |
+| Locomotive, primitive | standard gauge, cap 16 / 32 | 2 x 8 - 5 = 11 | 11 / 11 | 5.5 / 5.5 |
+| Locomotive, simple | standard gauge | 3 x 11 - 5 = 28 | 16 / 28 | 8 / 14 |
+| Locomotive, standard | standard gauge | 4 x 11 - 10 = 34 | 16 / 32 | 8 / 16 |
+| Locomotive, advanced | standard gauge | 5.5 x 12.5 - 8 = 60.75 | 16 / 32 | 8 / 16 |
+
+A loaded convoy is halved the same way: a primitive engine cart pulling three minecarts (weight 4)
+goes 8 - 4 = 4 blocks a second, 2 halved. The handcar (`Handcar`) reads only the track cap of Yang's
+figures, and its top speeds (4.2 and 5.95) are under the halved standard-gauge caps (8 and 16), so it
+is not slowed.
+
+A factor out of range (above 0, at most 1) falls back to 0.5 with a warning. Server side. Without Yang's
+mod nothing is patched; with one of the four methods gone or changed, the server logs an error and
+patches nothing, leaving Yang's speeds as it ships them.
+
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
 Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
