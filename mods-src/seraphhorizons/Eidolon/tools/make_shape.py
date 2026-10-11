@@ -1189,6 +1189,7 @@ def whole(x):
 
 
 SMALL_LAYER_FLOOR = 4   # the fewest leather or cloth pieces, and lengths of chain, a sash or a skirt takes
+BONES_FLOOR = 30        # the fewest support beams the bones take: the model's wood comes to 10 (the owner's call)
 
 
 def layer_bill(shape):
@@ -1209,7 +1210,8 @@ def layer_bill(shape):
     sheet = 2 * ingot
     nails = area["joints"] - bars
     out = {
-        "bones": [(MATERIAL["bones"][0], whole(area["bones"] / BEAM_AREA), area["bones"], BEAM_AREA)],
+        # the bones take at least BONES_FLOOR beams, three times the model's wood (the owner's call)
+        "bones": [(MATERIAL["bones"][0], max(BONES_FLOOR, whole(area["bones"] / BEAM_AREA)), area["bones"], BEAM_AREA)],
         # the bars and clamps (bar-*) are rods; the joints, hands and fittings nails and strips, four to the ingot,
         # counted in whole ingots
         "joints": [(MATERIAL["joints"][0], whole(bars / ingot), bars, ingot),

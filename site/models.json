@@ -389,7 +389,7 @@
             "values": ["torso", "bones", "joints", "plates", "sash", "skirt", "mind"],
             "options": [
               {"id": "torso", "label": "1: torso", "fitted": ["torso"], "hint": "The lattice chest and hip blocks, crafted and placed onto the gantry's spine (not drawn here), where the layers are fitted onto it."},
-              {"id": "bones", "label": "2: bones (10 support beams)", "fitted": ["torso", "bones"], "hint": "Wooden bones of one wood, the head's frame and the Eidolon elucidatory vessel, its brain, from the Resonance Archives' eidolon."},
+              {"id": "bones", "label": "2: bones (30 support beams)", "fitted": ["torso", "bones"], "hint": "Wooden bones of one wood, the head's frame and the Eidolon elucidatory vessel, its brain, from the Resonance Archives' eidolon."},
               {"id": "joints", "label": "3: joints, bars and clamps (4 rods, 20 nails and strips)", "fitted": ["torso", "bones", "joints"], "hint": "Iron, steel or stainless, with the Jonas mechanism and the stainless gears."},
               {"id": "plates", "label": "4: plates (17 plates)", "fitted": ["torso", "bones", "joints", "plates"], "hint": "Iron, steel, stainless or brass."},
               {"id": "sash", "label": "5: sash and fauld (2 leather or cloth)", "fitted": ["torso", "bones", "joints", "plates", "sash"]},
