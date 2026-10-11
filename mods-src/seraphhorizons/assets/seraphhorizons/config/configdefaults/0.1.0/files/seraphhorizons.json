@@ -366,7 +366,7 @@
   },
   "StainlessSteel": true,
   "CrucibleFurnaceSettings": {
-    "PotCapacityUnits": 200,
+    "PotCapacityUnits": 300,
     "PotHeats": 3,
     "PourWindowSeconds": 20.0,
     "CokeCapacity": 6,
@@ -386,6 +386,13 @@
       "game:refractorybricks-*",
       "game:stonebricks-*",
       "smex:smokestack-*"
+    ],
+    "LargeCastingMetals": [
+      "game:ingot-iron"
+    ],
+    "LargeCastingMolds": [
+      "game:ingotmold-*",
+      "seraphhorizons:cylindermold-*"
     ]
   },
   "CastPipes": true,

@@ -3,39 +3,39 @@
   "routes": [
     {
       "id": "cruciblefurnace|ferrosilicon",
-      "about": "A full pot, 200 units at the middle of the ratios: 50 % crushed quartz (20), 30 % iron bits (12), 20 % coke (8), melted at yield 0.5 into 100 units, 20 lumps of 5.",
+      "about": "A full pot, 300 units (PotCapacityUnits, #768) at the middle of the ratios: 50 % crushed quartz (30), 30 % iron bits (18), 20 % coke (12), melted at yield 0.5 into 150 units, 30 lumps of 5.",
       "kind": "crucible",
       "switch": "StainlessSteel",
       "slots": [
-        [["game:crushed-quartz", 20]],
-        [["game:metalbit-iron", 12]],
-        [["game:coke", 8]]
+        [["game:crushed-quartz", 30]],
+        [["game:metalbit-iron", 18]],
+        [["game:coke", 12]]
       ],
-      "output": ["seraphhorizons:ferrosilicon", 20]
+      "output": ["seraphhorizons:ferrosilicon", 30]
     },
     {
       "id": "cruciblefurnace|ferrochrome",
-      "about": "A full pot: 50 % chromite (20 chromite concentrate, 5 units each), 30 % ferrosilicon (12 lumps), 20 % lime (8), at yield 0.5: 20 lumps, and a slag per 25 units charged (8). The pot also takes the legacy crushed chromite (PotRecipes), which nothing makes with OreProcessing on (the default the table is built for), so it is no alternative here: it would price ferrochrome from an item no player can get.",
+      "about": "A full pot: 50 % chromite (30 chromite concentrate, 5 units each), 30 % ferrosilicon (18 lumps), 20 % lime (12), at yield 0.5: 30 lumps, and a slag per 25 units charged (12). The pot also takes the legacy crushed chromite (PotRecipes), which nothing makes with OreProcessing on (the default the table is built for), so it is no alternative here: it would price ferrochrome from an item no player can get.",
       "kind": "crucible",
       "switch": "StainlessSteel",
       "slots": [
-        [["seraphhorizons:concentrate-chromite", 20]],
-        [["seraphhorizons:ferrosilicon", 12]],
-        [["game:lime", 8]]
+        [["seraphhorizons:concentrate-chromite", 30]],
+        [["seraphhorizons:ferrosilicon", 18]],
+        [["game:lime", 12]]
       ],
-      "output": ["seraphhorizons:ferrochrome", 20],
-      "byproducts": [["smex:slag", 8]]
+      "output": ["seraphhorizons:ferrochrome", 30],
+      "byproducts": [["smex:slag", 12]]
     },
     {
       "id": "cruciblefurnace|stainless",
-      "about": "A full pot: 80 % iron (1.6 ingots or 32 bits), 20 % ferrochrome (8 lumps), at yield 1: 200 units, poured into 2 ingots.",
+      "about": "A full pot: 80 % iron (240 units: 2.4 ingots or 48 bits), 20 % ferrochrome (12 lumps), at yield 1: 300 units, poured into 3 ingots. The iron melt (iron ingots into molten iron, unit for unit) is no route: it makes iron from iron, at a markup.",
       "kind": "crucible",
       "switch": "StainlessSteel",
       "slots": [
-        [["game:ingot-iron", 1.6], ["game:metalbit-iron", 32]],
-        [["seraphhorizons:ferrochrome", 8]]
+        [["game:ingot-iron", 2.4], ["game:metalbit-iron", 48]],
+        [["seraphhorizons:ferrochrome", 12]]
       ],
-      "output": ["game:ingot-stainlesssteel", 2]
+      "output": ["game:ingot-stainlesssteel", 3]
     },
     {
       "id": "stillretort|seraphhorizons:amalgam-quartz_nativegold",
