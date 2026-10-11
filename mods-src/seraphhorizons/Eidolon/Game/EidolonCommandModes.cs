@@ -46,6 +46,9 @@ public sealed class EidolonCommandMode
     /// <summary>For an area: its longest side, in blocks.</summary>
     public int MaxAreaSide { get; init; } = 48;
 
+    /// <summary>For an area: the most blocks it may hold in all (mine). No limit by default.</summary>
+    public long MaxAreaBlocks { get; init; } = long.MaxValue;
+
     public required System.Func<EidolonCommandContext, EidolonCommand> Command { get; init; }
 
     /// <summary>For a mode that marks a block (<see cref="EidolonMarkKind.Block"/>,

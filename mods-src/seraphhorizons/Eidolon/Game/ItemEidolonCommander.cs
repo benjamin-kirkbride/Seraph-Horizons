@@ -232,7 +232,7 @@ public class ItemEidolonCommander : Item
                 Error(player, corner ? "eidoloncommander-mark-corner" : "eidoloncommander-mark-block");
                 return 0;
             }
-            var (marks, step) = EidolonMarking.Click(mode.Mark, GetMarks(stack, mode.Code), new MarkPos(clicked.X, clicked.Y, clicked.Z), mode.MaxAreaSide);
+            var (marks, step) = EidolonMarking.Click(mode.Mark, GetMarks(stack, mode.Code), new MarkPos(clicked.X, clicked.Y, clicked.Z), mode.MaxAreaSide, mode.MaxAreaBlocks);
             if (step == MarkStep.Target && mode.CheckTarget?.Invoke(api.World, clicked) is { RefusalKey: { } refusal } badTarget)
             {
                 Error(player, refusal, badTarget.RefusalArgs ?? []);
@@ -250,6 +250,9 @@ public class ItemEidolonCommander : Item
                     return 0;
                 case MarkStep.TooLarge:
                     Error(player, "eidoloncommander-area-toolarge", mode.MaxAreaSide);
+                    return 0;
+                case MarkStep.TooManyBlocks:
+                    Error(player, "eidoloncommander-area-toomany", mode.MaxAreaBlocks);
                     return 0;
                 case MarkStep.Area:
                     area = marks.Area;
