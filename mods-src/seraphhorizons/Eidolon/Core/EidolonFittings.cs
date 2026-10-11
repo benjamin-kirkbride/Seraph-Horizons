@@ -297,9 +297,11 @@ public static class EidolonFittings
 /// <item>joints: rods 411.0 / 115.7 = 3.55, 4; nails and strips 531.3 / 28.9 (a quarter ingot) = 18.38, 20
 ///   (rounded up to a whole ingot's four);</item>
 /// <item>plates: 4030.8 / 231.3 = 17.43, 17;</item>
-/// <item>sash: 527.8 / 231.3 = 2.28, 2;</item>
-/// <item>skirt: 434.0 / 231.3 = 1.88, 2.</item>
+/// <item>sash: 527.8 / 231.3 = 2.28, 2, raised to the floor of 4;</item>
+/// <item>skirt: 434.0 / 231.3 = 1.88, 2, raised to the floor of 4.</item>
 /// </list>
+/// The sash and the skirt are small on the model, so they take at least 4 (<c>SMALL_LAYER_FLOOR</c> in the
+/// generator), the owner's call.
 /// </summary>
 public static class FittingCounts
 {
@@ -309,8 +311,8 @@ public static class FittingCounts
             [FittingLayer.Bones] = [10],     // support beams
             [FittingLayer.Joints] = [4, 20], // rods, nails and strips
             [FittingLayer.Plates] = [17],    // metal plates
-            [FittingLayer.Sash] = [2],       // leather or cloth
-            [FittingLayer.Skirt] = [2],      // chain
+            [FittingLayer.Sash] = [4],       // leather or cloth (floor)
+            [FittingLayer.Skirt] = [4],      // chain (floor)
         };
 
     public static IReadOnlyList<int> Of(FittingLayer layer) => ByLayer[layer];

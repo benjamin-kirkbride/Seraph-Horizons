@@ -305,8 +305,8 @@ shows: 17 plates (13 before), 4 rods (8), 20 nails and strips (36).
 | 3 Bones (28) | 10 `game:supportbeam-{wood}`; `game:jonasframes-gearbox01`, `game:jonasframes-gearbox02`, `game:jonasframes-oscillator01`, `game:jonasparts-cylinder02`, `game:jonasparts-connector01`, `game:rustypart-eidolon2tr` (the Eidolon elucidatory vessel, its brain: one per player who hurt the archives' eidolon) | the `bones` code, `head-inside`, `brain` | The wooden skeleton, face and head plates, the head's lattice block and the vessel in it. |
 | 4 Joints, bars and clamps (57) | 4 `game:rod-{metal}`, 20 `game:metalnailsandstrips-{metal}`; 2 `game:jonasframes-joint01` (the knees), 2 `game:jonasframes-spring01`, `game:jonasframes-gears01`, `game:jonasframes-gears02`, `game:jonasparts-cylinder01`, `game:jonasparts-valve01`, 9 `seraphhorizons:gear-stainless`, 12 `game:metal-parts` | the `joints` code | The moving mechanism: neck, knees, elbows, ankles, hands, the eye's bracket, and the bars and clamps. |
 | 5 Plates (87) | 17 `game:metalplate-{metal}` | the `plates` code | The armour: hood, chest, shoulders, arms, legs, feet, tassets, bracers. |
-| 6 Sash and fauld (5) | 2 `game:leather-normal-{colour}` or `game:cloth-{colour}` | the `sash` code | The chest sashes, the fauld and its waist tassets. |
-| 7 Chain skirt (5) | 2 `game:metalchain-{metal}` | the `skirt` code | The chain skirt, front and back. |
+| 6 Sash and fauld (5) | 4 `game:leather-normal-{colour}` or `game:cloth-{colour}` | the `sash` code | The chest sashes, the fauld and its waist tassets. |
+| 7 Chain skirt (5) | 4 `game:metalchain-{metal}` | the `skirt` code | The chain skirt, front and back. |
 | 8 Mind (4) | `game:gear-temporal` (its first charge, a quarter in-game year) | `heart`, `Eye-out` and the heart's bars | The heart in the chest and the eye's red light: what lights when it wakes. |
 
 The Jonas items are spread over the torso, bones and joints (16 in all, the 14 kinds once, the knee joint

@@ -106,7 +106,8 @@ public class EidolonDockingTests
         Assert.Equal(bare, parts.Build);
         Assert.Null(parts.Material(FittingLayer.Skirt));
         // and any material goes on again
-        Assert.Equal(2, parts.Fit("game:metalchain-stainlesssteel", 2));
+        int chain = FittingCounts.Of(FittingLayer.Skirt)[0];
+        Assert.Equal(chain, parts.Fit("game:metalchain-stainlesssteel", chain));
         Assert.Equal(EidolonFittings.Stainless, parts.Build[FittingLayer.Skirt]);
     }
 

@@ -51,9 +51,9 @@
 			"name": "Sash and fauld",
 			"texture": "sash",
 			"material": {"fabric": "leather-normal", "colour": "plain"},
-			"ingredients": ["2 game:{fabric}-{colour}"],
+			"ingredients": ["4 game:{fabric}-{colour}"],
 			"measure": [
-				{"item": "game:{fabric}-{colour}", "area": 527.8, "per": 231.3, "exact": 2.28, "count": 2}
+				{"item": "game:{fabric}-{colour}", "area": 527.8, "per": 231.3, "exact": 2.28, "count": 4}
 			],
 			"elements": ["chest-sash1", "chest-sash2", "waist-fauld", "waist-tassetR", "waist-tassetL"]
 		},
@@ -63,9 +63,9 @@
 			"name": "Chain skirt",
 			"texture": "skirt",
 			"material": {"metal": "steel"},
-			"ingredients": ["2 game:metalchain-{metal}"],
+			"ingredients": ["4 game:metalchain-{metal}"],
 			"measure": [
-				{"item": "game:metalchain-{metal}", "area": 434.0, "per": 231.3, "exact": 1.88, "count": 2}
+				{"item": "game:metalchain-{metal}", "area": 434.0, "per": 231.3, "exact": 1.88, "count": 4}
 			],
 			"elements": ["chainskirt-back1", "chainskirt-back2", "chainskirt-back3", "chainskirt-front1", "chainskirt-front2"]
 		},

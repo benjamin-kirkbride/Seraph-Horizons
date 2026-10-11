@@ -1188,6 +1188,9 @@ def whole(x):
     return max(1, int(math.floor(x + 0.5)))
 
 
+SMALL_LAYER_FLOOR = 4   # the fewest leather or cloth pieces, and lengths of chain, a sash or a skirt takes
+
+
 def layer_bill(shape):
     """Each layer's material count, scaled to the model (the comment over METAL_INGOTS): {layer: [(item, count,
     area, area per item)]}, and the scale {ingot, sheet, beam: area}. Only a layer's own material counts: the
@@ -1212,8 +1215,9 @@ def layer_bill(shape):
         "joints": [(MATERIAL["joints"][0], whole(bars / ingot), bars, ingot),
                    (NAILS, 4 * whole(nails / ingot), nails, ingot / 4)],
         "plates": [(MATERIAL["plates"][0], whole(area["plates"] / sheet), area["plates"], sheet)],
-        "sash": [(MATERIAL["sash"][0], whole(area["sash"] / sheet), area["sash"], sheet)],
-        "skirt": [(MATERIAL["skirt"][0], whole(area["skirt"] / sheet), area["skirt"], sheet)],
+        # the sash and the skirt are small on the model, so they take at least SMALL_LAYER_FLOOR (the owner's call)
+        "sash": [(MATERIAL["sash"][0], max(SMALL_LAYER_FLOOR, whole(area["sash"] / sheet)), area["sash"], sheet)],
+        "skirt": [(MATERIAL["skirt"][0], max(SMALL_LAYER_FLOOR, whole(area["skirt"] / sheet)), area["skirt"], sheet)],
     }
     return out, {"ingot": ingot, "sheet": sheet, "beam": BEAM_AREA}
 

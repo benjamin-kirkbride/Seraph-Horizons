@@ -459,7 +459,7 @@ class Stages(unittest.TestCase):
                  + totals["game:metalnailsandstrips-steel"] / 4)
         self.assertEqual(steel, 43)   # the metal's scale: today's 43 ingots, spread by area
         self.assertEqual((totals["game:supportbeam-oak"], totals["game:leather-normal-plain"],
-                          totals["game:metalchain-steel"]), (10, 2, 2))
+                          totals["game:metalchain-steel"]), (10, 4, 4))
         self.assertEqual(self.stage("mind")["ingredients"], ["game:gear-temporal"])
         for code in ("plates", "sash", "skirt"):
             self.assertEqual(len(self.stage(code)["ingredients"]), 1, "their material only")
@@ -477,7 +477,11 @@ class Stages(unittest.TestCase):
             for x in m:
                 self.assertAlmostEqual(x["exact"], x["area"] / x["per"], delta=0.01)
                 step = 4 if "nails" in x["item"] else 1
-                self.assertLessEqual(abs(x["count"] - x["exact"]), step / 2 + 0.01, x["item"])
+                floor = make_shape.SMALL_LAYER_FLOOR if c in ("sash", "skirt") else 0
+                if x["count"] > floor:
+                    self.assertLessEqual(abs(x["count"] - x["exact"]), step / 2 + 0.01, x["item"])
+                else:
+                    self.assertGreaterEqual(x["count"], round(x["exact"]), x["item"])
                 self.assertIn(f"{x['count']} {x['item']}", self.stage(c)["ingredients"])
 
     def test_the_stage_file_is_the_stage_map(self):

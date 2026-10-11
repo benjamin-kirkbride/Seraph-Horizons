@@ -268,8 +268,8 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(1, ClickEntity(player, e, Item("game:metalplate-brass", 17))?.StackSize);
         Assert.Equal(EidolonFittings.Brass, e.Build[FittingLayer.Plates]);
         // the sash on the gantry, the skirt on the eidolon
-        Assert.Null(ClickGantry(player, gantry.Pos, Item("game:cloth-blue", 2)));
-        Assert.Null(ClickEntity(player, e, Item("game:metalchain-stainlesssteel", 2)));
+        Assert.Null(ClickGantry(player, gantry.Pos, Item("game:cloth-blue", 4)));
+        Assert.Null(ClickEntity(player, e, Item("game:metalchain-stainlesssteel", 4)));
         var refit = EidolonBuild.Of("oak", EidolonFittings.Steel, EidolonFittings.Brass, "cloth-blue", EidolonFittings.Stainless);
         Assert.Equal(refit, e.Build);
         Assert.Equal(refit.Textures(), e.Build.Textures());
@@ -358,7 +358,7 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Empty(player);
         ClickEntity(player, again, null, ctrl: true);
         Assert.Equal(EidolonBuild.OldBuild.Stripped(), again.Build);
-        Assert.Null(ClickEntity(player, again, Item("game:metalchain-steel", 2)));
+        Assert.Null(ClickEntity(player, again, Item("game:metalchain-steel", 4)));
         Assert.Null(ClickGantry(player, Crank(gantryAgain!), null));
         Assert.Equal(DockPhase.None, again.Dock!.Phase);
         Assert.False(BodyOf(gantryAgain!).HoldsEidolon);
