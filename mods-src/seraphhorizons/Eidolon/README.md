@@ -6,6 +6,7 @@ sawmill, carries a Carry On container as a pack mule, lifts and carries Carry On
 defends itself and stands guard. At 0 HP it slumps disabled and can be repaired; it is never killed.
 It is built in a mostly wooden gantry: a crafted torso, then five layers of material, each the builder's
 choice of wood, metal, leather or cloth, which set its look and its stats and can be stripped and refitted.
+It never heals by itself (only repair restores health), and creatures leave it be while it is down.
 
 **Status: the model and the entity.** This folder holds the shape's generator (`tools/`) and the
 entity (#673): its type, ownership, charge, slumping and a first pathfinder for its size, in `Core/`
