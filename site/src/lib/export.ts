@@ -1,7 +1,7 @@
 // Types for schema/recipe-export.schema.json (schemaVersion 1). The schema is the
 // contract; these mirror it and are only as strict as the app needs.
 
-import type { EidolonData } from "./eidolon-fittings.ts";
+import type { EidolonExport } from "./eidolon-fittings.ts";
 import type { PowerData } from "./power-data.ts";
 
 export type Kind = "item" | "block";
@@ -303,7 +303,7 @@ export interface RecipeExport {
   /** Mechanical power producers, consumers and the wind (power-data.ts). Absent in older exports. */
   power?: PowerData;
   /** The eidolon's fittings, for its fitting sheet (eidolon-fittings.ts). Absent in older exports. */
-  eidolon?: EidolonData;
+  eidolon?: EidolonExport;
   /** Structures built block by block (docs/recipe-browser/multiblocks.md); absent from older exports. */
   multiblocks?: Multiblocks;
   extra?: Record<string, unknown>;

@@ -1,5 +1,6 @@
 using Atlas.XUnit;
 using Newtonsoft.Json.Linq;
+using SeraphHorizons.Mod.Eidolon.Core;
 using SeraphHorizons.RecipeExport;
 
 namespace SeraphHorizons.PackTests;
@@ -71,8 +72,10 @@ public partial class RecipeExportScenarios
         Assert.Equal(new[] { "game:metalchain-*" }, CodesOf(6));
         JToken Def(int stage, int k = 0) => ingredients[(int)stages[stage]["ingredients"]![k]!];
         Json("""["steel", "iron", "stainlesssteel", "brass"]""", Def(4)["allowedVariants"]!);
-        Assert.Equal(17, (double)Def(4)["quantity"]!);
-        Assert.Equal(new[] { 10.0, 4, 20, 17, 2, 2 }, new[] { Def(2), Def(3), Def(3, 1), Def(4), Def(5), Def(6) }.Select(d => (double)d["quantity"]!));
+        // the counts are the mod's (FittingCounts), not written down here
+        var counts = new[] { FittingLayer.Bones, FittingLayer.Joints, FittingLayer.Plates, FittingLayer.Sash, FittingLayer.Skirt }
+            .SelectMany(FittingCounts.Of).Select(c => (double)c);
+        Assert.Equal(counts, new[] { Def(2), Def(3), Def(3, 1), Def(4), Def(5), Def(6) }.Select(d => (double)d["quantity"]!));
         Assert.Contains("cloth-blue", ((JArray)Def(5)["allowedVariants"]!).Select(v => (string)v!));
         Assert.Contains("leather-normal-plain", ((JArray)Def(5)["allowedVariants"]!).Select(v => (string)v!));
         Assert.DoesNotContain("rotten", ((JArray)Def(2)["allowedVariants"]!).Select(v => (string)v!));

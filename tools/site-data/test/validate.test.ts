@@ -168,13 +168,6 @@ describe("validate: cross-references", () => {
     expect(problems(d)).toEqual([["eidolon-build", "/eidolon/builds/1/joints"]]);
   });
 
-  it("rejects an eidolon texture nothing names", () => {
-    const d = example();
-    d.eidolon.textures["game:block/metal/plate/iron"] = d.eidolon.textures["game:block/metal/plate/steel"];
-    const p = only(d);
-    expect([p.kind, p.path]).toEqual(["eidolon-texture", "/eidolon/textures/game:block~1metal~1plate~1iron"]);
-  });
-
   it("accepts an export without power, and power without wind", () => {
     const d = example();
     d.power.wind = null;

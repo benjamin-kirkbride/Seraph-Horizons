@@ -12,7 +12,9 @@ namespace SeraphHorizons.RecipeExport;
 /// "The eidolon's fittings"), all of it from the pack's mod so the page cannot drift from what ships:
 /// the five layers with the materials each takes (the item each is fitted as, how many, the texture
 /// it draws with) and their Jonas parts, the torso's recipe and the mind, the server's
-/// EidolonSettings figures, the stats every metal build has, and the textures themselves.
+/// EidolonSettings figures and the stats every metal build has. Textures are paths only: CI's
+/// server has no textures, so the site build takes the images from the repository's texture store
+/// (textures/, tools/textures.py, docs/recipe-browser/icons.md).
 ///
 /// The rules are the mod's game-independent classes (<c>Eidolon/Core/EidolonFittings.cs</c>,
 /// <c>EidolonStats.cs</c>), read by reflection as <see cref="EidolonExport"/> reads the gantry's; the
@@ -76,7 +78,6 @@ public static class EidolonSection
         var indexer = buildType.GetProperty("Item")!;
 
         var stages = ReadStages(api);
-        var paths = new SortedSet<string>(StringComparer.Ordinal);
         var outLayers = new JArray();
         foreach (var layer in layers)
         {
@@ -92,7 +93,6 @@ public static class EidolonSection
                 if (items.Any(i => CollectibleOf(api, Code(i)) == null))
                     continue;
                 var path = (string?)texturePath.Invoke(null, [layer, material]);
-                if (path != null) paths.Add(path);
                 outMaterials.Add(new JObject
                 {
                     ["id"] = material,
@@ -113,12 +113,6 @@ public static class EidolonSection
         }
 
         var shapeTextures = ShapeTextures(api);
-        foreach (var path in shapeTextures.Values) paths.Add(path);
-        var textures = new JObject();
-        foreach (var path in paths)
-            if (Png(api, path) is { } uri) textures[path] = uri;
-            else api.Logger.Warning("[seraphexport] eidolon: no texture {0} on the server; the site draws it as a colour", path);
-
         var torsoCode = (string)fittings.GetField("TorsoCode", S)!.GetValue(null)!;
         return new JObject
         {
@@ -134,7 +128,6 @@ public static class EidolonSection
             ["settings"] = Settings(mod, fittings, settings),
             ["builds"] = Builds(fittings, buildType, statsType, settings, oldBuild, indexer, layerType),
             ["shapeTextures"] = new JObject(shapeTextures.Select(kv => new JProperty(kv.Key, kv.Value))),
-            ["textures"] = textures,
         };
     }
 
@@ -304,15 +297,6 @@ public static class EidolonSection
                 if ((string?)path is { } p)
                     result[code] = new AssetLocation(p).ToString();
         return result;
-    }
-
-    /// <summary>A texture (<c>domain:path</c> under <c>textures/</c>, no extension) as a PNG data URI,
-    /// or null when the server has no such asset.</summary>
-    private static string? Png(ICoreServerAPI api, string path)
-    {
-        var loc = new AssetLocation(path);
-        var asset = api.Assets.TryGet(new AssetLocation(loc.Domain, "textures/" + loc.Path + ".png"));
-        return asset?.Data is { Length: > 0 } data ? "data:image/png;base64," + Convert.ToBase64String(data) : null;
     }
 
     private static CollectibleObject? CollectibleOf(ICoreServerAPI api, string code)

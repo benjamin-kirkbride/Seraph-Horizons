@@ -926,9 +926,6 @@
       "sash": "game:block/leather/plain",
       "skirt": "game:block/metal/armor-generic/chain-steel",
       "lattice": "game:block/machine/lattice"
-    },
-    "textures": {
-      "game:block/metal/plate/steel": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPombbgPwAGNgLC5CSs+AAAAABJRU5ErkJggg=="
     }
   },
   "multiblocks": {

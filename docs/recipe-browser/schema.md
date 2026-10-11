@@ -450,12 +450,16 @@ loaded config), so the page shows what ships. Like the other optional additions 
   `walkSpeed`, `runSpeed`, `defenceDamage` and `slamDamage`.
 - `builds`: every joints, plates and skirt metal with the stats `EidolonStats.Of` gives it
   (`maxHealth`, the speeds, the blows' damage, `armour`); bones and sash change nothing.
-- `shapeTextures`: the eidolon shape's texture codes and paths; `textures`: each texture path
-  named above that the server has, as a PNG data URI (about 160 kB in all). A texture the server
-  lacks is left out with a warning in the log, and the site draws it as a colour.
+- `shapeTextures`: the eidolon shape's texture codes and paths.
+
+The section carries texture paths, never images: CI's game is the dedicated server, which has no
+textures. The images are imported by hand from a game client into the repository's texture store
+(`textures/`, `tools/textures.py`; [icons.md](icons.md#game-textures)), and prepare-data adds the
+ones the section names to `eidolon.json` as PNG data URIs; a path the store lacks is left out with
+a warning, and the site draws it as a colour.
 
 The exporter also warns when a layer's bill and the model's measured counts in the stages file
-disagree. prepare-data writes the section as it is to `eidolon.json`.
+disagree.
 
 ## Rules beyond the schema
 
@@ -471,8 +475,7 @@ disagree. prepare-data writes the section as it is to `eidolon.json`.
   its `block` is a key of `multiblocks.shapes`; `defaultSize` is a size that exists.
 - In `eidolon`: every code is a key of `items` and the `mod` a key of `mods`; layer ids and each
   layer's material ids are unique, and a layer's `default` is one of its materials; a build's
-  joints, plates and skirt are materials of those layers and no build is listed twice; every key of
-  `textures` is a texture a material or `shapeTextures` names.
+  joints, plates and skirt are materials of those layers and no build is listed twice.
 - `variants[].ingredients` is as long as `ingredients`.
 - Power entry ids are unique within `producers` and within `consumers`; an entry's `item` is a
   key of `items` (or null) and its `mod` a key of `mods`; `loadMax` is at least `load`, a wind

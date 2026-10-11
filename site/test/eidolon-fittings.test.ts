@@ -7,6 +7,7 @@ import {
   bill,
   change,
   defaultPick,
+  eidolonTexturePaths,
   isAgedWood,
   layerEffect,
   materialLabel,
@@ -23,14 +24,23 @@ import { prepareData } from "../src/lib/prepare.ts";
 import { faceUv } from "../src/lib/rig.ts";
 
 const minimal = JSON.parse(readFileSync(new URL("../../schema/examples/minimal.json", import.meta.url), "utf8")) as RecipeExport;
-const e = minimal.eidolon as EidolonData;
-const STEEL = e.textures["game:block/metal/plate/steel"]!;
+const STEEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGPombbgPwAGNgLC5CSs+AAAAABJRU5ErkJggg==";
+// The store has the steel plate; the rest are drawn as colours.
+const e: EidolonData = { ...minimal.eidolon!, textures: { "game:block/metal/plate/steel": STEEL } };
 
 describe("eidolon data", () => {
-  it("writes eidolon.json as the export has it, and names the items that link to it", () => {
-    const { files, meta } = prepareData(minimal);
+  it("writes eidolon.json as the export has it with the store's images of its textures, and names the items that link to it", () => {
+    const { files, meta } = prepareData(minimal, { textures: { "game:block/metal/plate/steel": STEEL, "game:block/unnamed": STEEL } });
     expect(files.get("eidolon.json")).toEqual(e);
     expect((meta as Meta).eidolon).toEqual({ items: ["seraphhorizons:creature-eidolon", "seraphhorizons:eidolontorso"] });
+    expect((prepareData(minimal).files.get("eidolon.json") as EidolonData).textures).toEqual({});
+  });
+
+  it("names every texture of the layers' materials and the shape once", () => {
+    const paths = eidolonTexturePaths(minimal.eidolon!);
+    expect(paths).toContain("game:block/machine/lattice");
+    expect(paths).toContain("game:block/metal/plate/steel");
+    expect(new Set(paths).size).toBe(paths.length);
   });
 
   it("writes neither without the section", () => {

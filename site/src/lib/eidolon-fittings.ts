@@ -62,7 +62,8 @@ export interface EidolonBuildStats {
   armour: PlateArmour | null;
 }
 
-export interface EidolonData {
+/** The export's eidolon section. */
+export interface EidolonExport {
   mod: string;
   item: string | null;
   torso: { item: string | null; recipe: EidolonStack[] };
@@ -72,8 +73,21 @@ export interface EidolonData {
   builds: EidolonBuildStats[];
   /** The shape's texture codes and their paths. */
   shapeTextures: Record<string, string>;
-  /** Texture path → PNG data URI, for each the server had. */
+}
+
+/** eidolon.json: the export's section with the images of its textures, which prepare-data takes
+ * from the repository's texture store (textures/, docs/recipe-browser/icons.md). */
+export interface EidolonData extends EidolonExport {
+  /** Texture path → PNG data URI, for each the store has. */
   textures: Record<string, string>;
+}
+
+/** Every texture path the section names: its layers' materials' and its shape's own, sorted.
+ * The same set tools/textures.py imports. */
+export function eidolonTexturePaths(e: EidolonExport): string[] {
+  const paths = new Set(Object.values(e.shapeTextures));
+  for (const l of e.layers) for (const m of l.materials) if (m.texture) paths.add(m.texture);
+  return [...paths].sort();
 }
 
 /** A material chosen for each layer, by layer id. */

@@ -2,10 +2,10 @@
 // The figures are the export's own (its builds, computed by the mod's EidolonStats), so the tests
 // read them from the file and check that the page shows them. Written to pass with or without WebGL.
 import { readFileSync } from "node:fs";
-import type { EidolonData } from "../src/lib/eidolon-fittings.ts";
+import type { EidolonExport } from "../src/lib/eidolon-fittings.ts";
 import { V, expect, openItem, test } from "./fixtures.ts";
 
-const eidolon = (JSON.parse(readFileSync(process.env.RECIPE_EXPORT!, "utf8")) as { eidolon?: EidolonData }).eidolon ?? null;
+const eidolon = (JSON.parse(readFileSync(process.env.RECIPE_EXPORT!, "utf8")) as { eidolon?: EidolonExport }).eidolon ?? null;
 
 const build = (joints: string, plates: string, skirt: string) => eidolon!.builds.find((b) => b.joints === joints && b.plates === plates && b.skirt === skirt)!;
 

@@ -139,7 +139,7 @@ and writes:
 <dir>/entities.json      every creature and trader, column-wise and sorted by code
 <dir>/entities/<n>.json  what each entity gives, a few hundred entities per file
 <dir>/power.json         the export's power section as it is (absent when the export has none)
-<dir>/eidolon.json       the export's eidolon section as it is, textures and all (absent when the export has none)
+<dir>/eidolon.json       the export's eidolon section, with the texture store's images of its textures (absent when the export has none)
 <dir>/multiblocks.json   the multiblocks, when the export has any (multiblocks.md)
 <dir>/multiblocks/<n>.json  one multiblock with the shapes of its blocks
 ```
@@ -401,11 +401,12 @@ order), and shows:
 
 - the model wearing them: the model viewer's eidolon (`site/models.json`'s `eidolon`: its shape,
   rig and animations, as main has them, like every model page) drawn by the viewer's scene
-  (`src/viewer/model-scene.ts`) in **the game's textures**, which the export carries
-  (`eidolon.textures`, PNG data URIs the exporter reads from the server's assets). The scene's
+  (`src/viewer/model-scene.ts`) in **the game's textures**: the export carries their paths, and
+  prepare-data puts the images from the repository's texture store in `eidolon.json`
+  (`textures`, PNG data URIs; [icons.md](icons.md#game-textures)). The scene's
   `setTextures` draws each texture code with its image on the faces' `uv` and `rotation`
-  (`faceUv` in `rig.ts`) and keeps the vertex colours for a code without one, so an export whose
-  server had no textures draws in the viewer's colours, and says so. `dim` greys out every layer
+  (`faceUv` in `rig.ts`) and keeps the vertex colours for a code without one, so a texture the store lacks draws
+  in the viewer's colours, and the page says so. `dim` greys out every layer
   but the one under the pointer or focus. An animation picker plays the shape's animations
   (keyframes.ts, as the model page does), and the camera turns until stopped (not with reduced motion);
 - the stats: max HP, walk, run, punch and kick, slam, and the plates' armour tier, protection and

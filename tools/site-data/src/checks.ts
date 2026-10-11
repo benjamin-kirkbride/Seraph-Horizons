@@ -70,7 +70,6 @@ interface Eidolon {
   layers: { id: string; default: string | null; materials: { id: string; texture: string | null; items: EidolonStack[] }[]; parts: EidolonStack[] }[];
   builds: { joints: string; plates: string; skirt: string }[];
   shapeTextures: Record<string, string>;
-  textures: Record<string, string>;
 }
 
 export function checkCrossReferences(doc: unknown, report: ErrorReport): void {
@@ -220,8 +219,8 @@ function checkPower(d: ExportV1, report: ErrorReport): void {
 
 // The eidolon's fittings (schema.md, The eidolon's fittings): every code is an item, layers and
 // their materials appear once, a layer's default is one of its materials, each build is of
-// materials its layers take and appears once, and every texture is one a material or the shape
-// names. The fitting sheet draws from these without checking again.
+// materials its layers take and appears once. The fitting sheet draws from these without checking
+// again.
 const BUILD_LAYERS = ["joints", "plates", "skirt"] as const;
 function checkEidolon(d: ExportV1, report: ErrorReport): void {
   const e = d.eidolon!;
@@ -236,7 +235,6 @@ function checkEidolon(d: ExportV1, report: ErrorReport): void {
   stacks(e.mind, "/eidolon/mind");
 
   const layers = new Map<string, Set<string>>();
-  const paths = new Set(Object.values(e.shapeTextures));
   e.layers.forEach((l, li) => {
     const at = `/eidolon/layers/${li}`;
     if (layers.has(l.id)) report.add("eidolon-layer", `${at}/id`, "a layer no other entry is", JSON.stringify(l.id));
@@ -245,7 +243,6 @@ function checkEidolon(d: ExportV1, report: ErrorReport): void {
       if (ids.has(m.id)) report.add("eidolon-material", `${at}/materials/${mi}/id`, "a material listed once", JSON.stringify(m.id));
       ids.add(m.id);
       stacks(m.items, `${at}/materials/${mi}/items`);
-      if (m.texture !== null) paths.add(m.texture);
     });
     stacks(l.parts, `${at}/parts`);
     if (l.default !== null && !ids.has(l.default)) report.add("eidolon-default", `${at}/default`, "one of the layer's materials", JSON.stringify(l.default));
@@ -261,10 +258,6 @@ function checkEidolon(d: ExportV1, report: ErrorReport): void {
       if (!layers.get(k)?.has(b[k])) report.add("eidolon-build", `/eidolon/builds/${bi}/${k}`, `one of the ${k} layer's materials`, JSON.stringify(b[k]));
     }
   });
-
-  for (const path of Object.keys(e.textures)) {
-    if (!paths.has(path)) report.add("eidolon-texture", `/eidolon/textures/${ptr(path)}`, "a texture a material or the shape names", JSON.stringify(path));
-  }
 }
 
 // Multiblocks: a cell names a part, a part's block has a shape, an id is an address and appears

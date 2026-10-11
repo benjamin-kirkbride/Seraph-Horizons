@@ -394,6 +394,8 @@ jobs:
       # Works on the LFS pointer files this checkout has: no image is downloaded.
       - name: Icon index matches the icon files
         run: python3 tools/icons.py verify
+      - name: Texture index matches the texture files
+        run: python3 tools/textures.py verify
       - name: tools/site-data
         run: |
           npm ci --prefix tools/site-data
@@ -439,6 +441,9 @@ jobs:
       # Warns about items without an icon; never fails for them (the site shows placeholders).
       - name: Icon drift
         run: python3 tools/icons.py drift --export "$RUNNER_TEMP/recipe-export/recipes.json"
+      # Warns about textures the eidolon section names that textures/ lacks (drawn as colours).
+      - name: Texture drift
+        run: python3 tools/textures.py drift --export "$RUNNER_TEMP/recipe-export/recipes.json"
 
   site:
     name: Recipe browser end to end
@@ -475,7 +480,8 @@ jobs:
             site/playwright-report/
           if-no-files-found: ignore
 
-  # Keeps the icons' LFS objects in the Actions cache for pages.yml. That
+  # Keeps the icons' (and textures/', the same kind of store) LFS objects in
+  # the Actions cache for pages.yml. That
   # workflow is started by workflow_run, which gets a read-only cache, so it
   # cannot save one itself; without a cache every deploy downloads all the
   # icons, and each download counts against the LFS bandwidth quota. Here LFS
@@ -493,11 +499,11 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .git/lfs
-          key: lfs-icons-${{ hashFiles('icons/index.json') }}
+          key: lfs-icons-${{ hashFiles('icons/index.json', 'textures/index.json') }}
           restore-keys: lfs-icons-
-      - name: Fetch the icons the cache does not hold
+      - name: Fetch the icons and textures the cache does not hold
         if: steps.cache.outputs.cache-hit != 'true'
-        run: git lfs fetch origin "$GITHUB_SHA" --include "icons/**"
+        run: git lfs fetch origin "$GITHUB_SHA" --include "icons/**,textures/**"
 
   # The one required status check (branch protection and .mergify.yml). A
   # needed job that fails leaves a plain `needs:` job *skipped*, and GitHub and

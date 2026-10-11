@@ -7,7 +7,9 @@ namespace SeraphHorizons.PackTests;
 /// The eidolon section (tools/recipe-export/EidolonSection.cs, docs/recipe-browser/schema.md, "The
 /// eidolon's fittings"), what the site's fitting sheet shows: the five layers in build order with
 /// the all-steel build as their defaults, every build's stats as the mod's EidolonStats has them
-/// (all steel keeps 300 HP), every code an item of the export, and every material's texture carried.
+/// (all steel keeps 300 HP), every code an item of the export, and every material's texture path
+/// carried and in the repository's texture store (textures/index.json, which the site build takes
+/// the images from: CI's server has none).
 /// </summary>
 public partial class RecipeExportScenarios
 {
@@ -48,15 +50,31 @@ public partial class RecipeExportScenarios
         Assert.Equal(8, (double)brass["defenceDamage"]!, 4);
         Assert.Equal(2, (int)brass["armour"]!["protectionTier"]!);
 
-        var textures = (JObject)Eidolon["textures"]!;
-        foreach (var m in Eidolon["layers"]!.SelectMany(l => l["materials"]!))
-        {
-            var path = (string?)m["texture"];
-            Assert.True(path != null && textures[path] != null, $"{m["id"]}'s texture {path} is not carried");
-        }
-        Assert.NotNull(textures["seraphhorizons:block/metal/armor-generic/chain-stainlesssteel"]);
+        Assert.Null(Eidolon["textures"]);   // paths only: the images are the site build's
+        var stored = (JObject)JObject.Parse(File.ReadAllText(Path.Combine(RepoRoot(), "textures", "index.json")))["textures"]!;
+        var paths = new List<string>();
+        foreach (var l in Eidolon["layers"]!)
+            foreach (var m in l["materials"]!)
+            {
+                var path = (string?)m["texture"];
+                Assert.True(path != null, $"{l["id"]}'s {m["id"]} carries no texture");
+                paths.Add(path!);
+            }
+        paths.AddRange(((JObject)Eidolon["shapeTextures"]!).Properties().Select(p => (string)p.Value!));
+        Assert.Contains("seraphhorizons:block/metal/armor-generic/chain-stainlesssteel", paths);
+        var missing = paths.Distinct().Where(p => stored[p] == null).ToList();
+        Assert.True(missing.Count == 0, "not in textures/index.json (tools/textures.py import, docs/recipe-browser/icons.md): " + string.Join(", ", missing));
         foreach (var code in Eidolon.SelectTokens("$..code").Select(t => (string)t!))
             Assert.True(Doc["items"]![code] != null, $"{code} is not an item of the export");
         Assert.True(Doc["items"]![(string)Eidolon["item"]!] != null);
+    }
+
+    private static string RepoRoot()
+    {
+        // Not AppContext.BaseDirectory: after boot it points into the game install.
+        var dir = Path.GetDirectoryName(typeof(RecipeExportScenarios).Assembly.Location)!;
+        for (var d = new DirectoryInfo(dir); d != null; d = d.Parent)
+            if (File.Exists(Path.Combine(d.FullName, "pack", "pack.toml"))) return d.FullName;
+        throw new Xunit.Sdk.XunitException("the repository root (pack/pack.toml) is not above " + dir);
     }
 }

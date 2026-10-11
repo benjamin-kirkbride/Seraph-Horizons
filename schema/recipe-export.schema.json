@@ -827,9 +827,9 @@
       ]
     },
     "eidolon": {
-      "description": "The eidolon's fittings: the layers fitted onto its torso in the gantry, what each takes, the server's EidolonSettings and the stats of every metal build, and the textures the layers draw with.",
+      "description": "The eidolon's fittings: the layers fitted onto its torso in the gantry, what each takes, the server's EidolonSettings and the stats of every metal build, and the texture paths the layers draw with (the images are the site build's, from the repository's texture store).",
       "type": "object",
-      "required": ["mod", "item", "torso", "mind", "layers", "settings", "builds", "shapeTextures", "textures"],
+      "required": ["mod", "item", "torso", "mind", "layers", "settings", "builds", "shapeTextures"],
       "additionalProperties": false,
       "properties": {
         "mod": { "$ref": "#/$defs/modId" },
@@ -929,12 +929,6 @@
           "description": "The eidolon shape's texture codes and their paths (the layers' defaults among them).",
           "type": "object",
           "additionalProperties": { "$ref": "#/$defs/code" }
-        },
-        "textures": {
-          "description": "Each texture path above that the server has, as a PNG data URI.",
-          "type": "object",
-          "propertyNames": { "$ref": "#/$defs/code" },
-          "additionalProperties": { "type": "string", "pattern": "^data:image/png;base64,[A-Za-z0-9+/=]+$" }
         }
       }
     },
