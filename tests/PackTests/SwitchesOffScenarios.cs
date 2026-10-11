@@ -1060,7 +1060,9 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     {
         Assert.True(Off("UnifiedWoodworking"));
         var guides = Exporter.Guides((ICoreServerAPI)World.Api).OfType<JObject>().ToList();
-        Assert.DoesNotContain(guides, g => (string?)g["mod"] == "seraphhorizons");
+        // every seraphhorizons guide is switched off here but the ore maps', shown in every world as the items are
+        Assert.DoesNotContain(guides, g => (string?)g["mod"] == "seraphhorizons"
+                                           && (string?)g["code"] != SeraphHorizons.Mod.Ore.OreMapsSystem.GuidePage);
         foreach (var (mod, code) in new[] { (WoodworkingMods.IwModId, "craftinginfo-woodworking"), (WoodworkingMods.LeModId, "introduction") })
             Assert.Single(guides, g => (string?)g["mod"] == mod && (string?)g["code"] == code);
     }
