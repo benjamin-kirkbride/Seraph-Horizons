@@ -4,9 +4,9 @@ These hold what the generator wrote to its own rules, without running it: the sh
 the shared rig maths and uses the `requires` vocabulary of the contract, its reference poses are its own
 maths, the cells are rebuilt from the shipped shape, the work is one hollow's forging or one spring's
 winding, theta moves nothing, the box closes from 8 to 6 across onto the mandrel, the two sections come
-off the tip, the rod laid along the mandrel is wound side by side into the coil machinegen.coil draws (the
-spring item's shape), one wire, used up from its shoulder end while its far end stays put, and the anchors are
-where the contract puts them. Run with `python3 -m unittest discover -s tools/tests`.
+off the tip, the rod laid along the mandrel is laid side by side behind the wire's bend into the coil
+machinegen.coil draws (the spring item's shape), used up from its shoulder end while its far end stays put, and
+the anchors are where the contract puts them. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -161,7 +161,9 @@ class Forge(unittest.TestCase):
 
 
 SIDES = [f"sp{t}{f}" for t in range(1, 7) for f in "uwde"]       # the coil's sides, in winding order: turn, face
-RODS = [f"spr{j}" for j in range(24)]                              # the straight rod as each side is bent off it
+PIECES = [f"{side}_{s}" for side in SIDES for s in range(make_shape.SEGMENTS)]   # each side's pieces, from its start corner
+TIP = "sptip"                                                      # the wire's bend, round the rod's shoulder end
+RODS = [f"spr{j}" for j in range(25)]                              # the straight rod as each side is laid; spr24 its last bit
 
 
 def posed_parts(pids, **ins):
@@ -174,6 +176,14 @@ def posed_parts(pids, **ins):
     return out
 
 
+def inside(el, box, tol=1e-4):
+    for q in el.corners():
+        rel = [q[i] - box.c[i] for i in range(3)]
+        if any(abs(sum(box.r[i][k] * rel[i] for i in range(3))) > abs(box.size[k]) / 2 + tol for k in range(3)):
+            return False
+    return True
+
+
 class Spring(unittest.TestCase):
     def test_one_rod_makes_one_spring_wound_as_one_chain(self):
         wind = RIG["wind"]
@@ -183,9 +193,9 @@ class Spring(unittest.TestCase):
         # its own class: a job of 1 for it as for each hollow's
         self.assertEqual(rigmath.work_end(RIG["work"], 3), 1.0)
         parts = [p for p in RIG["parts"] if p["requires"] == "rodsteel"]
-        # the sides in winding order, then the straight rod, a stretch a side (each a wire's width shorter)
-        self.assertEqual([p["id"] for p in parts], SIDES + RODS)
-        # each piece on its own, moved by gauges alone: turns about fixed axes and slides, nothing stretched
+        # the sides' pieces in winding order, the tip, then the straight rod, a stretch a side (each a wire's width shorter)
+        self.assertEqual([p["id"] for p in parts], PIECES + [TIP] + RODS)
+        # each piece on its own, moved by gauges alone: slides (and turns about fixed axes), nothing stretched
         for p in parts:
             self.assertIsNone(p["ride"], p["id"])
             for d in p["drivers"]:
@@ -193,22 +203,34 @@ class Spring(unittest.TestCase):
 
     def test_wound_it_is_the_coil_machinegen_draws(self):
         coil = Coil((make_shape.X0, make_shape.YM), make_shape.MH, make_shape.WIRE, make_shape.COIL_PITCH, make_shape.SPRING_Z0, 6)
-        els = posed_parts(set(SIDES), work=1.0, size=3, presence=1.0)
-        for j, pid in enumerate(SIDES):
+        els = posed_parts(set(PIECES) | {TIP}, work=1.0, size=3, presence=1.0)
+        for j, side in enumerate(SIDES):
             want = coil.side(j, "x", "x", "spring")
-            self.assertLess(max(abs(els[pid].c[i] - want.c[i]) for i in range(3)), 1e-3, pid)
-            self.assertLess(max(abs(els[pid].r[a][b] - want.r[a][b]) for a in range(3) for b in range(3)), 1e-5, pid)
-        lo, hi = aabb_of(list(els.values()))
+            u = coil.direction(j)
+            reach = None
+            for s in range(make_shape.SEGMENTS):
+                el = els[f"{side}_{s}"]
+                # each piece inside the bar the coil puts there, turned as it is, end to end along it
+                self.assertTrue(inside(el, want), f"{side}_{s}")
+                self.assertLess(max(abs(el.r[a][b] - want.r[a][b]) for a in range(3) for b in range(3)), 1e-5, side)
+                along = sum((el.c[i] - want.c[i]) * u[i] for i in range(3))
+                if reach is not None:
+                    self.assertAlmostEqual(along - el.size[2] / 2, reach, delta=2e-3, msg=f"{side}_{s}")
+                reach = along + el.size[2] / 2
+            self.assertAlmostEqual(reach, want.size[2] / 2, delta=2e-3, msg=side)
+        lo, hi = aabb_of([els[p] for p in PIECES])
         # on the mandrel's body, from the shoulder to short of the nose; six turns of 2.4
         self.assertGreaterEqual(lo[2], make_shape.SHOULDER_Z[1])
         self.assertLessEqual(hi[2], make_shape.NOSE_Z[0])
+        # the tip at the wire's end
+        self.assertLess(max(abs(els[TIP].c[i] - coil.corner(24)[i]) for i in range(3)), 1e-3)
 
     def test_at_w0_the_rod_lies_straight_along_the_mandrel(self):
-        # what can be seen at W 0: the straight rod alone, along the mandrel's top east edge from the shoulder to past the
-        # nose; everything else waits inside the mandrel's body
+        # what can be seen at W 0: the straight rod alone, along the mandrel's top east edge from the shoulder to the
+        # coil's far end, the tip round its shoulder end; everything else waits inside the mandrel's body
         spring = [p["id"] for p in RIG["parts"] if p["requires"] == "rodsteel"]
         seen = [pid for pid in spring if make_shape.spring_seen(pid, 0.0)]
-        self.assertEqual(seen, ["spr0"])
+        self.assertEqual(seen, [TIP, "spr0"])
         els = posed_parts(set(spring), work=0.0, size=3, presence=1.0)
         rod = els["spr0"]
         self.assertEqual([round(rod.r[i][2], 9) for i in range(3)], [0.0, 0.0, 1.0])
@@ -219,18 +241,19 @@ class Spring(unittest.TestCase):
         self.assertGreaterEqual(lo[2], make_shape.SHOULDER_Z[1])
         self.assertLess(lo[2], make_shape.SHOULDER_Z[1] + 0.2)
         self.assertAlmostEqual(hi[2], make_shape.ROD_END + make_shape.ROD / 2, delta=1e-3)
-        self.assertGreater(hi[2], make_shape.TIP)
-        self.assertLess(hi[2], 32.0)
+        self.assertAlmostEqual(make_shape.ROD_END, make_shape.COIL.corner(24)[2], places=6)
+        self.assertLess(hi[2], make_shape.NOSE_Z[0])
+        self.assertLess(max(abs(els[TIP].c[i] - corner[i]) for i in range(3)), 1e-3)
         body = [el for el in flatten(SHAPE["elements"], textures={}) if el.name == "mandrel_body"][0]
         blo, bhi = body.aabb()
         for pid in set(spring) - set(seen):
             plo, phi = els[pid].aabb()
             self.assertTrue(all(blo[i] <= plo[i] and phi[i] <= bhi[i] for i in range(3)), pid)
 
-    def test_each_slot_bends_one_side_while_the_rod_hops_over_its_face(self):
-        # W is 24 equal slots, one a side: over each, that side turns and the straight rod alone moves with it, from the
-        # side's corner to its far corner (square to the mandrel: no z, one face across), lifted off the coil's layer
-        # halfway, never turning; nothing else moves
+    def test_each_slot_lays_one_side_behind_the_tip(self):
+        # W is 24 equal slots, one a side: over each, the tip moves along that side's centre line, corner to corner, the
+        # straight rod alone moves with it across the face (no z), and that side's pieces come out of the mandrel into
+        # their places; nothing else moves
         spring = [p["id"] for p in RIG["parts"] if p["requires"] == "rodsteel"]
         make_shape.plan()
         slots = [(a / make_shape.US, b / make_shape.US) for kind, a, b in make_shape.WINDOWS if kind == "slot"]
@@ -238,66 +261,60 @@ class Spring(unittest.TestCase):
         self.assertEqual(len(slots), 24)
         for j, (a, b) in enumerate(slots):
             self.assertAlmostEqual(b - a, 1 / 24, delta=1e-5)
+            if b >= 1.0:
+                b -= 1 / make_shape.US      # the last slot's end is the instant that loses the rod's last bit in the tip
             moved = {}
             for pid in spring:
                 ma, mb = matrix(pid, work=a, size=3, presence=1.0), matrix(pid, work=b, size=3, presence=1.0)
                 if max(abs(ma[r][c] - mb[r][c]) for r in range(3) for c in range(4)) > 1e-7:
                     moved[pid] = [(mb[i][3] - ma[i][3]) * 16 for i in range(3)]
-            want = {SIDES[j]} | ({RODS[j + 1]} if j + 1 < 24 else set())
-            self.assertEqual(set(moved), want, f"slot {j} at {a:.4f}")
-            if j + 1 < 24:
-                rod = RODS[j + 1]
-                d = moved[rod]
-                self.assertAlmostEqual(d[2], 0.0, places=4)
-                self.assertAlmostEqual(math.hypot(d[0], d[1]), 2 * make_shape.COIL.h, places=3)
-                mid = posed_parts({rod}, work=(a + b) / 2, size=3, presence=1.0)[rod]
-                lift = math.hypot(mid.c[0] - make_shape.X0, mid.c[1] - make_shape.YM) - make_shape.COIL.h
-                self.assertAlmostEqual(lift, make_shape.HOP_RISE, delta=1e-3)
-                start = posed_parts({rod}, work=a, size=3, presence=1.0)[rod]
-                self.assertLess(max(abs(mid.r[x][y] - start.r[x][y]) for x in range(3) for y in range(3)), 1e-9)
+            pieces = {f"{SIDES[j]}_{s}" for s in range(1, make_shape.SEGMENTS)}
+            self.assertEqual(set(moved) - pieces, {TIP, RODS[j + 1]}, f"slot {j} at {a:.4f}")
+            d = moved[TIP]
+            self.assertAlmostEqual(math.hypot(d[0], d[1]), 2 * make_shape.COIL.h, places=3)
+            self.assertAlmostEqual(d[2], make_shape.COIL.rise, places=3)
+            d = moved[RODS[j + 1]]
+            self.assertAlmostEqual(d[2], 0.0, places=4)
+            self.assertAlmostEqual(math.hypot(d[0], d[1]), 2 * make_shape.COIL.h, places=3)
 
-    def test_the_rod_is_one_wire_used_up_from_its_shoulder_end(self):
-        # every 1/200 of W: each side that can be seen starts at the end of the one before it; one stretch of the straight
-        # rod (none once the last side, the rod's last length, is out), along the mandrel, its far end where it was at
-        # W 0, on its slot's hop over the newest side's face, from that side's corner to its far corner; the sides keep
-        # their length (rigid bars)
+    def test_the_wire_is_laid_from_the_rod_at_the_tip(self):
+        # every 1/200 of W: the tip on the current side's centre line, as far along it as the slot has got; one stretch of
+        # the straight rod (none once its last bit is lost in the tip), along the mandrel, on the tip's line, its far end
+        # where it was at W 0, its shoulder end inside the tip; the pieces laid so far at their places, in order, none
+        # ahead of the tip
         spring = [p["id"] for p in RIG["parts"] if p["requires"] == "rodsteel"]
-        for pid in SIDES:
-            el = posed_parts({pid}, work=0.0, size=3, presence=1.0)[pid]
-            self.assertAlmostEqual(el.size[2], make_shape.COIL.length + make_shape.WIRE, delta=2e-4, msg=pid)
-
-        def axis(el, pc):
-            ax = [el.r[q][2] for q in range(3)]
-            mid = (pc.lo + pc.hi) / 2
-            start = [el.c[q] - ax[q] * mid for q in range(3)]
-            return ([start[q] + ax[q] * pc.lo for q in range(3)], [start[q] + ax[q] * pc.hi for q in range(3)],
-                    start, [start[q] + ax[q] * pc.run for q in range(3)])
-
+        coil = make_shape.COIL
         for i in range(201):
             W = i / 200
+            u = W * make_shape.US
             els = posed_parts(set(spring), work=W, size=3, presence=1.0)
             seen = [pid for pid in spring if make_shape.spring_seen(pid, W)]
-            sides = [pid for pid in seen if pid in SIDES]
             rods = [pid for pid in seen if pid in RODS]
-            lines = {pid: axis(els[pid], make_shape.piece(pid)) for pid in seen}
-            for x, pid in enumerate(sides[1:], 1):
-                self.assertEqual(SIDES.index(pid), SIDES.index(sides[x - 1]) + 1, f"W {W}")
-                self.assertLess(math.dist(lines[sides[x - 1]][3], lines[pid][2]), 2e-3, f"{pid} at W {W}")
-            self.assertEqual(len(rods), 0 if "sp6e" in seen else 1, f"W {W}")
             j = min(int(W * 24), 23)
             a, b = make_shape.slot(j)
-            f = min(1.0, max(0.0, (W * make_shape.US - a - make_shape.INSTANTS) / (b - a - make_shape.INSTANTS)))
+            f = min(1.0, max(0.0, (u - a - make_shape.INSTANTS) / (b - a - make_shape.INSTANTS)))
+            tip = els[TIP]
+            line = [coil.corner(j)[q] + f * (coil.corner(j + 1)[q] - coil.corner(j)[q]) for q in range(3)]
+            self.assertLess(max(abs(tip.c[q] - line[q]) for q in range(3)), 2e-3, f"the tip at W {W}")
+            self.assertEqual(len(rods), 0 if u >= make_shape.US - 1 else 1, f"W {W}")
             for pid in rods:
-                lo, hi, start, end = lines[pid]
-                self.assertEqual(pid, RODS[j + 1] if f > 0 else RODS[j], f"W {W}")
-                self.assertAlmostEqual(end[2], make_shape.ROD_END, delta=1e-3, msg=f"{pid} at W {W}")
-                self.assertAlmostEqual(abs(start[2] - end[2]), make_shape.piece(pid).run, delta=1e-3)
-                off, along = make_shape.hop_off(j, start[:2])
-                self.assertLess(off, 2e-3, f"{pid} off its hop at W {W}")
-                self.assertAlmostEqual(along, f, delta=0.02, msg=f"{pid} at W {W}")
-                at = make_shape.corner(j + 1 if f >= 1 else j) if f in (0.0, 1.0) else None
-                if at is not None:
-                    self.assertLess(math.dist(start[:2], at[:2]), 1e-3, f"{pid} not on its corner at W {W}")
+                rod = els[pid]
+                self.assertEqual([round(rod.r[q][2], 9) for q in range(3)], [0.0, 0.0, 1.0])
+                self.assertLess(max(abs(rod.c[q] - tip.c[q]) for q in (0, 1)), 1e-3, f"{pid} off the tip at W {W}")
+                lo, hi = rod.aabb()
+                self.assertAlmostEqual(hi[2], make_shape.ROD_END + make_shape.ROD / 2, delta=1e-3, msg=f"{pid} at W {W}")
+                self.assertGreater(lo[2], tip.c[2] - make_shape.TIPBLOCK[2] / 2, f"{pid}'s end out of the tip at W {W}")
+                self.assertLess(lo[2], tip.c[2] + make_shape.TIPBLOCK[2] / 2, f"{pid}'s end out of the tip at W {W}")
+            laid = [pid for pid in seen if pid in PIECES]
+            self.assertEqual(laid, PIECES[:len(laid)], f"W {W}")
+            for pid in laid:
+                side, s = pid.rsplit("_", 1)
+                jj, s = SIDES.index(side), int(s)
+                want = coil.side(jj, "x", "x", "spring")
+                self.assertTrue(inside(els[pid], want), f"{pid} at W {W}")
+                if jj == j:
+                    ahead = max(sum((p[q] - tip.c[q]) * coil.direction(j)[q] for q in range(3)) for p in els[pid].corners())
+                    self.assertLess(ahead, 0.4, f"{pid} ahead of the tip at W {W}")
 
     def test_the_class_is_the_job(self):
         # the spring moves for its class (3) alone; the hollows never with it
@@ -317,17 +334,22 @@ class Spring(unittest.TestCase):
                     self.assertEqual(list(d["amount"]), ["3"], p["id"])
 
     def test_the_item_is_the_wound_coil(self):
-        wound = posed_parts(set(SIDES), work=1.0, size=3, presence=1.0)
+        # the item's 24 sides are the bars the station's pieces fill when wound, moved as one
+        coil = make_shape.COIL
         item = {el.name: el for el in flatten(ITEM["elements"], textures={})}
         self.assertEqual(sorted(item), sorted(f"{pid}_wire" for pid in SIDES))
+        wound = posed_parts(set(PIECES), work=1.0, size=3, presence=1.0)
         d = None
-        for pid in SIDES:
-            a, b = item[f"{pid}_wire"].corners(), wound[pid].corners()
+        for j, pid in enumerate(SIDES):
+            bar = coil.side(j, "x", "x", "spring", across=make_shape.spring_across(j))
+            a, b = item[f"{pid}_wire"].corners(), bar.corners()
             off = [a[0][i] - b[0][i] for i in range(3)]
             d = d or off
             for p, q in zip(a, b):
                 for i in range(3):
                     self.assertAlmostEqual(p[i] - q[i], d[i], delta=2e-3, msg=pid)
+            for s in range(make_shape.SEGMENTS):
+                self.assertTrue(inside(wound[f"{pid}_{s}"], bar), f"{pid}_{s}")
         lo, hi = aabb_of(list(item.values()))
         self.assertAlmostEqual(lo[1], 0.0, places=3)
         self.assertAlmostEqual(lo[0] + hi[0], 16.0, places=3)
