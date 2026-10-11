@@ -13,6 +13,8 @@ public enum EidolonJob
     TrunkDelivered,
     /// <summary>A load (a container, a Carry On block) carried somewhere and set down (#676).</summary>
     LoadCarried,
+    /// <summary>A strike mining an area (up to four blocks broken at once).</summary>
+    MiningStrike,
 }
 
 /// <summary>
@@ -31,6 +33,7 @@ public static class EidolonOil
         EidolonJob.TreeFelled => config.OilPerTreeFelled,
         EidolonJob.TrunkDelivered => config.OilPerTrunkDelivered,
         EidolonJob.LoadCarried => config.OilPerLoadCarried,
+        EidolonJob.MiningStrike => config.OilPerMiningStrike,
         _ => throw new ArgumentOutOfRangeException(nameof(job)),
     };
 

@@ -1,8 +1,8 @@
 # Eidolon
 
 Part of the Seraph Horizons mod (`../README.md`): a player-built eidolon, a laborer automaton that
-fells trees with a real axe it holds, hauls Logging Expanded trunks to the rosser and the bucking
-sawmill, carries a Carry On container as a pack mule, lifts and carries Carry On blocks and trunks,
+fells trees with a real axe it holds, mines out a marked area bare-handed, hauls Logging Expanded
+trunks to the rosser and the bucking sawmill, carries a Carry On container as a pack mule, lifts and carries Carry On blocks and trunks,
 defends itself and stands guard. At 0 HP it slumps disabled and can be repaired; it is never killed.
 It is built in a mostly wooden gantry: a crafted torso, then five layers of material, each the builder's
 choice of wood, metal, leather or cloth, which set its look and its stats and can be stripped and refitted.
@@ -14,7 +14,8 @@ and `Game/`, described in the mod's README ("Eidolon"), with the seams the gantr
 and jobs plug into; the body stages and the waking (#672: the gantry's `BEBehaviorEidolonBody`,
 `../EidolonGantry/`), oil and repair (#674), and the command tool's binding, mode wheel and marking,
 following, staying and self-defence (#675) are built too, and hauling trunks to the rosser and the
-bucking mill (#678). The other jobs are not built yet.
+bucking mill (#678), and mining a marked area (`Game/MineOrder.cs`, `Core/EidolonMining.cs`, its slam
+the shape's vanilla `stand-slam`). The other jobs are not built yet.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/`, which is the repository's.

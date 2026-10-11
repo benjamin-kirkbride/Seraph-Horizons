@@ -2800,7 +2800,8 @@ machine's tank, `OilTank` points (100 to the litre: 1000, a bucket), filled by r
 oils a machine (MachineOil's oils from any liquid container, or rendered fat; `MachineOilSettings`'
 lists), as much as fits, refused when full. It wakes with `InitialOilShare` of it (a quarter). Each job
 done drains it: a tree felled `OilPerTreeFelled` (5), a trunk delivered `OilPerTrunkDelivered` (3), a
-load carried somewhere and set down `OilPerLoadCarried` (2), so a full reservoir fells 200 trees;
+load carried somewhere and set down `OilPerLoadCarried` (2), a strike mining an area
+`OilPerMiningStrike` (0.5), so a full reservoir fells 200 trees;
 idling, following, staying and guarding cost nothing. Dry, it stops and waits standing (no slump; its
 order is kept) until oiled, then carries on. Its info shows the reservoir. With `MachineOil` off it has
 none, is never dry and takes no oil; turned on later, it starts as a new one.
@@ -2825,7 +2826,8 @@ order; right-click anywhere but on an eidolon gives it to every bound eidolon lo
 `CommandRange` of the holder that the holder may still command (the others are counted in a refusal
 message), and a chat line says how many took it. Modes that work in a place have the player **mark**
 it first: a block (one right-click on it, which then gives the order) or an area (a first corner,
-then the opposite corner, which closes it and gives the order; wider than the mode's limit is refused
+then the opposite corner, which closes it and gives the order; wider than the mode's limit, or
+holding more blocks in all than its limit (mining's), is refused
 and the first corner kept; a third click starts a new area). The tool keeps each mode's marks; while it
 is held, the client highlights the selected mode's (an area as a green box, a first corner or block in
 yellow; highlight slot 6750), and sneak + right-click on a block or the air clears them. Everything is
@@ -3020,6 +3022,43 @@ stand: on soil). Leaves drop their saplings and seeds as the game's felling does
 *Oil*: each tree costs `OilPerTreeFelled` (`SpendOil(EidolonJob.TreeFelled)`), after the felling and
 replanting. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh.
 
+**Mining** (`Eidolon/Game/MineOrder.cs`, `EidolonMineSystem.cs`, rules in `Eidolon/Core/EidolonMining.cs`).
+*Mine an area* (wheel order 55, right after felling; the game's pick icon, `worldmap/pick.svg`) marks an
+area (two corners, at most 1024 blocks a side and 16384 blocks in all, `MaxAreaBlocks` on the mode: an
+opposite corner past either is refused and the first kept) and gives the `mine` order with where the
+eidolon stands then. Bare-handed, as a tier 3 pickaxe, it breaks everything in the box a pick breaks: a
+block needing tier 3 or less, one needing a tier only if the game's steel pickaxe has a speed for its
+material (as the game refuses a player). It leaves liquids, any block a liquid touches on one of its six
+faces (so the pit never opens onto water or lava), blocks with a block entity (a chest, a machine),
+blocks in a land claim its owner may not break in (as felling) and anything harder or unbreakable (the
+mantle). It quarries top down, with no ramp: the highest layer with a block left that it may break is
+the one it works, a strike at a time, each breaking up to four blocks: a 2 × 2 group on that layer
+(flat), or two side by side on it and the two under them (upright, at a wall where both layers are
+left), whichever breaks more, flat on ties. The groups tile the area in 2 × 2 squares from its lower
+corner, the nearest square first. It reaches a block within 2 blocks of its box sideways, from the
+layer under its feet to its head (3 over the block its feet are in), never one in a column its box stands over,
+so it never digs its footprint or under it: for what it stood on, or a square out of reach, it walks to
+a place beside (a path node from which it reaches the square's blocks on the layer, its box free and
+on the ground; those not standing on a block it has yet to mine first, then the nearest; three tried by
+the wide pathfinder, and the square is given up for the order's life). It may end up down in the pit.
+
+*A strike* takes as long as a seraph with a steel pickaxe takes to break the slowest block of its
+group, at three quarters of their pace. The game takes the pick's mining speed for the block's material
+(the steel pickaxe's own, read from `game:pickaxe-steel` at runtime: 9 for stone, ore and metal, 3.25
+for ceramic, 4.25 for ice) times its tool mining speed modifier (1), or 1 for any other material, off
+the block's resistance each second (`CollectibleObject.GetMiningSpeed`); so granite (resistance 8)
+takes a seraph 0.89 s and the eidolon 1.19 s, soil (1.8) 2.4 s. It faces the group and slams
+(vanilla's `stand-slam`, stretched or squeezed to fill the strike, from half to three times its speed;
+it stands first for a slower strike, and one quicker than the fastest slam takes the slam's 0.5 s);
+the group breaks as both fists land (frame 35), with the first block's pickaxe break sound, broken as
+a pick breaks it with no player (`BreakBlock`): the block's own drops fall in the world. Each strike
+costs `OilPerMiningStrike` (0.5). It searches the area again once its layer is done and every 10
+seconds while it works. Done when no block it may break and reach is left: it tells its owner how many
+it mined, how many it left and how many were out of its reach, walks back to where it was ordered (if
+it finds a way) and the order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts
+again by looking afresh (done, it goes on back). `MineOrder.WorkLeft` says whether it still has blocks
+to mine. It is not part of the crew order.
+
 **The crew** (#679; `Eidolon/Game/CrewOrder.cs`, rules in `Eidolon/Core/EidolonCrew.cs`). *Fell and
 haul* (wheel place 70) marks a fell area (at most 32 blocks a side), then a rosser or bucking mill, as
 *Haul trunks* marks (any of its cells; another block is refused and the area kept), and gives `crew`
@@ -3131,7 +3170,7 @@ recipe; the eidolon it places is fitted at random, any allowed material in every
 - Command tool modes (#676 on): `EidolonCommandModes.Register(new EidolonCommandMode { Code, Order,
   Icon, Mark, MaxAreaSide, CheckTarget, Command })` in a mod system's `Start` (both sides: the wheel is chosen by
   index). `Code` names it (lang `seraphhorizons:eidoloncommander-mode-{code}`); `Order` places it on the
-  wheel (follow 10, stay 20; carry 30, set down 40, fell 50, haul 60, crew 70, guard 80 suggested);
+  wheel (follow 10, stay 20; carry 30, set down 40, fell 50, mine 55, haul 60, crew 70, guard 80 suggested);
   `Icon` is an SVG (the game's are `game:textures/icons/...`); `Mark` is `None`, `Block`, `Area` or
   `AreaThenBlock` (an area's two corners, then a block: the third click gives the order, and the
   context has both `Area` and `Target`; a fourth click starts a new area; haul uses it, and the crew
@@ -3202,6 +3241,7 @@ recipe; the eidolon it places is fitted at random, any allowed material in every
 | `OilPerTreeFelled` | 5 | Oil points a tree felled costs |
 | `OilPerTrunkDelivered` | 3 | Oil points a trunk delivered costs |
 | `OilPerLoadCarried` | 2 | Oil points a load carried and set down costs |
+| `OilPerMiningStrike` | 0.5 | Oil points a strike mining an area (up to four blocks) costs |
 | `RepairShare` | 0.1 | The share of its most health one item of metal parts or iron plate restores |
 | `GantryRepairMultiplier` | 2 | What a repair is multiplied by inside a gantry |
 | `CommandRange` | 64 | How far a command tool's orders reach, in blocks |
@@ -3255,6 +3295,12 @@ stumps, grown trees, where it stands, the swing, what replants) and
 then given one it fells an area of three grown oaks (three trunks holding every log, the axe worn by
 the flat figure per tree, oil per tree), replants two from a carried sapling and seed, and leaves a
 player's log pillar and a sapling standing; and an axe that breaks stops it until it is given another;
+`tests/Eidolon/EidolonMiningTests.cs` covers mining's rules (the area's limits, what it breaks, the
+strike's length against a steel pickaxe and its slam, its reach, never under its box, the next group
+flat or upright, where it stands) and `tests/PackTests/EidolonMineScenarios.cs` (Atlas) orders it with
+the tool over a pit two layers deep in granite: it mines every block top down, never under its box,
+the granite's drops lying in the world, half a point of oil a strike, leaves a block touching water and
+a chest, and walks back up a terrace to where it was ordered; and a dry reservoir stops it until oiled;
 `tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
 `tests/PackTests/EidolonCrewScenarios.cs` (Atlas, `WoodworkingEidolonScenarios` on the woodworking world) orders a crew with the tool
 (refused without an axe) over two grown oaks and a running rosser: it fells each, hauls each trunk to

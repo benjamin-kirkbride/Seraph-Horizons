@@ -49,6 +49,9 @@ public class EidolonConfig
     /// <summary>Points a load it carries somewhere and sets down costs.</summary>
     public double OilPerLoadCarried { get; set; } = 2;
 
+    /// <summary>Points a strike mining an area costs (up to four blocks).</summary>
+    public double OilPerMiningStrike { get; set; } = 0.5;
+
     /// <summary>The share of its most health one item of metal parts or one iron plate restores.</summary>
     public double RepairShare { get; set; } = 0.1;
 
@@ -145,6 +148,7 @@ public class EidolonConfig
         Check(nameof(OilPerTreeFelled), OilPerTreeFelled, 0, OilTank, () => OilPerTreeFelled = Defaults.OilPerTreeFelled, Defaults.OilPerTreeFelled);
         Check(nameof(OilPerTrunkDelivered), OilPerTrunkDelivered, 0, OilTank, () => OilPerTrunkDelivered = Defaults.OilPerTrunkDelivered, Defaults.OilPerTrunkDelivered);
         Check(nameof(OilPerLoadCarried), OilPerLoadCarried, 0, OilTank, () => OilPerLoadCarried = Defaults.OilPerLoadCarried, Defaults.OilPerLoadCarried);
+        Check(nameof(OilPerMiningStrike), OilPerMiningStrike, 0, OilTank, () => OilPerMiningStrike = Defaults.OilPerMiningStrike, Defaults.OilPerMiningStrike);
         Check(nameof(RepairShare), RepairShare, 0.001, 1, () => RepairShare = Defaults.RepairShare, Defaults.RepairShare);
         Check(nameof(GantryRepairMultiplier), GantryRepairMultiplier, 1, 100, () => GantryRepairMultiplier = Defaults.GantryRepairMultiplier, Defaults.GantryRepairMultiplier);
 
