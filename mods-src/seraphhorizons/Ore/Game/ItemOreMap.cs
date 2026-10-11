@@ -91,7 +91,8 @@ public class ItemOreMap : Item, ITradeableCollectible
             case SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Outcome.NoMap:
                 var d = pos.Clone().Sub(byEntity.Pos.XYZ);
                 d.Y = 0;
-                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:oremap-distance", title, (int)d.Length()),
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:oremap-distance", title,
+                    SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.DistanceText(lang, d.Length())),
                     EnumChatType.Notification);
                 return;
             case SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Outcome.Already:
@@ -216,6 +217,8 @@ public class ItemOreMap : Item, ITradeableCollectible
         if (metal != PlacerCells.Kind)
             dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-precision-" + a.GetInt(AttrPrecision, MapPrecision.Exact)));
         AppendDeposit(Lang.CurrentLocale, a, dsc);
+        if (a.HasAttribute(AttrX))
+            SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.AppendDistance(world, a.GetInt(AttrX) + 0.5, a.GetInt(AttrZ) + 0.5, dsc);
         dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-use"));
     }
 

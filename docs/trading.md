@@ -1297,8 +1297,11 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
     | partner | 5 | 12 | 2.34 | 4.85 | 55 |
   - *The pity map* (a player's very first map, `campLeads.pity`: `price` 10, `reach` 10 rings): a
     flat 10 gears, to a prospector. Offered by every trader but a prospector, first on the tab, while
-    the player has not had it (`LeadBook.PityUsed`), nothing of theirs is being drawn, and, for a
-    stranger, the group's stranger map from this trader is unspent. Its camp (`PityMap.Target`): the
+    the player has not had it (`LeadBook.PityUsed`) and nothing of theirs is being drawn, at any
+    standing: a stranger gets it too, even when the group's stranger map from this trader is spent
+    (a company member had it, or a version 1 save recorded it before the first map existed; until
+    this change that withheld it from strangers only, `CampLeadsFor`'s `pityHere` and `Pick`'s early
+    `StrangerUsed` return, while known and up got it). Its camp (`PityMap.Target`): the
     nearest seeded prospector cell (`TraderGrid.IsProspector`; the lattice puts one within ring 2 of
     every cell) to the selling trader, ring by ring, that the buyer lacks and that can take a camp
     or has one (`Site`: placed, or a spot left; Failed and Open cells can't); none out to ring 10,
@@ -1318,10 +1321,20 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   - *The window*: `TradeWindowState.LeadOffers` (cell, type, distance, dx, dz, price, prospector,
     ring, pity), `LeadsWhy` (stranger used, none in reach) and `LeadsBought`; the Maps & leads tab
     lists them under the shelf's offers with a Buy button (`TradeAction.BuyLead`, the cell, or
-    `pity`, as `Code`, the price seen as `Price`). A lead's line names its ring; the pity map's
-    reads "First map's on me: 10 g to the nearest prospector, ... blocks ...". The Standing tab's
-    tier lines say "maps to n traders within r rings" (`TierView.LeadMaps`, `LeadReach`) or, for a
-    stranger, "one map onward, to the nearest trader you haven't found within 1 ring".
+    `pity`, as `Code`, the price seen as `Price`). A lead's line says how far and which way its camp
+    is from the trader, never its ring ("Lead to the cook's camp, about 4 km north: 24 g"); the pity
+    map's reads "First map's on me: 10 g to the nearest prospector, about 3 km northeast.". The
+    Standing tab's tier lines say "maps to n traders within about k km" (`TierView.LeadMaps`, and
+    `LeadReach` in rings as k = `MapDistance.ReachKm`: (rings + ½) × 2,048 blocks rounded, 3, 5, 7
+    and 11 km for 1, 2, 3 and 5 rings) or, for a stranger, "one map onward, to the nearest trader
+    you haven't found within about 3 km".
+  - *Distances shown* (`Trading/Maps/Core/MapDistance.cs`): every player-facing distance of a map
+    or lead is whole km rounded to the nearest (1 km = 1,000 blocks, half rounds up), "about 3 km",
+    and "under a km" below 500 blocks (`map-distance-km`, `map-distance-under`): the Maps & leads
+    tab's ore, gravel, settlement and camp lead lines (from the trader), the map and lead items'
+    tooltip line "Distance from here: ..." (client side, from the player), and the chat lines when
+    there is no world map to mark (`oremap-distance`, `trading-maps-lead-distance`, also used by a
+    delivery's mark). Rings stay in prices, reach and the admin commands' output.
   - *The buy* (`MapsSystem.BuyCampLead`): refused, nothing taken, when the cell is not among the
     buyer's offers at that price (the why key, or `trading-window-changed`), one of theirs is still
     being drawn, their bags have no room (`TradeWindowSystem.HasRoom`) or they lack the gears. Paid

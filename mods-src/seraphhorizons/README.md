@@ -4829,12 +4829,15 @@ carry their own discount instead).
   map to a trader within some radius that you don't already have, and the radius and count grow
   with your standing, so it pays to travel and learn from local traders rather than buy the whole
   map from one. The offers are your own (not on the shelf): the Maps & leads tab lists them with
-  their price, the ring they are in, and a Buy button.
+  how far and which way the camp is, their price, and a Buy button.
 
   **Distance is in rings of grid cells** (2,048 blocks a cell), from the selling trader's cell to
   the camp's, diagonals adjacent: ring 1 is the eight cells around the trader's own, ring 2 the
   sixteen around those, and so on. Reach and price both go by the ring, so both are known before a
-  camp generates, and a price never changes when its camp settles.
+  camp generates, and a price never changes when its camp settles. Players never see a ring: an
+  offer says how far its camp is in km, and the Standing tab says a tier's reach in km, to the far
+  edge of its last ring straight out from the middle of the trader's cell ((rings + ½) × 2,048
+  blocks, rounded): about 3 km for 1 ring, 5 for 2, 7 for 3 and 11 for 5.
 
   | Standing | Leads on offer | Within | Ease | Discount |
   |---|---|---|---|---|
@@ -4872,9 +4875,11 @@ carry their own discount instead).
   | partner | 5 | 12 | 55 |
 
   **Your very first map** is 10 gears and leads to a prospector. Every trader but a prospector
-  offers it, at the top of the Maps & leads tab ("First map's on me: 10 g to the nearest
-  prospector"), until you buy it; it is yours alone, so every new member of a company gets their
-  own. It goes to the nearest prospector cell to the selling trader (the grid puts one within two
+  offers it, at any standing, a stranger's included, at the top of the Maps & leads tab ("First
+  map's on me: 10 g to the nearest prospector, about 3 km northeast."), until you buy it; it is
+  yours alone, so every new member of a company gets their own, even where their company has had
+  its stranger's map from that trader (and so does a player from a world saved before the first
+  map, at a trader that already sold them their stranger's map). It goes to the nearest prospector cell to the selling trader (the grid puts one within two
   rings of every cell), generating its camp as you buy; if that cell can't take a camp, the next
   nearest prospector cell, out to ring 10; and if no prospector camp can be placed that far, the
   nearest camp of any kind, still 10 gears. No cell's kind is ever changed for it. It is that
@@ -4889,6 +4894,13 @@ carry their own discount instead).
   a lead to put the camp on your world map (icon `trader`).
 - **Settlement ground**: with `mapsToTraders` (tier 2 up), a lead to the nearest ground kept for a
   settlement, on the shelf (6 gears).
+
+Every map and lead says how far its target is in whole kilometres, rounded to the nearest (1 km =
+1,000 blocks), "about 3 km", and "under a km" under half of one (`Trading/Maps/Core/MapDistance.cs`):
+its offer on the Maps & leads tab from the trader ("Ore map: galena (medium), about 2 km away,
+precision 1", "Lead to the cook's camp, about 4 km north: 24 g"), the map or lead in your bags from
+where you stand ("Distance from here: about 3 km."), and the chat when reading one on a server
+without a world map. None names a ring.
 
 Every marker a map puts on your world map says how precise it is, in the tiers the Standing tab
 lists: "Copper deposit (large) (precision 1, ±400 m)", "(precision 2, ±150 m)", "(exact)"; a gravel
@@ -4937,8 +4949,10 @@ marker replaced by the met trader's, old markers matched by icon, place and titl
 (`CampLeadsTests`): rings between cells, the shipped tiers, reach in rings, the price by the formula
 in a table, prices never rising with standing, count and reach per tier, the prospector first, the
 refill, the stranger's one lead in ring 1 and chaining, the trader's own camp never a target, the
-first map alone to a stranger and on top from known up, and its target: the nearest seeded
-prospector cell, the next when one can take no camp, out to ring 10, then any camp; the lead
+first map alone to a stranger (even one whose group had its stranger's map there) and on top from
+known up, and its target: the nearest seeded
+prospector cell, the next when one can take no camp, out to ring 10, then any camp; distances
+(`MapDistanceTests`): rounding to the nearest km, under a km, a tier's reach in km; the lead
 history (`LeadBookTests`): counts that never reset, the stranger's lead, visits, pooling by company,
 the first map per player and not per company, the saved version and its migration from version 1);
 `tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's ore map offers,
@@ -4947,7 +4961,9 @@ gravel map offered exactly when a field is in reach, standing changing a trader'
 precision; a fresh player at a store offered their first map alone, 10 gears to a prospector,
 buying it generating the camp and marking it, nothing more from that trader, and one onward in
 ring 1 at the prospector's camp; a prospector offering no first map and a stranger's one lead in
-ring 1 at the formula's price, and `/sh trade leads` naming the ring and the first map; a known
+ring 1 at the formula's price, and `/sh trade leads` naming the ring and the first map; a stranger
+whose group had its stranger's map at a store still offered their first map there, its line in km;
+a known
 customer offered two leads in ring 1 at the formula's price, buying one bringing the next; a
 partner's lead to a camp nobody generated settling it and marking it where it
 stands; a lead bought not offered again, carried or marked, while the gravel map bought after it

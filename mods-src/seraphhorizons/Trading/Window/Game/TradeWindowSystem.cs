@@ -245,7 +245,7 @@ public class TradeWindowSystem : ModSystem
         {
             var dist = pos.Clone().Sub(player.Entity.Pos.XYZ);
             dist.Y = 0;
-            return TradeResult.Done(action, "trading-maps-lead-distance", title, (int)dist.Length());
+            return TradeResult.Done(action, "trading-maps-lead-distance", title, Maps.MapMarksSystem.DistanceText(lang, dist.Length()));
         }
         if (layer.Waypoints.Any(w => w.OwningPlayerUid == player.PlayerUID && w.Position.X == pos.X && w.Position.Z == pos.Z))
             return TradeResult.Done(action, "oremap-marked-already");
