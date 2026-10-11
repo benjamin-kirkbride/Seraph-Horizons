@@ -95,9 +95,15 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
             ? Api.World.BlockAccessor.GetBlockEntity(CellPos(rig.PowerCell))?.GetBehavior<BEBehaviorDrawBenchMP>()
             : null;
 
+    /// <summary>Whether springs exist in this world (the mandrel station's spring item, the
+    /// <c>MandrelSprings</c> switch): the mandrel stage then takes one.</summary>
+    public static bool SpringsExist(IWorldAccessor world) =>
+        world.GetItem(new AssetLocation(DrawBenchParts.SpringCode)) is { Id: > 0, IsMissing: false };
+
     public override void Initialize(ICoreAPI api)
     {
         base.Initialize(api);
+        _parts.Springs = SpringsExist(api.World);
         Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
         BuildBoxes();
         if (api.Side == EnumAppSide.Server)
@@ -311,7 +317,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
                     Error(byPlayer, "error-die-spent");
                     break;
                 case DrawBenchFitVerdict.TooFew:
-                    Error(byPlayer, "error-too-few", DrawBenchParts.Needed(_parts.Next!.Value));
+                    Error(byPlayer, "error-too-few", DrawBenchParts.NeededOf(code, _parts.Next!.Value));
                     break;
                 default:
                     Error(byPlayer, "error-not-a-part");
@@ -322,7 +328,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         _parts.Fit(code, left, capacity);
         if (consumes)
         {
-            slot.TakeOut(DrawBenchParts.Needed(stage));
+            slot.TakeOut(DrawBenchParts.NeededOf(code, stage));
             slot.MarkDirty();
         }
         Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
@@ -614,6 +620,7 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         base.ToTreeAttributes(tree);
         foreach (var stage in DrawBenchRequires.Stages)
             tree.RemoveAttribute(PartKeyPrefix + DrawBenchRequires.Name(stage));
+        tree.RemoveAttribute(PartKeyPrefix + DrawBenchParts.SpringKey);
         foreach (var (requires, code) in _parts.Snapshot())
             tree.SetString(PartKeyPrefix + requires, code);
         tree.SetInt("dieLeft", _parts.DieLeft);
@@ -642,7 +649,9 @@ public class BEDrawBench : BlockEntity, IDrawBenchView
         foreach (var stage in DrawBenchRequires.Stages)
             if (tree.GetString(PartKeyPrefix + DrawBenchRequires.Name(stage)) is { Length: > 0 } code)
                 fitted[DrawBenchRequires.Name(stage)] = code;
-        _parts = DrawBenchParts.Restore(fitted, tree.GetInt("dieLeft"), tree.GetInt("dieCapacity"));
+        if (tree.GetString(PartKeyPrefix + DrawBenchParts.SpringKey) is { Length: > 0 } spring)
+            fitted[DrawBenchParts.SpringKey] = spring;
+        _parts = DrawBenchParts.Restore(fitted, tree.GetInt("dieLeft"), tree.GetInt("dieCapacity"), SpringsExist(worldForResolving));
         _hollow = tree.GetItemstack("hollow");
         if (_hollow != null && !_hollow.ResolveBlockOrItem(worldForResolving))
             _hollow = null;
