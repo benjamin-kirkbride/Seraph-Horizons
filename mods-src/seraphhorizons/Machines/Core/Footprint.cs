@@ -12,6 +12,13 @@ public readonly record struct Float3(float X, float Y, float Z)
     public override string ToString() => $"[{X},{Y},{Z}]";
 }
 
+/// <summary>A world position: far from the origin (the world is about 512000 across) a float keeps
+/// only a thirty-second of a block, so world points are doubles.</summary>
+public readonly record struct Double3(double X, double Y, double Z)
+{
+    public override string ToString() => $"[{X},{Y},{Z}]";
+}
+
 /// <summary>A horizontal side, as the block's <c>side</c> variant names it.</summary>
 public enum Side { North, East, South, West }
 
@@ -91,6 +98,30 @@ public static class Footprint
         float x = world.X - 0.5f, z = world.Z - 0.5f;
         return new Float3(x * n.Z - z * n.X + 0.5f, world.Y, x * n.X + z * n.Z + 0.5f);
     }
+
+    /// <summary>A point in native-frame blocks as a world position, for a controller at block
+    /// <paramref name="controller"/>: <see cref="ToWorld(Float3, Side)"/> added to the block's corner,
+    /// all in doubles (an int and a float add up to a float, which far from the origin keeps only a
+    /// thirty-second of a block).</summary>
+    public static Double3 WorldPoint(Int3 controller, Float3 native, Side facing)
+    {
+        var n = facing.Normal();
+        double x = native.X - 0.5, z = native.Z - 0.5;
+        return new Double3(controller.X + (x * n.Z + z * n.X + 0.5), controller.Y + (double)native.Y,
+            controller.Z + (-x * n.X + z * n.Z + 0.5));
+    }
+
+    /// <summary>The inverse of <see cref="WorldPoint"/>: a world position back to native-frame
+    /// blocks. The controller is taken off in doubles first, so only the small offset is a float.</summary>
+    public static Float3 NativePoint(Int3 controller, Double3 world, Side facing) =>
+        ToLocal(new Float3((float)(world.X - controller.X), (float)(world.Y - controller.Y), (float)(world.Z - controller.Z)), facing);
+
+    /// <summary>A selection's hit on block <paramref name="cell"/> (<paramref name="hit"/> relative to
+    /// that block, as the game gives it) in native-frame blocks: the cell's offset from the controller
+    /// in ints, then the hit, so nothing large is ever a float.</summary>
+    public static Float3 NativePoint(Int3 controller, Int3 cell, Double3 hit, Side facing) =>
+        ToLocal(new Float3((float)(cell.X - controller.X + hit.X), (float)(cell.Y - controller.Y + hit.Y),
+            (float)(cell.Z - controller.Z + hit.Z)), facing);
 
     /// <summary>A cell-local box turned within its cell (about 0.5, 0.5).</summary>
     public static Box ToWorld(Box box, Side facing)
