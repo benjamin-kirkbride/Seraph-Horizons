@@ -108,6 +108,8 @@ interface PartObject {
   coloured: MeshLambertMaterial;
   /** The texture code of each of the geometry's groups, one per code its faces draw with. */
   groupCodes: string[];
+  /** setGlow's copies of this part's materials, by the material each copies (the textured ones are shared). */
+  glowCopies: Map<Material, MeshLambertMaterial>;
 }
 
 export class ModelScene {
@@ -157,6 +159,8 @@ export class ModelScene {
   private readonly textureCache = new Map<string, Texture>();
   private readonly loader = new TextureLoader();
   private dimmedExcept: string | null = null;
+  /** setGlow's last call: which parts are hot, their glow colour and how far they are mixed towards it. */
+  private glow: { parts: ReadonlySet<number>; rgb: readonly [number, number, number]; mix: number } | null = null;
 
   /** Builds the scene into `canvas`, with the overlays' labels in `labelLayer` (and a vehicle's track under it); throws when WebGL cannot start. */
   constructor(canvas: HTMLCanvasElement, labelLayer: HTMLElement, view: ModelView, colours: SceneColours, propColour = "#8b5a2b", track: TrackLayout | null = null) {
@@ -315,7 +319,7 @@ export class ModelScene {
       this.scene.add(o);
     }
     mesh.userData.object = this.partObjects.length;
-    return { part: pi, joint, mesh, edges, colourPart, colourTexture: new Float32Array(colTex), triangles: new Int32Array(tri), coloured, groupCodes };
+    return { part: pi, joint, mesh, edges, colourPart, colourTexture: new Float32Array(colTex), triangles: new Int32Array(tri), coloured, groupCodes, glowCopies: new Map() };
   }
 
   private overlay(id: string): Group {
@@ -542,13 +546,41 @@ export class ModelScene {
    * part's (model-scenario's hotGlow). A mix of 0 (or no parts) draws everything as usual.
    */
   setGlow(parts: ReadonlySet<number>, rgb: readonly [number, number, number], mix: number) {
-    for (const o of this.partObjects) {
-      const m = o.mesh.material as MeshLambertMaterial;
-      const f = parts.has(o.part) ? Math.min(1, Math.max(0, mix)) : 0;
-      m.color.setScalar(1 - f);
-      m.emissive.setRGB(rgb[0] * f, rgb[1] * f, rgb[2] * f);
-    }
+    this.glow = { parts, rgb, mix };
+    this.applyGlow();
     this.dirty = true;
+  }
+
+  /** Each part's materials: its texture code's (setTextures), else its vertex-coloured one. */
+  private baseMaterials(o: PartObject): Material[] {
+    return o.groupCodes.map((code): Material => this.textured.get(code) ?? o.coloured);
+  }
+
+  /**
+   * Gives a hot part copies of its materials, glowing (a textured material is shared by every part with its code, so
+   * it is never changed itself), and every other part its own materials back.
+   */
+  private applyGlow() {
+    const g = this.glow;
+    for (const o of this.partObjects) {
+      const f = g && g.parts.has(o.part) ? Math.min(1, Math.max(0, g.mix)) : 0;
+      const base = this.baseMaterials(o);
+      if (f === 0 || !g) {
+        o.mesh.material = base;
+        continue;
+      }
+      o.mesh.material = base.map((b) => {
+        let c = o.glowCopies.get(b);
+        if (!c) {
+          c = (b as MeshLambertMaterial).clone();
+          o.glowCopies.set(b, c);
+        } else c.copy(b as MeshLambertMaterial);
+        c.color.multiplyScalar(1 - f);
+        c.emissive.setRGB(g.rgb[0] * f, g.rgb[1] * f, g.rgb[2] * f);
+        c.needsUpdate = true;
+        return c;
+      });
+    }
   }
 
   /** Redraws the faces of each texture code given in its colour (a scenario's texture select), in texture colours. */
@@ -610,9 +642,6 @@ export class ModelScene {
         } else this.textured.set(code, new MeshLambertMaterial({ map: tex, side: DoubleSide, alphaTest: 0.1 }));
       }
     }
-    for (const o of this.partObjects) {
-      o.mesh.material = o.groupCodes.map((code): Material => this.textured.get(code) ?? o.coloured);
-    }
     this.dim(this.dimmedExcept);
   }
 
@@ -627,6 +656,7 @@ export class ModelScene {
       m.depthWrite = !faded;
       m.needsUpdate = true;
     }
+    this.applyGlow();
     this.dirty = true;
   }
 
@@ -746,6 +776,7 @@ export class ModelScene {
     this.controls.dispose();
     for (const l of this.labels) l.el.remove();
     for (const m of this.textured.values()) m.dispose();
+    for (const o of this.partObjects) for (const c of o.glowCopies.values()) c.dispose();
     for (const t of this.textureCache.values()) t.dispose();
     this.scene.traverse((o) => {
       const m = o as Mesh;
