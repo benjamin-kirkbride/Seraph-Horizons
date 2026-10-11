@@ -1361,7 +1361,7 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   - Leads of the old kinds (`prospector`, `far`) in players' bags still read; old camp lead offers
     left on a shelf until its next restock show sold out and are refused.
 - **Ore map prices** (`MapPriceTable.OrePrice`): `bandMiddleIngots × ingotValue × share[precision] ×
-  scarcity`, rounded, at least 1 gear, no other floor. `bandMiddleIngots` is the middle of the size
+  scarcity` (× `underwater`, 0.1, for a deposit under water: `docs/oregen.md` "Maps"), rounded, at least 1 gear, no other floor. `bandMiddleIngots` is the middle of the size
   class's third of the metal's `smallIngots..largeIngots` (`config/ore-sizes.json`, read through
   `DepositService.TargetsFor`; the thirds are `DepositSizing.Classify`'s), the medium band for
   `unsurveyed`: the class, never the measured size, so the price tells the buyer no more than the

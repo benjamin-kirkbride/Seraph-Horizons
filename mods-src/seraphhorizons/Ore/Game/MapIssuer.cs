@@ -68,6 +68,7 @@ public sealed class MapIssuer
         // What the ore is (#692): the ores, their grades and the host rock; for a gravel field its
         // rock and the metals the pan gives from it.
         if (candidate.Record.Makeup is { } makeup) ItemOreMap.SetMakeup(a, makeup);
+        if (candidate.Record.Underwater == true) a.SetBool(ItemOreMap.AttrUnderwater, true);
         if (_deposits.FieldOf(deposit)?.Rock is { } rock)
         {
             a.SetString(ItemOreMap.AttrRock, rock);

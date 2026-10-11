@@ -197,6 +197,14 @@ gravel (`metals`, `DepositService.PanMetals`: the pan's last `panningDrops` key 
 `richgravel-{rock}`, each nugget's smelted metal, the likeliest first): "Gravel map (Granite)",
 "The pan gives tin, silver, gold and copper here." A map made before keeps naming its metal.
 
+**Under water.** A measurement also records whether the deposit is under water
+(`DepositRecord.Underwater`, `DepositWater`): more than half of the columns its ore is in have more
+than 2 blocks of water or ice (any `*water` liquid, lake or glacier ice, in either layer) standing
+over their worldgen terrain height. Its map and offer are named so ("Galena ore map (underwater)",
+waypoint "Galena deposit (medium, underwater)", the trade window's row "Galena (underwater)"), never
+with a depth, and sell at `underwater` (0.1) times the price (`map-prices.json`). A deposit measured
+before this has no value and counts as dry until it is measured again (a sale re-measures it).
+
 Precision tiers (`MapPrecision`), named to players: 1 rough, within 150 m; 2 fair, within 50 m; 3 fine, within 15 m. The offset is a point of
 the unit disc from the seed and the deposit key, scaled by the tier's reach, so every copy of a tier
 agrees and a better tier lies between a worse one and the deposit. Gravel maps are always exact.
