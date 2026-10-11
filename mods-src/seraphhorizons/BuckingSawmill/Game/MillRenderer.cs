@@ -195,6 +195,8 @@ public sealed class MillRenderer : IRenderer
 
     private void Draw(MultiTextureMeshRef mesh, float[] native, IStandardShaderProgram? prog, Vec3d cam, BlockPos pos)
     {
+        if (Mat4.Collapsed(native))
+            return;
         _model.Identity().Translate(pos.X - cam.X, pos.Y - cam.Y, pos.Z - cam.Z).Mul(native);
         if (prog != null)
         {

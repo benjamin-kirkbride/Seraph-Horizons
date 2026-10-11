@@ -93,7 +93,12 @@ export interface Driver {
   amplitude?: number;
   phase?: number;
   travel?: number;
-  motion?: "slide" | "rotate";
+  /** step: slide or rotate; gauge: slide, rotate or stretch. */
+  motion?: "slide" | "rotate" | "stretch";
+  /** A stretching gauge: the point (blocks, authored frame) the plane through which, normal to its axis, stays put. */
+  origin?: Vec3;
+  /** A stretching gauge: the frame its axis is in, [rx, ry, rz] degrees turned Rx·Ry·Rz (an element's rotationX/Y/Z); the authored frame without one. */
+  rotation?: Vec3;
   /** A number for step; per class for gauge. */
   amount?: number | PerClass;
   from?: number;
@@ -571,10 +576,50 @@ function needPath(d: Driver, path: Work | null | undefined): Work {
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
+/** A stretching gauge's factor below this is 0: the part vanishes. */
+export const STRETCH_EPS = 1e-6;
+
+/** A driver that scales its part (a stretch, a stretching gauge): what a part riding it does not inherit. */
+export function isScale(d: Driver): boolean {
+  return d.type === "stretch" || (d.type === "gauge" && d.motion === "stretch");
+}
+
+const isVec3 = (v: unknown): v is Vec3 => Array.isArray(v) && v.length === 3 && v.every(isNum);
+
+/** A stretching gauge's unit axis in the authored frame: its axis of the frame `rotation` turns to (Rx·Ry·Rz, degrees). */
+export function stretchDirection(d: Driver): Vec3 {
+  const deg = Math.PI / 180;
+  const [rx, ry, rz] = d.rotation ?? [0, 0, 0];
+  const r = multiply(rotation("x", rx * deg), multiply(rotation("y", ry * deg), rotation("z", rz * deg)));
+  const k = AXIS_INDEX[d.axis];
+  return [r[k * 4]!, r[k * 4 + 1]!, r[k * 4 + 2]!];
+}
+
+/** A scale by f along the unit vector u about the plane through `origin` normal to it; f 0 collapses everything to `origin`. */
+export function scaleAlong(u: Vec3, f: number, origin: Vec3): Mat4 {
+  const m = identity();
+  if (f === 0) {
+    m[0] = m[5] = m[10] = 0;
+    m[12] = origin[0];
+    m[13] = origin[1];
+    m[14] = origin[2];
+    return m;
+  }
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) m[j * 4 + i] = (i === j ? 1 : 0) + (f - 1) * u[i]! * u[j]!;
+  for (let i = 0; i < 3; i++) m[12 + i] = origin[i]! - (m[i]! * origin[0] + m[4 + i]! * origin[1] + m[8 + i]! * origin[2]);
+  return m;
+}
+
+/** Whether a matrix collapses everything to a point (its linear part all 0): a part stretched to nothing, drawn as nothing. */
+export function collapsed(m: Mat4): boolean {
+  return [0, 1, 2, 4, 5, 6, 8, 9, 10].every((i) => m[i] === 0);
+}
+
 /**
- * A gauge's engagement e (0..1): 0 without a trunk; p when its mode is "present"; else p times
+ * A gauge's engagement e: 0 without a trunk; p when its mode is "present"; else p times
  * the most engaged window's min(1, gain · occupancy), occupancy easing in over `ease` blocks as
- * the nose arrives and out as the tail leaves.
+ * the nose arrives and out as the tail leaves. A stretching gauge sums its windows' min(1, gain ·
+ * occupancy) instead, so a stretch made in steps adds up (and can pass 1).
  */
 export function gaugeEngagement(d: Driver, pose: Pose, path: Work | null | undefined): number {
   const mode = d.mode ?? "occupy";
@@ -596,12 +641,14 @@ export function gaugeEngagement(d: Driver, pose: Pose, path: Work | null | undef
   const nose = noseAt(pt, workAt(pose));
   const tail = nose - (pt.lengths[k] ?? 0);
   let best = 0;
+  let total = 0;
   for (const w of d.windows!) {
     const gain = perClassValue(w.gain, k, 1);
     const occ = clamp01((nose - w.from) / w.ease) * clamp01((w.to - tail) / w.ease);
     best = Math.max(best, Math.min(1, gain * occ));
+    total += Math.min(1, gain * occ);
   }
-  return p * best;
+  return p * (d.motion === "stretch" ? total : best);
 }
 
 /** One driver's matrix (blocks) at a pose. Gauge and roll drivers read the rig's progress (workOf); a roll needs a trunkPath. */
@@ -618,6 +665,7 @@ export function driverMatrix(d: Driver, pose: Pose, path?: Work | null): Mat4 {
     case "feed":
       return along(d.axis, (d.travel ?? 0) * depth);
     case "step": {
+      if (d.motion !== "slide" && d.motion !== "rotate") throw new Error('a step driver needs a motion, "slide" or "rotate"');
       const e = stepFraction(d, depth, lifting);
       const amount = (d.amount ?? 0) as number;
       return d.motion === "rotate" ? about(rotation(d.axis, amount * e), point(d, "pivot")) : along(d.axis, amount * e);
@@ -633,10 +681,16 @@ export function driverMatrix(d: Driver, pose: Pose, path?: Work | null): Mat4 {
       return m;
     }
     case "gauge": {
-      if (d.motion !== "slide" && d.motion !== "rotate") throw new Error('a gauge driver needs a motion, "slide" or "rotate"');
+      if (d.motion !== "slide" && d.motion !== "rotate" && d.motion !== "stretch")
+        throw new Error('a gauge driver needs a motion, "slide", "rotate" or "stretch"');
       const amount = perClass(d, d.amount, "amount");
+      if (d.motion === "stretch") {
+        if (!(d.axis in AXIS_INDEX)) throw new Error(`a stretching gauge's axis "${d.axis}" is not x, y or z`);
+        if (!isVec3(d.origin)) throw new Error("a stretching gauge needs an origin of 3 numbers");
+        if (d.rotation !== undefined && !isVec3(d.rotation)) throw new Error("a stretching gauge's rotation must be 3 numbers (degrees)");
+      }
       if (d.lobes !== undefined) {
-        if (d.motion === "slide") throw new Error("a slide gauge cannot have lobes");
+        if (d.motion !== "rotate") throw new Error(`a ${d.motion} gauge cannot have lobes`);
         if (!isNum(d.lobes.ratio)) throw new Error("a gauge's lobes need a ratio");
         perClass(d, d.lobes.amplitude, "lobes.amplitude");
       }
@@ -647,6 +701,10 @@ export function driverMatrix(d: Driver, pose: Pose, path?: Work | null): Mat4 {
       if (k > 0) {
         a = perClassValue(amount, k) * e;
         if (d.lobes) a += e * perClassValue(d.lobes.amplitude, k) * Math.cos(d.lobes.ratio * (pose.travel ?? Math.abs(pose.theta)) + (d.lobes.phase ?? 0));
+      }
+      if (d.motion === "stretch") {
+        const f = 1 + a;
+        return scaleAlong(stretchDirection(d), f < STRETCH_EPS ? 0 : f, d.origin!);
       }
       return pivot ? about(rotation(d.axis, a), pivot) : along(d.axis, a);
     }
@@ -691,16 +749,31 @@ export function rideOrder(parts: readonly RigPart[]): number[] {
   return order;
 }
 
-/** One matrix (blocks) per part, in part order: its drivers in list order, then its ride part's whole matrix. `path` is the rig's progress (workOf), for gauge and roll drivers. */
+/**
+ * One matrix (blocks) per part, in part order: its drivers in list order, then its ride part's rigid
+ * matrix, that part's without its own scales (isScale), so a part riding a stretched one moves and turns
+ * with it but is not stretched. `path` is the rig's progress (workOf), for gauge and roll drivers.
+ */
 export function partMatrices(parts: readonly RigPart[], pose: Pose, order: readonly number[] = rideOrder(parts), path?: Work | null): Mat4[] {
   const ids = new Map(parts.map((p, i) => [p.id, i]));
   const out = new Array<Mat4>(parts.length);
+  const rigid = new Array<Mat4>(parts.length);
   for (const i of order) {
     const p = parts[i]!;
     let m = identity();
-    for (const d of p.drivers ?? []) m = multiply(driverMatrix(d, pose, path), m);
-    if (p.ride != null) m = multiply(out[ids.get(p.ride)!]!, m);
+    let r: Mat4 | null = (p.drivers ?? []).some(isScale) ? identity() : null;
+    for (const d of p.drivers ?? []) {
+      const dm = driverMatrix(d, pose, path);
+      m = multiply(dm, m);
+      if (r && !isScale(d)) r = multiply(dm, r);
+    }
+    if (p.ride != null) {
+      const parent = rigid[ids.get(p.ride)!]!;
+      m = multiply(parent, m);
+      if (r) r = multiply(parent, r);
+    }
     out[i] = m;
+    rigid[i] = r ?? m;
   }
   return out;
 }

@@ -41,7 +41,9 @@ A rig has at most one of them.
 
 Matrices are 4x4 lists, block units; rotations are right-handed about the positive axis. A part's
 matrix is its drivers composed in list order (each applied to the authored geometry, pivots in the
-authored frame), then its `ride` part's whole matrix on top.
+authored frame), then its `ride` part's rigid matrix on top: the ride part's matrix without its
+scales (its `stretch` drivers and stretch gauges, `is_scale`), so a part riding a stretched one moves
+and turns with it but is never stretched by it. A part without scales is its own rigid matrix.
 
 Drivers (design: build/rosser/design.md section 2.3; the mill's README has the old ones):
 
@@ -60,6 +62,12 @@ Drivers (design: build/rosser/design.md section 2.3; the mill's README has the o
                  occ_w = clamp((nose - from_w) / ease_w, 0, 1) * clamp((to_w - tail) / ease_w, 0, 1)
              a = amount[k] * e, plus e * lobes.amplitude[k] * cos(lobes.ratio * psi + lobes.phase)
              motion "slide": along axis by a; "rotate": a radians about pivot
+             motion "stretch": a scale f = 1 + amount[k] * E along one of its own axes about `origin`,
+                 E = p * sum over windows w of min(1, gain_w[k] * occ_w) (a sum, not the most engaged
+                 window, so windows add up: a stretch done in steps), or p when "present"; `axis` is
+                 x, y or z of the frame `rotation` [rx, ry, rz] (degrees, Rx * Ry * Rz, an element's
+                 rotationX/Y/Z; none is the authored frame). f is never below 0, and under STRETCH_EPS
+                 it is 0: the part collapses to `origin`, drawn as nothing (a vanished part).
     roll     identity if k == 0, else ratio * clamp(nose - at, 0, L_k) radians about pivot (a
              trunkPath only: a work quantity has no length to roll over)
 """
@@ -69,7 +77,7 @@ from __future__ import annotations
 import math
 import re
 
-from .geometry import IDENT, El, mmul, mvec, rot
+from .geometry import IDENT, El, from_euler, mmul, mvec, rot
 
 AXES = {"x": 0, "y": 1, "z": 2}
 CLASSES = ("none", "thin", "thick")          # k = 0, 1, 2 by name; the named per-class JSON keys are CLASSES[1:]
@@ -79,6 +87,8 @@ INPUT_ALIASES = {"trunk": "work"}            # the trunk-flavoured spelling of t
 STRETCH_INPUTS = ("depth", "oil")
 INPUT_KEYS = ("theta", "depth", "lifting", "travel", "work", "size", "presence", "feed", "oil")
 DRIVER_TYPES = ("rotate", "swing", "slide", "feed", "step", "stretch", "gauge", "roll")
+GAUGE_MOTIONS = ("slide", "rotate", "stretch")
+STRETCH_EPS = 1e-6                           # a stretch gauge's factor below this is 0: the part vanishes
 
 
 # ---------------------------------------------------------------- 4x4 helpers
@@ -240,13 +250,20 @@ def validate_driver(d):
         raise ValueError(f"{kind} driver has no axis x, y or z")
     if kind in ("rotate", "swing", "slide"):
         driver_input(d)
+    if kind == "step" and d.get("motion") not in ("slide", "rotate"):
+        raise ValueError("step motion must be 'slide' or 'rotate'")
     if kind == "stretch" and d.get("input", "depth") not in STRETCH_INPUTS:
         raise ValueError(f"unknown stretch input {d['input']!r}")
     if kind == "gauge":
-        if d.get("motion") not in ("slide", "rotate"):
-            raise ValueError("gauge motion must be 'slide' or 'rotate'")
+        if d.get("motion") not in GAUGE_MOTIONS:
+            raise ValueError("gauge motion must be 'slide', 'rotate' or 'stretch'")
         if d["motion"] == "rotate" and "pivot" not in d:
             raise ValueError("a rotating gauge needs a pivot")
+        if d["motion"] == "stretch":
+            if not _is_vec3(d.get("origin")):
+                raise ValueError("a stretching gauge needs an origin of 3 numbers")
+            if "rotation" in d and not _is_vec3(d["rotation"]):
+                raise ValueError("a stretching gauge's rotation must be 3 numbers (degrees)")
         mode = d.get("mode", "occupy")
         if mode not in ("occupy", "present"):
             raise ValueError(f"unknown gauge mode {mode!r}")
@@ -261,8 +278,8 @@ def validate_driver(d):
             if "gain" in w:
                 _per_class(w["gain"], "gauge gain", empty=True)
         if "lobes" in d:
-            if d["motion"] == "slide":
-                raise ValueError("lobes on a sliding gauge")
+            if d["motion"] != "rotate":
+                raise ValueError(f"lobes on a {d['motion']} gauge")
             if "ratio" not in d["lobes"]:
                 raise ValueError("gauge lobes need a ratio")
             _per_class(d["lobes"].get("amplitude"), "gauge lobes' amplitude")
@@ -271,6 +288,16 @@ def validate_driver(d):
             if key not in d:
                 raise ValueError(f"a roll driver needs {key!r}")
     return d
+
+
+def _is_vec3(v):
+    return (isinstance(v, list) and len(v) == 3
+            and all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in v))
+
+
+def is_scale(d) -> bool:
+    """A driver that scales its part (a `stretch`, a stretching gauge): what a rider does not inherit."""
+    return d["type"] == "stretch" or (d["type"] == "gauge" and d.get("motion") == "stretch")
 
 
 # ---------------------------------------------------------------- drivers
@@ -302,11 +329,14 @@ def gauge_fraction(d, inputs, path):
         raise ValueError("an occupy gauge needs the rig's work or trunkPath")
     n, t = nose(path, inputs["work"]), tail(path, inputs["work"], k)
     best = 0.0
+    total = 0.0
     for w in d["windows"]:
         occ = _clamp01((n - w["from"]) / w["ease"]) * _clamp01((w["to"] - t) / w["ease"])
         gain = per_class(w.get("gain", {}), k, 1.0)
         best = max(best, min(1.0, gain * occ))
-    return inputs["presence"] * best
+        total += min(1.0, gain * occ)
+    # a stretch sums its windows (each at most 1), so a stretch done in steps adds up; the others take the most engaged
+    return inputs["presence"] * (total if d.get("motion") == "stretch" else best)
 
 
 def gauge_amount(d, inputs, path):
@@ -318,6 +348,29 @@ def gauge_amount(d, inputs, path):
     if lobes and class_key(k) is not None:
         a += e * per_class(lobes["amplitude"], k) * math.cos(lobes["ratio"] * inputs["travel"] + lobes.get("phase", 0.0))
     return a
+
+
+def stretch_factor(d, inputs, path):
+    """A stretching gauge's scale f: 1 + amount[k] * E, never below 0, and 0 under STRETCH_EPS."""
+    f = 1.0 + gauge_amount(d, inputs, path)
+    return 0.0 if f < STRETCH_EPS else f
+
+
+def stretch_direction(d):
+    """The unit axis a stretching gauge scales along, in the authored frame: its `axis` of the frame
+    `rotation` turns to (Rx * Ry * Rz, degrees), or of the authored frame without one."""
+    r = from_euler(*d["rotation"]) if "rotation" in d else IDENT
+    k = AXES[d["axis"]]
+    return [r[i][k] for i in range(3)]
+
+
+def scale_along(u, f, origin):
+    """A scale by f along the unit vector u through `origin` (the plane through it normal to u stays put);
+    f == 0 collapses everything to `origin`."""
+    if f == 0.0:
+        return [[0.0, 0.0, 0.0, origin[0]], [0.0, 0.0, 0.0, origin[1]], [0.0, 0.0, 0.0, origin[2]], [0, 0, 0, 1]]
+    lin = [[(1.0 if i == j else 0.0) + (f - 1.0) * u[i] * u[j] for j in range(3)] for i in range(3)]
+    return m4(lin, [origin[i] - mvec(lin, origin)[i] for i in range(3)])
 
 
 def roll_angle(d, inputs, path):
@@ -361,6 +414,8 @@ def driver_matrix(d, inputs, path=None):
         m[k][k] = f
         m[k][3] = d["anchor"][k] * (1.0 - f)
         return m
+    if kind == "gauge" and d["motion"] == "stretch":
+        return scale_along(stretch_direction(d), stretch_factor(d, inputs, path), d["origin"])
     if kind == "gauge":
         a = gauge_amount(d, inputs, path)
         if d["motion"] == "rotate":
@@ -371,16 +426,18 @@ def driver_matrix(d, inputs, path=None):
     raise ValueError(kind)
 
 
-def part_matrix(parts, pid, inputs, path=None):
+def part_matrix(parts, pid, inputs, path=None, rigid=False):
     """Drivers apply in list order to the authored geometry (pivots in the authored frame);
-    then the `ride` part's whole transform is applied on top."""
+    then the `ride` part's rigid matrix is applied on top. With `rigid`, the part's own scales
+    (`is_scale`) are left out: what a part riding this one takes."""
     inputs = full_inputs(inputs)
     p = next(q for q in parts if q["id"] == pid)
     m = m4()
     for d in p["drivers"]:
-        m = m4mul(driver_matrix(d, inputs, path), m)
+        if not (rigid and is_scale(d)):
+            m = m4mul(driver_matrix(d, inputs, path), m)
     if p.get("ride"):
-        m = m4mul(part_matrix(parts, p["ride"], inputs, path), m)
+        m = m4mul(part_matrix(parts, p["ride"], inputs, path, rigid=True), m)
     return m
 
 
@@ -394,12 +451,49 @@ def part_matrix_mill(parts, pid, theta, depth, lifting=0.0, travel=None):
 
 
 # ---------------------------------------------------------------- posing elements, finding parts
+def _orthogonal_columns(a, tol=1e-9):
+    """Whether the 3x3 `a`'s columns are mutually orthogonal (relative to their lengths)."""
+    cols = [[a[i][j] for i in range(3)] for j in range(3)]
+    for i in range(3):
+        for j in range(i + 1, 3):
+            dot = sum(cols[i][k] * cols[j][k] for k in range(3))
+            n = math.sqrt(sum(x * x for x in cols[i]) * sum(x * x for x in cols[j]))
+            if abs(dot) > tol * max(n, 1e-30):
+                return False
+    return True
+
+
 def posed(el: El, m) -> El:
     """`el` (voxels) moved by a part matrix (blocks). A stretch scales the element's extent along
-    its axis (the rope is axis-aligned, so this stays a box)."""
+    its axis (the rope is axis-aligned, so this stays a box). A matrix that is a rotation times a
+    scale along the authored axes (every rigid part, every `stretch`) takes the first branch; any
+    other (a stretching gauge along a turned axis) scales each of the element's own axes by how far
+    the matrix stretches it, and raises if the element would come out sheared (the stretch is not
+    along one of its own axes). A matrix that collapses the part (a stretch to 0) gives an element
+    of size 0 at the point it collapses to (`vanished`)."""
     out = el.clone()
     lin = [row[:3] for row in m[:3]]
     t = [m[i][3] * 16 for i in range(3)]
+    if all(v == 0.0 for row in lin for v in row):
+        out.c = t
+        out.size = [0.0, 0.0, 0.0]
+        return out
+    axes = [mvec(lin, [el.r[i][k] for i in range(3)]) for k in range(3)]
+    lens = [math.sqrt(sum(x * x for x in v)) for v in axes]
+    if any(abs(n - 1) > 1e-9 for n in lens):
+        for i in range(3):
+            for j in range(i + 1, 3):
+                if abs(sum(axes[i][k] * axes[j][k] for k in range(3))) > 1e-6 * max(lens[i] * lens[j], 1e-30):
+                    raise ValueError(f"{el.name}: its part's stretch shears it (stretch along one of its own axes)")
+    if not _orthogonal_columns(lin):
+        out.c = [mvec(lin, el.c)[i] + t[i] for i in range(3)]
+        out.size = [el.size[k] * lens[k] for k in range(3)]
+        # an axis squeezed to nothing keeps its direction from the rigid part of the motion
+        cols = [[v / n for v in a] if n > 1e-12 else None for a, n in zip(axes, lens)]
+        if any(c is None for c in cols):
+            raise ValueError(f"{el.name}: a stretch to 0 must collapse the whole part")
+        out.r = [[cols[k][i] for k in range(3)] for i in range(3)]
+        return out
     scale = [math.sqrt(sum(lin[i][j] ** 2 for i in range(3))) for j in range(3)]
     r = [[lin[i][j] / scale[j] for j in range(3)] for i in range(3)]
     out.c = [mvec(lin, el.c)[i] + t[i] for i in range(3)]

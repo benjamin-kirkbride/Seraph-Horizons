@@ -36,7 +36,7 @@ import { pieceMatrix } from "../lib/keyframes.ts";
 import { SIDE_NORMAL, cellBoxes, lidBox, sideArrow, type Anchor, type Bounds } from "../lib/model-anchors.ts";
 import type { ModelView } from "../lib/model-view.ts";
 import { TRACK_OVERLAY, type TrackLayout } from "../lib/model-vehicle.ts";
-import { FACE_NAMES, corners, type FaceName, type Mat4, type Vec3 } from "../lib/rig.ts";
+import { FACE_NAMES, collapsed, corners, type FaceName, type Mat4, type Vec3 } from "../lib/rig.ts";
 
 export interface SceneColours {
   background: string;
@@ -452,9 +452,16 @@ export class ModelScene {
     return d ? out.fromArray(pieceMatrix(part, d)) : out.fromArray(part);
   }
 
+  /** Whether a part is drawn: fitted, and not stretched to nothing (rig.ts's collapsed). */
+  private shown(part: number): boolean {
+    const m = this.matrices[part];
+    return (this.visible[part] ?? true) && !(m && collapsed(m));
+  }
+
   /**
-   * Poses each part by its matrix (blocks) and shows the fitted ones; `joints`, each animation
-   * joint's motion (voxels, keyframes.ts's jointDeltas), moves its elements within their part.
+   * Poses each part by its matrix (blocks) and shows the fitted ones, unless stretched to nothing;
+   * `joints`, each animation joint's motion (voxels, keyframes.ts's jointDeltas), moves its elements
+   * within their part.
    */
   pose(matrices: Mat4[], visible: boolean[], joints: ReadonlyMap<number, Mat4> | null = null) {
     this.matrices = matrices;
@@ -464,8 +471,8 @@ export class ModelScene {
       this.objectMatrix(o, o.mesh.matrix);
       o.edges.matrix.copy(o.mesh.matrix);
       for (const obj of [o.mesh, o.edges] as Object3D[]) obj.matrixWorldNeedsUpdate = true;
-      o.mesh.visible = visible[o.part]!;
-      o.edges.visible = visible[o.part]! && this.edgesOn;
+      o.mesh.visible = this.shown(o.part);
+      o.edges.visible = o.mesh.visible && this.edgesOn;
     }
     for (const r of this.riders) {
       r.group.matrix.fromArray(matrices[r.part]!);
@@ -480,7 +487,7 @@ export class ModelScene {
 
   setEdges(on: boolean) {
     this.edgesOn = on;
-    for (const o of this.partObjects) o.edges.visible = on && (this.visible[o.part] ?? true);
+    for (const o of this.partObjects) o.edges.visible = on && this.shown(o.part);
     this.dirty = true;
   }
 
@@ -551,7 +558,7 @@ export class ModelScene {
     target.geometry.computeBoundingSphere();
     this.objectMatrix(o, target.matrix);
     target.matrixWorldNeedsUpdate = true;
-    target.visible = this.visible[o.part] ?? true;
+    target.visible = this.shown(o.part);
   }
 
   /** The element under a point of the canvas, or null. */

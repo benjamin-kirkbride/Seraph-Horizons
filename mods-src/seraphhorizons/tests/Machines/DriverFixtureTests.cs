@@ -158,6 +158,58 @@ public class DriverFixtureTests
         }
     }
 
+    /// <summary>A stretched box (a coil's side grown from its corner, a rod shrunk to nothing, a box riding a
+    /// stretched part) lands where the reference's posed box does: the part's matrix applied to the element's
+    /// authored corners, as the renderer draws it.</summary>
+    [Fact]
+    public void Stretched_boxes_land_on_the_reference_corners()
+    {
+        using var doc = Fixture();
+        var root = doc.RootElement;
+        var work = WorkQuantity.Parse(root.GetProperty("work"));
+        int n = 0, vanished = 0;
+        foreach (var b in root.GetProperty("stretchBoxes").EnumerateArray())
+        {
+            string id = b.GetProperty("id").GetString()!;
+            var parts = RigParts.Parse(b.GetProperty("parts"), new HashSet<string>(), work);
+            var m = parts.Matrices(InputOf(b.GetProperty("inputs")))[parts.IndexOf(b.GetProperty("part").GetString()!)];
+            static Float3 P(JsonElement c) => new(c[0].GetSingle(), c[1].GetSingle(), c[2].GetSingle());
+            var authored = b.GetProperty("authored").EnumerateArray().Select(P).ToArray();
+            var want = b.GetProperty("corners").EnumerateArray().Select(P).ToArray();
+            Assert.Equal(8, authored.Length);
+            for (int i = 0; i < 8; i++)
+            {
+                var got = Mat4.Apply(m, new Float3(authored[i].X / 16, authored[i].Y / 16, authored[i].Z / 16));
+                Assert.True(Math.Abs(got.X * 16 - want[i].X) < 1e-4 && Math.Abs(got.Y * 16 - want[i].Y) < 1e-4 && Math.Abs(got.Z * 16 - want[i].Z) < 1e-4,
+                    $"{id}: corner {i} lands at {got.X * 16}, {got.Y * 16}, {got.Z * 16}, the reference says {want[i]}");
+            }
+            bool point = want.All(c => c == want[0]);
+            Assert.Equal(point, Mat4.Collapsed(m));
+            vanished += point ? 1 : 0;
+            n++;
+        }
+        Assert.True(n >= 6 && vanished >= 2, $"{n} boxes, {vanished} vanished");
+    }
+
+    [Fact]
+    public void A_rider_does_not_inherit_its_parents_stretch()
+    {
+        using var doc = JsonDocument.Parse("""
+            [ { "id": "a", "match": ["a"], "drivers": [
+                  { "type": "slide", "axis": "x", "amplitude": 0.5, "ratio": 1, "input": "work" },
+                  { "type": "gauge", "motion": "stretch", "axis": "z", "origin": [0, 0, 0.5], "rotation": [0, 30, 0], "mode": "present", "amount": { "3": -0.5 } } ] },
+              { "id": "b", "match": ["b"], "ride": "a", "drivers": [] } ]
+            """);
+        var parts = RigParts.Parse(doc.RootElement, new HashSet<string>(), null);
+        var input = new RigInput(0, Work: 1.25, Class: 3, Presence: 1);
+        var mats = parts.Matrices(input);
+        var slide = parts.Parts[0].Drivers[0].Matrix(input, null);
+        Assert.Equal(slide, mats[1]);
+        Assert.NotEqual(slide, mats[0]);
+        Assert.True(parts.Parts[0].Drivers[1].IsScale);
+        Assert.Equal(0.5, parts.Parts[0].Drivers[1].StretchFactor(input, null), 6);
+    }
+
     [Fact]
     public void Every_bad_progress_is_rejected()
     {

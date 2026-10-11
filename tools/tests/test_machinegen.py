@@ -470,5 +470,78 @@ class Output(unittest.TestCase):
         self.assertEqual(output.shift_cell([5, 0, 1], (5, 0, 1)), [0, 0, 0])
 
 
+class StretchGauge(unittest.TestCase):
+    """`"motion": "stretch"`: a scale along one of the part's own axes about its origin, from the work."""
+
+    WORK = {"unit": "turns", "end": {"3": 4.0}}
+
+    def grow(self, **kw):
+        d = {"type": "gauge", "motion": "stretch", "axis": "z", "origin": [0.25, 1.25, 0.5], "rotation": [-17.5, 0.0, 0.0],
+             "amount": {"3": -1.0}, "windows": [{"from": -1000.0, "to": 2.0, "ease": 1.0}]}
+        d.update(kw)
+        return rigmath.validate_driver(d)
+
+    def test_windows_add_up_and_the_factor_stops_at_0(self):
+        quarter = {"from": 0.0, "to": 1000.0, "ease": 1.0, "gain": {"3": 0.25}}
+        d = self.grow(windows=[quarter, {**quarter, "from": 1.0}, {**quarter, "from": 2.0}, {**quarter, "from": 3.0}])
+        f = [rigmath.stretch_factor(d, rigmath.full_inputs({"work": w, "size": 3, "presence": 1.0}), self.WORK) for w in (0.5, 2.0, 3.5, 4.0)]
+        for got, want in zip(f, (0.875, 0.5, 0.125, 0.0)):
+            self.assertAlmostEqual(got, want)
+        d = self.grow(amount={"3": -1.5}, windows=[{"from": 0.0, "to": 1000.0, "ease": 1.0}])
+        self.assertEqual(rigmath.stretch_factor(d, rigmath.full_inputs({"work": 1.0, "size": 3, "presence": 1.0}), self.WORK), 0.0)
+        # a class the amount does not name, or none, stays whole
+        for k in (0, 1, 2):
+            self.assertEqual(rigmath.stretch_factor(d, rigmath.full_inputs({"work": 1.0, "size": k, "presence": 1.0}), self.WORK), 1.0)
+
+    def test_a_coil_side_grows_from_its_corner_along_its_own_length(self):
+        side = geometry.flatten([make_fixture.SIDE])[0]
+        corner = [4.0, 20.0, 8.0]
+        for w, length in ((0.5, 0.0), (1.25, 2.0), (1.75, 6.0), (2.0, 8.0)):
+            m = rigmath.driver_matrix(self.grow(), {"work": w, "size": 3, "presence": 1.0}, self.WORK)
+            el = rigmath.posed(side, m)
+            close(self, [el.corners()[0]], [corner], 1e-9)
+            self.assertAlmostEqual(el.size[2], length)
+            self.assertEqual(el.vanished, length == 0.0)
+            if length:
+                self.assertEqual(el.size[:2], side.size[:2])
+                close(self, el.r, side.r, 1e-12)
+
+    def test_a_vanished_part_draws_and_touches_nothing(self):
+        side = geometry.flatten([make_fixture.SIDE])[0]
+        m = rigmath.driver_matrix(self.grow(), {"work": 0.0, "size": 3, "presence": 1.0}, self.WORK)
+        el = rigmath.posed(side, m)
+        self.assertTrue(el.vanished)
+        self.assertEqual(checks.drawn_faces(el), [])
+        self.assertFalse(checks.obb_obb(el, side))
+        self.assertFalse(checks.obb_overlap(el, [0, 0, 0], [64, 64, 64]))
+
+    def test_a_stretch_across_an_element_is_refused(self):
+        # the side stretched along the authored z, not its own turned z: it would be sheared
+        side = geometry.flatten([make_fixture.SIDE])[0]
+        m = rigmath.driver_matrix(self.grow(rotation=[0.0, 0.0, 0.0]), {"work": 1.5, "size": 3, "presence": 1.0}, self.WORK)
+        with self.assertRaises(ValueError):
+            rigmath.posed(side, m)
+
+    def test_a_rider_takes_the_parents_motion_but_not_its_stretch(self):
+        parts = [{"id": "a", "match": ["a"], "drivers": [{"type": "slide", "axis": "x", "amplitude": 0.5, "ratio": 1.0, "input": "work"},
+                                                         self.grow()]},
+                 {"id": "b", "match": ["b"], "ride": "a", "drivers": []}]
+        inputs = {"work": 1.5, "size": 3, "presence": 1.0}
+        slide = rigmath.driver_matrix(parts[0]["drivers"][0], inputs, self.WORK)
+        close(self, rigmath.part_matrix(parts, "b", inputs, self.WORK), slide)
+        close(self, rigmath.part_matrix(parts, "a", inputs, self.WORK, rigid=True), slide)
+        self.assertTrue(rigmath.is_scale(self.grow()) and rigmath.is_scale({"type": "stretch"}))
+        self.assertFalse(rigmath.is_scale(gauge()))
+
+    def test_the_fixtures_stretched_boxes_are_the_posed_boxes(self):
+        fx = json.loads((MOD / "tests" / "Machines" / "driver-fixture.json").read_text())
+        self.assertGreaterEqual(len(fx["stretchBoxes"]), 6)
+        for b in fx["stretchBoxes"]:
+            m = rigmath.part_matrix(b["parts"], b["part"], b["inputs"], fx["work"])
+            el = geometry.flatten([b["element"]])[0]
+            close(self, el.corners(), b["authored"], 1e-6)
+            close(self, rigmath.posed(el, m).corners(), b["corners"], 1e-6)
+
+
 if __name__ == "__main__":
     unittest.main()

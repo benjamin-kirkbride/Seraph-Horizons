@@ -266,7 +266,10 @@ as before:
 - φ, the feed's travel, an angle that only grows;
 - and, separately, `oil`, 0..1, how full the machine's oil tank is (the gear cutter's sight-feed cup).
 
-A part's matrix is its drivers composed in order, then its `ride` parent's matrix.
+A part's matrix is its drivers composed in order, then its `ride` parent's rigid matrix: the parent's
+drivers without its scales (`stretch` drivers and stretching gauges) and its own ride's rigid matrix. A
+part riding a stretched part moves and turns with it but is never stretched by it (a hook on a rope
+that pays out, a tip on a rod that shrinks keep their size).
 
 **Drivers:**
 - `rotate` (optionally `rectified`, using ψ);
@@ -281,6 +284,11 @@ A part's matrix is its drivers composed in order, then its `ride` parent's matri
   `windows`, easing in as the nose arrives and out as the tail leaves (for a plain work quantity nose
   and tail are both W); optional `lobes` add a term in cos(ratio × ψ + phase), so a part can follow a
   turning, non-round section;
+- a stretching `gauge` (`"motion": "stretch"`): a part scaled by f = 1 + `amount[k]` × E along one of its
+  own axes (`axis` in the frame `rotation` turns to, an element's rotationX/Y/Z) about the plane through
+  `origin`, so a bar anchored at one end grows or shrinks from that end. Its windows add up instead of
+  taking the most engaged, so a stretch made in steps sums; f is held at 0, and at 0 the part collapses
+  to `origin` and draws nothing (`docs/recipe-browser/models.md`, "Stretching gauges");
 - `roll`, an idle roller a trunk turns while it is over it (a trunkPath only).
 
 

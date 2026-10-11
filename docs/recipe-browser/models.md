@@ -102,8 +102,8 @@ The drivers (`site/src/lib/rig.ts`; the Python reference is `Machines/tools/mach
   `"rectified": true` is the mill's way of writing `"travel"`; a driver with both keys is refused. On a
   `stretch`, `"input"` is `"depth"` (the default) or `"oil"`: it scales by (length + travel × that
   input) / length, so a liquid's level can follow the oil tank.
-- `gauge`, a motion set by the work at a place: `motion` (`slide` or `rotate`, the latter with a
-  `pivot`), `axis`, `amount` (per class: `{ "thin", "thick", "3", ... }`, [Classes](#classes)), `mode`
+- `gauge`, a motion set by the work at a place: `motion` (`slide`, `rotate` with a `pivot`, or
+  `stretch`, [below](#stretching-gauges)), `axis`, `amount` (per class: `{ "thin", "thick", "3", ... }`, [Classes](#classes)), `mode`
   (`occupy`, the default, or `present`), `windows: [{ "from", "to", "ease", "gain": { per class } }]` (for
   `occupy`; a gain left out is 1) and optional `lobes: { "ratio", "phase", "amplitude": { per class } }`
   (rotate only).
@@ -112,6 +112,62 @@ The drivers (`site/src/lib/rig.ts`; the Python reference is `Machines/tools/mach
   and out as the tail leaves. It moves by amount[k] × e, plus e × amplitude[k] × cos(ratio × ψ + phase).
 - `roll`, an idle roller the trunk turns: `axis`, `pivot`, `at`, `ratio` (radians per block); it
   turns by ratio × clamp(nose − `at`, 0, L_k), and not at all without a trunk.
+
+A part's matrix is its drivers composed in list order, each applied to the authored geometry with its
+pivots in the authored frame, then its `ride` part's **rigid** matrix: that part's drivers without its
+scales (`stretch` drivers and stretching gauges), then its own ride's rigid matrix. So a part riding a
+stretched part moves and turns with it but is never stretched by it: the hook on a rope that pays out,
+the tip of a rod that shrinks, keep their size. (A rider that should stretch too stretches by its own
+driver.) A part with no scales is its own rigid matrix, which is what every rig before stretching gauges
+had. Anchors that ride a part (`"part"`) take its whole matrix, stretch and all.
+
+#### Stretching gauges
+
+`"motion": "stretch"` scales a part along one of its own axes, from the work:
+
+```json
+{ "type": "gauge", "motion": "stretch", "axis": "z", "origin": [0.25, 1.25, 0.5], "rotation": [-17.5, 0, 0],
+  "amount": { "3": -1 }, "windows": [{ "from": -1000, "to": 2, "ease": 1 }] }
+```
+
+| Key | |
+|---|---|
+| `axis` | `x`, `y` or `z` of the frame `rotation` turns to: the axis the part grows along |
+| `rotation` | Optional `[rx, ry, rz]`, degrees, turned Rx·Ry·Rz as the game turns an element (its `rotationX/Y/Z`; for an element under turned parents, its whole frame: `euler_xyz` of machinegen's flattened `El.r`). Without it the axis is the authored one |
+| `origin` | Required, blocks, authored frame (a voxel point / 16, like a pivot): the plane through it normal to the axis stays put, so a bar whose end face passes through it grows and shrinks from that end |
+| `amount` | Per class ([Classes](#classes)): the factor's change at full engagement |
+| `mode`, `windows` | As any gauge's, but the windows **add up**: E = p × Σ min(1, gain[k] × occupancy) (`occupy`), or p (`present`) |
+
+The factor is f = 1 + amount[k] × E, held at 0 when that is negative, and taken as 0 below 10⁻⁶. A class
+the amount does not name (and no class at all) has f = 1: the part as authored. At f = 0 the part
+**collapses** to `origin` (its matrix's linear part is all 0): the game's renderer and the viewer draw
+nothing of it, and machinegen's `posed` gives its elements size 0 (`El.vanished`), which the overlap and
+z-fight checks skip. This is the only way a driver hides a part; `requires` hides parts by what is fitted.
+A factor just above 0 still shows the bar's end faces at `origin`, so a part that should be gone is driven
+all the way to 0.
+
+Recipes, in a work quantity's unit:
+
+- **Grow from nothing** over [a, b] and stay: `amount` −1, one window `{ "from": -1000, "to": b, "ease": b − a }`
+  (full, so f = 0, until a; empty, so f = 1, from b).
+- **Shrink to nothing** over [a, b] and stay gone: `amount` −1, `{ "from": a, "to": 1000, "ease": b − a }`.
+- **In steps**: one window per step, each with `gain` the step's share (four quarters: gain 0.25 each, from
+  successive W); the shares add up, so the steps sum to the whole change.
+
+Put the stretch first in the part's drivers: each driver acts on the authored geometry, so a stretch
+listed after a rotate scales along the authored axis, not the turned one. A slide or rotate listed after
+it moves the stretched bar. A stretch along an axis that is not one of an element's own shears it, which
+the game and the viewer draw (a parallelepiped) but machinegen's `posed` refuses.
+
+The same in `rigmath.py` (`stretch_factor`, `scale_along`, `is_scale`, `part_matrix`'s `rigid`),
+`RigAnimation.cs` (`Driver.StretchFactor`, `Mat4.StretchAlong`, `Mat4.Collapsed`, `RigParts.Matrices`) and
+`rig.ts` (`scaleAlong`, `isScale`, `collapsed`, `partMatrices`), pinned by the driver fixture: stretching
+gauges alone (windows that add up, a turned frame, factors reaching 0 and held there, class-specific
+amounts), a jib turning on θ with a stretched boom riding it and a hook and cap riding the boom, the
+refusals (no origin, an origin or rotation not of 3 numbers, a `pivot` for an origin, a bad axis, lobes, an
+occupy stretch without windows, a step that stretches), and `stretchBoxes`: shape elements posed by small
+rigs (a coil's side grown from its corner, a rod shrunk to nothing, a box riding a stretched part) whose
+corners the three replay.
 
 #### Classes
 
