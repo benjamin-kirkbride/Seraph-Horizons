@@ -95,7 +95,7 @@ and its bearings, the cradle's bearers and the chains' staples, and the two oil 
 
 | `requires` | Item | Draws |
 |---|---|---|
-| `bushings` | `seraphhorizons:cylinderborerbushings`: metal parts on the grid | The bar's two bushings, on the far pedestal and the drive portal's transom, in cupronickel as the gear cutter draws metal parts |
+| `bushings` | `game:metal-parts` (a block), one, fitted as it is: no item of its own | The bar's two bushings, on the far pedestal and the drive portal's transom, in cupronickel as the gear cutter draws metal parts |
 | `bar` | `seraphhorizons:cylinderborerbar`: three rods and metal parts on the grid | The bar, its feather, its two collars and the great wheel keyed on its drive end |
 | `feed` | `seraphhorizons:cylinderborerfeed`: two oak planks, a rod, two ropes and a plate on the grid | The crosshead with its shoes, push handle, control rod and yoke; the drum shaft with its two drums; the weight; the two ropes |
 | `cutterhead` | `seraphhorizons:cylinderborerhead-steel`: smithed from a steel ingot, the wearing part (8 cylinders) | The head (body, hubs, the yoke's groove) with its four cutters and their wedges |
@@ -174,7 +174,7 @@ block's `textures` name every code of `cylinderborer.json`, as the draw bench's 
 | `assets/seraphhorizons/shapes/block/cylinderborer_frame.json` | The static frame only (79 elements). |
 | `assets/seraphhorizons/config/cylinderborer-rig.json` | Footprint, anchors, the work, the bore's figures and the part rig (64 parts: 40 quarters of cast skin, 10 rope pieces). |
 | `tests/CylinderBorer/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
-| `assets/seraphhorizons/shapes/item/cylinderborer/*.json` | The items: `bushings`, `bar`, `feed`, `cutterhead` (each stage's rig parts at rest, as the gear cutter's items are, the two bushings and the drum and weight gathered), `cylinderblank` (the iron casting with its rough skin) and `cylinder` (bored), the casting's outside `cast`. |
+| `assets/seraphhorizons/shapes/item/cylinderborer/*.json` | The items: `bar`, `feed`, `cutterhead` (each stage's rig parts at rest, as the gear cutter's items are, the drum and weight gathered; the bushings are the game's metal parts, with no item of their own), `cylinderblank` (the iron casting with its rough skin) and `cylinder` (bored), the casting's outside `cast`. |
 | `assets/seraphhorizons/shapes/block/clay/mold/cylinder.json` | The clay mold the blank is cast in: a box round the casting lying on its side, a core for its bore, on the voxel grid of its clay forming recipe. |
 
 ### How the machine works
@@ -335,7 +335,7 @@ exits non-zero if one fails:
   both the fix and the check (`shown`).
 - **Files:** every texture declared; lids over every column; the shipped model is the checked one moved.
 - **Items:** each item shape inside the 16-voxel item box at its fixed scale, centred on its floor, the scale the one
-  it needs; the bushings in cupronickel, the blank's bore rough and the cylinder's bright, the casting's outside `cast`.
+  it needs; the blank's bore rough and the cylinder's bright, the casting's outside `cast`.
 - **Mold:** its cavity holds the casting lying on its side (12 across, the band; 10 high; a fill quad a level), its core
   on the casting's axis and inside the bore, and its shape exactly the clay forming recipe's voxels.
 

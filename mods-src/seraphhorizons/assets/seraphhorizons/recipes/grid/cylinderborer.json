@@ -6,7 +6,8 @@
 		// in one slot, two rods in one), bolted up with 12 nails and strips, with a hammer: iron, meteoric
 		// iron or steel, as the draw bench's. Two stainless gears pay for the gearing the frame carries:
 		// the pinion on the entry shaft and the great wheel's drive (#473). Every other working part goes
-		// in afterwards, fitted by hand.
+		// in afterwards, fitted by hand: the bushings are the game's metal parts, fitted as they are (no
+		// recipe of their own), the rest from the recipes below.
 		ingredientPattern: "MHG,LNL,PRP",
 		width: 3,
 		height: 3,
@@ -20,17 +21,6 @@
 			"H": { type: "item", code: "game:hammer-*", isTool: true }
 		},
 		output: { type: "block", code: "seraphhorizons:cylinderborer-frame-north" }
-	},
-	{
-		// The bushings (stage 1): the pair the bar turns in, from metal parts (drawn in cupronickel, as the
-		// gear cutter draws metal parts).
-		ingredientPattern: "M",
-		width: 1,
-		height: 1,
-		ingredients: {
-			"M": { type: "block", code: "game:metal-parts" }
-		},
-		output: { type: "item", code: "seraphhorizons:cylinderborerbushings" }
 	},
 	{
 		// The boring bar (stage 2): three rods end to end, in a column, of iron, meteoric iron or steel as
