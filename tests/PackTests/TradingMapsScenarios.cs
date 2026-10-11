@@ -688,7 +688,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         else Assert.True(trusted <= stranger, $"{code}: {trusted} is over {stranger}");
         // A trusted customer is shown (and sold) exact ore maps.
         foreach (var o in Offers(trader, MapOfferAttrs.OreMap))
-            Assert.Equal(MapPrecision.Exact, o.Itemstack.Attributes.GetAsInt(MapOfferAttrs.Precision));
+            Assert.Equal(MapPrecision.Fine, o.Itemstack.Attributes.GetAsInt(MapOfferAttrs.Precision));
         // An exact map costs more than a rough one, standing's discount notwithstanding.
         // (The same deposit's: checks landing meanwhile may put others on the shelf.)
         if (strangerMap > 0)

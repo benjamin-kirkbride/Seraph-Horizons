@@ -556,7 +556,7 @@ public class MapsSystem : ModSystem
                 }
                 int max = MapOffers.MaxPrecision(unlocks.MapTier);
                 if (offer == MapOfferAttrs.OreMap && a.GetAsInt(MapOfferAttrs.Precision, MapPrecision.Rough) > max)
-                    return ("trading-maps-error-precision", [max]);
+                    return ($"trading-maps-error-precision-{max}", []);
                 break;
             }
             case MapOfferAttrs.Lead:
@@ -799,7 +799,7 @@ public class MapsSystem : ModSystem
         if (MapMarksSystem.Of(_sapi!) is not { } marks) return;
         string lang = player.LanguageCode ?? Lang.DefaultLocale;
         string name = TraderTitle(lang, trader.TraderType);
-        string title = MapMarksSystem.Title(lang, name, MapMarks.Exact);
+        string title = MapMarksSystem.Title(lang, name);
         double x = Math.Floor(trader.Pos.X) + 0.5, z = Math.Floor(trader.Pos.Z) + 0.5;
         var pos = new Vec3d(x, Math.Floor(trader.Pos.Y) + 0.5, z);
         var titles = new[] { name, TraderTitle(Lang.DefaultLocale, trader.TraderType) }.Distinct().ToList();
@@ -848,7 +848,7 @@ public class MapsSystem : ModSystem
             case MapOfferAttrs.OreMap or MapOfferAttrs.GravelMap when DepositKey.TryParse(a.GetString(MapOfferAttrs.Deposit), out var key)
                                                                        && Deposits is { } deposits && Issuer is { } issuer:
             {
-                int precision = offer == MapOfferAttrs.OreMap ? a.GetAsInt(MapOfferAttrs.Precision, MapPrecision.Rough) : MapPrecision.Exact;
+                int precision = offer == MapOfferAttrs.OreMap ? a.GetAsInt(MapOfferAttrs.Precision, MapPrecision.Rough) : MapPrecision.Fine;
                 _reserved.Add(key.Id);
                 deposits.Verify(key, result =>
                 {

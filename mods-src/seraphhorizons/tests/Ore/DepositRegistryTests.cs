@@ -199,12 +199,16 @@ public class MapPrecisionTests
             var key = new DepositKey("tin", new CellPos(cx, cx * 3));
             var (rx, rz) = MapPrecision.Offset(9, key, MapPrecision.Rough);
             var (fx, fz) = MapPrecision.Offset(9, key, MapPrecision.Fair);
-            Assert.True(Math.Sqrt(rx * rx + rz * rz) <= 400.5);
-            Assert.True(Math.Sqrt(fx * fx + fz * fz) <= 150.5);
+            var (ex, ez) = MapPrecision.Offset(9, key, MapPrecision.Fine);
+            Assert.True(Math.Sqrt(rx * rx + rz * rz) <= 150.5);
+            Assert.True(Math.Sqrt(fx * fx + fz * fz) <= 50.5);
+            Assert.True(Math.Sqrt(ex * ex + ez * ez) <= 15.5);
             // A better tier's marker lies between the worse one's and the deposit.
             Assert.InRange(fx, Math.Min(0, rx) - 1, Math.Max(0, rx) + 1);
             Assert.InRange(fz, Math.Min(0, rz) - 1, Math.Max(0, rz) + 1);
-            Assert.Equal((0, 0), MapPrecision.Offset(9, key, MapPrecision.Exact));
+            Assert.InRange(ex, Math.Min(0, fx) - 1, Math.Max(0, fx) + 1);
+            Assert.InRange(ez, Math.Min(0, fz) - 1, Math.Max(0, fz) + 1);
+            Assert.Equal((0, 0), MapPrecision.Offset(9, new DepositKey(PlacerCells.Kind, key.Cell), MapPrecision.Fine));
         }
         Assert.False(MapPrecision.IsValid(0));
         Assert.False(MapPrecision.IsValid(4));
@@ -215,7 +219,7 @@ public class MapPrecisionTests
     {
         var far = Enumerable.Range(0, 500)
             .Select(i => MapPrecision.Offset(5, new DepositKey("iron", new CellPos(i, 0)), MapPrecision.Rough))
-            .Count(o => Math.Sqrt(o.Dx * o.Dx + o.Dz * o.Dz) > 200);
+            .Count(o => Math.Sqrt(o.Dx * o.Dx + o.Dz * o.Dz) > MapPrecision.ReachOf(MapPrecision.Rough) / 2.0);
         // Uniform over the disc: three quarters of the area lies beyond half the reach.
         Assert.InRange(far, 300, 450);
     }

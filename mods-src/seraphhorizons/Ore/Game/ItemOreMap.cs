@@ -78,8 +78,9 @@ public class ItemOreMap : Item, ITradeableCollectible
         int y = a.GetInt(AttrY);
         var pos = new Vec3d(a.GetInt(AttrX) + 0.5, y > 0 ? y + 0.5 : api.World.SeaLevel, a.GetInt(AttrZ) + 0.5);
         bool gravel = metal == PlacerCells.Kind;
-        int precision = gravel ? MapPrecision.Exact : a.GetInt(AttrPrecision, MapPrecision.Exact);
-        string title = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Title(lang, WaypointTitle(lang, a), precision);
+        int precision = gravel ? MapPrecision.Fine : a.GetInt(AttrPrecision, MapPrecision.Fine);
+        string title = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Title(lang, WaypointTitle(lang, a),
+            gravel ? 0 : MapPrecision.ReachOf(precision));
         var marks = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.Of(api);
         var target = SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.TargetOf(slot.Itemstack);
         var outcome = marks is null || target is null
@@ -100,7 +101,7 @@ public class ItemOreMap : Item, ITradeableCollectible
                 return;
         }
         player.SendMessage(GlobalConstants.GeneralChatGroup,
-            Lang.GetL(lang, precision == MapPrecision.Exact ? "seraphhorizons:oremap-marked" : "seraphhorizons:oremap-marked-near", title),
+            Lang.GetL(lang, gravel ? "seraphhorizons:oremap-marked" : "seraphhorizons:oremap-marked-near", title),
             EnumChatType.Notification);
     }
 
@@ -215,7 +216,7 @@ public class ItemOreMap : Item, ITradeableCollectible
             return;
         }
         if (metal != PlacerCells.Kind)
-            dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-precision-" + a.GetInt(AttrPrecision, MapPrecision.Exact)));
+            dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-precision-" + a.GetInt(AttrPrecision, MapPrecision.Fine)));
         AppendDeposit(Lang.CurrentLocale, a, dsc);
         if (a.HasAttribute(AttrX))
             SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.AppendDistance(world, a.GetInt(AttrX) + 0.5, a.GetInt(AttrZ) + 0.5, dsc);

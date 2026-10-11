@@ -80,11 +80,8 @@ public class MapMarksTests
     }
 
     [Fact]
-    public void ReachFollowsTheOreMapTiers()
+    public void TargetKeys()
     {
-        Assert.Equal(400, MapMarks.ReachOf(MapMarks.Rough));
-        Assert.Equal(150, MapMarks.ReachOf(MapMarks.Fair));
-        Assert.Equal(0, MapMarks.ReachOf(MapMarks.Exact));
         Assert.Equal("deposit:gravel:3,4", MapMarks.DepositKey("gravel:3,4"));
         Assert.Equal("settlement:10,-20", MapMarks.SettlementKey(10, -20));
     }
