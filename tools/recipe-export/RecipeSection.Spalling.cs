@@ -23,7 +23,7 @@ public static partial class RecipeSection
     /// <summary>
     /// One ore item kind (grade and ore, every host rock an alternative) broken by hand where it lies:
     /// the ore (consumed) and the hammer (a tool worn a fixed amount a job, its wear a blow times the
-    /// blows); the crushed ore of the 5-unit rule. No station: it is worked on the ground
+    /// blows); one crushed ore of its grade (two from crystallised ore). No station: it is worked on the ground
     /// (<c>requirements</c>). Power <c>hand</c>, its turns the blows, each a left-click.
     /// </summary>
     private static JObject SpallingRecord(Context ctx, SpallingData s, SpallClass k)
@@ -62,7 +62,7 @@ public static partial class RecipeSection
             }),
             ["machine"] = machine,
             ["requirements"] = new JArray(SpallingRequirement),
-            ["extra"] = new JObject { ["ore"] = k.Ore, ["grade"] = k.Grade, ["form"] = SpallingExport.IsRaw(k.Grade) ? "raw" : "chunk", ["blows"] = k.Blows },
+            ["extra"] = new JObject { ["ore"] = k.Ore, ["grade"] = k.Grade, ["form"] = k.FirstPart == "crystalizedore" ? "crystallised" : "raw", ["blows"] = k.Blows },
         };
     }
 }

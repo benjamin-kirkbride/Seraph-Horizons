@@ -334,6 +334,59 @@ public sealed class BodyParts
         return parts;
     }
 
+    /// <summary>
+    /// A docked body as saved, made again from the eidolon it holds, wearing <paramref name="build"/>.
+    /// While an eidolon is docked the body is only a saved copy of what it is made of, and a bill changed
+    /// since (a mod update raising a layer's count) leaves that copy short: a layer it wears would load
+    /// part fitted, the body's <see cref="Build"/> fall short of the eidolon's, and its pieces count as
+    /// loose. So the layers it wears (with the torso and the mind) are <see cref="Docked"/>'s, whatever was
+    /// saved of them, their pieces the eidolon's and never loose; only what was fitted in the stages after
+    /// them (a layer being fitted) and any spare are kept as saved.
+    /// </summary>
+    public BodyParts Reconciled(EidolonBuild build)
+    {
+        var parts = Docked(build);
+        foreach (var layer in EidolonFittings.Layers.Where(l => build[l] == null))
+        {
+            string stage = BodyBill.StageOf(layer);
+            foreach (var (code, n) in _fitted[stage])
+                parts._fitted[stage][code] = n;
+        }
+        foreach (var (code, n) in _spare)
+            parts._spare[code] = n;
+        return parts;
+    }
+
+    /// <summary>The most a docked eidolon can be wearing, for when it is not loaded to ask: each layer
+    /// from the bones out with a material fixed, as far as they run unbroken. A saved count short of a
+    /// changed bill still fixes its layer's material, so loose pieces measured against this
+    /// (<see cref="Loose"/>) never take in a worn layer's; a layer part fitted is counted in too, and its
+    /// pieces wait for the eidolon.</summary>
+    public EidolonBuild MostWorn
+    {
+        get
+        {
+            var b = EidolonBuild.Bare;
+            foreach (var layer in EidolonFittings.Layers)
+            {
+                if (b.With(layer, Material(layer)) is not { } next)
+                    break;
+                b = next;
+            }
+            return b;
+        }
+    }
+
+    /// <summary>The build to put on a docked eidolon wearing <paramref name="worn"/> once a layer is
+    /// completed on the spine: <see cref="Build"/>, when it wears every layer <paramref name="worn"/> does,
+    /// in the same material, and more; else null, so a body short of the eidolon never strips it.</summary>
+    public EidolonBuild? Dressing(EidolonBuild worn)
+    {
+        var build = Build;
+        bool covers = EidolonFittings.Layers.All(l => worn[l] == null || worn[l] == build[l]);
+        return covers && !build.Equals(worn) ? build : null;
+    }
+
     /// <summary>What is fitted beyond what a docked eidolon wearing <paramref name="build"/> is made of
     /// (<see cref="Docked"/>): the pieces of a layer being fitted, and any spare. These are the gantry's
     /// to give back, never the eidolon's.</summary>

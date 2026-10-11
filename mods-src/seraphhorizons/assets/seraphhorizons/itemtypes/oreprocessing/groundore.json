@@ -1,5 +1,7 @@
-// Ground ore (OreProcessing): crushed ore ground fine for the concentrator, one per ore, 5 units of
-// metal each. Does not smelt. Marked disabled with the switch off.
+// Ground ore (OreProcessing): crushed ore ground fine for the concentrator, one per ore and grade
+// (seraphhorizons:groundore-{ore}-{grade}, #847). One crushed ore grinds to one, carrying its grade
+// and metal units unchanged, 4 a stack. Smelts by its grade, a sulfide's not at all (set in code).
+// Marked disabled with the switch off.
 {
 	"code": "groundore",
 	"class": "seraphhorizons.ItemOreProduct",
@@ -40,6 +42,15 @@
 				"vanadinite",
 				"wulfenite"
 			]
+		},
+		{
+			"code": "grade",
+			"states": [
+				"poor",
+				"medium",
+				"rich",
+				"bountiful"
+			]
 		}
 	],
 	"behaviors": [
@@ -62,7 +73,7 @@
 		"base": "game:item/resource/crushed/normal"
 	},
 	"textureByType": {
-		"groundore-quartz_nativegold*": {
+		"groundore-quartz_nativegold-*": {
 			"base": "game:item/resource/nugget/nativegold",
 			"blendedOverlays": [
 				{
@@ -71,7 +82,7 @@
 				}
 			]
 		},
-		"groundore-quartz_nativesilver*": {
+		"groundore-quartz_nativesilver-*": {
 			"base": "game:item/resource/nugget/nativesilver",
 			"blendedOverlays": [
 				{
@@ -80,7 +91,7 @@
 				}
 			]
 		},
-		"groundore-galena_nativesilver*": {
+		"groundore-galena_nativesilver-*": {
 			"base": "game:item/resource/nugget/nativesilver",
 			"blendedOverlays": [
 				{
@@ -101,10 +112,31 @@
 	},
 	"attributes": {
 		"oreForm": "ground",
-		"metalUnits": 5,
+		"metalUnitsByType": {
+			"*-cassiterite-poor": 5,
+			"*-cassiterite-medium": 10,
+			"*-cassiterite-rich": 15,
+			"*-cassiterite-bountiful": 20,
+			"*-hematite-poor": 20,
+			"*-hematite-medium": 25,
+			"*-hematite-rich": 30,
+			"*-hematite-bountiful": 40,
+			"*-quartz_nativesilver-poor": 10,
+			"*-quartz_nativesilver-medium": 15,
+			"*-quartz_nativesilver-rich": 20,
+			"*-quartz_nativesilver-bountiful": 25,
+			"*-quartz_nativegold-poor": 5,
+			"*-quartz_nativegold-medium": 10,
+			"*-quartz_nativegold-rich": 15,
+			"*-quartz_nativegold-bountiful": 20,
+			"*-poor": 15,
+			"*-medium": 20,
+			"*-rich": 25,
+			"*-bountiful": 35
+		},
 		"handbook": {
 			"groupBy": [
-				"groundore-*"
+				"groundore-{ore}-*"
 			]
 		},
 		"displaycaseable": true,
@@ -146,7 +178,7 @@
 	},
 	"heldTpIdleAnimation": "holdbothhands",
 	"heldRightReadyAnimation": "holdbothhands",
-	"maxstacksize": 16,
+	"maxstacksize": 4,
 	"storageFlags": 5,
 	"dimensions": {
 		"width": 0.0625,

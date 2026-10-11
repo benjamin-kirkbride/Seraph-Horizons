@@ -1,0 +1,247 @@
+// Crushed ore (OreProcessing; README "Ore processing: items, crushing and smelting"): raw ore broken
+// up, one per ore and grade (seraphhorizons:crushedore-{ore}-{grade}, #847). One raw ore crushes to
+// one, carrying the raw ore's grade and metal units unchanged (metalUnitsByType repeats vanilla's
+// ore-graded.json, held to it by the pack tests), 4 a stack like every rock form. Smelts by its grade,
+// a sulfide's not until roasted (set in code). The texture is the ore's nugget texture on vanilla's
+// crushed shape, poor ore's lighter (fine-grained). Marked disabled with the switch off.
+{
+	"code": "crushedore",
+	"class": "seraphhorizons.ItemOreProduct",
+	"variantgroups": [
+		{
+			"code": "ore",
+			"states": [
+				"azurite",
+				"bismuthinite",
+				"cassiterite",
+				"cerussite",
+				"chalcocite",
+				"chalcopyrite",
+				"chromite",
+				"franckeite",
+				"freibergite",
+				"galena",
+				"galena_nativesilver",
+				"hematite",
+				"hemimorphite",
+				"ilmenite",
+				"limonite",
+				"magnetite",
+				"malachite",
+				"nativecopper",
+				"nativeplatinum",
+				"pentlandite",
+				"pyrite",
+				"quartz_nativegold",
+				"quartz_nativesilver",
+				"rhodochrosite",
+				"smithsonite",
+				"sperrylite",
+				"sphalerite",
+				"teallite",
+				"tetrahedrite",
+				"uranium",
+				"vanadinite",
+				"wulfenite"
+			]
+		},
+		{
+			"code": "grade",
+			"states": [
+				"poor",
+				"medium",
+				"rich",
+				"bountiful"
+			]
+		}
+	],
+	"behaviors": [
+		{
+			"name": "GroundStorable",
+			"properties": {
+				"layout": "Messy12",
+				"collisionBox": {
+					"x1": 0,
+					"y1": 0,
+					"z1": 0,
+					"x2": 1,
+					"y2": 0.125,
+					"z2": 1
+				}
+			}
+		}
+	],
+	"shape": {
+		"base": "game:item/resource/crushed/normal"
+	},
+	"textureByType": {
+		"crushedore-quartz_nativegold-poor": {
+			"base": "game:item/resource/nugget/nativegold",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/quartz",
+					"blendMode": "Overlay"
+				}
+			]
+		},
+		"crushedore-quartz_nativegold-*": {
+			"base": "game:item/resource/nugget/nativegold"
+		},
+		"crushedore-quartz_nativesilver-poor": {
+			"base": "game:item/resource/nugget/nativesilver",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/quartz",
+					"blendMode": "Overlay"
+				}
+			]
+		},
+		"crushedore-quartz_nativesilver-*": {
+			"base": "game:item/resource/nugget/nativesilver"
+		},
+		"crushedore-galena_nativesilver-poor": {
+			"base": "game:item/resource/nugget/nativesilver",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/quartz",
+					"blendMode": "Overlay"
+				}
+			]
+		},
+		"crushedore-galena_nativesilver-*": {
+			"base": "game:item/resource/nugget/nativesilver"
+		},
+		"*-poor": {
+			"base": "game:item/resource/nugget/{ore}",
+			"blendedOverlays": [
+				{
+					"base": "game:item/resource/crushed/quartz",
+					"blendMode": "Overlay"
+				}
+			]
+		},
+		"*": {
+			"base": "game:item/resource/nugget/{ore}"
+		}
+	},
+	"attributes": {
+		"oreForm": "crushed",
+		"metalUnitsByType": {
+			"*-cassiterite-poor": 5,
+			"*-cassiterite-medium": 10,
+			"*-cassiterite-rich": 15,
+			"*-cassiterite-bountiful": 20,
+			"*-hematite-poor": 20,
+			"*-hematite-medium": 25,
+			"*-hematite-rich": 30,
+			"*-hematite-bountiful": 40,
+			"*-quartz_nativesilver-poor": 10,
+			"*-quartz_nativesilver-medium": 15,
+			"*-quartz_nativesilver-rich": 20,
+			"*-quartz_nativesilver-bountiful": 25,
+			"*-quartz_nativegold-poor": 5,
+			"*-quartz_nativegold-medium": 10,
+			"*-quartz_nativegold-rich": 15,
+			"*-quartz_nativegold-bountiful": 20,
+			"*-poor": 15,
+			"*-medium": 20,
+			"*-rich": 25,
+			"*-bountiful": 35
+		},
+		"handbook": {
+			"groupBy": [
+				"crushedore-{ore}-*"
+			]
+		},
+		"displaycaseable": true,
+		"shelvable": true,
+		"onDisplayTransform": {
+			"translation": {
+				"x": 0.05,
+				"y": 0,
+				"z": 0
+			},
+			"origin": {
+				"x": 0.5,
+				"y": 0,
+				"z": 0.5
+			},
+			"scale": 0.65
+		},
+		"groundStorageTransform": {
+			"translation": {
+				"x": 0.025,
+				"y": -0.055,
+				"z": 0.025
+			},
+			"rotation": {
+				"x": 0.1,
+				"y": 8,
+				"z": 0
+			},
+			"scale": 0.9
+		}
+	},
+	"creativeinventory": {
+		"general": [
+			"*"
+		],
+		"items": [
+			"*"
+		]
+	},
+	"heldTpIdleAnimation": "holdbothhands",
+	"heldRightReadyAnimation": "holdbothhands",
+	"maxstacksize": 4,
+	"storageFlags": 5,
+	"dimensions": {
+		"width": 0.0625,
+		"height": 0.0625,
+		"length": 0.0625
+	},
+	"materialDensity": 3000,
+	"guiTransform": {
+		"translation": {
+			"x": 0,
+			"y": 0,
+			"z": -25
+		},
+		"rotation": {
+			"x": 171,
+			"y": 57,
+			"z": -20
+		},
+		"origin": {
+			"x": 0.46,
+			"y": 0.11,
+			"z": 0.39
+		},
+		"scale": 2.64
+	},
+	"tpHandTransform": {
+		"translation": {
+			"x": -1.67,
+			"y": -1.1,
+			"z": -0.7
+		},
+		"rotation": {
+			"x": 19,
+			"y": 26,
+			"z": -83
+		},
+		"scale": 0.48
+	},
+	"groundTransform": {
+		"translation": {
+			"x": 0,
+			"y": 0.46,
+			"z": 0
+		},
+		"rotation": {
+			"x": 0.1,
+			"y": 8,
+			"z": 0
+		},
+		"scale": 4.5
+	}
+}

@@ -1,7 +1,7 @@
 // Ore processing (OreProcessing; README "Ore processing: items, crushing and smelting"): vanilla's
 // graded ore and crystallised ore items take the pack's ore class (Ore/Processing/ItemGradedOre.cs),
-// which names poor and medium ore "raw ... ore" and rich and bountiful "... chunk", and does not break
-// ore into nuggets with a hammer where it lies. The rest (stack sizes, crushing, smelting) is set in
+// which names every grade "raw ... ore" (#847: no chunks), and does not break ore into nuggets with
+// a hammer where it lies. The rest (stack sizes, crushing, smelting) is set in
 // code once the items are loaded, so it holds whatever other mods patched. Emptied with the switch off.
 //
 // Spalling (#747, README "Ore processing: spalling"): ore is set down on the ground one at a time, a

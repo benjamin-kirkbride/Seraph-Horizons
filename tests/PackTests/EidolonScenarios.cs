@@ -373,6 +373,86 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
         e.Die(EnumDespawnReason.Removed);
     }
 
+    /// <summary>A right-click on an entity goes to the held item first (the client's mouse handling:
+    /// <see cref="CollectibleObject.OnHeldUseStart"/>, and the entity only when the item leaves it).
+    /// Rendered fat is food and began eating, so oil never reached the eidolon; holding oil, the item
+    /// now leaves the click to it (<see cref="EidolonHeldClicks"/>), which pours, whatever the oil's
+    /// container. Anything else, and with no reservoir, the item keeps its use.</summary>
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Holding_oil_a_right_click_on_it_is_left_to_it_and_pours()
+    {
+        var p = await World.JoinPlayer("eidolonclicker");
+        var at = await Floor(440, 0);
+        await p.TeleportTo(at.AddCopy(4, 0, 4));
+        var player = (IServerPlayer)p.Player;
+        player.WorldData.CurrentGameMode = EnumGameMode.Survival;
+        var e = await Spawn(at, null);
+        var oil = e.Oil!;
+        var on = new EntitySelection { Entity = e, Position = e.Pos.XYZ.AddCopy(0, 2, 0), HitPosition = new Vec3d(0, 2, 0), Face = BlockFacing.NORTH };
+
+        EnumHandHandling Use(ItemSlot slot, EntitySelection? sel)
+        {
+            var handling = EnumHandHandling.NotHandled;
+            slot.Itemstack.Collectible.OnHeldUseStart(slot, player.Entity, null, sel, EnumHandInteract.HeldItemInteract, true, ref handling);
+            player.Entity.AnimManager?.StopAnimation("eat");
+            return handling;
+        }
+
+        // Fat is food: in the air, the click eats it.
+        var slot = Hold(player, "game:fat-rendered", 4);
+        Assert.NotEqual(EnumHandHandling.NotHandled, Use(slot, null));
+
+        // At the eidolon: left to it, and it pours.
+        oil.SetPoints(0);
+        Assert.Equal(EnumHandHandling.NotHandled, Use(slot, on));
+        e.OnInteract(player.Entity, slot, on.HitPosition, EnumInteractMode.Interact);
+        Assert.Equal(0, slot.StackSize);
+        Assert.Equal(200, oil.Tank!.Value.Points, 3);
+
+        // Every container of every oil: left to it.
+        var site = new OilSite(World, at, player);
+        foreach (var code in new[] { OilSite.FlaxOil, "game:oilportion-olive", "expandedfoods:foodoilportion-sunflower", "expandedfoods:lard" })
+        {
+            foreach (var container in new[] { OilSite.Bucket, "game:jug-blue-fired", "game:bowl-blue-fired" })
+            {
+                if (W.GetBlock(new AssetLocation(container)) is not BlockLiquidContainerBase { Id: > 0 } block)
+                    continue;
+                var held = new ItemStack(block);
+                block.SetContent(held, site.Stack(code, 10));
+                slot.Itemstack = held;
+                Log($"{code} in {container}, in the air: {Use(slot, null)}");
+                Assert.Equal(EnumHandHandling.NotHandled, Use(slot, on));
+            }
+        }
+
+        // A bucket of linseed (flax) oil poured: a litre of it, 100 points.
+        oil.SetPoints(0);
+        slot.Itemstack = site.BucketOf(OilSite.FlaxOil, 100);
+        Assert.Equal(EnumHandHandling.NotHandled, Use(slot, on));
+        e.OnInteract(player.Entity, slot, on.HitPosition, EnumInteractMode.Interact);
+        Assert.Equal(100, oil.Tank!.Value.Points, 3);
+
+        // Not oil, or no reservoir: the item keeps its use (bread is eaten).
+        slot.Itemstack = new ItemStack(W.GetItem(new AssetLocation("game:bread-spelt-perfect"))!, 1);
+        Assert.NotEqual(EnumHandHandling.NotHandled, Use(slot, on));
+        Assert.True(EidolonHeldClicks.LeftToEidolon(Hold(player, "game:fat-rendered", 1), null, on, EnumHandInteract.HeldItemInteract));
+        Assert.False(EidolonHeldClicks.LeftToEidolon(slot, null, on, EnumHandInteract.HeldItemAttack));
+        var settings = SeraphHorizonsSystem.ConfigFor(World.Api);
+        try
+        {
+            settings.MachineOil = false;
+            await World.Until(() => oil.Tank == null, 100);
+            slot = Hold(player, "game:fat-rendered", 1);
+            Assert.NotEqual(EnumHandHandling.NotHandled, Use(slot, on));
+        }
+        finally
+        {
+            settings.MachineOil = true;
+        }
+        slot.Itemstack = null;
+        e.Die(EnumDespawnReason.Removed);
+    }
+
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Repair_restores_its_share_double_in_a_gantry_and_stands_a_slumped_one_up()
     {

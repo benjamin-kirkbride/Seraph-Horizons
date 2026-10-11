@@ -10,8 +10,9 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// The game's alloy maths (<c>AlloyRecipe.mergeAndCompareStacks</c>) counts a smelted stack as its
 /// stack size over <c>smeltedRatio</c>, leaving out <c>smeltedStack</c>'s own stack size, which its
 /// single-metal maths (<c>BlockSmeltingContainer.GetSingleSmeltableStack</c>), the bloomery,
-/// crucibulum and smex all count. Ore processing gives a chunk whose half is not a whole number of
-/// items per ingot a stack of more than one (7 ingots per 40 chunks for 17.5 units), so a transpiler
+/// crucibulum and smex all count. Ore processing gives rock whose grade's share is not a whole
+/// number of items per ingot a stack of more than one (7 ingots per 40 bountiful ores at 50 %, 17.5
+/// units each), so a transpiler
 /// divides by <see cref="EffectiveRatio"/> there instead, ratio over output. Every item the game and
 /// the other mods ship smelts to a stack of one, for which it is the same.
 /// </summary>

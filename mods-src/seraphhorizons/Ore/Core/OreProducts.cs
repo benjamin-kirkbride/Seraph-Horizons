@@ -1,8 +1,5 @@
 namespace SeraphHorizons.Mod.Ore.Core;
 
-/// <summary>The grain crushed ore comes out at: fine from poor ore, coarse from the rest (#686).</summary>
-public enum OreGrain { Coarse, Fine }
-
 /// <summary>A smelting rate the game can hold: <see cref="Output"/> items of the metal (an ingot or a
 /// bloom, 100 units each) per <see cref="Ratio"/> items smelted, the game's <c>smeltedStack</c>
 /// stack size and <c>smeltedRatio</c>.</summary>
@@ -13,35 +10,33 @@ public readonly record struct SmeltRate(int Output, int Ratio)
 }
 
 /// <summary>
-/// Ore processing's items (#686, #687, #688; README "Ore processing: items, crushing and smelting"):
-/// their codes, which ore gets which, and the rules the game side applies to vanilla's ore item and
-/// to the new items. Game-independent; the figures (units an item holds, what share each form
-/// smelts to) are <see cref="OreRecovery"/>'s.
+/// Ore processing's items (#686, #687, #688, #847; README "Ore processing: items, crushing and
+/// smelting"): their codes, which ore gets which, and the rules the game side applies to vanilla's ore
+/// item and to the new items. Game-independent; the figures (units a concentrate holds, what share each
+/// form smelts to) are <see cref="OreRecovery"/>'s.
 /// <list type="bullet">
-/// <item>Raw ore and chunks are vanilla's <c>game:ore-{grade}-{ore}-{rock}</c>: poor and medium are
-/// raw ore (<see cref="RawStack"/>, no smelting), rich and bountiful chunks (<see cref="ChunkStack"/>,
-/// half). Their <c>metalUnits</c> and the ore blocks' drops stay as vanilla's, which deposit
-/// measurement reads.</item>
-/// <item>Crushed ore is <c>game:crushed-{ore}-{grain}</c>, a second item type next to vanilla's
-/// <c>game:crushed-{material}</c>; ground ore, concentrate, roasted concentrate (sulfides) and
-/// amalgam (free gold and silver) are <c>seraphhorizons:{form}-{ore}</c>; litharge, one item.</item>
-/// <item>Crushing yields the input's units in crushed items of <see cref="OreRecovery.ConcentrateUnits"/>
-/// (5), so it loses nothing: every grade's units are a multiple of 5.</item>
+/// <item>Raw ore is vanilla's <c>game:ore-{grade}-{ore}-{rock}</c>, every grade alike: 4 a stack
+/// (<see cref="RockStack"/>), no chunks. Its <c>metalUnits</c> and the ore blocks' drops stay as
+/// vanilla's, which deposit measurement reads.</item>
+/// <item>The other rock forms are the pack's, by ore and grade: crushed ore
+/// (<c>seraphhorizons:crushedore-{ore}-{grade}</c>), ground ore (<c>groundore-{ore}-{grade}</c>) and a
+/// sulfide's roasted rock (<c>roastedore-{ore}-{grade}</c>), each 4 a stack and holding the raw ore's
+/// units (<see cref="RawUnits"/>), so one raw ore crushes to one crushed, which grinds to one ground
+/// (#847). Concentrate, roasted concentrate (sulfides), amalgam and sponge (free gold and silver) are
+/// <c>seraphhorizons:{form}-{ore}</c>, 5 units each; litharge, one item.</item>
 /// </list>
 /// </summary>
 public static class OreProducts
 {
     public const string Domain = "seraphhorizons";
 
-    /// <summary>Raw ore (poor and medium) stacks to 4: heavy rock, carried by the cartload.</summary>
-    public const int RawStack = 4;
+    /// <summary>Every rock form stacks to 4: raw, crushed and ground ore and roasted rock are heavy
+    /// rock at any grade, carried by the cartload (#847).</summary>
+    public const int RockStack = 4;
 
-    /// <summary>Chunks (rich and bountiful) stack to 16.</summary>
-    public const int ChunkStack = 16;
-
-    /// <summary>Crushed and ground ore stack to 16, concentrate, roasted concentrate, amalgam and
-    /// sponge to 128, litharge to 64 (the item type files).</summary>
-    public const int CrushedStack = 16, ConcentrateStack = 128, LithargeStack = 64;
+    /// <summary>Concentrate, roasted concentrate, amalgam and sponge stack to 128, litharge to 64 (the
+    /// item type files).</summary>
+    public const int ConcentrateStack = 128, LithargeStack = 64;
 
     /// <summary>Litharge holds a nugget's worth of lead and smelts back to it at a small loss:
     /// 21 litharge make an ingot (4.76 units each, 95 %).</summary>
@@ -62,32 +57,39 @@ public static class OreProducts
         "teallite", "tetrahedrite", "uranium", "vanadinite", "wulfenite",
     ];
 
-    /// <summary>The form an ore item of <paramref name="grade"/> takes: raw ore for poor and medium,
-    /// a chunk for rich and bountiful; null for anything else.</summary>
-    public static OreForm? FormOfGrade(string? grade) => grade switch
+    /// <summary>Whether <paramref name="grade"/> is one of the ore's grades.</summary>
+    public static bool IsGrade(string? grade) => grade != null && Grades.Contains(grade);
+
+    /// <summary>
+    /// The metal units raw ore of <paramref name="ore"/> and <paramref name="grade"/> holds: vanilla's
+    /// <c>ore-graded.json</c> <c>metalUnitsByType</c> (15, 20, 25, 35 by grade; cassiterite, hematite
+    /// and the quartz ores their own), which the other rock forms' type files repeat and the pack
+    /// tests hold to the game. Null for a grade that is not one.
+    /// </summary>
+    public static int? RawUnits(string ore, string? grade)
     {
-        "poor" or "medium" => OreForm.Raw,
-        "rich" or "bountiful" => OreForm.Chunk,
-        _ => null,
-    };
+        int i = grade == null ? -1 : Grades.ToList().IndexOf(grade);
+        if (i < 0) return null;
+        int[] units = ore switch
+        {
+            "cassiterite" or "quartz_nativegold" => [5, 10, 15, 20],
+            "hematite" => [20, 25, 30, 40],
+            "quartz_nativesilver" => [10, 15, 20, 25],
+            _ => [15, 20, 25, 35],
+        };
+        return units[i];
+    }
 
-    /// <summary>The stack size of an ore item of <paramref name="grade"/>, or null to leave it.</summary>
-    public static int? StackOfGrade(string? grade) => FormOfGrade(grade) switch
-    {
-        OreForm.Raw => RawStack,
-        OreForm.Chunk => ChunkStack,
-        _ => null,
-    };
+    /// <summary>The crushed ore item: <c>seraphhorizons:crushedore-{ore}-{grade}</c>.</summary>
+    public static string CrushedCode(string ore, string grade) => $"{Domain}:crushedore-{ore}-{grade}";
 
-    /// <summary>The grain an ore of <paramref name="grade"/> crushes to.</summary>
-    public static OreGrain GrainOfGrade(string? grade) => OreFeed.IsFineGrained(grade) ? OreGrain.Fine : OreGrain.Coarse;
+    /// <summary>The ground ore item: <c>seraphhorizons:groundore-{ore}-{grade}</c>.</summary>
+    public static string GroundCode(string ore, string grade) => $"{Domain}:groundore-{ore}-{grade}";
 
-    public static string Key(OreGrain grain) => grain == OreGrain.Fine ? "fine" : "coarse";
+    /// <summary>A sulfide's roasted rock (raw or crushed ore roasted in the firepit):
+    /// <c>seraphhorizons:roastedore-{ore}-{grade}</c>.</summary>
+    public static string RoastedRockCode(string ore, string grade) => $"{Domain}:roastedore-{ore}-{grade}";
 
-    /// <summary>The crushed ore item: <c>game:crushed-{ore}-{grain}</c>.</summary>
-    public static string CrushedCode(string ore, OreGrain grain) => $"game:crushed-{ore}-{Key(grain)}";
-
-    public static string GroundCode(string ore) => $"{Domain}:groundore-{ore}";
     public static string ConcentrateCode(string ore) => $"{Domain}:concentrate-{ore}";
     public static string RoastedCode(string ore) => $"{Domain}:roastedconcentrate-{ore}";
     public static string AmalgamCode(string ore) => $"{Domain}:amalgam-{ore}";
@@ -112,41 +114,38 @@ public static class OreProducts
     /// <summary>Argentiferous galena (vanilla's silver galena), a lead ore carrying silver (#690).</summary>
     public const string Argentiferous = "galena_nativesilver";
 
-    /// <summary>The ore a nugget crushes into crushed ore of: the ore of the same name, or for the
-    /// placer metals the quartz ore (<c>nativegold</c>: <c>quartz_nativegold</c>); null if none.</summary>
-    public static string? OreOfNugget(string nugget)
+    /// <summary>
+    /// How many rock items of <paramref name="unitsPerItem"/> an input of <paramref name="units"/>
+    /// crushes to, with no loss: one for raw ore, whose units the crushed ore holds (#847), two for
+    /// crystallised ore, which holds twice its grade's. Rounded to the nearest, never below one.
+    /// </summary>
+    public static int CrushedCount(double units, double unitsPerItem)
     {
-        if (Ores.Contains(nugget)) return nugget;
-        var quartz = "quartz_" + nugget;
-        return Ores.Contains(quartz) ? quartz : null;
+        if (!(unitsPerItem > 0)) throw new ArgumentOutOfRangeException(nameof(unitsPerItem));
+        return Math.Max(1, (int)Math.Round(units / unitsPerItem, MidpointRounding.AwayFromZero));
     }
 
-    /// <summary>
-    /// How many crushed items an input of <paramref name="units"/> crushes to: its units over a crushed
-    /// item's, with no loss. An input whose units are not a whole number of crushed items (none in the
-    /// pack: every grade is a multiple of 5) is rounded to the nearest, never below one.
-    /// </summary>
-    public static int CrushedCount(double units, double unitsPerCrushed)
-    {
-        if (!(unitsPerCrushed > 0)) throw new ArgumentOutOfRangeException(nameof(unitsPerCrushed));
-        return Math.Max(1, (int)Math.Round(units / unitsPerCrushed, MidpointRounding.AwayFromZero));
-    }
+    /// <summary>The most output a smelting rate may name: enough for every share of every grade's units
+    /// to be exact.</summary>
+    public const int MaxRateOutput = 10_000;
 
     /// <summary>
     /// The smelting rate that gives <paramref name="share"/> of <paramref name="unitsPerItem"/> per item:
-    /// the smallest output stack (up to 20) for which the ratio is a whole number of items, so a half of a
-    /// 35-unit chunk is 7 ingots per 40 chunks (17.5 units each), exact. Null for a share of 0 (does not
-    /// smelt). If no stack up to 20 is exact, the nearest ratio for one output (never 0).
+    /// the smallest output stack for which the ratio is a whole number of items, so a 35-unit bountiful
+    /// ore at 50 % (17.5 units) is 7 ingots per 40, exact. The game's crucible and alloy maths count a
+    /// charge as a fraction of the rate, so a rate larger than a charge costs nothing. Null for a share
+    /// of 0 (does not smelt). If no output up to <see cref="MaxRateOutput"/> is exact, the nearest ratio
+    /// for one output (never 0).
     /// </summary>
     public static SmeltRate? Rate(double unitsPerItem, double share)
     {
         double units = unitsPerItem * share;
         if (!(units > 0)) return null;
-        for (int output = 1; output <= 20; output++)
+        for (int output = 1; output <= MaxRateOutput; output++)
         {
             double ratio = 100.0 * output / units;
             double whole = Math.Round(ratio);
-            if (whole >= 1 && Math.Abs(ratio - whole) < 1e-9)
+            if (whole >= 1 && Math.Abs(ratio - whole) < 1e-9 * Math.Max(1, ratio))
                 return new SmeltRate(output, (int)whole);
         }
         return new SmeltRate(1, Math.Max(1, (int)Math.Round(100.0 / units)));

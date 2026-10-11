@@ -511,15 +511,22 @@ and `Game/DockOrder.cs`.
   layers it wears whole, mind), so its own fitting code (first piece fixes the material, out of order and
   wrong material refused) fits a stripped layer; a right-click on the eidolon with an item the next layer
   takes (or of its family, to be refused with why) goes to the gantry's `OnGantryInteract`, as does one on
-  the gantry. A layer completed is written to the eidolon at once. A repair item on a damaged eidolon is
-  the repair's, not the fitting's.
+  the gantry. A layer completed is written to the eidolon at once, and only ever adds to what it wears
+  (`BodyParts.Dressing`). A repair item on a damaged eidolon is the repair's, not the fitting's.
+- **Saved.** What the gantry saves of a docked body is only a copy of the eidolon's build, which a bill
+  changed since (a layer's count raised by an update) leaves short: a worn layer would load part fitted.
+  So the first time the server finds the docked eidolon loaded, the body is made again from its build
+  (`BodyParts.Reconciled`): the layers it wears whole, keeping only what was fitted in the stages after
+  them and any spare. Loose pieces (stripping, waking, breaking the gantry) are measured against the
+  eidolon's own build, or, while it is not loaded, the most it can be wearing (`BodyParts.MostWorn`),
+  never the saved body's, so a worn layer's items are never given back.
 - **Waking.** The crank (`OnCrank`) with all five layers on (`EidolonDocking.CanWake`) clears the dock,
   plays `activate` and gives a `goto` 3 blocks out of the front whose `then` is the order it was given
   while docked (orders are taken then, and wait), else the one it docked from;
   the gantry's spine is bare again (loose pieces given back at the front).
 
 Tests: `tests/Eidolon/EidolonDockingTests.cs` (timing, the verdicts, the docked body, refitting in another
-material, loose pieces, saving, which elements a layer that is off leaves out and that none takes an
+material, loose pieces, saving and a save under an older bill, which elements a layer that is off leaves out and that none takes an
 earlier layer's) and `tests/PackTests/EidolonDockScenarios.cs` (Atlas, the mod's README lists them).
 
 ## Open questions
