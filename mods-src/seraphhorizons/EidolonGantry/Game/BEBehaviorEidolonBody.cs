@@ -29,7 +29,9 @@ namespace SeraphHorizons.Mod.EidolonGantry;
 /// backs onto the free spine and is clamped (<see cref="TakeHold"/>): the gantry keeps its entity id
 /// (<see cref="DockedId"/>), the entity its gantry (<c>EntityBehaviorEidolonDock</c>), and the body's
 /// stages are the eidolon's build (<see cref="BodyParts.Docked"/>), so a stripped layer is fitted again
-/// item by item exactly as in the build, each completed layer written to the eidolon at once. The entity
+/// item by item exactly as in the build, each completed layer written to the eidolon at once. What the
+/// gantry saves of them is only a copy, made again from the eidolon's build once it is loaded
+/// (<see cref="BodyParts.Reconciled"/>), so a bill changed since never strips it or drops its layers. The entity
 /// is drawn hung, never the gantry's body meshes; Ctrl+right-click strips its outermost layer
 /// (<see cref="Strip"/>); the crank wakes it once all five layers are on; breaking the gantry lets it go,
 /// layers and all, and gives back only the pieces of a layer part fitted.</para>
@@ -51,6 +53,8 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
     private BodyParts _parts = new();
     private long _dockedId;
     private int _dockMisses;
+    // the docked body has been made again from the loaded eidolon since it was loaded (Reconcile)
+    private bool _reconciled;
 
     public BodyParts Parts => _parts;
 
@@ -115,6 +119,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
             return false;
         if (Api.Side != EnumAppSide.Server)
             return true;
+        Reconcile();
         if (!gantry.WinchComplete)
         {
             gantry.Error(byPlayer, "error-body-needs-spine");
@@ -167,6 +172,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
 
     public bool CreativeFitNext(BEEidolonGantry gantry, IPlayer? byPlayer)
     {
+        Reconcile();
         if (!gantry.WinchComplete || HoldsEidolon && DockedEidolon == null || _parts.FitNextStage(Api.World.Rand) == null)
             return false;
         Api.World.PlaySoundAt(gantry.Block.Sounds.Place, gantry.Pos, -0.25, byPlayer);
@@ -230,6 +236,8 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
             _parts = BodyParts.Docked(eidolon.Build);
         _dockedId = eidolon.EntityId;
         _dockMisses = 0;
+        _reconciled = false;
+        Reconcile();
         Api.World.PlaySoundAt(new AssetLocation("game:sounds/effect/latch"), gantry.Pos, -0.25, null);
         Api.Logger.Notification("[seraphhorizons] Eidolon gantry at {0}: an eidolon ({1}) docked", gantry.Pos, eidolon.Build);
         gantry.MarkDirty(true);
@@ -249,6 +257,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
         layer = null;
         if (Gantry is not { } gantry || !Holds(eidolon))
             return StripVerdict.NotDocked;
+        Reconcile();
         var build = eidolon.Build;
         if (_parts.Loose(build).Count > 0)
         {
@@ -287,11 +296,35 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
         }
     }
 
-    // A layer completed on a docked eidolon is on it at once: its look and figures follow.
+    // A layer completed on a docked eidolon is on it at once: its look and figures follow. Only ever a
+    // layer added: a body short of what the eidolon wears never takes its layers off (BodyParts.Dressing).
     private void DressDocked()
     {
-        if (DockedEidolon is { } eidolon && !_parts.Build.Equals(eidolon.Build))
-            eidolon.Build = _parts.Build;
+        if (DockedEidolon is { } eidolon && _parts.Dressing(eidolon.Build) is { } dressed)
+            eidolon.Build = dressed;
+    }
+
+    /// <summary>What the docked eidolon wears, the measure of the loose pieces: its own build while it is
+    /// loaded, else the most it can be wearing (<see cref="BodyParts.MostWorn"/>), never the saved body's
+    /// <see cref="BodyParts.Build"/>, which a bill changed since leaves short of it.</summary>
+    private EidolonBuild DockedBuild => DockedEidolon?.Build ?? _parts.MostWorn;
+
+    // While an eidolon is docked the body is a saved copy of what it is made of, stale once a bill has
+    // changed (a mod update): the first time the eidolon is found loaded, on the server, the body is made
+    // again from its build, keeping only the pieces fitted beyond it (BodyParts.Reconciled).
+    private void Reconcile()
+    {
+        if (_reconciled || Api?.Side != EnumAppSide.Server || DockedEidolon is not { } eidolon)
+            return;
+        _reconciled = true;
+        var before = _parts.Snapshot();
+        _parts = _parts.Reconciled(eidolon.Build);
+        var after = _parts.Snapshot();
+        if (before.Count == after.Count && before.All(kv => after.TryGetValue(kv.Key, out int n) && n == kv.Value))
+            return;
+        Api.Logger.Notification("[seraphhorizons] Eidolon gantry at {0}: the docked eidolon's body was made again from its build ({1})",
+            Blockentity.Pos, eidolon.Build);
+        Gantry?.MarkDirty(true);
     }
 
     /// <summary>A turn of the crank with an eidolon docked: wakes it when all five layers are on (it plays
@@ -304,6 +337,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
             gantry.Error(byPlayer, "error-dock-away");
             return;
         }
+        Reconcile();
         if (EidolonDocking.CanWake(eidolon.Build) != DockWakeVerdict.Wakes)
         {
             gantry.Error(byPlayer, "error-dock-notready", StageName(_parts.Next));
@@ -316,10 +350,11 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
             eidolon.Build, byPlayer.PlayerName);
     }
 
-    // The spine is bare again; any pieces of a layer part fitted are given back at the open front.
+    // The spine is bare again; any pieces of a layer part fitted are given back at the open front (never
+    // a layer the eidolon wears: it leaves in them).
     private void Unhold(BEEidolonGantry gantry)
     {
-        var loose = _parts.Loose(_parts.Build);
+        var loose = _parts.Loose(DockedBuild);
         if (loose.Count > 0 && EidolonGantrySystem.Of(Api).Rig is { } rig)
         {
             var at = gantry.WorldPoint(rig.Exit).Add(0, 0.5, 0);
@@ -329,6 +364,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
         }
         _dockedId = 0;
         _dockMisses = 0;
+        _reconciled = false;
         _parts.Clear();
         _parts.TakeSpare();
         gantry.MarkDirty(true);
@@ -355,6 +391,8 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
             _dockMisses = 0;
             if (eidolon.Dock?.HeldAt(gantry.Pos) != true)
                 Lost(gantry);
+            else
+                Reconcile();
             return;
         }
         if (gantry.BodyPoint is { } body && Api.World.BlockAccessor.GetChunkAtBlockPos(body.AsBlockPos) != null
@@ -389,7 +427,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
     /// rest is the eidolon's, let go whole).</summary>
     public IEnumerable<ItemStack> Drops(IWorldAccessor world)
     {
-        foreach (var drop in HoldsEidolon ? _parts.Loose(_parts.Build) : _parts.Returns())
+        foreach (var drop in HoldsEidolon ? _parts.Loose(DockedBuild) : _parts.Returns())
             if (Gantry?.Collectible(drop.Code) is { } collectible)
                 yield return new ItemStack(collectible, drop.Count);
     }
@@ -512,6 +550,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
                     snapshot[key] = n.value;
         _parts = BodyParts.Restore(snapshot);
         _dockedId = tree.GetLong(DockedKey);
+        _reconciled = false;
         // a live block entity given an old body's state (a schematic, a command): its spare goes back too
         if (Api?.Side == EnumAppSide.Server && _parts.Spare.Count > 0 && !HoldsEidolon)
             Blockentity.RegisterDelayedCallback(_ => GiveBackSpare(), 500);
