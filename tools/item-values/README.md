@@ -59,8 +59,8 @@ press) and distillation (the still). The rules are data:
 
 - `raw-values.json`: hand-priced raws. Exact codes, then globs in file order. Ores are priced by
   metal unit (`ores`: an ingot is 100 units, a nugget 5, a raw ore by grade the `metalUnitsByType`
-  the pack sets on the game's item, 3 / 5 / 7 / 10 for most ores, #863), the metal of an ore being what its nugget smelts into. Raws are fixed: no
-  recipe changes them. The rusty gear, the unit, is 1.
+  the pack sets on the game's item, 3 / 5 / 7 / 10 for most ores, #863), the metal of an ore being
+  what its nugget smelts into. Raws are fixed: no recipe changes them. The rusty gear, the unit, is 1.
 - `markups.json`: a labour markup per recipe kind (and optionally its own `toolFraction`) (`grid`, `smithing`, `knapping`, `clayforming`,
   `barrel`, `cooking`, `alloy`, `construction`, `transition` for drying/smoking/melting/...,
   `lottery`, `smelting`, `baking`, `crushing`, `grinding`, `pressing`, `distilling`, `mod` for every other mod
