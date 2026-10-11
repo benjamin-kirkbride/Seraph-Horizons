@@ -1,8 +1,8 @@
 # Eidolon
 
 Part of the Seraph Horizons mod (`../README.md`): a player-built eidolon, a laborer automaton that
-fells trees with a real axe it holds, hauls Logging Expanded trunks to the rosser and the bucking
-sawmill, carries a Carry On container as a pack mule, lifts and carries Carry On blocks and trunks,
+fells trees with a real axe it holds, mines out a marked area bare-handed, hauls Logging Expanded
+trunks to the rosser and the bucking sawmill, carries a Carry On container as a pack mule, lifts and carries Carry On blocks and trunks,
 defends itself and stands guard. At 0 HP it slumps disabled and can be repaired; it is never killed.
 It is built in a mostly wooden gantry: a crafted torso, then five layers of material, each the builder's
 choice of wood, metal, leather or cloth, which set its look and its stats and can be stripped and refitted.
@@ -14,7 +14,10 @@ and `Game/`, described in the mod's README ("Eidolon"), with the seams the gantr
 and jobs plug into; the body stages and the waking (#672: the gantry's `BEBehaviorEidolonBody`,
 `../EidolonGantry/`), oil and repair (#674), and the command tool's binding, mode wheel and marking,
 following, staying and self-defence (#675) are built too, and hauling trunks to the rosser and the
-bucking mill (#678). The other jobs are not built yet.
+bucking mill (#678), mining a marked area (`Game/MineOrder.cs`, `Core/EidolonMining.cs`, its slam
+the shape's vanilla `stand-slam`), climbing steps of two (`Core/EidolonClimb.cs`, the `climb` animation)
+and keeping its chunks loaded while it works (`Game/EidolonChunkSystem.cs`, `Core/EidolonChunks.cs`).
+The other jobs are not built yet.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/`, which is the repository's.
@@ -28,7 +31,7 @@ against the 1.22.7 file (`VANILLA_SHA256`; a different file stops the script) an
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/entity/eidolon/eidolon.json` | The shape: vanilla's 218 elements unchanged but for the spine's 29, cut off (below), so 189, and three anchor elements, five new attachment points, 23 vanilla animations and 19 authored ones. Its texture codes are the layers of material; strict JSON. |
+| `assets/seraphhorizons/shapes/entity/eidolon/eidolon.json` | The shape: vanilla's 218 elements unchanged but for the spine's 29, cut off (below), so 189, and three anchor elements, five new attachment points, 23 vanilla animations and 22 authored ones. Its texture codes are the layers of material; strict JSON. |
 | `assets/seraphhorizons/config/eidolon-stages.json` | The build stages, each with its ingredients, a layer's material and how its count was measured from the model, and the element names it adds. |
 | `assets/seraphhorizons/config/eidolon-rig.json` | For the model viewer: a part per build stage, matching its elements by name, needing its own `requires`, with no drivers (below). Not read by the game. |
 | `../EidolonGantry/spine.json` | The spine, as vanilla has it, and the element it hangs from (`chest-inside`): the gantry generator's input. Not shipped. |
@@ -166,10 +169,12 @@ laborer never dies: `slump` is its 0 HP; die pitches it face down and 29 voxels 
 | `standup` | 60 | Stop | PlayTillEnd | From slump's last frame: straightens on its knees (14), up onto the right knee with the left foot planted (30), rising (44), standing at rest (59). Start it before stopping slump. |
 | `strike-jab` | 24 (0.8 s) | Stop | PlayTillEnd | A straight right on the move, **the upper body only** (`STRIKE_ELEMENTS`: chest, head, arms, hands): from a guard (fists up before the chest) the right fist is drawn back as the chest turns away (4), then driven out as it turns in and leans after it, the left pulled back; **it lands on frame 9**, the fist 1.9 blocks in front of the centre (`STRIKE_FIST_JAB`), then back to the guard. |
 | `strike-hammer` | 30 (1 s) | Stop | PlayTillEnd | A two-fisted hammer blow on the move, the upper body only: both fists raised over the head as the chest leans back (7), then brought down together as it bends forward over them; **it lands on frame 14**, the fists 1.4 blocks in front and a block up (`STRIKE_FIST_HAMMER`; the arms reach no lower with the hips the walk's), then back to the guard. |
+| `climb` | 60 (2 s) | Stop | PlayTillEnd | Up a step of two, posed against the entity's scripted move (below, "Climbing"): a crouch and a look up, the arms coming up out to the sides (4) and over the ledge (8); **the hands on the ledge's top on frame 12** (`CLIMB_GRAB`), at (−11.3, 35.4, 1) and (−11.3, 35.4, 15): 19 voxels in front of the entity's centre, a block and a fifth, 3 past the ledge's face, the palms' middles 3.5 above its top at 32 (`CLIMB_HANDS`, `CLIMB_PALM`, the hand's thickness); it pulls itself up as the entity rises, bowing further over its hands (to 45°) with the legs tucked behind it, clear of the face (16 to 28), lets go and brings the right knee up, the foot tucked under it over the edge (30, 32), **the right foot on the step on frame 36** (`CLIMB_TOP`, where it stands at rest on the top node) with the left leg hanging, stands up on it as the entity moves forward, the left foot up beside the edge (44), over it (48) and down beside the right (**standing on frame 52**, `CLIMB_STAND`), then at rest (59). |
 
-The event frames (cut, grab, release, hit) are also in `EVENTS` in the generator; the gameplay must key
-off them (the strikes' in `Eidolon/Core/EidolonStrikes.cs`, which `tools/tests/test_eidolon_model.py`
-holds to these and to how far the fists get).
+The event frames (cut, grab, release, hit, the climb's grab, top and stand) are also in `EVENTS` in the
+generator; the gameplay must key off them (the strikes' in `Eidolon/Core/EidolonStrikes.cs`, the climb's in
+`Eidolon/Core/EidolonClimb.cs`, which `tools/tests/test_eidolon_model.py` holds to these and to how far the
+fists get).
 
 **Strikes on the move.** Vanilla's punch, kick and slam move the whole body, the legs planted, so
 played while it walks they stop it in its tracks (or slide it). The two strikes move only the upper
@@ -179,6 +184,20 @@ not drawn right), so the game plays them over `stand-walk` or `stand-run`, whose
 go on, or over the idle when it stands. Both start and end on the same guard, so the blend in and out
 is short. The game weights each element by name, not by its parents, so the list names every element
 they move.
+
+**Climbing.** The game lifts a creature one block (its step height); a step of two is climbed, the entity
+moved by script as `climb` plays (the mod's README, "Steps and drops"): at the foot node until frame 12,
+straight up two blocks (32 voxels) by frame 36, then forward a block onto the top node by frame 52, each at
+an even pace, up then forward so its box is always where the pathfinder found it free (`climb_moved`). The
+ledge's face is a block in front of the foot node (a box 1.7 wide on a block corner just clears it) and its
+top two blocks up: at the start, model x −8 and y 32. The poses are made against that motion
+(`climb_local`): what holds the ledge or stands on the step is put at its place in the world less how far
+the entity has moved by that key, with keys every 2 to 4 frames, so the hands stay on the ledge as the body
+rises past them and the right foot on the step as the entity moves forward over it. The body is 60 voxels
+tall and its hips 18 up, so a step of two is chest high: a mantle, not a step. The arms come up out to the
+sides first, since swung straight forward they would sweep through the ledge's face (the upper arm alone is
+20 voxels, the face 13.5 in front of the shoulder); the knee comes over only once the hips are above the
+top. Held objects are not posed: a carried block or trunk rides on the chest while it climbs.
 
 **Thick trunks** are carried across the body, low, by the near side. A thick trunk's section is 32
 voxels, more than half the body's height, and the arms are about 28 long: cradled on the forearms it
@@ -242,6 +261,9 @@ when negative; rotation x moves the right arm or leg out when positive, the left
 | A thick trunk against the body, every frame of its four animations, against its square collision section (`TrunkBoxes`, stricter than the rounder model; 27 points sampled on each element) | nothing inside it, the arms included down to the wrists (the hands hold it); the head and hood at least 1.6 away (closest at the grab's squat) |
 | `fell` hands at the cut | within 0.3 of the targets; wind-up with the right hand at 62 (above the 60-voxel head) |
 | A thin trunk on the shoulder against the head and hood | no corner of the head inside it |
+| `climb`, against the entity's move (`climb_moved`): the hands to their place on the ledge, frames 12..28 | ≤ 0.41 |
+| `climb`: the body inside the ledge or under the floor below it, every frame (27 points sampled on each element); the hands inside the ledge | ≤ 0.09; ≤ 0.15 |
+| `climb`: the soles, frames 0..12 and 52..59; the right foot's place in the world, frames 36..59 | within 0.07 of the ground; moves ≤ 0.05 |
 
 ## Build stages
 
@@ -355,7 +377,9 @@ poses they lead to (`lift` → `carry-idle`, `slump` → `standup`, `hung` → `
 setdowns, `standup` and `activate` end at rest; `activate` starts `HUNG_BACK` behind the entity's position,
 is moving by frame 3 and has a foot on the ground every frame from the landing on; the pose checks above within 0.5 voxel (and for a
 thick trunk: nothing of the body inside it, the head and hood over 1 voxel away, the trunk on the
-ground at the grab and release); `dock` starts at rest, has a foot on the ground every frame until the clamps and ends as `hung`; the texture
+ground at the grab and release); `dock` starts at rest, has a foot on the ground every frame until the clamps and ends as `hung`;
+`climb` starts and ends at rest, its hands two blocks up past the ledge's face at the grab and the climb's pose
+checks above within their bounds, and its frames and the entity's move are `Core/EidolonClimb.cs`'s; the texture
 codes are the layers (the default build's paths, every layer worn, the recodes, the spine recoded alike, an
 element of several codes going by the most area); and the stage map covers every element exactly once, the
 body one piece after every stage (a stage that would leave a piece floating is caught), each layer the

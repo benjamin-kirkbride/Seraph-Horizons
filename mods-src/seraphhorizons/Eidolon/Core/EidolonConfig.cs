@@ -29,7 +29,11 @@ public class EidolonConfig
     public int PathSearchNodes { get; set; } = 3000;
 
     /// <summary>The highest drop it walks off on a path, in blocks.</summary>
-    public int MaxFallBlocks { get; set; } = 3;
+    public int MaxFallBlocks { get; set; } = 2;
+
+    /// <summary>The highest step it goes up on a path, in blocks: one it walks, two it climbs
+    /// (<see cref="EidolonClimb"/>; the climb animation is made for two, so no more).</summary>
+    public int MaxClimbBlocks { get; set; } = 2;
 
     // ---- Oil and repair (#674; Eidolon/README.md, "Oil", "Repair") ----
 
@@ -48,6 +52,9 @@ public class EidolonConfig
 
     /// <summary>Points a load it carries somewhere and sets down costs.</summary>
     public double OilPerLoadCarried { get; set; } = 2;
+
+    /// <summary>Points a strike mining an area costs (up to four blocks).</summary>
+    public double OilPerMiningStrike { get; set; } = 0.5;
 
     /// <summary>The share of its most health one item of metal parts or one iron plate restores.</summary>
     public double RepairShare { get; set; } = 0.1;
@@ -85,6 +92,20 @@ public class EidolonConfig
     /// <summary>Felling an area, the fewest logs a tree has to be grown: younger ones are left
     /// standing (a sapling is no log at all).</summary>
     public int FellMinLogs { get; set; } = 5;
+
+    // ---- Chunk loading (README "Eidolon", chunk loading; EidolonChunks) ----
+
+    /// <summary>An eidolon with work left in its order (fell, haul, crew, carry; not following,
+    /// staying, guarding, docking, slumped or dry) keeps its chunks loaded, so it works on with no
+    /// player near. Off, it works only while a player keeps them loaded.</summary>
+    public bool KeepWorkChunksLoaded { get; set; } = true;
+
+    /// <summary>Working, the columns it holds round the one it stands in: 1 is its own and the 8 round it.</summary>
+    public int ChunkLoadRadius { get; set; } = 1;
+
+    /// <summary>Working, its order's area (and machine) is held too while it covers at most this many
+    /// columns; a larger one is worked where it stands.</summary>
+    public int MaxWorkAreaChunks { get; set; } = 16;
 
     // ---- Fittings (the layers' stats; Eidolon/README.md, "Fittings") ----
     // Every multiplier is against iron and they stack by multiplying (EidolonStats). Bones and
@@ -140,11 +161,13 @@ public class EidolonConfig
         Check(nameof(RunSpeed), RunSpeed, 0.001, 0.5, () => RunSpeed = Defaults.RunSpeed, Defaults.RunSpeed);
         Check(nameof(PathSearchNodes), PathSearchNodes, 50, 100000, () => PathSearchNodes = Defaults.PathSearchNodes, Defaults.PathSearchNodes);
         Check(nameof(MaxFallBlocks), MaxFallBlocks, 0, 16, () => MaxFallBlocks = Defaults.MaxFallBlocks, Defaults.MaxFallBlocks);
+        Check(nameof(MaxClimbBlocks), MaxClimbBlocks, 1, 2, () => MaxClimbBlocks = Defaults.MaxClimbBlocks, Defaults.MaxClimbBlocks);
         Check(nameof(OilTank), OilTank, 1, 1_000_000, () => OilTank = Defaults.OilTank, Defaults.OilTank);
         Check(nameof(InitialOilShare), InitialOilShare, 0, 1, () => InitialOilShare = Defaults.InitialOilShare, Defaults.InitialOilShare);
         Check(nameof(OilPerTreeFelled), OilPerTreeFelled, 0, OilTank, () => OilPerTreeFelled = Defaults.OilPerTreeFelled, Defaults.OilPerTreeFelled);
         Check(nameof(OilPerTrunkDelivered), OilPerTrunkDelivered, 0, OilTank, () => OilPerTrunkDelivered = Defaults.OilPerTrunkDelivered, Defaults.OilPerTrunkDelivered);
         Check(nameof(OilPerLoadCarried), OilPerLoadCarried, 0, OilTank, () => OilPerLoadCarried = Defaults.OilPerLoadCarried, Defaults.OilPerLoadCarried);
+        Check(nameof(OilPerMiningStrike), OilPerMiningStrike, 0, OilTank, () => OilPerMiningStrike = Defaults.OilPerMiningStrike, Defaults.OilPerMiningStrike);
         Check(nameof(RepairShare), RepairShare, 0.001, 1, () => RepairShare = Defaults.RepairShare, Defaults.RepairShare);
         Check(nameof(GantryRepairMultiplier), GantryRepairMultiplier, 1, 100, () => GantryRepairMultiplier = Defaults.GantryRepairMultiplier, Defaults.GantryRepairMultiplier);
 
@@ -157,6 +180,9 @@ public class EidolonConfig
         Check(nameof(GuardRadius), GuardRadius, 2, 64, () => GuardRadius = Defaults.GuardRadius, Defaults.GuardRadius);
 
         Check(nameof(FellMinLogs), FellMinLogs, 1, 1000, () => FellMinLogs = Defaults.FellMinLogs, Defaults.FellMinLogs);
+
+        Check(nameof(ChunkLoadRadius), ChunkLoadRadius, 0, EidolonChunks.MaxRadius, () => ChunkLoadRadius = Defaults.ChunkLoadRadius, Defaults.ChunkLoadRadius);
+        Check(nameof(MaxWorkAreaChunks), MaxWorkAreaChunks, 0, 256, () => MaxWorkAreaChunks = Defaults.MaxWorkAreaChunks, Defaults.MaxWorkAreaChunks);
 
         Check(nameof(AllSteelHealth), AllSteelHealth, 1, 100000, () => AllSteelHealth = Defaults.AllSteelHealth, Defaults.AllSteelHealth);
         PlateHealth = SanitiseFactors(nameof(PlateHealth), PlateHealth, Defaults.PlateHealth, fixes);
