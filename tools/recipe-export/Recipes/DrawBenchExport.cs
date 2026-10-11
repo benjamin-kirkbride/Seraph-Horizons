@@ -14,7 +14,7 @@ public sealed class DrawBenchData
     public required string Mod;
     public required string FrameCode;
     public Block? Frame;
-    /// <summary>The fitted parts the bench keeps, each stage's alternatives and how many it takes: gearbox, chain, dog, mandrel.</summary>
+    /// <summary>The fitted parts the bench keeps, each stage's alternatives and how many it takes: gearbox, chain, dog, mandrel (and its spring, when springs exist).</summary>
     public List<(string Template, List<Item> Items, int Count)> Kept = new();
     public required int SectionsPerHollow;
     public required int DieWear;
@@ -48,6 +48,9 @@ public static class DrawBenchExport
         ("game:bracket-heavy-iron", ["game:bracket-heavy-iron", "game:bracket-heavy-meteoriciron", "game:bracket-heavy-steel"], 1),
         ("game:rod-iron", ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"], 2),
     ];
+
+    /// <summary>The mandrel stage's spring (DrawBenchParts.SpringCode), kept with the rods when it exists.</summary>
+    public const string SpringCode = "seraphhorizons:spring-steel";
 
     private static Item? ItemOf(ICoreServerAPI api, string code) =>
         api.World.GetItem(new AssetLocation(code)) is { IsMissing: false } i && i.Code != null ? i : null;
@@ -89,6 +92,9 @@ public static class DrawBenchExport
             if (items.Count == 0) return null;
             data.Kept.Add((template, items, count));
         }
+        // the mandrel stage's spring, while springs exist (DrawBenchParts.Springs: the spring item registered)
+        if (ItemOf(api, SpringCode) is { } spring)
+            data.Kept.Add((SpringCode, [spring], 1));
         var dieMetals = GearChain.Prop(settings, "DieMetals") as IDictionary;
         foreach (var (name, metal, turnsKey) in new[] { ("thin", "lead", "TurnsPerSectionLead"), ("thick", "copper", "TurnsPerSectionCopper") })
         {

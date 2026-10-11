@@ -309,7 +309,11 @@ output is two pipe sections (`seraphhorizons:pipesection-<metal>`). It is worked
 `hand`, `turns` the hammer blows one hollow takes with the base hammer (the copper one, the definition's
 hammer), each a right-click, and `work` says so (`amount` that many, `unit` `blows`, no `turnsPerUnit`);
 a hammer of a higher tool tier forges in proportionally fewer blows, which the record does not carry.
-There is no `oil`.
+There is no `oil`. With springs on, a third record, `mandrelstation|game:rod-steel|0`, winds a hot steel rod
+(consumed) into one `seraphhorizons:spring-steel`: the mandrel kept, the tongs (`isTool`, worn a fixed
+amount a spring), the machine; `power` `hand`, `turns` the held clock's turns a rod (a turn a second) and
+`work` that many `seconds`; the rod must be at working temperature, which the schema has no field for, so
+`requirements` says it (and `extra.workableTemperature` gives it in °C).
 
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role

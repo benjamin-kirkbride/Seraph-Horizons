@@ -15,6 +15,8 @@ public static partial class RecipeSection
         if (station.Frame == null)
             ctx.Api.Logger.Warning("[seraphexport] the mandrel station's {0} is not registered; its process is exported without it", station.FrameCode);
         var mine = station.Classes.Select(c => MandrelStationRecord(ctx, station, c)).ToList();
+        if (station.Wind is { } wind)
+            mine.Add(SpringRecord(ctx, station, wind));
         records.AddRange(mine);
         AddType(types, MandrelStationType, "Mandrel forging station", mine.Count, "machine", "MandrelStationSettings", station.Mod);
     }
@@ -80,6 +82,67 @@ public static partial class RecipeSection
             }),
             ["machine"] = Machine(k, hammer),
             ["extra"] = new JObject { ["rig"] = MandrelStationExport.RigAsset.ToString(), ["class"] = k.Name, ["metal"] = k.Metal, ["blows"] = k.BlowsPerHollow },
+        };
+    }
+
+    /// <summary>
+    /// The spring job: one hot steel rod (consumed), the mandrel (kept), the tongs it is worked with (a tool
+    /// worn a fixed amount a spring) and the station; one spring. Worked by hand (power <c>hand</c>): its turns
+    /// are the held clock's (a turn a second), the work that many <c>seconds</c> of winding. The rod must be at working
+    /// temperature, which the record says in <c>requirements</c> (the schema has no heat on an ingredient).
+    /// </summary>
+    private static JObject SpringRecord(Context ctx, MandrelStationData s, WindClass w)
+    {
+        var ingredients = new JArray(
+            Def(w.Rod.Code.ToString(), "item", 1),
+            Def(MandrelStationExport.MandrelCodes[0], "item", 1, "kept"));
+        bool tongs = w.Tongs.Count > 0;
+        if (tongs)
+        {
+            var tool = Def(w.Tongs.Any(t => t.Code.ToString() == "game:tongs") ? "game:tongs" : w.Tongs[0].Code.ToString(), "item", 1, "tool");
+            tool["isTool"] = true;
+            tool["toolDurabilityCost"] = w.TongsWearPerRod;
+            ingredients.Add(tool);
+        }
+        ingredients.Add(Def(s.FrameCode, "block", 1, "station"));
+
+        var stacks = new JArray
+        {
+            new JArray(Stack(ctx, w.Rod, 1)),
+            new JArray(s.Mandrels.Select(i => Stack(ctx, i, 1))),
+        };
+        if (tongs)
+            stacks.Add(new JArray(w.Tongs.Select(i => Stack(ctx, i, 1))));
+        stacks.Add(s.Frame != null ? new JArray(Stack(ctx, s.Frame, 1)) : new JArray());
+
+        var machine = new JObject
+        {
+            ["power"] = "hand",
+            ["turns"] = Num(w.TurnsPerRod),
+            ["work"] = new JObject { ["amount"] = Num(w.TurnsPerRod), ["unit"] = "seconds" },
+            ["kept"] = new JArray(1),
+        };
+        if (tongs && w.TongsWearPerRod > 0)
+            machine["wear"] = new JObject { ["ingredient"] = 2, ["rule"] = "fixed" };
+        return new JObject
+        {
+            ["id"] = $"{MandrelStationType}|{w.Rod.Code}|0",
+            ["type"] = MandrelStationType,
+            ["mod"] = s.Mod,
+            ["ingredients"] = ingredients,
+            ["outputs"] = new JArray(Def(w.Spring.Code.ToString(), "item", 1)),
+            ["variants"] = new JArray(new JObject
+            {
+                ["ingredients"] = stacks,
+                ["outputs"] = new JArray(Stack(ctx, w.Spring, 1)),
+            }),
+            ["machine"] = machine,
+            ["requirements"] = new JArray($"The steel rod at working temperature, {w.WorkableTemperature} °C or more (heated on a forge)"),
+            ["extra"] = new JObject
+            {
+                ["rig"] = MandrelStationExport.RigAsset.ToString(), ["class"] = "3", ["metal"] = "steel",
+                ["workableTemperature"] = w.WorkableTemperature,
+            },
         };
     }
 }
