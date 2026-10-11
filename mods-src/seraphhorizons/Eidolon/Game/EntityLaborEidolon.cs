@@ -140,6 +140,17 @@ public class EntityLaborEidolon : EntityAgent
 
     public override bool IsInteractable => true;
 
+    /// <summary>Whether it keeps its chunks loaded, at work with no player needed (server side; set by
+    /// <see cref="EidolonChunkSystem"/>). While it does it is always active: the game stops the AI, the
+    /// animations and the physics of a creature no player is near.</summary>
+    public bool KeepsChunksLoaded { get; internal set; }
+
+    public override bool AlwaysActive
+    {
+        get => KeepsChunksLoaded || base.AlwaysActive;
+        set => base.AlwaysActive = value;
+    }
+
     /// <summary>Its right hand: the axe it fells with (<see cref="EntityBehaviorEidolonAxe"/>, #677),
     /// which the game's shape renderer draws at the shape's <c>RightHand</c> point.</summary>
     public override ItemSlot? RightHandItemSlot

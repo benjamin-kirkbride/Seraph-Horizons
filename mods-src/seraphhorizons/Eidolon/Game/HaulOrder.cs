@@ -24,6 +24,7 @@ public sealed class HaulOrder(MarkArea area, BlockPos machine) : IEidolonOrder
     private TrunkHauler? _hauler;
     private readonly Dictionary<long, double> _skip = [];
     private double _scanAt;
+    private bool _idle;
 
     public string Code => OrderCode;
 
@@ -33,6 +34,11 @@ public sealed class HaulOrder(MarkArea area, BlockPos machine) : IEidolonOrder
 
     /// <summary>The steps it hauls with (once started).</summary>
     public TrunkHauler? Hauler => _hauler;
+
+    // Carrying or fetching a trunk, or not yet found the area clear or the machine gone.
+    public bool HasWorkLeft => _hauler?.Busy == true || !_idle;
+
+    public IEnumerable<MarkArea> WorkAreas => [area, EidolonChunks.Block(machine.X, machine.Y, machine.Z)];
 
     public static ITreeAttribute Args(MarkArea area, BlockPos machine)
     {
@@ -58,6 +64,7 @@ public sealed class HaulOrder(MarkArea area, BlockPos machine) : IEidolonOrder
     {
         _hauler ??= new TrunkHauler(eidolon, machine);
         _scanAt = 0;
+        _idle = false;
         eidolon.TaskAi?.PathTraverser?.Stop();
     }
 
@@ -78,12 +85,17 @@ public sealed class HaulOrder(MarkArea area, BlockPos machine) : IEidolonOrder
         if (MachineInfeeds.Find(eidolon.World, machine) is not { } infeed)
         {
             eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-haul-nomachine");
+            _idle = true;
             return true;
         }
+        _idle = false;
         if (Next(eidolon, infeed) is { } trunk && _hauler.Fetch(trunk))
             _hauler.Step();
         else
+        {
             eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-haul-clear");
+            _idle = true;
+        }
         return true;
     }
 
