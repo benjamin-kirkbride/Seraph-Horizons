@@ -5,8 +5,9 @@ using Xunit;
 namespace SeraphHorizons.Tests.CrucibleFurnace;
 
 /// <summary>CrucibleFurnace/Core: the stainless ratio, charging a pot (what goes in, how many, why
-/// not), matching a charge to a recipe and what it makes, the hole's heat model, the row and its
-/// chimney, the pulled pot's pour window and the settings.</summary>
+/// not), matching a charge to a recipe and what it makes, the furnace's heat model (the draught by the
+/// chimney's height, the ash-pit damper), the row and its shared chimney, the pulled pot's pour window
+/// and the settings.</summary>
 public class CrucibleFurnaceTests
 {
     private static readonly PotRecipes Book = PotRecipes.Default;
@@ -192,111 +193,224 @@ public class CrucibleFurnaceTests
 
     private static readonly CrucibleFurnaceConfig C = new();
 
-    [Fact]
-    public void Forced_air_melts_stainless_in_about_four_hours_the_chimney_in_about_eight()
+    // ---- Draught by the chimney's height ----
+
+    private static Draught D(int height) => FurnaceHeat.DraughtOf(height, C)!.Value;
+
+    [Theory]
+    [InlineData(6, 200, 1600)]
+    [InlineData(7, 240, 1610)]
+    [InlineData(9, 320, 1630)]
+    [InlineData(11, 400, 1650)]
+    [InlineData(12, 400, 1650)]    // counted up to eleven
+    [InlineData(40, 400, 1650)]
+    public void The_draught_grows_with_the_chimney_up_to_eleven_blocks(int height, double rate, double max)
     {
-        double forced = FurnaceHeat.HoursToReach(20, 1530, Draft.Forced, C);
-        double chimney = FurnaceHeat.HoursToReach(20, 1530, Draft.Chimney, C);
-        Assert.InRange(forced, 3.5, 4.5);
-        Assert.InRange(chimney, 6, 8);
-        Assert.Equal(double.PositiveInfinity, FurnaceHeat.HoursToReach(20, 1530, Draft.None, C));
-        Assert.Equal(double.PositiveInfinity, FurnaceHeat.HoursToReach(20, 1620, Draft.Chimney, C));
-        // a full load of coke lasts the forced firing, the chimney's needs a top-up
-        Assert.True(C.CokeCapacity * C.HoursPerCoke > forced);
-        Assert.True(C.CokeCapacity * C.HoursPerCoke < chimney);
+        var d = D(height);
+        Assert.Equal(rate, d.HeatingPerHour, 6);
+        Assert.Equal(max, d.MaxTemperature, 6);
+        Assert.Equal(height, d.Height);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(5)]
+    public void A_chimney_under_six_blocks_draws_nothing(int height) => Assert.Null(FurnaceHeat.DraughtOf(height, C));
+
+    [Fact]
+    public void The_draught_figures_are_settings()
+    {
+        var c = new CrucibleFurnaceConfig { MinChimneyHeight = 4, MaxChimneyHeight = 5, ChimneyHeatingPerHour = 100, ChimneyHeatingPerExtraBlock = 10,
+            ChimneyMaxTemperature = 1500, ChimneyMaxPerExtraBlock = 50 };
+        Assert.Null(FurnaceHeat.DraughtOf(3, c));
+        Assert.Equal(100, FurnaceHeat.DraughtOf(4, c)!.Value.HeatingPerHour);
+        Assert.Equal(110, FurnaceHeat.DraughtOf(9, c)!.Value.HeatingPerHour);
+        Assert.Equal(1550, FurnaceHeat.DraughtOf(9, c)!.Value.MaxTemperature);
     }
 
     [Fact]
-    public void A_lit_hole_heats_under_its_lid_and_burns_its_coke()
+    public void Stainless_melts_in_about_eight_hours_on_six_blocks_and_four_on_eleven()
     {
-        var s = FurnaceHeat.Advance(new HoleHeat(20, 6, true), 2, Draft.Chimney, lidClosed: true, C);
+        double low = FurnaceHeat.HoursToReach(20, 1530, D(6), Damper.Open, C);
+        double high = FurnaceHeat.HoursToReach(20, 1530, D(11), Damper.Open, C);
+        Assert.Equal(7.55, low, 2);
+        Assert.Equal(3.775, high, 3);
+        Assert.Equal(double.PositiveInfinity, FurnaceHeat.HoursToReach(20, 1530, null, Damper.Open, C));
+        Assert.Equal(double.PositiveInfinity, FurnaceHeat.HoursToReach(20, 1620, D(6), Damper.Open, C));
+        // one fill of coke lasts the slow firing
+        Assert.True(C.CokeCapacity * C.HoursPerCoke > low);
+    }
+
+    [Fact]
+    public void A_lit_furnace_heats_under_its_lid_and_burns_its_coke()
+    {
+        var s = FurnaceHeat.Advance(new HoleHeat(20, 6, true), 2, D(6), lidClosed: true, Damper.Open, C);
         Assert.Equal(420, s.Temperature, 6);
         Assert.Equal(4, s.Coke, 6);
         Assert.True(s.Lit);
-        // capped at the draft's highest
-        s = FurnaceHeat.Advance(new HoleHeat(1550, 6, true), 1, Draft.Chimney, true, C);
+        // twice as fast on eleven blocks
+        Assert.Equal(820, FurnaceHeat.Advance(new HoleHeat(20, 6, true), 2, D(11), true, Damper.Open, C).Temperature, 6);
+        // capped at the draught's highest
+        s = FurnaceHeat.Advance(new HoleHeat(1550, 6, true), 1, D(6), true, Damper.Open, C);
         Assert.Equal(1600, s.Temperature, 6);
-        // above it (forced air stopped), it falls back to it
-        s = FurnaceHeat.Advance(new HoleHeat(1650, 6, true), 1, Draft.Chimney, true, C);
+        // above it (the chimney cut down), it falls back to it
+        s = FurnaceHeat.Advance(new HoleHeat(1650, 6, true), 1, D(6), true, Damper.Open, C);
         Assert.Equal(1600, s.Temperature, 6);
     }
 
     [Fact]
     public void Out_of_coke_it_goes_out_and_cools()
     {
-        var s = FurnaceHeat.Advance(new HoleHeat(1000, 1, true), 2, Draft.Forced, true, C);
+        var s = FurnaceHeat.Advance(new HoleHeat(1000, 1, true), 2, D(11), true, Damper.Open, C);
         Assert.False(s.Lit);
         Assert.Equal(0, s.Coke);
         Assert.Equal(1000 + 400 - 300, s.Temperature, 6);   // an hour's heat, then an hour's cooling
     }
 
     [Fact]
-    public void Open_lid_or_no_draft_it_cools_and_still_burns()
+    public void Open_lid_or_no_draught_it_cools_and_still_burns()
     {
-        var open = FurnaceHeat.Advance(new HoleHeat(1000, 4, true), 1, Draft.Forced, lidClosed: false, C);
+        var open = FurnaceHeat.Advance(new HoleHeat(1000, 4, true), 1, D(11), lidClosed: false, Damper.Open, C);
         Assert.Equal(400, open.Temperature, 6);
         Assert.Equal(3, open.Coke, 6);
-        var none = FurnaceHeat.Advance(new HoleHeat(1000, 4, true), 1, Draft.None, lidClosed: true, C);
+        var none = FurnaceHeat.Advance(new HoleHeat(1000, 4, true), 1, null, lidClosed: true, Damper.Open, C);
         Assert.Equal(700, none.Temperature, 6);
-        var cold = FurnaceHeat.Advance(new HoleHeat(100, 0, false), 10, Draft.Chimney, true, C);
+        var cold = FurnaceHeat.Advance(new HoleHeat(100, 0, false), 10, D(6), true, Damper.Open, C);
         Assert.Equal(FurnaceHeat.Ambient, cold.Temperature);
     }
 
+    // ---- The ash-pit damper ----
+
     [Fact]
-    public void Many_short_steps_are_one_long_one()
+    public void Half_shut_the_damper_halves_the_heating_and_slows_the_coke()
     {
-        var one = FurnaceHeat.Advance(new HoleHeat(20, 5.5, true), 8, Draft.Chimney, true, C);
+        var s = FurnaceHeat.Advance(new HoleHeat(20, 6, true), 2, D(6), true, Damper.Half, C);
+        Assert.Equal(220, s.Temperature, 6);            // 100 °C an hour
+        Assert.Equal(6 - 2 * 0.6, s.Coke, 6);           // 0.6 of a coke an hour
+        Assert.Equal(1600, FurnaceHeat.Advance(new HoleHeat(1590, 6, true), 1, D(6), true, Damper.Half, C).Temperature, 6);   // the same top
+        Assert.Equal(100, FurnaceHeat.HeatingRate(D(6), Damper.Half, C), 6);
+        Assert.Equal(200, FurnaceHeat.HeatingRate(D(11), Damper.Half, C), 6);
+        Assert.Equal(1 / 0.6, FurnaceHeat.HoursPerCoke(Damper.Half, C), 6);
+    }
+
+    [Fact]
+    public void Shut_the_fire_is_banked_no_heating_slow_cooling_and_slow_coke()
+    {
+        var s = FurnaceHeat.Advance(new HoleHeat(1500, 6, true), 4, D(11), true, Damper.Shut, C);
+        Assert.Equal(1500 - 4 * 75, s.Temperature, 6);  // a quarter of 300 °C an hour
+        Assert.Equal(6 - 4 * 0.25, s.Coke, 6);          // a quarter of a coke an hour
+        Assert.True(s.Lit);
+        Assert.Equal(0, FurnaceHeat.HeatingRate(D(11), Damper.Shut, C));
+        Assert.Equal(double.PositiveInfinity, FurnaceHeat.HoursToReach(20, 100, D(11), Damper.Shut, C));
+        // banked, a fill of coke lasts four times as long: 48 hours
+        Assert.Equal(48, C.CokeCapacity * FurnaceHeat.HoursPerCoke(Damper.Shut, C), 6);
+        // with the lid open, it cools at the open rate whatever the damper
+        Assert.Equal(900, FurnaceHeat.Advance(new HoleHeat(1500, 6, true), 1, D(11), false, Damper.Shut, C).Temperature, 6);
+        // cold and shut, it cools slowly too (no fire, lid and damper shut)
+        Assert.Equal(1425, FurnaceHeat.Advance(new HoleHeat(1500, 0, false), 1, null, true, Damper.Shut, C).Temperature, 6);
+    }
+
+    [Fact]
+    public void The_damper_figures_are_settings()
+    {
+        var c = new CrucibleFurnaceConfig { DamperHalfHeating = 0.25, DamperHalfBurn = 0.5, DamperShutBurn = 0.1, DamperShutCooling = 0.5 };
+        Assert.Equal(50, FurnaceHeat.HeatingRate(D(6), Damper.Half, c), 6);
+        Assert.Equal(2, FurnaceHeat.HoursPerCoke(Damper.Half, c), 6);
+        Assert.Equal(10, FurnaceHeat.HoursPerCoke(Damper.Shut, c), 6);
+        Assert.Equal(150, FurnaceHeat.CoolingRate(true, Damper.Shut, c), 6);
+        Assert.Equal(300, FurnaceHeat.CoolingRate(true, Damper.Half, c), 6);
+    }
+
+    [Theory]
+    [InlineData(Damper.Open)]
+    [InlineData(Damper.Half)]
+    [InlineData(Damper.Shut)]
+    public void Many_short_steps_are_one_long_one(Damper damper)
+    {
+        var one = FurnaceHeat.Advance(new HoleHeat(20, 5.5, true), 8, D(8), true, damper, C);
         var many = new HoleHeat(20, 5.5, true);
         for (int i = 0; i < 800; i++)
-            many = FurnaceHeat.Advance(many, 0.01, Draft.Chimney, true, C);
+            many = FurnaceHeat.Advance(many, 0.01, D(8), true, damper, C);
         Assert.Equal(one.Temperature, many.Temperature, 3);
         Assert.Equal(one.Coke, many.Coke, 6);
         Assert.Equal(one.Lit, many.Lit);
     }
 
-    // ---- The row ----
+    // ---- The row and its chimney ----
 
-    private static Func<Int3, FurnaceCell> World(IEnumerable<Int3> holes, IEnumerable<Int3> chimney)
+    /// <summary>A row: members by offset (capped, chimney height), null between and beyond.</summary>
+    private static Func<int, RowMember?> Row(params (int At, bool Capped, int Chimney)[] members)
     {
-        var h = holes.ToHashSet();
-        var c = chimney.ToHashSet();
-        return p => h.Contains(p) ? FurnaceCell.Hole : c.Contains(p) ? FurnaceCell.Chimney : FurnaceCell.Other;
+        var map = members.ToDictionary(m => m.At, m => new RowMember(m.Capped, m.Chimney));
+        return k => map.TryGetValue(k, out var m) ? m : null;
     }
 
-    private static IEnumerable<Int3> Column(int x, int z, int height) => Enumerable.Range(0, height).Select(y => new Int3(x, y, z));
+    [Fact]
+    public void A_lone_furnace_draws_on_its_own_chimney()
+    {
+        var row = FurnaceRow.Find(Row((0, false, 6)), 6, 6);
+        Assert.True(row.Works);
+        Assert.Equal((0, 1, 0, 6), (row.First, row.Count, row.ChimneyAt!.Value, row.ChimneyHeight));
+        Assert.Equal(RowProblem.ChimneyTooShort, FurnaceRow.Find(Row((0, false, 5)), 6, 6).Problem);
+        Assert.Equal(RowProblem.NoChimney, FurnaceRow.Find(Row((0, false, 0)), 6, 6).Problem);
+        // capped, its chimney does not count
+        Assert.Equal(RowProblem.NoChimney, FurnaceRow.Find(Row((0, true, 8)), 6, 6).Problem);
+    }
 
     [Fact]
-    public void Four_holes_with_a_six_block_chimney_at_one_end_work()
+    public void A_row_of_three_shares_one_chimney_the_rest_capped()
     {
-        var holes = Enumerable.Range(0, 4).Select(x => new Int3(x, 0, 0)).ToList();
-        var at = World(holes, Column(4, 0, 6));
-        foreach (var hole in holes)
+        var at = Row((-1, true, 0), (0, true, 0), (1, false, 7));
+        foreach (int self in new[] { -1, 0, 1 })
         {
-            var row = FurnaceRow.Find(hole, at, 4, 6);
-            Assert.True(row.Works);
-            Assert.Equal(holes, row.Holes);
-            Assert.Equal(new Int3(4, 0, 0), row.Chimney);
-            Assert.Equal(6, row.ChimneyHeight);
+            var row = FurnaceRow.Find(k => at(k + self), 6, 6);
+            Assert.True(row.Works, $"{self}: {row.Problem}");
+            Assert.Equal(3, row.Count);
+            Assert.Equal(1 - self, row.ChimneyAt);
+            Assert.Equal(7, row.ChimneyHeight);
+            Assert.Equal(-1 - self, row.First);
         }
-        // the chimney at the other end, and along z
-        Assert.True(FurnaceRow.Find(new Int3(0, 0, 0), World(holes, Column(-1, 0, 7)), 4, 6).Works);
-        Assert.True(FurnaceRow.Find(new Int3(0, 0, 2), World([new(0, 0, 2), new(0, 0, 3)], Column(0, 1, 6)), 4, 6).Works);
     }
 
     [Fact]
-    public void A_short_chimney_too_many_holes_or_none_say_so()
+    public void An_uncapped_outlet_leaks_the_whole_rows_draught_and_is_named()
     {
-        var holes = Enumerable.Range(0, 4).Select(x => new Int3(x, 0, 0)).ToList();
-        var shortRow = FurnaceRow.Find(new Int3(1, 0, 0), World(holes, Column(4, 0, 5)), 4, 6);
-        Assert.Equal(RowProblem.ChimneyTooShort, shortRow.Problem);
-        Assert.Equal(5, shortRow.ChimneyHeight);
+        var row = FurnaceRow.Find(Row((-1, false, 0), (0, true, 0), (1, false, 7)), 6, 6);
+        Assert.False(row.Works);
+        Assert.Equal(RowProblem.OutletOpen, row.Problem);
+        Assert.Equal(-1, row.OpenOutlet);
+        Assert.Equal(1, row.ChimneyAt);
+        // a second chimney is an open outlet too: the taller one serves, the other leaks
+        row = FurnaceRow.Find(Row((0, false, 6), (1, false, 8)), 6, 6);
+        Assert.Equal(RowProblem.OutletOpen, row.Problem);
+        Assert.Equal(1, row.ChimneyAt);
+        Assert.Equal(0, row.OpenOutlet);
+        // a leak is named before a short chimney
+        Assert.Equal(RowProblem.OutletOpen, FurnaceRow.Find(Row((0, false, 0), (1, false, 3)), 6, 6).Problem);
+    }
 
-        var five = Enumerable.Range(0, 5).Select(x => new Int3(x, 0, 0)).ToList();
-        Assert.Equal(RowProblem.TooManyHoles, FurnaceRow.Find(new Int3(2, 0, 0), World(five, Column(5, 0, 6)), 4, 6).Problem);
+    [Fact]
+    public void Six_furnaces_share_one_chimney_but_seven_are_too_many()
+    {
+        var six = Enumerable.Range(0, 6).Select(i => (i, i != 5, i == 5 ? 6 : 0)).ToArray();
+        var row = FurnaceRow.Find(Row(six), 6, 6);
+        Assert.True(row.Works);
+        Assert.Equal(6, row.Count);
+        var seven = Enumerable.Range(0, 7).Select(i => (i, i != 6, i == 6 ? 6 : 0)).ToArray();
+        Assert.Equal(RowProblem.TooManyFurnaces, FurnaceRow.Find(Row(seven), 6, 6).Problem);
+        // from the middle too, scanning both ways
+        Assert.Equal(RowProblem.TooManyFurnaces, FurnaceRow.Find(k => Row(seven)(k + 3), 6, 6).Problem);
+        Assert.Equal(RowProblem.TooManyFurnaces, FurnaceRow.Find(Row(six), 5, 6).Problem);
+    }
 
-        Assert.Equal(RowProblem.NoChimney, FurnaceRow.Find(new Int3(0, 0, 0), World(holes, []), 4, 6).Problem);
-        // a chimney beside the row, not in line with it, does not count
-        Assert.Equal(RowProblem.NoChimney, FurnaceRow.Find(new Int3(0, 0, 0), World(holes, Column(1, 1, 6)), 4, 6).Problem);
+    [Fact]
+    public void A_gap_ends_the_row()
+    {
+        // a furnace two widths along is not touching: its chimney is not this one's
+        var row = FurnaceRow.Find(Row((0, true, 0), (2, false, 6)), 6, 6);
+        Assert.Equal(RowProblem.NoChimney, row.Problem);
+        Assert.Equal(1, row.Count);
     }
 
     // ---- The pour window ----
@@ -319,13 +433,23 @@ public class CrucibleFurnaceTests
     public void Defaults_are_sane_and_bad_values_fall_back()
     {
         Assert.Empty(new CrucibleFurnaceConfig().Sanitise());
-        var bad = new CrucibleFurnaceConfig { PotCapacityUnits = 0, PourWindowSeconds = double.NaN, HoursPerCoke = -1, ChimneyBlocks = [] };
+        var bad = new CrucibleFurnaceConfig { PotCapacityUnits = 0, PourWindowSeconds = double.NaN, HoursPerCoke = -1, ChimneyBlocks = [],
+            DamperHalfBurn = 0, DamperShutCooling = 2, MaxChimneyHeight = 3, MaxFurnacesInRow = 0 };
         var fixes = bad.Sanitise();
-        Assert.Equal(4, fixes.Count);
+        Assert.Equal(8, fixes.Count);
+        Assert.Equal(0.6, bad.DamperHalfBurn);
+        Assert.Equal(0.25, bad.DamperShutCooling);
+        Assert.Equal(11, bad.MaxChimneyHeight);
+        Assert.Equal(6, bad.MaxFurnacesInRow);
         Assert.Equal(300, bad.PotCapacityUnits);
         Assert.Equal(20, bad.PourWindowSeconds);
         Assert.Equal(1, bad.HoursPerCoke);
         Assert.Contains("game:claybricks-*", bad.ChimneyBlocks);
+        // smex's smoke stack is no chimney block: it cannot stand on the outlet
+        Assert.DoesNotContain(new CrucibleFurnaceConfig().ChimneyBlocks, c => c.StartsWith("smex:", StringComparison.Ordinal));
+        Assert.True(new CrucibleFurnaceConfig().IsChimneyBlock("game:claybricks-good-fire"));
+        Assert.True(new CrucibleFurnaceConfig().IsChimneyBlock("game:stonebricks-granite"));
+        Assert.False(new CrucibleFurnaceConfig().IsChimneyBlock("smex:smokestack-bottom"));
         var blank = new CrucibleFurnaceConfig { LargeCastingMetals = null!, LargeCastingMolds = ["game:ingotmold-*", " "] };
         Assert.Equal(2, blank.Sanitise().Count);
         Assert.Equal(new[] { "game:ingot-iron" }, blank.LargeCastingMetals);

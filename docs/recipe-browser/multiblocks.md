@@ -36,9 +36,11 @@ shapes), or decompiling them (exlib also builds layouts in code).
 
 ### A structure that comes in sizes
 
-A structure whose layout varies (the pack's crucible furnace: one to four melting holes, a chimney
-of at least six blocks) declares its sizes on the checking block, next to or instead of
-`multiblockStructure`:
+A structure whose layout varies (say, one to four holes in a row and a chimney of at least six
+blocks) declares its sizes on the checking block, next to or instead of `multiblockStructure`. No
+block of the pack uses it today: the crucible furnace's row of melting holes was its first user, and
+the furnace is now one generated machine (#796), shown in the model viewer as `crucible-furnace`
+rather than here. The exporter and the site still read it:
 
 ```json
 "multiblockSizes": {
