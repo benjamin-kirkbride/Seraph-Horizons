@@ -2250,14 +2250,18 @@ barrel gear, which the frame carries), two oak logs, oak planks and a hammer (ab
 
 **Stages.** Fitted by right-click on the frame or any ghost with the item, in this order only; anything
 of a later stage is refused with a message naming the next. The chain and the mandrel take two of their
-item, both from the held stack in one click (fewer are refused, and stay in hand); the rest one each:
+item, both from the held stack in one click (fewer are refused, and stay in hand); the rest one each.
+The mandrel stage also takes one steel spring, the follower's, in a click of its own before or after the
+rods; the stage is in (and drawn) once both are. With no springs in the world (`MandrelSprings` or
+`MandrelStation` off) the rods alone fit it; a bench saved before springs keeps its stages and asks for
+a spring before it draws:
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
 | 1 | `gearbox` | `game:jonasframes-gearbox01` (the clutch and change gear) | Looted, or BetterRuins' conversion |
 | 2 | `chain` | Two of `game:metalchain-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
-| 4 | `mandrel` | Two of `game:rod-iron`, `-meteoriciron` or `-steel` | Smithing (the game's) |
+| 4 | `mandrel` | Two of `game:rod-iron`, `-meteoriciron` or `-steel`, and one `seraphhorizons:spring-steel` | Smithing (the game's); the spring wound on the mandrel station |
 | 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (100 durability) | Smithing, 2 ingots of its metal (80 voxels) |
 
 The die recipe is named `drawdie`, not `plate`, so the helve hammer does not work it. In creative mode
@@ -2576,9 +2580,33 @@ with the hammer as a hollow is finished puts the next of the same item on from t
 the backpack, and not one of the other metal), once a blow would be struck, so the hammering carries on. The block info shows what the
 station needs and the hollow on, its blows struck and how far it is forged.
 
+**Springs (`MandrelSprings`).** The station's second job winds a **steel spring**
+(`seraphhorizons:spring-steel`, `itemtypes/spring.json`: a square coil of six turns of steel wire, the
+draw bench's follower spring) from one **hot steel rod** (`game:rod-steel`, and no other metal), worked as
+on the anvil: the rod must be at its working temperature, its `workableTemperature` attribute or else half
+its melting point (vanilla's `ItemIngot.CanWork`; steel melts at 1502 °C, so **751 °C**). Heat it on a
+forge ("Rods on the forge"). On a station with no mandrel a steel rod is fitted as the mandrel, hot or
+not; on a fitted, bare mandrel a hot one goes on by right-click as the work, and a cold one is refused
+with a message giving its temperature. Then **right-click held** on the station with **tongs** in either
+hand (the game's `game:tongs` or metal tongs, any item whose tool is `Tongs`; none needed in creative
+mode) winds it, as the press brake's lever is worked: a turn a second, `TurnsPerRod` (4) turns a rod.
+It winds only while the rod is at working temperature: the rod keeps its stack on the station and cools
+there as any stack does, and below working heat the winding stops (the winder is told once). **Ctrl +
+right-click** takes the rod back at any time, straight (the winding so far is lost, the metal is not),
+as hot as it is, to reheat on the forge. At the end the rod is used up and one spring drops past the
+tip at the rod's temperature (the game then cools it and draws
+it glowing); the winder's tongs pay `TongsWearPerRod`. Breaking the station gives back a rod not yet
+wound; a part-wound one is lost. A save keeps the rod's stack, its heat and the winding. The spring
+melts back into a steel ingot, as the rod does. With `MandrelSprings` off (or `MandrelStation`) the
+spring's type is disabled, steel rods on a fitted mandrel are refused as before, the frame's handbook
+drops its spring section and the mod's text no longer links the spring; the draw bench's mandrel stage
+then takes its rods alone.
+
 **Drawn.** The block draws `mandrelstation_frame.json`; the renderer splits `mandrelstation.json` into
 the rig's parts and draws the mandrel once fitted, in its rod's metal, and the hollow of the metal on
-while it is on, easing to each blow as it lands.
+while it is on, easing to each blow as it lands. A rod being wound (class 3) is drawn only at p 1 (its
+sides grow by stretching gauges, whole at p 0), W following the held clock, and its parts (the rig's
+`wind.hot`) glow by the rod's temperature exactly as the game's anvil draws hot work; nothing else glows.
 
 | Setting | Default | |
 |---|---|---|
@@ -2586,12 +2614,27 @@ while it is on, easing to each blow as it lands.
 | `BlowsPerHollowCopper` | 14 | Blows of the base hammer a copper hollow takes; the rig's `forge.blowsPerHollow.thick` |
 | `BaseHammerTier` | 2 | The tool tier those blows are counted for, the game's copper hammer's; a blow of a hammer of tier t forges t / this of a base blow |
 | `HammerWearPerBlow` | 1 | Durability a blow costs the hammer, as a blow on the anvil does |
+| `TurnsPerRod` | 4 | Turns of the held clock (a turn a second) a steel rod takes to wind into a spring; the rig's `wind.turnsPerRod` |
+| `TongsWearPerRod` | 1 | Durability a spring costs the tongs it is wound with |
 
 With the switch off the server marks both block types and the recipe file disabled before the game
 loads them, so none of it exists and stations already placed are lost; the mod's own text no longer
-links it. The hollows and the pipe sections exist either way (the sections are `UnifiedPipes`'; with
+links it, and there are no springs. The hollows and the pipe sections exist either way (the sections are `UnifiedPipes`'; with
 that switch off there are none, and the station refuses hollows with a message). Not yet: a schematic
 for the frame (`MachineSchematics`).
+
+### Rods on the forge (`RodsOnForge`)
+
+Every metal rod (`game:rod-*`) goes on the game's forge and heats there, as an ingot does, so a steel rod
+can be brought to working heat for the mandrel station's springs. The forge (1.22.7,
+`BlockEntityForge.OnPlayerInteract`) takes a work item, with Shift + right-click, when its code starts
+`ingot`, `metalplate` or `workitem`, or when its `forgable` attribute is true, as the tool heads, the
+iron bloom and the metal tongs are; it heats whatever it holds, and its renderer draws a forgeable item in
+its own shape moved by its `inForgeTransform` attribute. A rod has neither, so
+`patches/rodsonforge.json` adds both to `game:itemtypes/part/rod.json` (`RodsOnForge.cs`): the rod lies
+flat on the coals, turned 30°. A forgeable item goes on one at a time (the forge stacks only ingots and
+plates), and comes off with a right-click, hot, as an ingot does. No code runs; with the switch off the
+patch file is emptied before the patch loader reads it, and rods are as the game ships them.
 
 ### Eidolon (`Eidolon`, `EidolonSettings`)
 
@@ -5989,7 +6032,17 @@ sections dropped rather than put in the second). With the switch off, `SwitchesO
 recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios.cs` requires one
 `machine` record per metal (`mandrelstation|game:chutesection-{metal}|0`): the hollow, the kept mandrel,
 the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 9 or 14
-blows, no oil.
+blows, no oil; and the spring's (`mandrelstation|game:rod-steel|0`): the steel rod, the kept mandrel, the
+tongs worn a point, the frame, one spring, power `hand` at four seconds, the heat in `requirements`.
+`tests/PackTests/MandrelSpringScenarios.cs` (Atlas, the shared world, the gear cutter's player, x -460 to
+-508, z -520) requires the spring (steel's melting) and every game rod forgeable; a copper rod on a lit
+forge, one at a time, heating and coming off hot; a cold steel rod and a hot iron one refused on a fitted
+mandrel, a hot steel one going on, no winding without tongs, a save keeping it hot, and with tongs in the
+off hand right-click held from the ghost and the stump winding it into one spring dropped beyond the tip
+at about the rod's heat, the tongs a point the worse; a rod cooled to 700 °C stopping, taken back by Ctrl
+as hot as it is and put on again reheated from W 0, breaking giving back an unwound rod and losing a
+part-wound one; and a steel rod as the mandrel on a bare station. `SwitchesOffScenarios` requires no
+spring and no link to it with `MandrelSprings` off, and rods as the game ships them with `RodsOnForge` off.
 
 `tests/PackTests/HandcarScenarios.cs` (Atlas, a plain world of its own: it joins four players, and the
 shared world has no slots left) requires the handcar registered with its

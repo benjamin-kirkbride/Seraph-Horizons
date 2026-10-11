@@ -217,4 +217,31 @@ public class MachinesCoreTests
         Near(min, new Float3(Math.Min(a.X, b.X), Math.Min(a.Y, b.Y), Math.Min(a.Z, b.Z)));
         Near(max, new Float3(Math.Max(a.X, b.X), Math.Max(a.Y, b.Y), Math.Max(a.Z, b.Z)));
     }
+
+    // ---- classes past thick (machinegen/rigmath.py's class_key and class_of_key) ----
+
+    [Fact]
+    public void Classes_are_keyed_thin_thick_then_by_number_and_anything_else_is_none()
+    {
+        Assert.Equal(new string?[] { null, "thin", "thick", "3", "9", null, null },
+                     new[] { 0, 1, 2, 3, 9, 10, -1 }.Select(RigClasses.Key));
+        Assert.Equal(new int?[] { 1, 2, 3, 9 }, new[] { "thin", "thick", "3", "9" }.Select(RigClasses.Of));
+        foreach (var key in new[] { "none", "0", "1", "2", "03", "10", "medium", "+3", " 3" })
+            Assert.Null(RigClasses.Of(key));
+        Assert.Equal(3, new RigInput(0, Class: 3).K);
+        Assert.Equal(0, new RigInput(0, Class: RigClasses.Max + 1).K);
+    }
+
+    [Fact]
+    public void A_per_class_value_names_some_classes_and_the_rest_have_none_of_it()
+    {
+        using var doc = JsonDocument.Parse("""{ "amount": { "thin": 0.5, "3": -2 }, "empty": {}, "odd": { "thin": 1, "x": 2 } }""");
+        var a = RigClasses.Parse(doc.RootElement.GetProperty("amount"), "amount", 0);
+        Assert.Equal(RigClasses.Max + 1, a.Length);
+        Assert.Equal(new float[] { 0, 0.5f, 0, -2, 0 }, a.Take(5));
+        Assert.Equal(1f, RigClasses.Parse(doc.RootElement.GetProperty("amount"), "gain", 1)[2]);
+        Assert.Throws<FormatException>(() => RigClasses.Parse(doc.RootElement.GetProperty("empty"), "amount", 0));
+        Assert.Equal(1f, RigClasses.Parse(doc.RootElement.GetProperty("empty"), "gain", 1, mayBeEmpty: true)[3]);
+        Assert.Throws<FormatException>(() => RigClasses.Parse(doc.RootElement.GetProperty("odd"), "amount", 0));
+    }
 }

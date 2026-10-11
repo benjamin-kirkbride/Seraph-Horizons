@@ -77,6 +77,36 @@ public static class Mat4
         return m;
     }
 
+    /// <summary>A scale by <paramref name="factor"/> along the unit vector <paramref name="u"/> about the
+    /// plane through <paramref name="origin"/> normal to it (I + (f − 1)·u·uᵀ, the point fixed); a factor
+    /// of 0 collapses everything to <paramref name="origin"/> (a vanished part: no linear part at all).</summary>
+    public static float[] StretchAlong(Float3 u, double factor, Float3 origin)
+    {
+        var m = Identity();
+        if (factor == 0)
+        {
+            m[0] = m[5] = m[10] = 0;
+            m[12] = origin.X; m[13] = origin.Y; m[14] = origin.Z;
+            return m;
+        }
+        double[] v = [u.X, u.Y, u.Z], o = [origin.X, origin.Y, origin.Z];
+        var lin = new double[3, 3];
+        for (int i = 0; i < 3; i++)
+            for (int j = 0; j < 3; j++)
+            {
+                lin[i, j] = (i == j ? 1 : 0) + (factor - 1) * v[i] * v[j];
+                m[j * 4 + i] = (float)lin[i, j];
+            }
+        for (int i = 0; i < 3; i++)
+            m[12 + i] = (float)(o[i] - (lin[i, 0] * o[0] + lin[i, 1] * o[1] + lin[i, 2] * o[2]));
+        return m;
+    }
+
+    /// <summary>Whether <paramref name="m"/> collapses everything to a point (its linear part all 0): a part
+    /// stretched to 0, which draws nothing.</summary>
+    public static bool Collapsed(float[] m) =>
+        m[0] == 0 && m[1] == 0 && m[2] == 0 && m[4] == 0 && m[5] == 0 && m[6] == 0 && m[8] == 0 && m[9] == 0 && m[10] == 0;
+
     public static Float3 Apply(float[] m, Float3 p) => new(
         m[0] * p.X + m[4] * p.Y + m[8] * p.Z + m[12],
         m[1] * p.X + m[5] * p.Y + m[9] * p.Z + m[13],
@@ -115,7 +145,8 @@ public enum LiftGate { None, Hold, Block, Trip }
 /// ψ (<see cref="Travel"/>) the shaft's travel, the total angle it has turned through either way,
 /// |θ| when null; W (<see cref="Work"/>) how far the machine's work has got, in its progress's unit
 /// (a trunk's travel along a trunkPath, blocks; the gear cutter's teeth cut); k
-/// (<see cref="Class"/>) the work's class, 0 none, 1 thin, 2 thick; p (<see cref="Presence"/>) its
+/// (<see cref="Class"/>) the work's class, 0 none, 1 thin, 2 thick, 3 .. <see cref="RigClasses.Max"/>
+/// further classes (<see cref="RigClasses"/>); p (<see cref="Presence"/>) its
 /// eased presence, 0..1; φ (<see cref="Feed"/>) the feed's travel, radians; <see cref="Oil"/>
 /// how full the machine's oil tank is, 0..1.
 /// </summary>
@@ -126,13 +157,13 @@ public readonly record struct RigInput(double Theta, double Depth = 0, double Li
     /// <summary>ψ: <see cref="Travel"/>, or |θ| when it is null.</summary>
     public double Psi => Travel ?? Math.Abs(Theta);
 
-    /// <summary>k when it is 1 or 2, else 0 (no trunk).</summary>
-    public int K => Class is 1 or 2 ? Class : 0;
+    /// <summary>k when it is a class (1 .. <see cref="RigClasses.Max"/>), else 0 (none).</summary>
+    public int K => RigClasses.IsClass(Class) ? Class : 0;
 }
 
 /// <summary>A stretch of the trunk path a <see cref="DriverType.Gauge"/> feels the trunk over, from
 /// <see cref="From"/> to <see cref="To"/> (positions along the path, blocks), eased in and out over
-/// <see cref="Ease"/> blocks. <see cref="Gains"/> is per class, [none, thin, thick].</summary>
+/// <see cref="Ease"/> blocks. <see cref="Gains"/> is indexed by class (<see cref="RigClasses"/>), 1 where not given.</summary>
 public sealed record GaugeWindow(float From, float To, float Ease, IReadOnlyList<float> Gains)
 {
     /// <summary>occ = clamp((nose − from) / ease, 0, 1) · clamp((to − tail) / ease, 0, 1).</summary>
@@ -141,7 +172,7 @@ public sealed record GaugeWindow(float From, float To, float Ease, IReadOnlyList
 }
 
 /// <summary>A gauge's four-lobe term: amplitude[k] · cos(ratio · ψ + phase), scaled by the gauge's
-/// engagement. <see cref="Amplitudes"/> is per class, [none, thin, thick].</summary>
+/// engagement. <see cref="Amplitudes"/> is indexed by class (<see cref="RigClasses"/>), 0 where not given.</summary>
 public sealed record GaugeLobes(float Ratio, float Phase, IReadOnlyList<float> Amplitudes);
 
 /// <summary>
@@ -151,23 +182,36 @@ public sealed record GaugeLobes(float Ratio, float Phase, IReadOnlyList<float> A
 /// <c>driver_matrix</c> in BuckingSawmill/tools/make_shape.py (the mill's types) and in
 /// Machines/tools/machinegen (all of them).
 /// </summary>
-/// <param name="Pivot">rotate, swing, roll, a rotating step or gauge: the pivot; stretch: the anchor.</param>
-/// <param name="Rotates">step, gauge: true for <c>"motion": "rotate"</c>, false for <c>"slide"</c>.</param>
+/// <param name="Pivot">rotate, swing, roll, a rotating step or gauge: the pivot; stretch: the anchor; a
+/// stretching gauge: its origin.</param>
+/// <param name="Rotates">step, gauge: true for <c>"motion": "rotate"</c>, false for <c>"slide"</c> (or <c>"stretch"</c>).</param>
 /// <param name="Length">stretch: signed authored distance from the anchor to the free end.</param>
 /// <param name="Input">rotate, slide, swing: the input in place of θ. <see cref="DriverInput.Travel"/>
 /// (ψ, the shaft's travel) keeps turning the same way whichever way the shaft turns (a one-way
 /// catch's gear); the mill writes it as <c>"rectified": true</c>.</param>
-/// <param name="Amounts">gauge: the full motion per class, [none, thin, thick].</param>
+/// <param name="Amounts">gauge: the full motion, indexed by class (<see cref="RigClasses"/>), 0 for a class it
+/// does not name.</param>
 /// <param name="Windows">gauge, <c>occupy</c> mode: where the trunk is felt.</param>
 /// <param name="Present">gauge: <c>"mode": "present"</c>, engaged by presence alone.</param>
 /// <param name="Lobes">gauge, rotating only: the four-lobe term, or null.</param>
 /// <param name="At">roll: the roller's position along the path.</param>
+/// <param name="Stretches">gauge: <c>"motion": "stretch"</c>, a scale 1 + amount[k]·E along
+/// <see cref="Direction"/> about <see cref="Pivot"/> (<see cref="StretchFactor"/>).</param>
+/// <param name="Direction">a stretching gauge: the unit axis it scales along, in the authored frame (its
+/// <c>axis</c> of the frame its <c>rotation</c> turns to).</param>
 public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Ratio, float Amplitude, float Phase, float Travel,
                             bool Rotates = false, float Amount = 0, float From = 0, float To = 1, LiftGate Lifting = LiftGate.None,
                             float Length = 1, DriverInput Input = DriverInput.Theta, float Top = 0,
                             IReadOnlyList<float>? Amounts = null, IReadOnlyList<GaugeWindow>? Windows = null, bool Present = false,
-                            GaugeLobes? Lobes = null, float At = 0)
+                            GaugeLobes? Lobes = null, float At = 0, bool Stretches = false, Float3 Direction = default)
 {
+    /// <summary>A stretching gauge's factor below this is 0: the part vanishes.</summary>
+    public const double StretchEpsilon = 1e-6;
+
+    /// <summary>A driver that scales its part (a stretch, a stretching gauge): what a part riding it does not
+    /// inherit (<see cref="RigParts.Matrices(in RigInput)"/>).</summary>
+    public bool IsScale => Type == DriverType.Stretch || (Type == DriverType.Gauge && Stretches);
+
     /// <summary>Runs on ψ, the shaft's travel (<c>"rectified": true</c>).</summary>
     public bool Rectified => Input == DriverInput.Travel;
 
@@ -192,7 +236,8 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
     /// A gauge's engagement e and motion a. With no trunk (k 0) both are 0. <c>present</c>: e = p.
     /// <c>occupy</c>: e = p · max over windows of min(1, gain[k] · occ), occ from the trunk's nose
     /// and tail on <paramref name="path"/> (0 without one). a = amount[k] · e, plus
-    /// e · amplitude[k] · cos(ratio · ψ + phase) with lobes.
+    /// e · amplitude[k] · cos(ratio · ψ + phase) with lobes. A stretching gauge sums its windows in place
+    /// of taking the most engaged: e = p · Σ min(1, gain[k] · occ), so a stretch made in steps adds up.
     /// </summary>
     public double GaugeAmount(in RigInput input, IWorkProgress? path)
     {
@@ -204,19 +249,31 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
             e = input.Presence;
         else
         {
-            double best = 0;
+            double best = 0, total = 0;
             if (path != null && Windows != null)
             {
                 double nose = path.Nose(input.Work), tail = path.Tail(input.Work, k);
                 foreach (var w in Windows)
-                    best = Math.Max(best, Math.Min(1, w.Gains[k] * w.Occupancy(nose, tail)));
+                {
+                    double one = Math.Min(1, w.Gains[k] * w.Occupancy(nose, tail));
+                    best = Math.Max(best, one);
+                    total += one;
+                }
             }
-            e = input.Presence * best;
+            e = input.Presence * (Stretches ? total : best);
         }
         double a = (Amounts?[k] ?? 0) * e;
         if (Lobes != null)
             a += e * Lobes.Amplitudes[k] * Math.Cos(Lobes.Ratio * input.Psi + Lobes.Phase);
         return a;
+    }
+
+    /// <summary>A stretching gauge's scale: 1 + <see cref="GaugeAmount"/>, never below 0, and 0 under
+    /// <see cref="StretchEpsilon"/>.</summary>
+    public double StretchFactor(in RigInput input, IWorkProgress? path)
+    {
+        double f = 1 + GaugeAmount(input, path);
+        return f < StretchEpsilon ? 0 : f;
     }
 
     /// <summary>The mill's pose: <see cref="Matrix(in RigInput, IWorkProgress?)"/> with no work.
@@ -246,6 +303,8 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
             case DriverType.Step:
                 double e = StepFraction(input.Depth, input.Lifting);
                 return Rotates ? Mat4.Rotation(Axis, Amount * e, Pivot) : Along(Amount * e);
+            case DriverType.Gauge when Stretches:
+                return Mat4.StretchAlong(Direction, StretchFactor(input, path), Pivot);
             case DriverType.Gauge:
                 double a = GaugeAmount(input, path);
                 return Rotates ? Mat4.Rotation(Axis, a, Pivot) : Along(a);
@@ -278,8 +337,8 @@ public sealed record Driver(DriverType Type, Axis Axis, Float3 Pivot, float Rati
 
 /// <summary>A moving part of a machine's model: the elements its <see cref="Match"/> globs claim,
 /// drawn only when <see cref="Requires"/> is fitted (each machine has its own vocabulary, e.g.
-/// <c>MillRequires</c>), moved by its drivers and then by its <see cref="Ride"/> part's whole
-/// transform.</summary>
+/// <c>MillRequires</c>), moved by its drivers and then by its <see cref="Ride"/> part's rigid
+/// transform (that part's matrix without its scales, <see cref="Driver.IsScale"/>).</summary>
 public sealed record RigPart(string Id, IReadOnlyList<string> Match, string? Requires, string? Ride, IReadOnlyList<Driver> Drivers);
 
 /// <summary>Where a trunk lies: <see cref="Origin"/> is the centre of the bed's top surface.</summary>
@@ -365,19 +424,33 @@ public sealed class RigParts
         Matrices(new RigInput(theta, depth, lifting, shaftTravel));
 
     /// <summary>One native-frame matrix per part, in part order: the drivers applied in list
-    /// order to the authored geometry (pivots in the authored frame), then the ride part's whole
-    /// transform.</summary>
+    /// order to the authored geometry (pivots in the authored frame), then the ride part's rigid
+    /// transform: its matrix without its own scales (<see cref="Driver.IsScale"/>), so a part riding a
+    /// stretched part moves and turns with it but is not stretched. A matrix whose linear part is all 0
+    /// (<see cref="Mat4.Collapsed"/>) is a part stretched to nothing.</summary>
     public float[][] Matrices(in RigInput input)
     {
         var result = new float[Parts.Count][];
+        var rigid = new float[Parts.Count][];
         foreach (int i in _order)
         {
             var m = Mat4.Identity();
+            float[]? r = Parts[i].Drivers.Any(d => d.IsScale) ? Mat4.Identity() : null;
             foreach (var d in Parts[i].Drivers)
-                m = Mat4.Multiply(d.Matrix(input, Path), m);
+            {
+                var dm = d.Matrix(input, Path);
+                m = Mat4.Multiply(dm, m);
+                if (r != null && !d.IsScale)
+                    r = Mat4.Multiply(dm, r);
+            }
             if (_ride[i] >= 0)
-                m = Mat4.Multiply(result[_ride[i]], m);
+            {
+                m = Mat4.Multiply(rigid[_ride[i]], m);
+                if (r != null)
+                    r = Mat4.Multiply(rigid[_ride[i]], r);
+            }
             result[i] = m;
+            rigid[i] = r ?? m;
         }
         return result;
     }
@@ -434,19 +507,28 @@ public sealed class RigParts
             "z" => Axis.Z,
             var a => throw new FormatException($"{where}: driver axis \"{a}\" is not x, y or z"),
         };
-        bool rotates = false;
+        bool rotates = false, stretches = false;
         if (type is DriverType.Step or DriverType.Gauge)
-            rotates = Str(d, "motion") switch
+            (rotates, stretches) = Str(d, "motion") switch
             {
-                "rotate" => true,
-                "slide" => false,
-                var m => throw new FormatException($"{where}: a {Str(d, "type")} driver's motion \"{m}\" is not slide or rotate"),
+                "rotate" => (true, false),
+                "slide" => (false, false),
+                "stretch" when type == DriverType.Gauge => (false, true),
+                var m => throw new FormatException(type == DriverType.Gauge
+                    ? $"{where}: a gauge driver's motion \"{m}\" is not slide, rotate or stretch"
+                    : $"{where}: a step driver's motion \"{m}\" is not slide or rotate"),
             };
         var pivot = new Float3(0, 0, 0);
+        var direction = default(Float3);
         if (type is DriverType.Rotate or DriverType.Swing or DriverType.Roll || rotates)
             pivot = Point(d, "pivot", where, Str(d, "type")!);
         else if (type == DriverType.Stretch)
             pivot = Point(d, "anchor", where, "stretch");
+        else if (stretches)
+        {
+            pivot = Point(d, "origin", where, "stretching gauge");
+            direction = StretchDirection(d, axis, where);
+        }
         float from = Num(d, "from", 0), to = Num(d, "to", 1);
         if (type == DriverType.Step && !(to > from))
             throw new FormatException($"{where}: a step driver's window needs to > from");
@@ -493,7 +575,7 @@ public sealed class RigParts
             if (d.TryGetProperty("lobes", out var lb))
             {
                 if (!rotates)
-                    throw new FormatException($"{where}: lobes are for a rotating gauge, not a slide");
+                    throw new FormatException($"{where}: lobes are for a rotating gauge, not a slide or a stretch");
                 if (lb.ValueKind != JsonValueKind.Object)
                     throw new FormatException($"{where}: lobes must be an object");
                 lobes = new GaugeLobes(Required(lb, "ratio", JsonValueKind.Number).GetSingle(), Num(lb, "phase", 0),
@@ -512,7 +594,30 @@ public sealed class RigParts
         }
         return new Driver(type, axis, pivot, Num(d, "ratio", 1), Num(d, "amplitude", 0), Num(d, "phase", 0), Num(d, "travel", 0),
                           rotates, Num(d, "amount", 0), from, to, gate, length, input, top,
-                          amounts, windows, present, lobes, at);
+                          amounts, windows, present, lobes, at, stretches, direction);
+    }
+
+    /// <summary>A stretching gauge's axis in the authored frame: its <c>axis</c> of the frame its optional
+    /// <c>rotation</c> [rx, ry, rz] (degrees) turns to, Rx·Ry·Rz, the order the game turns an element in.</summary>
+    private static Float3 StretchDirection(JsonElement d, Axis axis, string where)
+    {
+        double rx = 0, ry = 0, rz = 0;
+        if (d.TryGetProperty("rotation", out var rot))
+        {
+            if (rot.ValueKind != JsonValueKind.Array || rot.GetArrayLength() != 3 || rot.EnumerateArray().Any(v => v.ValueKind != JsonValueKind.Number))
+                throw new FormatException($"{where}: a stretching gauge's rotation must be 3 numbers (degrees)");
+            var a = rot.EnumerateArray().Select(v => v.GetDouble() * Math.PI / 180).ToArray();
+            (rx, ry, rz) = (a[0], a[1], a[2]);
+        }
+        // the axis's column of Rx·Ry·Rz
+        double cx = Math.Cos(rx), sx = Math.Sin(rx), cy = Math.Cos(ry), sy = Math.Sin(ry), cz = Math.Cos(rz), sz = Math.Sin(rz);
+        var (x, y, z) = axis switch
+        {
+            Axis.X => (cy * cz, sx * sy * cz + cx * sz, -cx * sy * cz + sx * sz),
+            Axis.Y => (-cy * sz, -sx * sy * sz + cx * cz, cx * sy * sz + sx * cz),
+            _ => (sy, -sx * cy, cx * cy),
+        };
+        return new Float3((float)x, (float)y, (float)z);
     }
 
     /// <summary><c>input</c> (theta, travel, feed, trunk or oil), or <c>"rectified": true</c> for
@@ -570,19 +675,15 @@ public sealed class RigParts
         return new GaugeWindow(from, to, ease, PerClass(w, "gain", where + " window", 1));
     }
 
-    /// <summary>A <c>{"thin": a, "thick": b}</c> object as [0, a, b]. With a
-    /// <paramref name="fallback"/> the object and each key are optional; without one both keys are
-    /// required.</summary>
+    /// <summary>A per-class object (<see cref="RigClasses"/>) as an array indexed by class. With a
+    /// <paramref name="fallback"/> (a gain's 1) the object is optional, may name no class, and a class it
+    /// does not name has the fallback; without one (an amount, an amplitude) it is required, names a class
+    /// or more, and a class it does not name has 0.</summary>
     private static float[] PerClass(JsonElement obj, string key, string where, float? fallback)
     {
         if (!obj.TryGetProperty(key, out var v))
-            return fallback is float f ? [0, f, f] : throw new FormatException($"{where}: needs an {key} of {{\"thin\", \"thick\"}}");
-        if (v.ValueKind != JsonValueKind.Object)
-            throw new FormatException($"{where}: {key} must be an object of {{\"thin\", \"thick\"}}");
-        float One(string name) => v.TryGetProperty(name, out var n) && n.ValueKind == JsonValueKind.Number ? n.GetSingle()
-            : fallback is float f ? f
-            : throw new FormatException($"{where}: {key} needs a {name}");
-        return [0, One("thin"), One("thick")];
+            return fallback is float f ? RigClasses.Uniform(f) : throw new FormatException($"{where}: needs an {key}, keyed by class");
+        return RigClasses.Parse(v, $"{where}: {key}", fallback ?? 0, mayBeEmpty: fallback != null);
     }
 
     private static Float3 Point(JsonElement d, string key, string where, string type)

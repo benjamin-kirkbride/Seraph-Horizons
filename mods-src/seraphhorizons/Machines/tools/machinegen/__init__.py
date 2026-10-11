@@ -6,6 +6,7 @@
               and the collision-only lids over them (with_lids, lid_gaps: every column, or those a
               predicate picks), containment, clearances, frame connectivity, shaft supports
     output    the deterministic JSON writers: shapes, rigs, reference poses
+    coil      a square coil spring round a square bar (the mandrel station's spring, the draw bench's)
 
 A generator imports it with
 

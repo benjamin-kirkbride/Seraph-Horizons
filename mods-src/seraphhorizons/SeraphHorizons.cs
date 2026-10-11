@@ -107,6 +107,8 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(DuplicateRecipes.DisablePatches);
         if (!(Config(api).DurableSawmillBlades && SawmillBladeDurability.Applies(api)))
             DisablePatches(SawmillBladeDurability.DisablePatches);
+        if (!Config(api).RodsOnForge)
+            DisablePatches(RodsOnForge.DisablePatches);
         if (!(Config(api).FewerSupportChains && SupportChains.Applies(api)))
             DisablePatches(SupportChains.DisablePatches);
         if (!(Config(api).IronWoodworkingMachines && WoodworkingMachineCosts.Applies(api)))
@@ -871,6 +873,21 @@ public class SeraphHorizonsConfig
     /// <summary>The mandrel station's figures; a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public MandrelStation.Core.MandrelStationConfig MandrelStationSettings { get; set; } = new();
+
+    /// <summary>Springs (MandrelStation/, README "Mandrel forging station"): the mandrel station's
+    /// second job, which winds one hot steel rod round its mandrel, by hand with tongs (right-click
+    /// held, as on the quern), into a steel coil spring, the draw bench's follower spring; the rod works
+    /// only at working temperature, as on the anvil (needs MandrelStation; off means the spring and the
+    /// job do not exist, springs already made are lost, and the draw bench's mandrel stage takes its two
+    /// rods without one). The server's setting decides.</summary>
+    public bool MandrelSprings { get; set; } = true;
+
+    /// <summary>Rods on the forge (RodsOnForge.cs, README "Rods on the forge"): every metal rod
+    /// (<c>game:rod-*</c>) goes on the game's forge and heats there, as an ingot does, one at a time, by
+    /// a JSON patch that marks the rod forgeable; the hot steel rod is what the mandrel station winds a
+    /// spring from (off means rods cannot be put on a forge, as in the game). The server's setting
+    /// decides.</summary>
+    public bool RodsOnForge { get; set; } = true;
 
     /// <summary>The player-built eidolon (#668; EidolonGantry/, Eidolon/, README "Eidolon"): a laborer
     /// automaton behind the eidolon schematic the curio dealer sells, raised in a wooden gantry built

@@ -28,6 +28,8 @@ public sealed class MandrelStationRenderer : IRenderer
     private readonly BEMandrelStation _be;
     private readonly IMandrelStationView _view;
     private readonly RigParts _parts;
+    // the requires values whose parts are drawn hot (the rig's wind.hot)
+    private readonly IReadOnlySet<string> _hot;
     private readonly bool[] _drawn;
     // each part's meshes by the mandrel metal they were textured with ("" for none)
     private readonly Dictionary<string, MultiTextureMeshRef?[]> _meshes = [];
@@ -46,6 +48,7 @@ public sealed class MandrelStationRenderer : IRenderer
         _be = be;
         _view = view;
         _parts = rig.MovingParts;
+        _hot = rig.Wind?.Hot ?? new HashSet<string>();
         _drawn = _parts.Parts.Select(p => p.Requires != null || p.Ride != null || p.Drivers.Count > 0).ToArray();
         capi.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "mandrelstation");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowFar, "mandrelstation");
@@ -82,7 +85,7 @@ public sealed class MandrelStationRenderer : IRenderer
         if (camPos == null)
             return;
         if (stage == EnumRenderStage.Opaque)
-            _clock.Advance(deltaTime, _view.HollowClass, _view.ForgeWork, _view.Blows);
+            _clock.Advance(deltaTime, _view.JobClass, _view.JobWork, _view.Blows, _view.Held, _view.TurnsPerRod);
         var middle = _be.WorldPoint(new Float3(0.5f, 0.5f, 1));
         if (camPos.SquareDistanceTo(middle.X, middle.Y, middle.Z) > DrawRange * DrawRange)
             return;
@@ -101,15 +104,42 @@ public sealed class MandrelStationRenderer : IRenderer
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
+        // The hot parts glow by the rod's temperature, the vanilla way (AnvilWorkItemRenderer and the like)
+        Vec4f? hotGlow = null;
+        int hotExtra = 0;
+        if (prog != null && _hot.Count > 0 && _clock.JobOn == Winding.SpringClass)
+        {
+            int temp = (int)_view.RodTemperature;
+            float[] glow = ColorUtil.GetIncandescenceColorAsColor4f(temp);
+            hotExtra = Winding.ExtraGlow(temp);
+            hotGlow = new Vec4f(glow[0], glow[1], glow[2], hotExtra / 255f);
+        }
         for (int i = 0; i < meshes.Length; i++)
-            if (meshes[i] is { } mesh && Shown(_parts.Parts[i].Requires))
-                MachineMeshes.Draw(_capi, _model, mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, _be.Pos);
+        {
+            var requires = _parts.Parts[i].Requires;
+            if (meshes[i] is not { } mesh || !Shown(requires))
+                continue;
+            if (prog != null)
+            {
+                bool hot = hotGlow != null && requires != null && _hot.Contains(requires);
+                prog.RgbaGlowIn = hot ? hotGlow! : NoGlow;
+                prog.ExtraGlow = hot ? hotExtra : 0;
+            }
+            MachineMeshes.Draw(_capi, _model, mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, _be.Pos);
+        }
+        if (prog != null)
+        {
+            prog.RgbaGlowIn = NoGlow;
+            prog.ExtraGlow = 0;
+        }
         prog?.Stop();
         rapi.GlEnableCullFace();
     }
 
+    private static readonly Vec4f NoGlow = new(0, 0, 0, 0);
+
     private bool Shown(string? requires) =>
-        requires is MandrelRequires.HollowLead or MandrelRequires.HollowCopper ? _clock.ShowsHollow(requires) : _view.PartFitted(requires);
+        MandrelRequires.IsWork(requires) ? _clock.ShowsWork(requires!) : _view.PartFitted(requires);
 
     public void Dispose()
     {

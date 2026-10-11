@@ -280,8 +280,12 @@
     "BlowsPerHollowLead": 9,
     "BlowsPerHollowCopper": 14,
     "BaseHammerTier": 2,
-    "HammerWearPerBlow": 1
+    "HammerWearPerBlow": 1,
+    "TurnsPerRod": 4.0,
+    "TongsWearPerRod": 1
   },
+  "MandrelSprings": true,
+  "RodsOnForge": true,
   "Eidolon": true,
   "EidolonSettings": {
     "ChargeYearsPerGear": 0.25,

@@ -225,10 +225,13 @@ public static class MachineMeshes
 
     /// <summary>Draws <paramref name="mesh"/> with <paramref name="native"/> (the machine's facing
     /// and the part's pose) at the controller <paramref name="pos"/>: through <paramref name="prog"/>
-    /// in the opaque pass, else through the active shadow shader.</summary>
+    /// in the opaque pass, else through the active shadow shader. A part stretched to nothing
+    /// (<see cref="Mat4.Collapsed"/>, a stretching gauge at 0) is not drawn.</summary>
     public static void Draw(ICoreClientAPI capi, Matrixf model, MultiTextureMeshRef mesh, float[] native, IStandardShaderProgram? prog,
                             Vec3d cam, BlockPos pos)
     {
+        if (Mat4.Collapsed(native))
+            return;
         model.Identity().Translate(pos.X - cam.X, pos.Y - cam.Y, pos.Z - cam.Z).Mul(native);
         if (prog != null)
         {

@@ -21,7 +21,7 @@ MOD = ROOT / "mods-src" / "seraphhorizons"
 TOOLS = MOD / "Machines" / "tools"
 sys.path.insert(0, str(TOOLS))
 
-from machinegen import checks, geometry, output, rigmath  # noqa: E402
+from machinegen import checks, coil, geometry, output, rigmath  # noqa: E402
 from machinegen.geometry import El  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location("make_fixture", TOOLS / "make_fixture.py")
@@ -68,7 +68,8 @@ class FixtureFile(unittest.TestCase):
         gates = {d["driver"].get("lifting") for d in fx["drivers"] if d["driver"]["type"] == "step"}
         self.assertEqual(gates, {None, "hold", "block", "trip"})
         cases = [c["inputs"] for d in fx["drivers"] for c in d["cases"]]
-        self.assertEqual({c["size"] for c in cases}, {0, 1, 2})
+        # none, the two trunk classes, class 3, the last class, and one past it (none)
+        self.assertEqual({c["size"] for c in cases}, {0, 1, 2, 3, rigmath.MAX_CLASS, rigmath.MAX_CLASS + 1})
         self.assertTrue({0.0, 0.3, 1.0} <= {c["presence"] for c in cases})
         for c in cases:
             self.assertEqual(list(c), fx["inputs"])
@@ -238,10 +239,15 @@ class Work(unittest.TestCase):
         self.assertIs(rigmath.progress_of({"trunkPath": PATH}), PATH)
         self.assertIsNone(rigmath.progress_of({}))
         for bad in ({"work": self.WORK, "trunkPath": PATH}, {"work": {"end": {"thin": 1.0, "thick": 1.0}}},
-                    {"work": {"unit": "t", "end": {"thin": 1.0}}}, {"work": {"unit": "t", "step": 0, "end": {"thin": 1.0, "thick": 1.0}}},
+                    {"work": {"unit": "t", "end": {}}}, {"work": {"unit": "t", "end": {"thin": 1.0, "medium": 1.0}}},
+                    {"work": {"unit": "t", "step": 0, "end": {"thin": 1.0, "thick": 1.0}}},
                     {"work": dict(self.WORK, lengths={"thin": 1.0, "thick": 1.0})}):
             with self.assertRaises(ValueError):
                 rigmath.progress_of(bad)
+        # an end may name any classes: one thin only has no thick work
+        thin_only = {"unit": "t", "end": {"thin": 1.0}}
+        self.assertIs(rigmath.progress_of({"work": thin_only}), thin_only)
+        self.assertEqual(rigmath.work_end(thin_only, 2), 0.0)
 
     def test_a_work_quantity_is_a_point_with_an_end_per_class(self):
         self.assertEqual([rigmath.work_end(self.WORK, k) for k in (0, 1, 2)], [0.0, 12.0, 20.0])
@@ -254,6 +260,23 @@ class Work(unittest.TestCase):
         self.assertAlmostEqual(frac(3.38), 1.0)
         self.assertAlmostEqual(frac(3.54), 0.5)
         self.assertEqual(frac(3.68), 0.0)
+
+    def test_classes_past_thick(self):
+        # keys: thin, thick, then the class's number up to MAX_CLASS; anything else is no class
+        self.assertEqual([rigmath.class_key(k) for k in (0, 1, 2, 3, 9, 10, -1)], [None, "thin", "thick", "3", "9", None, None])
+        self.assertEqual([rigmath.class_of_key(k) for k in ("thin", "thick", "3", "9")], [1, 2, 3, 9])
+        for key in ("none", "0", "1", "2", "03", "10", "medium", 3):
+            self.assertIsNone(rigmath.class_of_key(key), key)
+        # a part that moves only for class 3 stands still for the others, and a work's end is per class
+        work = {"unit": "t", "end": {"thin": 2.0, "thick": 2.0, "3": 1.0}}
+        d = {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"3": 0.5}, "windows": [{"from": 0.0, "to": 1000.0, "ease": 1.0}]}
+        rigmath.validate_driver(d)
+        at = lambda k: rigmath.driver_matrix(d, {"work": 0.5, "size": k, "presence": 1.0}, work)[1][3]  # noqa: E731
+        self.assertEqual([at(k) for k in (0, 1, 2, 10)], [0.0, 0.0, 0.0, 0.0])
+        self.assertAlmostEqual(at(3), 0.25)
+        self.assertEqual([rigmath.work_end(work, k) for k in (0, 1, 2, 3, 4)], [0.0, 2.0, 2.0, 1.0, 0.0])
+        # a trunk has the two classes: no length for class 3
+        self.assertEqual(rigmath.trunk_length(PATH, 3), 0.0)
 
     def test_trunk_is_the_same_input_as_work(self):
         d = {"type": "rotate", "axis": "x", "pivot": [0.0, 0.0, 0.0], "ratio": 2.0, "input": "trunk"}
@@ -291,6 +314,47 @@ class Geometry(unittest.TestCase):
         el = geometry.strut(t, [0.0, 0.0, 0.0], [0.0, 3.0, 4.0], 1.0, 1.0, "s", "rod")
         self.assertAlmostEqual(abs(el.size[1]), 5.0)
         close(self, [el.c], [[0.0, 1.5, 2.0]])
+
+
+class SquareCoil(unittest.TestCase):
+    """machinegen.coil: the square coil spring the mandrel station winds and the draw bench's follower spring is."""
+
+    C = coil.Coil((8.0, 12.6), 2.0, 0.6, 2.4, 7.4, 6)
+
+    def test_its_sides_run_corner_to_corner_round_the_bar(self):
+        C = self.C
+        self.assertEqual(C.sides, 24)
+        self.assertEqual([C.name(j) for j in range(5)], ["1u", "1w", "1d", "1e", "2u"])
+        for j in range(C.sides):
+            el = C.side(j, "s", "spring", "spring")
+            ax = [el.r[i][2] for i in range(3)]
+            start = [el.c[i] - ax[i] * C.length / 2 for i in range(3)]
+            end = [el.c[i] + ax[i] * C.length / 2 for i in range(3)]
+            close(self, [start, end], [list(C.corner(j)), list(C.end(j))], 1e-9)
+            # its inner face on the bar's face: the centre a half wire off it, along the face's outward normal
+            axis, sign = C.normal(j)
+            k = "xyz".index(axis)
+            self.assertAlmostEqual(sign * (el.c[k] - (8.0, 12.6)[k]) - 0.3, 2.0, places=9)
+
+    def test_a_right_hand_helix_a_pitch_a_turn(self):
+        C = self.C
+        angles = [math.atan2(C.corner(j)[1] - 12.6, C.corner(j)[0] - 8.0) for j in range(5)]
+        for a, b in zip(angles, angles[1:]):
+            self.assertAlmostEqual((b - a) % (2 * math.pi), math.pi / 2)        # from +x towards +y as z grows
+        self.assertAlmostEqual(C.corner(4)[2] - C.corner(0)[2], 2.4)
+        self.assertAlmostEqual(math.tan(C.tilt), 0.6 / 4.6)
+
+    def test_the_swing_takes_a_side_from_along_the_bar_into_place(self):
+        C = self.C
+        for j in range(4):
+            axis, ang = C.swing(j)
+            self.assertEqual(axis, C.normal(j)[0])
+            self.assertAlmostEqual(abs(ang), math.pi / 2 - C.tilt)
+            close(self, [geometry.mvec(geometry.rot(axis, math.degrees(ang)), [0.0, 0.0, 1.0])], [list(C.direction(j))], 1e-12)
+        flat = C.axial(5, "a", "spring", "spring")
+        lo, hi = flat.aabb()
+        close(self, [lo, hi], [[C.corner(5)[0] - 0.3, C.corner(5)[1] - 0.3, C.corner(5)[2] - 0.3],
+                               [C.corner(5)[0] + 0.3, C.corner(5)[1] + 0.3, C.corner(5)[2] + C.length + 0.3]], 1e-9)
 
 
 class Checks(unittest.TestCase):
@@ -404,6 +468,79 @@ class Output(unittest.TestCase):
         self.assertEqual(moved[0]["drivers"][0]["pivot"], [-4.0, 2.0, 2.0])
         self.assertEqual(moved[0]["drivers"][1]["anchor"], [-4.5, 0.5, -0.5])
         self.assertEqual(output.shift_cell([5, 0, 1], (5, 0, 1)), [0, 0, 0])
+
+
+class StretchGauge(unittest.TestCase):
+    """`"motion": "stretch"`: a scale along one of the part's own axes about its origin, from the work."""
+
+    WORK = {"unit": "turns", "end": {"3": 4.0}}
+
+    def grow(self, **kw):
+        d = {"type": "gauge", "motion": "stretch", "axis": "z", "origin": [0.25, 1.25, 0.5], "rotation": [-17.5, 0.0, 0.0],
+             "amount": {"3": -1.0}, "windows": [{"from": -1000.0, "to": 2.0, "ease": 1.0}]}
+        d.update(kw)
+        return rigmath.validate_driver(d)
+
+    def test_windows_add_up_and_the_factor_stops_at_0(self):
+        quarter = {"from": 0.0, "to": 1000.0, "ease": 1.0, "gain": {"3": 0.25}}
+        d = self.grow(windows=[quarter, {**quarter, "from": 1.0}, {**quarter, "from": 2.0}, {**quarter, "from": 3.0}])
+        f = [rigmath.stretch_factor(d, rigmath.full_inputs({"work": w, "size": 3, "presence": 1.0}), self.WORK) for w in (0.5, 2.0, 3.5, 4.0)]
+        for got, want in zip(f, (0.875, 0.5, 0.125, 0.0)):
+            self.assertAlmostEqual(got, want)
+        d = self.grow(amount={"3": -1.5}, windows=[{"from": 0.0, "to": 1000.0, "ease": 1.0}])
+        self.assertEqual(rigmath.stretch_factor(d, rigmath.full_inputs({"work": 1.0, "size": 3, "presence": 1.0}), self.WORK), 0.0)
+        # a class the amount does not name, or none, stays whole
+        for k in (0, 1, 2):
+            self.assertEqual(rigmath.stretch_factor(d, rigmath.full_inputs({"work": 1.0, "size": k, "presence": 1.0}), self.WORK), 1.0)
+
+    def test_a_coil_side_grows_from_its_corner_along_its_own_length(self):
+        side = geometry.flatten([make_fixture.SIDE])[0]
+        corner = [4.0, 20.0, 8.0]
+        for w, length in ((0.5, 0.0), (1.25, 2.0), (1.75, 6.0), (2.0, 8.0)):
+            m = rigmath.driver_matrix(self.grow(), {"work": w, "size": 3, "presence": 1.0}, self.WORK)
+            el = rigmath.posed(side, m)
+            close(self, [el.corners()[0]], [corner], 1e-9)
+            self.assertAlmostEqual(el.size[2], length)
+            self.assertEqual(el.vanished, length == 0.0)
+            if length:
+                self.assertEqual(el.size[:2], side.size[:2])
+                close(self, el.r, side.r, 1e-12)
+
+    def test_a_vanished_part_draws_and_touches_nothing(self):
+        side = geometry.flatten([make_fixture.SIDE])[0]
+        m = rigmath.driver_matrix(self.grow(), {"work": 0.0, "size": 3, "presence": 1.0}, self.WORK)
+        el = rigmath.posed(side, m)
+        self.assertTrue(el.vanished)
+        self.assertEqual(checks.drawn_faces(el), [])
+        self.assertFalse(checks.obb_obb(el, side))
+        self.assertFalse(checks.obb_overlap(el, [0, 0, 0], [64, 64, 64]))
+
+    def test_a_stretch_across_an_element_is_refused(self):
+        # the side stretched along the authored z, not its own turned z: it would be sheared
+        side = geometry.flatten([make_fixture.SIDE])[0]
+        m = rigmath.driver_matrix(self.grow(rotation=[0.0, 0.0, 0.0]), {"work": 1.5, "size": 3, "presence": 1.0}, self.WORK)
+        with self.assertRaises(ValueError):
+            rigmath.posed(side, m)
+
+    def test_a_rider_takes_the_parents_motion_but_not_its_stretch(self):
+        parts = [{"id": "a", "match": ["a"], "drivers": [{"type": "slide", "axis": "x", "amplitude": 0.5, "ratio": 1.0, "input": "work"},
+                                                         self.grow()]},
+                 {"id": "b", "match": ["b"], "ride": "a", "drivers": []}]
+        inputs = {"work": 1.5, "size": 3, "presence": 1.0}
+        slide = rigmath.driver_matrix(parts[0]["drivers"][0], inputs, self.WORK)
+        close(self, rigmath.part_matrix(parts, "b", inputs, self.WORK), slide)
+        close(self, rigmath.part_matrix(parts, "a", inputs, self.WORK, rigid=True), slide)
+        self.assertTrue(rigmath.is_scale(self.grow()) and rigmath.is_scale({"type": "stretch"}))
+        self.assertFalse(rigmath.is_scale(gauge()))
+
+    def test_the_fixtures_stretched_boxes_are_the_posed_boxes(self):
+        fx = json.loads((MOD / "tests" / "Machines" / "driver-fixture.json").read_text())
+        self.assertGreaterEqual(len(fx["stretchBoxes"]), 6)
+        for b in fx["stretchBoxes"]:
+            m = rigmath.part_matrix(b["parts"], b["part"], b["inputs"], fx["work"])
+            el = geometry.flatten([b["element"]])[0]
+            close(self, el.corners(), b["authored"], 1e-6)
+            close(self, rigmath.posed(el, m).corners(), b["corners"], 1e-6)
 
 
 if __name__ == "__main__":

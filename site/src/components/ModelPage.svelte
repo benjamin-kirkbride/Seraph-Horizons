@@ -17,6 +17,7 @@
     enterPhase,
     feedAdvance,
     feedBlocksPerRadian,
+    hotGlow,
     INPUT_SPEED_MAX,
     needsMet,
     openingFitted,
@@ -27,6 +28,7 @@
     playTrip,
     propBox,
     rigNumber,
+    sizeNames as sizeNamesOf,
     startPhase,
     stateGroups,
     stateOf,
@@ -136,7 +138,15 @@
   const workIsTrunk = $derived(view?.path?.kind === "trunk");
   const workLabel = $derived(scenario?.inputs?.work ?? scenario?.inputs?.trunk);
   const workName = $derived(view?.path ? (workIsTrunk ? s.trunkTravel : s.workOf(view.path.name)) : "");
-  const sizeNames = $derived(scenario?.inputs?.size?.names ?? s.sizeNames);
+  // none, then a name for each class the rig's work has (the scenario's, else thin, thick and "Class k")
+  const sizeNames = $derived(sizeNamesOf(scenario?.inputs?.size?.names, s.sizeNames, view?.path ?? null));
+  // Parts drawn hot (scenario.heat): the slider's temperature, °C, and the parts it lights.
+  const heat = $derived(scenario?.heat);
+  let heatSet = $state<number | null>(null);
+  const temperature = $derived(heatSet ?? heat?.default ?? 0);
+  const hotParts = $derived(
+    new Set(view && heat ? view.parts.flatMap((p, i) => (p.part.requires && heat.requires.includes(p.part.requires) ? [i] : [])) : []),
+  );
   // Shaft turns per unit of W when Play gears the work to the shaft (play.turnsPerWork); null otherwise.
   const gearedTurns = $derived.by(() => {
     const ref = play?.turnsPerWork;
@@ -258,6 +268,10 @@
   });
 
   $effect(() => scene?.pose(matrices, visible, jointMatrices));
+  $effect(() => {
+    const g = hotGlow(temperature);
+    scene?.setGlow(hotParts, g.rgb, g.mix);
+  });
   $effect(() => scene?.colourBy(colourMode));
   $effect(() => scene?.setTextureColours(new Map([...textureColours].map(([code, t]) => [code, t.colour]))));
   $effect(() => scene?.setEdges(edges));
@@ -774,6 +788,23 @@
                 data-input="oil"
               />
               {#if scenario?.inputs?.oil?.hint}<span class="muted small">{scenario.inputs.oil.hint}</span>{/if}
+            </label>
+          {/if}
+          {#if heat}
+            <label class="slider">
+              <span class="row"><span>{heat.label ?? s.temperature}</span><output>{s.degrees(temperature)}</output></span>
+              <input
+                type="range"
+                min="0"
+                max={heat.max ?? 1600}
+                step="10"
+                value={temperature}
+                oninput={(e) => {
+                  heatSet = +e.currentTarget.value;
+                }}
+                data-input="heat"
+              />
+              {#if heat.hint}<span class="muted small">{heat.hint}</span>{/if}
             </label>
           {/if}
           {#if view.inputs.lifting}
