@@ -437,7 +437,7 @@ def ore_raws(export: dict, rules: Rules) -> dict[str, tuple[float, str]]:
 
 def _ore_forms(rules: Rules) -> list[tuple[str, str, str, dict]]:
     """Ore processing's items: (code, form, ore, item spec) for every ore of the mod's figures and
-    form of ore-processing.json's items (crushed ore once per grain, as form crushed-<grain>), and
+    form of ore-processing.json's items (a rock form once per grade, as form <form>-<grade>), and
     litharge (ore "")."""
     op = rules.ore_processing
     if not op:
@@ -451,8 +451,8 @@ def _ore_forms(rules: Rules) -> list[tuple[str, str, str, dict]]:
             only = item.get("only")
             if (only == "sulfide" and spec.get("class") != "sulfide") or (only == "free" and not spec.get("free")):
                 continue
-            for grain in (("coarse", "fine") if "{grain}" in item["code"] else ("",)):
-                out.append((item["code"].format(ore=ore, grain=grain), f"{form}-{grain}" if grain else form, ore, item))
+            for grade in (GRADES if "{grade}" in item["code"] else ("",)):
+                out.append((item["code"].format(ore=ore, grade=grade), f"{form}-{grade}" if grade else form, ore, item))
     if (lith := op.get("litharge")):
         out.append((lith["code"], "litharge", "", lith))
     return out
@@ -469,8 +469,8 @@ def augment_export(export: dict, rules: Rules) -> list[str]:
     for code, form, ore, spec in _ore_forms(rules):
         if code in items:
             continue
-        grain = form.split("-", 1)[1] if "-" in form else ""
-        items[code] = {"kind": "item", "name": spec.get("name", code).format(ore=ore, grain=grain),
+        grade = form.split("-", 1)[1] if "-" in form else ""
+        items[code] = {"kind": "item", "name": spec.get("name", code).format(ore=ore, grade=grade),
                        "mod": code.split(":", 1)[0], "handbookVisible": True,
                        "attributes": {"maxStackSize": int(spec.get("stack", 64))},
                        "switch": op.get("switch"), "addedBy": "tools/item-values/ore-processing.json"}
@@ -492,25 +492,29 @@ def augment_export(export: dict, rules: Rules) -> list[str]:
 
 
 def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, str]]:
-    """Ore processing's items priced on concentrate (#689): each form from its metal units and the
-    labour of every stage that reaches it, along ore-processing.json's reference line. An item holds
-    the figures' concentrateUnits (5). With a stage's kind (pct, flat) from markups.json, per item
-    (u: the ore's metal's gears per unit, as its ore and nugget are priced):
+    """Ore processing's items priced on concentrate (#689, #847): each form from its metal units and
+    the labour of every stage that reaches it, along ore-processing.json's reference line. A rock form
+    (crushed and ground ore, roasted rock) holds its raw ore's units, by ore and grade, one item to
+    one; a concentrate holds the figures' concentrateUnits (5). With a stage's kind (pct, flat) from
+    markups.json, per item (u: the ore's metal's gears per unit, as its ore and nugget are priced;
+    U: the grade's units):
 
-        crushed     = min over the grades of its grain of (units x u x (1 + pct) + flat) / (units / 5),
-                      for coarse also a nugget's 5 units
-        ground      = min(crushed) x (1 + pct) + flat
-        concentrate = (ground x (1 + pct) + flat) / r, r = the line's concentrator x the ore's
-                      density (x freeUnamalgamated for free gold and silver), at most 1
-        amalgam     = the same without freeUnamalgamated
-        roasted     = (concentrate x (1 + pct) + flat - sulfur credit) / the line's roaster
+        crushed(grade)  = U x u x (1 + pct) + flat
+        ground(grade)   = crushed(grade) x (1 + pct) + flat
+        roasted rock    = crushed(grade) x (1 + pct) + flat (sulfides)
+        concentrate     = min over the grades of (ground(grade) x (1 + pct) + flat) / (r x U / 5),
+                          r = the line's concentrator x the ore's density (x freeUnamalgamated for
+                          free gold and silver), at most 1
+        amalgam         = the same without freeUnamalgamated
+        roasted         = (concentrate x (1 + pct) + flat - sulfur credit) / the line's roaster
 
     The parted form (a sulfide's roasted concentrate, another's concentrate and amalgam) is worth at
     least what parting wins from it once its by-products' methods have a station (ore-processing.json
     parting): 5 x (u x unparted + by-product share x its metal's u x the method's recovery at the
     line's tier). Litharge is the lead it smelts back to; the game's legacy crushed ores
-    (game:crushed-chromite, ...) are their ore's coarse crushed ore. Only codes of the export are
-    priced (augment_export adds the switch's items to an export without them)."""
+    (game:crushed-chromite, ...) are 5 units of their ore and the crushing, as every use counts them.
+    Only codes of the export are priced (augment_export adds the switch's items to an export without
+    them)."""
     op = rules.ore_processing
     if not op or not rules.ores:
         return {}
@@ -541,21 +545,24 @@ def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, st
     for ore, spec in (fig.get("ores") or {}).items():
         spec = spec or {}
         u, metal = per_unit((op.get("nuggetOf") or {}).get(ore) or nugget_of(ore))
-        crushed = {}
-        for grain, grades in (("fine", ("poor",)), ("coarse", ("medium", "rich", "bountiful"))):
-            costs = [stage("crush", units_of(ore, g) * u, units_of(ore, g) / per_item) for g in grades]
-            if grain == "coarse":
-                costs.append(stage("crush", per_item * u))  # a nugget crushes into one coarse
-            crushed[grain] = min(costs)
-        ground = stage("grind", min(crushed.values()))
         r_free = min(1.0, base * float(spec.get("density", 1.0)))
         r = min(1.0, r_free * (float(fig.get("freeUnamalgamated", 1.0)) if spec.get("free") else 1.0))
-        conc = stage("concentrate", ground, r)
-        vals = {"crushed-coarse": crushed["coarse"], "crushed-fine": crushed["fine"], "ground": ground, "concentrate": conc}
-        why = {"crushed-coarse": "crushed", "crushed-fine": "crushed", "ground": "crushed, ground",
-               "concentrate": f"ground, {line['concentrator']} {r:.3g}"}
+        vals, why = {}, {}
+        conc_costs, amalgam_costs = [], []
+        for g in GRADES:
+            units = units_of(ore, g)
+            crushed = stage("crush", units * u)
+            ground = stage("grind", crushed)
+            vals[f"crushed-{g}"], why[f"crushed-{g}"] = crushed, f"{units:g} units crushed"
+            vals[f"ground-{g}"], why[f"ground-{g}"] = ground, f"{units:g} units crushed, ground"
+            if spec.get("class") == "sulfide":
+                vals[f"roastedrock-{g}"], why[f"roastedrock-{g}"] = stage("roast", crushed), f"{units:g} units crushed, roasted"
+            conc_costs.append(stage("concentrate", ground, r * units / per_item))
+            amalgam_costs.append(stage("amalgamate", ground, r_free * units / per_item))
+        conc = min(conc_costs)
+        vals["concentrate"], why["concentrate"] = conc, f"ground, {line['concentrator']} {r:.3g}"
         if spec.get("free"):
-            vals["amalgam"] = stage("amalgamate", ground, r_free)
+            vals["amalgam"] = min(amalgam_costs)
             why["amalgam"] = f"ground, amalgamated {r_free:.3g}"
         if spec.get("class") == "sulfide":
             pct, flat = rules.markup(kinds.get("roast", "mod"))
@@ -575,10 +582,11 @@ def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, st
         for form, v in vals.items():
             code = forms.get((ore, form))
             if code in items:
-                out[code] = (v, f"raw:oreprocessing {per_item:g} units of {metal}: {why[form]}")
+                held = why[form] if "-" in form else f"{per_item:g} units of {metal}: {why[form]}"
+                out[code] = (v, f"raw:oreprocessing {held}" + (f" of {metal}" if "-" in form else ""))
         legacy = f"game:crushed-{ore}"
         if ore in (op.get("legacyCrushed") or {}).get("ores", []) and legacy in items:
-            out[legacy] = (crushed["coarse"], f"raw:oreprocessing legacy crushed ore, {per_item:g} units of {metal}")
+            out[legacy] = (stage("crush", per_item * u), f"raw:oreprocessing legacy crushed ore, {per_item:g} units of {metal}")
     lith = op.get("litharge")
     if lith and lith["code"] in items and lith.get("metal") in unit_value:
         out[lith["code"]] = (float(lith["units"]) * float(unit_value[lith["metal"]]),

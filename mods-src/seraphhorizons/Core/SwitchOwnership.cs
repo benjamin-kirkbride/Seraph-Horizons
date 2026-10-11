@@ -66,12 +66,10 @@ public sealed class SwitchOwnership
         // The eidolon's stainless rods, nails and strips and chain are the game's own items with another
         // metal state, added by a JSON patch (patches/eidolon-stainless.json).
         new("Eidolon", [], ["game:rod-stainlesssteel", "game:metalnailsandstrips-stainlesssteel", "game:metalchain-stainlesssteel"], []),
-        // Crushed ore is an item type in the game's domain whose code, "crushed", is vanilla's
-        // crushed item's too (game:crushed-{material}), so its codes are listed by their grain. The
-        // exporter's own recipe types for roasting in the firepit, retorting in the still and cupellation
+        // The exporter's own recipe types for roasting in the firepit, retorting in the still and cupellation
         // in the cupel and liquation in the pan (tools/recipe-export, Recipes/OreRoastingExport.cs, OreRetortingExport.cs,
         // RecipeSection.Cupellation.cs, RecipeSection.Liquation.cs).
-        new("OreProcessing", [], ["game:crushed-*-coarse", "game:crushed-*-fine"], ["oreroasting", "oreretorting", "cupellation", "liquation"]),
+        new("OreProcessing", [], [], ["oreroasting", "oreretorting", "cupellation", "liquation"]),
     ];
 
     private readonly List<OwnedBySwitch> _owned;

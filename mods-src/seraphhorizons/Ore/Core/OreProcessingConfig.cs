@@ -8,7 +8,7 @@ namespace SeraphHorizons.Mod.Ore.Core;
 /// </summary>
 public sealed class OreProcessingConfig
 {
-    /// <summary>Units of metal in one crushed, ground or concentrate item (a nugget's 5).</summary>
+    /// <summary>Units of metal in one concentrate item (a nugget's 5).</summary>
     public double ConcentrateUnits { get; set; } = 5;
 
     /// <summary>Base recovery per <see cref="Concentrator"/>, keyed by its lower-case name.</summary>
@@ -26,9 +26,12 @@ public sealed class OreProcessingConfig
     /// station.</summary>
     public Dictionary<string, Dictionary<string, double>> Parting { get; set; } = new();
 
-    /// <summary>The share of its units each <see cref="OreForm"/> smelts to, keyed by its lower-case
-    /// name.</summary>
+    /// <summary>The share of its units each <see cref="OreForm"/> that is not rock smelts to, keyed by
+    /// its lower-case name.</summary>
     public Dictionary<string, double> Smelt { get; set; } = new();
+
+    /// <summary>The share of its units rock smelts to, keyed by its grade (#847).</summary>
+    public Dictionary<string, double> SmeltByGrade { get; set; } = new();
 
     /// <summary>The bone-ash cupel at the forge (#722).</summary>
     public CupelEntry Cupel { get; set; } = new();
