@@ -123,6 +123,68 @@ public class EidolonDockingTests
         Assert.Equal("cloth-red", restored.Material(FittingLayer.Sash));
     }
 
+    // A docked body's save from when the bones took 10 support beams (before #831 raised them to 30).
+    private static Dictionary<string, int> UnderOldBill(BodyParts docked)
+    {
+        var snapshot = docked.Snapshot().ToDictionary(kv => kv.Key, kv => kv.Value);
+        snapshot["bones/game:supportbeam-oak"] = 10;
+        return snapshot;
+    }
+
+    [Fact]
+    public void A_docked_body_saved_under_an_older_bill_is_made_again_from_the_eidolons_build()
+    {
+        var stale = BodyParts.Restore(UnderOldBill(BodyParts.Docked(Steel)));
+        // the saved copy is short: its bones part fitted, so its build is bare
+        Assert.Equal("bones", stale.Next);
+        Assert.Equal(EidolonBuild.Bare, stale.Build);
+        // measured against the eidolon (or the most it can wear), none of its layers is loose
+        Assert.Empty(stale.Loose(Steel));
+        Assert.Equal(Steel, stale.MostWorn);
+        Assert.Empty(stale.Loose(stale.MostWorn));
+        // and the short body never strips it
+        Assert.Null(stale.Dressing(Steel));
+
+        var parts = stale.Reconciled(Steel);
+        Assert.True(parts.Complete);
+        Assert.Equal(Steel, parts.Build);
+        Assert.Equal(FittingCounts.Of(FittingLayer.Bones)[0], parts.Fitted("bones", "game:supportbeam-oak"));
+        Assert.Empty(parts.Loose(Steel));
+        Assert.Empty(parts.TakeLoose(Steel));
+        Assert.Null(parts.Dressing(Steel));
+        Assert.Equal(parts.Snapshot(), parts.Reconciled(Steel).Snapshot());
+    }
+
+    [Fact]
+    public void Reconciling_keeps_the_pieces_fitted_beyond_the_eidolon_and_the_spare()
+    {
+        var worn = Steel.Stripped()!.Stripped()!; // skirt, sash off
+        var docked = BodyParts.Docked(worn);
+        docked.Fit("game:cloth-red", 1);
+        var saved = UnderOldBill(docked);
+        saved["spare/game:rod-iron"] = 2;
+        var parts = BodyParts.Restore(saved).Reconciled(worn);
+        Assert.Equal(worn, parts.Build);
+        Assert.Equal("sash", parts.Next);
+        Assert.Equal("cloth-red", parts.Material(FittingLayer.Sash));
+        Assert.Equal([new GantryDrop("game:cloth-red", 1), new GantryDrop("game:rod-iron", 2)], parts.Loose(worn));
+        // the sash finished on the spine goes onto the eidolon, adding to what it wears
+        Assert.Equal(FittingCounts.Of(FittingLayer.Sash)[0] - 1, parts.Fit("game:cloth-red", 64));
+        Assert.Equal(worn.With(FittingLayer.Sash, "cloth-red"), parts.Dressing(worn));
+    }
+
+    [Fact]
+    public void The_most_a_docked_eidolon_can_wear_counts_in_a_layer_part_fitted()
+    {
+        var worn = Steel.Stripped()!; // skirt off
+        var parts = BodyParts.Docked(worn);
+        parts.Fit("game:metalchain-iron", 1);
+        // with the eidolon not loaded the chain waits rather than a worn layer being given back
+        Assert.Equal(worn.With(FittingLayer.Skirt, EidolonFittings.Iron), parts.MostWorn);
+        Assert.Empty(parts.Loose(parts.MostWorn));
+        Assert.Equal([new GantryDrop("game:metalchain-iron", 1)], parts.Loose(worn));
+    }
+
     [Fact]
     public void Stripping_a_layer_returns_its_bill_by_the_bill()
     {
