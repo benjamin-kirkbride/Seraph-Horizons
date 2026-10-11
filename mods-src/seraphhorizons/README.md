@@ -4393,7 +4393,7 @@ lists what is wrong with the file (`Problems`, for the server log; a missing fig
   (hand), sluice, jig, table, table and vanner; roasting by firepit to tier 1, stall at 2,
   reverberatory at 3 and 4; grinding from tier 2.
 - Smelting (`SmeltShare(ore, form, grade)`, #847): rock (raw, crushed and ground ore) by its grade,
-  poor 10 %, medium 25 %, rich 40 %, bountiful 55 % (`smeltByGrade`); a sulfide's rock nothing until
+  poor 10 %, medium 25 %, rich 40 %, bountiful 50 % (`smeltByGrade`); a sulfide's rock nothing until
   roasted, and its roasted rock the grade's share × the firepit's 85 %; concentrate, roasted
   concentrate and sponge 100 % (`smelt`), a sulfide's concentrate nothing until roasted.
 - Parting (`Parting(method, tier)`, `Smelted(ore, mainUnits, partingTier)`): a
@@ -4471,15 +4471,15 @@ sulfide like galena, and a lead ore (#690, "Cupellation" below): every form of i
 
 **Smelting** (#688, #847). The furnace reads the ore's grade: the rock has to be slagged off, and metal
 is lost with the slag, so rock smelts at its grade's share whether raw, crushed or ground
-(`smeltByGrade` in `config/ore-processing.json`: poor 10 %, medium 25 %, rich 40 %, bountiful 55 %), and
-concentrating is the one step where the bulk drops. By hand at the mine, that is 10 / 25 / 40 / 55 %
+(`smeltByGrade` in `config/ore-processing.json`: poor 10 %, medium 25 %, rich 40 %, bountiful 50 %), and
+concentrating is the one step where the bulk drops. By hand at the mine, that is 10 / 25 / 40 / 50 %
 smelted as mined against 22 % (poor, unground) and 55 % in the rocker. A sulfide's raw, crushed and
 ground ore does not smelt; its raw and crushed ore roast in the firepit into roasted rock, which smelts
 at the share × 85 % (next section). What every form smelts to is what the ore's nugget smelts to
 (metal, melting point, smelting type; `nugget-{ore}` without `quartz_`, argentiferous galena's
 galena's), at #685's share (`OreRecovery.SmeltShare`). The game's rate is a whole number of items per
 smelted stack, so the rate is the smallest exact one (`OreProducts.Rate`, an output of up to 10,000):
-a bountiful 35-unit ore at 55 % 77 ingots per 400, a medium 20-unit one at 25 % 1 per 20, concentrate 1
+a bountiful 35-unit ore at 50 % 7 ingots per 40, a medium 20-unit one at 25 % 1 per 20, concentrate 1
 per 20. The game counts a charge as a fraction of the rate, so a rate bigger than any charge costs
 nothing. Every furnace then takes them as it takes the nugget:
 
@@ -4498,7 +4498,7 @@ nothing. Every furnace then takes them as it takes the nugget:
   (pyrite's roasted) 5 and smex's own crushed iron 2.5 (`HopperIronOreRequired` 40,
   `HopperNuggetRequired` 20, `BfIronPerMeltCycle` 100: a batch is 20 nuggets for 100 units), and our
   iron concentrates join its nugget list (`IronOreCompat`, kept there by a postfix on its `Init`). Our
-  rock is not in its lists: smex counts one figure per list, and rock holds 2 to 22 units of iron an
+  rock is not in its lists: smex counts one figure per list, and rock holds 2 to 20 units of iron an
   item by its grade.
 
 **Crushing** (#687, #847): one raw ore crushes to one crushed ore of its grade, exactly and with no

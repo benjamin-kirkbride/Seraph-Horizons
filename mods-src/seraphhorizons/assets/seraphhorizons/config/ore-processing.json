@@ -62,7 +62,7 @@
   },
   "cupel": { "capacityUnits": 200, "leadPerOreUnit": 1, "meltingPoint": 950, "secondsPerIngot": 60 },
   "liquation": { "capacityUnits": 100, "tinPoint": 240, "leadPoint": 327, "secondsPerIngot": 15 },
-  "smeltByGrade": { "poor": 0.10, "medium": 0.25, "rich": 0.40, "bountiful": 0.55 },
+  "smeltByGrade": { "poor": 0.10, "medium": 0.25, "rich": 0.40, "bountiful": 0.50 },
   "smelt": { "concentrate": 1.0, "roastedconcentrate": 1.0, "sponge": 1.0 },
   "retort": {
     "mercury": "em:mercuryportion",

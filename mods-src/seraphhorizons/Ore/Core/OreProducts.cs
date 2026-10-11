@@ -132,7 +132,7 @@ public static class OreProducts
     /// <summary>
     /// The smelting rate that gives <paramref name="share"/> of <paramref name="unitsPerItem"/> per item:
     /// the smallest output stack for which the ratio is a whole number of items, so a 35-unit bountiful
-    /// ore at 55 % (19.25 units) is 77 ingots per 400, exact. The game's crucible and alloy maths count a
+    /// ore at 50 % (17.5 units) is 7 ingots per 40, exact. The game's crucible and alloy maths count a
     /// charge as a fraction of the rate, so a rate larger than a charge costs nothing. Null for a share
     /// of 0 (does not smelt). If no output up to <see cref="MaxRateOutput"/> is exact, the nearest ratio
     /// for one output (never 0).

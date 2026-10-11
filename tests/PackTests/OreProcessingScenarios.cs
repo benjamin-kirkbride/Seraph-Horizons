@@ -239,7 +239,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
     }
 
     // The game's crucible (firepit) and alloys (#847): concentrate whole; rock (raw, crushed and ground
-    // ore) by its grade, poor 10 %, medium 25 %, rich 40 %, bountiful 55 %; a sulfide's rock and
+    // ore) by its grade, poor 10 %, medium 25 %, rich 40 %, bountiful 50 %; a sulfide's rock and
     // concentrate not at all, its roasted rock at its grade's share times the firepit's 85 %.
     [AtlasScenario]
     public void Crucible_smelts_by_grade()
@@ -250,7 +250,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(4 * 15 * 0.10 / 100, Ingots(Stack("game:ore-poor-malachite-limestone", 4)), 6);
         Assert.Equal(4 * 20 * 0.25 / 100, Ingots(Stack("seraphhorizons:crushedore-malachite-medium", 4)), 6);
         Assert.Equal(4 * 25 * 0.40 / 100, Ingots(Stack("game:ore-rich-malachite-limestone", 4)), 6);
-        Assert.Equal(4 * 35 * 0.55 / 100, Ingots(Stack("seraphhorizons:groundore-malachite-bountiful", 4)), 6);
+        Assert.Equal(4 * 35 * 0.50 / 100, Ingots(Stack("seraphhorizons:groundore-malachite-bountiful", 4)), 6);
         // The same rock at any form smelts the same: crushing and grinding change nothing in the furnace.
         Assert.Equal(Ingots(Stack("game:ore-bountiful-malachite-limestone", 4)), Ingots(Stack("seraphhorizons:crushedore-malachite-bountiful", 4)), 9);
         // Cassiterite holds less: a rich ore 15 units, so 6 smelted.
@@ -263,7 +263,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.False(Item("game:ore-medium-galena-shale").CombustibleProps!.RequiresContainer);
         Assert.False(Item("seraphhorizons:crushedore-galena-medium").CombustibleProps!.RequiresContainer);
         Assert.Null(Item("seraphhorizons:groundore-galena-medium").CombustibleProps);
-        Assert.Equal(4 * 35 * 0.55 * 0.85 / 100, Ingots(Stack("seraphhorizons:roastedore-galena-bountiful", 4)), 6);
+        Assert.Equal(4 * 35 * 0.50 * 0.85 / 100, Ingots(Stack("seraphhorizons:roastedore-galena-bountiful", 4)), 6);
         Assert.Equal("game:ingot-lead", Item("seraphhorizons:roastedore-galena-bountiful").CombustibleProps!.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         // A sulfide's concentrate smelts only into its roasted concentrate, with no container, which
         // the crucible refuses outright (BlockSmeltingContainer.CanSmelt): it does not smelt to metal.
@@ -276,12 +276,13 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(EnumItemStorageFlags.Metallurgy, Item("seraphhorizons:concentrate-malachite").StorageFlags & EnumItemStorageFlags.Metallurgy);
         Assert.Equal(EnumItemStorageFlags.Metallurgy, Item("seraphhorizons:crushedore-malachite-poor").StorageFlags & EnumItemStorageFlags.Metallurgy);
 
-        // Tin bronze: 4 bountiful copper ores (140 units at 55 %: 77) and 2 tin concentrate (10): the
-        // alloy maths counts the ore's 77-in-400 rate whole (AlloyStackSize).
+        // Tin bronze: 8 bountiful copper ores (280 units at 50 %: 140) and 3 tin concentrate (15): the
+        // alloy maths counts the ore's 7-in-40 rate whole (AlloyStackSize).
         var bronze = World.Api.GetMetalAlloys().Single(a => a.Output.ResolvedItemstack.Collectible.Code.Path == "ingot-tinbronze");
-        ItemStack[] charge = [Stack("game:ore-bountiful-nativecopper-basalt", 4), Stack("seraphhorizons:concentrate-cassiterite", 2)];
+        ItemStack[] charge = [Stack("game:ore-bountiful-nativecopper-basalt", 4), Stack("game:ore-bountiful-nativecopper-basalt", 4),
+            Stack("seraphhorizons:concentrate-cassiterite", 3)];
         Assert.True(bronze.Matches(charge));
-        Assert.Equal(0.87, bronze.GetTotalOutputQuantity(charge), 6);
+        Assert.Equal(1.55, bronze.GetTotalOutputQuantity(charge), 6);
     }
 
     // The bloomery takes what melts between 1000 and 1500 °C into a bloom, items per bloom by the ratio.
@@ -310,9 +311,9 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal("BlockEntityCrucibulumForge", forge!.GetType().Name);
         var shares = (double[])AccessTools.Method(forge.GetType(), "ChargeShares").Invoke(forge,
             [new[] { Stack("seraphhorizons:concentrate-cassiterite", 20), Stack("seraphhorizons:crushedore-cassiterite-bountiful", 4) }])!;
-        // Shares of the charge's metal: 20 concentrate (100 units) and 4 bountiful crushed (80 at 55 %: 44).
-        Assert.Equal(100.0 / 144, shares[0], 6);
-        Assert.Equal(44.0 / 144, shares[1], 6);
+        // Shares of the charge's metal: 20 concentrate (100 units) and 4 bountiful crushed (80 at 50 %: 40).
+        Assert.Equal(100.0 / 140, shares[0], 6);
+        Assert.Equal(40.0 / 140, shares[1], 6);
         World.SetBlock("game:air", pos);
     }
 

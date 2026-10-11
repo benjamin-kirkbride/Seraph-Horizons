@@ -183,12 +183,12 @@ public class OreRecoveryTests
     }
 
     // #847: rock smelts by its grade, whether raw, crushed or ground: poor 10 %, medium 25 %, rich 40 %,
-    // bountiful 55 %.
+    // bountiful 50 %.
     [Theory]
     [InlineData("poor", 0.10)]
     [InlineData("medium", 0.25)]
     [InlineData("rich", 0.40)]
-    [InlineData("bountiful", 0.55)]
+    [InlineData("bountiful", 0.50)]
     public void RockSmeltsByGrade(string grade, double share)
     {
         var hematite = R.Ore("hematite");
@@ -214,7 +214,7 @@ public class OreRecoveryTests
     [InlineData("poor", 0.085)]
     [InlineData("medium", 0.2125)]
     [InlineData("rich", 0.34)]
-    [InlineData("bountiful", 0.4675)]
+    [InlineData("bountiful", 0.425)]
     public void SulfideRockSmeltsOnlyRoasted(string grade, double roasted)
     {
         foreach (var ore in R.Ores.Where(o => o.IsSulfide))
@@ -232,7 +232,7 @@ public class OreRecoveryTests
     [InlineData("poor", 0.10, 0.22)]
     [InlineData("medium", 0.25, 0.55)]
     [InlineData("rich", 0.40, 0.55)]
-    [InlineData("bountiful", 0.55, 0.55)]
+    [InlineData("bountiful", 0.50, 0.55)]
     public void ConcentratingByHandBeatsOrMatchesSmeltingRock(string grade, double asMined, double rocker)
     {
         var hematite = R.Ore("hematite");

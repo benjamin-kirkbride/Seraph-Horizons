@@ -217,7 +217,7 @@ public sealed class OreRecovery
     public static bool IsRock(OreForm form) => form is OreForm.Raw or OreForm.Crushed or OreForm.Ground or OreForm.RoastedRock;
 
     /// <summary>The share of its units rock of <paramref name="grade"/> gives in a furnace (config
-    /// <c>smeltByGrade</c>: poor 10 %, medium 25 %, rich 40 %, bountiful 55 %); 0 for no grade.</summary>
+    /// <c>smeltByGrade</c>: poor 10 %, medium 25 %, rich 40 %, bountiful 50 %); 0 for no grade.</summary>
     public double GradeShare(string? grade) => grade != null ? _smeltByGrade.GetValueOrDefault(grade) : 0;
 
     /// <summary>

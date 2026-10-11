@@ -14,7 +14,7 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// and a concentrate hold 5 units, so the live settings become 40, 20 and 100 (a batch is 20 nuggets
 /// or concentrates for 100 units, or 40 of smex's crushed iron at 2.5), and the furnace takes the iron
 /// ores' concentrate and pyrite's roasted concentrate as nuggets in smex's own list
-/// (<c>IronOreCompat</c>). Not our crushed ore: rock smelts by its grade (#847), 2 to 22 units an
+/// (<c>IronOreCompat</c>). Not our crushed ore: rock smelts by its grade (#847), 2 to 20 units an
 /// item, which smex's one figure per list cannot count, so the blast furnace takes concentrate. smex's
 /// own crushed iron stays in its list, now at 2.5. The settings are set live, not written to smex's file (as
 /// <see cref="SteelBits.SmexScrap"/> does); exlib sends the server's live settings to clients.

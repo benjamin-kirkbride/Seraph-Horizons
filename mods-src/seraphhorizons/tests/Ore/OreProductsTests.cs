@@ -70,13 +70,14 @@ public class OreProductsTests
     public void CrushingIsOneForOne(double units, double perCrushed, int crushed) =>
         Assert.Equal(crushed, OreProducts.CrushedCount(units, perCrushed));
 
-    // Rock smelts at its grade's share, exactly: a 35-unit bountiful ore at 55 % 77 ingots per 400.
+    // Rock smelts at its grade's share, exactly: a 35-unit bountiful ore at 50 % 7 ingots per 40.
     [Theory]
-    [InlineData(35, 0.55, 77, 400)]
+    [InlineData(35, 0.50, 7, 40)]
     [InlineData(15, 0.10, 3, 200)]
     [InlineData(20, 0.25, 1, 20)]
     [InlineData(25, 0.40, 1, 10)]
-    [InlineData(40, 0.55, 11, 50)]
+    [InlineData(40, 0.50, 1, 5)]
+    [InlineData(35, 0.425, 119, 800)]
     [InlineData(5, 1, 1, 20)]
     public void RatesAreExact(double units, double share, int output, int ratio)
     {

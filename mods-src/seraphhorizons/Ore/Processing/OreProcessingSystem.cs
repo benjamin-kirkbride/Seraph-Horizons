@@ -35,7 +35,7 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// </list>
 /// On each side whose own setting is on, a transpiler makes the game's alloy maths count a smelted
 /// stack's size (<see cref="AlloyStackSize"/>), as its single-metal maths already does, so a chunk's
-/// exact share (77 ingots per 400 bountiful ores at 55 %) holds in an alloy too.
+/// exact share (7 ingots per 40 bountiful ores at 50 %) holds in an alloy too.
 ///
 /// Roasting (#720): a sulfide's concentrate cooks in the game's firepit into roasted concentrate at
 /// the firepit's share (<see cref="ItemOreProduct.DoSmelt"/>), and its raw and crushed ore into roasted
