@@ -30,9 +30,11 @@ public sealed class MandrelStationRig
     /// <summary>Blows per hollow of each class, [none, lead, copper], as the model is drawn.</summary>
     public IReadOnlyList<int> BlowsPerHollow { get; }
     public RigParts MovingParts { get; }
+    /// <summary>The spring job (<c>wind</c>), or null for a rig without one.</summary>
+    public WindSpec? Wind { get; }
 
     public MandrelStationRig(IReadOnlyList<RigCell> cells, Side infeedSide, Side outputSide, Float3 output, Float3 strike,
-                             WorkQuantity work, int blowsLead, int blowsCopper, RigParts? movingParts = null)
+                             WorkQuantity work, int blowsLead, int blowsCopper, RigParts? movingParts = null, WindSpec? wind = null)
     {
         var positions = cells.Select(c => c.Pos).ToHashSet();
         if (!positions.Contains(Int3.Zero))
@@ -54,7 +56,10 @@ public sealed class MandrelStationRig
         Strike = strike;
         Work = work;
         BlowsPerHollow = [0, blowsLead, blowsCopper];
+        if (wind != null && work.End(wind.Class) != 1)
+            throw new FormatException($"work.end.\"{wind.Class}\" must be 1, the winding of one rod");
         MovingParts = movingParts ?? new RigParts([], work);
+        Wind = wind;
     }
 
     /// <summary>The <c>side</c> variant placed for a player looking along <paramref name="look"/>, so
@@ -131,6 +136,7 @@ public sealed class MandrelStationRig
             var v = Required(blows, name, JsonValueKind.Number).GetDouble();
             return v == Math.Floor(v) && v is >= 1 and <= 1000 ? (int)v : throw new FormatException($"forge.blowsPerHollow.{name} must be a whole number of blows");
         }
+        WindSpec? wind = root.TryGetProperty("wind", out var windJson) ? WindSpec.Parse(windJson) : null;
         RigParts? parts = null;
         if (root.TryGetProperty("parts", out var partsJson))
             parts = partsJson.ValueKind == JsonValueKind.Array
@@ -146,6 +152,46 @@ public sealed class MandrelStationRig
             work,
             Blows("thin"),
             Blows("thick"),
-            parts);
+            parts,
+            wind);
+    }
+}
+
+/// <summary>
+/// The rig's spring job (<c>wind</c>): the rod it winds and its class, the pace (turns of the held
+/// clock a rod), what a rod makes and how many, and the <c>requires</c> values whose parts are drawn
+/// hot. The station winds one thing only, so the rod, the class, the spring and the count must be
+/// <see cref="Winding"/>'s; the pace is the rig's.
+/// </summary>
+public sealed record WindSpec(string Rod, int Class, double TurnsPerRod, string Spring, int SpringsPerRod, IReadOnlySet<string> Hot)
+{
+    public static WindSpec Parse(JsonElement wind)
+    {
+        if (wind.ValueKind != JsonValueKind.Object)
+            throw new FormatException("\"wind\" must be an object");
+        string rod = Str(wind, "rod") ?? throw new FormatException("wind needs a rod");
+        string spring = Str(wind, "spring") ?? throw new FormatException("wind needs a spring");
+        if (MandrelPart.Normalise(rod) != Winding.SteelRod)
+            throw new FormatException($"wind.rod is {rod}, the station's is {Winding.SteelRod}");
+        if (spring != Winding.Spring)
+            throw new FormatException($"wind.spring is {spring}, the station's is {Winding.Spring}");
+        if (Required(wind, "class", JsonValueKind.Number).GetDouble() != Winding.SpringClass)
+            throw new FormatException($"wind.class must be {Winding.SpringClass}");
+        if (Num(wind, "springsPerRod", Winding.SpringsPerRod) != Winding.SpringsPerRod)
+            throw new FormatException($"wind.springsPerRod must be {Winding.SpringsPerRod}");
+        double turns = Required(wind, "turnsPerRod", JsonValueKind.Number).GetDouble();
+        if (!(turns > 0 && turns <= 1000))
+            throw new FormatException("wind.turnsPerRod must be above 0");
+        var hot = new HashSet<string>();
+        if (wind.TryGetProperty("hot", out var hotJson))
+        {
+            if (hotJson.ValueKind != JsonValueKind.Array)
+                throw new FormatException("wind.hot must be an array");
+            foreach (var h in hotJson.EnumerateArray())
+                hot.Add(h.ValueKind == JsonValueKind.String && MandrelRequires.KnownRequires.Contains(h.GetString()!)
+                    ? h.GetString()!
+                    : throw new FormatException($"wind.hot names {h}, not a requires value of the station"));
+        }
+        return new WindSpec(Winding.SteelRod, Winding.SpringClass, turns, spring, Winding.SpringsPerRod, hot);
     }
 }

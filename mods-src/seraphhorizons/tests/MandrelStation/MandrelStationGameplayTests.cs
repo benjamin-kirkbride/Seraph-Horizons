@@ -45,7 +45,11 @@ public class MandrelStationGameplayTests
         Assert.True(MandrelPart.Fitted("mandrel", "game:rod-iron"));
         Assert.False(MandrelPart.Fitted("hollowlead", "game:rod-iron"));
         Assert.False(MandrelPart.Fitted("hollowcopper", "game:rod-iron"));
-        Assert.True(MandrelRequires.KnownRequires.SetEquals(["mandrel", "hollowlead", "hollowcopper"]));
+        Assert.True(MandrelRequires.KnownRequires.SetEquals(["mandrel", "hollowlead", "hollowcopper", "rodsteel"]));
+        Assert.False(MandrelPart.Fitted("rodsteel", "game:rod-iron"));
+        Assert.Equal("rodsteel", MandrelRequires.Work(3));
+        Assert.Equal("hollowcopper", MandrelRequires.Work(2));
+        Assert.Null(MandrelRequires.Work(0));
         Assert.Equal("hollowlead", MandrelRequires.Hollow(1));
         Assert.Equal("hollowcopper", MandrelRequires.Hollow(2));
         Assert.Null(MandrelRequires.Hollow(0));
@@ -425,6 +429,139 @@ public class MandrelStationGameplayTests
         var json = ContractRig.Replace(from, to);
         Assert.NotEqual(ContractRig, json);
         Assert.Throws<FormatException>(() => MandrelStationRig.Parse(json));
+    }
+
+    [Fact]
+    public void The_reader_takes_the_spring_job_and_refuses_one_that_is_not_the_stations()
+    {
+        string With(string wind, string end = "\"end\": { \"thin\": 1, \"thick\": 1, \"3\": 1 }") =>
+            ContractRig.Replace("\"end\": { \"thin\": 1, \"thick\": 1 }", end).Replace("\"forge\": {", "\"wind\": " + wind + ", \"forge\": {");
+        const string Wind = """{ "turnsPerRod": 4, "rod": "game:rod-steel", "class": 3, "spring": "seraphhorizons:spring-steel", "springsPerRod": 1, "hot": ["rodsteel"] }""";
+        Assert.Null(MandrelStationRig.Parse(ContractRig).Wind);
+        var wind = MandrelStationRig.Parse(With(Wind)).Wind!;
+        Assert.Equal(4, wind.TurnsPerRod);
+        Assert.Equal(["rodsteel"], wind.Hot);
+        foreach (var (from, to) in new[]
+                 {
+                     ("game:rod-steel", "game:rod-iron"), ("\"class\": 3", "\"class\": 2"), ("spring-steel", "spring-iron"),
+                     ("\"springsPerRod\": 1", "\"springsPerRod\": 2"), ("\"turnsPerRod\": 4", "\"turnsPerRod\": 0"), ("[\"rodsteel\"]", "[\"rod\"]"),
+                 })
+            Assert.Throws<FormatException>(() => MandrelStationRig.Parse(With(Wind.Replace(from, to))));
+        // the work must end a rod at 1
+        Assert.Throws<FormatException>(() => MandrelStationRig.Parse(With(Wind, "\"end\": { \"thin\": 1, \"thick\": 1 }")));
+    }
+
+    // ---- The spring job ----
+
+    [Theory]
+    [InlineData("game:rod-steel", null, false, true, true, RodVerdict.Mandrel)]        // a bare station: steel is a mandrel too
+    [InlineData("game:rod-iron", null, false, true, false, RodVerdict.Mandrel)]
+    [InlineData("game:rod-steel", "game:rod-iron", false, true, true, RodVerdict.Winds)]  // a fitted, bare mandrel: a hot steel rod winds
+    [InlineData("rod-steel", "game:rod-steel", false, true, true, RodVerdict.Winds)]
+    [InlineData("game:rod-steel", "game:rod-iron", false, true, false, RodVerdict.TooCold)]
+    [InlineData("game:rod-steel", "game:rod-iron", true, true, true, RodVerdict.Occupied)]
+    [InlineData("game:rod-steel", "game:rod-iron", false, false, true, RodVerdict.AlreadyFitted)] // no springs in this world
+    [InlineData("game:rod-iron", "game:rod-iron", false, true, true, RodVerdict.AlreadyFitted)]   // iron is never wound
+    [InlineData("game:rod-meteoriciron", "game:rod-steel", false, true, true, RodVerdict.AlreadyFitted)]
+    [InlineData("game:rod-copper", "game:rod-iron", false, true, true, RodVerdict.NotARod)]
+    [InlineData(null, "game:rod-iron", false, true, true, RodVerdict.NotARod)]
+    public void A_rod_is_a_mandrel_on_a_bare_station_and_a_spring_job_hot_on_a_fitted_one(
+        string? code, string? fitted, bool workOn, bool springs, bool hot, RodVerdict verdict) =>
+        Assert.Equal(verdict, Winding.ForRod(code, fitted, workOn, springs, hot));
+
+    [Fact]
+    public void Heat_follows_the_anvil_half_the_melting_point_or_the_items_own()
+    {
+        Assert.Equal(751, Winding.WorkableTemperature(1502, null));
+        Assert.True(Winding.Workable(751, 1502));
+        Assert.False(Winding.Workable(750.9f, 1502));
+        Assert.True(Winding.Workable(600, 1502, 600));
+        Assert.False(Winding.Workable(900, 1502, 1000));
+        Assert.True(Winding.IsRod("game:rod-steel"));
+        Assert.True(Winding.IsRod("rod-steel"));
+        Assert.False(Winding.IsRod("game:rod-iron"));
+    }
+
+    [Fact]
+    public void The_glow_is_vanillas()
+    {
+        Assert.Equal(0, Winding.ExtraGlow(500));
+        Assert.Equal(0, Winding.ExtraGlow(550));
+        Assert.Equal(100, Winding.ExtraGlow(751));
+        Assert.Equal(225, Winding.ExtraGlow(1000));
+        Assert.Equal(255, Winding.ExtraGlow(1500));
+    }
+
+    [Fact]
+    public void Winding_advances_a_turn_a_second_only_while_hot_and_the_last_step_finishes()
+    {
+        var job = WindJob.Start;
+        Assert.True(job.Untouched);
+        (job, bool done) = job.Advance(Winding.RadiansPerSecond, 4, hot: true);
+        Assert.Equal(0.25, job.Work, 9);
+        Assert.False(done);
+        Assert.False(job.Untouched);
+        (var cold, done) = job.Advance(Winding.RadiansPerSecond, 4, hot: false);
+        Assert.Equal(job, cold);   // a cold rod does not wind
+        Assert.False(done);
+        for (int i = 0; i < 2; i++)
+            (job, _) = job.Advance(Winding.RadiansPerSecond, 4, true);
+        (job, done) = job.Advance(Winding.RadiansPerSecond * 2, 4, true);
+        Assert.True(done);
+        Assert.Equal(1, job.Work);
+        Assert.Equal((job, false), job.Advance(1, 4, true));
+        Assert.Equal((WindJob.None, false), WindJob.None.Advance(10, 4, true));
+        Assert.Equal(WindJob.None, WindJob.Restore(false, 0.5));
+        Assert.Equal(1, WindJob.Restore(true, 7).Work);
+        Assert.Equal(0, WindJob.Restore(true, double.NaN).Work);
+    }
+
+    [Fact]
+    public void A_winder_counts_until_they_let_go_or_go_quiet()
+    {
+        var holds = new WindHolds();
+        Assert.False(holds.Any(0));
+        holds.Hold("a", 1000);
+        Assert.True(holds.Any(1000 + Winding.HoldTimeoutMs));
+        Assert.False(holds.Any(1001 + Winding.HoldTimeoutMs));
+        holds.Hold("a", 2000);
+        holds.Release("a");
+        Assert.False(holds.Any(2000));
+    }
+
+    [Fact]
+    public void The_clock_draws_a_spring_at_p_1_at_once_and_winds_it_while_held()
+    {
+        var clock = new MandrelStationClock();
+        clock.Advance(0.016f, 3, 0, 0);
+        Assert.Equal(3, clock.Class);
+        Assert.Equal(1, clock.Presence);
+        Assert.True(clock.ShowsWork("rodsteel"));
+        Assert.False(clock.ShowsWork("hollowlead"));
+        Assert.False(clock.ShowsHollow("hollowlead"));
+        Assert.Equal(0, clock.Work);
+        // not held: nothing moves
+        clock.Advance(0.5f, 3, 0, 0, held: false, turnsPerRod: 4);
+        Assert.Equal(0, clock.Work);
+        Assert.Equal(0, clock.Theta);
+        // held: θ turns a turn a second and W runs at a quarter a second, toward the server's
+        for (int i = 0; i < 30; i++)
+            clock.Advance(1 / 60f, 3, 0.1, 0, held: true, turnsPerRod: 4);
+        Assert.Equal(Math.PI, clock.Theta, 6);
+        Assert.InRange(clock.Work, 0.1, 0.2);
+        // delivered: W at the end, k held, p easing out, and the spring is not drawn
+        clock.Advance(0.1f, 0, 0, 0);
+        Assert.Equal(1, clock.Work);
+        Assert.Equal(3, clock.Class);
+        Assert.False(clock.ShowsWork("rodsteel"));
+        // the next rod starts again from 0
+        clock.Advance(0.016f, 3, 0, 0);
+        Assert.Equal(0, clock.Work);
+        Assert.True(clock.ShowsWork("rodsteel"));
+        // a hollow after a spring is a hollow
+        clock.Advance(0.05f, 1, 0, 0);
+        Assert.Equal(1, clock.Class);
+        Assert.False(clock.ShowsWork("rodsteel"));
     }
 
     [Fact]

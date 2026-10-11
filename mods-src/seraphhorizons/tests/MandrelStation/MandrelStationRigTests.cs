@@ -96,6 +96,24 @@ public class MandrelStationRigTests
         var config = new MandrelStationConfig();
         Assert.Equal(rig.BlowsPerHollow[1], config.BlowsPerHollowLead);
         Assert.Equal(rig.BlowsPerHollow[2], config.BlowsPerHollowCopper);
+        Assert.Equal(rig.Wind!.TurnsPerRod, config.TurnsPerRod);
+    }
+
+    // The spring job as gameplay reads it: steel rod, class 3, one spring, the rod's parts drawn hot.
+    [NeedsMandrelStationFileFact(RigFile)]
+    public void The_shipped_rig_has_the_spring_job()
+    {
+        var rig = MandrelStationRig.Parse(Shipped());
+        var wind = Assert.IsType<WindSpec>(rig.Wind);
+        Assert.Equal((Winding.SteelRod, Winding.SpringClass, Winding.Spring, Winding.SpringsPerRod), (wind.Rod, wind.Class, wind.Spring, wind.SpringsPerRod));
+        Assert.Equal(["rodsteel"], wind.Hot);
+        Assert.Equal(1.0, rig.Work.End(3), 6);
+        // every spring part needs the rod, and moves for class 3 alone
+        var (parts, _) = ShippedParts();
+        var spring = parts.Parts.Where(p => p.Requires == MandrelRequires.RodSteel).ToList();
+        Assert.Equal(25, spring.Count);
+        Assert.Throws<FormatException>(() => MandrelStationRig.Parse(Shipped().Replace("\"rod\": \"game:rod-steel\"", "\"rod\": \"game:rod-iron\"")));
+        Assert.Throws<FormatException>(() => MandrelStationRig.Parse(Shipped().Replace("\"class\": 3", "\"class\": 4")));
     }
 
     [NeedsMandrelStationFileFact(RigFile)]

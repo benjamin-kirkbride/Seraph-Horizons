@@ -33,6 +33,7 @@
 			extraSections: [
 				{ title: "seraphhorizons:mandrelstation-handbook-assembly-title", text: "seraphhorizons:mandrelstation-handbook-assembly-text" },
 				{ title: "seraphhorizons:mandrelstation-handbook-work-title", text: "seraphhorizons:mandrelstation-handbook-work-text" },
+				{ title: "seraphhorizons:mandrelstation-handbook-spring-title", text: "seraphhorizons:mandrelstation-handbook-spring-text" },
 				{ title: "seraphhorizons:mandrelstation-handbook-ladder-title", text: "seraphhorizons:mandrelstation-handbook-ladder-text" }
 			]
 		}
