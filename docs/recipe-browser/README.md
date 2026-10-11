@@ -12,7 +12,9 @@ tools/recipe-export/               CI-only server mod that writes the export (C#
 tools/site-data/                   validates, migrates and assembles exports for the site (TypeScript)
 tools/icon-export/                 local client mod that renders the icons (C#; never shipped)
 tools/icons.py                     turns an icon export into content-addressed icons
+tools/textures.py                  imports the eidolon fitting sheet's game textures from a client (icons.md)
 icons/                             icon files (Git LFS) and icons/index.json
+textures/                          game textures for the eidolon fitting sheet (Git LFS) and textures/index.json
 site/                              the app: Vite + Svelte + TypeScript
 site/models.json                   the model viewer's models (models.md)
                                    (the multiblock viewer's structures come in the export: multiblocks.md)

@@ -84,20 +84,38 @@ public static partial class RecipeSection
 
     /// <summary>
     /// The eidolon's body: a gantry with its spine hung (the first stage, not consumed: it stays as
-    /// the eidolon's dock, role station), then the six body stages, any order within a stage; the
-    /// mind's temporal gear wakes it. The output is the eidolon, as its creature item.
+    /// the eidolon's dock, role station), then the seven body stages, any order within a stage: the
+    /// torso (its own grid recipe), the five layers, the mind; then the winch's crank wakes it. The
+    /// output is the eidolon, as its creature item.
+    /// <para>A layer is built in a material of the builder's choice, all its pieces one material. Each
+    /// piece of material is one ingredient, a wildcard over the materials the layer takes
+    /// (<c>allowedVariants</c>; the sash, leather or cloth, is <c>game:*</c> over both families' paths),
+    /// and the one variant lists every material's stack for it, so each is used in the eidolon. A
+    /// variant cannot say "all of a layer the same", so <c>extra.layers</c> does: per layer its stage,
+    /// its materials as the mod writes them (the default build's first), the default, and the indices of
+    /// its material ingredients, aligned with the materials.</para>
     /// </summary>
     private static JObject BodyRecord(Context ctx, EidolonData e, List<(string Wood, Block Block)> gantries,
         CollectibleObject creature)
     {
         var ingredients = new JArray(Def(EidolonExport.GantryPrefix + "*-north", "block", 1, "station"));
         var stages = new JArray { new JObject { ["ingredients"] = new JArray(0) } };
+        var layers = new JArray();
         foreach (var stage in e.Body)
         {
-            var action = Lang.Get(stage == e.Body[^1]
-                ? "seraphhorizons:blockhelp-eidolongantry-wake"
+            var action = Lang.Get(stage == e.Body[0]
+                ? "seraphhorizons:blockhelp-eidolongantry-torso"
                 : "seraphhorizons:blockhelp-eidolongantry-fitbody");
+            int first = ingredients.Count;
             stages.Add(StageOf(ctx, stage, ingredients, action, null));
+            if (stage.Layer is { } layer)
+                layers.Add(new JObject
+                {
+                    ["layer"] = layer.Name,
+                    ["materials"] = new JArray(layer.Materials),
+                    ["default"] = layer.Default,
+                    ["ingredients"] = new JArray(stage.Items.Select((item, i) => (item, i)).Where(x => x.item.Material).Select(x => first + x.i)),
+                });
         }
 
         var stacks = new JArray { new JArray(gantries.Select(g => Stack(ctx, g.Block, 1))) };
@@ -123,6 +141,8 @@ public static partial class RecipeSection
             {
                 ["behavior"] = "seraphhorizons.EidolonBody",
                 ["stages"] = new JArray(e.Body.Select(s => s.Name)),
+                ["layers"] = layers,
+                ["wake"] = Lang.Get("seraphhorizons:blockhelp-eidolongantry-wake"),
             },
         };
     }
@@ -137,16 +157,27 @@ public static partial class RecipeSection
             var first = CollectibleOf(ctx, item.Codes[0].Replace("{wood}", wood ?? ""));
             var def = Def(item.Codes.Count == 1 ? item.Codes[0] : CommonFamily(item.Codes), first != null ? Kind(first.ItemClass) : "item", item.Count);
             if (item.Codes.Count > 1)
-                def["allowedVariants"] = new JArray(item.Codes.Select(c => c[(c.LastIndexOf('-') + 1)..]));
+                def["allowedVariants"] = new JArray(item.Codes.Select(c => c[FamilyPrefix(item.Codes).Length..]));
             slots.Add(ingredients.Count);
             ingredients.Add(def);
         }
         return new JObject { ["ingredients"] = slots, ["action"] = action };
     }
 
-    /// <summary><c>game:rod-*</c> for <c>game:rod-iron</c>, <c>game:rod-steel</c>, ...: the codes
-    /// share all but their last part.</summary>
-    private static string CommonFamily(List<string> codes) => codes[0][..(codes[0].LastIndexOf('-') + 1)] + "*";
+    /// <summary><c>game:rod-*</c> for <c>game:rod-iron</c>, <c>game:rod-steel</c>, ...: the codes' longest
+    /// shared prefix ending at a part (a dash or the domain's colon), then <c>*</c>; <c>game:*</c> for
+    /// leathers and cloths.</summary>
+    private static string CommonFamily(List<string> codes) => FamilyPrefix(codes) + "*";
+
+    private static string FamilyPrefix(List<string> codes)
+    {
+        int n = codes.Min(c => c.Length);
+        int same = 0;
+        while (same < n && codes.All(c => c[same] == codes[0][same]))
+            same++;
+        string shared = codes[0][..same];
+        return shared[..(shared.LastIndexOfAny(['-', ':']) + 1)];
+    }
 
     private static Block? BlockOf(Context ctx, string code) =>
         ctx.Api.World.GetBlock(new AssetLocation(code)) is { IsMissing: false, Code: not null } b ? b : null;

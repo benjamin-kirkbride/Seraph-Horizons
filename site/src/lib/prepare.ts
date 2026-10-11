@@ -1,6 +1,7 @@
 // Turns one export into the files the app loads (see format.ts). Everything that needs
 // the whole data set, the reverse indexes above all, is computed here so the browser
 // only ever fetches what one page shows.
+import { eidolonTexturePaths, type EidolonData } from "./eidolon-fittings.ts";
 import type { Recipe, RecipeExport, Shape, Source } from "./export.ts";
 import {
   DATA_FORMAT,
@@ -29,6 +30,9 @@ export interface PrepareOptions {
   maxRecipesPerChunk?: number;
   /** Each mod's ModDB asset id, by modid (assetIdsFromLock). */
   assetIds?: Record<string, number>;
+  /** Texture path → PNG data URI, from the texture store (scripts/prepare-data.ts); the
+   * eidolon's fitting sheet gets those its section names. */
+  textures?: Record<string, string>;
 }
 
 /**
@@ -445,6 +449,7 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     entityChunks,
     ...(valueCount > 0 ? { valueCount } : {}),
     ...(exp.power ? { power: true } : {}),
+    ...(exp.eidolon ? { eidolon: { items: [exp.eidolon.item, exp.eidolon.torso.item].filter((c): c is string => c !== null) } } : {}),
     ...(multiblocks.index.multiblocks.length > 0 ? { multiblockCount: multiblocks.index.multiblocks.length } : {}),
   };
   files.set("meta.json", meta);
@@ -454,6 +459,16 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
   // The power page's data, as the export has it (power-data.ts). An export without it, such as
   // every one made before it existed, gives no power.json, which the app reads as none.
   if (exp.power) files.set("power.json", exp.power);
+  // The eidolon's fitting sheet's data (eidolon-fittings.ts): the export's section and the images of
+  // the textures it names that the store has; none without it.
+  if (exp.eidolon) {
+    const textures: Record<string, string> = {};
+    for (const path of eidolonTexturePaths(exp.eidolon)) {
+      const uri = options.textures?.[path];
+      if (uri) textures[path] = uri;
+    }
+    files.set("eidolon.json", { ...exp.eidolon, textures } satisfies EidolonData);
+  }
   return { files, meta };
 }
 
