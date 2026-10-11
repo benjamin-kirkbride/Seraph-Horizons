@@ -60,7 +60,7 @@ public class OreLeachingTests
     }
 
     [Fact]
-    public void LiquorTypeHasAStatePerMineralAndRawSaltpeterIsRawStack()
+    public void LiquorTypeHasAStatePerMineralAndRawSaltpeterIsRockStack()
     {
         var liquor = Read("crudeliquor.json");
         Assert.Equal(OreLeaching.Minerals.Select(m => m.Mineral),

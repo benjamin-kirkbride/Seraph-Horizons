@@ -4594,7 +4594,7 @@ items, so every recipe that takes them keeps working unchanged.
 | alum | `game:ore-alum` (no longer crushed in the pulverizer) | `seraphhorizons:crudeliquorportion-alum` | `game:powder-alum` |
 
 - **Raw form.** Borax and alum are vanilla's ungraded ore items, restacked to 4 (as raw ore,
-  `OreProducts.RawStack`) with their grinding and crushing taken off. Saltpeter had no mined form
+  `OreProducts.RockStack`) with their grinding and crushing taken off. Saltpeter had no mined form
   (its cave coating dropped the crystals), so it gets one: every block that dropped `game:saltpeter`
   drops raw saltpeter instead at the same rate (vanilla's coating, Interesting Ore Gen's saltpeter ore,
   Saltpeter Production's nitre bed buds; Oils Resoaped's grid recipe for saltpeter from salt, potash
@@ -5102,7 +5102,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `CreativeSteamSource` | the creative steam source block |
 | `CastPipes` | the cast pipe blanks, the pipe molds (`smex:toolmold-*-pipe`), `recipes/clayforming/pipemold.json` and `recipes/grid/castpipe.json`, the molds' casting |
 | `Eidolon` | the gantry (`seraphhorizons:eidolongantry*`), the command tool, the eidolon's creature item, `recipes/grid/eidolongantry.json` and `eidoloncommander.json`, the gantry's and the body's construction records |
-| `OreProcessing` | crushed ore (`game:crushed-*-coarse`, `-fine`, hand-listed: its type's code is vanilla's crushed item's), ground ore, concentrate, roasted concentrate, amalgam, litharge |
+| `OreProcessing` | crushed and ground ore and roasted rock (`seraphhorizons:crushedore-*`, `groundore-*`, `roastedore-*`), concentrate, roasted concentrate, amalgam, sponge, litharge |
 
 A switch that only takes things away (`HydrateTunRetired`, `IrrigationVesselRetired`,
 `BloodSausageInMixingBowl`, `PanningDropsTrimmed`, `GearPartsRemoved`, `TraderSchematics`, the retired stations of

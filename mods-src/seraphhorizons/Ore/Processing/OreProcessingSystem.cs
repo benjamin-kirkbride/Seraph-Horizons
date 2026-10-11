@@ -94,8 +94,8 @@ public class OreProcessingSystem : ModSystem
     /// <summary>
     /// The crushed items the crusher made before, which nothing makes with ore processing on, and the
     /// ore whose crushed ore a recipe takes instead (any grade: <c>seraphhorizons:crushedore-{ore}-*</c>).
-    /// Vanilla's crushed iron has no recipe taking it (smex's blast furnace counts our crushed iron
-    /// ore itself, <see cref="SmexBurden"/>).
+    /// Vanilla's crushed iron has no recipe taking it (smex's blast furnace takes our iron concentrate,
+    /// not our crushed ore, <see cref="SmexBurden"/>).
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string> LegacyCrushed = new Dictionary<string, string>
     {

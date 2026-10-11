@@ -124,7 +124,7 @@ public static class OreProcessingItems
                                                    && OreProducts.IsGrade(parts[1]):
                 {
                     string grade = parts[1], ore = parts[2];
-                    double units = UnitsOf(item);
+                    double units = ItemOreProduct.UnitsOf(item);
                     if (!(units > 0))
                     {
                         report.NoUnits.Add(code.ToString());
@@ -134,7 +134,7 @@ public static class OreProcessingItems
                     if (raw)
                         item.MaxStackSize = OreProducts.RockStack;
                     var crushed = world.GetItem(new AssetLocation(OreProducts.CrushedCode(ore, grade)));
-                    double crushedUnits = crushed != null ? UnitsOf(crushed) : 0;
+                    double crushedUnits = crushed != null ? ItemOreProduct.UnitsOf(crushed) : 0;
                     if (raw && crushed != null && crushedUnits != units)
                         report.UnitsOff.Add($"{crushed.Code} ({crushedUnits}, raw {units})");
                     item.CrushingProps = Crushing(world, item, OreProducts.CrushedCode(ore, grade),
@@ -160,7 +160,7 @@ public static class OreProcessingItems
                                                                      && ores.Contains(parts[1]) && OreProducts.IsGrade(parts[2]):
                 {
                     string ore = parts[1], grade = parts[2];
-                    double units = UnitsOf(item);
+                    double units = ItemOreProduct.UnitsOf(item);
                     if (OreProducts.RawUnits(ore, grade) is { } expected && units != expected)
                         report.UnitsOff.Add($"{code} ({units}, raw {expected})");
                     var form = parts[0] switch { "crushedore" => OreForm.Crushed, "groundore" => OreForm.Ground, _ => OreForm.RoastedRock };
@@ -224,9 +224,6 @@ public static class OreProcessingItems
                            + "changes the metal: {1}", report.UnitsOff.Count, string.Join(", ", report.UnitsOff.Take(10)));
         return report;
     }
-
-    /// <summary>The units of metal an item holds (its <c>metalUnits</c>).</summary>
-    public static double UnitsOf(CollectibleObject item) => item.Attributes?["metalUnits"].AsDouble(0) ?? 0;
 
     /// <summary>
     /// Whether the quern no longer takes <paramref name="item"/> (#847: there is no hand grinding;
