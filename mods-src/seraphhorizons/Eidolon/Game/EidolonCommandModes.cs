@@ -32,12 +32,16 @@ public sealed class EidolonCommandMode
     public required string Code { get; init; }
 
     /// <summary>Its place on the wheel, lowest first (follow 10, stay 20; carry, set down, fell,
-    /// haul, crew and guard after, in tens).</summary>
+    /// haul, crew, guard and dock after, in tens).</summary>
     public required double Order { get; init; }
 
     public required AssetLocation Icon { get; init; }
 
     public EidolonMarkKind Mark { get; init; } = EidolonMarkKind.None;
+
+    /// <summary>For <see cref="EidolonMarkKind.Block"/>: a click on the air orders with no block marked
+    /// (<see cref="EidolonCommandContext.Target"/> null) instead of asking for one (dock: the nearest gantry).</summary>
+    public bool MarkOptional { get; init; }
 
     /// <summary>For an area: its longest side, in blocks.</summary>
     public int MaxAreaSide { get; init; } = 48;

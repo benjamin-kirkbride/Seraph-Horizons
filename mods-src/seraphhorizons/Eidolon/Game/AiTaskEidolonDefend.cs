@@ -12,7 +12,8 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// Self-defence (#675; README "Eidolon", self-defence): when a creature hurts the eidolon (the
 /// cause of the damage, so an archer too), this task, above the order task (priority 1.6 to its 1.5),
 /// goes for it at a run and strikes it (<see cref="EidolonStrikes"/>), each blow for
-/// <see cref="EidolonConfig.DefenceDamage"/> (every third <see cref="EidolonConfig.SlamDamage"/>), until it
+/// its <see cref="EidolonStats.DefenceDamage"/> (every third its <see cref="EidolonStats.SlamDamage"/>: the
+/// settings' as its plates change them), until it
 /// is dead, gone out of range, or has not hurt it for a while; the order task then starts its order
 /// again. It closes by the wide pathfinder from afar and straight at the creature close by, aiming
 /// where the creature's motion takes it, and keeps closing while it strikes on the move; it strikes
@@ -72,8 +73,6 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
     public int MovingBlowsLanded { get; private set; }
 
     private double Now => entity.World.ElapsedMilliseconds / 1000.0;
-
-    private EidolonConfig Settings => EidolonSystem.Of(entity.Api)?.Config ?? EidolonConfig.Defaults;
 
     public override void OnEntityHurt(DamageSource source, float damage)
     {
@@ -234,11 +233,19 @@ public class AiTaskEidolonDefend(EntityAgent entity, JsonObject taskConfig, Json
             Type = EnumDamageType.BluntAttack,
             DamageTier = 3,
             KnockbackStrength = 1,
-        }, (EidolonStrikes.Heavy(_strikeNumber) ? Settings.SlamDamage : Settings.DefenceDamage) * GlobalConstants.CreatureDamageModifier);
+        }, StrikeDamage(_strikeNumber) * GlobalConstants.CreatureDamageModifier);
         BlowsLanded++;
         if (strike.Moving)
             MovingBlowsLanded++;
         _hurtAt = Now;
+    }
+
+    /// <summary>The damage of the eidolon's blow number <paramref name="strikeNumber"/> (before the game's
+    /// creature damage multiplier): a slam's or a punch's or kick's, as its fittings make them.</summary>
+    public float StrikeDamage(int strikeNumber)
+    {
+        var stats = ((EntityLaborEidolon)entity).FittedStats;
+        return EidolonStrikes.Heavy(strikeNumber) ? stats.SlamDamage : stats.DefenceDamage;
     }
 
     /// <summary>The horizontal gap between the two boxes, in blocks (large when they are not level).</summary>

@@ -22,7 +22,7 @@ public enum GantryFitVerdict
 /// <summary>A fitted item as breaking the gantry gives it back: its code and how many of it the stage took.</summary>
 public readonly record struct GantryDrop(string Code, int Count);
 
-/// <summary>The gantry rig's <c>requires</c> vocabulary: the nine winch stages, then the six body
+/// <summary>The gantry rig's <c>requires</c> vocabulary: the nine winch stages, then the seven body
 /// stages (the eidolon's, <c>config/eidolon-stages.json</c>), which ride the spine.</summary>
 public static class GantryRequires
 {
@@ -30,7 +30,7 @@ public static class GantryRequires
 
     /// <summary>The eidolon's body stages in build order, each a rig <c>requires</c>: drawn only when
     /// a body-stage extension of the gantry says so (<c>IEidolonGantryExtension.Shows</c>).</summary>
-    public static readonly IReadOnlyList<string> BodyStages = ["torso", "pelvis", "legs", "arms", "head", "mind"];
+    public static readonly IReadOnlyList<string> BodyStages = ["torso", "bones", "joints", "plates", "sash", "skirt", "mind"];
 
     public static string Name(GantryStage stage) => stage switch
     {

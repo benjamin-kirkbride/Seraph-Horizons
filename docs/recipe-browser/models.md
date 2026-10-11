@@ -185,14 +185,15 @@ drawn or not. So hiding parts never moves what is shown: the eidolon's page has 
 one per build stage (`mods-src/seraphhorizons/assets/seraphhorizons/config/eidolon-rig.json`, written by
 the eidolon's generator: each part matches its stage's elements by name and needs its stage's
 `requires`, with no drivers, so every part's matrix is the identity), and any set of stages plays any
-animation as the whole body does. The head alone still moves with the chest and hip blocks it hangs
-from, which are hidden, and the torso alone still carries the joint the head and arms hang from.
+animation as the whole body does. The bones alone still move with the chest and hip blocks they hang
+from, which are hidden, and the torso alone still carries the joints the layers hang from.
 `site/test/model-states.test.ts` holds every shown element's corners to the game's pose of the whole
 body, frame by frame, with several sets of stages hidden.
 
 An element is in the first part with a glob matching any name in its chain, so a part whose elements
-hang from another part's must be listed before it: the eidolon's rig lists the mind before the head, and
-the torso before the pelvis (the chest block hangs from the hip block). Its generator orders the parts
+hang from another part's must be listed before it: the eidolon's rig lists each layer before the one it is
+fitted onto (the sash before the plates, the plates before the joints, the joints before the bones) and the
+bones before the torso (the lattice chest and hip blocks). Its generator orders the parts
 so and checks that every element lands in its own stage.
 
 What is not the game's: one animation plays at a time, at full weight. The game blends several
@@ -234,6 +235,7 @@ Animation keys are read in any case, as the game's JSON reader does (`quantityFr
 | `id` | The address, `#/models/<id>`: lower-case letters, digits and dashes. |
 | `title`, `description`, `credit` | Required. Write the credit from the mod's `CREDITS.md`. |
 | `creditUrl` | Optional, https: a link after the credit. |
+| `link` | Optional: `{ "label", "page" }`, a page of the recipe browser about the model, linked under the credit: `page` is its address after the version (`eidolon`, the eidolon's fitting sheet), opened in the default version. |
 | `shape` | Required: the shape file, as a path from the repository's root. Strict JSON (a generated shape is; a hand-edited one with comments or trailing commas is not read). |
 | `rig` | Optional: the rig. Without one the model is shown still, coloured by texture, as one part. |
 | `bogie` | Optional: a vehicle's bogie shape, drawn at each of its `scenario.vehicle.bogies` places ([Vehicles](#vehicles)); needs that. |
@@ -279,7 +281,7 @@ Everything specific to one machine lives here, as data; the viewer has no machin
     },
     {
       "id": "eidolon", "label": "Eidolon", "default": "built",
-      "values": ["torso", "pelvis", "legs", "arms", "head", "mind"],
+      "values": ["torso", "bones", "joints", "plates", "sash", "skirt", "mind"],
       "needs": ["chain", "spine"],
       "needsHint": "The body is built on the spine: fit the gantry up to “The spine on the chain” first.",
       "options": [

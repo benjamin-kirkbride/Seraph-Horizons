@@ -52,7 +52,8 @@
   import type { ColourMode, ModelScene, SceneColours, ViewName } from "../viewer/model-scene.ts";
   import { webglAvailable } from "../viewer/webgl.ts";
 
-  let { model }: { model: PublishedModel } = $props();
+  // `version`: the recipe data a model's link (to a page of the recipe browser) opens in, or null when none is published.
+  let { model, version = null }: { model: PublishedModel; version?: string | null } = $props();
   const s = mt;
 
   // ---- data
@@ -542,6 +543,9 @@
   {model.credit}
   {#if model.creditUrl}<a href={model.creditUrl} rel="noopener noreferrer" target="_blank">{s.creditMore}</a>{/if}
 </p>
+{#if model.link && version}
+  <p class="link" data-testid="model-link"><a href={`#/${encodeURIComponent(version)}/${model.link.page}`}>{model.link.label}</a></p>
+{/if}
 
 <!-- Colours for three.js, read from the theme's tokens. -->
 <div class="probe" aria-hidden="true" bind:this={probe}>

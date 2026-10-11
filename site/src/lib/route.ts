@@ -14,6 +14,7 @@ export type Route =
   | { view: "entity"; version: string; code: string; variant?: string }
   | { view: "credits"; version: string }
   | { view: "power"; version: string }
+  | { view: "eidolon"; version: string }
   | { view: "multiblocks"; version: string }
   | { view: "multiblock"; version: string; id: string }
   | ({ view: "values"; version: string } & ValuesView)
@@ -134,6 +135,9 @@ export function parseRoute(hash: string): Route {
     case "power":
       if (rest.length === 0) return { view: "power", version };
       break;
+    case "eidolon":
+      if (rest.length === 0) return { view: "eidolon", version };
+      break;
     case "multiblocks":
       if (rest.length === 0) return { view: "multiblocks", version };
       break;
@@ -170,6 +174,8 @@ export function formatRoute(route: Route): string {
       return `#/${enc(route.version)}/credits`;
     case "power":
       return `#/${enc(route.version)}/power`;
+    case "eidolon":
+      return `#/${enc(route.version)}/eidolon`;
     case "multiblocks":
       return `#/${enc(route.version)}/multiblocks`;
     case "multiblock":

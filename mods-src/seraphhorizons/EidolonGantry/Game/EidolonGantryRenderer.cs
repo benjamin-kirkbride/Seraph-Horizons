@@ -3,6 +3,7 @@ using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.MathTools;
 
 namespace SeraphHorizons.Mod.EidolonGantry;
 
@@ -13,8 +14,10 @@ namespace SeraphHorizons.Mod.EidolonGantry;
 /// by every gantry of that wood (<see cref="MachinePartMeshes"/>), each drawn with its rig matrix
 /// turned to the gantry's facing. A part is drawn when its <c>requires</c> is fitted: a winch stage
 /// or the spine by the winch's parts, a body stage (torso to mind) only when an extension
-/// (<see cref="IEidolonGantryExtension.Shows"/>) says so. The static frame is the block's own
-/// shape (eidolongantry_frame.json) and is not drawn here.
+/// (<see cref="IEidolonGantryExtension.Shows"/>) says so. The body's parts are drawn in the layers'
+/// materials (<see cref="BEBehaviorEidolonBody.Textures"/> over the block's layer codes), one mesh set per
+/// set of materials, shared like the rest. The static frame is the block's own shape
+/// (eidolongantry_frame.json) and is not drawn here.
 /// <para>The rig is posed by the winch's depth (<see cref="BEEidolonGantry.WinchDepth"/>), eased
 /// at <see cref="DepthRate"/>: letting down turns the crank, layshaft, drum and sheave, throws
 /// the pawl off, pays out the chain and brings the hook, the spine and the body down.</para>
@@ -32,6 +35,9 @@ public sealed class EidolonGantryRenderer : IRenderer
     private readonly RigParts _parts;
     private readonly bool[] _drawn;
     private PartMeshSet? _meshes;
+    private PartMeshSet? _bodyMeshes;
+    private string? _bodyKey;
+    private readonly bool[] _body;
     private bool _built;
     private double _depth;
     private readonly Matrixf _model = new();
@@ -46,6 +52,7 @@ public sealed class EidolonGantryRenderer : IRenderer
         _parts = rig.MovingParts;
         _depth = be.WinchDepth;
         _drawn = _parts.Parts.Select(p => p.Requires != null || p.Ride != null || p.Drivers.Count > 0).ToArray();
+        _body = _parts.Parts.Select(p => GantryRequires.IsBodyStage(p.Requires)).ToArray();
         capi.Event.RegisterRenderer(this, EnumRenderStage.Opaque, "eidolongantry");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowFar, "eidolongantry");
         capi.Event.RegisterRenderer(this, EnumRenderStage.ShadowNear, "eidolongantry");
@@ -54,10 +61,24 @@ public sealed class EidolonGantryRenderer : IRenderer
     private void BuildMeshes()
     {
         _built = true;
-        _meshes = MachinePartMeshes.Get(_capi, "wood-" + _be.Wood, ShapeLoc, _parts, i => _drawn[i],
+        _meshes = MachinePartMeshes.Get(_capi, "wood-" + _be.Wood, ShapeLoc, _parts, i => _drawn[i] && !_body[i],
             () => _capi.Tesselator.GetTextureSource(_be.Block), "eidolongantry");
         if (_meshes == null)
             _capi.Logger.Error("[seraphhorizons] Eidolon gantry: {0} is missing; its winch and spine are not drawn", ShapeLoc);
+    }
+
+    /// <summary>The body's meshes in the layers it wears now: rebuilt (or found in the cache) when they change.</summary>
+    private PartMeshSet? BodyMeshes()
+    {
+        var textures = _be.GetBehavior<BEBehaviorEidolonBody>()?.Textures ?? new Dictionary<string, string>();
+        string key = "body|" + string.Join(";", textures.OrderBy(kv => kv.Key, StringComparer.Ordinal).Select(kv => kv.Key + "=" + kv.Value));
+        if (key == _bodyKey)
+            return _bodyMeshes;
+        _bodyKey = key;
+        // the body's textures are not wood-typed: one set for every gantry wearing these layers
+        _bodyMeshes = MachinePartMeshes.Get(_capi, key, ShapeLoc, _parts, i => _body[i],
+            () => new LayerTextureSource(_capi, _capi.Tesselator.GetTextureSource(_be.Block), textures), "eidolongantry-body");
+        return _bodyMeshes;
     }
 
     /// <summary>Whether the parts needing <paramref name="requires"/> are drawn now.</summary>
@@ -102,13 +123,36 @@ public sealed class EidolonGantryRenderer : IRenderer
             prog.ViewMatrix = rapi.CameraMatrixOriginf;
             prog.ProjectionMatrix = rapi.CurrentProjectionMatrix;
         }
+        var body = BodyMeshes();
         for (int i = 0; i < _meshes.Meshes.Length; i++)
         {
-            if (_meshes.Meshes[i] is { } mesh && Shown(_parts.Parts[i].Requires))
+            var set = _body[i] ? body : _meshes;
+            if (set?.Meshes[i] is { } mesh && Shown(_parts.Parts[i].Requires))
                 MachineMeshes.Draw(_capi, _model, mesh, Mat4.Multiply(facing, mats[i]), prog, camPos, _be.Pos);
         }
         prog?.Stop();
         rapi.GlEnableCullFace();
+    }
+
+    /// <summary>A block's textures with the body's layer codes drawn in the textures it wears (asset
+    /// paths under <c>textures/</c>), each put in the block atlas the first time it is asked for.</summary>
+    private sealed class LayerTextureSource(ICoreClientAPI capi, ITexPositionSource inner, IReadOnlyDictionary<string, string> layers) : ITexPositionSource
+    {
+        public Size2i AtlasSize => inner.AtlasSize!;
+
+        public TextureAtlasPosition this[string textureCode]
+        {
+            get
+            {
+                if (!layers.TryGetValue(textureCode, out var path))
+                    return inner[textureCode]!;
+                var loc = new AssetLocation(path);
+                var pos = capi.BlockTextureAtlas[loc];
+                if (pos == null && capi.Assets.Exists(loc.Clone().WithPathPrefixOnce("textures/").WithPathAppendixOnce(".png")))
+                    capi.BlockTextureAtlas.GetOrInsertTexture(loc, out _, out pos);
+                return pos ?? inner[textureCode]!;
+            }
+        }
     }
 
     public void Dispose()

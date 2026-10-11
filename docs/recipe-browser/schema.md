@@ -24,6 +24,7 @@ below that JSON Schema cannot express.
 | `variantGroups` | Optional. The pack's own mod's Tidy Variants groups, keyed by group id. |
 | `power` | Optional. Mechanical power producers, consumers and the wind ([power.md](power.md)). |
 | `multiblocks` | Optional. Structures built block by block, with the shapes of their blocks ([multiblocks.md](multiblocks.md)). |
+| `eidolon` | Optional. The eidolon's fittings, for its fitting sheet ([below](#the-eidolons-fittings)). |
 
 ## Codes
 
@@ -196,8 +197,14 @@ output `seraphhorizons:eidolongantry-{wood}-north`, the placed frame and nine st
 wood binding the drum's planks and the spine's beams) and the eidolon's body
 (`construction|seraphhorizons:creature-eidolon|0`, output the eidolon's creature item). The body's
 first stage is a gantry, an ingredient with role `station`: needed, never consumed, so a reader
-leaves it out of what the build uses up. Their `extra.behavior` names the mod's classes and
-`extra.stages` the stages' codes.
+leaves it out of what the build uses up; then the torso (its own grid recipe), five layers and the
+mind. A layer is built in one material of the builder's choice: each piece of its material is one
+ingredient, a wildcard with `allowedVariants` (the sash, leather or cloth, is `game:*` over both
+families' paths), and the record's one variant lists every allowed material's stack for it, the
+default build's first. That all of a layer is one material is in `extra.layers`: per layer, `layer`,
+its `materials` as the mod writes them, the `default`, and the indices of its material `ingredients`.
+`extra.wake` is the crank's action, which wakes it after the last stage. Their `extra.behavior` names
+the mod's classes and `extra.stages` the stages' codes.
 
 ### Butchery
 
@@ -418,6 +425,42 @@ before it lack it.
 
 prepare-data writes the section as it is to `power.json`; an export without it gives no file.
 
+## The eidolon's fittings
+
+`eidolon`, an optional top-level object, holds what the site's eidolon fitting sheet shows
+([site.md](site.md#the-eidolons-fitting-sheet)), all of it from the pack's mod
+(`tools/recipe-export/EidolonSection.cs` reads its `Eidolon/Core` classes by reflection and the
+loaded config), so the page shows what ships. Like the other optional additions it left
+`schemaVersion` at 1; exports made before it, and exports with the mod's `Eidolon` switch off, lack it.
+
+- `mod`; `item`, the eidolon's creature item; `torso`: its `item` (null while it is not
+  registered) and the grid `recipe` it is crafted from; `mind`, what is fitted after the layers.
+- `layers`, in build order (`EidolonFittings.Layers`): `id` (`bones`, `joints`, `plates`, `sash`,
+  `skirt`, also the layer's texture code in the eidolon's shape), `name` (the stages file's,
+  `config/eidolon-stages.json`), `default` (the material an eidolon from before fittings has:
+  the shape's default look), `materials` and `parts` (the Jonas parts the layer takes whatever its
+  material, given back when it is stripped). A material has its `id` as the mod stores it (a wood,
+  a metal code such as `stainlesssteel`, `leather-<colour>` or `cloth-<colour>`), the `texture` it
+  draws with (`domain:path` under `textures/`, no extension) and the `items` a layer of it takes
+  (`EidolonFittings.Bill` less the parts). Only materials whose items are registered are listed;
+  the bones also list any wood a registered support beam comes in that the rules allow.
+- `settings`: EidolonSettings as the server has them: `allSteelHealth`, `baseHealth` (all iron),
+  the health, damage and move-speed multipliers keyed by material, `plateArmour` per plate metal
+  (`protectionTier`, `relativeProtection`, `flatDamageReduction`), `armourLoss`, and the base
+  `walkSpeed`, `runSpeed`, `defenceDamage` and `slamDamage`.
+- `builds`: every joints, plates and skirt metal with the stats `EidolonStats.Of` gives it
+  (`maxHealth`, the speeds, the blows' damage, `armour`); bones and sash change nothing.
+- `shapeTextures`: the eidolon shape's texture codes and paths.
+
+The section carries texture paths, never images: CI's game is the dedicated server, which has no
+textures. The images are imported by hand from a game client into the repository's texture store
+(`textures/`, `tools/textures.py`; [icons.md](icons.md#game-textures)), and prepare-data adds the
+ones the section names to `eidolon.json` as PNG data URIs; a path the store lacks is left out with
+a warning, and the site draws it as a colour.
+
+The exporter also warns when a layer's bill and the model's measured counts in the stages file
+disagree.
+
 ## Rules beyond the schema
 
 - Every recipe `type` is a key of `recipeTypes`, and `count` equals the number of records.
@@ -430,6 +473,9 @@ prepare-data writes the section as it is to `power.json`; an export without it g
 - In `multiblocks`: structure ids are unique and their `mod` a key of `mods`; every cell names
   an existing part and no two cells of a size share a place; a part has a `block` or `air`, and
   its `block` is a key of `multiblocks.shapes`; `defaultSize` is a size that exists.
+- In `eidolon`: every code is a key of `items` and the `mod` a key of `mods`; layer ids and each
+  layer's material ids are unique, and a layer's `default` is one of its materials; a build's
+  joints, plates and skirt are materials of those layers and no build is listed twice.
 - `variants[].ingredients` is as long as `ingredients`.
 - Power entry ids are unique within `producers` and within `consumers`; an entry's `item` is a
   key of `items` (or null) and its `mod` a key of `mods`; `loadMax` is at least `load`, a wind
