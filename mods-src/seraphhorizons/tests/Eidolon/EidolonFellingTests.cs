@@ -24,10 +24,53 @@ public class EidolonFellingTests
     [Fact]
     public void AStumpIsAnUprightLogOnTheGround()
     {
-        Assert.True(EidolonFelling.IsStump("log-grown-oak-ud", belowSameGroup: false));
-        Assert.False(EidolonFelling.IsStump("log-grown-oak-ud", belowSameGroup: true));
-        Assert.False(EidolonFelling.IsStump("log-grown-oak-we", belowSameGroup: false));
-        Assert.True(EidolonFelling.IsStump("logsection-grown-redwood-sw-ud", belowSameGroup: false));
+        Assert.True(EidolonFelling.IsStump("log-grown-oak-ud", belowSameGroup: false, belowSolid: true));
+        Assert.False(EidolonFelling.IsStump("log-grown-oak-ud", belowSameGroup: true, belowSolid: true));
+        Assert.False(EidolonFelling.IsStump("log-grown-oak-we", belowSameGroup: false, belowSolid: true));
+        Assert.True(EidolonFelling.IsStump("logsection-grown-redwood-sw-ud", belowSameGroup: false, belowSolid: true));
+        // An oak's bough: upright, over air or leaves, up in its crown. No place beside it to stand.
+        Assert.False(EidolonFelling.IsStump("log-grown-oak-ud", belowSameGroup: false, belowSolid: false));
+    }
+
+    [Fact]
+    public void StumpsSideBySideAreOneTree()
+    {
+        Assert.Equal(0, EidolonFelling.Trees([]));
+        Assert.Equal(1, EidolonFelling.Trees([new MarkPos(0, 5, 0)]));
+        // a big tree's 2 × 2 trunk
+        Assert.Equal(1, EidolonFelling.Trees([new(0, 5, 0), new(1, 5, 0), new(0, 5, 1), new(1, 5, 1)]));
+        // and the same stump twice, and two trees apart
+        Assert.Equal(2, EidolonFelling.Trees([new(0, 5, 0), new(0, 5, 0), new(4, 5, 0)]));
+        Assert.Equal(2, EidolonFelling.Trees([new(0, 5, 0), new(2, 5, 0)]));
+    }
+
+    [Fact]
+    public void ATreeGivenUpIsTriedOnceMoreBeforeItIsOutOfReach()
+    {
+        var gaveUp = new FellGiveUps();
+        var a = new MarkPos(0, 5, 0);
+        var b = new MarkPos(9, 5, 0);
+        var felled = new MarkPos(20, 5, 0);
+        gaveUp.GiveUp(a);
+        gaveUp.GiveUp(b);
+        gaveUp.GiveUp(felled);
+        Assert.True(gaveUp.Has(a));
+        // Nothing else left: those still standing come back to its search, the felled one does not.
+        Assert.True(gaveUp.Retry(s => s != felled));
+        Assert.False(gaveUp.Has(a));
+        Assert.False(gaveUp.Has(b));
+        Assert.True(gaveUp.Has(felled));
+        // It reaches b this time; a it gives up again, for good: no third try, and it is done.
+        gaveUp.GiveUp(a);
+        Assert.False(gaveUp.Retry(s => s != felled));
+        Assert.True(gaveUp.Has(a));
+        Assert.Equal(new[] { a, felled }.ToHashSet(), gaveUp.Given.ToHashSet());
+        // One given up later for the first time still has its second try.
+        var c = new MarkPos(30, 5, 0);
+        gaveUp.GiveUp(c);
+        Assert.True(gaveUp.Retry(s => s != felled));
+        Assert.False(gaveUp.Has(c));
+        Assert.True(gaveUp.Has(a));
     }
 
     [Fact]

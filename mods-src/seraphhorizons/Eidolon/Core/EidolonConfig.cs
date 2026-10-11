@@ -93,6 +93,13 @@ public class EidolonConfig
     /// standing (a sapling is no log at all).</summary>
     public int FellMinLogs { get; set; } = 5;
 
+    // ---- Mining (README "Eidolon", mining) ----
+
+    /// <summary>Blocks with a block entity it mines like any other (codes, <c>*</c> any run of
+    /// characters): ground some mod gave a block entity. Every other block with one (a chest, a
+    /// machine, chiseled stone, farmland, a berry bush) it leaves.</summary>
+    public string[] MineThroughBlockEntities { get; set; } = [.. EidolonMining.GroundBlockEntities];
+
     // ---- Chunk loading (README "Eidolon", chunk loading; EidolonChunks) ----
 
     /// <summary>An eidolon with work left in its order (fell, haul, crew, carry; not following,
@@ -180,6 +187,12 @@ public class EidolonConfig
         Check(nameof(GuardRadius), GuardRadius, 2, 64, () => GuardRadius = Defaults.GuardRadius, Defaults.GuardRadius);
 
         Check(nameof(FellMinLogs), FellMinLogs, 1, 1000, () => FellMinLogs = Defaults.FellMinLogs, Defaults.FellMinLogs);
+
+        if (MineThroughBlockEntities == null || MineThroughBlockEntities.Any(string.IsNullOrWhiteSpace))
+        {
+            fixes.Add($"{nameof(MineThroughBlockEntities)} has an empty or missing code, using the others");
+            MineThroughBlockEntities = MineThroughBlockEntities?.Where(c => !string.IsNullOrWhiteSpace(c)).ToArray() ?? [.. Defaults.MineThroughBlockEntities];
+        }
 
         Check(nameof(ChunkLoadRadius), ChunkLoadRadius, 0, EidolonChunks.MaxRadius, () => ChunkLoadRadius = Defaults.ChunkLoadRadius, Defaults.ChunkLoadRadius);
         Check(nameof(MaxWorkAreaChunks), MaxWorkAreaChunks, 0, 256, () => MaxWorkAreaChunks = Defaults.MaxWorkAreaChunks, Defaults.MaxWorkAreaChunks);
