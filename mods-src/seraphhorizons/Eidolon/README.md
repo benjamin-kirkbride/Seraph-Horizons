@@ -4,6 +4,7 @@ Part of the Seraph Horizons mod (`../README.md`): a player-built eidolon, a labo
 fells trees with a real axe it holds, hauls Logging Expanded trunks to the rosser and the bucking
 sawmill, carries a Carry On container as a pack mule, lifts and carries Carry On blocks and trunks,
 defends itself and stands guard. At 0 HP it slumps disabled and can be repaired; it is never killed.
+It never heals by itself (only repair restores health), and creatures leave it be while it is down.
 It is built stage by stage in a mostly wooden gantry.
 
 **Status: the model and the entity.** This folder holds the shape's generator (`tools/`) and the

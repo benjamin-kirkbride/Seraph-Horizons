@@ -2710,8 +2710,15 @@ it stands and its chunk is loaded, not while it is slumped. Out of charge it slu
 and holds there until recharged, then plays `standup`. Its info shows the days left.
 
 **Never killed.** At 0 HP it slumps disabled instead of dying: no drops, no corpse, and a `Die` for
-death or lava does nothing but that. Down, it takes no more damage but heals, and stands up once
-repaired to `StandUpHealthShare` of its health. Its info says why it is stopped.
+death or lava does nothing but that. Down, it takes no more damage but can be repaired, and stands
+up once repaired to `StandUpHealthShare` of its health. Its info says why it is stopped. It never
+heals by itself, whole or down: the game's health behaviour heals every creature over time at its
+watched `regenSpeed`, which the eidolon holds at 0 on every load, so only repair restores health.
+Down, creatures lose it (`EidolonDownedTargeting`): a Harmony postfix on the two vanilla targeting
+bases' `CanSense` (`AiTaskBaseTargetable`, `AiTaskBaseTargetableR`, which every target search and
+retaliation goes through) makes a downed eidolon unsensed, and while it is down it stops, once a
+second, any running targeting task within 48 blocks aimed at it. It stays `IsInteractable`, which
+would also hide it from AI, since players' clicks need that to repair it.
 
 **Oil** (#674, `EntityBehaviorEidolonOil`). With the `MachineOil` switch on it has a reservoir like a
 machine's tank, `OilTank` points (100 to the litre: 1000, a bucket), filled by right-click with what
