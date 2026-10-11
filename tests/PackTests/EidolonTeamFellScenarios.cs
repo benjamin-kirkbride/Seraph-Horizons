@@ -156,6 +156,8 @@ public class EidolonTeamFellScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Contains($"{logs.Count} felled", report);
         Assert.Contains($"{o1.Felled} by eidolon {e1.EntityId}", report);
         Assert.Contains($"{o2.Felled} by eidolon {e2.EntityId}", report);
+        // every tree felled: none out of reach (an oak's boughs, upright in its crown, are no stumps)
+        Assert.DoesNotContain("out of", report);
         Assert.True(job.Closed);
         Assert.Null(Jobs.Felling.JobOf(e1.EntityId));
         Assert.Null(Jobs.Felling.JobOf(e2.EntityId));

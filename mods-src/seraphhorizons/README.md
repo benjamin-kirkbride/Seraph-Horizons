@@ -3040,15 +3040,20 @@ grown wild tree whose stump stands in the area (between 8 blocks below the lower
 higher), at most every 2 seconds, weighing at most 24 a search (the axe's own tree search). A wild log
 is one with the game's tree felling group that is grown, not placed (`log-grown-*`, `logsection-grown-*`,
 `lognarrow-grown-*`, the resin logs), never a fruit tree; a stump is such a log upright with no log of the
-same tree under it. A tree is grown when the axe's search from its stump finds at least `FellMinLogs`
+same tree under it, standing on the ground (the block under it solid on top: an oak's boughs, upright
+logs up in its crown over air or leaves, are no stumps). A tree is grown when the axe's search from its stump finds at least `FellMinLogs`
 (5) wood blocks: a sapling is no log, and a small young tree is left. A player's log building (placed
 logs, which have no felling group) is never touched, and neither is a tree in a land claim its owner may
 not break in (or, its owner unknown to the server, any claimed one). It walks to a place beside the trunk
 (a block corner 1.5 to 3.6 blocks from the trunk's centre, those within 2.8 and nearest it first, its
-box free and on the ground; three tried by the wide pathfinder before the tree is given up), faces it and
-swings `fell` three times (1.33 s each); the third cut, on frame 15, fells it. A tree it cannot reach is
-given up for the order's life. Done when no grown tree it can reach is left, when it tells its owner how
-many it felled (and how many were out of reach) and the order ends where it stands. Several given the
+box free and on the ground; three tried by the wide pathfinder, and three walks there, before the tree is
+given up), faces it and swings `fell` three times (1.33 s each); the third cut, on frame 15, fells it. A
+tree it cannot reach is passed over, but a way is often wanting only for a while (a feller is lifted onto
+the trunk it has just felled, and its walks from there may end where they start; another eidolon or a
+trunk may stand in it), so once it finds nothing else it tries each tree it gave up that still stands
+once more (`FellGiveUps`); one given up again is given up for the order's life. Done when no grown tree
+it can reach is left, when it tells its owner how many it felled (and how many trees were out of reach:
+those given up that still stand, stumps side by side one tree) and the order ends where it stands. Several given the
 same area fell it as one job, with one report (below).
 
 *Felled as a player's axe fells.* The server raises its `BreakBlock` event only for players, which
@@ -3203,8 +3208,10 @@ a feller reserves the tree it makes for (its stump) before it sets off, again as
 reservation may lapse on a long walk), keeps it with each swing and frees it once the tree is down or
 given up; its search passes over the trees another holds (they do not count to the 24 it weighs). A tree
 passed over for what it is (young, in a claim its owner may not break in, or one that would not fall) is
-passed over by the whole job (`FellJobCells.Skip`); one a member found no way to stays its own, and the
-report counts those some member gave up that still stand (`FellJobCells.Unreachable`). One with no tree
+passed over by the whole job (`FellJobCells.Skip`); one a member found no way to stays its own (each
+tries it, and tries it again before it has nothing left, so the job is done only when every member has
+given it up twice), and the report counts the trees some member gave up that still stand
+(`FellJobCells.Unreachable`, each tree once). One with no tree
 free, while trees are held by others, waits at the rim as a miner does (`RimWait`, looking for ground
 from 8 blocks below the area to 8 above, as stumps are; finding no way there, it steps aside to the
 nearest place more than 4.6 blocks from every tree another holds, `eidolon-status-fell-waiting-aside`),
