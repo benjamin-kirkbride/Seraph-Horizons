@@ -38,7 +38,7 @@ public enum MarkCheck
 /// their target and precision (<see cref="MarkBook"/>); markers made before that (or by hand) are
 /// matched by icon, place and title (<see cref="LegacyMatches"/>).
 /// <para>Precision follows the ore maps' tiers (the Standing tab's "ore maps of precision n"): 1
-/// within about 400 blocks, 2 within 150, 3 exact. A lead marks a camp's site, not where its trader
+/// within about 150 blocks, 2 within 50, 3 within 15. A lead marks a camp's site, not where its trader
 /// stands (<see cref="LeadPrecision"/>, within <see cref="LeadReach"/>); meeting the trader marks it
 /// exactly.</para>
 /// </summary>
@@ -103,14 +103,6 @@ public static class MapMarks
                                     && w.Title is { } t && titles.Any(p => p.Length > 0 && t.StartsWith(p, StringComparison.Ordinal)))
             .ToList();
     }
-
-    /// <summary>How far off a marker of this precision may be, in blocks (0: exact).</summary>
-    public static int ReachOf(int precision) => precision switch
-    {
-        Rough => 400,
-        Fair => 150,
-        _ => 0,
-    };
 }
 
 /// <summary>Every player's remembered markers (saved with the world). Markers that no longer exist

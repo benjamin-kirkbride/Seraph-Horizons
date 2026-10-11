@@ -15,7 +15,7 @@ namespace SeraphHorizons.Mod.Trading.Maps;
 /// <summary>
 /// The waypoints ore maps, gravel maps and leads put on a player's map, and the trader camps
 /// marked when their trader is met (server side; the rule is <see cref="MapMarks"/>). Every marker
-/// the mod makes carries its precision in its title ("Copper deposit (precision 2, ±150 m)",
+/// the mod makes carries its precision in its title ("Copper deposit (±50 m)",
 /// "Trader camp (cook) (approximate, ±64 m)", "… (exact)") and is remembered by its guid with its
 /// target and precision (<see cref="Book"/>, saved under <see cref="SaveKey"/>), so a map whose
 /// target is marked already is refused at the trader, a better map replaces a rougher marker, and
@@ -146,12 +146,12 @@ public class MapMarksSystem : ModSystem
 
     // ---- Titles ----
 
-    /// <summary>A marker's title with its precision: "… (exact)", "… (precision 2, ±150 m)", or for a
-    /// lead "… (approximate, ±64 m)".</summary>
-    public static string Title(string lang, string name, int precision, bool lead = false) =>
+    /// <summary>A marker's title with how far off it may be: "… (exact)" when <paramref name="reach"/>
+    /// is 0, "… (±50 m)", or for a lead "… (approximate, ±64 m)".</summary>
+    public static string Title(string lang, string name, int reach = 0, bool lead = false) =>
         lead ? Lang.GetL(lang, "seraphhorizons:map-waypoint-lead", name, MapMarks.LeadReach)
-        : precision >= MapMarks.Exact ? Lang.GetL(lang, "seraphhorizons:map-waypoint-exact", name)
-        : Lang.GetL(lang, "seraphhorizons:map-waypoint-precision", name, precision, MapMarks.ReachOf(precision));
+        : reach == 0 ? Lang.GetL(lang, "seraphhorizons:map-waypoint-exact", name)
+        : Lang.GetL(lang, "seraphhorizons:map-waypoint-precision", name, reach);
 
     /// <summary>How far a map's target is, in <paramref name="lang"/> (<see cref="MapDistance"/>):
     /// "about 3 km", "under a km".</summary>
