@@ -358,42 +358,45 @@ off lacks the items, and the tool still adds every one it lacks (each form of ea
 figures, litharge and the `singles`) as an item of the switch, with its stack (`augment_export`),
 so `check` and `build` work on one; the forms' prices come out the same.
 
-**The chain.** Raw ore and chunks are vanilla's ore items and keep their price (units x the metal's
-unit value, Rules above), on or off: a raw ore holds its metal whether a furnace takes it or a mill.
-Every new item holds 5 units (`concentrateUnits`). Per item, with a stage's `pct` and `flat` from
-`markups.json` and u the metal's gears per unit:
+**The chain.** Raw ore is vanilla's ore item and keeps its price (units x the metal's unit value,
+Rules above), on or off: a raw ore holds its metal whether a furnace takes it or a mill. The rock
+forms (crushed and ground ore, a sulfide's roasted rock) hold the raw ore's units U of their grade,
+one item to one (#847); concentrate, roasted concentrate, amalgam and sponge hold 5
+(`concentrateUnits`). Per item, with a stage's `pct` and `flat` from `markups.json` and u the metal's
+gears per unit:
 
 | Form | Price | Stage kind |
 |---|---|---|
-| crushed ore, fine | (units x u x (1 + pct) + flat) / (units / 5) from poor ore | `crushing` |
-| crushed ore, coarse | the same, the cheapest of medium, rich and bountiful ore and a nugget | `crushing` |
-| ground ore | crushed x (1 + pct) + flat | `grinding` |
-| concentrate | (ground x (1 + pct) + flat) / r | `concentrating` (+10 %, 0.01) |
+| crushed ore, by grade | U x u x (1 + pct) + flat | `crushing` |
+| ground ore, by grade | crushed x (1 + pct) + flat | `grinding` |
+| roasted rock (sulfides), by grade | crushed x (1 + pct) + flat | `roasting` (+10 %, 0.01) |
+| concentrate | the cheapest grade's (ground x (1 + pct) + flat) / (r x U / 5) | `concentrating` (+10 %, 0.01) |
 | amalgam (free gold and silver) | the same at r without the free-gold penalty | `amalgamating` (+10 %, 0.02) |
 | roasted concentrate (sulfides) | (concentrate x (1 + pct) + flat - sulfur credit) / the roaster | `roasting` (+10 %, 0.01) |
 | litharge | 100/21 units of lead, what it smelts back to | |
 
 r is the reference line's concentrator times the ore's density, times `freeUnamalgamated` for free
-gold and silver, at most 1. The line is the water tier (tier 2): the jig (80 %), ground and
+gold and silver, at most 1; one ground ore of U units gives r x U / 5 concentrate. The line is the water tier (tier 2): the jig (80 %), ground and
 classified feed, the stall roaster (92 %) and tier 2 parting (95 %), where a mid-game player and a
 trader's suppliers work; `line` in the file moves it. These are raws to the solver (fixed, sources
 `raw:oreprocessing ...`), computed from the ore's own raw price, so they are the same with the switch
 on, where the export carries the crushing and smelting that make them.
 
 **The legacy crushed ores** (`game:crushed-chromite`, `-cassiterite`, `-galena`, `-ilmenite`,
-`-sphalerite`) are their ore's coarse crushed ore. With the switch off Expanded Matter's crushing
-makes them, a bountiful chromite chunk 2.33 of them, so they were priced at 15 units each; every use
-counts one as 5 units (the crucible furnace's pot, `PotRecipes.UnitsOf`, and the recipes the switch
-retargets to ore processing's crushed ore), so they are priced as 5. With the switch on nothing
+`-sphalerite`) are 5 units of their ore and the crushing. With the switch off Expanded Matter's
+crushing makes them, a bountiful chromite chunk 2.33 of them, so they were priced at 15 units each;
+every use counts one as 5 units (the crucible furnace's pot, `PotRecipes.UnitsOf`; the recipes the
+switch retargets to ore processing's crushed ore take a whole rock of it now), so they are priced as 5. With the switch on nothing
 makes them; they keep that price (an old stack still holds its metal), but the ferrochrome pot's
 route in `routes.json` takes only chromite concentrate, so ferrochrome is priced from what a player
 can get.
 
-**Crystallized ore** holds its own units, about twice a chunk's (`crystalUnits` in
+**Crystallized ore** holds its own units, about twice a raw ore's (`crystalUnits` in
 `raw-values.json`, vanilla's `metalUnitsByType`: 30, 40, 50 and 70 by grade, cassiterite, hematite and
-the quartz ores their own). With the switch on it smelts at half of them, as the chunks do; priced at
-a chunk's units, as it was before, a bountiful crystallized copper ore (35 units smelted from 70)
-made a copper ingot at 1.90 instead of 2.07 and cheapened every metal.
+the quartz ores their own). With the switch on it smelts at its grade's share of them, as raw ore does
+of its own, and crushes to two crushed ores of its grade. Priced at a raw ore's units, as it once was,
+a bountiful crystallized copper ore made a copper ingot cheaper than its unit value and cheapened
+every metal.
 
 **By-products** (galena's and tetrahedrite's silver, freibergite's copper, teallite's and
 franckeite's lead, gold quartz's silver) are won only at a parting step, and unparted they are

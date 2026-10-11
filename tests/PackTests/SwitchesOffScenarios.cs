@@ -1382,7 +1382,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(typeof(ItemOre), medium.GetType());
         Assert.Equal(64, medium.MaxStackSize);
         Assert.Equal("game:crushed-galena", medium.CrushingProps?.CrushedStack?.ResolvedItemstack?.Collectible.Code.ToString());
-        Assert.Null(W.GetItem(new AssetLocation("game:crushed-galena-coarse")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:crushedore-galena-medium")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:roastedore-galena-medium")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:concentrate-galena")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:litharge")));
         // No cupel (#722) nor its recipes; argentiferous galena is hammered into native silver as vanilla has it.

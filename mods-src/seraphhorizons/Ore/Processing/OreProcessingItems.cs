@@ -108,13 +108,15 @@ public static class OreProcessingItems
 
         foreach (var item in world.Items)
         {
-            if (item?.Code is not { Domain: "game" or OreProducts.Domain } code)
+            if (item?.Code == null)
                 continue;
             if (QuernTakesNoMore(item))
             {
                 item.GrindingProps = null;
                 report.QuernOff++;
             }
+            if (item.Code is not { Domain: "game" or OreProducts.Domain } code)
+                continue;
             var parts = code.Path.Split('-');
             switch (parts[0])
             {

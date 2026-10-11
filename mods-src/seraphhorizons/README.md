@@ -4392,8 +4392,10 @@ lists what is wrong with the file (`Problems`, for the server log; a missing fig
 - Which device a stage has at each tier is code, not config (`OreTiers`): concentrators rocker
   (hand), sluice, jig, table, table and vanner; roasting by firepit to tier 1, stall at 2,
   reverberatory at 3 and 4; grinding from tier 2.
-- Smelting (`SmeltShare(ore, form)`): concentrate and roasted concentrate 100 %, crushed ore and
-  chunks 50 %, raw and ground ore nothing, sulfide concentrate nothing until roasted.
+- Smelting (`SmeltShare(ore, form, grade)`, #847): rock (raw, crushed and ground ore) by its grade,
+  poor 10 %, medium 25 %, rich 40 %, bountiful 55 % (`smeltByGrade`); a sulfide's rock nothing until
+  roasted, and its roasted rock the grade's share × the firepit's 85 %; concentrate, roasted
+  concentrate and sponge 100 % (`smelt`), a sulfide's concentrate nothing until roasted.
 - Parting (`Parting(method, tier)`, `Smelted(ore, mainUnits, partingTier)`): a
   by-product is a share of the main metal's recovered units, won only at a parting step at
   cupellation or liquation 85 / 95 / 100 % (hand and tier 1 / tiers 2–3 / tier 4) or acid
@@ -4401,8 +4403,9 @@ lists what is wrong with the file (`Problems`, for the server log; a missing fig
   galena 38 % (#690), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %,
   franckeite lead 30 %, gold quartz silver 15 %. Unparted, the by-product is lost and the main
   metal comes out at the ore's `unparted` share (gold quartz 85 %).
-- Units: raw ore and chunks keep their grade's units (`ore-graded.json`'s `metalUnitsByType`);
-  crushed, ground and concentrate items hold 5 (`concentrateUnits`). A station turns units into
+- Units: raw ore keeps its grade's units (`ore-graded.json`'s `metalUnitsByType`), and the other
+  rock forms carry them unchanged, one item to one (#847); concentrate items hold 5
+  (`concentrateUnits`). A station turns units into
   items through a `UnitCarry` (per output, saved with the station), which holds the fraction
   over for the next item, so nothing is lost to rounding.
 
@@ -4423,111 +4426,128 @@ from the server's, so it follows the server's switch. With it off the server lea
 every item, patch and change below out (the item types are marked disabled, the patch is emptied),
 and the game is as before.
 
-**Raw ore and chunks are vanilla's ore item**, `game:ore-{grade}-{ore}-{rock}`, by grade (its host
-rock stays the `{rock}` variant):
+**Raw ore is vanilla's ore item**, `game:ore-{grade}-{ore}-{rock}`, at every grade alike (its host
+rock stays the `{rock}` variant): "Raw Galena ore (rich)", 4 a stack. There are no chunks (#847):
+rich and bountiful ore drop raw ore as poor and medium do. A slot holds a fixed amount of rock, and its
+grade is how much metal is in it. Every grade keeps its `metalUnits` (the metal it holds, not what it
+smelts to) and the ore blocks keep their drops (1.25 ore items a block, plus 0.01 crystallised ore):
+deposit sizes, size tiers, map prices and district vein sizing value a block by them
+(`DepositService.BlockUnits`), so the shares come from the items' smelting, never from their units.
+Crystallised ore crushes and smelts the same by its grade, its own (doubled) units and stack kept.
+`patches/oreprocessing-ore.json` gives both items the pack's class (`ItemGradedOre`: the names, the
+text, and no breaking ore into nuggets with a hammer where it lies on the ground, vanilla's ground
+storage interaction, which #747's spalling replaces); the rest is set in code once every item is
+loaded (`OreProcessingItems`, in `AssetsFinalize`), so it holds whatever order other mods' patches ran
+in. A stack of rich or bountiful ore an old world holds above 4 stays as it is until it is split (no
+migration); the retired `game:crushed-{ore}-{grain}` and grade-less `seraphhorizons:groundore-{ore}`
+items are gone from an old world outright, as the epic settled.
 
-| Grade | Becomes | Stack | Smelts | Crushes to |
-|---|---|---|---|---|
-| poor | raw ore ("Raw Galena ore (poor)") | 4 | no | fine crushed ore |
-| medium | raw ore | 4 | no | coarse |
-| rich | chunk ("Galena chunk (rich)") | 16 | at half | coarse |
-| bountiful | chunk | 16 | at half | coarse |
-
-Every grade keeps its `metalUnits` (the metal it holds, not what it smelts to) and the ore blocks keep
-their drops (1.25 ore items a block, plus 0.01 crystallised ore): deposit sizes, size tiers, map prices
-and district vein sizing value a block by them (`DepositService.BlockUnits`), so the half and the
-"does not smelt" come from the items' smelting, never from their units. Crystallised ore crushes and
-smelts the same by its grade. `patches/oreprocessing-ore.json` gives both items the pack's class
-(`ItemGradedOre`: the names, the text, and no breaking ore into nuggets with a hammer where it lies on
-the ground, vanilla's ground storage interaction, which #747's spalling replaces); the rest is set in
-code once every item is loaded (`OreProcessingItems`, in `AssetsFinalize`), so it holds whatever order
-other mods' patches ran in.
-
-**New items**, one per ore (the 32 graded metal ores of vanilla, GeologyAdditions and
-MaterialNeedsGeology, `OreProducts.Ores`; each in `config/ore-processing.json`), each holding 5 units
-(`metalUnits`, #685's `concentrateUnits`), shaped as vanilla's crushed item and textured with the ore's
-nugget texture retinted by a blended overlay of a vanilla texture (no texture of the pack's):
+**The rock forms** are the pack's own items, by ore and grade, for the 32 graded metal ores of vanilla,
+GeologyAdditions and MaterialNeedsGeology (`OreProducts.Ores`; each in `config/ore-processing.json`).
+Each holds its raw ore's units unchanged (`metalUnitsByType` in the type file repeats vanilla's, held to
+the game by the pack tests), stacks to 4, and is made one for one: one raw ore crushes to one crushed
+ore, which grinds to one ground ore (crushing and grinding never change the bulk). Shaped as vanilla's
+crushed item and textured with the ore's nugget texture retinted by a blended overlay of a vanilla
+texture (no texture of the pack's):
 
 | Item | Code | Stack | Smelts |
 |---|---|---|---|
-| Crushed ore, coarse and fine | `game:crushed-{ore}-{coarse,fine}` | 16 | at half |
-| Ground ore | `seraphhorizons:groundore-{ore}` | 16 | no |
+| Crushed ore ("Crushed Galena ore (rich)") | `seraphhorizons:crushedore-{ore}-{grade}` | 4 | by grade; a sulfide's roasts in the firepit |
+| Ground ore | `seraphhorizons:groundore-{ore}-{grade}` | 4 | by grade; a sulfide's not at all |
+| Roasted rock ("Roasted Galena ore (rich)", the 13 sulfides) | `seraphhorizons:roastedore-{ore}-{grade}` | 4 | by grade × 85 % |
+
+**The other forms**, one per ore, each holding 5 units (`metalUnits`, #685's `concentrateUnits`):
+
+| Item | Code | Stack | Smelts |
+|---|---|---|---|
 | Concentrate | `seraphhorizons:concentrate-{ore}` | 128 | whole; a sulfide's not at all (it roasts in the firepit, next section) |
 | Roasted concentrate (the 13 sulfides) | `seraphhorizons:roastedconcentrate-{ore}` | 128 | whole |
 | Amalgam (gold and silver quartz) | `seraphhorizons:amalgam-{ore}` | 128 | no (retorted in the still first, below) |
 | Retorted sponge (gold and silver quartz) | `seraphhorizons:sponge-{ore}` | 128 | whole |
 | Litharge | `seraphhorizons:litharge` | 64 | to lead, 20 in 21 (95 %) |
 
-Crushed ore is vanilla's crushed item with a grain: an item type of the pack's in the game's domain
-(`assets/game/itemtypes/resource/crushedore.json`), next to vanilla's `game:crushed-{material}`, which
-stays. Argentiferous galena (`galena_nativesilver`) is a sulfide like galena, and a lead ore (#690,
-"Cupellation" below): every form of it smelts to lead.
+Vanilla's `game:crushed-{material}` stays as it is. Argentiferous galena (`galena_nativesilver`) is a
+sulfide like galena, and a lead ore (#690, "Cupellation" below): every form of it smelts to lead.
 
-**Smelting** (#688). What every form smelts to is what the ore's nugget smelts to (metal, melting
-point, smelting type; `nugget-{ore}` without `quartz_`, argentiferous galena's galena's), at #685's share
-(`OreRecovery.SmeltShare`: concentrate and roasted concentrate 1, crushed ore and chunks 0.5, raw and
-ground ore 0, a sulfide's concentrate 0 until roasted). The game's rate is a whole number of items per
-ingot, so the rate is the smallest exact one (`OreProducts.Rate`): a 25-unit chunk 1 ingot per 8, a
-35-unit one 7 per 40 (a `smeltedStack` of 7), crushed ore 1 per 40, concentrate 1 per 20. Every
-furnace then takes them as it takes the nugget:
+**Smelting** (#688, #847). The furnace reads the ore's grade: the rock has to be slagged off, and metal
+is lost with the slag, so rock smelts at its grade's share whether raw, crushed or ground
+(`smeltByGrade` in `config/ore-processing.json`: poor 10 %, medium 25 %, rich 40 %, bountiful 55 %), and
+concentrating is the one step where the bulk drops. By hand at the mine, that is 10 / 25 / 40 / 55 %
+smelted as mined against 22 % (poor, unground) and 55 % in the rocker. A sulfide's raw, crushed and
+ground ore does not smelt; its raw and crushed ore roast in the firepit into roasted rock, which smelts
+at the share × 85 % (next section). What every form smelts to is what the ore's nugget smelts to
+(metal, melting point, smelting type; `nugget-{ore}` without `quartz_`, argentiferous galena's
+galena's), at #685's share (`OreRecovery.SmeltShare`). The game's rate is a whole number of items per
+smelted stack, so the rate is the smallest exact one (`OreProducts.Rate`, an output of up to 10,000):
+a bountiful 35-unit ore at 55 % 77 ingots per 400, a medium 20-unit one at 25 % 1 per 20, concentrate 1
+per 20. The game counts a charge as a fraction of the rate, so a rate bigger than any charge costs
+nothing. Every furnace then takes them as it takes the nugget:
 
-- the game's crucible on a firepit or in a forge (chunks are given a nugget's size so they fit it, and
-  every new item has the metallurgy storage flag). Its alloy maths left out `smeltedStack`'s size,
-  which its single-metal maths counts, so a transpiler (`AlloyStackSize`, Harmony id
-  `seraphhorizons.oreprocessing`, each side by its own setting) makes it count it;
-- the bloomery (iron ore smelts to a bloom: 20 concentrate, or 40 crushed ore, a bloom);
+- the game's crucible on a firepit or in a forge (raw ore is given a nugget's size so it fits it, and
+  every new item has the metallurgy storage flag; four rock items a slot). Its alloy maths left out
+  `smeltedStack`'s size, which its single-metal maths counts, so a transpiler (`AlloyStackSize`,
+  Harmony id `seraphhorizons.oreprocessing`, each side by its own setting) makes it count it;
+- the bloomery (iron ore smelts to a bloom: 20 concentrate a bloom). Rock's rate names more items than
+  the bloomery's one slot holds at 4 a stack, so iron rock does not bloom: the bloomery takes
+  concentrate, as it effectively did before (crushed ore at 16 a stack never reached its 40);
 - crucibulum's forge, which counts a charge as the crucible does;
 - the crucible furnace: ferrochrome takes chromite concentrate as it takes crushed chromite, 5 units
   (`PotRecipes`; not crushed ore, a crude feed outside its ratios);
 - Steelmaking Expanded's blast furnace (`SmexBurden`): smex values a nugget and its crushed iron at
   8.5 units of iron; the live settings (not its file) make a nugget and an iron ore's concentrate
-  (pyrite's roasted) 5 and crushed iron ore 2.5 (`HopperIronOreRequired` 40, `HopperNuggetRequired` 20,
-  `BfIronPerMeltCycle` 100: a batch is 20 nuggets or 40 crushed for 100 units), and our iron ore forms
-  join its feed lists (`IronOreCompat`, kept there by a postfix on its `Init`).
+  (pyrite's roasted) 5 and smex's own crushed iron 2.5 (`HopperIronOreRequired` 40,
+  `HopperNuggetRequired` 20, `BfIronPerMeltCycle` 100: a batch is 20 nuggets for 100 units), and our
+  iron concentrates join its nugget list (`IronOreCompat`, kept there by a postfix on its `Init`). Our
+  rock is not in its lists: smex counts one figure per list, and rock holds 2 to 22 units of iron an
+  item by its grade.
 
-**Crushing** (#687): every crushed item is 5 units, so crushing yields the input's units ÷ 5, exactly
-and with no loss (a medium chromite raw ore, 20 units, gives 4; every grade is a multiple of 5, so no
-fraction arises and the pulverizer needs no `UnitCarry`), fine from poor ore, coarse from the rest; a
-nugget gives one coarse crushed ore of its ore (native gold and silver: of the quartz ore). The game's
-pulverizer, the tier 1 crusher, crushes by these. Set in code after every patch, they replace Expanded
-Matter's nugget crushing (its `patches/survival-itemtypes-resource-nugget.json` replaces vanilla's
-whole table) and its ore crushing, and smex's 1:1 nugget patch (which smex already skips with Expanded
-Matter installed), so the three never fight. The quern takes no ore form (none has grinding).
+**Crushing** (#687, #847): one raw ore crushes to one crushed ore of its grade, exactly and with no
+loss; crystallised ore, twice its grade's units, to two. The game's pulverizer, the water tier's
+crusher, crushes by these. Set in code after every patch, they replace Expanded Matter's ore crushing
+and its and smex's nugget crushing, which is taken off: a nugget is already metal and smelts whole.
+**The quern grinds no ore** (#847): there is no hand grinding, and grinding starts at the water tier
+(the arrastra, then the ball mill). Grinding is taken off every ore item, ore processing's forms, and
+the game's and Expanded Matter's crushed ores that recipes once took (`LegacyCrushed`, and the game's
+crushed iron; `OreProcessingItems.QuernTakesNoMore`); cinnabar, quartz and the rest grind as before.
 Vanilla's grid recipes hammering ore into nuggets (`recipes/grid/nuggets.json`) are switched off;
 nuggets still come from panning and traders.
 
-**Expanded Matter's crushed items**: ours are the crushed form of every ore, so one rule holds (grain,
-5 units, half smelting). EM's `em:crushed-ore-*` and `em:crushed-metal-*` stay in the game (its quern
-powders are made from them) but crushing no longer makes them. Every recipe that took one of them, or
-one of vanilla's ore crushed items (`game:crushed-chromite`, `-cassiterite`, `-galena`, `-ilmenite`,
-`-sphalerite`), takes our crushed ore of that ore, either grain, instead
+**Expanded Matter's crushed items**: ours are the crushed form of every ore, so one rule holds (the
+raw ore's grade and units, smelting by grade). EM's `em:crushed-ore-*` and `em:crushed-metal-*` stay in
+the game but crushing no longer makes them (and the quern no longer grinds EM's crushed metal ores).
+Every recipe that took one of them, or one of vanilla's ore crushed items (`game:crushed-chromite`,
+`-cassiterite`, `-galena`, `-ilmenite`, `-sphalerite`), takes our crushed ore of that ore, any grade,
+instead
 (`OreProcessingSystem.LegacyCrushed`, rewritten in every recipe file's ingredients before the recipes
 load): the tier 3 refractory bricks, vanilla's sulfates and diluted portions, EM's pigments and
 verdigris, Tailor's Delight's leather. EM's powders of those ores are left without a source (a
 follow-up, with the grinding stage). EM's coal crushing in the grid is left as it is (#734).
 
-Each form is one handbook group (crushed ore one per grain, `groupBy` in its type file), which Tidy
-Variants follows for its tiles (it honours shipped `groupBy`; an override rule would be unused, and
-reported, in a world with the switch off). Item values (#689) price every new item on concentrate,
-from its 5 units and the labour of each stage along a tier 2 line, with the switch's own value
+Each rock form is one handbook group per ore (its grades together, `groupBy` in its type file), which
+Tidy Variants follows for its tiles (it honours shipped `groupBy`; an override rule would be unused,
+and reported, in a world with the switch off). Item values (#689) price every new item on
+concentrate, from its units and the labour of each stage along a tier 2 line, with the switch's own value
 switch (`tools/item-values/ore-processing.json`, its README's "Ore processing"; the table is built
 from the default export, which has the switch on, and an export made with it off lacks the items, so
 the tool adds them); the galena silver share (#690) is #685's figures. Code: `Ore/Processing/`
 (`OreProcessingSystem`, `OreProcessingItems`, `ItemGradedOre`, `ItemOreProduct`, `AlloyStackSize`,
-`SmexBurden`). Tests: `tests/Ore/OreProductsTests.cs` (grades, codes, crushing, exact rates, the type
-files against the figures); `tests/PackTests/OreProcessingScenarios.cs` (Atlas, the switch on: the
-items, the grades, a medium ore block still measuring 1.25 × its units plus crystallised ore, crushing,
-no nugget recipe, the retargeted recipes, the crucible and an alloy, the bloomery, crucibulum's forge,
-smex's burden, the crucible furnace) and `SwitchesOffScenarios` (off, the default).
+`SmexBurden`). Tests: `tests/Ore/OreProductsTests.cs` (grades, codes, raw units, one-for-one
+crushing, exact rates for every grade's share, the type files against the figures and vanilla's units),
+`tests/Ore/OreRecoveryTests.cs` (smelting by grade, the sulfide rule, the issue's worked figures);
+`tests/PackTests/OreProcessingScenarios.cs` (Atlas, the switch on: the items, the grades, every rock
+form's units against the raw ore's, a medium ore block still measuring 1.25 × its units plus
+crystallised ore, crushing one for one, a real quern refusing ore, no nugget recipe, the retargeted
+recipes, the crucible by grade and an alloy, the bloomery, crucibulum's forge, smex's burden, the
+crucible furnace) and `SwitchesOffScenarios` (off, the default).
 
 ### Ore processing: spalling (`OreProcessing`, `SpallingSettings`)
 
-The hand tier's crusher (#747): raw ore and chunks broken with a hammer where they lie, the way miners
+The hand tier's crusher (#747): raw ore broken with a hammer where it lies, the way miners
 spalled ore with sledges before there were stamp mills. No station and no model: it works at the rock
 face from the first day. Part of `OreProcessing`; server side, and a client follows the
 server's items.
 
-- **Setting down.** Raw ore, chunks and crystallised ore (every grade) go on the ground one at a time:
+- **Setting down.** Raw ore and crystallised ore (every grade) go on the ground one at a time:
   shift + right-click on a solid block, ground storage holding a single ore in the middle of the block
   (`SingleCenter` in place of vanilla's messy pile of 12, by `patches/oreprocessing-ore.json`), never a
   pile. Shift + right-click on a placed ore with another in hand sets that one on the next block: beside
@@ -4535,16 +4555,16 @@ server's items.
   picking the placed one up). An empty hand takes it back as before.
 - **Striking.** A left-click on a placed ore with a game hammer (`game:hammer-*`) is a blow, as on the
   anvil: the hammer swings, the block is not broken, and the hammer loses `HammerWearPerBlow` (1). Raw
-  ore (poor, medium) breaks after `BlowsRawOre` (6) blows, a chunk (rich, bountiful) after `BlowsChunk`
-  (3). It breaks into crushed ore by the 5-unit rule with no loss, the ore's own crushing (fine from
-  poor ore, coarse from the rest: a medium galena's 20 units give 4 coarse, a bountiful's 35 give 7),
-  which pops out where it lay. A player strikes no faster than a blow every 0.3 s
+  ore breaks after `BlowsRawOre` (6) blows at every grade: rich ore is the same lump of rock as poor
+  (#847), only with more metal in it. It breaks into one crushed ore of its grade holding all its
+  metal (two from crystallised ore, which holds twice the units), the ore's own crushing, which pops
+  out where it lay. A player strikes no faster than a blow every 0.3 s
   (`Spalling.BlowIntervalMs`); the server counts the blows in memory, so an ore left half struck and
   unloaded starts again.
 - **Anything else** (a pick, an empty hand, any other item) keeps the game's behaviour: breaking the
   block picks the ore up.
 
-`SpallingSettings` in `ModConfig/seraphhorizons.json` (`BlowsRawOre`, `BlowsChunk`, `HammerWearPerBlow`;
+`SpallingSettings` in `ModConfig/seraphhorizons.json` (`BlowsRawOre`, `HammerWearPerBlow`;
 a value out of range falls back to its default with a warning). The hammers get the behaviour
 (`CollectibleBehaviorSpalling`, first among their behaviours so it runs before the hammer's swing,
 `AnimationAuthoritative`) on the server in `AssetsFinalize`, and clients get it with the items; with the
@@ -4556,8 +4576,9 @@ point a blow, no station: `requirements` says it is worked on the ground). A spe
 stone or a metal plate is left out. Code: `Ore/Core/Spalling.cs` (figures and rules),
 `Ore/Processing/OreSpalling.cs` (the blows, the next block, the hammer behaviour), `ItemGradedOre`.
 Tests: `tests/Ore/SpallingTests.cs`; `tests/PackTests/OreProcessingScenarios.cs` (Atlas: the hammers
-and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, fine from
-poor and a chunk in three blows, the next block, the export records) and `SwitchesOffScenarios` (off).
+and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, poor and
+bountiful ore in the same six blows each into one of its grade and crystallised ore into two, the next
+block, the export records) and `SwitchesOffScenarios` (off).
 
 ### Ore processing: leaching borax, saltpeter and alum (`OreProcessing`)
 
@@ -4625,7 +4646,14 @@ slot, not in a crucible.
   give exactly 17. The share is `roasters.firepit` in `config/ore-processing.json` (#685's
   `OreRecovery.Roasting(ore, Roaster.Firepit)`). The carry-over is `OreProcessingSystem.RoastCarry`,
   saved with the world; a firepit broken mid-item leaves under a unit there.
-- **No sulfur**: the firepit has one output slot, and open roasting lost its sulfur to the air. Sulfur
+- **Rock roasts too** (#847): a sulfide's raw and crushed ore (not crystallised ore, which is crushed
+  first, nor ground ore) roast the same way, one for one into roasted rock of the same grade
+  (`seraphhorizons:roastedore-{ore}-{grade}`, 4 a stack), which keeps the rock's units and smelts at its
+  grade's share × the firepit's 85 % (`OreRecovery.SmeltShare(ore, OreForm.RoastedRock, grade)`). A rock
+  item cooks for `FirepitRoastSeconds` per 5 units it holds (`OreRoasting.RockSeconds`: a 20-unit
+  medium galena 40 s), since it is that much more ore than a concentrate; one in, one out, so it needs
+  no carry-over. Concentrating first still keeps far more.
+- **No sulfur**, from concentrate or rock: the firepit has one output slot, and open roasting lost its sulfur to the air. Sulfur
   is recovered from the roasting stall on (#736).
 
 `OreProcessingItems` sets it with the rest of the smelting (in `AssetsFinalize`): a sulfide's
@@ -4708,7 +4736,7 @@ vanilla's silver galena hammers into native silver as before). Rules in `Ore/Cor
 the game side in `Ore/Processing/` (`BlockCupel`, `BlockCupelBead`, `CupelForge`, `ContainerText`).
 
 **Argentiferous galena.** Vanilla's silver galena (`galena_nativesilver`) is renamed "Argentiferous
-galena" (its ore, raw ore, chunks, crystallised ore, loose bits and processing forms; lang overrides
+galena" (its ore, raw ore, crystallised ore, loose bits and processing forms; lang overrides
 of the game's keys and the Tidy Variants groups) and is a lead ore: `OreMetals` lists it under lead
 (lead deposits and maps count and name it, silver deposits are silver quartz and freibergite), every
 form of it smelts to lead (its nugget is galena's), its loose bits drop a galena nugget, and its
