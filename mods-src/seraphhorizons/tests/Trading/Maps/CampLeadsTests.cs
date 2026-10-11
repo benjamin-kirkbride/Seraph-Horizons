@@ -288,9 +288,25 @@ public class CampLeadsTests
     [Fact]
     public void AStrangerWhoseGroupHadItsMapHereGetsNoMore()
     {
-        var (offers, why) = CampLeads.Pick(Shipped(), Own, Line(), new LeadBuyer { StrangerUsed = true, Pity = Camp(1, 1, TraderTypes.Prospector) });
+        var (offers, why) = CampLeads.Pick(Shipped(), Own, Line(), new LeadBuyer { StrangerUsed = true });
         Assert.Empty(offers);
         Assert.Equal(CampLeadsWhy.StrangerUsed, why);
+    }
+
+    [Fact]
+    public void AStrangerIsOfferedThePityMapEvenWhenTheirGroupHadItsMapHere()
+    {
+        // The first map is the player's own: a stranger gets it whatever their group has had here,
+        // and it is their only offer.
+        var pity = Camp(1, 1, TraderTypes.Prospector);
+        foreach (string tier in new[] { CampLeadRules.Stranger, "nobody" })
+        {
+            var (offers, why) = CampLeads.Pick(Shipped(), Own, Line(), new LeadBuyer { Tier = tier, StrangerUsed = true, Pity = pity });
+            Assert.Equal(CampLeadsWhy.None, why);
+            var only = Assert.Single(offers);
+            Assert.True(only.Pity);
+            Assert.Equal(10, only.Price);
+        }
     }
 
     [Fact]

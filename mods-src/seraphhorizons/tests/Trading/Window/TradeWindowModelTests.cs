@@ -195,10 +195,10 @@ public class TradeWindowModelTests
     {
         var line = TradeWindowModel.OreMapLine("lead", ["galena", "cerussite"], "medium", "mostly:poor", "Limestone", 2400.4, 2);
         Assert.Equal("trading-window-map-ore-named(ore-list-and(orename-galena, orename-cerussite), "
-                     + "ore-list-comma(ore-list-comma(ore-size-medium, ore-grades-mostly(ore-grade-poor)), trading-window-map-ore-host(Limestone)), 2400, 2)",
+                     + "ore-list-comma(ore-list-comma(ore-size-medium, ore-grades-mostly(ore-grade-poor)), trading-window-map-ore-host(Limestone)), map-distance-km(2), 2)",
             line.ToString());
         // Three ores; no grades or rock known.
-        Assert.Equal("trading-window-map-ore-named(ore-list-and(ore-list-comma(orename-a, orename-b), orename-c), ore-size-small, 10, 1)",
+        Assert.Equal("trading-window-map-ore-named(ore-list-and(ore-list-comma(orename-a, orename-b), orename-c), ore-size-small, map-distance-under, 1)",
             TradeWindowModel.OreMapLine("x", ["a", "b", "c"], "small", null, null, 10, 1).ToString());
         // Shelved before maps named the ore: the metal.
         Assert.Equal("trading-window-map-ore", TradeWindowModel.OreMapLine("copper", [], null, null, null, 10, 1).Key);
@@ -209,7 +209,7 @@ public class TradeWindowModelTests
     [Fact]
     public void AGravelMapOfferNamesItsRockAndMetalsAndASurveyIsSaid()
     {
-        Assert.Equal("trading-window-map-gravel-pans(Granite, ore-list-and(ore-metal-tin, ore-metal-gold), 300)",
+        Assert.Equal("trading-window-map-gravel-pans(Granite, ore-list-and(ore-metal-tin, ore-metal-gold), map-distance-under)",
             TradeWindowModel.GravelMapLine("Granite", ["tin", "gold"], 300).ToString());
         Assert.Equal("trading-window-map-gravel-rock", TradeWindowModel.GravelMapLine("Granite", [], 300).Key);
         Assert.Equal("trading-window-map-gravel", TradeWindowModel.GravelMapLine(null, [], 300).Key);
@@ -279,7 +279,7 @@ public class TradeWindowModelTests
         Assert.Contains("trading-window-fact-rare", gains);
         Assert.Contains("trading-window-fact-prices", gains);
         // Regular to trusted: more camp leads further out; the settlement lead both have.
-        Assert.Contains("trading-window-fact-leads(5, 3)", TradeWindowModel.Gains(s.Tier, s.Next!, AllOn()).Select(f => f.ToString()));
+        Assert.Contains("trading-window-fact-leads(5, 7)", TradeWindowModel.Gains(s.Tier, s.Next!, AllOn()).Select(f => f.ToString()));
         Assert.DoesNotContain("trading-window-fact-settlement", gains);
     }
 
@@ -288,21 +288,20 @@ public class TradeWindowModelTests
     {
         var s = Summary(0, 0);
         var stranger = TradeWindowModel.Facts(s.Tiers[0], AllOn()).Select(f => f.ToString()).ToList();
-        Assert.Contains("trading-window-fact-leads-stranger", stranger);
+        Assert.Contains("trading-window-fact-leads-stranger(3)", stranger);
         Assert.DoesNotContain("trading-window-fact-settlement", stranger);
-        // In rings of grid cells; one ring reads "within 1 ring".
-        Assert.Contains("trading-window-fact-leads-one(2)", TradeWindowModel.Facts(s.Tiers[1], AllOn()).Select(f => f.ToString()));
-        Assert.Contains("trading-window-fact-leads(3, 2)", TradeWindowModel.Facts(s.Tiers[2], AllOn()).Select(f => f.ToString()));
-        Assert.Contains("trading-window-fact-leads(8, 5)", TradeWindowModel.Facts(s.Tiers[4], AllOn()).Select(f => f.ToString()));
+        // Reach in rings of grid cells, said in km, never as rings: 1 ring about 3 km, 2 about 5, 5 about 11.
+        Assert.Contains("trading-window-fact-leads(2, 3)", TradeWindowModel.Facts(s.Tiers[1], AllOn()).Select(f => f.ToString()));
+        Assert.Contains("trading-window-fact-leads(3, 5)", TradeWindowModel.Facts(s.Tiers[2], AllOn()).Select(f => f.ToString()));
+        Assert.Contains("trading-window-fact-leads(8, 11)", TradeWindowModel.Facts(s.Tiers[4], AllOn()).Select(f => f.ToString()));
     }
 
     [Fact]
-    public void LeadOfferLinesNameTheCampItsWayRingAndPriceAndTheNoteSaysWhyNone()
+    public void LeadOfferLinesNameTheCampItsDistanceInKmWayAndPriceButNoRingAndTheNoteSaysWhyNone()
     {
         var row = new LeadOfferRow { Cell = "1,0", Type = "smith", Distance = 2210.4, Dx = 2200, Dz = 0, Price = 3, Ring = 1 };
         Assert.Equal("trading-window-lead-offer", TradeWindowModel.LeadOfferLine(row).Key);
-        Assert.Contains("2210", TradeWindowModel.LeadOfferLine(row).ToString());
-        Assert.EndsWith(", 3, 1)", TradeWindowModel.LeadOfferLine(row).ToString());
+        Assert.Equal("trading-window-lead-offer(trading-type-smith, map-distance-km(2), trading-window-dir-e, 3)", TradeWindowModel.LeadOfferLine(row).ToString());
         Assert.Equal("trading-window-lead-offer-prospector", TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "prospector", Prospector = true }).Key);
         var none = new TradeWindowState { LeadsWhy = "trading-window-leads-strangerused" };
         Assert.Equal("trading-window-leads-strangerused", TradeWindowModel.LeadOffersNote(none)!.Key);

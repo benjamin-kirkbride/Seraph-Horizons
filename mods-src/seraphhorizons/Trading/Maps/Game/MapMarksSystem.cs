@@ -153,6 +153,27 @@ public class MapMarksSystem : ModSystem
         : precision >= MapMarks.Exact ? Lang.GetL(lang, "seraphhorizons:map-waypoint-exact", name)
         : Lang.GetL(lang, "seraphhorizons:map-waypoint-precision", name, precision, MapMarks.ReachOf(precision));
 
+    /// <summary>How far a map's target is, in <paramref name="lang"/> (<see cref="MapDistance"/>):
+    /// "about 3 km", "under a km".</summary>
+    public static string DistanceText(string lang, double blocks)
+    {
+        var (key, args) = MapDistance.Of(blocks);
+        return Lang.GetL(lang, "seraphhorizons:" + key, args);
+    }
+
+    /// <summary>The flat distance from <paramref name="from"/> to the block column (x, z).</summary>
+    public static double FlatDistance(Vec3d from, double x, double z) =>
+        Math.Sqrt((x - from.X) * (x - from.X) + (z - from.Z) * (z - from.Z));
+
+    /// <summary>A map item's tooltip line, "Distance from here: about 3 km.", from the player holding
+    /// it on the client to (x, z); nothing where no player is known (the server, a thumbnail).</summary>
+    public static void AppendDistance(IWorldAccessor world, double x, double z, System.Text.StringBuilder dsc)
+    {
+        if (world.Side != EnumAppSide.Client || (world as Vintagestory.API.Client.IClientWorldAccessor)?.Player?.Entity?.Pos is not { } pos) return;
+        string lang = Lang.CurrentLocale;
+        dsc.AppendLine(Lang.GetL(lang, "seraphhorizons:oremap-info-distance", DistanceText(lang, FlatDistance(pos.XYZ, x, z))));
+    }
+
     // ---- What a stack points at ----
 
     /// <summary>The target of a map, a lead or an offer of either (by its attributes), or null.</summary>

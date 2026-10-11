@@ -663,8 +663,9 @@ public class MapsSystem : ModSystem
     /// they have are <see cref="CampsHad"/>; the camps their group visited and its maps bought here
     /// are <see cref="Leads"/>'. The candidates are the cells within the tier's reach in rings of the
     /// trader's cell. Their very first map (the pity map) is offered first when they have not had it,
-    /// the trader is not a prospector, nothing of theirs is being drawn and, for a stranger, the
-    /// group's one map from this trader is unspent. Null when maps or the grid are off.
+    /// the trader is not a prospector and nothing of theirs is being drawn, at any standing (a
+    /// stranger's too, even when their group's one map from this trader is spent). Null when maps or
+    /// the grid are off.
     /// </summary>
     public CampLeadView? CampLeadsFor(IPlayer player, EntitySeraphTrader trader)
     {
@@ -677,8 +678,9 @@ public class MapsSystem : ModSystem
         var rules = Prices.CampLeads;
         bool strangerUsed = Leads.StrangerUsed(keys, traderId);
         bool pityUsed = Leads.PityUsed(uid);
-        bool pityHere = !pityUsed && trader.TraderType != TraderTypes.Prospector && !_drawing.Any(d => d.Uid == uid)
-                        && !(rules.IsStranger(tier) && strangerUsed);
+        // At any standing, a stranger's included, whether or not their group has had its stranger's
+        // map here: the first map is the player's own.
+        bool pityHere = !pityUsed && trader.TraderType != TraderTypes.Prospector && !_drawing.Any(d => d.Uid == uid);
         var buyer = new LeadBuyer
         {
             Tier = tier, Have = have,
