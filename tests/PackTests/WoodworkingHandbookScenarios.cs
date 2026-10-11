@@ -66,7 +66,7 @@ public partial class WoodworkingScenarios
             .Where(p => p.Page != null)
             .Select(p => (p.Domain, Code: (string?)p.Page["pageCode"], Title: (string?)p.Page["title"], Text: (string?)p.Page["text"]))
             .ToList();
-        // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, spalling's, ore roasting's, ore retorting's, liquation's and the ore maps' pages
+        // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, spalling's, ore roasting's, ore retorting's, liquation's, the ore maps' and springs' pages
         // are not woodworking ones (the assets are there whatever the switches; a switched-off page is hidden)
         var ours = pages.Where(p => p.Domain == "seraphhorizons" && p.Code != SeraphHorizons.Mod.MachineOil.MachineOilSystem.GuidePageCode
                                     && p.Code != SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuidePage
@@ -76,7 +76,8 @@ public partial class WoodworkingScenarios
                                     && p.Code != SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode
                                     && p.Code != SeraphHorizons.Mod.Eidolon.EidolonGuideSystem.GuidePageCode
                                     && p.Code != SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuidePage
-                                    && p.Code != SeraphHorizons.Mod.Ore.OreMapsSystem.GuidePage).ToList();
+                                    && p.Code != SeraphHorizons.Mod.Ore.OreMapsSystem.GuidePage
+                                    && p.Code != SeraphHorizons.Mod.Springs.SpringsSystem.GuidePageCode).ToList();
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey(), p.TextKey())).Order(),
             ours.Select(p => (p.Code!, p.Title!, p.Text!)).Order());
         var en = Entries("en");

@@ -54,6 +54,7 @@
   "RuinsOnMedianGround": false,
   "SlowerRailVehicles": false,
   "SmallerDeposits": false,
+  "Springs": false,
   "SteelBitsRecovery": false,
   "TidyVariants": false,
   "TraderDeliveries": false,
