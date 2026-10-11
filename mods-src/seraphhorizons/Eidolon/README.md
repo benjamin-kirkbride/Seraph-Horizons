@@ -14,8 +14,10 @@ and `Game/`, described in the mod's README ("Eidolon"), with the seams the gantr
 and jobs plug into; the body stages and the waking (#672: the gantry's `BEBehaviorEidolonBody`,
 `../EidolonGantry/`), oil and repair (#674), and the command tool's binding, mode wheel and marking,
 following, staying and self-defence (#675) are built too, and hauling trunks to the rosser and the
-bucking mill (#678), and mining a marked area (`Game/MineOrder.cs`, `Core/EidolonMining.cs`, its slam
-the shape's vanilla `stand-slam`). The other jobs are not built yet.
+bucking mill (#678), mining a marked area (`Game/MineOrder.cs`, `Core/EidolonMining.cs`, its slam
+the shape's vanilla `stand-slam`), climbing steps of two (`Core/EidolonClimb.cs`, the `climb` animation)
+and keeping its chunks loaded while it works (`Game/EidolonChunkSystem.cs`, `Core/EidolonChunks.cs`).
+The other jobs are not built yet.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/`, which is the repository's.
