@@ -17,11 +17,12 @@ is where it is parted) and stops drawing the work. No hammer is modelled: the pl
 Its second job winds a coil spring on the same mandrel: a hot steel rod laid straight along the mandrel's
 top east edge, from the shoulder to a little past the nose, is wound round the fixed mandrel from its
 shoulder end (by hand, with tongs: neither is modelled), a side at a time, into a square coil of six turns
-(machinegen.coil, which draws the draw bench's follower spring too). Every piece is a rigid bar: each side
-bends off the straight rod's shoulder end round its corner, across the next face, and the straight rod then
-slides square across that face to the side's end, a face at a time round the mandrel; the rod is used up
-from its shoulder end, a wire's width a side, its far end never moving (the wire's real length is not
-kept: the coil is six times longer than the rod). At W 1 the spring is wound, on the mandrel; gameplay then
+(machinegen.coil, which draws the draw bench's follower spring too). Every piece is a rigid bar: in each of 24
+equal slots of W a side bends off the straight rod's shoulder end round its corner, across the next face,
+while the rod hops over that face along an arc above it to the side's far corner, where it comes down on the
+side's end and the next side is bent off it: so the rod goes round the mandrel a face a slot, never stopping,
+and is used up from its shoulder end, a wire's width a side, its far end never moving (the wire's real
+length is not kept: the coil is six times longer than the rod). At W 1 the spring is wound, on the mandrel; gameplay then
 delivers it and stops drawing it. The finished coil is also the spring item's shape.
 Everything is built here from plain boxes; no other mod's model is used.
 
@@ -171,8 +172,18 @@ COIL = Coil((X0, YM), MH, WIRE, COIL_PITCH, SPRING_Z0, COIL_TURNS)
 ROD_END = COIL.corner(COIL.sides - 1)[2] + COIL.length
 SIDE_STORE = (X0, YM, 8.0)                   # where a side waits for its turn: inside the mandrel's body
 ROD_STORE = (X0, YM, 2.0)                    # where a spent stretch of the straight rod goes (its start): inside the body
-# the pace of the winding's steps, relative: a side bent off the rod round its corner, the rod slid across the face
-PACE = {"bend": 1.0, "slide": 0.8}
+# The rod's hop over a face, corner to corner: up off the corner along a 45-degree arc to HOP_RISE over the coil's layer,
+# straight across the face at that height, and down the same arc onto the far corner. Every face's hop leaves and lands
+# at 45 degrees, so the path round the mandrel has no kink at a corner, and the rod rides HOP_RISE - WIRE / 2 - ROD / 2
+# over the side being laid under it. 0.75 keeps the rod inside the station's box over the top (its top face 15.96 of 16)
+# and clear of the side's top by 0.14; a circle through the corners would leave the box there by 0.16.
+HOP_RISE = 0.75
+HOP_TAKEOFF = math.pi / 4
+# The bend's profile over a slot of W (the slot is the rod's hop; the side is bent off the rod in it): (fraction of the
+# slot, fraction of the angle turned by then). The side turns slowly while the rod lifts off it, through most of its
+# angle while the rod is up over the face, and eases home as the rod comes down onto its end: so the two never cut into
+# each other away from their joint, and the coil's growing end never stops dead.
+BEND = ((0.2, 0.04), (0.8, 0.97), (1.0, 1.0))
 US = 1_000_000                               # W in millionths: every window starts and ends on one
 WIND_TURNS = 4.0                            # the pace: turns of the held right-click's clock (a turn a second) a spring
 SPRING_ROD = "game:rod-steel"
@@ -318,17 +329,20 @@ def build_work():
 
 # ---------------------------------------------------------------- the spring
 # The winding is planned piece by piece (`plan`), every piece a rigid bar. At W 0 the straight rod (`spr0`) lies along the
-# mandrel's top east edge (the coil's first corner line), from the shoulder to ROD_END, a little past the nose. A side,
-# from the top east corner A round the top west B, the bottom west C and the bottom east D:
+# mandrel's top east edge (the coil's first corner line), from the shoulder to ROD_END, a little past the nose. W is cut
+# into 24 equal slots, one a side. In side j's slot, from the top east corner A round the top west B, the bottom west C
+# and the bottom east D (three instants at its start, then the slot):
 #   - the side, waiting inside the mandrel's body, is put inside the rod along its shoulder end, from its corner;
 #   - the rod is swapped for the next stretch of it (`spr<j+1>`), a wire's width shorter at its shoulder end: the stretch
 #     it loses lies inside the side, so nothing seen changes; the spent one goes back inside the mandrel;
-#   - the side is bent off the rod round its corner, a turn about the face's normal through it, across the face into its
-#     place on the coil;
-#   - the rod slides square across that face, along the side, to the side's end: the next corner.
-# So the straight rod goes round the mandrel a face at a time, always along it, used up from its shoulder end; its far
-# end never moves. The coil's wire is six times the rod's length: the side bent off it is the one thing that is not the
-# rod's own length (the wire's length is not kept).
+#   - over the slot, together: the side is bent off the rod round its corner (a turn about the face's normal through it,
+#     across the face into its place on the coil, BEND's profile), while the rod hops over that face to the side's far
+#     corner, carried along an arc (ARC_CENTRE) above the side as it is laid, never turning (a turn about its own axis
+#     undoes the arc's), and comes down on the side's end as the side eases home. The next slot's side is then bent off
+#     it there.
+# So the straight rod goes round the mandrel a face a slot, always along it, used up from its shoulder end; its far end
+# never moves, and it never stops: each hop starts as the last lands. The coil's wire is six times the rod's length: the
+# side bent off it is the one thing that is not the rod's own length (the wire's length is not kept).
 def spring_name(j):
     return f"sp{COIL.name(j)}"
 
@@ -452,7 +466,9 @@ def side_pose(j):
 
 
 _PLAN = []
-WINDOWS = []                                 # the plan's steps in order: (kind, first, last millionth of W)
+WINDOWS = []                                 # the plan's steps in order: (kind, first, last millionth of W): "instant", or
+                                             # "slot" (side j bent off the rod while the rod hops over its face)
+INSTANTS = 3                                 # at the start of each slot: put, take, away
 
 
 def plan():
@@ -464,6 +480,69 @@ def plan():
 
 def corner(j):
     return list(COIL.corner(j))
+
+
+def slot(j):
+    """Side j's slot of W, in millionths: (first, last). Its INSTANTS come first; the rest is the hop and the bend."""
+    return int(round(j * US / COIL.sides)), int(round((j + 1) * US / COIL.sides))
+
+
+def _turn(c, p, q):
+    """The angle about +z, from the centre c, from point p to point q (radians, signed)."""
+    u, v = (p[0] - c[0], p[1] - c[1]), (q[0] - c[0], q[1] - c[1])
+    return math.atan2(u[0] * v[1] - u[1] * v[0], u[0] * v[0] + u[1] * v[1])
+
+
+def hop(j):
+    """The rod's hop over face j, from corner j to corner j + 1, as segments in order, each (kind, start (x, y), end (x, y),
+    centre (x, y), angle about +z, length): an "arc" up off corner j, HOP_TAKEOFF steep, bending over until it runs along
+    the face at HOP_RISE over the coil's layer; "straight" across; an "arc" down onto corner j + 1 the same way."""
+    axis, sign = COIL.normal(j)
+    n = [0.0, 0.0]
+    n["xy".index(axis)] = sign
+    a, b = corner(j)[:2], corner(j + 1)[:2]
+    run = math.hypot(b[0] - a[0], b[1] - a[1])
+    t = [(b[0] - a[0]) / run, (b[1] - a[1]) / run]
+    r = HOP_RISE / (1 - math.cos(HOP_TAKEOFF))
+    adv = r * math.sin(HOP_TAKEOFF)
+    if 2 * adv > run:
+        raise ValueError("the hop's arcs overlap: HOP_RISE too high or HOP_TAKEOFF too flat")
+    c1 = [a[k] + r * (math.sin(HOP_TAKEOFF) * t[k] - math.cos(HOP_TAKEOFF) * n[k]) for k in range(2)]
+    p1 = [c1[k] + r * n[k] for k in range(2)]
+    c2 = [b[k] + r * (-math.sin(HOP_TAKEOFF) * t[k] - math.cos(HOP_TAKEOFF) * n[k]) for k in range(2)]
+    p2 = [c2[k] + r * n[k] for k in range(2)]
+    arc = r * HOP_TAKEOFF
+    return [("arc", a, p1, c1, _turn(c1, a, p1), arc),
+            ("straight", p1, p2, None, 0.0, run - 2 * adv),
+            ("arc", p2, b, c2, _turn(c2, p2, b), arc)]
+
+
+def hop_off(j, p):
+    """How far the point p (x, y) lies off hop j's path (voxels), and how far along it (0 .. 1)."""
+    segs = hop(j)
+    total = sum(s[5] for s in segs)
+    best, done = 1e9, 0.0
+    for kind, a, b, c, ang, length in segs:
+        if kind == "straight":
+            d = [b[k] - a[k] for k in range(2)]
+            f = max(0.0, min(1.0, sum((p[k] - a[k]) * d[k] for k in range(2)) / (length * length)))
+            off = math.hypot(*[p[k] - a[k] - f * d[k] for k in range(2)])
+        else:
+            r = math.hypot(p[0] - c[0], p[1] - c[1])
+            turned = _turn(c, a, p)
+            f = max(0.0, min(1.0, turned / ang)) if ang else 0.0
+            at = _rot_xy(c, a, f * ang)
+            off = math.hypot(p[0] - at[0], p[1] - at[1])
+        if off < best:
+            best, along = off, (done + f * length) / total
+        done += length
+    return best, along
+
+
+def _rot_xy(c, p, ang):
+    """p turned ang about +z through c (x, y)."""
+    u = (p[0] - c[0], p[1] - c[1])
+    return [c[0] + u[0] * math.cos(ang) - u[1] * math.sin(ang), c[1] + u[0] * math.sin(ang) + u[1] * math.cos(ang)]
 
 
 def _plan():
@@ -479,62 +558,67 @@ def _plan():
         rods.append(Piece(rod_name(j), ROD, -rh, length + rh, length, rod_store, "rod", j))
     rods[0].home = rods[0].pose = (IDENT, corner(0))
     rods[0].show(0)
-    steps = []
 
     for j in range(n):
         side, rod = sides[j], rods[j]
         nxt = rods[j + 1] if j + 1 < n else None
-
-        def put(t, _t1, side=side, j=j):
-            _place(side, t, (IDENT, corner(j)))
-
-        def take(t, t1, side=side, rod=rod, nxt=nxt, j=j):
-            gap = max(abs(rod.pose[1][i] - corner(j)[i]) for i in range(3))
-            if gap > 1e-4:
-                raise ValueError(f"{rod.pid} is not at corner {j} ({gap:.1e})")
-            if nxt is not None:
-                c = corner(j)
-                _place(nxt, t, (IDENT, [c[0], c[1], COIL.corner(j + 1)[2]]))
-                nxt.show(t1)
-            side.show(t1)
-            rod.hide(t)
-
-        def away(t, _t1, rod=rod):
-            _place(rod, t, rod_store)
-
-        def bend(t, t1, side=side, j=j):
-            axis, ang = COIL.swing(j)
-            _rotate([side], t, t1, axis, ang, corner(j))
-
-        def slide(t, t1, nxt=nxt, j=j):
-            _slide([nxt], t, t1, [corner(j + 1)[0] - corner(j)[0], corner(j + 1)[1] - corner(j)[1], 0.0])
-
-        steps += [(None, put, "instant"), (None, take, "instant"), (None, away, "instant"), (PACE["bend"], bend, "bend")]
+        t, t_end = slot(j)
+        # put: the side inside the rod, along its shoulder end from its corner
+        gap = max(abs(rod.pose[1][i] - corner(j)[i]) for i in range(3))
+        if gap > 1e-4:
+            raise ValueError(f"{rod.pid} is not at corner {j} ({gap:.1e})")
+        _place(side, t, (IDENT, corner(j)))
+        WINDOWS.append(("instant", t, t + 1))
+        t += 1
+        # take: the next stretch of the rod in place of this one, a wire's width shorter at its shoulder end
         if nxt is not None:
-            steps.append((PACE["slide"], slide, "slide"))
-
-    # W in millionths: the instants one each, the timed steps sharing the rest by their pace
-    rel = sum(s[0] for s in steps if s[0])
-    slots = sum(1 for s in steps if not s[0])
-    scale, t, acc, used = (US - slots) / rel, 0, 0.0, 0
-    for dur, fn, kind in steps:
-        if dur:
-            acc += dur
-            t1 = int(round(acc * scale)) + used
-            fn(t, t1)
-            WINDOWS.append((kind, t, t1))
-            t = t1
-        else:
-            fn(t, t + 1)
-            WINDOWS.append((kind, t, t + 1))
-            t, used = t + 1, used + 1
-    if t != US:
-        raise ValueError(f"the winding ends at {t}, not {US}")
+            c = corner(j)
+            _place(nxt, t, (IDENT, [c[0], c[1], COIL.corner(j + 1)[2]]))
+            nxt.show(t + 1)
+        side.show(t + 1)
+        rod.hide(t)
+        WINDOWS.append(("instant", t, t + 1))
+        t += 1
+        # away: the spent stretch back inside the mandrel
+        _place(rod, t, rod_store)
+        WINDOWS.append(("instant", t, t + 1))
+        t += 1
+        if t != slot(j)[0] + INSTANTS:
+            raise ValueError("a slot has more instants than INSTANTS")
+        # the slot: the side bent off the rod's end by BEND's profile ...
+        axis, ang = COIL.swing(j)
+        f0, g0 = 0.0, 0.0
+        for f1, g1 in BEND:
+            a, b = t + int(round(f0 * (t_end - t))), t + int(round(f1 * (t_end - t)))
+            _rotate([side], a, b, axis, ang * (g1 - g0), corner(j))
+            f0, g0 = f1, g1
+        # ... while the rod hops over the face, its segments at one speed: carried, not turned (on an arc, a turn about its
+        # own axis undoes the arc's turn about the arc's centre, so its square section stays as it lies)
+        if nxt is not None:
+            segs = hop(j)
+            total = sum(s[5] for s in segs)
+            a, done = t, 0.0
+            for kind, p, q, c, ang, length in segs:
+                done += length
+                b = t + int(round(done / total * (t_end - t)))
+                if kind == "straight":
+                    _slide([nxt], a, b, [q[0] - p[0], q[1] - p[1], 0.0])
+                else:
+                    _rotate([nxt], a, b, "z", -ang, nxt.pose[1])
+                    _rotate([nxt], a, b, "z", ang, [c[0], c[1], 0.0])
+                a = b
+        WINDOWS.append(("slot", t, t_end))
+    if WINDOWS[-1][2] != US:
+        raise ValueError(f"the winding ends at {WINDOWS[-1][2]}, not {US}")
     for pc in sides:
         gap = max(max(abs(pc.pose[1][i] - side_pose(pc.j)[1][i]) for i in range(3)),
                   max(abs(pc.pose[0][a][b] - side_pose(pc.j)[0][a][b]) for a in range(3) for b in range(3)))
         if gap > 1e-4:
             raise ValueError(f"{pc.pid} does not end where the coil puts it ({gap:.1e})")
+    for pc in rods:
+        gap = max(abs(pc.pose[1][i] - rod_store[1][i]) for i in range(3))
+        if gap > 1e-4:
+            raise ValueError(f"{pc.pid} does not end in the store ({gap:.1e})")
     return sides + rods
 
 
@@ -696,7 +780,8 @@ def make_rig(parts):
                  "hot": ["rodsteel"],
                  "_comment": "The spring job: rod is its work, of its own class 3 (its parts, requires rodsteel, move for that "
                              "class alone), wound over W 0..1, the rod laid along the mandrel and wound round it from its shoulder "
-                             "end a side at a time; turnsPerRod: the pace, turns of the held right-click's clock (a turn a second) a rod. spring: "
+                             "end a side at a time, the rod hopping over each face as the side is laid on it; turnsPerRod: the pace, "
+                             "turns of the held right-click's clock (a turn a second) a rod. spring: "
                              "what a rod makes, springsPerRod of them. hot: the requires values whose parts are drawn hot, with "
                              "vanilla's glow by the rod's temperature."},
         "parts": parts,
@@ -764,7 +849,7 @@ REF_EDGES = (0.0, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.333, 0.4, 0.45, 0.5, 0.55,
 
 
 def ref_spring():
-    """The spring's W for the reference: four tenths into every third of the plan's timed steps (never near an instant's
+    """The spring's W for the reference: four tenths into every third of the plan's slots (never near an instant's
     window, where a float's last bit could tip a piece's jump one way or the other), and its ends."""
     plan()
     timed = [(a, b) for kind, a, b in WINDOWS if kind != "instant"]
@@ -805,16 +890,16 @@ def shape_json(els):
 
 
 def spring_samples(fractions=(0.5,), every=1):
-    """W inside the plan's timed steps: at each of `fractions` of every `every`-th."""
+    """W inside the plan's slots: at each of `fractions` of every `every`-th."""
     plan()
     timed = [(a, b) for kind, a, b in WINDOWS if kind != "instant"]
     return [(a + f * (b - a)) / US for a, b in timed[::every] for f in fractions]
 
 
 def coplanar_poses():
-    # the hollows, and the spring at its start, halfway through every step of its winding, early and late in every
-    # fourth, and wound
-    spring = [0.0] + spring_samples() + spring_samples((0.1, 0.9), 4) + [1.0]
+    # the hollows, and the spring at its start, halfway through every slot of its winding, early and late in every
+    # third, and wound
+    spring = [0.0] + spring_samples() + spring_samples((0.1, 0.9), 3) + [1.0]
     return (REST, pose_at(1, 0.1), pose_at(2, 0.25), pose_at(1, 0.4), pose_at(2, 0.5), pose_at(1, 0.6), pose_at(2, 0.7),
             pose_at(1, 0.8), pose_at(2, 0.9), pose_at(1, 0.95), pose_at(2, 1.0), pose_at(1, 1.0)) + tuple(spring_at(W) for W in sorted(spring))
 

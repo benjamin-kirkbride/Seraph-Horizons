@@ -227,34 +227,40 @@ class Spring(unittest.TestCase):
             plo, phi = els[pid].aabb()
             self.assertTrue(all(blo[i] <= plo[i] and phi[i] <= bhi[i] for i in range(3)), pid)
 
-    def test_every_step_moves_one_piece_and_the_rod_only_square_across_a_face(self):
-        # over each bend one side turns, over each slide the straight rod alone moves, square to the mandrel (no z), one
-        # face across
+    def test_each_slot_bends_one_side_while_the_rod_hops_over_its_face(self):
+        # W is 24 equal slots, one a side: over each, that side turns and the straight rod alone moves with it, from the
+        # side's corner to its far corner (square to the mandrel: no z, one face across), lifted off the coil's layer
+        # halfway, never turning; nothing else moves
         spring = [p["id"] for p in RIG["parts"] if p["requires"] == "rodsteel"]
         make_shape.plan()
-        steps = [(kind, a / make_shape.US, b / make_shape.US) for kind, a, b in make_shape.WINDOWS if kind != "instant"]
-        self.assertEqual(sorted({k for k, _, _ in steps}), ["bend", "slide"])
-        self.assertEqual(sum(1 for k, _, _ in steps if k == "bend"), 24)
-        self.assertEqual(sum(1 for k, _, _ in steps if k == "slide"), 23)
-        for kind, a, b in steps:
-            moved = []
+        slots = [(a / make_shape.US, b / make_shape.US) for kind, a, b in make_shape.WINDOWS if kind == "slot"]
+        self.assertEqual(sorted({kind for kind, _, _ in make_shape.WINDOWS}), ["instant", "slot"])
+        self.assertEqual(len(slots), 24)
+        for j, (a, b) in enumerate(slots):
+            self.assertAlmostEqual(b - a, 1 / 24, delta=1e-5)
+            moved = {}
             for pid in spring:
                 ma, mb = matrix(pid, work=a, size=3, presence=1.0), matrix(pid, work=b, size=3, presence=1.0)
                 if max(abs(ma[r][c] - mb[r][c]) for r in range(3) for c in range(4)) > 1e-7:
-                    moved.append((pid, [(mb[i][3] - ma[i][3]) * 16 for i in range(3)]))
-            self.assertEqual(len(moved), 1, f"{kind} at {a:.4f}: {[m[0] for m in moved]}")
-            pid, d = moved[0]
-            if kind == "bend":
-                self.assertIn(pid, SIDES)
-            else:
-                self.assertIn(pid, RODS)
+                    moved[pid] = [(mb[i][3] - ma[i][3]) * 16 for i in range(3)]
+            want = {SIDES[j]} | ({RODS[j + 1]} if j + 1 < 24 else set())
+            self.assertEqual(set(moved), want, f"slot {j} at {a:.4f}")
+            if j + 1 < 24:
+                rod = RODS[j + 1]
+                d = moved[rod]
                 self.assertAlmostEqual(d[2], 0.0, places=4)
                 self.assertAlmostEqual(math.hypot(d[0], d[1]), 2 * make_shape.COIL.h, places=3)
+                mid = posed_parts({rod}, work=(a + b) / 2, size=3, presence=1.0)[rod]
+                lift = math.hypot(mid.c[0] - make_shape.X0, mid.c[1] - make_shape.YM) - make_shape.COIL.h
+                self.assertAlmostEqual(lift, make_shape.HOP_RISE, delta=1e-3)
+                start = posed_parts({rod}, work=a, size=3, presence=1.0)[rod]
+                self.assertLess(max(abs(mid.r[x][y] - start.r[x][y]) for x in range(3) for y in range(3)), 1e-9)
 
     def test_the_rod_is_one_wire_used_up_from_its_shoulder_end(self):
         # every 1/200 of W: each side that can be seen starts at the end of the one before it; one stretch of the straight
         # rod (none once the last side, the rod's last length, is out), along the mandrel, its far end where it was at
-        # W 0, its bar meeting the newest side's (their axes within half a wire); the sides keep their length (rigid bars)
+        # W 0, on its slot's hop over the newest side's face, from that side's corner to its far corner; the sides keep
+        # their length (rigid bars)
         spring = [p["id"] for p in RIG["parts"] if p["requires"] == "rodsteel"]
         for pid in SIDES:
             el = posed_parts({pid}, work=0.0, size=3, presence=1.0)[pid]
@@ -267,11 +273,6 @@ class Spring(unittest.TestCase):
             return ([start[q] + ax[q] * pc.lo for q in range(3)], [start[q] + ax[q] * pc.hi for q in range(3)],
                     start, [start[q] + ax[q] * pc.run for q in range(3)])
 
-        def near(p, a, b):
-            d = [b[q] - a[q] for q in range(3)]
-            t = max(0.0, min(1.0, sum((p[q] - a[q]) * d[q] for q in range(3)) / sum(x * x for x in d)))
-            return math.dist(p, [a[q] + t * d[q] for q in range(3)])
-
         for i in range(201):
             W = i / 200
             els = posed_parts(set(spring), work=W, size=3, presence=1.0)
@@ -283,14 +284,20 @@ class Spring(unittest.TestCase):
                 self.assertEqual(SIDES.index(pid), SIDES.index(sides[x - 1]) + 1, f"W {W}")
                 self.assertLess(math.dist(lines[sides[x - 1]][3], lines[pid][2]), 2e-3, f"{pid} at W {W}")
             self.assertEqual(len(rods), 0 if "sp6e" in seen else 1, f"W {W}")
+            j = min(int(W * 24), 23)
+            a, b = make_shape.slot(j)
+            f = min(1.0, max(0.0, (W * make_shape.US - a - make_shape.INSTANTS) / (b - a - make_shape.INSTANTS)))
             for pid in rods:
                 lo, hi, start, end = lines[pid]
+                self.assertEqual(pid, RODS[j + 1] if f > 0 else RODS[j], f"W {W}")
                 self.assertAlmostEqual(end[2], make_shape.ROD_END, delta=1e-3, msg=f"{pid} at W {W}")
                 self.assertAlmostEqual(abs(start[2] - end[2]), make_shape.piece(pid).run, delta=1e-3)
-                if sides:
-                    newest = lines[sides[-1]]
-                    gap = min(near([lo[q] + (hi[q] - lo[q]) * f / 50 for q in range(3)], newest[0], newest[1]) for f in range(51))
-                    self.assertLessEqual(gap, make_shape.WIRE / 2 + 1e-3, f"{pid} off {sides[-1]} at W {W}")
+                off, along = make_shape.hop_off(j, start[:2])
+                self.assertLess(off, 2e-3, f"{pid} off its hop at W {W}")
+                self.assertAlmostEqual(along, f, delta=0.02, msg=f"{pid} at W {W}")
+                at = make_shape.corner(j + 1 if f >= 1 else j) if f in (0.0, 1.0) else None
+                if at is not None:
+                    self.assertLess(math.dist(start[:2], at[:2]), 1e-3, f"{pid} not on its corner at W {W}")
 
     def test_the_class_is_the_job(self):
         # the spring moves for its class (3) alone; the hollows never with it

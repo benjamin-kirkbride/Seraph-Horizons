@@ -512,16 +512,44 @@ def on_layer(m, p, tol=2e-3):
     return max(abs(x), abs(y)) <= h + tol and min(h - abs(x), h - abs(y)) <= tol
 
 
+CUT = 0.02                                   # a piece may stand into another, away from their joint, by this much at most
+JOINT_R = 1.35                               # the rod's end comes down on the side's end: their overlap, along the side, lies
+                                             # within this of the side's far corner
+
+
+def cut_into(side_el, rod_el, lo, hi, step=0.1):
+    """Where the side's skin stands inside the rod: (how far along the side's bar from its start end, how deep) for each
+    sample point inside it. `lo`..`hi` is the bar's local z about its centre line's start."""
+    h = [abs(s) / 2 for s in side_el.size]
+    out = []
+    for k in range(3):
+        for sign in (-1, 1):
+            u, w = [q for q in range(3) if q != k]
+            nu, nw = max(1, int(2 * h[u] / step)), max(1, int(2 * h[w] / step))
+            for i in range(nu + 1):
+                for j in range(nw + 1):
+                    loc = [0.0, 0.0, 0.0]
+                    loc[k], loc[u], loc[w] = sign * h[k], -h[u] + 2 * h[u] * i / nu, -h[w] + 2 * h[w] * j / nw
+                    p = [side_el.c[q] + sum(side_el.r[q][x] * loc[x] for x in range(3)) for q in range(3)]
+                    rel = [p[q] - rod_el.c[q] for q in range(3)]
+                    d = min(abs(rod_el.size[x]) / 2 - abs(sum(rod_el.r[q][x] * rel[q] for q in range(3))) for x in range(3))
+                    if d > 0:
+                        out.append((loc[2] + (lo + hi) / 2 - lo, d))
+    return out
+
+
 def check_spring(v):
     """The spring job, held to the plan's promises. Wound (W 1): every side where machinegen.coil puts it, on the
     mandrel's faces; every stretch of the straight rod back in the mandrel. At W 0: the straight rod alone, along the
     mandrel's top east edge from the shoulder to past the nose. Every 1/1000 of W: what cannot be seen is inside the
-    mandrel's body or inside a piece that can; one stretch of the straight rod, along the mandrel on the coil's layer, its
-    far end where it was at W 0; the wire one piece (each side on the end of the one before, the rod on the newest side);
-    no side covered away from its corners but the newest, and that only while it is bent off the rod or, by the rod's end,
-    while the rod slides along it; no two pieces overlapping that are not neighbours on the wire. Over each step of the
-    plan: an instant changes nothing that can be seen; a bend turns one side in its face's layer and nothing else; a slide
-    moves the straight rod square to the mandrel across one face and nothing else."""
+    mandrel's body or inside a piece that can; one stretch of the straight rod, along the mandrel, its far end where it
+    was at W 0, on its slot's hop (the arc over the face from corner to corner); the coil one wire (each side on the end
+    of the one before), the rod on the newest side's corners at its slot's ends; the rod and the newest side cut into
+    each other nowhere but where they are one (the side inside the rod as it lifts off, in the slot's first BEND stage,
+    and the rod's end on the side's end as it lands, within JOINT_R of the side's far corner); no other side covered
+    away from its corners; no two pieces overlapping that are not neighbours on the wire. Over each step of the plan: an
+    instant changes nothing that can be seen; a slot turns one side in its face's layer and carries the straight rod
+    along its arc, and moves nothing else."""
     m = v.m
     C, n = m.COIL, m.COIL.sides
     pcs = m.plan()
@@ -564,9 +592,10 @@ def check_spring(v):
 
     # every 1/1000 of W
     samples = 1000
-    hidden_bad, broken, covered, clash, off, moved = [], [], [], set(), [], []
-    worst_cover, worst_far = 0.0, 0.0
-    windows = [(kind, a, b) for kind, a, b in m.WINDOWS if kind != "instant"]
+    hidden_bad, broken, covered, clash, off, moved, cuts = [], [], [], set(), [], [], []
+    worst_cover, worst_far, worst_arc, worst_cut, worst_joint = 0.0, 0.0, 0.0, 0.0, 0.0
+    slots = [(a, b) for kind, a, b in m.WINDOWS if kind == "slot"]
+    reveal = m.BEND[0][0]
     for i in range(samples + 1):
         W = i / samples
         rod = Rod(v, W)
@@ -584,67 +613,108 @@ def check_spring(v):
         # one stretch at a time, until the last side, the rod's last length, is bent off it
         if len(straight) != (0 if rod.seen[sides[-1].pid] else 1):
             off.append((round(W, 4), "stretches seen", [pc.pid for pc in straight]))
+        # the slot this W is in (its instants count with it), and how far through its hop
+        j = min(int(W * n), n - 1)
+        a, b = slots[j]
+        f = min(1.0, max(0.0, (u - a) / (b - a)))
         for pc in straight:
             el = rod.el[pc.pid]
-            if abs(axis_of(el)[2] - 1.0) > 1e-9 or not (on_layer(m, rod.a[pc.pid]) and on_layer(m, rod.b[pc.pid])):
-                off.append((round(W, 4), pc.pid, "not along the mandrel on the coil's layer"))
+            if abs(axis_of(el)[2] - 1.0) > 1e-9:
+                off.append((round(W, 4), pc.pid, "not along the mandrel"))
             far = abs(rod.b[pc.pid][2] - m.ROD_END)
             worst_far = max(worst_far, far)
             if far > AX_TOL:
                 moved.append((pc.pid, round(W, 4), round(far, 4)))
+            # on its slot's hop over face j, from corner j to corner j + 1, as far along it as the slot has got
+            p = rod.a[pc.pid]
+            if j + 1 >= n:
+                off.append((round(W, 4), pc.pid, "a stretch left after the last side"))
+                continue
+            d, along = m.hop_off(j, p)
+            worst_arc = max(worst_arc, d)
+            if d > 2e-3 or abs(along - f) > 0.02:
+                off.append((round(W, 4), pc.pid, f"off its hop by {d:.3f}, {along:.3f} along it at {f:.3f} of the slot"))
+            # on the newest side's corners at the slot's ends: its start as it lifts off, its end as it lands
+            if newest is not None and (u <= a + 1 or u >= b - 1):
+                at = m.corner(j) if u <= a + 1 else m.corner(j + 1)
+                joint = max(abs(p[k] - at[k]) for k in (0, 1))
+                worst_joint = max(worst_joint, joint)
+                if joint > AX_TOL:
+                    broken.append((round(W, 4), f"{pc.pid} not on {newest.pid}'s corner ({joint:.4f})"))
         links = rod.links(m.WIRE)
-        if straight and newest is not None and newest.pid not in links[straight[0].pid]:
-            broken.append((round(W, 4), f"{straight[0].pid} not on {newest.pid}"))
-        reached = {pc.pid for pc in straight} or ({"sp1u"} if shown else set())
+        reached = {"sp1u"} if seen_sides else set()
         todo = list(reached)
         while todo:
             for q in links[todo.pop()]:
                 if q not in reached:
                     reached.add(q)
                     todo.append(q)
-        lost = [pc.pid for pc in shown if pc.pid not in reached]
+        lost = [pc.pid for pc in seen_sides if pc.pid not in reached]
         if lost:
             broken.append((round(W, 4), lost[:3]))
-        step = next(((kind, a, b) for kind, a, b in windows if a <= u <= b), None)
+        # the rod and the side being laid cut into each other only where they are one: the side inside the rod as the rod
+        # lifts off it (the first BEND stage), and the rod's end coming down on the side's end; and the rod lifting off
+        # the side before, whose end it came down on, only at that end
+        joined_to = []
+        if straight and newest is not None:
+            for pc in sides:
+                if pc.j in (j - 1, j) and rod.seen[pc.pid]:
+                    joined_to.append(pc)
+                    if pc.j == j and f <= reveal + 1e-9:
+                        continue
+                    away = [(along, d) for along, d in cut_into(rod.el[pc.pid], rod.el[straight[0].pid], pc.lo, pc.hi)
+                            if along < pc.run + m.WIRE / 2 - JOINT_R]
+                    if away:
+                        deep = max(d for _, d in away)
+                        worst_cut = max(worst_cut, deep)
+                        if deep > CUT:
+                            near, far_ = min(a for a, _ in away), max(a for a, _ in away)
+                            cuts.append((pc.pid, round(W, 4), round(f, 3), round(near, 2), round(far_, 2), round(deep, 3)))
         for pc in seen_sides:
-            h = rod.side_hidden(pc)
-            if pc is newest and step and step[0] == "bend":
+            if pc is newest and pc.j == j:
                 continue
-            limit = m.ROD + 0.05 if pc is newest and step and step[0] == "slide" else 0.05
-            if pc is not newest or not step or step[0] != "slide":
-                worst_cover = max(worst_cover, h)
-            if h > limit:
+            h = rod.side_hidden(pc)
+            worst_cover = max(worst_cover, h)
+            if h > 0.05:
                 covered.append((pc.pid, round(W, 4), round(h, 3)))
-        near = {}
+        near_ = {}
         for pid in links:
             two = set(links[pid])
             for q in links[pid]:
                 two |= links[q]
-            near[pid] = two
+            near_[pid] = two
         for x, pa in enumerate(shown):
             for pb in shown[x + 1:]:
-                if pb.pid not in near[pa.pid] and obb_obb(rod.el[pa.pid], rod.el[pb.pid]):
+                if (pa.kind == "rod" and pb in joined_to) or (pb.kind == "rod" and pa in joined_to):
+                    continue                 # the two sides the rod is one with at its slot's ends: held to the cut rule
+                if pb.pid not in near_[pa.pid] and obb_obb(rod.el[pa.pid], rod.el[pb.pid]):
                     clash.add((pa.pid, pb.pid, round(W, 4)))
-    print(f"spring winding: every 1/{samples} of W one stretch of the straight rod, along the mandrel on the coil's layer, its "
-          f"far end fixed (within {worst_far:.1e}); one wire (the rod on the newest side); every piece out of sight inside "
-          f"the mandrel or a piece that can be seen; sides covered away from their corners at most {worst_cover:.3f} (but "
-          f"the newest, while it is bent off the rod and the rod slides along it); no two pieces overlap but neighbours")
+    print(f"spring winding: every 1/{samples} of W one stretch of the straight rod, along the mandrel, its far end fixed (within "
+          f"{worst_far:.1e}), on its slot's hop (within {worst_arc:.1e} of its path) and on the newest side's corners at the "
+          f"slot's ends (within {worst_joint:.1e}); the coil one wire; every piece out of sight inside the mandrel or a piece "
+          f"that can be seen; the rod and the side being laid stand into each other away from their joint by {worst_cut:.3f} at most, past the side's "
+          f"first stage (their joint: the side's last {JOINT_R}); other sides covered away from their corners at most "
+          f"{worst_cover:.3f}; no two pieces overlap but neighbours")
     if hidden_bad:
         v.fail(f"pieces neither seen nor hidden: {hidden_bad[:5]}")
     if off:
-        v.fail(f"the straight rod is not one stretch along the mandrel: {off[:5]}")
+        v.fail(f"the straight rod is not one stretch along the mandrel on its hop: {off[:5]}")
     if moved:
         v.fail(f"the straight rod's far end moves: {moved[:5]}")
     if broken:
         v.fail(f"the rod comes apart: {broken[:5]}")
+    if cuts:
+        v.fail(f"the rod cuts into the side being laid away from their joint (side, W, f, from, to, depth): {cuts[:5]}")
     if covered:
         v.fail(f"a side is covered: {covered[:5]}")
     if clash:
         v.fail(f"pieces of the rod not joined overlap: {sorted(clash)[:5]}")
 
-    # over each step: an instant changes nothing seen; a bend turns one side in its layer; a slide moves the rod square
+    # over each step: an instant changes nothing seen; a slot turns its side in its layer, by BEND's profile, and carries
+    # the straight rod along its arc, lifted off the layer between the corners, and moves nothing else
     pops, wrong = [], []
-    lengths = []
+    lengths, lifts = [], []
+    j = -1
     for kind, a, b in m.WINDOWS:
         ra, rb = Rod(v, a / m.US), Rod(v, b / m.US)
         if kind == "instant":
@@ -652,27 +722,42 @@ def check_spring(v):
             if out:
                 pops.append((round(a / m.US, 6), len(out), [round(x, 2) for x in out[0]]))
             continue
+        j += 1
+        side, nxt = sides[j], rods[j + 1] if j + 1 < n else None
+        stages = [Rod(v, (a + f * (b - a)) / m.US) for f, _g in m.BEND]
         mid = Rod(v, (a + b) / 2 / m.US)
-        movers = [pc.pid for pc in pcs if max(dist(ra.el[pc.pid].c, rb.el[pc.pid].c), dist(ra.el[pc.pid].c, mid.el[pc.pid].c)) > 1e-6
+        movers = [pc.pid for pc in pcs
+                  if max(dist(r.el[pc.pid].c, ra.el[pc.pid].c) for r in stages + [mid, rb]) > 1e-6
                   or max(abs(ra.el[pc.pid].r[p][q] - rb.el[pc.pid].r[p][q]) for p in range(3) for q in range(3)) > 1e-9]
-        if len(movers) != 1:
-            wrong.append((kind, round(a / m.US, 4), f"moves {movers}"))
+        want = sorted([side.pid] + ([nxt.pid] if nxt else []))
+        if sorted(movers) != want:
+            wrong.append((kind, round(a / m.US, 4), f"moves {movers}, not {want}"))
             continue
-        pc = m.piece(movers[0])
-        if kind == "bend":
-            for r in (ra, mid, rb):
-                if pc.kind != "side" or not (on_layer(m, r.a[pc.pid]) and on_layer(m, r.b[pc.pid])
-                                             and on_layer(m, [(r.a[pc.pid][q] + r.b[pc.pid][q]) / 2 for q in range(3)])):
-                    wrong.append((kind, round(a / m.US, 4), f"{pc.pid} leaves its face's layer"))
-                    break
-        else:
-            d = [rb.a[pc.pid][q] - ra.a[pc.pid][q] for q in range(3)]
-            if pc.kind != "rod" or abs(d[2]) > AX_TOL or abs(math.hypot(d[0], d[1]) - 2 * C.h) > AX_TOL:
-                wrong.append((kind, round(a / m.US, 4), f"{pc.pid} does not slide across a face square to the mandrel ({d})"))
-            lengths.append(ra.el[pc.pid].size[2])
+        axis0 = axis_of(ra.el[side.pid])
+        for r, (_f, g) in zip([ra] + stages, ((0.0, 0.0),) + m.BEND):
+            p = side.pid
+            if not (on_layer(m, r.a[p]) and on_layer(m, r.b[p]) and on_layer(m, [(r.a[p][q] + r.b[p][q]) / 2 for q in range(3)])):
+                wrong.append((kind, round(a / m.US, 4), f"{p} leaves its face's layer"))
+                break
+            turned = math.acos(max(-1.0, min(1.0, sum(axis0[q] * axis_of(r.el[p])[q] for q in range(3)))))
+            if abs(turned - g * abs(C.swing(j)[1])) > 1e-3:
+                wrong.append((kind, round(a / m.US, 4), f"{p} has turned {turned:.4f}, not {g * abs(C.swing(j)[1]):.4f}"))
+                break
+        if nxt:
+            p = nxt.pid
+            if dist(ra.a[p][:2] + [0.0], m.corner(j)[:2] + [0.0]) > AX_TOL or dist(rb.a[p][:2] + [0.0], m.corner(j + 1)[:2] + [0.0]) > AX_TOL:
+                wrong.append((kind, round(a / m.US, 4), f"{p} does not hop from corner {j} to corner {j + 1}"))
+            lift = math.hypot(mid.a[p][0] - m.X0, mid.a[p][1] - m.YM) - C.h
+            lifts.append(lift)
+            if lift < m.WIRE / 2 + m.ROD / 2 + 0.05:
+                wrong.append((kind, round(a / m.US, 4), f"{p} is not up over the face mid-hop (lifted {lift:.3f})"))
+            if max(abs(ra.el[p].r[x][y] - r2.el[p].r[x][y]) for r2 in stages + [mid] for x in range(3) for y in range(3)) > 1e-9:
+                wrong.append((kind, round(a / m.US, 4), f"{p} turns as it hops"))
+            lengths.append(ra.el[p].size[2])
     print(f"spring steps: {len(m.WINDOWS)} ({sum(1 for w in m.WINDOWS if w[0] == 'instant')} instants, "
-          f"{sum(1 for w in m.WINDOWS if w[0] == 'bend')} bends, {sum(1 for w in m.WINDOWS if w[0] == 'slide')} slides); the "
-          f"straight rod {lengths[0]:.2f} long at the first slide, {lengths[-1]:.2f} at the last; instants change nothing seen")
+          f"{sum(1 for w in m.WINDOWS if w[0] == 'slot')} slots: a side turned by BEND's profile, in its layer, and the rod hopped "
+          f"corner to corner, lifted {min(lifts):.2f} .. {max(lifts):.2f} over the layer mid-hop, never turning); the straight rod "
+          f"{lengths[0]:.2f} long at the first hop, {lengths[-1]:.2f} at the last; instants change nothing seen")
     if pops:
         v.fail(f"an instant changes the rod that can be seen: {pops[:4]}")
     if wrong:

@@ -77,7 +77,7 @@ written by `tools/make_shape.py`; nothing is taken from another mod's model. The
 | The swage (a block with a square groove) | fixed | none: a tool beside the mandrel, not animated |
 | The hollow (eight rings `1`..`8`: four walls and four corner bars each) | the blows, the mandrel under them | closes from 8 to 6 across onto the mandrel and stretches from 8 to 16 long, evenly, in one motion over the whole work; at W 1 it stays on the mandrel (rings 1..4 and 5..8 are the two sections) |
 | The spring's sides (`sp1u`..`sp6e`: turn 1..6, face `u` top, `w` west, `d` bottom, `e` east) | the smith (with tongs, not modelled), round the mandrel's corners | each a rigid bar, the straight rod's shoulder end bent off it round its start corner, across the next face, into its place on the coil, and left there |
-| The straight rod (`spr0`..`spr23`: the rod as side 1..24 is bent off it, each a wire's width shorter) | the smith | lies along the mandrel on the coil's corner line, its far end a little past the nose and never moving; after each bend it slides square across the face the side was bent across, its end riding the side, to the side's end: round the mandrel a face at a time; used up from its shoulder end |
+| The straight rod (`spr0`..`spr23`: the rod as side 1..24 is bent off it, each a wire's width shorter) | the smith | lies along the mandrel on the coil's corner line, its far end a little past the nose and never moving; as each side is bent off it, it hops over that face, lifted just over the side as it is laid, and comes down on the side's end, where the next side is bent off it: round the mandrel a face a side, never stopping; used up from its shoulder end |
 
 The forging (t = W, one hollow; the rig holds none of these times):
 
@@ -141,10 +141,11 @@ side 0.1 off it) to 0.1 short of the nose. Six turns of 0.6 wire are 40 voxels o
 **How it is wound.** The mandrel stands still, so the rod is wound round it the way the owner pictured it: laid
 straight along the mandrel, from the shoulder to a little past the nose, about the finished spring's length, and wound
 up from its shoulder end, turn by turn, the straight part used up as the coils form. No driver bends a part, so every
-piece is a rigid bar, each its own part, moved by `gauge` turns about a corner and slides; nothing scales, telescopes or
-grows. The wire's real length is not kept (the coil is 111 voxels of wire, the straight rod 18.4): each side bent off
-the rod is its own bar, and the rod loses only a wire's width (0.6) to it. The plan is `make_shape.py`'s `plan()`; a
-side, from the top east corner A round B (top west), C (bottom west) and D (bottom east):
+piece is a rigid bar, each its own part, moved by `gauge` turns about fixed lines and slides; nothing scales, telescopes
+or grows. The wire's real length is not kept (the coil is 111 voxels of wire, the straight rod 18.4): each side bent off
+the rod is its own bar, and the rod loses only a wire's width (0.6) to it. The plan is `make_shape.py`'s `plan()`. W is
+cut into 24 equal **slots**, one a side; in side j's slot, from the top east corner A round B (top west), C (bottom west)
+and D (bottom east):
 
 - **Put** (an instant): the side, waiting inside the mandrel's body, is put inside the straight rod along its shoulder
   end, from its corner (the rod is 0.615 across, the sides 0.6 or 0.57).
@@ -152,19 +153,33 @@ side, from the top east corner A round B (top west), C (bottom west) and D (bott
   further along: the stretch it loses lies inside the side, which is now the rod's shoulder end. The spent stretch goes
   back inside the mandrel's body in the next instant. Nothing that can be seen changes (but the 0.0075 a face between
   the rod's size and the side's).
-- **Bend:** the side turns about its face's normal through its corner, from along the rod across the face into its
-  place on the coil (82.6°, square to the mandrel less the coil's 7.4° lean): it opens out of the rod like a blade,
-  hinged at the rod's end, and stays on the mandrel's face throughout.
-- **Slide:** the rod slides square across that face (no move along the mandrel), its end riding along the side just
-  bent, to the side's end: the next corner, where the next side is bent off it.
+- **The slot**, the bend and the hop together:
+  - **Bend:** the side turns about its face's normal through its corner, from along the rod across the face into its
+    place on the coil (82.6°, square to the mandrel less the coil's 7.4° lean), and stays on the mandrel's face
+    throughout. It turns by `BEND`'s profile: 4 % of its angle over the slot's first fifth (it is uncovered, lying along
+    the edge, as the rod lifts off it), 93 % over the next three fifths (it sweeps across the face under the rod), and the
+    last 3 % over the last fifth (it eases home as the rod comes down on its end): so it never cuts into the rod away
+    from their joint, and never stops dead.
+  - **Hop:** the rod hops over that face, from the side's corner to its far corner (no move along the mandrel): up off
+    the corner along a 45° arc to `HOP_RISE` (0.75) over the coil's layer, straight across at that height, 0.14 over the
+    side's top, and down the same arc onto the far corner, at one speed along the path. It is carried, not turned (on
+    each arc a turn about its own axis undoes the arc's turn about the arc's centre, so its square section stays as it
+    lies). Every face's hop leaves and lands at 45°, so the rod's path round the mandrel has no kink at a corner: it is
+    nearly a circle, 3.25 from the axis at the corners and 3.05 at the faces' middles, and the rod is always moving.
+    It lands on the side's end just as the side eases home, and the next side is bent off it there.
 
-So the straight rod goes round the mandrel a face at a time (across the top, down the west face, along the bottom, up
-the east face), always lying along it on the coil's corner line or across a face, and the coil grows behind it from the
-shoulder, a pitch a turn. Its far end stays where it was at W 0 (z 25.87 on its centre line, 26.18 outside, 2.7 past the
-nose): the rod is used up from its shoulder end only. It reaches that far because each side, before it is bent, lies
-along the rod from its corner, and must lie inside it: the last side lies along the rod's last 4.64, which is all that
-is left of it then, so the last take leaves no rod, and at W 1 nothing of it is left but the spring, wound on the
-mandrel.
+So the straight rod goes round the mandrel a face a slot (over the top, down the west face, under the bottom, up the
+east face), always along it, and the coil grows behind it from the shoulder, a pitch a turn. Its far end stays where it
+was at W 0 (z 25.87 on its centre line, 26.18 outside, 2.7 past the nose): the rod is used up from its shoulder end
+only. It reaches that far because each side, before it is bent, lies along the rod from its corner, and must lie inside
+it: the last side lies along the rod's last 4.64, which is all that is left of it then, so the last take leaves no rod,
+and in the last slot nothing hops; at W 1 nothing of it is left but the spring, wound on the mandrel.
+
+Why a hop and not a slide: a rod moving sideways across a face at the layer's height would pass through the side being
+laid there (bending it first and sliding after, pass 4, went in beats, with the rod waiting at each corner and then
+riding along the side's top). Lifted 0.75, the rod clears the side and keeps moving. The top's hop is what sets the
+height: a circle through the corners would put the rod's top 0.16 out of the station's box over the top, and 0.75 leaves
+it 0.04 inside.
 
 At W 0 the rod alone can be seen, along the mandrel's top east edge from the shoulder (0.13 off the collar) to 2.7 past
 the nose, 19.05 long; every other piece waits inside the mandrel's body (the sides, and the rod's later stretches). A
@@ -184,15 +199,15 @@ it. The rod reaches half its width past its start, as a side reaches half a wire
 it, or the one it ends on, meets it with no step. Its centre line runs on the coil's corner line, so the rod's inner
 faces stand 0.0075 into the mandrel's body (unseen; not in a plane with its faces).
 
-The winding (t = W, one rod; the plan's steps share W by their pace: bend 1, slide 0.8; each instant a millionth; the
-rig's windows hold the exact times):
+The winding (t = W, one rod; 24 equal slots of 1/24, each starting with its three instants of a millionth; the rig's
+windows hold the exact times):
 
 | t | |
 |---|---|
 | 0 | the rod lies straight along the mandrel's top east edge, from the shoulder to 2.7 past the nose (p eases in) |
-| 0 .. 0.170 | turn 1: bend the top side across the top, slide the rod across it (0.024 .. 0.042); bend the west side down the west face, slide (.. 0.085); bend the bottom side, slide (.. 0.127); bend the east side up the east face, slide (.. 0.170) |
-| 0.170 .. 0.849 | turns 2 to 5, the same, 0.170 each |
-| 0.849 .. 1 | turn 6, the same but its last slide: the east side is the rod's last length, and nothing is left of the rod once it is bent |
+| 0 .. 1/6 | turn 1: the top side bent across the top while the rod hops over it to the top west edge (0 .. 1/24); the west side bent down the west face while the rod hops down it (.. 2/24); the bottom side, the rod under the bottom (.. 3/24); the east side up the east face, the rod up it to the top east edge (.. 4/24) |
+| 1/6 .. 5/6 | turns 2 to 5, the same, 1/6 each |
+| 5/6 .. 1 | turn 6, the same but its last slot: the east side is the rod's last length, and nothing is left of the rod to hop once it is bent |
 | 1 | the spring is wound: six turns on the mandrel from the shoulder; gameplay delivers it and stops drawing it; nothing slides or drops |
 
 ### Regenerating
@@ -234,24 +249,28 @@ is deterministic (two runs into two folders are byte-identical). It exits non-ze
   other piece inside the mandrel's body.
 - **Spring, winding** (every 1/1000 of W): what cannot be seen is inside the mandrel's body or inside a piece that
   can be; one stretch of the straight rod (none once the last side, the rod's last length, is out), along the
-  mandrel with both ends of its centre line on the coil's centre-line square, its far end where it was at W 0 (within
-  1e-4); one wire (each side starts at the end of the one before, within 0.002; the rod's bar meets the newest side's,
-  their axes within half a wire; all of it reached from the rod); no side covered by a bigger piece away from its
-  corners but the newest, while it is bent off the rod, and by no more than the rod's width while the rod slides along
-  it; no two pieces overlapping but neighbours on the wire (two joints apart at most).
-- **Spring, steps** (each of the plan's 119, 72 of them instants): an instant moves no surface that can be seen by
-  more than 0.035 (the sizes' step and a margin); a bend turns one side and nothing else, its centre line on its
-  face's layer of the coil at its start, middle and end; a slide moves the straight rod and nothing else, square to
-  the mandrel (no move along it) one face across (4.6); the rod never gets longer. The class is the job: the spring
-  moves for class 3 alone (with none, 1 or 2 its parts are the identity), and the hollows never for 3.
+  mandrel, its far end where it was at W 0 (within 1e-4), on its slot's hop (within 0.002 of the path over the newest
+  side's face, as far along it as the slot has got, within 2 %), and on the newest side's corners at the slot's ends
+  (its start corner as the rod lifts off, its far corner as the rod lands); the coil one wire (each side starts at the
+  end of the one before, within 0.002, all of it reached from the first); the rod and the newest side stand into each
+  other by no more than 0.02 away from their joint (the side's last 1.35), past the slot's first stage (in which the
+  side lies inside the rod and is uncovered as the rod lifts off), and the rod and the side before by no more than
+  that away from that side's end, which the rod lifts off; no other side covered by a bigger piece away from its
+  corners; no two pieces overlapping but neighbours on the wire (two joints apart at most).
+- **Spring, steps** (each of the plan's 96: 72 instants, 24 slots): an instant moves no surface that can be seen by
+  more than 0.035 (the sizes' step and a margin); a slot turns its side and carries the next stretch of the rod and
+  moves nothing else: the side's centre line on its face's layer of the coil, turned by `BEND`'s fraction of its angle
+  at each stage's end (within 0.001); the rod from the side's corner to its far corner, lifted `HOP_RISE` over the layer
+  halfway (at least the two half widths and 0.05), never turning; the rod never gets longer. The class is the job: the
+  spring moves for class 3 alone (with none, 1 or 2 its parts are the identity), and the hollows never for 3.
 - **Clearances:** no two parts overlap at any pose every 0.02 of the forging or 0.01 of the winding (the
   work's own rings, walls and corner bars, and the spring's own pieces, excepted; the spring's pieces out of
   sight left out), and the **swept paths**: the hollow stretching along the mandrel every 0.0025, the rod
   going round it and the coil growing every 0.001.
-- **No z-fighting** at 85 poses after the fix: twelve of the forging, rest to delivered (21 faces pressed
+- **No z-fighting** at 54 poses after the fix: twelve of the forging, rest to delivered (21 faces pressed
   against their own part removed, the rest stepped in by 0.015; the fix runs up to 40 rounds for the stacks
-  of rings), and 73 of the winding (W 0, halfway into each of the plan's 47 timed steps, early and late in
-  every fourth, and wound), of what can be seen: the pieces out of sight are left out. The spring needs no
+  of rings), and 42 of the winding (W 0, halfway into each of the plan's 24 slots, early and late in
+  every third, and wound), of what can be seen: the pieces out of sight are left out. The spring needs no
   step: its pieces' sizes keep their faces apart.
 - **Item:** the spring item is the wound coil's 24 sides, each textured, centred on the item box's floor
   inside its 16 voxels.
@@ -285,7 +304,7 @@ nothing added to the shared rig maths: a `work` quantity, gauges, rides, and one
   spring), `strike.pos` (the top of the box's middle, where the hammer lands: sparks and the blow's sound),
   `infeedSide` west, `outputSide` south.
 - **The spring's parts** (`requires` `rodsteel`): the sides `sp1u` .. `sp6e` and the straight rod's stretches
-  `spr0` .. `spr23`, 48 in all, none riding another; every driver a `gauge` (a turn about x or y through a fixed
+  `spr0` .. `spr23`, 48 in all, none riding another; every driver a `gauge` (a turn about x, y or z through a fixed
   point, or a slide), in the order the piece makes its moves, each in its own window
   (one rising over a step of the plan, or a millionth of W wide for an instant, and open to the end), its
   amount for class `"3"` alone.
@@ -341,14 +360,15 @@ The model has been reviewed in projections rendered from the written files and i
     coil 111 voxels of wire: each side is its own bar, bent off the rod's shoulder end, and the rod loses only a
     wire's width to it. The rod is drawn as the spring's wire (0.615 square), not as the game's rod (2 × 2 × 10,
     whose metal the six turns hold).
-11. **Bend, then slide.** Each side is bent off the rod while the rod waits at its corner; only then does the rod
-    slide square across the face to the side's end, its end riding along the side (a T for that moment). Doing both
-    at once is not possible with rigid bars: a side hinged at its corner meets a rod lying along the mandrel at the
-    next corner's height only when it is fully bent, and before that it would cross the rod. So the winding goes in
-    48 beats, 24 bends and 23 slides, each at an even rate.
+11. **The rod flies.** While a side is bent, the rod is in the air over it, carried from the side's corner to its far
+    corner: for most of a slot it is joined to nothing, and it reads as held there by the smith's tongs (not modelled).
+    It lifts off the corner (uncovering the side, which lies along the edge for the slot's first fifth before it
+    turns), and comes down on the side's end over the last fifth, its end sinking into the side's end as it lands (a
+    joint they share once landed). Nothing else moves while the rod is between corners.
 12. **The rod reaches past the nose.** Its far end stands 2.7 past the nose (z 26.18 outside) the whole job, and goes
     round the mandrel with the rod: each side lies along the rod from its corner before it is bent, inside it, and
-    the last side lies along the rod's last 4.64. Inside the station's two blocks.
+    the last side lies along the rod's last 4.64. Inside the station's two blocks, by 0.04 at the top of each hop
+    over the top.
 13. **Hard corners.** Each side is bent rigidly about its corner: a hard corner where two bars overlap, where a
     real rod bends round a radius.
 14. **Pieces waiting in the mandrel.** The sides still to come and the rod's spent stretches lie inside the mandrel's
@@ -359,7 +379,8 @@ The model has been reviewed in projections rendered from the written files and i
     rod 0.615 (its inner faces 0.0075 inside the mandrel's body, as its centre line is the coil's). The item is the
     wound coil as before (its last side 0.57 like every east side). Rounding the rig's numbers to 6 places leaves the
     wound sides up to 1e-5 off the coil.
-16. **Linear ramps, a step at a time.** Each step moves at an even rate and the next starts as it stops.
+16. **Linear ramps.** The rod moves at one speed along its hop and the next hop starts as it lands; a side turns at
+    three rates (`BEND`), slow at both ends, so the coil's growing end slows at each corner without stopping.
 17. **p unwinds it.** Every gauge eases back with p, so a spring drawn while p eases out after delivery
     would come apart: the renderer must stop drawing the work at delivery, as for the hollows.
 
@@ -563,10 +584,10 @@ with tongs, right-click held, about 4 s; heat by the anvil's rules.
    wire, steel) with a 6.0 bore. Keep it, or change the bench (a 4 × 4 spindle for the spring behind the
    follower) or wind springs on a bigger arbor?
 2. **How the rod is wound.** As you asked: laid straight along the mandrel's top east edge from the shoulder, and
-   wound from its shoulder end, a side bent off it round its corner and the rod then slid square across the face to
-   that side's end, so it goes round the mandrel a face at a time, used up from the shoulder while its far end stays
-   put; every piece rigid, nothing growing or popping. It goes in beats (bend, slide, bend, ...), since a rigid side
-   cannot be bent while the rod moves without crossing it. Acceptable?
+   wound from its shoulder end, a side bent off it round its corner while the rod hops over that face, lifted just
+   above the side, and comes down on the side's end to be bent again; so it goes round the mandrel a face a side,
+   never stopping, used up from the shoulder while its far end stays put; every piece rigid, nothing growing or
+   popping. The rod is in the air while a side is laid: held by the tongs, which are not modelled. Acceptable?
 3. **A steel rod is a mandrel too.** The suggested rule: a bare station fits it as the mandrel; a fitted,
    bare mandrel takes it as a spring job. Or keep steel out of the mandrels?
 4. **Tongs, and a rod cooling mid-job.** Should winding need tongs in hand? The suggestion is that a rod
