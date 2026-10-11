@@ -21,6 +21,11 @@ public interface IEidolonGantryExtension
     /// <see cref="BEEidolonGantry.WinchComplete"/> itself (the body needs the spine).</summary>
     bool OnGantryInteract(BEEidolonGantry gantry, IPlayer byPlayer, ItemSlot? slot);
 
+    /// <summary>A right-click on the winch's crank (its cell, south of the back left post), once the
+    /// crank is fitted. Called on both sides; the server acts. True when the turn is this extension's
+    /// (the body's: it wakes a complete eidolon).</summary>
+    bool OnCrank(BEEidolonGantry gantry, IPlayer byPlayer);
+
     /// <summary>Nothing more of this extension to fit (the creative shortcut then passes it by).</summary>
     bool Complete { get; }
 

@@ -304,7 +304,65 @@
     "DefenceDamage": 10.0,
     "SlamDamage": 16.0,
     "GuardRadius": 16.0,
-    "FellMinLogs": 5
+    "FellMinLogs": 5,
+    "AllSteelHealth": 300.0,
+    "PlateHealth": {
+      "Brass": 0.8,
+      "Iron": 1.0,
+      "Steel": 1.5,
+      "Stainless": 2.0
+    },
+    "JointHealth": {
+      "Iron": 1.0,
+      "Steel": 1.5,
+      "Stainless": 2.0
+    },
+    "SkirtHealth": {
+      "Iron": 1.0,
+      "Steel": 1.25,
+      "Stainless": 1.5
+    },
+    "PlateDamage": {
+      "Brass": 0.8,
+      "Iron": 1.0,
+      "Steel": 1.0,
+      "Stainless": 1.0
+    },
+    "PlateMoveSpeed": {
+      "Brass": 1.25,
+      "Iron": 1.0,
+      "Steel": 1.0,
+      "Stainless": 1.0
+    },
+    "PlateArmour": {
+      "Iron": {
+        "ProtectionTier": 3,
+        "RelativeProtection": 0.96,
+        "FlatDamageReduction": 1.7
+      },
+      "Steel": {
+        "ProtectionTier": 4,
+        "RelativeProtection": 0.97,
+        "FlatDamageReduction": 1.8
+      },
+      "Stainless": {
+        "ProtectionTier": 5,
+        "RelativeProtection": 0.98,
+        "FlatDamageReduction": 1.9
+      },
+      "Brass": {
+        "ProtectionTier": 2,
+        "RelativeProtection": 0.92,
+        "FlatDamageReduction": 1.6
+      }
+    },
+    "ArmourLoss": {
+      "RelativeLossWithinTier": 0.03,
+      "RelativeLossAboveTier": 0.15,
+      "FlatLossWithinTier": 0.1,
+      "FlatLossAboveTier": 0.2,
+      "HighDamageTierResistant": true
+    }
   },
   "StainlessSteel": true,
   "CrucibleFurnaceSettings": {

@@ -102,12 +102,13 @@ public class BlockEidolonGantry : Block
 
     public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
         world.BlockAccessor.GetBlockEntity(blockSel.Position) is BEEidolonGantry
-            ? InteractAt(world, byPlayer, blockSel.Position)
+            ? InteractAt(world, byPlayer, blockSel.Position, blockSel.Position)
             : base.OnBlockInteractStart(world, byPlayer, blockSel);
 
-    /// <summary>A right-click on one of the gantry's cells, <paramref name="principal"/> the controller's position.</summary>
-    public static bool InteractAt(IWorldAccessor world, IPlayer byPlayer, BlockPos principal) =>
-        world.BlockAccessor.GetBlockEntity(principal) is BEEidolonGantry gantry && gantry.OnInteract(byPlayer);
+    /// <summary>A right-click on one of the gantry's cells, <paramref name="cell"/>, <paramref name="principal"/>
+    /// the controller's position.</summary>
+    public static bool InteractAt(IWorldAccessor world, IPlayer byPlayer, BlockPos principal, BlockPos cell) =>
+        world.BlockAccessor.GetBlockEntity(principal) is BEEidolonGantry gantry && gantry.OnInteract(byPlayer, cell);
 
     public override ItemStack[] GetDrops(IWorldAccessor world, BlockPos pos, IPlayer byPlayer, float dropQuantityMultiplier = 1)
     {
@@ -121,7 +122,7 @@ public class BlockEidolonGantry : Block
         (blockAccessor.GetBlockEntity(pos) as BEEidolonGantry)?.CellBoxes(pos) ?? base.GetCollisionBoxes(blockAccessor, pos);
 
     public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BEEidolonGantry)?.CellBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BEEidolonGantry)?.SelectionBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
 
     public override string GetHeldItemName(ItemStack itemStack) =>
         itemStack?.Attributes?.GetBool(AssembledAttribute) == true

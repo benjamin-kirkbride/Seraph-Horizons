@@ -119,12 +119,50 @@ public class BEEidolonGantry : BlockEntity
     /// <summary>The gantry whose dock <paramref name="pos"/> (an entity's feet) is in, or null: the
     /// gantry cell there (a ghost, or the controller) and <see cref="Docks"/>. For repair in the
     /// gantry (#674, <c>EntityBehaviorEidolonRepair.GantryAround</c>). Server or client, wherever the cell's block entity is loaded.</summary>
-    public static BEEidolonGantry? DockAt(IBlockAccessor blockAccessor, Vec3d pos)
+    public static BEEidolonGantry? DockAt(IBlockAccessor blockAccessor, Vec3d pos) =>
+        At(blockAccessor, pos.AsBlockPos) is { } gantry && gantry.Docks(pos) ? gantry : null;
+
+    /// <summary>The gantry <paramref name="pos"/> is a cell of (its controller, or a ghost pointing at
+    /// one), or null.</summary>
+    public static BEEidolonGantry? At(IBlockAccessor blockAccessor, BlockPos pos)
     {
-        var be = blockAccessor.GetBlockEntity(pos.AsBlockPos);
-        var gantry = be as BEEidolonGantry
-                     ?? ((be as BEEidolonGantryGhost)?.Principal is { } principal ? blockAccessor.GetBlockEntity(principal) as BEEidolonGantry : null);
-        return gantry != null && gantry.Docks(pos) ? gantry : null;
+        var be = blockAccessor.GetBlockEntity(pos);
+        return be as BEEidolonGantry
+               ?? ((be as BEEidolonGantryGhost)?.Principal is { } principal ? blockAccessor.GetBlockEntity(principal) as BEEidolonGantry : null);
+    }
+
+    /// <summary>Where the body hangs (the rig's <c>body</c> point) in the world: where a woken eidolon
+    /// stands as it wakes and a docking one backs onto the spine from. Null without the rig.</summary>
+    public Vec3d? BodyPoint => Rig is { } rig ? WorldPoint(rig.Body) : null;
+
+    /// <summary>The yaw of an eidolon facing out of the open front (the rig's <c>exitSide</c>).</summary>
+    public float OutwardYaw
+    {
+        get
+        {
+            var outward = Outward;
+            return (float)Math.Atan2(outward.X, outward.Z);
+        }
+    }
+
+    /// <summary>A unit step out of the open front, in the world.</summary>
+    public Vec3d Outward => (Rig is { } rig ? WorldSide(rig.ExitSide) : Side.West) switch
+    {
+        Side.North => new Vec3d(0, 0, -1),
+        Side.South => new Vec3d(0, 0, 1),
+        Side.East => new Vec3d(1, 0, 0),
+        _ => new Vec3d(-1, 0, 0),
+    };
+
+    /// <summary>Where a woken eidolon walks to: <paramref name="blocks"/> past the open front's middle
+    /// (the rig's <c>exit</c>), on a block's corner. Null without the rig.</summary>
+    public Vec3d? WalkOutTarget(double blocks)
+    {
+        if (Rig is not { } rig)
+            return null;
+        var exit = WorldPoint(rig.Exit);
+        var outward = Outward;
+        return new Vec3d(Math.Round(exit.X + outward.X * blocks), exit.Y, Math.Round(exit.Z + outward.Z * blocks));
     }
 
     /// <summary>The world side a native side is turned to (the rig's <c>exitSide</c>, west).</summary>
@@ -150,6 +188,28 @@ public class BEEidolonGantry : BlockEntity
         }
         _cells = rig.Cells.ToDictionary(c => c.Pos, c =>
             c.Hollow ? [] : c.Boxes.Count == 0 ? [Cuboidf.Default()] : c.Boxes.Select(World).ToArray());
+    }
+
+    /// <summary>The crank's selection box in its cell (cell-local, native frame): the crank's web and
+    /// handle and the ratchet, from the post's outer face out. Selection only: the cell stays hollow,
+    /// nothing to collide with.</summary>
+    public static readonly Box CrankBox = new(0.05f, 0.05f, 0f, 1f, 1f, 0.55f);
+
+    /// <summary>Whether <paramref name="cellPos"/> is the winch crank's cell.</summary>
+    public bool IsCrankCell(BlockPos? cellPos) =>
+        cellPos != null && Rig is { } rig
+        && Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side) == rig.CrankCell;
+
+    /// <summary>A cell's selection boxes: its <see cref="CellBoxes"/>, and in the crank's cell, once the
+    /// crank is fitted, the crank (<see cref="CrankBox"/>), so it can be turned.</summary>
+    public Cuboidf[]? SelectionBoxes(BlockPos cellPos)
+    {
+        if (_parts.Has(GantryStage.Crank) && IsCrankCell(cellPos))
+        {
+            var w = Footprint.ToWorld(CrankBox, Side);
+            return [new Cuboidf(w.X1, w.Y1, w.Z1, w.X2, w.Y2, w.Z2)];
+        }
+        return CellBoxes(cellPos);
     }
 
     private Block? GhostBlock() => Api.World.GetBlock(GhostCode);
@@ -209,14 +269,25 @@ public class BEEidolonGantry : BlockEntity
     // ---- Interaction ----
 
     /// <summary>
-    /// Right-click on the gantry or any of its cells. In creative mode, Ctrl fits the next stage
+    /// Right-click on the gantry or any of its cells (<paramref name="cell"/>, the one clicked). A click
+    /// on the crank turns it: the extensions are asked in turn (<see cref="IEidolonGantryExtension.OnCrank"/>).
+    /// Otherwise, in creative mode, Ctrl fits the next stage
     /// (the winch's, then each extension's) with nothing taken. A winch part in hand while the winch
     /// is not complete goes to the winch (fitted if it is the next stage's). Every other click is
     /// offered to the extensions in turn; a winch part nobody takes is refused as already fitted.
     /// Decided and done on the server; the client only says whether the click is the gantry's.
     /// </summary>
-    public bool OnInteract(IPlayer byPlayer)
+    public bool OnInteract(IPlayer byPlayer, BlockPos? cell = null)
     {
+        if (_parts.Has(GantryStage.Crank) && IsCrankCell(cell))
+        {
+            foreach (var extension in Extensions)
+                if (extension.OnCrank(this, byPlayer))
+                    return true;
+            if (Api.Side == EnumAppSide.Server)
+                Error(byPlayer, "error-crank-nothing");
+            return true;
+        }
         var slot = byPlayer.InventoryManager.ActiveHotbarSlot;
         string? code = slot?.Itemstack?.Collectible?.Code?.ToString();
         if (CreativeShortcutApplies(byPlayer))

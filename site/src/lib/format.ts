@@ -46,6 +46,8 @@ export interface Meta {
   valueCount?: number;
   /** True when the export has a power section, written to power.json; absent otherwise. */
   power?: boolean;
+  /** When the export has the eidolon's fittings (eidolon.json): the items whose pages link to its fitting sheet. */
+  eidolon?: { items: string[] };
   /** Number of structures in multiblocks.json; absent when the export has none. */
   multiblockCount?: number;
 }

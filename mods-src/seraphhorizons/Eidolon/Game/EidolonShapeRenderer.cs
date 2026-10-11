@@ -25,6 +25,16 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// own mesh as the game draws it on the ground (a chest by its type), its corner origin put half a
 /// block back so the point is the centre of its underside.</item>
 /// </list>
+///
+/// <para>Each eidolon wears its own fittings (<see cref="EntityLaborEidolon.Build"/>): this renderer is
+/// the texture source its shape is tessellated with, and gives each layer's texture code
+/// (<c>bones</c>, <c>joints</c>, <c>plates</c>, <c>sash</c>, <c>skirt</c>) the texture of that
+/// layer's material (<see cref="EidolonBuild.Textures"/>), put into the entity texture atlas the
+/// first time it is wanted (<see cref="LayerTextures"/>); every other code keeps the shape's. A layer
+/// that is off (stripped in a gantry's dock) is not drawn at all: its elements are left out of the shape
+/// (<see cref="EntityBehaviorEidolonDock"/>'s tessellation hook). When the record changes the entity's shape is marked modified (its listener in
+/// <see cref="EntityLaborEidolon"/>, and a check here once a second in case a change came without
+/// one), and the game tessellates it again.</para>
 /// </summary>
 public class EidolonShapeRenderer(Entity entity, ICoreClientAPI api) : EntityShapeRenderer(entity, api)
 {
@@ -36,6 +46,49 @@ public class EidolonShapeRenderer(Entity entity, ICoreClientAPI api) : EntitySha
     private readonly DummySlot _loadSlot = new();
     private MultiTextureMeshRef? _trunkMesh;
     private int _trunkShownId;
+    private EidolonBuild? _drawnBuild;
+    private IReadOnlyDictionary<string, TextureAtlasPosition> _layerTextures = new Dictionary<string, TextureAtlasPosition>();
+    private float _sinceBuildCheck;
+
+    /// <summary>A layer's texture in this eidolon's material, else the shape's own.</summary>
+    public override TextureAtlasPosition this[string textureCode] =>
+        _layerTextures.TryGetValue(textureCode, out var pos) ? pos : base[textureCode];
+
+    // On the main thread, before the game tessellates on a worker: the layers' textures for the
+    // build as it is now, which the tessellation reads through the indexer above.
+    public override void TesselateShape(Action<MeshData> onMeshDataReady, string[]? overrideSelectiveElements = null)
+    {
+        _drawnBuild = EntityLaborEidolon.ReadBuild(entity.WatchedAttributes);
+        _layerTextures = LayerTextures(capi, _drawnBuild);
+        base.TesselateShape(onMeshDataReady, overrideSelectiveElements);
+    }
+
+    public override void BeforeRender(float dt)
+    {
+        _sinceBuildCheck += dt;
+        if (_sinceBuildCheck >= 1 && _drawnBuild != null && entity.ShapeFresh)
+        {
+            _sinceBuildCheck = 0;
+            if (!EntityLaborEidolon.ReadBuild(entity.WatchedAttributes).Equals(_drawnBuild))
+                entity.MarkShapeModified();
+        }
+        base.BeforeRender(dt);
+    }
+
+    /// <summary>Each layer's texture in <paramref name="build"/>'s material, by texture code, in the
+    /// entity texture atlas (inserted the first time; the game's own and the pack's textures).
+    /// A texture that will not load is left out, so the layer keeps the shape's.</summary>
+    public static IReadOnlyDictionary<string, TextureAtlasPosition> LayerTextures(ICoreClientAPI capi, EidolonBuild build)
+    {
+        var textures = new Dictionary<string, TextureAtlasPosition>();
+        foreach (var (code, path) in build.Textures())
+        {
+            if (capi.EntityTextureAtlas.GetOrInsertTexture(new CompositeTexture(new AssetLocation(path)), out _, out var pos)
+                && pos != null)
+                textures[code] = pos;
+        }
+        return textures;
+    }
 
     public override void DoRender3DOpaque(float dt, bool isShadowPass)
     {

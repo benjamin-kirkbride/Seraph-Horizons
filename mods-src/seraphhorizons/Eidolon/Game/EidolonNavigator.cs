@@ -94,10 +94,10 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
             onArrived();
             return true;
         }
-        var config = EidolonSystem.Of(eidolon.Api)?.Config ?? EidolonConfig.Defaults;
+        var stats = eidolon.FittedStats;
         _steering = false;
         Animate(eidolon.MoveAnimation(run));
-        traverser.FollowRoute(waypoints, run ? config.RunSpeed : config.WalkSpeed, arriveWithin,
+        traverser.FollowRoute(waypoints, run ? stats.RunSpeed : stats.WalkSpeed, arriveWithin,
             () => { Animate(null); onArrived(); },
             () => { Animate(null); onStuck(); });
         return true;
@@ -124,12 +124,12 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
             }
             return true;
         }
-        var config = EidolonSystem.Of(eidolon.Api)?.Config ?? EidolonConfig.Defaults;
+        var stats = eidolon.FittedStats;
         _steering = true;
         _steerRun = run;
         _retargetedAt = eidolon.World.ElapsedMilliseconds;
         Animate(eidolon.MoveAnimation(run));
-        traverser.WalkTowards(target.Clone(), run ? config.RunSpeed : config.WalkSpeed, 0.2f,
+        traverser.WalkTowards(target.Clone(), run ? stats.RunSpeed : stats.WalkSpeed, 0.2f,
             () => { _steering = false; Animate(null); },
             () => { _steering = false; Animate(null); onStuck(); });
         return true;
