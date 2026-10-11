@@ -219,7 +219,6 @@ public class ItemOreMap : Item, ITradeableCollectible
         AppendDeposit(Lang.CurrentLocale, a, dsc);
         if (a.HasAttribute(AttrX))
             SeraphHorizons.Mod.Trading.Maps.MapMarksSystem.AppendDistance(world, a.GetInt(AttrX) + 0.5, a.GetInt(AttrZ) + 0.5, dsc);
-        dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-use"));
     }
 
     public override WorldInteraction[] GetHeldInteractionHelp(ItemSlot inSlot) =>
