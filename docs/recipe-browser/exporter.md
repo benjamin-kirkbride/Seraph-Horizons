@@ -455,7 +455,7 @@ details and the limits (facing, connectors).
   link of the gear chain's handbook page;
 - the draw bench (`RecipeExportDrawBenchScenarios.cs`): a record per metal, a hollow section in, its
   kept stages, the dies that draw it, the oil and four pipe sections;
-- the cylinder borer (`RecipeExportCylinderBorerScenarios.cs`): a record per metal, a cast cylinder in, its kept
+- the cylinder borer (`RecipeExportCylinderBorerScenarios.cs`): a record per metal, a rough cast cylinder in, its kept
   stages, the cutter head worn by the oil's fill, the oil and the bored cylinder; the mold's six-ingot casting; and
   ppex's engines' grid records taking the bored cylinder;
 - the press brake (`RecipeExportPressBrakeScenarios.cs`): a record per metal, a half plate in, its
