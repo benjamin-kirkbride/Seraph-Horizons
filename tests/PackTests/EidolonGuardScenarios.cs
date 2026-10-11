@@ -58,11 +58,16 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private EntityProperties Type(string code) =>
         W.GetEntityType(new AssetLocation(code)) ?? throw new InvalidOperationException("no entity type " + code);
 
-    /// <summary>A creature of <paramref name="code"/> standing at <paramref name="at"/>, its AI taken away.</summary>
-    private async Task<EntityAgent> Creature(string code, Vec3d at)
+    /// <summary>A creature of <paramref name="code"/> standing at <paramref name="at"/>, its AI taken away.
+    /// Its <paramref name="generation"/> is set before it is in the world: a wolf set bred only after
+    /// spawning was unbred, so hostile, for the ticks between, and a guard scanning then went for it and
+    /// killed it (#812).</summary>
+    private async Task<EntityAgent> Creature(string code, Vec3d at, int generation = 0)
     {
         var creature = (EntityAgent)W.ClassRegistry.CreateEntity(Type(code));
         creature.Pos.SetPos(at);
+        if (generation != 0)
+            creature.WatchedAttributes.SetInt("generation", generation);
         W.SpawnEntity(creature);
         await World.Ticks(2);
         if (creature.GetBehavior<EntityBehaviorTaskAI>() is { } ai)
@@ -71,6 +76,38 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     private static float Health(Entity e) => e.GetBehavior<EntityBehaviorHealth>()!.Health;
+
+    /// <summary>Every blow each watched creature took, as it took it (#812).</summary>
+    private readonly Dictionary<long, List<string>> _hurts = [];
+
+    /// <summary>Records every blow <paramref name="e"/> takes from now on, for <see cref="State"/>.</summary>
+    private void Watch(Entity e)
+    {
+        var hurts = _hurts[e.EntityId] = [];
+        e.GetBehavior<EntityBehaviorHealth>()!.onDamaged += (damage, source) =>
+        {
+            hurts.Add($"{damage:0.##} at {W.ElapsedMilliseconds} ms, {Describe(source)}, standing at {e.Pos.XYZ}");
+            return damage;
+        };
+    }
+
+    private static string Describe(DamageSource? source) => source == null
+        ? "no damage source"
+        : $"{source.Type} from {source.Source} (by {source.SourceEntity?.Code}, cause {source.GetCauseEntity()?.Code}"
+          + $" {source.GetCauseEntity()?.EntityId})";
+
+    /// <summary>Whatever says why <paramref name="e"/> is dead or hurt: alive, health, where it stands
+    /// and on what, how it left the world, and every blow it took since <see cref="Watch"/>.</summary>
+    private string State(Entity e, string name)
+    {
+        var health = e.GetBehavior<EntityBehaviorHealth>();
+        var feet = e.Pos.AsBlockPos;
+        return $"{name} ({e.Code}, id {e.EntityId}): alive {e.Alive}, state {e.State}, health {health?.Health}/{health?.MaxHealth}, "
+               + $"at {e.Pos.XYZ} on {W.BlockAccessor.GetBlock(feet.DownCopy()).Code} in {W.BlockAccessor.GetBlock(feet).Code}, "
+               + $"loaded {W.GetEntityById(e.EntityId) != null}, despawn {e.DespawnReason?.Reason.ToString() ?? "none"}"
+               + (e.DespawnReason is { } gone ? $" by {Describe(gone.DamageSourceForDeath)}" : "")
+               + $"; blows: [{string.Join("; ", _hurts.GetValueOrDefault(e.EntityId) ?? [])}]";
+    }
 
     private static bool Hostile(EntityProperties type, params string[] states) =>
         EidolonHostility.IsHostile(EidolonHostiles.TasksOf(type), states.Contains, 0, false, false, CreatureHostility.Aggressive);
@@ -130,8 +167,10 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
         // A drifter 25 blocks off, a bred wolf 6 and a drifter 10, its AI gone, so they stand.
         var far = await Creature("game:drifter-normal", point.AddCopy(25, 0, 0));
-        var wolf = await Creature("game:wolf-eurasian-adult-male", point.AddCopy(0, 0, 6));
-        wolf.WatchedAttributes.SetInt("generation", 1);
+        Watch(far);
+        var wolf = await Creature("game:wolf-eurasian-adult-male", point.AddCopy(0, 0, 6), generation: 1);
+        Assert.Equal(1, wolf.WatchedAttributes.GetInt("generation"));
+        Watch(wolf);
         var near = await Creature("game:drifter-normal", point.AddCopy(-10, 0, 0));
         float farHealth = Health(far), wolfHealth = Health(wolf);
         var defend = e.TaskAi!.TaskManager.GetTask<AiTaskEidolonDefend>()!;
@@ -144,13 +183,17 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
         // Back to its post; the far drifter and the wolf untouched and never gone for.
         await World.Until(() => AtItsPost(e), 1600);
         await World.Ticks(100);
-        Assert.True(far.Alive);
-        Assert.True(wolf.Alive);
-        Assert.Equal(farHealth, Health(far));
-        Assert.Equal(wolfHealth, Health(wolf));
-        Assert.Null(defend.Attacker);
-        Assert.Equal(1, (e.Orders.Current as GuardOrder)!.Engaged);
-        Assert.True(e.CanWork);
+        string farState = State(far, "far drifter"), wolfState = State(wolf, "bred wolf");
+        Log(farState);
+        Log(wolfState);
+        Assert.True(far.Alive, farState);
+        Assert.True(wolf.Alive, wolfState);
+        Assert.True(Health(far) == farHealth, $"far drifter was at {farHealth}; " + farState);
+        Assert.True(Health(wolf) == wolfHealth, $"bred wolf was at {wolfHealth}; " + wolfState);
+        Assert.True(defend.Attacker == null, $"still after {defend.Attacker?.Code} {defend.Attacker?.EntityId}; " + EidolonCommands.Describe(e));
+        Assert.True((e.Orders.Current as GuardOrder)?.Engaged == 1,
+            $"engaged {(e.Orders.Current as GuardOrder)?.Engaged} creatures (only the near drifter expected); " + EidolonCommands.Describe(e));
+        Assert.True(e.CanWork, "can't work: " + EidolonCommands.Describe(e));
         Assert.True(AboutItsPoint(e, point), EidolonCommands.Describe(e));
 
         // Unbred, the same wolf is hostile and it goes for it.
