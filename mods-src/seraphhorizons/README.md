@@ -4994,9 +4994,12 @@ the tier and a bar to the next, the raw numbers in brackets ("Regular [310 / 800
   (from anywhere in your inventory).
 - **Deliveries (n)**: the trader's offer (where, how far and which way, the deposit, the fee, the
   time) with Take and Mark on map, your packages from or for it, and Hand in at the receiver.
-- **Maps & leads**: ore maps (metal, size, distance, precision), the gravel map and leads (target,
-  distance, direction); sold-out and locked ones say why, and ones you have already are greyed out,
-  "you have this" (see "Maps and leads"). Bought by holding, as goods.
+- **Maps & leads**: every map and lead on offer as one row each, under a small heading (Ore maps,
+  Gravel maps, Leads): its icon (hover it for the item's tooltip), what it is ("Galena", "Tailor's
+  camp") with its facts under it ("large · poor · in Syenite · about 1 km · rough, ±150 m", "about
+  1 km north"), the price and a Buy button, pressed once. One you can't buy says why on its greyed
+  out button: Sold out, Locked (the row says the tier that sells it), Have it (see "Maps and
+  leads"), Surveying; Buy is off, its price in red, while you carry less than the price.
 - **Standing**: the five tiers with their thresholds, yours marked, what it gives you against the
   next, and how to earn standing.
 
@@ -5467,8 +5470,8 @@ carry their own discount instead).
   | partner | 5 | 12 | 55 |
 
   **Your very first map** is 10 gears and leads to a prospector. Every trader but a prospector
-  offers it, at any standing, a stranger's included, at the top of the Maps & leads tab ("First
-  map's on me: 10 g to the nearest prospector, about 3 km northeast."), until you buy it; it is
+  offers it, at any standing, a stranger's included, first among the Maps & leads tab's leads
+  ("Prospector's camp", "your first map · nearest prospector · about 3 km northeast", 10 g), until you buy it; it is
   yours alone, so every new member of a company gets their own, even where their company has had
   its stranger's map from that trader (and so does a player from a world saved before the first
   map, at a trader that already sold them their stranger's map). It goes to the nearest prospector cell to the selling trader (the grid puts one within two
@@ -5489,8 +5492,8 @@ carry their own discount instead).
 
 Every map and lead says how far its target is in whole kilometres, rounded to the nearest (1 km =
 1,000 blocks), "about 3 km", and "under a km" under half of one (`Trading/Maps/Core/MapDistance.cs`):
-its offer on the Maps & leads tab from the trader ("Ore map: galena (medium), about 2 km away,
-rough (±150 m)", "Lead to the cook's camp, about 4 km north: 24 g"), the map or lead in your bags from
+its offer on the Maps & leads tab from the trader ("Galena: medium · about 2 km · rough, ±150 m",
+"Cook's camp: about 4 km north"), the map or lead in your bags from
 where you stand ("Distance from here: about 3 km."), and the chat when reading one on a server
 without a world map. None names a ring.
 
@@ -5506,7 +5509,7 @@ on. The mod remembers which marker marks what (by the waypoint's id, saved as
 
 A trader won't sell you a map you have: one whose target is on your map already, as precisely or
 more (from an earlier map or lead, or a camp's trader met), or one you carry a copy of (read or not,
-or still being checked). Its offer is greyed out on the Maps & leads tab, "you have this", and the
+or still being checked). Its offer is greyed out on the Maps & leads tab, "Have it", and the
 server refuses it before any gears move. A rougher marker or copy does not count: a more precise
 map of the same target is an upgrade, and reading it replaces the rougher marker. An offer whose
 deposit or field turned out to be gone since the shelf was stocked (its cell's every spot failed)
