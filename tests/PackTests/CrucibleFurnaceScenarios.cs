@@ -184,7 +184,8 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
     public async Task Stainless_melts_pulls_with_tongs_pours_and_freezes()
     {
         var site = await Build("stainlessmaker", 12);
-        site.Charge(0, 0, ("game:ingot-iron", 1), ("game:metalbit-iron", 12), (Stainless.Ferrochrome, 8));
+        // a full pot of 300 units: 240 iron, 60 ferrochrome
+        site.Charge(0, 0, (Stainless.Ferrochrome, 12), ("game:ingot-iron", 2), ("game:metalbit-iron", 8));
         Assert.Contains("Makes stainless steel, melts at 1530 °C", site.Info());
         // coke on the fire, lit, lid shut
         Assert.True(site.RightClick(site.Stack("game:coke", 6)));
@@ -204,8 +205,8 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         site.Hole().Age(2.6);
         site.Hole().Update();
         Assert.Equal("stainless", site.Hole().Melted);
-        Assert.Equal(200, site.Hole().MeltedUnits);
-        Assert.Contains("Molten: 200 units of Stainless steel", site.Info());
+        Assert.Equal(300, site.Hole().MeltedUnits);
+        Assert.Contains("Molten: 300 units of Stainless steel", site.Info());
 
         // open, and without tongs the pot stays
         site.OpenLid();
@@ -220,7 +221,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         var smelted = Assert.IsType<BlockMeltingPotSmelted>(pot.Collectible);
         var contents = smelted.GetContents(W, pot);
         Assert.Equal(Stainless.Ingot, contents.Key.Collectible.Code.ToString());
-        Assert.Equal(200, contents.Value);
+        Assert.Equal(300, contents.Value);
         Assert.Equal(1, PotStack.Heats(pot));
         Assert.False(smelted.HasSolidifed(pot, contents.Key, W));
         // the pour window: from the furnace's temperature to solid in 20 real seconds
@@ -238,7 +239,10 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         // stainless has a melting point (the pack's patch), which the pour window and the molds' hardening need
         Assert.Equal(1530, contents.Key.Collectible.GetMeltingPoint(W, null, new DummySlot(contents.Key)));
 
-        // frozen: a right-click breaks the pot and knocks out 40 bits
+        // stainless is no large-casting metal: it pours into a tool mold as before
+        Assert.True(CrucibleFurnaceSystem.Of(World.Api).Config.PourAllowed(Stainless.Ingot, "game:toolmold-blue-fired-axe"));
+
+        // frozen: a right-click breaks the pot and knocks out 60 bits
         temp.SetFloat("temperature", 1300);
         temp.SetDouble("temperatureLastUpdate", W.Calendar.TotalHours);
         Assert.True(smelted.HasSolidifed(pot, contents.Key, W));
@@ -246,16 +250,16 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         smelted.OnHeldInteractStart(site.Hand, site.Player.Entity, null!, null!, true, ref handling);
         Assert.Equal(EnumHandHandling.PreventDefault, handling);
         Assert.Equal(0, site.Count(CrucibleFurnaceSystem.SmeltedPot) + site.Count(CrucibleFurnaceSystem.FiredPot));   // the pot is gone
-        Assert.Equal(40, site.Count(Stainless.Bit));
+        Assert.Equal(60, site.Count(Stainless.Bit));
     }
 
     [AtlasScenario]
     public async Task A_wrong_ratio_is_refused_at_charging_and_lighting()
     {
         var site = await Build("ratiochecker", 24);
-        site.Charge(0, 0, ("game:ingot-iron", 1));
-        // a second ingot would be more iron than a full pot of stainless takes
-        Assert.True(site.RightClick(site.Stack("game:ingot-iron")));
+        site.Charge(0, 0, (Stainless.Ferrochrome, 2));
+        // with ferrochrome in, iron stops at its share of a full pot of stainless: two ingots of three
+        Assert.True(site.RightClick(site.Stack("game:ingot-iron", 3)));
         Assert.Equal(1, site.Hand.StackSize);
         // quartz does not go with iron ingots
         Assert.True(site.RightClick(site.Stack("game:crushed-quartz", 4)));
@@ -264,17 +268,134 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.True(site.RightClick(site.Stack("game:ingot-copper")));
         Assert.Equal(1, site.Hand.StackSize);
         // too little ferrochrome: the charge makes nothing, and the coke will not light
-        Assert.True(site.RightClick(site.Stack(Stainless.Ferrochrome, 2)));
-        Assert.Null(site.Hand.Itemstack);
+        site.Hand.Itemstack = null;
         Assert.Contains("Makes nothing: the ratio is off for stainless steel", site.Info());
-        Assert.Contains("Ferrochrome: 9 % (needs 18-22 %)", site.Info());
+        Assert.Contains("Ferrochrome: 5 % (needs 18-22 %)", site.Info());
         Assert.True(site.RightClick(site.Stack("game:coke", 2)));
         Assert.False(site.Hole().TryLight(site.Player));
         Assert.False(site.Hole().Lit);
-        // made up to the ratio, it lights
-        Assert.True(site.RightClick(site.Stack(Stainless.Ferrochrome, 3)));
+        // made up to the ratio (50 of 250), it lights
+        Assert.True(site.RightClick(site.Stack(Stainless.Ferrochrome, 8)));
         Assert.Contains("Makes stainless steel", site.Info());
         Assert.True(site.Hole().TryLight(site.Player));
+    }
+
+    /// <summary>Pours the pot in the hand into the mold at <paramref name="mold"/> as a player holding
+    /// right-click does (the game's start, then a step a tick, 2 units a step), until the pot is empty
+    /// or the pour stops; the handling of the start.</summary>
+    private EnumHandHandling Pour(Site site, BlockPos mold, ItemStack pot)
+    {
+        site.Hand.Itemstack = pot;
+        site.Hand.MarkDirty();
+        var sel = new BlockSelection { Position = mold, Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 0.5, 0.5) };
+        var handling = EnumHandHandling.NotHandled;
+        pot.Collectible.OnHeldInteractStart(site.Hand, site.Player.Entity, sel, null!, true, ref handling);
+        if (handling == EnumHandHandling.NotHandled)
+            return handling;
+        float seconds = 1;
+        for (int i = 0; i < 1000 && site.Hand.Itemstack?.Collectible is BlockMeltingPotSmelted held; i++)
+        {
+            seconds += 0.05f;
+            if (!held.OnHeldInteractStep(seconds, site.Hand, site.Player.Entity, sel, null!))
+                break;
+        }
+        return handling;
+    }
+
+    // #768: iron alone melts at 1538 °C into molten iron, 300 units a pot; the two pots of a firing are
+    // teemed one after the other into a 600-unit cylinder mold, the second even once the first has set;
+    // a tool mold refuses a pot's iron, and an ingot mold takes it.
+    [AtlasScenario]
+    public async Task Iron_melts_and_two_pots_teem_into_one_cylinder_mold_but_no_tool_mold()
+    {
+        var site = await Build("ironfounder", 72);
+        site.OffHand.Itemstack = site.Stack("game:tongs");
+        site.OffHand.MarkDirty();
+        // three ingots, or their worth in bits, fill a pot; steel does not go in
+        site.Charge(0, 0, ("game:ingot-iron", 3));
+        site.Charge(1, 0, ("game:ingot-iron", 2), ("game:metalbit-iron", 20));
+        Assert.Contains("Makes iron, melts at 1538 °C", site.Info());
+        site.Charge(2, 0, ("game:ingot-iron", 1));
+        Assert.True(site.RightClick(site.Stack("game:ingot-steel"), 2));
+        Assert.Equal(1, site.Hand.StackSize);   // refused
+        Assert.True(site.RightClick(site.Stack("game:metalbit-steel", 4), 2));
+        Assert.Equal(4, site.Hand.StackSize);
+        site.Hand.Itemstack = null;
+        // below 1538 nothing melts; at it, every hole does
+        var pots = new List<ItemStack>();
+        for (int i = 0; i < 3; i++)
+        {
+            site.Hole(i).SetFire(1530, 3, true);
+            site.RightClick(null, i, sneak: true);
+            site.Hole(i).Age(0.01);
+            site.Hole(i).Update();
+            Assert.Null(site.Hole(i).Melted);
+            site.Hole(i).SetFire(1545, 3, true);
+            site.Hole(i).Age(0.01);
+            site.Hole(i).Update();
+            Assert.True(site.Hole(i).Melted == "iron", site.Info(i));
+            Assert.Equal(i == 2 ? 100 : 300, site.Hole(i).MeltedUnits);
+            site.OpenLid(i);
+            Assert.True(site.RightClick(null, i));
+            var pot = site.Hand.Itemstack!;
+            var contents = Assert.IsType<BlockMeltingPotSmelted>(pot.Collectible).GetContents(W, pot);
+            Assert.Equal("game:ingot-iron", contents.Key.Collectible.Code.ToString());
+            Assert.Equal(i == 2 ? 100 : 300, contents.Value);
+            pots.Add(pot);
+            site.Hand.Itemstack = null;
+        }
+        Assert.Contains("Pours only into ingot molds and cylinder molds.", PotInfo(pots[0]));
+
+        // a tool mold refuses it, and the pot keeps its iron
+        var toolPos = site.Origin.AddCopy(0, 0, 2);
+        World.SetBlock("game:toolmold-blue-fired-axe", toolPos);
+        var cylPos = site.Origin.AddCopy(1, 0, 2);
+        World.SetBlock("seraphhorizons:cylindermold-blue-fired", cylPos);
+        var ingotPos = site.Origin.AddCopy(2, 0, 2);
+        World.SetBlock("game:ingotmold-blue-fired", ingotPos);
+        await World.Ticks(2);
+        var tool = Assert.IsType<BlockEntityToolMold>(W.BlockAccessor.GetBlockEntity(toolPos));
+        var molten = ((BlockMeltingPotSmelted)pots[0].Collectible).GetContents(W, pots[0]).Key;
+        Assert.True(tool.CanReceive(molten));   // the game's mold would take it (there is an iron axe head)
+        Assert.False(CrucibleFurnaceSystem.Of(World.Api).Config.PourAllowed("game:ingot-iron", "game:toolmold-blue-fired-axe"));
+        Assert.Equal(EnumHandHandling.PreventDefault, Pour(site, toolPos, pots[0]));
+        Assert.Equal(0, tool.FillLevel);
+        Assert.Equal(300, ((BlockMeltingPotSmelted)site.Hand.Itemstack!.Collectible).GetContents(W, site.Hand.Itemstack).Value);
+
+        // the first pot into the cylinder mold: 300 of 600
+        var cyl = Assert.IsType<BlockEntityToolMold>(W.BlockAccessor.GetBlockEntity(cylPos));
+        Pour(site, cylPos, pots[0]);
+        Assert.Equal(300, cyl.FillLevel);
+        Assert.False(cyl.IsFull);
+        Assert.Equal(CrucibleFurnaceSystem.FiredPot, site.Hand.Itemstack?.Collectible.Code.ToString());   // emptied, a heat older
+        Assert.Equal(1, PotStack.Heats(site.Hand.Itemstack));
+        // it sets while the second pot comes: the mold still takes it
+        cyl.MetalContent.Collectible.SetTemperature(W, cyl.MetalContent, 400f, false);
+        Assert.True(cyl.IsHardened);
+        Pour(site, cylPos, pots[1]);
+        Assert.Equal(600, cyl.FillLevel);
+        Assert.True(cyl.IsFull);
+        cyl.MetalContent.Collectible.SetTemperature(W, cyl.MetalContent, 20f, false);
+        var blank = Assert.Single(cyl.GetStateAwareMoldedStacks());
+        Assert.Equal("seraphhorizons:cylinderblank-iron", blank.Collectible.Code.ToString());
+
+        // an ingot mold takes a pot's iron, so bits go back into ingots
+        var ingotMold = Assert.IsType<BlockEntityIngotMold>(W.BlockAccessor.GetBlockEntity(ingotPos));
+        // as the game's OnBlockPlaced sets it when a player places one
+        ingotMold.MoldLeft ??= new ItemStack(W.BlockAccessor.GetBlock(ingotPos));
+        Assert.True(ingotMold.CanReceiveAny);
+        Pour(site, ingotPos, pots[2]);
+        Assert.Equal(100, ingotMold.FillLevelLeft + ingotMold.FillLevelRight);
+        Assert.Equal(CrucibleFurnaceSystem.FiredPot, site.Hand.Itemstack?.Collectible.Code.ToString());
+        site.Hand.Itemstack = null;
+        site.OffHand.Itemstack = null;
+    }
+
+    private string PotInfo(ItemStack pot)
+    {
+        var sb = new System.Text.StringBuilder();
+        pot.Collectible.GetHeldItemInfo(new DummySlot(pot), sb, W, false);
+        return sb.ToString();
     }
 
     [AtlasScenario]
@@ -284,7 +405,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         site.OffHand.Itemstack = site.Stack("game:tongs");
         site.OffHand.MarkDirty();
         // ferrosilicon, the pot's first heat
-        site.Charge(0, 0, ("game:crushed-quartz", 20), ("game:metalbit-iron", 12), ("game:coke", 8));
+        site.Charge(0, 0, ("game:crushed-quartz", 30), ("game:metalbit-iron", 18), ("game:coke", 12));
         site.Hole().SetFire(1390, 3, true);
         site.RightClick(null, sneak: true);
         site.Hole().Age(0.1);
@@ -292,13 +413,13 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.True(site.Hole().Melted == "ferrosilicon", site.Info());
         site.OpenLid();
         Assert.True(site.RightClick(null));
-        Assert.Equal(20, site.Count(Stainless.Ferrosilicon));
+        Assert.Equal(30, site.Count(Stainless.Ferrosilicon));
         Assert.Equal(CrucibleFurnaceSystem.FiredPot, site.Hand.Itemstack?.Collectible.Code.ToString());
         Assert.Equal(1, PotStack.Heats(site.Hand.Itemstack));
 
-        // ferrochrome in a pot on its last heat: 20 ferrochrome, 8 slag, and the pot cracks
+        // ferrochrome in a pot on its last heat: 30 ferrochrome, 12 slag, and the pot cracks
         site.Hand.Itemstack = null;
-        site.Charge(1, 2, ("game:crushed-chromite", 20), (Stainless.Ferrosilicon, 12), ("game:lime", 8));
+        site.Charge(1, 2, ("game:crushed-chromite", 30), (Stainless.Ferrosilicon, 18), ("game:lime", 12));
         site.Hole(1).SetFire(1545, 3, true);
         site.RightClick(null, 1, sneak: true);
         site.Hole(1).Age(0.1);
@@ -306,8 +427,8 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Equal("ferrochrome", site.Hole(1).Melted);
         site.OpenLid(1);
         Assert.True(site.RightClick(null, 1));
-        Assert.Equal(20, site.Count(Stainless.Ferrochrome));
-        Assert.Equal(8, site.Count("smex:slag"));
+        Assert.Equal(30, site.Count(Stainless.Ferrochrome));
+        Assert.Equal(12, site.Count("smex:slag"));
         Assert.Equal(0, site.Count(CrucibleFurnaceSystem.FiredPot));   // cracked
         Assert.False(site.Hole(1).HasPot);
     }

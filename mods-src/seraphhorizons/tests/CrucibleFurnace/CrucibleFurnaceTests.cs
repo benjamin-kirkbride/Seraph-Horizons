@@ -10,7 +10,7 @@ namespace SeraphHorizons.Tests.CrucibleFurnace;
 public class CrucibleFurnaceTests
 {
     private static readonly PotRecipes Book = PotRecipes.Default;
-    private const int Cap = 200;
+    private const int Cap = 300;
 
     private static List<ChargeItem> Charge(params (string Code, int Count)[] items) =>
         items.Select(i => new ChargeItem(i.Code, i.Count)).ToList();
@@ -61,13 +61,53 @@ public class CrucibleFurnaceTests
     }
 
     [Fact]
-    public void Iron_goes_in_up_to_its_largest_share_of_a_full_pot()
+    public void Iron_with_ferrochrome_goes_in_up_to_its_largest_share_of_a_full_pot()
     {
-        // 82 % of 200 is 164: one ingot fits, two do not; 32 bits (160) do, 33 do not
-        Assert.Equal(new ChargeAdd(1, ChargeRefusal.None), Book.CanAdd([], "game:ingot-iron", 4, Cap));
-        Assert.Equal(new ChargeAdd(0, ChargeRefusal.TooMuch), Book.CanAdd(Charge(("game:ingot-iron", 1)), "game:ingot-iron", 1, Cap));
-        Assert.Equal(new ChargeAdd(32, ChargeRefusal.None), Book.CanAdd([], "game:metalbit-iron", 64, Cap));
-        Assert.Equal(new ChargeAdd(12, ChargeRefusal.None), Book.CanAdd(Charge(("game:ingot-iron", 1)), "game:metalbit-iron", 64, Cap));
+        // 82 % of 300 is 246: after ferrochrome, two ingots fit, then 9 bits (245) and no more; or 49 bits alone
+        var fecr = Charge(("seraphhorizons:ferrochrome", 4));
+        Assert.Equal(new ChargeAdd(2, ChargeRefusal.None), Book.CanAdd(fecr, "game:ingot-iron", 4, Cap));
+        Assert.Equal(new ChargeAdd(0, ChargeRefusal.TooMuch),
+            Book.CanAdd([.. fecr, new("game:ingot-iron", 2), new("game:metalbit-iron", 9)], "game:metalbit-iron", 1, Cap));
+        Assert.Equal(new ChargeAdd(49, ChargeRefusal.None), Book.CanAdd(fecr, "game:metalbit-iron", 64, Cap));
+        Assert.Equal(new ChargeAdd(9, ChargeRefusal.None), Book.CanAdd([.. fecr, new("game:ingot-iron", 2)], "game:metalbit-iron", 64, Cap));
+    }
+
+    [Fact]
+    public void Iron_alone_fills_the_pot_for_the_iron_melt()
+    {
+        // the iron melt takes iron to the brim: three ingots, or 60 bits
+        Assert.Equal(new ChargeAdd(3, ChargeRefusal.None), Book.CanAdd([], "game:ingot-iron", 4, Cap));
+        Assert.Equal(new ChargeAdd(60, ChargeRefusal.None), Book.CanAdd([], "game:metalbit-iron", 64, Cap));
+        Assert.Equal(new ChargeAdd(0, ChargeRefusal.PotFull), Book.CanAdd(Charge(("game:ingot-iron", 3)), "game:metalbit-iron", 1, Cap));
+        // a full pot of iron takes no ferrochrome; 240 iron does, up to 60
+        Assert.Equal(new ChargeAdd(0, ChargeRefusal.PotFull), Book.CanAdd(Charge(("game:ingot-iron", 3)), "seraphhorizons:ferrochrome", 1, Cap));
+        Assert.Equal(new ChargeAdd(12, ChargeRefusal.None), Book.CanAdd(Charge(("game:ingot-iron", 2), ("game:metalbit-iron", 8)), "seraphhorizons:ferrochrome", 64, Cap));
+        // steel and meteoric iron go in no recipe
+        Assert.Equal(new ChargeAdd(0, ChargeRefusal.NotAnIngredient), Book.CanAdd([], "game:metalbit-steel", 4, Cap));
+        Assert.Equal(new ChargeAdd(0, ChargeRefusal.NotAnIngredient), Book.CanAdd([], "game:ingot-meteoriciron", 1, Cap));
+    }
+
+    [Fact]
+    public void The_iron_melt_is_iron_alone_at_1538_unit_for_unit()
+    {
+        var r = PotRecipes.IronRecipe;
+        Assert.Equal(1538, r.Temperature);
+        Assert.True(r.Pourable);
+        Assert.Equal("game:ingot-iron", r.Output);
+        Assert.Equal(1, r.Yield);
+        var iron = Assert.Single(r.Ingredients);
+        Assert.Equal((1.0, 1.0), (iron.Min, iron.Max));
+        Assert.Equal(new[] { "game:ingot-iron", "game:metalbit-iron" }, iron.Codes);
+
+        var full = Book.Match(Charge(("game:ingot-iron", 3)));
+        Assert.Equal("iron", full.Recipe?.Code);
+        Assert.Equal(new PotProducts(300, 0, 0), PotRecipes.Products(full.Recipe!, 300));
+        Assert.Equal("iron", Book.Match(Charge(("game:ingot-iron", 1), ("game:metalbit-iron", 7))).Recipe?.Code);
+        // with ferrochrome in it, it is stainless or nothing
+        Assert.Equal("stainless", Book.Match(Charge(("game:ingot-iron", 2), ("game:metalbit-iron", 8), ("seraphhorizons:ferrochrome", 12))).Recipe?.Code);
+        Assert.Null(Book.Match(Charge(("game:ingot-iron", 2), ("seraphhorizons:ferrochrome", 1))).Recipe);
+        // iron bits with quartz are ferrosilicon's, never the iron melt
+        Assert.NotEqual("iron", Book.Match(Charge(("game:crushed-quartz", 30), ("game:metalbit-iron", 18))).Closest?.Code);
     }
 
     [Fact]
@@ -77,35 +117,37 @@ public class CrucibleFurnaceTests
         Assert.Equal(new ChargeAdd(0, ChargeRefusal.DoesNotMix), Book.CanAdd(Charge(("game:crushed-quartz", 4)), "seraphhorizons:ferrochrome", 4, Cap));
         Assert.Equal(new ChargeAdd(0, ChargeRefusal.DoesNotMix), Book.CanAdd(Charge(("game:metalbit-stainlesssteel", 4)), "game:ingot-iron", 1, Cap));
         // iron bits go with either, so they go in after ferrochrome or after quartz
-        Assert.Equal(32, Book.CanAdd(Charge(("seraphhorizons:ferrochrome", 8)), "game:metalbit-iron", 64, Cap).Count);
-        Assert.Equal(14, Book.CanAdd(Charge(("game:crushed-quartz", 20)), "game:metalbit-iron", 64, Cap).Count);
+        Assert.Equal(49, Book.CanAdd(Charge(("seraphhorizons:ferrochrome", 8)), "game:metalbit-iron", 64, Cap).Count);
+        Assert.Equal(21, Book.CanAdd(Charge(("game:crushed-quartz", 30)), "game:metalbit-iron", 64, Cap).Count);
     }
 
     [Fact]
     public void A_full_pot_takes_nothing_more()
     {
-        var full = Charge(("game:metalbit-stainlesssteel", 40));
+        var full = Charge(("game:metalbit-stainlesssteel", 60));
         Assert.Equal(new ChargeAdd(0, ChargeRefusal.PotFull), Book.CanAdd(full, "game:metalbit-stainlesssteel", 1, Cap));
-        Assert.Equal(new ChargeAdd(20, ChargeRefusal.None), Book.CanAdd(Charge(("game:metalbit-stainlesssteel", 20)), "game:metalbit-stainlesssteel", 64, Cap));
+        Assert.Equal(new ChargeAdd(40, ChargeRefusal.None), Book.CanAdd(Charge(("game:metalbit-stainlesssteel", 20)), "game:metalbit-stainlesssteel", 64, Cap));
     }
 
     // ---- Matching ----
 
     [Fact]
-    public void The_four_default_charges_make_their_products()
+    public void The_full_pot_charges_make_their_products()
     {
-        var fesi = Book.Match(Charge(("game:crushed-quartz", 20), ("game:metalbit-iron", 12), ("game:coke", 8)));
+        // a full pot is 300 units: the ferroalloys give 150 units of lumps
+        var fesi = Book.Match(Charge(("game:crushed-quartz", 30), ("game:metalbit-iron", 18), ("game:coke", 12)));
         Assert.Equal("ferrosilicon", fesi.Recipe?.Code);
-        Assert.Equal(new PotProducts(100, 20, 0), PotRecipes.Products(fesi.Recipe!, 200));
+        Assert.Equal(new PotProducts(150, 30, 0), PotRecipes.Products(fesi.Recipe!, Cap));
 
-        var fecr = Book.Match(Charge(("game:crushed-chromite", 20), ("seraphhorizons:ferrosilicon", 12), ("game:lime", 8)));
+        var fecr = Book.Match(Charge(("game:crushed-chromite", 30), ("seraphhorizons:ferrosilicon", 18), ("game:lime", 12)));
         Assert.Equal("ferrochrome", fecr.Recipe?.Code);
-        Assert.Equal(new PotProducts(100, 20, 8), PotRecipes.Products(fecr.Recipe!, 200));
+        Assert.Equal(new PotProducts(150, 30, 12), PotRecipes.Products(fecr.Recipe!, Cap));
         Assert.Equal("smex:slag", fecr.Recipe!.Byproduct);
 
-        var ss = Book.Match(Charge(("game:ingot-iron", 1), ("game:metalbit-iron", 12), ("seraphhorizons:ferrochrome", 8)));
+        // 240 iron and 60 ferrochrome
+        var ss = Book.Match(Charge(("game:ingot-iron", 2), ("game:metalbit-iron", 8), ("seraphhorizons:ferrochrome", 12)));
         Assert.Equal("stainless", ss.Recipe?.Code);
-        Assert.Equal(new PotProducts(200, 0, 0), PotRecipes.Products(ss.Recipe!, 200));
+        Assert.Equal(new PotProducts(300, 0, 0), PotRecipes.Products(ss.Recipe!, Cap));
         Assert.True(ss.Recipe!.Pourable);
         Assert.Equal(Stainless.Ingot, ss.Recipe.Output);
 
@@ -280,9 +322,41 @@ public class CrucibleFurnaceTests
         var bad = new CrucibleFurnaceConfig { PotCapacityUnits = 0, PourWindowSeconds = double.NaN, HoursPerCoke = -1, ChimneyBlocks = [] };
         var fixes = bad.Sanitise();
         Assert.Equal(4, fixes.Count);
-        Assert.Equal(200, bad.PotCapacityUnits);
+        Assert.Equal(300, bad.PotCapacityUnits);
         Assert.Equal(20, bad.PourWindowSeconds);
         Assert.Equal(1, bad.HoursPerCoke);
         Assert.Contains("game:claybricks-*", bad.ChimneyBlocks);
+        var blank = new CrucibleFurnaceConfig { LargeCastingMetals = null!, LargeCastingMolds = ["game:ingotmold-*", " "] };
+        Assert.Equal(2, blank.Sanitise().Count);
+        Assert.Equal(new[] { "game:ingot-iron" }, blank.LargeCastingMetals);
+        Assert.Equal(new[] { "game:ingotmold-*", "seraphhorizons:cylindermold-*" }, blank.LargeCastingMolds);
+    }
+
+    // ---- Large castings: where a pot's molten iron pours ----
+
+    [Theory]
+    [InlineData("game:ingot-iron", "game:ingotmold-blue-fired", true)]
+    [InlineData("game:ingot-iron", "seraphhorizons:cylindermold-fire-fired", true)]
+    [InlineData("game:ingot-iron", "game:toolmold-blue-fired-axe", false)]
+    [InlineData("game:ingot-iron", "game:toolmold-red-fired-anvil", false)]
+    [InlineData("game:ingot-iron", "game:toolmold-tan-fired-helvehammer", false)]
+    [InlineData("game:ingot-iron", "seraphhorizons:toolmold-blue-fired-gearblank", false)]
+    [InlineData("game:ingot-iron", "seraphhorizons:castpipemold-blue-fired", false)]
+    [InlineData("game:ingot-stainlesssteel", "game:toolmold-blue-fired-axe", true)]
+    [InlineData("game:ingot-stainlesssteel", "seraphhorizons:toolmold-blue-fired-gearblank", true)]
+    [InlineData("game:ingot-steel", "game:toolmold-blue-fired-axe", true)]
+    public void Molten_iron_from_a_pot_casts_only_into_large_casting_molds(string metal, string mold, bool allowed) =>
+        Assert.Equal(allowed, new CrucibleFurnaceConfig().PourAllowed(metal, mold));
+
+    [Fact]
+    public void The_large_casting_lists_are_settings()
+    {
+        var c = new CrucibleFurnaceConfig { LargeCastingMetals = [], LargeCastingMolds = [] };
+        Assert.True(c.PourAllowed("game:ingot-iron", "game:toolmold-blue-fired-axe"));   // no metal restricted
+        c = new CrucibleFurnaceConfig { LargeCastingMetals = ["game:ingot-*"], LargeCastingMolds = ["seraphhorizons:cylindermold-*"] };
+        Assert.False(c.PourAllowed("game:ingot-stainlesssteel", "game:ingotmold-blue-fired"));
+        Assert.True(c.PourAllowed("game:ingot-stainlesssteel", "seraphhorizons:cylindermold-blue-fired"));
+        Assert.True(new CrucibleFurnaceConfig().IsLargeCastingMetal("game:ingot-iron"));
+        Assert.False(new CrucibleFurnaceConfig().IsLargeCastingMetal("game:ingot-meteoriciron"));
     }
 }
