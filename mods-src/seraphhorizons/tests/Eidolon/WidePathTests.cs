@@ -268,6 +268,94 @@ public class WidePathTests
         Assert.Equal(7, path![^1].X);
     }
 
+    // ---- other eidolons in the way ----
+
+    private static Others At(params (double X, double Y, double Z)[] at) => new(at, 0.85, 3.75);
+
+    [Fact]
+    public void GoesRoundAnotherEidolonStandingInTheWay()
+    {
+        var v = new Voxels().Floor(-5, 25, -12, 12);
+        var walker = new WidePath(v, 3);
+        var other = At((10, 0, 0));
+        var path = walker.FindAround(new PathCell(0, 0, 0), new PathCell(20, 0, 0), other, 20000);
+        Assert.NotNull(path);
+        Assert.True(walker.WentAround);
+        // its box never within the margin of the other's
+        Assert.All(path!, c => Assert.False(other.Touches(c.X, c.Y, c.Z), $"{c} touches it"));
+        Assert.Contains(path!, c => c.Z != 0);
+        // straight through without it
+        Assert.All(walker.Find(new PathCell(0, 0, 0), new PathCell(20, 0, 0), 20000)!, c => Assert.Equal(0, c.Z));
+    }
+
+    /// <summary>A lane two blocks wide (z 0 and 1) between walls, along x: no way round another in it.</summary>
+    private static Voxels Lane()
+    {
+        var v = new Voxels().Floor(-5, 25, -3, 4);
+        for (int x = -5; x <= 25; x++)
+        for (int y = 0; y <= 4; y++)
+        {
+            v.Solid.Add((x, y, -1));
+            v.Solid.Add((x, y, 2));
+        }
+        return v;
+    }
+
+    [Fact]
+    public void OneStandingOnTheGoalOrTouchingItAtTheStartIsNotWalkedRound()
+    {
+        var walker = new WidePath(new Voxels().Floor(-5, 25, -12, 12), 3);
+        // on the goal: it is still reached
+        var path = walker.FindAround(new PathCell(0, 0, 0), new PathCell(10, 0, 0), At((10.3, 0, 0.2)), 20000);
+        Assert.Equal(new PathCell(10, 0, 0), path![^1]);
+        Assert.True(walker.WentAround);
+        // touching it where it starts: left out, not a wall it cannot get past
+        var lane = new WidePath(Lane(), 3);
+        Assert.NotNull(lane.FindAround(new PathCell(0, 0, 1), new PathCell(20, 0, 1), At((1.5, 0, 1)), 20000));
+        Assert.True(lane.WentAround);
+    }
+
+    [Fact]
+    public void TwoMeetingInANarrowWayGoThroughRatherThanBothStand()
+    {
+        var walker = new WidePath(Lane(), 3);
+        var path = walker.FindAround(new PathCell(0, 0, 1), new PathCell(20, 0, 1), At((10, 0, 1)), 20000);
+        // no way round it: a way through it, said so (the navigator then lets the lower id go first)
+        Assert.NotNull(path);
+        Assert.False(walker.WentAround);
+        Assert.Equal(new PathCell(20, 0, 1), path![^1]);
+    }
+
+    [Fact]
+    public void OneWalkingAtItIsWalkedRoundWhereItGoesNotOnlyWhereItIs()
+    {
+        var v = new Voxels().Floor(-5, 25, -12, 12);
+        // another at x 14, walking toward it at 2 blocks a second along z 0
+        var sweep = Others.Sweep(14, 0, 0, -2, 0, 3, 0.5).ToList();
+        Assert.Equal(7, sweep.Count);
+        Assert.Equal((8.0, 0.0, 0.0), sweep[^1]);
+        var walker = new WidePath(v, 3);
+        var path = walker.FindAround(new PathCell(0, 0, 0), new PathCell(20, 0, 0), At([.. sweep]), 20000);
+        Assert.True(walker.WentAround);
+        // clear of its whole way ahead, x 8 to 14
+        Assert.All(path!, c => Assert.False(At([.. sweep]).Touches(c.X, c.Y, c.Z), $"{c}"));
+        // standing, only where it is
+        Assert.Single(Others.Sweep(14, 0, 0, 0, 0, 0, 0.5));
+    }
+
+    [Fact]
+    public void ABoxTouchesAnotherWithinTheMarginAndOnlyAtItsHeight()
+    {
+        var other = At((10, 5, 10));
+        Assert.True(other.Touches(10 + 1.7 + Others.Margin - 0.01, 5, 10));
+        Assert.False(other.Touches(10 + 1.7 + Others.Margin + 0.01, 5, 10));
+        Assert.True(other.Touches(10, 5 + 3.7, 10));
+        Assert.False(other.Touches(10, 5 + 3.75, 10));
+        Assert.False(other.Touches(10, 5 - 3.75, 10));
+        Assert.Empty(other.Without(new PathCell(11, 5, 11)).At);
+        Assert.Single(other.Without(new PathCell(14, 5, 10)).At);
+    }
+
     [Theory]
     [InlineData(0.4, 0.0, 0.6, 0, 0, 1)]
     [InlineData(-0.6, 63.5, 2.49, -1, 63, 2)]

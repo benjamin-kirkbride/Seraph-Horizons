@@ -46,6 +46,10 @@ public sealed class WidePath(IWideSpace space, int maxFall, int maxClimb = 1)
     /// <summary>Nodes visited by the last search.</summary>
     public int Visited { get; private set; }
 
+    /// <summary>Whether the last <see cref="FindAround"/> found its path round the others (false: it
+    /// found none round them, and the one it gave goes through them).</summary>
+    public bool WentAround { get; private set; }
+
     /// <summary>The node whose corner is nearest the point (x, z), in the block its feet are in.</summary>
     public static PathCell NodeAt(double x, double y, double z) =>
         new((int)Math.Round(x, MidpointRounding.AwayFromZero), (int)Math.Floor(y + 0.01), (int)Math.Round(z, MidpointRounding.AwayFromZero));
@@ -134,6 +138,44 @@ public sealed class WidePath(IWideSpace space, int maxFall, int maxClimb = 1)
         return null;
     }
 
+    /// <summary>
+    /// <see cref="Find"/> with other walkers' boxes in the way (<see cref="Others"/>, each at the node
+    /// it stands nearest), each grown by <see cref="Others.Margin"/>: first round them, and finding no
+    /// way round, through them (<see cref="WentAround"/> false), so two in a narrow way never both wait
+    /// on each other; <see cref="EidolonSpacing"/>'s push keeps them apart there. One whose box touches
+    /// the start's or the goal's is left out: it is not a wall to walk round, and the goal stays reachable.
+    /// </summary>
+    public List<PathCell>? FindAround(PathCell start, PathCell goal, Others others, int maxNodes, int tolerance = 0)
+    {
+        var kept = others.Without(start).Without(goal);
+        if (kept.Count > 0)
+        {
+            var round = new WidePath(new AvoidingSpace(space, kept), MaxFall, MaxClimb);
+            var path = round.Find(start, goal, maxNodes, tolerance);
+            int visited = round.Visited;
+            if (path != null)
+            {
+                Visited = visited;
+                WentAround = true;
+                return path;
+            }
+            var through = Find(start, goal, maxNodes, tolerance);
+            Visited += visited;
+            WentAround = false;
+            return through;
+        }
+        WentAround = true;
+        return Find(start, goal, maxNodes, tolerance);
+    }
+
+    /// <summary>The space with <see cref="Others"/>' boxes made solid.</summary>
+    private sealed class AvoidingSpace(IWideSpace space, Others others) : IWideSpace
+    {
+        public bool Free(double x, double y, double z) => !others.Touches(x, y, z) && space.Free(x, y, z);
+
+        public float Cost(PathCell cell) => space.Cost(cell);
+    }
+
     private static bool Reached(PathCell node, PathCell goal, int tolerance) =>
         Math.Abs(node.X - goal.X) <= tolerance && Math.Abs(node.Z - goal.Z) <= tolerance && Math.Abs(node.Y - goal.Y) <= 2;
 
@@ -152,5 +194,49 @@ public sealed class WidePath(IWideSpace space, int maxFall, int maxClimb = 1)
             path.Add(parent[path[^1]]);
         path.Reverse();
         return path;
+    }
+}
+
+/// <summary>
+/// Other walkers of the same box in the way of a search (<see cref="WidePath.FindAround"/>): where
+/// each stands (its feet's centre), its box <paramref name="halfWidth"/> each side and
+/// <paramref name="height"/> tall, as the walker's own. A node is blocked where the walker's box there
+/// would come within <see cref="Margin"/> of one's.
+/// </summary>
+public sealed class Others(IEnumerable<(double X, double Y, double Z)> at, double halfWidth, double height)
+{
+    /// <summary>The room, in blocks, kept between its box and another's.</summary>
+    public const double Margin = 0.3;
+
+    private readonly List<(double X, double Y, double Z)> _at = at.ToList();
+
+    public int Count => _at.Count;
+
+    public IReadOnlyList<(double X, double Y, double Z)> At => _at;
+
+    /// <summary>Whether its box with its feet's centre at (x, y, z) comes within <see cref="Margin"/> of
+    /// one of theirs.</summary>
+    public bool Touches(double x, double y, double z)
+    {
+        double reach = 2 * halfWidth + Margin;
+        foreach (var o in _at)
+            if (Math.Abs(o.X - x) < reach && Math.Abs(o.Z - z) < reach && y < o.Y + height && o.Y < y + height)
+                return true;
+        return false;
+    }
+
+    /// <summary>These without any whose box comes within <see cref="Margin"/> of its own at <paramref name="node"/>.</summary>
+    public Others Without(PathCell node) =>
+        new(_at.Where(o => !new Others([o], halfWidth, height).Touches(node.X, node.Y, node.Z)), halfWidth, height);
+
+    /// <summary>Where it stands at (<paramref name="x"/>, <paramref name="y"/>, <paramref name="z"/>), and
+    /// walking at (<paramref name="perSecondX"/>, <paramref name="perSecondZ"/>) blocks a second, where it
+    /// will be every <paramref name="step"/> seconds for <paramref name="seconds"/>: its way to keep clear of.</summary>
+    public static IEnumerable<(double X, double Y, double Z)> Sweep(double x, double y, double z, double perSecondX, double perSecondZ,
+        double seconds, double step)
+    {
+        yield return (x, y, z);
+        for (double t = step; t <= seconds + 1e-9; t += step)
+            yield return (x + perSecondX * t, y, z + perSecondZ * t);
     }
 }

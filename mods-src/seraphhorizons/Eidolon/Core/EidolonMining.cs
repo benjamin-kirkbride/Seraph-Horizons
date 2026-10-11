@@ -55,13 +55,14 @@ public sealed record MineScan(int? Layer, IReadOnlySet<MarkPos> Left, IReadOnlyL
 
 /// <summary>What the miners of one shared job share (README "Eidolon", working together): the cells
 /// every member leaves for the order's life for what they are (a land claim its owner may not break in,
-/// a block that would not break), and the cells some member gave up for want of a way to them, for the
-/// report. A cell one member cannot reach another may, so each keeps its own unreachable cells for its
-/// search; only the report reads them all here.</summary>
+/// a block that would not break), the cells some member gave up for want of a way to them, for the
+/// report, and the area's sectors and who works each. A cell one member cannot reach another may, so
+/// each keeps its own unreachable cells for its search; only the report reads them all here.</summary>
 public sealed class MineJobCells
 {
     public HashSet<MarkPos> Skip { get; } = new();
     public HashSet<MarkPos> Unreachable { get; } = new();
+    public MineSectors Sectors { get; } = new();
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>

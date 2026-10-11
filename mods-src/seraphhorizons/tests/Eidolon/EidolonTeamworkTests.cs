@@ -4,7 +4,7 @@ namespace SeraphHorizons.Mod.Tests.Eidolon;
 
 /// <summary>Working together: a job by owner, kind and area, joined late; reservations exclusive across
 /// jobs, freed on leaving or going away, lapsing after 30 s; the job's level its present members'
-/// highest; done only with every present member finished and none still to load; the footing rule
+/// highest, and none mining more than a layer under it; done only with every present member finished and none still to load; the footing rule
 /// against other eidolons; the rim's places; the report's shares.</summary>
 public class EidolonTeamworkTests
 {
@@ -163,27 +163,33 @@ public class EidolonTeamworkTests
         Assert.Empty(board.Held(2));
     }
 
-    // ---- the same layer together ----
+    // ---- the floors within a climb ----
 
     [Fact]
-    public void TheJobWorksItsPresentMembersHighestLevel()
+    public void TheJobWorksDownFromItsPresentMembersHighestLevelAndNoMoreThanOneLayerUnder()
     {
         var board = Board();
         var job = board.Join(1, "1", Key());
         board.Join(2, "2", Key());
         Assert.Null(job.Level);
+        Assert.Null(job.Lowest);
         board.SetLevel(1, 12);
         board.SetLevel(2, 11);
-        // 2 has nothing on 12 it can reach: it waits until 12 is done
+        // 12 is left somewhere: none mines under 11, so where 12 is left a floor stands on it (feet in
+        // 13), and where 11 is mined on 10 (feet in 11), a climb of two
         Assert.Equal(12, job.Level);
+        Assert.Equal(11, job.Lowest);
+        Assert.Equal(EidolonTeamwork.FloorStep, 13 - (job.Lowest!.Value));
         board.SetLevel(1, 11);
         Assert.Equal(11, job.Level);
+        Assert.Equal(10, job.Lowest);
         // one gone away does not hold the others to its layer
         board.SetLevel(1, 12);
         board.Away(1);
         Assert.Equal(11, job.Level);
         board.Leave(2);
         Assert.Null(job.Level);
+        Assert.Null(job.Lowest);
     }
 
     [Fact]

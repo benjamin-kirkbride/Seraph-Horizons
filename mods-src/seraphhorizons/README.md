@@ -3104,7 +3104,8 @@ corner, the nearest square first. It reaches a block within 2 blocks of its box 
 layer under its feet to its head (3 over the block its feet are in), never one in a column its box stands over,
 so it never digs its footprint or under it: for what it stood on, or a square out of reach, it walks to
 a place beside (a path node from which it reaches the square's blocks on the layer, its box free and
-on the ground; those not standing on a block it has yet to mine first, then the nearest; three tried by
+on the ground; those not standing on a block it has yet to mine first, then the nearest, one another
+eidolon stands on last; three tried by
 the wide pathfinder, and the square is given up for the order's life, counted out of its reach). A
 square only out of its way for now (under an eidolon, held by another, mined out by another) is never
 given up: it goes back to its search, and waits at the rim if nothing else is free. With no ramp, it gets out of its
@@ -3120,7 +3121,13 @@ takes a seraph 0.89 s and the eidolon 1.19 s, soil (1.8) 2.4 s. It faces the gro
 (vanilla's `stand-slam`, stretched or squeezed to fill the strike, from half to three times its speed;
 it stands first for a slower strike, and one quicker than the fastest slam takes the slam's 0.5 s);
 the group breaks as both fists land (frame 35), with the first block's pickaxe break sound, broken as
-a pick breaks it with no player (`BreakBlock`): the block's own drops fall in the world. Each strike
+a pick breaks it with no player (`BreakBlock`): the block's own drops fall in the world. A slam never
+lands on nothing: the group is looked at again as the strike starts, as the slam starts and every tick
+until it lands (`MineOrder.Breakable`: each block still there, its owner's to break, in reach from where
+it stands, under no eidolon's box, still a block it mines), and with nothing left in it (another eidolon
+stepped over it, it was pushed out of reach, a block fell or was mined, a liquid came beside it) the
+strike is cut short (`MineOrder.CutStrikes`) and it chooses again; what is left is broken. The slams
+that broke nothing are counted (`MineOrder.EmptyStrikes`: only a block the game would not break). Each strike
 costs `OilPerMiningStrike` (0.5). It searches the area again once its layer is done and every 10
 seconds while it works. A column of the area that is not loaded reads as air, so a search checks each
 column is loaded (`GetChunkAtBlockPos`) and never takes one that is not for mined (`EidolonMining.Scan`):
@@ -3128,8 +3135,8 @@ with nothing left it may break in the loaded part, it walks toward the nearest c
 most 24 blocks at a time to loaded ground (the columns it holds round it load ahead of it, "Chunk
 loading"), or, finding no way, waits, searching again every 10 seconds. Done when no block it may break
 and reach is left and none of the area is unloaded: it tells its owner how many it mined, how many it
-left and how many were out of its reach, walks back to where it was ordered (if it finds a way) and the
-order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
+left and how many were out of its reach, walks back to where it was ordered (if it finds a way; stopped
+short, stuck or off an edge, it sets off again, up to 3 times) and the order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
 (done, it goes on back). `MineOrder.HasWorkLeft` holds until it has told its owner it is done, and its
 area is its `WorkAreas`. It is not part of the crew order. Several given the same area work it as one
 job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs` and
@@ -3142,7 +3149,23 @@ on the soil under it; a dry reservoir).
 for the same work are one job (`JobKey`: the owner's uid, the order's code, the area), whether the tool
 gave it to them together or one later, which joins the job running; an overlapping area, or another
 owner's eidolons, is a job of its own. A job is the server's (`JobBoard`, one per kind of work), not
-saved. *Reservations*: before it walks to a 2 × 2 square or strikes in one, a miner reserves the
+saved. *Sectors* (mining; `Eidolon/Core/MineSectors.cs`): the area is split into a sector for each
+member at work (`EidolonSectors.Split`): strips across its long side for two or three, a grid of
+near-square blocks for more (rows across the short side, the members spread over them, the rows chosen
+for the most sectors, then the squarest), each at least 4 blocks wide either way (`EidolonSectors.MinSide`,
+room for the strikes and the 1.7-wide box; a side of the area under 4 is not cut) and cut only at the 2 × 2
+squares' edges, so a square is in one sector. Each member is given the sector nearest it, nearest pair
+first; members past what the area holds at that width get none and wait at the rim. Each works only its
+own, the nearest square first. One with nothing left in its own that it may work (mined out, or all of
+it under the job's lowest layer, below) takes a sector let go with work in it, the most first; else it
+*steals*: of the others' sectors with work left, the one with the most (counted from its last search,
+on the layers it may mine), cut in two across its long side (`EidolonSectors.Halves`, at a square's edge,
+each half at least 4: a sector under 8 long is not stolen from), it takes the half away from that sector's
+member, if that half has work; and its own is let go, no one's until a member with nothing takes it.
+Finding neither, it lets its own go and waits at the rim. The area is split afresh only when who is at
+work changes (one joins, leaves, is away or back: `MineSectors.Sync`), never on a timer; a member whose
+sector moved finishes its strike, frees its square and walks to its new one. The sectors are the job's
+(`MineJobCells.Sectors`), not saved. *Reservations*: before it walks to a 2 × 2 square or strikes in one, a miner reserves the
 square's columns, and passes over a square another holds, in its job or any other (reservations are
 the board's, by block column, so jobs over the same place with their squares laid differently do not
 meet either); it holds one square at a time, and frees it at once when it stops working (another
@@ -3150,16 +3173,20 @@ order, none, dry, slumped, down, a fight, unloaded or gone: the order's `Stop`; 
 a part of the area not loaded, or to wait: `Travel`, `Wait`; and a sweep every
 second, `EidolonJobSystem.Sweep`, for an eidolon unloaded, removed or given another order), and a
 reservation not struck within 30 seconds (`EidolonTeamwork.ReserveSeconds`) lapses (walking to it
-counts as striking it, however long the way). *The same layer
-together*: each tells the job the highest layer it has a block left on (after each search), and the
-job works the highest of its members at work; one whose own is lower (the rest of the layer is out of
-its reach, given up, or held) starts nothing until that layer is done, so the pit's floor stays even.
+counts as striking it, however long the way). *The floors within a climb*:
+each sector goes down at its own pace, but each member tells the job the highest layer of the whole
+area with a block left as it finds it (after each search and each strike, `JobBoard.SetLevel`), the job's
+level is the highest of its members at work (`SharedJob.Level`), and none mines a block more than one
+layer under it (`SharedJob.Lowest`, `EidolonTeamwork.Lowest`): where that layer is left a floor stands
+on it, and where the one under is mined, on the layer under that, two lower (`EidolonTeamwork.FloorStep`),
+a climb up and a drop down, so it walks from any sector into any other. A member whose sector has nothing
+left above that takes or steals as above, and a search is made again whenever the job's level moves.
 What is skipped is shared, what is out of reach is not: a block left for what it is (in a claim its
 owner may not break in, or one that would not break) is left by the whole job (`MineJobCells.Skip`),
 but one a member found no way to stays its own, since another may reach it, and the report counts
 what any gave up (`MineJobCells.Unreachable`). *Waiting at the rim*: one with no square free to walk to
-or strike (all held by others or under a member at work) or a layer above still worked frees its
-square and walks to a place on the area's rim (`EidolonTeamwork.Rim`: its box two columns clear of the
+or strike (all held by others or under a member at work), or nothing in its sector it may work and
+nothing to take or steal, frees its square and walks to a place on the area's rim (`EidolonTeamwork.Rim`: its box two columns clear of the
 area first, the miners' stands being at most one, then one and none; the nearest with ground under it,
 none within 2.5 blocks of another eidolon or of where another waits), out of the pit and out of the
 way, and every second looks again, taking the next square that comes free. One that finds no way to
@@ -3192,8 +3219,12 @@ it comes back (`JobBoard.Join`'s `rejoinClosed`, for an order resumed or loaded 
 back with no report of its own, so nothing is counted twice; an order given anew to the same area (no
 mates saved) makes a new job. Reservations are not saved, and the shares after a restart count from then. Chunks, oil and
 the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` and
-`tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit, never holding the
-same square, a layer at a time, one report with both shares, each back to its place; an eidolon with no
+`tests/Eidolon/MineSectorsTests.cs` (the split, the least width, the grid, who gets which, splitting afresh,
+the steal) and `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit, never holding the
+same square, the floors within a climb, one report with both shares, each back to its place; three on a
+16 × 3 × 12 area each breaking only in its sector, on average 5 or more apart, never overlapping, the floors
+within a climb, no slam at nothing, one report; one whose sector is mined out stealing the far half of
+another's; two ordered head on across each other's way walking round each other and both arriving; an eidolon with no
 order standing in the area never mined out from under, waited for, and its squares mined once it moves,
 no pillar left; one dry when the job is reported going back once oiled with no report of its own; one
 ordered later joining the job running; one with no square free waiting at the rim).
@@ -3305,6 +3336,14 @@ corners instead, testing the whole box with the game's collision tester at each 
 most `MaxClimbBlocks`, down at most `MaxFallBlocks`, no corner cutting on diagonals, lava and the like
 refused, water and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's
 own waypoint traverser then walks the path. A first pass: following (#675) proves it on real terrain.
+*Other eidolons*, on every path whatever the order: a search goes round where each loaded within 24
+blocks stands (`WidePath.FindAround`, `Others`: its box kept 0.3 clear of theirs), leaving out one at the
+goal (it stands where it goes) and one already touching it where it starts; finding no way round, it
+takes the way through them. While it walks, it looks along its path's next 6 nodes every half second
+(`EidolonNavigator`), and one in the way there makes it search again, at most every 2 seconds, never while
+it climbs; with still no way round, it walks on, unless the one in its way has the lower id: that one goes
+first, and it waits for it, up to 4 seconds, then walks on. So two meeting in a narrow way never both
+stand, and the spacing push ("Spacing") stays the last resort.
 
 **Steps and drops.** On every path, whatever the order, it goes up at most two blocks and down at most
 two. A step of one it walks (its physics' step height). A step of two it climbs (`EidolonNavigator`,

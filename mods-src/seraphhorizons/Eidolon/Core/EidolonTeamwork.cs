@@ -50,10 +50,15 @@ public sealed class SharedJob<TShared> where TShared : new()
 
     public bool Has(long member) => _members.TryGetValue(member, out var m) && !m.Left;
 
-    /// <summary>The level the job works (mining: the layer): the highest any present member has work
-    /// on (<see cref="JobBoard{TUnit, TShared}.SetLevel"/>), or null for none. A member whose own is lower
-    /// has nothing on the job's level and waits; so a pit goes down a layer at a time, all of it.</summary>
+    /// <summary>The level the job works down from (mining: the shallowest layer with a block left in the
+    /// area): the highest any present member reports (<see cref="JobBoard{TUnit, TShared}.SetLevel"/>), or
+    /// null for none. No member works below <see cref="Lowest"/>.</summary>
     public int? Level => _members.Values.Where(m => !m.Left && !m.Away).Select(m => m.Level).Max();
+
+    /// <summary>The lowest level a member may work (<see cref="EidolonTeamwork.Lowest"/> of
+    /// <see cref="Level"/>), or null for no limit: so the floors of a pit worked in sectors, each at its
+    /// own pace, stay within a climb of each other.</summary>
+    public int? Lowest => Level is { } level ? EidolonTeamwork.Lowest(level) : null;
 
     /// <summary>What the members did in all, those that left included.</summary>
     public int Total => _members.Values.Sum(m => m.Count);
@@ -289,9 +294,9 @@ public sealed class JobBoard<TUnit, TShared> where TUnit : notnull where TShared
 
     // ---- the job's level and its end ----
 
-    /// <summary>The highest level the member has work on (mining: the highest layer with a block left
-    /// it may break and has not given up), or null for none; its job works the highest of its present
-    /// members' (<see cref="SharedJob{TShared}.Level"/>).</summary>
+    /// <summary>The highest level the member finds work on (mining: the highest layer of the area with a
+    /// block left it may break and has not given up, in any sector), or null for none; its job works down
+    /// from the highest of its present members' (<see cref="SharedJob{TShared}.Level"/>).</summary>
     public void SetLevel(long member, int? level) => _of.GetValueOrDefault(member)?.SetLevel(member, level);
 
     /// <summary>Whether the member has nothing left it can do in the job (and nothing it waits on, such
@@ -331,6 +336,16 @@ public static class EidolonTeamwork
 
     /// <summary>How far apart, at least, two eidolons wait (their boxes 1.7 wide).</summary>
     public const double RimSpacing = 2.5;
+
+    /// <summary>How far, in blocks, the floors of a pit worked in sectors may be apart: what an eidolon
+    /// climbs and drops (<see cref="EidolonClimb"/>), so it walks from any sector into any other.</summary>
+    public const int FloorStep = 2;
+
+    /// <summary>The lowest layer a member of a job may mine, <paramref name="level"/> being the job's
+    /// shallowest layer with a block left (<see cref="SharedJob{TShared}.Level"/>): the one under it.
+    /// Where that layer is left a floor stands on it, its feet a block over it; where the one under is
+    /// mined, on the layer under that, <see cref="FloorStep"/> lower.</summary>
+    public static int Lowest(int level) => level - FloorStep + 1;
 
     /// <summary>
     /// Where a spare eidolon may wait for work, out of the area and out of the way: path nodes (block
