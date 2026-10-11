@@ -4641,10 +4641,12 @@ fixed at creation. The server log says what the world has
   lenses is not placed. IOG's veins run from the bottom of the world to the top, so each kept vein
   is cut to a band of heights under sea level that gives a size drawn from the metal's small,
   typical and large in `config/ore-sizes.json` (the band's height from the vein's geometry, its
-  ores' shares and the ingots of their poorest grade, read from the ore's own units, so with ore
-  processing's units a band is four to five times as tall, #863, the poorest grade at a fifth to a
-  quarter of vanilla's; `gradeAllowance` went from 1.15 to 1.25 with the wider spread of grades).
-  Gems and minerals are left as IOG makes them. The log has a line per district (`Smaller deposits: district 'magmatic-granitic-deep' at
+  ores' shares and the ingots of their poorest grade, read from the ore's own units). With ore
+  processing's units (#863: the poorest grade at a fifth to a quarter of vanilla's), every kept
+  vein of a sized metal is widened four times in ore per layer, so its band is about the height it
+  was: an ore shoot is made four times as long along its fault, a ladder vein's slabs about four
+  times closer (its width, and so the fault rock, is kept). `gradeAllowance` went from 1.15 to 1.25
+  with the wider spread of grades. Gems and minerals are left as IOG makes them. The log has a line per district (`Smaller deposits: district 'magmatic-granitic-deep' at
   (...): 65 of 310 ore zones kept; veins per metal bismuth 8 (was 69), ...`).
 - **`RarerDistricts`** (#441): IOG's hydrothermal districts, the only source of gold and silver
   quartz and most chromite and platinum, tile the world in 7 km squares instead of 4–6 km

@@ -13,7 +13,9 @@ namespace SeraphHorizons.Mod.Ore;
 /// Smaller deposits in hydrothermal districts (#435, under <c>SmallerDeposits</c>): applies
 /// <see cref="DistrictVeins"/> to each district Interesting Ore Gen 2.3.8 builds, in a postfix on
 /// <c>HydrothermalDistrict.DetectOreZones</c> (private, run once in the district's constructor,
-/// after its faults and before its zones are indexed by chunk). District ore never goes through
+/// after its faults and before its zones are indexed by chunk). With ore processing's quarter units
+/// (#863) a kept vein of a sized metal is also widened four times in ore per layer (<see cref="Widen"/>),
+/// so it holds the ingots it did in the height it had. District ore never goes through
 /// the game's <c>GenDeposits</c> or IOG's vein generator, so neither the cell rule nor
 /// <see cref="DepositSizes"/> reaches it: <c>HydrothermalDistrictSystem</c> places it itself, in
 /// its own <c>TerrainFeatures</c> pass, into the fault rock it has just laid. Each zone keeps its
@@ -30,6 +32,7 @@ public static class DistrictVeinSizes
     public static readonly AssetLocation SettingsAsset = new("seraphhorizons", "config/ore-districts.json");
 
     private static DistrictVeins? _rules;
+    private static double _blocks = 1;
     private static ICoreServerAPI? _sapi;
     private static readonly ConcurrentDictionary<string, (bool Resolved, double Ingots)> IngotsByCode = new(StringComparer.Ordinal);
 
@@ -55,15 +58,21 @@ public static class DistrictVeinSizes
         if (AssignmentType is not { } a || new[] { "OreCode", "Weight", "Density", "AllowedVariantsByInBlock" }.Any(f => AccessTools.Field(a, f) == null))
             return "HydrothermalOreAssignment's fields changed";
         if (AccessTools.Field(AccessTools.TypeByName("InterestingOreGen.Generators.OreShootSampler"), "_halfStrike") == null
+            || AccessTools.Field(AccessTools.TypeByName("InterestingOreGen.Generators.OreShootSampler"), "_halfAcross") == null
+            || AccessTools.Field(AccessTools.TypeByName("InterestingOreGen.Generators.LadderVeinRegion"), "SlabSpacings") == null
             || AccessTools.Field(AccessTools.TypeByName("InterestingOreGen.Generators.LadderVeinSampler"), "_region") == null)
             return "the ore shoot or ladder vein sampler changed";
         return null;
     }
 
-    public static void Bind(ICoreServerAPI api, Harmony harmony, OreSizeTable sizes)
+    /// <param name="blocks">How many times the ore per layer a sized vein is made
+    /// (<see cref="DistrictVeinSettings.Blocks"/>): <see cref="OreSystem.GradedOreBlocks"/>.</param>
+    public static void Bind(ICoreServerAPI api, Harmony harmony, OreSizeTable sizes, double blocks)
     {
         var s = api.Assets.Get(SettingsAsset).ToObject<SettingsFile>();
-        _rules = new DistrictVeins(sizes, new DistrictVeinSettings(s.VeinsPerMetal, s.KeepCount ?? [], s.GradeAllowance, s.BandFloor, s.BandBelowSeaLevel));
+        _blocks = blocks;
+        _rules = new DistrictVeins(sizes, new DistrictVeinSettings(s.VeinsPerMetal, s.KeepCount ?? [], s.GradeAllowance, s.BandFloor,
+            s.BandBelowSeaLevel, blocks));
         _sapi = api;
         DistrictsDone = 0;
         harmony.Patch(DetectMethod, postfix: new HarmonyMethod(typeof(DistrictVeinSizes), nameof(DetectOreZonesPostfix)));
@@ -74,6 +83,7 @@ public static class DistrictVeinSizes
     public static void Unbind()
     {
         _rules = null;
+        _blocks = 1;
         _sapi = null;
         IngotsByCode.Clear();
     }
@@ -124,6 +134,8 @@ public static class DistrictVeinSizes
                 tr.Field("Density").SetValue(0f);
                 ores[j] = none;
             }
+            if (plan.Widen)
+                Widen(zone, views[i].Kind);
             if (plan.BandMin is { } min && plan.BandMax is { } max)
             {
                 var box = (Cuboidd)AccessTools.Field(zone.GetType(), "BoundingBox").GetValue(zone)!;
@@ -184,7 +196,48 @@ public static class DistrictVeinSizes
             DistrictZoneKind.Ladder => LadderBlocksPerLayer(zone),
             _ => 0,
         };
-        return new DistrictZone(k, ores, perLayer, (int)Math.Floor(box.Y1), (int)Math.Ceiling(box.Y2));
+        double widening = k switch
+        {
+            DistrictZoneKind.Shoot => _blocks,
+            DistrictZoneKind.Ladder => DistrictVeins.CloserSlabs(LadderSpacings(zone), _blocks).Gain,
+            _ => 1,
+        };
+        return new DistrictZone(k, ores, perLayer, (int)Math.Floor(box.Y1), (int)Math.Ceiling(box.Y2), widening);
+    }
+
+    private static int[] LadderSpacings(object zone) =>
+        Traverse.Create(AccessTools.Field(zone.GetType(), "Sampler").GetValue(zone)).Field("_region").Field("SlabSpacings").GetValue<int[]>() ?? [];
+
+    /// <summary>
+    /// Widens a kept vein to about <see cref="_blocks"/> times its ore per layer (#863). An ore shoot is
+    /// made that much longer along the fault (its sampler's half strike, and its half across with it,
+    /// which the fault rock's width cuts anyway), its box grown to match before IOG indexes the zones by
+    /// chunk; a ladder vein gets its slabs closer (<see cref="DistrictVeins.CloserSlabs"/>), keeping its
+    /// width, so the fault rock IOG lays is as it was.
+    /// </summary>
+    private static void Widen(object zone, DistrictZoneKind kind)
+    {
+        var sampler = AccessTools.Field(zone.GetType(), "Sampler").GetValue(zone)!;
+        if (kind == DistrictZoneKind.Shoot)
+        {
+            var strike = AccessTools.Field(sampler.GetType(), "_halfStrike");
+            var across = AccessTools.Field(sampler.GetType(), "_halfAcross");
+            float r = (float)strike.GetValue(sampler)!;
+            strike.SetValue(sampler, (float)(r * _blocks));
+            across.SetValue(sampler, (float)((float)across.GetValue(sampler)! * _blocks));
+            var box = (Cuboidd)AccessTools.Field(zone.GetType(), "BoundingBox").GetValue(zone)!;
+            double grow = r * (_blocks - 1);
+            box.X1 -= grow;
+            box.X2 += grow;
+            box.Z1 -= grow;
+            box.Z2 += grow;
+        }
+        else if (kind == DistrictZoneKind.Ladder)
+        {
+            var region = Traverse.Create(sampler).Field("_region").GetValue()!;
+            var field = AccessTools.Field(region.GetType(), "SlabSpacings");
+            field.SetValue(region, DistrictVeins.CloserSlabs((int[]?)field.GetValue(region) ?? [], _blocks).Spacings);
+        }
     }
 
     // An ore shoot is an ellipse along the fault, half as wide as it is long, with density
@@ -222,7 +275,7 @@ public static class DistrictVeinSizes
     /// <summary>Whether the ore's code resolves to a block in the district's rock (IOG never places
     /// it otherwise: the geology add-on ores of the granite districts name basalt), and the ingots
     /// in one block of its poorest grade there.</summary>
-    private static (bool Resolved, double Ingots) IngotsPerBlock(string oreCode, string host, Dictionary<string, List<string>>? variants)
+    public static (bool Resolved, double Ingots) IngotsPerBlock(string oreCode, string host, Dictionary<string, List<string>>? variants)
     {
         string? code = oreCode;
         if (oreCode.Contains('*'))

@@ -143,7 +143,7 @@ public class OreSystem : ModSystem
             if (DistrictVeinSizes.Unsupported(api) is { } why)
                 api.Logger.Warning("[seraphhorizons] Smaller deposits in hydrothermal districts is off: {0}", why);
             else
-                DistrictVeinSizes.Bind(api, _harmony ??= new Harmony(HarmonyId), DepositSizes.LoadTable(api));
+                DistrictVeinSizes.Bind(api, _harmony ??= new Harmony(HarmonyId), DepositSizes.LoadTable(api), GradedOreBlocks(api));
         }
         if (Placement != null || Placer != null)
         {

@@ -31,11 +31,13 @@ The targets are ingots, not blocks. Since #863, with ore processing on, an ore i
 quarter of vanilla's metal units (3 / 5 / 7 / 10 by grade, from 15 / 20 / 25 / 35;
 `OreProducts.RawUnits`), so a deposit of the same ingots is four times the blocks: every graded
 ore's IOG vein is scaled by 4 in volume on top of its metal's factor (`OreSizeTable.VolumeFor`,
-`OreProducts.DepositBlocks`), and district veins, sized from the ore's own units, come out four to
-five times as tall. A thin district vein whose whole column holds less than its drawn size keeps the
-column, so more of them do now (in the granite district of `OreCellsScenarios`, 10 of 15 tin and
-bismuth veins, against fewer than half before), and those hold a quarter of the ingots they did. The medians and factors in `config/ore-sizes.json` stay as measured at
-vanilla's units; measurement, size tiers and the trader maps work in ingots from the live units,
+`OreProducts.DepositBlocks`). District veins, sized from the ore's own units, are widened four
+times in ore per layer (`DistrictVeinSizes.Widen`: an ore shoot four times as long along its fault, a
+ladder vein's slabs about four times closer, IOG's spacings of 2–10 divided by 4, at least 1), so a
+vein holds its drawn ingots in about the height of rock it had. Without that it needed four to five
+times the height, and most thin veins hit their whole column (10 of 15 tin and bismuth veins in the
+granite district of `OreCellsScenarios`, at a quarter of their ingots); widened, 3 of 15 do. The
+medians and factors in `config/ore-sizes.json` stay as measured at vanilla's units; measurement, size tiers and the trader maps work in ingots from the live units,
 so they need no change. Worlds already generated keep their ore as placed: a deposit from before
 holds a quarter of the ingots it did. `tools/ore-survey/targets.json` holds the
 same numbers for `ore_survey.py check`, which reads small / typical / large as p10 / median / p90.

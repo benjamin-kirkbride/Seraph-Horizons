@@ -19,13 +19,16 @@ public readonly record struct DistrictOre(string? Metal, double Weight, double D
 /// <summary>
 /// One district ore zone as the rules need it: its kind, its ores, the ore blocks it places per
 /// layer of rock when the whole of it is ore at density 1 (<see cref="DistrictVeins"/> explains
-/// the estimate), and its height range.
+/// the estimate), its height range, and how many times its ore per layer the game side can make it
+/// if the rules widen it (<see cref="DistrictZonePlan.Widen"/>; 1: it can't).
 /// </summary>
-public sealed record DistrictZone(DistrictZoneKind Kind, IReadOnlyList<DistrictOre> Ores, double BlocksPerLayer, int YMin, int YMax);
+public sealed record DistrictZone(DistrictZoneKind Kind, IReadOnlyList<DistrictOre> Ores, double BlocksPerLayer, int YMin, int YMax,
+    double Widening = 1);
 
 /// <summary>What to do with a zone: drop it, or keep it with these of its ores (the rest placing
-/// nothing) and, for a vein, within this band of heights (inclusive; null keeps its range).</summary>
-public sealed record DistrictZonePlan(bool Keep, IReadOnlyList<bool> OreKept, int? BandMin, int? BandMax)
+/// nothing) and, for a vein, within this band of heights (inclusive; null keeps its range), widened
+/// to its <see cref="DistrictZone.Widening"/> if <paramref name="Widen"/>.</summary>
+public sealed record DistrictZonePlan(bool Keep, IReadOnlyList<bool> OreKept, int? BandMin, int? BandMax, bool Widen = false)
 {
     public static DistrictZonePlan Unchanged(int ores) => new(true, Enumerable.Repeat(true, ores).ToArray(), null, null);
 }
@@ -33,8 +36,11 @@ public sealed record DistrictZonePlan(bool Keep, IReadOnlyList<bool> OreKept, in
 /// <summary>The district rules' data (<c>config/ore-districts.json</c>).</summary>
 /// <param name="GradeAllowance">Ore per block over the poorest grade's: away from a fault's rich
 /// bands nine blocks in ten are the poorest grade (IOG's <c>ResolveOreCode</c>).</param>
+/// <param name="Blocks">How many times the ore per layer a sized vein is made (#863): <see
+/// cref="OreProducts.DepositBlocks"/> while an ore item holds about a quarter of vanilla's units,
+/// so a vein holds the ingots it did; 1 leaves the veins' width as IOG makes it.</param>
 public sealed record DistrictVeinSettings(int VeinsPerMetal, IReadOnlyCollection<string> KeepCount, double GradeAllowance,
-    int BandFloor, int BandBelowSeaLevel);
+    int BandFloor, int BandBelowSeaLevel, double Blocks = 1);
 
 /// <summary>
 /// Hydrothermal district veins brought to the size and number of veins elsewhere (#435, under
@@ -51,9 +57,15 @@ public sealed record DistrictVeinSettings(int VeinsPerMetal, IReadOnlyCollection
 /// only districts provide). Which ones is a stable hash of the district and the zone's index.
 /// The metal's ore in any further vein, and in every horsetail lens, places nothing; a zone left
 /// with no ore that places anything is dropped.</item>
+/// <item>Width (#863): with <see cref="DistrictVeinSettings.Blocks"/> over 1, every kept vein holding a
+/// managed metal is widened (<see cref="DistrictZonePlan.Widen"/>) to as near that many times its ore
+/// per layer as the game side can make it (<see cref="DistrictZone.Widening"/>): an ore item holds
+/// about a quarter of vanilla's units, so the vein needs four times the blocks to hold its ingots
+/// in the height of rock it had. Without it a vein needed four to five times the height, which most
+/// columns don't have.</item>
 /// <item>Size: every kept vein holding a managed metal is cut to a band of heights. Its ore per
-/// layer is <c>blocks per layer × weight share × density × ingots per block × grade allowance</c> for each such
-/// ore; the band is the height that gives the ore the zone's drawn size
+/// layer is <c>blocks per layer × widening × weight share × density × ingots per block × grade
+/// allowance</c> for each such ore; the band is the height that gives the ore the zone's drawn size
 /// (<see cref="DrawSize"/>: small, typical and large are the 10th, 50th and 90th percentile, as
 /// the epic reads them), the least over its ores, at a height from the hash between
 /// <see cref="DistrictVeinSettings.BandFloor"/> and sea level less
@@ -119,13 +131,15 @@ public sealed class DistrictVeins
                 plans[i] = new DistrictZonePlan(false, kept[i], null, null);
                 continue;
             }
-            var (min, max) = zone.Kind == DistrictZoneKind.Lens ? (null, null) : Band(districtSeed, i, zone, kept[i], seaLevel);
-            plans[i] = new DistrictZonePlan(true, kept[i], min, max);
+            bool widen = zone.Kind != DistrictZoneKind.Lens && zone.Widening > 1 && _settings.Blocks > 1
+                         && zone.Ores.Where((o, j) => kept[i][j] && o.Density > 0 && Sized(o.Metal)).Any();
+            var (min, max) = zone.Kind == DistrictZoneKind.Lens ? (null, null) : Band(districtSeed, i, zone, kept[i], seaLevel, widen ? zone.Widening : 1);
+            plans[i] = new DistrictZonePlan(true, kept[i], min, max, widen);
         }
         return plans;
     }
 
-    private (int?, int?) Band(long districtSeed, int index, DistrictZone zone, bool[] kept, int seaLevel)
+    private (int?, int?) Band(long districtSeed, int index, DistrictZone zone, bool[] kept, int seaLevel, double widening)
     {
         double totalWeight = zone.Ores.Sum(o => o.Weight);
         if (totalWeight <= 0 || zone.BlocksPerLayer <= 0) return (null, null);
@@ -135,7 +149,7 @@ public sealed class DistrictVeins
         {
             var ore = zone.Ores[j];
             if (!kept[j] || ore.Metal is not { } metal || _sizes.TargetsFor(metal) is not { } targets) continue;
-            double perLayer = zone.BlocksPerLayer * ore.Weight / totalWeight * ore.Density * ore.IngotsPerBlock * _settings.GradeAllowance;
+            double perLayer = zone.BlocksPerLayer * widening * ore.Weight / totalWeight * ore.Density * ore.IngotsPerBlock * _settings.GradeAllowance;
             if (perLayer <= 0) continue;
             double h = DrawSize(targets, u) / perLayer;
             height = height is { } prev ? Math.Min(prev, h) : h;
@@ -161,6 +175,20 @@ public sealed class DistrictVeins
             ? lt + (u - 0.5) / 0.4 * (lt - ls)
             : lt + (u - 0.5) / 0.4 * (ll - lt);
         return Math.Exp(l);
+    }
+
+    /// <summary>
+    /// A ladder vein's slab spacings brought closer to give about <paramref name="blocks"/> times its
+    /// slabs (#863): each spacing divided by it, rounded, at least 1 (IOG's 2–10 become 1–3), and the
+    /// gain that makes, the old mean spacing over the new, which is under <paramref name="blocks"/>
+    /// where spacings hit 1. A ladder vein is widened this way and not by its width, which would widen
+    /// the fault rock IOG lays along it.
+    /// </summary>
+    public static (int[] Spacings, double Gain) CloserSlabs(IReadOnlyList<int> spacings, double blocks)
+    {
+        if (spacings.Count == 0 || !(blocks > 1)) return (spacings.ToArray(), 1);
+        var closer = spacings.Select(s => Math.Max(1, (int)Math.Round(s / blocks, MidpointRounding.AwayFromZero))).ToArray();
+        return (closer, spacings.Average() / closer.Average());
     }
 
     /// <summary>The ore of an IOG district ore code (<c>ore-*-cassiterite-granite</c>,
