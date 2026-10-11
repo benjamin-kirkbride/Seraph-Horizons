@@ -525,6 +525,33 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         prospector.Die(EnumDespawnReason.Removed);
     }
 
+    [AtlasScenario(TimeoutMs = 300_000)]
+    public async Task A_stranger_whose_group_had_its_map_here_is_still_offered_their_first_map()
+    {
+        // The first map is offered at stranger standing whatever the group has had from this trader
+        // (as for a player in a world saved before the first map, whose stranger maps are spent).
+        var store = await SpawnTrader("generalstore", 36, 44);
+        var buyer = await Buyer("pitystranger", store);
+        Assert.True(store.BeginTrade(buyer));
+        var fresh = LeadsAt(buyer, store);
+        Assert.Equal("stranger", fresh.Buyer.Tier);
+        Maps.Leads.RecordBought(Maps.KeysOf(buyer.PlayerUID), fresh.TraderId, asStranger: true);
+        var view = LeadsAt(buyer, store);
+        Assert.True(view.Buyer.StrangerUsed);
+        Assert.False(view.PityUsed);
+        var offer = Assert.Single(view.Offers);
+        Assert.True(offer.Pity);
+        Assert.Equal(10, offer.Price);
+        Assert.Equal(CampLeadsWhy.None, view.Why);
+        // Its line says how far in km, and no ring.
+        var row = Assert.Single(WindowSystem.BuildState(buyer, store).LeadOffers);
+        string line = Mod.Trading.Window.Core.TradeWindowModel.LeadOfferLine(row).ToString();
+        output.WriteLine(line);
+        Assert.Contains("map-distance-", line);
+        Close(store);
+        store.Die(EnumDespawnReason.Removed);
+    }
+
     [AtlasScenario(TimeoutMs = 600_000)]
     public async Task A_known_customer_sees_two_leads_in_ring_one_priced_by_the_formula_and_buying_one_brings_the_next()
     {

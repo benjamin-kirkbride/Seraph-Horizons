@@ -140,8 +140,9 @@ public sealed class LeadBuyer
 /// Which camp leads a trader offers one buyer, and at what price. Distances are rings of grid cells
 /// (<see cref="Ring"/>): ring 1 is the eight cells around the trader's own.
 /// <list type="bullet">
-/// <item>The pity map (<see cref="LeadBuyer.Pity"/>) first, at its flat price. It is that trader's
-/// one stranger map: to a stranger it is the only offer.</item>
+/// <item>The pity map (<see cref="LeadBuyer.Pity"/>) first, at its flat price, at any standing (a
+/// stranger's too, even one whose group has had its stranger's map here). It is that trader's one
+/// stranger map: to a stranger it is the only offer.</item>
 /// <item>From "known" up: the tier's number of the nearest camps within its reach that the buyer
 /// lacks (<see cref="LeadBuyer.Have"/>); if no prospector they have is within the reach, the first
 /// slot is the nearest prospector they lack there. Buying one makes it theirs, so the next-nearest
@@ -169,8 +170,9 @@ public static class CampLeads
         CampLeadOffer Offer(CampOption c, bool prospector) =>
             new(c.Cell, c.Type, c.X, c.Z, c.Ring, c.Distance, rules.Price(c.Ring, buyer.Bought, buyer.Tier), prospector);
         bool stranger = rules.IsStranger(buyer.Tier);
-        if (stranger && buyer.StrangerUsed) return (offers, CampLeadsWhy.StrangerUsed);
         var taken = new HashSet<CellKey>();
+        // The pity map is offered at any standing, a stranger's included, even when their group has
+        // had its stranger's map here: it is the player's own, not the group's.
         if (buyer.Pity is { } pity && pity.Cell != own)
         {
             offers.Add(new CampLeadOffer(pity.Cell, pity.Type, pity.X, pity.Z, pity.Ring, pity.Distance, rules.PityPrice(),
@@ -179,6 +181,7 @@ public static class CampLeads
             if (stranger) return (offers, CampLeadsWhy.None);
             taken.Add(pity.Cell);
         }
+        if (stranger && buyer.StrangerUsed) return (offers, CampLeadsWhy.StrangerUsed);
         if (stranger)
         {
             var first = sorted.FirstOrDefault(c => c.Ring <= tier.Reach && !buyer.Have.Contains(c.Cell) && !buyer.Visited.Contains(c.Cell));

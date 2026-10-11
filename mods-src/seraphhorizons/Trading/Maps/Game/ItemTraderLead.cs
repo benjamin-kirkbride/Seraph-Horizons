@@ -63,7 +63,7 @@ public class ItemTraderLead : Item, ITradeableCollectible
             case MapMarksSystem.Outcome.NoMap:
                 var d = pos.Clone().Sub(byEntity.Pos.XYZ);
                 d.Y = 0;
-                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:trading-maps-lead-distance", title, (int)d.Length()),
+                player.SendMessage(GlobalConstants.GeneralChatGroup, Lang.GetL(lang, "seraphhorizons:trading-maps-lead-distance", title, MapMarksSystem.DistanceText(lang, d.Length())),
                     EnumChatType.Notification);
                 return;
             case MapMarksSystem.Outcome.Already:
@@ -101,6 +101,7 @@ public class ItemTraderLead : Item, ITradeableCollectible
             return;
         }
         dsc.AppendLine(Lang.Get("seraphhorizons:trading-maps-lead-info", Title(Lang.CurrentLocale, stack)));
+        MapMarksSystem.AppendDistance(world, stack.Attributes.GetInt(MapOfferAttrs.X) + 0.5, stack.Attributes.GetInt(MapOfferAttrs.Z) + 0.5, dsc);
         dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-use"));
     }
 
