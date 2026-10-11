@@ -433,4 +433,17 @@ public class EidolonFittingsTests
         c.PlateHealth.Steel = 3;
         Assert.Equal(300, EidolonStats.Of(EidolonBuild.OldBuild, c).MaxHealth, 9);
     }
+
+    [Fact]
+    public void A_random_build_is_complete_and_allowed()
+    {
+        for (int seed = 0; seed < 50; seed++)
+        {
+            var b = EidolonBuild.Random(new Random(seed));
+            Assert.True(b.Complete);
+            foreach (var layer in EidolonFittings.Layers)
+                Assert.True(EidolonFittings.Allows(layer, b[layer]!));
+        }
+        Assert.NotEqual(EidolonBuild.Random(new Random(1)), EidolonBuild.Random(new Random(2)));
+    }
 }

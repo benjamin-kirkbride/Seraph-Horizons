@@ -346,6 +346,23 @@ public sealed class EidolonBuild : IEquatable<EidolonBuild>
         "oak", EidolonFittings.Steel, EidolonFittings.Steel,
         EidolonFittings.SashMaterial(EidolonFittings.Leather, "plain"), EidolonFittings.Steel);
 
+    /// <summary>Any allowed material for <paramref name="layer"/>, drawn from <paramref name="rng"/> (the
+    /// creative spawner and the gantry's creative shortcut).</summary>
+    public static string RandomMaterial(FittingLayer layer, Random rng)
+    {
+        var all = EidolonFittings.Materials(layer);
+        return all[rng.Next(all.Count)];
+    }
+
+    /// <summary>A complete build, each layer any allowed material drawn from <paramref name="rng"/>.</summary>
+    public static EidolonBuild Random(Random rng)
+    {
+        var b = Bare;
+        foreach (var layer in EidolonFittings.Layers)
+            b = b.With(layer, RandomMaterial(layer, rng))!;
+        return b;
+    }
+
     /// <summary>A complete build; throws when a layer does not take its material.</summary>
     public static EidolonBuild Of(string bones, string joints, string plates, string sash, string skirt)
     {
