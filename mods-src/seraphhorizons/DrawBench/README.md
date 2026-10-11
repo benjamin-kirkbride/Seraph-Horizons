@@ -443,7 +443,7 @@ fills (a later stage's item is `OutOfOrder`, one whose stage is in `AlreadyFitte
 durability `DieSpent`). A stage takes `Needed` of its item, all from the held stack in one click (fewer
 held is `TooFew`, with a message, and nothing is taken): two chains (the endless chain runs round both
 sprockets the bench's length), two rods (the mandrel bar, and the follower's spindle), one of the rest;
-the mandrel stage is also to take one spring (the table below; not built yet).
+the mandrel stage also takes one spring, in a click of its own before or after the rods (`NeededOf`: one spring; `HasItem` the rods, `HasSpring` the spring, `Has` both), while springs exist (`Springs`, the spring item registered); without them the rods alone fit it. A save keeps the spring under `part-spring`; a bench saved before springs keeps its stages and asks for one.
 Breaking returns as many as went in; a save keeps one code a stage, as before. With the frame (about 11
 iron ingots) and the die (2), the parts bring the bench to about 21 ingots of iron and a Jonas gearbox:
 the chains 4, the bracket 2, the rods 2.
@@ -453,7 +453,7 @@ the chains 4, the bracket 2, the rods 2.
 | 1 | `gearbox` | `game:jonasframes-gearbox01` |
 | 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel`, two |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` |
-| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel`, two, and one `seraphhorizons:spring-steel` (the mandrel station's spring; to build: the stage now takes two items, so `Needed` and one click a stage no longer cover it, and the item itself is the mandrel station's gameplay) |
+| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel`, two, and one `seraphhorizons:spring-steel` (the mandrel station's spring, `DrawBenchParts.SpringCode`; the rods and the spring go in by clicks of their own, either first) |
 | 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (`assets/seraphhorizons/itemtypes/drawbench/drawdie.json`, shape `assets/seraphhorizons/shapes/item/drawdie.json`; smithed from two ingots of its metal, 80 voxels (two thick rings and a stepped shoulder), named `drawdie` so the helve hammer leaves it alone) |
 
 The die keeps its durability left and full (`GetRemainingDurability`, `GetMaxDurability`); the die
@@ -463,7 +463,8 @@ attribute when worn, and only while no hollow is on the bench (`CanTakeDie`; wit
 other stages come back only by breaking the frame, which drops every part, the die with its wear, and the
 hollow if no pipe section has come off it yet (the first comes off at W = 0.43125; once one has, the rest of
 it is lost; broken after the fourth's hand-out, before W = 4, nothing is lost and the die is not worn). The creative shortcut
-(Ctrl in creative mode on an incomplete bench) fits each stage's first code, the steel die last. A save
+(Ctrl in creative mode on an incomplete bench) fits each stage's first code, the mandrel's spring a click
+after its rods, the steel die last. A save
 restores the stages as a run from the first; a die with nothing left is dropped.
 
 **The draw** (`Drawing`, `DrawJob`). The work is a hollow section, the game's chute section
@@ -531,7 +532,8 @@ recipe type (`SwitchOwnership.HandListed`).
 
 **Export.** `tools/recipe-export/Recipes/DrawBenchExport.cs` and `RecipeSection.DrawBench.cs`: one `machine`
 record per metal (`drawbench|game:chutesection-{metal}|0`): the hollow section, the four kept stages
-(alternatives as variant stacks, the chain's and the mandrel's two each), the dies that draw the metal as a tool losing `DieWearPerHollow` a
+(alternatives as variant stacks, the chain's and the mandrel's two each) and the mandrel's spring (kept,
+one, while springs exist), the dies that draw the metal as a tool losing `DieWearPerHollow` a
 hollow (`rule` `fixed`), the oil for four pipe sections, the frame as the station; four
 `seraphhorizons:pipesection-{metal}` out (work unit `sections`, end 4); `turns` and
 `work.turnsPerUnit` from the settings.

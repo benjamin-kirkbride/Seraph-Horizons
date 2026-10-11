@@ -453,6 +453,32 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>MandrelSprings</c>: no spring, and no link to it in the mod's own text (the draw
+    /// bench's mandrel stage then takes its rods alone).</summary>
+    [AtlasScenario]
+    public void Mandrel_springs_off_there_is_no_spring()
+    {
+        Assert.True(Off("MandrelSprings"));
+        Assert.False(SeraphHorizons.Mod.MandrelStation.MandrelStationSystem.SpringsApply(World.Api));
+        Assert.DoesNotContain(W.Items, i => i?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("spring-", StringComparison.Ordinal));
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal) && e.Value.Contains("handbook://item-seraphhorizons:spring", StringComparison.Ordinal))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the spring: " + string.Join(", ", linked));
+    }
+
+    /// <summary><c>RodsOnForge</c>: the game's rods are as it ships them, not forgeable.</summary>
+    [AtlasScenario]
+    public void Rods_on_forge_off_rods_are_as_the_game_ships_them()
+    {
+        Assert.True(Off("RodsOnForge"));
+        foreach (var rod in W.Items.Where(i => i?.Code is { Domain: "game" } c && c.Path.StartsWith("rod-", StringComparison.Ordinal)))
+        {
+            Assert.False(rod.Attributes?["forgable"].AsBool() == true, $"{rod.Code} is forgable");
+            Assert.False(rod.Attributes?["inForgeTransform"].Exists == true, $"{rod.Code} has an inForgeTransform");
+        }
+    }
+
     /// <summary><c>StainlessSteel</c>: no melting holes or melting pots, no ferroalloys, no recipe for
     /// any of them, the game's stainless ingot and bits hidden from the handbook as it ships them, the
     /// guide page hidden, smex's converter not patched and its handbook page as it ships, and nothing

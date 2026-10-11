@@ -41,6 +41,8 @@
   "PressBrake": false,
   "SquaringShear": false,
   "MandrelStation": false,
+  "MandrelSprings": false,
+  "RodsOnForge": false,
   "StainlessSteel": false,
   "RarerBattleTowers": false,
   "RarerDistricts": false,

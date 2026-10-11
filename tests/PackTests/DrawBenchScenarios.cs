@@ -38,12 +38,13 @@ public partial class SharedWorldScenarios
         return be;
     }
 
-    /// <summary>The kept parts in order, as codes: a gearbox, an iron chain, a steel bracket, a meteoric iron rod.</summary>
+    /// <summary>The kept parts in order, as codes: a gearbox, an iron chain, a steel bracket, a meteoric iron rod
+    /// and the mandrel station's spring (the mandrel stage takes both).</summary>
     private static readonly string[] BenchOrder =
-        [DrawBenchParts.GearboxCode, "game:metalchain-iron", "game:bracket-heavy-steel", "game:rod-meteoriciron"];
+        [DrawBenchParts.GearboxCode, "game:metalchain-iron", "game:bracket-heavy-steel", "game:rod-meteoriciron", DrawBenchParts.SpringCode];
 
     /// <summary>How many of a kept part its stage takes from one stack.</summary>
-    private static int BenchCount(string code) => DrawBenchParts.Needed(DrawBenchParts.StagesOf(code)[0]);
+    private static int BenchCount(string code) => DrawBenchParts.NeededOf(code, DrawBenchParts.StagesOf(code)[0]);
 
     /// <summary>A die of <paramref name="code"/> with <paramref name="durability"/> left (full when null).</summary>
     private ItemStack BenchDie(string code, int? durability = null)
@@ -242,14 +243,16 @@ public partial class SharedWorldScenarios
         for (int i = 0; i < BenchOrder.Length; i++)
         {
             var next = bench.Parts.Next!.Value;
-            int count = DrawBenchParts.Needed(next);
+            int count = DrawBenchParts.NeededOf(BenchOrder[i], next);
             if (count > 1)
             {
                 Assert.Equal(count - 1, CutterClick(player, pos, CutterItem(BenchOrder[i], count - 1))?.StackSize);
                 Assert.False(bench.Parts.Has(next));
             }
             var left = CutterClick(player, i % 2 == 0 ? pos : ghost, CutterItem(BenchOrder[i], count + (i == 0 ? 1 : 0)));
-            Assert.True(bench.Parts.Has(next), $"{BenchOrder[i]} did not go in as {next}");
+            // the mandrel stage's rods go in first, and the stage is in with its spring
+            bool rods = DrawBenchParts.MandrelCodes.Contains(BenchOrder[i]);
+            Assert.True(rods ? bench.Parts.HasItem(next) && !bench.Parts.Has(next) : bench.Parts.Has(next), $"{BenchOrder[i]} did not go in as {next}");
             Assert.Equal(i == 0 ? 1 : 0, left?.StackSize ?? 0);
             // the same part again is refused once its stage is full
             if (i == 0)
@@ -272,7 +275,8 @@ public partial class SharedWorldScenarios
         bench.FromTreeAttributes(tree, W);
         Assert.True(bench.Complete);
         Assert.Equal("game:bracket-heavy-steel", bench.Parts.FittedIn(DrawBenchStage.Dog));
-        Assert.Equal(5, bench.Parts.Returns().Count);
+        Assert.True(bench.Parts.HasSpring);
+        Assert.Equal(6, bench.Parts.Returns().Count);
     }
 
     [AtlasScenario(TimeoutMs = 60_000)]
@@ -281,15 +285,17 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-252, -260);
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos);
-        int stages = 0;
-        while (!bench.Complete && stages < 10)
+        // a click a stage, the mandrel stage's rods and its spring a click each
+        int clicks = 0;
+        while (!bench.Complete && clicks < 10)
         {
             var next = bench.Parts.Next!.Value;
             Assert.Null(CutterClick(player, pos, null, ctrl: true, creative: true));
-            Assert.True(bench.Parts.Has(next), $"the shortcut did not fit {next}");
-            stages++;
+            Assert.True(bench.Parts.HasItem(next), $"the shortcut did not fit {next}");
+            clicks++;
         }
-        Assert.Equal(5, stages);
+        Assert.Equal(6, clicks);
+        Assert.True(bench.Parts.HasSpring);
         Assert.Equal("steel", bench.Parts.DieMetal);
         // complete, a creative Ctrl click is the take-back again
         CutterClick(player, pos, null, ctrl: true, creative: true);
@@ -462,7 +468,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, BenchHeld(player, DrawBenchParts.DieSteelCode));
         CutterClick(player, ghost, null, ctrl: true);
         Assert.True(bench.Parts.Has(DrawBenchStage.Mandrel));
-        Assert.Equal(4, bench.Parts.Returns().Count);
+        Assert.Equal(5, bench.Parts.Returns().Count);
 
         // refit and load; broken before a pipe section comes off, the hollow comes back too
         Assert.Null(CutterClick(player, pos, BenchDie(DrawBenchParts.DieSteelCode, 77)));

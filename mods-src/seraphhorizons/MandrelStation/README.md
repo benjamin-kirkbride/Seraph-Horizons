@@ -10,8 +10,8 @@ block). One hollow makes two sections; a section with solder makes a straight pi
 **Its second job winds a coil spring** on the same mandrel: one hot **steel rod** (`game:rod-steel`) is
 laid along the fixed mandrel and wound round it from the shoulder by hand, with tongs, into one **spring**
 (`seraphhorizons:spring-steel`), a square coil of six turns that follows the square mandrel. The draw bench's follower spring is this spring
-(`../DrawBench/README.md`). The model of that job is in "The spring job"; what gameplay has to build for it
-is in "Gameplay: the spring job (to build)".
+(`../DrawBench/README.md`). The model of that job is in "The spring job"; its gameplay
+is in "Gameplay: the spring job".
 
 This folder holds the model's generator and its rig (`tools/`); the gameplay is built against the rig
 ("Gameplay" below).
@@ -172,7 +172,7 @@ order, every amount for class 3 alone; none rides another.
 
 **Hot.** The rod is wound hot, and drawn as the game draws hot metal: its texture is the plain steel sheet
 (code `spring`) and it glows by its temperature, the vanilla way, which a renderer does with the standard
-shader's glow (see "Gameplay: the spring job"). The rig names the parts drawn hot (`wind.hot`: `rodsteel`);
+shader's glow ("Gameplay: the spring job"). The rig names the parts drawn hot (`wind.hot`: `rodsteel`);
 the viewer shows them glowing at a temperature slider (1000 °C, orange, at first). The shapes carry no glow
 of their own: a part glows only while gameplay says the rod is hot.
 
@@ -477,90 +477,77 @@ anchors, the pace held to the settings, the reader's refusals, and every pose of
 **Not done.** No hand animation of its own: the click plays the game's default use pose. No schematic
 for the frame (`MachineSchematics`).
 
-## Gameplay: the spring job (to build)
+## Gameplay: the spring job
 
-The model and rig of the spring job are done ("The spring job", "Rig schema"); none of its gameplay is.
-This is the contract for it, everything read from the rig (`wind`, `requires`, the anchors), never element
-names. Settled with the owner: steel rods only, one rod a spring, wound on the mandrel already fitted, by hand
-with tongs, right-click held, about 4 s; heat by the anvil's rules.
+Built to the contract the model left (settled with the owner: steel rods only, one rod a spring, wound on the
+mandrel already fitted, by hand with tongs, right-click held, about 4 s; heat by the anvil's rules). Everything
+is read from the rig (`wind`, `requires`, the anchors), never element names. The rules are in `Core/Winding.cs`
+(the verdict for a rod, the heat rule, the glow, `WindJob`, `WindHolds`) and `Core/MandrelStationRig.cs`
+(`WindSpec`, the rig's `wind`); the game side is `BEMandrelStation` ("Winding"), with the held interaction in
+`BlockMandrelStation` and its ghost. Switch: `MandrelSprings` (with `MandrelStation`).
 
-- **The vocabulary first.** The shipped rig now uses `requires` `rodsteel`, which `MandrelRequires.KnownRequires`
-  (`Core/Forging.cs`) does not know: `RigParts.Parse` refuses the rig, so the game's reader and
-  `MandrelStationRigTests` fail until it is added. Add it (with a `MandrelRequires.Rod` or the like), and read
-  `wind` in `MandrelStationRig` (`rod`, `class`, `turnsPerRod`, `spring`, `springsPerRod`, `hot`). The work's
-  end now names class 3 too (`work.Ends[3]` 1); the reader's check of `Ends[1]` and `Ends[2]` stands. The
-  shared rig code takes classes past thick already (`Machines/Core/RigClasses.cs`): nothing there to change.
-- **The item.** `seraphhorizons:spring-steel`, a new item type (gameplay's), shape
-  `seraphhorizons:item/spring` (`assets/seraphhorizons/shapes/item/spring.json`: the wound coil along z, 5.3
-  × 5.3 × 15.1, centred on the item box's floor, texture code `spring`, the game's plain steel sheet). Its
-  GUI, hand and ground transforms are the item type's.
-- **The work.** A steel rod (`wind.rod`, `game:rod-steel`; no other metal) goes on a fitted, bare mandrel by
-  right-click, as a hollow does, and only when the spring item exists. It must be hot enough to work by the
-  anvil's rule, vanilla's `ItemIngot.CanWork`: its temperature (`CollectibleObject.GetTemperature`) at least
-  the item's `attributes.workableTemperature`, else half its melting point; the steel rod has no attribute
-  and melts at 1502 °C (`combustibleProps`), so it works from **751 °C**. A cold rod is refused with a
-  message. The rod keeps its stack on the station (its temperature with it, cooling as the game cools any
-  stack); should it fall below 751 °C part-way, winding stops until it is reheated or taken back (the
-  anvil's way: it will not work cold). Steel rods are also mandrels: a station with no mandrel takes a steel
-  rod as its mandrel, as now; only on a fitted, bare mandrel is it a spring job (see "Open for the owner").
-- **Its class.** A spring job is k = `wind.class`, **3**, for the rig and the clock: a job of its own, as each
-  hollow's metal is (1 lead, 2 copper). The spring's parts move for class 3 alone and the hollows' never for it,
-  so the clock's k says which job is on; gameplay keeps the job and its class together, and the clock must
-  pass 3 through (today's `MandrelStationClock` keeps only 1 and 2: `HollowOn = hollowClass is 1 or 2 ...`).
-- **Winding.** Right-click held on the station with a rod on (tongs in hand, if the owner wants them) turns
-  the held clock θ a turn a second, as the press brake's lever (`Folding.LeverTurnsPerSecond`), and W advances
-  by `1 / wind.turnsPerRod` a turn: 4 turns, 4 s, a turn of the coil about 0.7 s (the plan's steps share W by
-  their pace).
-  Follow the press brake's `HeldWorkFollower` for the client's W, so the rod goes round smoothly. The model
-  moves only with W; θ moves nothing.
-- **Drawn.** The `rodsteel` parts (every part with that `requires`: the sides `sp1u` .. `sp6e` and the straight rod
-  `spr`, 25 in all) are drawn only while a spring job is on and p is 1 (the next point), as `ShowsHollow` draws a
-  hollow's; never the hollows' parts during a spring job, nor the spring's during a hollow's. A side not yet grown and
-  the rod once used up are stretched to nothing by their own gauge (the renderer draws nothing of a collapsed part),
-  so nothing needs hiding. None rides another; a side has one gauge, the rod 25. Their texture code is `spring`,
-  declared on the block (`blocktypes/mandrelstation/frame.json`).
-- **Drawn hot, the vanilla way.** The parts whose `requires` is in `wind.hot` (`rodsteel`) glow by the rod's
-  temperature exactly as vanilla's renderers draw hot work (`AnvilPartRenderer`, `AnvilWorkItemRenderer`,
-  `IngotMoldRenderer`, `ToolMoldRenderer`, in VSSurvivalMod 1.22.7; verified from their IL):
-  `MandrelStationRenderer` already draws each part with the standard shader (`rapi.PreparedStandardShader`),
-  so, for each hot part, before `MachineMeshes.Draw`:
-  ```csharp
-  int temp = (int)rod.Collectible.GetTemperature(world, rod);              // the rod's stack on the station
-  float[] glow = ColorUtil.GetIncandescenceColorAsColor4f(temp);           // 0 below 500 °C
-  int extraGlow = GameMath.Clamp((temp - 550) / 2, 0, 255);
-  prog.RgbaGlowIn = new Vec4f(glow[0], glow[1], glow[2], extraGlow / 255f);
-  prog.ExtraGlow = extraGlow;
-  ```
-  and `prog.RgbaGlowIn = new Vec4f(0, 0, 0, 0); prog.ExtraGlow = 0;` for every other part (the frame, the
-  mandrel, a hollow). The shader then mixes the part's lit colour towards that colour by extraGlow / 255 ×
-  its alpha (`standard.fsh`): dull red at the working 751 °C (extraGlow 100), orange at 1000 °C (225), yellow
-  past 1060 °C (255) and paler above 1100 °C; nothing below 525 °C. The client needs the rod's temperature:
-  sync the stack (its attributes carry it) or the temperature with the job. The shadow passes need nothing.
-- **The finished spring is hot too.** At delivery the spring takes the rod's temperature, the vanilla way:
-  `spring.Collectible.SetTemperature(world, springStack, rod.Collectible.GetTemperature(world, rod))` (the
-  stack's `temperature` attribute tree, which the game then cools and draws glowing in hand, on the ground
-  and in slots). The spring's item type should carry steel's `combustibleProps` (`meltingPoint` 1502,
-  `meltingDuration` 30, `smeltedStack` `game:ingot-steel`, `smeltedRatio` 1, as the rod's), so it melts back
-  and cools as steel does.
-- **Only at p 1.** A side grows by a stretching gauge whose factor is 1 − p × E: at p 0 every side is drawn whole
-  (the finished coil) and the rod at its full length, whatever W. So the renderer must draw the spring's parts only
-  while p is 1: let p jump to 1 as the rod goes on (nothing of the spring moves with p at W 0 but this), and stop
-  drawing them at delivery before p eases out, as the next point says. The viewer's p slider shows the artefact.
-- **Delivery.**
-  in `OutputNeighbour()`, else drops at `OutputDrop()`, as the sections do; then the station clears. The
-  spring is wound on the mandrel at W 1, and nothing slides off: the renderer stops drawing the work at
-  delivery (W held at 1, k held, p easing out, the parts not drawn: every gauge eases back with p, so a
-  spring drawn then would come apart, its pieces flying back towards the mandrel).
-- **Taking back, breaking, saving.** As a hollow: Ctrl + right-click takes the rod back before W moves; a
-  station broken mid-winding loses the part-wound rod, and one with an unwound rod drops it; a save keeps the
-  job, W and the rod's stack (its temperature).
-- **Infeed.** None suggested: a rod must come hot from the forge, so a container's cold rods are no use.
-- **Sounds and particles** (gameplay's choice): none are in the rig. `strike.pos` is the hollow's; a
-  creak of the rod at each side, or a hiss of the hot rod, would be at the coil's growing end.
-- **Export and handbook.** A `machine` record like the hollows' (`mandrelstation|game:rod-steel|0`): the rod
-  in, the mandrel kept, the frame as the station, one spring out, `power` `hand`, `turns` `wind.turnsPerRod`.
-  The handbook's work and ladder sections should name the spring and the draw bench's use of it.
-- **The draw bench** now needs one spring in its fourth stage (`../DrawBench/README.md`, "Stages").
+- **The vocabulary.** `MandrelRequires.RodSteel` (`rodsteel`) is known, and `MandrelRequires.Work(k)` gives a
+  job's work: the hollows for 1 and 2, the rod for 3. The reader takes `wind` (optional: a rig without one has
+  no spring job) and refuses one whose rod, class, spring or count are not `Winding`'s, a pace of 0, or a `hot`
+  value that is not a `requires`; with `wind`, `work.end."3"` must be 1.
+- **The item.** `seraphhorizons:spring-steel` (`assets/seraphhorizons/itemtypes/spring.json`), shape
+  `seraphhorizons:item/spring`, texture the game's plain steel sheet, steel's `combustibleProps` (1502 °C, 30,
+  one steel ingot, as the rod), in the general and items tabs, its own handbook section. It exists only with
+  `MandrelSprings` and `MandrelStation` on (`MandrelStationSystem.SpringTypeAssets`, disabled on the server
+  before the game loads it; `SwitchRegistry` owns it by `MandrelSprings`).
+- **A rod on the station** (`Winding.ForRod`). A mandrel rod on a station with no mandrel is fitted as the
+  mandrel, steel too, hot or cold. On a fitted, bare mandrel only `game:rod-steel` goes on as work, and only at
+  working temperature (`Winding.Workable`: the stack's `workableTemperature` attribute, else half its melting
+  point, `GetMeltingPoint`; the steel rod has no attribute, so 751 °C); a cold one is refused with a message
+  giving its temperature and the one it needs; with work on, an occupied message; with springs off, or an iron
+  rod, the mandrel-fitted message as before. One rod from the held stack goes on, its stack kept (and so its
+  temperature, which the game's temperature attributes go on cooling).
+- **Its class.** A rod on is k = 3 (`wind.class`) for the rig and the clock; `MandrelStationClock` carries 1, 2
+  and 3, and the view reads `JobClass`, `JobWork`, `Held`, `TurnsPerRod` and `RodTemperature`.
+- **Winding.** With a rod on, any right-click on the station or its ghost (Shift aside) starts winding, held as
+  the press brake's lever is: `OnBlockInteractStep` keeps the player in `WindHolds` while they hold, and the
+  server's 50 ms tick winds by `Winding.RadiansPerSecond` × dt while anyone does, W advancing by a turn over
+  `TurnsPerRod` (4, the rig's `wind.turnsPerRod`, held together by a test): four seconds a rod. The player needs
+  **tongs** in either hand (any item whose tool is `Tongs`: the game's `game:tongs` and metal tongs; the game
+  keeps them in the off hand), none in creative mode; without, an error and no hold. W syncs every 0.02;
+  the client follows the held clock with `HeldWorkFollower` (the press brake's), θ a turn a second, moving
+  nothing.
+- **Heat.** Each tick the server reads the rod's temperature; below working heat W stops (the winder is told
+  once, with the temperature) until the rod is taken back and reheated. **Reheating:** Ctrl + right-click takes
+  the rod back at any time while it is on, straight, its stack and temperature as they are (the winding so far
+  is lost, the metal is not), into the player's inventory; it is reheated on a forge (`RodsOnForge`, the mod's
+  README) and put on again, from W 0.
+- **Drawn.** The `rodsteel` parts are drawn only while a rod is on and p is 1 (`MandrelStationClock.ShowsWork`:
+  for class 3, p jumps to 1 as the rod goes on); never the hollows' during a spring, nor the spring's during a
+  hollow. At delivery the job is off at once and the parts are not drawn while p eases out.
+- **Drawn hot.** `MandrelStationRenderer` sets, for each part whose `requires` is in `wind.hot`, the standard
+  shader's `RgbaGlowIn` from `ColorUtil.GetIncandescenceColorAsColor4f(temp)` with alpha extraGlow / 255 and
+  `ExtraGlow` = `Winding.ExtraGlow(temp)` = Clamp((temp − 550) / 2, 0, 255), and zero glow for every other part
+  (and after the loop), the rod's temperature read on the client from the synced stack each frame.
+- **Delivery.** At W 1 the rod is used up and one spring, at the rod's temperature (`SetTemperature`), goes into
+  a container in `OutputNeighbour()`, else drops at `OutputDrop()`, as the sections do; the station clears. The
+  last winder's tongs (the hand holding them) pay `TongsWearPerRod` (1), not in creative mode.
+- **Breaking, saving.** Breaking gives back a rod not yet wound (W 0); a part-wound one is lost. A save keeps the
+  rod's stack (its temperature attributes), W and, for the client, whether someone winds and the server's pace.
+- **Infeed.** None: a rod must come hot from the forge. Nor a hotbar refill.
+- **Sounds.** The ingot's sound as a rod goes on, comes off and as a spring drops; no other.
+- **Export.** `MandrelStationExport.ReadWind` and `RecipeSection.SpringRecord`: `mandrelstation|game:rod-steel|0`,
+  the rod in, the mandrel kept, the tongs (`game:tongs`, every tongs as the variant) worn `TongsWearPerRod` a
+  spring (`wear` `fixed`), the frame as the station, one spring out; `power` `hand`, `turns` `TurnsPerRod`,
+  `work` that many `seconds` (the site says "By hand, with tongs: 4 seconds of winding a job"); the heat, which
+  the schema has no field for, in `requirements` ("The steel rod at working temperature, 751 °C or more") and
+  `extra.workableTemperature`. Owned by `MandrelStation` (the type); the spring by `MandrelSprings`.
+- **Handbook.** A "Winding springs" section on the frame (dropped from the frame with springs off), the ladder
+  section names the spring and the draw bench's use of it, and the spring's own page.
+- **The draw bench** takes one spring in its mandrel stage, with its rods (`../DrawBench/README.md`).
+- **Tests.** `tests/MandrelStation/MandrelStationGameplayTests.cs` (the verdict for a rod, the heat rule, the glow,
+  `WindJob`, `WindHolds`, the clock's class 3 at p 1, the reader's `wind` and its refusals),
+  `MandrelStationRigTests.cs` (the shipped rig's spring job, its pace the settings'); Atlas
+  `tests/PackTests/MandrelSpringScenarios.cs` (the spring and forgeable rods load; a rod on the forge heats; a
+  cold rod refused, a hot one wound with tongs from the stump and the ghost into a hot spring and the tongs worn;
+  a cooled rod stopped, taken back and put on again; breaking; a steel rod as the mandrel on a bare station),
+  `RecipeExportMandrelStationScenarios.Mandrel_station_winds_a_steel_rod_into_a_spring_record` and
+  `SwitchesOffScenarios.Mandrel_springs_off_there_is_no_spring`.
 
 ## Open for the owner
 
@@ -575,11 +562,11 @@ with tongs, right-click held, about 4 s; heat by the anvil's rules.
    growth and the rod's shrinking are the new stretching gauge (`docs/recipe-browser/models.md`, "Stretching gauges"),
    with its one artefact: the sides are drawn whole at p 0, so the spring's parts must only be drawn at p 1 (the
    gameplay contract below). Acceptable?
-3. **A steel rod is a mandrel too.** The suggested rule: a bare station fits it as the mandrel; a fitted,
-   bare mandrel takes it as a spring job. Or keep steel out of the mandrels?
-4. **Tongs, and a rod cooling mid-job.** Should winding need tongs in hand? The suggestion is that a rod
-   cooling below 751 °C part-way stops the winding until it is reheated (or taken back), as the anvil does.
-5. **Pace.** 4 s for any player and any tongs; nothing like the hammer's tier speeds it.
+3. **A steel rod is a mandrel too.** Settled: a bare station fits it as the mandrel; a fitted, bare mandrel
+   takes a hot one as a spring job and refuses a cold one (built).
+4. **Tongs, and a rod cooling mid-job.** Settled: winding needs tongs in either hand; a rod cooling below 751 °C
+   stops until it is taken back (Ctrl + right-click, any time) and reheated (built).
+5. **Pace.** 4 s for any player and any tongs; nothing like the hammer's tier speeds it (built so).
 6. **The work's unit** still reads "hollows" (in the rig and the viewer) for a spring too.
 7. **The rod's length.** The straight rod is the coil's length (14.4 on its centre line, from 0.35 before the coil's
    first corner to 0.35 before its last), shrinking a wire's width a side, so it is gone as the last side ends. A real
