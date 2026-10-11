@@ -298,6 +298,7 @@ public class SeraphHorizonsSystem : ModSystem
         _harmony?.UnpatchAll(HarmonyId);
         _harmony = null;
         FellingWear.Unbind();
+        RailVehicleSpeed.Unbind();
         RuinSurfaceMedian.Unbind();
         if (ClearSky != null)
         {

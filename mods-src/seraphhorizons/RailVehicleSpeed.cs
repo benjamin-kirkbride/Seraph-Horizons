@@ -105,6 +105,14 @@ public static class RailVehicleSpeed
         return Patched = true;
     }
 
+    /// <summary>Back to unpatched, once the server's Harmony id is unpatched (a later server in the
+    /// same process starts over).</summary>
+    public static void Unbind()
+    {
+        Patched = false;
+        _factor = RailSpeedScale.DefaultFactor;
+    }
+
     // Arguments by position: the two classes name the lead differently.
     public static void DrivePostfix(Entity __0, ref double __5, bool __result)
     {
