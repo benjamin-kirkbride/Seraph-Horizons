@@ -402,6 +402,16 @@ as metal bits (`game:metalbit-lead`), an average, since whole bits are drawn whe
 `extra` has the `units` poured, the `residueUnits` per metal, the pan's `capacityUnits`, the
 `tinPoint` and `leadPoint` and the `seconds` a full pan takes; `requirements` says the heat.
 
+**Springs** (type `spring`, shape `generic`, seraphhorizons with `Springs` on): a spring as a
+source of fresh well water, one record per kind, id `spring|seraphhorizons:waterspring-<kind>-*|0`
+(`normal`, `rapid`). The one ingredient is the spring (role `station`, never used up; its code a
+wildcard over the host rock, every rock's block an alternative in the variant); the output is a
+second's water from a pipe tapping it: Hydrate or Diedrate's `waterportion-fresh-well-clean` (the
+game's `waterportion` without Hydrate, whatever the spring fills a container with) in portions,
+with its `litres`. Nothing is consumed: a spring never runs dry. `extra` has the `kind`, the
+`litresPerSecond` (the server's `SpringsSettings`) and the feed `pressure` in atm; `requirements`
+says where springs are found, that a pipe taps one, and that it fills containers and is drunk from.
+
 These shapes and blocks are optional additions, so `schemaVersion` stayed 1: an export that
 lacks them is still valid, and the site falls back to the generic card for a record of a
 shape it has no layout for.
