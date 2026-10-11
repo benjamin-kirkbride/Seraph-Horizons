@@ -126,11 +126,14 @@ public class EidolonBodyTests
         Assert.True(body.HasTorso);
         Assert.Equal(BodyFitVerdict.AlreadyFitted, body.CanFit(BodyBill.Torso, 1, out _, out _));
         Assert.Equal("bones", body.Next);
-        // the bones take 10 beams: three held go in, then seven of a stack of sixteen
+        // the bones take 30 beams: three held go in, then a whole stack of sixteen, then eleven of the next
         Assert.Equal(3, body.Fit("supportbeam-oak", 3));
         Assert.Equal(BodyFitVerdict.Fits, body.CanFit(Beam, 16, out var stage, out int take));
-        Assert.Equal(("bones", 7), (stage, take));
-        Assert.Equal(7, body.Fit(Beam, 16));
+        Assert.Equal(("bones", 16), (stage, take));
+        Assert.Equal(16, body.Fit(Beam, 16));
+        Assert.Equal(BodyFitVerdict.Fits, body.CanFit(Beam, 16, out stage, out take));
+        Assert.Equal(("bones", 11), (stage, take));
+        Assert.Equal(11, body.Fit(Beam, 16));
         Assert.Equal(BodyFitVerdict.AlreadyFitted, body.CanFit(Beam, 1, out _, out _));
         Assert.True(body.Started);
         Assert.False(body.StageComplete("bones"));
@@ -146,7 +149,7 @@ public class EidolonBodyTests
         var body = WithTorso();
         // before any material the layer shows its default, any material allowed
         Assert.Null(body.Material(FittingLayer.Bones));
-        Assert.Contains(body.StillNeeded("bones"), i => i is { Code: Beam, Count: 10, AnyMaterial: true });
+        Assert.Contains(body.StillNeeded("bones"), i => i is { Code: Beam, Count: 30, AnyMaterial: true });
         // rotten wood is never bones; a beam of another wood than the first is refused
         Assert.Equal(BodyFitVerdict.WrongMaterial, body.CanFit("game:supportbeam-rotten", 1, out var stage, out _));
         Assert.Equal("bones", stage);
@@ -157,7 +160,7 @@ public class EidolonBodyTests
         Assert.Equal("veryaged", body.Material(FittingLayer.Bones));
         Assert.Equal(BodyFitVerdict.WrongMaterial, body.CanFit(Beam, 8, out _, out _));
         Assert.Equal(0, body.Fit(Beam, 8));
-        Assert.Contains(body.StillNeeded("bones"), i => i is { Code: "game:supportbeam-veryaged", Count: 8, AnyMaterial: false });
+        Assert.Contains(body.StillNeeded("bones"), i => i is { Code: "game:supportbeam-veryaged", Count: 28, AnyMaterial: false });
         FitAll(body, "bones", "veryaged");
 
         // joints: rods and nails of one metal
@@ -207,7 +210,7 @@ public class EidolonBodyTests
         body.Fit("game:jonasframes-joint01", 1);
         var returns = body.Returns().ToDictionary(d => d.Code, d => d.Count);
         Assert.Equal(1, returns[BodyBill.Torso]);
-        Assert.Equal(10, returns[Beam]);
+        Assert.Equal(30, returns[Beam]);
         Assert.Equal(2, returns["game:rod-iron"]);
         Assert.Equal(1, returns["game:jonasframes-joint01"]);
         Assert.Equal(1 + BodyBill.Of("bones").Sum(i => i.Count) + 3, returns.Values.Sum());
@@ -320,7 +323,7 @@ public class EidolonBodyTests
         // the bones' frame and vessel are in; the bones wait for their beams
         foreach (var i in EidolonFittings.JonasParts(FittingLayer.Bones))
             Assert.Equal(i.Count, body.Fitted("bones", i.Code));
-        Assert.Equal([new BodyIngredient(Beam, 10, AnyMaterial: true)], body.StillNeeded("bones"));
+        Assert.Equal([new BodyIngredient(Beam, 30, AnyMaterial: true)], body.StillNeeded("bones"));
         // the joints are whole in steel, the plates have the old 13 of their 17
         Assert.True(body.StageComplete("joints"));
         Assert.Equal(EidolonFittings.Steel, body.Material(FittingLayer.Joints));
