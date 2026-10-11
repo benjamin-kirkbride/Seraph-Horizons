@@ -2331,7 +2331,7 @@ only; anything of a later stage is refused with a message naming the next:
 
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
-| 1 | `bushings` | `seraphhorizons:cylinderborerbushings`, the pair the bar turns in | Grid: metal parts (`game:metal-parts`); drawn in cupronickel, as the gear cutter draws metal parts |
+| 1 | `bushings` | `game:metal-parts` (a block), one, made up into the pair the bar turns in (drawn in cupronickel, as the gear cutter draws metal parts) | Salvage, or the mechanic trader |
 | 2 | `bar` | `seraphhorizons:cylinderborerbar`, the boring bar with its feather, collars and great wheel | Grid: three rods of iron, meteoric iron or steel in a column, and metal parts |
 | 3 | `feed` | `seraphhorizons:cylinderborerfeed`: the crosshead, control rod, drum, ropes and weight | Grid: two oak planks, a rod and a plate of iron, meteoric iron or steel, two ropes |
 | 4 | `cutterhead` | `seraphhorizons:cylinderborerhead-steel` (8 durability), the wearing part | Smithing, one steel ingot (26 voxels), steel only |
@@ -2340,7 +2340,9 @@ The cutter head's recipe is named `cylinderborerhead`, not `plate`, so the helve
 In creative mode Ctrl + right-click on an incomplete borer fits its next stage with nothing taken.
 **Ctrl + right-click** takes the cutter head back, with the durability it has left (taking it out wears it
 no further), then the casting in the cradle, its bore lost. Every other stage comes back only by breaking
-the frame, which drops the frame, every fitted item, the head with its durability, and the casting.
+the frame, which drops the frame, every fitted item, the head with its durability, and the casting. The
+bushings had an item of their own (`seraphhorizons:cylinderborerbushings`, one lot of metal parts on the
+grid) until they took metal parts directly; a borer saved with one restores with metal parts in its place.
 
 **The castings.** A cylinder is cast, never forged: clay-form a cylinder mold
 (`seraphhorizons:cylindermold-{color}-raw`, blue, red or fire clay, `recipes/clayforming/cylindermold.json`:
