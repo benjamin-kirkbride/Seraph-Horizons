@@ -2,6 +2,7 @@
   "title": "Ore processing machines",
   "tabs": [
     { "kind": "html", "label": "Processing line", "file": "ore-line.ts" },
+    { "kind": "html", "label": "Proposal: smelt by grade", "file": "ore-proposal.ts" },
     { "kind": "model", "label": "Rocker", "repo": "$TMPDIR/m-rocker", "id": "rocker", "note": "Branch 717-rocker-model" },
     { "kind": "model", "label": "Riddle", "repo": "$TMPDIR/m-riddle", "id": "riddle", "note": "Branch 715-riddle-model" },
     { "kind": "model", "label": "Riddle stand", "repo": "$TMPDIR/m-riddle", "id": "riddle-stand", "note": "Branch 715-riddle-model" },

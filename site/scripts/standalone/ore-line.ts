@@ -580,7 +580,8 @@ export function renderChains(): string {
   ).join("")}</div></section>`;
 }
 
-const STYLE = `<style>
+/** The tab's styles; ore-proposal.ts reuses them (the two tabs sit on one page). */
+export const STYLE = `<style>
 .ore-line { --ol-hand: var(--series-4); --ol-water: var(--series-1); --ol-mill: var(--series-3); --ol-line: var(--muted); }
 .ore-line h2 { font-size: 1.3rem; margin: 0.2rem 0 0.4rem; }
 .ore-line h3 { font-size: 1.12rem; margin: 0 0 0.3rem; }

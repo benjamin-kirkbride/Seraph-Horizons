@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import oreLine, { CFG, CHAINS, CLASSES, concentration, OPEN_QUESTIONS, PARTED, TIERS, tierConcentrate } from "../scripts/standalone/ore-line.ts";
+import oreProposal, { bestConcentrate, choices, decision, ingotsPerSlot, OPEN_QUESTIONS as PROPOSAL_QUESTIONS, PROPOSED, proposedSmelt, routes, STACK, winner } from "../scripts/standalone/ore-proposal.ts";
 import { tabForHash } from "../scripts/standalone/tabs-hash.ts";
 import { expandPath, groupBy, parseSpec, slugify } from "../scripts/standalone/tabs-spec.ts";
 import { loadModels, REPO } from "../scripts/models.ts";
@@ -46,6 +47,7 @@ describe("the tabbed standalone page's spec", () => {
     const file = fileURLToPath(new URL("../scripts/standalone/ore-review.json", import.meta.url));
     const spec = parseSpec(JSON.parse(readFileSync(file, "utf8")), "/spec", env);
     expect(spec.tabs[0]?.kind).toBe("html");
+    expect(spec.tabs[1]).toMatchObject({ kind: "html", label: "Proposal: smelt by grade", slug: "proposal-smelt-by-grade" });
     expect(spec.tabs.filter((t) => t.kind === "model").length).toBeGreaterThanOrEqual(8);
   });
 
@@ -113,6 +115,74 @@ describe("the ore review's processing line", () => {
     expect(html).toContain("<b>46.8 %</b> rocker");
     expect(html).toContain("× firepit 85 %");
     for (const q of OPEN_QUESTIONS) expect(html).toContain(q.slice(0, 20).replace(/&/g, "&amp;"));
+    expect(html).not.toMatch(/<script/i);
+  });
+});
+
+describe("the ore review's smelt-by-grade proposal", () => {
+  it("smelts rock forms by grade and concentrate whole, sulfide concentrate still not at all", () => {
+    expect(proposedSmelt("raw", "poor")).toBe(0.1);
+    expect(proposedSmelt("crushed", "medium")).toBe(0.3);
+    expect(proposedSmelt("chunk", "rich")).toBe(0.6);
+    expect(proposedSmelt("ground", "bountiful")).toBe(0.75);
+    expect(proposedSmelt("concentrate", "poor")).toBe(1);
+    expect(proposedSmelt("concentrate", "rich", PROPOSED, true)).toBe(0);
+    expect(proposedSmelt("roastedconcentrate", "rich", PROPOSED, true)).toBe(1);
+    expect(proposedSmelt("chunk", "rich", { ...PROPOSED, sulfidePenalty: 0.8 }, true)).toBeCloseTo(0.48);
+  });
+
+  it("flips the three escape hatches, and finds rich and bountiful by hand still carried home", () => {
+    // Poor by hand: crushed 50 % beat the rocker's 22 %; now the rocker wins (22 % against 10 %).
+    expect(winner(choices("hand", "poor", null)).key).toBe("crushed");
+    expect(winner(choices("hand", "poor", PROPOSED))).toMatchObject({ key: "conc", device: "rocker" });
+    expect(decision("hand", "poor")).toMatchObject({ verdict: "mine" });
+    expect(decision("hand", "poor").margin).toBeCloseTo(12);
+    // Medium by hand: rocker 55 % against 30 %, 25 points.
+    expect(decision("hand", "medium").margin).toBeCloseTo(25);
+    // Rich and bountiful by hand: the chunk (60 %, 75 %) beats the rocker (55 %).
+    expect(decision("hand", "rich")).toMatchObject({ verdict: "home" });
+    expect(decision("hand", "rich").margin).toBeCloseTo(-5);
+    expect(decision("hand", "bountiful").margin).toBeCloseTo(-20);
+    expect(decision("water", "bountiful")).toMatchObject({ verdict: "mine" });
+    expect(decision("water", "bountiful").margin).toBeCloseTo(5);
+    // Sulfides: the hand line (rocker × firepit 46.75 %) now beats medium (30 %) but not rich (60 %);
+    // a bountiful sulfide chunk (75 %) beats even the water line (jig × stall 73.6 %).
+    expect(bestConcentrate("hand", "medium", { sulfide: true }).value).toBeCloseTo(0.4675);
+    expect(decision("hand", "medium", PROPOSED, { sulfide: true })).toMatchObject({ verdict: "mine" });
+    expect(decision("hand", "rich", PROPOSED, { sulfide: true })).toMatchObject({ verdict: "home" });
+    expect(decision("water", "bountiful", PROPOSED, { sulfide: true }).margin).toBeCloseTo(-1.4);
+    // Poor at a tier that grinds: the figure without the grinder is carried along.
+    expect(bestConcentrate("water", "poor")).toEqual({ device: "jig L2", value: 0.8, unground: 0.8 * 0.4 });
+  });
+
+  it("gives the slot densities and the trips home", () => {
+    expect(STACK).toMatchObject({ raw: 4, chunk: 16, crushed: 16, ground: 16, concentrate: 128 });
+    // A slot of raw poor ore: 4 × 15 × 10 % = 6 units; a slot of concentrate: 128 × 5 = 640 units.
+    expect(ingotsPerSlot("raw", "poor", null)).toBe(0);
+    expect(ingotsPerSlot("raw", "poor", PROPOSED)).toBeCloseTo(0.06);
+    expect(ingotsPerSlot("chunk", "bountiful", null)).toBeCloseTo(2.8);
+    expect(ingotsPerSlot("chunk", "bountiful", PROPOSED)).toBeCloseTo(4.2);
+    expect(ingotsPerSlot("crushed", "medium", PROPOSED)).toBeCloseTo(0.24);
+    expect(ingotsPerSlot("concentrate", "poor", PROPOSED)).toBeCloseTo(6.4);
+    // 1000 units from poor ore: as mined 10 000 units of rock = 667 raw ore = 167 slots; concentrate 1.6 slots whatever the tier.
+    const r = routes("poor", PROPOSED);
+    expect(r[0]).toMatchObject({ form: "raw", recovery: 0.1 });
+    expect(r[0]!.rock).toBeCloseTo(10000);
+    expect(r[0]!.slots).toBeCloseTo(10000 / 15 / 4);
+    expect(r[1]!.slots).toBeCloseTo(10000 / 5 / 16);
+    expect(r[2]!.slots).toBeCloseTo(1.5625);
+    expect(r[4]!.slots).toBeCloseTo(1.5625);
+    expect(r[4]!.rock).toBeCloseTo(1000 / 0.99);
+    expect(routes("poor", null)[0]!.slots).toBe(Infinity);
+  });
+
+  it("renders every section, the key figures and no script", () => {
+    const html = oreProposal();
+    for (const id of ["compare", "decision", "logistics", "problems", "special", "sensitivity", "open"]) expect(html).toContain(`id="op-${id}"`);
+    expect(html).toContain("rocker 55 % beats smelting as is (30 %) by <b>25 points</b>");
+    expect(html).toContain("6.4</b> ingots");
+    expect(html).toContain("flips");
+    for (const q of PROPOSAL_QUESTIONS) expect(html).toContain(q.slice(0, 20).replace(/&/g, "&amp;"));
     expect(html).not.toMatch(/<script/i);
   });
 });
