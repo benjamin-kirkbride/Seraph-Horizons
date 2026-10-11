@@ -828,13 +828,13 @@ def validate(m, els, parts, rig, measured, quick=False):
     return v.ok
 
 
-ITEM_TEXTURES = {"bushings": {"cupronickel"}, "cylinderblank": {"cast", "rough", "bored"}, "cylinder": {"cast", "bored"}}
+ITEM_TEXTURES = {"cylinderblank": {"cast", "rough", "bored"}, "cylinder": {"cast", "bored"}}
 
 
 def check_items(m, items):
     """Each item's shape: inside the 16-voxel item box at its scale, centred on its floor, every element with a
-    textured face, and its scale no smaller than it needs (1 when it fits as it is); the bushings in cupronickel,
-    the casting's outside in `cast` (the item type's metal), the blank's bore rough and the cylinder's bright."""
+    textured face, and its scale no smaller than it needs (1 when it fits as it is); the casting's
+    outside in `cast` (the item type's metal), the blank's bore rough and the cylinder's bright."""
     ok = True
     for item, els in items.items():
         cs = [q for el in els for q in el.corners()]

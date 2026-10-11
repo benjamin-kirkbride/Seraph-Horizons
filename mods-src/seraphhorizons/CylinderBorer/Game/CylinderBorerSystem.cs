@@ -26,7 +26,6 @@ public class CylinderBorerSystem : ModSystem
         new(Domain, "blocktypes/cylinderborer/frame.json"),
         new(Domain, "blocktypes/cylinderborer/ghost.json"),
         new(Domain, "blocktypes/cylinderborer/ghostpower.json"),
-        new(Domain, "itemtypes/cylinderborer/bushings.json"),
         new(Domain, "itemtypes/cylinderborer/bar.json"),
         new(Domain, "itemtypes/cylinderborer/feed.json"),
         new(Domain, "itemtypes/cylinderborer/head.json"),

@@ -27,10 +27,11 @@ public partial class RecipeExportScenarios
             Assert.Equal("seraphhorizons", (string)r["mod"]!);
             Assert.Equal("CylinderBorer", (string?)r["switch"]);
             var ingredients = (JArray)r["ingredients"]!;
-            Assert.Equal(new[] { $"seraphhorizons:cylinderblank-{metal}", "seraphhorizons:cylinderborerbushings", "seraphhorizons:cylinderborerbar",
+            Assert.Equal(new[] { $"seraphhorizons:cylinderblank-{metal}", "game:metal-parts", "seraphhorizons:cylinderborerbar",
                                  "seraphhorizons:cylinderborerfeed" },
                 ingredients.Take(4).Select(i => (string)i["code"]!));
             Assert.All(ingredients.Skip(1).Take(3), i => Assert.Equal("kept", (string)i["role"]!));
+            Assert.Equal(new[] { "block", "item", "item" }, ingredients.Skip(1).Take(3).Select(i => (string)i["kind"]!));
             Json("""{ "code": "seraphhorizons:cylinderborerhead-steel", "kind": "item", "quantity": 1, "role": "tool", "isTool": true, "toolDurabilityCost": 1 }""",
                 ingredients[4]);
             Assert.Equal("oil", (string)ingredients[5]["role"]!);

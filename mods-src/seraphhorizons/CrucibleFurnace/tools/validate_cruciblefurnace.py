@@ -794,7 +794,7 @@ def octagon_has(cx, cz, a, x, z):
 
 
 def check_coke(v):
-    """The coke's layers stack from the grate to the pots' shoulders, two coke a layer; at the top of each the coke
+    """The coke's layers stack from the grate to the pots' shoulders, four coke a layer; at the top of each the coke
     meets both pots with no gap (its openings the pots' widest section in the layer); each fills the hole across from
     the walls to the pots (sampled); its top, lumps and all, stays under the flue opening; the burning layers are the
     same boxes as the cold ones."""
@@ -805,8 +805,8 @@ def check_coke(v):
     belly = next(t for t in m.POT_TUBES if t[0] == "belly")
     if abs(layers[-1][1] - belly[2]) > 1e-9:
         v.fail("the coke does not come up to the pots' shoulders (the belly's top)")
-    if 6 != len(layers) * m.COKE_PER_LAYER:
-        v.fail("the layers do not hold six coke (CokeCapacity)")
+    if m.COKE_CAPACITY != len(layers) * m.COKE_PER_LAYER:
+        v.fail(f"the layers do not hold {m.COKE_CAPACITY} coke (CokeCapacity)")
     worst_gap, holes_in = 0.0, 0
     (hx0, hx1), (hz0, hz1) = m.HOLE_X, m.HOLE_Z
     for j, (y0, y1) in enumerate(layers, 1):

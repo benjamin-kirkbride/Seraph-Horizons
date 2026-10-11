@@ -565,7 +565,7 @@
             "options": [
               {"id": "cold", "label": "Cold and empty", "fitted": [], "hint": "The hole as built: the two refractory stands on the grate, nothing on them."},
               {"id": "pots", "label": "Two pots on their stands", "fitted": ["pot1", "pot2"]},
-              {"id": "charged", "label": "Charged, coke packed round", "fitted": ["pot1", "pot2", "charge1", "charge2", "coke1", "coke2", "coke3"], "hint": "Both pots charged and six coke packed round them to their shoulders, not yet lit."},
+              {"id": "charged", "label": "Charged, coke packed round", "fitted": ["pot1", "pot2", "charge1", "charge2", "coke1", "coke2", "coke3"], "hint": "Both pots charged and twelve coke packed round them to their shoulders, not yet lit."},
               {"id": "lit", "label": "Lit: the charges melting", "fitted": ["pot1", "pot2", "charge1", "charge2", "fire1", "fire2", "fire3"], "hint": "The coke burning. With the lid shut its glow shows only at the ash mouth (cinders fallen through the grate) and up through the firebars."},
               {"id": "melted", "label": "Melted", "fitted": ["pot1", "pot2", "melt1", "melt2", "fire1", "fire2", "fire3"]},
               {"id": "burntlow", "label": "Melted, the coke burnt low", "fitted": ["pot1", "pot2", "melt1", "melt2", "fire1"], "hint": "Two coke left of six: the bed burnt down to its bottom layer, time to top it up."},

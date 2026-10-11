@@ -886,16 +886,18 @@ public class SeraphHorizonsConfig
     /// The server's are used.</summary>
     public SeraphHorizons.Mod.Eidolon.Core.EidolonConfig EidolonSettings { get; set; } = new();
 
-    /// <summary>Stainless steel (#484, CrucibleFurnace/, README "Crucible furnace"): a crucible
-    /// furnace of melting holes lined with tier-3 refractory brick, in a row of up to four on a brick
-    /// chimney at least six blocks tall, fired with coke under iron lids (faster with forced air piped
-    /// in from Steelmaking Expanded's blowers), each holding a fireclay melting pot of 200 units that
-    /// lasts three heats. Its charges, by ratio: quartz, iron bits and coke into ferrosilicon; chromite,
-    /// ferrosilicon and lime into ferrochrome and slag; iron and ferrochrome, about 4 to 1, into
-    /// stainless steel; stainless bits back into stainless. A pulled pot of stainless pours like the
-    /// game's crucible into any mold, for about 20 seconds before it freezes and the pot is lost (off
-    /// means the holes, the pots, the ferroalloys and their recipes do not exist, and those already in
-    /// a world are lost). The server's setting decides.</summary>
+    /// <summary>Stainless steel (#484, #796, CrucibleFurnace/, README "Crucible furnace"): a crucible
+    /// furnace, a 3 x 3 x 2 machine placed from its iron frame and built up in stages (fired brick of one
+    /// type, a tier-3 refractory lining, the lid and the ash-pit damper), one hole holding two fireclay
+    /// melting pots of 300 units that last three heats each, fired with coke on natural draught from a
+    /// chimney on its outlet (taller draws harder, up to eleven blocks; up to six furnaces side by side
+    /// share one chimney, the other outlets capped), throttled at the ash-pit damper. Its charges, by
+    /// ratio: quartz, iron bits and coke into ferrosilicon; chromite, ferrosilicon and lime into
+    /// ferrochrome and slag; iron and ferrochrome, about 4 to 1, into stainless steel; stainless bits
+    /// back into stainless; iron alone into molten iron, which casts only into ingot and cylinder molds.
+    /// A pulled pot of stainless pours like the game's crucible into any mold, for about 20 seconds
+    /// before it freezes and the pot is lost (off means the furnace, the pots, the ferroalloys and their
+    /// recipes do not exist, and those already in a world are lost). The server's setting decides.</summary>
     public bool StainlessSteel { get; set; } = true;
 
     /// <summary>The crucible furnace's figures; a value out of range falls back to its default with a

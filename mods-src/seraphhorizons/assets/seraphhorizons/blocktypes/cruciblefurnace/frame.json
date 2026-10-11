@@ -1,0 +1,83 @@
+// The crucible furnace's iron frame (#796; CrucibleFurnace/, README "Crucible furnace"): the
+// controller cell of a 3 x 3 x 2 furnace, the front middle cell (the ash mouth's), nearest the player
+// who placed it, the furnace extending away from them. The item is the frame (a grid recipe); placed,
+// it is built up in stages (brickwork, lining, lid and damper) by right-clicks. The server disables it
+// with StainlessSteel off.
+{
+	code: "cruciblefurnace",
+	class: "seraphhorizons.CrucibleFurnace",
+	entityClass: "seraphhorizons.CrucibleFurnace",
+	// No HorizontalOrientable: BlockCrucibleFurnace.TryPlaceBlock picks the side so the furnace extends
+	// away from the player, as the cylinder borer does.
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/cruciblefurnace_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/cruciblefurnace_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/cruciblefurnace_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/cruciblefurnace_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the parts' (cruciblefurnace.json), which the renderer
+	// draws with this block's textures. The brickwork's brick is the furnace's own type's, which the
+	// renderer sets on the brick code (the rig's bricks); this one is the red brick's colour layer, the
+	// shape's own, never drawn as it is.
+	textures: {
+		"brick":  { base: "game:block/clay/brick/four/running/red1" },
+		"lining": { base: "game:block/clay/refractory/tier3/front1" },
+		"iron":   { base: "game:block/metal/plate/iron" },
+		"clay":   { base: "game:block/clay/hardened/fire" },
+		"coke":   { base: "game:block/coal/coke" },
+		"ember":  { base: "game:block/coal/ember" },
+		"melt":   { base: "game:block/metal/ingot/stainlesssteel" },
+		"charge": { base: "game:block/metal/ingot/iron" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:cruciblefurnace-handbook-build-title", text: "seraphhorizons:cruciblefurnace-handbook-build-text" },
+				{ title: "seraphhorizons:cruciblefurnace-handbook-title", text: "seraphhorizons:cruciblefurnace-handbook-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:cruciblefurnace-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "construction": ["*-north"] },
+	blockmaterial: "Metal",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame's shape spans the furnace's 3 x 3 x 2 footprint (native x -0.97..1.97, y 0..2, z 0..3
+	// from the controller; z -2..1 once the -north item form turns it 180°), so the item forms turn
+	// about the mesh's middle (0.5, 1, -0.5). Held, the translation brings the middle back to
+	// vanilla's two-handed crate's spot by the hand, (0.01, 0.14, 0.18): translation = (that spot -
+	// origin) / scale (tests/HeldTransformTests.cs).
+	tpHandTransform: {
+		translation: { x: -2.23, y: -3.91, z: 3.09 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 1, z: -0.5 },
+		scale: 0.22
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 1, z: -0.5 },
+		scale: 0.42
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: -0.5 },
+		scale: 0.8
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/ceramicplace",
+		"walk": "game:walk/stone",
+		"hit": "game:block/ceramichit",
+		"break": "game:block/ceramicbreak"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}
