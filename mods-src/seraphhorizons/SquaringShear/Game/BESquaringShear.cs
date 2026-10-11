@@ -1,4 +1,5 @@
 using System.Text;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.SquaringShear.Core;
 using SeraphHorizons.Mod.Core;
@@ -108,11 +109,8 @@ public class BESquaringShear : BlockEntity, ISquaringShearView
     }
 
     /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native)
-    {
-        var w = Footprint.ToWorld(native, Side);
-        return new Vec3d(Pos.X + w.X, Pos.Y + w.Y, Pos.Z + w.Z);
-    }
+    public Vec3d WorldPoint(Float3 native) =>
+        MachinePoints.WorldPoint(Pos, native, Side);
 
     /// <summary>Every ghost cell's world position.</summary>
     public IEnumerable<BlockPos> GhostCells() =>
