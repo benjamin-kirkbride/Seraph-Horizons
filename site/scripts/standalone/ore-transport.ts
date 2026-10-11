@@ -458,7 +458,7 @@ function renderRails(): string {
   const head = `<tr><th>Track</th><th>A craft</th>${lines.map((d) => `<th>${d / 1000} km<span class="ol-when">${d} pieces: crafts · beams or rods · planks</span></th>`).join("")}<th>Runs</th></tr>`;
   const runs: Record<string, string> = {
     "standard-wood": "boxcar trains, capped at 16",
-    "standard-metal": "boxcar trains, capped at 32; the handcar",
+    "standard-metal": "boxcar trains, capped at 32",
     "wagon-wood": "minecarts, capped at 8",
     "wagon-metal": "minecarts, capped at 14",
   };
