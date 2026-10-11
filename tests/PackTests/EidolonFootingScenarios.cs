@@ -18,8 +18,11 @@ namespace SeraphHorizons.PackTests;
 /// settings: off a lying trunk (a trunk entity, solid by TrunkEntities' push, not a block) to the
 /// floor beside it, alone (thin and thick) or two together; two spawned in one place keep apart
 /// and each walks to its own point; and up and down a one-block step, alone and two together. Each
-/// scenario logs where the eidolons are now and then, so a failure shows how they went wrong. Each
-/// builds on a granite floor of its own high over the spawn.
+/// scenario logs where the eidolons are now and then, so a failure shows how they went wrong. And steps
+/// of two (<see cref="EidolonClimb"/>): sent to a point on a ledge two blocks high it walks to its foot,
+/// climbs it (playing <c>climb</c>, moved up and onto it by the navigator) and gets there, and sent back
+/// it walks off the two-block drop; a ledge three high it neither climbs nor walks off, and says there is
+/// no way. Each builds on a granite floor of its own high over the spawn.
 /// </summary>
 [AtlasWorld]
 public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -279,5 +282,82 @@ public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBa
         bool descended = await Watch("down the step", at, eidolons, () => eidolons.Select((e, i) => Arrived(e, down[i])).All(a => a), 900);
         Assert.True(descended, "down: " + string.Join("; ", eidolons.Select(Where)));
         Remove(eidolons);
+    }
+
+    // ---- F: a ledge of two, climbed (EidolonClimb), and one of three, not ----
+
+    /// <summary>A floor (<see cref="Floor"/>) with a granite ledge <paramref name="height"/> high across
+    /// it from x + 3 on.</summary>
+    private async Task<BlockPos> Ledge(int dx, int height, string watcher)
+    {
+        var at = await Floor(dx, watcher);
+        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        for (int x = 3; x <= 12; x++)
+        for (int z = -12; z <= 12; z++)
+        for (int y = 0; y < height; y++)
+            W.BlockAccessor.SetBlock(granite, at.AddCopy(x, y, z));
+        await World.Ticks(5);
+        return at;
+    }
+
+    /// <summary>Sends it to <paramref name="target"/> and waits until the order is done (or the ticks
+    /// run out), noting whether it played <c>climb</c> on the way and logging where it is now and then.</summary>
+    private async Task<bool> ClimbingTo(EntityLaborEidolon e, Vec3d target, string what, int ticks = 1200)
+    {
+        bool climbed = false;
+        int tick = 0;
+        GoTo(e, target);
+        await World.Until(() =>
+        {
+            climbed |= e.AnimManager.IsAnimationActive(EidolonClimb.Animation);
+            if (++tick % 60 == 0)
+                Log($"{what}, tick {tick}: {Where(e)}{(climbed ? ", has climbed" : "")}; {EidolonCommands.Describe(e)}");
+            return e.Orders!.OrderCode == null;
+        }, ticks);
+        Log($"{what}: {Where(e)}, climbed {climbed}; {EidolonCommands.Describe(e)}");
+        return climbed;
+    }
+
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task F_it_climbs_a_two_block_ledge_and_walks_back_down_off_it()
+    {
+        var at = await Ledge(-330, 2, "climbwatcher");
+        var e = await Eidolon(new Vec3d(at.X - 4, at.Y, at.Z));
+        await World.Ticks(20);
+
+        var top = new Vec3d(at.X + 8, at.Y + 2, at.Z);
+        bool climbed = await ClimbingTo(e, top, "up the ledge");
+        Assert.True(climbed, "it played climb: " + EidolonCommands.Describe(e));
+        Assert.Null(e.Orders!.OrderCode);
+        Assert.True(e.Pos.XYZ.HorizontalSquareDistanceTo(top) < 1.0, Where(e));
+        Assert.Equal(at.Y + 2, e.Pos.Y, 1);
+        Assert.False(e.AnimManager.IsAnimationActive(EidolonClimb.Animation));
+
+        var below = new Vec3d(at.X - 4, at.Y, at.Z);
+        Assert.False(await ClimbingTo(e, below, "down off the ledge"), "nothing to climb going down");
+        Assert.Null(e.Orders!.OrderCode);
+        Assert.True(e.Pos.XYZ.HorizontalSquareDistanceTo(below) < 1.0, Where(e));
+        Assert.Equal(at.Y, e.Pos.Y, 1);
+        Remove(e);
+    }
+
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task F_a_ledge_three_high_it_neither_climbs_nor_walks_off()
+    {
+        var at = await Ledge(-360, 3, "climbwatcher3");
+        var below = await Eidolon(new Vec3d(at.X - 4, at.Y, at.Z - 4));
+        var above = await Eidolon(new Vec3d(at.X + 8, at.Y + 3, at.Z + 4));
+        GoTo(below, new Vec3d(at.X + 8, at.Y + 3, at.Z - 4));
+        GoTo(above, new Vec3d(at.X - 4, at.Y, at.Z + 4));
+        await World.Ticks(200);
+        foreach (var (e, y, what) in new[] { (below, at.Y, "below"), (above, at.Y + 3, "above") })
+        {
+            Log($"{what}: {Where(e)}; {EidolonCommands.Describe(e)}");
+            Assert.Equal(GoToOrder.OrderCode, e.Orders!.OrderCode);
+            Assert.Contains("no way", e.GetInfoText());
+            Assert.Equal(y, e.Pos.Y, 1);
+            Assert.False(e.AnimManager.IsAnimationActive(EidolonClimb.Animation));
+            Remove(e);
+        }
     }
 }

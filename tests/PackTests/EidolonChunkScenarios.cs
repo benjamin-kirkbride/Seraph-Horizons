@@ -72,8 +72,9 @@ public class EidolonChunkScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task Felling_with_no_player_near_it_keeps_its_chunks_loaded_fells_and_then_lets_them_go()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-1800, 90, -1600), reach: 18);
-        // Two of EidolonFellScenarios' three oaks, as far apart (their crowns clear of each other).
-        var logs = new[] { await Tree(site.AddCopy(-9, 0, -2), 101), await Tree(site.AddCopy(9, 0, -2), 103) };
+        // One of EidolonFellScenarios' oaks, across the area from where it stands (felling itself, and
+        // more trees, is that class's).
+        var logs = new[] { await Tree(site.AddCopy(9, 0, -2), 103) };
         await World.Ticks(5);
         Assert.All(logs, l => Assert.True(Felling.Tree(W, IronAxe, l).Wood >= Mod.Config.FellMinLogs, $"the tree at {l} is not grown"));
         var e = await Spawn(site.AddCopy(0, 0, -11));
@@ -98,7 +99,7 @@ public class EidolonChunkScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.All(held, c => Assert.True(Chunks.IsForced(c), $"{c} not forced"));
         await World.Until(() => e.State == EnumEntityState.Active, 200);
 
-        // It walks and fells both trees with no one near (the order is done and cleared after).
+        // It walks and fells the tree with no one near (the order is done and cleared after).
         int ticks = 0;
         var columnsSeen = new HashSet<ChunkColumn>(held);
         await World.Until(() =>
@@ -107,7 +108,7 @@ public class EidolonChunkScenarios(ITestOutputHelper output) : AtlasScenarioBase
             if (++ticks % 300 == 0)
                 Log(State(e));
             return e.Orders.OrderCode == null;
-        }, 9000);
+        }, 4000);
         Log("done: " + State(e));
         AssertNoPlayerNear(e);
         Assert.All(logs, l => Assert.True(Felling.Tree(W, IronAxe, l).Wood == 0, $"the tree at {l} stands"));

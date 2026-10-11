@@ -193,6 +193,10 @@ public class EidolonFellScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-420, 90, 1400), reach: 14);
         var first = await Felling.Grow(World, site.AddCopy(-4, 0, 0), Felling.Oak, 1.0f, 101);
         var second = await Felling.Grow(World, site.AddCopy(5, 0, 0), Felling.Oak, 1.0f, 102);
+        // each on its ground, as a real tree stands (a stump over air is no stump)
+        foreach (var l in new[] { first, second }.Where(l => W.BlockAccessor.GetBlock(l.DownCopy()).Id == 0))
+            World.SetBlock("game:soil-medium-normal", l.DownCopy());
+        await World.Ticks(5);
         Log($"trees: {first} {Wood(first)} logs, {second} {Wood(second)} logs");
         Assert.True(Wood(first) >= Mod.Config.FellMinLogs && Wood(second) >= Mod.Config.FellMinLogs, $"{Wood(first)}, {Wood(second)}");
 
