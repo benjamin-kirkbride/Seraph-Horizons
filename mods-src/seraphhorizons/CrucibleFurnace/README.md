@@ -1,12 +1,12 @@
 # Crucible furnace: the model
 
 Part of the Seraph Horizons mod (`../README.md`, "Crucible furnace"): the generated model of the crucible furnace
-as one machine (#753), placed as a multiblock with ghost cells like the pack's other machines, in place of today's
-row of block-built melting holes. The game side is #796.
+as one machine (#753), placed as a multiblock with ghost cells like the pack's other machines. It replaced the row of
+grid-crafted melting holes (#796).
 
-**Status: the model only.** This folder's `tools/` holds the model's generator and its checks. The game still uses
-the melting holes, their pot and the chimney row (`Core/`, `Game/`, the mod README's "Crucible furnace"); nothing in
-the game reads this model yet. What wiring it in will take is under "Wiring it into the game", below.
+**Status: in the game** (#796). This folder's `tools/` holds the model's generator and its checks; `Core/` and
+`Game/` hold the furnace's gameplay, which reads the rig and the shape: the mod README's "Crucible furnace" has the
+rules, and "Wired into the game", below, what reads what.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. The generic half of the generator is
@@ -103,7 +103,7 @@ and the damper face them, the stack and the outlet are behind.
 | `chimney` | origin `[0.5,5,2.5]`, `y`, 6 | The shortest chimney, six blocks counted from the outlet up (y 2 to 8), drawn as a line |
 | `build` | | The build's stages and their materials ("The build", below); not drawn |
 | `bricks` | | The fired brick types and their textures ("The brick", below); not drawn |
-| `furnace` | | `pots` 2, `potUnits` 300, `cokeLayers` 3, `cokePerLayer` 2, `minChimney` 6, `rowMax` 6, `rowAxis` `x`, `lidOpenDegrees` 100; not drawn |
+| `furnace` | | `pots` 2, `potUnits` 300, `cokeLayers` 3, `cokePerLayer` 4, `minChimney` 6, `rowMax` 6, `rowAxis` `x`, `lidOpenDegrees` 100; not drawn |
 
 **Decks, boxes.** Each of the nine top cells of the brickwork has a `lid` (a collision deck) at the floor: a player
 walks over the open hole and cannot fall in. The cells' boxes are built from the furnace as built (the iron, the
@@ -241,13 +241,13 @@ state.
 | The pots (`pot1`, `pot2`) | put in, pulled: fitted or not, once the furnace is built | hold the charges, then the melts |
 | The charges (`charge1`, `charge2`) | charged | fill each pot to 24.5 (a full pot, 300 units) with pieces standing up to 27.9, over the rim |
 | The melts (`melt1`, `melt2`) | the charge melted | each pot's molten surface at 24.5, a full pot of 300 units, 1.5 under the rim, glowing |
-| The coke, three layers (`coke1`..`3`) | the coke in the hole: two coke a layer, from the grate up | one bed packed round both pots to their shoulders, lumps of coke on each layer's top |
+| The coke, three layers (`coke1`..`3`) | the coke in the hole: four coke a layer, from the grate up | one bed packed round both pots to their shoulders, lumps of coke on each layer's top |
 | The coke burning (`fire1`..`3`) | lit: the same layers in their burning texture, glowing; the bottom one also drops cinders on the cave's floor under the pots | the glow: from above when the lid is open, at the ash mouth and up through the bars when it is shut |
 | The damper (`damperopen`, `damperhalf`, `dampershut`) | fitted with the lid (stage 3); then the cellar lad: one of its three places | sets the draught (#796: open full, half at half the heating, shut banked) |
 | The cap (`outletcap`) | fitted on every furnace in a row but the one carrying the chimney | closes the outlet |
 | The draught (no part) | the chimney on the outlet, natural draught only | in at the ash mouth, up through the grate and the coke, out at the flue opening, along the back flue, up the stack and the chimney |
 
-**The coke's layers.** Gameplay's coke (0..`CokeCapacity`, 6 today) is drawn as its layers
+**The coke's layers.** Gameplay's coke (0..`CokeCapacity`, 12 for the two pots, #796) is drawn as its layers
 `coke1..ceil(coke / cokePerLayer)`: the bottom layer from the grate to 16, the middle to 20, the top to 23.5, the
 pots' shoulders. While lit, the same layers burning (`fire…`) in place of them. Each layer is one bed across the
 hole, strips and corner fills round both pots' octagons, its openings the pots' widest section in the layer, so at
@@ -315,7 +315,7 @@ check says it was skipped. Those marked *(review)* came from the owner's review:
 - **A full pot** *(review)*: each pot's inside from its floor to its melt's top, measured from its walls' elements
   (the octagon inside their inner faces at each height, every 0.01), holds `POT_UNITS` (300) at `VOXELS_PER_UNIT`,
   within 2 %; the melt at least a voxel under the rim.
-- **Coke:** the layers stack from the grate to the shoulders, two coke a layer (six in all); at each layer's top the
+- **Coke:** the layers stack from the grate to the shoulders, four coke a layer (`COKE_CAPACITY`, twelve in all); at each layer's top the
   coke meets both pots with no gap; every layer whole across (sampled on a grid: each point coke or a pot's place);
   its top, lumps and all, under the flue opening; the burning layers the same boxes as the cold ones.
 - **The damper** *(review)*: in each place a plate in its recess behind the front face, between its guides; shut it
@@ -431,64 +431,25 @@ copy). No one has looked at it in a client.
 
 Nothing for the model: the build is settled.
 
-## Wiring it into the game
+## Wired into the game
 
-The game-side rules are #796 ("crucible furnace: one two-pot hole per furnace, natural draught by chimney height,
-shared chimneys, ash-pit damper"). It will take:
+#796 wired the model in; nothing is left on this list. What gameplay reads, and where:
 
-- **The iron frame**: an item from a grid recipe with a hammer (2 iron plates, 4 iron rods, 10 iron nails and strips;
-  the rig's `build.frame`), placed as the machine: a controller `seraphhorizons:cruciblefurnace-frame-{side}` at the
-  front middle cell drawing `cruciblefurnace_frame.json` (the iron frame; its textures every code of both shapes), a
-  ghost for the other seventeen brickwork cells and one for the six hollow cells over the front two rows, placed from
-  the rig's cells by the player's look (`Footprint.PlacedFacing`), as the press brake and the mandrel station are.
-  While it is being built, its selection and collision boxes are gameplay's (the rig's are the built furnace's).
-- **The stages** (`build.stages`, in order): a click with a stage's material puts in as many of the held stack as it
-  still needs (`perClick` `stack`); when all its materials are in, the stage is complete and fits its `requires`
-  (the brickwork's also draws the `hinge` part, its `alsoParts`: the pins and the stops, which the lid needs);
-  a stage takes nothing before the one ahead of it is complete. **Brickwork**: 25 fired bricks (`oneType`): the first
-  brick put in sets the furnace's brick type, saved with it; a brick of another type is refused with a message
-  naming the furnace's ("This furnace is built of red brick"), and a type not in `bricks.types` is refused. **Lining**:
-  9 tier-3 refractory bricks and 4 fire clay, in any order. **Lid and damper**: 4 tier-3 refractory bricks and 2 iron
-  plates; it fits the lid and the damper, open. Nothing is fired, charged or capped before its stage: the hole and
-  the damper take nothing until the furnace is built, the cap nothing until the lining is in. What breaking a
-  part-built furnace gives back is gameplay's.
-- **The outlet's cap**: not a stage. A click on the outlet's top with an iron plate caps it (`outletcap`), and a
-  click with an empty hand takes the plate back; on any member of a row but the one carrying the chimney.
-- **The brick's texture**: the renderer sets the shape's `brick` code to the furnace's type's texture from the rig's
-  `bricks.types` (a composite texture, `base` with its `overlays` over it); before any brick is in, the brickwork is
-  not drawn.
-- **The lid with tongs when hot**: a click opens or shuts it; it needs tongs (any `heatResistant` item in the off
-  hand) only while it is too hot to touch, the same heat test as pulling a pot, and a cold furnace's lid moves
-  bare-handed; without tongs on a hot lid the click is refused with a message, as a hot pull is.
-- **Two pots in one hole**: one block entity for the hole (the stages, the brick type; two pots, each with its heats,
-  charge and melt; one coke bed, temperature and fire; the lid; the damper; the cap). Both pots stand under one cell
-  (`holeCell`): a click there goes to the pot whose mouth (`pot1`, `pot2`) is nearer the hit. A pot holds
-  `PotCapacityUnits` (300 after #768, the rig's `furnace.potUnits`, which a test should hold to it): 600 a firing.
-  The bed's `CokeCapacity` is drawn as `cokeLayers` layers of `cokePerLayer` (two at today's six); if #796 raises it
-  for two pots, `cokePerLayer` follows.
-- **Rows of up to six**, **18 blocks** long: furnaces side by side along their width (`furnace.rowAxis`, `rowMax`),
-  sharing one chimney stood on any member's outlet; every other member's outlet capped; an uncapped outlet with no
-  chimney on it leaks the row's draught. The flues between them are implied.
-- **Draught set by the chimney's height**: counted from the row's chimney-carrying `outletCell`'s top up, in
-  `ChimneyBlocks` (clay bricks, clay brick chimney, refractory bricks, stone bricks; not smex's smoke stack), the
-  furnace's own stack base not counted. Six blocks (`MinChimneyHeight`) give 200 °C an hour up to 1600 °C; each
-  block above six adds 40 °C an hour and 10 °C of maximum, counted up to eleven blocks.
-- **The ash-pit damper**: three places, clicked at the ash mouth (`ash`), the renderer drawing the matching part:
-  **open**, full draught; **half**, half the heating rate and the coke burning at 0.6; **shut**, banked, no heating,
-  cooling at a quarter of the normal rate and the coke burning at 0.25.
-- **No forced air**: today's air from exlib pipes (`Game/ForcedAir.cs`, `ForcedHeatingPerHour`,
-  `ForcedMaxTemperature`, `AirLitresPerSecond`) goes; the furnace has no air port.
-- **A renderer** on `Machines/Core` (`RigAnimation`) drawing the parts by the furnace's state: the stages fitted (the
-  brickwork in its brick type's texture, the lining, the lid at depth from its eased place, 0 open, 1 shut), then the
-  hole's contents (the pots, charges and melts per pot; the coke layers by `ceil(coke / cokePerLayer)`, `fire` in
-  place of `coke` while lit; the damper's place; the cap), `melt` and `charge` textures set from each pot's contents,
-  the glow scaled to the temperature (the model's are fixed); flames, light and sound at `mouth` while the lid is
-  open, smoke at the chimney's top.
-- **Old holes removed**: the `meltinghole` block, its grid recipe and the chimney row (`FurnaceRow`) are simply
-  removed, with no migration: holes already in a world go.
-- **Recipes and data**: the frame's grid recipe; the recipe browser's multiblock data for the new block, with its
-  stages' materials; the handbook (the stages, any fired brick, the brick type rule).
-- **Tests**: the rig and its reference poses replayed in C#, as the mandrel station's are; Atlas scenarios for
-  placing the frame, each stage (a stack a click, the counts, one brick type and a different one refused, a type not
-  in `bricks` refused), the two pots, the lid and its tongs, the damper, a row sharing a chimney with caps, and the
-  draught by chimney height.
+- **The iron frame** is the controller block, `seraphhorizons:cruciblefurnace-frame-{side}` (the item is
+  `-north`), drawing `cruciblefurnace_frame.json`; its grid recipe is the rig's `build.frame`. Placed, it stamps
+  `cruciblefurnace-ghost` into the other 23 cells (`Game/BlockCrucibleFurnace.cs`, `Game/BECrucibleFurnace.cs`).
+- **The stages** are read from `build.stages` (`Core/CrucibleFurnaceRig.cs`) into `Core/FurnaceBuild.cs`: the
+  counts, `oneType` and the brick type, `alsoParts`, `also`. A unit test holds the rig to the owner's build.
+- **The brick** is the rig's `bricks`: the renderer composes the type's `base` and `overlays` into one texture
+  (`CompositeTexture` with blended overlays, inserted in the block atlas) and sets the shape's `brick` code to it.
+- **The renderer** (`Game/CrucibleFurnaceRenderer.cs`) draws every part but the frame by its `requires`, the lid at
+  its eased depth, the coke's layers by `ceil(coke / cokePerLayer)`, and the burning coke and the melts glowing by
+  the fire's temperature (the model's fixed glow is taken off their meshes).
+- **The lid's collision** is measured from the shape: the `lid_*` elements posed by the rig's lid driver, open and
+  swept from open to shut (`Core/LidBoxes.cs`), cut into the hollow cells.
+- **Two pots**: a click on the hole goes to the nearer of `pot1` and `pot2`; `potUnits` and `cokeLayers` x
+  `cokePerLayer` are held to `PotCapacityUnits` and `CokeCapacity` by a unit test and an Atlas scenario.
+- **Rows** run along native x, a furnace's width (3) apart, up to `MaxFurnacesInRow`; the chimney stands from
+  `outletCell` up (`Core/FurnaceRow.cs`).
+- **Tests**: `tests/CrucibleFurnace/CrucibleFurnaceRigTests.cs` replays the reference poses in C# and checks the
+  contract; `tests/PackTests/CrucibleFurnaceScenarios.cs` places, builds and fires it.

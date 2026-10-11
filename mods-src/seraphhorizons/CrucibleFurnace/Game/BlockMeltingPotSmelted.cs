@@ -7,7 +7,7 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.CrucibleFurnace;
 
 /// <summary>
-/// A melting pot of molten metal pulled from a hole (<c>meltingpot-smelted</c>): the game's smelted
+/// A melting pot of molten metal pulled from the crucible furnace (<c>meltingpot-smelted</c>): the game's smelted
 /// crucible (<see cref="BlockSmeltedContainer"/>), so it pours into any <see cref="ILiquidMetalSink"/>
 /// (ingot molds, tool molds, the gear blank molds) exactly as the crucible does. What it adds: the pot
 /// keeps its heats when it is emptied and cracks after its last; and once the metal has frozen (the
