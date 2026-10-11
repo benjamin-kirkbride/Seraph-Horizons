@@ -32,7 +32,9 @@ quarter of vanilla's metal units (3 / 5 / 7 / 10 by grade, from 15 / 20 / 25 / 3
 `OreProducts.RawUnits`), so a deposit of the same ingots is four times the blocks: every graded
 ore's IOG vein is scaled by 4 in volume on top of its metal's factor (`OreSizeTable.VolumeFor`,
 `OreProducts.DepositBlocks`), and district veins, sized from the ore's own units, come out four to
-five times as tall. The medians and factors in `config/ore-sizes.json` stay as measured at
+five times as tall. A thin district vein whose whole column holds less than its drawn size keeps the
+column, so more of them do now (in the granite district of `OreCellsScenarios`, 10 of 15 tin and
+bismuth veins, against fewer than half before), and those hold a quarter of the ingots they did. The medians and factors in `config/ore-sizes.json` stay as measured at
 vanilla's units; measurement, size tiers and the trader maps work in ingots from the live units,
 so they need no change. Worlds already generated keep their ore as placed: a deposit from before
 holds a quarter of the ingots it did. `tools/ore-survey/targets.json` holds the
