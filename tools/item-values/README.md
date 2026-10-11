@@ -187,8 +187,8 @@ the tool reads it); the table lists each valued one in `perLitre` (code: items p
 (a portion's 0.001 steps were 0.1 a litre), and a reader multiplies or divides by `perLitre` to
 get a portion's or a stack's worth. A code named like a portion but not marked a liquid stays per
 item. An item worth under 1 gear per full stack (per item value x `maxStackSize`, a liquid's per
-portion; a rock or earth block cut to 16 by `SmallerRockStacks` x its `tradeStack`, 64, what the
-trade window's four sell slots hold, as the traders judge it) is listed in `floorZero`: trading
+portion; a rock or earth block or shape cut to 16 or 32 by `SmallerRockStacks` x its `tradeStack`,
+the 64 it stacked to before, as the traders judge it) is listed in `floorZero`: trading
 treats it as worthless, and keeps the value for sums.
 The table's keys are `about`, `schemaVersion`, `pack`, `values`, `floorZero`, `perLitre`,
 `switches`, one entry per line in code order, so a rebuild diffs cleanly. `explain` and the report

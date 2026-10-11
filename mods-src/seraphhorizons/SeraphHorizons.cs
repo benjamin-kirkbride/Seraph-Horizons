@@ -645,10 +645,11 @@ public class SeraphHorizonsConfig
 
     /// <summary>Rock and earth stack to 16 (#863, <see cref="RockStackSystem"/>, README "Rock and earth
     /// stack to 16"): rock, cobblestone, stone bricks, polished rock, ore-bearing rock, soil, sand,
-    /// gravel, clay and peat deposits and earth blocks stack to at most 16 (support beams, every other
-    /// block and every item keep theirs), and traders judge them by what the four sell slots hold, 64,
-    /// so they stay sellable (server side; clients follow the server's blocks). Off, they stack as
-    /// their mods ship them.</summary>
+    /// gravel, clay and peat deposits and earth blocks stack to at most 16, and their slabs, stairs,
+    /// fences, paths, roads and roofing to at most 32 (support beams, wooden shapes, every other block
+    /// and every item keep theirs); traders judge them by the 64 they stacked to before, so they
+    /// stay sellable as they were (server side; clients follow the server's blocks). Off, they stack
+    /// as their mods ship them.</summary>
     public bool SmallerRockStacks { get; set; } = true;
 
     /// <summary>Traders: lone trader camps on a seeded 2 km grid, one per cell, of the pack's eleven

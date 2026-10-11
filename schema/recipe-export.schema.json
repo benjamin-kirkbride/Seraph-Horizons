@@ -294,7 +294,7 @@
       "properties": {
         "maxStackSize": { "type": "integer", "minimum": 1 },
         "tradeStack": {
-          "description": "The stack traders judge the item's worth by, when it is not maxStackSize: the pack's rock and earth blocks, cut to 16, are judged by what the trade window's four sell slots hold (64).",
+          "description": "The stack traders judge the item's worth by, when it is not maxStackSize: the pack's rock and earth blocks and their building shapes, cut to 16 and 32, are judged by the stack they had before the cut (64).",
           "type": "integer",
           "minimum": 1
         },

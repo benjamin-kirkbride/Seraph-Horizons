@@ -1225,14 +1225,19 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(low, RuinSeating.SeatedHeight(W, low, high));
     }
 
-    /// <summary><c>SmallerRockStacks</c>: rock and earth stack as their mods ship them, and trade by
-    /// that stack.</summary>
+    /// <summary><c>SmallerRockStacks</c>: rock and earth and their building shapes stack as their
+    /// mods ship them, and trade by that stack.</summary>
     [AtlasScenario]
     public void Smaller_rock_stacks_off_rock_and_earth_keep_their_stacks()
     {
         Assert.True(Off("SmallerRockStacks"));
         Assert.Equal(0, RockStackSystem.Of(World.Api)!.Cut);
-        foreach (var code in new[] { "game:rock-granite", "game:sand-granite", "game:soil-medium-none", "game:ore-medium-nativecopper-granite" })
+        Assert.Equal(0, RockStackSystem.Of(World.Api)!.ShapesCut);
+        foreach (var code in new[]
+                 {
+                     "game:rock-granite", "game:sand-granite", "game:soil-medium-none", "game:ore-medium-nativecopper-granite",
+                     "game:cobblestoneslab-granite-north-free", "moreroads:ancientroad-basic-granite-free", "game:slantedroofing-blackclay-north-free",
+                 })
         {
             var block = W.GetBlock(new AssetLocation(code))!;
             Assert.True(block.MaxStackSize == 64, $"{code} stacks to {block.MaxStackSize}");

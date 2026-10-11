@@ -12,7 +12,7 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// Rock and earth stack to 16 (#863, <see cref="RockStackSystem"/>) at a trader: a cut block is
-/// judged by what the four sell slots hold of it (64), not by one slot of 16, so a block worth a gear
+/// judged by the 64 it stacked to before (the four sell slots full), not by one slot of 16, so a block worth a gear
 /// only by more than 16 is still bought, by a unit bigger than a slot, which the trade window's
 /// pooled sale takes across the slots. At (-65, ±10).
 /// </summary>
@@ -43,7 +43,7 @@ public partial class TradingScenarios
         var block = W.GetBlock(new AssetLocation(code!))!;
         output.WriteLine($"{code}: {p} g per {u}, stack {block.MaxStackSize}, judged by {RockStackSystem.TradeStack(block)}");
         Assert.Equal(RockStackRules.Cap, block.MaxStackSize);
-        Assert.InRange(u, RockStackRules.Cap + 1, RockStackRules.TradeStack(RockStackRules.Cap));
+        Assert.InRange(u, RockStackRules.Cap + 1, RockStackSystem.TradeStack(block));
         // Judged by one slot, as before the trade stack, the same block would be too cheap to take.
         Assert.Equal(Refusal.TooCheap,
             Pricing.OffList(offer.Base, false, offer.Fit, offer.Supply, offer.Modifiers, block.MaxStackSize).Refusal);

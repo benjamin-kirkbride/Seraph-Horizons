@@ -1122,8 +1122,8 @@ def stack_size(export: dict, code: str) -> int:
 
 def trade_stack(export: dict, code: str) -> int:
     """The stack traders judge an item's worth by: the export's tradeStack where it has one (the
-    pack's rock and earth blocks cut to 16, judged by the trade window's four sell slots, 64), else
-    its stack size."""
+    pack's rock and earth blocks and shapes cut to 16 or 32, judged by the 64 they stacked to
+    before), else its stack size."""
     item = export["items"].get(code) or {}
     return max(int((item.get("attributes") or {}).get("tradeStack") or 0), stack_size(export, code))
 

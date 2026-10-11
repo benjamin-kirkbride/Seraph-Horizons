@@ -4476,17 +4476,20 @@ install gets `betterruins.yaml` with the pack's values.
 ### Rock and earth stack to 16 (`SmallerRockStacks`)
 
 A slot holds a fixed amount of rock (#863, following #847's ore at 4): rock and earth blocks stack
-to 16, not 64. Most of them have no stack size in their files and take the game's default of 64
-for a block type, so a JSON patch cannot cut them; `RockStackSystem.cs` sets the loaded blocks'
-stack instead, server side, in `AssetsFinalize` (ExecuteOrder 0.15, after MorePiles adds its ground
-piles, whose capacity is not the stack size and stays). Each block becomes `min(its stack, 16)`;
-none is raised. Clients get the new size in the block type packet, which the server builds after
-that phase. A stack already above 16 in a world stays as it is until it is moved: merges stop at
-16 and takes split.
+to 16, not 64, and their building shapes to 32. Most of them have no stack size in their files
+and take the game's default of 64 for a block type, so a JSON patch cannot cut them;
+`RockStackSystem.cs` sets the loaded blocks' stack instead, server side, in `AssetsFinalize`
+(ExecuteOrder 0.15, after MorePiles adds its ground piles, whose capacity is not the stack size and
+stays). Each block becomes `min(its stack, 16)`, each shape `min(its stack, 32)`; none is raised.
+Clients get the new size in the block type packet, which the server builds after that phase. A
+stack already above the cap in a world stays as it is until it is moved: merges stop at the cap
+and takes split.
 
-The set (`Core/RockStackRules.cs`) is a list of codes, each block also of a rock or earth material
-(stone, ore, soil, sand or gravel; the game gives a block type that names none stone, so the
-material only guards the list) and without a block entity. 4,887 blocks in the pack:
+Both tiers (`Core/RockStackRules.cs`) are lists of codes, each block also of a rock or earth
+material and without a block entity; the game gives a block type that names no material stone, so
+the material only guards the lists.
+
+**To 16**, of stone, ore, soil, sand or gravel, 4,887 blocks in the pack:
 
 - **Rock**: raw and cracked rock, cobblestone (mossy and lichen), stone bricks (cracked, mossy,
   lichen and aged), polished rock (mossy and lichen), drystone, and ore-bearing rock
@@ -4497,28 +4500,45 @@ material only guards the list) and without a block entity. 4,887 blocks in the p
   blocks: cob, rammed earth and mud brick, the game's and Material Needs' colours. The sand and
   gravel layer blocks go with their family.
 
-Not cut: support beams (32, which the rosser's schematic gate needs), slabs, stairs, fences,
-paths, roads and roofing (building shapes, not bulk), fired clay (clay bricks, tiles, shingles:
-ceramic), peat bricks (fuel), muddy gravel, and every item: stones, clay, bricks and the ore items
-(which Ore processing sizes) keep theirs, so MoreRoads' temporal roads, which take 32 stones a
-slot, still craft. Muddy gravel stays at 64 because Stone Quarry's rubble storage makes a quarter
-of its stack at a time from a bucket of water: 16 a bucket now, 4 if it were cut. Nothing else in
-the pack takes more than 16 of one of these blocks in a slot; constructions add up the whole
-hotbar.
+**To 32**, the building shapes of stone, soil, sand, gravel or ceramic (the clay ones), 8,487
+blocks in the pack:
 
-Trading judges a cut block by what the trade window's four sell slots hold of it, 64, not by one
-slot of 16 (`RockStackSystem.TradeStack`): each cut block carries that 64 in its attributes
-(`seraphhorizonsTradeStack`), which reach clients with the block. A trader refuses one as too
-cheap only when 64 of it are worth under a gear, as at its old stack, and prices it by the fewest
-blocks worth a gear, which may be more than a slot: the window's pooled sale takes them across the
-slots (Trading, "Trade window"). The recipe export carries it (`attributes.tradeStack`), and the
-item value table's `floorZero` follows it (`tools/item-values`). Orders keep sizing a block by its
-stack: at most four stacks, 64 blocks.
+- **Slabs and stairs**: cobblestone, stone brick, polished rock (slabs only in the game), clay
+  brick, mud brick (the game's and Material Needs' colours) and tile (slabs).
+- **Fences**: drystone (the game has no stone wall).
+- **Paths and roads**: the game's stone path (with its slab, stairs and full block), Splittable
+  Stone Paths' quarter, smex's slag path, and MoreRoads' stone paths and footpaths, its ancient,
+  clay and stone roads with their slabs and stairs, and its stone, brick and clay edges.
+- **Roofing**: clay shingles (block, slab and stairs) and the slanted roofing of clay and slate.
+  The slanted roofing of wood, bamboo, thatch, sod and copper is wood, plant or metal, and stays.
+
+Not cut: support beams (32, which the rosser's schematic gate needs); every wooden shape (planks
+slabs and stairs, fences, MoreRoads' wood edges, wooden paths, roofing); cobblestone fans, quartz
+slabs, stairs and pillars, clay brick courses and ruins, copper shingles, Industrial Deco's iron
+roads (metal, 256) and VS Roofing's roofs (a block entity); the full blocks of fired clay (clay
+bricks, tiles, shingles: ceramic); peat bricks (fuel); muddy gravel; and every item: stones, clay,
+bricks and the ore items (which Ore processing sizes) keep theirs, so MoreRoads' temporal roads,
+which take 32 stones a slot, still craft. Muddy gravel stays at 64 because Stone Quarry's rubble
+storage makes a quarter of its stack at a time from a bucket of water: 16 a bucket now, 4 if it
+were cut. Nothing else in the pack takes more than 16 of one of these blocks in a slot;
+constructions add up the whole hotbar.
+
+Trading judges a cut block by the stack it had before the cut, 64 for every block the cut touches,
+not by one slot (`RockStackSystem.TradeStack`): each cut block carries it in its attributes
+(`seraphhorizonsTradeStack`), which reach clients with the block. So a trader prices and refuses it
+exactly as before: as too cheap only when 64 of it are worth under a gear, and by the fewest blocks
+worth a gear, which may be more than a slot (the four sell slots full of a block at 16, two of a
+shape at 32): the window's pooled sale takes them across the slots (Trading, "Trade window"). The
+shapes take the old stack too rather than four slots of 32, 128, which would make a shape worth
+half a gear per 64 sellable where it was not, and lower the worthless floor below the full blocks'.
+The recipe export carries it (`attributes.tradeStack`), and the item value table's `floorZero`
+follows it (`tools/item-values`). Orders keep sizing a block by its stack: at most four stacks.
 
 With the switch off, every block stacks as its mod ships it and nothing carries a trade stack. The
-switch that counts is the server's. `RockStackScenarios` checks the sizes and the packet,
-`TradingScenarios` a sale of a cut block across the slots, and `SwitchesOffScenarios` the switch
-off.
+switch that counts is the server's. `RockStackScenarios` checks the sizes (rock and earth at 16; a
+slab, a stair, a fence, a road and roofing at 32; wooden shapes, beams and items unchanged) and the
+packet, `TradingScenarios` a sale of a cut block across the slots, and `SwitchesOffScenarios` the
+switch off.
 
 ## Ore
 
@@ -5421,8 +5441,9 @@ itself, so it has no switch.
 The table's `values` are gears per item, except liquids: the codes in its `perLitre` object (code
 to the liquid's items per litre, 100 for most) are priced in gears per litre, the unit a player
 thinks in (a portion is a hundredth of a litre). `floorZero` keeps its meaning for them (under a
-gear per full stack of portions). A rock or earth block cut to 16 ("Rock and earth stack to 16") is
-in `floorZero` only when 64 of it, its export's `tradeStack`, are worth under a gear.
+gear per full stack of portions). A rock or earth block or shape cut to 16 or 32 ("Rock and earth
+stack to 16") is in `floorZero` only when 64 of it, its export's `tradeStack`, are worth under a
+gear.
 
 `Trading/Values/`: `Core/ItemValues.cs` is the lookup (no game). `ValueOf(code)` is gears per item,
 for a liquid its per-litre value over its items per litre (trading prices stacks of portions, so
@@ -5549,8 +5570,8 @@ quarter of the trader's wallet (standing's factor and all), refilled at every re
 sell by the fewest items worth a gear (a trade is priced in whole gears), and a cheap listed good is bought by a bigger lot
 for the same reason. Refused: maps and leads (the `refused` prefixes), money, goods worth less than
 a gear per stack, goods the value table doesn't know, and goods that at this trader come to under a
-gear per full stack (for a rock or earth block cut to 16, the four sell slots' 64: "Rock and earth
-stack to 16"). The trade window's sell slot and the tooltips of your own items show the
+gear per full stack (for a rock or earth block or shape cut to 16 or 32, the 64 it stacked to
+before: "Rock and earth stack to 16"). The trade window's sell slot and the tooltips of your own items show the
 offer's breakdown (value × fit × supply) and which budget pays, a refused good says why, and the
 window's footer shows what is left in the side budget. Switch: `EverythingHasAPrice` (default on);
 the server's setting goes to its clients with each trader. (`BuySpread`, a fifth of value on

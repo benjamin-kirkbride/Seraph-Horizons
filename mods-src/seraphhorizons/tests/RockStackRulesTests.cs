@@ -38,17 +38,56 @@ public class RockStackRulesTests
     public void Rock_and_earth(string code, string material) =>
         Assert.True(RockStackRules.IsRockOrEarth(code, material, hasBlockEntity: false));
 
-    // Building shapes, fired clay, fuel, muddy gravel, machines and decor keep their stacks.
+    [Fact]
+    public void Rock_and_earth_go_to_16() => Assert.Equal(16, RockStackRules.CapOf("game:rock-granite", "Stone", false));
+
+    // Their building shapes go to 32, not 16.
     [Theory]
     [InlineData("game:cobblestoneslab-andesite-north-free", "Stone")]
     [InlineData("game:cobblestonestairs-andesite-up-north-free", "Stone")]
     [InlineData("game:stonebrickslab-suevite-north-free", "Stone")]
-    [InlineData("game:drystonefence-mixed-empty-snow", "Stone")]
-    [InlineData("game:rockpolishedslab-whitemarble-north-free", "Stone")]
-    [InlineData("game:stonepath-free", "Gravel")]
-    [InlineData("moreroads:stonepath-andesite-free", "Gravel")]
+    [InlineData("game:stonebrickstairs-suevite-up-north-free", "Stone")]
+    [InlineData("game:polishedrockslab-whitemarble-north-free", "Stone")]
+    [InlineData("game:brickslabs-fire-north-free", "Ceramic")]
+    [InlineData("game:brickstairs-fire-up-north-free", "Ceramic")]
+    [InlineData("game:tileslab-2x2-plain-travertine-north-free", "Ceramic")]
     [InlineData("game:mudbrickslab-dark-north-free", "Soil")]
     [InlineData("materialneeds:redmudbrickslab-dark-north-free", "Soil")]
+    [InlineData("game:drystonefence-mixed-empty-snow", "Stone")]
+    [InlineData("game:stonepath-free", "Gravel")]
+    [InlineData("game:stonepathfullblock", "Gravel")]
+    [InlineData("splittablestonepaths:stonepathquarter-up-north-free", "Gravel")]
+    [InlineData("smex:slagpathslab-free", "Gravel")]
+    [InlineData("moreroads:stonepath-andesite-free", "Gravel")]
+    [InlineData("moreroads:stonefootpath-andesite-ns", "Stone")]
+    [InlineData("moreroads:ancientroadstairs-basic-andesite-up-north-free", "Stone")]
+    [InlineData("moreroads:clayroad-tan-free", "Stone")]
+    [InlineData("moreroads:stoneroad3slab-andesite-free", "Stone")]
+    [InlineData("moreroads:edgebrick-andesite-straight-north-free", "Stone")]
+    [InlineData("game:clayshingleblock-black", "Ceramic")]
+    [InlineData("game:clayshinglelabs-black-north-free", "Ceramic")]
+    [InlineData("game:slantedroofing-blackclay-north-free", "Ceramic")]
+    [InlineData("game:slantedroofingridge-slate-ns-free", "Stone")]
+    public void Building_shapes_go_to_32(string code, string material)
+    {
+        Assert.True(RockStackRules.IsRockOrEarthShape(code, material, hasBlockEntity: false));
+        Assert.False(RockStackRules.IsRockOrEarth(code, material, hasBlockEntity: false));
+        Assert.Equal(RockStackRules.ShapeCap, RockStackRules.CapOf(code, material, hasBlockEntity: false));
+    }
+
+    // Fired clay blocks, fuel, muddy gravel, wooden, thatch and metal shapes, machines and decor
+    // keep their stacks.
+    [Theory]
+    [InlineData("game:slantedroofing-oak-north-free", "Wood")]
+    [InlineData("game:slantedroofing-thatch-north-free", "Plant")]
+    [InlineData("game:slantedroofing-copper-north-free", "Metal")]
+    [InlineData("moreroads:edgewood-acacia-straight-north-free", "Wood")]
+    [InlineData("materialneeds:woodenpath-darkaged-ns", "Wood")]
+    [InlineData("industrialdeco:industrialroad-iron-free", "Stone")]
+    [InlineData("game:cobblestonefan-granite-north", "Stone")]
+    [InlineData("game:quartzslab-north-free", "Stone")]
+    [InlineData("game:brickcourse-four-header-black", "Ceramic")]
+    [InlineData("game:shingleblock-copper", "Ceramic")]
     [InlineData("game:claybricks-good-fire", "Ceramic")]
     [InlineData("game:peatbrick", "Soil")]
     [InlineData("game:muddygravel", "Soil")]
@@ -62,20 +101,27 @@ public class RockStackRulesTests
     [InlineData("", "Stone")]
     [InlineData(null, "Stone")]
     public void Not_rock_or_earth(string? code, string? material) =>
-        Assert.False(RockStackRules.IsRockOrEarth(code, material, hasBlockEntity: false));
+        Assert.Null(RockStackRules.CapOf(code, material, hasBlockEntity: false));
 
     [Fact]
-    public void A_block_with_a_block_entity_is_not_rock_or_earth() =>
-        Assert.False(RockStackRules.IsRockOrEarth("game:soil-verylow-none", "Soil", hasBlockEntity: true));
+    public void A_block_with_a_block_entity_is_not_rock_or_earth()
+    {
+        Assert.Null(RockStackRules.CapOf("game:soil-verylow-none", "Soil", hasBlockEntity: true));
+        Assert.Null(RockStackRules.CapOf("vsroofing:roof-bare-north", "Stone", hasBlockEntity: true));
+    }
 
     [Theory]
-    [InlineData(64, 16)]
-    [InlineData(32, 16)]
-    [InlineData(16, 16)]
-    [InlineData(8, 8)]
-    [InlineData(1, 1)]
-    public void Cut_is_at_most_16_and_never_raises(int before, int after) => Assert.Equal(after, RockStackRules.Cut(before));
+    [InlineData(64, 16, 16)]
+    [InlineData(32, 16, 16)]
+    [InlineData(16, 16, 16)]
+    [InlineData(8, 16, 8)]
+    [InlineData(64, 32, 32)]
+    [InlineData(32, 32, 32)]
+    [InlineData(20, 32, 20)]
+    [InlineData(1, 32, 1)]
+    public void Cut_is_at_most_the_cap_and_never_raises(int before, int cap, int after) =>
+        Assert.Equal(after, RockStackRules.Cut(before, cap));
 
     [Fact]
-    public void Trade_stack_is_the_four_sell_slots() => Assert.Equal(64, RockStackRules.TradeStack(RockStackRules.Cap));
+    public void Trade_stack_is_the_stack_before_the_cut() => Assert.Equal(64, RockStackRules.TradeStack(64));
 }

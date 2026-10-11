@@ -194,8 +194,8 @@ public static class Pricing
     /// modifiers. The unit is one item when that is a gear or more, else the fewest items worth a gear
     /// (so a stack of planks sells by the 17, at one gear): the game prices trades in whole gears per
     /// unit. Under a gear per full stack it is <see cref="Refusal.TooCheap"/>. <paramref name="maxStackSize"/>
-    /// is the stack trading judges by: the item's stack, but for a rock or earth block cut to 16 what
-    /// the four sell slots hold of it, 64 (<c>RockStackSystem.TradeStack</c>), so its unit may be
+    /// is the stack trading judges by: the item's stack, but for a rock or earth block or shape cut to
+    /// 16 or 32 the 64 it stacked to before (<c>RockStackSystem.TradeStack</c>), so its unit may be
     /// more than one slot holds and the trade window's pooled sale takes it across slots.
     /// <paramref name="budget"/> is the wallet that pays (<see cref="TraderRelations.PaysFromMain"/>).
     /// </summary>
