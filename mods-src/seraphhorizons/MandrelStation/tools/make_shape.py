@@ -17,13 +17,13 @@ is where it is parted) and stops drawing the work. No hammer is modelled: the pl
 Its second job winds a coil spring on the same mandrel: a hot steel rod laid straight along the mandrel's
 top east edge, from the shoulder to a little past the nose, is wound round the fixed mandrel from its
 shoulder end (by hand, with tongs: neither is modelled), a side at a time, into a square coil of six turns
-(machinegen.coil, which draws the draw bench's follower spring too). Every piece is rigid: the wire's bend is a
-small tip block round the rod's shoulder end, and in each of 24 equal slots of W it moves along one side of
-the coil, corner to corner, the rod moving across the face with it; the side is laid behind it as short
-pieces of its bar, each put inside the tip as it passes and uncovered as it moves on, so the laid wire
-lengthens from the corner at the tip's trailing face. The rod is the coil's length, and is used up from its
-shoulder end, a wire's width a side, its far end never moving, where the tip arrives as the last piece is laid
-(the wire's real length is not kept: the coil is six times longer than the rod). At W 1 the spring is wound, on the mandrel; gameplay then
+(machinegen.coil, which draws the draw bench's follower spring too). Each side is one bar that grows from its
+start corner along its own line across the face, as wire laid down, over its slot of W (24 equal slots, one a
+side; a stretching gauge), while the rod, one bar the coil's length, moves across that face with the side's
+growing end, its shoulder end at the bend, shrinking into the coil a wire's width a side (a stretching gauge
+about its far end face): so the rod goes round the mandrel a face a side, never stopping, used up from its
+shoulder end, its far end never moving, and is gone as the last side ends (the wire's real length is not
+kept: the coil is six times longer than the rod). At W 1 the spring is wound, on the mandrel; gameplay then
 delivers it and stops drawing it. The finished coil is also the spring item's shape.
 Everything is built here from plain boxes; no other mod's model is used.
 
@@ -69,7 +69,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
 from machinegen.coil import Coil  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
-from machinegen.geometry import IDENT, El, flatten, mmul, mvec, rot, translate  # noqa: E402
+from machinegen.geometry import IDENT, El, euler_xyz, flatten, from_euler, translate  # noqa: E402
 from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
                                shift_point, worst_shift_error)
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
@@ -168,18 +168,11 @@ ROD = WIRE + STEP                            # the straight rod: a little wider 
 # the mandrel, and must clear the collar
 SPRING_Z0 = SHOULDER_Z[1] + WIRE / 2 * math.sqrt(2) + 0.01
 COIL = Coil((X0, YM), MH, WIRE, COIL_PITCH, SPRING_Z0, COIL_TURNS)
-# the straight rod's far end (its centre line's): fixed for the whole winding, where the wire's end arrives as the last
-# side is laid: the rod is the coil's length, and is used up by then
-ROD_END = COIL.corner(COIL.sides)[2]
-SEGMENTS = 11                                # a side is laid as this many short pieces of its bar, each uncovered by the tip
-SEG_L = (COIL.length + WIRE) / SEGMENTS      # as it passes (0.476: a tilted piece this long fits inside the tip)
-# The tip: the wire's bend, a block that rides round the coil's centre line as the wire is laid. The rod's shoulder end
-# stays inside it, each piece of a side is put inside it as it passes (so the laid wire lengthens at its trailing face),
-# and a spent stretch of the rod is lost inside it. Just bigger than the rod (0.615) and the pieces (0.6 across, 0.656
-# along the mandrel when tilted), so no face it hides shares its plane.
-TIPBLOCK = (0.64, 0.64, 0.69)
-SIDE_STORE = (X0, YM, 8.0)                   # where a piece of a side waits for its turn: inside the mandrel's body
-ROD_STORE = (X0, YM, 2.0)                    # where a spent stretch of the straight rod goes (its start): inside the body
+# the straight rod: along the mandrel on the coil's first corner line, from ROD_BACK before the coil's first corner (so
+# its end covers the first side's back end as it grows, tilt and all) to ROD_BACK before the coil's last corner: 14.4
+# long, the coil's. It shrinks a wire's width a side from its shoulder end, about its far face, and is gone as the last
+# side ends
+ROD_BACK = 0.35
 US = 1_000_000                               # W in millionths: every window starts and ends on one
 WIND_TURNS = 4.0                            # the pace: turns of the held right-click's clock (a turn a second) a spring
 SPRING_ROD = "game:rod-steel"
@@ -324,28 +317,18 @@ def build_work():
 
 
 # ---------------------------------------------------------------- the spring
-# The winding is planned piece by piece (`plan`), every piece rigid. At W 0 the straight rod (`spr0`) lies along the
-# mandrel's top east edge (the coil's first corner line), from the shoulder to ROD_END, the coil's length, with the tip
-# (`sptip`) round its shoulder end. W is cut into 24 equal slots, one a side. In side j's slot, from the top east corner
-# A round the top west B, the bottom west C and the bottom east D:
-#   - at its start (instants): the side's first piece, waiting inside the mandrel's body, is put inside the tip; the rod
-#     is swapped for its next stretch (`spr<j+1>`), a wire's width shorter at its shoulder end: the stretch it loses lies
-#     inside the tip, so nothing seen changes; the spent one goes back inside the mandrel;
-#   - over the slot: the tip moves along the side's centre line, corner to corner, at one speed, and the rod moves across
-#     the face with it, its end staying inside the tip; as the tip passes each piece's place the piece is put inside it
-#     (an instant), and the tip moving on uncovers it: the laid wire lengthens from the corner at the tip's trailing
-#     face, as wire going from the rod into the coil.
-# So the tip goes round the mandrel a face a slot and the straight rod with it, always along the mandrel, used up from
-# its shoulder end; its far end never moves, and the wire's end arrives there as the last piece is laid, when the rod's
-# last stretch (`spr24`, no longer than the tip) is lost inside the tip. The coil's wire is six times the rod's length:
-# the pieces laid are the one thing that is not the rod's own length (the wire's length is not kept).
+# The winding is planned piece by piece (`plan`): the 24 sides and one straight rod, 25 parts, every motion a gauge. Each
+# side is one bar, authored where the coil puts it, and grows from its start corner along its own line over its slot of
+# W (24 equal slots, one a side) by a stretching gauge about the corner: its back end (half a wire behind the corner,
+# inside the end of the side before, or of the rod for the first side) and its leading end grow together, and before
+# its slot it is stretched to nothing and not drawn. The rod lies along the mandrel on the coil's first corner line at
+# W 0, from ROD_BACK before the coil's first corner to ROD_BACK before its last (the coil's length), and over the job
+# shrinks from its shoulder end about its far end face (a stretching gauge: a wire's width a side) while it slides
+# across each face with the growing side's leading end, which stays inside its end. So the wire goes from the rod into
+# the coil at the moving bend, the rod goes round the mandrel a face a side, and nothing is left of it as the last side
+# ends. The wire's real length is not kept (the coil is six times longer than the rod).
 def spring_name(j):
     return f"sp{COIL.name(j)}"
-
-
-def seg_name(j, s):
-    """Side j's piece s (0 at its start corner): `sp3w_4`."""
-    return f"{spring_name(j)}_{s}"
 
 
 def spring_across(j):
@@ -354,141 +337,44 @@ def spring_across(j):
     return EVEN if j % 2 == 0 else ODD
 
 
-def rod_name(j):
-    """The straight rod as side j is laid: `spr0` at W 0, one stretch a side, each a wire's width shorter; `spr24` the
-    last of it, no longer than the tip."""
-    return f"spr{j}"
-
-
-def _tr(r):
-    return [[r[j][i] for j in range(3)] for i in range(3)]
-
-
-def _col(r, k):
-    return [r[i][k] for i in range(3)]
-
-
-def _at(p, v, d):
-    return [p[i] + v[i] * d for i in range(3)]
-
-
-def _rot_pose(pose, axis, ang, pivot):
-    """A pose (rotation, centre line's start) turned `ang` radians about `axis` through `pivot`."""
-    r = rot(axis, math.degrees(ang))
-    rm, s = pose
-    q = mvec(r, [s[i] - pivot[i] for i in range(3)])
-    return mmul(r, rm), [pivot[i] + q[i] for i in range(3)]
-
-
-def _slide_pose(pose, v):
-    return pose[0], [pose[1][i] + v[i] for i in range(3)]
-
-
-def _ang(a):
-    return r6(a)
-
-
-def _pivot(p):
-    """A pivot as the rig writes it (blocks to 6 places), in voxels."""
-    return [r6(v / B) * B for v in p]
-
-
-def _shift(v):
-    """A slide as the rig writes it (blocks to 6 places, per axis), in voxels."""
-    return [r6(x / B) * B for x in v]
+ROD_ID = "spr"                               # the straight rod's part
 
 
 class Piece:
-    """A piece of the rod: a bar square `across` (or of `size`, the tip's), along its local z from `lo` to `hi` past its
-    centre line's start; its centre line runs `run` from there (a piece of a side's is its stretch of the coil's side).
-    `home` is where it is authored, (rotation, centre line's start); `pose` where its drivers have taken it so far;
-    `seen` the millionths of W over which it can be seen, [first, last] pairs."""
+    """A part of the spring: a box `size` (x, y, z) about its centre `c`, turned by `r`, as authored (a side where the coil
+    puts it, the rod as it lies at W 0); `kind` "side" (of side `j`) or "rod"; `drivers` as the rig writes them."""
 
-    def __init__(self, pid, across, lo, hi, run, home, kind, j=None, s=None, size=None):
-        self.pid, self.across, self.lo, self.hi, self.run, self.kind, self.j, self.s = pid, across, lo, hi, run, kind, j, s
-        self.size = size or [across, across, hi - lo]
-        self.home = self.pose = home
+    def __init__(self, pid, size, c, r, kind, j=None):
+        self.pid, self.size, self.c, self.r, self.kind, self.j = pid, list(size), list(c), [row[:] for row in r], kind, j
         self.drivers = []
-        self.seen = []
-
-    def show(self, t):
-        self.seen.append([t, US])
-
-    def hide(self, t):
-        self.seen[-1][1] = t
-
-    def start(self):
-        return self.pose[1]
-
-    def end(self):
-        return _at(self.pose[1], _col(self.pose[0], 2), self.run)
 
     def element(self):
-        r, s = self.home
-        el = El(f"{self.pid}_wire", list(self.size), _at(s, _col(r, 2), (self.lo + self.hi) / 2), [row[:] for row in r], {}, self.pid)
-        return skin(el, "spring")
+        return skin(El(f"{self.pid}_wire", list(self.size), list(self.c), [row[:] for row in self.r], {}, self.pid), "spring")
 
 
-def _rotate(pieces, t0, t1, axis, ang, pivot):
-    a, pv = _ang(ang), _pivot(pivot)
-    for pc in pieces:
-        pc.drivers.append({"type": "gauge", "motion": "rotate", "axis": axis, "pivot": pt(*pivot), "amount": spring_amount(a),
-                           "windows": [win(t0 / US, t1 / US)]})
-        pc.pose = _rot_pose(pc.pose, axis, a, pv)
+def side_bar(j):
+    """Side j's bar where the coil puts it (its element at W 1), of its own wire across. It is turned by the angles the
+    shape file carries (rounded to SHAPE_PLACES), which its stretch names too, so the written element and its stretch
+    share one frame exactly: a stretch along any other axis would shear the bar."""
+    bar = COIL.side(j, "x", "x", "spring", across=spring_across(j))
+    bar.r = from_euler(*side_angles(j))
+    return bar
 
 
-def _slide(pieces, t0, t1, v):
-    d = _shift(v)
-    for pc in pieces:
-        for i, axis in enumerate("xyz"):
-            if d[i]:
-                pc.drivers.append({"type": "gauge", "motion": "slide", "axis": axis, "amount": spring_amount(d[i] / B),
-                                   "windows": [win(t0 / US, t1 / US)]})
-        pc.pose = _slide_pose(pc.pose, d)
+SHAPE_PLACES = 4                             # the shape writer's rounding of an element's rotations (machinegen.output)
 
 
-def _place(pc, t, target):
-    """In an instant (W t .. t + 1 millionth): `pc` turned and moved to `target` (rotation, centre line's start), turning
-    about x, y, then z through where it starts, then sliding."""
-    q = mmul(target[0], _tr(pc.pose[0]))
-    b = -math.asin(max(-1.0, min(1.0, q[2][0])))
-    if abs(math.cos(b)) < 1e-3:
-        raise ValueError(f"{pc.pid}: no clean turn to its place")
-    a, g = math.atan2(q[2][1], q[2][2]), math.atan2(q[1][0], q[0][0])
-    s = list(pc.pose[1])
-    for axis, ang in (("x", a), ("y", b), ("z", g)):
-        if _ang(ang):
-            _rotate([pc], t, t + 1, axis, ang, s)
-    _slide([pc], t, t + 1, [target[1][i] - pc.pose[1][i] for i in range(3)])
-
-
-def side_pose(j):
-    """Side j wound: (rotation, centre line's start), as machinegen.coil puts it."""
-    return COIL.side(j, "x", "x", "spring").r, list(COIL.corner(j))
-
-
-def seg_start(j, s):
-    """Where piece s of side j starts (its centre line's) when laid: along the side's bar from half a wire before its start
-    corner."""
-    r, c = side_pose(j)
-    return r, _at(c, _col(r, 2), -WIRE / 2 + s * SEG_L)
-
-
-def seg_at(j, s):
-    """How far along side j's centre line (0 at its start corner, 1 at its far corner) piece s's middle lies: when the tip's
-    middle is there the piece is put inside it. The first piece's middle lies a little before the corner, the last a little
-    past it: the tip there covers all but a corner of their tilted ends."""
-    return (-WIRE / 2 + (s + 0.5) * SEG_L) / COIL.length
+def side_angles(j):
+    """Side j's rotationX/Y/Z as the shape file writes them."""
+    return [round(x, SHAPE_PLACES) + 0.0 for x in euler_xyz(COIL.side(j, "x", "x", "spring").r)]
 
 
 _PLAN = []
-WINDOWS = []                                 # the plan's steps in order: (kind, first, last millionth of W): "instant", or
-                                             # "slot" (the tip along side j's centre line, laying it, the rod across the face)
-INSTANTS = 3                                 # at the start of each slot: the side's first piece put, take, away
+WINDOWS = []                                 # the plan's slots in order: ("slot", first, last millionth of W)
 
 
 def plan():
-    """Every piece of the rod, its drivers and when it can be seen (cached: the rig and the shape read the same plan)."""
+    """Every part of the spring, with its drivers (cached: the rig and the shape read the same plan)."""
     if not _PLAN:
         _PLAN.extend(_plan())
     return _PLAN
@@ -499,95 +385,55 @@ def corner(j):
 
 
 def slot(j):
-    """Side j's slot of W, in millionths: (first, last). Its INSTANTS come first; over the rest the tip lays the side."""
+    """Side j's slot of W, in millionths: (first, last). Over it the side grows and the rod crosses its face."""
     return int(round(j * US / COIL.sides)), int(round((j + 1) * US / COIL.sides))
 
 
-def _plan():
-    n, run = COIL.sides, COIL.length
-    rh = ROD / 2
-    rod_store = (IDENT, list(ROD_STORE))
-    # a side's pieces: each a stretch SEG_L of its bar, authored inside the mandrel's body already turned as the side lies
-    segs = {}
-    for j in range(n):
-        r, _c = side_pose(j)
-        for s in range(SEGMENTS):
-            segs[j, s] = Piece(seg_name(j, s), spring_across(j), 0.0, SEG_L, SEG_L, (r, list(SIDE_STORE)), "seg", j, s)
-    # the tip, round the rod's shoulder end at the coil's first corner at W 0; it is never out of sight
-    tip = Piece("sptip", TIPBLOCK[0], -TIPBLOCK[2] / 2, TIPBLOCK[2] / 2, 0.0, (IDENT, corner(0)), "tip", size=list(TIPBLOCK))
-    tip.show(0)
-    # rod j runs from corner j's height along the mandrel to ROD_END (the coil's far end), reaching half its width past
-    # either end; the last, spr24, is no longer than that
-    rods = []
-    for j in range(n + 1):
-        length = ROD_END - COIL.corner(j)[2]
-        rods.append(Piece(rod_name(j), ROD, -rh, length + rh, length, rod_store, "rod", j))
-    rods[0].home = rods[0].pose = (IDENT, corner(0))
-    rods[0].show(0)
+def grow_origin(j):
+    """The point side j grows about: its start corner, so its back end (half a wire behind the corner) grows inside the
+    end of the side before; for the first side, which has none, its start face, the wire's free end, so it grows forward
+    only and that end is uncovered where it lies as the rod moves on."""
+    if j:
+        return corner(j)
+    return [corner(0)[i] - COIL.direction(0)[i] * WIRE / 2 for i in range(3)]
 
+
+def _plan():
+    n = COIL.sides
+    sides = []
     for j in range(n):
-        rod, nxt = rods[j], rods[j + 1]
-        t, t_end = slot(j)
-        for pc in (rod, tip):
-            gap = max(abs(pc.pose[1][i] - corner(j)[i]) for i in range(3))
-            if gap > 1e-4:
-                raise ValueError(f"{pc.pid} is not at corner {j} ({gap:.1e})")
-        # put the side's first piece inside the tip
-        _place(segs[j, 0], t, seg_start(j, 0))
-        segs[j, 0].show(t + 1)
-        WINDOWS.append(("instant", t, t + 1))
-        t += 1
-        # take: the next stretch of the rod in place of this one, a wire's width shorter at its shoulder end, the lost
-        # stretch inside the tip
-        c = corner(j)
-        _place(nxt, t, (IDENT, [c[0], c[1], COIL.corner(j + 1)[2]]))
-        nxt.show(t + 1)
-        rod.hide(t)
-        WINDOWS.append(("instant", t, t + 1))
-        t += 1
-        # away: the spent stretch back inside the mandrel
-        _place(rod, t, rod_store)
-        WINDOWS.append(("instant", t, t + 1))
-        t += 1
-        if t != slot(j)[0] + INSTANTS:
-            raise ValueError("a slot has more instants than INSTANTS")
-        # the slot: the tip along the side's centre line, corner to corner, and the rod across the face with it ...
-        d = [corner(j + 1)[i] - corner(j)[i] for i in range(3)]
-        _slide([tip], t, t_end, d)
-        _slide([nxt], t, t_end, [d[0], d[1], 0.0])
-        # ... and each further piece put inside the tip as the tip's middle passes the piece's
-        for s in range(1, SEGMENTS):
-            at = t + int(round(min(1.0, seg_at(j, s)) * (t_end - t - 1)))
-            _place(segs[j, s], at, seg_start(j, s))
-            segs[j, s].show(at + 1)
-            WINDOWS.append(("instant", at, at + 1))
-        WINDOWS.append(("slot", t, t_end))
-    # the rod's last stretch, inside the tip at the wire's end, is lost there in the last instant
-    rods[n].hide(US - 1)
-    _place(rods[n], US - 1, rod_store)
-    WINDOWS.append(("instant", US - 1, US))
-    if max(b for _k, _a, b in WINDOWS) != US:
+        bar = side_bar(j)
+        pc = Piece(spring_name(j), bar.size, bar.c, bar.r, "side", j)
+        a, b = slot(j)
+        # grows from nothing over its slot about its start corner (the first side about its start face), along its own
+        # axis, and stays whole
+        pc.drivers.append({"type": "gauge", "motion": "stretch", "axis": "z", "origin": pt(*grow_origin(j)),
+                           "rotation": side_angles(j), "amount": spring_amount(-1.0),
+                           "windows": [{"from": r6(-FOREVER), "to": r6(b / US), "ease": r6((b - a) / US)}]})
+        sides.append(pc)
+        WINDOWS.append(("slot", a, b))
+    c0 = corner(0)
+    near, far = c0[2] - ROD_BACK, corner(n)[2] - ROD_BACK
+    rod = Piece(ROD_ID, [ROD, ROD, far - near], [c0[0], c0[1], (near + far) / 2], IDENT, "rod")
+    # shrinks from its shoulder end about its far end face, evenly over the job, to nothing ...
+    rod.drivers.append({"type": "gauge", "motion": "stretch", "axis": "z", "origin": pt(c0[0], c0[1], far),
+                        "amount": spring_amount(-1.0), "windows": [{"from": 0.0, "to": r6(FOREVER), "ease": 1.0}]})
+    # ... while it slides across each face with the growing side's leading end
+    for j in range(n):
+        a, b = slot(j)
+        d = [corner(j + 1)[i] - corner(j)[i] for i in range(2)]
+        for i, axis in enumerate("xy"):
+            if abs(d[i]) > 1e-9:
+                rod.drivers.append({"type": "gauge", "motion": "slide", "axis": axis, "amount": spring_amount(d[i] / B),
+                                    "windows": [win(a / US, b / US)]})
+    if WINDOWS[-1][2] != US:
         raise ValueError("the winding does not end at W 1")
-    for (j, s), pc in segs.items():
-        want = seg_start(j, s)
-        gap = max(max(abs(pc.pose[1][i] - want[1][i]) for i in range(3)),
-                  max(abs(pc.pose[0][a][b] - want[0][a][b]) for a in range(3) for b in range(3)))
-        if gap > 1e-4:
-            raise ValueError(f"{pc.pid} does not end where the coil puts it ({gap:.1e})")
-    gap = max(abs(tip.pose[1][i] - corner(n)[i]) for i in range(3))
-    if gap > 1e-4:
-        raise ValueError(f"the tip does not end at the wire's end ({gap:.1e})")
-    for pc in rods:
-        gap = max(abs(pc.pose[1][i] - rod_store[1][i]) for i in range(3))
-        if gap > 1e-4:
-            raise ValueError(f"{pc.pid} does not end in the store ({gap:.1e})")
-    return [segs[j, s] for j in range(n) for s in range(SEGMENTS)] + [tip] + rods
+    return sides + [rod]
 
 
 def build_spring():
-    """The rod's pieces, each where it is authored: the straight rod as it lies at W 0, along the mandrel's top east edge
-    from the shoulder, the tip round its shoulder end, and every other piece (the sides' pieces, the rod's later stretches)
-    inside the mandrel's body. Every face wears `spring`."""
+    """The spring's parts as authored: each side where the coil puts it (stretched to nothing until its slot), and the
+    straight rod as it lies at W 0, along the mandrel's top east edge. Every face wears `spring`."""
     return [pc.element() for pc in plan()]
 
 
@@ -742,7 +588,7 @@ def make_rig(parts):
                  "hot": ["rodsteel"],
                  "_comment": "The spring job: rod is its work, of its own class 3 (its parts, requires rodsteel, move for that "
                              "class alone), wound over W 0..1, the rod laid along the mandrel and wound round it from its shoulder "
-                             "end a side at a time, each laid behind the tip (the wire's bend) as it goes round; turnsPerRod: the pace, "
+                             "end a side at a time, each side grown from its corner as the rod shrinks into it; turnsPerRod: the pace, "
                              "turns of the held right-click's clock (a turn a second) a rod. spring: "
                              "what a rod makes, springsPerRod of them. hot: the requires values whose parts are drawn hot, with "
                              "vanilla's glow by the rod's temperature."},
@@ -881,31 +727,12 @@ def on_show(part, pose):
     return True
 
 
-_PIECES = {}
-
-
-def piece(part):
-    """The plan's piece for a spring part's id."""
-    if not _PIECES:
-        _PIECES.update({pc.pid: pc for pc in plan()})
-    return _PIECES[part]
-
-
-def spring_seen(part, W):
-    """Whether a piece of the rod can be seen at W: a side from when the rod it waits in is swapped for a shorter
-    stretch (it is then the rod's shoulder end, inside the tip), a stretch of the rod until the next one takes its
-    place; never while it waits in the mandrel or inside the rod."""
-    u = W * US
-    return any(a - 1e-3 <= u <= b + 1e-3 for a, b in piece(part).seen)
-
-
 def seen(part, pose):
-    return on_show(part, pose) and not (is_spring(part) and not spring_seen(part, pose[1]))
+    return on_show(part, pose)
 
 
 def shown(posed_els, pose):
-    """The posed elements as they can be seen: another job's or metal's work, and the spring's pieces out of sight,
-    moved far away (copies, in order)."""
+    """The posed elements as they can be seen: another job's or metal's work moved far away (copies, in order)."""
     out = []
     for e in posed_els:
         if not seen(e.part, pose):
