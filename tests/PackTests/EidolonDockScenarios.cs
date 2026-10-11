@@ -381,6 +381,15 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(e.Dock!.Begin(gantry, null));
         await Docked(e, 400);
         Empty(player);
+
+        // Oil docked: on a cell of the gantry (which can take the click before the eidolon) it goes to
+        // the eidolon, as it does on the eidolon itself; two lumps of rendered fat, 50 points each.
+        e.Oil!.SetPoints(0);
+        Assert.Null(ClickGantry(player, origin, Item("game:fat-rendered", 2)));
+        Assert.Equal(100, e.Oil.Tank!.Value.Points, 3);
+        Assert.Null(ClickEntity(player, e, Item("game:fat-rendered", 2)));
+        Assert.Equal(200, e.Oil.Tank!.Value.Points, 3);
+
         ClickEntity(player, e, null, ctrl: true);
         var stripped = EidolonBuild.OldBuild.Stripped()!;
         Assert.Equal(stripped, e.Build);
