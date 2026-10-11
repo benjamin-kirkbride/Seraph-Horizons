@@ -3044,6 +3044,32 @@ felling does. Self-defence, a dry reservoir or running out of charge interrupt i
 (the trunk it carries, the trunks it has yet to haul, a tree felled whose trunk it has not looked for)
 and carries on where it was. It may hold a trunk (`EntityBehaviorEidolonTrunk.Holders`).
 
+**Chunk loading** (`Eidolon/Game/EidolonChunkSystem.cs`, rules in `Eidolon/Core/EidolonChunks.cs`). An
+eidolon at work keeps its chunks loaded, so it works on with no player near: while it can work (not
+slumped, dry, docked or otherwise stopped) and its order has work left (`IEidolonOrder.HasWorkLeft`), it
+holds the chunk columns within `ChunkLoadRadius` of the one it stands in (1: its own and the 8 round it)
+and those its order's work areas cover (`WorkAreas`: the fell or crew area, the haul area and the machine,
+the block to carry), each area only while it covers at most `MaxWorkAreaChunks` columns, and moves them
+with it. Work left: felling, until done, but not while it waits for an axe; hauling, while it carries
+or fetches a trunk or has not yet found the area clear (the machine gone, it waits); the crew, until its
+area is clear (waiting to look again), but not while it waits for an axe or the machine is gone;
+carrying, while it walks to the block and lifts it (holding it, it follows its player) and setting
+down, until the load is down, but neither while it finds no way to the block. Following, staying,
+guarding, docking and no order hold nothing. Every 2 seconds the server looks the loaded eidolons over:
+a column is forced with the game's `KeepLoaded` and let go when no eidolon holds it, taken off the
+server's list of forced columns (`RemoveChunkColumnFromForceLoadedList`; the API's `UnloadChunkColumn`
+would unload it at once, under a player too), so it unloads as any other once no player is near; the
+holds are counted, so eidolons share a column, and a column the server already forced (the spawn's) is
+left to it. Loaded is not enough: the game makes a creature no player is within its simulation range of
+inactive (no AI, no animations on the server) and skips the physics of one no player tracks, so an
+eidolon holding its chunks is `AlwaysActive` (`EntityLaborEidolon.KeepsChunksLoaded`) and a Harmony
+postfix on the physics manager's `UpdateTrackedEntityState` keeps it tracked. The holds are saved with
+the world (`seraphhorizons:eidolonChunks`) and forced again as the server starts, so an eidolon at work
+when it stopped is loaded with its chunks and carries on; a hold whose eidolon has not loaded within 2
+minutes is let go. With no player online the calendar stands still unless the server's
+`PassTimeWhenEmpty` is on (its charge does not run down meanwhile); the eidolon still works. Off
+(`KeepWorkChunksLoaded`), it works only while a player keeps its chunks loaded.
+
 **Fittings** (the rules so far; `Eidolon/Core/EidolonFittings.cs`, `EidolonStats.cs`, `Eidolon/README.md`
 "Fittings"). The body is built in five layers of material on a crafted torso, in order: bones (support beams
 of any wood but rotten and very rotten), joints (rods and nails and strips of iron, steel or stainless),
@@ -3152,6 +3178,18 @@ recipe; the eidolon it places is fitted at random, any allowed material in every
   `AiTaskEidolonOrder` runs it at priority 1.5; self-defence runs above it, and the order is
   stopped (`Stop(cancelled: true)`) and started again after, so an order keeps what it needs to resume. `EidolonNavigator.GoTo(target, run, onArrived, onStuck, tolerance)` walks
   it by the wide pathfinder.
+- Chunk loading (a work order, the mine order too): implement `IEidolonOrder.HasWorkLeft` (true while it
+  has work it can get on with alone; false, the default, when finished or waiting on its player: no
+  tool, no machine, nothing left but to look again later) and `WorkAreas` (the `MarkArea`s its work is
+  in besides where it stands, `EidolonChunks.Block(x, y, z)` for one block; none by default). The
+  eidolon then keeps its chunks loaded while it can work and `HasWorkLeft` holds, read every 2 seconds
+  (`EidolonChunkSystem.Pass`). Both are interface defaults, so a class implementing the interface
+  declares its own as public members (an abstract base declares them for its subclasses, as
+  `CarryOrderBase` does: a subclass's own member does not replace the interface's default). An area
+  over `MaxWorkAreaChunks` columns (a wide quarry) is not held whole: the order works where the eidolon
+  stands, and a column outside its own `ChunkLoadRadius` may be unloaded, its blocks reading as air,
+  so an order scanning far must check a column is loaded (`BlockAccessor.GetChunk`) before it takes
+  it for empty.
 - The crew (#679): `CrewOrder` (`Felled`, `Delivered`, `Waiting`, `Done`) composes the two below; a
   loop of other jobs can follow it.
 - Hauling (#678; the crew order, #679): `new TrunkHauler(eidolon, machinePos)` moves one trunk entity
@@ -3211,6 +3249,9 @@ recipe; the eidolon it places is fitted at random, any allowed material in every
 | `SlamDamage` | 16 | Every third blow, the slam or a hammer (the same multiplier) |
 | `GuardRadius` | 16 | Guarding, how far from its point it goes for a hostile creature, in blocks |
 | `FellMinLogs` | 5 | Felling an area, the fewest logs (wood blocks) a tree must have to be felled |
+| `KeepWorkChunksLoaded` | true | An eidolon with work left in its order keeps its chunks loaded and works with no player near |
+| `ChunkLoadRadius` | 1 | Working, the chunk columns it holds round its own (1: its own and the 8 round it; 0 to 4) |
+| `MaxWorkAreaChunks` | 16 | Working, its order's area and machine are held too while they cover at most this many columns |
 
 With the switch off the server marks the entity type and the spawner disabled before the game loads
 them and registers no command, so none of it exists; eidolons already in a world are lost. A client
@@ -3262,6 +3303,14 @@ the infeed (the second trunk comes to rest on the first tree's stump, a block ab
 rosser takes both (every log of both trees), oil per tree and per trunk, and it ends waiting with its
 area clear; it fails within five minutes, not at the watchdog, when the trunks do not arrive or the
 crew gives one up;
+`tests/Eidolon/EidolonChunksTests.cs` covers chunk loading's rules (when it holds, which columns for a
+place, a radius and work areas, a quarry too wide to hold, the counted holds, a column forced for
+something else, what is saved) and `tests/PackTests/EidolonChunkScenarios.cs` (Atlas, no player joined,
+each far from spawn) has one fell two oaks with no player near (inactive until ordered, its columns and
+area forced while it works, every one let go when it is done), let its columns go dry, staying, without
+an axe, slumped and removed and hold them again at work, and saves its holds and restores them (a hold
+whose eidolon never loads let go after its wait); Atlas pauses the chunk unloader, so they read the
+server's list of forced columns rather than watch a column unload;
 `SwitchesOffScenarios` requires none of it with the switch
 off. Not yet: icons for the recipe browser, which need the game client (`tools/icon-export`,
 `docs/recipe-browser/icons.md`): the gantry (`seraphhorizons:eidolongantry-{wood}-north`, each of the

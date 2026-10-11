@@ -75,8 +75,16 @@ public abstract class CarryOrderBase(BlockPos target, string playerUid, string? 
     protected EidolonNavigator? Nav;
     protected CarryPhase Phase;
     protected double StartedAt;
+    /// <summary>Whether its last look for a way to the block found none (it tries again every few seconds).</summary>
+    protected bool NoWay;
 
     public abstract string Code { get; }
+
+    /// <summary>Whether it still has the block to fetch or the load to set down, and a way there
+    /// (README "Eidolon", chunk loading).</summary>
+    public abstract bool HasWorkLeft { get; }
+
+    public IEnumerable<MarkArea> WorkAreas => [EidolonChunks.Block(target.X, target.Y, target.Z)];
 
     public BlockPos Target => target;
 
@@ -109,7 +117,9 @@ public abstract class CarryOrderBase(BlockPos target, string playerUid, string? 
     protected bool WalkUp(EntityLaborEidolon eidolon)
     {
         Nav ??= new EidolonNavigator(eidolon);
-        switch (Approach.Step(eidolon, Nav, Now(eidolon)))
+        var state = Approach.Step(eidolon, Nav, Now(eidolon));
+        NoWay = state == ApproachState.NoWay;
+        switch (state)
         {
             case ApproachState.There:
                 eidolon.Orders?.SetStatus(null);
@@ -170,6 +180,9 @@ public sealed class CarryOrder(BlockPos target, string playerUid, string? player
     private readonly FollowOrder _follow = new(playerUid, playerName);
 
     public override string Code => OrderCode;
+
+    // Holding the block it only follows: that is the player's to lead.
+    public override bool HasWorkLeft => Phase != CarryPhase.Holding && !NoWay;
 
     public static CarryOrder From(ITreeAttribute args) => new(TargetOf(args), args.GetString("player") ?? "", args.GetString("name"));
 
@@ -257,6 +270,8 @@ public sealed class SetDownOrder(BlockPos target, string playerUid, string? play
     private bool _placed;
 
     public override string Code => OrderCode;
+
+    public override bool HasWorkLeft => !_placed && !NoWay;
 
     public static SetDownOrder From(ITreeAttribute args) => new(TargetOf(args), args.GetString("player") ?? "", args.GetString("name"));
 

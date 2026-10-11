@@ -86,6 +86,20 @@ public class EidolonConfig
     /// standing (a sapling is no log at all).</summary>
     public int FellMinLogs { get; set; } = 5;
 
+    // ---- Chunk loading (README "Eidolon", chunk loading; EidolonChunks) ----
+
+    /// <summary>An eidolon with work left in its order (fell, haul, crew, carry; not following,
+    /// staying, guarding, docking, slumped or dry) keeps its chunks loaded, so it works on with no
+    /// player near. Off, it works only while a player keeps them loaded.</summary>
+    public bool KeepWorkChunksLoaded { get; set; } = true;
+
+    /// <summary>Working, the columns it holds round the one it stands in: 1 is its own and the 8 round it.</summary>
+    public int ChunkLoadRadius { get; set; } = 1;
+
+    /// <summary>Working, its order's area (and machine) is held too while it covers at most this many
+    /// columns; a larger one is worked where it stands.</summary>
+    public int MaxWorkAreaChunks { get; set; } = 16;
+
     // ---- Fittings (the layers' stats; Eidolon/README.md, "Fittings") ----
     // Every multiplier is against iron and they stack by multiplying (EidolonStats). Bones and
     // sash are looks only.
@@ -157,6 +171,9 @@ public class EidolonConfig
         Check(nameof(GuardRadius), GuardRadius, 2, 64, () => GuardRadius = Defaults.GuardRadius, Defaults.GuardRadius);
 
         Check(nameof(FellMinLogs), FellMinLogs, 1, 1000, () => FellMinLogs = Defaults.FellMinLogs, Defaults.FellMinLogs);
+
+        Check(nameof(ChunkLoadRadius), ChunkLoadRadius, 0, EidolonChunks.MaxRadius, () => ChunkLoadRadius = Defaults.ChunkLoadRadius, Defaults.ChunkLoadRadius);
+        Check(nameof(MaxWorkAreaChunks), MaxWorkAreaChunks, 0, 256, () => MaxWorkAreaChunks = Defaults.MaxWorkAreaChunks, Defaults.MaxWorkAreaChunks);
 
         Check(nameof(AllSteelHealth), AllSteelHealth, 1, 100000, () => AllSteelHealth = Defaults.AllSteelHealth, Defaults.AllSteelHealth);
         PlateHealth = SanitiseFactors(nameof(PlateHealth), PlateHealth, Defaults.PlateHealth, fixes);
