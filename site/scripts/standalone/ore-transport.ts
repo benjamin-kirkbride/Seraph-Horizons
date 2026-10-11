@@ -349,7 +349,7 @@ const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const num = (x: number, d = 1) => `${Math.round(x * 10 ** d) / 10 ** d}`;
 const pct = (x: number) => `${Math.round(x * 1000) / 10} %`;
 const cap = (s: string) => s[0]!.toUpperCase() + s.slice(1);
-const refs = (ns: number[]) => ns.map((n) => `<sup><a class="ot-ref" href="#ot-n${n}">${n}</a></sup>`).join("");
+const refs = (ns: number[]) => `<sup>${ns.map((n) => `<a class="ot-ref" href="#ot-n${n}">${n}</a>`).join(", ")}</sup>`;
 const time = (h: number | null) => (h == null ? "—" : h < 1 ? `${Math.round(h * 60)} min` : `${num(h)} h`);
 const VERDICT: Record<Verdict, string> = { holds: "lever holds", strained: "strained", breaks: "breaks it" };
 
