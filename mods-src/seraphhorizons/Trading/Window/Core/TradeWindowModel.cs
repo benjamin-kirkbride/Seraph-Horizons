@@ -46,6 +46,19 @@ public sealed record SpeechLine(Text Voice, IReadOnlyList<Text> Facts);
 /// <summary>What a map or lead offer on the shelf is to this player.</summary>
 public enum MapOfferStatus { Available, SoldOut, Locked, Owned, Surveying }
 
+/// <summary>The Maps &amp; leads tab's groups, in the order it shows them.</summary>
+public enum OfferGroup { OreMaps, GravelMaps, Leads }
+
+/// <summary>
+/// One thing for sale on the Maps &amp; leads tab, as one row: its icon, what it is in a word or two
+/// (<see cref="Title"/>), its facts (<see cref="Details"/>, each a <see cref="Text"/> or a name the
+/// game side read, shown joined by " · "), the price and a Buy button, or what stops the buy.
+/// </summary>
+public sealed record OfferRow(OfferGroup Group, Text Title, IReadOnlyList<object> Details, int Price, MapOfferStatus Status)
+{
+    public override string ToString() => $"{Title} [{string.Join(" · ", Details)}] {Price} {Status}";
+}
+
 /// <summary>
 /// The trade window's view model (#436, the playtest's mockup "A · Tabs"): tabs, header, footer, and
 /// every tab's lines, from the server's <see cref="TradeWindowState"/> and what the client reads off
@@ -271,47 +284,98 @@ public static class TradeWindowModel
         return MapOfferStatus.Available;
     }
 
-    /// <summary>What the Maps &amp; leads tab says in place of an offer's price when it cannot be
-    /// bought (sold out, locked with the tier that sells it, the player has it), or null for the
-    /// price.</summary>
-    public static Text? MapStatusText(MapOfferStatus status, Text? lockedTier) => status switch
+    /// <summary>An ore map offer (#692) as a row: the ores named (or the metal, for an offer shelved
+    /// before maps named the ore), then its size class, grades, host rock (<paramref name="rockName"/>,
+    /// the rock's name as the game side reads it), distance and precision.</summary>
+    public static OfferRow OreMapRow(string metal, IReadOnlyList<string> ores, string? sizeClass, string? grades, object? rockName,
+        double distance, int precision, int price, MapOfferStatus status)
     {
-        MapOfferStatus.SoldOut => new Text("trading-window-map-soldout"),
-        MapOfferStatus.Locked => new Text("trading-window-map-locked", (object?)lockedTier ?? ""),
-        MapOfferStatus.Owned => new Text("trading-window-map-owned"),
-        MapOfferStatus.Surveying => new Text("trading-window-map-surveying"),
-        _ => null,
-    };
-
-    /// <summary>An ore map offer (#692): the ores, size class, grades and host rock
-    /// (<paramref name="rockName"/>, the rock's name as the game side reads it), distance and
-    /// precision. An offer without ores (shelved before maps named the ore) names the metal.</summary>
-    public static Text OreMapLine(string metal, IReadOnlyList<string> ores, string? sizeClass, string? grades, object? rockName,
-        double distance, int precision)
-    {
-        var size = sizeClass is null ? new Text("trading-window-map-unsurveyed") : new Text("ore-size-" + sizeClass);
-        if (ores.Count == 0) return new("trading-window-map-ore", new Text("oremap-metal-" + metal), size, Distance(distance), MapTierName(precision), MapPrecision.ReachOf(precision));
-        var details = new List<object> { size };
-        if (GradeText(grades) is { } g) details.Add(g);
-        if (rockName != null) details.Add(new Text("trading-window-map-ore-host", rockName));
-        return new("trading-window-map-ore-named", ListText(ores.Select(o => (object)new Text(OreNames.LangKey(o))).ToList()),
-            details.Aggregate((a, b) => new Text("ore-list-comma", a, b)), Distance(distance), MapTierName(precision), MapPrecision.ReachOf(precision));
+        var details = new List<object> { sizeClass is null ? new Text("trading-window-map-unsurveyed") : new Text("ore-size-" + sizeClass) };
+        if (ores.Count > 0)
+        {
+            if (GradeText(grades) is { } g) details.Add(g);
+            if (rockName != null) details.Add(new Text("trading-window-map-ore-host", rockName));
+        }
+        details.Add(Distance(distance));
+        details.Add(new Text("trading-window-offer-precision", MapTierName(precision), MapPrecision.ReachOf(precision)));
+        return new OfferRow(OfferGroup.OreMaps, OreTitle(metal, ores), details, price, status);
     }
+
+    private static Text OreTitle(string? metal, IReadOnlyList<string> ores) => ores.Count > 0
+        ? (Text)ListText(ores.Select(o => (object)new Text(OreNames.LangKey(o))).ToList())
+        : metal is { Length: > 0 } ? new Text("trading-window-offer-ore", new Text("oremap-metal-" + metal))
+        : new Text("trading-window-offer-ore-any");
 
     /// <summary>An ore map tier's name: rough, fair or fine (1–3).</summary>
     public static Text MapTierName(int precision) => new("oremap-tier-" + Math.Clamp(precision, MapPrecision.Rough, MapPrecision.Fine));
 
-    /// <summary>A gravel map offer (#692): the field's rock (its name, as the game side reads it), the
-    /// metals it pans and its distance; without a rock (shelved before), the distance alone.</summary>
-    public static Text GravelMapLine(object? rockName, IReadOnlyList<string> metals, double distance) =>
-        rockName is null ? new Text("trading-window-map-gravel", Distance(distance))
-        : metals.Count == 0 ? new Text("trading-window-map-gravel-rock", rockName, Distance(distance))
-        : new Text("trading-window-map-gravel-pans", rockName, ListText(metals.Select(m => (object)new Text("ore-metal-" + m)).ToList()),
-            Distance(distance));
+    /// <summary>A gravel map offer (#692) as a row: the field's rock (its name, as the game side reads
+    /// it; without one, shelved before, a rich field), the metals it pans and its distance.</summary>
+    public static OfferRow GravelMapRow(object? rockName, IReadOnlyList<string> metals, double distance, int price, MapOfferStatus status)
+    {
+        var details = new List<object>();
+        if (metals.Count > 0) details.Add(new Text("trading-window-offer-pans", ListText(metals.Select(m => (object)new Text("ore-metal-" + m)).ToList())));
+        details.Add(Distance(distance));
+        return new OfferRow(OfferGroup.GravelMaps, GravelTitle(rockName), details, price, status);
+    }
 
-    /// <summary>A deposit being checked (#693): an ore map of a metal, or a gravel map.</summary>
-    public static Text SurveyingLine(string? metal) =>
-        metal is null or PlacerCells.Kind ? new Text("trading-window-map-gravel-surveying") : new Text("trading-window-map-ore-surveying", new Text("oremap-metal-" + metal));
+    private static Text GravelTitle(object? rockName) =>
+        rockName is null ? new Text("trading-window-offer-gravel") : new Text("trading-window-offer-gravel-rock", rockName);
+
+    /// <summary>A deposit being checked (#693), an ore map of a metal or a gravel map, or a sold-out
+    /// marker (no details left): the row names what it was, its button says the rest.</summary>
+    public static OfferRow PlaceholderRow(string? metal, bool gravel, MapOfferStatus status) => gravel || metal == PlacerCells.Kind
+        ? new OfferRow(OfferGroup.GravelMaps, GravelTitle(null), [], 0, status)
+        : new OfferRow(OfferGroup.OreMaps, OreTitle(metal, []), [], 0, status);
+
+    /// <summary>A lead on the shelf (to a camp's trader, or settlement ground): where and which way.
+    /// A locked one says the tier that sells it.</summary>
+    public static OfferRow ShelfLeadRow(string? leadKind, string type, double distance, Text direction, int price, MapOfferStatus status,
+        Text? lockedTier = null)
+    {
+        bool settlement = LeadTargets.TryParse(leadKind, out var kind) && kind == LeadKind.Settlement;
+        var details = new List<object> { new Text("trading-window-offer-way", Distance(distance), direction) };
+        if (status == MapOfferStatus.Locked && lockedTier != null) details.Add(new Text("trading-window-offer-from", lockedTier));
+        return new OfferRow(OfferGroup.Leads, settlement ? new Text("trading-window-offer-settlement") : CampTitle(type), details, price, status);
+    }
+
+    private static Text CampTitle(string type) => new("trading-window-offer-camp", TypeName(type));
+
+    /// <summary>A camp lead offered to this player (off the shelf): the camp's type, how far
+    /// (<see cref="Distance(double)"/>, never its ring) and which way from the trader; the prospector
+    /// kept for first says so, and the player's very first map (the pity map) says it is their first.</summary>
+    public static OfferRow CampLeadRow(LeadOfferRow row)
+    {
+        var details = new List<object>();
+        if (row.Pity) details.Add(new Text("trading-window-offer-firstmap"));
+        if (row.Prospector) details.Add(new Text("trading-window-offer-nearest-prospector"));
+        else if (row.Pity) details.Add(new Text("trading-window-offer-nearest-camp"));
+        details.Add(new Text("trading-window-offer-way", Distance(row.Distance), Direction(row.Dx, row.Dz)));
+        return new OfferRow(OfferGroup.Leads, CampTitle(row.Type), details, row.Price, MapOfferStatus.Available);
+    }
+
+    /// <summary>A row's button: Buy (off while the player carries less than the price), or what
+    /// stops the buy, off.</summary>
+    public static (Text Label, bool Enabled) BuyButton(MapOfferStatus status, int price, int gears) => status switch
+    {
+        MapOfferStatus.Available => (new Text("trading-window-buy"), price <= gears),
+        MapOfferStatus.SoldOut => (new Text("trading-window-offer-soldout"), false),
+        MapOfferStatus.Locked => (new Text("trading-window-offer-locked"), false),
+        MapOfferStatus.Owned => (new Text("trading-window-offer-owned"), false),
+        _ => (new Text("trading-window-offer-surveying"), false),
+    };
+
+    /// <summary>A row's price, shown for what is for sale or locked; null for the rest.</summary>
+    public static Text? PriceText(OfferRow row) =>
+        row.Status is MapOfferStatus.Available or MapOfferStatus.Locked ? new Text("trading-window-map-price", row.Price) : null;
+
+    /// <summary>The heading over a group of rows.</summary>
+    public static Text GroupHeading(OfferGroup group) => new(group switch
+    {
+        OfferGroup.OreMaps => "trading-window-offers-ore",
+        OfferGroup.GravelMaps => "trading-window-offers-gravel",
+        _ => "trading-window-offers-leads",
+    });
 
     /// <summary>"a", "a and b", "a, b and c".</summary>
     public static object ListText(IReadOnlyList<object> items) => items.Count switch
@@ -326,23 +390,10 @@ public static class TradeWindowModel
         ? new Text("ore-grades-mixed", new Text("ore-grade-" + mix.Grades[0]), new Text("ore-grade-" + mix.Grades[1]))
         : new Text("ore-grades-" + mix.Kind, new Text("ore-grade-" + mix.Grades[0]));
 
-    /// <summary>A camp lead offered to this player: the camp's type, how far (<see cref="Distance(double)"/>,
-    /// never its ring) and which way from the trader, and the price; the prospector kept for first
-    /// says so, and the player's very first map (the pity map) says it is on the trader.</summary>
-    public static Text LeadOfferLine(LeadOfferRow row) =>
-        new(row.Pity ? row.Prospector ? "trading-window-lead-offer-pity" : "trading-window-lead-offer-pity-any"
-            : row.Prospector ? "trading-window-lead-offer-prospector" : "trading-window-lead-offer", TypeName(row.Type),
-            Distance(row.Distance), Direction(row.Dx, row.Dz), row.Price);
-
-    /// <summary>Under the camp leads: why there are none, or how buying here raises the next price.</summary>
+    /// <summary>Under the leads: why there are no camp leads, or that buying here raises the next price.</summary>
     public static Text? LeadOffersNote(TradeWindowState state) =>
         state.LeadOffers.Count == 0 ? state.LeadsWhy is { } why ? new Text(why) : null
         : new Text("trading-window-leads-bought", state.LeadsBought);
-
-    public static Text LeadLine(string? leadKind, string type, double distance, Text direction) =>
-        LeadTargets.TryParse(leadKind, out var kind) && kind == LeadKind.Settlement
-            ? new Text("trading-window-map-lead-settlement", Distance(distance), direction)
-            : new Text("trading-window-map-lead", TypeName(type), Distance(distance), direction);
 
     // ---- Standing ----
 

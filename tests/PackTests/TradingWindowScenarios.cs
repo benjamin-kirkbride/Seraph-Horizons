@@ -591,31 +591,45 @@ public partial class TradingScenarios
         texts.AddRange(TradeWindowModel.SellOffer([dirt], true));
         texts.AddRange(TradeWindowModel.SellOffer([dirt, dirt with { Slot = 37 }], true));
         texts.AddRange(new[] { "trading-window-sell-wontbuy", "trading-window-sell-breakdown", "trading-window-sell-never", "trading-window-sell-under" }.Select(k => new Text(k)));
-        texts.Add(TradeWindowModel.OreMapLine("copper", [], null, null, null, 10, 1));
-        texts.Add(TradeWindowModel.OreMapLine("iron", [], "large", null, null, 10, 3));
-        // Maps that name the ore (#692), and deposits being surveyed (#693).
-        texts.Add(TradeWindowModel.OreMapLine("lead", ["galena", "cerussite", "wulfenite"], "medium", "mostly:poor", "Limestone", 10, 2));
-        texts.Add(TradeWindowModel.OreMapLine("tin", ["cassiterite"], "small", "mixed:poor,rich", null, 10, 1));
-        texts.Add(TradeWindowModel.OreMapLine("gold", ["quartz_nativegold"], "large", "only:bountiful", "Granite", 10, 3));
-        texts.Add(TradeWindowModel.GravelMapLine("Granite", ["tin", "silver", "gold"], 10));
-        texts.Add(TradeWindowModel.GravelMapLine("Granite", [], 10));
-        texts.Add(TradeWindowModel.GravelMapLine(null, [], 10));
-        texts.Add(TradeWindowModel.SurveyingLine("copper"));
-        texts.Add(TradeWindowModel.SurveyingLine("gravel"));
+        // The Maps & leads tab's rows: ore maps (naming the ore since #692), gravel maps, deposits being
+        // surveyed (#693) and sold-out markers, shelf leads, every status's button, and the headings.
+        var rows = new List<OfferRow>
+        {
+            TradeWindowModel.OreMapRow("copper", [], null, null, null, 10, 1, 1, MapOfferStatus.Available),
+            TradeWindowModel.OreMapRow("iron", [], "large", null, null, 10, 3, 1, MapOfferStatus.Available),
+            TradeWindowModel.OreMapRow("lead", ["galena", "cerussite", "wulfenite"], "medium", "mostly:poor", "Limestone", 10, 2, 1, MapOfferStatus.Owned),
+            TradeWindowModel.OreMapRow("tin", ["cassiterite"], "small", "mixed:poor,rich", null, 10, 1, 1, MapOfferStatus.SoldOut),
+            TradeWindowModel.OreMapRow("gold", ["quartz_nativegold"], "large", "only:bountiful", "Granite", 10, 3, 1, MapOfferStatus.Available),
+            TradeWindowModel.GravelMapRow("Granite", ["tin", "silver", "gold"], 10, 1, MapOfferStatus.Available),
+            TradeWindowModel.GravelMapRow("Granite", [], 10, 1, MapOfferStatus.Available),
+            TradeWindowModel.GravelMapRow(null, [], 10, 1, MapOfferStatus.Available),
+            TradeWindowModel.PlaceholderRow("copper", false, MapOfferStatus.Surveying),
+            TradeWindowModel.PlaceholderRow(null, true, MapOfferStatus.Surveying),
+            TradeWindowModel.PlaceholderRow(null, false, MapOfferStatus.SoldOut),
+            TradeWindowModel.ShelfLeadRow("camp", "cook", 10, TradeWindowModel.Direction(1, 1), 1, MapOfferStatus.Available),
+            TradeWindowModel.ShelfLeadRow("settlement", "", 10, TradeWindowModel.Direction(-1, 0), 6, MapOfferStatus.Locked, TradeWindowModel.TierName("trusted")),
+            // Camp leads (off the shelf), and the first map (pity map): to a prospector, or failing one to any camp.
+            TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "cook", Distance = 2000, Dx = 1, Price = 3 }),
+            TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "prospector", Distance = 2000, Dz = -1, Price = 3, Prospector = true }),
+            TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "prospector", Distance = 2000, Dx = -1, Price = 10, Ring = 1, Prospector = true, Pity = true }),
+            TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "cook", Distance = 2000, Dx = -1, Price = 10, Ring = 1, Pity = true }),
+        };
+        foreach (var row in rows)
+        {
+            texts.Add(row.Title);
+            texts.AddRange(row.Details.OfType<Text>());
+            if (TradeWindowModel.PriceText(row) is { } price) texts.Add(price);
+        }
+        foreach (var status in Enum.GetValues<MapOfferStatus>())
+            texts.Add(TradeWindowModel.BuyButton(status, 1, 0).Label);
+        texts.AddRange(Enum.GetValues<OfferGroup>().Select(TradeWindowModel.GroupHeading));
+        texts.Add(new Text("trading-window-maps-none"));
+        texts.Add(new Text("trading-window-maps-leadslocked"));
         foreach (string key in new[] { "trading-maps-error-surveying", "trading-maps-surveying-ore", "trading-maps-surveying-gravel", "trading-maps-surveying-info",
                      "gravelmap-name", "oremap-info-ores", "oremap-info-grades", "oremap-info-host", "oremap-info-pans" })
             texts.Add(new Text(key));
-        texts.Add(TradeWindowModel.LeadLine("camp", "cook", 10, TradeWindowModel.Direction(1, 1)));
-        texts.Add(TradeWindowModel.LeadLine("settlement", "", 10, TradeWindowModel.Direction(-1, 0)));
-        foreach (var status in Enum.GetValues<MapOfferStatus>())
-            if (TradeWindowModel.MapStatusText(status, TradeWindowModel.TierName("trusted")) is { } why) texts.Add(why);
         texts.Add(new Text(TradeGuard.NoRoomKey));
-        // Camp leads (off the shelf): their rows, the notes under them, and the buy's answers.
-        texts.Add(TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "cook", Distance = 2000, Dx = 1, Price = 3 }));
-        texts.Add(TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "prospector", Distance = 2000, Dz = -1, Price = 3, Prospector = true }));
-        // The first map (pity map): to a prospector, or failing one to any camp.
-        texts.Add(TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "prospector", Distance = 2000, Dx = -1, Price = 10, Ring = 1, Prospector = true, Pity = true }));
-        texts.Add(TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "cook", Distance = 2000, Dx = -1, Price = 10, Ring = 1, Pity = true }));
+        // Camp leads: the notes under them, and the buy's answers.
         // The Standing tab's lead facts: the stranger's, one ring, several rings.
         foreach (var (maps, reach) in new[] { (0, 1), (2, 1), (3, 2) })
             texts.AddRange(TradeWindowModel.Facts(new TierView { LeadMaps = maps, LeadReach = reach }, new WindowSwitches { Maps = true }));
