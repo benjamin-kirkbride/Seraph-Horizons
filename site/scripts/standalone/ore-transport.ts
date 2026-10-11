@@ -174,7 +174,7 @@ export function transports(): Transport[] {
       load: `1 crate × ${BOX.crate}`,
       slots: { raw: P + BOX.crate, conc: P + BOX.crate },
       speed: handcarTopSpeed(1),
-      speedNote: `one rider; two ${handcarTopSpeed(1, 2)}`,
+      speedNote: `one rider; two ${Math.round(handcarTopSpeed(1, 2) * 100) / 100}`,
       build: "Copper: copper rods, 4 of Yang's minecarts",
       terrain: "standard-gauge track",
       notes: [9, 10],
@@ -187,7 +187,7 @@ export function transports(): Transport[] {
       load: `1 crate + 2 boxcars × ${YANG.boxcar.slots}`,
       slots: { raw: P + BOX.crate + 2 * YANG.boxcar.slots, conc: P + BOX.crate + 2 * YANG.boxcar.slots },
       speed: handcarTopSpeed(1 + 2 * YANG.boxcar.weight),
-      speedNote: `the riders' floor; two riders also ${handcarTopSpeed(1 + 2 * YANG.boxcar.weight, 2)}`,
+      speedNote: `the riders' floor; two riders ${Math.round(handcarTopSpeed(1 + 2 * YANG.boxcar.weight, 2) * 100) / 100}`,
       build: "Iron: a boxcar is 10 iron plates, 2 trunks, 4 minecarts",
       terrain: "standard-gauge track",
       notes: [9, 10],
@@ -409,6 +409,7 @@ export const OT_STYLE = `<style>
 .ot-loads { min-width: 44rem; }
 .ot-haul { min-width: 48rem; }
 .ot-others { font-size: 0.84rem; margin: 0.5rem 0; }
+.ot-others, .ot-notes, .ot-verdicts, .ot-table td { overflow-wrap: anywhere; }
 .ot-others li { margin: 0.25rem 0; }
 .ot-notes { font-size: 0.74rem; color: var(--muted); margin-top: 0.6rem; }
 .ot-notes li { margin: 0.15rem 0; }
