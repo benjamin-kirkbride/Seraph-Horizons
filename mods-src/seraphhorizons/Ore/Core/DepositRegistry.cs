@@ -41,8 +41,9 @@ public enum SizeTier { Small = 1, Medium = 2, Large = 3 }
 
 /// <summary>What the world knows of one deposit beyond the seed: whether a map to it was sold
 /// (to whom, when, in game days) or it is worked out, and its last measurement (remaining ingots,
-/// its tier then, the centre of the ore counted, and what the ore is: <see cref="Makeup"/>, #692;
-/// none for a measurement made before it was kept).</summary>
+/// its tier then, the centre of the ore counted, what the ore is: <see cref="Makeup"/>, #692, none
+/// for a measurement made before it was kept; and whether it is under water,
+/// <see cref="Underwater"/>).</summary>
 public sealed record DepositRecord
 {
     public DepositState State { get; init; }
@@ -56,6 +57,9 @@ public sealed record DepositRecord
     public int? Z { get; init; }
     public double? MeasuredAtDays { get; init; }
     public DepositMakeup? Makeup { get; init; }
+    /// <summary>Under water (<see cref="DepositWater"/>) at its last measurement; null for one made
+    /// before it was kept, taken as dry.</summary>
+    public bool? Underwater { get; init; }
 
     /// <summary>Measured with its makeup (#692): a trader may offer a map to it.</summary>
     [JsonIgnore]
@@ -116,11 +120,11 @@ public sealed class DepositRegistry
     /// <summary>Records a measurement; a worked-out one (<see cref="DepositSizing.IsWorkedOut"/>,
     /// decided by the caller) marks it sold out.</summary>
     public void RecordMeasure(DepositKey key, double ingots, SizeTier tier, int x, int y, int z, double days, bool workedOut,
-        DepositMakeup? makeup = null)
+        DepositMakeup? makeup = null, bool underwater = false)
     {
         lock (_lock)
         {
-            var r = Get(key) with { Ingots = ingots, Tier = tier, X = x, Y = y, Z = z, MeasuredAtDays = days, Makeup = makeup };
+            var r = Get(key) with { Ingots = ingots, Tier = tier, X = x, Y = y, Z = z, MeasuredAtDays = days, Makeup = makeup, Underwater = underwater };
             if (workedOut) r = r with { State = DepositState.SoldOut };
             _records[key] = r;
         }

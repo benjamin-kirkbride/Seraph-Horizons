@@ -141,6 +141,20 @@ public class MapOfferTests
     }
 
     [Fact]
+    public void AnOreMapToADepositUnderWaterSellsAtATenth()
+    {
+        var t = Shipped();
+        Assert.Equal(0.1, t.Underwater);
+        var copper = new SizeTargets(150, 400, 1000);
+        // 575 ingots × 2 gears × 0.06 = 69, a tenth of it 6.9: 7.
+        Assert.Equal(69, t.OrePrice("copper", "medium", 2, copper, 2));
+        Assert.Equal(7, t.OrePrice("copper", "medium", 2, copper, 2, underwater: true));
+        Assert.Equal(1, t.OrePrice("copper", "small", 1, copper, 0.05, underwater: true));
+        Assert.Contains(new MapPriceTable { Share = [1, 1, 1], Underwater = 0 }.Problems(), p => p.Contains("underwater"));
+        Assert.Contains(new MapPriceTable { Share = [1, 1, 1], Underwater = 1.5 }.Problems(), p => p.Contains("underwater"));
+    }
+
+    [Fact]
     public void ProblemsNameTheSharesAndTheCampLeadRules()
     {
         var t = new MapPriceTable { Share = [0.03, 0], Scarcity = { ["gold"] = 0 }, Settlement = 0 };

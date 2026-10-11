@@ -6,8 +6,8 @@ namespace SeraphHorizons.Mod.Trading.Maps.Core;
 /// <c>assets/seraphhorizons/config/trading/map-prices.json</c> (#455): what traders charge for ore
 /// maps, gravel maps and leads, and how far they look. An ore map's price is computed
 /// (<see cref="OrePrice"/>): the ingots in the middle of the deposit's size band, times the value of
-/// the metal's ingot, times a share by precision (1–3), times the metal's scarcity. Leads to camps
-/// are <see cref="CampLeads"/>.
+/// the metal's ingot, times a share by precision (1–3), times the metal's scarcity, times
+/// <see cref="Underwater"/> for a deposit under water. Leads to camps are <see cref="CampLeads"/>.
 /// </summary>
 public sealed class MapPriceTable
 {
@@ -24,6 +24,8 @@ public sealed class MapPriceTable
     public double[] Share { get; set; } = [];
     /// <summary>Times the ore price, by metal (1 when not listed): the metals a district hides.</summary>
     public Dictionary<string, double> Scarcity { get; set; } = new();
+    /// <summary>Times the ore price for a deposit under water (<see cref="DepositWater"/>).</summary>
+    public double Underwater { get; set; } = 1;
     public double Gravel { get; set; } = 6;
     /// <summary>Gears for a lead to the nearest settlement ground (behind <c>mapsToTraders</c>).</summary>
     public double Settlement { get; set; } = 6;
@@ -45,13 +47,13 @@ public sealed class MapPriceTable
     }
 
     /// <summary>An ore map's gears: <see cref="BandMiddleIngots"/> × the ingot's value × the
-    /// precision's share × the metal's scarcity, at least 1. Null when the metal has no size range
+    /// precision's share × the metal's scarcity (× <see cref="Underwater"/> under water), at least 1. Null when the metal has no size range
     /// or its ingot no value: then there is nothing to price it by.</summary>
-    public int? OrePrice(string metal, string? sizeClass, int precision, SizeTargets? targets, double ingotValue)
+    public int? OrePrice(string metal, string? sizeClass, int precision, SizeTargets? targets, double ingotValue, bool underwater = false)
     {
         if (targets is not { } t || ingotValue <= 0 || Share.Length == 0) return null;
         double share = Share[Math.Clamp(precision, 1, Share.Length) - 1];
-        return Round(BandMiddleIngots(t, sizeClass) * ingotValue * share * Scarcity.GetValueOrDefault(metal, 1));
+        return Round(BandMiddleIngots(t, sizeClass) * ingotValue * share * Scarcity.GetValueOrDefault(metal, 1) * (underwater ? Underwater : 1));
     }
 
     public int GravelPrice() => Round(Gravel);
@@ -68,6 +70,7 @@ public sealed class MapPriceTable
         if (Share.Any(p => p <= 0)) problems.Add("a share of 0 or less");
         foreach (var (metal, f) in Scarcity)
             if (f <= 0) problems.Add($"scarcity '{metal}' is 0 or less");
+        if (Underwater <= 0 || Underwater > 1) problems.Add("underwater is outside (0, 1]");
         if (Settlement <= 0) problems.Add("a settlement lead price of 0 or less");
         if (OreRadius <= 0 || GravelRadius <= 0) problems.Add("a radius of 0 or less");
         problems.AddRange(CampLeads.Problems());

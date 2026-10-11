@@ -129,6 +129,32 @@ public class DepositRegistryTests
         Assert.Equal("limestone", back.Makeup.HostRock());
         Assert.DoesNotContain("surveyed", registry.Serialize(), StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void AMeasurementKeepsWhetherTheDepositIsUnderWater()
+    {
+        var registry = new DepositRegistry();
+        Assert.Null(registry.Get(Copper).Underwater);
+        registry.RecordMeasure(Copper, 400, SizeTier.Medium, 1, 2, 3, 4, false, underwater: true);
+        Assert.True(DepositRegistry.Parse(registry.Serialize()).Get(Copper).Underwater);
+        // Measured again, dry: the last measurement counts.
+        registry.RecordMeasure(Copper, 400, SizeTier.Medium, 1, 2, 3, 5, false);
+        Assert.False(DepositRegistry.Parse(registry.Serialize()).Get(Copper).Underwater);
+    }
+}
+
+public class DepositWaterTests
+{
+    [Theory]
+    // More than half of the ore's columns under more than 2 blocks of water or ice.
+    [InlineData(new[] { 3, 3, 0 }, true)]
+    [InlineData(new[] { 10 }, true)]
+    [InlineData(new[] { 3, 3, 0, 0 }, false)]
+    [InlineData(new[] { 2, 2, 2 }, false)]
+    [InlineData(new[] { 3, 2, 0 }, false)]
+    [InlineData(new int[0], false)]
+    public void UnderWaterIsMostColumnsDeeperThanTwo(int[] depths, bool underwater) =>
+        Assert.Equal(underwater, DepositWater.IsUnderwater(depths));
 }
 
 public class DepositSizingTests

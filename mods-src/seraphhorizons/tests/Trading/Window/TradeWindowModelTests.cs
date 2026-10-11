@@ -207,6 +207,9 @@ public class TradeWindowModelTests
         Assert.Equal("ore-size-small · map-distance-under · trading-window-offer-precision(oremap-tier-1, 150)", Details(one));
         // Shelved before maps named the ore: the metal.
         Assert.Equal("trading-window-offer-ore(oremap-metal-copper)", TradeWindowModel.OreMapRow("copper", [], null, null, null, 10, 1, 1, MapOfferStatus.Available).Title.ToString());
+        // Under water: marked in the title.
+        Assert.Equal("trading-window-offer-underwater(orename-galena)",
+            TradeWindowModel.OreMapRow("x", ["galena"], "small", null, null, 10, 1, 5, MapOfferStatus.Available, underwater: true).Title.ToString());
         Assert.Equal("ore-grades-mixed(ore-grade-poor, ore-grade-medium)", TradeWindowModel.GradeText("mixed:poor,medium")!.ToString());
         Assert.Null(TradeWindowModel.GradeText("nonsense"));
     }

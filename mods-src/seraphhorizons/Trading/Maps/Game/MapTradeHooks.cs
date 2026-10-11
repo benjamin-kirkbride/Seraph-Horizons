@@ -45,7 +45,7 @@ public sealed class MapTradeHooks : ItemOreMap.IHooks
         var a = stack.Attributes;
         return a.GetString(MapOfferAttrs.Offer) switch
         {
-            MapOfferAttrs.OreMap => L("oremap-name", ItemOreMap.DepositName(Lang.CurrentLocale, a)),
+            MapOfferAttrs.OreMap => ItemOreMap.OreMapName(Lang.CurrentLocale, a),
             MapOfferAttrs.GravelMap => a.GetString(MapOfferAttrs.Rock) is { } rock
                 ? L("gravelmap-name", ItemOreMap.RockName(Lang.CurrentLocale, rock))
                 : L("item-gravelmap"),
