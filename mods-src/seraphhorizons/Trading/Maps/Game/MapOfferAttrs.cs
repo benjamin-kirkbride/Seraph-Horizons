@@ -35,6 +35,8 @@ public static class MapOfferAttrs
     public const string Grades = ItemOreMap.AttrGrades;
     public const string Rock = ItemOreMap.AttrRock;
     public const string Metals = ItemOreMap.AttrMetals;
+    /// <summary>The deposit is under water (the map's own key, <see cref="ItemOreMap.AttrUnderwater"/>).</summary>
+    public const string Underwater = ItemOreMap.AttrUnderwater;
 
     public const string OreMap = "oremap";
     public const string GravelMap = "gravelmap";

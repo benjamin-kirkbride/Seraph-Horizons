@@ -1320,10 +1320,11 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
     cell settled for both leads both to the one camp.
   - *The window*: `TradeWindowState.LeadOffers` (cell, type, distance, dx, dz, price, prospector,
     ring, pity), `LeadsWhy` (stranger used, none in reach) and `LeadsBought`; the Maps & leads tab
-    lists them under the shelf's offers with a Buy button (`TradeAction.BuyLead`, the cell, or
-    `pity`, as `Code`, the price seen as `Price`). A lead's line says how far and which way its camp
-    is from the trader, never its ring ("Lead to the cook's camp, about 4 km north: 24 g"); the pity
-    map's reads "First map's on me: 10 g to the nearest prospector, about 3 km northeast.". The
+    lists them under its Leads heading, the pity map first, each a row like the shelf's offers with
+    a Buy button (`TradeAction.BuyLead`, the cell, or `pity`, as `Code`, the price seen as `Price`;
+    `TradeWindowModel.CampLeadRow`). A lead's row says how far and which way its camp is from the
+    trader, never its ring ("Cook's camp", "about 4 km north", 24 g); the pity map's says "your
+    first map · nearest prospector · about 3 km northeast". The
     Standing tab's tier lines say "maps to n traders within about k km" (`TierView.LeadMaps`, and
     `LeadReach` in rings as k = `MapDistance.ReachKm`: (rings + ½) × 2,048 blocks rounded, 3, 5, 7
     and 11 km for 1, 2, 3 and 5 rings) or, for a stranger, "one map onward, to the nearest trader
@@ -1360,7 +1361,7 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   - Leads of the old kinds (`prospector`, `far`) in players' bags still read; old camp lead offers
     left on a shelf until its next restock show sold out and are refused.
 - **Ore map prices** (`MapPriceTable.OrePrice`): `bandMiddleIngots × ingotValue × share[precision] ×
-  scarcity`, rounded, at least 1 gear, no other floor. `bandMiddleIngots` is the middle of the size
+  scarcity` (× `underwater`, 0.1, for a deposit under water: `docs/oregen.md` "Maps"), rounded, at least 1 gear, no other floor. `bandMiddleIngots` is the middle of the size
   class's third of the metal's `smallIngots..largeIngots` (`config/ore-sizes.json`, read through
   `DepositService.TargetsFor`; the thirds are `DepositSizing.Classify`'s), the medium band for
   `unsurveyed`: the class, never the measured size, so the price tells the buyer no more than the
@@ -1409,7 +1410,7 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   the type in the player's language or English. Traders outside camps (visitors, story NPCs) are
   not marked: they move on. Delivery markers ("Delivery: cook") are left alone: they are not maps.
 - **Maps the player has** (`MapsSystem.Refusal`, `MapMarks.Check`): an offer is refused (and the
-  Maps & leads tab greys it out, "you have this", from `TradeWindowState.OwnedMaps`) when its
+  Maps & leads tab greys it out, "Have it", from `TradeWindowState.OwnedMaps`) when its
   target is marked as precisely or more, or the player carries a map or lead of it as precise or
   more (hotbar, backpack, mouse, character; pending stacks too, by their offer attributes). Only a
   copy as precise counts, so a more precise map of a target marked roughly is sold (an upgrade);
@@ -1623,7 +1624,7 @@ texts draw with) and the next row starts below the tallest thing in the one befo
 fixed heights cut the footer off at the right, ran the Orders intro into the first order with Take
 on top, and ran the Standing tab into the footer. The window recomposes when anything it shows
 changes, never while a mouse button is down (a drag or a hold would lose its mouse-up). Orders,
-Deliveries, the Maps & leads lines and Standing lay out in a scroll area as tall as the screen has
+Deliveries, the Maps & leads rows and Standing lay out in a scroll area as tall as the screen has
 room for. **Placement** (`WindowPlacement`): the minimap is 254 px at the right top (unless moved),
 and the coordinates HUD sets its own offset below the first other right-top dialog every 250 ms;
 the window is placed with `EnumDialogArea.None` (a right-top window would push the coordinates
@@ -1636,8 +1637,22 @@ trader's and its side budget ("for goods off her list 21 g"). A feature that is 
 (`TraderStanding`, `TraderOrders`, `TraderDeliveries`, `TraderMaps`; the side budget with
 `EverythingHasAPrice`) has no tab or line. The Trade tab's shelves are the trader's own slots (price
 and stock in the tooltip, sold out crossed out as vanilla draws it); map and lead offers are on the
-Maps & leads tab instead, with their metal, size, distance and precision, or target and direction,
-sold out and locked ones saying why. Locked stock (`LockedStock`): what the selling list would shelve
+Maps & leads tab instead (`WindowLayout.Offers`, rows from `TradeWindowModel.OreMapRow`,
+`GravelMapRow`, `ShelfLeadRow`, `CampLeadRow`, `PlaceholderRow`). The playtest found that tab hard
+to read: the shelf's maps were a row of icons, held to buy, with their descriptions in a separate
+list below that nothing tied to them, and the camp leads text lines with a Buy button. Now every
+offer, shelf or camp lead, is one row alike under a small gold heading (Ore maps, Gravel maps,
+Leads): its icon (`GuiElementOfferIcon`, the item drawn on a slot background inside the scrolled
+container, greyed out when it can't be bought, the slot's own tooltip on hover), a short title
+("Galena", "Tailor's camp", "Settlement ground") over quieter details joined by " · " (size, grades,
+host rock, distance, precision; or distance and direction, "sold from" a locked lead's tier), the
+price in gold (red while the player carries less) and a Buy button, the prices and buttons each one
+column of one width. Buy is pressed once, not held: a shelf offer sends `TradeAction.Buy` with the
+slot, code and price seen, as a completed hold did, a camp lead `TradeAction.BuyLead`; the server's
+checks are unchanged. One that can't be bought has its button off, labelled Sold out, Locked, Have
+it or Surveying (`TradeWindowModel.BuyButton`). The notes on leads (each costs more than the last,
+why there are none, the tier that sells settlement ground unless a locked row says it) sit quietly
+under the Leads rows. Locked stock (`LockedStock`): what the selling list would shelve
 at the top tier with rare stock, less what the player's own tier gets, less what is on the shelf
 anyway, hatched (`GuiElementSlotHatch`) with the tier that unlocks it (its `standingTier`, or the
 first tier with `rareStock`). The Standing tab lists the five tiers with their thresholds, the

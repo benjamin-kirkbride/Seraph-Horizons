@@ -3040,15 +3040,20 @@ grown wild tree whose stump stands in the area (between 8 blocks below the lower
 higher), at most every 2 seconds, weighing at most 24 a search (the axe's own tree search). A wild log
 is one with the game's tree felling group that is grown, not placed (`log-grown-*`, `logsection-grown-*`,
 `lognarrow-grown-*`, the resin logs), never a fruit tree; a stump is such a log upright with no log of the
-same tree under it. A tree is grown when the axe's search from its stump finds at least `FellMinLogs`
+same tree under it, standing on the ground (the block under it solid on top: an oak's boughs, upright
+logs up in its crown over air or leaves, are no stumps). A tree is grown when the axe's search from its stump finds at least `FellMinLogs`
 (5) wood blocks: a sapling is no log, and a small young tree is left. A player's log building (placed
 logs, which have no felling group) is never touched, and neither is a tree in a land claim its owner may
 not break in (or, its owner unknown to the server, any claimed one). It walks to a place beside the trunk
 (a block corner 1.5 to 3.6 blocks from the trunk's centre, those within 2.8 and nearest it first, its
-box free and on the ground; three tried by the wide pathfinder before the tree is given up), faces it and
-swings `fell` three times (1.33 s each); the third cut, on frame 15, fells it. A tree it cannot reach is
-given up for the order's life. Done when no grown tree it can reach is left, when it tells its owner how
-many it felled (and how many were out of reach) and the order ends where it stands. Several given the
+box free and on the ground; three tried by the wide pathfinder, and three walks there, before the tree is
+given up), faces it and swings `fell` three times (1.33 s each); the third cut, on frame 15, fells it. A
+tree it cannot reach is passed over, but a way is often wanting only for a while (a feller is lifted onto
+the trunk it has just felled, and its walks from there may end where they start; another eidolon or a
+trunk may stand in it), so once it finds nothing else it tries each tree it gave up that still stands
+once more (`FellGiveUps`); one given up again is given up for the order's life. Done when no grown tree
+it can reach is left, when it tells its owner how many it felled (and how many trees were out of reach:
+those given up that still stand, stumps side by side one tree) and the order ends where it stands. Several given the
 same area fell it as one job, with one report (below).
 
 *Felled as a player's axe fells.* The server raises its `BreakBlock` event only for players, which
@@ -3180,9 +3185,9 @@ short, stuck or off an edge, it sets off again, up to 3 times) and the order end
 (done, it goes on back). `MineOrder.HasWorkLeft` holds until it has told its owner it is done, and its
 area is its `WorkAreas`. It is not part of the crew order. Several given the same area work it as one
 job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs` and
-`tests/PackTests/EidolonMineScenarios.cs` (Atlas: the granite pits; a 10 × 10 soil area two deep, its
-middle out of reach from the rim, with a worn Desire Paths path across it all mined and a chest left
-on the soil under it; a dry reservoir; a tunnel 2 wide, 4 high and 8 long into a granite hillside,
+`tests/PackTests/EidolonMineScenarios.cs` (Atlas: the granite pit; an 8 × 8 soil layer, its
+middle out of reach from the rim, with a worn Desire Paths path across it all mined and a chest left;
+a dry reservoir; a tunnel 2 wide, 4 high and 8 long into a granite hillside,
 refused three high as it is marked, driven in from its open face a slice at a time, each slice's top
 half before its bottom half, all mined, none out of reach, no slam at nothing, and walked back out; a
 tunnel 6 high benched, its top heading driven from a ledge in front of the cliff, then the lower one
@@ -3285,18 +3290,21 @@ own, one report; two of one owner sharing a pit, never holding the
 same square, the floors within a climb, one report with both shares, each back to its place; three on a
 16 × 3 × 12 area each breaking only in its sector, on average 5 or more apart, never overlapping, the floors
 within a climb, no slam at nothing, one report; one whose sector is mined out stealing the far half of
-another's; two ordered head on across each other's way walking round each other and both arriving; an eidolon with no
-order standing in the area never mined out from under, waited for, and its squares mined once it moves,
-no pillar left; one dry when the job is reported going back once oiled with no report of its own; one
-ordered later joining the job running; one with no square free waiting at the rim).
+another's; two ordered head on across each other's way walking round each other and both arriving; one
+ordered later joining the job running) and `tests/PackTests/EidolonTeamWaitScenarios.cs` (Atlas: an
+eidolon with no order standing in the area never mined out from under, waited for, and its squares mined
+once it moves, no pillar left; one dry when the job is reported going back once oiled with no report of
+its own; one with no square free waiting at the rim).
 
 *Felling together* (`FellOrder`, `EidolonJobSystem.Felling`) works the same way with a tree for the unit:
 a feller reserves the tree it makes for (its stump) before it sets off, again as it comes to swing (a
 reservation may lapse on a long walk), keeps it with each swing and frees it once the tree is down or
 given up; its search passes over the trees another holds (they do not count to the 24 it weighs). A tree
 passed over for what it is (young, in a claim its owner may not break in, or one that would not fall) is
-passed over by the whole job (`FellJobCells.Skip`); one a member found no way to stays its own, and the
-report counts those some member gave up that still stand (`FellJobCells.Unreachable`). One with no tree
+passed over by the whole job (`FellJobCells.Skip`); one a member found no way to stays its own (each
+tries it, and tries it again before it has nothing left, so the job is done only when every member has
+given it up twice), and the report counts the trees some member gave up that still stand
+(`FellJobCells.Unreachable`, each tree once). One with no tree
 free, while trees are held by others, waits at the rim as a miner does (`RimWait`, looking for ground
 from 8 blocks below the area to 8 above, as stumps are; finding no way there, it steps aside to the
 nearest place more than 4.6 blocks from every tree another holds, `eidolon-status-fell-waiting-aside`),
@@ -3309,7 +3317,8 @@ a feller is away from its job (its tree freed, the report not held up for it) un
 Each saves `mates` as a miner does, and the report writes `done` into each loaded member's order, which ends it on load; one away when the job is reported (no axe, dry, unloaded) finds it closed when it comes back and its order ends with no report of its own. With `once`
 (the crew order) it joins no job. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` and
 `tests/PackTests/EidolonTeamFellScenarios.cs` (Atlas: two of one owner felling five oaks, never holding
-the same tree, one report with both shares, the job closed; one with no tree free waiting at the rim).
+the same tree, one report with both shares, the job closed) and `tests/PackTests/EidolonTeamWaitScenarios.cs`
+(Atlas: one with no tree free waiting at the rim).
 
 **The crew** (#679; `Eidolon/Game/CrewOrder.cs`, rules in `Eidolon/Core/EidolonCrew.cs`). *Fell and
 haul* (wheel place 70) marks a fell area (at most 32 blocks a side), then a rosser or bucking mill, as
@@ -3577,7 +3586,7 @@ follows the server. `tests/Eidolon/` covers charge, stops, the slump pose, owner
 repair amounts and the pathfinder (a 2 × 4 gate passes, a narrower or lower one does not, steps, drops, corners, lava, the
 node budget; climbs of two but not three, the headroom at the foot and the top, diagonally too, their cost, a
 drop of two but not three), and `tests/Eidolon/EidolonClimbTests.cs` the climb (which steps, where it is as it
-goes, never forward before it is up, the setting's range); `tests/PackTests/EidolonClimbScenarios.cs` (Atlas)
+goes, never forward before it is up, the setting's range); `tests/PackTests/EidolonFootingScenarios.cs` (Atlas, its `F_` scenarios)
 sends one up a ledge two high (it climbs, playing `climb`, and gets there) and back down off it, and to and from
 the top of one three high (no way, either way); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
 stranger, runs its charge out over simulated days (slumped, alive, a gear wakes it, the cap holds),
@@ -3623,12 +3632,12 @@ steel pickaxe's tier, the strike's length against a steel pickaxe and its slam, 
 its box, the next group flat or upright, where it stands, the search: the highest layer and the one under,
 an unloaded column read as air never done, a block left for a liquid beside it holding nothing up unless
 it falls) and `tests/PackTests/EidolonMineScenarios.cs` (Atlas) orders it
-with the tool over a pit two layers deep in granite: it mines every block top down, never under its box,
-the granite's drops lying in the world, half a point of oil a strike, leaves a block touching water and
-a chest, and walks back up a terrace to where it was ordered; digs a pit three deep with no ramp, down
-to its floor, and climbs out two blocks onto a shelf beside it and walks back; a dry reservoir stops
-it until oiled; it drives a tunnel into a hillside from its open face, a face at a time; and it benches
-a tunnel 6 high, a heading at a time, each from its own face, out by the lower mouth;
+with the tool over a pit three layers deep in granite with no ramp: it mines every block top down,
+never under its box, the granite's drops lying in the world, half a point of oil a strike, leaves a block
+touching water and a chest with the column under it, down to its floor, and climbs out two blocks onto a
+shelf beside it and walks back to where it was ordered; a dry reservoir stops it until oiled; it drives
+a tunnel into a hillside from its open face, a face at a time; and it benches a tunnel 6 high, a heading
+at a time, each from its own face, out by the lower mouth;
 `tests/Eidolon/EidolonTunnelsTests.cs` covers tunnels (covered and open, the refusals, the open face,
 the face's order, benching and each heading's own face, the headings);
 `tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
@@ -3641,7 +3650,7 @@ crew gives one up;
 `tests/Eidolon/EidolonChunksTests.cs` covers chunk loading's rules (when it holds, which columns for a
 place, a radius and work areas, a quarry too wide to hold, the counted holds, a column forced for
 something else, what is saved) and `tests/PackTests/EidolonChunkScenarios.cs` (Atlas, no player joined,
-each far from spawn) has one fell two oaks with no player near (inactive until ordered, its columns and
+each far from spawn) has one fell an oak with no player near (inactive until ordered, its columns and
 area forced while it works, every one let go when it is done), let its columns go dry, staying, without
 an axe, slumped and removed and hold them again at work, and saves its holds and restores them (a hold
 whose eidolon never loads let go after its wait); Atlas pauses the chunk unloader, so they read the
@@ -5090,9 +5099,12 @@ the tier and a bar to the next, the raw numbers in brackets ("Regular [310 / 800
   (from anywhere in your inventory).
 - **Deliveries (n)**: the trader's offer (where, how far and which way, the deposit, the fee, the
   time) with Take and Mark on map, your packages from or for it, and Hand in at the receiver.
-- **Maps & leads**: ore maps (metal, size, distance, precision), the gravel map and leads (target,
-  distance, direction); sold-out and locked ones say why, and ones you have already are greyed out,
-  "you have this" (see "Maps and leads"). Bought by holding, as goods.
+- **Maps & leads**: every map and lead on offer as one row each, under a small heading (Ore maps,
+  Gravel maps, Leads): its icon (hover it for the item's tooltip), what it is ("Galena", "Tailor's
+  camp") with its facts under it ("large · poor · in Syenite · about 1 km · rough, ±150 m", "about
+  1 km north"), the price and a Buy button, pressed once. One you can't buy says why on its greyed
+  out button: Sold out, Locked (the row says the tier that sells it), Have it (see "Maps and
+  leads"), Surveying; Buy is off, its price in red, while you carry less than the price.
 - **Standing**: the five tiers with their thresholds, yours marked, what it gives you against the
   next, and how to earn standing.
 
@@ -5563,8 +5575,8 @@ carry their own discount instead).
   | partner | 5 | 12 | 55 |
 
   **Your very first map** is 10 gears and leads to a prospector. Every trader but a prospector
-  offers it, at any standing, a stranger's included, at the top of the Maps & leads tab ("First
-  map's on me: 10 g to the nearest prospector, about 3 km northeast."), until you buy it; it is
+  offers it, at any standing, a stranger's included, first among the Maps & leads tab's leads
+  ("Prospector's camp", "your first map · nearest prospector · about 3 km northeast", 10 g), until you buy it; it is
   yours alone, so every new member of a company gets their own, even where their company has had
   its stranger's map from that trader (and so does a player from a world saved before the first
   map, at a trader that already sold them their stranger's map). It goes to the nearest prospector cell to the selling trader (the grid puts one within two
@@ -5585,8 +5597,8 @@ carry their own discount instead).
 
 Every map and lead says how far its target is in whole kilometres, rounded to the nearest (1 km =
 1,000 blocks), "about 3 km", and "under a km" under half of one (`Trading/Maps/Core/MapDistance.cs`):
-its offer on the Maps & leads tab from the trader ("Ore map: galena (medium), about 2 km away,
-rough (±150 m)", "Lead to the cook's camp, about 4 km north: 24 g"), the map or lead in your bags from
+its offer on the Maps & leads tab from the trader ("Galena: medium · about 2 km · rough, ±150 m",
+"Cook's camp: about 4 km north"), the map or lead in your bags from
 where you stand ("Distance from here: about 3 km."), and the chat when reading one on a server
 without a world map. None names a ring.
 
@@ -5602,7 +5614,7 @@ on. The mod remembers which marker marks what (by the waypoint's id, saved as
 
 A trader won't sell you a map you have: one whose target is on your map already, as precisely or
 more (from an earlier map or lead, or a camp's trader met), or one you carry a copy of (read or not,
-or still being checked). Its offer is greyed out on the Maps & leads tab, "you have this", and the
+or still being checked). Its offer is greyed out on the Maps & leads tab, "Have it", and the
 server refuses it before any gears move. A rougher marker or copy does not count: a more precise
 map of the same target is an upgrade, and reading it replaces the rougher marker. An offer whose
 deposit or field turned out to be gone since the shelf was stocked (its cell's every spot failed)

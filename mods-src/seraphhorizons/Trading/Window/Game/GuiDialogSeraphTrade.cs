@@ -30,6 +30,10 @@ namespace SeraphHorizons.Mod.Trading.Window;
 /// <see cref="HoldRingRenderer"/>), and holding on buys the next. The four sell slots are the
 /// trader's selling cart; Hold to sell sells one lot of what is in them, pooled
 /// (<see cref="SellPool"/>).</item>
+/// <item>Maps &amp; leads: every map and lead on offer, the shelf's and the player's own camp leads
+/// alike, as one row each under a small heading per group (<see cref="WindowLayout.Offers"/>): its
+/// icon (the item's tooltip on hover), what it is with its facts under it, the price and a Buy
+/// button, pressed once, not held; one that cannot be bought says why on its greyed-out button.</item>
 /// <item>Orders, Deliveries, Maps &amp; leads and Standing as their names say, in a scroll area when
 /// they run longer than the screen has room for.</item>
 /// </list>
@@ -68,6 +72,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
     private int _stateVersion;
     private (string Kind, int Id) _selected = ("", -1);
     private string _status = "";
+    private DummySlot? _leadIcon;
 
     public GuiDialogSeraphTrade(ICoreClientAPI capi, EntitySeraphTrader trader) : base(capi)
     {
@@ -197,6 +202,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         foreach (var (grid, _, _) in _grids) grid.OnGuiClosed(capi);
         _grids.Clear();
         _sellButton = null;
+        LeaveIcons();
         _scrollBody = null;
         _composedKey = Key();
         var tabs = TradeWindowModel.Tabs(_state);
@@ -217,21 +223,9 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
                 break;
             case WindowTab.Maps:
             {
-                var ids = MapIds();
-                if (ids.Length > 0)
-                    body = f =>
-                    {
-                        f.Element("maps", 0, slots.GridWidth(Math.Min(8, ids.Length)), slots.GridHeight(ids.Length, 8));
-                        f.Next(6);
-                    };
-                var lines = ids.Length == 0 && _state.LeadOffers.Count == 0 ? [L("trading-window-maps-none")] : ids.Select(MapLine).ToList();
-                string? leads = LeadsLockedText();
-                string details = Details();
-                // Camp leads: this player's own, off the shelf, each with its price and a Buy button.
-                var campLeads = _state.LeadOffers.Select((row, i) =>
-                    new ActionLine(T(TradeWindowModel.LeadOfferLine(row)), [(L("trading-window-buy"), "lead-" + i, i)])).ToList();
-                string? note = TradeWindowModel.LeadOffersNote(_state) is { } n ? T(n) : null;
-                scrollBuild = f => WindowLayout.MapLines(f, lines, leads, details, campLeads, note);
+                var sections = OfferSections();
+                string empty = L("trading-window-maps-none");
+                scrollBuild = f => WindowLayout.Offers(f, sections, empty);
                 break;
             }
             default:
@@ -313,9 +307,51 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         }
     }
 
-    private string? LeadsLockedText() =>
-        !_state.LeadsToTraders && _state.LeadsTier >= 0 && _state.Standing?.Tiers.ElementAtOrDefault(_state.LeadsTier) is { } tier
-            ? L("trading-window-maps-leadslocked", TradeWindowModel.TierName(tier.Code)) : null;
+    private Text? LockedTier => _state.Standing?.Tiers.ElementAtOrDefault(_state.LeadsTier) is { } t ? TradeWindowModel.TierName(t.Code) : null;
+
+    /// <summary>The Maps &amp; leads tab: every map and lead on the shelf and every camp lead offered
+    /// to this player, as one kind of row each with its own Buy button, grouped; the notes on leads
+    /// under them.</summary>
+    private List<OfferSection> OfferSections()
+    {
+        int gears = InventoryTrader.GetPlayerAssets(capi.World.Player.Entity);
+        var rows = new List<(OfferRow Row, string Key, int Id)>();
+        // Camp leads: this player's own, off the shelf; the first map first, then the shelf's leads.
+        foreach (var (row, i) in _state.LeadOffers.Select((row, i) => (row, i)).OrderBy(p => p.row.Pity ? 0 : 1))
+            rows.Add((TradeWindowModel.CampLeadRow(row), "lead-" + i, i));
+        foreach (int id in MapIds()) rows.Add((MapRow(id), "buymap-" + id, id));
+
+        var notes = new List<string>();
+        if (TradeWindowModel.LeadOffersNote(_state) is { } note) notes.Add(T(note));
+        // Settlement leads need a tier: said once, unless a locked row says it already.
+        if (!_state.LeadsToTraders && _state.LeadsTier >= 0 && LockedTier is { } tier && !rows.Any(r => r.Row.Status == MapOfferStatus.Locked))
+            notes.Add(L("trading-window-maps-leadslocked", tier));
+
+        var sections = new List<OfferSection>();
+        foreach (var group in Enum.GetValues<OfferGroup>())
+        {
+            var lines = rows.Where(r => r.Row.Group == group).Select(r => OfferLineOf(r.Row, r.Key, r.Id, gears)).ToList();
+            var groupNotes = group == OfferGroup.Leads ? notes : [];
+            if (lines.Count > 0 || groupNotes.Count > 0)
+                sections.Add(new OfferSection(T(TradeWindowModel.GroupHeading(group)), lines, groupNotes));
+        }
+        return sections;
+    }
+
+    private OfferLine OfferLineOf(OfferRow row, string key, int id, int gears)
+    {
+        var (label, enabled) = TradeWindowModel.BuyButton(row.Status, row.Price, gears);
+        bool available = row.Status == MapOfferStatus.Available;
+        string details = string.Join(" · ", row.Details.Select(d => d is Text t ? T(t) : d.ToString() ?? ""));
+        string price = TradeWindowModel.PriceText(row) is { } p ? T(p) : "";
+        return new OfferLine(Capitalize(T(row.Title)), details, price, T(label), enabled, available, key, id,
+            available && !enabled ? ShortColor : !available ? WindowLayout.Quiet : null);
+    }
+
+    private const string ShortColor = "#d08070";
+
+    /// <summary>A row's title starts with a capital ("galena" is mid-sentence in other lines).</summary>
+    private static string Capitalize(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
     private TradeTabText TradeText()
     {
@@ -396,15 +432,6 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
                     i => i < SellSlotIds.Length && _inv[SellSlotIds[i]].Itemstack is { } s && _own?.RefusalOf(s) != null, L("trading-window-sell-wontbuy")), "sellnotes");
                 break;
             }
-            case "maps":
-            {
-                var ids = MapIds();
-                var grid = AddGrid(gui, _inv, ids, 8, box.X, box.Y, "maps", "map");
-                // Locked offers and ones the player has already are greyed out (hatched).
-                var locked = Enumerable.Range(0, ids.Length).Where(i => StatusOf(ids[i]) is MapOfferStatus.Locked or MapOfferStatus.Owned).ToList();
-                if (locked.Count > 0) gui.AddInteractiveElement(new GuiElementSlotHatch(capi, ElementBounds.Fixed(box.X, box.Y, box.W, 10), grid, locked), "hatch-maps");
-                break;
-            }
         }
     }
 
@@ -432,9 +459,13 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
                 {
                     var action = ActionFor(box.Key, box.Id);
                     container.Add(new GuiElementTextButton(capi, box.Text, CairoFont.SmallButtonText(),
-                        CairoFont.SmallButtonText().WithColor(GuiStyle.ActiveButtonTextColor), action, ButtonBounds(box), EnumButtonStyle.Normal));
+                        CairoFont.SmallButtonText().WithColor(GuiStyle.ActiveButtonTextColor), action, ButtonBounds(box), EnumButtonStyle.Normal)
+                        { Enabled = box.Enabled });
                     break;
                 }
+                case BoxKind.Element when box.Key.StartsWith("icon-", StringComparison.Ordinal) && IconSlot(box.Key[5..], box.Id) is { } slot:
+                    container.Add(new GuiElementOfferIcon(capi, bounds, slot, box.Enabled));
+                    break;
             }
         }
         _scrollBody = container;
@@ -447,6 +478,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         if (key.StartsWith("dtake-", StringComparison.Ordinal)) return () => Request(TradeAction.TakeDelivery);
         if (key.StartsWith("dhandin-", StringComparison.Ordinal)) return () => Request(TradeAction.HandInDelivery);
         if (key.StartsWith("dmark-", StringComparison.Ordinal)) return () => Request(TradeAction.MarkDelivery, id: id);
+        if (key.StartsWith("buymap-", StringComparison.Ordinal)) return () => BuyMap(id);
         if (key.StartsWith("lead-", StringComparison.Ordinal) && _state.LeadOffers.ElementAtOrDefault(id) is { } lead)
         {
             string cell = lead.Pity ? MapsSystem.PityCode : lead.Cell;
@@ -454,6 +486,12 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
             return () => RequestLead(cell, price);
         }
         return () => true;
+    }
+
+    private void LeaveIcons()
+    {
+        if (_scrollBody is null) return;
+        foreach (var icon in _scrollBody.Elements.OfType<GuiElementOfferIcon>()) icon.Leave();
     }
 
     private void OnScroll(float value)
@@ -506,30 +544,29 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         return stack;
     }
 
-    /// <summary>One map offer: what, how far, how precise, and whether this player can have it.</summary>
-    private string MapLine(int slotId)
+    /// <summary>One map or lead offer on the shelf: what, how far, how precise, its price, and
+    /// whether this player can have it.</summary>
+    private OfferRow MapRow(int slotId)
     {
         var slot = (ItemSlotTrade)_inv[slotId];
         var stack = slot.Itemstack!;
         var a = stack.Attributes;
-        string what = a.GetString(MapOfferAttrs.Offer) switch
+        var status = StatusOf(slotId);
+        int price = slot.TradeItem?.Price ?? 0;
+        bool gravel = stack.Collectible.Code == MapsSystem.OfferGravelCode;
+        return a.GetString(MapOfferAttrs.Offer) switch
         {
-            MapOfferAttrs.OreMap => T(TradeWindowModel.OreMapLine(a.GetString(MapOfferAttrs.Metal) ?? "", OreNames.Split(a.GetString(MapOfferAttrs.Ores)),
+            MapOfferAttrs.OreMap => TradeWindowModel.OreMapRow(a.GetString(MapOfferAttrs.Metal) ?? "", OreNames.Split(a.GetString(MapOfferAttrs.Ores)),
                 a.GetString(MapOfferAttrs.SizeTier), a.GetString(MapOfferAttrs.Grades), RockName(a.GetString(MapOfferAttrs.Rock)),
-                a.GetDouble(MapOfferAttrs.Distance), a.GetAsInt(MapOfferAttrs.Precision, 1))),
-            MapOfferAttrs.GravelMap => T(TradeWindowModel.GravelMapLine(RockName(a.GetString(MapOfferAttrs.Rock)), OreNames.Split(a.GetString(MapOfferAttrs.Metals)),
-                a.GetDouble(MapOfferAttrs.Distance))),
-            MapOfferAttrs.Surveying => T(TradeWindowModel.SurveyingLine(stack.Collectible.Code == MapsSystem.OfferGravelCode ? null : a.GetString(MapOfferAttrs.Metal))),
-            MapOfferAttrs.Lead => T(TradeWindowModel.LeadLine(a.GetString(MapOfferAttrs.LeadKind), a.GetString(MapOfferAttrs.Type) ?? "",
+                a.GetDouble(MapOfferAttrs.Distance), a.GetAsInt(MapOfferAttrs.Precision, 1), price, status, a.GetBool(MapOfferAttrs.Underwater)),
+            MapOfferAttrs.GravelMap => TradeWindowModel.GravelMapRow(RockName(a.GetString(MapOfferAttrs.Rock)), OreNames.Split(a.GetString(MapOfferAttrs.Metals)),
+                a.GetDouble(MapOfferAttrs.Distance), price, status),
+            MapOfferAttrs.Lead => TradeWindowModel.ShelfLeadRow(a.GetString(MapOfferAttrs.LeadKind), a.GetString(MapOfferAttrs.Type) ?? "",
                 Math.Sqrt(Sq(a.GetAsInt(MapOfferAttrs.X) - _trader.Pos.X) + Sq(a.GetAsInt(MapOfferAttrs.Z) - _trader.Pos.Z)),
-                TradeWindowModel.Direction(a.GetAsInt(MapOfferAttrs.X) - _trader.Pos.X, a.GetAsInt(MapOfferAttrs.Z) - _trader.Pos.Z))),
-            _ => stack.GetName(),
+                TradeWindowModel.Direction(a.GetAsInt(MapOfferAttrs.X) - _trader.Pos.X, a.GetAsInt(MapOfferAttrs.Z) - _trader.Pos.Z), price, status, LockedTier),
+            // Being surveyed, or the sold-out marker: what it was, without details.
+            _ => TradeWindowModel.PlaceholderRow(a.GetString(MapOfferAttrs.Metal), gravel, status),
         };
-        var lockedTier = _state.Standing?.Tiers.ElementAtOrDefault(_state.LeadsTier) is { } t ? TradeWindowModel.TierName(t.Code) : null;
-        string status = TradeWindowModel.MapStatusText(StatusOf(slotId), lockedTier) is { } why
-            ? T(why)
-            : L("trading-window-map-price", slot.TradeItem?.Price ?? 0);
-        return $"{what} — {status}";
     }
 
     private static double Sq(double v) => v * v;
@@ -550,18 +587,16 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         var (kind, id) = _selected;
         if (id < 0) return _tab switch
         {
-            WindowTab.Maps => L("trading-window-maps-hint"),
             WindowTab.Trade => L("trading-window-select-hint"),
             _ => "",
         };
         switch (kind)
         {
-            case "sell" or "buy" or "map":
+            case "sell" or "buy":
             {
                 if (_inv[id] is not ItemSlotTrade { Itemstack: { } stack, TradeItem: { } item }) return "";
-                bool sells = kind != "buy";
-                var lines = TradeWindowModel.ShelfDetails(stack.GetName(), item.Stack?.StackSize ?? stack.StackSize, item.Price, item.Stock, sells,
-                    kind == "map" && StatusOf(id) == MapOfferStatus.Locked);
+                bool sells = kind == "sell";
+                var lines = TradeWindowModel.ShelfDetails(stack.GetName(), item.Stack?.StackSize ?? stack.StackSize, item.Price, item.Stock, sells, false);
                 return WindowText.Lines(capi, lines);
             }
             case "locked" when id < _state.Locked.Count:
@@ -605,7 +640,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         if (!target.StartsWith("buy:", StringComparison.Ordinal) || !int.TryParse(target[4..], out int slotId)) return null;
         foreach (var (grid, ids, kind) in _grids)
         {
-            if (kind is not ("sell" or "map")) continue;
+            if (kind != "sell") continue;
             int i = Array.IndexOf(ids, slotId);
             if (i >= 0 && grid.SlotBounds != null && i < grid.SlotBounds.Length) return grid.SlotBounds[i];
         }
@@ -626,8 +661,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
                     {
                         if (!grid.SlotBounds[i].PointInside(args.X, args.Y)) continue;
                         _selected = (kind, ids[i]);
-                        bool buyable = kind == "sell" || (kind == "map" && StatusOf(ids[i]) == MapOfferStatus.Available);
-                        if (buyable && _inv[ids[i]] is ItemSlotTrade { TradeItem.Stock: > 0 }) StartHold("buy:" + ids[i], grid.SlotBounds[i]);
+                        if (kind == "sell" && _inv[ids[i]] is ItemSlotTrade { TradeItem.Stock: > 0 }) StartHold("buy:" + ids[i], grid.SlotBounds[i]);
                         // The details change: shown once the button is up (no recompose under a press).
                         _dirty = true;
                         break;
@@ -668,6 +702,25 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
             _ring.Visible = _hold.State is HoldState.Holding or HoldState.Waiting;
             _ring.Progress = (float)_hold.Progress;
         }
+    }
+
+    /// <summary>A Maps &amp; leads row's Buy: the map or lead in shelf slot <paramref name="slot"/>, as
+    /// the player sees it (the server refuses if it was restocked or repriced meanwhile, or is not
+    /// theirs to have).</summary>
+    private bool BuyMap(int slot)
+    {
+        if (_inv[slot] is ItemSlotTrade { Itemstack: { } stack, TradeItem: { } item })
+            System?.Request(_trader.EntityId, TradeAction.Buy, slot, code: stack.Collectible.Code.ToString(), price: item.Price);
+        return true;
+    }
+
+    /// <summary>The slot a Maps &amp; leads row's icon draws: the shelf's own for a map or lead on it
+    /// (its tooltip the item's), a lead's item for a camp lead.</summary>
+    private ItemSlot? IconSlot(string key, int id)
+    {
+        if (key.StartsWith("buymap-", StringComparison.Ordinal)) return _inv[id]?.Itemstack != null ? _inv[id] : null;
+        if (_leadIcon is null && capi.World.GetItem(ItemTraderLead.LeadCode) is { } lead) _leadIcon = new DummySlot(new ItemStack(lead));
+        return _leadIcon;
     }
 
     private bool RequestLead(string cell, int price)
@@ -749,6 +802,7 @@ public sealed class GuiDialogSeraphTrade : GuiDialog
         base.OnGuiClosed();
         if (Current == this) Current = null;
         _hold.Release();
+        LeaveIcons();
         _ring?.Dispose();
         _ring = null;
         if (_tick != 0) capi.Event.UnregisterGameTickListener(_tick);

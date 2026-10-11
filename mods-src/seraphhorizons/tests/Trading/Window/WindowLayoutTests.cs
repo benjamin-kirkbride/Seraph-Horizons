@@ -80,22 +80,54 @@ public class WindowLayoutTests
     }
 
     [Fact]
-    public void CampLeadsSitUnderTheShelfOffersEachWithABuyButtonAndTheNoteBelow()
+    public void EveryMapAndLeadIsOneRowWithItsIconTextPriceAndBuyButtonInColumns()
     {
-        var flow = new Flow(M, Width);
-        WindowLayout.MapLines(flow, ["Gravel map: a rich field 412 blocks away — 5 g"], null, "details",
-        [
-            new ActionLine("Lead to the prospector's camp (the nearest prospector), 2030 blocks north-east: 3 g", [("Buy", "lead-0", 0)]),
-            new ActionLine(Long("Lead to the tailor's camp", 4), [("Buy", "lead-1", 1)]),
-        ], "Each lead bought here doubles the next one's price (0 bought so far).");
-        NoProblems(flow);
-        var map = flow.Boxes.Single(b => b.Key == "map-0");
-        var first = flow.Boxes.Single(b => b.Key == "line-0");
-        var buy = flow.Boxes.Single(b => b.Key == "lead-0");
-        Assert.True(first.Y >= map.Bottom);
-        Assert.True(buy.X >= first.Right, "the button is beside its lead");
-        Assert.Equal(1, flow.Boxes.Single(b => b.Key == "lead-1").Id);
-        Assert.True(flow.Boxes.Single(b => b.Key == "leadsnote").Y >= flow.Boxes.Single(b => b.Key == "line-1").Bottom);
+        // The playtest's Maps & leads tab: maps were icons with their lines apart below, held to buy,
+        // and leads lines with a Buy button. Now every offer is one row alike, grouped.
+        foreach (double width in new[] { Width, Width - WindowLayout.ScrollbarWidth })
+        {
+            var flow = new Flow(M, width);
+            WindowLayout.Offers(flow,
+            [
+                new OfferSection("Ore maps",
+                [
+                    new OfferLine("Galena", "large · poor · in Syenite · about 1 km · rough, ±150 m", "19 g", "Buy", true, true, "buymap-0", 0),
+                    new OfferLine("Hematite", Long("medium · rich · in Syenite", 4), "", "Sold out", false, false, "buymap-3", 3),
+                ], []),
+                new OfferSection("Leads",
+                [
+                    new OfferLine("Tailor's camp", "about 1 km north", "124 g", "Buy", false, true, "lead-0", 0, "#d08070"),
+                ], ["Each lead bought here costs more than the last (0 so far)."]),
+            ], "none");
+            NoProblems(flow);
+            var heading = flow.Boxes.Single(b => b.Key == "heading-0");
+            var icon = flow.Boxes.Single(b => b.Key == "icon-buymap-0");
+            var title = flow.Boxes.Single(b => b.Key == "title-buymap-0");
+            var details = flow.Boxes.Single(b => b.Key == "details-buymap-0");
+            var price = flow.Boxes.Single(b => b.Key == "price-buymap-0");
+            var buy = flow.Boxes.Single(b => b.Key == "buymap-0");
+            Assert.True(icon.Y >= heading.Bottom);
+            Assert.Equal(BoxKind.Element, icon.Kind);
+            Assert.True(title.X >= icon.Right && details.Y >= title.Bottom, "the text is beside the icon, its details under its title");
+            Assert.True(price.X >= title.Right && buy.X >= price.Right, "the price, then the button, at the right");
+            Assert.Equal(width, buy.Right);
+            // Every button is as wide as the widest, so they line up; the sold-out one is off and its icon greyed.
+            var soldOut = flow.Boxes.Single(b => b.Key == "buymap-3");
+            Assert.Equal(buy.W, soldOut.W);
+            Assert.False(soldOut.Enabled);
+            Assert.False(flow.Boxes.Single(b => b.Key == "icon-buymap-3").Enabled);
+            Assert.Equal(3, soldOut.Id);
+            Assert.True(flow.Boxes.Single(b => b.Key == "details-buymap-3").H > FakeMeasure.Line, "long details wrap within the row");
+            Assert.True(flow.Boxes.Single(b => b.Key == "icon-buymap-3").Y >= buy.Bottom);
+            // A lead the player can't afford: Buy is off, but its icon is not greyed.
+            Assert.False(flow.Boxes.Single(b => b.Key == "lead-0").Enabled);
+            Assert.True(flow.Boxes.Single(b => b.Key == "icon-lead-0").Enabled);
+            Assert.Equal("#d08070", flow.Boxes.Single(b => b.Key == "price-lead-0").Color);
+            Assert.True(flow.Boxes.Single(b => b.Key == "note-1-0").Y >= flow.Boxes.Single(b => b.Key == "icon-lead-0").Bottom);
+        }
+        var empty = new Flow(M, Width);
+        WindowLayout.Offers(empty, [], "No maps or leads on offer here this week.");
+        Assert.Equal("empty", Assert.Single(empty.Boxes).Key);
     }
 
     [Fact]

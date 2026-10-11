@@ -24,8 +24,10 @@ namespace SeraphHorizons.Mod.Eidolon;
 ///
 /// <para>Without an axe in its hand (<see cref="EntityBehaviorEidolonAxe"/>), or once the axe
 /// breaks, it stops and waits, says so and tells its owner once, and goes on when given another.
-/// A tree it cannot reach (no way to any place beside it) is skipped for the order's life; so is a
-/// young one, and one in a land claim its owner may not break in. Interrupted (self-defence, a slump,
+/// A tree it cannot reach (no way to any place beside it, or none it arrives at) is passed over, and
+/// tried once more before it says it has nothing left (<see cref="FellGiveUps"/>): a way is often
+/// wanting only for a while. A young tree, and one in a land claim its owner may not break in, are
+/// skipped for the order's life. Interrupted (self-defence, a slump,
 /// dry), it starts again by looking afresh.</para>
 ///
 /// <para>Eidolons of one owner given the very same area fell it as one job (README "Eidolon", working
@@ -71,7 +73,7 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
     private enum Phase { Seek, Walk, Swing, NoAxe, Wait }
 
     private readonly HashSet<BlockPos> _skip = new();
-    private readonly HashSet<MarkPos> _unreachable = new();
+    private readonly FellGiveUps _gaveUp = new();
     private readonly RimWait _rim = new(area, EidolonFelling.AreaHeightSlack);
     private EidolonNavigator? _nav;
     private Phase _phase;
@@ -100,9 +102,6 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
 
     /// <summary>Trees it replanted.</summary>
     public int Replanted { get; private set; }
-
-    /// <summary>Trees it gave up for want of a way to them.</summary>
-    public int Unreachable { get; private set; }
 
     /// <summary>Where the last tree it felled stood (its stump), or null.</summary>
     public BlockPos? LastStump { get; private set; }
@@ -334,6 +333,13 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
                 Unfinish(eidolon);
                 return Wait(eidolon, now);
             }
+            // the trees it gave up once, tried again before it says it has none
+            if (_gaveUp.Retry(c => Standing(eidolon, c)))
+            {
+                Unfinish(eidolon);
+                _nextScan = now;
+                return true;
+            }
             Clear = true;
             if (once)
                 return false;
@@ -377,8 +383,9 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
                 || !EidolonFelling.IsWildLog(block.Code.Path, true, block.BlockMaterial == EnumBlockMaterial.Wood))
                 continue;
             below.Set(x, y - 1, z);
-            if (!EidolonFelling.IsStump(block.Code.Path, FellingGroup(blocks.GetBlock(below)) == group) || _skip.Contains(pos)
-                || _job?.Shared.Skip.Contains(Unit(pos)) == true)
+            var under = blocks.GetBlock(below);
+            if (!EidolonFelling.IsStump(block.Code.Path, FellingGroup(under) == group, under.SideSolid[BlockFacing.UP.Index])
+                || _skip.Contains(pos) || _gaveUp.Has(Unit(pos)) || _job?.Shared.Skip.Contains(Unit(pos)) == true)
                 continue;
             stumps.Add(pos.Copy());
         }
@@ -417,6 +424,19 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
 
     private static bool StillATree(EntityLaborEidolon eidolon, BlockPos stump) => FellingGroup(eidolon.World.BlockAccessor.GetBlock(stump)) != null;
 
+    /// <summary>Whether a tree still stands on the stump at <paramref name="cell"/> (not felled since:
+    /// a wild log, not the sapling replanted there).</summary>
+    private static bool Standing(EntityLaborEidolon eidolon, MarkPos cell)
+    {
+        var block = eidolon.World.BlockAccessor.GetBlock(new BlockPos(cell.X, cell.Y, cell.Z, eidolon.Pos.Dimension));
+        return block.Id != 0 && FellingGroup(block) != null
+               && EidolonFelling.IsWildLog(block.Code.Path, true, block.BlockMaterial == EnumBlockMaterial.Wood);
+    }
+
+    /// <summary>How many trees still stand of the stumps given up in <paramref name="cells"/>.</summary>
+    private static int OutOfReach(EntityLaborEidolon eidolon, IEnumerable<MarkPos> cells) =>
+        EidolonFelling.Trees(cells.Where(c => Standing(eidolon, c)));
+
     private static bool InReach(EntityLaborEidolon eidolon, BlockPos stump) =>
         EidolonFelling.InReach(eidolon.Pos.X, eidolon.Pos.Z, stump.X, stump.Z) && Math.Abs(eidolon.Pos.Y - stump.Y) <= 2;
 
@@ -445,9 +465,7 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
     private void GiveUp(EntityLaborEidolon eidolon, BlockPos stump)
     {
         Halt(eidolon);
-        _skip.Add(stump);
-        if (_unreachable.Add(Unit(stump)))
-            Unreachable++;
+        _gaveUp.GiveUp(Unit(stump));
         _job?.Shared.Unreachable.Add(Unit(stump));
         Board?.Release(eidolon.EntityId);
         _tree = null;
@@ -574,19 +592,18 @@ public sealed class FellOrder(MarkArea area, bool once, IReadOnlyList<long>? mat
         var shares = _job?.Shares ?? [];
         if (shares.Count > 1)
         {
-            // the trees some member gave up that still stand: another may have felled one
-            var blocks = eidolon.World.BlockAccessor;
-            var pos = new BlockPos(eidolon.Pos.Dimension);
-            int unreachable = _job!.Shared.Unreachable.Count(c => FellingGroup(blocks.GetBlock(pos.Set(c.X, c.Y, c.Z))) != null);
+            // the trees some member gave up that still stand (another may have felled one), each once
+            int unreachable = OutOfReach(eidolon, _job!.Shared.Unreachable);
             string key = unreachable > 0 ? SharedDoneUnreachableKey : SharedDoneKey;
             Reported = EidolonJobSystem.ShareReport(key, ShareKey, shares, _job.Total, unreachable);
             EidolonJobSystem.TellShares(eidolon, key, ShareKey, shares, _job.Total, unreachable);
         }
         else
         {
-            string key = Unreachable > 0 ? "seraphhorizons:eidolon-fell-done-unreachable" : "seraphhorizons:eidolon-fell-done";
-            Reported = Lang.Get(key, Felled, Unreachable);
-            TellOwner(eidolon, key, Felled, Unreachable);
+            int unreachable = OutOfReach(eidolon, _gaveUp.Given);
+            string key = unreachable > 0 ? "seraphhorizons:eidolon-fell-done-unreachable" : "seraphhorizons:eidolon-fell-done";
+            Reported = Lang.Get(key, Felled, unreachable);
+            TellOwner(eidolon, key, Felled, unreachable);
         }
         Told(eidolon);
         return false;

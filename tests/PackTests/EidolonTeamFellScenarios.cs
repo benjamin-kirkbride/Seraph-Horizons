@@ -14,8 +14,9 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons/Eidolon, several eidolons felling one area as one job (README "Eidolon",
 /// working together), with the pack's default settings, ordered with the command tool as a player
 /// orders them. Two given the same area never hold the same tree, fell them all between them and report
-/// once with both shares, the job closing; one with no tree free waits at the area's rim. On floors of
-/// their own in the sky, the trees grown by the game's generators (<see cref="Felling"/>).
+/// once with both shares, the job closing (one with no tree free waiting at the area's rim is
+/// <see cref="EidolonTeamWaitScenarios"/>). On a floor of its own in the sky, the trees grown by the
+/// game's generators (<see cref="Felling"/>).
 /// </summary>
 [AtlasWorld]
 public class EidolonTeamFellScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -86,9 +87,6 @@ public class EidolonTeamFellScenarios(ITestOutputHelper output) : AtlasScenarioB
 
     private static string State(EntityLaborEidolon e) => EidolonCommands.Describe(e) + " / " + e.GetInfoText().Replace('\n', ' ');
 
-    private static string Status(EntityLaborEidolon e) =>
-        e.WatchedAttributes.GetTreeAttribute(EntityBehaviorEidolonOrders.StatusKey)?.GetString("key") ?? "";
-
     private int Wood(BlockPos log) => Felling.Tree(W, IronAxe, log).Wood;
 
     /// <summary>Grows oaks at <paramref name="spots"/>, standing on their ground, each grown enough to fell.</summary>
@@ -156,66 +154,13 @@ public class EidolonTeamFellScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Contains($"{logs.Count} felled", report);
         Assert.Contains($"{o1.Felled} by eidolon {e1.EntityId}", report);
         Assert.Contains($"{o2.Felled} by eidolon {e2.EntityId}", report);
+        // every tree felled: none out of reach (an oak's boughs, upright in its crown, are no stumps)
+        Assert.DoesNotContain("out of", report);
         Assert.True(job.Closed);
         Assert.Null(Jobs.Felling.JobOf(e1.EntityId));
         Assert.Null(Jobs.Felling.JobOf(e2.EntityId));
         Assert.Empty(Jobs.Felling.Held(e1.EntityId));
         Assert.Empty(Jobs.Felling.Held(e2.EntityId));
-        e1.Die(EnumDespawnReason.Removed);
-        e2.Die(EnumDespawnReason.Removed);
-    }
-
-    [AtlasScenario(TimeoutMs = 480_000)]
-    public async Task One_with_no_tree_free_waits_at_the_rim()
-    {
-        var site = await Felling.Sky(World, World.Spawn.AddCopy(-820, 90, 1700), reach: 14);
-        var logs = await Oaks([site.AddCopy(0, 0, 0)]);
-        var a = site.AddCopy(-3, -1, -3);
-        var b = site.AddCopy(3, -1, 3);
-        var area = MarkArea.Between(new MarkPos(a.X, a.Y, a.Z), new MarkPos(b.X, b.Y, b.Z));
-
-        var (player, tool) = await Commander("eidolonfellspare", site.AddCopy(0, 0, -12));
-        var e1 = await Spawn(site.AddCopy(-3, 0, -6), player);
-        var e2 = await Spawn(site.AddCopy(8, 0, 8), player);
-        GiveAxe(player, e1);
-        GiveAxe(player, e2);
-        OrderFell(player, tool, [e1, e2], a, b);
-        var o1 = Assert.IsType<FellOrder>(e1.Orders!.Current);
-        var o2 = Assert.IsType<FellOrder>(e2.Orders!.Current);
-
-        // Who waited, whether it stood clear of the area once there, and never waiting holding a tree.
-        var waited = new HashSet<long>();
-        var atRim = new HashSet<long>();
-        var faults = new List<string>();
-        int ticks = 0;
-        await World.Until(() =>
-        {
-            foreach (var e in new[] { e1, e2 })
-            {
-                if (!Status(e).EndsWith("fell-waiting"))
-                    continue;
-                waited.Add(e.EntityId);
-                var f = EidolonMining.Footprint(e.Pos.X, e.Pos.Z);
-                bool over = f.MaxX >= area.Min.X && f.MinX <= area.Max.X && f.MaxZ >= area.Min.Z && f.MinZ <= area.Max.Z;
-                if (e.Pos.Motion.HorLength() < 0.001 && !over)
-                    atRim.Add(e.EntityId);
-                if (Jobs.Felling.Held(e.EntityId).Count > 0)
-                    faults.Add($"{e.EntityId} waits holding {string.Join(" ", Jobs.Felling.Held(e.EntityId))}");
-            }
-            if (++ticks % 120 == 0)
-                Log($"{o1.Felled} + {o2.Felled}: {State(e1)} || {State(e2)}");
-            return e1.Orders.OrderCode == null && e2.Orders.OrderCode == null;
-        }, 9000);
-        var lines = Reports(o1, o2);
-        Log($"after: {o1.Felled} + {o2.Felled}, waited {string.Join(",", waited)}, at the rim {string.Join(",", atRim)}; reports: " + string.Join(" | ", lines));
-        Assert.Empty(faults);
-        Assert.Equal(0, Wood(logs[0]));
-        Assert.Equal(1, o1.Felled + o2.Felled);
-        Assert.NotEmpty(waited);
-        Assert.NotEmpty(atRim);
-        var report = Assert.Single(lines);
-        Assert.Contains("Your 2 eidolons", report);
-        Assert.Contains("1 felled", report);
         e1.Die(EnumDespawnReason.Removed);
         e2.Die(EnumDespawnReason.Removed);
     }

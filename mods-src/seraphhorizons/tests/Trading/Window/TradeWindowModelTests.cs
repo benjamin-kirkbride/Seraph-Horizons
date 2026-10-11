@@ -190,49 +190,87 @@ public class TradeWindowModelTests
     public void MapOffersAreSoldOutLockedOrForSale(string offer, string? kind, int stock, bool leads, MapOfferStatus expected) =>
         Assert.Equal(expected, TradeWindowModel.MapStatus(offer, kind, stock, leads));
 
+    private static string Details(OfferRow row) => string.Join(" · ", row.Details);
+
     [Fact]
-    public void AnOreMapOfferNamesTheOreItsGradesAndRock()
+    public void AnOreMapRowIsTitledByItsOreWithItsGradesRockDistanceAndPrecisionUnder()
     {
-        var line = TradeWindowModel.OreMapLine("lead", ["galena", "cerussite"], "medium", "mostly:poor", "Limestone", 2400.4, 2);
-        Assert.Equal("trading-window-map-ore-named(ore-list-and(orename-galena, orename-cerussite), "
-                     + "ore-list-comma(ore-list-comma(ore-size-medium, ore-grades-mostly(ore-grade-poor)), trading-window-map-ore-host(Limestone)), map-distance-km(2), oremap-tier-2, 50)",
-            line.ToString());
-        // Three ores; no grades or rock known.
-        Assert.Equal("trading-window-map-ore-named(ore-list-and(ore-list-comma(orename-a, orename-b), orename-c), ore-size-small, map-distance-under, oremap-tier-1, 150)",
-            TradeWindowModel.OreMapLine("x", ["a", "b", "c"], "small", null, null, 10, 1).ToString());
+        var row = TradeWindowModel.OreMapRow("lead", ["galena", "cerussite"], "medium", "mostly:poor", "Limestone", 2400.4, 2, 19, MapOfferStatus.Available);
+        Assert.Equal(OfferGroup.OreMaps, row.Group);
+        Assert.Equal("ore-list-and(orename-galena, orename-cerussite)", row.Title.ToString());
+        Assert.Equal("ore-size-medium · ore-grades-mostly(ore-grade-poor) · trading-window-map-ore-host(Limestone) · map-distance-km(2) · "
+                     + "trading-window-offer-precision(oremap-tier-2, 50)", Details(row));
+        Assert.Equal("trading-window-map-price(19)", TradeWindowModel.PriceText(row)!.ToString());
+        // One ore; no grades or rock known.
+        var one = TradeWindowModel.OreMapRow("x", ["galena"], "small", null, null, 10, 1, 5, MapOfferStatus.Available);
+        Assert.Equal("orename-galena", one.Title.ToString());
+        Assert.Equal("ore-size-small · map-distance-under · trading-window-offer-precision(oremap-tier-1, 150)", Details(one));
         // Shelved before maps named the ore: the metal.
-        Assert.Equal("trading-window-map-ore", TradeWindowModel.OreMapLine("copper", [], null, null, null, 10, 1).Key);
+        Assert.Equal("trading-window-offer-ore(oremap-metal-copper)", TradeWindowModel.OreMapRow("copper", [], null, null, null, 10, 1, 1, MapOfferStatus.Available).Title.ToString());
+        // Under water: marked in the title.
+        Assert.Equal("trading-window-offer-underwater(orename-galena)",
+            TradeWindowModel.OreMapRow("x", ["galena"], "small", null, null, 10, 1, 5, MapOfferStatus.Available, underwater: true).Title.ToString());
         Assert.Equal("ore-grades-mixed(ore-grade-poor, ore-grade-medium)", TradeWindowModel.GradeText("mixed:poor,medium")!.ToString());
         Assert.Null(TradeWindowModel.GradeText("nonsense"));
     }
 
     [Fact]
-    public void AGravelMapOfferNamesItsRockAndMetalsAndASurveyIsSaid()
+    public void AGravelMapRowIsTitledByItsRockAndASurveyOrSoldOutMarkerByWhatItWas()
     {
-        Assert.Equal("trading-window-map-gravel-pans(Granite, ore-list-and(ore-metal-tin, ore-metal-gold), map-distance-under)",
-            TradeWindowModel.GravelMapLine("Granite", ["tin", "gold"], 300).ToString());
-        Assert.Equal("trading-window-map-gravel-rock", TradeWindowModel.GravelMapLine("Granite", [], 300).Key);
-        Assert.Equal("trading-window-map-gravel", TradeWindowModel.GravelMapLine(null, [], 300).Key);
-        Assert.Equal("trading-window-map-ore-surveying(oremap-metal-lead)", TradeWindowModel.SurveyingLine("lead").ToString());
-        Assert.Equal("trading-window-map-gravel-surveying", TradeWindowModel.SurveyingLine("gravel").Key);
-        Assert.Equal("trading-window-map-surveying", TradeWindowModel.MapStatusText(MapOfferStatus.Surveying, null)!.Key);
+        var row = TradeWindowModel.GravelMapRow("Granite", ["tin", "gold"], 300, 5, MapOfferStatus.Available);
+        Assert.Equal(OfferGroup.GravelMaps, row.Group);
+        Assert.Equal("trading-window-offer-gravel-rock(Granite)", row.Title.ToString());
+        Assert.Equal("trading-window-offer-pans(ore-list-and(ore-metal-tin, ore-metal-gold)) · map-distance-under", Details(row));
+        Assert.Equal("map-distance-under", Details(TradeWindowModel.GravelMapRow("Granite", [], 300, 5, MapOfferStatus.Available)));
+        Assert.Equal("trading-window-offer-gravel", TradeWindowModel.GravelMapRow(null, [], 300, 5, MapOfferStatus.Available).Title.Key);
+        var ore = TradeWindowModel.PlaceholderRow("lead", false, MapOfferStatus.Surveying);
+        Assert.Equal((OfferGroup.OreMaps, "trading-window-offer-ore(oremap-metal-lead)"), (ore.Group, ore.Title.ToString()));
+        Assert.Empty(ore.Details);
+        Assert.Null(TradeWindowModel.PriceText(ore));
+        Assert.Equal(OfferGroup.GravelMaps, TradeWindowModel.PlaceholderRow("gravel", false, MapOfferStatus.Surveying).Group);
+        Assert.Equal(OfferGroup.GravelMaps, TradeWindowModel.PlaceholderRow(null, true, MapOfferStatus.SoldOut).Group);
+        Assert.Equal("trading-window-offer-ore-any", TradeWindowModel.PlaceholderRow(null, false, MapOfferStatus.SoldOut).Title.Key);
+    }
+
+    [Theory]
+    [InlineData(MapOfferStatus.Available, 5, 9, "trading-window-buy", true)]
+    [InlineData(MapOfferStatus.Available, 10, 9, "trading-window-buy", false)]
+    [InlineData(MapOfferStatus.SoldOut, 5, 9, "trading-window-offer-soldout", false)]
+    [InlineData(MapOfferStatus.Locked, 5, 9, "trading-window-offer-locked", false)]
+    [InlineData(MapOfferStatus.Owned, 5, 9, "trading-window-offer-owned", false)]
+    [InlineData(MapOfferStatus.Surveying, 5, 9, "trading-window-offer-surveying", false)]
+    public void EveryRowHasABuyButtonThatSaysWhyWhenItIsOff(MapOfferStatus status, int price, int gears, string label, bool enabled)
+    {
+        var (text, on) = TradeWindowModel.BuyButton(status, price, gears);
+        Assert.Equal((label, enabled), (text.Key, on));
     }
 
     [Fact]
-    public void AMapThePlayerHasIsGreyedOutWithYouHaveThis()
+    public void AMapThePlayerHasIsGreyedOutWithHaveIt()
     {
         Assert.Equal(MapOfferStatus.Owned, TradeWindowModel.MapStatus("lead", "camp", 2, false, owned: true));
         Assert.Equal(MapOfferStatus.Owned, TradeWindowModel.MapStatus("gravelmap", null, 1, true, owned: true));
         // Sold out says so first.
         Assert.Equal(MapOfferStatus.SoldOut, TradeWindowModel.MapStatus("lead", "camp", 0, true, owned: true));
-        Assert.Equal("trading-window-map-owned", TradeWindowModel.MapStatusText(MapOfferStatus.Owned, null)!.ToString());
-        Assert.Equal("trading-window-map-soldout", TradeWindowModel.MapStatusText(MapOfferStatus.SoldOut, null)!.ToString());
-        Assert.Equal("trading-window-map-locked(trading-standing-tier-trusted)",
-            TradeWindowModel.MapStatusText(MapOfferStatus.Locked, TradeWindowModel.TierName("trusted"))!.ToString());
-        Assert.Null(TradeWindowModel.MapStatusText(MapOfferStatus.Available, null));
+        Assert.Null(TradeWindowModel.PriceText(TradeWindowModel.GravelMapRow(null, [], 10, 5, MapOfferStatus.Owned)));
         // The state carries which shelf slots they are.
         var state = TradeWindowState.FromJson(new TradeWindowState { OwnedMaps = [3, 7] }.ToJson());
         Assert.Equal([3, 7], state.OwnedMaps);
+    }
+
+    [Fact]
+    public void AShelfLeadSaysWhereAndALockedOneTheTierThatSellsIt()
+    {
+        var camp = TradeWindowModel.ShelfLeadRow("camp", "cook", 2100, TradeWindowModel.Direction(0, -1), 24, MapOfferStatus.Available);
+        Assert.Equal((OfferGroup.Leads, "trading-window-offer-camp(trading-type-cook)"), (camp.Group, camp.Title.ToString()));
+        Assert.Equal("trading-window-offer-way(map-distance-km(2), trading-window-dir-n)", Details(camp));
+        var settlement = TradeWindowModel.ShelfLeadRow("settlement", "", 900, TradeWindowModel.Direction(1, 0), 6, MapOfferStatus.Locked,
+            TradeWindowModel.TierName("regular"));
+        Assert.Equal("trading-window-offer-settlement", settlement.Title.Key);
+        Assert.Equal("trading-window-offer-way(map-distance-km(1), trading-window-dir-e) · trading-window-offer-from(trading-standing-tier-regular)",
+            Details(settlement));
+        // A locked lead still shows what it costs.
+        Assert.Equal("trading-window-map-price(6)", TradeWindowModel.PriceText(settlement)!.ToString());
     }
 
     [Fact]
@@ -297,12 +335,15 @@ public class TradeWindowModelTests
     }
 
     [Fact]
-    public void LeadOfferLinesNameTheCampItsDistanceInKmWayAndPriceButNoRingAndTheNoteSaysWhyNone()
+    public void CampLeadRowsNameTheCampItsDistanceInKmWayAndPriceButNoRingAndTheNoteSaysWhyNone()
     {
         var row = new LeadOfferRow { Cell = "1,0", Type = "smith", Distance = 2210.4, Dx = 2200, Dz = 0, Price = 3, Ring = 1 };
-        Assert.Equal("trading-window-lead-offer", TradeWindowModel.LeadOfferLine(row).Key);
-        Assert.Equal("trading-window-lead-offer(trading-type-smith, map-distance-km(2), trading-window-dir-e, 3)", TradeWindowModel.LeadOfferLine(row).ToString());
-        Assert.Equal("trading-window-lead-offer-prospector", TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "prospector", Prospector = true }).Key);
+        var lead = TradeWindowModel.CampLeadRow(row);
+        Assert.Equal((OfferGroup.Leads, MapOfferStatus.Available, 3), (lead.Group, lead.Status, lead.Price));
+        Assert.Equal("trading-window-offer-camp(trading-type-smith)", lead.Title.ToString());
+        Assert.Equal("trading-window-offer-way(map-distance-km(2), trading-window-dir-e)", Details(lead));
+        Assert.Equal("trading-window-offer-nearest-prospector · trading-window-offer-way(map-distance-under, trading-window-dir-here)",
+            Details(TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "prospector", Prospector = true })));
         var none = new TradeWindowState { LeadsWhy = "trading-window-leads-strangerused" };
         Assert.Equal("trading-window-leads-strangerused", TradeWindowModel.LeadOffersNote(none)!.Key);
         Assert.Null(TradeWindowModel.LeadOffersNote(new TradeWindowState()));
@@ -313,11 +354,13 @@ public class TradeWindowModelTests
     }
 
     [Fact]
-    public void ThePityMapsLineSaysTheFirstMapIsOnTheTrader()
+    public void ThePityMapsRowSaysItIsTheFirstMap()
     {
         var pity = new LeadOfferRow { Cell = "1,1", Type = "prospector", Distance = 2900, Dx = 2000, Dz = 2000, Price = 10, Ring = 1, Prospector = true, Pity = true };
-        Assert.Equal("trading-window-lead-offer-pity", TradeWindowModel.LeadOfferLine(pity).Key);
-        Assert.Equal("trading-window-lead-offer-pity-any", TradeWindowModel.LeadOfferLine(new LeadOfferRow { Type = "cook", Pity = true }).Key);
+        Assert.Equal("trading-window-offer-firstmap · trading-window-offer-nearest-prospector · trading-window-offer-way(map-distance-km(3), trading-window-dir-se)",
+            Details(TradeWindowModel.CampLeadRow(pity)));
+        Assert.Equal("trading-window-offer-firstmap · trading-window-offer-nearest-camp · trading-window-offer-way(map-distance-under, trading-window-dir-here)",
+            Details(TradeWindowModel.CampLeadRow(new LeadOfferRow { Type = "cook", Pity = true })));
         Assert.True(TradeWindowState.FromJson(new TradeWindowState { LeadOffers = [pity] }.ToJson()).LeadOffers.Single().Pity);
     }
 
