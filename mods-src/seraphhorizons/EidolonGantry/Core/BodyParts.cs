@@ -272,12 +272,15 @@ public sealed class BodyParts
     }
 
     /// <summary>Fills the next stage with everything it still needs (the creative shortcut), a layer in
-    /// its fixed material or else the default build's; its name, or null when the body is complete.</summary>
-    public string? FitNextStage()
+    /// its fixed material, else one drawn from <paramref name="rng"/>, else the default build's; its name,
+    /// or null when the body is complete.</summary>
+    public string? FitNextStage(Random? rng = null)
     {
         if (Next is not { } stage)
             return null;
-        var bill = BodyBill.LayerOf(stage) is { } layer ? BodyBill.Of(stage, Material(layer)) : BodyBill.Of(stage);
+        var bill = BodyBill.LayerOf(stage) is { } layer
+            ? BodyBill.Of(stage, Material(layer) ?? (rng == null ? null : EidolonBuild.RandomMaterial(layer, rng)))
+            : BodyBill.Of(stage);
         foreach (var i in bill)
             _fitted[stage][i.Code] = Math.Max(Fitted(stage, i.Code), i.Count);
         return stage;

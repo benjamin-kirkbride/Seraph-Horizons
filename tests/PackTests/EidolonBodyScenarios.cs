@@ -185,7 +185,9 @@ public partial class SharedWorldScenarios
         Assert.True(body.Parts.StageComplete("torso"));
         Assert.Null(CutterClick(player, gantry.Pos, null, ctrl: true, creative: true));
         Assert.True(body.Parts.StageComplete("bones"));
-        Assert.Equal("oak", body.Parts.Material(FittingLayer.Bones));
+        // the shortcut draws the bones' wood at random
+        string wood = Assert.IsType<string>(body.Parts.Material(FittingLayer.Bones));
+        Assert.True(EidolonFittings.Allows(FittingLayer.Bones, wood), wood);
         // the joints: a gearbox's spring and three of twenty stainless nails and strips
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:jonasframes-spring01")));
         Assert.Null(CutterClick(player, gantry.Pos, CutterItem("game:metalnailsandstrips-stainlesssteel", 3)));
@@ -212,9 +214,8 @@ public partial class SharedWorldScenarios
         void Add(string code, int n) => expected[code] = expected.GetValueOrDefault(code) + n;
         foreach (var stage in GantryRequires.Stages)
             Add(GantryParts.CodesFor(stage, "birch")[0], GantryParts.Needed(stage));
-        foreach (var stage in new[] { "torso", "bones" })
-            foreach (var ing in BodyBill.Of(stage))
-                Add(ing.Code, ing.Count);
+        foreach (var ing in BodyBill.Of("torso").Concat(BodyBill.Of("bones", wood)))
+            Add(ing.Code, ing.Count);
         Add("game:jonasframes-spring01", 1);
         Add("game:metalnailsandstrips-stainlesssteel", 3);
         Assert.Equal(expected.OrderBy(kv => kv.Key), dropped.OrderBy(kv => kv.Key));

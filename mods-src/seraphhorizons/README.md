@@ -2611,7 +2611,8 @@ pawl), a `game:rod-{metal}` (the crank), 4 `game:metalchain-{metal}` and 3 `game
 spine), `{metal}` iron, meteoric iron or steel. The drum's planks and the spine's beams must be of the
 gantry's own wood (the epic's decision; the model's README allowed any). Nothing comes back but by
 breaking the gantry, which drops the frame and every item that went in. In creative mode Ctrl +
-right-click fits the next stage with nothing taken, and the creative inventory has an assembled oak
+right-click fits the next stage with nothing taken (a body layer whose material is not yet chosen in any
+allowed material at random: wood, metal, leather or cloth and colour), and the creative inventory has an assembled oak
 gantry (the stack attribute `assembled`) that places with the winch and spine fitted. The block info
 names the next stage and what it takes.
 
@@ -3108,7 +3109,7 @@ tool from their grid recipes; the schematic has none, by rule, and neither has t
 creature has: its body build takes the elucidatory vessel, a boss drop with no value.
 
 **For testing.** The creative spawner `seraphhorizons:creature-eidolon` (creative tabs only, no
-recipe), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blocks: `spawn [player]`
+recipe; the eidolon it places is fitted at random, any allowed material in every layer), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blocks: `spawn [player]`
 (one in front of you, owned, charged, waking), `come [run]`, `stay`, `clear`, `charge <days>`,
 `health <hp>`, `oil <points>`, `info`.
 

@@ -164,7 +164,7 @@ public class BEBehaviorEidolonBody(BlockEntity blockentity) : BlockEntityBehavio
 
     public bool CreativeFitNext(BEEidolonGantry gantry, IPlayer? byPlayer)
     {
-        if (!gantry.WinchComplete || HoldsEidolon && DockedEidolon == null || _parts.FitNextStage() == null)
+        if (!gantry.WinchComplete || HoldsEidolon && DockedEidolon == null || _parts.FitNextStage(Api.World.Rand) == null)
             return false;
         Api.World.PlaySoundAt(gantry.Block.Sounds.Place, gantry.Pos, -0.25, byPlayer);
         DressDocked();
