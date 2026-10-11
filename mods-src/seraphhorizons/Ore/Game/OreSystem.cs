@@ -14,7 +14,9 @@ namespace SeraphHorizons.Mod.Ore;
 /// (<see cref="OreCellPlacement"/>).</item>
 /// <item><c>NoSurfaceCopper</c> (#440): <c>patches/ore-nosurfacecopper.json</c>.</item>
 /// <item><c>SmallerDeposits</c> (#439): <see cref="DepositSizes"/>, and in hydrothermal districts
-/// <see cref="DistrictVeinSizes"/>.</item>
+/// <see cref="DistrictVeinSizes"/>. With ore processing on, graded ore's veins are four times the
+/// volume its metal's cut gives (#863, <see cref="GradedOreBlocks"/>); district veins are sized in
+/// ingots from the ore's own units, so they follow.</item>
 /// <item><c>RarerDistricts</c> (#441): <c>patches/ore-rarerdistricts.json</c>.</item>
 /// <item><c>PlacerFields</c> (#442): <see cref="PlacerFields"/>.</item>
 /// </list>
@@ -114,7 +116,7 @@ public class OreSystem : ModSystem
             if (DepositSizes.Unsupported(api) is { } why)
                 api.Logger.Warning("[seraphhorizons] Smaller deposits is off: {0}", why);
             else
-                DepositSizes.Bind(api, _harmony ??= new Harmony(HarmonyId));
+                DepositSizes.Bind(api, _harmony ??= new Harmony(HarmonyId), GradedOreBlocks(api));
         }
         // No switch: it only keeps a stopping server from crashing. Bound before items load, when
         // the prospecting pick starts its task.
@@ -187,6 +189,12 @@ public class OreSystem : ModSystem
     }
 
     private static string OnOff(bool on) => on ? "on" : "off";
+
+    /// <summary>The volume graded ore's veins take over their metal's size cut: four times with ore
+    /// processing on, whose ore items hold about a quarter of vanilla's units (#863), so a deposit
+    /// holds the metal the cut gave it; as the cut gives with it off.</summary>
+    public static double GradedOreBlocks(ICoreAPI api) =>
+        Processing.OreProcessingSystem.On(api) ? OreProducts.DepositBlocks : 1;
 
     /// <summary>Empties a patch file before the game's patch loader reads it (in AssetsLoaded).</summary>
     private static void EmptyPatch(ICoreAPI api, AssetLocation location)

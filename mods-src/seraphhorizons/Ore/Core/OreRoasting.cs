@@ -30,12 +30,13 @@ public static class OreRoasting
         (float)(configured > 0 && double.IsFinite(configured) ? configured : DefaultSeconds);
 
     /// <summary>
-    /// Seconds of cooking a rock item of <paramref name="units"/> takes (#847): the cook time is per
-    /// concentrate item's units (<paramref name="concentrateUnits"/>, 5), so a 20-unit raw ore takes
-    /// four concentrates' time. Never under one concentrate's.
+    /// Seconds of cooking a rock item of <paramref name="units"/> takes (#847, #863): the cook time is
+    /// per concentrate item's units (<paramref name="concentrateUnits"/>, 5), so a 10-unit bountiful raw
+    /// ore takes two concentrates' time and a 3-unit poor one three fifths of one. A slot of rock takes
+    /// as long as the concentrate holding its metal would.
     /// </summary>
     public static float RockSeconds(float seconds, double units, double concentrateUnits) =>
-        concentrateUnits > 0 && units > concentrateUnits ? (float)(seconds * units / concentrateUnits) : seconds;
+        concentrateUnits > 0 && units > 0 ? (float)(seconds * units / concentrateUnits) : seconds;
 
     /// <summary>
     /// Roasts one concentrate item of <paramref name="unitsIn"/> at <paramref name="share"/>: the

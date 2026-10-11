@@ -51,11 +51,11 @@ public class SpallingTests
     // With no loss (#847): a raw ore breaks into one crushed ore of its grade, which holds its units;
     // crystallised ore, twice its grade's units, into two.
     [Theory]
-    [InlineData("poor", 15, 1)]
-    [InlineData("medium", 20, 1)]
-    [InlineData("rich", 25, 1)]
-    [InlineData("bountiful", 35, 1)]
-    [InlineData("bountiful", 70, 2)]
+    [InlineData("poor", 3, 1)]
+    [InlineData("medium", 5, 1)]
+    [InlineData("rich", 7, 1)]
+    [InlineData("bountiful", 10, 1)]
+    [InlineData("bountiful", 20, 2)]
     public void It_breaks_into_crushed_ore_one_for_one(string grade, int units, int crushed) =>
         Assert.Equal(crushed, OreProducts.CrushedCount(units, OreProducts.RawUnits("galena", grade)!.Value));
 

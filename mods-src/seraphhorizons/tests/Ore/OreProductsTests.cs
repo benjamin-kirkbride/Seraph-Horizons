@@ -35,17 +35,46 @@ public class OreProductsTests
     [InlineData(null, false)]
     public void Grades(string? grade, bool isGrade) => Assert.Equal(isGrade, OreProducts.IsGrade(grade));
 
-    // Vanilla's ore-graded.json metalUnitsByType (the pack tests hold it to the game).
+    // The pack's units (#863), which patches/oreprocessing-ore.json sets on vanilla's item (the pack
+    // tests hold it to the game): about a quarter of vanilla's.
+    [Theory]
+    [InlineData("galena", new[] { 3, 5, 7, 10 })]
+    [InlineData("cassiterite", new[] { 1, 3, 4, 6 })]
+    [InlineData("hematite", new[] { 4, 6, 8, 11 })]
+    [InlineData("quartz_nativesilver", new[] { 2, 4, 6, 7 })]
+    [InlineData("quartz_nativegold", new[] { 1, 3, 4, 6 })]
+    public void RawUnitsByGrade(string ore, int[] units)
+    {
+        Assert.Equal(units, OreProducts.Grades.Select(g => OreProducts.RawUnits(ore, g)!.Value));
+        Assert.Null(OreProducts.RawUnits(ore, "lignite"));
+    }
+
+    // Vanilla's exceptions (ore-graded.json's metalUnitsByType) keep their ratio to its default,
+    // rounded half up: the table above is made from them. A slot of 16 holds within a quarter of what
+    // a slot of 4 did at vanilla's units.
     [Theory]
     [InlineData("galena", new[] { 15, 20, 25, 35 })]
     [InlineData("cassiterite", new[] { 5, 10, 15, 20 })]
     [InlineData("hematite", new[] { 20, 25, 30, 40 })]
     [InlineData("quartz_nativesilver", new[] { 10, 15, 20, 25 })]
     [InlineData("quartz_nativegold", new[] { 5, 10, 15, 20 })]
-    public void RawUnitsByGrade(string ore, int[] units)
+    public void RawUnitsAreVanillasQuartered(string ore, int[] vanilla)
     {
-        Assert.Equal(units, OreProducts.Grades.Select(g => OreProducts.RawUnits(ore, g)!.Value));
-        Assert.Null(OreProducts.RawUnits(ore, "lignite"));
+        for (int i = 0; i < 4; i++)
+        {
+            int units = OreProducts.RawUnits(ore, OreProducts.Grades[i])!.Value;
+            Assert.Equal(units, OreProducts.Quartered(vanilla[i], OreProducts.Grades[i]));
+            Assert.InRange(OreProducts.RockStack * units / (4.0 * vanilla[i]), 0.75, 1.25);
+        }
+        Assert.Equal(1, OreProducts.Quartered(1, "poor"));
+    }
+
+    // A slot of default rock holds 48 / 80 / 112 / 160 units (4 used to hold 60 / 80 / 100 / 140).
+    [Fact]
+    public void ASlotOfRock()
+    {
+        Assert.Equal(16, OreProducts.RockStack);
+        Assert.Equal([48, 80, 112, 160], OreProducts.Grades.Select(g => OreProducts.RockStack * OreProducts.RawUnits("galena", g)!.Value));
     }
 
     [Fact]
@@ -63,21 +92,24 @@ public class OreProductsTests
     // Crushing is one for one (#847): a raw ore into one crushed ore holding its units, crystallised
     // ore (twice the units) into two.
     [Theory]
-    [InlineData(20, 20, 1)]
-    [InlineData(35, 35, 1)]
-    [InlineData(70, 35, 2)]
-    [InlineData(40, 20, 2)]
+    [InlineData(5, 5, 1)]
+    [InlineData(10, 10, 1)]
+    [InlineData(1, 1, 1)]
+    [InlineData(20, 10, 2)]
+    [InlineData(2, 1, 2)]
     public void CrushingIsOneForOne(double units, double perCrushed, int crushed) =>
         Assert.Equal(crushed, OreProducts.CrushedCount(units, perCrushed));
 
-    // Rock smelts at its grade's share, exactly: a 35-unit bountiful ore at 50 % 7 ingots per 40.
+    // Rock smelts at its grade's share, exactly: a 7-unit rich ore at 40 % 7 ingots per 250.
     [Theory]
-    [InlineData(35, 0.50, 7, 40)]
-    [InlineData(15, 0.10, 3, 200)]
-    [InlineData(20, 0.25, 1, 20)]
-    [InlineData(25, 0.40, 1, 10)]
-    [InlineData(40, 0.50, 1, 5)]
-    [InlineData(35, 0.425, 119, 800)]
+    [InlineData(7, 0.40, 7, 250)]
+    [InlineData(3, 0.10, 3, 1000)]
+    [InlineData(5, 0.25, 1, 80)]
+    [InlineData(10, 0.50, 1, 20)]
+    [InlineData(11, 0.50, 11, 200)]
+    [InlineData(1, 0.10, 1, 1000)]
+    [InlineData(10, 0.425, 17, 400)]
+    [InlineData(3, 0.085, 51, 20000)]
     [InlineData(5, 1, 1, 20)]
     public void RatesAreExact(double units, double share, int output, int ratio)
     {
@@ -128,9 +160,9 @@ public class OreProductsTests
     }
 
     // The rock forms hold the raw ore's units, by ore and grade (their metalUnitsByType, first match
-    // wins as in the game), 4 a stack, a grade variant each.
+    // wins as in the game), 16 a stack, a grade variant each.
     [Fact]
-    public void RockTypeFilesHoldRawUnitsAndStackFour()
+    public void RockTypeFilesHoldRawUnitsAndStackSixteen()
     {
         foreach (var file in new[] { "crushedore.json", "groundore.json", "roastedore.json" })
         {

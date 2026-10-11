@@ -250,7 +250,7 @@ public static class DistrictVeinSizes
     {
         public int VeinsPerMetal { get; set; } = 8;
         public string[]? KeepCount { get; set; }
-        public double GradeAllowance { get; set; } = 1.15;
+        public double GradeAllowance { get; set; } = 1.25;
         public int BandFloor { get; set; } = 4;
         public int BandBelowSeaLevel { get; set; } = 6;
     }

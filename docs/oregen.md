@@ -25,7 +25,17 @@ about four through an age; the first metal from a rich gravel field about 750 m 
 | Titanium, chromium, platinum | 60 | 150 | 400 |
 
 Gravel fields hold 300–600 rich gravel blocks; scattered rich gravel is cut to a quarter; surface
-copper and tin are gone; hydrothermal districts are rarer. `tools/ore-survey/targets.json` holds the
+copper and tin are gone; hydrothermal districts are rarer.
+
+The targets are ingots, not blocks. Since #863, with ore processing on, an ore item holds about a
+quarter of vanilla's metal units (3 / 5 / 7 / 10 by grade, from 15 / 20 / 25 / 35;
+`OreProducts.RawUnits`), so a deposit of the same ingots is four times the blocks: every graded
+ore's IOG vein is scaled by 4 in volume on top of its metal's factor (`OreSizeTable.VolumeFor`,
+`OreProducts.DepositBlocks`), and district veins, sized from the ore's own units, come out four to
+five times as tall. The medians and factors in `config/ore-sizes.json` stay as measured at
+vanilla's units; measurement, size tiers and the trader maps work in ingots from the live units,
+so they need no change. Worlds already generated keep their ore as placed: a deposit from before
+holds a quarter of the ingots it did. `tools/ore-survey/targets.json` holds the
 same numbers for `ore_survey.py check`, which reads small / typical / large as p10 / median / p90.
 
 ## Ore cells (#438)
@@ -128,8 +138,9 @@ builds from the seed, the same after every restart.
   `GetOreBlocksInChunk` iterates). The ore a layer gives is estimated from the zone's geometry
   (a shoot: fault width × 4r/3; a ladder: stretch × widened width ÷ slab spacing), the ore's
   share and density, and the ingots of a block of its poorest grade (read from the block's drops)
-  times 1.15; the band is the height that gives the size drawn for the zone (log-linear through
-  the metal's small, typical and large at the 10th, 50th and 90th percentile), the least over its
+  times 1.25 (1.15 before #863 widened the grades); the band is the height that gives the size
+  drawn for the zone (log-linear through the metal's small, typical and large at the 10th, 50th
+  and 90th percentile), the least over its
   ores, placed by the hash between y 4 and sea level less 6, so it lies in rock. A vein whose
   whole column holds less keeps it.
 - Unmanaged ores (gems, sulfur, halite, ...) keep their counts; in a vein that also holds a

@@ -8,6 +8,12 @@
 // single ore a block in the middle (SingleCenter, not vanilla's messy pile of 12), where a hammer
 // breaks it up. Its three GroundStorable entries (rich and bountiful limonite and hematite, which also
 // paint, and every other ore) and crystallised ore's one.
+//
+// Metal units (#863; README "Ore processing: items, crushing and smelting"): raw ore holds about a
+// quarter of vanilla's units, 3 / 5 / 7 / 10 by grade (vanilla 15 / 20 / 25 / 35), so a slot of 16
+// holds about what 4 did; vanilla's exceptions keep their ratio to its default, rounded half up
+// (Ore/Core/OreProducts.cs, RawUnits). Crystallised ore keeps twice its grade's. Deposits are four
+// times the blocks to hold the same metal (Ore/Game/DepositSizes.cs).
 [
 	{ "op": "replace", "path": "/class", "value": "seraphhorizons.ItemGradedOre", "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
 	{ "op": "replace", "path": "/class", "value": "seraphhorizons.ItemGradedOre", "file": "game:itemtypes/resource/crystalizedore-graded.json", "side": "Server" },
@@ -18,5 +24,7 @@
 	{ "op": "replace", "path": "/behaviorsByType/*/0/properties/layout", "value": "SingleCenter", "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
 	{ "op": "add", "path": "/behaviorsByType/*/0/properties/randomizeCenterRotation", "value": true, "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
 	{ "op": "replace", "path": "/behaviors/0/properties/layout", "value": "SingleCenter", "file": "game:itemtypes/resource/crystalizedore-graded.json", "side": "Server" },
-	{ "op": "add", "path": "/behaviors/0/properties/randomizeCenterRotation", "value": true, "file": "game:itemtypes/resource/crystalizedore-graded.json", "side": "Server" }
+	{ "op": "add", "path": "/behaviors/0/properties/randomizeCenterRotation", "value": true, "file": "game:itemtypes/resource/crystalizedore-graded.json", "side": "Server" },
+	{ "op": "replace", "path": "/attributes/metalUnitsByType", "value": { "ore-poor-cassiterite-*": 1, "ore-medium-cassiterite-*": 3, "ore-rich-cassiterite-*": 4, "ore-bountiful-cassiterite-*": 6, "ore-poor-hematite-*": 4, "ore-medium-hematite-*": 6, "ore-rich-hematite-*": 8, "ore-bountiful-hematite-*": 11, "ore-poor-quartz_nativesilver-*": 2, "ore-medium-quartz_nativesilver-*": 4, "ore-rich-quartz_nativesilver-*": 6, "ore-bountiful-quartz_nativesilver-*": 7, "ore-poor-quartz_nativegold-*": 1, "ore-medium-quartz_nativegold-*": 3, "ore-rich-quartz_nativegold-*": 4, "ore-bountiful-quartz_nativegold-*": 6, "ore-poor-*": 3, "ore-medium-*": 5, "ore-rich-*": 7, "ore-bountiful-*": 10 }, "file": "game:itemtypes/resource/ore-graded.json", "side": "Server" },
+	{ "op": "replace", "path": "/attributes/metalUnitsByType", "value": { "*-poor-cassiterite-*": 2, "*-medium-cassiterite-*": 6, "*-rich-cassiterite-*": 8, "*-bountiful-cassiterite-*": 12, "*-poor-hematite-*": 8, "*-medium-hematite-*": 12, "*-rich-hematite-*": 16, "*-bountiful-hematite-*": 22, "*-poor-quartz_nativesilver-*": 4, "*-medium-quartz_nativesilver-*": 8, "*-rich-quartz_nativesilver-*": 12, "*-bountiful-quartz_nativesilver-*": 14, "*-poor-quartz_nativegold-*": 2, "*-medium-quartz_nativegold-*": 6, "*-rich-quartz_nativegold-*": 8, "*-bountiful-quartz_nativegold-*": 12, "*-poor-*": 6, "*-medium-*": 10, "*-rich-*": 14, "*-bountiful-*": 20 }, "file": "game:itemtypes/resource/crystalizedore-graded.json", "side": "Server" }
 ]
