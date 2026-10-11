@@ -48,6 +48,7 @@ export interface GroundStorage {
 
 export interface ItemAttributes {
   maxStackSize?: number;
+  tradeStack?: number;
   durability?: number;
   tool?: string;
   toolTier?: number;

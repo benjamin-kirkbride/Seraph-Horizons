@@ -134,6 +134,20 @@ public class PricingTests
     }
 
     [Fact]
+    public void ARockBlockCutTo16IsJudgedByTheFourSellSlots()
+    {
+        // Rock at 0.025 a block: 0.4 a stack of 16 (too cheap by one slot), 1.6 by the four sell
+        // slots' 64, its trade stack: one gear per 40, more than one slot holds.
+        Assert.Equal(Refusal.TooCheap, Pricing.OffList(0.025, false, 1, 1, 1, 16).Refusal);
+        var o = Pricing.OffList(0.025, false, 1, 1, 1, SeraphHorizons.Mod.Core.RockStackRules.TradeStack(16));
+        Assert.True(o.Accepted);
+        Assert.Equal(40, o.UnitSize);
+        Assert.Equal(1, o.UnitPrice);
+        // Under a gear even by 64: still refused.
+        Assert.Equal(Refusal.TooCheap, Pricing.OffList(0.015, false, 1, 1, 1, 64).Refusal);
+    }
+
+    [Fact]
     public void WorthlessAndUnvaluedGoodsAreRefused()
     {
         Assert.Equal(Refusal.Worthless, Pricing.OffList(5, true, 1, 1, 1, 64).Refusal);

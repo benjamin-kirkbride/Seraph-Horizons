@@ -87,6 +87,10 @@ internal static class ItemRecords
         var stack = new ItemStack(c);
 
         a["maxStackSize"] = Math.Max(1, c.MaxStackSize);
+        // seraphhorizons' rock and earth blocks cut to 16 (RockStackSystem.TradeStackAttr): the stack
+        // trading judges their worth by, which the item value table's floor follows.
+        if (c.Attributes?["seraphhorizonsTradeStack"].AsInt(0) is int tradeStack && tradeStack > c.MaxStackSize)
+            a["tradeStack"] = tradeStack;
 
         var durability = Safe(() => c.GetMaxDurability(stack), c.Durability);
         if (durability > 1) a["durability"] = durability;

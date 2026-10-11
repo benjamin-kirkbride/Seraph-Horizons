@@ -87,6 +87,7 @@ tooltip.
 | Field | Written when | Source |
 |---|---|---|
 | `maxStackSize` | always | `MaxStackSize` |
+| `tradeStack` | the pack's rock and earth blocks cut to 16 (`SmallerRockStacks`) | the block's `seraphhorizonsTradeStack` attribute: what the trade window's four sell slots hold, which traders and the item value table's worthless floor judge it by |
 | `durability` | above 1 | `GetMaxDurability` |
 | `tool` | the item has a tool type | `Tool`, lower case |
 | `toolTier` | a tool type, mining speeds or attack power above 0.5 | `ToolTier` |
