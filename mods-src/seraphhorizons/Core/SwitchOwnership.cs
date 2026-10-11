@@ -63,6 +63,9 @@ public sealed class SwitchOwnership
         new("UnifiedPipes", [], ["ppex:pipe-*-copper", "ppex:pipe-*-lead", "ppex:pipe-*-tinbronze",
                                  "ppex:pipe-*-bismuthbronze", "ppex:pipe-*-blackbronze",
                                  "game:chutesection-lead"], []),
+        // The eidolon's stainless rods, nails and strips and chain are the game's own items with another
+        // metal state, added by a JSON patch (patches/eidolon-stainless.json).
+        new("Eidolon", [], ["game:rod-stainlesssteel", "game:metalnailsandstrips-stainlesssteel", "game:metalchain-stainlesssteel"], []),
         // Crushed ore is an item type in the game's domain whose code, "crushed", is vanilla's
         // crushed item's too (game:crushed-{material}), so its codes are listed by their grain. The
         // exporter's own recipe types for roasting in the firepit, retorting in the still and cupellation

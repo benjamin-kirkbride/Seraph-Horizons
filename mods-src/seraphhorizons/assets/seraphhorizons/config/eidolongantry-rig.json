@@ -214,10 +214,11 @@
 		{"id": "ring", "match": ["rg_*"], "requires": "chain", "drivers": [], "ride": "hook"},
 		{"id": "spine", "match": ["sp_*"], "requires": "spine", "drivers": [], "ride": "hook"},
 		{"id": "torso", "match": ["b_torso_*"], "requires": "torso", "drivers": [], "ride": "hook"},
-		{"id": "pelvis", "match": ["b_pelvis_*"], "requires": "pelvis", "drivers": [], "ride": "hook"},
-		{"id": "legs", "match": ["b_legs_*"], "requires": "legs", "drivers": [], "ride": "hook"},
-		{"id": "arms", "match": ["b_arms_*"], "requires": "arms", "drivers": [], "ride": "hook"},
-		{"id": "head", "match": ["b_head_*"], "requires": "head", "drivers": [], "ride": "hook"},
+		{"id": "bones", "match": ["b_bones_*"], "requires": "bones", "drivers": [], "ride": "hook"},
+		{"id": "joints", "match": ["b_joints_*"], "requires": "joints", "drivers": [], "ride": "hook"},
+		{"id": "plates", "match": ["b_plates_*"], "requires": "plates", "drivers": [], "ride": "hook"},
+		{"id": "sash", "match": ["b_sash_*"], "requires": "sash", "drivers": [], "ride": "hook"},
+		{"id": "skirt", "match": ["b_skirt_*"], "requires": "skirt", "drivers": [], "ride": "hook"},
 		{"id": "mind", "match": ["b_mind_*"], "requires": "mind", "drivers": [], "ride": "hook"},
 		{"id": "frame", "match": ["fr_*"], "requires": null, "drivers": [], "ride": null}
 	]

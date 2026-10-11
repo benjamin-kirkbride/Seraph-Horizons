@@ -86,6 +86,39 @@ public class EidolonConfig
     /// standing (a sapling is no log at all).</summary>
     public int FellMinLogs { get; set; } = 5;
 
+    // ---- Fittings (the layers' stats; Eidolon/README.md, "Fittings") ----
+    // Every multiplier is against iron and they stack by multiplying (EidolonStats). Bones and
+    // sash are looks only.
+
+    /// <summary>An all-steel eidolon's most health (steel joints, plates and skirt): the base the
+    /// multipliers scale is this over the three steel multipliers, so changing one keeps this.</summary>
+    public double AllSteelHealth { get; set; } = 300;
+
+    /// <summary>Health by the plates' metal.</summary>
+    public PlateMetalFactors PlateHealth { get; set; } = new() { Iron = 1, Steel = 1.5, Stainless = 2, Brass = 0.8 };
+
+    /// <summary>Health by the joints' metal.</summary>
+    public MetalFactors JointHealth { get; set; } = new() { Iron = 1, Steel = 1.5, Stainless = 2 };
+
+    /// <summary>Health by the chain skirt's metal.</summary>
+    public MetalFactors SkirtHealth { get; set; } = new() { Iron = 1, Steel = 1.25, Stainless = 1.5 };
+
+    /// <summary>The punches', kicks' and slams' damage by the plates' metal (brass hits softer).</summary>
+    public PlateMetalFactors PlateDamage { get; set; } = new() { Iron = 1, Steel = 1, Stainless = 1, Brass = 0.8 };
+
+    /// <summary>Walking and running speed by the plates' metal (brass is lighter); work and strikes
+    /// keep their pace.</summary>
+    public PlateMetalFactors PlateMoveSpeed { get; set; } = new() { Iron = 1, Steel = 1, Stainless = 1, Brass = 1.25 };
+
+    /// <summary>Armour by the plates' metal, as a full suit of the game's plate armour of that metal
+    /// (itemtypes/wearable/seraph/armor.json): iron and steel the game's; the game has no stainless
+    /// or brass plate armour, so stainless one step above steel and brass with the bronzes.</summary>
+    public PlateArmourByMetal PlateArmour { get; set; } = new();
+
+    /// <summary>How armour weakens against a stronger attack, per damage tier: the game's plate
+    /// armour's (its defaultProtLoss, highDamageTierResistant).</summary>
+    public ArmourTierLoss ArmourLoss { get; set; } = new();
+
     public static readonly EidolonConfig Defaults = new();
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
@@ -124,6 +157,205 @@ public class EidolonConfig
         Check(nameof(GuardRadius), GuardRadius, 2, 64, () => GuardRadius = Defaults.GuardRadius, Defaults.GuardRadius);
 
         Check(nameof(FellMinLogs), FellMinLogs, 1, 1000, () => FellMinLogs = Defaults.FellMinLogs, Defaults.FellMinLogs);
+
+        Check(nameof(AllSteelHealth), AllSteelHealth, 1, 100000, () => AllSteelHealth = Defaults.AllSteelHealth, Defaults.AllSteelHealth);
+        PlateHealth = SanitiseFactors(nameof(PlateHealth), PlateHealth, Defaults.PlateHealth, fixes);
+        JointHealth = SanitiseFactors(nameof(JointHealth), JointHealth, Defaults.JointHealth, fixes);
+        SkirtHealth = SanitiseFactors(nameof(SkirtHealth), SkirtHealth, Defaults.SkirtHealth, fixes);
+        PlateDamage = SanitiseFactors(nameof(PlateDamage), PlateDamage, Defaults.PlateDamage, fixes);
+        PlateMoveSpeed = SanitiseFactors(nameof(PlateMoveSpeed), PlateMoveSpeed, Defaults.PlateMoveSpeed, fixes);
+        PlateArmour = PlateArmourByMetal.Sanitise(PlateArmour, fixes);
+        ArmourLoss = ArmourTierLoss.Sanitise(ArmourLoss, fixes);
         return fixes;
+    }
+
+    // A multiplier from 0.01 to 100; a missing table is the default's.
+    private static T SanitiseFactors<T>(string name, T? factors, T defaults, List<string> fixes) where T : MetalFactors, new()
+    {
+        if (factors == null)
+        {
+            fixes.Add($"{name} is missing, using the defaults");
+            factors = new T();
+            defaults.CopyTo(factors);
+            return factors;
+        }
+        foreach (var (metal, value, set, fallback) in factors.Entries(defaults))
+            if (!double.IsFinite(value) || value < 0.01 || value > 100)
+            {
+                fixes.Add($"{name} {metal} {value} is out of range, using {fallback}");
+                set(fallback);
+            }
+        return factors;
+    }
+}
+
+/// <summary>A multiplier for each metal the joints and the skirt come in, against iron.</summary>
+public class MetalFactors
+{
+    public double Iron { get; set; } = 1;
+    public double Steel { get; set; } = 1;
+    public double Stainless { get; set; } = 1;
+
+    /// <summary>The multiplier for a metal code (<see cref="EidolonFittings"/>'s); 1 for none or an
+    /// unknown one.</summary>
+    public virtual double For(string? metal) => metal switch
+    {
+        EidolonFittings.Iron => Iron,
+        EidolonFittings.Steel => Steel,
+        EidolonFittings.Stainless => Stainless,
+        _ => 1,
+    };
+
+    /// <summary>Each metal's value with a setter and its default, for sanitising.</summary>
+    internal virtual IEnumerable<(string Metal, double Value, Action<double> Set, double Default)> Entries(MetalFactors defaults) =>
+    [
+        (nameof(Iron), Iron, v => Iron = v, defaults.Iron),
+        (nameof(Steel), Steel, v => Steel = v, defaults.Steel),
+        (nameof(Stainless), Stainless, v => Stainless = v, defaults.Stainless),
+    ];
+
+    internal virtual void CopyTo(MetalFactors other)
+    {
+        other.Iron = Iron;
+        other.Steel = Steel;
+        other.Stainless = Stainless;
+    }
+}
+
+/// <summary>A multiplier for each metal the plates come in, against iron: the joints' and brass.</summary>
+public class PlateMetalFactors : MetalFactors
+{
+    public double Brass { get; set; } = 1;
+
+    public override double For(string? metal) => metal == EidolonFittings.Brass ? Brass : base.For(metal);
+
+    internal override IEnumerable<(string Metal, double Value, Action<double> Set, double Default)> Entries(MetalFactors defaults) =>
+        base.Entries(defaults).Append((nameof(Brass), Brass, v => Brass = v, ((PlateMetalFactors)defaults).Brass));
+
+    internal override void CopyTo(MetalFactors other)
+    {
+        base.CopyTo(other);
+        if (other is PlateMetalFactors plate)
+            plate.Brass = Brass;
+    }
+}
+
+/// <summary>One metal's armour, as the game's <c>protectionModifiers</c>: the highest damage tier it
+/// fully protects against, the share of a hit it takes away and the flat damage it takes off first.</summary>
+public class PlateArmour
+{
+    public int ProtectionTier { get; set; }
+    public double RelativeProtection { get; set; }
+    public double FlatDamageReduction { get; set; }
+
+    public PlateArmour() { }
+
+    public PlateArmour(int tier, double relative, double flat)
+    {
+        ProtectionTier = tier;
+        RelativeProtection = relative;
+        FlatDamageReduction = flat;
+    }
+}
+
+/// <summary>Armour by the plates' metal.</summary>
+public class PlateArmourByMetal
+{
+    public PlateArmour Iron { get; set; } = new(3, 0.96, 1.7);
+    public PlateArmour Steel { get; set; } = new(4, 0.97, 1.8);
+    public PlateArmour Stainless { get; set; } = new(5, 0.98, 1.9);
+    public PlateArmour Brass { get; set; } = new(2, 0.92, 1.6);
+
+    private static readonly PlateArmourByMetal Defaults = new();
+
+    /// <summary>The armour for a plate metal code, or null for none or an unknown one.</summary>
+    public PlateArmour? For(string? metal) => metal switch
+    {
+        EidolonFittings.Iron => Iron,
+        EidolonFittings.Steel => Steel,
+        EidolonFittings.Stainless => Stainless,
+        EidolonFittings.Brass => Brass,
+        _ => null,
+    };
+
+    internal static PlateArmourByMetal Sanitise(PlateArmourByMetal? armour, List<string> fixes)
+    {
+        if (armour == null)
+        {
+            fixes.Add($"{nameof(EidolonConfig.PlateArmour)} is missing, using the defaults");
+            return new PlateArmourByMetal();
+        }
+        armour.Iron = One(nameof(Iron), armour.Iron, Defaults.Iron, fixes);
+        armour.Steel = One(nameof(Steel), armour.Steel, Defaults.Steel, fixes);
+        armour.Stainless = One(nameof(Stainless), armour.Stainless, Defaults.Stainless, fixes);
+        armour.Brass = One(nameof(Brass), armour.Brass, Defaults.Brass, fixes);
+        return armour;
+    }
+
+    private static PlateArmour One(string metal, PlateArmour? a, PlateArmour d, List<string> fixes)
+    {
+        string name = $"{nameof(EidolonConfig.PlateArmour)} {metal}";
+        if (a == null)
+        {
+            fixes.Add($"{name} is missing, using the default");
+            return new PlateArmour(d.ProtectionTier, d.RelativeProtection, d.FlatDamageReduction);
+        }
+        if (a.ProtectionTier < 0 || a.ProtectionTier > 10)
+        {
+            fixes.Add($"{name} ProtectionTier {a.ProtectionTier} is out of range, using {d.ProtectionTier}");
+            a.ProtectionTier = d.ProtectionTier;
+        }
+        if (!double.IsFinite(a.RelativeProtection) || a.RelativeProtection < 0 || a.RelativeProtection > 1)
+        {
+            fixes.Add($"{name} RelativeProtection {a.RelativeProtection} is out of range, using {d.RelativeProtection}");
+            a.RelativeProtection = d.RelativeProtection;
+        }
+        if (!double.IsFinite(a.FlatDamageReduction) || a.FlatDamageReduction < 0 || a.FlatDamageReduction > 100)
+        {
+            fixes.Add($"{name} FlatDamageReduction {a.FlatDamageReduction} is out of range, using {d.FlatDamageReduction}");
+            a.FlatDamageReduction = d.FlatDamageReduction;
+        }
+        return a;
+    }
+}
+
+/// <summary>
+/// What armour loses for each tier of an attack's damage tier, as the game's armour does: for each
+/// tier from 1 to the attack's, the flat reduction is cut by a loss and the relative protection
+/// multiplied by one less a loss, each the "within" loss for a tier up to the armour's protection
+/// tier and the "above" loss for a tier past it (halved for armour resistant to high tiers, which
+/// the game's plate armour is). The defaults are the game's plate armour's
+/// (armor.json <c>defaultProtLoss</c>: relative [0.03, 0.15], flat [0.1, 0.2]).
+/// </summary>
+public class ArmourTierLoss
+{
+    public double RelativeLossWithinTier { get; set; } = 0.03;
+    public double RelativeLossAboveTier { get; set; } = 0.15;
+    public double FlatLossWithinTier { get; set; } = 0.1;
+    public double FlatLossAboveTier { get; set; } = 0.2;
+    public bool HighDamageTierResistant { get; set; } = true;
+
+    private static readonly ArmourTierLoss Defaults = new();
+
+    internal static ArmourTierLoss Sanitise(ArmourTierLoss? loss, List<string> fixes)
+    {
+        if (loss == null)
+        {
+            fixes.Add($"{nameof(EidolonConfig.ArmourLoss)} is missing, using the defaults");
+            return new ArmourTierLoss();
+        }
+        void Check(string name, double value, double hi, Action<double> set, double fallback)
+        {
+            if (!double.IsFinite(value) || value < 0 || value > hi)
+            {
+                fixes.Add($"{nameof(EidolonConfig.ArmourLoss)} {name} {value} is out of range, using {fallback}");
+                set(fallback);
+            }
+        }
+        Check(nameof(RelativeLossWithinTier), loss.RelativeLossWithinTier, 1, v => loss.RelativeLossWithinTier = v, Defaults.RelativeLossWithinTier);
+        Check(nameof(RelativeLossAboveTier), loss.RelativeLossAboveTier, 1, v => loss.RelativeLossAboveTier = v, Defaults.RelativeLossAboveTier);
+        Check(nameof(FlatLossWithinTier), loss.FlatLossWithinTier, 100, v => loss.FlatLossWithinTier = v, Defaults.FlatLossWithinTier);
+        Check(nameof(FlatLossAboveTier), loss.FlatLossAboveTier, 100, v => loss.FlatLossAboveTier = v, Defaults.FlatLossAboveTier);
+        return loss;
     }
 }

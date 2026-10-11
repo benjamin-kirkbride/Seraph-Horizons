@@ -30,6 +30,8 @@
 			{ code: "controlledphysics", stepHeight: 1.1251 },
 			{ code: "interpolateposition" },
 			{ code: "health", currenthealth: 300, maxhealth: 300 },
+			// Docked on a gantry's spine (EntityBehaviorEidolonDock); also leaves a layer that is off out of its shape.
+			{ code: "seraphhorizons.eidolonDock" },
 			{ code: "seraphhorizons.eidolonCharge" },
 			{ code: "seraphhorizons.eidolonOil" },
 			{ code: "seraphhorizons.eidolonRepair" },
@@ -51,6 +53,8 @@
 			{ code: "standup", animation: "standup", weight: 100, blendMode: "Average", easeOutSpeed: 4, supressDefaultAnimation: true },
 			{ code: "hung", animation: "hung", weight: 100, blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "activate", animation: "activate", weight: 100, blendMode: "Average", easeOutSpeed: 4, supressDefaultAnimation: true },
+			// Docking onto a gantry's spine (activate in reverse), held on its last frame, hung's.
+			{ code: "dock", animation: "dock", weight: 100, blendMode: "Average", easeInSpeed: 4, supressDefaultAnimation: true },
 			{ code: "alert", animation: "stand-alert", blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "punch", animation: "stand-punch", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "kick", animation: "stand-kick", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
@@ -88,6 +92,9 @@
 			{ code: "controlledphysics", stepHeight: 1.1251 },
 			{ code: "health", currenthealth: 300, maxhealth: 300 },
 			// Upkeeps and interactions in this order: a right-click goes to each in turn.
+			// Docked on a gantry's spine, held there (EntityBehaviorEidolonDock): first, so stripping
+			// (Ctrl) and fitting a layer's item take the click before the repair and the rest.
+			{ code: "seraphhorizons.eidolonDock" },
 			{ code: "seraphhorizons.eidolonCharge", initialGears: 1 },
 			{ code: "seraphhorizons.eidolonOil" },
 			{ code: "seraphhorizons.eidolonRepair" },

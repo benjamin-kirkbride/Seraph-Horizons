@@ -1,0 +1,45 @@
+// The eidolon's torso (Eidolon/README.md, "Build stages"; EidolonGantry/README.md): its lattice chest and
+// hip block with the tanks, pump and gears inside, crafted on the grid behind the eidolon schematic
+// (recipes/grid/eidolontorso.json) and used on a gantry whose winch and spine are fitted, where it is
+// clamped onto the spine as the body's first stage (BEBehaviorEidolonBody). Its shape is the torso
+// stage's two lattice blocks (shapes/item/eidolontorso.json). Marked disabled with the Eidolon switch off.
+{
+	code: "eidolontorso",
+	maxstacksize: 1,
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "SingleCenter", placeRemoveSound: "sounds/block/ingot", collisionBox: { x1: 0.2, y1: 0, z1: 0.1, x2: 0.8, y2: 1, z2: 0.9 } } }
+	],
+	shape: { base: "seraphhorizons:item/eidolontorso" },
+	attributes: {
+		displaycaseable: false,
+		shelvable: false
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"] },
+	materialDensity: 2000,
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldTpUseAnimation: "twohandplaceblock",
+	guiTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: -20, y: 45, z: 0 },
+		origin: { x: 0.5, y: 0.55, z: 0.5 },
+		scale: 1.05
+	},
+	fpHandTransform: {
+		translation: { x: 0, y: -0.1, z: 0 },
+		rotation: { x: 0, y: 30, z: 0 },
+		origin: { x: 0.5, y: 0.5, z: 0.5 },
+		scale: 1.2
+	},
+	tpHandTransform: {
+		translation: { x: -0.9, y: -0.6, z: -0.6 },
+		rotation: { x: 0, y: 0, z: 0 },
+		origin: { x: 0.5, y: 0.5, z: 0.5 },
+		scale: 0.6
+	},
+	groundTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: 0, y: 0, z: 0 },
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 2.5
+	}
+}

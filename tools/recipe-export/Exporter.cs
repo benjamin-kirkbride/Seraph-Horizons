@@ -35,6 +35,8 @@ public static class Exporter
 
         // Recipes first: the item section needs to know which codes they reference.
         referenced = RecipeSection.Fill(api, root);
+        // Before the items: the fitting sheet's codes join the referenced ones.
+        EidolonSection.Fill(api, root, referenced);
         ItemSection.Fill(api, root, referenced);
         // After the items: a power entry links only to an item the export holds.
         Power.PowerSection.Fill(api, root);

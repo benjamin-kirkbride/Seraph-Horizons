@@ -10,8 +10,8 @@ namespace SeraphHorizons.Mod.EidolonGantry;
 /// <summary>
 /// The eidolon gantry (#671): registers its classes and holds what its blocks share, the rig
 /// (assets/seraphhorizons/config/eidolongantry-rig.json). Part of the eidolon (#668), behind the
-/// <c>Eidolon</c> switch: with it off the server leaves its blocks and its recipe out of the game
-/// (<see cref="Disable"/>). A hand-built frame: no power, no oil, no settings of its own.
+/// <c>Eidolon</c> switch: with it off the server leaves its blocks, its recipes and the stainless
+/// fittings' items (<see cref="StainlessPatchAsset"/>) out of the game (<see cref="Disable"/>). A hand-built frame: no power, no oil, no settings of its own.
 /// </summary>
 public class EidolonGantrySystem : ModSystem
 {
@@ -22,12 +22,21 @@ public class EidolonGantrySystem : ModSystem
     [
         new(Domain, "blocktypes/eidolongantry/frame.json"),
         new(Domain, "blocktypes/eidolongantry/ghost.json"),
+        // The torso, crafted and placed on the spine as the body's first stage.
+        new(Domain, "itemtypes/eidolontorso.json"),
     ];
 
     public static readonly AssetLocation[] RecipeAssets =
     [
         new(Domain, "recipes/grid/eidolongantry.json"),
+        new(Domain, "recipes/grid/eidolontorso.json"),
+        // The eidolon's stainless rods, nails and strips and chain at the anvil (its fittings).
+        new(Domain, "recipes/smithing/eidolon-stainless.json"),
     ];
+
+    /// <summary>The stainless variants of the game's rod, nails and strips and chain, for the eidolon's
+    /// fittings: emptied with the switch off.</summary>
+    public static readonly AssetLocation StainlessPatchAsset = new(Domain, "patches/eidolon-stainless.json");
 
     // The files open with a comment, which a plain Parse keeps as a token or trips over.
     private static readonly JsonLoadSettings IgnoreComments = new() { CommentHandling = CommentHandling.Ignore };
@@ -66,6 +75,10 @@ public class EidolonGantrySystem : ModSystem
         api.RegisterBlockEntityClass("seraphhorizons.EidolonGantry", typeof(BEEidolonGantry));
         api.RegisterBlockEntityClass("seraphhorizons.EidolonGantryGhost", typeof(BEEidolonGantryGhost));
         api.RegisterBlockEntityBehaviorClass(BEBehaviorEidolonBody.Code, typeof(BEBehaviorEidolonBody));
+        // Before the game's patch loader, which applies the patches in AssetsLoaded. On the server
+        // only: a client has no assets in Start, and takes the item types from the server.
+        if (!Applies(api) && api.Side == EnumAppSide.Server && api.Assets.TryGet(StainlessPatchAsset) is { } patch)
+            patch.Data = "[]"u8.ToArray();
     }
 
     // The rig is loaded here so the collision box lookups, which can run off the main thread, find

@@ -326,6 +326,7 @@ const en = {
   sortBy: (column: string) => `Sort by ${column.toLowerCase()}`,
   modelsLink: "Models",
   powerLink: "Power",
+  eidolonFittings: "The eidolon's fitting sheet: choose its materials, see its stats and bill",
   power: {
     heading: "Mechanical power",
     intro:

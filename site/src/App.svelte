@@ -29,6 +29,9 @@
   // The model viewer is loaded only when a reader opens it, with three.js after it.
   let modelsView: Promise<typeof import("./components/ModelsRoute.svelte")> | null = null;
   const loadModelsView = () => (modelsView ??= import("./components/ModelsRoute.svelte"));
+  // So is the eidolon's fitting sheet, which also loads three.js.
+  let eidolonView: Promise<typeof import("./components/EidolonFittingPage.svelte")> | null = null;
+  const loadEidolonView = () => (eidolonView ??= import("./components/EidolonFittingPage.svelte"));
   // So is the multiblock viewer.
   let multiblocksView: Promise<typeof import("./components/MultiblocksRoute.svelte")> | null = null;
   const loadMultiblocksView = () => (multiblocksView ??= import("./components/MultiblocksRoute.svelte"));
@@ -112,7 +115,7 @@
   });
 
   $effect(() => {
-    if (!["item", "type", "entity", "models", "model", "multiblocks", "multiblock"].includes(route.view)) document.title = t.siteTitle;
+    if (!["item", "type", "entity", "models", "model", "multiblocks", "multiblock", "eidolon"].includes(route.view)) document.title = t.siteTitle;
   });
 
   let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -219,7 +222,7 @@
     {#await loadModelsView()}
       <p class="muted">{t.loading}</p>
     {:then mod}
-      <mod.default id={route.view === "model" ? route.id : null} />
+      <mod.default id={route.view === "model" ? route.id : null} version={searchVersion} />
     {:catch}
       <p role="alert">{t.loadFailed}</p>
     {/await}
@@ -271,6 +274,16 @@
     {#key data.id}
       <PowerPage {data} meta={meta.meta} />
     {/key}
+  {:else if route.view === "eidolon"}
+    {#await loadEidolonView()}
+      <p class="muted">{t.loading}</p>
+    {:then mod}
+      {#key data.id}
+        <mod.default {data} />
+      {/key}
+    {:catch}
+      <p role="alert">{t.loadFailed}</p>
+    {/await}
   {:else if route.view === "values"}
     <ValuesPage {data} meta={meta.meta} view={route} />
   {/if}

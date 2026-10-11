@@ -1,13 +1,15 @@
 using Atlas.XUnit;
 using Newtonsoft.Json.Linq;
+using SeraphHorizons.Mod.Eidolon.Core;
 using SeraphHorizons.RecipeExport;
 
 namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// The eidolon's two builds (mods-src/seraphhorizons/EidolonGantry/): the gantry's winch and the
-/// body on its spine, as <c>construction</c> records read from GantryParts and BodyBill, written down
-/// here; and its handbook guide in the export's guides.
+/// body on its spine in layers of material, as <c>construction</c> records read from GantryParts,
+/// BodyBill and EidolonFittings, written down here; the torso's grid recipe; and its handbook guide in
+/// the export's guides.
 /// </summary>
 public partial class RecipeExportScenarios
 {
@@ -43,7 +45,7 @@ public partial class RecipeExportScenarios
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]
-    public void Eidolon_body_is_a_construction_record_on_a_gantry()
+    public void Eidolon_body_is_a_construction_record_on_a_gantry_in_layers_of_material()
     {
         var r = Recipe("construction|seraphhorizons:creature-eidolon|0");
         Assert.Equal("Eidolon", (string?)r["switch"]);
@@ -51,21 +53,77 @@ public partial class RecipeExportScenarios
         var ingredients = (JArray)r["ingredients"]!;
         Json("""{ "code": "seraphhorizons:eidolongantry-*-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[0]);
         var stages = (JArray)r["construction"]!["stages"]!;
-        Assert.Equal(7, stages.Count);   // the gantry, then torso, pelvis, legs, arms, head and mind
+        // the gantry, then the torso, the five layers and the mind
+        Assert.Equal(8, stages.Count);
         Json("[0]", stages[0]["ingredients"]!);
-        Assert.Equal("Fit the mind and wake it", (string?)stages[6]["action"]);
-        var mind = Assert.Single((JArray)stages[6]["ingredients"]!);
-        Json("""{ "code": "game:gear-temporal", "kind": "item", "quantity": 1 }""", ingredients[(int)mind]);
-        // the vessel goes in with the head
-        var head = ((JArray)stages[5]["ingredients"]!).Select(i => (string)ingredients[(int)i]["code"]!).ToList();
-        Assert.Contains("game:rustypart-eidolon2tr", head);
-        // the bill's totals (the epic's, #668): 12 stainless gears, 16 metal parts, 13 steel plates
+        Assert.Equal(new[] { "torso", "bones", "joints", "plates", "sash", "skirt", "mind" },
+            ((JArray)r["extra"]!["stages"]!).Select(s => (string)s!));
+        List<string> CodesOf(int stage) => ((JArray)stages[stage]["ingredients"]!).Select(i => (string)ingredients[(int)i]["code"]!).ToList();
+        Assert.Equal(new[] { "seraphhorizons:eidolontorso" }, CodesOf(1));
+        Assert.Equal("Clamp the torso onto the spine", (string?)stages[1]["action"]);
+        Assert.Equal(new[] { "game:gear-temporal" }, CodesOf(7));
+        Assert.Contains("crank", (string?)r["extra"]!["wake"]);
+        // each layer's material is a wildcard over what it takes, then its Jonas parts
+        Assert.Equal("game:supportbeam-*", CodesOf(2)[0]);
+        Assert.Contains("game:rustypart-eidolon2tr", CodesOf(2));
+        Assert.Equal(new[] { "game:rod-*", "game:metalnailsandstrips-*" }, CodesOf(3).Take(2));
+        Assert.Equal(new[] { "game:metalplate-*" }, CodesOf(4));
+        Assert.Equal(new[] { "game:*" }, CodesOf(5));
+        Assert.Equal(new[] { "game:metalchain-*" }, CodesOf(6));
+        JToken Def(int stage, int k = 0) => ingredients[(int)stages[stage]["ingredients"]![k]!];
+        Json("""["steel", "iron", "stainlesssteel", "brass"]""", Def(4)["allowedVariants"]!);
+        // the counts are the mod's (FittingCounts), not written down here
+        var counts = new[] { FittingLayer.Bones, FittingLayer.Joints, FittingLayer.Plates, FittingLayer.Sash, FittingLayer.Skirt }
+            .SelectMany(FittingCounts.Of).Select(c => (double)c);
+        Assert.Equal(counts, new[] { Def(2), Def(3), Def(3, 1), Def(4), Def(5), Def(6) }.Select(d => (double)d["quantity"]!));
+        Assert.Contains("cloth-blue", ((JArray)Def(5)["allowedVariants"]!).Select(v => (string)v!));
+        Assert.Contains("leather-normal-plain", ((JArray)Def(5)["allowedVariants"]!).Select(v => (string)v!));
+        Assert.DoesNotContain("rotten", ((JArray)Def(2)["allowedVariants"]!).Select(v => (string)v!));
+        // the Jonas parts over the layers: 9 stainless gears and 12 metal parts (the torso's own are its recipe's)
         double Total(string code) => ingredients.Where(i => (string)i["code"]! == code).Sum(i => (double)i["quantity"]!);
-        Assert.Equal(12, Total("seraphhorizons:gear-stainless"));
-        Assert.Equal(16, Total("game:metal-parts"));
-        Assert.Equal(13, Total("game:metalplate-steel"));
+        Assert.Equal(9, Total("seraphhorizons:gear-stainless"));
+        Assert.Equal(12, Total("game:metal-parts"));
+        // one layer, one material: extra.layers says which ingredients share it
+        var layers = ((JArray)r["extra"]!["layers"]!).Cast<JObject>().ToList();
+        Assert.Equal(new[] { "bones", "joints", "plates", "sash", "skirt" }, layers.Select(l => (string)l["layer"]!));
+        var joints = layers[1];
+        Assert.Equal("steel", (string?)joints["default"]);
+        Json("""["steel", "iron", "stainlesssteel"]""", joints["materials"]!);
+        Assert.Equal(((JArray)stages[3]["ingredients"]!).Take(2).Select(i => (int)i), ((JArray)joints["ingredients"]!).Select(i => (int)i));
+        Assert.Equal("leather-plain", (string?)layers[3]["default"]);
+        // the one variant lists every material's stack for a piece, the default's first
         var variant = Assert.Single((JArray)r["variants"]!);
         Assert.Equal(12, Codes(variant["ingredients"]![0]!).Count());   // a gantry of any wood
+        int plates = (int)stages[4]["ingredients"]![0]!;
+        Assert.Equal(new[] { "game:metalplate-steel", "game:metalplate-iron", "game:metalplate-stainlesssteel", "game:metalplate-brass" },
+            Codes(variant["ingredients"]![plates]!).Select(c => (string)c!));
+        int rods = (int)stages[3]["ingredients"]![0]!;
+        Assert.Contains("game:rod-stainlesssteel", Codes(variant["ingredients"]![rods]!).Select(c => (string)c!));
+        int sash = (int)stages[5]["ingredients"]![0]!;
+        var sashes = Codes(variant["ingredients"]![sash]!).Select(c => (string)c!).ToList();
+        Assert.Equal("game:leather-normal-plain", sashes[0]);
+        Assert.Contains("game:cloth-blue", sashes);
+        int chain = (int)stages[6]["ingredients"]![0]!;
+        Assert.Contains("game:metalchain-stainlesssteel", Codes(variant["ingredients"]![chain]!).Select(c => (string)c!));
+    }
+
+    [AtlasScenario(TimeoutMs = Timeout)]
+    public void Eidolon_torso_is_a_grid_recipe_behind_the_schematic()
+    {
+        // the schematic's gate registers the recipe again with the schematic (|r0), the asset's own is left unresolved
+        var r = Recipe("grid|seraphhorizons:recipes/grid/eidolontorso.json|r0");
+        Assert.Equal("Eidolon", (string?)r["switch"]);
+        Json("""[{ "code": "seraphhorizons:eidolontorso", "kind": "item", "quantity": 1 }]""", r["outputs"]!);
+        var codes = ((JArray)r["ingredients"]!).Select(i => ((string)i["code"]!, (double)i["quantity"]!)).ToList();
+        Assert.Contains(("game:jonasparts-pumphead", 1.0), codes);
+        Assert.Contains(("game:jonasparts-tank01", 1.0), codes);
+        Assert.Contains(("game:jonasparts-tank02", 1.0), codes);
+        Assert.Contains(("game:metal-parts", 4.0), codes);
+        Assert.Contains(("seraphhorizons:gear-stainless", 3.0), codes);
+        Assert.Contains(("seraphhorizons:schematic-eidolon", 1.0), codes);
+        // every slot resolves to a stack
+        var variant = Assert.Single((JArray)r["variants"]!);
+        Assert.All((JArray)variant["ingredients"]!, slot => Assert.NotEmpty(slot));
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]

@@ -89,8 +89,8 @@ def check_stages(v, body_shape, stages):
     """Every drawn element of the eidolon is in the gantry once, in its stage's part, and the spine's in the
     spine part; the ring over its top peg comes with the chain and the spine with its own stage; after every
     stage what hangs so far, the spine and the body, is one piece (the eidolon's own rule, with the spine
-    there from the first: the torso, the first stage, is clamped to it, and comes before the pelvis it hangs
-    from in the shape's hierarchy, which the baked pose makes harmless; nothing may float); and the torso is
+    there from the first: the torso, the first stage, is clamped to it, and each layer fits onto what is there;
+    nothing may float); and the torso is
     clamped to the spine where they touch."""
     st = v.m.stage_of(stages)
     spine = v.m.spine_names()
@@ -472,6 +472,31 @@ def check_awakening(v, body_shape):
 AWAKE_CLEAR = 56   # activate's frame by which the body is clear of the spine: its first step down
 
 
+def check_docking(v, body_shape):
+    """The eidolon's `dock`, activate in reverse, played where it will hang: it touches nothing of the gantry but
+    the spine it backs onto, and that not before it has stepped back onto it (DOCK_ON)."""
+    m = v.m
+    rig = kin.Rig(body_shape)
+    anim = next(a for a in body_shape["animations"] if a["code"] == "dock")
+    fixed = v.posed([*FIXED, "ring"], 0.0)
+    spine = v.posed(["spine"], 0.0)
+    hits, first = set(), None
+    for f in range(anim["quantityframes"]):
+        body = standing(m, rig, kin.sample(anim, f))
+        hits |= touching(body, fixed)
+        if first is None and touching(body, spine):
+            first = f
+    print(f"docking: touches the gantry {len(hits)} times; on the spine from frame {first}")
+    if hits:
+        v.fail(f"the docking runs into the gantry: {sorted(hits)[:6]}")
+    if first is None or first < DOCK_ON:
+        v.fail(f"the docking is on the spine at frame {first} (not before frame {DOCK_ON})")
+
+
+DOCK_ON = 22       # dock's frame before which the body is clear of the spine: its first step back down (as in activate,
+#                    it is against the spine through its other step)
+
+
 def standing(m, rig, pose):
     """The body (no spine) posed by kin and placed at the entity's position, as static boxes."""
     mats = rig.all_matrices(pose)
@@ -686,6 +711,7 @@ def validate(m, els, parts, rig, body_shape, stages):
     check_ratchet(v)
     check_clearances(v, stages)
     check_awakening(v, body_shape)
+    check_docking(v, body_shape)
     check_ring(v, body_shape)
     check_chains(v)
     check_supports(v)

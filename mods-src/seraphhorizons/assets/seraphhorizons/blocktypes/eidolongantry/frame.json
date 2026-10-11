@@ -22,22 +22,26 @@
 	},
 	// Every texture of the frame's shape and of the whole gantry's (eidolongantry.json: the winch,
 	// the spine and the hung body), which the renderer draws with this block's textures. The two
-	// wood codes take the gantry's wood; the rest are the shape's own.
+	// wood codes take the gantry's wood; the spine's own two keep it steel and oak; the body's layer
+	// codes (bones, joints, plates, sash, skirt) are the default build's, all steel, which each
+	// body's own layers draw over; the rest are the shape's own.
 	textures: {
-		"wood":       { base: "game:block/wood/debarked/{wood}" },
-		"wood-end":   { base: "game:block/wood/treetrunk/debarked/{wood}" },
-		"mechanics":  { base: "game:block/wood/planks/generic" },
-		"iron":       { base: "game:block/metal/plate/iron" },
-		"chain":      { base: "game:block/metal/armor-generic/chain-iron" },
-		"steel":      { base: "game:block/metal/plate/steel" },
-		"lattice":    { base: "game:block/machine/lattice" },
-		"charred":    { base: "game:block/wood/debarked/oak" },
-		"poor":       { base: "game:block/leather/plain" },
-		"chain-rust": { base: "game:block/metal/armor-generic/chain-steel" },
-		"rustyglow":  { base: "game:block/machine/statictranslocator/rustyglow" },
-		"rusty-iron": { base: "game:block/metal/plate/brass" },
-		"fire-red":   { base: "game:block/fire-red" },
-		"reedrope":   { base: "game:block/cloth/reedrope" }
+		"wood":        { base: "game:block/wood/debarked/{wood}" },
+		"wood-end":    { base: "game:block/wood/treetrunk/debarked/{wood}" },
+		"mechanics":   { base: "game:block/wood/planks/generic" },
+		"iron":        { base: "game:block/metal/plate/iron" },
+		"chain":       { base: "game:block/metal/armor-generic/chain-iron" },
+		"spine-oak":   { base: "game:block/wood/debarked/oak" },
+		"spine-steel": { base: "game:block/metal/plate/steel" },
+		"bones":       { base: "game:block/wood/debarked/oak" },
+		"joints":      { base: "game:block/metal/plate/steel" },
+		"plates":      { base: "game:block/metal/plate/steel" },
+		"sash":        { base: "game:block/leather/plain" },
+		"skirt":       { base: "game:block/metal/armor-generic/chain-steel" },
+		"lattice":     { base: "game:block/machine/lattice" },
+		"glow":        { base: "game:block/machine/statictranslocator/rustyglow" },
+		"fire-red":    { base: "game:block/fire-red" },
+		"reedrope":    { base: "game:block/cloth/reedrope" }
 	},
 	attributes: {
 		handbook: {

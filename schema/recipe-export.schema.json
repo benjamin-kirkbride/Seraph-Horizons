@@ -65,6 +65,10 @@
       "description": "Mechanical power producers, consumers and the wind (docs/recipe-browser/power.md). Optional: absent in exports made before it existed.",
       "$ref": "#/$defs/power"
     },
+    "eidolon": {
+      "description": "The pack's eidolon fittings, for the site's fitting sheet (docs/recipe-browser/schema.md, The eidolon's fittings). Optional: absent when the pack's mod or its Eidolon switch is off, and in exports made before it existed.",
+      "$ref": "#/$defs/eidolon"
+    },
     "multiblocks": {
       "description": "Structures a player builds block by block, which a block checks against a layout (the game's `multiblockStructure` attribute), with the shape of a block that fits each cell. Absent from older exports. See docs/recipe-browser/multiblocks.md.",
       "type": "object",
@@ -788,6 +792,144 @@
         "title": { "type": "string" },
         "text": { "description": "English text. May contain VTML markup.", "type": "string" },
         "mod": { "$ref": "#/$defs/modId" }
+      }
+    },
+
+    "eidolonStack": {
+      "type": "object",
+      "required": ["code", "count"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "description": "A key of `items`.", "$ref": "#/$defs/code" },
+        "count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "eidolonFactors": {
+      "description": "A multiplier per material code of the layer, against iron.",
+      "type": "object",
+      "propertyNames": { "$ref": "#/$defs/modId" },
+      "additionalProperties": { "type": "number", "minimum": 0 }
+    },
+    "eidolonArmour": {
+      "description": "A full suit of plate armour of the plates' metal, as the game's protectionModifiers; null with none.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["protectionTier", "relativeProtection", "flatDamageReduction"],
+          "additionalProperties": false,
+          "properties": {
+            "protectionTier": { "type": "integer", "minimum": 0 },
+            "relativeProtection": { "type": "number" },
+            "flatDamageReduction": { "type": "number" }
+          }
+        }
+      ]
+    },
+    "eidolon": {
+      "description": "The eidolon's fittings: the layers fitted onto its torso in the gantry, what each takes, the server's EidolonSettings and the stats of every metal build, and the texture paths the layers draw with (the images are the site build's, from the repository's texture store).",
+      "type": "object",
+      "required": ["mod", "item", "torso", "mind", "layers", "settings", "builds", "shapeTextures"],
+      "additionalProperties": false,
+      "properties": {
+        "mod": { "$ref": "#/$defs/modId" },
+        "item": { "description": "The eidolon's creature item, a key of `items`, or null when it is not registered.", "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/code" }] },
+        "torso": {
+          "type": "object",
+          "required": ["item", "recipe"],
+          "additionalProperties": false,
+          "properties": {
+            "item": { "description": "The crafted torso, a key of `items`, or null.", "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/code" }] },
+            "recipe": { "description": "What the torso is crafted from in the grid.", "type": "array", "items": { "$ref": "#/$defs/eidolonStack" } }
+          }
+        },
+        "mind": { "description": "What is fitted after the five layers (a temporal gear).", "type": "array", "items": { "$ref": "#/$defs/eidolonStack" } },
+        "layers": {
+          "description": "In build order, innermost first; stripped outermost first.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "default", "materials", "parts"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "description": "The layer, and its texture code in the eidolon's shape: bones, joints, plates, sash, skirt.", "$ref": "#/$defs/modId" },
+              "name": { "type": "string", "minLength": 1 },
+              "default": { "description": "The material an eidolon from before fittings has (the shape's default look); one of `materials`' ids.", "type": ["string", "null"] },
+              "materials": {
+                "description": "Every material the layer takes that the server has items for, in the mod's order.",
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["id", "texture", "items"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "id": { "description": "The material as the mod stores it: a wood, a metal code (stainlesssteel), or leather-<colour> / cloth-<colour>.", "type": "string", "pattern": "^[a-z0-9-]+$" },
+                    "texture": { "description": "The texture the layer draws with in it (domain:path under textures/, no extension), or null.", "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/code" }] },
+                    "items": { "description": "What a layer of it takes, its Jonas parts aside.", "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/eidolonStack" } }
+                  }
+                }
+              },
+              "parts": { "description": "The Jonas parts (and machine parts) the layer takes whatever its material, given back when it is stripped.", "type": "array", "items": { "$ref": "#/$defs/eidolonStack" } }
+            }
+          }
+        },
+        "settings": {
+          "description": "EidolonSettings as the server has them (ModConfig/seraphhorizons.json).",
+          "type": "object",
+          "required": ["allSteelHealth", "baseHealth", "plateHealth", "jointHealth", "skirtHealth", "plateDamage", "plateMoveSpeed", "plateArmour", "armourLoss", "walkSpeed", "runSpeed", "defenceDamage", "slamDamage"],
+          "additionalProperties": false,
+          "properties": {
+            "allSteelHealth": { "type": "number", "exclusiveMinimum": 0 },
+            "baseHealth": { "description": "An all-iron eidolon's health: allSteelHealth over the three steel multipliers.", "type": "number", "exclusiveMinimum": 0 },
+            "plateHealth": { "$ref": "#/$defs/eidolonFactors" },
+            "jointHealth": { "$ref": "#/$defs/eidolonFactors" },
+            "skirtHealth": { "$ref": "#/$defs/eidolonFactors" },
+            "plateDamage": { "$ref": "#/$defs/eidolonFactors" },
+            "plateMoveSpeed": { "$ref": "#/$defs/eidolonFactors" },
+            "plateArmour": { "type": "object", "propertyNames": { "$ref": "#/$defs/modId" }, "additionalProperties": { "$ref": "#/$defs/eidolonArmour" } },
+            "armourLoss": {
+              "type": "object",
+              "required": ["relativeLossWithinTier", "relativeLossAboveTier", "flatLossWithinTier", "flatLossAboveTier", "highDamageTierResistant"],
+              "additionalProperties": false,
+              "properties": {
+                "relativeLossWithinTier": { "type": "number" },
+                "relativeLossAboveTier": { "type": "number" },
+                "flatLossWithinTier": { "type": "number" },
+                "flatLossAboveTier": { "type": "number" },
+                "highDamageTierResistant": { "type": "boolean" }
+              }
+            },
+            "walkSpeed": { "type": "number" },
+            "runSpeed": { "type": "number" },
+            "defenceDamage": { "type": "number" },
+            "slamDamage": { "type": "number" }
+          }
+        },
+        "builds": {
+          "description": "The stats of each joints, plates and skirt metal, as the mod's EidolonStats has them (bones and sash change nothing).",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["joints", "plates", "skirt", "maxHealth", "walkSpeed", "runSpeed", "defenceDamage", "slamDamage", "armour"],
+            "additionalProperties": false,
+            "properties": {
+              "joints": { "type": "string" },
+              "plates": { "type": "string" },
+              "skirt": { "type": "string" },
+              "maxHealth": { "type": "number" },
+              "walkSpeed": { "type": "number" },
+              "runSpeed": { "type": "number" },
+              "defenceDamage": { "type": "number" },
+              "slamDamage": { "type": "number" },
+              "armour": { "$ref": "#/$defs/eidolonArmour" }
+            }
+          }
+        },
+        "shapeTextures": {
+          "description": "The eidolon shape's texture codes and their paths (the layers' defaults among them).",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/code" }
+        }
       }
     },
 
