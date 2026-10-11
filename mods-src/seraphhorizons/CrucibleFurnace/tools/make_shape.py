@@ -198,7 +198,8 @@ LEVEL_A = pot_inner(LEVEL_TOP) + 0.01        # its apothem: a hundredth into the
 
 # the coke: one bed round both pots, three layers from the grate to the pots' shoulders (where the belly ends)
 COKE_LAYERS = ((GRATE_TOP, 16.0), (16.0, 20.0), (20.0, 23.5))
-COKE_PER_LAYER = 2                           # CokeCapacity (6) over the layers: gameplay's coke count -> layers shown
+COKE_CAPACITY = 12                           # CokeCapacity: the one bed for two pots (#796)
+COKE_PER_LAYER = COKE_CAPACITY // len(COKE_LAYERS)   # 4 a layer: gameplay's coke count -> layers shown
 LUMP = 1.5                                   # the coke lumps lying on each layer's top
 LUMP_AT = 5.0                                # their place from a pot's axis, along both x and z (and in the middle)
 

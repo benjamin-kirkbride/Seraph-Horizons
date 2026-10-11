@@ -3281,37 +3281,109 @@ stainless rod, nails and strips and chain (`game:rod-stainlesssteel`, `game:meta
 
 Stainless steel, the gears epic's metal (#484): the Huntsman (Sheffield) crucible furnace, the
 mid-game route, small batches in clay pots. Stainless melts at 1530 °C and coke burns at 1340 °C, so
-no forge or crucible melts it; the furnace's own temperature model, a stack's draft through a bed of
-coke, is what gets there. In `CrucibleFurnace/` (rules in `CrucibleFurnace/Core/`, the game side in
-`CrucibleFurnace/Game/`).
+no forge or crucible melts it; the furnace's own temperature model, a chimney's natural draught
+through a bed of coke, is what gets there. In `CrucibleFurnace/` (rules in `CrucibleFurnace/Core/`, the
+game side in `CrucibleFurnace/Game/`, the model and its generator in `CrucibleFurnace/README.md` and
+`CrucibleFurnace/tools/`).
 
-**Build.** `seraphhorizons:meltinghole-{closed|open}` is one block set into the floor: eight fired
-tier-3 refractory bricks (the game's, made with chromite) round an iron plate, its lid, in the grid.
-The lid is the block's variant (Shift and right-click with an empty hand opens and shuts it). Holes
-stand side by side in a row along x or z, up to `MaxHolesInRow` (4), and the row needs a stack at one
-end: a chimney block in line with the holes at their level, with at least `MinChimneyHeight` (6)
-chimney blocks in a column from it up (`ChimneyBlocks`: the game's clay bricks, clay brick chimney,
-refractory bricks and stone bricks, and smex's smoke stack). The flue runs under the floor, so it is
-not built. `Core/FurnaceRow.cs` finds a hole's row (x first, then z) or says what is wrong: no
-chimney, a chimney too short, or too many holes; the block info shows it. The hole's block type
-carries a `multiblockStructure` and `multiblockSizes` (1 to 4 holes, the shortest chimney) for the
-recipe browser's multiblock viewer; nothing in the game reads them.
+**One furnace, one hole, two pots** (#796, model #753). A furnace is a ghost-cell machine 3 blocks
+wide, 3 deep and 2 high, as the late nineteenth century's were: one hole holding two pots side by side
+under a hinged firebrick lid, an ash pit under the grate with an iron damper over its mouth, a lined
+flue and stack to an outlet at the back. The controller is the front middle cell, the ash mouth's
+(`seraphhorizons:cruciblefurnace-frame-{side}`); placing it (from the iron frame, the item) needs room for
+every cell, puts the furnace running away from the player, ash mouth towards them, and stamps
+`cruciblefurnace-ghost` into the other 17 brickwork cells and the 6 hollow cells over the hole's two rows,
+where the lid opens. Breaking any cell drops the frame, every item fitted, the outlet's cap, the unburnt
+coke and each pot (with its charge; a melted charge as its products, molten metal as bits, the pot
+lost), and clears the ghosts.
+
+**Building it**, the rig's `build` (counts measured from the model, not written in code):
+
+| | Stage | Materials |
+|---|---|---|
+| | Iron frame (grid, with a hammer) | 2 iron plates, 4 iron rods, 10 iron nails and strips |
+| 1 | Brickwork (with the hinge's pins and the lid's stops, at no extra cost) | 25 fired bricks (`game:burnedbrick-*`) of **one** type |
+| 2 | Lining | 9 tier-3 refractory bricks, 4 fire clay |
+| 3 | Lid and damper | 4 tier-3 refractory bricks, 2 iron plates |
+
+A right-click with a stage's material on any cell fits as many of the held stack as the stage still
+needs, in stage order (a later stage's material is refused with the stage it waits for). The first
+brick sets the furnace's brick type, saved with it; a brick of another type is refused with a message
+naming the furnace's, and one the rig has no texture for (another mod's) too. The walls are drawn in
+that type's brick (the rig's `bricks`: the six coloured courses are the cream brick with the colour
+drawn over it, composed into one texture). In creative mode Ctrl + right-click fits the next stage
+free (red brick if none is set). The lid and the damper go in open. Nothing is fired, charged or
+opened until the furnace is built; the cap goes on once the lining (the outlet's curb) is in.
+`Core/FurnaceBuild.cs`.
+
+**Collision.** Before the brickwork, only the ground row is solid (the grate and the binding's feet),
+though every brickwork cell is clicked whole; after it, the rig's boxes, with a deck over each top cell
+so a player walks over the open hole. The hollow cells have no box but the lid's: open, its box where
+it stands over the middle row; while it swings (1.4 s), the box of everything it sweeps, over both rows.
+The boxes are measured from the shape's `lid_*` elements posed by the rig's lid driver
+(`Core/LidBoxes.cs`). The outlet's cell is solid to its top whether capped or not, so the cap needs no
+box of its own.
+
+**The chimney and the draught.** Natural draught only: a column of `ChimneyBlocks` (the game's clay
+bricks, clay brick chimney, refractory bricks and stone bricks; smex's smoke stack is a 3 x 3
+multiblock and cannot stand on the outlet) stood on the outlet, counted from it up. Under
+`MinChimneyHeight` (6) there is no draught. Six blocks heat a lit furnace under its shut lid at
+`ChimneyHeatingPerHour` (200 °C an hour) up to `ChimneyMaxTemperature` (1600 °C); each block above
+adds `ChimneyHeatingPerExtraBlock` (40 °C an hour) and `ChimneyMaxPerExtraBlock` (10 °C), counted up to
+`MaxChimneyHeight` (11 blocks: 400 °C an hour, up to 1650 °C). From cold, stainless melts in about 7.6
+hours on six blocks and 3.8 on eleven (`Core/FurnaceHeat.cs`, `DraughtOf`).
+
+**Rows and shared chimneys.** Up to `MaxFurnacesInRow` (6) furnaces of the same facing side by side
+along their width, touching (each a furnace's width, 3 blocks, from the next, and with its lining in),
+are a row, 18 blocks long at most: one chimney on any member's outlet serves all of them, each at its
+full draught, as the per-hole flues in one stack did. Every other outlet must be capped: a right-click
+on an outlet's top with an iron plate caps it, and with an empty hand takes the plate back. An uncapped
+outlet (bare, or carrying a second, shorter chimney) leaks the draught: the whole row has none until it
+is capped, and the block info says which furnace's outlet is open ("the furnace 2 to the left", seen
+from the front). With more than six side by side none has draught. `Core/FurnaceRow.cs` finds the row
+both ways from the furnace asking, its chimney (the tallest on an uncapped outlet) and what is wrong.
+
+**The ash-pit damper.** An empty-hand right-click on the furnace's front (the controller's face, the
+ash mouth's) moves the damper open, half, shut, open:
+
+| Damper | Heating | Coke | Cooling (lid shut) |
+|---|---|---|---|
+| Open | the chimney's | 1 coke an hour (`HoursPerCoke`) | `CoolingPerHour` (300 °C an hour) |
+| Half | `DamperHalfHeating` (0.5) of it | `DamperHalfBurn` (0.6) of the open rate | the same |
+| Shut (banked) | none | `DamperShutBurn` (0.25) of the open rate | `DamperShutCooling` (0.25) of it |
+
+With the lid open it cools at `LidOpenCoolingPerHour` (600 °C an hour), damper or not, and the coke burns
+at the damper's rate. Banked, a fill of coke lasts 48 hours and a melt cools 75 °C an hour.
+
+**The lid.** An empty-hand right-click on the hole opens a shut lid; on an open lid (its box), or on
+the hole where there is no pot to pull, it shuts it; Shift with an empty hand opens or shuts it from
+any cell. While the furnace is too hot to touch (the game's `TooHotToTouchTemperature`) it needs tongs
+(any `heatResistant` item) in the off hand, the same test as pulling a pot; a cold furnace's lid moves
+bare-handed. It swings through its 100° in 1.4 s, drawn eased.
 
 **The pot.** `seraphhorizons:meltingpot-raw` is clay-formed from fire clay only (a deep pot 7 voxels
 across and 10 high) and fired in a pit kiln or a beehive kiln, as the game's crucible is, into
-`meltingpot-fired`. A pot holds `PotCapacityUnits` (300, three ingots, so two pots cast a 600-unit cylinder blank, #768) and lasts `PotHeats` (3) heats:
-its heats are an attribute of the stack, and it cracks when the last is emptied (or broken out). One
-pot goes in a hole, by right-click with the lid open.
+`meltingpot-fired`. A pot holds `PotCapacityUnits` (300, three ingots, so the furnace's two pots cast a
+600-unit cylinder blank, #768) and lasts `PotHeats` (3) heats: its heats are an attribute of the stack,
+and it cracks when the last is emptied (or broken out). Two go in the hole, by right-click with the lid
+open: a click on the hole goes to the nearer of the two places (the rig's `pot1`, west, and `pot2`,
+east), for putting a pot in, charging it and pulling it.
+
+**Two pots, one fire.** The pots share the furnace's one coke bed and temperature, but each is its own
+charge: they **may hold different recipes**, and each melts when the fire reaches its own recipe's
+temperature (stainless at 1530 °C in one, iron at 1538 °C in the other: the first melts first). A
+furnace lights only when neither pot holds a charge that makes nothing. `Core/FurnacePot.cs`.
 
 **Charging.** With the lid open and a pot in, a right-click with anything a pot recipe takes puts as
-much of the stack in as fits: a recipe must take every item already in the pot and this one, the pot
-must not go over its capacity, and this ingredient not over its largest share of a full pot
-(`PotRecipes.CanAdd`). Anything else is refused with a word: no recipe takes it, it does not go with
+much of the stack in the nearer pot as fits: a recipe must take every item already in the pot and this
+one, the pot must not go over its capacity, and this ingredient not over its largest share of a full
+pot (`PotRecipes.CanAdd`). Anything else is refused with a word: no recipe takes it, it does not go with
 what is in, the pot is full, or more would spoil the ratio. An ingot is 100 units, anything else 5. A
-right-click with coke puts it on the fire, up to `CokeCapacity` (6); with Shift, into the pot. Iron alone
-is a charge of its own (the iron melt), so a pot holding only iron takes iron to the brim: for stainless,
-the ferrochrome goes in first, and then iron stops at its share. The recipes are ratios only, no chemistry tracked (`Core/PotRecipes.cs`, built in, not settings); a recipe
-naming an item not in the game is left out with a log line:
+right-click with coke puts it on the fire, up to `CokeCapacity` (12, the one bed round both pots, drawn as
+three layers of four); with Shift, into the nearer pot. Iron alone is a charge of its own (the iron melt),
+so a pot holding only iron takes iron to the brim: for stainless, the ferrochrome goes in first, and then
+iron stops at its share. The recipes are ratios only, no chemistry tracked (`Core/PotRecipes.cs`, built
+in, not settings); a recipe naming an item not in the game is left out with a log line:
 
 | Recipe | Charge (share of the units) | Melts at | Gives | Full pot |
 |---|---|---|---|---|
@@ -3327,52 +3399,53 @@ about two thirds chromium, so 4 iron to 1 ferrochrome by units is about 13 % chr
 (`Stainless.Ferrochrome`, `seraphhorizons:ferrochrome`), for anything else that makes stainless from
 ferrochrome to share (smex's Bessemer converter, below).
 
-**Firing.** A firestarter or a lit torch (Shift) lights the coke as it lights a forge, with the lid
-open; it will not light with no coke, or with a charge in the pot that makes nothing (the block info
-gives each ingredient's share and the range it needs). Each piece of coke burns `HoursPerCoke` (1)
-hour, lit whatever the lid; a fire out of coke goes out. Under a closed lid with a working stack a lit
-hole heats at `ChimneyHeatingPerHour` (200 °C) up to `ChimneyMaxTemperature` (1600 °C) on the
-chimney's draft, and at `ForcedHeatingPerHour` (400 °C) up to `ForcedMaxTemperature` (1650 °C) with
-forced air; otherwise it cools at `CoolingPerHour` (300 °C), with its lid open at
-`LidOpenCoolingPerHour` (600 °C) (`Core/FurnaceHeat.cs`, piecewise linear, run each second by the
-calendar's hours since the last). From cold, stainless melts in about 3.8 hours with forced air and
-7.6 on the chimney alone, so a chimney firing needs its coke topped up. When the fire reaches the
-charge's recipe temperature the charge melts.
+**Firing.** A firestarter or a lit torch (Shift) on any of the furnace's cells lights the coke as it
+lights a forge, with the lid open; it will not light with no coke, or with a charge in either pot that
+makes nothing (the block info gives each ingredient's share and the range it needs). Each piece of coke
+burns `HoursPerCoke` (1) hour with the damper open, lit whatever the lid; a fire out of coke goes out.
+Under a shut lid with a draught a lit furnace heats as above, up to its draught's highest (and above it
+falls back to it at the cooling rate); otherwise it cools (`Core/FurnaceHeat.cs`, piecewise linear, run
+each second by the calendar's hours since the last). One fill of coke, 12 hours, melts stainless from cold
+on the shortest chimney with four hours to spare. When the fire reaches a pot's recipe temperature that
+pot's charge melts.
 
-**Forced air.** A lit, lidded hole draws `AirLitresPerSecond` (10 L a real second) from the first
-pipe beside (or under) any hole of its row that carries air, through exlib's pipe node
-(`ExpandedLib.Industry.Pipes.IPipeNode`: `Medium`, `TryConsume`, found by name, as smex's blast
-furnace draws its blast through its tuyeres), and runs on forced air while it gets half of it, for
-five seconds after. A pipe end against a hole is not open to the air, so it does not leak. The air
-comes from smex's twin-tub blower (up to 110 L/s) or its steam engine's air blower, piped in with
-ppex pipe. Without exlib, or with its interface changed (logged once), there is none.
+**Pulling and teeming.** With the lid open and an empty hand, a right-click on the hole pulls the nearer
+pot, with tongs in the off hand while the furnace is too hot to touch. A pot not yet melted comes back
+with its charge (and goes back in with it). A ferroalloy is broken out of the pot: its lumps and slag go
+into the inventory, hot, and the pot, a heat older, into the hand (or it cracks on its last). Molten
+stainless or iron comes out as `meltingpot-smelted`, on the game's smelted crucible class
+(`BlockSmeltedContainer`), so it pours into any `ILiquidMetalSink` (ingot molds, tool molds, the gear
+blank molds) exactly as a crucible does, and emptied it is a fired pot a heat older, or cracks. It is
+given the cooldown speed that takes it from the furnace's temperature to the game's solid point (0.9 of
+the melting point) in `PourWindowSeconds` (20) real seconds (`Core/FurnaceHeat.cs`, `PourWindow`);
+frozen, a right-click breaks the pot, which is lost, and knocks the metal out as bits of its metal (a bit
+per 5 units), which go back in a pot. A pot left in the furnace until the fire falls below that point is
+lost the same way when pulled.
 
-**Pulling and teeming.** With the lid open, an empty hand and tongs (any `heatResistant` item) in the
-off hand, a right-click pulls the pot; without tongs a pot hotter than the game's too-hot-to-touch is
-refused. A pot not yet melted comes back with its charge (and goes back in with it). A ferroalloy is
-broken out of the pot: its lumps and slag go into the inventory, hot, and the pot, a heat older, into
-the hand (or it cracks on its last). Molten stainless or iron comes out as `meltingpot-smelted`, on the game's
-smelted crucible class (`BlockSmeltedContainer`), so it pours into any `ILiquidMetalSink` (ingot
-molds, tool molds, the gear blank molds) exactly as a crucible does, and emptied it is a fired pot a
-heat older, or cracks. It is given the cooldown speed that takes it from the furnace's temperature to
-the game's solid point (0.9 of the melting point) in `PourWindowSeconds` (20) real seconds
-(`Core/FurnaceHeat.cs`, `PourWindow`); frozen, a right-click breaks the pot, which is lost, and knocks
-the metal out as bits of its metal (a bit per 5 units), which go back in a pot. A pot left in the hole
-until the fire falls below that point is lost the same way when pulled. Breaking a hole drops it, the
-unburnt coke and its pot with its charge; a melted charge drops as its products (stainless as bits),
-the pot lost.
-
-**Iron for large castings** (#768). The iron melt (1538 °C, which both drafts reach) is for castings
-too big to forge, the cylinder blank (#639) above all: a cylinder mold takes 600 units, the two pots of a
-firing, poured one after the other. The game's mold takes the second pour whatever the first has cooled
+**Iron for large castings** (#768). The iron melt (1538 °C, which every chimney reaches) is for castings
+too big to forge, the cylinder blank (#639) above all: a cylinder mold takes 600 units, the furnace's two
+pots, poured one after the other. The game's mold takes the second pour whatever the first has cooled
 to (its `CanReceive` asks only for the same metal and room, and a pour sets the fill to its own
-temperature), so nothing was changed there (an Atlas scenario pours the second pot into a fill already hardened). Molten iron from a pot casts only into large-casting molds: the pulled pot
+temperature), so nothing was changed there (an Atlas scenario pours the second pot into a fill already
+hardened). Molten iron from a pot casts only into large-casting molds: the pulled pot
 (`BlockMeltingPotSmelted`) checks the mold it pours into, and a metal in `LargeCastingMetals`
 (`game:ingot-iron`) pours only into a block in `LargeCastingMolds` (the game's ingot molds and the
 cylinder mold, so bits can go back into ingots); every tool-head mold is refused with a word, so iron
 tools stay smithed (cast iron is brittle, and real iron tools were wrought or steel). The rule is the pot's
 (`CrucibleFurnaceConfig.PourAllowed`), so the game's crucible, which cannot melt iron anyway, is not
 touched, and stainless pours into any mold as before.
+
+**Drawn.** The frame is the block's own shape (`cruciblefurnace_frame.json`); everything else is drawn by
+`Game/CrucibleFurnaceRenderer.cs` from the full shape's parts by the furnace's state: the stages fitted
+(the brickwork in its brick), the lid at its eased depth, the damper in its place, the cap, each pot, its
+charge or its melt (in the melt's metal), the coke's layers (`ceil(coke / 4)`, burning while lit), and the
+burning coke and the melts glowing by the fire's temperature (none below 500 °C, full at 1300 °C). Flames
+show at the hole while it burns with the lid open, and smoke at the row's chimney top while it draws.
+
+**Block info.** The stage built and what the next still needs; the brick; the lid; the damper; the fire's
+temperature and coke; each pot's charge (with what it makes and the temperature it needs against the
+fire's), molten or melted contents and heats; the chimney's height and draught (or what is wrong: none,
+too short, too many, or which outlet is open); and the row's members and which carries the chimney.
 
 **The game's stainless.** The game gives `game:ingot-stainlesssteel` no melting point, so molds never
 count it hardened: `patches/stainless-ingot-melting.json` adds 1530 °C (unswitched; the stainless gear
@@ -3423,52 +3496,69 @@ page one, "In bulk". If any of smex's members is missing or changed, a warning i
 patched and ferrochrome stays off its scrap list. A heat that sets solid in the vessel before it pours
 comes out as smex makes it, steel bits, its ferrochrome with them; ferrochrome charged as scrap into a
 vessel that is then filled with molten steel (not blown) stays cold scrap, as smex keeps any scrap
-until a blow.
+until a blow. The Bessemer route is the only part of the furnace's code that touches smex; the furnace
+itself uses neither smex, ppex nor exlib (there is no forced air: the old exlib pipe hook is gone).
 
-**Handbook.** A guide page, "Making stainless steel" (`config/handbook/cruciblefurnace.json`), and a
-section linking it on the hole, the pots and the two ferroalloys.
+**Handbook.** A guide page, "Making stainless steel" (`config/handbook/cruciblefurnace.json`), on the
+furnace, its chimney and rows, the pots, the charges, firing and the damper, pulling and teeming; the
+frame's page has "Building it" and a section linking the guide, as the pots and the two ferroalloys do.
 
 | Setting | Default | |
 |---|---|---|
 | `PotCapacityUnits` | 300 | Units a pot holds |
 | `PotHeats` | 3 | Heats a pot lasts |
 | `PourWindowSeconds` | 20 | Real seconds a pulled pot of molten metal pours before it freezes |
-| `CokeCapacity` | 6 | Coke a hole holds |
-| `HoursPerCoke` | 1 | Game hours a coke burns |
-| `ChimneyHeatingPerHour` | 200 | °C an hour on the chimney's draft |
-| `ForcedHeatingPerHour` | 400 | °C an hour with forced air |
-| `ChimneyMaxTemperature` | 1600 | The hottest on the chimney |
-| `ForcedMaxTemperature` | 1650 | The hottest with forced air |
-| `CoolingPerHour` | 300 | °C an hour a hole cools, lid closed |
+| `CokeCapacity` | 12 | Coke the furnace's bed holds round its two pots |
+| `HoursPerCoke` | 1 | Game hours a coke burns, damper open |
+| `ChimneyHeatingPerHour` | 200 | °C an hour on the shortest chimney |
+| `ChimneyMaxTemperature` | 1600 | The hottest on the shortest chimney |
+| `ChimneyHeatingPerExtraBlock` | 40 | °C an hour each block over the shortest adds |
+| `ChimneyMaxPerExtraBlock` | 10 | °C of maximum each block over the shortest adds |
+| `MinChimneyHeight` | 6 | Chimney blocks on the outlet the furnace needs to draw |
+| `MaxChimneyHeight` | 11 | The tallest chimney that draws harder |
+| `MaxFurnacesInRow` | 6 | Furnaces side by side one chimney serves |
+| `CoolingPerHour` | 300 | °C an hour a furnace cools, lid shut |
 | `LidOpenCoolingPerHour` | 600 | °C an hour it cools, lid open |
-| `MinChimneyHeight` | 6 | Chimney blocks a row's stack needs |
-| `MaxHolesInRow` | 4 | Holes a stack serves |
-| `AirLitresPerSecond` | 10 | Air a hole draws for forced air, L a real second |
-| `ChimneyBlocks` | clay bricks, clay brick chimney, refractory bricks, stone bricks, smex's smoke stack | What a chimney is built of |
+| `DamperHalfHeating` | 0.5 | Damper half shut: the share of the heating |
+| `DamperHalfBurn` | 0.6 | Damper half shut: the share of the coke's burn |
+| `DamperShutBurn` | 0.25 | Damper shut: the share of the coke's burn |
+| `DamperShutCooling` | 0.25 | Damper shut: the share of the closed cooling |
+| `ChimneyBlocks` | clay bricks, clay brick chimney, refractory bricks, stone bricks | What a chimney is built of |
 | `LargeCastingMetals` | `game:ingot-iron` | Metals a pot pours only into `LargeCastingMolds` |
 | `LargeCastingMolds` | `game:ingotmold-*`, `seraphhorizons:cylindermold-*` | The molds those metals pour into |
 
-With the switch off the server marks the hole, the pots, the two ferroalloys and both recipe files
-disabled before the game loads them, empties the handbook patch and hides the guide page, so none of
-it exists and holes and pots already in a world are lost, and smex's converter is not patched and
-its scrap list and handbook are as it ships them. Not yet: the pot recipes in the recipe
-export (the hole and the pot's own recipes are there), and a model past simple boxes (no coke or glow
-drawn in the hole): a generated model of the furnace as one machine, one two-pot hole with its hinged
-lid, grate, ash pit and damper, flue and outlet, built in stages (an iron frame, brickwork of any fired
-brick, a refractory lining, the lid and damper), is in `CrucibleFurnace/README.md` (#753; the game side is
-#796), and the game does not use it yet. `tests/PackTests/CrucibleFurnaceScenarios.cs`
-(Atlas) builds a row and breaks its stack, melts a full pot of stainless from a charge on the chimney's
-draft with a top-up, pulls it with and without tongs, checks the pour window and an ingot mold, freezes it to
-bits, melts iron in two pots and teems both into one cylinder mold for a blank while a tool mold refuses
-it, refuses wrong charges and an unlit bad ratio, breaks out both ferroalloys and cracks a pot on
-its last heat, takes back an unmelted pot and breaks a hole, and finds a ppex pipe as an air source.
-`BessemerStainlessScenarios.cs` (Atlas, `SharedWorldScenarios`) can raise no whole converter (vessel
-stages, transmission, steam, blast), so it places a lone control block, sets its heat as smex leaves
-it and runs smex's own methods through the patches: a blow completing with ferrochrome scrap, the save,
-the block info, a stainless pour, an off-ratio and a too-cold one, and ferrochrome into molten steel;
-a real blow, a player's click at the hatch (smex's checks before it), the canal run and the client's
-view are not driven. `tests/BessemerHeatTests.cs` covers the decision. `SwitchesOffScenarios`
-requires none of it with the switch off.
+#796 dropped `ForcedHeatingPerHour`, `ForcedMaxTemperature`, `AirLitresPerSecond` and `MaxHolesInRow`
+(forced air and the row of holes are gone) and smex's smoke stack from `ChimneyBlocks`, and raised
+`CokeCapacity` from 6 to 12; an install that kept the old defaults follows the new ones
+(docs/config-defaults.md), and a dropped key left in a file is ignored. **The old melting holes**
+(`meltinghole-{closed|open}`, their grid recipe and shapes, and their `multiblockStructure`) are removed
+with no migration: holes in a world vanish, with whatever was in them. The recipe browser's multiblock
+viewer no longer has the furnace; the model viewer has it as `crucible-furnace`.
+
+With the switch off the server marks the furnace's frame and ghost, the pots, the two ferroalloys and
+both recipe files disabled before the game loads them, empties the handbook patch and hides the guide
+page, so none of it exists and furnaces and pots already in a world are lost, and smex's converter is
+not patched and its scrap list and handbook are as it ships them. Not yet: the pot recipes in the recipe
+export (the frame and the pot's own recipes are there), and the furnace seen in a game client.
+
+`tests/CrucibleFurnace/` (unit) covers the pot recipes and charging, the draught by height, the damper,
+the row (caps, leaks, at most six, a gap ending it), the build (the order, a stack a click, one brick
+type), two pots of different recipes, and the rig (its contract, the reference poses, the lid's boxes,
+and `potUnits` and the coke's layers held to the settings). `tests/PackTests/CrucibleFurnaceScenarios.cs`
+(Atlas) places the frame on all four facings and breaks it, builds every stage by clicks and refuses a
+second brick type and a stage out of order, breaks a built furnace for everything fitted, fits the stages
+by the creative shortcut, fires a 6-block and an 11-block chimney side by side and compares them, works
+the damper through its three places, needs tongs for a hot lid, runs a row of three on one chimney with
+an open outlet and then capped, melts two pots of different recipes at their own temperatures and pulls
+them with and without tongs, melts stainless from cold on its coke and pours and freezes it, teems iron
+from both pots into one cylinder blank while a tool mold refuses it, and breaks out both ferroalloys and
+cracks a pot on its last heat. `BessemerStainlessScenarios.cs` (Atlas, `SharedWorldScenarios`) can raise
+no whole converter (vessel stages, transmission, steam, blast), so it places a lone control block, sets
+its heat as smex leaves it and runs smex's own methods through the patches: a blow completing with
+ferrochrome scrap, the save, the block info, a stainless pour, an off-ratio and a too-cold one, and
+ferrochrome into molten steel; a real blow, a player's click at the hatch (smex's checks before it), the
+canal run and the client's view are not driven. `tests/BessemerHeatTests.cs` covers the decision.
+`SwitchesOffScenarios` requires none of it with the switch off.
 
 ### Handcar (`Handcar`, `HandcarSettings`)
 

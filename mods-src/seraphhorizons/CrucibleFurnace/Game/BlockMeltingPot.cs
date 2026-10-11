@@ -52,9 +52,9 @@ public static class PotStack
 }
 
 /// <summary>
-/// The fired melting pot (<c>meltingpot-fired</c>): goes into a melting hole, where it is charged and
-/// fired. Its tooltip gives its heats and any charge it carries (a pot pulled before its charge
-/// melted keeps it, and takes it back into a hole).
+/// The fired melting pot (<c>meltingpot-fired</c>): goes into the crucible furnace (two to its hole),
+/// where it is charged and fired. Its tooltip gives its heats and any charge it carries (a pot pulled
+/// before its charge melted keeps it, and takes it back into the furnace).
 /// </summary>
 public class BlockMeltingPot : Block
 {

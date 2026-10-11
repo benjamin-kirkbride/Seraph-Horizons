@@ -38,10 +38,12 @@ public sealed class MachinePartMeshes : ModSystem
 
     /// <summary>The set for <paramref name="key"/> (shape and variant), built on first use from
     /// <paramref name="shapeLoc"/> with the texture source <paramref name="tex"/> gives, holding the
-    /// parts <paramref name="wanted"/> accepts. Null when the shape is missing (not cached, so the
-    /// caller's error is as before).</summary>
+    /// parts <paramref name="wanted"/> accepts, each passed to <paramref name="adjust"/> (if any) before
+    /// it is uploaded (the crucible furnace takes the baked glow off the parts it lights itself). Null
+    /// when the shape is missing (not cached, so the caller's error is as before).</summary>
     public static PartMeshSet? Get(ICoreClientAPI capi, string key, AssetLocation shapeLoc, RigParts parts,
-                                   System.Func<int, bool> wanted, System.Func<ITexPositionSource> tex, string name)
+                                   System.Func<int, bool> wanted, System.Func<ITexPositionSource> tex, string name,
+                                   System.Action<int, MeshData>? adjust = null)
     {
         var self = capi.ModLoader.GetModSystem<MachinePartMeshes>();
         string full = shapeLoc + "|" + key;
@@ -57,6 +59,7 @@ public sealed class MachinePartMeshes : ModSystem
         {
             if (meshes[i] is not { } mesh)
                 continue;
+            adjust?.Invoke(i, mesh);
             bounds[i] = MachineMeshes.Bounds(mesh);
             refs[i] = capi.Render.UploadMultiTextureMesh(mesh);
         }

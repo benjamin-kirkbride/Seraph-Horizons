@@ -117,8 +117,13 @@
     <!-- The mandrel station's gameplay rules: the mandrel, the forging, the renderer's clock, settings
          and its rig; and the shipped rig and its reference poses (MandrelStation/tools/make_shape.py),
          once they exist (the rig tests skip until then). -->
-    <!-- The crucible furnace's rules: pot recipes and charging, the heat model, the row, the pour window. -->
+    <!-- The crucible furnace's rules: pot recipes and charging, the heat model (draught, damper), the
+         row, the build's stages, the pour window; its shipped rig, reference poses and shape (the lid's
+         boxes), and its settings' defaults against the rig. -->
     <Compile Include="../CrucibleFurnace/Core/**/*.cs" Link="CrucibleFurnace/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/config/cruciblefurnace-rig.json" Link="cruciblefurnace-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/shapes/block/cruciblefurnace.json" Link="cruciblefurnace-shape.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="CrucibleFurnace/rig-reference.json" Link="cruciblefurnace-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../MandrelStation/Core/**/*.cs" Link="MandrelStation/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/mandrelstation-rig.json" Link="mandrelstation-rig.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />

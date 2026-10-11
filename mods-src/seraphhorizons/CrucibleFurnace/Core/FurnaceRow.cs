@@ -1,89 +1,71 @@
-using SeraphHorizons.Mod.Machines.Core;
-
 namespace SeraphHorizons.Mod.CrucibleFurnace.Core;
 
-/// <summary>What a cell next to a hole is, for finding its row.</summary>
-public enum FurnaceCell
-{
-    Other,
-    Hole,
-    Chimney,
-}
-
-/// <summary>Why a hole has no working stack.</summary>
+/// <summary>Why a row of furnaces has no draught.</summary>
 public enum RowProblem
 {
     None,
-    /// <summary>Neither end of its row (along x or z) has a chimney block.</summary>
+    /// <summary>No member's outlet carries a chimney (every one capped, or bare).</summary>
     NoChimney,
-    /// <summary>The chimney at the end of its row is shorter than the minimum (<see cref="FurnaceRow.ChimneyHeight"/>).</summary>
+    /// <summary>The row's chimney is shorter than the minimum.</summary>
     ChimneyTooShort,
-    /// <summary>The row has more holes than one stack serves (<see cref="FurnaceRow.Holes"/>).</summary>
-    TooManyHoles,
+    /// <summary>More furnaces side by side than one chimney serves.</summary>
+    TooManyFurnaces,
+    /// <summary>A member other than the chimney's has its outlet open: it leaks the draught
+    /// (<see cref="FurnaceRow.OpenOutlet"/> says which).</summary>
+    OutletOpen,
 }
 
+/// <summary>A furnace of a row as the row sees it: whether its outlet is capped, and how many
+/// chimney blocks stand on it, counted from the outlet up (0 for none).</summary>
+public readonly record struct RowMember(bool Capped, int Chimney);
+
 /// <summary>
-/// A row of melting holes on one stack (README "Crucible furnace"): up to
-/// <see cref="CrucibleFurnaceConfig.MaxHolesInRow"/> holes side by side along x or z, at one level,
-/// and at one end, in line with them, the chimney's base: a chimney block level with the holes, with
-/// at least <see cref="CrucibleFurnaceConfig.MinChimneyHeight"/> chimney blocks in a column from it up.
-/// The flue runs under the floor from each hole to the stack, so it is not built.
+/// A row of crucible furnaces on one chimney (README "Crucible furnace", #796): furnaces of the same
+/// facing standing side by side along their width, touching, up to
+/// <see cref="CrucibleFurnaceConfig.MaxFurnacesInRow"/>. One chimney on any member's outlet serves
+/// them all, each at its full draught, as the per-hole flues in one stack did; every other member's
+/// outlet must be capped, or it leaks the draught and the whole row has none. Positions are offsets
+/// along the row in furnaces from the furnace asking (0), so <see cref="First"/> is 0 or negative.
 /// </summary>
-public sealed record FurnaceRow(IReadOnlyList<Int3> Holes, Int3? Chimney, int ChimneyHeight, RowProblem Problem)
+public sealed record FurnaceRow(int First, int Count, int? ChimneyAt, int ChimneyHeight, int? OpenOutlet, RowProblem Problem)
 {
+    /// <summary>The row has its draught: one chimney tall enough, every other outlet capped.</summary>
     public bool Works => Problem == RowProblem.None;
 
-    /// <summary>The highest chimney block counted for a row (a taller one is just as good).</summary>
+    /// <summary>The highest chimney block counted (a taller one is just as good).</summary>
     public const int ChimneyScan = 64;
 
+    /// <summary>The members' offsets, in order along the row.</summary>
+    public IEnumerable<int> Members => Enumerable.Range(First, Count);
+
     /// <summary>
-    /// The row of the hole at <paramref name="hole"/>, <paramref name="at"/> telling what each cell is.
-    /// Along x first, then z: the first axis with a chimney tall enough at either end and no more than
-    /// the most holes is the row; failing that, the row along x (or z, if only it has a chimney at all)
-    /// with its problem.
+    /// The row of the furnace at offset 0, <paramref name="at"/> telling what stands at an offset (null
+    /// for no furnace of the row there). The row runs both ways while there is a member, stopping once
+    /// it has more than <paramref name="maxFurnaces"/>. Its chimney is the tallest on an uncapped
+    /// outlet (the first along the row on a tie); any other uncapped outlet, with a chimney or without,
+    /// leaks.
     /// </summary>
-    public static FurnaceRow Find(Int3 hole, Func<Int3, FurnaceCell> at, int maxHoles, int minChimney)
+    public static FurnaceRow Find(Func<int, RowMember?> at, int maxFurnaces, int minChimney)
     {
-        FurnaceRow? fallback = null;
-        foreach (var (dx, dz) in new[] { (1, 0), (0, 1) })
-        {
-            var holes = new List<Int3> { hole };
-            Int3 Step(Int3 p, int k) => new(p.X + dx * k, p.Y, p.Z + dz * k);
-            var lo = hole;
-            while (holes.Count <= maxHoles && at(Step(lo, -1)) == FurnaceCell.Hole)
-            {
-                lo = Step(lo, -1);
-                holes.Insert(0, lo);
-            }
-            var hi = hole;
-            while (holes.Count <= maxHoles && at(Step(hi, 1)) == FurnaceCell.Hole)
-            {
-                hi = Step(hi, 1);
-                holes.Add(hi);
-            }
-            if (holes.Count > maxHoles)
-            {
-                fallback ??= new FurnaceRow(holes, null, 0, RowProblem.TooManyHoles);
-                continue;
-            }
-            FurnaceRow? best = null;
-            foreach (var end in new[] { Step(lo, -1), Step(hi, 1) })
-            {
-                if (at(end) != FurnaceCell.Chimney)
-                    continue;
-                int height = 1;
-                while (height < ChimneyScan && at(new Int3(end.X, end.Y + height, end.Z)) == FurnaceCell.Chimney)
-                    height++;
-                var row = new FurnaceRow(holes, end, height, height >= minChimney ? RowProblem.None : RowProblem.ChimneyTooShort);
-                if (best == null || row.ChimneyHeight > best.ChimneyHeight)
-                    best = row;
-            }
-            if (best is { Works: true })
-                return best;
-            if (best != null && (fallback == null || fallback.Problem == RowProblem.NoChimney))
-                fallback = best;
-            fallback ??= new FurnaceRow(holes, null, 0, RowProblem.NoChimney);
-        }
-        return fallback!;
+        var members = new Dictionary<int, RowMember> { [0] = at(0) ?? new RowMember(false, 0) };
+        int lo = 0, hi = 0;
+        while (members.Count <= maxFurnaces && at(lo - 1) is { } left)
+            members[--lo] = left;
+        while (members.Count <= maxFurnaces && at(hi + 1) is { } right)
+            members[++hi] = right;
+        int count = hi - lo + 1;
+        if (count > maxFurnaces)
+            return new FurnaceRow(lo, count, null, 0, null, RowProblem.TooManyFurnaces);
+        int? chimney = null;
+        for (int i = lo; i <= hi; i++)
+            if (!members[i].Capped && members[i].Chimney > 0 && (chimney == null || members[i].Chimney > members[chimney.Value].Chimney))
+                chimney = i;
+        if (chimney is not { } c)
+            return new FurnaceRow(lo, count, null, 0, null, RowProblem.NoChimney);
+        int height = members[c].Chimney;
+        for (int i = lo; i <= hi; i++)
+            if (i != c && !members[i].Capped)
+                return new FurnaceRow(lo, count, c, height, i, RowProblem.OutletOpen);
+        return new FurnaceRow(lo, count, c, height, null, height >= minChimney ? RowProblem.None : RowProblem.ChimneyTooShort);
     }
 }
