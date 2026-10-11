@@ -89,21 +89,104 @@ public class WidePathTests
         Assert.True(v.Free(10, 0, 1));
     }
 
-    [Fact]
-    public void StepsUpOneBlockButNotTwo()
+    /// <summary>A floor at y −1 with a ledge <paramref name="height"/> blocks high from x 5 on.</summary>
+    private static Voxels Ledge(int height)
     {
         var v = new Voxels().Floor(-5, 15, -5, 5);
         for (int x = 5; x <= 15; x++)
         for (int z = -5; z <= 5; z++)
-            v.Solid.Add((x, 0, z));
-        var path = new WidePath(v, 3).Find(new PathCell(0, 0, 0), new PathCell(10, 1, 0), 20000);
+        for (int y = 0; y < height; y++)
+            v.Solid.Add((x, y, z));
+        return v;
+    }
+
+    [Fact]
+    public void StepsUpOneBlockButNotTwoWithAClimbOfOne()
+    {
+        var path = new WidePath(Ledge(1), 2, maxClimb: 1).Find(new PathCell(0, 0, 0), new PathCell(10, 1, 0), 20000);
         Assert.NotNull(path);
         Assert.Equal(1, path![^1].Y);
+        Assert.Null(new WidePath(Ledge(2), 2, maxClimb: 1).Find(new PathCell(0, 0, 0), new PathCell(10, 2, 0), 20000));
+    }
 
+    [Fact]
+    public void ClimbsTwoBlocksButNotThree()
+    {
+        var walker = new WidePath(Ledge(2), 2, maxClimb: 2);
+        var path = walker.Find(new PathCell(0, 0, 0), new PathCell(10, 2, 0), 20000);
+        Assert.NotNull(path);
+        Assert.Equal(2, path![^1].Y);
+        // straight up from the foot, its centre a block short of the ledge's face, onto the face's line
+        int foot = EidolonClimb.NextClimb(path, 0);
+        Assert.Equal((4, 0), (path[foot].X, path[foot].Y));
+        Assert.Equal((5, 2), (path[foot + 1].X, path[foot + 1].Y));
+
+        Assert.Null(new WidePath(Ledge(3), 2, maxClimb: 2).Find(new PathCell(0, 0, 0), new PathCell(10, 3, 0), 20000));
+    }
+
+    [Fact]
+    public void AClimbNeedsHeadroomWhereItStandsAndWhereItLands()
+    {
+        var foot = new PathCell(4, 0, 0);
+        // open sky: up two
+        Assert.Equal(new PathCell(5, 2, 0), new WidePath(Ledge(2), 2, 2).Step(foot, 1, 0, out _));
+
+        // a roof over the foot five blocks up (not over the top): its box (3.75) raised two would touch it
+        var roofed = Ledge(2);
+        roofed.Floor(2, 3, -2, 2, y: 5);
+        Assert.True(roofed.Free(4, 0, 0) && roofed.Free(5, 2, 0));
+        Assert.False(roofed.Free(4, 2, 0));
+        Assert.Null(new WidePath(roofed, 2, 2).Step(foot, 1, 0, out _));
+
+        // a roof over the top (not over the foot): it fits raised at the foot, not standing on the ledge
+        var low = Ledge(2);
+        low.Floor(5, 7, -2, 2, y: 5);
+        Assert.True(low.Free(4, 2, 0));
+        Assert.False(low.Free(5, 2, 0));
+        Assert.Null(new WidePath(low, 2, 2).Step(foot, 1, 0, out _));
+    }
+
+    [Fact]
+    public void AClimbDiagonallyMustBeFreeHalfWayAtTheTop()
+    {
+        // a ledge two high in the quarter x ≥ 5, z ≥ 5, and a post beside it, at the ledge's height and
+        // above, that only the diagonal's middle touches (raised to the top)
+        var v = new Voxels().Floor(-5, 15, -5, 15);
         for (int x = 5; x <= 15; x++)
-        for (int z = -5; z <= 5; z++)
-            v.Solid.Add((x, 1, z));
-        Assert.Null(new WidePath(v, 3).Find(new PathCell(0, 0, 0), new PathCell(10, 2, 0), 20000));
+        for (int z = 5; z <= 15; z++)
+        for (int y = 0; y < 2; y++)
+            v.Solid.Add((x, y, z));
+        var walker = new WidePath(v, 2, 2);
+        Assert.Equal(new PathCell(5, 2, 5), walker.Step(new PathCell(4, 0, 4), 1, 1, out _));
+        v.Solid.Add((3, 4, 5));
+        Assert.True(v.Free(4, 0, 4) && v.Free(4, 2, 4) && v.Free(5, 2, 5));
+        Assert.Null(walker.Step(new PathCell(4, 0, 4), 1, 1, out _));
+    }
+
+    [Fact]
+    public void AClimbOfTwoCostsMoreThanAStepOfOne()
+    {
+        new WidePath(Ledge(1), 2, 2).Step(new PathCell(4, 0, 0), 1, 0, out float step);
+        new WidePath(Ledge(2), 2, 2).Step(new PathCell(4, 0, 0), 1, 0, out float climb);
+        Assert.Equal(0, step);
+        Assert.Equal(WidePath.ClimbCost, climb);
+    }
+
+    [Fact]
+    public void TakesTwoStepsOfOneOverAClimbOfTwoNearby()
+    {
+        // a ledge two high, with a step of one before it at z 3 and 4: two steps of one a little out of
+        // the way are cheaper than the climb
+        var v = Ledge(2);
+        for (int z = 3; z <= 4; z++)
+            v.Solid.Add((4, 0, z));
+        var path = new WidePath(v, 2, 2).Find(new PathCell(0, 0, 2), new PathCell(10, 2, 2), 20000);
+        Assert.NotNull(path);
+        Assert.Equal(-1, EidolonClimb.NextClimb(path!, 0));
+        Assert.Contains(path!, c => c.Y == 1);
+        // without the step, it climbs
+        var climbed = new WidePath(Ledge(2), 2, 2).Find(new PathCell(0, 0, 2), new PathCell(10, 2, 2), 20000);
+        Assert.True(EidolonClimb.NextClimb(climbed!, 0) >= 0);
     }
 
     [Fact]
@@ -128,6 +211,19 @@ public class WidePathTests
         Assert.NotNull(path);
         Assert.Equal(2, path![^1].Y);
         Assert.Null(new WidePath(v, maxFall: 2).Find(new PathCell(0, 5, 0), new PathCell(10, 2, 0), 20000));
+    }
+
+    [Fact]
+    public void ByDefaultDropsTwoButNotThree()
+    {
+        int fall = EidolonConfig.Defaults.MaxFallBlocks;
+        Assert.Equal(2, fall);
+        var two = new Voxels().Floor(-5, 4, -5, 5, y: 3).Floor(5, 15, -5, 5, y: 1);
+        var path = new WidePath(two, fall, 2).Find(new PathCell(0, 4, 0), new PathCell(10, 2, 0), 20000);
+        Assert.NotNull(path);
+        Assert.Equal(2, path![^1].Y);
+        var three = new Voxels().Floor(-5, 4, -5, 5, y: 4).Floor(5, 15, -5, 5, y: 1);
+        Assert.Null(new WidePath(three, fall, 2).Find(new PathCell(0, 5, 0), new PathCell(10, 2, 0), 20000));
     }
 
     [Fact]

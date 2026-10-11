@@ -13,7 +13,7 @@ recipe taking the stainless gear (`GearConsumers`), steel bits back into steel (
 stainless gear blanks (`GearBlanks`) and the gear cutter that cuts them into stainless gears
 (`GearCutter`); the cylinder borer, which bores the cast cylinder of Pipes and Power Expanded's steam engines
 (`CylinderBorer`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
-bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, mines, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -2850,7 +2850,8 @@ machine's tank, `OilTank` points (100 to the litre: 1000, a bucket), filled by r
 oils a machine (MachineOil's oils from any liquid container, or rendered fat; `MachineOilSettings`'
 lists), as much as fits, refused when full. It wakes with `InitialOilShare` of it (a quarter). Each job
 done drains it: a tree felled `OilPerTreeFelled` (5), a trunk delivered `OilPerTrunkDelivered` (3), a
-load carried somewhere and set down `OilPerLoadCarried` (2), so a full reservoir fells 200 trees;
+load carried somewhere and set down `OilPerLoadCarried` (2), a strike mining an area
+`OilPerMiningStrike` (0.5), so a full reservoir fells 200 trees;
 idling, following, staying and guarding cost nothing. Dry, it stops and waits standing (no slump; its
 order is kept) until oiled, then carries on. Its info shows the reservoir. With `MachineOil` off it has
 none, is never dry and takes no oil; turned on later, it starts as a new one.
@@ -2875,7 +2876,8 @@ order; right-click anywhere but on an eidolon gives it to every bound eidolon lo
 `CommandRange` of the holder that the holder may still command (the others are counted in a refusal
 message), and a chat line says how many took it. Modes that work in a place have the player **mark**
 it first: a block (one right-click on it, which then gives the order) or an area (a first corner,
-then the opposite corner, which closes it and gives the order; wider than the mode's limit is refused
+then the opposite corner, which closes it and gives the order; wider than the mode's limit, or
+holding more blocks in all than its limit (mining's), is refused
 and the first corner kept; a third click starts a new area). The tool keeps each mode's marks; while it
 is held, the client highlights the selected mode's (an area as a green box, a first corner or block in
 yellow; highlight slot 6750), and sneak + right-click on a block or the air clears them. Everything is
@@ -3070,6 +3072,52 @@ stand: on soil). Leaves drop their saplings and seeds as the game's felling does
 *Oil*: each tree costs `OilPerTreeFelled` (`SpendOil(EidolonJob.TreeFelled)`), after the felling and
 replanting. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh.
 
+**Mining** (`Eidolon/Game/MineOrder.cs`, `EidolonMineSystem.cs`, rules in `Eidolon/Core/EidolonMining.cs`).
+*Mine an area* (wheel order 55, right after felling; the game's pick icon, `worldmap/pick.svg`) marks an
+area (two corners, at most 1024 blocks a side and 16384 blocks in all, `MaxAreaBlocks` on the mode: an
+opposite corner past either is refused and the first kept) and gives the `mine` order with where the
+eidolon stands then. Bare-handed, as the game's steel pickaxe, it breaks everything in the box that pick
+breaks: a block needing no more than the steel pickaxe's tier (its `ToolTier`, read from
+`game:pickaxe-steel` at runtime: 5; `EidolonMining.SteelPickTier`, 5, if it cannot be read), one needing a
+tier only if the steel pickaxe has a speed for its material (as the game refuses a player). It leaves liquids, any block a liquid touches on one of its six
+faces (so the pit never opens onto water or lava), blocks with a block entity (a chest, a machine),
+blocks in a land claim its owner may not break in (as felling; asked only of a block it comes to, the
+square it makes for or a group it may strike, not of every block a search finds, and a block found
+claimed is left for the order's life) and anything harder or unbreakable (the mantle). It quarries top down, with no ramp: the highest layer with a block left that it may break is
+the one it works, a strike at a time, each breaking up to four blocks: a 2 × 2 group on that layer
+(flat), or two side by side on it and the two under them (upright, at a wall where both layers are
+left), whichever breaks more, flat on ties. The groups tile the area in 2 × 2 squares from its lower
+corner, the nearest square first. It reaches a block within 2 blocks of its box sideways, from the
+layer under its feet to its head (3 over the block its feet are in), never one in a column its box stands over,
+so it never digs its footprint or under it: for what it stood on, or a square out of reach, it walks to
+a place beside (a path node from which it reaches the square's blocks on the layer, its box free and
+on the ground; those not standing on a block it has yet to mine first, then the nearest; three tried by
+the wide pathfinder, and the square is given up for the order's life). With no ramp, it gets out of its
+pit as it walks anywhere, up steps of two at most ("Steps and drops"): a pit deeper than two with no step
+left beside it (a shelf outside the area, say) keeps it down there, and the order ends with it in the pit.
+
+*A strike* takes as long as a seraph with a steel pickaxe takes to break the slowest block of its
+group, at three quarters of their pace. The game takes the pick's mining speed for the block's material
+(the steel pickaxe's own, read from `game:pickaxe-steel` at runtime: 9 for stone, ore and metal, 3.25
+for ceramic, 4.25 for ice) times its tool mining speed modifier (1), or 1 for any other material, off
+the block's resistance each second (`CollectibleObject.GetMiningSpeed`); so granite (resistance 8)
+takes a seraph 0.89 s and the eidolon 1.19 s, soil (1.8) 2.4 s. It faces the group and slams
+(vanilla's `stand-slam`, stretched or squeezed to fill the strike, from half to three times its speed;
+it stands first for a slower strike, and one quicker than the fastest slam takes the slam's 0.5 s);
+the group breaks as both fists land (frame 35), with the first block's pickaxe break sound, broken as
+a pick breaks it with no player (`BreakBlock`): the block's own drops fall in the world. Each strike
+costs `OilPerMiningStrike` (0.5). It searches the area again once its layer is done and every 10
+seconds while it works. A column of the area that is not loaded reads as air, so a search checks each
+column is loaded (`GetChunkAtBlockPos`) and never takes one that is not for mined (`EidolonMining.Scan`):
+with nothing left it may break in the loaded part, it walks toward the nearest column not loaded, at
+most 24 blocks at a time to loaded ground (the columns it holds round it load ahead of it, "Chunk
+loading"), or, finding no way, waits, searching again every 10 seconds. Done when no block it may break
+and reach is left and none of the area is unloaded: it tells its owner how many it mined, how many it
+left and how many were out of its reach, walks back to where it was ordered (if it finds a way) and the
+order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
+(done, it goes on back). `MineOrder.HasWorkLeft` holds until it has told its owner it is done, and its
+area is its `WorkAreas`. It is not part of the crew order.
+
 **The crew** (#679; `Eidolon/Game/CrewOrder.cs`, rules in `Eidolon/Core/EidolonCrew.cs`). *Fell and
 haul* (wheel place 70) marks a fell area (at most 32 blocks a side), then a rosser or bucking mill, as
 *Haul trunks* marks (any of its cells; another block is refused and the area kept), and gives `crew`
@@ -3093,6 +3141,34 @@ and a replanted tree once grown is felled). The machine gone, it waits. Without 
 felling does. Self-defence, a dry reservoir or running out of charge interrupt it; it keeps its state
 (the trunk it carries, the trunks it has yet to haul, a tree felled whose trunk it has not looked for)
 and carries on where it was. It may hold a trunk (`EntityBehaviorEidolonTrunk.Holders`).
+
+**Chunk loading** (`Eidolon/Game/EidolonChunkSystem.cs`, rules in `Eidolon/Core/EidolonChunks.cs`). An
+eidolon at work keeps its chunks loaded, so it works on with no player near: while it can work (not
+slumped, dry, docked or otherwise stopped) and its order has work left (`IEidolonOrder.HasWorkLeft`), it
+holds the chunk columns within `ChunkLoadRadius` of the one it stands in (1: its own and the 8 round it)
+and those its order's work areas cover (`WorkAreas`: the fell, mine or crew area, the haul area and the
+machine, the block to carry), each area only while it covers at most `MaxWorkAreaChunks` columns, and moves them
+with it. Work left: felling, until done, but not while it waits for an axe; hauling, while it carries
+or fetches a trunk or has not yet found the area clear (the machine gone, it waits); the crew, until its
+area is clear (waiting to look again), but not while it waits for an axe or the machine is gone; mining,
+until done (walking back is not work), but not once it has waited 30 seconds for a part of its area to
+load with no way toward it;
+carrying, while it walks to the block and lifts it (holding it, it follows its player) and setting
+down, until the load is down, but neither while it finds no way to the block. Following, staying,
+guarding, docking and no order hold nothing. Every 2 seconds the server looks the loaded eidolons over:
+a column is forced with the game's `KeepLoaded` and let go when no eidolon holds it, taken off the
+server's list of forced columns (`RemoveChunkColumnFromForceLoadedList`; the API's `UnloadChunkColumn`
+would unload it at once, under a player too), so it unloads as any other once no player is near; the
+holds are counted, so eidolons share a column, and a column the server already forced (the spawn's) is
+left to it. Loaded is not enough: the game makes a creature no player is within its simulation range of
+inactive (no AI, no animations on the server) and skips the physics of one no player tracks, so an
+eidolon holding its chunks is `AlwaysActive` (`EntityLaborEidolon.KeepsChunksLoaded`) and a Harmony
+postfix on the physics manager's `UpdateTrackedEntityState` keeps it tracked. The holds are saved with
+the world (`seraphhorizons:eidolonChunks`) and forced again as the server starts, so an eidolon at work
+when it stopped is loaded with its chunks and carries on; a hold whose eidolon has not loaded within 2
+minutes is let go. With no player online the calendar stands still unless the server's
+`PassTimeWhenEmpty` is on (its charge does not run down meanwhile); the eidolon still works. Off
+(`KeepWorkChunksLoaded`), it works only while a player keeps its chunks loaded.
 
 **Fittings** (the rules so far; `Eidolon/Core/EidolonFittings.cs`, `EidolonStats.cs`, `Eidolon/README.md`
 "Fittings"). The body is built in five layers of material on a crafted torso, in order: bones (support beams
@@ -3124,10 +3200,24 @@ the patch and disables the recipes; `SwitchOwnership.HandListed` owns the three 
 
 **Pathfinding.** The game's A* centres a creature near a block's middle, so a 1.7-wide box always
 spans three blocks and never fits vanilla's 2 × 4 gate. `Eidolon/Core/WidePath.cs` searches on block
-corners instead, testing the whole box with the game's collision tester at each step (level, up one
-block, down at most `MaxFallBlocks`, no corner cutting on diagonals, lava and the like refused, water
-and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's own waypoint
-traverser then walks the path. A first pass: following (#675) proves it on real terrain.
+corners instead, testing the whole box with the game's collision tester at each step (level, up at
+most `MaxClimbBlocks`, down at most `MaxFallBlocks`, no corner cutting on diagonals, lava and the like
+refused, water and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's
+own waypoint traverser then walks the path. A first pass: following (#675) proves it on real terrain.
+
+**Steps and drops.** On every path, whatever the order, it goes up at most two blocks and down at most
+two. A step of one it walks (its physics' step height). A step of two it climbs (`EidolonNavigator`,
+`Eidolon/Core/EidolonClimb.cs`): the search takes it only with headroom for its whole box at the foot
+at every height up to the top and on the ledge at the top (diagonally, half way too, at the top's
+height), and costs it 3 more than a step of one (`WidePath.ClimbCost`), so a gentler way near by is
+taken first. The traverser walks it to the foot of the step; there it stops, faces the ledge and plays
+`climb` (2 s), and after every physics tick the navigator sets it where the climb has it, with no
+motion: to the foot node until its hands are on the ledge (frame 12), straight up two blocks until its
+right foot is on the step (36), then forward onto the top node (52), up then forward so its box is only
+ever where the search found it free. Then the traverser walks on. Stopped part way (another order, a
+fight, a slump), it is left where it is and falls back at most to the foot. A new path asked for while
+it climbs (following a player who moved on) is searched from the top and walked once it is up. A drop
+of two it walks off: it takes no fall damage.
 
 **Spacing** (`Eidolon/Core/EidolonSpacing.cs`). Its `repulseagents` is `movable: false`, so nothing
 shoves it, another eidolon included: two spawned in one place, or following one player to the same
@@ -3181,7 +3271,7 @@ recipe; the eidolon it places is fitted at random, any allowed material in every
 - Command tool modes (#676 on): `EidolonCommandModes.Register(new EidolonCommandMode { Code, Order,
   Icon, Mark, MaxAreaSide, CheckTarget, Command })` in a mod system's `Start` (both sides: the wheel is chosen by
   index). `Code` names it (lang `seraphhorizons:eidoloncommander-mode-{code}`); `Order` places it on the
-  wheel (follow 10, stay 20; carry 30, set down 40, fell 50, haul 60, crew 70, guard 80 suggested);
+  wheel (follow 10, stay 20; carry 30, set down 40, fell 50, mine 55, haul 60, crew 70, guard 80 suggested);
   `Icon` is an SVG (the game's are `game:textures/icons/...`); `Mark` is `None`, `Block`, `Area` or
   `AreaThenBlock` (an area's two corners, then a block: the third click gives the order, and the
   context has both `Area` and `Target`; a fourth click starts a new area; haul uses it, and the crew
@@ -3202,6 +3292,18 @@ recipe; the eidolon it places is fitted at random, any allowed material in every
   `AiTaskEidolonOrder` runs it at priority 1.5; self-defence runs above it, and the order is
   stopped (`Stop(cancelled: true)`) and started again after, so an order keeps what it needs to resume. `EidolonNavigator.GoTo(target, run, onArrived, onStuck, tolerance)` walks
   it by the wide pathfinder.
+- Chunk loading (a work order, the mine order too): implement `IEidolonOrder.HasWorkLeft` (true while it
+  has work it can get on with alone; false, the default, when finished or waiting on its player: no
+  tool, no machine, nothing left but to look again later) and `WorkAreas` (the `MarkArea`s its work is
+  in besides where it stands, `EidolonChunks.Block(x, y, z)` for one block; none by default). The
+  eidolon then keeps its chunks loaded while it can work and `HasWorkLeft` holds, read every 2 seconds
+  (`EidolonChunkSystem.Pass`). Both are interface defaults, so a class implementing the interface
+  declares its own as public members (an abstract base declares them for its subclasses, as
+  `CarryOrderBase` does: a subclass's own member does not replace the interface's default). An area
+  over `MaxWorkAreaChunks` columns (a wide quarry) is not held whole: the order works where the eidolon
+  stands, and a column outside its own `ChunkLoadRadius` may be unloaded, its blocks reading as air,
+  so an order scanning far must check a column is loaded (`BlockAccessor.GetChunkAtBlockPos`) before it
+  takes it for empty, as the mine order does (`EidolonMining.Scan`).
 - The crew (#679): `CrewOrder` (`Felled`, `Delivered`, `Waiting`, `Done`) composes the two below; a
   loop of other jobs can follow it.
 - Hauling (#678; the crew order, #679): `new TrunkHauler(eidolon, machinePos)` moves one trunk entity
@@ -3246,12 +3348,14 @@ recipe; the eidolon it places is fitted at random, any allowed material in every
 | `WalkSpeed` | 0.022 | Its walking speed (creature scale; a player walks at about 0.03) |
 | `RunSpeed` | 0.04 | Its running speed |
 | `PathSearchNodes` | 3000 | The most nodes one path search visits |
-| `MaxFallBlocks` | 3 | The highest drop it walks off on a path |
+| `MaxFallBlocks` | 2 | The highest drop it walks off on a path |
+| `MaxClimbBlocks` | 2 | The highest step it goes up on a path: one it walks, two it climbs; 1 or 2 (the climb is made for two) |
 | `OilTank` | 1000 | Points its oil reservoir holds (100 to the litre); none with `MachineOil` off |
 | `InitialOilShare` | 0.25 | The share of the reservoir a new eidolon wakes with |
 | `OilPerTreeFelled` | 5 | Oil points a tree felled costs |
 | `OilPerTrunkDelivered` | 3 | Oil points a trunk delivered costs |
 | `OilPerLoadCarried` | 2 | Oil points a load carried and set down costs |
+| `OilPerMiningStrike` | 0.5 | Oil points a strike mining an area (up to four blocks) costs |
 | `RepairShare` | 0.1 | The share of its most health one item of metal parts or iron plate restores |
 | `GantryRepairMultiplier` | 2 | What a repair is multiplied by inside a gantry |
 | `CommandRange` | 64 | How far a command tool's orders reach, in blocks |
@@ -3261,12 +3365,19 @@ recipe; the eidolon it places is fitted at random, any allowed material in every
 | `SlamDamage` | 16 | Every third blow, the slam or a hammer (the same multiplier) |
 | `GuardRadius` | 16 | Guarding, how far from its point it goes for a hostile creature, in blocks |
 | `FellMinLogs` | 5 | Felling an area, the fewest logs (wood blocks) a tree must have to be felled |
+| `KeepWorkChunksLoaded` | true | An eidolon with work left in its order keeps its chunks loaded and works with no player near |
+| `ChunkLoadRadius` | 1 | Working, the chunk columns it holds round its own (1: its own and the 8 round it; 0 to 4) |
+| `MaxWorkAreaChunks` | 16 | Working, its order's area and machine are held too while they cover at most this many columns |
 
 With the switch off the server marks the entity type and the spawner disabled before the game loads
 them and registers no command, so none of it exists; eidolons already in a world are lost. A client
 follows the server. `tests/Eidolon/` covers charge, stops, the slump pose, ownership, oil per job,
 repair amounts and the pathfinder (a 2 × 4 gate passes, a narrower or lower one does not, steps, drops, corners, lava, the
-node budget); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
+node budget; climbs of two but not three, the headroom at the foot and the top, diagonally too, their cost, a
+drop of two but not three), and `tests/Eidolon/EidolonClimbTests.cs` the climb (which steps, where it is as it
+goes, never forward before it is up, the setting's range); `tests/PackTests/EidolonClimbScenarios.cs` (Atlas)
+sends one up a ledge two high (it climbs, playing `climb`, and gets there) and back down off it, and to and from
+the top of one three high (no way, either way); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
 stranger, runs its charge out over simulated days (slumped, alive, a gear wakes it, the cap holds),
 knocks it to 0 HP (slumped, alive, no drops, standing again once repaired) and walks it through a
 2 × 4 gate and not through a 1 × 4 one, drains its oil with a stand-in job until dry stops it standing
@@ -3305,6 +3416,15 @@ stumps, grown trees, where it stands, the swing, what replants) and
 then given one it fells an area of three grown oaks (three trunks holding every log, the axe worn by
 the flat figure per tree, oil per tree), replants two from a carried sapling and seed, and leaves a
 player's log pillar and a sapling standing; and an axe that breaks stops it until it is given another;
+`tests/Eidolon/EidolonMiningTests.cs` covers mining's rules (the area's limits, what it breaks up to the
+steel pickaxe's tier, the strike's length against a steel pickaxe and its slam, its reach, never under
+its box, the next group flat or upright, where it stands, the search: the highest layer and the one under,
+an unloaded column read as air never done) and `tests/PackTests/EidolonMineScenarios.cs` (Atlas) orders it
+with the tool over a pit two layers deep in granite: it mines every block top down, never under its box,
+the granite's drops lying in the world, half a point of oil a strike, leaves a block touching water and
+a chest, and walks back up a terrace to where it was ordered; digs a pit three deep with no ramp, down
+to its floor, and climbs out two blocks onto a shelf beside it and walks back; and a dry reservoir stops
+it until oiled;
 `tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
 `tests/PackTests/EidolonCrewScenarios.cs` (Atlas, `WoodworkingEidolonScenarios` on the woodworking world) orders a crew with the tool
 (refused without an axe) over two grown oaks and a running rosser: it fells each, hauls each trunk to
@@ -3312,6 +3432,14 @@ the infeed (the second trunk comes to rest on the first tree's stump, a block ab
 rosser takes both (every log of both trees), oil per tree and per trunk, and it ends waiting with its
 area clear; it fails within five minutes, not at the watchdog, when the trunks do not arrive or the
 crew gives one up;
+`tests/Eidolon/EidolonChunksTests.cs` covers chunk loading's rules (when it holds, which columns for a
+place, a radius and work areas, a quarry too wide to hold, the counted holds, a column forced for
+something else, what is saved) and `tests/PackTests/EidolonChunkScenarios.cs` (Atlas, no player joined,
+each far from spawn) has one fell two oaks with no player near (inactive until ordered, its columns and
+area forced while it works, every one let go when it is done), let its columns go dry, staying, without
+an axe, slumped and removed and hold them again at work, and saves its holds and restores them (a hold
+whose eidolon never loads let go after its wait); Atlas pauses the chunk unloader, so they read the
+server's list of forced columns rather than watch a column unload;
 `SwitchesOffScenarios` requires none of it with the switch
 off. Not yet: icons for the recipe browser, which need the game client (`tools/icon-export`,
 `docs/recipe-browser/icons.md`): the gantry (`seraphhorizons:eidolongantry-{wood}-north`, each of the

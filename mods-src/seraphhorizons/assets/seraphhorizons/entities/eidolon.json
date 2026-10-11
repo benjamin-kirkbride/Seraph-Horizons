@@ -56,6 +56,9 @@
 			// Docking onto a gantry's spine (activate in reverse), held on its last frame, hung's.
 			{ code: "dock", animation: "dock", weight: 100, blendMode: "Average", easeInSpeed: 4, supressDefaultAnimation: true },
 			{ code: "alert", animation: "stand-alert", blendMode: "Average", supressDefaultAnimation: true },
+			// Climbing a step of two (EidolonNavigator, EidolonClimb), which moves the entity up and onto it
+			// as the body climbs: over everything, carried loads included.
+			{ code: "climb", animation: "climb", weight: 100, blendMode: "Average", easeInSpeed: 10, easeOutSpeed: 10, supressDefaultAnimation: true },
 			{ code: "punch", animation: "stand-punch", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "kick", animation: "stand-kick", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
 			{ code: "slam", animation: "stand-slam", weight: 10, blendMode: "Average", supressDefaultAnimation: true },
