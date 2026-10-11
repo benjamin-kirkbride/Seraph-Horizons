@@ -54,9 +54,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
     /// <summary>How far past its place it aims when it steps onto it from short of it.</summary>
     private const double SettlePast = 0.15;
 
-    /// <summary>How far short of its place, on its level, it steps onto it straight; further off, or
-    /// on another level (below a step it would have to climb, above a drop), it walks a path again.</summary>
+    /// <summary>How far short of its place it steps onto it straight, and how far above or below it
+    /// (a step its physics takes, perched on the edge of what it mines, say); further off, or two up or
+    /// down (a climb, a drop), it walks a path again.</summary>
     private const double SettleWithin = 1.0;
+    private const int SettleRise = 1;
 
     /// <summary>How far at most it walks at a time toward a part of the area not loaded: well inside
     /// the columns it holds round it (<see cref="EidolonConfig.ChunkLoadRadius"/>, a chunk is 32).</summary>
@@ -178,8 +180,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
                 // Arrived short of the place (on a ledge's edge, its box over the block beside): step
                 // onto it, straight, once, before counting the walk a miss. Aimed a little past it,
                 // as the steer stops 0.2 short, so it ends within 0.15, its box over the place's own
-                // columns. Only from close by on its level: the steer never climbs, and must not
-                // walk it off a drop, so from anywhere else it walks a path again.
+                // columns. Only from close by and at most a block above or below it: the steer never
+                // climbs, and must not walk it off a drop, so from anywhere else it walks a path again.
                 double dx = 0, dz = 0, d = double.MaxValue;
                 if (_stand is { } s)
                 {
@@ -187,7 +189,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home) : IEidolonOrder
                     dz = s.Z - eidolon.Pos.Z;
                     d = Math.Sqrt(dx * dx + dz * dz);
                 }
-                if (_stand is { } stand && !_settled && Feet(eidolon) == stand.Y && d <= SettleWithin)
+                if (_stand is { } stand && !_settled && Math.Abs(Feet(eidolon) - stand.Y) <= SettleRise && d <= SettleWithin)
                 {
                     _settled = true;
                     var aim = new Vec3d(stand.X, stand.Y, stand.Z);
