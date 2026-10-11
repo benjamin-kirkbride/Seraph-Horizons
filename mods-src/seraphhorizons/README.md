@@ -13,7 +13,7 @@ recipe taking the stainless gear (`GearConsumers`), steel bits back into steel (
 stainless gear blanks (`GearBlanks`) and the gear cutter that cuts them into stainless gears
 (`GearCutter`); the cylinder borer, which bores the cast cylinder of Pipes and Power Expanded's steam engines
 (`CylinderBorer`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
-bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, mines, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); springs of solid rock where the game's rivulets were, which pour, feed a pipe tapping them and give fresh well water (`Springs`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, mines, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -32,7 +32,8 @@ Unified woodworking runs on both sides too (the server does the work, the client
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
 sawmill's, the rosser's, the gear cutter's, the draw bench's, the cylinder borer's, the press brake's and the squaring shear's blocks: the server runs the machines, the client draws
-their moving parts. Machine oil runs on both sides too: the server pours, drains and loads the
+their moving parts. So are the springs: the server generates, pours and feeds them, the client
+draws them and starts a drink. Machine oil runs on both sides too: the server pours, drains and loads the
 shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
 the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
 tub: the server runs its batches, the client draws the liquid and the gears in it. Steel bits
@@ -2227,6 +2228,118 @@ adding only what smex lacks; a file that fails to parse is left alone with one w
 With the switch off, without smex or ppex, with `UnifiedPipes` not on (one notification), or after
 that warning, the patch file is emptied in `Start` and the mold's clay-forming recipe is marked disabled
 before the game loads it: there is no pipe mold, and those already in a world are lost.
+
+### Springs (`Springs`, `SpringsSettings`)
+
+The game's rivulets, the single water source its generator sets in a cave wall or at the back of a
+short channel cut into a cliff, come out of a **spring**: a solid block of the rock round it, with a
+wet, mossy crack drawn over the rock's own texture on its faces. A spring pours as that source did,
+taps into a Pipes and Power Expanded pipe as a source of water, and gives a player Hydrate or
+Diedrate's fresh well water to drink or carry away, endlessly. New chunks only: nothing already
+generated is changed.
+
+**The block.** `seraphhorizons:waterspring-{kind}-{rock}` (`blocktypes/waterspring.json`, class and
+block entity `seraphhorizons.WaterSpring`): `kind` is `normal` (in place of the game's
+`water-still-7`) or `rapid` (in place of `rapidwater-still-7`, the rapids rivulet), `rock` every state
+of the game's `block/rockwithdeposit` property, which its own `rock-*` uses (24 rocks, and
+GeologyAdditions' 24 more, which it adds to that property), so 96 blocks. It is drawn as
+`game:block/stone/rock/{rock}1` with `textures/block/spring/seep-{kind}.png` blended over it (the rapids'
+mouth is wider), written by `Springs/tools/make_seep_texture.py` (seeded, so a rerun gives the same
+files). It mines as the game's rock (resistance 8, tier 2) and drops nothing of its own: `GetDrops`
+gives what its host rock's own block (`game:rock-{rock}`) gives there, the rock's stones (suevite's
+rare diamond too). Its name is its rock's, "Granite spring", "Granite rapids spring"
+(`waterspring-name-*`). One creative tile and one handbook page for all of them (a Tidy Variants
+rule, `seraphhorizons-waterspring`).
+
+**The generator** (`Springs/Game/SpringsSystem.cs`). The game's `GenRivulets` (VSEssentials) sets a
+rivulet's source in two places: `tryGenRivulet`, the cave wall (a cell with five stone neighbours and
+one air: water or, deep down, lava), and `tryGenMountainSideRivers`, the cliff (the source at the
+back of the channel it carves, water or rapids). Each calls `IWorldGenBlockAccessor.ScheduleBlockUpdate(pos)`
+exactly once, right after setting the source. A Harmony transpiler on each turns that call into
+`SpringsSystem.OnRivuletPlaced(blockAccessor, pos)`, which, when the fluid at `pos` is a game `water-*`
+or `rapidwater-*` source (not lava), empties the fluid layer, sets the spring of that kind and spawns
+its block entity, then schedules the update as the generator meant. The host rock is the most common
+rock among the six neighbours (a neighbour's `rock` variant, so ores and cracked rock count, or a game
+`rock-` code), the first on a tie, granite when none names one a spring exists for
+(`Springs/Core/HostRock.cs`). The spring takes the rivulet's own cell. If either method no longer
+calls `ScheduleBlockUpdate` once, one warning says so and its rivulets stay water; the server logs how
+many of the two it hooked.
+
+**Pouring** (`SpringPouring.cs`, `BlockEntityWaterSpring.cs`). Untapped, a spring does on the server
+what the game's source does in `BlockBehaviorFiniteSpreadingLiquid.SpreadAndUpdateLiquidLevels`, from
+a solid block: into the cell under it, falling water (`{liquid}-d-6`), when the game's own
+`CanSpreadIntoBlock` allows it as from open water at level 7 in the spring's cell, and then nowhere
+else (over a source of its own water it spreads sideways, as the game's does); otherwise into every
+side it allows, the level-6 block the game would put there (`GetLessLiquidBlockId`, flow and all).
+Each block put is told to look again (its `OnNeighbourBlockChange`), and the game's spreading carries
+the water on from there. It never pours over another liquid, and leaves a cell alone that already
+holds its water at level 6 or more, in whatever flow the game has turned it to. It pours when its
+block entity loads (half a second later, once pipe networks are back) and 75 ms after any neighbour
+changes (one look for several changes), so mining out a new face opens a new outflow. The water stays
+because a Harmony postfix on `BlockBehaviorFiniteSpreadingLiquid.GetMaxNeighbourLiquidLevel`, which
+each flowing cell asks before it drains, counts a pouring spring of its liquid as a source: directly
+above, it feeds the cell (the game's answer for the same liquid above); beside it, it stands at 7 and
+feeds a cell at 6 (`SpringPour.Feed`). `water` and `rapidwater` share the liquid code `water`, so a
+spring answers only for its own block code's liquid. A normal spring pours `water`, a rapids spring
+`rapidwater`: plain water, as the source was; only the spring itself gives well water.
+
+**Tapping** (`SpringTaps.cs`, on ExpandedLib by name). A side is tapped when the cell beyond it is a
+`pipe` network member (`NetworkMembership.Resolve`) with a connector facing the spring
+(`INetworkMember.HasConnectorAt`), the rule exlib's graph couples by: a ppex pipe, any metal, placed
+against any face with its end towards it. No intake or other block. A Harmony postfix on exlib's
+`BlockNetworkNode.IsValidNonNetworkConnection` makes that end sealed (as Hydrate's wellspring is,
+`HandPumpBridge`), not an open end leaking the run. While any side is tapped the spring pours nothing
+and tells the water round it to look again, so what it poured drains as any water without a source
+does; with no side tapped any more it pours again. Tapped, it ticks once a second (and only then:
+an untapped spring has no tick) and offers its rate times the seconds gone by, at most 2 of them, to the
+pipe networks across its tapped sides (`GetConnectedNetworkAcross`, as ppex's pumps find their
+lines), shared evenly, what a full network cannot take offered to the others and what none takes lost
+(`Springs/Core/SpringFlow.cs`). It fills a network with `PipeNetwork.ProduceLiquidMeasured` at 20 °C
+and 1 atm (ppex's pump temperature and its hand pump's delivery head), as an intake fills its line for
+a pump. ppex's network carries water as one medium, `Water`, with no kinds, so well water goes in as
+that. A pump draws only from a fluid intake (`FindIntake`), so a spring's run feeds a boiler, an
+outlet or anything else on it directly, with no pump. The tap state is kept with the block entity
+and shown on it ("Tapped: feeding its pipes up to 4 L/s", or "Pouring").
+
+| Setting (`SpringsSettings`) | Default | |
+|---|---|---|
+| `NormalLitresPerSecond` | 4 | about a fluid intake under a waterwheel pump: ppex's intake has no rate of its own, its pump sets it (the hand pump 2 L/s, the mechanical pump 20 per unit of axle speed, about 3.6 on the waterwheel it is sized for, the engine pump 20 to 80) |
+| `RapidLitresPerSecond` | 10 | 2.5 times a spring |
+
+A value that is not a number, 0 or less, or above 1000 falls back to its default with a warning.
+
+**Water for players** (`SpringWater.cs`, Hydrate or Diedrate by name: its licence forbids
+redistributing it). The block's `waterTightContainerProps` (`containable`, `whenFilled`
+`hydrateordiedrate:waterportion-fresh-well-clean`, what Hydrate's `wellwater-fresh-clean-natural` fills
+a bucket with) is what the game's `BlockLiquidContainerBase.TryFillFromBlock` reads for every liquid
+container on a right-click (it reads the fluid layer, else the block), so a bucket, jug, bowl or
+waterskin fills with fresh well water, without end. With an empty hand, holding right-click on a
+spring for a second drinks a litre of it as Hydrate's own drinking does: after Hydrate's check of the
+player (`DefaultDrinkingInteractionProvider.ValidatePlayer`: both hands empty, not full, it says why
+not), a wooden bucket holding a litre is emptied by the game's `tryEatStop` (which Hydrate patches to
+quench thirst, with the water's hydration and quality) in Hydrate's `LockedDummySlot`, so the empty
+bucket never lands in an inventory. Hydrate's drinking itself works on the fluid layer and so not on a
+spring. Without Hydrate (or with a member not as expected) the block's `whenFilled` is set to the
+game's `waterportion` as it loads, one warning says so, and there is nothing to drink.
+
+**Breaking.** A spring is mined as its rock is and is gone for good; `OnBlockRemoved` tells the water
+round it to look again, and it drains.
+
+**Text.** The block's description and a handbook section (`springs-handbook-*`) on it, and a guide page,
+"Springs" (`config/handbook/springs.json`, `springs-guide-*`): what springs are, pouring, drinking and
+filling, tapping and the rates, and breaking. The rates in the guide are this side's settings,
+filled into its `{normal}` and `{rapid}` in `AssetsLoaded`.
+
+**In the recipe browser.** One `spring` record per kind (`tools/recipe-export`, `Recipes/SpringExport.cs`,
+docs/recipe-browser/schema.md): the spring, any rock, as the station, giving a second's well water
+from a pipe at the server's rate, owned by `Springs` (`SwitchOwnership.HandListed`).
+
+Harmony (own id `seraphhorizons.springs`, patched once per process, both sides) patches the game's
+types directly (the mod references the game's assemblies) and exlib's by name. With the switch off
+nothing is patched, the guide page is hidden (and listed as hidden for the export), rivulets are the
+game's, and every spring already in a world turns back into the source it replaced
+(`water-still-7` or `rapidwater-still-7`) the tick after its block entity loads (`SpringsSystem.Revert`).
+The blocks stay registered either way, so they can.
 
 ### Draw bench (`DrawBench`, `DrawBenchSettings`)
 
@@ -5212,6 +5325,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `CreativeSteamSource` | the creative steam source block |
 | `CastPipes` | the cast pipe blanks, the pipe molds (`smex:toolmold-*-pipe`), `recipes/clayforming/pipemold.json` and `recipes/grid/castpipe.json`, the molds' casting |
 | `Eidolon` | the gantry (`seraphhorizons:eidolongantry*`), the command tool, the eidolon's creature item, `recipes/grid/eidolongantry.json` and `eidoloncommander.json`, the gantry's and the body's construction records |
+| `Springs` | the `spring` records (the spring blocks are registered either way: with the switch off they turn back into water as they load) |
 | `OreProcessing` | crushed and ground ore and roasted rock (`seraphhorizons:crushedore-*`, `groundore-*`, `roastedore-*`), concentrate, roasted concentrate, amalgam, sponge, litharge |
 
 A switch that only takes things away (`HydrateTunRetired`, `IrrigationVesselRetired`,
@@ -5808,7 +5922,9 @@ guard on smex's two mold files (held to trimmed copies of smex 0.10.1's, and to 
 applied to them) and the chain's two pipe sections an ingot, held to the shipped patch
 (`Pipes/Core/CastPipeMold.cs`, `tests/Pipes/CastPipeMoldTests.cs`), and the hand pump on ppex pipes:
 its spring search, priming count, the intake's scan and allowance and the name fallbacks
-(`Pipes/Core/HandPumpSearch.cs`, `tests/Pipes/HandPumpSearchTests.cs`), and that every block and
+(`Pipes/Core/HandPumpSearch.cs`, `tests/Pipes/HandPumpSearchTests.cs`), the springs' codes, host
+rock choice, pouring faces and source answer, rate cap and sharing, taps and settings, held to the
+shipped block type (`Springs/Core/`, `tests/Springs/SpringsTests.cs`), and that every block and
 item drawn with one of the pack's own shapes sits centred held, dropped and in a slot, from its
 transforms and the shape's bounds: held, the game keeps a transform's origin where it is instead of
 moving it to the hand, so a machine's item form, centred on a footprint many blocks long, needs a
@@ -6095,6 +6211,21 @@ iron sections; and the grid recipe, one per metal, making one straight ppex pipe
 section, nails and strips of the same metal (not the other) and a hammer. With the switch off,
 `SwitchesOffScenarios` requires no pipe mold (smex's quad rod mold still there), no recipe for one and
 nothing logged about them.
+
+`tests/PackTests/SpringsScenarios.cs` (Atlas, the shared world) requires the springs on, both of the
+generator's methods hooked, a spring of each kind for the game's rocks and GeologyAdditions', named
+after its rock, filling containers with Hydrate's fresh well water and drinkable, and the guide's rates
+the settings'; a bucket filling from a spring with well water to its capacity, twice, and a half-thirsty
+player drinking from it through Hydrate's own drinking; then a granite spring in a wall, open to the east: it pours there; a run of four ppex
+pipes on top taps it, the pouring stops and its water drains, the end against it is sealed, and the
+run fills with water at the spring's rate (no faster, nor well under); the bottom pipe taken off, it
+pours again; broken, it drops granite stones and no spring, and its water drains.
+`tests/PackTests/SpringsWorldgenScenarios.cs` (Atlas, its own standard world: the shared world is
+flat and has no rivulets) requires springs among the generator's rivulets round spawn, each with its
+block entity, no water left in its cell, a rock round it (or the fallback) and some pouring.
+`RecipeExportSpringScenarios` requires one `spring` record per kind at the default rates, owned by
+`Springs`, and `SwitchesOffScenarios` that with the switch off nothing is patched, the guide is
+hidden and a spring placed turns back into its water source.
 
 `tests/PackTests/GearCutterScenarios.cs` (Atlas, the shared world) requires the gear cutter's
 blocks, parts and recipes (none of its smithing recipes helve-able); placing on all four facings

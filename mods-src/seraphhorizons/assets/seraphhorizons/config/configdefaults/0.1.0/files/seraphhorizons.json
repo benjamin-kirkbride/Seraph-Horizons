@@ -436,5 +436,10 @@
     "IronBurstPressure": 5.0,
     "SteelBurstPressure": 10.0,
     "BronzeBurstPressure": 5.0
+  },
+  "Springs": true,
+  "SpringsSettings": {
+    "NormalLitresPerSecond": 4.0,
+    "RapidLitresPerSecond": 10.0
   }
 }

@@ -193,6 +193,10 @@
     <!-- Pipes (unified pipes, cast pipes, the hand pump bridge): burst figures, the lead rule, the
          recipe cost filter, the ppex asset guard and the shipped patch it is held to. -->
     <Compile Include="../Pipes/Core/**/*.cs" Link="Pipes/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- Springs: codes, host rock, pouring and feeding, the rate cap and its settings; and the
+         shipped block type, held to the codes. -->
+    <Compile Include="../Springs/Core/**/*.cs" Link="Springs/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="../assets/seraphhorizons/blocktypes/waterspring.json" Link="waterspring.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/patches/unifiedpipes-ppex.json" Link="unifiedpipes-ppex.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../assets/seraphhorizons/recipes/grid/unifiedpipes.json" Link="unifiedpipes-grid.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Soldered joints: the patch putting ppex's copper and lead pipes on this mod's soldered

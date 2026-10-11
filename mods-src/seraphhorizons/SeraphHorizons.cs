@@ -991,4 +991,18 @@ public class SeraphHorizonsConfig
     /// <summary>The unified pipes' burst figures, in atm; a value out of range falls back to its
     /// default with a warning. Each side uses its own for the text, the server's for the pipes.</summary>
     public Pipes.Core.UnifiedPipesConfig UnifiedPipesSettings { get; set; } = new();
+
+    /// <summary>Springs (Springs/, README "Springs"): in new chunks, the game's rivulet generator places
+    /// a solid spring of the rock round it where it placed a single water or rapids source. It pours
+    /// that water as the source did while no pipe couples to it; a ppex pipe against any face taps it
+    /// and stops the pouring, and the spring feeds its run with water up to its rate; a player drinks
+    /// Hydrate or Diedrate's fresh well water from it with an empty hand and fills any liquid container
+    /// with it, endlessly; broken, it gives what its rock does (off means rivulets are the game's again
+    /// and springs already in a world turn back into the source they replaced as they load). The
+    /// server's setting decides.</summary>
+    public bool Springs { get; set; } = true;
+
+    /// <summary>The springs' rates, in litres a second; a value out of range falls back to its
+    /// default with a warning. The server's are used, each side's for its text.</summary>
+    public SeraphHorizons.Mod.Springs.Core.SpringsConfig SpringsSettings { get; set; } = new();
 }

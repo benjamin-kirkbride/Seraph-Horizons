@@ -70,6 +70,10 @@ public sealed class SwitchOwnership
         // in the cupel and liquation in the pan (tools/recipe-export, Recipes/OreRoastingExport.cs, OreRetortingExport.cs,
         // RecipeSection.Cupellation.cs, RecipeSection.Liquation.cs).
         new("OreProcessing", [], [], ["oreroasting", "oreretorting", "cupellation", "liquation"]),
+        // The exporter's own recipe type for a spring as a source of water (tools/recipe-export,
+        // Recipes/SpringExport.cs). The spring blocks are registered with the switch off too (they
+        // turn back into water as they load), so no code is the switch's.
+        new("Springs", [], [], ["spring"]),
     ];
 
     private readonly List<OwnedBySwitch> _owned;
