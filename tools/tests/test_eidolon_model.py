@@ -60,6 +60,7 @@ AUTHORED = {
     "dock": (60, "Hold"),
     "slump": (50, "Hold"), "standup": (60, "Stop"),
     "strike-jab": (24, "Stop"), "strike-hammer": (30, "Stop"),
+    "climb": (60, "Stop"),
 }
 KEY_FIELDS = {n for names in kin.GROUPS.values() for n in names}
 
@@ -226,7 +227,7 @@ class Animations(unittest.TestCase):
 
     def test_ends_at_rest(self):
         for code, frame in (("setdown", 44), ("trunk-setdown", 49), ("trunk-thick-setdown", 49),
-                            ("standup", 59), ("activate", 89), ("dock", 0)):
+                            ("standup", 59), ("activate", 89), ("dock", 0), ("climb", 0), ("climb", 59)):
             pose = kin.sample(ANIMS[code], frame)
             for n, entry in pose.items():
                 if n in make_shape.ANCHORS:
@@ -330,6 +331,38 @@ class Poses(unittest.TestCase):
             frame = make_shape.EVENTS[code][event]
             self.assertLess(frame, ANIMS[code]["quantityframes"], code)
             self.assertAlmostEqual(r[f"{code}: thick trunk underside height at the {event}"], 0.0, delta=0.5)
+
+    def test_climb(self):
+        # posed against the entity's scripted move up and onto a step of two: the hands on the ledge's top, a
+        # block in front, while they hold it; nothing of the body in the ledge or under the floor; the right
+        # foot put on the step at the top and staying there as the entity moves forward; the feet on the
+        # ground before the rise and once it stands
+        r, s = self.report, make_shape
+        for (x, y, _), sd in zip(r["climb: hands at the grab (x, y, z)"], "RL"):
+            self.assertLess(x, s.LEDGE_FACE - 1.0, sd)                        # on the top, past the face
+            self.assertAlmostEqual(y - s.CLIMB_PALM, 2 * s.BLOCK, delta=0.5, msg=sd)  # two blocks up
+        self.assertLess(r[f"climb: hands to their place on the ledge, frames {s.CLIMB_GRAB}..{s.CLIMB_LET_GO}"], 0.5)
+        self.assertLess(r["climb: deepest body point inside the ledge or under the floor, every frame (voxels)"], 0.25)
+        self.assertLess(r["climb: deepest hand point inside the ledge, every frame (voxels)"], 0.5)
+        self.assertLess(r[f"climb: worst sole height, frames 0..{s.CLIMB_GRAB} and {s.CLIMB_STAND}..59"], 0.25)
+        self.assertLess(r[f"climb: right foot drift on the step, frames {s.CLIMB_TOP}..59"], 0.4)
+
+    def test_climbing_moves_the_entity_on_the_climb_animations_frames(self):
+        # Eidolon/Core/EidolonClimb.cs moves the entity on these frames: to the foot, up two blocks, forward one
+        core = (MOD / "Eidolon" / "Core" / "EidolonClimb.cs").read_text(encoding="utf-8")
+
+        def const(name):
+            return int(re.search(rf"public const int {name} = (\d+);", core).group(1))
+
+        self.assertEqual(const("Frames"), ANIMS["climb"]["quantityframes"])
+        self.assertEqual(make_shape.EVENTS["climb"],
+                         {"grab": const("GrabFrame"), "top": const("TopFrame"), "stand": const("StandFrame")})
+        self.assertEqual((make_shape.CLIMB_RISE, make_shape.CLIMB_RUN), (2 * make_shape.BLOCK, make_shape.BLOCK))
+        self.assertEqual(make_shape.climb_moved(0), (0.0, 0.0, 0.0))
+        self.assertEqual(make_shape.climb_moved(make_shape.CLIMB_TOP), (0.0, 32.0, 0.0))
+        self.assertEqual(make_shape.climb_moved(59), (-16.0, 32.0, 0.0))
+        self.assertIn('{ code: "climb", animation: "climb"',
+                      (MOD / "assets" / "seraphhorizons" / "entities" / "eidolon.json").read_text(encoding="utf-8"))
 
 
 class Strikes(unittest.TestCase):

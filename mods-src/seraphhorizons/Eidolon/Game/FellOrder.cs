@@ -80,6 +80,14 @@ public sealed class FellOrder(MarkArea area, bool once) : IEidolonOrder
     /// started again): what tells the crew order an area is clear from a tree that would not fall.</summary>
     public bool Clear { get; private set; }
 
+    /// <summary>Whether it waits for an axe (none in its hand, or it broke).</summary>
+    public bool WaitsForAxe => _phase == Phase.NoAxe;
+
+    // Done is no order at all; waiting for an axe waits on its player.
+    public bool HasWorkLeft => !WaitsForAxe;
+
+    public IEnumerable<MarkArea> WorkAreas => [area];
+
     public static ITreeAttribute Args(MarkArea area, bool once = false)
     {
         var tree = new TreeAttribute();
