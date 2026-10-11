@@ -6,7 +6,7 @@ import { animateShape, checkAnimations } from "./keyframes.ts";
 import { discoverAnchors } from "./model-anchors.ts";
 import { checkScenario, type Scenario } from "./model-scenario.ts";
 import { checkVehicle, vehicleOf, withBogies } from "./model-vehicle.ts";
-import { compileGlobs, driverMatrix, flattenShape, partOf, requiresValues, rideOrder, workOf, type Pose, type Rig, type Shape } from "./rig.ts";
+import { compileGlobs, driverMatrix, flattenShape, partOf, requiresValues, rideOrder, textureCodes, workOf, type Pose, type Rig, type Shape } from "./rig.ts";
 
 // Poses every driver is evaluated at: each class, part-way through its work.
 const CHECK_POSES: Pose[] = [1, 2].map((size) => ({ theta: 0.3, depth: 0.5, lifting: 0.5, travel: 0.3, work: 1, size, presence: 0.5, feed: 0.3, oil: 0.5 }));
@@ -148,7 +148,7 @@ export function checkModelFiles(model: ManifestModel, shape: unknown, rig: unkno
         if (a.kind === "point" && a.part !== undefined && !ids.has(a.part)) problems.push(`${model.rig}: ${a.key} rides "${a.part}", which is not one of its parts`);
       if (model.scenario) {
         const { anchors } = discoverAnchors(r);
-        problems.push(...checkScenario(model.scenario, r, anchors, requiresValues(ps)).map((p) => `scenario: ${p}`));
+        problems.push(...checkScenario(model.scenario, r, anchors, requiresValues(ps), [...new Set(flat.flatMap((f) => textureCodes(f.element)))]).map((p) => `scenario: ${p}`));
       }
       const vehicle = model.scenario?.vehicle;
       if (vehicle) {

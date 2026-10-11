@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import type { ManifestModel } from "../src/lib/model-manifest.ts";
+import { pickedTextures } from "../src/lib/model-scenario.ts";
+import { buildModelView, withPickedTextures } from "../src/lib/model-view.ts";
 import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rideOrder, rigInputs, textureCodes, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The crucible furnace's shipped files, and the poses CrucibleFurnace/tools/make_shape.py computes from them with
@@ -107,5 +110,38 @@ describe("the crucible furnace's rig against its rig-reference.json", () => {
     const used = new Set(flat.map((f) => partOf(globs, f.chain)));
     expect(used.has(-1)).toBe(false);
     expect(used.size).toBe(parts.length);
+  });
+});
+
+describe("the crucible furnace's Brick select against the rig's bricks", () => {
+  type Bricks = { code: string; default: string; types: Record<string, { base: string; overlays?: string[] }> };
+  const bricks = (rig as unknown as { bricks: Bricks }).bricks;
+  const manifest = JSON.parse(readFileSync(new URL("../models.json", import.meta.url), "utf8")) as { models: ManifestModel[] };
+  const select = manifest.models.find((m) => m.id === "crucible-furnace")!.scenario!.textures!;
+
+  it("offers every brick type of the rig, in its order, for its code, opening at its default", () => {
+    expect(select).toHaveLength(1);
+    const brick = select[0]!;
+    expect(brick.code).toBe(bricks.code);
+    expect(brick.default).toBe(bricks.default);
+    expect(brick.options.map((o) => o.id)).toEqual(Object.keys(bricks.types));
+  });
+
+  it("names each type's colour-bearing texture: its overlay over the cream base, else its base", () => {
+    for (const o of select[0]!.options) {
+      const t = bricks.types[o.id]!;
+      expect(o.path, o.id).toBe(t.overlays?.[0] ?? t.base);
+    }
+    // The shape's own brick texture is the default type's.
+    const def = select[0]!.options.find((o) => o.id === bricks.default)!;
+    expect(shape.textures?.[bricks.code]).toBe(def.path);
+  });
+
+  it("draws the brickwork in the picked type's colour", () => {
+    const view = buildModelView(shape, rig, { textures: select });
+    const opening = view.textures.find((t) => t.code === "brick")!;
+    expect(opening.colour).toBe(select[0]!.options.find((o) => o.id === "red")!.colour);
+    const black = withPickedTextures(view.textures, pickedTextures(select, { brick: "black" })).find((t) => t.code === "brick")!;
+    expect(black).toMatchObject({ path: "game:block/clay/brick/four/running/black1", colour: "#494339", elements: opening.elements });
   });
 });

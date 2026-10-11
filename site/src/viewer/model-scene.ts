@@ -151,6 +151,7 @@ export class ModelScene {
   private readonly labelLayer: HTMLElement;
   private readonly view: ModelView;
   private edgesOn = true;
+  private colourMode: ColourMode = "part";
   /** setTextures's materials, one per texture code, and its textures by URL. */
   private readonly textured = new Map<string, MeshLambertMaterial>();
   private readonly textureCache = new Map<string, Texture>();
@@ -528,7 +529,23 @@ export class ModelScene {
     this.dirty = true;
   }
 
+  /** Redraws the faces of each texture code given in its colour (a scenario's texture select), in texture colours. */
+  setTextureColours(colours: ReadonlyMap<string, string>) {
+    for (const o of this.partObjects) {
+      const groups = o.mesh.geometry.groups;
+      o.groupCodes.forEach((code, gi) => {
+        const hex = colours.get(code);
+        const g = groups[gi];
+        if (hex === undefined || !g) return;
+        const c = new Color(hex);
+        for (let v = g.start; v < g.start + g.count; v++) o.colourTexture.set([c.r, c.g, c.b], v * 3);
+      });
+    }
+    this.colourBy(this.colourMode);
+  }
+
   colourBy(mode: ColourMode) {
+    this.colourMode = mode;
     for (const o of this.partObjects) {
       const a = o.mesh.geometry.getAttribute("color") as BufferAttribute;
       (a.array as Float32Array).set(mode === "texture" ? o.colourTexture : o.colourPart);

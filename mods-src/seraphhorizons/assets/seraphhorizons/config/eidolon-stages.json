@@ -14,9 +14,9 @@
 			"name": "Bones",
 			"texture": "bones",
 			"material": {"wood": "oak"},
-			"ingredients": ["10 game:supportbeam-{wood}", "game:jonasframes-gearbox01", "game:jonasframes-gearbox02", "game:jonasframes-oscillator01", "game:jonasparts-cylinder02", "game:jonasparts-connector01", "game:rustypart-eidolon2tr"],
+			"ingredients": ["30 game:supportbeam-{wood}", "game:jonasframes-gearbox01", "game:jonasframes-gearbox02", "game:jonasframes-oscillator01", "game:jonasparts-cylinder02", "game:jonasparts-connector01", "game:rustypart-eidolon2tr"],
 			"measure": [
-				{"item": "game:supportbeam-{wood}", "area": 1439.4, "per": 144.0, "exact": 10.0, "count": 10}
+				{"item": "game:supportbeam-{wood}", "area": 1439.4, "per": 144.0, "exact": 10.0, "count": 30}
 			],
 			"elements": ["bar-legs", "head-inside", "head-R", "head-L", "head-back", "faceplate-R", "faceplate-L", "faceplate-chin", "brain", "bar-arms", "upper-armR", "armbone-R2", "armbone-R1", "lower-armR", "upperarmL", "armbone-L2", "armbone-L1", "lower-armL", "upperlegR", "lowerlegR", "footR", "soleR1", "soleR2", "upperlegL", "lowerlegL", "footL", "soleL1", "soleL2"]
 		},
