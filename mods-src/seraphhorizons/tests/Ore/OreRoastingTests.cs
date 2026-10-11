@@ -59,6 +59,15 @@ public class OreRoastingTests
         Assert.Equal(1, OreRoasting.Roast(carry, "a|galena", 5, 0.85, 5));
     }
 
+    // #847: rock roasts one for one, in a concentrate's time for every 5 units it holds.
+    [Theory]
+    [InlineData(20, 40f)]
+    [InlineData(35, 70f)]
+    [InlineData(5, 10f)]
+    [InlineData(2, 10f)]
+    public void Rock_takes_a_concentrates_time_per_five_units(double units, float seconds) =>
+        Assert.Equal(seconds, OreRoasting.RockSeconds(10f, units, R.ConcentrateUnits), 4);
+
     [Theory]
     [InlineData(10, 10f)]
     [InlineData(2.5, 2.5f)]

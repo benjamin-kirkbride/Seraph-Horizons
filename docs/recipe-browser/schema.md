@@ -349,11 +349,11 @@ amount a spring), the machine; `power` `hand`, `turns` the held clock's turns a 
 record per ore item kind spalled, id `spalling|game:<ore|crystalizedore>-<grade>-<ore>-*|0`. The
 ingredients are the ore (consumed; its code a wildcard over the host rock, every rock an alternative
 in the one variant) and the hammer (`isTool`, its `toolDurabilityCost` the blows times the wear a blow;
-`machine.wear` names it, rule `fixed`); the output is the crushed ore of the 5-unit rule
-(`game:crushed-<ore>-<fine|coarse>`). There is no station: the ore is set down on the ground and struck
+`machine.wear` names it, rule `fixed`); the output is crushed ore of the same grade, one for one
+(`seraphhorizons:crushedore-<ore>-<grade>`, two from crystallised ore, which holds twice the units). There is no station: the ore is set down on the ground and struck
 where it lies, which `requirements` says. `power` is `hand`, `turns` the blows (each a left-click with a
 hammer), and `work` says so (`amount` that many, `unit` `strikes`). `extra` has the `ore`, `grade`,
-`form` (`raw` or `chunk`) and `blows`.
+`form` (`raw` or `crystallised`) and `blows`.
 
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
@@ -369,7 +369,10 @@ export with it on): a sulfide's concentrate roasted in the game's firepit. One r
 firepit's share, a fraction (0.85), since each firepit carries what falls short of a whole item over to
 the next. `extra` has the `share`, the `meltingPoint` and the `seconds` one item takes at it, and
 `requirements` says so in words. The concentrate's own `attributes.smelting` gives one roasted item per
-item, the game's terms; the record's quantity is what a player gets.
+item, the game's terms; the record's quantity is what a player gets. A sulfide's raw and crushed ore roast in the
+firepit too, one for one into roasted rock of the same grade (`seraphhorizons:roastedore-<ore>-<grade>`);
+they have no record of their own, since their `attributes.smelting` (type `convert`, one item per item)
+is exact.
 
 **Retorting** (type `oreretorting`, shape `generic`; seraphhorizons, switch `OreProcessing`, so only in
 an export with it on): cinnabar and amalgam retorted in the game's still. One record per input, id

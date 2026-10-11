@@ -5,8 +5,9 @@
 // Overall recovery is the product of the stage multipliers. Concentration is the concentrator's
 // base times the feed's factors and the ore's density, capped at 1; crushing and grinding never
 // lose metal. A fraction is of the ore's metal units (ore-graded.json's metalUnitsByType for raw
-// ore and chunks; crushed, ground and concentrate hold concentrateUnits), and output carries its
-// fraction over from one item to the next (UnitCarry.cs), so nothing is lost to rounding.
+// ore, which crushed and ground ore and roasted rock carry unchanged, one item to one, #847;
+// concentrate holds concentrateUnits), and output carries its fraction over from one item to the
+// next (UnitCarry.cs), so nothing is lost to rounding.
 //
 // - concentrators: base recovery per device (hand: pan, rocker; tiers 1-4: sluice, jig, table,
 //   tableandvanner).
@@ -18,9 +19,12 @@
 //   reverberatory). Unroasted sulfide concentrate does not smelt at all (#720).
 // - parting: a by-product's recovery per method and tier (hand, tier1..tier4); a tier left out has
 //   no station for it (acid parting starts at tier 2).
-// - smelt: what share of its units each form gives in a furnace. Raw and ground ore not at all
-//   (ground ore goes on to the concentrator); sulfide concentrate only once roasted (that rule is in
-//   the code, not here).
+// - smeltByGrade: what share of its units rock gives in a furnace, by its grade (#847): raw, crushed
+//   and ground ore alike, since the furnace slags the rock off and loses metal with it. A sulfide's
+//   rock does not smelt until roasted; its roasted rock (the firepit's) smelts at this share times
+//   roasters.firepit. Those two rules are in the code, not here.
+// - smelt: what share of its units each form that is not rock gives in a furnace; a sulfide's
+//   concentrate only once roasted (in the code).
 // - ores: per ore (the ore part of its code). "class": oxide, sulfide, native, placer (default
 //   oxide); "density" (default 1) multiplies concentration; "free": gold or silver that wants
 //   amalgamation; "unparted": the share of the main metal a smelt gives without parting (gold
@@ -58,7 +62,8 @@
   },
   "cupel": { "capacityUnits": 200, "leadPerOreUnit": 1, "meltingPoint": 950, "secondsPerIngot": 60 },
   "liquation": { "capacityUnits": 100, "tinPoint": 240, "leadPoint": 327, "secondsPerIngot": 15 },
-  "smelt": { "raw": 0, "chunk": 0.5, "crushed": 0.5, "ground": 0, "concentrate": 1.0, "roastedconcentrate": 1.0, "sponge": 1.0 },
+  "smeltByGrade": { "poor": 0.10, "medium": 0.25, "rich": 0.40, "bountiful": 0.50 },
+  "smelt": { "concentrate": 1.0, "roastedconcentrate": 1.0, "sponge": 1.0 },
   "retort": {
     "mercury": "em:mercuryportion",
     "amalgamMercury": 10,

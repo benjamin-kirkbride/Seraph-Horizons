@@ -29,9 +29,6 @@ public class OreRecoveryTests
         units * R.Overall(R.Ore(ore), OreLine.AtTier(tier), poor);
 
     [Fact]
-    public void ShippedConfigIsSound() => Assert.Empty(R.Problems);
-
-    [Fact]
     public void ShippedOresAreKnownOres()
     {
         foreach (var ore in R.Ores)
@@ -185,17 +182,63 @@ public class OreRecoveryTests
         Assert.Equal(0.55, R.Overall(spec, OreLine.AtTier(OreTier.Hand), false), 9);
     }
 
-    [Fact]
-    public void SmeltShares()
+    // #847: rock smelts by its grade, whether raw, crushed or ground: poor 10 %, medium 25 %, rich 40 %,
+    // bountiful 50 %.
+    [Theory]
+    [InlineData("poor", 0.10)]
+    [InlineData("medium", 0.25)]
+    [InlineData("rich", 0.40)]
+    [InlineData("bountiful", 0.50)]
+    public void RockSmeltsByGrade(string grade, double share)
     {
         var hematite = R.Ore("hematite");
-        Assert.Equal(0, R.SmeltShare(hematite, OreForm.Raw));
-        Assert.Equal(0.5, R.SmeltShare(hematite, OreForm.Chunk));
-        Assert.Equal(0.5, R.SmeltShare(hematite, OreForm.Crushed));
-        Assert.Equal(1, R.SmeltShare(hematite, OreForm.Concentrate));
-        Assert.Equal(0.5, R.SmeltShare(R.Ore("galena"), OreForm.Chunk));
-        // Ground ore goes on to the concentrator; it does not smelt (#686).
-        Assert.Equal(0, R.SmeltShare(hematite, OreForm.Ground));
+        foreach (var form in new[] { OreForm.Raw, OreForm.Crushed, OreForm.Ground })
+            Assert.Equal(share, R.SmeltShare(hematite, form, grade), 9);
+        Assert.Equal(share, R.GradeShare(grade), 9);
+        // Concentrate is the same at any grade: its rock was thrown away.
+        Assert.Equal(1, R.SmeltShare(hematite, OreForm.Concentrate, grade));
+        // An oxide has no roasted rock.
+        Assert.Equal(0, R.SmeltShare(hematite, OreForm.RoastedRock, grade));
+    }
+
+    [Fact]
+    public void RockWithNoGradeDoesNotSmelt()
+    {
+        Assert.Equal(0, R.SmeltShare(R.Ore("hematite"), OreForm.Crushed));
+        Assert.Equal(0, R.SmeltShare(R.Ore("hematite"), OreForm.Raw, "lignite"));
+    }
+
+    // #847: unroasted sulfide rock does not smelt, raw, crushed or ground; roasted rock smelts at its
+    // grade's share times the firepit's 85 %.
+    [Theory]
+    [InlineData("poor", 0.085)]
+    [InlineData("medium", 0.2125)]
+    [InlineData("rich", 0.34)]
+    [InlineData("bountiful", 0.425)]
+    public void SulfideRockSmeltsOnlyRoasted(string grade, double roasted)
+    {
+        foreach (var ore in R.Ores.Where(o => o.IsSulfide))
+        {
+            foreach (var form in new[] { OreForm.Raw, OreForm.Crushed, OreForm.Ground, OreForm.Concentrate })
+                Assert.Equal(0, R.SmeltShare(ore, form, grade));
+            Assert.Equal(roasted, R.SmeltShare(ore, OreForm.RoastedRock, grade), 9);
+            Assert.Equal(1, R.SmeltShare(ore, OreForm.RoastedConcentrate, grade));
+        }
+    }
+
+    // The issue's worked figures (#847): by hand at the mine, smelted as mined against the rocker
+    // (classified, unground poor ore at 0.4).
+    [Theory]
+    [InlineData("poor", 0.10, 0.22)]
+    [InlineData("medium", 0.25, 0.55)]
+    [InlineData("rich", 0.40, 0.55)]
+    [InlineData("bountiful", 0.50, 0.55)]
+    public void ConcentratingByHandBeatsOrMatchesSmeltingRock(string grade, double asMined, double rocker)
+    {
+        var hematite = R.Ore("hematite");
+        Assert.Equal(asMined, R.SmeltShare(hematite, OreForm.Raw, grade), 9);
+        Assert.Equal(rocker, R.Overall(hematite, OreLine.AtTier(OreTier.Hand), OreFeed.IsFineGrained(grade)), 9);
+        Assert.True(rocker >= asMined);
     }
 
     [Fact]
@@ -242,6 +285,8 @@ public class OreRecoveryTests
     public void ReportsABrokenConfig()
     {
         var config = Shipped();
+        config.SmeltByGrade.Remove("rich");
+        config.SmeltByGrade["poor"] = 2;
         config.Concentrators.Remove("jig");
         config.Unclassified = 1.5;
         config.Ores["galena"].Class = "sulphide";
@@ -253,5 +298,10 @@ public class OreRecoveryTests
         Assert.Contains(problems, p => p.Contains("'sulphide'"));
         Assert.Contains(problems, p => p.Contains("'magic'"));
         Assert.Contains(problems, p => p.Contains("'tier5'"));
+        Assert.Contains(problems, p => p == "smeltByGrade: no figure for 'rich'");
+        Assert.Contains(problems, p => p.StartsWith("smeltByGrade.poor"));
     }
+
+    [Fact]
+    public void ShippedConfigIsSound() => Assert.Empty(R.Problems);
 }

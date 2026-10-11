@@ -1160,8 +1160,9 @@ class OreProcessingTest(unittest.TestCase):
             "line": {"concentrator": "jig", "roaster": "stall", "parting": "tier2"},
             "kinds": {"crush": "crushing", "grind": "grinding", "concentrate": "concentrating", "roast": "roasting"},
             "items": {
-                "crushed": {"code": "game:crushed-{ore}-{grain}", "stack": 16},
-                "ground": {"code": "seraphhorizons:groundore-{ore}", "stack": 16},
+                "crushed": {"code": "seraphhorizons:crushedore-{ore}-{grade}", "stack": 4},
+                "ground": {"code": "seraphhorizons:groundore-{ore}-{grade}", "stack": 4},
+                "roastedrock": {"code": "seraphhorizons:roastedore-{ore}-{grade}", "stack": 4, "only": "sulfide"},
                 "concentrate": {"code": "seraphhorizons:concentrate-{ore}", "stack": 128},
                 "roastedconcentrate": {"code": "seraphhorizons:roastedconcentrate-{ore}", "stack": 128, "only": "sulfide"},
             },
@@ -1197,16 +1198,19 @@ class OreProcessingTest(unittest.TestCase):
     def test_chain_is_priced_from_units_and_labour(self):
         val, _ = self.solve(self.ex())
         v = val.value
-        # Galena, lead at 0.02 a unit. Fine crushed only from poor ore: (15 x 0.02 + 0.1) / 3.
-        self.assertAlmostEqual(v["game:crushed-galena-fine"], 0.4 / 3)
-        # Coarse: the cheapest of medium, rich, bountiful ((35 x 0.02 + 0.1) / 7) and a nugget (0.2).
-        self.assertAlmostEqual(v["game:crushed-galena-coarse"], 0.8 / 7)
-        ground = 0.8 / 7 + 0.1
-        self.assertAlmostEqual(v["seraphhorizons:groundore-galena"], ground)
-        self.assertAlmostEqual(v["seraphhorizons:concentrate-galena"], ground / 0.8)  # the jig
-        self.assertAlmostEqual(v["seraphhorizons:roastedconcentrate-galena"], ground / 0.8 / 0.5)  # the stall
-        # Chromite's density takes the jig to 1: its concentrate costs only the grinding.
-        self.assertAlmostEqual(v["seraphhorizons:concentrate-chromite"], (3.6 / 7 + 0.1) / 1.0)
+        # Galena, lead at 0.02 a unit. A rock form holds its grade's units, one item to one (#847):
+        # crushed poor ore (15 x 0.02 + 0.1), bountiful (35 x 0.02 + 0.1).
+        self.assertAlmostEqual(v["seraphhorizons:crushedore-galena-poor"], 0.4)
+        self.assertAlmostEqual(v["seraphhorizons:crushedore-galena-bountiful"], 0.8)
+        self.assertAlmostEqual(v["seraphhorizons:groundore-galena-poor"], 0.5)
+        self.assertAlmostEqual(v["seraphhorizons:groundore-galena-bountiful"], 0.9)
+        self.assertAlmostEqual(v["seraphhorizons:roastedore-galena-rich"], 25 * 0.02 + 0.1)  # roasting's flat is 0 here
+        # Concentrate: the cheapest grade's ground ore over what the jig makes of it, 0.8 x 35 / 5 items.
+        self.assertAlmostEqual(v["seraphhorizons:concentrate-galena"], 0.9 / 5.6)
+        self.assertAlmostEqual(v["seraphhorizons:roastedconcentrate-galena"], 0.9 / 5.6 / 0.5)  # the stall
+        # Chromite's density takes the jig to 1: its concentrate costs only the crushing and grinding.
+        self.assertAlmostEqual(v["seraphhorizons:concentrate-chromite"], 3.7 / 7)
+        self.assertNotIn("seraphhorizons:roastedore-chromite-rich", v)  # not a sulfide
         self.assertNotIn("seraphhorizons:roastedconcentrate-chromite", v)  # not a sulfide
         self.assertAlmostEqual(v["seraphhorizons:litharge"], 4 * 0.02)
         # The ores and nuggets keep their units' value.
@@ -1223,12 +1227,11 @@ class OreProcessingTest(unittest.TestCase):
         self.assertAlmostEqual(val.value["game:crystalizedore-bountiful-chromite-granite"], 80 * 0.1)
         self.assertAlmostEqual(val.value["game:ore-bountiful-galena-granite"], 35 * 0.02)  # the chunk's own
 
-    def test_legacy_crushed_ore_is_its_ore_coarse_crushed(self):
-        # Crushing a 35-unit chunk into one legacy crushed chromite is a route of 3.5 + 0.1; every use
-        # counts it as 5 units, so it is priced as the coarse crushed ore, not by that route.
+    def test_legacy_crushed_ore_is_five_units_crushed(self):
+        # Crushing a 35-unit ore into one legacy crushed chromite is a route of 3.5 + 0.1; every use
+        # counts it as 5 units, so it is priced as 5 units and the crushing, not by that route.
         val, _ = self.solve(self.ex())
-        self.assertAlmostEqual(val.value["game:crushed-chromite"], 3.6 / 7)
-        self.assertAlmostEqual(val.value["game:crushed-chromite"], val.value["game:crushed-chromite-coarse"])
+        self.assertAlmostEqual(val.value["game:crushed-chromite"], 5 * 0.1 + 0.1)
 
     def test_items_missing_from_the_export_are_added_with_the_switch(self):
         ex = self.ex()
@@ -1237,7 +1240,8 @@ class OreProcessingTest(unittest.TestCase):
         self.assertEqual(ex["items"]["seraphhorizons:concentrate-galena"]["attributes"]["maxStackSize"], 128)
         t = iv.table(ex, val)
         self.assertEqual(t["switches"]["seraphhorizons:concentrate-galena"], ["OreProcessing"])
-        self.assertEqual(t["switches"]["game:crushed-galena-fine"], ["OreProcessing"])
+        self.assertEqual(t["switches"]["seraphhorizons:crushedore-galena-poor"], ["OreProcessing"])
+        self.assertEqual(ex["items"]["seraphhorizons:crushedore-galena-poor"]["attributes"]["maxStackSize"], 4)
         self.assertNotIn("game:crushed-chromite", t["switches"])  # the legacy item exists either way
         self.assertNotIn("game:ore-poor-galena-granite", t["switches"])
         # An export made with the switch on keeps its own item.
@@ -1248,7 +1252,7 @@ class OreProcessingTest(unittest.TestCase):
 
     def test_parting_with_a_station_floors_the_parted_form_at_what_it_wins(self):
         val, _ = self.solve(self.ex())
-        cost = (0.8 / 7 + 0.1) / 0.8 / 0.5
+        cost = 0.9 / 5.6 / 0.5
         self.assertAlmostEqual(val.value["seraphhorizons:roastedconcentrate-galena"], cost)
         self.write_op(parting={"cupellation": True})
         val, _ = self.solve(self.ex())
@@ -1265,9 +1269,9 @@ class OreProcessingTest(unittest.TestCase):
         ]}))
         ex = self.ex({"game:alloy": item(), "game:stone": item()})
         val, _ = self.solve(ex)
-        # The cheaper alternative (legacy crushed), a kept tool's tenth, mod's flat 1, the stone credited.
-        self.assertAlmostEqual(val.value["game:alloy"], 2 * 3.6 / 7 + 0.01 * 0.1 + 1.0 - 10 * 0.01)
-        self.assertEqual(iv.table(ex, val)["switches"]["game:alloy"], ["Pot"])
+        # The cheaper alternative (concentrate), a kept tool's tenth, mod's flat 1, the stone credited.
+        self.assertAlmostEqual(val.value["game:alloy"], 2 * 3.7 / 7 + 0.01 * 0.1 + 1.0 - 10 * 0.01)
+        self.assertEqual(iv.table(ex, val)["switches"]["game:alloy"], ["OreProcessing", "Pot"])
 
     def test_singles_are_added_and_priced_by_routes(self):
         # Leaching (#742): a raw and a liquor the export lacks are added as items of the switch, the
