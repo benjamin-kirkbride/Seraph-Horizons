@@ -80,9 +80,20 @@ export function railCost(r: Rail, blocks: number): { crafts: number; binder: num
 /** The handcar's defaults (HandcarConfig.cs). */
 export const HANDCAR = { topOne: 4.2, topTwo: 5.95, lossPerWeight: 0.5, minTop: 0.8, bareWeight: 2 } as const;
 
-/** Top speed of a steam convoy at full heat: power × max °C ÷ 100 less the convoy's weight, capped by the track. */
-export function steamTopSpeed(engine: { power: number; maxC: number; weight: number }, wagonWeight: number, cap: number): number {
+/**
+ * In scope for the proposal: every one of Yang's vehicles at half its top speed (a config or patch on
+ * its speeds, the track caps with them). 1 is Yang's own figures.
+ */
+export const YANG_SPEED_SCALE = 0.5;
+
+/** Yang's own top speed of a steam convoy at full heat: power × max °C ÷ 100 less the convoy's weight, capped by the track. */
+export function steamTopSpeedUnscaled(engine: { power: number; maxC: number; weight: number }, wagonWeight: number, cap: number): number {
   return Math.min(cap, Math.max(0, (engine.power * engine.maxC) / 100 - engine.weight - wagonWeight));
+}
+
+/** The proposal's top speed: Yang's, × YANG_SPEED_SCALE. */
+export function steamTopSpeed(engine: { power: number; maxC: number; weight: number }, wagonWeight: number, cap: number): number {
+  return YANG_SPEED_SCALE * steamTopSpeedUnscaled(engine, wagonWeight, cap);
 }
 
 /** The handcar's top speed with `riders` pumping and `load` weight over the bare car (a crate 1, a boxcar 4). */
@@ -243,12 +254,12 @@ export function transports(): Transport[] {
       load: `6 crates × ${BOX.crate}`,
       slots: { raw: P + 6 * BOX.crate, conc: P + 6 * BOX.crate },
       speed: minecartTrain,
-      speedNote: "standard engine cart, metal wagon rails (cap 14)",
+      speedNote: "half Yang's: standard engine cart, metal wagon rails (cap 14 → 7)",
       build: "Iron (standard engine)",
       terrain: "wagon rails",
       notes: [10],
-      verdict: "breaks",
-      why: `Three walkers' worth at ${num(minecartTrain / PLAYER.sprint, 0)} times a sprinting player's pace, and it can run on a timetable.`,
+      verdict: "strained",
+      why: `Three walkers' worth at ${num(minecartTrain / PLAYER.sprint)} × a sprinting player's pace: at half speed about a sailed boat's haul, but on a timetable.`,
     },
     {
       id: "sgstandard",
@@ -256,12 +267,12 @@ export function transports(): Transport[] {
       load: `4 boxcars × ${YANG.boxcar.slots}`,
       slots: { raw: P + 4 * YANG.boxcar.slots, conc: P + 4 * YANG.boxcar.slots },
       speed: sgStandard,
-      speedNote: "standard locomotive, metal track; 16 on wood",
+      speedNote: "half Yang's: standard locomotive, metal track; 8 on wood",
       build: "Iron",
       terrain: "standard-gauge track",
       notes: [10],
-      verdict: "breaks",
-      why: `Five walkers' worth at ${num(sgStandard / PLAYER.sprint, 0)} times a sprinting player's pace; a full boxcar weighs what an empty one does.`,
+      verdict: "strained",
+      why: `Five walkers' worth at ${num(sgStandard / PLAYER.sprint)} × a sprinting player's pace: at half speed a medium batch is two runs, about half the elk's or the cart's hours, and it can run on a timetable.`,
     },
     {
       id: "sgadvanced",
@@ -269,12 +280,12 @@ export function transports(): Transport[] {
       load: `7 boxcars × ${YANG.boxcar.slots}`,
       slots: { raw: P + 7 * YANG.boxcar.slots, conc: P + 7 * YANG.boxcar.slots },
       speed: sgAdvanced,
-      speedNote: "metal track cap",
+      speedNote: "half Yang's: metal track cap (32 → 16)",
       build: "Steel and titanium",
       terrain: "standard-gauge track",
       notes: [10],
       verdict: "breaks",
-      why: "Eight walkers' worth at 32 blocks a second: a whole 100-ingot batch of medium ore in one run.",
+      why: `Eight walkers' worth at ${num(sgAdvanced, 0)} blocks a second even at half speed: a whole 100-ingot batch of medium ore in one run.`,
     },
     {
       id: "plane",
@@ -344,7 +355,7 @@ export const NOTES: Record<number, string> = {
   7: "Raft: entities/nonliving/boat-raft.json, 2 basket slots, speedMultiplier 1; reed basket 8 slots (blocktypes/reed/reedchest.json). 4 blocks a second: TrunkDrive.RaftBlocksPerSecond (EntityBoat.SeatsToMotion, before drag).",
   8: "entities/nonliving/boat-sailed.json: 8 storage slots taking a seat, chest, basket or crate; speedMultiplier 1.2 (its blocks a second scaled from the raft's; wind not modelled); deconstructs to 144 planks, 22 support beams, 13 rope, 15 linen. Crate: 20 slots, 25 in ebony and purpleheart, one item type, storageType 189 which takes flag 4 (blocktypes/wood/woodtyped/crate.json).",
   9: "mods-src/seraphhorizons/Handcar/README.md and Core/HandcarConfig.cs: one cargo slot (chest or crate, weight 1), top speed 4.2 one rider and 5.95 two, less 0.5 a weight over the bare car's 2, never under 0.8; a coupled car adds its weight. Recipe recipes/grid/handcar.json.",
-  10: "Yang's Transport Tycoon 1.0.3: entities/sgwagon_boxcar.json (2 × 32 slots, weight 4), minecart.json (one chest, crate or basket, weight 1 plus 1 for the box), sglocomotive.json and enginecart.json (power a 100 °C, max °C, weight), config/trackmaterialspeeds.json (wagon rails 8 wood, 14 metal; standard gauge 16, 32). Top speed = power × max °C ÷ 100 − convoy weight (Handcar/README.md, from the decompiled drive), at full heat. A vehicle's weight is its own plus its attachments (RailVehicleWeightSpec.ComputeTotalWeight, decompiled): boxcar storage adds nothing however full. Recipes: recipes/grid/standardgaugecarts.json (boxcar 10 iron plates), standardgaugerails.json and tunnelrails.json (track, note 18). Conductor locusts drive a timetable (lang: leave on time or mileage, no load criterion); whether a hopper or chute can fill a boxcar: unknown.",
+  10: "Yang's Transport Tycoon 1.0.3: entities/sgwagon_boxcar.json (2 × 32 slots, weight 4), minecart.json (one chest, crate or basket, weight 1 plus 1 for the box), sglocomotive.json and enginecart.json (power a 100 °C, max °C, weight), config/trackmaterialspeeds.json (wagon rails 8 wood, 14 metal; standard gauge 16, 32). Top speed = power × max °C ÷ 100 − convoy weight (Handcar/README.md, from the decompiled drive), at full heat. A vehicle's weight is its own plus its attachments (RailVehicleWeightSpec.ComputeTotalWeight, decompiled): boxcar storage adds nothing however full. Recipes: recipes/grid/standardgaugecarts.json (boxcar 10 iron plates), standardgaugerails.json and tunnelrails.json (track, note 18). Conductor locusts drive a timetable (lang: leave on time or mileage, no load criterion); whether a hopper or chute can fill a boxcar: unknown. In this proposal's scope every one of Yang's vehicles runs at half its top speed (YANG_SPEED_SCALE 0.5: the track caps and the engines' figures halved by config or patch), so the speeds shown are half these.",
   11: "Flying machine 0.1.0, entities/flyingmachine.json: one cargo slot (chest, basket, crate), flight.maxSpeed 0.34 a tick (its comment: about 20 blocks a second), 10 L of aqua vitae, 1 L a minute at full throttle, about 28 blocks of runway; engine of iron (recipes/grid/engine.json).",
   12: "Gondola Cable Car 0.4.43, entities/cabin.json: one storage slot (chest, basket, crate) and four seats; configdefaults GondolaCableCarConfig.json: MaxTravelSpeed 5, spans 8 to 256, MaxGrade 1, MaxCurveDegrees 15; cable spool smithed from an iron ingot, 25 m on large routes (lang).",
   13: "Zipline 1.0.8, configdefaults ZiplineConfig.json: MaxAnchorDistanceBlocks 1000, MinAverageGrade 0.03, MaximumSpeed 30.",
@@ -532,8 +543,8 @@ ${renderRails()}
 <h4>Verdict</h4>
 <div class="ot-verdicts">
 <div><b>The lever holds for anything a player walks, rides or pumps.</b> On foot, a medium-ore batch is ${trips(medBatch, foot.slots.raw)} trips and ${h(foot, "medium")} on foot at 2 km against ${h(foot, "medium", "conc")} as concentrate; poor ore is ${trips(poorBatch, foot.slots.raw)} trips. The wide cart and the elk cut the hours to ${h(wide, "medium")} and ${h(elk, "medium")} (the cart carries ${num(wide.slots.raw / foot.slots.raw)} walkers' loads at ${num(wide.speed! / foot.speed!)} × the pace, the elk gallops at ${num(elk.speed! / foot.speed!)} ×), but not the trips: ${trips(medBatch, wide.slots.raw)} and ${trips(medBatch, elk.slots.raw)} for medium ore and ${trips(poorBatch, wide.slots.raw)} and ${trips(poorBatch, elk.slots.raw)} for poor, against one of concentrate, each needing the player along. The raft, the handcar and the cable car do less. At 10 ingots everything but poor ore fits one trip, so the lever bites at a plant's scale, not a toolkit's.</div>
-<div class="ot-bad"><b>Yang's trains break it.</b> ${breakers.map((t) => `${esc(t.name)} (${t.slots.raw} slots, ${num(t.speed!, 0)} blocks a second)`).join(", ")}. The advanced train brings the whole poor-ore batch in ${trips(poorBatch, adv.slots.raw)} trips and ${h(adv, "poor")} at 2 km. A boxcar's weight is its own plus its attachments, never its contents, so a full train runs as fast as an empty one; track is cheap (a kilometre of metal track is ${railCost(RAILS[1], 1000).binder} iron rods and ${railCost(RAILS[1], 1000).planks} planks, a 5 km line ${railCost(RAILS[1], 5000).binder} rods); and conductor locusts drive a timetable (leaving a station on time or mileage; whether anything but a player fills a boxcar: unknown).</div>
-<div><b>Strained:</b> ${strained.map((t) => esc(t.name)).join(" and ")}. The boat holds ${boat.slots.raw} slots of crates with no metal in it, but only where water joins mine and plant; the plane flies a walker's load at ${num(20 / foot.speed!, 0)} times the pace, for aqua vitae.</div>
+<div class="ot-bad"><b>Even at half speed, the advanced train breaks it.</b> ${breakers.map((t) => `${esc(t.name)} (${t.slots.raw} slots, ${num(t.speed!, 0)} blocks a second)`).join(", ")}. The advanced train brings the whole poor-ore batch in ${trips(poorBatch, adv.slots.raw)} trips and ${h(adv, "poor")} at 2 km. A boxcar's weight is its own plus its attachments, never its contents, so a full train runs as fast as an empty one; track is cheap (a kilometre of metal track is ${railCost(RAILS[1], 1000).binder} iron rods and ${railCost(RAILS[1], 1000).planks} planks, a 5 km line ${railCost(RAILS[1], 5000).binder} rods); and conductor locusts drive a timetable (leaving a station on time or mileage; whether anything but a player fills a boxcar: unknown).</div>
+<div><b>Strained:</b> ${strained.map((t) => esc(t.name)).join(", ")}. Halving Yang's speeds (in this proposal's scope) brings the engine cart and the standard locomotive down here: still the most slots and a timetable, but a medium batch takes them ${h(ts.find((t) => t.id === "minecarts")!, "medium")} and ${h(ts.find((t) => t.id === "sgstandard")!, "medium")} at 2 km against the elk's ${h(elk, "medium")}. The boat holds ${boat.slots.raw} slots of crates with no metal in it, but only where water joins mine and plant; the plane flies a walker's load at ${num(20 / foot.speed!, 0)} times the pace, for aqua vitae.</div>
 <div><b>What could be adjusted</b><ul>
 <li>Boxcars and minecarts: make rock forms weigh, so convoy weight grows with ore (a Harmony postfix on RailVehicleWeightSpec.ComputeTotalWeight counting stacks of ore-*, chunk and crushed), or cut sgwagon_boxcar.json's QuantitySlotsByPoint for rock, or refuse rock forms in SGStorage. Concentrate untouched either way.</li>
 <li>Crates: a crate holds 25 slots of one item and goes on boats, minecarts, the handcar and the plane. Giving rock forms a storage flag crates do not take (crate storageType 189 takes flag 4, which ore has) would leave rock to chests and mining bags.</li>

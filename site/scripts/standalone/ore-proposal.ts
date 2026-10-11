@@ -233,6 +233,7 @@ export const CODE_CHANGES: string[] = [
   "OreRecovery.SmeltShare(ore, form) gains the grade: SmeltShare(ore, form, grade), returning byGrade[grade] (× the penalty for a sulfide) for Raw, Chunk, Crushed and Ground, 0 for unroasted sulfide concentrate, and the form's share otherwise. OreProcessingItems.Apply has the grade for ore items (parts[1]) but not for crushed ore (parts are crushed, ore, grain): the grade must come from the item (a new variant) or the stack.",
   "OreProducts: stack sizes are already by form (RawStack 4, ChunkStack 16, CrushedStack 16, ConcentrateStack 128); \"bulk follows the rock\" is already the case for raw, crushed and ground. Only the chunk's 16 is in question.",
   "The processing line tab (ore-line.ts: CFG.smelt, COMMON_STOPS and the worked examples) and the README's \"Ore processing\" section follow.",
+  "Yang's Transport Tycoon: every one of its vehicles at half its top speed (a JSON patch halving config/trackmaterialspeeds.json's caps and the engines' power in enginecart.json and sglocomotive.json, guarded like the pack's other patches on other mods). The transport section's figures already include it.",
 ];
 
 export const ISSUE_765 =

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import oreLine, { CFG, CHAINS, CLASSES, concentration, OPEN_QUESTIONS, PARTED, TIERS, tierConcentrate } from "../scripts/standalone/ore-line.ts";
 import oreProposal, { bestConcentrate, choices, decision, ingotsPerSlot, OPEN_QUESTIONS as PROPOSAL_QUESTIONS, PROPOSED, proposedSmelt, routes, STACK, winner } from "../scripts/standalone/ore-proposal.ts";
-import { BATCH, gaitSpeed, GAITS, handcarTopSpeed, haulHours, haulSlots, NOTES, PLAYER, PLAYER_SLOTS, RAILS, railCost, steamTopSpeed, transports, trips, YANG } from "../scripts/standalone/ore-transport.ts";
+import { BATCH, gaitSpeed, GAITS, handcarTopSpeed, haulHours, haulSlots, NOTES, PLAYER, PLAYER_SLOTS, RAILS, railCost, steamTopSpeed, steamTopSpeedUnscaled, transports, trips, YANG, YANG_SPEED_SCALE } from "../scripts/standalone/ore-transport.ts";
 import { tabForHash } from "../scripts/standalone/tabs-hash.ts";
 import { expandPath, groupBy, parseSpec, slugify } from "../scripts/standalone/tabs-spec.ts";
 import { loadModels, REPO } from "../scripts/models.ts";
@@ -206,9 +206,14 @@ describe("the proposal's transport audit", () => {
     expect(handcarTopSpeed(1)).toBeCloseTo(3.7);
     expect(handcarTopSpeed(9)).toBe(0.8);
     // Yang: power × max °C ÷ 100 − weight, capped by the track.
-    expect(steamTopSpeed(YANG.locoStandard, 16, 32)).toBe(18);
-    expect(steamTopSpeed(YANG.locoAdvanced, 28, 32)).toBe(32);
-    expect(steamTopSpeed(YANG.engineCartStandard, 12, YANG.track.wagon.metal)).toBe(14);
+    expect(steamTopSpeedUnscaled(YANG.locoStandard, 16, 32)).toBe(18);
+    expect(steamTopSpeedUnscaled(YANG.locoAdvanced, 28, 32)).toBe(32);
+    expect(steamTopSpeedUnscaled(YANG.engineCartStandard, 12, YANG.track.wagon.metal)).toBe(14);
+    // the proposal halves every one of Yang's vehicles
+    expect(YANG_SPEED_SCALE).toBe(0.5);
+    expect(steamTopSpeed(YANG.locoStandard, 16, 32)).toBe(9);
+    expect(steamTopSpeed(YANG.locoAdvanced, 28, 32)).toBe(16);
+    expect(steamTopSpeed(YANG.engineCartStandard, 12, YANG.track.wagon.metal)).toBe(7);
     const ts = transports();
     expect(ts.find((t) => t.id === "carryon")!.slots).toEqual({ raw: 66 + 48, conc: 66 + 25 + 16 });
     expect(ts.find((t) => t.id === "sgadvanced")!.slots.raw).toBe(66 + 7 * 64);
@@ -239,7 +244,7 @@ describe("the proposal's transport audit", () => {
     expect(railCost(wagonMetal, 1000)).toEqual({ crafts: 8, binder: 32, planks: 64 });
   });
 
-  it("finds walking a batch of medium ore 7 trips and the advanced train 1, and only trains breaking the lever", () => {
+  it("finds walking a batch of medium ore 7 trips and the advanced train 1, and at half speed only the advanced train breaking the lever", () => {
     const ts = transports();
     const foot = ts.find((t) => t.id === "foot")!;
     const adv = ts.find((t) => t.id === "sgadvanced")!;
@@ -251,7 +256,7 @@ describe("the proposal's transport audit", () => {
     // The wide cart: 3 trips of the batch at its sprint; the elk 5 at its gallop.
     expect(haulHours(ts.find((t) => t.id === "cartwide")!, "raw", "medium", 2000, BATCH)).toBeCloseTo((3 * 4000) / gaitSpeed(0.04) / 3600);
     expect(haulHours(ts.find((t) => t.id === "elk")!, "raw", "medium", 2000, BATCH)).toBeCloseTo((5 * 4000) / gaitSpeed(0.08) / 3600);
-    expect(ts.filter((t) => t.verdict === "breaks").map((t) => t.id)).toEqual(["minecarts", "sgstandard", "sgadvanced"]);
+    expect(ts.filter((t) => t.verdict === "breaks").map((t) => t.id)).toEqual(["sgadvanced"]);
     const html = oreProposal();
     expect(html).toContain("4. Transport: can rock be hauled home?");
     expect(html).toContain('id="ot-n10"');
