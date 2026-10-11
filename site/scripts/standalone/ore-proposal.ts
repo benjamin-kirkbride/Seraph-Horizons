@@ -10,6 +10,7 @@
 // The default export is the tab's HTML fragment (scripts/standalone-tabs.ts includes it).
 
 import { CFG, concentration, DEVICES, STYLE, TIER_LABEL, TIERS, tierConcentrate, type Feed, type Tier } from "./ore-line.ts";
+import { renderTransport } from "./ore-transport.ts";
 
 export type Grade = "poor" | "medium" | "rich" | "bountiful";
 export const GRADES: Grade[] = ["poor", "medium", "rich", "bountiful"];
@@ -331,7 +332,7 @@ function renderRoutes(): string {
 <p class="ol-formula"><b>Formula:</b> ore mined = ${target} ÷ the route's recovery; items = the units carried ÷ units an item (rock forms carry the whole rock, concentrate only the ${target} recovered units at ${UNITS_PER_PRODUCT} each); slots = items ÷ stack. ∞: the route gives no metal (raw ore does not smelt today). Concentrate at the mine always comes home as ${num(target / UNITS_PER_PRODUCT / STACK.concentrate)} slots; the tier only changes how much rock is dug.</p>`;
 }
 
-/** 4. The three problems, before and after. */
+/** 5. The three problems, before and after. */
 function renderProblems(): string {
   const handPoor = bestConcentrate("hand", "poor");
   const handMed = bestConcentrate("hand", "medium");
@@ -372,7 +373,7 @@ function renderProblems(): string {
     .join("")}</div>`;
 }
 
-/** 5. Sulfides and free gold under the proposal, by tier and grade. */
+/** 6. Sulfides and free gold under the proposal, by tier and grade. */
 function renderSpecial(): string {
   const table = (o: Options, lines: { label: string; o: Options }[]) => {
     const head = `<tr><th>Grade</th><th>As mined<span class="ol-when">proposed, any rock form</span></th>${TIERS.map((t) => `<th class="ol-th-${t}"><span class="ol-dot ol-dot-${t}"></span>${TIER_LABEL[t][0]}<span class="ol-when">best line</span></th>`).join("")}</tr>`;
@@ -462,6 +463,7 @@ export default function oreProposal(): string {
     ["compare", "Current against proposed"],
     ["decision", "The decision each grade faces"],
     ["logistics", "Logistics"],
+    ["transport", "Transport: can rock be hauled home?"],
     ["problems", "The three problems"],
     ["special", "Sulfides and free gold"],
     ["sensitivity", "Sensitivity"],
@@ -477,7 +479,7 @@ export default function oreProposal(): string {
 ${STYLE}
 ${OP_STYLE}
 <h2>Proposal: the furnace reads grade, not form</h2>
-<p class="ol-intro">Two goals: ore processing that is interesting, dynamic and somewhat realistic, and logistics that make processing <b>at the mine</b> necessary. Today bulk sits on one item (raw ore stacks to 4) and crushed ore smelts at a flat ${pct(CFG.smelt.crushed)} at any grade, which opens three escape hatches past the concentrator (section 4). The proposal follows the real logic, where dressing ore existed to throw the rock away before freight and smelting: <b>unconcentrated ore smelts by grade</b> (raw, chunk, crushed and ground alike; crushing is only the way into the concentrator), concentrate stays at 100 %, and <b>bulk follows the rock</b>: every form still carrying its rock stacks poorly, only concentrate stacks well. The concentrator figures and factors stay as on main (ore-line.ts's <code>CFG</code>); the proposal's figures are <code>PROPOSED</code> in <code>ore-proposal.ts</code> and every number here is computed from them. Issues: ${issueLink(684)}, ${issueLink(765)}, ${issueLink(686)}, ${issueLink(688)}.</p>
+<p class="ol-intro">Two goals: ore processing that is interesting, dynamic and somewhat realistic, and logistics that make processing <b>at the mine</b> necessary. Today bulk sits on one item (raw ore stacks to 4) and crushed ore smelts at a flat ${pct(CFG.smelt.crushed)} at any grade, which opens three escape hatches past the concentrator (section 5). The proposal follows the real logic, where dressing ore existed to throw the rock away before freight and smelting: <b>unconcentrated ore smelts by grade</b> (raw, chunk, crushed and ground alike; crushing is only the way into the concentrator), concentrate stays at 100 %, and <b>bulk follows the rock</b>: every form still carrying its rock stacks poorly, only concentrate stacks well. The concentrator figures and factors stay as on main (ore-line.ts's <code>CFG</code>); the proposal's figures are <code>PROPOSED</code> in <code>ore-proposal.ts</code> and every number here is computed from them. Issues: ${issueLink(684)}, ${issueLink(765)}, ${issueLink(686)}, ${issueLink(688)}.</p>
 <p class="ol-intro"><b>What a furnace takes</b>, now (struck through: as mined / crushed) and proposed:</p>
 <ul class="op-pills" aria-label="Smelt shares">${smeltPills.join("")}</ul>
 <p class="ol-intro"><b>Stack sizes on main</b> (OreProducts.RawStack and ChunkStack set in code on vanilla's ore item; the rest in the item files; see the logistics formula):</p>
@@ -504,20 +506,24 @@ ${renderSlots()}
 ${renderRoutes()}
 </section>
 
-<section class="ol-class" id="op-problems" aria-labelledby="op-problems-h"><h3 id="op-problems-h">4. The three problems, before and after</h3>
+<section class="ol-class" id="op-transport" aria-labelledby="op-transport-h"><h3 id="op-transport-h">4. Transport: can rock be hauled home?</h3>
+${renderTransport()}
+</section>
+
+<section class="ol-class" id="op-problems" aria-labelledby="op-problems-h"><h3 id="op-problems-h">5. The three problems, before and after</h3>
 ${renderProblems()}
 </section>
 
-<section class="ol-class" id="op-special" aria-labelledby="op-special-h"><h3 id="op-special-h">5. Sulfides and free gold under the proposal</h3>
+<section class="ol-class" id="op-special" aria-labelledby="op-special-h"><h3 id="op-special-h">6. Sulfides and free gold under the proposal</h3>
 ${renderSpecial()}
 </section>
 
-<section class="ol-class" id="op-sensitivity" aria-labelledby="op-sensitivity-h"><h3 id="op-sensitivity-h">6. Sensitivity: nudging the grade figures</h3>
+<section class="ol-class" id="op-sensitivity" aria-labelledby="op-sensitivity-h"><h3 id="op-sensitivity-h">7. Sensitivity: nudging the grade figures</h3>
 <p class="ol-ores">Each row changes one figure and shows which way the decision goes at each tier, and by how many points.</p>
 ${renderSensitivity()}
 </section>
 
-<section class="ol-questions" id="op-open" aria-labelledby="op-open-h"><h3 id="op-open-h">7. Open questions and side effects</h3>
+<section class="ol-questions" id="op-open" aria-labelledby="op-open-h"><h3 id="op-open-h">8. Open questions and side effects</h3>
 <ul>${OPEN_QUESTIONS.map((q) => `<li>${linked(q)}</li>`).join("")}</ul>
 <h4>The code that would change</h4>
 <ul class="op-code">${CODE_CHANGES.map((q) => `<li>${linked(q)}</li>`).join("")}</ul>

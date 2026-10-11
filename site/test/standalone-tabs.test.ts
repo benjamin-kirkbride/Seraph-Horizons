@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import oreLine, { CFG, CHAINS, CLASSES, concentration, OPEN_QUESTIONS, PARTED, TIERS, tierConcentrate } from "../scripts/standalone/ore-line.ts";
 import oreProposal, { bestConcentrate, choices, decision, ingotsPerSlot, OPEN_QUESTIONS as PROPOSAL_QUESTIONS, PROPOSED, proposedSmelt, routes, STACK, winner } from "../scripts/standalone/ore-proposal.ts";
+import { BATCH, handcarTopSpeed, haulHours, haulSlots, NOTES, PLAYER_SLOTS, steamTopSpeed, transports, trips, YANG } from "../scripts/standalone/ore-transport.ts";
 import { tabForHash } from "../scripts/standalone/tabs-hash.ts";
 import { expandPath, groupBy, parseSpec, slugify } from "../scripts/standalone/tabs-spec.ts";
 import { loadModels, REPO } from "../scripts/models.ts";
@@ -178,11 +179,55 @@ describe("the ore review's smelt-by-grade proposal", () => {
 
   it("renders every section, the key figures and no script", () => {
     const html = oreProposal();
-    for (const id of ["compare", "decision", "logistics", "problems", "special", "sensitivity", "open"]) expect(html).toContain(`id="op-${id}"`);
+    for (const id of ["compare", "decision", "logistics", "transport", "problems", "special", "sensitivity", "open"]) expect(html).toContain(`id="op-${id}"`);
     expect(html).toContain("rocker 55 % beats smelting as is (30 %) by <b>25 points</b>");
     expect(html).toContain("6.4</b> ingots");
     expect(html).toContain("flips");
     for (const q of PROPOSAL_QUESTIONS) expect(html).toContain(q.slice(0, 20).replace(/&/g, "&amp;"));
     expect(html).not.toMatch(/<script/i);
+  });
+});
+
+describe("the proposal's transport audit", () => {
+  it("sizes the loads: 10 ingots of medium raw ore is 41.7 slots, of concentrate 1.56 at any grade", () => {
+    expect(PLAYER_SLOTS).toBe(66);
+    expect(haulSlots("raw", "medium")).toBeCloseTo(1000 / 0.3 / 20 / 4);
+    expect(haulSlots("raw", "poor")).toBeCloseTo(1000 / 0.1 / 15 / 4);
+    expect(haulSlots("chunk", "rich")).toBeCloseTo(1000 / 0.6 / 25 / 16);
+    expect(haulSlots("conc", "poor")).toBeCloseTo(1.5625);
+    expect(haulSlots("conc", "bountiful")).toBeCloseTo(1.5625);
+    expect(trips(41.7, 66)).toBe(1);
+    expect(trips(66, 66)).toBe(1);
+    expect(trips(66.1, 66)).toBe(2);
+  });
+
+  it("computes the vehicles' speeds from their files' figures", () => {
+    // Handcar: one rider 4.2 less 0.5 for the crate; with two boxcars it falls to the 0.8 floor.
+    expect(handcarTopSpeed(1)).toBeCloseTo(3.7);
+    expect(handcarTopSpeed(9)).toBe(0.8);
+    // Yang: power × max °C ÷ 100 − weight, capped by the track.
+    expect(steamTopSpeed(YANG.locoStandard, 16, 32)).toBe(18);
+    expect(steamTopSpeed(YANG.locoAdvanced, 28, 32)).toBe(32);
+    expect(steamTopSpeed(YANG.engineCartStandard, 12, YANG.track.wagon.metal)).toBe(14);
+    const ts = transports();
+    expect(ts.find((t) => t.id === "carryon")!.slots).toEqual({ raw: 66 + 48, conc: 66 + 25 + 16 });
+    expect(ts.find((t) => t.id === "sgadvanced")!.slots.raw).toBe(66 + 7 * 64);
+    for (const t of ts) for (const n of t.notes) expect(NOTES[n], `${t.id} note ${n}`).toBeDefined();
+  });
+
+  it("finds walking a batch of medium ore 7 trips and the advanced train 1, and only trains breaking the lever", () => {
+    const ts = transports();
+    const foot = ts.find((t) => t.id === "foot")!;
+    const adv = ts.find((t) => t.id === "sgadvanced")!;
+    expect(trips(haulSlots("raw", "medium", BATCH), foot.slots.raw)).toBe(7);
+    expect(trips(haulSlots("raw", "poor", BATCH), foot.slots.raw)).toBe(26);
+    expect(trips(haulSlots("raw", "medium", BATCH), adv.slots.raw)).toBe(1);
+    // 7 round trips of 4 km at 4.3 blocks a second.
+    expect(haulHours(foot, "raw", "medium", 2000, BATCH)).toBeCloseTo((7 * 4000) / 4.3 / 3600);
+    expect(haulHours(ts.find((t) => t.id === "cartwide")!, "raw", "medium", 2000)).toBeNull();
+    expect(ts.filter((t) => t.verdict === "breaks").map((t) => t.id)).toEqual(["minecarts", "sgstandard", "sgadvanced"]);
+    const html = oreProposal();
+    expect(html).toContain("4. Transport: can rock be hauled home?");
+    expect(html).toContain('id="ot-n10"');
   });
 });
