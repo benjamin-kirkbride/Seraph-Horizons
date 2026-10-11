@@ -125,10 +125,8 @@ order), and the viewer's **Build** select steps through them:
 | | *Outlet cap* | `outletcap` | Not a stage: put on (or taken off) by hand, any time after the lining | 1 iron plate | 7.71 |
 
 A furnace costs **76.80** in gear (72.67 in brown brick), and each capped furnace in a row 7.71 more. Values from
-main's `assets/seraphhorizons/config/item-values.json` (at `d3a3f2a`): iron plate 7.712, iron rod 3.84, iron nails
-and strips 0.914, fired brick 0.34 (brown 0.175), tier-3 refractory brick 0.987, fire clay 0.03. This branch is not
-rebased and its older copy of that file prices tier-3 refractory brick at 1.885; at that price a furnace would cost
-88.47.
+`assets/seraphhorizons/config/item-values.json`: iron plate 7.712, iron rod 3.84, iron nails and strips 0.914, fired
+brick 0.34 (brown 0.175), tier-3 refractory brick 0.987, fire clay 0.03.
 
 **The counts are measured from the model.** The generator builds the brick as a lattice (every void's faces, the
 lining's zones' and the blocks' boundaries along each axis) and merges it into boxes, the brickwork's and the
@@ -431,8 +429,8 @@ copy). No one has looked at it in a client.
 
 ## Open for the owner
 
-Nothing for the model: the build is settled. For the viewer, one thing: **a Brick select** needs the viewer change
-proposed under "The brick" (a scenario `textures` select); say if it should be made.
+Nothing for the model: the build is settled. A follow-up for the viewer: **a Brick select**, which needs the viewer
+change proposed under "The brick" (a scenario `textures` select); left out of this model for now.
 
 ## Wiring it into the game
 

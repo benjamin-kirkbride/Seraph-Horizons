@@ -3320,7 +3320,8 @@ it exists and holes and pots already in a world are lost, and smex's converter i
 its scrap list and handbook are as it ships them. Not yet: the pot recipes in the recipe
 export (the hole and the pot's own recipes are there), and a model past simple boxes (no coke or glow
 drawn in the hole): a generated model of the furnace as one machine, one two-pot hole with its hinged
-lid, grate, ash pit and damper, flue and outlet, is in `CrucibleFurnace/README.md` (#753; the game side is
+lid, grate, ash pit and damper, flue and outlet, built in stages (an iron frame, brickwork of any fired
+brick, a refractory lining, the lid and damper), is in `CrucibleFurnace/README.md` (#753; the game side is
 #796), and the game does not use it yet. `tests/PackTests/CrucibleFurnaceScenarios.cs`
 (Atlas) builds a row and breaks its stack, melts stainless from a charge on the chimney's draft with a
 top-up, pulls it with and without tongs, checks the pour window and an ingot mold, freezes it to
