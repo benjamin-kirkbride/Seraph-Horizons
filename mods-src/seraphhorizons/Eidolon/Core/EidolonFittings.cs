@@ -293,7 +293,7 @@ public static class EidolonFittings
 /// covers 115.65; a plate, a chain, a leather or a cloth (a sheet) two ingots', 231.31; a support beam
 /// is the game's 16 × 4 × 4 beam, 144.
 /// <list type="bullet">
-/// <item>bones: 1439.4 of wood / 144 = 10.0, 10 support beams;</item>
+/// <item>bones: 1439.4 of wood / 144 = 10.0, 10, raised to the floor of 30 support beams;</item>
 /// <item>joints: rods 411.0 / 115.7 = 3.55, 4; nails and strips 531.3 / 28.9 (a quarter ingot) = 18.38, 20
 ///   (rounded up to a whole ingot's four);</item>
 /// <item>plates: 4030.8 / 231.3 = 17.43, 17;</item>
@@ -301,14 +301,14 @@ public static class EidolonFittings
 /// <item>skirt: 434.0 / 231.3 = 1.88, 2, raised to the floor of 4.</item>
 /// </list>
 /// The sash and the skirt are small on the model, so they take at least 4 (<c>SMALL_LAYER_FLOOR</c> in the
-/// generator), the owner's call.
+/// generator), and the bones at least 30, three times the model's wood (<c>BONES_FLOOR</c>): the owner's calls.
 /// </summary>
 public static class FittingCounts
 {
     public static readonly IReadOnlyDictionary<FittingLayer, IReadOnlyList<int>> ByLayer =
         new Dictionary<FittingLayer, IReadOnlyList<int>>
         {
-            [FittingLayer.Bones] = [10],     // support beams
+            [FittingLayer.Bones] = [30],     // support beams (floor)
             [FittingLayer.Joints] = [4, 20], // rods, nails and strips
             [FittingLayer.Plates] = [17],    // metal plates
             [FittingLayer.Sash] = [4],       // leather or cloth (floor)
