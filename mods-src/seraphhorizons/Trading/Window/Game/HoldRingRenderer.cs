@@ -1,3 +1,4 @@
+using SeraphHorizons.Mod.Trading.Window.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
@@ -8,7 +9,8 @@ namespace SeraphHorizons.Mod.Trading.Window;
 /// The hold-to-trade ring: the look of Carry On's hold-to-pick-up progress (its
 /// <c>HudOverlayRenderer</c>, public domain): a light grey ring 24 px out (times the GUI scale), its
 /// inner edge at three quarters, filling clockwise from the top in sixteen steps, fading in over
-/// 0.2 s and out over 0.4 s, drawn at the mouse (the window has the mouse free). Each lot the server
+/// 0.2 s and out over 0.4 s, drawn at the mouse (the window has the mouse free); its shape is
+/// <see cref="HoldRingGeometry"/>. Each lot the server
 /// confirms flashes it gold and swells it for a moment (<see cref="Pulse"/>) before it fills again.
 ///
 /// <para>Drawn after the GUI (ortho stage, order 1.05, after the dialogs at 1.0) and in front of
@@ -21,9 +23,7 @@ namespace SeraphHorizons.Mod.Trading.Window;
 /// </summary>
 public sealed class HoldRingRenderer : IRenderer, IDisposable
 {
-    private const int Steps = 16;
     private const float Radius = 24f;
-    private const float Inner = 0.75f;
     private const float FadeIn = 0.2f, FadeOut = 0.4f;
     private const float PulseSeconds = 0.35f;
 
@@ -56,22 +56,15 @@ public sealed class HoldRingRenderer : IRenderer, IDisposable
     /// <summary>A lot went through: a short flash.</summary>
     public void Pulse() => _pulse = PulseSeconds;
 
+    /// <summary>Writes the ring for <paramref name="progress"/>: uploaded once, then updated in
+    /// place, at the one size <see cref="HoldRingGeometry"/> gives every progress (an in-place update
+    /// keeps the first upload's buffers and index count).</summary>
     private void UpdateMesh(float progress)
     {
-        int n = 1 + (int)Math.Ceiling(Steps * progress);
-        var mesh = new MeshData(n * 2, n * 6, false, false, true, false);
-        for (int i = 0; i < n; i++)
-        {
-            double angle = Math.Min(progress, i * (1f / Steps)) * Math.PI * 2;
-            float x = (float)Math.Sin(angle), y = -(float)Math.Cos(angle);
-            mesh.AddVertexSkipTex(x, y, 0, -1);
-            mesh.AddVertexSkipTex(x * Inner, y * Inner, 0, -1);
-            if (i > 0)
-            {
-                mesh.AddIndices([i * 2 - 2, i * 2 - 1, i * 2]);
-                mesh.AddIndices([i * 2, i * 2 - 1, i * 2 + 1]);
-            }
-        }
+        var xy = HoldRingGeometry.Vertices(progress);
+        var mesh = new MeshData(HoldRingGeometry.VertexCount, HoldRingGeometry.IndexCount, false, false, true, false);
+        for (int v = 0; v < HoldRingGeometry.VertexCount; v++) mesh.AddVertexSkipTex(xy[v * 2], xy[v * 2 + 1], 0, -1);
+        mesh.AddIndices(HoldRingGeometry.Indices());
         if (_mesh != null) _capi.Render.UpdateMesh(_mesh, mesh);
         else _mesh = _capi.Render.UploadMesh(mesh);
         _meshProgress = progress;
