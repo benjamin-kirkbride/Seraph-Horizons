@@ -216,7 +216,6 @@ public class ItemOreMap : Item, ITradeableCollectible
         if (metal != PlacerCells.Kind)
             dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-precision-" + a.GetInt(AttrPrecision, MapPrecision.Exact)));
         AppendDeposit(Lang.CurrentLocale, a, dsc);
-        dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-use"));
     }
 
     public override WorldInteraction[] GetHeldInteractionHelp(ItemSlot inSlot) =>

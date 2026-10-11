@@ -101,7 +101,6 @@ public class ItemTraderLead : Item, ITradeableCollectible
             return;
         }
         dsc.AppendLine(Lang.Get("seraphhorizons:trading-maps-lead-info", Title(Lang.CurrentLocale, stack)));
-        dsc.AppendLine(Lang.Get("seraphhorizons:oremap-info-use"));
     }
 
     public override WorldInteraction[] GetHeldInteractionHelp(ItemSlot inSlot) =>
