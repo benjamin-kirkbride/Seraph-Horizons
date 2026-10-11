@@ -785,10 +785,10 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
             Assert.Equal(1, props.TransferQuantity);
         }
         var config = SeraphHorizonsSystem.ConfigFor(World.Api).SpallingSettings;
-        Assert.Equal((6, 1), (config.BlowsRawOre, config.HammerWearPerBlow));
+        Assert.Equal((2, 1), (config.BlowsRawOre, config.HammerWearPerBlow));
     }
 
-    // A medium ore: one from the hand goes down, six blows break it into one medium crushed ore where
+    // A medium ore: one from the hand goes down, two blows (#863) break it into one medium crushed ore where
     // it lay (#847: one for one), the hammer worn a point a blow.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Spalling_breaks_raw_ore_into_its_crushed_ore()
@@ -808,13 +808,10 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
 
         var hammer = Stack("game:hammer-copper", 1);
         int durability = hammer.Collectible.GetRemainingDurability(hammer);
-        for (int b = 1; b <= 5; b++)
-        {
-            await Blow(player, pos, hammer);
-            Assert.Equal(b, System.Spalling.BlowsAt(pos));
-        }
+        await Blow(player, pos, hammer);
+        Assert.Equal(1, System.Spalling.BlowsAt(pos));
         Assert.NotNull(OreSpalling.Target(W, pos));
-        Assert.Equal(durability - 5, hammer.Collectible.GetRemainingDurability(hammer));
+        Assert.Equal(durability - 1, hammer.Collectible.GetRemainingDurability(hammer));
         Assert.Empty(ItemsNear(pos));
 
         await Blow(player, pos, hammer);
@@ -823,11 +820,11 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var near = ItemsNear(pos);
         Assert.Equal(1, near.GetValueOrDefault("seraphhorizons:crushedore-galena-medium"));
         Assert.Single(near);
-        Assert.Equal(durability - 6, hammer.Collectible.GetRemainingDurability(hammer));
+        Assert.Equal(durability - 2, hammer.Collectible.GetRemainingDurability(hammer));
         KillItems(pos);
     }
 
-    // Every grade takes the same six blows and gives one crushed ore of its grade (#847: no chunks);
+    // Every grade takes the same two blows and gives one crushed ore of its grade (#847: no chunks);
     // crystallised ore, twice the units, two.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Spalling_keeps_the_grade_one_for_one()
@@ -837,15 +834,14 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var hammer = Stack("game:hammer-iron", 1);
 
         SetDown(player, pos.DownCopy(), Stack("game:ore-poor-galena-shale", 1));
-        for (int b = 0; b < 6; b++)
+        for (int b = 0; b < 2; b++)
             await Blow(player, pos, hammer);
         await World.Ticks(5);
         Assert.Equal(1, ItemsNear(pos).GetValueOrDefault("seraphhorizons:crushedore-galena-poor"));
         KillItems(pos);
 
         SetDown(player, pos.DownCopy(), Stack("game:ore-bountiful-galena-shale", 1));
-        for (int b = 0; b < 5; b++)
-            await Blow(player, pos, hammer);
+        await Blow(player, pos, hammer);
         Assert.NotNull(OreSpalling.Target(W, pos));
         await Blow(player, pos, hammer);
         Assert.Null(OreSpalling.Target(W, pos));
@@ -854,7 +850,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         KillItems(pos);
 
         SetDown(player, pos.DownCopy(), Stack("game:crystalizedore-medium-galena-shale", 1));
-        for (int b = 0; b < 6; b++)
+        for (int b = 0; b < 2; b++)
             await Blow(player, pos, hammer);
         await World.Ticks(5);
         Assert.Equal(2, ItemsNear(pos).GetValueOrDefault("seraphhorizons:crushedore-galena-medium"));
@@ -907,11 +903,11 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(2 * 4 * OreProducts.Ores.Count, records.Count);
         var medium = records.Single(r => (string?)r["id"] == "spalling|game:ore-medium-galena-*|0");
         Assert.Equal("game:ore-medium-galena-*", (string?)medium["ingredients"]![0]!["code"]);
-        Assert.Equal(6, (int)medium["ingredients"]![1]!["toolDurabilityCost"]!);
+        Assert.Equal(2, (int)medium["ingredients"]![1]!["toolDurabilityCost"]!);
         Assert.Equal("seraphhorizons:crushedore-galena-medium", (string?)medium["outputs"]![0]!["code"]);
         Assert.Equal(1, (int)medium["outputs"]![0]!["quantity"]!);
         Assert.Equal("hand", (string?)medium["machine"]!["power"]);
-        Assert.Equal(6, (int)medium["machine"]!["turns"]!);
+        Assert.Equal(2, (int)medium["machine"]!["turns"]!);
         Assert.Equal("strikes", (string?)medium["machine"]!["work"]!["unit"]);
         Assert.DoesNotContain(medium["ingredients"]!, i => (string?)i["role"] == "station");
         Assert.Equal(RecipeSection.SpallingRequirement, (string?)medium["requirements"]![0]);
@@ -920,7 +916,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal("seraphhorizons:crushedore-galena-poor", (string?)poor["outputs"]![0]!["code"]);
         Assert.Equal(1, (int)poor["outputs"]![0]!["quantity"]!);
         var bountiful = records.Single(r => (string?)r["id"] == "spalling|game:ore-bountiful-galena-*|0");
-        Assert.Equal(6, (int)bountiful["machine"]!["turns"]!);
+        Assert.Equal(2, (int)bountiful["machine"]!["turns"]!);
         Assert.Equal(1, (int)bountiful["outputs"]![0]!["quantity"]!);
         var crystal = records.Single(r => (string?)r["id"] == "spalling|game:crystalizedore-medium-galena-*|0");
         Assert.Equal(2, (int)crystal["outputs"]![0]!["quantity"]!);

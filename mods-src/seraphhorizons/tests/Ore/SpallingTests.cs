@@ -19,13 +19,13 @@ public class SpallingTests
     public void Graded_ore_and_crystallised_ore_spall(string firstPart, string? grade, bool spalls) =>
         Assert.Equal(spalls, Spalling.Spalls(firstPart, grade));
 
-    // #847: every grade is the same lump of rock, so the same blows.
+    // #847: every grade is the same lump of rock, so the same blows; 2 since #863 (a quarter the metal an item).
     [Fact]
     public void Every_grade_takes_the_same_blows()
     {
         var config = new SpallingConfig();
         foreach (var grade in OreProducts.Grades)
-            Assert.Equal(6, config.BlowsFor(grade));
+            Assert.Equal(2, config.BlowsFor(grade));
         Assert.Equal(0, config.BlowsFor("lignite"));
         Assert.Equal(0, config.BlowsFor(null));
         Assert.Equal(1, config.HammerWearPerBlow);
@@ -64,7 +64,7 @@ public class SpallingTests
     {
         var config = new SpallingConfig { BlowsRawOre = 0, HammerWearPerBlow = -1 };
         Assert.Equal(2, config.Sanitise().Count);
-        Assert.Equal((6, 1), (config.BlowsRawOre, config.HammerWearPerBlow));
+        Assert.Equal((2, 1), (config.BlowsRawOre, config.HammerWearPerBlow));
         Assert.Empty(new SpallingConfig { BlowsRawOre = 1, HammerWearPerBlow = 0 }.Sanitise());
     }
 }

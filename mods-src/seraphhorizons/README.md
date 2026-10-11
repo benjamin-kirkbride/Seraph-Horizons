@@ -4994,8 +4994,9 @@ server's items.
   picking the placed one up). An empty hand takes it back as before.
 - **Striking.** A left-click on a placed ore with a game hammer (`game:hammer-*`) is a blow, as on the
   anvil: the hammer swings, the block is not broken, and the hammer loses `HammerWearPerBlow` (1). Raw
-  ore breaks after `BlowsRawOre` (6) blows at every grade: rich ore is the same lump of rock as poor
-  (#847), only with more metal in it. It breaks into one crushed ore of its grade holding all its
+  ore breaks after `BlowsRawOre` (2) blows at every grade: rich ore is the same lump of rock as poor
+  (#847), only with more metal in it. It was 6 until an ore item held a quarter of the metal (#863):
+  2 keeps about the same blows per unit of metal. It breaks into one crushed ore of its grade holding all its
   metal (two from crystallised ore, which holds twice the units), the ore's own crushing, which pops
   out where it lay. A player strikes no faster than a blow every 0.3 s
   (`Spalling.BlowIntervalMs`); the server counts the blows in memory, so an ore left half struck and
@@ -5016,7 +5017,7 @@ stone or a metal plate is left out. Code: `Ore/Core/Spalling.cs` (figures and ru
 `Ore/Processing/OreSpalling.cs` (the blows, the next block, the hammer behaviour), `ItemGradedOre`.
 Tests: `tests/Ore/SpallingTests.cs`; `tests/PackTests/OreProcessingScenarios.cs` (Atlas: the hammers
 and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, poor and
-bountiful ore in the same six blows each into one of its grade and crystallised ore into two, the next
+bountiful ore in the same two blows each into one of its grade and crystallised ore into two, the next
 block, the export records) and `SwitchesOffScenarios` (off).
 
 ### Ore processing: leaching borax, saltpeter and alum (`OreProcessing`)
