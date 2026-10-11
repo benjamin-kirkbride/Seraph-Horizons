@@ -529,6 +529,22 @@
           "dampershut": "Damper shut",
           "outletcap": "The outlet's cap (a flat iron plate)"
         },
+        "textures": [
+          {
+            "label": "Brick (the brickwork's fired brick type)", "code": "brick", "default": "red",
+            "options": [
+              {"id": "fire", "label": "Fire brick", "path": "game:block/clay/brick/four/running/fire1", "colour": "#9b7f5e"},
+              {"id": "black", "label": "Black brick", "path": "game:block/clay/brick/four/running/black1", "colour": "#494339"},
+              {"id": "brown", "label": "Brown brick", "path": "game:block/clay/brick/four/running/brown1", "colour": "#6a5740"},
+              {"id": "cream", "label": "Cream brick", "path": "game:block/clay/brick/four/running/cream1", "colour": "#b6aa8e"},
+              {"id": "gray", "label": "Gray brick", "path": "game:block/clay/brick/four/running/gray1", "colour": "#5b574c"},
+              {"id": "orange", "label": "Orange brick", "path": "game:block/clay/brick/four/running/orange1", "colour": "#815d41"},
+              {"id": "red", "label": "Red brick", "path": "game:block/clay/brick/four/running/red1", "colour": "#754e40"},
+              {"id": "tan", "label": "Tan brick", "path": "game:block/clay/brick/four/running/tan1", "colour": "#7c6547"},
+              {"id": "clinker", "label": "Clinker brick (a ruin's; no recipe makes it)", "path": "game:block/clay/brick/four/running/clinker1", "colour": "#413329"}
+            ]
+          }
+        ],
         "states": [
           {
             "id": "build", "label": "Build", "default": "complete",
