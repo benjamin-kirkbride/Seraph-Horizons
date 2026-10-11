@@ -13,8 +13,8 @@ public sealed class CylinderBorerData
     public required string Mod;
     public required string FrameCode;
     public Block? Frame;
-    /// <summary>The fitted parts the borer keeps: bushings, bar, feed.</summary>
-    public List<Item> Kept = new();
+    /// <summary>The fitted parts the borer keeps: bushings (the game's metal parts, a block), bar, feed.</summary>
+    public List<(string Kind, CollectibleObject Collectible)> Kept = new();
     public required string HeadCode;
     public Item? Head;
     /// <summary>The cutter head's travel through a bore, blocks (the rig's work.end).</summary>
@@ -40,9 +40,9 @@ public static class CylinderBorerExport
     public const string FrameCode = "seraphhorizons:cylinderborer-frame-north";
     public const string HeadCode = "seraphhorizons:cylinderborerhead-steel";
 
-    // CylinderBorer/Core/CylinderBorerParts.cs: the kept stages, in order.
-    public static readonly string[] KeptCodes =
-        ["seraphhorizons:cylinderborerbushings", "seraphhorizons:cylinderborerbar", "seraphhorizons:cylinderborerfeed"];
+    // CylinderBorer/Core/CylinderBorerParts.cs: the kept stages, in order (the bushings are metal parts, a block).
+    public static readonly (string Kind, string Code)[] KeptCodes =
+        [("block", "game:metal-parts"), ("item", "seraphhorizons:cylinderborerbar"), ("item", "seraphhorizons:cylinderborerfeed")];
 
     private static Item? ItemOf(ICoreServerAPI api, string code) =>
         api.World.GetItem(new AssetLocation(code)) is { IsMissing: false } i && i.Code != null ? i : null;
@@ -79,10 +79,13 @@ public static class CylinderBorerExport
             DrainPerCylinder = Dbl(borerOil, "DrainPerJob", 10),
             Tank = Dbl(borerOil, "Tank", GearChain.DefaultTank),
         };
-        foreach (var code in KeptCodes)
+        foreach (var (kind, code) in KeptCodes)
         {
-            if (ItemOf(api, code) is not { } item) return null;
-            data.Kept.Add(item);
+            CollectibleObject? part = kind == "block"
+                ? api.World.GetBlock(new AssetLocation(code)) is { IsMissing: false, Id: > 0, Code: not null } b ? b : null
+                : ItemOf(api, code);
+            if (part == null) return null;
+            data.Kept.Add((kind, part));
         }
         foreach (var (name, metal, turnsKey) in new[] { ("thin", "iron", "TurnsPerBlockIron"), ("thick", "steel", "TurnsPerBlockSteel") })
         {

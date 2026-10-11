@@ -48,10 +48,10 @@ public class CylinderBorerGameplayTests
         Assert.Equal(CylinderBorerFitVerdict.OutOfOrder, parts.Fit(CylinderBorerParts.BarCode));
         Assert.Equal(CylinderBorerFitVerdict.OutOfOrder, parts.Fit(CylinderBorerParts.HeadCode, 8, 8));
         Assert.Equal(CylinderBorerFitVerdict.NotAPart, parts.Fit("game:rod-iron"));
-        Assert.Equal(CylinderBorerFitVerdict.NotAPart, parts.Fit("game:metal-parts"));
+        Assert.Equal(CylinderBorerFitVerdict.NotAPart, parts.Fit(CylinderBorerParts.LegacyBushingsCode));
         Assert.Equal(CylinderBorerFitVerdict.NotAPart, parts.Fit(null));
-        Assert.Equal(CylinderBorerFitVerdict.Fits, parts.Fit(CylinderBorerParts.BushingsCode));
-        Assert.Equal(CylinderBorerFitVerdict.AlreadyFitted, parts.Fit(CylinderBorerParts.BushingsCode));
+        Assert.Equal(CylinderBorerFitVerdict.Fits, parts.Fit("metal-parts"));   // a code with no domain is the game's
+        Assert.Equal(CylinderBorerFitVerdict.AlreadyFitted, parts.Fit("game:metal-parts"));
         Assert.Equal(CylinderBorerFitVerdict.OutOfOrder, parts.Fit(CylinderBorerParts.FeedCode));
         Assert.True(parts.Has(CylinderBorerStage.Bushings));
         Assert.False(parts.Has(CylinderBorerStage.Feed));
@@ -159,8 +159,24 @@ public class CylinderBorerGameplayTests
         restored = CylinderBorerParts.Restore(parts.Snapshot(), 0, 8);
         Assert.False(restored.Has(CylinderBorerStage.CutterHead));
         Assert.True(restored.Has(CylinderBorerStage.Feed));
-        var wrong = new Dictionary<string, string> { ["bushings"] = "game:metal-parts" };
+        var wrong = new Dictionary<string, string> { ["bushings"] = "game:rod-iron" };
         Assert.False(CylinderBorerParts.Restore(wrong, 0, 0).Has(CylinderBorerStage.Bushings));
+    }
+
+    [Fact]
+    public void The_bushings_are_the_games_metal_parts_and_a_save_with_their_old_item_keeps_its_stages()
+    {
+        Assert.Equal("game:metal-parts", CylinderBorerParts.BushingsCode);
+        Assert.Equal([CylinderBorerStage.Bushings], CylinderBorerParts.StagesOf("game:metal-parts"));
+        Assert.Equal("game:metal-parts", new CylinderBorerParts().NextPart);
+        var old = new Dictionary<string, string>
+        {
+            ["bushings"] = CylinderBorerParts.LegacyBushingsCode, ["bar"] = CylinderBorerParts.BarCode, ["feed"] = CylinderBorerParts.FeedCode,
+        };
+        var restored = CylinderBorerParts.Restore(old, 0, 0);
+        Assert.Equal("game:metal-parts", restored.FittedIn(CylinderBorerStage.Bushings));
+        Assert.True(restored.Has(CylinderBorerStage.Feed));
+        Assert.Equal(new CylinderBorerDrop("game:metal-parts"), restored.Returns()[0]);
     }
 
     [Fact]
