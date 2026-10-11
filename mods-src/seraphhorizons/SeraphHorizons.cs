@@ -699,11 +699,12 @@ public class SeraphHorizonsConfig
     public bool WideDensityProspecting { get; set; } = true;
 
     /// <summary>Ore processing (epic #684, Ore/Processing/, README "Ore processing: items, crushing
-    /// and smelting"): poor and medium ore become raw ore (stack 4, does not smelt), rich and bountiful
-    /// ore chunks (stack 16, smelt at half); crushed, ground, concentrate, roasted concentrate, amalgam
-    /// and litharge items; crushing yields the ore's units in 5-unit crushed ore, and no grid recipe
-    /// or hammer turns ore into nuggets; every furnace takes concentrate. Server side (clients follow
-    /// the server's items).</summary>
+    /// and smelting"): every grade of ore is raw ore, 16 a stack at about a quarter of vanilla's metal
+    /// units (#847, #863), smelting at its grade's share; crushed, ground, roasted, concentrate,
+    /// roasted concentrate, amalgam and litharge items; crushing is one for one, and no grid recipe
+    /// or hammer turns ore into nuggets; every furnace takes concentrate. With ore cells' smaller
+    /// deposits, graded ore's veins are four times the volume. Server side (clients follow the
+    /// server's items).</summary>
     public bool OreProcessing { get; set; } = true;
 
     /// <summary>Spalling (#747, Ore/Processing/OreSpalling.cs, README "Ore processing: spalling"), part
