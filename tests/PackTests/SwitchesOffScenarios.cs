@@ -1233,9 +1233,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(Off("SmallerRockStacks"));
         Assert.Equal(0, RockStackSystem.Of(World.Api)!.Cut);
         Assert.Equal(0, RockStackSystem.Of(World.Api)!.ShapesCut);
+        Assert.False(StoneQuarryDrench.Patched);
         foreach (var code in new[]
                  {
-                     "game:rock-granite", "game:sand-granite", "game:soil-medium-none", "game:ore-medium-nativecopper-granite",
+                     "game:muddygravel", "game:rock-granite", "game:sand-granite", "game:soil-medium-none", "game:ore-medium-nativecopper-granite",
                      "game:cobblestoneslab-granite-north-free", "moreroads:ancientroad-basic-granite-free", "game:slantedroofing-blackclay-north-free",
                  })
         {

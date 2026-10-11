@@ -4489,16 +4489,16 @@ Both tiers (`Core/RockStackRules.cs`) are lists of codes, each block also of a r
 material and without a block entity; the game gives a block type that names no material stone, so
 the material only guards the lists.
 
-**To 16**, of stone, ore, soil, sand or gravel, 4,887 blocks in the pack:
+**To 16**, of stone, ore, soil, sand or gravel, 4,888 blocks in the pack:
 
 - **Rock**: raw and cracked rock, cobblestone (mossy and lichen), stone bricks (cracked, mossy,
   lichen and aged), polished rock (mossy and lichen), drystone, and ore-bearing rock
   (`game:ore-*`, 2,045 blocks: every ore, coal and mineral; rock is the same bulk with ore in it
   or not).
-- **Earth**: soil, forest floor, bony soil, sand (and wavy sand), gravel (rich, dirty and sludgy),
-  packed and dry packed dirt, the clay and peat deposits (`rawclay`, `peat`), and earth laid into
-  blocks: cob, rammed earth and mud brick, the game's and Material Needs' colours. The sand and
-  gravel layer blocks go with their family.
+- **Earth**: soil, forest floor, bony soil, sand (and wavy sand), gravel (rich, dirty, sludgy and
+  muddy), packed and dry packed dirt, the clay and peat deposits (`rawclay`, `peat`), and earth
+  laid into blocks: cob, rammed earth and mud brick, the game's and Material Needs' colours. The
+  sand and gravel layer blocks go with their family.
 
 **To 32**, the building shapes of stone, soil, sand, gravel or ceramic (the clay ones), 8,487
 blocks in the pack:
@@ -4516,12 +4516,19 @@ Not cut: support beams (32, which the rosser's schematic gate needs); every wood
 slabs and stairs, fences, MoreRoads' wood edges, wooden paths, roofing); cobblestone fans, quartz
 slabs, stairs and pillars, clay brick courses and ruins, copper shingles, Industrial Deco's iron
 roads (metal, 256) and VS Roofing's roofs (a block entity); the full blocks of fired clay (clay
-bricks, tiles, shingles: ceramic); peat bricks (fuel); muddy gravel; and every item: stones, clay,
-bricks and the ore items (which Ore processing sizes) keep theirs, so MoreRoads' temporal roads,
-which take 32 stones a slot, still craft. Muddy gravel stays at 64 because Stone Quarry's rubble
-storage makes a quarter of its stack at a time from a bucket of water: 16 a bucket now, 4 if it
-were cut. Nothing else in the pack takes more than 16 of one of these blocks in a slot;
-constructions add up the whole hotbar.
+bricks, tiles, shingles: ceramic); peat bricks (fuel); and every item: stones, clay, bricks and the
+ore items (which Ore processing sizes) keep theirs, so MoreRoads' temporal roads, which take 32
+stones a slot, still craft. Nothing else in the pack takes more than 16 of one of these blocks in
+a slot; constructions add up the whole hotbar.
+
+Stone Quarry (`stonequarryrepckfipil`, 3.6.3): its rubble storage, drenched with a bucket of water
+(`BERubbleStorage.TryDrench`), turns its gravel into muddy gravel a quarter of muddy gravel's
+stack at a time: 16 a bucket at 64, 4 once muddy gravel stacks to 16. It has no setting for it,
+so `StoneQuarryDrench.cs`, a Harmony transpiler on both sides (once per process), swaps the one
+stack size `TryDrench` reads for muddy gravel's stack before the cut, its trade stack (64), and a
+bucket makes 16 again. Stone Quarry is found by name; if the method is gone or no longer reads the
+stack size exactly once, it logs a warning and leaves it as it ships. With the switch off it is not
+patched.
 
 Trading judges a cut block by the stack it had before the cut, 64 for every block the cut touches,
 not by one slot (`RockStackSystem.TradeStack`): each cut block carries it in its attributes
@@ -4536,9 +4543,9 @@ follows it (`tools/item-values`). Orders keep sizing a block by its stack: at mo
 
 With the switch off, every block stacks as its mod ships it and nothing carries a trade stack. The
 switch that counts is the server's. `RockStackScenarios` checks the sizes (rock and earth at 16; a
-slab, a stair, a fence, a road and roofing at 32; wooden shapes, beams and items unchanged) and the
-packet, `TradingScenarios` a sale of a cut block across the slots, and `SwitchesOffScenarios` the
-switch off.
+slab, a stair, a fence, a road and roofing at 32; wooden shapes, beams and items unchanged), the
+packet and a rubble storage drenched into 16 muddy gravel, `TradingScenarios` a sale of a cut
+block across the slots, and `SwitchesOffScenarios` the switch off.
 
 ## Ore
 

@@ -3,6 +3,8 @@ using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod;
 using SeraphHorizons.Mod.Core;
 using Vintagestory.API.Common;
+using Vintagestory.API.MathTools;
+using Vintagestory.GameContent;
 using Vintagestory.Common;
 
 namespace SeraphHorizons.PackTests;
@@ -37,7 +39,7 @@ public partial class SharedWorldScenarios
         foreach (var code in new[]
                  {
                      "game:rock-granite", "game:cobblestone-granite", "game:stonebricks-granite", "game:ore-medium-nativecopper-granite",
-                     "game:sand-granite", "game:gravel-granite", "game:soil-medium-none", "game:rawclay-blue-none", "game:peat-none",
+                     "game:sand-granite", "game:gravel-granite", "game:muddygravel", "game:soil-medium-none", "game:rawclay-blue-none", "game:peat-none",
                  })
             AssertRockStack(code, RockStackRules.Cap);
         Assert.True(RockStackSystem.Of(World.Api)!.Cut > 1000, $"only {RockStackSystem.Of(World.Api)!.Cut} blocks cut");
@@ -56,12 +58,54 @@ public partial class SharedWorldScenarios
         Assert.True(RockStackSystem.Of(World.Api)!.ShapesCut > 1000, $"only {RockStackSystem.Of(World.Api)!.ShapesCut} shapes cut");
     }
 
+    /// <summary>Muddy gravel stacks to 16, and Stone Quarry's rubble storage still makes 16 of it
+    /// from a bucket of water (<see cref="StoneQuarryDrench"/>), not a quarter of 16. At (70, 12, -70).</summary>
+    [AtlasScenario]
+    public async Task A_bucket_of_water_on_rubble_storage_still_makes_16_muddy_gravel()
+    {
+        Assert.Equal(RockStackRules.Cap, RockStackBlock("game:muddygravel").MaxStackSize);
+        Assert.True(StoneQuarryDrench.Patched, "TryDrench is not patched");
+
+        var player = (await World.JoinPlayer("drencher")).Player;
+        player.WorldData.CurrentGameMode = EnumGameMode.Survival;
+        var pos = World.Spawn.AddCopy(70, 12, -70);
+        World.SetBlock("stonequarry:rubblestorage-north", pos);
+        await World.Ticks(2);
+        player.Entity.TeleportTo(pos.ToVec3d().Add(0.5, 0, 2.5));
+        var be = W.BlockAccessor.GetBlockEntity(pos) ?? throw new Xunit.Sdk.XunitException($"no rubble storage entity: {W.BlockAccessor.GetBlock(pos).Code} at {pos}");
+        var inventory = (InventoryBase)be.GetType().GetProperty("Inventory")!.GetValue(be)!;
+        var gravelSlot = inventory[1];
+        gravelSlot.Itemstack = new ItemStack(RockStackBlock("game:gravel-granite"), 40);
+
+        var bucket = (BlockLiquidContainerBase)RockStackBlock("game:woodbucket");
+        var hand = player.InventoryManager.ActiveHotbarSlot;
+        hand.Itemstack = new ItemStack(bucket);
+        bucket.SetContent(hand.Itemstack, new ItemStack(W.GetItem(new AssetLocation("game:waterportion")), 1000));
+        try
+        {
+            var sel = new BlockSelection { Position = pos, Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 1, 0.5) };
+            Assert.True((bool)StoneQuarryDrench.Target!.Invoke(be, [W, sel, player])!);
+            Assert.Equal(40 - 16, gravelSlot.StackSize);
+            await World.Ticks(2);
+            int made = W.GetEntitiesAround(pos.ToVec3d().Add(0.5, 0.5, 0.5), 4, 4)
+                .OfType<EntityItem>().Where(e => e.Itemstack?.Collectible.Code.ToString() == "game:muddygravel")
+                .Sum(e => e.Itemstack.StackSize);
+            Assert.Equal(16, made);
+        }
+        finally
+        {
+            hand.Itemstack = null;
+            foreach (var e in W.GetEntitiesAround(pos.ToVec3d(), 6, 6).OfType<EntityItem>()) e.Die(EnumDespawnReason.Removed);
+            World.SetBlock("game:air", pos);
+        }
+    }
+
     [AtlasScenario]
     public void Support_beams_wooden_shapes_other_blocks_and_rock_items_keep_their_stacks()
     {
         foreach (var (code, stack) in new[]
                  {
-                     ("game:supportbeam-oak", 32), ("game:torch-basic-lit-up", 64), ("game:muddygravel", 64),
+                     ("game:supportbeam-oak", 32), ("game:torch-basic-lit-up", 64),
                      ("game:claybricks-good-fire", 64), ("game:plankslab-oak-north-free", 64), ("game:plankstairs-oak-up-north-free", 64),
                      ("game:woodenfence-oak-empty-free", 64), ("game:slantedroofing-oak-north-free", 64),
                      ("game:slantedroofing-thatch-north-free", 64), ("moreroads:edgewood-oak-straight-north-free", 64),

@@ -32,14 +32,14 @@ public static class RockStackRules
     /// mossy, lichen and aged), polished rock (mossy and lichen), drystone, and ore-bearing rock
     /// (<c>game:ore-*</c>: every ore, coal and mineral block; the rock is the same bulk with ore in
     /// it or not).</item>
-    /// <item>Earth: soil, forest floor, bony soil, sand, gravel (rich, dirty and sludgy too), packed
-    /// dirt, clay and peat deposits, and earth laid into blocks: cob, rammed earth and mud brick (the
-    /// game's and Material Needs' colours).</item>
+    /// <item>Earth: soil, forest floor, bony soil, sand, gravel (rich, dirty, sludgy and muddy too),
+    /// packed dirt, clay and peat deposits, and earth laid into blocks: cob, rammed earth and mud
+    /// brick (the game's and Material Needs' colours). Stone Quarry's bucket still makes 16 muddy
+    /// gravel (<c>StoneQuarryDrench</c>).</item>
     /// </list>
     /// Not here: slabs, stairs, fences, paths, roads and roofing (building shapes: <see cref="Shapes"/>);
-    /// fired clay blocks (bricks, tiles and shingles are ceramic); peat bricks (fuel); muddy gravel,
-    /// which Stone Quarry's rubble storage makes a quarter of its stack at a time from a bucket of
-    /// water (16 a bucket at 64; cut, it would make 4); and every item (stones, clay, bricks).</summary>
+    /// fired clay blocks (bricks, tiles and shingles are ceramic); peat bricks (fuel); and every item
+    /// (stones, clay, bricks).</summary>
     public static readonly IReadOnlyList<string> Blocks =
     [
         "game:rock-*",
@@ -66,6 +66,7 @@ public static class RockStackRules
         "game:richgravel-*",
         "game:dirtygravel-*",
         "game:sludgygravel",
+        "game:muddygravel",
         "game:packeddirt*",
         "game:drypackeddirt",
         "game:rawclay-*",

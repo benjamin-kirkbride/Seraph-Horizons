@@ -46,6 +46,8 @@ public class SeraphHorizonsSystem : ModSystem
     // Its own id, patched once per process, as the barrel rack's: the client checks the hotbar too.
     private Harmony? _gearConsumersHarmony;
     private Harmony? _gearPartsHarmony;
+    // Its own id, patched once per process: both sides run Stone Quarry's drench.
+    private Harmony? _stoneQuarryDrenchHarmony;
     // Its own id, patched once per process, as the heating rack's: both sides ask Yang's seat check.
     private Harmony? _locomotiveStayOnHarmony;
     // Its own id, server side only.
@@ -138,6 +140,9 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(GearPartsRemoved.DisablePatches);
         else if (api.Side == EnumAppSide.Server)
             GearPartsRemoved.Patch(_gearPartsHarmony = new Harmony(GearPartsRemoved.HarmonyId), api.Logger);
+        // Rock and earth stack to 16 (RockStackSystem): Stone Quarry's bucket keeps making 16 muddy gravel.
+        if (Config(api).SmallerRockStacks && StoneQuarryDrench.Applies(api))
+            StoneQuarryDrench.Patch(_stoneQuarryDrenchHarmony = new Harmony(StoneQuarryDrench.HarmonyId), api.Logger);
         _fellingWear = Config(api).FlatFellingWear && FellingWear.Applies(api) && FellingWear.Bind(api.Logger);
         if (Config(api).LocomotiveRidersStayOn && LocomotiveSeats.Applies(api) && LocomotiveSeats.BindStayOn(api.Logger))
             LocomotiveSeats.PatchStayOn(_locomotiveStayOnHarmony = new Harmony(LocomotiveSeats.StayOnHarmonyId));
@@ -327,6 +332,8 @@ public class SeraphHorizonsSystem : ModSystem
         _heatingRackPlacementHarmony = null;
         _gearConsumersHarmony?.UnpatchAll(GearConsumers.HarmonyId);
         _gearConsumersHarmony = null;
+        _stoneQuarryDrenchHarmony?.UnpatchAll(StoneQuarryDrench.HarmonyId);
+        _stoneQuarryDrenchHarmony = null;
         if (_gearPartsHarmony != null)
         {
             _gearPartsHarmony.UnpatchAll(GearPartsRemoved.HarmonyId);

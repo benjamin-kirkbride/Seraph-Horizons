@@ -24,6 +24,7 @@ public class RockStackRulesTests
     [InlineData("game:richgravel-granite", "Gravel")]
     [InlineData("game:dirtygravel-dry-cracked", "Gravel")]
     [InlineData("game:sludgygravel", "Soil")]
+    [InlineData("game:muddygravel", "Soil")]
     [InlineData("game:packeddirt", "Soil")]
     [InlineData("game:packeddirt-trampledearth", "Soil")]
     [InlineData("game:drypackeddirt", "Soil")]
@@ -75,7 +76,7 @@ public class RockStackRulesTests
         Assert.Equal(RockStackRules.ShapeCap, RockStackRules.CapOf(code, material, hasBlockEntity: false));
     }
 
-    // Fired clay blocks, fuel, muddy gravel, wooden, thatch and metal shapes, machines and decor
+    // Fired clay blocks, fuel, wooden, thatch and metal shapes, machines and decor
     // keep their stacks.
     [Theory]
     [InlineData("game:slantedroofing-oak-north-free", "Wood")]
@@ -90,7 +91,6 @@ public class RockStackRulesTests
     [InlineData("game:shingleblock-copper", "Ceramic")]
     [InlineData("game:claybricks-good-fire", "Ceramic")]
     [InlineData("game:peatbrick", "Soil")]
-    [InlineData("game:muddygravel", "Soil")]
     [InlineData("game:supportbeam-oak", "Wood")]
     [InlineData("game:torch-basic-lit-up", "Wood")]
     [InlineData("game:chest-east", "Wood")]
