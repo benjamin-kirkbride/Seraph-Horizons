@@ -5,6 +5,11 @@
 	code: "oremap",
 	class: "seraphhorizons.OreMap",
 	maxstacksize: 1,
+	attributes: {
+		handbook: {
+			extraSections: [{ title: "seraphhorizons:oremaps-section-title", text: "seraphhorizons:oremaps-section-text" }]
+		}
+	},
 	shape: { base: "game:item/lore/map-treasure" },
 	textures: {
 		"map-blank": { base: "game:item/lore/map-blank" },

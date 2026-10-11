@@ -89,7 +89,6 @@ public sealed class MapTradeHooks : ItemOreMap.IHooks
             case MapOfferAttrs.OreMap:
                 dsc.AppendLine(L("oremap-info-precision-" + a.GetInt(MapOfferAttrs.Precision, MapPrecision.Rough)));
                 ItemOreMap.AppendDeposit(Lang.CurrentLocale, a, dsc);
-                dsc.AppendLine(L("trading-maps-offer-ore-info"));
                 break;
             case MapOfferAttrs.GravelMap:
                 ItemOreMap.AppendDeposit(Lang.CurrentLocale, a, dsc);
