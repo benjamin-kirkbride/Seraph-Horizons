@@ -223,7 +223,12 @@ public class EntityLaborEidolon : EntityAgent
             return;
         // From the creative spawner (ItemCreature with setGuardedEntityAttribute): the player who placed it.
         if (OwnerUid == null && WatchedAttributes.GetString("guardedPlayerUid") is { Length: > 0 } uid)
+        {
             SetOwner(uid, Api.World.PlayerByUid(uid)?.PlayerName);
+            // and fitted at random: any allowed material in every layer
+            if (!WatchedAttributes.HasAttribute(EidolonBuild.AttributeKey))
+                Build = EidolonBuild.Random(Api.World.Rand);
+        }
         WatchedAttributes.RemoveAttribute("guardedPlayerUid");
         WatchedAttributes.RemoveAttribute("guardedEntityId");
     }
@@ -265,7 +270,6 @@ public class EntityLaborEidolon : EntityAgent
         Pose.Rise(Api.World.ElapsedMilliseconds / 1000.0 + ActivateSeconds);
         AnimManager.StopAnimation("hung");
         AnimManager.StartAnimation("activate");
-        World.PlaySoundAt(new AssetLocation("game:sounds/creature/eidolon/awaken"), this, null, true, 32);
     }
 
     public override void OnGameTick(float dt)
@@ -339,7 +343,6 @@ public class EntityLaborEidolon : EntityAgent
                 AnimManager.StartAnimation("standup");
                 AnimManager.StopAnimation("slump");
                 WatchedAttributes.SetBool(SlumpedKey, false);
-                World.PlaySoundAt(new AssetLocation("game:sounds/creature/eidolon/awake"), this, null, true, 32);
                 break;
         }
         bool working = CanWork;

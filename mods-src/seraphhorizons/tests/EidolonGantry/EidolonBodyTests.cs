@@ -254,6 +254,27 @@ public class EidolonBodyTests
         Assert.Equal(EidolonBuild.Of("pine", EidolonFittings.Steel, EidolonFittings.Steel, "leather-plain", EidolonFittings.Steel), body.Build);
     }
 
+    [Fact]
+    public void The_creative_shortcut_with_a_random_source_fits_any_allowed_material()
+    {
+        var seen = new HashSet<string>();
+        for (int seed = 0; seed < 40; seed++)
+        {
+            var body = new BodyParts();
+            var rng = new Random(seed);
+            while (body.FitNextStage(rng) != null) { }
+            Assert.True(body.Complete);
+            foreach (var layer in EidolonFittings.Layers)
+            {
+                Assert.True(EidolonFittings.Allows(layer, body.Build[layer]!), $"{layer} {body.Build[layer]}");
+                seen.Add($"{layer}:{body.Build[layer]}");
+            }
+        }
+        // it does draw: more than one material in every layer over the seeds
+        foreach (var layer in EidolonFittings.Layers)
+            Assert.True(seen.Count(s => s.StartsWith(layer + ":")) > 1, layer.ToString());
+    }
+
     // ---- Old builds ----
 
     /// <summary>The limb-by-limb bill a body was built to before fittings (#672), all steel.</summary>
