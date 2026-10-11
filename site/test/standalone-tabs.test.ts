@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import oreLine, { CFG, CHAINS, CLASSES, concentration, OPEN_QUESTIONS, PARTED, TIERS, tierConcentrate } from "../scripts/standalone/ore-line.ts";
-import oreProposal, { bestConcentrate, choices, decision, ingotsPerSlot, OPEN_QUESTIONS as PROPOSAL_QUESTIONS, PROPOSED, proposedSmelt, routes, STACK, winner } from "../scripts/standalone/ore-proposal.ts";
+import oreProposal, { bestConcentrate, choices, decision, homeSmelt, ingotsPerSlot, OPEN_QUESTIONS as PROPOSAL_QUESTIONS, routes, SETTLED, settledSmelt, STACK, winner } from "../scripts/standalone/ore-proposal.ts";
 import { BATCH, gaitSpeed, GAITS, handcarTopSpeed, haulHours, haulSlots, NOTES, PLAYER, PLAYER_SLOTS, RAILS, railCost, steamTopSpeed, steamTopSpeedUnscaled, transports, trips, YANG, YANG_SPEED_SCALE } from "../scripts/standalone/ore-transport.ts";
 import { tabForHash } from "../scripts/standalone/tabs-hash.ts";
 import { expandPath, groupBy, parseSpec, slugify } from "../scripts/standalone/tabs-spec.ts";
@@ -121,79 +121,107 @@ describe("the ore review's processing line", () => {
 });
 
 describe("the ore review's smelt-by-grade proposal", () => {
-  it("smelts rock forms by grade and concentrate whole, sulfide concentrate still not at all", () => {
-    expect(proposedSmelt("raw", "poor")).toBe(0.1);
-    expect(proposedSmelt("crushed", "medium")).toBe(0.3);
-    expect(proposedSmelt("chunk", "rich")).toBe(0.6);
-    expect(proposedSmelt("ground", "bountiful")).toBe(0.75);
-    expect(proposedSmelt("concentrate", "poor")).toBe(1);
-    expect(proposedSmelt("concentrate", "rich", PROPOSED, true)).toBe(0);
-    expect(proposedSmelt("roastedconcentrate", "rich", PROPOSED, true)).toBe(1);
-    expect(proposedSmelt("chunk", "rich", { ...PROPOSED, sulfidePenalty: 0.8 }, true)).toBeCloseTo(0.48);
+  it("smelts rock forms by grade and concentrate whole; sulfide rock only roasted, sulfide concentrate only roasted", () => {
+    expect(SETTLED.byGrade).toEqual({ poor: 0.1, medium: 0.25, rich: 0.4, bountiful: 0.55 });
+    expect(settledSmelt("raw", "poor")).toBe(0.1);
+    expect(settledSmelt("crushed", "medium")).toBe(0.25);
+    expect(settledSmelt("ground", "rich")).toBe(0.4);
+    expect(settledSmelt("raw", "bountiful")).toBe(0.55);
+    expect(settledSmelt("concentrate", "poor")).toBe(1);
+    // Sulfides: rock 0 unroasted, roasted rock the grade's share × the firepit; concentrate 0 until roasted.
+    expect(settledSmelt("raw", "rich", SETTLED, true)).toBe(0);
+    expect(settledSmelt("crushed", "rich", SETTLED, true)).toBe(0);
+    expect(settledSmelt("roastedrock", "rich", SETTLED, true)).toBeCloseTo(0.34);
+    expect(settledSmelt("roastedrock", "bountiful", SETTLED, true)).toBeCloseTo(0.4675);
+    expect(homeSmelt("medium", SETTLED, true)).toBeCloseTo(0.2125);
+    expect(settledSmelt("concentrate", "rich", SETTLED, true)).toBe(0);
+    expect(settledSmelt("roastedconcentrate", "rich", SETTLED, true)).toBe(1);
   });
 
-  it("flips the three escape hatches, and finds rich and bountiful by hand still carried home", () => {
+  it("flips the three escape hatches, and finds bountiful by hand a dead heat with the rocker", () => {
     // Poor by hand: crushed 50 % beat the rocker's 22 %; now the rocker wins (22 % against 10 %).
-    expect(winner(choices("hand", "poor", null)).key).toBe("crushed");
-    expect(winner(choices("hand", "poor", PROPOSED))).toMatchObject({ key: "conc", device: "rocker" });
+    expect(winner(choices("hand", "poor", null)).key).toBe("treated");
+    expect(winner(choices("hand", "poor", SETTLED))).toMatchObject({ key: "conc", device: "rocker" });
     expect(decision("hand", "poor")).toMatchObject({ verdict: "mine" });
     expect(decision("hand", "poor").margin).toBeCloseTo(12);
-    // Medium by hand: rocker 55 % against 30 %, 25 points.
-    expect(decision("hand", "medium").margin).toBeCloseTo(25);
-    // Rich and bountiful by hand: the chunk (60 %, 75 %) beats the rocker (55 %).
-    expect(decision("hand", "rich")).toMatchObject({ verdict: "home" });
-    expect(decision("hand", "rich").margin).toBeCloseTo(-5);
-    expect(decision("hand", "bountiful").margin).toBeCloseTo(-20);
+    // Medium by hand: rocker 55 % against 25 %, 30 points; rich 15.
+    expect(decision("hand", "medium").margin).toBeCloseTo(30);
+    expect(decision("hand", "rich")).toMatchObject({ verdict: "mine" });
+    expect(decision("hand", "rich").margin).toBeCloseTo(15);
+    // Bountiful by hand: 55 % as mined against the rocker's 55 %, a tie; at water the jig wins by 25.
+    expect(decision("hand", "bountiful")).toMatchObject({ verdict: "tie" });
+    expect(decision("hand", "bountiful").margin).toBeCloseTo(0);
     expect(decision("water", "bountiful")).toMatchObject({ verdict: "mine" });
-    expect(decision("water", "bountiful").margin).toBeCloseTo(5);
-    // Sulfides: the hand line (rocker × firepit 46.75 %) now beats medium (30 %) but not rich (60 %);
-    // a bountiful sulfide chunk (75 %) beats even the water line (jig × stall 73.6 %).
+    expect(decision("water", "bountiful").margin).toBeCloseTo(25);
+    expect(decision("mill", "bountiful").margin).toBeCloseTo(44);
+    // Crushing is 1:1: the crushed figure is the grade's share, the same as mined.
+    expect(choices("hand", "rich", SETTLED).map((c) => c.value).slice(0, 2)).toEqual([0.4, 0.4]);
+    // Sulfides: the hand line (rocker × firepit 46.75 %) beats medium roasted rock (21.25 %) by 25.5;
+    // bountiful roasted rock (46.75 %) is the same figure; the water line (jig × stall 73.6 %) beats it by 26.85.
     expect(bestConcentrate("hand", "medium", { sulfide: true }).value).toBeCloseTo(0.4675);
-    expect(decision("hand", "medium", PROPOSED, { sulfide: true })).toMatchObject({ verdict: "mine" });
-    expect(decision("hand", "rich", PROPOSED, { sulfide: true })).toMatchObject({ verdict: "home" });
-    expect(decision("water", "bountiful", PROPOSED, { sulfide: true }).margin).toBeCloseTo(-1.4);
-    // Poor at a tier that grinds: the figure without the grinder is carried along.
+    expect(decision("hand", "medium", SETTLED, { sulfide: true })).toMatchObject({ verdict: "mine" });
+    expect(decision("hand", "medium", SETTLED, { sulfide: true }).margin).toBeCloseTo(25.5);
+    expect(decision("hand", "bountiful", SETTLED, { sulfide: true })).toMatchObject({ verdict: "tie" });
+    expect(decision("water", "bountiful", SETTLED, { sulfide: true }).margin).toBeCloseTo(26.85);
+    // Poor at a tier that grinds: the figure without the grinder is carried along; by hand there is no grinder.
     expect(bestConcentrate("water", "poor")).toEqual({ device: "jig L2", value: 0.8, unground: 0.8 * 0.4 });
+    expect(bestConcentrate("hand", "poor")).toEqual({ device: "rocker", value: 0.55 * 0.4 });
   });
 
-  it("gives the slot densities and the trips home", () => {
-    expect(STACK).toMatchObject({ raw: 4, chunk: 16, crushed: 16, ground: 16, concentrate: 128 });
+  it("gives the slot densities and the trips home: a slot of crushed or ground equals a slot of raw", () => {
+    expect(STACK).toEqual({ raw: 4, crushed: 4, ground: 4, roastedrock: 4, concentrate: 128, roastedconcentrate: 128, amalgam: 128, sponge: 128 });
     // A slot of raw poor ore: 4 × 15 × 10 % = 6 units; a slot of concentrate: 128 × 5 = 640 units.
     expect(ingotsPerSlot("raw", "poor", null)).toBe(0);
-    expect(ingotsPerSlot("raw", "poor", PROPOSED)).toBeCloseTo(0.06);
+    expect(ingotsPerSlot("raw", "poor", SETTLED)).toBeCloseTo(0.06);
+    expect(ingotsPerSlot("raw", "medium", SETTLED)).toBeCloseTo(0.2);
+    expect(ingotsPerSlot("raw", "rich", SETTLED)).toBeCloseTo(0.4);
+    expect(ingotsPerSlot("raw", "bountiful", SETTLED)).toBeCloseTo(0.77);
+    for (const g of ["poor", "medium", "rich", "bountiful"] as const) {
+      expect(ingotsPerSlot("crushed", g, SETTLED)).toBeCloseTo(ingotsPerSlot("raw", g, SETTLED));
+      expect(ingotsPerSlot("ground", g, SETTLED)).toBeCloseTo(ingotsPerSlot("raw", g, SETTLED));
+    }
+    expect(ingotsPerSlot("roastedrock", "bountiful", SETTLED, true)).toBeCloseTo(0.77 * 0.85);
+    // Today: a bountiful chunk slot 16 × 35 × 50 % = 2.8; crushed 16 × 5 × 50 % = 0.4 at any grade.
     expect(ingotsPerSlot("chunk", "bountiful", null)).toBeCloseTo(2.8);
-    expect(ingotsPerSlot("chunk", "bountiful", PROPOSED)).toBeCloseTo(4.2);
-    expect(ingotsPerSlot("crushed", "medium", PROPOSED)).toBeCloseTo(0.24);
-    expect(ingotsPerSlot("concentrate", "poor", PROPOSED)).toBeCloseTo(6.4);
-    // 1000 units from poor ore: as mined 10 000 units of rock = 667 raw ore = 167 slots; concentrate 1.6 slots whatever the tier.
-    const r = routes("poor", PROPOSED);
+    expect(ingotsPerSlot("chunk", "bountiful", SETTLED)).toBe(0);
+    expect(ingotsPerSlot("crushed", "medium", null)).toBeCloseTo(0.4);
+    expect(ingotsPerSlot("concentrate", "poor", SETTLED)).toBeCloseTo(6.4);
+    // 1000 units from poor ore: as mined 10 000 units of rock = 667 raw ore = 167 slots, crushed the same; concentrate 1.6 slots whatever the tier.
+    const r = routes("poor", SETTLED);
     expect(r[0]).toMatchObject({ form: "raw", recovery: 0.1 });
     expect(r[0]!.rock).toBeCloseTo(10000);
     expect(r[0]!.slots).toBeCloseTo(10000 / 15 / 4);
-    expect(r[1]!.slots).toBeCloseTo(10000 / 5 / 16);
+    expect(r[1]!.slots).toBeCloseTo(r[0]!.slots);
     expect(r[2]!.slots).toBeCloseTo(1.5625);
     expect(r[4]!.slots).toBeCloseTo(1.5625);
     expect(r[4]!.rock).toBeCloseTo(1000 / 0.99);
     expect(routes("poor", null)[0]!.slots).toBe(Infinity);
+    expect(routes("rich", null)[0]).toMatchObject({ form: "chunk", recovery: 0.5 });
+    expect(routes("rich", SETTLED)[0]).toMatchObject({ form: "raw", recovery: 0.4 });
   });
 
   it("renders every section, the key figures and no script", () => {
     const html = oreProposal();
-    for (const id of ["compare", "decision", "logistics", "transport", "problems", "special", "sensitivity", "open"]) expect(html).toContain(`id="op-${id}"`);
-    expect(html).toContain("rocker 55 % beats smelting as is (30 %) by <b>25 points</b>");
+    for (const id of ["compare", "decision", "logistics", "transport", "problems", "special", "nudge", "open"]) expect(html).toContain(`id="op-${id}"`);
+    expect(html).toContain("rocker 55 % beats smelting as is (25 %) by <b>30 points</b>");
+    expect(html).toContain("a dead heat");
     expect(html).toContain("6.4</b> ingots");
     expect(html).toContain("flips");
+    expect(html).not.toContain("sulfidePenalty");
+    expect(html).not.toContain("sulfide penalty");
+    expect(html).not.toContain("ChunkStack 16");
     for (const q of PROPOSAL_QUESTIONS) expect(html).toContain(q.slice(0, 20).replace(/&/g, "&amp;"));
     expect(html).not.toMatch(/<script/i);
   });
 });
 
 describe("the proposal's transport audit", () => {
-  it("sizes the loads: 10 ingots of medium raw ore is 41.7 slots, of concentrate 1.56 at any grade", () => {
+  it("sizes the loads: 10 ingots of medium rock is 50 slots, of concentrate 1.56 at any grade", () => {
     expect(PLAYER_SLOTS).toBe(66);
-    expect(haulSlots("raw", "medium")).toBeCloseTo(1000 / 0.3 / 20 / 4);
+    expect(haulSlots("raw", "medium")).toBeCloseTo(1000 / 0.25 / 20 / 4);
     expect(haulSlots("raw", "poor")).toBeCloseTo(1000 / 0.1 / 15 / 4);
-    expect(haulSlots("chunk", "rich")).toBeCloseTo(1000 / 0.6 / 25 / 16);
+    expect(haulSlots("raw", "rich")).toBeCloseTo(1000 / 0.4 / 25 / 4);
+    expect(haulSlots("raw", "bountiful")).toBeCloseTo(1000 / 0.55 / 35 / 4);
     expect(haulSlots("conc", "poor")).toBeCloseTo(1.5625);
     expect(haulSlots("conc", "bountiful")).toBeCloseTo(1.5625);
     expect(trips(41.7, 66)).toBe(1);
@@ -244,18 +272,20 @@ describe("the proposal's transport audit", () => {
     expect(railCost(wagonMetal, 1000)).toEqual({ crafts: 8, binder: 32, planks: 64 });
   });
 
-  it("finds walking a batch of medium ore 7 trips and the advanced train 1, and at half speed only the advanced train breaking the lever", () => {
+  it("finds walking a batch of medium rock 8 trips and the advanced train 1, and at half speed only the advanced train breaking the lever", () => {
     const ts = transports();
     const foot = ts.find((t) => t.id === "foot")!;
     const adv = ts.find((t) => t.id === "sgadvanced")!;
-    expect(trips(haulSlots("raw", "medium", BATCH), foot.slots.raw)).toBe(7);
+    // A medium batch is 500 slots; the advanced train's 514 just takes it in one.
+    expect(haulSlots("raw", "medium", BATCH)).toBeCloseTo(500);
+    expect(trips(haulSlots("raw", "medium", BATCH), foot.slots.raw)).toBe(8);
     expect(trips(haulSlots("raw", "poor", BATCH), foot.slots.raw)).toBe(26);
     expect(trips(haulSlots("raw", "medium", BATCH), adv.slots.raw)).toBe(1);
-    // 7 round trips of 4 km at a walk.
-    expect(haulHours(foot, "raw", "medium", 2000, BATCH)).toBeCloseTo((7 * 4000) / PLAYER.sprint / 3600);
-    // The wide cart: 3 trips of the batch at its sprint; the elk 5 at its gallop.
-    expect(haulHours(ts.find((t) => t.id === "cartwide")!, "raw", "medium", 2000, BATCH)).toBeCloseTo((3 * 4000) / gaitSpeed(0.04) / 3600);
-    expect(haulHours(ts.find((t) => t.id === "elk")!, "raw", "medium", 2000, BATCH)).toBeCloseTo((5 * 4000) / gaitSpeed(0.08) / 3600);
+    // 8 round trips of 4 km at a sprint.
+    expect(haulHours(foot, "raw", "medium", 2000, BATCH)).toBeCloseTo((8 * 4000) / PLAYER.sprint / 3600);
+    // The wide cart: 4 trips of the batch at its sprint; the elk 6 at its gallop.
+    expect(haulHours(ts.find((t) => t.id === "cartwide")!, "raw", "medium", 2000, BATCH)).toBeCloseTo((4 * 4000) / gaitSpeed(0.04) / 3600);
+    expect(haulHours(ts.find((t) => t.id === "elk")!, "raw", "medium", 2000, BATCH)).toBeCloseTo((6 * 4000) / gaitSpeed(0.08) / 3600);
     expect(ts.filter((t) => t.verdict === "breaks").map((t) => t.id)).toEqual(["sgadvanced"]);
     const html = oreProposal();
     expect(html).toContain("4. Transport: can rock be hauled home?");
