@@ -15,7 +15,7 @@
 	"oreRadius": 5000,
 	"gravelRadius": 2000,
 	"maxOreOffers": 4,
-	// Share of the ingots' worth by precision 1 (within 400 m), 2 (within 150 m), 3 (exact).
+	// Share of the ingots' worth by precision 1 (rough, within 150 m), 2 (fair, 50 m), 3 (fine, 15 m).
 	"share": [0.03, 0.06, 0.10],
 	// Times the price, by metal (1 when not listed): the metals hydrothermal districts hide.
 	"scarcity": {"gold": 3, "silver": 3, "nickel": 3, "titanium": 3, "chromium": 3, "platinum": 3},

@@ -54,7 +54,7 @@ public class ItemTraderLead : Item, ITradeableCollectible
         var a = stack.Attributes;
         int y = a.GetInt(MapOfferAttrs.Y);
         var pos = new Vec3d(a.GetInt(MapOfferAttrs.X) + 0.5, y > 0 ? y + 0.5 : api.World.SeaLevel, a.GetInt(MapOfferAttrs.Z) + 0.5);
-        string title = MapMarksSystem.Title(lang, Title(lang, stack), MapMarks.LeadPrecision, lead: true);
+        string title = MapMarksSystem.Title(lang, Title(lang, stack), lead: true);
         var outcome = MapMarksSystem.Of(api) is { } marks && MapMarksSystem.TargetOf(stack) is { } target
             ? marks.Mark(player, target, pos, title, "trader", MapMarksSystem.TraderColor)
             : MapMarksSystem.Outcome.NoMap;

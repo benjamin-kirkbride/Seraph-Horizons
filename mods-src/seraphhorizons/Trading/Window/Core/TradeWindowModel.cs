@@ -290,13 +290,16 @@ public static class TradeWindowModel
         double distance, int precision)
     {
         var size = sizeClass is null ? new Text("trading-window-map-unsurveyed") : new Text("ore-size-" + sizeClass);
-        if (ores.Count == 0) return new("trading-window-map-ore", new Text("oremap-metal-" + metal), size, Distance(distance), precision);
+        if (ores.Count == 0) return new("trading-window-map-ore", new Text("oremap-metal-" + metal), size, Distance(distance), MapTierName(precision), MapPrecision.ReachOf(precision));
         var details = new List<object> { size };
         if (GradeText(grades) is { } g) details.Add(g);
         if (rockName != null) details.Add(new Text("trading-window-map-ore-host", rockName));
         return new("trading-window-map-ore-named", ListText(ores.Select(o => (object)new Text(OreNames.LangKey(o))).ToList()),
-            details.Aggregate((a, b) => new Text("ore-list-comma", a, b)), Distance(distance), precision);
+            details.Aggregate((a, b) => new Text("ore-list-comma", a, b)), Distance(distance), MapTierName(precision), MapPrecision.ReachOf(precision));
     }
+
+    /// <summary>An ore map tier's name: rough, fair or fine (1–3).</summary>
+    public static Text MapTierName(int precision) => new("oremap-tier-" + Math.Clamp(precision, MapPrecision.Rough, MapPrecision.Fine));
 
     /// <summary>A gravel map offer (#692): the field's rock (its name, as the game side reads it), the
     /// metals it pans and its distance; without a rock (shelved before), the distance alone.</summary>
@@ -362,7 +365,7 @@ public static class TradeWindowModel
                 : new Text("trading-window-fact-deliveries", F(DeliveryPlanner.Reach(u.DeliveryScale) / 1000)));
         if (sw.Maps)
         {
-            facts.Add(new Text("trading-window-fact-maps", t.MapPrecision));
+            facts.Add(new Text("trading-window-fact-maps", MapTierName(t.MapPrecision), MapPrecision.ReachOf(t.MapPrecision)));
             // Reach in rings of grid cells, said in km (MapDistance.ReachKm), never as rings.
             int km = MapDistance.ReachKm(t.LeadReach);
             facts.Add(t.LeadMaps <= 0 ? new Text("trading-window-fact-leads-stranger", km)
