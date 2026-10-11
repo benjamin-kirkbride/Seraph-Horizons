@@ -1697,7 +1697,7 @@ number, and Pipes and Power Expanded's anvil gears go, so no hand-forged shortcu
 
 The pack's own machines pay the same way, in their own recipes rather than a patch (so whatever this
 switch says): the draw bench frame 2, for the gearing it carries ("Draw bench"), the cylinder borer
-frame 2, its pinion and great wheel ("Cylinder borer"), and the gear cutter frame 3 ("Gear cutter"). The first stainless gears come from reclamation, so neither waits on the cutter.
+frame 2, for its pinion and drive ("Cylinder borer"), and the gear cutter frame 3 ("Gear cutter"). The first stainless gears come from reclamation, so no frame waits on the cutter. The cylinder borer's boring bar does: its great wheel is a large stainless gear, which is only cut new.
 
 ppex and smex give each machine two recipes, one taking the rusty gear and one ppex's gears
 (`ppex:gear-*`); the first takes the stainless gear and the second is switched off. ppex's anvil gears
@@ -2324,7 +2324,8 @@ their line of sight, two high, a ghost in each of the rig's other cells (`cylind
 power ghost (`cylinderborer-ghostpower-{side}`) at the far end at ground level, which takes the axle in
 line with the borer (native south). The frame is a grid recipe: two oak logs (placed, upright) and two oak
 planks, two metal plates and two rods of iron, meteoric iron or steel, 12 nails and strips of the same, two
-stainless gears (the pinion and the great wheel, #473) and a hammer.
+stainless gears (the entry shaft's pinion and its drive, #473; the great wheel comes with the bar) and a
+hammer.
 
 **Stages.** Fitted by right-click on the frame or any ghost with the item, one at a time, in this order
 only; anything of a later stage is refused with a message naming the next:
@@ -2332,7 +2333,7 @@ only; anything of a later stage is refused with a message naming the next:
 | # | Stage (`requires`) | Item | Made |
 |---|---|---|---|
 | 1 | `bushings` | `seraphhorizons:cylinderborerbushings`, the pair the bar turns in | Grid: metal parts (`game:metal-parts`); drawn in cupronickel, as the gear cutter draws metal parts |
-| 2 | `bar` | `seraphhorizons:cylinderborerbar`, the boring bar with its feather, collars and great wheel | Grid: three rods of iron, meteoric iron or steel in a column, and metal parts |
+| 2 | `bar` | `seraphhorizons:cylinderborerbar`, the boring bar with its feather, collars and great wheel | Grid: three rods of iron, meteoric iron or steel in a column, metal parts, and a large stainless gear (`seraphhorizons:largegear-stainless`, from the gear cutter) beside the bottom rod for the great wheel (`R_,RM,RG`) |
 | 3 | `feed` | `seraphhorizons:cylinderborerfeed`: the crosshead, control rod, drum, ropes and weight | Grid: two oak planks, a rod and a plate of iron, meteoric iron or steel, two ropes |
 | 4 | `cutterhead` | `seraphhorizons:cylinderborerhead-steel` (8 durability), the wearing part | Smithing, one steel ingot (26 voxels), steel only |
 
@@ -2356,7 +2357,7 @@ break the mold. The mold is coded `cylindermold`, not `toolmold` as the gear bla
 registry (which reads a type file's code) gives it to this switch; the game's mold code wants only the
 `materialtype` variant and the attributes.
 
-**Work.** A cast iron or steel cylinder (`seraphhorizons:cylinderblank-iron`, `-steel`) goes in the cradle
+**Work.** A rough cast iron or steel cylinder (`seraphhorizons:cylinderblank-iron`, `-steel`) goes in the cradle
 by right-click, or from a chest or hopper against the cradle's side (native east: on the left as you look
 along the borer from the bench end), one at a time while the shaft turns; a bored cylinder or an ingot is
 never taken. The bore needs the shaft at `MinSpeed` and advances W, the cutter head's travel through the
