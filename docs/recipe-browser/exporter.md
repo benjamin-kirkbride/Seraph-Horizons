@@ -374,7 +374,12 @@ is left out when its switch is off or what it names is not registered.
   the base hammer's (`BaseHammerTier`, the copper one's: a better hammer forges faster by its tool tier,
   which the handbook gives and the record does not); the mandrel is `kept` (the three rods the variant's
   stacks), the hammer a tool worn blows × wear a job (`wear` `fixed`; every `game:hammer-*` in the
-  variant, `game:hammer-copper`, the base, the definition's), no `oil`.
+  variant, `game:hammer-copper`, the base, the definition's), no `oil`. With `MandrelSprings` on and the
+  rig's `wind`, a third record, `mandrelstation|game:rod-steel|0`: the steel rod in, the mandrel kept, the
+  tongs a tool worn `TongsWearPerRod` a spring (`game:tongs` the definition's, every tongs the variant's),
+  one spring out, `power` `hand`, `turns` `TurnsPerRod` and `work` `{amount: TurnsPerRod, unit: "seconds"}`,
+  the rod's working temperature (the anvil's rule, read from the rod's type) in `requirements` and
+  `extra.workableTemperature`.
   The output is two pipe sections of the metal, and a metal whose pipe section is not registered
   (`UnifiedPipes` off) has no record. The `MandrelStation` switch leaves it out when off.
 
@@ -464,7 +469,9 @@ details and the limits (facing, connectors).
   power `hand` at the treadle's strokes, two half plates, and its switch on the record, the half plates
   and the frame's recipe;
 - the mandrel station (`RecipeExportMandrelStationScenarios.cs`): a record per metal, the kept
-  mandrel, the hammer worn by its blows, power `hand` at the blows, and two pipe sections;
+  mandrel, the hammer worn by its blows, power `hand` at the blows, and two pipe sections; and the
+  spring record, the steel rod, the tongs worn a point, power `hand` at four seconds, one spring, the heat
+  in `requirements`;
 - the eidolon (`RecipeExportEidolonScenarios.cs`): the gantry's winch, nine stages in order with their
   counts and a variant per wood, the body on a gantry (a station) to the mind's temporal gear, the
   bill's totals, and the eidolon's guide in `guides`;

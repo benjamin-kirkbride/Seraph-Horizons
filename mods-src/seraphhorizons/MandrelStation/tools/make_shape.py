@@ -13,6 +13,18 @@ along the mandrel as it stretches, each by its index times the stretch, while ev
 corner bars slide in, over the whole work, W 0..1. At W 1 the finished tube, 16 long, its far end at the
 tip, stays on the mandrel; gameplay then delivers the two pipe sections (the joint between rings 4 and 5
 is where it is parted) and stops drawing the work. No hammer is modelled: the player holds it.
+
+Its second job winds a coil spring on the same mandrel: a hot steel rod laid straight along the mandrel's
+top east edge, from the shoulder to a little past the nose, is wound round the fixed mandrel from its
+shoulder end (by hand, with tongs: neither is modelled), a side at a time, into a square coil of six turns
+(machinegen.coil, which draws the draw bench's follower spring too). Each side is one bar that grows from its
+start corner along its own line across the face, as wire laid down, over its slot of W (24 equal slots, one a
+side; a stretching gauge), while the rod, one bar the coil's length, moves across that face with the side's
+growing end, its shoulder end at the bend, shrinking into the coil a wire's width a side (a stretching gauge
+about its far end face): so the rod goes round the mandrel a face a side, never stopping, used up from its
+shoulder end, its far end never moving, and is gone as the last side ends (the wire's real length is not
+kept: the coil is six times longer than the rod). At W 1 the spring is wound, on the mandrel; gameplay then
+delivers it and stops drawing it. The finished coil is also the spring item's shape.
 Everything is built here from plain boxes; no other mod's model is used.
 
 It writes, deterministically,
@@ -21,9 +33,10 @@ It writes, deterministically,
     mandrelstation_frame.json   the static frame only (block and item)  (assets/.../shapes/block/)
     mandrelstation-rig.json     cells, anchors and the part rig         (assets/.../config/)
     rig-reference.json          every part's matrix at a grid of poses  (tests/MandrelStation/)
+    spring.json                 the spring item: the wound coil         (assets/.../shapes/item/)
 
-or, with `--out DIR`, all four into DIR. It validates its own output (validate_mandrelstation.py) and
-exits non-zero if a check fails.
+or, with `--out DIR`, all of them into DIR (the item into DIR/item/). It validates its own output
+(validate_mandrelstation.py) and exits non-zero if a check fails.
 
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from
 the machine box's north-west-bottom corner (the "build frame"); the controller cell is the build
@@ -32,10 +45,13 @@ root in the bracket at the north end (the controller, nearest the player), its t
 
 The rig's inputs, as this station uses them (the press brake's README, "Rig schema"):
 
-    theta  the hammer's clock (2 pi a blow): read by a ratio-0 rotate on the mandrel, it moves nothing
-    W      the rig's work, the forging of one hollow, 0..1: blows struck over blows needed
-    k      the hollow's metal: 0 none, 1 lead (thin), 2 copper (thick)
-    p      its presence, 0..1, eased as the hollow goes on and after the sections are delivered
+    theta  the hammer's clock (2 pi a blow; for a spring, the held right-click's, a turn a second): read
+           by a ratio-0 rotate on the mandrel, it moves nothing
+    W      the rig's work, 0..1: the forging of one hollow (blows struck over blows needed), or the
+           winding of one spring (the plan's steps, by their pace)
+    k      the work's class, which is the job: 0 none, 1 a lead hollow (thin), 2 a copper hollow (thick), 3 a
+           spring; each job's parts move for its class alone
+    p      its presence, 0..1, eased as the work goes on and after it is delivered
 """
 
 from __future__ import annotations
@@ -51,8 +67,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
+from machinegen.coil import Coil  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
-from machinegen.geometry import IDENT, El, flatten, translate  # noqa: E402
+from machinegen.geometry import IDENT, El, euler_xyz, flatten, from_euler, translate  # noqa: E402
 from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
                                shift_point, worst_shift_error)
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
@@ -64,6 +81,7 @@ MOD = ROOT / "mods-src" / "seraphhorizons"
 SHAPE_DIR = MOD / "assets" / "seraphhorizons" / "shapes" / "block"
 RIG_DIR = MOD / "assets" / "seraphhorizons" / "config"
 REFERENCE_OUT = MOD / "tests" / "MandrelStation" / "rig-reference.json"
+ITEM_OUT = MOD / "assets" / "seraphhorizons" / "shapes" / "item" / "spring.json"
 SCRIPT = "mods-src/seraphhorizons/MandrelStation/tools/make_shape.py"
 
 B = 16.0
@@ -79,6 +97,7 @@ TEXTURES = {
     "mandrel": "game:block/metal/plate/iron",   # the mandrel: the renderer sets it to the fitted rod's metal
     "lead": "game:block/metal/sheet/lead1",     # vanilla's chute section is sheet/{metal}1
     "copper": "game:block/metal/sheet/copper1",
+    "spring": "game:block/metal/sheet-plain/steel1",   # the spring's wire: its own code, so a renderer can tint or swap it hot
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
@@ -134,6 +153,30 @@ LIFT = HANG0 - HANG1                         # how far the section's centre rise
 # ---------------------------------------------------------------- the cycle (t = W, one hollow)
 T_FORGE = (0.0, 1.0)                         # closes from 8 to 6 across and stretches from 8 to 16, evenly, the whole work
 BLOWS = {"thin": 9.0, "thick": 14.0}          # the pace: blows a hollow
+
+# ---------------------------------------------------------------- the spring (a hot steel rod wound on the mandrel)
+WIRE = 0.6                                   # the spring's square wire: six turns of it hold the game's rod's metal
+                                             # (2 x 2 x 10 = 40 voxels; 24 sides of 4.64, 0.6 square, are 40.2)
+COIL_TURNS = 6
+COIL_PITCH = 2.4                             # wound free: the coil, 15.1 long, fits the mandrel from the shoulder to the nose
+STEP = 0.015                                 # sizes across the wire step by this (half of it on each face, more than the
+                                             # z-fighting check's 0.005): no two pieces that meet or nest share a face's plane
+EVEN = WIRE                                  # the top and bottom sides (u, d), full size
+ODD = WIRE - 2 * STEP                        # the west and east sides (w, e): no two neighbours share a face's plane
+ROD = WIRE + STEP                            # the straight rod: a little wider than the wire, its end inside the tip
+# the first side's centre line starts this far from the shoulder: a side's tilted end reaches w/2 * sqrt 2 back along
+# the mandrel, and must clear the collar
+SPRING_Z0 = SHOULDER_Z[1] + WIRE / 2 * math.sqrt(2) + 0.01
+COIL = Coil((X0, YM), MH, WIRE, COIL_PITCH, SPRING_Z0, COIL_TURNS)
+# the straight rod: along the mandrel on the coil's first corner line, from ROD_BACK before the coil's first corner (so
+# its end covers the first side's back end as it grows, tilt and all) to ROD_BACK before the coil's last corner: 14.4
+# long, the coil's. It shrinks a wire's width a side from its shoulder end, about its far face, and is gone as the last
+# side ends
+ROD_BACK = 0.35
+US = 1_000_000                               # W in millionths: every window starts and ends on one
+WIND_TURNS = 4.0                            # the pace: turns of the held right-click's clock (a turn a second) a spring
+SPRING_ROD = "game:rod-steel"
+SPRING_ITEM = "seraphhorizons:spring-steel"
 
 METALS = (("thin", "l", "lead", "hollowlead"), ("thick", "c", "copper", "hollowcopper"))
 # a ring's walls and corner bars: (name, x direction to the axis, y direction to the axis)
@@ -273,8 +316,129 @@ def build_work():
     return out
 
 
+# ---------------------------------------------------------------- the spring
+# The winding is planned piece by piece (`plan`): the 24 sides and one straight rod, 25 parts, every motion a gauge. Each
+# side is one bar, authored where the coil puts it, and grows from its start corner along its own line over its slot of
+# W (24 equal slots, one a side) by a stretching gauge about the corner: its back end (half a wire behind the corner,
+# inside the end of the side before, or of the rod for the first side) and its leading end grow together, and before
+# its slot it is stretched to nothing and not drawn. The rod lies along the mandrel on the coil's first corner line at
+# W 0, from ROD_BACK before the coil's first corner to ROD_BACK before its last (the coil's length), and over the job
+# shrinks from its shoulder end about its far end face (a stretching gauge: a wire's width a side) while it slides
+# across each face with the growing side's leading end, which stays inside its end. So the wire goes from the rod into
+# the coil at the moving bend, the rod goes round the mandrel a face a side, and nothing is left of it as the last side
+# ends. The wire's real length is not kept (the coil is six times longer than the rod).
+def spring_name(j):
+    return f"sp{COIL.name(j)}"
+
+
+def spring_across(j):
+    """Side j's wire across (0-based j): the top and bottom sides full, the west and east sides STEP thinner on each face,
+    so no two neighbours share a face's plane."""
+    return EVEN if j % 2 == 0 else ODD
+
+
+ROD_ID = "spr"                               # the straight rod's part
+
+
+class Piece:
+    """A part of the spring: a box `size` (x, y, z) about its centre `c`, turned by `r`, as authored (a side where the coil
+    puts it, the rod as it lies at W 0); `kind` "side" (of side `j`) or "rod"; `drivers` as the rig writes them."""
+
+    def __init__(self, pid, size, c, r, kind, j=None):
+        self.pid, self.size, self.c, self.r, self.kind, self.j = pid, list(size), list(c), [row[:] for row in r], kind, j
+        self.drivers = []
+
+    def element(self):
+        return skin(El(f"{self.pid}_wire", list(self.size), list(self.c), [row[:] for row in self.r], {}, self.pid), "spring")
+
+
+def side_bar(j):
+    """Side j's bar where the coil puts it (its element at W 1), of its own wire across. It is turned by the angles the
+    shape file carries (rounded to SHAPE_PLACES), which its stretch names too, so the written element and its stretch
+    share one frame exactly: a stretch along any other axis would shear the bar."""
+    bar = COIL.side(j, "x", "x", "spring", across=spring_across(j))
+    bar.r = from_euler(*side_angles(j))
+    return bar
+
+
+SHAPE_PLACES = 4                             # the shape writer's rounding of an element's rotations (machinegen.output)
+
+
+def side_angles(j):
+    """Side j's rotationX/Y/Z as the shape file writes them."""
+    return [round(x, SHAPE_PLACES) + 0.0 for x in euler_xyz(COIL.side(j, "x", "x", "spring").r)]
+
+
+_PLAN = []
+WINDOWS = []                                 # the plan's slots in order: ("slot", first, last millionth of W)
+
+
+def plan():
+    """Every part of the spring, with its drivers (cached: the rig and the shape read the same plan)."""
+    if not _PLAN:
+        _PLAN.extend(_plan())
+    return _PLAN
+
+
+def corner(j):
+    return list(COIL.corner(j))
+
+
+def slot(j):
+    """Side j's slot of W, in millionths: (first, last). Over it the side grows and the rod crosses its face."""
+    return int(round(j * US / COIL.sides)), int(round((j + 1) * US / COIL.sides))
+
+
+def grow_origin(j):
+    """The point side j grows about: its start corner, so its back end (half a wire behind the corner) grows inside the
+    end of the side before; for the first side, which has none, its start face, the wire's free end, so it grows forward
+    only and that end is uncovered where it lies as the rod moves on."""
+    if j:
+        return corner(j)
+    return [corner(0)[i] - COIL.direction(0)[i] * WIRE / 2 for i in range(3)]
+
+
+def _plan():
+    n = COIL.sides
+    sides = []
+    for j in range(n):
+        bar = side_bar(j)
+        pc = Piece(spring_name(j), bar.size, bar.c, bar.r, "side", j)
+        a, b = slot(j)
+        # grows from nothing over its slot about its start corner (the first side about its start face), along its own
+        # axis, and stays whole
+        pc.drivers.append({"type": "gauge", "motion": "stretch", "axis": "z", "origin": pt(*grow_origin(j)),
+                           "rotation": side_angles(j), "amount": spring_amount(-1.0),
+                           "windows": [{"from": r6(-FOREVER), "to": r6(b / US), "ease": r6((b - a) / US)}]})
+        sides.append(pc)
+        WINDOWS.append(("slot", a, b))
+    c0 = corner(0)
+    near, far = c0[2] - ROD_BACK, corner(n)[2] - ROD_BACK
+    rod = Piece(ROD_ID, [ROD, ROD, far - near], [c0[0], c0[1], (near + far) / 2], IDENT, "rod")
+    # shrinks from its shoulder end about its far end face, evenly over the job, to nothing ...
+    rod.drivers.append({"type": "gauge", "motion": "stretch", "axis": "z", "origin": pt(c0[0], c0[1], far),
+                        "amount": spring_amount(-1.0), "windows": [{"from": 0.0, "to": r6(FOREVER), "ease": 1.0}]})
+    # ... while it slides across each face with the growing side's leading end
+    for j in range(n):
+        a, b = slot(j)
+        d = [corner(j + 1)[i] - corner(j)[i] for i in range(2)]
+        for i, axis in enumerate("xy"):
+            if abs(d[i]) > 1e-9:
+                rod.drivers.append({"type": "gauge", "motion": "slide", "axis": axis, "amount": spring_amount(d[i] / B),
+                                    "windows": [win(a / US, b / US)]})
+    if WINDOWS[-1][2] != US:
+        raise ValueError("the winding does not end at W 1")
+    return sides + [rod]
+
+
+def build_spring():
+    """The spring's parts as authored: each side where the coil puts it (stretched to nothing until its slot), and the
+    straight rod as it lies at W 0, along the mandrel's top east edge. Every face wears `spring`."""
+    return [pc.element() for pc in plan()]
+
+
 def build():
-    return build_mandrel() + build_work() + build_frame()
+    return build_mandrel() + build_work() + build_spring() + build_frame()
 
 
 # ---------------------------------------------------------------- rig
@@ -290,7 +454,16 @@ def per_class(thin, thick=None):
     return {"thin": r6(thin), "thick": r6(thin if thick is None else thick)}
 
 
-WORK = {"name": "blows", "unit": "hollows", "step": 0.005, "end": {"thin": 1.0, "thick": 1.0}}
+SPRING_CLASS = 3                             # the spring job's class: its own, past the hollows' lead (1) and copper (2)
+
+
+def spring_amount(v):
+    """A spring part's amount: for the spring's class alone (it stands still for the hollows' classes)."""
+    return {str(SPRING_CLASS): r6(v)}
+
+
+# W is one hollow's forging or one spring's winding: each of the three classes has a job of 1
+WORK = {"name": "blows", "unit": "hollows", "step": 0.005, "end": {"thin": 1.0, "thick": 1.0, str(SPRING_CLASS): 1.0}}
 PATH = WORK
 FOREVER = 1000.0
 
@@ -302,6 +475,15 @@ def win(t0, t1):
 
 def slide(axis, dist, t):
     return {"type": "gauge", "motion": "slide", "axis": axis, "amount": per_class(dist / B), "windows": [win(*t)]}
+
+
+def spring_parts():
+    """The spring's parts (`requires` rodsteel), from the plan: every piece of the rod on its own (none rides another), its
+    drivers gauges in the order the plan moves it (each a turn about a fixed axis through a fixed point, or a slide, in
+    its own window of W; an instant's window is a millionth wide). Every amount is for the spring's class alone
+    (SPRING_CLASS, 3): with a hollow's class, or none, the spring's parts stand still."""
+    return [{"id": pc.pid, "match": [f"{pc.pid}_*"], "requires": "rodsteel", "drivers": copy.deepcopy(pc.drivers), "ride": None}
+            for pc in plan()]
 
 
 _PARTS = []
@@ -329,6 +511,7 @@ def _rig_parts():
                 if i:
                     drv.append(slide("z", stretch(i), T_FORGE))
                 parts.append({"id": f"{pre}{i + 1}{s}", "match": [f"{pre}{i + 1}{s}_*"], "requires": req, "drivers": drv})
+    parts += spring_parts()
     parts.append({"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []})
     for p in parts:
         p.setdefault("ride", None)
@@ -338,7 +521,7 @@ def _rig_parts():
 
 
 # ---------------------------------------------------------------- poses
-REST = (0.0, 0.0, 0, 0.0)                     # (theta, W, k, p): no hollow; the authored pose
+REST = (0.0, 0.0, 0, 0.0)                     # (theta, W, k, p): no work; the authored pose
 
 
 def inputs_of(pose):
@@ -354,6 +537,11 @@ def pose_at(k, W, theta=None, p=1.0):
     """A hollow of metal k at W, the hammer's clock at its pace."""
     th = TAU * BLOWS[("thin", "thick")[k - 1]] * W if theta is None else theta
     return (th, W, k, p)
+
+
+def spring_at(W, p=1.0, k=SPRING_CLASS):
+    """A spring at W (its class, 3), the held clock at its pace."""
+    return (TAU * WIND_TURNS * W, W, k, p)
 
 
 # ---------------------------------------------------------------- the rig file
@@ -380,9 +568,10 @@ def make_rig(parts):
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the stump, nearest the "
                     "player who placed it; the mandrel points south. A hand station: no power cell. work is the forging of one "
-                    "hollow, W 0..1 (blows struck over blows needed); k is the hollow's metal (1 lead, 2 copper); gauge windows "
-                    "are placed in hollows. theta is the hammer's clock, carried by a ratio-0 rotate on the mandrel. See the "
-                    "mandrel station's README for the schema.",
+                    "hollow, W 0..1 (blows struck over blows needed), or the winding of one spring (wind); k is the job: the "
+                    "hollow's metal (1 lead, 2 copper) or 3 a spring; gauge windows are placed in work units. theta is the hammer's (or "
+                    "the held right-click's) clock, carried by a ratio-0 rotate on the mandrel. See the mandrel station's README "
+                    "for the schema.",
         "cells": [],
         "outputSide": "south",
         "output": {"pos": pt(*output_point())},
@@ -394,6 +583,14 @@ def make_rig(parts):
                   "sectionsPerHollow": 2,
                   "_comment": "blowsPerHollow: the pace, hammer blows (right-clicks) a hollow; copper half as much again. "
                               "hollows: each class's work. sections: what a hollow makes, sectionsPerHollow of them."},
+        "wind": {"turnsPerRod": r6(WIND_TURNS), "rod": SPRING_ROD, "class": SPRING_CLASS, "spring": SPRING_ITEM, "springsPerRod": 1,
+                 "hot": ["rodsteel"],
+                 "_comment": "The spring job: rod is its work, of its own class 3 (its parts, requires rodsteel, move for that "
+                             "class alone), wound over W 0..1, the rod laid along the mandrel and wound round it from its shoulder "
+                             "end a side at a time, each side grown from its corner as the rod shrinks into it; turnsPerRod: the pace, "
+                             "turns of the held right-click's clock (a turn a second) a rod. spring: "
+                             "what a rod makes, springsPerRod of them. hot: the requires values whose parts are drawn hot, with "
+                             "vanilla's glow by the rod's temperature."},
         "parts": parts,
     }
 
@@ -421,9 +618,10 @@ def shipped(els, parts, rig):
 
 
 def shipped_cells(shape, ship_parts, sp):
-    """The cells' boxes from the shipped shape as written, posed at rest by the shipped rig. No lids: a hand
-    station is not walked on."""
-    written = flatten(shape["elements"], textures={})
+    """The cells' boxes from the shipped shape as written, posed at rest by the shipped rig: the frame, the mandrel and
+    the hollows as they go on; not the spring's rod, a thin bar that goes round the mandrel (its rest place, along the
+    top east edge, would only widen the far cell's box by a rod's width). No lids: a hand station is not walked on."""
+    written = [w for w in flatten(shape["elements"], textures={}) if not is_spring(part_of(ship_parts, w.name))]
     rest = [posed(w, _part_matrix(ship_parts, part_of(ship_parts, w.name), inputs_of(REST), sp)) for w in written]
     by_cell = {}
     for el in rest:
@@ -441,7 +639,8 @@ def shipped_cells(shape, ship_parts, sp):
 def check_shipped(els, parts, ship_els, ship_parts, ship):
     d = [-ORIGIN_CELL[k] * B for k in range(3)]
     sp = ship["work"]
-    poses = [REST, pose_at(1, 0.2), pose_at(2, 0.5), pose_at(1, 0.7), pose_at(2, 0.9), pose_at(1, 0.99), (1.3, 0.3, 1, 0.6)]
+    poses = [REST, pose_at(1, 0.2), pose_at(2, 0.5), pose_at(1, 0.7), pose_at(2, 0.9), pose_at(1, 0.99), (1.3, 0.3, 1, 0.6),
+             spring_at(0.13), spring_at(0.52), spring_at(0.97), spring_at(1.0)]
     worst = worst_shift_error(els, ship_els, lambda el, pose: pm(parts, el.part, pose),
                               lambda el, pose: _part_matrix(ship_parts, el.part, inputs_of(pose), sp), d, poses)
     cells = [tuple(c["pos"]) for c in ship["cells"]]
@@ -456,12 +655,20 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
 REF_EDGES = (0.0, 0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.333, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7, 0.75, 0.8, 0.9, 0.99, 1.0)
 
 
+def ref_spring():
+    """The spring's W for the reference: four tenths into every third of the plan's slots (never near an instant's
+    window, where a float's last bit could tip a piece's jump one way or the other), and its ends."""
+    plan()
+    timed = [(a, b) for kind, a, b in WINDOWS if kind != "instant"]
+    return tuple(r6((a + 0.4 * (b - a)) / US) for a, b in timed[::3])
+
+
 def reference_poses():
-    """theta in {0, 1.1, -2.3, 2.9} with no hollow; for each metal, W over the cycle's edges with p 1, and
-    every fifth also at p 0.4."""
+    """theta in {0, 1.1, -2.3, 2.9} with no work; for each metal, W over the cycle's edges, and for the spring (its class
+    3) over its own and a few of them, with p 1 and every fifth also at p 0.4 (every part's matrix at every pose)."""
     out = [(th, 0.0, 0, 0.0) for th in (0.0, 1.1, -2.3, 2.9)]
-    for k in (1, 2):
-        for i, W in enumerate(REF_EDGES):
+    for k, edges in ((1, REF_EDGES), (2, REF_EDGES), (SPRING_CLASS, sorted(ref_spring() + (0.0, 1.0)))):
+        for i, W in enumerate(edges):
             th = (0.0, 1.1, -2.3, 2.9)[i % 4]
             for p in ((1.0,) if i % 5 else (1.0, 0.4)):
                 out.append((th, W, k, p))
@@ -489,28 +696,69 @@ def shape_json(els):
         TEXTURES, tex_size=TEX)
 
 
+def spring_samples(fractions=(0.5,), every=1):
+    """W inside the plan's slots: at each of `fractions` of every `every`-th."""
+    plan()
+    timed = [(a, b) for kind, a, b in WINDOWS if kind != "instant"]
+    return [(a + f * (b - a)) / US for a, b in timed[::every] for f in fractions]
+
+
 def coplanar_poses():
+    # the hollows, and the spring at its start, halfway through every slot of its winding, early and late in every
+    # third, and wound
+    spring = [0.0] + spring_samples() + spring_samples((0.1, 0.9), 3) + [1.0]
     return (REST, pose_at(1, 0.1), pose_at(2, 0.25), pose_at(1, 0.4), pose_at(2, 0.5), pose_at(1, 0.6), pose_at(2, 0.7),
-            pose_at(1, 0.8), pose_at(2, 0.9), pose_at(1, 0.95), pose_at(2, 1.0), pose_at(1, 1.0))
+            pose_at(1, 0.8), pose_at(2, 0.9), pose_at(1, 0.95), pose_at(2, 1.0), pose_at(1, 1.0)) + tuple(spring_at(W) for W in sorted(spring))
 
 
-def on_show(part, k):
-    """Whether a part can be seen with metal k on the mandrel: each metal's work only with that metal."""
-    if part[:1] in ("l", "c") and part != "frame" and part != "mandrel":
+def is_spring(part):
+    return part.startswith("sp")
+
+
+def on_show(part, pose):
+    """Whether a part can be seen at a pose: each metal's hollow only with that metal's class, the spring only with its
+    own (the class is the job)."""
+    k = pose[2]
+    if is_spring(part):
+        return k == SPRING_CLASS
+    if part[:1] in ("l", "c"):
         return k == ("l", "c").index(part[0]) + 1
     return True
 
 
+def seen(part, pose):
+    return on_show(part, pose)
+
+
 def shown(posed_els, pose):
-    """The posed elements as they can be seen: another metal's work moved far away (copies, in order)."""
-    k = pose[2]
+    """The posed elements as they can be seen: another job's or metal's work moved far away (copies, in order)."""
     out = []
     for e in posed_els:
-        if not on_show(e.part, k):
+        if not seen(e.part, pose):
             e = e.clone()
             e.c = [e.c[0], e.c[1] - 1000.0 - 10.0 * len(out), e.c[2]]
         out.append(e)
     return out
+
+
+def spring_item():
+    """The spring item: the coil as the station leaves it wound (W 1: every side where machinegen.coil puts it, which
+    check_spring holds the plan to), centred on the item box's floor (x and z on 8, the bottom at y 0), the coil along z,
+    at scale 1."""
+    src = [COIL.side(j, f"{spring_name(j)}_wire", spring_name(j), "spring", tex_size=TEX, across=spring_across(j))
+           for j in range(COIL.sides)]
+    cs = [q for el in src for q in el.corners()]
+    lo = [min(q[i] for q in cs) for i in range(3)]
+    hi = [max(q[i] for q in cs) for i in range(3)]
+    d = [8.0 - (lo[0] + hi[0]) / 2, -lo[1], 8.0 - (lo[2] + hi[2]) / 2]
+    return translate(src, d)
+
+
+def item_shape_json(els):
+    return machine_shape_json(
+        els, f"Generated by {SCRIPT}: the spring item ({SPRING_ITEM}), the coil the mandrel station winds from a steel rod, "
+             "as it leaves it (mandrelstation.json's spring at W 1). Every element was made for the Seraph Horizons mod.",
+        TEXTURES, tex_size=TEX)
 
 
 def fix_coplanar(els, parts):
@@ -521,7 +769,7 @@ def fix_coplanar(els, parts):
 
 def main():
     ap = argparse.ArgumentParser(description="Generate the mandrel station's shapes, rig and reference poses.")
-    ap.add_argument("--out", type=Path, help="write the four files into this directory instead of the mod's assets and tests")
+    ap.add_argument("--out", type=Path, help="write the files into this directory (the item into DIR/item/) instead of the mod's assets and tests")
     ap.add_argument("--quick", action="store_true", help="skip the z-fighting fix and the slow checks (not for files that ship)")
     args = ap.parse_args()
     import validate_mandrelstation
@@ -545,6 +793,10 @@ def main():
     ship["cells"] = shipped_cells(shape, ship_parts, ship["work"])
     ok = validate_mandrelstation.validate_files(sys.modules[__name__], shape, frame_shape, ship) and ok
     texts = (shape_dumps(shape), shape_dumps(frame_shape), rig_dumps(ship), reference_dumps(reference_json(ship_parts, ship["work"])))
+    item = spring_item()
+    ok = validate_mandrelstation.check_item(sys.modules[__name__], item) and ok
+    outs += ((args.out / "item" / "spring.json") if args.out else ITEM_OUT,)
+    texts += (shape_dumps(item_shape_json(item)),)
     for path, text in zip(outs, texts):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)

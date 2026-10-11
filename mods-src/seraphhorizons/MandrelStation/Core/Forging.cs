@@ -2,18 +2,27 @@ namespace SeraphHorizons.Mod.MandrelStation.Core;
 
 /// <summary>The mandrel station's <c>requires</c> vocabulary (the model's contract, "Build order"):
 /// the one fitted part, <c>mandrel</c>, and the work's (<c>hollowlead</c>, <c>hollowcopper</c>: a
-/// hollow of that metal on the mandrel).</summary>
+/// hollow of that metal on the mandrel; <c>rodsteel</c>: a hot steel rod being wound into a spring).</summary>
 public static class MandrelRequires
 {
     public const string Mandrel = "mandrel";
     public const string HollowLead = "hollowlead";
     public const string HollowCopper = "hollowcopper";
+    /// <summary>The spring job's work: the steel rod and the spring it is wound into (class 3).</summary>
+    public const string RodSteel = "rodsteel";
 
     /// <summary>The hollow <c>requires</c> of class <paramref name="k"/>: 1 lead, 2 copper.</summary>
     public static string? Hollow(int k) => k switch { 1 => HollowLead, 2 => HollowCopper, _ => null };
 
+    /// <summary>The work's <c>requires</c> of job class <paramref name="k"/>: a hollow's (1, 2) or the
+    /// spring job's (<see cref="Winding.SpringClass"/>); null for none.</summary>
+    public static string? Work(int k) => k == Winding.SpringClass ? RodSteel : Hollow(k);
+
+    /// <summary>Whether <paramref name="requires"/> is a job's work (drawn by the clock), not a part.</summary>
+    public static bool IsWork(string? requires) => requires is HollowLead or HollowCopper or RodSteel;
+
     /// <summary>Every <c>requires</c> value the rig may use.</summary>
-    public static readonly IReadOnlySet<string> KnownRequires = new HashSet<string> { Mandrel, HollowLead, HollowCopper };
+    public static readonly IReadOnlySet<string> KnownRequires = new HashSet<string> { Mandrel, HollowLead, HollowCopper, RodSteel };
 }
 
 /// <summary>Why a held item can or cannot be fitted as the mandrel.</summary>

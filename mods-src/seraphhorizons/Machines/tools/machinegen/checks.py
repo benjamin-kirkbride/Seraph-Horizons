@@ -16,7 +16,10 @@ CELL = 16.0                                  # voxels per block
 
 # ---------------------------------------------------------------- separating-axis tests
 def obb_overlap(el: El, lo, hi, eps=0.02):
-    """Separating-axis test between a rotated element and an axis-aligned box (voxels)."""
+    """Separating-axis test between a rotated element and an axis-aligned box (voxels). A vanished
+    element (a part stretched to 0) overlaps nothing."""
+    if el.vanished:
+        return False
     bc = [(lo[k] + hi[k]) / 2 for k in range(3)]
     bh = [(hi[k] - lo[k]) / 2 - eps for k in range(3)]
     eh = [max(abs(s) / 2 - eps, 0.0) for s in el.size]
@@ -39,7 +42,9 @@ def obb_overlap(el: El, lo, hi, eps=0.02):
 
 
 def obb_obb(a: El, b: El, eps=0.02):
-    """Separating-axis test between two rotated elements (voxels)."""
+    """Separating-axis test between two rotated elements (voxels); a vanished one overlaps nothing."""
+    if a.vanished or b.vanished:
+        return False
     ah = [max(abs(s) / 2 - eps, 0.0) for s in a.size]
     bh = [max(abs(s) / 2 - eps, 0.0) for s in b.size]
     aa = [[a.r[i][k] for i in range(3)] for k in range(3)]
@@ -202,8 +207,11 @@ COPLANAR_INSET = 0.015                       # voxels: how far a z-fighting face
 
 
 def drawn_faces(el: El):
-    """The element's drawn faces in world voxels: (direction, unit normal, the 4 corners in order)."""
+    """The element's drawn faces in world voxels: (direction, unit normal, the 4 corners in order).
+    A vanished element (a part stretched to 0) draws none."""
     out = []
+    if el.vanished:
+        return out
     h = [abs(v) / 2 for v in el.size]
     for d, (k, sgn) in FACE_NORMAL.items():
         if d not in el.faces or el.faces[d].get("enabled") is False:

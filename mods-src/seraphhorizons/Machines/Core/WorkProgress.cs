@@ -6,7 +6,7 @@ namespace SeraphHorizons.Mod.Machines.Core;
 /// <summary>
 /// A rig's progress: the quantity W its gauges' windows and rolls are placed on (the rig's
 /// <c>work</c>, or its <c>trunkPath</c>, which is the trunk-flavoured case). A class k (0 none, 1 thin,
-/// 2 thick) of work at W has a leading point, <see cref="Nose"/>, and a trailing one,
+/// 2 thick, 3 .. <see cref="RigClasses.Max"/> further classes) of work at W has a leading point, <see cref="Nose"/>, and a trailing one,
 /// <see cref="Tail"/>, <see cref="LengthOf"/> behind it; W runs from 0 to <see cref="End"/>.
 /// </summary>
 public interface IWorkProgress
@@ -29,7 +29,8 @@ public interface IWorkProgress
 /// cutter's teeth cut), with a slider step and an end per class. It is a point on its own scale:
 /// nose and tail are both W, so a gauge window is occupied while W is in it.
 /// </summary>
-/// <param name="Ends">[none, thin, thick]: [0, end.thin, end.thick].</param>
+/// <param name="Ends">Indexed by class (<see cref="RigClasses"/>): [0, end.thin, end.thick, end."3", ...], 0 for a
+/// class the end does not name (no work of that class).</param>
 public sealed record WorkQuantity(string? Name, string Unit, float Step, IReadOnlyList<float> Ends) : IWorkProgress
 {
     public double Nose(double work) => work;
@@ -38,11 +39,11 @@ public sealed record WorkQuantity(string? Name, string Unit, float Step, IReadOn
 
     public float LengthOf(int k) => 0;
 
-    public double End(int k) => k is 1 or 2 ? Ends[k] : 0;
+    public double End(int k) => RigClasses.IsClass(k) && k < Ends.Count ? Ends[k] : 0;
 
-    /// <summary>Parses rig.json's <c>work</c>: <c>unit</c> and <c>end</c> <c>{"thin", "thick"}</c> (both
-    /// above 0) are required, <c>name</c> and <c>step</c> (default 1/16, above 0) optional; a trunkPath's
-    /// keys are refused.</summary>
+    /// <summary>Parses rig.json's <c>work</c>: <c>unit</c> and <c>end</c> (keyed by class, naming one class
+    /// or more, each above 0) are required, <c>name</c> and <c>step</c> (default 1/16, above 0) optional; a
+    /// trunkPath's keys are refused.</summary>
     public static WorkQuantity Parse(JsonElement work)
     {
         if (work.ValueKind != JsonValueKind.Object)
@@ -56,14 +57,16 @@ public sealed record WorkQuantity(string? Name, string Unit, float Step, IReadOn
         float step = Num(work, "step", 1f / 16);
         if (!(step > 0))
             throw new FormatException("work.step must be above 0");
-        var end = Required(work, "end", JsonValueKind.Object);
-        float thin = Required(end, "thin", JsonValueKind.Number).GetSingle(), thick = Required(end, "thick", JsonValueKind.Number).GetSingle();
-        if (!(thin > 0) || !(thick > 0))
-            throw new FormatException("work.end must be above 0");
+        if (!work.TryGetProperty("end", out var end))
+            throw new FormatException("work needs an end, keyed by class");
+        var ends = RigClasses.Parse(end, "work.end", 0);
+        foreach (var p in end.EnumerateObject())
+            if (!(p.Value.GetSingle() > 0))
+                throw new FormatException($"work.end.{p.Name} must be above 0");
         foreach (var key in new[] { "nose0", "lengths", "tailStop" })
             if (work.TryGetProperty(key, out _))
                 throw new FormatException($"work has no {key}: that is a trunkPath's");
-        return new WorkQuantity(name, unit, step, [0, thin, thick]);
+        return new WorkQuantity(name, unit, step, ends);
     }
 }
 

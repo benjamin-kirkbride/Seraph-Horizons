@@ -27,26 +27,27 @@ public partial class RecipeExportScenarios
             var r = Recipe($"drawbench|game:chutesection-{metal}|0");
             Assert.Equal("seraphhorizons", (string)r["mod"]!);
             var ingredients = (JArray)r["ingredients"]!;
-            Assert.Equal(new[] { $"game:chutesection-{metal}", "game:jonasframes-gearbox01", "game:metalchain-iron", "game:bracket-heavy-iron", "game:rod-iron" },
-                ingredients.Take(5).Select(i => (string)i["code"]!));
-            Assert.All(ingredients.Skip(1).Take(4), i => Assert.Equal("kept", (string)i["role"]!));
-            // the chain and the mandrel take two each (DrawBenchParts.Needed)
-            Assert.Equal(new[] { 1.0, 2, 1, 2 }, ingredients.Skip(1).Take(4).Select(i => (double)i["quantity"]!));
-            Json($$"""{ "code": "{{dies[0]}}", "kind": "item", "quantity": 1, "role": "tool", "isTool": true, "toolDurabilityCost": 1 }""", ingredients[5]);
-            Assert.Equal("oil", (string)ingredients[6]["role"]!);
-            Assert.Equal(0.08, (double)ingredients[6]["litres"]!, 6);   // 2 points a pipe section, 8 a hollow
-            Json("""{ "code": "seraphhorizons:drawbench-frame-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[7]);
+            Assert.Equal(new[] { $"game:chutesection-{metal}", "game:jonasframes-gearbox01", "game:metalchain-iron", "game:bracket-heavy-iron", "game:rod-iron", "seraphhorizons:spring-steel" },
+                ingredients.Take(6).Select(i => (string)i["code"]!));
+            Assert.All(ingredients.Skip(1).Take(5), i => Assert.Equal("kept", (string)i["role"]!));
+            // the chain and the mandrel take two each (DrawBenchParts.Needed), the mandrel's spring one
+            Assert.Equal(new[] { 1.0, 2, 1, 2, 1 }, ingredients.Skip(1).Take(5).Select(i => (double)i["quantity"]!));
+            Json($$"""{ "code": "{{dies[0]}}", "kind": "item", "quantity": 1, "role": "tool", "isTool": true, "toolDurabilityCost": 1 }""", ingredients[6]);
+            Assert.Equal("oil", (string)ingredients[7]["role"]!);
+            Assert.Equal(0.08, (double)ingredients[7]["litres"]!, 6);   // 2 points a pipe section, 8 a hollow
+            Json("""{ "code": "seraphhorizons:drawbench-frame-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[8]);
             Json($$"""[{ "code": "seraphhorizons:pipesection-{{metal}}", "kind": "item", "quantity": 4 }]""", r["outputs"]!);
             var machine = r["machine"]!;
             Assert.Equal("mechanical", (string)machine["power"]!);
             Assert.Equal(turns * 4, (double)machine["turns"]!, 2);
             Assert.Equal(4, (double)machine["work"]!["amount"]!);
             Assert.Equal("sections", (string)machine["work"]!["unit"]!);
-            Json("[1, 2, 3, 4]", machine["kept"]!);
-            Json("""{ "ingredient": 5, "rule": "fixed" }""", machine["wear"]!);
-            Json("""{ "ingredient": 6, "points": 8, "tank": 1000 }""", machine["oil"]!);
+            Json("[1, 2, 3, 4, 5]", machine["kept"]!);
+            Json("""{ "ingredient": 6, "rule": "fixed" }""", machine["wear"]!);
+            Json("""{ "ingredient": 7, "points": 8, "tank": 1000 }""", machine["oil"]!);
             var variant = r["variants"]![0]!;
-            Assert.Equal(dies, Codes(variant["ingredients"]![5]!).Select(c => (string)c!));
+            Assert.Equal(dies, Codes(variant["ingredients"]![6]!).Select(c => (string)c!));
+            Assert.Equal(new[] { "seraphhorizons:spring-steel" }, Codes(variant["ingredients"]![5]!).Select(c => (string)c!));
             Assert.Equal(new[] { "game:metalchain-iron", "game:metalchain-meteoriciron", "game:metalchain-steel" },
                 Codes(variant["ingredients"]![2]!).Select(c => (string)c!));
             Assert.Equal(new[] { $"seraphhorizons:pipesection-{metal}" }, Codes(variant["outputs"]!).Select(c => (string)c!));

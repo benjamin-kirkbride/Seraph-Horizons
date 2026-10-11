@@ -26,7 +26,9 @@ describe("the mandrel station's rig against its rig-reference.json", () => {
     expect(rig.trunkPath).toBeUndefined();
     expect(workEnd(path, 1)).toBe(1);
     expect(workEnd(path, 2)).toBe(1);
-    expect(new Set(reference.poses.map((p) => p.size))).toEqual(new Set([0, 1, 2]));
+    // the spring is its own class, 3, with a job of 1 too
+    expect(workEnd(path, 3)).toBe(1);
+    expect(new Set(reference.poses.map((p) => p.size))).toEqual(new Set([0, 1, 2, 3]));
     for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
     // the viewer shows θ (so Play), W, the metal and its presence; no depth, lifting, feed or oil
     expect(rigInputs(parts)).toMatchObject({ theta: true, depth: false, lifting: false, work: true, size: true, presence: true });
@@ -61,9 +63,9 @@ describe("the mandrel station's rig against its rig-reference.json", () => {
     a.forEach((m, i) => m.forEach((v, j) => expect(Math.abs(v - b[i]![j]!)).toBeLessThan(1e-12)));
   });
 
-  it("fits the mandrel, the work by metal, and gives the mandrel its own texture code", () => {
+  it("fits the mandrel, the work by metal or the spring's rod, and gives the mandrel and the spring their own texture codes", () => {
     const req = new Set(parts.map((p) => p.requires ?? null));
-    expect(req).toEqual(new Set([null, "mandrel", "hollowlead", "hollowcopper"]));
+    expect(req).toEqual(new Set([null, "mandrel", "hollowlead", "hollowcopper", "rodsteel"]));
     const codes: Record<string, Set<string>> = {};
     const flat = flattenShape(shape.elements);
     const globs = compileGlobs(parts);
@@ -74,7 +76,19 @@ describe("the mandrel station's rig against its rig-reference.json", () => {
     expect([...codes.mandrel!]).toEqual(["mandrel"]);
     expect([...codes.hollowlead!]).toEqual(["lead"]);
     expect([...codes.hollowcopper!]).toEqual(["copper"]);
+    expect([...codes.rodsteel!]).toEqual(["spring"]);
     expect(new Set(codes.frame!)).toEqual(new Set(["oak", "iron"]));
+    // the spring: one steel rod wound into one spring: its 24 sides in winding order, each one bar grown from its corner by
+    // a stretching gauge, then the straight rod, one bar shrunk by a stretching gauge and slid across the faces, each on
+    // its own (no rides), moved by gauges alone
+    const wind = (rig as unknown as { wind: { rod: string; spring: string; springsPerRod: number; class: number } }).wind;
+    expect(wind).toMatchObject({ rod: "game:rod-steel", spring: "seraphhorizons:spring-steel", springsPerRod: 1, class: 3, hot: ["rodsteel"] });
+    const spring = parts.filter((p) => p.requires === "rodsteel");
+    const sides = [1, 2, 3, 4, 5, 6].flatMap((t) => ["u", "w", "d", "e"].map((f) => `sp${t}${f}`));
+    expect(spring.map((p) => p.id)).toEqual([...sides, "spr"]);
+    spring.forEach((p) => expect(p.drivers?.[0]).toMatchObject({ type: "gauge", motion: "stretch", axis: "z" }));
+    spring.forEach((p) => expect(p.ride ?? null).toBeNull());
+    spring.forEach((p) => (p.drivers ?? []).forEach((d) => expect(d.type).toBe("gauge")));
     const forge = (rig as unknown as { forge: { blowsPerHollow: { thin: number; thick: number }; sectionsPerHollow: number; sections: Record<string, string>; hollows: Record<string, string> } }).forge;
     expect(forge.blowsPerHollow.thick).toBeGreaterThan(forge.blowsPerHollow.thin);
     expect(forge.sectionsPerHollow).toBe(2);

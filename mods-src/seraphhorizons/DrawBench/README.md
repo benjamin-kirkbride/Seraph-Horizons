@@ -28,7 +28,8 @@ the tank's face: it has no fill face or anchor of its own.
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. `tools/` is the model's
 generator; the generic half of it is `Machines/tools/machinegen/`, shared with the mill, the rosser and
-the gear cutter, and unchanged by this machine (no new driver: every motion is an existing one).
+the gear cutter, and unchanged by this machine (no new driver: every motion is an existing one); its follower
+spring is drawn by `machinegen/coil.py`, the mandrel station's spring.
 
 ## The machine
 
@@ -78,7 +79,7 @@ counterweight and its rope, and the oiler). The **build order**: the frame, then
 | 1 | `gearbox` | `game:jonasframes-gearbox01` (Jonas sub-assembly, "Consumately crafted gearbox"), looted or converted | The cone clutch's cup (cupronickel, the Jonas palette) and cone, the sleeve with the sliding change-gear cluster, the drive shaft with its two change wheels and the final drive's pinion | Only by breaking the frame |
 | 2 | `chain` | Two of `game:metalchain-iron`, `-meteoriciron` or `-steel` (the game's chain) | The endless drawing chain and its two sprockets: the drive sprocket on its own shaft with the final drive's wheel, and the return sprocket on the return shaft | Only by breaking the frame |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` (the game's heavy bracket) | The dog: its portal (shoes on both ways, cheeks, crossbar and top plate over the section), the fixed jaw, the moving jaw with its tail and knuckle and its leaf spring, the bracket and shank with two shackle pins, the knock-off lug | Only by breaking the frame |
-| 4 | `mandrel` | Two of `game:rod-iron`, `-meteoriciron` or `-steel` | The square mandrel bar with its plug and nut, the follower and its spring | Only by breaking the frame |
+| 4 | `mandrel` | Two of `game:rod-iron`, `-meteoriciron` or `-steel`, and one `seraphhorizons:spring-steel` (the spring the mandrel station winds) | The square mandrel bar with its plug and nut, the follower and its spring (the spring item's square coil) | Only by breaking the frame |
 | 5 | `die` | New: `seraphhorizons:drawdie-iron` or `drawdie-steel` (iron: lead only; steel: lead and copper), the wearing part | The die plate with its square eye in the die stock's mouth. Its elements use the texture code `die`, which the renderer sets to the fitted die's metal | When worn out it is spent; unworn, Ctrl + right-click |
 | — | `billetlead` | The work: a lead hollow section on the bench (k = 1) | The lead hollow (in quarters) and the four lead pipe sections drawn from it | The material being worked, not a part |
 | — | `billetcopper` | The work: a copper hollow section (k = 2) | The same in copper | as above |
@@ -108,7 +109,7 @@ writes:
 |---|---|
 | `assets/seraphhorizons/shapes/block/drawbench.json` | The whole machine, every moving part (739 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/drawbench_frame.json` | The static frame only (67 elements). The block draws it and the inventory shows it. |
-| `assets/seraphhorizons/config/drawbench-rig.json` | Footprint, anchors, the work, the draw's constants and the part rig (84 parts: 20 chain links of their own, 24 pieces of work). |
+| `assets/seraphhorizons/config/drawbench-rig.json` | Footprint, anchors, the work, the draw's constants and the part rig (102 parts: 20 chain links of their own, 24 pieces of work, the spring's 24 sides). |
 | `tests/DrawBench/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
 
 ### How the machine works
@@ -129,8 +130,19 @@ feet on the beams, with the die plate (z 23.4..24.2) in its mouth. The **drive h
 iron bed plate with two cast cheeks and bearings on posts.
 
 **The work.** The square mandrel bar runs from the tail stock along the draw line to its plug in the
-die's throat (z 22.8..24). Over it: the follower's spring (six coils from the tail stock), the follower
+die's throat (z 22.8..24). Over it: the follower's spring (from the nut at the tail stock), the follower
 (z 9.8..10.4) and the hollow section, its bore on the bar, to the die stock's back face (z 10.4..18.4).
+
+**The spring** is the spring item, the square coil the mandrel station winds from a steel rod
+(`Machines/tools/machinegen/coil.py`, `../MandrelStation/README.md`, "The spring job"): six turns of 0.6
+wire, 24 straight sides, a right-hand helix, in the steel the bench's other steel parts wear. The station
+winds it on a 4 × 4 mandrel; here it goes round the 5.9 bar, so it is drawn with a 6.0 bore (outside 7.2,
+inside the follower's 7.9). It reaches from the nut's face (z 2.1) to the follower's (9.8), compressed to a
+pitch of 1.18 against the item's free 2.4; as the follower runs on 8 over a job it stretches to 2.51 (15.7
+long, 4 % past its free 15.1). Each side slides along the bar by its share of the follower's travel (the
+first 1/48, the last 47/48) and leans on with the pitch (2.6° at rest, 5.4° stretched) about its centre, so
+the coil stays one wire (each side's start within 0.012 of the end of the one before it) from the nut to
+the follower.
 As a section is drawn, the quarter of the hollow at the die goes into the die stock (where it is hidden)
 and the follower pushes the rest up behind it: the hollow shortens by a quarter a stroke. It is drawn as
 four pieces end to end (`lslug1`..`4`), one a quarter, under one sheet of texture. A section is drawn as two segments, each hidden in
@@ -229,7 +241,7 @@ its presence, oil the tank's fill). A gauge's windows are one per section:
 | Change-gear selector (`selector`) | Set for the metal (the operator) | The cluster's fork | `gauge` slide x 3.4 for copper (`present`) |
 | Mandrel bar, plug, nut (`mandrel`) [mandrel] | Fixed | — | none |
 | Follower (`follower`) [mandrel] | Its spring | The hollow | `gauge` slide z 2 a stroke, over the section's draw (four, open to the end) |
-| Spring coils (`spring1`..`spring6`) [mandrel] | The follower | — | `gauge` slide z, each its share of the follower's travel |
+| The spring's sides (`spring1u`..`spring6e`: turn 1..6, face `u`, `w`, `d`, `e`) [mandrel] | Compressed between the nut and the follower; stretched as the follower runs on | The follower | per stroke, `gauge` rotate about its face's normal through its centre (leaning on with the pitch), then `gauge` slide z, its share of the follower's travel |
 | Die (`die`) [die] | Fixed | — | none |
 | The hollow's quarters (`lslug1`..`4`) [billetlead], (`cslug1`..`4`) [billetcopper] | The follower; the die | — | `gauge` slide z 2 a stroke, one stroke more each quarter, into the die stock |
 | Section segments (`lsect1a`..`lsect4b`) [billetlead], (`csect1a`..`csect4b`) [billetcopper]: section 1..4, segment a, b | The dog (drawn out of the die) | — | point: `gauge` slide z 2 before the stroke; `gauge` slide z with the dog from when the segment reaches the mouth; the hand-out: `gauge` slide z back by all of that over 0.42625..0.43125, to its rest place in the die stock, open to the end |
@@ -274,9 +286,12 @@ and exits non-zero if one fails:
   cone turns with the cup through the draw, at each metal's drawn pace.
 - **Chain:** every link on the chain's line, along it, as far round as the dog has gone, at 15 poses; both
   sprockets turning with the chain.
+- **Spring:** at rest every side where `machinegen.coil` puts it; at every pose (both metals, rest to the
+  job's end) its first side on the nut's face and its last on the follower's (within 0.013), each side's
+  start where the one before it ends (within 0.012), each side's centre at its share of the way.
 - **Work:** the section being drawn whole from the die's mouth to its point in the jaws, the rest of it in
-  the die stock; the hollow's quarters end to end from the follower to the die stock; the spring's coils
-  sharing the follower's travel; each section out of the die's mouth, its tail at the mouth, until just
+  the die stock; the hollow's quarters end to end from the follower to the die stock; each section out of
+  the die's mouth, its tail at the mouth, until just
   before its hand-out, and from W = m + 0.43125 to the job's end back at its rest place (its matrix the
   identity), wholly inside the die stock.
 - **Bore:** between strokes the die's bore is empty, and the face seen in it (the frontmost hidden
@@ -345,7 +360,8 @@ Element names are the rig's interface (first-match globs, in the rig's order): `
 `selector_*`, `startlever_*`, `clutchrod_*`, `crank_*`, `drivesprocket_*`, `returnsprocket_*`,
 `chaintop_*`, `chainbot_*` (the part `chainbottom`), `ch04_*`..`ch13_*`, `ch24_*`..`ch33_*`,
 `returnshaft_*`, `barrel_*`, `weight_*`, `rope1_*`..`rope5_*`, `dog_*`, `jaw_*`, `mandrel_*`,
-`follower_*`, `spring1_*`..`spring6_*`, `die_*`, `lslug1_*`..`lslug4_*`, `lsect1a_*`..`lsect4b_*`,
+`follower_*`, `spring1u_*`..`spring6e_*` (the spring's sides: turn 1..6, face `u`, `w`, `d`, `e` in winding
+order), `die_*`, `lslug1_*`..`lslug4_*`, `lsect1a_*`..`lsect4b_*`,
 `cslug1_*`..`cslug4_*`, `csect1a_*`..`csect4b_*`, `oillevel_*`, `ropetop_*`, and `fr_*` for the frame
 (the oiler's glass, base, cap and spout are `fr_oiler_*`, the head's cheeks `fr_cheek_w` and
 `fr_cheek_e`). Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop
@@ -385,6 +401,10 @@ The model has been reviewed in projections rendered from the written files and i
     stays there unseen (a frame or two in the game; one step of the viewer's slider). The item appears at
     the output face by the die end, about a block and a half north of where the section lay, and the
     trough under the bed is left idle.
+12. **The spring is bigger here than as an item.** The mandrel station winds it on a 4 × 4 mandrel (a 4
+    bore); round the bench's 5.9 bar it is drawn with a 6.0 bore, the same coil otherwise. Its sides are rigid:
+    stretched, each leans on about its centre, so its ends slide 0.012 along the next side's and the corners
+    show it; and at the end of a job it is drawn 4 % longer than the free spring.
 
 ## Gameplay
 
@@ -419,7 +439,8 @@ frame (8 steel ingots, 32 nails and strips and 3 stainless gears).
 fills (a later stage's item is `OutOfOrder`, one whose stage is in `AlreadyFitted`, a die with no
 durability `DieSpent`). A stage takes `Needed` of its item, all from the held stack in one click (fewer
 held is `TooFew`, with a message, and nothing is taken): two chains (the endless chain runs round both
-sprockets the bench's length), two rods (the mandrel bar, and the follower's spindle), one of the rest.
+sprockets the bench's length), two rods (the mandrel bar, and the follower's spindle), one of the rest;
+the mandrel stage also takes one spring, in a click of its own before or after the rods (`NeededOf`: one spring; `HasItem` the rods, `HasSpring` the spring, `Has` both), while springs exist (`Springs`, the spring item registered); without them the rods alone fit it. A save keeps the spring under `part-spring`; a bench saved before springs keeps its stages and asks for one.
 Breaking returns as many as went in; a save keeps one code a stage, as before. With the frame (about 11
 iron ingots) and the die (2), the parts bring the bench to about 21 ingots of iron and a Jonas gearbox:
 the chains 4, the bracket 2, the rods 2.
@@ -429,7 +450,7 @@ the chains 4, the bracket 2, the rods 2.
 | 1 | `gearbox` | `game:jonasframes-gearbox01` |
 | 2 | `chain` | `game:metalchain-iron`, `-meteoriciron` or `-steel`, two |
 | 3 | `dog` | `game:bracket-heavy-iron`, `-meteoriciron` or `-steel` |
-| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel`, two |
+| 4 | `mandrel` | `game:rod-iron`, `-meteoriciron` or `-steel`, two, and one `seraphhorizons:spring-steel` (the mandrel station's spring, `DrawBenchParts.SpringCode`; the rods and the spring go in by clicks of their own, either first) |
 | 5 | `die` | `seraphhorizons:drawdie-iron` or `-steel` (`assets/seraphhorizons/itemtypes/drawbench/drawdie.json`, shape `assets/seraphhorizons/shapes/item/drawdie.json`; smithed from two ingots of its metal, 80 voxels (two thick rings and a stepped shoulder), named `drawdie` so the helve hammer leaves it alone) |
 
 The die keeps its durability left and full (`GetRemainingDurability`, `GetMaxDurability`); the die
@@ -439,7 +460,8 @@ attribute when worn, and only while no hollow is on the bench (`CanTakeDie`; wit
 other stages come back only by breaking the frame, which drops every part, the die with its wear, and the
 hollow if no pipe section has come off it yet (the first comes off at W = 0.43125; once one has, the rest of
 it is lost; broken after the fourth's hand-out, before W = 4, nothing is lost and the die is not worn). The creative shortcut
-(Ctrl in creative mode on an incomplete bench) fits each stage's first code, the steel die last. A save
+(Ctrl in creative mode on an incomplete bench) fits each stage's first code, the mandrel's spring a click
+after its rods, the steel die last. A save
 restores the stages as a run from the first; a die with nothing left is dropped.
 
 **The draw** (`Drawing`, `DrawJob`). The work is a hollow section, the game's chute section
@@ -505,7 +527,8 @@ recipe type (`SwitchOwnership.HandListed`).
 
 **Export.** `tools/recipe-export/Recipes/DrawBenchExport.cs` and `RecipeSection.DrawBench.cs`: one `machine`
 record per metal (`drawbench|game:chutesection-{metal}|0`): the hollow section, the four kept stages
-(alternatives as variant stacks, the chain's and the mandrel's two each), the dies that draw the metal as a tool losing `DieWearPerHollow` a
+(alternatives as variant stacks, the chain's and the mandrel's two each) and the mandrel's spring (kept,
+one, while springs exist), the dies that draw the metal as a tool losing `DieWearPerHollow` a
 hollow (`rule` `fixed`), the oil for four pipe sections, the frame as the station; four
 `seraphhorizons:pipesection-{metal}` out (work unit `sections`, end 4); `turns` and
 `work.turnsPerUnit` from the settings.

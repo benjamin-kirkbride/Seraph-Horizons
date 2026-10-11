@@ -80,6 +80,11 @@ describe("machine", () => {
     expect(machineLines(mandrel)).toEqual(["By hand: 9 blows a job, each a right-click with a hammer"]);
   });
 
+  it("says a wound spring's seconds are held with tongs", () => {
+    const spring: Recipe = { ...cutter, machine: { power: "hand", turns: 4, work: { amount: 4, unit: "seconds" }, kept: [1] } };
+    expect(machineLines(spring)).toEqual(["By hand, with tongs: 4 seconds of winding a job, while right-click is held"]);
+  });
+
   it("says spalling's blows are left-clicks on the ore where it lies", () => {
     const spalling: Recipe = { ...cutter, machine: { power: "hand", turns: 6, work: { amount: 6, unit: "strikes" } } };
     expect(machineLines(spalling)).toEqual(["By hand where it lies: 6 blows a job, each a left-click with a hammer"]);

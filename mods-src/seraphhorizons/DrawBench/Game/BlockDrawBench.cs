@@ -115,6 +115,18 @@ public class BlockDrawBench : Block
     public override string GetPlacedBlockInfo(IWorldAccessor world, BlockPos pos, IPlayer forPlayer) =>
         this.WithoutDescription(base.GetPlacedBlockInfo(world, pos, forPlayer));
 
+    /// <summary>What the next stage still takes, as stacks of as many as it takes (the mandrel stage's
+    /// rods and its spring, or whichever of them is still to go in).</summary>
+    private ItemStack[] NextStacks(IWorldAccessor world, DrawBenchParts parts, DrawBenchStage next)
+    {
+        var codes = parts.NextCodes();
+        if (codes.SequenceEqual(DrawBenchParts.CodesFor(next)))
+            return _partStacks.GetValueOrDefault(next) ?? [];
+        return codes
+            .Select(c => world.GetItem(new AssetLocation(c)) is { IsMissing: false } item ? new ItemStack(item, DrawBenchParts.NeededOf(c, next)) : null)
+            .OfType<ItemStack>().ToArray();
+    }
+
     public override WorldInteraction[] GetPlacedBlockInteractionHelp(IWorldAccessor world, BlockSelection selection, IPlayer forPlayer)
     {
         var help = new List<WorldInteraction>();
@@ -122,7 +134,7 @@ public class BlockDrawBench : Block
         {
             string Key(string action) => DrawBenchSystem.Domain + ":blockhelp-drawbench-" + action;
             var parts = bench.Parts;
-            if (parts.Next is { } next && _partStacks.GetValueOrDefault(next) is { Length: > 0 } stacks)
+            if (parts.Next is { } next && NextStacks(world, parts, next) is { Length: > 0 } stacks)
                 help.Add(new WorldInteraction { ActionLangCode = Key("fitpart"), MouseButton = EnumMouseButton.Right, Itemstacks = stacks });
             else if (parts.Complete && !bench.JobOn)
             {
