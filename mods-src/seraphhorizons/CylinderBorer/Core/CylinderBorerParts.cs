@@ -66,13 +66,21 @@ public static class CylinderBorerRequires
 /// <summary>
 /// The cylinder borer's assembly rules: four stages after the frame, fitted one item at a time in
 /// <see cref="CylinderBorerStage"/> order (the next missing stage is the only one a click fills),
-/// recognised by full code (<c>domain:path</c>). The cutter head, the wearing part, carries its
-/// durability (cylinders bored). Every fitted code is kept, so breaking returns exactly what went
+/// recognised by full code (<c>domain:path</c>): the bushings are the game's metal parts, the rest the
+/// borer's own items. The cutter head, the wearing part, carries its durability (cylinders bored). Every fitted code is kept, so breaking returns exactly what went
 /// in, the head with what is left of it.
 /// </summary>
 public sealed class CylinderBorerParts
 {
-    public const string BushingsCode = "seraphhorizons:cylinderborerbushings";
+    /// <summary>The bar's two bushings: one lot of the game's metal parts (a block, salvaged or bought
+    /// from the mechanic), as the press brake's screws. One lot is both bushings: one item a stage, as
+    /// every stage is. They are drawn in cupronickel.</summary>
+    public const string BushingsCode = "game:metal-parts";
+
+    /// <summary>The bushings' own item before they were metal parts (#639), made from one lot of them.
+    /// No longer registered: a borer saved with it restores with metal parts in its place
+    /// (<see cref="Restore"/>), so breaking it gives back what the item was made from.</summary>
+    public const string LegacyBushingsCode = "seraphhorizons:cylinderborerbushings";
     public const string BarCode = "seraphhorizons:cylinderborerbar";
     public const string FeedCode = "seraphhorizons:cylinderborerfeed";
     public const string HeadCode = "seraphhorizons:cylinderborerhead-steel";
@@ -207,13 +215,18 @@ public sealed class CylinderBorerParts
 
     /// <summary>Restored state, as <see cref="Snapshot"/> gave it. The stages must be a run from the
     /// first (what follows a gap is dropped, as it could not have been fitted); a code that is not
-    /// its stage's part is dropped, as is a head with no durability left.</summary>
+    /// its stage's part is dropped, as is a head with no durability left. The bushings' old item
+    /// (<see cref="LegacyBushingsCode"/>) is restored as the metal parts it was made from.</summary>
     public static CylinderBorerParts Restore(IReadOnlyDictionary<string, string> fitted, int headLeft, int headCapacity)
     {
         var parts = new CylinderBorerParts();
         foreach (var stage in CylinderBorerRequires.Stages)
         {
-            if (!fitted.TryGetValue(CylinderBorerRequires.Name(stage), out var code) || !CodesFor(stage).Contains(Normalise(code)!))
+            if (!fitted.TryGetValue(CylinderBorerRequires.Name(stage), out var code))
+                break;
+            if (stage == CylinderBorerStage.Bushings && Normalise(code) == LegacyBushingsCode)
+                code = BushingsCode;
+            if (!CodesFor(stage).Contains(Normalise(code)!))
                 break;
             if (stage == CylinderBorerStage.CutterHead)
             {
