@@ -3074,10 +3074,24 @@ the patch and disables the recipes; `SwitchOwnership.HandListed` owns the three 
 
 **Pathfinding.** The game's A* centres a creature near a block's middle, so a 1.7-wide box always
 spans three blocks and never fits vanilla's 2 × 4 gate. `Eidolon/Core/WidePath.cs` searches on block
-corners instead, testing the whole box with the game's collision tester at each step (level, up one
-block, down at most `MaxFallBlocks`, no corner cutting on diagonals, lava and the like refused, water
-and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's own waypoint
-traverser then walks the path. A first pass: following (#675) proves it on real terrain.
+corners instead, testing the whole box with the game's collision tester at each step (level, up at
+most `MaxClimbBlocks`, down at most `MaxFallBlocks`, no corner cutting on diagonals, lava and the like
+refused, water and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's
+own waypoint traverser then walks the path. A first pass: following (#675) proves it on real terrain.
+
+**Steps and drops.** On every path, whatever the order, it goes up at most two blocks and down at most
+two. A step of one it walks (its physics' step height). A step of two it climbs (`EidolonNavigator`,
+`Eidolon/Core/EidolonClimb.cs`): the search takes it only with headroom for its whole box at the foot
+at every height up to the top and on the ledge at the top (diagonally, half way too, at the top's
+height), and costs it 3 more than a step of one (`WidePath.ClimbCost`), so a gentler way near by is
+taken first. The traverser walks it to the foot of the step; there it stops, faces the ledge and plays
+`climb` (2 s), and after every physics tick the navigator sets it where the climb has it, with no
+motion: to the foot node until its hands are on the ledge (frame 12), straight up two blocks until its
+right foot is on the step (36), then forward onto the top node (52), up then forward so its box is only
+ever where the search found it free. Then the traverser walks on. Stopped part way (another order, a
+fight, a slump), it is left where it is and falls back at most to the foot. A new path asked for while
+it climbs (following a player who moved on) is searched from the top and walked once it is up. A drop
+of two it walks off: it takes no fall damage.
 
 **Spacing** (`Eidolon/Core/EidolonSpacing.cs`). Its `repulseagents` is `movable: false`, so nothing
 shoves it, another eidolon included: two spawned in one place, or following one player to the same
@@ -3196,7 +3210,8 @@ recipe; the eidolon it places is fitted at random, any allowed material in every
 | `WalkSpeed` | 0.022 | Its walking speed (creature scale; a player walks at about 0.03) |
 | `RunSpeed` | 0.04 | Its running speed |
 | `PathSearchNodes` | 3000 | The most nodes one path search visits |
-| `MaxFallBlocks` | 3 | The highest drop it walks off on a path |
+| `MaxFallBlocks` | 2 | The highest drop it walks off on a path |
+| `MaxClimbBlocks` | 2 | The highest step it goes up on a path: one it walks, two it climbs; 1 or 2 (the climb is made for two) |
 | `OilTank` | 1000 | Points its oil reservoir holds (100 to the litre); none with `MachineOil` off |
 | `InitialOilShare` | 0.25 | The share of the reservoir a new eidolon wakes with |
 | `OilPerTreeFelled` | 5 | Oil points a tree felled costs |
@@ -3216,7 +3231,11 @@ With the switch off the server marks the entity type and the spawner disabled be
 them and registers no command, so none of it exists; eidolons already in a world are lost. A client
 follows the server. `tests/Eidolon/` covers charge, stops, the slump pose, ownership, oil per job,
 repair amounts and the pathfinder (a 2 × 4 gate passes, a narrower or lower one does not, steps, drops, corners, lava, the
-node budget); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
+node budget; climbs of two but not three, the headroom at the foot and the top, diagonally too, their cost, a
+drop of two but not three), and `tests/Eidolon/EidolonClimbTests.cs` the climb (which steps, where it is as it
+goes, never forward before it is up, the setting's range); `tests/PackTests/EidolonClimbScenarios.cs` (Atlas)
+sends one up a ledge two high (it climbs, playing `climb`, and gets there) and back down off it, and to and from
+the top of one three high (no way, either way); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
 stranger, runs its charge out over simulated days (slumped, alive, a gear wakes it, the cap holds),
 knocks it to 0 HP (slumped, alive, no drops, standing again once repaired) and walks it through a
 2 × 4 gate and not through a 1 × 4 one, drains its oil with a stand-in job until dry stops it standing

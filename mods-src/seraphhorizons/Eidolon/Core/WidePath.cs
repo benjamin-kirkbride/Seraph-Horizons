@@ -22,18 +22,26 @@ public interface IWideSpace
 /// A* for a big walker (Eidolon/README.md, "Pathfinding"). The game's own (<c>AStar</c>) puts the
 /// entity's centre near a block's middle, so a box 1.7 wide always spans three blocks and never fits
 /// a two-block gate; here the nodes are block corners, so a box up to 2 wide spans two. Each step is
-/// tested with the whole box: level, up one block (both where it stands and where it goes free one
-/// higher), or down a drop of at most <see cref="MaxFall"/>; a diagonal step must also be free half
-/// way, so it does not cut a corner.
+/// tested with the whole box: level, up at most <see cref="MaxClimb"/> blocks (free where it stands at
+/// every height up to the one it lands at, and where it goes only at that one), or down a drop of at
+/// most <see cref="MaxFall"/>; a diagonal step must also be free half way, at the higher end's height,
+/// so it does not cut a corner. A climb costs <see cref="ClimbCost"/> for each block past the first, so
+/// it takes a gentler way where there is one near.
 /// </summary>
-public sealed class WidePath(IWideSpace space, int maxFall, bool stepUp = true)
+public sealed class WidePath(IWideSpace space, int maxFall, int maxClimb = 1)
 {
     public const float Impassable = 10000f;
+
+    /// <summary>The extra cost of a step up for each block past the first: one block is walked, two are
+    /// climbed (<see cref="EidolonClimb"/>), two seconds at the foot of the ledge.</summary>
+    public const float ClimbCost = 3f;
 
     private static readonly (int Dx, int Dz)[] Directions =
         [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)];
 
     public int MaxFall { get; } = maxFall;
+
+    public int MaxClimb { get; } = maxClimb;
 
     /// <summary>Nodes visited by the last search.</summary>
     public int Visited { get; private set; }
@@ -69,15 +77,26 @@ public sealed class WidePath(IWideSpace space, int maxFall, bool stepUp = true)
                     return null;
             }
         }
-        else if (stepUp && space.Free(tx, y + 1, tz) && space.Free(from.X, y + 1, from.Z))
-            y++;
         else
-            return null;
+        {
+            // up: the lowest height it is free there, with headroom where it stands all the way up
+            int rise = 0;
+            do
+            {
+                if (++rise > MaxClimb || !space.Free(from.X, from.Y + rise, from.Z))
+                    return null;
+            }
+            while (!space.Free(tx, from.Y + rise, tz));
+            y += rise;
+        }
         if (dx != 0 && dz != 0 && !space.Free(from.X + dx * 0.5, Math.Max(y, from.Y), from.Z + dz * 0.5))
             return null;
         var to = new PathCell(tx, y, tz);
         cost = space.Cost(to);
-        return cost > Impassable ? null : to;
+        if (cost > Impassable)
+            return null;
+        cost += Math.Max(0, y - from.Y - 1) * ClimbCost;
+        return to;
     }
 
     /// <summary>The cheapest path from <paramref name="start"/> to within <paramref name="tolerance"/>

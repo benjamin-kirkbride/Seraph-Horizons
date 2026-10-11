@@ -29,7 +29,11 @@ public class EidolonConfig
     public int PathSearchNodes { get; set; } = 3000;
 
     /// <summary>The highest drop it walks off on a path, in blocks.</summary>
-    public int MaxFallBlocks { get; set; } = 3;
+    public int MaxFallBlocks { get; set; } = 2;
+
+    /// <summary>The highest step it goes up on a path, in blocks: one it walks, two it climbs
+    /// (<see cref="EidolonClimb"/>; the climb animation is made for two, so no more).</summary>
+    public int MaxClimbBlocks { get; set; } = 2;
 
     // ---- Oil and repair (#674; Eidolon/README.md, "Oil", "Repair") ----
 
@@ -140,6 +144,7 @@ public class EidolonConfig
         Check(nameof(RunSpeed), RunSpeed, 0.001, 0.5, () => RunSpeed = Defaults.RunSpeed, Defaults.RunSpeed);
         Check(nameof(PathSearchNodes), PathSearchNodes, 50, 100000, () => PathSearchNodes = Defaults.PathSearchNodes, Defaults.PathSearchNodes);
         Check(nameof(MaxFallBlocks), MaxFallBlocks, 0, 16, () => MaxFallBlocks = Defaults.MaxFallBlocks, Defaults.MaxFallBlocks);
+        Check(nameof(MaxClimbBlocks), MaxClimbBlocks, 1, 2, () => MaxClimbBlocks = Defaults.MaxClimbBlocks, Defaults.MaxClimbBlocks);
         Check(nameof(OilTank), OilTank, 1, 1_000_000, () => OilTank = Defaults.OilTank, Defaults.OilTank);
         Check(nameof(InitialOilShare), InitialOilShare, 0, 1, () => InitialOilShare = Defaults.InitialOilShare, Defaults.InitialOilShare);
         Check(nameof(OilPerTreeFelled), OilPerTreeFelled, 0, OilTank, () => OilPerTreeFelled = Defaults.OilPerTreeFelled, Defaults.OilPerTreeFelled);

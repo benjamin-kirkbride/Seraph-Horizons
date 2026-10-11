@@ -88,7 +88,7 @@ everything under it) is cut off the eidolon unchanged and drawn as part of the g
 copy, `EidolonGantry/spine.json`, is that model's too. Added for this mod: the three
 anchor elements (`carry-anchor`, `trunk-anchor`, `thick-trunk-anchor`), the `RightHand`, `LeftHand`,
 `Carry`, `Trunk` and `ThickTrunk` attachment points and the laborer's animations (`fell`, `carry-*`, `lift`, `setdown`, `trunk-*`,
-`guard-idle`, `hung`, `activate`, `dock`, `slump`, `standup`, `strike-*`).
+`guard-idle`, `hung`, `activate`, `dock`, `slump`, `standup`, `strike-*`, `climb`).
 
 The model belongs to Anego Studios and is not covered by this repository's Apache License; it is
 used here as part of a mod for their game. The additions are covered by the repository's license.
