@@ -39,7 +39,7 @@ export const GAITS = {
 } as const;
 
 /** The player: 10 hotbar slots and 4 bag slots; the best bag for rock is the sturdy mining bag. Walk in blocks a second (note 2). */
-export const PLAYER = { hotbar: 10, bags: 4, miningBagSturdy: 14, walk: gaitSpeed(GROUND.baseMove * GROUND.tick) } as const;
+export const PLAYER = { hotbar: 10, bags: 4, miningBagSturdy: 14, walk: gaitSpeed(GROUND.baseMove * GROUND.tick), sprint: 2 * gaitSpeed(GROUND.baseMove * GROUND.tick) } as const;
 /** Slots a player carries with four sturdy mining bags (ore and concentrate are both storage flag 5, the bag takes 4). */
 export const PLAYER_SLOTS = PLAYER.hotbar + PLAYER.bags * PLAYER.miningBagSturdy;
 
@@ -125,8 +125,8 @@ export function transports(): Transport[] {
       name: "On foot",
       load: `hotbar ${PLAYER.hotbar} + ${PLAYER.bags} sturdy mining bags × ${PLAYER.miningBagSturdy}`,
       slots: { raw: P, conc: P },
-      speed: PLAYER.walk,
-      speedNote: `walking; sprint ${num(2 * PLAYER.walk, 2)} at a hunger cost`,
+      speed: PLAYER.sprint,
+      speedNote: `sprinting, held at a hunger cost; walk ${num(PLAYER.walk, 2)}`,
       build: "Iron: sturdy mining bag (iron plate, sturdy leather); bronze bag 12 slots",
       terrain: "anywhere",
       notes: [1, 2],
@@ -157,7 +157,7 @@ export function transports(): Transport[] {
       terrain: "land, steps 1.2 blocks; pulled by the player",
       notes: [5, 17],
       verdict: "holds",
-      why: `Under twice a walker's load at ${num(gaitSpeed(GAITS.cartNarrow.sprint) / PLAYER.walk)} × walking pace.`,
+      why: `Under twice a walker's load at ${num(gaitSpeed(GAITS.cartNarrow.sprint) / PLAYER.sprint)} × a sprinting player's pace.`,
     },
     {
       id: "cartwide",
@@ -170,7 +170,7 @@ export function transports(): Transport[] {
       terrain: "land, steps 1.2 blocks; pulled by the player",
       notes: [5, 17],
       verdict: "holds",
-      why: `2.5 walkers' worth at ${num(gaitSpeed(GAITS.cartWide.sprint) / PLAYER.walk)} × walking pace: a real convoy of trips still.`,
+      why: `2.5 walkers' worth at ${num(gaitSpeed(GAITS.cartWide.sprint) / PLAYER.sprint)} × a sprinting player's pace: a real convoy of trips still.`,
     },
     {
       id: "elk",
@@ -183,7 +183,7 @@ export function transports(): Transport[] {
       terrain: "land; pulls no cart",
       notes: [6, 17],
       verdict: "holds",
-      why: `${num(gaitSpeed(GAITS.elk.sprint) / PLAYER.walk)} × walking pace, but little more room than a walker.`,
+      why: `${num(gaitSpeed(GAITS.elk.sprint) / PLAYER.sprint)} × a sprinting player's pace, but little more room than a walker.`,
     },
     {
       id: "raft",
@@ -248,7 +248,7 @@ export function transports(): Transport[] {
       terrain: "wagon rails",
       notes: [10],
       verdict: "breaks",
-      why: `Three walkers' worth at ${num(minecartTrain / PLAYER.walk, 0)} times walking pace, and it can run on a timetable.`,
+      why: `Three walkers' worth at ${num(minecartTrain / PLAYER.sprint, 0)} times a sprinting player's pace, and it can run on a timetable.`,
     },
     {
       id: "sgstandard",
@@ -261,7 +261,7 @@ export function transports(): Transport[] {
       terrain: "standard-gauge track",
       notes: [10],
       verdict: "breaks",
-      why: `Five walkers' worth at ${num(sgStandard / PLAYER.walk, 0)} times walking pace; a full boxcar weighs what an empty one does.`,
+      why: `Five walkers' worth at ${num(sgStandard / PLAYER.sprint, 0)} times a sprinting player's pace; a full boxcar weighs what an empty one does.`,
     },
     {
       id: "sgadvanced",
@@ -287,7 +287,7 @@ export function transports(): Transport[] {
       terrain: "any, from a 28-block runway",
       notes: [11],
       verdict: "strained",
-      why: `A walker's load ${num(20 / PLAYER.walk, 0)} times as fast, as the crow flies, for fuel.`,
+      why: `A walker's load ${num(20 / PLAYER.sprint, 0)} times as fast, as the crow flies, for fuel.`,
     },
     {
       id: "gondola",
@@ -300,7 +300,7 @@ export function transports(): Transport[] {
       terrain: "spans of 8 to 256 blocks, grade ≤ 1, curves ≤ 15°",
       notes: [12],
       verdict: "holds",
-      why: `A walker's load at ${num(5 / PLAYER.walk)} × walking pace, after building towers every 256 blocks.`,
+      why: `A walker's load at ${num(5 / PLAYER.sprint)} × a sprinting player's pace, after building towers every 256 blocks.`,
     },
   ];
 }
@@ -404,7 +404,7 @@ const time = (h: number | null) => (h == null ? "—" : h < 1 ? `${Math.round(h 
 const VERDICT: Record<Verdict, string> = { holds: "lever holds", strained: "strained", breaks: "breaks it" };
 
 function renderAudit(ts: Transport[]): string {
-  const head = `<tr><th>Transport</th><th>Carries</th><th>Slots<span class="ol-when">raw · concentrate, the player's ${PLAYER_SLOTS} included</span></th><th>Speed<span class="ol-when">blocks a second</span></th><th>Build</th><th>Terrain</th></tr>`;
+  const head = `<tr><th>Transport</th><th>Carries</th><th>Slots<span class="ol-when">raw · concentrate, the player's ${PLAYER_SLOTS} included</span></th><th>Max speed<span class="ol-when">blocks a second</span></th><th>Build</th><th>Terrain</th></tr>`;
   const rows = ts
     .map(
       (t) =>
@@ -531,7 +531,7 @@ ${renderHaul(ts, BATCH)}
 ${renderRails()}
 <h4>Verdict</h4>
 <div class="ot-verdicts">
-<div><b>The lever holds for anything a player walks, rides or pumps.</b> On foot, a medium-ore batch is ${trips(medBatch, foot.slots.raw)} trips and ${h(foot, "medium")} of walking at 2 km against ${h(foot, "medium", "conc")} as concentrate; poor ore is ${trips(poorBatch, foot.slots.raw)} trips. The wide cart and the elk cut the hours to ${h(wide, "medium")} and ${h(elk, "medium")} (the cart carries ${num(wide.slots.raw / foot.slots.raw)} walkers' loads at ${num(wide.speed! / foot.speed!)} × the pace, the elk gallops at ${num(elk.speed! / foot.speed!)} ×), but not the trips: ${trips(medBatch, wide.slots.raw)} and ${trips(medBatch, elk.slots.raw)} for medium ore and ${trips(poorBatch, wide.slots.raw)} and ${trips(poorBatch, elk.slots.raw)} for poor, against one of concentrate, each needing the player along. The raft, the handcar and the cable car do less. At 10 ingots everything but poor ore fits one trip, so the lever bites at a plant's scale, not a toolkit's.</div>
+<div><b>The lever holds for anything a player walks, rides or pumps.</b> On foot, a medium-ore batch is ${trips(medBatch, foot.slots.raw)} trips and ${h(foot, "medium")} on foot at 2 km against ${h(foot, "medium", "conc")} as concentrate; poor ore is ${trips(poorBatch, foot.slots.raw)} trips. The wide cart and the elk cut the hours to ${h(wide, "medium")} and ${h(elk, "medium")} (the cart carries ${num(wide.slots.raw / foot.slots.raw)} walkers' loads at ${num(wide.speed! / foot.speed!)} × the pace, the elk gallops at ${num(elk.speed! / foot.speed!)} ×), but not the trips: ${trips(medBatch, wide.slots.raw)} and ${trips(medBatch, elk.slots.raw)} for medium ore and ${trips(poorBatch, wide.slots.raw)} and ${trips(poorBatch, elk.slots.raw)} for poor, against one of concentrate, each needing the player along. The raft, the handcar and the cable car do less. At 10 ingots everything but poor ore fits one trip, so the lever bites at a plant's scale, not a toolkit's.</div>
 <div class="ot-bad"><b>Yang's trains break it.</b> ${breakers.map((t) => `${esc(t.name)} (${t.slots.raw} slots, ${num(t.speed!, 0)} blocks a second)`).join(", ")}. The advanced train brings the whole poor-ore batch in ${trips(poorBatch, adv.slots.raw)} trips and ${h(adv, "poor")} at 2 km. A boxcar's weight is its own plus its attachments, never its contents, so a full train runs as fast as an empty one; track is cheap (a kilometre of metal track is ${railCost(RAILS[1], 1000).binder} iron rods and ${railCost(RAILS[1], 1000).planks} planks, a 5 km line ${railCost(RAILS[1], 5000).binder} rods); and conductor locusts drive a timetable (leaving a station on time or mileage; whether anything but a player fills a boxcar: unknown).</div>
 <div><b>Strained:</b> ${strained.map((t) => esc(t.name)).join(" and ")}. The boat holds ${boat.slots.raw} slots of crates with no metal in it, but only where water joins mine and plant; the plane flies a walker's load at ${num(20 / foot.speed!, 0)} times the pace, for aqua vitae.</div>
 <div><b>What could be adjusted</b><ul>

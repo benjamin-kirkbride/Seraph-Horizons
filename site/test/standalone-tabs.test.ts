@@ -247,7 +247,7 @@ describe("the proposal's transport audit", () => {
     expect(trips(haulSlots("raw", "poor", BATCH), foot.slots.raw)).toBe(26);
     expect(trips(haulSlots("raw", "medium", BATCH), adv.slots.raw)).toBe(1);
     // 7 round trips of 4 km at a walk.
-    expect(haulHours(foot, "raw", "medium", 2000, BATCH)).toBeCloseTo((7 * 4000) / PLAYER.walk / 3600);
+    expect(haulHours(foot, "raw", "medium", 2000, BATCH)).toBeCloseTo((7 * 4000) / PLAYER.sprint / 3600);
     // The wide cart: 3 trips of the batch at its sprint; the elk 5 at its gallop.
     expect(haulHours(ts.find((t) => t.id === "cartwide")!, "raw", "medium", 2000, BATCH)).toBeCloseTo((3 * 4000) / gaitSpeed(0.04) / 3600);
     expect(haulHours(ts.find((t) => t.id === "elk")!, "raw", "medium", 2000, BATCH)).toBeCloseTo((5 * 4000) / gaitSpeed(0.08) / 3600);
