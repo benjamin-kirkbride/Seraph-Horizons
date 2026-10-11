@@ -312,6 +312,10 @@
     "SlamDamage": 16.0,
     "GuardRadius": 16.0,
     "FellMinLogs": 5,
+    "MineThroughBlockEntities": [
+      "desirepaths:soilpath-*",
+      "desirepaths:soilpathslab-*"
+    ],
     "KeepWorkChunksLoaded": true,
     "ChunkLoadRadius": 1,
     "MaxWorkAreaChunks": 16,

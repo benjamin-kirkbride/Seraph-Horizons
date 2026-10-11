@@ -1,5 +1,49 @@
 namespace SeraphHorizons.Mod.Eidolon.Core;
 
+/// <summary>What the fellers of one shared job share (README "Eidolon", working together): the stumps
+/// every member passes over for what they are (a young tree, one in a land claim its owner may not break
+/// in, one that would not fall), and the stumps some member gave up for want of a way to them, for the
+/// report. A tree one member cannot reach another may, so each keeps its own unreachable stumps for its
+/// search; only the report reads them all here.</summary>
+public sealed class FellJobCells
+{
+    public HashSet<MarkPos> Skip { get; } = new();
+    public HashSet<MarkPos> Unreachable { get; } = new();
+}
+
+/// <summary>
+/// The trees one feller gave up for want of a way to them (README "Eidolon", felling): passed over in
+/// its search, but a way is often wanting only for a while (another eidolon or a felled trunk lying in
+/// it), so once it finds nothing else it tries each that still stands once more (<see cref="Retry"/>)
+/// before it says it has nothing left; one given up again stays given up for the order's life. Its
+/// own: a tree one eidolon cannot reach another may.
+/// </summary>
+public sealed class FellGiveUps
+{
+    private readonly HashSet<MarkPos> _given = new();
+    private readonly HashSet<MarkPos> _retried = new();
+
+    /// <summary>The stumps it passes over now.</summary>
+    public IReadOnlyCollection<MarkPos> Given => _given;
+
+    public bool Has(MarkPos stump) => _given.Contains(stump);
+
+    public void GiveUp(MarkPos stump) => _given.Add(stump);
+
+    /// <summary>Gives back to its search the stumps given up only once that still stand
+    /// (<paramref name="standing"/>): true when there were any, and it searches again before it is done.</summary>
+    public bool Retry(Func<MarkPos, bool> standing)
+    {
+        var again = _given.Where(s => !_retried.Contains(s) && standing(s)).ToList();
+        foreach (var s in again)
+        {
+            _given.Remove(s);
+            _retried.Add(s);
+        }
+        return again.Count > 0;
+    }
+}
+
 /// <summary>
 /// The fell order's rules (#677; README "Eidolon", felling), game-independent: which logs are a wild
 /// tree's stump, when a tree is grown enough to fell, where it stands to swing, how long the swing
@@ -42,12 +86,35 @@ public static class EidolonFelling
         && (codePath.Contains("-grown-", StringComparison.Ordinal)
             || codePath.StartsWith("log-resin", StringComparison.Ordinal));
 
-    /// <summary>Whether a wild log is a stump: upright, and what is under it is not a log of the same
-    /// tree (it stands on the ground). <paramref name="belowSameGroup"/>: the block below has the
-    /// same felling group.</summary>
-    public static bool IsStump(string codePath, bool belowSameGroup) =>
-        !belowSameGroup && (codePath.EndsWith("-ud", StringComparison.Ordinal) || codePath.Contains("-ud-", StringComparison.Ordinal)
-                            || codePath.StartsWith("logsection-", StringComparison.Ordinal));
+    /// <summary>Whether a wild log is a stump: upright, what is under it is not a log of the same tree,
+    /// and it stands on the ground (<paramref name="belowSolid"/>: the block below is solid on top). An
+    /// upright log of a crown over air or leaves (an oak's boughs) is no stump: there is no place beside
+    /// it to stand. <paramref name="belowSameGroup"/>: the block below has the same felling group.</summary>
+    public static bool IsStump(string codePath, bool belowSameGroup, bool belowSolid) =>
+        !belowSameGroup && belowSolid
+        && (codePath.EndsWith("-ud", StringComparison.Ordinal) || codePath.Contains("-ud-", StringComparison.Ordinal)
+            || codePath.StartsWith("logsection-", StringComparison.Ordinal));
+
+    /// <summary>How many trees <paramref name="stumps"/> are: stumps side by side (a big tree's 2 × 2
+    /// trunk of log sections) are one tree.</summary>
+    public static int Trees(IEnumerable<MarkPos> stumps)
+    {
+        var left = stumps.ToHashSet();
+        int trees = 0;
+        while (left.Count > 0)
+        {
+            trees++;
+            var next = new Stack<MarkPos>([left.First()]);
+            left.Remove(next.Peek());
+            while (next.TryPop(out var s))
+                foreach (var o in left.Where(o => Math.Abs(o.X - s.X) <= 1 && Math.Abs(o.Z - s.Z) <= 1 && Math.Abs(o.Y - s.Y) <= 1).ToList())
+                {
+                    left.Remove(o);
+                    next.Push(o);
+                }
+        }
+        return trees;
+    }
 
     /// <summary>Whether a tree of <paramref name="woodBlocks"/> wood blocks (the axe's tree search
     /// from its stump) is grown: at least <paramref name="minLogs"/>. A sapling is not a log at all;

@@ -3040,15 +3040,21 @@ grown wild tree whose stump stands in the area (between 8 blocks below the lower
 higher), at most every 2 seconds, weighing at most 24 a search (the axe's own tree search). A wild log
 is one with the game's tree felling group that is grown, not placed (`log-grown-*`, `logsection-grown-*`,
 `lognarrow-grown-*`, the resin logs), never a fruit tree; a stump is such a log upright with no log of the
-same tree under it. A tree is grown when the axe's search from its stump finds at least `FellMinLogs`
+same tree under it, standing on the ground (the block under it solid on top: an oak's boughs, upright
+logs up in its crown over air or leaves, are no stumps). A tree is grown when the axe's search from its stump finds at least `FellMinLogs`
 (5) wood blocks: a sapling is no log, and a small young tree is left. A player's log building (placed
 logs, which have no felling group) is never touched, and neither is a tree in a land claim its owner may
 not break in (or, its owner unknown to the server, any claimed one). It walks to a place beside the trunk
 (a block corner 1.5 to 3.6 blocks from the trunk's centre, those within 2.8 and nearest it first, its
-box free and on the ground; three tried by the wide pathfinder before the tree is given up), faces it and
-swings `fell` three times (1.33 s each); the third cut, on frame 15, fells it. A tree it cannot reach is
-given up for the order's life. Done when no grown tree it can reach is left, when it tells its owner how
-many it felled (and how many were out of reach).
+box free and on the ground; three tried by the wide pathfinder, and three walks there, before the tree is
+given up), faces it and swings `fell` three times (1.33 s each); the third cut, on frame 15, fells it. A
+tree it cannot reach is passed over, but a way is often wanting only for a while (a feller is lifted onto
+the trunk it has just felled, and its walks from there may end where they start; another eidolon or a
+trunk may stand in it), so once it finds nothing else it tries each tree it gave up that still stands
+once more (`FellGiveUps`); one given up again is given up for the order's life. Done when no grown tree
+it can reach is left, when it tells its owner how many it felled (and how many trees were out of reach:
+those given up that still stand, stumps side by side one tree) and the order ends where it stands. Several given the
+same area fell it as one job, with one report (below).
 
 *Felled as a player's axe fells.* The server raises its `BreakBlock` event only for players, which
 is where Logging Expanded fells, its handler starting from the player's hotbar, and no stand-in player
@@ -3083,10 +3089,19 @@ eidolon stands then. Bare-handed, as the game's steel pickaxe, it breaks everyth
 breaks: a block needing no more than the steel pickaxe's tier (its `ToolTier`, read from
 `game:pickaxe-steel` at runtime: 5; `EidolonMining.SteelPickTier`, 5, if it cannot be read), one needing a
 tier only if the steel pickaxe has a speed for its material (as the game refuses a player). It leaves liquids, any block a liquid touches on one of its six
-faces (so the pit never opens onto water or lava), blocks with a block entity (a chest, a machine),
-blocks in a land claim its owner may not break in (as felling; asked only of a block it comes to, the
+faces (so the pit never opens onto water or lava), every block with a block entity (a chest, a machine,
+chiseled stone, farmland, a berry bush, a tapestry, a stone door, an aqueduct: a block's material says
+nothing of whether a player made it, as a block type that gives none is stone to the game) but the
+ground blocks it mines through (`MineThroughBlockEntities`, codes with `*`, `EidolonMining.LeavesBlockEntity`:
+by default Desire Paths' worn soil, `desirepaths:soilpath-*` and its slab `desirepaths:soilpathslab-*`,
+the pinned mods' only ground with a block entity; once left, its paths hung over the dug-out soil and
+walled off the pit's corners), blocks in a land claim its owner may not break in (as felling; asked only of a block it comes to, the
 square it makes for or a group it may strike, not of every block a search finds, and a block found
-claimed is left for the order's life) and anything harder or unbreakable (the mantle). It quarries top down, with no ramp: the highest layer with a block left that it may break is
+claimed is left for the order's life) and anything harder or unbreakable (the mantle). What it leaves in
+place holds up what is under it: the blocks below a block it leaves, in the area or just over it (a
+chest, a sign or farmland on the surface: a block entity, too hard or claimed, `EidolonMining.Holds`),
+down to the first air, are left too (`EidolonMining.Scan`), so nothing is left hanging. A block given
+up for want of a way to it holds nothing up: it is only passed over, and what is under it is mined. It quarries top down, with no ramp: the highest layer with a block left that it may break is
 the one it works, a strike at a time, each breaking up to four blocks: a 2 × 2 group on that layer
 (flat), or two side by side on it and the two under them (upright, at a wall where both layers are
 left), whichever breaks more, flat on ties. The groups tile the area in 2 × 2 squares from its lower
@@ -3095,7 +3110,9 @@ layer under its feet to its head (3 over the block its feet are in), never one i
 so it never digs its footprint or under it: for what it stood on, or a square out of reach, it walks to
 a place beside (a path node from which it reaches the square's blocks on the layer, its box free and
 on the ground; those not standing on a block it has yet to mine first, then the nearest; three tried by
-the wide pathfinder, and the square is given up for the order's life). With no ramp, it gets out of its
+the wide pathfinder, and the square is given up for the order's life, counted out of its reach). A
+square only out of its way for now (under an eidolon, held by another, mined out by another) is never
+given up: it goes back to its search, and waits at the rim if nothing else is free. With no ramp, it gets out of its
 pit as it walks anywhere, up steps of two at most ("Steps and drops"): a pit deeper than two with no step
 left beside it (a shelf outside the area, say) keeps it down there, and the order ends with it in the pit.
 
@@ -3119,7 +3136,97 @@ and reach is left and none of the area is unloaded: it tells its owner how many 
 left and how many were out of its reach, walks back to where it was ordered (if it finds a way) and the
 order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
 (done, it goes on back). `MineOrder.HasWorkLeft` holds until it has told its owner it is done, and its
-area is its `WorkAreas`. It is not part of the crew order.
+area is its `WorkAreas`. It is not part of the crew order. Several given the same area work it as one
+job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs` and
+`tests/PackTests/EidolonMineScenarios.cs` (Atlas: the granite pit; an 8 × 8 soil layer, its
+middle out of reach from the rim, with a worn Desire Paths path across it all mined and a chest left;
+a dry reservoir).
+
+**Working together** (`Eidolon/Game/EidolonJobSystem.cs`, `RimWait.cs`, rules in
+`Eidolon/Core/EidolonTeamwork.cs`; mining and felling, not the crew order). Eidolons of one owner given the very same area (the same two corners)
+for the same work are one job (`JobKey`: the owner's uid, the order's code, the area), whether the tool
+gave it to them together or one later, which joins the job running; an overlapping area, or another
+owner's eidolons, is a job of its own. A job is the server's (`JobBoard`, one per kind of work), not
+saved. *Reservations*: before it walks to a 2 × 2 square or strikes in one, a miner reserves the
+square's columns, and passes over a square another holds, in its job or any other (reservations are
+the board's, by block column, so jobs over the same place with their squares laid differently do not
+meet either); it holds one square at a time, and frees it at once when it stops working (another
+order, none, dry, slumped, down, a fight, unloaded or gone: the order's `Stop`; or walks off toward
+a part of the area not loaded, or to wait: `Travel`, `Wait`; and a sweep every
+second, `EidolonJobSystem.Sweep`, for an eidolon unloaded, removed or given another order), and a
+reservation not struck within 30 seconds (`EidolonTeamwork.ReserveSeconds`) lapses (walking to it
+counts as striking it, however long the way). *The same layer
+together*: each tells the job the highest layer it has a block left on (after each search), and the
+job works the highest of its members at work; one whose own is lower (the rest of the layer is out of
+its reach, given up, or held) starts nothing until that layer is done, so the pit's floor stays even.
+What is skipped is shared, what is out of reach is not: a block left for what it is (in a claim its
+owner may not break in, or one that would not break) is left by the whole job (`MineJobCells.Skip`),
+but one a member found no way to stays its own, since another may reach it, and the report counts
+what any gave up (`MineJobCells.Unreachable`). *Waiting at the rim*: one with no square free to walk to
+or strike (all held by others or under a member at work) or a layer above still worked frees its
+square and walks to a place on the area's rim (`EidolonTeamwork.Rim`: its box two columns clear of the
+area first, the miners' stands being at most one, then one and none; the nearest with ground under it,
+none within 2.5 blocks of another eidolon or of where another waits), out of the pit and out of the
+way, and every second looks again, taking the next square that comes free. One that finds no way to
+the rim (deeper in the pit than it climbs, say) steps aside instead (`RimWait`: the nearest path node
+within 6 whose four columns have no block left it would mine and none another holds, on ground a climb
+or a drop from its feet), says so in its status (`eidolon-status-mine-waiting-aside`) rather than that
+it waits at the edge, and tries the rim again every 10 seconds. *Footing*: no miner breaks
+a block under any eidolon's box at or below its feet (`EidolonMining.Undermines`), its job's or not,
+with an order or not, asked at the strike for each block of the group against the eidolons loaded within
+8 blocks of it (a block so left is struck once the eidolon has moved), and its next group and the square
+it makes for are chosen from blocks under no eidolon loaded over the area, the same set for both: a
+square wholly under one, its job's or not, at work or idle, is passed over for now and tried again, so
+an eidolon parked in the pit is worked round (a search passes over the blocks under any eidolon, so the
+layers under go on round it) and then waited for at the rim (the order is not done while blocks under
+one are left; it searches again every 10 seconds), and its blocks mined once it moves, with no pillar left. *The report*: a member
+with nothing left it may break and reach tells the job and waits at the rim; the job is done when every
+member at work has nothing left (one interrupted, dry say, does not hold it up, and one that left does
+not count), and the last to finish tells the owner once (and writes `done` into each loaded member's
+saved order, `EidolonJobSystem.SaveDone`): how many eidolons, all they mined, each one's
+share (`eidolon-mine-share`, "40 by eidolon 1234", by entity id as `/sh eidolon` names one, most first;
+those that left the job included), what was left and what was out of reach; alone, the message is the
+one above. Then each walks back to where it was ordered. *Restarts*: each saves its own order (area and
+home) and the ids of the others in its job (`mates`), and once told the job is done, `done`, so after a
+restart it goes on back rather than mining again. On load the eidolons of a job find each other by
+their key and form it again; a job waits for the mates its members saved, up to 2 minutes
+(`EidolonTeamwork.ExpectSeconds`, the chunk holds' restore time), so it does not report while they are
+still loading, and one loading after that joins it as any late one does. One away when the job is
+reported (dry, unloaded: the sweep keeps an unloaded member in its job, away) finds the job closed when
+it comes back (`JobBoard.Join`'s `rejoinClosed`, for an order resumed or loaded with mates) and goes
+back with no report of its own, so nothing is counted twice; an order given anew to the same area (no
+mates saved) makes a new job. Reservations are not saved, and the shares after a restart count from then. Chunks, oil and
+the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` and
+`tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit, never holding the
+same square, a layer at a time, one report with both shares, each back to its place; one
+ordered later joining the job running) and `tests/PackTests/EidolonTeamWaitScenarios.cs` (Atlas: an
+eidolon with no order standing in the area never mined out from under, waited for, and its squares mined
+once it moves, no pillar left; one dry when the job is reported going back once oiled with no report of
+its own; one with no square free waiting at the rim).
+
+*Felling together* (`FellOrder`, `EidolonJobSystem.Felling`) works the same way with a tree for the unit:
+a feller reserves the tree it makes for (its stump) before it sets off, again as it comes to swing (a
+reservation may lapse on a long walk), keeps it with each swing and frees it once the tree is down or
+given up; its search passes over the trees another holds (they do not count to the 24 it weighs). A tree
+passed over for what it is (young, in a claim its owner may not break in, or one that would not fall) is
+passed over by the whole job (`FellJobCells.Skip`); one a member found no way to stays its own (each
+tries it, and tries it again before it has nothing left, so the job is done only when every member has
+given it up twice), and the report counts the trees some member gave up that still stand
+(`FellJobCells.Unreachable`, each tree once). One with no tree
+free, while trees are held by others, waits at the rim as a miner does (`RimWait`, looking for ground
+from 8 blocks below the area to 8 above, as stumps are; finding no way there, it steps aside to the
+nearest place more than 4.6 blocks from every tree another holds, `eidolon-status-fell-waiting-aside`),
+searching again every 2 seconds; with nothing
+left, it tells the job, waits at the rim and searches again every 10. There is no level and no footing
+rule. The last to finish tells the owner once: how many eidolons, all they felled, each one's share
+(`eidolon-fell-share`, "3 by eidolon 1234") and, if any, how many were out of their reach (alone, the
+message is the one above); then each one's order ends where it stands, as one alone ends. Without an axe
+a feller is away from its job (its tree freed, the report not held up for it) until it is given one.
+Each saves `mates` as a miner does, and the report writes `done` into each loaded member's order, which ends it on load; one away when the job is reported (no axe, dry, unloaded) finds it closed when it comes back and its order ends with no report of its own. With `once`
+(the crew order) it joins no job. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` and
+`tests/PackTests/EidolonTeamFellScenarios.cs` (Atlas: two of one owner felling five oaks, never holding
+the same tree, one report with both shares, the job closed) and `tests/PackTests/EidolonTeamWaitScenarios.cs`
+(Atlas: one with no tree free waiting at the rim).
 
 **The crew** (#679; `Eidolon/Game/CrewOrder.cs`, rules in `Eidolon/Core/EidolonCrew.cs`). *Fell and
 haul* (wheel place 70) marks a fell area (at most 32 blocks a side), then a rosser or bucking mill, as
@@ -3368,6 +3475,7 @@ recipe; the eidolon it places is fitted at random, any allowed material in every
 | `SlamDamage` | 16 | Every third blow, the slam or a hammer (the same multiplier) |
 | `GuardRadius` | 16 | Guarding, how far from its point it goes for a hostile creature, in blocks |
 | `FellMinLogs` | 5 | Felling an area, the fewest logs (wood blocks) a tree must have to be felled |
+| `MineThroughBlockEntities` | `["desirepaths:soilpath-*", "desirepaths:soilpathslab-*"]` | Mining, the blocks with a block entity it mines (codes, `*` any run); every other one it leaves |
 | `KeepWorkChunksLoaded` | true | An eidolon with work left in its order keeps its chunks loaded and works with no player near |
 | `ChunkLoadRadius` | 1 | Working, the chunk columns it holds round its own (1: its own and the 8 round it; 0 to 4) |
 | `MaxWorkAreaChunks` | 16 | Working, its order's area and machine are held too while they cover at most this many columns |
@@ -3378,7 +3486,7 @@ follows the server. `tests/Eidolon/` covers charge, stops, the slump pose, owner
 repair amounts and the pathfinder (a 2 × 4 gate passes, a narrower or lower one does not, steps, drops, corners, lava, the
 node budget; climbs of two but not three, the headroom at the foot and the top, diagonally too, their cost, a
 drop of two but not three), and `tests/Eidolon/EidolonClimbTests.cs` the climb (which steps, where it is as it
-goes, never forward before it is up, the setting's range); `tests/PackTests/EidolonClimbScenarios.cs` (Atlas)
+goes, never forward before it is up, the setting's range); `tests/PackTests/EidolonFootingScenarios.cs` (Atlas, its `F_` scenarios)
 sends one up a ledge two high (it climbs, playing `climb`, and gets there) and back down off it, and to and from
 the top of one three high (no way, either way); `tests/PackTests/EidolonScenarios.cs` (Atlas) spawns one owned and charged, refuses a
 stranger, runs its charge out over simulated days (slumped, alive, a gear wakes it, the cap holds),
@@ -3423,11 +3531,10 @@ player's log pillar and a sapling standing; and an axe that breaks stops it unti
 steel pickaxe's tier, the strike's length against a steel pickaxe and its slam, its reach, never under
 its box, the next group flat or upright, where it stands, the search: the highest layer and the one under,
 an unloaded column read as air never done) and `tests/PackTests/EidolonMineScenarios.cs` (Atlas) orders it
-with the tool over a pit two layers deep in granite: it mines every block top down, never under its box,
-the granite's drops lying in the world, half a point of oil a strike, leaves a block touching water and
-a chest, and walks back up a terrace to where it was ordered; digs a pit three deep with no ramp, down
-to its floor, and climbs out two blocks onto a shelf beside it and walks back; and a dry reservoir stops
-it until oiled;
+with the tool over a pit three layers deep in granite with no ramp: it mines every block top down,
+never under its box, the granite's drops lying in the world, half a point of oil a strike, leaves a block
+touching water and a chest with the column under it, down to its floor, and climbs out two blocks onto a
+shelf beside it and walks back to where it was ordered; and a dry reservoir stops it until oiled;
 `tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
 `tests/PackTests/EidolonCrewScenarios.cs` (Atlas, `WoodworkingEidolonScenarios` on the woodworking world) orders a crew with the tool
 (refused without an axe) over two grown oaks and a running rosser: it fells each, hauls each trunk to
@@ -3438,7 +3545,7 @@ crew gives one up;
 `tests/Eidolon/EidolonChunksTests.cs` covers chunk loading's rules (when it holds, which columns for a
 place, a radius and work areas, a quarry too wide to hold, the counted holds, a column forced for
 something else, what is saved) and `tests/PackTests/EidolonChunkScenarios.cs` (Atlas, no player joined,
-each far from spawn) has one fell two oaks with no player near (inactive until ordered, its columns and
+each far from spawn) has one fell an oak with no player near (inactive until ordered, its columns and
 area forced while it works, every one let go when it is done), let its columns go dry, staying, without
 an axe, slumped and removed and hold them again at work, and saves its holds and restores them (a hold
 whose eidolon never loads let go after its wait); Atlas pauses the chunk unloader, so they read the
