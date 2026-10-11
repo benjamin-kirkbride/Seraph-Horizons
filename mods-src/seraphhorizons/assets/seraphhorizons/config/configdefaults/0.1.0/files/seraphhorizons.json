@@ -76,6 +76,8 @@
   },
   "LocomotiveRidersStayOn": true,
   "LocomotiveRidersBreathe": true,
+  "SlowerRailVehicles": true,
+  "RailVehicleSpeedFactor": 0.5,
   "OreCells": true,
   "OreCellSizeMetres": 5000,
   "OreCellSizeByMetal": {},
@@ -96,7 +98,6 @@
   "OreProcessing": true,
   "SpallingSettings": {
     "BlowsRawOre": 6,
-    "BlowsChunk": 3,
     "HammerWearPerBlow": 1
   },
   "FirepitRoastSeconds": 10.0,

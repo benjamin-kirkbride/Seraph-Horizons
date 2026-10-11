@@ -14,28 +14,27 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// items from the server's, so it follows the server's switch). Everything vanilla's
 /// <see cref="ItemOre"/> does, except:
 /// <list type="bullet">
-/// <item>its name: poor and medium ore are raw ore ("Raw galena ore (medium)"), rich and bountiful
-/// chunks ("Galena chunk (rich)"); crystallised ore keeps vanilla's;</item>
-/// <item>its text: no "crush with hammer to extract nuggets", but what the form does instead;</item>
+/// <item>its name: raw ore at every grade ("Raw galena ore (rich)", #847: no chunks); crystallised
+/// ore keeps vanilla's;</item>
+/// <item>its text: no "crush with hammer to extract nuggets", but what it does instead: the share it
+/// smelts at by its grade, or for a sulfide, that it roasts first;</item>
 /// <item>a hammer no longer breaks it into nuggets where it lies on the ground: it spalls it, a
-/// left-click a blow, into crushed ore by the 5-unit rule (#747, <see cref="OreSpalling"/>), and
+/// left-click a blow, into crushed ore of its grade, one for one (#747, <see cref="OreSpalling"/>), and
 /// shift + right-click on a placed ore with another in hand sets that one on the next block.</item>
 /// </list>
 /// The stack sizes, crushing and smelting are set on the server by <see cref="OreProcessingSystem"/>.
 /// </summary>
 public class ItemGradedOre : ItemOre, IContainedInteractable
 {
-    private bool IsGradedOre => FirstCodePart() == "ore" && OreProducts.FormOfGrade(Variant["grade"]) != null;
+    private bool IsGradedOre => FirstCodePart() == "ore" && OreProducts.IsGrade(Variant["grade"]);
 
     public override string GetHeldItemName(ItemStack itemStack)
     {
         if (!IsGradedOre)
             return base.GetHeldItemName(itemStack);
         string grade = Variant["grade"];
-        string ore = Lang.Get("ore-" + Variant["ore"]);
-        return OreProducts.FormOfGrade(grade) == OreForm.Raw
-            ? Lang.Get("seraphhorizons:oreprocessing-rawore", ore, Lang.Get("seraphhorizons:oreprocessing-grade-" + grade))
-            : Lang.Get("seraphhorizons:oreprocessing-chunk", ore, Lang.Get("seraphhorizons:oreprocessing-grade-" + grade));
+        return Lang.Get("seraphhorizons:oreprocessing-rawore", Lang.Get("ore-" + Variant["ore"]),
+            Lang.Get("seraphhorizons:oreprocessing-grade-" + grade));
     }
 
     public override void GetHeldItemInfo(ItemSlot inSlot, StringBuilder dsc, IWorldAccessor world, bool withDebugInfo)
@@ -44,9 +43,7 @@ public class ItemGradedOre : ItemOre, IContainedInteractable
         base.GetHeldItemInfo(inSlot, own, world, withDebugInfo);
         string hammer = Lang.Get("Crush with hammer to extract nuggets");
         string text = own.ToString();
-        string instead = Lang.Get(OreProducts.FormOfGrade(Variant["grade"]) == OreForm.Raw
-            ? "seraphhorizons:oreprocessing-rawore-info"
-            : "seraphhorizons:oreprocessing-chunk-info");
+        string instead = ItemOreProduct.SmeltText(this, "seraphhorizons:oreprocessing-rawore");
         dsc.Append(text.Contains(hammer) ? text.Replace(hammer, instead) : text + instead + "\n");
     }
 

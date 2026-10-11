@@ -211,6 +211,18 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True((bool)check.Invoke(null, [loco])!);
     }
 
+    /// <summary><c>SlowerRailVehicles</c>: none of Yang's speed methods is patched, so its vehicles
+    /// keep their full top speed.</summary>
+    [AtlasScenario]
+    public void Slower_rail_vehicles_off_Yangs_speeds_are_as_it_ships_them()
+    {
+        Assert.True(Off("SlowerRailVehicles"));
+        Assert.False(RailVehicleSpeed.Patched);
+        var cap = AccessTools.DeclaredMethod(AccessTools.TypeByName(RailVehicleSpeed.RailGraphType), RailVehicleSpeed.CapMethod);
+        Assert.NotNull(cap);
+        Assert.DoesNotContain(Harmony.GetPatchInfo(cap)?.Postfixes ?? [], p => p.PatchMethod.DeclaringType == typeof(RailVehicleSpeed));
+    }
+
     /// <summary><c>FlatFellingWear</c>: nothing is patched, and felling a tree that leaves a trunk
     /// costs the axe the game's one durability per log.</summary>
     [AtlasScenario(TimeoutMs = 180_000)]
@@ -1370,7 +1382,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(typeof(ItemOre), medium.GetType());
         Assert.Equal(64, medium.MaxStackSize);
         Assert.Equal("game:crushed-galena", medium.CrushingProps?.CrushedStack?.ResolvedItemstack?.Collectible.Code.ToString());
-        Assert.Null(W.GetItem(new AssetLocation("game:crushed-galena-coarse")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:crushedore-galena-medium")));
+        Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:roastedore-galena-medium")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:concentrate-galena")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:litharge")));
         // No cupel (#722) nor its recipes; argentiferous galena is hammered into native silver as vanilla has it.

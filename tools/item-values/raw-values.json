@@ -27,7 +27,7 @@
       "quartz_nativegold": { "poor": 5, "medium": 10, "rich": 15, "bountiful": 20 }
     },
     "crystalUnits": {
-      "about": "Crystallized ore (game:crystalizedore-{grade}-{ore}-{rock}) holds its own metalUnitsByType, about twice an ore chunk's (survival itemtypes/resource/crystalizedore-graded.json): with OreProcessing it smelts at half of these, as the chunks do of theirs.",
+      "about": "Crystallized ore (game:crystalizedore-{grade}-{ore}-{rock}) holds its own metalUnitsByType, about twice an ore chunk's (survival itemtypes/resource/crystalizedore-graded.json): with OreProcessing it smelts at its grade's share of these, as raw ore does of its own (#847).",
       "gradeUnits": { "poor": 30, "medium": 40, "rich": 50, "bountiful": 70 },
       "unitsByOre": {
         "cassiterite": { "poor": 10, "medium": 20, "rich": 30, "bountiful": 40 },

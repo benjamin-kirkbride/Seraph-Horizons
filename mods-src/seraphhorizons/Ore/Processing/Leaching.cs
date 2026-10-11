@@ -12,7 +12,7 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// raw forms raw:
 /// <list type="bullet">
 /// <item>vanilla's borax and alum ore (<c>game:ore-borax</c>, <c>game:ore-alum</c>) stack to
-/// <see cref="OreProducts.RawStack"/> and lose the quern's grinding (borax to powder) and the
+/// <see cref="OreProducts.RockStack"/> and lose the quern's grinding (borax to powder) and the
 /// pulverizer's crushing (alum to crushed alum), so they turn into crystals only by leaching;</item>
 /// <item>every block dropping saltpeter (<see cref="OreLeaching.Saltpeter"/>) drops raw saltpeter
 /// instead, at the same rate;</item>
@@ -45,7 +45,7 @@ public static class Leaching
                 report.Missing.Add(code);
                 continue;
             }
-            item.MaxStackSize = OreProducts.RawStack;
+            item.MaxStackSize = OreProducts.RockStack;
             item.GrindingProps = null;
             item.CrushingProps = null;
             AddSection(item);
@@ -78,7 +78,7 @@ public static class Leaching
 
         logger.Notification("[seraphhorizons] Ore processing: leaching: {0} raw (stack {1}, no quern or crusher); "
                             + "{2} blocks drop raw saltpeter in place of saltpeter",
-            string.Join(", ", report.RawItems), OreProducts.RawStack, report.SaltpeterBlocks.Count);
+            string.Join(", ", report.RawItems), OreProducts.RockStack, report.SaltpeterBlocks.Count);
         if (report.Missing.Count > 0)
             logger.Warning("[seraphhorizons] Ore processing: leaching: no {0}; left as it is", string.Join(", ", report.Missing));
         return report;

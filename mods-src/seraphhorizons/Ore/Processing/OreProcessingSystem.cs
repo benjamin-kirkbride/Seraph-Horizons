@@ -24,10 +24,10 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// vanilla's grid recipes hammering ore into nuggets (<c>recipes/grid/nuggets.json</c>) are switched
 /// off, and every recipe that takes a crushed ore the crusher no longer makes (vanilla's
 /// <c>game:crushed-chromite</c>, Expanded Matter's <c>em:crushed-ore-*</c>, ...) takes the new crushed
-/// ore of that ore, either grain, instead (<see cref="LegacyCrushed"/>).</item>
+/// ore of that ore, any grade, instead (<see cref="LegacyCrushed"/>).</item>
 /// <item><see cref="AssetsFinalize"/>, with every item loaded and patched (so it holds whatever order
-/// Expanded Matter's and smex's crushing patches ran in): stack sizes, crushing and smelting set on
-/// the items (<see cref="OreProcessingItems"/>), borax, alum and saltpeter's raw forms made raw for
+/// Expanded Matter's and smex's crushing patches ran in): stack sizes, crushing, grinding and smelting
+/// set on the items (<see cref="OreProcessingItems"/>), borax, alum and saltpeter's raw forms made raw for
 /// leaching (<see cref="Leaching"/>, #742), smex's blast furnace burden counted in 5-unit
 /// items (<see cref="SmexBurden"/>), and the game's hammers given spalling
 /// (<see cref="CollectibleBehaviorSpalling"/>, #747). The server sends the items to clients as they
@@ -35,10 +35,11 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// </list>
 /// On each side whose own setting is on, a transpiler makes the game's alloy maths count a smelted
 /// stack's size (<see cref="AlloyStackSize"/>), as its single-metal maths already does, so a chunk's
-/// exact half (7 ingots per 40 chunks) holds in an alloy too.
+/// exact share (7 ingots per 40 bountiful ores at 50 %) holds in an alloy too.
 ///
 /// Roasting (#720): a sulfide's concentrate cooks in the game's firepit into roasted concentrate at
-/// the firepit's share (<see cref="ItemOreProduct.DoSmelt"/>); the fraction each firepit holds over
+/// the firepit's share (<see cref="ItemOreProduct.DoSmelt"/>), and its raw and crushed ore into roasted
+/// rock, one for one (#847); the fraction each firepit holds over
 /// toward its next roasted item is <see cref="RoastCarry"/>, saved with the world. The guide page
 /// "Roasting sulfide ore" (<c>config/handbook/oreroasting.json</c>) is hidden with the switch off.
 /// </summary>
@@ -65,8 +66,9 @@ public class OreProcessingSystem : ModSystem
     /// <summary>The item types ore processing adds; marked disabled with the switch off.</summary>
     public static readonly AssetLocation[] TypeAssets =
     [
-        new("game", "itemtypes/resource/crushedore.json"),
+        new(Domain, "itemtypes/oreprocessing/crushedore.json"),
         new(Domain, "itemtypes/oreprocessing/groundore.json"),
+        new(Domain, "itemtypes/oreprocessing/roastedore.json"),
         new(Domain, "itemtypes/oreprocessing/concentrate.json"),
         new(Domain, "itemtypes/oreprocessing/roastedconcentrate.json"),
         new(Domain, "itemtypes/oreprocessing/amalgam.json"),
@@ -91,9 +93,9 @@ public class OreProcessingSystem : ModSystem
 
     /// <summary>
     /// The crushed items the crusher made before, which nothing makes with ore processing on, and the
-    /// ore whose crushed ore a recipe takes instead (any grain: <c>game:crushed-{ore}-*</c>).
-    /// Vanilla's crushed iron has no recipe taking it (smex's blast furnace counts our crushed iron
-    /// ore itself, <see cref="SmexBurden"/>).
+    /// ore whose crushed ore a recipe takes instead (any grade: <c>seraphhorizons:crushedore-{ore}-*</c>).
+    /// Vanilla's crushed iron has no recipe taking it (smex's blast furnace takes our iron concentrate,
+    /// not our crushed ore, <see cref="SmexBurden"/>).
     /// </summary>
     public static readonly IReadOnlyDictionary<string, string> LegacyCrushed = new Dictionary<string, string>
     {
@@ -198,7 +200,7 @@ public class OreProcessingSystem : ModSystem
             _harmony = new Harmony(HarmonyId);
             if (!AlloyStackSize.Patch(_harmony))
                 api.Logger.Warning("[seraphhorizons] Ore processing: the game's AlloyRecipe.mergeAndCompareStacks is not as expected; "
-                                   + "an alloy counts a chunk at a whole number of chunks per ingot, which can be off its exact half");
+                                   + "an alloy counts rock at a whole number of items per ingot, which can be off its grade's exact share");
             ContainerText.Patch(_harmony);
             if (!CupelForge.Patch(_harmony))
                 api.Logger.Warning("[seraphhorizons] Ore processing: crucibulum's forge ({0}) is missing or not as expected; "
@@ -389,7 +391,7 @@ public class OreProcessingSystem : ModSystem
     }
 
     /// <summary>Every recipe file whose ingredients name a crushed item of <see cref="LegacyCrushed"/>
-    /// takes <c>game:crushed-{ore}-*</c> there instead, and one of <see cref="LegacyExact"/> its
+    /// takes <c>seraphhorizons:crushedore-{ore}-*</c> there instead, and one of <see cref="LegacyExact"/> its
     /// replacement; returns the files changed. Outputs are left alone.</summary>
     public static List<string> RetargetRecipes(ICoreAPI api)
     {
@@ -434,7 +436,7 @@ public class OreProcessingSystem : ModSystem
             if (LegacyExact.TryGetValue(full, out var instead))
                 value.Value = instead;
             else if (LegacyCrushed.TryGetValue(full, out var ore))
-                value.Value = $"game:crushed-{ore}-*";
+                value.Value = $"{Domain}:crushedore-{ore}-*";
             else
                 continue;
             count++;

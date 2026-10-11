@@ -8,7 +8,7 @@ public sealed record LeachedMineral(string Mineral, string RawCode, string Liquo
 /// <summary>
 /// Leaching the industrial minerals (#742; README "Ore processing: leaching borax, saltpeter and
 /// alum"): borax, saltpeter and alum come out of the ground as a heavy raw form (stack
-/// <see cref="OreProducts.RawStack"/>) that no longer works where today's items are used. Raw
+/// <see cref="OreProducts.RockStack"/>) that no longer works where today's items are used. Raw
 /// mineral and water soak in a barrel into a crude liquor of their own (not vanilla's diluted borax
 /// or Expanded Matter's diluted alum and saltpeter, which have other uses and would let raw mineral
 /// skip the pot), and the liquor boils down in a cooking pot into today's crystals. Game-independent;
