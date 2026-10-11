@@ -3,6 +3,7 @@ using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
 
 namespace SeraphHorizons.Mod.Trading.Window;
 
@@ -161,4 +162,59 @@ public sealed class LockedInventory : InventoryGeneric
         : base(count, "seraphhorizons-locked", "-" + capi.World.Player.PlayerUID, capi, (_, inv) => new LockedSlot(inv)) { }
 
     public override object? ActivateSlot(int slotId, ItemSlot sourceSlot, ref ItemStackMoveOperation op) => null;
+}
+
+/// <summary>
+/// A Maps &amp; leads row's icon: a slot's background with the item drawn on it, greyed out when
+/// the offer cannot be bought, and the item's tooltip on hover (as a slot grid shows it). Lives in
+/// the tab's scrolled container, which composes it into its own surface, forwards rendering and the
+/// mouse to it, and clips it.
+/// </summary>
+public sealed class GuiElementOfferIcon(ICoreClientAPI capi, ElementBounds bounds, ItemSlot slot, bool available) : GuiElement(capi, bounds)
+{
+    private bool _over;
+
+    public override void ComposeElements(Context ctx, ImageSurface surface)
+    {
+        Bounds.CalcWorldBounds();
+        ctx.SetSourceRGBA(GuiStyle.DialogSlotBackColor);
+        RoundRectangle(ctx, Bounds.drawX, Bounds.drawY, Bounds.InnerWidth, Bounds.InnerHeight, GuiStyle.ElementBGRadius);
+        ctx.Fill();
+        ctx.SetSourceRGBA(GuiStyle.DialogSlotFrontColor);
+        ctx.LineWidth = scaled(1.5);
+        RoundRectangle(ctx, Bounds.drawX, Bounds.drawY, Bounds.InnerWidth, Bounds.InnerHeight, GuiStyle.ElementBGRadius);
+        ctx.Stroke();
+    }
+
+    public override void RenderInteractiveElements(float deltaTime)
+    {
+        if (slot.Itemstack is null) return;
+        double size = Math.Min(Bounds.InnerWidth, Bounds.InnerHeight);
+        int color = available ? -1 : ColorUtil.ToRgba(255, 110, 110, 110);
+        api.Render.RenderItemstackToGui(slot, Bounds.renderX + Bounds.InnerWidth / 2, Bounds.renderY + Bounds.InnerHeight / 2, 90,
+            (float)(size * 0.55), color, deltaTime);
+    }
+
+    public override void OnMouseMove(ICoreClientAPI api, MouseEvent args)
+    {
+        base.OnMouseMove(api, args);
+        bool over = IsPositionInside(args.X, args.Y);
+        if (over == _over) return;
+        _over = over;
+        if (over) api.Input.TriggerOnMouseEnterSlot(slot);
+        else api.Input.TriggerOnMouseLeaveSlot(slot);
+    }
+
+    /// <summary>Takes its tooltip away (the window recomposing or closing under the mouse).</summary>
+    public void Leave()
+    {
+        if (_over) api.Input.TriggerOnMouseLeaveSlot(slot);
+        _over = false;
+    }
+
+    public override void Dispose()
+    {
+        Leave();
+        base.Dispose();
+    }
 }

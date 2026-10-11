@@ -37,8 +37,10 @@ public enum BoxKind
 /// <param name="Key">What it is (the window's element key).</param>
 /// <param name="Color">A VTML-style colour for text, or null for the font's own.</param>
 /// <param name="Id">The order or delivery id a button acts on, or a count.</param>
+/// <param name="Enabled">A button that can be pressed, or an icon of something that can be bought
+/// (a disabled one is drawn greyed out).</param>
 public sealed record UiBox(string Key, BoxKind Kind, double X, double Y, double W, double H, string Text = "", UiFont Font = UiFont.Small,
-    string? Color = null, int Id = 0)
+    string? Color = null, int Id = 0, bool Enabled = true)
 {
     public double Bottom => Y + H;
     public double Right => X + W;
@@ -140,13 +142,24 @@ public sealed record TradeTabText(
 /// <summary>An order or delivery line with its buttons (label, key, id).</summary>
 public sealed record ActionLine(string Text, IReadOnlyList<(string Label, string Key, int Id)> Buttons);
 
+/// <summary>A row of the Maps &amp; leads tab, resolved to text: the title, the details under it,
+/// the price and the button's label, whether it can be pressed, and its key (the button's; the icon
+/// is <c>icon-</c> and the key) and id (a shelf slot or a lead's index).</summary>
+/// <param name="Available">Whether the thing is for sale to this player at all (the icon is greyed out if not).</param>
+/// <param name="PriceColor">The price's colour (gold by default; another when the player is short of it).</param>
+public sealed record OfferLine(string Title, string Details, string Price, string Button, bool Enabled, bool Available, string Key, int Id,
+    string? PriceColor = null);
+
+/// <summary>A group of the Maps &amp; leads tab: its heading, its rows and the notes under them.</summary>
+public sealed record OfferSection(string Heading, IReadOnlyList<OfferLine> Lines, IReadOnlyList<string> Notes);
+
 /// <summary>A heading and its lines (the Standing tab).</summary>
 public sealed record TextSection(string Heading, IReadOnlyList<string> Lines);
 
 /// <summary>
 /// The trade window's layout (the playtest after #436): the header, every tab's body and the
 /// footer, as measured boxes. Every block of text is measured wrapped to its width and the next
-/// thing goes below it; the tabs whose content can run long (orders, deliveries, maps, standing)
+/// thing goes below it; the tabs whose content can run long (orders, deliveries, maps &amp; leads, standing)
 /// lay out in a scroll area of their own. Game-independent: the window turns the boxes into
 /// elements, and a test (and a local render harness) checks that nothing overlaps or runs past the
 /// window's width.
@@ -241,33 +254,64 @@ public static class WindowLayout
         }
     }
 
-    /// <summary>The Maps &amp; leads tab below its slot grid: a line per offer, then the player's own
-    /// camp leads with a Buy button each and the note under them, the locked leads' note.</summary>
-    public static void MapLines(Flow flow, IReadOnlyList<string> lines, string? leadsLocked, string details,
-        IReadOnlyList<ActionLine>? leads = null, string? leadsNote = null)
+    /// <summary>The icon's size on a Maps &amp; leads row.</summary>
+    public const double OfferIcon = 40;
+
+    /// <summary>
+    /// The Maps &amp; leads tab: a small heading per group (ore maps, gravel maps, leads), and under
+    /// it a row per offer, all alike: the icon, the title with its details under it, the price, and
+    /// a Buy button (or what stops the buy, greyed out), the prices and buttons each in a column of
+    /// one width down the tab; a group's notes come quietly after its rows.
+    /// </summary>
+    public static void Offers(Flow flow, IReadOnlyList<OfferSection> sections, string empty)
     {
-        for (int i = 0; i < lines.Count; i++)
+        if (sections.Count == 0)
         {
-            flow.Text("map-" + i, lines[i], UiFont.Detail);
-            flow.Next(4);
-        }
-        if (leads is { Count: > 0 })
-        {
-            flow.Next(4);
-            Actions(flow, null, leads, null);
-        }
-        if (leadsNote != null)
-        {
-            flow.Text("leadsnote", leadsNote, UiFont.Detail);
+            flow.Text("empty", empty);
             flow.Next(6);
+            return;
         }
-        if (leadsLocked != null)
+        var m = flow.Measure;
+        var lines = sections.SelectMany(s => s.Lines).ToList();
+        double buttonW = lines.Count == 0 ? 0 : lines.Max(l => Flow.ButtonSize(m, l.Button).W);
+        double priceW = lines.Count == 0 ? 0 : Math.Ceiling(lines.Max(l => l.Price.Length == 0 ? 0 : m.Width(UiFont.Small, l.Price))) + 2;
+        double buttonX = flow.Width - buttonW, priceX = buttonX - 8 - priceW, textX = OfferIcon + 8;
+        double textW = Math.Max(40, priceX - 8 - textX);
+        int s = 0;
+        foreach (var section in sections)
         {
-            flow.Text("leadslocked", leadsLocked, UiFont.Detail);
-            flow.Next(6);
+            if (s > 0) flow.Next(6);
+            flow.Text("heading-" + s, section.Heading, UiFont.Bold, color: Gold);
+            flow.Next(4);
+            foreach (var line in section.Lines)
+            {
+                double titleH = Math.Ceiling(m.Height(UiFont.Small, line.Title, textW));
+                double detailsH = line.Details.Length == 0 ? 0 : Math.Ceiling(m.Height(UiFont.Detail, line.Details, textW));
+                double rowH = Math.Max(OfferIcon, titleH + detailsH);
+                double textDy = (rowH - titleH - detailsH) / 2;
+                flow.Add(new UiBox("icon-" + line.Key, BoxKind.Element, 0, flow.Y + (rowH - OfferIcon) / 2, OfferIcon, OfferIcon,
+                    Id: line.Id, Enabled: line.Available));
+                flow.Text("title-" + line.Key, line.Title, UiFont.Small, textX, textW, dy: textDy);
+                flow.Text("details-" + line.Key, line.Details, UiFont.Detail, textX, textW, Quiet, dy: textDy + titleH);
+                if (line.Price.Length > 0)
+                {
+                    double priceH = Math.Ceiling(m.Height(UiFont.Small, line.Price, priceW));
+                    flow.Text("price-" + line.Key, line.Price, UiFont.Small, priceX, priceW, line.PriceColor ?? Gold, dy: (rowH - priceH) / 2);
+                }
+                double buttonH = Flow.ButtonSize(m, line.Button).H;
+                flow.Add(new UiBox(line.Key, BoxKind.Button, buttonX, flow.Y + (rowH - buttonH) / 2, buttonW, buttonH, line.Button, UiFont.Button,
+                    Id: line.Id, Enabled: line.Enabled));
+                flow.Next(6);
+            }
+            int n = 0;
+            foreach (string note in section.Notes)
+            {
+                flow.Text($"note-{s}-{n++}", note, UiFont.Detail, color: Quiet);
+                flow.Next(3);
+            }
+            s++;
         }
-        flow.Text("details", details, UiFont.Detail, minLines: 2);
-        flow.Next(6);
+        flow.Next(4);
     }
 
     /// <summary>The Standing tab: the tiers (the current one gold, marked), then each section.</summary>
