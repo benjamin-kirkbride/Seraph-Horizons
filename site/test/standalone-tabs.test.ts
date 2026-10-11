@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import oreLine, { CFG, CHAINS, CLASSES, concentration, OPEN_QUESTIONS, PARTED, TIERS, tierConcentrate } from "../scripts/standalone/ore-line.ts";
 import oreProposal, { bestConcentrate, choices, decision, ingotsPerSlot, OPEN_QUESTIONS as PROPOSAL_QUESTIONS, PROPOSED, proposedSmelt, routes, STACK, winner } from "../scripts/standalone/ore-proposal.ts";
-import { BATCH, handcarTopSpeed, haulHours, haulSlots, NOTES, PLAYER_SLOTS, steamTopSpeed, transports, trips, YANG } from "../scripts/standalone/ore-transport.ts";
+import { BATCH, gaitSpeed, GAITS, handcarTopSpeed, haulHours, haulSlots, NOTES, PLAYER, PLAYER_SLOTS, RAILS, railCost, steamTopSpeed, transports, trips, YANG } from "../scripts/standalone/ore-transport.ts";
 import { tabForHash } from "../scripts/standalone/tabs-hash.ts";
 import { expandPath, groupBy, parseSpec, slugify } from "../scripts/standalone/tabs-spec.ts";
 import { loadModels, REPO } from "../scripts/models.ts";
@@ -215,6 +215,30 @@ describe("the proposal's transport audit", () => {
     for (const t of ts) for (const n of t.notes) expect(NOTES[n], `${t.id} note ${n}`).toBeDefined();
   });
 
+  it("turns a gait's movespeed into blocks a second as the engine's ground physics does", () => {
+    // 135.7 blocks a second per unit of walk vector, as measured in Atlas (135.0 at the server's 1/30 s).
+    expect(gaitSpeed(1)).toBeCloseTo(135.71, 1);
+    expect(PLAYER.walk).toBeCloseTo(3.39, 2);
+    expect(gaitSpeed(GAITS.elk.sprint)).toBeCloseTo(10.86, 2);
+    expect(gaitSpeed(GAITS.elk.trot)).toBeCloseTo(4.89, 2);
+    expect(gaitSpeed(GAITS.cartWide.sprint)).toBeCloseTo(5.43, 2);
+    expect(gaitSpeed(GAITS.cartNarrow.sprint)).toBeCloseTo(6.11, 2);
+    const ts = transports();
+    for (const t of ts) expect(t.speed, t.id).not.toBeNull();
+    expect(ts.find((t) => t.id === "elk")!.speed).toBe(gaitSpeed(0.08));
+  });
+
+  it("costs track at one block a piece: a kilometre of metal is 36 iron rods and 72 planks", () => {
+    const [stdWood, stdMetal, wagonWood, wagonMetal] = RAILS;
+    expect(railCost(stdWood, 1000)).toEqual({ crafts: 21, binder: 126, planks: 252 });
+    expect(railCost(stdMetal, 1000)).toEqual({ crafts: 6, binder: 36, planks: 72 });
+    expect(railCost(stdMetal, 2000)).toEqual({ crafts: 11, binder: 66, planks: 132 });
+    expect(railCost(stdMetal, 5000)).toEqual({ crafts: 27, binder: 162, planks: 324 });
+    expect(railCost(stdWood, 5000)).toEqual({ crafts: 105, binder: 630, planks: 1260 });
+    expect(railCost(wagonWood, 1000)).toEqual({ crafts: 32, binder: 128, planks: 256 });
+    expect(railCost(wagonMetal, 1000)).toEqual({ crafts: 8, binder: 32, planks: 64 });
+  });
+
   it("finds walking a batch of medium ore 7 trips and the advanced train 1, and only trains breaking the lever", () => {
     const ts = transports();
     const foot = ts.find((t) => t.id === "foot")!;
@@ -222,12 +246,17 @@ describe("the proposal's transport audit", () => {
     expect(trips(haulSlots("raw", "medium", BATCH), foot.slots.raw)).toBe(7);
     expect(trips(haulSlots("raw", "poor", BATCH), foot.slots.raw)).toBe(26);
     expect(trips(haulSlots("raw", "medium", BATCH), adv.slots.raw)).toBe(1);
-    // 7 round trips of 4 km at 4.3 blocks a second.
-    expect(haulHours(foot, "raw", "medium", 2000, BATCH)).toBeCloseTo((7 * 4000) / 4.3 / 3600);
-    expect(haulHours(ts.find((t) => t.id === "cartwide")!, "raw", "medium", 2000)).toBeNull();
+    // 7 round trips of 4 km at a walk.
+    expect(haulHours(foot, "raw", "medium", 2000, BATCH)).toBeCloseTo((7 * 4000) / PLAYER.walk / 3600);
+    // The wide cart: 3 trips of the batch at its sprint; the elk 5 at its gallop.
+    expect(haulHours(ts.find((t) => t.id === "cartwide")!, "raw", "medium", 2000, BATCH)).toBeCloseTo((3 * 4000) / gaitSpeed(0.04) / 3600);
+    expect(haulHours(ts.find((t) => t.id === "elk")!, "raw", "medium", 2000, BATCH)).toBeCloseTo((5 * 4000) / gaitSpeed(0.08) / 3600);
     expect(ts.filter((t) => t.verdict === "breaks").map((t) => t.id)).toEqual(["minecarts", "sgstandard", "sgadvanced"]);
     const html = oreProposal();
     expect(html).toContain("4. Transport: can rock be hauled home?");
     expect(html).toContain('id="ot-n10"');
+    expect(html).toContain('id="ot-n18"');
+    expect(html).toContain("Laying track");
+    expect(html).not.toContain("speed unknown");
   });
 });
