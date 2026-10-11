@@ -543,7 +543,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
-    /// <summary><c>StainlessSteel</c>: no melting holes or melting pots, no ferroalloys, no recipe for
+    /// <summary><c>StainlessSteel</c>: no crucible furnace (its frame and ghosts) or melting pots, no ferroalloys, no recipe for
     /// any of them, the game's stainless ingot and bits hidden from the handbook as it ships them, the
     /// guide page hidden, smex's converter not patched and its handbook page as it ships, and nothing
     /// logged about it.</summary>
@@ -556,10 +556,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(SeraphHorizons.Mod.SteelBits.SmexScrap.Status.Off,
             SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.Of(World.Api).BessemerScrapStatus);
         Assert.DoesNotContain("Ferrochrome makes it stainless", Lang.GetL("en", "smex:handbook-bessemer-text"));
-        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && (c.Path.StartsWith("meltinghole") || c.Path.StartsWith("meltingpot")));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && (c.Path.StartsWith("cruciblefurnace") || c.Path.StartsWith("meltingpot")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:ferrochrome")));
         Assert.Null(W.GetItem(new AssetLocation("seraphhorizons:ferrosilicon")));
-        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("meltinghole") == true);
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("cruciblefurnace") == true);
         Assert.DoesNotContain(World.Api.GetClayformingRecipes(), r => r.Output?.Code?.Path?.StartsWith("meltingpot") == true);
         Assert.True(W.GetItem(new AssetLocation("game:ingot-stainlesssteel"))!.Attributes["handbook"]["exclude"].AsBool());
         var hidden = World.Api.ObjectCache.TryGetValue(WoodworkingGuide.HiddenGuidesKey, out var listed) && listed is IEnumerable<(string, string)> pages
@@ -568,7 +568,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains(SeraphHorizons.Mod.CrucibleFurnace.CrucibleFurnaceSystem.GuidePageCode, hidden);
         var logged = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
-            .Where(e => e.Message.Contains("meltinghole", StringComparison.OrdinalIgnoreCase)
+            .Where(e => e.Message.Contains("cruciblefurnace", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("meltingpot", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("stainless-steel", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("Crucible furnace", StringComparison.Ordinal))

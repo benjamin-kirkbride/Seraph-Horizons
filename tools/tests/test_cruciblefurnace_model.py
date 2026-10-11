@@ -218,7 +218,7 @@ class Furnace(unittest.TestCase):
         self.assertAlmostEqual(line["origin"][1] + line["length"] / 2, 8.0)
         self.assertEqual(RIG["furnace"]["minChimney"], 6)
         self.assertEqual((RIG["furnace"]["rowMax"], RIG["furnace"]["rowAxis"]), (6, "x"))
-        self.assertEqual(RIG["furnace"]["cokeLayers"] * RIG["furnace"]["cokePerLayer"], 6)   # CokeCapacity
+        self.assertEqual(RIG["furnace"]["cokeLayers"] * RIG["furnace"]["cokePerLayer"], 12)   # CokeCapacity, two pots (#796)
 
     def test_centred_with_thick_walls(self):
         # the hole, the ash mouth and its damper, and the outlet on the middle line; brick round the hole's seat at
