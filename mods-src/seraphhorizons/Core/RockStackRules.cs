@@ -37,12 +37,12 @@ public static class RockStackRules
     /// packed dirt, clay and peat deposits, and earth laid into blocks: cob, rammed earth and mud
     /// brick (the game's and Material Needs' colours). Stone Quarry's bucket still makes 16 muddy
     /// gravel (<c>StoneQuarryDrench</c>).</item>
-    /// <item>Fired clay: the full building blocks of clay brick (with its courses and ruined
-    /// bricks), tile and clay shingle.</item>
+    /// <item>Fired clay: the full building blocks of clay brick (with its courses, ruined bricks and
+    /// chimneys), tile, clay shingle and refractory brick.</item>
     /// </list>
     /// Not here: slabs, stairs, fences, paths, roads and roofing (building shapes: <see cref="Shapes"/>);
-    /// clay brick chimneys, refractory bricks and copper shingles; peat bricks (fuel); and every item
-    /// (stones, clay, bricks).</summary>
+    /// refractory brick gratings and copper shingles; peat bricks (fuel); and every item (stones,
+    /// clay, bricks, refractory bricks).</summary>
     public static readonly IReadOnlyList<string> Blocks =
     [
         "game:rock-*",
@@ -84,6 +84,17 @@ public static class RockStackRules
         "game:brickruin-*",
         "game:tile-*",
         "game:clayshingleblock-*",
+        "game:claybrickchimney-*",
+        "game:refractorybricks-*",
+    ];
+
+    /// <summary>The codes in <see cref="Blocks"/> cut although they have a block entity: the game's
+    /// old clay brick chimneys (<c>legacy/chimney.json</c>), whose <c>ParticleEmitter</c> entity
+    /// only gives off smoke where the chimney stands and keeps nothing of the stack it was placed
+    /// from (the new chimneys, <c>clay/chimneycourse.json</c>, have none).</summary>
+    public static readonly IReadOnlyList<string> BlockEntityAllowed =
+    [
+        "game:claybrickchimney-*",
     ];
 
     /// <summary>The block materials a cut building shape may have: rock and earth's, and ceramic for
@@ -137,9 +148,10 @@ public static class RockStackRules
     ];
 
     /// <summary>Whether a block is rock or earth: its code is in <see cref="Blocks"/>, its material
-    /// one of <see cref="Materials"/>, and it has no block entity (no container, device or pile).</summary>
+    /// one of <see cref="Materials"/>, and it has no block entity (no container, device or pile)
+    /// unless its code is in <see cref="BlockEntityAllowed"/>.</summary>
     public static bool IsRockOrEarth(string? code, string? material, bool hasBlockEntity) =>
-        Matches(code, material, hasBlockEntity, Blocks, Materials);
+        Matches(code, material, hasBlockEntity && !AnyMatch(code, BlockEntityAllowed), Blocks, Materials);
 
     /// <summary>Whether a block is a rock or earth building shape: its code is in
     /// <see cref="Shapes"/>, its material one of <see cref="ShapeMaterials"/>, and it has no block
@@ -157,7 +169,14 @@ public static class RockStackRules
     private static bool Matches(string? code, string? material, bool hasBlockEntity, IReadOnlyList<string> patterns,
         IReadOnlySet<string> materials)
     {
-        if (string.IsNullOrEmpty(code) || hasBlockEntity || material is null || !materials.Contains(material))
+        if (hasBlockEntity || material is null || !materials.Contains(material))
+            return false;
+        return AnyMatch(code, patterns);
+    }
+
+    private static bool AnyMatch(string? code, IReadOnlyList<string> patterns)
+    {
+        if (string.IsNullOrEmpty(code))
             return false;
         string normalized = code.Contains(':') ? code : "game:" + code;
         foreach (string pattern in patterns)

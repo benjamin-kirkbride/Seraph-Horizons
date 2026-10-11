@@ -30,6 +30,9 @@ public class RockStackRulesTests
     [InlineData("game:brickruin-irregular-gray", "Ceramic")]
     [InlineData("game:tile-2x2-plain-travertine", "Ceramic")]
     [InlineData("game:clayshingleblock-black", "Ceramic")]
+    [InlineData("game:claybrickchimney-four-black-ns", "Ceramic")]
+    [InlineData("game:refractorybricks-good-tier1", "Ceramic")]
+    [InlineData("game:refractorybricks-damaged-tier3", "Ceramic")]
     [InlineData("game:packeddirt", "Soil")]
     [InlineData("game:packeddirt-trampledearth", "Soil")]
     [InlineData("game:drypackeddirt", "Soil")]
@@ -80,7 +83,7 @@ public class RockStackRulesTests
         Assert.Equal(RockStackRules.ShapeCap, RockStackRules.CapOf(code, material, hasBlockEntity: false));
     }
 
-    // Chimneys, refractory bricks, pots, fuel, wooden, thatch and metal shapes, machines and decor
+    // Gratings, pots, fuel, wooden, thatch and metal shapes, machines and decor
     // keep their stacks.
     [Theory]
     [InlineData("game:slantedroofing-oak-north-free", "Wood")]
@@ -92,8 +95,7 @@ public class RockStackRulesTests
     [InlineData("game:cobblestonefan-granite-north", "Stone")]
     [InlineData("game:quartzslab-north-free", "Stone")]
     [InlineData("game:shingleblock-copper", "Ceramic")]
-    [InlineData("game:claybrickchimney-four-black-ns", "Ceramic")]
-    [InlineData("game:refractorybricks-good-tier1", "Ceramic")]
+    [InlineData("game:refractorybrickgrating-good-tier1", "Ceramic")]
     [InlineData("game:claypot-blue-fired", "Ceramic")]
     [InlineData("game:peatbrick", "Soil")]
     [InlineData("game:supportbeam-oak", "Wood")]
@@ -113,7 +115,13 @@ public class RockStackRulesTests
     {
         Assert.Null(RockStackRules.CapOf("game:soil-verylow-none", "Soil", hasBlockEntity: true));
         Assert.Null(RockStackRules.CapOf("vsroofing:roof-bare-north", "Stone", hasBlockEntity: true));
+        Assert.Null(RockStackRules.CapOf("game:refractorybricks-good-tier1", "Ceramic", hasBlockEntity: true));
     }
+
+    // The old chimneys' smoke-only block entity is the one exception.
+    [Fact]
+    public void A_clay_brick_chimney_with_a_block_entity_is_rock_or_earth() =>
+        Assert.Equal(RockStackRules.Cap, RockStackRules.CapOf("game:claybrickchimney-blue-unlit-ns", "Ceramic", hasBlockEntity: true));
 
     [Theory]
     [InlineData(64, 16, 16)]

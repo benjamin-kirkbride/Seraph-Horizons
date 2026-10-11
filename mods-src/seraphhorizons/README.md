@@ -4487,9 +4487,11 @@ and takes split.
 
 Both tiers (`Core/RockStackRules.cs`) are lists of codes, each block also of a rock or earth
 material and without a block entity; the game gives a block type that names no material stone, so
-the material only guards the lists.
+the material only guards the lists. One deliberate exception to the block entity rule: the game's
+old clay brick chimneys (`legacy/chimney.json`), whose `ParticleEmitter` entity only gives off
+smoke on the client and keeps nothing of the stack it was placed from.
 
-**To 16**, of stone, ore, soil, sand, gravel or ceramic (the fired clay ones), 5,054 blocks in the
+**To 16**, of stone, ore, soil, sand, gravel or ceramic (the fired clay ones), 5,090 blocks in the
 pack:
 
 - **Rock**: raw and cracked rock, cobblestone (mossy and lichen), stone bricks (cracked, mossy,
@@ -4501,7 +4503,9 @@ pack:
   laid into blocks: cob, rammed earth and mud brick, the game's and Material Needs' colours. The
   sand and gravel layer blocks go with their family.
 - **Fired clay**: the full building blocks of clay brick (with its brick courses and ruined
-  bricks), tile and clay shingle, 166 blocks. Material Needs adds no fired clay blocks.
+  bricks), tile and clay shingle (166 blocks), the clay brick chimneys, old and new (30), and the
+  placed refractory brick blocks, good and damaged, of every tier (6). Material Needs adds no
+  fired clay blocks, and no mod in the pack adds refractory brick blocks of its own.
 
 **To 32**, the building shapes of stone, soil, sand, gravel or ceramic (the clay ones), 8,479
 blocks in the pack:
@@ -4518,9 +4522,8 @@ blocks in the pack:
 Not cut: support beams (32, which the rosser's schematic gate needs); every wooden shape (planks
 slabs and stairs, fences, MoreRoads' wood edges, wooden paths, roofing); cobblestone fans, quartz
 slabs, stairs and pillars, copper shingles, Industrial Deco's iron roads (metal, 256) and VS
-Roofing's roofs (a block entity); clay brick chimneys and refractory bricks (a kiln's and a
-chimney's, not building stock); peat bricks (fuel); and every item: stones, clay, bricks and the
-ore items (which Ore processing sizes) keep theirs, so MoreRoads' temporal roads, which take 32
+Roofing's roofs (a block entity); refractory brick gratings (8 a stack already); peat bricks
+(fuel); and every item: stones, clay, bricks, refractory bricks and the ore items (which Ore processing sizes) keep theirs, so MoreRoads' temporal roads, which take 32
 stones a slot, still craft. Nothing else in the pack takes more than 16 of one of these blocks in
 a slot; constructions add up the whole hotbar.
 
@@ -4545,9 +4548,10 @@ The recipe export carries it (`attributes.tradeStack`), and the item value table
 follows it (`tools/item-values`). Orders keep sizing a block by its stack: at most four stacks.
 
 With the switch off, every block stacks as its mod ships it and nothing carries a trade stack. The
-switch that counts is the server's. `RockStackScenarios` checks the sizes (rock, earth and clay brick,
-tile and shingle blocks at 16; a slab, a stair, a fence, a road and roofing at 32; wooden shapes, beams and items unchanged), the
-packet and a rubble storage drenched into 16 muddy gravel, `TradingScenarios` a sale of a cut
+switch that counts is the server's. `RockStackScenarios` checks the sizes (rock, earth, and clay
+brick, tile, shingle, chimney and refractory brick blocks at 16; a slab, a stair, a fence, a road
+and roofing at 32; wooden shapes, beams and items unchanged), the packet, a placed old chimney's
+emitter and a rubble storage drenched into 16 muddy gravel, `TradingScenarios` a sale of a cut
 block across the slots, and `SwitchesOffScenarios` the switch off.
 
 ## Ore

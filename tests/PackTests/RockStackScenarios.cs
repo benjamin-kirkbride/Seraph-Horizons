@@ -41,11 +41,31 @@ public partial class SharedWorldScenarios
                      "game:rock-granite", "game:cobblestone-granite", "game:stonebricks-granite", "game:ore-medium-nativecopper-granite",
                      "game:sand-granite", "game:gravel-granite", "game:muddygravel", "game:soil-medium-none", "game:rawclay-blue-none", "game:peat-none",
                      "game:claybricks-good-fire", "game:tile-2x2-plain-travertine", "game:clayshingleblock-black",
+                     "game:claybrickchimney-four-black-ns", "game:claybrickchimney-blue-unlit-ns", "game:refractorybricks-good-tier1",
+                     "game:refractorybricks-damaged-tier3",
                  })
             AssertRockStack(code, RockStackRules.Cap);
         var system = RockStackSystem.Of(World.Api)!;
         output.WriteLine($"cut: {system.Cut} to 16, {system.ShapesCut} to 32");
         Assert.True(system.Cut > 1000, $"only {system.Cut} blocks cut");
+    }
+
+    /// <summary>An old clay brick chimney, cut although it has a block entity, still gets its smoke
+    /// emitter when placed: the entity keeps nothing of the stack. At (74, 12, -70).</summary>
+    [AtlasScenario]
+    public void A_cut_old_chimney_placed_keeps_its_smoke_emitter()
+    {
+        var pos = World.Spawn.AddCopy(74, 12, -70);
+        World.SetBlock("game:claybrickchimney-blue-lit-ns", pos);
+        try
+        {
+            Assert.Equal(RockStackRules.Cap, W.BlockAccessor.GetBlock(pos).MaxStackSize);
+            Assert.IsType<BlockEntityParticleEmitter>(W.BlockAccessor.GetBlockEntity(pos));
+        }
+        finally
+        {
+            World.SetBlock("game:air", pos);
+        }
     }
 
     [AtlasScenario]
@@ -109,7 +129,7 @@ public partial class SharedWorldScenarios
         foreach (var (code, stack) in new[]
                  {
                      ("game:supportbeam-oak", 32), ("game:torch-basic-lit-up", 64),
-                     ("game:claybrickchimney-four-black-ns", 64), ("game:plankslab-oak-north-free", 64), ("game:plankstairs-oak-up-north-free", 64),
+                     ("game:plankslab-oak-north-free", 64), ("game:plankstairs-oak-up-north-free", 64),
                      ("game:woodenfence-oak-empty-free", 64), ("game:slantedroofing-oak-north-free", 64),
                      ("game:slantedroofing-thatch-north-free", 64), ("moreroads:edgewood-oak-straight-north-free", 64),
                  })
