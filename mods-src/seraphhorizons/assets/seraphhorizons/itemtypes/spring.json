@@ -1,0 +1,57 @@
+// Spring (MandrelStation; README "Mandrel forging station", MandrelStation/README.md "The spring
+// job"): a square coil spring of six turns of steel wire, wound from one hot steel rod on the mandrel
+// station's mandrel (shapes/item/spring.json, written by MandrelStation/tools/make_shape.py). The
+// station is the only way to make one; the draw bench's mandrel stage takes one as its follower's
+// spring. Steel throughout: it melts back into one ingot, as the rod does, and comes off the station
+// hot. Marked disabled with the MandrelStation or MandrelSprings switch off.
+{
+	code: "spring",
+	variantgroups: [
+		{ code: "metal", states: ["steel"] }
+	],
+	behaviors: [
+		{ name: "GroundStorable", properties: { layout: "SingleCenter", placeRemoveSound: "sounds/block/ingot", collisionBox: { x1: 0.3125, y1: 0, z1: 0, x2: 0.6875, y2: 0.34375, z2: 1 } } }
+	],
+	shape: { base: "seraphhorizons:item/spring" },
+	textures: {
+		spring: { base: "game:block/metal/sheet-plain/{metal}1" }
+	},
+	attributes: {
+		shelvable: true,
+		groundStorageTurnsBoxes: true,
+		onTongTransform: {
+			translation: { x: -1.15, y: -0.97, z: -0.53 },
+			rotation: { x: 22, y: 11, z: -17 },
+			scale: 0.8
+		},
+		handbook: {
+			groupBy: ["spring-*"],
+			extraSections: [{ title: "seraphhorizons:spring-handbook-title", text: "seraphhorizons:spring-handbook-text" }]
+		}
+	},
+	creativeinventory: { "general": ["*"], "items": ["*"] },
+	maxstacksize: 16,
+	materialDensity: 7820,
+	combustibleProps: {
+		meltingPoint: 1502,
+		meltingDuration: 30,
+		smeltedRatio: 1,
+		smeltedStack: { type: "item", code: "game:ingot-steel" }
+	},
+	guiTransform: {
+		rotation: { x: -17, y: -60, z: -48 },
+		origin: { x: 0.5, y: 0.17, z: 0.5 },
+		scale: 1.3
+	},
+	tpHandTransform: {
+		translation: { x: -1.12, y: -1.27, z: -1 },
+		rotation: { x: -8, y: -11, z: -18 },
+		scale: 0.48
+	},
+	groundTransform: {
+		translation: { x: 0, y: 0, z: 0 },
+		rotation: { x: 0, y: 0, z: 0 },
+		origin: { x: 0.5, y: 0.17, z: 0.5 },
+		scale: 2.4
+	}
+}

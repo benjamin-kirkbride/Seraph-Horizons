@@ -580,9 +580,10 @@ describe("a rig whose work is a quantity, geared to the shaft", () => {
   const requires = [...new Set(cutterRig.parts!.map((p) => p.requires).filter((r): r is string => !!r))];
 
   it("reads the rig's work: teeth cut, 0 to 12 or 20, and draws nothing for it", () => {
-    expect(work).toMatchObject({ kind: "work", name: "teeth cut", unit: "teeth", ends: [0, 12, 20] });
+    expect(work).toMatchObject({ kind: "work", name: "teeth cut", unit: "teeth" });
+    expect(work.ends.slice(0, 4)).toEqual([0, 12, 20, 0]);
     expect(cutterRig.trunkPath).toBeUndefined();
-    expect([0, 1, 2].map((k) => workEnd(work, k))).toEqual([0, 12, 20]);
+    expect([0, 1, 2, 3].map((k) => workEnd(work, k))).toEqual([0, 12, 20, 0]);
     expect(cutterAnchors.map((a) => a.key)).not.toContain("work");
     expect(unrecognised).not.toContain("work");
     const view = buildModelView(readRepoJson(cutter.shape) as Shape, cutterRig, s);

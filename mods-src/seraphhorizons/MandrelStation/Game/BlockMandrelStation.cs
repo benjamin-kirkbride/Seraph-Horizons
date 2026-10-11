@@ -24,6 +24,8 @@ public class BlockMandrelStation : Block
     private ItemStack[] _mandrelStacks = [];
     private ItemStack[] _hollowStacks = [];
     private ItemStack[] _hammerStacks = [];
+    private ItemStack[] _rodStacks = [];
+    private ItemStack[] _tongsStacks = [];
 
     public override void OnLoaded(ICoreAPI api)
     {
@@ -35,6 +37,10 @@ public class BlockMandrelStation : Block
         _hollowStacks = ObjectCacheUtil.GetOrCreate(api, "mandrelstation-hollowstacks", () => Stacks([Forging.LeadHollow, Forging.CopperHollow]));
         _hammerStacks = ObjectCacheUtil.GetOrCreate(api, "mandrelstation-hammerstacks", () =>
             api.World.Items.Where(i => i?.Code != null && !i.IsMissing && Forging.IsHammer(i.Code.ToString()))
+                .Select(i => new ItemStack(i)).ToArray());
+        _rodStacks = ObjectCacheUtil.GetOrCreate(api, "mandrelstation-rodstacks", () => Stacks([Winding.SteelRod]));
+        _tongsStacks = ObjectCacheUtil.GetOrCreate(api, "mandrelstation-tongsstacks", () =>
+            api.World.Items.Where(i => i?.Code != null && !i.IsMissing && i.Tool == EnumTool.Tongs)
                 .Select(i => new ItemStack(i)).ToArray());
     }
 
@@ -84,6 +90,19 @@ public class BlockMandrelStation : Block
             ? InteractAt(world, byPlayer, blockSel.Position)
             : base.OnBlockInteractStart(world, byPlayer, blockSel);
 
+    public override bool OnBlockInteractStep(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
+        StepAt(world, byPlayer, blockSel.Position, secondsUsed);
+
+    public override void OnBlockInteractStop(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
+        ReleaseAt(world, byPlayer, blockSel.Position);
+
+    public override bool OnBlockInteractCancel(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel,
+                                               EnumItemUseCancelReason cancelReason)
+    {
+        ReleaseAt(world, byPlayer, blockSel.Position);
+        return true;
+    }
+
     /// <summary>A right-click on one of the station's cells, <paramref name="principal"/> the controller's position.</summary>
     public static bool InteractAt(IWorldAccessor world, IPlayer byPlayer, BlockPos principal)
     {
@@ -91,6 +110,15 @@ public class BlockMandrelStation : Block
             return false;
         return world.BlockAccessor.GetBlockEntity(principal) is BEMandrelStation station && station.OnInteract(byPlayer);
     }
+
+    /// <summary>Right-click still held: whether the player goes on winding the rod (a hammer's blows
+    /// are clicks, not held: they end here and the client repeats them).</summary>
+    public static bool StepAt(IWorldAccessor world, IPlayer byPlayer, BlockPos principal, float secondsUsed) =>
+        world.BlockAccessor.GetBlockEntity(principal) is BEMandrelStation station && station.OnWorkStep(byPlayer, secondsUsed);
+
+    /// <summary>Right-click let go (or the interaction cancelled).</summary>
+    public static void ReleaseAt(IWorldAccessor world, IPlayer byPlayer, BlockPos principal) =>
+        (world.BlockAccessor.GetBlockEntity(principal) as BEMandrelStation)?.Release(byPlayer);
 
     public override ItemStack[] GetDrops(IWorldAccessor world, BlockPos pos, IPlayer byPlayer, float dropQuantityMultiplier = 1)
     {
@@ -124,12 +152,19 @@ public class BlockMandrelStation : Block
             bool creative = forPlayer?.WorldData?.CurrentGameMode == EnumGameMode.Creative;
             if (!station.Complete && _mandrelStacks.Length > 0)
                 help.Add(new WorldInteraction { ActionLangCode = Key("fitmandrel"), MouseButton = EnumMouseButton.Right, Itemstacks = _mandrelStacks });
-            else if (station.Complete && !station.HollowOn && _hollowStacks.Length > 0)
+            else if (station.Complete && !station.WorkOn && _hollowStacks.Length > 0)
                 help.Add(new WorldInteraction { ActionLangCode = Key("loadhollow"), MouseButton = EnumMouseButton.Right, Itemstacks = _hollowStacks });
+            if (station.Complete && !station.WorkOn && _rodStacks.Length > 0 && station.SpringItem() != null)
+                help.Add(new WorldInteraction { ActionLangCode = Key("loadrod"), MouseButton = EnumMouseButton.Right, Itemstacks = _rodStacks });
             if (station.Complete && station.HollowOn && _hammerStacks.Length > 0)
                 help.Add(new WorldInteraction { ActionLangCode = Key("strike"), MouseButton = EnumMouseButton.Right, Itemstacks = _hammerStacks });
             if (station.HollowOn && station.Job.Untouched)
                 help.Add(new WorldInteraction { ActionLangCode = Key("takehollow"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+            if (station.RodOn)
+            {
+                help.Add(new WorldInteraction { ActionLangCode = Key("wind"), MouseButton = EnumMouseButton.Right, Itemstacks = _tongsStacks.Length > 0 ? _tongsStacks : null });
+                help.Add(new WorldInteraction { ActionLangCode = Key("takerod"), MouseButton = EnumMouseButton.Right, HotKeyCode = "ctrl" });
+            }
             // the machines' creative shortcut, while the mandrel is still to fit
             if (!station.Complete && creative)
                 help.AddRange(SplittingBlockUpgrades.CreativeUpgradeHelp);

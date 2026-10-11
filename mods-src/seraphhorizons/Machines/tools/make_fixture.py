@@ -23,11 +23,21 @@ The file (format 2):
     workDrivers  as `drivers`, evaluated with `work` as the rig's progress
     workInvalid  [{id, driver, error}]: drivers every parser must reject with `work` (a roll)
     badProgress  [{id, rig, error}]: rig progress declarations every parser must reject
+    stretchBoxes [{id, element, parts, part, inputs, authored, corners}]: a shape element (voxels, as a
+                 shape file writes it) in a part of a small rig on `work`, posed: its 8 corners (corner i
+                 takes `to` on x when bit 0 is set, y bit 1, z bit 2) authored and posed, voxels, as
+                 machinegen's `posed` box gives them; a matrix applied to the authored corners must land
+                 on them (the viewer's and the game's way), so the three agree on a stretched box
 
 `inputs` always carries all nine keys (theta, depth, lifting, travel, work, size, presence,
-feed, oil; size is the class 0 none / 1 thin / 2 thick; "work" is W, a trunk's travel on a
-trunkPath). Matrices are 4 rows of 4, block units, row-major (row i, column j; translation in
-column 3), rounded to 9 places: compare within 1e-6.
+feed, oil; size is the class 0 none / 1 thin / 2 thick / 3 (and on, to 9) a further class keyed by
+its number; "work" is W, a trunk's travel on a trunkPath). Matrices are 4 rows of 4, block units,
+row-major (row i, column j; translation in column 3), rounded to 9 places: compare within 1e-6.
+
+Per-class values (amount, gain, lobes' amplitude, work's end) are keyed "thin", "thick", "3" .. "9";
+a class a value does not name has none of it (amount and amplitude 0, gain 1, end 0). The cases with
+class 3, and the drivers and parts that name it, come after the older ones in each list, so the older
+cases keep their inputs. So do the stretching gauges (`"motion": "stretch"`) and the parts that use them.
 """
 
 from __future__ import annotations
@@ -40,8 +50,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from machinegen.rigmath import (driver_matrix, full_inputs, part_matrix, progress_of, trunk_end,  # noqa: E402
-                                trunk_length, validate_driver)
+from machinegen.geometry import flatten  # noqa: E402
+from machinegen.rigmath import (apply, driver_matrix, full_inputs, part_matrix, posed, progress_of,  # noqa: E402
+                                trunk_end, trunk_length, validate_driver, work_end)
 
 OUT = Path(__file__).resolve().parents[2] / "tests" / "Machines" / "driver-fixture.json"
 
@@ -105,11 +116,26 @@ DRIVERS = [
     # `input` "work", the generic spelling of "trunk"
     ("rotate_input_work", {"type": "rotate", "axis": "z", "pivot": P2, "ratio": 0.8125, "input": "work"}),
     ("slide_input_work", {"type": "slide", "axis": "y", "amplitude": 0.125, "ratio": 2.5, "phase": 0.5, "input": "work"}),
+    # classes past thick, and per-class values that name only some classes (the others have none)
+    ("gauge_occupy_thin_only", {"type": "gauge", "motion": "slide", "axis": "x", "amount": {"thin": 0.4375}, "windows": [W1]}),
+    ("gauge_occupy_class3", {"type": "gauge", "motion": "rotate", "axis": "y", "pivot": P3, "amount": {"thin": 0.25, "3": -0.625},
+                             "windows": [W1, {"from": 5.0, "to": 8.0, "ease": 0.75, "gain": {"3": 2.0}}]}),
+    ("gauge_present_class3_lobes", {"type": "gauge", "motion": "rotate", "axis": "z", "pivot": P1, "mode": "present",
+                                    "amount": {"3": 0.5}, "lobes": {"ratio": 3.0, "phase": 0.5, "amplitude": {"3": 0.0625}}}),
+    ("gauge_present_class9", {"type": "gauge", "motion": "slide", "axis": "z", "mode": "present", "amount": {"thick": 0.125, "9": -0.25}}),
+    # stretching gauges: windows that add up (W1 and W2 overlap nowhere, WA and WB do), an axis in a turned
+    # frame, and thin's factor reaching 0 (the part collapses to its origin)
+    ("gauge_stretch_occupy", {"type": "gauge", "motion": "stretch", "axis": "y", "origin": P1,
+                              "amount": {"thin": 0.5, "thick": -0.75}, "windows": [W1, W2]}),
+    ("gauge_stretch_overlap", {"type": "gauge", "motion": "stretch", "axis": "x", "origin": P3,
+                               "amount": {"thin": -0.375, "thick": 0.25, "3": -0.5}, "windows": [WA, WB]}),
+    ("gauge_stretch_turned_present", {"type": "gauge", "motion": "stretch", "axis": "z", "origin": P2, "rotation": [30.0, -45.0, 10.0],
+                                      "mode": "present", "amount": {"thin": -1.0, "3": 0.5}}),
 ]
 
 # The generic progress: a quantity counted in its own unit (parts made, say), a point on its own
 # scale. Its drivers' windows are where W is, with nothing behind it.
-WORK = {"name": "parts made", "unit": "parts", "step": 0.25, "end": {"thin": 6.0, "thick": 9.0}}
+WORK = {"name": "parts made", "unit": "parts", "step": 0.25, "end": {"thin": 6.0, "thick": 9.0, "3": 4.0}}
 WORK_DRIVERS = [
     ("work_gauge_occupy_rotate_lobes", {"type": "gauge", "motion": "rotate", "axis": "x", "pivot": P1,
                                         "amount": {"thin": 0.35, "thick": -0.2}, "windows": [W1, W2], "lobes": LOBES}),
@@ -121,6 +147,24 @@ WORK_DRIVERS = [
     ("work_gauge_present", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"thin": 0.1, "thick": 0.3}}),
     ("work_rotate_input_work", {"type": "rotate", "axis": "z", "pivot": P1, "ratio": -1.9, "input": "work"}),
     ("work_slide_input_trunk", {"type": "slide", "axis": "x", "amplitude": 0.2, "ratio": 1.5, "input": "trunk"}),
+    # a part that moves only for class 3, in quarters of its work (the mandrel station's spring's kind)
+    ("work_gauge_class3_only", {"type": "gauge", "motion": "rotate", "axis": "x", "pivot": P2, "amount": {"3": 1.25},
+                                "windows": [{"from": 1.0, "to": 1000.0, "ease": 1.0}, {"from": 2.5, "to": 3.5, "ease": 0.5, "gain": {"3": 0.5}}]}),
+    # a straight rod shrinking in four steps to nothing (a quarter a window, so the windows add up to 1), along
+    # the z of a frame turned about z, for class 3 only
+    ("work_gauge_stretch_steps", {"type": "gauge", "motion": "stretch", "axis": "z", "origin": P3, "rotation": [0.0, 0.0, -20.0],
+                                  "amount": {"3": -1.0},
+                                  "windows": [{"from": 0.5, "to": 1000.0, "ease": 0.5, "gain": {"3": 0.25}},
+                                              {"from": 1.5, "to": 1000.0, "ease": 0.5, "gain": {"3": 0.25}},
+                                              {"from": 2.5, "to": 1000.0, "ease": 0.5, "gain": {"3": 0.25}},
+                                              {"from": 3.0, "to": 1000.0, "ease": 0.75, "gain": {"3": 0.25}}]}),
+    # a coil's side growing from nothing at its corner: vanished until W 1, its whole length by W 2 (class 3); thin
+    # grows by half over the same window and thick does not move
+    ("work_gauge_stretch_grow", {"type": "gauge", "motion": "stretch", "axis": "z", "origin": P1, "rotation": [-17.5, 0.0, 0.0],
+                                 "amount": {"thin": 0.5, "3": -1.0}, "windows": [{"from": -1000.0, "to": 2.0, "ease": 1.0}]}),
+    # past nothing: a factor that would go below 0 is held at 0
+    ("work_gauge_stretch_clamped", {"type": "gauge", "motion": "stretch", "axis": "y", "origin": P2,
+                                    "amount": {"thick": -1.5}, "windows": [{"from": 1.0, "to": 1000.0, "ease": 4.0}]}),
 ]
 WORK_INVALID = [
     ("roll_on_work", {"type": "roll", "axis": "z", "pivot": P2, "at": 4.0, "ratio": 2.5}, "a roll needs a trunkPath"),
@@ -128,8 +172,13 @@ WORK_INVALID = [
 BAD_PROGRESS = [
     ("both", {"trunkPath": PATH, "work": WORK}, "work and a trunkPath"),
     ("no_unit", {"work": {"end": {"thin": 1.0, "thick": 2.0}}}, "no unit"),
-    ("end_thin_only", {"work": {"unit": "parts", "end": {"thin": 1.0}}}, "end without thick"),
+    ("end_no_class", {"work": {"unit": "parts", "end": {}}}, "end names no class"),
+    ("end_not_object", {"work": {"unit": "parts", "end": 3.0}}, "end not an object keyed by class"),
+    ("end_unknown_class", {"work": {"unit": "parts", "end": {"thin": 1.0, "medium": 2.0}}}, "end names a key that is no class"),
+    ("end_class_by_number", {"work": {"unit": "parts", "end": {"1": 1.0}}}, "thin is \"thin\", not \"1\""),
+    ("end_class_too_high", {"work": {"unit": "parts", "end": {"10": 1.0}}}, "a class past 9"),
     ("end_zero", {"work": {"unit": "parts", "end": {"thin": 0.0, "thick": 2.0}}}, "end not above 0"),
+    ("end_class3_zero", {"work": {"unit": "parts", "end": {"thin": 1.0, "3": 0.0}}}, "end not above 0 for class 3"),
     ("step_zero", {"work": {"unit": "parts", "step": 0.0, "end": {"thin": 1.0, "thick": 2.0}}}, "step not above 0"),
     ("trunk_keys", {"work": {"unit": "parts", "end": {"thin": 1.0, "thick": 2.0}, "lengths": {"thin": 1.0, "thick": 1.0}}},
      "a trunkPath's key in work"),
@@ -149,8 +198,25 @@ INVALID = [
                              "windows": [W1, {"from": 1.0, "to": 2.0, "ease": -0.5}]}, "ease <= 0"),
     ("gauge_to_not_past_from", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0, "thick": 1.0},
                                 "windows": [{"from": 2.0, "to": 2.0, "ease": 0.5}]}, "to <= from"),
-    ("gauge_amount_thin_only", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0}, "windows": [W1]},
-     "amount without thick"),
+    ("gauge_amount_empty", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {}, "windows": [W1]}, "amount names no class"),
+    ("gauge_amount_unknown_class", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0, "medium": 1.0},
+                                    "windows": [W1]}, "a key that is no class"),
+    ("gauge_amount_class_by_number", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"2": 1.0}},
+     "thick is \"thick\", not \"2\""),
+    ("gauge_amount_class_zero", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"0": 1.0}},
+     "0 is none, not a class"),
+    ("gauge_amount_class_too_high", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"10": 1.0}},
+     "a class past 9"),
+    ("gauge_amount_class_padded", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"03": 1.0}},
+     "class 3 is \"3\", not \"03\""),
+    ("gauge_amount_not_number", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"thin": "1"}},
+     "an amount that is not a number"),
+    ("gauge_amount_not_object", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": 1.0},
+     "a gauge's amount is per class"),
+    ("gauge_gain_unknown_class", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0},
+                                  "windows": [{"from": 1.0, "to": 2.0, "ease": 0.5, "gain": {"huge": 1.0}}]}, "a gain keyed by no class"),
+    ("gauge_lobes_amplitude_empty", {"type": "gauge", "motion": "rotate", "axis": "x", "pivot": P1, "mode": "present",
+                                     "amount": {"3": 1.0}, "lobes": {"ratio": 1.0, "amplitude": {}}}, "lobes' amplitude names no class"),
     ("gauge_amount_missing", {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present"}, "no amount"),
     ("gauge_occupy_no_windows", {"type": "gauge", "motion": "slide", "axis": "y", "amount": {"thin": 1.0, "thick": 1.0}},
      "occupy (the default) without windows"),
@@ -167,6 +233,26 @@ INVALID = [
     ("gauge_rotate_no_pivot", {"type": "gauge", "motion": "rotate", "axis": "x", "amount": {"thin": 1.0, "thick": 1.0},
                                "windows": [W1]}, "a rotating gauge without a pivot"),
     ("roll_no_at", {"type": "roll", "axis": "z", "pivot": P2, "ratio": 2.5}, "roll without 'at'"),
+    ("gauge_stretch_no_origin", {"type": "gauge", "motion": "stretch", "axis": "z", "amount": {"3": -1.0}, "windows": [W1]},
+     "a stretching gauge without an origin"),
+    ("gauge_stretch_short_origin", {"type": "gauge", "motion": "stretch", "axis": "z", "origin": [0.5, 1.0], "mode": "present",
+                                    "amount": {"3": -1.0}}, "an origin of 2 numbers"),
+    ("gauge_stretch_pivot_not_origin", {"type": "gauge", "motion": "stretch", "axis": "z", "pivot": P1, "mode": "present",
+                                        "amount": {"3": -1.0}}, "a stretch's fixed point is its origin, not a pivot"),
+    ("gauge_stretch_bad_rotation", {"type": "gauge", "motion": "stretch", "axis": "z", "origin": P1, "rotation": [0.0, 90.0],
+                                    "mode": "present", "amount": {"3": -1.0}}, "a rotation of 2 numbers"),
+    ("gauge_stretch_rotation_not_numbers", {"type": "gauge", "motion": "stretch", "axis": "z", "origin": P1, "rotation": ["x", 0.0, 0.0],
+                                            "mode": "present", "amount": {"3": -1.0}}, "a rotation that is not numbers"),
+    ("gauge_stretch_bad_axis", {"type": "gauge", "motion": "stretch", "axis": "w", "origin": P1, "mode": "present",
+                                "amount": {"3": -1.0}}, "an axis that is not x, y or z"),
+    ("gauge_stretch_lobes", {"type": "gauge", "motion": "stretch", "axis": "x", "origin": P1, "amount": {"thin": 1.0},
+                             "windows": [W1], "lobes": LOBES}, "lobes on a stretch"),
+    ("gauge_stretch_no_windows", {"type": "gauge", "motion": "stretch", "axis": "x", "origin": P1, "amount": {"thin": 1.0}},
+     "an occupy stretch without windows"),
+    ("gauge_stretch_amount_not_per_class", {"type": "gauge", "motion": "stretch", "axis": "x", "origin": P1, "mode": "present",
+                                            "amount": 0.5}, "a stretch's amount is per class"),
+    ("step_motion_stretch", {"type": "step", "motion": "stretch", "axis": "y", "amount": 0.5, "from": 0.0, "to": 1.0},
+     "only a gauge stretches"),
 ]
 
 # The synthetic rig: a ring turning on psi, arms on it closing on the trunk (with lobes), tips on
@@ -213,8 +299,29 @@ RIG_PARTS = [
     {"id": "trip", "match": ["trip_*"], "requires": "levers",
      "drivers": [{"type": "step", "motion": "rotate", "axis": "x", "pivot": P1, "amount": -0.5, "from": 0.9375, "to": 1.0,
                   "lifting": "trip", "top": 0.0625}]},
+    # a coil that winds only for class 3, riding the ring, and a link riding it that turns back with it (a chain of rides)
+    {"id": "coil", "match": ["coil_*"], "requires": "heads", "ride": "ring",
+     "drivers": [{"type": "gauge", "motion": "rotate", "axis": "y", "pivot": P1, "amount": {"3": 1.5},
+                  "windows": [{"from": 1.0, "to": 1000.0, "ease": 2.0}]}]},
+    {"id": "link", "match": ["link_*"], "requires": "heads", "ride": "coil",
+     "drivers": [{"type": "gauge", "motion": "rotate", "axis": "y", "pivot": P3, "amount": {"3": -1.5},
+                  "windows": [{"from": 1.0, "to": 1000.0, "ease": 2.0}]},
+                 {"type": "gauge", "motion": "slide", "axis": "z", "mode": "present", "amount": {"thin": 0.0625, "3": 0.25}}]},
+    # a jib turning on theta; a boom riding it, stretched along its own (turned) length from its foot, and
+    # collapsing for class 3 once both its windows are full (they add up past 1); a hook and a cap riding the
+    # boom, which move and turn with it but are never stretched by it
+    {"id": "jib", "match": ["jib_*"], "requires": None, "drivers": [{"type": "rotate", "axis": "z", "pivot": P2, "ratio": 0.5}]},
+    {"id": "boom", "match": ["boom_*"], "requires": None, "ride": "jib",
+     "drivers": [{"type": "gauge", "motion": "stretch", "axis": "x", "origin": P1, "rotation": [0.0, 0.0, 25.0],
+                  "amount": {"thin": 0.75, "thick": -0.5, "3": -1.0},
+                  "windows": [{"from": 1.0, "to": 1000.0, "ease": 2.0}, {"from": 5.0, "to": 1000.0, "ease": 1.0, "gain": {"thick": 0.5}}]},
+                 {"type": "gauge", "motion": "slide", "axis": "y", "mode": "present", "amount": {"thin": 0.125, "thick": 0.125, "3": 0.125}}]},
+    {"id": "hook", "match": ["hook_*"], "requires": None, "ride": "boom",
+     "drivers": [{"type": "swing", "axis": "x", "pivot": P3, "amplitude": 0.25, "ratio": 1.0}]},
+    {"id": "cap", "match": ["cap_*"], "requires": None, "ride": "boom", "drivers": []},
     {"id": "frame", "match": ["*"], "requires": None, "drivers": []},
 ]
+CLASS_SWEEP = (3, 9, 10)                     # class 3 and the last class; 10 is past the last, so none
 
 
 def r9(v):
@@ -249,6 +356,9 @@ def general():
             pose(19, 0.25, 1, 0.3, 0.03, 1.0), pose(20, 9.0, 2, 0.0, 0.5, 0.25)]
     for p in out[-5:]:
         p["theta"] = -p["theta"]                 # negative angles, so rectified and theta differ
+    # the classes past thick, after the older cases (clocks seeded from small indices: a float32 matrix keeps
+    # 1e-6 only while the shaft's travel stays modest)
+    out += [pose(2 + j, r6(1.5 + 2.25 * j), k, (1.0, 0.3)[j % 2]) for j, k in enumerate(CLASS_SWEEP)]
     return out
 
 
@@ -286,6 +396,18 @@ def trunk_cases(d, path=None):
         for p in (0.0, 0.3):
             out.append(pose(i, t, k, p))
             i += 1
+    # the classes past thick, after the older cases: the same travels and the class's own end, full and eased
+    ts3 = set(ts) | {work_end(path, k) for k in CLASS_SWEEP}
+    for t in sorted(ts3):
+        for k in CLASS_SWEEP:
+            out.append(pose(i, t, k, 1.0))
+            i += 1
+    for w in d.get("windows", []) if d.get("mode", "occupy") == "occupy" else []:
+        t = ((w["from"] + w["ease"] + w["to"]) / 2 if w["to"] < 100 else w["from"] + 2 * w["ease"]) - nose0
+        for k in CLASS_SWEEP[:2]:
+            for p in (0.0, 0.3):
+                out.append(pose(i, t, k, p))
+                i += 1
     return out
 
 
@@ -298,7 +420,56 @@ def rig_poses():
         plan.append((trunk_end(PATH, k), k, 1.0))
         plan.append((trunk_end(PATH, k) - 0.125, k, 0.3))
     plan += [(2.75, 1, 0.3), (2.75, 2, 0.0), (6.0, 2, 0.3), (1.0, 2, 0.3)]
+    # the classes past thick, after the older poses
+    plan += [(t, 3, 1.0) for t in (0.0, 1.0, 2.0, 2.75, 3.0, 6.0)] + [(2.0, 3, 0.3), (2.0, 9, 1.0), (2.0, 10, 1.0)]
+    # the stretched boom: class 3 shrinking to nothing and past it, thick's second window, thin grown
+    plan += [(t, 3, 1.0) for t in (1.5, 2.5, 4.0, 5.0)] + [(t, 2, 1.0) for t in (4.5, 5.5, 8.0)] + [(8.0, 1, 0.5)]
     return [pose(i, t, k, p) for i, (t, k, p) in enumerate(plan)]
+
+
+# Shape elements posed in a small rig on WORK: the posed box's corners, held to the matrices. A coil side
+# (a bar turned about x through its start corner) grown from that corner along its own length, a box
+# riding a stretched part, a straight rod collapsed to nothing, and the side riding a rotated part.
+SIDE = {"name": "side", "from": [4.0, 20.0, 8.0], "to": [5.0, 21.0, 16.0], "rotationOrigin": [4.0, 20.0, 8.0], "rotationX": -17.5}
+GROW = {"type": "gauge", "motion": "stretch", "axis": "z", "origin": [0.25, 1.25, 0.5], "rotation": [-17.5, 0.0, 0.0],
+        "amount": {"3": -1.0}, "windows": [{"from": -1000.0, "to": 2.0, "ease": 1.0}]}
+ROD = {"name": "rod", "from": [2.0, 4.0, 6.0], "to": [3.0, 5.0, 14.0]}
+SHRINK = {"type": "gauge", "motion": "stretch", "axis": "z", "origin": [0.125, 0.25, 0.375], "amount": {"3": -1.0},
+          "windows": [{"from": 0.0, "to": 1000.0, "ease": 2.0}, {"from": 1.0, "to": 1000.0, "ease": 2.0}]}
+STRETCH_BOXES = [
+    ("side_growing", SIDE, [{"id": "s", "match": ["side"], "drivers": [GROW]}], "s", (1.5, 3, 1.0)),
+    ("side_vanished", SIDE, [{"id": "s", "match": ["side"], "drivers": [GROW]}], "s", (0.5, 3, 1.0)),
+    ("side_whole", SIDE, [{"id": "s", "match": ["side"], "drivers": [GROW]}], "s", (2.5, 3, 1.0)),
+    ("side_other_class", SIDE, [{"id": "s", "match": ["side"], "drivers": [GROW]}], "s", (1.5, 1, 1.0)),
+    ("side_on_a_turned_part", SIDE, [{"id": "t", "match": ["t_*"], "drivers": [{"type": "rotate", "axis": "y", "pivot": [0.5, 0.0, 0.5],
+                                                                                    "ratio": 1.0, "input": "work"}]},
+                                     {"id": "s", "match": ["side"], "ride": "t", "drivers": [GROW]}], "s", (1.25, 3, 1.0)),
+    ("rod_shrinking", ROD, [{"id": "r", "match": ["rod"], "drivers": [SHRINK]}], "r", (0.75, 3, 1.0)),
+    ("rod_collapsed", ROD, [{"id": "r", "match": ["rod"], "drivers": [SHRINK]}], "r", (2.5, 3, 1.0)),
+    ("box_riding_a_stretched_part", ROD, [{"id": "r", "match": ["r_*"], "drivers": [SHRINK]},
+                                          {"id": "b", "match": ["rod"], "ride": "r",
+                                           "drivers": [{"type": "slide", "axis": "x", "amplitude": 0.25, "ratio": 1.0, "input": "work"}]}],
+     "b", (2.5, 3, 1.0)),
+]
+
+
+def stretch_boxes():
+    out = []
+    for i, (bid, element, parts, pid, (w, k, p)) in enumerate(STRETCH_BOXES):
+        for q in parts:
+            for d in q["drivers"]:
+                validate_driver(d)
+        inputs = pose(i, w, k, p)
+        m = part_matrix(parts, pid, inputs, WORK)
+        el = flatten([element])[0]
+        authored = el.corners()
+        got = posed(el, m).corners()
+        moved = [[v * 16 for v in apply(m, [c / 16 for c in corner])] for corner in authored]
+        if any(abs(a - b) > 1e-9 for pa, pb in zip(got, moved) for a, b in zip(pa, pb)):
+            raise SystemExit(f"stretch box {bid}: the posed box is not the matrix's")
+        out.append({"id": bid, "element": element, "parts": parts, "part": pid, "inputs": full_inputs(inputs),
+                    "authored": [[r9(v) for v in c] for c in authored], "corners": [[r9(v) for v in c] for c in got]})
+    return out
 
 
 def build():
@@ -356,6 +527,7 @@ def build():
         "workDrivers": work_drivers,
         "workInvalid": [{"id": pid, "driver": d, "error": err} for pid, d, err in WORK_INVALID],
         "badProgress": [{"id": pid, "rig": r, "error": err} for pid, r, err in BAD_PROGRESS],
+        "stretchBoxes": stretch_boxes(),
     }
 
 
@@ -392,10 +564,10 @@ def dumps(fx):
         blocks.append(head + ",\n".join("\t\t\t" + j(c) for c in d["cases"]) + "\n\t\t]}")
     lines.append(",\n".join(blocks))
     lines.append("\t],")
-    for key in ("workInvalid", "badProgress"):
+    for key in ("workInvalid", "badProgress", "stretchBoxes"):
         lines.append(f'\t"{key}": [')
         lines.append(",\n".join("\t\t" + j(x) for x in fx[key]))
-        lines.append("\t]" + ("," if key == "workInvalid" else ""))
+        lines.append("\t]" + ("," if key != "stretchBoxes" else ""))
     lines.append("}")
 
     return "\n".join(lines) + "\n"

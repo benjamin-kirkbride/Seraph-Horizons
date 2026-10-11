@@ -84,6 +84,22 @@ public sealed class DrawBenchParts
     public static readonly IReadOnlyList<string> DogCodes = Ferrous("bracket-heavy");
     public static readonly IReadOnlyList<string> MandrelCodes = Ferrous("rod");
 
+    /// <summary>The follower's spring, which the mandrel stage also takes (one, in a click of its own, before
+    /// or after the rods) while springs exist (<see cref="Springs"/>): the mandrel station winds it.</summary>
+    public const string SpringCode = "seraphhorizons:spring-steel";
+
+    /// <summary>Whether the mandrel stage takes a spring besides its rods: springs exist in this world
+    /// (the <c>MandrelSprings</c> switch). Without them the rods alone fit the stage.</summary>
+    public bool Springs { get; set; } = true;
+
+    private string? _spring;
+
+    /// <summary>The spring is in the mandrel stage.</summary>
+    public bool HasSpring => _spring != null;
+
+    /// <summary>Whether <paramref name="code"/> is the follower's spring.</summary>
+    public static bool IsSpring(string? code) => Normalise(code) == SpringCode;
+
     /// <summary>The codes a stage takes; the creative shortcut takes the first (the steel die,
     /// which draws both metals).</summary>
     public static IReadOnlyList<string> CodesFor(DrawBenchStage stage) => stage switch
@@ -120,8 +136,14 @@ public sealed class DrawBenchParts
     public static IReadOnlyList<DrawBenchStage> StagesOf(string? code)
     {
         code = Normalise(code);
+        if (code == SpringCode)
+            return [DrawBenchStage.Mandrel];
         return code == null ? [] : DrawBenchRequires.Stages.Where(s => CodesFor(s).Contains(code)).ToList();
     }
+
+    /// <summary>How many of <paramref name="code"/> fitting it in <paramref name="stage"/> takes: one spring,
+    /// else the stage's <see cref="Needed"/>.</summary>
+    public static int NeededOf(string? code, DrawBenchStage stage) => IsSpring(code) ? 1 : Needed(stage);
 
     public static bool IsPart(string? code) => StagesOf(code).Count > 0;
 
@@ -135,7 +157,13 @@ public sealed class DrawBenchParts
 
     public static string? DieCodeFor(string? metal) => metal switch { "iron" => DieIronCode, "steel" => DieSteelCode, _ => null };
 
-    public bool Has(DrawBenchStage stage) => _fitted.ContainsKey(stage);
+    /// <summary>Whether <paramref name="stage"/> is fitted: its item in, and for the mandrel stage the
+    /// spring too while springs exist.</summary>
+    public bool Has(DrawBenchStage stage) =>
+        _fitted.ContainsKey(stage) && (stage != DrawBenchStage.Mandrel || !Springs || _spring != null);
+
+    /// <summary>Whether the stage's own item (the mandrel stage's rods) is in, whatever its spring.</summary>
+    public bool HasItem(DrawBenchStage stage) => _fitted.ContainsKey(stage);
 
     public string? FittedIn(DrawBenchStage stage) => _fitted.GetValueOrDefault(stage);
 
@@ -158,7 +186,8 @@ public sealed class DrawBenchParts
     public DrawBenchFitVerdict CanFit(string? code, out DrawBenchStage stage, int dieDurability = 1, int held = int.MaxValue)
     {
         stage = default;
-        var stages = StagesOf(code);
+        bool spring = IsSpring(code);
+        IReadOnlyList<DrawBenchStage> stages = spring && !Springs ? [] : StagesOf(code);
         if (stages.Count == 0)
             return DrawBenchFitVerdict.NotAPart;
         var open = stages.Where(s => !Has(s)).ToList();
@@ -166,9 +195,12 @@ public sealed class DrawBenchParts
             return DrawBenchFitVerdict.AlreadyFitted;
         if (Next is not { } next || !open.Contains(next))
             return DrawBenchFitVerdict.OutOfOrder;
+        // the mandrel stage's two items go in by clicks of their own, either first
+        if (next == DrawBenchStage.Mandrel && (spring ? _spring != null : _fitted.ContainsKey(next)))
+            return DrawBenchFitVerdict.AlreadyFitted;
         if (next == DrawBenchStage.Die && dieDurability <= 0)
             return DrawBenchFitVerdict.DieSpent;
-        if (held < Needed(next))
+        if (held < NeededOf(code, next))
             return DrawBenchFitVerdict.TooFew;
         stage = next;
         return DrawBenchFitVerdict.Fits;
@@ -182,6 +214,11 @@ public sealed class DrawBenchParts
         var verdict = CanFit(code, out var stage, dieLeft, held);
         if (verdict != DrawBenchFitVerdict.Fits)
             return verdict;
+        if (IsSpring(code))
+        {
+            _spring = SpringCode;
+            return verdict;
+        }
         _fitted[stage] = Normalise(code)!;
         if (stage == DrawBenchStage.Die)
         {
@@ -191,8 +228,24 @@ public sealed class DrawBenchParts
         return verdict;
     }
 
-    /// <summary>The creative shortcut's next item: the next stage's first code; null when complete.</summary>
-    public string? NextPart => Next is { } next ? CodesFor(next)[0] : null;
+    /// <summary>The creative shortcut's next item: the next stage's first code (the spring once the mandrel
+    /// stage's rods are in); null when complete.</summary>
+    public string? NextPart => Next is not { } next ? null
+        : next == DrawBenchStage.Mandrel && _fitted.ContainsKey(next) ? SpringCode
+        : CodesFor(next)[0];
+
+    /// <summary>The items the next stage still takes: its own codes, or the spring alone once the
+    /// mandrel stage's rods are in, or the rods alone once its spring is; empty when complete.</summary>
+    public IReadOnlyList<string> NextCodes()
+    {
+        if (Next is not { } next)
+            return [];
+        if (next != DrawBenchStage.Mandrel || !Springs)
+            return CodesFor(next);
+        if (_fitted.ContainsKey(next))
+            return [SpringCode];
+        return _spring != null ? CodesFor(next) : [.. CodesFor(next), SpringCode];
+    }
 
     /// <summary>Wears the die by <paramref name="points"/>. At 0 it is spent: removed, nothing
     /// comes back. Returns whether this wear spent it.</summary>
@@ -227,26 +280,52 @@ public sealed class DrawBenchParts
         return die;
     }
 
-    /// <summary>Every fitted item, in stage order, as many as its stage took, the die with its durability left.</summary>
-    public IReadOnlyList<DrawBenchDrop> Returns() =>
-        DrawBenchRequires.Stages.Where(Has)
-            .Select(s => new DrawBenchDrop(_fitted[s], s == DrawBenchStage.Die ? DieLeft : null, Needed(s)))
-            .ToList();
-
-    /// <summary>Each stage's fitted code by its stage name, for saving.</summary>
-    public IReadOnlyDictionary<string, string> Snapshot() =>
-        _fitted.ToDictionary(kv => DrawBenchRequires.Name(kv.Key), kv => kv.Value);
-
-    /// <summary>Restored state, as <see cref="Snapshot"/> gave it. The stages must be a run from
-    /// the first (what follows a gap is dropped, as it could not have been fitted); a code that is
-    /// not its stage's part is dropped, as is a die with no durability left.</summary>
-    public static DrawBenchParts Restore(IReadOnlyDictionary<string, string> fitted, int dieLeft, int dieCapacity)
+    /// <summary>Every fitted item, in stage order, as many as its stage took (the spring after the mandrel
+    /// stage's rods), the die with its durability left.</summary>
+    public IReadOnlyList<DrawBenchDrop> Returns()
     {
-        var parts = new DrawBenchParts();
+        var drops = new List<DrawBenchDrop>();
+        foreach (var s in DrawBenchRequires.Stages)
+        {
+            if (_fitted.TryGetValue(s, out var code))
+                drops.Add(new DrawBenchDrop(code, s == DrawBenchStage.Die ? DieLeft : null, Needed(s)));
+            if (s == DrawBenchStage.Mandrel && _spring != null)
+                drops.Add(new DrawBenchDrop(_spring));
+        }
+        return drops;
+    }
+
+    /// <summary>The key the spring is saved under in <see cref="Snapshot"/>.</summary>
+    public const string SpringKey = "spring";
+
+    /// <summary>Each stage's fitted code by its stage name, and the spring under <see cref="SpringKey"/>, for saving.</summary>
+    public IReadOnlyDictionary<string, string> Snapshot()
+    {
+        var snapshot = _fitted.ToDictionary(kv => DrawBenchRequires.Name(kv.Key), kv => kv.Value);
+        if (_spring != null)
+            snapshot[SpringKey] = _spring;
+        return snapshot;
+    }
+
+    /// <summary>Restored state, as <see cref="Snapshot"/> gave it, <paramref name="springs"/> whether the
+    /// mandrel stage takes a spring. The stages must be a run from the first (what follows a gap is
+    /// dropped, as it could not have been fitted); a code that is not its stage's part is dropped, as is a
+    /// die with no durability left. A mandrel stage saved without its spring (a bench built before springs)
+    /// keeps the stages after it: the bench then asks for the spring before it draws.</summary>
+    public static DrawBenchParts Restore(IReadOnlyDictionary<string, string> fitted, int dieLeft, int dieCapacity, bool springs = true)
+    {
+        var parts = new DrawBenchParts { Springs = springs };
+        if (springs && fitted.TryGetValue(SpringKey, out var spring) && IsSpring(spring))
+            parts._spring = SpringCode;
         foreach (var stage in DrawBenchRequires.Stages)
         {
             if (!fitted.TryGetValue(DrawBenchRequires.Name(stage), out var code) || !CodesFor(stage).Contains(Normalise(code)!))
+            {
+                // the spring may have gone in before the rods, but not before the stages ahead of them
+                if (stage < DrawBenchStage.Mandrel)
+                    parts._spring = null;
                 break;
+            }
             if (stage == DrawBenchStage.Die)
             {
                 if (dieLeft <= 0)

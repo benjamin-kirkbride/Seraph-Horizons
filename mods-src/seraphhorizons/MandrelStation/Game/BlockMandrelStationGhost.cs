@@ -57,6 +57,24 @@ public class BlockMandrelStationGhost : Block
         return base.OnBlockInteractStart(world, byPlayer, blockSel);
     }
 
+    public override bool OnBlockInteractStep(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
+        Controller(world.BlockAccessor, blockSel.Position, out _, out var principal)
+        && BlockMandrelStation.StepAt(world, byPlayer, principal, secondsUsed);
+
+    public override void OnBlockInteractStop(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
+    {
+        if (Controller(world.BlockAccessor, blockSel.Position, out _, out var principal))
+            BlockMandrelStation.ReleaseAt(world, byPlayer, principal);
+    }
+
+    public override bool OnBlockInteractCancel(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel,
+                                               EnumItemUseCancelReason cancelReason)
+    {
+        if (Controller(world.BlockAccessor, blockSel.Position, out _, out var principal))
+            BlockMandrelStation.ReleaseAt(world, byPlayer, principal);
+        return true;
+    }
+
     public override WorldInteraction[] GetPlacedBlockInteractionHelp(IWorldAccessor world, BlockSelection selection, IPlayer forPlayer)
     {
         if (Controller(world.BlockAccessor, selection.Position, out var station, out var principal))

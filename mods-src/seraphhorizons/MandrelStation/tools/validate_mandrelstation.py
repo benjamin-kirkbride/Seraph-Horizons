@@ -7,6 +7,7 @@ its rule. Everything is in the build frame (voxels), on the model before the ori
 
 from __future__ import annotations
 
+import math
 import re
 
 from machinegen.checks import box_overhang, coplanar_faces, euler_round_trip, frame_floating, obb_obb
@@ -44,13 +45,18 @@ class V:
         return [e for pid in self.by_part if r.fullmatch(pid) for e in self.posed(pid, pose)]
 
 
-def present(m, pid, k):
-    return m.on_show(pid, k)
+def present(m, pid, pose):
+    return m.on_show(pid, pose)
 
 
 def cycle_poses(m, step=0.005):
     n = int(round(1 / step))
     return [m.pose_at(k, i * step) for k in (1, 2) for i in range(n + 1)]
+
+
+def spring_poses(m, step=0.005):
+    n = int(round(1 / step))
+    return [m.spring_at(i * step) for i in range(n + 1)]
 
 
 def check_basic(v):
@@ -77,7 +83,7 @@ def check_containment(v, poses):
     worst, where = -1e9, None
     for pose in poses:
         for pid in v.by_part:
-            if not present(m, pid, pose[2]):
+            if not present(m, pid, pose):
                 continue
             for el in v.posed(pid, pose):
                 lo, hi = el.aabb()
@@ -102,6 +108,7 @@ ROLES = [
     (r"^mandrel_", {"mandrel"}),
     (r"^l\d", {"lead"}),
     (r"^c\d", {"copper"}),
+    (r"^sp", {"spring"}),
 ]
 
 
@@ -162,7 +169,10 @@ RING = re.compile(r"([lc])(\d+)[udew]+")
 def allowed(m, pa, pb, pose):
     """Intended overlaps, all inside the work, whose union is the tube (the volumes inside each other are
     never seen): a ring's own walls and corner bars, which overlap as they close, and the rings, which
-    overlap until the hollow is stretched."""
+    overlap until the hollow is stretched; and the spring's pieces, one wire, whose joints and the pieces
+    out of sight check_spring holds to account instead."""
+    if m.is_spring(pa) and m.is_spring(pb):
+        return True
     ra, rb = RING.fullmatch(pa), RING.fullmatch(pb)
     return bool(ra and rb and ra.group(1) == rb.group(1))
 
@@ -170,7 +180,7 @@ def allowed(m, pa, pb, pose):
 def touching_pairs(v, pose):
     items = []
     for pid in v.by_part:
-        if present(v.m, pid, pose[2]):
+        if v.m.seen(pid, pose):
             for el in v.posed(pid, pose):
                 items.append((pid, el, el.aabb()))
     hits = {}
@@ -372,11 +382,208 @@ def check_mandrel(v):
           f"{over:.1f} voxels past the stump")
 
 
+# the rig's windows, origins and angles are rounded to 6 places (blocks, degrees): a grown side lies up to 1e-5 off where
+# the coil puts it
+AX_TOL = 1e-4
+POSE_TOL = 2e-3                              # a growing side or the rod off its place at a sample
+HIDE_TOL = 0.02                              # a growing side's back end out of the piece that hides it (the sizes' steps)
+JOINT = 0.7                                  # pieces within this of a corner are its joint, and may overlap there
+
+
+def axis_of(el):
+    """An element's long local axis (its local z) in world space."""
+    return [el.r[i][2] for i in range(3)]
+
+
+def dist(a, b):
+    return max(abs(a[i] - b[i]) for i in range(3))
+
+
+def point_in(p, box, tol=1e-6):
+    rel = [p[i] - box.c[i] for i in range(3)]
+    return all(abs(sum(box.r[i][k] * rel[i] for i in range(3))) <= abs(box.size[k]) / 2 + tol for k in range(3))
+
+
+def check_spring(v):
+    """The spring job, held to the plan's promises. Wound (W 1): every side where machinegen.coil puts it, on the
+    mandrel's faces; the rod gone. At W 0: the straight rod alone, along the mandrel's top east edge from the shoulder
+    to ROD_BACK before the coil's last corner; every side stretched to nothing. Every 1/1000 of W: the sides before the
+    slot's whole, those after it gone, the slot's own grown from its start corner along its own line as far as the slot
+    has got, its back end inside the end of the side before (or of the rod, for the first) and its leading end inside
+    the rod's end; the rod along the mandrel, its far face fixed, its shoulder end ROD_BACK before the growing side's
+    leading end along the mandrel and on its line across the face; nothing overlapping but the pieces that meet (a
+    side and the next, the rod and the side it lays or has just laid, at their corners). Over each slot: the side and
+    the rod move, nothing else."""
+    m = v.m
+    C, n = m.COIL, m.COIL.sides
+    pcs = m.plan()
+    sides = [pc for pc in pcs if pc.kind == "side"]
+    rod = next(pc for pc in pcs if pc.kind == "rod")
+    bars = {pc.j: m.side_bar(pc.j) for pc in sides}
+
+    def at(pid, W):
+        return v.posed(pid, m.spring_at(W))[0]
+
+    # wound
+    worst = 0.0
+    for pc in sides:
+        want, got = bars[pc.j], at(pc.pid, 1.0)
+        worst = max(worst, max(min(dist(p, q) for q in got.corners()) for p in want.corners()))
+        k, sign = (1, 1) if C.face(pc.j) == "u" else (1, -1) if C.face(pc.j) == "d" else (0, -1) if C.face(pc.j) == "w" else (0, 1)
+        inner = sign * (got.c[k] - (m.X0, m.YM)[k]) - pc.size[0] / 2
+        if abs(inner - m.MH) > m.STEP + AX_TOL:
+            v.fail(f"{pc.pid} is not on the mandrel's face when wound ({inner:.4f} from the axis)")
+        lo, hi = got.aabb()
+        if lo[2] < m.SHOULDER_Z[1] - 1e-6 or hi[2] > m.NOSE_Z[0] + 1e-6:
+            v.fail(f"{pc.pid} is not between the shoulder and the nose when wound")
+    if worst > AX_TOL:
+        v.fail(f"a wound side is not where the coil puts it ({worst:.1e})")
+    if not at(rod.pid, 1.0).vanished:
+        v.fail("the rod is not gone when the spring is wound")
+    print(f"spring wound: {n} sides, {C.turns} turns of {m.WIRE} wire at pitch {C.pitch}, each where the coil puts it (within "
+          f"{worst:.1e}); the rod gone")
+
+    # W 0
+    r0 = at(rod.pid, 0.0)
+    lo, hi = r0.aabb()
+    along = abs(axis_of(r0)[2] - 1.0) < 1e-9 and max(abs(r0.c[q] - C.corner(0)[q]) for q in (0, 1)) < AX_TOL
+    gone = [pc.pid for pc in sides if not at(pc.pid, 0.0).vanished]
+    print(f"spring at W 0: the rod alone, along the mandrel's top east edge from z {lo[2]:.2f} (the shoulder at {m.SHOULDER_Z[1]}) "
+          f"to {hi[2]:.2f} (the coil's last corner at {C.corner(n)[2]:.2f}), {hi[2] - lo[2]:.2f} long: {along}; sides shown: {gone or 'none'}")
+    if gone or not along or lo[2] < m.SHOULDER_Z[1] or lo[2] > m.SHOULDER_Z[1] + 0.2:
+        v.fail("at W 0 the rod is not the straight rod alone, along the mandrel's top east edge from the shoulder")
+    if abs(hi[2] - (C.corner(n)[2] - m.ROD_BACK)) > AX_TOL or abs(lo[2] - (C.corner(0)[2] - m.ROD_BACK)) > AX_TOL:
+        v.fail("at W 0 the rod does not run from ROD_BACK before the coil's first corner to ROD_BACK before its last")
+
+    # every 1/1000 of W
+    samples = 1000
+    off, bare, clash = [], [], set()
+    worst_side, worst_rod, worst_hide = 0.0, 0.0, 0.0
+    slots = [(a, b) for kind, a, b in m.WINDOWS if kind == "slot"]
+    for i in range(samples + 1):
+        W = i / samples
+        u = W * m.US
+        j = min(int(W * n), n - 1)
+        a, b = slots[j]
+        f = min(1.0, max(0.0, (u - a) / (b - a)))
+        els = {pc.pid: at(pc.pid, W) for pc in pcs}
+        drawn = [pc for pc in pcs if not els[pc.pid].vanished]
+        for pc in sides:
+            el, bar = els[pc.pid], bars[pc.j]
+            if pc.j > j or (pc.j == j and f == 0.0):
+                if not el.vanished:
+                    off.append((round(W, 4), pc.pid, "shown before its slot"))
+                continue
+            g = 1.0 if pc.j < j else f
+            # the bar scaled by g about its start corner (the first side about its start face), along its own axis
+            cj = m.grow_origin(pc.j)
+            want_c = [cj[q] + (bar.c[q] - cj[q]) * g for q in range(3)]
+            d = max(dist(el.c, want_c), abs(el.size[2] - bar.size[2] * g), abs(el.size[0] - bar.size[0]), abs(el.size[1] - bar.size[1]),
+                    max(abs(el.r[p][q] - bar.r[p][q]) for p in range(3) for q in range(3)))
+            worst_side = max(worst_side, d)
+            if d > POSE_TOL:
+                off.append((round(W, 4), pc.pid, f"not the bar grown {g:.3f} from its corner ({d:.4f})"))
+            if pc.j == j and g > 0.0:
+                u_ = C.direction(pc.j)
+                back = [C.corner(j)[q] - u_[q] * m.WIRE / 2 * g for q in range(3)]
+                lead = [cj[q] + u_[q] * (C.length + m.WIRE / 2 + (0.0 if j else m.WIRE / 2)) * g for q in range(3)]
+                if j and not point_in(back, els[sides[j - 1].pid], HIDE_TOL):
+                    bare.append((round(W, 4), pc.pid, f"its back end out of {sides[j - 1].pid}"))
+                # inside the rod's end; in the last slot the rod's last bit shrinks away short of the wire's end, which runs
+                # on past its far face on its line
+                rod_el = els[rod.pid]
+                past = (j == n - 1 and lead[2] >= rod_el.aabb()[1][2] - POSE_TOL
+                        and max(abs(lead[q] - rod_el.c[q]) for q in (0, 1)) <= m.ROD / 2 + POSE_TOL)
+                if not point_in(lead, rod_el, POSE_TOL) and not past:
+                    bare.append((round(W, 4), pc.pid, "its leading end out of the rod's end"))
+        # the rod: along the mandrel, its far face fixed, its shoulder end ROD_BACK before the growing side's leading end
+        el = els[rod.pid]
+        if W < 1.0:
+            lo, hi = el.aabb()
+            cap = C.corner(j)[2] + C.rise * f - m.ROD_BACK
+            line = [C.corner(j)[q] + f * (C.corner(j + 1)[q] - C.corner(j)[q]) for q in (0, 1)]
+            d = max(abs(axis_of(el)[2] - 1.0), abs(hi[2] - (C.corner(n)[2] - m.ROD_BACK)), abs(lo[2] - cap),
+                    abs(el.c[0] - line[0]), abs(el.c[1] - line[1]), abs(el.size[0] - m.ROD), abs(el.size[1] - m.ROD))
+            worst_rod = max(worst_rod, d)
+            if el.vanished or d > POSE_TOL:
+                off.append((round(W, 4), rod.pid, f"off its place ({d:.4f})" if not el.vanished else "gone early"))
+        # nothing overlapping but the pieces that meet
+        boxes = {pc.pid: els[pc.pid].aabb() for pc in drawn}
+        for x, pa in enumerate(drawn):
+            alo, ahi = boxes[pa.pid]
+            for pb in drawn[x + 1:]:
+                blo, bhi = boxes[pb.pid]
+                if not all(alo[q] < bhi[q] - 0.02 and blo[q] < ahi[q] - 0.02 for q in range(3)):
+                    continue
+                if pa.kind == "side" and pb.kind == "side" and abs(pa.j - pb.j) == 1:
+                    continue
+                if "rod" in (pa.kind, pb.kind):
+                    side = pb if pa.kind == "rod" else pa
+                    if side.j == j or (side.j == j - 1 and max(abs(els[rod.pid].c[q] - C.corner(j)[q]) for q in (0, 1)) <= JOINT):
+                        continue
+                if obb_obb(els[pa.pid], els[pb.pid]):
+                    clash.add((pa.pid, pb.pid, round(W, 4)))
+    print(f"spring winding: every 1/{samples} of W the sides before the slot whole, those after it gone, its own the coil's bar "
+          f"grown from its corner as far as the slot has got (within {worst_side:.1e}), its back end inside the side before (or the "
+          f"rod) and its leading end inside the rod's end; the rod along the mandrel, its far face fixed, its shoulder end {m.ROD_BACK} "
+          f"before the leading end and on its line across the face (within {worst_rod:.1e}); nothing overlaps but the pieces that meet")
+    if off:
+        v.fail(f"a side or the rod is off its place: {off[:5]}")
+    if bare:
+        v.fail(f"a growing side's end is not hidden where it should be: {bare[:5]}")
+    if clash:
+        v.fail(f"pieces of the spring not joined overlap: {sorted(clash)[:5]}")
+
+    # over each slot: its side and the rod move, nothing else
+    wrong = []
+    for j, (a, b) in enumerate(slots):
+        ra, mid, rb = (m.spring_at(t / m.US) for t in (a, (a + b) / 2, b))
+        movers = set()
+        for pc in pcs:
+            e0, e1, e2 = (v.posed(pc.pid, pose)[0] for pose in (ra, mid, rb))
+            if max(dist(e0.c, e1.c), dist(e0.c, e2.c), max(abs(e0.size[q] - e2.size[q]) for q in range(3))) > 1e-6:
+                movers.add(pc.pid)
+        if movers != {sides[j].pid, rod.pid}:
+            wrong.append((round(a / m.US, 4), f"moves {sorted(movers)}"))
+    print(f"spring steps: {len(slots)} slots, each growing its side and moving the rod, nothing else")
+    if wrong:
+        v.fail(f"a slot moves more or other than it should: {wrong[:4]}")
+
+    # the class is the job: the spring moves for its class alone, the hollows never for it
+    hollows = [p["id"] for p in v.parts if p["requires"] in ("hollowlead", "hollowcopper")]
+    spring = [pc.pid for pc in pcs]
+    worst = 0.0
+    for i in range(0, 41, 3):
+        W = i / 40
+        for k, pids in ((0, spring), (1, spring), (2, spring), (m.SPRING_CLASS, hollows)):
+            for pid in pids:
+                a = v.mat(pid, m.spring_at(W, k=k))
+                worst = max(worst, max(abs(a[r][c] - (1.0 if r == c else 0.0)) for r in range(3) for c in range(4)))
+    if worst > 1e-12:
+        v.fail(f"a job's parts move with another job's class ({worst:.1e})")
+
+
+def check_item(m, item):
+    """The spring item: the wound coil inside the 16-voxel item box at scale 1, centred on its floor, every element with
+    a textured face."""
+    ok = True
+    lo, hi = aabb_of(item)
+    print(f"item spring: {len(item)} elements, {' x '.join(f'{hi[i] - lo[i]:.2f}' for i in range(3))}, from {[round(x, 3) for x in lo]}")
+    if min(lo) < -1e-6 or max(hi) > 16 + 1e-6 or abs(lo[1]) > 1e-6 or abs(lo[0] + hi[0] - 16) > 1e-6 or abs(lo[2] + hi[2] - 16) > 1e-6:
+        print(f"FAIL the spring item is not centred on the floor of the item box: {lo} .. {hi}")
+        ok = False
+    if len(item) != m.COIL.sides or any(not any(f.get("texture") for f in el.faces.values()) for el in item):
+        print("FAIL the spring item is not the coil's sides, each textured")
+        ok = False
+    return ok
+
+
 def check_zfight(v):
     m = v.m
     bad = 0
     for pose in m.coplanar_poses():
-        els = [e for pid in v.by_part if present(m, pid, pose[2]) for e in v.posed(pid, pose)]
+        # what can be seen: the spring's pieces out of sight are not
+        els = [e for pid in v.by_part if m.seen(pid, pose) for e in v.posed(pid, pose)]
         pairs = coplanar_faces(els)
         if pairs:
             bad += len(pairs)
@@ -392,13 +599,15 @@ def validate(m, els, parts, rig, quick=False):
     check_floating(v)
     check_textures(v)
     check_banding(v)
-    check_containment(v, [m.REST] + cycle_poses(m, 0.01))
+    check_containment(v, [m.REST] + cycle_poses(m, 0.01) + spring_poses(m, 0.0025))
     check_forging(v)
     check_mandrel(v)
     check_hang(v)
-    check_clearances(v, [m.REST] + cycle_poses(m, 0.02), "clearances")
+    check_spring(v)
+    check_clearances(v, [m.REST] + cycle_poses(m, 0.02) + spring_poses(m, 0.01), "clearances")
     if not quick:
         check_clearances(v, cycle_poses(m, 0.0025), "swept paths (every 0.0025 of the cycle, both metals: the hollow stretching along the mandrel)")
+        check_clearances(v, spring_poses(m, 0.001), "swept paths (every 0.001 of the winding: the rod round the mandrel, the coil growing)")
         check_zfight(v)
     return v.ok
 

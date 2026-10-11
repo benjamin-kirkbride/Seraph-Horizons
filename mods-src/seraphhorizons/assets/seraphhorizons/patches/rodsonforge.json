@@ -1,0 +1,8 @@
+// Every metal rod (game:rod-*) goes on the game's forge and heats there, as an ingot does:
+// seraphhorizons' RodsOnForge switch (README.md, RodsOnForge.cs). The forge takes an item whose
+// forgable attribute is true and draws it on the coals by its inForgeTransform: the rod lies flat,
+// turned a little. Server side: the client gets the item types from it.
+[
+  { "file": "game:itemtypes/part/rod.json", "op": "add", "path": "/attributes/forgable", "value": true, "side": "server" },
+  { "file": "game:itemtypes/part/rod.json", "op": "add", "path": "/attributes/inForgeTransform", "value": { "rotation": { "x": 0, "y": 30, "z": 0 }, "origin": { "x": 0.5, "y": 0, "z": 0.5 } }, "side": "server" }
+]

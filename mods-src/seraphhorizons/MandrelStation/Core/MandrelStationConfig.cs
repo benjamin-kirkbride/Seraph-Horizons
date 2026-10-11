@@ -24,6 +24,13 @@ public class MandrelStationConfig
     /// <summary>Durability the hammer loses a blow, as a blow on the anvil costs it one.</summary>
     public int HammerWearPerBlow { get; set; } = 1;
 
+    /// <summary>Turns of the held winding clock (a turn a second) a steel rod takes to wind into a
+    /// spring: the rig's <c>wind.turnsPerRod</c>.</summary>
+    public double TurnsPerRod { get; set; } = 4;
+
+    /// <summary>Durability the tongs lose a spring wound.</summary>
+    public int TongsWearPerRod { get; set; } = 1;
+
     public static readonly MandrelStationConfig Defaults = new();
 
     /// <summary>Blows a hollow of class <paramref name="k"/> takes (1 lead, 2 copper); 0 else.</summary>
@@ -41,6 +48,10 @@ public class MandrelStationConfig
             Fix(nameof(BaseHammerTier), BaseHammerTier, BaseHammerTier = Defaults.BaseHammerTier, fixes);
         if (HammerWearPerBlow is < 0 or > 1000)
             Fix(nameof(HammerWearPerBlow), HammerWearPerBlow, HammerWearPerBlow = Defaults.HammerWearPerBlow, fixes);
+        if (!(TurnsPerRod is >= 0.25 and <= 1000))
+            Fix(nameof(TurnsPerRod), TurnsPerRod, TurnsPerRod = Defaults.TurnsPerRod, fixes);
+        if (TongsWearPerRod is < 0 or > 1000)
+            Fix(nameof(TongsWearPerRod), TongsWearPerRod, TongsWearPerRod = Defaults.TongsWearPerRod, fixes);
         return fixes;
     }
 

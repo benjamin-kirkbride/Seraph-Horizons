@@ -2,9 +2,14 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   apply,
+  classIndex,
+  collapsed,
+  classKey,
+  classOfKey,
   compileGlobs,
   corners,
   driverMatrix,
+  MAX_CLASS,
   flattenShape,
   globRegExp,
   multiply,
@@ -285,6 +290,7 @@ const fixture = read("tests/Machines/driver-fixture.json") as {
   workDrivers: { id: string; driver: Driver; cases: { inputs: Pose; matrix: number[][] }[] }[];
   workInvalid: { id: string; driver: Driver; error: string }[];
   badProgress: { id: string; rig: Rig; error: string }[];
+  stretchBoxes: { id: string; element: Shape["elements"][number]; parts: RigPart[]; part: string; inputs: Pose; authored: Vec3[]; corners: Vec3[] }[];
 };
 const fixturePath = trunkPathOf({ trunkPath: fixture.trunkPath })!;
 
@@ -302,7 +308,8 @@ function expectMatrix(got: Mat4, want: number[][], what: string) {
 describe("trunk-path drivers against driver-fixture.json", () => {
   it("is the format this test reads, with the trunk path every case uses", () => {
     expect(fixture.format).toBe(2);
-    expect(fixturePath.lengths).toEqual([0, 4, 5]);
+    // indexed by class: the trunk's two sizes, and no length for the classes past thick
+    expect(fixturePath.lengths).toEqual([0, 4, 5, ...Array(MAX_CLASS - 2).fill(0)]);
     expect(tripEnd(fixturePath, 1)).toBe(9 + 4 - 0.5);
     expect(tripEnd(fixturePath, 2)).toBe(9 + 5 - 0.5);
     expect(tripEnd(fixturePath, 0)).toBe(0);
@@ -332,9 +339,16 @@ describe("trunk-path drivers against driver-fixture.json", () => {
     }
   });
 
+  it("keys classes as the Python and the C# do: thin, thick, then the number; anything else is none", () => {
+    expect([0, 1, 2, 3, 9, 10, -1].map(classKey)).toEqual([null, "thin", "thick", "3", "9", null, null]);
+    expect(["thin", "thick", "3", "9"].map(classOfKey)).toEqual([1, 2, 3, 9]);
+    for (const key of ["none", "0", "1", "2", "03", "10", "medium"]) expect(classOfKey(key), key).toBeNull();
+    expect([0, 1, 2, 3, 9, 10, -1, 2.6].map(classIndex)).toEqual([0, 1, 2, 3, 9, 0, 0, 3]);
+  });
+
   it("rejects every driver the parsers must, whatever the pose", () => {
     for (const { id, driver } of fixture.invalid)
-      for (const size of [0, 1, 2]) {
+      for (const size of [0, 1, 2, 3]) {
         const pose: Pose = { theta: 0.5, depth: 0.5, lifting: 0, travel: 0.5, trunk: 2.5, size, presence: 1, feed: 0.5 };
         expect(() => driverMatrix(driver, pose, fixturePath), `${id} at class ${size}`).toThrow();
       }
@@ -407,8 +421,10 @@ describe("work-quantity drivers against driver-fixture.json", () => {
   const work = workOf({ work: fixture.work })!;
 
   it("reads the work quantity: a point with its unit, step and ends", () => {
-    expect(work).toMatchObject({ kind: "work", name: "parts made", unit: "parts", step: 0.25, nose0: 0, lengths: [0, 0, 0], ends: [0, 6, 9] });
-    expect([0, 1, 2].map((k) => workEnd(work, k))).toEqual([0, 6, 9]);
+    expect(work).toMatchObject({ kind: "work", name: "parts made", unit: "parts", step: 0.25, nose0: 0 });
+    expect(work.lengths).toEqual(Array(MAX_CLASS + 1).fill(0));
+    // an end per class it names (thin, thick and 3); none for the classes it does not, nor past the last
+    expect([0, 1, 2, 3, 4, MAX_CLASS, MAX_CLASS + 1].map((k) => workEnd(work, k))).toEqual([0, 6, 9, 4, 0, 0, 0]);
     expect(fixturePath.kind).toBe("trunk");
     expect(fixturePath.unit).toBe("blocks");
     expect(workOf({ trunkPath: fixture.trunkPath })).toEqual(fixturePath);
@@ -430,5 +446,45 @@ describe("work-quantity drivers against driver-fixture.json", () => {
       expect(() => driverMatrix(driver, { theta: 0, depth: 0, lifting: 0, work: 1, size: 1, presence: 1 }, work), id).toThrow();
     expect(fixture.badProgress.length).toBeGreaterThan(0);
     for (const { id, rig } of fixture.badProgress) expect(() => workOf(rig), id).toThrow();
+  });
+});
+
+// A stretched box, posed the viewer's way (the part's matrix times the element's own), lands on the corners
+// machinegen's posed box gives (the Python reference): a coil's side grown from its corner along its own
+// length, a rod shrunk to nothing, a box riding a stretched part, which is not stretched with it.
+describe("stretched boxes against driver-fixture.json", () => {
+  const work = workOf({ work: fixture.work })!;
+
+  it("puts every corner where the reference does, and hides a part stretched to nothing", () => {
+    expect(fixture.stretchBoxes.length).toBeGreaterThanOrEqual(6);
+    let vanished = 0;
+    for (const b of fixture.stretchBoxes) {
+      const [f] = flattenShape([b.element]);
+      const m = partMatrices(b.parts, b.inputs, rideOrder(b.parts), work)[b.parts.findIndex((p) => p.id === b.part)]!;
+      corners(f!).forEach((c, i) => c.forEach((v, k) => expect(v, `${b.id} authored ${i}`).toBeCloseTo(b.authored[i]![k]!, 6)));
+      corners(f!, multiply(toVoxels(m), f!.world)).forEach((c, i) =>
+        c.forEach((v, k) => expect(v, `${b.id} corner ${i}`).toBeCloseTo(b.corners[i]![k]!, 6)),
+      );
+      const point = b.corners.every((c) => c.every((v, k) => v === b.corners[0]![k]));
+      expect(collapsed(m), b.id).toBe(point);
+      if (point) vanished++;
+    }
+    expect(vanished).toBeGreaterThanOrEqual(2);
+  });
+
+  it("lets a rider take its parent's motion but not its stretch", () => {
+    const slide: Driver = { type: "slide", axis: "x", amplitude: 0.5, ratio: 1, input: "work" };
+    const parts: RigPart[] = [
+      {
+        id: "a",
+        match: ["a"],
+        drivers: [slide, { type: "gauge", motion: "stretch", axis: "z", origin: [0, 0, 0.5], rotation: [0, 30, 0], mode: "present", amount: { "3": -0.5 } }],
+      },
+      { id: "b", match: ["b"], ride: "a", drivers: [] },
+    ];
+    const pose: Pose = { theta: 0, depth: 0, lifting: 0, work: 1.25, size: 3, presence: 1 };
+    const [a, b] = partMatrices(parts, pose);
+    expect(b).toEqual(driverMatrix(slide, pose));
+    expect(a).not.toEqual(b);
   });
 });

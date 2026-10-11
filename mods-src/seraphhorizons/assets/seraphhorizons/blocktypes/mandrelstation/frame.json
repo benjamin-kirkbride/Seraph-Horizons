@@ -19,18 +19,21 @@
 	},
 	// Every texture of the frame's shape and of the moving parts' (mandrelstation.json), which the
 	// renderer draws with this block's textures; the renderer sets "mandrel" to the fitted rod's metal.
+	// "spring" is the spring job's wire (the steel rod being wound), its own code so it can be drawn hot.
 	textures: {
 		"oak":     { base: "game:block/wood/debarked/oak" },
 		"iron":    { base: "game:block/metal/plate/iron" },
 		"mandrel": { base: "game:block/metal/ingot/iron" },
 		"lead":    { base: "game:block/metal/sheet/lead1" },
-		"copper":  { base: "game:block/metal/sheet/copper1" }
+		"copper":  { base: "game:block/metal/sheet/copper1" },
+		"spring":  { base: "game:block/metal/sheet-plain/steel1" }
 	},
 	attributes: {
 		handbook: {
 			extraSections: [
 				{ title: "seraphhorizons:mandrelstation-handbook-assembly-title", text: "seraphhorizons:mandrelstation-handbook-assembly-text" },
 				{ title: "seraphhorizons:mandrelstation-handbook-work-title", text: "seraphhorizons:mandrelstation-handbook-work-text" },
+				{ title: "seraphhorizons:mandrelstation-handbook-spring-title", text: "seraphhorizons:mandrelstation-handbook-spring-text" },
 				{ title: "seraphhorizons:mandrelstation-handbook-ladder-title", text: "seraphhorizons:mandrelstation-handbook-ladder-text" }
 			]
 		}

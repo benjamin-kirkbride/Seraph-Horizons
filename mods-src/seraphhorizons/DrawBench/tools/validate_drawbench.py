@@ -171,8 +171,10 @@ ALLOWED = [
     ("barrel", None, "ropetop", None), ("weight", None, "frame", r"fr_weight_pad"),
     # the mandrel in the tail stock and the die stock, the follower and spring on it
     ("mandrel", None, "frame", r"fr_(tailstock|diestock)"), ("mandrel", None, "die", None),
-    ("follower", None, "mandrel", None), ("spring\\d", None, "mandrel", r"_nut"), ("spring\\d", None, "frame", r"fr_tailstock"),
-    ("spring\\d", None, "follower", None),
+    ("follower", None, "mandrel", None), ("spring\\d[uwde]", None, "mandrel", r"_nut"), ("spring\\d[uwde]", None, "frame", r"fr_tailstock"),
+    ("spring\\d[uwde]", None, "follower", None),
+    # the spring's sides at its corners: one wire (check_spring holds the joints)
+    ("spring\\d[uwde]", None, "spring\\d[uwde]", None),
     ("die", None, "frame", r"fr_diestock"),
     # the work: slugs on the mandrel, against the follower, into the die stock; sections through the die and
     # over the plug, in the jaws, and back in the die stock once handed out
@@ -467,8 +469,8 @@ def spans_union(spans):
 
 def check_work(v):
     """The section being drawn is whole from the die's mouth to its point in the jaws (the rest of it hidden in
-    the die stock), the slugs lie end to end from the follower to the die stock, the spring's coils share
-    the follower's travel; each section, handed out, is back at its rest place, hidden in the die stock."""
+    the die stock), the slugs lie end to end from the follower to the die stock, the spring stretches from the
+    nut to the follower (check_spring); each section, handed out, is back at its rest place, hidden in the die stock."""
     m = v.m
     worst = 0.0
     for k, pre in ((1, "l"), (2, "c")):
@@ -522,16 +524,7 @@ def check_work(v):
             if len(order) > 1 and min(fronts[first]) - max(fronts[order[1]]) < 0.01 - 1e-6:
                 v.fail(f"in the die's bore at W {w} ({pre}): {order[1]} stands {min(fronts[first]) - max(fronts[order[1]]):.4f} behind {first}")
     print("bore: the face seen in the empty die's bore stands clear of whatever is behind it")
-    # the spring's coils share the follower's travel
-    for w in (0.0, 0.15, 1.19, 3.0, 4.0):
-        pose = m.pose_at(1, w)
-        fol = min(e.aabb()[0][2] for e in v.posed("follower", pose))
-        for i in range(m.COILS):
-            z = sum(e.c[2] for e in v.posed(f"spring{i + 1}", pose)) / len(v.posed(f"spring{i + 1}", pose))
-            want = m.Z_SPRING0 + 0.3 + (fol - m.Z_SPRING0 - 0.3) * (i + 0.5) / m.COILS
-            if abs(z - want) > 0.01:
-                v.fail(f"spring coil {i + 1} at {z:.3f}, want {want:.3f} (W {w})")
-    print(f"spring: {m.COILS} coils evenly between the tail stock and the follower at every W")
+    check_spring(v)
     # the hand-out: a section lies where it was drawn, out of the die's mouth, until just before T_OUT; from
     # T_OUT on it is back where it rested before its stroke, hidden in the die stock, to the end of the job
     lo_h, hi_h = m.HIDER
@@ -556,6 +549,50 @@ def check_work(v):
                             v.fail(f"{e.name} at W {w} shows outside the die stock after its hand-out")
     print(f"hand-out: each section lies out of the die's mouth until W = m + {m.T_OUT:g}, then back at its rest place, hidden in "
           f"the die stock, to the end of the job")
+
+
+def check_spring(v):
+    """The follower's spring, the spring item's square coil (machinegen.coil) round the bar: at rest every side where the
+    coil puts it; at every pose, between the nut and the follower (its first side's lowest corner on the nut's face, its
+    last side's highest on the follower's, within 0.03), one wire (each side's centre line starts within 0.05 of where the
+    one before it ends: the sides are rigid, the pitch is not), and each side's centre at its share of the way (the bore
+    clear of the bar is the clearances')."""
+    m = v.m
+    C = m.SPRING
+    ids = [m.spring_id(j) for j in range(C.sides)]
+    worst_c = 0.0
+    for j in range(C.sides):
+        (el,) = v.posed(ids[j], m.REST)
+        want = C.side(j, "x", "x", "steel")
+        worst_c = max(worst_c, max(abs(el.c[i] - want.c[i]) for i in range(3)),
+                      max(abs(el.r[a][b] - want.r[a][b]) for a in range(3) for b in range(3)))
+    if worst_c > 1e-6:
+        v.fail(f"the spring at rest is not the coil ({worst_c:.1e})")
+    worst = {"nut": 0.0, "follower": 0.0, "joint": 0.0, "share": 0.0}
+    for w in (0.0, 0.15, 0.3, 1.19, 1.5, 2.2, 3.0, 3.3, 4.0):
+        for k in (1, 2):
+            pose = m.pose_at(k, w)
+            els = [v.posed(i, pose)[0] for i in ids]
+            nut = max(e.aabb()[1][2] for e in v.posed("mandrel", pose) if "nut" in e.name)
+            fol = min(e.aabb()[0][2] for e in v.posed("follower", pose))
+            worst["nut"] = max(worst["nut"], abs(els[0].aabb()[0][2] - nut))
+            worst["follower"] = max(worst["follower"], abs(els[-1].aabb()[1][2] - fol))
+            lines = []
+            for e in els:
+                ax = [e.r[i][2] for i in range(3)]
+                lines.append(([e.c[i] - ax[i] * C.length / 2 for i in range(3)], [e.c[i] + ax[i] * C.length / 2 for i in range(3)]))
+            for a, b in zip(lines, lines[1:]):
+                worst["joint"] = max(worst["joint"], max(abs(a[1][i] - b[0][i]) for i in range(3)))
+            for j, e in enumerate(els):
+                want = nut + m.SPRING.span() + (fol - nut - 2 * m.SPRING.span()) * m.spring_share(j)
+                worst["share"] = max(worst["share"], abs(e.c[2] - want))
+    for key, tol in (("nut", 0.03), ("follower", 0.03), ("joint", 0.05), ("share", 0.05)):
+        if worst[key] > tol:
+            v.fail(f"the spring: worst {key} {worst[key]:.3f} (want within {tol})")
+    print(f"spring: the spring item's coil ({C.turns} turns of {C.wire} wire, bore {2 * C.bore_half:.2f} round the {2 * m.BAR_H:.2f} bar), "
+          f"at rest pitch {C.pitch:.3f}, {m.SPRING_END.pitch:.3f} at the end of a job; between the nut and the follower at every "
+          f"pose (worst: nut {worst['nut']:.3f}, follower {worst['follower']:.3f}), joints within {worst['joint']:.3f}, each side at its "
+          f"share within {worst['share']:.3f}")
 
 
 def check_weight(v):

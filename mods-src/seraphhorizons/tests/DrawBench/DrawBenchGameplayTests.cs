@@ -14,12 +14,13 @@ public class DrawBenchGameplayTests
         DrawBenchParts.GearboxCode, "game:metalchain-iron", "game:bracket-heavy-steel", "game:rod-meteoriciron",
     ];
 
-    /// <summary>Every stage up to the mandrel fitted.</summary>
+    /// <summary>Every stage up to the mandrel fitted, the mandrel's spring with its rods.</summary>
     private static DrawBenchParts UpToMandrel()
     {
         var parts = new DrawBenchParts();
         foreach (var code in Order)
             Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(code));
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.SpringCode));
         return parts;
     }
 
@@ -44,6 +45,9 @@ public class DrawBenchGameplayTests
             Assert.Equal(stage, parts.Next);
             Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(code));
         }
+        // the mandrel stage is in once its spring is too
+        Assert.Equal(DrawBenchStage.Mandrel, parts.Next);
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.SpringCode));
         Assert.Equal(DrawBenchStage.Die, parts.Next);
         Assert.False(parts.Complete);
         Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.DieIronCode, 100, 100));
@@ -94,6 +98,7 @@ public class DrawBenchGameplayTests
         Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:metalchain-" + metal));
         Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:bracket-heavy-" + metal));
         Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:rod-" + metal));
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.SpringCode));
         Assert.Equal(DrawBenchStage.Die, parts.Next);
     }
 
@@ -157,11 +162,11 @@ public class DrawBenchGameplayTests
     {
         var parts = Complete(left: 58);
         var drops = parts.Returns();
-        Assert.Equal(5, drops.Count);
-        Assert.Equal([.. Order, DrawBenchParts.DieSteelCode], drops.Select(d => d.Code));
+        Assert.Equal(6, drops.Count);
+        Assert.Equal([.. Order, DrawBenchParts.SpringCode, DrawBenchParts.DieSteelCode], drops.Select(d => d.Code));
         Assert.Equal(new DrawBenchDrop(DrawBenchParts.DieSteelCode, 58), drops[^1]);
-        Assert.All(drops.Take(4), d => Assert.Null(d.Durability));
-        Assert.Equal([1, 2, 1, 2, 1], drops.Select(d => d.Count));
+        Assert.All(drops.Take(5), d => Assert.Null(d.Durability));
+        Assert.Equal([1, 2, 1, 2, 1, 1], drops.Select(d => d.Count));
         Assert.Empty(new DrawBenchParts().Returns());
     }
 
@@ -175,7 +180,83 @@ public class DrawBenchGameplayTests
             codes.Add(code);
             Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(code, 100, 100));
         }
-        Assert.Equal([DrawBenchParts.GearboxCode, "game:metalchain-iron", "game:bracket-heavy-iron", "game:rod-iron", DrawBenchParts.DieSteelCode], codes);
+        Assert.Equal([DrawBenchParts.GearboxCode, "game:metalchain-iron", "game:bracket-heavy-iron", "game:rod-iron", DrawBenchParts.SpringCode, DrawBenchParts.DieSteelCode], codes);
+    }
+
+    [Fact]
+    public void The_mandrel_stage_takes_its_rods_and_a_spring_either_first()
+    {
+        var parts = new DrawBenchParts();
+        foreach (var code in Order.Take(3))
+            Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(code));
+        Assert.Equal(["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel", DrawBenchParts.SpringCode], parts.NextCodes());
+        // the spring first: one is enough, and a second is refused
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.SpringCode, held: 1));
+        Assert.True(parts.HasSpring);
+        Assert.False(parts.Has(DrawBenchStage.Mandrel));
+        Assert.False(parts.Fitted("mandrel"));
+        Assert.Equal(DrawBenchFitVerdict.AlreadyFitted, parts.Fit(DrawBenchParts.SpringCode));
+        Assert.Equal(["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"], parts.NextCodes());
+        Assert.Equal(DrawBenchFitVerdict.TooFew, parts.Fit("game:rod-steel", held: 1));
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit("game:rod-steel", held: 2));
+        Assert.True(parts.Has(DrawBenchStage.Mandrel));
+        Assert.True(parts.Fitted("mandrel"));
+        Assert.Equal(DrawBenchStage.Die, parts.Next);
+
+        // the rods first: the stage then waits for the spring, and more rods are refused
+        var rods = new DrawBenchParts();
+        foreach (var code in Order)
+            Assert.Equal(DrawBenchFitVerdict.Fits, rods.Fit(code));
+        Assert.Equal(DrawBenchStage.Mandrel, rods.Next);
+        Assert.Equal([DrawBenchParts.SpringCode], rods.NextCodes());
+        Assert.Equal(DrawBenchParts.SpringCode, rods.NextPart);
+        Assert.Equal(DrawBenchFitVerdict.AlreadyFitted, rods.Fit("game:rod-iron"));
+        Assert.Equal(DrawBenchFitVerdict.OutOfOrder, rods.Fit(DrawBenchParts.DieSteelCode, 100, 100));
+        Assert.Equal(1, DrawBenchParts.NeededOf(DrawBenchParts.SpringCode, DrawBenchStage.Mandrel));
+        Assert.Equal(2, DrawBenchParts.NeededOf("game:rod-iron", DrawBenchStage.Mandrel));
+        // a spring before its stage is out of order
+        Assert.Equal(DrawBenchFitVerdict.OutOfOrder, new DrawBenchParts().Fit(DrawBenchParts.SpringCode));
+    }
+
+    [Fact]
+    public void Without_springs_the_rods_alone_fit_the_mandrel_stage()
+    {
+        var parts = new DrawBenchParts { Springs = false };
+        foreach (var code in Order)
+            Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(code));
+        Assert.Equal(DrawBenchStage.Die, parts.Next);
+        Assert.Equal(DrawBenchFitVerdict.NotAPart, parts.Fit(DrawBenchParts.SpringCode));
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.DieSteelCode, 100, 100));
+        Assert.True(parts.Complete);
+        Assert.DoesNotContain(parts.Returns(), d => d.Code == DrawBenchParts.SpringCode);
+    }
+
+    [Fact]
+    public void A_bench_saved_before_springs_keeps_its_stages_and_asks_for_one()
+    {
+        var old = new Dictionary<string, string>
+        {
+            ["gearbox"] = DrawBenchParts.GearboxCode, ["chain"] = "game:metalchain-iron", ["dog"] = "game:bracket-heavy-iron",
+            ["mandrel"] = "game:rod-iron", ["die"] = DrawBenchParts.DieIronCode,
+        };
+        var parts = DrawBenchParts.Restore(old, 40, 100);
+        Assert.Equal(DrawBenchStage.Mandrel, parts.Next);
+        Assert.False(parts.Complete);
+        Assert.True(parts.Has(DrawBenchStage.Die));
+        Assert.Equal(40, parts.DieLeft);
+        Assert.Equal(DrawBenchFitVerdict.Fits, parts.Fit(DrawBenchParts.SpringCode));
+        Assert.True(parts.Complete);
+        // a saved spring comes back, before its rods too, but not ahead of the stages before them
+        Assert.True(DrawBenchParts.Restore(parts.Snapshot(), 40, 100).Complete);
+        var springFirst = new Dictionary<string, string>(old) { [DrawBenchParts.SpringKey] = DrawBenchParts.SpringCode };
+        springFirst.Remove("mandrel");
+        var restored = DrawBenchParts.Restore(springFirst, 40, 100);
+        Assert.True(restored.HasSpring);
+        Assert.False(restored.Has(DrawBenchStage.Die));   // what follows the gap is dropped, as before
+        springFirst.Remove("dog");
+        Assert.False(DrawBenchParts.Restore(springFirst, 40, 100).HasSpring);
+        // with springs off the old bench is complete as it was
+        Assert.True(DrawBenchParts.Restore(old, 40, 100, springs: false).Complete);
     }
 
     [Fact]

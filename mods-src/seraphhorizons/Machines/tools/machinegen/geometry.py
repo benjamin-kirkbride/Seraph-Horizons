@@ -74,6 +74,11 @@ class El:
         out.render_pass = self.render_pass
         return out
 
+    @property
+    def vanished(self):
+        """Collapsed to a point by a stretch to 0 (rigmath.posed): drawn as nothing, touching nothing."""
+        return all(s == 0 for s in self.size)
+
     def corners(self):
         out = []
         for i in range(8):
