@@ -3900,6 +3900,13 @@ deposit (`MapPrecision`). Gravel maps are exact. `OreSystem.Maps.Issue(player, d
 sold out: the call the traders make (#455). The items exist in every world; without ore cells or
 placer fields there is nothing to issue.
 
+The ore map's description is one line (what it is, right-click to mark), and its tooltip lists only
+the map's facts: precision, ores, grades, host rock and size (on a trader's shelf too). The rest is
+in the handbook guide "Ore maps" (`config/handbook/oremaps.json`, page code
+`OreMapsSystem.GuidePage`, shown in every world as the items are), which the map's own handbook page
+links to: what the facts mean, marking and keeping the map, the precision tiers and standing, the
+survey and its check at sale, one sale per deposit, and finite deposits.
+
 Admin commands (`controlserver`), under `/sh ore`: `list [metal] [radius] [--unsold|--sold|--soldout]`
 (default radius 6,000; ids `copper:102,102`), `gravel [radius]`, `verify <id>` (answers when the
 chunks are ready), `tp <id>`, `registry mark <id> sold|soldout`, `registry reset <id>`, and

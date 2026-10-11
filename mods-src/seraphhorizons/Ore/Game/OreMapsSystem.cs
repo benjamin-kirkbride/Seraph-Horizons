@@ -9,5 +9,8 @@ namespace SeraphHorizons.Mod.Ore;
 /// </summary>
 public class OreMapsSystem : ModSystem
 {
+    /// <summary>The handbook guide "Ore maps" (<c>config/handbook/oremaps.json</c>), shown in every world as the items are.</summary>
+    public const string GuidePage = "seraphhorizons-oremaps";
+
     public override void Start(ICoreAPI api) => api.RegisterItemClass(ItemOreMap.ClassName, typeof(ItemOreMap));
 }
