@@ -309,7 +309,7 @@ pipe section).
 
 **The cylinder borer** (type `cylinderborer`, shape `machine`): one record per metal, id
 `cylinderborer|seraphhorizons:cylinderblank-<metal>|0` (iron, the Watt engine's; steel, the Cornish's). The
-ingredients are the rough cast cylinder (consumed), the fitted parts (the bushings, the bar and the feed, in
+ingredients are the rough cast cylinder (consumed), the fitted parts (the bushings' metal parts, a block, the bar and the feed, in
 `machine.kept`), the cutter head (`isTool`, its `toolDurabilityCost` the head's wear per cylinder with a full
 tank), the oil (each listed oil in the variant, with the litres one cylinder drains) and the machine (role
 `station`); the output is the bored cylinder (`seraphhorizons:cylinder-<metal>`). `machine` has `power`
