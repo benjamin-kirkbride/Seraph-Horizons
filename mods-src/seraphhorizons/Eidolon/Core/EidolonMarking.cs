@@ -17,6 +17,9 @@ public readonly record struct MarkArea(MarkPos Min, MarkPos Max)
     /// <summary>Its longest horizontal side, in blocks.</summary>
     public int LongestSide => Math.Max(SizeX, SizeZ);
 
+    /// <summary>Its blocks in all.</summary>
+    public long Volume => (long)SizeX * SizeY * SizeZ;
+
     public bool Contains(int x, int y, int z) =>
         x >= Min.X && x <= Max.X && y >= Min.Y && y <= Max.Y && z >= Min.Z && z <= Max.Z;
 }
@@ -55,6 +58,10 @@ public enum MarkStep
     /// first corner kept.</summary>
     TooLarge,
 
+    /// <summary>The opposite corner would make the area hold more blocks in all than the mode allows:
+    /// refused, the first corner kept.</summary>
+    TooManyBlocks,
+
     /// <summary>For <see cref="EidolonMarkKind.AreaThenBlock"/>: the area closed, and the next click
     /// marks the block (which gives the order, as <see cref="Target"/>).</summary>
     AreaThenBlock,
@@ -74,13 +81,13 @@ public readonly record struct Marks(MarkPos? First, MarkPos? Second, MarkPos? Th
 /// <summary>
 /// Marking with the command tool, one click at a time. An area takes two clicks: the first marks a
 /// corner, the second the opposite corner and closes it; a click after a closed area starts a new one.
-/// An opposite corner that makes the area wider than <c>maxSide</c> blocks is refused and the first
-/// corner kept, so the player can mark a nearer one. An area then a block takes three clicks: the area's
+/// An opposite corner that makes the area wider than <c>maxSide</c> blocks, or hold more than
+/// <c>maxBlocks</c> in all, is refused and the first corner kept, so the player can mark a nearer one. An area then a block takes three clicks: the area's
 /// two, then the block; a click after the block starts a new area.
 /// </summary>
 public static class EidolonMarking
 {
-    public static (Marks Marks, MarkStep Step) Click(EidolonMarkKind kind, Marks marks, MarkPos clicked, int maxSide)
+    public static (Marks Marks, MarkStep Step) Click(EidolonMarkKind kind, Marks marks, MarkPos clicked, int maxSide, long maxBlocks = long.MaxValue)
     {
         switch (kind)
         {
@@ -89,19 +96,22 @@ public static class EidolonMarking
             case EidolonMarkKind.Area:
                 if (marks.First is not { } first || marks.Second != null)
                     return (new Marks(clicked, null), MarkStep.FirstCorner);
-                if (MarkArea.Between(first, clicked).LongestSide > maxSide)
-                    return (marks, MarkStep.TooLarge);
+                if (Refused(MarkArea.Between(first, clicked), maxSide, maxBlocks) is { } refused)
+                    return (marks, refused);
                 return (new Marks(first, clicked), MarkStep.Area);
             case EidolonMarkKind.AreaThenBlock:
                 if (marks.First is not { } start || marks.Third != null)
                     return (new Marks(clicked, null), MarkStep.FirstCorner);
                 if (marks.Second == null)
-                    return MarkArea.Between(start, clicked).LongestSide > maxSide
-                        ? (marks, MarkStep.TooLarge)
+                    return Refused(MarkArea.Between(start, clicked), maxSide, maxBlocks) is { } tooBig
+                        ? (marks, tooBig)
                         : (new Marks(start, clicked), MarkStep.AreaThenBlock);
                 return (marks with { Third = clicked }, MarkStep.Target);
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "this mode marks nothing");
         }
     }
+
+    private static MarkStep? Refused(MarkArea area, int maxSide, long maxBlocks) =>
+        area.LongestSide > maxSide ? MarkStep.TooLarge : area.Volume > maxBlocks ? MarkStep.TooManyBlocks : null;
 }

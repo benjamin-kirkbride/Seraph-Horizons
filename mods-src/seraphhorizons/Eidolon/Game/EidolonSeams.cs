@@ -39,6 +39,19 @@ public interface IEidolonOrder
 
     /// <summary>The order stops running: done, replaced, or interrupted (<paramref name="cancelled"/>).</summary>
     void Stop(EntityLaborEidolon eidolon, bool cancelled);
+
+    /// <summary>Whether it has work it can get on with by itself (README "Eidolon", chunk loading):
+    /// while it has, and the eidolon can work, the eidolon keeps its chunks loaded
+    /// (<see cref="EidolonChunkSystem"/>, read every couple of seconds) and works on with no player
+    /// near. False (the default) for an order that holds a place or waits on a player (follow, stay,
+    /// guard, dock), and for a work order that is finished or waits on its player (no axe, no machine,
+    /// nothing left to do but look again later).</summary>
+    bool HasWorkLeft => false;
+
+    /// <summary>Where its work is besides where the eidolon stands (an area, a machine's cell:
+    /// <see cref="EidolonChunks.Block"/>), held loaded with it while <see cref="HasWorkLeft"/>; an area
+    /// covering more than <see cref="EidolonConfig.MaxWorkAreaChunks"/> columns is left out. None by default.</summary>
+    IEnumerable<MarkArea> WorkAreas => [];
 }
 
 /// <summary>The order factories by code. <c>stay</c> and <c>goto</c> are built in

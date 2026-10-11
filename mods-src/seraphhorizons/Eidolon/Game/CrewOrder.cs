@@ -50,6 +50,7 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
     private bool _clear;
     private double _relookAt;
     private bool _toldDone;
+    private bool _noMachine;
 
     public string Code => OrderCode;
 
@@ -68,6 +69,11 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
 
     /// <summary>Whether it found the area clear and waits.</summary>
     public bool Done => _clear && !_felling && !_looking && _felledTrunks.Count == 0 && _hauler?.Busy != true;
+
+    // Clear and waiting to look again, waiting for an axe, or the machine gone: nothing to do alone.
+    public bool HasWorkLeft => !Done && !(_felling && _fell.WaitsForAxe) && !_noMachine;
+
+    public IEnumerable<MarkArea> WorkAreas => [area, EidolonChunks.Block(machine.X, machine.Y, machine.Z)];
 
     public static ITreeAttribute Args(MarkArea area, BlockPos machine) => HaulOrder.Args(area, machine);
 
@@ -139,9 +145,11 @@ public sealed class CrewOrder(MarkArea area, BlockPos machine) : IEidolonOrder
                 _looking = false;
             return true;
         }
+        _noMachine = false;
         if (MachineInfeeds.Find(eidolon.World, machine) is not { } infeed)
         {
             eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-haul-nomachine");
+            _noMachine = true;
             return true;
         }
         // A trunk of its felling at once; one lying in the area at most every ScanSeconds.

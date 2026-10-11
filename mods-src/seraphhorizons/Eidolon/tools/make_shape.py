@@ -167,6 +167,22 @@ DOCK_CLAMP = 46    # dock: the frame its back is against the spine and the clamp
 # Felling: the hands meet on the handle here at the moment of the cut.
 FELL_IMPACT_R = (-13.0, 31.0, 7.0)
 FELL_IMPACT_L = (-9.0, 29.5, 8.5)
+# Climbing a step of two. The entity is moved by script (Eidolon/Core/EidolonClimb.cs, its frames these): at
+# the foot node, until CLIMB_GRAB, then straight up CLIMB_RISE until CLIMB_TOP, then forward CLIMB_RUN onto the
+# top node until CLIMB_STAND. The body is posed against that motion, so what touches the ledge stays put in
+# the world: the ledge's face is a block in front of the foot node (a box 1.7 wide centred on a block corner
+# just clears it), its top two blocks up. Places in the world are given as at the start, model axes.
+CLIMB_FRAMES = 60
+CLIMB_GRAB = 12    # the hands on the ledge's top; it rises from here
+CLIMB_TOP = 36     # risen two blocks, the right foot on the step; it moves forward from here
+CLIMB_STAND = 52   # on the top node, standing; at rest by the last frame
+CLIMB_RISE = 2 * BLOCK
+CLIMB_RUN = BLOCK
+LEDGE_FACE = 8.0 - BLOCK    # the ledge's face (model x), a block in front of the entity's position
+LEDGE_TOP = CLIMB_RISE
+CLIMB_PALM = 3.5            # the hands' grip point (the palm's middle) this far above the top: the hand's thickness
+CLIMB_HANDS = {"R": (LEDGE_FACE - 3.0, LEDGE_TOP + CLIMB_PALM, 1.0), "L": (LEDGE_FACE - 3.0, LEDGE_TOP + CLIMB_PALM, 15.0)}
+CLIMB_LET_GO = 28  # the hands leave the ledge after this frame
 
 # The elements the vanilla animations move (the joints the game builds), less the spine (below). The new
 # animations move only these and the three anchors, so the joint count stays at 38.
@@ -950,8 +966,110 @@ def authored(b: Builder, vanilla_anims):
         Key(59, {}, plant="feet"),
     ], "Stop", "PlayTillEnd"))
 
+    anims.append(climb(b, home))
     anims += strikes(b)
     return anims
+
+
+def climb_moved(f):
+    """How far the climb has moved the entity by frame f (model voxels, from where it began at the foot):
+    up, then forward, each at an even pace (EidolonClimb.At)."""
+    rise = min(max((f - CLIMB_GRAB) / (CLIMB_TOP - CLIMB_GRAB), 0.0), 1.0)
+    run = min(max((f - CLIMB_TOP) / (CLIMB_STAND - CLIMB_TOP), 0.0), 1.0)
+    return (-CLIMB_RUN * run, CLIMB_RISE * rise, 0.0)
+
+
+def climb_local(world, f):
+    """A place in the world (as at the climb's start) in the model's frame at frame f."""
+    d = climb_moved(f)
+    return tuple(round(world[k] - d[k], 3) for k in range(3))
+
+
+def climb(b: Builder, home):
+    """climb: up a step of two. It reaches up and puts its hands on the ledge's top (CLIMB_GRAB), pulls
+    itself up as the entity rises, tucking its legs, pushes down on its hands and brings the right knee up
+    over the edge (CLIMB_LET_GO), sets the right foot on the step as it is up (CLIMB_TOP), and, as the
+    entity moves forward onto the step, stands up on that foot, brings the left foot up after it and
+    stands (CLIMB_STAND), then settles to rest. The hands and the planted feet keep their places in the
+    world while the entity moves (climb_local)."""
+    open_hands = merge(scaled(LIMP["R"], 0.3), scaled(LIMP["L"], 0.3))
+    hint_ledge = {"R": (8, 0, -80, -25), "L": (-8, 0, -80, -25)}
+    hint_push = {"R": (4, 0, -40, -10), "L": (-4, 0, -40, -10)}
+
+    def on_ledge(f):
+        return {sd: ("world", climb_local(CLIMB_HANDS[sd], f)) for sd in "RL"}
+
+    hands = on_ledge(CLIMB_GRAB)
+
+    def step_r(f):
+        """The right foot on the step, where it stands at rest on the top node (planted in the world)."""
+        return climb_local((home["R"][0] - CLIMB_RUN, LEDGE_TOP, home["R"][2]), f)
+
+    # Pulling up, the body lags the entity's rise, lower and further forward in the model each key and bowed
+    # further over the hands, so the arms (about 26 voxels) reach the hands' place on the ledge as it sinks
+    # under the shoulders; the legs hang tucked behind the ledge's face until the hips are over its top.
+    def tucked(thigh, knee):
+        return {"upperlegR": r(4, 0, thigh), "lowerlegR": r(0, 0, knee), "upperlegL": r(-4, 0, thigh),
+                "lowerlegL": r(0, 0, knee)}
+
+    def pulling(f, thigh, knee, bow, shift):
+        return Key(f, merge(tucked(thigh, knee), open_hands, {
+            "hip-inside": r(0, 0, bow * 0.4), "chest-inside": r(0, 0, bow), "head-inside": r(0, 0, -bow * 0.6),
+            "chainskirt-front1": r(0, 0, -bow * 0.5), "chainskirt-back1": r(0, 0, knee * 0.2)}),
+            shift=shift, grips=on_ledge(f), hint=hint_push)
+
+    keys = [
+        Key(0, {}, plant="feet", feet=home),
+        # a crouch and a look up at the ledge, the arms coming up out to the sides (straight forward they
+        # would sweep through the ledge's face, a block in front), then over it
+        Key(4, merge(bent_legs(-10, 16, 3), {"chest-inside": r(0, 0, 2), "head-inside": r(0, 0, -10),
+                                             "upper-armR": r(70, 0, -15), "lower-armR": r(0, 0, -30),
+                                             "upperarmL": r(-70, 0, -15), "lower-armL": r(0, 0, -30)}, open_hands),
+            plant="feet", feet=home),
+        Key(8, merge(bent_legs(-18, 30, 3), {"hip-inside": r(0, 0, 4), "chest-inside": r(0, 0, 6),
+                                             "head-inside": r(0, 0, -16), "chainskirt-front1": r(0, 0, -8),
+                                             "upper-armR": r(25, 0, -130), "lower-armR": r(0, 0, -20),
+                                             "upperarmL": r(-25, 0, -130), "lower-armL": r(0, 0, -20)}, open_hands),
+            plant="feet", feet=home),
+        # the hands on the ledge's top
+        Key(CLIMB_GRAB, merge(bent_legs(-22, 36, 3), open_hands, {
+            "hip-inside": r(0, 0, 8), "chest-inside": r(0, 0, 12), "head-inside": r(0, 0, -12),
+            "chainskirt-front1": r(0, 0, -10)}), plant="feet", feet=home, grips=hands, hint=hint_ledge),
+        pulling(16, 6, 50, 18, (-2.0, -3.0, 0.0)),
+        pulling(20, 8, 60, 26, (-4.0, -5.0, 0.0)),
+        pulling(24, 6, 68, 36, (-6.0, -6.0, 0.0)),
+        pulling(CLIMB_LET_GO, 0, 72, 45, (-8.0, -6.0, 0.0)),
+    ]
+    # the hands let go and come back to push on the right knee as it comes up over the edge, the foot tucked
+    # under it; then the foot on the step
+    push = {"upper-armR": r(6, 0, -30), "lower-armR": r(0, 0, -50), "upperarmL": r(-6, 0, -26),
+            "lower-armL": r(0, 0, -50)}
+    hang_l = {"upperlegL": r(-4, 0, 14), "lowerlegL": r(0, 0, 40), "footL": r(0, 0, 18)}
+    for f, foot_r in ((30, (LEDGE_FACE + 8.0, LEDGE_TOP + 4.0)), (32, (LEDGE_FACE - 1.0, LEDGE_TOP + 5.0))):
+        keys.append(Key(f, merge(open_hands, push, hang_l, {
+            "hip-inside": r(0, 0, 14), "chest-inside": r(0, 0, 30), "head-inside": r(0, 0, -18),
+            "upperlegR": r(4, 0, -110), "lowerlegR": r(0, 0, 140), "chainskirt-front1": r(0, 0, -25)}),
+            shift=(-8.0, -6.0, 0.0), feet={"R": climb_local((*foot_r, home["R"][2]), f)}))
+    # up: the right foot on the step, the left leg hanging; then forward, standing up on it as the left
+    # foot comes up after it, up beside the edge (44), over it (48) and down onto the step (52)
+    step_l = {44: (LEDGE_FACE + 1.5, LEDGE_TOP + 4.0), 48: (LEDGE_FACE - 3.0, LEDGE_TOP + 2.0),
+              50: ((LEDGE_FACE - 3.0 + home["L"][0] - CLIMB_RUN) / 2, LEDGE_TOP + 1.0),
+              51: ((LEDGE_FACE - 3.0 + 3 * (home["L"][0] - CLIMB_RUN)) / 4, LEDGE_TOP + 0.5)}
+    for f, lean, lunge in ((CLIMB_TOP, 26, 0.0), (40, 20, 0.25), (44, 14, 0.5), (48, 8, 0.75), (50, 6, 0.875),
+                           (51, 5, 0.9375)):
+        rise_l = hang_l if f < 44 else {}
+        feet = {"R": step_r(f)}
+        if f in step_l:
+            feet["L"] = climb_local((*step_l[f], home["L"][2]), f)
+        keys.append(Key(f, merge(open_hands, scaled(push, 1 - lunge), rise_l, {
+            "hip-inside": r(0, 0, lean * 0.5), "chest-inside": r(0, 0, lean), "head-inside": r(0, 0, -lean * 0.5),
+            "chainskirt-front1": r(0, 0, -lean * 0.8)}),
+            shift=(-12.0 * (1 - lunge), -6.0, 0.0), feet=feet))
+    keys += [
+        Key(CLIMB_STAND, merge(bent_legs(-8, 14, 2), {"chest-inside": r(0, 0, 4)}), plant="feet", feet=home),
+        Key(CLIMB_FRAMES - 1, {}, plant="feet"),
+    ]
+    return b.animation("climb", "Climb", CLIMB_FRAMES, keys, "Stop", "PlayTillEnd")
 
 
 # Strikes on the move (README "Eidolon", self-defence): the upper body only (STRIKE_ELEMENTS), so the
@@ -1018,6 +1136,7 @@ EVENTS = {
     "strike-jab": {"hit": STRIKE_JAB_HIT},
     "strike-hammer": {"hit": STRIKE_HAMMER_HIT},
     "dock": {"clamp": DOCK_CLAMP},
+    "climb": {"grab": CLIMB_GRAB, "top": CLIMB_TOP, "stand": CLIMB_STAND},
 }
 
 
@@ -1506,6 +1625,55 @@ def report(shape):
     n, a = b.ap["ThickTrunk"]
     out["trunk-thick-carry: ThickTrunk point (x, y, z)"] = tuple(
         round(v, 1) for v in kin.apply(rig.attachment(n, a, p), (0, 0, 0)))
+    out.update(climb_report(rig, b, anims["climb"]))
+    return out
+
+
+def climb_report(rig, b, anim):
+    """The climb against the entity's scripted motion (climb_moved): the hands on the ledge while they
+    hold it, nothing of the body inside the ledge or under the floor below it at any frame (the hands
+    apart, which rest on its top; 27 points sampled on each element), the right foot staying put on the
+    step from CLIMB_TOP and the feet on the ground before the rise."""
+    out = {}
+    hands = {e for e in rig.order if "wristR" in rig.chain(e) or "wristL" in rig.chain(e)}
+
+    def samples(e, m):
+        el = rig.elements[e]
+        size = [el["to"][i] - el["from"][i] for i in range(3)]
+        return [kin.apply(m, (i * size[0] / 2, j * size[1] / 2, k * size[2] / 2))
+                for i in range(3) for j in range(3) for k in range(3)]
+
+    def foot_r(f, p):  # the right foot's place in the world (as at the start)
+        return tuple(v + d for v, d in zip(b.foot_point("R", p), climb_moved(f)))
+
+    planted = foot_r(CLIMB_TOP, kin.sample(anim, CLIMB_TOP))
+    grip = body = held = feet = step = 0.0
+    for f, p in frame_poses(anim):
+        d = climb_moved(f)
+        face, top, floor = LEDGE_FACE - d[0], LEDGE_TOP - d[1], -d[1]
+        ms = rig.all_matrices(p)
+        for e in rig.order:
+            if e in ANCHORS:
+                continue
+            for q in samples(e, ms[e]):
+                depth = max(min(face - q[0], top - q[1]), floor - q[1])
+                if e in hands:
+                    held = max(held, depth)
+                else:
+                    body = max(body, depth)
+        if CLIMB_GRAB <= f <= CLIMB_LET_GO:
+            grip = max(grip, *(kin.dist(b.grip_point(sd, p), climb_local(CLIMB_HANDS[sd], f)) for sd in "RL"))
+        if f <= CLIMB_GRAB or f >= CLIMB_STAND:
+            feet = max(feet, *(abs(min(c[1] for c in b.sole_corners(sd, p))) for sd in "RL"))
+        if f >= CLIMB_TOP:
+            step = max(step, kin.dist(foot_r(f, p), planted))
+    p = kin.sample(anim, CLIMB_GRAB)
+    out["climb: hands at the grab (x, y, z)"] = [tuple(round(v, 1) for v in b.grip_point(sd, p)) for sd in "RL"]
+    out[f"climb: hands to their place on the ledge, frames {CLIMB_GRAB}..{CLIMB_LET_GO}"] = round(grip, 2)
+    out["climb: deepest body point inside the ledge or under the floor, every frame (voxels)"] = round(body, 2)
+    out["climb: deepest hand point inside the ledge, every frame (voxels)"] = round(held, 2)
+    out[f"climb: worst sole height, frames 0..{CLIMB_GRAB} and {CLIMB_STAND}..{CLIMB_FRAMES - 1}"] = round(feet, 2)
+    out[f"climb: right foot drift on the step, frames {CLIMB_TOP}..{CLIMB_FRAMES - 1}"] = round(step, 2)
     return out
 
 
