@@ -285,11 +285,12 @@ ingots (a plate 2, a rod 1, nails and strips 4 to the ingot), and it buys the pl
 4973.1, so **an ingot covers 115.65**. A plate, or a chain (both two ingots on the anvil), covers two
 ingots' area, **231.31, about a block's face**, and a leather or a cloth is counted as a sheet the same. A
 support beam is the game's own beam, 16 × 4 × 4, **144**. Counts round to the nearest whole item, nails
-and strips to whole ingots (fours).
+and strips to whole ingots (fours). The bones take at least 30 beams, three times the model's wood
+(`BONES_FLOOR`), and the sash and the skirt at least 4 (`SMALL_LAYER_FLOOR`): the owner's calls.
 
 | Layer | Its area | Per item | Exact | Count (default build) |
 |---|---|---|---|---|
-| Bones | 1439.4 (the wood) | 144 a beam | 10.0 | **10** `game:supportbeam-{wood}` (oak) |
+| Bones | 1439.4 (the wood) | 144 a beam | 10.0 | **30** `game:supportbeam-{wood}` (oak), 10 raised to the floor of 30 |
 | Joints: bars and clamps (`bar-*`) | 411.0 | 115.65 a rod | 3.55 | **4** `game:rod-{metal}` (steel) |
 | Joints: the rest | 531.3 | 28.9 a nail and strip | 18.4 | **20** `game:metalnailsandstrips-{metal}` |
 | Plates | 4030.8 | 231.31 a plate | 17.4 | **17** `game:metalplate-{metal}` |
@@ -303,7 +304,7 @@ shows: 17 plates (13 before), 4 rods (8), 20 nails and strips (36).
 |---|---|---|---|
 | 1 Gantry | Wood: the gantry's own model | None | The frame it hangs in. |
 | 2 Torso (6) | `seraphhorizons:eidolontorso`, crafted from `game:jonasparts-pumphead`, `game:jonasparts-tank01`, `game:jonasparts-tank02`, 4 `game:metal-parts`, 3 `seraphhorizons:gear-stainless` | `origin`, `hip-inside`, `chest-inside`, the three anchors | The lattice chest and hip blocks, placed onto the spine. |
-| 3 Bones (28) | 10 `game:supportbeam-{wood}`; `game:jonasframes-gearbox01`, `game:jonasframes-gearbox02`, `game:jonasframes-oscillator01`, `game:jonasparts-cylinder02`, `game:jonasparts-connector01`, `game:rustypart-eidolon2tr` (the Eidolon elucidatory vessel, its brain: one per player who hurt the archives' eidolon) | the `bones` code, `head-inside`, `brain` | The wooden skeleton, face and head plates, the head's lattice block and the vessel in it. |
+| 3 Bones (28) | 30 `game:supportbeam-{wood}`; `game:jonasframes-gearbox01`, `game:jonasframes-gearbox02`, `game:jonasframes-oscillator01`, `game:jonasparts-cylinder02`, `game:jonasparts-connector01`, `game:rustypart-eidolon2tr` (the Eidolon elucidatory vessel, its brain: one per player who hurt the archives' eidolon) | the `bones` code, `head-inside`, `brain` | The wooden skeleton, face and head plates, the head's lattice block and the vessel in it. |
 | 4 Joints, bars and clamps (57) | 4 `game:rod-{metal}`, 20 `game:metalnailsandstrips-{metal}`; 2 `game:jonasframes-joint01` (the knees), 2 `game:jonasframes-spring01`, `game:jonasframes-gears01`, `game:jonasframes-gears02`, `game:jonasparts-cylinder01`, `game:jonasparts-valve01`, 9 `seraphhorizons:gear-stainless`, 12 `game:metal-parts` | the `joints` code | The moving mechanism: neck, knees, elbows, ankles, hands, the eye's bracket, and the bars and clamps. |
 | 5 Plates (87) | 17 `game:metalplate-{metal}` | the `plates` code | The armour: hood, chest, shoulders, arms, legs, feet, tassets, bracers. |
 | 6 Sash and fauld (5) | 4 `game:leather-normal-{colour}` or `game:cloth-{colour}` | the `sash` code | The chest sashes, the fauld and its waist tassets. |

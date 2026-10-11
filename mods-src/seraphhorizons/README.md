@@ -2649,7 +2649,7 @@ material's item until one is.
 | Stage | Takes |
 |---|---|
 | Torso | The eidolon torso (`seraphhorizons:eidolontorso`), used on the gantry: crafted on the grid from the Jonas pump head, tank 1 and tank 2, 4 metal parts and 3 stainless gears (`recipes/grid/eidolontorso.json`, `EidolonFittings.TorsoRecipe`; the eidolon schematic's gate adds the schematic, kept) |
-| Bones | 10 support beams of one wood, any but rotten and very rotten; Jonas gearbox 1 and 2, oscillator, cylinder 2, connector, and the Eidolon elucidatory vessel (`game:rustypart-eidolon2tr`, its brain) |
+| Bones | 30 support beams of one wood, any but rotten and very rotten; Jonas gearbox 1 and 2, oscillator, cylinder 2, connector, and the Eidolon elucidatory vessel (`game:rustypart-eidolon2tr`, its brain) |
 | Joints, bars and clamps | 4 rods and 20 nails and strips of one of iron, steel and stainless steel; 2 Jonas joints (the knees), 2 Jonas springs, Jonas gears 1 and 2, cylinder 1, valve; 9 stainless gears, 12 metal parts |
 | Plates | 17 plates of one of iron, steel, stainless steel and brass |
 | Sash and fauld | 2 normal leather or 2 cloth, one colour |
