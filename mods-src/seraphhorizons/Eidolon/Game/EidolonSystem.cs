@@ -1,4 +1,5 @@
 using System.Text;
+using HarmonyLib;
 using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.Eidolon.Core;
 using SeraphHorizons.Mod.Trading.Standing;
@@ -39,6 +40,7 @@ public class EidolonSystem : ModSystem
 
     private ICoreAPI? _api;
     private EidolonConfig? _config;
+    private Harmony? _harmony;
 
     public static EidolonSystem? Of(ICoreAPI? api) => api?.ModLoader.GetModSystem<EidolonSystem>();
 
@@ -94,8 +96,16 @@ public class EidolonSystem : ModSystem
 
     public override void StartServerSide(ICoreServerAPI api)
     {
-        if (Enabled)
-            EidolonCommands.Register(api, this);
+        if (!Enabled)
+            return;
+        EidolonCommands.Register(api, this);
+        EidolonDownedTargeting.Patch(_harmony = new Harmony(EidolonDownedTargeting.HarmonyId));
+    }
+
+    public override void Dispose()
+    {
+        _harmony?.UnpatchAll(EidolonDownedTargeting.HarmonyId);
+        _harmony = null;
     }
 
     /// <summary>

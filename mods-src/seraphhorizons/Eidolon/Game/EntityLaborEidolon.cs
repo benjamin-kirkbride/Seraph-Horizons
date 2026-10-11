@@ -13,7 +13,8 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// The player-built eidolon (Eidolon/README.md): a laborer automaton, 3.75 blocks tall. It is never
 /// killed: at 0 HP it slumps disabled (<see cref="EidolonStop.Damaged"/>) until repaired to
 /// <see cref="EidolonConfig.StandUpHealthShare"/> of its health, and out of charge it slumps until
-/// recharged; nothing drops and no corpse is left. Its owner (<see cref="OwnerUid"/>) and their company
+/// recharged; nothing drops and no corpse is left. It never heals by itself (<see cref="RegenSpeedKey"/>):
+/// only repair restores health. Down, creatures lose it (<see cref="EidolonDownedTargeting"/>). Its owner (<see cref="OwnerUid"/>) and their company
 /// command it (<see cref="MayCommand"/>).
 ///
 /// <para>The seams for what comes later: upkeeps are entity behaviours implementing
@@ -34,6 +35,9 @@ public class EntityLaborEidolon : EntityAgent
     public const string SlumpedKey = "seraphhorizons:slumped";
     /// <summary>Set at 0 HP, cleared once repaired to <see cref="EidolonConfig.StandUpHealthShare"/>.</summary>
     public const string DownedKey = "seraphhorizons:downed";
+    /// <summary>The game's health behaviour heals any creature over time at this watched rate (default
+    /// 1); held at 0, so only repair restores its health.</summary>
+    public const string RegenSpeedKey = "regenSpeed";
 
     /// <summary>The lengths of the shape's one-shots, at 30 frames a second (Eidolon/README.md).</summary>
     public const double StandUpSeconds = 60 / 30.0;
@@ -41,7 +45,11 @@ public class EntityLaborEidolon : EntityAgent
 
     private const float CheckSeconds = 0.25f;
 
+    /// <summary>Checks between letting creatures go of it again while it is down (once a second).</summary>
+    private const int DropTargetsEveryChecks = 4;
+
     private float _sinceCheck = CheckSeconds;
+    private int _downedChecks;
     private bool _workingWhenChecked;
 
     /// <summary>Slumping and standing up (server side).</summary>
@@ -52,6 +60,10 @@ public class EntityLaborEidolon : EntityAgent
 
     /// <summary>Whether it may work now: on its feet, no upkeep stopping it (server side).</summary>
     public bool CanWork => Alive && Pose.CanAct && Stop == null;
+
+    /// <summary>Whether it is down at 0 HP, until repaired to <see cref="EidolonConfig.StandUpHealthShare"/>
+    /// (watched, so either side).</summary>
+    public bool Downed => WatchedAttributes.GetBool(DownedKey);
 
     public string? OwnerUid => WatchedAttributes.GetString(OwnerUidKey) is { Length: > 0 } uid ? uid : null;
 
@@ -89,7 +101,11 @@ public class EntityLaborEidolon : EntityAgent
     public override void Initialize(EntityProperties properties, ICoreAPI api, long InChunkIndex3d)
     {
         base.Initialize(properties, api, InChunkIndex3d);
-        if (api.Side == EnumAppSide.Server && TaskAi is { } ai)
+        if (api.Side != EnumAppSide.Server)
+            return;
+        // Set on every load, so eidolons saved before this stop healing too.
+        WatchedAttributes.SetFloat(RegenSpeedKey, 0);
+        if (TaskAi is { } ai)
             ai.TaskManager.OnShouldExecuteTask += _ => CanWork;
     }
 
@@ -219,6 +235,15 @@ public class EntityLaborEidolon : EntityAgent
         if (_workingWhenChecked && !working)
             StopWork();
         _workingWhenChecked = working;
+        // Down, whatever goes for it is stopped: at once, then once a second for anything that took it
+        // up before it went down (a pack told of it) or came in range already set on it.
+        if (Downed)
+        {
+            if (_downedChecks++ % DropTargetsEveryChecks == 0)
+                EidolonDownedTargeting.DropTargetsOf(this);
+        }
+        else
+            _downedChecks = 0;
     }
 
     /// <summary>Stops every AI task and its walking (it slumps, or an upkeep stops it).</summary>
@@ -241,7 +266,7 @@ public class EntityLaborEidolon : EntityAgent
             WatchedAttributes.SetBool(DownedKey, true);
         else if (WatchedAttributes.GetBool(DownedKey) && health.Health >= health.MaxHealth * Settings.StandUpHealthShare)
             WatchedAttributes.RemoveAttribute(DownedKey);
-        return WatchedAttributes.GetBool(DownedKey) ? EidolonStop.Damaged : null;
+        return Downed ? EidolonStop.Damaged : null;
     }
 
     // At 0 HP the health behaviour calls Die(Death); lava calls Die(Combusted). Neither kills it: it
@@ -260,10 +285,10 @@ public class EntityLaborEidolon : EntityAgent
         base.Die(reason, damageSourceForDeath);
     }
 
-    // Down at 0 HP it takes no more harm (nothing to lose), but heals.
+    // Down at 0 HP it takes no more harm (nothing to lose), but is repaired.
     public override bool ShouldReceiveDamage(DamageSource damageSource, float damage) =>
         base.ShouldReceiveDamage(damageSource, damage)
-        && (damageSource.Type == EnumDamageType.Heal || !WatchedAttributes.GetBool(DownedKey));
+        && (damageSource.Type == EnumDamageType.Heal || !Downed);
 
     public override bool ReceiveDamage(DamageSource damageSource, float damage)
     {
