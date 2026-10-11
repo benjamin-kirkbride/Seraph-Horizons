@@ -111,7 +111,7 @@ public partial class SharedWorldScenarios
         Assert.IsType<BlockCylinderBorerGhost>(W.GetBlock(new AssetLocation("seraphhorizons:cylinderborer-ghost")));
         foreach (var stage in CylinderBorerRequires.Stages)
             foreach (var code in CylinderBorerParts.CodesFor(stage))
-                Assert.True(W.GetItem(new AssetLocation(code)) is { Id: > 0, IsMissing: false }, $"no {code} for {stage}");
+                Assert.True(BECylinderBorer.PartStack(W, code) is { StackSize: 1 }, $"no {code} for {stage}");   // the bushings' metal parts are a block
         foreach (var k in new[] { 1, 2 })
         {
             Assert.True(W.GetItem(new AssetLocation(Boring.BlankFor(k)!)) is { Id: > 0, IsMissing: false }, $"no {Boring.BlankFor(k)}");
@@ -134,10 +134,13 @@ public partial class SharedWorldScenarios
         Assert.Equal(2, frame.ResolvedIngredients!.Count(i => i?.Code?.ToString() == "game:plank-oak"));
         Assert.Contains(frame.ResolvedIngredients!, i => i?.Code?.ToString() == "seraphhorizons:gear-stainless" && i.Quantity == 2);
         Assert.Contains(frame.ResolvedIngredients!, i => i?.IsTool == true && i.Code?.Path == "hammer-*");
-        // the bushings from metal parts alone; the bar from three rods, metal parts and a large stainless
-        // gear (its great wheel); the feed from two planks, a rod, two ropes and a plate
-        var bushings = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == CylinderBorerParts.BushingsCode && r.Enabled);
-        Assert.Equal(new[] { "game:metal-parts" }, bushings.ResolvedIngredients!.Where(i => i != null).Select(i => i!.Code?.ToString()));
+        // the bushings are the game's metal parts, with no item or recipe of their own; the bar from three
+        // rods, metal parts and a large stainless gear (its great wheel); the feed from two planks, a rod,
+        // two ropes and a plate
+        Assert.Equal("game:metal-parts", CylinderBorerParts.BushingsCode);
+        Assert.NotNull(W.GetBlock(new AssetLocation(CylinderBorerParts.BushingsCode)));
+        Assert.Null(W.GetItem(new AssetLocation(CylinderBorerParts.LegacyBushingsCode)));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.ToString() == CylinderBorerParts.LegacyBushingsCode);
         var bar = Assert.Single(W.GridRecipes, r => r.Output?.Code?.ToString() == CylinderBorerParts.BarCode && r.Enabled);
         Assert.Equal(3, bar.ResolvedIngredients!.Count(i => i?.Code?.Path == "rod-*"));
         Assert.Single(bar.ResolvedIngredients!, i => i?.Code?.ToString() == "game:metal-parts");
