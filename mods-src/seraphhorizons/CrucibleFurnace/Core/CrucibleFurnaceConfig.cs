@@ -55,7 +55,7 @@ public class CrucibleFurnaceConfig
     public int MaxChimneyHeight { get; set; } = 11;
 
     /// <summary>Furnaces side by side that one chimney serves.</summary>
-    public int MaxFurnacesInRow { get; set; } = 6;
+    public int MaxFurnacesInRow { get; set; } = 5;
 
     /// <summary>The ash-pit damper half shut: this share of the chimney's heating rate.</summary>
     public double DamperHalfHeating { get; set; } = 0.5;

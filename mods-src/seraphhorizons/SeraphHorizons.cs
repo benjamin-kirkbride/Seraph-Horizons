@@ -925,7 +925,7 @@ public class SeraphHorizonsConfig
     /// furnace, a 3 x 3 x 2 machine placed from its iron frame and built up in stages (fired brick of one
     /// type, a tier-3 refractory lining, the lid and the ash-pit damper), one hole holding two fireclay
     /// melting pots of 300 units that last three heats each, fired with coke on natural draught from a
-    /// chimney on its outlet (taller draws harder, up to eleven blocks; up to six furnaces side by side
+    /// chimney on its outlet (taller draws harder, up to eleven blocks; up to five furnaces side by side
     /// share one chimney, the other outlets capped), throttled at the ash-pit damper. Its charges, by
     /// ratio: quartz, iron bits and coke into ferrosilicon; chromite, ferrosilicon and lime into
     /// ferrochrome and slag; iron and ferrochrome, about 4 to 1, into stainless steel; stainless bits
