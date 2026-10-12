@@ -11,8 +11,11 @@ parts with each other does it a state at a time (`state`).
 
 from __future__ import annotations
 
+import json
 import math
+import os
 import re
+from pathlib import Path
 
 from machinegen.checks import box_overhang, coplanar_faces, euler_round_trip, obb_obb, obb_overlap, supports
 from machinegen.geometry import aabb_of
@@ -214,6 +217,8 @@ def check_build(v):
 ROLES = [
     (r"^fr_(hopper_|chute_|launder_(floor|n|s)$)", {"planks"}),
     (r"^fr_(post|stringer|brace|transom|launder_post)", {"oak"}),
+    (r"^l1hopper_|^l2chute_board", {"planks"}),
+    (r"^l2chute_", {"chute"}),
     (r"^fr_hanger", {"iron"}),
     (r"^pipecopper_", {"pipecopper", "solder"}),
     (r"^fr_(curb)", {"drystone"}),
@@ -286,13 +291,13 @@ def check_anchors(v):
     print(f"anchors: the axle's cross reaches z {axle[1][2]:.2f} (the power face at {lo[2]:.0f}), {off:.3f} off its centre; {anchors}")
     if abs(axle[1][2] - lo[2]) > 0.02 or off > 1e-6:
         v.fail("the axle's cross does not meet the power face at its centre")
-    walls = v.named("frame", r"^fr_hopper_(n|s|w\d|e\d)$")
-    wlo, whi = aabb_of(walls)
     flo, fhi, _ = cell_face_box(m, m.INFEED_CELL, "up")
-    inside = all(flo[q] - 1e-6 <= wlo[q] and whi[q] <= fhi[q] + 1e-6 for q in (0, 2))
-    print(f"  infeed: the hopper's mouth x {wlo[0]:.1f}..{whi[0]:.1f}, z {wlo[2]:.1f}..{whi[2]:.1f}, top {whi[1]:.2f} (the cell's top {fhi[1]:.0f})")
-    if not inside or abs(whi[1] - fhi[1]) > 1e-6:
-        v.fail("the hopper's mouth is not the infeed cell's top face")
+    for label, pid, rx in (("level 1, the hopper's rim", "l1hopper", r"."), ("level 2, the chute head", "l2chute", r"_(north|south|bottom|top)$")):
+        wlo, whi = aabb_of(v.named(pid, rx))
+        inside = all(flo[q] - 1e-6 <= wlo[q] and whi[q] <= fhi[q] + 1e-6 for q in (0, 2))
+        print(f"  infeed, {label}: x {wlo[0]:.1f}..{whi[0]:.1f}, z {wlo[2]:.1f}..{whi[2]:.1f}, top {whi[1]:.3f} (the cell's top {fhi[1]:.0f})")
+        if not inside or abs(whi[1] - fhi[1]) > 0.02:
+            v.fail(f"{label}: its mouth is not the infeed cell's top face")
     pipe = aabb_of(v.named("pipecopper", r"_inlet_"))
     flo, fhi, k = cell_face_box(m, m.WATER_CELL, m.WATER_FACE)
     centre = [(flo[q] + fhi[q]) / 2 for q in range(3)]
@@ -365,14 +370,19 @@ def check_flow(v):
     output face."""
     m = v.m
     top = m.CELLS_Y * m.B
-    high = sorted({e.name for pid in v.by_part for e in v.posed(pid, 0.0) if e.aabb()[1][1] > top - 0.5})
-    others = [n for n in high if not n.startswith("fr_hopper")]
+    rows = []
+    for k, mouth in ((0, None), (1, "l1hopper"), (2, "l2chute")):
+        high = sorted({e.name for pid in v.state(k) for e in v.posed(pid, 0.0) if e.aabb()[1][1] > top - 0.5})
+        others = [n for n in high if mouth is None or not n.startswith(mouth + "_")]
+        rows.append((k, mouth, len(high), others))
     floor = v.named("frame", r"^fr_hopper_floor$")[0]
     low = min(p[1] for p in floor.corners())
-    print(f"flow: the only way in at the top is the hopper's mouth: parts at the top face {len(high)}, all the hopper's "
-          f"{not others}; its floor runs down to y {low:.2f} at the outlet (z {m.OUTLET_Z[0]}..{m.OUTLET_Z[1]})")
-    if others:
-        v.fail(f"parts other than the hopper reach the top face, a second way in: {others[:6]}")
+    print("flow: one way in at the top: " + "; ".join(f"state {k} {mouth or 'none'}, {n} parts at the top face, others {o or 'none'}"
+                                                       for k, mouth, n, o in rows)
+          + f"; the bin's floor runs down to y {low:.2f} at the outlet (z {m.OUTLET_Z[0]}..{m.OUTLET_Z[1]})")
+    for k, mouth, n, others in rows:
+        if others or (mouth and not n):
+            v.fail(f"state {k}: the way in at the top is not {mouth or 'closed'}: {others[:6]}")
     chute = v.named("frame", r"^fr_chute_floor$")[0]
     cz = sorted(p[2] for p in chute.corners())
     if not (cz[0] <= m.OUTLET_Z[0] + 0.2 and cz[-1] > m.OUTLET_Z[1]):
@@ -405,6 +415,45 @@ def check_flow(v):
     print(f"  the overflow: the launder's floor from y {west:.2f} at the notch (its sill {m.NOTCH_SILL}) down to {east:.2f} at the face")
     if abs(west - m.NOTCH_SILL) > 0.3 or east >= west:
         v.fail("the launder does not run down from the notch's sill to the output face")
+
+
+def check_chute_profile(v):
+    """Level 2's infeed is drawn as the game's chute (the owner's rule for every infeed a chute line feeds): at the
+    infeed face its section is a placed chute-straight-ud's, wall for wall, in the cell's place, its top on the face
+    (no gap or step), in the game's chute texture. The section is made from VANILLA_CHUTE; when the game is installed
+    (VINTAGE_STORY, else ~/Games/vintagestory) those numbers are held to the game's own shape file."""
+    m = v.m
+    o = [m.INFEED_CELL[k] * m.B for k in range(3)]
+    want = m.chute_profile()
+    got = []
+    tops = []
+    for e in v.named("l2chute", r"_(north|south|bottom|top)$"):
+        lo, hi = e.aabb()
+        got.append((lo[0] - o[0], lo[2] - o[2], hi[0] - o[0], hi[2] - o[2]))
+        tops.append(hi[1])
+    got.sort()
+    worst = max(abs(a - b) for g, w in zip(got, want) for a, b in zip(g, w)) if len(got) == len(want) else 1e9
+    step = max(abs(t - (o[1] + m.B)) for t in tops)
+    tex = {f["texture"] for e in v.named("l2chute", r"_(north|south|bottom|top)$") for f in e.faces.values()}
+    print(f"chute profile: level 2's infeed section at the face {[tuple(round(x, 2) for x in g) for g in got]}, the game's "
+          f"chute-straight-ud {want}: worst {worst:.3f} voxels; its top {step:.3f} off the face; textures {sorted(tex)} "
+          f"({m.TEXTURES['chute']})")
+    if worst > 0.02 or step > 0.02 or tex != {"#chute"} or m.TEXTURES["chute"] != "game:block/metal/sheet/copper1":
+        v.fail("level 2's infeed is not the game's chute section at the face")
+    roots = [os.environ.get("VINTAGE_STORY"), str(Path.home() / "Games" / "vintagestory")]
+    found = next((Path(r) / m.VANILLA_CHUTE_SHAPE for r in roots if r and (Path(r) / m.VANILLA_CHUTE_SHAPE).is_file()), None)
+    if found is None:
+        print("  the game's chute shape not found: the constants are not compared with it")
+        return
+
+    def norm(els):
+        return [(e["name"], e["from"], e["to"], {d: (f.get("uv"), f.get("rotation", 0), f.get("enabled", True)) for d, f in e["faces"].items()})
+                for e in els]
+
+    same = norm(json.loads(found.read_text())["elements"]) == norm(json.loads(m.VANILLA_CHUTE))
+    print(f"  the game's chute shape ({found}): VANILLA_CHUTE is it: {same}")
+    if not same:
+        v.fail("VANILLA_CHUTE is not the game's chute shape")
 
 
 # ---------------------------------------------------------------- gearing
@@ -641,6 +690,7 @@ def validate(m, els, parts, rig, quick=False):
     check_anchors(v)
     check_pit(v)
     check_flow(v)
+    check_chute_profile(v)
     check_supports(v)
     check_containment(v, cycle(m, 48))
     check_cells(v, cycle(m, 48))

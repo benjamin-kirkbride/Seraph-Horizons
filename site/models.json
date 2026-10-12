@@ -473,14 +473,16 @@
           }
         },
         "requires": {
-          "l1post": "Arrastra 1: post, footstep, top bearing and bevel gears",
-          "l1arms": "Arrastra 2: sweep arms",
-          "l1stones": "Arrastra 3: drag stones and chains",
+          "l1hopper": "Arrastra 1: hopper's rim (the mouth ore is tipped into)",
+          "l1post": "Arrastra 2: post, footstep, top bearing and bevel gears",
+          "l1arms": "Arrastra 3: sweep arms",
+          "l1stones": "Arrastra 4: drag stones and chains",
           "l2bed": "Ball mill 1: sole plates, pedestals and trunnion bearings",
           "l2drum": "Ball mill 2: drum and girth gear",
           "l2drive": "Ball mill 3: pinion on the power shaft",
           "l2balls": "Ball mill 4: the charge of balls",
           "l2feed": "Ball mill 5: feed lip into the trunnion",
+          "l2chute": "Ball mill 6: chute head (the game's chute, for a chute line)",
           "pipecopper": "Copper (a straight copper pipe)",
           "pipelead": "Lead (a straight lead pipe)"
         },
@@ -490,6 +492,7 @@
             "label": "Level",
             "default": "l1",
             "values": [
+              "l1hopper",
               "l1post",
               "l1arms",
               "l1stones",
@@ -497,24 +500,26 @@
               "l2drum",
               "l2drive",
               "l2balls",
-              "l2feed"
+              "l2feed",
+              "l2chute"
             ],
             "options": [
               {
                 "id": "frame",
                 "label": "The frame",
                 "fitted": [],
-                "hint": "Placed: the paved pit and its curb, the overflow launder, the head frame, the power shaft in its two hangers (it turns with the axle, nothing on it yet), the hopper with the water pipe's inlet in its north wall (in the metal supplied), and the chute. The footprint is the final one from here on."
+                "hint": "Placed: the paved pit and its curb, the overflow launder, the head frame, the power shaft in its two hangers (it turns with the axle, nothing on it yet), the hopper's bin with the water pipe's inlet in its north wall (in the metal supplied), and the chute. Each level brings its own infeed over the bin. The footprint is the final one from here on."
               },
               {
                 "id": "l1",
                 "label": "Level 1 (water): arrastra",
                 "fitted": [
+                  "l1hopper",
                   "l1post",
                   "l1arms",
                   "l1stones"
                 ],
-                "hint": "The post stands on the centre stone and runs in a bearing under the head frame; a bevel pinion on the power shaft turns it at a third of the axle through the wheel under it. Its four arms drag the granite stones round the paving on chains. Ore and water come down the chute onto the stones' track; the ground pulp runs out over the notch in the curb and down the launder."
+                "hint": "The post stands on the centre stone and runs in a bearing under the head frame; a bevel pinion on the power shaft turns it at a third of the axle through the wheel under it. Its four arms drag the granite stones round the paving on chains. The hopper's rim on the bin is the mouth a player tips ore into; ore and water come down the chute onto the stones' track; the ground pulp runs out over the notch in the curb and down the launder."
               },
               {
                 "id": "l2",
@@ -524,9 +529,10 @@
                   "l2drum",
                   "l2drive",
                   "l2balls",
-                  "l2feed"
+                  "l2feed",
+                  "l2chute"
                 ],
-                "hint": "The arrastra's post, arms and stones are taken out and a short riveted drum goes into its pit, on two bearings on cast pedestals. A pinion where the arrastra's was turns it at a third of the axle by its girth gear. The chute feeds it through the north trunnion (fresh ore, water, and the concentrator's middlings, which come back by the hopper); the pulp falls from the south trunnion's lip onto the paving and leaves by the same overflow. Untick the drum to see the charge."
+                "hint": "The arrastra and the hopper's rim are taken out; the game's chute section is set into the bin's mouth, so a chute line from above meets it seamlessly, and a short riveted drum goes into its pit, on two bearings on cast pedestals. A pinion where the arrastra's was turns it at a third of the axle by its girth gear. The chute feeds it through the north trunnion (fresh ore, water, and the concentrator's middlings, which come back by the hopper); the pulp falls from the south trunnion's lip onto the paving and leaves by the same overflow. Untick the drum to see the charge."
               }
             ]
           },

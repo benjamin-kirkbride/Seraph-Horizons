@@ -35,7 +35,7 @@ SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "gr
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "grinder_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "Grinder" / "rig-reference.json").read_text())
 README = (MOD / "Grinder" / "README.md").read_text()
-LEVELS = {1: ("l1post", "l1arms", "l1stones"), 2: ("l2bed", "l2drum", "l2drive", "l2balls", "l2feed")}
+LEVELS = {1: ("l1hopper", "l1post", "l1arms", "l1stones"), 2: ("l2bed", "l2drum", "l2drive", "l2balls", "l2feed", "l2chute")}
 PIPES = ("pipecopper", "pipelead")
 
 
@@ -152,22 +152,34 @@ class Anchors(unittest.TestCase):
         # the middlings come back by the feed (the owner's ruling): no anchor of their own
         self.assertFalse([k for k in RIG if k.startswith("return")])
 
-    def test_the_axle_meets_the_power_face_high_and_the_hopper_is_the_only_way_in(self):
+    def test_the_axle_meets_the_power_face_high_and_each_level_has_one_way_in(self):
         # shipped voxels: the power cell [0,1,1] spans x 0..16, y 16..32, z 16..32
         axle = aabb_of([e for e in posed_part("shaft") if e.name.startswith("sh_axle")])
         self.assertAlmostEqual(axle[1][2], 32.0, places=4)
         self.assertAlmostEqual((axle[0][0] + axle[1][0]) / 2, 8.0, places=4)
         self.assertAlmostEqual((axle[0][1] + axle[1][1]) / 2, 24.0, places=4)
-        hopper = aabb_of([e for e in posed_part("frame") if re.fullmatch(r"fr_hopper_(n|s|w\d|e\d)", e.name)])
-        self.assertAlmostEqual(hopper[1][1], 32.0, places=4)
-        self.assertTrue(0.0 <= hopper[0][0] and hopper[1][0] <= 16.0 and 0.0 <= hopper[0][2] and hopper[1][2] <= 16.0)
+        # level 1's hopper rim and level 2's chute head are each the infeed cell's top face; nothing else reaches it
+        for pid in ("l1hopper", "l2chute"):
+            mouth = aabb_of(posed_part(pid))
+            self.assertAlmostEqual(mouth[1][1], 32.0, places=3, msg=pid)
+            self.assertTrue(0.0 <= mouth[0][0] and mouth[1][0] <= 16.0 and 0.0 <= mouth[0][2] and mouth[1][2] <= 16.0, pid)
         high = set()
         for el in flatten(SHAPE["elements"], textures={}):
             pid = rigmath.part_of(RIG["parts"], el.name)
             if rigmath.posed(el, matrix(pid, 0.0)).aabb()[1][1] > 31.5:
-                high.add(el.name)
-        self.assertTrue(high)
-        self.assertTrue(all(n.startswith("fr_hopper") for n in high), sorted(high))
+                high.add(pid)
+        self.assertEqual(high, {"l1hopper", "l2chute"})
+
+    def test_level_2s_infeed_is_the_games_chute_at_the_face(self):
+        # the owner's rule for every chute-fed infeed: a chute-straight-ud in the cell above meets it with no gap or step,
+        # wall for wall, in the game's chute texture (shipped: the infeed cell [0,1,0] spans x 0..16, y 16..32, z 0..16)
+        walls = [e for e in posed_part("l2chute") if re.search(r"_(north|south|bottom|top)$", e.name)]
+        got = sorted((round(lo[0], 2), round(lo[2], 2), round(hi[0], 2), round(hi[2], 2)) for lo, hi in (e.aabb() for e in walls))
+        self.assertEqual(got, [tuple(round(x, 2) for x in r) for r in make_shape.chute_profile()])
+        self.assertTrue(all(abs(e.aabb()[1][1] - 32.0) < 0.02 for e in walls))
+        self.assertEqual(SHAPE["textures"]["chute"], "game:block/metal/sheet/copper1")
+        self.assertEqual({f["texture"] for e in SHAPE["elements"] if e["name"].startswith("l2chute_") and "_board" not in e["name"]
+                          for f in e["faces"].values()}, {"#chute"})
 
     def test_the_water_inlet_is_a_ppex_section_on_the_water_face(self):
         # drawn as the rosser's pipes: the same elements in each metal, only the metal's texture differing

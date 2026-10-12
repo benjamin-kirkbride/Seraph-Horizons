@@ -61,7 +61,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
-from machinegen.geometry import IDENT, El, flatten, rotate, translate  # noqa: E402
+from machinegen.geometry import IDENT, El, flatten, from_template, rotate, translate  # noqa: E402
 from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
                                shift_point, worst_shift_error)
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
@@ -108,6 +108,9 @@ TEXTURES = {
     # are wiped with (as the rosser's drip pipes)
     **{f"pipe{m}": f"game:block/metal/sheet-plain/{m}4" for m in ("copper", "lead")},
     "solder": solderedpipe.SOLDER_TEXTURE,
+    # the game's chute: a placed chute shows its copper sheet (the pack's lead patch is the chute section item's,
+    # patches/unifiedpipes-chutesection.json; the chute block's own texture is the game's)
+    "chute": "game:block/metal/sheet/copper1",
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
@@ -148,6 +151,8 @@ P = (CX, SHAFT_Y, CZ)                        # where the power shaft's axis meet
 HOP_X = (20.0, 28.0)                         # between the stringers, over the pit's north edge
 HOP_Z = (1.0, 13.0)
 HOP_TOP = CELLS_Y * B                        # its mouth: the infeed cell's top face
+BIN_TOP = 28.8                               # the hopper's bin (the frame's) stops here; above it is each level's infeed: the
+                                             # hopper's rim the player fills (level 1), or a chute head (level 2)
 HOP_WALL = 0.8
 HOP_STEP_Z = 8.2                             # its walls come down to HOP_LOW north of here, HOP_HIGH south of it (over the
 HOP_LOW, HOP_HIGH = 19.6, 23.8               # arrastra's bevel wheel)
@@ -158,6 +163,29 @@ CHUTE_W = 3.6                                # its floor's width (x); its sides 
 CHUTE_SIDE = 1.6
 CHUTE_SIDES_END = 4.0                        # z: the sides stop here, square to the slope, short of the trunnion's mouth
 PIPE_Y = SHAFT_Y                             # the water pipe's axis: the water face's centre, (x 24, y 24)
+# The game's straight chute (assets/survival/shapes/block/metal/chute/straight.json, 1.22.7), its elements as the game
+# has them; a placed chute-straight-ud is this shape turned by the blocktype's rotateZ 90 about the block's centre. Level
+# 2's infeed is drawn as it, so a chute line from above meets it with no gap or step (validate_grinder.check_chute_profile,
+# which also holds these numbers to the game's file when the game is installed).
+VANILLA_CHUTE_SHAPE = "assets/survival/shapes/block/metal/chute/straight.json"
+VANILLA_CHUTE = """[
+ {"name": "North", "from": [0.0, 4.0, 4.0], "to": [16.0, 12.0, 5.0], "rotationOrigin": [8.0, 8.0, 8.0], "faces": {
+  "north": {"texture": "#copper1", "uv": [0.0, 0.0, 8.0, 16.0], "rotation": 270}, "east": {"texture": "#copper1", "uv": [13.0, 0.0, 14.0, 8.0]},
+  "south": {"texture": "#copper1", "uv": [4.0, 0.0, 12.0, 16.0], "rotation": 90}, "west": {"texture": "#copper1", "uv": [0.0, 0.0, 1.0, 8.0]},
+  "up": {"texture": "#copper1", "uv": [0.0, 8.0, 16.0, 9.0]}, "down": {"texture": "#copper1", "uv": [0.0, 4.0, 16.0, 5.0]}}},
+ {"name": "South", "from": [0.0, 4.0, 11.0], "to": [16.0, 12.0, 12.0], "rotationOrigin": [8.0, 8.0, 8.0], "faces": {
+  "north": {"texture": "#copper1", "uv": [4.0, 0.0, 12.0, 16.0], "rotation": 90}, "east": {"texture": "#copper1", "uv": [11.0, 0.0, 12.0, 8.0]},
+  "south": {"texture": "#copper1", "uv": [4.0, 0.0, 12.0, 16.0], "rotation": 270}, "west": {"texture": "#copper1", "uv": [15.0, 0.0, 16.0, 8.0]},
+  "up": {"texture": "#copper1", "uv": [0.0, 2.0, 16.0, 3.0]}, "down": {"texture": "#copper1", "uv": [0.0, 4.0, 16.0, 5.0]}}},
+ {"name": "Bottom", "from": [0.0, 4.0, 5.0], "to": [16.0, 5.0, 11.0], "rotationOrigin": [4.0, 12.0, 8.0], "faces": {
+  "north": {"texture": "#copper1", "uv": [0.0, 0.0, 16.0, 1.0], "enabled": false}, "east": {"texture": "#copper1", "uv": [5.0, 0.0, 11.0, 1.0]},
+  "south": {"texture": "#copper1", "uv": [0.0, 0.0, 16.0, 1.0], "enabled": false}, "west": {"texture": "#copper1", "uv": [0.5, 0.0, 6.5, 1.0]},
+  "up": {"texture": "#copper1", "uv": [5.0, 0.0, 11.0, 16.0], "rotation": 90}, "down": {"texture": "#copper1", "uv": [0.0, 5.0, 16.0, 11.0]}}},
+ {"name": "Top", "from": [0.0, 11.0, 5.0], "to": [16.0, 12.0, 11.0], "rotationOrigin": [8.0, 8.0, 8.0], "faces": {
+  "north": {"texture": "#copper1", "uv": [0.0, 0.0, 16.0, 1.0], "enabled": false}, "east": {"texture": "#copper1", "uv": [5.0, 0.0, 11.0, 1.0]},
+  "south": {"texture": "#copper1", "uv": [4.0, 0.0, 20.0, 1.0], "enabled": false}, "west": {"texture": "#copper1", "uv": [0.0, 2.0, 1.0, 8.0], "rotation": 90},
+  "up": {"texture": "#copper1", "uv": [0.0, 5.0, 16.0, 11.0]}, "down": {"texture": "#copper1", "uv": [5.0, 0.0, 11.0, 16.0], "rotation": 90}}}
+]"""
 PIPE_METALS = ("copper", "lead")             # the water pipe is ppex's straight pipe in either metal UnifiedPipes adds
 
 # ---------------------------------------------------------------- level 1: the arrastra
@@ -498,12 +526,13 @@ def build_power():
 
 # ---------------------------------------------------------------- the frame: the hopper, the chute, the water inlet
 def build_hopper():
-    """The feed hopper between the stringers: four plank walls (stepped up over the arrastra's bevel wheel south
-    of HOP_STEP_Z), a floor sloping down north to the outlet over the chute, and the steep chute from the outlet
-    down towards the pit's north side. The water pipe's inlet comes through its north wall."""
+    """The hopper's bin between the stringers (the frame's): four plank walls up to BIN_TOP (stepped up over the
+    arrastra's bevel wheel south of HOP_STEP_Z), a floor sloping down north to the outlet over the chute, and the
+    steep chute from the outlet down towards the pit's north side. The water pipe's inlet comes through its north
+    wall. Above the bin is each level's infeed (build_l1_mouth, build_l2_chute)."""
     f, t = "frame", "planks"
     (x0, x1), (z0, z1), w = HOP_X, HOP_Z, HOP_WALL
-    top = HOP_TOP
+    top = BIN_TOP
     out = [box([x0, HOP_LOW, z0], [x1, top, z0 + w], "fr_hopper_n", f, t),
            box([x0, HOP_HIGH, z1 - w], [x1, top, z1], "fr_hopper_s", f, t)]
     for tag, (a, b) in (("w", (x0, x0 + w)), ("e", (x1 - w, x1))):
@@ -565,9 +594,63 @@ def build_frame():
     return build_pit() + build_head() + build_power() + build_hopper()
 
 
+# ---------------------------------------------------------------- the infeeds above the bin
+def build_l1_mouth():
+    """Level 1's infeed: the hopper's rim, four plank boards on the bin's walls up to the infeed cell's top face, the
+    mouth a player tips ore into."""
+    q, t = "l1hopper", "planks"
+    (x0, x1), (z0, z1), w = HOP_X, HOP_Z, HOP_WALL
+    return [box([x0, BIN_TOP, z0], [x1, HOP_TOP, z0 + w], f"{q}_n", q, t),
+            box([x0, BIN_TOP, z1 - w], [x1, HOP_TOP, z1], f"{q}_s", q, t),
+            box([x0, BIN_TOP, z0 + w], [x0 + w, HOP_TOP, z1 - w], f"{q}_w", q, t),
+            box([x1 - w, BIN_TOP, z0 + w], [x1, HOP_TOP, z1 - w], f"{q}_e", q, t)]
+
+
+def vanilla_chute_ud():
+    """The game's straight chute as a placed chute-straight-ud draws it: VANILLA_CHUTE turned by rotateZ 90 about the
+    block's centre, block-local voxels, its faces the game's (disabled ones left out), UVs on this model's texture scale.
+    Element templates for build_l2_chute."""
+    els = flatten(json.loads(VANILLA_CHUTE), textures={"#copper1": "#chute"})
+    for el in els:
+        el.faces = {d: {k: v for k, v in f.items() if k != "enabled"} for d, f in el.faces.items() if f.get("enabled", True)}
+        for f in el.faces.values():
+            f["uv"] = [v * TEX / 16 for v in f["uv"]]
+    rotate(els, "z", 90.0, (8.0, 8.0, 8.0))
+    return els
+
+
+def chute_profile():
+    """The vanilla ud chute's walls in section, block-local: [(x0, z0, x1, z1)] sorted."""
+    out = []
+    for el in vanilla_chute_ud():
+        lo, hi = el.aabb()
+        out.append((round(lo[0], 4), round(lo[2], 4), round(hi[0], 4), round(hi[2], 4)))
+    return sorted(out)
+
+
+def build_l2_chute():
+    """Level 2's infeed, for a chute line (the mill tier is chute-fed): the game's chute section set into the bin's
+    mouth from BIN_TOP up to the infeed cell's top face, the same section, wall, place in the block and texture as a
+    chute-straight-ud in the cell above, so the two meet with no gap or step; plank head boards close the rest of the
+    bin's mouth either side of it."""
+    q = "l2chute"
+    o = [INFEED_CELL[k] * B for k in range(3)]
+    out = []
+    for t in vanilla_chute_ud():
+        lo, hi = t.aabb()
+        lo = [lo[0] + o[0], BIN_TOP, lo[2] + o[2]]
+        hi = [hi[0] + o[0], o[1] + B, hi[2] + o[2]]
+        out.append(from_template(t, lo, hi, f"{q}_{t.name.lower()}", q))
+    zs = sorted({round(e.aabb()[0][2], 4) for e in out} | {round(e.aabb()[1][2], 4) for e in out})
+    (x0, x1), (z0, z1) = HOP_X, HOP_Z
+    out += [box([x0, BIN_TOP, z0], [x1, BIN_TOP + 0.8, zs[0]], f"{q}_board_n", q, "planks"),
+            box([x0, BIN_TOP, zs[-1]], [x1, BIN_TOP + 0.8, z1], f"{q}_board_s", q, "planks")]
+    return out
+
+
 # ---------------------------------------------------------------- level 1: the arrastra
 def build_l1():
-    out = []
+    out = build_l1_mouth()
     c = (CX, 0.0, CZ)
     # the footstep on the centre stone and the top bearing under T1 (fixed)
     s = "l1step"
@@ -628,7 +711,7 @@ def build_l2():
     out += spur("z", (CX, SHAFT_Y, 0.0), GIRTH_Z[0] + 0.1, GIRTH_Z[1] - 0.1, PINION_R, PINION["teeth"], PINION["m"],
                 angle_of("z", [0.0, -1.0, 0.0]), f"{q}_gear", q, "steel")
     out += disc("z", (CX, SHAFT_Y, 0.0), SHAFT_END, HANGERS_Z[0][0] - 0.8, 1.5, f"{q}_hub", q, "steel")
-    out += build_feed() + build_charge()
+    out += build_feed() + build_charge() + build_l2_chute()
     return out
 
 
@@ -722,11 +805,13 @@ def build():
 
 # ---------------------------------------------------------------- the levels
 # Each level's parts in the order they go on (one item each; the items are #732's to choose), and the rig parts each
-# brings. Level 2 retires level 1's working parts: the ball mill goes into the arrastra's pit, where its post stood.
+# brings. Level 2 retires level 1's: the ball mill goes into the arrastra's pit, where its post stood, and the chute head
+# takes the hopper's rim's place over the bin.
 LEVELS = (
-    (1, "water", "arrastra", (("l1post", ("l1step", "l1pinion", "l1post")), ("l1arms", ("l1arms",)), ("l1stones", ("l1stones",))), ()),
+    (1, "water", "arrastra", (("l1hopper", ("l1hopper",)), ("l1post", ("l1step", "l1pinion", "l1post")), ("l1arms", ("l1arms",)),
+                              ("l1stones", ("l1stones",))), ()),
     (2, "mill", "ball mill", (("l2bed", ("l2bed",)), ("l2drum", ("l2drum",)), ("l2drive", ("l2pinion",)), ("l2balls", ("l2balls",)),
-                              ("l2feed", ("l2feed",))), ("l1post", "l1arms", "l1stones")),
+                              ("l2feed", ("l2feed",)), ("l2chute", ("l2chute",))), ("l1hopper", "l1post", "l1arms", "l1stones")),
 )
 
 
@@ -782,11 +867,13 @@ def _rig_parts():
              part("l1arms", stage["l1arms"], ride="l1post"),
              part("l1stones", stage["l1stones"], ride="l1post"),
              part("l1step", stage["l1step"]),
+             part("l1hopper", stage["l1hopper"]),
              part("l2pinion", stage["l2pinion"], ride="shaft"),
              part("l2drum", stage["l2drum"], rot("z", pt(CX, DRUM_Y, 16.0), k["l2drum"])),
              part("l2bed", stage["l2bed"]),
              part("l2feed", stage["l2feed"]),
              part("l2balls", stage["l2balls"]),
+             part("l2chute", stage["l2chute"]),
              *[part(f"pipe{m}", f"pipe{m}") for m in PIPE_METALS],
              {"id": "frame", "match": ["fr_*"], "requires": None, "ride": None, "drivers": []}]
     for p in parts:

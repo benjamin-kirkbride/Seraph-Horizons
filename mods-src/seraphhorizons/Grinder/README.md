@@ -7,8 +7,8 @@ level's parts fitted into it, one item each, in order. Grinding never loses meta
 
 | Level | Tier | Fitted | Period machine | In the model |
 |---|---|---|---|---|
-| 1 | water | arrastra | a stone-paved pit at ground level, drag stones on a sweep turned from a water wheel's shaft through gearing overhead | the frame's paved pit; a post stepped on its centre stone, turned at a third of the axle by a bevel pinion on the overhead power shaft, sweeping four basalt drag stones round the paving on chains |
-| 2 | mill | ball mill | a short riveted drum on hollow trunnions, a girth gear, trunnion feed, middlings reground | the arrastra comes out; the drum goes into its pit on two pedestals, turned at a third of the axle by a pinion where the arrastra's was; fed through the north trunnion from the same chute, discharging into the pit |
+| 1 | water | arrastra | a stone-paved pit at ground level, drag stones on a sweep turned from a water wheel's shaft through gearing overhead | the frame's paved pit; the hopper's rim on the frame's bin, the mouth a player fills; a post stepped on its centre stone, turned at a third of the axle by a bevel pinion on the overhead power shaft, sweeping four basalt drag stones round the paving on chains |
+| 2 | mill | ball mill | a short riveted drum on hollow trunnions, a girth gear, trunnion feed, middlings reground | the arrastra and the hopper's rim come out; the drum goes into its pit on two pedestals, turned at a third of the axle by a pinion where the arrastra's was; the game's chute section is set into the bin's mouth for a chute line; fed through the north trunnion from the same chute, discharging into the pit |
 
 **Status: the model only.** This folder holds the generator (`tools/`). There is no block, block entity or
 renderer yet; the model and its rig are what #732 will be built against. Paths here are from this folder
@@ -33,7 +33,7 @@ the east.** Every anchor is at the same cell at every level (shipped coordinates
 | Anchor | Cell, face | What is there |
 |---|---|---|
 | `powerCell`, `powerFace` | `[0,1,1]`, south | The vanilla axle comes in along z at the upper south face's centre (x 24, y 24 voxels in the build frame) onto the power shaft. High, because the arrastra is driven from overhead. |
-| `infeedCell`, `infeedFace` | `[0,1,0]`, up | The feed hopper's mouth: a player (level 1) or a chute (level 2) tips ore in from above. At level 2 the concentrator's middlings come back the same way, into the same hopper: there is no separate return. |
+| `infeedCell`, `infeedFace` | `[0,1,0]`, up | Each level's infeed over the frame's bin: at level 1 the hopper's rim, the mouth a player tips ore into; at level 2 the game's chute section, which a chute line from the cell above meets with no gap or step (below). At level 2 the concentrator's middlings come back the same way, by the chute line: there is no separate return. |
 | `waterCell`, `waterFace` | `[0,1,0]`, north | The ppex process-water inlet: ppex's straight pipe, drawn as the rosser's drip pipes are (below), through the hopper's north wall on the axis of a ppex pipe beyond the face. Water runs into the hopper and down the chute with the ore, at both levels. |
 | `outputCell`, `outputFace`, `output.pos` | `[1,0,1]`, east, `[2.0, 0.2125, 1.35]` | The launder's lip on the east face, low: the ground pulp leaves towards the next machine (the concentrator). |
 
@@ -48,9 +48,22 @@ the east.** Every anchor is at the same cell at every level (shipped coordinates
 - the **power shaft**: the vanilla axle's cross at the south face, then an octagonal iron shaft north to its end
   (z 20.6), carried in two iron drop hangers under T2, collars either side of the first; it turns with the axle in
   every state, the bare frame's included;
-- the **hopper** between the stringers, its mouth the infeed's top face, its floor falling north at 45° to an
-  outlet over a steep plank **chute**, which runs down south towards the pit's north side; the **water pipe's
-  inlet** through its north wall (below).
+- the hopper's **bin** between the stringers, its walls up to y 28.8, its floor falling north at 45° to an outlet
+  over a steep plank **chute**, which runs down south towards the pit's north side; the **water pipe's inlet**
+  through its north wall (below). Above the bin, up to the infeed's top face, is each level's infeed (below).
+
+**The infeed at each level.** At level 1 (the water tier, fed by the player) it is the **hopper's rim**: four plank
+boards on the bin's walls, the mouth a player tips ore into. At level 2 (the mill tier, chute-fed and unattended) the
+rim comes out and the **chute head** goes in: the game's own chute section, set into the bin's mouth from y 28.8 to
+the infeed's top face, with plank head boards closing the bin's mouth either side of it. It is drawn as the owner's
+rule for every chute-fed infeed says, as the vanilla chute, so a player's chute line meets it seamlessly: its walls
+are the game's straight chute's elements (`shapes/block/metal/chute/straight.json`, kept in the generator as
+`VANILLA_CHUTE`) turned as a placed `chute-straight-ud` is (the blocktype's `rotateZ` 90 about the block's centre),
+an 8 × 8 square tube with walls 1 thick, centred in the cell, the north and south walls full width, in the chute's
+own texture, `game:block/metal/sheet/copper1`, with the game's face UVs. The pack's lead patch
+(`patches/unifiedpipes-chutesection.json`) is the chute *section* item's; a placed chute shows the game's copper
+sheet. A `chute-straight-ud` placed in the cell above meets it wall for wall with no gap or step
+(`check_chute_profile`).
 
 **The water pipe** is drawn as the rosser draws its drip pipes (the owner's rule for every water inlet and line):
 Pipes and Power Expanded's straight pipe as `UnifiedPipes` draws it soldered, built by the same module,
@@ -73,9 +86,9 @@ rosser's inlet is the same). It is the frame's, there at every level, like the a
    arrastra with four stones. The hopper and the drive fit over the pit's north and south edges rather than in
    rows of their own, so the box is 3 × 2 × 2, and two of its cells are dropped (above): 10 cells, against the
    old 18.
-3. **One way in, at the top; out low, by the pit's own overflow.** The hopper takes fresh ore and, at level 2, the
-   concentrator's middlings, which arrive by the same infeed as any other feed: the machine models no return path
-   of its own (the owner's ruling, below). The pulp of both levels leaves by the same notch and launder: at
+3. **One way in, at the top; out low, by the pit's own overflow.** The infeed takes fresh ore, from a player at
+   level 1 and a chute line at level 2, and at level 2 the concentrator's middlings, which arrive by the same infeed
+   as any other feed: the machine models no return path of its own (the owner's ruling, below). The pulp of both levels leaves by the same notch and launder: at
    level 1 it is the arrastra's overflow, at level 2 the drum discharges into the pit, which is its sump.
 4. **The drive from the side, never the ore's ends**, as before: the axle comes in on the south, the ore runs
    north (in) to east (out).
@@ -93,8 +106,9 @@ what the period did:
 - **Readable.** One grinder in the pit at a time: a reader sees an arrastra or a ball mill, never both
   half-hidden, and the footprint is the larger of the two rather than their sum.
 - **What stays is the frame**, which both levels use: the pit (at level 2 the drum's sump and foundation; its
-  overflow and launder carry the pulp out exactly as they did), the head frame, the power shaft, the hopper, the
-  chute and the water inlet. The ball mill's pinion goes on the power shaft's end where the arrastra's was.
+  overflow and launder carry the pulp out exactly as they did), the head frame, the power shaft, the hopper's bin,
+  the chute and the water inlet. The hopper's rim, the player's mouth, gives way to the chute head: a chute-fed
+  mill has no need of a hand-filled hopper. The ball mill's pinion goes on the power shaft's end where the arrastra's was.
 
 Reusing the pit as the drum's sump is a simplification: a period mill would have built the ball mill its own
 foundation and launders. It is said here so the owner can rule on it.
@@ -133,18 +147,18 @@ the whole machine repeats every three (the viewer's θ slider spans three turns)
 |---|---|---|---|
 | **Frame** | | | |
 | Power shaft: the axle's cross, the iron shaft, its collars (`shaft`) [null] | The vanilla axle | The fitted level's pinion | `rotate` z, 1 |
-| Pit, launder, head frame, hangers, hopper, chute (`frame`) [null] | Fixed | — | none |
+| Pit, launder, head frame, hangers, the hopper's bin, chute (`frame`) [null] | Fixed | — | none |
 | Water pipe, in copper (`pipecopper`) [pipecopper] or lead (`pipelead`) [pipelead] | Fixed, the metal supplied drawn | — | none |
 | **Level 1: arrastra** | | | |
 | Bevel pinion, 6 teeth, on the power shaft's end (`l1pinion`) [l1post] | The power shaft (keyed) | The post's bevel wheel | rides `shaft` |
 | Post: iron gudgeons, oak post, iron bands and cap, bevel wheel (18 teeth) and hub (`l1post`) [l1post] | The pinion | The arms | `rotate` y, +1/3 |
 | Sweep arms and their staples (`l1arms`) [l1arms] | The post (through it) | The chains | rides `l1post` |
 | Drag stones, their eyes and chain bridles (`l1stones`) [l1stones] | The arms, by the chains | Grind on the paving | rides `l1post` |
-| Footstep and top bearing (`l1step`) [l1post] | Fixed | — | none |
+| Footstep and top bearing (`l1step`) [l1post]; the hopper's rim (`l1hopper`) [l1hopper] | Fixed | — | none |
 | **Level 2: ball mill** | | | |
 | Pinion, 8 teeth, and hub on the power shaft's end (`l2pinion`) [l2drive] | The power shaft (keyed) | The girth gear | rides `shaft` |
 | Drum: trunnions, heads, riveted shell, manhole, girth gear (24), discharge lip (`l2drum`) [l2drum] | The pinion | Lifts the charge | `rotate` z, −1/3 |
-| Sole plates, pedestals, trunnion bearings (`l2bed`) [l2bed]; feed lip (`l2feed`) [l2feed] | Fixed | — | none |
+| Sole plates, pedestals, trunnion bearings (`l2bed`) [l2bed]; feed lip (`l2feed`) [l2feed]; chute head (`l2chute`) [l2chute] | Fixed | — | none |
 | The charge (`l2balls`) [l2balls] | Lies in the drum's bottom, its top level (either way round, above) | — | none |
 
 At one axle turn a second the arrastra's post turns 20 times a minute, the drum 20. Toothed wheels and what
@@ -158,16 +172,18 @@ Each level's set goes on in this order, one item each (the rig's `levels`). The 
 
 | Level | # | `requires` | What it fits |
 |---|---|---|---|
-| 1 | 1 | `l1post` | The post with its footstep on the centre stone, its top bearing under T1, its bevel wheel, and the pinion on the power shaft |
-| 1 | 2 | `l1arms` | The four sweep arms through the post |
-| 1 | 3 | `l1stones` | The four drag stones and their chain bridles |
+| 1 | 1 | `l1hopper` | The hopper's rim on the bin: the mouth a player tips ore into |
+| 1 | 2 | `l1post` | The post with its footstep on the centre stone, its top bearing under T1, its bevel wheel, and the pinion on the power shaft |
+| 1 | 3 | `l1arms` | The four sweep arms through the post |
+| 1 | 4 | `l1stones` | The four drag stones and their chain bridles |
 | 2 | 1 | `l2bed` | The two sole plates on the paving, the pedestals and the trunnion bearings |
 | 2 | 2 | `l2drum` | The drum with its trunnions, heads, manhole, girth gear and discharge lip |
 | 2 | 3 | `l2drive` | The pinion on the power shaft's end |
 | 2 | 4 | `l2balls` | The charge of iron balls, in through the manhole |
 | 2 | 5 | `l2feed` | The feed lip from the chute into the north trunnion's bore |
+| 2 | 6 | `l2chute` | The chute head in the bin's mouth, for a chute line, and its head boards |
 
-Level 2 retires level 1's three (`retires` in the rig). **In the viewer** (`site/models.json`): one select,
+Level 2 retires level 1's four (`retires` in the rig). **In the viewer** (`site/models.json`): one select,
 **Level**, steps from "The frame" through "Level 1 (water): arrastra" (the default) to "Level 2 (mill): ball
 mill", each fitting that level's whole set and none of the other's; the checkboxes under it show a level's
 stages one at a time. A second select, **Water pipe**, draws the pipe in copper (the default) or lead, as the
@@ -188,18 +204,19 @@ Everything in the model was made for this mod: no other mod's model is used. The
 mod's own soldered pipe (`Pipes/tools/solderedpipe.py`), as the rosser's. Textures are the game's, referenced:
 debarked oak and oak planks, the generic planks of the vanilla axle's cross, iron plate, plain steel sheet,
 riveted iron (the drum's shell), iron chain, copper and lead sheet (the pipe, as UnifiedPipes gives ppex's copper
-and lead pipes; a joint would be in lead solder, but this one length has none), and granite as
+and lead pipes; a joint would be in lead solder, but this one length has none), the game's chute copper
+(`block/metal/sheet/copper1`, level 2's chute head), and granite as
 cobblestone (paving), dry stone (curb) and rock (centre stone); the drag stones are basalt, a hard dark rock as
 they were chosen, which also reads apart from the paving. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/grinder.json` | The frame, the pipe in both metals and both levels' parts (377 elements), each under its `requires`. |
+| `assets/seraphhorizons/shapes/block/grinder.json` | The frame, the pipe in both metals and both levels' parts (387 elements), each under its `requires`. |
 | `assets/seraphhorizons/shapes/block/grinder_frame.json` | The static frame only (77 elements): what a block would draw (the pipe is drawn in its metal, as the rosser's). |
-| `assets/seraphhorizons/config/grinder-rig.json` | Footprint, anchors, the levels, the part rig (14 parts). |
+| `assets/seraphhorizons/config/grinder-rig.json` | Footprint, anchors, the levels, the part rig (16 parts). |
 | `tests/Grinder/rig-reference.json` | Every part's matrix at a grid of axle angles, from the reference maths. |
 
-Elements drawn: the frame alone 95 (with the shaft and one metal's pipe), level 1 195, level 2 273.
+Elements drawn: the frame alone 95 (with the shaft and one metal's pipe), level 1 199, level 2 279.
 
 ### Dimensions (voxels, build frame)
 
@@ -210,8 +227,10 @@ Elements drawn: the frame alone 95 (with the shaft and one metal's pipe), level 
   T1 z 14..18, T2 z 24.8..30.4.
 - **Power shaft** along z at (x 24, y 24), from z 20.6 to the south face; the axle's cross from z 30.6; hangers
   at z 25.4..27.4 and 28.4..30.
-- **Hopper** x 20..28, z 1..13, its walls down to y 19.6 north of z 8.2 and 23.8 south of it (over the bevel
-  wheel); its floor from (z 12.2, y 28.2) down to (z 4.4, y 20.4); the chute from there to (z 5.6, y 13).
+- **Hopper's bin** x 20..28, z 1..13, its walls up to y 28.8 and down to y 19.6 north of z 8.2 and 23.8 south of it
+  (over the bevel wheel); its floor from (z 12.2, y 28.2) down to (z 4.4, y 20.4); the chute from there to
+  (z 5.6, y 13). Level 1's rim y 28.8..32 round the bin; level 2's chute head y 28.8..32 at x 20..28, z 4..12 (the
+  infeed cell's 4..12 both ways), walls 1 thick, head boards y 28.8..29.6 either side.
   Water pipe: ppex's 6 × 6 tube at (x 24, y 24), z 0..1.8, through the hopper's north wall.
 - **Level 1**: post radius 2 from y 3.6 to 24.4 on an iron step on the centre stone, its top gudgeon in a bearing
   y 24.8..26.4 under T1; bevel wheel radius 7.5 (18 teeth, module 0.83) under the pinion radius 2.5 (6 teeth),
@@ -243,14 +262,18 @@ and every check comparing parts does it a state at a time.
   the ground through what is already there (nothing floats).
 - **Textures** by role (the list in "Model" above).
 - **Anchors:** the anchor faces on the footprint's outside, looking out, all different, and no anchor in the
-  power cell; the axle's cross at the power face's centre; the hopper's mouth the infeed cell's top face; the
-  inlet pipe ppex's section, on the water face's axis, opening into the hopper above its floor; the launder at
+  power cell; the axle's cross at the power face's centre; each level's infeed (the rim, the chute head) the infeed
+  cell's top face; the inlet pipe ppex's section, on the water face's axis, opening into the hopper above its floor; the launder at
   the output face, `output.pos` its end.
 - **The pit:** the paving on the ground with its top at 1.5 and nothing of the frame under it (no piers); the curb
   on the ground with the notch's sill its lowest top; the drag stones on the paving at rest and inside the curb
   over the cycle.
-- **The ore's way:** only the hopper reaches the top face (one way in, for the middlings too); its floor runs down
-  to the outlet; the chute runs from under the outlet; at level 1 its end is over the stones' track and clear above
+- **Chute profile:** level 2's chute head, at the infeed face, is a placed `chute-straight-ud`'s section wall for
+  wall in the cell's place, its top on the face (no gap or step), in the chute's own texture; `VANILLA_CHUTE` is
+  compared with the game's `straight.json` when the game is installed (`VINTAGE_STORY`, else
+  `~/Games/vintagestory`).
+- **The ore's way:** in each state only that level's infeed reaches the top face (one way in, for the middlings
+  too; the bare frame has none); the bin's floor runs down to the outlet; the chute runs from under the outlet; at level 1 its end is over the stones' track and clear above
   the arms; at level 2 the feed lip runs from the chute's end into the north trunnion's bore; the drum's lip is over
   the paving inside the curb; the launder falls from the notch's sill to the face.
 - **Supports:** the power shaft in its two hangers; the post on its step and in its top bearing; each trunnion
@@ -281,14 +304,15 @@ is a `rotate` on it, and the rest of the parts ride or stand still. Keys: `cells
 `fitted` as in "Collision"; no lids), `powerCell` and `powerFace`, `infeedCell` and `infeedFace`, `waterCell`
 and `waterFace` (the rosser's key), `outputCell`, `outputFace` and `output`, `levels`
 (`[{level, tier, name, fitted, retires?}]`: each level's tier, its `requires` values in fitting order, and the
-values it takes out) and `parts`. `requires` values: `l1post`, `l1arms`, `l1stones`, `l2bed`, `l2drum`,
-`l2drive`, `l2balls`, `l2feed`, `pipecopper`, `pipelead` (the pipe's metal, not a level's), or null.
+values it takes out) and `parts`. `requires` values: `l1hopper`, `l1post`, `l1arms`, `l1stones`, `l2bed`,
+`l2drum`, `l2drive`, `l2balls`, `l2feed`, `l2chute`, `pipecopper`, `pipelead` (the pipe's metal, not a level's),
+or null.
 
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, a part's id and `_`): `sh_*` (the power shaft),
 `fr_*` (the frame), and `l1pinion_*`, `l1post_*`, `l1arms_*`, `l1stones_*`, `l1step_*`, `l2pinion_*`, `l2drum_*`,
-`l2bed_*`, `l2feed_*`, `l2balls_*`, `pipecopper_*`, `pipelead_*`. Hand edits are lost when the script runs again: port them into
+`l2bed_*`, `l2feed_*`, `l2balls_*`, `l1hopper_*`, `l2chute_*`, `pipecopper_*`, `pipelead_*`. Hand edits are lost when the script runs again: port them into
 `make_shape.py`, or stop regenerating.
 
 ## Open for the owner
