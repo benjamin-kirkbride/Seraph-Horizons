@@ -4650,7 +4650,9 @@ fixed at creation. The server log says what the world has
   processing's units (#863: the poorest grade at a fifth to a quarter of vanilla's), every kept
   vein of a sized metal is widened four times in ore per layer, so its band is about the height it
   was: an ore shoot is made four times as long along its fault, a ladder vein's slabs about four
-  times closer (its width, and so the fault rock, is kept). `gradeAllowance` went from 1.15 to 1.25
+  times closer (its width, and so the fault rock, is kept). A horsetail lens of gold or silver,
+  which has no band, gets twice IOG's radii both ways: its ore is the disc where it crosses its
+  one-block fracture, so that is four times the ore and the ingots it held. `gradeAllowance` went from 1.15 to 1.25
   with the wider spread of grades. Gems and minerals are left as IOG makes them. The log has a line per district (`Smaller deposits: district 'magmatic-granitic-deep' at
   (...): 65 of 310 ore zones kept; veins per metal bismuth 8 (was 69), ...`).
 - **`RarerDistricts`** (#441): IOG's hydrothermal districts, the only source of gold and silver

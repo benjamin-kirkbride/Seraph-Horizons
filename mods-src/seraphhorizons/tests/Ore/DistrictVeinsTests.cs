@@ -134,10 +134,35 @@ public class DistrictVeinsTests
         Assert.All(old, p => Assert.False(p.Widen));
         Assert.All(now, p => Assert.True(p.Widen));
         Assert.Equal(old.Select(p => (p.BandMin, p.BandMax)), now.Select(p => (p.BandMin, p.BandMax)));
-        // Not widened: unsized ores, lenses, or with Blocks at 1.
+        // Not widened: unsized ores, or with Blocks at 1.
         Assert.False(wide.Plan(3, [new DistrictZone(DistrictZoneKind.Shoot, [Ore("sulfur")], 200, 1, 255, 4)], 110)[0].Widen);
-        Assert.False(wide.Plan(3, [new DistrictZone(DistrictZoneKind.Lens, [Ore("gold")], 0, 40, 60, 4)], 110)[0].Widen);
         Assert.False(Rules.Plan(3, after, 110)[0].Widen);
+    }
+
+    // A lens holding a kept sized metal (gold, silver) is widened too, and still has no band; one of
+    // only unsized ores is not.
+    [Fact]
+    public void LensesOfKeptMetalsAreWidened()
+    {
+        var wide = new DistrictVeins(Sizes, Settings with { Blocks = 4 });
+        var plan = wide.Plan(3, [new DistrictZone(DistrictZoneKind.Lens, [Ore("gold"), Ore("tin")], 0, 40, 60, 4)], 110)[0];
+        Assert.True(plan.Widen);
+        Assert.Equal([true, false], plan.OreKept);
+        Assert.Null(plan.BandMin);
+        Assert.False(wide.Plan(3, [new DistrictZone(DistrictZoneKind.Lens, [Ore("sulfur")], 0, 40, 60, 4)], 110)[0].Widen);
+        Assert.False(Rules.Plan(3, [new DistrictZone(DistrictZoneKind.Lens, [Ore("gold")], 0, 40, 60, 4)], 110)[0].Widen);
+    }
+
+    // A lens's ore is the disc where it crosses its one-block fracture: four times the ore is twice
+    // each radius.
+    [Fact]
+    public void LensRadiiDoubleForFourTimesTheOre()
+    {
+        var (h, v) = DistrictVeins.LensRadii(6, 4, 4);
+        Assert.Equal(12f, h);
+        Assert.Equal(8f, v);
+        Assert.Equal(4.0, h * v / (6.0 * 4.0), 6);
+        Assert.Equal((6f, 4f), DistrictVeins.LensRadii(6, 4, 1));
     }
 
     // A ladder vein's slabs come closer: IOG's spacings over four, rounded, at least one.

@@ -36,7 +36,11 @@ times in ore per layer (`DistrictVeinSizes.Widen`: an ore shoot four times as lo
 ladder vein's slabs about four times closer, IOG's spacings of 2–10 divided by 4, at least 1), so a
 vein holds its drawn ingots in about the height of rock it had. Without that it needed four to five
 times the height, and most thin veins hit their whole column (10 of 15 tin and bismuth veins in the
-granite district of `OreCellsScenarios`, at a quarter of their ingots); widened, 3 of 15 do. The
+granite district of `OreCellsScenarios`, at a quarter of their ingots); widened, 3 of 15 do. A
+horsetail lens of a sized metal (gold and silver, whose lenses are kept) has no band; its lenses
+are twice IOG's radii both ways (`DistrictVeins.LensRadii`: 4–12 by 3–8 become 8–24 by 6–16), and
+since its ore is only where a lens crosses the splay's one-block fracture, a disc of the two radii,
+that is four times the ore, so a lens holds the ingots it did. The
 medians and factors in `config/ore-sizes.json` stay as measured at vanilla's units; measurement, size tiers and the trader maps work in ingots from the live units,
 so they need no change. Worlds already generated keep their ore as placed: a deposit from before
 holds a quarter of the ingots it did. `tools/ore-survey/targets.json` holds the
@@ -115,7 +119,7 @@ How district ore is made (IOG 2.3.8, `HydrothermalDistrict`, `HydrothermalDistri
   35 ± 10 blocks along the fault, half that across, density 1 − r², at least 10 segments of
   16 blocks apart on a fault), **ladder veins** (one-block slabs every 2–7 blocks across a
   widened 100–500 block stretch of fault) and **horsetail lenses** (1–4 ellipsoids of 4–24 blocks
-  on a one-block fracture). Shoots and ladders reach from y 1 to the top of the world: every layer
+  on a one-block fracture; gold's and silver's at twice the radii since #863). Shoots and ladders reach from y 1 to the top of the world: every layer
   of rock under them is ore, which is why a vein held up to 13,000 ingots. Lenses hold a few
   ingots each.
 - Each zone draws one ore from its type's pool by `weight`, and a second with even chance; a

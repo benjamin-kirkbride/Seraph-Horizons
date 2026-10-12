@@ -62,6 +62,10 @@ public static class DistrictVeinSizes
             || AccessTools.Field(AccessTools.TypeByName("InterestingOreGen.Generators.LadderVeinRegion"), "SlabSpacings") == null
             || AccessTools.Field(AccessTools.TypeByName("InterestingOreGen.Generators.LadderVeinSampler"), "_region") == null)
             return "the ore shoot or ladder vein sampler changed";
+        if (AccessTools.Field(LensSamplerType, "_lenses") == null || AccessTools.Method(LensSamplerType, "GetTightBoundingBox") == null
+            || AccessTools.Inner(LensSamplerType, "LensEntry") is not { } lens
+            || new[] { "RadiusH", "RadiusV" }.Any(f => AccessTools.Field(lens, f)?.FieldType != typeof(float)))
+            return "the horsetail lens sampler changed";
         return null;
     }
 
@@ -200,10 +204,12 @@ public static class DistrictVeinSizes
         {
             DistrictZoneKind.Shoot => _blocks,
             DistrictZoneKind.Ladder => DistrictVeins.CloserSlabs(LadderSpacings(zone), _blocks).Gain,
-            _ => 1,
+            _ => _blocks,
         };
         return new DistrictZone(k, ores, perLayer, (int)Math.Floor(box.Y1), (int)Math.Ceiling(box.Y2), widening);
     }
+
+    private static Type? LensSamplerType => AccessTools.TypeByName("InterestingOreGen.Generators.HorsetailLensSampler");
 
     private static int[] LadderSpacings(object zone) =>
         Traverse.Create(AccessTools.Field(zone.GetType(), "Sampler").GetValue(zone)).Field("_region").Field("SlabSpacings").GetValue<int[]>() ?? [];
@@ -213,7 +219,8 @@ public static class DistrictVeinSizes
     /// made that much longer along the fault (its sampler's half strike, and its half across with it,
     /// which the fault rock's width cuts anyway), its box grown to match before IOG indexes the zones by
     /// chunk; a ladder vein gets its slabs closer (<see cref="DistrictVeins.CloserSlabs"/>), keeping its
-    /// width, so the fault rock IOG lays is as it was.
+    /// width, so the fault rock IOG lays is as it was. A horsetail lens's lenses grow in both radii
+    /// (<see cref="DistrictVeins.LensRadii"/>), its box set to the sampler's new tight box.
     /// </summary>
     private static void Widen(object zone, DistrictZoneKind kind)
     {
@@ -237,6 +244,26 @@ public static class DistrictVeinSizes
             var region = Traverse.Create(sampler).Field("_region").GetValue()!;
             var field = AccessTools.Field(region.GetType(), "SlabSpacings");
             field.SetValue(region, DistrictVeins.CloserSlabs((int[]?)field.GetValue(region) ?? [], _blocks).Spacings);
+        }
+        else
+        {
+            var lenses = (IList)AccessTools.Field(sampler.GetType(), "_lenses").GetValue(sampler)!;
+            var entry = AccessTools.Inner(sampler.GetType(), "LensEntry");
+            var h = AccessTools.Field(entry, "RadiusH");
+            var v = AccessTools.Field(entry, "RadiusV");
+            for (int i = 0; i < lenses.Count; i++)
+            {
+                // A struct: set the fields on the boxed copy and put it back.
+                var lens = lenses[i]!;
+                var (rh, rv) = DistrictVeins.LensRadii((float)h.GetValue(lens)!, (float)v.GetValue(lens)!, _blocks);
+                h.SetValue(lens, rh);
+                v.SetValue(lens, rv);
+                lenses[i] = lens;
+            }
+            var tight = (Cuboidd)AccessTools.Method(sampler.GetType(), "GetTightBoundingBox").Invoke(sampler, null)!;
+            var box = (Cuboidd)AccessTools.Field(zone.GetType(), "BoundingBox").GetValue(zone)!;
+            (box.X1, box.Y1, box.Z1) = (tight.X1, tight.Y1, tight.Z1);
+            (box.X2, box.Y2, box.Z2) = (tight.X2, tight.Y2, tight.Z2);
         }
     }
 

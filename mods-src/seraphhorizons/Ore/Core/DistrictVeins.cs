@@ -57,12 +57,13 @@ public sealed record DistrictVeinSettings(int VeinsPerMetal, IReadOnlyCollection
 /// only districts provide). Which ones is a stable hash of the district and the zone's index.
 /// The metal's ore in any further vein, and in every horsetail lens, places nothing; a zone left
 /// with no ore that places anything is dropped.</item>
-/// <item>Width (#863): with <see cref="DistrictVeinSettings.Blocks"/> over 1, every kept vein holding a
-/// managed metal is widened (<see cref="DistrictZonePlan.Widen"/>) to as near that many times its ore
+/// <item>Width (#863): with <see cref="DistrictVeinSettings.Blocks"/> over 1, every kept vein and
+/// horsetail lens holding a managed metal is widened (<see cref="DistrictZonePlan.Widen"/>) to as near that many times its ore
 /// per layer as the game side can make it (<see cref="DistrictZone.Widening"/>): an ore item holds
 /// about a quarter of vanilla's units, so the vein needs four times the blocks to hold its ingots
 /// in the height of rock it had. Without it a vein needed four to five times the height, which most
-/// columns don't have.</item>
+/// columns don't have. A lens, which has no band, is grown four times in ore (<see cref="LensRadii"/>)
+/// so it holds the ingots it did.</item>
 /// <item>Size: every kept vein holding a managed metal is cut to a band of heights. Its ore per
 /// layer is <c>blocks per layer × widening × weight share × density × ingots per block × grade
 /// allowance</c> for each such ore; the band is the height that gives the ore the zone's drawn size
@@ -131,7 +132,7 @@ public sealed class DistrictVeins
                 plans[i] = new DistrictZonePlan(false, kept[i], null, null);
                 continue;
             }
-            bool widen = zone.Kind != DistrictZoneKind.Lens && zone.Widening > 1 && _settings.Blocks > 1
+            bool widen = zone.Widening > 1 && _settings.Blocks > 1
                          && zone.Ores.Where((o, j) => kept[i][j] && o.Density > 0 && Sized(o.Metal)).Any();
             var (min, max) = zone.Kind == DistrictZoneKind.Lens ? (null, null) : Band(districtSeed, i, zone, kept[i], seaLevel, widen ? zone.Widening : 1);
             plans[i] = new DistrictZonePlan(true, kept[i], min, max, widen);
@@ -189,6 +190,19 @@ public sealed class DistrictVeins
         if (spacings.Count == 0 || !(blocks > 1)) return (spacings.ToArray(), 1);
         var closer = spacings.Select(s => Math.Max(1, (int)Math.Round(s / blocks, MidpointRounding.AwayFromZero))).ToArray();
         return (closer, spacings.Average() / closer.Average());
+    }
+
+    /// <summary>
+    /// A horsetail lens's radii grown to give <paramref name="blocks"/> times its ore (#863). IOG's lens
+    /// is an ellipsoid, but its ore is only where it crosses the splay's one-block fracture (fault
+    /// rock), a disc of the two radii in the fracture's plane, so both radii take the square root:
+    /// four times the ore is twice each (4–12 by 3–8 become 8–24 by 6–16).
+    /// </summary>
+    public static (float H, float V) LensRadii(float radiusH, float radiusV, double blocks)
+    {
+        if (!(blocks > 1)) return (radiusH, radiusV);
+        float k = (float)Math.Sqrt(blocks);
+        return (radiusH * k, radiusV * k);
     }
 
     /// <summary>The ore of an IOG district ore code (<c>ore-*-cassiterite-granite</c>,
