@@ -31,6 +31,7 @@
   "CreativeKeepsPlace": true,
   "SearchRightClickClears": true,
   "HandbookKeepsPlace": true,
+  "RecipeSelectorSearch": true,
   "BuckingSawmill": true,
   "BuckingSawmillSettings": {
     "Resistance": 0.17,
