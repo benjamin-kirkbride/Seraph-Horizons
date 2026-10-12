@@ -189,6 +189,25 @@ public class CrucibleFurnaceTests
     public void Codes_match_with_wildcards_and_the_game_domain(string pattern, string code, bool matches) =>
         Assert.Equal(matches, PotRecipes.CodeMatches(pattern, code));
 
+    // ---- Emptying a held pot ----
+
+    [Theory]
+    [InlineData(2, 20, true)]
+    [InlineData(1, 300, true)]      // the game's too-hot-to-touch is still holdable
+    [InlineData(1, 301, false)]     // hotter: as before, it is not emptied
+    [InlineData(0, 20, false)]      // no charge, nothing to empty
+    public void A_pot_empties_with_a_charge_and_cool_enough_to_hold(int chargeItems, double temperature, bool emptiable) =>
+        Assert.Equal(emptiable, PotEmpty.Emptiable(chargeItems, temperature, 300));
+
+    [Theory]
+    [InlineData(30, 64, new[] { 30 })]
+    [InlineData(64, 64, new[] { 64 })]
+    [InlineData(150, 64, new[] { 64, 64, 22 })]
+    [InlineData(3, 1, new[] { 1, 1, 1 })]
+    [InlineData(0, 64, new int[0])]
+    public void An_emptied_charge_drops_in_full_stacks(int count, int maxStack, int[] stacks) =>
+        Assert.Equal(stacks, PotEmpty.Stacks(count, maxStack));
+
     // ---- Heat ----
 
     private static readonly CrucibleFurnaceConfig C = new();

@@ -3805,7 +3805,12 @@ pot's charge melts.
 
 **Pulling and teeming.** With the lid open and an empty hand, a right-click on the hole pulls the nearer
 pot, with tongs in the off hand while the furnace is too hot to touch. A pot not yet melted comes back
-with its charge (and goes back in with it). A ferroalloy is broken out of the pot: its lumps and slag go
+with its charge (and goes back in with it), or, held and no hotter than the game's too-hot-to-touch, is
+emptied the way the game's bucket is (`BlockLiquidContainerBase.OnHeldInteractStart`, its "Empty contents"
+held help): Ctrl and right-click on a block, nothing in the air. Where the bucket spills, the pot drops its
+charge's items at the click, as the bucket drops what it spills as items (`DropContents`), and stays in
+the hand with its heats; of a stack, one pot a click, the emptied one going to the inventory
+(`BlockMeltingPot`, `Core/PotEmpty.cs`). A ferroalloy is broken out of the pot: its lumps and slag go
 into the inventory, hot, and the pot, a heat older, into the hand (or it cracks on its last). Molten
 stainless or iron comes out as `meltingpot-smelted`, on the game's smelted crucible class
 (`BlockSmeltedContainer`), so it pours into any `ILiquidMetalSink` (ingot molds, tool molds, the gear
