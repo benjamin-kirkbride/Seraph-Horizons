@@ -454,6 +454,23 @@ public class EidolonMiningTests
     }
 
     [Fact]
+    public void ItStandsInItsOwnSectorNotOverAnothers()
+    {
+        // A floor at y -1; the square at the west edge of its sector (x 4 to 7), another's sector west of
+        // it (x 0 to 3), coming from the west: the nearest stands are over the other's columns, but the
+        // first is wholly in its own, its box clear of the other's sector by the margin.
+        var space = new Voxels(Box(-8, 13, -1, -1, -8, 13).Select(c => (c.X, c.Y, c.Z)));
+        var square = Box(4, 5, 0, 0, 0, 1).ToList();
+        var near = EidolonMining.Stands(space, square, _ => false, 0, 0, 1);
+        Assert.True(near[0].X <= 4);
+        var stands = EidolonMining.Stands(space, square, _ => false, 0, 0, 1, (x, _) => x <= 3);
+        Assert.Equal(near.Count, stands.Count);
+        var first = stands[0];
+        Assert.True(first.X - EidolonMining.HalfWidth >= 4 + Others.Margin / 2, $"{first}");
+        Assert.All(square, c => Assert.True(EidolonMining.InReach(first.X, first.Y, first.Z, c), $"{first} {c}"));
+    }
+
+    [Fact]
     public void NoGroundNoStand()
     {
         var square = Box(0, 1, 0, 0, 0, 1).ToList();

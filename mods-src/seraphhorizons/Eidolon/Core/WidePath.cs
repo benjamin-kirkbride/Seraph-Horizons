@@ -143,11 +143,15 @@ public sealed class WidePath(IWideSpace space, int maxFall, int maxClimb = 1)
     /// it stands nearest), each grown by <see cref="Others.Margin"/>: first round them, and finding no
     /// way round, through them (<see cref="WentAround"/> false), so two in a narrow way never both wait
     /// on each other; <see cref="EidolonSpacing"/>'s push keeps them apart there. One whose box touches
-    /// the start's or the goal's is left out: it is not a wall to walk round, and the goal stays reachable.
+    /// the start's is left out: it is not a wall to walk round. So is one touching the goal's, for a
+    /// goal to reach exactly (<paramref name="tolerance"/> 0), which stays reachable; with a tolerance it
+    /// stops short of that one, where it is clear of it within the tolerance.
     /// </summary>
     public List<PathCell>? FindAround(PathCell start, PathCell goal, Others others, int maxNodes, int tolerance = 0)
     {
-        var kept = others.Without(start).Without(goal);
+        var kept = others.Without(start);
+        if (tolerance == 0)
+            kept = kept.Without(goal);
         if (kept.Count > 0)
         {
             var round = new WidePath(new AvoidingSpace(space, kept), MaxFall, MaxClimb);

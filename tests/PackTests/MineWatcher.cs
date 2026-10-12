@@ -64,7 +64,8 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
     }
 
     private string Describe(int i) =>
-        $"{eidolons[i].EntityId} at {eidolons[i].Pos.XYZ} ({eidolons[i].Orders?.OrderCode}, {Status(eidolons[i])})";
+        $"{eidolons[i].EntityId} at {eidolons[i].Pos.XYZ} ({eidolons[i].Orders?.OrderCode}, {Status(eidolons[i])}, "
+        + $"motion {eidolons[i].Pos.Motion.X:0.000} {eidolons[i].Pos.Motion.Z:0.000}{(eidolons[i].ClimbTop is { } t ? $", climbing to {t}" : "")})";
 
     public double MeanDistance => DistanceTicks == 0 ? 0 : DistanceSum / DistanceTicks;
 }

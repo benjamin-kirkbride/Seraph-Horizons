@@ -980,8 +980,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var box = eidolon.CollisionBox;
         var others = new Others(Others(eidolon, eidolon.Pos.XYZ, OthersRange + 8).Select(o => (o.X, (double)o.Feet, o.Z)),
             (box.X2 - box.X1) / 2, box.Y2 - box.Y1);
+        // in its own sector, not over another's, where that one may come to stand (not in a tunnel's
+        // headings, which it works from in front)
+        long id = eidolon.EntityId;
+        System.Func<int, int, bool>? theirs = _job is { } job && Cells.Driving == null
+            ? (x, z) => job.Shared.Sectors.OwnerAt(x, z) is { } o && o != id
+            : null;
         int tries = 0;
-        foreach (var stand in EidolonMining.Stands(space, cells, Left, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z)
+        foreach (var stand in EidolonMining.Stands(space, cells, Left, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, theirs)
                      .OrderBy(s => others.Touches(s.X, s.Y, s.Z)))
         {
             if (_nav!.GoTo(new Vec3d(stand.X, stand.Y, stand.Z), false, () => { }, () => { }, arriveWithin: ArriveWithin))

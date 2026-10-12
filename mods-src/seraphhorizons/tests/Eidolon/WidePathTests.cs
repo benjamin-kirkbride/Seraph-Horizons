@@ -316,6 +316,19 @@ public class WidePathTests
     }
 
     [Fact]
+    public void WithATolerance_ItStopsShortOfOneStandingByTheGoal()
+    {
+        var walker = new WidePath(new Voxels().Floor(-5, 25, -12, 12), 3);
+        var other = At((11.5, 0, 0));
+        // its box within the margin of the other's at the goal: it ends within a block of it, clear
+        Assert.True(other.Touches(10, 0, 0));
+        var path = walker.FindAround(new PathCell(0, 0, 0), new PathCell(10, 0, 0), other, 20000, tolerance: 1);
+        Assert.True(walker.WentAround);
+        Assert.All(path!, c => Assert.False(other.Touches(c.X, c.Y, c.Z), $"{c} touches it"));
+        Assert.True(Math.Abs(path![^1].X - 10) <= 1 && Math.Abs(path[^1].Z) <= 1, $"{path[^1]}");
+    }
+
+    [Fact]
     public void TwoMeetingInANarrowWayGoThroughRatherThanBothStand()
     {
         var walker = new WidePath(Lane(), 3);

@@ -284,6 +284,8 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Equal(stealFar, stolen);
         Assert.Contains(watch.Broke[west.EntityId], c => c.X >= a.X + 8);
         Assert.All(watch.BySector.Values, v => Assert.Equal(0, v.Out));
+        // the west one walked to its half and worked it apart from the east one, each standing in its own
+        Assert.Equal(0, watch.Overlaps);
         Assert.Equal(0, orders.Sum(o => o.EmptyStrikes));
         Assert.Single(lines);
         foreach (var e in eidolons)

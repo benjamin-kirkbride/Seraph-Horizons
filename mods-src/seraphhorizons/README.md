@@ -3325,7 +3325,12 @@ for the most sectors, then the squarest), each at least 4 blocks wide either way
 room for the strikes and the 1.7-wide box; a side of the area under 4 is not cut) and cut only at the 2 × 2
 squares' edges, so a square is in one sector. Each member is given the sector nearest it, nearest pair
 first; members past what the area holds at that width get none and wait at the rim. Each works only its
-own, the nearest square first. One with nothing left in its own that it may work (mined out, or all of
+own, the nearest square first, and stands in it to strike: of the places it reaches a square from, those
+with its box over another member's sector come last (`EidolonMining.Stands`, not in a tunnel's
+headings), even where one is nearer, as on its way into a half it stole across another's sector. Two
+standing in their own sectors are always the margin apart; one standing over its neighbour's edge would
+be where the neighbour comes to strike its own edge, and a walk does not go round one standing at its
+end. One with nothing left in its own that it may work (mined out, or all of
 it under the job's lowest layer, below) takes a sector let go with work in it, the most first; else it
 *steals*: of the others' sectors with work left, the one with the most (counted from its last search,
 on the layers it may mine), cut in two across its long side (`EidolonSectors.Halves`, at a square's edge,
@@ -3405,7 +3410,7 @@ the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamwo
 the steal), `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit 8 × 4,
 a sector each, never holding the same square, the floors within a climb, one report with both shares,
 each back to its place; one ordered later joining the job running; one whose sector is mined out
-stealing the far half of another's), `tests/PackTests/EidolonSectorScenarios.cs` (Atlas: three on a
+stealing the far half of another's, never overlapping), `tests/PackTests/EidolonSectorScenarios.cs` (Atlas: three on a
 16 × 3 × 12 area each breaking only in its sector, on average 5 or more apart, never overlapping, the floors
 within a climb, no slam at nothing, one report; two ordered head on across each other's way walking round
 each other and both arriving), `tests/PackTests/EidolonTunnelScenarios.cs` (Atlas: two driving a tunnel 4
@@ -3526,13 +3531,23 @@ most `MaxClimbBlocks`, down at most `MaxFallBlocks`, no corner cutting on diagon
 refused, water and slow blocks costed), bounded by `PathSearchNodes` on the server's thread; the game's
 own waypoint traverser then walks the path. A first pass: following (#675) proves it on real terrain.
 *Other eidolons*, on every path whatever the order: a search goes round where each loaded within 24
-blocks stands (`WidePath.FindAround`, `Others`: its box kept 0.3 clear of theirs), leaving out one at the
-goal (it stands where it goes) and one already touching it where it starts; finding no way round, it
+blocks stands (`WidePath.FindAround`, `Others`: its box kept 0.3 clear of theirs), leaving out one at a
+goal it goes to exactly (it stands where it goes; going within a block or two, to wait at the rim, say, it
+stops short of one there, clear of it) and one already touching it where it starts; finding no way round, it
 takes the way through them. While it walks, it looks along its path's next 6 nodes every half second
 (`EidolonNavigator`), and one in the way there makes it search again, at most every 2 seconds, never while
 it climbs; with still no way round, it walks on, unless the one in its way has the lower id: that one goes
-first, and it waits for it, up to 4 seconds, then walks on. So two meeting in a narrow way never both
-stand, and the spacing push ("Spacing") stays the last resort.
+first, and it waits for it, up to 4 seconds, then walks on. One walking with a lower id does not turn
+aside for it, so it gives way: every half second it looks whether that one and it would meet within a
+second and a half, each going on as it goes now (their boxes within the 0.3), and if so stops, waits while
+that one would still meet it where it stands, up to 4 seconds, and searches again; standing, it is one the
+other goes round. So two meeting in a narrow way never both stand, and the spacing push ("Spacing") stays
+the last resort. One climbing is moved with no motion, so
+the others count it as standing, and they keep clear of where its climb lands too
+(`EntityLaborEidolon.ClimbTop`). At the foot of a climb it waits while another is where it would land,
+lands there itself, or walks over it within the climb's two seconds (not for one with a higher id waiting
+at a climb's foot itself, which waits for it), up to 4 seconds, then climbs: a climb
+once begun goes to the top whatever is there, and the push cannot move one climbing.
 
 **Steps and drops.** On every path, whatever the order, it goes up at most two blocks and down at most
 two. A step of one it walks (its physics' step height). A step of two it climbs (`EidolonNavigator`,

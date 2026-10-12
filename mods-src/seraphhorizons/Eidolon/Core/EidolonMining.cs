@@ -453,15 +453,17 @@ public static class EidolonMining
     /// feet from a block over the highest cell to <see cref="ReachAbove"/> under the lowest. Those not
     /// standing on a cell left to mine (<paramref name="left"/>) first, so it does not stand in its own
     /// way; then nearest (<paramref name="fromX"/>, <paramref name="fromZ"/>), then nearest its feet' height.
+    /// Before all that, those whose box is over no block column of <paramref name="theirs"/> (another
+    /// member's sector: it stands in its own, where the other never comes, README "Eidolon", *Sectors*).
     /// </summary>
     public static IReadOnlyList<PathCell> Stands(IWideSpace space, IReadOnlyList<MarkPos> cells, Func<MarkPos, bool> left,
-        double fromX, int fromFeet, double fromZ)
+        double fromX, int fromFeet, double fromZ, Func<int, int, bool>? theirs = null)
     {
         if (cells.Count == 0)
             return [];
         int minX = cells.Min(c => c.X), maxX = cells.Max(c => c.X), minZ = cells.Min(c => c.Z), maxZ = cells.Max(c => c.Z);
         int minY = cells.Min(c => c.Y), maxY = cells.Max(c => c.Y);
-        var stands = new List<(PathCell Node, bool OnLeft, double From, int Rise)>();
+        var stands = new List<(PathCell Node, bool Theirs, bool OnLeft, double From, int Rise)>();
         for (int x = maxX - Reach; x <= minX + Reach + 1; x++)
         for (int z = maxZ - Reach; z <= minZ + Reach + 1; z++)
         for (int feet = maxY - ReachAbove; feet <= minY + ReachBelow; feet++)
@@ -470,13 +472,16 @@ public static class EidolonMining
                 continue;
             if (!space.Free(x, feet, z) || space.Free(x, feet - 1, z))
                 continue;
-            bool onLeft = false;
-            for (int bx = x - 1; bx <= x && !onLeft; bx++)
-            for (int bz = z - 1; bz <= z && !onLeft; bz++)
-                onLeft = left(new MarkPos(bx, feet - 1, bz));
-            stands.Add((new PathCell(x, feet, z), onLeft, Distance2(x, z, fromX, fromZ), Math.Abs(feet - fromFeet)));
+            bool onLeft = false, over = false;
+            for (int bx = x - 1; bx <= x; bx++)
+            for (int bz = z - 1; bz <= z; bz++)
+            {
+                onLeft |= left(new MarkPos(bx, feet - 1, bz));
+                over |= theirs?.Invoke(bx, bz) == true;
+            }
+            stands.Add((new PathCell(x, feet, z), over, onLeft, Distance2(x, z, fromX, fromZ), Math.Abs(feet - fromFeet)));
         }
-        return stands.OrderBy(s => s.OnLeft).ThenBy(s => s.From).ThenBy(s => s.Rise).ThenBy(s => s.Node.X).ThenBy(s => s.Node.Z)
+        return stands.OrderBy(s => s.Theirs).ThenBy(s => s.OnLeft).ThenBy(s => s.From).ThenBy(s => s.Rise).ThenBy(s => s.Node.X).ThenBy(s => s.Node.Z)
             .Select(s => s.Node).ToList();
     }
 
