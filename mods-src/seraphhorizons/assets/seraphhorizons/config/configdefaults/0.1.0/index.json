@@ -49,6 +49,7 @@
     "foodshelves": "3.1.0",
     "footprints": "1.2.11",
     "geoaddons": "1.4.8",
+    "ghostchunks": "1.6.7",
     "goodhunting": "1.4.7",
     "grindablebonearrows": "1.0.1",
     "handcrank": "1.0.1",
@@ -589,6 +590,12 @@
       "format": "json",
       "owners": [
         "fleeexhaustion"
+      ]
+    },
+    "ghostchunks-server.json": {
+      "format": "json",
+      "owners": [
+        "ghostchunks"
       ]
     },
     "integratedmodmanager/integratedmodmanager.json": {
