@@ -81,13 +81,15 @@ describe("the rocker's rig against its rig-reference.json", () => {
 });
 
 describe("the rocker's anchors and scenario", () => {
-  it("names the operator's side, the tailings beyond the foot and the points that ride the cradle, and no water cell", () => {
+  it("names the operator's side, the tailings beyond the foot and the points that ride the cradle, and no transfer side or cell", () => {
     const { anchors, unrecognised } = discoverAnchors(rig);
     expect(anchors.find((a) => a.key === "operatorSide")).toMatchObject({ kind: "side", side: "north" });
     expect(unrecognised).toEqual(["rock"]);
     expect(anchors.filter((a) => a.kind === "cell")).toEqual([]);
-    expect(anchors.find((a) => a.key === "tailings")).toMatchObject({ kind: "point", pos: [-0.5, 0, 0.5], side: "west" });
-    for (const key of ["hopper", "outflow", "concentrate"]) expect(anchors.find((a) => a.key === key)).toMatchObject({ kind: "point", part: "cradle" });
+    // a hand station: no side but the operator's, for no chute or hopper takes from it or feeds it
+    expect(anchors.filter((a) => a.kind === "side").map((a) => a.key)).toEqual(["operatorSide"]);
+    expect(anchors.find((a) => a.key === "tailings")).toMatchObject({ kind: "point", pos: [-0.5, 0, 0.5] });
+    for (const key of ["pour", "outflow", "concentrate"]) expect(anchors.find((a) => a.key === key)).toMatchObject({ kind: "point", part: "cradle" });
     expect(anchors.find((a) => a.key === "spout")).toBeUndefined();
   });
 

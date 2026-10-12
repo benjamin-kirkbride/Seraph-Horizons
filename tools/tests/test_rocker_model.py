@@ -204,15 +204,21 @@ class Anchors(unittest.TestCase):
         self.assertAlmostEqual(min(rockers.values()), 0.0, places=4)
         self.assertGreater(min(y for n, y in lows.items() if n not in rockers), 1.0 / 16)
 
+    def test_by_hand_only(self):
+        # no automated input or output: no infeed, outfeed or output side, cell or face for a chute or hopper
+        self.assertEqual([k for k in RIG if k.endswith(("Side", "Cell", "Face")) and k != "operatorSide"], [])
+        self.assertEqual(set(RIG), set(make_shape.RIG_KEYS))
+
     def test_tailings_and_the_points_that_ride(self):
-        self.assertEqual((RIG["tailings"]["pos"], RIG["tailingsSide"]), ([-0.5, 0.0, 0.5], "west"))
+        # the tailings fall to the ground in the cell west of the foot
+        self.assertEqual(RIG["tailings"]["pos"], [-0.5, 0.0, 0.5])
         ids = {p["id"] for p in RIG["parts"]}
-        for key in ("hopper", "outflow", "concentrate"):
+        for key in ("pour", "outflow", "concentrate"):
             self.assertEqual(RIG[key]["part"], "cradle", key)
             self.assertIn(RIG[key]["part"], ids)
-        # the hopper's point is over the head half, where the bucket is poured; the outflow is the foot's lip, west
-        self.assertGreater(RIG["hopper"]["pos"][0], 0.5)
-        self.assertAlmostEqual(RIG["hopper"]["pos"][2], 0.5, places=4)
+        # the pour point is over the head half, where the bucket is poured; the outflow is the foot's lip, west
+        self.assertGreater(RIG["pour"]["pos"][0], 0.5)
+        self.assertAlmostEqual(RIG["pour"]["pos"][2], 0.5, places=4)
         self.assertLess(RIG["outflow"]["pos"][0], 0.1)
 
 

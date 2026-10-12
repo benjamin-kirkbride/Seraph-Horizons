@@ -420,12 +420,15 @@ def footprint():
     return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
 
 
-POINT_ANCHORS = ("hopper", "outflow", "concentrate", "tailings")
+POINT_ANCHORS = ("pour", "outflow", "concentrate", "tailings")
+# A hand station takes no automated input or output (the owner's ruling): no chute, hopper or other item
+# transfer in or out, so the rig names no infeed, outfeed or output side, cell or face. These are all its keys.
+RIG_KEYS = ("_comment", "cells", "operatorSide", *POINT_ANCHORS, "rock", "parts")
 
 
 def make_rig(parts):
     (rx0, rx1), (rz0, rz1), ry = riddle_box()
-    hopper = tilt_point([(rx0 + rx1) / 2, ry, (rz0 + rz1) / 2])
+    pour = tilt_point([(rx0 + rx1) / 2, ry, (rz0 + rz1) / 2])
     lip = tilt_point([BOX_X[0], FLOOR_TOP, AXIS_Z])
     conc = tilt_point([RIFFLE_X[-1] + RIFFLE_W + CONC_L / 2, FLOOR_TOP + CONC_H, AXIS_Z])
     return {
@@ -434,14 +437,15 @@ def make_rig(parts):
                     "A hand station: no power cell, and no water cell: its only water is poured into the hopper from the "
                     "bucket the player holds while rocking it. theta is the rocking, the hold-to-work clock: one turn is one "
                     "rock (over to the south and back over to the north). The water rides the cradle and swings back, so it "
-                    "stays level. Points with a part ride it. See the rocker's README for the schema.",
+                    "stays level. No automated input or output: the player loads and unloads it by hand, so there is no "
+                    "infeed or output side; the tailings fall to the ground at their point. Points with a part ride it. "
+                    "See the rocker's README for the schema.",
         "cells": [],
         "operatorSide": OPERATOR_SIDE,
-        "hopper": {"pos": pt(*hopper), "part": "cradle"},
+        "pour": {"pos": pt(*pour), "part": "cradle"},
         "outflow": {"pos": pt(*lip), "part": "cradle"},
         "concentrate": {"pos": pt(*conc), "part": "cradle"},
         "tailings": {"pos": [-0.5, 0.0, 0.5]},
-        "tailingsSide": "west",
         "rock": {"degrees": r6(ROCK_DEG), "radius": r6(ROCKER_R / B),
                  "_comment": "As drawn: the cradle rocks degrees each way, degrees sin(theta), one rock a turn of theta; its "
                              "rockers' running faces have this radius (blocks) and roll on the ground, so it also slides south by "

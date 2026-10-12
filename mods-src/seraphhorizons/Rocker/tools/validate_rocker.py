@@ -341,10 +341,10 @@ def check_foot(v):
             if lo[0] < lip[0] - 1e-6 and hi[1] > lip[1] + 0.05 and lo[2] < m.IN_Z[1] - 1e-6 and hi[2] > m.IN_Z[0] + 1e-6:
                 blocking.append(e.name)
     t = v.rig["tailings"]["pos"]
-    print(f"foot: open over the lip at x {lip[0]:.2f}, y {lip[1]:.2f}; the tailings land at {t} ({v.rig['tailingsSide']})")
+    print(f"foot: open over the lip at x {lip[0]:.2f}, y {lip[1]:.2f}; the tailings land at {t}, on the ground west of it")
     if blocking:
         v.fail(f"the foot is not open: {blocking[:4]}")
-    if not (t[0] < 0 and t[1] == 0.0 and 0 < t[2] < 1 and v.rig["tailingsSide"] == "west"):
+    if not (t[0] < 0 and t[1] == 0.0 and 0 < t[2] < 1):
         v.fail("the tailings do not land west of the foot, on the ground")
 
 
@@ -382,7 +382,7 @@ def check_water(v):
         if part is not None and part not in ids:
             v.fail(f"the {key} point rides {part}, which is no part")
     print(f"water: by bucket only (no water cell, face, spout or stream in the rig); nothing fixed; the "
-          f"hopper open to the sky over the rock: {'yes' if not over else sorted(over)}; hopper {rig['hopper']['pos']}, "
+          f"hopper open to the sky over the rock: {'yes' if not over else sorted(over)}; pour {rig['pour']['pos']}, "
           f"outflow {rig['outflow']['pos']}, concentrate {rig['concentrate']['pos']}")
     if over:
         v.fail(f"something stands over the hopper, in the bucket's way: {sorted(over)[:4]}")
@@ -505,6 +505,14 @@ def validate_files(m, shape, item_shape, ship):
         ok = False
     if any(k.endswith(("Cell", "Face")) for k in ship):
         print("FAIL the rocker takes no water by pipe: no water cell or face")
+        ok = False
+    # by hand only: no infeed, outfeed or output side, cell or face for a chute or a hopper; nothing but its keys
+    sides = [k for k in ship if k.endswith("Side") and k != "operatorSide"]
+    extra = [k for k in ship if k not in m.RIG_KEYS]
+    print(f"by hand only: no transfer side, cell or face ({'none' if not sides else sides}); keys beyond the rocker's: "
+          f"{'none' if not extra else extra}")
+    if sides or extra:
+        print("FAIL a hand station takes no automated input or output")
         ok = False
     passes = {e["name"]: e.get("renderPass") for e in shape["elements"]}
     if any(n.startswith("water_") and p != m.TRANSPARENT for n, p in passes.items()):

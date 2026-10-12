@@ -26,6 +26,12 @@ over to the north. There is no work quantity: the rig reads θ alone.
 upgradeable machines; a hand station is cheap and separate. The rocker is placed whole, as one item, and
 its only `requires` values are what it holds: water, a charge and concentrate.
 
+**By hand only: no automated input or output** (the owner's ruling for every hand station). No chute,
+hopper or other item transfer puts anything into the rocker or takes anything out of it: the player tips a
+charge into its hopper and pours the bucket, and takes the concentrate out of the riffles, by hand. The rig
+names no infeed, outfeed or output side, cell or face; the only side is the operator's. The tailings are
+not an output either: they fall to the ground in the cell west of the foot, at their point.
+
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. `tools/` is the model's generator;
 the generic half of it is `Machines/tools/machinegen/`, shared with the other machines and unchanged by
@@ -52,15 +58,16 @@ hopper they pour into; the **tailings** leave over the foot into the cell west o
 | Key | Where | For |
 |---|---|---|
 | `operatorSide` | `north` | Where the player stands to rock it, at the handle. |
-| `hopper` (`part` `cradle`) | `[0.6846, 0.6225, 0.5]` | The middle of the riddle plate's top, riding the cradle: where a charge goes in and the bucket is poured (sounds, the pour's particles). |
+| `pour` (`part` `cradle`) | `[0.6846, 0.6225, 0.5]` | The middle of the riddle plate's top, riding the cradle: where the player tips a charge in and pours the bucket (sounds, the pour's particles). Named so it is not read as a place for a vanilla hopper: nothing feeds it. |
 | `outflow` (`part` `cradle`) | `[0.0693, 0.2404, 0.5]` | The middle of the floor's lip at the open foot, riding the cradle: where water and tailings leave (splash particles). |
 | `concentrate` (`part` `cradle`) | `[0.4158, 0.3086, 0.5]` | On the concentrate behind the upper riffle, riding the cradle: where the player takes the concentrate out. |
-| `tailings`, `tailingsSide` | `[-0.5, 0, 0.5]`, `west` | On the ground in the cell west of the rocker, beyond the open foot: where the tailings land (vanilla layered gravel or sand, #694). |
+| `tailings` | `[-0.5, 0, 0.5]` | On the ground in the cell west of the rocker, beyond the open foot: where the tailings fall (vanilla layered gravel or sand, #694). A point on the ground, not a side for a chute or a container. |
 | `rock` | `degrees` 10, `radius` 0.625 | The rock as drawn (not an anchor; the viewer lists it as not drawn). |
 
 There is no `powerCell` or `powerFace`, no water cell or face (nothing connects to it), and no
-`infeedSide` or `outputSide`: a charge and the water go in by hand at the top, and the concentrate comes
-out by hand at the riffles.
+`infeedSide`, `outputSide` or other transfer side, cell or face: a charge and the water go in by hand at
+the top, and the concentrate comes out by hand at the riffles. The first pass's `tailingsSide` is gone too:
+the tailings' point says where they fall, and a side would read as a face to take them from.
 
 **Parts** (the rig's parts). With `requires` null, always drawn: the **cradle** (the box: floor, sides,
 head board; the two rockers; the riffles; the apron; the hopper and its riddle plate; the handle). There is
@@ -199,8 +206,10 @@ exits non-zero if one fails:
 - **Ground** (full runs, every 2 degrees of θ): nothing goes below the ground, and nothing but the rockers
   comes within a voxel of it.
 - **No z-fighting** (full runs): no coplanar overlapping faces at seven poses of the rock.
-- **Files:** every texture declared; the item shape everything but the states; a lid over the cell; the operator on the north; no power cell, and no water cell or face; the
-  water still in the Transparent pass in the file; the shipped model is the checked one.
+- **Files:** every texture declared; the item shape everything but the states; a lid over the cell; the
+  operator on the north; no power cell, and no water cell or face; **by hand only**: no side but the
+  operator's, no cell or face, and no key beyond the rocker's own (`RIG_KEYS`), so nothing for a chute or a
+  hopper; the water still in the Transparent pass in the file; the shipped model is the checked one.
 
 The cell's boxes are rebuilt from the shipped, rounded shape posed at rest by the shipped rig, as the
 other machines' are, from the station only (the cradle, not the water or the load): one box from the
@@ -215,14 +224,14 @@ maths: two θ drivers on the cradle, one on the water, and rides.
 - **Inputs.** θ alone: no `work`, no `trunkPath`, no class or presence. θ advances while the player holds
   right-click with a full bucket and is that clock: one turn, one rock.
 - **`cells`**: one cell `[0,0,0]` with its boxes and a `lid`.
-- **Anchors**: `operatorSide`, `hopper`, `outflow`, `concentrate`, `tailings`, `tailingsSide`, as above. A
+- **Anchors**: `operatorSide`, `pour`, `outflow`, `concentrate`, `tailings`, as above; nothing for automated
+  input or output. A
   point with `part` rides that part (the handcar's grips do the same): gameplay poses it by the part's
   matrix.
 - **`rock`**: `degrees` (10), the swing's amplitude, and `radius` (0.625 blocks), the rockers' running faces,
   as drawn; the slide's amplitude is their product in radians. Level at θ = 0 and π.
 
-**Keys.** `cells`, `operatorSide`, `hopper`, `outflow`, `concentrate`, `tailings`, `tailingsSide`, `rock` and
-`parts`. `requires` values: `water`, `charge`, `concentrate`, or null. The texture codes a renderer sets:
+**Keys.** `cells`, `operatorSide`, `pour`, `outflow`, `concentrate`, `tailings`, `rock` and `parts`. `requires` values: `water`, `charge`, `concentrate`, or null. The texture codes a renderer sets:
 `charge` and `concentrate` (the material's).
 
 **In the viewer** (`site/models.json`, `rocker`): θ is the "Rocked" slider and Play rocks it at one rock a
@@ -250,14 +259,18 @@ What the model assumes, for whoever builds the block entity and the renderer:
   next multiple of π so the cradle comes to rest level. The rock is the only motion, so the renderer needs θ
   and the states, nothing else.
 - **Water.** Draw `water` while it is worked (rocked, the bucket pouring). The pour itself is the held
-  bucket's: particles from the player's bucket to the `hopper` point if anything; the water leaving over the
+  bucket's: particles from the player's bucket to the `pour` point if anything; the water leaving over the
   foot is splash particles at `outflow`; nothing in the model.
 - **The load.** Draw `charge` while a charge is in the hopper and `concentrate` while concentrate lies behind
   the riffles, with their texture codes set to the material's.
 - **The concentrate** comes out by hand, as the period cleanup did: the player takes it from the riffles at
   the `concentrate` point (right-click with an empty hand, say). There is no `outputSide`.
-- **Tailings** land at `tailings.pos`, the cell west of the rocker, on the ground (#694's layered gravel or
-  sand), and splash at `outflow`.
+- **No automated input or output.** Refuse hopper and chute insertion and extraction: the block entity
+  offers no inventory to item transfer (vanilla hoppers and chutes, and any mod's), so nothing can put a
+  charge in or take concentrate out but the player's hand. Its slots, if it keeps the charge and the
+  concentrate in an inventory, are internal.
+- **Tailings** fall to the ground at `tailings.pos`, the cell west of the rocker (#694's layered gravel or
+  sand), and splash at `outflow`; they are placed in the world, never handed to a container or a chute.
 
 ## Known weak spots, and what is not checked
 
@@ -294,4 +307,5 @@ Each of these was open after the first pass; this pass settled it with the defau
 6. **The states:** `water`, `charge` and `concentrate` are kept, so the model shows #716's work; drop the
    last two if the renderer will not draw the load.
 7. **Where the concentrate goes:** taken out by hand at the riffles (the `concentrate` point); no
-   `outputSide`, no container beside it.
+   `outputSide`, no container beside it. This one is now the owner's ruling for every hand station: no
+   automated input or output.
