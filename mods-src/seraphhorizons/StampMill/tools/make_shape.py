@@ -76,7 +76,7 @@ ORIGIN_CELL = (1, 0, 0)                      # the controller: the bottom middle
 POWER_CELL, POWER_FACE = (2, 0, 2), "east"   # the vanilla axle, along x at (y 8, z 40), into the gear case
 WATER_CELL, WATER_FACE = (0, 1, 2), "west"   # the ppex pipe, along x at (y 24, z 40), the water line into the feed box
 FEED_CELL, FEED_FACE = (1, 1, 1), "up"       # the feed box's open top: the player shovels ore in here (level 1 on)
-INFEED_CELL, INFEED_FACE = (1, 3, 1), "up"   # the grizzly's head: ore comes in here by chute (level 2)
+INFEED_CELL, INFEED_FACE = (1, 3, 1), "up"   # the chute's mouth over the grizzly's head: ore comes in here by chute (level 2)
 OUTPUT_CELL, OUTPUT_FACE = (1, 0, 0), "north"   # the launder's spout: the pulp goes out here
 
 TEXTURES = {
@@ -88,6 +88,7 @@ TEXTURES = {
     **{f"pipe{m}": f"game:block/metal/sheet-plain/{m}4" for m in ("copper", "lead")},
     "solder": solderedpipe.SOLDER_TEXTURE,
     "mesh": "game:block/metal/mesh1",
+    "chute": "game:block/metal/sheet/copper1",   # the game's chute; the pack leaves its texture as the game's (copper)
     "leather": "game:block/leather/plain",
     "rubber": "game:block/leather/black",
 }
@@ -101,7 +102,8 @@ SILL_Y, CAP_Y = (0.0, 4.0), (60.0, 64.0)
 RAIL_IN = 0.5                                # rails stand in from the posts' faces
 RAIL_LO_Y = (19.0, 23.0)                     # carries the lower guide girts
 RAIL_HI_Y = (42.0, 46.0)                     # carries the upper guide girts
-TIE_B_Y = (56.0, 60.0)                       # the back tie, between the back posts: the grizzly's head rests on it
+TIE_B_Y = (52.0, 56.0)                       # the back tie, between the back posts: the grizzly's head rests on it
+TIE_T_Y, TIE_T_Z = (60.0, 64.0), (16.8, 20.0)   # the top tie, between the caps: the infeed chute's section is bolted to it
 PLANK = 1.0                                  # board thickness: launder, feed box, guides' strips
 
 # ---------------------------------------------------------------- level 1: the stamps
@@ -153,7 +155,7 @@ FEED_LIP_Y = 14.0                            # the feed opening in the back wall
 FEED_X = (18.0, 30.0)                        # the feed box, between the jaw stand's sills
 FEED_SLOPE = math.radians(40.0)              # its floor's fall towards the lip
 FEED_END_Z = 34.8                            # its south end: under the breaker's discharge
-FEED_SIDE = 3.2                              # its sides' height over the floor
+FEED_SIDE = 2.4                              # its sides' height over the floor
 LAUNDER_Z = (1.0, 5.0)
 LAUNDER_Y = (3.6, 8.4)                       # its floor's underside, its sides' top
 SPOUT_X = (21.0, 27.0)
@@ -193,7 +195,7 @@ TURNS_PER_REV = abs(1.0 / CAM_RATIO)         # axle turns a camshaft turn
 # the back wall (u 0) to the fixed jaw's front (u 37.6). It is then mirrored and raised into the build frame,
 # z = JAW_C - u and y + JAW_DY, so its fixed jaw faces the battery and its discharge falls on the feed box.
 JAW_C = 64.0
-JAW_DY = 5.0
+JAW_DY = 3.0
 JAW_X = (18.0, 30.0)                         # the chamber (x) between the cheeks
 JAW_XC = 24.0
 CHEEK_W, CHEEK_E = (15.0, 18.0), (30.0, 33.0)
@@ -218,21 +220,46 @@ BUFFERS = 2                                  # india-rubber buffers on each rod,
 TOGGLE_W = 6.0                               # the toggles' width (x)
 JAW_E_RATIO = -LINE_RATIO * JAWDRIVE_R / FLY_R   # the eccentric shaft in the breaker's frame (mirrored: the line's sense)
 STAND_X = ((14.0, 18.0), (30.0, 34.0))       # the stand's sills and posts (x), under the cheeks
-STAND_Y = (25.0, 29.0)                       # its sills (y)
+STAND_Y = (23.0, 27.0)                       # its sills (y)
 STAND_POST_Z = ((27.0, 31.0), (56.0, 60.0))
 
 # ---------------------------------------------------------------- level 2: the grizzly
 GRIZ_X = (18.6, 29.4)
 GRIZ_BARS = 5
 GRIZ_BAR_W = 1.2
-GRIZ_HEAD = (21.0, 63.0)                     # (z, y): the bars' top at their head, on the head block on the back tie
-GRIZ_FOOT = (32.0, 53.0)                     # (z, y): their top at their foot, over the breaker's mouth
+GRIZ_HEAD = (20.0, 60.8)                     # (z, y): the bars' top at their head, under the infeed chute, on the head block
+GRIZ_FOOT = (32.0, 50.6)                     # (z, y): their top at their foot, over the breaker's mouth
 GRIZ_BAR_T = 1.4
 CROSSBAR_Z = (31.0, 32.6)                    # the cross bar under the bars' foot
 JAW_TOP_Y = 42.5 + JAW_DY                    # the cheeks' and the front wall's top
 JAW_FRONT_Z = JAW_C - FRONT_U                # the front wall's north face
 THROAT_SLOPE = math.radians(40.0)            # the throat plate's fall to the north
-THROAT_Z = (JAW_FRONT_Z - 1.0, 30.4)         # its extent (z): past the front wall's face, to over the fixed jaw
+THROAT_Z = (JAW_FRONT_Z - 1.0, 30.0)         # its extent (z): past the front wall's face, to over the fixed jaw
+
+# ---------------------------------------------------------------- level 2: the infeed, the game's chute
+# The chute-fed infeed is the game's own chute section (shapes/block/metal/chute/straight.json, game 1.22.7), so a
+# player's chute line meets it seamlessly: a vanilla `chute-straight-ud` placed on the infeed cell's top face carries
+# straight on into it. Its four walls, as the game has them along x (the `we` chute; voxels in a block, 16 a block,
+# UVs on the game's 16 scale), turned to `ud` as the blocktype turns it (rotateZ 90 about the block's centre), and cut
+# to the top CHUTE_LEN of the infeed cell: a section 8 across, walls 1 thick round a 6 x 6 bore, in the block's
+# middle (4..12). Its texture is the chute's, game:block/metal/sheet/copper1 (the pack patches only the chute
+# *section* item's metal, not the chute block's texture). validate_stampmill checks these against the game's file
+# when the game is installed.
+VANILLA_CHUTE = (
+    ("North", (0.0, 4.0, 4.0), (16.0, 12.0, 5.0),
+     {"north": ((0.0, 0.0, 8.0, 16.0), 270), "east": ((13.0, 0.0, 14.0, 8.0), 0), "south": ((4.0, 0.0, 12.0, 16.0), 90),
+      "west": ((0.0, 0.0, 1.0, 8.0), 0), "up": ((0.0, 8.0, 16.0, 9.0), 0), "down": ((0.0, 4.0, 16.0, 5.0), 0)}),
+    ("South", (0.0, 4.0, 11.0), (16.0, 12.0, 12.0),
+     {"north": ((4.0, 0.0, 12.0, 16.0), 90), "east": ((11.0, 0.0, 12.0, 8.0), 0), "south": ((4.0, 0.0, 12.0, 16.0), 270),
+      "west": ((15.0, 0.0, 16.0, 8.0), 0), "up": ((0.0, 2.0, 16.0, 3.0), 0), "down": ((0.0, 4.0, 16.0, 5.0), 0)}),
+    ("Bottom", (0.0, 4.0, 5.0), (16.0, 5.0, 11.0),
+     {"east": ((5.0, 0.0, 11.0, 1.0), 0), "west": ((0.5, 0.0, 6.5, 1.0), 0), "up": ((5.0, 0.0, 11.0, 16.0), 90),
+      "down": ((0.0, 5.0, 16.0, 11.0), 0)}),
+    ("Top", (0.0, 11.0, 5.0), (16.0, 12.0, 11.0),
+     {"east": ((5.0, 0.0, 11.0, 1.0), 0), "west": ((0.0, 2.0, 1.0, 8.0), 90), "up": ((0.0, 5.0, 16.0, 11.0), 0),
+      "down": ((5.0, 0.0, 11.0, 16.0), 90)}),
+)
+CHUTE_LEN = 3.0                              # the section's length inside the machine, down from the top face
 THROAT_T = 0.8
 
 
@@ -676,6 +703,7 @@ def build_frame():
             out.append(box([x0 + RAIL_IN, y0, POST_F[1]], [x1 - RAIL_IN, y1, POST_B[0]], f"fr_rail{name}_{tag}", f, "oak"))
     out.append(box([END_W[1], CAP_Y[0], POST_F[0]], [END_E[0], CAP_Y[1], POST_F[1]], "fr_tie_f", f, "oak"))
     out.append(box([END_W[1], TIE_B_Y[0], POST_B[0]], [END_E[0], TIE_B_Y[1], POST_B[1]], "fr_tie_b", f, "oak"))
+    out.append(box([END_W[1], TIE_T_Y[0], TIE_T_Z[0]], [END_E[0], TIE_T_Y[1], TIE_T_Z[1]], "fr_tie_t", f, "oak"))
     out += build_guides()
     out += build_power_frame()
     return out
@@ -1040,8 +1068,8 @@ def build_grizzly():
     p = "grizzly"
     (hz, hy), (fz, fy) = GRIZ_HEAD, GRIZ_FOOT
     gx0, gx1 = GRIZ_X
-    z_head, z_foot = hz - 1.0, fz + 1.0                      # the bars run on a voxel past each
-    out = [box([gx0 - 1.6, TIE_B_Y[1], POST_B[0] + 0.5], [gx1 + 1.6, griz_under(z_head + 1.6) + 0.05, hz + 1.5], "grizzly_head", p, "iron")]
+    z_head, z_foot = hz + 1.0, fz + 1.0                      # from clear of the top tie to a voxel past their foot
+    out = [box([gx0 - 1.6, TIE_B_Y[1], POST_B[0] + 0.5], [gx1 + 1.6, griz_under(hz + 2.5) + 0.08, hz + 2.5], "grizzly_head", p, "iron")]
     gap = (gx1 - gx0 - GRIZ_BARS * GRIZ_BAR_W) / (GRIZ_BARS - 1)
     for k in range(GRIZ_BARS):
         x0 = gx0 + k * (GRIZ_BAR_W + gap)
@@ -1061,6 +1089,42 @@ def build_grizzly():
                      JAW_X[0] + 0.2, JAW_X[1] - 0.2, "grizzly_throat", p, "iron", t=t))
     lz0, lz1 = zb - 0.9, zb - 0.1
     out.append(box([JAW_X[0] + 0.3, JAW_TOP_Y - 0.5, lz0], [JAW_X[1] - 0.3, throat_under(lz0) + 0.05, lz1], "grizzly_lip", p, "iron"))
+    out += build_chute()
+    return out
+
+
+def chute_origin():
+    """The infeed cell's corner (build frame, voxels)."""
+    return [INFEED_CELL[k] * B for k in range(3)]
+
+
+def build_chute():
+    """The infeed's chute section: VANILLA_CHUTE's walls, cut to their last CHUTE_LEN along the chute (their UVs cropped
+    alike along it, on this model's 64 scale), turned to `ud` about the block's centre, in the infeed cell's top."""
+    p = "grizzly"
+    o = chute_origin()
+    k = TEX / 16
+    out = []
+    for name, lo, hi, faces in VANILLA_CHUTE:
+        a, b = B - CHUTE_LEN, B                              # along the chute (the game's x)
+        f0 = (a - lo[0]) / (hi[0] - lo[0])
+        el_lo, el_hi = [a, lo[1], lo[2]], [b, hi[1], hi[2]]
+        fs = {}
+        for d, (uv, rotation) in faces.items():
+            u0, v0, u1, v1 = uv
+            if d in ("north", "south", "up", "down"):          # faces whose horizontal runs along the chute: crop it
+                if rotation in (90, 270):
+                    v0 = v0 + (v1 - v0) * f0
+                else:
+                    u0 = u0 + (u1 - u0) * f0
+            face = {"texture": "#chute", "uv": [round(u0 * k, 4), round(v0 * k, 4), round(u1 * k, 4), round(v1 * k, 4)]}
+            if rotation:
+                face["rotation"] = rotation
+            fs[d] = face
+        c = [o[i] + (el_lo[i] + el_hi[i]) / 2 for i in range(3)]
+        el = El(f"grizzly_chute_{name.lower()}", [el_hi[i] - el_lo[i] for i in range(3)], c, [r[:] for r in IDENT], fs, p)
+        rotate([el], "z", 90.0, [o[0] + 8.0, o[1] + 8.0, o[2] + 8.0])
+        out.append(el)
     return out
 
 
@@ -1220,11 +1284,11 @@ CELL_ANCHORS = (("power", POWER_CELL, POWER_FACE), ("water", WATER_CELL, WATER_F
 
 
 def anchor_points():
-    """The anchors' points (build frame, voxels): the water flange's face, the feed box's mouth on its cell's top, the
-    grizzly's head on the top face, the launder spout's lip."""
+    """The anchors' points (build frame, voxels): the water line's inlet, the feed box's mouth on its cell's top, the
+    infeed chute's mouth (the infeed cell's top face's centre, on a vanilla chute's axis), the launder spout's lip."""
     return {"water": (0.0, WATER_Y, WATER_Z),
             "feed": (sum(FEED_X) / 2, FEED_CELL[1] * B + B, FEED_CELL[2] * B + 8.0),
-            "infeed": (sum(GRIZ_X) / 2, CELLS_Y * B, GRIZ_HEAD[0]),
+            "infeed": (INFEED_CELL[0] * B + 8.0, CELLS_Y * B, INFEED_CELL[2] * B + 8.0),
             "output": (sum(SPOUT_X) / 2, LAUNDER_Y[0] + PLANK, 0.0)}
 
 

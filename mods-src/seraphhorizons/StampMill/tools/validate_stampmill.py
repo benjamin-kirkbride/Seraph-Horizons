@@ -145,6 +145,7 @@ ALLOWED = [
     ("grizzly", r"_head", "frame", r"fr_tie_b"), ("grizzly", r"_bar", "grizzly", r"_head|_crossbar"),
     ("grizzly", r"_bracket", "jawframe", r"_side_|_hpost_|_hbearing"), ("grizzly", r"_throat|_lip", "jawframe", r"_frontwall|_fixedjaw|_side"),
     ("grizzly", r"_crossbar", "grizzly", r"_bracket"), ("grizzly", r"_lip", "grizzly", r"_throat"),
+    ("grizzly", r"_chute_", "grizzly", r"_chute_"),
 ]
 
 
@@ -234,6 +235,7 @@ def check_swept(v):
 
 
 TEX_RULES = [
+    (r"^grizzly_chute_", "chute"),
     (r"^(fr_(sill|cap|post|rail|tie|guide)|entry_shaft[ab]|mortar_block|camshaft_bull_(rim|arm)|jawframe_(sill|post))", "oak"),
     (r"^(mortar_(launder|spout|feed))", "planks"),
     (r"^(fr_(gearcase|ped|waterbracket)|mortar_(floor|front|back|end|apron)|camframe_pillow|camshaft_(hub|cam|bull_hub)|linepulley|jawpulley|"
@@ -261,7 +263,7 @@ def check_textures(v):
         else:
             unruled.append(el.name)
     print(f"textures: {len(TEX_RULES)} rules (oak timber, planks for the launder and the feed box, iron castings, steel shafts and "
-          f"wearing parts, the water line's copper or lead, a mesh screen, leather belts, rubber buffers): {len(bad)} break them, {len(unruled)} have no rule")
+          f"wearing parts, the water line's copper or lead, the game's chute, a mesh screen, leather belts, rubber buffers): {len(bad)} break them, {len(unruled)} have no rule")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")
     if unruled:
@@ -299,16 +301,69 @@ def check_anchors(v):
     floor = aabb_of(v.named("mortar", r"_feed_floor"))
     infeed = [c * 16 for c in rig["infeed"]["pos"]]
     head = aabb_of(v.named("grizzly", r"_head"))
+    chute = aabb_of(v.named("grizzly", r"_chute_"))
     checks = [("the water line's inlet reaches the water face, on the anchor's axis", abs(inlet[0][0] - water[0]) < 0.01
                and abs((inlet[0][1] + inlet[1][1]) / 2 - water[1]) < 0.01 and abs((inlet[0][2] + inlet[1][2]) / 2 - water[2]) < 0.01),
               ("the launder's spout runs out to the output face under the anchor", spout[0][2] <= 0.01 and spout[0][0] < out[0] < spout[1][0]
                and abs(spout[1][1] - out[1]) < 0.01),
               ("the feed anchor is over the feed box's floor", floor[0][0] < feed[0] < floor[1][0] and floor[0][2] < feed[2] < floor[1][2]),
-              ("the infeed anchor is over the grizzly's head", head[0][0] < infeed[0] < head[1][0] and head[0][2] - 1.5 < infeed[2] < head[1][2])]
+              ("the infeed anchor is on the chute's axis, at its mouth, over the grizzly's head", abs((chute[0][0] + chute[1][0]) / 2 - infeed[0]) < 1e-6
+               and abs((chute[0][2] + chute[1][2]) / 2 - infeed[2]) < 1e-6 and abs(chute[1][1] - infeed[1]) < 1e-6
+               and head[0][0] < infeed[0] < head[1][0])]
     for label, good in checks:
         print(f"anchors: {label}: {good}")
         if not good:
             v.fail(label)
+
+
+def game_chute():
+    """The game's straight chute (shapes/block/metal/chute/straight.json) when the game is installed, else None."""
+    import json
+    import os
+    from pathlib import Path
+    for root in (os.environ.get("VINTAGE_STORY"), str(Path.home() / "Games" / "vintagestory")):
+        if root:
+            f = Path(root) / "assets" / "survival" / "shapes" / "block" / "metal" / "chute" / "straight.json"
+            if f.exists():
+                return json.loads(f.read_text())
+    return None
+
+
+def check_chute(v):
+    """The chute-fed infeed is the game's chute section: VANILLA_CHUTE is the game's straight chute (when the game is
+    installed: every wall's from, to, UVs, rotations and drawn faces), and at the infeed cell's top face the section's
+    profile is a vanilla `chute-straight-ud`'s in that cell (walls 1 thick round a 6 x 6 bore, 4..12 in the block),
+    flush with the face, in the chute's texture, so a vanilla chute placed on the face meets it with no gap or step."""
+    m = v.m
+    data = game_chute()
+    if data is None:
+        print("chute: the game is not installed here; VANILLA_CHUTE not compared with its file")
+    else:
+        got = []
+        for e in data["elements"]:
+            faces = {d: (tuple(f["uv"]), f.get("rotation", 0)) for d, f in e["faces"].items() if f.get("enabled", True)}
+            got.append((e["name"], tuple(e["from"]), tuple(e["to"]), faces))
+        want = [(n, tuple(lo), tuple(hi), {d: (tuple(uv), r) for d, (uv, r) in fs.items()}) for n, lo, hi, fs in m.VANILLA_CHUTE]
+        same = got == want and data.get("textures") == {"copper1": "block/metal/sheet/copper1"}
+        print(f"chute: VANILLA_CHUTE is the game's straight chute (from, to, UVs, rotations, drawn faces, texture): {same}")
+        if not same:
+            v.fail("VANILLA_CHUTE is not the game's straight chute")
+    # the profile at the face: the vanilla ud chute's walls in the infeed cell
+    o = m.chute_origin()
+    want = sorted([(o[0] + 4.0, o[0] + 12.0, o[2] + 4.0, o[2] + 5.0), (o[0] + 4.0, o[0] + 12.0, o[2] + 11.0, o[2] + 12.0),
+                   (o[0] + 4.0, o[0] + 5.0, o[2] + 5.0, o[2] + 11.0), (o[0] + 11.0, o[0] + 12.0, o[2] + 5.0, o[2] + 11.0)])
+    walls = v.named("grizzly", r"_chute_")
+    got, top, tex = [], [], set()
+    for e in walls:
+        lo, hi = e.aabb()
+        got.append((round(lo[0], 6), round(hi[0], 6), round(lo[2], 6), round(hi[2], 6)))
+        top.append(hi[1])
+        tex |= {f["texture"] for f in e.faces.values()}
+    face_y = (m.INFEED_CELL[1] + 1) * 16
+    ok = sorted(got) == want and all(abs(t - face_y) < 1e-6 for t in top) and tex == {"#chute"} and m.TEXTURES["chute"] == "game:block/metal/sheet/copper1"
+    print(f"chute: the infeed section's profile at the top face is a vanilla ud chute's in its cell, flush, in the chute's texture: {ok}")
+    if not ok:
+        v.fail(f"the infeed chute does not meet a vanilla chute: walls {sorted(got)}, want {want}, tops {top}, textures {tex}")
 
 
 def check_paths(v):
@@ -566,6 +621,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v, poses)
     check_anchors(v)
     check_paths(v)
+    check_chute(v)
     check_textures(v)
     check_drive(v)
     check_stamps(v)

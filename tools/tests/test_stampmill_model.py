@@ -113,6 +113,16 @@ class Rig(unittest.TestCase):
                     self.assertTrue(cell[k] - 1e-6 <= pos[k] <= cell[k] + 1 + 1e-6, name)
         self.assertEqual([RIG[f"{n}Face"] for n in ("power", "water", "feed", "infeed", "output")], ["east", "west", "up", "up", "north"])
 
+    def test_the_infeed_is_a_vanilla_chute_section_on_its_cells_axis(self):
+        # the infeed point is the middle of its cell's top face, where a vanilla chute-straight-ud's axis meets it
+        cell, pos = RIG["infeedCell"], RIG["infeed"]["pos"]
+        self.assertEqual(pos, [cell[0] + 0.5, cell[1] + 1.0, cell[2] + 0.5])
+        walls = [e for e in SHAPE["elements"] if e["name"].startswith("grizzly_chute_")]
+        self.assertEqual(len(walls), 4)
+        self.assertEqual(SHAPE["textures"]["chute"], "game:block/metal/sheet/copper1")
+        for e in walls:
+            self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#chute"})
+
 
 class Drive(unittest.TestCase):
     def test_the_line_shaft_turns_one_way_whichever_way_the_axle_turns(self):

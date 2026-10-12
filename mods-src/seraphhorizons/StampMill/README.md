@@ -8,7 +8,7 @@ mill level's from the start, and the parts each level fits into it. A level adds
 |---|---|---|---|
 | (frame) | | none | The battery's end frames, guide girts and ties; the gear case at the power cell and the line shaft |
 | 1 | water | `mortar`, `camshaft`, `stamps`, and `pipecopper` or `pipelead` | A five-stamp battery, wet: the mortar with its mesh discharge screen, apron and launder; the feed box the player shovels ore into; the camshaft and its belt drive; five stamps; the water line into the feed box, ppex's straight pipe soldered in copper or lead |
-| 2 | mill | adds `jaw`, `grizzly` | A Blake jaw rock breaker behind the battery, on its own stand, belted from the same line shaft; a grizzly over its mouth, chute-fed from the top |
+| 2 | mill | adds `jaw`, `grizzly` | A Blake jaw rock breaker behind the battery, on its own stand, belted from the same line shaft; a grizzly over its mouth, fed through a section of the game's own chute in the top face |
 
 **Status: the model only.** This folder holds the generator (`tools/`); there is no block, block entity or renderer
 yet (#728, #711). Paths here are from this folder unless they start with `assets/` or `tests/` (the mod's), or
@@ -32,7 +32,7 @@ the ore runs north, from the breaker (south) into the battery and out of its scr
 | `powerCell`, `powerFace` | `[1, 0, 2]`, east | the face's centre | The vanilla axle, into the gear case |
 | `waterCell`, `waterFace`, `water` | `[-1, 1, 2]`, west | `[-1.0, 1.5, 2.5]`, the water line's inlet | Process water, from a ppex pipe on the west face, through the water line into the feed box (level 1 on) |
 | `feedCell`, `feedFace`, `feed` | `[0, 1, 1]`, up | `[0.5, 2.0, 1.5]`, over the feed box | Ore the player shovels in (level 1); at level 2 the grizzly and the breaker feed it |
-| `infeedCell`, `infeedFace`, `infeed` | `[0, 3, 1]`, up | `[0.5, 4.0, 1.3125]`, over the grizzly's head | Ore by chute from above (level 2) |
+| `infeedCell`, `infeedFace`, `infeed` | `[0, 3, 1]`, up | `[0.5, 4.0, 1.5]`, the chute section's mouth | Ore by the game's chute from above (level 2): a vanilla `chute-straight-ud` placed on this face carries straight on into the machine's own chute section |
 | `outputCell`, `outputFace`, `output` | `[0, 0, 0]`, north | `[0.5, 0.2875, 0.0]`, the spout's lip | The crushed, classified ore (pulp) out of the launder |
 
 **Power.** The vanilla axle comes in on the east face of `[1, 0, 2]` into a cast-iron **gear case** holding a
@@ -70,8 +70,8 @@ buffers. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/stampmill.json` | The whole machine, every level's parts and the water line in both metals (510 elements; drawn: 34 with nothing fitted, 297 at level 1, 474 at level 2) |
-| `assets/seraphhorizons/shapes/block/stampmill_frame.json` | The frame only (28 elements). A block would draw it and the inventory show it. |
+| `assets/seraphhorizons/shapes/block/stampmill.json` | The whole machine, every level's parts and the water line in both metals (515 elements; drawn: 35 with nothing fitted, 298 at level 1, 479 at level 2) |
+| `assets/seraphhorizons/shapes/block/stampmill_frame.json` | The frame only (29 elements). A block would draw it and the inventory show it. |
 | `assets/seraphhorizons/config/stampmill-rig.json` | Footprint (cells with the frame's boxes and each level's fitted boxes), anchors, the battery's and the breaker's figures, the levels and the part rig (25 parts) |
 | `tests/StampMill/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths |
 
@@ -82,8 +82,8 @@ corner, x 0..48, y 0..64, z 0..64. The shipped files are the build frame moved o
 
 **The frame.** Two oak end frames (west x 3.5..7.5, east x 40.5..44.5), each a sill, a front and a back post, a cap
 and three rails between the posts: the lower guide rail, the cam rail and the upper guide rail. Across them, the two
-guide girts (each two strips, the stems running in the slot between them), a front tie at the caps and a back tie
-under them, which carries the grizzly's head at level 2.
+guide girts (each two strips, the stems running in the slot between them), a front tie and a top tie at the caps, and a
+back tie under them, which carries the grizzly's head at level 2; the infeed's chute section is bolted to the top tie.
 
 **Level 1, the battery.** Five stamps on a line along x (z 16, x 12.4 to 35.6, 5.8 apart), each a steel shoe, an
 iron head, a steel stem through the two guide girts and a square iron tappet. They stand in a cast-iron **mortar
@@ -132,8 +132,19 @@ at each end of the eccentric shaft; the east one is the belt pulley (radius 8), 
 pulley (6): the eccentric turns three quarters of the axle's pace. Its product falls out of the gap onto the feed
 box's floor, which is the chute down into the mortar.
 
-The **grizzly**: five iron bars falling 42° from a head block on the back tie (under the infeed) to their foot over the
-breaker's mouth, where they rest on a cross bar on two brackets on the cheeks. Ore from the chute lands on the head;
+The **infeed** is the game's own chute: the machine's last section of it is the vanilla straight chute
+(`shapes/block/metal/chute/straight.json`), its four walls turned upright as the game turns a `chute-straight-ud`
+(`rotateZ` 90 about the block's centre) and cut to the top 3 voxels of the infeed cell, their UVs cropped alike along
+the chute: 8 across, walls 1 thick round a 6 × 6 bore, in the middle of the block (4..12), flush with the top face, in
+the chute's texture. A vanilla chute placed on the infeed face lines up with it, with no gap or step. Its texture is
+the game's chute's, `game:block/metal/sheet/copper1`: the pack's `patches/unifiedpipes-chutesection.json` adds lead to
+the chute *section* item only (chutes are still made from copper sections), and no patch or mod in the pack changes the
+chute block's texture, so a placed chute shows copper. The generator holds the section as data (`VANILLA_CHUTE`, the
+game's, not another mod's), and a check compares it with the game's file when the game is installed.
+
+The **grizzly**: five iron bars falling 40° from a head block on the back tie (under the infeed chute) to their foot
+over the breaker's mouth, where they rest on a cross bar on two brackets on the cheeks. Ore from the chute lands on the
+head;
 the fines fall between the bars into the feed box, and the oversize slides off the bars' foot into the breaker. Under
 the bars, over the breaker's front wall, a **throat plate** falling 40° north sheds the fines that land there past the
 wall's face into the feed box.
@@ -194,7 +205,10 @@ that set parts against each other run per build state: the frame; level 1; level
 - **Nothing floats:** the frame one piece from the ground, and each build state at rest.
 - **Containment:** nothing leaves the 3 × 4 × 4 box over nine poses.
 - **Anchors:** the entry shaft meets the power face at the cell's centre; every anchor's point on its cell's face, at
-  the thing it names (the flange, the feed box, the grizzly's head, the spout).
+  the thing it names (the water line's inlet, the feed box, the chute's mouth over the grizzly's head, the spout).
+- **Infeed chute:** `VANILLA_CHUTE` is the game's straight chute (from, to, UVs, rotations, drawn faces, texture), read
+  from `$VINTAGE_STORY` or `~/Games/vintagestory` when the game is there; at the infeed face the section's profile is a
+  vanilla `ud` chute's in that cell, flush with the face, in the chute's texture.
 - **Paths:** the grizzly's bars fall at least 40° and stand at least 1 apart, their foot over the breaker's mouth; the
   throat plate falls at least 38° and ends past the front wall's face; the breaker's discharge falls on the feed
   box's floor, which falls at least 35° to the feed lip; the apron starts under the screen and ends over the launder.
@@ -298,7 +312,8 @@ one has yet looked at it in a client.
 2. **The fitting order within each level** (three `requires` at level 1, two at level 2) and the items each takes.
 3. **The closed gear case** for the rectifier, rather than drawn gears.
 4. **The feed at level 2.** The player can still shovel into the feed box from above, between the battery and the
-   breaker; the chute's infeed is the grizzly's head on the top face. Should the feed box take ore by hand at level 2?
+   breaker; the chute's infeed is the vanilla chute section on the top face, over the grizzly's head. Should the feed
+   box take ore by hand at level 2?
 5. **Size.** The battery stands four blocks tall; a real five-stamp battery is about six. The stamps are 5.8 voxels
    apart (about 36 cm), with a 4 voxel (25 cm) lift.
 6. **Lids.** The battery's columns have a deck at the top; the breaker's do not (a lid there would be an invisible
