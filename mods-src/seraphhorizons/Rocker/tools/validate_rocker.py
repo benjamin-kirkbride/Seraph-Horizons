@@ -103,15 +103,12 @@ def check_containment(v, thetas):
 
 
 def check_floating(v):
-    """The sills stand on the ground; everything that rocks hangs together on the rockers."""
+    """Nothing stands still; everything hangs together on the rockers, which stand on the ground."""
     m = v.m
-    fixed = v.by_part["frame"]
-    seen, loose = frame_floating(fixed)
-    print(f"fixed: {len(seen)} elements of the sills on the ground, {len(loose)} not")
-    if loose:
-        v.fail(f"fixed elements float: {loose[:8]}")
+    if m.STATIC or any(p["ride"] is None and not p["drivers"] for p in v.parts):
+        v.fail("something of the rocker stands still; the whole of it rocks on the ground")
     rocking = [e for pid in m.MOVING for e in v.posed(pid, m.REST)]
-    seen, loose = frame_floating(rocking, ground=m.SILL_TOP + 1e-6)
+    seen, loose = frame_floating(rocking, ground=m.GROUND + 1e-6)
     print(f"rocking: {len(seen)} elements joined to the rockers' running faces, {len(loose)} not")
     if loose:
         v.fail(f"rocking elements float: {loose[:8]}")
@@ -125,7 +122,6 @@ ROLES = [
     (r"^water_", {"water"}),
     (r"^charge_", {"charge"}),
     (r"^conc_", {"concentrate"}),
-    (r"^fr_sill", {"oak"}),
 ]
 
 
@@ -186,10 +182,10 @@ def check_rock(v):
 
 
 def check_rolling(v):
-    """The rockers roll on the sills without slipping: the running faces' corners lie on their circle about the
-    rocking axis; as it rocks that axis stays at its height and moves south by the radius times the angle; each
-    rocker's lowest point is on its sill (never below its top, never more than a facet's sagitta above it), over
-    the sill's length."""
+    """The rockers roll on the ground (the top of the block below) without slipping: the running faces' corners
+    lie on their circle about the rocking axis; as it rocks that axis stays at its height and moves south by the
+    radius times the angle; each rocker's lowest point is on the ground (never below it, never more than a
+    facet's sagitta above it), inside the cell."""
     m = v.m
     angles = m.facet_angles()
     radial = 0.0
@@ -201,27 +197,49 @@ def check_rolling(v):
             for p in lo_face[:4]:
                 radial = max(radial, abs(math.hypot(p[1] - m.AXIS_Y, p[2] - m.AXIS_Z) - m.ROCKER_R))
     sag = m.facet_gap()
-    worst_axis, worst_low, worst_high, off_sill = 0.0, 1e9, -1e9, []
+    worst_axis, worst_low, worst_high, off_cell = 0.0, 1e9, -1e9, []
     for th in m.sample_thetas(1.0):
         a = math.radians(angle_x(v.mat("cradle", th)))
         c = v.point("cradle", th, [8.0, m.AXIS_Y, m.AXIS_Z])
         worst_axis = max(worst_axis, abs(c[1] - m.AXIS_Y), abs(c[2] - (m.AXIS_Z + m.ROCKER_R * a)))
         for name, xr in (("foot", m.ROCKER_X[0]), ("head", m.ROCKER_X[1])):
             low = min((p for f in v.named("cradle", rf"_rocker_{name}_facet", th) for p in f.corners()), key=lambda p: p[1])
-            gap = low[1] - m.SILL_TOP
+            gap = low[1] - m.GROUND
             worst_low, worst_high = min(worst_low, gap), max(worst_high, gap)
-            if not (m.SILL_Z[0] < low[2] < m.SILL_Z[1] and abs(low[0] - xr) < m.SILL_HALF_X):
-                off_sill.append((name, round(th, 3)))
+            if not (1.0 < low[2] < 15.0 and abs(low[0] - xr) < m.ROCKER_T):
+                off_cell.append((name, round(th, 3)))
     print(f"rolling: running-face corners on their circle within {radial:.1e}; the rocking axis at its height and "
-          f"{m.ROCKER_R:g} x the angle south within {worst_axis:.1e}; rockers {worst_low:.4f}..{worst_high:.4f} over their "
-          f"sills (a facet's sagitta {sag:.4f}); the rock's travel {m.ROCKER_R * m.ROCK_DEG * m.DEG:.2f} each way, "
+          f"{m.ROCKER_R:g} x the angle south within {worst_axis:.1e}; rockers {worst_low:.4f}..{worst_high:.4f} over the "
+          f"ground (a facet's sagitta {sag:.4f}); the rock's travel {m.ROCKER_R * m.ROCK_DEG * m.DEG:.2f} each way, "
           f"{len(angles) - 1} facets")
     if radial > 1e-6 or worst_axis > 1e-4:
         v.fail("the rockers do not roll on their circle")
     if worst_low < -1e-6 or worst_high > sag + 1e-6:
-        v.fail("a rocker sinks into its sill or lifts off it")
-    if off_sill:
-        v.fail(f"a rocker leaves its sill: {off_sill[:4]}")
+        v.fail("a rocker sinks into the ground or lifts off it")
+    if off_cell:
+        v.fail(f"a rocker's contact leaves the cell: {off_cell[:4]}")
+
+
+GROUND_CLEAR = 1.0                           # voxels: only the rockers may come nearer the ground than this
+
+
+def check_ground(v, thetas):
+    """Over the rock nothing goes below the ground, and nothing but the rockers comes near it."""
+    m = v.m
+    low, near = 1e9, set()
+    for th in thetas:
+        for pid in v.by_part:
+            for e in v.posed(pid, th):
+                y = e.aabb()[0][1]
+                low = min(low, y - m.GROUND)
+                if y - m.GROUND < GROUND_CLEAR and not re.match(r"^cradle_rocker_\w+_(facet\d|bar)$", e.name):
+                    near.add(e.name)
+    print(f"ground over {len(thetas)} poses of the rock: lowest {low:.4f} over it; nothing but the rockers within "
+          f"{GROUND_CLEAR:g} of it: {'yes' if not near else sorted(near)}")
+    if low < -1e-6:
+        v.fail("something of the rocker goes into the ground")
+    if near:
+        v.fail(f"more than the rockers comes down to the ground: {sorted(near)[:4]}")
 
 
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way
@@ -332,8 +350,8 @@ def check_foot(v):
 
 def check_water(v):
     """Its only water is poured into the hopper from the bucket the player holds while rocking it: the rig has no
-    water cell or face, no spout and no part for a pipe or a stream; nothing fixed stands over the sills (the
-    sills are the only fixed part); the hopper is open to the sky, nothing of the rocker over its riddle plate
+    water cell or face, no spout and no part for a pipe or a stream; nothing fixed stands beside it (nothing of it
+    is fixed at all); the hopper is open to the sky, nothing of the rocker over its riddle plate
     at any point of the rock; and the points that ride name a part the rig has."""
     m = v.m
     rig = v.rig
@@ -342,8 +360,8 @@ def check_water(v):
     plumbing += [p["id"] for p in v.parts if p["id"] in ("spout", "stream") or p["requires"] in ("spout", "stream")]
     if plumbing:
         v.fail(f"the rocker takes water only by bucket, but the rig declares {plumbing}")
-    if set(m.STATIC) != {"frame"} or max(e.aabb()[1][1] for e in v.by_part["frame"]) > m.SILL_TOP + 1e-9:
-        v.fail("something fixed stands beside the rocker besides its sills")
+    if m.STATIC:
+        v.fail("something fixed stands beside the rocker")
     (x0, x1), (z0, z1), ry = m.riddle_box()
     over = set()
     for th in m.sample_thetas(10.0):
@@ -363,7 +381,7 @@ def check_water(v):
         part = rig[key].get("part")
         if part is not None and part not in ids:
             v.fail(f"the {key} point rides {part}, which is no part")
-    print(f"water: by bucket only (no water cell, face, spout or stream in the rig); the sills the only fixed part; the "
+    print(f"water: by bucket only (no water cell, face, spout or stream in the rig); nothing fixed; the "
           f"hopper open to the sky over the rock: {'yes' if not over else sorted(over)}; hopper {rig['hopper']['pos']}, "
           f"outflow {rig['outflow']['pos']}, concentrate {rig['concentrate']['pos']}")
     if over:
@@ -449,17 +467,15 @@ def validate(m, els, parts, rig, quick=False):
     check_water(v)
     check_level_water(v)
     check_clearances(v, [m.REST, math.pi / 2, 3 * math.pi / 2], "clearances, every part", lambda a, b: True)
-    moving, fixed = set(m.MOVING), set(m.STATIC)
-    sweep = (lambda a, b: (a in moving) != (b in moving))
     if not quick:
-        check_clearances(v, m.sample_thetas(2.0), "swept rock (every 2 degrees of theta), rocking against fixed", sweep)
+        check_ground(v, m.sample_thetas(2.0))
         check_zfight(v)
     return v.ok
 
 
-def validate_files(m, shape, frame_shape, item_shape, ship):
+def validate_files(m, shape, item_shape, ship):
     ok = True
-    for s in (shape, frame_shape, item_shape):
+    for s in (shape, item_shape):
         used = {f["texture"].lstrip("#") for e in s["elements"] for f in e["faces"].values()}
         missing = used - set(s["textures"])
         if missing:
@@ -467,11 +483,7 @@ def validate_files(m, shape, frame_shape, item_shape, ship):
             ok = False
     parts = ship["parts"]
     of = {e["name"]: part_of(parts, e["name"]) for e in shape["elements"]}
-    frame = {e["name"] for e in frame_shape["elements"]}
     item = {e["name"] for e in item_shape["elements"]}
-    if frame != {n for n, p in of.items() if p in m.STATIC}:
-        print("FAIL the frame shape is not the fixed parts")
-        ok = False
     if item != {n for n, p in of.items() if p not in m.STATES}:
         print("FAIL the item shape is not the rocker dry and empty")
         ok = False
@@ -480,8 +492,8 @@ def validate_files(m, shape, frame_shape, item_shape, ship):
     counts = {}
     for p in of.values():
         counts[p] = counts.get(p, 0) + 1
-    print(f"files: {len(shape['elements'])} elements ({', '.join(f'{k} {n}' for k, n in counts.items())}), frame "
-          f"{len(frame_shape['elements'])}, item {len(item_shape['elements'])}; {len(ship['cells'])} cells, {hollow} hollow; "
+    print(f"files: {len(shape['elements'])} elements ({', '.join(f'{k} {n}' for k, n in counts.items())}), item "
+          f"{len(item_shape['elements'])}; {len(ship['cells'])} cells, {hollow} hollow; "
           f"lids over every column: {'yes' if not gaps else gaps}; operator {ship.get('operatorSide')}")
     if ship.get("operatorSide") != "north":
         print("FAIL the operator stands on the north side, at the handle")

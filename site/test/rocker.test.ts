@@ -7,7 +7,7 @@ import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rigIn
 // The rocker's shipped files, and the poses Rocker/tools/make_shape.py computes from them with machinegen's
 // reference maths. Its rig reads θ alone, the rocking (the hold-to-work clock): the cradle swings about its
 // rocking axis and slides as its rockers roll, the load rides it, the water rides it but swings back so it
-// stays level, and the sills stand still. It takes water by bucket only: no water cell, no spout. A hand
+// stays level, and nothing stands still: the rockers roll on the block below. It takes water by bucket only: no water cell, no spout. A hand
 // station, it has no build stages: its only requires are the three states. tools/tests/test_rocker_model.py
 // replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
@@ -51,14 +51,14 @@ describe("the rocker's rig against its rig-reference.json", () => {
     expect(worst).toBeLessThanOrEqual(1e-6 + 1e-12);
   });
 
-  it("rocks the load with the cradle, keeps the water level and leaves the sills still", () => {
+  it("rocks the load with the cradle and keeps the water level, with nothing standing still", () => {
     const ms = partMatrices(parts, at(1.1), order, null);
     const cradle = ms[parts.findIndex((p) => p.id === "cradle")]!;
     parts.forEach((p, i) => {
       if (p.ride === "cradle" && p.id !== "water") ms[i]!.forEach((v, j) => expect(Math.abs(v - cradle[j]!)).toBeLessThan(1e-12));
       if (p.ride == null && p.id !== "cradle") ms[i]!.forEach((v, j) => expect(Math.abs(v - (j % 5 === 0 ? 1 : 0))).toBeLessThan(1e-12));
     });
-    expect(parts.filter((p) => p.ride == null).map((p) => p.id)).toEqual(["cradle", "frame"]);
+    expect(parts.filter((p) => p.ride == null).map((p) => p.id)).toEqual(["cradle"]);
     // the water: no turn at all, column-major 3x3 the identity, though the cradle under it leans
     const water = ms[parts.findIndex((p) => p.id === "water")]!;
     for (const j of [0, 1, 2, 4, 5, 6, 8, 9, 10]) expect(Math.abs(water[j]! - (j % 5 === 0 ? 1 : 0))).toBeLessThan(1e-12);

@@ -52,9 +52,9 @@ hopper they pour into; the **tailings** leave over the foot into the cell west o
 | Key | Where | For |
 |---|---|---|
 | `operatorSide` | `north` | Where the player stands to rock it, at the handle. |
-| `hopper` (`part` `cradle`) | `[0.6846, 0.7006, 0.5]` | The middle of the riddle plate's top, riding the cradle: where a charge goes in and the bucket is poured (sounds, the pour's particles). |
-| `outflow` (`part` `cradle`) | `[0.0693, 0.3186, 0.5]` | The middle of the floor's lip at the open foot, riding the cradle: where water and tailings leave (splash particles). |
-| `concentrate` (`part` `cradle`) | `[0.4158, 0.3867, 0.5]` | On the concentrate behind the upper riffle, riding the cradle: where the player takes the concentrate out. |
+| `hopper` (`part` `cradle`) | `[0.6846, 0.6225, 0.5]` | The middle of the riddle plate's top, riding the cradle: where a charge goes in and the bucket is poured (sounds, the pour's particles). |
+| `outflow` (`part` `cradle`) | `[0.0693, 0.2404, 0.5]` | The middle of the floor's lip at the open foot, riding the cradle: where water and tailings leave (splash particles). |
+| `concentrate` (`part` `cradle`) | `[0.4158, 0.3086, 0.5]` | On the concentrate behind the upper riffle, riding the cradle: where the player takes the concentrate out. |
 | `tailings`, `tailingsSide` | `[-0.5, 0, 0.5]`, `west` | On the ground in the cell west of the rocker, beyond the open foot: where the tailings land (vanilla layered gravel or sand, #694). |
 | `rock` | `degrees` 10, `radius` 0.625 | The rock as drawn (not an anchor; the viewer lists it as not drawn). |
 
@@ -63,8 +63,9 @@ There is no `powerCell` or `powerFace`, no water cell or face (nothing connects 
 out by hand at the riffles.
 
 **Parts** (the rig's parts). With `requires` null, always drawn: the **cradle** (the box: floor, sides,
-head board; the two rockers; the riffles; the apron; the hopper and its riddle plate; the handle), and the
-**frame** (the two sills). Then the three states:
+head board; the two rockers; the riffles; the apron; the hopper and its riddle plate; the handle). There is
+no frame: the rockers stand on the ground, the top of the block below, and nothing of the rocker stands
+still. Then the three states:
 
 | `requires` | Part | Draws |
 |---|---|---|
@@ -90,10 +91,12 @@ for the renderer to replace with the material's. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/rocker.json` | The whole rocker, every part and state (32 elements: the cradle 25, water 1, charge 2, concentrate 2, the sills 2). The renderer splits it into parts by element name. |
-| `assets/seraphhorizons/shapes/block/rocker_frame.json` | The static frame only: the two sills (2 elements). The block draws it; everything else rocks. |
-| `assets/seraphhorizons/shapes/block/rocker_item.json` | The rocker at rest, dry and empty: the cradle and the sills (27 elements), for the item in hand, on the ground and in the handbook. |
-| `assets/seraphhorizons/config/rocker-rig.json` | The cell, the anchors, the rock's figures and the part rig (5 parts). |
+| `assets/seraphhorizons/shapes/block/rocker.json` | The whole rocker, every part and state (30 elements: the cradle 25, water 1, charge 2, concentrate 2). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/rocker_item.json` | The rocker at rest, dry and empty: the cradle (25 elements), for the item in hand, on the ground and in the handbook. |
+| `assets/seraphhorizons/config/rocker-rig.json` | The cell, the anchors, the rock's figures and the part rig (4 parts). |
+
+There is no frame shape (`rocker_frame.json`, which the other machines' blocks draw): with the sills gone,
+nothing of the rocker stands still, so a frame shape would be empty.
 | `tests/Rocker/rig-reference.json` | Every part's matrix at 14 values of θ, from the reference maths. |
 
 ### How it works
@@ -103,11 +106,11 @@ south) in voxels from the cell's north-west bottom corner, so the shipped files 
 by 16. The parts are chunky on purpose, to read at block scale: none is much under a voxel thick (the
 apron's hidden rails are 0.8 square, the concentrate 0.75 deep).
 
-**The sills and the rockers.** Two oak sills lie on the ground across the box (z 2.5..13.5, 1.25 high),
-under the rockers at x 2.6 (the foot's) and 12.2 (the head's). Each rocker is an oak top bar under the
-floor and a running face of four chords inscribed in a circle of radius 10 about the **rocking axis** (y
-11.25, z 8, along x), one corner at the bottom resting on the sill. The rockers stand upright under the
-tilted box, so the head's is the taller.
+**The rockers.** Two oak rockers cross the box at x 2.6 (the foot's) and 12.2 (the head's) and stand on
+the ground, the top of the block below (y 0): there are no sills. Each is an oak top bar under the floor and
+a running face of four chords inscribed in a circle of radius 10 about the **rocking axis** (y 10, z 8,
+along x), one corner at the bottom resting on the ground. The rockers stand upright under the tilted box,
+so the head's is the taller.
 
 **The cradle.** The box is built level and tilted 3.5 degrees about z, so its floor falls to the foot: an
 oak floor 1.5 thick between two oak sides a voxel thick (4.5 over the floor) and a head board, x 1.2..15.4,
@@ -119,15 +122,14 @@ through the riddle and drops it on the floor's head, where the water carries it 
 hopper stands on the sides over the head half (x 7.4..15.4, its walls a voxel thick and 2.5 high, flush
 with the box's sides); its iron riddle plate, a voxel thick, lies between its walls at their foot, open to
 the sky so the bucket can be poured on it. The handle is an oak stick a voxel square against the north
-side and the hopper's north wall, x 10.4..11.4, up to y 14.5 (a standing player's hand); it is built
+side and the hopper's north wall, x 10.4..11.4, up to y 13.25 (a standing player's hand); it is built
 upright and rides the cradle, so it leans with the rock.
 
 **The rock.** θ is the hold-to-work clock, one rock a turn. The cradle swings about the rocking axis by 10
-sin θ degrees and slides south by the rockers' radius times that angle, so the rockers roll on the sills
-without slipping: the running faces' centre stays on its line at y 11.25 and moves 1.75 each way along z,
-and each rocker's lowest point stays on its sill. It leans south at θ = π/2 and north (towards the
-operator) at 3π/2, and is level at 0 and π. Everything that rocks rides the cradle; only the sills stand
-still.
+sin θ degrees and slides south by the rockers' radius times that angle, so the rockers roll on the ground
+without slipping: the running faces' centre stays on its line at y 10 and moves 1.75 each way along z, and
+each rocker's lowest point stays on the ground. It leans south at θ = π/2 and north (towards the operator)
+at 3π/2, and is level at 0 and π. Everything rides the cradle; nothing stands still.
 
 **The water.** Only from the bucket in the player's hand, poured slowly into the hopper while it is rocked;
 nothing connects to the rocker and nothing stands beside it. Only the water in the rocker is modelled (the
@@ -151,17 +153,16 @@ Every moving part (θ the rock):
 | Cradle: box, rockers, riffles, apron, hopper, riddle plate, handle (`cradle`) | The operator's hand on the handle | Everything that rides it | `swing` x about the rocking axis, amplitude 10°, ratio 1 on θ; `slide` z, amplitude 0.109 blocks (the radius times the swing's angle), ratio 1 on θ |
 | Water (`water`) [water] | Carried in the cradle | — | `swing` x about the sheet's middle, amplitude −10°, ratio 1 on θ, then rides the cradle: level, carried |
 | Charge (`charge`) [charge], concentrate (`concentrate`) [concentrate] | In the cradle | — | Ride the cradle |
-| Sills (`frame`) | Fixed | — | none |
 
 There are no gears or shafts. The rock's visible cause is the operator's hand on the handle, which is
-fixed to the box; the box rolls on its rockers, which roll on the sills.
+fixed to the box; the box rolls on its rockers, which roll on the ground.
 
 ### Regenerating
 
 ```sh
-python3 mods-src/seraphhorizons/Rocker/tools/make_shape.py              # stdlib only; rewrites the five files
+python3 mods-src/seraphhorizons/Rocker/tools/make_shape.py              # stdlib only; rewrites the four files
 python3 mods-src/seraphhorizons/Rocker/tools/make_shape.py --out DIR    # or writes them into DIR
-python3 mods-src/seraphhorizons/Rocker/tools/make_shape.py --quick      # skips the z-fighting fix and the swept rock (not for files that ship)
+python3 mods-src/seraphhorizons/Rocker/tools/make_shape.py --quick      # skips the z-fighting fix and the ground check (not for files that ship)
 ```
 
 A full run takes about 2 s. `tools/validate_rocker.py` holds the checks. Every run checks its output and
@@ -169,24 +170,23 @@ exits non-zero if one fails:
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty
   part; everything that rocks rides the cradle, the charge and concentrate with no drivers of their own and
-  the water with its one swing back; the sills have no ride and no driver.
-- **Nothing floats:** the sills on the ground; everything that rocks joined to the rockers' running faces
-  at rest.
+  the water with its one swing back; no part stands still.
+- **Nothing floats:** everything joined to the rockers' running faces, which stand on the ground, at rest.
 - **Textures** by role: oak timber, the canvas on the apron only, the riddle plate's iron, water, charge and
   concentrate; the water in the Transparent pass.
 - **Containment:** nothing leaves the cell over the rock (every 5 degrees of θ).
 - **Rock:** level at 0 and π, 10 degrees south at π/2 and north at 3π/2; the charge and concentrate move
   exactly as the cradle, the water never turns and is carried as its pivot on the cradle is (the pivot the
-  generator's), and the sills stand still.
+  generator's).
 - **Rolling:** the running faces' corners lie on their circle; the rocking axis stays at its height and moves
-  the radius times the angle along z; each rocker's lowest point stays on its sill, never below its top and
-  never more than a chord's sagitta (0.095) above it, over the sill's length (every degree of θ).
+  the radius times the angle along z; each rocker's lowest point stays on the ground, never below it and
+  never more than a chord's sagitta (0.095) above it, inside the cell (every degree of θ).
 - **Path:** the apron starts under the hopper's foot wall, clear of the plate, falls towards the head and
   ends short of the head board and over the floor; the riffles stand on the floor's run.
 - **Handle:** at a hand's height, against the north side.
 - **Foot:** open over the floor's lip; the tailings land west of it, on the ground.
 - **Water by bucket only:** the rig declares no water (or any other) cell or face, no spout and no part for a
-  pipe or a stream; the sills are the only fixed part and stand no higher than their tops; the hopper is open
+  pipe or a stream; nothing of it is fixed, so nothing stands beside it; the hopper is open
   to the sky, nothing of the rocker over its riddle plate at any point of the rock (every 10 degrees); the
   points that ride name a part the rig has.
 - **Level water** (every 5 degrees of θ, read in the box's own level frame): the sheet's underside inside
@@ -195,15 +195,17 @@ exits non-zero if one fails:
   deep over the floor at the high side.
 - **Clearances:** every pair of parts at rest and at both ends of the rock, except the intended contacts in
   `ALLOWED` (the water against the floor, the sides, the head board, the riffles and the apron's low end; the
-  load against what it lies on); and (full runs) what rocks against the sills, every 2 degrees of θ.
+  load against what it lies on).
+- **Ground** (full runs, every 2 degrees of θ): nothing goes below the ground, and nothing but the rockers
+  comes within a voxel of it.
 - **No z-fighting** (full runs): no coplanar overlapping faces at seven poses of the rock.
-- **Files:** every texture declared; the frame shape is the sills and the item shape everything but the
-  states; a lid over the cell; the operator on the north; no power cell, and no water cell or face; the
+- **Files:** every texture declared; the item shape everything but the states; a lid over the cell; the operator on the north; no power cell, and no water cell or face; the
   water still in the Transparent pass in the file; the shipped model is the checked one.
 
 The cell's boxes are rebuilt from the shipped, rounded shape posed at rest by the shipped rig, as the
-other machines' are, from the station only (the cradle and the sills, not the water or the load): one box
-over the box, the hopper and the handle, one over each sill and its rocker, and a lid at the top.
+other machines' are, from the station only (the cradle, not the water or the load): one box from the
+ground to the handle's top over the box, the hopper, the handle and the rockers (splitting it saves too
+little), and a lid at its top.
 
 ### Rig schema (`rocker-rig.json`)
 
@@ -230,16 +232,19 @@ second, wet; the states are two selects (**Water**, **Load**) with their own che
 
 Element names are the rig's interface (first-match globs, in the rig's order): `cradle_*` (the box, the
 rockers, `cradle_riffle1` and `2`, `cradle_apron_*`, `cradle_hopper_wall_*`, `cradle_riddle`,
-`cradle_handle`), `water_*`, `charge_*`, `conc_*`, and `fr_*` for the sills. Hand edits are lost when the
+`cradle_handle`), `water_*`, `charge_*` and `conc_*`. Hand edits are lost when the
 script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## For the gameplay (#716)
 
 What the model assumes, for whoever builds the block entity and the renderer:
 
-- **The block and the item.** The block draws `rocker_frame.json`, which is only the sills; the renderer draws
-  every rig part with a `requires`, a ride or a driver (as the other machines' renderers do), the cradle
-  included. The item (inventory, hand, ground, handbook) is `rocker_item.json`, the whole rocker dry and empty.
+- **The block and the item.** Nothing of the rocker stands still, so there is no frame shape: the block
+  draws nothing of its own in the chunk mesh (an empty shape), and the renderer draws every rig part, the
+  cradle included (as the other machines' renderers draw their moving parts), at rest when it is not worked.
+  The item (inventory, hand, ground, handbook) is `rocker_item.json`, the whole rocker dry and empty.
+- **The ground.** The rockers stand on the block below, so the rocker needs a solid block under it to be
+  placed (as a chest does), and breaks or drops if that block goes.
 - **Working it.** Hold right-click with a full bucket (the quern's and the press brake's hold pattern): θ
   advances, a turn a rock, and the bucket empties slowly into the hopper. When the hold ends, run θ on to the
   next multiple of π so the cradle comes to rest level. The rock is the only motion, so the renderer needs θ
@@ -268,7 +273,7 @@ default camera and four others). No one has yet looked at it in a client.
    swings from 0.4 to 1.6 at the sides, and its foot end is a flat face just inside the lip. Nothing falls
    off the foot.
 3. **Polygonal rockers.** The running faces are four chords: the box bobs by up to 0.095 voxels as a corner
-   passes the sill.
+   passes the ground.
 4. **Collision is the rest pose's**: the rock carries the box a little outside its boxes.
 5. **Simplified from the period device:** straight sides (period boxes were often wider at the top), two
    riffles in the open (some rockers had a third under the apron), the hopper flush with the box's sides,

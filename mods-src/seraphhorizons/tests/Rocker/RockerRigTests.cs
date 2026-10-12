@@ -34,7 +34,7 @@ public class RockerRigTests
     public void The_shipped_rig_parses_with_no_work_and_no_power()
     {
         var parts = Shipped();
-        Assert.Equal(["cradle", "water", "charge", "concentrate", "frame"], parts.Parts.Select(p => p.Id));
+        Assert.Equal(["cradle", "water", "charge", "concentrate"], parts.Parts.Select(p => p.Id));
         using var doc = JsonDocument.Parse(File("rocker-rig.json"));
         Assert.False(doc.RootElement.TryGetProperty("powerCell", out _));
         Assert.Equal("north", doc.RootElement.GetProperty("operatorSide").GetString());
