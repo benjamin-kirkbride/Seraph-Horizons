@@ -7,13 +7,15 @@
 //   for about 5–10 per metal per district (Interesting Ore Gen makes 40–80 of tin alone).
 // - keepCount: the metals only districts provide, which keep every vein IOG makes (still sized).
 // - gradeAllowance: ore per block over the poorest grade's; nine blocks in ten are the poorest
-//   away from a fault's rich bands.
+//   away from a fault's rich bands. 1.25 since #863 (1.15 before): the pack's units put the richer
+//   grades further above poor (rich 2.3x and bountiful 3.3x poor's, from 1.7x and 2.3x), so the
+//   rich bands' share over poor is about 1.4 times what it was (0.1 x 2.5 x 1.4 = 0.35).
 // - bandFloor, bandBelowSeaLevel: a sized vein is a band of heights between bandFloor and sea
 //   level less bandBelowSeaLevel, so it lies in rock wherever the land is above the sea.
 {
   "veinsPerMetal": 8,
   "keepCount": ["gold", "silver", "platinum", "chromium"],
-  "gradeAllowance": 1.15,
+  "gradeAllowance": 1.25,
   "bandFloor": 4,
   "bandBelowSeaLevel": 6,
 }

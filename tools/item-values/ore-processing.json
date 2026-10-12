@@ -20,9 +20,9 @@
 
   "items": {
     "about": "The forms, as OreProducts names them ({ore}: an ore of the config's 'ores'; {grade}: poor, medium, rich, bountiful, for the rock forms, which hold the raw ore's units of that grade, one item to one, #847). 'only': sulfide (roasted rock and concentrate) or free (amalgam). Stacks as the item type files.",
-    "crushed": { "code": "seraphhorizons:crushedore-{ore}-{grade}", "stack": 4, "name": "Crushed ore ({ore}, {grade})" },
-    "ground": { "code": "seraphhorizons:groundore-{ore}-{grade}", "stack": 4, "name": "Ground ore ({ore}, {grade})" },
-    "roastedrock": { "code": "seraphhorizons:roastedore-{ore}-{grade}", "stack": 4, "only": "sulfide", "name": "Roasted ore ({ore}, {grade})" },
+    "crushed": { "code": "seraphhorizons:crushedore-{ore}-{grade}", "stack": 16, "name": "Crushed ore ({ore}, {grade})" },
+    "ground": { "code": "seraphhorizons:groundore-{ore}-{grade}", "stack": 16, "name": "Ground ore ({ore}, {grade})" },
+    "roastedrock": { "code": "seraphhorizons:roastedore-{ore}-{grade}", "stack": 16, "only": "sulfide", "name": "Roasted ore ({ore}, {grade})" },
     "concentrate": { "code": "seraphhorizons:concentrate-{ore}", "stack": 128, "name": "Concentrate ({ore})" },
     "roastedconcentrate": { "code": "seraphhorizons:roastedconcentrate-{ore}", "stack": 128, "only": "sulfide", "name": "Roasted concentrate ({ore})" },
     "amalgam": { "code": "seraphhorizons:amalgam-{ore}", "stack": 128, "only": "free", "name": "Amalgam ({ore})" },
@@ -46,7 +46,7 @@
   "singles": {
     "about": "Items of the switch with no rule of their own, added like the forms when the export lacks them, and priced by their routes (routes.json) or a raw value (raw-values.json): leaching's raw saltpeter (#742, a raw like the saltpeter the blocks dropped before) and crude liquors (the barrel's leaching, boiled down in the cooking pot). itemsPerLitre marks a liquid.",
     "items": [
-      { "code": "seraphhorizons:rawsaltpeter", "stack": 4, "name": "Raw saltpeter" },
+      { "code": "seraphhorizons:rawsaltpeter", "stack": 16, "name": "Raw saltpeter" },
       { "code": "seraphhorizons:crudeliquorportion-borax", "stack": 5000, "itemsPerLitre": 100, "name": "Crude borax liquor" },
       { "code": "seraphhorizons:crudeliquorportion-saltpeter", "stack": 5000, "itemsPerLitre": 100, "name": "Crude saltpeter liquor" },
       { "code": "seraphhorizons:crudeliquorportion-alum", "stack": 5000, "itemsPerLitre": 100, "name": "Crude alum liquor" }

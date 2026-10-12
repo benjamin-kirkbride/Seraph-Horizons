@@ -22,6 +22,19 @@ public class SellPoolTests
     }
 
     [Fact]
+    public void AUnitBiggerThanASlotSellsAcrossSlots()
+    {
+        // Rock cut to 16 a stack, priced by 40 a gear (its trade stack is the four slots' 64): three
+        // full slots are 48, one lot of 40 from the first slots in order.
+        static SellLine Rock(int slot) => new(slot, 16, 40, 1, Budget.Side, "off:game:rock-granite");
+        var lines = new[] { Rock(36), Rock(37), Rock(38) };
+        var lot = SellPool.NextLot(lines)!;
+        Assert.Equal(1, lot.Gears);
+        Assert.Equal([(36, 16), (37, 16), (38, 8)], lot.Takes.Select(t => (t.Slot, t.Items)));
+        Assert.Null(SellPool.NextLot(new[] { Rock(36), Rock(37) }));
+    }
+
+    [Fact]
     public void UnderAWholeGearThereIsNoLot()
     {
         var lines = new[] { Dirt(36, 12) };

@@ -9,7 +9,12 @@ namespace SeraphHorizons.Mod.Ore;
 
 /// <summary>
 /// Smaller deposits (#439): each Interesting Ore Gen vein variant of a managed metal is scaled by
-/// its metal's factor from <c>config/ore-sizes.json</c> (<see cref="VeinScaling"/>). It acts on
+/// its metal's factor from <c>config/ore-sizes.json</c> (<see cref="VeinScaling"/>), and with ore
+/// processing on, a graded ore's by <see cref="OreProducts.DepositBlocks"/> more (#863: its items
+/// hold about a quarter of vanilla's units, so a deposit four times the volume holds the metal the
+/// factor gave it; <see cref="OreSizeTable.VolumeFor"/>). With <c>SmallerDeposits</c> off and ore
+/// processing on it still binds, without the metals' factors, so graded ore's veins hold vanilla's
+/// metal. It acts on
 /// the generator instances the game's <c>GenDeposits</c> builds from the deposit files (their
 /// public <c>Radius</c>, <c>BranchCount</c> and <c>BranchLength</c>), in a postfix on its
 /// <c>initAssets</c>, so it follows every variant whatever patches added it, and a worldgen
@@ -21,6 +26,7 @@ internal static class DepositSizes
     public static readonly AssetLocation SizesAsset = new("seraphhorizons", "config/ore-sizes.json");
 
     private static OreSizeTable? _table;
+    private static double _gradedOreBlocks = 1;
     private static ILogger? _logger;
 
     private static MethodInfo? InitAssets => AccessTools.Method(typeof(GenDeposits), nameof(GenDeposits.initAssets));
@@ -39,9 +45,14 @@ internal static class DepositSizes
     public static OreSizeTable LoadTable(ICoreAPI api) =>
         new(api.Assets.Get(SizesAsset).ToObject<Dictionary<string, OreSizeTable.Entry>>());
 
-    public static void Bind(ICoreAPI api, Harmony harmony)
+    /// <param name="gradedOreBlocks">The volume a graded ore's vein is scaled by over its metal's
+    /// factor: <see cref="OreProducts.DepositBlocks"/> with ore processing on, else 1.</param>
+    /// <param name="cut">Whether the metals' factors apply (<c>SmallerDeposits</c>); without them
+    /// only graded ore is scaled, by <paramref name="gradedOreBlocks"/>.</param>
+    public static void Bind(ICoreAPI api, Harmony harmony, double gradedOreBlocks, bool cut)
     {
-        _table = LoadTable(api);
+        _table = cut ? LoadTable(api) : new OreSizeTable(new Dictionary<string, OreSizeTable.Entry>());
+        _gradedOreBlocks = gradedOreBlocks;
         _logger = api.Logger;
         harmony.Patch(InitAssets, postfix: new HarmonyMethod(typeof(DepositSizes), nameof(InitAssetsPostfix)));
     }
@@ -49,6 +60,7 @@ internal static class DepositSizes
     public static void Unbind()
     {
         _table = null;
+        _gradedOreBlocks = 1;
         _logger = null;
     }
 
@@ -60,7 +72,7 @@ internal static class DepositSizes
         foreach (var variant in __instance.Deposits ?? [])
         {
             if (variant.GeneratorInst is not { } gen || !type.IsInstanceOfType(gen)) continue;
-            if (OreMetals.MetalOf(variant.Code) is not { } metal || table.FactorFor(metal) is not { } factor || factor >= 1) continue;
+            if (OreMetals.MetalOf(variant.Code) is not { } metal || table.VolumeFor(variant.Code, _gradedOreBlocks) is not { } factor) continue;
             var radius = (NatFloat)AccessTools.Field(type, "Radius").GetValue(gen)!;
             var count = (NatFloat)AccessTools.Field(type, "BranchCount").GetValue(gen)!;
             var length = (NatFloat)AccessTools.Field(type, "BranchLength").GetValue(gen)!;
@@ -71,11 +83,11 @@ internal static class DepositSizes
             Set(radius, result.Radius);
             Set(count, result.BranchCount);
             Set(length, result.BranchLength);
-            scaled[metal] = factor;
+            scaled[variant.Code] = factor;
             variants++;
         }
-        _logger?.Notification("[seraphhorizons] Smaller deposits: scaled {0} Interesting Ore Gen vein variants ({1})",
-            variants, string.Join(", ", scaled.Select(kv => $"{kv.Key} x{kv.Value:0.###}")));
+        _logger?.Notification("[seraphhorizons] Smaller deposits: scaled {0} Interesting Ore Gen vein variants, graded ore x{1} for its units ({2})",
+            variants, _gradedOreBlocks, string.Join(", ", scaled.Select(kv => $"{kv.Key} x{kv.Value:0.###}")));
     }
 
     private static SizeRange Of(NatFloat f) => new(f.avg, f.var);

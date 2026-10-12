@@ -354,6 +354,16 @@ class ItemValuesTest(unittest.TestCase):
         self.assertIn("game:stick", out["floorZero"])
         self.assertNotIn("game:log", out["floorZero"])  # 1.0 a stack of one
 
+    def test_floor_zero_of_a_rock_block_is_by_its_trade_stack(self):
+        # A rock block cut to 16 is judged by the 64 it stacked to before: 1.28 there, 0.32 a stack.
+        items = {"game:rock-granite": item(16, tradeStack=64), "game:gravel-granite": item(16)}
+        self.write_rules(overrides={"game:rock-granite": 0.02, "game:gravel-granite": 0.02})
+        ex = export(items, [])
+        val, _ = self.solve(ex)
+        out = iv.table(ex, val)
+        self.assertNotIn("game:rock-granite", out["floorZero"])
+        self.assertIn("game:gravel-granite", out["floorZero"])
+
     def test_override_wins_and_is_reported_below_its_ingredients(self):
         items = {c: item() for c in ("game:gem", "game:ring")}
         self.write_rules(overrides={"game:ring": 2.0})

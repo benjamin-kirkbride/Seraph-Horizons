@@ -25,7 +25,25 @@ about four through an age; the first metal from a rich gravel field about 750 m 
 | Titanium, chromium, platinum | 60 | 150 | 400 |
 
 Gravel fields hold 300–600 rich gravel blocks; scattered rich gravel is cut to a quarter; surface
-copper and tin are gone; hydrothermal districts are rarer. `tools/ore-survey/targets.json` holds the
+copper and tin are gone; hydrothermal districts are rarer.
+
+The targets are ingots, not blocks. Since #863, with ore processing on, an ore item holds about a
+quarter of vanilla's metal units (3 / 5 / 7 / 10 by grade, from 15 / 20 / 25 / 35;
+`OreProducts.RawUnits`), so a deposit of the same ingots is four times the blocks: every graded
+ore's IOG vein is scaled by 4 in volume on top of its metal's factor (`OreSizeTable.VolumeFor`,
+`OreProducts.DepositBlocks`). District veins, sized from the ore's own units, are widened four
+times in ore per layer (`DistrictVeinSizes.Widen`: an ore shoot four times as long along its fault, a
+ladder vein's slabs about four times closer, IOG's spacings of 2–10 divided by 4, at least 1), so a
+vein holds its drawn ingots in about the height of rock it had. Without that it needed four to five
+times the height, and most thin veins hit their whole column (10 of 15 tin and bismuth veins in the
+granite district of `OreCellsScenarios`, at a quarter of their ingots); widened, 3 of 15 do. A
+horsetail lens of a sized metal (gold and silver, whose lenses are kept) has no band; its lenses
+are twice IOG's radii both ways (`DistrictVeins.LensRadii`: 4–12 by 3–8 become 8–24 by 6–16), and
+since its ore is only where a lens crosses the splay's one-block fracture, a disc of the two radii,
+that is four times the ore, so a lens holds the ingots it did. The
+medians and factors in `config/ore-sizes.json` stay as measured at vanilla's units; measurement, size tiers and the trader maps work in ingots from the live units,
+so they need no change. Worlds already generated keep their ore as placed: a deposit from before
+holds a quarter of the ingots it did. `tools/ore-survey/targets.json` holds the
 same numbers for `ore_survey.py check`, which reads small / typical / large as p10 / median / p90.
 
 ## Ore cells (#438)
@@ -101,7 +119,7 @@ How district ore is made (IOG 2.3.8, `HydrothermalDistrict`, `HydrothermalDistri
   35 ± 10 blocks along the fault, half that across, density 1 − r², at least 10 segments of
   16 blocks apart on a fault), **ladder veins** (one-block slabs every 2–7 blocks across a
   widened 100–500 block stretch of fault) and **horsetail lenses** (1–4 ellipsoids of 4–24 blocks
-  on a one-block fracture). Shoots and ladders reach from y 1 to the top of the world: every layer
+  on a one-block fracture; gold's and silver's at twice the radii since #863). Shoots and ladders reach from y 1 to the top of the world: every layer
   of rock under them is ore, which is why a vein held up to 13,000 ingots. Lenses hold a few
   ingots each.
 - Each zone draws one ore from its type's pool by `weight`, and a second with even chance; a
@@ -128,8 +146,9 @@ builds from the seed, the same after every restart.
   `GetOreBlocksInChunk` iterates). The ore a layer gives is estimated from the zone's geometry
   (a shoot: fault width × 4r/3; a ladder: stretch × widened width ÷ slab spacing), the ore's
   share and density, and the ingots of a block of its poorest grade (read from the block's drops)
-  times 1.15; the band is the height that gives the size drawn for the zone (log-linear through
-  the metal's small, typical and large at the 10th, 50th and 90th percentile), the least over its
+  times 1.25 (1.15 before #863 widened the grades); the band is the height that gives the size
+  drawn for the zone (log-linear through the metal's small, typical and large at the 10th, 50th
+  and 90th percentile), the least over its
   ores, placed by the hash between y 4 and sea level less 6, so it lies in rock. A vein whose
   whole column holds less keeps it.
 - Unmanaged ores (gems, sulfur, halite, ...) keep their counts; in a vein that also holds a
