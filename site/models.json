@@ -476,10 +476,10 @@
           "walls": "Level 2: walls (the work doors open) and skewbacks",
           "arch": "Level 2: firebrick arch and the feed chute's seat",
           "ironwork": "Level 2: buckstays, tie rods, door frames and plates",
-          "firebox": "Level 2: step grate and coal bunker",
+          "firebox": "Level 2: step grate, coal bunker and its vanilla chute section",
           "drive": "Level 2: gear case (rectifier), line shaft, bevel pinions and pedestals",
           "rabbles": "Level 2: rabbles and their bevel wheels",
-          "feeder": "Level 2: feed roll, its casing and the feed chute",
+          "feeder": "Level 2: the vanilla chute section into the hopper, feed roll, casing and feed chute",
           "charge": "Level 2, roasting: the charge on the hearth",
           "fire": "Level 2, roasting: the fire on the grate and the coal"
         },
@@ -489,7 +489,7 @@
           "options": [
             {"id": "frame", "label": "The frame", "fitted": [], "hint": "Placed at its final size: the stone plinth with the discharge pit and its spout (the output chute's end, on the east face), the flue chamber with its sulfur door, and the stack. Nothing here moves between levels."},
             {"id": "level1", "label": "Level 1 (water): stall roaster", "fitted": ["stalls", "stallflue", "trestle", "hopper", "heaps"], "hint": "Three open-fronted rubble stalls, the ore roasted in heaps on beds of firewood; each stall's flue rises in the back wall to the collecting flue, which the header carries into the flue chamber, where the sulfur condenses, and up the stack. The hopper on its trestle feeds the southern stall by a trough; the roasted ore is raked into the pit in front of the stalls. No power, and no process water: roasting is dry."},
-            {"id": "level2", "label": "Level 2 (mill): reverberatory, chute-fed", "fitted": ["hopper", "hearth", "walls", "arch", "ironwork", "firebox", "drive", "rabbles", "feeder", "charge", "fire"], "hint": "The stalls, their flue and the trestle are pulled down; the hopper stays. A brick furnace under a firebrick arch: the fire on a step grate fed by gravity from the coal bunker on the fire end (no stoking door), the flame over the bridge wall and along the hearth into the flue chamber. Two rabbles, turned through the arch by bevel gears from the line shaft, plough the charge from under the feed chute to the discharge hole over the pit; a fluted roll on the line shaft's end meters the hopper's charge down the chute. The work doors stand open."}
+            {"id": "level2", "label": "Level 2 (mill): reverberatory, chute-fed", "fitted": ["hopper", "hearth", "walls", "arch", "ironwork", "firebox", "drive", "rabbles", "feeder", "charge", "fire"], "hint": "The stalls, their flue and the trestle are pulled down; the hopper stays. A brick furnace under a firebrick arch: the fire on a step grate fed by gravity from the coal bunker on the fire end (no stoking door), the flame over the bridge wall and along the hearth into the flue chamber. Two rabbles, turned through the arch by bevel gears from the line shaft, plough the charge from under the feed chute to the discharge hole over the pit; a fluted roll on the line shaft's end meters the hopper's charge down the chute. The previous machine's chute and the coal's end in sections of the vanilla chute, at the infeed's and the fuel cell's tops. The work doors stand open."}
           ]
         },
         "play": {

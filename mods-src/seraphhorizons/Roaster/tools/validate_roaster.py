@@ -11,8 +11,11 @@ make_shape.STATES), never at both levels at once.
 
 from __future__ import annotations
 
+import json
 import math
+import os
 import re
+from pathlib import Path
 
 from machinegen.checks import box_overhang, cells_touched, coplanar_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb, supports
 from machinegen.geometry import aabb_of
@@ -99,6 +102,7 @@ def check_basic(v):
 
 ROLES = [
     # (element regex, the textures it may wear)
+    (r"^(feeder_infeedchute|firebox_fuelchute)", {"chute"}),
     (r"^fr_(plinth|stackcap)", {"stone"}),
     (r"^fr_(chamber|stack_)", {"brick"}),
     (r"^fr_(spout|sulfurdoor|stackband)", {"iron"}),
@@ -390,6 +394,51 @@ def check_gearing(v):
         v.fail("a bevel pair's teeth run too far into each other")
 
 
+def vanilla_chute_walls():
+    """The vanilla straight chute's walls turned up and down (its "ud" variant: the shape turned 90 degrees about z),
+    as cell-local (x0, x1, z0, z1), read from the game's own shape when the game is here (VINTAGE_STORY, or the
+    usual install); None when it is not (CI), where the recorded CHUTE_UD_WALLS stand."""
+    for root in (os.environ.get("VINTAGE_STORY"), str(Path.home() / "Games" / "vintagestory")):
+        if not root:
+            continue
+        f = Path(root) / "assets" / "survival" / "shapes" / "block" / "metal" / "chute" / "straight.json"
+        if f.is_file():
+            shape = json.loads(f.read_text())
+            # turned 90 about z about the block's centre: x' = 16 - y, z' = z
+            return sorted((round(16 - e["to"][1], 6), round(16 - e["from"][1], 6), round(e["from"][2], 6), round(e["to"][2], 6))
+                          for e in shape["elements"]), str(f)
+    return None
+
+
+def check_infeed_chutes(v):
+    """Each chute-fed infeed (the ore infeed's and the fuel's, level 2) ends in a section of the vanilla chute whose
+    walls are the chute's own (cross-section, wall thickness, place in the cell, texture) and reach the anchor's
+    face, so a vanilla chute placed in the next cell meets it with no gap or step (the owner's rule)."""
+    m = v.m
+    want = sorted(tuple(w) for w in m.CHUTE_UD_WALLS)
+    game = vanilla_chute_walls()
+    if game is not None and [tuple(w) for w in game[0]] != want:
+        v.fail(f"CHUTE_UD_WALLS {want} are not the game's chute ({game[1]}: {game[0]})")
+    for key, cell, face, pid, rx in (("infeed", m.INFEED_CELL, m.INFEED_FACE, "feeder", r"_infeedchute"),
+                                     ("fuel", m.FUEL_CELL, m.FUEL_FACE, "firebox", r"_fuelchute")):
+        els = v.named(pid, rx)
+        o = [cell[k] * 16 for k in range(3)]
+        got = []
+        for e in els:
+            lo, hi = e.aabb()
+            got.append((round(lo[0] - o[0], 6), round(hi[0] - o[0], 6), round(lo[2] - o[2], 6), round(hi[2] - o[2], 6)))
+            if face != "up" or abs(hi[1] - (o[1] + 16)) > 1e-6:
+                v.fail(f"the {key} chute's {e.name} does not reach the cell's {face} face")
+            tex = {f["texture"] for f in e.faces.values()}
+            if tex != {"#chute"}:
+                v.fail(f"the {key} chute's {e.name} wears {tex}, not the chute's")
+        if sorted(got) != want:
+            v.fail(f"the {key} chute's walls {sorted(got)} are not the vanilla chute's {want}")
+    print(f"infeed chutes: the ore infeed's and the fuel's sections are the vanilla chute's (walls {want} in the cell, "
+          f"{m.TEXTURES['chute']}), up to their cells' top faces; checked against "
+          f"{game[1] if game else 'the recorded profile (the game is not here)'}")
+
+
 def check_reverse(v):
     """Every machine tolerates the axle turning either way (the owner's rule): the entry shaft turns with the axle,
     and everything beyond the gear case's rectifier (the line shaft, the rabbles, the feed roll) is posed the same
@@ -615,6 +664,7 @@ def validate(m, els, parts, rig, quick=False):
     check_gearing(v)
     check_feedroll(v)
     check_reverse(v)
+    check_infeed_chutes(v)
     check_clearances(v, 24, "clearances")
     if not quick:
         check_clearances(v, 144, "swept paths (every 5 degrees of the shaft over the rabbles' two turns)")

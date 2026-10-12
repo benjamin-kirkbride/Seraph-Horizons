@@ -105,6 +105,7 @@ TEXTURES = {
     "firewood": "game:block/wood/firepit/log",               # the stall heaps' beds of firewood
     "coal": "game:block/coal/bituminous",                    # the coal in the bunker and its throat
     "fire": "game:block/coal/charcoal",                      # the fire on the step grate: a renderer may set it to game:block/coal/ember
+    "chute": "game:block/metal/sheet/copper1",               # the vanilla chute's sections at the chute-fed infeeds (a placed chute's, in the pack too)
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
@@ -138,16 +139,26 @@ CFLUE_Y = (ST_TOP, 32.0)                     # the collecting flue on the back w
 HEADER = ((2.0, 32.0), (PLINTH, 32.0), (74.0, 80.0))   # the header that carries it into the chamber's throat
 LOG_H = 2.5                                  # the firewood under a heap
 # the hopper, fitted at level 1 and kept at level 2: an open iron box, its mouth the infeed cell's top
-HOPPER = ((16.5, 31.5), (42.0, 48.0), (71.5, 80.0))
+HOPPER = ((16.5, 31.5), (42.0, 48.0), (67.0, 77.0))   # centred on the infeed cell (z 72), under a vanilla chute's line
 HOPPER_T = 1.0
-HOPPER_SLOT = ((21.0, 27.0), (73.5, 78.0))   # (x, z): the slot in its floor, over the trough (level 1) or the feed roll (level 2)
+HOPPER_SLOT = ((21.0, 27.0), (69.5, 74.5))   # (x, z): the slot in its floor, over the trough (level 1) or the feed roll (level 2)
 # level 1's trestle: the hopper's legs on the header, and the trough from its slot into the southern stall
 LEGS_X = ((17.0, 19.0), (29.0, 31.0))
-LEGS_Z = ((74.5, 76.5), (77.8, 79.8))
+LEGS_Z = ((67.2, 69.2), (74.5, 76.5))         # the north pair on the plinth, the south pair on the header
 LEG_RAIL_Y = (36.0, 37.4)
-TROUGH = ((24.0, 41.0, 75.5), (24.0, 26.5, 56.5))   # the trough floor's middle line: under the slot, and its foot in the southern stall
+TROUGH = ((24.0, 41.0, 72.0), (24.0, 26.5, 56.5))   # the trough floor's middle line: under the slot, and its foot in the southern stall
 TROUGH_W = 6.0
 TROUGH_POST_Z = (63.0, 65.0)                 # a post on the last partition wall carries the trough
+
+# ---------------------------------------------------------------- the vanilla chute (the game's blocktypes/metal/chute-straight.json,
+# shapes/block/metal/chute/straight.json): an 8 x 8 square tube centred in its cell, walls 1 thick; up and down (the
+# "ud" variant, the straight shape turned 90 about z), its walls in cell-local (x, z): north and south across the
+# whole width, west and east between them. Every chute-fed infeed ends in a section of it, so a player's chute line
+# meets the machine with no gap or step.
+CHUTE_UD_WALLS = ((4.0, 12.0, 4.0, 5.0), (4.0, 12.0, 11.0, 12.0), (4.0, 5.0, 5.0, 11.0), (11.0, 12.0, 5.0, 11.0))   # (x0, x1, z0, z1)
+CHUTE_OUTER, CHUTE_WALL = (4.0, 12.0), 1.0
+INFEED_SECTION_Y = 44.0                      # the ore infeed's section hangs from the cell's top into the hopper's mouth
+FUEL_SECTION_Y = 28.5                        # the fuel infeed's from the fuel cell's top into the coal bunker
 
 # ---------------------------------------------------------------- level 2: the reverberatory furnace
 WALL_X = ((2.0, 8.0), (40.0, 46.0))          # the side walls
@@ -160,19 +171,19 @@ HEARTH_Y = 12.0                              # the hearth's floor
 BRIDGE_TOP = 17.0
 SPRING_Y = 21.0                              # the side walls' tops: the arch springs here
 RISE, ARCH_T, VOUSSOIRS = 5.0, 4.0, 7        # the segmental arch over IN_X: its rise, thickness and strips
-ARCH_Z = (11.0, 80.0)                        # from the coal bunker's back to the flue chamber
+ARCH_Z = (13.0, 80.0)                        # from the coal bunker's back to the flue chamber
 SKEW_X = ((3.0, 9.0), (39.0, 45.0))          # the firebrick skewbacks on the walls' tops, the arch's springing
 SKEW_Y = (SPRING_Y, 25.0)
 SKEWBAR_X = ((2.0, 3.0), (45.0, 46.0))       # the iron skewback bars outside them
 STAY_X = ((1.0, 2.0), (46.0, 47.0))          # buckstays, outside the walls
 NUT_X = ((0.0, 1.0), (47.0, 48.0))
-STAY_Z = (12.0, 22.0, 52.5, 79.2)            # buckstay pairs (centres): clear of the doors, the pedestals and the feed seat
+STAY_Z = (14.0, 22.0, 50.0, 79.2)            # buckstay pairs (centres): clear of the doors, the pedestals and the feed seat
 STAY_W = 2.0
 STAY_TOP = 32.0
 ROD_Y = (30.3, 31.1)                         # the tie rods over the arch's crown (30)
 ROD_T = 0.8
 DISCHARGE = ((33.0, 39.0), (31.0, 37.0))     # (x, z) the discharge hole through the hearth into the pit, by the bridge
-WORK_DOOR = (8.0, (12.0, 20.0))              # half width (z) about each rabble, and y: a work door each side, open
+WORK_DOOR = (7.0, (12.0, 20.0))              # half width (z) about each rabble, and y: a work door each side, open
 DOOR_FRAME = 1.0
 DOOR_PLATE_Y = (21.0, 28.5)                  # the doors' plates, raised in their guides
 ASH_DOOR = ((18.0, 30.0), (PLINTH, 8.5))     # (x, y) the ash pit's clean-out door, under the grate, on the fire end's face
@@ -182,21 +193,21 @@ STEP_Z0, STEP_D = FIREBOX_Z[0], 3.5          # the top step's front edge; each s
 STEP_TOP0, STEP_DROP, STEP_T = 15.0, 2.0, 1.0   # the top step's top, the drop from one to the next, a bar's thickness
 BUNKER = ((2.0, 46.0), (SPRING_Y, 32.0), (FRONT_Z[0], ARCH_Z[0]))   # the coal bunker on the fire end (x, y, z): mouth at y 32
 BUNKER_T = 1.0
-BUNKER_SLOT = ((9.0, 39.0), (7.0, 10.0))     # (x, z): the slot in its floor, over the top step
+BUNKER_SLOT = ((9.0, 39.0), (7.0, 12.0))     # (x, z): the slot in its floor, over the top step
 THROAT_Y0 = 17.0                             # the throat under the slot hangs down to here, just over the top step
 
 # ---------------------------------------------------------------- level 2: the drive and the rabbles
 SHAFT = (24.0, 40.0)                         # (x, y) of the line shaft along z: the power cell's centre
 SHAFT_R = 0.9
 ENTRY_Z = (0.0, 4.0)                         # the oak entry, the vanilla axle's cross profile, from the power face into the gear case
-SHAFT_Z = (8.0, 79.0)                        # the iron line shaft, from inside the gear case on through the feed roll to the casing's far wall
+SHAFT_Z = (8.0, 75.4)                        # the iron line shaft, from inside the gear case on through the feed roll to the casing's far wall
 # the gear case at the fire end: a closed cast-iron case on the coal bunker's rim, holding a rectifier (as the stamp
 # mill's: two pairs of gears on one-way catches, one through an idler, its gears not drawn), so the line shaft coming
 # out of its south side turns one way whichever way the axle turns
-GEARCASE = ((18.0, 30.0), (33.0, 46.0), (2.0, 10.0))      # the case (x, y, z)
-GEARCASE_BASE = ((17.0, 31.0), (32.0, 33.0), (1.0, 11.0))  # its foot, on the bunker's north and south walls
+GEARCASE = ((18.0, 30.0), (33.0, 46.0), (2.0, 12.0))      # the case (x, y, z)
+GEARCASE_BASE = ((17.0, 31.0), (32.0, 33.0), (1.0, 13.0))  # its foot, on the bunker's north and south walls
 GEARCASE_BOSS = (2.2, 1.0)                   # the bosses round the entry and the line shaft: radius, length out of the case
-PEDESTALS = ((14.0, 17.0), (25.0, 28.0), (48.0, 51.0))   # z: the line shaft's pedestals on the arch
+PEDESTALS = ((16.0, 19.0), (25.0, 28.0), (46.4, 49.2))   # z: the line shaft's pedestals on the arch
 PED_BASE_X = (21.5, 26.5)
 PED_COL_X = (22.8, 25.2)
 PED_BEARING = 2.3                            # the bearing block's half side round the shaft
@@ -210,7 +221,7 @@ TOOTH_W = 1.0                                # a tooth's width: a little under h
 PINION_BODY = ((-1.5, -0.8, 2.1), (-0.8, -0.1, 1.75), (-0.1, 0.5, 1.45))   # the pinion's body in steps (z from its pitch circle, radius), under its roots
 PINION_DED = 1.85 * MODULE                   # its teeth sink into the body (the wheel's tips run in its gaps)
 RATIO = -NP / NW                             # spindle turns per shaft turn (a wheel driven from its north rim turns back)
-RABBLE_Z = (40.0, 64.0)                      # the two spindles, on the hearth's middle line
+RABBLE_Z = (39.0, 61.0)                      # the two spindles, on the hearth's middle line
 WHEEL_Y = SHAFT[1] - RP                      # 37.2: the wheels' pitch plane, where the pinions' pitch circles touch them
 SPINDLE_R = 0.75
 SPINDLE_Y = (12.8, 37.0)
@@ -228,16 +239,16 @@ GLAND_Z = 1.6                                # half length of a spindle's gland,
 BRACKET = ((21.5, 26.5), 3.0, (30.0, 31.0), 2.0, (31.0, WHEEL_HUB[0]))   # base plate x, half length z, y; bearing half side, y
 
 # ---------------------------------------------------------------- level 2: the feeder under the hopper
-CASING = ((20.0, 28.0), (32.0, HOPPER[1][0]), (72.0, 79.0))   # the feed roll's casing (x, y, z), on its flange, under the hopper
+CASING = ((20.0, 28.0), (32.0, HOPPER[1][0]), (68.5, 75.5))   # the feed roll's casing (x, y, z), on its flange, under the hopper
 CASING_T = 1.0
-ROLL_Z = (73.6, 77.6)
+ROLL_Z = (70.0, 74.0)
 ROLL_R, ROLL_FLUTES, ROLL_FLUTE_R = 2.0, 6, 2.6   # the fluted roll on the line shaft's end: its body, its flutes
-CHUTE = ((21.5, 26.5), (73.5, 77.5))         # (x, z): the feed chute from under the roll down through the arch
+CHUTE = ((21.5, 26.5), (70.0, 74.0))         # (x, z): the feed chute from under the roll down through the arch
 CHUTE_T = 1.0
 CHUTE_Y = (25.5, 34.0)                       # its foot just inside the arch; its top in the casing, under the roll
-SEAT = ((19.5, 28.5), (72.0, 79.0), (30.0, 31.0))     # (x, z, y): the chute's iron seat on the arch
-FLANGE = ((19.5, 28.5), (72.0, 79.0), (31.0, CASING[1][0]))   # the casing's flange on the seat
-CHARGE_HOLE_Z = (73.3, 77.7)                 # the hole through the arch's crown strip
+SEAT = ((19.5, 28.5), (68.5, 75.5), (30.0, 31.0))     # (x, z, y): the chute's iron seat on the arch
+FLANGE = ((19.5, 28.5), (68.5, 75.5), (31.0, CASING[1][0]))   # the casing's flange on the seat
+CHARGE_HOLE_Z = (69.8, 74.2)                 # the hole through the arch's crown strip
 
 # ---------------------------------------------------------------- the levels (the gameplay's sets and the scenario's states)
 LEVELS = {
@@ -572,6 +583,14 @@ def build_stallflue():
     return out
 
 
+def chute_section(cell, y0, name, part):
+    """A section of the vanilla chute, up and down, in `cell` (build-frame block coordinates): CHUTE_UD_WALLS from
+    y0 up to the cell's top, where a chute placed in the cell above meets it."""
+    ox, oy, oz = (cell[k] * B for k in range(3))
+    return [box([ox + x0, y0, oz + z0], [ox + x1, oy + B, oz + z1], f"{name}{i}", part, "chute")
+            for i, (x0, x1, z0, z1) in enumerate(CHUTE_UD_WALLS, 1)]
+
+
 def build_hopper():
     """The hopper, fitted at level 1 and kept at level 2: an open iron box, its mouth at the infeed cell's top,
     a slot in its floor over the trough (level 1) or the feed roll (level 2)."""
@@ -586,9 +605,11 @@ def build_trestle():
     out = []
     y0 = HOPPER[1][0]
     for i, (lx0, lx1) in enumerate(LEGS_X, 1):
-        for j, (lz0, lz1) in enumerate(LEGS_Z, 1):
-            out.append(box([lx0, HEADER[1][1], lz0], [lx1, y0, lz1], f"trestle_leg{i}{j}", p, "oak"))
+        for j, ((lz0, lz1), foot) in enumerate(zip(LEGS_Z, (PLINTH, HEADER[1][1])), 1):
+            out.append(box([lx0, foot, lz0], [lx1, y0, lz1], f"trestle_leg{i}{j}", p, "oak"))
         out.append(box([lx0 + 0.3, LEG_RAIL_Y[0], LEGS_Z[0][1]], [lx1 - 0.3, LEG_RAIL_Y[1], LEGS_Z[1][0]], f"trestle_rail{i}", p, "oak"))
+    out.append(box([LEGS_X[0][0] + 0.3, PLINTH + 12.0, LEGS_Z[0][0] + 0.3], [LEGS_X[1][1] - 0.3, PLINTH + 13.4, LEGS_Z[0][1] - 0.3],
+                   "trestle_brace", p, "oak"))
     top, bot = TROUGH
     out.append(strut(top, bot, 1.0, TROUGH_W, "trestle_trough", p, "oak"))
     for i, dx in enumerate((-(TROUGH_W / 2 - 0.5), TROUGH_W / 2 - 0.5), 1):
@@ -744,6 +765,7 @@ def build_firebox():
     (sx0, sx1), (sz0, sz1) = BUNKER_SLOT
     t = BUNKER_T
     out += tube([sx0 - t, THROAT_Y0, sz0 - t], [sx1 + t, y0, sz1 + t], t, "y", "firebox_throat", p, "iron")
+    out += chute_section(FUEL_CELL, FUEL_SECTION_Y, "firebox_fuelchute", p)
     return out
 
 
@@ -869,6 +891,7 @@ def build_feeder():
     (hx0, hx1), (hz0, hz1) = CHUTE
     out += frame_bars([fx[0], fy[0], fz[0]], [fx[1], fy[1], fz[1]], [hx0, fy[0], hz0], [hx1, fy[1], hz1], "y", "feeder_flange", p, "iron")
     out += tube([hx0, CHUTE_Y[0], hz0], [hx1, CHUTE_Y[1], hz1], CHUTE_T, "y", "feeder_chute", p, "iron")
+    out += chute_section(INFEED_CELL, INFEED_SECTION_Y, "feeder_infeedchute", p)
     return out
 
 
@@ -967,7 +990,6 @@ def make_rig(parts):
     (fx0, fx1), _, _ = FLUEBOX
     (dz0, dz1), (dy0, dy1) = SULFUR_DOOR
     (cx0, cx1), (cz0, cz1), (cy0, cy1) = CHANNEL
-    _, (_, by1), (bz0, bz1) = BUNKER
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the middle of the fire end, "
                     "nearest the player who placed it; the roaster runs south to the stack. One of the ore line's upgradeable "
@@ -986,9 +1008,9 @@ def make_rig(parts):
         "outputFace": OUTPUT_FACE,
         "fuelCell": list(FUEL_CELL),
         "fuelFace": FUEL_FACE,
-        "infeed": {"pos": pt(SHAFT[0], HOPPER[1][1], (HOPPER[2][0] + HOPPER[2][1]) / 2)},
+        "infeed": {"pos": pt((INFEED_CELL[0] + 0.5) * B, (INFEED_CELL[1] + 1) * B, (INFEED_CELL[2] + 0.5) * B)},
         "output": {"pos": pt(cx1, (cy0 + cy1) / 2, (cz0 + cz1) / 2)},
-        "fuel": {"pos": pt((FUEL_CELL[0] + 0.5) * B, by1, (bz0 + bz1) / 2)},
+        "fuel": {"pos": pt((FUEL_CELL[0] + 0.5) * B, (FUEL_CELL[1] + 1) * B, (FUEL_CELL[2] + 0.5) * B)},
         "charge": {"pos": pt((hx0 + hx1) / 2, HEARTH_Y, (hz0 + hz1) / 2)},
         "discharge": {"pos": pt((DISCHARGE[0][0] + DISCHARGE[0][1]) / 2, HEARTH_Y, (DISCHARGE[1][0] + DISCHARGE[1][1]) / 2)},
         "sulfur": {"pos": pt(fx1 + 1.0, (dy0 + dy1) / 2, (dz0 + dz1) / 2)},

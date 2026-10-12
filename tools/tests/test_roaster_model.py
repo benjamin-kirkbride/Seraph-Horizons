@@ -248,6 +248,29 @@ class Anchors(unittest.TestCase):
         # no process water: roasting is dry
         self.assertFalse([k for k in RIG if "water" in k.lower() or "pipe" in k.lower()])
 
+    def test_the_chute_fed_infeeds_end_in_vanilla_chute_sections(self):
+        # the owner's rule: a chute-fed infeed is drawn as the vanilla chute (its "ud" straight section: an 8 x 8 tube
+        # centred in the cell, walls 1 thick, the copper sheet a placed chute wears), up to the anchor's face, so a
+        # chute placed in the next cell meets it with no gap or step
+        self.assertEqual(SHAPE["textures"]["chute"], "game:block/metal/sheet/copper1")
+        els = flatten(SHAPE["elements"], textures={})
+        want = sorted(make_shape.CHUTE_UD_WALLS)
+        for key, prefix in (("infeed", "feeder_infeedchute"), ("fuel", "firebox_fuelchute")):
+            self.assertEqual(RIG[f"{key}Face"], "up")
+            o = [RIG[f"{key}Cell"][k] * 16 for k in range(3)]
+            walls = [el for el in els if el.name.startswith(prefix)]
+            got = []
+            for el in walls:
+                lo, hi = el.aabb()
+                got.append((round(lo[0] - o[0], 6), round(hi[0] - o[0], 6), round(lo[2] - o[2], 6), round(hi[2] - o[2], 6)))
+                self.assertAlmostEqual(hi[1], o[1] + 16, places=6, msg=el.name)
+                self.assertEqual({f["texture"] for f in el.faces.values()}, {"#chute"}, el.name)
+            self.assertEqual(sorted(got), want, key)
+            # they are fitted at level 2 only, with the chute-fed level's parts
+            self.assertEqual({requires_of(el.name) for el in walls} <= set(LEVEL2), True, key)
+            # the anchor's point is the face's middle
+            self.assertEqual(RIG[key]["pos"], [o[0] / 16 + 0.5, o[1] / 16 + 1.0, o[2] / 16 + 0.5])
+
     def test_the_fixed_things_are_the_frames(self):
         names = [e["name"] for e in SHAPE["elements"]]
         for prefix in ("fr_stack_", "fr_stackcap", "fr_chamber_", "fr_spout", "fr_plinth", "fr_sulfurdoor"):

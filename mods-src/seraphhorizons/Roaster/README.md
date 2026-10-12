@@ -15,7 +15,7 @@ the output spout, the flue chamber with its sulfur door and the stack are the fr
 |---|---|---|
 | The frame | | A stone plinth under the whole footprint (5 voxels) with the **discharge pit** sunk in it east of the middle and a tunnel to the **spout** on the east face; the **flue chamber** at the cold end (brick, its throat in its north wall, a **sulfur door** on its east face); the **stack** on it, brick with a stone cap and two iron bands, five blocks to its top. |
 | 1 | water | A **stall roaster**. Three open-fronted stalls in rubble masonry against a back wall on the west, opening east onto a forecourt where the pit is. Each stall's flue rises in the back wall from a mouth at its foot to the brick **collecting flue** on the wall's top, which a **header** at the cold end carries into the flue chamber's throat (closing it), so the stalls' fumes pass through the chamber, where the sulfur condenses, and up the stack. The ore is heaped in each stall in courses on a bed of firewood. An iron **hopper** at the infeed cell, on an oak **trestle** standing on the header, feeds the southern stall down a trough; the roasted ore is raked into the pit. No power. |
-| 2 | mill | A **reverberatory roaster, chute-fed**. The stalls, their flue and the trestle are pulled down; the **hopper stays where it is**. A long low furnace on the same plinth: red-brick side and end walls, a firebrick hearth and bridge wall, a segmental firebrick arch on firebrick skewbacks, held by iron buckstays with tie rods over the arch and skewback bars. The **firebox** at the fire end burns on a **step grate** of four iron treads stepping down to the bridge, under the throat of a **coal bunker** on the fire end that a chute keeps filled: the coal slides down the steps as it burns, so there is no stoking door. The flame passes over the bridge, along the hearth and into the flue chamber's throat. Two **rabbles** turn in the hearth on spindles through glands in the arch's crown, each driven by a **bevel wheel** from a **bevel pinion** on the **line shaft** on the roof; the vanilla axle comes into a closed **gear case** at the fire end whose rectifier turns the line shaft one way whichever way the axle turns. The rabbles plough the charge from under the feed chute to the **discharge hole** by the bridge, over the pit. A **fluted feed roll** keyed on the line shaft's end turns in a casing under the hopper's slot and meters the charge down the **feed chute** through the arch. The **work doors** beside each rabble, both sides, stand open, their plates raised in their guides. |
+| 2 | mill | A **reverberatory roaster, chute-fed**. The stalls, their flue and the trestle are pulled down; the **hopper stays where it is**. A long low furnace on the same plinth: red-brick side and end walls, a firebrick hearth and bridge wall, a segmental firebrick arch on firebrick skewbacks, held by iron buckstays with tie rods over the arch and skewback bars. The **firebox** at the fire end burns on a **step grate** of four iron treads stepping down to the bridge, under the throat of a **coal bunker** on the fire end that a chute keeps filled: the coal slides down the steps as it burns, so there is no stoking door. The flame passes over the bridge, along the hearth and into the flue chamber's throat. Two **rabbles** turn in the hearth on spindles through glands in the arch's crown, each driven by a **bevel wheel** from a **bevel pinion** on the **line shaft** on the roof; the vanilla axle comes into a closed **gear case** at the fire end whose rectifier turns the line shaft one way whichever way the axle turns. The rabbles plough the charge from under the feed chute to the **discharge hole** by the bridge, over the pit. The previous machine's chute ends in a **section of the vanilla chute** hung in the hopper's mouth, and the coal's in another dropping into the bunker, so a player's chute line meets the machine with no gap or step. A **fluted feed roll** keyed on the line shaft's end turns in a casing under the hopper's slot and meters the charge down the **feed chute** through the arch. The **work doors** beside each rabble, both sides, stand open, their plates raised in their guides. |
 
 Roasting is dry: the roaster takes **no process water** at either level, so it has no pipe inlet (level 1 is a
 water-tier machine only in the global tier's sense: fed by the player, poor ore worth roasting).
@@ -40,9 +40,9 @@ of sight, the fire end nearest them: the fire end is native north, the stack nat
 | Anchor | Where (shipped, blocks) | What |
 |---|---|---|
 | `powerCell` `[0,2,0]`, `powerFace` north | Over the fire end, on the roof's middle line | The vanilla axle comes in along z at the cell's centre (0.5, 2.5) into the gear case, out of which the line shaft runs. Level 2 takes power; level 1 does not. |
-| `infeedCell` `[0,2,4]`, `infeedFace` up | Over the cold end, beside the stack | The hopper's mouth is this cell's top (y 3), at both levels: filled by hand at level 1, by the previous machine's chute at level 2. `infeed.pos` is the mouth's middle. |
+| `infeedCell` `[0,2,4]`, `infeedFace` up | Over the cold end, beside the stack | The hopper's mouth is this cell's top (y 3), at both levels, the hopper centred on the cell. At level 1 it is filled by hand; at level 2 a section of the vanilla chute hangs from the cell's top into it, where a vanilla chute placed in the cell above meets it. `infeed.pos` is the face's middle. |
 | `outputCell` `[1,0,2]`, `outputFace` east | The east face at ground level, by the bridge | The frame's spout, the iron-lined mouth of a tunnel from the discharge pit: where the roasted ore leaves, both levels. `output.pos` is the mouth's middle. |
-| `fuelCell` `[-1,1,0]`, `fuelFace` up | The fire end's west corner, on the furnace's top | Level 2's coal bunker spans the fire end; a chute drops coal into its west end here (the middle column's top is the power cell). `fuel.pos` is that end of its mouth. |
+| `fuelCell` `[-1,1,0]`, `fuelFace` up | The fire end's west corner, on the furnace's top | Level 2's coal bunker spans the fire end; a section of the vanilla chute drops from this cell's top into its west end, where a vanilla chute placed above meets it (the middle column's top is the power cell). `fuel.pos` is the face's middle. |
 | `charge` | The hearth under the feed chute | Where the charge lands (level 2). |
 | `discharge` | The discharge hole in the hearth by the bridge | Over the pit (level 2). |
 | `sulfur`, `sulfurSide` east | The flue chamber's clean-out door | Where the sulfur is drawn (both levels; provisional, below). |
@@ -80,14 +80,16 @@ plinth and the stack's cap, granite rubble (`stone/drystone/granite1`) for the s
 firebrick (`clay/brick/four/running/fire1`) for the hearth, the bridge, the arch and the skewbacks, iron
 (`metal/plate/iron`) for all the ironwork, the hopper, the bunker and the gears, oak (`wood/debarked/oak`) for the
 level 1 trestle and trough and the line shaft's entry (the vanilla axle's), `pile/oldore` for the heaped ore and
-the charge, `wood/firepit/log` for the firewood, `coal/bituminous` for the coal in the bunker and `coal/charcoal`
+the charge, `wood/firepit/log` for the firewood, `metal/sheet/copper1` for the vanilla chute's sections at the two
+chute-fed infeeds (the texture a placed chute wears, in the pack too: the pack's lead patch is on the chute section
+item, not on the chute blocks), `coal/bituminous` for the coal in the bunker and `coal/charcoal`
 for the fire on the grate. The fire's texture code is `fire`, so a renderer can set it to `game:block/coal/ember`
 while the furnace burns. Masonry is cut at the block grid with its UVs at its place in the grid, so courses run
 on unbroken across the boxes it is built of. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/roaster.json` | The whole machine, both levels' parts in one shape (614 elements: 102 in the frame, 194 drawn at level 1, 530 at level 2). A renderer draws the fitted level's parts. |
+| `assets/seraphhorizons/shapes/block/roaster.json` | The whole machine, both levels' parts in one shape (628 elements: 102 in the frame, 195 drawn at level 1, 543 at level 2). A renderer draws the fitted level's parts. |
 | `assets/seraphhorizons/shapes/block/roaster_frame.json` | The frame only (102 elements): plinth, pit and spout, flue chamber, stack. |
 | `assets/seraphhorizons/config/roaster-rig.json` | Footprint and collision by what is fitted, anchors, the levels, the gearing and the part rig (22 parts). |
 | `tests/Roaster/rig-reference.json` | Every part's matrix at a spread of axle angles, from the reference maths. |
@@ -101,22 +103,23 @@ cell (1, 0, 0), so the shipped files are the build frame moved one block west an
 **The stalls** (level 1). The back wall x 2..12 runs z 2..74, rubble to y 24, with a flue mouth cut at the foot
 of each stall's back; the end and partition walls (z 2..6, 22..26, 42..46, 62..66) run east to the open fronts
 at x 30. The collecting flue (brick, x 2..12, y 24..32) on the back wall runs to the header (x 2..32, z 74..80,
-to y 32), which closes the flue chamber's throat. The hopper (x 16.5..31.5, y 42..48, z 71.5..80) stands on four
-oak legs on the header; from the slot in its floor a trough runs down north over the last partition wall, on a
-post, into the southern stall.
+to y 32), which closes the flue chamber's throat. The hopper (x 16.5..31.5, y 42..48, z 67..77, centred on the
+infeed cell) stands on four oak legs, the north pair on the plinth and the south pair on the header; from the slot
+in its floor a trough runs down north over the last partition wall, on a post, into the southern stall.
 
 **The furnace** (level 2). Side walls x 2..8 and 40..46, z 6..80, and the fire end's wall z 1..6, from the plinth
 (y 5) to the springing at y 21. Inside them (x 8..40): the firebox z 6..20, the bridge wall z 20..25 to y 17, the
 hearth z 25..80 with its floor at y 12, opening at the cold end into the flue chamber's throat (x 18..30,
 y 12..24). The arch spans x 8..40 with a rise of 5 (intrados 26 at the crown, extrados 30), seven firebrick
-strips round its centre, from z 11 (the coal bunker's back) to 80. The buckstays (x 1..2 and 46..47, four
-pairs, at z 12, 22, 52.5 and 79.2) stand from the plinth to y 32, tied over the arch at y 30.3..31.1, and press
-the skewback bars. The work doors (16 wide, y 12..20) are through the side walls beside each rabble, each in an
+strips round its centre, from z 13 (the coal bunker's back) to 80. The buckstays (x 1..2 and 46..47, four
+pairs, at z 14, 22, 50 and 79.2) stand from the plinth to y 32, tied over the arch at y 30.3..31.1, and press
+the skewback bars. The work doors (14 wide, y 12..20) are through the side walls beside each rabble, each in an
 iron frame with its plate raised in two guides above it. The discharge hole (x 33..39, z 31..37) goes down through
 the hearth into the pit (x 32..40, z 30..38); the tunnel runs from the pit east to the spout.
 
-**The firing** (level 2). The coal bunker (iron, x 2..46, z 1..11, y 21..32) sits on the fire end's wall and the
-side walls' tops; the slot in its floor (x 9..39, z 7..10) drops through a throat to y 17, just over the top of
+**The firing** (level 2). The coal bunker (iron, x 2..46, z 1..13, y 21..32) sits on the fire end's wall and the
+side walls' tops; a section of the vanilla chute drops into its west end from the fuel cell's top (x 4..12, z 4..12,
+y 28.5..32); the slot in its floor (x 9..39, z 7..12) drops through a throat to y 17, just over the top of
 the step grate. The grate is four iron treads across the firebox (x 8..40), each 3.5 deep and 2 lower than the
 last (tops at y 15, 13, 11, 9), from the fire end's wall to the bridge, built into the side walls; air comes up
 between them from the ash pit, whose clean-out door is the only door on the fire end, at the plinth's top. Coal
@@ -124,23 +127,26 @@ sinks down the bunker's throat onto the top tread as the bed burns and slides do
 
 **The drive.** The vanilla axle's line is along z at (24, 40), the power cell's centre. An oak entry with the
 axle's cross profile runs from the power face (z 0) into a closed cast-iron **gear case** (x 18..30, y 33..46, z
-2..10, with a boss at each end) that stands on its foot on the coal bunker's rim. In it is a rectifier, as in the
+2..12, with a boss at each end) that stands on its foot on the coal bunker's rim. In it is a rectifier, as in the
 stamp mill's gear case and the draw bench's and gear cutter's drives: two pairs of gears on one-way catches, one
 pair through an idler, so the shaft out of the case turns one way whichever way the entry turns; its gears are not
-drawn. The iron **line shaft** comes out of the case's south boss and runs on to z 79, in three pedestal bearings on
-the arch's crown (z 14..17, 25..28, 48..51) and the feeder casing's end walls. Each rabble (spindles at z 40 and 64)
-is driven by a bevel pair: an 8-tooth pinion on the line shaft (pitch radius 2.8, at z 34.4 and 58.4) on the
+drawn. The iron **line shaft** comes out of the case's south boss and runs on to z 75.4, in three pedestal bearings
+on the arch's crown (z 16..19, 25..28, 46.4..49.2) and the feeder casing's end walls. Each rabble (spindles at z 39
+and 61) is driven by a bevel pair: an 8-tooth pinion on the line shaft (pitch radius 2.8, at z 33.4 and 55.4) on the
 north rim of a 16-tooth wheel on the spindle (pitch radius 5.6, its pitch plane at y 37.2, module 0.7); their
 pitch cones meet where the shaft's and the spindle's axes cross. Driven from the north rim, a wheel turns back:
 the rabbles turn at −1/2 of the axle. Each spindle runs from the hearth up through a gland in the crown strip and a
 bearing on the roof, the wheel's hub resting on the bearing. In the hearth it carries a hub with two arms (11.6
 long), each with three ploughs set 40° across it; the sweeps reach 12 from the spindle, so the first rabble's
-sweep takes in the discharge hole and the second's the charge under the feed chute, and the two meet between them.
+sweep takes in the discharge hole and the second's the charge under the feed chute, and the two overlap between
+them (a quarter turn apart, the arms never meet: the swept-path check).
 
-**The feeder** (level 2). A fluted roll (six flutes, radius 2.6) keyed on the line shaft's end turns in an iron
-casing (x 20..28, y 31.3..42, z 72..79) under the hopper's slot, whose end walls are the shaft's last bearings;
-the charge it carries over drops down the feed chute (x 21.5..26.5, z 73.5..77.5) through the arch's crown, its
-flange on an iron seat on the crown.
+**The feeder** (level 2). The previous machine's chute ends in a section of the vanilla chute (x 20..28, z 68..76,
+the chute's 8 × 8 tube centred in the infeed cell, walls 1 thick) hung from the cell's top (y 48) into the hopper's
+mouth, flush with its inner walls. A fluted roll (six flutes, radius 2.6) keyed on the line shaft's end turns in an
+iron casing (x 20..28, y 32..42, z 68.5..75.5) under the hopper's slot, whose end walls are the shaft's last
+bearings; the charge it carries over drops down the feed chute (x 21.5..26.5, z 70..74) through the arch's crown,
+its flange on an iron seat on the crown.
 
 Every moving part (θ the axle angle; none rides another):
 
@@ -196,7 +202,7 @@ at parts together looks at one state at a time (the frame, level 1, level 2), ne
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty part;
   the element count drawn in each state.
-- **Textures** by role (stone, rubble, brick, firebrick, iron, oak, ore, firewood, coal, fire), every element.
+- **Textures** by role (stone, rubble, brick, firebrick, iron, oak, ore, firewood, coal, fire, chute), every element.
 - **Levels:** level 2 keeps exactly the hopper of level 1's parts and retires only `RETIRED`; contents are never
   fitted parts; every `requires` value is in a level or a level's contents.
 - **Nothing floats,** in each state: the frame and that state's static parts are one piece from the ground.
@@ -226,6 +232,11 @@ at parts together looks at one state at a time (the frame, level 1, level 2), ne
   within a tenth of a tooth at the contact; the box teeth run at most 0.3 voxels into each other over a tooth's
   cycle (the gear cutter's limit for its mitre bevels).
 - **The feed roll:** keyed on the shaft, under the hopper's slot, over the chute, its flutes inside the slot.
+- **The chute-fed infeeds** *(the owner's rule: they are the vanilla chute)*: the ore infeed's and the fuel's
+  sections have the vanilla chute's walls (`CHUTE_UD_WALLS`: its cross-section, wall thickness and place in the
+  cell), wear its texture, and reach their anchor's face, so a vanilla chute in the next cell meets them; the
+  recorded walls are checked against the game's own `shapes/block/metal/chute/straight.json` (turned up and down, as
+  its `ud` variant) when the game is installed (`VINTAGE_STORY`, or `~/Games/vintagestory`).
 - **Clearances:** every moving part against everything drawn with it at level 2, at 24 angles; and **swept
   paths** (full runs) every 5° of the shaft over the rabbles' two turns (144 angles). Intended contacts are
   listed in `ALLOWED` (the entry and the line shaft in the gear case, shafts in their bearings, glands and
@@ -304,11 +315,16 @@ regenerating.
   yoke on a crank) needed room between the last gear and the hopper that the bevel wheels now take. A fluted roll
   under a hopper's slot is the period's simplest positive feeder, it turns with the shaft that is already there,
   and it is one `rotate`. It is inside its casing, so its motion is seen only from above with the hopper hidden.
+- **Chute-fed infeeds are the vanilla chute** (the owner's rule). Each infeed that takes automation at the mill
+  level ends in a section of the game's own chute, exactly its shape (reproduced, as it is the game's) and texture,
+  at the anchor's face: the ore infeed in the hopper's mouth and the fuel infeed in the coal bunker. That fixes the
+  hopper's and the feeder's place under the infeed cell's middle, so the second rabble moved north to reach the
+  charge (and the first with it, their sweeps now overlapping by 2).
 - **The hopper is level 1's, kept.** The infeed is the same box at the same place at both levels: on a trestle,
   filled by hand, at level 1; on the feeder's casing, filled by the previous machine's chute, at level 2.
 - **The inside: open work doors.** An Edwards furnace had a work door opposite each rabble, both sides, for
   inspecting and changing the ploughs; they are drawn open, their plates lifted in their guides (a counterweighted
-  lift door, as on period furnaces), 16 wide and 8 high, so the hearth, the charge and the rabbles' arms can be
+  lift door, as on period furnaces), 14 wide and 8 high, so the hearth, the charge and the rabbles' arms can be
   seen through them, and straight through the furnace from the side. No wall or roof is cut away.
 - **No process water.** Roasting is dry; nothing in either level takes a pipe.
 - **Where the fumes go, and the sulfur.** Both levels' fumes go up the one stack through the frame's flue chamber
@@ -323,7 +339,7 @@ regenerating.
    footprint for stalls that do nothing at level 2.
 2. **The mechanism for level 2:** rotating rabbles (Edwards) as drawn, a rabble carriage, or hand-rabbling with
    only the feed mechanised. Two rabbles fit the 6-block hearth; real ones had more.
-3. **Fuel at level 2.** Drawn as coal fed by a chute into the bunker at the `fuelCell`: a second chute input for
+3. **Fuel at level 2.** Drawn as coal fed by a vanilla chute into the bunker at the `fuelCell`: a second chute input for
    the gameplay. The other way is to let a sulfide charge burn on its own sulfur once lit (pyritic ore roasts
    itself), with the bunker and grate only for lighting. Level 1's heaps are drawn on firewood, as stall roasting
    was started.
