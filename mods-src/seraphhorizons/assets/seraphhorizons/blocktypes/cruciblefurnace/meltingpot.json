@@ -43,7 +43,7 @@
 		onTongTransform: {
 			translation: { x: -1.4, y: -1.04, z: -1.11 },
 			rotation: { x: -83, y: -19, z: -4 },
-			scale: 0.63
+			scale: 0.45
 		},
 		onMetalTongTransform: {
 			translation: { x: -1.025, y: -0.12, z: -0.31 },
@@ -94,10 +94,16 @@
 	selectionbox: { x1: 0.25, y1: 0, z1: 0.25, x2: 0.75, y2: 0.6875, z2: 0.75 },
 	guiTransform: { origin: { x: 0.5, y: 0.3, z: 0.5 }, scale: 2 },
 	groundTransform: { origin: { x: 0.5, y: 0, z: 0.5 }, scale: 2.5 },
+	// The pot is 11 voxels tall to the game crucible's 7, so in the hand it is drawn smaller than the
+	// crucible's transforms (which these began as) would draw it.
+	fpHandTransform: {
+		origin: { x: 0.5, y: 0.3, z: 0.5 },
+		scale: 0.7
+	},
 	tpHandTransform: {
 		translation: { x: -0.5, y: 0, z: -0.4 },
 		rotation: { x: 13, y: 11, z: -76 },
 		origin: { x: 0.5, y: 0, z: 0.5 },
-		scale: 0.82
+		scale: 0.6
 	}
 }
