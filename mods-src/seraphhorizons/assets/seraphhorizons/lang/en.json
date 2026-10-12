@@ -1819,7 +1819,7 @@
   "block-cruciblefurnace-frame-*": "Crucible furnace frame",
   "block-cruciblefurnace": "Crucible furnace",
   "block-cruciblefurnace-ghost": "Crucible furnace",
-  "blockdesc-cruciblefurnace-frame-*": "The iron frame of a Huntsman (Sheffield) crucible furnace: one hole for two melting pots, fired with coke on a chimney's natural draught. Placed, the furnace stands three blocks wide, three deep and two high, its ash mouth towards you. Build it up with right-clicks, a stack a click: 25 fired bricks of one colour, then 9 tier-3 refractory bricks and 4 fire clay, then 4 tier-3 refractory bricks and 2 iron plates for the lid and the ash-pit damper. A chimney at least 6 blocks tall stands on the outlet at the back.",
+  "blockdesc-cruciblefurnace-frame-*": "The iron frame of a crucible furnace. Place it, then build it up with bricks: see the handbook.",
   "cruciblefurnace-stage-frame": "the iron frame",
   "cruciblefurnace-stage-brickwork": "brickwork",
   "cruciblefurnace-stage-lining": "lining",
