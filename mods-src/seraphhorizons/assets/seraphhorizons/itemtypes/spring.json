@@ -19,9 +19,21 @@
 	attributes: {
 		shelvable: true,
 		groundStorageTurnsBoxes: true,
+		// The chute section's tong poses (the coil lies along z as it does), turned about the coil's own
+		// centre, which sits 5.4 px lower in its box than the chute's: origin y 0.165, and translation y up by
+		// that drop over the scale. Metal tongs read onMetalTongTransform and fall back to onTongTransform,
+		// the wooden tongs' pose, without it.
 		onTongTransform: {
-			translation: { x: -1.15, y: -0.97, z: -0.53 },
+			translation: { x: -1.15, y: -0.551, z: -0.53 },
 			rotation: { x: 22, y: 11, z: -17 },
+			origin: { x: 0.5, y: 0.165, z: 0.5 },
+			scale: 0.8
+		},
+		tongOpening: "medium",
+		onMetalTongTransform: {
+			translation: { x: -1.35, y: -0.481, z: -0.52 },
+			rotation: { x: -32, y: 0, z: 0 },
+			origin: { x: 0.5, y: 0.165, z: 0.5 },
 			scale: 0.8
 		},
 		handbook: {

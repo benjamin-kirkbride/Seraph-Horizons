@@ -30,6 +30,12 @@
 			rotation: { x: 22, y: 11, z: -17 },
 			scale: 0.8
 		},
+		tongOpening: "medium",
+		onMetalTongTransform: {
+			translation: { x: -1.35, y: -0.9, z: -0.52 },
+			rotation: { x: -32, y: 0, z: 0 },
+			scale: 0.8
+		},
 		handbook: {
 			groupBy: ["pipesection-*"],
 			extraSections: [{ title: "seraphhorizons:pipesection-handbook-title", text: "seraphhorizons:pipesection-handbook-text" }]

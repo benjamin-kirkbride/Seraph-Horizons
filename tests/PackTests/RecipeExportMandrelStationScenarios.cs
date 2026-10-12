@@ -44,7 +44,7 @@ public partial class RecipeExportScenarios
     }
 
     // The spring job: one hot steel rod in, the mandrel kept, the tongs worn a point a spring, the
-    // station; one spring out; by hand, four seconds of winding; the heat said in requirements.
+    // station; one spring out; by hand, eight seconds of winding; the heat said in requirements.
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Mandrel_station_winds_a_steel_rod_into_a_spring_record()
     {
@@ -57,7 +57,7 @@ public partial class RecipeExportScenarios
         Json("""{ "code": "seraphhorizons:mandrelstation-frame-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[3]);
         Assert.Equal(4, ingredients.Count);
         Json("""[{ "code": "seraphhorizons:spring-steel", "kind": "item", "quantity": 1 }]""", r["outputs"]!);
-        Json("""{ "power": "hand", "turns": 4, "work": { "amount": 4, "unit": "seconds" }, "kept": [1], "wear": { "ingredient": 2, "rule": "fixed" } }""", r["machine"]!);
+        Json("""{ "power": "hand", "turns": 8, "work": { "amount": 8, "unit": "seconds" }, "kept": [1], "wear": { "ingredient": 2, "rule": "fixed" } }""", r["machine"]!);
         Assert.Contains("751", (string)r["requirements"]![0]!);
         var variant = r["variants"]![0]!;
         Assert.Equal(new[] { "game:rod-steel" }, Codes(variant["ingredients"]![0]!).Select(c => (string)c!));

@@ -470,7 +470,7 @@ details and the limits (facing, connectors).
   and the frame's recipe;
 - the mandrel station (`RecipeExportMandrelStationScenarios.cs`): a record per metal, the kept
   mandrel, the hammer worn by its blows, power `hand` at the blows, and two pipe sections; and the
-  spring record, the steel rod, the tongs worn a point, power `hand` at four seconds, one spring, the heat
+  spring record, the steel rod, the tongs worn a point, power `hand` at eight seconds, one spring, the heat
   in `requirements`;
 - the eidolon (`RecipeExportEidolonScenarios.cs`): the gantry's winch, nine stages in order with their
   counts and a variant per wood, the body on a gantry (a station) to the mind's temporal gear, the

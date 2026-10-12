@@ -282,7 +282,7 @@
     "BlowsPerHollowCopper": 14,
     "BaseHammerTier": 2,
     "HammerWearPerBlow": 1,
-    "TurnsPerRod": 4.0,
+    "TurnsPerRod": 8.0,
     "TongsWearPerRod": 1
   },
   "MandrelSprings": true,
