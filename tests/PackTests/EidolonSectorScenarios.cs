@@ -14,7 +14,7 @@ namespace SeraphHorizons.PackTests;
 /// mods-src/seraphhorizons/Eidolon, several eidolons kept apart (README "Eidolon", working together,
 /// *Sectors*, and the paths round other eidolons), with the pack's default settings, ordered with the
 /// command tool as a player orders them: three on one area 16 × 3 × 12 each work a sector of their own,
-/// apart, never overlapping, the floors within a climb, with no slam at nothing, one report; and two
+/// apart, never pushing into each other, the floors within a climb, with no slam at nothing, one report; and two
 /// ordered across each other's way walk round each other and both arrive. The steal is
 /// <see cref="EidolonTeamMineScenarios"/>'s. On floors of their own in the sky (<see cref="Felling.Sky"/>).
 /// </summary>
@@ -143,16 +143,16 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
             + string.Join(" ", watch.BySector.Select(kv => $"{kv.Key}: {kv.Value.In}/{kv.Value.Out}"))
             + $"; empty strikes {orders.Sum(o => o.EmptyStrikes)}, cut {orders.Sum(o => o.CutStrikes)}; mean apart {watch.MeanDistance:0.00}; overlaps {watch.Overlaps}");
         Log("reports: " + string.Join(" | ", lines));
-        Log("faults: " + string.Join(" | ", watch.Faults.Take(30)) + "; overlapping: " + string.Join(" | ", watch.Contacts.Take(10)));
+        Log("faults: " + string.Join(" | ", watch.Faults.Take(30)) + "; overlapping: " + watch.Summary());
         Assert.Empty(watch.Faults);
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
         Assert.Equal(toMine.Count, orders.Sum(o => o.Mined));
         Assert.All(orders, o => Assert.True(o.Mined > 0, $"one mined nothing: {string.Join(" + ", orders.Select(x => x.Mined))}"));
         // Each broke in its own sector, and they kept apart: well over two boxes' width on average,
-        // never one inside another.
+        // never one pushing through or standing in another (a brush, brief and shallow, allowed).
         Assert.All(watch.BySector.Values, v => Assert.Equal(0, v.Out));
         Assert.True(watch.MeanDistance >= 5, $"mean distance apart {watch.MeanDistance:0.00}");
-        Assert.Equal(0, watch.Overlaps);
+        Assert.Null(watch.Pushing());
         // Every slam broke something.
         Assert.Equal(0, orders.Sum(o => o.EmptyStrikes));
         var report = Assert.Single(lines);

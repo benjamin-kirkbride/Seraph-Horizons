@@ -61,7 +61,10 @@ public sealed class GameWideSpace(IBlockAccessor blocks, Cuboidf box, EnumAICrea
 /// walking with a lower id that would meet it within <see cref="GiveWaySeconds"/>, each going on as it
 /// goes now, it stops for, while that one would still meet it where it stands (<see cref="YieldMs"/> at
 /// most), then searches again: the one with the lower id does not turn aside for it, and once it stands
-/// that one goes round it.</para>
+/// that one goes round it. But where it would be met standing too (ahead of that one on its way, or where
+/// that one's path ends, <see cref="EntityLaborEidolon.WalkGoal"/>), it searches again at once instead,
+/// going round where that one goes, and stops only with no way round. Where a walker with a lower id
+/// stops is kept clear as where it stands.</para>
 /// </summary>
 public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
 {
@@ -93,7 +96,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
     private const double GiveWaySeconds = 1.5;
 
     /// <summary>Motion, blocks a tick, under which another eidolon counts as standing.</summary>
-    private const double StandingMotion = 0.004;
+    internal const double StandingMotion = 0.004;
 
     private string? _animation;
     private bool _steering;
@@ -155,7 +158,11 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
             bool walking = Math.Sqrt(mx * mx + mz * mz) >= StandingMotion;
             if (walking && e.EntityId > eidolon.EntityId)
                 continue;
-            list.Add((e, Ways(e, walking ? SweepSeconds : 0)));
+            var ways = Ways(e, walking ? SweepSeconds : 0);
+            // one walking with a lower id stops where its path ends: kept clear of, as where it stands
+            if (walking && e is EntityLaborEidolon { WalkGoal: { } goal })
+                ways.Add((goal.X, goal.Y, goal.Z));
+            list.Add((e, ways));
         }
         return list;
     }
@@ -216,6 +223,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         _givingWay = false;
         _progress = 0;
         var route = _route = new Route(path, waypoints, run, arriveWithin, onArrived, onStuck, target.Clone(), tolerance);
+        eidolon.WalkGoal = path[^1];
         Watch();
         if (_climb == null)
             Walk(route, 0);
@@ -273,6 +281,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
             if (!GoTo(route.Target, route.Run, route.OnArrived, route.OnStuck, route.Tolerance, route.ArriveWithin))
             {
                 _route = null;
+                eidolon.WalkGoal = null;
                 route.OnStuck();
             }
             return;
@@ -281,7 +290,19 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
             return;
         if (Meets(standing: false))
         {
-            // one with the lower id walks at it: it stops for it to pass
+            // One with the lower id walks at it. Where it stands now is in that one's way (it would meet
+            // it standing too, as one ahead on the same way, or crossing it): stopping there would only
+            // have that one walk into it, so it turns aside at once, its search going round where that one
+            // goes. Else, or with no way round, it stops for it to pass.
+            if (Meets(standing: true) && now >= _repathAt)
+            {
+                _repathAt = now + RepathMs;
+                Repaths++;
+                if (GoTo(route.Target, route.Run, route.OnArrived, route.OnStuck, route.Tolerance, route.ArriveWithin) && LastWentAround)
+                    return;
+                if (_route == null || eidolon.TaskAi?.PathTraverser?.Active != true)
+                    return;
+            }
             Yields++;
             eidolon.TaskAi?.PathTraverser?.Stop();
             Animate(null);
@@ -331,6 +352,9 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
             for (int i = 0; i < mine.Count && i < theirs.Count; i++)
                 if (new Others([theirs[i]], HalfWidth, Height).Touches(mine[i].X, mine[i].Y, mine[i].Z))
                     return true;
+            // standing where that one's path ends is in its way however long it waits
+            if (standing && e is EntityLaborEidolon { WalkGoal: { } goal } && new Others([(goal.X, goal.Y, goal.Z)], HalfWidth, Height).Touches(p.X, p.Y, p.Z))
+                return true;
         }
         return false;
     }
@@ -387,6 +411,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
             {
                 Animate(null);
                 _route = null;
+                eidolon.WalkGoal = null;
                 route.OnArrived();
             }
         }
@@ -405,6 +430,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
                     return;
                 Animate(null);
                 _route = null;
+                eidolon.WalkGoal = null;
                 route.OnStuck();
             });
     }
@@ -481,6 +507,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         }
         var stats = eidolon.FittedStats;
         _route = null;
+        eidolon.WalkGoal = null;
         _yieldUntil = 0;
         _climbWait = -1;
         ClearClimbWait();
@@ -504,6 +531,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
     {
         _steering = false;
         _route = null;
+        eidolon.WalkGoal = null;
         _yieldUntil = 0;
         _climbWait = -1;
         ClearClimbWait();

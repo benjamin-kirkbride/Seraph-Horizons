@@ -334,8 +334,46 @@ public static class EidolonTeamwork
     /// waits first: a miner reaching the area's edge stands with its box at most one column clear of it.</summary>
     public const int RimGap = 2;
 
-    /// <summary>How far apart, at least, two eidolons wait (their boxes 1.7 wide).</summary>
-    public const double RimSpacing = 2.5;
+    /// <summary>How far apart, at least, a place to wait is chosen from where another eidolon stands or
+    /// waits, along x or along z, whichever is further (<see cref="Apart"/>): their boxes, 1.7 wide, 1.0
+    /// clear of each other, so each may end its walk <see cref="WaitArrive"/> off its place and drift a
+    /// little and they still keep <see cref="KeepSpacing"/>. On a ring of path nodes, every third.</summary>
+    public const double RimSpacing = 2.7;
+
+    /// <summary>How near the last waypoint, in blocks, a walk to a place to wait ends: it goes to the
+    /// place itself, not stopping short of it.</summary>
+    public const double WaitArrive = 0.2;
+
+    /// <summary>How far apart, along x or z, one waiting keeps from where another stands or waits before
+    /// it chooses another place (<see cref="KeepsPlace"/>): its box 0.5 clear of the other's, and more
+    /// than twice <see cref="WaitArrive"/> under <see cref="RimSpacing"/>, so two that chose places apart
+    /// and stopped a little off them never move on for it.</summary>
+    public const double KeepSpacing = 2.2;
+
+    /// <summary>How far from its place, along x or z, one standing still is no longer at it: its walk
+    /// ended short (stuck, or stopped by another in the way), and it chooses again.</summary>
+    public const double WaitSlack = 0.5;
+
+    /// <summary>Whether (<paramref name="x"/>, <paramref name="z"/>) is at least <paramref name="spacing"/>
+    /// from each of <paramref name="taken"/> along x or along z: two eidolons' boxes, square, overlap only
+    /// when they are nearer than their width along both.</summary>
+    public static bool Apart(double x, double z, IEnumerable<(double X, double Z)> taken, double spacing = RimSpacing) =>
+        taken.All(o => Math.Max(Math.Abs(o.X - x), Math.Abs(o.Z - z)) >= spacing);
+
+    /// <summary>
+    /// Whether one waiting keeps the place it chose (<paramref name="place"/>) or chooses another: walking
+    /// to it (<paramref name="walking"/>), while the place is <see cref="KeepSpacing"/> from every other
+    /// eidolon standing and every place another waits at or makes for (<paramref name="taken"/>); standing,
+    /// while it stands at it (within <see cref="WaitSlack"/>), not left short of it, and where it stands is
+    /// that far from them. So two never wait or settle within a box of each other: one that finds another
+    /// come to stand by it, or its walk ended away from its place, moves on.
+    /// </summary>
+    public static bool KeepsPlace((double X, double Z) place, (double X, double Z) at, bool walking, IEnumerable<(double X, double Z)> taken)
+    {
+        if (walking)
+            return Apart(place.X, place.Z, taken, KeepSpacing);
+        return Math.Max(Math.Abs(at.X - place.X), Math.Abs(at.Z - place.Z)) <= WaitSlack && Apart(at.X, at.Z, taken, KeepSpacing);
+    }
 
     /// <summary>How far, in blocks, the floors of a pit worked in sectors may be apart: what an eidolon
     /// climbs and drops (<see cref="EidolonClimb"/>), so it walks from any sector into any other.</summary>
@@ -351,9 +389,9 @@ public static class EidolonTeamwork
     /// Where a spare eidolon may wait for work, out of the area and out of the way: path nodes (block
     /// corners, its box over the two columns each side) on rings round <paramref name="area"/>, its box
     /// <see cref="RimGap"/> columns clear of it first, then nearer (1, then 0 between); on each ring
-    /// nearest (<paramref name="fromX"/>, <paramref name="fromZ"/>), none within <see cref="RimSpacing"/>
-    /// of where another eidolon is or waits (<paramref name="taken"/>). Only x and z: the ground's
-    /// height is the world's.
+    /// nearest (<paramref name="fromX"/>, <paramref name="fromZ"/>), each <see cref="RimSpacing"/> along x
+    /// or z from where another eidolon is or waits (<paramref name="taken"/>, <see cref="Apart"/>). Only x
+    /// and z: the ground's height is the world's.
     /// </summary>
     public static IReadOnlyList<(int X, int Z)> Rim(MarkArea area, double fromX, double fromZ, IEnumerable<(double X, double Z)> taken)
     {
@@ -377,7 +415,7 @@ public static class EidolonTeamwork
             }
             foreach (var (x, z) in ring)
             {
-                if (others.Any(o => (o.X - x) * (o.X - x) + (o.Z - z) * (o.Z - z) < RimSpacing * RimSpacing))
+                if (!Apart(x, z, others))
                     continue;
                 stands.Add((x, z, gap, (x - fromX) * (x - fromX) + (z - fromZ) * (z - fromZ)));
             }

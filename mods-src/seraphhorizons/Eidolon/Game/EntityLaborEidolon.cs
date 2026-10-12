@@ -150,6 +150,11 @@ public class EntityLaborEidolon : EntityAgent
     /// with no motion, so others keep clear of it as of where it stands.</summary>
     public PathCell? ClimbTop { get; internal set; }
 
+    /// <summary>Where the path it walks ends (the node its feet's centre stops on), or null with none
+    /// (server side; set by <see cref="EidolonNavigator"/>): one with a higher id keeps clear of it, and
+    /// does not stop there to give way, as of where it stands.</summary>
+    public PathCell? WalkGoal { get; internal set; }
+
     /// <summary>Whether it waits at the foot of a climb for its top to clear (server side; set by
     /// <see cref="EidolonNavigator"/>, with <see cref="ClimbTop"/> where it would land).</summary>
     public bool ClimbWaiting { get; internal set; }

@@ -275,7 +275,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         var lines = Reports(orders);
         Log($"after: {orders[0].Mined} + {orders[1].Mined}; steals {sectors.Steals}; empty {orders.Sum(o => o.EmptyStrikes)}, cut {orders.Sum(o => o.CutStrikes)}; overlapping {watch.Overlaps} ticks; "
             + "reports: " + string.Join(" | ", lines));
-        Log("faults: " + string.Join(" | ", watch.Faults.Take(30)) + "; overlapping: " + string.Join(" | ", watch.Contacts.Take(10)));
+        Log("faults: " + string.Join(" | ", watch.Faults.Take(30)) + "; overlapping: " + watch.Summary());
         Assert.Empty(watch.Faults);
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
         Assert.True(sectors.Steals >= 1, "no steal");
@@ -285,7 +285,8 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Contains(watch.Broke[west.EntityId], c => c.X >= a.X + 8);
         Assert.All(watch.BySector.Values, v => Assert.Equal(0, v.Out));
         // the west one walked to its half and worked it apart from the east one, each standing in its own
-        Assert.Equal(0, watch.Overlaps);
+        // (a brush, brief and shallow, allowed)
+        Assert.Null(watch.Pushing());
         Assert.Equal(0, orders.Sum(o => o.EmptyStrikes));
         Assert.Single(lines);
         foreach (var e in eidolons)

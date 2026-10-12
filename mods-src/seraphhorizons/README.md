@@ -3375,12 +3375,20 @@ what any gave up (`MineJobCells.Unreachable`). *Waiting at the rim*: one with no
 or strike (all held by others or under a member at work), or nothing in its sector it may work and
 nothing to take or steal, frees its square and walks to a place on the area's rim (`EidolonTeamwork.Rim`: its box two columns clear of the
 area first, the miners' stands being at most one, then one and none; the nearest with ground under it,
-none within 2.5 blocks of another eidolon or of where another waits), out of the pit and out of the
-way, and every second looks again, taking the next square that comes free. One that finds no way to
+2.7 blocks or more along x or z from every other eidolon and every place another waits at or makes for,
+`EidolonTeamwork.RimSpacing`: their square boxes, 1.7 wide, a block clear), out of the pit and out of
+the way, and every second looks again, taking the next square that comes free. It walks to the place
+itself (within 0.2), not stopping short, and once there its place is where it stands. It keeps the
+place only while no other eidolon stands, waits or makes for within 2.2 of it along x or z
+(`EidolonTeamwork.KeepsPlace`, `KeepSpacing`: under the 2.7 by more than both ending 0.2 off theirs) and,
+standing, while it stands at it: one whose walk there ended short (stuck where a block it would have
+stepped on was mined under its path, say, or stopped by another) or that finds another come to stand
+by it chooses again at once, so none is left stuck by another or settles on one. One that finds no way to
 the rim (deeper in the pit than it climbs, say) steps aside instead (`RimWait`: the nearest path node
 within 6 whose four columns have no block left it would mine and none another holds, on ground a climb
-or a drop from its feet), says so in its status (`eidolon-status-mine-waiting-aside`) rather than that
-it waits at the edge, and tries the rim again every 10 seconds. *Footing*: no miner breaks
+or a drop from its feet, as far from the others as a place on the rim, and kept the same way), says so
+in its status (`eidolon-status-mine-waiting-aside`) rather than that it waits at the edge, and tries the
+rim again every 10 seconds. *Footing*: no miner breaks
 a block under any eidolon's box at or below its feet (`EidolonMining.Undermines`), its job's or not,
 with an order or not, asked at the strike for each block of the group against the eidolons loaded within
 8 blocks of it (a block so left is struck once the eidolon has moved), and its next group and the square
@@ -3410,8 +3418,10 @@ the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamwo
 the steal), `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit 8 × 4,
 a sector each, never holding the same square, the floors within a climb, one report with both shares,
 each back to its place; one ordered later joining the job running; one whose sector is mined out
-stealing the far half of another's, never overlapping), `tests/PackTests/EidolonSectorScenarios.cs` (Atlas: three on a
-16 × 3 × 12 area each breaking only in its sector, on average 5 or more apart, never overlapping, the floors
+stealing the far half of another's, never pushing into it), `tests/PackTests/EidolonSectorScenarios.cs` (Atlas: three on a
+16 × 3 × 12 area each breaking only in its sector, on average 5 or more apart, never pushing into each other
+(`MineWatcher.Pushing`: boxes may brush, each contact under half a second and a second in all, the centres
+never under a block apart), the floors
 within a climb, no slam at nothing, one report; two ordered head on across each other's way walking round
 each other and both arriving), `tests/PackTests/EidolonTunnelScenarios.cs` (Atlas: two driving a tunnel 4
 wide into a hillside, a 2-wide heading each, side by side and never closer than their boxes, each striking
@@ -3532,8 +3542,8 @@ refused, water and slow blocks costed), bounded by `PathSearchNodes` on the serv
 own waypoint traverser then walks the path. A first pass: following (#675) proves it on real terrain.
 *Other eidolons*, on every path whatever the order: a search goes round where each loaded within 24
 blocks stands (`WidePath.FindAround`, `Others`: its box kept 0.3 clear of theirs), leaving out one at a
-goal it goes to exactly (it stands where it goes; going within a block or two, to wait at the rim, say, it
-stops short of one there, clear of it) and one already touching it where it starts; finding no way round, it
+goal it goes to exactly (it stands where it goes; going within a block or two, it stops short of one
+there, clear of it) and one already touching it where it starts; finding no way round, it
 takes the way through them. While it walks, it looks along its path's next 6 nodes every half second
 (`EidolonNavigator`), and one in the way there makes it search again, at most every 2 seconds, never while
 it climbs; with still no way round, it walks on, unless the one in its way has the lower id: that one goes
@@ -3541,7 +3551,10 @@ first, and it waits for it, up to 4 seconds, then walks on. One walking with a l
 aside for it, so it gives way: every half second it looks whether that one and it would meet within a
 second and a half, each going on as it goes now (their boxes within the 0.3), and if so stops, waits while
 that one would still meet it where it stands, up to 4 seconds, and searches again; standing, it is one the
-other goes round. So two meeting in a narrow way never both stand, and the spacing push ("Spacing") stays
+other goes round. Where it would be met standing too (ahead of that one on its way, or where that one's
+path ends, `EntityLaborEidolon.WalkGoal`), stopping would only have it walked into: it searches again at
+once instead, going round where that one goes, and stops only with no way round. Where one walking with a
+lower id stops, the end of its path, the others' searches keep clear of as where it stands. So two meeting in a narrow way never both stand, and the spacing push ("Spacing") stays
 the last resort. One climbing is moved with no motion, so
 the others count it as standing, and they keep clear of where its climb lands too
 (`EntityLaborEidolon.ClimbTop`). At the foot of a climb it waits while another is where it would land,
