@@ -2589,7 +2589,7 @@ forge ("Rods on the forge"). On a station with no mandrel a steel rod is fitted 
 not; on a fitted, bare mandrel a hot one goes on by right-click as the work, and a cold one is refused
 with a message giving its temperature. Then **right-click held** on the station with **tongs** in either
 hand (the game's `game:tongs` or metal tongs, any item whose tool is `Tongs`; none needed in creative
-mode) winds it, as the press brake's lever is worked: a turn a second, `TurnsPerRod` (4) turns a rod.
+mode) winds it, as the press brake's lever is worked: a turn a second, `TurnsPerRod` (8) turns a rod.
 It winds only while the rod is at working temperature: the rod keeps its stack on the station and cools
 there as any stack does, and below working heat the winding stops (the winder is told once). **Ctrl +
 right-click** takes the rod back at any time, straight (the winding so far is lost, the metal is not),
@@ -2614,7 +2614,7 @@ sides grow by stretching gauges, whole at p 0), W following the held clock, and 
 | `BlowsPerHollowCopper` | 14 | Blows of the base hammer a copper hollow takes; the rig's `forge.blowsPerHollow.thick` |
 | `BaseHammerTier` | 2 | The tool tier those blows are counted for, the game's copper hammer's; a blow of a hammer of tier t forges t / this of a base blow |
 | `HammerWearPerBlow` | 1 | Durability a blow costs the hammer, as a blow on the anvil does |
-| `TurnsPerRod` | 4 | Turns of the held clock (a turn a second) a steel rod takes to wind into a spring; the rig's `wind.turnsPerRod` |
+| `TurnsPerRod` | 8 | Turns of the held clock (a turn a second) a steel rod takes to wind into a spring; the rig's `wind.turnsPerRod` |
 | `TongsWearPerRod` | 1 | Durability a spring costs the tongs it is wound with |
 
 With the switch off the server marks both block types and the recipe file disabled before the game
@@ -6221,7 +6221,7 @@ recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios
 `machine` record per metal (`mandrelstation|game:chutesection-{metal}|0`): the hollow, the kept mandrel,
 the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 9 or 14
 blows, no oil; and the spring's (`mandrelstation|game:rod-steel|0`): the steel rod, the kept mandrel, the
-tongs worn a point, the frame, one spring, power `hand` at four seconds, the heat in `requirements`.
+tongs worn a point, the frame, one spring, power `hand` at eight seconds, the heat in `requirements`.
 `tests/PackTests/MandrelSpringScenarios.cs` (Atlas, the shared world, the gear cutter's player, x -460 to
 -508, z -520) requires the spring (steel's melting) and every game rod forgeable; a copper rod on a lit
 forge, one at a time, heating and coming off hot; a cold steel rod and a hot iron one refused on a fitted
