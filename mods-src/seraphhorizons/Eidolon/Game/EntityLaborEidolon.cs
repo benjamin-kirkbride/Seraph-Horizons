@@ -145,6 +145,20 @@ public class EntityLaborEidolon : EntityAgent
     /// animations and the physics of a creature no player is near.</summary>
     public bool KeepsChunksLoaded { get; internal set; }
 
+    /// <summary>Where the climb it is making ends (the node its feet's centre lands on), or null when it
+    /// is not climbing (server side; set by <see cref="EidolonNavigator"/>): the climb moves it there
+    /// with no motion, so others keep clear of it as of where it stands.</summary>
+    public PathCell? ClimbTop { get; internal set; }
+
+    /// <summary>Where the path it walks ends (the node its feet's centre stops on), or null with none
+    /// (server side; set by <see cref="EidolonNavigator"/>): one with a higher id keeps clear of it, and
+    /// does not stop there to give way, as of where it stands.</summary>
+    public PathCell? WalkGoal { get; internal set; }
+
+    /// <summary>Whether it waits at the foot of a climb for its top to clear (server side; set by
+    /// <see cref="EidolonNavigator"/>, with <see cref="ClimbTop"/> where it would land).</summary>
+    public bool ClimbWaiting { get; internal set; }
+
     public override bool AlwaysActive
     {
         get => KeepsChunksLoaded || base.AlwaysActive;

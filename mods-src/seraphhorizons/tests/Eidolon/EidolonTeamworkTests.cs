@@ -4,7 +4,7 @@ namespace SeraphHorizons.Mod.Tests.Eidolon;
 
 /// <summary>Working together: a job by owner, kind and area, joined late; reservations exclusive across
 /// jobs, freed on leaving or going away, lapsing after 30 s; the job's level its present members'
-/// highest; done only with every present member finished and none still to load; the footing rule
+/// highest, and none mining more than a layer under it; done only with every present member finished and none still to load; the footing rule
 /// against other eidolons; the rim's places; the report's shares.</summary>
 public class EidolonTeamworkTests
 {
@@ -163,27 +163,33 @@ public class EidolonTeamworkTests
         Assert.Empty(board.Held(2));
     }
 
-    // ---- the same layer together ----
+    // ---- the floors within a climb ----
 
     [Fact]
-    public void TheJobWorksItsPresentMembersHighestLevel()
+    public void TheJobWorksDownFromItsPresentMembersHighestLevelAndNoMoreThanOneLayerUnder()
     {
         var board = Board();
         var job = board.Join(1, "1", Key());
         board.Join(2, "2", Key());
         Assert.Null(job.Level);
+        Assert.Null(job.Lowest);
         board.SetLevel(1, 12);
         board.SetLevel(2, 11);
-        // 2 has nothing on 12 it can reach: it waits until 12 is done
+        // 12 is left somewhere: none mines under 11, so where 12 is left a floor stands on it (feet in
+        // 13), and where 11 is mined on 10 (feet in 11), a climb of two
         Assert.Equal(12, job.Level);
+        Assert.Equal(11, job.Lowest);
+        Assert.Equal(EidolonTeamwork.FloorStep, 13 - (job.Lowest!.Value));
         board.SetLevel(1, 11);
         Assert.Equal(11, job.Level);
+        Assert.Equal(10, job.Lowest);
         // one gone away does not hold the others to its layer
         board.SetLevel(1, 12);
         board.Away(1);
         Assert.Equal(11, job.Level);
         board.Leave(2);
         Assert.Null(job.Level);
+        Assert.Null(job.Lowest);
     }
 
     [Fact]
@@ -335,8 +341,47 @@ public class EidolonTeamworkTests
     public void TwoWaitAtTheRimApart()
     {
         var rim = EidolonTeamwork.Rim(Area, 3.5, -5, [(3, -3)]);
-        Assert.All(rim, s => Assert.True((s.X - 3) * (s.X - 3) + (s.Z + 3) * (s.Z + 3) >= EidolonTeamwork.RimSpacing * EidolonTeamwork.RimSpacing));
+        Assert.All(rim, s => Assert.True(Math.Max(Math.Abs(s.X - 3), Math.Abs(s.Z + 3)) >= EidolonTeamwork.RimSpacing));
         Assert.DoesNotContain((3, -3), rim);
         Assert.DoesNotContain((4, -3), rim);
+        // apart along x or z, as their square boxes are: two places diagonal 2 and 2 (2.8 apart) are a
+        // box apart only 0.3, and refused (the Euclidean 2.5 it was took them)
+        Assert.DoesNotContain((5, -5), EidolonTeamwork.Rim(Area, 3.5, -5, [(3, -3)]));
+    }
+
+    [Fact]
+    public void PlacesToWaitAreABoxAndMoreApartAlongXOrZ()
+    {
+        // its box 1.7 wide: chosen places leave it clear of another's with room to drift
+        Assert.True(EidolonTeamwork.RimSpacing >= 1.7 + 2 * EidolonTeamwork.WaitArrive + 0.3);
+        Assert.True(EidolonTeamwork.KeepSpacing < EidolonTeamwork.RimSpacing - 2 * EidolonTeamwork.WaitArrive);
+        Assert.True(EidolonTeamwork.KeepSpacing > 1.7);
+        Assert.True(EidolonTeamwork.Apart(0, 0, [(2.7, 0), (0, -2.7), (-3, 3)]));
+        Assert.False(EidolonTeamwork.Apart(0, 0, [(2.5, 0)]));
+        // 1.69 along z and 0.74 along x (the CI contact's two): too near
+        Assert.False(EidolonTeamwork.Apart(511286.76, 514103.27, [(511286.02, 514104.96)]));
+        Assert.False(EidolonTeamwork.Apart(0, 0, [(2, 2)]));
+        Assert.True(EidolonTeamwork.Apart(0, 0, [(2, 2)], 2));
+        Assert.True(EidolonTeamwork.Apart(0, 0, []));
+    }
+
+    [Fact]
+    public void OneWaitingMovesOnWhenAnotherComesToStandByItOrItsWalkEndsShort()
+    {
+        var place = (10.0, 10.0);
+        // walking there: kept while the place is clear, whatever it passes on the way
+        Assert.True(EidolonTeamwork.KeepsPlace(place, (4, 4), walking: true, [(5, 5)]));
+        // another came to stand at it, or chose a place by it, while it walked there
+        Assert.False(EidolonTeamwork.KeepsPlace(place, (4, 4), walking: true, [(11.5, 10.5)]));
+        // there, a little off it: kept
+        Assert.True(EidolonTeamwork.KeepsPlace(place, (10.15, 9.85), walking: false, [(12.7, 10)]));
+        // two that stopped each WaitArrive off places RimSpacing apart, toward each other, stay
+        double near = EidolonTeamwork.RimSpacing - 2 * EidolonTeamwork.WaitArrive;
+        Assert.True(EidolonTeamwork.KeepsPlace(place, (10 + EidolonTeamwork.WaitArrive, 10), walking: false,
+            [(10 + EidolonTeamwork.WaitArrive + near, 10)]));
+        // its walk ended short of its place (stuck, or another stood in its way): it chooses again
+        Assert.False(EidolonTeamwork.KeepsPlace(place, (9, 10), walking: false, []));
+        // another came to stand by it there
+        Assert.False(EidolonTeamwork.KeepsPlace(place, (10, 10), walking: false, [(11, 11.6)]));
     }
 }

@@ -19,7 +19,7 @@ public class EidolonJobSystem : ModSystem
 
     private ICoreServerAPI? _api;
     private readonly Dictionary<(object Board, long Member), IEidolonOrder> _orders = new();
-    private readonly Dictionary<long, (int X, int Z)> _rims = new();
+    private readonly Dictionary<long, (double X, double Z)> _rims = new();
 
     public static EidolonJobSystem? Of(ICoreAPI? api) => api?.ModLoader.GetModSystem<EidolonJobSystem>();
 
@@ -47,9 +47,10 @@ public class EidolonJobSystem : ModSystem
     /// takes it out once that order is no longer its current one.</summary>
     public void Track(object board, EntityLaborEidolon eidolon, IEidolonOrder order) => _orders[(board, eidolon.EntityId)] = order;
 
-    /// <summary>Where a member waits at its area's rim (x, z: <see cref="EidolonTeamwork.Rim"/>), or none,
-    /// so the next spare one waits elsewhere.</summary>
-    public void SetRim(long member, (int X, int Z)? rim)
+    /// <summary>Where a member waits, at its area's rim (<see cref="EidolonTeamwork.Rim"/>) or stepped
+    /// aside (x, z: the place it makes for, then where it stands there), or none, so the next spare one
+    /// waits elsewhere.</summary>
+    public void SetRim(long member, (double X, double Z)? rim)
     {
         if (rim is { } r)
             _rims[member] = r;
@@ -58,7 +59,7 @@ public class EidolonJobSystem : ModSystem
     }
 
     /// <summary>Where the members other than <paramref name="member"/> wait at a rim.</summary>
-    public IEnumerable<(int X, int Z)> RimsBut(long member) => _rims.Where(r => r.Key != member).Select(r => r.Value);
+    public IEnumerable<(double X, double Z)> RimsBut(long member) => _rims.Where(r => r.Key != member).Select(r => r.Value);
 
     /// <summary>A member, if loaded.</summary>
     public EntityLaborEidolon? Member(long id) => _api?.World.GetEntityById(id) as EntityLaborEidolon;
