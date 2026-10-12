@@ -78,8 +78,11 @@ const TEXTURE_FAMILIES: [RegExp, string][] = [
   [/glass/, "#cfe3ea"],
   [/^oil\b|honey|lubric/, "#c8902a"],
   [/oak|wood|plank|log|debarked|bark|timber/, "#b88a58"],
-  // Contents that would otherwise take the metal colour of the pan they lie in (the amalgam pan's).
-  [/mercury|quicksilver/, "#b8c0ca"],
+  // Contents that would otherwise take the metal colour of the pan they lie in (the amalgam pan's): mercury
+  // as Expanded Matter draws it (the game's andesite with its kimberlite blended over it, Lighten) and the
+  // charge's grey-brown slurry, each its texture's mean; the amalgam a warm grey.
+  [/mercury|quicksilver/, "#768085"],
+  [/slurry/, "#7a7369"],
   [/amalgam/, "#b0aa9c"],
   [/metal|iron|steel|copper|bronze|tin|plate|ingot|gold|silver/, "#8e98a4"],
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],

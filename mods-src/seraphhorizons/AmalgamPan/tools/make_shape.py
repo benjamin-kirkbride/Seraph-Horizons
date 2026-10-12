@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the amalgam pan's shapes, rig and reference poses (and its provisional mercury texture).
+"""Generate the amalgam pan's shapes, rig and reference poses (and its slurry texture).
 
 The amalgam pan is an amalgamating pan of the mid 1800s (the Washoe process, scaled down to one block),
 worked like the game's quern, both ways: by hand, the player holding right-click on it, or by a vanilla
@@ -9,16 +9,18 @@ muller (a hub with four arms, an iron shoe bolted under each arm's end, dragging
 the cone and comes down through the cone and a footstep bearing on an oak bridge-tree to the block's
 bottom face, where it ends in the vanilla axle's oak cross profile: an axle in the block below turns it.
 The muller turns with the axle, once a turn, as the quern's stone does; by hand there is nothing to see
-but the muller turning. Its contents are drawn as flat layers on the floor: a mercury pool, or the grey
-amalgam paste. Everything is built here from plain boxes; no other mod's model is used.
+but the muller turning. Nothing goes in or out but by the player's hand: there is no chute, hopper or
+other transfer. Its contents are drawn as flat layers on the floor: a mercury pool; the charge, a grey-brown
+slurry of ground concentrate worked into the mercury; or the grey amalgam paste. Everything is built here
+from plain boxes; no other mod's model is used.
 
 It writes, deterministically,
 
-    amalgampan.json         the whole pan, every moving part and both contents   (assets/.../shapes/block/)
+    amalgampan.json         the whole pan, every moving part and the contents    (assets/.../shapes/block/)
     amalgampan_frame.json   the static frame only (block and item)                (assets/.../shapes/block/)
     amalgampan-rig.json     the cell, anchors and the part rig                    (assets/.../config/)
     rig-reference.json      every part's matrix at a spread of shaft angles       (tests/AmalgamPan/)
-    mercury.png             the provisional mercury texture                       (assets/.../textures/block/liquid/)
+    slurry.png              the charge's slurry texture                         (assets/.../textures/block/liquid/)
 
 or, with `--out DIR`, all five into DIR. It validates its own output (validate_amalgampan.py) and exits
 non-zero if a check fails.
@@ -56,14 +58,14 @@ from machinegen.output import shape_json as machine_shape_json  # noqa: E402
 from machinegen.rigmath import part_of, posed, validate_driver  # noqa: E402
 from machinegen.rigmath import part_matrix as _part_matrix  # noqa: E402
 
-import mercury_texture  # noqa: E402
+import slurry_texture  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[4]
 MOD = ROOT / "mods-src" / "seraphhorizons"
 ASSETS = MOD / "assets" / "seraphhorizons"
 SHAPE_DIR = ASSETS / "shapes" / "block"
 RIG_DIR = ASSETS / "config"
-TEXTURE_OUT = ASSETS / "textures" / "block" / "liquid" / "mercury.png"
+TEXTURE_OUT = ASSETS / "textures" / "block" / "liquid" / "slurry.png"
 REFERENCE_OUT = MOD / "tests" / "AmalgamPan" / "rig-reference.json"
 SCRIPT = "mods-src/seraphhorizons/AmalgamPan/tools/make_shape.py"
 
@@ -80,7 +82,10 @@ TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
     "pan": "game:block/metal/sheet/iron1",          # the pan: riveted sheet iron
     "iron": "game:block/metal/plate/iron",          # cast and wrought iron: the cone, the footstep, the spindle, the muller
-    "mercury": "seraphhorizons:block/liquid/mercury",   # provisional, made by mercury_texture.py
+    # mercury as Expanded Matter draws it: the game's andesite, with its kimberlite blended over it (Lighten),
+    # which only a blocktype can say (README "Gameplay"); the shape names the base
+    "mercury": "game:block/stone/rock/andesite2",
+    "slurry": "seraphhorizons:block/liquid/slurry",     # the charge: made by slurry_texture.py to sit beside that mercury
     "amalgam": "game:block/metal/ingot/leadsolder",     # a dull, mottled grey: the paste
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
@@ -137,8 +142,9 @@ BRIDGE_Z = (6.8, 9.2)                        # the bridge-tree, under the pan's 
 CONTENT_R = R_IN + 0.05                      # their edge, just into the wall: no gap at the wall
 CONTENT_Y0 = FLOOR_TOP - 0.3                 # their underside, sunk in the floor (never seen)
 MERCURY_TOP = FLOOR_TOP + 0.4                # a pool 0.4 deep
+SLURRY_TOP = FLOOR_TOP + 1.6                 # the charge, 1.6 deep: a loaded pan, over the cone's foot, the shoes mostly in it
 AMALGAM_TOP = FLOOR_TOP + 0.8                # a paste 0.8 deep: the shoes stand out of it
-CONTENTS = ((1, "mercury"), (2, "amalgam"))  # (pose's contents index, part id = requires = texture code)
+CONTENTS = ((1, "mercury"), (2, "slurry"), (3, "amalgam"))   # (pose's contents index, part id = requires = texture code), in the pan's order
 
 SECONDS_PER_TURN = 1.5                       # the viewer's Play: 40 turns a minute, an axle's easy pace
 
@@ -263,8 +269,10 @@ def build_muller():
 
 
 def build_contents():
-    """The contents, flat layers on the floor inside the wall: the mercury pool and the amalgam paste."""
+    """The contents, flat layers on the floor inside the wall: the mercury pool, the charge (the slurry of
+    concentrate worked into the mercury) and the amalgam paste."""
     out = disc("y", AXIS, CONTENT_Y0, MERCURY_TOP, CONTENT_R, "mercury", "mercury", "mercury", k=8)
+    out += disc("y", AXIS, CONTENT_Y0, SLURRY_TOP, CONTENT_R, "slurry", "slurry", "slurry", k=8)
     out += disc("y", AXIS, CONTENT_Y0, AMALGAM_TOP, CONTENT_R, "amalgam", "amalgam", "amalgam", k=8)
     return out
 
@@ -297,6 +305,7 @@ def _rig_parts():
         {"id": "muller", "match": ["muller_*"], "requires": None,
          "drivers": [{"type": "rotate", "axis": "y", "pivot": pt(CX, 0.0, CZ), "ratio": GEAR_RATIO}]},
         {"id": "mercury", "match": ["mercury_*"], "requires": "mercury", "drivers": []},
+        {"id": "slurry", "match": ["slurry_*"], "requires": "slurry", "drivers": []},
         {"id": "amalgam", "match": ["amalgam_*"], "requires": "amalgam", "drivers": []},
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
     ]
@@ -308,7 +317,7 @@ def _rig_parts():
 
 
 # ---------------------------------------------------------------- poses
-# A pose is (theta, contents): contents 0 empty, 1 mercury, 2 amalgam (which layer is drawn; the rig has
+# A pose is (theta, contents): contents 0 empty, 1 mercury, 2 slurry, 3 amalgam (which layer is drawn; the rig has
 # no input for it: each is a requires value that gameplay fits or not).
 REST = (0.0, 0)
 
@@ -321,7 +330,7 @@ def pm(parts, pid, pose):
     return _part_matrix(parts, pid, inputs_of(pose), None)
 
 
-def turn_poses(step_deg=5.0, contents=(0, 1, 2)):
+def turn_poses(step_deg=5.0, contents=(0, 1, 2, 3)):
     """A whole turn of the spindle every step_deg, with each contents."""
     n = int(round(360.0 / step_deg))
     return [(i * step_deg * DEG, c) for c in contents for i in range(n)]
@@ -349,8 +358,9 @@ def make_rig(parts):
                     "as the quern is, both ways: a vanilla axle in the block below comes up into the pan's down face "
                     "(powerCell, powerFace), or the player holds right-click on it; no work. theta is the spindle's angle, the "
                     "axle's or the hold-to-work clock: the muller turns by it about the pan's axis (y), ratio 1. Every part "
-                    "but the contents is always fitted. The contents are requires values: mercury and amalgam, one drawn at "
-                    "a time. See the amalgam pan's README for the schema.",
+                    "but the contents is always fitted. The contents are requires values: mercury, slurry (the charge) and amalgam, one "
+                    "drawn at a time. Nothing goes in or out but by hand: no infeed or output. See the amalgam pan's README for "
+                    "the schema.",
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
@@ -402,7 +412,7 @@ def shipped_cells(shape, ship_parts):
 
 def check_shipped(els, parts, ship_els, ship_parts, ship):
     d = [-ORIGIN_CELL[k] * B for k in range(3)]
-    poses = [REST, (0.7, 1), (2.9, 2), (-1.3, 0), (13.0, 1)]
+    poses = [REST, (0.7, 1), (2.9, 2), (-1.3, 0), (13.0, 3)]
     worst = worst_shift_error(els, ship_els, lambda el, pose: pm(parts, el.part, pose),
                               lambda el, pose: _part_matrix(ship_parts, el.part, inputs_of(pose), None), d, poses)
     cells = [tuple(c["pos"]) for c in ship["cells"]]
@@ -431,13 +441,15 @@ def reference_json(ship_parts):
 # ---------------------------------------------------------------- shape files
 def shape_json(els):
     return machine_shape_json(
-        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod; 'mercury' is the mod's own "
-             "provisional texture. Keep element names when editing: the rig finds its parts by them.",
+        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. 'mercury' is drawn as Expanded "
+             "Matter draws it (README), 'slurry' is the mod's own texture. Keep element names when editing: the rig finds "
+             "its parts by them.",
         TEXTURES, tex_size=TEX)
 
 
 def coplanar_poses():
-    return (REST, (0.0, 1), (0.0, 2), (0.3, 1), (45.0 * DEG, 2), (1.2, 0), (2.0, 1), (22.5 * DEG, 2), (math.pi / 2, 1))
+    return (REST, (0.0, 1), (0.0, 2), (0.0, 3), (0.3, 1), (45.0 * DEG, 2), (1.2, 0), (2.0, 3), (22.5 * DEG, 2), (math.pi / 2, 1),
+            (1.0, 3))
 
 
 def shown(posed_els, pose):
@@ -456,7 +468,7 @@ def fix_coplanar(els, parts):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Generate the amalgam pan's shapes, rig, reference poses and mercury texture.")
+    ap = argparse.ArgumentParser(description="Generate the amalgam pan's shapes, rig, reference poses and slurry texture.")
     ap.add_argument("--out", type=Path, help="write the five files into this directory instead of the mod's assets and tests")
     ap.add_argument("--quick", action="store_true", help="skip the z-fighting fix and the slow checks (not for files that ship)")
     args = ap.parse_args()
@@ -475,7 +487,7 @@ def main():
     if args.out:
         outs = (args.out / "amalgampan.json", args.out / "amalgampan_frame.json", args.out / "amalgampan-rig.json",
                 args.out / "rig-reference.json")
-        texture = args.out / "mercury.png"
+        texture = args.out / "slurry.png"
     else:
         outs = (SHAPE_DIR / "amalgampan.json", SHAPE_DIR / "amalgampan_frame.json", RIG_DIR / "amalgampan-rig.json", REFERENCE_OUT)
         texture = TEXTURE_OUT
@@ -490,7 +502,7 @@ def main():
         json.loads(path.read_text())
         print(f"wrote {path} ({path.stat().st_size // 1024} KiB)")
     texture.parent.mkdir(parents=True, exist_ok=True)
-    texture.write_bytes(mercury_texture.png_bytes())
+    texture.write_bytes(slurry_texture.png_bytes())
     print(f"wrote {texture} ({texture.stat().st_size} bytes)")
     if not (check_shipped(els, parts, ship_els, ship_parts, ship) and ok):
         sys.exit(1)

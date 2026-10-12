@@ -3,7 +3,7 @@
 Every check prints what it measured and fails the run (the script exits non-zero) when the model breaks
 its rule. Everything is in the build frame (voxels), on the model before the origin shift;
 `check_shipped` in make_shape.py proves the shipped files are this model moved. A pose is
-(theta, contents): contents 0 empty, 1 mercury, 2 amalgam.
+(theta, contents): contents 0 empty, 1 mercury, 2 slurry (the charge), 3 amalgam.
 """
 
 from __future__ import annotations
@@ -93,7 +93,7 @@ def check_basic(v):
         v.fail(f"parts with no elements: {empty}")
     counts = {p["id"]: len(v.by_part.get(p["id"], [])) for p in v.parts}
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
-    staged = [p["id"] for p in v.parts if p["requires"] not in (None, "mercury", "amalgam")]
+    staged = [p["id"] for p in v.parts if p["requires"] not in (None, "mercury", "slurry", "amalgam")]
     if staged:
         v.fail(f"the station has no build stages: every part but the contents is always fitted ({staged})")
 
@@ -132,6 +132,7 @@ ROLES = [
     (r"^muller_(spindle|hub|arm|shoe)", {"iron"}),
     (r"^muller_coupling", {"oak"}),                  # the vanilla axle's own wood, continued: a shaft that meets an axle stays oak
     (r"^mercury_", {"mercury"}),
+    (r"^slurry_", {"slurry"}),
     (r"^amalgam_", {"amalgam"}),
 ]
 
@@ -169,7 +170,7 @@ def check_turning(v):
             q = v.point("muller", pose, [m.CX, y, m.CZ])
             worst_axis = max(worst_axis, abs(q[0] - m.CX), abs(q[1] - y), abs(q[2] - m.CZ))
         worst_turn = max(worst_turn, abs(wrap(turn_y(mm) - m.GEAR_RATIO * th)))
-        for pid in ("mercury", "amalgam", "frame"):
+        for pid in ("mercury", "slurry", "amalgam", "frame"):
             mp = v.mat(pid, pose)
             if max(abs(mp[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(4)) > 1e-12:
                 v.fail(f"theta moves the {pid}")
@@ -260,8 +261,9 @@ def check_shoes(v):
 
 def check_contents(v):
     """Each layer lies on the floor inside the wall, its edge in the wall (no gap) and its underside in the
-    floor; the mercury is a pool under the paste's level, and the paste under the cone's top and the
-    shoes', so the shoes stand out of it."""
+    floor; the mercury is a pool under the paste's level, the paste under the charge's (the charge is the
+    deepest: it reads as a loaded pan), and the charge under the cone's top and the shoes', so the shoes
+    stand out of all three."""
     m = v.m
     tops = {}
     for _, pid in m.CONTENTS:
@@ -275,9 +277,9 @@ def check_contents(v):
         if not (-0.1 <= edge < 0.0) or reach > m.R_OUT:
             v.fail(f"the {pid}'s edge is not just into the wall (depth {edge:.3f}, reach {reach:.2f})")
     shoe_top = m.SHOE_Y[1]
-    order = [m.FLOOR_TOP, tops["mercury"], tops["amalgam"], m.CONE_NECK[2], shoe_top]
-    print("contents: the mercury " + f"{tops['mercury'] - m.FLOOR_TOP:.2f} deep, the amalgam {tops['amalgam'] - m.FLOOR_TOP:.2f}; "
-          f"under the cone's top ({m.CONE_NECK[2]}) and the shoes' ({shoe_top})")
+    order = [m.FLOOR_TOP, tops["mercury"], tops["amalgam"], tops["slurry"], m.CONE_NECK[2], shoe_top]
+    print("contents: the mercury " + f"{tops['mercury'] - m.FLOOR_TOP:.2f} deep, the amalgam {tops['amalgam'] - m.FLOOR_TOP:.2f}, "
+          f"the charge {tops['slurry'] - m.FLOOR_TOP:.2f}; under the cone's top ({m.CONE_NECK[2]}) and the shoes' ({shoe_top})")
     if order != sorted(order) or len(set(order)) != len(order):
         v.fail("the layers are not in order under the cone and the shoes")
 
@@ -287,8 +289,8 @@ def check_contents(v):
 ALLOWED = [
     ("muller", r"_spindle_", "frame", r"fr_(footstep|bridgetree|floor|cone_)"),   # the spindle down through the footstep and the
                                                                                    # bridge-tree, up through the floor and the cone
-    ("mercury|amalgam", None, "frame", r"fr_(floor|wall|cone)"),            # the contents in the pan
-    ("mercury|amalgam", None, "muller", r"_(shoe\d|spindle_)"),             # the shoes stand in them; the spindle, inside the cone
+    ("mercury|slurry|amalgam", None, "frame", r"fr_(floor|wall|cone)"),            # the contents in the pan
+    ("mercury|slurry|amalgam", None, "muller", r"_(shoe\d|spindle_)"),             # the shoes stand in them; the spindle, inside the cone
 ]
 
 
@@ -384,5 +386,11 @@ def validate_files(m, shape, frame_shape, ship):
         ok = False
     if ship.get("powerCell") != [0, 0, 0] or ship.get("powerFace") != "down" or "work" in ship or "trunkPath" in ship:
         print("FAIL the pan takes its axle from below at its own cell, and nothing is posed by a work")
+        ok = False
+    # nothing goes in or out but by the player's hand: no anchor for a chute, hopper or chest
+    transfer = sorted(k for k in ship if (k.endswith("Side") and k != "operatorSide") or k.startswith(("infeed", "output", "outfeed")))
+    print(f"anchors: {sorted(k for k in ship if not k.startswith('_') and k not in ('cells', 'parts'))}; for item transfer: {transfer or 'none'}")
+    if transfer:
+        print("FAIL the pan takes no automated input or output")
         ok = False
     return ok

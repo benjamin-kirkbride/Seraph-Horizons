@@ -6,7 +6,7 @@ are always fitted), it takes a vanilla axle from below at its own cell, as the q
 poses are its own maths, the cell is rebuilt from the shipped shape, theta (the spindle's angle) turns the
 muller about the pan's axis once a turn and nothing else, the spindle's foot is the axle's cross profile at
 the block's bottom face, the contents lie on the pan's floor, every texture is declared and exists, and
-the provisional mercury texture is the generator's. Run with `python3 -m unittest discover -s tools/tests`.
+the mercury is drawn as Expanded Matter draws it and the slurry texture is the generator's. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -28,15 +28,15 @@ from machinegen import rigmath  # noqa: E402
 _spec = importlib.util.spec_from_file_location("amalgampan_make_shape", MOD / "AmalgamPan" / "tools" / "make_shape.py")
 make_shape = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(make_shape)
-import mercury_texture  # noqa: E402
+import slurry_texture  # noqa: E402
 
 RIG = json.loads((ASSETS / "config" / "amalgampan-rig.json").read_text())
 SHAPE = json.loads((ASSETS / "shapes" / "block" / "amalgampan.json").read_text())
 FRAME = json.loads((ASSETS / "shapes" / "block" / "amalgampan_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "AmalgamPan" / "rig-reference.json").read_text())
-MERCURY = ASSETS / "textures" / "block" / "liquid" / "mercury.png"
-# the contents, a mercury pool or amalgam, are the only requires values: the station has no build stages
-REQUIRES = {"mercury", "amalgam", None}
+SLURRY = ASSETS / "textures" / "block" / "liquid" / "slurry.png"
+# the contents, a mercury pool, the charge (a slurry) or amalgam, are the only requires values: the station has no build stages
+REQUIRES = {"mercury", "slurry", "amalgam", None}
 
 
 def matrix(pid, theta):
@@ -50,7 +50,7 @@ def turn_y(m):
 class Rig(unittest.TestCase):
     def test_parts_parse_and_use_the_vocabulary(self):
         ids = [p["id"] for p in RIG["parts"]]
-        self.assertEqual(ids, ["muller", "mercury", "amalgam", "frame"])
+        self.assertEqual(ids, ["muller", "mercury", "slurry", "amalgam", "frame"])
         for p in RIG["parts"]:
             self.assertIn(p["requires"], REQUIRES, p["id"])
             if p.get("ride"):
@@ -66,6 +66,12 @@ class Rig(unittest.TestCase):
         # as the quern does (BlockQuern.HasMechPowerConnectorAt: up or down; the pan's is the down face)
         self.assertEqual(RIG["powerCell"], [0, 0, 0])
         self.assertEqual(RIG["powerFace"], "down")
+
+    def test_it_takes_no_automated_input_or_output(self):
+        # the player loads it and takes the amalgam out by hand: no anchor for a chute, hopper or chest
+        sides = [k for k in RIG if k.endswith("Side")]
+        self.assertEqual(sides, ["operatorSide"])
+        self.assertEqual([k for k in RIG if k.startswith(("infeed", "output", "outfeed"))], [])
 
     def test_the_muller_is_always_fitted(self):
         (part,) = [p for p in RIG["parts"] if p["id"] == "muller"]
@@ -114,7 +120,7 @@ class Turning(unittest.TestCase):
 
     def test_nothing_else_moves(self):
         ident = rigmath.m4()
-        for pid in ("mercury", "amalgam", "frame"):
+        for pid in ("mercury", "slurry", "amalgam", "frame"):
             for theta in (0.0, 2.5, -7.0):
                 m = matrix(pid, theta)
                 self.assertEqual([[round(v, 12) + 0.0 for v in row] for row in m], ident, pid)
@@ -139,23 +145,27 @@ class Contents(unittest.TestCase):
         self.assertEqual(len(els), 8, pid)
         return min(min(e["from"][1], e["to"][1]) for e in els), max(max(e["from"][1], e["to"][1]) for e in els)
 
-    def test_the_contents_are_flat_layers_on_the_floor_the_mercury_under_the_paste(self):
+    def test_the_contents_are_flat_layers_on_the_floor_the_charge_deepest(self):
         floor = make_shape.FLOOR_TOP
         m0, m1 = self.layer("mercury")
+        s0, s1 = self.layer("slurry")
         a0, a1 = self.layer("amalgam")
-        self.assertLess(m0, floor)
-        self.assertLess(a0, floor)
+        for bottom in (m0, s0, a0):
+            self.assertLess(bottom, floor)
         self.assertAlmostEqual(m1, make_shape.MERCURY_TOP, places=4)
+        self.assertAlmostEqual(s1, make_shape.SLURRY_TOP, places=4)
         self.assertAlmostEqual(a1, make_shape.AMALGAM_TOP, places=4)
+        # the mercury a shallow pool, the amalgam paste deeper, the charge the deepest: a loaded pan
         self.assertLess(floor, m1)
         self.assertLess(m1, a1)
-        # the shoes stand out of the paste
+        self.assertLess(a1, s1)
+        # the shoes stand out of all three
         shoes = [e for e in SHAPE["elements"] if e["name"].startswith("muller_shoe")]
         self.assertEqual(len(shoes), 4)
-        self.assertGreater(min(max(e["from"][1], e["to"][1]) for e in shoes), a1)
+        self.assertGreater(min(max(e["from"][1], e["to"][1]) for e in shoes), s1)
 
     def test_each_content_is_its_own_requires_and_texture(self):
-        for pid in ("mercury", "amalgam"):
+        for pid in ("mercury", "slurry", "amalgam"):
             (part,) = [p for p in RIG["parts"] if p["id"] == pid]
             self.assertEqual(part["requires"], pid)
             self.assertEqual((part["drivers"], part["ride"]), ([], None))
@@ -180,12 +190,18 @@ class Textures(unittest.TestCase):
             domain, rel = path.split(":", 1)
             if domain == "seraphhorizons":
                 self.assertTrue((ASSETS / "textures" / f"{rel}.png").is_file(), f"{code}: {path}")
-        self.assertEqual(SHAPE["textures"]["mercury"], "seraphhorizons:block/liquid/mercury")
+        self.assertEqual(SHAPE["textures"]["slurry"], "seraphhorizons:block/liquid/slurry")
 
-    def test_the_mercury_texture_is_the_generators(self):
-        rows = mercury_texture.decode(MERCURY.read_bytes())
+    def test_the_mercury_is_drawn_from_the_games_rock_as_expanded_matter_draws_it(self):
+        # em:mercuryportion: game:block/stone/rock/andesite2 with game:block/stone/rock/kimberlite1 over it,
+        # Lighten; a shape names only the base, the blocktype adds the overlay (README "Gameplay")
+        self.assertEqual(SHAPE["textures"]["mercury"], "game:block/stone/rock/andesite2")
+        self.assertFalse((ASSETS / "textures" / "block" / "liquid" / "mercury.png").exists())
+
+    def test_the_slurry_texture_is_the_generators(self):
+        rows = slurry_texture.decode(SLURRY.read_bytes())
         self.assertEqual((len(rows), len(rows[0])), (32, 32))
-        self.assertEqual(rows, [list(r) for r in mercury_texture.pixels()])
+        self.assertEqual(rows, [list(r) for r in slurry_texture.pixels()])
 
     def test_every_game_texture_exists_in_the_game(self):
         install = os.environ.get("VINTAGE_STORY")

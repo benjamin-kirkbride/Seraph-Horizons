@@ -14,7 +14,7 @@ namespace SeraphHorizons.Tests.AmalgamPan;
 /// </summary>
 public class AmalgamPanRigTests
 {
-    private static readonly HashSet<string> Requires = ["mercury", "amalgam"];
+    private static readonly HashSet<string> Requires = ["mercury", "slurry", "amalgam"];
 
     private static string File(string name)
     {
@@ -34,11 +34,14 @@ public class AmalgamPanRigTests
     public void The_shipped_rig_parses_with_no_work()
     {
         var parts = Shipped();
-        Assert.Equal(["muller", "mercury", "amalgam", "frame"], parts.Parts.Select(p => p.Id));
+        Assert.Equal(["muller", "mercury", "slurry", "amalgam", "frame"], parts.Parts.Select(p => p.Id));
         using var doc = JsonDocument.Parse(File("amalgampan-rig.json"));
         Assert.Equal([0, 0, 0], doc.RootElement.GetProperty("powerCell").EnumerateArray().Select(v => v.GetInt32()));
         Assert.Equal("down", doc.RootElement.GetProperty("powerFace").GetString());
         Assert.Equal("north", doc.RootElement.GetProperty("operatorSide").GetString());
+        // no automated input or output: the player loads and empties it by hand
+        Assert.Equal(["operatorSide"], doc.RootElement.EnumerateObject().Select(p => p.Name)
+            .Where(n => n.EndsWith("Side") || n.StartsWith("infeed") || n.StartsWith("output") || n.StartsWith("outfeed")));
     }
 
     [Fact]

@@ -8,7 +8,7 @@ import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs,
 // The amalgam pan's shipped files, and the poses AmalgamPan/tools/make_shape.py computes from them with
 // machinegen's reference maths. Worked as the quern is, by hand or by a vanilla axle from below, its rig
 // reads one input, θ, the spindle's angle: the muller (spindle, coupling, hub, arms, shoes) turns by it
-// about the pan's axis, once a turn; the contents (mercury, amalgam) and the frame stand still.
+// about the pan's axis, once a turn; the contents (mercury, the charge's slurry, amalgam) and the frame stand still.
 // tools/tests/test_amalgampan_model.py and the mod's C# tests replay the same file.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
@@ -33,6 +33,7 @@ describe("the amalgam pan's rig against its rig-reference.json", () => {
     expect(parts.map((p) => [p.id, p.requires ?? null, p.ride ?? null])).toEqual([
       ["muller", null, null],
       ["mercury", "mercury", null],
+      ["slurry", "slurry", null],
       ["amalgam", "amalgam", null],
       ["frame", null, null],
     ]);
@@ -67,7 +68,7 @@ describe("the amalgam pan's rig against its rig-reference.json", () => {
       const p = apply(m, [1.5, 0.6, 0.5]);
       expect(p[0]! - 0.5).toBeCloseTo(Math.cos(theta), 9);
       expect(p[2]! - 0.5).toBeCloseTo(-Math.sin(theta), 9);
-      for (const still of ["mercury", "amalgam", "frame"]) expect(ms[i(still)]!.map((v, k) => v - (k % 5 === 0 ? 1 : 0)).every((v) => Math.abs(v) < 1e-12)).toBe(true);
+      for (const still of ["mercury", "slurry", "amalgam", "frame"]) expect(ms[i(still)]!.map((v, k) => v - (k % 5 === 0 ? 1 : 0)).every((v) => Math.abs(v) < 1e-12)).toBe(true);
     }
     // the viewer's θ slider spans one turn
     expect(thetaTurns(parts)).toBe(1);
@@ -82,6 +83,7 @@ describe("the amalgam pan's rig against its rig-reference.json", () => {
     const codes: Record<string, Set<string>> = {};
     for (const f of flat) for (const c of textureCodes(f.element)) (codes[parts[partOf(globs, f.chain)]!.id] ??= new Set()).add(c);
     expect([...codes.mercury!]).toEqual(["mercury"]);
+    expect([...codes.slurry!]).toEqual(["slurry"]);
     expect([...codes.amalgam!]).toEqual(["amalgam"]);
     // iron, and the coupling at the spindle's foot the vanilla axle's oak
     expect([...codes.muller!].sort()).toEqual(["iron", "oak"]);
@@ -98,15 +100,18 @@ describe("the amalgam pan's rig against its rig-reference.json", () => {
 describe("the amalgam pan's page", () => {
   const model = manifest.models.find((m) => m.id === "amalgam-pan")!;
 
-  it("shows one of its contents at a time, from a select", () => {
-    const groups = stateGroups(model.scenario!.states, ["mercury", "amalgam"]);
-    expect(groups.map((g) => [g.id, g.owns])).toEqual([["contents", ["mercury", "amalgam"]]]);
-    const all = { mercury: true, amalgam: true };
+  it("shows one of its contents at a time, from a select: empty, mercury, charged, amalgam", () => {
+    const groups = stateGroups(model.scenario!.states, ["mercury", "slurry", "amalgam"]);
+    expect(groups.map((g) => [g.id, g.owns])).toEqual([["contents", ["mercury", "slurry", "amalgam"]]]);
+    const all = { mercury: true, slurry: true, amalgam: true };
     const spec = groups[0]!.spec;
+    expect(spec.options.map((o) => o.id)).toEqual(["empty", "mercury", "charged", "amalgam"]);
+    for (const o of spec.options) expect(o.hint).toBeTruthy();
     const at = (id: string) => applyState(all, spec.options.find((o) => o.id === id)!, groups[0]!.owns);
-    expect(at("empty")).toEqual({ mercury: false, amalgam: false });
-    expect(at("mercury")).toEqual({ mercury: true, amalgam: false });
-    expect(at("amalgam")).toEqual({ mercury: false, amalgam: true });
-    expect(spec.default).toBe("mercury");
+    expect(at("empty")).toEqual({ mercury: false, slurry: false, amalgam: false });
+    expect(at("mercury")).toEqual({ mercury: true, slurry: false, amalgam: false });
+    expect(at("charged")).toEqual({ mercury: false, slurry: true, amalgam: false });
+    expect(at("amalgam")).toEqual({ mercury: false, slurry: false, amalgam: true });
+    expect(spec.default).toBe("charged");
   });
 });

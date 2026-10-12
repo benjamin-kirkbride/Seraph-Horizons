@@ -26,6 +26,11 @@ crank or handle to see. There is no oil and no pipe, and one level: the hand tie
 spindle's angle, the axle's or the hand's clock; nothing is posed by a work quantity W: the rig has no
 `work`.
 
+**Loaded and emptied by hand only.** The pan takes no automated input or output: no chute, hopper or
+chest feeds it or takes from it. The player pours in the mercury and the concentrate and takes the
+amalgam out by hand; only the power is automatic, from the axle below. The rig has no infeed or output
+anchor (`infeedSide`, `outputSide`, `output`), only `operatorSide`, and a check holds it so.
+
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. `tools/` is the model's
 generator; the generic half of it is `Machines/tools/machinegen/`, shared with the other machines and
@@ -39,29 +44,30 @@ the spindle's, is the cell's vertical centre line.
 **Power.** `powerCell` `[0,0,0]`, `powerFace` down: a vanilla axle standing in the block below
 (`woodenaxle-ud`) comes up into the pan's down face on the pan's axis, as an axle comes into the quern's.
 The pan's own cell is its power cell (a one-block station needs no power ghost); its block carries the
-mechanical-power consumer, as the quern's does.
+mechanical-power consumer, as the quern's does. Power comes from below only: the pan's top is open.
 
 **Orientation.** The operator stands on the native north side (`operatorSide`), where they hold
-right-click; the pan is nearly symmetric, and the discharge plug is on the east side of the wall. Placed
-as the press brake is (`side` = the way the player looks).
+right-click and load and empty the pan; the pan is nearly symmetric, and the discharge plug is on the east
+side of the wall. Placed as the press brake is (`side` = the way the player looks).
 
 **Anchors** (in `assets/seraphhorizons/config/amalgampan-rig.json`): `powerCell` and `powerFace`; `pan.pos`,
 the middle of the pan's floor (`[0.5, 0.375, 0.5]`: grinding sounds and particles, around the cone);
-`operatorSide` (`north`). There is no `infeedSide`, `outputSide` or `output` (see "Open for the owner").
+`operatorSide` (`north`). Nothing for item transfer (above).
 
 **Parts and contents** (the rig's `requires`). The station has no build stages: the frame and the muller
 with its spindle, shoes and coupling are all one block, always there (`requires` null). Only the
-contents are `requires` values:
+contents are `requires` values, in the order a batch goes through the pan:
 
 | `requires` | Part | Draws |
 |---|---|---|
-| `mercury` | `mercury` | The contents: a pool of mercury 0.4 deep on the floor |
-| `amalgam` | `amalgam` | The contents: the amalgam paste, 0.8 deep |
+| `mercury` | `mercury` | The mercury poured in: a pool 0.4 deep on the floor |
+| `slurry` | `slurry` | The pan charged and working: the ground concentrate worked into the mercury, a grey-brown slurry 1.6 deep, the shoes mostly in it and the cone's foot under it, so a loaded pan reads from across the room |
+| `amalgam` | `amalgam` | The worked charge: the amalgam paste, 0.8 deep |
 
-The contents are not parts: gameplay draws one of them, or neither (the pan empty). They are expressed
-the way the other hand stations express their work (the press brake's `platelead` and `platecopper`), as
-`requires` values gameplay sets, with no driver; the viewer shows them as a "Contents" select of three
-states (`states` in `site/models.json`).
+The contents are not parts: gameplay draws one of them, or none (the pan empty). They are expressed the
+way the other hand stations express their work (the press brake's `platelead` and `platecopper`), as
+`requires` values gameplay sets, with no driver; the viewer shows them as a "Contents" select of four
+states (`states` in `site/models.json`): Empty, Mercury, Charged (slurry) and Amalgam, opening on Charged.
 
 ## Model
 
@@ -69,23 +75,34 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 nothing from `build/mods`. The wood is the game's debarked oak (the coupling too: a shaft that continues
 a vanilla wooden axle stays wood), the pan the game's riveted sheet iron (`game:block/metal/sheet/iron1`),
 the cone, the footstep and the muller its iron plate (`game:block/metal/plate/iron`), and the amalgam its
-lead solder ingot (`game:block/metal/ingot/leadsolder`, a dull mottled grey). The mercury's texture is
-the mod's own, and provisional: neither the game nor the pack's mods have one (Expanded Matter's
-`em:mercuryportion` borrows the game's andesite and kimberlite for its bucket), so
-`tools/mercury_texture.py` draws a 32 × 32 liquid silver in the style of the game's liquids: broad, soft
-swells of light and shade, as a mirror-bright liquid shows its surroundings, and one soft glint, from a
-few low waves of whole periods (so it tiles) and a fixed hash for a faint grain. (Its first version, fine
-diagonal ripples with a grid of bright dots, read as quilted cloth.) `tools/make_shape.py` writes:
+lead solder ingot (`game:block/metal/ingot/leadsolder`, a dull mottled grey).
+
+**The mercury is drawn as Expanded Matter draws it.** Expanded Matter's `em:mercuryportion` (3.8.1,
+`assets/em/itemtypes/liquid/mercury.json`) uses no texture of its own: it is the game's
+`block/stone/rock/andesite2` with the game's `block/stone/rock/kimberlite1` blended over it, Lighten, a
+speckled blue-grey. The pan uses the same two game textures, so its mercury is the bucket's, and nothing of
+Expanded Matter's is copied or shipped: the pack's mod references the game's own assets, as every model
+here does, and needs no credit or licence from Expanded Matter (GPL-3.0) for it; the README names it as
+the look's source. A shape file can only name one texture per code, so the shape names the base
+(`game:block/stone/rock/andesite2`) and the blocktype adds the overlay (see "Gameplay"). Baking the blend
+into a PNG of our own was not done: that would be redistributing a modified copy of the game's art.
+
+**The charge's slurry** is the mod's own texture, `seraphhorizons:block/liquid/slurry`, drawn by
+`tools/slurry_texture.py` to sit beside that mercury: 32 × 32 with the same fine per-pixel grain as the
+game's rock textures, a grey-brown base, the soft swirls of a stirred pulp (low waves of whole periods,
+so it tiles) and a scatter of small beads of mercury showing through, from a fixed hash, so every run
+writes the same pixels. (The pan's first, provisional mercury texture of its own is gone.)
+`tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/amalgampan.json` | The whole station, the muller and both contents (101 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/amalgampan.json` | The whole station, the muller and the three contents (109 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/amalgampan_frame.json` | The static frame only (67 elements). The block draws it and the inventory shows it. |
-| `assets/seraphhorizons/config/amalgampan-rig.json` | The cell, the power cell and face, the anchors and the part rig (4 parts). |
-| `assets/seraphhorizons/textures/block/liquid/mercury.png` | The provisional mercury texture (`seraphhorizons:block/liquid/mercury`). |
+| `assets/seraphhorizons/config/amalgampan-rig.json` | The cell, the power cell and face, the anchors and the part rig (5 parts). |
+| `assets/seraphhorizons/textures/block/liquid/slurry.png` | The charge's slurry texture (`seraphhorizons:block/liquid/slurry`). |
 | `tests/AmalgamPan/rig-reference.json` | Every part's matrix at a spread of shaft angles, from the reference maths. |
 
-Elements by part: the muller 18, each content 8, the frame 67; drawn empty 85, with either content 93.
+Elements by part: the muller 18, each content 8, the frame 67; drawn empty 85, with any content 93.
 
 ### How the station works
 
@@ -123,7 +140,8 @@ each arm's end a shoe (2.4 across, 2.3..5.6 from the axis) standing on the floor
 
 **The contents** are flat layers on the floor, inside the wall: their edge runs 0.05 into the wall (no
 gap shows at the wall) and their underside is sunk in the floor. The mercury is 0.4 deep, the amalgam
-0.8; the shoes stand out of both (to y 8.15), and the cone's top (y 7.9) is above them.
+0.8 and the charge's slurry 1.6, over the cone's foot and most of the shoes; the shoes stand out of all
+three (to y 8.15), and the cone's top (y 7.9) is above them.
 
 Every moving part (θ the spindle's angle):
 
@@ -131,6 +149,7 @@ Every moving part (θ the spindle's angle):
 |---|---|---|---|
 | Muller: spindle, coupling, hub, four arms, four shoes (`muller`) | The axle below, by the coupling; or the player, by right-click held | The contents (grinding) | `rotate` y about the pan's axis (`[0.5, 0, 0.5]`), ratio 1, on θ |
 | Mercury (`mercury`) [mercury] | Static | — | none |
+| Charge (`slurry`) [slurry] | Static | — | none |
 | Amalgam (`amalgam`) [amalgam] | Static | — | none |
 | Frame (`frame`) | Static | — | none |
 
@@ -139,7 +158,9 @@ the muller, as on the quern, where the player's hand turns the stone with nothin
 
 **Period.** The Washoe pan's shaft came up through the hollow cone from gearing under the pan, driven by
 a line shaft; here the vanilla axle stands in for that shaft and its gearing, as on every machine in the
-pack. The muller hangs on the spindle's top by its hub, with no separate driver or adjusting screw.
+pack. The muller hangs on the spindle's top by its hub, with no separate driver or adjusting screw. A
+charged Washoe pan was a slurry of ground ore, water and mercury, kept moving by the muller; the charge
+state is drawn so.
 
 ### Regenerating
 
@@ -149,7 +170,7 @@ python3 mods-src/seraphhorizons/AmalgamPan/tools/make_shape.py --out DIR    # or
 python3 mods-src/seraphhorizons/AmalgamPan/tools/make_shape.py --quick      # skips the z-fighting fix and the swept paths (not for files that ship)
 ```
 
-A full run takes about 6 s and is deterministic (two runs into two folders are byte-identical, logs
+A full run takes about 7 s and is deterministic (two runs into two folders are byte-identical, logs
 included). `tools/validate_amalgampan.py` holds the checks; every run checks its output and exits
 non-zero if one fails:
 
@@ -168,18 +189,19 @@ non-zero if one fails:
 - **Shoes:** at every degree of a turn, each shoe flat on the floor and up against its arm, the arm's end
   over it, and at least 0.3 clear of the wall and of the cone.
 - **Contents:** each on the floor, its edge just into the wall; the mercury under the paste's level, the
-  paste under the cone's top and the shoes' tops.
+  paste under the charge's, the charge under the cone's top and the shoes' tops.
 - **Clearances:** over a turn every 10°, with each contents, no two parts touch except the intended
   contacts listed in `ALLOWED` (the spindle down through the footstep and the bridge-tree and up through
   the floor and the cone, the contents in the pan, round the shoes and round the spindle in the cone).
-- **Swept paths** (full runs): the same at every degree of a turn, with each contents (1080 poses).
+- **Swept paths** (full runs): the same at every degree of a turn, with each contents (1440 poses).
 - **Nothing floats:** every frame element joined to the ground.
-- **No z-fighting** (full runs): no coplanar overlapping faces at nine poses, with each contents shown
+- **No z-fighting** (full runs): no coplanar overlapping faces at eleven poses, with each contents shown
   alone (`shown`). Before the fix there are 34 pairs at each pose (32 of the floor's strips against the
   wall's foot, and the coupling's two bars where they cross at the bottom face); the fix removes the faces
   pressed against their own part (20) and insets what is left (one bar's foot by 0.015); none remain.
-- **Files:** every texture declared; one cell, with a lid; the power cell and face; no work; the shipped
-  model is the checked one (no move: the build frame's corner is the controller's).
+- **Files:** every texture declared; one cell, with a lid; the power cell and face; no work; no anchor
+  for item transfer (nothing ending in `Side` but `operatorSide`, nothing named `infeed`, `output` or
+  `outfeed`); the shipped model is the checked one (no move: the build frame's corner is the controller's).
 
 The cell's boxes are rebuilt from the shipped, rounded shape posed at rest by the shipped rig, as the
 other machines' are: one box over the whole station, to the spindle's top (0.63), with the lid at that
@@ -187,56 +209,48 @@ height.
 
 ### Rig schema (`amalgampan-rig.json`)
 
-The press brake's schema (`../PressBrake/README.md`, "Rig schema") without its work, plus a power cell
-and face as the powered machines have: nothing is added to the shared rig maths.
+The press brake's schema (`../PressBrake/README.md`, "Rig schema") without its work or its infeed and
+output, plus a power cell and face as the powered machines have: nothing is added to the shared rig maths.
 
 - **Inputs.** θ alone, the spindle's angle (radians). The muller part rotates about +y by θ (ratio 1:
   counter-clockwise seen from above as θ grows). The contents and the frame have no driver.
 - **Keys.** `cells` (one, with its box and a `lid`), `powerCell` and `powerFace`, `operatorSide`, `pan`
-  and `parts`. `requires` values: `mercury`, `amalgam`, or null. No texture code is for a renderer to
-  set.
+  and `parts`. `requires` values: `mercury`, `slurry`, `amalgam`, or null. No texture code is for a
+  renderer to set; the blocktype sets the mercury's overlay (see "Gameplay").
 
 **In the viewer** (`site/models.json`, `amalgam-pan`): θ is the "Muller turned" slider over one turn, and
 Play turns it at 1.5 s a turn (40 turns a minute) by its input speed. The power cell is drawn with an
-arrow up into its down face. The contents are a "Contents" select (Empty, Mercury, Amalgam), opening on
-Mercury. Coloured by texture, the mercury and the amalgam have colours of their own
-(`site/src/lib/model-view.ts`: a light silver and a warm grey), apart from the pan's iron.
+arrow up into its down face. The contents are a "Contents" select (Empty, Mercury, Charged (slurry),
+Amalgam, each with a hint), opening on Charged. Coloured by texture, the contents have colours of their
+own apart from the pan's iron (`site/src/lib/model-view.ts`): the mercury the mean of Expanded Matter's
+blend (a dark blue-grey), the slurry the mean of its texture (grey-brown), the amalgam a warm grey.
 
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, in the rig's order): `muller_*` (`spindle`,
-`couplinga`, `couplingb`, `hub`, `arm1`..`arm4`, `shoe1`..`shoe4`), `mercury_*`, `amalgam_*`, and `fr_*`
-for the frame (`leg`, `apron`, `bearer`, `rail`, `bridgetree`, `floor`, `wall`, `rim`, `cone_base`,
-`cone_neck`, `plug_boss`, `plug_bung`, `footstep`). Hand edits are lost when the script runs again: port
-them into `make_shape.py`, or stop regenerating.
+`couplinga`, `couplingb`, `hub`, `arm1`..`arm4`, `shoe1`..`shoe4`), `mercury_*`, `slurry_*`, `amalgam_*`,
+and `fr_*` for the frame (`leg`, `apron`, `bearer`, `rail`, `bridgetree`, `floor`, `wall`, `rim`,
+`cone_base`, `cone_neck`, `plug_boss`, `plug_bung`, `footstep`). Hand edits are lost when the script runs
+again: port them into `make_shape.py`, or stop regenerating.
 
 ## Known weak spots, and what is not checked
 
 The model has been reviewed in the site's model viewer (the standalone build), at every contents state
 and through a turn, from several angles. No one has yet looked at it in a client.
 
-1. **The contents do not turn or change.** A layer is drawn or not; the mercury does not turn grey as it
-   is worked, and nothing shows the concentrate. A state between them would be a third layer.
-2. **The shoes stand in the paste.** They pass through the layers as they turn; nothing is pushed aside.
+1. **The contents do not turn or change.** A layer is drawn or not; nothing shows the charge turning to
+   amalgam but the change of state.
+2. **The shoes stand in the layers.** They pass through them as they turn; nothing is pushed aside.
 3. **Collision is one box.** The space under the pan is solid to walk into; selection takes a click
    anywhere on the block.
 4. **Round parts are polygons:** the pan has 16 sides, the hubs, spindle and footstep 8.
-5. **The mercury texture is provisional** (above), and it is the mod's first texture of its own.
+5. **The mercury is the bucket's look only with the blocktype.** The shape alone names plain andesite (the
+   overlay is the blocktype's); the viewer draws the blend's mean colour.
 
 ## Open for the owner
 
-1. **The contents.** Two layers as `requires` values, drawn one at a time; heights 0.4 (mercury) and 0.8
-   (amalgam). Whether a third state is wanted (concentrate added, before or while it is worked), and
-   whether gameplay should ever draw both.
-2. **The mercury texture**: the mod's own provisional one (reworked), or Expanded Matter's look (andesite
-   with kimberlite blended over it, Lighten), which a blocktype could set on the `mercury` code with
-   `blendedOverlays` to match the bucket. The amalgam's lead solder ingot texture is likewise a choice.
-3. **Power from below only.** The quern takes an axle at its top or its bottom; the pan takes one only
-   from below (its top is the open pan).
-4. **Anchors.** Whether the pan takes from or gives to a container beside it (an `infeedSide`,
-   `outputSide` or `output`, as the press brake has) is the gameplay's call.
-5. **The lid.** A deck over the cell at the spindle's top, as the press brake has.
-6. **The recipe.** The comment on #718 fits the muller and the shoes as stages and makes "the bearing
+1. **The lid.** A deck over the cell at the spindle's top, as the press brake has.
+2. **The recipe.** The comment on #718 fits the muller and the shoes as stages and makes "the bearing
    cone, the arch and the rivets" of nails and strips; the muller is now part of the block and there is
    no arch, so the block's recipe takes their iron if gameplay wants them paid for.
 
@@ -246,16 +260,25 @@ Not built: #718 (gold and silver concentrate plus mercury to amalgam, lifting th
 penalty; the amalgam retorted in the still, #726). What the rig offers it, after the quern's pattern and
 the powered machines' rig keys:
 
+- **No automated input or output.** The pan must refuse insertion and extraction by hoppers, chutes and
+  any other item transfer, both ways: the player pours in the mercury and the concentrate and takes the
+  amalgam out by hand. Only the power is automatic.
 - **Power.** The block carries a mechanical-power consumer whose only connector is the down face
-  (`powerFace`), as the quern's `MPConsumer` with `HasMechPowerConnectorAt` up or down. Powered, θ is the
-  network's angle about the vertical axle, 1:1 (the quern's top takes `AngleRad` as it is). The shared
-  `MillMotion.NativeShaftAngle` takes horizontal input shafts only (x or z); the pan's renderer needs the
-  vertical case, the sign at which a vanilla `-ud` axle draws itself, which the gameplay adds.
+  (`powerFace`), as the quern's `MPConsumer` with `HasMechPowerConnectorAt` (the quern's is up or down).
+  Powered, θ is the network's angle about the vertical axle, 1:1 (the quern's top takes `AngleRad` as it
+  is). The shared `MillMotion.NativeShaftAngle` takes horizontal input shafts only (x or z); the pan's
+  renderer needs the vertical case, the sign at which a vanilla `-ud` axle draws itself, which the
+  gameplay adds.
 - **By hand.** While the player holds right-click (the quern's `OnBlockInteractStep`), the renderer
   advances θ at a pace the gameplay sets (the quern's stone turns 40° a second); nothing else is drawn.
-- **Parts.** The renderer always draws the muller (it has no `requires`), and draws `mercury` or
-  `amalgam` as the contents gameplay sets. The frame shape is the block's.
+- **Contents.** The renderer always draws the muller (it has no `requires`) and draws one of `mercury`,
+  `slurry` (the pan charged and working: concentrate and mercury in) and `amalgam` as the batch stands,
+  or none. The frame shape is the block's.
+- **Textures.** The blocktype gives the `mercury` code Expanded Matter's composite, so the pool is the
+  bucket's mercury:
+  `"mercury": { "base": "game:block/stone/rock/andesite2", "blendedOverlays": [ { "base": "game:block/stone/rock/kimberlite1", "blendMode": "Lighten" } ] }`;
+  `slurry` and `amalgam` are the shape's own paths.
 - **Tests.** `tests/AmalgamPan/AmalgamPanRigTests.cs` (the shipped rig through the shared parser, its
-  vocabulary, the power cell and face, no work, and every pose of `tests/AmalgamPan/rig-reference.json`
+  vocabulary, the power cell and face, no work, no item transfer anchor, and every pose of `tests/AmalgamPan/rig-reference.json`
   replayed through `Machines/Core`), `tools/tests/test_amalgampan_model.py` and
   `site/test/amalgampan.test.ts` (the generated files against their own rules and the site's rig maths).

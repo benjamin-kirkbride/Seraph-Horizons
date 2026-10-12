@@ -1,12 +1,12 @@
-"""The amalgam pan's provisional mercury texture: a 32 x 32 liquid silver, written by make_shape.py.
+"""The amalgam pan's slurry texture: the charge being worked, written by make_shape.py.
 
-Neither the game nor the pack's mods have a mercury texture: Expanded Matter's `em:mercuryportion`
-borrows the game's andesite and kimberlite rock, blended, for its bucket. This one is made for the pan's
-pool in the style of the game's liquids (32 x 32): a smooth silver with broad, soft swells of light and
-shade, as a mirror-bright liquid shows its surroundings, and one soft glint on the brightest swell. The
-waves have whole periods across the tile, so it tiles, and only low ones, so it shows no grid or pattern
-of dots (the first version's diagonal ripples and glints read as quilted cloth); a fixed hash gives a
-faint grain, so every run writes the same pixels. Stdlib only.
+The pan's mercury is drawn as Expanded Matter draws its mercury (the game's andesite with its kimberlite
+blended over it, Lighten: a speckled blue-grey); this is the charge on top of it, ground concentrate
+worked into the mercury, as a working Washoe pan looked: a grey-brown slurry. It is made to sit beside
+that mercury: a 32 x 32 tile with the same fine per-pixel grain as the game's rock textures, a warmer and
+browner base, soft swirls of the pulp being stirred (low waves of whole periods, so it tiles) and a
+scatter of small bright beads of mercury showing through. A fixed hash gives the grain and the beads, so
+every run writes the same pixels. Stdlib only.
 """
 
 from __future__ import annotations
@@ -16,24 +16,23 @@ import struct
 import zlib
 
 SIZE = 32
-BASE = (182, 187, 194)                       # the pool's silver, a little blue
-SWELL = 20.0                                 # how far the swells take it lighter or darker
-GLINT = 90.0                                 # extra light on the brightest swell's crest
-GRAIN = 0.8
-WAVES = (                                    # (amplitude, cycles across x, across y, phase): low, so the swells are broad
-    (0.50, 1, 0, 0.0),
-    (0.30, 1, 1, 2.0),
-    (0.20, 0, 1, 4.1),
-    (0.12, 2, 1, 1.0),
-    (0.07, 1, -3, 2.9),
+BASE = (121, 113, 102)                       # the pulp's grey-brown
+GRAIN = 9.0                                  # the per-pixel grain, as in the game's rock textures
+SWIRL = 11.0                                 # the stirred pulp's soft lighter and darker swirls
+WAVES = (                                    # (amplitude, cycles across x, across y, phase): low, so the swirls are broad
+    (0.50, 1, 1, 0.4),
+    (0.32, 2, -1, 1.9),
+    (0.18, 1, -2, 3.7),
 )
+BEAD = (152, 162, 168)                       # a bead of mercury showing through: the mercury's blue-grey, catching the light
+BEADS = 0.03                                 # the share of pixels that are beads
 
 
-def _grain(x, y):
-    """A fixed pixel noise in -1..1 (an integer hash: no random state)."""
-    h = (x * 374761393 + y * 668265263) & 0xFFFFFFFF
+def _hash(x, y, salt=0):
+    """A fixed pixel hash in 0..1 (an integer hash: no random state)."""
+    h = (x * 374761393 + y * 668265263 + salt * 2246822519) & 0xFFFFFFFF
     h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
-    return ((h ^ (h >> 16)) & 0xFF) / 127.5 - 1.0
+    return ((h ^ (h >> 16)) & 0xFFFF) / 65535.0
 
 
 def pixels():
@@ -43,9 +42,12 @@ def pixels():
     for y in range(SIZE):
         row = []
         for x in range(SIZE):
+            if _hash(x, y, 1) < BEADS:
+                row.append(BEAD + (255,))
+                continue
             w = sum(a * math.sin(t * (kx * x + ky * y) + ph) for a, kx, ky, ph in WAVES)
-            light = SWELL * math.tanh(1.6 * w) + GLINT * max(0.0, w - 0.55) ** 2 + GRAIN * _grain(x, y)
-            row.append(tuple(max(0, min(255, round(c + light * (1.0 if i < 2 else 1.03)))) for i, c in enumerate(BASE)) + (255,))
+            light = SWIRL * w + GRAIN * (2.0 * _hash(x, y) - 1.0)
+            row.append(tuple(max(0, min(255, round(c + light))) for c in BASE) + (255,))
         rows.append(row)
     return rows
 
