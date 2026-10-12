@@ -3718,10 +3718,16 @@ The boxes are measured from the shape's `lid_*` elements posed by the rig's lid 
 (`Core/LidBoxes.cs`). The outlet's cell is solid to its top whether capped or not, so the cap needs no
 box of its own.
 
-**The chimney and the draught.** Natural draught only: a column of `ChimneyBlocks` (the game's clay
-bricks, clay brick chimney, refractory bricks and stone bricks; smex's smoke stack is a 3 x 3
-multiblock and cannot stand on the outlet) stood on the outlet, counted from it up. Under
-`MinChimneyHeight` (6) there is no draught. Six blocks heat a lit furnace under its shut lid at
+**The chimney and the draught.** Natural draught only: a chimney stood on the outlet, a shaft of
+`ChimneyShaftBlocks` (full brick blocks: the game's fire, clinker and uneven clay brick blocks,
+`claybricks-*`; every coloured brick course, `brickcourse-*`; refractory brick blocks and stone brick
+blocks; smex's smoke stack is a 3 x 3 multiblock and cannot stand on the outlet), counted from the
+outlet up, topped with exactly one of `ChimneyTopBlocks` (the game's clay brick chimney,
+`claybrickchimney-*`, legacy ones included: a slab with two chimney pots, a chimney's top and no
+shaft section). The top does not count toward the height, and without it there is no draught ("the
+chimney needs a chimney top"). A chimney top lower down ends the shaft there and, with more chimney on
+it, is no top: no draught, and the block info says so. `Core/FurnaceRow.cs`'s `ChimneyColumn` measures
+the column. Under `MinChimneyHeight` (6) shaft blocks there is no draught. Six blocks heat a lit furnace under its shut lid at
 `ChimneyHeatingPerHour` (200 °C an hour) up to `ChimneyMaxTemperature` (1600 °C); each block above
 adds `ChimneyHeatingPerExtraBlock` (40 °C an hour) and `ChimneyMaxPerExtraBlock` (10 °C), counted up to
 `MaxChimneyHeight` (11 blocks: 400 °C an hour, up to 1650 °C). From cold, stainless melts in about 7.6
@@ -3735,7 +3741,8 @@ on an outlet's top with an iron plate caps it, and with an empty hand takes the 
 outlet (bare, or carrying a second, shorter chimney) leaks the draught: the whole row has none until it
 is capped, and the block info says which furnace's outlet is open ("the furnace 2 to the left", seen
 from the front). With more than five side by side none has draught. `Core/FurnaceRow.cs` finds the row
-both ways from the furnace asking, its chimney (the tallest on an uncapped outlet) and what is wrong.
+both ways from the furnace asking, its chimney (the tallest shaft on an uncapped outlet) and what is
+wrong: an open outlet first, then a buried chimney top, a short shaft and a missing top.
 
 **The ash-pit damper.** An empty-hand right-click on the furnace's front (the controller's face, the
 ash mouth's) moves the damper open, half, shut, open:
@@ -3913,7 +3920,7 @@ frame's page has "Building it" and a section linking the guide, as the pots and 
 | `ChimneyMaxTemperature` | 1600 | The hottest on the shortest chimney |
 | `ChimneyHeatingPerExtraBlock` | 40 | °C an hour each block over the shortest adds |
 | `ChimneyMaxPerExtraBlock` | 10 | °C of maximum each block over the shortest adds |
-| `MinChimneyHeight` | 6 | Chimney blocks on the outlet the furnace needs to draw |
+| `MinChimneyHeight` | 6 | Shaft blocks on the outlet the furnace needs to draw (the top not counted) |
 | `MaxChimneyHeight` | 11 | The tallest chimney that draws harder |
 | `MaxFurnacesInRow` | 5 | Furnaces side by side one chimney serves |
 | `CoolingPerHour` | 300 | °C an hour a furnace cools, lid shut |
@@ -3922,14 +3929,17 @@ frame's page has "Building it" and a section linking the guide, as the pots and 
 | `DamperHalfBurn` | 0.6 | Damper half shut: the share of the coke's burn |
 | `DamperShutBurn` | 0.25 | Damper shut: the share of the coke's burn |
 | `DamperShutCooling` | 0.25 | Damper shut: the share of the closed cooling |
-| `ChimneyBlocks` | clay bricks, clay brick chimney, refractory bricks, stone bricks | What a chimney is built of |
+| `ChimneyShaftBlocks` | `game:claybricks-*`, `game:brickcourse-*`, `game:refractorybricks-*`, `game:stonebricks-*` | What a chimney's shaft is built of |
+| `ChimneyTopBlocks` | `game:claybrickchimney-*` | The one block that tops the shaft |
 | `LargeCastingMetals` | `game:ingot-iron` | Metals a pot pours only into `LargeCastingMolds` |
 | `LargeCastingMolds` | `game:ingotmold-*`, `seraphhorizons:cylindermold-*` | The molds those metals pour into |
 
 #796 dropped `ForcedHeatingPerHour`, `ForcedMaxTemperature`, `AirLitresPerSecond` and `MaxHolesInRow`
 (forced air and the row of holes are gone) and smex's smoke stack from `ChimneyBlocks`, and raised
 `CokeCapacity` from 6 to 12; an install that kept the old defaults follows the new ones
-(docs/config-defaults.md), and a dropped key left in a file is ignored. **The old melting holes**
+(docs/config-defaults.md), and a dropped key left in a file is ignored. `ChimneyBlocks` became
+`ChimneyShaftBlocks` and `ChimneyTopBlocks` before 0.1.0 was released, with no rename recorded: the
+clay brick chimney it listed is now the top, not shaft, so an old list carried over would be wrong. **The old melting holes**
 (`meltinghole-{closed|open}`, their grid recipe and shapes, and their `multiblockStructure`) are removed
 with no migration: holes in a world vanish, with whatever was in them. The recipe browser's multiblock
 viewer no longer has the furnace; the model viewer has it as `crucible-furnace`.
@@ -3946,7 +3956,8 @@ type), two pots of different recipes, and the rig (its contract, the reference p
 and `potUnits` and the coke's layers held to the settings). `tests/PackTests/CrucibleFurnaceScenarios.cs`
 (Atlas) places the frame on all four facings and breaks it, builds every stage by clicks and refuses a
 second brick type and a stage out of order, breaks a built furnace for everything fitted, fits the stages
-by the creative shortcut, fires a 6-block and an 11-block chimney side by side and compares them, works
+by the creative shortcut, fires a 6-block and an 11-block chimney (the tall one of brick courses), each
+topped, side by side and compares them, finds no draught without a top or with one partway up, works
 the damper through its three places, needs tongs for a hot lid, runs a row of three on one chimney with
 an open outlet and then capped, melts two pots of different recipes at their own temperatures and pulls
 them with and without tongs, melts stainless from cold on its coke and pours and freezes it, teems iron

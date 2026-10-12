@@ -176,7 +176,9 @@ They go into the snapshot's `index.json`; the current version's list is the one 
 None is recorded. Seraph Horizons' own `TrunkEntitiesSettings.CarrySpeedAtFourLogs` became
 `CarrySpeedAtOneLog` before the first snapshot, so no install has a baseline with the old key, and
 the setting changed meaning (four logs to one) and default (0.8 to 1) with it: carrying a value
-across would not be anyone's intent either. The example in the file is that one, commented out.
+across would not be anyone's intent either. The example in the file is that one, commented out. Nor is
+`CrucibleFurnaceSettings.ChimneyBlocks`, split into `ChimneyShaftBlocks` and `ChimneyTopBlocks` before
+0.1.0 was released: its list held the clay brick chimney, now the chimney's top and not a shaft block.
 
 ## Where it runs
 
