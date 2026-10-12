@@ -48,10 +48,11 @@ public class CrucibleFurnaceConfig
     /// <summary>How fast it cools with its lid open, fire or not, °C an hour.</summary>
     public double LidOpenCoolingPerHour { get; set; } = 600;
 
-    /// <summary>Chimney blocks stood on the outlet, counted from it up, that the furnace needs to draw.</summary>
+    /// <summary>Shaft blocks stood on the outlet, counted from it up, that the furnace needs to draw
+    /// (the chimney top on them not counted).</summary>
     public int MinChimneyHeight { get; set; } = 6;
 
-    /// <summary>The tallest chimney that draws harder: blocks above it count no more.</summary>
+    /// <summary>The tallest shaft that draws harder: blocks above it count no more.</summary>
     public int MaxChimneyHeight { get; set; } = 11;
 
     /// <summary>Furnaces side by side that one chimney serves.</summary>
@@ -70,14 +71,21 @@ public class CrucibleFurnaceConfig
     /// <see cref="CoolingPerHour"/>, and does not heat.</summary>
     public double DamperShutCooling { get; set; } = 0.25;
 
-    /// <summary>Blocks a chimney is built of (codes, <c>*</c> for any run of characters).</summary>
-    public List<string> ChimneyBlocks { get; set; } =
+    /// <summary>Full blocks a chimney's shaft is built of (codes, <c>*</c> for any run of characters):
+    /// the game's fire, clinker and uneven clay brick blocks, its coloured brick courses, refractory
+    /// brick blocks and stone brick blocks.</summary>
+    public List<string> ChimneyShaftBlocks { get; set; } =
     [
         "game:claybricks-*",
-        "game:claybrickchimney-*",
+        "game:brickcourse-*",
         "game:refractorybricks-*",
         "game:stonebricks-*",
     ];
+
+    /// <summary>The block that tops a chimney's shaft, exactly one, not counted in its height: the
+    /// game's clay brick chimney (its pots on a slab; the legacy blue, brown, fire and red ones too).
+    /// One anywhere lower down ends the shaft there.</summary>
+    public List<string> ChimneyTopBlocks { get; set; } = ["game:claybrickchimney-*"];
 
     /// <summary>Metals (the ingot codes a pot's melt is, <c>*</c> for any run of characters) that a
     /// pulled melting pot pours only into <see cref="LargeCastingMolds"/>: molten iron, so iron tools
@@ -104,8 +112,11 @@ public class CrucibleFurnaceConfig
     /// <summary>Whether <paramref name="metal"/> (an ingot code) pours only into large-casting molds.</summary>
     public bool IsLargeCastingMetal(string metal) => LargeCastingMetals.Any(m => PotRecipes.CodeMatches(m, metal));
 
-    /// <summary>Whether <paramref name="block"/> (a block code) is a chimney block.</summary>
-    public bool IsChimneyBlock(string? block) => block != null && ChimneyBlocks.Any(c => PotRecipes.CodeMatches(c, block));
+    /// <summary>Whether <paramref name="block"/> (a block code) is a chimney shaft block.</summary>
+    public bool IsChimneyShaftBlock(string? block) => block != null && ChimneyShaftBlocks.Any(c => PotRecipes.CodeMatches(c, block));
+
+    /// <summary>Whether <paramref name="block"/> (a block code) is a chimney top.</summary>
+    public bool IsChimneyTopBlock(string? block) => block != null && ChimneyTopBlocks.Any(c => PotRecipes.CodeMatches(c, block));
 
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
     public IReadOnlyList<string> Sanitise()
@@ -139,10 +150,15 @@ public class CrucibleFurnaceConfig
         Check(nameof(DamperHalfBurn), DamperHalfBurn, !(DamperHalfBurn is > 0 and <= 1), () => DamperHalfBurn = d.DamperHalfBurn, d.DamperHalfBurn);
         Check(nameof(DamperShutBurn), DamperShutBurn, !(DamperShutBurn is > 0 and <= 1), () => DamperShutBurn = d.DamperShutBurn, d.DamperShutBurn);
         Check(nameof(DamperShutCooling), DamperShutCooling, !Share(DamperShutCooling), () => DamperShutCooling = d.DamperShutCooling, d.DamperShutCooling);
-        if (ChimneyBlocks == null || ChimneyBlocks.Count == 0 || ChimneyBlocks.Any(string.IsNullOrWhiteSpace))
+        if (ChimneyShaftBlocks == null || ChimneyShaftBlocks.Count == 0 || ChimneyShaftBlocks.Any(string.IsNullOrWhiteSpace))
         {
-            ChimneyBlocks = [.. d.ChimneyBlocks];
-            fixes.Add($"{nameof(ChimneyBlocks)} is empty or has a blank entry, using the defaults");
+            ChimneyShaftBlocks = [.. d.ChimneyShaftBlocks];
+            fixes.Add($"{nameof(ChimneyShaftBlocks)} is empty or has a blank entry, using the defaults");
+        }
+        if (ChimneyTopBlocks == null || ChimneyTopBlocks.Count == 0 || ChimneyTopBlocks.Any(string.IsNullOrWhiteSpace))
+        {
+            ChimneyTopBlocks = [.. d.ChimneyTopBlocks];
+            fixes.Add($"{nameof(ChimneyTopBlocks)} is empty or has a blank entry, using the defaults");
         }
         if (LargeCastingMetals == null || LargeCastingMetals.Any(string.IsNullOrWhiteSpace))
         {

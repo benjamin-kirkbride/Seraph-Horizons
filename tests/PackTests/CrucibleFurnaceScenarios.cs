@@ -176,12 +176,15 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.True(f.Complete, site.Info(f));
     }
 
-    /// <summary>A clay brick chimney <paramref name="height"/> blocks tall on <paramref name="f"/>'s outlet.</summary>
-    private void Chimney(BECrucibleFurnace f, int height)
+    private const string TopBlock = "game:claybrickchimney-four-red-ns";
+
+    /// <summary>A chimney on <paramref name="f"/>'s outlet: a shaft of <paramref name="height"/> blocks
+    /// of <paramref name="shaft"/> (fire brick blocks unless given), topped with a clay brick chimney unless <paramref name="top"/> is false.</summary>
+    private void Chimney(BECrucibleFurnace f, int height, bool top = true, string shaft = Brick)
     {
         var b = f.CellPos(Rig.ChimneyBase);
         for (int y = 0; y < 14; y++)
-            World.SetBlock(y < height ? Brick : "game:air", b.AddCopy(0, y, 0));
+            World.SetBlock(y < height ? shaft : y == height && top ? TopBlock : "game:air", b.AddCopy(0, y, 0));
     }
 
     private Dictionary<string, int> ItemsNear(BlockPos around, int radius = 8)
@@ -349,7 +352,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Contains("Lid open", site.Info(f));
         Assert.Contains("Ash-pit damper: open", site.Info(f));
         Assert.Contains("West pot: none", site.Info(f));
-        Assert.Contains("No draught: stand a chimney at least 6 blocks high", site.Info(f));
+        Assert.Contains("No draught: build a chimney of brick blocks at least 6 high", site.Info(f));
         // open, the lid has a box over the middle row
         var lidCell = f.CellPos(new Int3(0, 2, 1));
         await World.Ticks(40);   // past the swing
@@ -411,7 +414,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
             Lid(site, f, shut: true);
         }
         Chimney(low, 6);
-        Chimney(high, 11);
+        Chimney(high, 11, shaft: "game:brickcourse-four-running-red");
         low.Update();
         high.Update();
         Assert.Equal(200, low.Draught!.Value.HeatingPerHour, 6);
@@ -448,6 +451,17 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         low.Update();
         Assert.Null(low.Draught);
         Assert.Contains("No draught: the chimney is 5 blocks high, it needs 6", site.Info(low));
+        // a shaft without its chimney top draws nothing; nor one with a top partway up
+        Chimney(low, 6, top: false);
+        low.Update();
+        Assert.Null(low.Draught);
+        Assert.Contains("No draught: the chimney needs a chimney top, one clay brick chimney block on its 6 brick blocks", site.Info(low));
+        Chimney(low, 7);
+        World.SetBlock(TopBlock, low.CellPos(Rig.ChimneyBase).AddCopy(0, 2, 0));
+        low.Update();
+        Assert.Null(low.Draught);
+        Assert.Equal(RowProblem.ChimneyTopBuried, low.Row.Problem);
+        Assert.Contains("No draught: more chimney stands on the clay brick chimney block", site.Info(low));
 
         // hot, the lid needs tongs; with them it opens, and the open lid cools the fire
         Assert.True(high.Temperature > GlobalConstants.TooHotToTouchTemperature);
