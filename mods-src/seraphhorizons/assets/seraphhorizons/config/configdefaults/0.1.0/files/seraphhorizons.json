@@ -96,6 +96,7 @@
   "SupplySpreadFraction": 0.1,
   "PlacerFields": true,
   "PlacerCellSizeMetres": 1500,
+  "WideDensityProspecting": true,
   "OreProcessing": true,
   "SpallingSettings": {
     "BlowsRawOre": 6,

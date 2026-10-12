@@ -689,6 +689,15 @@ public class SeraphHorizonsConfig
     /// <summary>The placer cell's side in blocks (at least 500). Fixed when a world is created.</summary>
     public int PlacerCellSizeMetres { get; set; } = 1500;
 
+    /// <summary>BetterEr Prospecting (Ore/Game/WideDensityProspecting.cs, README "Density prospecting
+    /// reads 64 blocks, off the main thread"): the prospecting pick's block-based density mode counts
+    /// ore 64 blocks each way instead of 32, normalised over that wider area, and walks the blocks on a
+    /// background task, so a sample no longer stalls the server; the reading arrives a moment after
+    /// the hit, and a hit while the last one is still being read is turned away. <c>/btrpr
+    /// reprospect</c> loads the wider area too (server side; off means density mode is as BetterEr
+    /// ships it).</summary>
+    public bool WideDensityProspecting { get; set; } = true;
+
     /// <summary>Ore processing (epic #684, Ore/Processing/, README "Ore processing: items, crushing
     /// and smelting"): poor and medium ore become raw ore (stack 4, does not smelt), rich and bountiful
     /// ore chunks (stack 16, smelt at half); crushed, ground, concentrate, roasted concentrate, amalgam
