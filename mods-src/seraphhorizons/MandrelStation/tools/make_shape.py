@@ -174,7 +174,7 @@ COIL = Coil((X0, YM), MH, WIRE, COIL_PITCH, SPRING_Z0, COIL_TURNS)
 # side ends
 ROD_BACK = 0.35
 US = 1_000_000                               # W in millionths: every window starts and ends on one
-WIND_TURNS = 4.0                            # the pace: turns of the held right-click's clock (a turn a second) a spring
+WIND_TURNS = 8.0                            # the pace: turns of the held right-click's clock (a turn a second) a spring
 SPRING_ROD = "game:rod-steel"
 SPRING_ITEM = "seraphhorizons:spring-steel"
 
