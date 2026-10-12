@@ -124,7 +124,8 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var (_, player, tool) = await Commander("eidolontunneller", site.AddCopy(-10, 0, 1));
         var home = site.AddCopy(-6, 0, 1);
         var e = await Spawn(home, player);
-        // Three high is refused as it is marked, the first corner kept: the opposite corner one higher orders it.
+        // Three high, all of it under the hill, is refused as it is marked (an area covered all over that is
+        // too low could not be dug at all), the first corner kept: the opposite corner one higher orders it.
         OrderMine(player, tool, [e], a, site.AddCopy(7, 2, 1));
         Assert.Null(e.Orders!.OrderCode);
         RightClick(player, tool, block: b);

@@ -533,9 +533,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>
     /// Plans the tunnel, once for its job (<see cref="MineJobCells.Planned"/>): its covered part and the
-    /// way in from the open face nearest where the job's members stand (<see cref="PlanTunnel"/>). One
-    /// it cannot drive (the world changed since the area was marked, which refuses it) is told to its
-    /// owner, and the area is quarried as one with none covered.
+    /// way in from the open face nearest where the job's members stand (<see cref="PlanTunnel"/>). An
+    /// area covered all over that it cannot drive (the world changed since the area was marked, which
+    /// refuses it) is told to its owner, and the area is quarried as one with none covered; one covered in
+    /// part with no tunnel is quarried so with nothing told.
     /// </summary>
     private void Plan(EntityLaborEidolon eidolon)
     {

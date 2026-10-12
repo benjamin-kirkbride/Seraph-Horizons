@@ -2,9 +2,10 @@ using SeraphHorizons.Mod.Eidolon.Core;
 
 namespace SeraphHorizons.Mod.Tests.Eidolon;
 
-/// <summary>Mining a covered area as a tunnel: what is covered, what is refused, the open face and the
-/// nearest of them, the face's order (top half, bottom half, a step in), the heading over what is
-/// quarried after it, and the headings members work side by side.</summary>
+/// <summary>Mining a covered area as a tunnel: what is covered, what is refused (only an area covered
+/// all over) and what is quarried instead, the open face and the nearest of them, the face's order (top
+/// half, bottom half, a step in), the heading over what is quarried after it, and the headings members
+/// work side by side.</summary>
 public class EidolonTunnelsTests
 {
     private sealed class Voxels(IEnumerable<(int, int, int)> solid) : IWideSpace
@@ -76,9 +77,10 @@ public class EidolonTunnelsTests
     // ---- refused ----
 
     [Fact]
-    public void ACoveredPartUnder4HighOr2WideIsRefused()
+    public void AnAreaCoveredAllOverUnder4HighOr2WideIsRefused()
     {
         var world = Hill();
+        // 3 high, inside the hill all over: nothing of it could be dug.
         Assert.Equal(TunnelFit.TooLow, Plan(world, Area(0, 7, 0, 2, 0, 1)).Fit);
         // One wide: its face opens onto the ground, but it is too narrow to drive.
         Assert.Equal(TunnelFit.TooNarrow, Plan(world, Area(0, 7, 0, 3, 0, 0)).Fit);
@@ -89,13 +91,33 @@ public class EidolonTunnelsTests
     }
 
     [Fact]
-    public void ACoveredPartWithNoOpenFaceIsRefused()
+    public void AnAreaCoveredAllOverWithNoOpenFaceIsRefused()
     {
         // Wholly inside the hill, rock on every side.
         Assert.Equal(TunnelFit.NoFace, Plan(Hill(), Area(3, 10, 0, 3, 0, 1)).Fit);
         // Its heading two up the cliff, over the ground at its foot: from the ground it reaches only the
         // heading's bottom half, so there is no face to start from either.
         Assert.Equal(TunnelFit.NoFace, Plan(Hill(), Area(0, 7, 2, 5, 0, 1)).Fit);
+    }
+
+    [Fact]
+    public void ACoveredPartTooLowNarrowOrWithNoFaceIsQuarriedWithTheRestNotRefused()
+    {
+        var world = Hill();
+        // A pit two deep in the ground on the slope's foot, its uphill columns (x 0, 1) under the hill:
+        // a covered corner 2 high, no tunnel, the whole pit quarried.
+        var pit = Area(-4, 1, -2, -1, 0, 3);
+        Assert.Equal(8, EidolonTunnels.Covered(pit, world.Has).Count);
+        Assert.Equal((TunnelFit.Fits, (MineTunnel?)null), Plan(world, pit));
+        // 4 high, its covered part 1 wide: too narrow, quarried.
+        Assert.Equal((TunnelFit.Fits, (MineTunnel?)null), Plan(world, Area(-4, 7, 0, 3, 0, 0)));
+        // Its covered part two up the cliff, with no face (as the refused one below), the rest out over
+        // the ground: quarried.
+        Assert.Equal((TunnelFit.Fits, (MineTunnel?)null), Plan(world, Area(-4, 7, 2, 5, 0, 1)));
+        // Covered in part and tunnel-sized with a face: still a tunnel.
+        var (fit, tunnel) = Plan(world, Area(-4, 7, 0, 3, 0, 1));
+        Assert.Equal(TunnelFit.Fits, fit);
+        Assert.Equal((2, 8), (tunnel!.Width, tunnel.Length));
     }
 
     // ---- the open face ----

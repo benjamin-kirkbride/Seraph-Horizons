@@ -7,9 +7,9 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// <summary>
 /// Mining (README "Eidolon", mining): the <c>mine</c> order (<see cref="MineOrder"/>) and the command
 /// tool's "mine an area" mode, an area of at most <see cref="EidolonMining.MaxAreaBlocks"/> blocks and
-/// <see cref="EidolonMining.MaxAreaSide"/> a side, right after felling on the wheel; an area whose
-/// covered part cannot be dug as a tunnel (README "Eidolon", mining, tunnels: too low, too narrow, no
-/// open face; <see cref="MineOrder.PlanTunnel"/>) is refused as it is marked. Registered on both
+/// <see cref="EidolonMining.MaxAreaSide"/> a side, right after felling on the wheel; an area covered all
+/// over that cannot be dug as a tunnel (README "Eidolon", mining, tunnels: too low, too narrow, no open
+/// face; <see cref="MineOrder.PlanTunnel"/>) is refused as it is marked, one covered in part never. Registered on both
 /// sides whatever the switch: with it off the entity and the tool do not exist.
 /// </summary>
 public class EidolonMineSystem : ModSystem

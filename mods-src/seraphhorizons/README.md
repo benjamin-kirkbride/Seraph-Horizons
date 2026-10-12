@@ -3125,7 +3125,10 @@ on its ceiling, out of reach from the mouth, and give the rest up. So a column o
 block of ground (stone, ore, soil, gravel, sand, brick or clay work, its underside solid: not a tree,
 leaves, plants, snow or a loose stone) within 3 blocks over the area's top layer is *covered*
 (`EidolonTunnels.Covered`, per column), and the covered part is dug as a tunnel; the rest of the area is
-open and quarried as above, and an area covered in part does both, the tunnel first. Its *heading* is
+open and quarried as above, and an area covered in part does both, the tunnel first. A covered part too
+low, too narrow or with no face to be a tunnel (below) is quarried with the rest, from the top down, the
+eidolon breaking what it reaches from the open side and counting the rest out of reach: a shallow pit
+marked on a slope, its uphill columns roofed by the hillside, is a pit like any other. Its *heading* is
 the top 4 layers of the covered columns (`EidolonTunnels.HeadingHeight`, what it reaches from its floor):
 it is driven in face-first from the open face, in lanes 2 wide across the way in (an odd width's last
 lane 3), each lane's face struck upright, two blocks across and two high at a time, the top half first,
@@ -3145,14 +3148,15 @@ it gives it headroom, and each layer is in reach as it works down). The tunnel s
 place it can stand to strike a lane's first face from, in front of the mouth (`EidolonTunnels.Opens`,
 `InFront`: a stand `EidolonMining.Stands` finds, on the ground, its box clear), and of several such
 sides, the one whose mouth is nearest the eidolon, or the job's members (`EidolonTunnels.Plan`). It is
-planned once, by the job's first search, and kept (`MineJobCells.Tunnel`). The area is refused as it is
-marked (`EidolonCommandMode.CheckArea`, `MineOrder.PlanTunnel`; the first corner kept, as for an area too
-large) when its covered part is under 4 high (the eidolon is 3.75 tall, `eidoloncommander-mine-toolow`),
-when no side of it opens (`eidoloncommander-mine-noface`: a heading higher than it reaches from the
-ground at the cliff's foot has none), or when the sides that do are under 2 across
-(`eidoloncommander-mine-narrow`); an area with nothing covered is never refused for this. Planned when
-the order starts, an area the world has changed under since it was marked tells the owner why
-(`eidolon-mine-tunnel-refused`) and is quarried as one with nothing covered. Several members drive it
+planned once, by the job's first search, and kept (`MineJobCells.Tunnel`). An area covered all over,
+where nothing could be done, is refused as it is marked (`EidolonCommandMode.CheckArea`,
+`MineOrder.PlanTunnel`; the first corner kept, as for an area too large) when it is under 4 high (the
+eidolon is 3.75 tall, `eidoloncommander-mine-toolow`), when no side of it opens
+(`eidoloncommander-mine-noface`: a heading higher than it reaches from the ground at the cliff's foot has
+none), or when the sides that do are under 2 across (`eidoloncommander-mine-narrow`); an area open over
+any of it is never refused for this (`EidolonTunnels.Plan`: no tunnel, quarried). Planned when the order
+starts, an area covered all over that the world has changed under since it was marked tells the owner
+why (`eidolon-mine-tunnel-refused`) and is quarried as one with nothing covered. Several members drive it
 side by side (below). Only the part quarried from a floor above for want of a face of its own can
 strand it, as an open pit can: dug more than two below the way out, with no step beside it, it stays
 down there.

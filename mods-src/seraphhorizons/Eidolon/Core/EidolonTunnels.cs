@@ -1,10 +1,12 @@
 namespace SeraphHorizons.Mod.Eidolon.Core;
 
 /// <summary>Whether a mine order's covered part can be dug as a tunnel (<see cref="EidolonTunnels.Plan"/>):
-/// it can, or why not, told to the player as the area is marked.</summary>
+/// it can, or why not, told to the player as the area is marked. Only an area covered all over is
+/// refused: one covered in part is quarried top down where its covered part cannot be a tunnel.</summary>
 public enum TunnelFit
 {
-    /// <summary>It can (or nothing of the area is covered).</summary>
+    /// <summary>It can, or there is no tunnel and the whole area is quarried top down: nothing of it is
+    /// covered, or only part is and that part cannot be a tunnel.</summary>
     Fits,
 
     /// <summary>Under <see cref="EidolonTunnels.MinHeight"/> tall: the eidolon does not fit in it.</summary>
@@ -227,20 +229,24 @@ public static class EidolonTunnels
 
     /// <summary>
     /// Plans the covered part of <paramref name="area"/> (<paramref name="covered"/>; none: nothing to
-    /// plan, <see cref="TunnelFit.Fits"/> and null): refused under <see cref="MinHeight"/> tall; else of
+    /// plan, <see cref="TunnelFit.Fits"/> and null): no tunnel under <see cref="MinHeight"/> tall; else of
     /// the four ways in, those whose first face it can stand to strike (a lane's front, with the cells
     /// <paramref name="solid"/> as left, that <see cref="EidolonMining.Stands"/> finds a place for in
     /// <paramref name="space"/>), at least <see cref="MinWidth"/> across, the one whose mouth is nearest
-    /// (<paramref name="fromX"/>, <paramref name="fromZ"/>); refused with none open, or none open wide
-    /// enough. A heading with nothing left to break is open from every side.
+    /// (<paramref name="fromX"/>, <paramref name="fromZ"/>); none with none open, or none open wide
+    /// enough. A heading with nothing left to break is open from every side. With no tunnel, an area
+    /// covered only in part (a pit on a slope, its uphill columns roofed) is quarried top down,
+    /// <see cref="TunnelFit.Fits"/> and null; one covered all over is refused, since nothing of it could
+    /// be dug, with why.
     /// </summary>
     public static (TunnelFit Fit, MineTunnel? Tunnel) Plan(MarkArea area, IReadOnlySet<(int X, int Z)> covered, IWideSpace space,
         Func<MarkPos, bool> solid, double fromX, double fromZ)
     {
         if (covered.Count == 0)
             return (TunnelFit.Fits, null);
+        bool whole = covered.Count == area.SizeX * area.SizeZ;
         if (area.SizeY < MinHeight)
-            return (TunnelFit.TooLow, null);
+            return (whole ? TunnelFit.TooLow : TunnelFit.Fits, null);
         bool open = false;
         (MineTunnel Tunnel, double D2)? best = null;
         foreach (var (dx, dz) in Drives)
@@ -258,6 +264,8 @@ public static class EidolonTunnels
         }
         if (best is { } b)
             return (TunnelFit.Fits, b.Tunnel);
+        if (!whole)
+            return (TunnelFit.Fits, null);
         return (open ? TunnelFit.TooNarrow : TunnelFit.NoFace, null);
     }
 
