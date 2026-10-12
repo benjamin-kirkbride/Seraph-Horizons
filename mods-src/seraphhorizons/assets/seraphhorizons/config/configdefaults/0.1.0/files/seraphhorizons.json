@@ -400,11 +400,14 @@
     "DamperHalfBurn": 0.6,
     "DamperShutBurn": 0.25,
     "DamperShutCooling": 0.25,
-    "ChimneyBlocks": [
+    "ChimneyShaftBlocks": [
       "game:claybricks-*",
-      "game:claybrickchimney-*",
+      "game:brickcourse-*",
       "game:refractorybricks-*",
       "game:stonebricks-*"
+    ],
+    "ChimneyTopBlocks": [
+      "game:claybrickchimney-*"
     ],
     "LargeCastingMetals": [
       "game:ingot-iron"

@@ -358,11 +358,84 @@ public class CrucibleFurnaceTests
 
     // ---- The row and its chimney ----
 
-    /// <summary>A row: members by offset (capped, chimney height), null between and beyond.</summary>
-    private static Func<int, RowMember?> Row(params (int At, bool Capped, int Chimney)[] members)
+    /// <summary>A row: members by offset (capped, chimney shaft, topped when it has one), null between
+    /// and beyond.</summary>
+    private static Func<int, RowMember?> Row(params (int At, bool Capped, int Chimney)[] members) =>
+        Row(members.Select(m => (m.At, m.Capped, new ChimneyColumn(m.Chimney, m.Chimney > 0 ? ChimneyTop.Top : ChimneyTop.None))).ToArray());
+
+    private static Func<int, RowMember?> Row(params (int At, bool Capped, ChimneyColumn Chimney)[] members)
     {
         var map = members.ToDictionary(m => m.At, m => new RowMember(m.Capped, m.Chimney));
         return k => map.TryGetValue(k, out var m) ? m : null;
+    }
+
+    private const string Shaft = "game:claybricks-good-fire";
+    private const string Top = "game:claybrickchimney-four-red-ns";
+
+    /// <summary>The chimney of these blocks, from the outlet up, air above.</summary>
+    private static ChimneyColumn Column(params string[] blocks) =>
+        ChimneyColumn.Measure(n => n < blocks.Length ? blocks[n] : "game:air", new CrucibleFurnaceConfig());
+
+    private static string[] Stack(int shaft, string block = Shaft, params string[] then) => [.. Enumerable.Repeat(block, shaft), .. then];
+
+    [Fact]
+    public void A_chimney_is_a_shaft_of_brick_blocks_under_one_chimney_top()
+    {
+        Assert.Equal(new ChimneyColumn(6, ChimneyTop.Top), Column(Stack(6, Shaft, Top)));
+        Assert.Equal(new ChimneyColumn(11, ChimneyTop.Top), Column(Stack(11, Shaft, Top)));
+        Assert.Equal(new ChimneyColumn(6, ChimneyTop.None), Column(Stack(6)));
+        Assert.Equal(new ChimneyColumn(0, ChimneyTop.None), Column());
+        // a top lower down ends the shaft there, and is no top with more on it; nor are two tops
+        Assert.Equal(new ChimneyColumn(3, ChimneyTop.Buried), Column(Stack(3, Shaft, [Top, .. Stack(5, Shaft, Top)])));
+        Assert.Equal(new ChimneyColumn(6, ChimneyTop.Buried), Column(Stack(6, Shaft, Top, Top)));
+        // something else on the top ends the column
+        Assert.Equal(new ChimneyColumn(6, ChimneyTop.Top), Column(Stack(6, Shaft, Top, "game:soil-medium-none")));
+        // every kind of brick block counts, mixed; the chimney block itself is no shaft
+        Assert.Equal(new ChimneyColumn(5, ChimneyTop.Top), Column("game:brickcourse-four-running-red", "game:brickcourse-eight-soldier-tan",
+            "game:claybricks-uneven-four-header-cream", "game:refractorybricks-good-tier3", "game:stonebricks-granite", Top));
+        Assert.Equal(new ChimneyColumn(2, ChimneyTop.Top), Column("game:claybricks-clinkerrough", "game:claybricks-damaged-fire", "game:claybrickchimney-red-lit-we"));
+        var c = new CrucibleFurnaceConfig();
+        Assert.False(c.IsChimneyShaftBlock(Top));
+        Assert.False(c.IsChimneyTopBlock(Shaft));
+    }
+
+    [Fact]
+    public void A_chimney_draws_only_topped_and_by_its_shaft()
+    {
+        Assert.True(FurnaceRow.Find(Row((0, false, new ChimneyColumn(6, ChimneyTop.Top))), 5, 6).Works);
+        var tall = FurnaceRow.Find(Row((0, false, new ChimneyColumn(11, ChimneyTop.Top))), 5, 6);
+        Assert.True(tall.Works);
+        Assert.Equal(11, tall.ChimneyHeight);
+        // no top, no draught
+        var bare = FurnaceRow.Find(Row((0, false, new ChimneyColumn(8, ChimneyTop.None))), 5, 6);
+        Assert.Equal(RowProblem.NoChimneyTop, bare.Problem);
+        Assert.Equal(8, bare.ChimneyHeight);
+        // a top on a short shaft: too short; a short shaft without one: too short first
+        Assert.Equal(RowProblem.ChimneyTooShort, FurnaceRow.Find(Row((0, false, new ChimneyColumn(5, ChimneyTop.Top))), 5, 6).Problem);
+        Assert.Equal(RowProblem.ChimneyTooShort, FurnaceRow.Find(Row((0, false, new ChimneyColumn(5, ChimneyTop.None))), 5, 6).Problem);
+        // a buried top is named whatever the shaft under it
+        Assert.Equal(RowProblem.ChimneyTopBuried, FurnaceRow.Find(Row((0, false, new ChimneyColumn(3, ChimneyTop.Buried))), 5, 6).Problem);
+        Assert.Equal(RowProblem.ChimneyTopBuried, FurnaceRow.Find(Row((0, false, new ChimneyColumn(7, ChimneyTop.Buried))), 5, 6).Problem);
+        // a lone chimney top on the outlet is a chimney, too short
+        Assert.Equal(RowProblem.ChimneyTooShort, FurnaceRow.Find(Row((0, false, new ChimneyColumn(0, ChimneyTop.Top))), 5, 6).Problem);
+        // the draught is the shaft's
+        Assert.Equal(400, FurnaceHeat.DraughtOf(tall.ChimneyHeight, new CrucibleFurnaceConfig())!.Value.HeatingPerHour, 6);
+    }
+
+    [Fact]
+    public void A_row_shares_one_topped_chimney()
+    {
+        var topped = new ChimneyColumn(6, ChimneyTop.Top);
+        var at = Row((-2, true, default(ChimneyColumn)), (-1, true, default(ChimneyColumn)), (0, false, topped), (1, true, default(ChimneyColumn)), (2, true, default(ChimneyColumn)));
+        foreach (int self in new[] { -2, 0, 2 })
+        {
+            var row = FurnaceRow.Find(k => at(k + self), 5, 6);
+            Assert.True(row.Works, $"{self}: {row.Problem}");
+            Assert.Equal((5, -self, 6), (row.Count, row.ChimneyAt!.Value, row.ChimneyHeight));
+        }
+        // the same row's chimney without its top: none of them draws
+        var bare = Row((-1, true, default(ChimneyColumn)), (0, false, new ChimneyColumn(6, ChimneyTop.None)), (1, true, default(ChimneyColumn)));
+        Assert.All(new[] { -1, 0, 1 }, self => Assert.Equal(RowProblem.NoChimneyTop, FurnaceRow.Find(k => bare(k + self), 5, 6).Problem));
     }
 
     [Fact]
@@ -452,10 +525,10 @@ public class CrucibleFurnaceTests
     public void Defaults_are_sane_and_bad_values_fall_back()
     {
         Assert.Empty(new CrucibleFurnaceConfig().Sanitise());
-        var bad = new CrucibleFurnaceConfig { PotCapacityUnits = 0, PourWindowSeconds = double.NaN, HoursPerCoke = -1, ChimneyBlocks = [],
-            DamperHalfBurn = 0, DamperShutCooling = 2, MaxChimneyHeight = 3, MaxFurnacesInRow = 0 };
+        var bad = new CrucibleFurnaceConfig { PotCapacityUnits = 0, PourWindowSeconds = double.NaN, HoursPerCoke = -1, ChimneyShaftBlocks = [],
+            ChimneyTopBlocks = [" "], DamperHalfBurn = 0, DamperShutCooling = 2, MaxChimneyHeight = 3, MaxFurnacesInRow = 0 };
         var fixes = bad.Sanitise();
-        Assert.Equal(8, fixes.Count);
+        Assert.Equal(9, fixes.Count);
         Assert.Equal(0.6, bad.DamperHalfBurn);
         Assert.Equal(0.25, bad.DamperShutCooling);
         Assert.Equal(11, bad.MaxChimneyHeight);
@@ -463,12 +536,11 @@ public class CrucibleFurnaceTests
         Assert.Equal(300, bad.PotCapacityUnits);
         Assert.Equal(20, bad.PourWindowSeconds);
         Assert.Equal(1, bad.HoursPerCoke);
-        Assert.Contains("game:claybricks-*", bad.ChimneyBlocks);
+        Assert.Contains("game:claybricks-*", bad.ChimneyShaftBlocks);
+        Assert.Equal(new[] { "game:claybrickchimney-*" }, bad.ChimneyTopBlocks);
         // smex's smoke stack is no chimney block: it cannot stand on the outlet
-        Assert.DoesNotContain(new CrucibleFurnaceConfig().ChimneyBlocks, c => c.StartsWith("smex:", StringComparison.Ordinal));
-        Assert.True(new CrucibleFurnaceConfig().IsChimneyBlock("game:claybricks-good-fire"));
-        Assert.True(new CrucibleFurnaceConfig().IsChimneyBlock("game:stonebricks-granite"));
-        Assert.False(new CrucibleFurnaceConfig().IsChimneyBlock("smex:smokestack-bottom"));
+        Assert.DoesNotContain(new CrucibleFurnaceConfig().ChimneyShaftBlocks, c => c.StartsWith("smex:", StringComparison.Ordinal));
+        Assert.False(new CrucibleFurnaceConfig().IsChimneyShaftBlock("smex:smokestack-bottom"));
         var blank = new CrucibleFurnaceConfig { LargeCastingMetals = null!, LargeCastingMolds = ["game:ingotmold-*", " "] };
         Assert.Equal(2, blank.Sanitise().Count);
         Assert.Equal(new[] { "game:ingot-iron" }, blank.LargeCastingMetals);
