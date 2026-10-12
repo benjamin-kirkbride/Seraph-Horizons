@@ -229,7 +229,7 @@ PADDLE = (11.8, 12.9, 3.4)                   # the paddles: their y span (they b
 SIPHON = (58.4, 25.4)                        # (x, z): the siphon's leg in the kettle
 SIPHON_TOP = 15.0                             # under the input cell (the bend's top 15.8)
 SIPHON_OUT = 30.4                            # its outer leg (z), in front of the setting
-SPOUT_Y = 5.6                                # the output spout's bottom, at its head
+DOOR_AT = 67.5                               # degrees round from south towards east: the setting's flat the kettle's doors are on
 CRUST_R = (4.0, 4.95)                        # the zinc crust gathers round the kettle's edge, beyond the paddles
 CRUST_AT = (110.0, 200.0, 320.0)             # degrees round from south towards east: clear of the siphon and the chute
 
@@ -893,9 +893,10 @@ def build_kettle():
     # the skimmer, a perforated ladle for taking off the crust, lying across the flange at the west
     out.append(box([KET_C[0] - KET_FLANGE + 0.1, FLANGE_Y[1], KET_C[1] - 3.4], [KET_C[0] - PADDLE[2] - 0.4, FLANGE_Y[1] + 0.4,
                     KET_C[1] - 0.8], "kt_skimmer", p, "iron"))
-    zf = KET_C[1] + SET_R
-    out.append(box([KET_C[0] - 1.8, FLOOR + 3.0, zf], [KET_C[0] + 1.8, FLOOR + 7.4, zf + 0.5], "kt_firedoor", p, "iron"))
-    out.append(box([KET_C[0] - 1.5, FLOOR + 0.4, zf], [KET_C[0] + 1.5, FLOOR + 2.2, zf + 0.4], "kt_ashdoor", p, "iron"))
+    # the fire and ash-pit doors, on the setting's flat facing east-south-east (the outfeed takes its front corner)
+    door = math.radians(DOOR_AT)
+    out.append(radial("y", KC, FLOOR + 3.0, FLOOR + 7.4, SET_R - 0.05, SET_R + 0.45, 3.6, door, "kt_firedoor", p, "iron"))
+    out.append(radial("y", KC, FLOOR + 0.4, FLOOR + 2.2, SET_R - 0.05, SET_R + 0.35, 3.0, door, "kt_ashdoor", p, "iron"))
     return out
 
 
@@ -943,34 +944,6 @@ def build_pinion():
     return out
 
 
-CHUTE_WALL, CHUTE_SIDE = 0.4, 1.6             # a chute's plate, and how high its sides stand over its bottom
-
-
-def chute_y(top, low, a):
-    """The height of a chute's bottom's top at `a` along its run, from its two ends ((a, y) points)."""
-    return top[1] + (a - top[0]) * (low[1] - top[1]) / (low[0] - top[0])
-
-
-def _slope_sin(top, low):
-    return abs(top[1] - low[1]) / math.hypot(low[0] - top[0], top[1] - low[1])
-
-
-def onto_face(top, low, face, end):
-    """The chute's `end` ("top" or "low") moved along its line so its outermost corner is on the plane `face`
-    across its run: the bottom plate's underside pokes out at the upper end, the sides' tops at the lower end
-    (both lean along the slope)."""
-    d = 1.0 if low[0] > top[0] else -1.0      # the way the chute runs from its top to its low end
-    for _ in range(8):
-        s = _slope_sin(top, low)
-        if end == "top":
-            a = face + d * CHUTE_WALL * s
-            top = (a, chute_y(top, low, a))
-        else:
-            a = face - d * CHUTE_SIDE * s
-            low = (a, chute_y(top, low, a))
-    return top, low
-
-
 # The infeed takes automation, so it is drawn as the game's chute (shapes/block/metal/chute/straight.json, game
 # 1.22.7, its blocktype's copper sheet): a closed square duct, its four walls 1 voxel thick round a 6 x 6 bore, 8
 # across, in the middle of the block (4..12). A player's chute in the cell beyond the input face meets it wall for
@@ -978,8 +951,24 @@ def onto_face(top, low, face, end):
 # north, south, bottom, top.
 VANILLA_CHUTE = ((4.0, 12.0, 4.0, 5.0), (4.0, 12.0, 11.0, 12.0), (4.0, 5.0, 5.0, 11.0), (11.0, 12.0, 5.0, 11.0))
 INFEED_X = 60.6                              # the duct's open (west) end, over the kettle's mouth and clear of the wheel's teeth
-SPOUT_TOP, SPOUT_LOW = onto_face((SIPHON_OUT - 1.0, SPOUT_Y), (CELLS_Z * B, SPOUT_Y - 0.6), CELLS_Z * B, "low")   # (z, y)
-SPOUT_HALF = 1.4
+# The output hands off to a chute too, so it is the same section along z (the game's chute-straight-ns, its shape
+# turned a quarter, which the section's symmetry leaves the same): (y0, y1, x0, x1) per wall in the output cell, from
+# just clear of the kettle's setting (an octagon with a corner to the front) to the output face.
+OUTFEED_Z0 = KET_C[1] + SET_R / math.cos(math.pi / 8) + 0.05
+
+
+def outfeed_origin():
+    """The output cell's (x, y) corner in voxels: the game's chute section is placed in the cell from there."""
+    return OUTPUT_CELL[0] * B, OUTPUT_CELL[1] * B
+
+
+def outfeed_walls(p):
+    """The output: a straight length of the game's chute along z, from in front of the kettle's setting to the output
+    face (south), its four walls exactly the game's straight chute's section in the cell, in the chute's texture."""
+    ox, oy = outfeed_origin()
+    names = ("w", "e", "bottom", "top")
+    return [box([ox + x0, oy + y0, OUTFEED_Z0], [ox + x1, oy + y1, CELLS_Z * B], f"ch_out_{n}", p, "chute")
+            for n, (y0, y1, x0, x1) in zip(names, VANILLA_CHUTE)]
 
 
 def infeed_origin():
@@ -997,26 +986,26 @@ def infeed_walls(p):
 
 
 def build_chutes():
-    """Level 2 makes the kettle chute-fed: a straight length of the game's chute from the input face (east), where a
-    player's chute line meets it, drops the charge into the kettle from its open end, a leg under it on the setting; a siphon over the kettle's front rim runs the desilverized lead
-    down into the output spout, its lip on the output face (south), a leg under it."""
+    """Level 2 makes the kettle chute-fed. The infeed, a straight length of the game's chute from the input face (east),
+    where a player's chute line meets it, drops the charge into the kettle from its open end, a leg under it on the
+    setting. A siphon over the kettle's front rim runs the desilverized lead down into the outfeed, the same chute from
+    in front of the setting to the output face (south), where a chute line carries it on; a leg under it."""
     p = "chutes"
     out = infeed_walls(p)
     oy, oz = infeed_origin()
     out.append(box([62.1, SET_TOP, oz + 7.5], [63.0, oy + VANILLA_CHUTE[2][0], oz + 8.5], "ch_inleg", p, "iron"))
-    # the siphon: down into the bath, over the rim, down in front of the setting into the spout
+    # the siphon: down into the bath, over the rim, down in front of the setting through the outfeed's top into its bore
     sx, sz = SIPHON
     pr = 0.5
+    ox, oy = outfeed_origin()
     out.append(box([sx - pr, BATH_Y[0] - 1.0, sz - pr], [sx + pr, SIPHON_TOP - 0.6, sz + pr], "ch_siphonin", p, "iron"))
     out.append(box([sx - 0.7, SIPHON_TOP - 0.6, sz - 0.7], [sx + 0.7, SIPHON_TOP + 0.8, sz + 0.7], "ch_siphonbend1", p, "iron"))
     out.append(box([sx - pr, SIPHON_TOP - pr + 0.1, sz + 0.7], [sx + pr, SIPHON_TOP + pr + 0.1, SIPHON_OUT - 0.7], "ch_siphontop", p, "iron"))
     out.append(box([sx - 0.7, SIPHON_TOP - 0.6, SIPHON_OUT - 0.7], [sx + 0.7, SIPHON_TOP + 0.8, SIPHON_OUT + 0.7], "ch_siphonbend2", p, "iron"))
-    out.append(box([sx - pr, SPOUT_Y + 0.6, SIPHON_OUT - pr], [sx + pr, SIPHON_TOP - 0.6, SIPHON_OUT + pr], "ch_siphonout", p, "iron"))
-    # the spout: a short iron trough on a leg, from under the siphon's leg out to the output face
-    out += channel((sx, SPOUT_TOP[1], SPOUT_TOP[0]), (sx, SPOUT_LOW[1], SPOUT_LOW[0]), SPOUT_HALF, CHUTE_WALL, CHUTE_SIDE,
-                   "ch_spout", p, "iron", "z")
-    lz = SIPHON_OUT
-    out.append(box([sx - 0.6, FLOOR, lz - 0.6], [sx + 0.6, chute_y(SPOUT_TOP, SPOUT_LOW, lz) - CHUTE_WALL - 0.3, lz + 0.6], "ch_spoutleg", p, "iron"))
+    out.append(box([sx - pr, oy + 9.0, SIPHON_OUT - pr], [sx + pr, SIPHON_TOP - 0.6, SIPHON_OUT + pr], "ch_siphonout", p, "iron"))
+    out += outfeed_walls(p)
+    lz = (OUTFEED_Z0 + CELLS_Z * B) / 2
+    out.append(box([ox + 7.4, FLOOR, lz - 0.6], [ox + 8.6, oy + VANILLA_CHUTE[2][0], lz + 0.6], "ch_outleg", p, "iron"))
     return out
 
 
@@ -1118,7 +1107,7 @@ ANCHORS = ("input", "output")
 
 def anchor_points():
     return {"input": (CELLS_X * B, infeed_origin()[0] + 8.0, infeed_origin()[1] + 8.0),
-            "output": (SIPHON[0], chute_y(SPOUT_TOP, SPOUT_LOW, CELLS_Z * B) + 0.6, CELLS_Z * B)}
+            "output": (outfeed_origin()[0] + 8.0, outfeed_origin()[1] + 8.0, CELLS_Z * B)}
 
 
 def make_rig(parts):

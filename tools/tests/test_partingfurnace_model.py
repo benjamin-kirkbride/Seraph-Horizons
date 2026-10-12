@@ -201,6 +201,21 @@ class Infeed(unittest.TestCase):
         self.assertEqual(SHAPE["textures"]["chute"], "game:block/metal/sheet/copper1")
         self.assertEqual(RIG["input"]["pos"], [cell[0] + 1, cell[1] + 0.5, cell[2] + 0.5])
 
+    def test_the_outfeed_is_the_games_chute_at_the_output_face(self):
+        """The output hands on to a chute, so it is the same section along z, flush with the output face."""
+        cell = RIG["outputCell"]
+        walls = [e for e in SHAPE["elements"] if e["name"].startswith("ch_out_")]
+        self.assertEqual(len(walls), 4)
+        got = []
+        for e in walls:
+            self.assertNotIn("rotationY", e)
+            self.assertAlmostEqual(e["to"][2], (cell[2] + 1) * 16, places=4)
+            got.append(tuple(round(v, 4) for v in (e["from"][1] - cell[1] * 16, e["to"][1] - cell[1] * 16,
+                                                     e["from"][0] - cell[0] * 16, e["to"][0] - cell[0] * 16)))
+            self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#chute"})
+        self.assertEqual(sorted(got), sorted(make_shape.VANILLA_CHUTE))
+        self.assertEqual(RIG["output"]["pos"], [cell[0] + 0.5, cell[1] + 0.5, cell[2] + 1])
+
     def test_the_profile_is_the_games_when_the_game_is_installed(self):
         """VANILLA_CHUTE against the game's own shape (shapes/block/metal/chute/straight.json, along x as chute-straight-we
         places it): skipped without a game install (CI)."""

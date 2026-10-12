@@ -187,7 +187,7 @@ def check_anchors(v):
     if abs(edge - face) > 1e-6 or max(abs(mid[0] - centre[0]), abs(mid[1] - centre[1])) > 1e-6 or max(abs(s - 6) for s in section) > 1e-6:
         v.fail("the water pipe does not meet the water face at the cell's centre in ppex's section")
     for label, part, rx, cell, face, key in (("input", "chutes", r"^ch_in_", m.INPUT_CELL, m.INPUT_FACE, "input"),
-                                             ("output", "chutes", r"^ch_spout_", m.OUTPUT_CELL, m.OUTPUT_FACE, "output")):
+                                             ("output", "chutes", r"^ch_out_", m.OUTPUT_CELL, m.OUTPUT_FACE, "output")):
         lo, hi = aabb_of(v.named(part, rx))
         edge, want = on_face(lo, hi, cell, face)
         k = {"east": 0, "south": 2}[face]
@@ -213,7 +213,7 @@ def check_anchors(v):
 
 TEX_RULES = [
     (r"^sh_oak", "oak"),
-    (r"^ch_in_", "chute"),
+    (r"^ch_(in|out)_", "chute"),
     (r"^(sh_shaft|sh_pin|yk_rod|yk_slipper|st_shaft|st_wheel|bp_|en_gland)", "steel"),
     (r"^(sh_web|yk_(top|bottom|side)|en_(ped|cyl|cover|valvechest|guide|foot|elbow|main)"
      r"|cp_(grate|ring|channel|pot_|tuyere|firedoor|firehinge|ashdoor|buck|tie|lintel_iron)|lq_(plate|rim|spout|pot_|firedoor|buck|tie)"
@@ -484,10 +484,12 @@ def check_flows(v):
     out.append(("infeed's open end over the bath", inside_disc(end, m.KET_C, m.KET_R - 0.2) and ci[0][1] > m.FLANGE_Y[1]))
     si = aabb_of(v.named("chutes", r"^ch_siphonin"))
     out.append(("siphon's leg in the bath", si[0][1] < m.BATH_Y[0] and inside_disc((mid(*si, 0), 0, mid(*si, 2)), m.KET_C, m.KET_R - 0.5)))
+    # the siphon's outer leg comes down through the outfeed's top into its bore (between its walls, over its floor)
     so = aabb_of(v.named("chutes", r"^ch_siphonout"))
-    sb = aabb_of(v.named("chutes", r"^ch_spout_bottom"))
-    out.append(("siphon's outer leg in the spout", sb[0][0] < so[0][0] and so[1][0] < sb[1][0] and sb[0][2] < so[0][2] and so[1][2] < sb[1][2]
-                and so[0][1] > sb[1][1] - 0.6 and so[0][1] < sb[1][1] + m.CHUTE_SIDE))
+    w, e = aabb_of(v.named("chutes", r"^ch_out_w")), aabb_of(v.named("chutes", r"^ch_out_e"))
+    fl, tp = aabb_of(v.named("chutes", r"^ch_out_bottom")), aabb_of(v.named("chutes", r"^ch_out_top"))
+    out.append(("siphon's outer leg into the outfeed's bore", w[1][0] < so[0][0] and so[1][0] < e[0][0] and fl[0][2] < so[0][2]
+                and so[1][2] < fl[1][2] and fl[1][1] < so[0][1] < tp[0][1] < so[1][1]))
     nz = aabb_of(v.named("acid", r"^ac_nozzle"))
     tip = (mid(*nz, 0), 0.0, mid(*nz, 2))
     out.append(("water cock's nozzle over the vessel's mouth", inside_disc(tip, m.VESSEL_C, m.RIM_R[0] - 0.6) and nz[0][1] > m.RIM_Y[1]))
@@ -497,28 +499,34 @@ def check_flows(v):
     print("flows: " + "; ".join(f"{label} {'yes' if good else 'NO'}" for label, good in out))
 
 
-def check_infeed(v):
-    """The infeed takes automation, so it is the game's chute: where it meets the input face, its walls are exactly the
-    game's straight chute's (VANILLA_CHUTE: the section in the cell, 1 voxel thick round a 6 x 6 bore, 4..12 in the
-    block), axis-aligned, running in from the face, in the chute's texture; so a chute placed in the next cell meets it
-    with no gap and no step."""
+def check_chute_ends(v):
+    """The infeed and the outfeed take and hand on automation, so each is the game's chute: where it meets its anchor's
+    face, its walls are exactly the game's straight chute's (VANILLA_CHUTE: the section in the cell, 1 voxel thick round
+    a 6 x 6 bore, 4..12 in the block, turned a quarter for a run along z), axis-aligned, running in from the face, in the
+    chute's texture; so a chute placed in the next cell meets it with no gap and no step."""
     m = v.m
-    walls = v.named("chutes", r"^ch_in_")
-    oy, oz = m.infeed_origin()
-    face = (m.INPUT_CELL[0] + 1) * 16
-    got = []
-    for e in walls:
-        lo, hi = e.aabb()
-        if any(e.local_axis_for(k) is None for k in range(3)) or abs(hi[0] - face) > 1e-6 or hi[0] - lo[0] < 3.0:
-            v.fail(f"infeed: {e.name} is not a straight length running in from the input face")
-        got.append(tuple(round(c, 6) for c in (lo[1] - oy, hi[1] - oy, lo[2] - oz, hi[2] - oz)))
-    want = sorted(m.VANILLA_CHUTE)
-    if sorted(got) != want:
-        v.fail(f"infeed: its section at the face {sorted(got)} is not the game's chute's {want}")
-    if m.INPUT_FACE != "east" or m.TEXTURES["chute"] != "game:block/metal/sheet/copper1":
-        v.fail("infeed: not on the east face, or not in the game's chute texture")
-    print(f"infeed: the game's chute section at the input face, {len(walls)} walls 1 voxel thick round a 6 x 6 bore at 4..12 in the "
-          f"cell, {face - min(e.aabb()[0][0] for e in walls):.1f} voxels long")
+    for label, rx, cell, face, run in (("infeed", r"^ch_in_", m.INPUT_CELL, m.INPUT_FACE, 0),
+                                       ("outfeed", r"^ch_out_", m.OUTPUT_CELL, m.OUTPUT_FACE, 2)):
+        walls = v.named("chutes", rx)
+        across = (1, 2) if run == 0 else (1, 0)          # (up, across) the run: the section's (y, z) or (y, x)
+        o = [cell[k] * 16 for k in range(3)]
+        plane = (cell[run] + 1) * 16
+        got = []
+        for e in walls:
+            lo, hi = e.aabb()
+            if any(e.local_axis_for(k) is None for k in range(3)) or abs(hi[run] - plane) > 1e-6 or hi[run] - lo[run] < 2.0:
+                v.fail(f"{label}: {e.name} is not a straight length running in from its face")
+            got.append(tuple(round(c, 6) for c in (lo[across[0]] - o[across[0]], hi[across[0]] - o[across[0]],
+                                                   lo[across[1]] - o[across[1]], hi[across[1]] - o[across[1]])))
+        want = sorted(m.VANILLA_CHUTE)
+        if sorted(got) != want:
+            v.fail(f"{label}: its section at the face {sorted(got)} is not the game's chute's {want}")
+        if face != ("east" if run == 0 else "south"):
+            v.fail(f"{label}: not on the face it runs to")
+        print(f"{label}: the game's chute section at the {face} face, {len(walls)} walls 1 voxel thick round a 6 x 6 bore at "
+              f"4..12 in the cell, {plane - min(e.aabb()[0][run] for e in walls):.1f} voxels long")
+    if m.TEXTURES["chute"] != "game:block/metal/sheet/copper1":
+        v.fail("the chute ends are not in the game's chute texture")
 
 
 def check_pipes(v):
@@ -592,7 +600,7 @@ def validate(m, els, parts, rig, quick=False):
     check_yoke(v)
     check_supports(v)
     check_flows(v)
-    check_infeed(v)
+    check_chute_ends(v)
     check_pipes(v)
     check_reverse(v)
     check_clearances(v, [m.REST] + m.cycle_poses(96) + [(-1.3, 1.3), (-4.1, 4.1)])
