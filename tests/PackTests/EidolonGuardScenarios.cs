@@ -61,7 +61,10 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
     /// <summary>A creature of <paramref name="code"/> standing at <paramref name="at"/>, its AI taken away.
     /// Its <paramref name="generation"/> is set before it is in the world: a wolf set bred only after
     /// spawning was unbred, so hostile, for the ticks between, and a guard scanning then went for it and
-    /// killed it (#812).</summary>
+    /// killed it (#812). Its tasks are stopped and its walk with them before the AI goes, and it is put
+    /// back where it was placed: a task started in its first ticks (the wolf's, from the eidolon) left
+    /// it walking with nothing to stop it, and a wolf placed 6 blocks from the point walked out of the
+    /// guard's radius before it was set unbred (#894).</summary>
     private async Task<EntityAgent> Creature(string code, Vec3d at, int generation = 0)
     {
         var creature = (EntityAgent)W.ClassRegistry.CreateEntity(Type(code));
@@ -71,7 +74,15 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
         W.SpawnEntity(creature);
         await World.Ticks(2);
         if (creature.GetBehavior<EntityBehaviorTaskAI>() is { } ai)
+        {
+            ai.TaskManager.StopTasks();
+            ai.PathTraverser?.Stop();
             creature.SidedProperties.Behaviors.Remove(ai);
+        }
+        creature.Controls.StopAllMovement();
+        creature.Pos.Motion.Set(0, 0, 0);
+        creature.TeleportTo(at);
+        await World.Until(() => creature.Pos.XYZ.HorizontalSquareDistanceTo(at) < 0.1 * 0.1, 100);
         return creature;
     }
 
@@ -195,6 +206,8 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
             $"engaged {(e.Orders.Current as GuardOrder)?.Engaged} creatures (only the near drifter expected); " + EidolonCommands.Describe(e));
         Assert.True(e.CanWork, "can't work: " + EidolonCommands.Describe(e));
         Assert.True(AboutItsPoint(e, point), EidolonCommands.Describe(e));
+        // Still where it was put, inside the guard's radius, so the next step tests the guard alone.
+        Assert.True(Across(wolf.Pos.X - point.X, wolf.Pos.Z - point.Z) < 6.5, wolfState);
 
         // Unbred, the same wolf is hostile and it goes for it.
         wolf.WatchedAttributes.SetInt("generation", 0);
