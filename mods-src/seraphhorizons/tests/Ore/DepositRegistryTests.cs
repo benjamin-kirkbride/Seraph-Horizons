@@ -166,8 +166,8 @@ public class DepositSizingTests
     {
         // 5 units a nugget, 20 nuggets an ingot.
         Assert.Equal(1, DepositSizing.Ingots(100));
-        // A medium malachite block: 1.25 chunks of 20 units and 0.01 crystallised ore of 40.
-        Assert.Equal(0.254, DepositSizing.Ingots(1.25 * 20 + 0.01 * 40), 6);
+        // A medium malachite block: 1.25 raw ore of 5 units and 0.01 crystallised ore of 10 (#863).
+        Assert.Equal(0.0635, DepositSizing.Ingots(1.25 * 5 + 0.01 * 10), 6);
     }
 
     [Theory]

@@ -15,14 +15,15 @@ public readonly record struct SmeltRate(int Output, int Ratio)
 /// item and to the new items. Game-independent; the figures (units a concentrate holds, what share each
 /// form smelts to) are <see cref="OreRecovery"/>'s.
 /// <list type="bullet">
-/// <item>Raw ore is vanilla's <c>game:ore-{grade}-{ore}-{rock}</c>, every grade alike: 4 a stack
-/// (<see cref="RockStack"/>), no chunks. Its <c>metalUnits</c> and the ore blocks' drops stay as
-/// vanilla's, which deposit measurement reads.</item>
+/// <item>Raw ore is vanilla's <c>game:ore-{grade}-{ore}-{rock}</c>, every grade alike: 16 a stack
+/// (<see cref="RockStack"/>), no chunks. Its <c>metalUnits</c> are the pack's (<see cref="RawUnits"/>,
+/// about a quarter of vanilla's, #863), set by patch on vanilla's item, which deposit measurement
+/// reads; the ore blocks' drops stay as vanilla's.</item>
 /// <item>The other rock forms are the pack's, by ore and grade: crushed ore
 /// (<c>seraphhorizons:crushedore-{ore}-{grade}</c>), ground ore (<c>groundore-{ore}-{grade}</c>) and a
-/// sulfide's roasted rock (<c>roastedore-{ore}-{grade}</c>), each 4 a stack and holding the raw ore's
+/// sulfide's roasted rock (<c>roastedore-{ore}-{grade}</c>), each 16 a stack and holding the raw ore's
 /// units (<see cref="RawUnits"/>), so one raw ore crushes to one crushed, which grinds to one ground
-/// (#847). Concentrate, roasted concentrate (sulfides), amalgam and sponge (free gold and silver) are
+/// (#847, #863). Concentrate, roasted concentrate (sulfides), amalgam and sponge (free gold and silver) are
 /// <c>seraphhorizons:{form}-{ore}</c>, 5 units each; litharge, one item.</item>
 /// </list>
 /// </summary>
@@ -30,9 +31,16 @@ public static class OreProducts
 {
     public const string Domain = "seraphhorizons";
 
-    /// <summary>Every rock form stacks to 4: raw, crushed and ground ore and roasted rock are heavy
-    /// rock at any grade, carried by the cartload (#847).</summary>
-    public const int RockStack = 4;
+    /// <summary>Every rock form stacks to 16, as rock and earth blocks do (#863): raw, crushed and
+    /// ground ore and roasted rock are rock at any grade, and a slot holds a fixed amount of it (#847).</summary>
+    public const int RockStack = 16;
+
+    /// <summary>
+    /// How many times vanilla's blocks a deposit of a graded ore holds (#863): each ore item carries
+    /// about a quarter of vanilla's units (<see cref="RawUnits"/>), so deposits are four times the
+    /// volume and hold about the metal they did. <see cref="OreSizeTable.VolumeFor"/> applies it.
+    /// </summary>
+    public const double DepositBlocks = 4;
 
     /// <summary>Concentrate, roasted concentrate, amalgam and sponge stack to 128, litharge to 64 (the
     /// item type files).</summary>
@@ -61,10 +69,14 @@ public static class OreProducts
     public static bool IsGrade(string? grade) => grade != null && Grades.Contains(grade);
 
     /// <summary>
-    /// The metal units raw ore of <paramref name="ore"/> and <paramref name="grade"/> holds: vanilla's
-    /// <c>ore-graded.json</c> <c>metalUnitsByType</c> (15, 20, 25, 35 by grade; cassiterite, hematite
-    /// and the quartz ores their own), which the other rock forms' type files repeat and the pack
-    /// tests hold to the game. Null for a grade that is not one.
+    /// The metal units raw ore of <paramref name="ore"/> and <paramref name="grade"/> holds (#863): 3, 5,
+    /// 7 and 10 by grade, about a quarter of vanilla's <c>ore-graded.json</c> <c>metalUnitsByType</c>
+    /// (15, 20, 25, 35), so a slot of 16 holds about the metal 4 did. Vanilla's own exceptions keep their
+    /// ratio to its default, rounded half up (<see cref="Quartered"/>): hematite 4, 6, 8, 11 (vanilla 20,
+    /// 25, 30, 40), silver quartz 2, 4, 6, 7 (10, 15, 20, 25), cassiterite and gold quartz 1, 3, 4, 6 (5,
+    /// 10, 15, 20). <c>patches/oreprocessing-ore.json</c> sets these on vanilla's ore item and twice them
+    /// on crystallised ore, the other rock forms' type files repeat them, and the pack tests hold all
+    /// three to this. Null for a grade that is not one.
     /// </summary>
     public static int? RawUnits(string ore, string? grade)
     {
@@ -72,12 +84,33 @@ public static class OreProducts
         if (i < 0) return null;
         int[] units = ore switch
         {
-            "cassiterite" or "quartz_nativegold" => [5, 10, 15, 20],
-            "hematite" => [20, 25, 30, 40],
-            "quartz_nativesilver" => [10, 15, 20, 25],
-            _ => [15, 20, 25, 35],
+            "cassiterite" or "quartz_nativegold" => [1, 3, 4, 6],
+            "hematite" => [4, 6, 8, 11],
+            "quartz_nativesilver" => [2, 4, 6, 7],
+            _ => DefaultUnits,
         };
         return units[i];
+    }
+
+    /// <summary>Raw ore's units by grade for every ore but vanilla's exceptions (#863).</summary>
+    private static readonly int[] DefaultUnits = [3, 5, 7, 10];
+
+    /// <summary>Vanilla's default units by grade (<c>ore-graded.json</c>), which its exceptions are
+    /// measured against.</summary>
+    public static readonly IReadOnlyList<int> VanillaDefaultUnits = [15, 20, 25, 35];
+
+    /// <summary>
+    /// The pack's units for an ore vanilla gives <paramref name="vanillaUnits"/> at
+    /// <paramref name="grade"/> (#863): the same ratio to the pack's default (3, 5, 7, 10) as to
+    /// vanilla's (15, 20, 25, 35), rounded half up, at least 1. How <see cref="RawUnits"/>'
+    /// exceptions were made.
+    /// </summary>
+    public static int Quartered(int vanillaUnits, string grade)
+    {
+        int i = Grades.ToList().IndexOf(grade);
+        if (i < 0) throw new ArgumentOutOfRangeException(nameof(grade), grade, "not a grade");
+        double units = (double)vanillaUnits * DefaultUnits[i] / VanillaDefaultUnits[i];
+        return Math.Max(1, (int)Math.Floor(units + 0.5));
     }
 
     /// <summary>The crushed ore item: <c>seraphhorizons:crushedore-{ore}-{grade}</c>.</summary>
@@ -131,8 +164,8 @@ public static class OreProducts
 
     /// <summary>
     /// The smelting rate that gives <paramref name="share"/> of <paramref name="unitsPerItem"/> per item:
-    /// the smallest output stack for which the ratio is a whole number of items, so a 35-unit bountiful
-    /// ore at 50 % (17.5 units) is 7 ingots per 40, exact. The game's crucible and alloy maths count a
+    /// the smallest output stack for which the ratio is a whole number of items, so a 7-unit rich ore
+    /// at 40 % (2.8 units) is 7 ingots per 250, exact. The game's crucible and alloy maths count a
     /// charge as a fraction of the rate, so a rate larger than a charge costs nothing. Null for a share
     /// of 0 (does not smelt). If no output up to <see cref="MaxRateOutput"/> is exact, the nearest ratio
     /// for one output (never 0).

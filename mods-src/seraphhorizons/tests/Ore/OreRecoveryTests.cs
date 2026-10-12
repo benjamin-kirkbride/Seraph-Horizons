@@ -5,7 +5,10 @@ namespace SeraphHorizons.Tests.Ore;
 
 /// <summary>
 /// The recovery model (#685) on the shipped <c>config/ore-processing.json</c>, held to the design
-/// doc's worked examples (epic #684): one pocket of 64 blocks at vanilla's 1.25 ore a block.
+/// doc's worked examples (epic #684): one pocket of 256 blocks at vanilla's 1.25 ore a block, the
+/// 64 blocks of the design at vanilla's units made four times the blocks at the pack's (#863). A
+/// medium ore holds the same 1,600 units as before; poor hematite and gold quartz, whose units were
+/// cut by more than four, a little less.
 /// </summary>
 public class OreRecoveryTests
 {
@@ -22,8 +25,11 @@ public class OreRecoveryTests
 
     private static readonly OreRecovery R = new(Shipped());
 
-    /// <summary>A pocket's units: 64 blocks × 1.25 ore × the grade's units.</summary>
-    private static double Pocket(double unitsPerOre) => 64 * 1.25 * unitsPerOre;
+    /// <summary>A pocket's ore items: 256 blocks × 1.25 ore.</summary>
+    private const int PocketOres = 320;
+
+    /// <summary>A pocket's units: its ore items × the ore's units at its grade.</summary>
+    private static double Pocket(string ore, string grade) => PocketOres * OreProducts.RawUnits(ore, grade)!.Value;
 
     private static double Line(string ore, bool poor, OreTier tier, double units) =>
         units * R.Overall(R.Ore(ore), OreLine.AtTier(tier), poor);
@@ -36,31 +42,31 @@ public class OreRecoveryTests
     }
 
     [Theory]
-    [InlineData(OreTier.Hand, 352)]   // riddle, rocker: 55 % × 0.4 = 22 %
-    [InlineData(OreTier.Tier2, 1280)] // stamps, arrastra, jig: 80 %
-    [InlineData(OreTier.Tier4, 1584)] // 99 %
+    [InlineData(OreTier.Hand, 281.6)]  // 1,280 units; riddle, rocker: 55 % × 0.4 = 22 %
+    [InlineData(OreTier.Tier2, 1024)]  // stamps, arrastra, jig: 80 %
+    [InlineData(OreTier.Tier4, 1267.2)] // 99 %
     public void PoorHematite(OreTier tier, double units) =>
-        Assert.Equal(units, Line("hematite", true, tier, Pocket(20)), 6);
+        Assert.Equal(units, Line("hematite", true, tier, Pocket("hematite", "poor")), 6);
 
     [Theory]
     [InlineData(OreTier.Hand, 924)]   // 55 % × 1.05
     [InlineData(OreTier.Tier2, 1344)] // 80 % × 1.05
     [InlineData(OreTier.Tier4, 1600)] // 99 % × 1.05, capped
     public void MediumChromite(OreTier tier, double units) =>
-        Assert.Equal(units, Line("chromite", false, tier, Pocket(20)), 6);
+        Assert.Equal(units, Line("chromite", false, tier, Pocket("chromite", "medium")), 6);
 
     [Theory]
     [InlineData(OreTier.Hand, 748)]   // rocker 55 %, firepit roast 85 %
     [InlineData(OreTier.Tier3, 1472)] // table 92 %, reverberatory 100 %
     [InlineData(OreTier.Tier4, 1584)]
     public void MediumGalena(OreTier tier, double units) =>
-        Assert.Equal(units, Line("galena", false, tier, Pocket(20)), 6);
+        Assert.Equal(units, Line("galena", false, tier, Pocket("galena", "medium")), 6);
 
     [Fact]
     public void GalenaCarriesSilverWonOnlyByCupellation()
     {
         var galena = R.Ore("galena");
-        double lead = Line("galena", false, OreTier.Tier4, Pocket(20));
+        double lead = Line("galena", false, OreTier.Tier4, Pocket("galena", "medium"));
         var parted = R.Smelted(galena, lead, OreTier.Tier4);
         Assert.Equal(new MetalUnits("lead", 1584), parted[0]);
         Assert.Equal("silver", parted[1].Metal);
@@ -93,11 +99,12 @@ public class OreRecoveryTests
     public void MediumGoldQuartz()
     {
         var gold = R.Ore("quartz_nativegold");
-        double units = Pocket(10);
+        double units = Pocket("quartz_nativegold", "medium");
+        Assert.Equal(960, units);
         var rockerOnly = OreLine.AtTier(OreTier.Hand) with { Amalgamated = false };
-        Assert.Equal(308, units * R.Overall(gold, rockerOnly, false), 6);          // 55 % × 0.7
-        Assert.Equal(440, Line("quartz_nativegold", false, OreTier.Hand, units), 6); // with the amalgam pan
-        Assert.Equal(792, Line("quartz_nativegold", false, OreTier.Tier4, units), 6);
+        Assert.Equal(369.6, units * R.Overall(gold, rockerOnly, false), 6);          // 55 % × 0.7
+        Assert.Equal(528, Line("quartz_nativegold", false, OreTier.Hand, units), 6); // with the amalgam pan
+        Assert.Equal(950.4, Line("quartz_nativegold", false, OreTier.Tier4, units), 6);
     }
 
     [Fact]
@@ -106,18 +113,18 @@ public class OreRecoveryTests
         var gold = R.Ore("quartz_nativegold");
         // No acid parting by hand: smelted as is, 85 % of the gold and the silver lost.
         Assert.Null(R.Parting(PartingMethod.AcidParting, OreTier.Hand));
-        Assert.Equal([new MetalUnits("gold", 440 * 0.85)], R.Smelted(gold, 440, OreTier.Hand));
+        Assert.Equal([new MetalUnits("gold", 528 * 0.85)], R.Smelted(gold, 528, OreTier.Hand));
         // Parted at tier 4: all the gold plus 15 % silver.
-        var parted = R.Smelted(gold, 792, OreTier.Tier4);
-        Assert.Equal(new MetalUnits("gold", 792), parted[0]);
-        Assert.Equal(792 * 0.15, parted[1].Units, 6);
+        var parted = R.Smelted(gold, 950.4, OreTier.Tier4);
+        Assert.Equal(new MetalUnits("gold", 950.4), parted[0]);
+        Assert.Equal(950.4 * 0.15, parted[1].Units, 6);
     }
 
     [Theory]
     [InlineData(OreTier.Hand, 968)]   // 55 % × 1.1
     [InlineData(OreTier.Tier4, 1600)] // 99 % × 1.1, capped
     public void MediumNativeCopper(OreTier tier, double units) =>
-        Assert.Equal(units, Line("nativecopper", false, tier, Pocket(20)), 6);
+        Assert.Equal(units, Line("nativecopper", false, tier, Pocket("nativecopper", "medium")), 6);
 
     [Fact]
     public void FeedFactors()
@@ -244,14 +251,14 @@ public class OreRecoveryTests
     [Fact]
     public void ConcentrateCarriesItsFractionOver()
     {
-        // The poor hematite pocket by hand, one raw ore (20 units) at a time: 352 units, exactly.
+        // The poor hematite pocket by hand, one raw ore (4 units) at a time: 281.6 units, exactly.
         var carry = new UnitCarry();
-        double perOre = 20 * R.Overall(R.Ore("hematite"), OreLine.AtTier(OreTier.Hand), true);
+        double perOre = 4 * R.Overall(R.Ore("hematite"), OreLine.AtTier(OreTier.Hand), true);
         int items = 0;
-        for (int i = 0; i < 80; i++) items += carry.Add("concentrate", perOre, R.ConcentrateUnits);
-        Assert.Equal(70, items);
-        Assert.Equal(2, carry.HeldFor("concentrate"), 6);
-        Assert.Equal(352, items * R.ConcentrateUnits + carry.HeldFor("concentrate"), 6);
+        for (int i = 0; i < PocketOres; i++) items += carry.Add("concentrate", perOre, R.ConcentrateUnits);
+        Assert.Equal(56, items);
+        Assert.Equal(1.6, carry.HeldFor("concentrate"), 6);
+        Assert.Equal(281.6, items * R.ConcentrateUnits + carry.HeldFor("concentrate"), 6);
     }
 
     [Fact]

@@ -4473,6 +4473,87 @@ recorded at a made-up earlier version (a stale carry speed and BetterRuins spaci
 blade wear and a megastructure spacing set by hand that stay), and `SharedWorldScenarios`' fresh
 install gets `betterruins.yaml` with the pack's values.
 
+### Rock and earth stack to 16 (`SmallerRockStacks`)
+
+A slot holds a fixed amount of rock (#863, following #847's ore at 4): rock and earth blocks stack
+to 16, not 64, and their building shapes to 32. Most of them have no stack size in their files
+and take the game's default of 64 for a block type, so a JSON patch cannot cut them;
+`RockStackSystem.cs` sets the loaded blocks' stack instead, server side, in `AssetsFinalize`
+(ExecuteOrder 0.15, after MorePiles adds its ground piles, whose capacity is not the stack size and
+stays). Each block becomes `min(its stack, 16)`, each shape `min(its stack, 32)`; none is raised.
+Clients get the new size in the block type packet, which the server builds after that phase. A
+stack already above the cap in a world stays as it is until it is moved: merges stop at the cap
+and takes split.
+
+Both tiers (`Core/RockStackRules.cs`) are lists of codes, each block also of a rock or earth
+material and without a block entity; the game gives a block type that names no material stone, so
+the material only guards the lists. One deliberate exception to the block entity rule: the game's
+old clay brick chimneys (`legacy/chimney.json`), whose `ParticleEmitter` entity only gives off
+smoke on the client and keeps nothing of the stack it was placed from.
+
+**To 16**, of stone, ore, soil, sand, gravel or ceramic (the fired clay ones), 5,090 blocks in the
+pack:
+
+- **Rock**: raw and cracked rock, cobblestone (mossy and lichen), stone bricks (cracked, mossy,
+  lichen and aged), polished rock (mossy and lichen), drystone, and ore-bearing rock
+  (`game:ore-*`, 2,045 blocks: every ore, coal and mineral; rock is the same bulk with ore in it
+  or not).
+- **Earth**: soil, forest floor, bony soil, sand (and wavy sand), gravel (rich, dirty, sludgy and
+  muddy), packed and dry packed dirt, the clay and peat deposits (`rawclay`, `peat`), and earth
+  laid into blocks: cob, rammed earth and mud brick, the game's and Material Needs' colours. The
+  sand and gravel layer blocks go with their family.
+- **Fired clay**: the full building blocks of clay brick (with its brick courses and ruined
+  bricks), tile and clay shingle (166 blocks), the clay brick chimneys, old and new (30), and the
+  placed refractory brick blocks, good and damaged, of every tier (6). Material Needs adds no
+  fired clay blocks, and no mod in the pack adds refractory brick blocks of its own.
+
+**To 32**, the building shapes of stone, soil, sand, gravel or ceramic (the clay ones), 8,479
+blocks in the pack:
+
+- **Slabs and stairs**: cobblestone, stone brick, polished rock (slabs only in the game), clay
+  brick, mud brick (the game's and Material Needs' colours) and tile (slabs).
+- **Fences**: drystone (the game has no stone wall).
+- **Paths and roads**: the game's stone path (with its slab, stairs and full block), Splittable
+  Stone Paths' quarter, smex's slag path, and MoreRoads' stone paths and footpaths, its ancient,
+  clay and stone roads with their slabs and stairs, and its stone, brick and clay edges.
+- **Roofing**: clay shingle slabs and stairs and the slanted roofing of clay and slate.
+  The slanted roofing of wood, bamboo, thatch, sod and copper is wood, plant or metal, and stays.
+
+Not cut: support beams (32, which the rosser's schematic gate needs); every wooden shape (planks
+slabs and stairs, fences, MoreRoads' wood edges, wooden paths, roofing); cobblestone fans, quartz
+slabs, stairs and pillars, copper shingles, Industrial Deco's iron roads (metal, 256) and VS
+Roofing's roofs (a block entity); refractory brick gratings (8 a stack already); peat bricks
+(fuel); and every item: stones, clay, bricks, refractory bricks and the ore items (which Ore processing sizes) keep theirs, so MoreRoads' temporal roads, which take 32
+stones a slot, still craft. Nothing else in the pack takes more than 16 of one of these blocks in
+a slot; constructions add up the whole hotbar.
+
+Stone Quarry (`stonequarryrepckfipil`, 3.6.3): its rubble storage, drenched with a bucket of water
+(`BERubbleStorage.TryDrench`), turns its gravel into muddy gravel a quarter of muddy gravel's
+stack at a time: 16 a bucket at 64, 4 once muddy gravel stacks to 16. It has no setting for it,
+so `StoneQuarryDrench.cs`, a Harmony transpiler on both sides (once per process), swaps the one
+stack size `TryDrench` reads for muddy gravel's stack before the cut, its trade stack (64), and a
+bucket makes 16 again. Stone Quarry is found by name; if the method is gone or no longer reads the
+stack size exactly once, it logs a warning and leaves it as it ships. With the switch off it is not
+patched.
+
+Trading judges a cut block by the stack it had before the cut, 64 for every block the cut touches,
+not by one slot (`RockStackSystem.TradeStack`): each cut block carries it in its attributes
+(`seraphhorizonsTradeStack`), which reach clients with the block. So a trader prices and refuses it
+exactly as before: as too cheap only when 64 of it are worth under a gear, and by the fewest blocks
+worth a gear, which may be more than a slot (the four sell slots full of a block at 16, two of a
+shape at 32): the window's pooled sale takes them across the slots (Trading, "Trade window"). The
+shapes take the old stack too rather than four slots of 32, 128, which would make a shape worth
+half a gear per 64 sellable where it was not, and lower the worthless floor below the full blocks'.
+The recipe export carries it (`attributes.tradeStack`), and the item value table's `floorZero`
+follows it (`tools/item-values`). Orders keep sizing a block by its stack: at most four stacks.
+
+With the switch off, every block stacks as its mod ships it and nothing carries a trade stack. The
+switch that counts is the server's. `RockStackScenarios` checks the sizes (rock, earth, and clay
+brick, tile, shingle, chimney and refractory brick blocks at 16; a slab, a stair, a fence, a road
+and roofing at 32; wooden shapes, beams and items unchanged), the packet, a placed old chimney's
+emitter and a rubble storage drenched into 16 muddy gravel, `TradingScenarios` a sale of a cut
+block across the slots, and `SwitchesOffScenarios` the switch off.
+
 ## Ore
 
 The ore overhaul (epic #435), in `Ore/`: where deposits generate, the gravel fields that give the
@@ -4545,6 +4626,17 @@ fixed at creation. The server log says what the world has
   #445 found anchored veins about twice the target, so copper, iron, bismuth, zinc and platinum
   carry half that factor outright (`docs/oregen.md`, "Survey").
 
+  The factors are measured in ingots at vanilla's ore units. With ore processing on, an ore item
+  holds about a quarter of them (#863, "Ore processing: items, crushing and smelting"), so every
+  graded ore's vein is scaled by 4 more in volume, the same way (a disc's radius by 2 over its cut,
+  a tube's tendrils by 4), and holds the ingots its factor gave it, in four times the blocks
+  (`OreProducts.DepositBlocks`, `OreSizeTable.VolumeFor`). That takes gold's vein (80 / 130, so
+  0.62) to 2.5 times IOG's, and uranium, which the table leaves alone, to 4 times; coal and the
+  industrial minerals, whose items are unchanged, are not scaled further, but rhodochrosite, a
+  graded ore, is (0.75 × 4 = 3). Deposit measurement and the trader maps read the ore's own units,
+  so they follow without change. A world with `SmallerDeposits` off still gets the 4 for graded ore
+  with ore processing on (without the metals' factors), so its veins hold vanilla's metal.
+
   It covers hydrothermal districts too, whose ore IOG places itself, outside the game's deposit
   generators (`Ore/Game/DistrictVeinSizes.cs`, a postfix on `HydrothermalDistrict.DetectOreZones`;
   rules in `Ore/Core/DistrictVeins.cs`, data in `config/ore-districts.json`). A district stays a
@@ -4554,8 +4646,14 @@ fixed at creation. The server log says what the world has
   lenses is not placed. IOG's veins run from the bottom of the world to the top, so each kept vein
   is cut to a band of heights under sea level that gives a size drawn from the metal's small,
   typical and large in `config/ore-sizes.json` (the band's height from the vein's geometry, its
-  ores' shares and the ingots of their poorest grade). Gems and minerals are left as IOG makes
-  them. The log has a line per district (`Smaller deposits: district 'magmatic-granitic-deep' at
+  ores' shares and the ingots of their poorest grade, read from the ore's own units). With ore
+  processing's units (#863: the poorest grade at a fifth to a quarter of vanilla's), every kept
+  vein of a sized metal is widened four times in ore per layer, so its band is about the height it
+  was: an ore shoot is made four times as long along its fault, a ladder vein's slabs about four
+  times closer (its width, and so the fault rock, is kept). A horsetail lens of gold or silver,
+  which has no band, gets twice IOG's radii both ways: its ore is the disc where it crosses its
+  one-block fracture, so that is four times the ore and the ingots it held. `gradeAllowance` went from 1.15 to 1.25
+  with the wider spread of grades. Gems and minerals are left as IOG makes them. The log has a line per district (`Smaller deposits: district 'magmatic-granitic-deep' at
   (...): 65 of 310 ore zones kept; veins per metal bismuth 8 (was 69), ...`).
 - **`RarerDistricts`** (#441): IOG's hydrothermal districts, the only source of gold and silver
   quartz and most chromite and platinum, tile the world in 7 km squares instead of 4–6 km
@@ -4736,18 +4834,20 @@ lists what is wrong with the file (`Problems`, for the server log; a missing fig
   galena 38 % (#690), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %,
   franckeite lead 30 %, gold quartz silver 15 %. Unparted, the by-product is lost and the main
   metal comes out at the ore's `unparted` share (gold quartz 85 %).
-- Units: raw ore keeps its grade's units (`ore-graded.json`'s `metalUnitsByType`), and the other
-  rock forms carry them unchanged, one item to one (#847); concentrate items hold 5
+- Units: raw ore holds its grade's units (`OreProducts.RawUnits`, 3 / 5 / 7 / 10 for most ores,
+  about a quarter of vanilla's, #863), and the other rock forms carry them unchanged, one item to
+  one (#847); concentrate items hold 5
   (`concentrateUnits`). A station turns units into
   items through a `UnitCarry` (per output, saved with the station), which holds the fraction
   over for the next item, so nothing is lost to rounding.
 
 Tests (`tests/Ore/OreRecoveryTests.cs`) hold the shipped figures to the design's worked examples,
-each a pocket of 64 blocks at 1.25 ore a block: poor hematite 1,600 units gives 352 by hand,
-1,280 at tier 2 and 1,584 at tier 4; medium chromite 924 / 1,344 / 1,600; medium galena 748 by
-hand with a firepit roast, 1,472 at tier 3, 1,584 at tier 4 plus about 48 units of silver; medium
-gold quartz (800) 308 with the rocker alone, 440 with the amalgam pan, 792 at tier 4; medium
-native copper 968 by hand, 1,600 at tier 4.
+each a pocket of 256 blocks at 1.25 ore a block (the design's 64 blocks, four times over at the
+pack's units, #863): poor hematite 1,280 units gives 281.6 by hand, 1,024 at tier 2 and 1,267.2 at
+tier 4; medium chromite (1,600) 924 / 1,344 / 1,600; medium galena 748 by hand with a firepit
+roast, 1,472 at tier 3, 1,584 at tier 4 plus about 48 units of silver; medium gold quartz (960)
+369.6 with the rocker alone, 528 with the amalgam pan, 950.4 at tier 4; medium native copper 968
+by hand, 1,600 at tier 4.
 
 ### Ore processing: items, crushing and smelting (`OreProcessing`)
 
@@ -4760,34 +4860,51 @@ every item, patch and change below out (the item types are marked disabled, the 
 and the game is as before.
 
 **Raw ore is vanilla's ore item**, `game:ore-{grade}-{ore}-{rock}`, at every grade alike (its host
-rock stays the `{rock}` variant): "Raw Galena ore (rich)", 4 a stack. There are no chunks (#847):
-rich and bountiful ore drop raw ore as poor and medium do. A slot holds a fixed amount of rock, and its
-grade is how much metal is in it. Every grade keeps its `metalUnits` (the metal it holds, not what it
-smelts to) and the ore blocks keep their drops (1.25 ore items a block, plus 0.01 crystallised ore):
-deposit sizes, size tiers, map prices and district vein sizing value a block by them
-(`DepositService.BlockUnits`), so the shares come from the items' smelting, never from their units.
-Crystallised ore crushes and smelts the same by its grade, its own (doubled) units and stack kept.
+rock stays the `{rock}` variant): "Raw Galena ore (rich)", 16 a stack, as rock and earth blocks are
+(#863). There are no chunks (#847): rich and bountiful ore drop raw ore as poor and medium do. A slot
+holds a fixed amount of rock, and its grade is how much metal is in it. Each item holds about a
+quarter of vanilla's `metalUnits` (the metal it holds, not what it smelts to), so a slot of 16 holds
+about the metal 4 did (#863, `OreProducts.RawUnits`):
+
+| Ore | Poor | Medium | Rich | Bountiful | Vanilla |
+|---|---|---|---|---|---|
+| Every other ore | 3 | 5 | 7 | 10 | 15 / 20 / 25 / 35 |
+| Hematite | 4 | 6 | 8 | 11 | 20 / 25 / 30 / 40 |
+| Silver quartz (`quartz_nativesilver`) | 2 | 4 | 6 | 7 | 10 / 15 / 20 / 25 |
+| Cassiterite, gold quartz (`quartz_nativegold`) | 1 | 3 | 4 | 6 | 5 / 10 / 15 / 20 |
+
+Vanilla's exceptions keep their ratio to its default, rounded half up and never under 1
+(`OreProducts.Quartered`). A slot of default rock holds 48 / 80 / 112 / 160 units (4 used to hold
+60 / 80 / 100 / 140), so the grades spread a little wider. Crystallised ore keeps twice its grade's
+(6 / 10 / 14 / 20 by default). `patches/oreprocessing-ore.json` sets both on vanilla's items (their
+`metalUnitsByType`, server side; clients get the server's items). The ore blocks keep their drops
+(1.25 ore items a block, plus 0.01 crystallised ore): deposit sizes, size tiers, map prices and
+district vein sizing value a block by them (`DepositService.BlockUnits`), so with a quarter of the
+units deposits are four times the blocks, to hold the same ingots ("Ore cells", `SmallerDeposits`).
+The shares come from the items' smelting, never from their units. Nuggets stay 5 units.
+Crystallised ore crushes and smelts the same by its grade, its stack kept.
 `patches/oreprocessing-ore.json` gives both items the pack's class (`ItemGradedOre`: the names, the
 text, and no breaking ore into nuggets with a hammer where it lies on the ground, vanilla's ground
 storage interaction, which #747's spalling replaces); the rest is set in code once every item is
 loaded (`OreProcessingItems`, in `AssetsFinalize`), so it holds whatever order other mods' patches ran
-in. A stack of rich or bountiful ore an old world holds above 4 stays as it is until it is split (no
-migration); the retired `game:crushed-{ore}-{grain}` and grade-less `seraphhorizons:groundore-{ore}`
+in. Ore an old world holds takes the new units as it stands (#863: a stack keeps its count and holds
+about a quarter of the metal), and a stack above 16 stays as it is until it is split (no migration);
+the retired `game:crushed-{ore}-{grain}` and grade-less `seraphhorizons:groundore-{ore}`
 items are gone from an old world outright, as the epic settled.
 
 **The rock forms** are the pack's own items, by ore and grade, for the 32 graded metal ores of vanilla,
 GeologyAdditions and MaterialNeedsGeology (`OreProducts.Ores`; each in `config/ore-processing.json`).
-Each holds its raw ore's units unchanged (`metalUnitsByType` in the type file repeats vanilla's, held to
-the game by the pack tests), stacks to 4, and is made one for one: one raw ore crushes to one crushed
+Each holds its raw ore's units unchanged (`metalUnitsByType` in the type file repeats the pack's, held
+to the game by the pack tests), stacks to 16, and is made one for one: one raw ore crushes to one crushed
 ore, which grinds to one ground ore (crushing and grinding never change the bulk). Shaped as vanilla's
 crushed item and textured with the ore's nugget texture retinted by a blended overlay of a vanilla
 texture (no texture of the pack's):
 
 | Item | Code | Stack | Smelts |
 |---|---|---|---|
-| Crushed ore ("Crushed Galena ore (rich)") | `seraphhorizons:crushedore-{ore}-{grade}` | 4 | by grade; a sulfide's roasts in the firepit |
-| Ground ore | `seraphhorizons:groundore-{ore}-{grade}` | 4 | by grade; a sulfide's not at all |
-| Roasted rock ("Roasted Galena ore (rich)", the 13 sulfides) | `seraphhorizons:roastedore-{ore}-{grade}` | 4 | by grade × 85 % |
+| Crushed ore ("Crushed Galena ore (rich)") | `seraphhorizons:crushedore-{ore}-{grade}` | 16 | by grade; a sulfide's roasts in the firepit |
+| Ground ore | `seraphhorizons:groundore-{ore}-{grade}` | 16 | by grade; a sulfide's not at all |
+| Roasted rock ("Roasted Galena ore (rich)", the 13 sulfides) | `seraphhorizons:roastedore-{ore}-{grade}` | 16 | by grade × 85 % |
 
 **The other forms**, one per ore, each holding 5 units (`metalUnits`, #685's `concentrateUnits`):
 
@@ -4812,17 +4929,18 @@ at the share × 85 % (next section). What every form smelts to is what the ore's
 (metal, melting point, smelting type; `nugget-{ore}` without `quartz_`, argentiferous galena's
 galena's), at #685's share (`OreRecovery.SmeltShare`). The game's rate is a whole number of items per
 smelted stack, so the rate is the smallest exact one (`OreProducts.Rate`, an output of up to 10,000):
-a bountiful 35-unit ore at 50 % 7 ingots per 40, a medium 20-unit one at 25 % 1 per 20, concentrate 1
-per 20. The game counts a charge as a fraction of the rate, so a rate bigger than any charge costs
+a rich 7-unit ore at 40 % 7 ingots per 250, a medium 5-unit one at 25 % 1 per 80, a bountiful 10-unit
+one at 50 % 1 per 20, concentrate 1 per 20. The game counts a charge as a fraction of the rate, so a rate bigger than any charge costs
 nothing. Every furnace then takes them as it takes the nugget:
 
 - the game's crucible on a firepit or in a forge (raw ore is given a nugget's size so it fits it, and
-  every new item has the metallurgy storage flag; four rock items a slot). Its alloy maths left out
+  every new item has the metallurgy storage flag; sixteen rock items a slot). Its alloy maths left out
   `smeltedStack`'s size, which its single-metal maths counts, so a transpiler (`AlloyStackSize`,
   Harmony id `seraphhorizons.oreprocessing`, each side by its own setting) makes it count it;
 - the bloomery (iron ore smelts to a bloom: 20 concentrate a bloom). Rock's rate names more items than
-  the bloomery's one slot holds at 4 a stack, so iron rock does not bloom: the bloomery takes
-  concentrate, as it effectively did before (crushed ore at 16 a stack never reached its 40);
+  the bloomery's one slot holds at 16 a stack (a bloom is at least 19 bountiful hematite, 20 of any
+  other iron ore), so iron rock does not bloom: the bloomery takes concentrate, as it effectively did
+  before (crushed ore at 16 a stack never reached its 40);
 - crucibulum's forge, which counts a charge as the crucible does;
 - the crucible furnace: ferrochrome takes chromite concentrate as it takes crushed chromite, 5 units
   (`PotRecipes`; not crushed ore, a crude feed outside its ratios);
@@ -4831,8 +4949,8 @@ nothing. Every furnace then takes them as it takes the nugget:
   (pyrite's roasted) 5 and smex's own crushed iron 2.5 (`HopperIronOreRequired` 40,
   `HopperNuggetRequired` 20, `BfIronPerMeltCycle` 100: a batch is 20 nuggets for 100 units), and our
   iron concentrates join its nugget list (`IronOreCompat`, kept there by a postfix on its `Init`). Our
-  rock is not in its lists: smex counts one figure per list, and rock holds 2 to 20 units of iron an
-  item by its grade.
+  rock is not in its lists: smex counts one figure per list, and rock smelts to 0.4 to 5.5 units of
+  iron an item by its grade.
 
 **Crushing** (#687, #847): one raw ore crushes to one crushed ore of its grade, exactly and with no
 loss; crystallised ore, twice its grade's units, to two. The game's pulverizer, the water tier's
@@ -4888,8 +5006,9 @@ server's items.
   picking the placed one up). An empty hand takes it back as before.
 - **Striking.** A left-click on a placed ore with a game hammer (`game:hammer-*`) is a blow, as on the
   anvil: the hammer swings, the block is not broken, and the hammer loses `HammerWearPerBlow` (1). Raw
-  ore breaks after `BlowsRawOre` (6) blows at every grade: rich ore is the same lump of rock as poor
-  (#847), only with more metal in it. It breaks into one crushed ore of its grade holding all its
+  ore breaks after `BlowsRawOre` (2) blows at every grade: rich ore is the same lump of rock as poor
+  (#847), only with more metal in it. It was 6 until an ore item held a quarter of the metal (#863):
+  2 keeps about the same blows per unit of metal. It breaks into one crushed ore of its grade holding all its
   metal (two from crystallised ore, which holds twice the units), the ore's own crushing, which pops
   out where it lay. A player strikes no faster than a blow every 0.3 s
   (`Spalling.BlowIntervalMs`); the server counts the blows in memory, so an ore left half struck and
@@ -4910,7 +5029,7 @@ stone or a metal plate is left out. Code: `Ore/Core/Spalling.cs` (figures and ru
 `Ore/Processing/OreSpalling.cs` (the blows, the next block, the hammer behaviour), `ItemGradedOre`.
 Tests: `tests/Ore/SpallingTests.cs`; `tests/PackTests/OreProcessingScenarios.cs` (Atlas: the hammers
 and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, poor and
-bountiful ore in the same six blows each into one of its grade and crystallised ore into two, the next
+bountiful ore in the same two blows each into one of its grade and crystallised ore into two, the next
 block, the export records) and `SwitchesOffScenarios` (off).
 
 ### Ore processing: leaching borax, saltpeter and alum (`OreProcessing`)
@@ -4920,14 +5039,14 @@ switch on, borax, saltpeter and alum come out of the ground as a heavy raw form 
 where today's items are used; leached in a barrel and boiled down in a cooking pot, they give today's
 items, so every recipe that takes them keeps working unchanged.
 
-| Mineral | Raw form (stack 4) | Crude liquor (barrel) | Crystals (cooking pot) |
+| Mineral | Raw form (stack 16) | Crude liquor (barrel) | Crystals (cooking pot) |
 |---|---|---|---|
 | borax | `game:ore-borax` (no longer ground in the quern) | `seraphhorizons:crudeliquorportion-borax` | `game:powder-borax` |
 | saltpeter | `seraphhorizons:rawsaltpeter`, "Raw saltpeter" | `seraphhorizons:crudeliquorportion-saltpeter` | `game:saltpeter` |
 | alum | `game:ore-alum` (no longer crushed in the pulverizer) | `seraphhorizons:crudeliquorportion-alum` | `game:powder-alum` |
 
-- **Raw form.** Borax and alum are vanilla's ungraded ore items, restacked to 4 (as raw ore,
-  `OreProducts.RockStack`) with their grinding and crushing taken off. Saltpeter had no mined form
+- **Raw form.** Borax and alum are vanilla's ungraded ore items, restacked to 16 (as raw ore,
+  `OreProducts.RockStack`, #863; one mined item still makes one crystal) with their grinding and crushing taken off. Saltpeter had no mined form
   (its cave coating dropped the crystals), so it gets one: every block that dropped `game:saltpeter`
   drops raw saltpeter instead at the same rate (vanilla's coating, Interesting Ore Gen's saltpeter ore,
   Saltpeter Production's nitre bed buds; Oils Resoaped's grid recipe for saltpeter from salt, potash
@@ -4981,11 +5100,11 @@ slot, not in a crucible.
   saved with the world; a firepit broken mid-item leaves under a unit there.
 - **Rock roasts too** (#847): a sulfide's raw and crushed ore (not crystallised ore, which is crushed
   first, nor ground ore) roast the same way, one for one into roasted rock of the same grade
-  (`seraphhorizons:roastedore-{ore}-{grade}`, 4 a stack), which keeps the rock's units and smelts at its
+  (`seraphhorizons:roastedore-{ore}-{grade}`, 16 a stack), which keeps the rock's units and smelts at its
   grade's share × the firepit's 85 % (`OreRecovery.SmeltShare(ore, OreForm.RoastedRock, grade)`). A rock
-  item cooks for `FirepitRoastSeconds` per 5 units it holds (`OreRoasting.RockSeconds`: a 20-unit
-  medium galena 40 s), since it is that much more ore than a concentrate; one in, one out, so it needs
-  no carry-over. Concentrating first still keeps far more.
+  item cooks for `FirepitRoastSeconds` per 5 units it holds (`OreRoasting.RockSeconds`: a 10-unit
+  bountiful galena 20 s, a 3-unit poor one 6 s, #863), so a slot of rock takes as long as the
+  concentrate holding its metal; one in, one out, so it needs no carry-over. Concentrating first still keeps far more.
 - **No sulfur**, from concentrate or rock: the firepit has one output slot, and open roasting lost its sulfur to the air. Sulfur
   is recovered from the roasting stall on (#736).
 
@@ -5342,7 +5461,9 @@ itself, so it has no switch.
 The table's `values` are gears per item, except liquids: the codes in its `perLitre` object (code
 to the liquid's items per litre, 100 for most) are priced in gears per litre, the unit a player
 thinks in (a portion is a hundredth of a litre). `floorZero` keeps its meaning for them (under a
-gear per full stack of portions).
+gear per full stack of portions). A rock or earth block or shape cut to 16 or 32 ("Rock and earth
+stack to 16") is in `floorZero` only when 64 of it, its export's `tradeStack`, are worth under a
+gear.
 
 `Trading/Values/`: `Core/ItemValues.cs` is the lookup (no game). `ValueOf(code)` is gears per item,
 for a liquid its per-litre value over its items per litre (trading prices stacks of portions, so
@@ -5469,7 +5590,8 @@ quarter of the trader's wallet (standing's factor and all), refilled at every re
 sell by the fewest items worth a gear (a trade is priced in whole gears), and a cheap listed good is bought by a bigger lot
 for the same reason. Refused: maps and leads (the `refused` prefixes), money, goods worth less than
 a gear per stack, goods the value table doesn't know, and goods that at this trader come to under a
-gear per full stack. The trade window's sell slot and the tooltips of your own items show the
+gear per full stack (for a rock or earth block or shape cut to 16 or 32, the 64 it stacked to
+before: "Rock and earth stack to 16"). The trade window's sell slot and the tooltips of your own items show the
 offer's breakdown (value × fit × supply) and which budget pays, a refused good says why, and the
 window's footer shows what is left in the side budget. Switch: `EverythingHasAPrice` (default on);
 the server's setting goes to its clients with each trader. (`BuySpread`, a fifth of value on

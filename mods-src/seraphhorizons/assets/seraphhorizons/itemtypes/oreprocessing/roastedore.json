@@ -1,6 +1,6 @@
 // Roasted rock (OreProcessing): a sulfide's raw or crushed ore roasted in the firepit (#720, #847),
 // one per sulfide and grade (seraphhorizons:roastedore-{ore}-{grade}). One roasts to one, carrying the
-// grade and metal units unchanged, 4 a stack; it smelts at its grade's share times the firepit's
+// grade and metal units unchanged, 16 a stack (#863); it smelts at its grade's share times the firepit's
 // (set in code). The ore's nugget texture darkened on vanilla's crushed shape. Marked disabled with
 // the switch off.
 {
@@ -77,10 +77,10 @@
 	"attributes": {
 		"oreForm": "roastedrock",
 		"metalUnitsByType": {
-			"*-poor": 15,
-			"*-medium": 20,
-			"*-rich": 25,
-			"*-bountiful": 35
+			"*-poor": 3,
+			"*-medium": 5,
+			"*-rich": 7,
+			"*-bountiful": 10
 		},
 		"handbook": {
 			"groupBy": [
@@ -126,7 +126,7 @@
 	},
 	"heldTpIdleAnimation": "holdbothhands",
 	"heldRightReadyAnimation": "holdbothhands",
-	"maxstacksize": 4,
+	"maxstacksize": 16,
 	"storageFlags": 5,
 	"dimensions": {
 		"width": 0.0625,

@@ -91,7 +91,8 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
     }
 
     // #847: every rock form carries the raw ore's units unchanged, by ore and grade: the type files'
-    // metalUnitsByType (and OreProducts.RawUnits) against vanilla's ore item, every ore of every grade.
+    // metalUnitsByType (and OreProducts.RawUnits) against vanilla's ore item as the pack patches it
+    // (#863), every ore of every grade; crystallised ore twice its grade's.
     [AtlasScenario]
     public void Rock_forms_hold_the_raw_ores_units()
     {
@@ -107,10 +108,13 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
                 foreach (var code in new[] { OreProducts.CrushedCode(ore, grade), OreProducts.GroundCode(ore, grade), OreProducts.RoastedRockCode(ore, grade) })
                     if (W.GetItem(new AssetLocation(code)) is { } form)
                         Assert.Equal(units, form.Attributes["metalUnits"].AsDouble());
+                var crystal = W.Items.FirstOrDefault(i => i?.Code is { Domain: "game" } c && c.Path.StartsWith($"crystalizedore-{grade}-{ore}-", StringComparison.Ordinal));
+                if (crystal != null)
+                    Assert.Equal(2 * units, crystal.Attributes["metalUnits"].AsDouble());
             }
     }
 
-    // Raw ore and chunks are vanilla's ore item, by grade; its metalUnits are vanilla's.
+    // Raw ore is vanilla's ore item, by grade, 16 a stack; its metalUnits are the pack's (#863).
     [AtlasScenario]
     public void Ore_items_by_grade()
     {
@@ -120,9 +124,13 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var bountiful = Item("game:ore-bountiful-galena-shale");
         foreach (var item in new[] { poor, medium, rich, bountiful })
             Assert.IsType<ItemGradedOre>(item);
-        Assert.Equal([4, 4, 4, 4], new[] { poor, medium, rich, bountiful }.Select(i => i.MaxStackSize));
-        Assert.Equal([15, 20, 25, 35], new[] { poor, medium, rich, bountiful }.Select(i => i.Attributes["metalUnits"].AsInt()));
-        Assert.Equal(20, Item("game:ore-poor-hematite-granite").Attributes["metalUnits"].AsInt());
+        Assert.Equal([16, 16, 16, 16], new[] { poor, medium, rich, bountiful }.Select(i => i.MaxStackSize));
+        Assert.Equal([3, 5, 7, 10], new[] { poor, medium, rich, bountiful }.Select(i => i.Attributes["metalUnits"].AsInt()));
+        Assert.Equal(4, Item("game:ore-poor-hematite-granite").Attributes["metalUnits"].AsInt());
+        Assert.Equal(1, Item("game:ore-poor-cassiterite-granite").Attributes["metalUnits"].AsInt());
+        Assert.Equal(20, Item("game:crystalizedore-bountiful-galena-shale").Attributes["metalUnits"].AsInt());
+        // Nuggets keep their 5 (20 an ingot).
+        Assert.Equal(20, Item("game:nugget-galena").CombustibleProps!.SmeltedRatio);
         // Galena is a sulfide: it does not smelt, it roasts (below).
         Assert.False(poor.CombustibleProps!.RequiresContainer);
         Assert.Equal("Raw Galena ore (medium)", new ItemStack(medium).GetName());
@@ -142,10 +150,12 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
     {
         var block = W.GetBlock(new AssetLocation("game:ore-medium-galena-shale"));
         Assert.NotNull(block);
-        double expected = 1.25 * 20 + 0.01 * Item("game:crystalizedore-medium-galena-shale").Attributes["metalUnits"].AsDouble();
+        double expected = 1.25 * 5 + 0.01 * 10;
+        Assert.Equal(10, Item("game:crystalizedore-medium-galena-shale").Attributes["metalUnits"].AsDouble());
         Assert.Equal(expected, DepositService.BlockUnits(block!), 6);
         var chromite = W.GetBlock(new AssetLocation("game:ore-medium-chromite-peridotite"))!;
-        Assert.Equal(1.25 * 20, chromite.Drops.Where(d => d.ResolvedItemstack.Collectible.Code.Path.StartsWith("ore-")).Sum(d => d.Quantity.avg * 20), 6);
+        Assert.Equal(1.25 * 5, chromite.Drops.Where(d => d.ResolvedItemstack.Collectible.Code.Path.StartsWith("ore-"))
+            .Sum(d => d.Quantity.avg * d.ResolvedItemstack.Collectible.Attributes["metalUnits"].AsDouble()), 6);
     }
 
     // Crushing (#847): one for one, no loss, into crushed ore of the same grade; crystallised ore,
@@ -247,14 +257,14 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         double Ingots(params ItemStack[] stacks) => BlockSmeltingContainer.GetSingleSmeltableStack(stacks)?.stackSize ?? 0;
         Assert.Equal(1.0, Ingots(Stack("seraphhorizons:concentrate-malachite", 20)), 6);
         Assert.Equal(1.0, Ingots(Stack("seraphhorizons:roastedconcentrate-galena", 20)), 6);
-        Assert.Equal(4 * 15 * 0.10 / 100, Ingots(Stack("game:ore-poor-malachite-limestone", 4)), 6);
-        Assert.Equal(4 * 20 * 0.25 / 100, Ingots(Stack("seraphhorizons:crushedore-malachite-medium", 4)), 6);
-        Assert.Equal(4 * 25 * 0.40 / 100, Ingots(Stack("game:ore-rich-malachite-limestone", 4)), 6);
-        Assert.Equal(4 * 35 * 0.50 / 100, Ingots(Stack("seraphhorizons:groundore-malachite-bountiful", 4)), 6);
+        Assert.Equal(16 * 3 * 0.10 / 100, Ingots(Stack("game:ore-poor-malachite-limestone", 16)), 6);
+        Assert.Equal(16 * 5 * 0.25 / 100, Ingots(Stack("seraphhorizons:crushedore-malachite-medium", 16)), 6);
+        Assert.Equal(16 * 7 * 0.40 / 100, Ingots(Stack("game:ore-rich-malachite-limestone", 16)), 6);
+        Assert.Equal(16 * 10 * 0.50 / 100, Ingots(Stack("seraphhorizons:groundore-malachite-bountiful", 16)), 6);
         // The same rock at any form smelts the same: crushing and grinding change nothing in the furnace.
-        Assert.Equal(Ingots(Stack("game:ore-bountiful-malachite-limestone", 4)), Ingots(Stack("seraphhorizons:crushedore-malachite-bountiful", 4)), 9);
-        // Cassiterite holds less: a rich ore 15 units, so 6 smelted.
-        Assert.Equal(4 * 15 * 0.40 / 100, Ingots(Stack("game:ore-rich-cassiterite-granite", 4)), 6);
+        Assert.Equal(Ingots(Stack("game:ore-bountiful-malachite-limestone", 16)), Ingots(Stack("seraphhorizons:crushedore-malachite-bountiful", 16)), 9);
+        // Cassiterite holds less: a rich ore 4 units, so 1.6 smelted.
+        Assert.Equal(16 * 4 * 0.40 / 100, Ingots(Stack("game:ore-rich-cassiterite-granite", 16)), 6);
         // Crystallised ore smelts its own units at its grade's share.
         double crystal = Item("game:crystalizedore-rich-malachite-limestone").Attributes["metalUnits"].AsDouble();
         Assert.Equal(crystal * 0.40 / 100, Ingots(Stack("game:crystalizedore-rich-malachite-limestone", 1)), 6);
@@ -263,7 +273,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.False(Item("game:ore-medium-galena-shale").CombustibleProps!.RequiresContainer);
         Assert.False(Item("seraphhorizons:crushedore-galena-medium").CombustibleProps!.RequiresContainer);
         Assert.Null(Item("seraphhorizons:groundore-galena-medium").CombustibleProps);
-        Assert.Equal(4 * 35 * 0.50 * 0.85 / 100, Ingots(Stack("seraphhorizons:roastedore-galena-bountiful", 4)), 6);
+        Assert.Equal(16 * 10 * 0.50 * 0.85 / 100, Ingots(Stack("seraphhorizons:roastedore-galena-bountiful", 16)), 6);
         Assert.Equal("game:ingot-lead", Item("seraphhorizons:roastedore-galena-bountiful").CombustibleProps!.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         // A sulfide's concentrate smelts only into its roasted concentrate, with no container, which
         // the crucible refuses outright (BlockSmeltingContainer.CanSmelt): it does not smelt to metal.
@@ -276,10 +286,12 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(EnumItemStorageFlags.Metallurgy, Item("seraphhorizons:concentrate-malachite").StorageFlags & EnumItemStorageFlags.Metallurgy);
         Assert.Equal(EnumItemStorageFlags.Metallurgy, Item("seraphhorizons:crushedore-malachite-poor").StorageFlags & EnumItemStorageFlags.Metallurgy);
 
-        // Tin bronze: 8 bountiful copper ores (280 units at 50 %: 140) and 3 tin concentrate (15): the
-        // alloy maths counts the ore's 7-in-40 rate whole (AlloyStackSize).
+        // Tin bronze: 50 rich copper ores (350 units at 40 %: 140) and 3 tin concentrate (15): the
+        // alloy maths counts the ore's 7-in-250 rate whole (AlloyStackSize). The game rounds each
+        // stack's ingots to hundredths, so the stacks are of 15 and 5 (0.42 and 0.14 ingots).
         var bronze = World.Api.GetMetalAlloys().Single(a => a.Output.ResolvedItemstack.Collectible.Code.Path == "ingot-tinbronze");
-        ItemStack[] charge = [Stack("game:ore-bountiful-nativecopper-basalt", 4), Stack("game:ore-bountiful-nativecopper-basalt", 4),
+        ItemStack[] charge = [Stack("game:ore-rich-nativecopper-basalt", 15), Stack("game:ore-rich-nativecopper-basalt", 15),
+            Stack("game:ore-rich-nativecopper-basalt", 15), Stack("game:ore-rich-nativecopper-basalt", 5),
             Stack("seraphhorizons:concentrate-cassiterite", 3)];
         Assert.True(bronze.Matches(charge));
         Assert.Equal(1.55, bronze.GetTotalOutputQuantity(charge), 6);
@@ -293,8 +305,9 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.InRange(props.MeltingPoint, 1000, 1499);
         Assert.Equal("game:ironbloom", props.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         Assert.Equal(20, props.SmeltedRatio);
-        // Medium hematite rock, 25 units at 25 %: 16 a bloom.
-        Assert.Equal(16, Item("seraphhorizons:crushedore-hematite-medium").CombustibleProps!.SmeltedRatio);
+        // Medium hematite rock, 6 units at 25 %: 3 blooms per 200, more than a slot of 16 holds for one.
+        var rock = Item("seraphhorizons:crushedore-hematite-medium").CombustibleProps!;
+        Assert.Equal((3, 200), (rock.SmeltedStack.ResolvedItemstack.StackSize, rock.SmeltedRatio));
         // Pyrite's concentrate roasts first (#720), far below a bloomery's heat.
         Assert.InRange(Item("seraphhorizons:concentrate-pyrite").CombustibleProps!.MeltingPoint, 1, 999);
     }
@@ -310,10 +323,10 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.NotNull(forge);
         Assert.Equal("BlockEntityCrucibulumForge", forge!.GetType().Name);
         var shares = (double[])AccessTools.Method(forge.GetType(), "ChargeShares").Invoke(forge,
-            [new[] { Stack("seraphhorizons:concentrate-cassiterite", 20), Stack("seraphhorizons:crushedore-cassiterite-bountiful", 4) }])!;
-        // Shares of the charge's metal: 20 concentrate (100 units) and 4 bountiful crushed (80 at 50 %: 40).
-        Assert.Equal(100.0 / 140, shares[0], 6);
-        Assert.Equal(40.0 / 140, shares[1], 6);
+            [new[] { Stack("seraphhorizons:concentrate-cassiterite", 20), Stack("seraphhorizons:crushedore-cassiterite-bountiful", 16) }])!;
+        // Shares of the charge's metal: 20 concentrate (100 units) and 16 bountiful crushed (96 at 50 %: 48).
+        Assert.Equal(100.0 / 148, shares[0], 6);
+        Assert.Equal(48.0 / 148, shares[1], 6);
         World.SetBlock("game:air", pos);
     }
 
@@ -772,10 +785,10 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
             Assert.Equal(1, props.TransferQuantity);
         }
         var config = SeraphHorizonsSystem.ConfigFor(World.Api).SpallingSettings;
-        Assert.Equal((6, 1), (config.BlowsRawOre, config.HammerWearPerBlow));
+        Assert.Equal((2, 1), (config.BlowsRawOre, config.HammerWearPerBlow));
     }
 
-    // A medium ore: one from the hand goes down, six blows break it into one medium crushed ore where
+    // A medium ore: one from the hand goes down, two blows (#863) break it into one medium crushed ore where
     // it lay (#847: one for one), the hammer worn a point a blow.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Spalling_breaks_raw_ore_into_its_crushed_ore()
@@ -795,13 +808,10 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
 
         var hammer = Stack("game:hammer-copper", 1);
         int durability = hammer.Collectible.GetRemainingDurability(hammer);
-        for (int b = 1; b <= 5; b++)
-        {
-            await Blow(player, pos, hammer);
-            Assert.Equal(b, System.Spalling.BlowsAt(pos));
-        }
+        await Blow(player, pos, hammer);
+        Assert.Equal(1, System.Spalling.BlowsAt(pos));
         Assert.NotNull(OreSpalling.Target(W, pos));
-        Assert.Equal(durability - 5, hammer.Collectible.GetRemainingDurability(hammer));
+        Assert.Equal(durability - 1, hammer.Collectible.GetRemainingDurability(hammer));
         Assert.Empty(ItemsNear(pos));
 
         await Blow(player, pos, hammer);
@@ -810,11 +820,11 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var near = ItemsNear(pos);
         Assert.Equal(1, near.GetValueOrDefault("seraphhorizons:crushedore-galena-medium"));
         Assert.Single(near);
-        Assert.Equal(durability - 6, hammer.Collectible.GetRemainingDurability(hammer));
+        Assert.Equal(durability - 2, hammer.Collectible.GetRemainingDurability(hammer));
         KillItems(pos);
     }
 
-    // Every grade takes the same six blows and gives one crushed ore of its grade (#847: no chunks);
+    // Every grade takes the same two blows and gives one crushed ore of its grade (#847: no chunks);
     // crystallised ore, twice the units, two.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Spalling_keeps_the_grade_one_for_one()
@@ -824,15 +834,14 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var hammer = Stack("game:hammer-iron", 1);
 
         SetDown(player, pos.DownCopy(), Stack("game:ore-poor-galena-shale", 1));
-        for (int b = 0; b < 6; b++)
+        for (int b = 0; b < 2; b++)
             await Blow(player, pos, hammer);
         await World.Ticks(5);
         Assert.Equal(1, ItemsNear(pos).GetValueOrDefault("seraphhorizons:crushedore-galena-poor"));
         KillItems(pos);
 
         SetDown(player, pos.DownCopy(), Stack("game:ore-bountiful-galena-shale", 1));
-        for (int b = 0; b < 5; b++)
-            await Blow(player, pos, hammer);
+        await Blow(player, pos, hammer);
         Assert.NotNull(OreSpalling.Target(W, pos));
         await Blow(player, pos, hammer);
         Assert.Null(OreSpalling.Target(W, pos));
@@ -841,7 +850,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         KillItems(pos);
 
         SetDown(player, pos.DownCopy(), Stack("game:crystalizedore-medium-galena-shale", 1));
-        for (int b = 0; b < 6; b++)
+        for (int b = 0; b < 2; b++)
             await Blow(player, pos, hammer);
         await World.Ticks(5);
         Assert.Equal(2, ItemsNear(pos).GetValueOrDefault("seraphhorizons:crushedore-galena-medium"));
@@ -894,11 +903,11 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(2 * 4 * OreProducts.Ores.Count, records.Count);
         var medium = records.Single(r => (string?)r["id"] == "spalling|game:ore-medium-galena-*|0");
         Assert.Equal("game:ore-medium-galena-*", (string?)medium["ingredients"]![0]!["code"]);
-        Assert.Equal(6, (int)medium["ingredients"]![1]!["toolDurabilityCost"]!);
+        Assert.Equal(2, (int)medium["ingredients"]![1]!["toolDurabilityCost"]!);
         Assert.Equal("seraphhorizons:crushedore-galena-medium", (string?)medium["outputs"]![0]!["code"]);
         Assert.Equal(1, (int)medium["outputs"]![0]!["quantity"]!);
         Assert.Equal("hand", (string?)medium["machine"]!["power"]);
-        Assert.Equal(6, (int)medium["machine"]!["turns"]!);
+        Assert.Equal(2, (int)medium["machine"]!["turns"]!);
         Assert.Equal("strikes", (string?)medium["machine"]!["work"]!["unit"]);
         Assert.DoesNotContain(medium["ingredients"]!, i => (string?)i["role"] == "station");
         Assert.Equal(RecipeSection.SpallingRequirement, (string?)medium["requirements"]![0]);
@@ -907,7 +916,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal("seraphhorizons:crushedore-galena-poor", (string?)poor["outputs"]![0]!["code"]);
         Assert.Equal(1, (int)poor["outputs"]![0]!["quantity"]!);
         var bountiful = records.Single(r => (string?)r["id"] == "spalling|game:ore-bountiful-galena-*|0");
-        Assert.Equal(6, (int)bountiful["machine"]!["turns"]!);
+        Assert.Equal(2, (int)bountiful["machine"]!["turns"]!);
         Assert.Equal(1, (int)bountiful["outputs"]![0]!["quantity"]!);
         var crystal = records.Single(r => (string?)r["id"] == "spalling|game:crystalizedore-medium-galena-*|0");
         Assert.Equal(2, (int)crystal["outputs"]![0]!["quantity"]!);
@@ -970,13 +979,14 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         {
             var props = Item(code).CombustibleProps!;
             Assert.Equal(OreRoasting.MeltingPoint, props.MeltingPoint);
-            Assert.Equal((float)OreRoasting.DefaultSeconds * 20 / 5, props.MeltingDuration, 4);
+            Assert.Equal((float)OreRoasting.DefaultSeconds * 5 / 5, props.MeltingDuration, 4);
             Assert.Equal(1, props.SmeltedRatio);
             Assert.Equal(1, props.SmeltedStack.ResolvedItemstack.StackSize);
             Assert.False(props.RequiresContainer);
             Assert.Equal("seraphhorizons:roastedore-galena-medium", props.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         }
-        Assert.Equal((float)OreRoasting.DefaultSeconds * 35 / 5, Item("game:ore-bountiful-galena-shale").CombustibleProps!.MeltingDuration, 4);
+        Assert.Equal((float)OreRoasting.DefaultSeconds * 10 / 5, Item("game:ore-bountiful-galena-shale").CombustibleProps!.MeltingDuration, 4);
+        Assert.Equal((float)OreRoasting.DefaultSeconds * 3 / 5, Item("game:ore-poor-galena-shale").CombustibleProps!.MeltingDuration, 4);
         // Crystallised sulfide ore and ground sulfide ore do not roast (crush it first; grind after roasting).
         Assert.Null(Item("game:crystalizedore-medium-galena-shale").CombustibleProps);
         Assert.Null(Item("seraphhorizons:groundore-galena-medium").CombustibleProps);
@@ -987,14 +997,14 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var firepit = Assert.IsType<BlockEntityFirepit>(W.BlockAccessor.GetBlockEntity(pos));
         var input = firepit.Inventory[1];
         var output = firepit.Inventory[2];
-        input.Itemstack = Stack("game:ore-medium-galena-shale", 4);
+        input.Itemstack = Stack("game:ore-medium-galena-shale", 16);
         Assert.True(firepit.canSmeltInput());
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < 16; i++)
             firepit.smeltItems();
         Assert.True(input.Empty);
         Assert.Equal("seraphhorizons:roastedore-galena-medium", output.Itemstack!.Collectible.Code.ToString());
-        Assert.Equal(4, output.StackSize);
-        Assert.Equal(20, output.Itemstack.Collectible.Attributes["metalUnits"].AsInt());
+        Assert.Equal(16, output.StackSize);
+        Assert.Equal(5, output.Itemstack.Collectible.Attributes["metalUnits"].AsInt());
         Assert.DoesNotContain(firepit.Inventory, s => s.Itemstack?.Collectible.Code.Path.Contains("sulfur") == true);
         World.SetBlock("game:air", pos);
     }
