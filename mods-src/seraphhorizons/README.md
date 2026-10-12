@@ -4634,7 +4634,8 @@ fixed at creation. The server log says what the world has
   0.62) to 2.5 times IOG's, and uranium, which the table leaves alone, to 4 times; coal and the
   industrial minerals, whose items are unchanged, are not scaled further, but rhodochrosite, a
   graded ore, is (0.75 × 4 = 3). Deposit measurement and the trader maps read the ore's own units,
-  so they follow without change.
+  so they follow without change. A world with `SmallerDeposits` off still gets the 4 for graded ore
+  with ore processing on (without the metals' factors), so its veins hold vanilla's metal.
 
   It covers hydrothermal districts too, whose ore IOG places itself, outside the game's deposit
   generators (`Ore/Game/DistrictVeinSizes.cs`, a postfix on `HydrothermalDistrict.DetectOreZones`;

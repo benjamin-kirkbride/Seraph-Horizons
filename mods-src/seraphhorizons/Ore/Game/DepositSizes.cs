@@ -12,7 +12,9 @@ namespace SeraphHorizons.Mod.Ore;
 /// its metal's factor from <c>config/ore-sizes.json</c> (<see cref="VeinScaling"/>), and with ore
 /// processing on, a graded ore's by <see cref="OreProducts.DepositBlocks"/> more (#863: its items
 /// hold about a quarter of vanilla's units, so a deposit four times the volume holds the metal the
-/// factor gave it; <see cref="OreSizeTable.VolumeFor"/>). It acts on
+/// factor gave it; <see cref="OreSizeTable.VolumeFor"/>). With <c>SmallerDeposits</c> off and ore
+/// processing on it still binds, without the metals' factors, so graded ore's veins hold vanilla's
+/// metal. It acts on
 /// the generator instances the game's <c>GenDeposits</c> builds from the deposit files (their
 /// public <c>Radius</c>, <c>BranchCount</c> and <c>BranchLength</c>), in a postfix on its
 /// <c>initAssets</c>, so it follows every variant whatever patches added it, and a worldgen
@@ -45,9 +47,11 @@ internal static class DepositSizes
 
     /// <param name="gradedOreBlocks">The volume a graded ore's vein is scaled by over its metal's
     /// factor: <see cref="OreProducts.DepositBlocks"/> with ore processing on, else 1.</param>
-    public static void Bind(ICoreAPI api, Harmony harmony, double gradedOreBlocks)
+    /// <param name="cut">Whether the metals' factors apply (<c>SmallerDeposits</c>); without them
+    /// only graded ore is scaled, by <paramref name="gradedOreBlocks"/>.</param>
+    public static void Bind(ICoreAPI api, Harmony harmony, double gradedOreBlocks, bool cut)
     {
-        _table = LoadTable(api);
+        _table = cut ? LoadTable(api) : new OreSizeTable(new Dictionary<string, OreSizeTable.Entry>());
         _gradedOreBlocks = gradedOreBlocks;
         _logger = api.Logger;
         harmony.Patch(InitAssets, postfix: new HarmonyMethod(typeof(DepositSizes), nameof(InitAssetsPostfix)));

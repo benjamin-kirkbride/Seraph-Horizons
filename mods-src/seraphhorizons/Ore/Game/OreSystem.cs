@@ -15,8 +15,8 @@ namespace SeraphHorizons.Mod.Ore;
 /// <item><c>NoSurfaceCopper</c> (#440): <c>patches/ore-nosurfacecopper.json</c>.</item>
 /// <item><c>SmallerDeposits</c> (#439): <see cref="DepositSizes"/>, and in hydrothermal districts
 /// <see cref="DistrictVeinSizes"/>. With ore processing on, graded ore's veins are four times the
-/// volume its metal's cut gives (#863, <see cref="GradedOreBlocks"/>); district veins are sized in
-/// ingots from the ore's own units, so they follow.</item>
+/// volume its metal's cut gives (#863, <see cref="GradedOreBlocks"/>), and four times vanilla's with
+/// the switch off; district veins are sized in ingots from the ore's own units, so they follow.</item>
 /// <item><c>RarerDistricts</c> (#441): <c>patches/ore-rarerdistricts.json</c>.</item>
 /// <item><c>PlacerFields</c> (#442): <see cref="PlacerFields"/>.</item>
 /// </list>
@@ -111,12 +111,14 @@ public class OreSystem : ModSystem
         // generators are built (AssetsFinalize).
         if (World.OreCells && OreCellPlacement.Unsupported(api) is null)
             OreCellPlacement.BindTries(_harmony ??= new Harmony(HarmonyId));
-        if (World.SmallerDeposits)
+        // Graded ore's veins grow for ore processing's units (#863) with the size cut off too: a world
+        // without it keeps vanilla's metal, not a quarter of it.
+        if (World.SmallerDeposits || GradedOreBlocks(api) > 1)
         {
             if (DepositSizes.Unsupported(api) is { } why)
-                api.Logger.Warning("[seraphhorizons] Smaller deposits is off: {0}", why);
+                api.Logger.Warning("[seraphhorizons] Deposit sizes are off: {0}", why);
             else
-                DepositSizes.Bind(api, _harmony ??= new Harmony(HarmonyId), GradedOreBlocks(api));
+                DepositSizes.Bind(api, _harmony ??= new Harmony(HarmonyId), GradedOreBlocks(api), World.SmallerDeposits);
         }
         // No switch: it only keeps a stopping server from crashing. Bound before items load, when
         // the prospecting pick starts its task.
