@@ -21,8 +21,8 @@ namespace SeraphHorizons.Mod;
 /// ModConfig/seraphhorizons.json, and skipped with a log line when the mod it changes is not
 /// installed or no longer looks as expected. This system applies its own patches explicitly
 /// (never PatchAll). Tidy Variants (TidyVariants/), Map Reveal (MapReveal/), the creative mod
-/// tabs (CreativeModTabs/), the creative search tweaks (CreativeSearch/), the machines and trunk
-/// entities (TrunkEntities/) have their own mod systems, which read their switch through
+/// tabs (CreativeModTabs/), the creative search tweaks (CreativeSearch/), the handbook's kept
+/// place (HandbookPlace/), the machines and trunk entities (TrunkEntities/) have their own mod systems, which read their switch through
 /// <see cref="ConfigFor"/>.
 /// </summary>
 public class SeraphHorizonsSystem : ModSystem
@@ -516,6 +516,13 @@ public class SeraphHorizonsConfig
     /// and leaves it focused for typing (client side; off means a right-click only focuses it).</summary>
     public bool SearchRightClickClears { get; set; } = true;
 
+    /// <summary>Handbook: reopening it puts back the page it was on (with that page's scroll), the
+    /// browse history behind it for Back, the list's search text and its scroll, as they were when it
+    /// was closed, in the same session; opening it onto an item or a link still shows that item or
+    /// link, on top (client side; off means it reopens on the whole list at the top with no history,
+    /// as vanilla does).</summary>
+    public bool HandbookKeepsPlace { get; set; } = true;
+
     /// <summary>The bucking sawmill: a mechanically powered pair of drag saws, built from a frame
     /// and Immersive Woodworking's sawmill parts, that cross-cuts Logging Expanded tree trunks into
     /// logs (needs both mods; off means its blocks and recipe do not exist, and mills already
@@ -681,6 +688,15 @@ public class SeraphHorizonsConfig
 
     /// <summary>The placer cell's side in blocks (at least 500). Fixed when a world is created.</summary>
     public int PlacerCellSizeMetres { get; set; } = 1500;
+
+    /// <summary>BetterEr Prospecting (Ore/Game/WideDensityProspecting.cs, README "Density prospecting
+    /// reads 64 blocks, off the main thread"): the prospecting pick's block-based density mode counts
+    /// ore 64 blocks each way instead of 32, normalised over that wider area, and walks the blocks on a
+    /// background task, so a sample no longer stalls the server; the reading arrives a moment after
+    /// the hit, and a hit while the last one is still being read is turned away. <c>/btrpr
+    /// reprospect</c> loads the wider area too (server side; off means density mode is as BetterEr
+    /// ships it).</summary>
+    public bool WideDensityProspecting { get; set; } = true;
 
     /// <summary>Ore processing (epic #684, Ore/Processing/, README "Ore processing: items, crushing
     /// and smelting"): poor and medium ore become raw ore (stack 4, does not smelt), rich and bountiful
@@ -925,7 +941,7 @@ public class SeraphHorizonsConfig
     /// furnace, a 3 x 3 x 2 machine placed from its iron frame and built up in stages (fired brick of one
     /// type, a tier-3 refractory lining, the lid and the ash-pit damper), one hole holding two fireclay
     /// melting pots of 300 units that last three heats each, fired with coke on natural draught from a
-    /// chimney on its outlet (taller draws harder, up to eleven blocks; up to six furnaces side by side
+    /// chimney on its outlet (taller draws harder, up to eleven blocks; up to five furnaces side by side
     /// share one chimney, the other outlets capped), throttled at the ash-pit damper. Its charges, by
     /// ratio: quartz, iron bits and coke into ferrosilicon; chromite, ferrosilicon and lime into
     /// ferrochrome and slag; iron and ferrochrome, about 4 to 1, into stainless steel; stainless bits
@@ -991,4 +1007,18 @@ public class SeraphHorizonsConfig
     /// <summary>The unified pipes' burst figures, in atm; a value out of range falls back to its
     /// default with a warning. Each side uses its own for the text, the server's for the pipes.</summary>
     public Pipes.Core.UnifiedPipesConfig UnifiedPipesSettings { get; set; } = new();
+
+    /// <summary>Springs (Springs/, README "Springs"): in new chunks, the game's rivulet generator places
+    /// a solid spring of the rock round it where it placed a single water or rapids source. It pours
+    /// that water as the source did while no pipe couples to it; a ppex pipe against any face taps it
+    /// and stops the pouring, and the spring feeds its run with water up to its rate; a player drinks
+    /// Hydrate or Diedrate's fresh well water from it with an empty hand and fills any liquid container
+    /// with it, endlessly; broken, it gives what its rock does (off means rivulets are the game's again
+    /// and springs already in a world turn back into the source they replaced as they load). The
+    /// server's setting decides.</summary>
+    public bool Springs { get; set; } = true;
+
+    /// <summary>The springs' rates, in litres a second; a value out of range falls back to its
+    /// default with a warning. The server's are used, each side's for its text.</summary>
+    public SeraphHorizons.Mod.Springs.Core.SpringsConfig SpringsSettings { get; set; } = new();
 }

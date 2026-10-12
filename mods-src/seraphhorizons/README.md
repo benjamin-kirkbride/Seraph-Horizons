@@ -13,7 +13,7 @@ recipe taking the stainless gear (`GearConsumers`), steel bits back into steel (
 stainless gear blanks (`GearBlanks`) and the gear cutter that cuts them into stainless gears
 (`GearCutter`); the cylinder borer, which bores the cast cylinder of Pipes and Power Expanded's steam engines
 (`CylinderBorer`); one pipe network, Pipes and Power Expanded's in copper, lead, iron and steel with
-bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, mines, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
+bronze valves (`UnifiedPipes`), its iron and steel pipe cast in a pipe mold on smex's canal (`CastPipes`) and its lead and copper pipe sections drawn from tube blanks (hollow sections) on a draw bench (`DrawBench`) or folded on a hand-worked press brake (`PressBrake`) from half plates cut on a foot-treadle squaring shear (`SquaringShear`); springs of solid rock where the game's rivulets were, which pour, feed a pipe tapping them and give fresh well water (`Springs`); the eidolon (`Eidolon`), a laborer automaton built in a wooden gantry from Jonas parts, steel and stainless gears, which follows, carries, fells, mines, hauls and guards; ore cells, which spread each metal's deposits on a grid (Ore), and the trader overhaul (Trading): traders on a grid of
 camps, item values, regional supply, standing, schematics, orders, maps and admin tools; a check that the installed mods are the pack's (`PackVersionCheck`); and every mod's settings following the pack's defaults when they change (`FollowPackDefaults`). These are choices for this pack, not bug fixes, so
 they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
@@ -24,7 +24,7 @@ it patches by name, so the mod builds from the game alone (`release.yml` needs n
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
 chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach, Carry On's
-icon reset, the creative search tweaks and the NaN motion diagnostics run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
+icon reset, the creative search tweaks, the handbook's kept place and the NaN motion diagnostics run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
 that has it (a server with the steam source switched off, or without ppex, has no such block).
@@ -32,7 +32,8 @@ Unified woodworking runs on both sides too (the server does the work, the client
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
 sawmill's, the rosser's, the gear cutter's, the draw bench's, the cylinder borer's, the press brake's and the squaring shear's blocks: the server runs the machines, the client draws
-their moving parts. Machine oil runs on both sides too: the server pours, drains and loads the
+their moving parts. So are the springs: the server generates, pours and feeds them, the client
+draws them and starts a drink. Machine oil runs on both sides too: the server pours, drains and loads the
 shafts, the client takes the click, shows the tank and draws the smoke. So are the trunk entities:
 the server runs them, the client draws them and drives the tools' holds on them. So is the pickling
 tub: the server runs its batches, the client draws the liquid and the gears in it. Steel bits
@@ -2228,6 +2229,118 @@ With the switch off, without smex or ppex, with `UnifiedPipes` not on (one notif
 that warning, the patch file is emptied in `Start` and the mold's clay-forming recipe is marked disabled
 before the game loads it: there is no pipe mold, and those already in a world are lost.
 
+### Springs (`Springs`, `SpringsSettings`)
+
+The game's rivulets, the single water source its generator sets in a cave wall or at the back of a
+short channel cut into a cliff, come out of a **spring**: a solid block of the rock round it, with a
+wet, mossy crack drawn over the rock's own texture on its faces. A spring pours as that source did,
+taps into a Pipes and Power Expanded pipe as a source of water, and gives a player Hydrate or
+Diedrate's fresh well water to drink or carry away, endlessly. New chunks only: nothing already
+generated is changed.
+
+**The block.** `seraphhorizons:waterspring-{kind}-{rock}` (`blocktypes/waterspring.json`, class and
+block entity `seraphhorizons.WaterSpring`): `kind` is `normal` (in place of the game's
+`water-still-7`) or `rapid` (in place of `rapidwater-still-7`, the rapids rivulet), `rock` every state
+of the game's `block/rockwithdeposit` property, which its own `rock-*` uses (24 rocks, and
+GeologyAdditions' 24 more, which it adds to that property), so 96 blocks. It is drawn as
+`game:block/stone/rock/{rock}1` with `textures/block/spring/seep-{kind}.png` blended over it (the rapids'
+mouth is wider), written by `Springs/tools/make_seep_texture.py` (seeded, so a rerun gives the same
+files). It mines as the game's rock (resistance 8, tier 2) and drops nothing of its own: `GetDrops`
+gives what its host rock's own block (`game:rock-{rock}`) gives there, the rock's stones (suevite's
+rare diamond too). Its name is its rock's, "Granite spring", "Granite rapids spring"
+(`waterspring-name-*`). One creative tile and one handbook page for all of them (a Tidy Variants
+rule, `seraphhorizons-waterspring`).
+
+**The generator** (`Springs/Game/SpringsSystem.cs`). The game's `GenRivulets` (VSEssentials) sets a
+rivulet's source in two places: `tryGenRivulet`, the cave wall (a cell with five stone neighbours and
+one air: water or, deep down, lava), and `tryGenMountainSideRivers`, the cliff (the source at the
+back of the channel it carves, water or rapids). Each calls `IWorldGenBlockAccessor.ScheduleBlockUpdate(pos)`
+exactly once, right after setting the source. A Harmony transpiler on each turns that call into
+`SpringsSystem.OnRivuletPlaced(blockAccessor, pos)`, which, when the fluid at `pos` is a game `water-*`
+or `rapidwater-*` source (not lava), empties the fluid layer, sets the spring of that kind and spawns
+its block entity, then schedules the update as the generator meant. The host rock is the most common
+rock among the six neighbours (a neighbour's `rock` variant, so ores and cracked rock count, or a game
+`rock-` code), the first on a tie, granite when none names one a spring exists for
+(`Springs/Core/HostRock.cs`). The spring takes the rivulet's own cell. If either method no longer
+calls `ScheduleBlockUpdate` once, one warning says so and its rivulets stay water; the server logs how
+many of the two it hooked.
+
+**Pouring** (`SpringPouring.cs`, `BlockEntityWaterSpring.cs`). Untapped, a spring does on the server
+what the game's source does in `BlockBehaviorFiniteSpreadingLiquid.SpreadAndUpdateLiquidLevels`, from
+a solid block: into the cell under it, falling water (`{liquid}-d-6`), when the game's own
+`CanSpreadIntoBlock` allows it as from open water at level 7 in the spring's cell, and then nowhere
+else (over a source of its own water it spreads sideways, as the game's does); otherwise into every
+side it allows, the level-6 block the game would put there (`GetLessLiquidBlockId`, flow and all).
+Each block put is told to look again (its `OnNeighbourBlockChange`), and the game's spreading carries
+the water on from there. It never pours over another liquid, and leaves a cell alone that already
+holds its water at level 6 or more, in whatever flow the game has turned it to. It pours when its
+block entity loads (half a second later, once pipe networks are back) and 75 ms after any neighbour
+changes (one look for several changes), so mining out a new face opens a new outflow. The water stays
+because a Harmony postfix on `BlockBehaviorFiniteSpreadingLiquid.GetMaxNeighbourLiquidLevel`, which
+each flowing cell asks before it drains, counts a pouring spring of its liquid as a source: directly
+above, it feeds the cell (the game's answer for the same liquid above); beside it, it stands at 7 and
+feeds a cell at 6 (`SpringPour.Feed`). `water` and `rapidwater` share the liquid code `water`, so a
+spring answers only for its own block code's liquid. A normal spring pours `water`, a rapids spring
+`rapidwater`: plain water, as the source was; only the spring itself gives well water.
+
+**Tapping** (`SpringTaps.cs`, on ExpandedLib by name). A side is tapped when the cell beyond it is a
+`pipe` network member (`NetworkMembership.Resolve`) with a connector facing the spring
+(`INetworkMember.HasConnectorAt`), the rule exlib's graph couples by: a ppex pipe, any metal, placed
+against any face with its end towards it. No intake or other block. A Harmony postfix on exlib's
+`BlockNetworkNode.IsValidNonNetworkConnection` makes that end sealed (as Hydrate's wellspring is,
+`HandPumpBridge`), not an open end leaking the run. While any side is tapped the spring pours nothing
+and tells the water round it to look again, so what it poured drains as any water without a source
+does; with no side tapped any more it pours again. Tapped, it ticks once a second (and only then:
+an untapped spring has no tick) and offers its rate times the seconds gone by, at most 2 of them, to the
+pipe networks across its tapped sides (`GetConnectedNetworkAcross`, as ppex's pumps find their
+lines), shared evenly, what a full network cannot take offered to the others and what none takes lost
+(`Springs/Core/SpringFlow.cs`). It fills a network with `PipeNetwork.ProduceLiquidMeasured` at 20 °C
+and 1 atm (ppex's pump temperature and its hand pump's delivery head), as an intake fills its line for
+a pump. ppex's network carries water as one medium, `Water`, with no kinds, so well water goes in as
+that. A pump draws only from a fluid intake (`FindIntake`), so a spring's run feeds a boiler, an
+outlet or anything else on it directly, with no pump. The tap state is kept with the block entity
+and shown on it ("Tapped: feeding its pipes up to 4 L/s", or "Pouring").
+
+| Setting (`SpringsSettings`) | Default | |
+|---|---|---|
+| `NormalLitresPerSecond` | 4 | about a fluid intake under a waterwheel pump: ppex's intake has no rate of its own, its pump sets it (the hand pump 2 L/s, the mechanical pump 20 per unit of axle speed, about 3.6 on the waterwheel it is sized for, the engine pump 20 to 80) |
+| `RapidLitresPerSecond` | 10 | 2.5 times a spring |
+
+A value that is not a number, 0 or less, or above 1000 falls back to its default with a warning.
+
+**Water for players** (`SpringWater.cs`, Hydrate or Diedrate by name: its licence forbids
+redistributing it). The block's `waterTightContainerProps` (`containable`, `whenFilled`
+`hydrateordiedrate:waterportion-fresh-well-clean`, what Hydrate's `wellwater-fresh-clean-natural` fills
+a bucket with) is what the game's `BlockLiquidContainerBase.TryFillFromBlock` reads for every liquid
+container on a right-click (it reads the fluid layer, else the block), so a bucket, jug, bowl or
+waterskin fills with fresh well water, without end. With an empty hand, holding right-click on a
+spring for a second drinks a litre of it as Hydrate's own drinking does: after Hydrate's check of the
+player (`DefaultDrinkingInteractionProvider.ValidatePlayer`: both hands empty, not full, it says why
+not), a wooden bucket holding a litre is emptied by the game's `tryEatStop` (which Hydrate patches to
+quench thirst, with the water's hydration and quality) in Hydrate's `LockedDummySlot`, so the empty
+bucket never lands in an inventory. Hydrate's drinking itself works on the fluid layer and so not on a
+spring. Without Hydrate (or with a member not as expected) the block's `whenFilled` is set to the
+game's `waterportion` as it loads, one warning says so, and there is nothing to drink.
+
+**Breaking.** A spring is mined as its rock is and is gone for good; `OnBlockRemoved` tells the water
+round it to look again, and it drains.
+
+**Text.** The block's description and a handbook section (`springs-handbook-*`) on it, and a guide page,
+"Springs" (`config/handbook/springs.json`, `springs-guide-*`): what springs are, pouring, drinking and
+filling, tapping and the rates, and breaking. The rates in the guide are this side's settings,
+filled into its `{normal}` and `{rapid}` in `AssetsLoaded`.
+
+**In the recipe browser.** One `spring` record per kind (`tools/recipe-export`, `Recipes/SpringExport.cs`,
+docs/recipe-browser/schema.md): the spring, any rock, as the station, giving a second's well water
+from a pipe at the server's rate, owned by `Springs` (`SwitchOwnership.HandListed`).
+
+Harmony (own id `seraphhorizons.springs`, patched once per process, both sides) patches the game's
+types directly (the mod references the game's assemblies) and exlib's by name. With the switch off
+nothing is patched, the guide page is hidden (and listed as hidden for the export), rivulets are the
+game's, and every spring already in a world turns back into the source it replaced
+(`water-still-7` or `rapidwater-still-7`) the tick after its block entity loads (`SpringsSystem.Revert`).
+The blocks stay registered either way, so they can.
+
 ### Draw bench (`DrawBench`, `DrawBenchSettings`)
 
 The drawn rung of the pipe chain: a mechanically powered chain draw bench, as lead and copper pipe was
@@ -2589,7 +2702,7 @@ forge ("Rods on the forge"). On a station with no mandrel a steel rod is fitted 
 not; on a fitted, bare mandrel a hot one goes on by right-click as the work, and a cold one is refused
 with a message giving its temperature. Then **right-click held** on the station with **tongs** in either
 hand (the game's `game:tongs` or metal tongs, any item whose tool is `Tongs`; none needed in creative
-mode) winds it, as the press brake's lever is worked: a turn a second, `TurnsPerRod` (4) turns a rod.
+mode) winds it, as the press brake's lever is worked: a turn a second, `TurnsPerRod` (8) turns a rod.
 It winds only while the rod is at working temperature: the rod keeps its stack on the station and cools
 there as any stack does, and below working heat the winding stops (the winder is told once). **Ctrl +
 right-click** takes the rod back at any time, straight (the winding so far is lost, the metal is not),
@@ -2614,7 +2727,7 @@ sides grow by stretching gauges, whole at p 0), W following the held clock, and 
 | `BlowsPerHollowCopper` | 14 | Blows of the base hammer a copper hollow takes; the rig's `forge.blowsPerHollow.thick` |
 | `BaseHammerTier` | 2 | The tool tier those blows are counted for, the game's copper hammer's; a blow of a hammer of tier t forges t / this of a base blow |
 | `HammerWearPerBlow` | 1 | Durability a blow costs the hammer, as a blow on the anvil does |
-| `TurnsPerRod` | 4 | Turns of the held clock (a turn a second) a steel rod takes to wind into a spring; the rig's `wind.turnsPerRod` |
+| `TurnsPerRod` | 8 | Turns of the held clock (a turn a second) a steel rod takes to wind into a spring; the rig's `wind.turnsPerRod` |
 | `TongsWearPerRod` | 1 | Durability a spring costs the tongs it is wound with |
 
 With the switch off the server marks both block types and the recipe file disabled before the game
@@ -3717,24 +3830,31 @@ The boxes are measured from the shape's `lid_*` elements posed by the rig's lid 
 (`Core/LidBoxes.cs`). The outlet's cell is solid to its top whether capped or not, so the cap needs no
 box of its own.
 
-**The chimney and the draught.** Natural draught only: a column of `ChimneyBlocks` (the game's clay
-bricks, clay brick chimney, refractory bricks and stone bricks; smex's smoke stack is a 3 x 3
-multiblock and cannot stand on the outlet) stood on the outlet, counted from it up. Under
-`MinChimneyHeight` (6) there is no draught. Six blocks heat a lit furnace under its shut lid at
+**The chimney and the draught.** Natural draught only: a chimney stood on the outlet, a shaft of
+`ChimneyShaftBlocks` (full brick blocks: the game's fire, clinker and uneven clay brick blocks,
+`claybricks-*`; every coloured brick course, `brickcourse-*`; refractory brick blocks and stone brick
+blocks; smex's smoke stack is a 3 x 3 multiblock and cannot stand on the outlet), counted from the
+outlet up, topped with exactly one of `ChimneyTopBlocks` (the game's clay brick chimney,
+`claybrickchimney-*`, legacy ones included: a slab with two chimney pots, a chimney's top and no
+shaft section). The top does not count toward the height, and without it there is no draught ("the
+chimney needs a chimney top"). A chimney top lower down ends the shaft there and, with more chimney on
+it, is no top: no draught, and the block info says so. `Core/FurnaceRow.cs`'s `ChimneyColumn` measures
+the column. Under `MinChimneyHeight` (6) shaft blocks there is no draught. Six blocks heat a lit furnace under its shut lid at
 `ChimneyHeatingPerHour` (200 °C an hour) up to `ChimneyMaxTemperature` (1600 °C); each block above
 adds `ChimneyHeatingPerExtraBlock` (40 °C an hour) and `ChimneyMaxPerExtraBlock` (10 °C), counted up to
 `MaxChimneyHeight` (11 blocks: 400 °C an hour, up to 1650 °C). From cold, stainless melts in about 7.6
 hours on six blocks and 3.8 on eleven (`Core/FurnaceHeat.cs`, `DraughtOf`).
 
-**Rows and shared chimneys.** Up to `MaxFurnacesInRow` (6) furnaces of the same facing side by side
+**Rows and shared chimneys.** Up to `MaxFurnacesInRow` (5) furnaces of the same facing side by side
 along their width, touching (each a furnace's width, 3 blocks, from the next, and with its lining in),
-are a row, 18 blocks long at most: one chimney on any member's outlet serves all of them, each at its
+are a row, 15 blocks long at most: one chimney on any member's outlet serves all of them, each at its
 full draught, as the per-hole flues in one stack did. Every other outlet must be capped: a right-click
 on an outlet's top with an iron plate caps it, and with an empty hand takes the plate back. An uncapped
 outlet (bare, or carrying a second, shorter chimney) leaks the draught: the whole row has none until it
 is capped, and the block info says which furnace's outlet is open ("the furnace 2 to the left", seen
-from the front). With more than six side by side none has draught. `Core/FurnaceRow.cs` finds the row
-both ways from the furnace asking, its chimney (the tallest on an uncapped outlet) and what is wrong.
+from the front). With more than five side by side none has draught. `Core/FurnaceRow.cs` finds the row
+both ways from the furnace asking, its chimney (the tallest shaft on an uncapped outlet) and what is
+wrong: an open outlet first, then a buried chimney top, a short shaft and a missing top.
 
 **The ash-pit damper.** An empty-hand right-click on the furnace's front (the controller's face, the
 ash mouth's) moves the damper open, half, shut, open:
@@ -3804,7 +3924,12 @@ pot's charge melts.
 
 **Pulling and teeming.** With the lid open and an empty hand, a right-click on the hole pulls the nearer
 pot, with tongs in the off hand while the furnace is too hot to touch. A pot not yet melted comes back
-with its charge (and goes back in with it). A ferroalloy is broken out of the pot: its lumps and slag go
+with its charge (and goes back in with it), or, held and no hotter than the game's too-hot-to-touch, is
+emptied the way the game's bucket is (`BlockLiquidContainerBase.OnHeldInteractStart`, its "Empty contents"
+held help): Ctrl and right-click on a block, nothing in the air. Where the bucket spills, the pot drops its
+charge's items at the click, as the bucket drops what it spills as items (`DropContents`), and stays in
+the hand with its heats; of a stack, one pot a click, the emptied one going to the inventory
+(`BlockMeltingPot`, `Core/PotEmpty.cs`). A ferroalloy is broken out of the pot: its lumps and slag go
 into the inventory, hot, and the pot, a heat older, into the hand (or it cracks on its last). Molten
 stainless or iron comes out as `meltingpot-smelted`, on the game's smelted crucible class
 (`BlockSmeltedContainer`), so it pours into any `ILiquidMetalSink` (ingot molds, tool molds, the gear
@@ -3907,23 +4032,26 @@ frame's page has "Building it" and a section linking the guide, as the pots and 
 | `ChimneyMaxTemperature` | 1600 | The hottest on the shortest chimney |
 | `ChimneyHeatingPerExtraBlock` | 40 | °C an hour each block over the shortest adds |
 | `ChimneyMaxPerExtraBlock` | 10 | °C of maximum each block over the shortest adds |
-| `MinChimneyHeight` | 6 | Chimney blocks on the outlet the furnace needs to draw |
+| `MinChimneyHeight` | 6 | Shaft blocks on the outlet the furnace needs to draw (the top not counted) |
 | `MaxChimneyHeight` | 11 | The tallest chimney that draws harder |
-| `MaxFurnacesInRow` | 6 | Furnaces side by side one chimney serves |
+| `MaxFurnacesInRow` | 5 | Furnaces side by side one chimney serves |
 | `CoolingPerHour` | 300 | °C an hour a furnace cools, lid shut |
 | `LidOpenCoolingPerHour` | 600 | °C an hour it cools, lid open |
 | `DamperHalfHeating` | 0.5 | Damper half shut: the share of the heating |
 | `DamperHalfBurn` | 0.6 | Damper half shut: the share of the coke's burn |
 | `DamperShutBurn` | 0.25 | Damper shut: the share of the coke's burn |
 | `DamperShutCooling` | 0.25 | Damper shut: the share of the closed cooling |
-| `ChimneyBlocks` | clay bricks, clay brick chimney, refractory bricks, stone bricks | What a chimney is built of |
+| `ChimneyShaftBlocks` | `game:claybricks-*`, `game:brickcourse-*`, `game:refractorybricks-*`, `game:stonebricks-*` | What a chimney's shaft is built of |
+| `ChimneyTopBlocks` | `game:claybrickchimney-*` | The one block that tops the shaft |
 | `LargeCastingMetals` | `game:ingot-iron` | Metals a pot pours only into `LargeCastingMolds` |
 | `LargeCastingMolds` | `game:ingotmold-*`, `seraphhorizons:cylindermold-*` | The molds those metals pour into |
 
 #796 dropped `ForcedHeatingPerHour`, `ForcedMaxTemperature`, `AirLitresPerSecond` and `MaxHolesInRow`
 (forced air and the row of holes are gone) and smex's smoke stack from `ChimneyBlocks`, and raised
 `CokeCapacity` from 6 to 12; an install that kept the old defaults follows the new ones
-(docs/config-defaults.md), and a dropped key left in a file is ignored. **The old melting holes**
+(docs/config-defaults.md), and a dropped key left in a file is ignored. `ChimneyBlocks` became
+`ChimneyShaftBlocks` and `ChimneyTopBlocks` before 0.1.0 was released, with no rename recorded: the
+clay brick chimney it listed is now the top, not shaft, so an old list carried over would be wrong. **The old melting holes**
 (`meltinghole-{closed|open}`, their grid recipe and shapes, and their `multiblockStructure`) are removed
 with no migration: holes in a world vanish, with whatever was in them. The recipe browser's multiblock
 viewer no longer has the furnace; the model viewer has it as `crucible-furnace`.
@@ -3935,12 +4063,13 @@ not patched and its scrap list and handbook are as it ships them. Not yet: the p
 export (the frame and the pot's own recipes are there), and the furnace seen in a game client.
 
 `tests/CrucibleFurnace/` (unit) covers the pot recipes and charging, the draught by height, the damper,
-the row (caps, leaks, at most six, a gap ending it), the build (the order, a stack a click, one brick
+the row (caps, leaks, at most five, a gap ending it), the build (the order, a stack a click, one brick
 type), two pots of different recipes, and the rig (its contract, the reference poses, the lid's boxes,
 and `potUnits` and the coke's layers held to the settings). `tests/PackTests/CrucibleFurnaceScenarios.cs`
 (Atlas) places the frame on all four facings and breaks it, builds every stage by clicks and refuses a
 second brick type and a stage out of order, breaks a built furnace for everything fitted, fits the stages
-by the creative shortcut, fires a 6-block and an 11-block chimney side by side and compares them, works
+by the creative shortcut, fires a 6-block and an 11-block chimney (the tall one of brick courses), each
+topped, side by side and compares them, finds no draught without a top or with one partway up, works
 the damper through its three places, needs tongs for a hot lid, runs a row of three on one chimney with
 an open outlet and then capped, melts two pots of different recipes at their own temperatures and pulls
 them with and without tongs, melts stainless from cold on its coke and pours and freezes it, teems iron
@@ -4321,6 +4450,60 @@ caret in the box, typing works), with an item on the cursor (still held, nothing
 the box empty (nothing happens); right-click the handbook's search box; right-click the chat input
 and a sign's text (unchanged).
 
+### The handbook keeps your place (`HandbookKeepsPlace`)
+
+Closing the handbook throws its place away: `GuiDialogHandbook.OnGuiClosed` clears the browse
+history and empties the list page's search box, and `OnGuiOpened` composes the list page again (a
+new one, scrolled to the top, or with Dovidarium's overview reuse the last one, which the close
+emptied). So every open, with the handbook key or Escape and the key again, starts on the whole
+list with no page and nothing for Back. Only the category tab survived (the dialog's
+`currentCatgoryCode`). With this tweak, reopening it in the same session puts it back as it was
+left, as `CreativeKeepsPlace` does for the creative inventory:
+
+- the page that was shown, scrolled where it was (the page's own `PosY`, kept in its history step);
+- the browse history behind it, so Back walks back through the pages and searches as before;
+- the list page's search text, its results (filtered by the handbook's own search, vanilla's or
+  Dovidarium's, over the list Tidy Variants has collapsed), and its scroll.
+
+Opening the handbook onto something still opens that: the selection hotkey on a hovered slot or a
+looked-at block, a `handbook://` link (a recipe ingredient, a guide's link) and a `handbooksearch://`
+link put their page or search on top of the restored place, so Back from it returns to where the
+player was. A `handbook://tab-` link (the intro's "first steps tutorial") shows its tab: with a page on
+top, `selectTab` would change the list behind the page and show nothing new, so the history is
+cleared first, as the game does for a tab clicked on a page. Client side, in memory only: leaving the
+world forgets it. A page the handbook no longer has (pages are rebuilt on a hotkey change and on
+`.debug reloadhandbook`) is dropped from the history; at most the newest 64 steps are kept, since a
+close no longer clears them.
+
+Hooks (`HandbookPlace/`, Harmony id `seraphhorizons.handbookplace`, client only;
+`docs/variant-grouping/hooks.md` §8): a prefix on `GuiDialogHandbook.OnGuiClosed` reads the history
+(each page by its page code, and the page object to prefer while it is still the handbook's), the box's
+text and the list's scroll before the method clears them, and a postfix on `GuiDialog.TryOpen(bool)`,
+for the handbook and only when that call opened it, puts them back after `OnGuiOpened` has composed and
+filtered the list: `SetValue` on the box (the handbook's own search), the history, the page on top
+composed as Back composes it (`initDetailGui`), then the list's scroll as `CreativeKeepsPlace` sets
+the grid's. Not a postfix on `OnGuiOpened`: Dovidarium's overview reuse takes it and `initOverviewGui`
+as Exclusive and would turn itself off at its late audit. A prefix on `GuiDialogHandbook.selectTab`
+(Dovidarium's category tabs allow any patch there) does the tab-link clearing. Dovidarium fills the
+unsearched list 160 entries at a time as it is scrolled near the end, and runs an uncached search over
+a few frames, so the scroll is set again while the list grows, and if it still falls short, every
+0.1 s for up to 2 s (a renderer: single player pauses the game while the handbook is open) until it
+gets there or the player moves the bar. The decisions (what is kept, what is put back after pages
+changed, when the scroll retries stop) are in `HandbookPlace/Core/`, unit tested in
+`tests/HandbookPlace/`.
+
+To check by hand in the game (the full pack, single player and on a server): search `axe`, scroll the
+list, open a page, follow a link on it, scroll that page; close with the handbook key and with Escape,
+reopen with the key: the same page at the same scroll, Back goes to the first page, Back again to the
+list with `axe` in the box and the same scroll. Close on the list with no search after scrolling far
+down (past Dovidarium's first 160 entries): reopen at the same place. Close on a page, hover an item in
+the inventory and press the selection hotkey (Shift+H on a looked-at block too): that item's page, and
+Back returns to the remembered page. With a page remembered, click the intro dialog's "first steps
+tutorial" link: the tutorial tab's list. Change a hotkey (the pages are rebuilt) and reopen: the same
+place where its pages still exist. Leave and rejoin the world: the whole list at the top. With
+`HandbookKeepsPlace` off: vanilla. Dovidarium's `patch-status … late-audit` line shows the same active
+count with the tweak on as off.
+
 ### The mod checks the installed mods against the pack (`PackVersionCheck`)
 
 The mod is released with the pack, at the pack's version (Releasing, below), and carries the
@@ -4586,6 +4769,49 @@ suitability, the placer book, the registry's states, size tiers, map offsets);
 `tests/PackTests/OreMapsScenarios.cs` (Atlas, a fixed seed: the switch recorded, the scattered gravel
 cut, every rock panning copper, the registry listing from the seed, verifying an ungenerated deposit,
 `givemap` and the waypoint, a gravel cell resolving to a field of rich gravel and its map).
+
+### Density prospecting reads 64 blocks, off the main thread (`WideDensityProspecting`)
+
+BetterEr Prospecting (`bettererprospecting`, 3.4.10), its block-based density mode
+(`NewDensityMode`, on in the pack). A hit counts the deposit blocks in a square column 64 blocks each
+way around the sample, from the surface down, instead of 32, and divides by that column's volume,
+so parts per thousand read on the same scale as before (four times the blocks over four times the
+area). The walk runs on a background task, not on the server's main thread: the pick is charged on
+the hit, and the reading arrives a moment later, once the walk is done. While a player's walk is
+running, another density hit of theirs is turned away with a message and costs nothing. A reading
+for a player who has left by then, or on a server that is stopping, is dropped. The other modes and
+BetterEr's old density modes are as it ships.
+
+Measured on a pack server, a density hit took 20 to 25 ms of the main thread at 32 blocks and 69 to
+78 ms at 64; the main thread now pays only the reading (BetterEr's `generateReadigs`, its ppt
+tracker, the chat lines and the ore map entry), a fraction of a millisecond.
+
+`Ore/Game/WideDensityProspecting.cs` (server side, by name; BetterEr is not referenced at build
+time). BetterEr's radius, `ItemBetterErProspectingPick.densityRadius`, is a constant (32), copied
+into its users by the compiler, so transpilers swap the copies for `WideDensityProspectingSystem.Radius`
+(64): the walk's four corners in `ProspectingSystem.GenerateBlockData`, the zone area a reading is
+normalised over in `ProspectingSystem.generateReadigs` (the folded `(2 * 32)^2 = 4096`, else readings
+would read four times high), and the chunk offsets the admin `/btrpr reprospect` loads around each
+saved reading before walking it again (`{ -32, 0, 32 }` on each axis, in its async state machine),
+which become `{ -64, -32, 0, 32, 64 }` (`Ore/Core/DensityProspecting.cs`), so reprospect still finds
+every chunk the wider walk reads loaded. A prefix on the pick's `ProbeDensity`, in the new density
+mode, returns BetterEr's `NewDensityDmg` at once and runs BetterEr's own `GenerateBlockData` on a
+task with a block accessor of its own (`GetBlockAccessor(false, false, false)`, which unpacks each
+chunk under the chunk's lock; a fourth transpiler sends the method's `World.BlockAccessor` through
+it on that thread only), then hands the counts back to the main thread, where BetterEr's own
+`ProbeBlockDensityMode` runs with a prefix on `GenerateBlockData` answering them: the reading, the
+ppt tracker, the messages and `DidProbe` are BetterEr's, unchanged. One walk per player
+(`ProbeGate`, in `Ore/Core/DensityProspecting.cs`); a failure in the task is logged, never thrown.
+Every rewrite is counted on BetterEr's original IL before anything is patched (4 radii, 2 accessor
+reads, 1 zone area, 2 offset arrays), and again as it applies; if BetterEr changed any of it, nothing
+is patched, with one warning, and density prospecting is as it ships.
+
+Tests: `tests/Ore/DensityProspectingTests.cs` (the zone area, the offsets covering every chunk the
+walk reads, the gate); `tests/PackTests/WideDensityProspectingScenarios.cs` (Atlas, a standard world:
+every rewrite applied, ore set within 32 blocks counted at both radii and ore between 32 and 64 only
+at 64, the wide reading normalised over the wide zone, a
+hit charged at once with its reading arriving from a walk off the main thread equal to the same walk
+on it, a second hit turned away, the old density mode untouched); off: `SwitchesOffScenarios`.
 
 ### Ore processing: recovery (no switch of its own)
 
@@ -5324,6 +5550,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `CreativeSteamSource` | the creative steam source block |
 | `CastPipes` | the cast pipe blanks, the pipe molds (`smex:toolmold-*-pipe`), `recipes/clayforming/pipemold.json` and `recipes/grid/castpipe.json`, the molds' casting |
 | `Eidolon` | the gantry (`seraphhorizons:eidolongantry*`), the command tool, the eidolon's creature item, `recipes/grid/eidolongantry.json` and `eidoloncommander.json`, the gantry's and the body's construction records |
+| `Springs` | the `spring` records (the spring blocks are registered either way: with the switch off they turn back into water as they load) |
 | `OreProcessing` | crushed and ground ore and roasted rock (`seraphhorizons:crushedore-*`, `groundore-*`, `roastedore-*`), concentrate, roasted concentrate, amalgam, sponge, litharge |
 
 A switch that only takes things away (`HydrateTunRetired`, `IrrigationVesselRetired`,
@@ -5920,7 +6147,9 @@ guard on smex's two mold files (held to trimmed copies of smex 0.10.1's, and to 
 applied to them) and the chain's two pipe sections an ingot, held to the shipped patch
 (`Pipes/Core/CastPipeMold.cs`, `tests/Pipes/CastPipeMoldTests.cs`), and the hand pump on ppex pipes:
 its spring search, priming count, the intake's scan and allowance and the name fallbacks
-(`Pipes/Core/HandPumpSearch.cs`, `tests/Pipes/HandPumpSearchTests.cs`), and that every block and
+(`Pipes/Core/HandPumpSearch.cs`, `tests/Pipes/HandPumpSearchTests.cs`), the springs' codes, host
+rock choice, pouring faces and source answer, rate cap and sharing, taps and settings, held to the
+shipped block type (`Springs/Core/`, `tests/Springs/SpringsTests.cs`), and that every block and
 item drawn with one of the pack's own shapes sits centred held, dropped and in a slot, from its
 transforms and the shape's bounds: held, the game keeps a transform's origin where it is instead of
 moving it to the hand, so a machine's item form, centred on a footprint many blocks long, needs a
@@ -6208,6 +6437,21 @@ section, nails and strips of the same metal (not the other) and a hammer. With t
 `SwitchesOffScenarios` requires no pipe mold (smex's quad rod mold still there), no recipe for one and
 nothing logged about them.
 
+`tests/PackTests/SpringsScenarios.cs` (Atlas, the shared world) requires the springs on, both of the
+generator's methods hooked, a spring of each kind for the game's rocks and GeologyAdditions', named
+after its rock, filling containers with Hydrate's fresh well water and drinkable, and the guide's rates
+the settings'; a bucket filling from a spring with well water to its capacity, twice, and a half-thirsty
+player drinking from it through Hydrate's own drinking; then a granite spring in a wall, open to the east: it pours there; a run of four ppex
+pipes on top taps it, the pouring stops and its water drains, the end against it is sealed, and the
+run fills with water at the spring's rate (no faster, nor well under); the bottom pipe taken off, it
+pours again; broken, it drops granite stones and no spring, and its water drains.
+`tests/PackTests/SpringsWorldgenScenarios.cs` (Atlas, its own standard world: the shared world is
+flat and has no rivulets) requires springs among the generator's rivulets round spawn, each with its
+block entity, no water left in its cell, a rock round it (or the fallback) and some pouring.
+`RecipeExportSpringScenarios` requires one `spring` record per kind at the default rates, owned by
+`Springs`, and `SwitchesOffScenarios` that with the switch off nothing is patched, the guide is
+hidden and a spring placed turns back into its water source.
+
 `tests/PackTests/GearCutterScenarios.cs` (Atlas, the shared world) requires the gear cutter's
 blocks, parts and recipes (none of its smithing recipes helve-able); placing on all four facings
 with every ghost, the axle face turned and every cell cleared on breaking; the stages fitted in
@@ -6333,7 +6577,7 @@ recipes, no link to it, and nothing logged. `RecipeExportMandrelStationScenarios
 `machine` record per metal (`mandrelstation|game:chutesection-{metal}|0`): the hollow, the kept mandrel,
 the copper (base) hammer worn its blows (`fixed`), the frame, two pipe sections, power `hand` at 9 or 14
 blows, no oil; and the spring's (`mandrelstation|game:rod-steel|0`): the steel rod, the kept mandrel, the
-tongs worn a point, the frame, one spring, power `hand` at four seconds, the heat in `requirements`.
+tongs worn a point, the frame, one spring, power `hand` at eight seconds, the heat in `requirements`.
 `tests/PackTests/MandrelSpringScenarios.cs` (Atlas, the shared world, the gear cutter's player, x -460 to
 -508, z -520) requires the spring (steel's melting) and every game rod forgeable; a copper rod on a lit
 forge, one at a time, heating and coming off hot; a cold steel rod and a hot iron one refused on a fitted
@@ -6556,7 +6800,9 @@ group, the creative and handbook systems stay off on the server, and the report
 resolved or patched and the boiler tweak still applied.
 
 `CreativeKeepsPlace` and `SearchRightClickClears` are client GUI only, with no logic apart from the
-game's: they need checking by hand in the game (the lists in their sections).
+game's: they need checking by hand in the game (the lists in their sections). `HandbookKeepsPlace`'s
+decisions are unit tested (`tests/HandbookPlace/`); its hooks and how they meet the dialog and
+Dovidarium are verified against the decompiled game and Dovidarium only, and need the same check by hand.
 
 `tests/PackTests/SwitchesOffScenarios.cs` (Atlas) is every switch's off check on one server, seeded
 with `fixtures/switches-off/seraphhorizons.json`: each class boots its own server, which costs far

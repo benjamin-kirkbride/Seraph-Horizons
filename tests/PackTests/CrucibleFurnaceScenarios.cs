@@ -176,12 +176,15 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.True(f.Complete, site.Info(f));
     }
 
-    /// <summary>A clay brick chimney <paramref name="height"/> blocks tall on <paramref name="f"/>'s outlet.</summary>
-    private void Chimney(BECrucibleFurnace f, int height)
+    private const string TopBlock = "game:claybrickchimney-four-red-ns";
+
+    /// <summary>A chimney on <paramref name="f"/>'s outlet: a shaft of <paramref name="height"/> blocks
+    /// of <paramref name="shaft"/> (fire brick blocks unless given), topped with a clay brick chimney unless <paramref name="top"/> is false.</summary>
+    private void Chimney(BECrucibleFurnace f, int height, bool top = true, string shaft = Brick)
     {
         var b = f.CellPos(Rig.ChimneyBase);
         for (int y = 0; y < 14; y++)
-            World.SetBlock(y < height ? Brick : "game:air", b.AddCopy(0, y, 0));
+            World.SetBlock(y < height ? shaft : y == height && top ? TopBlock : "game:air", b.AddCopy(0, y, 0));
     }
 
     private Dictionary<string, int> ItemsNear(BlockPos around, int radius = 8)
@@ -349,7 +352,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Contains("Lid open", site.Info(f));
         Assert.Contains("Ash-pit damper: open", site.Info(f));
         Assert.Contains("West pot: none", site.Info(f));
-        Assert.Contains("No draught: stand a chimney at least 6 blocks high", site.Info(f));
+        Assert.Contains("No draught: build a chimney of brick blocks at least 6 high", site.Info(f));
         // open, the lid has a box over the middle row
         var lidCell = f.CellPos(new Int3(0, 2, 1));
         await World.Ticks(40);   // past the swing
@@ -411,7 +414,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
             Lid(site, f, shut: true);
         }
         Chimney(low, 6);
-        Chimney(high, 11);
+        Chimney(high, 11, shaft: "game:brickcourse-four-running-red");
         low.Update();
         high.Update();
         Assert.Equal(200, low.Draught!.Value.HeatingPerHour, 6);
@@ -448,6 +451,17 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         low.Update();
         Assert.Null(low.Draught);
         Assert.Contains("No draught: the chimney is 5 blocks high, it needs 6", site.Info(low));
+        // a shaft without its chimney top draws nothing; nor one with a top partway up
+        Chimney(low, 6, top: false);
+        low.Update();
+        Assert.Null(low.Draught);
+        Assert.Contains("No draught: the chimney needs a chimney top, one clay brick chimney block on its 6 brick blocks", site.Info(low));
+        Chimney(low, 7);
+        World.SetBlock(TopBlock, low.CellPos(Rig.ChimneyBase).AddCopy(0, 2, 0));
+        low.Update();
+        Assert.Null(low.Draught);
+        Assert.Equal(RowProblem.ChimneyTopBuried, low.Row.Problem);
+        Assert.Contains("No draught: more chimney stands on the clay brick chimney block", site.Info(low));
 
         // hot, the lid needs tongs; with them it opens, and the open lid cools the fire
         Assert.True(high.Temperature > GlobalConstants.TooHotToTouchTemperature);
@@ -574,6 +588,89 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         var back = site.Click(f, PotPoint(0), null, null);
         Assert.Equal(CrucibleFurnaceSystem.FiredPot, back!.Collectible.Code.ToString());
         Assert.Equal(new ChargeItem(Stainless.Bit, 20), Assert.Single(PotStack.Charge(back)));
+        site.EmptyInventory();
+    }
+
+    /// <summary>Ctrl and right-click with the pot in <paramref name="site"/>'s hand on <paramref name="sel"/>
+    /// (null: in the air), as the game calls a held interaction; the handling.</summary>
+    private static EnumHandHandling HeldClick(Site site, BlockSelection? sel, bool ctrl = true, bool shift = false)
+    {
+        var controls = site.Player.Entity.Controls;
+        controls.CtrlKey = ctrl;
+        controls.ShiftKey = shift;
+        try
+        {
+            var handling = EnumHandHandling.NotHandled;
+            site.Hand.Itemstack!.Collectible.OnHeldInteractStart(site.Hand, site.Player.Entity, sel!, null!, true, ref handling);
+            return handling;
+        }
+        finally
+        {
+            controls.CtrlKey = controls.ShiftKey = false;
+        }
+    }
+
+    // A charged pot, held, empties as a bucket does: Ctrl and right-click on a block drops the charge
+    // there and keeps the pot's heats; not in the air, not without Ctrl, not while too hot to touch.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_held_charged_pot_empties_with_ctrl_on_a_block_as_a_bucket_does()
+    {
+        var site = await Build("emptier", 164);
+        var floor = site.Origin.AddCopy(0, -1, 1);
+        var sel = new BlockSelection { Position = floor, Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 1, 0.5) };
+        ItemStack Charged(int size = 1)
+        {
+            var pot = site.Stack(CrucibleFurnaceSystem.FiredPot, size);
+            PotStack.SetHeats(pot, 2);
+            PotStack.SetCharge(pot, [new ChargeItem(Stainless.Bit, 20), new ChargeItem("game:metalbit-iron", 70)]);
+            return pot;
+        }
+        site.Hand.Itemstack = Charged();
+        site.Hand.MarkDirty();
+        var help = site.Hand.Itemstack.Collectible.GetHeldInteractionHelp(site.Hand);
+        var empty = Assert.Single(help, h => h.ActionLangCode == "seraphhorizons:heldhelp-meltingpot-empty");
+        Assert.Equal("ctrl", empty.HotKeyCode);
+        Assert.True(empty.ShouldApply(empty, sel, null));
+
+        // without Ctrl, with Shift too, or in the air: nothing
+        Assert.NotEqual(EnumHandHandling.PreventDefaultAction, HeldClick(site, sel, ctrl: false));
+        Assert.NotEqual(EnumHandHandling.PreventDefaultAction, HeldClick(site, null));
+        Assert.Equal(2, PotStack.Charge(site.Hand.Itemstack).Count);
+        // too hot to touch: as before, it keeps its charge
+        site.Hand.Itemstack.Collectible.SetTemperature(W, site.Hand.Itemstack, 500);
+        Assert.False(empty.ShouldApply(empty, sel, null));
+        Assert.NotEqual(EnumHandHandling.PreventDefaultAction, HeldClick(site, sel));
+        Assert.Equal(2, PotStack.Charge(site.Hand.Itemstack).Count);
+
+        // cold: emptied where the click landed, the pot kept in the hand with its heats
+        KillItems(site.Origin);
+        site.Hand.Itemstack = Charged();
+        site.Hand.MarkDirty();
+        Assert.Equal(EnumHandHandling.PreventDefaultAction, HeldClick(site, sel));
+        var held = site.Hand.Itemstack!;
+        Assert.Equal(CrucibleFurnaceSystem.FiredPot, held.Collectible.Code.ToString());
+        Assert.Empty(PotStack.Charge(held));
+        Assert.Equal(2, PotStack.Heats(held));
+        Assert.False(empty.ShouldApply(empty, sel, null));
+        await World.Ticks(3);
+        var drops = ItemsNear(site.Origin);
+        Assert.Equal(20, drops.GetValueOrDefault(Stainless.Bit));
+        Assert.Equal(70, drops.GetValueOrDefault("game:metalbit-iron"));
+        // an empty pot: nothing more
+        Assert.NotEqual(EnumHandHandling.PreventDefaultAction, HeldClick(site, sel));
+
+        // a stack of two: one a click, the emptied one to the inventory
+        KillItems(site.Origin);
+        site.EmptyInventory();
+        site.Hand.Itemstack = Charged(2);
+        site.Hand.MarkDirty();
+        Assert.Equal(EnumHandHandling.PreventDefaultAction, HeldClick(site, sel));
+        Assert.Equal(1, site.Hand.StackSize);
+        Assert.Equal(2, PotStack.Charge(site.Hand.Itemstack).Count);
+        Assert.Equal(2, site.Count(CrucibleFurnaceSystem.FiredPot));
+        await World.Ticks(3);
+        Assert.Equal(20, ItemsNear(site.Origin).GetValueOrDefault(Stainless.Bit));
+        KillItems(site.Origin);
         site.EmptyInventory();
     }
 

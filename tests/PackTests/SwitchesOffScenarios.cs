@@ -165,10 +165,12 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(Off("CreativeSteamSource"));
         Assert.True(On("BoilerLidBlowsOpen"));
         Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons", CreativeSteamSource.BlockCode)));
-        // The mod's other blocks are the bucking sawmill's, off here as well, and the inn flag and
-        // sign, which load with TravellingMerchants off too (a world may hold them).
+        // The mod's other blocks are the bucking sawmill's, off here as well, the inn flag and sign,
+        // which load with TravellingMerchants off too (a world may hold them), and the springs, which
+        // load with Springs off so that those in a world turn back into water.
         Assert.DoesNotContain(W.Blocks, b => b.Code?.Domain == "seraphhorizons"
-            && !b.Code.Path.StartsWith("innflag", StringComparison.Ordinal) && !b.Code.Path.StartsWith("innsign", StringComparison.Ordinal));
+            && !b.Code.Path.StartsWith("innflag", StringComparison.Ordinal) && !b.Code.Path.StartsWith("innsign", StringComparison.Ordinal)
+            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal));
     }
 
     /// <summary><c>DurableSawmillBlades</c>: Immersive Woodworking's blade kits keep their own
@@ -240,6 +242,26 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
         Assert.Equal(wood, lost);
         Assert.NotEmpty(Felling.TrunksNear(World, site));
+    }
+
+    /// <summary><c>WideDensityProspecting</c>: BetterEr Prospecting is not patched, and a density hit
+    /// is read where it lands, on the main thread, as it ships.</summary>
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task Wide_density_prospecting_off_density_mode_is_as_it_ships()
+    {
+        Assert.True(Off("WideDensityProspecting"));
+        Assert.False(SeraphHorizons.Mod.Ore.WideDensityProspectingSystem.Patched);
+        var betterEr = AppDomain.CurrentDomain.GetAssemblies().Single(a => a.GetName().Name == "BetterErProspecting");
+        var system = betterEr.GetType("BetterErProspecting.Prospecting.ProspectingSystem", true)!;
+        foreach (var name in new[] { "GenerateBlockData", "generateReadigs" })
+            Assert.DoesNotContain(Harmony.GetPatchInfo(AccessTools.Method(system, name))?.Owners ?? [],
+                o => o == SeraphHorizons.Mod.Ore.WideDensityProspectingSystem.HarmonyId);
+
+        var pick = await DensityPick.Join(World, "shippedpick", 0);
+        var at = pick.Underground();
+        int before = pick.Readings().Count;
+        Assert.Equal(pick.Setting<int>("NewDensityDmg"), pick.Hit(at));
+        Assert.Equal(before + 1, pick.Readings().Count);
     }
 
     /// <summary><c>PackVersionCheck</c>: nothing is read or compared, and nothing is logged about it
@@ -709,6 +731,35 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain("stainless large gear", Lang.GetL("en", "smex:bessemer-err-materials"));
     }
 
+    /// <summary><c>Springs</c>: nothing is patched (rivulets are the game's), the guide is hidden, and a
+    /// spring already in the world turns back into the source it replaced as it loads.</summary>
+    [AtlasScenario]
+    public async Task Springs_off_a_spring_turns_back_into_its_water()
+    {
+        Assert.True(Off("Springs"));
+        Assert.False(SeraphHorizons.Mod.Springs.SpringsSystem.On);
+        Assert.False(Harmony.HasAnyPatches(SeraphHorizons.Mod.Springs.SpringsSystem.HarmonyId));
+        Assert.Equal(0, SeraphHorizons.Mod.Springs.SpringsSystem.Hooked);
+        var hidden = ((ICoreServerAPI)World.Api).ObjectCache[WoodworkingGuide.HiddenGuidesKey] as IEnumerable<(string, string)>;
+        Assert.Contains(hidden ?? [], p => p.Item1 == SeraphHorizons.Mod.Springs.SpringsSystem.GuidePageCode);
+        foreach (var (code, water, dx) in new[] { ("waterspring-normal-granite", "game:water-still-7", 0), ("waterspring-rapid-basalt", "game:rapidwater-still-7", 3) })
+        {
+            var pos = World.Spawn.AddCopy(20 + dx, 12, -30);
+            Assert.NotNull(W.BlockAccessor.GetChunkAtBlockPos(pos));
+            // In a granite pocket, so the water it turns into stays put.
+            foreach (var facing in BlockFacing.ALLFACES)
+                World.SetBlock("game:rock-granite", pos.AddCopy(facing));
+            World.SetBlock("seraphhorizons:" + code, pos);
+            Assert.Equal("seraphhorizons:" + code, W.BlockAccessor.GetBlock(pos).Code.ToString());
+            await World.Until(() => W.BlockAccessor.GetBlock(pos, BlockLayersAccess.Solid).Id == 0, 5000);
+            Assert.Equal(0, W.BlockAccessor.GetBlock(pos, BlockLayersAccess.Solid).Id);
+            Assert.Equal(water, W.BlockAccessor.GetBlock(pos, BlockLayersAccess.Fluid).Code.ToString());
+            W.BlockAccessor.SetBlock(0, pos, BlockLayersAccess.Fluid);
+            foreach (var facing in BlockFacing.ALLFACES)
+                W.BlockAccessor.SetBlock(0, pos.AddCopy(facing));
+        }
+    }
+
     /// <summary><c>UnifiedPipes</c>: ppex's pipes are as it ships them (iron and steel, from plate and
     /// nails, iron and steel valves), nothing of ppex or exlib is patched, the game's chute section is
     /// copper alone and made on the anvil and from a plate again, and there is no angle, pipe section,
@@ -1080,7 +1131,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
         // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, spalling's, ore roasting's,
-        // liquation's and ore retorting's pages, whose switches are off here too).
+        // liquation's, ore retorting's and the springs' pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
                 .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
                 .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey))
@@ -1089,7 +1140,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuideTitle))
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuideTitleKey))
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuideTitleKey))
-                .Append((SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuidePage, SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuideTitleKey)).Order(),
+                .Append((SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuidePage, SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuideTitleKey))
+                .Append((SeraphHorizons.Mod.Springs.SpringsSystem.GuidePageCode, SeraphHorizons.Mod.Springs.SpringsSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
     }
 

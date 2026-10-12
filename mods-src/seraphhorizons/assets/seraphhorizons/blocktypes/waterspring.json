@@ -1,0 +1,57 @@
+// Springs (README "Springs", Springs/): a solid block of its host rock where the game's rivulet
+// generator placed a single water ("normal") or rapids ("rapid") source, a variant per rock the
+// game's own rock has (worldproperties block/rockwithdeposit, GeologyAdditions' rocks included).
+// It pours as that source did, feeds a ppex pipe coupled to it, fills containers with Hydrate or
+// Diedrate's fresh well water (whenFilled; plain water without Hydrate, set in code) and breaks
+// into what its rock does (in code: the rock's own drops). Registered whatever the Springs switch
+// says, so that springs already placed turn back into their source with it off.
+{
+	code: "waterspring",
+	class: "seraphhorizons.WaterSpring",
+	entityClass: "seraphhorizons.WaterSpring",
+	variantgroups: [
+		{ code: "kind", states: ["normal", "rapid"] },
+		{ code: "rock", loadFromProperties: "block/rockwithdeposit" }
+	],
+	creativeinventory: { "general": ["*"], "terrain": ["*"] },
+	shape: { base: "game:block/basic/cube" },
+	drawtype: "cube",
+	blockmaterial: "Stone",
+	replaceable: 90,
+	resistance: 8,
+	requiredMiningTier: 2,
+	fertility: 0,
+	sideopaque: { all: true },
+	sidesolid: { all: true },
+	textures: {
+		all: {
+			base: "game:block/stone/rock/{rock}1",
+			blendedOverlays: [{ base: "seraphhorizons:block/spring/seep-{kind}", blendMode: "Normal" }]
+		}
+	},
+	attributes: {
+		waterTightContainerProps: {
+			containable: true,
+			itemsPerLitre: 100,
+			whenFilled: { stack: { type: "item", code: "hydrateordiedrate:waterportion-fresh-well-clean" } }
+		},
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:springs-handbook-title", text: "seraphhorizons:springs-handbook-text" }
+			]
+		}
+	},
+	drops: [],
+	sounds: {
+		walk: "game:walk/stone",
+		byTool: {
+			"Pickaxe": { hit: "game:block/rock-hit-pickaxe", break: "game:block/rock-break-pickaxe" }
+		}
+	},
+	heldTpIdleAnimation: "holdbothhandslarge", heldRightReadyAnimation: "heldblockready", heldTpUseAnimation: "twohandplaceblock",
+	tpHandTransform: {
+		translation: { x: -1.23, y: -0.91, z: -0.8 },
+		rotation: { x: -2, y: 25, z: -78 },
+		scale: 0.4
+	}
+}

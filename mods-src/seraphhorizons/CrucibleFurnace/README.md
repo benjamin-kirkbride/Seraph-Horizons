@@ -64,7 +64,7 @@ the lid, are all that stands on it.
   every other furnace in a row sharing one chimney is.
 - **Furnaces stand in a row**, up to six side by side along their width (x), sharing walls: the side faces are flush,
   plain brickwork with nothing beyond the footprint (the binding is on the front and back only), so two furnaces'
-  side walls meet and touch nowhere else. A row of six is **18 blocks** long. The flues under the floor between them
+  side walls meet and touch nowhere else. A row of five is **15 blocks** long. The flues under the floor between them
   are implied, not modelled.
 
 **Footprint and cells.** The brickwork's 18 cells, and the 6 cells over its front two rows, **hollow**: the lid
@@ -82,7 +82,7 @@ and the damper face them, the stack and the outlet are behind.
 **Why 3 × 3 × 2.** As small as two pots, walls of about ten voxels, the lid's swing and the outlet allow:
 
 - **Three wide**: two pots side by side, with 2.7 of coke between each belly and its side wall and 5.4 between them,
-  need a hole 28 wide; with side walls of 10 that is 48 voxels, three blocks. A row of six is 18 blocks long.
+  need a hole 28 wide; with side walls of 10 that is 48 voxels, three blocks. A row of five is 15 blocks long.
 - **Three deep**: a front wall of 11, the hole's 14, then the back half of the middle row for the hinge, its stops
   and the open lid (to z 28.4), and the back row for the flue, the stack and the outlet, behind the lid's swing and
   centred behind the hole. The lid must open towards the back (the front is the melter's, the sides are the
@@ -193,12 +193,15 @@ offers Play, which opens and shuts the lid.
 
 ### The chimney
 
-Counted **from the outlet up**; the furnace's own stack base inside the block does not count. At least **six chimney
-blocks** (`MinChimneyHeight`, the rig's `furnace.minChimney`) stood on the outlet, so the chimney's top is at least 8
-blocks over the ground the furnace stands on; each block above six draws harder, up to eleven (#796). A chimney is a
-column of today's `ChimneyBlocks` (clay bricks, clay brick chimney, refractory bricks, stone bricks). smex's smoke
+Counted **from the outlet up**; the furnace's own stack base inside the block does not count. At least **six shaft
+blocks** (`MinChimneyHeight`, the rig's `furnace.minChimney`) stood on the outlet, so the shaft's top is at least 8
+blocks over the ground the furnace stands on; each block above six draws harder, up to eleven (#796). The shaft is a
+column of today's `ChimneyShaftBlocks` (full brick blocks: clay brick blocks, coloured brick courses, refractory brick
+blocks, stone brick blocks), and it must be topped with exactly one `ChimneyTopBlocks` block (the game's clay brick
+chimney, a slab with two chimney pots), which does not count toward the height. smex's smoke
 stack is not one here: it is a multiblock 3 × 3 across with its own course of bricks under its intake, and cannot
-stand on the outlet. The viewer's `chimney` line draws the six from the outlet (y 2 to 8), and a check holds it there.
+stand on the outlet. The viewer's `chimney` line draws the six shaft blocks from the outlet (y 2 to 8), and a check holds it there; the
+chimney top on them is not drawn.
 
 ## Model
 

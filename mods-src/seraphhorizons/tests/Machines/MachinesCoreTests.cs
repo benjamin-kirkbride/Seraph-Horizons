@@ -244,4 +244,32 @@ public class MachinesCoreTests
         Assert.Equal(1f, RigClasses.Parse(doc.RootElement.GetProperty("empty"), "gain", 1, mayBeEmpty: true)[3]);
         Assert.Throws<FormatException>(() => RigClasses.Parse(doc.RootElement.GetProperty("odd"), "amount", 0));
     }
+
+    // ---- world points far from the origin (#864) ----
+
+    [Theory]
+    [InlineData(Side.North)]
+    [InlineData(Side.East)]
+    [InlineData(Side.South)]
+    [InlineData(Side.West)]
+    public void A_native_point_round_trips_through_the_world_far_from_the_origin(Side facing)
+    {
+        var controller = new Int3(511_997, 110, -512_003);
+        var native = new Float3(-2.3f, 1.37f, 3.71f);
+
+        var world = Footprint.WorldPoint(controller, native, facing);
+        // the world point is the corner plus the float offset, kept in doubles: a float sum would
+        // land on a thirty-second of a block
+        var offset = Footprint.ToWorld(native, facing);
+        Assert.Equal(controller.X + (double)offset.X, world.X, 1e-4);
+        Assert.Equal(controller.Y + (double)offset.Y, world.Y, 1e-4);
+        Assert.Equal(controller.Z + (double)offset.Z, world.Z, 1e-4);
+
+        Near(native, Footprint.NativePoint(controller, world, facing));
+
+        // as a selection gives it: the block hit and the hit within it
+        var cell = new Int3((int)Math.Floor(world.X), (int)Math.Floor(world.Y), (int)Math.Floor(world.Z));
+        var hit = new Double3(world.X - cell.X, world.Y - cell.Y, world.Z - cell.Z);
+        Near(native, Footprint.NativePoint(controller, cell, hit, facing));
+    }
 }

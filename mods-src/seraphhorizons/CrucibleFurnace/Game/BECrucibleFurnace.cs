@@ -1,6 +1,7 @@
 using System.Text;
 using SeraphHorizons.Mod.Core;
 using SeraphHorizons.Mod.CrucibleFurnace.Core;
+using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
@@ -115,13 +116,8 @@ public class BECrucibleFurnace : BlockEntity
     }
 
     /// <summary>A native-frame point as a world position.</summary>
-    public Vec3d WorldPoint(Float3 native)
-    {
-        var w = Footprint.ToWorld(native, Side);
-        // in doubles: an int and a float add up to a float, which far from 0 (the world is about
-        // 512000 across) keeps only a thirty-second of a block
-        return new Vec3d(Pos.X + (double)w.X, Pos.Y + (double)w.Y, Pos.Z + (double)w.Z);
-    }
+    public Vec3d WorldPoint(Float3 native) =>
+        MachinePoints.WorldPoint(Pos, native, Side);
 
     /// <summary>A world position's cell in the native frame.</summary>
     public Int3 LocalCell(BlockPos cellPos) => Footprint.ToLocal(new Int3(cellPos.X - Pos.X, cellPos.Y - Pos.Y, cellPos.Z - Pos.Z), Side);
@@ -292,17 +288,15 @@ public class BECrucibleFurnace : BlockEntity
         MarkDirty();
     }
 
-    /// <summary>The chimney blocks standing on this furnace's outlet, counted from it up.</summary>
-    public int ChimneyOnOutlet()
+    /// <summary>The chimney standing on this furnace's outlet: its shaft, counted from the outlet up,
+    /// and its top.</summary>
+    public ChimneyColumn ChimneyOnOutlet()
     {
         if (Rig is not { } rig)
-            return 0;
+            return default;
         var ba = Api.World.BlockAccessor;
         var pos = CellPos(rig.ChimneyBase);
-        int n = 0;
-        while (n < FurnaceRow.ChimneyScan && Config.IsChimneyBlock(ba.GetBlock(pos.UpCopy(n))?.Code?.ToString()))
-            n++;
-        return n;
+        return ChimneyColumn.Measure(n => ba.GetBlock(pos.UpCopy(n))?.Code?.ToString(), Config);
     }
 
     /// <summary>The controller of the furnace <paramref name="k"/> widths along the row (native +x), or null.</summary>
@@ -334,8 +328,9 @@ public class BECrucibleFurnace : BlockEntity
     {
         if (row.ChimneyAt is not { } c || Rig is not { } rig || (c == 0 ? this : Neighbour(c)) is not { } owner)
             return null;
+        // over the chimney top, which stands on the shaft: its pots rise to 12 voxels
         var b = owner.CellPos(rig.ChimneyBase);
-        return new Vec3d(b.X + 0.5, b.Y + row.ChimneyHeight, b.Z + 0.5);
+        return new Vec3d(b.X + 0.5, b.Y + row.ChimneyHeight + 0.75, b.Z + 0.5);
     }
 
     // ---- Interaction ----
@@ -362,8 +357,7 @@ public class BECrucibleFurnace : BlockEntity
         bool server = Api.Side == EnumAppSide.Server;
         var cell = LocalCell(sel.Position);
         var hit = sel.HitPosition ?? new Vec3d(0.5, 0.5, 0.5);
-        var native = Footprint.ToLocal(new Float3((float)(sel.Position.X - Pos.X + hit.X), (float)(sel.Position.Y - Pos.Y + hit.Y),
-            (float)(sel.Position.Z - Pos.Z + hit.Z)), Side);
+        var native = MachinePoints.NativeHit(Pos, sel.Position, hit, Side);
 
         if (CreativeShortcutApplies(byPlayer))
         {
@@ -973,11 +967,13 @@ public class BECrucibleFurnace : BlockEntity
             RowProblem.NoChimney => Line(_capped && row.Count == 1 ? "draught-capped" : "draught-none", c.MinChimneyHeight),
             RowProblem.OutletOpen => Line("draught-open", Where(row.OpenOutlet ?? 0), chimney),
             RowProblem.ChimneyTooShort => Line("draught-short", row.ChimneyHeight, c.MinChimneyHeight),
+            RowProblem.NoChimneyTop => Line("draught-notop", row.ChimneyHeight),
+            RowProblem.ChimneyTopBuried => Line("draught-buried", row.ChimneyHeight),
             _ => _draught is { } d
                 ? Line(d.Height > c.MaxChimneyHeight ? "draught-max" : "draught", d.Height, (int)Math.Round(FurnaceHeat.HeatingRate(d, _damper, c)), (int)Math.Round(d.MaxTemperature), c.MaxChimneyHeight)
                 : Line("draught-none", c.MinChimneyHeight),
         });
-        if (members.Length > 0 && row.Problem is RowProblem.None or RowProblem.ChimneyTooShort)
+        if (members.Length > 0 && row.Problem is RowProblem.None or RowProblem.ChimneyTooShort or RowProblem.NoChimneyTop or RowProblem.ChimneyTopBuried)
             dsc.AppendLine(members);
     }
 

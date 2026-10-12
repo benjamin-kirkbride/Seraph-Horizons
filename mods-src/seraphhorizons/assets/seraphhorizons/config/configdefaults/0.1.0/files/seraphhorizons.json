@@ -30,6 +30,7 @@
   "UnifiedWoodworking": true,
   "CreativeKeepsPlace": true,
   "SearchRightClickClears": true,
+  "HandbookKeepsPlace": true,
   "BuckingSawmill": true,
   "BuckingSawmillSettings": {
     "Resistance": 0.17,
@@ -95,6 +96,7 @@
   "SupplySpreadFraction": 0.1,
   "PlacerFields": true,
   "PlacerCellSizeMetres": 1500,
+  "WideDensityProspecting": true,
   "OreProcessing": true,
   "SpallingSettings": {
     "BlowsRawOre": 6,
@@ -282,7 +284,7 @@
     "BlowsPerHollowCopper": 14,
     "BaseHammerTier": 2,
     "HammerWearPerBlow": 1,
-    "TurnsPerRod": 4.0,
+    "TurnsPerRod": 8.0,
     "TongsWearPerRod": 1
   },
   "MandrelSprings": true,
@@ -393,16 +395,19 @@
     "LidOpenCoolingPerHour": 600.0,
     "MinChimneyHeight": 6,
     "MaxChimneyHeight": 11,
-    "MaxFurnacesInRow": 6,
+    "MaxFurnacesInRow": 5,
     "DamperHalfHeating": 0.5,
     "DamperHalfBurn": 0.6,
     "DamperShutBurn": 0.25,
     "DamperShutCooling": 0.25,
-    "ChimneyBlocks": [
+    "ChimneyShaftBlocks": [
       "game:claybricks-*",
-      "game:claybrickchimney-*",
+      "game:brickcourse-*",
       "game:refractorybricks-*",
       "game:stonebricks-*"
+    ],
+    "ChimneyTopBlocks": [
+      "game:claybrickchimney-*"
     ],
     "LargeCastingMetals": [
       "game:ingot-iron"
@@ -436,5 +441,10 @@
     "IronBurstPressure": 5.0,
     "SteelBurstPressure": 10.0,
     "BronzeBurstPressure": 5.0
+  },
+  "Springs": true,
+  "SpringsSettings": {
+    "NormalLitresPerSecond": 4.0,
+    "RapidLitresPerSecond": 10.0
   }
 }
