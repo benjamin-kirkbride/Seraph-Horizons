@@ -4229,6 +4229,33 @@
       }
     },
     {
+      "id": "ghostchunks",
+      "version": "1.6.7",
+      "assetId": 71152,
+      "releaseId": 60756,
+      "fileId": 129204,
+      "fileName": "GhostChunks.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/GhostChunks_fe04987e027fbd50129e265c26e66ddd.zip?dl=GhostChunks.zip",
+      "sha256": "17f79b94c3efd462197e5d3b34e404f12828ec72ad21cae39e773cb664556e63",
+      "size": 195642,
+      "side": "universal",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0",
+        "1.22.1",
+        "1.22.2",
+        "1.22.3",
+        "1.22.4",
+        "1.22.5",
+        "1.22.6",
+        "1.22.7"
+      ],
+      "dependencies": {
+        "game": "1.22.0"
+      }
+    },
+    {
       "id": "allowedvariantsfix",
       "version": "1.0.1",
       "assetId": 71427,
