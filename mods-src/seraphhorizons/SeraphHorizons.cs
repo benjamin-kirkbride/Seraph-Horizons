@@ -21,8 +21,8 @@ namespace SeraphHorizons.Mod;
 /// ModConfig/seraphhorizons.json, and skipped with a log line when the mod it changes is not
 /// installed or no longer looks as expected. This system applies its own patches explicitly
 /// (never PatchAll). Tidy Variants (TidyVariants/), Map Reveal (MapReveal/), the creative mod
-/// tabs (CreativeModTabs/), the creative search tweaks (CreativeSearch/), the machines and trunk
-/// entities (TrunkEntities/) have their own mod systems, which read their switch through
+/// tabs (CreativeModTabs/), the creative search tweaks (CreativeSearch/), the handbook's kept
+/// place (HandbookPlace/), the machines and trunk entities (TrunkEntities/) have their own mod systems, which read their switch through
 /// <see cref="ConfigFor"/>.
 /// </summary>
 public class SeraphHorizonsSystem : ModSystem
@@ -515,6 +515,13 @@ public class SeraphHorizonsConfig
     /// <summary>A right-click on the creative inventory's search box, or the handbook's, empties it
     /// and leaves it focused for typing (client side; off means a right-click only focuses it).</summary>
     public bool SearchRightClickClears { get; set; } = true;
+
+    /// <summary>Handbook: reopening it puts back the page it was on (with that page's scroll), the
+    /// browse history behind it for Back, the list's search text and its scroll, as they were when it
+    /// was closed, in the same session; opening it onto an item or a link still shows that item or
+    /// link, on top (client side; off means it reopens on the whole list at the top with no history,
+    /// as vanilla does).</summary>
+    public bool HandbookKeepsPlace { get; set; } = true;
 
     /// <summary>The bucking sawmill: a mechanically powered pair of drag saws, built from a frame
     /// and Immersive Woodworking's sawmill parts, that cross-cuts Logging Expanded tree trunks into

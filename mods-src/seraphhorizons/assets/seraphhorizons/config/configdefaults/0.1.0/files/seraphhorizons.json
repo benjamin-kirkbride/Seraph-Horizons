@@ -30,6 +30,7 @@
   "UnifiedWoodworking": true,
   "CreativeKeepsPlace": true,
   "SearchRightClickClears": true,
+  "HandbookKeepsPlace": true,
   "BuckingSawmill": true,
   "BuckingSawmillSettings": {
     "Resistance": 0.17,
