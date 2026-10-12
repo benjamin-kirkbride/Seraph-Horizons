@@ -193,12 +193,15 @@ offers Play, which opens and shuts the lid.
 
 ### The chimney
 
-Counted **from the outlet up**; the furnace's own stack base inside the block does not count. At least **six chimney
-blocks** (`MinChimneyHeight`, the rig's `furnace.minChimney`) stood on the outlet, so the chimney's top is at least 8
-blocks over the ground the furnace stands on; each block above six draws harder, up to eleven (#796). A chimney is a
-column of today's `ChimneyBlocks` (clay bricks, clay brick chimney, refractory bricks, stone bricks). smex's smoke
+Counted **from the outlet up**; the furnace's own stack base inside the block does not count. At least **six shaft
+blocks** (`MinChimneyHeight`, the rig's `furnace.minChimney`) stood on the outlet, so the shaft's top is at least 8
+blocks over the ground the furnace stands on; each block above six draws harder, up to eleven (#796). The shaft is a
+column of today's `ChimneyShaftBlocks` (full brick blocks: clay brick blocks, coloured brick courses, refractory brick
+blocks, stone brick blocks), and it must be topped with exactly one `ChimneyTopBlocks` block (the game's clay brick
+chimney, a slab with two chimney pots), which does not count toward the height. smex's smoke
 stack is not one here: it is a multiblock 3 × 3 across with its own course of bricks under its intake, and cannot
-stand on the outlet. The viewer's `chimney` line draws the six from the outlet (y 2 to 8), and a check holds it there.
+stand on the outlet. The viewer's `chimney` line draws the six shaft blocks from the outlet (y 2 to 8), and a check holds it there; the
+chimney top on them is not drawn.
 
 ## Model
 
