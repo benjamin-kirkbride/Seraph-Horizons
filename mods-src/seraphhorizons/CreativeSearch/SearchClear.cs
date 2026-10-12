@@ -5,15 +5,16 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.CreativeSearch;
 
 /// <summary>
-/// A right-click on the creative inventory's search box, or the handbook's, empties it (client main thread only).
+/// A right-click on the creative inventory's search box, the handbook's, or the recipe selector's (with
+/// <c>RecipeSelectorSearch</c> on), empties it (client main thread only).
 /// Emptying goes through the box's own <c>SetValue("")</c>, so the dialog's search runs as for typing: the creative
 /// grid shows the whole tab again (Tidy Variants regrouping it) and the handbook its whole list.
 ///
 /// Focus is the game's: a press the box takes is marked handled by the element, and the composer then focuses
 /// it, whatever the button (vanilla already focuses the box on a right-click, it just does nothing else). So the
 /// player can type straight away. Every other text box (chat, signs, the handbook's detail pages, other mods'
-/// dialogs) is left alone: the box must be the creative composer's <c>"searchbox"</c> or the handbook overview's
-/// <c>"searchField"</c> in a dialog that is open.
+/// dialogs) is left alone: the box must be the creative composer's <c>"searchbox"</c>, the handbook overview's
+/// <c>"searchField"</c> or the recipe selector's own box in a dialog that is open.
 /// </summary>
 internal static class SearchClear
 {
@@ -64,6 +65,9 @@ internal static class SearchClear
                 foreach (var composer in dialog.Composers.Values)
                     if (composer?.DialogName == HandbookComposer && ReferenceEquals(composer.GetTextInput(HandbookBox), box))
                         return true;
+            // The recipe selector's box, when Recipe selector search composed it (RecipeSelector/).
+            if (RecipeSelector.Game.SearchableSelector.IsSearchBox(dialog, box))
+                return true;
         }
         return false;
     }
