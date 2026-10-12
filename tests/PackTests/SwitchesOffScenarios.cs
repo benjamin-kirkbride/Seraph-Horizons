@@ -244,6 +244,26 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.NotEmpty(Felling.TrunksNear(World, site));
     }
 
+    /// <summary><c>WideDensityProspecting</c>: BetterEr Prospecting is not patched, and a density hit
+    /// is read where it lands, on the main thread, as it ships.</summary>
+    [AtlasScenario(TimeoutMs = 180_000)]
+    public async Task Wide_density_prospecting_off_density_mode_is_as_it_ships()
+    {
+        Assert.True(Off("WideDensityProspecting"));
+        Assert.False(SeraphHorizons.Mod.Ore.WideDensityProspectingSystem.Patched);
+        var betterEr = AppDomain.CurrentDomain.GetAssemblies().Single(a => a.GetName().Name == "BetterErProspecting");
+        var system = betterEr.GetType("BetterErProspecting.Prospecting.ProspectingSystem", true)!;
+        foreach (var name in new[] { "GenerateBlockData", "generateReadigs" })
+            Assert.DoesNotContain(Harmony.GetPatchInfo(AccessTools.Method(system, name))?.Owners ?? [],
+                o => o == SeraphHorizons.Mod.Ore.WideDensityProspectingSystem.HarmonyId);
+
+        var pick = await DensityPick.Join(World, "shippedpick", 0);
+        var at = pick.Underground();
+        int before = pick.Readings().Count;
+        Assert.Equal(pick.Setting<int>("NewDensityDmg"), pick.Hit(at));
+        Assert.Equal(before + 1, pick.Readings().Count);
+    }
+
     /// <summary><c>PackVersionCheck</c>: nothing is read or compared, and nothing is logged about it
     /// but the line that says it is off.</summary>
     [AtlasScenario]
