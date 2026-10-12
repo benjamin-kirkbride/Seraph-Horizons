@@ -3184,14 +3184,15 @@ left and how many were out of its reach, walks back to where it was ordered (if 
 short, stuck or off an edge, it sets off again, up to 3 times) and the order ends. Self-defence, a slump or a dry reservoir interrupts it; it starts again by looking afresh
 (done, it goes on back). `MineOrder.HasWorkLeft` holds until it has told its owner it is done, and its
 area is its `WorkAreas`. It is not part of the crew order. Several given the same area work it as one
-job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs` and
+job, with one report (below). Tests: `tests/Eidolon/EidolonMiningTests.cs`,
 `tests/PackTests/EidolonMineScenarios.cs` (Atlas: the granite pit; an 8 × 8 soil layer, its
 middle out of reach from the rim, with a worn Desire Paths path across it all mined and a chest left;
-a dry reservoir; a tunnel 2 wide, 4 high and 8 long into a granite hillside,
+a dry reservoir), `tests/PackTests/EidolonTunnelScenarios.cs` (Atlas: a tunnel 2 wide, 4 high and 8 long into a granite hillside,
 refused three high as it is marked, driven in from its open face a slice at a time, each slice's top
 half before its bottom half, all mined, none out of reach, no slam at nothing, and walked back out; a
 tunnel 6 high benched, its top heading driven from a ledge in front of the cliff, then the lower one
-from the floor at the cliff's foot, and out by the lower mouth),
+from the floor at the cliff's foot, and out by the lower mouth; two driving a tunnel 4 wide, a 2-wide
+heading each, side by side),
 and `tests/Eidolon/EidolonTunnelsTests.cs` (covered and open, the refusals, the open face and the
 nearest, the face's order, benching and each heading's own face at its level, the headings).
 
@@ -3284,14 +3285,15 @@ back with no report of its own, so nothing is counted twice; an order given anew
 mates saved) makes a new job. Reservations are not saved, and the shares after a restart count from then. Chunks, oil and
 the strike's timing stay each eidolon's own. Tests: `tests/Eidolon/EidolonTeamworkTests.cs` and
 `tests/Eidolon/MineSectorsTests.cs` (the split, the least width, the grid, who gets which, splitting afresh,
-the steal) and `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two driving a tunnel 4 wide into a
-hillside, a 2-wide heading each, side by side and never closer than their boxes, each striking only in its
-own, one report; two of one owner sharing a pit, never holding the
-same square, the floors within a climb, one report with both shares, each back to its place; three on a
+the steal), `tests/PackTests/EidolonTeamMineScenarios.cs` (Atlas: two of one owner sharing a pit 8 × 4,
+a sector each, never holding the same square, the floors within a climb, one report with both shares,
+each back to its place; one ordered later joining the job running; one whose sector is mined out
+stealing the far half of another's), `tests/PackTests/EidolonSectorScenarios.cs` (Atlas: three on a
 16 × 3 × 12 area each breaking only in its sector, on average 5 or more apart, never overlapping, the floors
-within a climb, no slam at nothing, one report; one whose sector is mined out stealing the far half of
-another's; two ordered head on across each other's way walking round each other and both arriving; one
-ordered later joining the job running) and `tests/PackTests/EidolonTeamWaitScenarios.cs` (Atlas: an
+within a climb, no slam at nothing, one report; two ordered head on across each other's way walking round
+each other and both arriving), `tests/PackTests/EidolonTunnelScenarios.cs` (Atlas: two driving a tunnel 4
+wide into a hillside, a 2-wide heading each, side by side and never closer than their boxes, each striking
+only in its own, one report) and `tests/PackTests/EidolonTeamWaitScenarios.cs` (Atlas: an
 eidolon with no order standing in the area never mined out from under, waited for, and its squares mined
 once it moves, no pillar left; one dry when the job is reported going back once oiled with no report of
 its own; one with no square free waiting at the rim).
@@ -3635,9 +3637,10 @@ it falls) and `tests/PackTests/EidolonMineScenarios.cs` (Atlas) orders it
 with the tool over a pit three layers deep in granite with no ramp: it mines every block top down,
 never under its box, the granite's drops lying in the world, half a point of oil a strike, leaves a block
 touching water and a chest with the column under it, down to its floor, and climbs out two blocks onto a
-shelf beside it and walks back to where it was ordered; a dry reservoir stops it until oiled; it drives
-a tunnel into a hillside from its open face, a face at a time; and it benches a tunnel 6 high, a heading
-at a time, each from its own face, out by the lower mouth;
+shelf beside it and walks back to where it was ordered; and a dry reservoir stops it until oiled;
+`tests/PackTests/EidolonTunnelScenarios.cs` (Atlas) has it drive a tunnel into a hillside from its open
+face, a face at a time, and bench a tunnel 6 high, a heading at a time, each from its own face, out by the
+lower mouth;
 `tests/Eidolon/EidolonTunnelsTests.cs` covers tunnels (covered and open, the refusals, the open face,
 the face's order, benching and each heading's own face, the headings);
 `tests/Eidolon/EidolonCrewTests.cs` covers which trunk is a felled tree's and the crew's timings, and
