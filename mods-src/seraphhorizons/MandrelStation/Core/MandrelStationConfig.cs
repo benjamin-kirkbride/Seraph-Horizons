@@ -26,7 +26,7 @@ public class MandrelStationConfig
 
     /// <summary>Turns of the held winding clock (a turn a second) a steel rod takes to wind into a
     /// spring: the rig's <c>wind.turnsPerRod</c>.</summary>
-    public double TurnsPerRod { get; set; } = 4;
+    public double TurnsPerRod { get; set; } = 8;
 
     /// <summary>Durability the tongs lose a spring wound.</summary>
     public int TongsWearPerRod { get; set; } = 1;
