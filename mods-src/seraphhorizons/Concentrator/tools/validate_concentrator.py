@@ -144,6 +144,7 @@ ROLES = [
     (r"^fr_(post|sill|plate|tie|brace|ln_block|cl_block|pt_block)", {"oak"}),
     (r"^fr_(ln|lsl|cl|pt|tb)_(floor|side|end|head|foot|spout$|[nsew]\d?$|sill|weir|lip)", {"planks"}),
     (r"^fr_feed_(floor|[nsew]$|spout)", {"planks"}),
+    (r"^ch_wall", {"chute"}),
     (r"^fr_(feed_strap|pipe_(strap|hangrod|hanger)|tb_spigot)", {"iron"}),
     (r"^fr_pipe_post", {"oak"}),
     # the water line, in each metal: the pipe in its metal's texture, the joints and the cap in solder
@@ -268,14 +269,29 @@ def check_anchors(v):
               f"{section[1]:.0f} tube on (x {centre[0]}, y {centre[1]})")
         if not centre_ok or ilo[2] > 1e-6 or section != (6.0, 6.0) or centre != (wx, wy):
             v.fail(f"{pid}'s inlet does not meet a ppex pipe end to end on the water face's centre")
-    feed = v.named("frame", r"^fr_feed_n$")[0]
-    nlo, nhi = feed.aabb()
     fc = m.FEED_CELL
-    print(f"anchors: feed cell {fc} {rig['feedFace']}: the feed box's north wall at z {nlo[2]:.2f}, its top {nhi[1]:.1f} "
-          f"(a chute pours in over it), x {nlo[0]:.1f}..{nhi[0]:.1f}")
-    if nlo[2] > 1.0 or not (fc[0] * 16 <= nlo[0] and nhi[0] <= fc[0] * 16 + 16 and fc[1] * 16 <= nhi[1] <= fc[1] * 16 + 16) \
-            or rig["feedFace"] != "north":
-        v.fail("the feed box does not take a chute through the feed cell's face")
+    # the infeed: vanilla's chute at the top face, its profile exactly the game's, so a chute above meets it
+    prof, tops = m.chute_profile(v.els)
+    want = m.vanilla_profile()
+    tex = {f["texture"] for e in v.by_part["infeed"] for f in e.faces.values()}
+    print(f"anchors: feed cell {list(fc)} {rig['feedFace']}: the infeed's walls at the top face {prof}, the game's upright chute "
+          f"{want}; their tops at {sorted(tops)}; texture {m.TEXTURES['chute']}")
+    if prof != want or tops != {(fc[1] + 1) * 16.0} or rig["feedFace"] != "up" or tex != {"#chute"} \
+            or m.TEXTURES["chute"] != m.VANILLA_CHUTE["texture"]:
+        v.fail("the infeed is not vanilla's chute section at the feed cell's top face")
+    game = m.read_vanilla_chute()
+    if game is None:
+        print("anchors: the game's chute shape is not here; VANILLA_CHUTE is held to it where it is")
+    else:
+        walls, runs, gtex = game
+        ok = walls == sorted(m.VANILLA_CHUTE["walls"]) and runs == {(0.0, 16.0)} and gtex == m.VANILLA_CHUTE["texture"]
+        print(f"anchors: the game's {m.VANILLA_CHUTE['shape']}: walls {walls} the length of the block, texture {gtex}")
+        if not ok:
+            v.fail("VANILLA_CHUTE is not the game's straight chute")
+    hlo, hhi = aabb_of(v.named("frame", r"^fr_feed_[nsew]$"))
+    if not (hlo[0] < fc[0] * 16 + 4 and hhi[0] > fc[0] * 16 + 12 and hlo[2] < fc[2] * 16 + 4 and hhi[2] > fc[2] * 16 + 12
+            and hlo[1] < m.CHUTE_Y0 < hhi[1]):
+        v.fail("the hopper does not take the infeed chute's foot in its mouth")
     if len({tuple(pc), tuple(wc), tuple(fc)}) != 3:
         v.fail("the power, water and feed cells must differ")
     c = rig["concentrate"]["pos"]
@@ -341,11 +357,12 @@ def flows(v):
     m = v.m
     out = []
     fx, fy, fz = m.FEED_LIP
-    feed = [fx, fy - 0.05, fz - 0.3]
+    feed = [fx, fy - 0.05, fz]
     wx, wy, wz = m.WATER_LIP
     water = [wx, wy - 0.05, wz]
     rest = lambda st: [(0.0, st)]                                   # noqa: E731
     shake = lambda st: [(a, st) for a in (0.0, 1.1, 2.6, 3.9, 5.2)]  # noqa: E731
+    out.append(("the infeed chute into the hopper", [5.5, m.CHUTE_Y0 - 0.05, 5.5], r"^fr_feed_floor", rest("level3")))
     out += [("feed onto the sluice's head", feed, r"^sl_floor$", rest("level1")),
             ("water onto the sluice's head", water, r"^sl_floor$", rest("level1")),
             ("the sluice's tail", [m.SL_X[1] + 0.1, m.sl_floor(m.SL_X[1]) - 0.2, sum(m.SL_Z) / 2], r"^fr_ln_floor$", rest("level1"))]

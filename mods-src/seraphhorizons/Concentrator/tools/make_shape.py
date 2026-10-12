@@ -96,15 +96,15 @@ X_LEN, Y_LEN, Z_LEN = CELLS_X * B, CELLS_Y * B, CELLS_Z * B
 ORIGIN_CELL = (0, 0, 0)                      # the controller: the north-west corner, under the feed box
 POWER_CELL, POWER_FACE = (0, 1, 1), "west"   # the vanilla axle comes in along x at (y 24, z 24)
 WATER_CELL, WATER_FACE = (1, 1, 0), "north"  # a ppex pipe meets the inlet at (x 24, y 24) on the north face
-FEED_CELL, FEED_FACE = (0, 1, 0), "north"    # a chute pours into the feed box through the north face
+FEED_CELL, FEED_FACE = (0, 1, 0), "up"       # a vanilla chute from above meets the infeed section at the top face
 
 LEVELS = (                                   # (level, tier, what it fits, its name)
     (1, "water", ("sluice",), "riffled sluice"),
     (2, "water", ("lineshaft", "jig"), "line shaft and Hartz jig (the sluice taken out)"),
-    (3, "mill", ("lineshaft", "jig", "table"), "jig and shaking table"),
-    (4, "mill", ("lineshaft", "jig", "table", "vanner"), "jig, table and vanner (water recirculated: a gameplay rule)"),
+    (3, "mill", ("lineshaft", "jig", "table", "infeed"), "jig and shaking table, chute-fed"),
+    (4, "mill", ("lineshaft", "jig", "table", "infeed", "vanner"), "jig, table and vanner, chute-fed (water recirculated: a gameplay rule)"),
 )
-REQUIRES = ("sluice", "lineshaft", "jig", "table", "vanner")
+REQUIRES = ("sluice", "lineshaft", "jig", "table", "infeed", "vanner")
 PLATES = ("plates", "dressing")              # the amalgamation plates and their mercury dressing
 PLATES_FROM = 2
 PIPE_METALS = ("copper", "lead")             # the water line's metals: one part each, the supplied one drawn
@@ -120,6 +120,7 @@ TEXTURES = {
     "pipecopper": "game:block/metal/sheet-plain/copper4",   # the water line in copper (UnifiedPipes' copper pipe)
     "pipelead": "game:block/metal/sheet-plain/lead4",       # ... in lead (UnifiedPipes' lead pipe)
     "solder": solderedpipe.SOLDER_TEXTURE,         # the pipes' joints
+    "chute": "game:block/metal/sheet/copper1",     # the infeed: vanilla's chute, as a placed chute shows in the pack
     "copper": "game:block/metal/sheet-plain/copper1",  # the amalgamation plates, bare
     "mercury": "seraphhorizons:block/liquid/mercury",  # their dressing (the amalgam pan's mercury texture)
 }
@@ -151,21 +152,33 @@ VPULLEY_X = (17.6, 19.0)                     # the vanner's drive pulley on the 
 VPULLEY_R = 3.0
 
 # ---------------------------------------------------------------- the fixed points (the frame's)
-# the feed box: against the north wall under the plate, a spout south to the head of the line
-FB_X = (4.0, 12.0)
-FB_Z = (0.3, 7.7)
-FB_Y = (25.5, 29.0)
-FS_X = (6.0, 10.0)                           # its spout trough
-FS_Z = (7.7, 11.5)
-FS_Y = 25.0                                  # the spout's floor's underside; its floor's top is 25.6
-FEED_LIP = (8.0, FS_Y, FS_Z[1])              # where the feed falls from, onto the sluice's head or the jig's sieve
+# the feed: a hopper in the feed cell, open at the top (the player tips the ore in at the water levels), its
+# spout over the head of the line; at the mill levels a vanilla chute section comes down into it through the
+# cell's top face, where a chute line above meets it
+VANILLA_CHUTE = {                            # game 1.22.7, shapes/block/metal/chute/straight.json (the "we" shape):
+    "walls": ((4.0, 12.0, 4.0, 5.0),         # its walls across the run, (a0, a1, b0, b1) cell-local over the two
+              (4.0, 12.0, 11.0, 12.0),       # axes across it: two full-width walls, two between them; 1 thick,
+              (4.0, 5.0, 5.0, 11.0),         # an 8 x 8 tube centred in the block (its block's 4..12), a 6 x 6
+              (11.0, 12.0, 5.0, 11.0)),      # bore. Its "ud" variant is the same turned upright (rotateZ 90)
+    "texture": "game:block/metal/sheet/copper1",
+    "shape": "shapes/block/metal/chute/straight.json",
+}
+CHUTE_Y0 = 27.0                              # the infeed section: from the top face down to here, into the hopper's mouth
+HOP_X = (3.3, 12.7)                          # the hopper, outside: its walls' inner faces on the chute's outer ones
+HOP_Z = (3.3, 12.7)
+HOP_Y = (24.6, 28.4)                         # its floor's underside and its walls' top
+HOP_T = 0.7
+HOP_HOLE = (6.5, 9.5)                        # the hole in its floor (x and z), and the spout under it
+SPOUT_Y0 = 23.2                              # the spout's mouth
+FEED_LIP = (8.0, SPOUT_Y0, 8.0)              # where the feed falls from, onto the sluice's head or the jig's sieve
 # the water line: ppex's straight pipe, soldered (solderedpipe: a square tube 6 across round a 4 x 4 bore).
 # The inlet runs south from the water face to a tee; west from it to the head of the line, east along the
 # house and down under the line shaft, then south to the vanner; a nozzle under each outlet.
 PIPE_HALF = solderedpipe.HALF                # 3: ppex's pipe is 6 across
 WATER_IN = (24.0, 24.0)                      # (x, y): the inlet's axis on the water cell's north face
 TEE_Z = 13.0                                 # the tee, where the inlet meets the cross line
-HEAD_OUT_X = 14.0                            # the head of the line's outlet (the sluice's head, the jig's sieve)
+HEAD_OUT_X = 15.8                            # the head of the line's closed hub, east of the hopper ...
+HEAD_NOZZLE_X = 15.0                         # ... and its nozzle (the sluice's head, the jig's sieve)
 TABLE_OUT_Z = 14.9                           # the table's nozzle, under the tee, over its water launder
 VAN_X = 45.5                                 # the vanner's branch: down at x 45.5 ...
 VAN_Y = 16.5                                 # ... to run south under the line shaft at y 16.5 ...
@@ -173,7 +186,7 @@ VAN_Z1 = 41.1                                # ... to its capped end over the be
 VAN_SEAM = 30.0                              # the seam (a joint) between its two lengths
 VAN_NOZZLES_Z = (36.0, 37.5, 39.0)           # its nozzles over the belt, inside its raised edges
 NOZZLE_Y = 1.0                               # a nozzle hangs this far under its pipe
-WATER_LIP = (HEAD_OUT_X, WATER_IN[1] - PIPE_HALF - NOZZLE_Y, TEE_Z)   # the head of the line's nozzle's mouth
+WATER_LIP = (HEAD_NOZZLE_X, WATER_IN[1] - PIPE_HALF - NOZZLE_Y, TEE_Z)   # the head of the line's nozzle's mouth
 # the tailings: launder N (the north side) and launder S (the south side) into the tail box at the east end
 LN_X = (18.0, 55.8)
 LN_Z = (8.5, 15.5)
@@ -580,29 +593,87 @@ def build_timbers():
 
 
 def build_feed():
-    """The feed box against the north wall, hung under the plate: its walls, floor and a spout south to
-    the head of the line (the sluice's head, then the jig's sieve). A chute from outside pours in through
-    the north face over its north wall; at the water levels the player tips the ore in."""
+    """The hopper in the feed cell, open at the top: four plank walls, a floor round a square hole and a
+    short square spout under it, pouring onto the head of the line (the sluice's head, then the jig's
+    sieve); hung by iron straps from the north plate and the west tie beam. The player tips the ore in at
+    the water levels; at the mill levels the infeed chute comes down into it."""
     f = "frame"
-    x0, x1 = FB_X
-    z0, z1 = FB_Z
-    y0, y1 = FB_Y
-    t = 0.8
-    out = [box([x0, y0, z0], [x1, y0 + t, z1], "fr_feed_floor", f, "planks"),
-           box([x0, y0 + t, z0], [x1, y1 - 1.5, z0 + t], "fr_feed_n", f, "planks"),      # low: the chute comes in over it
-           box([x0, y0 + t, z1 - t], [x1, y1, z1], "fr_feed_s", f, "planks"),
-           box([x0, y0 + t, z0 + t], [x0 + t, y1, z1 - t], "fr_feed_w", f, "planks"),
-           box([x1 - t, y0 + t, z0 + t], [x1, y1, z1 - t], "fr_feed_e", f, "planks")]
-    # the hangers: iron straps from the north plate's underside down the box's ends
-    for i, x in enumerate((x0 - 0.6, x1), 1):
-        out.append(box([x, y0, z0], [x + 0.6, PLATE_Y[0], z0 + 2.4], f"fr_feed_strap{i}", f, "iron"))
-    # the spout: a short trough from a hole in the south wall
-    sx0, sx1 = FS_X
-    sz0, sz1 = FS_Z
-    out += [box([sx0 + 0.6, FS_Y, sz0], [sx1 - 0.6, FS_Y + 0.6, sz1], "fr_feed_spout_floor", f, "planks"),
-            box([sx0, FS_Y, sz0], [sx0 + 0.6, FS_Y + 1.6, sz1], "fr_feed_spout_w", f, "planks"),
-            box([sx1 - 0.6, FS_Y, sz0], [sx1, FS_Y + 1.6, sz1], "fr_feed_spout_e", f, "planks")]
+    x0, x1 = HOP_X
+    z0, z1 = HOP_Z
+    y0, y1 = HOP_Y
+    t = HOP_T
+    h0, h1 = HOP_HOLE
+    fy = y0 + 0.6
+    out = [box([x0, y0, z0], [x1, y1, z0 + t], "fr_feed_n", f, "planks"),
+           box([x0, y0, z1 - t], [x1, y1, z1], "fr_feed_s", f, "planks"),
+           box([x0, y0, z0 + t], [x0 + t, y1, z1 - t], "fr_feed_w", f, "planks"),
+           box([x1 - t, y0, z0 + t], [x1, y1, z1 - t], "fr_feed_e", f, "planks"),
+           box([x0 + t, y0, z0 + t], [x1 - t, fy, h0], "fr_feed_floor1", f, "planks"),
+           box([x0 + t, y0, h1], [x1 - t, fy, z1 - t], "fr_feed_floor2", f, "planks"),
+           box([x0 + t, y0, h0], [h0, fy, h1], "fr_feed_floor3", f, "planks"),
+           box([h1, y0, h0], [x1 - t, fy, h1], "fr_feed_floor4", f, "planks")]
+    st = 0.6                                     # the spout's walls round the hole, under the floor's edges
+    out += [box([h0 - st, SPOUT_Y0, h0 - st], [h1 + st, y0, h0], "fr_feed_spout_n", f, "planks"),
+            box([h0 - st, SPOUT_Y0, h1], [h1 + st, y0, h1 + st], "fr_feed_spout_s", f, "planks"),
+            box([h0 - st, SPOUT_Y0, h0], [h0, y0, h1], "fr_feed_spout_w", f, "planks"),
+            box([h1, SPOUT_Y0, h0], [h1 + st, y0, h1], "fr_feed_spout_e", f, "planks")]
+    # the straps: from the north plate's inner face and the west tie beam's, down the hopper's walls
+    out.append(box([7.2, y0 + 0.4, POST], [8.8, PLATE_Y[0] + 1.0, z0], "fr_feed_strap1", f, "iron"))
+    out.append(box([POST, y0 + 0.4, 7.2], [x0, PLATE_Y[0] + 1.0, 8.8], "fr_feed_strap2", f, "iron"))
     return out
+
+
+def build_infeed():
+    """The infeed at the mill levels (`infeed`): vanilla's straight chute, upright, from the feed cell's top
+    face down into the hopper: its cross-section, wall thickness, place in the block and texture exactly
+    (VANILLA_CHUTE), so a chute placed in the cell above meets it with no gap or step. Its four walls, the
+    two full-width ones and the two between them, as the game's shape has them."""
+    p = "infeed"
+    cx, cz = FEED_CELL[0] * B, FEED_CELL[2] * B
+    top = (FEED_CELL[1] + 1) * B
+    names = ("n", "s", "w", "e")
+    out = []
+    for name, (a0, a1, b0, b1) in zip(names, VANILLA_CHUTE["walls"]):
+        out.append(box([cx + a0, CHUTE_Y0, cz + b0], [cx + a1, top, cz + b1], f"ch_wall_{name}", p, "chute"))
+    return out
+
+
+def chute_profile(els):
+    """The infeed's walls where they meet the top face, cell-local (x0, x1, z0, z1), sorted; with the height
+    of their tops."""
+    cx, cz = FEED_CELL[0] * B, FEED_CELL[2] * B
+    out, tops = [], set()
+    for el in els:
+        if el.part != "infeed":
+            continue
+        lo, hi = el.aabb()
+        out.append(tuple(round(v, 4) for v in (lo[0] - cx, hi[0] - cx, lo[2] - cz, hi[2] - cz)))
+        tops.add(round(hi[1], 4))
+    return sorted(out), tops
+
+
+def vanilla_profile():
+    """VANILLA_CHUTE's walls as an upright chute has them over (x, z), sorted: the "we" shape's walls are over
+    (y, z); turned upright (rotateZ 90 about the block's centre) its y becomes x, mirrored, which the square
+    section does not mind."""
+    return sorted((16.0 - a1, 16.0 - a0, b0, b1) for a0, a1, b0, b1 in VANILLA_CHUTE["walls"])
+
+
+def read_vanilla_chute():
+    """The game's own straight chute, if the game is here ($VINTAGE_STORY or ~/Games/vintagestory): its
+    walls' sections over (y, z) and its texture, or None. The generator holds VANILLA_CHUTE to it."""
+    import os
+    for base in (os.environ.get("VINTAGE_STORY"), str(Path.home() / "Games" / "vintagestory")):
+        if not base:
+            continue
+        f = Path(base) / "assets" / "survival" / VANILLA_CHUTE["shape"]
+        if f.exists():
+            shape = json.loads(f.read_text())
+            walls = sorted((e["from"][1], e["to"][1], e["from"][2], e["to"][2]) for e in shape["elements"])
+            runs = {(e["from"][0], e["to"][0]) for e in shape["elements"]}
+            tex = "game:" + next(iter(shape["textures"].values()))
+            return walls, runs, tex
+    return None
 
 
 def build_water():
@@ -1077,7 +1148,7 @@ def pipe_boxes():
     i_ = h - solderedpipe.WALL
     out.append(solderedpipe.Box("cap", [VAN_X - i_, VAN_Y - i_, VAN_Z1 - solderedpipe.WALL], [VAN_X + i_, VAN_Y + i_, VAN_Z1],
                                 solderedpipe.SOLDER))
-    noz = [("nozzle_head", HEAD_OUT_X, y, z), ("nozzle_table", x, y, TABLE_OUT_Z)]
+    noz = [("nozzle_head", HEAD_NOZZLE_X, y, z), ("nozzle_table", x, y, TABLE_OUT_Z)]
     noz += [(f"nozzle_van{i}", VAN_X, VAN_Y, zn) for i, zn in enumerate(VAN_NOZZLES_Z, 1)]
     for name, nx, ny, nz in noz:
         out.append(solderedpipe.Box(name, [nx - 0.6, ny - h - NOZZLE_Y, nz - 0.6], [nx + 0.6, ny - h, nz + 0.6], solderedpipe.BODY))
@@ -1136,7 +1207,8 @@ def build_plates():
 
 def build():
     return (build_lineshaft() + build_jig_moving() + build_table_moving() + build_vanner_moving()
-            + build_sluice() + build_jig() + build_table() + build_vanner() + build_plates() + build_pipes() + build_frame())
+            + build_sluice() + build_jig() + build_table() + build_infeed() + build_vanner() + build_plates() + build_pipes()
+            + build_frame())
 
 
 # ---------------------------------------------------------------- rig
@@ -1200,6 +1272,7 @@ def _rig_parts():
         {"id": "linehangers", "match": ["ls_*"], "requires": "lineshaft", "drivers": []},
         {"id": "jig", "match": ["jg_*"], "requires": "jig", "drivers": []},
         {"id": "table", "match": ["tb_*"], "requires": "table", "drivers": []},
+        {"id": "infeed", "match": ["ch_*"], "requires": "infeed", "drivers": []},
         {"id": "vanner", "match": ["vn_*"], "requires": "vanner", "drivers": []},
         {"id": "plates", "match": ["pl_*"], "requires": "plates", "drivers": []},
         {"id": "dressing", "match": ["pd_*"], "requires": "dressing", "drivers": []},
@@ -1230,14 +1303,14 @@ LEVEL_STATES = {                              # what each level fits
     "frame": (),
     "level1": ("sluice",),
     "level2": ("lineshaft", "jig"),
-    "level3": ("lineshaft", "jig", "table"),
-    "level4": ("lineshaft", "jig", "table", "vanner"),
+    "level3": ("lineshaft", "jig", "table", "infeed"),
+    "level4": ("lineshaft", "jig", "table", "infeed", "vanner"),
 }
 STATES = {                                    # what is fitted in each state checked: the levels, alone and with the
     **{k: v + (PIPES[0],) for k, v in LEVEL_STATES.items()},     # plates, with the water line in copper (lead is
     "level2plates": ("lineshaft", "jig", "plates", PIPES[0]),    # the same elements, never drawn with it)
-    "level3dressed": ("lineshaft", "jig", "table", "plates", "dressing", PIPES[0]),
-    "level4dressed": ("lineshaft", "jig", "table", "vanner", "plates", "dressing", PIPES[0]),
+    "level3dressed": ("lineshaft", "jig", "table", "infeed", "plates", "dressing", PIPES[0]),
+    "level4dressed": ("lineshaft", "jig", "table", "infeed", "vanner", "plates", "dressing", PIPES[0]),
 }
 
 
@@ -1254,6 +1327,7 @@ def make_rig(parts):
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the wash house's "
                     "north-west corner, under the feed box; the line shaft runs east from the power face. A frame, and "
                     "four levels fitted into it (levels: what each fits, by requires; a level keeps the last's parts, "
+                    "levels 3 and 4 fitting the infeed, vanilla's chute section at the feed cell's top face; "
                     "but level 2 takes the sluice out). Level 4's water is recirculated by the gameplay: its return leaves "
                     "at returnWaterCell's face; nothing in the machine carries it back. theta is the axle: the line shaft turns with it and everything "
                     "is driven off it. A cell's boxes are the frame's; its fitted boxes are there only while that part "
@@ -1392,7 +1466,8 @@ def reference_json(ship_parts):
 def shape_json(els):
     return machine_shape_json(
         els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. The wash house frame (fr_*) and "
-             "each level's parts (sl_: sluice; lineshaft / ls_: line shaft; jig* / jg_: jig; table* / tb_: table; "
+             "each level's parts (sl_: sluice; lineshaft / ls_: line shaft; jig* / jg_: jig; table* / tb_: table; ch_: the "
+             "infeed chute; "
              "vanner* / vn_: vanner; pl_ / pd_: amalgamation plates and dressing; pipecopper_ / pipelead_: the water "
              "line in each metal). Keep element "
              "names when editing: the rig finds its parts by them.",

@@ -38,7 +38,7 @@ FRAME = json.loads((ASSETS / "shapes" / "block" / "concentrator_frame.json").rea
 REFERENCE = json.loads((MOD / "tests" / "Concentrator" / "rig-reference.json").read_text())
 README = (MOD / "Concentrator" / "README.md").read_text()
 MANIFEST = json.loads((ROOT / "site" / "models.json").read_text())
-LEVEL_REQUIRES = ["sluice", "lineshaft", "jig", "table", "vanner"]
+LEVEL_REQUIRES = ["sluice", "lineshaft", "jig", "table", "infeed", "vanner"]
 PLATES = ["plates", "dressing"]
 PIPES = ["pipecopper", "pipelead"]
 
@@ -187,7 +187,7 @@ class Mechanism(unittest.TestCase):
 class Anchors(unittest.TestCase):
     def test_one_water_inlet_and_the_outlets_on_their_faces(self):
         self.assertEqual((RIG["waterCell"], RIG["waterFace"]), ([1, 1, 0], "north"))
-        self.assertEqual((RIG["feedCell"], RIG["feedFace"]), ([0, 1, 0], "north"))
+        self.assertEqual((RIG["feedCell"], RIG["feedFace"]), ([0, 1, 0], "up"))
         self.assertEqual(RIG["concentrateSide"], "west")
         self.assertEqual(RIG["concentrate"]["pos"][0], 0.0)
         self.assertEqual(RIG["tailingsSide"], "east")
@@ -209,6 +209,20 @@ class Anchors(unittest.TestCase):
             self.assertEqual((hi[0] - lo[0], hi[1] - lo[1]), (6.0, 6.0))
             cell = RIG["waterCell"]
             self.assertEqual(((lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2), (cell[0] * 16 + 8.0, cell[1] * 16 + 8.0))
+
+
+class Infeed(unittest.TestCase):
+    def test_the_mill_levels_infeed_is_vanillas_chute_at_the_feed_cells_top_face(self):
+        cell = RIG["feedCell"]
+        els = [e for e in SHAPE["elements"] if e["name"].startswith("ch_")]
+        walls = sorted((min(e["from"][0], e["to"][0]) - cell[0] * 16, max(e["from"][0], e["to"][0]) - cell[0] * 16,
+                        min(e["from"][2], e["to"][2]) - cell[2] * 16, max(e["from"][2], e["to"][2]) - cell[2] * 16) for e in els)
+        # the game's straight chute, upright: an 8 x 8 tube, 1 thick, centred in the block (shapes/block/metal/chute/straight.json)
+        self.assertEqual(walls, [(4.0, 5.0, 5.0, 11.0), (4.0, 12.0, 4.0, 5.0), (4.0, 12.0, 11.0, 12.0), (11.0, 12.0, 5.0, 11.0)])
+        self.assertEqual({max(e["from"][1], e["to"][1]) for e in els}, {(cell[1] + 1) * 16.0})
+        self.assertEqual(SHAPE["textures"]["chute"], "game:block/metal/sheet/copper1")
+        self.assertEqual({f["texture"] for e in els for f in e["faces"].values()}, {"#chute"})
+        self.assertEqual([lv["level"] for lv in RIG["levels"] if "infeed" in lv["requires"]], [3, 4])
 
 
 class Pipes(unittest.TestCase):

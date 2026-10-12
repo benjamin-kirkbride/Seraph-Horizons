@@ -30,7 +30,7 @@ corner and the outlets at the floor, and by putting each drive straight on the l
 | — | | none | The wash house frame (below) | |
 | 1 | water | `sluice` | A riffled sluice under the feed box, under the water line's head nozzle. No power | 65 %, 2 L/s, the player feeds it and cleans the riffles up |
 | 2 | water | `lineshaft`, `jig` | The line shaft from the axle, and a Hartz jig **in the sluice's place**: the sluice is taken out | 80 %, 4 L/s, the player feeds the box, the output collects |
-| 3 | mill | + `table` | A shaking table on the jig's tailings | 92 %, 8 L/s, continuous, chute-fed |
+| 3 | mill | + `table`, `infeed` | A shaking table on the jig's tailings; the infeed chute (vanilla's chute section) | 92 %, 8 L/s, continuous, chute-fed |
 | 4 | mill | + `vanner` | A Frue vanner on the table's tailings, its countershaft and drive belt, its worm shaft and ratchet | 99 %, 4 L/s recirculated (a gameplay rule), unattended |
 | 2 to 4 | | `plates` (+ `dressing`) | Optional, alongside the level: three copper plates and a mercury trap in the plate table; `dressing` is their mercury coat | Free gold and silver caught as amalgam |
 | all | | `pipecopper` or `pipelead` | The water line in the metal supplied (one of them is drawn) | |
@@ -55,8 +55,8 @@ tailings' spigot.
 |---|---|---|
 | `powerCell`, `powerFace` | `[0,1,1]`, west | The vanilla axle comes in along x at the face's centre (y 24, z 24 voxels), onto the line shaft's oak cross (the axle's two 4 × 2 boards). Level 1 needs no power |
 | `waterCell`, `waterFace` | `[1,1,0]`, north | A ppex pipe meets the water line's inlet end to end: ppex's 6 × 6 tube on the face's centre (x 24, y 24), the soldered pipe beyond bringing its own half joint, as against any block |
-| `feedCell`, `feedFace` | `[0,1,0]`, north | The feed box against the north wall: a chute pours in over its low north wall (the mill levels), or the player tips the ore in (the water levels) |
-| `feedSpout` | `[0.5, 1.5625, 0.7188]` | The feed box's spout lip, over the sluice's head, then the jig's sieve |
+| `feedCell`, `feedFace` | `[0,1,0]`, up | The feed hopper, open at the top: the player tips the ore in (the water levels), or (the mill levels) the infeed chute comes down into it through the top face, where a vanilla chute placed in the cell above meets it with no gap or step |
+| `feedSpout` | `[0.5, 1.45, 0.5]` | The hopper's spout, over the sluice's head, then the jig's sieve |
 | `waterSpout` | `[0.875, 1.25, 0.8125]` | The water line's head nozzle, over the same place |
 | `concentrate`, `concentrateSide` | west face, at the floor | The plate table's outlet spout: the concentrate's way out at every level, over the plates when they are fitted |
 | `tailings`, `tailingsSide` | east face, `[3,0,2]` | The tail box's spigot: the settled tailings |
@@ -81,7 +81,7 @@ machine box's north-west bottom corner), which is the shipped frame times 16.
 **The frame.** Oak posts 3 × 3 at the corners and the middle of the long walls, sills along the long walls,
 wall plates and three tie beams at the top (y 29..32), knee braces (only in the end walls and the north wall
 east of the feed box and the inlet; none in the south wall, the side the vanner is seen from). Fixed to it:
-the **feed box** hung from the north plate with its spout; the water line's supports (an iron strap from the
+the **feed hopper** hung from the north plate and the west tie beam, a square spout under its floor; the water line's supports (an iron strap from the
 middle tie beam, an oak post, an iron hanger from the south plate); **launder N** (z 8.5..15.5, falling east 1 in 25) and **launder S** (z 36..41.6), the **tail box** (x
 54.5..62, z 4..44) with a notch in its west wall for each launder, its overflow weir and lip, and its spigot;
 the **concentrate launder** (z 28..32, falling west, nearly level); the **plate table** (x 2..14, z 28..45,
@@ -102,8 +102,20 @@ frame on, as the inlet and launders are: the outlets over the table's and the va
 (the gameplay opens them). The sluice was lowered to pass under it.
 
 **Level 1, the sluice.** A plank box 34 long (x 6..40), its channel 7 wide, falling east 1 in 12 from under
-the feed box's spout and the head nozzle, seven oak riffles across its floor (1 × 1.2), its tail open over
+the hopper's spout and the head nozzle, seven oak riffles across its floor (1 × 1.2), its tail open over
 launder N, on two trestles. Nothing moves.
+
+**The infeed** (`infeed`, levels 3 and 4; the owner's ruling: an infeed that takes automation is drawn as the
+vanilla chute, so a player's chute line meets it seamlessly). The mill levels are chute-fed: an upright section
+of the game's straight chute comes down through the feed cell's top face into the hopper's mouth. It is the
+game's chute exactly: its four walls (an 8 × 8 tube 1 thick, two full-width walls and two between, centred in
+the block, cell-local 4..12, `shapes/block/metal/chute/straight.json` turned upright as its `ud` variant is),
+in the texture a placed chute shows in the pack, `game:block/metal/sheet/copper1` (`UnifiedPipes` adds a lead
+chute *section* item, but chutes are made from copper sections and nothing retextures the placed block). A
+chute placed in the cell above, `chute-straight-ud`, meets it at the face. The generator keeps the game's
+profile as a constant and holds it to the game's file when the game is installed; the validator holds the
+infeed to it. The hopper's walls take the chute's foot, their inner faces on its outer ones. At the water
+levels there is no chute: the player tips the ore into the hopper's open top.
 
 **Level 2, the line shaft and the jig.** The **line shaft** continues the axle: the axle's oak cross at the
 power face, a coupling, then a steel shaft (an octagon 1.6 across) the length of the house at y 24, z 24,
@@ -167,6 +179,7 @@ Slides in voxels.
 | The vanner's drive pulley (`vannerpulley`) [vanner] | Keyed to the line shaft | The drive belt | rides `lineshaft` |
 | Plunger: yoke, rod, boss, board (`jigplunger`) [jig] | Its sheave, in the yoke's horizontal slot | The water through the sieve | `slide` y 0.6 sin θ |
 | Deck: yoke, drop bar, arm, boards, joists, riffles, feed box, water launder, lip (`tabledeck`) [table] | Its sheave, in the yoke's upright slot | Shakes the ore along the deck | `slide` z 0.5 sin θ |
+| The infeed: vanilla's chute section (`infeed`) [infeed] | — | — | none |
 | Countershaft: shaft, pulley, two sheaves, collars (`vannershaft`) [vanner] | The drive belt (1:1) | The frame's yokes | `rotate` x 1 |
 | Worm shaft: shaft, ratchet wheel, worm, collars (`vannerworm`) [vanner] | The pawl on the frame, a push a stroke | The worm wheel | `rotate` x 0.0796 ψ |
 | Shaking frame: rails, ties, bearings, yokes and their hangers, pawl, belt, edges (`vannerframe`) [vanner] | The countershaft's sheaves in its yokes | Carries the rollers and the belt; pushes the ratchet | `slide` z 0.5 sin θ |
@@ -220,7 +233,7 @@ level's number, tier, name and `requires` values), `plates` (`requires` `plates`
 `fromLevel` 2), `pipes` (the water line's `requires` per metal), `drive` (`strokesPerTurn` per machine,
 `beltPerTurn`, the belt's creep in blocks a turn of the axle either way, and `ratchet`: its teeth and its turns
 a turn) and `parts`. `requires` values: `sluice`, `lineshaft`, `jig`, `table`, `vanner`, `plates`,
-`dressing`, `pipecopper`, `pipelead`, or null (the frame). The rig reads θ and ψ (the ratchet's train).
+`dressing`, `pipecopper`, `pipelead`, `infeed`, or null (the frame). The rig reads θ and ψ (the ratchet's train).
 
 **Collision per level.** A cell's `boxes` are the frame's, there at every level; its `fitted` boxes, keyed by
 a `requires` value, are there only while that part is fitted (`docs/recipe-browser/models.md`, "Collision by
@@ -244,9 +257,9 @@ python3 mods-src/seraphhorizons/Concentrator/tools/make_shape.py --out DIR    # 
 python3 mods-src/seraphhorizons/Concentrator/tools/make_shape.py --quick      # skips the z-fighting fix and the swept paths
 ```
 
-It writes `assets/seraphhorizons/shapes/block/concentrator.json` (everything, 631 elements: 81 for the
-frame, 64 for the water line in each metal, and with it in one metal 145 shown with nothing fitted, 162 at
-level 1, 216 at level 2, 265 at level 3, 542 at level 4, 550 with the dressed plates),
+It writes `assets/seraphhorizons/shapes/block/concentrator.json` (everything, 639 elements: 85 for the
+frame, 64 for the water line in each metal, and with it in one metal 149 shown with nothing fitted, 166 at
+level 1, 220 at level 2, 273 at level 3, 550 at level 4, 558 with the dressed plates),
 `concentrator_frame.json` (the frame part only), the rig and `tests/Concentrator/rig-reference.json` (every
 part's matrix at 14 poses of θ and ψ). A full run takes about two minutes. Output is deterministic.
 
@@ -268,7 +281,9 @@ Every run, and the script exits non-zero if one fails:
   ground.
 - **Containment:** nothing leaves the 4 × 2 × 3 box at any sampled angle.
 - **Anchors:** the line shaft's oak cross meets the power face at the cell's centre in the axle's profile;
-  the water line's inlet (each metal's) ends on the water face's centre in ppex's 6 × 6 tube; the feed box takes a
+  the water line's inlet (each metal's) ends on the water face's centre in ppex's 6 × 6 tube; the infeed's walls
+  at the feed cell's top face are the game's upright straight chute's exactly, in its texture (and the
+  constant is the game's file, where the game is installed), the hopper taking its foot; the feed box takes a
   chute through the feed cell's face; the concentrate leaves by the west face and the tailings and the return
   water by the east, the return water through its own cell; the power, water and feed cells differ.
 - **Flows:** material dropped at each lip lands first in its receiver, at every level it holds in (the feed
@@ -296,7 +311,7 @@ Every run, and the script exits non-zero if one fails:
 
 `tools/tests/test_concentrator_model.py` holds the written files to these without the generator's state (the
 reference poses, the cells and their per-level collision, the levels, the yokes, the creep either way, the
-pipes in both metals, the anchors, the site's states against the rig's levels, and this README's parts table);
+pipes in both metals, the infeed's chute profile, the anchors, the site's states against the rig's levels, and this README's parts table);
 `site/test/concentrator.test.ts` replays the reference poses in the viewer's maths and checks the creep
 reversed, the selects, the pipes' choice and the fitted collision.
 
@@ -305,7 +320,7 @@ reversed, the selects, the pipes' choice and the fitted collision.
 The rig's interface (first-match globs, in the rig's order): `lineshaft_*`, `jigsheave_*`, `tablesheave_*`,
 `vannerpulley_*`, `jigplunger_*`, `tabledeck_*`, `vannershaft_*`, `vannerworm_*`, `vannerframe_*`,
 `vannerhead_*`, `vannerfoot_*`; `sl_*` (the sluice), `ls_*` (the line shaft's bearings), `jg_*`, `tb_*`,
-`vn_*`; `pl_*` (the plates and the trap) and `pd_*` (their dressing); `pipecopper_*` and `pipelead_*` (the
+`ch_*` (the infeed chute), `vn_*`; `pl_*` (the plates and the trap) and `pd_*` (their dressing); `pipecopper_*` and `pipelead_*` (the
 water line); and `fr_*` for the frame. Hand edits are lost when the
 script runs again: port them into `make_shape.py`.
 
@@ -330,8 +345,8 @@ The old model's sixteen open items, settled with these defaults:
 8. **No material or water is drawn.**
 9. **The vanner's tails** fall off the belt's foot straight into launder S.
 10. **Outlets:** the concentrate leaves at the floor of the west face, the tailings and the return water at
-    the floor of the east face; the feed comes in at the top of the north face; a chute to the next machine
-    works downhill.
+    the floor of the east face; the feed comes in at the top face of the north-west cell, by the vanilla chute
+    at the mill levels (the owner's ruling); a chute to the next machine works downhill.
 11. **The jig** has one sieve and one plunger (not two), and one spigot at its floor; no hoppered bottom.
 12. **The water** (the owner's ruling): every water line is ppex's straight pipe, soldered, in copper or lead,
     as the rosser's drip; one line from the one inlet, at every level, with nozzles over the head of the line,

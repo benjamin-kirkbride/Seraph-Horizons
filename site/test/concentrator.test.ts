@@ -90,7 +90,7 @@ describe("the concentrator's levels in the viewer", () => {
   };
 
   it("has two selects, the level and the plates, opening at level 4 with the plates dressed", () => {
-    expect(new Set(values)).toEqual(new Set(["sluice", "lineshaft", "jig", "table", "vanner", "plates", "dressing", "pipecopper", "pipelead"]));
+    expect(new Set(values)).toEqual(new Set(["sluice", "lineshaft", "jig", "table", "infeed", "vanner", "plates", "dressing", "pipecopper", "pipelead"]));
     expect(model.scenario!.choices).toEqual([{ label: "Water pipes", values: ["pipecopper", "pipelead"], default: "pipecopper" }]);
     expect(opening.fitted.pipecopper).toBe(true);
     expect(opening.fitted.pipelead).toBe(false);
@@ -114,7 +114,7 @@ describe("the concentrator's levels in the viewer", () => {
     expect(shown("level1", "dressed").has("plates")).toBe(false);
     expect(shown("frame", "bare").has("plates")).toBe(false);
     expect(shown("level2", "bare")).toEqual(new Set([null, PIPE, "lineshaft", "jig", "plates"]));
-    expect(shown("level4", "dressed")).toEqual(new Set([null, PIPE, "lineshaft", "jig", "table", "vanner", "plates", "dressing"]));
+    expect(shown("level4", "dressed")).toEqual(new Set([null, PIPE, "lineshaft", "jig", "table", "infeed", "vanner", "plates", "dressing"]));
   });
 
   it("collides with what is fitted: the frame's boxes always, each level's only while it is fitted", () => {
