@@ -64,7 +64,7 @@ the lid, are all that stands on it.
   every other furnace in a row sharing one chimney is.
 - **Furnaces stand in a row**, up to six side by side along their width (x), sharing walls: the side faces are flush,
   plain brickwork with nothing beyond the footprint (the binding is on the front and back only), so two furnaces'
-  side walls meet and touch nowhere else. A row of six is **18 blocks** long. The flues under the floor between them
+  side walls meet and touch nowhere else. A row of five is **15 blocks** long. The flues under the floor between them
   are implied, not modelled.
 
 **Footprint and cells.** The brickwork's 18 cells, and the 6 cells over its front two rows, **hollow**: the lid
@@ -82,7 +82,7 @@ and the damper face them, the stack and the outlet are behind.
 **Why 3 × 3 × 2.** As small as two pots, walls of about ten voxels, the lid's swing and the outlet allow:
 
 - **Three wide**: two pots side by side, with 2.7 of coke between each belly and its side wall and 5.4 between them,
-  need a hole 28 wide; with side walls of 10 that is 48 voxels, three blocks. A row of six is 18 blocks long.
+  need a hole 28 wide; with side walls of 10 that is 48 voxels, three blocks. A row of five is 15 blocks long.
 - **Three deep**: a front wall of 11, the hole's 14, then the back half of the middle row for the hinge, its stops
   and the open lid (to z 28.4), and the back row for the flue, the stack and the outlet, behind the lid's swing and
   centred behind the hole. The lid must open towards the back (the front is the melter's, the sides are the
