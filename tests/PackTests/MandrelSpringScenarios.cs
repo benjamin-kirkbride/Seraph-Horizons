@@ -123,7 +123,7 @@ public partial class SharedWorldScenarios
 
     // On a fitted mandrel a cold steel rod is refused and stays in hand; a hot one goes on. Without tongs
     // the hold does nothing; with tongs in the off hand it winds a turn a second, from the stump or the
-    // ghost, and in about four seconds one spring comes off beyond the tip as hot as the rod was, the
+    // ghost, and in about eight seconds one spring comes off beyond the tip as hot as the rod was, the
     // rod used up and the tongs a point the worse.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Mandrel_station_winds_a_hot_steel_rod_into_a_hot_spring()
