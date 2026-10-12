@@ -4588,6 +4588,48 @@ suitability, the placer book, the registry's states, size tiers, map offsets);
 cut, every rock panning copper, the registry listing from the seed, verifying an ungenerated deposit,
 `givemap` and the waypoint, a gravel cell resolving to a field of rich gravel and its map).
 
+### Density prospecting reads 64 blocks, off the main thread (`WideDensityProspecting`)
+
+BetterEr Prospecting (`bettererprospecting`, 3.4.10), its block-based density mode
+(`NewDensityMode`, on in the pack). A hit counts the deposit blocks in a square column 64 blocks each
+way around the sample, from the surface down, instead of 32, and divides by that column's volume,
+so parts per thousand read on the same scale as before (four times the blocks over four times the
+area). The walk runs on a background task, not on the server's main thread: the pick is charged on
+the hit, and the reading arrives a moment later, once the walk is done. While a player's walk is
+running, another density hit of theirs is turned away with a message and costs nothing. A reading
+for a player who has left by then, or on a server that is stopping, is dropped. The other modes and
+BetterEr's old density modes are as it ships.
+
+Measured on a pack server, a density hit took 20 to 25 ms of the main thread at 32 blocks and 69 to
+78 ms at 64; the main thread now pays only the reading (BetterEr's `generateReadigs`, its ppt
+tracker, the chat lines and the ore map entry), a fraction of a millisecond.
+
+`Ore/Game/WideDensityProspecting.cs` (server side, by name; BetterEr is not referenced at build
+time). BetterEr's radius, `ItemBetterErProspectingPick.densityRadius`, is a constant (32), copied
+into its users by the compiler, so transpilers swap the copies for `WideDensityProspectingSystem.Radius`
+(64): the walk's four corners in `ProspectingSystem.GenerateBlockData`, the zone area a reading is
+normalised over in `ProspectingSystem.generateReadigs` (the folded `(2 * 32)^2 = 4096`, else readings
+would read four times high), and the chunk offsets the admin `/btrpr reprospect` loads around each
+saved reading before walking it again (`{ -32, 0, 32 }` on each axis, in its async state machine),
+which become `{ -64, -32, 0, 32, 64 }` (`Ore/Core/DensityProspecting.cs`), so reprospect still finds
+every chunk the wider walk reads loaded. A prefix on the pick's `ProbeDensity`, in the new density
+mode, returns BetterEr's `NewDensityDmg` at once and runs BetterEr's own `GenerateBlockData` on a
+task with a block accessor of its own (`GetBlockAccessor(false, false, false)`, which unpacks each
+chunk under the chunk's lock; a fourth transpiler sends the method's `World.BlockAccessor` through
+it on that thread only), then hands the counts back to the main thread, where BetterEr's own
+`ProbeBlockDensityMode` runs with a prefix on `GenerateBlockData` answering them: the reading, the
+ppt tracker, the messages and `DidProbe` are BetterEr's, unchanged. One walk per player
+(`ProbeGate`, in `Ore/Core/DensityProspecting.cs`); a failure in the task is logged, never thrown.
+Every rewrite is counted on BetterEr's original IL before anything is patched (4 radii, 2 accessor
+reads, 1 zone area, 2 offset arrays), and again as it applies; if BetterEr changed any of it, nothing
+is patched, with one warning, and density prospecting is as it ships.
+
+Tests: `tests/Ore/DensityProspectingTests.cs` (the zone area, the offsets covering every chunk the
+walk reads, the gate); `tests/PackTests/WideDensityProspectingScenarios.cs` (Atlas, a standard world:
+every rewrite applied, the wide walk counting about four times the blocks at the same total ppt, a
+hit charged at once with its reading arriving from a walk off the main thread equal to the same walk
+on it, a second hit turned away, the old density mode untouched); off: `SwitchesOffScenarios`.
+
 ### Ore processing: recovery (no switch of its own)
 
 Ore processing (epic #684) turns the mine into an 1800s mill chain: hand stations and machines at
