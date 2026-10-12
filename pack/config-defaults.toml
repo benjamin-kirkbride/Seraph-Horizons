@@ -36,3 +36,7 @@ why = "A client's dismissed pack version check findings (client state, written o
 # That rename is not recorded: it predates the first snapshot (0.1.0), so no install has a baseline
 # with the old key, and the setting changed meaning (four logs to one) and default (0.8 to 1) with
 # it, so a value carried across would not be the player's intent either.
+#
+# Nor is CrucibleFurnaceSettings.ChimneyBlocks -> ChimneyShaftBlocks (and ChimneyTopBlocks): 0.1.0 was
+# not released when it split, and the old list held the clay brick chimney, now the top and no shaft
+# block, so carried across it would make the top count as shaft.
