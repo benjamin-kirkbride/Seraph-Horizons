@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """Generate the amalgam pan's shapes, rig and reference poses (and its provisional mercury texture).
 
-The amalgam pan is a hand-worked amalgamating pan of the mid 1800s (the Washoe process, scaled down to
-one block), driven from below as the Washoe pan was: a wide, shallow sheet-iron pan with a beaded rim on
-an oak stand, a hollow cast-iron cone in the middle of its floor, and an iron spindle that rises from a
-footstep under the pan, through the cone, to the muller (a hub with four arms, an iron shoe bolted under
-each arm's end, dragging on the pan's floor). Under the pan a crown wheel on the spindle is turned by a
-pinion on a horizontal crankshaft, which runs out to a crank with an oak handle on the operator's side.
-The player holds right-click on the pan, as on the quern, and turns the crank: the muller turns with it,
-geared down 3:2, and its shoes grind the concentrate into the mercury on the floor. Its contents are drawn as flat layers on the
-floor: a mercury pool, or the grey amalgam paste. Everything is built here from plain boxes; no other
-mod's model is used.
+The amalgam pan is an amalgamating pan of the mid 1800s (the Washoe process, scaled down to one block),
+worked like the game's quern, both ways: by hand, the player holding right-click on it, or by a vanilla
+axle under it, as the Washoe pan was driven from below. A wide, shallow sheet-iron pan with a beaded rim
+on an oak stand, a hollow cast-iron cone in the middle of its floor, and an iron spindle that carries the
+muller (a hub with four arms, an iron shoe bolted under each arm's end, dragging on the pan's floor) over
+the cone and comes down through the cone and a footstep bearing on an oak bridge-tree to the block's
+bottom face, where it ends in the vanilla axle's oak cross profile: an axle in the block below turns it.
+The muller turns with the axle, once a turn, as the quern's stone does; by hand there is nothing to see
+but the muller turning. Its contents are drawn as flat layers on the floor: a mercury pool, or the grey
+amalgam paste. Everything is built here from plain boxes; no other mod's model is used.
 
 It writes, deterministically,
 
     amalgampan.json         the whole pan, every moving part and both contents   (assets/.../shapes/block/)
     amalgampan_frame.json   the static frame only (block and item)                (assets/.../shapes/block/)
     amalgampan-rig.json     the cell, anchors and the part rig                    (assets/.../config/)
-    rig-reference.json      every part's matrix at a spread of crank angles       (tests/AmalgamPan/)
+    rig-reference.json      every part's matrix at a spread of shaft angles       (tests/AmalgamPan/)
     mercury.png             the provisional mercury texture                       (assets/.../textures/block/liquid/)
 
 or, with `--out DIR`, all five into DIR. It validates its own output (validate_amalgampan.py) and exits
@@ -26,12 +26,13 @@ non-zero if a check fails.
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the
 cell's north-west-bottom corner (the "build frame"); the pan is one cell, the controller [0,0,0], so the
 shipped files are the build frame divided by 16. The pan's axis, the spindle's, is the cell's vertical
-centre line; the crankshaft runs north from the gears along the cell's north-south centre line.
+centre line, and the axle below comes up into the cell's down face on it (`powerCell` [0,0,0],
+`powerFace` down).
 
 The rig's one input, as this station uses it (README "Rig schema"):
 
-    theta  the crank's angle, the hold-to-work clock: the crank turns by it about its shaft, and the gears
-           (6 teeth to 9) turn the spindle, the muller and its shoes by 2/3 of it about the pan's axis
+    theta  the spindle's angle: the axle's under power, or the hold-to-work clock by hand; the spindle,
+           the muller and its shoes turn by it about the pan's axis, once a turn
 """
 
 from __future__ import annotations
@@ -73,11 +74,12 @@ DEG = math.pi / 180
 # ---------------------------------------------------------------- the box, the cell
 CELLS_X, CELLS_Y, CELLS_Z = 1, 1, 1          # one block
 ORIGIN_CELL = (0, 0, 0)                      # the controller: the pan itself
+POWER_CELL, POWER_FACE = (0, 0, 0), "down"   # a vanilla axle in the block below comes up into the pan's down face, as into the quern's
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
     "pan": "game:block/metal/sheet/iron1",          # the pan: riveted sheet iron
-    "iron": "game:block/metal/plate/iron",          # cast and wrought iron: the cone, the bearings, the gears, the muller, the crank
+    "iron": "game:block/metal/plate/iron",          # cast and wrought iron: the cone, the footstep, the spindle, the muller
     "mercury": "seraphhorizons:block/liquid/mercury",   # provisional, made by mercury_texture.py
     "amalgam": "game:block/metal/ingot/leadsolder",     # a dull, mottled grey: the paste
 }
@@ -87,7 +89,7 @@ TEX = 64                                     # shape texture units; 4 per voxel,
 CX, CZ = 8.0, 8.0                            # the pan's axis, the spindle's: the cell's centre line
 AXIS = (CX, 0.0, CZ)
 SIDES = 16                                   # the pan is a 16-sided polygon; every round part's faces are on these angles
-PAN_Y0 = 9.0                                 # the pan's underside, on the stand: room under it for the gears and the crank
+PAN_Y0 = 5.0                                 # the pan's underside, on the stand: room under it for the footstep and the coupling
 FLOOR_TOP = PAN_Y0 + 1.0                     # the floor's top: the shoes drag on it, the contents lie on it
 RIM_TOP = PAN_Y0 + 4.2                       # the wall's top: 3.2 deep inside, 12.4 across: shallow
 WALL_Y0 = PAN_Y0 + 0.5                       # the wall's foot, sunk into the floor's edge so no slit shows between them
@@ -102,7 +104,7 @@ PLUG = (PAN_Y0 + 0.3, PAN_Y0 + 1.3)          # the discharge plug's boss on the 
 CONE_BASE = (1.7, PAN_Y0 + 0.6, PAN_Y0 + 2.1)    # apothem, from y, to y (its foot sunk in the floor): hollow, the spindle runs up through it
 CONE_NECK = (1.15, PAN_Y0 + 1.7, PAN_Y0 + 2.9)   # the neck: the spindle's upper bearing, above the paste
 SPINDLE_R = 0.5
-SPINDLE_Y = (3.0, PAN_Y0 + 5.1)              # its foot in the footstep under the pan; its top just over the muller's hub
+SPINDLE_Y = (1.0, PAN_Y0 + 5.1)              # from inside the coupling, down through the footstep, to just over the muller's hub
 
 # ---------------------------------------------------------------- the muller
 HUB = (1.35, PAN_Y0 + 3.1, PAN_Y0 + 4.7)     # apothem, from y, to y: keyed on the spindle, 0.2 over the cone
@@ -114,51 +116,22 @@ SHOE_R = (2.3, 5.6)                          # each shoe, under its arm's end: r
 SHOE_W = 2.4                                 # across
 SHOE_Y = (FLOOR_TOP, ARM_Y[0])               # on the floor, up to the arm
 
-# ---------------------------------------------------------------- the drive: crankshaft, crown wheel and pinion, footstep
-# A right-angle drive of the plainest kind: a spur pinion on the crankshaft meshing with a crown wheel (the
-# bevel wheel whose pitch cone is flat, its teeth standing straight down from its rim) keyed on the
-# spindle. Straight teeth read at block scale where a cone's leaning teeth do not.
-SHAFT_Y = 4.5                                # the crankshaft's axis (x = CX, running north-south): its line meets the spindle's
-SHAFT_R = 0.5                                # the crankshaft's apothem
-SHAFT_Z = (1.9, 6.4)                         # from inside the crank's eye to inside the inner bearing
-PINION_TEETH, WHEEL_TEETH = 6, 9
-GEAR_RATIO = PINION_TEETH / WHEEL_TEETH      # the spindle's turns per turn of the crank: geared down 3:2
-PITCH = 2 * math.pi * 2.0 / PINION_TEETH     # the teeth's circular pitch, the pair's: room for two teeth 0.85 wide and play
-R_PINION = PINION_TEETH * PITCH / (2 * math.pi)     # 2.0: its pitch circle's top meets the crown's pitch plane
-R_WHEEL = WHEEL_TEETH * PITCH / (2 * math.pi)       # 3.0: the crown's pitch circle, over the pinion's middle
-PITCH_Y = SHAFT_Y + R_PINION                 # the crown's pitch plane
-PINION_W, CROWN_W = 0.8, 0.75               # the teeth's widths along the pitch line: two and some play in a pitch
-FACE, BAND = 1.0, 1.0                        # the pinion's face width (z); the crown's teeth's radial length, over it
-ADD, DED = 0.5, 0.75                         # each tooth's addendum and dedendum: the mate's tip clears the root
-PINION_Z = (CZ - R_WHEEL - FACE / 2, CZ - R_WHEEL + FACE / 2)    # the pinion's face, inside the crown's teeth's radial band
-PINION_BODY = R_PINION - DED                 # its hub to the teeth's roots
-CROWN_TEETH_R = (R_WHEEL - BAND / 2, R_WHEEL + BAND / 2)     # the crown's teeth's radial band
-CROWN_Y = (PITCH_Y + DED, PITCH_Y + DED + 0.7)     # the crown's web, over its teeth
-BEARING_R = 0.95                             # the crankshaft's two bearings: apothem of their bosses
-BEARING_O = (3.2, 4.0)                       # the outer bearing (z), on the north sill, before the pinion
-BEARING_I = (5.8, 6.6)                       # the inner bearing (z), cast with the footstep, beyond the pinion
-PEDESTAL_W = 1.5                             # each bearing's pedestal, across
-PEDESTAL_TOP = 0.7                           # its top this far under the shaft's axis: inside the boss, under the shaft
-STEPBOX = ((6.4, 9.6), (5.7, 9.4), 0.6)      # the footstep's base plate: x, z; thickness, on the south sill
-FOOTSTEP = (1.0, 0.9)                        # the footstep round the spindle's foot: apothem; height over the plate
-
-# ---------------------------------------------------------------- the crank (operator's side, north)
-CRANK_R = 3.6                                # the handle's axis from the shaft's
-EYE = (BEARING_R, 1.9, BEARING_O[0] - 0.2)   # the crank's eye on the shaft: apothem, from z, to z (0.2 clear of the bearing)
-CRANK_Z = (2.0, 2.8)                         # the crank's arm
-CRANK_W = 1.0
-CRANK_ARM = 4.1                              # the arm, out from the shaft
-HANDLE = (0.55, 0.3, CRANK_Z[0])             # apothem, from z, to z: an oak peg, out towards the operator
-CRANK_ANGLE0 = 180.0                         # at rest the crank points west, level (degrees about +z from east)
+# ---------------------------------------------------------------- the drive: the footstep and the coupling
+# No gearing: as the quern's stone turns with the axle under it (the game's quern draws its top at the
+# mechanical network's angle), the spindle turns with the vanilla axle in the block below, once a turn.
+GEAR_RATIO = 1.0                             # the spindle's turns per turn of the axle (or of the hand's clock)
+FOOTSTEP = (1.1, 0.8)                        # the footstep bearing round the spindle, on the bridge-tree: apothem; height
+COUPLING = (1.5, 0.6, 1.4)                   # the spindle's foot in the vanilla axle's oak cross profile: bars 3 by 1.2 crossed, 1.4 high
+AXLE_MEET = 0.0                              # where the axle below meets it: the block's bottom face, on the pan's axis
 
 # ---------------------------------------------------------------- the stand
 LEG = ((0.6, 2.4), (13.6, 15.4))             # the legs' x (and z) spans: one at each corner, clear of the pan
 APRON_Y = (PAN_Y0 - 1.6, PAN_Y0)
-APRON = (0.9, 2.1)                           # the aprons' thickness span (west, south); mirrored east; none north, where the crank turns
-BEARER_Z = ((2.9, 4.0), (12.0, 13.1))        # two bearers across under the floor, clear of the crown wheel and the crank
+APRON = (0.9, 2.1)                           # the aprons' thickness span (west, north); mirrored east, south
+BEARER_Z = ((4.4, 5.6), (10.4, 11.6))        # two bearers across under the floor
 BEARER_Y = (PAN_Y0 - 1.4, PAN_Y0)
-LOW_Y = (0.9, 2.1)                           # the low rails, west and east, and the two sills across between them
-SILL_Z = ((2.9, 4.1), (5.7, 9.4))          # the north sill (the outer bearing), the south sill (the footstep and inner bearing)
+LOW_Y = (1.6, 2.8)                           # the low rails, west and east, and the bridge-tree across between them
+BRIDGE_Z = (6.8, 9.2)                        # the bridge-tree, under the pan's axis: it carries the footstep, the coupling clear below it
 
 # ---------------------------------------------------------------- the contents
 CONTENT_R = R_IN + 0.05                      # their edge, just into the wall: no gap at the wall
@@ -167,7 +140,7 @@ MERCURY_TOP = FLOOR_TOP + 0.4                # a pool 0.4 deep
 AMALGAM_TOP = FLOOR_TOP + 0.8                # a paste 0.8 deep: the shoes stand out of it
 CONTENTS = ((1, "mercury"), (2, "amalgam"))  # (pose's contents index, part id = requires = texture code)
 
-SECONDS_PER_TURN = 1.5                       # the viewer's Play: about 40 turns a minute by hand
+SECONDS_PER_TURN = 1.5                       # the viewer's Play: 40 turns a minute, an axle's easy pace
 
 
 # ---------------------------------------------------------------- box helpers
@@ -228,9 +201,9 @@ def radial(r0, r1, w, y0, y1, deg, name, part, tex):
 
 # ---------------------------------------------------------------- builders
 def build_stand():
-    """The oak stand: a leg at each corner, aprons west, east and south and two bearers across under the
-    pan; low rails west and east, and two sills across between them that carry the drive. The north side
-    has no apron: the crank turns there."""
+    """The oak stand: a leg at each corner, an apron on each side and two bearers across under the pan;
+    low rails west and east, and the bridge-tree across between them under the pan's axis, which carries
+    the spindle's footstep."""
     f = "frame"
     out = []
     for i, (x0, x1) in enumerate(LEG):
@@ -238,6 +211,7 @@ def build_stand():
             out.append(box([x0, 0.0, z0], [x1, PAN_Y0, z1], f"fr_leg_{'ns'[j]}{'we'[i]}", f, "oak"))
     a0, a1 = APRON
     inner = (LEG[0][1], LEG[1][0])
+    out.append(box([inner[0], APRON_Y[0], a0], [inner[1], APRON_Y[1], a1], "fr_apron_n", f, "oak"))
     out.append(box([inner[0], APRON_Y[0], 16.0 - a1], [inner[1], APRON_Y[1], 16.0 - a0], "fr_apron_s", f, "oak"))
     out.append(box([a0, APRON_Y[0], inner[0]], [a1, APRON_Y[1], inner[1]], "fr_apron_w", f, "oak"))
     out.append(box([16.0 - a1, APRON_Y[0], inner[0]], [16.0 - a0, APRON_Y[1], inner[1]], "fr_apron_e", f, "oak"))
@@ -245,8 +219,7 @@ def build_stand():
         out.append(box([a1, BEARER_Y[0], z0], [16.0 - a1, BEARER_Y[1], z1], f"fr_bearer_{i + 1}", f, "oak"))
     out.append(box([a0, LOW_Y[0], inner[0]], [a1, LOW_Y[1], inner[1]], "fr_rail_w", f, "oak"))
     out.append(box([16.0 - a1, LOW_Y[0], inner[0]], [16.0 - a0, LOW_Y[1], inner[1]], "fr_rail_e", f, "oak"))
-    for s, (z0, z1) in zip("ns", SILL_Z):
-        out.append(box([a1, LOW_Y[0], z0], [16.0 - a1, LOW_Y[1], z1], f"fr_sill_{s}", f, "oak"))
+    out.append(box([a1, LOW_Y[0], BRIDGE_Z[0]], [16.0 - a1, LOW_Y[1], BRIDGE_Z[1]], "fr_bridgetree", f, "oak"))
     return out
 
 
@@ -265,76 +238,28 @@ def build_pan():
     return out
 
 
-def build_bearings():
-    """The fixed half of the drive, cast iron: the footstep under the spindle's foot on its base plate,
-    cast with the crankshaft's inner bearing (a pedestal and a boss) on the south sill, and the outer
-    bearing on the north sill."""
-    f = "frame"
-    (x0, x1), (z0, z1), t = STEPBOX
-    plate_y = (LOW_Y[1], LOW_Y[1] + t)
-    out = [box([x0, plate_y[0], z0], [x1, plate_y[1], z1], "fr_stepbox", f, "iron")]
-    out += disc("y", AXIS, plate_y[1], plate_y[1] + FOOTSTEP[1], FOOTSTEP[0], "fr_footstep", f, "iron")
-    shaft = (CX, SHAFT_Y, 0.0)
-    for s, (b0, b1), base in (("i", BEARING_I, plate_y[1]), ("o", BEARING_O, LOW_Y[1])):
-        out.append(box([CX - PEDESTAL_W / 2, base, b0], [CX + PEDESTAL_W / 2, SHAFT_Y - PEDESTAL_TOP, b1], f"fr_pedestal_{s}", f, "iron"))
-        out += disc("z", shaft, b0, b1, BEARING_R, f"fr_bearing_{s}", f, "iron")
-    return out
-
-
-def pinion(name, part):
-    """The spur pinion on the crankshaft (about z): a hub to the teeth's roots and PINION_TEETH teeth
-    standing out from it, tooth 1 straight up at rest, where it meets the crown wheel."""
-    c = (CX, SHAFT_Y, 0.0)
-    z0, z1 = PINION_Z
-    out = disc("z", c, z0, z1, PINION_BODY, f"{name}_body", part, "iron")
-    for i in range(PINION_TEETH):
-        t = box([CX - PINION_W / 2, SHAFT_Y + PINION_BODY - 0.2, z0 + 0.03], [CX + PINION_W / 2, SHAFT_Y + R_PINION + ADD, z1 - 0.03],
-                f"{name}tooth{i + 1}", part, "iron")
-        rotate([t], "z", 360.0 * i / PINION_TEETH, c)
-        out.append(t)
-    return out
-
-
-def crown(name, part):
-    """The crown wheel keyed on the spindle (about y): a web of the pan's sixteen sides and WHEEL_TEETH
-    teeth standing straight down from its rim, a gap to the north at rest so the pinion's top tooth sits
-    in it."""
-    out = disc("y", AXIS, CROWN_Y[0], CROWN_Y[1], CROWN_TEETH_R[1], f"{name}_web", part, "iron", k=8)
-    for i in range(WHEEL_TEETH):
-        t = box([CX - CROWN_W / 2, PITCH_Y - ADD, CZ - CROWN_TEETH_R[1]], [CX + CROWN_W / 2, CROWN_Y[0] + 0.05, CZ - CROWN_TEETH_R[0]],
-                f"{name}tooth{i + 1}", part, "iron")
-        rotate([t], "y", 180.0 / WHEEL_TEETH + 360.0 * i / WHEEL_TEETH, AXIS)
-        out.append(t)
-    return out
+def build_footstep():
+    """The spindle's lower bearing: a cast-iron footstep on the bridge-tree, which the spindle comes down
+    through to its coupling."""
+    return disc("y", AXIS, LOW_Y[1], LOW_Y[1] + FOOTSTEP[1], FOOTSTEP[0], "fr_footstep", "frame", "iron")
 
 
 def build_muller():
-    """The muller and its spindle, one body turning about the pan's axis: the spindle from its footstep
-    up through the cone, the crown wheel keyed on it under the pan, and over the cone the muller's hub
-    with four arms and an iron shoe bolted under each arm's end, dragging on the floor."""
+    """The muller and its spindle, one body turning about the pan's axis: over the cone the muller's hub
+    with four arms and an iron shoe bolted under each arm's end, dragging on the floor; the spindle down
+    through the cone, the floor and the footstep; and at its foot, under the bridge-tree, the coupling, the
+    vanilla axle's oak cross profile, which meets the axle in the block below at the block's bottom face."""
     p = "muller"
     out = disc("y", AXIS, SPINDLE_Y[0], SPINDLE_Y[1], SPINDLE_R, "muller_spindle", p, "iron")
-    out += crown("muller_crown", p)
+    half, thick, high = COUPLING
+    out.append(box([CX - thick, AXLE_MEET, CZ - half], [CX + thick, AXLE_MEET + high, CZ + half], "muller_couplinga", p, "oak"))
+    out.append(box([CX - half, AXLE_MEET, CZ - thick], [CX + half, AXLE_MEET + high, CZ + thick], "muller_couplingb", p, "oak"))
     out += disc("y", AXIS, HUB[1], HUB[2], HUB[0], "muller_hub", p, "iron")
     for i in range(4):
         out.append(radial(ARM_R[0], ARM_R[1], ARM_W, ARM_Y[0], ARM_Y[1], ARM_ANGLE0 + 90.0 * i, f"muller_arm{i + 1}", p, "iron"))
     for i in range(4):
         out.append(radial(SHOE_R[0], SHOE_R[1], SHOE_W, SHOE_Y[0], SHOE_Y[1], ARM_ANGLE0 + 90.0 * i, f"muller_shoe{i + 1}", p, "iron"))
     return out
-
-
-def build_crank():
-    """The crankshaft and everything keyed on it: the pinion under the crown wheel, the crank's eye and
-    arm on the north end, and the oak handle out towards the operator."""
-    p = "crank"
-    c = (CX, SHAFT_Y, 0.0)
-    out = disc("z", c, SHAFT_Z[0], SHAFT_Z[1], SHAFT_R, "crank_shaft", p, "iron")
-    out += pinion("crank_pinion", p)
-    out += disc("z", c, EYE[1], EYE[2], EYE[0], "crank_eye", p, "iron")
-    arm = box([CX - CRANK_W / 2, SHAFT_Y, CRANK_Z[0]], [CX + CRANK_W / 2, SHAFT_Y + CRANK_ARM, CRANK_Z[1]], "crank_arm", p, "iron")
-    handle = disc("z", (CX, SHAFT_Y + CRANK_R, 0.0), HANDLE[1], HANDLE[2], HANDLE[0], "crank_handle", p, "oak")
-    rotate([arm] + handle, "z", CRANK_ANGLE0 - 90.0, c)
-    return out + [arm] + handle
 
 
 def build_contents():
@@ -345,7 +270,7 @@ def build_contents():
 
 
 def build():
-    return build_crank() + build_muller() + build_contents() + build_stand() + build_pan() + build_bearings()
+    return build_muller() + build_contents() + build_stand() + build_pan() + build_footstep()
 
 
 # ---------------------------------------------------------------- rig
@@ -368,10 +293,7 @@ def rig_parts():
 
 def _rig_parts():
     parts = [
-        # theta is the crank's angle: the crankshaft, and everything keyed on it, turns with the crank
-        {"id": "crank", "match": ["crank_*"], "requires": None,
-         "drivers": [{"type": "rotate", "axis": "z", "pivot": pt(CX, SHAFT_Y, CZ), "ratio": 1.0}]},
-        # the pinion turns the crown wheel, and the spindle and muller with it, once every two turns of the crank
+        # theta is the spindle's angle: the axle's under power, the hold-to-work clock by hand; the muller turns with it
         {"id": "muller", "match": ["muller_*"], "requires": None,
          "drivers": [{"type": "rotate", "axis": "y", "pivot": pt(CX, 0.0, CZ), "ratio": GEAR_RATIO}]},
         {"id": "mercury", "match": ["mercury_*"], "requires": "mercury", "drivers": []},
@@ -399,12 +321,9 @@ def pm(parts, pid, pose):
     return _part_matrix(parts, pid, inputs_of(pose), None)
 
 
-CYCLE_TURNS = WHEEL_TEETH // math.gcd(PINION_TEETH, WHEEL_TEETH)    # 3: the crank's turns in which the muller turns whole times
-
-
 def turn_poses(step_deg=5.0, contents=(0, 1, 2)):
-    """The crank's whole cycle (CYCLE_TURNS turns, the muller's two) every step_deg, with each contents."""
-    n = int(round(360.0 * CYCLE_TURNS / step_deg))
+    """A whole turn of the spindle every step_deg, with each contents."""
+    n = int(round(360.0 / step_deg))
     return [(i * step_deg * DEG, c) for c in contents for i in range(n)]
 
 
@@ -426,12 +345,15 @@ ANCHORS = ("pan",)
 
 def make_rig(parts):
     return {
-        "_comment": f"Generated by {SCRIPT}. Native frame, block units, one cell, the controller [0,0,0]: the pan. A hand "
-                    "station: no power cell, no work. theta is the crank's angle, the hold-to-work clock: the crank turns by "
-                    "it about its shaft (z), and the gears under the pan (6 teeth to 9) turn the muller by 2/3 of it about "
-                    "the pan's axis (y). Every part but the contents is always fitted. The contents are requires values: "
-                    "mercury and amalgam, one drawn at a time. See the amalgam pan's README for the schema.",
+        "_comment": f"Generated by {SCRIPT}. Native frame, block units, one cell, the controller [0,0,0]: the pan. Worked "
+                    "as the quern is, both ways: a vanilla axle in the block below comes up into the pan's down face "
+                    "(powerCell, powerFace), or the player holds right-click on it; no work. theta is the spindle's angle, the "
+                    "axle's or the hold-to-work clock: the muller turns by it about the pan's axis (y), ratio 1. Every part "
+                    "but the contents is always fitted. The contents are requires values: mercury and amalgam, one drawn at "
+                    "a time. See the amalgam pan's README for the schema.",
         "cells": [],
+        "powerCell": list(POWER_CELL),
+        "powerFace": POWER_FACE,
         "operatorSide": "north",
         "pan": {"pos": pt(CX, FLOOR_TOP, CZ)},
         "parts": parts,
@@ -454,6 +376,7 @@ def shipped(els, parts, rig):
                     drv[key] = [r6(drv[key][k] + db[k]) for k in range(3)]
     ship = copy.deepcopy(rig)
     ship["cells"] = [{**c, "pos": shift_cell(c["pos"], ORIGIN_CELL)} for c in rig["cells"]]
+    ship["powerCell"] = shift_cell(rig["powerCell"], ORIGIN_CELL)
     for key in ANCHORS:
         ship[key] = {"pos": shift_point(rig[key]["pos"], db)}
     ship["parts"] = ship_parts
@@ -500,7 +423,7 @@ def reference_json(ship_parts):
         mats = {q["id"]: round_matrix(_part_matrix(ship_parts, q["id"], {"theta": th}, None)) for q in ship_parts}
         poses.append({"theta": th, "matrices": mats})
     return {"_comment": f"Generated by {SCRIPT}; do not edit. Every amalgam pan part's matrix (blocks, first three rows) "
-                        "at a spread of crank angles, from the generator's reference maths "
+                        "at a spread of shaft angles, from the generator's reference maths "
                         "(Machines/tools/machinegen/rigmath.py). The site's and the mod's tests check their rig maths against it.",
             "poses": poses}
 

@@ -59,11 +59,6 @@ def radius(m, p):
     return math.hypot(p[0] - m.CX, p[2] - m.CZ)
 
 
-def shaft_radius(m, p):
-    """The distance across from the crankshaft's axis (along z, through (CX, SHAFT_Y))."""
-    return math.hypot(p[0] - m.CX, p[1] - m.SHAFT_Y)
-
-
 def polygon_depth(m, p, apothem):
     """How far inside a 16-gon of `apothem` about the axis (its faces on the pan's angles) the point
     lies, across: positive inside."""
@@ -130,13 +125,12 @@ def check_floating(v):
 
 ROLES = [
     # (element regex, the textures it may wear)
-    (r"^fr_(leg|apron|bearer|rail|sill)_", {"oak"}),
+    (r"^fr_(leg|apron|bearer|rail|bridgetree)", {"oak"}),
     (r"^fr_(floor|wall|rim)_", {"pan"}),
-    (r"^fr_(cone_base|cone_neck|plug_boss|stepbox|footstep|pedestal|bearing)", {"iron"}),
+    (r"^fr_(cone_base|cone_neck|plug_boss|footstep)", {"iron"}),
     (r"^fr_plug_bung", {"oak"}),
-    (r"^muller_(spindle|crown|hub|arm|shoe)", {"iron"}),
-    (r"^crank_(shaft|pinion|eye|arm)", {"iron"}),
-    (r"^crank_handle_", {"oak"}),
+    (r"^muller_(spindle|hub|arm|shoe)", {"iron"}),
+    (r"^muller_coupling", {"oak"}),                  # the vanilla axle's own wood, continued: a shaft that meets an axle stays oak
     (r"^mercury_", {"mercury"}),
     (r"^amalgam_", {"amalgam"}),
 ]
@@ -159,134 +153,83 @@ def turn_y(mat):
     return math.atan2(-mat[2][0], mat[0][0])
 
 
-def turn_z(mat):
-    """A part matrix's turn about +z (radians), from the turned x axis."""
-    return math.atan2(mat[1][0], mat[0][0])
-
-
 def wrap(a):
     return (a + math.pi) % (2 * math.pi) - math.pi
 
 
 def check_turning(v):
-    """The crank turns about its shaft's axis by exactly theta; the muller about the pan's axis by theta
-    times the gears' ratio (2/3); the contents and the frame stand still."""
+    """The muller turns about the pan's axis by exactly theta (ratio 1: with the axle, as the quern's stone
+    does); the contents and the frame stand still."""
     m = v.m
     worst_axis, worst_turn = 0.0, 0.0
     for th in [i * 0.37 - 7.0 for i in range(40)]:
         pose = (th, 0)
-        mm, mc = v.mat("muller", pose), v.mat("crank", pose)
+        mm = v.mat("muller", pose)
         for y in (0.0, 6.0, 14.0):
             q = v.point("muller", pose, [m.CX, y, m.CZ])
             worst_axis = max(worst_axis, abs(q[0] - m.CX), abs(q[1] - y), abs(q[2] - m.CZ))
-        for z in (0.0, 4.0, 8.0):
-            q = v.point("crank", pose, [m.CX, m.SHAFT_Y, z])
-            worst_axis = max(worst_axis, abs(q[0] - m.CX), abs(q[1] - m.SHAFT_Y), abs(q[2] - z))
-        worst_turn = max(worst_turn, abs(wrap(turn_y(mm) - m.GEAR_RATIO * th)), abs(wrap(turn_z(mc) - th)))
+        worst_turn = max(worst_turn, abs(wrap(turn_y(mm) - m.GEAR_RATIO * th)))
         for pid in ("mercury", "amalgam", "frame"):
             mp = v.mat(pid, pose)
             if max(abs(mp[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(4)) > 1e-12:
                 v.fail(f"theta moves the {pid}")
-    print(f"turning: the axes stay put within {worst_axis:.1e}; the crank turns theta and the muller {m.GEAR_RATIO:g} theta "
-          f"within {worst_turn:.1e}")
-    if worst_axis > 1e-9 or worst_turn > 1e-9:
-        v.fail("the crank or the muller does not turn about its own axis by its share of theta")
+    print(f"turning: the pan's axis stays put within {worst_axis:.1e}; the muller turns {m.GEAR_RATIO:g} theta within {worst_turn:.1e}")
+    if worst_axis > 1e-9 or worst_turn > 1e-9 or m.GEAR_RATIO != 1.0:
+        v.fail("the muller does not turn about the pan's axis with the axle, once a turn")
 
 
 def check_supports(v):
-    """Each shaft is carried by two bearings fixed to the frame, far apart: the spindle by the footstep
-    under the pan and the cone's neck in it, the crankshaft by its outer and inner bearings. Each runs well
-    inside both at rest and turned an eighth and a quarter; the hubs keyed on them stand just clear of the
-    bearings beside them (the muller's over the cone, the crank's eye before the outer bearing)."""
+    """The spindle is carried by two bearings fixed to the frame, far apart: the footstep on the bridge-tree
+    under the pan and the cone's neck in it. It runs well inside both at rest and turned an eighth and a
+    quarter; the muller's hub stands just clear over the cone."""
     m = v.m
     frame = v.by_part["frame"]
+    foot = (m.LOW_Y[1], m.LOW_Y[1] + m.FOOTSTEP[1])
+    sizes = {"fr_cone_neck": (m.CONE_NECK[0], m.CONE_NECK[1], m.CONE_NECK[2]), "fr_footstep": (m.FOOTSTEP[0], *foot)}
     worst = {}
     for pose in ((0.0, 0), (math.pi / 8, 0), (math.pi / 4, 0)):
-        for pid, rx, axis, c, want, sizes in (
-                ("muller", r"_spindle_", 1, (m.CX, m.CZ), ["fr_cone_neck", "fr_footstep"],
-                 {"fr_cone_neck": (m.CONE_NECK[0], m.CONE_NECK[1], m.CONE_NECK[2]),
-                  "fr_footstep": (m.FOOTSTEP[0], m.LOW_Y[1] + m.STEPBOX[2], m.LOW_Y[1] + m.STEPBOX[2] + m.FOOTSTEP[1])}),
-                ("crank", r"_shaft_", 2, (m.CX, m.SHAFT_Y), ["fr_bearing_i", "fr_bearing_o"],
-                 {"fr_bearing_o": (m.BEARING_R, *m.BEARING_O), "fr_bearing_i": (m.BEARING_R, *m.BEARING_I)})):
-            shaft = v.named(pid, rx, pose)
-            names, span = supports(frame, shaft, axis, c)
-            found = sorted({re.sub(r"_\d+$", "", n) for n in names if re.sub(r"_\d+$", "", n) in want})
-            if found != want:
-                v.fail(f"the {pid}'s shaft is not carried by {want} at theta {pose[0]:.3f}: {sorted(names)}")
-            for name, (ap, a0, a1) in sizes.items():
-                # a shaft is a prism: its corners say how far inside each bearing's section it runs
-                if axis == 1:
-                    depth = min(ap - math.hypot(q[0] - m.CX, q[2] - m.CZ) for e in shaft for q in e.corners())
-                else:
-                    depth = min(ap - shaft_radius(m, q) for e in shaft for q in e.corners())
-                overlap = min(span[1], a1) - max(span[0], a0)
-                worst[name] = min(worst.get(name, (1e9, 1e9))[0], depth), min(worst.get(name, (1e9, 1e9))[1], overlap)
-                if depth < 0.3 or overlap < 0.5:
-                    v.fail(f"the {pid}'s shaft is not well inside {name} (depth {depth:.2f}, along it {overlap:.2f})")
-    apart_spindle = m.CONE_NECK[1] - (m.LOW_Y[1] + m.STEPBOX[2] + m.FOOTSTEP[1])
-    apart_shaft = m.BEARING_I[0] - m.BEARING_O[1]
+        shaft = v.named("muller", r"_spindle_", pose)
+        names, span = supports(frame, shaft, 1, (m.CX, m.CZ))
+        found = sorted({re.sub(r"_\d+$", "", n) for n in names} & set(sizes))
+        if found != sorted(sizes):
+            v.fail(f"the spindle is not carried by the footstep and the cone's neck at theta {pose[0]:.3f}: {sorted(names)}")
+        for name, (ap, a0, a1) in sizes.items():
+            # the spindle is a prism: its corners say how far inside each bearing's section it runs
+            depth = min(ap - math.hypot(q[0] - m.CX, q[2] - m.CZ) for e in shaft for q in e.corners())
+            overlap = min(span[1], a1) - max(span[0], a0)
+            worst[name] = min(worst.get(name, (1e9, 1e9))[0], depth), min(worst.get(name, (1e9, 1e9))[1], overlap)
+            if depth < 0.3 or overlap < 0.5:
+                v.fail(f"the spindle is not well inside {name} (depth {depth:.2f}, along it {overlap:.2f})")
+    apart = m.CONE_NECK[1] - foot[1]
     gap_hub = min(e.aabb()[0][1] for e in v.named("muller", r"_hub_", (0.0, 0))) - m.CONE_NECK[2]
-    gap_eye = m.BEARING_O[0] - max(e.aabb()[1][2] for e in v.named("crank", r"_eye_", (0.0, 0)))
     print("supports: " + ", ".join(f"{k} {d:.2f} inside along {o:.2f}" for k, (d, o) in sorted(worst.items()))
-          + f"; the spindle's bearings {apart_spindle:.1f} apart, the crankshaft's {apart_shaft:.1f}; "
-          f"the muller's hub {gap_hub:.2f} over the cone, the crank's eye {gap_eye:.2f} before the outer bearing")
-    if not (0.1 <= gap_hub <= 0.5 and 0.1 <= gap_eye <= 0.5) or apart_spindle < 3.0 or apart_shaft < 1.5:
-        v.fail("a hub is not just clear of its bearing, or a shaft's bearings are too close together")
+          + f"; the bearings {apart:.1f} apart; the muller's hub {gap_hub:.2f} over the cone")
+    if not 0.1 <= gap_hub <= 0.5 or apart < 3.0:
+        v.fail("the hub is not just clear of the cone, or the spindle's bearings are too close together")
 
 
-def check_gears(v):
-    """The crown wheel and pinion: their tooth counts give the rig's ratio, and their circular pitches
-    agree, so the teeth roll on one another at the rig's speeds; the pinion's pitch circle touches the
-    crown's pitch plane, and its face lies inside the crown's teeth's radial band, over the crown's pitch
-    circle; each mate's tips clear the other's roots; at rest the pinion's top tooth sits in the middle
-    of a gap of the crown. (That the teeth pass each other is the swept-path check's: every degree of a
-    turn.)"""
+def check_coupling(v):
+    """The axle comes in from below, as into the quern: the rig's power cell is the pan's own cell and its
+    face the down face; the spindle's foot is the vanilla axle's oak cross profile on the pan's axis, from
+    the block's bottom face (where the axle below meets it) up into the iron spindle; it turns under the
+    bridge-tree, clear of it and of every leg and rail (the clearance checks say the same for the rest)."""
     m = v.m
-    ratio = m.PINION_TEETH / m.WHEEL_TEETH
-    pitch_p = 2 * math.pi * m.R_PINION / m.PINION_TEETH
-    pitch_w = 2 * math.pi * m.R_WHEEL / m.WHEEL_TEETH
-    if abs(ratio - m.GEAR_RATIO) > 1e-12 or abs(pitch_p - pitch_w) > 1e-9:
-        v.fail(f"the gears' ratio ({ratio}) is not the rig's ({m.GEAR_RATIO}), or their pitches differ ({pitch_p}, {pitch_w})")
-    if abs(m.SHAFT_Y + m.R_PINION - m.PITCH_Y) > 1e-9 or not (m.CROWN_TEETH_R[0] <= m.CZ - m.PINION_Z[1] and m.CZ - m.PINION_Z[0] <= m.CROWN_TEETH_R[1]):
-        v.fail("the pinion's pitch circle is off the crown's pitch plane, or its face is off the crown's teeth")
-    teeth_p = v.named("crank", r"_piniontooth\d+$")
-    teeth_w = v.named("muller", r"_crowntooth\d+$")
-    if (len(teeth_p), len(teeth_w)) != (m.PINION_TEETH, m.WHEEL_TEETH):
-        v.fail(f"the gears have {len(teeth_p)} and {len(teeth_w)} teeth, not {m.PINION_TEETH} and {m.WHEEL_TEETH}")
-    tip_p = max(math.hypot(q[0] - m.CX, q[1] - m.SHAFT_Y) for t in teeth_p for q in t.corners())
-    tip_w = min(q[1] for t in teeth_w for q in t.corners())
-    clear_w = m.CROWN_Y[0] - (m.SHAFT_Y + tip_p)                  # the pinion's tips under the crown's web
-    clear_p = (tip_w - m.SHAFT_Y) - m.PINION_BODY / math.cos(math.pi / 8)   # the crown's tips over the pinion's hub
-    top = next(t for t in teeth_p if t.name.endswith("tooth1"))
-    near = sorted(abs(t.c[0] - top.c[0]) for t in teeth_w if t.c[2] < m.CZ - 1.0)[:2]
-    print(f"gears: pinion {m.PINION_TEETH} and crown {m.WHEEL_TEETH} teeth (ratio {ratio:g}, the rig's {m.GEAR_RATIO:g}), pitch "
-          f"{pitch_p:.3f}, radii {m.R_PINION:.2f} and {m.R_WHEEL:.2f}; tips clear the roots by {clear_w:.2f} and {clear_p:.2f}; "
-          f"at rest the pinion's top tooth between the crown's ({near[0]:.2f} and {near[1]:.2f} either side across)")
-    if min(clear_w, clear_p) < 0.1:
-        v.fail("a gear's tips run near its mate's roots")
-    if len(near) < 2 or abs(near[0] - near[1]) > 1e-6 or near[0] < (m.PINION_W + m.CROWN_W) / 2:
-        v.fail("the pinion's tooth does not sit in the middle of a gap of the crown at rest")
-
-
-def check_crank(v):
-    """The crank is on the operator's side (north): the handle stands out to the block's north face, the
-    whole crank turns north of every other moving part and clear of the ground and of the pan's
-    underside over a turn."""
-    m = v.m
-    lo_y, hi_y, max_z = 1e9, -1e9, -1e9
-    handle_min_z = 1e9
-    for i in range(72):
-        pose = (i * 5 * math.pi / 180, 0)
-        for e in v.named("crank", r"_(arm|handle_|eye_)", pose):
-            for q in e.corners():
-                lo_y, hi_y, max_z = min(lo_y, q[1]), max(hi_y, q[1]), max(max_z, q[2])
-        for e in v.named("crank", r"_handle_", pose):
-            handle_min_z = min(handle_min_z, min(q[2] for q in e.corners()))
-    print(f"crank: turns from {lo_y:.2f} to {hi_y:.2f} high (the pan's underside {m.PAN_Y0}), the handle out to "
-          f"{handle_min_z:.2f} from the north face, the crank's back at z {max_z:.2f}")
-    if lo_y < 0.3 or hi_y > m.PAN_Y0 - 0.2 or handle_min_z > 0.5 or handle_min_z < 0.1 or max_z > m.BEARING_O[0]:
-        v.fail("the crank runs near the ground or the pan, or its handle is not out at the operator's side")
-
+    rig = v.rig
+    if rig.get("powerCell") != [0, 0, 0] or rig.get("powerFace") != "down":
+        v.fail(f"the power cell is not the pan's own, entered from below ({rig.get('powerCell')}, {rig.get('powerFace')})")
+    bars = v.named("muller", r"_coupling[ab]$")
+    lo, hi = aabb_of(bars)
+    spindle = v.named("muller", r"_spindle_")
+    s_lo = min(e.aabb()[0][1] for e in spindle)
+    half, thick, high = m.COUPLING
+    cross = sorted(sorted((round(abs(e.size[0]) / 2, 6), round(abs(e.size[2]) / 2, 6))) for e in bars)
+    centred = all(abs(e.c[0] - m.CX) < 1e-9 and abs(e.c[2] - m.CZ) < 1e-9 for e in bars)
+    print(f"coupling: power cell {rig.get('powerCell')} face {rig.get('powerFace')}; the axle's cross profile "
+          f"({2 * half:g} by {2 * thick:g}) from y {lo[1]:.2f} to {hi[1]:.2f}, the spindle's foot at {s_lo:.2f} inside it, "
+          f"{m.LOW_Y[0] - hi[1]:.2f} under the bridge-tree")
+    if (len(bars) != 2 or not centred or cross != [[thick, half], [thick, half]] or abs(lo[1] - m.AXLE_MEET) > 1e-9
+            or not lo[1] < s_lo < hi[1] or m.LOW_Y[0] - hi[1] < 0.1):
+        v.fail("the spindle's foot does not meet the axle below in the axle's own profile, or it runs into the bridge-tree")
 
 def check_shoes(v):
     """Every shoe bears flat on the floor and sits under its arm's end at every degree of the muller's
@@ -294,7 +237,7 @@ def check_shoes(v):
     m = v.m
     worst_floor, worst_wall, worst_step, worst_arm = 0.0, 1e9, 1e9, 0.0
     for i in range(360):
-        pose = (i * math.pi / 180 / m.GEAR_RATIO, 0)          # the muller's degree i: theta is the crank's
+        pose = (i * math.pi / 180 / m.GEAR_RATIO, 0)          # the muller's degree i
         shoes = v.named("muller", r"_shoe\d$", pose)
         arms = {e.name[-1]: e for e in v.named("muller", r"_arm\d$", pose)}
         for s in shoes:
@@ -342,8 +285,8 @@ def check_contents(v):
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way
 # round. Everything else must clear by more than 0.02 voxels at every sampled pose.
 ALLOWED = [
-    ("muller", r"_spindle_", "frame", r"fr_(footstep|floor|cone_)"),        # the spindle in its footstep, up through the floor and the cone
-    ("crank", r"_shaft_", "frame", r"fr_bearing_"),                         # the crankshaft in its bearings
+    ("muller", r"_spindle_", "frame", r"fr_(footstep|bridgetree|floor|cone_)"),   # the spindle down through the footstep and the
+                                                                                   # bridge-tree, up through the floor and the cone
     ("mercury|amalgam", None, "frame", r"fr_(floor|wall|cone)"),            # the contents in the pan
     ("mercury|amalgam", None, "muller", r"_(shoe\d|spindle_)"),             # the shoes stand in them; the spindle, inside the cone
 ]
@@ -416,13 +359,12 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v, [m.REST] + m.turn_poses(5.0))
     check_turning(v)
     check_supports(v)
-    check_gears(v)
-    check_crank(v)
+    check_coupling(v)
     check_shoes(v)
     check_contents(v)
     check_clearances(v, [m.REST] + m.turn_poses(10.0), "clearances")
     if not quick:
-        check_clearances(v, m.turn_poses(1.0), "swept paths (every degree of the crank's cycle, each contents)")
+        check_clearances(v, m.turn_poses(1.0), "swept paths (every degree of a turn, each contents)")
         check_zfight(v)
     return v.ok
 
@@ -440,7 +382,7 @@ def validate_files(m, shape, frame_shape, ship):
           f"lid over it: {'yes' if not gaps else gaps}; boxes {ship['cells'][0].get('boxes')}")
     if gaps or hollow or len(ship["cells"]) != 1:
         ok = False
-    if "powerCell" in ship or "powerFace" in ship or "work" in ship or "trunkPath" in ship:
-        print("FAIL a hand station has no power cell and nothing posed by a work")
+    if ship.get("powerCell") != [0, 0, 0] or ship.get("powerFace") != "down" or "work" in ship or "trunkPath" in ship:
+        print("FAIL the pan takes its axle from below at its own cell, and nothing is posed by a work")
         ok = False
     return ok

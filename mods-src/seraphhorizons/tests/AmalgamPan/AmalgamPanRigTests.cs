@@ -7,10 +7,10 @@ namespace SeraphHorizons.Tests.AmalgamPan;
 /// <summary>
 /// The amalgam pan's shipped rig (written by AmalgamPan/tools/make_shape.py) read by the shared rig
 /// maths, which its renderer will use: every part parses with the machines' parser and the pan's
-/// <c>requires</c> vocabulary (only its contents: the crank and the muller are always fitted), there is no
-/// work, and every reference pose (θ, the crank's angle) gives the
-/// matrices the Python reference maths wrote. There is no amalgam pan gameplay yet (#718); this holds
-/// the third implementation of the rig maths to the model before there is.
+/// <c>requires</c> vocabulary (only its contents: the muller is always fitted), there is no work, the axle
+/// comes in from below at the pan's own cell (as into the quern), and every reference pose (θ, the
+/// spindle's angle) gives the matrices the Python reference maths wrote. There is no amalgam pan gameplay
+/// yet (#718); this holds the third implementation of the rig maths to the model before there is.
 /// </summary>
 public class AmalgamPanRigTests
 {
@@ -34,9 +34,10 @@ public class AmalgamPanRigTests
     public void The_shipped_rig_parses_with_no_work()
     {
         var parts = Shipped();
-        Assert.Equal(["crank", "muller", "mercury", "amalgam", "frame"], parts.Parts.Select(p => p.Id));
+        Assert.Equal(["muller", "mercury", "amalgam", "frame"], parts.Parts.Select(p => p.Id));
         using var doc = JsonDocument.Parse(File("amalgampan-rig.json"));
-        Assert.False(doc.RootElement.TryGetProperty("powerCell", out _));
+        Assert.Equal([0, 0, 0], doc.RootElement.GetProperty("powerCell").EnumerateArray().Select(v => v.GetInt32()));
+        Assert.Equal("down", doc.RootElement.GetProperty("powerFace").GetString());
         Assert.Equal("north", doc.RootElement.GetProperty("operatorSide").GetString());
     }
 
