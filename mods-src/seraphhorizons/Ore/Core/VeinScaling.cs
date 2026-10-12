@@ -10,7 +10,7 @@ public readonly record struct SizeRange(float Avg, float Var)
 public readonly record struct VeinShape(string VeinType, SizeRange Radius, SizeRange BranchCount, SizeRange BranchLength);
 
 /// <summary>
-/// Shrinks a vein to a fraction of its ore volume (#439), through the parameter that sets its
+/// Scales a vein to a multiple of its ore volume (#439, #863), through the parameter that sets its
 /// size for its vein type in Interesting Ore Gen 2.3.8 (<c>TiltedDiscDepositGenerator</c>), never
 /// its grade:
 /// <list type="bullet">
@@ -19,17 +19,19 @@ public readonly record struct VeinShape(string VeinType, SizeRange Radius, SizeR
 /// <item><c>chimney*</c>, <c>hydrotube*</c>: tubes of fixed bore. Volume ∝ tendril count ×
 /// length, but the radius only sets which nearby chunks the vein is drawn in (beyond it the tubes
 /// are clipped), and long tendrils mostly run out of that box, so the count is the parameter
-/// that scales cleanly: count × factor. Below 1.5 tendrils the count is set to exactly one and
-/// the rest of the factor goes on the length.</item>
+/// that scales cleanly: count × factor. Shrunk below 1.5 tendrils, the count is set to exactly one
+/// and the rest of the factor goes on the length.</item>
 /// </list>
-/// The spread (var/avg) is kept, so small and large deposits keep their ratio.
+/// The spread (var/avg) is kept, so small and large deposits keep their ratio. A factor of 1 leaves
+/// the vein as it is; one over 1 grows it the same way (#863: graded ore is four times the blocks
+/// it was, <see cref="OreSizeTable.VolumeFor"/>).
 /// </summary>
 public static class VeinScaling
 {
     public static VeinShape Scale(VeinShape vein, double factor)
     {
         if (factor <= 0 || double.IsNaN(factor)) throw new ArgumentOutOfRangeException(nameof(factor), factor, "must be positive");
-        if (factor >= 1) return vein;
+        if (factor == 1) return vein;
         switch (vein.VeinType)
         {
             case "fault":
@@ -41,7 +43,7 @@ public static class VeinScaling
             case "hydrotubewithdepo":
             {
                 double count = vein.BranchCount.Avg * factor;
-                if (count >= 1.5)
+                if (count >= 1.5 || factor > 1)
                     return vein with { BranchCount = vein.BranchCount.Times(factor) };
                 // The game truncates the drawn count, so a range around n gives about n - 0.5.
                 double meanCount = Math.Max(1, vein.BranchCount.Var >= 0.5f ? vein.BranchCount.Avg - 0.5 : vein.BranchCount.Avg);
@@ -60,7 +62,8 @@ public static class VeinScaling
 
 /// <summary>
 /// The size cut per metal (ore-sizes.json): either a measured median and a target, giving
-/// target / median, or a factor given outright. Never above 1: deposits are not made larger.
+/// target / median, or a factor given outright. Never above 1: the cut is measured against
+/// vanilla's units. <see cref="VolumeFor"/> adds the blocks graded ore needs at the pack's units.
 /// </summary>
 public sealed class OreSizeTable
 {
@@ -79,6 +82,22 @@ public sealed class OreSizeTable
         if (!_entries.TryGetValue(metal, out var e)) return null;
         double? f = e.Factor ?? (e.MedianIngots is > 0 && e.TargetIngots is > 0 ? e.TargetIngots / e.MedianIngots : null);
         return f is > 0 ? Math.Min(1, f.Value) : null;
+    }
+
+    /// <summary>
+    /// The volume factor for a vein of <paramref name="ore"/> (a deposit variant's code): its metal's
+    /// cut (<see cref="FactorFor"/>, 1 for a metal the table leaves alone), times
+    /// <paramref name="gradedOreBlocks"/> for a graded metal ore (<see cref="OreProducts.Ores"/>), which
+    /// is <see cref="OreProducts.DepositBlocks"/> while ore processing holds an ore item at about a
+    /// quarter of vanilla's units (#863), so a deposit keeps the metal the cut gave it. Null for an
+    /// ore that is not managed or whose factor comes out at 1 (left as it is).
+    /// </summary>
+    public double? VolumeFor(string? ore, double gradedOreBlocks)
+    {
+        if (OreMetals.MetalOf(ore) is not { } metal) return null;
+        double factor = FactorFor(metal) ?? 1;
+        if (OreProducts.Ores.Contains(ore!)) factor *= gradedOreBlocks;
+        return factor == 1 ? null : factor;
     }
 
     public IEnumerable<string> Metals => _entries.Keys;

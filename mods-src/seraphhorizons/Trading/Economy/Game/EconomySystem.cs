@@ -338,7 +338,7 @@ public class EconomySystem : ModSystem
             if (Pricing.ListBase(entry, value, traderBuys, RollOf(trader, code), ListPrices) is not double listPrice) continue;
             var context = Context(trader, code, traderBuys, null);
             var offer = Pricing.Listed(listPrice, entry.StackSize, SupplyFactor(trader, code),
-                Pricing.Modifiers(Modifiers, context), traderBuys, slot.Itemstack.Collectible.MaxStackSize);
+                Pricing.Modifiers(Modifiers, context), traderBuys, RockStackSystem.TradeStack(slot.Itemstack.Collectible));
             slot.TradeItem.Price = offer.UnitPrice;
             if (traderBuys && slot.TradeItem.Stack is { } unit && unit.StackSize != offer.UnitSize)
             {
@@ -397,10 +397,10 @@ public class EconomySystem : ModSystem
         var context = Context(trader, code, true, playerUid);
         double supply = SupplyFactor(trader, code), modifiers = Pricing.Modifiers(Modifiers, context);
         if (OnOwnShelf(trader, collectible))
-            return Pricing.OwnShelf(value, values.IsWorthless(code), ListPrices.OwnShelf, supply, modifiers, collectible.MaxStackSize);
+            return Pricing.OwnShelf(value, values.IsWorthless(code), ListPrices.OwnShelf, supply, modifiers, RockStackSystem.TradeStack(collectible));
         var buyers = Buyers.BuyersOf(code);
         return Pricing.OffList(value, values.IsWorthless(code), Relations.Fit(trader.TraderType, buyers), supply, modifiers,
-            collectible.MaxStackSize, Relations.PaysFromMain(trader.TraderType, buyers) ? Budget.Main : Budget.Side);
+            RockStackSystem.TradeStack(collectible), Relations.PaysFromMain(trader.TraderType, buyers) ? Budget.Main : Budget.Side);
     }
 
     /// <summary>Whether the trader has the item on its selling shelf, in stock (by code; attributes
@@ -417,7 +417,7 @@ public class EconomySystem : ModSystem
     public double SupplyWeight(ICoreAPI api, CollectibleObject collectible, double pricePerItem)
     {
         double value = ItemValuesSystem.For(api).ValueOf(collectible.Code.ToString());
-        return Supply.Weight(value > 0 ? value : pricePerItem, collectible.MaxStackSize);
+        return Supply.Weight(value > 0 ? value : pricePerItem, RockStackSystem.TradeStack(collectible));
     }
 
     public override void Dispose()

@@ -167,9 +167,9 @@ public static class Pricing
     /// <summary>
     /// A listed entry's price: <paramref name="listPrice"/> per its stack (<see cref="ListBase"/>),
     /// scaled; at least 1. A buying entry worth under a gear per stack is bought by a bigger unit, a
-    /// whole number of the entry's stacks up to <paramref name="maxStackSize"/>, the fewest worth a
-    /// gear (a cheap stack would otherwise round up to a gear and pay many times its value). Selling
-    /// entries keep their stack.
+    /// whole number of the entry's stacks up to <paramref name="maxStackSize"/> (the stack trading
+    /// judges by, as <see cref="OffList"/>'s), the fewest worth a gear (a cheap stack would otherwise
+    /// round up to a gear and pay many times its value). Selling entries keep their stack.
     /// </summary>
     public static Offer Listed(double listPrice, int stackSize, double supply, double modifiers, bool traderBuys = true, int maxStackSize = 0)
     {
@@ -193,8 +193,11 @@ public static class Pricing
     /// What a trader offers for goods off its list. Per item: value × fit × supply ×
     /// modifiers. The unit is one item when that is a gear or more, else the fewest items worth a gear
     /// (so a stack of planks sells by the 17, at one gear): the game prices trades in whole gears per
-    /// unit. Under a gear per full stack it is <see cref="Refusal.TooCheap"/>. <paramref name="budget"/>
-    /// is the wallet that pays (<see cref="TraderRelations.PaysFromMain"/>).
+    /// unit. Under a gear per full stack it is <see cref="Refusal.TooCheap"/>. <paramref name="maxStackSize"/>
+    /// is the stack trading judges by: the item's stack, but for a rock or earth block or shape cut to
+    /// 16 or 32 the 64 it stacked to before (<c>RockStackSystem.TradeStack</c>), so its unit may be
+    /// more than one slot holds and the trade window's pooled sale takes it across slots.
+    /// <paramref name="budget"/> is the wallet that pays (<see cref="TraderRelations.PaysFromMain"/>).
     /// </summary>
     public static Offer OffList(double valuePerItem, bool worthless, double fit, double supply, double modifiers, int maxStackSize,
         Budget budget = Budget.Side)

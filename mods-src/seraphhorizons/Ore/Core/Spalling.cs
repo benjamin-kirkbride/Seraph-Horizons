@@ -8,8 +8,9 @@ namespace SeraphHorizons.Mod.Ore.Core;
 public class SpallingConfig
 {
     /// <summary>Hammer blows a raw ore takes, any grade: every grade is the same lump of rock (#847),
-    /// and crystallised ore the same.</summary>
-    public int BlowsRawOre { get; set; } = 6;
+    /// and crystallised ore the same. Two since an ore item holds about a quarter of the metal (#863;
+    /// six before), about the same blows per unit of metal.</summary>
+    public int BlowsRawOre { get; set; } = 2;
 
     /// <summary>Durability the hammer loses a blow, as a blow on the anvil costs it one.</summary>
     public int HammerWearPerBlow { get; set; } = 1;

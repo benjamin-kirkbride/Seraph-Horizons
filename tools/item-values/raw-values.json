@@ -19,21 +19,21 @@
     },
     "noMetalUnitValue": 0.01,
     "nuggetUnits": 5,
-    "gradeUnits": { "poor": 15, "medium": 20, "rich": 25, "bountiful": 35 },
+    "gradeUnits": { "poor": 3, "medium": 5, "rich": 7, "bountiful": 10 },
     "unitsByOre": {
-      "cassiterite": { "poor": 5, "medium": 10, "rich": 15, "bountiful": 20 },
-      "hematite": { "poor": 20, "medium": 25, "rich": 30, "bountiful": 40 },
-      "quartz_nativesilver": { "poor": 10, "medium": 15, "rich": 20, "bountiful": 25 },
-      "quartz_nativegold": { "poor": 5, "medium": 10, "rich": 15, "bountiful": 20 }
+      "cassiterite": { "poor": 1, "medium": 3, "rich": 4, "bountiful": 6 },
+      "hematite": { "poor": 4, "medium": 6, "rich": 8, "bountiful": 11 },
+      "quartz_nativesilver": { "poor": 2, "medium": 4, "rich": 6, "bountiful": 7 },
+      "quartz_nativegold": { "poor": 1, "medium": 3, "rich": 4, "bountiful": 6 }
     },
     "crystalUnits": {
-      "about": "Crystallized ore (game:crystalizedore-{grade}-{ore}-{rock}) holds its own metalUnitsByType, about twice an ore chunk's (survival itemtypes/resource/crystalizedore-graded.json): with OreProcessing it smelts at its grade's share of these, as raw ore does of its own (#847).",
-      "gradeUnits": { "poor": 30, "medium": 40, "rich": 50, "bountiful": 70 },
+      "about": "Crystallized ore (game:crystalizedore-{grade}-{ore}-{rock}) holds its own metalUnitsByType, twice a raw ore's (the pack's patches/oreprocessing-ore.json on survival itemtypes/resource/crystalizedore-graded.json, #863): with OreProcessing it smelts at its grade's share of these, as raw ore does of its own (#847).",
+      "gradeUnits": { "poor": 6, "medium": 10, "rich": 14, "bountiful": 20 },
       "unitsByOre": {
-        "cassiterite": { "poor": 10, "medium": 20, "rich": 30, "bountiful": 40 },
-        "hematite": { "poor": 40, "medium": 50, "rich": 60, "bountiful": 80 },
-        "quartz_nativesilver": { "poor": 20, "medium": 30, "rich": 40, "bountiful": 50 },
-        "quartz_nativegold": { "poor": 10, "medium": 20, "rich": 30, "bountiful": 40 }
+        "cassiterite": { "poor": 2, "medium": 6, "rich": 8, "bountiful": 12 },
+        "hematite": { "poor": 8, "medium": 12, "rich": 16, "bountiful": 22 },
+        "quartz_nativesilver": { "poor": 4, "medium": 8, "rich": 12, "bountiful": 14 },
+        "quartz_nativegold": { "poor": 2, "medium": 6, "rich": 8, "bountiful": 12 }
       }
     },
     "pyriteNote": "pyrite smelts to a bloom in the export but is fool's gold: priced by noMetalUnitValue",

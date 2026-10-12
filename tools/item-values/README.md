@@ -58,9 +58,9 @@ attributes it carries: smelting (with firing and baking), crushing, grinding, ju
 press) and distillation (the still). The rules are data:
 
 - `raw-values.json`: hand-priced raws. Exact codes, then globs in file order. Ores are priced by
-  metal unit (`ores`: an ingot is 100 units, a nugget 5, a chunk by grade the game's
-  `metalUnitsByType`), the metal of an ore being what its nugget smelts into. Raws are fixed: no
-  recipe changes them. The rusty gear, the unit, is 1.
+  metal unit (`ores`: an ingot is 100 units, a nugget 5, a raw ore by grade the `metalUnitsByType`
+  the pack sets on the game's item, 3 / 5 / 7 / 10 for most ores, #863), the metal of an ore being
+  what its nugget smelts into. Raws are fixed: no recipe changes them. The rusty gear, the unit, is 1.
 - `markups.json`: a labour markup per recipe kind (and optionally its own `toolFraction`) (`grid`, `smithing`, `knapping`, `clayforming`,
   `barrel`, `cooking`, `alloy`, `construction`, `transition` for drying/smoking/melting/...,
   `lottery`, `smelting`, `baking`, `crushing`, `grinding`, `pressing`, `distilling`, `mod` for every other mod
@@ -187,7 +187,9 @@ the tool reads it); the table lists each valued one in `perLitre` (code: items p
 (a portion's 0.001 steps were 0.1 a litre), and a reader multiplies or divides by `perLitre` to
 get a portion's or a stack's worth. A code named like a portion but not marked a liquid stays per
 item. An item worth under 1 gear per full stack (per item value x `maxStackSize`, a liquid's per
-portion) is listed in `floorZero`: trading treats it as worthless, and keeps the value for sums.
+portion; a rock or earth block or shape cut to 16 or 32 by `SmallerRockStacks` x its `tradeStack`,
+the 64 it stacked to before, as the traders judge it) is listed in `floorZero`: trading
+treats it as worthless, and keeps the value for sums.
 The table's keys are `about`, `schemaVersion`, `pack`, `values`, `floorZero`, `perLitre`,
 `switches`, one entry per line in code order, so a rebuild diffs cleanly. `explain` and the report
 print a liquid per litre too, marked `/L` (explain also gives the portion's value), and the
@@ -391,9 +393,9 @@ makes them; they keep that price (an old stack still holds its metal), but the f
 route in `routes.json` takes only chromite concentrate, so ferrochrome is priced from what a player
 can get.
 
-**Crystallized ore** holds its own units, about twice a raw ore's (`crystalUnits` in
-`raw-values.json`, vanilla's `metalUnitsByType`: 30, 40, 50 and 70 by grade, cassiterite, hematite and
-the quartz ores their own). With the switch on it smelts at its grade's share of them, as raw ore does
+**Crystallized ore** holds its own units, twice a raw ore's (`crystalUnits` in `raw-values.json`, the
+`metalUnitsByType` the pack sets on it: 6, 10, 14 and 20 by grade, cassiterite, hematite and the
+quartz ores their own, #863). With the switch on it smelts at its grade's share of them, as raw ore does
 of its own, and crushes to two crushed ores of its grade. Priced at a raw ore's units, as it once was,
 a bountiful crystallized copper ore made a copper ingot cheaper than its unit value and cheapened
 every metal.

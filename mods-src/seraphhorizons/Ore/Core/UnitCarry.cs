@@ -3,8 +3,8 @@ namespace SeraphHorizons.Mod.Ore.Core;
 /// <summary>
 /// Fractional carry-over (#685): a station turns metal units into whole items and holds the rest
 /// for the next item, per output (an item code, or anything the station keys its outputs by), so
-/// no metal is lost to rounding. A 20-unit raw ore at 22 % is 4.4 units, no concentrate item yet;
-/// the next one makes 8.8, one item out and 3.8 held. A station keeps it with its own state
+/// no metal is lost to rounding. A 7-unit raw ore at 22 % is 1.54 units, no concentrate item yet;
+/// the fourth makes 6.16, one item out and 1.16 held. A station keeps it with its own state
 /// (<see cref="Held"/>, <see cref="Restore"/>) so it survives a save.
 /// </summary>
 public sealed class UnitCarry

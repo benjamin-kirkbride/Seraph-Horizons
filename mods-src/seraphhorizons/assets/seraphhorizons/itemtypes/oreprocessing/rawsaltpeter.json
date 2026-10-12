@@ -24,7 +24,7 @@
 		"inBarrelShape": "game:block/wood/barrel/contents-ore"
 	},
 	"storageFlags": 5,
-	"maxstacksize": 4,
+	"maxstacksize": 16,
 	"materialDensity": 1200,
 	"creativeinventory": { "general": ["*"], "items": ["*"] },
 	"guiTransform": {
