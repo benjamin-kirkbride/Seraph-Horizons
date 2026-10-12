@@ -213,6 +213,7 @@ def check_anchors(v):
 
 TEX_RULES = [
     (r"^sh_oak", "oak"),
+    (r"^ch_in_", "chute"),
     (r"^(sh_shaft|sh_pin|yk_rod|yk_slipper|st_shaft|st_wheel|bp_|en_gland)", "steel"),
     (r"^(sh_web|yk_(top|bottom|side)|en_(ped|cyl|cover|valvechest|guide|foot|elbow|main)"
      r"|cp_(grate|ring|channel|pot_|tuyere|firedoor|firehinge|ashdoor|buck|tie|lintel_iron)|lq_(plate|rim|spout|pot_|firedoor|buck|tie)"
@@ -477,8 +478,10 @@ def check_flows(v):
     out.append(("blast pipe into the tuyere", abs(tuy[0][2] - e3[1][2]) < 1e-6 and abs(mid(*tuy, 0) - mid(*e3, 0)) < 1e-6
                 and abs(mid(*tuy, 1) - mid(*e3, 1)) < 1e-6 and tuy[1][2] >= m.CUP_Z[0] + m.CUP_WALL))
     ci = aabb_of(v.named("chutes", r"^ch_in_bottom"))
-    end = (ci[0][0] + 0.3, 0.0, mid(*ci, 2))
-    out.append(("input chute's end over the bath", inside_disc(end, m.KET_C, m.KET_R) and ci[0][1] > m.FLANGE_Y[1]))
+    # the nearest point of its floor's open end to the kettle's axis is over the mouth, so the charge falls in
+    nz = min(max(m.KET_C[1], ci[0][2]), ci[1][2])
+    end = (ci[0][0], 0.0, nz)
+    out.append(("infeed's open end over the bath", inside_disc(end, m.KET_C, m.KET_R - 0.2) and ci[0][1] > m.FLANGE_Y[1]))
     si = aabb_of(v.named("chutes", r"^ch_siphonin"))
     out.append(("siphon's leg in the bath", si[0][1] < m.BATH_Y[0] and inside_disc((mid(*si, 0), 0, mid(*si, 2)), m.KET_C, m.KET_R - 0.5)))
     so = aabb_of(v.named("chutes", r"^ch_siphonout"))
@@ -492,6 +495,30 @@ def check_flows(v):
         if not good:
             v.fail(f"flow: {label}")
     print("flows: " + "; ".join(f"{label} {'yes' if good else 'NO'}" for label, good in out))
+
+
+def check_infeed(v):
+    """The infeed takes automation, so it is the game's chute: where it meets the input face, its walls are exactly the
+    game's straight chute's (VANILLA_CHUTE: the section in the cell, 1 voxel thick round a 6 x 6 bore, 4..12 in the
+    block), axis-aligned, running in from the face, in the chute's texture; so a chute placed in the next cell meets it
+    with no gap and no step."""
+    m = v.m
+    walls = v.named("chutes", r"^ch_in_")
+    oy, oz = m.infeed_origin()
+    face = (m.INPUT_CELL[0] + 1) * 16
+    got = []
+    for e in walls:
+        lo, hi = e.aabb()
+        if any(e.local_axis_for(k) is None for k in range(3)) or abs(hi[0] - face) > 1e-6 or hi[0] - lo[0] < 3.0:
+            v.fail(f"infeed: {e.name} is not a straight length running in from the input face")
+        got.append(tuple(round(c, 6) for c in (lo[1] - oy, hi[1] - oy, lo[2] - oz, hi[2] - oz)))
+    want = sorted(m.VANILLA_CHUTE)
+    if sorted(got) != want:
+        v.fail(f"infeed: its section at the face {sorted(got)} is not the game's chute's {want}")
+    if m.INPUT_FACE != "east" or m.TEXTURES["chute"] != "game:block/metal/sheet/copper1":
+        v.fail("infeed: not on the east face, or not in the game's chute texture")
+    print(f"infeed: the game's chute section at the input face, {len(walls)} walls 1 voxel thick round a 6 x 6 bore at 4..12 in the "
+          f"cell, {face - min(e.aabb()[0][0] for e in walls):.1f} voxels long")
 
 
 def check_pipes(v):
@@ -565,6 +592,7 @@ def validate(m, els, parts, rig, quick=False):
     check_yoke(v)
     check_supports(v)
     check_flows(v)
+    check_infeed(v)
     check_pipes(v)
     check_reverse(v)
     check_clearances(v, [m.REST] + m.cycle_poses(96) + [(-1.3, 1.3), (-4.1, 4.1)])

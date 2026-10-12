@@ -100,7 +100,9 @@ TEXTURES = {
     "pipecopper": "game:block/metal/sheet-plain/copper4",
     "pipelead": "game:block/metal/sheet-plain/lead4",
     "solder": solderedpipe.SOLDER_TEXTURE,
-    "brass": "game:block/metal/plate/brass",                    # the water cock
+    "brass": "game:block/metal/plate/brass",
+    "chute": "game:block/metal/sheet/copper1",                  # the infeed: the game's chute's own texture (the pack patches only
+                                                                # the chute section item to lead; a placed chute is copper sheet)                    # the water cock
     "soot": "game:block/black",                                 # down the stack's flue
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
@@ -225,7 +227,7 @@ GAL_LOW = (14.0, 15.0)                       # its lower crossbeam
 STIR_Y = (11.0, 20.4)                        # the stirrer's shaft
 PADDLE = (11.8, 12.9, 3.4)                   # the paddles: their y span (they break the surface) and reach
 SIPHON = (58.4, 25.4)                        # (x, z): the siphon's leg in the kettle
-SIPHON_TOP = 15.6
+SIPHON_TOP = 15.0                             # under the input cell (the bend's top 15.8)
 SIPHON_OUT = 30.4                            # its outer leg (z), in front of the setting
 SPOUT_Y = 5.6                                # the output spout's bottom, at its head
 CRUST_R = (4.0, 4.95)                        # the zinc crust gathers round the kettle's edge, beyond the paddles
@@ -969,21 +971,39 @@ def onto_face(top, low, face, end):
     return top, low
 
 
-IN_Z = 19.0                                  # the input chute's centre line (z), north of the siphon
-IN_HALF = 1.8
-IN_TOP, IN_LOW = onto_face((CELLS_X * B, 17.2), (59.4, 14.0), CELLS_X * B, "top")   # (x, y): at the input face, over the bath
+# The infeed takes automation, so it is drawn as the game's chute (shapes/block/metal/chute/straight.json, game
+# 1.22.7, its blocktype's copper sheet): a closed square duct, its four walls 1 voxel thick round a 6 x 6 bore, 8
+# across, in the middle of the block (4..12). A player's chute in the cell beyond the input face meets it wall for
+# wall. VANILLA_CHUTE is that section, cell-local voxels across a duct along x: (y0, y1, z0, z1) for each wall,
+# north, south, bottom, top.
+VANILLA_CHUTE = ((4.0, 12.0, 4.0, 5.0), (4.0, 12.0, 11.0, 12.0), (4.0, 5.0, 5.0, 11.0), (11.0, 12.0, 5.0, 11.0))
+INFEED_X = 60.6                              # the duct's open (west) end, over the kettle's mouth and clear of the wheel's teeth
 SPOUT_TOP, SPOUT_LOW = onto_face((SIPHON_OUT - 1.0, SPOUT_Y), (CELLS_Z * B, SPOUT_Y - 0.6), CELLS_Z * B, "low")   # (z, y)
 SPOUT_HALF = 1.4
 
 
+def infeed_origin():
+    """The input cell's (y, z) corner in voxels: the game's chute section is placed in the cell from there."""
+    return INPUT_CELL[1] * B, INPUT_CELL[2] * B
+
+
+def infeed_walls(p):
+    """The infeed: a straight length of the game's chute along x, from the input face (east) to its open end over the
+    kettle's mouth, its four walls exactly the game's straight chute's section in the cell, in the chute's texture."""
+    oy, oz = infeed_origin()
+    names = ("n", "s", "bottom", "top")
+    return [box([INFEED_X, oy + y0, oz + z0], [CELLS_X * B, oy + y1, oz + z1], f"ch_in_{n}", p, "chute")
+            for n, (y0, y1, z0, z1) in zip(names, VANILLA_CHUTE)]
+
+
 def build_chutes():
-    """Level 2 makes the kettle chute-fed: an inclined chute from the input face (east) drops the charge into the
-    kettle, a leg under it on the kettle's flange; a siphon over the kettle's front rim runs the desilverized lead
+    """Level 2 makes the kettle chute-fed: a straight length of the game's chute from the input face (east), where a
+    player's chute line meets it, drops the charge into the kettle from its open end, a leg under it on the setting; a siphon over the kettle's front rim runs the desilverized lead
     down into the output spout, its lip on the output face (south), a leg under it."""
     p = "chutes"
-    out = channel((IN_TOP[0], IN_TOP[1], IN_Z), (IN_LOW[0], IN_LOW[1], IN_Z), IN_HALF, CHUTE_WALL, CHUTE_SIDE, "ch_in", p, "iron", "x")
-    lx = 60.8                                # the leg stands on the flange
-    out.append(box([lx - 0.5, FLANGE_Y[1], IN_Z - 0.5], [lx + 0.5, chute_y(IN_TOP, IN_LOW, lx) - CHUTE_WALL - 0.3, IN_Z + 0.5], "ch_inleg", p, "iron"))
+    out = infeed_walls(p)
+    oy, oz = infeed_origin()
+    out.append(box([62.1, SET_TOP, oz + 7.5], [63.0, oy + VANILLA_CHUTE[2][0], oz + 8.5], "ch_inleg", p, "iron"))
     # the siphon: down into the bath, over the rim, down in front of the setting into the spout
     sx, sz = SIPHON
     pr = 0.5
@@ -1097,7 +1117,7 @@ ANCHORS = ("input", "output")
 
 
 def anchor_points():
-    return {"input": (CELLS_X * B, chute_y(IN_TOP, IN_LOW, CELLS_X * B) + 0.6, IN_Z),
+    return {"input": (CELLS_X * B, infeed_origin()[0] + 8.0, infeed_origin()[1] + 8.0),
             "output": (SIPHON[0], chute_y(SPOUT_TOP, SPOUT_LOW, CELLS_Z * B) + 0.6, CELLS_Z * B)}
 
 

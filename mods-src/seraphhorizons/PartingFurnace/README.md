@@ -76,7 +76,7 @@ and the acid hood stand against the stack.
   (`game:block/metal/sheet-plain/copper4` or `lead4`, the joint in `game:block/metal/ingot/leadsolder`), and the
   renderer draws the supplied metal's.
 
-**Level 2** (mill: `kettle`, `stirrer`, `chutes`; 79 more elements, 311 drawn in all):
+**Level 2** (mill: `kettle`, `stirrer`, `chutes`; 80 more elements, 312 drawn in all):
 
 - *The Parkes kettle* (`kettle`): an octagonal brick **setting** over its firebox (fire and ash-pit doors on its
   front), the cast-iron kettle's **flange** round its mouth, the molten **lead** in it with cakes of **zinc crust**
@@ -85,8 +85,13 @@ and the acid hood stand against the stack.
   wheel** (a mitre pair, 6 teeth each) on a vertical shaft, carried in two bosses on a cast-iron **gallows** bolted
   to the kettle's flange; two **paddles** cross on the shaft's foot, their tops breaking the lead's surface so the
   stirring shows.
-- *The chutes* (`chutes`): the **input chute** comes in from the input face (east) and drops the charge into the
-  kettle, a leg under it on the flange; a **siphon** over the kettle's front rim runs the desilverized lead down
+- *The chutes* (`chutes`): the **infeed** takes automation, so it is **the game's chute**: a straight length of
+  vanilla's closed square chute (`shapes/block/metal/chute/straight.json`: four walls 1 voxel thick round a 6 × 6
+  bore, 8 across, at 4..12 in the block) in its own texture, `game:block/metal/sheet/copper1` (the pack's
+  `unifiedpipes-chutesection.json` adds lead only to the chute *section* item; a placed chute is copper sheet). It
+  runs in from the input face (east), where a player's chute placed in the next cell meets it wall for wall with no
+  gap or step, to its open end over the kettle's mouth, where the charge drops in; a leg under it stands on the
+  setting. A **siphon** over the kettle's front rim runs the desilverized lead down
   into the **output spout**, whose lip is on the output face (south).
 
 **Anchors** (`assets/seraphhorizons/config/partingfurnace-rig.json`, shipped frame):
@@ -95,7 +100,7 @@ and the acid hood stand against the stack.
 |---|---|---|
 | `powerCell`, `powerFace` | `[1, 1, -1]`, north | The vanilla axle comes in along z at the cell's centre (build (x 56, y 24)) |
 | `waterCell`, `waterFace` | `[-1, 1, 0]`, south | The water pipe ends on the face's centre in ppex's section, on the axis of the ppex pipe beyond (build (x 24, y 24)) |
-| `inputCell`, `inputFace`, `input.pos` | `[1, 1, 0]`, east, `[2.0, 1.1125, 0.1875]` | Level 2: the input chute's mouth on that face |
+| `inputCell`, `inputFace`, `input.pos` | `[1, 1, 0]`, east, `[2.0, 1.5, 0.5]` | Level 2: the infeed, the game's chute section centred on that face |
 | `outputCell`, `outputFace`, `output.pos` | `[1, 0, 0]`, south, `[1.65, 0.35, 1.0]` | Level 2: the output spout's lip on that face |
 
 All four cells are the machine's from the frame on, on its outside, and differ. At level 1 the player feeds and
@@ -183,20 +188,21 @@ The bucking sawmill's schema (`../BuckingSawmill/README.md`, "Rig schema") with 
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/partingfurnace.json` | The whole machine, both levels' sets and the water pipe in both metals (319 elements). |
+| `assets/seraphhorizons/shapes/block/partingfurnace.json` | The whole machine, both levels' sets and the water pipe in both metals (320 elements). |
 | `assets/seraphhorizons/shapes/block/partingfurnace_frame.json` | The frame only (18 elements): the floor and the stack. |
 | `assets/seraphhorizons/config/partingfurnace-rig.json` | Cells, anchors, levels, the water pipe's parts and the part rig (14 parts). |
 | `tests/PartingFurnace/rig-reference.json` | Every part's matrix at ten poses of θ, from the reference maths. |
 
 Elements by set: frame 18; blast 63 (shaft 16, yoke 7, engine 40); cupellation furnace 72; liquation furnace 40;
-acid parting 31; the water pipe 8 in each metal; kettle 22; stirrer 44 (gallows 6, stirrer 20, pinion 18); chutes 13.
+acid parting 31; the water pipe 8 in each metal; kettle 22; stirrer 44 (gallows 6, stirrer 20, pinion 18); chutes 14.
 
 Textures are the game's, referenced: brick `clay/brick/eight/running/orange1`, the floor's `red1`, fire brick
 `cream1`, cast iron `metal/plate/iron`, steel `metal/sheet-plain/steel1`, oak, bone ash `stone/rock/chalk1`, lead,
 tin and zinc ingots for the metals, litharge `clay/hardened/orange`, coke, charcoal and ember for the fires and the
 dross, sandstone sand for the sand bath, `clay/ceramic-dark` for the stoneware, `liquid/dilutedalum` for the aqua
 fortis, `metal/sheet-plain/copper4` or `lead4` (ppex's pipes', as UnifiedPipes gives them) for the water pipe, with its
-joint in `metal/ingot/leadsolder`, `metal/plate/brass` for the cock, and
+joint in `metal/ingot/leadsolder`, `metal/plate/brass` for the cock, `metal/sheet/copper1` (the game's chute's) for
+the infeed, and
 `black` down the stack. Coloured by texture in the viewer, each has a colour of its own
 (`site/src/lib/model-view.ts`).
 
@@ -222,7 +228,7 @@ Every run checks its output and exits non-zero if a check fails:
 - **Containment:** nothing leaves the 4 × 4 × 2 box over 25 poses, and no moving part reaches a cell the model does
   not hold at rest.
 - **Anchors:** the oak end meets the power face at the power cell's centre; the water pipe meets the water face at
-  its cell's centre in ppex's 6 × 6 section; the input chute's mouth is on the input cell's face and the output
+  its cell's centre in ppex's 6 × 6 section; the infeed's end is on the input cell's face and the output
   spout's lip on the output cell's, each within its cell, their anchor points on those faces; every anchor cell is on
   the footprint's outside, and no two share a face.
 - **Textures** by role (23 rules, every element covered; the water pipe in its metal, its joint in solder).
@@ -233,8 +239,12 @@ Every run checks its output and exits non-zero if a check fails:
 - **Supports:** the engine shaft in its two pedestal bearings and the stirrer's shaft in the gallows' two bosses
   (each round its shaft at rest and turned 45 degrees); the yoke's slippers on their guides through the stroke.
 - **Flows:** the litharge channel ends over its pot, the liquation spout over its pot, the blast pipe runs from the
-  valve chest into the tuyere, the input chute ends over the kettle's lead, the siphon dips into it and runs out into
+  valve chest into the tuyere, the infeed's open end is over the kettle's mouth, the siphon dips into it and runs out into
   the spout, and the water cock's nozzle is over the vessel's mouth.
+- **Infeed:** where it meets the input face, its walls are exactly the game's straight chute's section in the
+  cell (`VANILLA_CHUTE`), axis-aligned, running in from the face, in the chute's texture, so a vanilla chute in the
+  next cell meets it with no gap or step. `tools/tests/test_partingfurnace_model.py` also holds `VANILLA_CHUTE` to the
+  game's own `straight.json` when the game is installed (skipped otherwise).
 - **Pipes:** the water pipe is four walls of ppex's section from the water face into the cock, a wiped joint where it
   meets the cock; each other metal's part is the same elements in its own texture, the joint in solder.
 - **Either way round:** every driver reads θ alone; the yoke's stroke is the same backwards; the paddles are
@@ -291,7 +301,7 @@ that every motion works either way round.
 8. **The build stages** within each level (which items fit which set, in what order) are not designed yet.
 9. **The controller cell** (the cupellation furnace's front) and the anchor faces were chosen for the layout; the
    gameplay's placement rule (which way the works extend from the player) is to be set.
-10. **Drawing it in the game.** 232 of the 311 elements drawn at once are fitted sets that never move; gameplay should mesh the
+10. **Drawing it in the game.** 233 of the 312 elements drawn at once are fitted sets that never move; gameplay should mesh the
     fitted static sets with the frame and draw only the four moving parts in the renderer.
 11. **The game's rig loader** (`Machines/Core`) does not read `fitted` yet (the viewer does).
 

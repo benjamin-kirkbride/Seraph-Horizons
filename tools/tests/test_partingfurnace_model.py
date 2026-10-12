@@ -184,6 +184,40 @@ class Anchors(unittest.TestCase):
         self.assertAlmostEqual((lo[1] + hi[1]) / 2, cell[1] * 16 + 8, places=4)
 
 
+class Infeed(unittest.TestCase):
+    def test_the_infeed_is_the_games_chute_at_the_input_face(self):
+        """Its walls at the face are the game's straight chute's section in the cell, in the chute's texture."""
+        cell = RIG["inputCell"]
+        walls = [e for e in SHAPE["elements"] if e["name"].startswith("ch_in_")]
+        self.assertEqual(len(walls), 4)
+        got = []
+        for e in walls:
+            self.assertNotIn("rotationX", e)
+            self.assertAlmostEqual(e["to"][0], (cell[0] + 1) * 16, places=4)
+            got.append(tuple(round(v, 4) for v in (e["from"][1] - cell[1] * 16, e["to"][1] - cell[1] * 16,
+                                                     e["from"][2] - cell[2] * 16, e["to"][2] - cell[2] * 16)))
+            self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#chute"})
+        self.assertEqual(sorted(got), sorted(make_shape.VANILLA_CHUTE))
+        self.assertEqual(SHAPE["textures"]["chute"], "game:block/metal/sheet/copper1")
+        self.assertEqual(RIG["input"]["pos"], [cell[0] + 1, cell[1] + 0.5, cell[2] + 0.5])
+
+    def test_the_profile_is_the_games_when_the_game_is_installed(self):
+        """VANILLA_CHUTE against the game's own shape (shapes/block/metal/chute/straight.json, along x as chute-straight-we
+        places it): skipped without a game install (CI)."""
+        import os
+        import re
+        roots = [os.environ.get("VINTAGE_STORY", ""), str(Path.home() / "Games" / "vintagestory")]
+        path = next((Path(r) / "assets" / "survival" / "shapes" / "block" / "metal" / "chute" / "straight.json" for r in roots
+                     if r and (Path(r) / "assets" / "survival" / "shapes" / "block" / "metal" / "chute" / "straight.json").exists()), None)
+        if path is None:
+            self.skipTest("no game install")
+        text = re.sub(r",(\s*[}\]])", r"\1", re.sub(r"//[^\n]*", "", path.read_text()))
+        walls = sorted((e["from"][1], e["to"][1], e["from"][2], e["to"][2]) for e in json.loads(text)["elements"])
+        for e in json.loads(text)["elements"]:
+            self.assertEqual((e["from"][0], e["to"][0]), (0.0, 16.0))
+        self.assertEqual(walls, sorted(make_shape.VANILLA_CHUTE))
+
+
 class Pipes(unittest.TestCase):
     def test_the_water_pipe_is_drawn_in_each_metal_as_soldered_ppex_pipe(self):
         by = {p: [e for e in SHAPE["elements"] if e["name"].startswith(p + "_")] for p in PIPES}
