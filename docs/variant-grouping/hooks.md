@@ -376,3 +376,44 @@ that box (not `capi.Event.MouseDown`, which runs before the GUI and knows nothin
 `"handbook-overview"` with the text input `"searchField"` (handler `FilterItemsBySearchText`) and
 shows it as `SingleComposer`; Dovidarium's overview reuse builds the same name and key itself and
 restores the search text on reopen. `SetValue("")` on that box runs the same filter as typing.
+
+## 8. Handbook: keeping the place
+
+For `HandbookKeepsPlace` (`mods-src/seraphhorizons/HandbookPlace/`, Harmony id
+`seraphhorizons.handbookplace`, client only). Verified in the decompiled 1.22.7 game (`VSSurvivalMod.dll`,
+`VintagestoryAPI.dll`) and Dovidarium 0.9.5.
+
+**What resets.** `GuiDialogHandbook.OnGuiClosed` clears `browseHistory` and calls
+`searchField.SetValue("", true)` (→ `FilterItemsBySearchText("")`: `currentSearchText = ""`,
+`FilterItems`), then unpauses. `OnGuiOpened` calls `initOverviewGui()` (a new `"handbook-overview"`
+composer: empty box, scroll 0, tab from `currentCatgoryCode`) and `FilterItems()`. `OnRenderGUI` shows
+the detail composer only while the top of `browseHistory` is a page (`SearchText == null`), so with the
+history cleared every open shows the list. The dialog itself is made once (`ModSystemSurvivalHandbook`,
+`LevelFinalize`) and kept, so `currentCatgoryCode`, `allHandbookPages` and the last `detailViewGui`
+survive a close. A page's scroll lives in its history step: `OnNewScrollbarvalueDetailPage` writes
+`browseHistory.Peek().PosY`, and `initDetailGui` scrolls to it (to the search match when it is 0).
+`loadEntries` (hotkeys changed, `.debug reloadhandbook`) rebuilds the pages: page objects are replaced,
+page codes stay.
+
+**Dovidarium.** Its overview reuse (`HandbookOverviewPatch`, on by default) keeps the last overview
+composer on open, so the list's scroll can survive, but the close has already emptied the box and the
+history. It registers `initOverviewGui` and `OnGuiOpened` as **Exclusive** (and does not apply at all if
+either already has a foreign patch). `GuiDialogHandbook.OnGuiClosed`, `GuiDialog.TryOpen` and `TryClose`
+are registered by no Dovidarium feature; `selectTab` is AllowAny (category tabs); `initDetailGui`
+PostfixesOnly (called, not patched). Its lazy list (`EnableHandbookLazyLoading`) shows 160 entries of
+the unsearched list and appends 160 more from a postfix on `OnNewScrollbarvalueOverviewPage` when the bar
+is within one list height of the end; an uncached search runs over several frames
+(`TryStartIncrementalSearch`).
+
+**Open paths** (`ModSystemSurvivalHandbook`): the `handbook` and `selectionhandbook` hotkeys toggle;
+on open they call `TryOpen()` and then, with a hovered slot's stack or (Shift) the looked-at block,
+`OpenDetailPageFor(code)`. `handbook://code` links: `TryOpen()` if closed, then `OpenDetailPageFor`;
+`handbook://tab-x`: `TryOpen()`, then `selectTab(x)`; `handbooksearch://text`: `TryOpen()`, then
+`Search(text)`. `GuiDialog.TryOpen()` calls `TryOpen(true)`, which runs `OnGuiOpened` only when the
+dialog was closed.
+
+| Hook | Why |
+|---|---|
+| prefix `GuiDialogHandbook.OnGuiClosed()` | the last point with the history, the box and the list's scroll intact; gated by no Dovidarium feature |
+| prefix + postfix `GuiDialog.TryOpen(bool)`, for the handbook when that call opened it | runs after `OnGuiOpened` (and Dovidarium's reuse), before whatever opened it pushes its own page or search; `OnGuiOpened` itself is Exclusive to Dovidarium |
+| prefix `GuiDialogHandbook.selectTab(string)` | a `handbook://tab-` link with a restored page on top would change only the hidden list: the history is cleared first, as `OnDetailViewTabClicked` does |
