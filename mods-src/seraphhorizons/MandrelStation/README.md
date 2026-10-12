@@ -269,7 +269,7 @@ nothing added to the shared rig maths: a `work` quantity, gauges, rides, and one
 - **`forge`**: `blowsPerHollow` (lead 9, copper 14: the pace), `hollows` (each class's work), `sections`
   (what a hollow makes) and `sectionsPerHollow` (2).
 - **`wind`**, the spring job: `rod` (`game:rod-steel`, its work), `class` (3: the spring job's own class,
-  the k gameplay gives it), `turnsPerRod` (4: the pace, turns of the held right-click's clock, a turn a
+  the k gameplay gives it), `turnsPerRod` (8: the pace, turns of the held right-click's clock, a turn a
   second), `spring` (`seraphhorizons:spring-steel`, what a rod makes), `springsPerRod` (1) and `hot`
   (`["rodsteel"]`: the requires values whose parts are drawn hot). Scalars, not per class: a spring has one
   class.
@@ -300,7 +300,7 @@ each its own class ("Lead hollow" 1, "Copper hollow" 2, "Steel rod: a spring" 3)
 only with its class (`requiresClass`). A **Rod temperature** slider (the scenario's `heat`, 0 to 1500 °C,
 opening at 1000) draws the rod and its spring glowing by vanilla's rule, as the game will. Play moves W with θ
 at lead's pace, a turn a blow (`play.turnsPerWork` `"forge.blowsPerHollow.thin"`), so a spring takes nine
-turns there; 2.25 RPS shows it at the game's four seconds.
+turns there; 1.125 RPS shows it at the game's eight seconds.
 
 ### Editing by hand
 
@@ -476,7 +476,7 @@ for the frame (`MachineSchematics`).
 ## Gameplay: the spring job
 
 Built to the contract the model left (settled with the owner: steel rods only, one rod a spring, wound on the
-mandrel already fitted, by hand with tongs, right-click held, about 4 s; heat by the anvil's rules). Everything
+mandrel already fitted, by hand with tongs, right-click held, about 8 s (4 at first); heat by the anvil's rules). Everything
 is read from the rig (`wind`, `requires`, the anchors), never element names. The rules are in `Core/Winding.cs`
 (the verdict for a rod, the heat rule, the glow, `WindJob`, `WindHolds`) and `Core/MandrelStationRig.cs`
 (`WindSpec`, the rig's `wind`); the game side is `BEMandrelStation` ("Winding"), with the held interaction in
@@ -503,7 +503,7 @@ is read from the rig (`wind`, `requires`, the anchors), never element names. The
 - **Winding.** With a rod on, any right-click on the station or its ghost (Shift aside) starts winding, held as
   the press brake's lever is: `OnBlockInteractStep` keeps the player in `WindHolds` while they hold, and the
   server's 50 ms tick winds by `Winding.RadiansPerSecond` × dt while anyone does, W advancing by a turn over
-  `TurnsPerRod` (4, the rig's `wind.turnsPerRod`, held together by a test): four seconds a rod. The player needs
+  `TurnsPerRod` (8, the rig's `wind.turnsPerRod`, held together by a test): eight seconds a rod. The player needs
   **tongs** in either hand (any item whose tool is `Tongs`: the game's `game:tongs` and metal tongs; the game
   keeps them in the off hand), none in creative mode; without, an error and no hold. W syncs every 0.02;
   the client follows the held clock with `HeldWorkFollower` (the press brake's), θ a turn a second, moving
