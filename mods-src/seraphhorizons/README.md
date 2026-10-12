@@ -3727,14 +3727,14 @@ adds `ChimneyHeatingPerExtraBlock` (40 °C an hour) and `ChimneyMaxPerExtraBlock
 `MaxChimneyHeight` (11 blocks: 400 °C an hour, up to 1650 °C). From cold, stainless melts in about 7.6
 hours on six blocks and 3.8 on eleven (`Core/FurnaceHeat.cs`, `DraughtOf`).
 
-**Rows and shared chimneys.** Up to `MaxFurnacesInRow` (6) furnaces of the same facing side by side
+**Rows and shared chimneys.** Up to `MaxFurnacesInRow` (5) furnaces of the same facing side by side
 along their width, touching (each a furnace's width, 3 blocks, from the next, and with its lining in),
-are a row, 18 blocks long at most: one chimney on any member's outlet serves all of them, each at its
+are a row, 15 blocks long at most: one chimney on any member's outlet serves all of them, each at its
 full draught, as the per-hole flues in one stack did. Every other outlet must be capped: a right-click
 on an outlet's top with an iron plate caps it, and with an empty hand takes the plate back. An uncapped
 outlet (bare, or carrying a second, shorter chimney) leaks the draught: the whole row has none until it
 is capped, and the block info says which furnace's outlet is open ("the furnace 2 to the left", seen
-from the front). With more than six side by side none has draught. `Core/FurnaceRow.cs` finds the row
+from the front). With more than five side by side none has draught. `Core/FurnaceRow.cs` finds the row
 both ways from the furnace asking, its chimney (the tallest on an uncapped outlet) and what is wrong.
 
 **The ash-pit damper.** An empty-hand right-click on the furnace's front (the controller's face, the
@@ -3910,7 +3910,7 @@ frame's page has "Building it" and a section linking the guide, as the pots and 
 | `ChimneyMaxPerExtraBlock` | 10 | °C of maximum each block over the shortest adds |
 | `MinChimneyHeight` | 6 | Chimney blocks on the outlet the furnace needs to draw |
 | `MaxChimneyHeight` | 11 | The tallest chimney that draws harder |
-| `MaxFurnacesInRow` | 6 | Furnaces side by side one chimney serves |
+| `MaxFurnacesInRow` | 5 | Furnaces side by side one chimney serves |
 | `CoolingPerHour` | 300 | °C an hour a furnace cools, lid shut |
 | `LidOpenCoolingPerHour` | 600 | °C an hour it cools, lid open |
 | `DamperHalfHeating` | 0.5 | Damper half shut: the share of the heating |
@@ -3936,7 +3936,7 @@ not patched and its scrap list and handbook are as it ships them. Not yet: the p
 export (the frame and the pot's own recipes are there), and the furnace seen in a game client.
 
 `tests/CrucibleFurnace/` (unit) covers the pot recipes and charging, the draught by height, the damper,
-the row (caps, leaks, at most six, a gap ending it), the build (the order, a stack a click, one brick
+the row (caps, leaks, at most five, a gap ending it), the build (the order, a stack a click, one brick
 type), two pots of different recipes, and the rig (its contract, the reference poses, the lid's boxes,
 and `potUnits` and the coke's layers held to the settings). `tests/PackTests/CrucibleFurnaceScenarios.cs`
 (Atlas) places the frame on all four facings and breaks it, builds every stage by clicks and refuses a

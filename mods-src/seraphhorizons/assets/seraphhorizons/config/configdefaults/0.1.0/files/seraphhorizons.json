@@ -393,7 +393,7 @@
     "LidOpenCoolingPerHour": 600.0,
     "MinChimneyHeight": 6,
     "MaxChimneyHeight": 11,
-    "MaxFurnacesInRow": 6,
+    "MaxFurnacesInRow": 5,
     "DamperHalfHeating": 0.5,
     "DamperHalfBurn": 0.6,
     "DamperShutBurn": 0.25,

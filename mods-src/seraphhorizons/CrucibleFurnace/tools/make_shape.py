@@ -88,7 +88,7 @@ ORIGIN_CELL = (1, 0, 0)                      # the controller: the front middle 
 LID_CELLS = ((0, 2, 0), (1, 2, 0), (2, 2, 0), (0, 2, 1), (1, 2, 1), (2, 2, 1))
 CHIMNEY_CELL = (1, 2, 2)
 FREE_CELLS = ((0, 2, 2), (2, 2, 2))
-ROW_MAX = 6                                  # furnaces in a row, side by side along x, sharing one chimney
+ROW_MAX = 5                                  # furnaces in a row, side by side along x, sharing one chimney
 
 TEXTURES = {
     "brick": "game:block/clay/brick/four/running/red1",     # the common brickwork: the red brick's colour (BRICKS)

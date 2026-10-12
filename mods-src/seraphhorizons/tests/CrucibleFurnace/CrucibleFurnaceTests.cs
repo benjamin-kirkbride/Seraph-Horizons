@@ -391,17 +391,17 @@ public class CrucibleFurnaceTests
     }
 
     [Fact]
-    public void Six_furnaces_share_one_chimney_but_seven_are_too_many()
+    public void Five_furnaces_share_one_chimney_but_six_are_too_many()
     {
-        var six = Enumerable.Range(0, 6).Select(i => (i, i != 5, i == 5 ? 6 : 0)).ToArray();
-        var row = FurnaceRow.Find(Row(six), 6, 6);
+        var five = Enumerable.Range(0, 5).Select(i => (i, i != 4, i == 4 ? 6 : 0)).ToArray();
+        var row = FurnaceRow.Find(Row(five), 5, 6);
         Assert.True(row.Works);
-        Assert.Equal(6, row.Count);
-        var seven = Enumerable.Range(0, 7).Select(i => (i, i != 6, i == 6 ? 6 : 0)).ToArray();
-        Assert.Equal(RowProblem.TooManyFurnaces, FurnaceRow.Find(Row(seven), 6, 6).Problem);
-        // from the middle too, scanning both ways
-        Assert.Equal(RowProblem.TooManyFurnaces, FurnaceRow.Find(k => Row(seven)(k + 3), 6, 6).Problem);
+        Assert.Equal(5, row.Count);
+        var six = Enumerable.Range(0, 6).Select(i => (i, i != 5, i == 5 ? 6 : 0)).ToArray();
         Assert.Equal(RowProblem.TooManyFurnaces, FurnaceRow.Find(Row(six), 5, 6).Problem);
+        // from the middle too, scanning both ways
+        Assert.Equal(RowProblem.TooManyFurnaces, FurnaceRow.Find(k => Row(six)(k + 3), 5, 6).Problem);
+        Assert.Equal(RowProblem.TooManyFurnaces, FurnaceRow.Find(Row(five), 4, 6).Problem);
     }
 
     [Fact]
@@ -440,7 +440,7 @@ public class CrucibleFurnaceTests
         Assert.Equal(0.6, bad.DamperHalfBurn);
         Assert.Equal(0.25, bad.DamperShutCooling);
         Assert.Equal(11, bad.MaxChimneyHeight);
-        Assert.Equal(6, bad.MaxFurnacesInRow);
+        Assert.Equal(5, bad.MaxFurnacesInRow);
         Assert.Equal(300, bad.PotCapacityUnits);
         Assert.Equal(20, bad.PourWindowSeconds);
         Assert.Equal(1, bad.HoursPerCoke);
