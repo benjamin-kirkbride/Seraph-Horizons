@@ -30,6 +30,7 @@
   "UnifiedWoodworking": true,
   "CreativeKeepsPlace": true,
   "SearchRightClickClears": true,
+  "HandbookKeepsPlace": true,
   "BuckingSawmill": true,
   "BuckingSawmillSettings": {
     "Resistance": 0.17,
@@ -282,7 +283,7 @@
     "BlowsPerHollowCopper": 14,
     "BaseHammerTier": 2,
     "HammerWearPerBlow": 1,
-    "TurnsPerRod": 4.0,
+    "TurnsPerRod": 8.0,
     "TongsWearPerRod": 1
   },
   "MandrelSprings": true,
