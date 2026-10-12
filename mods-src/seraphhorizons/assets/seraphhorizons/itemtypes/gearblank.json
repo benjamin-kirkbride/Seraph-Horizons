@@ -23,6 +23,11 @@
 		onTongTransform: {
 			translation: { x: -1.03, y: -0.64, z: -1.015 },
 			rotation: { x: -83, y: -16, z: -3 }
+		},
+		onMetalTongTransform: {
+			translation: { x: -1.2, y: -0.18, z: -0.515 },
+			rotation: { x: 0, y: 0, z: -8 },
+			origin: { x: 0.5, y: 0, z: 0.5 }
 		}
 	},
 	creativeinventory: { "general": ["*"], "items": ["*"] },
