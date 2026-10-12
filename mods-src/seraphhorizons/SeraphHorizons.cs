@@ -21,7 +21,8 @@ namespace SeraphHorizons.Mod;
 /// ModConfig/seraphhorizons.json, and skipped with a log line when the mod it changes is not
 /// installed or no longer looks as expected. This system applies its own patches explicitly
 /// (never PatchAll). Tidy Variants (TidyVariants/), Map Reveal (MapReveal/), the creative mod
-/// tabs (CreativeModTabs/), the creative search tweaks (CreativeSearch/), the handbook's kept
+/// tabs (CreativeModTabs/), the creative search tweaks (CreativeSearch/), the recipe selector's
+/// search (RecipeSelector/), the handbook's kept
 /// place (HandbookPlace/), the machines and trunk entities (TrunkEntities/) have their own mod systems, which read their switch through
 /// <see cref="ConfigFor"/>.
 /// </summary>
@@ -529,6 +530,12 @@ public class SeraphHorizonsConfig
     /// link, on top (client side; off means it reopens on the whole list at the top with no history,
     /// as vanilla does).</summary>
     public bool HandbookKeepsPlace { get; set; } = true;
+
+    /// <summary>The recipe selection dialog of knapping, clay forming and smithing has the creative
+    /// inventory's search box (the same search) and, past six rows, a scrollbar; a selection picks the
+    /// recipe clicked whatever the search shows (client side; off means the game's dialog, every recipe
+    /// at once with neither).</summary>
+    public bool RecipeSelectorSearch { get; set; } = true;
 
     /// <summary>The bucking sawmill: a mechanically powered pair of drag saws, built from a frame
     /// and Immersive Woodworking's sawmill parts, that cross-cuts Logging Expanded tree trunks into
