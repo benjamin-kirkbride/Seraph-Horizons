@@ -577,6 +577,89 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         site.EmptyInventory();
     }
 
+    /// <summary>Ctrl and right-click with the pot in <paramref name="site"/>'s hand on <paramref name="sel"/>
+    /// (null: in the air), as the game calls a held interaction; the handling.</summary>
+    private static EnumHandHandling HeldClick(Site site, BlockSelection? sel, bool ctrl = true, bool shift = false)
+    {
+        var controls = site.Player.Entity.Controls;
+        controls.CtrlKey = ctrl;
+        controls.ShiftKey = shift;
+        try
+        {
+            var handling = EnumHandHandling.NotHandled;
+            site.Hand.Itemstack!.Collectible.OnHeldInteractStart(site.Hand, site.Player.Entity, sel!, null!, true, ref handling);
+            return handling;
+        }
+        finally
+        {
+            controls.CtrlKey = controls.ShiftKey = false;
+        }
+    }
+
+    // A charged pot, held, empties as a bucket does: Ctrl and right-click on a block drops the charge
+    // there and keeps the pot's heats; not in the air, not without Ctrl, not while too hot to touch.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_held_charged_pot_empties_with_ctrl_on_a_block_as_a_bucket_does()
+    {
+        var site = await Build("emptier", 164);
+        var floor = site.Origin.AddCopy(0, -1, 1);
+        var sel = new BlockSelection { Position = floor, Face = BlockFacing.UP, HitPosition = new Vec3d(0.5, 1, 0.5) };
+        ItemStack Charged(int size = 1)
+        {
+            var pot = site.Stack(CrucibleFurnaceSystem.FiredPot, size);
+            PotStack.SetHeats(pot, 2);
+            PotStack.SetCharge(pot, [new ChargeItem(Stainless.Bit, 20), new ChargeItem("game:metalbit-iron", 70)]);
+            return pot;
+        }
+        site.Hand.Itemstack = Charged();
+        site.Hand.MarkDirty();
+        var help = site.Hand.Itemstack.Collectible.GetHeldInteractionHelp(site.Hand);
+        var empty = Assert.Single(help, h => h.ActionLangCode == "seraphhorizons:heldhelp-meltingpot-empty");
+        Assert.Equal("ctrl", empty.HotKeyCode);
+        Assert.True(empty.ShouldApply(empty, sel, null));
+
+        // without Ctrl, with Shift too, or in the air: nothing
+        Assert.NotEqual(EnumHandHandling.PreventDefaultAction, HeldClick(site, sel, ctrl: false));
+        Assert.NotEqual(EnumHandHandling.PreventDefaultAction, HeldClick(site, null));
+        Assert.Equal(2, PotStack.Charge(site.Hand.Itemstack).Count);
+        // too hot to touch: as before, it keeps its charge
+        site.Hand.Itemstack.Collectible.SetTemperature(W, site.Hand.Itemstack, 500);
+        Assert.False(empty.ShouldApply(empty, sel, null));
+        Assert.NotEqual(EnumHandHandling.PreventDefaultAction, HeldClick(site, sel));
+        Assert.Equal(2, PotStack.Charge(site.Hand.Itemstack).Count);
+
+        // cold: emptied where the click landed, the pot kept in the hand with its heats
+        KillItems(site.Origin);
+        site.Hand.Itemstack = Charged();
+        site.Hand.MarkDirty();
+        Assert.Equal(EnumHandHandling.PreventDefaultAction, HeldClick(site, sel));
+        var held = site.Hand.Itemstack!;
+        Assert.Equal(CrucibleFurnaceSystem.FiredPot, held.Collectible.Code.ToString());
+        Assert.Empty(PotStack.Charge(held));
+        Assert.Equal(2, PotStack.Heats(held));
+        Assert.False(empty.ShouldApply(empty, sel, null));
+        await World.Ticks(3);
+        var drops = ItemsNear(site.Origin);
+        Assert.Equal(20, drops.GetValueOrDefault(Stainless.Bit));
+        Assert.Equal(70, drops.GetValueOrDefault("game:metalbit-iron"));
+        // an empty pot: nothing more
+        Assert.NotEqual(EnumHandHandling.PreventDefaultAction, HeldClick(site, sel));
+
+        // a stack of two: one a click, the emptied one to the inventory
+        KillItems(site.Origin);
+        site.EmptyInventory();
+        site.Hand.Itemstack = Charged(2);
+        site.Hand.MarkDirty();
+        Assert.Equal(EnumHandHandling.PreventDefaultAction, HeldClick(site, sel));
+        Assert.Equal(1, site.Hand.StackSize);
+        Assert.Equal(2, PotStack.Charge(site.Hand.Itemstack).Count);
+        Assert.Equal(2, site.Count(CrucibleFurnaceSystem.FiredPot));
+        await World.Ticks(3);
+        Assert.Equal(20, ItemsNear(site.Origin).GetValueOrDefault(Stainless.Bit));
+        KillItems(site.Origin);
+        site.EmptyInventory();
+    }
+
     // ---- Stainless and iron, end to end ----
 
     [AtlasScenario(TimeoutMs = 120_000)]
