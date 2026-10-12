@@ -139,38 +139,54 @@ public class WideDensityProspectingScenarios(ITestOutputHelper output) : AtlasSc
         Assert.Equal([-64, -32, 0, 32, 64], WideDensityProspectingSystem.ReprospectOffsets());
     }
 
+    /// <summary>Galena set at known spots: within 32 blocks both radii count it, between 32 and 64
+    /// only the wide walk does, and the wide reading divides by the wide zone. Deltas, so the ground's
+    /// own ore (sparse and seed-dependent) does not matter.</summary>
     [AtlasScenario(TimeoutMs = 600_000)]
-    public async Task The_wide_walk_counts_four_times_the_blocks_at_a_comparable_ppt()
+    public async Task The_wide_walk_reaches_64_blocks_and_reads_over_the_wide_zone()
     {
         var p = await Pick();
+        var w = World.Api.World;
         var at = p.Underground();
-        Dictionary<string, int> narrow, wide;
-        Dictionary<string, double> narrowPpt, widePpt;
-        try
-        {
-            WideDensityProspectingSystem.Radius = DensityProspecting.ShippedRadius;
-            narrow = p.Walk(at);
-            narrowPpt = p.Ppt(at, narrow);
-        }
-        finally
-        {
-            WideDensityProspectingSystem.Radius = DensityProspecting.WideRadius;
-        }
-        wide = p.Walk(at);
-        widePpt = p.Ppt(at, wide);
+        var galena = w.Blocks.FirstOrDefault(b => b?.Code is { Domain: "game" } c && c.Path.StartsWith("ore-") && b.Variant?["type"] == "galena")
+                     ?? throw new Xunit.Sdk.XunitException("no galena ore block");
+        output.WriteLine($"placing {galena.Code}");
+        var inner = Enumerable.Range(0, 5).Select(i => at.AddCopy(5 + i, 0, 3)).ToList();
+        var outer = Enumerable.Range(0, 7).Select(i => at.AddCopy(40 + i, 0, 50)).Concat(
+            Enumerable.Range(0, 3).Select(i => at.AddCopy(-60, 0, -45 - i))).ToList();
+        Assert.All(inner.Concat(outer), pos => Assert.NotEqual("galena", w.BlockAccessor.GetBlock(pos).Variant?["type"]));
 
-        double ratio = (double)wide.Values.Sum() / narrow.Values.Sum();
-        output.WriteLine($"r32: {narrow.Values.Sum()} blocks, r64: {wide.Values.Sum()} blocks, ratio {ratio:F2}");
-        foreach (var key in wide.Keys.Union(narrow.Keys).OrderByDescending(k => wide.GetValueOrDefault(k)))
-            output.WriteLine($"  {key,-28} r32 {narrow.GetValueOrDefault(key),7} ({narrowPpt.GetValueOrDefault(key),8:F3} ppt)   r64 {wide.GetValueOrDefault(key),7} ({widePpt.GetValueOrDefault(key),8:F3} ppt)");
-        // (129 / 65)^2 = 3.94 the area; the ground's own variation on top.
-        Assert.InRange(ratio, 3.0, 5.0);
-        // Normalised over the wider zone, the deposits read on the same scale (the reading's other
-        // entries, such as Hydrate or Diedrate's aquifer, are not the walk's).
-        Assert.True(narrow.Values.Sum() > 0, "no deposit blocks around the sample");
-        double narrowTotal = narrow.Keys.Sum(k => narrowPpt[k]), wideTotal = wide.Keys.Sum(k => widePpt[k]);
-        output.WriteLine($"deposit ppt r32 {narrowTotal:F3}, r64 {wideTotal:F3}");
-        Assert.InRange(wideTotal / narrowTotal, 0.5, 2.0);
+        Dictionary<string, int> Walk(int radius)
+        {
+            try
+            {
+                WideDensityProspectingSystem.Radius = radius;
+                return p.Walk(at);
+            }
+            finally
+            {
+                WideDensityProspectingSystem.Radius = DensityProspecting.WideRadius;
+            }
+        }
+
+        var narrowBefore = Walk(DensityProspecting.ShippedRadius);
+        var wideBefore = Walk(DensityProspecting.WideRadius);
+        foreach (var pos in inner.Concat(outer))
+            w.BlockAccessor.SetBlock(galena.Id, pos);
+        var narrowAfter = Walk(DensityProspecting.ShippedRadius);
+        var wideAfter = Walk(DensityProspecting.WideRadius);
+        int Delta(Dictionary<string, int> after, Dictionary<string, int> before) =>
+            after.GetValueOrDefault("galena") - before.GetValueOrDefault("galena");
+        output.WriteLine($"r32: {narrowBefore.Values.Sum()} deposit blocks, r64: {wideBefore.Values.Sum()}");
+        Assert.Equal(inner.Count, Delta(narrowAfter, narrowBefore));
+        Assert.Equal(inner.Count + outer.Count, Delta(wideAfter, wideBefore));
+
+        // The reading divides by the wide zone: (2 * 64)^2 columns of the map height.
+        int mapHeight = w.BlockAccessor.GetTerrainMapheightAt(at);
+        var ppt = p.Ppt(at, wideAfter);
+        double expected = (double)wideAfter["galena"] / (DensityProspecting.ZoneArea(DensityProspecting.WideRadius) * mapHeight) * 1000;
+        output.WriteLine($"galena: {wideAfter["galena"]} blocks, {ppt["galena"]:F4} ppt (map height {mapHeight})");
+        Assert.Equal(expected, ppt["galena"], 9);
     }
 
     [AtlasScenario(TimeoutMs = 600_000)]

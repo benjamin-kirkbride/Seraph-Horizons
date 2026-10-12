@@ -4626,7 +4626,8 @@ is patched, with one warning, and density prospecting is as it ships.
 
 Tests: `tests/Ore/DensityProspectingTests.cs` (the zone area, the offsets covering every chunk the
 walk reads, the gate); `tests/PackTests/WideDensityProspectingScenarios.cs` (Atlas, a standard world:
-every rewrite applied, the wide walk counting about four times the blocks at the same total ppt, a
+every rewrite applied, ore set within 32 blocks counted at both radii and ore between 32 and 64 only
+at 64, the wide reading normalised over the wide zone, a
 hit charged at once with its reading arriving from a walk off the main thread equal to the same walk
 on it, a second hit turned away, the old density mode untouched); off: `SwitchesOffScenarios`.
 
