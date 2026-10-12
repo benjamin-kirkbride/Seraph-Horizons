@@ -87,6 +87,7 @@
   "RarerDistricts": true,
   "RarerBattleTowers": true,
   "RuinsOnMedianGround": true,
+  "SmallerRockStacks": true,
   "TraderGrid": true,
   "TraderStanding": true,
   "TraderStandingSpilloverKm": 6.0,
@@ -99,7 +100,7 @@
   "WideDensityProspecting": true,
   "OreProcessing": true,
   "SpallingSettings": {
-    "BlowsRawOre": 6,
+    "BlowsRawOre": 2,
     "HammerWearPerBlow": 1
   },
   "FirepitRoastSeconds": 10.0,
