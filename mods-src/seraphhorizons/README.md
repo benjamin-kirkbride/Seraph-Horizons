@@ -24,7 +24,7 @@ it patches by name, so the mod builds from the game alone (`release.yml` needs n
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
 chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach, Carry On's
-icon reset, the creative search tweaks and the NaN motion diagnostics run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
+icon reset, the creative search tweaks, the handbook's kept place and the NaN motion diagnostics run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
 that has it (a server with the steam source switched off, or without ppex, has no such block).
@@ -4322,6 +4322,60 @@ caret in the box, typing works), with an item on the cursor (still held, nothing
 the box empty (nothing happens); right-click the handbook's search box; right-click the chat input
 and a sign's text (unchanged).
 
+### The handbook keeps your place (`HandbookKeepsPlace`)
+
+Closing the handbook throws its place away: `GuiDialogHandbook.OnGuiClosed` clears the browse
+history and empties the list page's search box, and `OnGuiOpened` composes the list page again (a
+new one, scrolled to the top, or with Dovidarium's overview reuse the last one, which the close
+emptied). So every open, with the handbook key or Escape and the key again, starts on the whole
+list with no page and nothing for Back. Only the category tab survived (the dialog's
+`currentCatgoryCode`). With this tweak, reopening it in the same session puts it back as it was
+left, as `CreativeKeepsPlace` does for the creative inventory:
+
+- the page that was shown, scrolled where it was (the page's own `PosY`, kept in its history step);
+- the browse history behind it, so Back walks back through the pages and searches as before;
+- the list page's search text, its results (filtered by the handbook's own search, vanilla's or
+  Dovidarium's, over the list Tidy Variants has collapsed), and its scroll.
+
+Opening the handbook onto something still opens that: the selection hotkey on a hovered slot or a
+looked-at block, a `handbook://` link (a recipe ingredient, a guide's link) and a `handbooksearch://`
+link put their page or search on top of the restored place, so Back from it returns to where the
+player was. A `handbook://tab-` link (the intro's "first steps tutorial") shows its tab: with a page on
+top, `selectTab` would change the list behind the page and show nothing new, so the history is
+cleared first, as the game does for a tab clicked on a page. Client side, in memory only: leaving the
+world forgets it. A page the handbook no longer has (pages are rebuilt on a hotkey change and on
+`.debug reloadhandbook`) is dropped from the history; at most the newest 64 steps are kept, since a
+close no longer clears them.
+
+Hooks (`HandbookPlace/`, Harmony id `seraphhorizons.handbookplace`, client only;
+`docs/variant-grouping/hooks.md` §8): a prefix on `GuiDialogHandbook.OnGuiClosed` reads the history
+(each page by its page code, and the page object to prefer while it is still the handbook's), the box's
+text and the list's scroll before the method clears them, and a postfix on `GuiDialog.TryOpen(bool)`,
+for the handbook and only when that call opened it, puts them back after `OnGuiOpened` has composed and
+filtered the list: `SetValue` on the box (the handbook's own search), the history, the page on top
+composed as Back composes it (`initDetailGui`), then the list's scroll as `CreativeKeepsPlace` sets
+the grid's. Not a postfix on `OnGuiOpened`: Dovidarium's overview reuse takes it and `initOverviewGui`
+as Exclusive and would turn itself off at its late audit. A prefix on `GuiDialogHandbook.selectTab`
+(Dovidarium's category tabs allow any patch there) does the tab-link clearing. Dovidarium fills the
+unsearched list 160 entries at a time as it is scrolled near the end, and runs an uncached search over
+a few frames, so the scroll is set again while the list grows, and if it still falls short, every
+0.1 s for up to 2 s (a renderer: single player pauses the game while the handbook is open) until it
+gets there or the player moves the bar. The decisions (what is kept, what is put back after pages
+changed, when the scroll retries stop) are in `HandbookPlace/Core/`, unit tested in
+`tests/HandbookPlace/`.
+
+To check by hand in the game (the full pack, single player and on a server): search `axe`, scroll the
+list, open a page, follow a link on it, scroll that page; close with the handbook key and with Escape,
+reopen with the key: the same page at the same scroll, Back goes to the first page, Back again to the
+list with `axe` in the box and the same scroll. Close on the list with no search after scrolling far
+down (past Dovidarium's first 160 entries): reopen at the same place. Close on a page, hover an item in
+the inventory and press the selection hotkey (Shift+H on a looked-at block too): that item's page, and
+Back returns to the remembered page. With a page remembered, click the intro dialog's "first steps
+tutorial" link: the tutorial tab's list. Change a hotkey (the pages are rebuilt) and reopen: the same
+place where its pages still exist. Leave and rejoin the world: the whole list at the top. With
+`HandbookKeepsPlace` off: vanilla. Dovidarium's `patch-status … late-audit` line shows the same active
+count with the tweak on as off.
+
 ### The mod checks the installed mods against the pack (`PackVersionCheck`)
 
 The mod is released with the pack, at the pack's version (Releasing, below), and carries the
@@ -6575,7 +6629,9 @@ group, the creative and handbook systems stay off on the server, and the report
 resolved or patched and the boiler tweak still applied.
 
 `CreativeKeepsPlace` and `SearchRightClickClears` are client GUI only, with no logic apart from the
-game's: they need checking by hand in the game (the lists in their sections).
+game's: they need checking by hand in the game (the lists in their sections). `HandbookKeepsPlace`'s
+decisions are unit tested (`tests/HandbookPlace/`); its hooks and how they meet the dialog and
+Dovidarium are verified against the decompiled game and Dovidarium only, and need the same check by hand.
 
 `tests/PackTests/SwitchesOffScenarios.cs` (Atlas) is every switch's off check on one server, seeded
 with `fixtures/switches-off/seraphhorizons.json`: each class boots its own server, which costs far
