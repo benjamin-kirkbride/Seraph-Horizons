@@ -46,6 +46,8 @@ public class SeraphHorizonsSystem : ModSystem
     // Its own id, patched once per process, as the barrel rack's: the client checks the hotbar too.
     private Harmony? _gearConsumersHarmony;
     private Harmony? _gearPartsHarmony;
+    // Its own id, patched once per process: both sides run Stone Quarry's drench.
+    private Harmony? _stoneQuarryDrenchHarmony;
     // Its own id, patched once per process, as the heating rack's: both sides ask Yang's seat check.
     private Harmony? _locomotiveStayOnHarmony;
     // Its own id, server side only.
@@ -138,6 +140,9 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(GearPartsRemoved.DisablePatches);
         else if (api.Side == EnumAppSide.Server)
             GearPartsRemoved.Patch(_gearPartsHarmony = new Harmony(GearPartsRemoved.HarmonyId), api.Logger);
+        // Rock and earth stack to 16 (RockStackSystem): Stone Quarry's bucket keeps making 16 muddy gravel.
+        if (Config(api).SmallerRockStacks && StoneQuarryDrench.Applies(api))
+            StoneQuarryDrench.Patch(_stoneQuarryDrenchHarmony = new Harmony(StoneQuarryDrench.HarmonyId), api.Logger);
         _fellingWear = Config(api).FlatFellingWear && FellingWear.Applies(api) && FellingWear.Bind(api.Logger);
         if (Config(api).LocomotiveRidersStayOn && LocomotiveSeats.Applies(api) && LocomotiveSeats.BindStayOn(api.Logger))
             LocomotiveSeats.PatchStayOn(_locomotiveStayOnHarmony = new Harmony(LocomotiveSeats.StayOnHarmonyId));
@@ -327,6 +332,8 @@ public class SeraphHorizonsSystem : ModSystem
         _heatingRackPlacementHarmony = null;
         _gearConsumersHarmony?.UnpatchAll(GearConsumers.HarmonyId);
         _gearConsumersHarmony = null;
+        _stoneQuarryDrenchHarmony?.UnpatchAll(StoneQuarryDrench.HarmonyId);
+        _stoneQuarryDrenchHarmony = null;
         if (_gearPartsHarmony != null)
         {
             _gearPartsHarmony.UnpatchAll(GearPartsRemoved.HarmonyId);
@@ -643,6 +650,16 @@ public class SeraphHorizonsConfig
     /// generated from then on.</summary>
     public bool RuinsOnMedianGround { get; set; } = true;
 
+    /// <summary>Rock and earth stack to 16 (#863, <see cref="RockStackSystem"/>, README "Rock and earth
+    /// stack to 16"): rock, cobblestone, stone bricks, polished rock, ore-bearing rock, soil, sand,
+    /// gravel, clay and peat deposits, earth blocks and clay brick, tile, shingle, chimney and
+    /// refractory brick blocks stack to at most 16, and their slabs, stairs, fences, paths, roads
+    /// and roofing to at most 32 (support beams, wooden shapes, every other block
+    /// and every item keep theirs); traders judge them by the 64 they stacked to before, so they
+    /// stay sellable as they were (server side; clients follow the server's blocks). Off, they stack
+    /// as their mods ship them.</summary>
+    public bool SmallerRockStacks { get; set; } = true;
+
     /// <summary>Traders: lone trader camps on a seeded 2 km grid, one per cell, of the pack's eleven
     /// trader types (Trading/), in place of the game's and other mods' randomly placed camps. New
     /// worlds only: a world takes the grid at its first start with this mod if this is on then, and
@@ -699,11 +716,12 @@ public class SeraphHorizonsConfig
     public bool WideDensityProspecting { get; set; } = true;
 
     /// <summary>Ore processing (epic #684, Ore/Processing/, README "Ore processing: items, crushing
-    /// and smelting"): poor and medium ore become raw ore (stack 4, does not smelt), rich and bountiful
-    /// ore chunks (stack 16, smelt at half); crushed, ground, concentrate, roasted concentrate, amalgam
-    /// and litharge items; crushing yields the ore's units in 5-unit crushed ore, and no grid recipe
-    /// or hammer turns ore into nuggets; every furnace takes concentrate. Server side (clients follow
-    /// the server's items).</summary>
+    /// and smelting"): every grade of ore is raw ore, 16 a stack at about a quarter of vanilla's metal
+    /// units (#847, #863), smelting at its grade's share; crushed, ground, roasted, concentrate,
+    /// roasted concentrate, amalgam and litharge items; crushing is one for one, and no grid recipe
+    /// or hammer turns ore into nuggets; every furnace takes concentrate. With ore cells' smaller
+    /// deposits, graded ore's veins are four times the volume. Server side (clients follow the
+    /// server's items).</summary>
     public bool OreProcessing { get; set; } = true;
 
     /// <summary>Spalling (#747, Ore/Processing/OreSpalling.cs, README "Ore processing: spalling"), part

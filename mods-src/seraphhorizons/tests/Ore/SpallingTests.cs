@@ -19,13 +19,13 @@ public class SpallingTests
     public void Graded_ore_and_crystallised_ore_spall(string firstPart, string? grade, bool spalls) =>
         Assert.Equal(spalls, Spalling.Spalls(firstPart, grade));
 
-    // #847: every grade is the same lump of rock, so the same blows.
+    // #847: every grade is the same lump of rock, so the same blows; 2 since #863 (a quarter the metal an item).
     [Fact]
     public void Every_grade_takes_the_same_blows()
     {
         var config = new SpallingConfig();
         foreach (var grade in OreProducts.Grades)
-            Assert.Equal(6, config.BlowsFor(grade));
+            Assert.Equal(2, config.BlowsFor(grade));
         Assert.Equal(0, config.BlowsFor("lignite"));
         Assert.Equal(0, config.BlowsFor(null));
         Assert.Equal(1, config.HammerWearPerBlow);
@@ -51,11 +51,11 @@ public class SpallingTests
     // With no loss (#847): a raw ore breaks into one crushed ore of its grade, which holds its units;
     // crystallised ore, twice its grade's units, into two.
     [Theory]
-    [InlineData("poor", 15, 1)]
-    [InlineData("medium", 20, 1)]
-    [InlineData("rich", 25, 1)]
-    [InlineData("bountiful", 35, 1)]
-    [InlineData("bountiful", 70, 2)]
+    [InlineData("poor", 3, 1)]
+    [InlineData("medium", 5, 1)]
+    [InlineData("rich", 7, 1)]
+    [InlineData("bountiful", 10, 1)]
+    [InlineData("bountiful", 20, 2)]
     public void It_breaks_into_crushed_ore_one_for_one(string grade, int units, int crushed) =>
         Assert.Equal(crushed, OreProducts.CrushedCount(units, OreProducts.RawUnits("galena", grade)!.Value));
 
@@ -64,7 +64,7 @@ public class SpallingTests
     {
         var config = new SpallingConfig { BlowsRawOre = 0, HammerWearPerBlow = -1 };
         Assert.Equal(2, config.Sanitise().Count);
-        Assert.Equal((6, 1), (config.BlowsRawOre, config.HammerWearPerBlow));
+        Assert.Equal((2, 1), (config.BlowsRawOre, config.HammerWearPerBlow));
         Assert.Empty(new SpallingConfig { BlowsRawOre = 1, HammerWearPerBlow = 0 }.Sanitise());
     }
 }

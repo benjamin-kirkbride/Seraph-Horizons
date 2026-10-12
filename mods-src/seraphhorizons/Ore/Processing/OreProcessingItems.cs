@@ -8,11 +8,12 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// Sets ore processing's rules on the loaded items (#686, #687, #688, #847), on the server once every
 /// item is loaded and patched, so the result does not depend on the order other mods' patches ran in:
 /// <list type="bullet">
-/// <item>vanilla's ore item <c>game:ore-{grade}-{ore}-{rock}</c> is raw ore at every grade, 4 a stack
-/// (no chunks), and crushes to one <c>seraphhorizons:crushedore-{ore}-{grade}</c>, which holds its
-/// units. Its <c>metalUnits</c> and the ore blocks' drops are left as they are (deposit measurement
-/// reads them). Crystallised ore crushes to as many crushed ore of its grade as its units make (two),
-/// its stack left alone;</item>
+/// <item>vanilla's ore item <c>game:ore-{grade}-{ore}-{rock}</c> is raw ore at every grade, 16 a stack
+/// (no chunks, #863), and crushes to one <c>seraphhorizons:crushedore-{ore}-{grade}</c>, which holds
+/// its units. Its <c>metalUnits</c> are the pack's (<see cref="OreProducts.RawUnits"/>, set by
+/// <c>patches/oreprocessing-ore.json</c>), which deposit measurement reads; the ore blocks' drops are
+/// left as they are. Crystallised ore crushes to as many crushed ore of its grade as its units make
+/// (two), its stack left alone;</item>
 /// <item>every rock form (raw, crushed and ground ore, crystallised ore) smelts at its grade's share
 /// (<see cref="OreRecovery.SmeltShare"/>), and fits a crucible; a sulfide's does not smelt: its raw
 /// and crushed ore roast in the firepit (#720), any fuel, one for one into roasted rock of its grade

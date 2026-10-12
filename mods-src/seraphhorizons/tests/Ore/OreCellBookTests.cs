@@ -200,12 +200,49 @@ public class VeinScalingTests
     }
 
     [Fact]
-    public void NeverGrowsAndLeavesUnknownTypesAlone()
+    public void OneLeavesItAndUnknownTypesAreLeftAlone()
     {
         var shape = Shape("fault", 48, 10, 3);
-        Assert.Equal(shape, VeinScaling.Scale(shape, 1.5));
+        Assert.Equal(shape, VeinScaling.Scale(shape, 1));
         Assert.Equal(Shape("disc", 5, 1, 1), VeinScaling.Scale(Shape("disc", 5, 1, 1), 0.1));
+        Assert.Equal(Shape("disc", 5, 1, 1), VeinScaling.Scale(Shape("disc", 5, 1, 1), 4));
         Assert.Throws<ArgumentOutOfRangeException>(() => VeinScaling.Scale(shape, 0));
+    }
+
+    // #863: graded ore's veins grow four times in volume, the same way they shrink.
+    [Fact]
+    public void ItGrowsTheSameWay()
+    {
+        var disc = VeinScaling.Scale(Shape("seam", 96, 20, 3), 4);
+        Assert.Equal(192, disc.Radius.Avg, 3);
+        Assert.Equal(20, disc.BranchCount.Avg);
+        // A tube grows on its tendrils, even from a count that shrunk would be cut to one.
+        var tube = VeinScaling.Scale(Shape("chimney", 6, 1, 96), 1.2);
+        Assert.Equal(1.2, tube.BranchCount.Avg, 3);
+        Assert.Equal(96, tube.BranchLength.Avg);
+    }
+
+    // The vein's factor: its metal's cut, times four for a graded ore (#863), none for an ore the
+    // table and the units leave alone.
+    [Fact]
+    public void TheVolumeIsTheCutTimesTheGradedOresBlocks()
+    {
+        var table = new OreSizeTable(new Dictionary<string, OreSizeTable.Entry>
+        {
+            ["copper"] = new(Factor: 0.0561),
+            ["gold"] = new(130, 80),
+            ["coal"] = new(Factor: 0.75),
+            ["rhodochrosite"] = new(Factor: 0.75),
+        });
+        Assert.Equal(0.0561 * 4, table.VolumeFor("nativecopper", OreProducts.DepositBlocks)!.Value, 9);
+        Assert.Equal(0.0561, table.VolumeFor("nativecopper", 1)!.Value, 9);
+        Assert.Equal(80.0 / 130 * 4, table.VolumeFor("quartz_nativegold", 4)!.Value, 9);
+        Assert.Equal(0.75, table.VolumeFor("bituminouscoal", 4));
+        Assert.Equal(3, table.VolumeFor("rhodochrosite", 4)!.Value, 9);
+        Assert.Equal(4, table.VolumeFor("uranium", 4));
+        Assert.Null(table.VolumeFor("uranium", 1));
+        Assert.Null(table.VolumeFor("garnetpyrope", 4));
+        Assert.Null(table.VolumeFor(null, 4));
     }
 
     [Fact]

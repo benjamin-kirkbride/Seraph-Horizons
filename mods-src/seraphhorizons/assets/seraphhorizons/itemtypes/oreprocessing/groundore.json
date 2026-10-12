@@ -1,6 +1,6 @@
 // Ground ore (OreProcessing): crushed ore ground fine for the concentrator, one per ore and grade
 // (seraphhorizons:groundore-{ore}-{grade}, #847). One crushed ore grinds to one, carrying its grade
-// and metal units unchanged, 4 a stack. Smelts by its grade, a sulfide's not at all (set in code).
+// and metal units unchanged, 16 a stack (#863). Smelts by its grade, a sulfide's not at all (set in code).
 // Marked disabled with the switch off.
 {
 	"code": "groundore",
@@ -113,26 +113,26 @@
 	"attributes": {
 		"oreForm": "ground",
 		"metalUnitsByType": {
-			"*-cassiterite-poor": 5,
-			"*-cassiterite-medium": 10,
-			"*-cassiterite-rich": 15,
-			"*-cassiterite-bountiful": 20,
-			"*-hematite-poor": 20,
-			"*-hematite-medium": 25,
-			"*-hematite-rich": 30,
-			"*-hematite-bountiful": 40,
-			"*-quartz_nativesilver-poor": 10,
-			"*-quartz_nativesilver-medium": 15,
-			"*-quartz_nativesilver-rich": 20,
-			"*-quartz_nativesilver-bountiful": 25,
-			"*-quartz_nativegold-poor": 5,
-			"*-quartz_nativegold-medium": 10,
-			"*-quartz_nativegold-rich": 15,
-			"*-quartz_nativegold-bountiful": 20,
-			"*-poor": 15,
-			"*-medium": 20,
-			"*-rich": 25,
-			"*-bountiful": 35
+			"*-cassiterite-poor": 1,
+			"*-cassiterite-medium": 3,
+			"*-cassiterite-rich": 4,
+			"*-cassiterite-bountiful": 6,
+			"*-hematite-poor": 4,
+			"*-hematite-medium": 6,
+			"*-hematite-rich": 8,
+			"*-hematite-bountiful": 11,
+			"*-quartz_nativesilver-poor": 2,
+			"*-quartz_nativesilver-medium": 4,
+			"*-quartz_nativesilver-rich": 6,
+			"*-quartz_nativesilver-bountiful": 7,
+			"*-quartz_nativegold-poor": 1,
+			"*-quartz_nativegold-medium": 3,
+			"*-quartz_nativegold-rich": 4,
+			"*-quartz_nativegold-bountiful": 6,
+			"*-poor": 3,
+			"*-medium": 5,
+			"*-rich": 7,
+			"*-bountiful": 10
 		},
 		"handbook": {
 			"groupBy": [
@@ -178,7 +178,7 @@
 	},
 	"heldTpIdleAnimation": "holdbothhands",
 	"heldRightReadyAnimation": "holdbothhands",
-	"maxstacksize": 4,
+	"maxstacksize": 16,
 	"storageFlags": 5,
 	"dimensions": {
 		"width": 0.0625,

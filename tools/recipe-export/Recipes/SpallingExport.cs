@@ -37,7 +37,7 @@ public static class SpallingExport
         var config = mainSystem.GetType().GetMethod("ConfigFor")?.Invoke(null, new object[] { api });
         if (GearChain.Prop(config, "OreProcessing") is not true) return null;
         var settings = GearChain.Prop(config, "SpallingSettings");
-        int blows = Int(settings, "BlowsRawOre", 6);
+        int blows = Int(settings, "BlowsRawOre", 2);
 
         var data = new SpallingData { Mod = GearChain.Mod, HammerWearPerBlow = Math.Max(0, Int(settings, "HammerWearPerBlow", 1)) };
         data.Hammers = api.World.Items

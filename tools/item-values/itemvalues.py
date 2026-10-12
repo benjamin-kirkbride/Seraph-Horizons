@@ -1120,10 +1120,18 @@ def stack_size(export: dict, code: str) -> int:
     return int((item.get("attributes") or {}).get("maxStackSize") or 1)
 
 
+def trade_stack(export: dict, code: str) -> int:
+    """The stack traders judge an item's worth by: the export's tradeStack where it has one (the
+    pack's rock and earth blocks and shapes cut to 16 or 32, judged by the 64 they stacked to
+    before), else its stack size."""
+    item = export["items"].get(code) or {}
+    return max(int((item.get("attributes") or {}).get("tradeStack") or 0), stack_size(export, code))
+
+
 def floor_zero(export: dict, code: str, value: float) -> bool:
-    """Worth under a gear per full stack (value per item, a liquid's per portion): trading treats
-    it as worthless."""
-    return value * stack_size(export, code) < 1.0
+    """Worth under a gear per full stack (value per item, a liquid's per portion; a rock or earth
+    block's per trade_stack): trading treats it as worthless."""
+    return value * trade_stack(export, code) < 1.0
 
 
 def per_litre(export: dict) -> dict[str, float]:
