@@ -43,7 +43,11 @@ public class RiddleRigTests
         Assert.Equal(Requires, parts.Parts.Select(p => p.Requires).OfType<string>().ToHashSet());
         using var doc = JsonDocument.Parse(File("riddle-rig.json"));
         Assert.False(doc.RootElement.TryGetProperty("powerCell", out _));
+        // a hand station takes no automated input or output: only the side the operator stands on
+        Assert.Equal(["operatorSide"], doc.RootElement.EnumerateObject().Select(p => p.Name)
+                                              .Where(n => n.EndsWith("Side") || n.EndsWith("Face") || n.EndsWith("Cell")));
         Assert.Equal("north", doc.RootElement.GetProperty("operatorSide").GetString());
+        Assert.False(doc.RootElement.TryGetProperty("output", out _));
         var pace = doc.RootElement.GetProperty("riddling").GetProperty("shakesPerCharge");
         Assert.True(pace.GetProperty("thick").GetDouble() > pace.GetProperty("thin").GetDouble());
     }

@@ -411,7 +411,8 @@ def validate(m, els, parts, rig, quick=False):
 
 
 def validate_files(m, shape, frame_shape, ship):
-    """Every texture declared; the one cell, boxed inside itself and lidded; no power cell."""
+    """Every texture declared; the one cell, boxed inside itself and lidded; no power cell; no automated input or
+    output (no infeed or output side, face, cell or point), only the operator's side."""
     ok = True
     used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
     missing = used - set(shape["textures"])
@@ -433,5 +434,11 @@ def validate_files(m, shape, frame_shape, ship):
         ok = False
     if "powerCell" in ship or "powerFace" in ship:
         print("FAIL a hand station has no power cell")
+        ok = False
+    # no automated input or output: no side, face, cell or point for a chute or a hopper, only the operator's side
+    transfer = sorted(k for k in ship if k in m.NO_TRANSFER or (k.endswith(("Side", "Face", "Cell")) and k != "operatorSide"))
+    print(f"no automated input or output: sides {[k for k in ship if k.endswith('Side')]}; transfer keys {transfer or 'none'}")
+    if transfer or ship.get("operatorSide") != "north":
+        print(f"FAIL a hand station takes no automated input or output: {transfer}")
         ok = False
     return ok

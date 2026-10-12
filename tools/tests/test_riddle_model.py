@@ -178,16 +178,23 @@ class Riddling(unittest.TestCase):
 
 
 class Anchors(unittest.TestCase):
-    def test_sides_and_anchors(self):
+    def test_a_hand_station_takes_no_automated_input_or_output(self):
+        # the player loads and unloads it by hand: no power, and no side, face, cell or point for a chute or a
+        # hopper; only the side the operator stands on
         self.assertNotIn("powerCell", RIG)
         self.assertNotIn("powerFace", RIG)
-        self.assertEqual((RIG["operatorSide"], RIG["infeedSide"], RIG["outputSide"]), ("north", "east", "south"))
-        for key in ("output", "charge"):
+        self.assertEqual([k for k in RIG if k.endswith(("Side", "Face", "Cell"))], ["operatorSide"])
+        self.assertEqual(RIG["operatorSide"], "north")
+        for key in make_shape.NO_TRANSFER:
+            self.assertNotIn(key, RIG)
+
+    def test_the_fines_and_the_charge_are_where_the_model_puts_them(self):
+        for key in ("fines", "charge"):
             self.assertEqual(len(RIG[key]["pos"]), 3)
             self.assertTrue(all(0 < v < 1 for v in RIG[key]["pos"]), key)
-        # the output on the fines in the box, under the charge in the riddle
-        self.assertLess(RIG["output"]["pos"][1] * 16, make_shape.BOX_H)
-        self.assertGreater(RIG["charge"]["pos"][1], RIG["output"]["pos"][1])
+        # the fines in the box, under the charge in the riddle
+        self.assertLess(RIG["fines"]["pos"][1] * 16, make_shape.BOX_H)
+        self.assertGreater(RIG["charge"]["pos"][1], RIG["fines"]["pos"][1])
 
 
 if __name__ == "__main__":

@@ -26,6 +26,11 @@ the model is #715. "Gameplay" below says what the rig offers it.
 holding right-click, as on the quern, the squaring shear and the press brake. The rig's θ is that clock, one
 turn a shake; the shake is drawn from its travel ψ, and only while a charge is being riddled.
 
+**No automated input or output.** A hand station is loaded and unloaded by the player, by hand (the owner's
+ruling for every hand station): no chute, hopper or other item transfer puts crushed ore in or takes fines or
+oversize out. So the rig has no `infeedSide`, `outputSide`, or any other side, face, cell or point for one;
+only `operatorSide`, the side the operator stands on. The generator fails if one appears.
+
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. `tools/` is the generator; the generic
 half of it is `Machines/tools/machinegen/`, shared with the other machines and unchanged by this one (no new
@@ -39,10 +44,10 @@ driver: every motion is a `gauge`, the shake a gauge's `lobes`).
 stations are (`side` = the way the player looks), that is the side the player placed it from. The station is
 symmetric but for the bearers, which run west to east, across the operator's view.
 
-**Anchors** (in `assets/seraphhorizons/config/riddle-rig.json`): `operatorSide` (`north`), `infeedSide`
-(`east`: a container of crushed ore beside it), `outputSide` (`south`: where the fines would go out),
-`output.pos` (on the fines heaped in the box at W 1) and `charge.pos` (the middle of the charge in the riddle:
-the riddling sound and dust, and where the oversize is taken from).
+**Anchors** (in `assets/seraphhorizons/config/riddle-rig.json`): `operatorSide` (`north`), `fines.pos` (on the
+fines heaped in the box at W 1, where the player takes them out) and `charge.pos` (the middle of the charge in
+the riddle: the riddling sound and dust, and where the oversize is taken out). No infeed or output side: see
+"No automated input or output" above.
 
 **Fitted parts** (the rig's `requires`). The frame (`requires` null) is what the block draws: the box and the
 bearers.
@@ -170,8 +175,9 @@ fails:
 - **No z-fighting** (full runs): no coplanar overlapping faces at ten poses of what can be seen (the other
   charge's parts left out, `shown`). There are none before the fix; it only removes the 16 faces pressed
   against their own part.
-- **Files:** every texture declared; the one cell, boxed inside itself and lidded; no power cell; the shipped
-  model is the checked one (no move: the build frame's corner is the controller's).
+- **Files:** every texture declared; the one cell, boxed inside itself and lidded; no power cell; no infeed
+  or output side, face, cell or point, only `operatorSide` (no automated input or output); the shipped model
+  is the checked one (no move: the build frame's corner is the controller's).
 
 The cell's boxes are rebuilt from the shipped, rounded shape posed at rest by the shipped rig, as the other
 machines' are: one box over the box, the riddle and a full charge's heap, with a lid at its top.
@@ -192,9 +198,9 @@ no ratio-0 rotate): the lobes read its travel ψ, which is enough for the viewer
   The shake's engagement is p times its window's, so it eases in and out with the riddling and stops with no
   charge.
 - **`riddling`**: `shakesPerCharge` (12 a part charge, 20 a full one), the pace. Provisional: #714 sets it.
-- **Keys.** `cells`, `operatorSide`, `infeedSide`, `outputSide`, `output`, `charge`, `work`, `riddling` and
-  `parts`. `requires` values: `riddle`, `chargesmall`, `chargefull` or null. The texture code the renderer
-  sets: `ore`.
+- **Keys.** `cells`, `operatorSide`, `fines`, `charge`, `work`, `riddling` and `parts`; no infeed or output
+  side, face or cell (a hand station takes no automated input or output). `requires` values: `riddle`,
+  `chargesmall`, `chargefull` or null. The texture code the renderer sets: `ore`.
 
 **In the viewer** (`site/models.json`, `riddle`; a standalone copy with `site/scripts/standalone-viewer.ts`):
 the clock is the θ slider (its travel shown under it); the riddling's slider reads in charges; the charge
@@ -239,7 +245,8 @@ projections. No one has yet looked at it in a client.
    gameplay's to set.
 4. **Sizes.** The riddle 11.5 across and 2 deep (vanilla's pan: 11 and 3), the box 13 square and 4.4 tall, the
    mesh's openings 1.25 (four wires each way).
-5. **Sides.** Operator north, infeed east, fines out south: placeholders, as on the amalgam pan.
+5. **The operator's side**, north (the side the player placed it from). There is no infeed or output side:
+   a hand station takes no automated input or output (the owner's ruling).
 6. **What this pass changed from the previous one**: the stand (the second, lever-tipped form) and everything
    for it are gone; the mesh is four chunky wires each way in place of eight thin ones; the box's thin iron
    corner plates are gone and its walls are 1 thick; the bearers are 1 square and lie under the riddle's north
@@ -253,6 +260,11 @@ and `Game/` are the template): read the anchors, `work`, `riddling.shakesPerChar
 element names; take the block's collision and selection boxes from the rig's `cells`; set the texture code
 `ore`; draw the `chargesmall`/`chargefull` parts only while that charge is on the station; turn θ while held
 and give the renderer ψ, its travel.
+
+- **Hand loading only.** The player puts the charge in and takes the fines (at `fines.pos`) and the oversize
+  (at `charge.pos`) out by hand. The block must **refuse hopper and chute insertion and extraction**: no
+  item-transfer hook, no inventory exposed to a hopper or chute on any face, and nothing pushed out to a
+  neighbour. This holds for every hand station.
 
 - **Tests.** `tests/Riddle/RiddleRigTests.cs` (the shipped rig through the shared parser, its vocabulary and
   work, and every pose of `tests/Riddle/rig-reference.json` replayed through `Machines/Core`),
