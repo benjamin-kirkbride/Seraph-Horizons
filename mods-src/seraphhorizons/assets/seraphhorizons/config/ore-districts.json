@@ -14,10 +14,15 @@
 //   rich bands' share over poor is about 1.4 times what it was (0.1 x 2.5 x 1.4 = 0.35).
 // - bandFloor, bandBelowSeaLevel: a sized vein is a band of heights between bandFloor and sea
 //   level less bandBelowSeaLevel, so it lies in rock wherever the land is above the sea.
+// - surfaceAboveSeaLevel: the terrain heights (above sea level) a district zone's rock strata are
+//   predicted at (#946), the strata hanging from a surface that is not known before the column
+//   generates: the 10th, 30th, 50th, 70th and 90th percentile of the pack's surface, from 3,072
+//   columns of seeds 1101, 1103 and 1105 (p10 76, p30 123, p50 135, p70 141, p90 160, sea level 110).
 {
   "veinsPerMetal": 8,
   "keepCount": ["gold", "silver", "platinum", "chromium"],
   "gradeAllowance": 1.25,
   "bandFloor": 4,
   "bandBelowSeaLevel": 6,
+  "surfaceAboveSeaLevel": [-34, 13, 25, 31, 50],
 }
