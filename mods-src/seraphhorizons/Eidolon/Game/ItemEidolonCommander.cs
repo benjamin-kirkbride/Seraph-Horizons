@@ -238,6 +238,12 @@ public class ItemEidolonCommander : Item
                 Error(player, refusal, badTarget.RefusalArgs ?? []);
                 return 0;
             }
+            if (step == MarkStep.Area && marks.Area is { } marked
+                && mode.CheckArea?.Invoke(api.World, marked, player.Entity.Pos.XYZ) is { RefusalKey: { } areaRefusal } badArea)
+            {
+                Error(player, areaRefusal, badArea.RefusalArgs ?? []);
+                return 0;
+            }
             SetMarks(stack, mode.Code, marks);
             slot.MarkDirty();
             switch (step)
