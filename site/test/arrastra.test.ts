@@ -9,8 +9,9 @@ import { compileGlobs, fitted, flattenShape, partMatrices, partOf, requiresValue
 // The arrastra's shipped files, and the poses Arrastra/tools/make_shape.py computes from them with machinegen's
 // reference maths. Its rig reads θ alone (the axle's angle): the power shaft turns with it, the post at a third of it
 // through the bevel pair, the arms and stones ride the post; everything else stands still. The machine is built in
-// stages by requires on a placed frame, and the page fits them from a Build select; the water pipe waits on the pit,
-// the pit's contents on the whole build. tools/tests/test_arrastra_model.py replays the same file in Python.
+// stages by requires on a placed frame, and the page fits them from a Build select; the pit's contents wait on the
+// whole build. It is watered by hand (a bucket a rock, at the load), so there is no pipe and no water anchor.
+// tools/tests/test_arrastra_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
 type Build = { stages: { requires: string }[] };
@@ -43,8 +44,6 @@ describe("the arrastra's rig against its rig-reference.json", () => {
       ["hopper", "hopper", null],
       ["charge", "charge", null],
       ["paste", "paste", null],
-      ["pipecopper", "pipecopper", null],
-      ["pipelead", "pipelead", null],
       ["frame", null, null],
     ]);
     for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
@@ -86,14 +85,14 @@ describe("the arrastra's rig against its rig-reference.json", () => {
   });
 });
 
-describe("the arrastra's anchors: batch, by hand", () => {
-  it("has the power and the water at the back, and the two hand actions at the front, over the controller", () => {
+describe("the arrastra's anchors: batch, loaded, watered and emptied by hand", () => {
+  it("has the power at the back and the two hand actions at the front, over the controller, and no pipe", () => {
     const keys = discoverAnchors(rig).anchors.map((a) => a.key);
-    expect(keys).toEqual(["powerCell", "waterCell", "loadCell", "drawCell"]);
-    expect([rig.powerCell, rig.powerFace, rig.waterCell, rig.waterFace]).toEqual([[0, 1, 1], "south", [0, 0, 1], "south"]);
+    expect(keys).toEqual(["powerCell", "loadCell", "drawCell"]);
+    expect([rig.powerCell, rig.powerFace]).toEqual([[0, 1, 1], "south"]);
     expect([rig.loadCell, rig.loadFace, rig.drawCell, rig.drawFace]).toEqual([[0, 1, 0], "up", [0, 0, 0], "north"]);
-    expect(Object.keys(rig).filter((k) => /infeed|output|chute|return/i.test(k))).toEqual([]);
-    expect(Object.keys(shape.textures!).filter((k) => /chute/.test(k + shape.textures![k]))).toEqual([]);
+    expect(Object.keys(rig).filter((k) => /infeed|output|chute|return|water/i.test(k))).toEqual([]);
+    expect(Object.keys(shape.textures!).filter((k) => /chute|pipe|solder/.test(k + shape.textures![k]))).toEqual([]);
     // the ground layer's six cells and the middle column's upper two: nothing of the machine is over the pit's corners
     expect(rig.cells!.map((c) => c.pos.join(",")).sort()).toEqual(
       ["-1,0,0", "-1,0,1", "0,0,0", "0,0,1", "1,0,0", "1,0,1", "0,1,0", "0,1,1"].sort(),
@@ -107,11 +106,10 @@ describe("the arrastra's page", () => {
   const groups = stateGroups(model.scenario!.states, requires);
   const build = groups[0]!;
 
-  it("is a valid scenario with three selects: the build, the water pipe and what is in the pit", () => {
+  it("is a valid scenario with two selects: the build and what is in the pit", () => {
     expect(checkScenario(model.scenario!, rig, discoverAnchors(rig).anchors, requires)).toEqual([]);
     expect(groups.map((g) => [g.id, g.owns])).toEqual([
       ["build", STAGES],
-      ["pipe", ["pipecopper", "pipelead"]],
       ["contents", ["charge", "paste"]],
     ]);
   });
@@ -121,16 +119,16 @@ describe("the arrastra's page", () => {
     expect(options.map((o) => o.fitted)).toEqual(STAGES.map((_, i) => STAGES.slice(0, i)).concat([STAGES]));
     expect(build.spec.default).toBe(options.at(-1)!.id);
     const { fitted: opening, picked } = openingFitted(requires, [], groups);
-    expect(picked).toEqual({ build: "complete", pipe: "pipecopper", contents: "charge" });
-    // the frame alone: the head frame and the turning power shaft; the pipe waits on the pit, the contents on the build
+    expect(picked).toEqual({ build: "complete", contents: "charge" });
+    // the frame alone: the head frame and the turning power shaft; the contents wait on the whole build
     const bare = applyState(opening, options[0]!, build.owns);
     const shown = parts.filter((p) => fitted(p.requires, bare) && statesShow(p.requires, bare, groups)).map((p) => p.id);
     expect(shown).toEqual(["shaft", "frame"]);
     expect(needsMet(groups[1]!, bare)).toBe(false);
     const pit = applyState(opening, options[1]!, build.owns);
-    expect(parts.filter((p) => fitted(p.requires, pit) && statesShow(p.requires, pit, groups)).map((p) => p.id)).toEqual(["shaft", "pit", "pipecopper", "frame"]);
-    expect(needsMet(groups[2]!, pit)).toBe(false);
+    expect(parts.filter((p) => fitted(p.requires, pit) && statesShow(p.requires, pit, groups)).map((p) => p.id)).toEqual(["shaft", "pit", "frame"]);
+    expect(needsMet(groups[1]!, pit)).toBe(false);
     const all = parts.filter((p) => fitted(p.requires, opening) && statesShow(p.requires, opening, groups)).map((p) => p.id);
-    expect(all).toEqual(parts.map((p) => p.id).filter((id) => id !== "paste" && id !== "pipelead"));
+    expect(all).toEqual(parts.map((p) => p.id).filter((id) => id !== "paste"));
   });
 });

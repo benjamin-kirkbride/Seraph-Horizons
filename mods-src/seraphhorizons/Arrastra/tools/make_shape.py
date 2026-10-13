@@ -10,7 +10,7 @@ stages on its frame (the crucible furnace's pattern):
               with the axle from the start
     pit       a stone-paved circular pit at ground level: a centre stone, cobbled paving in rows, a course of edging,
               a drystone curb round them; in the curb at the front the draw gate (a threshold, two oak jambs and a
-              plank gate with an iron grip), at the back one curb stone cut down to carry the water pipe
+              plank gate with an iron grip)
     post      the footstep on the centre stone and the top bearing under the transom, the oak post between them with
               its bevel wheel, and the bevel pinion on the power shaft's end: the post turns at a third of the axle
     arms      four sweep arms through the post
@@ -18,18 +18,18 @@ stages on its frame (the crucible furnace's pattern):
     hopper    the hopper between the stringers over the pit's front edge, its mouth the machine's top face, its floor
               falling to an outlet over a steep plank spout that drops the charge onto the stones' track
 
-and, apart from the stages, the water pipe (ppex's, soldered in copper or lead) laid in the back curb, its open end
-pouring into the pit, and the pit's contents: the charge as tipped in (crushed rock, damped) or the same ground to a
-paste. No chute anywhere: batch equipment is loaded and emptied by hand (#711), so the model shows where the hands go:
-the hopper's mouth on top (load) and the gate at the pit's front (draw), both over the controller.
+and, apart from the stages, the pit's contents: the charge as tipped in (crushed rock, damped) or the same ground to a
+paste. No chute and no pipe anywhere: batch equipment is loaded and emptied by hand (#711), and the arrastra is watered
+by hand too, a bucket a rock poured in with the charge (the owner's ruling: the period damped a charge to a paste and
+added a little as needed, by the barrel, not a flow). So the model shows where the hands go: the hopper's mouth on top
+(load: the charge, and the water after it) and the gate at the pit's front (draw), both over the controller.
 
-Everything is built here from plain boxes, the water pipe with the mod's own soldered pipe
-(Pipes/tools/solderedpipe.py); no other mod's model is used. No mule, wheel or engine: power comes from a vanilla axle
-on the power face, and the arrastra grinds whichever way it turns (the sweep is symmetric).
+Everything is built here from plain boxes; no other mod's model is used. No mule, wheel or engine: power comes from a
+vanilla axle on the power face, and the arrastra grinds whichever way it turns (the sweep is symmetric).
 
 It writes, deterministically,
 
-    arrastra.json         the whole machine, every stage, both pipes and both contents   (assets/.../shapes/block/)
+    arrastra.json         the whole machine, every stage and both contents               (assets/.../shapes/block/)
     arrastra_frame.json   the static frame only (block and item)                        (assets/.../shapes/block/)
     arrastra-rig.json     cells, anchors, the build's stages and the part rig           (assets/.../config/)
     rig-reference.json    every part's matrix at a grid of axle angles                  (tests/Arrastra/)
@@ -40,7 +40,7 @@ check fails.
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the machine
 box's north-west-bottom corner (the "build frame"); `shipped()` moves it so the controller cell (ORIGIN_CELL, the
 middle of the front (north) row at ground level, under the hopper, at the draw gate) is [0,0,0]. The player works it
-from the front; the axle and the water come in at the back.
+from the front, and the axle comes in at the back.
 
 The rig reads theta alone: the axle's angle. Every part turns with it at its gearing's ratio, or stands still.
 """
@@ -55,7 +55,6 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools"))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Pipes" / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
@@ -66,8 +65,6 @@ from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_d
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
 from machinegen.rigmath import part_of, posed, validate_driver  # noqa: E402
 from machinegen.rigmath import part_matrix as _part_matrix  # noqa: E402
-
-import solderedpipe  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[4]
 MOD = ROOT / "mods-src" / "seraphhorizons"
@@ -87,8 +84,8 @@ EMPTY_CELLS = ((0, 1, 0), (2, 1, 0), (0, 1, 1), (2, 1, 1))   # the upper layer's
 ORIGIN_CELL = (1, 0, 0)                      # the controller: the middle of the front row at ground level, the draw gate's
 CX, CZ = 24.0, 16.0                          # the pit's centre: the post's axis
 POWER_CELL, POWER_FACE = (1, 1, 1), "south"  # the vanilla axle comes in along z at (x 24, y 24), high: the drive is overhead
-WATER_CELL, WATER_FACE = (1, 0, 1), "south"  # the ppex water pipe, low at the back, under the axle, into the pit
-LOAD_CELL, LOAD_FACE = (1, 1, 0), "up"       # a hand action: the hopper's mouth, where the player tips the charge in
+LOAD_CELL, LOAD_FACE = (1, 1, 0), "up"       # a hand action: the hopper's mouth, where the player tips the charge in, and
+                                             # pours a bucket of water a rock after it (no pipe: watered by hand)
 DRAW_CELL, DRAW_FACE = (1, 0, 0), "north"    # a hand action: the draw gate in the curb, where the player draws it out
 
 TEXTURES = {
@@ -102,10 +99,6 @@ TEXTURES = {
     "drystone": "game:block/stone/drystone/granite1",
     "granite": "game:block/stone/rock/granite1",
     "basalt": "game:block/stone/rock/basalt1",           # the drag stones: a hard, dark rock, as they were chosen
-    # the water pipe wears ppex's pipe textures as UnifiedPipes gives them, its joints the solder its soldered pipes
-    # are wiped with (as the rosser's drip pipes)
-    **{f"pipe{m}": f"game:block/metal/sheet-plain/{m}4" for m in ("copper", "lead")},
-    "solder": solderedpipe.SOLDER_TEXTURE,
     # the contents, stand-ins (a renderer may set either code to the charge's own ore): the charge as tipped in, crushed
     # rock; the same ground fine, a paste
     "charge": "game:block/stone/gravel/granite",
@@ -123,7 +116,6 @@ CURB_R = (13.5, 16.0)                        # the drystone curb round the pavin
 CURB_TOP = 6.0
 CURB_N = 16                                  # its stones, stone i centred at i / 16 of a turn from +z towards +x
 CURB_W = 2 * CURB_R[1] * math.tan(math.pi / CURB_N)   # a curb stone's width (its box, across its axis)
-PIPE_STONE = 0                               # the stone at the back (+z), cut down to the water pipe's underside
 GATE_STONE = CURB_N // 2                     # the stone at the front (-z), left out: the draw gate stands in its place
 GATE_SILL_TOP = EDGING_TOP                   # the gate's threshold, level with the edging: the charge is drawn out over it
 GATE_JAMB = 0.9                              # the gate's two oak jambs, at the opening's sides, across the curb
@@ -163,12 +155,6 @@ SPOUT = ((HOP_Z[0] + HOP_WALL, HOP_FLOOR[1][1]), (5.6, 13.0))   # (z, y): the sp
 SPOUT_W = 3.6                                # its floor's width (x); its sides stand on its edges
 SPOUT_SIDE = 1.6
 SPOUT_SIDES_END = 4.0                        # z: the sides stop here, square to the slope
-
-# ---------------------------------------------------------------- the water pipe (pipecopper / pipelead)
-PIPE_METALS = ("copper", "lead")             # ppex's straight pipe in either metal UnifiedPipes adds
-PIPE_Y = 8.0                                 # its axis, along z at x CX: the water face's centre, (x 24, y 8)
-PIPE_Z = (CZ + CURB_R[0], CELLS_Z * B)       # from the curb's inner face, its open end over the pit, to the water face
-PIPE_SILL = PIPE_Y - solderedpipe.HALF       # the cut-down curb stone's top: the pipe's underside
 
 # ---------------------------------------------------------------- the post and the sweep (stages `post`, `arms`, `stones`)
 BEVEL = {"wheel": 18, "pinion": 6, "m": 0.8333, "face": 2.0}   # 3:1, the post turns a third of the axle
@@ -439,8 +425,7 @@ def build_frame():
 # ---------------------------------------------------------------- stage: the pit
 def build_pit():
     """The pit (stage `pit`): the centre stone, cobbled flags in rows to the edging, a course of edging stones, and
-    the drystone curb round them; at the back the curb stone under the water pipe cut down to carry it, at the front
-    the draw gate in the place of a curb stone (build_gate)."""
+    the drystone curb round them, at the front the draw gate in the place of a curb stone (build_gate)."""
     q = "pit"
     c = (CX, 0.0, CZ)
     out = disc("y", c, 0.0, CENTRE_STONE[1], CENTRE_STONE[0], f"{q}_centre", q, "granite")
@@ -453,8 +438,7 @@ def build_pit():
         half = math.sqrt(max(reach ** 2 - near ** 2, 0.0))
         out.append(box([CX - half, 0.0, za], [CX + half, PAVE_TOP, zb], f"{q}_pave{i + 1}", q, "cobble"))
     out += ring("y", c, 0.0, EDGING_TOP, EDGING[0], EDGING[1], EDGING[2], f"{q}_edge", q, "cobble", phase=math.pi / EDGING[2])
-    out += ring("y", c, 0.0, CURB_TOP, CURB_R[0], CURB_R[1], CURB_N, f"{q}_curb", q, "drystone", skip=(PIPE_STONE, GATE_STONE))
-    out.append(radial("y", c, 0.0, PIPE_SILL, CURB_R[0], CURB_R[1], CURB_W, TAU * PIPE_STONE / CURB_N, f"{q}_pipesill", q, "drystone"))
+    out += ring("y", c, 0.0, CURB_TOP, CURB_R[0], CURB_R[1], CURB_N, f"{q}_curb", q, "drystone", skip=(GATE_STONE,))
     return out + build_gate()
 
 
@@ -509,41 +493,6 @@ def build_hopper():
         a = v_add([xs, cy0, cz0], v_mul(up, SPOUT_SIDE))
         b = v_add(v_add([xs, cy0, cz0], v_mul(d, t_end)), v_mul(up, SPOUT_SIDE))
         out.append(tilted(a, b, 0.8, SPOUT_SIDE + 0.6, f"{q}_spout_{tag}", q, t, "x"))
-    return out
-
-
-# ---------------------------------------------------------------- the water pipe
-def build_inlet(metal=PIPE_METALS[0]):
-    """The water inlet, drawn as the rosser draws its drip pipes: ppex's straight pipe as UnifiedPipes draws it
-    soldered (Pipes/tools/solderedpipe.py: ppex's 6 x 6 tube round its 4 x 4 bore, the same texture mapping), from the
-    water face at the back, on the axis of the ppex pipe beyond the face, laid in the cut-down curb stone, to the
-    curb's inner face, where its open end pours into the pit. It has no joint of its own at the face: the pipe placed
-    beyond brings its own half joint, as a soldered ppex pipe does against any block. Built in copper as the part
-    `pipecopper`; `pipe_copies` makes the lead part, and whichever metal is supplied is drawn."""
-    p = f"pipe{metal}"
-    codes = {solderedpipe.BODY: f"#{p}", solderedpipe.SOLDER: "#solder"}
-    out = []
-    for b in solderedpipe.cull_pressed(solderedpipe.tube("inlet", 2, PIPE_Z[0], PIPE_Z[1], (CX, PIPE_Y))):
-        size = b.size()
-        faces = {d: {"texture": codes[b.role], "uv": solderedpipe.uv(d, size, TEX / 16)} for d in b.faces}
-        out.append(El(f"{p}_{b.name}", size, [(b.lo[k] + b.hi[k]) / 2 for k in range(3)], [row[:] for row in IDENT], faces, p))
-    return out
-
-
-def pipe_copies(els):
-    """The pipe in the other metals: the first metal's elements as they are (after the z-fighting fix, so every
-    copy gets the same insets), renamed and in their own metal's texture; joints stay solder. Only one metal's
-    is ever drawn, so the copies are not checked against each other (the rosser's rule)."""
-    first = f"pipe{PIPE_METALS[0]}"
-    out = []
-    for m in PIPE_METALS[1:]:
-        for el in els:
-            if el.part == first:
-                c = el.clone(f"pipe{m}" + el.name[len(first):], f"pipe{m}")
-                for face in c.faces.values():
-                    if face["texture"] == f"#{first}":
-                        face["texture"] = f"#pipe{m}"
-                out.append(c)
     return out
 
 
@@ -608,7 +557,8 @@ def build_sweep():
 
 # ---------------------------------------------------------------- the contents
 def build_contents():
-    """The pit's contents, one drawn at a time: the charge as tipped in (`charge`: crushed rock, damped) and the same
+    """The pit's contents, one drawn at a time: the charge as tipped in (`charge`: crushed rock, damped with a bucket of
+    water a rock poured in after it) and the same
     ground to a paste (`paste`), each a level annulus on the paving from clear of the footstep to the curb's inner
     face, the drag stones standing out of it. Drawn still: the charge is worked round under the stones, which no
     driver of a fixed layer could show, and a level surface reads right whichever way they go."""
@@ -618,7 +568,7 @@ def build_contents():
 
 
 def build():
-    return build_frame() + build_pit() + build_post() + build_sweep() + build_hopper() + build_inlet() + build_contents()
+    return build_frame() + build_pit() + build_post() + build_sweep() + build_hopper() + build_contents()
 
 
 # ---------------------------------------------------------------- the build's stages
@@ -632,7 +582,6 @@ STAGES = (
     ("hopper", ("hopper",)),
 )
 FRAME_PARTS = ("frame", "shaft")             # the frame's parts, requires null
-PIPE_PARTS = tuple(f"pipe{m}" for m in PIPE_METALS)   # the water pipe, drawn in the metal supplied; laid on the pit
 CONTENTS = ("charge", "paste")               # the pit's contents, one at a time; needs the whole build
 
 
@@ -641,10 +590,10 @@ def stage_of_part():
 
 
 def requires_of(pid):
-    """A part's requires value: its stage's, its own (the pipe's metals, the contents), or None (the frame's)."""
+    """A part's requires value: its stage's, its own (the contents), or None (the frame's)."""
     if pid in FRAME_PARTS:
         return None
-    if pid in PIPE_PARTS or pid in CONTENTS:
+    if pid in CONTENTS:
         return pid
     return stage_of_part()[pid]
 
@@ -691,7 +640,6 @@ def _rig_parts():
              part("pit"),
              part("hopper"),
              *[part(c) for c in CONTENTS],
-             *[part(p) for p in PIPE_PARTS],
              part("frame", match="fr_*")]
     for p in parts:
         for d in p["drivers"]:
@@ -725,26 +673,23 @@ def footprint():
 def build_json():
     return {"_comment": "Provisional (#733): the stages in the order they go on, each fitting its requires value once its "
                         "materials are in; the frame (the head frame and the power shaft) is placed. The frame's recipe and "
-                        "each stage's items are open. The water pipe (pipecopper or pipelead, the metal supplied) needs the "
-                        "pit; the contents (charge, paste) are the batch's, not stages.",
+                        "each stage's items are open. The contents (charge, paste) are the batch's, not stages.",
             "stages": [{"requires": req} for req, _ in STAGES]}
 
 
 def make_rig(parts):
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the middle of the "
-                    "front (north) row at ground level, under the hopper, where the draw gate is. Batch, by hand: no chute "
-                    "and no output. The player tips the charge into the hopper's mouth (loadCell, its top face) and draws "
-                    "the ground charge out at the gate in the curb (drawCell, its north face); the axle comes in high at "
-                    "the back (powerCell), the ppex water low at the back under it, into the pit (waterCell). Model only: "
-                    "no block or renderer reads it yet (#732). build: the stages in order. cells: the boxes of the whole "
-                    "machine built (the frame, every stage, the pipe), the turning parts' swept over the cycle. The only "
+                    "front (north) row at ground level, under the hopper, where the draw gate is. Batch, by hand: no chute, "
+                    "no output and no pipe. The player tips the charge into the hopper's mouth (loadCell, its top face) and "
+                    "pours a bucket of water a rock after it, and draws the ground charge out at the gate in the curb "
+                    "(drawCell, its north face); the axle comes in high at the back (powerCell). Model only: no block or "
+                    "renderer reads it yet (#732). build: the stages in order. cells: the boxes of the whole machine built "
+                    "(the frame and every stage), the turning parts' swept over the cycle. The only "
                     "input is theta, the axle's angle. See the arrastra's README.",
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
-        "waterCell": list(WATER_CELL),
-        "waterFace": WATER_FACE,
         "loadCell": list(LOAD_CELL),
         "loadFace": LOAD_FACE,
         "drawCell": list(DRAW_CELL),
@@ -755,8 +700,8 @@ def make_rig(parts):
 
 
 # ---------------------------------------------------------------- shipped
-CELL_KEYS = ("powerCell", "waterCell", "loadCell", "drawCell")
-CELL_PARTS_OUT = ("pipelead",) + CONTENTS    # not in the cells' boxes: the other metal's copy, and the batch's contents
+CELL_KEYS = ("powerCell", "loadCell", "drawCell")
+CELL_PARTS_OUT = CONTENTS                    # not in the cells' boxes: the batch's contents
 
 
 def shipped(els, parts, rig):
@@ -781,7 +726,7 @@ def shipped(els, parts, rig):
 
 def shipped_cells(shape, ship_parts):
     """The cells' boxes from the shipped shape as written, posed by the shipped rig: the whole machine built (the
-    frame, every stage and the copper pipe; not the contents), a turning part's elements swept over the cycle
+    frame and every stage; not the contents), a turning part's elements swept over the cycle
     (sweep_poses), so the boxes hold wherever the sweep is and nobody stands in its way. No lids: whether the top is
     walked on is open."""
     written = flatten(shape["elements"], textures={})
@@ -812,8 +757,8 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
     cells = [tuple(c["pos"]) for c in ship["cells"]]
     span = [(min(c[k] for c in cells), max(c[k] for c in cells)) for k in range(3)]
     print(f"shipped: moved by {[v / B for v in d]} blocks, worst posed difference {worst:.2e} voxels; cells x {span[0]}, "
-          f"y {span[1]}, z {span[2]}; power {ship['powerCell']} {ship['powerFace']}, water {ship['waterCell']} "
-          f"{ship['waterFace']}, load {ship['loadCell']} {ship['loadFace']}, draw {ship['drawCell']} {ship['drawFace']}")
+          f"y {span[1]}, z {span[2]}; power {ship['powerCell']} {ship['powerFace']}, load {ship['loadCell']} "
+          f"{ship['loadFace']}, draw {ship['drawCell']} {ship['drawFace']}")
     if worst > 1e-6 or (0, 0, 0) not in cells:
         print("FAIL: the shipped model is not the checked one moved")
         return False
@@ -838,8 +783,8 @@ def reference_json(ship_parts):
 # ---------------------------------------------------------------- shape files
 def shape_json(els):
     return machine_shape_json(
-        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. Every stage's parts, both pipe "
-             "metals and both contents are here, each under its requires; keep element names when editing: the rig finds "
+        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. Every stage's parts and both "
+             "contents are here, each under its requires; keep element names when editing: the rig finds "
              "its parts by them.",
         TEXTURES, tex_size=TEX)
 
@@ -850,7 +795,7 @@ def coplanar_poses():
 
 def state_els(els, content):
     """The elements drawn with the machine built and `content` (charge or paste) in the pit: everything but the other
-    content (and the lead pipe, made after the checks)."""
+    content."""
     return [el for el in els if el.part not in CONTENTS or el.part == content]
 
 
@@ -890,7 +835,6 @@ def main():
             print(f"coplanar faces before the fix, the machine with the {k}: {before}; {hidden} faces pressed against their own part removed")
     rig = make_rig(parts)
     ok = validate_arrastra.validate(sys.modules[__name__], els, parts, rig, quick=args.quick)
-    els += pipe_copies(els)
     if args.out:
         outs = (args.out / "arrastra.json", args.out / "arrastra_frame.json", args.out / "arrastra-rig.json", args.out / "rig-reference.json")
     else:

@@ -4,7 +4,7 @@ Every check prints what it measured and fails the run (the script exits non-zero
 Everything is in the build frame (voxels), on the model before the origin shift; `check_shipped` in make_shape.py
 proves the shipped files are this model moved.
 
-The model holds the whole machine built (the frame and every stage) with the copper pipe, and the pit's two contents,
+The model holds the whole machine built (the frame and every stage) and the pit's two contents,
 which are never drawn together: every check that compares parts with each other does it with one content at a time
 (`state`). A state with fewer stages draws a subset, so what holds for the whole holds for it.
 """
@@ -28,8 +28,6 @@ class V:
         for el in els:
             self.by_part.setdefault(el.part, []).append(el)
         self.spec = {p["id"]: p for p in parts}
-        # the pipe's other metals are the first's elements copied after the checks; only one is ever drawn
-        self.copies = list(m.PIPE_PARTS[1:])
         self.cache = {}
         self.ok = True
 
@@ -77,11 +75,11 @@ def check_basic(v):
     wrong = [(el.name, el.part, part_of(v.parts, el.name)) for el in v.els if part_of(v.parts, el.name) != el.part]
     if wrong:
         v.fail(f"{len(wrong)} elements land in the wrong part, e.g. {wrong[:4]}")
-    empty = [p["id"] for p in v.parts if not v.by_part.get(p["id"]) and p["id"] not in v.copies]
+    empty = [p["id"] for p in v.parts if not v.by_part.get(p["id"])]
     if empty:
         v.fail(f"parts with no elements: {empty}")
     counts = {pid: len(els) for pid, els in v.by_part.items()}
-    print(f"parts: {len(v.parts)}, elements {len(v.els)} (the lead pipe's copied after): {counts}")
+    print(f"parts: {len(v.parts)}, elements {len(v.els)}: {counts}")
 
 
 def check_chunky(v):
@@ -174,10 +172,10 @@ def stage_floating(groups, ground=0.05):
 
 
 def check_build(v):
-    """The stages: the frame's parts need nothing, every other part needs its stage's requires (the pipe's metals and
-    the contents their own), no requires value is in two stages, and the rig's `build` lists the stages in order. The
-    build can be done in that order, nothing floating: at rest the frame, then each stage in turn, joined to the
-    ground through what is already there; the pipe once the pit is in, and each content once the machine is built."""
+    """The stages: the frame's parts need nothing, every other part needs its stage's requires (the contents their
+    own), no requires value is in two stages, and the rig's `build` lists the stages in order. The build can be done in
+    that order, nothing floating: at rest the frame, then each stage in turn, joined to the ground through what is
+    already there, and each content once the machine is built."""
     m = v.m
     reqs = [req for req, _ in m.STAGES]
     if len(reqs) != len(set(reqs)):
@@ -187,19 +185,18 @@ def check_build(v):
         if p["requires"] != want:
             v.fail(f"{p['id']} needs {p['requires']}, not {want}")
     staged = {pid for _, pids in m.STAGES for pid in pids}
-    loose = sorted(p["id"] for p in v.parts if p["id"] not in staged | set(m.FRAME_PARTS) | set(m.PIPE_PARTS) | set(m.CONTENTS))
+    loose = sorted(p["id"] for p in v.parts if p["id"] not in staged | set(m.FRAME_PARTS) | set(m.CONTENTS))
     if loose:
         v.fail(f"parts in no stage: {loose}")
     if [s["requires"] for s in v.rig["build"]["stages"]] != reqs:
         v.fail(f"the rig's build stages are not {reqs}")
     base = [el for pid in m.FRAME_PARTS for el in v.posed(pid, 0.0)]
     groups = [("frame", base)] + [(req, [el for pid in pids for el in v.posed(pid, 0.0)]) for req, pids in m.STAGES]
-    after = [("pipecopper", v.posed("pipecopper", 0.0))]
-    floating = {key: n for key, n in stage_floating(groups[:2] + after).items() if n}
+    floating = {}
     for k in m.CONTENTS:
         floating.update({key: n for key, n in stage_floating(groups + [(k, v.posed(k, 0.0))]).items() if n})
-    print("build: " + " > ".join(f"{req} ({len(els)})" for req, els in groups) + f"; the pipe ({len(after[0][1])}) after the "
-          f"pit; each content after the build: {', '.join(f'{k} ({len(v.posed(k, 0.0))})' for k in m.CONTENTS)}; "
+    print("build: " + " > ".join(f"{req} ({len(els)})" for req, els in groups) + "; each content after the build: "
+          f" {', '.join(f'{k} ({len(v.posed(k, 0.0))})' for k in m.CONTENTS)}; "
           f"floating: {floating or 'nothing'}")
     if floating:
         v.fail(f"the build floats: {floating}")
@@ -213,10 +210,9 @@ ROLES = [
     (r"^pit_gate_jamb", {"oak"}),
     (r"^pit_gate_board", {"planks"}),
     (r"^pit_gate_grip", {"iron"}),
-    (r"^pit_(curb|pipesill)", {"drystone"}),
+    (r"^pit_curb", {"drystone"}),
     (r"^pit_(pave|edge)", {"cobble"}),
     (r"^pit_(centre|gate_sill)", {"granite"}),
-    (r"^pipecopper_", {"pipecopper", "solder"}),
     (r"^sh_axle", {"axle"}),
     (r"^sh_(rod|collar)", {"steel"}),
     (r"^post_post", {"oak"}),
@@ -239,7 +235,7 @@ def check_textures(v):
             bad.append((el.name, sorted(tex), sorted(rule or [])))
     print(f"textures by role: {len(v.els) - len(bad)} of {len(v.els)} elements as their role says (oak for the timber, "
           f"planks for the hopper and the gate, iron castings and fittings, steel shafts and pinion, granite, cobble and "
-          f"drystone for the pit, basalt drag stones, chains, the pipe's metal and solder, the contents' own)")
+          f"drystone for the pit, basalt drag stones, chains, the contents' own)")
     if bad:
         v.fail(f"textures off their role: {bad[:6]}")
 
@@ -260,8 +256,8 @@ def cell_face_box(m, cell, face):
 def check_anchors(v):
     """The anchor faces are on the footprint's outside, looking out of it, and all different; the power cell is no
     other anchor's; the power face is on a side; the axle's cross reaches the power face at its centre. Load: the
-    hopper's mouth is the load cell's top face, and nothing else reaches the machine's top. Water: the inlet pipe's
-    end is the water face's centre, on its axis, ppex's section. Draw: the gate is in the draw cell, square to the draw
+    hopper's mouth is the load cell's top face, and nothing else reaches the machine's top (the water goes in there
+    too, by bucket: no pipe and no water anchor). Draw: the gate is in the draw cell, square to the draw
     face, its outer face the frontmost of the pit, between the front posts. The controller is the draw cell, at the
     front, where the player stands."""
     m, rig = v.m, v.rig
@@ -300,17 +296,6 @@ def check_anchors(v):
           f"cell's top {fhi[1]:.0f}); at the machine's top: {len(high)} of the hopper's walls, others {others or 'none'}")
     if not inside or abs(whi[1] - fhi[1]) > 0.02 or others or not high:
         v.fail("the hopper's mouth is not the load cell's top face, alone at the top")
-    # water: the inlet on the water face's axis
-    pipe = aabb_of(v.named("pipecopper", r"_inlet_"))
-    flo, fhi, k = cell_face_box(m, m.WATER_CELL, m.WATER_FACE)
-    centre = [(flo[q] + fhi[q]) / 2 for q in range(3)]
-    pc = [(pipe[0][q] + pipe[1][q]) / 2 for q in range(3)]
-    end = pipe[0][k] if m.WATER_FACE in ("north", "west", "down") else pipe[1][k]
-    across = max(abs(pc[q] - centre[q]) for q in range(3) if q != k)
-    width = [pipe[1][q] - pipe[0][q] for q in range(3) if q != k]
-    print(f"  water: the inlet pipe ends at {end:.2f} on the face's axis ({across:.3f} off its centre), {width} across (ppex's 6)")
-    if abs(end - flo[k]) > 1e-6 or across > 1e-6 or any(abs(w - 6.0) > 1e-6 for w in width):
-        v.fail("the inlet pipe does not meet the water face on the ppex pipe's axis")
     # draw: the gate in the draw cell, square to its face, the pit's frontmost, between the front posts
     gate = aabb_of(v.named("pit", r"_gate_"))
     clo = [m.DRAW_CELL[q] * m.B for q in range(3)]
@@ -331,9 +316,8 @@ def check_anchors(v):
 def check_pit(v):
     """The pit is at ground level, as period pits were (no basin on piers): the paving lies on the ground with its top
     at PAVE_TOP, nothing else under it inside the curb; the curb stands on the ground round it, every stone to the
-    curb's top but the two at the services: the one under the water pipe, cut down to its underside, and the one at
-    the front left out for the draw gate; at rest every drag stone lies on the paving, and over the cycle no stone
-    leaves the paving or reaches the curb."""
+    curb's top but the one at the front, left out for the draw gate (none is cut down: there is no pipe); at rest every
+    drag stone lies on the paving, and over the cycle no stone leaves the paving or reaches the curb."""
     m = v.m
     pave = v.named("pit", r"_pave\d")
     lo = min(e.aabb()[0][1] for e in pave)
@@ -341,10 +325,9 @@ def check_pit(v):
     curb = v.named("pit", r"_curb\d+$")
     every = [e for pid in v.state(None) for e in v.posed(pid, 0.0)]
     under = [e.name for e in every
-             if not re.match(r"pit_(pave|centre|curb|edge|pipesill|gate)|fr_post", e.name) and e.aabb()[0][1] < hi - 0.01
+             if not re.match(r"pit_(pave|centre|curb|edge|gate)|fr_post", e.name) and e.aabb()[0][1] < hi - 0.01
              and math.hypot((e.aabb()[0][0] + e.aabb()[1][0]) / 2 - m.CX, (e.aabb()[0][2] + e.aabb()[1][2]) / 2 - m.CZ) < m.CURB_R[0]]
     tops = sorted({round(e.aabb()[1][1], 2) for e in curb})
-    sill = v.named("pit", r"_pipesill$")[0]
     stones = v.named("stones", r"_stone\d")
     rest = sorted({round(e.aabb()[0][1], 4) for e in stones})
     reach = 0.0
@@ -352,25 +335,23 @@ def check_pit(v):
         for e in v.named("stones", r"_stone\d", pose):
             for p in e.corners():
                 reach = max(reach, math.hypot(p[0] - m.CX, p[2] - m.CZ))
-    print(f"pit: paving y {lo:.2f}..{hi:.2f} on the ground, {len(curb)} curb stones from the ground to {tops} (the pipe's sill "
-          f"to {sill.aabb()[1][1]:.2f}, under the pipe at {m.PIPE_SILL}; the gate in the front stone's place), nothing else "
+    print(f"pit: paving y {lo:.2f}..{hi:.2f} on the ground, {len(curb)} curb stones from the ground to {tops} (the gate in the "
+          f"front stone's place), nothing else "
           f"under the paving inside the curb: {not under}; the drag stones' undersides at rest {rest} (the paving "
           f"{m.PAVE_TOP}), reaching {reach:.2f} from the centre over the cycle (the curb at {m.CURB_R[0]})")
     if lo > 0.05 or abs(hi - m.PAVE_TOP) > 0.05 or under:
         v.fail(f"the pit is not paved at ground level: {under[:4]}")
-    if min(e.aabb()[0][1] for e in curb) > 0.05 or tops[0] < m.CURB_TOP - 0.05 or len(curb) != m.CURB_N - 2:
-        v.fail("the curb does not stand on the ground to its top, less the pipe's and the gate's stones")
-    if abs(sill.aabb()[1][1] - m.PIPE_SILL) > 1e-6:
-        v.fail("the pipe's sill is not cut down to the pipe's underside")
+    if min(e.aabb()[0][1] for e in curb) > 0.05 or tops[0] < m.CURB_TOP - 0.05 or len(curb) != m.CURB_N - 1:
+        v.fail("the curb does not stand on the ground to its top, every stone but the gate's")
     if any(abs(r - m.PAVE_TOP) > 1e-3 for r in rest) or reach > m.CURB_R[0] - 0.3:
         v.fail("the drag stones do not run on the paving inside the curb")
 
 
 # ---------------------------------------------------------------- the charge's way
 def check_flow(v):
-    """The charge's way, by hand. In: the player tips it into the hopper's mouth; the bin's floor runs down to the
-    outlet, and the spout runs from under the outlet down to over the stones' track, clear above the arms. Water: the
-    pipe's open end is at the curb's inner face, over the pit, its bore's floor above the charge. The contents lie
+    """The charge's way, by hand. In: the player tips it into the hopper's mouth, and pours the water in after it by
+    bucket; the bin's floor runs down to the outlet, and the spout runs from under the outlet down to over the stones'
+    track, clear above the arms. The contents lie
     on the paving inside the curb, clear of the footstep, the drag stones standing out of them. Out: the gate's
     threshold is below the contents' tops (they are drawn out over it with the gate lifted), the gate stands above
     them, and its front is the draw face."""
@@ -389,14 +370,7 @@ def check_flow(v):
         v.fail("the spout does not run from under the hopper's outlet")
     if not (m.STONE_R[0] <= r_end <= m.STONE_R[1]) or under < m.ARM_Y[1] + 0.3:
         v.fail("the spout's end is not over the stones' track, clear above the arms")
-    pipe = aabb_of(v.named("pipecopper", r"_inlet_"))
-    mouth = pipe[0][2]
-    bore = m.PIPE_Y - 2.0
     tops = {k: max(e.aabb()[1][1] for e in v.posed(k, 0.0)) for k in m.CONTENTS}
-    print(f"  water: the pipe's open end at z {mouth:.2f} (the curb's inner face {m.CZ + m.CURB_R[0]}), its bore's floor at y "
-          f"{bore:.2f} over the contents (tops {tops})")
-    if abs(mouth - (m.CZ + m.CURB_R[0])) > 1e-6 or bore <= max(tops.values()) + 0.5:
-        v.fail("the water pipe does not pour into the pit over the contents")
     stone_top = min(e.aabb()[1][1] for e in v.named("stones", r"_stone\d"))
     sole = v.named("step", r"_sole$")[0].aabb()
     sole_r = math.hypot(sole[1][0] - m.CX, sole[1][2] - m.CZ)
@@ -598,16 +572,13 @@ def check_clearances(v, poses, label):
 
 def check_gaps(v):
     """The parts that pass close to each other keep a visible gap over the cycle: the sweep arms under the spout, the
-    bevel wheel under the hopper, and the sweep (the arms and the stones) clear of the curb, the gate and the water
-    pipe's open end."""
+    bevel wheel under the hopper, and the sweep (the arms and the stones) clear of the curb and the gate."""
     m = v.m
     rows = []
     for label, (pa, ra), (pb, rb) in (("arms under the spout", ("arms", r"_arm"), ("hopper", r"_spout")),
                                       ("wheel under the hopper", ("post", r"_wheel"), ("hopper", r".")),
-                                      ("arms clear of the pipe", ("arms", r"."), ("pipecopper", r".")),
-                                      ("stones clear of the pipe", ("stones", r"."), ("pipecopper", r".")),
-                                      ("arms clear of the curb and the gate", ("arms", r"."), ("pit", r"_(curb|pipesill|gate)")),
-                                      ("stones clear of the curb and the gate", ("stones", r"."), ("pit", r"_(curb|pipesill|gate)"))):
+                                      ("arms clear of the curb and the gate", ("arms", r"."), ("pit", r"_(curb|gate)")),
+                                      ("stones clear of the curb and the gate", ("stones", r"."), ("pit", r"_(curb|gate)"))):
         near = None
         for pose in cycle(m, 24):
             for a in v.named(pa, ra, pose):
@@ -660,8 +631,9 @@ def validate(m, els, parts, rig, quick=False):
 
 def validate_files(m, shape, frame_shape, ship):
     """The written files: every texture declared; the frame shape the frame part alone; the footprint's cells, every
-    one holding part of the machine (none hollow), with boxes inside them, no lids; batch by hand: no chute texture, and of the anchors only the four cells and faces (no
-    infeed, output or chute); the rig's build lists the stages in order."""
+    one holding part of the machine (none hollow), with boxes inside them, no lids; batch and watered by hand: no chute
+    and no pipe (no chute, pipe or solder texture), and of the anchors only the power and the two hand actions (no
+    infeed, output, chute or water); the rig's build lists the stages in order."""
     ok = True
     used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
     missing = used - set(shape["textures"])
@@ -687,10 +659,10 @@ def validate_files(m, shape, frame_shape, ship):
         ok = False
     keys = [k for k in ship if k not in ("_comment", "cells", "parts", "build")]
     want = [k for key in m.CELL_KEYS for k in (key, key.replace("Cell", "Face"))]
-    chutes = [k for k in shape["textures"] if "chute" in k or "chute" in shape["textures"][k]]
-    print(f"  anchors {keys}; chute textures {chutes or 'none'}; build stages {[s['requires'] for s in ship['build']['stages']]}")
+    chutes = [k for k in shape["textures"] if any(w in k or w in shape["textures"][k] for w in ("chute", "pipe", "solder"))]
+    print(f"  anchors {keys}; chute or pipe textures {chutes or 'none'}; build stages {[s['requires'] for s in ship['build']['stages']]}")
     if keys != want or chutes:
-        print("FAIL batch by hand: the anchors are the power, the water and the two hand actions, and nothing is a chute")
+        print("FAIL batch and watered by hand: the anchors are the power and the two hand actions, and nothing is a chute or pipe")
         ok = False
     if [s["requires"] for s in ship["build"]["stages"]] != [req for req, _ in m.STAGES]:
         print("FAIL the rig's build stages are not the generator's")

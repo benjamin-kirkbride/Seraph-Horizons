@@ -4,8 +4,8 @@ These hold what the generator wrote to its own rules, without running it: the sh
 maths and uses the build's `requires` vocabulary, its `build` lists the stages in order, its reference poses are its
 own maths, the cells are rebuilt from the shipped shape, the frame shape is the frame part, the only input is the
 axle's angle and the machine repeats every three turns at its gearing's ratio, the anchors are where the layout puts
-them (batch, by hand: no chute and no output), the pit is at ground level, and the README's stage table is the
-generator's. Run with `python3 -m unittest discover -s tools/tests -p test_arrastra_model.py`.
+them (batch, loaded, watered and emptied by hand: no chute, no output and no pipe), the pit is at ground level, and
+the README's stage table is the generator's. Run with `python3 -m unittest discover -s tools/tests -p test_arrastra_model.py`.
 """
 
 import importlib.util
@@ -19,7 +19,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 MOD = ROOT / "mods-src" / "seraphhorizons"
 sys.path.insert(0, str(MOD / "Machines" / "tools"))
-sys.path.insert(0, str(MOD / "Pipes" / "tools"))
 sys.path.insert(0, str(MOD / "Arrastra" / "tools"))
 
 from machinegen import rigmath  # noqa: E402
@@ -35,7 +34,6 @@ FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "ar
 REFERENCE = json.loads((MOD / "tests" / "Arrastra" / "rig-reference.json").read_text())
 README = (MOD / "Arrastra" / "README.md").read_text()
 STAGES = ("pit", "post", "arms", "stones", "hopper")
-PIPES = ("pipecopper", "pipelead")
 CONTENTS = ("charge", "paste")
 
 
@@ -64,9 +62,9 @@ class Rig(unittest.TestCase):
         reqs = {p["id"]: p["requires"] for p in RIG["parts"]}
         self.assertEqual({reqs["frame"], reqs["shaft"]}, {None})
         self.assertEqual({reqs["step"], reqs["post"], reqs["pinion"]}, {"post"})
-        for pid in PIPES + CONTENTS:
+        for pid in CONTENTS:
             self.assertEqual(reqs[pid], pid)
-        self.assertEqual(set(reqs.values()) - {None}, set(STAGES) | set(PIPES) | set(CONTENTS))
+        self.assertEqual(set(reqs.values()) - {None}, set(STAGES) | set(CONTENTS))
 
     def test_the_build_lists_the_stages_in_order(self):
         self.assertEqual([s["requires"] for s in RIG["build"]["stages"]], list(STAGES))
@@ -85,8 +83,8 @@ class Rig(unittest.TestCase):
         for shape in (SHAPE, FRAME):
             used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
             self.assertLessEqual(used, set(shape["textures"]))
-        self.assertEqual({k: SHAPE["textures"][k] for k in PIPES},
-                         {"pipecopper": "game:block/metal/sheet-plain/copper4", "pipelead": "game:block/metal/sheet-plain/lead4"})
+        # watered by hand: no pipe, so none of the pipe's textures
+        self.assertFalse([k for k, v in SHAPE["textures"].items() if re.search(r"pipe|solder", k + v)])
         self.assertEqual({k: SHAPE["textures"][k] for k in CONTENTS},
                          {"charge": "game:block/stone/gravel/granite", "paste": "game:block/stone/sand/granite"})
 
@@ -129,15 +127,15 @@ class Motion(unittest.TestCase):
 
 
 class Anchors(unittest.TestCase):
-    def test_cells_and_faces_batch_by_hand(self):
+    def test_cells_and_faces_batch_and_watered_by_hand(self):
         cells = {tuple(c["pos"]) for c in RIG["cells"]}
         # the ground layer, and over it the middle column only: nothing of the machine is over the pit's four corners
         self.assertEqual(cells, {(x, 0, z) for x in (-1, 0, 1) for z in (0, 1)} | {(0, 1, 0), (0, 1, 1)})
-        got = {k: (tuple(RIG[k + "Cell"]), RIG[k + "Face"]) for k in ("power", "water", "load", "draw")}
-        self.assertEqual(got, {"power": ((0, 1, 1), "south"), "water": ((0, 0, 1), "south"), "load": ((0, 1, 0), "up"),
-                               "draw": ((0, 0, 0), "north")})
-        # batch equipment, loaded and emptied by hand: no chute, no infeed, no output, no return
-        self.assertFalse([k for k in RIG if re.search(r"infeed|output|chute|return", k, re.I)])
+        got = {k: (tuple(RIG[k + "Cell"]), RIG[k + "Face"]) for k in ("power", "load", "draw")}
+        self.assertEqual(got, {"power": ((0, 1, 1), "south"), "load": ((0, 1, 0), "up"), "draw": ((0, 0, 0), "north")})
+        # batch equipment, loaded, watered (a bucket a rock, at the load) and emptied by hand: no chute, no infeed, no
+        # output, no return, no water anchor
+        self.assertFalse([k for k in RIG if re.search(r"infeed|output|chute|return|water", k, re.I)])
         self.assertFalse([k for k, v in SHAPE["textures"].items() if "chute" in k or "chute" in v])
 
     def test_the_axle_meets_the_power_face_high_and_the_hopper_alone_reaches_the_top(self):
@@ -156,20 +154,6 @@ class Anchors(unittest.TestCase):
             if rigmath.posed(el, matrix(pid, 0.0)).aabb()[1][1] > 31.5:
                 high.add(pid)
         self.assertEqual(high, {"hopper"})
-
-    def test_the_water_inlet_is_a_ppex_section_on_the_water_face_pouring_into_the_pit(self):
-        # drawn as the rosser's pipes: the same elements in each metal, only the metal's texture differing
-        copper = sorted((e["name"][len("pipecopper"):], e["from"], e["to"]) for e in SHAPE["elements"] if e["name"].startswith("pipecopper_"))
-        lead = sorted((e["name"][len("pipelead"):], e["from"], e["to"]) for e in SHAPE["elements"] if e["name"].startswith("pipelead_"))
-        self.assertTrue(copper)
-        self.assertEqual(copper, lead)
-        pipe = aabb_of(posed_part("pipecopper"))
-        # shipped: the water cell [0,0,1]; its south face at z 32, the face's centre (x 8, y 8)
-        self.assertAlmostEqual(pipe[1][2], 32.0, places=4)
-        self.assertEqual([round(pipe[1][k] - pipe[0][k], 3) for k in (0, 1)], [6.0, 6.0])
-        self.assertEqual([round((pipe[0][k] + pipe[1][k]) / 2, 3) for k in (0, 1)], [8.0, 8.0])
-        # its open end at the curb's inner face, over the pit
-        self.assertAlmostEqual(pipe[0][2], make_shape.CZ + make_shape.CURB_R[0], places=4)
 
     def test_the_draw_gate_is_at_the_front_of_the_curb_in_the_controller_cell(self):
         gate = aabb_of([e for e in posed_part("pit") if "_gate_" in e.name])
@@ -192,7 +176,9 @@ class Pit(unittest.TestCase):
         self.assertEqual(len(stones), 4)
         self.assertTrue(all(abs(e.aabb()[0][1] - make_shape.PAVE_TOP) < 1e-3 for e in stones))
         curb = [e for e in posed_part("pit") if re.fullmatch(r"pit_curb\d+", e.name)]
-        self.assertEqual(len(curb), make_shape.CURB_N - 2)
+        self.assertEqual(len(curb), make_shape.CURB_N - 1)
+        # every curb stone to the curb's top: none is cut down (there is no pipe), only the gate's is left out
+        self.assertTrue(all(abs(e.aabb()[1][1] - make_shape.CURB_TOP) < 0.05 for e in curb))
         self.assertLess(min(e.aabb()[0][1] for e in curb), 0.05)
         self.assertLessEqual(max(e.aabb()[1][1] for e in curb), make_shape.CURB_TOP + 1e-4)
 
