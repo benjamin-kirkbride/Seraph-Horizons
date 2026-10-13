@@ -149,7 +149,7 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(toMine.Count, orders.Sum(o => o.Mined));
         Assert.All(orders, o => Assert.True(o.Mined > 0, $"one mined nothing: {string.Join(" + ", orders.Select(x => x.Mined))}"));
         // Each broke in its own sector, and they kept apart: well over two boxes' width on average,
-        // never one pushing through or standing in another (a brush, brief and shallow, allowed).
+        // never one pushing through or standing in another (a shallow brush allowed, however long).
         Assert.All(watch.BySector.Values, v => Assert.Equal(0, v.Out));
         Assert.True(watch.MeanDistance >= 5, $"mean distance apart {watch.MeanDistance:0.00}");
         Assert.Null(watch.Pushing());

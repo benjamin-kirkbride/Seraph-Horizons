@@ -285,7 +285,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Contains(watch.Broke[west.EntityId], c => c.X >= a.X + 8);
         Assert.All(watch.BySector.Values, v => Assert.Equal(0, v.Out));
         // the west one walked to its half and worked it apart from the east one, each standing in its own
-        // (a brush, brief and shallow, allowed)
+        // (a shallow brush allowed, however long)
         Assert.Null(watch.Pushing());
         Assert.Equal(0, orders.Sum(o => o.EmptyStrikes));
         Assert.Single(lines);

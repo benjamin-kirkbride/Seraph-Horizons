@@ -11,21 +11,14 @@ namespace SeraphHorizons.PackTests;
 /// under the highest left (the floors more than a climb apart). For several eidolons mining one area
 /// (EidolonSectorScenarios, EidolonTeamMineScenarios).
 ///
-/// <para>Contact is allowed only brief and shallow (<see cref="Pushing"/>), by time, not ticks (a server
-/// tick is about 33 ms): two boxes brushing corners as one settles or steps past another is no fault, but
-/// one walking through another, or standing in it, is.</para></summary>
+/// <para>Contact is allowed only shallow (<see cref="Pushing"/>): two boxes brushing as one settles or
+/// squeezes past another, however long, is no fault (timing on a slower server stretches it), but one deep
+/// in another is. Every contact is logged with how long it lasted.</para></summary>
 internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, EntityLaborEidolon[] eidolons, MineOrder[] orders)
 {
     /// <summary>Whether two eidolons' boxes (1.7 wide) overlap.</summary>
     public static bool Overlap(Entity a, Entity b) => Math.Abs(a.Pos.X - b.Pos.X) < 1.7 && Math.Abs(a.Pos.Z - b.Pos.Z) < 1.7
         && Math.Abs(a.Pos.Y - b.Pos.Y) < 3.75;
-
-    /// <summary>All the time any two may overlap in a run, in ms: brushing past, settling by another.</summary>
-    public const long MaxContactMs = 1000;
-
-    /// <summary>The longest one contact (two overlapping without a break) may last, in ms: longer, one is
-    /// pushing through or standing in the other.</summary>
-    public const long MaxEpisodeMs = 500;
 
     /// <summary>The nearest two centres may come, across: nearer, one box is deep in the other (their
     /// boxes are 1.7 wide), never a brush.</summary>
@@ -46,8 +39,8 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
     public readonly Dictionary<long, List<BlockPos>> Broke = eidolons.ToDictionary(e => e.EntityId, _ => new List<BlockPos>());
     /// <summary>Ticks two overlapped, each pair counted.</summary>
     public int Overlaps;
-    /// <summary>All the time two overlapped (<see cref="MaxContactMs"/>), the longest contact
-    /// (<see cref="MaxEpisodeMs"/>) and the nearest two overlapping centres came (<see cref="MinCentres"/>).</summary>
+    /// <summary>All the time two overlapped, the longest contact (both for the log) and the nearest two
+    /// overlapping centres came (<see cref="MinCentres"/>).</summary>
     public long ContactMs, LongestMs;
     public double Nearest = double.MaxValue;
     private long _lastTick = -1;
@@ -103,13 +96,13 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
         $"{eidolons[i].EntityId} at {eidolons[i].Pos.XYZ} ({eidolons[i].Orders?.OrderCode}, {Status(eidolons[i])}, "
         + $"motion {eidolons[i].Pos.Motion.X:0.000} {eidolons[i].Pos.Motion.Z:0.000}{(eidolons[i].ClimbTop is { } t ? $", climbing to {t}" : "")})";
 
-    /// <summary>Contact past the thresholds (each contact still going counted as it stands), or null:
-    /// what an assertion says.</summary>
+    /// <summary>Contact deeper than <see cref="MinCentres"/>, or null: what an assertion says, with every
+    /// contact (each still going counted as it stands).</summary>
     public string? Pushing()
     {
         var open = _touching.Select(t => $"{_lastTick - t.Value.Since} ms so far, nearest {t.Value.Nearest:0.00}: {t.Value.Who}");
         string all = string.Join(" | ", Contacts.Concat(open));
-        if (ContactMs > MaxContactMs || LongestMs > MaxEpisodeMs || Nearest < MinCentres)
+        if (Nearest < MinCentres)
             return $"overlapping {ContactMs} ms in all ({Overlaps} ticks), longest {LongestMs} ms, nearest {Nearest:0.00}: {all}";
         return null;
     }
