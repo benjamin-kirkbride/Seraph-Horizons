@@ -11,12 +11,12 @@ using Xunit.Abstractions;
 namespace SeraphHorizons.PackTests;
 
 /// <summary>
-/// mods-src/seraphhorizons/Eidolon, driving tunnels (README "Eidolon", Mining, *Tunnels* and *Headings*)
+/// mods-src/seraphhorizons/Eidolon, driving tunnels (README "Eidolon", Mining, *Tunnels*, and working together, *Claims*)
 /// with the pack's default settings, ordered with the command tool as a player orders it. A tunnel 2
 /// wide, 4 high and 8 long into a granite hillside: refused three high as it is marked, driven in from its
 /// open face a slice at a time, each slice's top half before its bottom half, and walked back out; one 6
 /// high benched, its top heading from a ledge in front of the cliff, then the lower one from the floor,
-/// out by the lower mouth; and two driving one 4 wide, a 2-wide heading each, side by side. On floors of
+/// out by the lower mouth; and two driving one 4 wide, a 2-wide lane each, side by side. On floors of
 /// their own in the sky (<see cref="Felling.Sky"/>).
 /// </summary>
 [AtlasWorld]
@@ -286,7 +286,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var home1 = e1.Pos.XYZ;
         var home2 = e2.Pos.XYZ;
 
-        // Watch each tick: each strikes only in its own heading, never a column held by both, nothing
+        // Watch each tick: each strikes only in its own heading, never in a column the other holds, nothing
         // broken under either's box; and how near they come.
         var standing = toMine.ToHashSet();
         var faults = new List<string>();
@@ -295,8 +295,8 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         int ticks = 0, lastMined = -1;
         await World.Until(() =>
         {
-            if (Jobs.Mining.Held(e1.EntityId).Intersect(Jobs.Mining.Held(e2.EntityId)).Any())
-                faults.Add("both hold a column");
+            if (MineWatcher.ClaimFault(Jobs.Mining, [e1, e2], [o1, o2], EidolonJobSystem.Now(W)) is { } claimFault)
+                faults.Add(claimFault);
             foreach (var (o, e) in new[] { (o1, e1), (o2, e2) })
             {
                 if (o.Driving && o.Sector is { } sector)

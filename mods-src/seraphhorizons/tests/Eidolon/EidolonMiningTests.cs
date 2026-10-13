@@ -4,7 +4,7 @@ namespace SeraphHorizons.Mod.Tests.Eidolon;
 
 /// <summary>The mine order's rules: the area's limits, what it breaks, the strike's length against a
 /// seraph's steel pickaxe and its slam, its reach (never under its own box), which group it strikes
-/// next, flat or upright, and where it stands to reach a square.</summary>
+/// next, flat or upright, and which cells it digs.</summary>
 public class EidolonMiningTests
 {
     // ---- the area ----
@@ -249,30 +249,46 @@ public class EidolonMiningTests
         // Only the cells it stands on are left of the top layer: nothing to strike from here.
         var left = Cells(Box(2, 3, 1, 1, 2, 3).Concat(Box(0, 5, 0, 0, 0, 5)));
         Assert.Null(EidolonMining.Next(Pit, 1, left, 3, 2, 3));
-        var nearest = EidolonMining.Nearest(Pit, Box(2, 3, 1, 1, 2, 3), 1, 3, 3);
-        Assert.NotNull(nearest);
-        Assert.Equal((2, 2), nearest!.Value.Square);
     }
 
-    // ---- the search ----
+    // ---- what it digs ----
 
     private static readonly MarkArea Quarry = MarkArea.Between(new MarkPos(0, 1, 0), new MarkPos(3, 3, 3));
 
-    [Fact]
-    public void ASearchFindsTheHighestLayerItMinesAndTheOneUnder()
+    /// <summary>A world of cells as <paramref name="rule"/> says (solid but air), its columns loaded as
+    /// <paramref name="loaded"/> says.</summary>
+    private sealed class RuledWorld(Func<MarkPos, MineRule> rule, Func<int, int, bool>? loaded = null) : IMineWorld
     {
-        // Stone in layers 1 and 2 everywhere, layer 3 air; a block given up in layer 2.
-        var scan = EidolonMining.Scan(Quarry, (_, _) => true, c => c.Y <= 2 ? MineRule.Mine : MineRule.Air,
-            c => c == new MarkPos(0, 2, 0));
-        Assert.Equal(2, scan.Layer);
-        // the block under the one given up holds it up: left too
-        Assert.Equal(15 + 15, scan.Left.Count);
-        Assert.DoesNotContain(new MarkPos(0, 2, 0), scan.Left);
-        Assert.DoesNotContain(new MarkPos(0, 1, 0), scan.Left);
-        Assert.Empty(scan.Unloaded);
-        Assert.False(scan.Done);
-        // Only what it may not break left: done.
-        Assert.True(EidolonMining.Scan(Quarry, (_, _) => true, _ => MineRule.LiquidBeside, _ => false).Done);
+        public bool Loaded(int x, int z) => loaded?.Invoke(x, z) ?? true;
+
+        public MineVoxel Read(int x, int y, int z)
+        {
+            var r = rule(new MarkPos(x, y, z));
+            return new MineVoxel(r != MineRule.Air, r);
+        }
+    }
+
+    private static MineTargets Targets(MarkArea area, Func<MarkPos, MineRule> rule, Func<MarkPos, bool>? skip = null,
+        Func<int, int, bool>? loaded = null, IReadOnlySet<MarkPos>? hold = null)
+    {
+        var site = new MineSite(area, 2);
+        foreach (var _ in site.Load(new RuledWorld(rule, loaded))) { }
+        return EidolonMining.Targets(area, site, skip ?? (_ => false), hold);
+    }
+
+    [Fact]
+    public void ItDigsEveryCellItMinesThatNothingHoldsUp()
+    {
+        // Stone in layers 1 and 2 everywhere, layer 3 air; a block skipped in layer 2.
+        var targets = Targets(Quarry, c => c.Y <= 2 ? MineRule.Mine : MineRule.Air, c => c == new MarkPos(0, 2, 0));
+        // the block under the one skipped holds it up: left too
+        Assert.Equal(15 + 15, targets.Dig.Count);
+        Assert.DoesNotContain(new MarkPos(0, 2, 0), targets.Dig);
+        Assert.DoesNotContain(new MarkPos(0, 1, 0), targets.Dig);
+        Assert.Equal(new HashSet<MarkPos> { new(0, 2, 0), new(0, 1, 0) }, targets.Left);
+        Assert.Empty(targets.Unloaded);
+        // Only what it may not break left: nothing to dig.
+        Assert.Empty(Targets(Quarry, _ => MineRule.LiquidBeside).Dig);
     }
 
     [Fact]
@@ -280,26 +296,21 @@ public class EidolonMiningTests
     {
         // A chest on the top layer at (1, 3, 1), stone under it; at (2, 3, 2) a block it leaves over air
         // over stone: the stone under the air is mined.
-        var area = MarkArea.Between(new MarkPos(0, 1, 0), new MarkPos(3, 3, 3));
         MineRule Rule(MarkPos c) => (c.X, c.Y, c.Z) switch
         {
             (1, 3, 1) => MineRule.BlockEntity,
             (2, 3, 2) => MineRule.TooHard,
             (2, 2, 2) => MineRule.Air,
+            (_, 4, _) => MineRule.Air,
             _ => MineRule.Mine,
         };
-        var scan = EidolonMining.Scan(area, (_, _) => true, Rule, _ => false);
-        Assert.Equal(3, scan.Layer);
-        Assert.DoesNotContain(new MarkPos(1, 2, 1), scan.Left);
-        Assert.Contains(new MarkPos(1, 2, 2), scan.Left);
-        // the top layer done, the next search: the column under the chest still held
-        bool Gone(MarkPos c) => c.Y == 3 && c != new MarkPos(1, 3, 1) && c != new MarkPos(2, 3, 2);
-        scan = EidolonMining.Scan(area, (_, _) => true, c => Gone(c) ? MineRule.Air : Rule(c), _ => false);
-        Assert.Equal(2, scan.Layer);
-        Assert.DoesNotContain(new MarkPos(1, 2, 1), scan.Left);
-        Assert.DoesNotContain(new MarkPos(1, 1, 1), scan.Left);
-        Assert.Contains(new MarkPos(2, 1, 2), scan.Left);
-        Assert.Equal(16 - 2 + 16 - 1, scan.Left.Count);
+        var targets = Targets(Quarry, Rule);
+        Assert.DoesNotContain(new MarkPos(1, 2, 1), targets.Dig);
+        Assert.DoesNotContain(new MarkPos(1, 1, 1), targets.Dig);
+        Assert.Contains(new MarkPos(1, 2, 2), targets.Dig);
+        Assert.Contains(new MarkPos(2, 1, 2), targets.Dig);
+        Assert.Equal(48 - 3 - 2, targets.Dig.Count);
+        Assert.Equal(new HashSet<MarkPos> { new(1, 3, 1), new(1, 2, 1), new(1, 1, 1), new(2, 3, 2) }, targets.Left);
     }
 
     [Fact]
@@ -341,40 +352,38 @@ public class EidolonMiningTests
     {
         // A pit three deep (layers 1 to 3) with water beside (2, 2, 0), just outside it: that block is left,
         // and the one under it, which touches no liquid, is mined.
-        var area = MarkArea.Between(new MarkPos(0, 1, 0), new MarkPos(3, 3, 3));
-        MineRule Rule(MarkPos c) => c == new MarkPos(2, 2, 0) ? MineRule.LiquidBeside : MineRule.Mine;
-        bool Gone(MarkPos c) => c.Y == 3;
-        var scan = EidolonMining.Scan(area, (_, _) => true, c => Gone(c) ? MineRule.Air : Rule(c), _ => false);
-        Assert.Equal(2, scan.Layer);
-        Assert.DoesNotContain(new MarkPos(2, 2, 0), scan.Left);
-        Assert.Contains(new MarkPos(2, 1, 0), scan.Left);
-        Assert.Equal(15 + 16, scan.Left.Count);
+        MineRule Rule(MarkPos c) => c.Y == 4 ? MineRule.Air : c == new MarkPos(2, 2, 0) ? MineRule.LiquidBeside : MineRule.Mine;
+        var targets = Targets(Quarry, Rule);
+        Assert.DoesNotContain(new MarkPos(2, 2, 0), targets.Dig);
+        Assert.Contains(new MarkPos(2, 1, 0), targets.Dig);
+        Assert.Equal(47, targets.Dig.Count);
         // Sand or gravel by the water would fall into the hole and open the pit onto it: it holds its column.
         Assert.Equal(MineRule.LiquidBesideFalls, EidolonMining.Rule(Stone with { LiquidBeside = true, Falls = true }));
         Assert.Equal(MineRule.LiquidBeside, EidolonMining.Rule(Stone with { LiquidBeside = true }));
-        scan = EidolonMining.Scan(area, (_, _) => true,
-            c => Gone(c) ? MineRule.Air : c == new MarkPos(2, 2, 0) ? MineRule.LiquidBesideFalls : MineRule.Mine, _ => false);
-        Assert.DoesNotContain(new MarkPos(2, 1, 0), scan.Left);
+        targets = Targets(Quarry, c => c.Y == 4 ? MineRule.Air : c == new MarkPos(2, 2, 0) ? MineRule.LiquidBesideFalls : MineRule.Mine);
+        Assert.DoesNotContain(new MarkPos(2, 1, 0), targets.Dig);
         Assert.True(EidolonMining.Holds(MineRule.LiquidBesideFalls));
         // Left in a column already held (under a chest), it stays held.
-        scan = EidolonMining.Scan(area, (_, _) => true, c => (c.X, c.Y, c.Z) switch
+        targets = Targets(Quarry, c => (c.X, c.Y, c.Z) switch
         {
+            (_, 4, _) => MineRule.Air,
             (2, 3, 0) => MineRule.BlockEntity,
             (2, 2, 0) => MineRule.LiquidBeside,
             _ => MineRule.Mine,
-        }, _ => false);
-        Assert.DoesNotContain(new MarkPos(2, 1, 0), scan.Left);
+        });
+        Assert.DoesNotContain(new MarkPos(2, 1, 0), targets.Dig);
     }
 
     [Fact]
-    public void ABlockGivenUpIsPassedOverAndWhatIsUnderItStillMined()
+    public void ABlockOutOfReachHoldsUpItsColumnAsItsFloor()
     {
-        // (1, 3, 1) given up for want of a way: not held up, so (1, 2, 1) is still to mine
-        var scan = EidolonMining.Scan(Quarry, (_, _) => true, _ => MineRule.Mine, _ => false, c => c == new MarkPos(1, 3, 1));
-        Assert.Equal(3, scan.Layer);
-        Assert.DoesNotContain(new MarkPos(1, 3, 1), scan.Left);
-        Assert.Contains(new MarkPos(1, 2, 1), scan.Left);
-        Assert.Equal(15 + 16, scan.Left.Count);
+        // (1, 3, 1) out of its reach for good: the column under it is kept, its floor (held, not left)
+        var targets = Targets(Quarry, c => c.Y == 4 ? MineRule.Air : MineRule.Mine, hold: new HashSet<MarkPos> { new(1, 3, 1) });
+        Assert.DoesNotContain(new MarkPos(1, 3, 1), targets.Dig);
+        Assert.DoesNotContain(new MarkPos(1, 3, 1), targets.Held);
+        Assert.Equal(new HashSet<MarkPos> { new(1, 2, 1), new(1, 1, 1) }, targets.Held);
+        Assert.Empty(targets.Left);
+        Assert.Equal(48 - 3, targets.Dig.Count);
     }
 
     [Fact]
@@ -388,11 +397,10 @@ public class EidolonMiningTests
             (_, 4, _) => MineRule.Air,
             _ => MineRule.Mine,
         };
-        var scan = EidolonMining.Scan(Quarry, (_, _) => true, Rule, _ => false);
-        Assert.Equal(3, scan.Layer);
-        Assert.DoesNotContain(new MarkPos(2, 3, 2), scan.Left);
-        Assert.DoesNotContain(new MarkPos(2, 2, 2), scan.Left);
-        Assert.Contains(new MarkPos(0, 3, 0), scan.Left);
+        var targets = Targets(Quarry, Rule);
+        Assert.DoesNotContain(new MarkPos(2, 3, 2), targets.Dig);
+        Assert.DoesNotContain(new MarkPos(2, 2, 2), targets.Dig);
+        Assert.Contains(new MarkPos(0, 3, 0), targets.Dig);
         Assert.True(EidolonMining.Holds(MineRule.TooHard));
         Assert.True(EidolonMining.Holds(MineRule.Claimed));
         Assert.False(EidolonMining.Holds(MineRule.LiquidBeside));
@@ -400,102 +408,18 @@ public class EidolonMiningTests
     }
 
     [Fact]
-    public void AnUnloadedColumnReadsAsAirButIsNeverDone()
+    public void AnUnloadedColumnIsNoTargetButListed()
     {
-        // Columns x 2 and 3 unloaded: read as air, they are not searched, and the area is not done
-        // with nothing left in the loaded half.
+        // Columns x 2 and 3 unloaded: not searched, listed.
         bool Loaded(int x, int z) => x < 2;
-        var scan = EidolonMining.Scan(Quarry, Loaded, c => c.X < 2 ? MineRule.Air : MineRule.Mine, _ => false);
-        Assert.Null(scan.Layer);
-        Assert.Equal(8, scan.Unloaded.Count);
-        Assert.All(scan.Unloaded, c => Assert.True(c.X >= 2));
-        Assert.False(scan.Done);
-        // What is left in the loaded half is worked first.
-        scan = EidolonMining.Scan(Quarry, Loaded, c => c.Y == 1 ? MineRule.Mine : MineRule.Air, _ => false);
-        Assert.Equal(1, scan.Layer);
-        Assert.All(scan.Left, c => Assert.True(c.X < 2));
-        Assert.False(scan.Done);
+        var targets = Targets(Quarry, c => c.Y == 4 ? MineRule.Air : MineRule.Mine, loaded: Loaded);
+        Assert.Equal(8, targets.Unloaded.Count);
+        Assert.All(targets.Unloaded, c => Assert.True(c.X >= 2));
+        Assert.All(targets.Dig, c => Assert.True(c.X < 2));
+        Assert.Equal(24, targets.Dig.Count);
         // The nearest unloaded column, to walk toward.
-        Assert.Equal((2, 0), EidolonMining.NearestColumn(scan.Unloaded, 0.5, 0.5));
+        Assert.Equal((2, 0), EidolonMining.NearestColumn(targets.Unloaded, 0.5, 0.5));
         Assert.Null(EidolonMining.NearestColumn([], 0, 0));
-    }
-
-    [Fact]
-    public void SquaresComeNearestFirst()
-    {
-        var squares = EidolonMining.Squares(Pit, Box(0, 5, 1, 1, 0, 5), 1, 5.5, 5.5).Select(s => s.Square).ToList();
-        Assert.Equal(9, squares.Count);
-        Assert.Equal((4, 4), squares[0]);
-        Assert.Equal((0, 0), squares[^1]);
-    }
-
-    // ---- where it stands ----
-
-    private sealed class Voxels(IEnumerable<(int, int, int)> solid) : IWideSpace
-    {
-        private readonly HashSet<(int, int, int)> _solid = solid.ToHashSet();
-
-        public bool Free(double x, double y, double z)
-        {
-            const double eps = 1e-6;
-            for (int bx = (int)Math.Floor(x - 0.85); bx <= (int)Math.Floor(x + 0.85 - eps); bx++)
-            for (int by = (int)Math.Floor(y); by <= (int)Math.Floor(y + 3.75 - eps); by++)
-            for (int bz = (int)Math.Floor(z - 0.85); bz <= (int)Math.Floor(z + 0.85 - eps); bz++)
-                if (_solid.Contains((bx, by, bz)))
-                    return false;
-            return true;
-        }
-
-        public float Cost(PathCell cell) => 0;
-    }
-
-    [Fact]
-    public void ItStandsWhereItReachesTheSquareOnTheGroundAndOffWhatIsLeft()
-    {
-        // A floor at y -1, and the pit's top layer solid over a 6 × 6 platform.
-        var platform = Box(0, 5, 0, 0, 0, 5).ToList();
-        var space = new Voxels(Box(-8, 13, -1, -1, -8, 13).Concat(platform).Select(c => (c.X, c.Y, c.Z)));
-        var left = Cells(platform);
-        var square = Box(0, 1, 0, 0, 0, 1).ToList();
-        var stands = EidolonMining.Stands(space, square, left, 3, 1, 3);
-        Assert.NotEmpty(stands);
-        foreach (var s in stands)
-        {
-            Assert.True(space.Free(s.X, s.Y, s.Z));
-            Assert.False(space.Free(s.X, s.Y - 1, s.Z));
-            Assert.All(square, c => Assert.True(EidolonMining.InReach(s.X, s.Y, s.Z, c), $"{s} {c}"));
-        }
-        // The first stands on none of what is left to mine: beside the platform, on the floor.
-        var first = stands[0];
-        Assert.Equal(0, first.Y);
-        Assert.DoesNotContain(Box(first.X - 1, first.X, -1, -1, first.Z - 1, first.Z), c => left(c with { Y = 0 }));
-        // Standing on the platform is a later choice, never over the square itself.
-        Assert.Contains(stands, s => s.Y == 1);
-        Assert.DoesNotContain(stands, s => square.Any(c => EidolonMining.UnderFoot(s.X, s.Z, c)));
-    }
-
-    [Fact]
-    public void ItStandsInItsOwnSectorNotOverAnothers()
-    {
-        // A floor at y -1; the square at the west edge of its sector (x 4 to 7), another's sector west of
-        // it (x 0 to 3), coming from the west: the nearest stands are over the other's columns, but the
-        // first is wholly in its own, its box clear of the other's sector by the margin.
-        var space = new Voxels(Box(-8, 13, -1, -1, -8, 13).Select(c => (c.X, c.Y, c.Z)));
-        var square = Box(4, 5, 0, 0, 0, 1).ToList();
-        var near = EidolonMining.Stands(space, square, _ => false, 0, 0, 1);
-        Assert.True(near[0].X <= 4);
-        var stands = EidolonMining.Stands(space, square, _ => false, 0, 0, 1, (x, _) => x <= 3);
-        Assert.Equal(near.Count, stands.Count);
-        var first = stands[0];
-        Assert.True(first.X - EidolonMining.HalfWidth >= 4 + Others.Margin / 2, $"{first}");
-        Assert.All(square, c => Assert.True(EidolonMining.InReach(first.X, first.Y, first.Z, c), $"{first} {c}"));
-    }
-
-    [Fact]
-    public void NoGroundNoStand()
-    {
-        var square = Box(0, 1, 0, 0, 0, 1).ToList();
-        Assert.Empty(EidolonMining.Stands(new Voxels(square.Select(c => (c.X, c.Y, c.Z))), square, _ => false, 0, 0, 0));
     }
 
     // ---- oil ----

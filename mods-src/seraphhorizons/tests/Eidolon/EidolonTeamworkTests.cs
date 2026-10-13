@@ -3,7 +3,8 @@ using SeraphHorizons.Mod.Eidolon.Core;
 namespace SeraphHorizons.Mod.Tests.Eidolon;
 
 /// <summary>Working together: a job by owner, kind and area, joined late; reservations exclusive across
-/// jobs, freed on leaving or going away, lapsing after 30 s; the job's level its present members'
+/// jobs, freed on leaving or going away, lapsing after 30 s; a miner's claims keyed by station beside
+/// each other; the job's level its present members'
 /// highest, and none mining more than a layer under it; done only with every present member finished and none still to load; the footing rule
 /// against other eidolons; the rim's places; the report's shares.</summary>
 public class EidolonTeamworkTests
@@ -141,6 +142,75 @@ public class EidolonTeamworkTests
         Assert.True(board.Free(2, (0, 0), 1.1));
         Assert.Null(board.JobOf(1));
         Assert.Equal([2L], job.Members);
+    }
+
+    [Fact]
+    public void AMinerClaimsAStationsColumnsUnderItsKeyBesideItsOtherClaims()
+    {
+        var board = Board();
+        board.Join(1, "1", Key());
+        board.Join(2, "2", Key());
+        Assert.True(board.TryClaim(1, 7, [(0, 0), (1, 0)], 0));
+        Assert.True(board.TryClaim(1, 8, [(4, 4)], 0));
+        Assert.Equal([7, 8], board.ClaimKeys(1));
+        Assert.Equal(3, board.Held(1).Count);
+        // all or none, as a reservation
+        Assert.False(board.TryClaim(2, 3, [(1, 0), (2, 0)], 1));
+        Assert.Empty(board.Held(2));
+        Assert.Empty(board.ClaimKeys(2));
+        // a key's claim let go alone; the same key claimed again replaces it
+        board.Unclaim(1, 7);
+        Assert.Equal([8], board.ClaimKeys(1));
+        Assert.True(board.Free(2, (0, 0), 1));
+        Assert.True(board.TryClaim(1, 8, [(5, 5)], 1));
+        Assert.Equal([(5, 5)], board.Held(1));
+        Assert.True(board.Free(2, (4, 4), 1));
+    }
+
+    [Fact]
+    public void TwoClaimsOfOneMinerThatOverlapKeepTheSharedColumnsTillBothAreLetGo()
+    {
+        var board = Board();
+        board.Join(1, "1", Key());
+        board.Join(2, "2", Key());
+        // its station H and the next N share (2, 0); N let go (it keeps one station), H still holds it
+        Assert.True(board.TryClaim(1, 1, [(0, 0), (1, 0), (2, 0)], 0));
+        Assert.True(board.TryClaim(1, 2, [(2, 0), (3, 0)], 0));
+        board.Unclaim(1, 2);
+        Assert.Equal(new HashSet<(int, int)> { (0, 0), (1, 0), (2, 0) }, board.Held(1).ToHashSet());
+        Assert.False(board.Free(2, (2, 0), 1));
+        Assert.True(board.Free(2, (3, 0), 1));
+        Assert.Equal(1, board.Holder((2, 0), 1));
+        // H let go too: all free
+        board.Unclaim(1, 1);
+        Assert.True(board.Free(2, (2, 0), 1));
+        Assert.Empty(board.Held(1));
+    }
+
+    [Fact]
+    public void AStrikeKeepsEveryClaimAndLeavingFreesThemAll()
+    {
+        var board = Board();
+        board.Join(1, "1", Key());
+        board.Join(2, "2", Key());
+        Assert.True(board.TryClaim(1, 1, [(0, 0)], 0));
+        Assert.True(board.TryClaim(1, 2, [(9, 9)], 0));
+        // struck at 20: both held to 50
+        board.Struck(1, 20);
+        Assert.False(board.TryClaim(2, 1, [(9, 9)], 49.9));
+        Assert.True(board.TryClaim(2, 1, [(9, 9)], 50));
+        Assert.DoesNotContain((9, 9), board.Held(1));
+        board.Expire(60);
+        Assert.Empty(board.Held(1));
+        // a felling reservation is the claims let go and one taken under key 0
+        Assert.True(board.TryClaim(1, 4, [(3, 3)], 61));
+        Assert.True(board.TryReserve(1, [(6, 6)], 61));
+        Assert.Equal([0], board.ClaimKeys(1));
+        Assert.True(board.Free(2, (3, 3), 61));
+        Assert.True(board.TryClaim(1, 5, [(7, 7)], 61));
+        board.Release(1);
+        Assert.Empty(board.ClaimKeys(1));
+        Assert.True(board.Free(2, (7, 7), 61) && board.Free(2, (6, 6), 61));
     }
 
     [Fact]
