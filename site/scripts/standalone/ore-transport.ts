@@ -1,16 +1,15 @@
 // The "Transport: can rock be hauled home?" section of the smelt-by-grade proposal tab
-// (ore-proposal.ts renders it). The settled design leans on bulk: every rock form stacks to 4 and
+// (ore-proposal.ts renders it). The settled design leans on bulk: every rock form stacks to 16 and
 // carries its ore's units, concentrate stacks to 128, and each metal's deposit sits in its own 5 km
-// ore cell, so a central plant has
-// ore hauled to it from kilometres away. This audits every way the pack moves items in bulk, from
+// ore cell, so a central plant has ore hauled to it from kilometres away. This audits every way the pack moves items in bulk, from
 // the mod assets and code (the figures and their files are transports() and NOTES), and models the
 // haul: trips and time to bring metal home as rock or as concentrate, at 1, 2 and 5 km.
 //
 // Only data literals sit at the top level: ore-proposal.ts imports this module and this module
 // imports ore-proposal.ts, so its imports are read inside functions only.
 
-import { CFG, TIER_LABEL, TIERS } from "./ore-line.ts";
-import { bestConcentrate, GRADES, SETTLED, STACK, UNITS, UNITS_PER_PRODUCT, type Design, type Grade } from "./ore-proposal.ts";
+import { CFG } from "./ore-line.ts";
+import { GRADES, LINES, SETTLED, STACK, UNIT_EXCEPTIONS, UNITS, UNITS_PER_PRODUCT, type Design, type Grade } from "./ore-proposal.ts";
 
 // ---- the building blocks, each with its source in NOTES
 
@@ -374,7 +373,7 @@ export const HAUL = 1000;
 export const BATCH = 10 * HAUL;
 export const DISTANCES = [1000, 2000, 5000];
 
-/** Rock (raw, crushed or ground: the same haul, one item an ore at 4 a stack) or concentrate. */
+/** Rock (raw, crushed or ground: the same haul, one item an ore at 16 a stack) or concentrate. */
 export type Load = "raw" | "conc";
 
 /** Units of metal in the ore that must come home for `target` units to come out of the furnace. */
@@ -383,7 +382,7 @@ export function rockUnits(grade: Grade, d: Design = SETTLED, target = HAUL): num
 }
 
 /**
- * Slots to bring `target` units home. Rock (4 a stack at every grade, crushed or ground the same)
+ * Slots to bring `target` units home. Rock (16 a stack at every grade, crushed or ground the same)
  * smelts at the grade's share, so it carries target ÷ share; concentrate smelts whole, so it is
  * target ÷ 5 items whatever the grade and tier (the tier decides how much rock was dug).
  */
@@ -430,19 +429,19 @@ function renderAudit(ts: Transport[]): string {
 
 /** What `target` units is as a load, by grade: rock and concentrate, and the rock each tier digs for it. */
 function renderLoads(): string {
-  const head = `<tr><th>Grade</th><th>Rock<span class="ol-when">raw, crushed or ground, stack ${STACK.raw}</span></th><th>Concentrate<span class="ol-when">stack ${STACK.concentrate}</span></th>${TIERS.map((t) => `<th class="ol-th-${t}"><span class="ol-dot ol-dot-${t}"></span>${TIER_LABEL[t][0]}<span class="ol-when">rock dug for it</span></th>`).join("")}<th>Raw ÷ concentrate<span class="ol-when">slots</span></th></tr>`;
+  const head = `<tr><th>Grade</th><th>Rock<span class="ol-when">raw, crushed or ground, stack ${STACK.raw}</span></th><th>Concentrate<span class="ol-when">stack ${STACK.concentrate}</span></th>${LINES.map((l) => `<th>${esc(l.label)}<span class="ol-when">rock dug for it</span></th>`).join("")}<th>Raw ÷ concentrate<span class="ol-when">slots</span></th></tr>`;
   const rows = GRADES.map((g) => {
     const rock = rockUnits(g);
     const raw = haulSlots("raw", g);
     const conc = haulSlots("conc", g);
-    const tiers = TIERS.map((t) => {
-      const c = bestConcentrate(t, g);
-      return `<td class="ol-c"><span class="ol-f"><b>${num(HAUL / c.value, 0)}</b> units</span><span class="ol-cnote">${esc(c.device)} ${pct(c.value)}</span></td>`;
+    const tiers = LINES.map((l) => {
+      const v = l.recovery(g === "poor");
+      return `<td class="ol-c"><span class="ol-f"><b>${num(HAUL / v, 0)}</b> units</span><span class="ol-cnote">at ${pct(v)}</span></td>`;
     }).join("");
     return `<tr><th scope="row"><b>${cap(g)}</b><span class="ol-when">${UNITS[g]} units an ore, smelts ${pct(SETTLED.byGrade[g])}</span></th><td class="ol-c"><span class="ol-f"><b>${num(raw)}</b> slots</span><span class="ol-cnote">${num(rock / UNITS[g], 0)} ore, ${num(rock, 0)} units of rock</span></td><td class="ol-c"><span class="ol-f"><b>${num(conc, 2)}</b> slots</span><span class="ol-cnote">${num(HAUL / UNITS_PER_PRODUCT, 0)} items</span></td>${tiers}<td class="ol-c"><span class="ol-f"><b>× ${num(raw / conc, 0)}</b></span></td></tr>`;
   }).join("\n");
   return `<div class="ol-tablewrap"><table class="ol-table ot-table ot-loads"><thead>${head}</thead><tbody>${rows}</tbody></table></div>
-<p class="ol-formula"><b>Formula:</b> rock slots = ${HAUL} ÷ the grade's smelt share ÷ units an ore ÷ ${STACK.raw}, the same whether it is carried raw, crushed or ground (one item an ore, ${STACK.raw} a stack); concentrate = ${HAUL} ÷ ${UNITS_PER_PRODUCT} ÷ ${STACK.concentrate} = ${num(haulSlots("conc", "poor"), 2)} slots at any grade, since it smelts whole; the tier columns are the rock that concentrate came out of (${HAUL} ÷ the best device's recovery, poor not ground ×&nbsp;${CFG.fineUnground} where the tier has no grinder). Default ores; hematite (20/25/30/40) needs a fifth fewer slots, cassiterite and gold quartz (5/10/15/20) far more. On main rich and bountiful are mined as chunks at 16 a stack and smelt at ${pct(CFG.smelt.chunk)}, a fraction of these slots; the settled design drops the chunk.</p>`;
+<p class="ol-formula"><b>Formula:</b> rock slots = ${HAUL} ÷ the grade's smelt share ÷ units an ore ÷ ${STACK.raw}, the same whether it is carried raw, crushed or ground (one item an ore, ${STACK.raw} a stack); concentrate = ${HAUL} ÷ ${UNITS_PER_PRODUCT} ÷ ${STACK.concentrate} = ${num(haulSlots("conc", "poor"), 2)} slots at any grade, since it smelts whole; the line columns are the rock that concentrate came out of (${HAUL} ÷ the line's recovery, poor not ground ×&nbsp;${CFG.locked.poorUnground} by hand, where there is no grinder). Most ores' units; hematite (${GRADES.map((g) => UNIT_EXCEPTIONS.hematite![g]).join("/")}) needs fewer slots, silver quartz (${GRADES.map((g) => UNIT_EXCEPTIONS["silver quartz"]![g]).join("/")}), cassiterite and gold quartz (${GRADES.map((g) => UNIT_EXCEPTIONS.cassiterite![g]).join("/")}) more.</p>`;
 }
 
 /** Trips and hours, per transport, for `target` units. */
