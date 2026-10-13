@@ -69,7 +69,8 @@ they are all absent, which is valid. They are optional additions, so `schemaVers
   `seraphhorizons:config/item-values.json`'s `values[code]`, as loaded by the server. Only a
   value of the code's own: the mod's family fallback (a missing variant priced as the average
   of its family) is not exported, so an item without one has no `value`.
-- `floorZero`: `true` when the table lists the code as worth under a gear per full stack
+- `floorZero`: `true` when the table lists the code as worthless: worth nothing (before #910,
+  worth under a gear per full stack)
   (traders take it for nothing). Present only then, and only with a `value`.
 - `valuePerLitre`: `true` when `value` is in rusty gears per litre, not per item: a liquid
   the table prices by the litre (its `perLitre`, `{code: itemsPerLitre}`). A portion is then

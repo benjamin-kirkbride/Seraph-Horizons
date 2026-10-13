@@ -12,14 +12,12 @@ public enum Refusal
     None,
     /// <summary>A map or a lead (config <c>refused</c>): what they point at is the trader's own business.</summary>
     MapOrLead,
-    /// <summary>Under a gear per full stack in the value table.</summary>
+    /// <summary>Worth nothing in the value table (its value is 0), or to this trader.</summary>
     Worthless,
     /// <summary>Neither the item nor a variant family of it is in the value table.</summary>
     NoValue,
     /// <summary>Money.</summary>
     Currency,
-    /// <summary>Worth something, but at this trader's fit and supply under a gear per full stack.</summary>
-    TooCheap,
 }
 
 /// <summary>Who prices what, for an <see cref="IPriceModifier"/>.</summary>
@@ -72,8 +70,11 @@ public readonly record struct PriceCurve(double Floor = 0.3, double HalfLevel = 
 /// <param name="Budget">Which wallet pays.</param>
 /// <param name="OwnShelf">Bought back off-market because the trader has it on its own selling shelf
 /// (<see cref="Pricing.OwnShelf"/>).</param>
+/// <param name="Worth">Gears per item, exact (<see cref="UnitPrice"/> is rounded to whole gears per
+/// unit): what the pooled sale pays an item at, so a cheap good whose unit rounds up to a gear is
+/// never paid more than it is worth. 0 when not known.</param>
 public sealed record Offer(Refusal Refusal, double Base, double Fit, double Supply, double Modifiers, int UnitSize, int UnitPrice, Budget Budget,
-    bool OwnShelf = false)
+    bool OwnShelf = false, double Worth = 0)
 {
     public bool Accepted => Refusal == Refusal.None;
 
@@ -167,18 +168,20 @@ public static class Pricing
     /// <summary>
     /// A listed entry's price: <paramref name="listPrice"/> per its stack (<see cref="ListBase"/>),
     /// scaled; at least 1. A buying entry worth under a gear per stack is bought by a bigger unit, a
-    /// whole number of the entry's stacks up to <paramref name="maxStackSize"/> (the stack trading
-    /// judges by, as <see cref="OffList"/>'s), the fewest worth a gear (a cheap stack would otherwise
-    /// round up to a gear and pay many times its value). Selling entries keep their stack.
+    /// whole number of the entry's stacks up to <paramref name="tradeUnit"/> (<see cref="TradeUnit"/>,
+    /// as <see cref="OffList"/>'s), the fewest worth a gear (a cheap stack would otherwise round up to
+    /// a gear a stack). The offer's <see cref="Offer.Worth"/> is the exact price per item, which the
+    /// pooled sale pays. Selling entries keep their stack.
     /// </summary>
-    public static Offer Listed(double listPrice, int stackSize, double supply, double modifiers, bool traderBuys = true, int maxStackSize = 0)
+    public static Offer Listed(double listPrice, int stackSize, double supply, double modifiers, bool traderBuys = true, int tradeUnit = 0)
     {
         int stack = Math.Max(1, stackSize);
         double price = listPrice * supply * modifiers;
+        double worth = price / stack;
         int unit = stack;
-        if (traderBuys && price > 0 && price < 1 - 1e-9 && maxStackSize > stack)
+        if (traderBuys && price > 0 && price < 1 - 1e-9 && tradeUnit > stack)
         {
-            int k = Math.Min(maxStackSize / stack, (int)Math.Ceiling(1 / price - 1e-9));
+            int k = Math.Min(tradeUnit / stack, (int)Math.Ceiling(1 / price - 1e-9));
             if (k > 1)
             {
                 unit = stack * k;
@@ -186,31 +189,38 @@ public static class Pricing
             }
         }
         int unitPrice = Math.Max(1, (int)Math.Round(price, MidpointRounding.AwayFromZero));
-        return new Offer(Refusal.None, listPrice, 1, supply, modifiers, unit, unitPrice, Budget.Main);
+        return new Offer(Refusal.None, listPrice, 1, supply, modifiers, unit, unitPrice, Budget.Main, Worth: worth);
     }
 
     /// <summary>
-    /// What a trader offers for goods off its list. Per item: value × fit × supply ×
-    /// modifiers. The unit is one item when that is a gear or more, else the fewest items worth a gear
-    /// (so a stack of planks sells by the 17, at one gear): the game prices trades in whole gears per
-    /// unit. Under a gear per full stack it is <see cref="Refusal.TooCheap"/>. <paramref name="maxStackSize"/>
-    /// is the stack trading judges by: the item's stack, but for a rock or earth block or shape cut to
-    /// 16 or 32 the 64 it stacked to before (<c>RockStackSystem.TradeStack</c>), so its unit may be
-    /// more than one slot holds and the trade window's pooled sale takes it across slots.
-    /// <paramref name="budget"/> is the wallet that pays (<see cref="TraderRelations.PaysFromMain"/>).
+    /// The unit trading judges an item by (#910): what the trade window's sell slots hold of it,
+    /// <paramref name="sellSlots"/> × its stack, the same rule for every item and block. A sale is
+    /// pooled across the slots, so a stack worth under a gear sells with the rest.
     /// </summary>
-    public static Offer OffList(double valuePerItem, bool worthless, double fit, double supply, double modifiers, int maxStackSize,
+    public static int TradeUnit(int maxStackSize, int sellSlots) => Math.Max(1, sellSlots) * Math.Max(1, maxStackSize);
+
+    /// <summary>
+    /// What a trader offers for goods off its list. Per item: value × fit × supply × modifiers (the
+    /// offer's <see cref="Offer.Worth"/>, which the pooled sale pays). The unit is one item when that is
+    /// a gear or more, else the fewest items worth a gear (so a stack of planks sells by the 17, at one
+    /// gear), at most <paramref name="tradeUnit"/> (<see cref="TradeUnit"/>): the game prices trades in
+    /// whole gears per unit. There is no floor per stack (#910): anything worth more than nothing is
+    /// bought, and only the whole sale must come to a gear (the trade window's pooled sale, which
+    /// takes a unit across the slots and mixes goods). <paramref name="budget"/> is the wallet that
+    /// pays (<see cref="TraderRelations.PaysFromMain"/>).
+    /// </summary>
+    public static Offer OffList(double valuePerItem, bool worthless, double fit, double supply, double modifiers, int tradeUnit,
         Budget budget = Budget.Side)
     {
         if (worthless) return Offer.Refused(Refusal.Worthless);
         if (valuePerItem <= 0) return Offer.Refused(Refusal.NoValue);
         double perItem = valuePerItem * fit * supply * modifiers;
-        int maxStack = Math.Max(1, maxStackSize);
-        if (perItem * maxStack < 1 - 1e-9)
-            return Offer.Refused(Refusal.TooCheap) with { Base = valuePerItem, Fit = fit, Supply = supply, Modifiers = modifiers };
-        int unit = perItem >= 1 ? 1 : Math.Min(maxStack, (int)Math.Ceiling(1 / perItem - 1e-9));
+        if (perItem <= 0)
+            return Offer.Refused(Refusal.Worthless) with { Base = valuePerItem, Fit = fit, Supply = supply, Modifiers = modifiers };
+        int maxUnit = Math.Max(1, tradeUnit);
+        int unit = perItem >= 1 ? 1 : Math.Min(maxUnit, (int)Math.Ceiling(1 / perItem - 1e-9));
         int unitPrice = Math.Max(1, (int)Math.Round(unit * perItem, MidpointRounding.AwayFromZero));
-        return new Offer(Refusal.None, valuePerItem, fit, supply, modifiers, unit, unitPrice, budget);
+        return new Offer(Refusal.None, valuePerItem, fit, supply, modifiers, unit, unitPrice, budget, Worth: perItem);
     }
 
     /// <summary>
@@ -220,8 +230,8 @@ public static class Pricing
     /// modifiers, with no fit, from the side budget. Priced and refused as
     /// <see cref="OffList"/>, with the rate as its fit.
     /// </summary>
-    public static Offer OwnShelf(double valuePerItem, bool worthless, double rate, double supply, double modifiers, int maxStackSize) =>
-        OffList(valuePerItem, worthless, rate, supply, modifiers, maxStackSize) with { OwnShelf = true };
+    public static Offer OwnShelf(double valuePerItem, bool worthless, double rate, double supply, double modifiers, int tradeUnit) =>
+        OffList(valuePerItem, worthless, rate, supply, modifiers, tradeUnit) with { OwnShelf = true };
 
     /// <summary>The product of the modifiers' factors (1 with none); a factor below 0 counts as 0.</summary>
     public static double Modifiers(IEnumerable<IPriceModifier> modifiers, in PriceContext context)

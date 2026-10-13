@@ -69,7 +69,7 @@ export interface ValueQuery {
   unvalued: boolean;
   /** Only rows of this kind; "all" when absent. */
   kind?: ValueKind;
-  /** Rows worth under a gear per full stack (floorZero); "any" when absent. */
+  /** Rows traders treat as worthless (floorZero); "any" when absent. */
   worthless?: FlagFilter;
   /** Rows none of whose items the handbook shows; "any" when absent. */
   unlisted?: FlagFilter;

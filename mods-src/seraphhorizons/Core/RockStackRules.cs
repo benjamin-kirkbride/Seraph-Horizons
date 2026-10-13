@@ -187,10 +187,4 @@ public static class RockStackRules
 
     /// <summary>A block's stack under its cap: at most <paramref name="cap"/>, never raised.</summary>
     public static int Cut(int maxStackSize, int cap) => Math.Min(maxStackSize, cap);
-
-    /// <summary>The stack trading judges a cut block's worth by: the stack it had before the cut
-    /// (64 for every block the cut touches in the pack), so a trader prices and refuses it as it
-    /// did. For a block cut to 16 that is the four sell slots full, for a shape cut to 32 two of
-    /// them; the trade window's pooled sale takes a unit across the slots.</summary>
-    public static int TradeStack(int stackBeforeCut) => Math.Max(1, stackBeforeCut);
 }

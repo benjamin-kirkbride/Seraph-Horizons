@@ -16,7 +16,7 @@ namespace SeraphHorizons.Mod.Trading;
 /// by a click (<see cref="ActivateSlot"/> ignores the shelves and the buying cart), and the four
 /// slots of the selling cart (<see cref="SellSlot"/> to <see cref="SellSlot"/> + 3) are the window's
 /// sell slots, where the trading player puts goods to sell from (<see cref="ItemSlotSell"/>: anything
-/// but money and delivery packages, whether the trader buys it or not). When the window closes, what
+/// but money, delivery packages and what the trader refuses outright, whether it buys it now or not). When the window closes, what
 /// is left there goes back to the player, or at their feet, instead of onto the ground by the trader
 /// (<see cref="Close"/>).
 /// </summary>
@@ -55,6 +55,21 @@ public sealed class SeraphTraderInventory : InventoryTrader
     public static bool MaySell(ItemStack? stack) =>
         stack?.Collectible is { } c && c is not ItemPackage && c.Attributes?["currency"].Exists != true;
 
+    /// <summary>
+    /// What this trader's sell slots take (#910): anything <see cref="MaySell"/> allows but what the
+    /// trader refuses outright, maps and leads and worthless goods (<see cref="Refusal.MapOrLead"/>,
+    /// <see cref="Refusal.Currency"/>, <see cref="Refusal.Worthless"/>), which would only sit there. A
+    /// good the trader lists is always taken, even with no demand left (it waits, unsold), and so is a
+    /// good it merely cannot price: the window says why it does not sell. Both sides.
+    /// </summary>
+    public bool MayPlace(ItemStack? stack)
+    {
+        if (!MaySell(stack)) return false;
+        if (TraderEntity is not EntitySeraphTrader trader || EconomySystem.Of(trader.Api) is not { } economy) return true;
+        if (GetBuyingConditionsSlot(stack) != null) return true;
+        return economy.QuoteOffList(trader, stack!).Refusal is not (Refusal.MapOrLead or Refusal.Currency or Refusal.Worthless);
+    }
+
     /// <summary>The trade window this player has open on a pack trader, if any: on the server only
     /// its owner's.</summary>
     public static SeraphTraderInventory? OpenFor(IPlayer? player)
@@ -76,7 +91,7 @@ public sealed class SeraphTraderInventory : InventoryTrader
     }
 
     /// <summary>Shift-click from the player's inventory: the first free sell slot, for the trading
-    /// player (the owner on the server), anything but money and packages.</summary>
+    /// player (the owner on the server), anything a sell slot takes (<see cref="MayPlace"/>).</summary>
     public override WeightedSlot GetBestSuitedSlot(ItemSlot sourceSlot, ItemStackMoveOperation op, List<ItemSlot>? skipSlots = null)
     {
         var none = new WeightedSlot();
@@ -92,7 +107,7 @@ public sealed class SeraphTraderInventory : InventoryTrader
 
     /// <summary>A shift-click on a stack in the player's hotbar or backpack while the window is open
     /// (<see cref="ShiftClick"/>): the whole stack into the first free sell slot, or, for money, a
-    /// package, or with every sell slot taken, nothing moves.</summary>
+    /// package, what the trader refuses outright, or with every sell slot taken, nothing moves.</summary>
     public int ShiftIn(ItemSlot source, ref ItemStackMoveOperation op)
     {
         if (GetBestSuitedSlot(source, op).slot is not { } target) return 0;
@@ -136,8 +151,11 @@ public sealed class SeraphTraderInventory : InventoryTrader
             var condition = GetBuyingConditionsSlot(stack);
             if (condition?.TradeItem is not { Stack: { } unit } item) continue;
             var off = condition as OffListSlot;
+            int slotId = GetSlotId(condition);
+            // Each item at its exact worth: the slot's price is whole gears per unit (#910).
+            double? worth = off != null ? off.Offer.Worth : TraderEntity is { } trader ? EconomySystem.BuyWorth(trader, slotId) : null;
             lines.Add(new SellLine(id, stack.StackSize, Math.Max(1, unit.StackSize), item.Price, off?.Offer.Budget ?? Budget.Main,
-                off != null ? "off:" + stack.Collectible.Code : "slot:" + GetSlotId(condition), off != null ? null : item.Stock));
+                off != null ? "off:" + stack.Collectible.Code : "slot:" + slotId, off != null ? null : item.Stock, worth));
         }
         return lines;
     }
@@ -229,14 +247,16 @@ public sealed class SeraphTraderInventory : InventoryTrader
 
 /// <summary>
 /// One of the trade window's four sell slots (vanilla's selling cart slots, which take only what
-/// the trader buys): it takes anything but money and delivery packages, so a good the trader does
-/// not buy can go in and the window says so; a bag only empty, as vanilla's.
+/// the trader buys): it takes anything but money, delivery packages and what the trader refuses
+/// outright (<see cref="SeraphTraderInventory.MayPlace"/>), so a good the trader does not buy for now
+/// can go in and the window says so; a bag only empty, as vanilla's.
 /// </summary>
 public sealed class ItemSlotSell(InventoryBase inventory) : ItemSlotSurvival(inventory)
 {
     public override bool CanHold(ItemSlot sourceSlot)
     {
         if (!base.CanHold(sourceSlot) || !SeraphTraderInventory.MaySell(sourceSlot.Itemstack)) return false;
+        if (Inventory is SeraphTraderInventory own && !own.MayPlace(sourceSlot.Itemstack)) return false;
         var bag = sourceSlot.Itemstack!.Collectible.GetCollectibleInterface<IHeldBag>();
         return bag is null || bag.IsEmpty(sourceSlot.Itemstack);
     }

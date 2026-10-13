@@ -7,12 +7,16 @@ namespace SeraphHorizons.Mod.Trading.Window.Core;
 /// <see cref="UnitPrice"/> gears per <see cref="UnitSize"/> (the listed or off-list offer), paid from
 /// <see cref="Budget"/>. <see cref="Good"/> groups slots holding the same good for the trader's demand
 /// (<see cref="Demand"/>, in units of <see cref="UnitSize"/>; null when only the side budget limits it,
-/// as off its list).
+/// as off its list). <see cref="Worth"/> is the offer's exact gears per item (<see cref="Offer.Worth"/>),
+/// when known.
 /// </summary>
-public sealed record SellLine(int Slot, int Items, int UnitSize, int UnitPrice, Budget Budget, string Good, int? Demand = null)
+public sealed record SellLine(int Slot, int Items, int UnitSize, int UnitPrice, Budget Budget, string Good, int? Demand = null,
+    double? Worth = null)
 {
-    /// <summary>Gears per item.</summary>
-    public double Rate => UnitPrice / (double)Math.Max(1, UnitSize);
+    /// <summary>Gears per item: the exact <see cref="Worth"/> when known, else the unit's price over its
+    /// size. The unit price is rounded to whole gears (at least one), so a good worth under a gear a
+    /// unit would otherwise be paid more than it is worth.</summary>
+    public double Rate => Worth is double w && w > 0 ? w : UnitPrice / (double)Math.Max(1, UnitSize);
 }
 
 /// <summary>Items a lot takes from one sell slot.</summary>
@@ -29,13 +33,16 @@ public sealed record SellLot(int Gears, int MainGears, int SideGears, double Val
 }
 
 /// <summary>
-/// The trade window's pooled sale (the playtest after #436): four sell slots, valued together. What
-/// the trader pays is whole gears for whole items, never more than the items are worth, so goods worth
-/// under a gear in one slot (a few dirt, the end of a stack) count with the rest.
+/// The trade window's pooled sale (the playtest after #436, #910): four sell slots, valued together,
+/// whatever goods they hold, the same or different. What the trader pays is whole gears for whole
+/// items, never more than the items are worth, so goods worth under a gear in one slot (a few dirt,
+/// the end of a stack, a stack of poor ore) count with the rest: no good has a floor of its own, only
+/// the whole sale must come to a gear.
 ///
 /// <list type="bullet">
-/// <item>The pool's value is every item's worth (its offer's gears per unit ÷ the unit's size), only as
-/// many of a listed good as the trader's demand takes.</item>
+/// <item>The pool's value is every item's worth (its offer's exact gears per item, <see cref="SellLine.Rate"/>),
+/// only as many of a listed good as the trader's demand takes. Each good keeps its own price, budget
+/// and demand; slots the trader does not buy from are left out (and stay in their slots).</item>
 /// <item>A hold sells one lot, as one unit sold before: the lot's target is the first good's unit
 /// price (in the order below), at most the pool's whole gears. Items are taken in a stable order, the
 /// dearest per item first (then by slot), only as many as reach the target, so what is left over
@@ -53,7 +60,7 @@ public static class SellPool
 
     /// <summary>The lines in the order a lot takes from them: dearest per item first, then by slot.</summary>
     public static List<SellLine> Ordered(IEnumerable<SellLine> lines) =>
-        lines.Where(l => l.Items > 0 && l.UnitPrice > 0).OrderByDescending(l => l.Rate).ThenBy(l => l.Slot).ToList();
+        lines.Where(l => l.Items > 0 && l.UnitPrice > 0 && l.Rate > 0).OrderByDescending(l => l.Rate).ThenBy(l => l.Slot).ToList();
 
     /// <summary>How many items of each line the trader takes at most: a listed good only as many as its
     /// demand's units hold, shared by the slots holding it, in order.</summary>
