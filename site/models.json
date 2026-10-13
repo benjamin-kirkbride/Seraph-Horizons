@@ -634,8 +634,8 @@
           "balls": "Ball charge",
           "feedbox": "Feed box, with the infeed chute and the spout",
           "hopper": "Discharge hopper, with the output chute",
-          "pipecopper": "Copper (one straight pipe and an elbow)",
-          "pipelead": "Lead (one straight pipe and an elbow)"
+          "pipecopper": "Copper pipe and elbow",
+          "pipelead": "Lead pipe and elbow"
         },
         "choices": [
           { "label": "Water pipe", "values": ["pipecopper", "pipelead"], "default": "pipecopper" }
