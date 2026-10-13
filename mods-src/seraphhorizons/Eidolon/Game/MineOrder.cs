@@ -20,8 +20,9 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// <see cref="MineDispatch.QueueLength"/>), each claimed on the job board, walks to its stand and strikes
 /// it a group of up to four blocks at a time (<see cref="MineStations.NextGroup"/>: flat on a layer, upright
 /// at a wall, a tunnel's face top half first) with the shape's slam, timed to a seraph's steel pickaxe or steel
-/// shovel, the quicker for each block (<see cref="EidolonMining.DigSpeed"/>), at three quarters of their pace (<see cref="EidolonMining.Timing"/>), the blocks breaking as a player's
-/// would, their drops falling in the world. Each strike costs oil (<see cref="EidolonJob.MiningStrike"/>).
+/// shovel, the quicker for each block (<see cref="EidolonMining.DigSpeed"/>), at three quarters of their
+/// pace (<see cref="EidolonMining.Timing"/>), the blocks breaking as a player's would, their drops falling
+/// in the world. Each strike costs oil (<see cref="EidolonJob.MiningStrike"/>).
 /// Before every strike the job's live state is asked whether it may (<see cref="MineState.Check"/>): never
 /// under any eidolon's box or over it, never cutting off its own or another's way out.
 ///
