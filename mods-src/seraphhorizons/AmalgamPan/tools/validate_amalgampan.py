@@ -3,7 +3,7 @@
 Every check prints what it measured and fails the run (the script exits non-zero) when the model breaks
 its rule. Everything is in the build frame (voxels), on the model before the origin shift;
 `check_shipped` in make_shape.py proves the shipped files are this model moved. A pose is
-(theta, contents): contents 0 empty, 1 mercury, 2 amalgam.
+(theta, contents): contents 0 empty, 1 mercury, 2 slurry (the charge), 3 amalgam.
 """
 
 from __future__ import annotations
@@ -74,13 +74,6 @@ def axis_distance(m, el):
     return math.hypot(*out)
 
 
-def point_distance(el, p):
-    """The distance from a point to a (turned) box."""
-    d = [p[i] - el.c[i] for i in range(3)]
-    local = [sum(el.r[i][k] * d[i] for i in range(3)) for k in range(3)]
-    return math.sqrt(sum(max(0.0, abs(local[k]) - abs(el.size[k]) / 2) ** 2 for k in range(3)))
-
-
 def check_basic(v):
     worst = euler_round_trip(v.els)
     print(f"euler round trip: worst {worst:.1e}")
@@ -100,6 +93,9 @@ def check_basic(v):
         v.fail(f"parts with no elements: {empty}")
     counts = {p["id"]: len(v.by_part.get(p["id"], [])) for p in v.parts}
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
+    staged = [p["id"] for p in v.parts if p["requires"] not in (None, "mercury", "slurry", "amalgam")]
+    if staged:
+        v.fail(f"the station has no build stages: every part but the contents is always fitted ({staged})")
 
 
 def check_containment(v, poses):
@@ -129,14 +125,14 @@ def check_floating(v):
 
 ROLES = [
     # (element regex, the textures it may wear)
-    (r"^fr_(leg|apron|bearer|rail)_", {"oak"}),
+    (r"^fr_(leg|apron|bearer|rail|bridgetree)", {"oak"}),
     (r"^fr_(floor|wall|rim)_", {"pan"}),
-    (r"^fr_(cone_base|cone_neck|foot|arch|boss|plug_boss)", {"iron"}),
+    (r"^fr_(cone_base|cone_neck|plug_boss|footstep)", {"iron"}),
     (r"^fr_plug_bung", {"oak"}),
-    (r"^muller_(spindle|hub|arm|crankhub|crank)", {"iron"}),
-    (r"^muller_handle_", {"oak"}),
-    (r"^shoe_", {"shoe"}),
+    (r"^muller_(spindle|hub|arm|shoe)", {"iron"}),
+    (r"^muller_coupling", {"oak"}),                  # the vanilla axle's own wood, continued: a shaft that meets an axle stays oak
     (r"^mercury_", {"mercury"}),
+    (r"^slurry_", {"slurry"}),
     (r"^amalgam_", {"amalgam"}),
 ]
 
@@ -158,69 +154,92 @@ def turn_y(mat):
     return math.atan2(-mat[2][0], mat[0][0])
 
 
+def wrap(a):
+    return (a + math.pi) % (2 * math.pi) - math.pi
+
+
 def check_turning(v):
-    """The muller turns about the pan's axis by exactly theta (ratio 1), the shoes with it; the
-    contents and the frame stand still."""
+    """The muller turns about the pan's axis by exactly theta (ratio 1: with the axle, as the quern's stone
+    does); the contents and the frame stand still."""
     m = v.m
-    worst_axis, worst_turn, worst_ride = 0.0, 0.0, 0.0
+    worst_axis, worst_turn = 0.0, 0.0
     for th in [i * 0.37 - 7.0 for i in range(40)]:
         pose = (th, 0)
         mm = v.mat("muller", pose)
         for y in (0.0, 6.0, 14.0):
             q = v.point("muller", pose, [m.CX, y, m.CZ])
             worst_axis = max(worst_axis, abs(q[0] - m.CX), abs(q[1] - y), abs(q[2] - m.CZ))
-        d = (turn_y(mm) - th + math.pi) % (2 * math.pi) - math.pi
-        worst_turn = max(worst_turn, abs(d))
-        ms = v.mat("shoes", pose)
-        worst_ride = max(worst_ride, max(abs(mm[i][j] - ms[i][j]) for i in range(3) for j in range(4)))
-        for pid in ("mercury", "amalgam", "frame"):
+        worst_turn = max(worst_turn, abs(wrap(turn_y(mm) - m.GEAR_RATIO * th)))
+        for pid in ("mercury", "slurry", "amalgam", "frame"):
             mp = v.mat(pid, pose)
             if max(abs(mp[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(4)) > 1e-12:
                 v.fail(f"theta moves the {pid}")
-    print(f"turning: the pan's axis stays put within {worst_axis:.1e}, the muller turns theta within {worst_turn:.1e}, "
-          f"the shoes ride it within {worst_ride:.1e}")
-    if worst_axis > 1e-9 or worst_turn > 1e-9 or worst_ride > 1e-12:
-        v.fail("the muller does not turn with the crank about the pan's axis, or the shoes do not ride it")
+    print(f"turning: the pan's axis stays put within {worst_axis:.1e}; the muller turns {m.GEAR_RATIO:g} theta within {worst_turn:.1e}")
+    if worst_axis > 1e-9 or worst_turn > 1e-9 or m.GEAR_RATIO != 1.0:
+        v.fail("the muller does not turn about the pan's axis with the axle, once a turn")
 
 
 def check_supports(v):
-    """The spindle is carried by two bearings fixed to the frame, far apart: the step (the cone's neck)
-    and the bridge's boss; it lies inside each at rest and turned an eighth; each hub keyed on it stands
-    clear of the bearing beside it."""
+    """The spindle is carried by two bearings fixed to the frame, far apart: the footstep on the bridge-tree
+    under the pan and the cone's neck in it. It runs well inside both at rest and turned an eighth and a
+    quarter; the muller's hub stands just clear over the cone."""
     m = v.m
     frame = v.by_part["frame"]
-    inside = 1e9
+    foot = (m.LOW_Y[1], m.LOW_Y[1] + m.FOOTSTEP[1])
+    sizes = {"fr_cone_neck": (m.CONE_NECK[0], m.CONE_NECK[1], m.CONE_NECK[2]), "fr_footstep": (m.FOOTSTEP[0], *foot)}
+    worst = {}
     for pose in ((0.0, 0), (math.pi / 8, 0), (math.pi / 4, 0)):
-        spindle = v.named("muller", r"_spindle_", pose)
-        names, span = supports(frame, spindle, 1, (m.CX, m.CZ))
-        bearings = sorted({re.sub(r"_\d+$", "", n) for n in names if re.match(r"fr_(cone_neck|boss)_", n)})
-        if bearings != ["fr_boss", "fr_cone_neck"]:
-            v.fail(f"the spindle is not carried by the step and the boss at theta {pose[0]:.3f}: {sorted(names)}")
-        reach = max(radius(m, c) for e in spindle for c in e.corners())
-        # the spindle is a prism: its section is the same all along, so its corners say how far inside each
-        # bearing's section it runs (a 16-gon of the bearing's apothem lies inside the bearing's octagon)
-        for name, (ap, y0, y1) in (("step", m.CONE_NECK), ("boss", m.BOSS)):
-            depth = min(polygon_depth(m, c, ap) for e in spindle for c in e.corners())
-            inside = min(inside, depth)
-            if depth < 0.3 or min(span[1], y1) - max(span[0], y0) < 0.5:
-                v.fail(f"the spindle is not well inside the {name} (depth {depth:.2f}, span {span})")
-    gap_step = min(e.aabb()[0][1] for e in v.named("muller", r"_hub_", (0.0, 0))) - m.CONE_NECK[2]
-    gap_boss = min(e.aabb()[0][1] for e in v.named("muller", r"_crankhub_", (0.0, 0))) - m.BOSS[2]
-    apart = m.BOSS[1] - m.CONE_NECK[2]
-    print(f"support: the spindle (reach {reach:.2f} from its axis) at least {inside:.2f} inside the step and the boss, {apart:.1f} apart; "
-          f"the muller's hub {gap_step:.2f} over the step, the crank's hub {gap_boss:.2f} over the boss")
-    if not (0.1 <= gap_step <= 0.5 and 0.1 <= gap_boss <= 1.0) or apart < 3.0:
-        v.fail("a hub is not just clear of its bearing, or the bearings are too close together")
+        shaft = v.named("muller", r"_spindle_", pose)
+        names, span = supports(frame, shaft, 1, (m.CX, m.CZ))
+        found = sorted({re.sub(r"_\d+$", "", n) for n in names} & set(sizes))
+        if found != sorted(sizes):
+            v.fail(f"the spindle is not carried by the footstep and the cone's neck at theta {pose[0]:.3f}: {sorted(names)}")
+        for name, (ap, a0, a1) in sizes.items():
+            # the spindle is a prism: its corners say how far inside each bearing's section it runs
+            depth = min(ap - math.hypot(q[0] - m.CX, q[2] - m.CZ) for e in shaft for q in e.corners())
+            overlap = min(span[1], a1) - max(span[0], a0)
+            worst[name] = min(worst.get(name, (1e9, 1e9))[0], depth), min(worst.get(name, (1e9, 1e9))[1], overlap)
+            if depth < 0.3 or overlap < 0.5:
+                v.fail(f"the spindle is not well inside {name} (depth {depth:.2f}, along it {overlap:.2f})")
+    apart = m.CONE_NECK[1] - foot[1]
+    gap_hub = min(e.aabb()[0][1] for e in v.named("muller", r"_hub_", (0.0, 0))) - m.CONE_NECK[2]
+    print("supports: " + ", ".join(f"{k} {d:.2f} inside along {o:.2f}" for k, (d, o) in sorted(worst.items()))
+          + f"; the bearings {apart:.1f} apart; the muller's hub {gap_hub:.2f} over the cone")
+    if not 0.1 <= gap_hub <= 0.5 or apart < 3.0:
+        v.fail("the hub is not just clear of the cone, or the spindle's bearings are too close together")
 
+
+def check_coupling(v):
+    """The axle comes in from below, as into the quern: the rig's power cell is the pan's own cell and its
+    face the down face; the spindle's foot is the vanilla axle's oak cross profile on the pan's axis, from
+    the block's bottom face (where the axle below meets it) up into the iron spindle; it turns under the
+    bridge-tree, clear of it and of every leg and rail (the clearance checks say the same for the rest)."""
+    m = v.m
+    rig = v.rig
+    if rig.get("powerCell") != [0, 0, 0] or rig.get("powerFace") != "down":
+        v.fail(f"the power cell is not the pan's own, entered from below ({rig.get('powerCell')}, {rig.get('powerFace')})")
+    bars = v.named("muller", r"_coupling[ab]$")
+    lo, hi = aabb_of(bars)
+    spindle = v.named("muller", r"_spindle_")
+    s_lo = min(e.aabb()[0][1] for e in spindle)
+    half, thick, high = m.COUPLING
+    cross = sorted(sorted((round(abs(e.size[0]) / 2, 6), round(abs(e.size[2]) / 2, 6))) for e in bars)
+    centred = all(abs(e.c[0] - m.CX) < 1e-9 and abs(e.c[2] - m.CZ) < 1e-9 for e in bars)
+    print(f"coupling: power cell {rig.get('powerCell')} face {rig.get('powerFace')}; the axle's cross profile "
+          f"({2 * half:g} by {2 * thick:g}) from y {lo[1]:.2f} to {hi[1]:.2f}, the spindle's foot at {s_lo:.2f} inside it, "
+          f"{m.LOW_Y[0] - hi[1]:.2f} under the bridge-tree")
+    if (len(bars) != 2 or not centred or cross != [[thick, half], [thick, half]] or abs(lo[1] - m.AXLE_MEET) > 1e-9
+            or not lo[1] < s_lo < hi[1] or m.LOW_Y[0] - hi[1] < 0.1):
+        v.fail("the spindle's foot does not meet the axle below in the axle's own profile, or it runs into the bridge-tree")
 
 def check_shoes(v):
-    """Every shoe bears flat on the floor and sits under its arm's end at every angle of a turn; it stays
-    clear of the wall and of the step by at least 0.3."""
+    """Every shoe bears flat on the floor and sits under its arm's end at every degree of the muller's
+    turn; it stays clear of the wall and of the cone by at least 0.3."""
     m = v.m
     worst_floor, worst_wall, worst_step, worst_arm = 0.0, 1e9, 1e9, 0.0
     for i in range(360):
-        pose = (i * math.pi / 180, 0)
-        shoes = v.posed("shoes", pose)
+        pose = (i * math.pi / 180 / m.GEAR_RATIO, 0)          # the muller's degree i
+        shoes = v.named("muller", r"_shoe\d$", pose)
         arms = {e.name[-1]: e for e in v.named("muller", r"_arm\d$", pose)}
         for s in shoes:
             cs = s.corners()
@@ -235,15 +254,16 @@ def check_shoes(v):
             if not (m.SHOE_R[0] < radius(m, tip) < m.SHOE_R[1]):
                 v.fail(f"{arm.name}'s end is not over {s.name}")
     print(f"shoes: on the floor within {worst_floor:.1e}, up against their arms within {worst_arm:.1e}; "
-          f"clear of the wall by {worst_wall:.2f} and of the step by {worst_step:.2f} over a turn")
+          f"clear of the wall by {worst_wall:.2f} and of the cone by {worst_step:.2f} over a turn")
     if worst_floor > 1e-6 or worst_arm > 1e-6 or worst_wall < 0.3 or worst_step < 0.3:
-        v.fail("a shoe is off the floor or its arm, or runs close to the wall or the step")
+        v.fail("a shoe is off the floor or its arm, or runs close to the wall or the cone")
 
 
 def check_contents(v):
     """Each layer lies on the floor inside the wall, its edge in the wall (no gap) and its underside in the
-    floor; the mercury is a pool under the paste's level, and the paste under the step's top and the
-    shoes', so the shoes stand out of it and the spindle's foot stays dry."""
+    floor; the mercury is a pool under the paste's level, the paste under the charge's (the charge is the
+    deepest: it reads as a loaded pan), and the charge under the cone's top and the shoes', so the shoes
+    stand out of all three."""
     m = v.m
     tops = {}
     for _, pid in m.CONTENTS:
@@ -257,55 +277,20 @@ def check_contents(v):
         if not (-0.1 <= edge < 0.0) or reach > m.R_OUT:
             v.fail(f"the {pid}'s edge is not just into the wall (depth {edge:.3f}, reach {reach:.2f})")
     shoe_top = m.SHOE_Y[1]
-    order = [m.FLOOR_TOP, tops["mercury"], tops["amalgam"], m.SPINDLE_Y[0], m.CONE_NECK[2], shoe_top]
-    print("contents: the mercury " + f"{tops['mercury'] - m.FLOOR_TOP:.2f} deep, the amalgam {tops['amalgam'] - m.FLOOR_TOP:.2f}; "
-          f"under the spindle's foot ({m.SPINDLE_Y[0]}), the step's top ({m.CONE_NECK[2]}) and the shoes' ({shoe_top})")
+    order = [m.FLOOR_TOP, tops["mercury"], tops["amalgam"], tops["slurry"], m.CONE_NECK[2], shoe_top]
+    print("contents: the mercury " + f"{tops['mercury'] - m.FLOOR_TOP:.2f} deep, the amalgam {tops['amalgam'] - m.FLOOR_TOP:.2f}, "
+          f"the charge {tops['slurry'] - m.FLOOR_TOP:.2f}; under the cone's top ({m.CONE_NECK[2]}) and the shoes' ({shoe_top})")
     if order != sorted(order) or len(set(order)) != len(order):
-        v.fail("the layers are not in order under the spindle's foot, the step and the shoes")
-
-
-def check_bridge(v):
-    """The bridge's feet stand on the rim (over the wall's top and the bead); each half of the arch runs
-    from inside its foot into the boss at the crown, clear of the spindle."""
-    m = v.m
-    frame = {e.name: e for e in v.by_part["frame"]}
-    boss = [e for n, e in frame.items() if n.startswith("fr_boss_")]
-    for s in ("w", "e"):
-        foot = frame[f"fr_foot_{s}"]
-        lo, hi = foot.aabb()
-        under = [e for n, e in frame.items() if re.match(r"fr_(wall|rim)_", n) and abs(e.aabb()[1][1] - lo[1]) < 1e-6
-                 and obb_obb(e, foot, eps=-0.03)]
-        kinds = {re.match(r"fr_(wall|rim)_", e.name).group(1) for e in under}
-        if abs(lo[1] - m.RIM_TOP) > 1e-6 or kinds != {"wall", "rim"}:
-            v.fail(f"the {s} foot does not stand on the wall and the bead ({sorted(e.name for e in under)})")
-        def ends(name):
-            el = frame[name]
-            pts = [[el.c[k] + sg * el.r[k][0] * el.size[0] / 2 for k in range(3)] for sg in (-1, 1)]
-            return sorted(pts, key=lambda p: radius(m, p), reverse=True)       # outer end first
-        (outer, knee1), (knee2, inner) = ends(f"fr_arch_{s}1"), ends(f"fr_arch_{s}2")
-        if not all(lo[k] < outer[k] < hi[k] for k in range(3)):
-            v.fail(f"the {s} half of the arch does not start inside its foot ({outer})")
-        if not (polygon_depth(m, inner, m.BOSS[0]) > 0.1 and m.BOSS[1] < inner[1] < m.BOSS[2]):
-            v.fail(f"the {s} half of the arch does not end in the boss ({inner})")
-        if math.dist(knee1, knee2) > 0.25 or radius(m, knee2) < radius(m, knee1):          # they overlap at the bend
-            v.fail(f"the {s} half of the arch's two bars do not meet at the bend ({knee1}, {knee2})")
-    spindle = v.named("muller", r"_spindle_", (0.0, 0))
-    reach = max(radius(m, c) for e in spindle for c in e.corners())
-    gap = min(point_distance(frame[f"fr_arch_{s}2"], [m.CX, m.BOSS[1] + (m.BOSS[2] - m.BOSS[1]) * i / 40, m.CZ])
-              for s in ("w", "e") for i in range(41)) - reach
-    print(f"bridge: both feet on the rim (the wall's top and the bead), each half arch from its foot, bent once, into the boss "
-          f"({len(boss)} strips), {gap:.2f} clear of the spindle")
-    if gap < 0.05:
-        v.fail("the arch runs into the spindle")
+        v.fail("the layers are not in order under the cone and the shoes")
 
 
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way
 # round. Everything else must clear by more than 0.02 voxels at every sampled pose.
 ALLOWED = [
-    ("muller", r"_spindle_", "frame", r"fr_(cone_|boss)"),                 # the spindle in its bearings
-    ("shoes", None, "muller", r"_arm\d"),                                   # each shoe bolted under its arm
-    ("mercury|amalgam", None, "frame", r"fr_(floor|wall|cone)"),            # the contents in the pan
-    ("mercury|amalgam", None, "shoes", None),                               # the shoes stand in them
+    ("muller", r"_spindle_", "frame", r"fr_(footstep|bridgetree|floor|cone_)"),   # the spindle down through the footstep and the
+                                                                                   # bridge-tree, up through the floor and the cone
+    ("mercury|slurry|amalgam", None, "frame", r"fr_(floor|wall|cone)"),            # the contents in the pan
+    ("mercury|slurry|amalgam", None, "muller", r"_(shoe\d|spindle_)"),             # the shoes stand in them; the spindle, inside the cone
 ]
 
 
@@ -376,9 +361,9 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v, [m.REST] + m.turn_poses(5.0))
     check_turning(v)
     check_supports(v)
+    check_coupling(v)
     check_shoes(v)
     check_contents(v)
-    check_bridge(v)
     check_clearances(v, [m.REST] + m.turn_poses(10.0), "clearances")
     if not quick:
         check_clearances(v, m.turn_poses(1.0), "swept paths (every degree of a turn, each contents)")
@@ -399,7 +384,13 @@ def validate_files(m, shape, frame_shape, ship):
           f"lid over it: {'yes' if not gaps else gaps}; boxes {ship['cells'][0].get('boxes')}")
     if gaps or hollow or len(ship["cells"]) != 1:
         ok = False
-    if "powerCell" in ship or "powerFace" in ship or "work" in ship or "trunkPath" in ship:
-        print("FAIL a hand station has no power cell and nothing posed by a work")
+    if ship.get("powerCell") != [0, 0, 0] or ship.get("powerFace") != "down" or "work" in ship or "trunkPath" in ship:
+        print("FAIL the pan takes its axle from below at its own cell, and nothing is posed by a work")
+        ok = False
+    # nothing goes in or out but by the player's hand: no anchor for a chute, hopper or chest
+    transfer = sorted(k for k in ship if (k.endswith("Side") and k != "operatorSide") or k.startswith(("infeed", "output", "outfeed")))
+    print(f"anchors: {sorted(k for k in ship if not k.startswith('_') and k not in ('cells', 'parts'))}; for item transfer: {transfer or 'none'}")
+    if transfer:
+        print("FAIL the pan takes no automated input or output")
         ok = False
     return ok
