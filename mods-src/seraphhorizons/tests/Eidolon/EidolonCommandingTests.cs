@@ -104,6 +104,33 @@ public class EidolonCommandingTests
     }
 
     [Fact]
+    public void AnAreasDistanceIsToTheNearestPointOfItsBlocks()
+    {
+        var area = MarkArea.Between(new MarkPos(0, 60, 0), new MarkPos(9, 64, 9));
+        Assert.Equal(0, area.DistanceTo(5, 62, 5), 6);      // inside
+        Assert.Equal(0, area.DistanceTo(10, 65, 10), 6);    // on its far corner: Max's blocks fill to Max + 1
+        Assert.Equal(3, area.DistanceTo(-3, 62, 5), 6);     // off one face
+        Assert.Equal(4, area.DistanceTo(5, 69, 5), 6);      // over it
+        Assert.Equal(5, area.DistanceTo(13, 62, -4), 6);    // off an edge: 3 and 4
+    }
+
+    [Fact]
+    public void AnOrderReachesEidolonsNearTheHolderOrTheMarkedArea()
+    {
+        // The first corner marked beside the eidolons, the second 100 blocks off where the holder stands.
+        var area = MarkArea.Between(new MarkPos(0, 64, 0), new MarkPos(100, 64, 10));
+        // Beside the first corner, 100 from the holder: in reach of the area.
+        Assert.True(EidolonMarking.InReach(100, area, -2, 64, 5, 64));
+        // 70 off the area and 150 from the holder: out of reach.
+        Assert.False(EidolonMarking.InReach(150, area, -70, 64, 5, 64));
+        // Near the holder, far from the area: in reach of the holder.
+        Assert.True(EidolonMarking.InReach(10, area, 300, 64, 300, 64));
+        // Without an area, the holder's range alone.
+        Assert.False(EidolonMarking.InReach(100, null, 0, 64, 0, 64));
+        Assert.True(EidolonMarking.InReach(64, null, 0, 64, 0, 64));
+    }
+
+    [Fact]
     public void AModeWithoutMarksCannotBeClicked() =>
         Assert.Throws<ArgumentOutOfRangeException>(() => EidolonMarking.Click(EidolonMarkKind.None, Marks.None, A, 48));
 

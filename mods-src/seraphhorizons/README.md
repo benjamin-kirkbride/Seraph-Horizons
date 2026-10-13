@@ -3063,8 +3063,12 @@ may command it), sneak + right-click to unbind. The tool keeps the bound entity 
 orders only the eidolons it was bound to, not every one its holder could command; a company's members
 each bind their own tools. A **mode wheel** (the tool mode key, as the prospecting pick's) picks the
 order; right-click anywhere but on an eidolon gives it to every bound eidolon loaded within
-`CommandRange` of the holder that the holder may still command (the others are counted in a refusal
-message), and a chat line says how many took it. Modes that work in a place have the player **mark**
+`CommandRange` of the holder, or, once the mode's marks hold an area (an area mode's, or an area then a
+block's), within `CommandRange` of that area's nearest point (0 inside it; `EidolonMarking.InReach`,
+`MarkArea.DistanceTo`), that the holder may still command (the others are counted in a refusal
+message), and a chat line says how many took it. So a player may mark the first corner beside the
+eidolons and walk off to mark the second. With none in reach the tool says so, with the range (and,
+with an area, that it counts from the holder or the area). Modes that work in a place have the player **mark**
 it first: a block (one right-click on it, which then gives the order) or an area (a first corner,
 then the opposite corner, which closes it and gives the order; wider than the mode's limit, or
 holding more blocks in all than its limit (mining's), is refused
@@ -3281,7 +3285,8 @@ opposite corner past either is refused and the first kept) and gives the `mine` 
 eidolon stands then. Bare-handed, as the game's steel pickaxe, it breaks everything in the box that pick
 breaks: a block needing no more than the steel pickaxe's tier (its `ToolTier`, read from
 `game:pickaxe-steel` at runtime: 5; `EidolonMining.SteelPickTier`, 5, if it cannot be read), one needing a
-tier only if the steel pickaxe has a speed for its material (as the game refuses a player). It leaves liquids, any block a liquid touches on one of its six
+tier only if the steel pickaxe has a speed for its material (as the game refuses a player; the steel
+shovel it also digs at has no tier, so it adds none). It leaves liquids, any block a liquid touches on one of its six
 faces (so the pit never opens onto water or lava), every block with a block entity (a chest, a machine,
 chiseled stone, farmland, a berry bush, a tapestry, a stone door, an aqueduct: a block's material says
 nothing of whether a player made it, as a block type that gives none is stone to the game) but the
@@ -3354,12 +3359,15 @@ side by side (below). Only the part quarried from a floor above for want of a fa
 strand it, as an open pit can: dug more than two below the way out, with no step beside it, it stays
 down there.
 
-*A strike* takes as long as a seraph with a steel pickaxe takes to break the slowest block of its
-group, at three quarters of their pace. The game takes the pick's mining speed for the block's material
-(the steel pickaxe's own, read from `game:pickaxe-steel` at runtime: 9 for stone, ore and metal, 3.25
-for ceramic, 4.25 for ice) times its tool mining speed modifier (1), or 1 for any other material, off
-the block's resistance each second (`CollectibleObject.GetMiningSpeed`); so granite (resistance 8)
-takes a seraph 0.89 s and the eidolon 1.19 s, soil (1.8) 2.4 s. It faces the group and slams
+*A strike* takes as long as a seraph with a steel pickaxe or a steel shovel, whichever is the quicker
+for each block, takes to break the slowest block of its group, at three quarters of their pace. The game
+takes the tool's mining speed for the block's material times its tool mining speed modifier (1), or 1
+(the bare hand's) for a material it has no speed for, off the block's resistance each second
+(`CollectibleObject.GetMiningSpeed`); the eidolon takes the faster of the two tools' (`EidolonMining.DigSpeed`,
+each read at runtime: `game:pickaxe-steel` 9 for stone, ore and metal, 3.25 for ceramic, 4.25 for ice;
+`game:shovel-steel` 7 for soil and sand, 4.4 for gravel and snow). So granite (resistance 8) takes a
+seraph 0.89 s and the eidolon 1.19 s, and soil (1.8) a seraph 0.26 s and the eidolon the fastest slam's
+0.5 s. It faces the group and slams
 (vanilla's `stand-slam`, stretched or squeezed to fill the strike, from half to three times its speed;
 it stands first for a slower strike, and one quicker than the fastest slam takes the slam's 0.5 s);
 the group breaks as both fists land (frame 35), with the first block's pickaxe break sound, broken as
@@ -3821,7 +3829,7 @@ knocks it to 0 HP (slumped, alive, no drops, standing again once repaired) and w
 2 × 4 gate and not through a 1 × 4 one, drains its oil with a stand-in job until dry stops it standing
 (tallow starts it again), repairs it in a gantry (double) and in the open (a slumped one stands after
 three items, a whole one refuses), and flips `MachineOil` off (no reservoir, never dry);
-`tests/Eidolon/EidolonCommandingTests.cs` covers marking, binding, the follow gait and self-defence's
+`tests/Eidolon/EidolonCommandingTests.cs` covers marking, an order's reach (the holder's or the marked area's), binding, the follow gait and self-defence's
 rules, `tests/Eidolon/EidolonStrikesTests.cs` its blows (which, by the creature's motion; when one lands;
 the lead; each an animation of the shape of its length), and `tests/PackTests/EidolonCommanderScenarios.cs` (Atlas) uses the tool as a player does:
 bound by its owner it follows them over rough ground (steps of one and two, a pillar) and then stays,
@@ -3855,7 +3863,7 @@ then given one it fells an area of three grown oaks (three trunks holding every 
 the flat figure per tree, oil per tree), replants two from a carried sapling and seed, and leaves a
 player's log pillar and a sapling standing; and an axe that breaks stops it until it is given another;
 `tests/Eidolon/EidolonMiningTests.cs` covers mining's rules (the area's limits, what it breaks up to the
-steel pickaxe's tier, the strike's length against a steel pickaxe and its slam, its reach, never under
+steel pickaxe's tier, the strike's length against the better of a steel pickaxe and shovel and its slam, its reach, never under
 its box, the next group flat or upright, where it stands, the search: the highest layer and the one under,
 an unloaded column read as air never done, a block left for a liquid beside it holding nothing up unless
 it falls) and `tests/PackTests/EidolonMineScenarios.cs` (Atlas) orders it

@@ -102,6 +102,27 @@ public class EidolonMiningTests
     }
 
     [Fact]
+    public void ItDigsAtTheBetterOfASteelPickaxesAndShovelsSpeed()
+    {
+        // Soil: the pickaxe has no speed for it, shovel-steel's is 7.
+        Assert.Equal(7, EidolonMining.DigSpeed(null, 7), 6);
+        Assert.Equal(1.8 / 7, EidolonMining.PlayerSeconds(1.8, EidolonMining.DigSpeed(null, 7)), 6);
+        // Stone: the shovel has none, pickaxe-steel's is 9.
+        Assert.Equal(9, EidolonMining.DigSpeed(9, null), 6);
+        // Both: the faster.
+        Assert.Equal(9, EidolonMining.DigSpeed(9, 4.4), 6);
+        Assert.Equal(7, EidolonMining.DigSpeed(3.25, 7), 6);
+        // Neither: the bare hand's 1.
+        Assert.Equal(1, EidolonMining.DigSpeed(null, null), 6);
+        // The modifier multiplies either.
+        Assert.Equal(14, EidolonMining.DigSpeed(null, 7, 2), 6);
+        // Soil now takes the fastest slam's time, no longer twice rock's.
+        var soil = EidolonMining.Timing(EidolonMining.StrikeSeconds([EidolonMining.PlayerSeconds(1.8, EidolonMining.DigSpeed(null, 7))]));
+        Assert.Equal(EidolonMining.MaxSlamSpeed, soil.SlamSpeed, 6);
+        Assert.Equal(0.5, soil.Seconds, 6);
+    }
+
+    [Fact]
     public void AStrikeTakesItsSlowestBlockAtThreeQuartersOfASeraphsPace()
     {
         Assert.Equal(8 / 9.0 / 0.75, EidolonMining.StrikeSeconds([8 / 9.0, 0.2, 0.5]), 6);
