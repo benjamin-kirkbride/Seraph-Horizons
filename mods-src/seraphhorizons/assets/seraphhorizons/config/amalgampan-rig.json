@@ -9,7 +9,7 @@
 	"pan": {"pos": [0.5, 0.375, 0.5]},
 	"parts": [
 		{"id": "muller", "match": ["muller_*"], "requires": "muller", "drivers": [{"type": "rotate", "axis": "y", "pivot": [0.5, 0.0, 0.5], "ratio": 1.0}], "ride": null},
-		{"id": "shoes", "match": ["shoe_*"], "requires": "shoes", "ride": "muller", "drivers": []},
+		{"id": "shoes", "match": ["shoe_*"], "requires": "shoes", "drivers": [], "ride": "muller"},
 		{"id": "mercury", "match": ["mercury_*"], "requires": "mercury", "drivers": [], "ride": null},
 		{"id": "slurry", "match": ["slurry_*"], "requires": "slurry", "drivers": [], "ride": null},
 		{"id": "amalgam", "match": ["amalgam_*"], "requires": "amalgam", "drivers": [], "ride": null},

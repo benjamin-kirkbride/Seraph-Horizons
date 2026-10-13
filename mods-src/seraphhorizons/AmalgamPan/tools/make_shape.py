@@ -315,7 +315,7 @@ def _rig_parts():
         # #718's fitted stages, in order: the muller (a rod), then its shoes (a plate), which ride it.
         {"id": "muller", "match": ["muller_*"], "requires": "muller",
          "drivers": [{"type": "rotate", "axis": "y", "pivot": pt(CX, 0.0, CZ), "ratio": GEAR_RATIO}]},
-        {"id": "shoes", "match": ["shoe_*"], "requires": "shoes", "ride": "muller", "drivers": []},
+        {"id": "shoes", "match": ["shoe_*"], "requires": "shoes", "drivers": [], "ride": "muller"},
         {"id": "mercury", "match": ["mercury_*"], "requires": "mercury", "drivers": []},
         {"id": "slurry", "match": ["slurry_*"], "requires": "slurry", "drivers": []},
         {"id": "amalgam", "match": ["amalgam_*"], "requires": "amalgam", "drivers": []},
