@@ -380,7 +380,7 @@ def check_flows(v):
         hit = first_below(v, mouth, (0.0, "complete"))
         n += 1
         print(f"flows: the {name} launder falls to its outlet ({g0}..{g1}, its floor {min(at):.2f}..{max(at):.2f}, the chute's "
-              f"{m.CHUTE_FLOOR}); its lowest end {low_end}; its mouth drops onto {hit[1] if hit else 'nothing'}")
+              f"{m.CHUTE_FLOOR}); its lowest end at {low_end:.2f}; its mouth drops onto {hit[1] if hit else 'nothing'}")
         if not (m.CHUTE_FLOOR < min(at) and max(at) < m.CHUTE_FLOOR + 0.6) or abs(min(at) - lowest) > 0.3 \
                 or not (min(g0, g1) - 1.5 < low_end < max(g0, g1) + 1.5) or hit is None or not re.match(rf"^ch_{short}_wall", hit[1]):
             v.fail(f"the {name} launder does not fall to its outlet and into its chute")
@@ -410,7 +410,7 @@ def check_stroke(v):
     vf, vb = max(sp) * n / period, -min(sp) * n / period
     worst = max(abs(zs[i] - m.stroke_at(m.head_angle(period * i / n))) for i in range(n + 1))
     print(f"stroke: {stroke:.4f} voxels (want {m.STROKE}), one a turn of the head shaft ({m.HEAD_RATIO:g} a turn of the axle); "
-          f"forward (south) {fwd:.0%} of the stroke at up to {vf:.3f} voxels a radian of travel, back {1 - fwd:.0%} at up to {vb:.3f} "
+          f"forward (south) {fwd:.0%} of the stroke at up to {vf:.3f} voxels a radian of the axle's travel, back {1 - fwd:.0%} at up to {vb:.3f} "
           f"({vb / vf:.2f} times as fast); its speed changes sign {changes} times a stroke; the rig against the harmonics: {worst:.1e}")
     if abs(stroke - m.STROKE) > 2e-3 or not (0.6 <= fwd <= 0.8) or changes != 2 or vb < 2.0 * vf or worst > 1e-4 \
             or abs(zs[0] - zs[-1]) > 1e-9:
