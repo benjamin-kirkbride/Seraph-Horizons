@@ -105,16 +105,20 @@ public static class EidolonMining
     public const int MaxAreaBlocks = 16384;
     public const int MaxAreaSide = 1024;
 
-    /// <summary>The highest mining tier it breaks, bare-handed, when the steel pickaxe's own
+    /// <summary>The highest mining tier it breaks when the steel pickaxe's own
     /// (<c>ToolTier</c>, read at runtime: <see cref="PickTier"/>) cannot be read: the game's steel
     /// pickaxe's in 1.22.</summary>
     public const int SteelPickTier = 5;
 
-    /// <summary>Its pace against a seraph with a steel pickaxe.</summary>
+    /// <summary>Its pace against a seraph with a steel pickaxe or shovel, whichever is quicker for the block.</summary>
     public const double PlayerShare = 0.75;
 
-    /// <summary>The pickaxe whose mining speeds it strikes at.</summary>
+    /// <summary>The pickaxe whose mining speeds it strikes at, and whose tier it breaks up to.</summary>
     public const string PickCode = "game:pickaxe-steel";
+
+    /// <summary>The shovel whose mining speeds it strikes at too, where they are the faster
+    /// (<see cref="DigSpeed"/>: soil, sand, gravel, snow).</summary>
+    public const string ShovelCode = "game:shovel-steel";
 
     /// <summary>How far past its box it reaches sideways, in blocks; and from how far below its feet'
     /// block to how far above: one layer under its feet to its head (3.75 tall).</summary>
@@ -167,8 +171,9 @@ public static class EidolonMining
     }
 
     /// <summary>Whether the game lets a pickaxe break a block at all: one that needs no tier always
-    /// (at the bare hand's pace if the pick has none for it); one that needs a tier only if the pick
-    /// has a speed for its material.</summary>
+    /// (at the bare hand's pace if neither the pick nor the shovel has one for it); one that needs a tier
+    /// only if the pick has a speed for its material. The shovel never adds one: it has no tier
+    /// (<c>ToolTier</c> 0), so the game refuses it every block that needs one.</summary>
     public static bool PickBreaks(int requiredTier, bool pickHasSpeed) => requiredTier <= 0 || pickHasSpeed;
 
     /// <summary>The ground blocks with a block entity it mines through by default
@@ -226,8 +231,15 @@ public static class EidolonMining
     public static double PickSpeed(double? materialSpeed, double modifier = 1) =>
         materialSpeed is { } speed && speed > 0 ? speed * modifier : 1;
 
+    /// <summary>How fast it digs a block, resistance a second, as a seraph would with the better tool
+    /// for it: the faster of the steel pickaxe's (<paramref name="pickSpeed"/>) and the steel shovel's
+    /// (<paramref name="shovelSpeed"/>) <see cref="PickSpeed"/> for its material, each null where that
+    /// tool has none. So soil goes at the shovel's 7, not the bare hand's 1, and stone at the pick's 9.</summary>
+    public static double DigSpeed(double? pickSpeed, double? shovelSpeed, double modifier = 1) =>
+        Math.Max(PickSpeed(pickSpeed, modifier), PickSpeed(shovelSpeed, modifier));
+
     /// <summary>Seconds a seraph takes to break a block of <paramref name="resistance"/> at
-    /// <paramref name="pickSpeed"/>: the game takes speed × the tick's seconds off the block's
+    /// <paramref name="pickSpeed"/> (<see cref="DigSpeed"/>): the game takes speed × the tick's seconds off the block's
     /// resistance each tick until none is left.</summary>
     public static double PlayerSeconds(double resistance, double pickSpeed) => Math.Max(0, resistance) / pickSpeed;
 
