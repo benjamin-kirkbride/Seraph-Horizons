@@ -312,6 +312,10 @@ describe("model view", () => {
     expect(textureColour("mercury", "seraphhorizons:block/liquid/mercury")).toBe("#dce2ea");
     expect(textureColour("amalgam", "game:block/metal/ingot/leadsolder")).toBe("#b0aa9c");
     expect(textureColour("pan", "game:block/metal/sheet/iron1")).toBe("#8e98a4");
+    // the rocker's water reads as water, and its concentrate apart from the gravel of its charge
+    expect(textureColour("water", "game:block/liquid/water")).toBe("#6f9fcf");
+    expect(textureColour("concentrate", "game:block/stone/sand/basalt")).toBe("#57534c");
+    expect(textureColour("charge", "game:block/stone/gravel/granite")).toBe("#9a9a92");
   });
 
   it("puts elements no part claims in an unmatched group", () => {

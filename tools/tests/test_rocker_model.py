@@ -1,0 +1,226 @@
+"""The rocker's generated model files (mods-src/seraphhorizons/Rocker/tools/make_shape.py).
+
+These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the
+shared rig maths and uses the `requires` vocabulary its README names (the three states only: a hand station
+has no build stages), its reference poses are its own maths, the cell is rebuilt from the shipped shape,
+theta is the only input and rocks the cradle (and the load riding it) over and back once a turn on rockers
+that roll on the ground, the water rides it but stays level, nothing stands still (there are no sills and
+no frame shape), it takes water by bucket only (no water cell, no spout, no stream), the item shape is the
+rocker dry and empty, and the anchors are where the README puts them. Run with `python3 -m unittest discover -s tools/tests`.
+"""
+
+import importlib.util
+import json
+import math
+import sys
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+MOD = ROOT / "mods-src" / "seraphhorizons"
+sys.path.insert(0, str(MOD / "Machines" / "tools"))
+sys.path.insert(0, str(MOD / "Rocker" / "tools"))
+
+from machinegen import checks, geometry, rigmath  # noqa: E402
+
+_spec = importlib.util.spec_from_file_location("rocker_make_shape", MOD / "Rocker" / "tools" / "make_shape.py")
+make_shape = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(make_shape)
+
+RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "rocker-rig.json").read_text())
+SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "rocker.json").read_text())
+ITEM = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "rocker_item.json").read_text())
+REFERENCE = json.loads((MOD / "tests" / "Rocker" / "rig-reference.json").read_text())
+# no build stages: only the states the renderer draws (water while worked, the load)
+STATES = {"water", "charge", "concentrate"}
+REQUIRES = STATES | {None}
+RIGID = {"cradle", "charge", "concentrate"}   # rock exactly as the cradle does
+LEVEL = {"water"}                             # rides the cradle, swung back so it stays level
+FIXED = set()                                 # nothing: the rockers roll on the block below
+
+
+def checks_corners(e):
+    """A shape element's eight corners in blocks, rotated about its rotation origin."""
+    el = geometry.flatten([e], textures={})[0]
+    return [[v / 16 for v in c] for c in el.corners()]
+
+
+def matrix(pid, theta):
+    return rigmath.part_matrix(RIG["parts"], pid, {"theta": theta})
+
+
+def turn_x(m):
+    return math.degrees(math.atan2(m[2][1], m[1][1]))
+
+
+class Rig(unittest.TestCase):
+    def test_parts_parse_and_use_the_vocabulary(self):
+        ids = [p["id"] for p in RIG["parts"]]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(ids[0], "cradle")
+        for p in RIG["parts"]:
+            self.assertIn(p["requires"], REQUIRES, p["id"])
+            for d in p["drivers"]:
+                rigmath.validate_driver(d)
+        self.assertEqual({p["requires"] for p in RIG["parts"]}, REQUIRES)
+        self.assertEqual(set(ids), RIGID | LEVEL | FIXED)
+        for p in RIG["parts"]:
+            if p["id"] in RIGID - {"cradle"}:
+                self.assertEqual((p["ride"], p["drivers"]), ("cradle", []), p["id"])
+            if p["id"] in LEVEL:
+                self.assertEqual((p["ride"], [d["type"] for d in p["drivers"]]), ("cradle", ["swing"]), p["id"])
+            if p["id"] in FIXED:
+                self.assertEqual((p["ride"], p["drivers"]), (None, []), p["id"])
+
+    def test_every_element_has_a_part_and_every_part_an_element(self):
+        names = [e["name"] for e in SHAPE["elements"]]
+        self.assertEqual(len(names), len(set(names)))
+        used = {rigmath.part_of(RIG["parts"], n) for n in names}
+        self.assertEqual(used, {p["id"] for p in RIG["parts"]})
+        # nothing stands still, so there is no frame shape for the block to draw
+        self.assertFalse((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "rocker_frame.json").exists())
+        # the item is the rocker dry and empty: everything but the states
+        item = {e["name"] for e in ITEM["elements"]}
+        self.assertEqual(item, {n for n in names if rigmath.part_of(RIG["parts"], n) not in STATES})
+
+    def test_few_elements(self):
+        # chunky parts at block scale: the first pass had 57
+        self.assertLessEqual(len(SHAPE["elements"]), 35)
+
+    def test_textures_by_part_and_the_water_in_the_transparent_pass(self):
+        want = {"water": {"#water"}, "charge": {"#charge"}, "concentrate": {"#concentrate"},
+                "cradle": {"#oak", "#canvas", "#riddle"}}
+        got = {}
+        for e in SHAPE["elements"]:
+            pid = rigmath.part_of(RIG["parts"], e["name"])
+            got.setdefault(pid, set()).update(f["texture"] for f in e["faces"].values())
+            if pid == "water":
+                self.assertEqual(e.get("renderPass"), 3, e["name"])
+            else:
+                self.assertNotIn("renderPass", e, e["name"])
+        self.assertEqual(got, want)
+        self.assertEqual(SHAPE["textures"]["water"], "game:block/liquid/water")
+        # the riddle plate is plain iron plate, and only it wears it; the canvas only the apron
+        self.assertEqual(SHAPE["textures"]["riddle"], "game:block/metal/plate/iron")
+        by_tex = {}
+        for e in SHAPE["elements"]:
+            for f in e["faces"].values():
+                by_tex.setdefault(f["texture"], set()).add(e["name"])
+        self.assertEqual(by_tex["#riddle"], {"cradle_riddle"})
+        self.assertEqual(by_tex["#canvas"], {"cradle_apron_canvas"})
+
+    def test_reference_poses_are_the_rigs_own_maths(self):
+        poses = REFERENCE["poses"]
+        self.assertGreater(len(poses), 10)
+        for pose in poses:
+            self.assertEqual(set(pose), {"theta", "matrices"})
+            for pid, want in pose["matrices"].items():
+                got = matrix(pid, pose["theta"])
+                for r in range(3):
+                    for c in range(4):
+                        self.assertAlmostEqual(got[r][c], want[r][c], places=5, msg=f"{pid} at theta {pose['theta']}")
+
+    def test_the_cell_is_rebuilt_from_the_shipped_shape(self):
+        self.assertEqual(make_shape.shipped_cells(SHAPE, RIG["parts"]), RIG["cells"])
+
+
+class Rock(unittest.TestCase):
+    def test_theta_is_the_only_input(self):
+        self.assertNotIn("work", RIG)
+        self.assertNotIn("trunkPath", RIG)
+        drivers = [d for p in RIG["parts"] for d in p["drivers"]]
+        self.assertEqual([d["type"] for d in drivers], ["swing", "slide", "swing"])
+        for d in drivers:
+            self.assertNotIn("input", d)
+            self.assertEqual(d["ratio"], 1.0)
+
+    def test_one_rock_a_turn_over_to_the_south_and_back_over_to_the_north(self):
+        deg = RIG["rock"]["degrees"]
+        for theta, want in ((0.0, 0.0), (math.pi / 2, deg), (math.pi, 0.0), (3 * math.pi / 2, -deg), (2 * math.pi, 0.0)):
+            self.assertAlmostEqual(turn_x(matrix("cradle", theta)), want, places=3)
+        # leaning south (positive about x) tips its top towards +z
+        self.assertGreater(matrix("cradle", math.pi / 2)[2][1], 0)
+
+    def test_the_rockers_roll_without_slipping(self):
+        # the running faces' centre stays at its height and moves along z by the radius times the angle
+        r = RIG["rock"]["radius"]
+        pivot = RIG["parts"][0]["drivers"][0]["pivot"]
+        for theta in (0.3, 1.2, math.pi / 2, 2.5, 4.0, 3 * math.pi / 2, 5.9):
+            a = math.radians(turn_x(matrix("cradle", theta)))
+            c = rigmath.apply(matrix("cradle", theta), pivot)
+            self.assertAlmostEqual(c[1], pivot[1], places=5)
+            self.assertAlmostEqual(c[2], pivot[2] + r * a, places=5)
+
+    def test_what_rides_rocks_with_the_cradle_and_the_rest_stands_still(self):
+        for theta in (0.4, 2.0, 4.4):
+            c = matrix("cradle", theta)
+            for pid in RIGID:
+                self.assertEqual([[round(v, 9) for v in row] for row in matrix(pid, theta)], [[round(v, 9) for v in row] for row in c], pid)
+            for pid in FIXED:
+                self.assertEqual([[round(v, 12) for v in row] for row in matrix(pid, theta)[:3]],
+                                 [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], pid)
+
+    def test_the_water_stays_level_and_goes_with_the_box(self):
+        # its own swing undoes the cradle's: no turn, carried as its pivot on the cradle is
+        water = next(p for p in RIG["parts"] if p["id"] == "water")
+        swing = water["drivers"][0]
+        self.assertEqual((swing["axis"], swing["amplitude"], swing["ratio"]), ("x", -RIG["parts"][0]["drivers"][0]["amplitude"], 1.0))
+        for theta in (0.4, math.pi / 2, 2.0, 3 * math.pi / 2, 5.0):
+            m = matrix("water", theta)
+            for r in range(3):
+                for c in range(3):
+                    self.assertAlmostEqual(m[r][c], 1.0 if r == c else 0.0, places=9)
+            carried = rigmath.apply(matrix("cradle", theta), swing["pivot"])
+            for k in range(3):
+                self.assertAlmostEqual(m[k][3], carried[k] - swing["pivot"][k], places=9)
+
+
+class Anchors(unittest.TestCase):
+    def test_one_cell_with_a_lid_and_no_power(self):
+        self.assertEqual([c["pos"] for c in RIG["cells"]], [[0, 0, 0]])
+        self.assertEqual(RIG["operatorSide"], "north")
+        self.assertEqual(checks.lid_gaps(RIG["cells"]), [])
+        self.assertNotIn("powerCell", RIG)
+        self.assertNotIn("powerFace", RIG)
+
+    def test_water_by_bucket_only(self):
+        # no pipe connects: no water cell or face, no spout or stream, nothing fixed beside it
+        self.assertEqual([k for k in RIG if k.endswith(("Cell", "Face"))], [])
+        for key in ("spout", "stream"):
+            self.assertNotIn(key, RIG)
+            self.assertNotIn(key, {p["id"] for p in RIG["parts"]})
+        self.assertNotIn("pipe", SHAPE["textures"])
+        self.assertEqual([p["id"] for p in RIG["parts"] if p["ride"] is None and not p["drivers"]], [])
+
+    def test_the_rockers_stand_on_the_ground(self):
+        # at rest the running faces' lowest corners are on the ground, the top of the block below, and nothing
+        # else of the rocker comes down within a voxel of it
+        lows = {}
+        for e in SHAPE["elements"]:
+            if rigmath.part_of(RIG["parts"], e["name"]) == "cradle":
+                low = min(p[1] for p in checks_corners(e))
+                lows[e["name"]] = low
+        rockers = {n: y for n, y in lows.items() if n.startswith("cradle_rocker_")}
+        self.assertAlmostEqual(min(rockers.values()), 0.0, places=4)
+        self.assertGreater(min(y for n, y in lows.items() if n not in rockers), 1.0 / 16)
+
+    def test_by_hand_only(self):
+        # no automated input or output: no infeed, outfeed or output side, cell or face for a chute or hopper
+        self.assertEqual([k for k in RIG if k.endswith(("Side", "Cell", "Face")) and k != "operatorSide"], [])
+        self.assertEqual(set(RIG), set(make_shape.RIG_KEYS))
+
+    def test_tailings_and_the_points_that_ride(self):
+        # the tailings fall to the ground in the cell west of the foot
+        self.assertEqual(RIG["tailings"]["pos"], [-0.5, 0.0, 0.5])
+        ids = {p["id"] for p in RIG["parts"]}
+        for key in ("pour", "outflow", "concentrate"):
+            self.assertEqual(RIG[key]["part"], "cradle", key)
+            self.assertIn(RIG[key]["part"], ids)
+        # the pour point is over the head half, where the bucket is poured; the outflow is the foot's lip, west
+        self.assertGreater(RIG["pour"]["pos"][0], 0.5)
+        self.assertAlmostEqual(RIG["pour"]["pos"][2], 0.5, places=4)
+        self.assertLess(RIG["outflow"]["pos"][0], 0.1)
+
+
+if __name__ == "__main__":
+    unittest.main()
