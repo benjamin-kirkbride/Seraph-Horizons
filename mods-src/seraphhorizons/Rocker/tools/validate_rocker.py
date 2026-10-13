@@ -117,7 +117,7 @@ def check_floating(v):
 ROLES = [
     # (element regex, the textures it may wear)
     (r"^cradle_apron_canvas$", {"canvas"}),
-    (r"^cradle_riddle$", {"riddle"}),
+    (r"^cradle_riddle_(strip\d|web\d_\d)$", {"riddle"}),
     (r"^cradle_", {"oak"}),
     (r"^water_", {"water"}),
     (r"^charge_", {"charge"}),
@@ -249,7 +249,7 @@ ALLOWED = [
     # underside in the floor, the apron's low end in it; the concentrate lies under it
     ("water", None, "cradle", r"^cradle_(floor|side_[ns]|headboard|riffle\d|apron_(canvas|rail_[ns]))$"),
     ("water", None, "concentrate", None),
-    ("charge", None, "cradle", r"^cradle_(riddle|hopper_wall_\w+)$"),
+    ("charge", None, "cradle", r"^cradle_(riddle_\w+|hopper_wall_\w+)$"),
     ("concentrate", None, "cradle", r"^cradle_(floor|side_[ns]|riffle\d)$"),
 ]
 
@@ -315,6 +315,57 @@ def check_path(v):
         v.fail("a riffle is off the floor's run")
     if any(x < hi[0] and not (rx0 - x > 1.0) for x in m.RIFFLE_X):
         v.fail("a riffle crowds the apron's high end")
+
+
+def inside(el, p, eps=1e-6):
+    """Whether point p (voxels) is inside element el's box, by more than eps."""
+    w = [p[k] - el.c[k] for k in range(3)]
+    local = [sum(el.r[i][k] * w[i] for i in range(3)) for k in range(3)]
+    return all(abs(local[k]) < abs(el.size[k]) / 2 - eps for k in range(3))
+
+
+def check_riddle(v):
+    """The riddle plate is punched through: over the plate's whole area (sampled every quarter voxel, at half its
+    thickness) a point is iron unless it is in a hole, and in a hole nothing of the rocker; and whatever falls
+    through a hole (straight down at rest, from the middle and the four corners of each) first meets the apron's
+    canvas or the floor, never a rail, a riffle or a wall."""
+    m = v.m
+    (x0, x1), (z0, z1), ry = m.riddle_box()
+    plate = [e for e in v.by_part["cradle"] if e.name.startswith("cradle_riddle_")]
+    cradle = v.by_part["cradle"]
+    holes = m.riddle_holes()
+
+    def in_hole(x, z):
+        return any(hx[0] < x < hx[1] and hz[0] < z < hz[1] for hx, hz in holes)
+
+    wrong, n = [], 0
+    y = ry - m.RIDDLE_T / 2
+    for i in range(int(round((x1 - x0) * 4))):
+        for j in range(int(round((z1 - z0) * 4))):
+            x, z = x0 + (i + 0.5) / 4, z0 + (j + 0.5) / 4
+            p = m.tilt_point([x, y, z])
+            iron = any(inside(e, p) for e in plate)
+            anything = any(inside(e, p) for e in cradle)
+            n += 1
+            if in_hole(x, z) == iron or (in_hole(x, z) and anything):
+                wrong.append((round(x, 3), round(z, 3)))
+    lands, bad = {}, []
+    for (hx0, hx1), (hz0, hz1) in holes:
+        for fx, fz in ((0.5, 0.5), (0.15, 0.15), (0.85, 0.15), (0.15, 0.85), (0.85, 0.85)):
+            p = m.tilt_point([hx0 + fx * (hx1 - hx0), ry - m.RIDDLE_T - 0.01, hz0 + fz * (hz1 - hz0)])
+            hit = None
+            while p[1] > m.GROUND and hit is None:
+                p[1] -= 0.05
+                hit = next((e.name for e in cradle if inside(e, p)), None)
+            lands[hit] = lands.get(hit, 0) + 1
+            if hit not in ("cradle_apron_canvas", "cradle_floor"):
+                bad.append(((round(hx0, 2), round(hz0, 2)), hit))
+    print(f"riddle: {len(holes)} holes of {m.RIDDLE_HOLE:g} in {len(plate)} pieces of plate; {n - len(wrong)} of {n} points "
+          f"over the plate iron or open as they should be; falling through, {', '.join(f'{c} onto {k}' for k, c in sorted(lands.items(), key=str))}")
+    if len(holes) != m.RIDDLE_HOLES ** 2 or wrong:
+        v.fail(f"the riddle plate is not punched as built: {wrong[:4]}")
+    if bad:
+        v.fail(f"what falls through the riddle plate lands on something but the apron or the floor: {bad[:4]}")
 
 
 def check_handle(v):
@@ -462,6 +513,7 @@ def validate(m, els, parts, rig, quick=False):
     check_rock(v)
     check_rolling(v)
     check_path(v)
+    check_riddle(v)
     check_handle(v)
     check_foot(v)
     check_water(v)

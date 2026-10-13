@@ -74,11 +74,18 @@ OPERATOR_SIDE = "north"                      # where the player stands to rock i
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
-    "riddle": "game:block/metal/plate/iron",       # the riddle plate: plain iron plate (its 1 cm holes are below a voxel)
+    "riddle": "game:block/metal/plate/iron",       # the riddle plate: iron plate, punched with RIDDLE_HOLES holes each way
     "canvas": "game:block/linen",                  # the apron
-    "water": "game:block/liquid/water",
-    "charge": "game:block/stone/gravel/granite",       # a charge in the hopper: the renderer sets it to the material's texture
-    "concentrate": "game:block/stone/sand/basalt",     # the heavy sand behind the riffles: the renderer sets it to the ore's
+    # the water: vanilla's water portion, the texture its barrels and buckets show water in. It is blue in itself;
+    # the world's water texture (block/liquid/water) is grey until the climate's water map tints it, which nothing
+    # does for a part a renderer draws.
+    "water": "game:block/liquid/waterportion",
+    # A charge in the hopper and the concentrate behind the riffles: the renderer sets each to the material's
+    # texture. These are the viewer's defaults (site/models.json, the rocker's `textures` selects): a charge of
+    # crushed gold quartz, whose item (crushedore-quartz_nativegold-*) wears native gold's nugget texture, and
+    # gold concentrate, whose item wears the same with crushed galena multiplied over it.
+    "charge": "game:item/resource/nugget/nativegold",
+    "concentrate": "game:item/resource/nugget/nativegold",
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
@@ -88,7 +95,7 @@ ROCKER_X = (2.6, 12.2)                       # the foot and head rockers' middle
 ROCKER_T = 1.2                               # their thickness (x): the top bar's; the running facets alternate a hair thinner
 ROCKER_R = 10.0                              # the running faces' radius
 ROCKER_HALF = 5.25                           # half the rockers' length (z) about the rocking axis
-ROCKER_FACETS = 4                            # chords of the running face: an even number, so one corner is at the bottom
+ROCKER_FACETS = 8                            # chords of the running face: an even number, so one corner is at the bottom
 ROCKER_BAR = 1.0                             # the top bar's depth, which the floor is nailed to
 ROCKER_EMBED = 0.1                           # the bars' tops sit this far up into the floor's underside
 AXIS_Z = 8.0                                 # the rocking axis (z): the cell's middle
@@ -132,6 +139,9 @@ HOP_X = (7.4, BOX_X[1])                      # on the head half, standing on the
 HOP_WALL = 1.0
 HOP_H = 2.5                                  # walls 2.5 high (the period hopper was 4 to 6 inches deep)
 RIDDLE_T = 1.0                               # the iron plate, between the walls at their foot
+RIDDLE_HOLES = 3                             # square holes each way, punched through the plate: 3 x 3
+RIDDLE_HOLE = 1.0                            # a hole's side (the period's were half an inch, below a voxel)
+RIDDLE_MARGIN = 0.5                          # plate left round the holes against the walls; the webs between are a voxel
 CHARGE_X = 11.4                              # a charge heaped on the plate: its middle (x)
 CHARGE = ((5.0, 1.0), (3.0, 0.9))            # (square, height) of each layer, bottom up
 
@@ -289,13 +299,47 @@ def build_hopper():
         box([x0, y0, z1 - w], [x1, y1, z1], "cradle_hopper_wall_s", "cradle", "oak"),
         box([x0, y0, z0 + w], [x0 + w, y1, z1 - w], "cradle_hopper_wall_foot", "cradle", "oak"),
         box([x1 - w, y0, z0 + w], [x1, y1, z1 - w], "cradle_hopper_wall_head", "cradle", "oak"),
-        box([x0 + w, y0, z0 + w], [x1 - w, y0 + RIDDLE_T, z1 - w], "cradle_riddle", "cradle", "riddle"),
-    ]
+    ] + build_riddle()
 
 
 def riddle_box():
     """The riddle plate's top, inside the hopper's walls (level frame): (x0, x1), (z0, z1), y."""
     return (HOP_X[0] + HOP_WALL, HOP_X[1] - HOP_WALL), (BOX_Z[0] + HOP_WALL, BOX_Z[1] - HOP_WALL), SIDE_TOP + RIDDLE_T
+
+
+def riddle_spans(lo, hi):
+    """Along one axis of the plate, from lo to hi: the holes' spans, and the plate's solid spans about them (the
+    margins at the walls and the webs between holes), each as (a, b)."""
+    web = (hi - lo - 2 * RIDDLE_MARGIN - RIDDLE_HOLES * RIDDLE_HOLE) / (RIDDLE_HOLES - 1)
+    holes = [(lo + RIDDLE_MARGIN + i * (RIDDLE_HOLE + web), lo + RIDDLE_MARGIN + i * (RIDDLE_HOLE + web) + RIDDLE_HOLE)
+             for i in range(RIDDLE_HOLES)]
+    edges = [lo] + [v for h in holes for v in h] + [hi]
+    return holes, [(edges[2 * i], edges[2 * i + 1]) for i in range(RIDDLE_HOLES + 1)]
+
+
+def riddle_holes():
+    """Every hole of the riddle plate (level frame), as ((x0, x1), (z0, z1)); the plate's top is riddle_box's y."""
+    (x0, x1), (z0, z1), _ = riddle_box()
+    xs, _ = riddle_spans(x0, x1)
+    zs, _ = riddle_spans(z0, z1)
+    return [(hx, hz) for hz in zs for hx in xs]
+
+
+def build_riddle():
+    """The riddle plate (level frame): iron plate a voxel thick between the hopper's walls at their foot, punched
+    with RIDDLE_HOLES x RIDDLE_HOLES square holes a voxel across, through which all that is fine enough falls to
+    the apron. Built as the fewest boxes that leave the holes open: strips the plate's length along x (the margins
+    against the north and south walls and the webs between the rows of holes) and, in each row of holes, the
+    short pieces between the strips (the margins against the foot and head walls and the webs between holes)."""
+    (x0, x1), (z0, z1), y1 = riddle_box()
+    y0 = y1 - RIDDLE_T
+    _, xsolid = riddle_spans(x0, x1)
+    zholes, zsolid = riddle_spans(z0, z1)
+    out = [box([x0, y0, a], [x1, y1, b], f"cradle_riddle_strip{i + 1}", "cradle", "riddle") for i, (a, b) in enumerate(zsolid)]
+    for r, (za, zb) in enumerate(zholes):
+        out += [box([a, y0, za], [b, y1, zb], f"cradle_riddle_web{r + 1}_{i + 1}", "cradle", "riddle")
+                for i, (a, b) in enumerate(xsolid)]
+    return out
 
 
 def build_handle():

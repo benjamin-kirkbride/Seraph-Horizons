@@ -84,8 +84,30 @@ class Rig(unittest.TestCase):
         self.assertEqual(item, {n for n in names if rigmath.part_of(RIG["parts"], n) not in STATES})
 
     def test_few_elements(self):
-        # chunky parts at block scale: the first pass had 57
-        self.assertLessEqual(len(SHAPE["elements"]), 35)
+        # chunky parts at block scale (the first pass had 57 thin ones, the second 30): the 53 now are those 30 with
+        # the riddle plate punched (16 pieces of plate for 9 holes, in place of one) and eight chords to each rocker
+        # in place of four
+        self.assertLessEqual(len(SHAPE["elements"]), 55)
+        names = [e["name"] for e in SHAPE["elements"]]
+        self.assertEqual(sum(n.startswith("cradle_riddle_") for n in names), 16)
+        self.assertEqual(sum("_facet" in n for n in names), 2 * make_shape.ROCKER_FACETS)
+
+    def test_the_riddle_plate_is_punched(self):
+        # its 3 x 3 holes are open: no element of the shape covers a hole's middle at the plate's height, and the
+        # plate's pieces cover the rest of it
+        (x0, x1), (z0, z1), ry = make_shape.riddle_box()
+        holes = make_shape.riddle_holes()
+        self.assertEqual(len(holes), 9)
+        els = geometry.flatten(SHAPE["elements"], textures={})
+        plate = [e for e in els if e.name.startswith("cradle_riddle_")]
+        y = ry - make_shape.RIDDLE_T / 2
+        area = sum(abs(e.size[0] * e.size[2]) for e in plate)
+        self.assertAlmostEqual(area, (x1 - x0) * (z1 - z0) - sum((hx[1] - hx[0]) * (hz[1] - hz[0]) for hx, hz in holes), places=1)
+        for hx, hz in holes:
+            p = make_shape.tilt_point([(hx[0] + hx[1]) / 2, y, (hz[0] + hz[1]) / 2])
+            for e in els:
+                lo, hi = e.aabb()
+                self.assertFalse(all(lo[k] < p[k] < hi[k] for k in range(3)), f"{e.name} covers a hole")
 
     def test_textures_by_part_and_the_water_in_the_transparent_pass(self):
         want = {"water": {"#water"}, "charge": {"#charge"}, "concentrate": {"#concentrate"},
@@ -99,14 +121,15 @@ class Rig(unittest.TestCase):
             else:
                 self.assertNotIn("renderPass", e, e["name"])
         self.assertEqual(got, want)
-        self.assertEqual(SHAPE["textures"]["water"], "game:block/liquid/water")
-        # the riddle plate is plain iron plate, and only it wears it; the canvas only the apron
+        # the water is vanilla's water portion, blue in itself (the world's water texture is grey until tinted)
+        self.assertEqual(SHAPE["textures"]["water"], "game:block/liquid/waterportion")
+        # the riddle plate is iron plate, and only its pieces wear it; the canvas only the apron
         self.assertEqual(SHAPE["textures"]["riddle"], "game:block/metal/plate/iron")
         by_tex = {}
         for e in SHAPE["elements"]:
             for f in e["faces"].values():
                 by_tex.setdefault(f["texture"], set()).add(e["name"])
-        self.assertEqual(by_tex["#riddle"], {"cradle_riddle"})
+        self.assertEqual(by_tex["#riddle"], {n for n in (e["name"] for e in SHAPE["elements"]) if n.startswith("cradle_riddle_")})
         self.assertEqual(by_tex["#canvas"], {"cradle_apron_canvas"})
 
     def test_reference_poses_are_the_rigs_own_maths(self):
