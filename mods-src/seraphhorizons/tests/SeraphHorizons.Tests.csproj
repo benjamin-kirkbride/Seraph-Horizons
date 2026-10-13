@@ -13,7 +13,7 @@
        ../Trading/Deliveries/Core), the traders' maps and leads (../Trading/Maps/Core), and the
        travelling merchants' inns (../Trading/Visitors/Core), the trade window's view model
        (../Trading/Window/Core), the trunk entities' weights
-       and boxes (../TrunkEntities/Core), the draw bench's rules (../DrawBench/Core), the cylinder borer's (../CylinderBorer/Core), the press brake's (../PressBrake/Core), the squaring shear's (../SquaringShear/Core), the mandrel station's (../MandrelStation/Core), the pack version check (../PackCheck/Core), the handbook's kept place (../HandbookPlace/Core), the recipe selector's search (../RecipeSelector/Core) and the NaN motion diagnostics' tracker and report formatting (../NanMotion/Core).
+       and boxes (../TrunkEntities/Core), the draw bench's rules (../DrawBench/Core), the cylinder borer's (../CylinderBorer/Core), the press brake's (../PressBrake/Core), the squaring shear's (../SquaringShear/Core), the mandrel station's (../MandrelStation/Core), the pack version check (../PackCheck/Core), the handbook's kept place (../HandbookPlace/Core), the recipe selector's search (../RecipeSelector/Core) and the NaN motion diagnostics' trackers and report formatting (../NanMotion/Core).
        They compile those files directly and need neither the game nor the pack:
        `dotnet test mods-src/seraphhorizons/tests`.
        Fixtures are trimmed-down real variantgroups from vanilla 1.22.7 and the pack's mods. -->

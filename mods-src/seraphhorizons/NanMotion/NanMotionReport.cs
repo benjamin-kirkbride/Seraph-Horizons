@@ -50,6 +50,16 @@ public static class NanMotionReport
                           + "  or it was non-finite before the player's first traced physics step.\n");
             sb.Append("  Repulsion: ").Append(NanMotionDiagnostics.RepulsionCulprit ?? "no neighbour made the player's push non-finite").Append('\n');
         });
+        r.Section("Other entities: where a position or motion first went non-finite", sb =>
+        {
+            var trip = NanMotionDiagnostics.EntityTracker.Trip;
+            if (trip?.Detail is { } detail)
+                Lines(sb, detail.Split('\n'));
+            else
+                Lines(sb, NanMotionDiagnostics.EntityTracker.Describe(NanMotionDiagnostics.Describe));
+            if (NanMotionDiagnostics.EntityReportPath is { } path)
+                sb.Append("  Also written, when it happened, to ").Append(path).Append('\n');
+        });
         r.Section("The player", sb => Player(sb, watched));
         r.Section("The player's stats", sb => Stats(sb, watched));
         r.Section("The player's controls", sb => Controls(sb, watched));
@@ -64,7 +74,8 @@ public static class NanMotionReport
             sb.Append($"  {NanMotionDiagnostics.PatchedCount} patches went in; {NanMotionDiagnostics.PatchFailures.Count} failed\n");
             foreach (var f in NanMotionDiagnostics.PatchFailures)
                 sb.Append("    failed: ").Append(f).Append('\n');
-            sb.Append($"  {NanMotionDiagnostics.Tracker.Checkpoints} checkpoints looked\n");
+            sb.Append($"  {NanMotionDiagnostics.Tracker.Checkpoints} checkpoints looked at the player; "
+                      + $"{NanMotionDiagnostics.EntityTracker.Checkpoints} at other entities, {NanMotionDiagnostics.EntityTracker.CleanSweeps} clean sweeps\n");
         });
         if (r.Failures > 0)
             r.Line($"({r.Failures} sections failed; the rest are complete)");
@@ -295,7 +306,8 @@ public static class NanMotionReport
         }
     }
 
-    private static IEnumerable<Entity> Loaded(ICoreAPI api) => api.World switch
+    /// <summary>Every entity loaded on <paramref name="api"/>'s side.</summary>
+    public static IEnumerable<Entity> Loaded(ICoreAPI api) => api.World switch
     {
         IClientWorldAccessor c => c.LoadedEntities.Values,
         IServerWorldAccessor s => s.LoadedEntities.Values,
@@ -342,6 +354,12 @@ public static class NanMotionReport
         yield return ("EntityBehaviorPlayerPhysics.SimPhysics", NanMotionDiagnostics.SimPhysicsMethod);
         foreach (var f in NanMotionDiagnostics.FixedTargets().Take(5))
             yield return (f.Label, f.Method);
+        yield return ("EntityBehaviorInterpolatePosition.OnRenderFrame", AccessTools.DeclaredMethod(typeof(EntityBehaviorInterpolatePosition), nameof(EntityBehaviorInterpolatePosition.OnRenderFrame)));
+        yield return ("EntityBehaviorInterpolatePosition.PopQueue", AccessTools.DeclaredMethod(typeof(EntityBehaviorInterpolatePosition), nameof(EntityBehaviorInterpolatePosition.PopQueue)));
+        yield return ("EntityBehaviorInterpolatePosition.OnReceivedServerPos",
+            AccessTools.DeclaredMethod(typeof(EntityBehaviorInterpolatePosition), nameof(EntityBehavior.OnReceivedServerPos)));
+        yield return ("EntityBehaviorControlledPhysics.HandleRemotePhysics",
+            AccessTools.DeclaredMethod(typeof(EntityBehaviorControlledPhysics), nameof(EntityBehaviorControlledPhysics.HandleRemotePhysics)));
         yield return ("EntityBehaviorRepulseAgents.OnGameTick", AccessTools.DeclaredMethod(typeof(EntityBehaviorRepulseAgents), nameof(EntityBehavior.OnGameTick)));
         yield return ("EntityBehaviorRepulseAgents.WalkEntity", NanMotionDiagnostics.WalkEntityMethod);
         yield return ("EntityBehaviorEllipsoidalRepulseAgents.Repulse", AccessTools.DeclaredMethod(typeof(EntityBehaviorEllipsoidalRepulseAgents), "Repulse"));
