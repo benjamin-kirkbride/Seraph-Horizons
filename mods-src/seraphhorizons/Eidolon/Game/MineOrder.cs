@@ -113,6 +113,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// (<see cref="Yields"/>), waiting at the rim meanwhile.</summary>
     private const double YieldSeconds = 3;
 
+    /// <summary>How long a walk to where it waits may go on before it looks again from where it got to.</summary>
+    private const double WaitWalkSeconds = 10;
+
     /// <summary>How long at most it waits for another to make room before it walks a way through it.</summary>
     private const double ThroughSeconds = 20;
 
@@ -165,6 +168,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private bool _stairWait;
     private double? _throughSince;
     private double _yieldUntil;
+    private double? _waitWalkSince;
+    private double _whyAt;
 
     public string Code => OrderCode;
 
@@ -375,8 +380,18 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                     Told(eidolon);
                     return GoHome(eidolon);
                 }
-                if (_nav!.Active || now < _waitCheckAt)
+                if (now < _waitCheckAt)
                     return true;
+                // making for where it waits: it looks again only once there, or once that walk has gone on
+                // too long (stuck, or giving way for ever in a narrow pit)
+                if (_nav!.Active)
+                {
+                    _waitWalkSince ??= now;
+                    if (now - _waitWalkSince < WaitWalkSeconds)
+                        return true;
+                    _nav.Stop();
+                }
+                _waitWalkSince = null;
                 _waitCheckAt = now + WaitCheckSeconds;
                 if (_finished && Board?.TryClose(eidolon.EntityId, now) == true)
                 {
@@ -582,7 +597,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             var me = new MineWorker(id, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, _queue.ToList(), 0);
             var next = MineDispatch.Next(plan, live, me, workers,
                 s => !Taken(s.Stand, workers) && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
-                parked.Count > 0 ? Clear : null);
+                parked.Count > 0 ? Clear : null, s => board == null ? s : MineDispatch.Fit(s, plan.Tunnel, u => board.Free(id, u, now)));
             if (next == null || board != null && !board.TryClaim(id, next.Id, MineDispatch.Claim(next, plan.Tunnel), now))
                 break;
             _queue.Add(next);
@@ -595,7 +610,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// otherwise always be nearer the next, and the other never get one.</summary>
     private bool Yields(EntityLaborEidolon eidolon, IReadOnlyList<MineWorker> workers, double now)
     {
-        if (_job == null || now >= _yieldUntil)
+        // never down a pit with a stair: making room there is the whole stair up and the other's down
+        if (_job == null || now >= _yieldUntil || Cells.Plan is { Stair.Count: > 0 } && Feet(eidolon) < area.Max.Y + 1 - EidolonTeamwork.FloorStep)
             return false;
         var shares = _job.Shares.ToDictionary(s => s.Member, s => s.Count);
         int mine = shares.GetValueOrDefault(eidolon.EntityId);
@@ -636,6 +652,22 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private bool Idle(EntityLaborEidolon eidolon, MineState live, List<MineWorker> workers, double now)
     {
         var cells = Cells;
+        if (now >= _whyAt && cells.Plan is { } p)
+        {
+            _whyAt = now + 10;
+            long id = eidolon.EntityId;
+            var board = Board;
+            var why = p.Stations.Where(st => st.Cells.Any(live.Remaining.Contains)).Take(8).Select(st =>
+            {
+                var f = board == null ? st : MineDispatch.Fit(st, p.Tunnel, u => board.Free(id, u, now));
+                if (f == null) return $"{st.Id} nofit";
+                if (Taken(f.Stand, workers)) return $"{st.Id} taken";
+                MineDispatch.Executable(p, live, Usable(f, workers), At(workers), out var r, ParkedClear(workers));
+                return $"{st.Id} {r}";
+            });
+            eidolon.World.Logger.Debug($"[eidolon-mine] {id} idle at {eidolon.Pos.XYZ}, stair {cells.StairHolder}, yield {_yieldUntil - now:0.0}: {string.Join(", ", why)}; others "
+                + string.Join(" ", workers.Select(w => $"{w.Id} ({w.X:0.0},{w.Feet},{w.Z:0.0}) q{w.Queue.Count}")));
+        }
         bool unloaded = live.Site.UnloadedColumns.Count > 0;
         bool working = workers.Any(w => w.Queue.Count > 0);
         // Eidolons parked in the area hold up what is under them: with none at work, the plan is made again
@@ -650,7 +682,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             {
                 cells.Parked = under;
                 Plans?.Replan(cells, true);
-                eidolon.World.Logger.Notification($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: {under.Count} blocks under eidolons parked there, planned again");
+                eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: {under.Count} blocks under eidolons parked there, planned again");
                 Unfinish(eidolon);
                 return Wait(eidolon, now);
             }
@@ -675,7 +707,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                     MineDispatch.Executable(Cells.Plan, live, Usable(st, workers), At(workers), out var r, ParkedClear(workers));
                     return $"{st.Id} {r}";
                 });
-                eidolon.World.Logger.Notification($"[eidolon-mine] {eidolon.EntityId} stuck on {EidolonMinePlans.Describe(area)} with {live.Remaining.Count} left "
+                eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} stuck on {EidolonMinePlans.Describe(area)} with {live.Remaining.Count} left "
                     + $"({string.Join(", ", why)}): planned again");
             }
             else
@@ -826,10 +858,22 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var stand = head.Stand;
         if (!TakeStair(eidolon, stand.Y))
         {
-            // another is on the stair: it waits off it and looks again
+            // another is on the stair: it waits off it and looks again, its stations let go meanwhile (held,
+            // they would keep the one on the stair from working them, and so from ever getting off it)
+            DropQueue(eidolon);
             _phase = Phase.Wait;
             _waitCheckAt = now + WaitCheckSeconds;
             OffStair(eidolon);
+            return true;
+        }
+        // its way crosses the columns another holds (where that one works, or makes for): it waits for room,
+        // as below, rather than walk, climb or drop past it there
+        if (CrossesClaims(eidolon, stand, now) && (_throughSince ??= now) > now - ThroughSeconds)
+        {
+            DropQueue(eidolon);
+            _phase = Phase.Wait;
+            _waitCheckAt = now + WaitCheckSeconds;
+            eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting");
             return true;
         }
         if (_nav!.GoTo(new Vec3d(stand.X, stand.Y, stand.Z), false, () => { }, () => { }, arriveWithin: ArriveWithin))
@@ -839,6 +883,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             if (!_nav.LastWentAround && (_throughSince ??= now) > now - ThroughSeconds)
             {
                 _nav.Stop();
+                DropQueue(eidolon);
                 _phase = Phase.Wait;
                 _waitCheckAt = now + WaitCheckSeconds;
                 eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting");
@@ -853,6 +898,26 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         BadStand(eidolon, head, now);
         return true;
+    }
+
+    /// <summary>Whether its way to <paramref name="stand"/> passes with its box over a column another member
+    /// holds, past its first steps (it may be setting off from by one): with no other holding any, false
+    /// with no search.</summary>
+    private bool CrossesClaims(EntityLaborEidolon eidolon, PathCell stand, double now)
+    {
+        if (Board is not { } board || _job == null)
+            return false;
+        long id = eidolon.EntityId;
+        if (!_job.Present.Any(m => m != id && board.Held(m).Count > 0))
+            return false;
+        if (_nav!.FindPath(new Vec3d(stand.X, stand.Y, stand.Z)) is not { } path)
+            return false;
+        foreach (var node in path.Skip(2))
+            for (int x = node.X - 1; x <= node.X; x++)
+            for (int z = node.Z - 1; z <= node.Z; z++)
+                if (board.Holder((x, z), now) is { } holder && holder != id)
+                    return true;
+        return false;
     }
 
     /// <summary>A stand the game's pathfinder finds no way to, or that it arrives short of again and again
@@ -871,7 +936,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             return;
         }
         Cells.BadStands.Add(head.Stand);
-        eidolon.World.Logger.Notification($"[eidolon-mine] {eidolon.EntityId}: no way to stand ({head.Stand.X},{head.Stand.Y},{head.Stand.Z}) (station {head.Id}) from {eidolon.Pos.XYZ}: bad");
+        eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId}: no way to stand ({head.Stand.X},{head.Stand.Y},{head.Stand.Z}) (station {head.Id}) from {eidolon.Pos.XYZ}: bad");
         DropHead(eidolon);
         Plans?.Replan(Cells, false);
         _phase = Phase.Seek;
@@ -975,6 +1040,21 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             OffStair(eidolon);
             return true;
         }
+        // Down a pit with a stair, with work left: it waits down there, out of the way, rather than climb
+        // the whole stair out to the rim and back for the next station.
+        if (!_finished && Cells.Plan is { Stair.Count: > 0 } && Feet(eidolon) < area.Max.Y + 1 - EidolonTeamwork.FloorStep)
+        {
+            _rim.Leave(eidolon, _jobs);
+            if (!_nav.Active)
+            {
+                var clear = PitClear(eidolon.EntityId, now);
+                var at = WidePath.NodeAt(eidolon.Pos.X, eidolon.Pos.Y, eidolon.Pos.Z);
+                if (!clear(at.X, at.Z))
+                    _rim.Aside(eidolon, _nav, _jobs, clear);
+            }
+            eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting-aside");
+            return true;
+        }
         _rim.Wait(eidolon, _nav!, _jobs,
             _finished ? "seraphhorizons:eidolon-status-mine-waiting-done"
                 : Cells.Live?.Bands?.Covered != null ? "seraphhorizons:eidolon-status-mine-waiting-face" : "seraphhorizons:eidolon-status-mine-waiting",
@@ -984,6 +1064,22 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>Where it may step aside to when it cannot reach the rim: a path node whose four columns
     /// have no block left it would mine (mined floor, the stair, or outside the area) and none another holds.</summary>
+    /// <summary>Where it may wait down a pit: a path node whose box is a column clear of the stair and of
+    /// the columns another holds (the work under its feet waits for it to move, the stations cut round it).</summary>
+    private System.Func<int, int, bool> PitClear(long id, double now)
+    {
+        var stair = Cells.Stair.Concat(Cells.Plan?.Stair ?? new HashSet<MarkPos>()).Select(c => (c.X, c.Z)).ToHashSet();
+        var board = Board;
+        return (x, z) =>
+        {
+            for (int cx = x - 2; cx <= x + 1; cx++)
+            for (int cz = z - 2; cz <= z + 1; cz++)
+                if (stair.Contains((cx, cz)) || board?.Free(id, (cx, cz), now) == false)
+                    return false;
+            return true;
+        };
+    }
+
     private System.Func<int, int, bool> AsideClear(long id, double now)
     {
         var work = (Cells.Live?.Remaining ?? new HashSet<MarkPos>()).Concat(Cells.Plan?.Stair ?? new HashSet<MarkPos>())

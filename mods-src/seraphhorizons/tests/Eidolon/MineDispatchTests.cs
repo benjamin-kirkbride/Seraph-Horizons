@@ -100,8 +100,8 @@ public class MineDispatchTests
     {
         var bench = new MineStation(0, new PathCell(3, L, 3), [new MarkPos(5, L - 1, 3)], 0, MineStationKind.Bench);
         var claim = MineDispatch.Claim(bench, null).ToHashSet();
-        // its box's columns (2..3, 2..3) and the cell's, a column round them
-        Assert.Equal(Cells(1, 4, 0, 0, 1, 4).Select(c => (c.X, c.Z)).Concat(Cells(4, 6, 0, 0, 2, 4).Select(c => (c.X, c.Z))).ToHashSet(), claim);
+        // its box's columns (2..3, 2..3) with a column round them, and the cell's own
+        Assert.Equal(Cells(1, 4, 0, 0, 1, 4).Select(c => (c.X, c.Z)).Append((5, 3)).ToHashSet(), claim);
         // a face station in lane 0 (z 0..1) of a tunnel 4 wide driven along x
         var area = Area(0, 7, L, L + 3, 0, 3);
         var covered = Cells(0, 7, 0, 0, 0, 3).Select(c => (c.X, c.Z)).ToHashSet();

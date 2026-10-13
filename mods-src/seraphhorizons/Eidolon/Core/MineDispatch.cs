@@ -115,16 +115,19 @@ public static class MineDispatch
     /// soonest, then the first. With <paramref name="usable"/>, a station's cells are first cut to those
     /// it allows (the game: none in the columns of an eidolon standing there, which may be no worker, so the
     /// rest of a station round one parked in the area is dug and what is under it waits), and the station
-    /// is given back so cut.</summary>
+    /// is given back so cut. With <paramref name="fit"/>, a station is first made to fit round what the
+    /// others hold (<see cref="Fit"/>; null: none of it does).</summary>
     public static MineStation? Next(MinePlan plan, MineState live, MineWorker worker, IReadOnlyList<MineWorker> others, Func<MineStation, bool> free,
-        Func<MarkPos, bool>? usable = null)
+        Func<MarkPos, bool>? usable = null, Func<MineStation, MineStation?>? fit = null)
     {
         var taken = others.SelectMany(o => o.Queue).Concat(worker.Queue).Select(s => s.Id).ToHashSet();
         var at = others.Select(o => new MineWorkerAt(o.Id, o.X, o.Feet, o.Z, o.Queue.Select(s => s.Stand).ToList())).ToList();
         var found = new List<MineStation>();
-        foreach (var planned in plan.Stations)
+        foreach (var listed in plan.Stations)
         {
-            if (taken.Contains(planned.Id) || !planned.Cells.Any(live.Remaining.Contains) || !free(planned))
+            if (taken.Contains(listed.Id) || !listed.Cells.Any(live.Remaining.Contains))
+                continue;
+            if ((fit == null ? listed : fit(listed)) is not { } planned || !planned.Cells.Any(live.Remaining.Contains) || !free(planned))
                 continue;
             var station = planned;
             if (usable != null && !planned.Cells.All(usable))
@@ -151,7 +154,8 @@ public static class MineDispatch
 
     /// <summary>
     /// The block columns a station claims (README "Eidolon", working together, *Claims*): those of its cells and of its stand's box;
-    /// in the open grown by one column all round (two workers' boxes keep a column apart); at a face, the
+    /// in the open the box's grown by a column all round (two workers' boxes keep two columns apart, and
+    /// neither digs within a column of the other's box, while their cells may lie side by side); at a face, the
     /// lane's whole width at each slice it digs, grown by one along the drive but never across the lane's
     /// edges (the lane is the separation).
     /// </summary>
@@ -182,11 +186,34 @@ public static class MineDispatch
             }
         }
         else
-            foreach (var (x, z) in own)
-            for (int dx = -1; dx <= 1; dx++)
-            for (int dz = -1; dz <= 1; dz++)
-                claim.Add((x + dx, z + dz));
+            for (int x = station.Stand.X - 2; x <= station.Stand.X + 1; x++)
+            for (int z = station.Stand.Z - 2; z <= station.Stand.Z + 1; z++)
+                claim.Add((x, z));
         return claim.OrderBy(c => c.X).ThenBy(c => c.Z);
+    }
+
+    /// <summary>
+    /// A station cut to fit round the block columns others hold (README "Eidolon", working together,
+    /// *Claims*): in the open (a bench, a stair) the cells whose column is <paramref name="free"/>, while its
+    /// stand's box and a column round it are, so a station another works
+    /// next to is shared, the rest of it left for later, rather than waited for whole (in a pit too narrow
+    /// for two whole stations, two work it side by side); at a face, all of its claim or nothing (the lane
+    /// is the unit). Null when none of it fits.
+    /// </summary>
+    public static MineStation? Fit(MineStation station, MineTunnel? tunnel, Func<(int X, int Z), bool> free)
+    {
+        if (station.Kind == MineStationKind.Face)
+            return Claim(station, tunnel).All(free) ? station : null;
+        var s = station.Stand;
+        for (int x = s.X - 2; x <= s.X + 1; x++)
+        for (int z = s.Z - 2; z <= s.Z + 1; z++)
+            if (!free((x, z)))
+                return null;
+        bool Open(MarkPos c) => free((c.X, c.Z));
+        if (station.Cells.All(Open))
+            return station;
+        var cells = station.Cells.Where(Open).ToList();
+        return cells.Count == 0 ? null : station with { Cells = cells };
     }
 
     /// <summary>How many may work a covered band's face at once: one a lane.</summary>

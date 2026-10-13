@@ -245,7 +245,7 @@ public class EidolonMinePlans : ModSystem
             work.Planner = null;
             work.Pending = new MineState(work.Copy!, work.Home, cells.BadStands);
             work.Adopting = work.Pending.Adopt(work.Made).GetEnumerator();
-            _api.Logger.Notification($"[eidolon-mine] planned {Describe(work.Area)}: {work.Made.Stations.Count} stations, {work.Made.OutOfReach.Count} out of reach, "
+            _api.Logger.Debug($"[eidolon-mine] planned {Describe(work.Area)}: {work.Made.Stations.Count} stations, {work.Made.OutOfReach.Count} out of reach, "
                 + $"{work.Made.Held.Count} kept under those, {work.Made.Stair.Count} stair ({work.Made.WayOut.Count} way out), {work.Made.Reruns} reruns; "
                 + $"{planner.Steps} slices, " + string.Join(", ", planner.Spent.Select(p => $"{p.Key} {p.Value.TotalMilliseconds:0.0} ms")));
         }
@@ -308,7 +308,7 @@ public class EidolonMinePlans : ModSystem
         work.Journal = null;
         work.Copy = null;
         work.Site = null;
-        _api!.Logger.Notification($"[eidolon-mine] plan {cells.PlanVersion} for {Describe(work.Area)} in: {state.Remaining.Count} to dig; "
+        _api!.Logger.Debug($"[eidolon-mine] plan {cells.PlanVersion} for {Describe(work.Area)} in: {state.Remaining.Count} to dig; "
             + $"{work.Spent.Elapsed.TotalMilliseconds:0} ms over {work.Ticks} ticks so far");
         Send(work, MineOutlines.Boxes(cells.OutOfReach));
     }

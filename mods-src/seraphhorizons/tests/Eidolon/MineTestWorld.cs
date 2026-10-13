@@ -193,7 +193,8 @@ internal sealed class TeamRunner
                 var me = Me(w);
                 var others = _workers.Where(o => o != w).Select(Me).ToList();
                 var next = MineDispatch.Next(_plan, _live, me, others,
-                    s => MineDispatch.Claim(s, _plan.Tunnel).All(u => _board.Free(w.Id, u, now)));
+                    s => MineDispatch.Claim(s, _plan.Tunnel).All(u => _board.Free(w.Id, u, now)),
+                    fit: s => MineDispatch.Fit(s, _plan.Tunnel, u => _board.Free(w.Id, u, now)));
                 if (next == null && !_replanned && _workers.All(o => o.Station == null) && _live.Remaining.Any(c => _live.Bands!.Eligible(c)))
                 {
                     foreach (var st in _plan.Stations.Where(st => st.Cells.Any(_live.Remaining.Contains)))

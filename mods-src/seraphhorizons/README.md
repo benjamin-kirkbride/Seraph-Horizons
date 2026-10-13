@@ -3449,13 +3449,17 @@ distance, 3 a block climbed). So one whose part is mined out takes the next near
 and none idles while a station is free. It holds a second station only while no other member holds
 none, and just done with one it leaves the next for 3 seconds to a member waiting with under half as much
 mined, making for the rim meanwhile (in an area too small for two stations at once, the one at work is
-always nearer the next). A station worked out
+always nearer the next), but never down a pit with a stair, where making room is the whole stair up and
+the other's down. A station partly in the columns another holds is cut to the rest when its place is clear
+of them (`MineDispatch.Fit`), so two work one wide station side by side rather than one waiting for it
+whole. A station worked out
 of the plan's order never digs the footing of an earlier one's place, nor cuts it off
 (`MineDispatch.Before`, `Footing`; an earlier one whose blocks left are all under an eidolon parked in the
 area holds no place for now). *Claims*: a station's
 block columns, its blocks' and its place's, are claimed on the job board before it sets off
-(`MineDispatch.Claim`, `JobBoard.TryClaim`, all or none, keyed by the station): in the open grown by a
-column all round, so two boxes keep a column apart; at a tunnel's face the lane's width at each slice it
+(`MineDispatch.Claim`, `JobBoard.TryClaim`, all or none, keyed by the station): in the open its blocks'
+columns and its place's box grown by a column all round, so two boxes keep two columns apart and neither
+digs within a column of the other's box; at a tunnel's face the lane's width at each slice it
 digs, never across the lane's edge, so two in lanes side by side stand a block apart and a covered band
 takes one a lane (`MineDispatch.FaceCap`), the others waiting at the rim (`eidolon-status-mine-waiting-face`).
 Claims are the board's, by block column, so jobs over the same place do not meet either; it frees them at
@@ -3467,10 +3471,15 @@ as striking it, however long the way). *The stair* (a pit's, *Stations* above): 
 meeting on it push each other off, so one member at a time walks it (`MineJobCells.StairHolder`): a walk
 in the pit more than a climb up or down, from or to below its rim, takes it for its length, and another
 that needs it then waits off it (`eidolon-status-mine-waiting-stair`: standing on it, it steps aside first),
-for the station, the rim or the way home alike. And a miner never sets off on a way the pathfinder finds
-only through another eidolon (no way round it: a pit floor too narrow to pass one at work, say): it waits
-for room, up to 20 seconds for a station, before it goes (`EidolonNavigator.LastWentAround`, `RimWait`'s
-`keepClear`). *The floors within a climb*: the open band (*Stations*, above)
+for the station, the rim or the way home alike, its stations let go meanwhile (held, they would keep the
+one on the stair from working them and so from ever getting off it). And a miner never sets off for a
+station on a way that crosses the columns another holds, nor on one the pathfinder finds only through
+another eidolon (no way round it: a pit floor too narrow to pass one at work, say): it lets its station
+go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaims`,
+`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). Down a pit with a stair and work left, one
+with nothing to take waits down there, a column clear of the stair and of what others hold, rather than
+climb the whole stair to the rim and back; a walk to where it waits that goes on over 10 seconds (stuck,
+or giving way for ever) is stopped and it looks again from where it got to. *The floors within a climb*: the open band (*Stations*, above)
 keeps every member within a layer of the highest with blocks left, so it walks from anywhere in the pit
 to anywhere else. *When none may work*: with blocks left and no member able to take a station, the plan
 is made again at once, once until a block is broken; with another still working or parked over the area,
