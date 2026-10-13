@@ -246,7 +246,8 @@ public sealed class JobBoard<TUnit, TShared> where TUnit : notnull where TShared
 
     /// <summary>Claims <paramref name="units"/> for <paramref name="member"/> under <paramref name="key"/>
     /// (a station's id), beside its other claims; all or none, as TryReserve. A claim under the same key
-    /// is replaced; a unit it holds under another key moves to this one.</summary>
+    /// is replaced; a unit it holds under another key stays held under both (freed only once neither
+    /// holds it), and one another member held lapsed is taken from that one.</summary>
     public bool TryClaim(long member, int key, IEnumerable<TUnit> units, double now)
     {
         var list = units.Distinct().ToList();
@@ -257,7 +258,7 @@ public sealed class JobBoard<TUnit, TShared> where TUnit : notnull where TShared
             _holding[member] = claims = new SortedDictionary<int, List<TUnit>>();
         foreach (var unit in list)
         {
-            if (_held.TryGetValue(unit, out var h) && _holding.TryGetValue(h.Member, out var theirs))
+            if (_held.TryGetValue(unit, out var h) && h.Member != member && _holding.TryGetValue(h.Member, out var theirs))
                 foreach (var held in theirs.Values)
                     held.Remove(unit);
             _held[unit] = (member, now);
@@ -266,13 +267,14 @@ public sealed class JobBoard<TUnit, TShared> where TUnit : notnull where TShared
         return true;
     }
 
-    /// <summary>Frees the member's claim under <paramref name="key"/>.</summary>
+    /// <summary>Frees the member's claim under <paramref name="key"/>: each of its units no other claim of the
+    /// member's holds too.</summary>
     public void Unclaim(long member, int key)
     {
         if (!_holding.TryGetValue(member, out var claims) || !claims.Remove(key, out var units))
             return;
         foreach (var unit in units)
-            if (_held.TryGetValue(unit, out var h) && h.Member == member)
+            if (_held.TryGetValue(unit, out var h) && h.Member == member && !claims.Values.Any(other => other.Contains(unit)))
                 _held.Remove(unit);
         if (claims.Count == 0)
             _holding.Remove(member);
@@ -300,7 +302,7 @@ public sealed class JobBoard<TUnit, TShared> where TUnit : notnull where TShared
     }
 
     /// <summary>The units the member holds, lapsed or not, under every key.</summary>
-    public IReadOnlyList<TUnit> Held(long member) => _holding.GetValueOrDefault(member)?.Values.SelectMany(u => u).ToList() ?? [];
+    public IReadOnlyList<TUnit> Held(long member) => _holding.GetValueOrDefault(member)?.Values.SelectMany(u => u).Distinct().ToList() ?? [];
 
     /// <summary>Who holds <paramref name="unit"/> at <paramref name="now"/>, or null.</summary>
     public long? Holder(TUnit unit, double now) =>

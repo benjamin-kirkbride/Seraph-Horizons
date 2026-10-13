@@ -168,6 +168,26 @@ public class EidolonTeamworkTests
     }
 
     [Fact]
+    public void TwoClaimsOfOneMinerThatOverlapKeepTheSharedColumnsTillBothAreLetGo()
+    {
+        var board = Board();
+        board.Join(1, "1", Key());
+        board.Join(2, "2", Key());
+        // its station H and the next N share (2, 0); N let go (it keeps one station), H still holds it
+        Assert.True(board.TryClaim(1, 1, [(0, 0), (1, 0), (2, 0)], 0));
+        Assert.True(board.TryClaim(1, 2, [(2, 0), (3, 0)], 0));
+        board.Unclaim(1, 2);
+        Assert.Equal(new HashSet<(int, int)> { (0, 0), (1, 0), (2, 0) }, board.Held(1).ToHashSet());
+        Assert.False(board.Free(2, (2, 0), 1));
+        Assert.True(board.Free(2, (3, 0), 1));
+        Assert.Equal(1, board.Holder((2, 0), 1));
+        // H let go too: all free
+        board.Unclaim(1, 1);
+        Assert.True(board.Free(2, (2, 0), 1));
+        Assert.Empty(board.Held(1));
+    }
+
+    [Fact]
     public void AStrikeKeepsEveryClaimAndLeavingFreesThemAll()
     {
         var board = Board();
