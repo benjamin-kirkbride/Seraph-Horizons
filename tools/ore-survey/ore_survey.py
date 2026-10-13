@@ -636,6 +636,19 @@ def summarise_census(runs: list[dict], opts) -> dict:
                       "code": (d["district"] or {}).get("code"), "zoneKind": (d["district"] or {}).get("zoneKind"),
                       "rocks": d["rocks"], "x": round(d["x"]), "z": round(d["z"]), "capped": d["capped"]}
     out["districtVeins"] = [vein(d) for r in runs for d in r["deposits"] if d["source"] == "district"]
+    # Per district type and metal: how its veins come out, and how much of the band is the host rock
+    # (a shoot is counted whole where the host is a country rock, docs/oregen.md "Host rock").
+    by_type = collections.defaultdict(list)
+    for r in runs:
+        for d in r["deposits"]:
+            if d["source"] == "district" and d["district"]:
+                by_type[(d["district"]["code"], d["metal"])].append(d)
+    out["districtTypes"] = {
+        f"{code} {metal}": {
+            "veins": len(ds), "deposits": sum(ingots(d) >= opts.min_ingots for d in ds),
+            "ingotsMedian": quantile([ingots(d) for d in ds], .5), "ingotsMax": max(ingots(d) for d in ds),
+            "hostShareMedian": quantile([(d["rocks"] or {}).get(d["district"].get("host", "").split(":")[-1], 0) for d in ds], .5),
+        } for (code, metal), ds in sorted(by_type.items())}
     seconds = sum(r["seconds"] for r in runs)
     records = sum(len(r["records"]) for r in runs)
     out["throughput"] = {"records": records, "deposits": sum(len(r["deposits"]) for r in runs),
@@ -662,6 +675,12 @@ def format_census(s: dict) -> str:
     for source in SOURCES:
         title = {"cell": "Ore cells", "district": "District veins", "all": "All"}[source]
         out += ["", title, table(s["metals"][source], CENSUS_COLS, "metal")]
+    if s.get("districtTypes"):
+        cols = [("veins", "veins", "n"), ("deposits", "deposits", "n"), ("median", "ingotsMedian", "n"),
+                ("max", "ingotsMax", "n"), ("host rock in band", "hostShareMedian", "%")]
+        out += ["", f"District veins by type (every vein, small ones too; deposits >= {o['min_ingots']} ingots;"
+                    " host rock in band: the median vein's share of its band that is the district's host rock)",
+                table(s["districtTypes"], cols, "district metal")]
     veins = s["districtVeins"]
     if veins:
         out += ["", "District veins (ingots; the commonest rocks in the band around the vein's centre)"]

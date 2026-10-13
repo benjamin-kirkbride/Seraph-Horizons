@@ -122,6 +122,21 @@ Throughput: worldgen runs on one thread per server, so servers in parallel (`-j`
 lever; each server floods four deposits at once (`--floods`). Most of a deposit's cost is the
 neighbours each complete column needs (out to five columns for Terrain).
 
+### Against a full scan
+
+Seeds 101 and 303, the census and a 320 x 320 scan of the same mods (2026-10-13), each census
+deposit matched to the scan's deposit at the same place: district veins agree exactly (18 of 20;
+the other two are a 150 m merge and a neighbour), and of 36 cell deposits 9 agree exactly, 21
+within 10 % and 15 differ by more (−58 % to +197 %). 40 of 43 cells chose the same spot, and
+the census is exactly reproducible (the same blocks over five runs, with columns asked for in
+other orders), as is the scan (a 96 and a 320 square agree column for column). So an ore cell's
+vein depends on the order its columns generate in, a census's anchor first, a scan's in tiles;
+it is not the structures (the same with GenStructures taken out of both). Read cell sizes from a
+census as one valid order among others, not as the scan's. District veins do not have this.
+Of 8,834 early scans checked against their complete column (eight census runs), 8 differed: a
+structure from a column further off reaching in later, at a guess; a deposit's count can be off
+by that, rarely.
+
 ### Fast
 
 `--fast` (for a scan too) takes the handlers of the passes after TerrainFeatures out of the
