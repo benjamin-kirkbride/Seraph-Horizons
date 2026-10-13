@@ -12,8 +12,13 @@ public enum MineRule
     /// <summary>A liquid (water, lava): left.</summary>
     Liquid,
 
-    /// <summary>A liquid touches one of its six faces: left, so the pit never opens onto it.</summary>
+    /// <summary>A liquid touches one of its six faces: left, so the pit never opens onto it. It holds
+    /// nothing up: what is under it touches no liquid, and mining it opens nothing onto one.</summary>
     LiquidBeside,
+
+    /// <summary>A liquid touches one of its six faces and it falls (sand, gravel): left, and holds up
+    /// what is under it, or it would fall into the pit and open it onto the liquid.</summary>
+    LiquidBesideFalls,
 
     /// <summary>It has a block entity (a chest, a machine, chiseled stone, farmland): left, unless its
     /// code is one of the ground blocks it mines through (<see cref="EidolonMining.LeavesBlockEntity"/>:
@@ -32,9 +37,9 @@ public enum MineRule
 /// touches it, has a block entity it leaves (<see cref="EidolonMining.LeavesBlockEntity"/>: any but
 /// the ground blocks it mines through), its owner may break there, the tier it needs and whether a pickaxe
 /// breaks it at all (the game refuses a block that needs a tier when the pick has no speed for its
-/// material).</summary>
+/// material), and whether it falls with nothing under it (sand, gravel).</summary>
 public readonly record struct MineBlock(bool Air, bool Liquid, bool LiquidBeside, bool HasBlockEntity, bool MayBreak,
-    int RequiredTier, bool PickBreaks);
+    int RequiredTier, bool PickBreaks, bool Falls = false);
 
 /// <summary>One strike: up to four cells, flat (2 × 2 on one layer) or upright (2 wide, 2 tall).</summary>
 public sealed record MineGroup(IReadOnlyList<MarkPos> Cells, bool Upright)
@@ -46,22 +51,40 @@ public sealed record MineGroup(IReadOnlyList<MarkPos> Cells, bool Upright)
 
 /// <summary>What a search of the area found (<see cref="EidolonMining.Scan"/>): the layer it works (the
 /// highest with a block left it may break; null for none), that layer's cells left and the next one's
-/// down, and the block columns of the area not loaded, which read as air and so are never done.</summary>
+/// down, and the block columns of the area not loaded, which read as air and so are never done; and
+/// the cells left in a tunnel's heading being driven (<see cref="Tunnel"/>, none without one), which
+/// are no layer's.</summary>
 public sealed record MineScan(int? Layer, IReadOnlySet<MarkPos> Left, IReadOnlyList<(int X, int Z)> Unloaded)
 {
     /// <summary>Whether the area is done: no block left it may break, and none of it unloaded.</summary>
-    public bool Done => Layer == null && Unloaded.Count == 0;
+    public bool Done => Layer == null && Tunnel.Count == 0 && Unloaded.Count == 0;
+
+    public IReadOnlySet<MarkPos> Tunnel { get; init; } = new HashSet<MarkPos>();
 }
 
 /// <summary>What the miners of one shared job share (README "Eidolon", working together): the cells
 /// every member leaves for the order's life for what they are (a land claim its owner may not break in,
-/// a block that would not break), and the cells some member gave up for want of a way to them, for the
-/// report. A cell one member cannot reach another may, so each keeps its own unreachable cells for its
-/// search; only the report reads them all here.</summary>
+/// a block that would not break), the cells some member gave up for want of a way to them, for the
+/// report, and the area's sectors and who works each. A cell one member cannot reach another may, so
+/// each keeps its own unreachable cells for its search; only the report reads them all here. And the
+/// tunnel (README "Eidolon", mining, tunnels): planned once, by the first member to search
+/// (<see cref="Planned"/>, <see cref="Tunnel"/>: the heading being driven, the next one down once it is,
+/// null for none), each heading driven until every member at work has
+/// nothing left in it it may work (<see cref="TunnelIdle"/>: each such member, with the
+/// <see cref="MineSectors.Version"/> it found none at, so one whose lanes have moved since is not counted),
+/// then done for the job's life (<see cref="TunnelDone"/>). A lone eidolon keeps its own.</summary>
 public sealed class MineJobCells
 {
     public HashSet<MarkPos> Skip { get; } = new();
     public HashSet<MarkPos> Unreachable { get; } = new();
+    public MineSectors Sectors { get; } = new();
+    public bool Planned { get; set; }
+    public MineTunnel? Tunnel { get; set; }
+    public Dictionary<long, int> TunnelIdle { get; } = new();
+    public bool TunnelDone { get; set; }
+
+    /// <summary>The tunnel while it is driven, else null.</summary>
+    public MineTunnel? Driving => TunnelDone ? null : Tunnel;
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>
@@ -99,8 +122,9 @@ public static class EidolonMining
     public const int ReachBelow = 1;
     public const int ReachAbove = 3;
 
-    /// <summary>Its box's half width (1.7 wide).</summary>
+    /// <summary>Its box's half width (1.7 wide), and its height.</summary>
     public const double HalfWidth = 0.85;
+    public const double Height = 3.75;
 
     /// <summary>Vanilla's <c>stand-slam</c> (<see cref="EidolonStrikes.Slam"/>): 45 frames, both fists
     /// on the ground at frame 35.</summary>
@@ -136,7 +160,7 @@ public static class EidolonMining
         if (block.HasBlockEntity)
             return MineRule.BlockEntity;
         if (block.LiquidBeside)
-            return MineRule.LiquidBeside;
+            return block.Falls ? MineRule.LiquidBesideFalls : MineRule.LiquidBeside;
         if (block.RequiredTier > maxTier || !block.PickBreaks)
             return MineRule.TooHard;
         return block.MayBreak ? MineRule.Mine : MineRule.Claimed;
@@ -358,12 +382,16 @@ public static class EidolonMining
     /// <paramref name="skip"/>ped: one its owner may not break, one that would not break) holds up what
     /// is under it: the blocks below it in its column, down to the first air, are left too, so nothing
     /// it leaves is left floating, nor walls the pit off with blocks hanging in it; so does one it
-    /// leaves just over the area (<see cref="Holds"/>: a chest, a sign, farmland on the surface). A block
+    /// leaves just over the area (<see cref="Holds"/>: a chest, a sign, farmland on the surface). But
+    /// not one left only for a liquid beside it (<see cref="MineRule.LiquidBeside"/>), which is passed
+    /// over: what is under it touches no liquid and is mined (one that falls does hold its column). A block
     /// <paramref name="pass"/>ed (given up for want of a way to it) is only passed over: what is under it
-    /// is mined.
+    /// is mined. With a <paramref name="tunnel"/> being driven, the cells of its heading it mines are
+    /// gathered apart (<see cref="MineScan.Tunnel"/>), all of them, under the same rules, and make no
+    /// layer: the search goes down through the whole heading.
     /// </summary>
     public static MineScan Scan(MarkArea area, Func<int, int, bool> loaded, Func<MarkPos, MineRule> rule, Func<MarkPos, bool> skip,
-        Func<MarkPos, bool>? pass = null)
+        Func<MarkPos, bool>? pass = null, MineTunnel? tunnel = null)
     {
         var columns = new List<(int X, int Z)>();
         var unloaded = new List<(int X, int Z)>();
@@ -375,8 +403,9 @@ public static class EidolonMining
         foreach (var (x, z) in columns)
             if (Holds(rule(new MarkPos(x, area.Max.Y + 1, z))))
                 held.Add((x, z));
+        var dig = new HashSet<MarkPos>();
         int? layer = null;
-        for (int y = area.Max.Y; y >= Math.Max(BottomY, area.Min.Y) && (layer == null || y >= layer - 1); y--)
+        for (int y = area.Max.Y; y >= Math.Max(BottomY, area.Min.Y) && (layer == null || y >= layer - 1 || y >= tunnel?.Bottom); y--)
         foreach (var (x, z) in columns)
         {
             var cell = new MarkPos(x, y, z);
@@ -388,21 +417,30 @@ public static class EidolonMining
             }
             if (held.Contains((x, z)) || skip(cell) || what != MineRule.Mine)
             {
-                held.Add((x, z));
+                if (what != MineRule.LiquidBeside || held.Contains((x, z)) || skip(cell))
+                    held.Add((x, z));
                 continue;
             }
             if (pass?.Invoke(cell) == true)
                 continue;
+            if (tunnel?.Contains(cell) == true)
+            {
+                dig.Add(cell);
+                continue;
+            }
+            if (layer != null && y < layer - 1)
+                continue;
             layer ??= y;
             left.Add(cell);
         }
-        return new MineScan(layer, left, unloaded);
+        return new MineScan(layer, left, unloaded) { Tunnel = dig };
     }
 
     /// <summary>Whether a block just over the area, which it never breaks, holds up the column under it:
-    /// one it would leave were it in the area for what it is (a block entity, too hard, claimed). Not a
-    /// liquid, whose block under it is left already (a liquid beside it), nor a block beside one.</summary>
-    public static bool Holds(MineRule over) => over is MineRule.BlockEntity or MineRule.TooHard or MineRule.Claimed;
+    /// one it would leave were it in the area for what it is (a block entity, too hard, claimed, one that
+    /// falls with a liquid beside it). Not a liquid, whose block under it is left already (a liquid beside
+    /// it), nor a block beside one that stays put.</summary>
+    public static bool Holds(MineRule over) => over is MineRule.BlockEntity or MineRule.TooHard or MineRule.Claimed or MineRule.LiquidBesideFalls;
 
     /// <summary>The block column of <paramref name="columns"/> nearest (<paramref name="x"/>,
     /// <paramref name="z"/>), or null for none.</summary>
@@ -415,15 +453,17 @@ public static class EidolonMining
     /// feet from a block over the highest cell to <see cref="ReachAbove"/> under the lowest. Those not
     /// standing on a cell left to mine (<paramref name="left"/>) first, so it does not stand in its own
     /// way; then nearest (<paramref name="fromX"/>, <paramref name="fromZ"/>), then nearest its feet' height.
+    /// Before all that, those whose box is over no block column of <paramref name="theirs"/> (another
+    /// member's sector: it stands in its own, where the other never comes, README "Eidolon", *Sectors*).
     /// </summary>
     public static IReadOnlyList<PathCell> Stands(IWideSpace space, IReadOnlyList<MarkPos> cells, Func<MarkPos, bool> left,
-        double fromX, int fromFeet, double fromZ)
+        double fromX, int fromFeet, double fromZ, Func<int, int, bool>? theirs = null)
     {
         if (cells.Count == 0)
             return [];
         int minX = cells.Min(c => c.X), maxX = cells.Max(c => c.X), minZ = cells.Min(c => c.Z), maxZ = cells.Max(c => c.Z);
         int minY = cells.Min(c => c.Y), maxY = cells.Max(c => c.Y);
-        var stands = new List<(PathCell Node, bool OnLeft, double From, int Rise)>();
+        var stands = new List<(PathCell Node, bool Theirs, bool OnLeft, double From, int Rise)>();
         for (int x = maxX - Reach; x <= minX + Reach + 1; x++)
         for (int z = maxZ - Reach; z <= minZ + Reach + 1; z++)
         for (int feet = maxY - ReachAbove; feet <= minY + ReachBelow; feet++)
@@ -432,13 +472,16 @@ public static class EidolonMining
                 continue;
             if (!space.Free(x, feet, z) || space.Free(x, feet - 1, z))
                 continue;
-            bool onLeft = false;
-            for (int bx = x - 1; bx <= x && !onLeft; bx++)
-            for (int bz = z - 1; bz <= z && !onLeft; bz++)
-                onLeft = left(new MarkPos(bx, feet - 1, bz));
-            stands.Add((new PathCell(x, feet, z), onLeft, Distance2(x, z, fromX, fromZ), Math.Abs(feet - fromFeet)));
+            bool onLeft = false, over = false;
+            for (int bx = x - 1; bx <= x; bx++)
+            for (int bz = z - 1; bz <= z; bz++)
+            {
+                onLeft |= left(new MarkPos(bx, feet - 1, bz));
+                over |= theirs?.Invoke(bx, bz) == true;
+            }
+            stands.Add((new PathCell(x, feet, z), over, onLeft, Distance2(x, z, fromX, fromZ), Math.Abs(feet - fromFeet)));
         }
-        return stands.OrderBy(s => s.OnLeft).ThenBy(s => s.From).ThenBy(s => s.Rise).ThenBy(s => s.Node.X).ThenBy(s => s.Node.Z)
+        return stands.OrderBy(s => s.Theirs).ThenBy(s => s.OnLeft).ThenBy(s => s.From).ThenBy(s => s.Rise).ThenBy(s => s.Node.X).ThenBy(s => s.Node.Z)
             .Select(s => s.Node).ToList();
     }
 

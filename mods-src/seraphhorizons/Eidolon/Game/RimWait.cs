@@ -1,4 +1,5 @@
 using SeraphHorizons.Mod.Eidolon.Core;
+using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 
 namespace SeraphHorizons.Mod.Eidolon;
@@ -8,7 +9,8 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// work one (<see cref="MineOrder"/>, <see cref="FellOrder"/>): a member with nothing it may work for now
 /// walks to a place on the area's rim (<see cref="EidolonTeamwork.Rim"/>) with ground under it, away from
 /// the other eidolons and the places the others wait at, which it notes with the job system
-/// (<see cref="EidolonJobSystem.SetRim"/>). One that finds no way to the rim (deeper in a pit than it
+/// (<see cref="EidolonJobSystem.SetRim"/>), and keeps only while none stands by it
+/// (<see cref="EidolonTeamwork.KeepsPlace"/>). One that finds no way to the rim (deeper in a pit than it
 /// climbs, say) steps aside instead, to the nearest place round it the order says is clear of the job's
 /// work (mining: columns with nothing left and held by no one; felling: away from every tree held), and
 /// says so rather than that it waits at the edge. One per order.
@@ -30,41 +32,90 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0)
     /// <summary>How far up or down from its feet it looks for ground to step aside to: a climb.</summary>
     private const int AsideRise = 2;
 
-    private (int X, int Z)? _rim;
+    private (double X, double Z)? _place;
     private bool _aside;
+    private bool _settled;
     private double _retryAt;
 
     /// <summary>
     /// Waits: unless it has a place on the rim or is walking, sets off for one; finding no way to any,
     /// it steps aside to a place round it where <paramref name="clear"/> holds (a path node, its box over
-    /// the two columns each side) and tries the rim again <paramref name="retrySeconds"/> later. Its
-    /// status is <paramref name="status"/> while it waits at the rim or makes for it, else
+    /// the two columns each side) and tries the rim again <paramref name="retrySeconds"/> later. A place
+    /// it has is kept only while <see cref="EidolonTeamwork.KeepsPlace"/> holds (another come to stand by
+    /// it, or its walk ended away from it: it chooses again); once it stands there, its place is where it
+    /// stands. Its status is <paramref name="status"/> while it waits at the rim or makes for it, else
     /// <paramref name="asideStatus"/> (set only when it changes: it waits here every second).
     /// </summary>
     public void Wait(EntityLaborEidolon eidolon, EidolonNavigator nav, EidolonJobSystem? jobs, string status, string asideStatus,
         Func<int, int, bool> clear, double now, double retrySeconds)
     {
-        if (_rim == null && !nav.Active && now >= _retryAt && !ToRim(eidolon, nav, jobs))
+        if (_place is { } place)
+        {
+            bool walking = nav.Active;
+            var taken = Standing(eidolon, jobs, eidolon.Pos.XYZ, AsideReach + 4, AsideReach + 4);
+            if (!EidolonTeamwork.KeepsPlace(place, (eidolon.Pos.X, eidolon.Pos.Z), walking, taken))
+            {
+                Drop(jobs, eidolon);
+                if (walking)
+                    nav.Stop();
+                _retryAt = now;
+            }
+            else if (!walking && !_settled)
+            {
+                // there: its place is where it stands, which the others keep clear of
+                _settled = true;
+                _place = (eidolon.Pos.X, eidolon.Pos.Z);
+                jobs?.SetRim(eidolon.EntityId, _place);
+            }
+        }
+        bool rim = _place != null && !_aside;
+        if (!rim && !nav.Active && now >= _retryAt && !ToRim(eidolon, nav, jobs))
         {
             _retryAt = now + retrySeconds;
-            if (!_aside)
-                _aside = StepAside(eidolon, nav, jobs, clear);
+            if (_place == null)
+                StepAside(eidolon, nav, jobs, clear);
         }
-        string shown = _rim != null ? status : asideStatus;
+        string shown = _place != null && !_aside ? status : asideStatus;
         if (eidolon.WatchedAttributes.GetTreeAttribute(EntityBehaviorEidolonOrders.StatusKey)?.GetString("key") != shown)
             eidolon.Orders?.SetStatus(shown);
     }
 
     // Where the other eidolons near it stand and the others wait.
     private static List<(double X, double Z)> Taken(EntityLaborEidolon eidolon, EidolonJobSystem? jobs, Vec3d around, float range, float height) =>
-        eidolon.World.GetEntitiesAround(around, range, height, e => e is EntityLaborEidolon && e.EntityId != eidolon.EntityId && e.Alive)
+        Others(eidolon, jobs, around, range, height, _ => true);
+
+    // Where the other eidolons near it stand still (not walking past) and the others wait.
+    private static List<(double X, double Z)> Standing(EntityLaborEidolon eidolon, EidolonJobSystem? jobs, Vec3d around, float range, float height) =>
+        Others(eidolon, jobs, around, range, height,
+            e => e is EntityLaborEidolon { ClimbTop: not null } || Math.Sqrt(e.Pos.Motion.X * e.Pos.Motion.X + e.Pos.Motion.Z * e.Pos.Motion.Z) < EidolonNavigator.StandingMotion);
+
+    private static List<(double X, double Z)> Others(EntityLaborEidolon eidolon, EidolonJobSystem? jobs, Vec3d around, float range, float height,
+        Func<Entity, bool> which) =>
+        eidolon.World.GetEntitiesAround(around, range, height, e => e is EntityLaborEidolon && e.EntityId != eidolon.EntityId && e.Alive && which(e))
             .Select(e => (e.Pos.X, e.Pos.Z))
-            .Concat(jobs?.RimsBut(eidolon.EntityId).Select(r => ((double)r.X, (double)r.Z)) ?? []).ToList();
+            .Concat(jobs?.RimsBut(eidolon.EntityId) ?? []).ToList();
+
+    // Claims a place to wait at, walking to it.
+    private void Claim(EntityLaborEidolon eidolon, EidolonJobSystem? jobs, (double X, double Z) place, bool aside)
+    {
+        _place = place;
+        _aside = aside;
+        _settled = false;
+        jobs?.SetRim(eidolon.EntityId, place);
+    }
+
+    private void Drop(EidolonJobSystem? jobs, EntityLaborEidolon eidolon)
+    {
+        _place = null;
+        _aside = false;
+        _settled = false;
+        jobs?.SetRim(eidolon.EntityId, null);
+    }
 
     /// <summary>Sets off for the nearest place round it, within <see cref="AsideReach"/>, that is
-    /// <paramref name="clear"/>, on the ground a climb or a drop at most from its feet, and not within
-    /// <see cref="EidolonTeamwork.RimSpacing"/> of another eidolon or where one waits; false when it
-    /// finds no way to one (it waits where it is).</summary>
+    /// <paramref name="clear"/>, on the ground a climb or a drop at most from its feet, and
+    /// <see cref="EidolonTeamwork.Apart"/> from every other eidolon and where one waits or makes for; false
+    /// when it finds no way to one (it waits where it is).</summary>
     private bool StepAside(EntityLaborEidolon eidolon, EidolonNavigator nav, EidolonJobSystem? jobs, Func<int, int, bool> clear)
     {
         var blocks = eidolon.World.BlockAccessor;
@@ -76,8 +127,7 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0)
         for (int x = nx - AsideReach; x <= nx + AsideReach; x++)
         for (int z = nz - AsideReach; z <= nz + AsideReach; z++)
         {
-            if (others.Any(o => (o.X - x) * (o.X - x) + (o.Z - z) * (o.Z - z) < EidolonTeamwork.RimSpacing * EidolonTeamwork.RimSpacing)
-                || !clear(x, z))
+            if (!EidolonTeamwork.Apart(x, z, others) || !clear(x, z))
                 continue;
             places.Add((x, z, (x - ex) * (x - ex) + (z - ez) * (z - ez)));
         }
@@ -93,9 +143,9 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0)
                 }
             if (ground is not { } at)
                 continue;
-            if (nav.GoTo(new Vec3d(x, at, z), false, () => { }, () => { }, tolerance: 1))
+            if (nav.GoTo(new Vec3d(x, at, z), false, () => { }, () => { }, arriveWithin: (float)EidolonTeamwork.WaitArrive))
             {
-                jobs?.SetRim(eidolon.EntityId, (x, z));
+                Claim(eidolon, jobs, (x, z), aside: true);
                 return true;
             }
             if (++tries >= PathTries)
@@ -105,7 +155,7 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0)
     }
 
     /// <summary>Sets off for a place on the area's rim with ground under it, away from the other
-    /// eidolons and the places the others wait at; false when it finds no way to one.</summary>
+    /// eidolons and the places the others wait at or make for; false when it finds no way to one.</summary>
     private bool ToRim(EntityLaborEidolon eidolon, EidolonNavigator nav, EidolonJobSystem? jobs)
     {
         var blocks = eidolon.World.BlockAccessor;
@@ -133,11 +183,9 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0)
             }
             if (ground is not { } feet)
                 continue;
-            if (nav.GoTo(new Vec3d(x, feet, z), false, () => { }, () => { }, tolerance: 1))
+            if (nav.GoTo(new Vec3d(x, feet, z), false, () => { }, () => { }, arriveWithin: (float)EidolonTeamwork.WaitArrive))
             {
-                _rim = (x, z);
-                _aside = false;
-                jobs?.SetRim(eidolon.EntityId, _rim);
+                Claim(eidolon, jobs, (x, z), aside: false);
                 return true;
             }
             if (++tries >= PathTries)
@@ -149,10 +197,8 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0)
     /// <summary>Off the rim, back to work (or stopped, or done).</summary>
     public void Leave(EntityLaborEidolon eidolon, EidolonJobSystem? jobs)
     {
-        if (_rim == null && !_aside)
+        if (_place == null)
             return;
-        _rim = null;
-        _aside = false;
-        jobs?.SetRim(eidolon.EntityId, null);
+        Drop(jobs, eidolon);
     }
 }

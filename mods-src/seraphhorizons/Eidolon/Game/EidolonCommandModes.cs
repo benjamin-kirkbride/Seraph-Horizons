@@ -57,6 +57,12 @@ public sealed class EidolonCommandMode
     /// area is kept, so a misclick costs nothing. Server side. Null: any block.</summary>
     public System.Func<IWorldAccessor, BlockPos, EidolonCommand?>? CheckTarget { get; init; }
 
+    /// <summary>For a mode that marks an area (<see cref="EidolonMarkKind.Area"/>): whether the area
+    /// marked, by the player standing at the given place, will do, null when it will, else a lang key
+    /// (with arguments) told to the player; the opposite corner is then not marked and the first is
+    /// kept, as for an area too large. Server side. Null: any area.</summary>
+    public System.Func<IWorldAccessor, MarkArea, Vec3d, EidolonCommand?>? CheckArea { get; init; }
+
     public string NameKey => "seraphhorizons:eidoloncommander-mode-" + Code;
 }
 

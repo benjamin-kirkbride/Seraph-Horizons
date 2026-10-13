@@ -13,9 +13,11 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// mods-src/seraphhorizons/Eidolon, several eidolons mining one area as one job (README "Eidolon",
 /// working together), with the pack's default settings, ordered with the command tool as a player
-/// orders them. Two given the same area never hold the same column, take the pit down a layer at a
-/// time together, report once with both shares and walk back each to its own place; one ordered later
-/// joins the job running. Waiting (for a square, for a bystander, dry) is <see cref="EidolonTeamWaitScenarios"/>.
+/// orders them. Two given the same area never hold the same column, keep their floors within a climb,
+/// report once with both shares and walk back each to its own place; one ordered later
+/// joins the job running; and one whose sector is mined out steals half of another's. Waiting (for a
+/// square, for a bystander, dry) is <see cref="EidolonTeamWaitScenarios"/>, sectors kept apart and paths
+/// round each other <see cref="EidolonSectorScenarios"/>, tunnels <see cref="EidolonTunnelScenarios"/>.
 /// On floors of their own in the sky (<see cref="Felling.Sky"/>).
 /// </summary>
 [AtlasWorld]
@@ -114,9 +116,10 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         var blocks = W.BlockAccessor;
         int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
         Ground(site, granite);
-        // 6 × 4 and two deep, its north edge on the terrace: six squares, enough for both.
-        var a = site.AddCopy(-3, -2, -3);
-        var b = site.AddCopy(2, -1, 0);
+        // 8 × 4 and two deep, its north edge on the terrace: two sectors of 4 × 4, one each (a sector is
+        // at least 4 wide, so a pit 6 wide is one sector and the second waits at the rim).
+        var a = site.AddCopy(-4, -2, -3);
+        var b = site.AddCopy(3, -1, 0);
         var area = Area(a, b);
         var toMine = Cells(area);
 
@@ -190,9 +193,10 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         var blocks = W.BlockAccessor;
         int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
         Ground(site, granite);
-        // 6 × 4 and two deep, its north edge on the terrace: six squares, enough for both.
-        var a = site.AddCopy(-3, -2, -3);
-        var b = site.AddCopy(2, -1, 0);
+        // 8 × 4 and two deep, its north edge on the terrace: two sectors of 4 × 4, one each (a sector is
+        // at least 4 wide, so a pit 6 wide is one sector and the second waits at the rim).
+        var a = site.AddCopy(-4, -2, -3);
+        var b = site.AddCopy(3, -1, 0);
         var area = Area(a, b);
         var toMine = Cells(area);
 
@@ -222,5 +226,70 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Contains("Your 2 eidolons", report);
         e1.Die(EnumDespawnReason.Removed);
         e2.Die(EnumDespawnReason.Removed);
+    }
+
+    [AtlasScenario(TimeoutMs = 480_000)]
+    public async Task One_whose_sector_is_mined_out_steals_the_far_half_of_anothers()
+    {
+        var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2200), reach: 15);
+        var blocks = W.BlockAccessor;
+        int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+        Ground(site, granite);
+        // 16 × 2 × 8: two sectors of 8 × 8, the west one a layer only (its lower layer already dug)
+        var a = site.AddCopy(-8, -2, -3);
+        var b = site.AddCopy(7, -1, 4);
+        var area = Area(a, b);
+        for (int x = -8; x <= -1; x++)
+        for (int z = -3; z <= 4; z++)
+            blocks.SetBlock(0, site.AddCopy(x, -2, z));
+        var toMine = Cells(area).Where(c => blocks.GetBlock(c).Id != 0).ToList();
+
+        var (test, player, tool) = await Commander("eidolonsteal", site.AddCopy(0, 0, -12));
+        var west = await Spawn(site.AddCopy(-5, 0, -10), player);
+        var east = await Spawn(site.AddCopy(5, 0, -10), player);
+        var eidolons = new[] { west, east };
+        OrderMine(player, tool, eidolons, a, b);
+        var orders = eidolons.Select(e => Assert.IsType<MineOrder>(e.Orders!.Current)).ToArray();
+        await World.Ticks(5);
+        var sectors = orders[0].Job!.Shared.Sectors;
+        Log("sectors: " + string.Join(", ", sectors.All.Select(s => $"{s.Sector} by {s.Owner}")));
+        Assert.Equal(new MineSector(a.X, a.Z, a.X + 7, b.Z), orders[0].Sector);
+
+        var watch = new MineWatcher(W, toMine, eidolons, orders);
+        MineSector? stolen = null, stealFar = null;
+        int ticks = 0;
+        await World.Until(() =>
+        {
+            watch.Tick();
+            if (sectors.Steals > 0 && stolen == null)
+            {
+                stolen = sectors.Of(west.EntityId);
+                // the east sector halved by where the east one stands now (a tick after the steal)
+                stealFar = EidolonSectors.Halves(new MineSector(a.X + 8, a.Z, b.X, b.Z), east.Pos.X, east.Pos.Z)!.Value.Far;
+                Log($"west stole {stolen}, east at {east.Pos.XYZ}; east keeps {sectors.Of(east.EntityId)}");
+            }
+            if (++ticks % 600 == 0)
+                Log($"{orders[0].Mined} + {orders[1].Mined}: {State(west)} || {State(east)}");
+            return eidolons.All(e => e.Orders!.OrderCode == null);
+        }, 12000);
+        var lines = Reports(orders);
+        Log($"after: {orders[0].Mined} + {orders[1].Mined}; steals {sectors.Steals}; empty {orders.Sum(o => o.EmptyStrikes)}, cut {orders.Sum(o => o.CutStrikes)}; overlapping {watch.Overlaps} ticks; "
+            + "reports: " + string.Join(" | ", lines));
+        Log("faults: " + string.Join(" | ", watch.Faults.Take(30)) + "; overlapping: " + watch.Summary());
+        Assert.Empty(watch.Faults);
+        Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
+        Assert.True(sectors.Steals >= 1, "no steal");
+        // the west one stole half the east sector, the half away from where the east one was
+        Assert.NotNull(stolen);
+        Assert.Equal(stealFar, stolen);
+        Assert.Contains(watch.Broke[west.EntityId], c => c.X >= a.X + 8);
+        Assert.All(watch.BySector.Values, v => Assert.Equal(0, v.Out));
+        // the west one walked to its half and worked it apart from the east one, each standing in its own
+        // (a shallow brush allowed, however long)
+        Assert.Null(watch.Pushing());
+        Assert.Equal(0, orders.Sum(o => o.EmptyStrikes));
+        Assert.Single(lines);
+        foreach (var e in eidolons)
+            e.Die(EnumDespawnReason.Removed);
     }
 }
