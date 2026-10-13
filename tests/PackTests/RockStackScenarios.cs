@@ -12,7 +12,7 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// Rock and earth stack to 16 (#863, <see cref="RockStackSystem"/>): rock, earth and ore-bearing
 /// rock blocks stack to 16 and their building shapes to 32, each carrying the 64 it stacked to
-/// before to trade by, in the block type packet clients get too; support beams, wooden shapes,
+/// before (for Stone Quarry's drench), in the block type packet clients get too; support beams, wooden shapes,
 /// every other block and the rock items keep their stacks. The switch off is in
 /// <see cref="SwitchesOffScenarios"/>.
 /// </summary>
@@ -21,20 +21,20 @@ public partial class SharedWorldScenarios
     private Block RockStackBlock(string code) =>
         W.GetBlock(new AssetLocation(code)) is { Id: > 0 } b ? b : throw new Xunit.Sdk.XunitException($"no {code}");
 
-    /// <summary>The block stacks to <paramref name="stack"/>, trades by 64, and a client gets both.</summary>
+    /// <summary>The block stacks to <paramref name="stack"/>, keeps 64 as its stack before the cut, and a client gets both.</summary>
     private void AssertRockStack(string code, int stack)
     {
         var block = RockStackBlock(code);
         Assert.True(stack == block.MaxStackSize, $"{code} stacks to {block.MaxStackSize}");
-        Assert.Equal(64, RockStackSystem.TradeStack(block));
-        // What a client gets: the block type packet carries the stack and the trade stack.
+        Assert.Equal(64, RockStackSystem.StackBeforeCut(block));
+        // What a client gets: the block type packet carries the stack and the stack before the cut.
         var packet = BlockTypeNet.GetBlockTypePacket(block, World.Api.ClassRegistry);
         Assert.Equal(stack, packet.MaxStackSize);
-        Assert.Equal(64, JToken.Parse(packet.Attributes)[RockStackSystem.TradeStackAttr]?.Value<int>());
+        Assert.Equal(64, JToken.Parse(packet.Attributes)[RockStackSystem.StackBeforeCutAttr]?.Value<int>());
     }
 
     [AtlasScenario]
-    public void Rock_and_earth_stack_to_16_and_trade_by_their_old_stack()
+    public void Rock_and_earth_stack_to_16_and_keep_their_old_stack()
     {
         foreach (var code in new[]
                  {
@@ -136,7 +136,7 @@ public partial class SharedWorldScenarios
         {
             var block = RockStackBlock(code);
             Assert.True(stack == block.MaxStackSize, $"{code} stacks to {block.MaxStackSize}");
-            Assert.Equal(stack, RockStackSystem.TradeStack(block));
+            Assert.Equal(stack, RockStackSystem.StackBeforeCut(block));
         }
         foreach (var code in new[] { "game:stone-granite", "game:clay-blue", "game:burnedbrick-fire" })
         {
