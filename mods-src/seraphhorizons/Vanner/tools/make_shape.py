@@ -2,8 +2,8 @@
 """Generate the vanner's shapes, rig and reference poses.
 
 The vanner is the last of the ore line's concentrators (#923; model #924): a Frue vanner (1874), an
-endless rubber belt that creeps slowly up to its head roller under a spray of wash water while its
-frame is shaken from side to side. The heavy grains ride up over the head roller and wash off into the
+endless belt that creeps slowly up to its head roller under a spray of wash water while its frame is
+shaken from side to side. The belt is stitched leather, its hides laced together across it. The heavy grains ride up over the head roller and wash off into the
 concentrate box; the light ones run back down the belt and off its foot into the tailings box. One
 real machine, one level.
 
@@ -18,8 +18,8 @@ real machine, one level.
                       rigid posts pinned top and bottom: a parallel motion that carries the frame across
                       and holds it along its length), tied at the ends and the middle; on them the head
                       and foot rollers' bearings, and the hangers of the worm shaft
-    the belt          round the head roller (north, at the front, the higher) and the foot roller
-                      (south), with raised edges along its top run
+    the belt          stitched leather, round the head roller (north, at the front, the higher) and the
+                      foot roller (south), with raised edges along its top run and its laced seams across it
     the creep         a ratchet on the worm shaft, which a pawl fixed to the frame pushes a tooth each
                       stroke of the shake (and slips back under it on the return), so it turns one way
                       whichever way the axle turns; the worm on the same shaft turns the worm wheel on
@@ -113,7 +113,8 @@ TEXTURES = {
     "planks": "game:block/wood/planks/oak1",       # boards: the feed box, the concentrate and tailings boxes
     "iron": "game:block/metal/plate/iron",         # castings and straps: bearings, cheeks, clevises, yokes, arms, hangers, pawl
     "steel": "game:block/metal/sheet-plain/steel1",  # shafts, sheaves, collars, the worm, its wheel, the ratchet
-    "rubber": "game:block/leather/black",          # the belt and its edges (no rubber in the game: black leather)
+    "leather": "game:block/leather/plain",         # the belt and its edges: stitched leather
+    "lacing": "game:block/leather/aged1",          # the rawhide lacing across the belt's seams
     "chute": "game:block/metal/sheet/copper1",     # the chute sections: vanilla's chute, as a placed chute shows
     "pipecopper": "game:block/metal/sheet-plain/copper4",   # the water line in copper (UnifiedPipes' copper pipe)
     "pipelead": "game:block/metal/sheet-plain/lead4",       # ... in lead (UnifiedPipes' lead pipe)
@@ -130,6 +131,10 @@ ROLL_R = 2.0                                 # both rollers (a 12-sided drum, ap
 ROLL_X = (4.3, 15.7)                         # the drums, a little wider than the belt
 BELT_T = 0.4
 EDGE_W, EDGE_H = 0.7, 0.6                    # the raised edges along the top run, inside the belt's sides
+SEAMS_Z = (10.5, 33.0)                       # the laced seams across the top run, where hides are joined
+SEAM_L, SEAM_H = 0.8, 0.12                   # each seam's lap: along the belt, how proud of it
+LACES = 8                                    # the rawhide stitches across each seam
+LACE_W, LACE_L, LACE_H = 0.35, 0.6, 0.06     # each stitch: across, along, how proud of the lap
 JOURNAL_R = 0.5
 COLLAR_R = 1.0
 
@@ -667,19 +672,33 @@ def build_uprights():
     return out
 
 
+def on_run(z0, z1, h0, h1, x0, x1, name, part, tex):
+    """A box lying on the belt's top run from z0 to z1, h0 to h1 above its top face (square to it), x0..x1
+    across."""
+    hm = (h0 + h1) / 2 / math.cos(SLOPE)
+    el = strut([0.0, run_top(z0) + hm, z0], [0.0, run_top(z1) + hm, z1], h1 - h0, x1 - x0, name, part, tex, axis="x")
+    el.c[0] = (x0 + x1) / 2
+    return el
+
+
 def build_belt():
-    """The belt (`belt`, riding the shaking frame): round the head and foot rollers, its top run on their
-    upper tangent, and its raised edges along the top run, inside its sides."""
+    """The belt (`belt`, riding the shaking frame): stitched leather round the head and foot rollers, its
+    top run on their upper tangent; its raised edges along the top run, inside its sides; and across the top
+    run two seams where its hides are joined, each a lap with rawhide lacing over it."""
     p = "belt"
     out = belt("x", (0.0, HEAD[0], HEAD[1]), ROLL_R, (0.0, FOOT[0], FOOT[1]), ROLL_R, BELT_X[0], BELT_X[1], "belt", p,
-               "rubber", BELT_T, n_wrap=7)
+               "leather", BELT_T, n_wrap=7)
     za, zb = HEAD[1] + 0.3, FOOT[1] - 0.3
     for j, (ex0, ex1) in enumerate(((BELT_X[0], BELT_X[0] + EDGE_W), (BELT_X[1] - EDGE_W, BELT_X[1])), 1):
-        a = [0.0, run_top(za) + EDGE_H / 2 / math.cos(SLOPE), za]
-        b = [0.0, run_top(zb) + EDGE_H / 2 / math.cos(SLOPE), zb]
-        el = strut(a, b, EDGE_H, ex1 - ex0 - 0.02, f"belt_edge{j}", p, "rubber", axis="x")
-        el.c[0] = (ex0 + ex1) / 2
-        out.append(el)
+        out.append(on_run(za, zb, 0.0, EDGE_H, ex0 + 0.01, ex1 - 0.01, f"belt_edge{j}", p, "leather"))
+    x0, x1 = BELT_X[0] + EDGE_W + 0.02, BELT_X[1] - EDGE_W - 0.02
+    pitch = (x1 - x0) / LACES
+    for i, z in enumerate(SEAMS_Z, 1):
+        out.append(on_run(z - SEAM_L / 2, z + SEAM_L / 2, 0.0, SEAM_H, x0, x1, f"belt_seam{i}", p, "leather"))
+        for k in range(LACES):
+            xc = x0 + pitch * (k + 0.5)
+            out.append(on_run(z - LACE_L / 2, z + LACE_L / 2, SEAM_H, SEAM_H + LACE_H, xc - LACE_W / 2, xc + LACE_W / 2,
+                              f"belt_lace{i}_{k + 1}", p, "lacing"))
     return out
 
 

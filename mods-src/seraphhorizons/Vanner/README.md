@@ -1,9 +1,10 @@
 # Vanner
 
 Part of the Seraph Horizons mod (`../README.md`): the last of the ore line's concentrators (epic #684), a
-**Frue vanner** (1874). An endless rubber belt, four feet wide, runs over a head roller and a foot roller
-twelve feet apart, falling gently to the foot, on a frame that is shaken from side to side; the belt creeps
-slowly up to the head under a spray of wash water. Pulp fed onto it a little below the head spreads over
+**Frue vanner** (1874). An endless belt, four feet wide, runs over a head roller and a foot roller twelve
+feet apart, falling gently to the foot, on a frame that is shaken from side to side; the belt creeps slowly up
+to the head under a spray of wash water. The period's belt was rubber; this one is stitched leather, which the
+pack can make, its hides laced together across it. Pulp fed onto it a little below the head spreads over
 the shaking belt: the heavy grains settle on it and ride up over the head roller into the **concentrate
 box**, the light ones are washed back down and off the foot into the **tailings box**. Each box ends in a
 vanilla chute section, and the pulp comes in by one down the feed box.
@@ -63,7 +64,7 @@ tailings boxes with their chute sections. The rest:
 | `countershaft` | `countershaft` | The axle's oak cross, the steel shaft, two collars, the two eccentric sheaves |
 | `shaker` | `shaker`, `uprightw`, `uprighte` | The shaking frame: two oak rails, three ties, the rollers' bearing blocks, the two yokes and their arms, the worm shaft's bearings and hangers, the rails' clevises and pins; and the six oak uprights it stands on |
 | `rollers` | `head`, `foot` | The head roller with its journal, collars and worm wheel; the foot roller |
-| `belt` | `belt` | The belt round both rollers, and its two raised edges |
+| `belt` | `belt` | The stitched leather belt round both rollers, its two raised edges, and two laced seams across its top run |
 | `creep` | `worm`, `pawl` | The worm shaft: its rod, collars, the worm (core and thread rings) and the ratchet; the fixed pawl on its post |
 | `feedbox` | `feedbox` | The feed box, its weir and apron, and the infeed chute section |
 | `pipecopper`, `pipelead` | one each | The water line in copper or in lead: the same elements, one drawn |
@@ -75,14 +76,14 @@ stage could, in the order the floating check builds it up (README "Open for the 
 
 Everything in the model was made for this mod: no other mod's model is used, so the generator needs nothing
 from `build/mods`. Timber is the game's debarked oak and its oak planks; castings and straps its iron plate;
-shafts, sheaves, the worm, its wheel and the ratchet its plain steel sheet; the belt its black leather (the
-game has no rubber); the chute sections vanilla's chute texture (`game:block/metal/sheet/copper1`); the water
+shafts, sheaves, the worm, its wheel and the ratchet its plain steel sheet; the belt its plain leather
+(`game:block/leather/plain`) and the lacing at its seams its aged leather, for rawhide; the chute sections vanilla's chute texture (`game:block/metal/sheet/copper1`); the water
 line UnifiedPipes' copper or lead pipe with solder joints (`Pipes/tools/solderedpipe.py`). `tools/make_shape.py`
 writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/vanner.json` | The whole machine, both water lines (400 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/vanner.json` | The whole machine, both water lines (418 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/vanner_frame.json` | The frame only (87 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/vanner-rig.json` | The cells, the anchors and the part rig (13 parts). |
 | `tests/Vanner/rig-reference.json` | Every part's matrix at 21 poses of θ and ψ, from the reference maths. |
@@ -114,9 +115,10 @@ of a stroke against the rail's straight slide.
 
 **The belt and the rollers.** The head roller (axis y 9.3, z 7) and the foot roller (y 8.1, z 38) are oak drums,
 2 in radius, a little wider than the belt, on steel journals in iron bearing blocks on the rails (the foot's set
-into them), with a collar outside each. The belt, 0.4 thick, runs round both, its top run on their upper
-tangent, falling 1.2 in 31 (1 in 26) to the foot; two raised edges, 0.6 high, run along the top run inside its
-sides to keep the water on it.
+into them), with a collar outside each. The belt, stitched leather 0.4 thick, runs round both, its top run on
+their upper tangent, falling 1.2 in 31 (1 in 26) to the foot; two raised edges, 0.6 high, run along the top run
+inside its sides to keep the water on it. A belt that wide is made of hides joined end to end: two seams cross
+the top run (z 10.5 and 33), each a lap 0.8 long with eight rawhide stitches laced over it.
 
 **The creep.** Under the head roller's east journal, on two iron bearings hung from the east rail, is the worm
 shaft (along z, at x 19.6, y 4.3), riding the shaking frame. On it are a **ratchet** of 12 saw teeth, pitch
@@ -184,7 +186,8 @@ one fails:
   with it.
 - **Textures** by role: oak for timber, the uprights, the rollers' drums, the pawl's post and the axle's cross;
   planks for the boxes and the feed box; iron for castings and straps; steel for shafts, sheaves, pins, the worm,
-  the wheel and the ratchet; rubber for the belt; the chute texture for the chute sections; each water line in its
+  the wheel and the ratchet; leather for the belt, its edges and its seams, rawhide for their lacing; the chute
+  texture for the chute sections; each water line in its
   metal, solder only on the reducer and the cap.
 - **Thickness:** nothing thinner than 0.6 across but the belt, teeth, thread rings and solder.
 - **Floating** at every build state (the frame, then each part added in turn, then the water line): one piece
@@ -246,7 +249,7 @@ value is a checkbox, and the water line is a "Water line" select, copper or lead
 Element names are the rig's interface (first-match globs, in the rig's order): `cs_*` (`entrya`, `entryb`,
 `rod`, `collar1`/`2`, `sheave1`/`2`), `sk_*` (`rail_w`/`e`, `tie1`..`3`, `headbearing_*`, `footbearing_*`,
 `yoke1`/`2_*`, `arm1`/`2`, `wbearing1`/`2`, `whanger1`/`2`, `up<side><n>_cheek*`/`_pin`), `upw_*` and `upe_*` (the
-uprights), `belt_*` (`runa`, `runb`, `wrap*`, `edge1`/`2`), `head_*` (`drum`, `journal`, `collar*`, `wheel_*`),
+uprights), `belt_*` (`runa`, `runb`, `wrap*`, `edge1`/`2`, `seam1`/`2`, `lace<seam>_<n>`), `head_*` (`drum`, `journal`, `collar*`, `wheel_*`),
 `foot_*`, `worm_*` (`rod`, `collar*`, `core`, `thread1`..`4`, `ratchet_*`), `pawl_*` (`post`, `arm`), `fb_*`
 (`floor`, `w`, `e`, `s`, `weir`, `apron`, `chute_*`), `pipecopper_*` and `pipelead_*`, and `fr_*` for the frame
 (`sill_*`, `up<side><n>_*`, `pedestal*`, `bearing*`, `saddle`, `post_*`, `bracket_*`, `spraypost`,
@@ -258,8 +261,9 @@ port them into `make_shape.py`, or stop regenerating.
 The model has been reviewed in projections rendered from the written files. No one has yet looked at it in a
 client or the site's viewer.
 
-1. **The belt is drawn still**, and its rollers turn under it; in the game a renderer could scroll its texture by
-   `beltPerTurn`. The creep is a tenth of a voxel a turn, so this shows only over many turns.
+1. **The belt is drawn still**, its seams with it, and its rollers turn under it; in the game a renderer could
+   scroll its texture by `beltPerTurn`. The creep is a tenth of a voxel a turn, so this shows only over many
+   turns. The seams are drawn on the top run only.
 2. **The ratchet turns evenly** with ψ rather than a tooth at a time.
 3. **The uprights are rigid posts on pins**, not the period's bending springs; their heads drift 0.03 off the
    rail's pins at the ends of a stroke.
@@ -296,7 +300,8 @@ client or the site's viewer.
    over the chute's bore so its spout reaches into the chute.
 9. **The controller cell** is the front west cell, under the head; which way the machine extends from the player
    (east, as here, or mirrored) is the gameplay's placement rule.
-10. **The belt's texture:** black leather, as the game has no rubber.
+10. **The belt's texture:** the game's plain leather, the lacing its aged leather; black leather is the other
+    choice for the belt.
 11. **The free strip** east of the countershaft (about 5 wide): the footprint's width is the belt's and the
     countershaft's; nothing is put there.
 12. **Play's speed** in the viewer: two turns a second.
