@@ -50,6 +50,10 @@ public class OreSurveySystem : ModSystem
         NoAutosave();
         // Before the world loads: every mod has registered its worldgen handlers by then.
         api.Event.ServerRunPhase(EnumServerRunPhase.GameReady, () =>
+        {
+            if (Environment.GetEnvironmentVariable("ORE_TRACE_CHUNK") is { Length: > 0 } trace) OreTrace.Bind(api, outPath, trace);
+        });
+        api.Event.ServerRunPhase(EnumServerRunPhase.GameReady, () =>
             passes = WorldgenPasses.Apply(api, Environment.GetEnvironmentVariable("ORE_SURVEY_FAST") == "1",
                 Environment.GetEnvironmentVariable("ORE_SURVEY_PROFILE") == "1", Log,
                 Environment.GetEnvironmentVariable("ORE_SURVEY_SKIP")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));

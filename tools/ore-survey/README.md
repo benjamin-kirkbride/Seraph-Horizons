@@ -137,6 +137,20 @@ Of 8,834 early scans checked against their complete column (eight census runs), 
 structure from a column further off reaching in later, at a guess; a deposit's count can be off
 by that, rarely.
 
+Why, from `ORE_TRACE_CHUNK=x,z[,r]` (`OreTrace.cs`: read-only Harmony postfixes that log the
+cell rule's decision on every try from chunk x,z, or with r for every column within r of it,
+to `<out>.trace`), copper cell 102,102 of seed 101: both orders approve the same try in every
+column. But Interesting Ore Gen's `TryPlaceMainOre` writes to any chunk the worldgen accessor can
+reach, not only the one being generated, and draws from the vein's `DepositRand` (the surface
+indicator's chance, and `TryPlaceBlockForWorldGen`) only where the block it finds is reachable
+host rock; `GenerateMultiOreFaultPocket` returns early unless its centre's chunk is reachable
+and host rock. So how many draws a pass makes depends on what earlier passes already placed or
+loaded, every later draw shifts, and each column gets a differently shaped vein: the scan's
+copper reaches y 72–80 in a column where the census's stops at 64. The pack's cell rule adds
+its own: a try whose centre chunk is not reachable approves nothing in that pass (12 of the
+scan's 49 columns around the anchor). District veins are sampled per block from fixed shapes, so
+they come out alike.
+
 ### Fast
 
 `--fast` (for a scan too) takes the handlers of the passes after TerrainFeatures out of the
