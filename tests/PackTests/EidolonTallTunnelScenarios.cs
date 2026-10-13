@@ -20,7 +20,7 @@ namespace SeraphHorizons.PackTests;
 /// the other's columns; a pit five deep with no shelf, dug with a stair it leaves as its way out; and two on
 /// a pit 5 × 5 and 12 deep (the least that needs one), too deep for a straight stair, both climbing out by
 /// the spiral one round its walls. The tunnels are 4 long, the least that shows each case, to keep the
-/// class within CI's shards (ci.yml: `eidolon-tall`, `eidolon-tall-team`, `eidolon-stair`). The
+/// class within CI's shards (ci.yml: `eidolon-tall`, `eidolon-tall-team`, `eidolon-tall-team-6`, `eidolon-spiral`). The
 /// geometry is that of the planner's tests (MinePlannerTests), shortened. On floors of their own in the sky
 /// (<see cref="Felling.Sky"/>).
 /// </summary>
@@ -294,8 +294,8 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         await World.Until(() =>
         {
             watch.Tick();
-            if (Jobs.Mining.Held(e1.EntityId).Intersect(Jobs.Mining.Held(e2.EntityId)).Any())
-                faults.Add("both hold a column");
+            if (MineWatcher.ClaimFault(Jobs.Mining, eidolons, orders, EidolonJobSystem.Now(W)) is { } claimFault)
+                faults.Add(claimFault);
             int mined = orders.Sum(o => o.Mined);
             if (mined != lastMined || ++ticks % 300 == 0)
             {
@@ -378,8 +378,8 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         await World.Until(() =>
         {
             watch.Tick();
-            if (Jobs.Mining.Held(e1.EntityId).Intersect(Jobs.Mining.Held(e2.EntityId)).Any())
-                faults.Add("both hold a column");
+            if (MineWatcher.ClaimFault(Jobs.Mining, eidolons, orders, EidolonJobSystem.Now(W)) is { } claimFault)
+                faults.Add(claimFault);
             int mined = orders.Sum(o => o.Mined);
             if (mined != lastMined && mined % 40 == 0 || ++ticks % 600 == 0)
             {

@@ -286,7 +286,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var home1 = e1.Pos.XYZ;
         var home2 = e2.Pos.XYZ;
 
-        // Watch each tick: each strikes only in its own heading, never a column held by both, nothing
+        // Watch each tick: each strikes only in its own heading, never in a column the other holds, nothing
         // broken under either's box; and how near they come.
         var standing = toMine.ToHashSet();
         var faults = new List<string>();
@@ -295,8 +295,8 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         int ticks = 0, lastMined = -1;
         await World.Until(() =>
         {
-            if (Jobs.Mining.Held(e1.EntityId).Intersect(Jobs.Mining.Held(e2.EntityId)).Any())
-                faults.Add("both hold a column");
+            if (MineWatcher.ClaimFault(Jobs.Mining, [e1, e2], [o1, o2], EidolonJobSystem.Now(W)) is { } claimFault)
+                faults.Add(claimFault);
             foreach (var (o, e) in new[] { (o1, e1), (o2, e2) })
             {
                 if (o.Driving && o.Sector is { } sector)

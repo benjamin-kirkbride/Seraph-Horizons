@@ -28,6 +28,33 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
     /// not overlapping.</summary>
     private const double TouchSlack = 0.05;
 
+    /// <summary>
+    /// Claim separation as the members strike (README "Eidolon", working together, *Claims*): an eidolon
+    /// striking stands in its own claim, so no column of its box nor of the group it strikes may be held by
+    /// another member; null when none is. (Two members holding one column is impossible on the board, so
+    /// this is what tells a claim taken from under one.)
+    /// </summary>
+    public static string? ClaimFault(JobBoard<(int X, int Z), MineJobCells> board, EntityLaborEidolon[] eidolons, MineOrder[] orders, double now)
+    {
+        for (int i = 0; i < eidolons.Length; i++)
+        {
+            if (orders[i].Group is not { } group)
+                continue;
+            // the columns of the place it stands at (the node nearest it: it strikes within 0.2 of it, which
+            // may brush a third column by a hair)
+            var node = WidePath.NodeAt(eidolons[i].Pos.X, eidolons[i].Pos.Y, eidolons[i].Pos.Z);
+            var columns = new List<(int X, int Z)>();
+            for (int x = node.X - 1; x <= node.X; x++)
+            for (int z = node.Z - 1; z <= node.Z; z++)
+                columns.Add((x, z));
+            columns.AddRange(group.Cells.Select(c => (c.X, c.Z)));
+            foreach (var column in columns)
+                if (board.Holder(column, now) is { } holder && holder != eidolons[i].EntityId)
+                    return $"{eidolons[i].EntityId} strikes at {eidolons[i].Pos.XYZ} with column {column} held by {holder}";
+        }
+        return null;
+    }
+
     /// <summary>The nearest two centres may come, across: nearer, one box is deep in the other (their
     /// boxes are 1.7 wide), never a brush.</summary>
     public const double MinCentres = 1.0;
