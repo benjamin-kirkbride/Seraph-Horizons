@@ -10,7 +10,9 @@ namespace SeraphHorizons.OreSurvey;
 /// Generates ORE_SURVEY_SIZE x ORE_SURVEY_SIZE chunk columns around the map centre, tile by
 /// tile, counts every block in them, and records each ore and rich gravel block by 8-block cell
 /// with the shallowest depth below the worldgen surface seen in that cell. With
-/// ORE_SURVEY_MODE=dump it writes the deposit definitions, ore drops and metal units instead.
+/// ORE_SURVEY_MODE=dump it writes the deposit definitions, ore drops and metal units instead; with
+/// ORE_SURVEY_MODE=census it measures the area's deposits one by one (<see cref="Census"/>).
+/// ORE_SURVEY_FAST=1 drops the worldgen passes after ore (<see cref="WorldgenPasses"/>).
 /// Either way it stops the server when done. Output formats are in README.md.
 /// </summary>
 public class OreSurveySystem : ModSystem
@@ -28,6 +30,7 @@ public class OreSurveySystem : ModSystem
     readonly Dictionary<long, (int n, int minDepth)> cells = new();
     int size, tiles, next, originX, originZ;
     bool busy;
+    WorldgenPasses? passes;
     string outPath = "", logPath = "";
     readonly Stopwatch clock = new();
 
@@ -43,6 +46,13 @@ public class OreSurveySystem : ModSystem
             throw new ArgumentException($"ORE_SURVEY_SIZE must be a positive multiple of {Tile}, got {size}");
         tiles = size / Tile;
         File.WriteAllText(logPath, "");
+        string mode = Environment.GetEnvironmentVariable("ORE_SURVEY_MODE") ?? "scan";
+        NoAutosave();
+        // Before the world loads: every mod has registered its worldgen handlers by then.
+        api.Event.ServerRunPhase(EnumServerRunPhase.GameReady, () =>
+            passes = WorldgenPasses.Apply(api, Environment.GetEnvironmentVariable("ORE_SURVEY_FAST") == "1",
+                Environment.GetEnvironmentVariable("ORE_SURVEY_PROFILE") == "1", Log,
+                Environment.GetEnvironmentVariable("ORE_SURVEY_SKIP")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)));
         api.Event.ServerRunPhase(EnumServerRunPhase.RunGame, () =>
         {
             counts = new long[api.World.Blocks.Count];
@@ -51,10 +61,31 @@ public class OreSurveySystem : ModSystem
             originX = api.WorldManager.MapSizeX / 32 / 2 - size / 2;
             originZ = api.WorldManager.MapSizeZ / 32 / 2 - size / 2;
             Log($"start seed={api.World.Seed} sealevel={api.World.SeaLevel} mapY={api.WorldManager.MapSizeY} origin chunk=({originX},{originZ}) size={size}x{size} chunks");
-            if (Environment.GetEnvironmentVariable("ORE_SURVEY_MODE") == "dump") { Dump(); return; }
+            if (mode == "dump") { Dump(); return; }
+            if (mode == "census")
+            {
+                var only = Environment.GetEnvironmentVariable("ORE_CENSUS_METALS") is { Length: > 0 } m
+                    ? m.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) : null;
+                int parallel = int.Parse(Environment.GetEnvironmentVariable("ORE_CENSUS_PARALLEL") ?? "4");
+                new Census(api, outPath, size, parallel, Log, _ => Stop()).Start(only);
+                return;
+            }
             clock.Start();
             api.Event.RegisterGameTickListener(_ => Step(), 20);
         });
+    }
+
+    // The world is thrown away after the run. Under a census's load the autosave cannot pause the
+    // server, retries every few seconds, and once crashed the chunk database thread ("Execute
+    // requires the command to have a transaction object"); so it is pushed out of reach
+    // (MagicNum.ServerAutoSave, seconds, from servermagicnumbers.json).
+    void NoAutosave()
+    {
+        var field = AppDomain.CurrentDomain.GetAssemblies()
+            .Select(a => a.GetType("Vintagestory.Server.MagicNum", false))
+            .FirstOrDefault(t => t != null)?.GetField("ServerAutoSave");
+        if (field == null) { sapi.Logger.Warning("[oresurvey] MagicNum.ServerAutoSave not found: autosave stays on"); return; }
+        field.SetValue(null, Convert.ChangeType(1_000_000_000, field.FieldType));
     }
 
     // Interesting Ore Gen's saltpeter is not a BlockOre and has no ore- prefix; loose ores are
@@ -178,6 +209,12 @@ public class OreSurveySystem : ModSystem
             foreach (var (key, c) in cells)
                 w.WriteLine($"{sapi.World.Blocks[(int)(key >> 40)].Code},{(key >> 26) & 0x3fff},{(key >> 12) & 0x3fff},{key & 0xfff},{c.n},{c.minDepth}");
         Log($"done in {clock.Elapsed.TotalSeconds:F0}s");
+        Stop();
+    }
+
+    void Stop()
+    {
+        foreach (var line in passes?.Report() ?? []) Log(line);
         sapi.Server.ShutDown();
     }
 }

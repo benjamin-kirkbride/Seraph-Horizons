@@ -10,8 +10,11 @@ It is a local tool: the mod is not in `pack/pack.toml`, no release includes it
 
 ```
 OreSurvey.cs           the server mod: generates an area, records ore cells, stops the server
+Census.cs              its census mode: each deposit measured by a flood over chunk columns
+WorldgenPasses.cs      lists, times (--profile) or drops (--fast) the worldgen handlers
+Core/                  game-independent logic (the flood, ore names), tested by tests/
 run.sh                 runs the mod for several seeds in parallel, pack or vanilla
-ore_survey.py          summary / compare / check (stdlib Python)
+ore_survey.py          summary / compare / check / census (stdlib Python)
 targets.json           the epic's targets, for check
 ```
 
@@ -57,11 +60,91 @@ The mod reads its settings from the environment, which `run.sh` sets:
 |---|---|
 | `ORE_SURVEY_OUT` | output file (default `orescan.json` in the server's working directory) |
 | `ORE_SURVEY_SIZE` | chunk columns per side, centred on the map centre (default 64) |
-| `ORE_SURVEY_MODE` | `dump` for the dump; anything else scans |
+| `ORE_SURVEY_MODE` | `dump` for the dump, `census` for a census (below); anything else scans |
+| `ORE_SURVEY_FAST`, `ORE_SURVEY_PROFILE` | `1`: `--fast`, `--profile` |
+| `ORE_CENSUS_METALS`, `ORE_CENSUS_PARALLEL` | `--metals`, `--floods` |
 
 It loads the area in tiles of 8 x 8 chunk columns, counts every block of every chunk, and
 unloads each tile before asking for the next, so memory stays flat. When done it stops the
 server.
+
+## Census
+
+A full scan generates every column of its window: a 320 x 320 run takes about 2.5 hours and
+sees two to five deposits per metal. The census measures deposits one at a time instead, so it
+needs only the columns around each, about a tenth of a second of worldgen per deposit column:
+
+```sh
+VINTAGE_STORY=$HOME/Games/vintagestory tools/ore-survey/run.sh --dump --name comb   # once per mod set
+VINTAGE_STORY=$HOME/Games/vintagestory tools/ore-survey/run.sh --census --fast --name comb \
+  --size 640 -j 4 --port 42600 --mod build/seraphhorizons_<version>.zip 101 202 303 404
+python3 tools/ore-survey/ore_survey.py census build/ore-survey/comb-s{101,202,303,404} \
+  --dump build/ore-survey/comb-dump/orescan.json --json build/ore-survey/comb-census.json --check
+```
+
+What it measures, in the area (`--size` chunk columns square at the map centre, 320 by default):
+
+- **Ore cells.** Every cell of every sized metal (`config/ore-sizes.json` with `smallIngots`,
+  managed by the cell rule) that the area touches, or those of `--metals`. The pack's
+  `OreCellPlacement` is read by reflection (its spots and cell book), and the cell is followed as
+  `DepositService.Verify` follows it: the active spot's column is generated, which places the vein
+  or moves the cell to its next spot, until a vein is placed or no spot is left (`none`).
+  Fallback spots generated before their turn are skipped by the cell rule, so which fallback a
+  cell ends on depends on what was generated first, here as in a played world.
+- **District veins.** Interesting Ore Gen's districts are built from the seed before anything
+  generates (its own `TrySpawnDistrictsNear`, for every 7 km tile the area touches, so the pack's
+  `DistrictVeinSizes` has cut them): every ore shoot and ladder vein still holding a sized metal
+  whose box centre lies in the area is one record, per metal, with the district's code and host
+  rock, the zone's kind, ores and band of heights. Horsetail lenses are left out. The record's
+  `rocks` are the commonest rocks in the band over the 5 x 5 columns around its centre: a mafic
+  district's shoot is ore across its whole ellipse only where that is basalt.
+- **The flood** (`Core/ColumnFlood.cs`): from the deposit's anchor column, every column within 2
+  of a column holding the deposit's metal (any of its ores, prospect veins included) is
+  generated and read, until an empty margin of 2 columns surrounds all of it; never further than
+  16 columns from the anchor (`capped` when it wanted to). Only that metal's ore is recorded.
+- **Columns read early.** A column asked for drags its neighbours through the earlier passes, and
+  those within three or so pass Vegetation. By then a column's ore is final (its neighbours have
+  finished TerrainFeatures, where all ore is placed), so the census reads every column at its
+  Vegetation pass (its own handler there) and asks only for columns not seen yet. Each column
+  asked for is read again once complete and compared (`earlyChecked`, `earlyMismatch` in
+  census.json; `ORE_CENSUS_EARLY=0` turns this off).
+
+`ore_survey.py census` joins records of one metal that share a cell into one deposit (a vein
+reached from two anchors, or a cell's vein run into a district's), counts its ingots from its
+fragments of 100 blocks or more as the summary does (smaller ones are pockets), and reports per
+metal and per source (cells, districts, both): deposits of 50 ingots or more, `small` ones,
+cells with `none`, ingots p10 / median / p90 / max, the surface share, the grade shares, the
+share capped and the median columns per deposit, then each district vein with its rocks.
+`--check` reads p10 / median / p90 against `targets.json` as `check` does (`--source` picks the
+deposits); a census measures sizes, not spacing, so it has no density rows.
+
+Throughput: worldgen runs on one thread per server, so servers in parallel (`-j`) are the
+lever; each server floods four deposits at once (`--floods`). Most of a deposit's cost is the
+neighbours each complete column needs (out to five columns for Terrain).
+
+### Fast
+
+`--fast` (for a scan too) takes the handlers of the passes after TerrainFeatures out of the
+standard world type: Vegetation (light, rivulets, vegetation, story structures),
+NeighbourSunLightFlood (light, snow) and PreDone (creatures, tree hollows). Ore is placed in
+Terrain and TerrainFeatures (GenDeposits, IOG's districts, the pack's placer fields, after
+structures, ponds and dungeons, which stay), and the passes still run, empty, so columns complete
+as before. A census of seed 101 gave the same ore cell for cell with and without it, about a third
+faster. `--profile` logs each handler's time at the end; `ORE_SURVEY_SKIP` takes out handlers by
+name (an experiment, e.g. `GenStructures`).
+
+### Census output
+
+`census.json`: `seed`, `area`, `areaKm2`, `seconds`, column counts, and `deposits`, one record
+per cell or district vein: `id`, `kind` (`cell` or `district`), `metal`, `status` (`flooded`,
+`none`: the cell's spots all failed, `unresolved`), `anchorX`/`anchorZ` (blocks), for a cell
+`cellX`, `cellZ`, `spot`, for a district vein `district` (`code`, `host`, `centreX`, `centreZ`,
+`zone`, `zoneKind`, `ores`, `box`), `bandY1`/`bandY2` and `rocks`; then `columns` (flooded),
+`oreColumns`, `capped`, `bbox` (blocks, from 8-block cells), `blocks`, `generated` (columns it
+asked for) and `seconds`. `census.json.cells.csv`: the record's id, then the scan's six columns,
+with cell coordinates absolute (block / 8). Every server stops autosaving (the world is thrown
+away): under a census's load the autosave could not pause the server and once crashed its chunk
+database thread.
 
 ## Before and after a worldgen change
 
