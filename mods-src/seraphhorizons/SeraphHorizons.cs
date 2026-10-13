@@ -62,6 +62,8 @@ public class SeraphHorizonsSystem : ModSystem
     private ClearSkyClient? _clearSkyClient;
     // Client side only, its own id: the NaN motion diagnostics' patches (#405).
     private Harmony? _nanMotionHarmony;
+    // Client side only, its own id: the info HUD's rounding.
+    private Harmony? _wailaRoundingHarmony;
 
     /// <summary>Whether Logging Expanded's trunk has its debarked state on this side (the
     /// <c>Rosser</c> switch on and the patch bound); decided in <see cref="Start"/>. The rosser
@@ -217,6 +219,8 @@ public class SeraphHorizonsSystem : ModSystem
             api.Event.LevelFinalize += () => PatchNanMotion(api);
         else
             api.Logger.Notification("[seraphhorizons] NaN motion diagnostics are switched off; a NaN motion crash (#405) leaves no report");
+        if (Config(api).WailaRounding)
+            WailaRounding.Patch(_wailaRoundingHarmony = new Harmony(WailaRounding.HarmonyId), api.Logger);
         if (Config(api).CarryOnIconsPerWorld && CarryOnIcons.Find(api) is { } iconFields)
         {
             _carryOnIconFields = iconFields;
@@ -325,6 +329,12 @@ public class SeraphHorizonsSystem : ModSystem
             _nanMotionHarmony.UnpatchAll(NanMotionDiagnostics.HarmonyId);
             _nanMotionHarmony = null;
         }
+        if (_wailaRoundingHarmony != null)
+        {
+            _wailaRoundingHarmony.UnpatchAll(WailaRounding.HarmonyId);
+            _wailaRoundingHarmony = null;
+            WailaRounding.Unbind();
+        }
         _barrelRackHarmony?.UnpatchAll(BarrelRackKegs.HarmonyId);
         _barrelRackHarmony = null;
         _heatingRackHarmony?.UnpatchAll(HeatingRackPosition.HarmonyId);
@@ -421,6 +431,11 @@ public class SeraphHorizonsConfig
     /// <c>Logs/seraphhorizons-nanmotion-*.txt</c> (client side; the crash itself is left as it is; off
     /// means no tracing and no report).</summary>
     public bool NanMotionDiagnostics { get; set; } = true;
+
+    /// <summary>The block and entity info HUD (WAILA): the numbers in its text are rounded, health to
+    /// whole numbers and every other number to one decimal (client side; off means they show as the
+    /// game and the mods format them).</summary>
+    public bool WailaRounding { get; set; } = true;
 
     /// <summary>Hydrate or Diedrate: foods it gives no hydration (vanilla, Biodiversity: Crops,
     /// Expanded Foods and Primitive Survival ones) get a value modelled on a similar food's
