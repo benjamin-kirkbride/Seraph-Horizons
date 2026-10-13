@@ -93,9 +93,10 @@ describe("the jaw breaker's rig against its rig-reference.json", () => {
     expect(anchors.find((a) => a.key === "output")).toMatchObject({ kind: "point", pos: [0.5, 0.5, 0] });
   });
 
-  it("collides with its frame in all twelve cells, with no lids", () => {
+  it("collides with its frame in all fifteen cells (the box and the flywheel's three behind it), with no lids", () => {
     const cells = rig.cells as RigCell[];
-    expect(cells.length).toBe(12);
+    expect(cells.length).toBe(15);
+    expect(cells.filter((c) => c.pos[2] === 2).map((c) => c.pos)).toEqual([[0, 0, 2], [0, 1, 2], [0, 2, 2]]);
     for (const c of cells) {
       expect(c.lid).toBeUndefined();
       expect(cellBoxes(c).length).toBeGreaterThan(0);

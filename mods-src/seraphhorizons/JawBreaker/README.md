@@ -19,17 +19,23 @@ the linkage is the shared `swing` and `slide` drivers, fitted harmonics of the a
 **Where it comes from.** The breaker is the second level of the stamp mill v2 (`origin/729-stampmill-model-v2`, its
 `StampMill/tools/make_shape.py`) moved out into a machine of its own, as #914 asks: the Blake linkage built in its own
 frame (`build_jaw_frame_local`, `build_eshaft_local`, `build_linkage_local`, `build_jaw`), its exact solve (`jaw_at`,
-`linkage`, `solve3`) and its fit to harmonic drivers (`fit`, `harmonics`), the flywheels, the buffers'
+`linkage`, `solve3`) and its fit to harmonic drivers (`fit`, `harmonics`), the flywheels (now one, 2 blocks across), the buffers'
 shares (now the springs'), `build_grizzly` (`griz_top`, `griz_under`, `throat_under`), `build_chute` with `VANILLA_CHUTE`, and the
 validator's breaker checks. What changed is listed under "From the stamp mill v2" below.
 
 ## The machine
 
-**Footprint.** 2 wide × 3 high × 2 deep, 12 cells (x west to east, y up, z away from the player; the controller at
-the front). Each dimension is what has to fit:
+**Footprint.** A 2 wide × 3 high × 2 deep box (x west to east, y up, z away from the player; the controller at the
+front), and three more cells behind it in the west column, `[0,0,2]`, `[0,1,2]`, `[0,2,2]`, for the flywheel's back
+third: 15 cells. Each dimension is what has to fit:
 
-- **2 wide:** the cheeks with a flywheel outside each (the breaker is 22 voxels across its flywheels' hubs), and the
-  drive end: the eccentric shaft runs on east to the power face through an outboard pedestal.
+- **2 wide:** the cheeks with the flywheel outside the west one (x 0.4..18.8), and the drive end: the eccentric shaft
+  runs on east to the power face through an outboard pedestal.
+- **The flywheel's cells:** one flywheel 2 blocks across on the eccentric shaft, whose axis is the power cell's centre
+  line (y 24, z 24). Upright it fits (y 8..40, over the ground and under the infeed), but it reaches z 8..40, half a
+  block behind the box. The shaft cannot move without moving the axle (or adding a gear pair), and a pit gains
+  nothing (the wheel already clears the ground by 8), so the footprint grows by the three cells the wheel's rim sweeps
+  through, and only those: the east column's back stays free.
 - **3 high:** the output chute low on the front face and the hopper over it (y 4..14.5), the breaker on its stand's
   cross sills (from y 14.5, the eccentric shaft at y 24 on the power cell's centre line, the jaws to y 31), the
   grizzly falling 40° to the mouth (its bars' top from y 45.1 at its head to 36 at its foot), and the infeed's chute
@@ -42,7 +48,7 @@ corner is the controller's, so the shipped files are the build frame as it is.
 
 **Both chutes in one column.** With no middle column, the infeed and the output are both in the **west column**
 (x = 0), in its front row: the infeed on the top face of `[0,2,0]`, the output on the north face of `[0,0,0]`. A
-vanilla chute section is centred in its cell's face (4..12), so the breaker's chamber (x 5..17) is set as far west as a
+vanilla chute section is centred in its cell's face (4..12), so the breaker's chamber (x 5..17) is set as far west as the
 flywheel outside the west cheek allows: the infeed's bore (x 5..11) lands wholly between the grizzly's curbs (x 5..17),
 and the hopper takes the discharge's east half west into the output's trough. The east column carries the drive end.
 
@@ -63,7 +69,7 @@ wall with the back toggle's seat), the outboard pedestal, the hopper and both ch
 | `requires` | Parts | Draws |
 |---|---|---|
 | `jaws` | `swingjaw`, `fixedjaw` | The fixed jaw's steel plate, the hinge pin, and the swinging jaw hung on it |
-| `eccentric` | `eshaft`, `pitman` | The eccentric shaft with its eccentric, both flywheels, the coupling and the axle's stub; the pitman hung on the eccentric |
+| `eccentric` | `eshaft`, `pitman` | The eccentric shaft with its eccentric, the flywheel, the collar, the coupling and the axle's stub; the pitman hung on the eccentric |
 | `toggles` | `backtoggle`, `fronttoggle`, `rods`, `spring1`..`spring4` | The two toggles, the two tension rods with their nuts and pins, and a steel coil spring on each rod |
 | `grizzly` | `grizzly` | The grizzly: five bars, two side curbs, the head block, the cross bar on its two brackets, the throat plate and its lip |
 
@@ -81,7 +87,7 @@ writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/jawbreaker.json` | The whole machine, every stage's parts (197 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/jawbreaker.json` | The whole machine, every stage's parts (188 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/jawbreaker_frame.json` | The static frame only (44 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/jawbreaker-rig.json` | The cells, the anchors, `breaker`, `stages` and the part rig (13 parts). |
 | `tests/JawBreaker/rig-reference.json` | Every part's matrix at 25 axle angles, from the reference maths. |
@@ -108,9 +114,15 @@ between the walls, where the product falls.
 
 **The drive.** The vanilla axle meets the eccentric shaft's oak stub (the axle's own cross profile) at the east face;
 an iron coupling joins the stub to the steel shaft, which runs west through an iron pillow block on an oak post
-(the outboard pedestal, x 25..28.2), the east flywheel, both cheeks' bearings and the west flywheel. The flywheels
-(15 across, six arms) have their hubs against the bearings' bosses, which locates the shaft endwise. On the shaft
-between the cheeks is the eccentric, its centre 0.8 off the shaft's.
+(the outboard pedestal, x 25..28.2), a steel collar against the east bearing's boss, both cheeks' bearings, and the
+**flywheel** outside the west cheek, the side away from the axle: a period Blake's, 2 blocks across, with a heavy cast
+rim (2.8 deep, 2.4 wide, 24 segments), six straight arms and an octagonal hub keyed to the shaft by a gib-headed key
+whose head stands out of the hub's face. The hub against the west boss and the collar against the east one hold the
+shaft endwise. On the shaft between the cheeks is the eccentric, its centre 0.8 off the shaft's.
+
+The stand's west side is cut back to clear the wheel: the cross sills end at x 3, inside it; the back west post stands
+at x 3..6.5, inside it; and the west side sill runs only from the front post to the front cross sill, where the rim
+passes over it (its lowest there y 14.2).
 
 **The linkage** (Blake's): the pitman hangs from the eccentric by a strap, its foot (y 16.2) between the inner ends of
 two toggles: the back toggle (5 long) seated on the back wall, the front toggle (7.5) seated on the swinging jaw's
@@ -150,7 +162,7 @@ Every moving part (θ the axle's angle):
 
 | Part (rig id) [requires] | Driven by | Drives | Drivers |
 |---|---|---|---|
-| Eccentric shaft, eccentric, flywheels, coupling, axle stub (`eshaft`) [eccentric] | The vanilla axle at the power face | The pitman | `rotate` x about (1.5, 1.5), ratio 1 |
+| Eccentric shaft, eccentric, flywheel (rim, arms, hub, key), collar, coupling, axle stub (`eshaft`) [eccentric] | The vanilla axle at the power face | The pitman | `rotate` x about (1.5, 1.5), ratio 1 |
 | Pitman (`pitman`) [eccentric] | The eccentric | The toggles' inner ends | `swing` x ×4 about its mean foot, `slide` y ×4, `slide` z ×4 |
 | Back toggle (`backtoggle`) [toggles] | The pitman's foot | — (its seat on the back wall) | `swing` x ×4 about its seat |
 | Front toggle (`fronttoggle`) [toggles] | The pitman's foot | The swinging jaw | `swing` x ×4 about its mean seat, `slide` y ×4, `slide` z ×4 |
@@ -178,7 +190,8 @@ A full run takes about 9 s and is deterministic (two runs into two folders are b
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty part; the
   requires are the frame's none and the four stages; every driver reads θ alone (no travel: either way round).
 - **Nothing floats:** the frame is one piece from the ground, and so is each build state at rest.
-- **Containment:** nothing leaves the 2 × 3 × 2 box over a turn.
+- **Containment:** nothing reaches into a cell that is not the machine's (the box and the flywheel's three cells) over a
+  turn.
 - **Anchors:** the axle's stub reaches the power face on the power cell's centre line; the infeed and output anchors
   on their cells' faces, at their sections' mouths; both chutes in one column.
 - **Paths:** the infeed's stream lands between the grizzly's curbs, over its bars; the bars fall at least 40° and
@@ -197,13 +210,17 @@ A full run takes about 9 s and is deterministic (two runs into two folders are b
 - **Springs:** through a turn, each spring's end turns stay on its nut and its abutment lug (within 0.15 along the
   rod; 0.08 in practice) and its turns never close up (at least 0.1 apart; 0.27 in practice).
 - **Supports:** the eccentric shaft in three bearings (the cheeks' posts and bosses, the pillow block), the hinge pin in
-  two; the flywheels' hubs on the bosses' outer faces.
+  two; the flywheel's hub and the collar on the bosses' outer faces.
+- **Flywheel:** one, 2 blocks across (30..34 voxels), outside the west cheek, the side away from the axle; its rim's
+  whole sweep inside the machine's cells and 8 over the ground; its arms and key there. Its clearances to the frame
+  (the cheek's boss and the hinge pin's end, which its arms pass; the sills and the back post) are the clearance and
+  swept-path checks'.
 - **Clearances:** at rest in every build state and through a turn every 15°, no two parts touch except the intended
   contacts listed in `ALLOWED`.
 - **Swept paths** (full runs): the moving parts through a turn every 2°.
 - **No z-fighting** (full runs): no coplanar overlapping faces at nine poses, every build state shown alone. 33 faces
   pressed against their own part are removed; the rest are inset (`fix_coplanar`).
-- **Files:** every texture declared; twelve cells, none hollow, no lids; the shipped model is the checked one.
+- **Files:** every texture declared; fifteen cells, none hollow, no lids; the shipped model is the checked one.
 
 The cells' boxes are rebuilt from the shipped, rounded shape posed at rest by the shipped rig, everything fitted, as
 the other machines' are.
@@ -216,7 +233,7 @@ the rig maths.
 - **Inputs.** θ alone, the axle's angle (radians). The eccentric shaft rotates about +x by θ (ratio 1, about the power
   cell's centre line); every other moving part is a sum of `swing` and `slide` harmonics of θ. Nothing reads ψ, the
   axle's travel: the Blake linkage is symmetric, so running backwards it passes the same poses in reverse.
-- **Keys.** `cells` (twelve, each with its boxes; no `lid`), `powerCell`, `powerFace`, `infeedCell`, `infeedFace`,
+- **Keys.** `cells` (fifteen, each with its boxes; no `lid`), `powerCell`, `powerFace`, `infeedCell`, `infeedFace`,
   `infeed` (`pos`), `outputCell`, `outputFace`, `output` (`pos`), `breaker` (`turnsPerBite`: axle turns a turn of
   the eccentric shaft, 1), `stages` (the requires values in fitting order) and `parts`. `requires` values: `jaws`,
   `eccentric`, `toggles`, `grizzly`, or null.
@@ -246,18 +263,20 @@ The model has been reviewed in projections rendered from the written files. No o
    opens or overlaps by up to a few hundredths of a voxel.
 2. **The rods' pins turn with the rods.** The pin through the jaw's lug follows the rods' slides, not the jaw's swing;
    the lug and the pin stay together within 3.5e-5, but the pin does not rotate in it.
-3. **Round parts are polygons:** the flywheels' rims have 14 sides, the shafts and hubs 8, the pins and rods 6.
-4. **Ore is not drawn.** Nothing shows rock on the grizzly, in the jaws or in the hopper.
-5. **The chute sections' UV turn** follows machinegen's `rotate` (right-handed); their walls' positions are checked
+3. **Round parts are polygons:** the flywheel's rim has 24 sides, the shafts and hubs 8, the pins and rods 6.
+4. **The flywheel's cells hold its rest pose's boxes.** Its rim is a full ring, so they cover its sweep but for the
+   arms, which turn.
+5. **Ore is not drawn.** Nothing shows rock on the grizzly, in the jaws or in the hopper.
+6. **The chute sections' UV turn** follows machinegen's `rotate` (right-handed); their walls' positions are checked
    against a vanilla chute, but which way their copper's texture runs on each face has not been compared with the
    game's tessellation of a turned chute.
-6. **Collision is everything fitted.** The cells' boxes are the finished machine's; a frame without its stages has the
+7. **Collision is everything fitted.** The cells' boxes are the finished machine's; a frame without its stages has the
    same boxes.
 
 ## Open for the owner
 
 1. **Which column the chutes are in.** Both are in the west column, front row (rule: no middle column). The chamber is
-   set as far west as the west flywheel allows (x 5..17), so the infeed's bore lands inside the grizzly's curbs and the
+   set as far west as the flywheel allows (x 5..17), so the infeed's bore lands inside the grizzly's curbs and the
    hopper moves only the discharge's east half; the east column carries the drive end. The other way (a centred
    breaker) needs the infeed's stream turned 8 voxels sideways at the grizzly's head.
 2. **Direct drive or a gear pair.** The axle is coupled straight onto the eccentric shaft (#914 allows either), so the
@@ -265,22 +284,27 @@ The model has been reviewed in projections rendered from the written files. No o
    short (7.8). A gear pair would let the eccentric sit at the frame's top, as a Blake's does, and could step the speed
    up: a period Blake ran at about 250 turns a minute; this one bites once an axle turn (about 29 a minute at 0.6).
 3. **The power side** is east (the outboard pedestal and coupling in the east column); west would put the axle on the
-   west face of `[0,1,1]` right outside the west flywheel, with no pedestal.
-4. **Build stages and items.** Proposed order: the frame (placed: the stand, the cast frame, the hopper, the chute
-   sections, the pedestal), then `jaws`, `eccentric` (with the flywheels and pitman), `toggles` (with the rods and
+   west face of `[0,1,1]` right outside the flywheel's hub, with no pedestal, and the wheel would move east.
+4. **The flywheel's three cells.** The wheel (2 blocks across, on the axle's centre line at z 24) reaches half a block
+   behind the 2-deep box, so the footprint adds `[0,0,2]`, `[0,1,2]`, `[0,2,2]` (15 cells, an L in plan) rather than a
+   third full row (18 cells, the east three empty). The other ways: a smaller wheel (at most 16 across fits the box), or
+   a gear pair from the axle to a shaft further forward (which the breaker's frame in front of the shaft does not allow
+   without moving the grizzly over it).
+5. **Build stages and items.** Proposed order: the frame (placed: the stand, the cast frame, the hopper, the chute
+   sections, the pedestal), then `jaws`, `eccentric` (with the flywheel and pitman), `toggles` (with the rods and
    springs), `grizzly`. The frame's recipe and each stage's items are to be measured from the model and settled.
    Fitted out of order, the swinging jaw would rock with nothing driving it: gameplay should hold the shaft still
    until the machine is complete.
-5. **The infeed section is the frame's** (bolted to the top tie), so a chute can be laid to it before the grizzly is
+6. **The infeed section is the frame's** (bolted to the top tie), so a chute can be laid to it before the grizzly is
    fitted; it could be the grizzly's stage instead.
-6. **No lids.** A deck at the top of the columns would be an invisible floor over the grizzly and the drive end.
-7. **The rods' springs bear on lugs inside the frame** (on the cheeks' posts), not behind the back wall as in the v2
+7. **No lids.** A deck at the top of the columns would be an invisible floor over the grizzly and the drive end.
+8. **The rods' springs bear on lugs inside the frame** (on the cheeks' posts), not behind the back wall as in the v2
    model: that kept the breaker 1.45 blocks deep (#914 guessed about 1.3) with the grizzly in front of it.
-8. **The front posts run the full three blocks** to carry the grizzly's head beam and the infeed's tie; the outboard
+9. **The front posts run the full three blocks** to carry the grizzly's head beam and the infeed's tie; the outboard
    pedestal is a lone oak post.
-9. **Anchors are provisional** pending #711: the infeed and output as `<name>Cell`/`<name>Face` plus a `pos`, as the v2
+10. **Anchors are provisional** pending #711: the infeed and output as `<name>Cell`/`<name>Face` plus a `pos`, as the v2
    branches have them.
-10. **Rig extras** for gameplay: `breaker.turnsPerBite` (1) and `stages`; drop them if #912 does not read them.
+11. **Rig extras** for gameplay: `breaker.turnsPerBite` (1) and `stages`; drop them if #912 does not read them.
 
 ## From the stamp mill v2
 
@@ -289,15 +313,15 @@ What #914 asked to change, and how, against `origin/729-stampmill-model-v2`:
 - **Its own orientation and stand:** no longer mirrored and raised onto the battery's frame at z 26..64; mirrored once
   (z = 41.35 − u) so the fixed jaw faces the machine's front, on a stand of its own.
 - **The grizzly's head on its own beam**, between two tall front posts, in place of the battery's back tie.
-- **The axle onto the eccentric shaft directly**, in place of the belt from the line shaft; the east flywheel is no
-  longer a pulley. With no rectifier in front of it, the rig reads θ, not ψ.
+- **The axle onto the eccentric shaft directly**, in place of the belt from the line shaft; no flywheel is a pulley.
+- **One flywheel, 2 blocks across** (the owner's review), on the side away from the axle, in place of the v2's two
+  (8 in radius, one outside each cheek). With no rectifier in front of it, the rig reads θ, not ψ.
 - **The discharge into a hopper and the output chute**, in place of the battery's feed box; no shared gear case.
 - **Steel springs for the india-rubber buffers:** nothing in the pack makes rubber; the pack's own mod makes
   `seraphhorizons:spring-steel` (wound at the mandrel station), and later Blake breakers had springs there. The
   lugs moved forward a voxel (z 23.2..24.2) to give the coil 3.1 voxels.
 - **A compact Blake:** toggles 7.5 and 5 (were 10 and 10), the eccentric's throw 0.8 (1.2), the jaws 2.5 apart at the
-  bottom and 7 at the top (3 and 9.5), the cheeks 1.8 thick (3), the flywheels 7.5 in radius (8), so the frame fits
-  2 deep with the grizzly in front of it.
+  bottom and 7 at the top (3 and 9.5), the cheeks 1.8 thick (3), so the frame fits 2 deep with the grizzly in front of it.
 - **Kept:** the exact solve and the four-harmonic fit, the slab, seats, lugs and web of the swinging jaw, the strap,
   the buffers' shares (for the springs' turns), the grizzly's bars, cross bar, brackets, throat plate and lip, `VANILLA_CHUTE` and its check
   against the game's file, and the validator's breaker checks (pins within 1e-3 through a turn, toggles never

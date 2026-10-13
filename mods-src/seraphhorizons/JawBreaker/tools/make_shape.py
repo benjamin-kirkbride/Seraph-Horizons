@@ -13,7 +13,7 @@ eccentric shaft: a Blake works either way round, so there is no rectifier.
                 front wall, the back wall), the outboard pedestal at the drive end, the hopper, and the two chute
                 sections (the infeed on the top face, the output on the front face)
     jaws        the fixed jaw's plate, the hinge pin and the swinging jaw hung on it
-    eccentric   the eccentric shaft with its eccentric, the two flywheels, the coupling and the axle's stub; the
+    eccentric   the eccentric shaft with its eccentric, the flywheel, the coupling and the axle's stub; the
                 pitman hung on the eccentric
     toggles     the back and front toggles, the two tension rods and their steel coil springs
     grizzly     the grizzly: five bars with side curbs from a head block on the head beam to a cross bar on the
@@ -73,8 +73,11 @@ B = 16.0
 TAU = 2 * math.pi
 
 # ---------------------------------------------------------------- the box, the cells, the anchors
-CELLS_X, CELLS_Y, CELLS_Z = 2, 3, 2          # 2 wide (cheeks, a flywheel outside each), 3 high (stand, jaws, grizzly
-                                             # and chute), 2 deep (the breaker's frame and the grizzly's run)
+CELLS_X, CELLS_Y, CELLS_Z = 2, 3, 2          # the machine's box: 2 wide (the breaker, the flywheel outside the west cheek,
+                                             # the drive end), 3 high (stand, jaws, grizzly and chute), 2 deep (the breaker's
+                                             # frame and the grizzly's run)
+WHEEL_CELLS = tuple((0, y, 2) for y in range(3))   # and the flywheel's back third, behind the box in the west column: a
+                                             # wheel 2 blocks across on the shaft at z 24 reaches z 40
 ORIGIN_CELL = (0, 0, 0)                      # the controller: the west column's front bottom cell, the output chute's
 POWER_CELL, POWER_FACE = (1, 1, 1), "east"   # the vanilla axle, along x at (y 24, z 24), onto the eccentric shaft
 INFEED_CELL, INFEED_FACE = (0, 2, 0), "up"   # the infeed chute's mouth on the top face, over the grizzly's head
@@ -92,6 +95,8 @@ TEX = 64                                     # shape texture units; 4 per voxel,
 
 # ---------------------------------------------------------------- the stand (oak)
 POST_X = ((0.3, 3.8), (19.0, 22.5))          # the posts (x), west and east, outside the hopper and the chute
+POST_BW_X = (3.0, 6.5)                       # the back west post (x): inside the flywheel
+CROSS_X0 = 3.0                               # the cross sills' west ends: inside the flywheel
 POST_FZ = (0.4, 3.9)                         # the front posts (z): tall, to the top tie, carrying the grizzly's head
 POST_BZ = (28.1, 31.6)                       # the back posts (z): short, under the back cross sill
 SIDE_Y = (9.5, 12.0)                         # the side sills (y), along z between the posts
@@ -139,8 +144,14 @@ SPRING_BORE = 0.75                           # its bore's half width round the r
 SHAFT_R = 1.3                                # the eccentric shaft
 ECC_R = 2.4                                  # the eccentric, a disc ECC off the shaft's axis
 STRAP_R = (2.45, 3.3)                        # the pitman's strap round the eccentric
-FLY_R, FLY_RIM, FLY_HUB_R = 7.5, 1.8, 2.2    # the two flywheels: radius, rim, hub
-FLY_W_X, FLY_E_X = (0.3, 2.0), (20.0, 21.7)  # outside each cheek, their hubs against the bearing bosses
+# one big flywheel, 2 blocks across, outside the west cheek (the side away from the axle): a heavy cast rim, six arms
+# and a hub keyed to the shaft, its hub against the west bearing's boss
+FLY_R, FLY_RIM, FLY_RIM_N = 16.0, 2.8, 24    # its rim's outer radius and depth, and the rim's segments
+FLY_X = (0.4, 2.8)                           # its rim's width (x)
+FLY_HUB_R, FLY_HUB_X = 3.2, (0.4, 2.2)       # its hub, against the west boss
+FLY_ARMS, FLY_ARM_W, FLY_ARM_X = 6, 1.8, (0.6, 2.1)   # its arms: how many, how wide, how thick (x: clear of the
+                                             # west boss and the hinge pin's end, which they pass)
+COLLAR_X, COLLAR_R = (CHEEK_E[1] + EBEAR_OUT, CHEEK_E[1] + EBEAR_OUT + 0.6), 2.0   # a collar against the east boss: with the hub, it holds the shaft endwise
 PED_X = (25.0, 28.2)                         # the outboard pedestal at the drive end: an oak post, an iron pillow block
 COUPLING_X, COUPLING_R = (28.6, 29.8), 2.4   # the coupling on the shaft's end
 STUB_X = (29.8, 32.0)                        # the vanilla axle's cross profile, oak, out to the power face
@@ -540,10 +551,12 @@ def build_stand():
     top = CELLS_Y * B
     for tag, (x0, x1) in zip("we", POST_X):
         out.append(box([x0, 0.0, POST_FZ[0]], [x1, top, POST_FZ[1]], f"fr_post_{tag}f", f, "oak"))
-        out.append(box([x0, 0.0, POST_BZ[0]], [x1, CROSS_Y[0], POST_BZ[1]], f"fr_post_{tag}b", f, "oak"))
-        sx1 = SIDE_W_X1 if tag == "w" else x1
-        out.append(box([x0, SIDE_Y[0], POST_FZ[1]], [sx1, SIDE_Y[1], POST_BZ[0]], f"fr_sill_{tag}", f, "oak"))
-    x0, x1 = POST_X[0][0], POST_X[1][1]
+        bx = POST_BW_X if tag == "w" else (x0, x1)
+        out.append(box([bx[0], 0.0, POST_BZ[0]], [bx[1], CROSS_Y[0], POST_BZ[1]], f"fr_post_{tag}b", f, "oak"))
+        # the west side sill only as far back as the front cross sill: behind it the flywheel turns
+        sx1, sz1 = (SIDE_W_X1, FIXED_Z) if tag == "w" else (x1, POST_BZ[0])
+        out.append(box([x0, SIDE_Y[0], POST_FZ[1]], [sx1, SIDE_Y[1], sz1], f"fr_sill_{tag}", f, "oak"))
+    x0, x1 = CROSS_X0, POST_X[1][1]
     out.append(box([x0, CROSS_Y[0], JAW_FRONT_Z], [x1, CROSS_Y[1], FIXED_Z], "fr_cross_f", f, "oak"))
     out.append(box([x0, CROSS_Y[0], POST_BZ[0]], [x1, CROSS_Y[1], POST_BZ[1]], "fr_cross_b", f, "oak"))
     xi0, xi1 = POST_X[0][1], POST_X[1][0]
@@ -593,16 +606,31 @@ def build_jaws_local():
     return out
 
 
-def build_eshaft_local():
-    """The eccentric shaft: its eccentric under the pitman's strap (drawn up), a flywheel outside each cheek, its hub
-    against the bearing's boss; at its east end the coupling and the vanilla axle's cross stub out to the power
-    face."""
+def build_flywheel():
+    """The flywheel, a period Blake's in our own boxes: a heavy cast rim of FLY_RIM_N segments (alternate ones a hair
+    narrower, so no two ends share a plane), six arms from the hub to the rim, an octagonal hub, and a gib-headed key
+    in the shaft's keyway, its head standing out of the hub's outer face."""
     p = "eshaft"
     c = yz(E_C)
-    out = disc("x", c, FLY_W_X[0] - 0.15, COUPLING_X[1] - 0.1, SHAFT_R, "eshaft_shaft", p, "steel")
+    out = annulus("x", c, *FLY_X, FLY_R - FLY_RIM, FLY_R, FLY_RIM_N, "eshaft_fly_rim", p, "iron")
+    out += [radial("x", c, *FLY_ARM_X, FLY_HUB_R - 0.3, FLY_R - FLY_RIM + 0.3, FLY_ARM_W, TAU * (i + 0.5) / FLY_ARMS, f"eshaft_fly_arm{i + 1}", p, "iron")
+            for i in range(FLY_ARMS)]
+    out += disc("x", c, *FLY_HUB_X, FLY_HUB_R, "eshaft_fly_hub", p, "iron")
+    y, u = E_C
+    out.append(box([0.12, y + SHAFT_R - 0.3, u - 0.45], [FLY_HUB_X[0] + 0.9, y + SHAFT_R + 0.6, u + 0.45], "eshaft_fly_key", p, "steel"))
+    return out
+
+
+def build_eshaft_local():
+    """The eccentric shaft: its eccentric under the pitman's strap (drawn up), the flywheel outside the west cheek
+    (build_flywheel), a collar against the east bearing's boss; at its east end the coupling and the vanilla axle's
+    cross stub out to the power face."""
+    p = "eshaft"
+    c = yz(E_C)
+    out = disc("x", c, 0.1, COUPLING_X[1] - 0.1, SHAFT_R, "eshaft_shaft", p, "steel")
     out += disc("x", yz((E_C[0] + ECC, E_C[1])), JAW_X[0] + 3.0, JAW_X[1] - 3.0, ECC_R, "eshaft_eccentric", p, "steel", k=4)
-    out += pulley("x", c, *FLY_W_X, FLY_R, "eshaft_flyw", p, "iron", "iron", FLY_HUB_R, rim_t=FLY_RIM, n=14, arms=6)
-    out += pulley("x", c, *FLY_E_X, FLY_R, "eshaft_flye", p, "iron", "iron", FLY_HUB_R, rim_t=FLY_RIM, n=14, arms=6)
+    out += build_flywheel()
+    out += disc("x", c, *COLLAR_X, COLLAR_R, "eshaft_collar", p, "steel")
     out += disc("x", c, *COUPLING_X, COUPLING_R, "eshaft_coupling", p, "iron")
     y, u = E_C
     out.append(box([STUB_X[0], y - 1.0, u - 2.0], [STUB_X[1], y + 1.0, u + 2.0], "eshaft_stuba", p, "oak"))
@@ -690,7 +718,7 @@ def build_jaw():
 
 def build_drive_end():
     """The outboard pedestal at the drive end: an oak post from the ground, an iron pillow block on it round the
-    eccentric shaft, between the east flywheel and the coupling."""
+    eccentric shaft, between the east cheek's collar and the coupling."""
     f = "frame"
     y, z = AXLE
     x0, x1 = PED_X
@@ -920,7 +948,8 @@ def at_ecc(phi):
 
 # ---------------------------------------------------------------- the rig file
 def footprint():
-    return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
+    """The machine's cells: its box, and the flywheel's three cells behind it in the west column."""
+    return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)] + list(WHEEL_CELLS)
 
 
 ANCHORS = ("infeed", "output")
@@ -1005,7 +1034,7 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
     span = [(min(c[k] for c in cells), max(c[k] for c in cells)) for k in range(3)]
     print(f"shipped: moved by {[v / B for v in d]} blocks, worst posed difference {worst:.2e} voxels; cells x {span[0]}, y {span[1]}, "
           f"z {span[2]}; power {ship['powerCell']} {ship['powerFace']}")
-    if worst > 1e-6 or (0, 0, 0) not in cells or len(cells) != CELLS_X * CELLS_Y * CELLS_Z:
+    if worst > 1e-6 or (0, 0, 0) not in cells or len(cells) != len(footprint()):
         print("FAIL: the shipped model is not the checked one moved")
         return False
     return True

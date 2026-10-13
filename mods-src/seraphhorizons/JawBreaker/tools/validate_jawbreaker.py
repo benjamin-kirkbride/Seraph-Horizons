@@ -14,7 +14,7 @@ from __future__ import annotations
 import math
 import re
 
-from machinegen.checks import box_overhang, coplanar_faces, euler_round_trip, frame_floating, obb_obb
+from machinegen.checks import box_overhang, cells_touched, coplanar_faces, euler_round_trip, frame_floating, obb_obb
 from machinegen.checks import supports as shaft_supports
 from machinegen.geometry import aabb_of
 from machinegen.rigmath import apply as _apply
@@ -90,9 +90,12 @@ def check_basic(v):
 
 
 def check_containment(v, poses):
+    """Nothing leaves the machine's cells (its box and the flywheel's cells behind it): no element reaches into a
+    cell that is not the machine's, at any of the poses."""
     m = v.m
-    box = (m.CELLS_X, m.CELLS_Y, m.CELLS_Z)
-    worst, where = -1e9, None
+    cells = set(m.footprint())
+    box = (m.CELLS_X, m.CELLS_Y, 3)
+    worst, where, outside = -1e9, None, []
     for pose in poses:
         for pid in v.by_part:
             for el in v.posed(pid, pose):
@@ -100,9 +103,13 @@ def check_containment(v, poses):
                 o = box_overhang(lo, hi, box)
                 if o > worst:
                     worst, where = o, (el.name, pose)
-    print(f"containment over {len(poses)} poses: worst overhang {worst:.3f} voxels ({where[0]})")
-    if worst > 0.01:
-        v.fail(f"{where[0]} leaves the machine box at {where[1]}")
+                stray = [c for c in cells_touched(lo, hi) if c not in cells]
+                if stray:
+                    outside.append((el.name, stray[0], pose))
+    print(f"containment over {len(poses)} poses, {len(cells)} cells: worst overhang of the cells' bounds {worst:.3f} voxels ({where[0]}); "
+          f"{len(outside)} elements reach into a cell that is not the machine's")
+    if worst > 0.01 or outside:
+        v.fail(f"leaves the machine's cells: {(where if worst > 0.01 else outside[0])}")
 
 
 def check_floating(v):
@@ -122,9 +129,10 @@ def check_floating(v):
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way round.
 # Everything else must clear by more than 0.02 voxels at every sampled pose of its build state.
 ALLOWED = [
-    # the eccentric shaft in its bearings (the cheeks' posts and bosses, the pillow block), the flywheels' hubs against
+    # the eccentric shaft in its bearings (the cheeks' posts and bosses, the pillow block), the flywheel's hub and the
+    # collar against the bosses,
     # the bosses, the pitman's strap round the eccentric
-    ("eshaft", r"_shaft|_flyw_hub|_flye_hub", "frame", r"fr_cheek_[we]_(post|ebear)|fr_ped_block"),
+    ("eshaft", r"_shaft|_fly_hub|_collar", "frame", r"fr_cheek_[we]_(post|ebear)|fr_ped_block"),
     ("eshaft", r"_eccentric|_shaft", "pitman", r"_strap"),
     # the linkage: the toggles in their seats and on the pitman's foot, the swinging jaw on its hinge pin, the rods
     # pinned to it and through the abutments to their nuts, the springs between the nuts and the abutments, each turn
@@ -229,8 +237,8 @@ TEX_RULES = [
     (r"^fr_chute(in|out)_", "chute"),
     (r"^(fr_(post|sill|cross|beam|tie|ped_post)|eshaft_stub)", "oak"),
     (r"^fr_hopper_", "sheet"),
-    (r"^(fr_(cheek|backwall|frontwall|ped_block)|eshaft_(fly|coupling)|pitman_|swingjaw_(slab|boss|web|lug)|grizzly_)", "iron"),
-    (r"^(fr_backseat|fixedjaw_|eshaft_(shaft|eccentric)|backtoggle|fronttoggle|swingjaw_(face|seat)|rods_|spring\d)", "steel"),
+    (r"^(fr_(cheek|backwall|frontwall|ped_block)|eshaft_(fly_(rim|arm|hub)|coupling)|pitman_|swingjaw_(slab|boss|web|lug)|grizzly_)", "iron"),
+    (r"^(fr_backseat|fixedjaw_|eshaft_(shaft|eccentric|collar|fly_key)|backtoggle|fronttoggle|swingjaw_(face|seat)|rods_|spring\d)", "steel"),
 ]
 
 
@@ -457,12 +465,40 @@ def check_supports(v):
         print(f"support {label}: {len(found)} bearing(s) {', '.join(sorted(found)) or 'NONE'}")
         if len(found) < need:
             v.fail(f"the {label} is not carried by {need} bearings")
-    hubs = [aabb_of(v.named("eshaft", rf"_fly{t}_hub")) for t in "we"]
+    hub = aabb_of(v.named("eshaft", r"_fly_hub"))
+    collar = aabb_of(v.named("eshaft", r"_collar"))
     bosses = [aabb_of(v.named("frame", rf"fr_cheek_{t}_ebear")) for t in "we"]
-    located = abs(hubs[0][1][0] - bosses[0][0][0]) < 0.05 and abs(hubs[1][0][0] - bosses[1][1][0]) < 0.05
-    print(f"support: the flywheels' hubs bear on the bearing bosses' outer faces, locating the shaft endwise: {located}")
+    located = abs(hub[1][0] - bosses[0][0][0]) < 0.05 and abs(collar[0][0] - bosses[1][1][0]) < 0.05
+    print(f"support: the flywheel's hub and the collar bear on the bearing bosses' outer faces, locating the shaft endwise: {located}")
     if not located:
-        v.fail("the eccentric shaft is not located endwise by the flywheels' hubs")
+        v.fail("the eccentric shaft is not located endwise by the flywheel's hub and its collar")
+
+
+def check_flywheel(v):
+    """The flywheel: one, about 2 blocks across, on the eccentric shaft on the side away from the axle, its rim's
+    sweep (the whole circle, at the rim's faces) inside the machine's cells and above the ground, clear of the frame
+    by the clearance and swept-path checks; its rim heavy (its depth and width) and its arms, hub and key there."""
+    m = v.m
+    y, z = m.AXLE
+    cells = set(m.footprint())
+    stray, low = [], 1e9
+    for k in range(360):
+        a = math.tau * k / 360
+        for r in (m.FLY_R, m.FLY_R - m.FLY_RIM):
+            py, pz = y + r * math.cos(a), z + r * math.sin(a)
+            low = min(low, py)
+            for px in m.FLY_X:
+                c = (int(px // 16), int(py // 16), int(pz // 16))
+                if c not in cells:
+                    stray.append((round(px, 2), round(py, 2), round(pz, 2)))
+    away = (m.FLY_X[1] < m.CHEEK_W[0]) == (m.POWER_FACE == "east")
+    arms = len(v.named("eshaft", r"_fly_arm"))
+    ok = not stray and low > 1.0 and away and 30.0 <= 2 * m.FLY_R <= 34.0 and arms == m.FLY_ARMS and v.named("eshaft", r"_fly_key")
+    print(f"flywheel: {2 * m.FLY_R:.0f} across ({2 * m.FLY_R / 16:.2f} blocks), rim {m.FLY_RIM} deep and {m.FLY_X[1] - m.FLY_X[0]:.1f} wide, "
+          f"{arms} arms, keyed; on the side away from the axle: {away}; its sweep {low:.1f} over the ground, "
+          f"{len(stray)} points outside the machine's cells")
+    if not ok:
+        v.fail(f"the flywheel: outside the cells at {stray[:3]}, {low:.2f} over the ground, away from the axle {away}")
 
 
 def check_springs(v):
@@ -521,6 +557,7 @@ def validate(m, els, parts, rig, quick=False):
     check_textures(v)
     check_jaw(v)
     check_supports(v)
+    check_flywheel(v)
     check_springs(v)
     check_clearances(v)
     if not quick:

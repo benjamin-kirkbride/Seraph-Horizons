@@ -89,8 +89,9 @@ class Rig(unittest.TestCase):
 
     def test_cells_are_rebuilt_from_the_shipped_shape(self):
         self.assertEqual(make_shape.shipped_cells(SHAPE, RIG["parts"]), RIG["cells"])
+        # the 2 x 3 x 2 box, and the flywheel's three cells behind it in the west column
         self.assertEqual(sorted(tuple(c["pos"]) for c in RIG["cells"]),
-                         [(x, y, z) for x in range(2) for y in range(3) for z in range(2)])
+                         sorted([(x, y, z) for x in range(2) for y in range(3) for z in range(2)] + [(0, y, 2) for y in range(3)]))
         self.assertFalse(any("lid" in c for c in RIG["cells"]))
 
 
@@ -131,6 +132,21 @@ class Mechanism(unittest.TestCase):
         for pid in ("fixedjaw", "grizzly", "frame"):
             self.assertEqual(part(pid)["drivers"], [])
             self.assertEqual([[round(v, 12) + 0.0 for v in row] for row in matrix(pid, 2.5)], ident, pid)
+
+
+class Flywheel(unittest.TestCase):
+    def test_one_flywheel_two_blocks_across_away_from_the_axle_turning_with_the_shaft(self):
+        flat = flatten(SHAPE["elements"], textures={})
+        rim = [e for e in flat if e.name.startswith("eshaft_fly_rim")]
+        self.assertEqual(len(rim), make_shape.FLY_RIM_N)
+        self.assertFalse([e for e in flat if e.name.startswith(("eshaft_flyw", "eshaft_flye"))])
+        lo = [min(e.aabb()[0][k] for e in rim) for k in range(3)]
+        hi = [max(e.aabb()[1][k] for e in rim) for k in range(3)]
+        self.assertAlmostEqual((hi[1] - lo[1]) / 16, 2.0, delta=0.05)          # two blocks across
+        self.assertLess(hi[0], make_shape.CHEEK_W[0])                         # outside the west cheek
+        self.assertEqual(RIG["powerFace"], "east")                            # the axle on the other side
+        self.assertGreater(lo[1], 0.0)                                        # clear of the ground
+        self.assertEqual({rigmath.part_of(RIG["parts"], e.name) for e in rim}, {"eshaft"})
 
 
 class Anchors(unittest.TestCase):

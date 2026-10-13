@@ -44,7 +44,7 @@ public class JawBreakerRigTests
         Assert.Equal("up", root.GetProperty("infeedFace").GetString());
         Assert.Equal([0, 0, 0], Cell("outputCell"));
         Assert.Equal("north", root.GetProperty("outputFace").GetString());
-        Assert.Equal(12, root.GetProperty("cells").GetArrayLength());
+        Assert.Equal(15, root.GetProperty("cells").GetArrayLength());   // the 2 x 3 x 2 box and the flywheel's three cells
         Assert.Equal(Requires, root.GetProperty("stages").EnumerateArray().Select(v => v.GetString()!).ToHashSet());
     }
 
