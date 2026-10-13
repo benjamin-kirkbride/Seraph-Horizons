@@ -33,6 +33,7 @@ public static class DistrictVeinSizes
 
     private static DistrictVeins? _rules;
     private static double _blocks = 1;
+    private static HashSet<string> _countryRocks = new(StringComparer.Ordinal);
     private static ICoreServerAPI? _sapi;
     private static readonly ConcurrentDictionary<string, (bool Resolved, double Ingots)> IngotsByCode = new(StringComparer.Ordinal);
 
@@ -78,6 +79,7 @@ public static class DistrictVeinSizes
         _rules = new DistrictVeins(sizes, new DistrictVeinSettings(s.VeinsPerMetal, s.KeepCount ?? [], s.GradeAllowance, s.BandFloor,
             s.BandBelowSeaLevel, blocks));
         _sapi = api;
+        _countryRocks = CountryRocks(api);
         DistrictsDone = 0;
         harmony.Patch(DetectMethod, postfix: new HarmonyMethod(typeof(DistrictVeinSizes), nameof(DetectOreZonesPostfix)));
         api.Logger.Notification("[seraphhorizons] Smaller deposits: hydrothermal district veins sized, at most {0} veins per metal per district (all for {1})",
@@ -88,6 +90,7 @@ public static class DistrictVeinSizes
     {
         _rules = null;
         _blocks = 1;
+        _countryRocks = new(StringComparer.Ordinal);
         _sapi = null;
         IngotsByCode.Clear();
     }
@@ -115,8 +118,10 @@ public static class DistrictVeinSizes
         string host = Traverse.Create(config).Field("HostMaterialCode").GetValue<string>() ?? "";
         long seed = ((long)centre.X << 32) ^ (uint)centre.Y ^ (long)OreCells.Fnv1a(code);
 
+        bool countryHost = DistrictVeins.HostIsCountryRock(host, _countryRocks);
         var views = new List<DistrictZone>(zones.Count);
-        foreach (var zone in zones) views.Add(View(zone, host));
+        var richness = new Dictionary<object, float[]?>(ReferenceEqualityComparer.Instance);
+        foreach (var zone in zones) views.Add(View(zone, host, countryHost, richness, sapi.World.BlockAccessor.MapSizeY));
         var plans = rules.Plan(seed, views, sapi.World.SeaLevel);
 
         var assignmentType = AssignmentType!;
@@ -139,7 +144,7 @@ public static class DistrictVeinSizes
                 ores[j] = none;
             }
             if (plan.Widen)
-                Widen(zone, views[i].Kind);
+                Widen(zone, views[i].Kind, countryHost);
             if (plan.BandMin is { } min && plan.BandMax is { } max)
             {
                 var box = (Cuboidd)AccessTools.Field(zone.GetType(), "BoundingBox").GetValue(zone)!;
@@ -153,9 +158,31 @@ public static class DistrictVeinSizes
         foreach (var z in kept) zones.Add(z);
         Interlocked.Increment(ref DistrictsDone);
         var after = Tally(rules, views, plans);
-        sapi.Logger.Notification("[seraphhorizons] Smaller deposits: district '{0}' at ({1}, {2}): {3} of {4} ore zones kept; veins per metal {5}",
+        sapi.Logger.Notification("[seraphhorizons] Smaller deposits: district '{0}' at ({1}, {2}), host {6}{7}: {3} of {4} ore zones kept; veins per metal {5}",
             code, centre.X, centre.Y, kept.Count, views.Count,
-            string.Join(", ", after.Select(kv => $"{kv.Key} {kv.Value} (was {before.GetValueOrDefault(kv.Key)})")));
+            string.Join(", ", after.Select(kv => $"{kv.Key} {kv.Value} (was {before.GetValueOrDefault(kv.Key)})")),
+            host, countryHost ? " (a country rock: shoots counted whole)" : "");
+    }
+
+    /// <summary>The block codes the world's country rock can be: every rock stratum
+    /// (<c>worldgen/rockstrata.json</c>, as the geology mods patch it) and the default rock under
+    /// them (<c>worldgen/global.json</c>). A district whose host rock is one of them is sized as if
+    /// all its zones were host rock (<see cref="DistrictVeins.HostIsCountryRock"/>, #943).</summary>
+    private static HashSet<string> CountryRocks(ICoreServerAPI api)
+    {
+        var rocks = new HashSet<string>(StringComparer.Ordinal);
+        try
+        {
+            var strata = api.Assets.TryGet(new AssetLocation("game", "worldgen/rockstrata.json"))?.ToObject<StrataFile>();
+            foreach (var v in strata?.Variants ?? []) if (!string.IsNullOrEmpty(v.BlockCode)) rocks.Add(v.BlockCode);
+            var global = api.Assets.TryGet(new AssetLocation("game", "worldgen/global.json"))?.ToObject<GlobalFile>();
+            if (!string.IsNullOrEmpty(global?.DefaultRockCode)) rocks.Add(global.DefaultRockCode);
+        }
+        catch (Exception e)
+        {
+            api.Logger.Warning("[seraphhorizons] Smaller deposits: could not read the rock strata, district shoots are counted as cut to their faults: {0}", e.Message);
+        }
+        return rocks;
     }
 
     /// <summary>Veins (shoots and ladders) holding each sized metal, before (no plans) or after.</summary>
@@ -173,7 +200,7 @@ public static class DistrictVeinSizes
         return tally;
     }
 
-    private static DistrictZone View(object zone, string host)
+    private static DistrictZone View(object zone, string host, bool countryHost, Dictionary<object, float[]?> richness, int mapHeight)
     {
         var type = zone.GetType();
         string kind = AccessTools.Field(type, "ZoneType").GetValue(zone)!.ToString()!;
@@ -186,7 +213,7 @@ public static class DistrictVeinSizes
             var variants = tr.Field("AllowedVariantsByInBlock").GetValue<Dictionary<string, List<string>>>();
             var (resolved, ingots) = IngotsPerBlock(oreCode, host, variants);
             ores.Add(new DistrictOre(OreMetals.WorldgenMetalOf(DistrictVeins.OreOfCode(oreCode)), tr.Field("Weight").GetValue<float>(),
-                resolved ? tr.Field("Density").GetValue<float>() : 0, ingots));
+                resolved ? tr.Field("Density").GetValue<float>() : 0, ingots, GradeIngots(oreCode, host, variants)));
         }
         var k = kind switch
         {
@@ -196,7 +223,7 @@ public static class DistrictVeinSizes
         };
         double perLayer = k switch
         {
-            DistrictZoneKind.Shoot => ShootBlocksPerLayer(zone),
+            DistrictZoneKind.Shoot => ShootBlocksPerLayer(zone, countryHost),
             DistrictZoneKind.Ladder => LadderBlocksPerLayer(zone),
             _ => 0,
         };
@@ -206,7 +233,24 @@ public static class DistrictVeinSizes
             DistrictZoneKind.Ladder => DistrictVeins.CloserSlabs(LadderSpacings(zone), _blocks).Gain,
             _ => _blocks,
         };
-        return new DistrictZone(k, ores, perLayer, (int)Math.Floor(box.Y1), (int)Math.Ceiling(box.Y2), widening);
+        float[]? rich = null;
+        if (k != DistrictZoneKind.Lens && AccessTools.Field(type, "ParentFault").GetValue(zone) is { } fault)
+        {
+            if (!richness.TryGetValue(fault, out rich))
+                richness[fault] = rich = Richness(fault, mapHeight);
+        }
+        return new DistrictZone(k, ores, perLayer, (int)Math.Floor(box.Y1), (int)Math.Ceiling(box.Y2), widening, rich);
+    }
+
+    /// <summary>A fault's richness at each height (IOG's <c>HydrothermalFaultSpline.RichnessAt</c>,
+    /// from its rich bands, built before the zones), or null if that is gone: then the grade
+    /// allowance stands in.</summary>
+    private static float[]? Richness(object fault, int mapHeight)
+    {
+        if (AccessTools.Method(fault.GetType(), "RichnessAt", [typeof(int)]) is not { } method || method.ReturnType != typeof(float)) return null;
+        var rich = new float[mapHeight];
+        for (int y = 0; y < mapHeight; y++) rich[y] = (float)method.Invoke(fault, [y])!;
+        return rich;
     }
 
     private static Type? LensSamplerType => AccessTools.TypeByName("InterestingOreGen.Generators.HorsetailLensSampler");
@@ -216,22 +260,21 @@ public static class DistrictVeinSizes
 
     /// <summary>
     /// Widens a kept vein to about <see cref="_blocks"/> times its ore per layer (#863). An ore shoot is
-    /// made that much longer along the fault (its sampler's half strike, and its half across with it,
-    /// which the fault rock's width cuts anyway), its box grown to match before IOG indexes the zones by
-    /// chunk; a ladder vein gets its slabs closer (<see cref="DistrictVeins.CloserSlabs"/>), keeping its
-    /// width, so the fault rock IOG lays is as it was. A horsetail lens's lenses grow in both radii
-    /// (<see cref="DistrictVeins.LensRadii"/>), its box set to the sampler's new tight box.
+    /// made that much longer along the fault (its sampler's half strike only, so the ellipse's area
+    /// and its length of fault both grow that many times, whether it is cut to the fault or whole,
+    /// #943), its box grown to match before IOG indexes the zones by chunk; a ladder vein gets its
+    /// slabs closer (<see cref="DistrictVeins.CloserSlabs"/>), keeping its width, so the fault rock
+    /// IOG lays is as it was. A horsetail lens's lenses grow (<see cref="DistrictVeins.LensRadii"/>),
+    /// its box set to the sampler's new tight box.
     /// </summary>
-    private static void Widen(object zone, DistrictZoneKind kind)
+    private static void Widen(object zone, DistrictZoneKind kind, bool countryHost)
     {
         var sampler = AccessTools.Field(zone.GetType(), "Sampler").GetValue(zone)!;
         if (kind == DistrictZoneKind.Shoot)
         {
             var strike = AccessTools.Field(sampler.GetType(), "_halfStrike");
-            var across = AccessTools.Field(sampler.GetType(), "_halfAcross");
             float r = (float)strike.GetValue(sampler)!;
             strike.SetValue(sampler, (float)(r * _blocks));
-            across.SetValue(sampler, (float)((float)across.GetValue(sampler)! * _blocks));
             var box = (Cuboidd)AccessTools.Field(zone.GetType(), "BoundingBox").GetValue(zone)!;
             double grow = r * (_blocks - 1);
             box.X1 -= grow;
@@ -255,7 +298,7 @@ public static class DistrictVeinSizes
             {
                 // A struct: set the fields on the boxed copy and put it back.
                 var lens = lenses[i]!;
-                var (rh, rv) = DistrictVeins.LensRadii((float)h.GetValue(lens)!, (float)v.GetValue(lens)!, _blocks);
+                var (rh, rv) = DistrictVeins.LensRadii((float)h.GetValue(lens)!, (float)v.GetValue(lens)!, _blocks, countryHost);
                 h.SetValue(lens, rh);
                 v.SetValue(lens, rv);
                 lenses[i] = lens;
@@ -268,20 +311,21 @@ public static class DistrictVeinSizes
     }
 
     // An ore shoot is an ellipse along the fault, half as wide as it is long, with density
-    // 1 - r² (OreShootSampler), cut to the fault rock: per layer about the fault's width times
-    // the integral of 1 - (s/r)² along it, 4r/3.
-    private static double ShootBlocksPerLayer(object zone)
+    // 1 - r² (OreShootSampler): cut to the fault rock, or whole where the host is a country rock
+    // (DistrictVeins.ShootBlocksPerLayer).
+    private static double ShootBlocksPerLayer(object zone, bool countryHost)
     {
         var sampler = AccessTools.Field(zone.GetType(), "Sampler").GetValue(zone)!;
         var st = Traverse.Create(sampler);
         float r = st.Field("_halfStrike").GetValue<float>();
+        float across = st.Field("_halfAcross").GetValue<float>();
         double cx = st.Field("_centreX").GetValue<double>(), cz = st.Field("_centreZ").GetValue<double>();
         var fault = Traverse.Create(AccessTools.Field(zone.GetType(), "ParentFault").GetValue(zone));
         double halfWidth = fault.Property("AverageWidthHalf").GetValue<float>();
         if (fault.Property("Segments").GetValue() is IList { Count: > 0 } segments
             && fault.Method("FindNearestSegmentIndex", new Vec3d(cx, 0, cz)).GetValue() is int i and >= 0 && i < segments.Count)
             halfWidth = Traverse.Create(segments[i]).Field("WidthHalf").GetValue<float>();
-        return Math.Max(1, 2 * halfWidth) * 4.0 / 3.0 * r;
+        return DistrictVeins.ShootBlocksPerLayer(r, across, halfWidth, countryHost);
     }
 
     // A ladder vein is one-block slabs, every SlabSpacings apart, across its stretch of fault
@@ -312,6 +356,22 @@ public static class DistrictVeinSizes
                 : null;
         }
         if (code == null) return (false, 0);
+        return BlockIngots(code);
+    }
+
+    /// <summary>The ingots a block of each grade the district's rock allows gives, in IOG's order
+    /// (poorest first; a grade whose block is missing places nothing there, so 0), or null for an
+    /// ungraded ore or one the rock allows no grade of.</summary>
+    public static double[]? GradeIngots(string oreCode, string host, Dictionary<string, List<string>>? variants)
+    {
+        if (!oreCode.Contains('*') || variants == null || !variants.TryGetValue(host, out var grades) || grades is not { Count: > 0 })
+            return null;
+        return grades.OrderBy(g => Array.IndexOf(GradeOrder, g.ToLowerInvariant()) is var n and >= 0 ? n : 999)
+            .Select(g => BlockIngots(oreCode.Replace("*", g)).Ingots).ToArray();
+    }
+
+    private static (bool Resolved, double Ingots) BlockIngots(string code)
+    {
         return IngotsByCode.GetOrAdd(code, c =>
         {
             var block = _sapi?.World.GetBlock(new AssetLocation(c.Contains(':') ? c : "game:" + c));
@@ -325,6 +385,21 @@ public static class DistrictVeinSizes
     }
 
     private static readonly string[] GradeOrder = ["poor", "medium", "rich", "bountiful"];
+
+    private sealed class StrataFile
+    {
+        public StrataVariant[]? Variants { get; set; }
+    }
+
+    private sealed class StrataVariant
+    {
+        public string? BlockCode { get; set; }
+    }
+
+    private sealed class GlobalFile
+    {
+        public string? DefaultRockCode { get; set; }
+    }
 
     private sealed class SettingsFile
     {

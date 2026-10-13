@@ -13,17 +13,21 @@ public enum DistrictZoneKind
 
 /// <summary>One ore of a zone: its metal group (null for gems, minerals and anything unmanaged),
 /// its pick weight, its placement density (0 if its code resolves to no block in the district's
-/// rock, so it never places anything) and the ingots one block of its poorest grade gives.</summary>
-public readonly record struct DistrictOre(string? Metal, double Weight, double Density, double IngotsPerBlock);
+/// rock, so it never places anything), the ingots one block of its poorest grade gives, and the
+/// ingots a block of each grade the district's rock allows gives, poorest first (null for an
+/// ungraded ore, or if unknown: then the poorest grade's times the grade allowance is used).</summary>
+public readonly record struct DistrictOre(string? Metal, double Weight, double Density, double IngotsPerBlock,
+    IReadOnlyList<double>? GradeIngots = null);
 
 /// <summary>
 /// One district ore zone as the rules need it: its kind, its ores, the ore blocks it places per
 /// layer of rock when the whole of it is ore at density 1 (<see cref="DistrictVeins"/> explains
-/// the estimate), its height range, and how many times its ore per layer the game side can make it
-/// if the rules widen it (<see cref="DistrictZonePlan.Widen"/>; 1: it can't).
+/// the estimate), its height range, how many times its ore per layer the game side can make it
+/// if the rules widen it (<see cref="DistrictZonePlan.Widen"/>; 1: it can't), and its fault's
+/// richness at each height, indexed by y (IOG's <c>RichnessAt</c>, 0 to 1; null if unknown).
 /// </summary>
 public sealed record DistrictZone(DistrictZoneKind Kind, IReadOnlyList<DistrictOre> Ores, double BlocksPerLayer, int YMin, int YMax,
-    double Widening = 1);
+    double Widening = 1, IReadOnlyList<float>? Richness = null);
 
 /// <summary>What to do with a zone: drop it, or keep it with these of its ores (the rest placing
 /// nothing) and, for a vein, within this band of heights (inclusive; null keeps its range), widened
@@ -34,8 +38,10 @@ public sealed record DistrictZonePlan(bool Keep, IReadOnlyList<bool> OreKept, in
 }
 
 /// <summary>The district rules' data (<c>config/ore-districts.json</c>).</summary>
-/// <param name="GradeAllowance">Ore per block over the poorest grade's: away from a fault's rich
-/// bands nine blocks in ten are the poorest grade (IOG's <c>ResolveOreCode</c>).</param>
+/// <param name="GradeAllowance">Ore per block over the poorest grade's, for an ore or zone whose
+/// grades or fault richness are unknown (otherwise each layer's grades are reckoned, <see
+/// cref="DistrictVeins.ExpectedIngots"/>): away from a fault's rich bands nine blocks in ten are
+/// the poorest grade (IOG's <c>ResolveOreCode</c>).</param>
 /// <param name="Blocks">How many times the ore per layer a sized vein is made (#863): <see
 /// cref="OreProducts.DepositBlocks"/> while an ore item holds about a quarter of vanilla's units,
 /// so a vein holds the ingots it did; 1 leaves the veins' width as IOG makes it.</param>
@@ -64,13 +70,17 @@ public sealed record DistrictVeinSettings(int VeinsPerMetal, IReadOnlyCollection
 /// in the height of rock it had. Without it a vein needed four to five times the height, which most
 /// columns don't have. A lens, which has no band, is grown four times in ore (<see cref="LensRadii"/>)
 /// so it holds the ingots it did.</item>
-/// <item>Size: every kept vein holding a managed metal is cut to a band of heights. Its ore per
-/// layer is <c>blocks per layer × widening × weight share × density × ingots per block × grade
-/// allowance</c> for each such ore; the band is the height that gives the ore the zone's drawn size
-/// (<see cref="DrawSize"/>: small, typical and large are the 10th, 50th and 90th percentile, as
-/// the epic reads them), the least over its ores, at a height from the hash between
-/// <see cref="DistrictVeinSettings.BandFloor"/> and sea level less
-/// <see cref="DistrictVeinSettings.BandBelowSeaLevel"/>, so that it lies in rock.</item>
+/// <item>Size: every kept vein holding a managed metal is cut to a band of heights. Its ore at a
+/// height is <c>blocks per layer × widening × weight share × density × ingots per block</c> for
+/// each such ore, the ingots per block the mean of its grades at its fault's richness there
+/// (<see cref="ExpectedIngots"/>, #943: a fault's rich bands give two to three times the ore of
+/// the poorest grade), or the poorest grade's times the grade allowance where either is unknown.
+/// The band starts at a height from the hash between <see cref="DistrictVeinSettings.BandFloor"/>
+/// and sea level less <see cref="DistrictVeinSettings.BandBelowSeaLevel"/>, so that it lies in
+/// rock, room left for the most height it can need, and grows a layer at a time until one of its
+/// ores holds the zone's drawn size (<see cref="DrawSize"/>: small, typical and large are the 10th,
+/// 50th and 90th percentile, as the epic reads them). A band taller than that room is the room
+/// (#943): the vein holds less than drawn.</item>
 /// </list>
 /// Unmanaged ores (gems, minerals) keep their counts; in a vein that also holds a managed metal
 /// they share its band.
@@ -145,24 +155,82 @@ public sealed class DistrictVeins
         double totalWeight = zone.Ores.Sum(o => o.Weight);
         if (totalWeight <= 0 || zone.BlocksPerLayer <= 0) return (null, null);
         double u = Unit(Hash(districtSeed, "size", index));
-        double? height = null;
+        // Each sized ore: its drawn size, its ore blocks per layer, and its ingots per block at a height.
+        int lo = Math.Max(zone.YMin, _settings.BandFloor);
+        int hi = Math.Min(zone.YMax, seaLevel - _settings.BandBelowSeaLevel);
+        if (hi < lo) (lo, hi) = (zone.YMin, zone.YMax);
+        var sized = new List<(double Size, double Blocks, Func<int, double> Ingots, double Least)>();
         for (int j = 0; j < zone.Ores.Count; j++)
         {
             var ore = zone.Ores[j];
             if (!kept[j] || ore.Metal is not { } metal || _sizes.TargetsFor(metal) is not { } targets) continue;
-            double perLayer = zone.BlocksPerLayer * widening * ore.Weight / totalWeight * ore.Density * ore.IngotsPerBlock * _settings.GradeAllowance;
-            if (perLayer <= 0) continue;
-            double h = DrawSize(targets, u) / perLayer;
-            height = height is { } prev ? Math.Min(prev, h) : h;
+            double blocks = zone.BlocksPerLayer * widening * ore.Weight / totalWeight * ore.Density;
+            if (blocks <= 0) continue;
+            Func<int, double> ingots = ore.GradeIngots is { Count: > 0 } grades && zone.Richness is { Count: > 0 } richness
+                ? y => ExpectedIngots(grades, richness[Math.Clamp(y, 0, richness.Count - 1)])
+                : _ => ore.IngotsPerBlock * _settings.GradeAllowance;
+            double least = LeastIngots(ingots, lo, hi);
+            if (least > 0) sized.Add((DrawSize(targets, u), blocks, ingots, least));
         }
-        if (height is not { } wanted) return (null, null);
-        int lo = Math.Max(zone.YMin, _settings.BandFloor);
-        int hi = Math.Min(zone.YMax, seaLevel - _settings.BandBelowSeaLevel);
-        int band = Math.Max(1, (int)Math.Round(wanted));
-        if (hi < lo || band >= hi - lo + 1) return (null, null);
-        int start = lo + (int)(Unit(Hash(districtSeed, "height", index)) * (hi - lo + 2 - band));
-        start = Math.Min(start, hi - band + 1);
-        return (start, start + band - 1);
+        if (sized.Count == 0) return (null, null);
+        // Placed by the height it needs away from any rich band (its least ingots per layer, IOG's
+        // grades at richness 0), which is the most it can need; then grown layer by layer from
+        // there, by each layer's expected grade, until an ore reaches its drawn size (#943). A band
+        // taller than the room is the room: the vein holds less than drawn, never IOG's whole column.
+        double most = sized.Min(o => o.Size / (o.Blocks * o.Least));
+        int room = hi - lo + 1;
+        int placed = Math.Clamp((int)Math.Round(most), 1, room);
+        int start = lo + (int)(Unit(Hash(districtSeed, "height", index)) * (room + 1 - placed));
+        start = Math.Min(start, hi - placed + 1);
+        var held = new double[sized.Count];
+        int end = start;
+        for (int y = start; y <= hi; y++)
+        {
+            end = y;
+            bool full = false;
+            for (int k = 0; k < sized.Count; k++)
+            {
+                double layer = sized[k].Blocks * sized[k].Ingots(y);
+                held[k] += layer;
+                // Rounded to the nearest layer, as a height of size / ingots per layer would be.
+                if (held[k] >= sized[k].Size - layer / 2) full = true;
+            }
+            if (full) break;
+        }
+        return (start, end);
+    }
+
+    // The least ingots per block an ore gives over the room: IOG's grades are richer in a rich
+    // band, never poorer, so this is its grades at the room's least richness.
+    private static double LeastIngots(Func<int, double> ingots, int lo, int hi)
+    {
+        double least = double.MaxValue;
+        for (int y = lo; y <= hi; y++) least = Math.Min(least, ingots(y));
+        return least;
+    }
+
+    /// <summary>
+    /// The ingots a block of a graded district ore gives on average at a fault richness (IOG's
+    /// <c>HydrothermalDistrictSystem.ResolveOreCode</c>): with <c>n</c> grades, poorest first, grade
+    /// <c>i</c> is drawn with weight <c>max(0, 1 − |i − richness (n − 1)| / 1.5)²</c>. At richness 0
+    /// that is nine poorest blocks to one of the next; in a rich band (up to 1) most are the richest
+    /// grades, which for cassiterite (1 / 3 / 4 / 6 units) is about three times the ore.
+    /// </summary>
+    public static double ExpectedIngots(IReadOnlyList<double> gradeIngots, double richness)
+    {
+        int n = gradeIngots.Count;
+        if (n == 0) return 0;
+        if (n == 1) return gradeIngots[0];
+        double centre = (float)richness * (n - 1);
+        double sum = 0, total = 0;
+        for (int i = 0; i < n; i++)
+        {
+            double w = Math.Max(0, 1 - Math.Abs(i - centre) / 1.5);
+            w *= w;
+            sum += w * gradeIngots[i];
+            total += w;
+        }
+        return total <= 1e-6 ? gradeIngots[0] : sum / total;
     }
 
     /// <summary>
@@ -176,6 +244,33 @@ public sealed class DistrictVeins
             ? lt + (u - 0.5) / 0.4 * (lt - ls)
             : lt + (u - 0.5) / 0.4 * (ll - lt);
         return Math.Exp(l);
+    }
+
+    /// <summary>
+    /// The ore blocks an ore shoot places per layer at density 1 (<see cref="DistrictZone.BlocksPerLayer"/>).
+    /// IOG's shoot is an ellipse of <paramref name="halfStrike"/> along the fault and
+    /// <paramref name="halfAcross"/> across it, density 1 − r², which integrates to
+    /// π · halfStrike · halfAcross / 2. IOG turns a zone block into ore only where it is the
+    /// district's host rock, so where that is a true fault rock (travertine) the shoot is cut to the
+    /// fault: its width times the integral of 1 − (s/r)² along it, 4r/3 (never more than the whole
+    /// ellipse). Where the host is also a country rock (<paramref name="hostIsCountryRock"/>: granite,
+    /// basalt) every block of the ellipse can be host rock, so it is counted whole (#943).
+    /// </summary>
+    public static double ShootBlocksPerLayer(double halfStrike, double halfAcross, double faultHalfWidth, bool hostIsCountryRock)
+    {
+        double whole = Math.PI * halfStrike * halfAcross / 2;
+        if (hostIsCountryRock) return whole;
+        return Math.Min(whole, Math.Max(1, 2 * faultHalfWidth) * 4.0 / 3.0 * halfStrike);
+    }
+
+    /// <summary>Whether a district's host rock (its config's <c>hostMaterialCode</c>) can also be the
+    /// country rock around its faults: it is one of the world's rock strata or its default rock
+    /// (<paramref name="countryRocks"/>, block codes with or without the <c>game:</c> domain).</summary>
+    public static bool HostIsCountryRock(string host, IEnumerable<string> countryRocks)
+    {
+        static string Path(string code) => code.StartsWith("game:", StringComparison.Ordinal) ? code[5..] : code;
+        string h = Path(host);
+        return h.Length > 0 && countryRocks.Any(c => Path(c) == h);
     }
 
     /// <summary>
@@ -194,15 +289,18 @@ public sealed class DistrictVeins
 
     /// <summary>
     /// A horsetail lens's radii grown to give <paramref name="blocks"/> times its ore (#863). IOG's lens
-    /// is an ellipsoid, but its ore is only where it crosses the splay's one-block fracture (fault
-    /// rock), a disc of the two radii in the fracture's plane, so both radii take the square root:
-    /// four times the ore is twice each (4–12 by 3–8 become 8–24 by 6–16).
+    /// is a spheroid (<paramref name="radiusH"/> both ways across, <paramref name="radiusV"/> up), but
+    /// where the host is a true fault rock its ore is only where it crosses the splay's one-block
+    /// fracture, a disc of the two radii in the fracture's plane, so both radii take the square root:
+    /// four times the ore is twice each (4–12 by 3–8 become 8–24 by 6–16). Where the host is also a
+    /// country rock the whole spheroid can be ore (#943), so only the horizontal radius grows, by
+    /// the square root: four times the volume.
     /// </summary>
-    public static (float H, float V) LensRadii(float radiusH, float radiusV, double blocks)
+    public static (float H, float V) LensRadii(float radiusH, float radiusV, double blocks, bool hostIsCountryRock = false)
     {
         if (!(blocks > 1)) return (radiusH, radiusV);
         float k = (float)Math.Sqrt(blocks);
-        return (radiusH * k, radiusV * k);
+        return hostIsCountryRock ? (radiusH * k, radiusV) : (radiusH * k, radiusV * k);
     }
 
     /// <summary>The ore of an IOG district ore code (<c>ore-*-cassiterite-granite</c>,
