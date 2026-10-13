@@ -269,6 +269,72 @@ public static class EidolonTunnels
         return (open ? TunnelFit.TooNarrow : TunnelFit.NoFace, null);
     }
 
+    /// <summary>Whether the covered part of <paramref name="area"/> (<paramref name="covered"/>) is one the
+    /// eidolon fits in, as the area is marked (README "Eidolon", mining, tunnels): only an area covered all
+    /// over is refused, under <see cref="MinHeight"/> tall or under <see cref="MinWidth"/> across both
+    /// ways. Whether its face can be struck is the planner's to find (<see cref="Shape"/>, the reach
+    /// bound): what it cannot reach is reported, not refused.</summary>
+    public static TunnelFit Fit(MarkArea area, IReadOnlySet<(int X, int Z)> covered)
+    {
+        if (covered.Count == 0 || covered.Count < area.SizeX * area.SizeZ)
+            return TunnelFit.Fits;
+        if (area.SizeY < MinHeight)
+            return TunnelFit.TooLow;
+        var b = Bounds(covered);
+        return Math.Min(b.SizeX, b.SizeZ) < MinWidth ? TunnelFit.TooNarrow : TunnelFit.Fits;
+    }
+
+    /// <summary>
+    /// The covered part's shape (README "Eidolon", mining, *Stations*), for its bands, lanes and slices:
+    /// of the four ways in, the one whose first slice has most clearable cells (<paramref name="reach"/>)
+    /// reached by a live potential stand outside the covered bounds (its natural footing: the ground at
+    /// the mouth, a ledge, a step, the hill's flank); ties to the mouth nearest <paramref name="home"/>,
+    /// then the order of <see cref="Drives"/>. With no face anywhere it is still shaped (the way in
+    /// nearest home): what it cannot reach is the reach bound's to say. Null with nothing covered.
+    /// </summary>
+    public static MineTunnel? Shape(MarkArea area, IReadOnlySet<(int X, int Z)> covered, MineReach reach, PathCell? home)
+    {
+        if (covered.Count == 0)
+            return null;
+        (MineTunnel Tunnel, int Count, double D2)? best = null;
+        foreach (var (dx, dz) in Drives)
+        {
+            var tunnel = Make(area, covered, dx, dz);
+            var b = tunnel.Bounds;
+            int count = 0;
+            for (int across = tunnel.AlongX ? b.MinZ : b.MinX; across <= (tunnel.AlongX ? b.MaxZ : b.MaxX); across++)
+            {
+                var (x, z) = tunnel.Column(0, across);
+                if (!covered.Contains((x, z)))
+                    continue;
+                for (int y = area.Min.Y; y <= area.Max.Y; y++)
+                    if (reach.Clearable.Contains(new MarkPos(x, y, z)) && ReachedFromOutside(new MarkPos(x, y, z), b, reach))
+                        count++;
+            }
+            var (mx, mz) = tunnel.Mouth;
+            double d2 = home is { } h ? (mx - h.X) * (mx - h.X) + (mz - h.Z) * (mz - h.Z) : 0;
+            if (best == null || count > best.Value.Count || (count == best.Value.Count && d2 < best.Value.D2))
+                best = (tunnel, count, d2);
+        }
+        return best!.Value.Tunnel;
+    }
+
+    // Whether a live potential stand whose box is clear of the bounds reaches a cell.
+    private static bool ReachedFromOutside(MarkPos cell, MineSector bounds, MineReach reach)
+    {
+        for (int x = cell.X - 2; x <= cell.X + 3; x++)
+        for (int z = cell.Z - 2; z <= cell.Z + 3; z++)
+        {
+            bool clear = x < bounds.MinX || x - 1 > bounds.MaxX || z < bounds.MinZ || z - 1 > bounds.MaxZ;
+            if (!clear)
+                continue;
+            for (int y = cell.Y - 3; y <= cell.Y + 1; y++)
+                if (EidolonMining.InReach(x, y, z, cell) && reach.Potential(new PathCell(x, y, z)))
+                    return true;
+        }
+        return false;
+    }
+
     /// <summary>Whether a tunnel driven its way has an open face: a lane whose front (its cells
     /// <paramref name="solid"/>) it finds a place to stand and strike from in front of the mouth
     /// (<see cref="InFront"/>), or none with any left.</summary>

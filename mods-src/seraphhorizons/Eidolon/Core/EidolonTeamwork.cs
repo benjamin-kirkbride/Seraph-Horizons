@@ -153,15 +153,16 @@ public sealed class SharedJob<TShared> where TShared : new()
 /// member that makes the report.</para>
 ///
 /// <para>Reservations are of the board, not of a job, so separate jobs over one place never hold the
-/// same unit. A member holds one set of units at a time (a reservation replaces the last); one not
-/// struck within <see cref="EidolonTeamwork.ReserveSeconds"/> lapses.</para>
+/// same unit. A felling member holds one set of units at a time (a reservation replaces the last); a
+/// miner holds a claim for each station it has queued (<see cref="TryClaim"/>, keyed by the station),
+/// side by side. One not struck within <see cref="EidolonTeamwork.ReserveSeconds"/> lapses.</para>
 /// </summary>
 public sealed class JobBoard<TUnit, TShared> where TUnit : notnull where TShared : new()
 {
     private readonly List<SharedJob<TShared>> _jobs = new();
     private readonly Dictionary<long, SharedJob<TShared>> _of = new();
     private readonly Dictionary<TUnit, (long Member, double Since)> _held = new();
-    private readonly Dictionary<long, List<TUnit>> _holding = new();
+    private readonly Dictionary<long, SortedDictionary<int, List<TUnit>>> _holding = new();
 
     /// <summary>The open jobs (not closed) and closed ones some member has not yet left.</summary>
     public IReadOnlyList<SharedJob<TShared>> Jobs => _jobs;
@@ -233,42 +234,73 @@ public sealed class JobBoard<TUnit, TShared> where TUnit : notnull where TShared
 
     /// <summary>Reserves all of <paramref name="units"/> for <paramref name="member"/>, or none if any is
     /// held by another (<see cref="Free"/>); its earlier reservation is freed either way it succeeds.
-    /// True when they are its.</summary>
+    /// True when they are its. (Its claims, <see cref="TryClaim"/>, under key 0, the others let go.)</summary>
     public bool TryReserve(long member, IEnumerable<TUnit> units, double now)
     {
         var list = units.Distinct().ToList();
         if (!list.All(u => Free(member, u, now)))
             return false;
         Release(member);
+        return TryClaim(member, 0, list, now);
+    }
+
+    /// <summary>Claims <paramref name="units"/> for <paramref name="member"/> under <paramref name="key"/>
+    /// (a station's id), beside its other claims; all or none, as TryReserve. A claim under the same key
+    /// is replaced; a unit it holds under another key moves to this one.</summary>
+    public bool TryClaim(long member, int key, IEnumerable<TUnit> units, double now)
+    {
+        var list = units.Distinct().ToList();
+        if (!list.All(u => Free(member, u, now)))
+            return false;
+        Unclaim(member, key);
+        if (!_holding.TryGetValue(member, out var claims))
+            _holding[member] = claims = new SortedDictionary<int, List<TUnit>>();
         foreach (var unit in list)
         {
-            if (_held.TryGetValue(unit, out var h) && h.Member != member)
-                _holding.GetValueOrDefault(h.Member)?.Remove(unit);
+            if (_held.TryGetValue(unit, out var h) && _holding.TryGetValue(h.Member, out var theirs))
+                foreach (var held in theirs.Values)
+                    held.Remove(unit);
             _held[unit] = (member, now);
         }
-        _holding[member] = list;
+        claims[key] = list;
         return true;
     }
 
-    /// <summary>The member struck its units: their reservation runs again from <paramref name="now"/>.</summary>
-    public void Struck(long member, double now)
+    /// <summary>Frees the member's claim under <paramref name="key"/>.</summary>
+    public void Unclaim(long member, int key)
     {
-        foreach (var unit in _holding.GetValueOrDefault(member) ?? [])
-            _held[unit] = (member, now);
-    }
-
-    /// <summary>Frees the member's units.</summary>
-    public void Release(long member)
-    {
-        if (!_holding.Remove(member, out var units))
+        if (!_holding.TryGetValue(member, out var claims) || !claims.Remove(key, out var units))
             return;
         foreach (var unit in units)
             if (_held.TryGetValue(unit, out var h) && h.Member == member)
                 _held.Remove(unit);
+        if (claims.Count == 0)
+            _holding.Remove(member);
     }
 
-    /// <summary>The units the member holds, lapsed or not.</summary>
-    public IReadOnlyList<TUnit> Held(long member) => _holding.GetValueOrDefault(member) ?? [];
+    /// <summary>The keys of the member's claims, in order.</summary>
+    public IReadOnlyList<int> ClaimKeys(long member) => _holding.GetValueOrDefault(member)?.Keys.ToList() ?? [];
+
+    /// <summary>The member struck (or walks to) its units: every claim of its runs again from <paramref name="now"/>.</summary>
+    public void Struck(long member, double now)
+    {
+        foreach (var units in _holding.GetValueOrDefault(member)?.Values ?? Enumerable.Empty<List<TUnit>>())
+            foreach (var unit in units)
+                _held[unit] = (member, now);
+    }
+
+    /// <summary>Frees the member's units, every claim.</summary>
+    public void Release(long member)
+    {
+        if (!_holding.Remove(member, out var claims))
+            return;
+        foreach (var unit in claims.Values.SelectMany(u => u))
+            if (_held.TryGetValue(unit, out var h) && h.Member == member)
+                _held.Remove(unit);
+    }
+
+    /// <summary>The units the member holds, lapsed or not, under every key.</summary>
+    public IReadOnlyList<TUnit> Held(long member) => _holding.GetValueOrDefault(member)?.Values.SelectMany(u => u).ToList() ?? [];
 
     /// <summary>Who holds <paramref name="unit"/> at <paramref name="now"/>, or null.</summary>
     public long? Holder(TUnit unit, double now) =>
@@ -286,7 +318,9 @@ public sealed class JobBoard<TUnit, TShared> where TUnit : notnull where TShared
         foreach (var (unit, h) in _held.Where(e => Lapsed(e.Value.Since, now)).ToList())
         {
             _held.Remove(unit);
-            _holding.GetValueOrDefault(h.Member)?.Remove(unit);
+            if (_holding.TryGetValue(h.Member, out var claims))
+                foreach (var units in claims.Values)
+                    units.Remove(unit);
         }
     }
 

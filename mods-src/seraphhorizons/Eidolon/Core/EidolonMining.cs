@@ -62,6 +62,12 @@ public sealed record MineScan(int? Layer, IReadOnlySet<MarkPos> Left, IReadOnlyL
     public IReadOnlySet<MarkPos> Tunnel { get; init; } = new HashSet<MarkPos>();
 }
 
+/// <summary>The area's cells as the mine planner takes them (<see cref="EidolonMining.Targets"/>): those it
+/// digs, those it keeps only as the floor under cells out of its reach (the sill and below), those it
+/// leaves for what they are (its rules, skipped, or held up by those), and the block columns not loaded.</summary>
+public sealed record MineTargets(IReadOnlySet<MarkPos> Dig, IReadOnlySet<MarkPos> Held,
+    IReadOnlySet<MarkPos> Left, IReadOnlyList<(int X, int Z)> Unloaded);
+
 /// <summary>What the miners of one shared job share (README "Eidolon", working together): the cells
 /// every member leaves for the order's life for what they are (a land claim its owner may not break in,
 /// a block that would not break), the cells some member gave up for want of a way to them, for the
@@ -446,6 +452,62 @@ public static class EidolonMining
             left.Add(cell);
         }
         return new MineScan(layer, left, unloaded) { Tunnel = dig };
+    }
+
+    /// <summary>
+    /// The cells of the area it digs (README "Eidolon", mining, *Stations*): every one whose rule is
+    /// <see cref="MineRule.Mine"/>, not <paramref name="skip"/>ped, and not held up; held up, as
+    /// <see cref="Scan"/> holds them: the column under a block it leaves (or one just over the area,
+    /// <see cref="Holds"/>) down to the first air, but not under one left only for a liquid beside it; and
+    /// under each of <paramref name="hold"/> (out of its reach for good, <see cref="MineReach"/>) likewise,
+    /// so it never mines the floor under what it cannot reach. All layers at once; unloaded columns
+    /// listed, not searched. The cells of <paramref name="hold"/> are in none of the sets.
+    /// </summary>
+    public static MineTargets Targets(MarkArea area, MineSite site, Func<MarkPos, bool> skip, IReadOnlySet<MarkPos>? hold = null)
+    {
+        var dig = new HashSet<MarkPos>();
+        var held = new HashSet<MarkPos>();
+        var left = new HashSet<MarkPos>();
+        var unloaded = new List<(int X, int Z)>();
+        for (int x = area.Min.X; x <= area.Max.X; x++)
+        for (int z = area.Min.Z; z <= area.Max.Z; z++)
+        {
+            if (site.Unloaded(x, z))
+            {
+                unloaded.Add((x, z));
+                continue;
+            }
+            bool byLeft = Holds(site.Rule(new MarkPos(x, area.Max.Y + 1, z))), byHold = false;
+            for (int y = area.Max.Y; y >= Math.Max(BottomY, area.Min.Y); y--)
+            {
+                var cell = new MarkPos(x, y, z);
+                var what = site.Rule(cell);
+                if (what == MineRule.Air)
+                {
+                    byLeft = byHold = false;
+                    continue;
+                }
+                if (hold?.Contains(cell) == true)
+                {
+                    byHold = true;
+                    continue;
+                }
+                if (byLeft || skip(cell) || what != MineRule.Mine)
+                {
+                    if (what != MineRule.LiquidBeside || byLeft || skip(cell))
+                        byLeft = true;
+                    left.Add(cell);
+                    continue;
+                }
+                if (byHold)
+                {
+                    held.Add(cell);
+                    continue;
+                }
+                dig.Add(cell);
+            }
+        }
+        return new MineTargets(dig, held, left, unloaded);
     }
 
     /// <summary>Whether a block just over the area, which it never breaks, holds up the column under it:
