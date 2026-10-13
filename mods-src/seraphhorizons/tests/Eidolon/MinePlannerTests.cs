@@ -189,6 +189,31 @@ public class MinePlannerTests(ITestOutputHelper output)
         Assert.Equal(plan.WayOut.ToHashSet(), Cells(0, 5, L - 5, L - 1, 0, 5).Where(world.Has).ToHashSet());
     }
 
+    [Theory]
+    [InlineData(16, 64)]
+    [InlineData(8, 20)]
+    public void A_pit_too_deep_for_a_straight_stair_digs_a_spiral_one_and_clears_the_rest(int side, int depth)
+    {
+        int top = L + 70;
+        var world = new MineTestWorld().Box(-8, side + 8, 1, top - 1, -8, side + 8);
+        var area = Area(0, side - 1, top - depth, top - 1, 0, side - 1);
+        var home = new PathCell(-4, top, side / 2);
+        var plan = world.Plan(area, home);
+        output.WriteLine($"{side} x {side} x {depth}: {plan.Stations.Count} stations, stair {plan.Stair.Count}, way out {plan.WayOut.Count}, reruns {plan.Reruns}");
+        Assert.Empty(plan.OutOfReach);
+        Assert.Empty(plan.Held);
+        Assert.Equal(0, plan.Reruns);
+        // a spiral: its treads in the band 2 wide round the walls, one block each, all the way down
+        Assert.NotEmpty(plan.Stair);
+        Assert.All(plan.Stair, c => Assert.True(Math.Min(Math.Min(c.X, side - 1 - c.X), Math.Min(c.Z, side - 1 - c.Z)) < 2, $"{c} is off the walls"));
+        Assert.True(plan.Stair.Select(c => c.Y).Distinct().Count() * 2 >= depth - 2);
+        Assert.Subset(plan.Stair.ToHashSet(), plan.WayOut.ToHashSet());
+        // everything but the stair dug, and what is left of it is all that stays
+        Assert.Equal(Cells(0, side - 1, top - depth, top - 1, 0, side - 1).ToHashSet(), plan.Stations.SelectMany(s => s.Cells).Concat(plan.WayOut).ToHashSet());
+        PlanRunner.Run(world, area, plan, home);
+        Assert.Equal(plan.WayOut.ToHashSet(), Cells(0, side - 1, top - depth, top - 1, 0, side - 1).Where(world.Has).ToHashSet());
+    }
+
     [Fact]
     public void A_pit_whose_only_shelf_is_on_one_side_keeps_its_way_out_to_the_end()
     {

@@ -169,7 +169,8 @@ public sealed class MinePlanner(MinePlanInput input)
     /// nodes it would stand at to clear the last of them (the final floor); where some of those have no
     /// way out, a straight stair 2 wide is left against a side of theirs facing a way out, rising a step
     /// a column from their floor to the level beside it, the one of fewest cells (then nearest home) that
-    /// gives them one. Returns its cells, and the final world's walk graph with it.
+    /// gives them one; where none does (a pit deeper than about twice its width), a spiral round its walls
+    /// (<see cref="Spirals"/>). Returns its cells, and the final world's walk graph with it.
     /// </summary>
     private (HashSet<MarkPos> Stair, MineWalk Final) Stairs(MineState state, MarkArea area)
     {
@@ -185,20 +186,9 @@ public sealed class MinePlanner(MinePlanInput input)
             return (stair, final);
         foreach (var component in Components(final, stuck))
         {
-            (List<MarkPos> Cells, double D2, MineSite Site, MineWalk Walk)? best = null;
-            foreach (var (cells, d2) in Candidates(component, final, clearable).OrderBy(c => c.D2).Take(16))
-            {
-                var site = finalSite.Clone();
-                foreach (var c in cells)
-                    site.Set(c, new MineVoxel(true, MineRule.Mine));
-                var walk = new MineWalk(site, input.Home, input.BadStands);
-                walk.BuildNow();
-                var still = component.Where(walk.Node).ToList();
-                if (still.Count == 0 || !still.All(walk.Out))
-                    continue;
-                if (best == null || cells.Count < best.Value.Cells.Count || (cells.Count == best.Value.Cells.Count && d2 < best.Value.D2))
-                    best = (cells, d2, site, walk);
-            }
+            // a straight stair where one fits, else a spiral round the walls
+            var best = Best(component, finalSite, Candidates(component, final, clearable).OrderBy(c => c.D2).Take(16))
+                ?? Best(component, finalSite, Spirals(component, final, clearable).OrderBy(c => c.D2).Take(8));
             if (best is not { } b)
                 continue;
             stair.UnionWith(b.Cells);
@@ -206,6 +196,105 @@ public sealed class MinePlanner(MinePlanInput input)
             final = b.Walk;
         }
         return (stair, final);
+    }
+
+    // Of the candidates, those with whose cells kept the component has its way out in the final world:
+    // the one of fewest cells, then nearest home.
+    private (List<MarkPos> Cells, double D2, MineSite Site, MineWalk Walk)? Best(List<PathCell> component, MineSite finalSite,
+        IEnumerable<(List<MarkPos> Cells, double D2)> candidates)
+    {
+        (List<MarkPos> Cells, double D2, MineSite Site, MineWalk Walk)? best = null;
+        foreach (var (cells, d2) in candidates)
+        {
+            var site = finalSite.Clone();
+            foreach (var c in cells)
+                site.Set(c, new MineVoxel(true, MineRule.Mine));
+            var walk = new MineWalk(site, input.Home, input.BadStands);
+            walk.BuildNow();
+            var still = component.Where(walk.Node).ToList();
+            if (still.Count == 0 || !still.All(walk.Out))
+                continue;
+            if (best == null || cells.Count < best.Value.Cells.Count || (cells.Count == best.Value.Cells.Count && d2 < best.Value.D2))
+                best = (cells, d2, site, walk);
+        }
+        return best;
+    }
+
+    // Spiral stairs (an open pit's ramp): a band 2 wide round the inside of the component's bounds, from
+    // the level beside it down to its floor, a step lower each column along a side, a landing 2 x 2 at each
+    // corner, lap after lap where it is deep (a lap goes down more than the box is tall, so the treads of
+    // one are clear over the next). Each tread is the one block under it: what is under that is dug, so a
+    // lap under another has its headroom. Four ways to start (the start of each side), both ways round.
+    private IEnumerable<(List<MarkPos> Cells, double D2)> Spirals(List<PathCell> component, MineWalk final, IReadOnlySet<MarkPos> clearable)
+    {
+        int minX = component.Min(n => n.X - 1), maxX = component.Max(n => n.X);
+        int minZ = component.Min(n => n.Z - 1), maxZ = component.Max(n => n.Z);
+        int floor = component.Min(n => n.Y);
+        int step = input.State.Site.Step;
+        int sizeX = maxX - minX + 1, sizeZ = maxZ - minZ + 1;
+        if (sizeX < 5 || sizeZ < 5 || 2 * step * (sizeX - 4 + sizeZ - 4) < EidolonTunnels.HeadingHeight + 2)
+            yield break;
+        // the level beside it: the highest way out round its bounds
+        int top = int.MinValue;
+        for (int x = minX - 1; x <= maxX + 2; x++)
+        for (int z = minZ - 1; z <= maxZ + 2; z++)
+        {
+            if (x - 1 >= minX && x <= maxX && z - 1 >= minZ && z <= maxZ)
+                continue;
+            for (int y = floor; y <= input.State.Site.Window.Max.Y; y++)
+                if (final.Out(new PathCell(x, y, z)))
+                    top = Math.Max(top, y);
+        }
+        if (top - floor <= step)
+            yield break;
+        // the band clockwise: each side's slices (two columns across it), then the corner after it
+        var units = new List<(List<(int X, int Z)> Columns, bool Slice, int Side)>();
+        for (int side = 0; side < 4; side++)
+        {
+            var slices = new List<List<(int X, int Z)>>();
+            if (side == 0)
+                for (int x = minX + 2; x <= maxX - 2; x++) slices.Add([(x, minZ), (x, minZ + 1)]);
+            else if (side == 1)
+                for (int z = minZ + 2; z <= maxZ - 2; z++) slices.Add([(maxX - 1, z), (maxX, z)]);
+            else if (side == 2)
+                for (int x = maxX - 2; x >= minX + 2; x--) slices.Add([(x, maxZ - 1), (x, maxZ)]);
+            else
+                for (int z = maxZ - 2; z >= minZ + 2; z--) slices.Add([(minX, z), (minX + 1, z)]);
+            foreach (var slice in slices)
+                units.Add((slice, true, side));
+            var (cx, cz) = side switch { 0 => (maxX - 1, minZ), 1 => (maxX - 1, maxZ - 1), 2 => (minX, maxZ - 1), _ => (minX, minZ) };
+            units.Add(([(cx, cz), (cx + 1, cz), (cx, cz + 1), (cx + 1, cz + 1)], false, side));
+        }
+        foreach (bool clockwise in new[] { true, false })
+        {
+            var round = clockwise ? units : Enumerable.Reverse(units).ToList();
+            for (int side = 0; side < 4; side++)
+            {
+                // start on the first slice of the side, going its way
+                int start = round.FindIndex(u => u.Slice && u.Side == side);
+                if (start < 0)
+                    continue;
+                var cells = new List<MarkPos>();
+                int feet = top - step;
+                for (int k = 0; feet > floor; k++)
+                {
+                    var unit = round[(start + k) % round.Count];
+                    if (k > 0 && unit.Slice)
+                        feet -= step;
+                    if (feet <= floor)
+                        break;
+                    foreach (var (x, z) in unit.Columns)
+                        if (clearable.Contains(new MarkPos(x, feet - 1, z)))
+                            cells.Add(new MarkPos(x, feet - 1, z));
+                }
+                if (cells.Count == 0)
+                    continue;
+                var first = round[start].Columns;
+                double cx = first.Average(c => c.X + 0.5), cz = first.Average(c => c.Z + 0.5);
+                double d2 = input.Home is { } h ? (cx - h.X) * (cx - h.X) + (cz - h.Z) * (cz - h.Z) : 0;
+                yield return (cells.Distinct().ToList(), d2);
+            }
+        }
     }
 
     // Nodes whose box is over a column of the area and that reach a clearable cell.
@@ -535,6 +624,9 @@ public sealed class MinePlanner(MinePlanInput input)
             for (int z = s.Z - 1; z <= s.Z; z++)
                 if (_site.InWindow(x, s.Y - 1, z) && _band[_site.Index(x, s.Y - 1, z)] != MineBands.Never)
                     onTarget = 1;
+            // a stair comes off from the bottom up, where it may at all
+            if (kind == MineStationKind.Stair)
+                top = -cells.Min(c => c.Y);
             var key = new StationKey(band, top, order, kind == MineStationKind.Face ? lane : 0, onTarget, cells.Count, s.X, s.Y, s.Z);
             return new Candidate(cells, band, kind, lane, kind == MineStationKind.Face ? minSlice : -1, key);
         }
