@@ -3431,7 +3431,7 @@ tunnel 6 high benched, its top heading driven from a ledge in front of the cliff
 from the floor at the cliff's foot, and out by the lower mouth; two driving a tunnel 4 wide, a 2-wide
 lane each, side by side), `tests/PackTests/EidolonTallTunnelScenarios.cs` (Atlas: the owner's cases
 above in the game, each finished and walked out of, or its top told, outlined and kept; a pit 5 deep dug
-with a stair left as its way out; two on a pit 20 deep climbing out by its spiral stair)
+with a stair left as its way out; two on a pit 5 × 5 and 12 deep, the least that needs a spiral, climbing out by it)
 and `tests/Eidolon/EidolonTunnelsTests.cs` (covered and open, the refusals, the way in, the face's
 order, the bands, the lanes).
 
