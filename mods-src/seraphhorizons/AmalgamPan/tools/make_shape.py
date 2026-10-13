@@ -4,19 +4,21 @@
 The amalgam pan is an amalgamating pan of the mid 1800s (the Washoe process, scaled down to one block),
 worked like the game's quern, both ways: by hand, the player holding right-click on it, or by a vanilla
 axle under it, as the Washoe pan was driven from below. A wide, shallow sheet-iron pan with a beaded rim
-on an oak stand, a hollow cast-iron cone in the middle of its floor, and an iron spindle that carries the
-muller (a hub with four arms, an iron shoe bolted under each arm's end, dragging on the pan's floor) over
-the cone and comes down through the cone and a footstep bearing on an oak bridge-tree to the block's
-bottom face, where it ends in the vanilla axle's oak cross profile: an axle in the block below turns it.
-The muller turns with the axle, once a turn, as the quern's stone does; by hand there is nothing to see
-but the muller turning. Nothing goes in or out but by the player's hand: there is no chute, hopper or
-other transfer. Its contents are drawn as flat layers on the floor: a mercury pool; the charge, a grey-brown
-slurry of ground concentrate worked into the mercury; or the grey amalgam paste. Everything is built here
-from plain boxes; no other mod's model is used.
+on an oak stand, a hollow cast-iron cone in the middle of its floor, and the two parts fitted to it by
+hand (#718), in order: the muller, an iron spindle (the fitted rod) carrying a hub with four arms over the
+cone, which comes down through the cone and a footstep bearing on an oak bridge-tree to the block's bottom
+face and ends there in the vanilla axle's oak cross profile, so an axle in the block below turns it; and
+its shoes, four plates bolted under the arms' ends, dragging on the pan's floor, drawn in the plate's
+metal (texture code `shoe`). The muller turns with the axle, once a turn, as the quern's stone does; by
+hand there is nothing to see but the muller turning. Nothing goes in or out but by the player's hand:
+there is no chute, hopper or other transfer. Its contents are drawn as flat layers on the floor: a
+mercury pool; the charge, a grey-brown pulp of crushed gold or silver quartz and water with the mercury
+worked through it; or the grey amalgam paste. Everything is built here from plain boxes; no other mod's
+model is used.
 
 It writes, deterministically,
 
-    amalgampan.json         the whole pan, every moving part and the contents    (assets/.../shapes/block/)
+    amalgampan.json         the whole pan, every fitted part and the contents      (assets/.../shapes/block/)
     amalgampan_frame.json   the static frame only (block and item)                (assets/.../shapes/block/)
     amalgampan-rig.json     the cell, anchors and the part rig                    (assets/.../config/)
     rig-reference.json      every part's matrix at a spread of shaft angles       (tests/AmalgamPan/)
@@ -33,8 +35,8 @@ centre line, and the axle below comes up into the cell's down face on it (`power
 
 The rig's one input, as this station uses it (README "Rig schema"):
 
-    theta  the spindle's angle: the axle's under power, or the hold-to-work clock by hand; the spindle,
-           the muller and its shoes turn by it about the pan's axis, once a turn
+    theta  the spindle's angle: the axle's under power, or the hold-to-work clock by hand; the muller
+           turns by it about the pan's axis, once a turn, and the shoes ride it
 """
 
 from __future__ import annotations
@@ -82,6 +84,7 @@ TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
     "pan": "game:block/metal/sheet/iron1",          # the pan: riveted sheet iron
     "iron": "game:block/metal/plate/iron",          # cast and wrought iron: the cone, the footstep, the spindle, the muller
+    "shoe": "game:block/metal/plate/iron",          # the shoes: their own code, which the renderer sets to the fitted plate's metal
     # mercury as Expanded Matter draws it: the game's andesite, with its kimberlite blended over it (Lighten),
     # which only a blocktype can say (README "Gameplay"); the shape names the base
     "mercury": "game:block/stone/rock/andesite2",
@@ -251,10 +254,11 @@ def build_footstep():
 
 
 def build_muller():
-    """The muller and its spindle, one body turning about the pan's axis: over the cone the muller's hub
-    with four arms and an iron shoe bolted under each arm's end, dragging on the floor; the spindle down
-    through the cone, the floor and the footstep; and at its foot, under the bridge-tree, the coupling, the
-    vanilla axle's oak cross profile, which meets the axle in the block below at the block's bottom face."""
+    """Stage 1, the muller (`requires` muller, fitted from an iron, meteoric iron or steel rod: the rod is
+    the spindle): one body turning about the pan's axis. Over the cone the muller's hub with four arms; the
+    spindle down through the cone, the floor and the footstep; and at its foot, under the bridge-tree, the
+    coupling, the vanilla axle's oak cross profile, which meets the axle in the block below at the block's
+    bottom face. The hub, the arms and the coupling come with the rod, as #718 has the arms come with it."""
     p = "muller"
     out = disc("y", AXIS, SPINDLE_Y[0], SPINDLE_Y[1], SPINDLE_R, "muller_spindle", p, "iron")
     half, thick, high = COUPLING
@@ -263,14 +267,20 @@ def build_muller():
     out += disc("y", AXIS, HUB[1], HUB[2], HUB[0], "muller_hub", p, "iron")
     for i in range(4):
         out.append(radial(ARM_R[0], ARM_R[1], ARM_W, ARM_Y[0], ARM_Y[1], ARM_ANGLE0 + 90.0 * i, f"muller_arm{i + 1}", p, "iron"))
-    for i in range(4):
-        out.append(radial(SHOE_R[0], SHOE_R[1], SHOE_W, SHOE_Y[0], SHOE_Y[1], ARM_ANGLE0 + 90.0 * i, f"muller_shoe{i + 1}", p, "iron"))
     return out
 
 
+def build_shoes():
+    """Stage 2, the shoes (`requires` shoes, fitted from an iron or steel plate): a shoe bolted under each
+    arm's end, standing on the floor, riding the muller. Their texture code is `shoe`, which the renderer
+    sets to the fitted plate's metal. They don't wear: a permanent part, out only when the pan is broken."""
+    return [radial(SHOE_R[0], SHOE_R[1], SHOE_W, SHOE_Y[0], SHOE_Y[1], ARM_ANGLE0 + 90.0 * i, f"shoe_{i + 1}", "shoes", "shoe")
+            for i in range(4)]
+
+
 def build_contents():
-    """The contents, flat layers on the floor inside the wall: the mercury pool, the charge (the slurry of
-    concentrate worked into the mercury) and the amalgam paste."""
+    """The contents, flat layers on the floor inside the wall: the mercury pool, the charge (a pulp of
+    crushed gold or silver quartz and water, the mercury worked through it) and the amalgam paste."""
     out = disc("y", AXIS, CONTENT_Y0, MERCURY_TOP, CONTENT_R, "mercury", "mercury", "mercury", k=8)
     out += disc("y", AXIS, CONTENT_Y0, SLURRY_TOP, CONTENT_R, "slurry", "slurry", "slurry", k=8)
     out += disc("y", AXIS, CONTENT_Y0, AMALGAM_TOP, CONTENT_R, "amalgam", "amalgam", "amalgam", k=8)
@@ -278,7 +288,7 @@ def build_contents():
 
 
 def build():
-    return build_muller() + build_contents() + build_stand() + build_pan() + build_footstep()
+    return build_muller() + build_shoes() + build_contents() + build_stand() + build_pan() + build_footstep()
 
 
 # ---------------------------------------------------------------- rig
@@ -301,9 +311,11 @@ def rig_parts():
 
 def _rig_parts():
     parts = [
-        # theta is the spindle's angle: the axle's under power, the hold-to-work clock by hand; the muller turns with it
-        {"id": "muller", "match": ["muller_*"], "requires": None,
+        # theta is the spindle's angle: the axle's under power, the hold-to-work clock by hand; the muller turns with it.
+        # #718's fitted stages, in order: the muller (a rod), then its shoes (a plate), which ride it.
+        {"id": "muller", "match": ["muller_*"], "requires": "muller",
          "drivers": [{"type": "rotate", "axis": "y", "pivot": pt(CX, 0.0, CZ), "ratio": GEAR_RATIO}]},
+        {"id": "shoes", "match": ["shoe_*"], "requires": "shoes", "ride": "muller", "drivers": []},
         {"id": "mercury", "match": ["mercury_*"], "requires": "mercury", "drivers": []},
         {"id": "slurry", "match": ["slurry_*"], "requires": "slurry", "drivers": []},
         {"id": "amalgam", "match": ["amalgam_*"], "requires": "amalgam", "drivers": []},
@@ -357,10 +369,11 @@ def make_rig(parts):
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, one cell, the controller [0,0,0]: the pan. Worked "
                     "as the quern is, both ways: a vanilla axle in the block below comes up into the pan's down face "
                     "(powerCell, powerFace), or the player holds right-click on it; no work. theta is the spindle's angle, the "
-                    "axle's or the hold-to-work clock: the muller turns by it about the pan's axis (y), ratio 1. Every part "
-                    "but the contents is always fitted. The contents are requires values: mercury, slurry (the charge) and amalgam, one "
-                    "drawn at a time. Nothing goes in or out but by hand: no infeed or output. See the amalgam pan's README for "
-                    "the schema.",
+                    "axle's or the hold-to-work clock: the muller turns by it about the pan's axis (y), ratio 1, and the shoes "
+                    "ride it. The fitted stages are requires values, in order: muller (a rod: the spindle, its coupling, hub and "
+                    "arms), then shoes (a plate; texture code shoe, the plate's metal). So are the contents: mercury, slurry (the "
+                    "charge) and amalgam, one drawn at a time. Nothing goes in or out but by hand: no infeed or output. See the "
+                    "amalgam pan's README for the schema.",
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
@@ -442,8 +455,8 @@ def reference_json(ship_parts):
 def shape_json(els):
     return machine_shape_json(
         els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. 'mercury' is drawn as Expanded "
-             "Matter draws it (README), 'slurry' is the mod's own texture. Keep element names when editing: the rig finds "
-             "its parts by them.",
+             "Matter draws it (README), 'slurry' is the mod's own texture, 'shoe' is set by the renderer to the fitted "
+             "plate's metal. Keep element names when editing: the rig finds its parts by them.",
         TEXTURES, tex_size=TEX)
 
 

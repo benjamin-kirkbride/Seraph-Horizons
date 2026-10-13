@@ -93,9 +93,39 @@ def check_basic(v):
         v.fail(f"parts with no elements: {empty}")
     counts = {p["id"]: len(v.by_part.get(p["id"], [])) for p in v.parts}
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
-    staged = [p["id"] for p in v.parts if p["requires"] not in (None, "mercury", "slurry", "amalgam")]
-    if staged:
-        v.fail(f"the station has no build stages: every part but the contents is always fitted ({staged})")
+    vocab = [p["id"] for p in v.parts if p["requires"] not in (None,) + STAGES + CONTENTS_REQUIRES]
+    if vocab:
+        v.fail(f"parts with a requires outside the pan's vocabulary: {vocab}")
+
+
+STAGES = ("muller", "shoes")                     # #718's fitted parts, in the order they are fitted
+CONTENTS_REQUIRES = ("mercury", "slurry", "amalgam")
+
+
+def check_stages(v):
+    """#718's fitted stages, in order: the muller (a rod: spindle, coupling, hub, arms), which carries the
+    rotate on theta; then the shoes (a plate), riding the muller with no driver of their own, so they turn
+    with it bolted under its arms. Every other part is the frame (requires null) or a content. The `shoe`
+    texture code is on the shoes alone, and the shoes wear nothing else, so a renderer setting it to the
+    fitted plate's metal changes the shoes and nothing more."""
+    by_id = {p["id"]: p for p in v.parts}
+    order = [p["requires"] for p in v.parts if p["requires"] in STAGES]
+    muller, shoes = by_id.get("muller", {}), by_id.get("shoes", {})
+    print(f"stages: {order}; the muller's drivers {[d['type'] for d in muller.get('drivers', [])]} riding "
+          f"{muller.get('ride')}, the shoes' {shoes.get('drivers')} riding {shoes.get('ride')}")
+    if order != list(STAGES) or muller.get("requires") != "muller" or shoes.get("requires") != "shoes":
+        v.fail(f"the fitted stages are not the muller then the shoes: {order}")
+    if muller.get("ride") is not None or [d["type"] for d in muller.get("drivers", [])] != ["rotate"]:
+        v.fail("the muller is not the part theta turns, riding nothing")
+    if shoes.get("ride") != "muller" or shoes.get("drivers") != []:
+        v.fail("the shoes do not ride the muller with no driver of their own")
+    for p in v.parts:
+        if p["requires"] in CONTENTS_REQUIRES and (p.get("ride") is not None or p["drivers"] or p["id"] != p["requires"]):
+            v.fail(f"the {p['id']} content is not a still layer of its own requires")
+    with_shoe = sorted({el.part for el in v.els for f in el.faces.values() if f["texture"] == "#shoe"})
+    shoe_wears = sorted({f["texture"] for el in v.by_part.get("shoes", []) for f in el.faces.values()})
+    if with_shoe != ["shoes"] or shoe_wears != ["#shoe"]:
+        v.fail(f"the shoe texture code is not the shoes' alone (on {with_shoe}; the shoes wear {shoe_wears})")
 
 
 def check_containment(v, poses):
@@ -129,7 +159,8 @@ ROLES = [
     (r"^fr_(floor|wall|rim)_", {"pan"}),
     (r"^fr_(cone_base|cone_neck|plug_boss|footstep)", {"iron"}),
     (r"^fr_plug_bung", {"oak"}),
-    (r"^muller_(spindle|hub|arm|shoe)", {"iron"}),
+    (r"^muller_(spindle|hub|arm)", {"iron"}),
+    (r"^shoe_\d$", {"shoe"}),                       # the fitted plate's metal (the renderer sets the code)
     (r"^muller_coupling", {"oak"}),                  # the vanilla axle's own wood, continued: a shaft that meets an axle stays oak
     (r"^mercury_", {"mercury"}),
     (r"^slurry_", {"slurry"}),
@@ -170,11 +201,15 @@ def check_turning(v):
             q = v.point("muller", pose, [m.CX, y, m.CZ])
             worst_axis = max(worst_axis, abs(q[0] - m.CX), abs(q[1] - y), abs(q[2] - m.CZ))
         worst_turn = max(worst_turn, abs(wrap(turn_y(mm) - m.GEAR_RATIO * th)))
+        ms = v.mat("shoes", pose)
+        if max(abs(ms[i][j] - mm[i][j]) for i in range(3) for j in range(4)) > 1e-12:
+            v.fail("the shoes do not turn with the muller")
         for pid in ("mercury", "slurry", "amalgam", "frame"):
             mp = v.mat(pid, pose)
             if max(abs(mp[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(4)) > 1e-12:
                 v.fail(f"theta moves the {pid}")
-    print(f"turning: the pan's axis stays put within {worst_axis:.1e}; the muller turns {m.GEAR_RATIO:g} theta within {worst_turn:.1e}")
+    print(f"turning: the pan's axis stays put within {worst_axis:.1e}; the muller turns {m.GEAR_RATIO:g} theta within {worst_turn:.1e}, "
+          "the shoes with it")
     if worst_axis > 1e-9 or worst_turn > 1e-9 or m.GEAR_RATIO != 1.0:
         v.fail("the muller does not turn about the pan's axis with the axle, once a turn")
 
@@ -239,7 +274,7 @@ def check_shoes(v):
     worst_floor, worst_wall, worst_step, worst_arm = 0.0, 1e9, 1e9, 0.0
     for i in range(360):
         pose = (i * math.pi / 180 / m.GEAR_RATIO, 0)          # the muller's degree i
-        shoes = v.named("muller", r"_shoe\d$", pose)
+        shoes = v.named("shoes", r"^shoe_\d$", pose)
         arms = {e.name[-1]: e for e in v.named("muller", r"_arm\d$", pose)}
         for s in shoes:
             cs = s.corners()
@@ -290,7 +325,8 @@ ALLOWED = [
     ("muller", r"_spindle_", "frame", r"fr_(footstep|bridgetree|floor|cone_)"),   # the spindle down through the footstep and the
                                                                                    # bridge-tree, up through the floor and the cone
     ("mercury|slurry|amalgam", None, "frame", r"fr_(floor|wall|cone)"),            # the contents in the pan
-    ("mercury|slurry|amalgam", None, "muller", r"_(shoe\d|spindle_)"),             # the shoes stand in them; the spindle, inside the cone
+    ("mercury|slurry|amalgam", None, "muller", r"_spindle_"),                       # the spindle, inside the cone
+    ("mercury|slurry|amalgam", None, "shoes", None),                                 # the shoes stand in them
 ]
 
 
@@ -356,6 +392,7 @@ def check_zfight(v):
 def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
+    check_stages(v)
     check_floating(v)
     check_textures(v)
     check_containment(v, [m.REST] + m.turn_poses(5.0))

@@ -1,12 +1,14 @@
 """The amalgam pan's generated model files (mods-src/seraphhorizons/AmalgamPan/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with
-the shared rig maths and uses its `requires` vocabulary (only the two contents: the muller and the frame
-are always fitted), it takes a vanilla axle from below at its own cell, as the quern does, its reference
-poses are its own maths, the cell is rebuilt from the shipped shape, theta (the spindle's angle) turns the
-muller about the pan's axis once a turn and nothing else, the spindle's foot is the axle's cross profile at
-the block's bottom face, the contents lie on the pan's floor, every texture is declared and exists, and
-the mercury is drawn as Expanded Matter draws it and the slurry texture is the generator's. Run with `python3 -m unittest discover -s tools/tests`.
+the shared rig maths and uses its `requires` vocabulary (#718's fitted stages, the muller and then its
+shoes, and the three contents), it takes a vanilla axle from below at its own cell, as the quern does, its
+reference poses are its own maths, the cell is rebuilt from the shipped shape, theta (the spindle's angle)
+turns the muller about the pan's axis once a turn, the shoes ride it and nothing else moves, the spindle's
+foot is the axle's cross profile at the block's bottom face, the contents lie on the pan's floor, the
+shoes alone wear the `shoe` code, every texture is declared and exists, and the mercury is drawn as
+Expanded Matter draws it and the slurry texture is the generator's. Run with
+`python3 -m unittest discover -s tools/tests`.
 """
 
 import importlib.util
@@ -35,8 +37,8 @@ SHAPE = json.loads((ASSETS / "shapes" / "block" / "amalgampan.json").read_text()
 FRAME = json.loads((ASSETS / "shapes" / "block" / "amalgampan_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "AmalgamPan" / "rig-reference.json").read_text())
 SLURRY = ASSETS / "textures" / "block" / "liquid" / "slurry.png"
-# the contents, a mercury pool, the charge (a slurry) or amalgam, are the only requires values: the station has no build stages
-REQUIRES = {"mercury", "slurry", "amalgam", None}
+# #718's fitted stages (the muller, a rod; its shoes, a plate) and the contents (a mercury pool, the charge's slurry, amalgam)
+REQUIRES = {"muller", "shoes", "mercury", "slurry", "amalgam", None}
 
 
 def matrix(pid, theta):
@@ -50,7 +52,7 @@ def turn_y(m):
 class Rig(unittest.TestCase):
     def test_parts_parse_and_use_the_vocabulary(self):
         ids = [p["id"] for p in RIG["parts"]]
-        self.assertEqual(ids, ["muller", "mercury", "slurry", "amalgam", "frame"])
+        self.assertEqual(ids, ["muller", "shoes", "mercury", "slurry", "amalgam", "frame"])
         for p in RIG["parts"]:
             self.assertIn(p["requires"], REQUIRES, p["id"])
             if p.get("ride"):
@@ -73,10 +75,14 @@ class Rig(unittest.TestCase):
         self.assertEqual(sides, ["operatorSide"])
         self.assertEqual([k for k in RIG if k.startswith(("infeed", "output", "outfeed"))], [])
 
-    def test_the_muller_is_always_fitted(self):
-        (part,) = [p for p in RIG["parts"] if p["id"] == "muller"]
-        self.assertIsNone(part["requires"])
-        self.assertTrue(part["drivers"])
+    def test_the_fitted_stages_are_the_muller_then_its_shoes(self):
+        # #718: the muller from a rod (the rod is the spindle), then the shoes from a plate, bolted under its arms
+        parts = {p["id"]: p for p in RIG["parts"]}
+        self.assertEqual([p["requires"] for p in RIG["parts"] if p["requires"] in ("muller", "shoes")], ["muller", "shoes"])
+        self.assertEqual((parts["muller"]["requires"], parts["muller"]["ride"]), ("muller", None))
+        self.assertEqual([d["type"] for d in parts["muller"]["drivers"]], ["rotate"])
+        self.assertEqual((parts["shoes"]["requires"], parts["shoes"]["ride"], parts["shoes"]["drivers"]), ("shoes", "muller", []))
+        self.assertEqual(parts["frame"]["requires"], None)
 
     def test_every_element_has_a_part_and_every_part_an_element(self):
         names = [e["name"] for e in SHAPE["elements"]]
@@ -117,6 +123,8 @@ class Turning(unittest.TestCase):
             axis = rigmath.apply(m, [0.5, 0.7, 0.5])
             for got, want in zip(axis, [0.5, 0.7, 0.5]):
                 self.assertAlmostEqual(got, want, places=12)
+            # the shoes ride it, bolted under its arms
+            self.assertEqual(matrix("shoes", theta), m)
 
     def test_nothing_else_moves(self):
         ident = rigmath.m4()
@@ -139,6 +147,7 @@ class Turning(unittest.TestCase):
         self.assertEqual(sorted(sorted([round(abs(e["to"][0] - e["from"][0]), 4), round(abs(e["to"][2] - e["from"][2]), 4)]) for e in bars),
                          [[1.2, 3.0], [1.2, 3.0]])
 
+
 class Contents(unittest.TestCase):
     def layer(self, pid):
         els = [e for e in SHAPE["elements"] if rigmath.part_of(RIG["parts"], e["name"]) == pid]
@@ -160,7 +169,7 @@ class Contents(unittest.TestCase):
         self.assertLess(m1, a1)
         self.assertLess(a1, s1)
         # the shoes stand out of all three
-        shoes = [e for e in SHAPE["elements"] if e["name"].startswith("muller_shoe")]
+        shoes = [e for e in SHAPE["elements"] if e["name"].startswith("shoe_")]
         self.assertEqual(len(shoes), 4)
         self.assertGreater(min(max(e["from"][1], e["to"][1]) for e in shoes), s1)
 
@@ -184,6 +193,16 @@ class Textures(unittest.TestCase):
     def test_the_muller_is_iron_and_its_coupling_oak(self):
         els = [e for e in SHAPE["elements"] if rigmath.part_of(RIG["parts"], e["name"]) == "muller"]
         self.assertEqual({f["texture"] for e in els if not e["name"].startswith("muller_coupling") for f in e["faces"].values()}, {"#iron"})
+
+    def test_the_shoes_alone_wear_their_own_code(self):
+        # the renderer sets `shoe` to the fitted plate's metal (iron or steel); in the shape it is iron plate
+        by_part = {}
+        for e in SHAPE["elements"]:
+            by_part.setdefault(rigmath.part_of(RIG["parts"], e["name"]), set()).update(f["texture"] for f in e["faces"].values())
+        self.assertEqual(by_part["shoes"], {"#shoe"})
+        self.assertEqual([pid for pid, codes in by_part.items() if "#shoe" in codes], ["shoes"])
+        self.assertEqual(SHAPE["textures"]["shoe"], "game:block/metal/plate/iron")
+        self.assertNotIn("shoe", FRAME["textures"])
 
     def test_the_mods_own_textures_exist(self):
         for code, path in SHAPE["textures"].items():
