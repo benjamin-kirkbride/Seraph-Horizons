@@ -89,7 +89,7 @@ public sealed class MineJobCells
     /// <summary>The plan's blocks out of reach that are no stair of the job's (<see cref="Stair"/>).</summary>
     public IReadOnlySet<MarkPos> OutOfReach => Plan is { } p ? p.OutOfReach.Where(c => !Stair.Contains(c)).ToHashSet() : new HashSet<MarkPos>();
 
-    /// <summary>The cells under eidolons parked in the area (no member at work) when the plan was last made
+    /// <summary>The cells under eidolons parked in the area (none of the job's) when the plan was last made
     /// for being stuck: planned round, as cells left for now, until they move (README "Eidolon", working
     /// together, *Footing*).</summary>
     public HashSet<MarkPos> Parked { get; set; } = new();

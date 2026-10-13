@@ -109,10 +109,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// the area (no member, or one waiting) never takes a station from it.</summary>
     private const double NeverSeconds = 1e6;
 
-    /// <summary>How long after finishing a station it leaves the next to a member waiting with less mined
-    /// (<see cref="Yields"/>), looking every <see cref="YieldCheckSeconds"/>.</summary>
+    /// <summary>How long after finishing a station it leaves the next to a member waiting with under half as much mined
+    /// (<see cref="Yields"/>), waiting at the rim meanwhile.</summary>
     private const double YieldSeconds = 3;
-    private const double YieldCheckSeconds = 0.5;
 
     /// <summary>How long at most it waits for another to make room before it walks a way through it.</summary>
     private const double ThroughSeconds = 20;
@@ -521,10 +520,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             DropHead(eidolon);
         if (_queue.Count == 0 && Yields(eidolon, workers, now))
         {
-            // just done with a station, another of its job waiting with less to show: its turn to take one
-            _phase = Phase.Wait;
-            _waitCheckAt = now + YieldCheckSeconds;
-            return true;
+            // just done with a station, another of its job waiting with less to show: its turn to take one,
+            // and this one makes room, off to the rim like any other waiting
+            Unfinish(eidolon);
+            return Wait(eidolon, now);
         }
         Refill(eidolon, plan, live, workers, now);
         if (Station is not { } head)
@@ -592,7 +591,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>Whether it leaves the next station to another member of its job (README "Eidolon", working
     /// together, *Dispatch*): within <see cref="YieldSeconds"/> of finishing one, while a member present holds
-    /// none and has mined less. In an area too small for two stations at once the one at work would
+    /// none and has mined less than half as much. In an area too small for two stations at once the one at work would
     /// otherwise always be nearer the next, and the other never get one.</summary>
     private bool Yields(EntityLaborEidolon eidolon, IReadOnlyList<MineWorker> workers, double now)
     {
@@ -600,7 +599,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             return false;
         var shares = _job.Shares.ToDictionary(s => s.Member, s => s.Count);
         int mine = shares.GetValueOrDefault(eidolon.EntityId);
-        return workers.Any(w => w.Queue.Count == 0 && _job.Present.Contains(w.Id) && shares.GetValueOrDefault(w.Id) < mine);
+        return workers.Any(w => w.Queue.Count == 0 && _job.Present.Contains(w.Id) && 2 * shares.GetValueOrDefault(w.Id) < mine);
     }
 
     /// <summary>Whether another eidolon stands at <paramref name="stand"/>, their boxes overlapping: not a
@@ -643,7 +642,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         // round what is under them now (or with it, once they have moved), whenever that changes.
         if (!working)
         {
-            var parked = workers.Where(w => w.Queue.Count == 0).ToList();
+            // not a member: one waiting moves on by itself, and one stepped aside deep in a pit would hold
+            // the whole pit under it
+            var parked = workers.Where(w => w.Queue.Count == 0 && _job?.Present.Contains(w.Id) != true).ToList();
             var under = cells.Parked.Concat(live.Remaining).Where(c => parked.Any(w => EidolonMining.UnderFoot(w.X, w.Z, c))).ToHashSet();
             if (!under.SetEquals(cells.Parked))
             {

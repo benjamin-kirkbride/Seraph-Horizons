@@ -3447,8 +3447,9 @@ the guard against the live state with the others where they stand (`MineDispatch
 no other would reach sooner, then the one it reaches soonest, then the first (an estimate: the octile
 distance, 3 a block climbed). So one whose part is mined out takes the next near station in another's,
 and none idles while a station is free. It holds a second station only while no other member holds
-none, and just done with one it leaves the next for 3 seconds to a member waiting with less mined (in an
-area too small for two stations at once, the one at work is always nearer the next). A station worked out
+none, and just done with one it leaves the next for 3 seconds to a member waiting with under half as much
+mined, making for the rim meanwhile (in an area too small for two stations at once, the one at work is
+always nearer the next). A station worked out
 of the plan's order never digs the footing of an earlier one's place, nor cuts it off
 (`MineDispatch.Before`, `Footing`; an earlier one whose blocks left are all under an eidolon parked in the
 area holds no place for now). *Claims*: a station's
@@ -3497,7 +3498,7 @@ over it), its job's or not, with an order or not, nor one whose loss would leave
 another holds, with no way out; asked as it takes a station and again at each strike, against the
 eidolons loaded over the area. A station's blocks in the columns of an eidolon parked in the area (no
 order, or waiting) are left out of it, and a place it stands on or by is not made for; with none at work,
-the plan is made again round what is under such eidolons (`MineJobCells.Parked`), so it is worked round,
+the plan is made again round what is under such eidolons not of its job (`MineJobCells.Parked`), so it is worked round,
 then waited for at the rim (the order is not done while blocks under one are left), and planned again
 with its blocks once it moves, which are mined, with no pillar left. *The report*: a member
 with nothing left it may break and reach tells the job and waits at the rim; the job is done when every
