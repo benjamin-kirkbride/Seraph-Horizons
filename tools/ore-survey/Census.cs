@@ -46,6 +46,8 @@ public sealed class Census
     bool[] rockId = [];
     readonly Dictionary<Column, ColumnScan> scans = new();
     readonly System.Collections.Concurrent.ConcurrentDictionary<Column, ColumnScan> earlyScans = new();
+    // ORE_CENSUS_KINDS=cells or districts: census only ore cells or only district veins (default both).
+    readonly string kinds = Environment.GetEnvironmentVariable("ORE_CENSUS_KINDS") ?? "";
     // ORE_CENSUS_EARLY=0: only columns asked for and complete are read (every flood column asked for).
     readonly bool early = Environment.GetEnvironmentVariable("ORE_CENSUS_EARLY") != "0";
     // How far around a column asked for its neighbours are expected to pass Vegetation.
@@ -126,8 +128,8 @@ public sealed class Census
         cellsOut = new StreamWriter(outPath + ".cells.csv");
         int bx1 = originX * ChunkSize, bz1 = originZ * ChunkSize, bx2 = bx1 + size * ChunkSize, bz2 = bz1 + size * ChunkSize;
         log($"census: area blocks x {bx1}..{bx2}, z {bz1}..{bz2} ({size}x{size} chunks); sized metals {string.Join(", ", sized.Order())}; {parallel} floods at once, margin {Margin}, cap {Cap}");
-        EnqueueCells(sized, bx1, bz1, bx2, bz2);
-        EnqueueDistricts(sized, bx1, bz1, bx2, bz2);
+        if (kinds != "districts") EnqueueCells(sized, bx1, bz1, bx2, bz2);
+        if (kinds != "cells") EnqueueDistricts(sized, bx1, bz1, bx2, bz2);
         log($"census: {queue.Count} deposits queued");
         if (early) sapi.Event.ChunkColumnGeneration(OnVegetation, EnumWorldGenPass.Vegetation, "standard");
         sapi.Event.RegisterGameTickListener(_ => Pump(), 50);

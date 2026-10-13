@@ -62,7 +62,7 @@ The mod reads its settings from the environment, which `run.sh` sets:
 | `ORE_SURVEY_SIZE` | chunk columns per side, centred on the map centre (default 64) |
 | `ORE_SURVEY_MODE` | `dump` for the dump, `census` for a census (below); anything else scans |
 | `ORE_SURVEY_FAST`, `ORE_SURVEY_PROFILE` | `1`: `--fast`, `--profile` |
-| `ORE_CENSUS_METALS`, `ORE_CENSUS_PARALLEL` | `--metals`, `--floods` |
+| `ORE_CENSUS_METALS`, `ORE_CENSUS_KINDS`, `ORE_CENSUS_PARALLEL` | `--metals`, `--kinds`, `--floods` |
 
 It loads the area in tiles of 8 x 8 chunk columns, counts every block of every chunk, and
 unloads each tile before asking for the next, so memory stays flat. When done it stops the
@@ -81,6 +81,9 @@ VINTAGE_STORY=$HOME/Games/vintagestory tools/ore-survey/run.sh --census --fast -
 python3 tools/ore-survey/ore_survey.py census build/ore-survey/comb-s{101,202,303,404} \
   --dump build/ore-survey/comb-dump/orescan.json --json build/ore-survey/comb-census.json --check
 ```
+
+`--kinds districts` (or `cells`) measures only district veins (or only ore cells): a district
+change's census of six 640 squares takes about half an hour on three servers.
 
 What it measures, in the area (`--size` chunk columns square at the map centre, 320 by default):
 
