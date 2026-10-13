@@ -13,17 +13,21 @@ public enum DistrictZoneKind
 
 /// <summary>One ore of a zone: its metal group (null for gems, minerals and anything unmanaged),
 /// its pick weight, its placement density (0 if its code resolves to no block in the district's
-/// rock, so it never places anything) and the ingots one block of its poorest grade gives.</summary>
-public readonly record struct DistrictOre(string? Metal, double Weight, double Density, double IngotsPerBlock);
+/// rock, so it never places anything), the ingots one block of its poorest grade gives, and the
+/// ingots a block of each grade the district's rock allows gives, poorest first (null for an
+/// ungraded ore, or if unknown: then the poorest grade's times the grade allowance is used).</summary>
+public readonly record struct DistrictOre(string? Metal, double Weight, double Density, double IngotsPerBlock,
+    IReadOnlyList<double>? GradeIngots = null);
 
 /// <summary>
 /// One district ore zone as the rules need it: its kind, its ores, the ore blocks it places per
 /// layer of rock when the whole of it is ore at density 1 (<see cref="DistrictVeins"/> explains
-/// the estimate), its height range, and how many times its ore per layer the game side can make it
-/// if the rules widen it (<see cref="DistrictZonePlan.Widen"/>; 1: it can't).
+/// the estimate), its height range, how many times its ore per layer the game side can make it
+/// if the rules widen it (<see cref="DistrictZonePlan.Widen"/>; 1: it can't), and its fault's
+/// richness at each height, indexed by y (IOG's <c>RichnessAt</c>, 0 to 1; null if unknown).
 /// </summary>
 public sealed record DistrictZone(DistrictZoneKind Kind, IReadOnlyList<DistrictOre> Ores, double BlocksPerLayer, int YMin, int YMax,
-    double Widening = 1);
+    double Widening = 1, IReadOnlyList<float>? Richness = null);
 
 /// <summary>What to do with a zone: drop it, or keep it with these of its ores (the rest placing
 /// nothing) and, for a vein, within this band of heights (inclusive; null keeps its range), widened
@@ -34,8 +38,10 @@ public sealed record DistrictZonePlan(bool Keep, IReadOnlyList<bool> OreKept, in
 }
 
 /// <summary>The district rules' data (<c>config/ore-districts.json</c>).</summary>
-/// <param name="GradeAllowance">Ore per block over the poorest grade's: away from a fault's rich
-/// bands nine blocks in ten are the poorest grade (IOG's <c>ResolveOreCode</c>).</param>
+/// <param name="GradeAllowance">Ore per block over the poorest grade's, for an ore or zone whose
+/// grades or fault richness are unknown (otherwise each layer's grades are reckoned, <see
+/// cref="DistrictVeins.ExpectedIngots"/>): away from a fault's rich bands nine blocks in ten are
+/// the poorest grade (IOG's <c>ResolveOreCode</c>).</param>
 /// <param name="Blocks">How many times the ore per layer a sized vein is made (#863): <see
 /// cref="OreProducts.DepositBlocks"/> while an ore item holds about a quarter of vanilla's units,
 /// so a vein holds the ingots it did; 1 leaves the veins' width as IOG makes it.</param>
@@ -64,14 +70,17 @@ public sealed record DistrictVeinSettings(int VeinsPerMetal, IReadOnlyCollection
 /// in the height of rock it had. Without it a vein needed four to five times the height, which most
 /// columns don't have. A lens, which has no band, is grown four times in ore (<see cref="LensRadii"/>)
 /// so it holds the ingots it did.</item>
-/// <item>Size: every kept vein holding a managed metal is cut to a band of heights. Its ore per
-/// layer is <c>blocks per layer × widening × weight share × density × ingots per block × grade
-/// allowance</c> for each such ore; the band is the height that gives the ore the zone's drawn size
-/// (<see cref="DrawSize"/>: small, typical and large are the 10th, 50th and 90th percentile, as
-/// the epic reads them), the least over its ores, at a height from the hash between
-/// <see cref="DistrictVeinSettings.BandFloor"/> and sea level less
-/// <see cref="DistrictVeinSettings.BandBelowSeaLevel"/>, so that it lies in rock. A band taller
-/// than that room is the room (#943): the vein holds less than drawn.</item>
+/// <item>Size: every kept vein holding a managed metal is cut to a band of heights. Its ore at a
+/// height is <c>blocks per layer × widening × weight share × density × ingots per block</c> for
+/// each such ore, the ingots per block the mean of its grades at its fault's richness there
+/// (<see cref="ExpectedIngots"/>, #943: a fault's rich bands give two to three times the ore of
+/// the poorest grade), or the poorest grade's times the grade allowance where either is unknown.
+/// The band starts at a height from the hash between <see cref="DistrictVeinSettings.BandFloor"/>
+/// and sea level less <see cref="DistrictVeinSettings.BandBelowSeaLevel"/>, so that it lies in
+/// rock, room left for the most height it can need, and grows a layer at a time until one of its
+/// ores holds the zone's drawn size (<see cref="DrawSize"/>: small, typical and large are the 10th,
+/// 50th and 90th percentile, as the epic reads them). A band taller than that room is the room
+/// (#943): the vein holds less than drawn.</item>
 /// </list>
 /// Unmanaged ores (gems, minerals) keep their counts; in a vein that also holds a managed metal
 /// they share its band.
@@ -146,26 +155,82 @@ public sealed class DistrictVeins
         double totalWeight = zone.Ores.Sum(o => o.Weight);
         if (totalWeight <= 0 || zone.BlocksPerLayer <= 0) return (null, null);
         double u = Unit(Hash(districtSeed, "size", index));
-        double? height = null;
+        // Each sized ore: its drawn size, its ore blocks per layer, and its ingots per block at a height.
+        int lo = Math.Max(zone.YMin, _settings.BandFloor);
+        int hi = Math.Min(zone.YMax, seaLevel - _settings.BandBelowSeaLevel);
+        if (hi < lo) (lo, hi) = (zone.YMin, zone.YMax);
+        var sized = new List<(double Size, double Blocks, Func<int, double> Ingots, double Least)>();
         for (int j = 0; j < zone.Ores.Count; j++)
         {
             var ore = zone.Ores[j];
             if (!kept[j] || ore.Metal is not { } metal || _sizes.TargetsFor(metal) is not { } targets) continue;
-            double perLayer = zone.BlocksPerLayer * widening * ore.Weight / totalWeight * ore.Density * ore.IngotsPerBlock * _settings.GradeAllowance;
-            if (perLayer <= 0) continue;
-            double h = DrawSize(targets, u) / perLayer;
-            height = height is { } prev ? Math.Min(prev, h) : h;
+            double blocks = zone.BlocksPerLayer * widening * ore.Weight / totalWeight * ore.Density;
+            if (blocks <= 0) continue;
+            Func<int, double> ingots = ore.GradeIngots is { Count: > 0 } grades && zone.Richness is { Count: > 0 } richness
+                ? y => ExpectedIngots(grades, richness[Math.Clamp(y, 0, richness.Count - 1)])
+                : _ => ore.IngotsPerBlock * _settings.GradeAllowance;
+            double least = LeastIngots(ingots, lo, hi);
+            if (least > 0) sized.Add((DrawSize(targets, u), blocks, ingots, least));
         }
-        if (height is not { } wanted) return (null, null);
-        int lo = Math.Max(zone.YMin, _settings.BandFloor);
-        int hi = Math.Min(zone.YMax, seaLevel - _settings.BandBelowSeaLevel);
-        if (hi < lo) (lo, hi) = (zone.YMin, zone.YMax);
-        // A band taller than the room is the room (#943): the vein holds less than drawn, and
-        // never IOG's whole column.
-        int band = Math.Clamp((int)Math.Round(wanted), 1, hi - lo + 1);
-        int start = lo + (int)(Unit(Hash(districtSeed, "height", index)) * (hi - lo + 2 - band));
-        start = Math.Min(start, hi - band + 1);
-        return (start, start + band - 1);
+        if (sized.Count == 0) return (null, null);
+        // Placed by the height it needs away from any rich band (its least ingots per layer, IOG's
+        // grades at richness 0), which is the most it can need; then grown layer by layer from
+        // there, by each layer's expected grade, until an ore reaches its drawn size (#943). A band
+        // taller than the room is the room: the vein holds less than drawn, never IOG's whole column.
+        double most = sized.Min(o => o.Size / (o.Blocks * o.Least));
+        int room = hi - lo + 1;
+        int placed = Math.Clamp((int)Math.Round(most), 1, room);
+        int start = lo + (int)(Unit(Hash(districtSeed, "height", index)) * (room + 1 - placed));
+        start = Math.Min(start, hi - placed + 1);
+        var held = new double[sized.Count];
+        int end = start;
+        for (int y = start; y <= hi; y++)
+        {
+            end = y;
+            bool full = false;
+            for (int k = 0; k < sized.Count; k++)
+            {
+                double layer = sized[k].Blocks * sized[k].Ingots(y);
+                held[k] += layer;
+                // Rounded to the nearest layer, as a height of size / ingots per layer would be.
+                if (held[k] >= sized[k].Size - layer / 2) full = true;
+            }
+            if (full) break;
+        }
+        return (start, end);
+    }
+
+    // The least ingots per block an ore gives over the room: IOG's grades are richer in a rich
+    // band, never poorer, so this is its grades at the room's least richness.
+    private static double LeastIngots(Func<int, double> ingots, int lo, int hi)
+    {
+        double least = double.MaxValue;
+        for (int y = lo; y <= hi; y++) least = Math.Min(least, ingots(y));
+        return least;
+    }
+
+    /// <summary>
+    /// The ingots a block of a graded district ore gives on average at a fault richness (IOG's
+    /// <c>HydrothermalDistrictSystem.ResolveOreCode</c>): with <c>n</c> grades, poorest first, grade
+    /// <c>i</c> is drawn with weight <c>max(0, 1 − |i − richness (n − 1)| / 1.5)²</c>. At richness 0
+    /// that is nine poorest blocks to one of the next; in a rich band (up to 1) most are the richest
+    /// grades, which for cassiterite (1 / 3 / 4 / 6 units) is about three times the ore.
+    /// </summary>
+    public static double ExpectedIngots(IReadOnlyList<double> gradeIngots, double richness)
+    {
+        int n = gradeIngots.Count;
+        if (n == 0) return 0;
+        if (n == 1) return gradeIngots[0];
+        double centre = (float)richness * (n - 1);
+        double sum = 0, total = 0;
+        for (int i = 0; i < n; i++)
+        {
+            double w = Math.Max(0, 1 - Math.Abs(i - centre) / 1.5);
+            w *= w;
+            sum += w * gradeIngots[i];
+            total += w;
+        }
+        return total <= 1e-6 ? gradeIngots[0] : sum / total;
     }
 
     /// <summary>

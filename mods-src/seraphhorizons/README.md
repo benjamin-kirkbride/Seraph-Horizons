@@ -4924,7 +4924,8 @@ fixed at creation. The server log says what the world has
   lenses is not placed. IOG's veins run from the bottom of the world to the top, so each kept vein
   is cut to a band of heights under sea level that gives a size drawn from the metal's small,
   typical and large in `config/ore-sizes.json` (the band's height from the vein's geometry, its
-  ores' shares and the ingots of their poorest grade, read from the ore's own units); a band
+  ores' shares and, layer by layer, the ingots of their grades as IOG draws them at the fault's
+  richness there, so a band that runs into a fault's rich band is thinner, #943); a band
   taller than the room under sea level is that room, never the whole column (#943). IOG makes ore
   only where a zone's block is the district's host rock; where the host is also a country rock (a
   rock stratum or the default rock: granite in the granitic and felsic districts, basalt in the
@@ -4937,7 +4938,8 @@ fixed at creation. The server log says what the world has
   silver, which has no band, is grown to four times its ore: in travertine twice IOG's radii both
   ways (its ore is the disc where it crosses its one-block fracture), in a country rock host twice
   its horizontal radius (the whole spheroid is ore). `gradeAllowance` went from 1.15 to 1.25
-  with the wider spread of grades. Gems and minerals are left as IOG makes them. The log has a line per district (`Smaller deposits: district 'magmatic-granitic-deep' at
+  with the wider spread of grades; since #943 it is used only where the grades or the fault's rich
+  bands can't be read. Gems and minerals are left as IOG makes them. The log has a line per district (`Smaller deposits: district 'magmatic-granitic-deep' at
   (...), host rock-granite (a country rock: shoots counted whole): 65 of 310 ore zones kept; veins per metal bismuth 8 (was 69), ...`).
 - **`RarerDistricts`** (#441): IOG's hydrothermal districts, the only source of gold and silver
   quartz and most chromite and platinum, tile the world in 7 km squares instead of 4–6 km

@@ -323,7 +323,8 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     /// rock as well as the host, so a shoot is sized as its whole ellipse and a horsetail lens
     /// holding a sized metal (gold, silver) has its lenses twice IOG's horizontal radius and its
     /// vertical one, four times the spheroid, its box around them. A felsic district (tin, bismuth,
-    /// lead, silver) the same.</summary>
+    /// lead, silver) the same. Each band's height is grown by its fault's richness (IOG's
+    /// <c>RichnessAt</c>, still there to read).</summary>
     [AtlasScenario]
     public void Hydrothermal_district_veins_are_counted_and_sized()
     {
@@ -333,6 +334,8 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.NotNull(patches);
         Assert.Contains(patches.Postfixes, p => p.owner == OreSystem.HarmonyId);
         Assert.Equal(OreProducts.DepositBlocks, OreSystem.GradedOreBlocks(World.Api));
+        // A band's grades are reckoned from its fault's rich bands (#943).
+        Assert.Equal(typeof(float), AccessTools.Method(AccessTools.TypeByName("InterestingOreGen.Generators.HydrothermalFaultSpline"), "RichnessAt", [typeof(int)])?.ReturnType);
 
         var system = World.Api.ModLoader.Systems.First(s => s.GetType().FullName == OreDistricts.SystemTypeName);
         var configs = ((System.Collections.IEnumerable)AccessTools.Field(system.GetType(), "_configs").GetValue(system)!).Cast<object>().ToList();

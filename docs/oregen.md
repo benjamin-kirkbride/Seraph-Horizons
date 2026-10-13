@@ -150,13 +150,22 @@ builds from the seed, the same after every restart.
   `GetOreBlocksInChunk` iterates). The ore a layer gives is estimated from the zone's geometry
   (a shoot: fault width × 4r/3, or its whole ellipse, π · r · r/2 ÷ 2, where the host is a
   country rock, below; a ladder: stretch × widened width ÷ slab spacing), the ore's
-  share and density, and the ingots of a block of its poorest grade (read from the block's drops)
-  times 1.25 (1.15 before #863 widened the grades); the band is the height that gives the size
-  drawn for the zone (log-linear through the metal's small, typical and large at the 10th, 50th
-  and 90th percentile), the least over its
-  ores, placed by the hash between y 4 and sea level less 6, so it lies in rock. A band taller
-  than that room is the room (#943): the vein holds less than drawn. Before #943 such a vein kept
-  IOG's whole column, still widened.
+  share and density, and the ingots a block gives at that height: the mean of the ore's grades
+  (each read from its block's drops) as IOG draws them at the fault's richness there
+  (`DistrictVeins.ExpectedIngots`, #943). Before #943 it was the poorest grade times 1.25 (1.15
+  before #863 widened the grades), which still stands in where the grades or the fault can't be
+  read. The band starts at a height from the hash between y 4 and sea level less 6, so it lies in
+  rock, leaving room for the most height it can need (all of it away from rich bands), and grows a
+  layer at a time until one of its ores holds the size drawn for the zone (log-linear through the
+  metal's small, typical and large at the 10th, 50th and 90th percentile). A band taller than that
+  room is the room (#943): the vein holds less than drawn. Before #943 such a vein kept IOG's whole
+  column, still widened.
+- Rich bands (#943): each fault has 1–2 bands of height, 15–30 blocks each way, where IOG draws
+  most blocks at the richest grades (`RichnessAt`). Cassiterite's grades are 1 / 3 / 4 / 6 units,
+  so a vein inside a rich band holds about three times the ore of one outside: seed 202's largest
+  tin vein after the host fix, 1,148 ingots against a drawn ~490, was one shoot with y 24–47 in
+  its fault's rich band (2.9 units a block on average against the 1.25 allowed). Reckoning each
+  layer's grades makes such a band thinner, not the vein richer.
 - Host rock (#943): IOG turns a zone block into ore only where it is the district's host rock,
   which is what cuts a shoot to its fault. The granitic and felsic configs' host is
   `rock-granite` and the mafic one's `rock-basalt`, both country rocks too, so where the fault
@@ -432,26 +441,27 @@ same seeds (`build/ore-survey-863/pack-s*` in the main checkout). The deposits t
 cell's anchor (matched to the log's `Ore cells: ... deposit placed` lines), all within 3.1 km of a
 `magmatic-granitic-deep` district, ingots:
 
-| Metal (60 / 150 / 400) | #863 | #943 |
-|---|---|---|
-| Tin | 9,375, 7,296, 993, 915, 166, 124, 77 | 1,148, 192, 88, 81 |
-| Zinc | 7,017, 5,475, 3,650, 2,052, 635, 186, 94, 81, 74 | 292, 248, 77, 51 |
-| Bismuth | 3,957, 3,622, 1,899, 1,636, 1,317, 271, 245 | 273, 123, 105, 58 |
-| Lead | 2,072, 668, 473 | 92 |
-| Gold (30 / 80 / 200) | 455, 363, 190, 88 | 233, 198, 111 |
+| Metal (60 / 150 / 400) | #863 | Host fix | With grades by layer |
+|---|---|---|---|
+| Tin | 9,375, 7,296, 993, 915, 166, 124, 77 | 1,148, 192, 88, 81 | 537, 192, 88, 81 |
+| Zinc | 7,017, 5,475, 3,650, 2,052, 635, 186, 94, 81, 74 | 292, 248, 77, 51 | 354, 182, 78, 62 |
+| Bismuth | 3,957, 3,622, 1,899, 1,636, 1,317, 271, 245 | 273, 123, 105, 58 | 232, 138, 123, 58 |
+| Lead | 2,072, 668, 473 | 92 | 110 |
+| Gold (30 / 80 / 200) | 455, 363, 190, 88 | 233, 198, 111 | 233, 198, 111 |
 
-Median 954 → 105 for the four base metals together; 17 of 26 were over the large size, now 1
-of 13. That one (seed 202, tin) is a single body of 31,000 poor blocks at y 22–67, about 700 a
-layer over 290 × 420 m, cut by the window's edge: about twice the largest size a vein draws,
-likely two kept shoots on one fault overlapping now that a widened shoot (a half strike of
-100–180 blocks) is longer than IOG's spacing of shoots (160 blocks or more). Smaller veins
-dropped under the survey's 50-ingot floor, so fewer are counted. Neither window held district
-copper or iron (their mafic districts lie outside), so mafic veins were not measured here.
+Median 954 → 105 → 123 for the four base metals together; 17 of 26 were over the large size,
+then 1 of 13, now 1 of 13 at 537, inside the largest a vein draws (about 510, the 100th
+percentile on the same log-linear slope; the survey also counts the 1% crystallised ore). The
+host fix alone left that tin vein at 1,148: one shoot (rebuilt in an Atlas scratch run: no other
+tin shoot within 360 m) whose band crossed its fault's rich band, 2.9 units a block against the
+1.25 allowed; reckoning each layer's grades cut its band from 37 layers to 13. Veins away from
+rich bands come out a little larger than with the flat allowance (the poorest grade's mean at
+richness 0 is under 1.25 times it for most ores). Smaller veins dropped under the survey's
+50-ingot floor, so fewer are counted. Neither window held district copper or iron (their mafic
+districts lie outside), so mafic veins were not measured here.
 
 ### Open
 
-- Overlapping widened shoots on one fault can add up past the large size (above); spacing kept
-  shoots of a metal apart, or widening less where neighbours overlap, would stop it.
 - Mafic districts' copper and iron veins are now sized as whole ellipses (basalt is a stratum):
   where their country rock is not basalt they hold a quarter to a third of the drawn size; a
   survey window holding a mafic district would show how often.

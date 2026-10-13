@@ -213,6 +213,59 @@ public class DistrictVeinsTests
         Assert.Equal(4, DistrictVeins.ShootBlocksPerLayer(140, 17.5, 3, false) / DistrictVeins.ShootBlocksPerLayer(35, 17.5, 3, false), 6);
     }
 
+    // IOG's grade draw (ResolveOreCode): at richness 0 nine poorest to one of the next; at 1 the
+    // richest, with one in ten of the grade under it. Cassiterite is 1 / 3 / 4 / 6 units a block.
+    [Fact]
+    public void ExpectedIngotsFollowIogsGradeDraw()
+    {
+        double[] tin = [0.0125, 0.0375, 0.05, 0.075];
+        double w = (1 - 1 / 1.5) * (1 - 1 / 1.5);
+        Assert.Equal((0.0125 + w * 0.0375) / (1 + w), DistrictVeins.ExpectedIngots(tin, 0), 9);
+        Assert.Equal((0.075 + w * 0.05) / (1 + w), DistrictVeins.ExpectedIngots(tin, 1), 9);
+        Assert.InRange(DistrictVeins.ExpectedIngots(tin, 1) / DistrictVeins.ExpectedIngots(tin, 0), 4.5, 5.5);
+        Assert.Equal(0.02, DistrictVeins.ExpectedIngots([0.02], 0.7), 9);
+        // Richer never gives less.
+        for (double r = 0; r < 1; r += 0.05)
+            Assert.True(DistrictVeins.ExpectedIngots(tin, r + 0.05) >= DistrictVeins.ExpectedIngots(tin, r) - 1e-12);
+    }
+
+    // #943: a band is grown by each layer's expected grade, so one that runs into its fault's rich
+    // band stops sooner and holds its drawn size, not two to three times it.
+    [Fact]
+    public void BandsHoldTheirDrawnSizeThroughRichBands()
+    {
+        double[] tin = [0.0125, 0.0375, 0.05, 0.075];
+        var poorFault = new float[256];
+        var richFault = Enumerable.Range(0, 256).Select(y => y is >= 20 and <= 80 ? 1f : 0f).ToArray();
+        IReadOnlyList<DistrictZone> Zones(float[] rich) => Enumerable.Range(0, 8)
+            .Select(_ => new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", ingots: 0.0125) with { GradeIngots = tin }], 2000, 1, 255, 1, rich))
+            .ToList();
+        var poor = Rules.Plan(3, Zones(poorFault), 110);
+        var rich = Rules.Plan(3, Zones(richFault), 110);
+        double Held(DistrictZonePlan p, float[] r) =>
+            Enumerable.Range(p.BandMin!.Value, p.BandMax!.Value - p.BandMin.Value + 1).Sum(y => 2000 * 0.35 * DistrictVeins.ExpectedIngots(tin, r[y]));
+        for (int i = 0; i < 8; i++)
+        {
+            Assert.Equal(poor[i].BandMin, rich[i].BandMin);
+            Assert.True(rich[i].BandMax <= poor[i].BandMax);
+            // Each holds within half a layer of the other: the same drawn size.
+            double a = Held(poor[i], poorFault), b = Held(rich[i], richFault);
+            double layer = 2000 * 0.35 * DistrictVeins.ExpectedIngots(tin, 1);
+            Assert.InRange(b, a - layer, a + layer);
+        }
+        Assert.Contains(Enumerable.Range(0, 8), i => rich[i].BandMax < poor[i].BandMax);
+    }
+
+    // Without a fault's richness or an ore's grades, the poorest grade times the allowance stands in.
+    [Fact]
+    public void WithoutGradesTheAllowanceStandsIn()
+    {
+        double[] tin = [0.0125, 0.0375];
+        var flat = Enumerable.Range(0, 8).Select(_ => new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", ingots: 0.0125)], 2000, 1, 255)).ToList();
+        var noFault = Enumerable.Range(0, 8).Select(_ => new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", ingots: 0.0125) with { GradeIngots = tin }], 2000, 1, 255)).ToList();
+        Assert.Equal(Rules.Plan(5, flat, 110).Select(p => (p.BandMin, p.BandMax)), Rules.Plan(5, noFault, 110).Select(p => (p.BandMin, p.BandMax)));
+    }
+
     [Theory]
     [InlineData("rock-granite", true)]
     [InlineData("game:rock-basalt", true)]

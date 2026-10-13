@@ -120,7 +120,8 @@ public static class DistrictVeinSizes
 
         bool countryHost = DistrictVeins.HostIsCountryRock(host, _countryRocks);
         var views = new List<DistrictZone>(zones.Count);
-        foreach (var zone in zones) views.Add(View(zone, host, countryHost));
+        var richness = new Dictionary<object, float[]?>(ReferenceEqualityComparer.Instance);
+        foreach (var zone in zones) views.Add(View(zone, host, countryHost, richness, sapi.World.BlockAccessor.MapSizeY));
         var plans = rules.Plan(seed, views, sapi.World.SeaLevel);
 
         var assignmentType = AssignmentType!;
@@ -199,7 +200,7 @@ public static class DistrictVeinSizes
         return tally;
     }
 
-    private static DistrictZone View(object zone, string host, bool countryHost)
+    private static DistrictZone View(object zone, string host, bool countryHost, Dictionary<object, float[]?> richness, int mapHeight)
     {
         var type = zone.GetType();
         string kind = AccessTools.Field(type, "ZoneType").GetValue(zone)!.ToString()!;
@@ -212,7 +213,7 @@ public static class DistrictVeinSizes
             var variants = tr.Field("AllowedVariantsByInBlock").GetValue<Dictionary<string, List<string>>>();
             var (resolved, ingots) = IngotsPerBlock(oreCode, host, variants);
             ores.Add(new DistrictOre(OreMetals.WorldgenMetalOf(DistrictVeins.OreOfCode(oreCode)), tr.Field("Weight").GetValue<float>(),
-                resolved ? tr.Field("Density").GetValue<float>() : 0, ingots));
+                resolved ? tr.Field("Density").GetValue<float>() : 0, ingots, GradeIngots(oreCode, host, variants)));
         }
         var k = kind switch
         {
@@ -232,7 +233,24 @@ public static class DistrictVeinSizes
             DistrictZoneKind.Ladder => DistrictVeins.CloserSlabs(LadderSpacings(zone), _blocks).Gain,
             _ => _blocks,
         };
-        return new DistrictZone(k, ores, perLayer, (int)Math.Floor(box.Y1), (int)Math.Ceiling(box.Y2), widening);
+        float[]? rich = null;
+        if (k != DistrictZoneKind.Lens && AccessTools.Field(type, "ParentFault").GetValue(zone) is { } fault)
+        {
+            if (!richness.TryGetValue(fault, out rich))
+                richness[fault] = rich = Richness(fault, mapHeight);
+        }
+        return new DistrictZone(k, ores, perLayer, (int)Math.Floor(box.Y1), (int)Math.Ceiling(box.Y2), widening, rich);
+    }
+
+    /// <summary>A fault's richness at each height (IOG's <c>HydrothermalFaultSpline.RichnessAt</c>,
+    /// from its rich bands, built before the zones), or null if that is gone: then the grade
+    /// allowance stands in.</summary>
+    private static float[]? Richness(object fault, int mapHeight)
+    {
+        if (AccessTools.Method(fault.GetType(), "RichnessAt", [typeof(int)]) is not { } method || method.ReturnType != typeof(float)) return null;
+        var rich = new float[mapHeight];
+        for (int y = 0; y < mapHeight; y++) rich[y] = (float)method.Invoke(fault, [y])!;
+        return rich;
     }
 
     private static Type? LensSamplerType => AccessTools.TypeByName("InterestingOreGen.Generators.HorsetailLensSampler");
@@ -338,6 +356,22 @@ public static class DistrictVeinSizes
                 : null;
         }
         if (code == null) return (false, 0);
+        return BlockIngots(code);
+    }
+
+    /// <summary>The ingots a block of each grade the district's rock allows gives, in IOG's order
+    /// (poorest first; a grade whose block is missing places nothing there, so 0), or null for an
+    /// ungraded ore or one the rock allows no grade of.</summary>
+    public static double[]? GradeIngots(string oreCode, string host, Dictionary<string, List<string>>? variants)
+    {
+        if (!oreCode.Contains('*') || variants == null || !variants.TryGetValue(host, out var grades) || grades is not { Count: > 0 })
+            return null;
+        return grades.OrderBy(g => Array.IndexOf(GradeOrder, g.ToLowerInvariant()) is var n and >= 0 ? n : 999)
+            .Select(g => BlockIngots(oreCode.Replace("*", g)).Ingots).ToArray();
+    }
+
+    private static (bool Resolved, double Ingots) BlockIngots(string code)
+    {
         return IngotsByCode.GetOrAdd(code, c =>
         {
             var block = _sapi?.World.GetBlock(new AssetLocation(c.Contains(':') ? c : "game:" + c));
