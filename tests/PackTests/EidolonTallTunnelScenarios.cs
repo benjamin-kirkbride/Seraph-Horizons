@@ -18,8 +18,10 @@ namespace SeraphHorizons.PackTests;
 /// one 8 high into a flat face, its top out of reach told and kept with the floor under it, the rest dug;
 /// two eidolons on a tunnel 8 (and 6) high and 4 wide into a stepped slope, each a real share, neither in
 /// the other's columns; a pit five deep with no shelf, dug with a stair it leaves as its way out; and two on
-/// a pit 20 deep, too deep for a straight stair, both climbing out by the spiral one round its walls. The
-/// geometry is that of the planner's tests (MinePlannerTests). On floors of their own in the sky
+/// a pit 5 × 5 and 12 deep (the least that needs one), too deep for a straight stair, both climbing out by
+/// the spiral one round its walls. The tunnels are 4 long, the least that shows each case, to keep the
+/// class within CI's shards (ci.yml: `eidolon-tall`, `eidolon-tall-team`, `eidolon-stair`). The
+/// geometry is that of the planner's tests (MinePlannerTests), shortened. On floors of their own in the sky
 /// (<see cref="Felling.Sky"/>).
 /// </summary>
 [AtlasWorld]
@@ -163,12 +165,12 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-920, 90, 1600), reach: 15);
         // A hill of granite (x 0 to 12, ten high, z -3 to 4), a step two high against its face (x -2, -1),
-        // outside the area; the tunnel 2 wide, 6 high and 8 long.
+        // outside the area; the tunnel 2 wide, 6 high and 4 long.
         Fill(site, Granite, 0, 12, 0, 9, -3, 4);
         Fill(site, Granite, -2, -1, 0, 1, -3, 4);
         var a = site.AddCopy(0, 0, 0);
-        var b = site.AddCopy(7, 5, 1);
-        var toMine = Cells(site, 0, 7, 0, 5, 0, 1);
+        var b = site.AddCopy(3, 5, 1);
+        var toMine = Cells(site, 0, 3, 0, 5, 0, 1);
         var (e, order, faults, ordered, _) = await MineAlone("eidolontall6", site, site.AddCopy(-6, 0, 0), a, b, toMine, (c, standing, f) =>
         {
             // the top band (layers 2 to 5) before any of the layers under it
@@ -200,9 +202,9 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         Fill(site, Granite, -2, -1, 0, 3, -3, 4);
         Fill(site, Granite, -4, -3, 0, 1, -3, 4);
         var a = site.AddCopy(-2, 0, 0);
-        var b = site.AddCopy(7, 7, 1);
+        var b = site.AddCopy(3, 7, 1);
         // the area's blocks (over the step, x -2 and -1 above layer 3, is air)
-        var toMine = Cells(site, -2, 7, 0, 7, 0, 1).Where(c => W.BlockAccessor.GetBlock(c).Id != 0).ToList();
+        var toMine = Cells(site, -2, 3, 0, 7, 0, 1).Where(c => W.BlockAccessor.GetBlock(c).Id != 0).ToList();
         var (e, order, faults, ordered, _) = await MineAlone("eidolontall8", site, site.AddCopy(-6, 0, 0), a, b, toMine, (c, standing, f) =>
         {
             // band 0 (the hill's layers 4 to 7) all before any of the step is dug: it stands on the step for it
@@ -276,8 +278,8 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         Fill(site, Granite, -2, -1, 0, 3, -3, 6);
         Fill(site, Granite, -4, -3, 0, 1, -3, 6);
         var a = site.AddCopy(-2, 0, 0);
-        var b = site.AddCopy(7, high - 1, 3);
-        var toMine = Cells(site, -2, 7, 0, high - 1, 0, 3).Where(c => W.BlockAccessor.GetBlock(c).Id != 0).ToList();
+        var b = site.AddCopy(3, high - 1, 3);
+        var toMine = Cells(site, -2, 3, 0, high - 1, 0, 3).Where(c => W.BlockAccessor.GetBlock(c).Id != 0).ToList();
         var (_, player, tool) = await Commander($"eidolontwotall{high}", site.AddCopy(-10, 0, 2));
         var e1 = await Spawn(site.AddCopy(-6, 0, 0), player);
         var e2 = await Spawn(site.AddCopy(-6, 0, 4), player);
@@ -354,15 +356,17 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
     public async Task Two_eidolons_dig_a_pit_too_deep_for_a_straight_stair_and_climb_out_by_its_spiral()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-920, 90, 3000), reach: 15);
-        // Granite 22 thick; a pit 8 × 8 and 20 deep, too deep for a straight stair across it: a spiral one
+        // Cobblestone 14 thick (half granite's resistance, so the scenario fits its CI shard; granite's caving
+        // in under a lone tread is the five-deep pit's); a pit 5 × 5 and 12 deep, the least too deep for a
+        // straight stair across it: a spiral one
         // round its walls, which both climb out by.
-        Fill(site, Granite, -15, 15, -22, -1, -15, 15);
-        var a = site.AddCopy(0, -20, 0);
-        var b = site.AddCopy(7, -1, 7);
-        var toMine = Cells(site, 0, 7, -20, -1, 0, 7);
+        Fill(site, W.GetBlock(new AssetLocation("game:cobblestone-granite"))!.Id, -15, 15, -14, -1, -15, 15);
+        var a = site.AddCopy(0, -12, 0);
+        var b = site.AddCopy(4, -1, 4);
+        var toMine = Cells(site, 0, 4, -12, -1, 0, 4);
         var (_, player, tool) = await Commander("eidolonspiral2", site.AddCopy(-10, 0, 4));
-        var e1 = await Spawn(site.AddCopy(-4, 0, 1), player);
-        var e2 = await Spawn(site.AddCopy(-4, 0, 7), player);
+        var e1 = await Spawn(site.AddCopy(-4, 0, 0), player);
+        var e2 = await Spawn(site.AddCopy(-4, 0, 5), player);
         var eidolons = new[] { e1, e2 };
         OrderMine(player, tool, eidolons, a, b);
         var orders = eidolons.Select(e => Assert.IsType<MineOrder>(e.Orders!.Current)).ToArray();
@@ -383,7 +387,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
                 lastMined = mined;
             }
             return eidolons.All(e => e.Orders!.OrderCode == null);
-        }, 90000);
+        }, 30000);
         double seconds = (W.ElapsedMilliseconds - start) / 1000.0;
         var plan = orders[0].Plan!;
         var lines = Reports(orders);
