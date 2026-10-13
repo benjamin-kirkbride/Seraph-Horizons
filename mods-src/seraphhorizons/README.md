@@ -4461,11 +4461,13 @@ rejoin the world: empty search.
 
 A right-click on the creative inventory's search box empties it, so the grid shows the whole tab
 again, and leaves it focused, so the player can type straight away. The handbook's search box (its
-list page) does the same. Every other text box is left alone. Client side.
+list page) does the same, and so does the recipe selector's (knapping, clay forming, smithing) with
+`RecipeSelectorSearch` on. Every other text box is left alone. Client side.
 
 Hook: a postfix on `GuiElementEditableTextBase.OnMouseDownOnElement` (the element under the press,
 as the GUI routes it, so a dialog on top keeps its clicks), right button only, for the creative
-composer's `searchbox` or the handbook overview's `searchField` in an open dialog; it calls the
+composer's `searchbox`, the handbook overview's `searchField` or the box `RecipeSelectorSearch` put
+in a recipe selector, in an open dialog; it calls the
 box's `SetValue("")`, which runs the dialog's own search. Focus is vanilla's: the element marks the
 press handled for any button and the composer then focuses it (a right-click on the box already
 focused it, and did nothing else). With an item on the cursor nothing else happens: the creative
@@ -4531,6 +4533,58 @@ tutorial" link: the tutorial tab's list. Change a hotkey (the pages are rebuilt)
 place where its pages still exist. Leave and rejoin the world: the whole list at the top. With
 `HandbookKeepsPlace` off: vanilla. Dovidarium's `patch-status … late-audit` line shows the same active
 count with the tweak on as off.
+
+### Recipe selection has a search and a scrollbar (`RecipeSelectorSearch`)
+
+Knapping, clay forming and smithing on the anvil all start with the same dialog, the game's
+`GuiDialogBlockEntityRecipeSelector`: a grid of every recipe the material can make, seven to a row,
+as many rows as it takes, with no scrollbar and no search. With the pack's mods the list runs long
+(clay forming alone has dozens). With this tweak the dialog has, above the grid, a search box and
+the creative inventory's result count, and a grid of at most six rows that scrolls, with a
+scrollbar beside it and the mouse wheel, when the list is longer. A list that fits looks as before,
+with the search row added. Client side; the server never sees the dialog.
+
+The search is the creative inventory's (`GuiElementItemSlotGridBase.FilterItemsBySearchText` over
+`CreativeTab.CreateSearchCache`, 1.22.7), over the recipe outputs: the text is made search friendly
+(accents dropped, quotes and brackets turned to spaces) and lower cased; an empty box shows every
+recipe in the game's order; otherwise a recipe shows if its output's name, or its other search text
+(the collectible's own `ISearchTextProvider` text, or else its description, the item info creative
+searches), holds the text, ranked as creative ranks it: the whole name, then the name's first word,
+its last word, another word's start, the name's start, anywhere in the name, then the start of the
+other text and anywhere in it, ties in the game's order. The outputs' search text is read once, at
+the first search in that dialog. Clicking a recipe picks that recipe, whatever the search shows: the
+grid keeps each slot's recipe index and hands the game's selection that index, so the anvil, the
+knapping surface and the clay form get the recipe that was clicked. The hover text (name,
+description, the anvil's and clay forming's required count) is the game's.
+
+Focus: a list long enough to scroll opens with the box focused, so the player can type at once
+(typed keys go to the box, not to movement, as in creative); a shorter one leaves the keys to the
+game until the box is clicked. As in creative, coming back to a box with text in it and pressing
+Backspace clears it, and a right-click clears it (`SearchRightClickClears`). The placeholder,
+the result count and the title are the game's own lang entries (`Search...`,
+`creative-searchresults`, `Select Recipe`), so they are translated wherever the game is; the tweak
+adds no lang entries. The search is not remembered from one dialog to the next.
+
+Hook (`RecipeSelector/`, Harmony id `seraphhorizons.recipeselector`, client only): a postfix on the
+dialog's constructor (only the game's own class, not a subclass), after its `SetupDialog` has
+composed the game's grid: the composer is built again under the game's composer name (which disposes
+the game's) with the same title, the same hover text keys (`name`, `desc`, `ingredient`) the
+dialog's `OnSlotOver` writes, and the grid as its own element (`RecipeSelector/Game/RecipeSlotGrid.cs`),
+drawn wholly per frame in a clip like the creative grid, since the game's skill item grid paints its
+slots into the static texture and so cannot scroll. The dialog's skill items, its `OnSlotClick` and
+`OnSlotOver` are its own (bound by name); the anvil's and clay forming's `SetIngredientCounts`, which
+run after the constructor, write into the same items. If composing fails the game's `SetupDialog`
+runs again and that dialog is vanilla (logged once). No pack mod touches this dialog (checked
+against every locked mod's DLLs). The search, the index mapping and the layout are in
+`RecipeSelector/Core/`, unit tested in `tests/RecipeSelector/`.
+
+To check by hand in the game: knap flint (a short list: search row, no scrollbar, box not focused;
+W still walks); clay form with a lump of clay (a long list: six rows and a scrollbar, the box
+focused; type `pot`, the matching outputs best first, the count says how many; scroll with the wheel
+and the bar; click one, and the clay form takes that recipe's layers); smith an iron ingot on the
+anvil, search `blade`, pick the second result: that recipe on the anvil, and the hover still shows
+the ingots it needs. Search a word only in a description. Right-click the box with text in it:
+cleared. Escape closes as before and cancels the selection. With `RecipeSelectorSearch` off: vanilla.
 
 ### The mod checks the installed mods against the pack (`PackVersionCheck`)
 
@@ -6952,7 +7006,10 @@ resolved or patched and the boiler tweak still applied.
 `CreativeKeepsPlace` and `SearchRightClickClears` are client GUI only, with no logic apart from the
 game's: they need checking by hand in the game (the lists in their sections). `HandbookKeepsPlace`'s
 decisions are unit tested (`tests/HandbookPlace/`); its hooks and how they meet the dialog and
-Dovidarium are verified against the decompiled game and Dovidarium only, and need the same check by hand.
+Dovidarium are verified against the decompiled game and Dovidarium only, and need the same check by hand. `RecipeSelectorSearch`'s
+search, index mapping and layout are unit tested (`tests/RecipeSelector/`); its dialog is checked
+against the decompiled game only (and its bindings and patch against the 1.22.7 assemblies), and
+needs the check by hand in its section.
 
 `tests/PackTests/SwitchesOffScenarios.cs` (Atlas) is every switch's off check on one server, seeded
 with `fixtures/switches-off/seraphhorizons.json`: each class boots its own server, which costs far
