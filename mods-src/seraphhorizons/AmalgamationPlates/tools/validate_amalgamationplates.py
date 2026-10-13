@@ -266,8 +266,8 @@ def check_anchors(v):
         v.fail("the outlet is not vanilla's chute section at the output cell's end face")
     sill = v.one("frame", "fr_tb_sill").aabb()
     bore = (origin[0] + 5.0, origin[0] + 11.0, origin[1] + 5.0, origin[1] + 11.0)
-    print(f"anchors: the tail box's sill at y {sill[1][1]} over x {sill[0][0]}..{sill[1][0]}, the outlet's bore x {bore[0]}..{bore[1]}, "
-          f"y {bore[2]}..{bore[3]}; its wall's outside at z {sill[1][2]}, the outlet from z {m.OUTLET_Z0}")
+    print(f"anchors: the tail box's sill at y {sill[1][1]:.2f} over x {sill[0][0]:.2f}..{sill[1][0]:.2f}, the outlet's bore x {bore[0]:.2f}..{bore[1]:.2f}, "
+          f"y {bore[2]:.2f}..{bore[3]:.2f}; its wall's outside at z {sill[1][2]:.2f}, the outlet from z {m.OUTLET_Z0:.2f}")
     if not (bore[0] <= sill[0][0] and sill[1][0] <= bore[1] and bore[2] < sill[1][1] < bore[3] and abs(sill[1][2] - m.OUTLET_Z0) < 1e-9):
         v.fail("the tail box's sill does not pour into the outlet's bore")
     # the outlet's end butts against the box's south wall and its collar all round: every point of its walls'
@@ -436,9 +436,9 @@ def check_trap(v):
     floor, baffle, weir, merc, plug = t["tr_floor"], t["tr_baffle"], t["tr_weir"], t["tr_mercury"], t["tr_plug"]
     box_in = (f["fr_tb_w"][1][0], f["fr_tb_e"][0][0], f["fr_tb_n"][1][2], f["fr_tb_s1"][0][2])
     walls = (t["tr_wall_w"][1][0], t["tr_wall_e"][0][0])
-    print(f"trap: the well x {floor[0][0]}..{floor[1][0]}, z {floor[0][2]}..{floor[1][2]} on the box's floor (y {floor[0][1]}); "
-          f"the mercury to y {merc[1][1]}, the baffle's foot at {baffle[0][1]}, the weir's top {weir[1][1]}, the sill {m.SILL_TOP}, "
-          f"the baffle's top {baffle[1][1]}")
+    print(f"trap: the well x {floor[0][0]:.2f}..{floor[1][0]:.2f}, z {floor[0][2]:.2f}..{floor[1][2]:.2f} on the box's floor (y {floor[0][1]:.2f}); "
+          f"the mercury to y {merc[1][1]:.2f}, the baffle's foot at {baffle[0][1]:.2f}, the weir's top {weir[1][1]:.2f}, the sill {m.SILL_TOP:.2f}, "
+          f"the baffle's top {baffle[1][1]:.2f}")
     if not (abs(floor[0][1] - m.TB_FLOOR) < 1e-9 and box_in[0] < floor[0][0] and floor[1][0] < box_in[1]
             and box_in[2] < floor[0][2] and floor[1][2] < box_in[3]):
         v.fail("the trap's well does not stand on the tail box's floor inside its walls")
