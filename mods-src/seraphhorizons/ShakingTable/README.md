@@ -260,3 +260,9 @@ Don't: regenerate. Element names are the rig's interface (`entry_*`, `headshaft_
    model's own; a period table hung them from the mill's timbers.
 9. **The deck's proportions**: 25 wide by 28 long (about 1.1 : 1), against the period's 6 by 16 ft; the head end
    and the launders take the rest of the 2 × 3 footprint.
+10. **Where the v2 branch differed from #922** (the issue followed): v2 shook the deck with a sinusoid from an
+    eccentric and yoke on the wash house's line shaft, with no rectifier (now a differential head behind a
+    rectifier, three harmonics of a quick-return stroke); its deck stood at y 16.8 in a two-high house (now one
+    high, the deck's top at 9.5); it was fed by the jig's weir spout and emptied into the house's launders (now a
+    chute in, three chutes out); it had no middlings (now its own launder and chute); its riffles' diagonal ran
+    the other way (item 2).
