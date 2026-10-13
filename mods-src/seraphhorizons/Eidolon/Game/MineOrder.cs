@@ -16,7 +16,8 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// top down, a layer at a time (<see cref="Scan"/>: the highest layer with a block left it may break,
 /// <see cref="EidolonMining.Rule"/>), striking a group of up to four blocks at once
 /// (<see cref="EidolonMining.Next"/>: flat on the layer, or upright at a wall where the layer under it
-/// is left too) with the shape's slam, timed to a seraph's steel pickaxe at three quarters of their pace
+/// is left too) with the shape's slam, timed to a seraph's steel pickaxe or steel shovel, the quicker for
+/// each block (<see cref="EidolonMining.DigSpeed"/>), at three quarters of their pace
 /// (<see cref="EidolonMining.Timing"/>), the blocks breaking as a player's would, their drops falling
 /// in the world. Each strike costs oil (<see cref="EidolonJob.MiningStrike"/>). It never breaks under
 /// its own box; for what it stood on it walks to a place beside (<see cref="EidolonMining.Stands"/>).
@@ -140,6 +141,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private bool _struck;
     private bool _done = done;
     private Item? _pick;
+    private Item? _shovel;
     private EidolonJobSystem? _jobs;
     private SharedJob<MineJobCells>? _job;
     private IReadOnlyList<long> _mates = mates ?? [];
@@ -238,6 +240,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _nav ??= new EidolonNavigator(eidolon);
         _eidolon = eidolon;
         _pick ??= eidolon.World.GetItem(new AssetLocation(EidolonMining.PickCode));
+        _shovel ??= eidolon.World.GetItem(new AssetLocation(EidolonMining.ShovelCode));
         _maxTier = EidolonMining.PickTier(_pick?.ToolTier);
         _mineThrough = (EidolonSystem.Of(eidolon.Api)?.Config ?? EidolonConfig.Defaults).MineThroughBlockEntities;
         _jobs ??= EidolonJobSystem.Of(eidolon.Api);
@@ -1041,8 +1044,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _strike = EidolonMining.Timing(EidolonMining.StrikeSeconds(group.Cells.Select(c =>
         {
             var block = blocks.GetBlock(pos.Set(c.X, c.Y, c.Z));
-            float? speed = _pick?.MiningSpeed is { } speeds && speeds.TryGetValue(block.GetBlockMaterial(blocks, pos), out float s) ? s : null;
-            return EidolonMining.PlayerSeconds(block.GetResistance(blocks, pos), EidolonMining.PickSpeed(speed, GlobalConstants.ToolMiningSpeedModifier));
+            var material = block.GetBlockMaterial(blocks, pos);
+            return EidolonMining.PlayerSeconds(block.GetResistance(blocks, pos),
+                EidolonMining.DigSpeed(SpeedFor(_pick, material), SpeedFor(_shovel, material), GlobalConstants.ToolMiningSpeedModifier));
         })));
         _strikeStart = now;
         _slammed = false;
@@ -1051,6 +1055,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-mining");
         return true;
     }
+
+    /// <summary>A tool's mining speed for <paramref name="material"/>, or null where it has none (or
+    /// the tool could not be read).</summary>
+    private static float? SpeedFor(Item? tool, EnumBlockMaterial material) =>
+        tool?.MiningSpeed is { } speeds && speeds.TryGetValue(material, out float s) ? s : null;
 
     private bool Strike(EntityLaborEidolon eidolon, double now)
     {

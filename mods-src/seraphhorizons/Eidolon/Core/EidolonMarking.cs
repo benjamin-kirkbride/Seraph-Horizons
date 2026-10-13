@@ -22,6 +22,16 @@ public readonly record struct MarkArea(MarkPos Min, MarkPos Max)
 
     public bool Contains(int x, int y, int z) =>
         x >= Min.X && x <= Max.X && y >= Min.Y && y <= Max.Y && z >= Min.Z && z <= Max.Z;
+
+    /// <summary>How far the point (<paramref name="x"/>, <paramref name="y"/>, <paramref name="z"/>)
+    /// is from the nearest point of the space its blocks fill (from <see cref="Min"/>'s lower corner
+    /// to <see cref="Max"/>'s upper one), in blocks: 0 inside it.</summary>
+    public double DistanceTo(double x, double y, double z)
+    {
+        static double Past(double v, int min, int max) => v < min ? min - v : v > max + 1 ? v - (max + 1) : 0;
+        double dx = Past(x, Min.X, Max.X), dy = Past(y, Min.Y, Max.Y), dz = Past(z, Min.Z, Max.Z);
+        return Math.Sqrt(dx * dx + dy * dy + dz * dz);
+    }
 }
 
 /// <summary>What a command tool mode marks before its order is given (README "Eidolon", the command tool).</summary>
@@ -138,6 +148,18 @@ public static class EidolonMarking
         var area = MarkArea.Between(first, aimed);
         return new AreaPreview(area, Refused(area, maxSide, maxBlocks));
     }
+
+    /// <summary>
+    /// Whether an order reaches a bound eidolon standing at (<paramref name="x"/>, <paramref name="y"/>,
+    /// <paramref name="z"/>), <paramref name="fromHolder"/> blocks from the tool's holder: within
+    /// <paramref name="range"/> of the holder, or, once the mode's marks hold an <paramref name="area"/>
+    /// (an area mode's, or an area then a block's), within <paramref name="range"/> of that area's
+    /// nearest point (<see cref="MarkArea.DistanceTo"/>). So a player who marks the first corner beside
+    /// the eidolons and walks far off to mark the second still orders them. Without an area, the holder's
+    /// range alone.
+    /// </summary>
+    public static bool InReach(double fromHolder, MarkArea? area, double x, double y, double z, double range) =>
+        fromHolder <= range || area is { } marked && marked.DistanceTo(x, y, z) <= range;
 
     private static MarkStep? Refused(MarkArea area, int maxSide, long maxBlocks) =>
         area.LongestSide > maxSide ? MarkStep.TooLarge : area.Volume > maxBlocks ? MarkStep.TooManyBlocks : null;

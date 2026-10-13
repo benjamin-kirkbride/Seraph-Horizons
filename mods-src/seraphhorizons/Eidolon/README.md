@@ -1,7 +1,7 @@
 # Eidolon
 
 Part of the Seraph Horizons mod (`../README.md`): a player-built eidolon, a laborer automaton that
-fells trees with a real axe it holds, mines out a marked area bare-handed, hauls Logging Expanded
+fells trees with a real axe it holds, mines out a marked area bare-handed (at a steel pickaxe's or shovel's pace, whichever is quicker), hauls Logging Expanded
 trunks to the rosser and the bucking sawmill, carries a Carry On container as a pack mule, lifts and carries Carry On blocks and trunks,
 defends itself and stands guard. At 0 HP it slumps disabled and can be repaired; it is never killed.
 It is built in a mostly wooden gantry: a crafted torso, then five layers of material, each the builder's
