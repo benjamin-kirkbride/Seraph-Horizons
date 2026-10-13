@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import oreLine, { catchable, CFG, chain, CLASSES, full, FULL, GLOSSARY, handRecovery, lineRecovery, MACHINES, machine, OPEN_QUESTIONS, PARTED, platesLine, rockSmelt, subchains } from "../scripts/standalone/ore-line.ts";
 import { DRAW, engineSpeed, engineTorque, fuel, lineLoad, lineWaterPerRock, POWER, rateAt, rotorSpeed, run, SETUPS, steamBalance, worksLoad } from "../scripts/standalone/ore-power.ts";
+import oreDeposits, { DEPOSITS, depositsOf, LEVELS, ORES, oreUnits, quantile, rockSlots, share, sig2, tally, UNITS_PER_BLOCK, veinGradeOdds } from "../scripts/standalone/ore-deposits.ts";
 import oreProposal, { bestConcentrate, decision, homeSmelt, ingotsPerSlot, LINES, routes, SETTLED, settledSmelt, STACK, UNITS } from "../scripts/standalone/ore-proposal.ts";
 import { BATCH, gaitSpeed, GAITS, handcarTopSpeed, haulHours, haulSlots, NOTES, PLAYER, PLAYER_SLOTS, RAILS, railCost, steamTopSpeed, steamTopSpeedUnscaled, transports, trips, YANG, YANG_SPEED_SCALE } from "../scripts/standalone/ore-transport.ts";
 import { tabForHash } from "../scripts/standalone/tabs-hash.ts";
@@ -396,5 +397,55 @@ describe("the transport audit", () => {
     expect(html).toContain('id="ot-n18"');
     expect(html).toContain("Laying track");
     expect(html).not.toContain("speed unknown");
+  });
+});
+
+describe("the ore review's deposits tab", () => {
+  it("values a block by its drops and the ore's units", () => {
+    expect(UNITS_PER_BLOCK).toBeCloseTo(1.27);
+    expect(oreUnits("hematite", "poor")).toBe(4);
+    expect(oreUnits("cassiterite", "bountiful")).toBe(6);
+    expect(oreUnits("sphalerite", "rich")).toBe(7);
+    // 100 blocks of medium malachite: 100 × 1.27 × 5 units = 6.35 ingots in the ground.
+    const t = tally({ ores: { malachite: [0, 100, 0, 0] } });
+    expect(t.ingots.ground).toBeCloseTo(6.35);
+    expect(t.ingots.mined).toBe(0);
+    expect(t.ingots.minedAll).toBeCloseTo(6.35 * CFG.smeltByGrade.medium);
+    expect(t.ingots.hand).toBeCloseTo(6.35 * CFG.hand.rocker);
+    expect(t.ingots.full).toBeCloseTo(6.35 * full());
+    expect(rockSlots(t)).toBeCloseTo((100 * 1.26) / 16);
+  });
+
+  it("follows the processing line's rules for poor ore and sulfides", () => {
+    expect(share("hand", "malachite", "poor")).toBeCloseTo(CFG.hand.rocker * CFG.locked.poorUnground);
+    expect(share("water", "malachite", "poor")).toBeCloseTo(lineRecovery(["sluice", "jig"]));
+    expect(share("hand", "sphalerite", "medium")).toBeCloseTo(CFG.hand.rocker * CFG.roasters.firepit);
+    expect(share("mined", "sphalerite", "rich")).toBeCloseTo(CFG.smeltByGrade.rich * CFG.roasters.stall);
+    expect(share("full", "nativecopper", "medium")).toBeLessThanOrEqual(1);
+    for (const l of LEVELS) for (const g of ["poor", "medium", "rich", "bountiful"] as const) expect(share(l, "hematite", g)).toBeLessThanOrEqual(1);
+  });
+
+  it("draws IOG's vein grades as u² and clamps them to the rock", () => {
+    const four = veinGradeOdds(4);
+    expect(four[0]).toBeCloseTo(0.5);
+    expect(four.reduce((a, b) => a + b, 0)).toBeCloseTo(1);
+    expect(veinGradeOdds(2)).toEqual([0.5, expect.closeTo(0.5)]);
+  });
+
+  it("has measured deposits for four metals and renders every section", () => {
+    for (const m of ["iron", "copper", "tin", "zinc"] as const) expect(depositsOf(m, "cell").length).toBeGreaterThan(0);
+    expect(DEPOSITS.every((d) => Object.keys(d.ores).every((o) => ORES[o]?.metal === d.metal))).toBe(true);
+    expect(quantile([1, 2, 3, 4, 5], 0.5)).toBe(3);
+    expect(sig2(1234)).toBe("1,200");
+    expect(sig2(3.44)).toBe("3.4");
+    const html = oreDeposits();
+    for (const id of ["od-summary", "od-iron", "od-copper", "od-tin", "od-zinc", "od-nickel", "od-effort", "od-need", "od-method"]) expect(html).toContain(`id="${id}"`);
+    expect(html).not.toMatch(/NaN|undefined/);
+  });
+
+  it("is listed after the smelting tab", () => {
+    const file = fileURLToPath(new URL("../scripts/standalone/ore-review.json", import.meta.url));
+    const spec = parseSpec(JSON.parse(readFileSync(file, "utf8")), "/spec", env);
+    expect(spec.tabs[2]).toMatchObject({ kind: "html", label: "Deposits", slug: "deposits" });
   });
 });
