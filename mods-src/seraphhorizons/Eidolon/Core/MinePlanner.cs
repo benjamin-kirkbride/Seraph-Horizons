@@ -95,8 +95,9 @@ public sealed class MinePlanner(MinePlanInput input)
             var state = new MineState(baseSite.Clone(), input.Home, input.BadStands);
             foreach (bool _ in state.BuildWalk())
                 yield return false;
-            var targets = EidolonMining.Targets(area, state.Site, input.Skip, outOfReach.Count > 0 ? outOfReach : null);
-            yield return false;
+            MineTargets targets = null!;
+            foreach (bool _ in EidolonMining.Targets(area, state.Site, input.Skip, outOfReach.Count > 0 ? outOfReach : null, t => targets = t))
+                yield return false;
 
             Phase = MinePlanPhase.Reach;
             while (true)
@@ -107,7 +108,8 @@ public sealed class MinePlanner(MinePlanInput input)
                 if (lost.Count == 0)
                     break;
                 outOfReach.UnionWith(lost);
-                targets = EidolonMining.Targets(area, state.Site, input.Skip, outOfReach);
+                foreach (bool _ in EidolonMining.Targets(area, state.Site, input.Skip, outOfReach, t => targets = t))
+                    yield return false;
             }
 
             Phase = MinePlanPhase.Shape;
@@ -117,12 +119,16 @@ public sealed class MinePlanner(MinePlanInput input)
             yield return false;
 
             Phase = MinePlanPhase.Stair;
-            var (stair, finalWalk) = Stairs(state, area);
-            yield return false;
+            var stairs = new StairWork();
+            foreach (bool _ in Stairs(state, area, stairs))
+                yield return false;
+            var (stair, finalWalk) = (stairs.Stair, stairs.Final!);
 
             Phase = MinePlanPhase.Simulate;
             state.Bands = new MineBands(area, tunnel, stair, state.Remaining);
+            yield return false;
             var simulation = new Simulation(state, tunnel, input.Home);
+            yield return false;
             foreach (bool _ in simulation.Run())
                 yield return false;
 
@@ -132,13 +138,22 @@ public sealed class MinePlanner(MinePlanInput input)
                 continue;
 
             // The last run's leftovers are reported out of reach, with their floor: no station digs under them.
-            var report = EidolonMining.Targets(area, baseSite, input.Skip, outOfReach);
+            MineTargets report = null!;
+            foreach (bool _ in EidolonMining.Targets(area, baseSite, input.Skip, outOfReach, t => report = t))
+                yield return false;
+            int? stepNeeded = null;
+            foreach (bool _ in StepNeeded(outOfReach, finalWalk, n => stepNeeded = n))
+                yield return false;
             var stations = simulation.Stations;
             if (leftovers.Count > 0)
                 stations = stations
                     .Select(s => s with { Cells = s.Cells.Where(c => !report.Held.Contains(c)).ToList() })
                     .Where(s => s.Cells.Count > 0).Select((s, i) => s with { Id = i }).ToList();
             var dug = stations.SelectMany(s => s.Cells).ToHashSet();
+            yield return false;
+            var wayOut = stair.Where(state.Remaining.Contains).ToHashSet();
+            var planned = dug.Concat(stair).ToHashSet();
+            yield return false;
             Simulated = state;
             Plan = new MinePlan
             {
@@ -147,13 +162,13 @@ public sealed class MinePlanner(MinePlanInput input)
                 Held = report.Held,
                 Left = report.Left,
                 Stair = stair,
-                WayOut = stair.Where(state.Remaining.Contains).ToHashSet(),
+                WayOut = wayOut,
                 Tunnel = tunnel,
                 SiteVersion = version,
                 Partial = report.Unloaded.Count > 0,
-                StepNeeded = StepNeeded(outOfReach, finalWalk),
+                StepNeeded = stepNeeded,
                 Area = area,
-                Targets = dug.Concat(stair).ToHashSet(),
+                Targets = planned,
                 Reruns = run,
             };
             Phase = MinePlanPhase.Done;
@@ -172,52 +187,92 @@ public sealed class MinePlanner(MinePlanInput input)
     /// gives them one; where none does (a pit deeper than about twice its width), a spiral round its walls
     /// (<see cref="Spirals"/>). Returns its cells, and the final world's walk graph with it.
     /// </summary>
-    private (HashSet<MarkPos> Stair, MineWalk Final) Stairs(MineState state, MarkArea area)
+    private sealed class StairWork
+    {
+        public HashSet<MarkPos> Stair { get; } = new();
+        public MineWalk? Final { get; set; }
+    }
+
+    private sealed class Chosen
+    {
+        public (List<MarkPos> Cells, double D2, MineSite Site, MineWalk Walk)? Best { get; set; }
+    }
+
+    // How many units of work (cells dug, nodes looked at) between checkpoints in the stair's search.
+    private const int StairUnits = 512;
+
+    private IEnumerable<bool> Stairs(MineState state, MarkArea area, StairWork result)
     {
         var clearable = state.Remaining;
         var finalSite = state.Site.Clone();
+        int units = 0;
         foreach (var c in clearable)
+        {
             finalSite.Dig(c);
+            if (++units % (8 * StairUnits) == 0)
+                yield return false;
+        }
         var final = new MineWalk(finalSite, input.Home, input.BadStands);
-        final.BuildNow();
-        var stair = new HashSet<MarkPos>();
-        var stuck = FloorNodes(final, finalSite, clearable, area).Where(n => !final.Out(n)).ToList();
+        foreach (bool _ in final.Build())
+            yield return false;
+        result.Final = final;
+        var stuck = new List<PathCell>();
+        var w = finalSite.Window;
+        for (int x = area.Min.X; x <= area.Max.X + 1; x++)
+        for (int z = area.Min.Z; z <= area.Max.Z + 1; z++)
+        {
+            for (int y = w.Min.Y; y <= w.Max.Y; y++)
+            {
+                var n = new PathCell(x, y, z);
+                if (final.Node(n) && !final.Out(n) && Reaches(n, clearable))
+                    stuck.Add(n);
+            }
+            if (++units % 16 == 0)
+                yield return false;
+        }
         if (stuck.Count == 0)
-            return (stair, final);
-        foreach (var component in Components(final, stuck))
+            yield break;
+        var components = new List<List<PathCell>>();
+        foreach (bool _ in Components(final, stuck, components))
+            yield return false;
+        foreach (var component in components)
         {
             // a straight stair where one fits, else a spiral round the walls
-            var best = Best(component, finalSite, Candidates(component, final, clearable).OrderBy(c => c.D2).Take(16))
-                ?? Best(component, finalSite, Spirals(component, final, clearable).OrderBy(c => c.D2).Take(8));
-            if (best is not { } b)
+            var chosen = new Chosen();
+            foreach (bool _ in Best(component, finalSite, Candidates(component, final, clearable).OrderBy(c => c.D2).Take(16), chosen))
+                yield return false;
+            if (chosen.Best == null)
+                foreach (bool _ in Best(component, finalSite, Spirals(component, final, clearable).OrderBy(c => c.D2).Take(8), chosen))
+                    yield return false;
+            if (chosen.Best is not { } b)
                 continue;
-            stair.UnionWith(b.Cells);
+            result.Stair.UnionWith(b.Cells);
             finalSite = b.Site;
             final = b.Walk;
+            result.Final = final;
         }
-        return (stair, final);
     }
 
     // Of the candidates, those with whose cells kept the component has its way out in the final world:
-    // the one of fewest cells, then nearest home.
-    private (List<MarkPos> Cells, double D2, MineSite Site, MineWalk Walk)? Best(List<PathCell> component, MineSite finalSite,
-        IEnumerable<(List<MarkPos> Cells, double D2)> candidates)
+    // the one of fewest cells, then nearest home; each candidate's walk graph built a step at a time.
+    private IEnumerable<bool> Best(List<PathCell> component, MineSite finalSite, IEnumerable<(List<MarkPos> Cells, double D2)> candidates,
+        Chosen chosen)
     {
-        (List<MarkPos> Cells, double D2, MineSite Site, MineWalk Walk)? best = null;
         foreach (var (cells, d2) in candidates)
         {
             var site = finalSite.Clone();
             foreach (var c in cells)
                 site.Set(c, new MineVoxel(true, MineRule.Mine));
+            yield return false;
             var walk = new MineWalk(site, input.Home, input.BadStands);
-            walk.BuildNow();
+            foreach (bool _ in walk.Build())
+                yield return false;
             var still = component.Where(walk.Node).ToList();
             if (still.Count == 0 || !still.All(walk.Out))
                 continue;
-            if (best == null || cells.Count < best.Value.Cells.Count || (cells.Count == best.Value.Cells.Count && d2 < best.Value.D2))
-                best = (cells, d2, site, walk);
+            if (chosen.Best is not { } best || cells.Count < best.Cells.Count || (cells.Count == best.Cells.Count && d2 < best.D2))
+                chosen.Best = (cells, d2, site, walk);
         }
-        return best;
     }
 
     // Spiral stairs (an open pit's ramp): a band 2 wide round the inside of the component's bounds, from
@@ -297,20 +352,6 @@ public sealed class MinePlanner(MinePlanInput input)
         }
     }
 
-    // Nodes whose box is over a column of the area and that reach a clearable cell.
-    private static IEnumerable<PathCell> FloorNodes(MineWalk walk, MineSite site, IReadOnlySet<MarkPos> clearable, MarkArea area)
-    {
-        var w = site.Window;
-        for (int x = area.Min.X; x <= area.Max.X + 1; x++)
-        for (int z = area.Min.Z; z <= area.Max.Z + 1; z++)
-        for (int y = w.Min.Y; y <= w.Max.Y; y++)
-        {
-            var n = new PathCell(x, y, z);
-            if (walk.Node(n) && Reaches(n, clearable))
-                yield return n;
-        }
-    }
-
     private static bool Reaches(PathCell n, IReadOnlySet<MarkPos> cells)
     {
         for (int x = n.X - 3; x <= n.X + 2; x++)
@@ -321,11 +362,12 @@ public sealed class MinePlanner(MinePlanInput input)
         return false;
     }
 
-    // The stuck nodes grouped by the parts of the graph (not out) they are joined in.
-    private static IEnumerable<List<PathCell>> Components(MineWalk walk, List<PathCell> stuck)
+    // The stuck nodes grouped by the parts of the graph (not out) they are joined in, into components.
+    private static IEnumerable<bool> Components(MineWalk walk, List<PathCell> stuck, List<List<PathCell>> components)
     {
         var seen = new HashSet<PathCell>();
         var stuckSet = stuck.ToHashSet();
+        int units = 0;
         foreach (var start in stuck)
         {
             if (!seen.Add(start))
@@ -339,8 +381,10 @@ public sealed class MinePlanner(MinePlanInput input)
                 foreach (var m in walk.Joins(n))
                     if (seen.Add(m))
                         queue.Enqueue(m);
+                if (++units % StairUnits == 0)
+                    yield return false;
             }
-            yield return component;
+            components.Add(component);
         }
     }
 
@@ -400,22 +444,26 @@ public sealed class MinePlanner(MinePlanInput input)
     /// <summary>How high a step in front of the face would bring the highest cell out of reach in reach
     /// (the out-of-reach report's hint): its stand's feet would be <see cref="EidolonMining.ReachAbove"/> under it; of the
     /// final world's out nodes within 4 columns of it, the highest feet; the difference, if any.</summary>
-    private static int? StepNeeded(IReadOnlySet<MarkPos> outOfReach, MineWalk final)
+    private static IEnumerable<bool> StepNeeded(IReadOnlySet<MarkPos> outOfReach, MineWalk final, Action<int?> done)
     {
         if (outOfReach.Count == 0)
-            return null;
+        {
+            done(null);
+            yield break;
+        }
         var u = outOfReach.OrderByDescending(c => c.Y).ThenBy(c => c.X).ThenBy(c => c.Z).First();
         int? best = null;
+        int units = 0;
         foreach (var n in final.Nodes)
         {
             int dx = Math.Max(0, Math.Max(n.X - 1 - u.X, u.X - n.X)), dz = Math.Max(0, Math.Max(n.Z - 1 - u.Z, u.Z - n.Z));
             if (dx <= 4 && dz <= 4 && (best == null || n.Y > best))
                 best = n.Y;
+            if (++units % (8 * StairUnits) == 0)
+                yield return false;
         }
-        if (best is not { } f)
-            return null;
-        int need = u.Y - EidolonMining.ReachAbove - f;
-        return need > 0 ? need : null;
+        int need = best is { } f ? u.Y - EidolonMining.ReachAbove - f : 0;
+        done(need > 0 ? need : null);
     }
 
     // ---- the simulation ----
@@ -465,6 +513,8 @@ public sealed class MinePlanner(MinePlanInput input)
         private readonly int[] _band;
         private readonly PriorityQueue<PathCell, StationKey> _queue = new(KeyOrder.Instance);
         private readonly HashSet<PathCell> _queued = new();
+        private readonly List<MarkPos> _widened = new();
+        private readonly List<PathCell> _stands = new();
         private readonly HashSet<PathCell> _parked = new();
         private readonly Dictionary<(int, int), List<PathCell>> _parkedAt = new();
         private readonly Dictionary<(int Lane, int Y), int> _front = new();
@@ -499,14 +549,35 @@ public sealed class MinePlanner(MinePlanInput input)
 
         public IEnumerable<bool> Run()
         {
-            foreach (var n in _state.Walk.Nodes)
-                Push(n);
-            yield return false;
             int units = 0;
-            while (_queue.TryDequeue(out var stand, out var key))
+            foreach (var n in _state.Walk.Nodes)
             {
+                Push(n);
+                if (++units % 32 == 0)
+                    yield return false;
+            }
+            yield return false;
+            while (true)
+            {
+                for (int k = 0; k < _widened.Count; k++)
+                {
+                    PushReaching(_widened[k]);
+                    if (k % 16 == 15)
+                        yield return false;
+                }
+                _widened.Clear();
+                for (int k = 0; k < _stands.Count; k++)
+                {
+                    Push(_stands[k]);
+                    if (k % 32 == 31)
+                        yield return false;
+                }
+                _stands.Clear();
+                if (!_queue.TryDequeue(out var stand, out var key))
+                    break;
                 _queued.Remove(stand);
-                if (++units % 64 == 0)
+                // a stand's cells are looked at afresh (a few hundred cells): a step every few
+                if (++units % 8 == 0)
                     yield return false;
                 if (!_state.Walk.Out(stand))
                     continue;
@@ -517,6 +588,8 @@ public sealed class MinePlanner(MinePlanInput input)
                     Enqueue(stand, candidate.Key);
                     continue;
                 }
+                // a step after every guard asked (one cut off searches its whole part of the graph)
+                yield return false;
                 var blame = new HashSet<MarkPos>();
                 var refusal = _state.Check(stand, candidate.Cells, [], blame);
                 if (refusal is MineRefusal.CutsOff or MineRefusal.Starves && blame.Count > 0)
@@ -533,6 +606,7 @@ public sealed class MinePlanner(MinePlanInput input)
                     Park(stand);
                     continue;
                 }
+                yield return false;
                 Emit(stand, candidate);
                 yield return false;
             }
@@ -556,10 +630,10 @@ public sealed class MinePlanner(MinePlanInput input)
                     for (int s = before + 2; s <= now + 1; s++)
                         widened.AddRange(SliceCells(lane, s, y));
                 }
-            foreach (var c in widened)
-                PushReaching(c);
-            foreach (var n in _state.Walk.TakeOpened())
-                Push(n);
+            // what the dig opened is pushed by the run, a few cells a step (a band or layer opening is
+            // a whole layer of them)
+            _widened.AddRange(widened);
+            _stands.AddRange(_state.Walk.TakeOpened());
             Unpark(cells);
             Push(stand);
         }
@@ -752,7 +826,7 @@ public sealed class MinePlanner(MinePlanInput input)
                 foreach (var s in list)
                 {
                     _parked.Remove(s);
-                    Push(s);
+                    _stands.Add(s);
                 }
             }
         }

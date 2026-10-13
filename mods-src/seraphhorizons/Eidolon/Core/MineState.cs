@@ -113,9 +113,11 @@ public sealed class MineState
         }
         _targets = targets;
         _reach = new MineReach(Site, targets, Home, BadStands);
+        yield return false;
         foreach (bool _ in _reach.Run())
             yield return false;
         _remaining = new HashSet<MarkPos>(Reach.Clearable);
+        yield return false;
         yield return true;
     }
 
@@ -129,7 +131,15 @@ public sealed class MineState
     /// in): what is left of its targets (those still solid), the reach bound over them made again.</summary>
     public IEnumerable<bool> Adopt(MinePlan plan)
     {
-        var targets = plan.Targets.Where(c => Site.Rule(c) == MineRule.Mine).ToHashSet();
+        var targets = new HashSet<MarkPos>();
+        int units = 0;
+        foreach (var c in plan.Targets)
+        {
+            if (Site.Rule(c) == MineRule.Mine)
+                targets.Add(c);
+            if (++units % 2048 == 0)
+                yield return false;
+        }
         foreach (bool _ in Retarget(targets))
             yield return false;
         Bands = plan.Bands(_remaining);

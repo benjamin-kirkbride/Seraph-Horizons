@@ -227,6 +227,7 @@ public abstract class MineGraph
                 dead.Add(g);
         var orphans = new List<int>();
         var dirty = new HashSet<int>();
+        var clean = new HashSet<int>();
         var queue = new Queue<int>(gone.Where(g => dead.Contains(g) && Kids[g] > 0));
         var children = new List<int>();
         while (queue.TryDequeue(out int u))
@@ -237,7 +238,7 @@ public abstract class MineGraph
             {
                 if (dead.Contains(r) || Parent[r] != u)
                     continue;
-                int other = Alternative(r, dead, dirty);
+                int other = Alternative(r, dead, dirty, clean);
                 if (other >= 0)
                 {
                     Set(KindKids, Kids, u, Kids[u] - 1);
@@ -288,7 +289,7 @@ public abstract class MineGraph
 
     // Another parent for a node whose parent goes: an out node joined to it whose own way out passes
     // through neither it (so not one it leads out) nor any of those going.
-    private int Alternative(int index, HashSet<int> dead, HashSet<int> dirty)
+    private int Alternative(int index, HashSet<int> dead, HashSet<int> dirty, HashSet<int> clean)
     {
         var p = Site.At(index);
         int step = Site.Step;
@@ -299,7 +300,7 @@ public abstract class MineGraph
             if (!Site.InWindow(x, y, z))
                 continue;
             int n = Site.Index(x, y, z);
-            if (Parent[n] < 0 || dead.Contains(n) || dirty.Contains(n) || !Joined(p.X, p.Y, p.Z, x, y, z) || !Clean(n, index, dead, dirty))
+            if (Parent[n] < 0 || dead.Contains(n) || dirty.Contains(n) || !Joined(p.X, p.Y, p.Z, x, y, z) || !Clean(n, index, dead, dirty, clean))
                 continue;
             return n;
         }
@@ -307,8 +308,10 @@ public abstract class MineGraph
     }
 
     // Whether a node's way out passes through neither `index` nor any of `dead`; those found to pass
-    // through one of `dead` are remembered (`dirty`).
-    private bool Clean(int from, int index, HashSet<int> dead, HashSet<int> dirty)
+    // through one of `dead` are remembered (`dirty`), and those found clear too (`clean`: a node whose way
+    // out is clear of every dead one cannot pass through `index` either, whose own way out does, so each
+    // chain is walked once a cut).
+    private bool Clean(int from, int index, HashSet<int> dead, HashSet<int> dirty, HashSet<int> clean)
     {
         var path = new List<int>();
         int at = from;
@@ -316,6 +319,11 @@ public abstract class MineGraph
         {
             if (at == index)
                 return false;
+            if (clean.Contains(at))
+            {
+                clean.UnionWith(path);
+                return true;
+            }
             if (dead.Contains(at) || dirty.Contains(at))
             {
                 dirty.UnionWith(path);
@@ -324,7 +332,10 @@ public abstract class MineGraph
             path.Add(at);
             int parent = Parent[at];
             if (parent == at)
+            {
+                clean.UnionWith(path);
                 return true;
+            }
             if (parent < 0)
                 return false;
             at = parent;
@@ -467,15 +478,18 @@ public sealed class MineWalk : MineGraph
         }
         var queue = new Queue<int>();
         for (int x = w.Min.X; x <= w.Max.X; x++)
-        for (int z = w.Min.Z; z <= w.Max.Z; z++)
-        for (int y = w.Min.Y; y <= w.Max.Y; y++)
         {
-            int i = Site.Index(x, y, z);
-            if (_node[i] != 0 && Root(x, y, z))
+            for (int z = w.Min.Z; z <= w.Max.Z; z++)
+            for (int y = w.Min.Y; y <= w.Max.Y; y++)
             {
-                Attach(i, i);
-                queue.Enqueue(i);
+                int i = Site.Index(x, y, z);
+                if (_node[i] != 0 && Root(x, y, z))
+                {
+                    Attach(i, i);
+                    queue.Enqueue(i);
+                }
             }
+            yield return false;
         }
         int units = 0;
         var joined = new int[40];

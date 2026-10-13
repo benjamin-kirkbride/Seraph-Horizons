@@ -51,7 +51,7 @@ public sealed class MinePlan
     public int Band(MarkPos cell) => Targets.Contains(cell) ? MineBands.BandOf(Area, Tunnel, Stair, cell) : MineBands.Never;
 
     /// <summary>The bands over <paramref name="remaining"/> (a live state's), for dispatch.</summary>
-    public MineBands Bands(IEnumerable<MarkPos> remaining) => new(Area, Tunnel, Stair, remaining.Where(Targets.Contains));
+    public MineBands Bands(IEnumerable<MarkPos> remaining) => new(Area, Tunnel, Stair, remaining.Where(Targets.Contains), widen: false);
 }
 
 /// <summary>
@@ -81,9 +81,13 @@ public sealed class MineBands
     private int _nonStair;
     private int _layer;
     private readonly List<MarkPos> _widened = new();
+    private readonly bool _widen;
 
-    public MineBands(MarkArea area, MineTunnel? tunnel, IReadOnlySet<MarkPos> stair, IEnumerable<MarkPos> remaining)
+    /// <param name="widen">Whether it notes what each cell gone opens (<see cref="TakeWidened"/>, the
+    /// planner's simulation; a live state's bands only answer <see cref="Eligible"/>).</param>
+    public MineBands(MarkArea area, MineTunnel? tunnel, IReadOnlySet<MarkPos> stair, IEnumerable<MarkPos> remaining, bool widen = true)
     {
+        _widen = widen;
         _area = area;
         _tunnel = tunnel;
         _stair = stair;
@@ -94,7 +98,7 @@ public sealed class MineBands
         _open = new int[area.SizeY];
         _layerCells = Enumerable.Range(0, area.SizeY).Select(_ => new List<MarkPos>()).ToArray();
         _stairCells = new List<MarkPos>();
-        foreach (var c in _remaining.OrderBy(c => c.X).ThenBy(c => c.Y).ThenBy(c => c.Z))
+        foreach (var c in widen ? _remaining.OrderBy(c => c.X).ThenBy(c => c.Y).ThenBy(c => c.Z) : (IEnumerable<MarkPos>)_remaining)
         {
             int band = Band(c);
             if (band == Stair)
@@ -102,13 +106,15 @@ public sealed class MineBands
             else if (band < CoveredBands)
             {
                 _covered[band]++;
-                _bandCells[band].Add(c);
+                if (widen)
+                    _bandCells[band].Add(c);
                 _nonStair++;
             }
             else if (c.Y >= area.Min.Y && c.Y <= area.Max.Y)
             {
                 _open[c.Y - area.Min.Y]++;
-                _layerCells[c.Y - area.Min.Y].Add(c);
+                if (widen)
+                    _layerCells[c.Y - area.Min.Y].Add(c);
                 _nonStair++;
             }
         }
@@ -129,6 +135,7 @@ public sealed class MineBands
         _stairCells = other._stairCells;
         _nonStair = other._nonStair;
         _layer = other._layer;
+        _widen = other._widen;
     }
 
     public MineBands Clone() => new(this);
@@ -224,6 +231,8 @@ public sealed class MineBands
             while (_layer >= 0 && _open[_layer] == 0)
                 _layer--;
         }
+        if (!_widen)
+            return;
         if (Covered is { } b && b != covered)
             _widened.AddRange(_bandCells[b].Where(_remaining.Contains));
         int now = OpenFloor;

@@ -422,6 +422,17 @@ public class MinePlannerTests(ITestOutputHelper output)
     private const int CostBoundMs = 1000;
 #endif
 
+    // A slice of planning (one step of its work) is bounded too, so a tick spends no more than the budget
+    // and the step it overran by: 3 ms for Release; Debug's unoptimised code is given 8 times that. A busy
+    // machine stops a thread now and then for longer (the collector, other processes), so a few steps of a
+    // run (out of tens of thousands) may go over; a step of real work over it comes every run.
+#if DEBUG
+    private const double StepBoundMs = 24;
+#else
+    private const double StepBoundMs = 3;
+#endif
+    private const int StepsOverAllowed = 6;
+
     [Theory]
     [InlineData(128, 1, 128)]
     [InlineData(16, 64, 16)]
@@ -439,5 +450,24 @@ public class MinePlannerTests(ITestOutputHelper output)
         var plan = planner.Plan!;
         output.WriteLine($"{sizeX} x {sizeY} x {sizeZ}: {clock.ElapsedMilliseconds} ms, {plan.Stations.Count} stations, {plan.Stations.Sum(s => s.Cells.Count)} cells, out of reach {plan.OutOfReach.Count}, stair {plan.Stair.Count}, reruns {plan.Reruns}; {string.Join(", ", planner.Spent.Select(p => $"{p.Key} {p.Value.TotalMilliseconds:0} ms"))}");
         Assert.True(clock.ElapsedMilliseconds < CostBoundMs, $"{clock.ElapsedMilliseconds} ms");
+        // each step of its work, as the game takes them (Step returns after the step that spends its budget)
+        int fewest = int.MaxValue;
+        for (int run = 0; run < 3 && fewest > StepsOverAllowed; run++)
+        {
+            var sliced = new MinePlanner(input);
+            var steps = new List<double>();
+            while (true)
+            {
+                var step = System.Diagnostics.Stopwatch.StartNew();
+                bool done = sliced.Step(TimeSpan.Zero);
+                steps.Add(step.Elapsed.TotalMilliseconds);
+                if (done)
+                    break;
+            }
+            int over = steps.Count(ms => ms > StepBoundMs);
+            fewest = Math.Min(fewest, over);
+            output.WriteLine($"  sliced: {steps.Count} steps, the longest {steps.Max():0.0} ms, {over} over {StepBoundMs} ms");
+        }
+        Assert.True(fewest <= StepsOverAllowed, $"{fewest} steps over {StepBoundMs} ms in the best of three runs");
     }
 }

@@ -61,7 +61,11 @@ public static class MineDispatch
     /// an earlier station's stand kept only while it has cells left that are <paramref name="usable"/>
     /// (<see cref="Before"/>).</summary>
     public static bool Executable(MinePlan plan, MineState live, MineStation station, IReadOnlyList<MineWorkerAt> others, out MineRefusal why,
-        Func<MarkPos, bool>? usable)
+        Func<MarkPos, bool>? usable) => Executable(live, station, others, out why, Alive(plan, live, usable));
+
+    // Executable with the plan's stations that have cells left (Alive) found already.
+    private static bool Executable(MineState live, MineStation station, IReadOnlyList<MineWorkerAt> others, out MineRefusal why,
+        IReadOnlyList<MineStation> alive)
     {
         var cells = Cells(live, station);
         if (cells.Count == 0)
@@ -69,7 +73,7 @@ public static class MineDispatch
             why = MineRefusal.OutOfReach;
             return false;
         }
-        var before = Before(plan, live, station, usable);
+        var before = Before(alive, station);
         if (Footing(before, cells))
         {
             why = MineRefusal.CutsOffStation;
@@ -77,6 +81,20 @@ public static class MineDispatch
         }
         why = live.Check(station.Stand, cells, others, null, before);
         return why == MineRefusal.None;
+    }
+
+    // The plan's stations with a cell left (and <paramref name="usable"/>), in its order.
+    private static List<MineStation> Alive(MinePlan plan, MineState live, Func<MarkPos, bool>? usable)
+    {
+        var alive = new List<MineStation>();
+        foreach (var s in plan.Stations)
+            foreach (var c in s.Cells)
+                if (live.Remaining.Contains(c) && (usable?.Invoke(c) ?? true))
+                {
+                    alive.Add(s);
+                    break;
+                }
+        return alive;
     }
 
     /// <summary>Whether any of <paramref name="cells"/> is under the box of one of <paramref name="stands"/>,
@@ -90,17 +108,19 @@ public static class MineDispatch
     /// to be worked stands at (<see cref="Footing"/>), nor cut it off, or that one could never be worked as
     /// planned. With <paramref name="usable"/>, only those with cells left it allows count (one whose
     /// cells left are all under an eidolon parked in the area holds no stand for now).</summary>
-    public static IReadOnlyList<PathCell> Before(MinePlan plan, MineState live, MineStation station, Func<MarkPos, bool>? usable = null)
+    public static IReadOnlyList<PathCell> Before(MinePlan plan, MineState live, MineStation station, Func<MarkPos, bool>? usable = null) =>
+        Before(Alive(plan, live, usable), station);
+
+    private static List<PathCell> Before(IReadOnlyList<MineStation> alive, MineStation station)
     {
         int minX = station.Cells.Min(c => c.X) - Near, maxX = station.Cells.Max(c => c.X) + Near;
         int minZ = station.Cells.Min(c => c.Z) - Near, maxZ = station.Cells.Max(c => c.Z) + Near;
         var stands = new List<PathCell>();
-        foreach (var s in plan.Stations)
+        foreach (var s in alive)
         {
             if (s.Id >= station.Id)
                 break;
-            if (s.Stand.X >= minX && s.Stand.X <= maxX && s.Stand.Z >= minZ && s.Stand.Z <= maxZ
-                && s.Cells.Any(c => live.Remaining.Contains(c) && (usable?.Invoke(c) ?? true)))
+            if (s.Stand.X >= minX && s.Stand.X <= maxX && s.Stand.Z >= minZ && s.Stand.Z <= maxZ)
                 stands.Add(s.Stand);
         }
         return stands;
@@ -111,7 +131,8 @@ public static class MineDispatch
 
     /// <summary>The station <paramref name="worker"/> takes next, or null for none: of the first
     /// <see cref="Front"/> in plan order not in anyone's queue, <paramref name="free"/> (its claim free on
-    /// the board) and <see cref="Executable"/>, the one no other would reach sooner, then the one it reaches
+    /// the board) and with cells it may dig now, those <see cref="Executable"/> (the guard asked of these
+    /// only, the earlier stations' stands found once), the one no other would reach sooner, then the one it reaches
     /// soonest, then the first. With <paramref name="usable"/>, a station's cells are first cut to those
     /// it allows (the game: none in the columns of an eidolon standing there, which may be no worker, so the
     /// rest of a station round one parked in the area is dug and what is under it waits), and the station
@@ -120,12 +141,16 @@ public static class MineDispatch
     public static MineStation? Next(MinePlan plan, MineState live, MineWorker worker, IReadOnlyList<MineWorker> others, Func<MineStation, bool> free,
         Func<MarkPos, bool>? usable = null, Func<MineStation, MineStation?>? fit = null)
     {
-        var taken = others.SelectMany(o => o.Queue).Concat(worker.Queue).Select(s => s.Id).ToHashSet();
+        // stations held: those of this plan (a queue may still hold a replaced plan's, until its next look)
+        var taken = others.SelectMany(o => o.Queue).Concat(worker.Queue)
+            .Where(s => s.Id < plan.Stations.Count && plan.Stations[s.Id].Stand == s.Stand).Select(s => s.Id).ToHashSet();
         var at = others.Select(o => new MineWorkerAt(o.Id, o.X, o.Feet, o.Z, o.Queue.Select(s => s.Stand).ToList())).ToList();
-        var found = new List<MineStation>();
-        foreach (var listed in plan.Stations)
+        var alive = Alive(plan, live, usable);
+        // the front: the first Front not held, that fit and whose cells may be dug now; then the guard
+        var front = new List<MineStation>();
+        foreach (var listed in alive)
         {
-            if (taken.Contains(listed.Id) || !listed.Cells.Any(live.Remaining.Contains))
+            if (taken.Contains(listed.Id))
                 continue;
             if ((fit == null ? listed : fit(listed)) is not { } planned || !planned.Cells.Any(live.Remaining.Contains) || !free(planned))
                 continue;
@@ -137,12 +162,13 @@ public static class MineDispatch
                     continue;
                 station = planned with { Cells = cells };
             }
-            if (!Executable(plan, live, station, at, out _, usable))
+            if (Cells(live, station).Count == 0)
                 continue;
-            found.Add(station);
-            if (found.Count == Front)
+            front.Add(station);
+            if (front.Count == Front)
                 break;
         }
+        var found = front.Where(s => Executable(live, s, at, out _, alive)).ToList();
         return found
             .Select(s => (Station: s, Mine: Arrival(worker, s)))
             .OrderBy(s => others.Any(o => Arrival(o, s.Station) < s.Mine))

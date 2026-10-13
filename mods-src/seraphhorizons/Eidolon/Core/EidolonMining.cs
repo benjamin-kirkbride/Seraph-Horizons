@@ -87,7 +87,20 @@ public sealed class MineJobCells
     public HashSet<MarkPos> Stair { get; } = new();
 
     /// <summary>The plan's blocks out of reach that are no stair of the job's (<see cref="Stair"/>).</summary>
-    public IReadOnlySet<MarkPos> OutOfReach => Plan is { } p ? p.OutOfReach.Where(c => !Stair.Contains(c)).ToHashSet() : new HashSet<MarkPos>();
+    public IReadOnlySet<MarkPos> OutOfReach
+    {
+        get
+        {
+            // made again only when the plan or the stair changes (every member asks on every look)
+            if (_outOfReach is { } o && ReferenceEquals(o.Plan, Plan) && o.Stair == Stair.Count)
+                return o.Set;
+            var set = Plan is { } p ? p.OutOfReach.Where(c => !Stair.Contains(c)).ToHashSet() : new HashSet<MarkPos>();
+            _outOfReach = (Plan, Stair.Count, set);
+            return set;
+        }
+    }
+
+    private (MinePlan? Plan, int Stair, IReadOnlySet<MarkPos> Set)? _outOfReach;
 
     /// <summary>The cells under eidolons parked in the area (none of the job's) when the plan was last made
     /// for being stuck: planned round, as cells left for now, until they move (README "Eidolon", working
@@ -400,6 +413,17 @@ public static class EidolonMining
     /// </summary>
     public static MineTargets Targets(MarkArea area, MineSite site, Func<MarkPos, bool> skip, IReadOnlySet<MarkPos>? hold = null)
     {
+        MineTargets? result = null;
+        foreach (var _ in Targets(area, site, skip, hold, t => result = t)) { }
+        return result!;
+    }
+
+    /// <summary><see cref="Targets(MarkArea, MineSite, Func{MarkPos, bool}, IReadOnlySet{MarkPos}?)"/> a few
+    /// block columns a step (the planner's slices), handing the result to <paramref name="done"/>.</summary>
+    public static IEnumerable<bool> Targets(MarkArea area, MineSite site, Func<MarkPos, bool> skip, IReadOnlySet<MarkPos>? hold,
+        Action<MineTargets> done)
+    {
+        int columns = 0;
         var dig = new HashSet<MarkPos>();
         var held = new HashSet<MarkPos>();
         var left = new HashSet<MarkPos>();
@@ -441,8 +465,11 @@ public static class EidolonMining
                 }
                 dig.Add(cell);
             }
+            if (++columns % 32 == 0)
+                yield return false;
         }
-        return new MineTargets(dig, held, left, unloaded);
+        done(new MineTargets(dig, held, left, unloaded));
+        yield return true;
     }
 
     /// <summary>Whether a block just over the area, which it never breaks, holds up the column under it:
