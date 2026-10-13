@@ -276,7 +276,8 @@ public class EidolonMinePlans : ModSystem
         var bad = new HashSet<PathCell>(cells.BadStands);
         var blocks = _api!.World.BlockAccessor;
         var pos = new BlockPos(work.Dimension);
-        var input = new MinePlanInput(new MineState(site, work.Home, bad), work.Home, cells.Skip.Contains, bad)
+        var parked = cells.Parked;
+        var input = new MinePlanInput(new MineState(site, work.Home, bad), work.Home, c => cells.Skip.Contains(c) || parked.Contains(c), bad)
         {
             Roof = c => blocks.GetChunkAtBlockPos(pos.Set(c.X, c.Y, c.Z)) != null && MineOrder.Roof(blocks.GetBlock(pos)),
         };

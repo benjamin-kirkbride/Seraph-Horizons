@@ -109,6 +109,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// the area (no member, or one waiting) never takes a station from it.</summary>
     private const double NeverSeconds = 1e6;
 
+    /// <summary>How long after finishing a station it leaves the next to a member waiting with less mined
+    /// (<see cref="Yields"/>), looking every <see cref="YieldCheckSeconds"/>.</summary>
+    private const double YieldSeconds = 3;
+    private const double YieldCheckSeconds = 0.5;
+
     /// <summary>How long at most it waits for another to make room before it walks a way through it.</summary>
     private const double ThroughSeconds = 20;
 
@@ -160,6 +165,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private int _toldSaved = toldOutOfReach;
     private bool _stairWait;
     private double? _throughSince;
+    private double _yieldUntil;
 
     public string Code => OrderCode;
 
@@ -511,8 +517,15 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var workers = Workers(eidolon);
         var at = At(workers);
         // what it holds that is done, or no longer its to work now (another stands there, the world changed)
-        while (_queue.Count > 0 && !MineDispatch.Executable(plan, live, Usable(_queue[0], workers), at, out _))
+        while (_queue.Count > 0 && !MineDispatch.Executable(plan, live, Usable(_queue[0], workers), at, out _, ParkedClear(workers)))
             DropHead(eidolon);
+        if (_queue.Count == 0 && Yields(eidolon, workers, now))
+        {
+            // just done with a station, another of its job waiting with less to show: its turn to take one
+            _phase = Phase.Wait;
+            _waitCheckAt = now + YieldCheckSeconds;
+            return true;
+        }
         Refill(eidolon, plan, live, workers, now);
         if (Station is not { } head)
             return Idle(eidolon, live, workers, now);
@@ -529,6 +542,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         if (AtStand(eidolon, head.Stand))
             return Arrived(eidolon, head, now);
         return Approach(eidolon, head, now);
+    }
+
+    /// <summary>Whether a cell is in no column of an eidolon that holds no station (parked in the area), or
+    /// null with none.</summary>
+    private static System.Func<MarkPos, bool>? ParkedClear(IReadOnlyList<MineWorker> workers)
+    {
+        var parked = workers.Where(w => w.Queue.Count == 0).ToList();
+        return parked.Count == 0 ? null : c => !parked.Any(w => EidolonMining.UnderFoot(w.X, w.Z, c));
     }
 
     /// <summary>The station cut to the cells in no column of an eidolon that holds no station (parked in the
@@ -561,12 +582,33 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         {
             var me = new MineWorker(id, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, _queue.ToList(), 0);
             var next = MineDispatch.Next(plan, live, me, workers,
-                s => board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now)), parked.Count > 0 ? Clear : null);
+                s => !Taken(s.Stand, workers) && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
+                parked.Count > 0 ? Clear : null);
             if (next == null || board != null && !board.TryClaim(id, next.Id, MineDispatch.Claim(next, plan.Tunnel), now))
                 break;
             _queue.Add(next);
         }
     }
+
+    /// <summary>Whether it leaves the next station to another member of its job (README "Eidolon", working
+    /// together, *Dispatch*): within <see cref="YieldSeconds"/> of finishing one, while a member present holds
+    /// none and has mined less. In an area too small for two stations at once the one at work would
+    /// otherwise always be nearer the next, and the other never get one.</summary>
+    private bool Yields(EntityLaborEidolon eidolon, IReadOnlyList<MineWorker> workers, double now)
+    {
+        if (_job == null || now >= _yieldUntil)
+            return false;
+        var shares = _job.Shares.ToDictionary(s => s.Member, s => s.Count);
+        int mine = shares.GetValueOrDefault(eidolon.EntityId);
+        return workers.Any(w => w.Queue.Count == 0 && _job.Present.Contains(w.Id) && shares.GetValueOrDefault(w.Id) < mine);
+    }
+
+    /// <summary>Whether another eidolon stands at <paramref name="stand"/>, their boxes overlapping: not a
+    /// place to make for now (the plan knows nothing of eidolons; one parked there moves in time).</summary>
+    private static bool Taken(PathCell stand, IReadOnlyList<MineWorker> workers) =>
+        workers.Any(w => w.Queue.Count == 0 && Math.Abs(w.X - stand.X) < BoxWidth && Math.Abs(w.Z - stand.Z) < BoxWidth && Math.Abs(w.Feet - stand.Y) < 4);
+
+    private const double BoxWidth = 2 * EidolonMining.HalfWidth;
 
     /// <summary>Lets go of the station it works (its claim freed).</summary>
     private void DropHead(EntityLaborEidolon eidolon)
@@ -596,17 +638,44 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     {
         var cells = Cells;
         bool unloaded = live.Site.UnloadedColumns.Count > 0;
+        bool working = workers.Any(w => w.Queue.Count > 0);
+        // Eidolons parked in the area hold up what is under them: with none at work, the plan is made again
+        // round what is under them now (or with it, once they have moved), whenever that changes.
+        if (!working)
+        {
+            var parked = workers.Where(w => w.Queue.Count == 0).ToList();
+            var under = cells.Parked.Concat(live.Remaining).Where(c => parked.Any(w => EidolonMining.UnderFoot(w.X, w.Z, c))).ToHashSet();
+            if (!under.SetEquals(cells.Parked))
+            {
+                cells.Parked = under;
+                Plans?.Replan(cells, true);
+                eidolon.World.Logger.Notification($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: {under.Count} blocks under eidolons parked there, planned again");
+                Unfinish(eidolon);
+                return Wait(eidolon, now);
+            }
+        }
         bool left = live.Bands is { } bands ? !bands.StairOpen : live.Remaining.Count > 0;
+        if (!left && cells.Parked.Count > 0)
+        {
+            // what is left is under eidolons parked in the area: it waits for them to move
+            Unfinish(eidolon);
+            return Wait(eidolon, now);
+        }
         if (!left)
             return unloaded ? Travel(eidolon, now) : Finish(eidolon, now);
-        bool working = workers.Any(w => w.Queue.Count > 0);
         if (!working)
         {
             if (!cells.StuckReplanned)
             {
                 cells.StuckReplanned = true;
                 Plans?.Replan(cells, true);
-                eidolon.World.Logger.Notification($"[eidolon-mine] {eidolon.EntityId} stuck on {EidolonMinePlans.Describe(area)} with {live.Remaining.Count} left: planned again");
+                var why = Cells.Plan!.Stations.Where(st => st.Cells.Any(live.Remaining.Contains)).Take(6).Select(st =>
+                {
+                    MineDispatch.Executable(Cells.Plan, live, Usable(st, workers), At(workers), out var r, ParkedClear(workers));
+                    return $"{st.Id} {r}";
+                });
+                eidolon.World.Logger.Notification($"[eidolon-mine] {eidolon.EntityId} stuck on {EidolonMinePlans.Describe(area)} with {live.Remaining.Count} left "
+                    + $"({string.Join(", ", why)}): planned again");
             }
             else
             {
@@ -704,7 +773,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 return Try.Dropped;
             group = group with { Cells = hung };
         }
-        var before = MineDispatch.Before(plan, live, head);
+        var before = MineDispatch.Before(plan, live, head, ParkedClear(Workers(eidolon)));
         if (MineDispatch.Footing(before, group.Cells) || live.Check(stand, group.Cells, At(Workers(eidolon)), null, before) != MineRefusal.None)
         {
             DropHead(eidolon);
@@ -792,6 +861,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private void BadStand(EntityLaborEidolon eidolon, MineStation head, double now)
     {
         _nav?.Stop();
+        // another eidolon at or by it: no way there for now, not a bad stand
+        var stand = head.Stand;
+        if (Others(eidolon, new Vec3d(stand.X, stand.Y, stand.Z), 3, 4).Count > 0)
+        {
+            DropHead(eidolon);
+            Wait(eidolon, now);
+            return;
+        }
         Cells.BadStands.Add(head.Stand);
         eidolon.World.Logger.Notification($"[eidolon-mine] {eidolon.EntityId}: no way to stand ({head.Stand.X},{head.Stand.Y},{head.Stand.Z}) (station {head.Id}) from {eidolon.Pos.XYZ}: bad");
         DropHead(eidolon);
@@ -850,27 +927,25 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         return false;
     }
 
-    /// <summary>Waits for the stair to come free off it: standing over a column of it (or of its plan's),
-    /// it steps aside to the nearest place clear of them (<see cref="RimWait.Aside"/>), out of the way of the
+    /// <summary>Waits for the stair to come free off it: standing over a column of it (or of its plan's) or
+    /// next to one,
+    /// it steps aside to the nearest place with its box a column clear of them (<see cref="RimWait.Aside"/>), out of the way of the
     /// one walking it; else it waits where it is.</summary>
     private void OffStair(EntityLaborEidolon eidolon)
     {
         eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting-stair");
         var columns = Cells.Stair.Concat(Cells.Plan?.Stair ?? new HashSet<MarkPos>()).Select(c => (c.X, c.Z)).ToHashSet();
+        // its box a column clear of the stair: the one walking it overhangs its treads
         bool Clear(int x, int z)
         {
-            for (int cx = x - 1; cx <= x; cx++)
-            for (int cz = z - 1; cz <= z; cz++)
+            for (int cx = x - 2; cx <= x + 1; cx++)
+            for (int cz = z - 2; cz <= z + 1; cz++)
                 if (columns.Contains((cx, cz)))
                     return false;
             return true;
         }
-        var f = EidolonMining.Footprint(eidolon.Pos.X, eidolon.Pos.Z);
-        bool on = false;
-        for (int x = f.MinX; x <= f.MaxX; x++)
-        for (int z = f.MinZ; z <= f.MaxZ; z++)
-            on |= columns.Contains((x, z));
-        if (on)
+        var at = WidePath.NodeAt(eidolon.Pos.X, eidolon.Pos.Y, eidolon.Pos.Z);
+        if (!Clear(at.X, at.Z))
             _rim.Aside(eidolon, _nav!, _jobs, Clear);
     }
 
@@ -1219,7 +1294,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _job?.Tally(eidolon.EntityId, broken.Count);
         Board?.Struck(eidolon.EntityId, EidolonJobSystem.Now(world));
         if (Station is { } head && Cells.Live is { } live && !head.Cells.Any(live.Remaining.Contains))
+        {
             DropHead(eidolon);
+            _yieldUntil = EidolonJobSystem.Now(world) + YieldSeconds;
+        }
         // Last: a dry reservoir stops it at once (the order is cancelled and started again later).
         eidolon.SpendOil(EidolonJob.MiningStrike);
     }

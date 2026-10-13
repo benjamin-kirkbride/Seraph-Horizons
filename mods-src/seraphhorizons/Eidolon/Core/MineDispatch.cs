@@ -54,7 +54,14 @@ public static class MineDispatch
     /// <summary>Whether a station may be worked now: some of its cells may be dug (<see cref="Cells"/>),
     /// and those pass the guard against the live state with the others where they are
     /// (<see cref="MineState.Check"/>).</summary>
-    public static bool Executable(MinePlan plan, MineState live, MineStation station, IReadOnlyList<MineWorkerAt> others, out MineRefusal why)
+    public static bool Executable(MinePlan plan, MineState live, MineStation station, IReadOnlyList<MineWorkerAt> others, out MineRefusal why) =>
+        Executable(plan, live, station, others, out why, null);
+
+    /// <summary><see cref="Executable(MinePlan, MineState, MineStation, IReadOnlyList{MineWorkerAt}, out MineRefusal)"/>,
+    /// an earlier station's stand kept only while it has cells left that are <paramref name="usable"/>
+    /// (<see cref="Before"/>).</summary>
+    public static bool Executable(MinePlan plan, MineState live, MineStation station, IReadOnlyList<MineWorkerAt> others, out MineRefusal why,
+        Func<MarkPos, bool>? usable)
     {
         var cells = Cells(live, station);
         if (cells.Count == 0)
@@ -62,7 +69,7 @@ public static class MineDispatch
             why = MineRefusal.OutOfReach;
             return false;
         }
-        var before = Before(plan, live, station);
+        var before = Before(plan, live, station, usable);
         if (Footing(before, cells))
         {
             why = MineRefusal.CutsOffStation;
@@ -81,8 +88,9 @@ public static class MineDispatch
     /// cells to dig, near it (within <see cref="Near"/> columns of its cells): a station worked out of the
     /// plan's order (several workers each at their own) must not dig the footing of a place another still
     /// to be worked stands at (<see cref="Footing"/>), nor cut it off, or that one could never be worked as
-    /// planned.</summary>
-    public static IReadOnlyList<PathCell> Before(MinePlan plan, MineState live, MineStation station)
+    /// planned. With <paramref name="usable"/>, only those with cells left it allows count (one whose
+    /// cells left are all under an eidolon parked in the area holds no stand for now).</summary>
+    public static IReadOnlyList<PathCell> Before(MinePlan plan, MineState live, MineStation station, Func<MarkPos, bool>? usable = null)
     {
         int minX = station.Cells.Min(c => c.X) - Near, maxX = station.Cells.Max(c => c.X) + Near;
         int minZ = station.Cells.Min(c => c.Z) - Near, maxZ = station.Cells.Max(c => c.Z) + Near;
@@ -91,7 +99,8 @@ public static class MineDispatch
         {
             if (s.Id >= station.Id)
                 break;
-            if (s.Stand.X >= minX && s.Stand.X <= maxX && s.Stand.Z >= minZ && s.Stand.Z <= maxZ && s.Cells.Any(live.Remaining.Contains))
+            if (s.Stand.X >= minX && s.Stand.X <= maxX && s.Stand.Z >= minZ && s.Stand.Z <= maxZ
+                && s.Cells.Any(c => live.Remaining.Contains(c) && (usable?.Invoke(c) ?? true)))
                 stands.Add(s.Stand);
         }
         return stands;
@@ -125,7 +134,7 @@ public static class MineDispatch
                     continue;
                 station = planned with { Cells = cells };
             }
-            if (!Executable(plan, live, station, at, out _))
+            if (!Executable(plan, live, station, at, out _, usable))
                 continue;
             found.Add(station);
             if (found.Count == Front)
