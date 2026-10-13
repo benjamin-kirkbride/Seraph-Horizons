@@ -101,6 +101,19 @@ class Grouping(unittest.TestCase):
         self.assertEqual(deps[0]["minDepth"], 2)
         self.assertEqual(len(ore_survey.merge([f(0, 1), f(150, 1)], 150)), 2)
 
+    def test_grades_add_up_per_deposit(self):
+        self.assertEqual(ore_survey.grade_of("game:ore-rich-nativecopper-granite"), "rich")
+        self.assertIsNone(ore_survey.grade_of("game:ore-lignite-shale"))
+        cells = {(0, 0, 0): [60, 0, 5, {"medium": 60}], (1, 0, 0): [40, 0, 5, {"rich": 30, "poor": 10}]}
+        [frag] = ore_survey.fragments(cells)
+        self.assertEqual(frag["grades"], {"medium": 60, "rich": 30, "poor": 10})
+        frag.update(ores=["a"])
+        other = dict(frag, x=frag["x"] + 10, grades={"medium": 100})
+        [dep] = ore_survey.merge([frag, other], 150)
+        self.assertEqual(dep["grades"], {"medium": 160, "rich": 30, "poor": 10})
+        self.assertAlmostEqual(ore_survey.top_grade_share(dep), 0.8)
+        self.assertIsNone(ore_survey.top_grade_share({"grades": {}}))
+
     def test_gravel_fields_join_within_16_m_horizontally(self):
         cells = {(0, 0, 10): [50, 0, 1], (0, 0, 2): [5, 0, 30],   # same column, any height
                  (2, 0, 10): [50, 0, 2],                         # 16 m away: joined
@@ -155,6 +168,7 @@ class Summary(unittest.TestCase):
             self.assertAlmostEqual(cu["pocketsPerKm2"], 1)
             self.assertAlmostEqual(cu["pocketShare"], 20 / 420)
             self.assertAlmostEqual(cu["ingotsPerKm2"], 420 * 5.08 / 20)
+            self.assertEqual((cu["topGradeMedian"], cu["oneGradeShare"]), (1, 1))  # all medium
             g = s["gravel"]
             self.assertEqual((g["fields"], g["blocksMedian"], g["scatteredBlocksPerKm2"]), (1, 300, 10))
             self.assertIn("copper", text.getvalue())

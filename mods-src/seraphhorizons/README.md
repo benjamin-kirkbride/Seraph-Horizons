@@ -4839,10 +4839,10 @@ first metal, and the registry the traders and their maps read. Design, engine fa
 numbers are in `docs/oregen.md`. The admin commands under `/sh ore` are described with `/sh trade`'s
 in Trading, "Admin tools".
 
-### Ore cells (`OreCells`, `OreCellSizeMetres`, `OreCellSizeByMetal`, `NoSurfaceCopper`, `SmallerDeposits`, `RarerDistricts`)
+### Ore cells (`OreCells`, `OreCellSizeMetres`, `OreCellSizeByMetal`, `NoSurfaceCopper`, `SmallerDeposits`, `RarerDistricts`, `GradePockets`)
 
 Ore is rare and placed by the seed (epic #435): a deposit of a given metal is a few kilometres
-away, and one deposit carries a group for a long while, then runs out. Four switches, all on by
+away, and one deposit carries a group for a long while, then runs out. Five switches, all on by
 default, all server side, all **for new worlds only**: they change how chunks generate, so the
 world records at its first start which of them it was created with
 (`seraphhorizons:oreworld` in the savegame, `Ore/Core/OreWorldRecord.cs`). A world created with
@@ -4937,6 +4937,19 @@ fixed at creation. The server log says what the world has
   quartz and most chromite and platinum, tile the world in 7 km squares instead of 4–6 km
   (`patches/ore-rarerdistricts.json`, on its `minDistanceBetweenDistricts`); with IOG's hard-coded
   40% chance per tile that is one per 122 km², about one per 11 km square.
+- **`GradePockets`** (#944): grade varies within a vein. IOG draws one grade per vein and gives
+  it to every block; a Harmony prefix on its `TryPlaceMainOre` (`Ore/Game/GradePocketPlacement.cs`)
+  regrades each block in pockets about `GradePocketSizeBlocks` (8) across, one grade richer or
+  poorer than the drawn grade, from the world seed and the block's position only, so a vein comes
+  out the same whichever chunk generates it (`Ore/Core/GradePockets.cs`). `GradePocketSpread`
+  (0.35) is the share of a vein's blocks off its grade, split so the vein keeps its drawn grade's
+  mean metal units (`GradePocketWeighting` `units`; `index` splits it evenly): a medium vein is
+  17.5 % poor, 65 % medium, 17.5 % rich, a rich one 21 % medium, 65 % rich, 14 % bountiful. A vein
+  that can only go one way (poor, or at the richest grade its host rock allows) takes
+  `GradePocketEndSpread` (0, so it stays one grade), which moves its metal. Prospect veins (always
+  poor), sub-deposits and hydrothermal district veins keep their grades. The pocket settings are
+  read at each start; change them only before a world generates. Details in `docs/oregen.md`,
+  "Grade within veins".
 
 Admin commands (`controlserver`), under the pack's `/sh` root, to check the rule:
 

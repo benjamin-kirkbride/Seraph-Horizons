@@ -36,6 +36,7 @@ UNITS_PER_NUGGET = 5
 NUGGET_OF = {"galena_nativesilver": "galena"}
 NUGGETS_PER_INGOT = 20
 SURFACE_DEPTH = 6  # a deposit "reaches the surface" if any of its ore is this close
+ONE_GRADE = 0.8  # a deposit "is one grade" if its commonest grade holds this share of its blocks
 
 
 def quantile(xs, p):
@@ -101,6 +102,19 @@ class Classifier:
         return units / UNITS_PER_NUGGET
 
 
+def grade_of(code: str):
+    """An ore block's grade (ore-rich-nativecopper-granite -> rich), or None."""
+    parts = code.split(":", 1)[-1].split("-")
+    return parts[1] if len(parts) > 2 and parts[0] == "ore" and parts[1] in GRADES else None
+
+
+def top_grade_share(d: dict):
+    """The share of a deposit's graded blocks in its commonest grade, or None if it has none."""
+    g = d.get("grades") or {}
+    n = sum(g.values())
+    return max(g.values()) / n if n else None
+
+
 # ---------------------------------------------------------------------------------------------
 # Grouping
 
@@ -128,8 +142,8 @@ class UnionFind:
 def fragments(cells: dict) -> list[dict]:
     """26-neighbour flood fill over 8-block cells of one ore type.
 
-    cells: {(x, z, y): [blocks, nuggets, minDepth]} -> [{blocks, nuggets, minDepth, x, z}],
-    x and z the unweighted mean of the cell centres in blocks."""
+    cells: {(x, z, y): [blocks, nuggets, minDepth, {grade: blocks}]} -> [{blocks, nuggets, minDepth,
+    grades, x, z}], x and z the unweighted mean of the cell centres in blocks."""
     seen = set()
     out = []
     for start in cells:
@@ -140,6 +154,7 @@ def fragments(cells: dict) -> list[dict]:
         blocks = 0
         nuggets = 0.0
         mind = math.inf
+        grades = collections.Counter()
         xs = zs = n = 0
         while stack:
             k = stack.pop()
@@ -147,6 +162,8 @@ def fragments(cells: dict) -> list[dict]:
             blocks += c[0]
             nuggets += c[1]
             mind = min(mind, c[2])
+            if len(c) > 3:
+                grades.update(c[3])
             xs += k[0]
             zs += k[1]
             n += 1
@@ -157,7 +174,7 @@ def fragments(cells: dict) -> list[dict]:
                         if nk in cells and nk not in seen:
                             seen.add(nk)
                             stack.append(nk)
-        out.append({"blocks": blocks, "nuggets": nuggets, "minDepth": mind,
+        out.append({"blocks": blocks, "nuggets": nuggets, "minDepth": mind, "grades": dict(grades),
                     "x": 8 * xs / n + 4, "z": 8 * zs / n + 4})
     return out
 
@@ -178,6 +195,7 @@ def merge(frags: list[dict], link: float) -> list[dict]:
             "blocks": sum(f["blocks"] for f in members),
             "nuggets": sum(f["nuggets"] for f in members),
             "minDepth": min(f["minDepth"] for f in members),
+            "grades": dict(sum((collections.Counter(f.get("grades", {})) for f in members), collections.Counter())),
             "x": big["x"], "z": big["z"],
             "ores": sorted({o for f in members for o in f.get("ores", [])}),
             "fragments": len(members),
@@ -252,16 +270,19 @@ def read_run(path, classify: Classifier, opts) -> dict:
     doc_path, csv_path = run_files(path)
     doc = json.loads(Path(doc_path).read_text())
     seed = doc.get("seed")
-    by_ore = collections.defaultdict(dict)  # (kind, group, ore) -> {(x, z, y): [blocks, nuggets, minDepth]}
+    # (kind, group, ore) -> {(x, z, y): [blocks, nuggets, minDepth, {grade: blocks}]}
+    by_ore = collections.defaultdict(dict)
     with open(csv_path, newline="") as f:
         for code, x, z, y, n, dep in csv.reader(f):
             kind = classify(code)
             if not kind:
                 continue
-            c = by_ore[kind[:3]].setdefault((int(x), int(z), int(y)), [0, 0.0, math.inf])
+            c = by_ore[kind[:3]].setdefault((int(x), int(z), int(y)), [0, 0.0, math.inf, collections.Counter()])
             c[0] += int(n)
             c[1] += int(n) * kind[3]
             c[2] = min(c[2], int(dep))
+            if (grade := grade_of(code)):
+                c[3][grade] += int(n)
     groups: dict[tuple, dict] = collections.defaultdict(
         lambda: {"frags": [], "pockets": [], "totalBlocks": 0, "totalNuggets": 0.0})
     gravel = []
@@ -311,6 +332,7 @@ def summarise(runs: list[dict], opts) -> dict:
         iv = [ingots(d) for d in big]
         pockets = merged("metal", metal, "pockets")
         all_ingots = total("metal", metal, "totalNuggets") / NUGGETS_PER_INGOT
+        tops = [t for t in map(top_grade_share, big) if t is not None]
         metals[metal] = {
             "deposits": len(big),
             "smallDeposits": len(deps) - len(big),
@@ -324,6 +346,9 @@ def summarise(runs: list[dict], opts) -> dict:
             "pocketIngotsMedian": quantile([p["nuggets"] / NUGGETS_PER_INGOT for p in pockets], .5),
             "pocketSurfaceShare": sum(p["minDepth"] <= SURFACE_DEPTH for p in pockets) / len(pockets) if pockets else 0,
             "pocketShare": sum(p["nuggets"] for p in pockets) / NUGGETS_PER_INGOT / all_ingots if all_ingots else 0,
+            # Grade within deposits (#944): how much of each is its commonest grade.
+            "topGradeMedian": quantile(tops, .5),
+            "oneGradeShare": sum(t >= ONE_GRADE for t in tops) / len(tops) if tops else 0,
             "ores": sorted({o for d in deps for o in d["ores"]}),
         }
     minerals = {}
@@ -378,7 +403,8 @@ METAL_COLS = [("deposits/km²", "depositsPerKm2", "f"), ("km²/dep", "depositsPe
               ("max", "ingotsMax", "n"), ("nn m", "nearestMedian", "n"), ("surface", "surfaceShare", "%"),
               ("ingots/km²", "ingotsPerKm2", "n"), ("pockets/km²", "pocketsPerKm2", "f"),
               ("pocket med", "pocketIngotsMedian", "n"), ("pocket surf", "pocketSurfaceShare", "%"),
-              ("in pockets", "pocketShare", "%")]
+              ("in pockets", "pocketShare", "%"), ("top grade", "topGradeMedian", "%"),
+              ("1 grade", "oneGradeShare", "%")]
 MINERAL_COLS = [("deposits/km²", "depositsPerKm2", "f"), ("km²/dep", "depositsPerKm2", "a"),
                 ("blocks p10", "blocksP10", "n"), ("median", "blocksMedian", "n"), ("p90", "blocksP90", "n"),
                 ("nn m", "nearestMedian", "n"), ("surface", "surfaceShare", "%"), ("blocks/km²", "blocksPerKm2", "n")]
@@ -402,6 +428,7 @@ def format_summary(s: dict) -> str:
     out = [f"{len(s['runs'])} seed(s) ({seeds}), {s['areaKm2']:.1f} km².",
            f"Deposit: ore of one metal within {o['link']:.0f} m (fragments of >= {o['min_blocks']} blocks),"
            f" >= {o['min_ingots']} ingots; smaller fragments are pockets. Surface: ore within {SURFACE_DEPTH} blocks.",
+           f"Top grade: the median deposit's share in its commonest grade; 1 grade: deposits with >= {ONE_GRADE:.0%} in one.",
            "", "Metals", table(s["metals"], METAL_COLS, "metal"),
            "", f"Coal and industrial minerals (deposits >= {o['min_mineral_blocks']} blocks)",
            table(s["minerals"], MINERAL_COLS, "group"),
@@ -420,7 +447,8 @@ def format_compare(a: dict, b: dict) -> str:
     out = [f"before: {len(a['runs'])} seed(s), {a['areaKm2']:.1f} km²; after: {len(b['runs'])} seed(s), {b['areaKm2']:.1f} km²"]
     sections = [("Metals", "metals", [("deposits/km²", "depositsPerKm2", "f"), ("ingots med", "ingotsMedian", "n"),
                                       ("p90", "ingotsP90", "n"), ("nn m", "nearestMedian", "n"),
-                                      ("surface", "surfaceShare", "%"), ("ingots/km²", "ingotsPerKm2", "n")]),
+                                      ("surface", "surfaceShare", "%"), ("ingots/km²", "ingotsPerKm2", "n"),
+                                      ("top grade", "topGradeMedian", "%"), ("1 grade", "oneGradeShare", "%")]),
                 ("Minerals", "minerals", [("deposits/km²", "depositsPerKm2", "f"), ("blocks med", "blocksMedian", "n"),
                                           ("blocks/km²", "blocksPerKm2", "n")])]
     for title, key, cols in sections:

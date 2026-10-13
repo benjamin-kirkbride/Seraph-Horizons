@@ -101,6 +101,9 @@ change touches drops or metal units.
   interpolation: the value at index `int(p * n)`), the median distance from a deposit to the
   nearest other deposit of the same metal in the same seed, the share of deposits with ore
   within 6 blocks of the surface, and all ore of the metal (pockets included) in ingots per km².
+  Grade within deposits (#944): the median deposit's share of its blocks in its commonest grade
+  (`top grade`), and the share of deposits with 80 % or more in one grade (`1 grade`), from the
+  grade in each block's code.
 - **Coal and industrial minerals** (coal, sulfur, saltpeter, borax, cinnabar, alum, manganese
   from rhodochrosite) are grouped the same way and counted in blocks; deposits under 1,000
   blocks (`--min-mineral-blocks`) are not counted. Gems, quartz, olivine and flint are left out.

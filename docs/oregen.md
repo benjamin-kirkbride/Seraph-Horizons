@@ -158,6 +158,58 @@ Before (the survey's seed 404 window, a granitic-deep district, radius 2.7 km): 
 tin, 12 lead and 9 zinc deposits of up to 13,000 ingots in 9.4 km², from 69–82 tin and bismuth
 veins per granite district. After: see "Survey", "Districts after (#435)".
 
+## Grade within veins (#944)
+
+**How IOG grades a vein.** `TiltedDiscDepositGenerator.GenDeposit` draws one grade index per vein,
+`floor(r² · MaxGrade)` from the try's `DepositRand` (`MaxGrade` the longest per-rock grade list of the
+variant): poor 50 %, medium 20.7 %, rich 15.9 %, bountiful 13.4 % for a four-grade ore (57.7 / 23.9 /
+18.4 with three, 70.7 / 29.3 with two). Every vein shape hands that index to `TryPlaceMainOre(accessor,
+pos, index)` per block, which takes `Blocks[min(len - 1, index)]` from the grades the host rock allows
+(`placeBlockByInBlockId`, from `allowedVariantsByInBlock`). IOG declares `GradeDistribution` and never
+reads it. The only other grades in a vein are a chimney's core (rich, 90 % of its inner half radius)
+and the prospect veins (`TryPlaceTracerOre`, always the poorest). The cell rule approves one vein per
+metal per cell, so before this every cell deposit was at least 80 % one grade (8 seeds, 26 deposits).
+
+**Pockets** (`GradePockets`, new worlds only, recorded as `gradePockets` in
+`seraphhorizons:oreworld`): a Harmony prefix on `TryPlaceMainOre` (`Ore/Game/GradePocketPlacement.cs`)
+rewrites the index per block from the drawn one and the block's position (`Ore/Core/GradePockets.cs`).
+Space is cut into pockets about `GradePocketSizeBlocks` (8) across, the cells of a jittered lattice
+of points (a Worley pattern), each with a value in [0, 1) from the world seed; a block in a pocket
+whose value is below the poorer share goes one grade poorer, above one minus the richer share one
+richer, else it keeps the drawn grade. A pocket's value is uniform whatever its size, so on average
+those shares of a vein's blocks move. It draws nothing from `DepositRand` (the vein's shape and
+everything after must replay alike in every chunk pass) and depends on the seed and the position
+alone, so a vein crossing a chunk border keeps its pockets whole. Sub-deposits, prospect veins and
+district veins (which draw grade per block already) are left alone.
+
+The shares keep the **vein's mean metal units** at its drawn grade's. With `GradePocketSpread`
+(0.35) the share off the drawn grade where it can go both ways, units `u` by grade, and the drawn
+grade `g`: richer `s · (u[g] − u[g−1]) / (u[g+1] − u[g−1])`, poorer the rest of `s`
+(`GradePocketWeighting` `units`; `index` splits it evenly). The prefix reads the units from the
+host rock's blocks (`ore-{grade}-{ore}-{rock}`, `OreProducts.RawUnits`) and the range from the same
+entry IOG uses, so a vein capped by its rock is graded against the cap. At 3 / 5 / 7 / 10:
+
+| Drawn (in its rock) | Poorer | Same | Richer | Mean units |
+|---|---|---|---|---|
+| poor (any rock) | – | 100 % | 0 % | 3 |
+| medium, rock has rich | 17.5 % | 65 % | 17.5 % | 5 |
+| rich, rock has bountiful | 21 % | 65 % | 14 % | 7 |
+| the rock's top grade (bountiful, or a cap) | 0 % | 100 % | – | as drawn |
+
+A vein at either end of its rock's grades can only go one way, which would move its mean, so it
+gets `GradePocketEndSpread` (0: one grade, as before). 0.15 would give a poor vein 15 % medium (+10 %
+units on 3 / 5) and a bountiful one 15 % rich (−4.5 % on 10 / 7). Hematite (4 / 6 / 8 / 11),
+cassiterite and gold quartz (1 / 3 / 4 / 6) and silver quartz (2 / 4 / 6 / 7) use their own units.
+With ore processing off the same weights are used: vanilla's units are four times these but for
+rounding.
+
+**What reads it.** Deposit measurement, the makeup's `GradeMix` (#692) and item values read each
+block's own grade, so they follow. A deposit drawn medium or rich now reads `mostly:medium` or
+`mixed:...` where it read `only:` (65 % at the drawn grade, less its prospect veins), and its ingots
+are unchanged on average. Poor deposits, half of all four-grade veins, still read `only:poor` with the
+end spread at 0. `GradePocketsScenarios` checks it on real deposits: every block of a deposit matches
+one drawn grade at its position, in every chunk column (each its own chunk pass).
+
 ## Deposit registry (#443)
 
 `OreSystem.Deposits` (`Ore/Game/DepositService.cs`), server side; null when neither ore cells nor
