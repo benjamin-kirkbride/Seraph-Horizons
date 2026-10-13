@@ -63,6 +63,8 @@ The mod reads its settings from the environment, which `run.sh` sets:
 | `ORE_SURVEY_MODE` | `dump` for the dump, `census` for a census (below); anything else scans |
 | `ORE_SURVEY_FAST`, `ORE_SURVEY_PROFILE` | `1`: `--fast`, `--profile` |
 | `ORE_CENSUS_METALS`, `ORE_CENSUS_PARALLEL` | `--metals`, `--floods` |
+| `ORE_SURVEY_CENTRE` | `x,z` in blocks: centre the area there instead of on the map's centre |
+| `ORE_TRACE_CHUNK`, `ORE_TRACE_CONFINE` | experiments on the cell rule and IOG's placement ("Against a full scan") |
 
 It loads the area in tiles of 8 x 8 chunk columns, counts every block of every chunk, and
 unloads each tile before asking for the next, so memory stays flat. When done it stops the
@@ -149,7 +151,9 @@ loaded, every later draw shifts, and each column gets a differently shaped vein:
 copper reaches y 72–80 in a column where the census's stops at 64. The pack's cell rule adds
 its own: a try whose centre chunk is not reachable approves nothing in that pass (12 of the
 scan's 49 columns around the anchor). District veins are sampled per block from fixed shapes, so
-they come out alike.
+they come out alike. With `ORE_TRACE_CONFINE=1` (IOG's `TryPlaceMainOre` kept to the column being
+generated) the copper deposit's two orders came to 1,510 and 1,547 blocks, from 3,128 and 4,041;
+`tests/PackTests/OreCellOrderScenarios.cs` (skipped: expected to fail) checks the same in one world.
 
 ### Fast
 
