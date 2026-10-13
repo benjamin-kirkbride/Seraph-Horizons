@@ -349,9 +349,9 @@
             "id": "build", "label": "Build", "default": "complete",
             "values": ["muller", "shoes"],
             "options": [
-              { "id": "frame", "label": "The frame (2 iron or steel plates, 2 nails and strips, 2 oak planks)", "fitted": [], "hint": "Made by grid recipe with a hammer and placed: the oak stand and its bridge-tree, the sheet-iron pan with its bead and discharge plug, the cast-iron cone in its floor and the footstep under it. Nothing turns yet: an axle below meets nothing." },
-              { "id": "muller", "label": "1: Muller (an iron, meteoric iron or steel rod)", "fitted": ["muller"], "hint": "The rod is the spindle, down through the cone and the footstep to the vanilla axle's cross profile at the bottom face; the hub and the four arms come with it. It turns, but nothing touches the floor yet." },
-              { "id": "complete", "label": "2: Shoes (an iron or steel plate): complete", "fitted": ["muller", "shoes"], "hint": "A shoe bolted under each arm's end, dragging on the floor, drawn in the plate's metal (the Shoes select). They don't wear: they come out only when the pan is broken." }
+              { "id": "frame", "label": "The frame (grid recipe)", "fitted": [], "hint": "Two iron or steel plates, two nails and strips and two oak planks, made with a hammer and placed: the oak stand and its bridge-tree, the sheet-iron pan with its bead and discharge plug, the cast-iron cone in its floor and the footstep under it. Nothing turns yet: an axle below meets nothing." },
+              { "id": "muller", "label": "1: Muller (a rod)", "fitted": ["muller"], "hint": "An iron, meteoric iron or steel rod: the rod is the spindle, down through the cone and the footstep to the vanilla axle's cross profile at the bottom face; the hub, the four arms and the coupling come with it. It turns, but nothing touches the floor yet." },
+              { "id": "complete", "label": "2: Shoes (a plate): complete", "fitted": ["muller", "shoes"], "hint": "An iron or steel plate: a shoe bolted under each arm's end, dragging on the floor, drawn in the plate's metal (the Shoes select). They don't wear: they come out only when the pan is broken." }
             ]
           },
           {
