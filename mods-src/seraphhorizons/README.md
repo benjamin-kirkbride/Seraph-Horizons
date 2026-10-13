@@ -4767,23 +4767,19 @@ Stone Quarry (`stonequarryrepckfipil`, 3.6.3): its rubble storage, drenched with
 (`BERubbleStorage.TryDrench`), turns its gravel into muddy gravel a quarter of muddy gravel's
 stack at a time: 16 a bucket at 64, 4 once muddy gravel stacks to 16. It has no setting for it,
 so `StoneQuarryDrench.cs`, a Harmony transpiler on both sides (once per process), swaps the one
-stack size `TryDrench` reads for muddy gravel's stack before the cut, its trade stack (64), and a
-bucket makes 16 again. Stone Quarry is found by name; if the method is gone or no longer reads the
-stack size exactly once, it logs a warning and leaves it as it ships. With the switch off it is not
-patched.
+stack size `TryDrench` reads for muddy gravel's stack before the cut (64), and a bucket makes 16
+again. Each cut block carries that stack in its attributes (`seraphhorizonsStackBeforeCut`,
+`RockStackSystem.StackBeforeCut`), which reach clients with the block. Stone Quarry is found by
+name; if the method is gone or no longer reads the stack size exactly once, it logs a warning and
+leaves it as it ships. With the switch off it is not patched.
 
-Trading judges a cut block by the stack it had before the cut, 64 for every block the cut touches,
-not by one slot (`RockStackSystem.TradeStack`): each cut block carries it in its attributes
-(`seraphhorizonsTradeStack`), which reach clients with the block. So a trader prices and refuses it
-exactly as before: as too cheap only when 64 of it are worth under a gear, and by the fewest blocks
-worth a gear, which may be more than a slot (the four sell slots full of a block at 16, two of a
-shape at 32): the window's pooled sale takes them across the slots (Trading, "Trade window"). The
-shapes take the old stack too rather than four slots of 32, 128, which would make a shape worth
-half a gear per 64 sellable where it was not, and lower the worthless floor below the full blocks'.
-The recipe export carries it (`attributes.tradeStack`), and the item value table's `floorZero`
-follows it (`tools/item-values`). Orders keep sizing a block by its stack: at most four stacks.
+Trading no longer reads the stack before the cut (#910): a trader judges every item by what the
+four sell slots hold of it, four of its stacks, so a block at 16 by 64 and a shape at 32 by 128,
+and has no floor per stack: the window's pooled sale takes a unit across the slots, and goods worth
+under a gear sell with the rest (Trading, "Trade window"). Orders keep sizing a block by its stack:
+at most four stacks.
 
-With the switch off, every block stacks as its mod ships it and nothing carries a trade stack. The
+With the switch off, every block stacks as its mod ships it and nothing carries a stack before the cut. The
 switch that counts is the server's. `RockStackScenarios` checks the sizes (rock, earth, and clay
 brick, tile, shingle, chimney and refractory brick blocks at 16; a slab, a stair, a fence, a road
 and roofing at 32; wooden shapes, beams and items unchanged), the packet, a placed old chimney's
@@ -5559,14 +5555,19 @@ the tier and a bar to the next, the raw numbers in brackets ("Regular [310 / 800
   schematics and other gated goods). There are no carts and no Deal button: click a good to see it,
   hold the mouse on it to buy one lot (a ring fills at the cursor and flashes as each lot goes
   through), keep holding to buy the next. To sell, put goods in the four sell slots (drag them, or
-  shift-click a stack in your inventory: it goes into the first free sell slot, whole; money and
-  delivery packages never go in and stay where they are, and with every sell slot taken nothing
-  moves). A slot whose goods the trader does not buy says "doesn't buy this". Under Hold to sell the
+  shift-click a stack in your inventory: it goes into the first free sell slot, whole; money,
+  delivery packages and what the trader refuses outright, maps, leads and worthless goods, never go
+  in and stay where they are, and with every sell slot taken nothing moves). A slot whose goods the
+  trader does not buy says "doesn't buy this" (a listed good it wants no more of waits there,
+  unsold). Under Hold to sell the
   window says what the trader pays ("Trader pays 1 g per 28") and what everything in the slots comes
   to; the breakdown (value, fit, supply, standing, which budget pays) is in its tooltip and
-  each slot's. The slots are valued together: a hold sells one lot, whole gears for as many items as
-  they buy (the dearest goods first), the rest staying in the slots, so goods worth under a gear in
-  one slot sell with the rest (28 dirt to the gear in two slots of 20). Keep holding for more. What
+  each slot's. The slots are valued together, whatever goods they hold (#910): a hold sells one lot,
+  whole gears for as many items as they buy (the dearest goods first), each at its own exact worth,
+  never more, the rest staying in the slots, so goods worth under a gear in one slot sell with the
+  rest (28 dirt to the gear in two slots of 20; four stacks of poor copper ore; a stack of ore and a
+  stack of rock together). No good has a floor of its own: only the whole sale must come to a gear.
+  Keep holding for more. What
   is left in the sell slots comes back to you when the window closes, at your feet if your bags are
   full. While the window is open, the tooltip of anything in your inventory says what this trader
   pays for it (with the breakdown and which budget pays) or why not.
@@ -5617,7 +5618,11 @@ nothing with the slots full; refused from afar, for another player and for a tra
 full bags refused with no gears taken, and let through by room left on a stack it merges with; an
 order taken and handed in; a delivery taken and marked on the map, its deadline a game day a km;
 every pack trader's dialogue, BetterRuins' included, with the standing option, the reply's numbers,
-and every line the window shows in the lang file).
+and every line the window shows in the lang file); `tests/PackTests/TradingPoolScenarios.cs` (Atlas,
+#910: a copper ore worth under a gear a stack selling across the four sell slots, poor native
+copper valued at its exact worth there, never a rounded-up gear; two cheap ores mixed in the slots
+selling together, each in its own supply; money, a map and a worthless good kept out of a sell
+slot, by the slot and by shift-click, and a listed good with no demand let in, unsold).
 
 ### Traders (`TraderGrid`)
 
@@ -5696,15 +5701,14 @@ itself, so it has no switch.
 
 The table's `values` are gears per item, except liquids: the codes in its `perLitre` object (code
 to the liquid's items per litre, 100 for most) are priced in gears per litre, the unit a player
-thinks in (a portion is a hundredth of a litre). `floorZero` keeps its meaning for them (under a
-gear per full stack of portions). A rock or earth block or shape cut to 16 or 32 ("Rock and earth
-stack to 16") is in `floorZero` only when 64 of it, its export's `tradeStack`, are worth under a
-gear.
+thinks in (a portion is a hundredth of a litre). `floorZero` lists what is worth nothing (0, by a
+raw or override, or too little for the table's 3 decimals); since #910 there is no floor per
+stack, as traders judge a sale by the four sell slots together.
 
 `Trading/Values/`: `Core/ItemValues.cs` is the lookup (no game). `ValueOf(code)` is gears per item,
 for a liquid its per-litre value over its items per litre (trading prices stacks of portions, so
 every caller, the economy's off-list offers, orders and the value checks, gets per item without
-knowing the unit), 0 for an item worth under a gear per full stack (`floorZero`) or unknown; `IsWorthless(code)` is
+knowing the unit), 0 for an item worth nothing (`floorZero`) or unknown; `IsWorthless(code)` is
 true for a known item worth nothing. A code missing from the table falls back to its variant
 family: the longest prefix ending at a `-` that table codes share, never shorter than the path's
 first segment (`game:plank-oak` takes the average of `game:plank-*`), and a code with `*` averages
@@ -5823,11 +5827,13 @@ a related trader buys (0.6 for a weak link), paid from its wallet as listed good
 for anything else (the curio dealer three tenths for anything another trader buys;
 `assets/seraphhorizons/config/trading/trader-relations.json`), paid from a **side budget**, a
 quarter of the trader's wallet (standing's factor and all), refilled at every restock. Cheap goods
-sell by the fewest items worth a gear (a trade is priced in whole gears), and a cheap listed good is bought by a bigger lot
-for the same reason. Refused: maps and leads (the `refused` prefixes), money, goods worth less than
-a gear per stack, goods the value table doesn't know, and goods that at this trader come to under a
-gear per full stack (for a rock or earth block or shape cut to 16 or 32, the 64 it stacked to
-before: "Rock and earth stack to 16"). The trade window's sell slot and the tooltips of your own items show the
+sell by the fewest items worth a gear (a trade is priced in whole gears), up to what the four sell
+slots hold of them, and a cheap listed good is bought by a bigger lot for the same reason; the
+window's pooled sale pays each item its exact worth, so a unit rounded up to a gear is never paid
+more than it is worth. There is no floor per stack (#910): goods worth under a gear even for all
+four slots sell with other goods. Refused: maps and leads (the `refused` prefixes), money, goods
+worth nothing, and goods the value table doesn't know; the first three never go in a sell slot.
+The trade window's sell slot and the tooltips of your own items show the
 offer's breakdown (value × fit × supply) and which budget pays, a refused good says why, and the
 window's footer shows what is left in the side budget. Switch: `EverythingHasAPrice` (default on);
 the server's setting goes to its clients with each trader. (`BuySpread`, a fifth of value on

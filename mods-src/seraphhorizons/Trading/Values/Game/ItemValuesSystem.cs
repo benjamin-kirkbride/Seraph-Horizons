@@ -118,7 +118,7 @@ public class ItemValuesSystem : ModSystem
         return l.Source switch
         {
             ValueSource.Missing => $"{l.Code}: no value (missing from the table and from every family)",
-            ValueSource.Direct => $"{l.Code}: {amount}{(l.FloorZero ? ", worthless (under a gear per stack)" : "")} (direct)",
+            ValueSource.Direct => $"{l.Code}: {amount}{(l.FloorZero ? ", worthless" : "")} (direct)",
             _ => $"{l.Code}: {amount}{(l.FloorZero ? ", worthless" : "")} (family fallback: average of {l.Members} in {l.Family})",
         };
     }

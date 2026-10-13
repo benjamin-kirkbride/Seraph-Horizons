@@ -1226,7 +1226,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>SmallerRockStacks</c>: rock and earth and their building shapes stack as their
-    /// mods ship them, and trade by that stack.</summary>
+    /// mods ship them, and that is their stack before the cut.</summary>
     [AtlasScenario]
     public void Smaller_rock_stacks_off_rock_and_earth_keep_their_stacks()
     {
@@ -1242,7 +1242,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         {
             var block = W.GetBlock(new AssetLocation(code))!;
             Assert.True(block.MaxStackSize == 64, $"{code} stacks to {block.MaxStackSize}");
-            Assert.Equal(64, RockStackSystem.TradeStack(block));
+            Assert.Equal(64, RockStackSystem.StackBeforeCut(block));
         }
     }
 

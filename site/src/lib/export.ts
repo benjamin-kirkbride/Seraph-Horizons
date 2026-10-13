@@ -48,6 +48,7 @@ export interface GroundStorage {
 
 export interface ItemAttributes {
   maxStackSize?: number;
+  /** No longer written (#910); older exports carry it. */
   tradeStack?: number;
   durability?: number;
   tool?: string;
@@ -96,7 +97,7 @@ export interface Item {
   sources?: Source[];
   /** Item values (the pack's price table): gears per item, with rusty gear = 1, or per litre with `valuePerLitre`. */
   value?: number;
-  /** Worth under a gear per full stack: traders treat it as worthless. */
+  /** Traders treat it as worthless: worth nothing (before #910, worth under a gear per full stack). */
   floorZero?: boolean;
   /** `value` is in gears per litre, not per item: a liquid the table prices by the litre. */
   valuePerLitre?: boolean;

@@ -168,19 +168,24 @@ public partial class TradingScenarios
         output.WriteLine($"iron off the list: {offer.UnitPrice} per {offer.UnitSize}, side budget {side}");
         var sellSlot = inv[SeraphTraderInventory.SellSlot];
         sellSlot.Itemstack = Stack(Iron, offer.UnitSize * 3);
+        // A lot is at least the unit's price in whole gears, each ingot at its exact worth (#910): an
+        // ingot worth 1.6 priced at 2 sells two for 3.
+        var lot = SellPool.NextLot(((SeraphTraderInventory)inv).SellLines())!;
+        Assert.True(lot.Gears >= offer.UnitPrice && lot.Gears <= lot.Value);
+        int left = offer.UnitSize * 3 - lot.Items;
 
         Assert.True(Window(sp, trader, Req(TradeAction.Sell)).Ok);
-        Assert.Equal(gears + offer.UnitPrice, Gears(sp));
-        Assert.Equal(side - offer.UnitPrice, EconomySystem.SideBudgetOf(trader));
+        Assert.Equal(gears + lot.Gears, Gears(sp));
+        Assert.Equal(side - lot.Gears, EconomySystem.SideBudgetOf(trader));
         Assert.Equal(wallet, inv.GetTraderAssets());
-        Assert.Equal(offer.UnitSize * 2, sellSlot.Itemstack.StackSize);
+        Assert.Equal(left, sellSlot.Itemstack.StackSize);
         Assert.True(Economy.Supply.Level(EconomySystem.RegionOf(trader), Iron) > 0);
-        Assert.Equal(offer.UnitPrice * Standing.Rules.Points.PerGear, Standing.Ledger.Personal(sp.PlayerUID, Standing.TraderIdOf(trader))!.Points);
+        Assert.Equal(lot.Gears * Standing.Rules.Points.PerGear, Standing.Ledger.Personal(sp.PlayerUID, Standing.TraderIdOf(trader))!.Points);
 
         // An empty side budget refuses, and the stack stays.
         EconomySystem.SetSideBudget(trader, 0);
         Assert.Equal("trading-window-trader-broke", Window(sp, trader, Req(TradeAction.Sell)).Key);
-        Assert.Equal(offer.UnitSize * 2, sellSlot.Itemstack.StackSize);
+        Assert.Equal(left, sellSlot.Itemstack.StackSize);
         // Money is refused outright.
         var stash = sellSlot.Itemstack;
         sellSlot.Itemstack = Stack("game:gear-rusty", 5);
@@ -191,7 +196,7 @@ public partial class TradingScenarios
         int before = OrdersSystem.Carried(sp, Iron);
         inv.Close(sp);
         Assert.Null(sellSlot.Itemstack);
-        Assert.Equal(before + offer.UnitSize * 2, OrdersSystem.Carried(sp, Iron));
+        Assert.Equal(before + left, OrdersSystem.Carried(sp, Iron));
         trader.Die(EnumDespawnReason.Removed);
     }
 

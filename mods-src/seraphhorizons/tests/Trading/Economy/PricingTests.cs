@@ -109,7 +109,7 @@ public class PricingTests
     public void AnOffListGoodWorthAGearOrMoreIsPricedPerItem()
     {
         // Value 8.75, unrelated, a fifth of it: 1.75 rounds to 2.
-        var o = Pricing.OffList(valuePerItem: 8.75, worthless: false, fit: 0.2, supply: 1, modifiers: 1, maxStackSize: 64);
+        var o = Pricing.OffList(valuePerItem: 8.75, worthless: false, fit: 0.2, supply: 1, modifiers: 1, tradeUnit: 64);
         Assert.True(o.Accepted);
         Assert.Equal(1, o.UnitSize);
         Assert.Equal(2, o.UnitPrice);
@@ -127,24 +127,74 @@ public class PricingTests
         var o = Pricing.OffList(0.06, false, 0.75, 1, 1, 64);
         Assert.Equal(23, o.UnitSize);
         Assert.Equal(1, o.UnitPrice);
-        // Unrelated, at a fifth of value, a full stack is worth under a gear: refused.
-        var low = Pricing.OffList(0.06, false, 0.2, 1, 1, 64);
-        Assert.Equal(Refusal.TooCheap, low.Refusal);
-        Assert.Equal(0.2, low.Fit);
+        Assert.Equal(0.045, o.Worth, 9);
+        // Unrelated, at a fifth of value, a full stack is worth under a gear (0.77), but bought all
+        // the same (#910): one gear per 84, more than one slot holds, which the pooled sale takes
+        // across the slots.
+        var low = Pricing.OffList(0.06, false, 0.2, 1, 1, Pricing.TradeUnit(64, 4));
+        Assert.True(low.Accepted);
+        Assert.Equal(84, low.UnitSize);
+        Assert.Equal(1, low.UnitPrice);
+        Assert.Equal(0.012, low.Worth, 9);
     }
 
     [Fact]
-    public void ARockBlockCutTo16IsJudgedByTheFourSellSlots()
+    public void TheTradeUnitIsWhatTheSellSlotsHold()
     {
-        // Rock at 0.025 a block: 0.4 a stack of 16 (too cheap by one slot), 1.6 by the 64 it stacked
-        // to before the cut, its trade stack: one gear per 40, more than one slot holds.
-        Assert.Equal(Refusal.TooCheap, Pricing.OffList(0.025, false, 1, 1, 1, 16).Refusal);
-        var o = Pricing.OffList(0.025, false, 1, 1, 1, SeraphHorizons.Mod.Core.RockStackRules.TradeStack(64));
+        Assert.Equal(64, Pricing.TradeUnit(16, 4));
+        Assert.Equal(128, Pricing.TradeUnit(32, 4));
+        Assert.Equal(256, Pricing.TradeUnit(64, 4));
+        Assert.Equal(4, Pricing.TradeUnit(1, 4));
+        Assert.Equal(1, Pricing.TradeUnit(0, 0));
+    }
+
+    [Fact]
+    public void APoorOreIsJudgedByTheFourSellSlots()
+    {
+        // Native copper at 0.82 a stack of 16, related (0.75): 0.0384 an ore, so one gear per 27,
+        // more than one slot holds; the pooled sale takes it across the slots.
+        double value = 0.82 / 16;
+        var o = Pricing.OffList(value, false, 0.75, 1, 1, Pricing.TradeUnit(16, 4));
         Assert.True(o.Accepted);
-        Assert.Equal(40, o.UnitSize);
+        Assert.Equal(27, o.UnitSize);
         Assert.Equal(1, o.UnitPrice);
-        // Under a gear even by 64: still refused.
-        Assert.Equal(Refusal.TooCheap, Pricing.OffList(0.015, false, 1, 1, 1, 64).Refusal);
+        Assert.Equal(value * 0.75, o.Worth, 9);
+    }
+
+    [Fact]
+    public void AGoodWorthUnderAGearForAllTheSlotsIsBoughtAtItsWorth()
+    {
+        // Rock at 0.002 a block: 0.128 for the four slots of 16. No floor: the unit is the trade
+        // unit at a rounded-up gear, but its worth is exact, which the pooled sale pays, so it sells
+        // only with other goods and is never paid more than it is worth.
+        var o = Pricing.OffList(0.002, false, 1, 1, 1, Pricing.TradeUnit(16, 4));
+        Assert.True(o.Accepted);
+        Assert.Equal(64, o.UnitSize);
+        Assert.Equal(1, o.UnitPrice);
+        Assert.Equal(0.002, o.Worth, 9);
+    }
+
+    [Fact]
+    public void AGoodWorthNothingToThisTraderIsWorthless()
+    {
+        var o = Pricing.OffList(5, false, 1, 1, 0, 64);
+        Assert.Equal(Refusal.Worthless, o.Refusal);
+        Assert.Equal(5, o.Base);
+    }
+
+    [Fact]
+    public void AListedOfferCarriesItsExactPricePerItem()
+    {
+        // 1.5 a stack of 4 rounds to 2 gears: the pooled sale pays 0.375 an item, not 0.5.
+        var o = Pricing.Listed(1.5, 4, 1, 1, traderBuys: true, tradeUnit: 64);
+        Assert.Equal(2, o.UnitPrice);
+        Assert.Equal(4, o.UnitSize);
+        Assert.Equal(0.375, o.Worth, 9);
+        // Under a gear for all the slots: a rounded-up gear per unit, the worth exact.
+        var cheap = Pricing.Listed(0.1, 16, 1, 1, traderBuys: true, tradeUnit: 64);
+        Assert.Equal(64, cheap.UnitSize);
+        Assert.Equal(1, cheap.UnitPrice);
+        Assert.Equal(0.1 / 16, cheap.Worth, 9);
     }
 
     [Fact]
@@ -181,19 +231,19 @@ public class PricingTests
     public void ACheapListedBuyingEntryIsBoughtByABiggerUnit()
     {
         // Rope at 0.2 a 4: bought by the 20 for a gear, not by the 4 for a rounded-up gear.
-        var rope = Pricing.Listed(0.2, 4, 1, 1, traderBuys: true, maxStackSize: 64);
+        var rope = Pricing.Listed(0.2, 4, 1, 1, traderBuys: true, tradeUnit: 64);
         Assert.Equal(20, rope.UnitSize);
         Assert.Equal(1, rope.UnitPrice);
         // Whole stacks of the entry, and never past the item's stack size.
-        var capped = Pricing.Listed(0.4, 32, 1, 1, traderBuys: true, maxStackSize: 64);
+        var capped = Pricing.Listed(0.4, 32, 1, 1, traderBuys: true, tradeUnit: 64);
         Assert.Equal(64, capped.UnitSize);
         Assert.Equal(1, capped.UnitPrice);
-        var single = Pricing.Listed(0.6, 1, 1, 1, traderBuys: true, maxStackSize: 1);
+        var single = Pricing.Listed(0.6, 1, 1, 1, traderBuys: true, tradeUnit: 1);
         Assert.Equal(1, single.UnitSize);
         Assert.Equal(1, single.UnitPrice);
         // A gear or more per stack keeps the entry's stack; a trader's selling side always does.
-        Assert.Equal(4, Pricing.Listed(3.2, 4, 1, 1, traderBuys: true, maxStackSize: 64).UnitSize);
-        Assert.Equal(4, Pricing.Listed(0.2, 4, 1, 1, traderBuys: false, maxStackSize: 64).UnitSize);
+        Assert.Equal(4, Pricing.Listed(3.2, 4, 1, 1, traderBuys: true, tradeUnit: 64).UnitSize);
+        Assert.Equal(4, Pricing.Listed(0.2, 4, 1, 1, traderBuys: false, tradeUnit: 64).UnitSize);
     }
 
     [Fact]
@@ -255,7 +305,7 @@ public class PricingTests
     [Fact]
     public void ATraderBuysBackWhatItSellsItselfAtTheOwnShelfRateFromTheSideBudget()
     {
-        var o = Pricing.OwnShelf(valuePerItem: 10, worthless: false, rate: 0.2, supply: 1, modifiers: 1, maxStackSize: 64);
+        var o = Pricing.OwnShelf(valuePerItem: 10, worthless: false, rate: 0.2, supply: 1, modifiers: 1, tradeUnit: 64);
         Assert.True(o.Accepted);
         Assert.True(o.OwnShelf);
         Assert.Equal(2, o.UnitPrice);

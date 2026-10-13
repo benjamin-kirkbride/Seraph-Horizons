@@ -854,14 +854,19 @@ goods (× the fit).
   modifiers. An off-list good is the value table's value (scaled by remaining durability) × fit ×
   supply × modifiers; one on the trader's own shelf is value × the own-shelf rate × supply ×
   modifiers. The game prices a trade in whole gears per trade-item stack, so an off-list good of
-  less than a gear an item is sold by the fewest items worth a gear (`UnitSize`); under a gear per
-  full stack it is refused (`TooCheap`). A listed buying entry under a gear per stack is bought by
-  the fewest whole multiples of its stack worth a gear, up to the item's stack size
-  (`Pricing.Listed`; the slot's trade stack is resized at every reprice), rather than rounding a
-  fraction of a gear up to a whole one.
+  less than a gear an item is sold by the fewest items worth a gear (`UnitSize`), up to the trade
+  unit, what the four sell slots hold of it (`Pricing.TradeUnit`: 4 × its stack, for every item and
+  block, #910). There is no floor per stack: a good worth under a gear for the whole trade unit is
+  still bought, at one rounded-up gear per trade unit. A listed buying entry under a gear per stack
+  is bought by the fewest whole multiples of its stack worth a gear, up to the trade unit
+  (`Pricing.Listed`; the slot's trade stack is resized at every reprice). Every offer also carries
+  its exact gears per item (`Offer.Worth`; for listed buying slots synced as
+  `WatchedAttributes["seraphhorizons:buyworth"]`, by slot id), which the pooled sale pays, so a
+  unit rounded up to a gear is never paid more than it is worth.
 - **Refusals**: code prefixes under `refused` (`seraphhorizons:oremap`, `gravelmap`, `traderlead`,
-  `game:locatormap`), items with a `currency` attribute, `IsWorthless` items (floorZero), items with
-  no value or family value. The prefixes apply only to off-list goods; a list that names one buys it.
+  `game:locatormap`), items with a `currency` attribute, `IsWorthless` items (floorZero: worth
+  nothing), items with no value or family value. The prefixes apply only to off-list goods; a list
+  that names one buys it. The first three never go in a sell slot (`SeraphTraderInventory.MayPlace`).
 - **Side budget**: `WatchedAttributes["seraphhorizons:sidebudget"]`, set to ¼ of the wallet
   average the trader restocks to (the list's times `WalletFactorFor`, as the main wallet) at every
   restock (`EntitySeraphTrader.Restocked`). The main wallet stays vanilla's money slot. An `OffListSlot` carries its offer's budget, and the deal (`EconomyPatches.Cart`) and the
@@ -1533,8 +1538,9 @@ closing sends 1212 back. Only that option opens the window.
 the same way, so every economy patch and list keeps working), set before vanilla makes its own
 (`Initialize`, `FromBytes`). Its `ActivateSlot` ignores clicks on the shelves and the buying cart (nothing is
 ever put in it by a click) and passes the four selling-cart slots through: those are the window's
-sell slots (36 to 39), `ItemSlotSell` (`NewSlot`), which take anything but money and delivery
-packages, whether the trader buys it or not (vanilla's `ItemSlotBuying` takes only what it buys). The selling cart belongs to its owner, the trading player when the window opened
+sell slots (36 to 39), `ItemSlotSell` (`NewSlot`), which take anything but money, delivery
+packages and what the trader refuses outright (maps and leads, worthless goods: `MayPlace`),
+whether the trader buys it now or not (vanilla's `ItemSlotBuying` takes only what it buys). The selling cart belongs to its owner, the trading player when the window opened
 (`OwnerUid`; vanilla's `tradingPlayerUID` is cleared by the walk-away tick before the inventory
 closes): only they may move stacks in it (slot packets from anyone else are rolled back), sell from
 it or send vanilla's deal packet. Closing gives what is left to the owner, at their feet what does
@@ -1565,8 +1571,9 @@ squared blocks), then:
   refunds), then standing (`AfterDeal`), `Dealt` (no listener since orders took hand-ins only), the
   nod, and the inventory broadcast.
 - **Sell, one lot, pooled** (`EntitySeraphTrader.SellLot`, `SellPool`): the four sell slots are valued
-  together, each good at its listed or off-list offer's gears per item, a listed good only as many
-  as its demand takes. A lot's target is the first good's unit price in whole gears (the dearest
+  together, whatever goods they hold (#910), each good at its listed or off-list offer's exact
+  gears per item (`SellLine.Worth`, else its unit price over its size), a listed good only as many
+  as its demand takes; slots the trader does not buy from are left out. A lot's target is the first good's unit price in whole gears (the dearest
   goods per item first, then by slot), at most the pool's whole gears; items are taken in that order
   until they are worth the target, and the trader pays the floor of what it took is worth, never
   more. The rest stays in the slots: two slots of 20 dirt at 28 to the gear sell one gear's worth,

@@ -345,24 +345,27 @@ class ItemValuesTest(unittest.TestCase):
 
     # ------------------------------------------------------------ floor, overrides, fallbacks
 
-    def test_floor_zero_under_a_gear_per_stack(self):
+    def test_floor_zero_has_no_floor_per_stack(self):
+        # 0.64 a stack is under a gear, but no longer worthless (#910): traders pool the sell slots.
         items = {"game:stick": item(64), "game:log": item(1)}
         ex = export(items, [])
         val, _ = self.solve(ex)
         out = iv.table(ex, val)
-        self.assertEqual(out["values"]["game:stick"], 0.01)  # 0.64 a stack
-        self.assertIn("game:stick", out["floorZero"])
-        self.assertNotIn("game:log", out["floorZero"])  # 1.0 a stack of one
+        self.assertEqual(out["values"]["game:stick"], 0.01)
+        self.assertNotIn("game:stick", out["floorZero"])
+        self.assertNotIn("game:log", out["floorZero"])
 
-    def test_floor_zero_of_a_rock_block_is_by_its_trade_stack(self):
-        # A rock block cut to 16 is judged by the 64 it stacked to before: 1.28 there, 0.32 a stack.
-        items = {"game:rock-granite": item(16, tradeStack=64), "game:gravel-granite": item(16)}
-        self.write_rules(overrides={"game:rock-granite": 0.02, "game:gravel-granite": 0.02})
+    def test_floor_zero_is_only_what_is_worth_nothing(self):
+        # Worth 0 by an override, or so little the table's 3 decimals store 0: worthless. Rock at
+        # 0.02 a block, 0.32 a stack of 16, is not.
+        items = {"game:snowball": item(16), "game:dust": item(64), "game:rock-granite": item(16)}
+        self.write_rules(overrides={"game:snowball": 0, "game:dust": 0.0004, "game:rock-granite": 0.02})
         ex = export(items, [])
         val, _ = self.solve(ex)
         out = iv.table(ex, val)
+        self.assertIn("game:snowball", out["floorZero"])
+        self.assertIn("game:dust", out["floorZero"])
         self.assertNotIn("game:rock-granite", out["floorZero"])
-        self.assertIn("game:gravel-granite", out["floorZero"])
 
     def test_override_wins_and_is_reported_below_its_ingredients(self):
         items = {c: item() for c in ("game:gem", "game:ring")}
@@ -929,7 +932,7 @@ class ItemValuesTest(unittest.TestCase):
         table["values"]["game:gone"] = 1.0
         for i in range(30):
             table["values"][f"game:zz-{i:02}"] = 1.0
-        table["floorZero"].remove("game:stick")
+        table["floorZero"].append("game:stick")
         table["switches"] = {"game:log": ["GearCutter"]}
         out.write_text(json.dumps(table))
         code, _, err = self.run_cli("check", str(path), "--rules", str(self.dir), "--tradelists", str(lists), "--table", str(out))
@@ -972,9 +975,10 @@ class ItemValuesTest(unittest.TestCase):
         self.assertEqual(out["values"]["game:dyeportion"], 0.01)  # 0.0001 a portion survives as 0.01 a litre
         self.assertEqual(out["perLitre"], {"game:dyeportion": 100, "game:juiceportion": 100, "game:oilportion": 50})
         self.assertIn("per litre", out["about"])
-        # floorZero is per item x stack: 0.01875 x 5000 = 93.75 a stack; dye 0.0001 x 5000 = 0.5.
+        # floorZero is only what the table stores as 0: dye's 0.0001 a portion is 0.01 a litre, kept.
         self.assertNotIn("game:juiceportion", out["floorZero"])
-        self.assertIn("game:dyeportion", out["floorZero"])
+        self.assertNotIn("game:dyeportion", out["floorZero"])
+        self.assertNotIn("game:fakeportion", out["floorZero"])
         self.assertEqual(iv.per_litre(export({"game:log": item()}, [])), {})
         # Under one item a litre is no liquid (world water: 0.001, written 0); 70 and 5 are read as is.
         odd = {"game:water-still-7": liquid(per_litre=0), "game:tiny": liquid(per_litre=0.001),

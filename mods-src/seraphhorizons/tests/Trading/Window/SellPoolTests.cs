@@ -24,7 +24,7 @@ public class SellPoolTests
     [Fact]
     public void AUnitBiggerThanASlotSellsAcrossSlots()
     {
-        // Rock cut to 16 a stack, priced by 40 a gear (its trade stack is the four slots' 64): three
+        // Rock cut to 16 a stack, priced by 40 a gear (its trade unit is the four slots' 64): three
         // full slots are 48, one lot of 40 from the first slots in order.
         static SellLine Rock(int slot) => new(slot, 16, 40, 1, Budget.Side, "off:game:rock-granite");
         var lines = new[] { Rock(36), Rock(37), Rock(38) };
@@ -92,6 +92,60 @@ public class SellPoolTests
         var lot = SellPool.NextLot(lines)!;
         Assert.Equal(1, lot.Gears);
         Assert.Equal(1, lot.MainGears + lot.SideGears);
+    }
+
+    [Fact]
+    public void APoorOreSellsAcrossTheSlots()
+    {
+        // Native copper, 0.82 a stack of 16, related: 0.0384 an ore, a gear per 27 (#910). One stack
+        // is not a gear; four are 2.46, two lots, each paid at the ore's exact worth.
+        const double worth = 0.82 / 16 * 0.75;
+        static SellLine Ore(int slot) => new(slot, 16, 27, 1, Budget.Main, "off:game:ore-poor-nativecopper-granite", Worth: worth);
+        Assert.Null(SellPool.NextLot([Ore(36)]));
+        var lines = new[] { Ore(36), Ore(37), Ore(38), Ore(39) };
+        Assert.Equal(2, SellPool.Gears(lines));
+        var lot = SellPool.NextLot(lines)!;
+        Assert.Equal(1, lot.Gears);
+        Assert.Equal([(36, 16), (37, 11)], lot.Takes.Select(t => (t.Slot, t.Items)));
+        Assert.True(lot.Value >= lot.Gears);
+    }
+
+    [Fact]
+    public void TwoCheapGoodsMixedReachAGearTogether()
+    {
+        // 16 ore (0.62 g) and 16 rock at 0.025 (0.4 g): neither is a gear, together they are 1.02.
+        // The dearer per item goes first, then as much of the other as reaches the gear; each good
+        // is its own take (its own supply line).
+        var ore = new SellLine(37, 16, 27, 1, Budget.Main, "off:game:ore-poor-nativecopper-granite", Worth: 0.82 / 16 * 0.75);
+        var rock = new SellLine(36, 16, 40, 1, Budget.Side, "off:game:rock-granite", Worth: 0.025);
+        Assert.Null(SellPool.NextLot([ore]));
+        Assert.Null(SellPool.NextLot([rock]));
+        var lot = SellPool.NextLot([rock, ore])!;
+        Assert.Equal(1, lot.Gears);
+        Assert.Equal([(37, 16, "off:game:ore-poor-nativecopper-granite"), (36, 16, "off:game:rock-granite")],
+            lot.Takes.Select(t => (t.Slot, t.Items, t.Good)));
+        Assert.Equal(1, lot.MainGears + lot.SideGears);
+        // The same whatever order the slots are read in.
+        Assert.Equal(lot.Takes, SellPool.NextLot([ore, rock])!.Takes);
+    }
+
+    [Fact]
+    public void AGoodIsPaidItsExactWorthNotItsRoundedUnitPrice()
+    {
+        // A whole trade unit of 64 worth 0.128, priced at a rounded-up gear: worth 0.128, no lot.
+        var cheap = new SellLine(36, 64, 64, 1, Budget.Side, "off:game:sand-granite", Worth: 0.002);
+        Assert.Equal(0.128, SellPool.Value([cheap]), 9);
+        Assert.Null(SellPool.NextLot([cheap]));
+        // Without a worth the unit price over its size is the rate, as before.
+        Assert.Equal(1, SellPool.Gears([cheap with { Worth = null }]));
+    }
+
+    [Fact]
+    public void EqualRatesTakeTheSlotsInOrder()
+    {
+        var lines = new[] { Dirt(38, 20), Dirt(36, 20), Dirt(37, 20) };
+        Assert.Equal([36, 37, 38], SellPool.Ordered(lines).Select(l => l.Slot));
+        Assert.Equal([(36, 20), (37, 8)], SellPool.NextLot(lines)!.Takes.Select(t => (t.Slot, t.Items)));
     }
 
     [Fact]

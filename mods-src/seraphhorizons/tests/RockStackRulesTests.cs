@@ -134,7 +134,4 @@ public class RockStackRulesTests
     [InlineData(1, 32, 1)]
     public void Cut_is_at_most_the_cap_and_never_raises(int before, int cap, int after) =>
         Assert.Equal(after, RockStackRules.Cut(before, cap));
-
-    [Fact]
-    public void Trade_stack_is_the_stack_before_the_cut() => Assert.Equal(64, RockStackRules.TradeStack(64));
 }

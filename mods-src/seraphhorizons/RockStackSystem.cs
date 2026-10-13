@@ -14,11 +14,10 @@ namespace SeraphHorizons.Mod;
 /// instead, in <c>AssetsFinalize</c>, server side. Clients get it in the block type packet, which
 /// the server builds after that phase.
 ///
-/// Each block it cuts also carries <see cref="TradeStackAttr"/> (the stack it had before the cut, 64,
-/// which the four sell slots hold of a block at 16 and two of a shape at 32) in its attributes,
-/// which reach clients the same way: the economy judges whether the block is worth trading, and
-/// prices it, by that stack as it did before the cut, not by one slot (<see cref="TradeStack"/>),
-/// and the recipe export carries it to the item value table.
+/// Each block it cuts also carries <see cref="StackBeforeCutAttr"/> (the stack it had before the
+/// cut, 64) in its attributes, which reach clients the same way, for what still works by that stack
+/// (<see cref="StackBeforeCut"/>): Stone Quarry's drench (<see cref="StoneQuarryDrench"/>). Trading
+/// no longer reads it: every item is traded by what the four sell slots hold of it (#910).
 ///
 /// ExecuteOrder 0.15: after MorePiles (0.1), which gives these blocks their ground piles in its own
 /// <c>AssetsFinalize</c>; the pile's capacity is not the stack size, so it is unchanged. Recipes are
@@ -26,8 +25,8 @@ namespace SeraphHorizons.Mod;
 /// </summary>
 public class RockStackSystem : ModSystem
 {
-    /// <summary>The block attribute holding the stack trading judges a cut block by.</summary>
-    public const string TradeStackAttr = "seraphhorizonsTradeStack";
+    /// <summary>The block attribute holding a cut block's stack before the cut.</summary>
+    public const string StackBeforeCutAttr = "seraphhorizonsStackBeforeCut";
 
     /// <summary>How many blocks the pass cut to 16 (server side; 0 with the switch off).</summary>
     public int Cut { get; private set; }
@@ -57,7 +56,7 @@ public class RockStackSystem : ModSystem
             block.MaxStackSize = RockStackRules.Cut(before, cap);
             // A copy: variants of one block type may share their attributes.
             var attributes = block.Attributes?.Token is JObject own ? (JObject)own.DeepClone() : new JObject();
-            attributes[TradeStackAttr] = RockStackRules.TradeStack(before);
+            attributes[StackBeforeCutAttr] = before;
             block.Attributes = new JsonObject(attributes);
             if (cap == RockStackRules.Cap) Cut++;
             else ShapesCut++;
@@ -66,12 +65,12 @@ public class RockStackSystem : ModSystem
             Cut, RockStackRules.Cap, ShapesCut, RockStackRules.ShapeCap);
     }
 
-    /// <summary>The stack trading judges a collectible's worth by: a cut rock or earth block's or
-    /// shape's <see cref="TradeStackAttr"/>, else its stack size. Both sides: the attribute comes with
+    /// <summary>A collectible's stack before the cut: a cut rock or earth block's or shape's
+    /// <see cref="StackBeforeCutAttr"/>, else its stack size. Both sides: the attribute comes with
     /// the block type.</summary>
-    public static int TradeStack(CollectibleObject collectible)
+    public static int StackBeforeCut(CollectibleObject collectible)
     {
         int max = Math.Max(1, collectible.MaxStackSize);
-        return collectible.Attributes?[TradeStackAttr].AsInt(0) is int trade && trade > max ? trade : max;
+        return collectible.Attributes?[StackBeforeCutAttr].AsInt(0) is int before && before > max ? before : max;
     }
 }
