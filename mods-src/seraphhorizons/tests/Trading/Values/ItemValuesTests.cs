@@ -264,7 +264,7 @@ public class ItemValuesTests
     [Fact]
     public void FloorZeroOnALiquid()
     {
-        // Water: worth under a gear per full stack, so trading gives nothing; the value stays per litre.
+        // Water: listed worthless, so trading gives nothing; the value stays per litre.
         var l = Liquids.Lookup("game:waterportion");
         Assert.True(l.FloorZero);
         Assert.Equal(0.01, l.Display);

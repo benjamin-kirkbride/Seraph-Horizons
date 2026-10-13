@@ -18,7 +18,7 @@ public enum ValueSource
 /// <summary>
 /// One answer from <see cref="ItemValues.Lookup"/>. <see cref="Value"/> is gears per item (for a
 /// liquid, per portion item), as trading prices stacks; <see cref="Effective"/> is what trading
-/// should use, 0 for items worth less than a gear per full stack (<see cref="FloorZero"/>).
+/// should use, 0 for items the table lists as worth nothing (<see cref="FloorZero"/>).
 /// <see cref="PerLitre"/> is the items per litre when the value is priced per litre (the table's
 /// <c>perLitre</c>), and <see cref="Display"/> the value in the unit it is priced in: gears per
 /// litre for a liquid, else gears per item.
@@ -36,7 +36,7 @@ public readonly record struct ValueLookup(string Code, double Value, bool FloorZ
 /// The item base value table (#449), as <c>tools/item-values</c> writes it to
 /// <c>assets/seraphhorizons/config/item-values.json</c>: <c>values</c> maps a full code to gears per
 /// item, except for the codes in <c>perLitre</c> (code -> items per litre, the liquids), whose value
-/// is gears per litre; <c>floorZero</c> lists the codes worth under a gear per full stack, and <c>switches</c>
+/// is gears per litre; <c>floorZero</c> lists the codes worth nothing (#910), and <c>switches</c>
 /// (optional) maps a code whose value exists only with some <c>ModConfig/seraphhorizons.json</c>
 /// switches on to their names (its cheapest route takes a recipe or an item those switches add,
 /// README "Switch ownership").
@@ -172,7 +172,7 @@ public sealed class ItemValues
     /// <summary>Gears per item trading should use: 0 when worthless or unknown.</summary>
     public double ValueOf(string code) => Lookup(code).Effective;
 
-    /// <summary>Known, and worth less than a gear per full stack. An unknown code is not worthless.</summary>
+    /// <summary>Known, and worth nothing (listed in <c>floorZero</c>, or 0). An unknown code is not worthless.</summary>
     public bool IsWorthless(string code)
     {
         var l = Lookup(code);

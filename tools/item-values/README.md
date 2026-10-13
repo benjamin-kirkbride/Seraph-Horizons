@@ -186,10 +186,10 @@ the tool reads it); the table lists each valued one in `perLitre` (code: items p
 `values` entry is the solver's per-portion value times that. So a liquid keeps 3 decimals a litre
 (a portion's 0.001 steps were 0.1 a litre), and a reader multiplies or divides by `perLitre` to
 get a portion's or a stack's worth. A code named like a portion but not marked a liquid stays per
-item. An item worth under 1 gear per full stack (per item value x `maxStackSize`, a liquid's per
-portion; a rock or earth block or shape cut to 16 or 32 by `SmallerRockStacks` x its `tradeStack`,
-the 64 it stacked to before, as the traders judge it) is listed in `floorZero`: trading
-treats it as worthless, and keeps the value for sums.
+item. An item worth nothing as the table stores it (0, by a raw or override, or under 0.0005 so
+its 3 decimals are 0) is listed in `floorZero`: trading treats it as worthless. There is no floor
+per stack (#910): a trader judges a sale by everything in its four sell slots together, so an item
+worth under a gear a stack (a poor ore, rock, sand) still sells, with the rest.
 The table's keys are `about`, `schemaVersion`, `pack`, `values`, `floorZero`, `perLitre`,
 `switches`, one entry per line in code order, so a rebuild diffs cleanly. `explain` and the report
 print a liquid per litre too, marked `/L` (explain also gives the portion's value), and the
@@ -210,7 +210,8 @@ distillation attributes:
 
 - 21,927 of 27,163 items valued (80.7%); of the 24,023 the handbook shows, 84.5%.
 - 13,871 from recipes, 5,785 raws, 2,253 defaults and fallbacks, 18 overrides.
-- 2,044 worthless (under a gear per stack), 9.3% of those valued.
+- 2,044 worthless (under a gear per stack), 9.3% of those valued. Since #910 only what is worth
+  nothing is (the export of 2026-10-12: 20 of 22,574 valued, the clutter and waters valued 0).
 - 111 valued below their ingredients, all raws (nuggets, which the game hammers from ore chunks of
   more units; boards, wool; honey, cheaper than the honeycomb it is pressed from; melon seeds, cut
   from a chunk) and the overrides: by design.
@@ -305,7 +306,8 @@ entries) and 0.7 x its sell price (346): values sit near what a trader pays, bel
   against vanilla's 1.7 a litre to sell, and grain and mead spirits, which take 20 litres, cost
   more than vanilla's single brandy price. A spirit is never below its cider.
 - **Earth and plants** are near worthless on purpose (stone 0.008, sand and gravel 0.01, clay 0.03):
-  a full stack is under a gear, so trading ignores them.
+  a full stack is under a gear, so it sells only by the four sell slots together, or with
+  dearer goods (#910).
 - **Crops and seeds.** Grain 0.03, vegetables 0.04, seeds 0.1, tree seeds 0.25 (vanilla sells exotic
   tree seeds for 8: those are a trader's margin, not a value). Better Crops' melons and squashes
   are 0.3 (the growing melon and its chunk, `bdcrop:*melon-fruit-*` and `bdcrop:fruit-*melon`); the

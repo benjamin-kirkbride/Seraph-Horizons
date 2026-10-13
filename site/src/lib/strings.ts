@@ -295,7 +295,7 @@ const en = {
   perLitre: "/ L",
   perLitreHint: "Rusty gears per litre.",
   noTradeValue: "No trade value",
-  floorZeroHint: "Worth less than a rusty gear per full stack, so traders treat it as worthless.",
+  floorZeroHint: "Traders treat it as worthless.",
   valueSwitchesHint: (names: string[]) => `With the default config. Depends on ${names.join(", ")}.`,
   sortLabel: "Order",
   searchSorts: { best: "Best match", "value-asc": "Value, lowest first", "value-desc": "Value, highest first" },
@@ -303,7 +303,7 @@ const en = {
   valuesHomeLink: (n: number) => `See what ${n.toLocaleString("en")} items are worth in rusty gears.`,
   valuesHeading: "Item values",
   valuesIntro:
-    "What every item is worth to the pack's traders, in rusty gears, with the pack's default config. A value shown dimmed is under a gear for a whole stack, which traders treat as worthless. Liquids are priced per litre, marked “/ L”.",
+    "What every item is worth to the pack's traders, in rusty gears, with the pack's default config. A value shown dimmed is one traders treat as worthless. Liquids are priced per litre, marked “/ L”.",
   valuesNone: "This version has no item values.",
   valuesFilter: "Filter",
   valuesFilterPlaceholder: "Name, code or mod, e.g. copper",

@@ -158,7 +158,7 @@
           "type": "number",
           "minimum": 0
         },
-        "floorZero": { "description": "Present, true, when the table lists the code as worth under a gear per full stack.", "const": true },
+        "floorZero": { "description": "Present, true, when the table lists the code as worthless: worth nothing (before #910, worth under a gear per full stack).", "const": true },
         "valuePerLitre": { "description": "Present, true, when `value` is per litre, not per item: a liquid the table prices by the litre (its `perLitre`). Only with a `value`.", "const": true },
         "valueSwitches": {
           "description": "The table's `switches[code]`: config switches the value exists only with (its cheapest route takes a recipe or item they add).",
@@ -294,7 +294,7 @@
       "properties": {
         "maxStackSize": { "type": "integer", "minimum": 1 },
         "tradeStack": {
-          "description": "The stack traders judge the item's worth by, when it is not maxStackSize: the pack's rock and earth blocks and their building shapes, cut to 16 and 32, are judged by the stack they had before the cut (64).",
+          "description": "No longer written (#910: traders judge every item by what the four sell slots hold of it). Older exports carry it for the pack's rock and earth blocks and building shapes cut to 16 and 32: the stack they had before the cut (64).",
           "type": "integer",
           "minimum": 1
         },
