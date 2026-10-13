@@ -435,19 +435,11 @@ def check_flow(v):
         v.fail("the pulp does not run down the hopper's floor to the output chute")
     # the V sides catch what the lower screens let through
     sides = v.named("hopper", r"_side_")
-    near = 1e9
-    for e in sides:
-        for p in e.corners():
-            pass
-    for pose in cycle(m, 12):
-        for pid in ("drum", "screens"):
-            for e in v.posed(pid, pose):
-                for s in sides:
-                    if obb_obb(e, s, eps=-0.15):
-                        near = min(near, 0.0)
+    clear = not any(obb_obb(e, s, eps=-0.15) for pose in cycle(m, 12) for pid in ("drum", "screens")
+                    for e in v.posed(pid, pose) for s in sides)
     top_y = max(p[1] for e in sides for p in e.corners())
-    print(f"  the V sides up to y {top_y:.2f} (the axis at {m.DRUM_Y}), at least 0.3 clear of the turning drum: {near > 0}")
-    if near <= 0 or top_y > m.DRUM_Y:
+    print(f"  the V sides up to y {top_y:.2f} (the axis at {m.DRUM_Y}), at least 0.3 clear of the turning drum: {clear}")
+    if not clear or top_y > m.DRUM_Y:
         v.fail("the hopper's V sides do not stand clear under the screens")
 
 
@@ -530,7 +522,8 @@ def check_supports(v):
         walls = {k: v.named("frame", rf"^fr_bearing{i}_{k}$")[0].aabb() for k in ("low", "cap", "n", "s")}
         closes = (abs(walls["low"][1][1] - (m.DRUM_Y - th)) < 1e-6 and abs(walls["cap"][0][1] - (m.DRUM_Y + th)) < 1e-6
                   and abs(walls["n"][1][2] - (m.DRUM_Z - th)) < 1e-6 and abs(walls["s"][0][2] - (m.DRUM_Z + th)) < 1e-6)
-        through = a < x0 and b > x1
+        # the trunnion runs on through its bearing to the feed box; the journal into its bearing, its end under the cover
+        through = a < x0 and (b > x1 if i == 1 else x0 + 0.75 * (x1 - x0) < b < x1)
         print(f"supports: the drum's {what} (x {a}..{b}) through bearing {i} (x {x0}..{x1}): {through}, closed round it at {th}: {closes}")
         if not (closes and through):
             v.fail(f"the drum's {what} is not carried in bearing {i}")

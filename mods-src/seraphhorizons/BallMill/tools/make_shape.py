@@ -121,7 +121,8 @@ HEAD_N = 24
 W_HEAD_X = (13.3, 14.7)
 E_HEAD_X = (38.2, 39.6)
 W_TRUNNION_X = (8.6, W_HEAD_X[0])            # from its mouth at the feed box to the head
-E_JOURNAL_X = (E_HEAD_X[1] - 0.1, 47.4)      # the east journal: solid (the pulp leaves by the screens, not by it)
+E_JOURNAL_X = (E_HEAD_X[1] - 0.1, 46.9)      # the east journal: solid (the pulp leaves by the screens, not by it), its end
+                                             # in the bearing, under the bearing's end cover
 SCREEN_X = (W_HEAD_X[1], E_HEAD_X[0])        # the drum and its screens between the heads: 23.5 long
 PLATES_R = (8.2, 9.0)                        # the grinding plates: the drum the balls tumble in
 PLATES_N = 16
@@ -157,6 +158,7 @@ BED_Y = 3.0                                  # the masonry bed's top
 BED_X, BED_Z = (0.5, 47.5), (0.5, 31.5)
 BEARINGS_X = ((8.8, 12.4), (43.4, 47.0))     # the drum's two bearings, west on the trunnion, east on the journal
 HOUSING_T = 1.4                              # a bearing's walls round its trunnion
+COVER_T = 0.4                                # the east bearing's end cover
 SOLE_T = 0.6
 SOLE_Z = (11.0, 21.0)
 PEDESTAL_Z = (11.8, 20.2)                    # the pedestal's column under its bearing
@@ -402,6 +404,9 @@ def build_frame():
         xm = (x0 + x1) / 2
         for k, zc in enumerate((DRUM_Z - th - HOUSING_T / 2, DRUM_Z + th + HOUSING_T / 2), 1):
             out.append(box([xm - 0.5, hi_y + HOUSING_T, zc - 0.5], [xm + 0.5, hi_y + HOUSING_T + 0.6, zc + 0.5], f"fr_bearing{i}_bolt{k}", f, "iron"))
+    # the east bearing's end cover over the journal's end (the west trunnion runs on through its bearing to the feed box)
+    x1 = BEARINGS_X[1][1]
+    out.append(box([x1, lo_y - 0.6, DRUM_Z - th - 0.6], [x1 + COVER_T, hi_y + 0.6, DRUM_Z + th + 0.6], "fr_bearing2_cover", f, "iron"))
     py, pz = PINION_C
     h = PILLOW_HALF
     for i, (x0, x1) in enumerate(PILLOWS_X, 1):
