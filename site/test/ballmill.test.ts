@@ -35,7 +35,6 @@ describe("the ball mill's rig against its rig-reference.json", () => {
       ["drum", "drum", null],
       ["girth", "girth", "drum"],
       ["screens", "screens", "drum"],
-      ["balls", "balls", null],
       ["feedbox", "feedbox", null],
       ["hopper", "hopper", null],
       ["pipecopper", "pipecopper", null],
@@ -78,7 +77,7 @@ describe("the ball mill's rig against its rig-reference.json", () => {
       expect(ms[i("screens")]).toEqual(drum);
       const pinion = ms[i("pinion")]!;
       expect(apply(pinion, [1, 0.5, 0.5]).map((v) => Math.round(v * 1e9) / 1e9)).toEqual([1, 0.5, 0.5]);
-      for (const still of ["balls", "feedbox", "hopper", "pipecopper", "pipelead", "frame"])
+      for (const still of ["feedbox", "hopper", "pipecopper", "pipelead", "frame"])
         expect(ms[i(still)]!.every((v, k) => Math.abs(v - (k % 5 === 0 ? 1 : 0)) < 1e-12)).toBe(true);
     }
   });
@@ -99,7 +98,7 @@ describe("the ball mill's page", () => {
     expect(checkScenario(model.scenario!, rig, discoverAnchors(rig).anchors, requires)).toEqual([]);
     const opening = initialFitted(requires, model.scenario!.choices);
     const shown = parts.filter((p) => fitted(p.requires, opening)).map((p) => p.id);
-    expect(shown).toEqual(["pinion", "drum", "girth", "screens", "balls", "feedbox", "hopper", "pipecopper", "frame"]);
+    expect(shown).toEqual(["pinion", "drum", "girth", "screens", "feedbox", "hopper", "pipecopper", "frame"]);
     for (const r of requires) expect(model.scenario!.requires![r]).toBeTruthy();
   });
 

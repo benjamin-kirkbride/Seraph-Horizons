@@ -14,7 +14,7 @@ namespace SeraphHorizons.Tests.BallMill;
 public class BallMillRigTests
 {
     private static readonly HashSet<string> Requires =
-        ["pinion", "drum", "girth", "screens", "balls", "feedbox", "hopper", "pipecopper", "pipelead"];
+        ["pinion", "drum", "girth", "screens", "feedbox", "hopper", "pipecopper", "pipelead"];
 
     private static string File(string name)
     {
@@ -34,7 +34,7 @@ public class BallMillRigTests
     public void The_shipped_rig_parses_with_no_work()
     {
         var parts = Shipped();
-        Assert.Equal(["pinion", "drum", "girth", "screens", "balls", "feedbox", "hopper", "pipecopper", "pipelead", "frame"],
+        Assert.Equal(["pinion", "drum", "girth", "screens", "feedbox", "hopper", "pipecopper", "pipelead", "frame"],
             parts.Parts.Select(p => p.Id));
         using var doc = JsonDocument.Parse(File("ballmill-rig.json"));
         Assert.Equal("east", doc.RootElement.GetProperty("powerFace").GetString());

@@ -34,7 +34,7 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "ballmill-rig.j
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "ballmill.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "ballmill_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "BallMill" / "rig-reference.json").read_text())
-FITTED = ("pinion", "drum", "girth", "screens", "balls", "feedbox", "hopper")
+FITTED = ("pinion", "drum", "girth", "screens", "feedbox", "hopper")
 PIPES = ("pipecopper", "pipelead")
 
 
@@ -71,6 +71,11 @@ class Rig(unittest.TestCase):
         self.assertEqual(used, {p["id"] for p in RIG["parts"]})
         frame = {e["name"] for e in FRAME["elements"]}
         self.assertEqual(frame, {n for n in names if rigmath.part_of(RIG["parts"], n) == "frame"})
+
+    def test_no_balls_are_drawn(self):
+        # the owner's ruling: the drum's charge of iron balls is not modelled
+        self.assertFalse([e["name"] for e in SHAPE["elements"] if e["name"].startswith("ball")])
+        self.assertNotIn("balls", {p["requires"] for p in RIG["parts"]})
 
     def test_textures_are_declared(self):
         for shape in (SHAPE, FRAME):
@@ -131,7 +136,7 @@ class Motion(unittest.TestCase):
             self.assertLess(max(abs(a[i][j] - b[i][j]) for i in range(3) for j in range(4)), 1e-4, p["id"])
 
     def test_nothing_else_moves(self):
-        for pid in ("balls", "feedbox", "hopper", "frame") + PIPES:
+        for pid in ("feedbox", "hopper", "frame") + PIPES:
             for theta in (0.0, 2.5, -7.0):
                 m = matrix(pid, theta)
                 self.assertEqual([[round(v, 12) + 0.0 for v in row] for row in m], rigmath.m4(), pid)

@@ -219,7 +219,6 @@ ROLES = [
     (r"^screens_coarse", {"perforated"}),
     (r"^screens_fine", {"wirecloth"}),
     (r"^screens_(bar|hoop)", {"iron"}),
-    (r"^balls_", {"steel"}),
     (r"^(feedbox|hopper)_chute_", {"chute"}),
     (r"^feedbox_(spout|leg|rail)", {"iron"}),
     (r"^feedbox_", {"sheet"}),
@@ -237,7 +236,7 @@ def check_textures(v):
         if rule is None or not tex <= rule:
             bad.append((el.name, sorted(tex), sorted(rule or [])))
     print(f"textures by role: {len(v.els) - len(bad)} of {len(v.els)} elements as their role says (a granite bed, cast "
-          f"iron for the castings, sheet iron for the feed box and hopper, steel for the pinion, its shaft and the balls, "
+          f"iron for the castings, sheet iron for the feed box and hopper, steel for the pinion and its shaft, "
           f"riveted grinding plates, perforated plate and wire cloth for the screens, the game's chute, the axle's wood, "
           f"the pipe's metal and solder)")
     if bad:
@@ -550,8 +549,6 @@ def check_supports(v):
 ALLOWED = [
     # the drum's trunnion and journal in their bearings
     ("drum", r"_(wtrunnion|ejournal)", "frame", r"^fr_bearing"),
-    # the charge lies on the grinding plates as they turn under it
-    ("balls", None, "drum", r"_plate"),
     # the pinion's shaft in its pillow blocks
     ("pinion", r"_rod", "frame", r"^fr_pillow\d_bearing"),
     # meshing teeth (check_gearing holds them)

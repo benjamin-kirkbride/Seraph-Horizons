@@ -48,7 +48,8 @@ machine's water is used up (no return water, #711).
    east wall as the **feed spout**, a trough falling a voxel into the hollow west trunnion's bore, clear of it
    all round (2.58 from the axis at most, the bore 3.4). The water's pipe opens into the box over the V
    floor's south side.
-2. *Grinding:* the balls (drawn still and level, below) and the ore in the drum of riveted grinding plates.
+2. *Grinding:* the iron balls tumble the ore in the drum of riveted grinding plates. The balls are not drawn
+   (the owner's ruling): the model is the drum, not its charge.
 3. *Out:* the ground pulp passes the coarse screen (perforated plate) and the fine screen (wire cloth) and
    falls into the **discharge hopper** under them: its floor's wings fall from the end plates (7.2) to the
    middle channel (5.6), which falls south to the output chute's floor (5.0) at its mouth in the south wall;
@@ -62,10 +63,9 @@ turn; the whole machine repeats every three (the viewer's θ slider spans three 
 | Part (rig id) [requires] | Driven by | Drives | Drivers |
 |---|---|---|---|
 | Pinion: the vanilla axle's cross, the iron shaft, its two collars, 10 teeth (`pinion`) [pinion] | The vanilla axle at the power face | The girth wheel | `rotate` x, 1 |
-| Drum: hollow west trunnion, two heads, riveted grinding plates, solid east journal (`drum`) [drum] | The girth wheel (keyed on the journal) | Lifts and tumbles the charge | `rotate` x, −1/3 |
+| Drum: hollow west trunnion, two heads, riveted grinding plates, solid east journal (`drum`) [drum] | The girth wheel (keyed on the journal) | Lifts and tumbles the balls (not drawn) | `rotate` x, −1/3 |
 | Girth wheel: hub, six arms, rim, 30 teeth (`girth`) [girth] | The pinion | The drum | rides `drum` |
 | Screens: coarse (perforated plate), fine (wire cloth), 12 bars, a middle hoop (`screens`) [screens] | The drum (they turn with it, as Krupp's did) | — | rides `drum` |
-| Ball charge (`balls`) [balls] | Lies in the drum's bottom, its top level (either way round, below) | — | none |
 | Feed box, its legs, V floor, spout and infeed chute section (`feedbox`) [feedbox] | Fixed | — | none |
 | Discharge hopper, its feet, the output chute section and its bracket (`hopper`) [hopper] | Fixed | — | none |
 | Water pipe, in copper (`pipecopper`) [pipecopper] or lead (`pipelead`) [pipelead] | Fixed, the metal supplied drawn | — | none |
@@ -83,8 +83,6 @@ The axle may turn either way (the owner's rule for every machine), and the ball 
 - **The gearing** is a plain spur pair, its motion a `rotate` that runs backwards with θ.
 - **The drum** is drawn with plain grinding plates. Krupp's were stepped (overlapping, each step lifting the
   balls), which is right for one direction only; plain plates read right both ways (Open, 4).
-- **The charge** is drawn still, its top level. A running charge heaps up the side the drum lifts, so a heap
-  drawn up one side would be right for one direction only.
 - **The ore's way** does not depend on the turn: the feed falls into the trunnion by the spout, and the
   screens let the pulp through into the hopper whichever way they turn.
 
@@ -126,12 +124,11 @@ the drum, `machinegen.checks.with_lids`), so no one walking over the mill drops 
 | Hopper | Sheet iron, end plates x 12.6..13.0 and 39.9..40.3, low walls z 6.6..7.0 and 25.0..25.4 (y 4.4..10), V sides up to y 14.6; floor wings 7.2 → 5.6, channel 5.6 → 5.0 |
 | Chutes | The game's straight chute's walls (copper sheet): infeed x 0..0.8 at the west face (y 20..28, z 4..12), output z 25..32 at the south face (x 20..28, y 4..12) |
 | Water pipe | ppex's 6 × 6 tube (`Pipes/tools/solderedpipe.py`): inlet x 0..1.1 at (y 24, z 24), an elbow centred x 4.1, a run north through the feed box's south wall to z 19.6 |
-| Charge | 72 iron balls (2.0 to 2.4 voxels) in eight slices, the top level 2.5 under the axis |
 
 **Textures** by role (`validate_ballmill.ROLES`): cut granite for the bed; cast iron (`iron`) for the
 castings (pedestals, bearings, heads, trunnion and journal, the girth wheel, the screens' bars and hoop, the
-spout, legs, feet and brackets); sheet iron (`sheet`) for the feed box and the hopper; steel for the pinion,
-its shaft and the balls; riveted iron for the grinding plates; the game's mesh textures (they have holes, so
+spout, legs, feet and brackets); sheet iron (`sheet`) for the feed box and the hopper; steel for the pinion
+and its shaft; riveted iron for the grinding plates; the game's mesh textures (they have holes, so
 in the game the drum shows through the screens) for the screens; the game's chute copper for the chute
 sections; the vanilla axle's own wood for its cross; the pipe's metal and solder.
 
@@ -176,7 +173,7 @@ A full run takes about 75 seconds. Output is deterministic (two runs into two fo
   by the east pedestal: each at least 0.2 apart over the cycle.
 - **Clearances:** every pair of parts that move against each other, over the three-turn cycle (every 15
   degrees; every 5 in full runs), touches only at the intended contacts (`ALLOWED`: the trunnion and journal in
-  their bearings, the pinion's shaft in its pillow blocks, meshing teeth, the charge on the grinding plates).
+  their bearings, the pinion's shaft in its pillow blocks, meshing teeth).
 - **No z-fighting** (full runs): no coplanar overlapping faces at four axle angles, after the fix.
 - **Files:** every texture declared; the frame shape the frame part alone; 12 cells, each with boxes inside it,
   the top layer lidded; the shipped model the checked one moved.
@@ -191,13 +188,13 @@ The bucking sawmill's format (`../BuckingSawmill/README.md`, "Rig schema"). The 
 and the drum's drivers are `rotate`s about x on it, and the rest of the parts ride the drum or stand still.
 Keys: `cells` (12, with `boxes` and, on the top layer, `lid`), `powerCell` and `powerFace`, `infeedCell` and
 `infeedFace`, `waterCell` and `waterFace` (the rosser's key), `outputCell`, `outputFace` and `output`, and
-`parts`. `requires` values: `pinion`, `drum`, `girth`, `screens`, `balls`, `feedbox`, `hopper`, `pipecopper`,
+`parts`. `requires` values: `pinion`, `drum`, `girth`, `screens`, `feedbox`, `hopper`, `pipecopper`,
 `pipelead` (the pipe's metal), or null (the frame).
 
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, a part's id and `_`): `pinion_*`, `drum_*`,
-`girth_*`, `screens_*`, `balls_*`, `feedbox_*`, `hopper_*`, `pipecopper_*`, `pipelead_*` and `fr_*` (the
+`girth_*`, `screens_*`, `feedbox_*`, `hopper_*`, `pipecopper_*`, `pipelead_*` and `fr_*` (the
 frame). Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Provisional pending #711
@@ -225,12 +222,12 @@ open: the feed box stands for it.
 6. **The east journal is solid** (the pulp leaves by the screens, not by it), under an end cover on its
    bearing; #915 says "hollow trunnions". Only the feed one needs to be hollow; the other can be drawn so.
 7. **The build stages and items.** The `requires` ids (one per fitted part) and the build check's order
-   (`FIT_ORDER`: pinion, drum, girth wheel, screens, balls, hopper, feed box, pipe) are a proposal, to be
+   (`FIT_ORDER`: pinion, drum, girth wheel, screens, hopper, feed box, pipe) are a proposal, to be
    settled with the owner as the crucible furnace's were.
 8. **The lids** on the top layer make the drum walkable at two blocks. Without them a player on the mill
    stands among the drum's boxes.
-9. **The charge** is drawn still, seen only with the screens and the drum unticked; no ore or pulp is drawn
-   (no work input). No manhole is drawn for charging the balls.
+9. **Nothing inside the drum is drawn:** neither the balls (the owner's ruling) nor the ore or pulp (no work
+   input). No manhole is drawn for charging the balls.
 10. **The girth wheel** is a little smaller than the heads (pitch r 10.8 against 11.8) and turns outside the
     hopper; period spur wheels were about the drum's size.
 

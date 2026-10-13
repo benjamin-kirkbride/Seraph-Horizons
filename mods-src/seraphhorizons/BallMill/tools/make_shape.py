@@ -20,8 +20,8 @@ one level. Its parts, west (the feed end) to east (the drive end), along the dru
               axle's cross at the power face: the axle drives the pinion's shaft directly
     hopper    the discharge hopper under the screens: sheet-iron end plates, V sides, a floor falling to a
               channel in the middle, and the output chute out of the channel through the south side
-    balls     the charge of iron balls in the drum's bottom, drawn still and level (true whichever way the
-              axle turns)
+
+The iron balls inside the drum are not drawn (the owner's ruling).
 
 Everything is built here from plain boxes, the water pipe with the mod's own soldered pipe
 (Pipes/tools/solderedpipe.py) and the chute sections as the game's own chute (VANILLA_CHUTE); no other mod's
@@ -96,7 +96,7 @@ TEXTURES = {
     "stonebrick": "game:block/stone/brick/granite1",     # the masonry bed: cut granite
     "iron": "game:block/metal/plate/iron",               # cast iron: pedestals, bearings, heads, the girth wheel
     "sheet": "game:block/metal/sheet/iron1",             # sheet iron: the feed box, the hopper
-    "steel": "game:block/metal/sheet-plain/steel1",      # the pinion and its shaft, the balls
+    "steel": "game:block/metal/sheet-plain/steel1",      # the pinion and its shaft
     "riveted": "game:block/metal/riveted/iron1",         # the drum's riveted grinding plates
     "perforated": "game:block/metal/mesh1",              # the coarse screen: perforated plate (the game's mesh, holes in it)
     "wirecloth": "game:block/metal/mesh4",               # the fine screen: wire cloth
@@ -219,11 +219,6 @@ CHANNEL_X = (20.0, 28.0)                     # the floor's middle channel: the o
 CHANNEL_Y = (5.6, CHUTE_FLOOR)               # the channel's floor: from the north wall down to the chute's floor
 WING_HIGH = 7.2                              # the floor's wings, from the end plates down to the channel's edges
 OUT_CHUTE_Z = (HOP_FOOT[1][0], CELLS_Z * B)  # the output chute: from the channel's end through the south wall to the face
-
-# ---------------------------------------------------------------- the charge
-CHARGE_TOP = DRUM_Y - 2.5                    # the charge's top: level, this far under the axis
-BALL = 2.2                                   # a ball's size (they vary by 0.2 either way)
-BALL_SLICES = 8                              # slices of balls along the drum, a ball apart
 
 
 # ---------------------------------------------------------------- vectors
@@ -701,36 +696,8 @@ def build_hopper():
     return out
 
 
-# ---------------------------------------------------------------- the charge
-def build_balls():
-    """The charge: iron balls in the drum's bottom, in slices along it, its top level: drawn still, it must read
-    right whichever way the axle turns, and a heap raised up one side would be right for one direction only. The
-    lowest rest on the grinding plates, every other on its neighbours."""
-    out = []
-    r_in = PLATES_R[0]
-    step = BALL - 0.15
-    x0, x1 = SCREEN_X
-    xs = [x0 + (x1 - x0) * (i + 0.5) / BALL_SLICES for i in range(BALL_SLICES)]
-    n = 0
-    for si, x in enumerate(xs):
-        for j in range(4):
-            for i in range(-5, 6):
-                size = (BALL - 0.2, BALL, BALL + 0.2)[(i + 2 * j + si) % 3]
-                h = size / 2
-                y = DRUM_Y - r_in + h - 0.06 + step * 0.86 * j
-                z = DRUM_Z + step * (i + 0.5 * (j % 2)) + 0.3 * (si % 2 - 0.5)
-                if math.hypot(abs(y - DRUM_Y) + h, abs(z - DRUM_Z) + h) > r_in + 0.35:
-                    continue
-                if y + h > CHARGE_TOP + 1e-9:
-                    continue
-                n += 1
-                xx = x + 0.4 * ((i + j) % 3 - 1)
-                out.append(box([xx - h, y - h, z - h], [xx + h, y + h, z + h], f"balls_ball{n}", "balls", "steel"))
-    return out
-
-
 def build():
-    return (build_pinion() + build_drum() + build_girth() + build_screens() + build_balls() + build_feedbox()
+    return (build_pinion() + build_drum() + build_girth() + build_screens() + build_feedbox()
             + build_hopper() + build_inlet() + build_frame())
 
 
@@ -775,7 +742,6 @@ def _rig_parts():
              part("drum", rot(pt(24.0, DRUM_Y, DRUM_Z), k["drum"])),
              part("girth", ride="drum"),
              part("screens", ride="drum"),
-             part("balls"),
              part("feedbox"),
              part("hopper"),
              *[part(pid) for pid in PIPE_PARTS],
@@ -788,7 +754,7 @@ def _rig_parts():
 
 # The parts in the order they are fitted, for the build check (the stages are to be settled with the owner): each
 # must hold on to what is already there.
-FIT_ORDER = ("pinion", "drum", "girth", "screens", "balls", "hopper", "feedbox", "pipecopper")
+FIT_ORDER = ("pinion", "drum", "girth", "screens", "hopper", "feedbox", "pipecopper")
 
 # ---------------------------------------------------------------- poses
 REST = 0.0                                   # a pose is the axle's angle, theta (radians)
