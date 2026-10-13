@@ -103,16 +103,28 @@ public static class MineDispatch
     /// <summary>The station <paramref name="worker"/> takes next, or null for none: of the first
     /// <see cref="Front"/> in plan order not in anyone's queue, <paramref name="free"/> (its claim free on
     /// the board) and <see cref="Executable"/>, the one no other would reach sooner, then the one it reaches
-    /// soonest, then the first.</summary>
-    public static MineStation? Next(MinePlan plan, MineState live, MineWorker worker, IReadOnlyList<MineWorker> others, Func<MineStation, bool> free)
+    /// soonest, then the first. With <paramref name="usable"/>, a station's cells are first cut to those
+    /// it allows (the game: none in the columns of an eidolon standing there, which may be no worker, so the
+    /// rest of a station round one parked in the area is dug and what is under it waits), and the station
+    /// is given back so cut.</summary>
+    public static MineStation? Next(MinePlan plan, MineState live, MineWorker worker, IReadOnlyList<MineWorker> others, Func<MineStation, bool> free,
+        Func<MarkPos, bool>? usable = null)
     {
         var taken = others.SelectMany(o => o.Queue).Concat(worker.Queue).Select(s => s.Id).ToHashSet();
         var at = others.Select(o => new MineWorkerAt(o.Id, o.X, o.Feet, o.Z, o.Queue.Select(s => s.Stand).ToList())).ToList();
         var found = new List<MineStation>();
-        foreach (var station in plan.Stations)
+        foreach (var planned in plan.Stations)
         {
-            if (taken.Contains(station.Id) || !station.Cells.Any(live.Remaining.Contains) || !free(station))
+            if (taken.Contains(planned.Id) || !planned.Cells.Any(live.Remaining.Contains) || !free(planned))
                 continue;
+            var station = planned;
+            if (usable != null && !planned.Cells.All(usable))
+            {
+                var cells = planned.Cells.Where(usable).ToList();
+                if (!cells.Any(live.Remaining.Contains))
+                    continue;
+                station = planned with { Cells = cells };
+            }
             if (!Executable(plan, live, station, at, out _))
                 continue;
             found.Add(station);

@@ -255,6 +255,15 @@ public sealed class MineState
         Stale = true;
     }
 
+    /// <summary>A block column of the window read again from <paramref name="world"/> (one loaded since):
+    /// taken in as <see cref="Changed"/> takes a block.</summary>
+    public void Reloaded(IMineWorld world, int x, int z)
+    {
+        Site.Reload(world, x, z);
+        _dirty = true;
+        Stale = true;
+    }
+
     /// <summary>After <see cref="Changed"/>: the walk graph and the reach bound made again over what is
     /// left of the targets, a step at a time (the game slices it; asking the state does it at once).</summary>
     public IEnumerable<bool> Rebuild()

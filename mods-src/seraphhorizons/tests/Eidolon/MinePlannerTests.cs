@@ -214,6 +214,37 @@ public class MinePlannerTests(ITestOutputHelper output)
         Assert.Equal(plan.WayOut.ToHashSet(), Cells(0, side - 1, top - depth, top - 1, 0, side - 1).Where(world.Has).ToHashSet());
     }
 
+    [Theory]
+    [InlineData(6, 14)]
+    [InlineData(8, 20)]
+    [InlineData(16, 64)]
+    public void Two_workers_dig_a_pit_too_deep_for_a_straight_stair_and_both_climb_out_by_its_spiral(int side, int depth)
+    {
+        int top = L + 70;
+        var world = new MineTestWorld().Box(-8, side + 8, 1, top - 1, -8, side + 8);
+        var area = Area(0, side - 1, top - depth, top - 1, 0, side - 1);
+        var home = new PathCell(-4, top, side / 2);
+        var plan = world.Plan(area, home);
+        Assert.Empty(plan.OutOfReach);
+        Assert.NotEmpty(plan.Stair);
+        int total = plan.Stations.Sum(s => s.Cells.Count);
+        var starts = new[] { new PathCell(-4, top, side / 2 - 3), new PathCell(-4, top, side / 2 + 3) };
+        // TeamRunner checks every strike: claims apart, nothing in another's columns at any height, and
+        // after each, every eidolon still standing and with a way out (the stair never cut under one)
+        var team = new TeamRunner(world, area, plan, home, starts);
+        team.Run(200_000);
+        output.WriteLine($"{side} x {side} x {depth}: mined {string.Join(", ", team.Mined)} of {total} in {team.Seconds:0} s, {team.Replans} replans, "
+            + $"left {team.Live.Remaining.Count(c => !plan.Stair.Contains(c))} off the stair, ended at {string.Join(" ", team.Positions)}");
+        var cells = Cells(0, side - 1, top - depth, top - 1, 0, side - 1).Where(world.Has).ToHashSet();
+        // all dug but the stair's way out, each a real share, and both out of the pit
+        Assert.Subset(plan.WayOut.ToHashSet(), cells);
+        // A pit 16 wide has room for both at once, each a real share; one 8 wide has room for one station's
+        // claim at a time (the boxes a column apart), so the second only works when the first leaves it room.
+        Assert.All(team.Mined, m => Assert.True(side >= 16 ? m >= total / 4 : m > 0, $"one mined {m} of {total}"));
+        Assert.All(team.Positions, p => Assert.True(p.Y >= top, $"{p} is still in the pit"));
+        Assert.True(team.AllLeave(home), "both leave");
+    }
+
     [Fact]
     public void A_pit_whose_only_shelf_is_on_one_side_keeps_its_way_out_to_the_end()
     {

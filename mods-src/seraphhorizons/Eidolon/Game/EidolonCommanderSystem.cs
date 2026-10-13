@@ -27,7 +27,8 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// (<see cref="EidolonCommandModes"/>, with follow and stay registered here) and marking. This system
 /// also registers the follow order (<see cref="FollowOrder"/>) and the self-defence AI task
 /// (<see cref="AiTaskEidolonDefend"/>), and on the client highlights the held tool's marks for its
-/// holder (<see cref="Highlight"/>, with x-ray outlines by <see cref="EidolonMarkOutlines"/>).</para>
+/// holder (<see cref="Highlight"/>, with x-ray outlines by <see cref="EidolonMarkOutlines"/>), and in mine
+/// mode the blocks of its owner's mine orders out of their reach (<see cref="MineOutOfReachPacket"/>, in red).</para>
 /// </summary>
 public class EidolonCommanderSystem : ModSystem
 {
@@ -67,7 +68,12 @@ public class EidolonCommanderSystem : ModSystem
     /// <summary>The fill of a first corner or a marked block (sky blue).</summary>
     public static readonly int BlockFill = ColorUtil.ToRgba(90, 230, 190, 60);
 
+    /// <summary>The fill of the blocks out of a mine order's reach (red: the low byte is red, as
+    /// <see cref="EidolonMarkOutlines.LineColor"/> notes).</summary>
+    public static readonly int OutOfReachFill = ColorUtil.ToRgba(60, 40, 40, 220);
+
     private ICoreClientAPI? _capi;
+    private readonly Dictionary<MarkArea, IReadOnlyList<MarkArea>> _outOfReach = new();
     private EidolonMarkOutlines? _outlines;
     private string _shown = "";
 
@@ -96,7 +102,24 @@ public class EidolonCommanderSystem : ModSystem
     {
         _capi = api;
         _outlines = new EidolonMarkOutlines(api);
+        api.Network.GetChannel(EidolonMineSystem.Channel).SetMessageHandler<MineOutOfReachPacket>(OutOfReach);
         api.Event.RegisterGameTickListener(_ => Highlight(), 250);
+    }
+
+    /// <summary>A mine order's blocks out of its reach (none: its job is done), kept for its area.</summary>
+    private void OutOfReach(MineOutOfReachPacket packet)
+    {
+        if (packet.Area.Length != 6)
+            return;
+        var area = new MarkArea(new MarkPos(packet.Area[0], packet.Area[1], packet.Area[2]), new MarkPos(packet.Area[3], packet.Area[4], packet.Area[5]));
+        var boxes = new List<MarkArea>();
+        for (int i = 0; i + 5 < packet.Boxes.Length; i += 6)
+            boxes.Add(new MarkArea(new MarkPos(packet.Boxes[i], packet.Boxes[i + 1], packet.Boxes[i + 2]),
+                new MarkPos(packet.Boxes[i + 3], packet.Boxes[i + 4], packet.Boxes[i + 5])));
+        if (boxes.Count == 0)
+            _outOfReach.Remove(area);
+        else
+            _outOfReach[area] = boxes;
     }
 
     public override void Dispose()
@@ -106,7 +129,8 @@ public class EidolonCommanderSystem : ModSystem
     }
 
     /// <summary>Highlights the marks the held command tool keeps for its mode (an area as a box, a
-    /// first corner or a block as one block), for its holder only; clears them when it is put away.
+    /// first corner or a block as one block), and in mine mode what its holder's mine orders cannot reach
+    /// (<see cref="OutOfReachFill"/>), for its holder only; clears them when it is put away.
     /// Each mark is the game's translucent fill with an x-ray outline over it
     /// (<see cref="EidolonMarkOutlines"/>, which also previews an area before its second corner).</summary>
     private void Highlight()
@@ -129,6 +153,9 @@ public class EidolonCommanderSystem : ModSystem
             }
             else if (marks.First is { } first)
                 boxes.Add((MarkArea.Between(first, first), BlockFill));
+            if (mode.Code == MineOrder.OrderCode)
+                foreach (var box in _outOfReach.Values.SelectMany(b => b))
+                    boxes.Add((box, OutOfReachFill));
         }
         _outlines?.Show(shown, marks, boxes.Select(b => (b.Box, EidolonMarkOutlines.LineColor(b.Fill))));
         string key = string.Join(";", boxes.Select(b => $"{b.Box.Min}{b.Box.Max}{b.Fill}"));

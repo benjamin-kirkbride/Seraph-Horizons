@@ -18,7 +18,9 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// <param name="area">The job's area.</param>
 /// <param name="heightSlack">How far below its lower corner and above its higher one it looks for
 /// ground (felling's stumps stand up to <see cref="EidolonFelling.AreaHeightSlack"/> outside it).</param>
-internal sealed class RimWait(MarkArea area, int heightSlack = 0)
+/// <param name="keepClear">Whether it never sets off on a way that goes through another eidolon, found no
+/// way round it (mining, in a pit too narrow to pass one at work: it waits where it is, and tries again).</param>
+internal sealed class RimWait(MarkArea area, int heightSlack = 0, bool keepClear = false)
 {
     /// <summary>Places on the rim it searches a path to before it gives up for now.</summary>
     private const int PathTries = 3;
@@ -145,8 +147,13 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0)
                 continue;
             if (nav.GoTo(new Vec3d(x, at, z), false, () => { }, () => { }, arriveWithin: (float)EidolonTeamwork.WaitArrive))
             {
-                Claim(eidolon, jobs, (x, z), aside: true);
-                return true;
+                if (keepClear && !nav.LastWentAround)
+                    nav.Stop();
+                else
+                {
+                    Claim(eidolon, jobs, (x, z), aside: true);
+                    return true;
+                }
             }
             if (++tries >= PathTries)
                 break;
@@ -185,14 +192,25 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0)
                 continue;
             if (nav.GoTo(new Vec3d(x, feet, z), false, () => { }, () => { }, arriveWithin: (float)EidolonTeamwork.WaitArrive))
             {
-                Claim(eidolon, jobs, (x, z), aside: false);
-                return true;
+                if (keepClear && !nav.LastWentAround)
+                    nav.Stop();
+                else
+                {
+                    Claim(eidolon, jobs, (x, z), aside: false);
+                    return true;
+                }
             }
             if (++tries >= PathTries)
                 break;
         }
         return false;
     }
+
+    /// <summary>Steps aside, as when it finds no way to the rim, to the nearest place round it that is
+    /// <paramref name="clear"/> (mining: off the stair while another walks it); false when it is walking
+    /// already or finds none.</summary>
+    public bool Aside(EntityLaborEidolon eidolon, EidolonNavigator nav, EidolonJobSystem? jobs, Func<int, int, bool> clear) =>
+        !nav.Active && StepAside(eidolon, nav, jobs, clear);
 
     /// <summary>Off the rim, back to work (or stopped, or done).</summary>
     public void Leave(EntityLaborEidolon eidolon, EidolonJobSystem? jobs)

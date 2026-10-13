@@ -5,71 +5,63 @@ using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
-using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 
 namespace SeraphHorizons.Mod.Eidolon;
 
 /// <summary>
 /// Mine a marked area (README "Eidolon", mining; arguments the area's corners <c>minX</c> ...
-/// <c>maxZ</c>, and where it stood when ordered, <c>homeX</c>, <c>homeY</c>, <c>homeZ</c>). It quarries
-/// top down, a layer at a time (<see cref="Scan"/>: the highest layer with a block left it may break,
-/// <see cref="EidolonMining.Rule"/>), striking a group of up to four blocks at once
-/// (<see cref="EidolonMining.Next"/>: flat on the layer, or upright at a wall where the layer under it
-/// is left too) with the shape's slam, timed to a seraph's steel pickaxe or steel shovel, the quicker for
-/// each block (<see cref="EidolonMining.DigSpeed"/>), at three quarters of their pace
-/// (<see cref="EidolonMining.Timing"/>), the blocks breaking as a player's would, their drops falling
-/// in the world. Each strike costs oil (<see cref="EidolonJob.MiningStrike"/>). It never breaks under
-/// its own box; for what it stood on it walks to a place beside (<see cref="EidolonMining.Stands"/>).
+/// <c>maxZ</c>, and where it stood when ordered, <c>homeX</c>, <c>homeY</c>, <c>homeZ</c>). Its job's area is
+/// planned once, in slices over the server's ticks (<see cref="EidolonMinePlans"/>), as stations: a place it
+/// stands and the blocks it clears from there (README "Eidolon", mining, *Stations*; <see cref="MinePlanner"/>),
+/// in an order that never leaves it, or another, without a way out and never digs the floor under a block it
+/// cannot reach (<see cref="MinePlan.OutOfReach"/>, told to its owner once and outlined on their command
+/// tool). It takes stations from the plan as they come free (<see cref="MineDispatch.Next"/>, a short queue,
+/// <see cref="MineDispatch.QueueLength"/>), each claimed on the job board, walks to its stand and strikes
+/// it a group of up to four blocks at a time (<see cref="MineStations.NextGroup"/>: flat on a layer, upright
+/// at a wall, a tunnel's face top half first) with the shape's slam, timed to a seraph's steel pickaxe or steel
+/// shovel, the quicker for each block (<see cref="EidolonMining.DigSpeed"/>), at three quarters of their pace (<see cref="EidolonMining.Timing"/>), the blocks breaking as a player's
+/// would, their drops falling in the world. Each strike costs oil (<see cref="EidolonJob.MiningStrike"/>).
+/// Before every strike the job's live state is asked whether it may (<see cref="MineState.Check"/>): never
+/// under any eidolon's box or over it, never cutting off its own or another's way out.
 ///
-/// <para>The land claim is asked only of a block it comes to (a square it makes for, a group it may
-/// strike), not of every block a search finds; a block its owner may not break is left for the
-/// order's life. A column of the area not loaded reads as air, so it is never done: with no block
-/// it may break left in the loaded part, it walks toward the nearest unloaded column (its own
-/// chunks, held while it works, load ahead of it), or waits for it to load
-/// (<see cref="EidolonMining.Scan"/>).</para>
+/// <para>The land claim is asked only of a block it comes to strike; a block its owner may not break, or
+/// that would not break, is left for the order's life by the whole job (<see cref="MineJobCells.Skip"/>), and
+/// the plan made again round it. A column of the area not loaded is planned without (<see cref="MinePlan.Partial"/>):
+/// with nothing it may dig left in the loaded part, it walks toward the nearest unloaded column (its own
+/// chunks, held while it works, load ahead of it), or waits for it to load. A stand the game's pathfinder
+/// finds no way to is bad (<see cref="MineJobCells.BadStands"/>), and the plan is made again without it.</para>
 ///
-/// <para>A covered part of the area (README "Eidolon", mining, tunnels: roofed over by the hill,
-/// <see cref="EidolonTunnels"/>) is planned once, as the job's first search (<see cref="Plan"/>), and its
-/// heading is driven in face-first from its open face before anything is quarried (<see cref="Drive"/>):
-/// each lane's face a top half, a bottom half and a step in (<see cref="EidolonTunnels.Front"/>), the
-/// members each on their own lanes (<see cref="MineSectors.Sync"/> with the tunnel), none stealing.
-/// Once no member at work has anything left in it, the next heading down is driven from its own open
-/// face (<see cref="MineTunnel.Below"/>, <see cref="EidolonTunnels.Opens"/>), and so on; at the bottom,
-/// or a heading with no open face, what is left and the open part are quarried as below.</para>
-///
-/// <para>Blocks it cannot reach (no way to any place beside them) are given up for the order's life.
-/// Done when no block it may break and reach is left and none of the area is unloaded: it tells its owner how many it mined and how
-/// many it left, walks back to where it was ordered (if it can) and the order ends. Interrupted
-/// (self-defence, a slump, dry), it starts again by looking afresh; interrupted on its way back, it
-/// goes on back.</para>
+/// <para>Done when no station is left that it or another of its job may work, nothing but the stair it
+/// leaves as its way out (<see cref="MinePlan.WayOut"/>) is left, and none of the area is unloaded: it tells its
+/// owner how many it mined, left, could not reach, kept under those as their floor and left as its way out,
+/// walks back to where it was ordered (if it can) and the order ends. Interrupted (self-defence, a slump,
+/// dry), it starts again by looking afresh; interrupted on its way back, it goes on back.</para>
 ///
 /// <para>Eidolons of one owner given the very same area work it as one job (README "Eidolon", working
-/// together; <see cref="EidolonJobSystem.Mining"/>, <see cref="JobBoard{TUnit, TShared}"/>): the area is
-/// split into a sector each (<see cref="MineSectors"/>), and each works only its own, nearest first; one
-/// with nothing left in its own takes a sector let go or steals half of the busiest, or waits at the
-/// area's rim (<see cref="EidolonTeamwork.Rim"/>). Each reserves the 2 × 2 square it makes for or strikes
-/// in (its columns) before it sets off or strikes, and passes over those another holds; none mines below
-/// the job's lowest layer (<see cref="SharedJob{TShared}.Lowest"/>: one under the shallowest with a block
-/// left), so the sectors' floors stay a climb apart; none breaks a block under any eidolon's box at or
-/// below its feet (<see cref="EidolonMining.Undermines(double, int, double, MarkPos)"/>); and the last to
-/// find nothing left tells the owner what each mined, and each walks back to where it was ordered. Each
-/// saves its own order, with the ids of the others in its job (<c>mates</c>), which the job, formed again
-/// on load, waits for (<see cref="EidolonTeamwork.ExpectSeconds"/>); and, once it has been told the job
-/// is done, <c>done</c>, so it goes on back.</para>
+/// together; <see cref="EidolonJobSystem.Mining"/>, <see cref="JobBoard{TUnit, TShared}"/>) from one plan:
+/// each takes the station it would reach first that no other would reach sooner (<see cref="MineDispatch"/>),
+/// claims its columns (<see cref="MineDispatch.Claim"/>: a column apart in the open, a lane each at a face),
+/// and never breaks a block in another's columns at any height; one with nothing it may work waits at the
+/// area's rim (<see cref="EidolonTeamwork.Rim"/>); and the last to find nothing left tells the owner what
+/// each mined, and each walks back to where it was ordered. Each saves its own order, with the ids of the
+/// others in its job (<c>mates</c>), which the job, formed again on load, waits for
+/// (<see cref="EidolonTeamwork.ExpectSeconds"/>); how many blocks out of reach its owner was last told of
+/// (<c>outofreach</c>), so a reload does not tell again; and, once it has been told the job is done,
+/// <c>done</c>, so it goes on back. Plans, claims and the live state are never saved: made again on load.</para>
 /// </summary>
-public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? mates = null, bool done = false) : IEidolonOrder
+public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? mates = null, bool done = false, int toldOutOfReach = -1) : IEidolonOrder
 {
     public const string OrderCode = "mine";
 
-    /// <summary>How often, at most, it searches the area again while it works (the world may change
-    /// under it); it searches at once when the layer it works is done.</summary>
+    /// <summary>How often it saves who it works with, and the job sweeps its area for changes
+    /// (<see cref="EidolonMinePlans.SyncSeconds"/>).</summary>
     public const double RescanSeconds = 10;
 
-    /// <summary>Places beside a square it searches a path to before it gives the square up.</summary>
+    /// <summary>Stands in a row it finds no way to before it waits.</summary>
     private const int PathTries = 3;
 
-    /// <summary>Times it sets off again for a square it arrived out of reach of.</summary>
+    /// <summary>Times it sets off again for a stand it arrived short of.</summary>
     private const int Approaches = 2;
 
     /// <summary>Within this of where it was ordered, it is back.</summary>
@@ -102,37 +94,50 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// player and lets its chunks go (<see cref="HasWorkLeft"/>).</summary>
     private const double StallSeconds = 30;
 
-    /// <summary>How often a waiting eidolon looks for a square freed or a layer finished.</summary>
+    /// <summary>How often a waiting eidolon looks for a station come free.</summary>
     private const double WaitCheckSeconds = 1;
 
-    /// <summary>How far round a group (or itself) it looks for eidolons it must not undermine: its
+    /// <summary>With blocks left that no member may work, none working, the plan made again and no other
+    /// eidolon over the area, it waits this long before it calls the job done and reports them left.</summary>
+    private const double StuckSeconds = 30;
+
+    /// <summary>How far round a group (or itself) it looks for eidolons it must not dig under or over: its
     /// reach and their box's half width, with room.</summary>
     private const float OthersRange = 8;
 
+    /// <summary>Not working, another's arrival at a station is reckoned this far off: an eidolon parked in
+    /// the area (no member, or one waiting) never takes a station from it.</summary>
+    private const double NeverSeconds = 1e6;
+
+    /// <summary>How long at most it waits for another to make room before it walks a way through it.</summary>
+    private const double ThroughSeconds = 20;
+
+    /// <summary>How long one walk on the stair keeps it (refreshed while it walks).</summary>
+    private const double StairSeconds = 30;
+
     private const string SlamAnimation = "slam";
 
-    private enum Phase { Seek, Walk, Strike, Return, Travel, Wait }
+    private enum Phase { Seek, Plan, Walk, Strike, Return, Travel, Wait }
 
-    private readonly HashSet<MarkPos> _unreachable = new();
-    private readonly HashSet<MarkPos> _skip = new();
-    private readonly HashSet<MarkPos> _left = new();
-    private readonly HashSet<MarkPos> _dig = new();
+    /// <summary>What came of trying to strike its station from where it stands.</summary>
+    private enum Try { Struck, Dropped, NotInReach }
+
     private readonly MineJobCells _own = new();
     private readonly Dictionary<MarkPos, bool> _mayBreak = new();
-    private IReadOnlyList<(int X, int Z)> _unloaded = [];
+    private readonly List<MineStation> _queue = new();
+    private int _planVersion = -1;
     private double? _waitingSince;
+    private double? _stuckSince;
     private bool _stalled;
     private int _maxTier = EidolonMining.SteelPickTier;
     private string[] _mineThrough = EidolonMining.GroundBlockEntities;
-    private int _underOthers;
     private EidolonNavigator? _nav;
     private EntityLaborEidolon? _eidolon;
     private Phase _phase;
-    private int? _layer;
     private double _rescanAt;
-    private IReadOnlyList<MarkPos>? _square;
     private int _approaches;
-    private PathCell? _stand;
+    private int _approached = -1;
+    private int _pathFails;
     private bool _settled;
     private MineGroup? _group;
     private MineStrike _strike;
@@ -147,14 +152,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private IReadOnlyList<long> _mates = mates ?? [];
     private bool _expectMates = true;
     private bool _finished;
-    private readonly RimWait _rim = new(area);
+    private readonly RimWait _rim = new(area, keepClear: true);
     private double _waitCheckAt;
-    private int? _top;
-    private int? _lowest;
-    private int? _scannedLevel;
+    private int? _band;
     private MineSector? _sector;
-    private int _sectorVersion = -1;
     private int _homeTries;
+    private int _toldSaved = toldOutOfReach;
+    private bool _stairWait;
+    private double? _throughSince;
 
     public string Code => OrderCode;
 
@@ -172,15 +177,42 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>Strikes cut short before the slam landed, nothing left in their group to break.</summary>
     public int CutStrikes { get; private set; }
 
-    /// <summary>Its sector of its job's area (README "Eidolon", working together), or null for none.</summary>
+    /// <summary>The columns of the station it last struck (README "Eidolon", working together, *Claims*): at a
+    /// tunnel's face its lane, else the bounds of the station's claim; null before its first strike.</summary>
     public MineSector? Sector => _sector;
 
-    /// <summary>The tunnel planned for the area's covered part (README "Eidolon", mining, tunnels), or
-    /// null for none (none covered, not planned yet, or refused).</summary>
-    public MineTunnel? Tunnel => Cells.Tunnel;
+    /// <summary>Its job's plan (README "Eidolon", mining, *Stations*), or null while it is made.</summary>
+    public MinePlan? Plan => Cells.Plan;
 
-    /// <summary>Whether its job is still driving the tunnel (it quarries once it is done).</summary>
-    public bool Driving => Cells.Driving != null;
+    /// <summary>The station it works (or walks to), or null.</summary>
+    public MineStation? Station => _queue.Count > 0 ? _queue[0] : null;
+
+    /// <summary>The stations it holds, the one it works first.</summary>
+    internal IReadOnlyList<MineStation> Queue => _queue;
+
+    /// <summary>What its job's plan leaves standing for good: out of its reach, the floor kept under those,
+    /// and its stair's way out.</summary>
+    public IReadOnlySet<MarkPos> Kept => Cells.Plan is { } p ? p.OutOfReach.Concat(p.Held).Concat(p.WayOut).Concat(Cells.Stair).ToHashSet() : new HashSet<MarkPos>();
+
+    /// <summary>Every cell its job's plans left as the stair (<see cref="MineJobCells.Stair"/>).</summary>
+    public IReadOnlySet<MarkPos> Stair => Cells.Stair;
+
+    /// <summary>The tunnel planned for the area's covered part (README "Eidolon", mining, tunnels), as the
+    /// band it last struck a face of (its top and bottom layers), or the whole covered part before; null for
+    /// none (none covered, or not planned yet).</summary>
+    public MineTunnel? Tunnel
+    {
+        get
+        {
+            if (Cells.Plan?.Tunnel is not { } t || _band is not { } b)
+                return Cells.Plan?.Tunnel;
+            int top = t.Top - b * EidolonTunnels.HeadingHeight;
+            return t with { Top = top, Bottom = Math.Max(area.Min.Y, top - EidolonTunnels.HeadingHeight + 1) };
+        }
+    }
+
+    /// <summary>Whether the station it works is at a tunnel's face.</summary>
+    public bool Driving => Station?.Kind == MineStationKind.Face;
 
     /// <summary>What its job shares (its own, alone or with no jobs on this server).</summary>
     private MineJobCells Cells => _job?.Shared ?? _own;
@@ -188,11 +220,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>The group it is striking, or null.</summary>
     public MineGroup? Group => _phase == Phase.Strike ? _group : null;
 
-    /// <summary>Blocks it gave up for want of a way to them.</summary>
-    public int Unreachable => _unreachable.Count;
+    /// <summary>Blocks of its area out of its reach under every order (<see cref="MinePlan.OutOfReach"/>).</summary>
+    public int Unreachable => Cells.OutOfReach.Count;
 
-    /// <summary>The block columns of the area not loaded at its last search, which it has yet to mine.</summary>
-    public int UnloadedColumns => _unloaded.Count;
+    /// <summary>The block columns of the area not loaded when its job last read them, which it has yet to mine.</summary>
+    public int UnloadedColumns => Cells.Live?.Site.UnloadedColumns.Count ?? 0;
 
     /// <summary>Whether it still has blocks to mine (README "Eidolon", chunk loading): false once it has
     /// told its owner it is done (walking back is not work), and while it has waited
@@ -226,14 +258,21 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         args.HasAttribute("homeX") ? new Vec3d(args.GetDouble("homeX"), args.GetDouble("homeY"), args.GetDouble("homeZ")) : null,
         (args.GetString("mates") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(m => long.TryParse(m, NumberStyles.Integer, CultureInfo.InvariantCulture, out long id) ? id : 0).Where(id => id != 0).ToList(),
-        args.GetBool("done"));
+        args.GetBool("done"),
+        args.HasAttribute("outofreach") ? args.GetInt("outofreach") : -1);
 
     /// <summary>The report it made to its owner, in the server's language, if it made its job's (the
     /// last of its job to finish makes it; the others none).</summary>
     public string? Reported { get; private set; }
 
+    /// <summary>What it told its owner of the blocks out of its reach, in the server's language, if it was
+    /// the one of its job that told them (the last time).</summary>
+    public string? ToldOutOfReach { get; private set; }
+
     /// <summary>The shared job it is in (README "Eidolon", working together), or null before it starts.</summary>
     public SharedJob<MineJobCells>? Job => _job;
+
+    private EidolonMinePlans? Plans => EidolonMinePlans.Of(_eidolon?.Api);
 
     public void Start(EntityLaborEidolon eidolon)
     {
@@ -246,7 +285,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _jobs ??= EidolonJobSystem.Of(eidolon.Api);
         _group = null;
         _rescanAt = 0;
-        _square = null;
+        _queue.Clear();
         _rim.Leave(eidolon, _jobs);
         if (_done)
             GoHome(eidolon);
@@ -261,19 +300,42 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 Told(eidolon);
                 GoHome(eidolon);
             }
+            else
+                Ensure(eidolon);
         }
     }
 
     public bool Continue(EntityLaborEidolon eidolon, float dt)
     {
         double now = eidolon.World.ElapsedMilliseconds / 1000.0;
+        // its walk on the stair over (or none): the stair is the others' again
+        if (Cells.StairHolder == eidolon.EntityId)
+        {
+            if (_nav?.Active == true)
+                Cells.StairUntil = now + StairSeconds;
+            else
+                Cells.StairHolder = 0;
+        }
         switch (_phase)
         {
             case Phase.Seek:
                 return Seek(eidolon, now);
+            case Phase.Plan:
+                if (_job is { Closed: true })
+                {
+                    Told(eidolon);
+                    return GoHome(eidolon);
+                }
+                if (Cells.Plan == null || Cells.Live == null)
+                {
+                    Ensure(eidolon);
+                    return true;
+                }
+                _phase = Phase.Seek;
+                return Seek(eidolon, now);
             case Phase.Walk:
-                // its sector moved (a member joined or left, a steal): to its search, which finds its new one
-                if (SyncSector(eidolon))
+                // a new plan: its stations are of the old one
+                if (_planVersion != Cells.PlanVersion || Station is not { } head)
                 {
                     _nav!.Stop();
                     _phase = Phase.Seek;
@@ -281,55 +343,25 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 }
                 if (_nav!.Active)
                 {
-                    // its square kept while it walks to it, however long the way
+                    // its stations kept while it walks to them, however long the way
                     Board?.Struck(eidolon.EntityId, now);
                     return true;
                 }
-                if (Next(eidolon, now) is { } group && Reserve(eidolon, group.Cells, now) && BeginStrike(eidolon, group, now))
-                    return true;
-                if (Blocked(eidolon, now))
-                {
-                    _nav.Stop();
-                    Board?.Release(eidolon.EntityId);
-                    _square = null;
-                    _phase = Phase.Seek;
-                    return true;
-                }
-                // Arrived short of the place (on a ledge's edge, its box over the block beside): step
-                // onto it, straight, once, before counting the walk a miss. Aimed a little past it,
-                // as the steer stops 0.2 short, so it ends within 0.15, its box over the place's own
-                // columns. Only from close by and at most a block above or below it: the steer never
-                // climbs, and must not walk it off a drop, so from anywhere else it walks a path again.
-                double dx = 0, dz = 0, d = double.MaxValue;
-                if (_stand is { } s)
-                {
-                    dx = s.X - eidolon.Pos.X;
-                    dz = s.Z - eidolon.Pos.Z;
-                    d = Math.Sqrt(dx * dx + dz * dz);
-                }
-                if (_stand is { } stand && !_settled && Math.Abs(Feet(eidolon) - stand.Y) <= SettleRise && d <= SettleWithin)
-                {
-                    _settled = true;
-                    var aim = new Vec3d(stand.X, stand.Y, stand.Z);
-                    if (d > 0.01)
-                        aim.Add(dx / d * SettlePast, 0, dz / d * SettlePast);
-                    if (d > 0.01 && _nav.Steer(aim, false, () => { }))
-                        return true;
-                }
-                if (_square == null || ++_approaches > Approaches || !Approach(eidolon, _square))
-                    GiveUp(eidolon);
-                return true;
+                return Arrived(eidolon, head, now);
             case Phase.Strike:
                 return Strike(eidolon, now);
             case Phase.Return:
+                // waiting for the stair to come free to climb out by
+                if (_stairWait)
+                    return GoHome(eidolon);
                 // stopped short (stuck, or off an edge into the pit): it sets off again, a few times
                 return _nav!.Active || ++_homeTries <= HomeTries && GoHome(eidolon);
             case Phase.Travel:
                 if (_nav!.Active)
                     return true;
-                // there (or as far as it got): search again at once
+                // there (or as far as it got): look again at once
                 _phase = Phase.Seek;
-                _rescanAt = 0;
+                _waitingSince = null;
                 return true;
             case Phase.Wait:
                 // Another member made the report: back to where it was ordered.
@@ -341,15 +373,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 if (_nav!.Active || now < _waitCheckAt)
                     return true;
                 _waitCheckAt = now + WaitCheckSeconds;
-                if (_finished)
+                if (_finished && Board?.TryClose(eidolon.EntityId, now) == true)
                 {
-                    if (Board?.TryClose(eidolon.EntityId, now) == true)
-                    {
-                        _jobs!.SaveDone(_job!);
-                        return Report(eidolon);
-                    }
-                    if (now < _rescanAt)
-                        return true;
+                    _jobs!.SaveDone(_job!);
+                    return Report(eidolon);
                 }
                 _phase = Phase.Seek;
                 return Seek(eidolon, now);
@@ -360,6 +387,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     public void Stop(EntityLaborEidolon eidolon, bool cancelled)
     {
         Halt(eidolon);
+        if (Cells.StairHolder == eidolon.EntityId)
+            Cells.StairHolder = 0;
+        _queue.Clear();
         // Its columns are freed at once; it leaves its job when done, and is away from it meanwhile
         // (the server's sweep takes it out if the order was replaced).
         if (_done)
@@ -391,6 +421,15 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         jobs.Mining.SetFinished(id, false);
     }
 
+    /// <summary>Has its job's plan made if it is not (the first member to start does: <see cref="EidolonMinePlans.Ensure"/>).</summary>
+    private void Ensure(EntityLaborEidolon eidolon)
+    {
+        if (Cells.Live != null && Cells.Plan != null)
+            return;
+        var h = home ?? eidolon.Pos.XYZ;
+        Plans?.Ensure(Cells, area, WidePath.NodeAt(h.X, h.Y, h.Z), eidolon, _pick, _maxTier, _mineThrough);
+    }
+
     /// <summary>Saves the ids of the others in its job with its order, when they changed.</summary>
     private void SaveMates(EntityLaborEidolon eidolon)
     {
@@ -412,334 +451,428 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         eidolon.WatchedAttributes.MarkPathDirty(EntityBehaviorEidolonOrders.OrderKey);
     }
 
-    /// <summary>Reserves the columns <paramref name="cells"/> are in (<see cref="Units"/>; true with no
-    /// jobs on this server).</summary>
-    private bool Reserve(EntityLaborEidolon eidolon, IReadOnlyList<MarkPos> cells, double now) =>
-        cells.Count == 0 || (Board?.TryReserve(eidolon.EntityId, Units(cells), now) ?? true);
-
-    /// <summary>The block columns a miner reserves for <paramref name="cells"/>: a face group of the tunnel
-    /// being driven, its own columns (the lanes are laid from the tunnel's edge, not the area's); any
-    /// other, the 2 × 2 square the first is in, its columns in the area.</summary>
-    private IEnumerable<(int X, int Z)> Units(IReadOnlyList<MarkPos> cells) =>
-        Cells.Driving is { } tunnel && tunnel.Contains(cells[0]) ? cells.Select(c => (c.X, c.Z)).Distinct() : SquareOf(cells[0]);
-
-    // The columns of the square a cell is in: the unit a miner reserves.
-    private IEnumerable<(int X, int Z)> SquareOf(MarkPos cell) => EidolonMining.SquareColumns(area, EidolonMining.Square(area, cell.X, cell.Z));
-
-    /// <summary>The other eidolons loaded within <see cref="OthersRange"/> of a point, where each stands
-    /// and its feet' block: none of them may be undermined.</summary>
-    private static List<(double X, int Feet, double Z)> Others(EntityLaborEidolon eidolon, Vec3d at,
+    /// <summary>The other eidolons loaded within <see cref="OthersRange"/> of a point, where each stands,
+    /// its feet' block and whether it walks: it digs in none of their columns.</summary>
+    private static List<(double X, int Feet, double Z, bool Walking)> Others(EntityLaborEidolon eidolon, Vec3d at,
         float range = OthersRange, float rise = OthersRange) =>
         eidolon.World.GetEntitiesAround(at, range, rise, e => e is EntityLaborEidolon && e.EntityId != eidolon.EntityId && e.Alive)
-            .Select(e => (e.Pos.X, Feet(e), e.Pos.Z)).ToList();
+            .Select(e => (e.Pos.X, Feet(e), e.Pos.Z, Math.Sqrt(e.Pos.Motion.X * e.Pos.Motion.X + e.Pos.Motion.Z * e.Pos.Motion.Z) >= EidolonNavigator.StandingMotion))
+            .ToList();
 
-    /// <summary>Every other eidolon loaded over the area, where each stands: a square under one, its
-    /// job's or not, at work or idle, is passed over for now, and taken once it has moved.</summary>
-    private List<(double X, int Feet, double Z)> OthersOverArea(EntityLaborEidolon eidolon)
+    /// <summary>
+    /// Every other eidolon loaded over the area, as dispatch sees it (<see cref="MineWorker"/>): a member of
+    /// its job at work with the stations it holds; any other (a member waiting, one of another job, or none
+    /// at all, parked in the area) holding none and never arriving anywhere first, but still one the guard
+    /// keeps a way out for and digs no column of.
+    /// </summary>
+    private List<MineWorker> Workers(EntityLaborEidolon eidolon)
     {
         var centre = new Vec3d((area.Min.X + area.Max.X + 1) / 2.0, (area.Min.Y + area.Max.Y + 1) / 2.0, (area.Min.Z + area.Max.Z + 1) / 2.0);
         float range = area.LongestSide / 2f + OthersRange;
-        return Others(eidolon, centre, range, area.SizeY / 2f + OthersRange);
+        var workers = new List<MineWorker>();
+        foreach (var e in eidolon.World.GetEntitiesAround(centre, range, area.SizeY / 2f + OthersRange,
+                     e => e is EntityLaborEidolon && e.EntityId != eidolon.EntityId && e.Alive))
+        {
+            var queue = e is EntityLaborEidolon { Orders.Current: MineOrder o } && _job != null && o._job == _job ? o._queue.ToList() : [];
+            workers.Add(new MineWorker(e.EntityId, e.Pos.X, Feet(e), e.Pos.Z, queue, queue.Count > 0 ? 0 : NeverSeconds));
+        }
+        return workers;
     }
 
-    /// <summary>Whether the square it walked to is not for it now, though it may be later: mined out by
-    /// another, held by another, out of its sector or under its job's lowest layer, or every block of it
-    /// left under an eidolon's box. It goes back to its search (which waits if nothing else is free) rather
-    /// than giving the square up.</summary>
-    private bool Blocked(EntityLaborEidolon eidolon, double now)
-    {
-        if (_square == null)
-            return false;
-        var cells = _square.Where(Mine).ToList();
-        if (cells.Count == 0)
-            return true;
-        if (Board is { } board && !Units(cells).All(u => board.Free(eidolon.EntityId, u, now)))
-            return true;
-        var others = Others(eidolon, eidolon.Pos.XYZ);
-        return cells.All(c => EidolonMining.Undermines(others, c));
-    }
+    private static List<MineWorkerAt> At(IEnumerable<MineWorker> workers) =>
+        workers.Select(w => new MineWorkerAt(w.Id, w.X, w.Feet, w.Z, w.Queue.Select(s => s.Stand).ToList())).ToList();
 
     private bool Seek(EntityLaborEidolon eidolon, double now)
     {
-        // Waiting for a part of the area to load: search again only now and then.
+        // Waiting for a part of the area to load: look again only now and then.
         if (_waitingSince != null && now < _rescanAt)
             return true;
-        Plan(eidolon);
-        SyncSector(eidolon);
-        // Searched again every RescanSeconds, and when the job's level moved (its lowest layer with it).
-        if (now >= _rescanAt || _job?.Level != _scannedLevel)
+        var cells = Cells;
+        if (cells.Plan is not { } plan || cells.Live is not { } live)
+        {
+            Ensure(eidolon);
+            _phase = Phase.Plan;
+            eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-planning");
+            return true;
+        }
+        if (now >= _rescanAt)
         {
             eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-seeking");
-            Scan(eidolon);
-            _rescanAt = now + RescanSeconds;
-            Board?.SetLevel(eidolon.EntityId, _top);
-            _scannedLevel = _job?.Level;
             SaveMates(eidolon);
+            _rescanAt = now + RescanSeconds;
         }
-        // The tunnel first, while it is driven: its heading's ceiling is out of reach from below.
-        if (Cells.Driving is { } tunnel && Drive(eidolon, tunnel, now))
-            return true;
-        _lowest = _job?.Lowest;
-        _layer = OwnLayer();
-        // Nothing left in its sector it may work: a sector let go, or half of another's, else its own let go.
-        if (_layer == null && TakeSector(eidolon))
-            _layer = OwnLayer();
-        if (_layer is not { } layer)
+        TellOutOfReach(eidolon, plan);
+        if (_planVersion != cells.PlanVersion)
         {
-            if (_top == null)
-            {
-                // what is left is under eidolons: it waits for them to move
-                if (_underOthers > 0 && _unloaded.Count == 0)
-                {
-                    Unfinish(eidolon);
-                    return Wait(eidolon, now);
-                }
-                return _unloaded.Count == 0 ? Finish(eidolon, now) : Travel(eidolon, now);
-            }
-            // blocks left, none it may work now (another's, or under the job's lowest layer)
-            Unfinish(eidolon);
-            return _unloaded.Count == 0 ? Wait(eidolon, now) : Travel(eidolon, now);
+            // a new plan: its stations are of the old one, and its claims with them
+            DropQueue(eidolon);
+            _planVersion = cells.PlanVersion;
         }
+        var workers = Workers(eidolon);
+        var at = At(workers);
+        // what it holds that is done, or no longer its to work now (another stands there, the world changed)
+        while (_queue.Count > 0 && !MineDispatch.Executable(plan, live, Usable(_queue[0], workers), at, out _))
+            DropHead(eidolon);
+        Refill(eidolon, plan, live, workers, now);
+        if (Station is not { } head)
+            return Idle(eidolon, live, workers, now);
         _waitingSince = null;
         _stalled = false;
+        _stuckSince = null;
         Unfinish(eidolon);
-        var others = OthersOverArea(eidolon);
-        if (Next(eidolon, now, others) is { } group && Reserve(eidolon, group.Cells, now) && BeginStrike(eidolon, group, now))
-            return true;
-        // The nearest square of its sector with a block its owner may break (the claim asked only now),
-        // not held by another; of it, the blocks under no eidolon. One held, or wholly under an eidolon,
-        // is passed over for now and tried again (it waits if nothing else is free).
-        bool taken = false;
-        foreach (var (_, cells) in EidolonMining.Squares(area, _left.Where(InSector), layer, eidolon.Pos.X, eidolon.Pos.Z))
+        if (head.Id != _approached)
         {
-            var left = cells.Where(Mine).ToList();
-            if (left.Count == 0)
-                continue;
-            var breakable = left.Where(c => !EidolonMining.Undermines(others, c)).ToList();
-            if (breakable.Count == 0 || !Reserve(eidolon, breakable, now))
-            {
-                taken = true;
-                continue;
-            }
-            _square = breakable;
+            _approached = head.Id;
             _approaches = 0;
-            if (!Approach(eidolon, _square))
-                GiveUp(eidolon);
-            return true;
+            _settled = false;
         }
-        if (taken)
-            return Wait(eidolon, now);
-        // what was left of its layer is gone (mined by another, claimed): its next search finds the rest
-        _layer = null;
-        return true;
+        if (AtStand(eidolon, head.Stand))
+            return Arrived(eidolon, head, now);
+        return Approach(eidolon, head, now);
     }
 
-    /// <summary>
-    /// Plans the tunnel, once for its job (<see cref="MineJobCells.Planned"/>): its covered part and the
-    /// way in from the open face nearest where the job's members stand (<see cref="PlanTunnel"/>). An
-    /// area covered all over that it cannot drive (the world changed since the area was marked, which
-    /// refuses it) is told to its owner, and the area is quarried as one with none covered; one covered in
-    /// part with no tunnel is quarried so with nothing told.
-    /// </summary>
-    private void Plan(EntityLaborEidolon eidolon)
+    /// <summary>The station cut to the cells in no column of an eidolon that holds no station (parked in the
+    /// area): those wait for it to move, the rest are dug round it.</summary>
+    private static MineStation Usable(MineStation station, IReadOnlyList<MineWorker> workers)
     {
-        var cells = Cells;
-        if (cells.Planned)
-            return;
-        cells.Planned = true;
-        var at = (_job?.Present ?? []).Select(At).OfType<(double X, double Z)>().DefaultIfEmpty((eidolon.Pos.X, eidolon.Pos.Z)).ToList();
-        var (fit, tunnel) = PlanTunnel(eidolon.World, area, eidolon.CollisionBox, at.Average(p => p.X), at.Average(p => p.Z));
-        cells.Tunnel = tunnel;
-        if (RefusalKey(fit) is { } key)
-            FellOrder.TellOwner(eidolon, "seraphhorizons:eidolon-mine-tunnel-refused",
-                Lang.Get(key, EidolonTunnels.MinHeight, EidolonTunnels.MinWidth, EidolonTunnels.HeadingHeight));
+        var parked = workers.Where(w => w.Queue.Count == 0).ToList();
+        if (parked.Count == 0 || !station.Cells.Any(c => parked.Any(w => EidolonMining.UnderFoot(w.X, w.Z, c))))
+            return station;
+        var cells = station.Cells.Where(c => !parked.Any(w => EidolonMining.UnderFoot(w.X, w.Z, c))).ToList();
+        return station with { Cells = cells };
     }
 
-    /// <summary>The tunnel of <paramref name="area"/>'s covered part, driven from its open face nearest
-    /// (<paramref name="fromX"/>, <paramref name="fromZ"/>) by an eidolon of <paramref name="box"/>, or why
-    /// it cannot be (<see cref="EidolonTunnels.Plan"/>): covered where a full block of ground is within
-    /// <see cref="EidolonTunnels.RoofRise"/> over the top layer (<see cref="Roof"/>), in a column loaded.</summary>
-    public static (TunnelFit Fit, MineTunnel? Tunnel) PlanTunnel(IWorldAccessor world, MarkArea area, Cuboidf box, double fromX, double fromZ)
-    {
-        var blocks = world.BlockAccessor;
-        var pos = new BlockPos(0);
-        var covered = EidolonTunnels.Covered(area, c => blocks.GetChunkAtBlockPos(pos.Set(c.X, c.Y, c.Z)) != null && Roof(blocks.GetBlock(pos)));
-        return EidolonTunnels.Plan(area, covered, new GameWideSpace(blocks, box), Solid(blocks), fromX, fromZ);
-    }
-
-    /// <summary>Whether a heading of the tunnel opens on its side at its own level (<see cref="EidolonTunnels.Opens"/>),
-    /// as the world is now: onto air with ground in front of it, or ground dug out.</summary>
-    private static bool Opens(IWorldAccessor world, MineTunnel heading, Cuboidf box) =>
-        EidolonTunnels.Opens(heading, new GameWideSpace(world.BlockAccessor, box), Solid(world.BlockAccessor));
-
-    // A block there, not a liquid: what a face's cells are as the face is looked at.
-    private static System.Func<MarkPos, bool> Solid(IBlockAccessor blocks)
-    {
-        var pos = new BlockPos(0);
-        return c =>
-        {
-            var block = blocks.GetBlock(pos.Set(c.X, c.Y, c.Z));
-            return block.Id != 0 && !block.IsLiquid();
-        };
-    }
-
-    /// <summary>The lang key a tunnel that does not fit is refused with (arguments the least height and
-    /// width, and the heading's height), or null for one that fits.</summary>
-    public static string? RefusalKey(TunnelFit fit) => fit switch
-    {
-        TunnelFit.TooLow => "seraphhorizons:eidoloncommander-mine-toolow",
-        TunnelFit.TooNarrow => "seraphhorizons:eidoloncommander-mine-narrow",
-        TunnelFit.NoFace => "seraphhorizons:eidoloncommander-mine-noface",
-        _ => null,
-    };
-
-    /// <summary>Whether a block over the area roofs it: a full block of ground under its underside
-    /// (stone, ore, soil, gravel, sand, brick, clay work), not a tree, plants, snow or a loose stone.</summary>
-    private static bool Roof(Block block) =>
-        block.Id != 0 && !block.IsLiquid() && block.SideSolid[BlockFacing.DOWN.Index]
-        && block.BlockMaterial is EnumBlockMaterial.Stone or EnumBlockMaterial.Ore or EnumBlockMaterial.Soil or EnumBlockMaterial.Gravel
-            or EnumBlockMaterial.Sand or EnumBlockMaterial.Brick or EnumBlockMaterial.Ceramic or EnumBlockMaterial.Mantle;
-
-    /// <summary>
-    /// Drives the tunnel (README "Eidolon", mining, tunnels): strikes its next face group
-    /// (<see cref="TunnelFront"/>) from where it stands, else walks to a place it reaches it from. With
-    /// none left in its lanes it takes lanes let go (<see cref="MineSectors.Take"/>, no steal), else waits
-    /// at the rim; the last of the job's members at work to have none moves the job on to the next heading
-    /// down if that opens at its own level (<see cref="MineTunnel.Below"/>, <see cref="Opens"/>), and
-    /// drives it; else ends the tunnel for the job (<see cref="MineJobCells.TunnelDone"/>), the area is
-    /// split and searched afresh, and false: it quarries.
-    /// </summary>
-    private bool Drive(EntityLaborEidolon eidolon, MineTunnel tunnel, double now)
+    /// <summary>Takes stations until it holds <see cref="MineDispatch.QueueLength"/> (<see cref="MineDispatch.Next"/>),
+    /// each claimed on the board (all of its columns or none); only one while another member of its job holds
+    /// none, so the next is left for that one (a second held lets go of).</summary>
+    private void Refill(EntityLaborEidolon eidolon, MinePlan plan, MineState live, List<MineWorker> workers, double now)
     {
         long id = eidolon.EntityId;
+        var board = Board;
+        var parked = workers.Where(w => w.Queue.Count == 0).ToList();
+        bool Clear(MarkPos c) => !parked.Any(w => EidolonMining.UnderFoot(w.X, w.Z, c));
+        int length = _job != null && parked.Any(w => _job.Present.Contains(w.Id)) ? 1 : MineDispatch.QueueLength;
+        while (_queue.Count > Math.Max(1, length))
+        {
+            board?.Unclaim(id, _queue[^1].Id);
+            _queue.RemoveAt(_queue.Count - 1);
+        }
+        while (_queue.Count < length)
+        {
+            var me = new MineWorker(id, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, _queue.ToList(), 0);
+            var next = MineDispatch.Next(plan, live, me, workers,
+                s => board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now)), parked.Count > 0 ? Clear : null);
+            if (next == null || board != null && !board.TryClaim(id, next.Id, MineDispatch.Claim(next, plan.Tunnel), now))
+                break;
+            _queue.Add(next);
+        }
+    }
+
+    /// <summary>Lets go of the station it works (its claim freed).</summary>
+    private void DropHead(EntityLaborEidolon eidolon)
+    {
+        if (_queue.Count == 0)
+            return;
+        Board?.Unclaim(eidolon.EntityId, _queue[0].Id);
+        _queue.RemoveAt(0);
+    }
+
+    /// <summary>Lets go of every station it holds.</summary>
+    private void DropQueue(EntityLaborEidolon eidolon)
+    {
+        foreach (var s in _queue)
+            Board?.Unclaim(eidolon.EntityId, s.Id);
+        _queue.Clear();
+    }
+
+    /// <summary>
+    /// Nothing it may take now. Only the stair's way out (or nothing) left: done (<see cref="Finish"/>), or it
+    /// makes for a part not loaded (<see cref="Travel"/>). Blocks left that no member may work, none at work:
+    /// the plan is made again at once, once (<see cref="EidolonMinePlans.Replan"/>), and then, with nothing
+    /// changed for <see cref="StuckSeconds"/> and no other eidolon over the area, done with them left; with
+    /// another at work or parked over the area, it waits at the rim.
+    /// </summary>
+    private bool Idle(EntityLaborEidolon eidolon, MineState live, List<MineWorker> workers, double now)
+    {
         var cells = Cells;
-        var group = TunnelFront(eidolon, tunnel, now);
-        if (group == null && TakeHeading(eidolon, tunnel))
-            group = TunnelFront(eidolon, tunnel, now);
+        bool unloaded = live.Site.UnloadedColumns.Count > 0;
+        bool left = live.Bands is { } bands ? !bands.StairOpen : live.Remaining.Count > 0;
+        if (!left)
+            return unloaded ? Travel(eidolon, now) : Finish(eidolon, now);
+        bool working = workers.Any(w => w.Queue.Count > 0);
+        if (!working)
+        {
+            if (!cells.StuckReplanned)
+            {
+                cells.StuckReplanned = true;
+                Plans?.Replan(cells, true);
+                eidolon.World.Logger.Notification($"[eidolon-mine] {eidolon.EntityId} stuck on {EidolonMinePlans.Describe(area)} with {live.Remaining.Count} left: planned again");
+            }
+            else
+            {
+                if (unloaded)
+                    return Travel(eidolon, now);
+                _stuckSince ??= now;
+                if (now - _stuckSince >= StuckSeconds && !workers.Any(w => OverArea(w.X, w.Z)))
+                    return Finish(eidolon, now);
+            }
+        }
+        else
+            _stuckSince = null;
+        Unfinish(eidolon);
+        return Wait(eidolon, now);
+    }
+
+    private bool OverArea(double x, double z)
+    {
+        var f = EidolonMining.Footprint(x, z);
+        return f.MaxX >= area.Min.X && f.MinX <= area.Max.X && f.MaxZ >= area.Min.Z && f.MinZ <= area.Max.Z;
+    }
+
+    /// <summary>Whether it stands at <paramref name="stand"/>: the node its feet are nearest, at its height.</summary>
+    private static bool AtStand(EntityLaborEidolon eidolon, PathCell stand) => WidePath.NodeAt(eidolon.Pos.X, eidolon.Pos.Y, eidolon.Pos.Z) == stand;
+
+    /// <summary>
+    /// At (or near) its station's stand: strikes its next group (<see cref="StrikeAt"/>); with none in reach
+    /// from where it stands (arrived short of the place, on a ledge's edge, its box over the block beside),
+    /// it steps onto it, straight, once, then sets off for it again, a few times, before it calls the stand
+    /// bad (<see cref="BadStand"/>).
+    /// </summary>
+    private bool Arrived(EntityLaborEidolon eidolon, MineStation head, double now)
+    {
+        switch (StrikeAt(eidolon, head, now))
+        {
+            case Try.Struck:
+                return true;
+            case Try.Dropped:
+                _phase = Phase.Seek;
+                return true;
+        }
+        // Aimed a little past it, as the steer stops 0.2 short, so it ends within 0.15, its box over the
+        // place's own columns. Only from close by and at most a block above or below it: the steer never
+        // climbs, and must not walk it off a drop, so from anywhere else it walks a path again.
+        var stand = head.Stand;
+        double dx = stand.X - eidolon.Pos.X, dz = stand.Z - eidolon.Pos.Z, d = Math.Sqrt(dx * dx + dz * dz);
+        if (!_settled && Math.Abs(Feet(eidolon) - stand.Y) <= SettleRise && d <= SettleWithin)
+        {
+            _settled = true;
+            var aim = new Vec3d(stand.X, stand.Y, stand.Z);
+            if (d > 0.01)
+                aim.Add(dx / d * SettlePast, 0, dz / d * SettlePast);
+            if (d > 0.01 && _nav!.Steer(aim, false, () => { }))
+            {
+                _phase = Phase.Walk;
+                return true;
+            }
+        }
+        if (++_approaches > Approaches)
+        {
+            BadStand(eidolon, head, now);
+            return true;
+        }
+        return Approach(eidolon, head, now);
+    }
+
+    /// <summary>
+    /// Strikes the next group of its station from where it stands (<see cref="MineStations.NextGroup"/>, from
+    /// its stand, of the cells it may break, <see cref="Left"/>), once the live state lets it
+    /// (<see cref="MineState.Check"/>, the others where they stand, and the stands of the plan's stations still
+    /// to be worked before it, <see cref="MineDispatch.Before"/>). Its station done, or refused, is let go.
+    /// </summary>
+    private Try StrikeAt(EntityLaborEidolon eidolon, MineStation head, double now)
+    {
+        var cells = Cells;
+        if (cells.Plan is not { } plan || cells.Live is not { } live)
+            return Try.Dropped;
+        var others = Others(eidolon, eidolon.Pos.XYZ, OthersRange, area.SizeY + OthersRange);
+        var workable = head.Cells.Where(c => Left(c, others)).ToHashSet();
+        if (workable.Count == 0)
+        {
+            DropHead(eidolon);
+            return Try.Dropped;
+        }
+        var stand = head.Stand;
+        var group = MineStations.NextGroup(head, plan.Tunnel, workable.Contains, stand.X, stand.Y, stand.Z);
         if (group == null)
         {
-            cells.TunnelIdle[id] = cells.Sectors.Version;
-            if (_job != null && Board != null
-                && !_job.Present.All(m => cells.TunnelIdle.TryGetValue(m, out int at) && at == cells.Sectors.Version))
-            {
-                Unfinish(eidolon);
-                return Wait(eidolon, now);
-            }
-            cells.TunnelIdle.Clear();
-            if (tunnel.Below(area.Min.Y) is { } lower && Opens(eidolon.World, lower, eidolon.CollisionBox))
-                cells.Tunnel = lower;
-            else
-                cells.TunnelDone = true;
-            SyncSector(eidolon);
-            Scan(eidolon);
-            Board?.SetLevel(eidolon.EntityId, _top);
-            return cells.Driving is { } next && Drive(eidolon, next, now);
+            DropHead(eidolon);
+            return Try.Dropped;
         }
-        cells.TunnelIdle.Remove(id);
-        _waitingSince = null;
-        _stalled = false;
-        Unfinish(eidolon);
-        if (Reserve(eidolon, group.Cells, now) && BeginStrike(eidolon, group, now))
+        if (head.Kind == MineStationKind.Stair && Unhung(eidolon, plan, group) is { } hung)
+        {
+            if (hung.Count == 0)
+                return Try.Dropped;
+            group = group with { Cells = hung };
+        }
+        var before = MineDispatch.Before(plan, live, head);
+        if (MineDispatch.Footing(before, group.Cells) || live.Check(stand, group.Cells, At(Workers(eidolon)), null, before) != MineRefusal.None)
+        {
+            DropHead(eidolon);
+            return Try.Dropped;
+        }
+        // Only from its stand: the guard was asked of it, and from anywhere else (a walk that ended short,
+        // at the bottom of the pit under a stand on its rim, say) a block in reach may be its own way out.
+        int feet = Feet(eidolon);
+        if (!AtStand(eidolon, stand) || !group.Cells.Any(c => EidolonMining.InReach(eidolon.Pos.X, feet, eidolon.Pos.Z, c)))
+            return Try.NotInReach;
+        if (!BeginStrike(eidolon, head, group, now))
+            return Try.Dropped;
+        _pathFails = 0;
+        return Try.Struck;
+    }
+
+    /// <summary>
+    /// A stair's group cut to the cells that leave none of the stair standing with nothing under it or
+    /// beside it (the game's rock caves in where it hangs free: a tread so left would fall and take its way
+    /// out with it); those it may not dig are left for the order's life, kept as the stair (the plan is not
+    /// made again for them). Null when all may go.
+    /// </summary>
+    private List<MarkPos>? Unhung(EntityLaborEidolon eidolon, MinePlan plan, MineGroup group)
+    {
+        var blocks = eidolon.World.BlockAccessor;
+        var pos = new BlockPos(eidolon.Pos.Dimension);
+        var cells = group.Cells.ToHashSet();
+        bool Solid(int x, int y, int z) => !cells.Contains(new MarkPos(x, y, z)) && blocks.GetBlock(pos.Set(x, y, z)).Id != 0;
+        bool Held(MarkPos n) => Solid(n.X, n.Y - 1, n.Z) || Solid(n.X - 1, n.Y, n.Z) || Solid(n.X + 1, n.Y, n.Z) || Solid(n.X, n.Y, n.Z - 1) || Solid(n.X, n.Y, n.Z + 1);
+        var keep = new List<MarkPos>();
+        foreach (var c in group.Cells)
+        {
+            MarkPos[] near = [c with { Y = c.Y + 1 }, c with { X = c.X - 1 }, c with { X = c.X + 1 }, c with { Z = c.Z - 1 }, c with { Z = c.Z + 1 }];
+            if (near.Any(n => plan.Stair.Contains(n) && !cells.Contains(n) && blocks.GetBlock(pos.Set(n.X, n.Y, n.Z)).Id != 0 && !Held(n)))
+            {
+                Leave(c);
+                if (Cells.Live is { } live)
+                    live.Stale = false;
+                continue;
+            }
+            keep.Add(c);
+        }
+        return keep.Count == group.Cells.Count ? null : keep;
+    }
+
+    /// <summary>Sets off for its station's stand; a stand the game finds no way to is bad (<see cref="BadStand"/>).</summary>
+    private bool Approach(EntityLaborEidolon eidolon, MineStation head, double now)
+    {
+        var stand = head.Stand;
+        if (!TakeStair(eidolon, stand.Y))
+        {
+            // another is on the stair: it waits off it and looks again
+            _phase = Phase.Wait;
+            _waitCheckAt = now + WaitCheckSeconds;
+            OffStair(eidolon);
             return true;
-        if (!Reserve(eidolon, group.Cells, now))
-            return Wait(eidolon, now);
-        _square = group.Cells;
-        _approaches = 0;
-        if (!Approach(eidolon, _square))
-            GiveUp(eidolon);
+        }
+        if (_nav!.GoTo(new Vec3d(stand.X, stand.Y, stand.Z), false, () => { }, () => { }, arriveWithin: ArriveWithin))
+        {
+            // its way goes through another (no way round it, a pit too narrow to pass one at work): it waits
+            // for room, at most ThroughSeconds, rather than push past it
+            if (!_nav.LastWentAround && (_throughSince ??= now) > now - ThroughSeconds)
+            {
+                _nav.Stop();
+                _phase = Phase.Wait;
+                _waitCheckAt = now + WaitCheckSeconds;
+                eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting");
+                return true;
+            }
+            _throughSince = null;
+            _rim.Leave(eidolon, _jobs);
+            _phase = Phase.Walk;
+            _settled = false;
+            eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-walking");
+            return true;
+        }
+        BadStand(eidolon, head, now);
         return true;
     }
 
-    /// <summary>Its next face group of the tunnel (<see cref="EidolonTunnels.Front"/>): in its lanes (its
-    /// sector; the whole tunnel alone), of the cells its to mine, in columns no other eidolon holds. Null
-    /// for none, or no lanes.</summary>
-    private MineGroup? TunnelFront(EntityLaborEidolon eidolon, MineTunnel tunnel, double now)
+    /// <summary>A stand the game's pathfinder finds no way to, or that it arrives short of again and again
+    /// (README "Eidolon", mining, *Stations*: the game's blocks are not all whole): bad, for its job, until a
+    /// block near it changes; the station let go and the plan made again without it. After
+    /// <see cref="PathTries"/> in a row, it waits.</summary>
+    private void BadStand(EntityLaborEidolon eidolon, MineStation head, double now)
     {
-        var lanes = _job == null || Board == null ? tunnel.Bounds : _sector;
-        if (lanes is not { } sector)
-            return null;
-        var board = Board;
+        _nav?.Stop();
+        Cells.BadStands.Add(head.Stand);
+        eidolon.World.Logger.Notification($"[eidolon-mine] {eidolon.EntityId}: no way to stand ({head.Stand.X},{head.Stand.Y},{head.Stand.Z}) (station {head.Id}) from {eidolon.Pos.XYZ}: bad");
+        DropHead(eidolon);
+        Plans?.Replan(Cells, false);
+        _phase = Phase.Seek;
+        if (++_pathFails >= PathTries)
+        {
+            _pathFails = 0;
+            DropQueue(eidolon);
+            Wait(eidolon, now);
+        }
+    }
+
+    /// <summary>
+    /// Whether it may set off for feet <paramref name="toFeet"/> (README "Eidolon", working together, *The
+    /// stair*): a walk in a pit with a stair more than a climb up or down, from or to more than a climb under
+    /// its rim, is on the stair, which one member walks at a time (it is 2 wide: two
+    /// meeting on it push each other off); such a walk takes it (<see cref="MineJobCells.StairHolder"/>),
+    /// unless another holds it, and it is let go once the walk is over. Any other walk may go.
+    /// </summary>
+    private bool TakeStair(EntityLaborEidolon eidolon, int toFeet)
+    {
+        var cells = Cells;
+        if (_job == null || cells.Plan is not { Stair.Count: > 0 })
+            return true;
+        int feet = Feet(eidolon), rim = area.Max.Y + 1, climb = EidolonTeamwork.FloorStep;
+        if (Math.Abs(toFeet - feet) <= climb || Math.Min(feet, toFeet) >= rim - climb)
+            return true;
+        double now = EidolonJobSystem.Now(eidolon.World);
         long id = eidolon.EntityId;
-        return EidolonTunnels.Front(tunnel, sector, c => Mine(c) && board?.Free(id, (c.X, c.Z), now) != false, eidolon.Pos.X, eidolon.Pos.Z);
-    }
-
-    /// <summary>With nothing left in its lanes: takes lanes let go with work in them (counting the cells of
-    /// the heading its last search found), never stealing; else lets its own go.</summary>
-    private bool TakeHeading(EntityLaborEidolon eidolon, MineTunnel tunnel)
-    {
-        if (_job is not { Closed: false } job || Board == null)
+        if (cells.StairHolder != 0 && cells.StairHolder != id && now < cells.StairUntil && _job.Present.Contains(cells.StairHolder))
             return false;
-        var cells = _dig.Where(Standing).ToList();
-        int Work(MineSector s) => cells.Count(c => s.Contains(c.X, c.Z));
-        bool took = job.Shared.Sectors.Take(eidolon.EntityId, Work, At, steal: false);
-        if (!took)
-            job.Shared.Sectors.LetGo(eidolon.EntityId);
-        SyncSector(eidolon);
-        return took;
-    }
-
-    /// <summary>Where a member of its job stands (x, z), if loaded.</summary>
-    private (double X, double Z)? At(long member) => _jobs?.Member(member) is { } e ? (e.Pos.X, e.Pos.Z) : null;
-
-    /// <summary>Splits its job's area afresh if who is present changed (<see cref="MineSectors.Sync"/>),
-    /// and notes its sector: when that moved, it frees its square and forgets it (it walks to its new
-    /// one from its search; a strike under way is finished first, as this is asked only between them).
-    /// True when its sector moved.</summary>
-    private bool SyncSector(EntityLaborEidolon eidolon)
-    {
-        if (_job is not { Closed: false } job || Board == null)
+        // nor while another stands on it, unless it stands on it too (one of them has to go first)
+        if (!OnStair(eidolon.Pos.X, feet, eidolon.Pos.Z)
+            && _job.Present.Any(m => m != id && _jobs?.Member(m) is { } o && OnStair(o.Pos.X, Feet(o), o.Pos.Z)))
             return false;
-        var sectors = job.Shared.Sectors;
-        sectors.Sync(area, job.Present, At, job.Shared.Driving);
-        if (sectors.Version == _sectorVersion)
-            return false;
-        _sectorVersion = sectors.Version;
-        var sector = sectors.Of(eidolon.EntityId);
-        if (sector == _sector)
-            return false;
-        _sector = sector;
-        Board.Release(eidolon.EntityId);
-        _square = null;
+        cells.StairHolder = id;
+        cells.StairUntil = now + StairSeconds;
         return true;
     }
 
-    /// <summary>With nothing left in its sector it may work: takes a sector let go with work in it, or the
-    /// far half of the busiest other's (<see cref="MineSectors.Take"/>, counting what it may mine there now,
-    /// as its last search found it); else lets its own go, for a member that finds work in it later.</summary>
-    private bool TakeSector(EntityLaborEidolon eidolon)
+    /// <summary>Whether a box with its feet' centre at (<paramref name="x"/>, <paramref name="z"/>) is over a
+    /// column of the stair, under the pit's rim.</summary>
+    private bool OnStair(double x, int feet, double z)
     {
-        if (_job is not { Closed: false } job || Board == null)
+        if (feet >= area.Max.Y + 1 - EidolonTeamwork.FloorStep)
             return false;
-        var cells = _left.Where(c => (_lowest is not { } l || c.Y >= l) && Standing(c)).ToList();
-        int Work(MineSector s) => cells.Count(c => s.Contains(c.X, c.Z));
-        bool took = job.Shared.Sectors.Take(eidolon.EntityId, Work, At);
-        if (!took)
-            job.Shared.Sectors.LetGo(eidolon.EntityId);
-        SyncSector(eidolon);
-        return took;
+        var f = EidolonMining.Footprint(x, z);
+        var stair = Cells.Stair;
+        var planned = Cells.Plan?.Stair;
+        for (int cx = f.MinX; cx <= f.MaxX; cx++)
+        for (int cz = f.MinZ; cz <= f.MaxZ; cz++)
+        for (int y = area.Min.Y; y <= area.Max.Y; y++)
+            if (stair.Contains(new MarkPos(cx, y, cz)) || planned?.Contains(new MarkPos(cx, y, cz)) == true)
+                return true;
+        return false;
     }
 
-    /// <summary>The layer it works: the highest of its sector with a block left it may mine (not under
-    /// its job's lowest layer), or null for none.</summary>
-    private int? OwnLayer()
+    /// <summary>Waits for the stair to come free off it: standing over a column of it (or of its plan's),
+    /// it steps aside to the nearest place clear of them (<see cref="RimWait.Aside"/>), out of the way of the
+    /// one walking it; else it waits where it is.</summary>
+    private void OffStair(EntityLaborEidolon eidolon)
     {
-        int? layer = null;
-        foreach (var c in _left)
-            if ((layer == null || c.Y > layer) && InSector(c) && (_lowest is not { } l || c.Y >= l) && Standing(c))
-                layer = c.Y;
-        return layer;
+        eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting-stair");
+        var columns = Cells.Stair.Concat(Cells.Plan?.Stair ?? new HashSet<MarkPos>()).Select(c => (c.X, c.Z)).ToHashSet();
+        bool Clear(int x, int z)
+        {
+            for (int cx = x - 1; cx <= x; cx++)
+            for (int cz = z - 1; cz <= z; cz++)
+                if (columns.Contains((cx, cz)))
+                    return false;
+            return true;
+        }
+        var f = EidolonMining.Footprint(eidolon.Pos.X, eidolon.Pos.Z);
+        bool on = false;
+        for (int x = f.MinX; x <= f.MaxX; x++)
+        for (int z = f.MinZ; z <= f.MaxZ; z++)
+            on |= columns.Contains((x, z));
+        if (on)
+            _rim.Aside(eidolon, _nav!, _jobs, Clear);
     }
-
-    /// <summary>Whether a cell is in its sector (any, alone or with no jobs on this server).</summary>
-    private bool InSector(MarkPos cell) => _job == null || Board == null || _sector is { } s && s.Contains(cell.X, cell.Z);
-
-    /// <summary>Whether a cell is its to mine now: left (<see cref="Left"/>), in its sector, and not under
-    /// its job's lowest layer (a cell of the tunnel's heading is under none: it is no layer's).</summary>
-    private bool Mine(MarkPos cell) =>
-        InSector(cell) && (_lowest is not { } l || cell.Y >= l || Cells.Driving?.Contains(cell) == true) && Left(cell);
-
-    /// <summary>Whether the block of a cell found by a search is still there (another may have mined it).</summary>
-    private bool Standing(MarkPos cell) => _eidolon == null || _eidolon.World.BlockAccessor.GetBlock(_probe.Set(cell.X, cell.Y, cell.Z)).Id != 0;
 
     /// <summary>It has work again after it said it had none.</summary>
     private void Unfinish(EntityLaborEidolon eidolon)
@@ -750,26 +883,35 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         Board?.SetFinished(eidolon.EntityId, false);
     }
 
-    /// <summary>Nothing it may work now (every square left held by another, a layer above still worked,
-    /// or nothing left while the others finish): frees its columns and waits at the area's rim, out of
-    /// the pit and out of the others' way (<see cref="RimWait"/>), looking again every <see cref="WaitCheckSeconds"/>.</summary>
+    /// <summary>Nothing it may work now (every station left held by another, under another, or of a band
+    /// not open yet, or nothing left while the others finish): frees its columns and waits at the area's
+    /// rim, out of the pit and out of the others' way (<see cref="RimWait"/>), looking again every
+    /// <see cref="WaitCheckSeconds"/>.</summary>
     private bool Wait(EntityLaborEidolon eidolon, double now)
     {
+        DropQueue(eidolon);
         Board?.Release(eidolon.EntityId);
-        _square = null;
         _phase = Phase.Wait;
         _waitCheckAt = now + WaitCheckSeconds;
+        // in the pit, the stair another's: it waits where it is rather than climb out past that one
+        if (!_nav!.Active && !TakeStair(eidolon, area.Max.Y + 1))
+        {
+            OffStair(eidolon);
+            return true;
+        }
         _rim.Wait(eidolon, _nav!, _jobs,
-            _finished ? "seraphhorizons:eidolon-status-mine-waiting-done" : "seraphhorizons:eidolon-status-mine-waiting",
+            _finished ? "seraphhorizons:eidolon-status-mine-waiting-done"
+                : Cells.Live?.Bands?.Covered != null ? "seraphhorizons:eidolon-status-mine-waiting-face" : "seraphhorizons:eidolon-status-mine-waiting",
             "seraphhorizons:eidolon-status-mine-waiting-aside", AsideClear(eidolon.EntityId, now), now, RescanSeconds);
         return true;
     }
 
     /// <summary>Where it may step aside to when it cannot reach the rim: a path node whose four columns
-    /// have no block left it would mine (mined floor, or outside the area) and none another holds.</summary>
+    /// have no block left it would mine (mined floor, the stair, or outside the area) and none another holds.</summary>
     private System.Func<int, int, bool> AsideClear(long id, double now)
     {
-        var work = _left.Concat(_dig).Select(c => (c.X, c.Z)).ToHashSet();
+        var work = (Cells.Live?.Remaining ?? new HashSet<MarkPos>()).Concat(Cells.Plan?.Stair ?? new HashSet<MarkPos>())
+            .Select(c => (c.X, c.Z)).ToHashSet();
         var board = Board;
         return (x, z) =>
         {
@@ -781,65 +923,17 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         };
     }
 
-    /// <summary>Finds the highest layer of the whole area with a block left it may break and has not
-    /// given up (<see cref="_top"/>, which it tells its job), and gathers that layer's and the next one
-    /// down's into <see cref="_left"/>: all the job lets any member mine (its lowest layer is one under
-    /// the shallowest), for its own sector's strikes and to weigh the others' for a steal; and the columns
-    /// of the area not loaded, which it has yet to mine; and, while the tunnel is driven, its heading's
-    /// heading's cells into <see cref="_dig"/> (those of the headings driven over it, and once it is done
-    /// its own, are passed over). The land claim is left to <see cref="Left"/>.</summary>
-    private void Scan(EntityLaborEidolon eidolon)
-    {
-        var blocks = eidolon.World.BlockAccessor;
-        var pos = new BlockPos(eidolon.Pos.Dimension);
-        var chunks = new Dictionary<(int, int), bool>();
-        int probeY = Math.Clamp(area.Max.Y, 0, blocks.MapSizeY - 1);
-        bool Loaded(int x, int z)
-        {
-            var key = (x >> 5, z >> 5);
-            if (!chunks.TryGetValue(key, out bool loaded))
-                chunks[key] = loaded = blocks.GetChunkAtBlockPos(pos.Set(x, probeY, z)) != null;
-            return loaded;
-        }
-        var shared = _job?.Shared.Skip;
-        // Under an eidolon now: passed over for this search, so the layer under goes on round it (no
-        // pit held up by one parked in it), and counted, so the order is not done while it stands there.
-        var others = OthersOverArea(eidolon);
-        int underOthers = 0;
-        // The headings driven are passed over: what a member could not reach is not reached from under it.
-        var driving = Cells.Driving;
-        var last = Cells.Tunnel;
-        bool done = Cells.TunnelDone;
-        bool Pass(MarkPos c)
-        {
-            if (_unreachable.Contains(c) || last != null && (last.Above(c) || done && last.Contains(c)))
-                return true;
-            if (!EidolonMining.Undermines(others, c))
-                return false;
-            underOthers++;
-            return true;
-        }
-        var scan = EidolonMining.Scan(area, Loaded, c => Rule(eidolon, pos.Set(c.X, c.Y, c.Z), claims: false),
-            c => _skip.Contains(c) || shared?.Contains(c) == true, Pass, driving);
-        _underOthers = underOthers;
-        _top = scan.Layer;
-        _left.Clear();
-        _left.UnionWith(scan.Left);
-        _dig.Clear();
-        _dig.UnionWith(scan.Tunnel);
-        _unloaded = scan.Unloaded;
-        _mayBreak.Clear();
-    }
-
     /// <summary>With nothing left it may break in the loaded part of the area: walks toward the nearest
     /// part not loaded, at most <see cref="TravelBlocks"/> to ground that is loaded, or waits for it to
-    /// load, searching again every <see cref="RescanSeconds"/>.</summary>
+    /// load, looking again every <see cref="RescanSeconds"/>.</summary>
     private bool Travel(EntityLaborEidolon eidolon, double now)
     {
         Unfinish(eidolon);
-        // not working its square: free it for the others
+        // not working a station: its columns free for the others
+        DropQueue(eidolon);
         Board?.Release(eidolon.EntityId);
-        if (EidolonMining.NearestColumn(_unloaded, eidolon.Pos.X, eidolon.Pos.Z) is { } column && TravelTo(eidolon, column))
+        var unloaded = Cells.Live?.Site.UnloadedColumns ?? [];
+        if (EidolonMining.NearestColumn(unloaded, eidolon.Pos.X, eidolon.Pos.Z) is { } column && TravelTo(eidolon, column))
         {
             _rim.Leave(eidolon, _jobs);
             _phase = Phase.Travel;
@@ -849,6 +943,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             return true;
         }
         _waitingSince ??= now;
+        _rescanAt = now + RescanSeconds;
         _stalled = now - _waitingSince >= StallSeconds;
         eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-unloaded");
         return true;
@@ -880,38 +975,32 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         return false;
     }
 
-    /// <summary>What a block is to the order (<see cref="EidolonMining.Rule"/>), read from the world;
-    /// the land claim, the dearest test, only for one it would otherwise break, and only when
-    /// <paramref name="claims"/>.</summary>
-    private MineRule Rule(EntityLaborEidolon eidolon, BlockPos pos, bool claims = true)
+    /// <summary>Whether an area covered all over is one the eidolon fits in (<see cref="EidolonTunnels.Fit"/>),
+    /// as the world is now: covered where a full block of ground is within <see cref="EidolonTunnels.RoofRise"/>
+    /// over its top layer (<see cref="Roof"/>), in a column loaded.</summary>
+    public static TunnelFit TunnelFitOf(IWorldAccessor world, MarkArea area)
     {
-        var world = eidolon.World;
         var blocks = world.BlockAccessor;
-        var block = blocks.GetBlock(pos);
-        bool liquid = block.IsLiquid() || blocks.GetBlock(pos, BlockLayersAccess.Fluid).IsLiquid();
-        if (block.Id == 0 && !liquid)
-            return MineRule.Air;
-        bool beside = false;
-        var near = new BlockPos(pos.dimension);
-        foreach (var face in BlockFacing.ALLFACES)
-        {
-            near.Set(pos.X + face.Normali.X, pos.Y + face.Normali.Y, pos.Z + face.Normali.Z);
-            if (blocks.GetBlock(near).IsLiquid() || blocks.GetBlock(near, BlockLayersAccess.Fluid).IsLiquid())
-            {
-                beside = true;
-                break;
-            }
-        }
-        int tier = block.GetRequiredMiningTier(world, pos);
-        bool pickHas = _pick?.MiningSpeed?.ContainsKey(block.GetBlockMaterial(blocks, pos)) == true;
-        // A block entity is left but on the ground blocks it mines through (Desire Paths' worn soil).
-        bool leaves = (block.EntityClass != null || blocks.GetBlockEntity(pos) != null)
-            && EidolonMining.LeavesBlockEntity(block.Code.ToString(), _mineThrough);
-        var info = new MineBlock(false, liquid, beside, leaves, true,
-            tier, EidolonMining.PickBreaks(tier, pickHas), block.HasBehavior<BlockBehaviorUnstableFalling>());
-        var rule = EidolonMining.Rule(info, _maxTier);
-        return claims && rule == MineRule.Mine && !MayBreak(eidolon, pos) ? MineRule.Claimed : rule;
+        var pos = new BlockPos(0);
+        var covered = EidolonTunnels.Covered(area, c => blocks.GetChunkAtBlockPos(pos.Set(c.X, c.Y, c.Z)) != null && Roof(blocks.GetBlock(pos)));
+        return EidolonTunnels.Fit(area, covered);
     }
+
+    /// <summary>The lang key an area that does not fit is refused with (arguments the least height and
+    /// width, and the heading's height), or null for one that fits.</summary>
+    public static string? RefusalKey(TunnelFit fit) => fit switch
+    {
+        TunnelFit.TooLow => "seraphhorizons:eidoloncommander-mine-toolow",
+        TunnelFit.TooNarrow => "seraphhorizons:eidoloncommander-mine-narrow",
+        _ => null,
+    };
+
+    /// <summary>Whether a block over the area roofs it: a full block of ground under its underside
+    /// (stone, ore, soil, gravel, sand, brick, clay work), not a tree, plants, snow or a loose stone.</summary>
+    internal static bool Roof(Block block) =>
+        block.Id != 0 && !block.IsLiquid() && block.SideSolid[BlockFacing.DOWN.Index]
+        && block.BlockMaterial is EnumBlockMaterial.Stone or EnumBlockMaterial.Ore or EnumBlockMaterial.Soil or EnumBlockMaterial.Gravel
+            or EnumBlockMaterial.Sand or EnumBlockMaterial.Brick or EnumBlockMaterial.Ceramic or EnumBlockMaterial.Mantle;
 
     /// <summary>Whether its owner may break blocks at <paramref name="pos"/> (land claims), as felling
     /// asks: their access when the server knows them, else only where nothing is claimed.</summary>
@@ -923,111 +1012,57 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         return world.Claims.Get(pos) is not { Length: > 0 };
     }
 
-    /// <summary>Whether a cell is left to mine: found by the search, not mined since (by another
-    /// member, say), and its owner may break it there, asked the first time (a block they may not is
-    /// left for the order's life, by the whole job).</summary>
-    private bool Left(MarkPos cell)
+    /// <summary>
+    /// Whether it may break a cell of its station now: still to dig in its job's live state and of a band
+    /// whose turn it is, still standing (gone, it is taken as dug), in no column of another eidolon at any
+    /// height (<paramref name="others"/>: under it is its floor, over it is over it), and its owner may break
+    /// it, asked the first time (one they may not is left for the order's life, by the whole job, and the
+    /// plan made again round it).
+    /// </summary>
+    private bool Left(MarkPos cell, List<(double X, int Feet, double Z, bool Walking)> others)
     {
-        if (!_left.Contains(cell) && !_dig.Contains(cell))
+        if (Cells.Live is not { } live || !live.Remaining.Contains(cell) || live.Bands?.Eligible(cell) == false)
             return false;
         if (_eidolon != null && _eidolon.World.BlockAccessor.GetBlock(_probe.Set(cell.X, cell.Y, cell.Z)).Id == 0)
         {
-            Forget(cell);
+            Plans?.Seen(Cells, cell, new MineVoxel(false, MineRule.Air));
             return false;
         }
+        // its columns, and a little round them for one walking: it may step over in the time a strike lands
+        if (others.Any(o => o.Walking ? Near(o.X, o.Z, cell) : EidolonMining.UnderFoot(o.X, o.Z, cell)))
+            return false;
         if (!_mayBreak.TryGetValue(cell, out bool may))
         {
             may = _mayBreak[cell] = _eidolon != null && MayBreak(_eidolon, new BlockPos(cell.X, cell.Y, cell.Z, _eidolon.Pos.Dimension));
             if (!may)
-            {
-                Forget(cell);
-                _skip.Add(cell);
-                _job?.Shared.Skip.Add(cell);
-            }
+                Leave(cell);
         }
         return may;
     }
 
-    /// <summary>Drops a cell from its search's cells, the layers' and the tunnel's.</summary>
-    private void Forget(MarkPos cell)
+    /// <summary>Whether a cell is in a column of a box centred within <see cref="NearMargin"/> of
+    /// (<paramref name="x"/>, <paramref name="z"/>).</summary>
+    private static bool Near(double x, double z, MarkPos cell) =>
+        EidolonMining.UnderFoot(x, z, cell) || EidolonMining.UnderFoot(x - NearMargin, z - NearMargin, cell) || EidolonMining.UnderFoot(x + NearMargin, z - NearMargin, cell)
+        || EidolonMining.UnderFoot(x - NearMargin, z + NearMargin, cell) || EidolonMining.UnderFoot(x + NearMargin, z + NearMargin, cell);
+
+    private const double NearMargin = 0.25;
+
+    /// <summary>A cell left for the order's life, by the whole job: its live state takes it as one it may
+    /// not break, and the plan is made again round it.</summary>
+    private void Leave(MarkPos cell)
     {
-        _left.Remove(cell);
-        _dig.Remove(cell);
+        Cells.Skip.Add(cell);
+        Plans?.Seen(Cells, cell, new MineVoxel(true, MineRule.Claimed));
     }
 
     private readonly BlockPos _probe = new(0);
 
     private static int Feet(Entity eidolon) => (int)Math.Floor(eidolon.Pos.Y + 0.01);
 
-    /// <summary>The group it strikes next from where it stands: of the cells its to mine (<see cref="Mine"/>),
-    /// those in squares no other eidolon holds and under no eidolon's box (<see cref="EidolonMining.Undermines(double, int, double, MarkPos)"/>).</summary>
-    private MineGroup? Next(EntityLaborEidolon eidolon, double now, List<(double X, int Feet, double Z)>? others = null)
-    {
-        if (Cells.Driving is { } tunnel)
-            return TunnelFront(eidolon, tunnel, now);
-        if (_layer is not { } layer)
-            return null;
-        others ??= Others(eidolon, eidolon.Pos.XYZ);
-        var board = Board;
-        long id = eidolon.EntityId;
-        bool Takes(MarkPos c) => Mine(c) && (board == null || SquareOf(c).All(u => board.Free(id, u, now))) && !EidolonMining.Undermines(others, c);
-        return EidolonMining.Next(area, layer, Takes, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z);
-    }
-
-    /// <summary>Sets off for a place from which it reaches <paramref name="cells"/>, one another eidolon
-    /// stands on last: false when it finds no way to any.</summary>
-    private bool Approach(EntityLaborEidolon eidolon, IReadOnlyList<MarkPos> cells)
-    {
-        var space = new GameWideSpace(eidolon.World.BlockAccessor, eidolon.CollisionBox);
-        // not a place another eidolon stands on, while there is another
-        var box = eidolon.CollisionBox;
-        var others = new Others(Others(eidolon, eidolon.Pos.XYZ, OthersRange + 8).Select(o => (o.X, (double)o.Feet, o.Z)),
-            (box.X2 - box.X1) / 2, box.Y2 - box.Y1);
-        // in its own sector, not over another's, where that one may come to stand (not in a tunnel's
-        // headings, which it works from in front)
-        long id = eidolon.EntityId;
-        System.Func<int, int, bool>? theirs = _job is { } job && Cells.Driving == null
-            ? (x, z) => job.Shared.Sectors.OwnerAt(x, z) is { } o && o != id
-            : null;
-        int tries = 0;
-        foreach (var stand in EidolonMining.Stands(space, cells, Left, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, theirs)
-                     .OrderBy(s => others.Touches(s.X, s.Y, s.Z)))
-        {
-            if (_nav!.GoTo(new Vec3d(stand.X, stand.Y, stand.Z), false, () => { }, () => { }, arriveWithin: ArriveWithin))
-            {
-                _rim.Leave(eidolon, _jobs);
-                _phase = Phase.Walk;
-                _stand = stand;
-                _settled = false;
-                eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-walking");
-                return true;
-            }
-            if (++tries >= PathTries)
-                break;
-        }
-        return false;
-    }
-
-    /// <summary>Gives up the square it was making for: no way to a place that reaches it (not held by
-    /// another, nor under an eidolon: those it waits out, <see cref="Blocked"/>).</summary>
-    private void GiveUp(EntityLaborEidolon eidolon)
-    {
-        _nav?.Stop();
-        // passed over, not left in place: what is under them is still mined
-        foreach (var cell in _square ?? [])
-        {
-            Forget(cell);
-            _unreachable.Add(cell);
-            _job?.Shared.Unreachable.Add(cell);
-        }
-        _square = null;
-        Board?.Release(eidolon.EntityId);
-        _phase = Phase.Seek;
-    }
-
-    /// <summary>Starts a strike at <paramref name="group"/>, of its blocks it may break now
-    /// (<see cref="Breakable"/>); false, and none, when none is left.</summary>
-    private bool BeginStrike(EntityLaborEidolon eidolon, MineGroup group, double now)
+    /// <summary>Starts a strike at <paramref name="group"/> of <paramref name="head"/>, of its blocks it may
+    /// break now (<see cref="Breakable"/>); false, and none, when none is left.</summary>
+    private bool BeginStrike(EntityLaborEidolon eidolon, MineStation head, MineGroup group, double now)
     {
         var cells = Breakable(eidolon, group.Cells);
         if (cells.Count == 0)
@@ -1038,7 +1073,16 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _rim.Leave(eidolon, _jobs);
         _phase = Phase.Strike;
         _group = group;
-        _square = null;
+        if (head.Kind == MineStationKind.Face && Cells.Plan?.Tunnel is { } tunnel && head.Lane >= 0 && head.Lane < tunnel.Lanes.Count)
+        {
+            _band = head.Band;
+            _sector = tunnel.Lanes[head.Lane];
+        }
+        else
+        {
+            var claim = MineDispatch.Claim(head, Cells.Plan?.Tunnel).ToList();
+            _sector = new MineSector(claim.Min(c => c.X), claim.Min(c => c.Z), claim.Max(c => c.X), claim.Max(c => c.Z));
+        }
         var blocks = eidolon.World.BlockAccessor;
         var pos = new BlockPos(eidolon.Pos.Dimension);
         _strike = EidolonMining.Timing(EidolonMining.StrikeSeconds(group.Cells.Select(c =>
@@ -1101,25 +1145,30 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     }
 
     /// <summary>The cells of <paramref name="cells"/> it may break now from where it stands: still left
-    /// (<see cref="Left"/>: not mined, its owner may break them), in its reach, under no eidolon's box at or
-    /// below its feet (any eidolon's, loaded within <see cref="OthersRange"/>), and still a block it mines
-    /// (<see cref="EidolonMining.Rule"/>: a liquid may have come beside it); one it no longer mines for
-    /// what it is is dropped from its search's cells, the others kept for later.</summary>
+    /// (<see cref="Left"/>), in its reach, and still a block it mines (<see cref="EidolonMining.Rule"/>: a liquid
+    /// may have come beside it); one it no longer mines for what it is goes to its job's live state as such.</summary>
     private List<MarkPos> Breakable(EntityLaborEidolon eidolon, IReadOnlyList<MarkPos> cells)
     {
         var breakable = new List<MarkPos>();
         if (cells.Count == 0)
             return breakable;
-        var others = Others(eidolon, new Vec3d(cells.Average(c => c.X + 0.5), cells.Average(c => c.Y + 0.5), cells.Average(c => c.Z + 0.5)));
+        // any height: a column another stands in is its floor under it and over its head over it
+        var others = Others(eidolon, new Vec3d(cells.Average(c => c.X + 0.5), cells.Average(c => c.Y + 0.5), cells.Average(c => c.Z + 0.5)),
+            OthersRange, area.SizeY + OthersRange);
         int feet = Feet(eidolon);
+        var world = eidolon.World;
         var pos = new BlockPos(eidolon.Pos.Dimension);
+        var near = new BlockPos(eidolon.Pos.Dimension);
         foreach (var cell in cells)
         {
-            if (!Left(cell) || EidolonMining.Undermines(others, cell) || !EidolonMining.InReach(eidolon.Pos.X, feet, eidolon.Pos.Z, cell))
+            if (!Left(cell, others) || !EidolonMining.InReach(eidolon.Pos.X, feet, eidolon.Pos.Z, cell))
                 continue;
-            if (Rule(eidolon, pos.Set(cell.X, cell.Y, cell.Z), claims: false) != MineRule.Mine)
+            pos.Set(cell.X, cell.Y, cell.Z);
+            var block = world.BlockAccessor.GetBlock(pos);
+            var rule = GameMineWorld.Rule(world, pos, block, near, _pick, _maxTier, _mineThrough);
+            if (rule != MineRule.Mine)
             {
-                Forget(cell);
+                Plans?.Seen(Cells, cell, new MineVoxel(block.GetCollisionBoxes(world.BlockAccessor, pos) is { Length: > 0 }, rule));
                 continue;
             }
             breakable.Add(cell);
@@ -1128,19 +1177,19 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     }
 
     /// <summary>Breaks what is still to break in the group (<see cref="Breakable"/>), as a player's pick
-    /// does with no player: the block's own drops fall in the world. A block that will not break is left
-    /// for the order's life, by the whole job.</summary>
+    /// does with no player: the block's own drops fall in the world, and its job's live state takes them as
+    /// dug (<see cref="EidolonMinePlans.Broken"/>). A block that will not break is left for the order's life,
+    /// by the whole job. Its station done, it lets it go.</summary>
     private void Break(EntityLaborEidolon eidolon)
     {
         if (_group == null)
             return;
         var world = eidolon.World;
         var blocks = world.BlockAccessor;
-        int broke = 0;
+        var broken = new List<MarkPos>();
         bool sounded = false;
         foreach (var cell in Breakable(eidolon, _group.Cells))
         {
-            Forget(cell);
             var pos = new BlockPos(cell.X, cell.Y, cell.Z, eidolon.Pos.Dimension);
             var block = blocks.GetBlock(pos);
             if (!sounded && block.Sounds?.GetBreakSound(EnumTool.Pickaxe).Location is { } sound)
@@ -1151,37 +1200,69 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             blocks.BreakBlock(pos, null);
             if (blocks.GetBlock(pos).Id == block.Id)
             {
-                _skip.Add(cell);
-                _job?.Shared.Skip.Add(cell);
+                Leave(cell);
                 continue;
             }
-            broke++;
+            broken.Add(cell);
         }
-        if (broke == 0)
+        if (broken.Count == 0)
         {
             EmptyStrikes++;
             return;
         }
-        Mined += broke;
+        if (Plans is { } plans)
+            plans.Broken(Cells, broken);
+        else
+            Cells.Live?.Apply(broken);
+        Mined += broken.Count;
         Strikes++;
-        _job?.Tally(eidolon.EntityId, broke);
+        _job?.Tally(eidolon.EntityId, broken.Count);
         Board?.Struck(eidolon.EntityId, EidolonJobSystem.Now(world));
-        // the job's level as it stands now: the area's shallowest layer may be done
-        Board?.SetLevel(eidolon.EntityId, LiveTop());
+        if (Station is { } head && Cells.Live is { } live && !head.Cells.Any(live.Remaining.Contains))
+            DropHead(eidolon);
         // Last: a dry reservoir stops it at once (the order is cancelled and started again later).
         eidolon.SpendOil(EidolonJob.MiningStrike);
     }
 
-    /// <summary>The highest layer with a block of its last search still standing, or null: what it tells
-    /// its job after each strike, so the job's lowest layer follows the pit down without waiting for a
-    /// search.</summary>
-    private int? LiveTop()
+    /// <summary>
+    /// Tells its owner, once for its job, what of the area is out of its reach under every order
+    /// (<see cref="MinePlan.OutOfReach"/>), how many blocks it keeps under those as their floor, and how
+    /// high a step in front of the face would bring them in reach (<see cref="MinePlan.StepNeeded"/>, when
+    /// known); again only when that count grows, or falls to none (the world changed: it can reach them
+    /// now). The count told is saved with its order (<c>outofreach</c>).
+    /// </summary>
+    private void TellOutOfReach(EntityLaborEidolon eidolon, MinePlan plan)
     {
-        _left.RemoveWhere(c => !Standing(c));
-        return _left.Count == 0 ? null : _left.Max(c => c.Y);
+        var cells = Cells;
+        if (cells.ToldOutOfReach < 0 && _toldSaved >= 0)
+            cells.ToldOutOfReach = _toldSaved;
+        int count = cells.OutOfReach.Count;
+        if (count != cells.ToldOutOfReach)
+        {
+            int told = Math.Max(0, cells.ToldOutOfReach);
+            if (count > told)
+            {
+                (string key, object[] args) = plan.StepNeeded is { } step
+                    ? ("seraphhorizons:eidolon-mine-outofreach", new object[] { count, plan.Held.Count, step })
+                    : ("seraphhorizons:eidolon-mine-outofreach-nostep", new object[] { count, plan.Held.Count });
+                ToldOutOfReach = Lang.Get(key, args);
+                FellOrder.TellOwner(eidolon, key, args);
+            }
+            else if (count == 0 && told > 0)
+            {
+                ToldOutOfReach = Lang.Get("seraphhorizons:eidolon-mine-inreach-now");
+                FellOrder.TellOwner(eidolon, "seraphhorizons:eidolon-mine-inreach-now");
+            }
+            cells.ToldOutOfReach = count;
+        }
+        if (_toldSaved != cells.ToldOutOfReach)
+        {
+            _toldSaved = cells.ToldOutOfReach;
+            Save(eidolon, args => args.SetInt("outofreach", _toldSaved));
+        }
     }
 
-    /// <summary>No block left it may break and reach: says so to its job, and if the job is done (every
+    /// <summary>Nothing left it or another may take: says so to its job, and if the job is done (every
     /// member at work has nothing left, none still to load) makes the report; else waits at the rim
     /// for the others.</summary>
     private bool Finish(EntityLaborEidolon eidolon, double now)
@@ -1202,12 +1283,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     }
 
     /// <summary>Tells its owner what the job mined (each member's share, when there were more than
-    /// one), how many it left and how many were out of reach, and walks back.</summary>
+    /// one), how many it left as they were, how many were out of reach, how many it kept under those as
+    /// their floor and how many it left as its way out (<see cref="MinePlan"/>), and walks back.</summary>
     private bool Report(EntityLaborEidolon eidolon)
     {
         var blocks = eidolon.World.BlockAccessor;
         var pos = new BlockPos(eidolon.Pos.Dimension);
-        int left = 0, unreachable = 0;
+        var plan = Cells.Plan;
+        int left = 0, unreachable = 0, held = 0, wayOut = 0;
         for (int y = Math.Max(EidolonMining.BottomY, area.Min.Y); y <= area.Max.Y; y++)
         for (int x = area.Min.X; x <= area.Max.X; x++)
         for (int z = area.Min.Z; z <= area.Max.Z; z++)
@@ -1218,28 +1301,34 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             if (block.Id == 0 || block.IsLiquid())
                 continue;
             var cell = new MarkPos(x, y, z);
-            if (_unreachable.Contains(cell) || _job?.Shared.Unreachable.Contains(cell) == true)
+            if (Cells.Stair.Contains(cell))
+                wayOut++;
+            else if (plan?.OutOfReach.Contains(cell) == true)
                 unreachable++;
+            else if (plan?.Held.Contains(cell) == true)
+                held++;
             else
                 left++;
         }
         var shares = _job?.Shares ?? [];
         if (shares.Count > 1)
         {
-            Reported = EidolonJobSystem.ShareReport(SharedDoneKey, ShareKey, shares, _job!.Total, left, unreachable);
-            EidolonJobSystem.TellShares(eidolon, SharedDoneKey, ShareKey, shares, _job.Total, left, unreachable);
+            Reported = EidolonJobSystem.ShareReport(SharedDoneKey, ShareKey, shares, _job!.Total, left, unreachable, held, wayOut);
+            EidolonJobSystem.TellShares(eidolon, SharedDoneKey, ShareKey, shares, _job.Total, left, unreachable, held, wayOut);
         }
         else
         {
-            Reported = Lang.Get("seraphhorizons:eidolon-mine-done", Mined, left, unreachable);
-            FellOrder.TellOwner(eidolon, "seraphhorizons:eidolon-mine-done", Mined, left, unreachable);
+            Reported = Lang.Get("seraphhorizons:eidolon-mine-done", Mined, left, unreachable, held, wayOut);
+            FellOrder.TellOwner(eidolon, "seraphhorizons:eidolon-mine-done", Mined, left, unreachable, held, wayOut);
         }
+        Plans?.Close(Cells);
         Told(eidolon);
         return GoHome(eidolon);
     }
 
     /// <summary>The job's report for more than one: how many, all they mined, each one's share
-    /// (<c>eidolon-mine-share</c>, "40 by eidolon 1234"), what was left and out of reach.</summary>
+    /// (<c>eidolon-mine-share</c>, "40 by eidolon 1234"), what was left, out of reach, kept as their floor
+    /// and left as the way out.</summary>
     private const string SharedDoneKey = "seraphhorizons:eidolon-mine-done-shared";
     private const string ShareKey = "seraphhorizons:eidolon-mine-share";
 
@@ -1249,6 +1338,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     {
         _done = true;
         _finished = false;
+        _queue.Clear();
         Board?.Leave(eidolon.EntityId);
         _rim.Leave(eidolon, _jobs);
         Save(eidolon, args => args.SetBool("done", true));
@@ -1261,6 +1351,12 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _phase = Phase.Return;
         if (home == null || eidolon.Pos.XYZ.HorizontalSquareDistanceTo(home) <= HomeSlack * HomeSlack && Math.Abs(eidolon.Pos.Y - home.Y) < 1.5)
             return false;
+        _stairWait = !TakeStair(eidolon, (int)Math.Floor(home.Y + 0.01));
+        if (_stairWait)
+        {
+            OffStair(eidolon);
+            return true;
+        }
         if (!_nav!.GoTo(home, false, () => { }, () => { }))
             return false;
         eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-returning");
