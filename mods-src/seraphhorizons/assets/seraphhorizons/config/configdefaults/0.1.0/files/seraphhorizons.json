@@ -11,6 +11,7 @@
   ],
   "CarryOnIconsPerWorld": true,
   "NanMotionDiagnostics": true,
+  "WailaRounding": true,
   "FoodHydration": true,
   "WellShaftExplained": true,
   "AssembledMachinesInCreative": true,

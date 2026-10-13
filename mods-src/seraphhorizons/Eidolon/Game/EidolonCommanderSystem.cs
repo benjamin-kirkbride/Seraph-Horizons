@@ -27,7 +27,7 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// (<see cref="EidolonCommandModes"/>, with follow and stay registered here) and marking. This system
 /// also registers the follow order (<see cref="FollowOrder"/>) and the self-defence AI task
 /// (<see cref="AiTaskEidolonDefend"/>), and on the client highlights the held tool's marks for its
-/// holder (<see cref="Highlight"/>).</para>
+/// holder (<see cref="Highlight"/>, with x-ray outlines by <see cref="EidolonMarkOutlines"/>).</para>
 /// </summary>
 public class EidolonCommanderSystem : ModSystem
 {
@@ -61,7 +61,14 @@ public class EidolonCommanderSystem : ModSystem
     /// <summary>The client's highlight slot for the held tool's marks.</summary>
     public const int HighlightSlot = 6750;
 
+    /// <summary>The fill of a closed area (green).</summary>
+    public static readonly int AreaFill = ColorUtil.ToRgba(60, 80, 200, 120);
+
+    /// <summary>The fill of a first corner or a marked block (sky blue).</summary>
+    public static readonly int BlockFill = ColorUtil.ToRgba(90, 230, 190, 60);
+
     private ICoreClientAPI? _capi;
+    private EidolonMarkOutlines? _outlines;
     private string _shown = "";
 
     public override void Start(ICoreAPI api)
@@ -88,45 +95,53 @@ public class EidolonCommanderSystem : ModSystem
     public override void StartClientSide(ICoreClientAPI api)
     {
         _capi = api;
+        _outlines = new EidolonMarkOutlines(api);
         api.Event.RegisterGameTickListener(_ => Highlight(), 250);
     }
 
+    public override void Dispose()
+    {
+        _outlines?.Dispose();
+        _outlines = null;
+    }
+
     /// <summary>Highlights the marks the held command tool keeps for its mode (an area as a box, a
-    /// first corner or a block as one block), for its holder only; clears them when it is put away.</summary>
+    /// first corner or a block as one block), for its holder only; clears them when it is put away.
+    /// Each mark is the game's translucent fill with an x-ray outline over it
+    /// (<see cref="EidolonMarkOutlines"/>, which also previews an area before its second corner).</summary>
     private void Highlight()
     {
         if (_capi?.World?.Player is not { } player)
             return;
         var stack = player.InventoryManager?.ActiveHotbarSlot?.Itemstack;
-        var positions = new List<BlockPos>();
-        var colors = new List<int>();
+        var boxes = new List<(MarkArea Box, int Fill)>();
+        EidolonCommandMode? shown = null;
+        var marks = Marks.None;
         if (stack?.Collectible is ItemEidolonCommander && ItemEidolonCommander.ModeOf(stack) is { Mark: not EidolonMarkKind.None } mode)
         {
-            var marks = ItemEidolonCommander.GetMarks(stack, mode.Code);
+            shown = mode;
+            marks = ItemEidolonCommander.GetMarks(stack, mode.Code);
             if (marks.Area is { } area)
             {
-                positions.Add(new BlockPos(area.Min.X, area.Min.Y, area.Min.Z));
-                positions.Add(new BlockPos(area.Max.X + 1, area.Max.Y + 1, area.Max.Z + 1));
-                colors.Add(ColorUtil.ToRgba(60, 80, 200, 120));
+                boxes.Add((area, AreaFill));
                 if (marks.Third is { } block)
-                {
-                    positions.Add(new BlockPos(block.X, block.Y, block.Z));
-                    positions.Add(new BlockPos(block.X + 1, block.Y + 1, block.Z + 1));
-                    colors.Add(ColorUtil.ToRgba(90, 230, 190, 60));
-                }
+                    boxes.Add((MarkArea.Between(block, block), BlockFill));
             }
             else if (marks.First is { } first)
-            {
-                positions.Add(new BlockPos(first.X, first.Y, first.Z));
-                positions.Add(new BlockPos(first.X + 1, first.Y + 1, first.Z + 1));
-                colors.Add(ColorUtil.ToRgba(90, 230, 190, 60));
-            }
+                boxes.Add((MarkArea.Between(first, first), BlockFill));
         }
-        string key = string.Join(";", positions.Select(p => $"{p.X},{p.Y},{p.Z}"));
+        _outlines?.Show(shown, marks, boxes.Select(b => (b.Box, EidolonMarkOutlines.LineColor(b.Fill))));
+        string key = string.Join(";", boxes.Select(b => $"{b.Box.Min}{b.Box.Max}{b.Fill}"));
         if (key == _shown)
             return;
         _shown = key;
-        _capi.World.HighlightBlocks(player, HighlightSlot, positions, colors, EnumHighlightBlocksMode.Absolute, EnumHighlightShape.Cube);
+        var positions = new List<BlockPos>();
+        foreach (var (box, _) in boxes)
+        {
+            positions.Add(new BlockPos(box.Min.X, box.Min.Y, box.Min.Z));
+            positions.Add(new BlockPos(box.Max.X + 1, box.Max.Y + 1, box.Max.Z + 1));
+        }
+        _capi.World.HighlightBlocks(player, HighlightSlot, positions, boxes.Select(b => b.Fill).ToList(), EnumHighlightBlocksMode.Absolute, EnumHighlightShape.Cube);
     }
 
     // Types and recipes are read from the assets later in this phase (the game's loaders run at 0.2
