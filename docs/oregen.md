@@ -32,15 +32,19 @@ quarter of vanilla's metal units (3 / 5 / 7 / 10 by grade, from 15 / 20 / 25 / 3
 `OreProducts.RawUnits`), so a deposit of the same ingots is four times the blocks: every graded
 ore's IOG vein is scaled by 4 in volume on top of its metal's factor (`OreSizeTable.VolumeFor`,
 `OreProducts.DepositBlocks`). District veins, sized from the ore's own units, are widened four
-times in ore per layer (`DistrictVeinSizes.Widen`: an ore shoot four times as long along its fault, a
-ladder vein's slabs about four times closer, IOG's spacings of 2–10 divided by 4, at least 1), so a
-vein holds its drawn ingots in about the height of rock it had. Without that it needed four to five
-times the height, and most thin veins hit their whole column (10 of 15 tin and bismuth veins in the
-granite district of `OreCellsScenarios`, at a quarter of their ingots); widened, 3 of 15 do. A
-horsetail lens of a sized metal (gold and silver, whose lenses are kept) has no band; its lenses
-are twice IOG's radii both ways (`DistrictVeins.LensRadii`: 4–12 by 3–8 become 8–24 by 6–16), and
-since its ore is only where a lens crosses the splay's one-block fracture, a disc of the two radii,
-that is four times the ore, so a lens holds the ingots it did. The
+times in ore per layer (`DistrictVeinSizes.Widen`: an ore shoot four times as long along its fault
+and no wider, a ladder vein's slabs about four times closer, IOG's spacings of 2–10 divided by 4, at
+least 1), so a vein holds its drawn ingots in about the height of rock it had. Without that it
+needed four to five times the height, and most thin veins hit their whole column (10 of 15 tin and
+bismuth veins in the granite district of `OreCellsScenarios`, at a quarter of their ingots);
+widened, 3 of 15 did. Those 3 kept IOG's whole column (y 1 to the top of the world), widened, and
+the survey of #943 found what that held: tin and zinc veins of 7,000–9,400 ingots. Since #943 a band
+taller than the room under sea level is that room, so no vein keeps its column. A horsetail lens of
+a sized metal (gold and silver, whose lenses are kept) has no band; it is grown to four times its
+ore (`DistrictVeins.LensRadii`). In a true fault rock (travertine) its ore is only where a lens
+crosses the splay's one-block fracture, a disc of the two radii, so both radii double (4–12 by 3–8
+become 8–24 by 6–16); in a host that is also the country rock (granite, basalt) the whole spheroid
+can be ore, so only the horizontal radius doubles. Either way a lens holds the ingots it did. The
 medians and factors in `config/ore-sizes.json` stay as measured at vanilla's units; measurement, size tiers and the trader maps work in ingots from the live units,
 so they need no change. Worlds already generated keep their ore as placed: a deposit from before
 holds a quarter of the ingots it did. `tools/ore-survey/targets.json` holds the
@@ -144,13 +148,33 @@ builds from the seed, the same after every restart.
   dropped. Gold, silver, platinum and chromium keep all their zones.
 - Size: each kept vein holding a sized metal is cut to a band of heights (its bounding box, which
   `GetOreBlocksInChunk` iterates). The ore a layer gives is estimated from the zone's geometry
-  (a shoot: fault width × 4r/3; a ladder: stretch × widened width ÷ slab spacing), the ore's
+  (a shoot: fault width × 4r/3, or its whole ellipse, π · r · r/2 ÷ 2, where the host is a
+  country rock, below; a ladder: stretch × widened width ÷ slab spacing), the ore's
   share and density, and the ingots of a block of its poorest grade (read from the block's drops)
   times 1.25 (1.15 before #863 widened the grades); the band is the height that gives the size
   drawn for the zone (log-linear through the metal's small, typical and large at the 10th, 50th
   and 90th percentile), the least over its
-  ores, placed by the hash between y 4 and sea level less 6, so it lies in rock. A vein whose
-  whole column holds less keeps it.
+  ores, placed by the hash between y 4 and sea level less 6, so it lies in rock. A band taller
+  than that room is the room (#943): the vein holds less than drawn. Before #943 such a vein kept
+  IOG's whole column, still widened.
+- Host rock (#943): IOG turns a zone block into ore only where it is the district's host rock,
+  which is what cuts a shoot to its fault. The granitic and felsic configs' host is
+  `rock-granite` and the mafic one's `rock-basalt`, both country rocks too, so where the fault
+  runs through granite (or basalt) a shoot is ore across its whole ellipse: about 960 blocks a
+  layer at r = 35 against the 190–370 the fault estimate gave, and, with #863's widening growing
+  both axes (16×, against the 4× the band counted), up to 15,000 a layer. So a district whose host
+  is one of the world's rock strata or its default rock (`worldgen/rockstrata.json`,
+  `worldgen/global.json`, as the geology mods patch them; `DistrictVeins.HostIsCountryRock`) has its
+  shoots counted whole; the cold districts' travertine, a deposit rock and not a stratum, keeps the
+  fault estimate. In such a district a shoot whose country rock is not the host holds about a
+  quarter to a third of its drawn size: the rule takes the large side, since what a zone's rock
+  will be is not known when IOG builds it (its chunks are not generated). A ladder needs no
+  change: IOG lays fault rock across its whole widened stretch, the region its slabs fill. Moving
+  the granite districts' host to a fault rock instead was ruled out: no rock in the pack has ore
+  blocks for every ore they place (granite is the only one with cassiterite, bismuthinite, gold and
+  silver quartz, sphalerite, both galenas, cinnabar, sulfur, alum and quartz; quartzite has only
+  the two quartz ores and quartz, monzonite lacks cassiterite, cinnabar and alum), and IOG names
+  the rock in each ore's code.
 - Unmanaged ores (gems, sulfur, halite, ...) keep their counts; in a vein that also holds a
   sized metal they share its band.
 
@@ -401,8 +425,36 @@ layer is an estimate (the fault's width varies along it, and rich bands raise th
 deposits within 150 m are counted as one. Few veins reach the surface now (12–50%), since a band
 lies under sea level.
 
+### Districts after #943
+
+Seeds 202 and 505 at 160 × 160 chunks (52.4 km²), with every pinned mod, against #863's runs of the
+same seeds (`build/ore-survey-863/pack-s*` in the main checkout). The deposits that are not a
+cell's anchor (matched to the log's `Ore cells: ... deposit placed` lines), all within 3.1 km of a
+`magmatic-granitic-deep` district, ingots:
+
+| Metal (60 / 150 / 400) | #863 | #943 |
+|---|---|---|
+| Tin | 9,375, 7,296, 993, 915, 166, 124, 77 | 1,148, 192, 88, 81 |
+| Zinc | 7,017, 5,475, 3,650, 2,052, 635, 186, 94, 81, 74 | 292, 248, 77, 51 |
+| Bismuth | 3,957, 3,622, 1,899, 1,636, 1,317, 271, 245 | 273, 123, 105, 58 |
+| Lead | 2,072, 668, 473 | 92 |
+| Gold (30 / 80 / 200) | 455, 363, 190, 88 | 233, 198, 111 |
+
+Median 954 → 105 for the four base metals together; 17 of 26 were over the large size, now 1
+of 13. That one (seed 202, tin) is a single body of 31,000 poor blocks at y 22–67, about 700 a
+layer over 290 × 420 m, cut by the window's edge: about twice the largest size a vein draws,
+likely two kept shoots on one fault overlapping now that a widened shoot (a half strike of
+100–180 blocks) is longer than IOG's spacing of shoots (160 blocks or more). Smaller veins
+dropped under the survey's 50-ingot floor, so fewer are counted. Neither window held district
+copper or iron (their mafic districts lie outside), so mafic veins were not measured here.
+
 ### Open
 
+- Overlapping widened shoots on one fault can add up past the large size (above); spacing kept
+  shoots of a metal apart, or widening less where neighbours overlap, would stop it.
+- Mafic districts' copper and iron veins are now sized as whole ellipses (basalt is a stratum):
+  where their country rock is not basalt they hold a quarter to a third of the drawn size; a
+  survey window holding a mafic district would show how often.
 - District vein sizes rest on 30 deposits in two windows; a wider survey would show whether
   `gradeAllowance` (`config/ore-districts.json`) needs raising.
 - Lead, nickel, silver, gold, titanium and chromium sizes, and counts per 25 km² for every metal,
