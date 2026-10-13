@@ -24,7 +24,7 @@ it patches by name, so the mod builds from the game alone (`release.yml` needs n
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
 chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach, Carry On's
-icon reset, the creative search tweaks, the handbook's kept place and the NaN motion diagnostics run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
+icon reset, the creative search tweaks, the handbook's kept place, the NaN motion diagnostics and the info HUD's rounding run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
 that has it (a server with the steam source switched off, or without ppex, has no such block).
@@ -442,6 +442,38 @@ a NaN walk speed multiplier makes the motion NaN with no input at all. It is the
 (`EntityPlayer.walkSpeed`, read every tick; `GameMath.Clamp` passes NaN through) times the block
 under the feet's `WalkSpeedMultiplier` (in creative, divided by it). The module also keeps
 `motionDeltaX`/`Z` between frames, so once NaN they stay NaN. The report shows each of these.
+
+### The info HUD rounds its numbers (`WailaRounding`)
+
+The block and entity info HUD (the box at the top of the screen naming what the crosshair is on, the
+"WAILA") shows numbers as whoever wrote the text formatted them, often a raw `float`: in creative a
+creature's health reads `Health: 13.4567/20`, and a mod's block info can read `3.14159 litres`. This
+tweak rounds them: the numbers on the health line to whole numbers (`Health: 13/20`), every other
+number with more than one decimal to one decimal (`3.1 litres`), half away from zero. Integers and
+numbers with one decimal stay as they are, and so does the title (the name above the text).
+
+Where the text comes from (1.22.7, `VintagestoryLib`): `HudElementBlockAndEntityInfo.ComposeBlockInfoHud`
+takes it from `Block.GetPlacedBlockInfo` (the block, its block entity and their behaviors, the pack's
+mods included) or `Entity.GetInfoText` (the entity's behaviors, then its generation and the like), and
+composes the HUD again whenever the text differs from what it shows, checked every half second. The
+health line is vanilla's `EntityBehaviorHealth.GetInfoText`, `Lang.Get("Health: {0}/{1}", Health,
+MaxHealth)` with the two floats as they are, shown in creative only. No mod in the pack replaces or
+patches the HUD.
+
+`WailaRounding` transpiles `ComposeBlockInfoHud`: each of those two calls' text goes through the
+rounding right where the method reads it, so the HUD's own comparison sees the rounded text. Both
+calls are counted first, and if either is not there exactly once the tweak logs a warning and the
+HUD stays as it ships. A health line is a line whose text, tags left out, matches the game's format
+string for it in the client's language (`Lang.GetUnformatted("Health: {0}/{1}")`, read on every
+compose) or in English, each placeholder one value. A number is a run of digits with at most one
+decimal separator (`.`, and the client culture's when that is another, such as `,`) and an optional
+exponent (`1.5E-05`, as a tiny `float` prints); a unit may follow it (`0.75m`, `36.7°C`). Left alone:
+anything inside a rich text tag (`<font size="0.875">`), a number right after a letter, digit or
+underscore (an identifier), a dotted run of digits (a version `1.22.7`, an address, a German
+`1.234,56`), and a number after a dash that follows a letter (a code such as `plank-1.25`). The pure
+logic is `Core/InfoTextRounding.cs`. Client side only, its own Harmony id
+(`seraphhorizons.wailarounding`), patched when the client side starts; a failure while rounding is
+logged once and turns the rounding off until the client restarts, leaving the text as it came.
 
 ### Every food has a hydration value (`FoodHydration`)
 
