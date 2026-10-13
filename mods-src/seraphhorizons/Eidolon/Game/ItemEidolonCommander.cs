@@ -14,10 +14,11 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// command tool). Right-click an eidolon its holder may command to bind the tool to it (sneak to
 /// unbind); the tool keeps the bound eidolons' ids. The mode wheel (<see cref="EidolonCommandModes"/>)
 /// picks an order; right-click anywhere else gives it to every bound eidolon within
-/// <see cref="EidolonConfig.CommandRange"/> that the holder may command, after marking a block or an
-/// area if the mode wants one (the marks are kept on the tool, per mode, and highlighted for its
-/// holder by <see cref="EidolonCommanderSystem"/>); sneak + right-click clears the mode's marks. All
-/// of it is decided on the server.
+/// <see cref="EidolonConfig.CommandRange"/> (of the holder, or of the marked area once there is one)
+/// that the holder may command, after marking a block or an area if the mode wants one (the marks
+/// are kept on the tool, per mode, and highlighted for its holder by
+/// <see cref="EidolonCommanderSystem"/>); sneak + right-click clears the mode's marks. All of it is
+/// decided on the server.
 /// </summary>
 public class ItemEidolonCommander : Item
 {
@@ -197,24 +198,27 @@ public class ItemEidolonCommander : Item
         return true;
     }
 
-    /// <summary>The bound eidolons loaded within <paramref name="range"/> blocks of <paramref name="at"/>.</summary>
-    public static List<EntityLaborEidolon> BoundNear(IWorldAccessor world, ItemStack stack, Vec3d at, double range) =>
+    /// <summary>The bound eidolons loaded within <paramref name="range"/> blocks of <paramref name="at"/>,
+    /// or of <paramref name="area"/> when one is given (<see cref="EidolonMarking.InReach"/>).</summary>
+    public static List<EntityLaborEidolon> BoundNear(IWorldAccessor world, ItemStack stack, Vec3d at, double range, MarkArea? area = null) =>
         Bound(stack).Select(id => world.GetEntityById(id) as EntityLaborEidolon)
             .OfType<EntityLaborEidolon>()
-            .Where(e => e.Alive && e.Pos.Dimension == 0 && e.Pos.DistanceTo(at) <= range)
+            .Where(e => e.Alive && e.Pos.Dimension == 0
+                        && EidolonMarking.InReach(e.Pos.DistanceTo(at), area, e.Pos.X, e.Pos.Y, e.Pos.Z, range))
             .ToList();
 
     /// <summary>
     /// The selected mode, used: marks the clicked block (<paramref name="clicked"/>, null for air) if
-    /// the mode marks one, and once its marks are complete gives each bound eidolon in range, that the
-    /// player may command, the mode's order. Returns how many were ordered. Server side.
+    /// the mode marks one, and once its marks are complete gives each bound eidolon in reach, that the
+    /// player may command, the mode's order. In reach is within <see cref="EidolonConfig.CommandRange"/>
+    /// of the player, or of the marked area when the marks hold one (<see cref="EidolonMarking.InReach"/>).
+    /// Returns how many were ordered. Server side.
     /// </summary>
     public int Use(IServerPlayer player, ItemSlot slot, BlockPos? clicked)
     {
         if (slot.Itemstack is not { } stack || ModeOf(stack) is not { } mode)
             return 0;
         var config = EidolonSystem.Of(api)?.Config ?? EidolonConfig.Defaults;
-        var near = BoundNear(api.World, stack, player.Entity.Pos.XYZ, config.CommandRange);
         if (Bound(stack).Count == 0)
         {
             Error(player, "eidoloncommander-none-bound");
@@ -270,9 +274,10 @@ public class ItemEidolonCommander : Item
             }
         }
 
+        var near = BoundNear(api.World, stack, player.Entity.Pos.XYZ, config.CommandRange, area);
         if (near.Count == 0)
         {
-            Error(player, "eidoloncommander-none-near", (int)config.CommandRange);
+            Error(player, area == null ? "eidoloncommander-none-near" : "eidoloncommander-none-near-area", (int)config.CommandRange);
             return 0;
         }
         int ordered = 0, refused = 0;
