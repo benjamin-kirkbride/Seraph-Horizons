@@ -1,21 +1,26 @@
-"""Salvaged from origin/735-concentrator-model-v2 (Concentrator/tools/validate_concentrator.py), not yet
-adapted: the check framework, textures by role, thickness, containment, floating, the drops, the
-yokes, the drive (belt, worm, ratchet and pawl), supports, clearances and z-fighting (#924)."""
+"""The vanner generator's validation: make_shape.py calls `validate` and `validate_files`.
+
+Every check prints what it measured and fails the run (the script exits non-zero) when the model breaks its
+rule. Everything is in the build frame (voxels), on the model before the origin shift; `check_shipped` in
+make_shape.py proves the shipped files are this model moved.
+
+A pose is (theta,), (theta, travel) or (theta, travel, state): travel None or left out is |theta| (turned
+from rest), the state one of make_shape.STATES (what is fitted; "all" when left out), and the clearance,
+drop, floating and z-fighting checks look only at the parts that show in it.
+"""
 
 from __future__ import annotations
 
 import math
 import re
 
-from machinegen.checks import (box_overhang, coplanar_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb,
-                               supports)
-from machinegen.geometry import aabb_of, mvec
+from machinegen.checks import box_overhang, coplanar_faces, euler_round_trip, frame_floating, lid_gaps, obb_obb, supports
+from machinegen.geometry import aabb_of
 from machinegen.rigmath import apply as _apply
 from machinegen.rigmath import part_of, posed
 
 TAU = 2 * math.pi
-MOVING = ("lineshaft", "jigsheave", "tablesheave", "vannerpulley", "jigplunger", "tabledeck", "vannershaft", "vannerworm",
-          "vannerframe", "vannerhead", "vannerfoot")
+MOVING = ("countershaft", "shaker", "uprightw", "uprighte", "belt", "head", "foot", "worm")
 
 
 class V:
@@ -33,10 +38,10 @@ class V:
         print("FAIL", msg)
 
     def mat(self, pid, pose):
-        return self.m.pm(self.parts, pid, pose[:1])        # turned from rest: the travel is |theta|
+        return self.m.pm(self.parts, pid, pose)
 
     def posed(self, pid, pose):
-        key = (pid, pose[0])
+        key = (pid, pose[0], pose[1] if len(pose) > 1 else None)
         if key not in self.cache:
             if len(self.cache) > 60000:
                 self.cache.clear()
@@ -58,9 +63,9 @@ class V:
         return [pid for pid in self.by_part if self.m.on_show(self.req[pid], state)]
 
 
-def turns(n=24, state="level4dressed"):
-    """A turn of the axle in n steps, in a state."""
-    return [(TAU * i / n, state) for i in range(n + 1)]
+def turns(n=24, state="all", travel_extra=0.0):
+    """A turn of the axle in n steps, in a state (turned from rest, plus `travel_extra` of travel)."""
+    return [(TAU * i / n, TAU * i / n + travel_extra, state) for i in range(n + 1)]
 
 
 # ---------------------------------------------------------------- parts
@@ -84,6 +89,58 @@ def check_basic(v):
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
 
 
+def check_requires(v):
+    """Every part is the frame's, one of REQUIRES' or a water line's; the water line's metals are the same
+    elements; a part riding another is fitted only with it in every state; the states build up."""
+    m = v.m
+    reqs = {p["requires"] for p in v.parts}
+    if reqs != set(m.REQUIRES) | set(m.PIPES) | {None}:
+        v.fail(f"the parts' requires are {reqs}, want the frame's (null), {m.REQUIRES} and {m.PIPES}")
+    for pid in m.PIPES[1:]:
+        a = sorted((e.name[len(pid):], e.c, e.size) for e in v.by_part[pid])
+        b = sorted((e.name[len(m.PIPES[0]):], e.c, e.size) for e in v.by_part[m.PIPES[0]])
+        if a != b:
+            v.fail(f"{pid} is not {m.PIPES[0]}'s elements in another metal")
+    for p in v.parts:
+        if p.get("ride"):
+            ride = next(q for q in v.parts if q["id"] == p["ride"])
+            for st, fit in m.STATES.items():
+                if p["requires"] in fit and ride["requires"] not in (None, *fit):
+                    v.fail(f"in {st}, {p['id']} rides {ride['id']}, which is not fitted")
+    counts = {st: sum(len(v.by_part[pid]) for pid in v.shown(st)) for st in m.STATES}
+    print("states: " + ", ".join(f"{st} {n}" for st, n in counts.items()) + f"; the water line {len(v.by_part[m.PIPES[0]])} a metal")
+
+
+ROLES = [
+    # the frame: timber, castings and straps, boards, the chute sections
+    (r"^fr_(sill|pedestal|post_|spraypost)", {"oak"}),
+    (r"^fr_(cb|tb)_bearer", {"oak"}),
+    (r"^(fr|sk)_up[we]\d_pin", {"steel"}),
+    (r"^(fr|sk)_up[we]\d_cheek", {"iron"}),
+    (r"^fr_(bearing|saddle|bracket|spraybracket)", {"iron"}),
+    (r"^fr_(cb|tb)_", {"planks"}),
+    (r"^fr_chute_", {"chute"}),
+    # the countershaft continues the vanilla axle in oak, then steel
+    (r"^cs_entry[ab]$", {"oak"}),
+    (r"^cs_", {"steel"}),
+    # the shaking frame
+    (r"^sk_(rail|tie)", {"oak"}),
+    (r"^sk_", {"iron"}),
+    (r"^up[we]_", {"oak"}),
+    (r"^belt_", {"rubber"}),
+    (r"^(head|foot)_drum", {"oak"}),
+    (r"^(head|foot)_", {"steel"}),
+    (r"^worm_", {"steel"}),
+    (r"^pawl_post", {"oak"}),
+    (r"^pawl_", {"iron"}),
+    (r"^fb_chute_", {"chute"}),
+    (r"^fb_", {"planks"}),
+    # the water line, in each metal: the pipe in its metal's texture, the joints, the reducer and the cap in solder
+    (r"^pipecopper_", {"pipecopper", "solder"}),
+    (r"^pipelead_", {"pipelead", "solder"}),
+]
+
+
 def check_textures(v):
     bad = []
     for el in v.els:
@@ -91,16 +148,19 @@ def check_textures(v):
         rule = next((want for rx, want in ROLES if re.match(rx, el.name)), None)
         if rule is None or not tex <= rule:
             bad.append((el.name, sorted(tex), sorted(rule or [])))
-    print(f"textures by role: {len(v.els) - len(bad)} of {len(v.els)} elements as their role says")
+    solder = {el.name for el in v.els if el.part in v.m.PIPES for f in el.faces.values() if f["texture"] == "#solder"}
+    want = {n for n in solder if re.search(r"_(reducer|spray_cap|link|run|inlet|elbow|plug|spray|nozzle)", n)}
+    print(f"textures by role: {len(v.els) - len(bad)} of {len(v.els)} elements as their role says; {len(solder)} in solder")
     if bad:
         v.fail(f"textures off their role: {bad[:6]}")
+    if any(not re.search(r"_(reducer|spray_cap)", n) for n in want):
+        v.fail(f"solder on pipe that is not a joint, the reducer or the cap: {sorted(want)[:4]}")
 
 
 def check_thickness(v):
-    """No part thinner than about a voxel: every element at least 0.6 across in its two larger
-    dimensions' smaller one, but for the listed thin-by-nature pieces (screens, belts, plates, coats, lips)."""
-    thin_ok = re.compile(r"(sieve|belt|edge|plate\d|coat|well|pd_|_lip$|tooth|thread|_web|_rim|spout_floor|_floor|riffle|"
-                         r"_wl_|_fb_|bolt|strap|sill\d|handle|stem|_arm\d?$|clip|bracket|tb_tt_side|plug|feed_spout|joint)")
+    """No part thinner than about a voxel: every element at least 0.6 across in its two larger dimensions'
+    smaller one, but for the listed thin-by-nature pieces (the belt, gear teeth, thread rings, joints)."""
+    thin_ok = re.compile(r"(belt_|tooth|thread|reducer|_cap|joint)")
     bad = []
     for el in v.els:
         s = sorted(abs(x) for x in el.size)
@@ -128,15 +188,111 @@ def check_containment(v, poses):
 
 
 def check_floating(v):
-    """At rest, the frame alone and the frame with each state's parts (moving ones included: a shaft is
-    joined through its bearings) are one piece from the ground."""
+    """At rest, in each state (the frame alone, then each part added), what shows is one piece from the
+    ground (moving parts included: a shaft is joined through its bearings, the shaking frame through its
+    slides)."""
     m = v.m
     for state in m.STATES:
-        els = [e for pid in v.shown(state) for e in v.posed(pid, (0.0, state))]
+        els = [e for pid in v.shown(state) for e in v.posed(pid, (0.0, 0.0, state))]
         seen, loose = frame_floating(els)
         print(f"floating ({state}): {len(seen)} of {len(els)} elements joined to the ground")
         if loose:
             v.fail(f"in {state} these float: {loose[:8]}")
+
+
+# ---------------------------------------------------------------- anchors and drops
+FACE_AXIS = {"north": 2, "south": 2, "east": 0, "west": 0, "up": 1, "down": 1}
+
+
+def vanilla_profile(m):
+    """VANILLA_CHUTE's walls as a section through a face has them over the two axes across it. The game's
+    shape runs along x with its walls over (y, z); turned to run along z its walls lie over (x, y), and
+    along y over (x, z): the same numbers, either way round (the section is square and centred, so
+    mirroring and which axis comes first do not change it)."""
+    walls = set()
+    for a0, a1, b0, b1 in m.VANILLA_CHUTE["walls"]:
+        walls.add((a0, a1, b0, b1))
+        walls.add((b0, b1, a0, a1))
+    return walls
+
+
+def chute_ring(walls):
+    """Whether walls (cell-local rectangles over a face, whole voxels) tile exactly an 8 x 8 tube 1 thick
+    centred in the face: every voxel of the ring once, nothing else."""
+    cover = {}
+    for a0, a1, b0, b1 in walls:
+        if any(v != int(v) for v in (a0, a1, b0, b1)):
+            return False
+        for a in range(int(a0), int(a1)):
+            for b in range(int(b0), int(b1)):
+                cover[(a, b)] = cover.get((a, b), 0) + 1
+    ring = {(a, b) for a in range(4, 12) for b in range(4, 12) if not (5 <= a < 11 and 5 <= b < 11)}
+    return set(cover) == ring and all(n == 1 for n in cover.values())
+
+
+def check_anchors(v):
+    """The power face meets the countershaft's oak cross at the power cell's centre in the vanilla axle's
+    profile; the water line's inlet is open on the water face's centre in ppex's 6 x 6 tube; each chute
+    section is vanilla's (its walls exactly the game's, at the face's centre, flush with the face, in the
+    chute's texture) at its cell's face; the feed box takes the infeed's foot; the five cells differ."""
+    m = v.m
+    rig = v.rig
+    lo, hi = aabb_of(v.named("countershaft", r"^cs_entry[ab]$"))
+    pc = m.POWER_CELL
+    x, y = m.CS
+    centred = (x - pc[0] * 16, y - pc[1] * 16) == (8.0, 8.0) and rig["powerFace"] == "south" and pc[2] == m.CELLS_Z - 1
+    print(f"anchors: power cell {pc} {rig['powerFace']}: the axle's oak cross to z {hi[2]:.2f}, axis (x {x}, y {y}), "
+          f"{hi[0] - lo[0]:.1f} x {hi[1] - lo[1]:.1f}")
+    if not centred or abs(hi[2] - m.Z_LEN) > 1e-6 or abs(hi[0] - lo[0] - 4.0) > 1e-6 or abs(hi[1] - lo[1] - 4.0) > 1e-6 \
+            or abs((lo[0] + hi[0]) / 2 - x) > 1e-6 or abs((lo[1] + hi[1]) / 2 - y) > 1e-6:
+        v.fail("the countershaft does not meet the power face at the cell's centre in the axle's profile")
+    wc = m.WATER_CELL
+    ix, iy, iz = m.INLET
+    for pid in m.PIPES:
+        walls = [e for e in v.named(pid, r"_inlet_") if e.aabb()[1][1] > m.Y_LEN - 1e-6]
+        wlo, whi = aabb_of(walls)
+        section = (whi[0] - wlo[0], whi[2] - wlo[2])
+        centre = ((wlo[0] + whi[0]) / 2, (wlo[2] + whi[2]) / 2)
+        face_c = (wc[0] * 16 + 8.0, wc[2] * 16 + 8.0)
+        print(f"anchors: water cell {wc} {rig['waterFace']}: {pid}'s inlet open on y {whi[1]:.2f}, ppex's {section[0]:.0f} x "
+              f"{section[1]:.0f} tube on (x {centre[0]}, z {centre[1]})")
+        plugged = [e.name for e in v.named(pid, r"_inlet_") if e.aabb()[1][1] > m.Y_LEN - 1.5
+                   and e.aabb()[0][0] < ix < e.aabb()[1][0] and e.aabb()[0][2] < iz < e.aabb()[1][2]]
+        if rig["waterFace"] != "up" or wc[1] != m.CELLS_Y - 1 or section != (6.0, 6.0) or centre != face_c or plugged:
+            v.fail(f"{pid}'s inlet is not open to a ppex pipe end to end on the water face's centre")
+    cells = {"power": pc, "water": wc}
+    for label, part, prefix, face, cell, key in (
+            ("concentrate", "frame", r"^fr_chute_conc_", m.CONC_FACE, m.CONC_CELL, "concentrate"),
+            ("tailings", "frame", r"^fr_chute_tail_", m.TAIL_FACE, m.TAIL_CELL, "tailings"),
+            ("infeed", "feedbox", r"^fb_chute_", m.FEED_FACE, m.FEED_CELL, "feed")):
+        els = v.named(part, prefix)
+        prof, ends = m.chute_profile(els, face, cell)
+        axis = FACE_AXIS[face]
+        flush = (cell[axis] * 16.0) if face in ("north", "west", "down") else (cell[axis] + 1) * 16.0
+        tex = {f["texture"] for e in els for f in e.faces.values()}
+        want = vanilla_profile(m)
+        print(f"anchors: {label} cell {list(cell)} {face}: the chute section's walls at the face {prof}, flush at {sorted(ends)}")
+        if not set(prof) <= want or not chute_ring(prof) or ends != {flush} or tex != {"#chute"} or rig[f"{key}Face"] != face \
+                or rig[f"{key}Cell"] != list(cell) or m.TEXTURES["chute"] != m.VANILLA_CHUTE["texture"]:
+            v.fail(f"the {label} chute is not vanilla's chute section at its cell's {face} face")
+        cells[label] = cell
+    game = m.read_vanilla_chute()
+    if game is None:
+        print("anchors: the game's chute shape is not here; VANILLA_CHUTE is held to it where it is")
+    else:
+        walls, runs, gtex = game
+        ok = walls == sorted(m.VANILLA_CHUTE["walls"]) and runs == {(0.0, 16)} and gtex == m.VANILLA_CHUTE["texture"]
+        print(f"anchors: the game's {m.VANILLA_CHUTE['shape']}: walls {walls} the length of the block, texture {gtex}")
+        if not ok:
+            v.fail("VANILLA_CHUTE is not the game's straight chute")
+    # the feed box holds the infeed's foot: its walls round the chute's, its floor under its foot
+    clo, chi = aabb_of(v.named("feedbox", r"^fb_chute_"))
+    blo, bhi = aabb_of(v.named("feedbox", r"^fb_(w|e|s|weir)$"))
+    floor = v.named("feedbox", r"^fb_floor$")[0].aabb()
+    if not (blo[0] <= clo[0] and chi[0] <= bhi[0] and blo[2] <= clo[2] and chi[2] <= bhi[2] and floor[1][1] < clo[1] < bhi[1]):
+        v.fail("the feed box does not take the infeed chute's foot in its mouth")
+    if len({tuple(c) for c in cells.values()}) != len(cells):
+        v.fail(f"the anchor cells must differ: {cells}")
 
 
 def ray_down(el, p):
@@ -160,7 +316,7 @@ def ray_down(el, p):
 
 
 def first_below(v, p, pose):
-    state = pose[1]
+    state = pose[2] if len(pose) > 2 else "all"
     best = None
     for pid in v.shown(state):
         for el in v.posed(pid, pose):
@@ -172,6 +328,53 @@ def first_below(v, p, pose):
                 best = (t, el.name)
     return best
 
+
+def drops(v):
+    """Each drop: (label, a point just past a lip, the element it must fall onto first (name regex), poses).
+    The infeed into the feed box; the pulp off the apron and the wash water from each nozzle onto the belt,
+    as the belt shakes; the concentrate off the head and the tailings off the foot into their boxes; each
+    box's spout into its chute section's bore."""
+    m = v.m
+    out = []
+    shake = [(a, None) for a in (0.0, 1.1, math.pi / 2, 2.6, 3.9, -math.pi / 2, 5.2)]
+    rest = [(0.0, None)]
+    fc = m.FEED_CELL
+    out.append(("the infeed chute into the feed box", [fc[0] * 16 + 8.0, m.FEED_CHUTE_Y0 - 0.05, fc[2] * 16 + 8.0],
+                r"^fb_floor$", rest))
+    for x in (m.APRON_X[0] + 0.3, 10.0, m.APRON_X[1] - 0.3):
+        out.append((f"the pulp off the apron at x {x}", [x, m.APRON_LIP_Y - m.APRON_T - 0.05, m.APRON_Z - 0.05],
+                    r"^belt_run", shake))
+    nb = m.SPRAY[0] - m.SPRAY_HALF - m.NOZZLE[1] - 0.05
+    for k, nx in enumerate(m.NOZZLES_X, 1):
+        out.append((f"the wash water from nozzle {k}", [nx, nb, m.SPRAY[1]], r"^belt_run", shake))
+    hy, hz = m.HEAD
+    fy, fz = m.FOOT
+    r = m.ROLL_R + m.BELT_T + 0.05
+    for x in (m.BELT_X[0] + 0.3, 10.0, m.BELT_X[1] - 0.3):
+        out.append((f"the concentrate off the head at x {x}", [x, hy, hz - r], r"^fr_cb_floor$", shake))
+        out.append((f"the tailings off the foot at x {x}", [x, fy, fz + r], r"^fr_tb_floor$", shake))
+    sx = sum(m.SPOUT_X) / 2
+    out.append(("the concentrate box's spout into its chute", [sx, m.SPOUT_Y[1] + 0.05, m.CONC_CHUTE_Z[1] - 1.45],
+                r"^fr_chute_conc_", rest))
+    out.append(("the tailings box's spout into its chute", [sx, m.SPOUT_Y[1] + 0.05, m.TAIL_CHUTE_Z[0] + 1.45],
+                r"^fr_chute_tail_", rest))
+    return out
+
+
+def check_drops(v):
+    n = 0
+    fl = drops(v)
+    for label, p, rx, poses in fl:
+        for pose in poses:
+            hit = first_below(v, p, pose)
+            n += 1
+            if hit is None or not re.search(rx, hit[1]):
+                v.fail(f"drop: {label} from {[round(c, 2) for c in p]} at {pose} lands on {hit[1] if hit else 'nothing'}, not {rx}")
+                break
+    print(f"drops: {len(fl)} lips, {n} drops: the infeed into the feed box, the pulp and the wash water onto the belt as it "
+          "shakes, the concentrate off the head and the tailings off the foot into their boxes, the spouts into their chutes")
+
+
 # ---------------------------------------------------------------- mechanism
 def angle_about(v, pid, pose, axis):
     mm = v.mat(pid, pose)
@@ -182,102 +385,148 @@ def angle_about(v, pid, pose, axis):
 
 def check_yokes(v):
     """Each sheave in its yoke: at every step of a turn the sheave's centre is on the yoke's slot line (the
-    yoke follows it exactly: its bars stay tangent to the sheave's flats' circle) and the sheave stays
-    inside the slot's length."""
+    yoke follows it across exactly: its west and east bars stay a hundredth off its corners' circle) and
+    the sheave stays inside the slot's length (clear of its top and bottom bars by YOKE_GAP or more)."""
     m = v.m
     rc = m.SHEAVE_RC
-    cases = [("jig", "jigsheave", (m.JIG_X, m.LS[0], m.LS[1] - m.JIG_E), "jigplunger", "jigplunger_yoke", 1, "level2"),
-             ("table", "tablesheave", (m.TABLE_X, m.LS[0] + m.TABLE_E, m.LS[1]), "tabledeck", "tabledeck_yoke", 2, "level3")]
-    for i, xs in enumerate(m.CS_SHEAVES_X, 1):
-        cases.append((f"vanner {i}", "vannershaft", (xs, m.CS[0] + m.VN_E, m.CS[1]), "vannerframe", f"vannerframe_yoke{i}", 2, "level4"))
-    worst = 0.0
-    for label, sp, centre, yp, yname, axis, state in cases:
-        other = 2 if axis == 1 else 1
-        for pose in turns(48, state):
-            p = v.point(sp, pose, centre)
-            bars = {e.name.rsplit("_", 1)[1]: e.aabb() for e in v.named(yp, rf"^{yname}_(top|bottom|n|s)$", pose)}
-            lo_k, hi_k = ("bottom", "top") if axis == 1 else ("n", "s")
-            lo_o, hi_o = ("n", "s") if axis == 1 else ("bottom", "top")
-            inner_lo, inner_hi = bars[lo_k][1][axis], bars[hi_k][0][axis]
-            mid = (inner_lo + inner_hi) / 2
-            worst = max(worst, abs(p[axis] - mid))
-            half = (inner_hi - inner_lo) / 2
-            end_lo, end_hi = bars[lo_o][1][other], bars[hi_o][0][other]
-            if abs(p[axis] - mid) > 1e-6 or abs(half - rc - 0.01) > 1e-6 or not (end_lo + rc < p[other] < end_hi - rc):
-                v.fail(f"{label}: the sheave is off its yoke's slot at {pose} ({p[axis]:.4f} vs {mid:.4f}, across {p[other]:.3f} "
-                       f"in {end_lo:.3f}..{end_hi:.3f})")
+    sx, sy = m.sheave_centre()
+    worst, tightest = 0.0, 1e9
+    for i, z in enumerate(m.SHEAVES_Z, 1):
+        for pose in turns(48):
+            p = v.point("countershaft", pose, (sx, sy, z))
+            bars = {e.name.rsplit("_", 1)[1]: e.aabb() for e in v.named("shaker", rf"^sk_yoke{i}_(w|e|top|bottom)$", pose)}
+            inner_w, inner_e = bars["w"][1][0], bars["e"][0][0]
+            mid = (inner_w + inner_e) / 2
+            worst = max(worst, abs(p[0] - mid))
+            half = (inner_e - inner_w) / 2
+            room = min(bars["top"][0][1] - (p[1] + rc), (p[1] - rc) - bars["bottom"][1][1])
+            tightest = min(tightest, room)
+            if abs(p[0] - mid) > 1e-6 or abs(half - rc - 0.01) > 1e-6 or room < m.YOKE_GAP - 1e-6:
+                v.fail(f"sheave {i} is off its yoke's slot at {pose} ({p[0]:.4f} vs {mid:.4f}; {room:.3f} to its top or bottom bar)")
                 break
-    print(f"yokes: {len(cases)} eccentric sheaves, each on its yoke's slot line through a turn (worst {worst:.1e}), its bars "
-          f"{rc + 0.01:.3f} off the sheave's centre (its corners {rc:.3f}), the sheave inside the slot's length")
+    print(f"yokes: {len(m.SHEAVES_Z)} eccentric sheaves, each on its yoke's slot line through a turn (worst {worst:.1e}), "
+          f"its bars {rc + 0.01:.3f} off the sheave's centre (its corners {rc:.3f}), at least {tightest:.2f} from the top and bottom bars")
 
 
 def check_drive(v):
-    """The vanner's drive belt: its pulleys' rims at one speed and its runs on their tangents; the worm on
-    its wheel's pitch circle, the wheel a tooth a worm turn; the belt's upper run moving to the head as the
-    axle turns forward (and backwards with it: there is no rectifier)."""
+    """The countershaft turns with the axle and the frame follows its eccentrics across (a stroke of 2 E a
+    turn) whichever way the axle turns; the ratchet's tooth is the stroke, and the fixed pawl stays just
+    under its bottom teeth through the shake; the worm on the wheel's pitch circle, in its plane, the wheel a
+    tooth a worm turn; the ratchet, the worm and the rollers turn one way only (with the travel), the belt's
+    top run creeping to the head whichever way the axle turns."""
     m = v.m
-    a, b = (0.0,), (0.4,)
-    for pa, ra, pb, rb in (("vannerpulley", m.VPULLEY_R, "vannershaft", m.VPULLEY_R),):
-        da = angle_about(v, pa, b, "x") - angle_about(v, pa, a, "x")
-        db = angle_about(v, pb, b, "x") - angle_about(v, pb, a, "x")
-        if abs(da * ra - db * rb) > 1e-6:
-            v.fail(f"the vanner's drive belt slips: {pa} {da * ra:.5f}, {pb} {db * rb:.5f}")
-    for run in v.named("vanner", r"^vn_belt_run[ab]$"):
-        k = min((q for q in range(3) if abs(run.r[0][q]) < 0.5), key=lambda q: abs(run.size[q]))
-        n = mvec(run.r, [1.0 if q == k else 0.0 for q in range(3)])
-        t = abs(run.size[k])
-        for c, r_ in (((0.0, *m.LS), m.VPULLEY_R), ((0.0, *m.CS), m.VPULLEY_R)):
-            dist = abs(sum((c[q] - run.c[q]) * n[q] for q in (1, 2)))
-            if abs(dist - (r_ + t / 2)) > 1e-6:
-                v.fail(f"{run.name} is {dist:.4f} from a pulley's centre, not its radius {r_} plus half its thickness")
-    d = m.CS[0] - m.HEAD[1]
-    if abs(d - (m.WHEEL_R + m.WORM_R)) > 1e-9 or not (m.WHEEL_Z[0] < m.CS[1] < m.WHEEL_Z[1]):
-        v.fail("the worm is not on its wheel's pitch circle, in its plane")
-    dw = angle_about(v, "vannerworm", b, "x") - angle_about(v, "vannerworm", a, "x")
-    dh = angle_about(v, "vannerhead", b, "z") - angle_about(v, "vannerhead", a, "z") \
-        - (angle_about(v, "vannerframe", b, "z") - angle_about(v, "vannerframe", a, "z"))
-    if abs(abs(dh) * m.WORM_N - abs(dw)) > 1e-5:
-        v.fail(f"the worm wheel turns {dh:.5f} as the worm turns {dw:.4f}, not a tooth in {m.WORM_N} a turn")
-    top = [m.HEAD[0], m.HEAD[1] + m.ROLL_R, 37.0]
-    p0 = v.point("vannerhead", a, top)
-    for th in (0.3, -0.3, 2.0, -2.0):
-        p1 = v.point("vannerhead", (th,), top)
-        f1 = v.point("vannerframe", (th,), top)
-        w0, w1 = angle_about(v, "vannerworm", a, "x"), angle_about(v, "vannerworm", (th,), "x")
-        if (p1[0] - (f1[0] - top[0])) - p0[0] <= 0 or w1 - w0 <= 0:
-            v.fail(f"the belt does not creep to the head with the axle turned {th:+}: the ratchet must turn the worm forward either way")
-    # the ratchet: the pawl under its lowest teeth, a tooth's pitch pushed each turn
+    a = (0.0, 0.0)
+    for th in (0.4, -0.4, math.pi / 2, -math.pi / 2, 3.0):
+        d = angle_about(v, "countershaft", (th, abs(th)), "z")
+        if abs(math.remainder(d - th, TAU)) > 1e-9:
+            v.fail(f"the countershaft turns {d:.4f} for the axle's {th}")
+        dx = v.point("shaker", (th, abs(th)), (0.0, 0.0, 0.0))[0]
+        if abs(dx - m.E * math.sin(th)) > 1e-9:
+            v.fail(f"the shaking frame is at {dx:.4f} for the axle's {th}, not E sin theta")
     tooth = TAU * m.RATCHET_R / m.RATCHET_N
-    plo, phi = v.named("vannerframe", r"_pawl$")[0].aabb()
-    gap = (m.CS[0] - m.RATCHET_R - m.RATCHET_MOD) - phi[1]
-    if not (0.0 < gap < 0.2) or abs(m.PAWL_TRAVEL - tooth) > 0.1 * tooth or not (plo[2] < m.CS[1] - m.VN_E and phi[2] > m.CS[1] + m.VN_E):
-        v.fail(f"the pawl is not under the ratchet's teeth through the shake (gap {gap:.3f}, stroke {m.PAWL_TRAVEL} for a tooth of {tooth:.2f})")
-    per_turn = m.ROLL_R * TAU * m.WORM_RATIO / m.WORM_N
-    print(f"drive: the vanner's belt 1:1, its runs on their tangents; the ratchet: 12 teeth {tooth:.2f} apart, the pawl {gap:.2f} under "
-          f"them, pushed {m.PAWL_TRAVEL} a stroke: the worm shaft turns {m.WORM_RATIO:.4f} a turn of the axle, either way; worm: centre "
-          f"distance {d:.2f} (pitch radii {m.WHEEL_R:.2f} + {m.WORM_R:.2f}), the wheel a tooth a worm turn (1/{m.WORM_N}): the belt "
-          f"creeps {per_turn:.3f} voxels a turn to the head, whichever way the axle turns")
+    if abs(tooth - 2 * m.E) > 1e-9:
+        v.fail(f"the ratchet's tooth {tooth:.4f} is not the shake's stroke {2 * m.E}")
+    wx, wy = m.WORM
+    tips = wy - m.ratchet_reach()
+    worst_gap, cover = 1e9, True
+    for pose in turns(24):
+        shift = v.point("shaker", pose, (0.0, 0.0, 0.0))[0]
+        plo, phi = v.named("pawl", r"_arm$", pose)[0].aabb()
+        rlo, rhi = aabb_of(v.named("worm", r"_ratchet_", pose))
+        worst_gap = min(worst_gap, rlo[1] - phi[1], tips - phi[1])
+        if not (plo[0] < wx + shift - 0.5 and phi[0] > wx + shift + 0.5 and plo[2] <= m.RATCHET_Z[0] + 0.15 and phi[2] >= m.RATCHET_Z[1] - 0.15):
+            cover = False
+    if not (0.0 < worst_gap < 0.2) or not cover or abs(tips - v.named("pawl", r"_arm$")[0].aabb()[1][1] - m.PAWL_GAP) > 1e-9:
+        v.fail(f"the pawl is not just under the ratchet's bottom teeth through the shake (gap {worst_gap:.3f})")
+    d = m.HEAD[0] - wy
+    wlo, whi = aabb_of(v.named("head", r"_wheel_"))
+    if abs(d - (m.WHEEL_R + m.WORM_R)) > 1e-9 or not (wlo[0] < wx < whi[0]):
+        v.fail("the worm is not on its wheel's pitch circle, in its plane")
+    b = (0.0, 0.4)
+    dw = angle_about(v, "worm", b, "z") - angle_about(v, "worm", a, "z")
+    dh = angle_about(v, "head", b, "x") - angle_about(v, "head", a, "x")
+    df = angle_about(v, "foot", b, "x") - angle_about(v, "foot", a, "x")
+    if abs(abs(dh) * m.WHEEL_N - abs(dw)) > 1e-5 or abs(dh - df) > 1e-12:
+        v.fail(f"the worm wheel turns {dh:.6f} as the worm turns {dw:.6f}, not a tooth in {m.WHEEL_N} a turn, or the foot {df:.6f}")
+    if abs(abs(dw) - 0.4 / m.RATCHET_N) > 1e-6:
+        v.fail(f"the ratchet turns {dw:.6f} for 0.4 of travel, not a tooth a turn")
+    top = [10.0, m.HEAD[0] + m.ROLL_R, m.HEAD[1]]
+    for th in (0.3, -0.3, 2.0, -2.0):
+        p0 = v.point("head", (0.0, 0.0), top)
+        p1 = v.point("head", (th, abs(th)), top)
+        f1 = v.point("shaker", (th, abs(th)), [0.0, 0.0, 0.0])
+        if p1[2] - p0[2] >= 0 or abs((p1[0] - f1[0]) - p0[0]) > 1e-9:
+            v.fail(f"the belt does not creep to the head with the axle turned {th:+}: the ratchet must turn the worm one way either way")
+    per_turn = abs(m.HEAD_RATIO) * (m.ROLL_R + m.BELT_T) * TAU
+    print(f"drive: the countershaft with the axle, the frame E sin theta across ({2 * m.E} a stroke, a stroke a turn); the ratchet: "
+          f"{m.RATCHET_N} teeth {tooth:.3f} apart (the stroke), the fixed pawl {worst_gap:.2f} under their tips through the shake: a "
+          f"tooth a turn, one way; the worm on the wheel's pitch circle ({m.WHEEL_R:.2f} + {m.WORM_R:.2f}), the wheel a tooth a worm "
+          f"turn (1/{m.WHEEL_N}): the belt creeps {per_turn:.3f} voxels a turn to the head, whichever way the axle turns")
+
+
+def check_supports(v):
+    """Every shaft in two bearings or more: the countershaft in the frame's three, the worm shaft in its two
+    on the shaking frame, the head and foot rollers' journals in theirs."""
+    m = v.m
+    fr = v.by_part["frame"]
+    sk = v.by_part["shaker"]
+    shafts = [("countershaft", "countershaft", r"_rod", 2, m.CS, fr, r"^fr_bearing\d$", 3),
+              ("worm shaft", "worm", r"_rod", 2, m.WORM, sk, r"^sk_wbearing\d$", 2),
+              ("head roller", "head", r"_journal", 0, m.HEAD, sk, r"^sk_headbearing_", 2),
+              ("foot roller", "foot", r"_journal", 0, m.FOOT, sk, r"^sk_footbearing_", 2)]
+    for label, pid, rx, axis, c, where, brx, need in shafts:
+        found, _ = supports(where, v.named(pid, rx), axis, c)
+        named = sorted(n for n in found if re.search(brx, n))
+        print(f"support {label}: {len(named)} bearing(s) {', '.join(named) or 'NONE'}")
+        if len(named) < need:
+            v.fail(f"the {label} is not carried by {need} bearing(s)")
+    print("support: every shaft in its bearings")
+
+
+def check_uprights(v):
+    """The uprights carry the shaking frame: each leans about its foot pin, fixed in the frame's cheeks,
+    and its head stays on the rail's clevis pin through a turn, within the arc's drop (UP_LEN (1 - cos
+    UP_SWING), a few hundredths); the leaning post stays between its cheeks at both ends and clear of the
+    rail above it."""
+    m = v.m
+    worst, worst_top = 0.0, 1e9
+    for pose in turns(48):
+        for k, side in enumerate("we"):
+            cx = sum(m.RAILS_X[k]) / 2
+            for i, z in enumerate(m.UPRIGHTS_Z, 1):
+                head = v.point(f"upright{side}", pose, (cx, m.UP_PIVOTS_Y[1], z))
+                pin = v.point("shaker", pose, (cx, m.UP_PIVOTS_Y[1], z))
+                foot = v.point(f"upright{side}", pose, (cx, m.UP_PIVOTS_Y[0], z))
+                d = math.dist(head, pin)
+                worst = max(worst, d)
+                post = v.named(f"upright{side}", rf"^up{side}_{i}$", pose)[0]
+                lo, hi = post.aabb()
+                rail_lo = aabb_of(v.named("shaker", rf"^sk_rail_{side}", pose))[0]
+                worst_top = min(worst_top, rail_lo[1] - hi[1])
+                if d > m.UP_LEN * (1 - math.cos(m.UP_SWING)) + 1e-6 or math.dist(foot, (cx, m.UP_PIVOTS_Y[0], z)) > 1e-9 \
+                        or hi[1] > rail_lo[1] - 0.02 or lo[2] < z - m.UP_D / 2 - 1e-6 or hi[2] > z + m.UP_D / 2 + 1e-6:
+                    v.fail(f"upright {side}{i} leaves its pins at {pose} (head {d:.4f} off the rail's pin)")
+                    return
+    print(f"uprights: {2 * len(m.UPRIGHTS_Z)} leaning {math.degrees(m.UP_SWING):.2f} degrees each way, each head within {worst:.4f} of "
+          f"its rail's pin through a turn (the arc's drop {m.UP_LEN * (1 - math.cos(m.UP_SWING)):.4f}), at least {worst_top:.2f} under the rail")
 
 
 # ---------------------------------------------------------------- clearances
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way
 # round. Everything else must clear by more than 0.02 voxels at every sampled pose.
 ALLOWED = [
-    # shafts in their bearings, sheaves and pulleys on their shafts
-    ("lineshaft", r"_rod|_coupling|_collar", "linehangers", r"ls_bearing"),
-    ("jigsheave|tablesheave|vannerpulley", None, "lineshaft", r"_rod"),
-    ("vannershaft|vannerworm", r"_rod|_collar", "vanner", r"vn_bearing"),
-    ("vannerhead|vannerfoot", r"_journal", "vannerframe", r"bearing|_rail"),
-    # the sheaves in their yokes
-    ("jigsheave", None, "jigplunger", r"_yoke"), ("tablesheave", None, "tabledeck", r"_yoke"),
-    ("vannershaft", r"_sheave", "vannerframe", r"_yoke"),
-    # the worm and its wheel; the belts on their pulleys and rollers
-    ("vannerworm", r"_worm", "vannerhead", r"_wheel"),
-    ("vanner", r"vn_belt", "vannerpulley|vannershaft", r"pulley"),
-    ("vannerframe", r"_belt|_edge", "vannerhead|vannerfoot", r"_drum"),
-    # the rods in their guides, the slides
-    ("jigplunger", r"_rod", "jig", r"jg_guide_eye"),
-    ("tabledeck", r"_joist", "table", r"tb_slide"), ("vannerframe", r"_rail", "vanner", r"vn_slide\d"),
+    # shafts in their bearings and collars against them
+    ("countershaft", r"_rod|_collar", "frame", r"^fr_bearing"),
+    ("head|foot", r"_journal|_collar", "shaker", r"bearing_"),
+    ("foot", r"_journal", "shaker", r"^sk_rail_"),          # through the rails where its bearings are set into them
+    ("worm", r"_rod|_collar", "shaker", r"_wbearing"),
+    # the sheaves in their yokes; the worm and its wheel; the belt on its rollers
+    ("countershaft", r"_sheave", "shaker", r"_yoke"),
+    ("worm", r"_thread|_core", "head", r"_wheel"),
+    ("belt", None, "head|foot", r"_drum"),
+    # the uprights on their pins
+    ("uprightw|uprighte", None, "frame", r"^fr_up[we]\d_pin"),
+    ("uprightw|uprighte", None, "shaker", r"^sk_up[we]\d_pin"),
 ]
 
 
@@ -290,7 +539,7 @@ def allowed(pa, na, pb, nb):
 
 
 def touching_pairs(v, pose, moving_only=False):
-    state = pose[1]
+    state = pose[2] if len(pose) > 2 else "all"
     items = []
     for pid in v.shown(state):
         for el in v.posed(pid, pose):
@@ -333,24 +582,16 @@ def check_clearances(v, poses, label, moving_only=False):
     print(f"{label} over {len(poses)} poses: {'all clear' if not allhits else f'{len(allhits)} pairs of parts touch'}")
     for key, hs in sorted(allhits.items()):
         ex = sorted(hs.items())[:3]
-        print(f"  TOUCH {key[0]} x {key[1]}: {len(hs)}, e.g. " + "; ".join(f"{a}/{b} at theta {p[0]:.3f} ({p[1]})" for (a, b), p in ex))
+        print(f"  TOUCH {key[0]} x {key[1]}: {len(hs)}, e.g. " + "; ".join(f"{a}/{b} at theta {p[0]:.3f}" for (a, b), p in ex))
     if allhits:
         v.fail("parts run into each other")
-
-
-def clearance_poses(n=16):
-    out = []
-    for state in ("frame", "level1", "level2plates", "level3dressed", "level4dressed"):
-        out += turns(n, state)
-    out += [(-0.9, "level4dressed"), (-2.4, "level4dressed")]
-    return out
 
 
 def check_zfight(v):
     m = v.m
     bad = 0
     for pose in m.coplanar_poses():
-        els = [e for pid in v.shown(pose[1]) for e in v.posed(pid, pose)]
+        els = [e for pid in v.shown(m.state_of(pose)) for e in v.posed(pid, pose)]
         pairs = coplanar_faces(els)
         if pairs:
             bad += len(pairs)
@@ -360,3 +601,48 @@ def check_zfight(v):
         v.fail("faces z-fight")
 
 
+def validate(m, els, parts, rig, quick=False):
+    v = V(m, els, parts, rig)
+    check_basic(v)
+    check_requires(v)
+    check_textures(v)
+    check_thickness(v)
+    check_floating(v)
+    check_containment(v, [(a, None) for a in (0.0, 0.7, math.pi / 2, 2.5, 3.3, 4.1, -math.pi / 2, 5.8, -1.2)])
+    check_anchors(v)
+    check_drops(v)
+    check_yokes(v)
+    check_drive(v)
+    check_supports(v)
+    check_uprights(v)
+    check_clearances(v, turns(12 if quick else 24) + turns(8, travel_extra=37.0) + [(-0.9, None), (-2.4, None)], "clearances")
+    if not quick:
+        check_clearances(v, turns(96) + turns(48, travel_extra=TAU * 6.5), "swept paths (every 3.75 degrees of the axle, the creep "
+                         "run on)", moving_only=True)
+        check_zfight(v)
+    return v.ok
+
+
+def validate_files(m, shape, frame_shape, ship):
+    """The written files: every texture declared; lids over every column; the anchor cells and the
+    controller's not hollow."""
+    ok = True
+    used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
+    missing = used - set(shape["textures"])
+    if missing:
+        print(f"FAIL textures used but not declared: {missing}")
+        ok = False
+    gaps = lid_gaps(ship["cells"])
+    hollow = [tuple(c["pos"]) for c in ship["cells"] if c.get("hollow")]
+    print(f"files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; {len(ship['cells'])} cells, "
+          f"{len(hollow)} hollow; lids over every column: {'yes' if not gaps else gaps}")
+    if gaps:
+        ok = False
+    for key in ("powerCell", "waterCell", "feedCell", "concentrateCell", "tailingsCell"):
+        if tuple(ship[key]) in hollow:
+            print(f"FAIL the {key} is hollow")
+            ok = False
+    if (0, 0, 0) in hollow:
+        print("FAIL the controller's cell is hollow")
+        ok = False
+    return ok
