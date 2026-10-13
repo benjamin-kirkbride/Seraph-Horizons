@@ -106,8 +106,7 @@ public sealed class Census
         this.parallel = Math.Max(1, parallel);
         this.log = log;
         this.onDone = onDone;
-        originX = sapi.WorldManager.MapSizeX / ChunkSize / 2 - size / 2;
-        originZ = sapi.WorldManager.MapSizeZ / ChunkSize / 2 - size / 2;
+        (originX, originZ) = OreSurveySystem.Origin(sapi, size);
     }
 
     public void Start(IReadOnlyCollection<string>? only)

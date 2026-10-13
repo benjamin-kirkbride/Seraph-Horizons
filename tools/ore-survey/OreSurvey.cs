@@ -52,6 +52,7 @@ public class OreSurveySystem : ModSystem
         api.Event.ServerRunPhase(EnumServerRunPhase.GameReady, () =>
         {
             if (Environment.GetEnvironmentVariable("ORE_TRACE_CHUNK") is { Length: > 0 } trace) OreTrace.Bind(api, outPath, trace);
+            if (Environment.GetEnvironmentVariable("ORE_TRACE_CONFINE") == "1") OreTrace.Confine(api);
         });
         api.Event.ServerRunPhase(EnumServerRunPhase.GameReady, () =>
             passes = WorldgenPasses.Apply(api, Environment.GetEnvironmentVariable("ORE_SURVEY_FAST") == "1",
@@ -62,8 +63,7 @@ public class OreSurveySystem : ModSystem
             counts = new long[api.World.Blocks.Count];
             ySum = new long[api.World.Blocks.Count];
             recorded = api.World.Blocks.Select(b => b?.Code != null && Recorded(b)).ToArray();
-            originX = api.WorldManager.MapSizeX / 32 / 2 - size / 2;
-            originZ = api.WorldManager.MapSizeZ / 32 / 2 - size / 2;
+            (originX, originZ) = Origin(api, size);
             Log($"start seed={api.World.Seed} sealevel={api.World.SeaLevel} mapY={api.WorldManager.MapSizeY} origin chunk=({originX},{originZ}) size={size}x{size} chunks");
             if (mode == "dump") { Dump(); return; }
             if (mode == "census")
@@ -77,6 +77,17 @@ public class OreSurveySystem : ModSystem
             clock.Start();
             api.Event.RegisterGameTickListener(_ => Step(), 20);
         });
+    }
+
+    /// <summary>The area's north-west chunk: centred on the map, or on ORE_SURVEY_CENTRE=x,z (blocks).</summary>
+    public static (int X, int Z) Origin(ICoreServerAPI api, int size)
+    {
+        if (Environment.GetEnvironmentVariable("ORE_SURVEY_CENTRE") is { Length: > 0 } c)
+        {
+            var p = c.Split(',');
+            return (int.Parse(p[0]) / 32 - size / 2, int.Parse(p[1]) / 32 - size / 2);
+        }
+        return (api.WorldManager.MapSizeX / 32 / 2 - size / 2, api.WorldManager.MapSizeZ / 32 / 2 - size / 2);
     }
 
     // The world is thrown away after the run. Under a census's load the autosave cannot pause the

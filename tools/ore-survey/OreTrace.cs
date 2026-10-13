@@ -25,6 +25,34 @@ public static class OreTrace
     static FieldInfo? accessorField, variantField;
     static ICoreServerAPI? sapi;
 
+    /// <summary>ORE_TRACE_CONFINE=1, an experiment, not a fix: Interesting Ore Gen's
+    /// TryPlaceMainOre skips every position outside the chunk column being generated (it writes to
+    /// any chunk the worldgen accessor reaches otherwise). If veins then come out alike in any
+    /// generation order, those writes, and the draws they make conditional on what they find, are
+    /// what makes them differ.</summary>
+    public static void Confine(ICoreServerAPI api)
+    {
+        var h = new Harmony("seraphoresurvey.confine");
+        PatchPartial(h);
+        var gen = AccessTools.TypeByName("InterestingOreGen.Generators.TiltedDiscDepositGenerator");
+        h.Patch(AccessTools.Method(gen, "TryPlaceMainOre"), prefix: new HarmonyMethod(typeof(OreTrace), nameof(ConfinePrefix)) { priority = Priority.First });
+        api.Logger.Notification("[oresurvey] experiment: IOG's TryPlaceMainOre confined to the column being generated");
+    }
+
+    static bool ConfinePrefix(BlockPos __1) =>
+        target is not { } t || (__1.X >> 5 == t.X && __1.Z >> 5 == t.Z);
+
+    static bool partialPatched;
+
+    static void PatchPartial(Harmony h)
+    {
+        if (partialPatched) return;
+        partialPatched = true;
+        h.Patch(AccessTools.Method(typeof(GenDeposits), nameof(GenDeposits.GeneratePartial),
+                [typeof(IServerChunk[]), typeof(int), typeof(int), typeof(int), typeof(int)]),
+            prefix: new HarmonyMethod(typeof(OreTrace), nameof(PartialPrefix)));
+    }
+
     public static void Bind(ICoreServerAPI api, string outPath, string spec)
     {
         var p = spec.Split(',');
@@ -37,9 +65,7 @@ public static class OreTrace
         accessorField = AccessTools.Field(placement, "_passAccessor");
         variantField = AccessTools.Field(typeof(DepositGeneratorBase), "variant");
         var h = new Harmony("seraphoresurvey.trace");
-        h.Patch(AccessTools.Method(typeof(GenDeposits), nameof(GenDeposits.GeneratePartial),
-                [typeof(IServerChunk[]), typeof(int), typeof(int), typeof(int), typeof(int)]),
-            prefix: new HarmonyMethod(typeof(OreTrace), nameof(PartialPrefix)));
+        PatchPartial(h);
         h.Patch(AccessTools.Method(placement, "CentreInHostRock"), postfix: new HarmonyMethod(typeof(OreTrace), nameof(CentrePostfix)));
         h.Patch(AccessTools.Method(placement, "Approve"), postfix: new HarmonyMethod(typeof(OreTrace), nameof(ApprovePostfix)));
     }
