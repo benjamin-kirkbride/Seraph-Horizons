@@ -318,4 +318,30 @@ public sealed class MineReach : MineGraph
         }
         _starved = null;
     }
+
+    /// <summary>
+    /// After <see cref="MineSite.Set"/> made <paramref name="cell"/> solid (placed, a liquid, the world
+    /// changed, not the job): the potential stands whose box now holds it go, as dug footing takes them
+    /// (<see cref="Dig(IReadOnlyList{MarkPos}, ICollection{MarkPos}?, ICollection{PathCell}?)"/>). What it
+    /// might open (new footing) is left to the next plan: the bound only shrinks here, so it stays an
+    /// upper bound.
+    /// </summary>
+    public void Block(MarkPos cell)
+    {
+        for (int x = cell.X; x <= cell.X + 1; x++)
+        for (int z = cell.Z; z <= cell.Z + 1; z++)
+        for (int y = cell.Y - 3; y <= cell.Y; y++)
+        {
+            if (!Site.InWindow(x, y, z))
+                continue;
+            int n = Site.Index(x, y, z);
+            if (_node[n] != 0)
+                Set(KindNode, _node, n, 0);
+            if (Parent[n] >= 0)
+            {
+                Set(KindParent, Parent, n, -1);
+                Count(n, -1);
+            }
+        }
+    }
 }

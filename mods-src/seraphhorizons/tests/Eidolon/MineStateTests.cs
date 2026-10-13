@@ -167,4 +167,44 @@ public class MineStateTests
         state.Changed(new MarkPos(4, L - 1, 4), new MineVoxel(false, MineRule.Air));
         Assert.DoesNotContain(new MarkPos(4, L - 1, 4), state.Remaining);
     }
+
+    [Fact]
+    public void A_change_on_a_largest_area_is_taken_in_locally_within_a_tick()
+    {
+        // a pit 128 x 128 and one deep, half dug (its west half): its walk graph is the largest flat one
+        var world = new MineTestWorld().Ground(L - 1, from: -10, to: 140);
+        var area = Area(0, 127, L - 1, L - 1, 0, 127);
+        foreach (var c in Cells(0, 63, L - 1, L - 1, 0, 127))
+            world.Dig(c);
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var state = State(world, area);
+        var built = clock.Elapsed;
+        // a player puts blocks down in the dug half, and breaks some of the rest: each taken in at once
+        var changes = new List<(MarkPos Cell, MineVoxel Voxel)>();
+        for (int i = 0; i < 20; i++)
+        {
+            changes.Add((new MarkPos(5 + 3 * i, L - 1, 7 + 5 * i), new MineVoxel(true, MineRule.Mine)));
+            changes.Add((new MarkPos(70 + 2 * i, L - 1, 9 + 6 * i), new MineVoxel(false, MineRule.Air)));
+        }
+        var worst = TimeSpan.Zero;
+        foreach (var (cell, voxel) in changes)
+        {
+            clock.Restart();
+            state.Changed(cell, voxel);
+            state.Check(new PathCell(-3, L, 3), [], []);
+            worst = TimeSpan.FromTicks(Math.Max(worst.Ticks, clock.Elapsed.Ticks));
+            if (voxel.Solid)
+                world.Solid.Add((cell.X, cell.Y, cell.Z));
+            else
+                world.Dig(cell);
+        }
+        // a fraction of building it, and well within a tick's planning budget
+        Assert.True(worst.TotalMilliseconds < Math.Max(MinePlanner.BudgetMs * 5, built.TotalMilliseconds / 20),
+            $"a change took {worst.TotalMilliseconds:0.0} ms, building {built.TotalMilliseconds:0} ms");
+        Assert.True(state.Stale);
+        // and it is the walk graph built afresh
+        var fresh = new MineWalk(world.Site(area), Home);
+        fresh.BuildNow();
+        Assert.Equal(fresh.Nodes.ToHashSet(), state.Walk.Nodes.ToHashSet());
+    }
 }

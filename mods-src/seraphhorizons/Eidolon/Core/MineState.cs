@@ -241,17 +241,27 @@ public sealed class MineState
     }
 
     /// <summary>A change seen in the world that the job did not make (placed, broken by a player, a
-    /// liquid): taken in, the graphs made again before they are next asked (<see cref="Refresh"/>); the
-    /// plan is stale (<see cref="Stale"/>).</summary>
+    /// liquid): taken in at once and locally, as a dig is (the nodes round it tested again, the potential
+    /// stands its block now stands in taken off, <see cref="MineReach.Block"/>), never by building the graphs
+    /// again in one go, so a player's edit on a large area costs a tick no more than a strike; what it opens
+    /// is left to the next plan, which it marks due (<see cref="Stale"/>).</summary>
     public void Changed(MarkPos cell, MineVoxel voxel)
     {
+        bool was = Site.Solid(cell.X, cell.Y, cell.Z);
         Site.Set(cell, voxel);
         if (voxel.Rule != MineRule.Mine)
         {
             _remaining.Remove(cell);
             Bands?.Remove(cell);
         }
-        _dirty = true;
+        if (_built && !_dirty)
+        {
+            Walk.Dig([cell]);
+            if (voxel.Solid && !was)
+                Reach.Block(cell);
+            else if (!voxel.Solid && was)
+                Reach.Dig([cell], null);
+        }
         Stale = true;
     }
 
@@ -260,7 +270,13 @@ public sealed class MineState
     public void Reloaded(IMineWorld world, int x, int z)
     {
         Site.Reload(world, x, z);
-        _dirty = true;
+        if (_built && !_dirty)
+        {
+            var cells = new List<MarkPos>();
+            for (int y = Site.Window.Min.Y; y <= Site.Window.Max.Y; y++)
+                cells.Add(new MarkPos(x, y, z));
+            Walk.Dig(cells);
+        }
         Stale = true;
     }
 
