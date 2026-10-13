@@ -7,7 +7,8 @@ namespace SeraphHorizons.OreSurvey;
 /// <summary>
 /// The standard world type's chunk column handlers, per pass: listed in the log, optionally timed
 /// (ORE_SURVEY_PROFILE=1), and with ORE_SURVEY_FAST=1 those of the passes after
-/// <see cref="EnumWorldGenPass.TerrainFeatures"/> taken out. Every ore placer runs in
+/// <see cref="EnumWorldGenPass.TerrainFeatures"/> taken out, but the pack's own (stable veins lay
+/// cell veins at PreDone). Every ore placer runs in
 /// TerrainFeatures or earlier (the game's GenDeposits, Interesting Ore Gen's districts, the pack's
 /// placer fields), and nothing in the later passes writes ore (README, "Fast"). The passes still
 /// run, empty, so columns complete as before; only their handlers are gone.
@@ -47,7 +48,9 @@ public sealed class WorldgenPasses
             {
                 string name = Name(list[i]);
                 bool named = skip?.Any(n => name.Contains(n, StringComparison.Ordinal)) == true;
-                bool remove = named || fast && pass > (int)EnumWorldGenPass.TerrainFeatures;
+                // The pack's own handlers stay: with stable veins (#946) cell veins are laid at PreDone.
+                bool pack = name.StartsWith("SeraphHorizons.", StringComparison.Ordinal);
+                bool remove = named || fast && pass > (int)EnumWorldGenPass.TerrainFeatures && !pack;
                 log($"worldgen: pass {(EnumWorldGenPass)pass} handler {name}{(remove ? named ? " (removed: skip)" : " (removed: fast)" : "")}");
                 if (remove)
                 {

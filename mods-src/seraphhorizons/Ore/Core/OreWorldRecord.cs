@@ -18,7 +18,8 @@ public sealed record OreWorldRecord(
     bool RarerDistricts,
     bool PlacerFields = false,
     int PlacerCellSize = PlacerCells.DefaultCellSize,
-    bool GradePockets = false)
+    bool GradePockets = false,
+    bool StableVeins = false)
 {
     // Inside the record, OreCells names the switch, not the class.
     private const int DefaultCellSize = global::SeraphHorizons.Mod.Ore.Core.OreCells.DefaultCellSize;
@@ -42,6 +43,7 @@ public sealed record OreWorldRecord(
         RarerDistricts = RarerDistricts && config.RarerDistricts,
         PlacerFields = PlacerFields && config.PlacerFields,
         GradePockets = GradePockets && config.GradePockets,
+        StableVeins = StableVeins && config.StableVeins,
     };
 
     // "key=value" lines, so a later version can add keys.
@@ -57,6 +59,8 @@ public sealed record OreWorldRecord(
         sb.Append(CultureInfo.InvariantCulture, $"placerFields={PlacerFields}\nplacerCellSize={PlacerCellSize}\n");
         // So did grade pockets (#944).
         sb.Append(CultureInfo.InvariantCulture, $"gradePockets={GradePockets}\n");
+        // And stable veins (#946).
+        sb.Append(CultureInfo.InvariantCulture, $"stableVeins={StableVeins}\n");
         return sb.ToString();
     }
 
@@ -81,7 +85,8 @@ public sealed record OreWorldRecord(
             B("noSurfaceCopper"), B("smallerDeposits"), B("rarerDistricts"),
             B("placerFields"),
             values.TryGetValue("placerCellSize", out var ps) ? int.Parse(ps, CultureInfo.InvariantCulture) : PlacerCells.DefaultCellSize,
-            B("gradePockets"));
+            B("gradePockets"),
+            B("stableVeins"));
     }
 
     public bool Equals(OreWorldRecord? other) => other is not null && Serialize() == other.Serialize();

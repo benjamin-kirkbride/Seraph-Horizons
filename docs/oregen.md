@@ -251,6 +251,69 @@ most a quarter of the deposits of 5,000 blocks or more are 80 % one grade (a vei
 pockets at most, so one can by chance: seed 944944's poor bismuth deposit came out 85 % poor). A
 deposit no pocketed column fits is district ore, skipped.
 
+## Stable veins (#946)
+
+**The problem.** An ore cell's vein came out differently depending on the order its chunk columns
+generated in, so the same seed gave a deposit of half or twice the size depending on how the land
+was explored (the census against a full scan, `tools/ore-survey/README.md`: of 36 cell deposits 15
+differed by more than 10 %, up to +197 %; a scan's tiles and a census's anchor-first order each gave
+the same vein every time, but not the same as each other). Two causes:
+
+- **Interesting Ore Gen's vein code reads and writes the world as it goes.** The game's
+  `GenDeposits` replays every try of every source chunk within 3 chunks for each column it
+  generates, each try's random sequence seeded alike, and expects a generator to write that column
+  only. IOG 2.3.8's `TiltedDiscDepositGenerator` writes through the worldgen accessor into any
+  chunk it reaches; `GenerateMultiOreFaultPocket` and `GenerateTendrils` return early unless the
+  centre's chunk is loaded and its block a host rock (which also picks the ore's rock); each chimney
+  step reads its block; and `TryPlaceMainOre` draws from the vein's random sequence (the surface
+  indicator) only where it found a loaded host rock. So each pass drew a different vein and wrote
+  it into whatever neighbours were loaded: what a column held was the sum of the passes that
+  reached it, in their order. Confining `TryPlaceMainOre` to the column being generated alone
+  brought one deposit's two orders from 3,128 and 4,041 blocks to 1,510 and 1,547.
+- **The cell rule read the try's centre at each pass.** `CentreInHostRock` read the anchor chunk
+  as it stood: vanilla's cracked rock (a `disc-anywhere` deposit replacing `rock-*`) lands on the
+  centre during the anchor's own pass, so neighbours generated before it approved the vein and
+  those after refused it (iron cell 101,102 of seed 101: 12 passes approved, 45 refused, 13 could
+  not reach the anchor and approved nothing; anchor-first, nothing at all).
+
+**The fix** (`StableVeins`, `Ore/Game/StableVeins.cs`, `StableVeinWorlds.cs`, `Ore/Core/StableVeinBook.cs`;
+new worlds only, recorded in `seraphhorizons:oreworld` as `stableVeins`; needs `OreCells`):
+
+- **Decided once, from the anchor's own column.** In TerrainFeatures no managed vein is placed.
+  Only the anchor column's own `GenDeposits` pass decides: the first try of the metal from the
+  anchor whose centre (its height replayed as IOG draws it) is a host rock, for a chimney the host
+  rock nearest its centre up or down the column. That pass reads its own column, which no other
+  pass writes into any more (below), so it decides the same in any order. When the pass ends the
+  vein is replayed to see whether it reaches rock in the anchor column: it holds the deposit, or the
+  cell moves to its next spot. The try's seed (source chunk and world seed, as `GenDeposits` seeds
+  it), centre, variant and host rock are saved in `seraphhorizons:stableveins`.
+- **Laid at PreDone, alike everywhere.** At each column's PreDone pass every held vein whose anchor
+  is within 3 chunks is replayed: IOG's own `GenDeposit`, seeded as `GenDeposits` seeds the try,
+  against a world that is the vein's host rock everywhere (`StableVeinWorlds.HostRockWorld`, a
+  `DispatchProxy` for the five calls IOG makes), so every draw is made whatever is real. Its
+  writes in this column are laid on the real blocks in IOG's order (`StableVeinApply`): its host
+  rock (the shell IOG paints around a vein, its "normal" blocks, boulders) only onto stone or
+  `rock-*`, ore only onto the host rock. Each pass waits for its neighbours to finish the one before
+  (`ensurePrettyNeighbourhood`), so by a column's PreDone every column within 3 has finished
+  TerrainFeatures and the anchor has decided. Grade pockets (#944) run inside the replay, as they
+  depend on the seed and the position only.
+- **Other IOG veins kept to their column.** Gems, quartz and olivine keep IOG's own rule but write
+  only into the column being generated (`StableVeinWorlds.ColumnWorld`), so no pass changes another
+  column's blocks. They stay as order-dependent as before within their own column.
+- **Peeks ignored.** The game generates columns on the side to look at them (vanilla's survival
+  mod and NoOceanTranslocators do, for translocator targets): such a column is never kept, and its
+  map chunk is its own. The cell rule neither decides from nor lays into one; before, a peek could
+  settle a cell from a column that was then thrown away.
+- **One lock** around every IOG `GenDeposit` and every replay: IOG keeps a vein's state in its
+  generator and shares `GenDeposits`' one random sequence, and worldgen passes can run on more than
+  one thread.
+
+What changes in the ore: a vein no longer stops where its centre's chunk was not loaded or its
+chimney stepped into another rock; it is drawn whole and laid where the column has rock. Boulder
+indicators on cell veins are gone (IOG put them above ground, where the lay rule puts no host rock).
+Which fallback spot a cell ends on can still depend on order: a fallback whose anchor generates
+before its turn is skipped, as before (`OreCellBook`).
+
 ## Deposit registry (#443)
 
 `OreSystem.Deposits` (`Ore/Game/DepositService.cs`), server side; null when neither ore cells nor
@@ -557,8 +620,19 @@ and placer decision (`Placer fields: cell X, Z spot N at x, z: <n> blocks of ...
 ## Engine facts
 
 - Vanilla `GenDeposits` is deterministic per chunk (position, radius, thickness, grade); only the
-  Y level and host rock need terrain. IOG's `TiltedAnywhereDiscGenerator` is likewise deterministic
-  apart from its spacing filter, static state reset every server start (replaced by the cell rule).
+  Y level and host rock need terrain. It replays every try of every source chunk within
+  `depositChunkRange` (3) for each column, each try's `DepositRand` seeded from the source chunk's
+  own sequence, and vanilla's generators write only the column being generated.
+- IOG's `TiltedDiscDepositGenerator` is not deterministic per column (#946, "Stable veins"): beyond
+  its spacing filter (static state reset every server start, replaced by the cell rule) it writes
+  into any chunk the worldgen accessor reaches and draws from `DepositRand` only where it finds a
+  loaded host rock, so a vein depends on the order its columns generate in. IOG 2.3.8 implements
+  the vein types `hydrotube`, `hydrotubewithdepo`, `chimney`, `chimneywithdepo`, `seam` and `fault`;
+  its warning also names `disc` and `thread`, which it does not implement.
+- A worldgen pass runs on a column only when its eight neighbours have finished the pass before
+  (`ServerSystemSupplyChunks.ensurePrettyNeighbourhood`), so at pass P every column within k has
+  finished pass P − k. Passes can run on more than one thread. Peeks (`PeekChunkColumn`) generate
+  throwaway columns through the same handlers, in rings that shrink by one per pass.
 - Hydrothermal districts (`HydrothermalDistrictSystem`) are a pure function of seed and tile;
   radius 1–3 km, major faults 2–4 km; IOG builds a district only when a chunk within a tile of it
   generates, and keeps it in memory.

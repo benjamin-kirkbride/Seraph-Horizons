@@ -73,7 +73,7 @@ public class OreSystem : ModSystem
         var wanted = new OreWorldRecord(config.OreCells, config.OreCellSizeMetres,
             new Dictionary<string, int>(config.OreCellSizeByMetal ?? new Dictionary<string, int>()),
             config.NoSurfaceCopper, config.SmallerDeposits, config.RarerDistricts,
-            config.PlacerFields, OreCells.ClampCellSize(config.PlacerCellSizeMetres), config.GradePockets);
+            config.PlacerFields, OreCells.ClampCellSize(config.PlacerCellSizeMetres), config.GradePockets, config.StableVeins);
         var saveGame = sapi.WorldManager.SaveGame;
         NewWorld = saveGame.IsNew;
         OreWorldRecord? saved = null;
@@ -102,6 +102,7 @@ public class OreSystem : ModSystem
         api.Logger.Notification("[seraphhorizons] Placer fields for this world: {0}",
             World.PlacerFields ? $"on, {World.PlacerCellSize} m" : "off");
         api.Logger.Notification("[seraphhorizons] Grade pockets for this world: {0}", OnOff(World.GradePockets));
+        api.Logger.Notification("[seraphhorizons] Stable veins for this world: {0}", OnOff(World.StableVeins && World.OreCells));
         if (World.PlacerFields)
         {
             if (PlacerFields.Unsupported(api) is { } why)

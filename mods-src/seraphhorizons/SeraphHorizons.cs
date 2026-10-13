@@ -735,6 +735,13 @@ public class SeraphHorizonsConfig
     /// New worlds only: a world created with it off never gets it.</summary>
     public bool GradePockets { get; set; } = true;
 
+    /// <summary>Stable veins (#946, Ore/Game/StableVeins.cs, README "Stable veins"): an ore cell's
+    /// vein comes out the same whatever order its chunks generate in. Interesting Ore Gen's veins
+    /// otherwise read and write neighbouring chunks as each is generated, so the same seed gave a
+    /// deposit of half or twice the size depending on how the land was explored. Needs
+    /// <see cref="OreCells"/>. New worlds only: a world created with it off never gets it.</summary>
+    public bool StableVeins { get; set; } = true;
+
     /// <summary>Grade pockets: their typical width in blocks (2 to 64).</summary>
     public double GradePocketSizeBlocks { get; set; } = Ore.Core.GradePocketSettings.DefaultPocketSize;
 

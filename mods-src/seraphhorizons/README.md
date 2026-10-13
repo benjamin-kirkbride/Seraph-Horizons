@@ -4839,7 +4839,7 @@ first metal, and the registry the traders and their maps read. Design, engine fa
 numbers are in `docs/oregen.md`. The admin commands under `/sh ore` are described with `/sh trade`'s
 in Trading, "Admin tools".
 
-### Ore cells (`OreCells`, `OreCellSizeMetres`, `OreCellSizeByMetal`, `NoSurfaceCopper`, `SmallerDeposits`, `RarerDistricts`, `GradePockets`)
+### Ore cells (`OreCells`, `OreCellSizeMetres`, `OreCellSizeByMetal`, `NoSurfaceCopper`, `SmallerDeposits`, `RarerDistricts`, `GradePockets`, `StableVeins`)
 
 Ore is rare and placed by the seed (epic #435): a deposit of a given metal is a few kilometres
 away, and one deposit carries a group for a long while, then runs out. Five switches, all on by
@@ -4959,6 +4959,15 @@ fixed at creation. The server log says what the world has
   poor), sub-deposits and hydrothermal district veins keep their grades. The pocket settings are
   read at each start; change them only before a world generates. Details in `docs/oregen.md`,
   "Grade within veins".
+- **`StableVeins`** (#946): an ore cell's vein comes out the same whatever order its chunks
+  generate in. Interesting Ore Gen's veins otherwise read and write neighbouring chunks as each is
+  generated, so a deposit could come out at half or twice its size depending on how the land was
+  explored. With it, the anchor column's own pass decides the vein (its try and host rock, saved
+  as `seraphhorizons:stableveins`), and every column within 3 chunks lays its part at its PreDone
+  pass from a replay of IOG's own generator in a world of the host rock, onto the rock it has; IOG's
+  other veins (gems, quartz, olivine) write only into the column being generated
+  (`Ore/Game/StableVeins.cs`, `StableVeinWorlds.cs`, `Ore/Core/StableVeinBook.cs`). Needs `OreCells`.
+  Details in `docs/oregen.md`, "Stable veins".
 
 Admin commands (`controlserver`), under the pack's `/sh` root, to check the rule:
 

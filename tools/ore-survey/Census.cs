@@ -49,7 +49,8 @@ public sealed class Census
     // ORE_CENSUS_EARLY=0: only columns asked for and complete are read (every flood column asked for).
     readonly bool early = Environment.GetEnvironmentVariable("ORE_CENSUS_EARLY") != "0";
     // How far around a column asked for its neighbours are expected to pass Vegetation.
-    readonly int cover = int.Parse(Environment.GetEnvironmentVariable("ORE_CENSUS_COVER") ?? "3");
+    // (Columns within 3 pass Vegetation, within 1 PreDone: each pass waits for its neighbours' last.)
+    int cover = int.Parse(Environment.GetEnvironmentVariable("ORE_CENSUS_COVER") ?? "3");
     int columnsEarly, earlyErrors, earlyChecked, earlyMismatch, columnsCompleted;
     readonly HashSet<Column> loaded = new();
     readonly Dictionary<Column, int> holds = new();
@@ -128,7 +129,15 @@ public sealed class Census
         EnqueueCells(sized, bx1, bz1, bx2, bz2);
         EnqueueDistricts(sized, bx1, bz1, bx2, bz2);
         log($"census: {queue.Count} deposits queued");
-        if (early) sapi.Event.ChunkColumnGeneration(OnVegetation, EnumWorldGenPass.Vegetation, "standard");
+        if (early)
+        {
+            // With stable veins (#946) the pack lays cell veins at PreDone: a column's ore is final
+            // after that, so it is read there (after the pack's handler, registered before this).
+            earlyPass = StableVeinsOn() ? EnumWorldGenPass.PreDone : EnumWorldGenPass.Vegetation;
+            if (earlyPass == EnumWorldGenPass.PreDone && Environment.GetEnvironmentVariable("ORE_CENSUS_COVER") == null) cover = 1;
+            sapi.Event.ChunkColumnGeneration(OnVegetation, earlyPass, "standard");
+            log($"census: columns read early at their {earlyPass} pass");
+        }
         sapi.Event.RegisterGameTickListener(_ => Pump(), 50);
         sapi.Event.RegisterGameTickListener(_ => Watchdog(), 60_000);
     }
@@ -361,6 +370,15 @@ public sealed class Census
 
     /// <summary>A column's scan if its ore is final and seen: scanned when it completed, or at its
     /// Vegetation pass (<see cref="OnVegetation"/>).</summary>
+    EnumWorldGenPass earlyPass = EnumWorldGenPass.Vegetation;
+
+    bool StableVeinsOn()
+    {
+        var oreSystem = sapi.ModLoader.Systems.FirstOrDefault(s => s.GetType().FullName == "SeraphHorizons.Mod.Ore.OreSystem");
+        var placement = oreSystem?.GetType().GetProperty("Placement")?.GetValue(oreSystem);
+        return placement?.GetType().GetProperty("Veins")?.GetValue(placement) != null;
+    }
+
     ColumnScan? Known(Column c)
     {
         if (scans.TryGetValue(c, out var scan)) return scan;
