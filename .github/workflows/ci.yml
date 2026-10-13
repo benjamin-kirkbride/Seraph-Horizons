@@ -163,7 +163,7 @@ jobs:
     # is four classes that cannot share the plain world: SwitchesOffScenarios and
     # ConfigDefaultsScenarios (each its own ModConfig), ClearCommandScenarios (a survival world)
     # and HandcarScenarios (three players, and the shared world has no slots left). The eidolon's
-    # Eidolon* classes (each its own plain world, a server boot apiece) are eleven shards, its jobs
+    # Eidolon* classes (each its own plain world, a server boot apiece) are fifteen shards, its jobs
     # running in game time (a pit is mined a strike at a time, a tree walked to and felled), so each
     # shard holds about three minutes of them: `eidolon` the entity and the command tool,
     # `eidolon-fittings` its fittings (EidolonFittedScenarios) and docking to strip and refit them
@@ -172,7 +172,12 @@ jobs:
     # class (several sharing a pit, a late joiner, a steal; matched by prefix, so a new team-mining class
     # joins it, which is near four minutes now: give a new one a shard of its own), `eidolon-sectors`
     # three on a sector each and two walking round each other (EidolonSectorScenarios), `eidolon-team` waiting in a shared job
-    # (EidolonTeamWaitScenarios: for a square, a tree or a bystander, dry), `eidolon-fell` felling alone
+    # (EidolonTeamWaitScenarios: for a square, a tree or a bystander, dry), four for the tall tunnels and
+    # deep pits of EidolonTallTunnelScenarios, split by scenario name (a method term anchored on the class):
+    # `eidolon-tall` one eidolon on a tunnel 6 and one 8 high and on two flat faces, `eidolon-tall-team` two
+    # on the tunnel 8 high, `eidolon-tall-team-6` two on the one 6 high and the stair out of a pit five
+    # deep, and `eidolon-spiral` two on a pit too deep for a straight stair, with any new scenario of that
+    # class (the complement of the other three: give a long one a shard of its own), `eidolon-fell` felling alone
     # and together (EidolonFellScenarios, EidolonTeamFellScenarios), `eidolon-move` where it walks and
     # climbs (EidolonFootingScenarios), `eidolon-orders` carrying and guarding (EidolonCarryScenarios,
     # EidolonGuardScenarios), and `eidolon-jobs` every other Eidolon* class (chunk loading), the
@@ -212,6 +217,14 @@ jobs:
             filter: FullyQualifiedName~PackTests.EidolonSectorScenarios.
           - shard: eidolon-team
             filter: FullyQualifiedName~PackTests.EidolonTeamWaitScenarios.
+          - shard: eidolon-tall
+            filter: FullyQualifiedName~PackTests.EidolonTallTunnelScenarios.It_finishes_a_tunnel_|FullyQualifiedName~PackTests.EidolonTallTunnelScenarios.It_reports_the_top_
+          - shard: eidolon-tall-team
+            filter: FullyQualifiedName~PackTests.EidolonTallTunnelScenarios.Two_eidolons_finish_a_tunnel_eight_
+          - shard: eidolon-tall-team-6
+            filter: FullyQualifiedName~PackTests.EidolonTallTunnelScenarios.Two_eidolons_finish_a_tunnel_six_|FullyQualifiedName~PackTests.EidolonTallTunnelScenarios.It_digs_a_stair_
+          - shard: eidolon-spiral
+            filter: FullyQualifiedName~PackTests.EidolonTallTunnelScenarios.&FullyQualifiedName!~PackTests.EidolonTallTunnelScenarios.It_finishes_a_tunnel_&FullyQualifiedName!~PackTests.EidolonTallTunnelScenarios.It_reports_the_top_&FullyQualifiedName!~PackTests.EidolonTallTunnelScenarios.Two_eidolons_finish_a_tunnel_&FullyQualifiedName!~PackTests.EidolonTallTunnelScenarios.It_digs_a_stair_
           - shard: eidolon-fell
             filter: FullyQualifiedName~PackTests.EidolonFellScenarios.|FullyQualifiedName~PackTests.EidolonTeamFellScenarios.
           - shard: eidolon-move
@@ -219,7 +232,7 @@ jobs:
           - shard: eidolon-orders
             filter: FullyQualifiedName~PackTests.EidolonCarryScenarios.|FullyQualifiedName~PackTests.EidolonGuardScenarios.
           - shard: eidolon-jobs
-            filter: FullyQualifiedName~PackTests.Eidolon&FullyQualifiedName!~PackTests.EidolonScenarios.&FullyQualifiedName!~PackTests.EidolonCommanderScenarios.&FullyQualifiedName!~PackTests.EidolonFittedScenarios.&FullyQualifiedName!~PackTests.EidolonDockScenarios.&FullyQualifiedName!~PackTests.EidolonMineScenarios.&FullyQualifiedName!~PackTests.EidolonTunnelScenarios.&FullyQualifiedName!~PackTests.EidolonTeamMine&FullyQualifiedName!~PackTests.EidolonSectorScenarios.&FullyQualifiedName!~PackTests.EidolonTeamWaitScenarios.&FullyQualifiedName!~PackTests.EidolonFellScenarios.&FullyQualifiedName!~PackTests.EidolonTeamFellScenarios.&FullyQualifiedName!~PackTests.EidolonFootingScenarios.&FullyQualifiedName!~PackTests.EidolonCarryScenarios.&FullyQualifiedName!~PackTests.EidolonGuardScenarios.
+            filter: FullyQualifiedName~PackTests.Eidolon&FullyQualifiedName!~PackTests.EidolonScenarios.&FullyQualifiedName!~PackTests.EidolonCommanderScenarios.&FullyQualifiedName!~PackTests.EidolonFittedScenarios.&FullyQualifiedName!~PackTests.EidolonDockScenarios.&FullyQualifiedName!~PackTests.EidolonMineScenarios.&FullyQualifiedName!~PackTests.EidolonTunnelScenarios.&FullyQualifiedName!~PackTests.EidolonTeamMine&FullyQualifiedName!~PackTests.EidolonSectorScenarios.&FullyQualifiedName!~PackTests.EidolonTeamWaitScenarios.&FullyQualifiedName!~PackTests.EidolonTallTunnelScenarios.&FullyQualifiedName!~PackTests.EidolonFellScenarios.&FullyQualifiedName!~PackTests.EidolonTeamFellScenarios.&FullyQualifiedName!~PackTests.EidolonFootingScenarios.&FullyQualifiedName!~PackTests.EidolonCarryScenarios.&FullyQualifiedName!~PackTests.EidolonGuardScenarios.
           - shard: eidolon-fittings
             filter: FullyQualifiedName~PackTests.EidolonFittedScenarios.|FullyQualifiedName~PackTests.EidolonDockScenarios.
           - shard: ore
