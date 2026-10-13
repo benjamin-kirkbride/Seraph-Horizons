@@ -316,14 +316,14 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     /// <summary>District veins (under SmallerDeposits): a district built from the granite config,
     /// as IOG builds one when a chunk near it generates, comes out with at most the configured
-    /// number of veins of each base metal, most cut to a band of heights under sea level (a thin
-    /// vein whose whole column holds less than its drawn size keeps it), and its gold untouched in
-    /// number. With ore processing's quarter units (#863) every kept vein of a sized metal is
-    /// widened four times (a shoot four times as long, a ladder's slabs closer), so it holds its
-    /// drawn ingots in about the height it had: most are still banded, not whole. A horsetail lens
-    /// holding a sized metal (gold, silver) has its lenses twice IOG's radii both ways, four times the
-    /// ore where they cross the fracture, its box around them. A felsic district (tin, bismuth, lead,
-    /// silver) the same.</summary>
+    /// number of veins of each base metal, every one cut to a band of heights under sea level (one
+    /// too tall for that room is the room, #943), and its gold untouched in number. With ore
+    /// processing's quarter units (#863) every kept vein of a sized metal is widened four times (a
+    /// shoot four times as long and no wider, #943; a ladder's slabs closer). Granite is a country
+    /// rock as well as the host, so a shoot is sized as its whole ellipse and a horsetail lens
+    /// holding a sized metal (gold, silver) has its lenses twice IOG's horizontal radius and its
+    /// vertical one, four times the spheroid, its box around them. A felsic district (tin, bismuth,
+    /// lead, silver) the same.</summary>
     [AtlasScenario]
     public void Hydrothermal_district_veins_are_counted_and_sized()
     {
@@ -349,6 +349,7 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             float radiusVariance = (float)AccessTools.Field(config.GetType(), "OreShootRadiusVariance").GetValue(config)!;
             int maxSpacing = (int)AccessTools.Field(config.GetType(), "LadderMaxSlabSpacing").GetValue(config)!;
             string host = (string)AccessTools.Field(config.GetType(), "HostMaterialCode").GetValue(config)!;
+            Assert.Equal("rock-granite", host);
             float Cfg(string name) => (float)AccessTools.Field(config.GetType(), name).GetValue(config)!;
             int done = DistrictVeinSizes.DistrictsDone;
             var district = Activator.CreateInstance(districtType, new Vec2i(100_000, 100_000), Seed, 12345, 1, top, config)!;
@@ -376,13 +377,14 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
                 {
                     Assert.DoesNotContain("tin", metals);
                     if (!metals.Any(m => oreSizes.TargetsFor(m) is not null)) continue;
-                    // Widened four times in ore (#863): each lens's radii doubled.
+                    // Widened four times in ore (#863): in granite, which is country rock too, the
+                    // horizontal radius doubled (#943).
                     foreach (var lens in (System.Collections.IEnumerable)t.Field("Sampler").Field("_lenses").GetValue())
                     {
                         var l = Traverse.Create(lens);
                         float rh = l.Field("RadiusH").GetValue<float>(), rv = l.Field("RadiusV").GetValue<float>();
                         Assert.InRange(rh, 2 * Cfg("MinHorsetailLensRadius") - 0.01, 2 * Cfg("MaxHorsetailLensRadius") + 0.01);
-                        Assert.InRange(rv, 2 * Cfg("MinHorsetailLensVerticalRadius") - 0.01, 2 * Cfg("MaxHorsetailLensVerticalRadius") + 0.01);
+                        Assert.InRange(rv, Cfg("MinHorsetailLensVerticalRadius") - 0.01, Cfg("MaxHorsetailLensVerticalRadius") + 0.01);
                         int cy = l.Field("CentreY").GetValue<int>();
                         Assert.True(box.Y1 <= cy - (int)rv && box.Y2 >= cy + (int)rv, $"lens box y {box.Y1}..{box.Y2} under its lens {cy} ± {rv}");
                         Assert.True(box.X2 - box.X1 >= 2 * rh && box.Z2 - box.Z1 >= 2 * rh, $"lens box {box.X1}..{box.X2}, {box.Z1}..{box.Z2} under its radius {rh}");
@@ -397,8 +399,11 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
                 if (kind == "OreShoot")
                 {
                     float r = sampler.Field("_halfStrike").GetValue<float>();
-                    output.WriteLine($"{code} {kind} {string.Join("+", metals)}: half strike {r}");
+                    float across = sampler.Field("_halfAcross").GetValue<float>();
+                    output.WriteLine($"{code} {kind} {string.Join("+", metals)}: half strike {r}, across {across}");
                     Assert.InRange(r, 4 * (shootRadius - radiusVariance) - 0.01, 4 * (shootRadius + radiusVariance) + 0.01);
+                    // Along the strike only (#943): IOG's half across is half its radius.
+                    Assert.InRange(across, (shootRadius - radiusVariance) / 2 - 0.01, (shootRadius + radiusVariance) / 2 + 0.01);
                     Assert.True(box.X2 - box.X1 >= 2 * r && box.Z2 - box.Z1 >= 2 * r, $"{kind} box {box.X1}..{box.X2}, {box.Z1}..{box.Z2} under its strike {r}");
                     shoots++;
                 }
@@ -418,7 +423,8 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             }
             output.WriteLine($"{code}: {zones} zones; veins {string.Join(", ", veins.Select(kv => $"{kv.Key} {kv.Value}"))}; gold zones {gold}; "
                              + $"{string.Join(" and ", sized)} veins banded {banded}, whole {whole} ({shoots} shoots, {ladders} ladders, {lenses} lenses widened)");
-            Assert.True(banded > whole, $"{code}: veins banded {banded}, whole {whole}");
+            Assert.Equal(0, whole);
+            Assert.True(banded > 0, $"{code}: no vein banded");
             foreach (var m in sized.Where(m => m is "tin" or "bismuth" or "lead"))
                 Assert.InRange(veins.GetValueOrDefault(m), code == "magmatic-granitic-deep" ? 1 : 0, 8);
             if (code == "magmatic-granitic-deep")

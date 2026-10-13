@@ -163,6 +163,11 @@ public class DistrictVeinsTests
         Assert.Equal(8f, v);
         Assert.Equal(4.0, h * v / (6.0 * 4.0), 6);
         Assert.Equal((6f, 4f), DistrictVeins.LensRadii(6, 4, 1));
+        // In a country rock host the whole spheroid is ore (#943): its horizontal radius doubles,
+        // four times the volume.
+        var (ch, cv) = DistrictVeins.LensRadii(6, 4, 4, hostIsCountryRock: true);
+        Assert.Equal((12f, 4f), (ch, cv));
+        Assert.Equal(4.0, ch * ch * cv / (6.0 * 6.0 * 4.0), 6);
     }
 
     // A ladder vein's slabs come closer: IOG's spacings over four, rounded, at least one.
@@ -177,12 +182,42 @@ public class DistrictVeinsTests
         Assert.Equal(1, unchanged.Gain);
     }
 
+    // #943: a vein whose drawn size needs more height than the room under sea level is cut to the
+    // room, not left its whole column (IOG's y 1 to the top of the world).
     [Fact]
-    public void NoBandWhenTheVeinIsSmallerThanTheRock()
+    public void ABandTallerThanTheRoomIsTheRoom()
     {
         var tiny = new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", density: 0.01, ingots: 0.01)], 5, 1, 255);
         var plan = Rules.Plan(1, [tiny], 110)[0];
         Assert.True(plan.Keep);
-        Assert.Null(plan.BandMin);
+        Assert.Equal(4, plan.BandMin);
+        Assert.Equal(104, plan.BandMax);
+        // A zone whose own range misses the room keeps a band inside its range.
+        var high = new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", density: 0.01, ingots: 0.01)], 5, 120, 140);
+        var p = Rules.Plan(1, [high], 110)[0];
+        Assert.Equal((120, 140), (p.BandMin, p.BandMax));
     }
+
+    // #943: a shoot cut to its fault rock is the fault's width times 4r/3; where the host is a
+    // country rock it is the whole ellipse, π r (r/2) / 2 at density 1 − r², about 960 at r = 35.
+    [Fact]
+    public void ShootsAreCutToTheFaultOrWhole()
+    {
+        Assert.Equal(6 * 4.0 / 3 * 35, DistrictVeins.ShootBlocksPerLayer(35, 17.5, 3, false), 6);
+        Assert.Equal(Math.PI * 35 * 17.5 / 2, DistrictVeins.ShootBlocksPerLayer(35, 17.5, 3, true), 6);
+        Assert.InRange(DistrictVeins.ShootBlocksPerLayer(35, 17.5, 3, true), 960, 963);
+        // Never more than the whole ellipse, however wide the fault.
+        Assert.Equal(DistrictVeins.ShootBlocksPerLayer(35, 17.5, 0, true), DistrictVeins.ShootBlocksPerLayer(35, 17.5, 40, false), 6);
+        // Widened along the strike only (#863, #943): four times as long is four times the ore either way.
+        Assert.Equal(4, DistrictVeins.ShootBlocksPerLayer(140, 17.5, 3, true) / DistrictVeins.ShootBlocksPerLayer(35, 17.5, 3, true), 6);
+        Assert.Equal(4, DistrictVeins.ShootBlocksPerLayer(140, 17.5, 3, false) / DistrictVeins.ShootBlocksPerLayer(35, 17.5, 3, false), 6);
+    }
+
+    [Theory]
+    [InlineData("rock-granite", true)]
+    [InlineData("game:rock-basalt", true)]
+    [InlineData("rock-travertine", false)]
+    [InlineData("", false)]
+    public void HostIsCountryRockWhenItIsAStratum(string host, bool country) =>
+        Assert.Equal(country, DistrictVeins.HostIsCountryRock(host, ["rock-granite", "game:rock-basalt", "rock-limestone"]));
 }

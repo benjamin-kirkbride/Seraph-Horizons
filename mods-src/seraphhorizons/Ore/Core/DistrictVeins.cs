@@ -70,7 +70,8 @@ public sealed record DistrictVeinSettings(int VeinsPerMetal, IReadOnlyCollection
 /// (<see cref="DrawSize"/>: small, typical and large are the 10th, 50th and 90th percentile, as
 /// the epic reads them), the least over its ores, at a height from the hash between
 /// <see cref="DistrictVeinSettings.BandFloor"/> and sea level less
-/// <see cref="DistrictVeinSettings.BandBelowSeaLevel"/>, so that it lies in rock.</item>
+/// <see cref="DistrictVeinSettings.BandBelowSeaLevel"/>, so that it lies in rock. A band taller
+/// than that room is the room (#943): the vein holds less than drawn.</item>
 /// </list>
 /// Unmanaged ores (gems, minerals) keep their counts; in a vein that also holds a managed metal
 /// they share its band.
@@ -158,8 +159,10 @@ public sealed class DistrictVeins
         if (height is not { } wanted) return (null, null);
         int lo = Math.Max(zone.YMin, _settings.BandFloor);
         int hi = Math.Min(zone.YMax, seaLevel - _settings.BandBelowSeaLevel);
-        int band = Math.Max(1, (int)Math.Round(wanted));
-        if (hi < lo || band >= hi - lo + 1) return (null, null);
+        if (hi < lo) (lo, hi) = (zone.YMin, zone.YMax);
+        // A band taller than the room is the room (#943): the vein holds less than drawn, and
+        // never IOG's whole column.
+        int band = Math.Clamp((int)Math.Round(wanted), 1, hi - lo + 1);
         int start = lo + (int)(Unit(Hash(districtSeed, "height", index)) * (hi - lo + 2 - band));
         start = Math.Min(start, hi - band + 1);
         return (start, start + band - 1);
@@ -179,6 +182,33 @@ public sealed class DistrictVeins
     }
 
     /// <summary>
+    /// The ore blocks an ore shoot places per layer at density 1 (<see cref="DistrictZone.BlocksPerLayer"/>).
+    /// IOG's shoot is an ellipse of <paramref name="halfStrike"/> along the fault and
+    /// <paramref name="halfAcross"/> across it, density 1 − r², which integrates to
+    /// π · halfStrike · halfAcross / 2. IOG turns a zone block into ore only where it is the
+    /// district's host rock, so where that is a true fault rock (travertine) the shoot is cut to the
+    /// fault: its width times the integral of 1 − (s/r)² along it, 4r/3 (never more than the whole
+    /// ellipse). Where the host is also a country rock (<paramref name="hostIsCountryRock"/>: granite,
+    /// basalt) every block of the ellipse can be host rock, so it is counted whole (#943).
+    /// </summary>
+    public static double ShootBlocksPerLayer(double halfStrike, double halfAcross, double faultHalfWidth, bool hostIsCountryRock)
+    {
+        double whole = Math.PI * halfStrike * halfAcross / 2;
+        if (hostIsCountryRock) return whole;
+        return Math.Min(whole, Math.Max(1, 2 * faultHalfWidth) * 4.0 / 3.0 * halfStrike);
+    }
+
+    /// <summary>Whether a district's host rock (its config's <c>hostMaterialCode</c>) can also be the
+    /// country rock around its faults: it is one of the world's rock strata or its default rock
+    /// (<paramref name="countryRocks"/>, block codes with or without the <c>game:</c> domain).</summary>
+    public static bool HostIsCountryRock(string host, IEnumerable<string> countryRocks)
+    {
+        static string Path(string code) => code.StartsWith("game:", StringComparison.Ordinal) ? code[5..] : code;
+        string h = Path(host);
+        return h.Length > 0 && countryRocks.Any(c => Path(c) == h);
+    }
+
+    /// <summary>
     /// A ladder vein's slab spacings brought closer to give about <paramref name="blocks"/> times its
     /// slabs (#863): each spacing divided by it, rounded, at least 1 (IOG's 2–10 become 1–3), and the
     /// gain that makes, the old mean spacing over the new, which is under <paramref name="blocks"/>
@@ -194,15 +224,18 @@ public sealed class DistrictVeins
 
     /// <summary>
     /// A horsetail lens's radii grown to give <paramref name="blocks"/> times its ore (#863). IOG's lens
-    /// is an ellipsoid, but its ore is only where it crosses the splay's one-block fracture (fault
-    /// rock), a disc of the two radii in the fracture's plane, so both radii take the square root:
-    /// four times the ore is twice each (4–12 by 3–8 become 8–24 by 6–16).
+    /// is a spheroid (<paramref name="radiusH"/> both ways across, <paramref name="radiusV"/> up), but
+    /// where the host is a true fault rock its ore is only where it crosses the splay's one-block
+    /// fracture, a disc of the two radii in the fracture's plane, so both radii take the square root:
+    /// four times the ore is twice each (4–12 by 3–8 become 8–24 by 6–16). Where the host is also a
+    /// country rock the whole spheroid can be ore (#943), so only the horizontal radius grows, by
+    /// the square root: four times the volume.
     /// </summary>
-    public static (float H, float V) LensRadii(float radiusH, float radiusV, double blocks)
+    public static (float H, float V) LensRadii(float radiusH, float radiusV, double blocks, bool hostIsCountryRock = false)
     {
         if (!(blocks > 1)) return (radiusH, radiusV);
         float k = (float)Math.Sqrt(blocks);
-        return (radiusH * k, radiusV * k);
+        return hostIsCountryRock ? (radiusH * k, radiusV) : (radiusH * k, radiusV * k);
     }
 
     /// <summary>The ore of an IOG district ore code (<c>ore-*-cassiterite-granite</c>,
