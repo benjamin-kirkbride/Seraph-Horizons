@@ -4946,7 +4946,8 @@ fixed at creation. The server log says what the world has
   mean metal units (`GradePocketWeighting` `units`; `index` splits it evenly): a medium vein is
   17.5 % poor, 65 % medium, 17.5 % rich, a rich one 21 % medium, 65 % rich, 14 % bountiful. A vein
   that can only go one way (poor, or at the richest grade its host rock allows) takes
-  `GradePocketEndSpread` (0, so it stays one grade), which moves its metal. Prospect veins (always
+  `GradePocketEndSpread` (0.3), which moves its metal: a poor vein is 30 % medium (20 % more
+  units), a bountiful one 30 % rich (9 % less); 0 keeps such veins at one grade. Prospect veins (always
   poor), sub-deposits and hydrothermal district veins keep their grades. The pocket settings are
   read at each start; change them only before a world generates. Details in `docs/oregen.md`,
   "Grade within veins".

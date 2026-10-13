@@ -189,26 +189,34 @@ grade `g`: richer `s · (u[g] − u[g−1]) / (u[g+1] − u[g−1])`, poorer the
 host rock's blocks (`ore-{grade}-{ore}-{rock}`, `OreProducts.RawUnits`) and the range from the same
 entry IOG uses, so a vein capped by its rock is graded against the cap. At 3 / 5 / 7 / 10:
 
-| Drawn (in its rock) | Poorer | Same | Richer | Mean units |
-|---|---|---|---|---|
-| poor (any rock) | – | 100 % | 0 % | 3 |
-| medium, rock has rich | 17.5 % | 65 % | 17.5 % | 5 |
-| rich, rock has bountiful | 21 % | 65 % | 14 % | 7 |
-| the rock's top grade (bountiful, or a cap) | 0 % | 100 % | – | as drawn |
+| Drawn (in its rock) | Poorer | Same | Richer | Mean units | Drift |
+|---|---|---|---|---|---|
+| poor (any rock with medium) | – | 70 % | 30 % | 3.6 | +20 % |
+| medium, rock has rich | 17.5 % | 65 % | 17.5 % | 5 | 0 |
+| rich, rock has bountiful | 21 % | 65 % | 14 % | 7 | 0 |
+| bountiful | 30 % | 70 % | – | 9.1 | −9 % |
+| rich, the rock's cap | 30 % | 70 % | – | 6.4 | −8.6 % |
+| medium, the rock's cap | 30 % | 70 % | – | 4.4 | −12 % |
+| any, a one-grade rock | – | 100 % | – | as drawn | 0 |
 
-A vein at either end of its rock's grades can only go one way, which would move its mean, so it
-gets `GradePocketEndSpread` (0: one grade, as before). 0.15 would give a poor vein 15 % medium (+10 %
-units on 3 / 5) and a bountiful one 15 % rich (−4.5 % on 10 / 7). Hematite (4 / 6 / 8 / 11),
-cassiterite and gold quartz (1 / 3 / 4 / 6) and silver quartz (2 / 4 / 6 / 7) use their own units.
-With ore processing off the same weights are used: vanilla's units are four times these but for
-rounding.
+A vein at either end of its rock's grades can only go one way, which moves its mean: it gets
+`GradePocketEndSpread`, 0.3 (the owner's ruling, 2026-10-13: variation in every deposit is worth
+the drift; #945's iron and copper retune absorbs it; 0 keeps such veins at one grade). Poor veins
+are about half of all four-grade veins, so a typical metal's ore in the ground rises by about a
+tenth. Hematite (4 / 6 / 8 / 11: poor +15 %, bountiful −5.5 %), cassiterite and gold quartz
+(1 / 3 / 4 / 6: poor +60 %, bountiful −10 %) and silver quartz (2 / 4 / 6 / 7: poor +30 %, bountiful
+−8.6 %) use their own units. With ore processing off the same weights are used: vanilla's units are
+four times these but for rounding.
 
 **What reads it.** Deposit measurement, the makeup's `GradeMix` (#692) and item values read each
-block's own grade, so they follow. A deposit drawn medium or rich now reads `mostly:medium` or
-`mixed:...` where it read `only:` (65 % at the drawn grade, less its prospect veins), and its ingots
-are unchanged on average. Poor deposits, half of all four-grade veins, still read `only:poor` with the
-end spread at 0. `GradePocketsScenarios` checks it on real deposits: every block of a deposit matches
-one drawn grade at its position, in every chunk column (each its own chunk pass).
+block's own grade, so they follow. A deposit no longer reads `only:` unless its rock has one grade
+or it is a pocket or two in size: a medium or rich one reads `mostly:` (65 % at the drawn grade, less
+its prospect veins) or `mixed:`, a poor one `mostly:poor` (70 %, plus its poor prospect veins), where
+it read `only:poor`. `GradePocketsScenarios` checks it on real deposits: every block of a deposit
+matches one drawn grade at its position, in every chunk column (each its own chunk pass), and at
+most a quarter of the deposits of 5,000 blocks or more are 80 % one grade (a vein crosses a few dozen
+pockets at most, so one can by chance: seed 944944's poor bismuth deposit came out 85 % poor). A
+deposit no pocketed column fits is district ore, skipped.
 
 ## Deposit registry (#443)
 

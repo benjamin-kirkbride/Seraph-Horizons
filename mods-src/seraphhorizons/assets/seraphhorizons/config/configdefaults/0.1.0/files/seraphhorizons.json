@@ -102,7 +102,7 @@
   "GradePockets": true,
   "GradePocketSizeBlocks": 8.0,
   "GradePocketSpread": 0.35,
-  "GradePocketEndSpread": 0.0,
+  "GradePocketEndSpread": 0.3,
   "GradePocketWeighting": "units",
   "WideDensityProspecting": true,
   "OreProcessing": true,

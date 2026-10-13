@@ -20,10 +20,10 @@ public enum GradeWeighting
 public sealed record GradePocketSettings(
     double PocketSize = GradePocketSettings.DefaultPocketSize,
     double Spread = GradePocketSettings.DefaultSpread,
-    double EndSpread = 0,
+    double EndSpread = GradePocketSettings.DefaultEndSpread,
     GradeWeighting Weighting = GradeWeighting.Units)
 {
-    public const double DefaultPocketSize = 8, DefaultSpread = 0.35;
+    public const double DefaultPocketSize = 8, DefaultSpread = 0.35, DefaultEndSpread = 0.3;
 
     public static readonly GradePocketSettings Default = new();
 
@@ -32,7 +32,7 @@ public sealed record GradePocketSettings(
     {
         PocketSize = double.IsFinite(PocketSize) ? Math.Clamp(PocketSize, 2, 64) : DefaultPocketSize,
         Spread = double.IsFinite(Spread) ? Math.Clamp(Spread, 0, 1) : DefaultSpread,
-        EndSpread = double.IsFinite(EndSpread) ? Math.Clamp(EndSpread, 0, 1) : 0,
+        EndSpread = double.IsFinite(EndSpread) ? Math.Clamp(EndSpread, 0, 1) : DefaultEndSpread,
     };
 }
 
@@ -51,7 +51,8 @@ public sealed record GradePocketSettings(
 /// vein's mean metal units per block stay its drawn grade's (<see cref="GradeWeighting.Units"/>):
 /// with units 3, 5, 7, 10 a medium vein goes poorer and richer alike, a rich one poorer more often
 /// (5 is two units below 7, 10 three above). A vein at an end of its host rock's grades can only go
-/// one way, which would move its mean; it gets <see cref="GradePocketSettings.EndSpread"/>.
+/// one way, which moves its mean; it gets <see cref="GradePocketSettings.EndSpread"/> (0.3: a poor
+/// vein about a fifth more metal, a bountiful one about a tenth less; the owner's call, #944).
 /// </summary>
 public sealed class GradePockets
 {

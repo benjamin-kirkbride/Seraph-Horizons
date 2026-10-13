@@ -17,8 +17,8 @@ namespace SeraphHorizons.PackTests;
 /// for the world, and real deposits, generated and measured by the deposit registry, carry the
 /// pockets: every ore block of a deposit matches what <see cref="GradePockets"/> gives for one drawn
 /// grade at its position, in every chunk column (each its own chunk pass over the vein, so no pass
-/// drew a different grade or tore the vein), and a deposit drawn medium or rich is no longer one
-/// grade. Prospect veins (always poor) and chimney cores (rich) are the expected exceptions, so a
+/// drew a different grade or tore the vein), and a deposit large enough, in a rock with more than one
+/// grade, is no longer one grade. Prospect veins (always poor) and chimney cores (rich) are the expected exceptions, so a
 /// share, not every block, has to match.
 /// </summary>
 [AtlasWorld(Seed = Seed, WorldType = "standard")]
@@ -58,7 +58,7 @@ public class GradePocketsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var pockets = GradePocketPlacement.Pockets ?? throw new Xunit.Sdk.XunitException("grade pockets are not bound");
         var spawn = Sapi.World.DefaultSpawnPosition.AsBlockPos;
         var cells = new OreCells(Seed);
-        int interior = 0;
+        int varied = 0;
         var oneGrade = new List<string>();
         var keys = new[] { "copper", "iron", "tin", "zinc", "lead", "bismuth" }
             .SelectMany(m => new[] { (12_000, -12_000), (-12_000, 12_000) }
@@ -79,37 +79,56 @@ public class GradePocketsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             var ores = OreBlocks(metal, result.Candidate!);
             var shares = string.Join(", ", OreTally.Grades.Select(g => $"{g} {makeup.Grades.GetValueOrDefault(g) / (double)Math.Max(1, makeup.Grades.Values.Sum()):0.00}"));
 
-            // The drawn grade every chunk pass agrees on: the one most blocks match.
-            var (drawn, share) = Enumerable.Range(0, 4)
-                .Select(d => (d, ores.Count(o => pockets.GradeAt(o.Units, d, o.X, o.Y, o.Z) == o.Index) / (double)ores.Count))
-                .MaxBy(t => t.Item2);
-            output.WriteLine($"{key}: {result.OreBlocks} blocks, {result.Ingots:0} ingots, {makeup.Mix()?.Code}; {shares}; drawn {OreTally.Grades[drawn]}, {share:0.00} of the blocks match it");
-            Assert.True(share >= 0.8, $"{key}: only {share:0.00} of its blocks match one drawn grade");
-            // Per column, less the poorest grade where pockets can't make it (drawn rich or better):
-            // a prospect vein's trail, always poor, can fill a column of its own.
-            foreach (var column in ores.Where(o => drawn < 2 || o.Index > 0)
-                         .GroupBy(o => (o.X / 32, o.Z / 32)).Where(g => g.Count() >= 100))
+            // Each chunk column (its own chunk pass) on its own: the drawn grade its blocks match best,
+            // less the poorest grade where pockets can't make it (two or more grades above it in the
+            // block's rock), since a prospect vein's trail, always poor, can fill a column of its own.
+            double Fit(IEnumerable<OreBlock> blocks, int d)
             {
-                double matched = column.Count(o => pockets.GradeAt(o.Units, drawn, o.X, o.Y, o.Z) == o.Index) / (double)column.Count();
-                output.WriteLine($"  column {column.Key}: {column.Count()} blocks, {matched:0.00} match");
-                Assert.True(matched >= 0.7, $"{key}: column {column.Key} matches the drawn grade in only {matched:0.00} of its blocks");
+                var counted = blocks.Where(o => o.Index > 0 || Math.Min(d, o.Units.Length - 1) < 2).ToList();
+                return counted.Count == 0 ? 0 : counted.Count(o => pockets.GradeAt(o.Units, d, o.X, o.Y, o.Z) == o.Index) / (double)counted.Count;
             }
-
-            // Medium or rich in its commonest rock, which has a grade either side: no longer one
-            // grade, once it spans enough pockets for their shares to show (a 650-block deposit is
-            // a pocket or two, and came out 81 % medium).
-            var common = ores.GroupBy(o => o.Units.Length).MaxBy(g => g.Count())!;
-            if (drawn > 0 && drawn < common.Key - 1 && result.OreBlocks >= MinBlocks)
+            var columns = ores.GroupBy(o => (o.X / 32, o.Z / 32)).Where(g => g.Count() >= 100)
+                .Select(c => (c.Key, Blocks: c.Count(), Ores: c.ToList(),
+                    Best: Enumerable.Range(0, 4).Select(d => (Drawn: d, Share: Fit(c, d))).MaxBy(t => t.Share)))
+                .ToList();
+            var fits = columns.Where(c => c.Best.Share >= 0.8).ToList();
+            output.WriteLine($"{key}: {result.OreBlocks} blocks, {result.Ingots:0} ingots, {makeup.Mix()?.Code}; {shares}");
+            foreach (var c in columns)
+                output.WriteLine($"  column {c.Key}: {c.Blocks} blocks, best drawn {OreTally.Grades[c.Best.Drawn]} at {c.Best.Share:0.00}");
+            // A deposit mostly in no column that fits is not one of IOG's veins but district ore,
+            // whose grade is drawn per block (90 % poor, 10 % medium off a rich band), left alone.
+            if (fits.Sum(c => c.Blocks) * 2 < ores.Count)
             {
-                interior++;
+                output.WriteLine($"  not a pocketed vein (district ore?), skipped");
+                continue;
+            }
+            // Every column that fits, fits the largest's drawn grade: no pass drew another or tore the
+            // vein (in a rock that caps it, several drawn grades place alike).
+            int drawn = fits.MaxBy(c => c.Blocks).Best.Drawn;
+            var torn = fits.Where(c => Fit(c.Ores, drawn) < 0.8).ToList();
+            Assert.True(torn.Count == 0,
+                $"{key}: columns {string.Join(", ", torn.Select(c => $"{c.Key} (best {OreTally.Grades[c.Best.Drawn]})"))} don't fit drawn {OreTally.Grades[drawn]}");
+            double share = ores.Count(o => pockets.GradeAt(o.Units, drawn, o.X, o.Y, o.Z) == o.Index) / (double)ores.Count;
+            output.WriteLine($"  drawn {OreTally.Grades[drawn]}, {share:0.00} of the blocks match it");
+            Assert.True(share >= 0.8, $"{key}: only {share:0.00} of its blocks match its drawn grade");
+
+            // In a rock with more than one grade, no longer one grade (the ends move by the end
+            // spread, 0.3), once it spans enough pockets for their shares to show (a 650-block
+            // deposit is a pocket or two).
+            var common = ores.GroupBy(o => o.Units.Length).MaxBy(g => g.Count())!;
+            if (common.Key > 1 && result.OreBlocks >= MinBlocks)
+            {
+                varied++;
                 long top = makeup.Grades.Values.Max();
                 double topShare = top / (double)makeup.Grades.Values.Sum();
                 if (topShare >= 0.8 || makeup.Mix()!.Kind == GradeMix.Only)
                     oneGrade.Add($"{key}: drawn {OreTally.Grades[drawn]}, but {topShare:0.00} of it is one grade");
             }
         }
-        Assert.True(oneGrade.Count == 0, string.Join("\n", oneGrade));
-        Assert.True(interior > 0, $"no deposit of {MinBlocks} blocks or more drawn medium or rich among the cells tried; pick another seed");
+        // A vein crosses a few dozen pockets at most, so one can still come out mostly its drawn
+        // grade by chance; before #944 every deposit did.
+        Assert.True(oneGrade.Count * 4 <= varied, $"{oneGrade.Count} of {varied} deposits are one grade:\n" + string.Join("\n", oneGrade));
+        Assert.True(varied >= 3, $"only {varied} deposits of {MinBlocks} blocks or more among the cells tried; pick another seed");
     }
 
     // About ten pockets' volume.

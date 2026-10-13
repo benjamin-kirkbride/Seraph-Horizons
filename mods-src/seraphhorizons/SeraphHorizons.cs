@@ -743,9 +743,9 @@ public class SeraphHorizonsConfig
     public double GradePocketSpread { get; set; } = Ore.Core.GradePocketSettings.DefaultSpread;
 
     /// <summary>Grade pockets: the same share for a vein that can only go one way (drawn poor, or at
-    /// the richest grade its host rock allows), which moves its metal: 0.15 gives a poor vein about
-    /// a tenth more, a bountiful one about 5 % less. 0 leaves such veins at one grade.</summary>
-    public double GradePocketEndSpread { get; set; } = 0;
+    /// the richest grade its host rock allows), which moves its metal: 0.3 gives a poor vein 20 %
+    /// more units, a bountiful one 9 % less. 0 leaves such veins at one grade.</summary>
+    public double GradePocketEndSpread { get; set; } = Ore.Core.GradePocketSettings.DefaultEndSpread;
 
     /// <summary>Grade pockets: how the off-grade share splits between poorer and richer, <c>units</c>
     /// (the vein's mean metal units kept) or <c>index</c> (half each way).</summary>

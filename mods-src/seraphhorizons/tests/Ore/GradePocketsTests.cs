@@ -35,13 +35,19 @@ public class GradePocketsTests
     }
 
     [Fact]
-    public void EndsStayOneGradeUnlessEndSpreadIsSet()
+    public void EndsGoOneWayByTheEndSpread()
     {
-        Assert.Equal((0.0, 0.0), GradePockets.Odds(Units4, 0, Default));
-        Assert.Equal((0.0, 0.0), GradePockets.Odds(Units4, 3, Default));
+        Assert.Equal((0.0, 0.3), GradePockets.Odds(Units4, 0, Default));
+        Assert.Equal((0.3, 0.0), GradePockets.Odds(Units4, 3, Default));
         // A grade past the rock's cap is the cap, the top end.
-        Assert.Equal((0.0, 0.0), GradePockets.Odds([3, 5], 3, Default));
+        Assert.Equal((0.3, 0.0), GradePockets.Odds([3, 5], 3, Default));
         Assert.Equal((0.0, 0.0), GradePockets.Odds([3], 0, Default));
+        // The units they move by, as documented: poor +20 %, bountiful -9 %.
+        Assert.Equal(3.6, GradePockets.MeanUnits(Units4, 0, Default), 9);
+        Assert.Equal(9.1, GradePockets.MeanUnits(Units4, 3, Default), 9);
+        var none = Default with { EndSpread = 0 };
+        Assert.Equal((0.0, 0.0), GradePockets.Odds(Units4, 0, none));
+        Assert.Equal((0.0, 0.0), GradePockets.Odds(Units4, 3, none));
 
         var end = Default with { EndSpread = 0.15 };
         Assert.Equal((0.0, 0.15), GradePockets.Odds(Units4, 0, end));
@@ -91,10 +97,11 @@ public class GradePocketsTests
     }
 
     [Theory]
-    [InlineData(1, 0.0)]
-    [InlineData(2, 0.0)]
-    [InlineData(0, 0.15)]
-    [InlineData(3, 0.15)]
+    [InlineData(1, 0.3)]
+    [InlineData(2, 0.3)]
+    [InlineData(0, 0.3)]
+    [InlineData(3, 0.3)]
+    [InlineData(0, 0.0)]
     public void PlacedMeanUnitsMatchTheOdds(int drawn, double endSpread)
     {
         var settings = Default with { EndSpread = endSpread };
@@ -112,7 +119,7 @@ public class GradePocketsTests
         // A 96-block cube holds ~1,700 pockets of 8: the shares land within a couple of percent.
         double expected = GradePockets.MeanUnits(Units4, drawn, settings);
         Assert.InRange(sum / n, expected * 0.98, expected * 1.02);
-        if (endSpread == 0) Assert.Equal(Units4[drawn], expected, 9);
+        if (drawn is 1 or 2 || endSpread == 0) Assert.Equal(Units4[drawn], expected, 9);
         var (p, q) = GradePockets.Odds(Units4, drawn, settings);
         Assert.InRange((double)counts[drawn] / n, 1 - p - q - 0.03, 1 - p - q + 0.03);
     }
@@ -153,6 +160,7 @@ public class GradePocketsTests
     {
         var s = new GradePocketSettings(0.5, 3, -1).Clamped();
         Assert.Equal((2.0, 1.0, 0.0), (s.PocketSize, s.Spread, s.EndSpread));
+        Assert.Equal(GradePocketSettings.DefaultEndSpread, new GradePocketSettings(EndSpread: double.NaN).Clamped().EndSpread);
         Assert.Equal(GradePocketSettings.DefaultPocketSize, new GradePocketSettings(double.NaN).Clamped().PocketSize);
     }
 
