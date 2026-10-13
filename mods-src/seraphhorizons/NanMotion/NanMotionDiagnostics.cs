@@ -44,6 +44,13 @@ namespace SeraphHorizons.Mod.NanMotion;
 /// is checked, so a neighbour that makes the push non-finite is named.</item>
 /// </list>
 ///
+/// <para>Other entities too (<c>NanMotionEntities.cs</c>): the first report showed the player's motion
+/// went NaN in its repulsion because a neighbour's position already was, with dozens of entities of
+/// every kind NaN on the client. Each traced call whose instance is an entity or its behavior also
+/// checks that entity's position and motion, the interpolation (and each remote physics) is traced on
+/// its own, and a sweep of every loaded entity catches what is not traced; the first that sees one go
+/// non-finite is logged and written to its own report at once.</para>
+///
 /// <para>When the crash comes (<c>ApplyTests</c> is entered with a non-finite position or motion,
 /// or an exception about a NaN is thrown on the client thread: <c>AppDomain.FirstChanceException</c>,
 /// which sees it before anything catches it and leaves it as it is), it writes a full report
@@ -56,7 +63,7 @@ namespace SeraphHorizons.Mod.NanMotion;
 /// checkpoint returns at once. Client side only, patched explicitly (never PatchAll) when the level is
 /// final, under its own Harmony id.</para>
 /// </summary>
-public static class NanMotionDiagnostics
+public static partial class NanMotionDiagnostics
 {
     public const string HarmonyId = "seraphhorizons.nanmotion";
 
@@ -71,6 +78,7 @@ public static class NanMotionDiagnostics
         EntityServerPos,
         PhysicsModule,
         AfterPhysicsTick,
+        RemotePhysics,
         Fixed,
     }
 
@@ -207,6 +215,11 @@ public static class NanMotionDiagnostics
             ("UdpNetworkChannel.OnPacket", Declared(AccessTools.TypeByName("Vintagestory.Client.NoObf.UdpNetworkChannel"), "OnPacket"), typeof(TraceChannelPacket)),
             ("SystemNetworkProcess.HandleSinglePacket",
                 Declared(AccessTools.TypeByName("Vintagestory.Client.NoObf.SystemNetworkProcess"), "HandleSinglePacket"), typeof(TraceEntityPositionPacket)),
+            ("EntityBehaviorInterpolatePosition.PopQueue",
+                Declared(typeof(EntityBehaviorInterpolatePosition), "PopQueue", [typeof(bool)]), typeof(TraceInterpolationPop)),
+            ("EntityBehaviorInterpolatePosition.OnReceivedServerPos",
+                Declared(typeof(EntityBehaviorInterpolatePosition), nameof(EntityBehavior.OnReceivedServerPos), [typeof(bool), typeof(EnumHandling).MakeByRefType()]),
+                typeof(TraceInterpolationServerPos)),
         ];
     }
 
@@ -219,6 +232,7 @@ public static class NanMotionDiagnostics
         TargetKind.EntityServerPos => typeof(TraceEntityServerPos),
         TargetKind.PhysicsModule => typeof(TracePhysicsModule),
         TargetKind.AfterPhysicsTick => typeof(TraceAfterPhysicsTick),
+        TargetKind.RemotePhysics => typeof(TraceRemotePhysics),
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "a fixed target names its own trace"),
     };
 
@@ -239,7 +253,10 @@ public static class NanMotionDiagnostics
     {
         var types = assemblies.SelectMany(TypesOf).ToList();
         var targets = new List<Target>();
-        var seen = new HashSet<MethodBase>();
+        var fixedTargets = FixedTargets();
+        // A fixed target that is also an override (the interpolation's OnReceivedServerPos) keeps its
+        // own trace, which also records the interpolation's state.
+        var seen = fixedTargets.Where(f => f.Method != null).Select(f => f.Method!).ToHashSet();
         void Add(IEnumerable<MethodBase> methods, TargetKind kind)
         {
             foreach (var m in methods)
@@ -255,18 +272,51 @@ public static class NanMotionDiagnostics
             [typeof(float), typeof(Entity), typeof(EntityPos), typeof(EntityControls)], includeBase: false), TargetKind.PhysicsModule);
         Add(Overrides(types, typeof(EntityBehaviorControlledPhysics), nameof(EntityBehaviorControlledPhysics.AfterPhysicsTick),
             [typeof(float)], includeBase: true), TargetKind.AfterPhysicsTick);
-        foreach (var (_, method, trace) in FixedTargets())
-            if (method != null && seen.Add(method))
+        Add(RemotePhysicsImplementations(types), TargetKind.RemotePhysics);
+        var added = new HashSet<MethodBase>();
+        foreach (var (_, method, trace) in fixedTargets)
+            if (method != null && added.Add(method))
                 targets.Add(new Target(method, TargetKind.Fixed, trace));
         return targets;
+    }
+
+    /// <summary>Every method that implements <c>IRemotePhysics.HandleRemotePhysics</c> (the remote
+    /// entities' physics step on the client, which the interpolation runs, mods' re-implementations
+    /// included), each with a body.</summary>
+    public static List<MethodInfo> RemotePhysicsImplementations(IEnumerable<Type> types)
+    {
+        var found = new List<MethodInfo>();
+        foreach (var t in types)
+        {
+            if (!t.IsClass || t.ContainsGenericParameters || !typeof(IRemotePhysics).IsAssignableFrom(t))
+                continue;
+            try
+            {
+                var map = t.GetInterfaceMap(typeof(IRemotePhysics));
+                for (int i = 0; i < map.InterfaceMethods.Length; i++)
+                {
+                    var m = map.TargetMethods[i];
+                    if (map.InterfaceMethods[i].Name == nameof(IRemotePhysics.HandleRemotePhysics) && m.DeclaringType == t
+                        && !m.IsAbstract && m.GetMethodBody() != null && !found.Contains(m))
+                        found.Add(m);
+                }
+            }
+            catch
+            {
+                // Not mapped: left out.
+            }
+        }
+        return found;
     }
 
     // ---------------------------------------------------------------- binding and patching
 
     /// <summary>Starts watching: <paramref name="watched"/> on <paramref name="threadId"/>. On the
     /// client neither is known before the player's first physics step, which sets both (see
-    /// <see cref="SimPhysicsEntry"/>); the Atlas scenarios bind an entity of their own.</summary>
-    public static void Bind(ICoreAPI api, Entity? watched, int threadId)
+    /// <see cref="SimPhysicsEntry"/>); the Atlas scenarios bind an entity of their own. Other
+    /// entities are watched on <paramref name="entityThreadId"/> (the client's main thread, known
+    /// when the level is final; <paramref name="threadId"/> when not given).</summary>
+    public static void Bind(ICoreAPI api, Entity? watched, int threadId, int? entityThreadId = null)
     {
         _api = api;
         _capi = api as ICoreClientAPI;
@@ -278,6 +328,7 @@ public static class NanMotionDiagnostics
         Frames = new MotionRing(FrameCount);
         RepulsionCulprit = null;
         ReportPath = null;
+        BindEntities(entityThreadId ?? threadId);
         AppDomain.CurrentDomain.FirstChanceException -= OnFirstChance;
         AppDomain.CurrentDomain.FirstChanceException += OnFirstChance;
     }
@@ -286,6 +337,7 @@ public static class NanMotionDiagnostics
     public static void Unbind()
     {
         AppDomain.CurrentDomain.FirstChanceException -= OnFirstChance;
+        UnbindEntities();
         _watched = null;
         _threadId = -1;
         _api = null;
@@ -345,6 +397,8 @@ public static class NanMotionDiagnostics
             Try("ClientEventManager.TriggerRenderStage", () => harmony.Patch(stage,
                 transpiler: new HarmonyMethod(typeof(RenderStage), nameof(RenderStage.Transpiler))));
 
+        PatchEntityContext(harmony, Try);
+
         foreach (var target in targets)
             Try(Label(target.Method), () => harmony.Patch(target.Method, prefix: Prefix(target.Trace), postfix: Postfix(target.Trace)));
         PatchedCount = ok;
@@ -355,12 +409,15 @@ public static class NanMotionDiagnostics
     public static void PatchClient(Harmony harmony, ICoreClientAPI api)
     {
         var watch = Stopwatch.StartNew();
-        Bind(api, null, -1);
+        // The level is finalized on the client's main thread.
+        Bind(api, null, -1, Environment.CurrentManagedThreadId);
         var targets = FindTargets(GameAssemblies());
         int ok = Patch(harmony, api, targets);
+        StartSweeps(api);
         api.Logger.Notification(
-            "[seraphhorizons] NaN motion diagnostics: the player's motion is traced through {0} patches on {1} methods ({2} failed) in {3} ms; "
-            + "a report is written to the log folder if it goes NaN", ok, targets.Count, PatchFailures.Count, watch.ElapsedMilliseconds);
+            "[seraphhorizons] NaN motion diagnostics: the player's motion and other entities' positions are traced through {0} patches on {1} methods "
+            + "({2} failed) in {3} ms, every loaded entity swept every {4} ms; a report is written to the log folder if one goes NaN",
+            ok, targets.Count, PatchFailures.Count, watch.ElapsedMilliseconds, SweepIntervalMs);
         foreach (var failure in PatchFailures)
             api.Logger.Warning("[seraphhorizons] NaN motion diagnostics: could not patch {0}", failure);
     }
@@ -377,153 +434,164 @@ public static class NanMotionDiagnostics
         return w.Pos.Motion;
     }
 
+    /// <summary>What a traced call's start saw: the player's motion and its own entity's position and
+    /// motion. A value type (Harmony keeps it as a <c>__state</c> local).</summary>
+    public readonly struct TraceState(MotionProbe player, EntityProbe entity)
+    {
+        public MotionProbe Player { get; } = player;
+        public EntityProbe Entity { get; } = entity;
+    }
+
     /// <summary>A checkpoint at the start of a traced call.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void Enter(string site, object? instance, out MotionProbe state)
+    private static void Enter(string site, object? instance, out TraceState state)
     {
-        if (Watching() is not { } m)
+        var player = default(MotionProbe);
+        if (Watching() is { } m)
         {
-            state = default;
-            return;
+            player = Tracker.Before(site, instance, m.X, m.Y, m.Z, out bool tripped);
+            if (tripped)
+                OnTrip();
         }
-        state = Tracker.Before(site, instance, m.X, m.Y, m.Z, out bool tripped);
-        if (tripped)
-            OnTrip();
+        state = new TraceState(player, EntityEnter(site, instance, true, out bool arrived));
+        if (arrived)
+            OnEntityTrip(null);
     }
 
     /// <summary>A checkpoint at the end of a traced call.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void Exit(string site, object? instance, in MotionProbe state)
+    private static void Exit(string site, object? instance, in TraceState state)
     {
-        if (!state.Watched || Watching() is not { } m)
-            return;
-        if (Tracker.After(site, instance, in state, m.X, m.Y, m.Z))
+        if (state.Player.Watched && Watching() is { } m && Tracker.After(site, instance, state.Player, m.X, m.Y, m.Z))
             OnTrip();
+        if (state.Entity.Watched && EntityExit(site, instance, state.Entity, true))
+            OnEntityTrip(null);
     }
 
     // The traces: a prefix (before every other mod's) and a postfix (after every other mod's) on each
     // target, one class per site, so the site is a constant. Not __originalMethod: Harmony computes it
     // with MethodBase.GetMethodFromHandle on every call, on every thread, watched or not; the exact
     // method is read from the stack when the trip happens. A class each also keeps their __state apart
-    // (Harmony shares it between the patches of one class).
+    // (Harmony shares it between the patches of one class). Each checks the player's motion, and, when
+    // its instance is an entity or an entity's behavior, that entity's position and motion.
 
     public static class TraceBehaviorTick
     {
         public const string Site = "EntityBehavior.OnGameTick";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceEntityTick
     {
         public const string Site = "Entity.OnGameTick";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceBehaviorServerPos
     {
         public const string Site = "EntityBehavior.OnReceivedServerPos";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceEntityServerPos
     {
         public const string Site = "Entity.OnReceivedServerPos";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TracePhysicsModule
     {
         public const string Site = "PModule.DoApply (a physics module)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceAfterPhysicsTick
     {
         public const string Site = "EntityBehaviorControlledPhysics.AfterPhysicsTick (the traversed blocks' OnEntityInside, the AfterPhysicsTick delegate)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TracePhysicsFrame
     {
         public const string Site = "EntityBehaviorPlayerPhysics.OnRenderFrame (the player's physics frame)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceSimPhysics
     {
         public const string Site = "EntityBehaviorPlayerPhysics.SimPhysics (with every mod's patch on it)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceSetState
     {
         public const string Site = "EntityBehaviorControlledPhysics.SetState";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceMotionAndCollision
     {
         public const string Site = "EntityBehaviorControlledPhysics.MotionAndCollision (the physics modules)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceApplyTests
     {
         public const string Site = "EntityBehaviorControlledPhysics.ApplyTests (collision, stepping, sneaking, with every mod's patch on it)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceTerrainCollision
     {
         public const string Site = "CollisionTester.ApplyTerrainCollision (with every mod's patch on it)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceTickListener
     {
         public const string Site = "GameTickListener.OnTriggered (a tick listener)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceMainThreadTasks
     {
         public const string Site = "ClientMain.ExecuteMainThreadTasks (queued main thread tasks)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceServerPacket
     {
         public const string Site = "ProcessPacketTask.ProcessPacket (a packet from the server)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceChannelPacket
     {
         public const string Site = "NetworkChannel.OnPacket (a mod's network message)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public static class TraceEntityPositionPacket
     {
         public const string Site = "SystemNetworkProcess.HandleSinglePacket (an entity position from the server, motion included)";
-        public static void Prefix(object? __instance, out MotionProbe __state) => Enter(Site, __instance, out __state);
-        public static void Postfix(object? __instance, MotionProbe __state) => Exit(Site, __instance, in __state);
+        public static void Prefix(object? __instance, out TraceState __state) => Enter(Site, __instance, out __state);
+        public static void Postfix(object? __instance, TraceState __state) => Exit(Site, __instance, in __state);
     }
 
     public const string SimPhysicsBodySite = "EntityBehaviorPlayerPhysics.SimPhysics, its body (after every mod's prefix on it)";
@@ -633,20 +701,32 @@ public static class NanMotionDiagnostics
 
     public const string RendererSite = "a renderer's OnRenderFrame";
 
-    /// <summary>A renderer's frame, traced.</summary>
+    /// <summary>A renderer's frame, traced. A renderer that is an entity's behavior (the interpolation
+    /// of every remote entity, mods' too) also has its entity checked, with the interpolation's state
+    /// and the frame's dt kept for the record.</summary>
     public static void RenderFrame(IRenderer renderer, float dt, EnumRenderStage stage)
     {
-        if (Watching() is not { } m)
+        var player = default(MotionProbe);
+        if (Watching() is { } m)
         {
-            renderer.OnRenderFrame(dt, stage);
-            return;
+            player = Tracker.Before(RendererSite, renderer, m.X, m.Y, m.Z, out bool tripped);
+            if (tripped)
+                OnTrip();
         }
-        var probe = Tracker.Before(RendererSite, renderer, m.X, m.Y, m.Z, out bool tripped);
-        if (tripped)
-            OnTrip();
+        var interpolation = renderer as EntityBehaviorInterpolatePosition;
+        var interpBefore = EntityWatching(renderer) && interpolation != null ? InterpolationState.Of(interpolation) : default;
+        var entity = EntityEnter(RendererSite, renderer, interpolation == null || interpBefore.Finite, out bool arrived);
+        if (arrived)
+            OnEntityTrip(FrameContext(dt, stage, interpolation, interpBefore, null));
         renderer.OnRenderFrame(dt, stage);
-        if (Watching() is { } after && Tracker.After(RendererSite, renderer, in probe, after.X, after.Y, after.Z))
+        if (player.Watched && Watching() is { } after && Tracker.After(RendererSite, renderer, in player, after.X, after.Y, after.Z))
             OnTrip();
+        if (entity.Watched)
+        {
+            var interpAfter = interpolation == null ? default : InterpolationState.Of(interpolation);
+            if (EntityExit(RendererSite, renderer, entity, interpolation == null || interpAfter.Finite))
+                OnEntityTrip(FrameContext(dt, stage, interpolation, interpBefore, interpAfter));
+        }
     }
 
     // ---------------------------------------------------------------- the trip and the report

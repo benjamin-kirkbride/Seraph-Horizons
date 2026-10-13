@@ -379,7 +379,7 @@ as a backstop, an exception about a NaN thrown on the client thread, seen throug
 `AppDomain.FirstChanceException` before anything catches it), the full report
 (`NanMotion/NanMotionReport.cs`) goes to the client log as an error and to
 `Logs/seraphhorizons-nanmotion-<time>.txt`, before the exception propagates: the first-NaN record (or a
-statement that nothing traced saw it, which narrows it to what is not traced), the repulsion culprit,
+statement that nothing traced saw it, which narrows it to what is not traced), the repulsion culprit, the other entities' record (below),
 the player's position, previous server position, motion, flags, mount, controls, walk speed,
 `GetWalkSpeedMultiplier`, game mode and every stat with each of its parts, the player's physics
 behavior and each module's fields (`PModuleOnGround`'s `motionDeltaX`/`Z` are kept between frames), the
@@ -389,10 +389,49 @@ value, who patches the methods on the physics path, the last 20 physics frames
 the player, is written on its own, so one failure loses only itself. There is no Harmony finalizer: Harmony rethrows a
 finalizer's exception, which would cut the crash log's stack trace short at the patched method.
 
+**Other entities** (`NanMotion/NanMotionEntities.cs`, `NanMotion/Core/EntityNanTracker.cs`). The first
+report named the player's own repulsion: a neighbour (`game:bowtorn-surface`) already had a NaN
+position, and the game's repulsion took it as it was. 49 of the 192 entities loaded on the client had
+NaN positions, of every kind (animals, butterflies, fish, Cartwright's Caravan carts, Yang Transport
+wagons, the flying machine, eidolons, trunk entities), from a second after a singleplayer autosave
+(the flying machine's sound first failed to take its NaN position then), 22 minutes before the
+crash; the server logged nothing. The server's position packets cannot carry a NaN (positions and
+motion are fixed point longs, divided by 16384 on the client), so the client made it, and what those
+entities share is `EntityBehaviorInterpolatePosition`, which eases each remote entity toward the
+server's positions every frame (`Lerp(pL, pN, dtAccum / pN.interval)`, with `dtAccum` grown by
+`dt * targetSpeed`; a NaN in its accumulator or speed stays NaN and makes every later frame NaN). So
+the diagnostics also find the first time any other entity's position or motion goes from finite to
+non-finite (in 1.22.7 `ServerPos` is `Pos`, so that is one position):
+
+- every traced call whose instance is an entity or an entity's behavior (the tick and server position
+  overrides, the physics steps) checks that entity at its start and its end, and so does each
+  renderer that is a behavior (the interpolation's `OnRenderFrame`, through the same wrapper);
+- the interpolation's `PopQueue` (moves the entity to the next snapshot, then runs its remote physics)
+  and `OnReceivedServerPos` (queues the server's position) have traces of their own, and every
+  `IRemotePhysics.HandleRemotePhysics` implementation is traced (the game's controlled and passive
+  physics, the trunk physics); the interpolation's traces also check its snapshots, accumulator and
+  speed, so a NaN there trips before the position shows it, with the state at the call's start and end;
+- a sweep of every loaded entity every 500 ms catches a writer that is not traced: the record then says
+  whether a traced call found the entity already NaN or the sweep did, and when the last sweep found
+  every entity finite;
+- context, recorded without allocating: each client frame's time, dt and pause (a ring of the last 30,
+  a prefix on `ClientMain.MainRenderLoop`), the last entity position packet decoded as the game decodes
+  it (a prefix on `SystemNetworkProcess.HandleSinglePacket`), and when the server last suspended and
+  resumed its ticking (singleplayer's autosave, a postfix on `ServerMain.Suspend`, the server being in
+  the client's process) and the game last paused and unpaused.
+
+The local player is left to its own tracker. The first trip is logged as a warning at once, with the
+entity, the call (or the sweep), the values before and after, the frame's dt and the interpolation's
+state, the entity's `tick`/`tickDiff` (the interpolation's snapshot interval comes from them), the
+packet, the frames, the stack and the patched methods on it, and written to its own file,
+`Logs/seraphhorizons-nanentity-<time>.txt`, with every entity non-finite at that moment: the crash
+may come much later or never. Then it stops looking. The crash report has the record too.
+
 Cheap while nothing is wrong: a checkpoint reads the thread id, the player's motion and three doubles,
-and allocates nothing (the start's probe is a value type, the site a constant: one trace class per
-site, not `__originalMethod`, which Harmony computes on every call). Calls on other threads (the
-server's, in singleplayer) return after the thread check. Client side only, its own Harmony id
+and its entity's position and motion when its instance is one, and allocates nothing (the start's
+probe is a value type, the site a constant: one trace class per site, not `__originalMethod`, which
+Harmony computes on every call; an entity checkpoint's time is the frame's, read once a frame). Calls
+on other threads (the server's, in singleplayer) return after the thread check. Client side only, its own Harmony id
 (`seraphhorizons.nanmotion`), patched when the level is final and unpatched when the world is left.
 On by default: it is meant to be in every player's game until #405 is found. Off, nothing is patched.
 Remove it once #405 is fixed.
@@ -6157,8 +6196,8 @@ state exports reading back, a live survey's files, the overlays reaching admins 
 ## Tests
 
 `tests/` (xunit, no game): Tidy Variants' rule engine and the shipped override and lang files,
-cart reach's entity matching and reach rule, the NaN motion diagnostics' first-NaN tracker, frame
-ring and report formatting (`NanMotion/Core/`, `tests/NanMotion/`), which panning drops are taken out, where the chopper drops its piles, which ratio a source next to a gearbox takes, `/clear`'s
+cart reach's entity matching and reach rule, the NaN motion diagnostics' first-NaN trackers (the
+player's and other entities'), frame rings and report formatting (`NanMotion/Core/`, `tests/NanMotion/`), which panning drops are taken out, where the chopper drops its piles, which ratio a source next to a gearbox takes, `/clear`'s
 daytime, dry-spell search and saved lock, and unified woodworking's rules: splitting block tiers,
 upgrades and yields, the creative shortcut and the frames' stages, sawhorse work, the handbook's page list (and that the guides the export hides
 are what it drops) and the lang entry changes (`Core/`), Map Reveal's `Core/`, the creative mod
