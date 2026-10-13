@@ -645,6 +645,10 @@ its select's names, `requiresClass`, the checks) and the hot-metal glow, held to
 whole-degree temperatures.
 `site/test/model-textures.test.ts` covers texture selects: their checks, the opening pick, and the
 picked code's path and colour in the view.
+`site/test/riddle.test.ts` replays `mods-src/seraphhorizons/tests/Riddle/rig-reference.json` and
+`stand-rig-reference.json`, the riddle's two forms: a hand station whose shake is a gauge's `lobes` on ψ with no
+driver reading θ, so the clock moves nothing while no charge is riddled, and whose heap of fines shrinks and fines in
+the box grow on stretching gauges; the stand's riddle hangs level on its straps, which stay on their pins.
 `site/test/models.test.ts` covers the manifest, anchors, the play script and the view, the mill's
 and a trunk travelling through a machine (a small rig on the rosser's trunk path);
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL (the handcar's `pump` for the
