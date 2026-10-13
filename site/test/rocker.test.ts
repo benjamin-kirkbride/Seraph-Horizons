@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { discoverAnchors } from "../src/lib/model-anchors.ts";
-import { checkScenario, stateGroups, type Scenario } from "../src/lib/model-scenario.ts";
+import { checkScenario, pickedTextures, stateGroups, type Scenario } from "../src/lib/model-scenario.ts";
+import { buildModelView, withPickedTextures } from "../src/lib/model-view.ts";
 import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rigInputs, rideOrder, textureCodes, thetaTurns, workOf, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The rocker's shipped files, and the poses Rocker/tools/make_shape.py computes from them with machinegen's
@@ -110,5 +111,62 @@ describe("the rocker's anchors and scenario", () => {
     expect(water.default).toBe("wet");
     // no build stages: every requires value is a state's
     expect(requires.filter((r) => !groups.some((g) => g.owns.includes(r)))).toEqual([]);
+  });
+});
+
+describe("the rocker's Charge and Concentrate selects against the pack's items", () => {
+  // The renderer sets the charge's and the concentrate's texture codes to the material's; the viewer shows a few
+  // ores in their colours. Each option is an ore of the pack's crushed ore (medium grade and up) or concentrate
+  // item, with the texture that item takes; the placer option is Wilderlands Panning's rich gravel, whose
+  // texture is its rock's gravel with a few ore specks over it.
+  const scenario = manifest.models.find((m) => m.id === "rocker")!.scenario!;
+  const select = (code: string) => scenario.textures!.find((t) => t.code === code)!;
+  const itemType = (name: string) => {
+    const text = readFileSync(new URL(MOD + `assets/seraphhorizons/itemtypes/oreprocessing/${name}.json`, import.meta.url), "utf8");
+    return JSON.parse(text.replace(/^\s*\/\/.*$/gm, "")) as {
+      variantgroups: { code: string; states: string[] }[];
+      textureByType: Record<string, { base: string }>;
+    };
+  };
+  // The texture an item's code takes: the first textureByType key it matches, as the game resolves *ByType.
+  const textureOf = (type: ReturnType<typeof itemType>, code: string, ore: string) => {
+    const key = Object.keys(type.textureByType).find((k) => new RegExp(`^${k.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`).test(code))!;
+    return type.textureByType[key]!.base.replace("{ore}", ore);
+  };
+
+  it("has the two selects, each for a code the shape's faces use, opening at the shape's own texture", () => {
+    const requires = requiresValues(parts);
+    const codes = [...new Set(flattenShape(shape.elements).flatMap((f) => textureCodes(f.element)))];
+    expect(checkScenario(scenario, rig, discoverAnchors(rig).anchors, requires, codes)).toEqual([]);
+    expect(scenario.textures!.map((t) => t.code)).toEqual(["charge", "concentrate"]);
+    for (const t of scenario.textures!) expect(shape.textures?.[t.code], t.code).toBe(t.options.find((o) => o.id === t.default)!.path);
+  });
+
+  it("offers ores of the pack's crushed ore and concentrate, each in the texture its item takes", () => {
+    const crushed = itemType("crushedore");
+    const concentrate = itemType("concentrate");
+    const ores = (t: ReturnType<typeof itemType>) => t.variantgroups.find((g) => g.code === "ore")!.states;
+    for (const o of select("charge").options.filter((q) => q.id !== "placer")) {
+      expect(ores(crushed)).toContain(o.id);
+      expect(o.path, o.id).toBe(textureOf(crushed, `crushedore-${o.id}-medium`, o.id));
+    }
+    for (const o of select("concentrate").options) {
+      expect(ores(concentrate)).toContain(o.id);
+      expect(o.path, o.id).toBe(textureOf(concentrate, `concentrate-${o.id}`, o.id));
+    }
+    // every concentrate is one a charge offered gives; placer gravel's gold is the gold quartz's concentrate
+    expect(select("concentrate").options.map((o) => o.id)).toEqual(select("charge").options.filter((o) => o.id !== "placer").map((o) => o.id));
+    expect(select("charge").options.find((o) => o.id === "placer")!.path).toBe("game:block/stone/gravel/granite");
+  });
+
+  it("draws the charge and the concentrate in the picked ore's colour", () => {
+    const view = buildModelView(shape, rig, scenario);
+    for (const code of ["charge", "concentrate"]) {
+      const s = select(code);
+      const opening = view.textures.find((t) => t.code === code)!;
+      expect(opening.colour).toBe(s.options.find((o) => o.id === s.default)!.colour);
+      const picked = withPickedTextures(view.textures, pickedTextures(scenario.textures, { [code]: "malachite" })).find((t) => t.code === code)!;
+      expect(picked).toMatchObject({ path: "game:item/resource/nugget/malachite", colour: s.options.find((o) => o.id === "malachite")!.colour });
+    }
   });
 });
