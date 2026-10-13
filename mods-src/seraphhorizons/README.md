@@ -3038,8 +3038,14 @@ then the opposite corner, which closes it and gives the order; wider than the mo
 holding more blocks in all than its limit (mining's), is refused
 and the first corner kept; a third click starts a new area). The tool keeps each mode's marks; while it
 is held, the client highlights the selected mode's (an area as a green box, a first corner or block in
-yellow; highlight slot 6750), and sneak + right-click on a block or the air clears them. Everything is
-decided on the server.
+sky blue; highlight slot 6750), and sneak + right-click on a block or the air clears them. Each mark's
+translucent fill has an outline of its box's edges over it in the same hue that draws through terrain
+(`Game/EidolonMarkOutlines.cs`: the game's wireframe shader and unit line cube, as its selected block
+outline, with the depth test off), so a corner marked before digging stays in sight from inside the
+rock. Once a first corner is marked, a dimmer outline previews the area from it to the block the player
+is aiming at (none when aiming at air), red when the second click would be refused: the preview and the
+click go through the same rule (`EidolonMarking.Preview`, the mode's `MaxAreaSide` and `MaxAreaBlocks`).
+Everything is decided on the server.
 
 **Follow and stay**, the first two modes. *Follow me* gives the `follow` order (`FollowOrder`, the
 player's uid): it keeps `FollowDistance` blocks off them by the wide pathfinder, walking, or running
