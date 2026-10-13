@@ -1,0 +1,118 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+import { discoverAnchors } from "../src/lib/model-anchors.ts";
+import type { ManifestModel } from "../src/lib/model-manifest.ts";
+import { initialFitted } from "../src/lib/model-scenario.ts";
+import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rideOrder, rigInputs, workOf, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
+
+// The vanner's shipped files, and the poses Vanner/tools/make_shape.py computes from them with machinegen's
+// reference maths. Its rig reads θ, the axle (the countershaft turns with it; the shaking frame slides across,
+// E sin θ, and its uprights swing with it), and ψ, the axle's travel either way (the worm and the rollers it
+// creeps turn by it, one way only). tools/tests/test_vanner_model.py and the mod's C# tests replay the same file.
+const MOD = "../../mods-src/seraphhorizons/";
+const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
+const rig = read("assets/seraphhorizons/config/vanner-rig.json") as Rig & Record<string, unknown>;
+const shape = read("assets/seraphhorizons/shapes/block/vanner.json") as Shape;
+type RefPose = { theta: number; travel: number; matrices: Record<string, number[][]> };
+const reference = read("tests/Vanner/rig-reference.json") as { poses: RefPose[] };
+const manifest = JSON.parse(readFileSync(new URL("../models.json", import.meta.url), "utf8")) as { models: ManifestModel[] };
+const parts = rig.parts!;
+const order = rideOrder(parts);
+
+const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 + r]!));
+const pose = (theta: number, travel: number): Pose => ({ theta, depth: 0, lifting: 0, travel, work: 0, size: 0, presence: 0, feed: 0, oil: 0 });
+const apply = (m: Mat4, p: readonly number[]) => [0, 1, 2].map((r) => m[r]! * p[0]! + m[4 + r]! * p[1]! + m[8 + r]! * p[2]! + m[12 + r]!);
+const index = (id: string) => parts.findIndex((p) => p.id === id);
+
+describe("the vanner's rig against its rig-reference.json", () => {
+  it("reads θ and the travel, has no work, and fits its parts in order", () => {
+    expect(rigInputs(parts)).toEqual({ theta: true, travel: true, depth: false, lifting: false });
+    expect(workOf(rig)).toBeNull();
+    expect(parts.map((p) => [p.id, p.requires ?? null, p.ride ?? null])).toEqual([
+      ["countershaft", "countershaft", null],
+      ["shaker", "shaker", null],
+      ["uprightw", "shaker", null],
+      ["uprighte", "shaker", null],
+      ["belt", "belt", "shaker"],
+      ["head", "rollers", "shaker"],
+      ["foot", "rollers", "shaker"],
+      ["worm", "creep", "shaker"],
+      ["pawl", "creep", null],
+      ["feedbox", "feedbox", null],
+      ["pipecopper", "pipecopper", null],
+      ["pipelead", "pipelead", null],
+      ["frame", null, null],
+    ]);
+    for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
+  });
+
+  it("matches every part's matrix at every reference pose", () => {
+    let worst = 0;
+    expect(reference.poses.length).toBeGreaterThanOrEqual(20);
+    for (const p of reference.poses) {
+      const ms = partMatrices(parts, pose(p.theta, p.travel), order, null);
+      parts.forEach((q, i) => {
+        const got = rows(ms[i]!);
+        const want = p.matrices[q.id]!;
+        for (let r = 0; r < 3; r++)
+          for (let c = 0; c < 4; c++) {
+            const diff = Math.abs(got[r]![c]! - want[r]![c]!);
+            worst = Math.max(worst, diff);
+            if (diff > 2e-6) throw new Error(`${q.id} at θ ${p.theta}, ψ ${p.travel}: [${r}][${c}] is ${got[r]![c]}, want ${want[r]![c]}`);
+          }
+      });
+    }
+    expect(worst).toBeLessThanOrEqual(1e-6 + 1e-12);
+  });
+
+  it("shakes the frame across with the axle, alike either way, and creeps the belt to the head on the travel", () => {
+    const e = 0.5 / 16;
+    for (const theta of [0.4, -1.3, Math.PI / 2, 4.1]) {
+      const ms = partMatrices(parts, pose(theta, Math.abs(theta)), order, null);
+      expect(ms[index("shaker")]![12]).toBeCloseTo(e * Math.sin(theta), 9);
+      // the countershaft turns once a turn about its axis (x 1.5, y 0.5, along z)
+      const p = apply(ms[index("countershaft")]!, [1.5, 0.5 - e, 1.4]);
+      expect(p[0]! - 1.5).toBeCloseTo(e * Math.sin(theta), 9);
+    }
+    // the head's top moves north (−z), to the head, for any travel, whichever way θ went
+    const top = [0.6, (9.3 + 2.0) / 16, 7 / 16];
+    for (const [theta, travel] of [[0.5, 0.5], [-0.5, 0.5], [3.0, 30.0], [-3.0, 30.0]] as const) {
+      const ms = partMatrices(parts, pose(theta, travel), order, null);
+      const shaker = ms[index("shaker")]!;
+      const moved = apply(ms[index("head")]!, top);
+      expect(moved[2]!).toBeLessThan(top[2]!);
+      expect(moved[0]! - top[0]!).toBeCloseTo(shaker[12]!, 9);
+    }
+  });
+
+  it("gives every element a part and every part an element, the water line twice over", () => {
+    const flat = flattenShape(shape.elements);
+    const globs = compileGlobs(parts);
+    const used = new Set(flat.map((f) => partOf(globs, f.chain)));
+    expect(used.has(-1)).toBe(false);
+    expect(used.size).toBe(parts.length);
+    const count = (id: string) => flat.filter((f) => partOf(globs, f.chain) === index(id)).length;
+    expect(count("pipecopper")).toBe(count("pipelead"));
+  });
+
+  it("marks the axle, the water, the infeed and the two output chutes, each on its own cell's face", () => {
+    const { anchors } = discoverAnchors(rig);
+    const face = (key: string) => anchors.find((a) => a.key === key);
+    expect(face("powerCell")).toMatchObject({ kind: "cell", pos: [1, 0, 2], face: "south" });
+    expect(face("waterCell")).toMatchObject({ kind: "cell", pos: [1, 0, 0], face: "up" });
+    expect(face("feedCell")).toMatchObject({ kind: "cell", pos: [0, 0, 1], face: "up" });
+    expect(face("concentrateCell")).toMatchObject({ kind: "cell", pos: [0, 0, 0], face: "north" });
+    expect(face("tailingsCell")).toMatchObject({ kind: "cell", pos: [0, 0, 2], face: "south" });
+  });
+});
+
+describe("the vanner's page", () => {
+  const model = manifest.models.find((m) => m.id === "vanner")!;
+
+  it("draws the water line in one metal at a time, from a select, copper first", () => {
+    const choices = model.scenario!.choices!;
+    expect(choices).toEqual([{ label: "Water line", values: ["pipecopper", "pipelead"], default: "pipecopper" }]);
+    const fitted = initialFitted(requiresValues(parts), choices);
+    expect(fitted).toEqual({ countershaft: true, shaker: true, rollers: true, belt: true, creep: true, feedbox: true, pipecopper: true, pipelead: false });
+  });
+});
