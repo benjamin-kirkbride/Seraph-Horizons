@@ -12,9 +12,9 @@ public class UnifiedPipesTests
     [InlineData("copper", 3f)]
     [InlineData("iron", 5f)]
     [InlineData("steel", 10f)]
-    [InlineData("tinbronze", 5f)]
-    [InlineData("bismuthbronze", 5f)]
-    [InlineData("blackbronze", 5f)]
+    [InlineData("tinbronze", 10f)]
+    [InlineData("bismuthbronze", 10f)]
+    [InlineData("blackbronze", 10f)]
     public void Each_metal_has_its_default_figure(string material, float atm) =>
         Assert.Equal(atm, new UnifiedPipesConfig().BurstPressureFor(material));
 

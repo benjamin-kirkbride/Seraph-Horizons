@@ -24,8 +24,9 @@ public class UnifiedPipesConfig
     public float SteelBurstPressure { get; set; } = 10f;
 
     /// <summary>Bronze valves and pressure valves (tin, bismuth and black bronze): a pressure
-    /// valve's gate goes up to it.</summary>
-    public float BronzeBurstPressure { get; set; } = 5f;
+    /// valve's gate goes up to it, steel's figure, so one can relieve a Cornish engine's run (5-8
+    /// atm) below the engines' 8 atm break.</summary>
+    public float BronzeBurstPressure { get; set; } = 10f;
 
     public static readonly UnifiedPipesConfig Defaults = new();
 
