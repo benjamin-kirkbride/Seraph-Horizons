@@ -206,13 +206,16 @@ PLATE_BEARERS = (("front", (5.25, 6.75)), ("back", (22.0, 23.5)))
 PLATE_BEARER_X = (3.0, 29.0)
 PLATE_BEARER_H = 1.2
 
-# the receiving pot: cast iron, an octagonal barrel on the niche's floor, the spout's lip over its mouth
+# the receiving pot: a cast-iron kettle, octagonal, on the niche's floor, the spout's lip over its mouth: a foot, a
+# narrower lower course and the body, as wide as the niche's depth allows (its corners 0.2 inside it, front and back)
 POT_C = (XM, 4.5)                            # (x, z)
-POT_FOOT = (BASE_TOP, 1.8, 3.2)              # y0, y1, apothem
-POT_BODY = (1.8, 9.5, 3.6)                   # y0, y1, outer apothem
+POT_FOOT = (BASE_TOP, 1.6, 3.0)              # y0, y1, apothem
+POT_TUBES = (("lower", 1.6, 3.2, 3.5), ("body", 3.2, 7.6, 3.95))   # (name, y0, y1, outer apothem)
+POT_TOP = POT_TUBES[-1][2]
+POT_A = POT_TUBES[-1][3]
 POT_WALL = 0.6
-TIN_LEVEL = (7.0, 8.0)                       # the tin in it (the surface at 8: 1.5 under the rim)
-TIN_A = POT_BODY[2] - POT_WALL + 0.01
+TIN_LEVEL = (5.7, 6.5)                       # the tin in it (the surface 1.1 under the rim)
+TIN_A = POT_A - POT_WALL + 0.01
 
 # the charge: four cakes of tin-lead on the plate's upper part, over the fire; the lead left where they lay
 CAKES_X = ((9.6, 15.4), (16.6, 22.4))
@@ -772,14 +775,14 @@ def build_plate():
 
 
 def build_pot():
-    """The receiving pot (`pot`, a fitting): cast iron, an octagonal barrel standing on the niche's floor under the
-    spout's lip; its foot a solid octagon, its mouth open."""
+    """The receiving pot (`pot`, a fitting): a cast-iron kettle standing on the niche's floor under the spout's lip, an
+    octagon: its foot solid, a narrower lower course and the body over it, its mouth open."""
     p = "pot"
     cx, cz = POT_C
     y0, y1, a = POT_FOOT
     out = oct_disc(cx, cz, y0, y1, a, "pot_foot", p, "iron")
-    y0, y1, a = POT_BODY
-    out += oct_tube(cx, cz, y0, y1, a, POT_WALL, "pot_body", p, "iron")
+    for name, y0, y1, a in POT_TUBES:
+        out += oct_tube(cx, cz, y0, y1, a, POT_WALL, f"pot_{name}", p, "iron")
     return out
 
 
@@ -1025,7 +1028,7 @@ def plate_point():
 
 def pot_point():
     """The middle of the receiving pot's mouth: the tin taken from it."""
-    return (POT_C[0], POT_BODY[1], POT_C[1])
+    return (POT_C[0], POT_TOP, POT_C[1])
 
 
 def fire_door_point():

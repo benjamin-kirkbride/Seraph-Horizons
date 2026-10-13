@@ -586,7 +586,7 @@ def check_plate(v):
                 v.fail(f"{e.name} does not stand on the plate")
     lx, ly, lz = m.spout_lip()
     pot = aabb_of(v.by_part["pot"])
-    inner = m.POT_BODY[2] - m.POT_WALL
+    inner = m.POT_A - m.POT_WALL
     if not (abs(lx - m.POT_C[0]) < inner and abs(lz - m.POT_C[1]) < inner and ly > pot[1][1]):
         v.fail("the spout's lip is not over the pot's mouth")
     # the charge
