@@ -461,7 +461,7 @@ def _ore_forms(rules: Rules) -> list[tuple[str, str, str, dict]]:
 def augment_export(export: dict, rules: Rules) -> list[str]:
     """Adds ore processing's items to an export that lacks them (one made with the switch off, the
     default, leaves them out): each an item of ore-processing.json's switch, with its stack, so the
-    table prices them, its switches say they exist only by it, and floorZero reads their stacks.
+    table prices them and its switches say they exist only by it.
     An export made with the switch on has them and keeps its own. Returns the codes added."""
     op = rules.ore_processing
     added = []
@@ -1120,18 +1120,11 @@ def stack_size(export: dict, code: str) -> int:
     return int((item.get("attributes") or {}).get("maxStackSize") or 1)
 
 
-def trade_stack(export: dict, code: str) -> int:
-    """The stack traders judge an item's worth by: the export's tradeStack where it has one (the
-    pack's rock and earth blocks and shapes cut to 16 or 32, judged by the 64 they stacked to
-    before), else its stack size."""
-    item = export["items"].get(code) or {}
-    return max(int((item.get("attributes") or {}).get("tradeStack") or 0), stack_size(export, code))
-
-
-def floor_zero(export: dict, code: str, value: float) -> bool:
-    """Worth under a gear per full stack (value per item, a liquid's per portion; a rock or earth
-    block's per trade_stack): trading treats it as worthless."""
-    return value * trade_stack(export, code) < 1.0
+def floor_zero(export: dict, code: str, value: float, litres: dict[str, float] | None = None) -> bool:
+    """Worth nothing as the table stores it (3 decimals, a liquid's per litre): trading treats it as
+    worthless. There is no floor per stack (#910): a trader judges a sale by everything in its
+    four sell slots together, so anything worth more than nothing sells with the rest."""
+    return value <= 0 or round(shown(export, code, value, litres)[0], 3) <= 0
 
 
 def per_litre(export: dict) -> dict[str, float]:
@@ -1168,7 +1161,7 @@ def table(export: dict, val: Valuation) -> dict:
         if code not in val.value:
             continue
         values[code] = round(shown(export, code, val.value[code], litres)[0], 3)
-        if floor_zero(export, code, val.value[code]):
+        if floor_zero(export, code, val.value[code], litres):
             zero.append(code)
     pack = export.get("pack", {})
     return {
@@ -1245,9 +1238,9 @@ def report(export: dict, val: Valuation, rules: Rules) -> dict:
     items = export["items"]
     codes = sorted(items)
     missing = [c for c in codes if c not in val.value]
-    zero = [c for c in codes if c in val.value and floor_zero(export, c, val.value[c])]
-    priced = [c for c in codes if c in val.value]
     litres = per_litre(export)
+    zero = [c for c in codes if c in val.value and floor_zero(export, c, val.value[c], litres)]
+    priced = [c for c in codes if c in val.value]
 
     def entry(c: str, v: float, **more) -> dict:
         """A value as the table has it: a liquid's per litre, marked so."""
@@ -1268,7 +1261,7 @@ def report(export: dict, val: Valuation, rules: Rules) -> dict:
         row[0] += 1
         if c in val.value:
             row[1] += 1
-            if floor_zero(export, c, val.value[c]):
+            if floor_zero(export, c, val.value[c], litres):
                 row[2] += 1
     src = Counter()
     for c in priced:
@@ -1333,7 +1326,7 @@ def _unit(e: dict) -> str:
 def report_markdown(rep: dict, export: dict, val: Valuation, samples: list[str]) -> str:
     lines = ["# Item values report", "", "Gears per item; a liquid's (marked /L) per litre, as the table stores it.", ""]
     lines.append(f"- items: {rep['items']}, valued: {rep['valued']} ({rep['coverage']:.1%}), "
-                 f"worthless (under a gear per stack): {rep['floorZero']} ({rep['floorZeroShare']:.1%} of valued)")
+                 f"worthless (worth nothing): {rep['floorZero']} ({rep['floorZeroShare']:.1%} of valued)")
     lines.append(f"- sources: {rep['sources']}; {rep['passes']} items settled from recipes")
     lines.append(f"- items with no value: {len(rep['missing'])}; valued below their ingredients: {len(rep['belowIngredients'])}")
     lines.append("")
@@ -1393,7 +1386,7 @@ def explain(export: dict, val: Valuation, rules: Rules, code: str, depth: int = 
     if v is None:
         out.append(f"{pad}{code} ({name}): no value")
         return out
-    zero = " [worthless: under 1 gear per stack]" if code in export["items"] and floor_zero(export, code, v) else ""
+    zero = " [worthless]" if code in export["items"] and floor_zero(export, code, v) else ""
     litre, unit = shown(export, code, v)
     each = (f"{litre:.4f} gears/L ({v:.6g} a portion, {per_litre(export)[code]:g} portions a litre)"
             if unit else f"{v:.4f} gears/item")

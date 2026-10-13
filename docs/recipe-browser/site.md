@@ -265,8 +265,8 @@ table its own mod ships; the exporter writes it as `value` on each item of the e
 config switches a value depends on (`valueSwitches`) are only named, in the tooltip of the
 value on the values page. A value is the gear's icon followed by the number, with "rusty
 gears" for screen readers only (`GearValue.svelte`, `formatGears` in
-`site/src/lib/values.ts`). A `floorZero` item, worth under a gear for a full stack, which
-traders treat as worthless, still shows its number, dimmed, with the reason on hover.
+`site/src/lib/values.ts`). A `floorZero` item, which traders treat as worthless (worth
+nothing; before #910, worth under a gear for a full stack), still shows its number, dimmed, with the reason on hover.
 A liquid is priced per litre (the export's `valuePerLitre`, flag 8 in `search.json`): its
 number is followed by a muted "/ L", and the screen reader word and the hover say "rusty
 gears per litre". The values page's intro says liquids are priced per litre. Sorting by

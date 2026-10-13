@@ -103,11 +103,13 @@ public partial class TradingScenarios
         var trader = await SpawnTrader("generalstore", -30, 30);
         var player = await Seller();
         var inv = trader.Inventory;
-        var stone = Stack("game:stone-granite", 64);
+        // Worth nothing in the table (cheap goods are bought, with no floor per stack: #910).
+        var stone = Stack("game:clutter-fishing/oldboot", 8);
         Assert.Equal(Refusal.Worthless, Economy.QuoteOffList(trader, stone).Refusal);
         Assert.False(inv.IsTraderInterestedIn(stone));
+        Assert.True(Economy.QuoteOffList(trader, Stack("game:stone-granite", 64)).Accepted);
         Assert.Equal(Refusal.Currency, Economy.QuoteOffList(trader, Stack("game:gear-rusty", 5)).Refusal);
-        Assert.Contains("Not worth", EconomyPatches.Describe(inv, stone));
+        Assert.Contains("Worth nothing", EconomyPatches.Describe(inv, stone));
 
         int budget = EconomySystem.SideBudgetOf(trader);
         inv.GetSellingCartSlot(0).Itemstack = stone;

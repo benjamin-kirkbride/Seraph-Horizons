@@ -1,6 +1,6 @@
 <script lang="ts">
   // A value in rusty gears: the gear's icon, then the number. The word is for screen readers
-  // only. A value under a gear per full stack (floorZero) is dimmed, with the reason on hover.
+  // only. A value traders treat as worthless (floorZero) is dimmed, with the reason on hover.
   // A liquid's value is per litre: "/ L" follows the number, and the hidden word and the hover
   // say "rusty gears per litre".
   import { formatGears, GEAR } from "../lib/values.ts";

@@ -11,8 +11,8 @@ namespace SeraphHorizons.Mod;
 /// (<c>BERubbleStorage.TryDrench</c>), turns its gravel into muddy gravel a quarter of muddy
 /// gravel's stack at a time, 16 a bucket at the stack of 64 it ships with; cut to 16, it would make
 /// 4. Stone Quarry has no setting for it, so a transpiler swaps the one stack size read in
-/// <c>TryDrench</c> for <see cref="DrenchStack"/>, the stack muddy gravel had before the cut (its
-/// trade stack, 64), and a bucket makes 16 again. Without the cut the two are the same.
+/// <c>TryDrench</c> for <see cref="DrenchStack"/>, the stack muddy gravel had before the cut
+/// (<see cref="RockStackSystem.StackBeforeCut"/>, 64), and a bucket makes 16 again. Without the cut the two are the same.
 ///
 /// Stone Quarry is not referenced at build time: the method is found by name, and if it is gone or
 /// no longer reads the stack size exactly once, the tweak logs a warning and leaves it as it ships.
@@ -37,7 +37,7 @@ public static class StoneQuarryDrench
     public static bool Patched => Harmony.HasAnyPatches(HarmonyId);
 
     /// <summary>The stack <c>TryDrench</c> makes a quarter of: the muddy gravel's stack before the cut.</summary>
-    public static int DrenchStack(CollectibleObject muddyGravel) => RockStackSystem.TradeStack(muddyGravel);
+    public static int DrenchStack(CollectibleObject muddyGravel) => RockStackSystem.StackBeforeCut(muddyGravel);
 
     /// <summary>Patches <c>TryDrench</c>, unless the other side of a singleplayer game already did;
     /// logs and leaves it when it is not as expected.</summary>

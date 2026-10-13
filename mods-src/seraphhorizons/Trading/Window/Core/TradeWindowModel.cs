@@ -218,7 +218,7 @@ public static class TradeWindowModel
         Refusal.Worthless => "trading-economy-refused-worthless",
         Refusal.NoValue => "trading-economy-refused-novalue",
         Refusal.Currency => "trading-economy-refused-currency",
-        _ => "trading-economy-refused-toocheap",
+        _ => "trading-window-pays-none",
     };
 
     // ---- Orders tab ----

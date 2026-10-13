@@ -39,6 +39,9 @@ public class EconomySystem : ModSystem
     /// <summary>Server, in the trader's (unsynced, saved) attributes: each listed item's price roll
     /// since its last restock, by full code.</summary>
     public const string PriceRollsAttr = "seraphhorizons:pricerolls";
+    /// <summary>Synced: each listed buying slot's exact price per item (<see cref="Offer.Worth"/>), by
+    /// its slot id, which the pooled sale pays on both sides (a slot's price is whole gears per unit).</summary>
+    public const string BuyWorthAttr = "seraphhorizons:buyworth";
     /// <summary>Where the server synced its buy spread per trader until 2026-10-08 (the spread is
     /// gone: the fit is the whole share); taken off a trader at its next refresh.</summary>
     private const string RetiredBuySpreadAttr = "seraphhorizons:buyspread";
@@ -319,11 +322,15 @@ public class EconomySystem : ModSystem
         var entries = new Dictionary<string, TradeEntry>();
         foreach (var e in resolved.Selling.Core.Concat(resolved.Selling.Rotating)) entries.TryAdd("s" + e.Key, e);
         foreach (var e in resolved.Buying.Core.Concat(resolved.Buying.Rotating)) entries.TryAdd("b" + e.Key, e);
-        Price(trader, trader.Inventory.SellingSlots, EntitySeraphTrader.SellingKeysAttr, "s", entries, false);
-        Price(trader, trader.Inventory.BuyingSlots, EntitySeraphTrader.BuyingKeysAttr, "b", entries, true);
+        var worth = new TreeAttribute();
+        Price(trader, trader.Inventory.SellingSlots, EntitySeraphTrader.SellingKeysAttr, "s", entries, false, null);
+        Price(trader, trader.Inventory.BuyingSlots, EntitySeraphTrader.BuyingKeysAttr, "b", entries, true, worth);
+        trader.WatchedAttributes[BuyWorthAttr] = worth;
+        trader.WatchedAttributes.MarkPathDirty(BuyWorthAttr);
     }
 
-    private void Price(EntitySeraphTrader trader, ItemSlotTrade[] slots, string keysAttr, string prefix, Dictionary<string, TradeEntry> entries, bool traderBuys)
+    private void Price(EntitySeraphTrader trader, ItemSlotTrade[] slots, string keysAttr, string prefix, Dictionary<string, TradeEntry> entries, bool traderBuys,
+        TreeAttribute? worth)
     {
         var values = ItemValuesSystem.For(trader.Api);
         var keys = (trader.WatchedAttributes[keysAttr] as StringArrayAttribute)?.value ?? [];
@@ -338,8 +345,9 @@ public class EconomySystem : ModSystem
             if (Pricing.ListBase(entry, value, traderBuys, RollOf(trader, code), ListPrices) is not double listPrice) continue;
             var context = Context(trader, code, traderBuys, null);
             var offer = Pricing.Listed(listPrice, entry.StackSize, SupplyFactor(trader, code),
-                Pricing.Modifiers(Modifiers, context), traderBuys, RockStackSystem.TradeStack(slot.Itemstack.Collectible));
+                Pricing.Modifiers(Modifiers, context), traderBuys, TradeUnit(slot.Itemstack.Collectible));
             slot.TradeItem.Price = offer.UnitPrice;
+            if (worth != null && offer.Worth > 0) worth.SetDouble(trader.Inventory.GetSlotId(slot).ToString(), offer.Worth);
             if (traderBuys && slot.TradeItem.Stack is { } unit && unit.StackSize != offer.UnitSize)
             {
                 unit.StackSize = offer.UnitSize;
@@ -378,6 +386,16 @@ public class EconomySystem : ModSystem
     public static double SupplyFactor(EntitySeraphTrader trader, string code) =>
         trader.WatchedAttributes[SupplyFactorsAttr] is ITreeAttribute tree && tree.HasAttribute(code) ? tree.GetDouble(code, 1) : 1;
 
+    /// <summary>A listed buying slot's exact price per item, as the server last synced it
+    /// (<see cref="BuyWorthAttr"/>); null when it has none.</summary>
+    public static double? BuyWorth(Entity trader, int slotId) =>
+        trader.WatchedAttributes[BuyWorthAttr] is ITreeAttribute tree && tree.GetDouble(slotId.ToString(), 0) is var w && w > 0 ? w : null;
+
+    /// <summary>The unit trading judges an item by: what the trade window's sell slots hold of it
+    /// (<see cref="Pricing.TradeUnit"/>).</summary>
+    public static int TradeUnit(CollectibleObject collectible) =>
+        Pricing.TradeUnit(collectible.MaxStackSize, SeraphTraderInventory.SellSlots);
+
     public PriceContext Context(EntitySeraphTrader trader, string code, bool traderBuys, string? playerUid) =>
         new(code, trader.TraderType, RegionOf(trader), traderBuys, trader.EntityId, playerUid);
 
@@ -397,10 +415,10 @@ public class EconomySystem : ModSystem
         var context = Context(trader, code, true, playerUid);
         double supply = SupplyFactor(trader, code), modifiers = Pricing.Modifiers(Modifiers, context);
         if (OnOwnShelf(trader, collectible))
-            return Pricing.OwnShelf(value, values.IsWorthless(code), ListPrices.OwnShelf, supply, modifiers, RockStackSystem.TradeStack(collectible));
+            return Pricing.OwnShelf(value, values.IsWorthless(code), ListPrices.OwnShelf, supply, modifiers, TradeUnit(collectible));
         var buyers = Buyers.BuyersOf(code);
         return Pricing.OffList(value, values.IsWorthless(code), Relations.Fit(trader.TraderType, buyers), supply, modifiers,
-            RockStackSystem.TradeStack(collectible), Relations.PaysFromMain(trader.TraderType, buyers) ? Budget.Main : Budget.Side);
+            TradeUnit(collectible), Relations.PaysFromMain(trader.TraderType, buyers) ? Budget.Main : Budget.Side);
     }
 
     /// <summary>Whether the trader has the item on its selling shelf, in stock (by code; attributes
@@ -413,11 +431,11 @@ public class EconomySystem : ModSystem
     public double ValueOf(string code) => _api is null ? 0 : ItemValuesSystem.For(_api).ValueOf(code);
 
     /// <summary>What one item adds to (or takes from) its supply level: its table value, else the price
-    /// per item it traded at.</summary>
+    /// per item it traded at (an item with neither counts a full stack as one level).</summary>
     public double SupplyWeight(ICoreAPI api, CollectibleObject collectible, double pricePerItem)
     {
         double value = ItemValuesSystem.For(api).ValueOf(collectible.Code.ToString());
-        return Supply.Weight(value > 0 ? value : pricePerItem, RockStackSystem.TradeStack(collectible));
+        return Supply.Weight(value > 0 ? value : pricePerItem, collectible.MaxStackSize);
     }
 
     public override void Dispose()
