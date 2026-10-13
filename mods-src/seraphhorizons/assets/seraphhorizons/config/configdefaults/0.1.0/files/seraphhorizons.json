@@ -442,7 +442,7 @@
     "CopperBurstPressure": 3.0,
     "IronBurstPressure": 5.0,
     "SteelBurstPressure": 10.0,
-    "BronzeBurstPressure": 5.0
+    "BronzeBurstPressure": 10.0
   },
   "Springs": true,
   "SpringsSettings": {

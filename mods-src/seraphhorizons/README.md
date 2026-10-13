@@ -2058,7 +2058,10 @@ at every level.
 **Burst pressures.** ppex gives iron 5 atm and steel 10 and treats any other metal as iron; here each
 metal has its own figure, the weakest pipe still caps its run, and a gas run held at that figure for
 exlib's 30 s bursts a pipe (the pipe drops as itself, with ppex's plume and bang). Liquid runs never
-burst. Valves never burst; a pressure valve's gate goes up to its metal's figure.
+burst. Valves never burst; a pressure valve's gate goes up to its metal's figure. Bronze's is 10,
+steel's, so a bronze pressure valve can relieve a Cornish engine's run (5-8 atm) below the engines'
+8 atm break; at 5 nothing could vent steam above 5 atm, and an overpressured run bursts its engine
+or explodes its boiler.
 
 | Setting | Default | |
 |---|---|---|
@@ -2066,7 +2069,7 @@ burst. Valves never burst; a pressure valve's gate goes up to its metal's figure
 | `CopperBurstPressure` | 3 | carries exhaust and blast air (2-2.5); a choked Cornish (5) or Lancashire (12) boiler bursts it |
 | `IronBurstPressure` | 5 | ppex's |
 | `SteelBurstPressure` | 10 | ppex's |
-| `BronzeBurstPressure` | 5 | the bronze pressure valve's highest gate |
+| `BronzeBurstPressure` | 10 | the bronze pressure valve's highest gate |
 
 A value that is not a number, 0 or less, or above 1000 falls back to its default with a warning.
 
