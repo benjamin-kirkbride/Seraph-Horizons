@@ -33,7 +33,7 @@ public class JawBreakerRigTests
     public void The_shipped_rig_parses_with_no_work_and_its_anchors()
     {
         var parts = Shipped();
-        Assert.Equal(["eshaft", "pitman", "backtoggle", "fronttoggle", "swingjaw", "rods", "buffer1", "buffer2", "fixedjaw", "grizzly", "frame"],
+        Assert.Equal(["eshaft", "pitman", "backtoggle", "fronttoggle", "swingjaw", "rods", "spring1", "spring2", "spring3", "spring4", "fixedjaw", "grizzly", "frame"],
             parts.Parts.Select(p => p.Id));
         using var doc = JsonDocument.Parse(File("jawbreaker-rig.json"));
         var root = doc.RootElement;

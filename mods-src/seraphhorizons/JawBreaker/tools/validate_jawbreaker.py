@@ -127,12 +127,13 @@ ALLOWED = [
     ("eshaft", r"_shaft|_flyw_hub|_flye_hub", "frame", r"fr_cheek_[we]_(post|ebear)|fr_ped_block"),
     ("eshaft", r"_eccentric|_shaft", "pitman", r"_strap"),
     # the linkage: the toggles in their seats and on the pitman's foot, the swinging jaw on its hinge pin, the rods
-    # pinned to it and through the abutments to their nuts, the buffers on the rods
+    # pinned to it and through the abutments to their nuts, the springs between the nuts and the abutments, each turn
+    # meeting the next at a corner
     ("pitman", r"_foot", "backtoggle|fronttoggle", None), ("backtoggle", None, "frame", r"fr_backseat|fr_backwall"),
     ("fronttoggle", None, "swingjaw", r"_seat|_slab"), ("swingjaw", r"_boss|_web", "fixedjaw", r"_hingepin"),
     ("fixedjaw", r"_hingepin", "frame", r"fr_cheek_[we]_hbear"), ("fixedjaw", r"_plate", "frame", r"fr_frontwall"),
     ("rods", None, "swingjaw", r"_lug|_slab"), ("rods", r"rods_[we]_", "frame", r"fr_cheek_[we]_lug"),
-    ("rods", None, "buffer\\d", None),
+    ("spring\\d", None, "rods", r"rods_nut"), ("spring\\d", None, "frame", r"fr_cheek_[we]_lug"), ("spring\\d", None, "spring\\d", None),
     # the grizzly on the head block, the cross bar and its brackets on the cheeks; the throat plate and its lip on the
     # front wall
     ("grizzly", r"_bar|_curb", "grizzly", r"_head|_crossbar"), ("grizzly", r"_curb", "grizzly", r"_bar"),
@@ -211,7 +212,7 @@ def check_clearances(v):
         v.fail("parts run into each other")
 
 
-MOVING = ("eshaft", "pitman", "backtoggle", "fronttoggle", "swingjaw", "rods", "buffer1", "buffer2")
+MOVING = ("eshaft", "pitman", "backtoggle", "fronttoggle", "swingjaw", "rods", "spring1", "spring2", "spring3", "spring4")
 
 
 def check_swept(v):
@@ -229,8 +230,7 @@ TEX_RULES = [
     (r"^(fr_(post|sill|cross|beam|tie|ped_post)|eshaft_stub)", "oak"),
     (r"^fr_hopper_", "sheet"),
     (r"^(fr_(cheek|backwall|frontwall|ped_block)|eshaft_(fly|coupling)|pitman_|swingjaw_(slab|boss|web|lug)|grizzly_)", "iron"),
-    (r"^(fr_backseat|fixedjaw_|eshaft_(shaft|eccentric)|backtoggle|fronttoggle|swingjaw_(face|seat)|rods_)", "steel"),
-    (r"^buffer\d", "rubber"),
+    (r"^(fr_backseat|fixedjaw_|eshaft_(shaft|eccentric)|backtoggle|fronttoggle|swingjaw_(face|seat)|rods_|spring\d)", "steel"),
 ]
 
 
@@ -246,7 +246,7 @@ def check_textures(v):
         else:
             unruled.append(el.name)
     print(f"textures: {len(TEX_RULES)} rules (oak timber and the axle's stub, sheet iron for the hopper, iron castings and bars, "
-          f"steel shafts, pins and wearing parts, the game's chute, rubber buffers): {len(bad)} break them, {len(unruled)} have no rule")
+          f"steel shafts, pins, springs and wearing parts, the game's chute): {len(bad)} break them, {len(unruled)} have no rule")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")
     if unruled:
@@ -465,6 +465,35 @@ def check_supports(v):
         v.fail("the eccentric shaft is not located endwise by the flywheels' hubs")
 
 
+def check_springs(v):
+    """The coil springs on the tension rods, through a turn (72 steps): each spring's end turns bear on its nut and
+    its abutment lug (within 0.15 of their faces, along the rod), and its turns never close up on one another (the
+    gap between one turn's bars and the next's, along the rod, stays over 0.1)."""
+    m = v.m
+    worst_end, worst_gap = 0.0, 1e9
+    for x in m.ROD_X:
+        coil = m.spring_coil(x)
+
+        def drawn(c, p):
+            """A turn's authored point (breaker frame (x, y, u)) in the build frame, as drawn (its share of the mean)."""
+            sh = m.spring_share(c)
+            return [p[0], p[1] + sh * (m.MEAN_K[0] - m.K0[0]), m.JAW_C - (p[2] + sh * (m.MEAN_K[1] - m.K0[1]))]
+        nut = [x, m.MEAN_K[0], m.JAW_C - (m.ROD_NUT_U[1] + m.MEAN_K[1] - m.K0[1])]
+        lug_z = m.JAW_C - m.ABUT_U
+        for k in range(72):
+            pose = m.at_ecc(math.tau * k / 72)
+            starts = [v.point(f"spring{c + 1}", pose, drawn(c, coil.corner(4 * c))) for c in range(m.SPRING_TURNS)]
+            end = v.point(f"spring{m.SPRING_TURNS}", pose, drawn(m.SPRING_TURNS - 1, coil.end(4 * m.SPRING_TURNS - 1)))
+            nut_now = v.point("rods", pose, nut)
+            worst_end = max(worst_end, abs(starts[0][2] - nut_now[2]) - coil.span(), abs(end[2] - lug_z) - coil.span())
+            for a, b in zip(starts, starts[1:]):
+                worst_gap = min(worst_gap, abs(a[2] - b[2]) - m.SPRING_WIRE / math.cos(coil.tilt))
+    print(f"springs: {m.SPRING_TURNS} turns of {m.SPRING_WIRE} wire on each rod; their ends within {worst_end:.3f} of the nut and the "
+          f"lug through a turn; the turns at least {worst_gap:.3f} apart")
+    if worst_end > 0.15 or worst_gap < 0.1:
+        v.fail("a spring leaves its nut or lug, or closes up solid")
+
+
 def check_zfight(v):
     m = v.m
     bad = 0
@@ -492,6 +521,7 @@ def validate(m, els, parts, rig, quick=False):
     check_textures(v)
     check_jaw(v)
     check_supports(v)
+    check_springs(v)
     check_clearances(v)
     if not quick:
         check_swept(v)

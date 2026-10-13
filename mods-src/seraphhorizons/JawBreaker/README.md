@@ -19,8 +19,8 @@ the linkage is the shared `swing` and `slide` drivers, fitted harmonics of the a
 **Where it comes from.** The breaker is the second level of the stamp mill v2 (`origin/729-stampmill-model-v2`, its
 `StampMill/tools/make_shape.py`) moved out into a machine of its own, as #914 asks: the Blake linkage built in its own
 frame (`build_jaw_frame_local`, `build_eshaft_local`, `build_linkage_local`, `build_jaw`), its exact solve (`jaw_at`,
-`linkage`, `solve3`) and its fit to harmonic drivers (`fit`, `harmonics`), the flywheels, `buffer_u` and
-`buffer_share`, `build_grizzly` (`griz_top`, `griz_under`, `throat_under`), `build_chute` with `VANILLA_CHUTE`, and the
+`linkage`, `solve3`) and its fit to harmonic drivers (`fit`, `harmonics`), the flywheels, the buffers'
+shares (now the springs'), `build_grizzly` (`griz_top`, `griz_under`, `throat_under`), `build_chute` with `VANILLA_CHUTE`, and the
 validator's breaker checks. What changed is listed under "From the stamp mill v2" below.
 
 ## The machine
@@ -64,7 +64,7 @@ wall with the back toggle's seat), the outboard pedestal, the hopper and both ch
 |---|---|---|
 | `jaws` | `swingjaw`, `fixedjaw` | The fixed jaw's steel plate, the hinge pin, and the swinging jaw hung on it |
 | `eccentric` | `eshaft`, `pitman` | The eccentric shaft with its eccentric, both flywheels, the coupling and the axle's stub; the pitman hung on the eccentric |
-| `toggles` | `backtoggle`, `fronttoggle`, `rods`, `buffer1`, `buffer2` | The two toggles, the two tension rods with their nuts and pins, and their rubber buffers |
+| `toggles` | `backtoggle`, `fronttoggle`, `rods`, `spring1`..`spring4` | The two toggles, the two tension rods with their nuts and pins, and a steel coil spring on each rod |
 | `grizzly` | `grizzly` | The grizzly: five bars, two side curbs, the head block, the cross bar on its two brackets, the throat plate and its lip |
 
 The build stages (which items each takes, and the frame's recipe) are not designed yet: the ids only split the
@@ -76,14 +76,14 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 `build/mods`. The chute sections are the game's own straight chute's walls (`shapes/block/metal/chute/straight.json`),
 held as data. Textures are the game's: debarked oak for the stand's timbers and the axle's stub, iron plate for
 castings and the grizzly, riveted sheet iron for the hopper, plain steel sheet for shafts, pins and wearing parts (the
-jaws' faces, the toggles, the rods), the chute's copper sheet for the chute sections, and black leather for the
-india-rubber buffers. `tools/make_shape.py` writes:
+jaws' faces, the toggles, the rods, the springs), and the chute's copper sheet for the chute sections. `tools/make_shape.py`
+writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/jawbreaker.json` | The whole machine, every stage's parts (181 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/jawbreaker.json` | The whole machine, every stage's parts (197 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/jawbreaker_frame.json` | The static frame only (44 elements). The block draws it and the inventory shows it. |
-| `assets/seraphhorizons/config/jawbreaker-rig.json` | The cells, the anchors, `breaker`, `stages` and the part rig (11 parts). |
+| `assets/seraphhorizons/config/jawbreaker-rig.json` | The cells, the anchors, `breaker`, `stages` and the part rig (13 parts). |
 | `tests/JawBreaker/rig-reference.json` | Every part's matrix at 25 axle angles, from the reference maths. |
 
 ### How the machine works
@@ -116,8 +116,9 @@ between the cheeks is the eccentric, its centre 0.8 off the shaft's.
 two toggles: the back toggle (5 long) seated on the back wall, the front toggle (7.5) seated on the swinging jaw's
 back. Both sag 1.3 below their seats. As the eccentric lifts the pitman, the toggles straighten and push the swinging
 jaw's lower end towards the fixed jaw; as it lowers it, two tension rods, pinned to lugs low on the jaw's back and
-running back through abutment lugs on the cheeks, pull the jaw back, two india-rubber buffers on each between its
-abutment and its nut. The swinging jaw hangs from the hinge pin over its top (y 30.7); its steel face and the fixed
+running back through abutment lugs on the cheeks, pull the jaw back, a steel coil spring on each between its abutment
+and its nut: a square coil of four turns of 0.35 wire (`machinegen.coil`, the shape of the pack's own
+`seraphhorizons:spring-steel`, which the mandrel station winds), 3.1 long. The swinging jaw hangs from the hinge pin over its top (y 30.7); its steel face and the fixed
 jaw's are 2.5 apart at the bottom as designed and 7 at the top (the mouth). Through a turn the gap at the bottom runs
 2.26..2.94 (a throw of 0.68), the jaw closing once a turn; the toggles never pass straight.
 
@@ -125,7 +126,8 @@ The linkage is solved exactly at 128 angles of the eccentric (`jaw_at`: the pitm
 toggle's lengths, by Newton's method) and each part's motion is fitted to four harmonics of the axle's angle
 (`fit`, `harmonics`): the pitman a swing about its mean foot and slides in y and z, the back toggle a swing about its
 seat, the front toggle a swing about its mean seat and slides, the swinging jaw a swing about the hinge, the rods
-slides, each buffer a share of the rods' travel along them. Every pin stays joined within 4.3e-5 voxels.
+slides, each turn of the springs a share of the rods' travel (by where it lies between the abutment and the nut),
+so the coil closes up evenly as the nut comes in. Every pin stays joined within 4.3e-5 voxels.
 
 **The grizzly**: five iron bars (1.2 wide, 1.4 apart) falling 40° from a head block on the head beam (z 2.4) to their
 foot over the mouth (z 13.2, just behind the fixed jaw's face at 11.35), where they rest on a cross bar on two
@@ -153,8 +155,8 @@ Every moving part (θ the axle's angle):
 | Back toggle (`backtoggle`) [toggles] | The pitman's foot | — (its seat on the back wall) | `swing` x ×4 about its seat |
 | Front toggle (`fronttoggle`) [toggles] | The pitman's foot | The swinging jaw | `swing` x ×4 about its mean seat, `slide` y ×4, `slide` z ×4 |
 | Swinging jaw (`swingjaw`) [jaws] | The front toggle; the rods pull it back | The ore | `swing` x ×4 about the hinge pin |
-| Tension rods, nuts, pins (`rods`) [toggles] | The swinging jaw | The buffers | `slide` y ×4, `slide` z ×4 |
-| Rubber buffers (`buffer1`, `buffer2`) [toggles] | The nuts | — (they bear on the abutment lugs) | `slide` z ×4, each its share of the nuts' travel |
+| Tension rods, nuts, pins (`rods`) [toggles] | The swinging jaw | The springs | `slide` y ×4, `slide` z ×4 |
+| Coil springs, one part a turn (`spring1`..`spring4`, `spring1` at the nut) [toggles] | The nuts | — (they bear on the abutment lugs) | `slide` y ×4, `slide` z ×4, each turn its share of the nuts' travel |
 | Fixed jaw's plate, hinge pin (`fixedjaw`) [jaws] | Static | — | none |
 | Grizzly (`grizzly`) [grizzly] | Static | — | none |
 | Frame (`frame`) | Static | — | none |
@@ -187,11 +189,13 @@ A full run takes about 9 s and is deterministic (two runs into two folders are b
 - **Chutes:** `VANILLA_CHUTE` is the game's straight chute (from, to, UVs, rotations, drawn faces, texture), read from
   the game when it is installed (`VINTAGE_STORY` or `~/Games/vintagestory`); each section's profile at its face is a
   vanilla chute's in its cell, flush, 3 long, in the chute's texture.
-- **Textures** by role (six rules; every element has one).
+- **Textures** by role (five rules; every element has one).
 - **Jaw:** through a turn (72 steps) the strap on the eccentric, the foot on both toggles and where the solved linkage
   puts it, the toggles on their seats, the rods on the jaw's lugs, all within 1e-3; the toggles never pass straight
   (sag at least 0.3); the gap at the bottom never under 1; the eccentric shaft turns with the axle, once a turn
   either way.
+- **Springs:** through a turn, each spring's end turns stay on its nut and its abutment lug (within 0.15 along the
+  rod; 0.08 in practice) and its turns never close up (at least 0.1 apart; 0.27 in practice).
 - **Supports:** the eccentric shaft in three bearings (the cheeks' posts and bosses, the pillow block), the hinge pin in
   two; the flywheels' hubs on the bosses' outer faces.
 - **Clearances:** at rest in every build state and through a turn every 15°, no two parts touch except the intended
@@ -226,7 +230,8 @@ four stages are checkboxes.
 Element names are the rig's interface (first-match globs, in the rig's order): `eshaft_*` (`shaft`, `eccentric`,
 `flyw_*`, `flye_*`, `coupling`, `stuba`, `stubb`), `pitman_*` (`strap`, `body`, `foot`), `backtoggle_plate`,
 `fronttoggle_plate`, `swingjaw_*` (`face`, `slab`, `boss`, `web`, `seat`, `lugw`, `luge`), `rods_*` (`w`, `e`, `nutw`,
-`nute`, `pinw`, `pine`), `buffer1_*`, `buffer2_*`, `fixedjaw_*` (`plate`, `hingepin`), `grizzly_*` (`head`, `bar1`..`bar5`,
+`nute`, `pinw`, `pine`), `spring1_*`..`spring4_*` (the rod, `w` or `e`, then the side's face `u`, `w`, `d`, `e`),
+`fixedjaw_*` (`plate`, `hingepin`), `grizzly_*` (`head`, `bar1`..`bar5`,
 `curbw`, `curbe`, `bracketw`, `brackete`, `crossbar`, `throat`, `lip`), and `fr_*` for the frame (`post_*`, `sill_*`,
 `cross_*`, `beam_head`, `tie_top`, `cheek_*`, `backwall`, `backseat`, `frontwall`, `ped_post`, `ped_block`, `hopper_*`,
 `chutein_*`, `chuteout_*`). Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop
@@ -236,7 +241,9 @@ regenerating.
 
 The model has been reviewed in projections rendered from the written files. No one has yet looked at it in a client.
 
-1. **The buffers do not yield.** They slide with the rods' nuts, each its share; nothing compresses them.
+1. **The springs close up by sliding.** Each turn slides its share of the nut's travel, so the coil shortens
+   evenly, but each turn keeps its own pitch: where one turn's last side meets the next turn's first, the corner
+   opens or overlaps by up to a few hundredths of a voxel.
 2. **The rods' pins turn with the rods.** The pin through the jaw's lug follows the rods' slides, not the jaw's swing;
    the lug and the pin stay together within 3.5e-5, but the pin does not rotate in it.
 3. **Round parts are polygons:** the flywheels' rims have 14 sides, the shafts and hubs 8, the pins and rods 6.
@@ -261,13 +268,13 @@ The model has been reviewed in projections rendered from the written files. No o
    west face of `[0,1,1]` right outside the west flywheel, with no pedestal.
 4. **Build stages and items.** Proposed order: the frame (placed: the stand, the cast frame, the hopper, the chute
    sections, the pedestal), then `jaws`, `eccentric` (with the flywheels and pitman), `toggles` (with the rods and
-   buffers), `grizzly`. The frame's recipe and each stage's items are to be measured from the model and settled.
+   springs), `grizzly`. The frame's recipe and each stage's items are to be measured from the model and settled.
    Fitted out of order, the swinging jaw would rock with nothing driving it: gameplay should hold the shaft still
    until the machine is complete.
 5. **The infeed section is the frame's** (bolted to the top tie), so a chute can be laid to it before the grizzly is
    fitted; it could be the grizzly's stage instead.
 6. **No lids.** A deck at the top of the columns would be an invisible floor over the grizzly and the drive end.
-7. **The rods' buffers bear on lugs inside the frame** (on the cheeks' posts), not behind the back wall as in the v2
+7. **The rods' springs bear on lugs inside the frame** (on the cheeks' posts), not behind the back wall as in the v2
    model: that kept the breaker 1.45 blocks deep (#914 guessed about 1.3) with the grizzly in front of it.
 8. **The front posts run the full three blocks** to carry the grizzly's head beam and the infeed's tie; the outboard
    pedestal is a lone oak post.
@@ -285,11 +292,14 @@ What #914 asked to change, and how, against `origin/729-stampmill-model-v2`:
 - **The axle onto the eccentric shaft directly**, in place of the belt from the line shaft; the east flywheel is no
   longer a pulley. With no rectifier in front of it, the rig reads θ, not ψ.
 - **The discharge into a hopper and the output chute**, in place of the battery's feed box; no shared gear case.
+- **Steel springs for the india-rubber buffers:** nothing in the pack makes rubber; the pack's own mod makes
+  `seraphhorizons:spring-steel` (wound at the mandrel station), and later Blake breakers had springs there. The
+  lugs moved forward a voxel (z 23.2..24.2) to give the coil 3.1 voxels.
 - **A compact Blake:** toggles 7.5 and 5 (were 10 and 10), the eccentric's throw 0.8 (1.2), the jaws 2.5 apart at the
   bottom and 7 at the top (3 and 9.5), the cheeks 1.8 thick (3), the flywheels 7.5 in radius (8), so the frame fits
   2 deep with the grizzly in front of it.
 - **Kept:** the exact solve and the four-harmonic fit, the slab, seats, lugs and web of the swinging jaw, the strap,
-  the buffers' shares, the grizzly's bars, cross bar, brackets, throat plate and lip, `VANILLA_CHUTE` and its check
+  the buffers' shares (for the springs' turns), the grizzly's bars, cross bar, brackets, throat plate and lip, `VANILLA_CHUTE` and its check
   against the game's file, and the validator's breaker checks (pins within 1e-3 through a turn, toggles never
   straight, the gap never under 1), its clearance and swept-path checks and its z-fighting fix.
 

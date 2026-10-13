@@ -15,7 +15,7 @@ eccentric shaft: a Blake works either way round, so there is no rectifier.
     jaws        the fixed jaw's plate, the hinge pin and the swinging jaw hung on it
     eccentric   the eccentric shaft with its eccentric, the two flywheels, the coupling and the axle's stub; the
                 pitman hung on the eccentric
-    toggles     the back and front toggles, the two tension rods and their india-rubber buffers
+    toggles     the back and front toggles, the two tension rods and their steel coil springs
     grizzly     the grizzly: five bars with side curbs from a head block on the head beam to a cross bar on the
                 cheeks, and the throat plate over the front wall
 
@@ -36,7 +36,7 @@ box's north-west bottom corner, which is also the controller cell's: the bottom 
 where the output chute leaves. So the build frame is the shipped frame.
 
 The rig's one input is theta, the axle's angle: the eccentric shaft turns with it (ratio 1) and the linkage (pitman,
-toggles, swinging jaw, rods, buffers) follows as harmonics of it. Either way round is the same machine: nothing reads
+toggles, swinging jaw, rods, springs) follows as harmonics of it. Either way round is the same machine: nothing reads
 the axle's travel. The rig has no work.
 """
 
@@ -53,6 +53,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
+from machinegen.coil import Coil  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
 from machinegen.geometry import IDENT, El, flatten, mmul, rotate, translate  # noqa: E402
 from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
@@ -86,7 +87,6 @@ TEXTURES = {
     "sheet": "game:block/metal/sheet/iron1",
     "steel": "game:block/metal/sheet-plain/steel1",
     "chute": "game:block/metal/sheet/copper1",   # the game's chute; the pack leaves its texture as the game's (copper)
-    "rubber": "game:block/leather/black",
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
@@ -127,9 +127,15 @@ TOGGLE_W = 6.0                               # the toggles' width (x)
 TOGGLE_T = 1.2
 ROD_X = (JAW_XC - 4.3, JAW_XC + 4.3)         # the two tension rods, either side of the toggles
 ROD_R = 0.45
-BUFFERS = 2                                  # india-rubber buffers on each rod, between its nut and its abutment
-ABUT_Z = (24.2, 25.2)                        # (build z) the rods' abutments, lugs on the cheeks' posts
-NUT_Z = (27.3, 27.9)                         # (build z) the rods' nuts, behind the buffers
+ABUT_Z = (23.2, 24.2)                        # (build z) the rods' abutments, lugs on the cheeks' posts
+ABUT_H = 1.2                                 # the lugs' half height round the rods
+NUT_Z = (27.3, 27.9)                         # (build z) the rods' nuts, behind the springs
+# a steel coil spring on each rod, between its nut and its abutment (the pack's own spring-steel, which the mandrel
+# station winds, is a square coil: machinegen.coil draws it). One part a turn, each sliding its share of the nut's
+# travel, so the coil closes up evenly as the nut comes in and opens as it goes back.
+SPRING_TURNS = 4
+SPRING_WIRE = 0.35                           # its square wire
+SPRING_BORE = 0.75                           # its bore's half width round the rod
 SHAFT_R = 1.3                                # the eccentric shaft
 ECC_R = 2.4                                  # the eccentric, a disc ECC off the shaft's axis
 STRAP_R = (2.45, 3.3)                        # the pitman's strap round the eccentric
@@ -356,7 +362,7 @@ E_C = (E_Y, P0[1])                           # the eccentric shaft over the pitm
 JAW_C = AXLE[1] + P0[1]                      # z = JAW_C - u: the eccentric shaft lands on the power cell's centre line
 FRONT_U = FIXED_U + FIXED_T + FRONT_T        # the front of the cheeks and the front wall
 BACKWALL_U = (B0[1] - BACK_T, B0[1])         # the back wall: the back toggle seats on its front face
-ABUT_U = JAW_C - ABUT_Z[1]                   # the abutments' back face (u): the buffers bear on it
+ABUT_U = JAW_C - ABUT_Z[1]                   # the abutments' back face (u): the springs bear on it
 ROD_NUT_U = (JAW_C - NUT_Z[1], JAW_C - NUT_Z[0])
 LEN_P = math.hypot(E_C[0] - P0[0], E_C[1] - P0[1])
 LEN_B = math.hypot(P0[0] - B0[0], P0[1] - B0[1])
@@ -550,7 +556,7 @@ def build_stand():
 def build_jaw_frame_local():
     """The breaker's cast frame: two cheeks (a base flange, a front plate beside the chamber, a post carrying the
     eccentric shaft's bearing and the hinge's, a back post at the back wall, a lug on its inner face that the
-    tension rod's buffers bear on), the back wall with the back toggle's seat, the front wall behind the fixed jaw.
+    tension rod's spring bears on), the back wall with the back toggle's seat, the front wall behind the fixed jaw.
     The fixed jaw's plate and the hinge pin are the jaws' (build_jaws_local)."""
     p = "frame"
     out = []
@@ -571,7 +577,7 @@ def build_jaw_frame_local():
                 box([x0, JAW_BASE_Y + BASE_T, zb0], [x1, TOGGLE_Y + 3.0, post_u[0]], f"fr_cheek_{tag}_back", p, "iron"),
                 box([bx[0], ey - 2.6, ez - 2.6], [bx[1], ey + 2.6, ez + 2.6], f"fr_cheek_{tag}_ebear", p, "iron"),
                 box([hx[0], hy - 1.8, hz - 1.8], [hx[1], hy + 1.8, hz + 1.8], f"fr_cheek_{tag}_hbear", p, "iron"),
-                box([lug[0], K0[0] - 1.0, abut[0]], [lug[1], K0[0] + 1.0, abut[1]], f"fr_cheek_{tag}_lug", p, "iron")]
+                box([lug[0], K0[0] - ABUT_H, abut[0]], [lug[1], K0[0] + ABUT_H, abut[1]], f"fr_cheek_{tag}_lug", p, "iron")]
     out += [box([JAW_X[0], JAW_BASE_Y, zb0], [JAW_X[1], TOGGLE_Y + 3.0, zb1], "fr_backwall", p, "iron"),
             box([JAW_XC - TOGGLE_W / 2, B0[0] - 1.0, zb1], [JAW_XC + TOGGLE_W / 2, B0[0] + 1.0, zb1 + 0.5], "fr_backseat", p, "steel"),
             box([JAW_X[0], JAW_BASE_Y, FIXED_U + FIXED_T], [JAW_X[1], JAW_TOP_Y, zf1], "fr_frontwall", p, "iron")]
@@ -608,20 +614,30 @@ FOOT_UP = 1.6                                # the pitman's foot rises this far 
 TOGGLE_TIP = 0.5                             # each toggle stops this far short of the foot's pin, in its seat
 
 
-def buffer_u(c):
-    """Buffer c's centre (designed): evenly between the nut's front face and the abutment's back face."""
+def spring_coil(x):
+    """The coil spring on the rod at x, in the breaker's frame (its axis along u at the rods' pin height), at the
+    linkage's design pose: from the nut's front face to the abutment's back face, its bars' ends on them."""
+    probe = Coil((x, K0[0]), SPRING_BORE, SPRING_WIRE, 1.0, 0.0, SPRING_TURNS)
     a, b = ROD_NUT_U[1], ABUT_U
-    return a + (b - a) * (c + 0.5) / BUFFERS
+    span = probe.span()
+    for _ in range(8):                       # the pitch sets the bars' lean, which sets how far their ends reach
+        pitch = (b - a - 2 * span) / SPRING_TURNS
+        span = Coil((x, K0[0]), SPRING_BORE, SPRING_WIRE, pitch, 0.0, SPRING_TURNS).span()
+    pitch = (b - a - 2 * span) / SPRING_TURNS
+    return Coil((x, K0[0]), SPRING_BORE, SPRING_WIRE, pitch, a + span, SPRING_TURNS)
 
 
-def buffer_share(c):
-    """The share of the nut's travel buffer c takes: all of it at the nut, none at the abutment."""
+def spring_share(c):
+    """The share of the nut's travel the spring's turn c (0 at the nut) takes: by where its middle lies between the
+    abutment (none) and the nut (all of it)."""
+    coil = spring_coil(ROD_X[0])
     a, b = ROD_NUT_U[1], ABUT_U
-    return (b - buffer_u(c)) / (b - a)
+    u = coil.z0 + (c + 0.5) * coil.pitch
+    return (b - u) / (b - a)
 
 
 def build_linkage_local():
-    """The pitman, the two toggles, the swinging jaw, the tension rods and their buffers, drawn at the linkage's
+    """The pitman, the two toggles, the swinging jaw, the tension rods and their springs, drawn at the linkage's
     design pose (the eccentric centred) and each put at its mean pose; the rig's harmonics move them from there."""
     out = []
     (ey, ez), (py, pz) = E_C, P0
@@ -655,14 +671,15 @@ def build_linkage_local():
         rods += disc("x", yz(K0), x - 0.95, x + 0.95, 0.45, f"rods_pin{tag}", "rods", "steel", k=3)
     translate(rods, [0.0, MEAN_K[0] - K0[0], MEAN_K[1] - K0[1]])
     out += rods
-    half = (ABUT_U - ROD_NUT_U[1]) / BUFFERS / 2 - 0.08
-    for c in range(BUFFERS):
-        bufs = []
-        u = buffer_u(c)
+    for c in range(SPRING_TURNS):
+        turn = []
         for tag, x in zip("we", ROD_X):
-            bufs += disc("z", (x, K0[0], 0.0), u - half, u + half, 1.05, f"buffer{c + 1}_{tag}", f"buffer{c + 1}", "rubber")
-        translate(bufs, [0.0, MEAN_K[0] - K0[0], buffer_share(c) * (MEAN_K[1] - K0[1])])
-        out += bufs
+            coil = spring_coil(x)
+            for j in range(4 * c, 4 * c + 4):
+                turn.append(coil.side(j, f"spring{c + 1}_{tag}{coil.face(j)}", f"spring{c + 1}", "steel", tex_size=TEX))
+        sh = spring_share(c)
+        translate(turn, [0.0, sh * (MEAN_K[0] - K0[0]), sh * (MEAN_K[1] - K0[1])])
+        out += turn
     return out
 
 
@@ -869,9 +886,9 @@ def _rig_parts():
         {"id": "swingjaw", "match": ["swingjaw_*"], "requires": "jaws", "drivers": harmonics("beta", "swing", "x", H0)},
         {"id": "rods", "match": ["rods_*"], "requires": "toggles", "drivers": harmonics("ky", "slide", "y") + harmonics("kz", "slide", "z")},
     ]
-    for c in range(BUFFERS):
-        parts.append({"id": f"buffer{c + 1}", "match": [f"buffer{c + 1}_*"], "requires": "toggles",
-                      "drivers": harmonics("kz", "slide", "z", scale=buffer_share(c))})
+    for c in range(SPRING_TURNS):
+        parts.append({"id": f"spring{c + 1}", "match": [f"spring{c + 1}_*"], "requires": "toggles",
+                      "drivers": harmonics("ky", "slide", "y", scale=spring_share(c)) + harmonics("kz", "slide", "z", scale=spring_share(c))})
     parts += [
         {"id": "fixedjaw", "match": ["fixedjaw_*"], "requires": "jaws", "drivers": []},
         {"id": "grizzly", "match": ["grizzly_*"], "requires": "grizzly", "drivers": []},

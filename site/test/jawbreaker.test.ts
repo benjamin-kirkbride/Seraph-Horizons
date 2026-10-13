@@ -6,7 +6,7 @@ import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rideO
 
 // The jaw breaker's shipped files, and the poses JawBreaker/tools/make_shape.py computes from them with machinegen's
 // reference maths. Its rig reads one input, θ, the axle's angle: the eccentric shaft turns with it, once a turn, and
-// the Blake linkage (pitman, toggles, swinging jaw, rods, buffers) follows as harmonics of it, the same either way
+// the Blake linkage (pitman, toggles, swinging jaw, rods, springs) follows as harmonics of it, the same either way
 // round. It has no work. tools/tests/test_jawbreaker_model.py and the mod's C# tests replay the same file.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
