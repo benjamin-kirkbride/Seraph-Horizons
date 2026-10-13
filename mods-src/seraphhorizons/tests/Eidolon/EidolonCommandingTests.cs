@@ -57,6 +57,53 @@ public class EidolonCommandingTests
     }
 
     [Fact]
+    public void ThePreviewShowsTheAreaOnlyWhileItAwaitsItsSecondCorner()
+    {
+        var b = new MarkPos(4, 70, 20);
+        Assert.Null(EidolonMarking.Preview(EidolonMarkKind.Area, Marks.None, b, 48));
+        Assert.Null(EidolonMarking.Preview(EidolonMarkKind.Block, new Marks(A, null), b, 48));
+        Assert.Null(EidolonMarking.Preview(EidolonMarkKind.None, new Marks(A, null), b, 48));
+        var preview = EidolonMarking.Preview(EidolonMarkKind.Area, new Marks(A, null), b, 48);
+        Assert.Equal(MarkArea.Between(A, b), preview!.Value.Area);
+        Assert.False(preview.Value.Refused);
+        // A closed area, and for an area then a block, the block's step or a finished set: none.
+        Assert.Null(EidolonMarking.Preview(EidolonMarkKind.Area, new Marks(A, b), b, 48));
+        Assert.NotNull(EidolonMarking.Preview(EidolonMarkKind.AreaThenBlock, new Marks(A, null), b, 48));
+        Assert.Null(EidolonMarking.Preview(EidolonMarkKind.AreaThenBlock, new Marks(A, b), b, 48));
+        Assert.Null(EidolonMarking.Preview(EidolonMarkKind.AreaThenBlock, new Marks(A, b, b), b, 48));
+    }
+
+    [Theory]
+    [InlineData(EidolonMarkKind.Area)]
+    [InlineData(EidolonMarkKind.AreaThenBlock)]
+    public void ThePreviewRefusesExactlyWhatTheSecondClickRefuses(EidolonMarkKind kind)
+    {
+        const int maxSide = 8;
+        const long maxBlocks = 100;
+        var marks = new Marks(A, null);
+        for (int dx = -10; dx <= 10; dx++)
+            for (int dy = -6; dy <= 6; dy += 3)
+                for (int dz = -10; dz <= 10; dz += 2)
+                {
+                    var aimed = new MarkPos(A.X + dx, A.Y + dy, A.Z + dz);
+                    var preview = EidolonMarking.Preview(kind, marks, aimed, maxSide, maxBlocks)!.Value;
+                    var (after, step) = EidolonMarking.Click(kind, marks, aimed, maxSide, maxBlocks);
+                    if (preview.Refusal is { } refusal)
+                    {
+                        Assert.Equal(refusal, step);
+                        Assert.Equal(marks, after);
+                    }
+                    else
+                    {
+                        Assert.Equal(kind == EidolonMarkKind.Area ? MarkStep.Area : MarkStep.AreaThenBlock, step);
+                        Assert.Equal(preview.Area, after.Area);
+                    }
+                }
+        Assert.Equal(MarkStep.TooLarge, EidolonMarking.Preview(kind, marks, new MarkPos(A.X + 8, A.Y, A.Z), maxSide, maxBlocks)!.Value.Refusal);
+        Assert.Equal(MarkStep.TooManyBlocks, EidolonMarking.Preview(kind, marks, new MarkPos(A.X + 4, A.Y + 4, A.Z + 4), maxSide, maxBlocks)!.Value.Refusal);
+    }
+
+    [Fact]
     public void AModeWithoutMarksCannotBeClicked() =>
         Assert.Throws<ArgumentOutOfRangeException>(() => EidolonMarking.Click(EidolonMarkKind.None, Marks.None, A, 48));
 

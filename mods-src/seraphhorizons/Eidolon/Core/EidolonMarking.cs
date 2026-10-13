@@ -78,6 +78,14 @@ public readonly record struct Marks(MarkPos? First, MarkPos? Second, MarkPos? Th
     public MarkArea? Area => First is { } a && Second is { } b ? MarkArea.Between(a, b) : null;
 }
 
+/// <summary>The area a click would close (<see cref="EidolonMarking.Preview"/>), and why it would be
+/// refused (<see cref="MarkStep.TooLarge"/> or <see cref="MarkStep.TooManyBlocks"/>), null when it
+/// would not be.</summary>
+public readonly record struct AreaPreview(MarkArea Area, MarkStep? Refusal)
+{
+    public bool Refused => Refusal != null;
+}
+
 /// <summary>
 /// Marking with the command tool, one click at a time. An area takes two clicks: the first marks a
 /// corner, the second the opposite corner and closes it; a click after a closed area starts a new one.
@@ -94,22 +102,41 @@ public static class EidolonMarking
             case EidolonMarkKind.Block:
                 return (new Marks(clicked, null), MarkStep.Target);
             case EidolonMarkKind.Area:
-                if (marks.First is not { } first || marks.Second != null)
+                if (Preview(kind, marks, clicked, maxSide, maxBlocks) is not { } area)
                     return (new Marks(clicked, null), MarkStep.FirstCorner);
-                if (Refused(MarkArea.Between(first, clicked), maxSide, maxBlocks) is { } refused)
-                    return (marks, refused);
-                return (new Marks(first, clicked), MarkStep.Area);
+                return area.Refusal is { } refused ? (marks, refused) : (new Marks(marks.First, clicked), MarkStep.Area);
             case EidolonMarkKind.AreaThenBlock:
-                if (marks.First is not { } start || marks.Third != null)
+                if (Preview(kind, marks, clicked, maxSide, maxBlocks) is { } closing)
+                    return closing.Refusal is { } tooBig ? (marks, tooBig) : (new Marks(marks.First, clicked), MarkStep.AreaThenBlock);
+                if (marks.First == null || marks.Third != null)
                     return (new Marks(clicked, null), MarkStep.FirstCorner);
-                if (marks.Second == null)
-                    return Refused(MarkArea.Between(start, clicked), maxSide, maxBlocks) is { } tooBig
-                        ? (marks, tooBig)
-                        : (new Marks(start, clicked), MarkStep.AreaThenBlock);
                 return (marks with { Third = clicked }, MarkStep.Target);
             default:
                 throw new ArgumentOutOfRangeException(nameof(kind), kind, "this mode marks nothing");
         }
+    }
+
+    /// <summary>Whether the next click on a mode of kind <paramref name="kind"/> marks its area's
+    /// opposite corner: a first corner is marked and the area is not closed yet.</summary>
+    public static bool AwaitsSecondCorner(EidolonMarkKind kind, Marks marks) => kind switch
+    {
+        EidolonMarkKind.Area => marks is { First: not null, Second: null },
+        EidolonMarkKind.AreaThenBlock => marks is { First: not null, Second: null, Third: null },
+        _ => false,
+    };
+
+    /// <summary>
+    /// The area a click on <paramref name="aimed"/> would close, and whether it would be refused (the
+    /// same rule <see cref="Click"/> applies, which goes through this); null when the next click does
+    /// not mark the area's opposite corner (<see cref="AwaitsSecondCorner"/>). The client draws it as
+    /// the live preview of the area before the second click, red when refused.
+    /// </summary>
+    public static AreaPreview? Preview(EidolonMarkKind kind, Marks marks, MarkPos aimed, int maxSide, long maxBlocks = long.MaxValue)
+    {
+        if (!AwaitsSecondCorner(kind, marks) || marks.First is not { } first)
+            return null;
+        var area = MarkArea.Between(first, aimed);
+        return new AreaPreview(area, Refused(area, maxSide, maxBlocks));
     }
 
     private static MarkStep? Refused(MarkArea area, int maxSide, long maxBlocks) =>
