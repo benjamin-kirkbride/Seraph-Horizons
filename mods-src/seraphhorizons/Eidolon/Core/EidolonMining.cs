@@ -72,12 +72,14 @@ public sealed class MineJobCells
 
     public MinePlan? Plan { get; set; }
 
-    /// <summary>The plan being made (the first, or one made again), null for none.</summary>
-    public MinePlanner? Planning { get; set; }
+    /// <summary>Whether a plan is being made (the first, or one made again, on a worker thread).</summary>
+    public bool Planning { get; set; }
 
     public int PlanVersion { get; set; }
 
-    public HashSet<PathCell> BadStands { get; } = new();
+    /// <summary>Settable: a plan made on a worker is given a copy, which becomes the job's set when the
+    /// plan is swapped in (the live state built with it shares it).</summary>
+    public HashSet<PathCell> BadStands { get; set; } = new();
 
     public int ToldOutOfReach { get; set; } = -1;
 
@@ -106,6 +108,12 @@ public sealed class MineJobCells
     /// for being stuck: planned round, as cells left for now, until they move (README "Eidolon", working
     /// together, *Footing*).</summary>
     public HashSet<MarkPos> Parked { get; set; } = new();
+
+    /// <summary>The cells under parked eidolons as last seen, and since when: the plan is made round them
+    /// only once they have stayed so a while (one walking across the area stirs no plan).</summary>
+    public HashSet<MarkPos> ParkedSeen { get; set; } = new();
+
+    public double ParkedSince { get; set; }
 
     /// <summary>The member walking on the stair (README "Eidolon", working together, *The stair*), 0 for none,
     /// and until when (a holder unloaded or stuck lets it go then): one at a time, the others keeping off it.</summary>

@@ -255,7 +255,11 @@ public sealed class MineState
     /// stands its block now stands in taken off, <see cref="MineReach.Block"/>), never by building the graphs
     /// again in one go, so a player's edit on a large area costs a tick no more than a strike; what it opens
     /// is left to the next plan, which it marks due (<see cref="Stale"/>).</summary>
-    public void Changed(MarkPos cell, MineVoxel voxel)
+    public void Changed(MarkPos cell, MineVoxel voxel) => Changed(cell, voxel, true);
+
+    /// <summary><see cref="Changed(MarkPos, MineVoxel)"/>, the plan marked stale only when
+    /// <paramref name="stale"/> (a change that only takes a target away, say, leaves it as it is).</summary>
+    public void Changed(MarkPos cell, MineVoxel voxel, bool stale)
     {
         bool was = Site.Solid(cell.X, cell.Y, cell.Z);
         Site.Set(cell, voxel);
@@ -272,7 +276,8 @@ public sealed class MineState
             else if (!voxel.Solid && was)
                 Reach.Dig([cell], null);
         }
-        Stale = true;
+        if (stale)
+            Stale = true;
     }
 
     /// <summary>A block column of the window read again from <paramref name="world"/> (one loaded since):

@@ -145,6 +145,13 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0, bool keepClear
                 }
             if (ground is not { } at)
                 continue;
+            // a way through another's work (a miner's claimed columns) is not taken: the next place is tried
+            if (Crosses?.Invoke(new Vec3d(x, at, z)) == true)
+            {
+                if (++tries >= PathTries)
+                    break;
+                continue;
+            }
             if (nav.GoTo(new Vec3d(x, at, z), false, () => { }, () => { }, arriveWithin: (float)EidolonTeamwork.WaitArrive))
             {
                 if (keepClear && !nav.LastWentAround)
@@ -190,6 +197,13 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0, bool keepClear
             }
             if (ground is not { } feet)
                 continue;
+            // a way through another's work (a miner's claimed columns) is not taken: the next place is tried
+            if (Crosses?.Invoke(new Vec3d(x, feet, z)) == true)
+            {
+                if (++tries >= PathTries)
+                    break;
+                continue;
+            }
             if (nav.GoTo(new Vec3d(x, feet, z), false, () => { }, () => { }, arriveWithin: (float)EidolonTeamwork.WaitArrive))
             {
                 if (keepClear && !nav.LastWentAround)
@@ -211,6 +225,10 @@ internal sealed class RimWait(MarkArea area, int heightSlack = 0, bool keepClear
     /// already or finds none.</summary>
     public bool Aside(EntityLaborEidolon eidolon, EidolonNavigator nav, EidolonJobSystem? jobs, Func<int, int, bool> clear) =>
         !nav.Active && StepAside(eidolon, nav, jobs, clear);
+
+    /// <summary>Whether the way to a place crosses another's work (mining: columns another member has
+    /// claimed); such a place is passed over. None: any way goes.</summary>
+    public Func<Vec3d, bool>? Crosses { get; set; }
 
     /// <summary>Off the rim, back to work (or stopped, or done).</summary>
     public void Leave(EntityLaborEidolon eidolon, EidolonJobSystem? jobs)

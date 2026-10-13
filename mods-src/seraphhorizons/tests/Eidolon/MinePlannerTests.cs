@@ -388,6 +388,29 @@ public class MinePlannerTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void A_plan_made_on_another_thread_is_the_plan_made_on_this_one()
+    {
+        // as the game makes it: its own copies of the site, the planner and the live state over it on a
+        // worker, nothing shared; the plan, and the state's targets and walk graph, as made here
+        var world = SteppedSlope(8, z1: 6);
+        var area = Area(-2, 7, L, L + 7, 0, 3);
+        var here = world.Plan(area, Home);
+        var site = world.Site(area);
+        var (plan, state) = Task.Run(() =>
+        {
+            var made = MinePlanner.Run(new MinePlanInput(new MineState(site.Clone(), Home), Home, _ => false, new HashSet<PathCell>()));
+            var live = new MineState(site.Clone(), Home);
+            live.AdoptNow(made);
+            return (made, live);
+        }).Result;
+        Assert.Equal(Describe(here), Describe(plan));
+        var live = new MineState(world.Site(area), Home);
+        live.AdoptNow(here);
+        Assert.Equal(live.Remaining.ToHashSet(), state.Remaining.ToHashSet());
+        Assert.Equal(live.Walk.Nodes.ToHashSet(), state.Walk.Nodes.ToHashSet());
+    }
+
+    [Fact]
     public void Columns_not_loaded_are_no_targets_until_they_load()
     {
         var world = new MineTestWorld().Ground(L - 1);

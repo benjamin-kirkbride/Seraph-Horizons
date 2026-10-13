@@ -109,6 +109,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// the area (no member, or one waiting) never takes a station from it.</summary>
     private const double NeverSeconds = 1e6;
 
+    /// <summary>How long the cells under eidolons parked in the area must stay the same before the plan is
+    /// made round them.</summary>
+    private const double ParkedSeconds = 3;
+
     /// <summary>How long after finishing a station it leaves the next to a member waiting with under half as much mined
     /// (<see cref="Yields"/>), waiting at the rim meanwhile.</summary>
     private const double YieldSeconds = 3;
@@ -168,8 +172,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private bool _stairWait;
     private double? _throughSince;
     private double _yieldUntil;
+    private bool _headDone;
     private double? _waitWalkSince;
-    private double _whyAt;
 
     public string Code => OrderCode;
 
@@ -296,6 +300,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _group = null;
         _rescanAt = 0;
         _queue.Clear();
+        _headDone = false;
         _rim.Leave(eidolon, _jobs);
         if (_done)
             GoHome(eidolon);
@@ -344,8 +349,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 _phase = Phase.Seek;
                 return Seek(eidolon, now);
             case Phase.Walk:
-                // a new plan: its stations are of the old one
-                if (_planVersion != Cells.PlanVersion || Station is not { } head)
+                // a new plan: the station it walks to kept if the new one has it, else it looks again
+                if (_planVersion != Cells.PlanVersion && (Cells.Plan is not { } replanned || !Remap(eidolon, replanned)) || Station is not { } head)
                 {
                     _nav!.Stop();
                     _phase = Phase.Seek;
@@ -523,11 +528,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         TellOutOfReach(eidolon, plan);
         if (_planVersion != cells.PlanVersion)
-        {
-            // a new plan: its stations are of the old one, and its claims with them
-            DropQueue(eidolon);
-            _planVersion = cells.PlanVersion;
-        }
+            Remap(eidolon, plan);
         var workers = Workers(eidolon);
         var at = At(workers);
         // what it holds that is done, or no longer its to work now (another stands there, the world changed)
@@ -625,6 +626,37 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     private const double BoxWidth = 2 * EidolonMining.HalfWidth;
 
+    /// <summary>
+    /// A new plan swapped in: each station it holds is kept as the new plan's station at the same stand, of the
+    /// same kind, that has cells of it still to dig (its claim moved to that one's), else let go; true when
+    /// the one it works was kept (README "Eidolon", working together, *Dispatch*: a replan does not turn
+    /// back one already on its way).
+    /// </summary>
+    private bool Remap(EntityLaborEidolon eidolon, MinePlan plan)
+    {
+        _planVersion = Cells.PlanVersion;
+        if (_queue.Count == 0)
+            return false;
+        var live = Cells.Live;
+        var board = Board;
+        long id = eidolon.EntityId;
+        double now = EidolonJobSystem.Now(eidolon.World);
+        var held = _queue.ToList();
+        bool headKept = false;
+        DropQueue(eidolon);
+        foreach (var old in held)
+        {
+            var mapped = plan.Stations.FirstOrDefault(s => s.Stand == old.Stand && s.Kind == old.Kind
+                && s.Cells.Any(c => live?.Remaining.Contains(c) != false && old.Cells.Contains(c)));
+            if (mapped == null || (board != null && !board.TryClaim(id, mapped.Id, MineDispatch.Claim(mapped, plan.Tunnel), now)))
+                break;
+            _queue.Add(mapped);
+            if (old == held[0])
+                headKept = true;
+        }
+        return headKept;
+    }
+
     /// <summary>Lets go of the station it works (its claim freed).</summary>
     private void DropHead(EntityLaborEidolon eidolon)
     {
@@ -652,22 +684,6 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private bool Idle(EntityLaborEidolon eidolon, MineState live, List<MineWorker> workers, double now)
     {
         var cells = Cells;
-        if (now >= _whyAt && cells.Plan is { } p)
-        {
-            _whyAt = now + 10;
-            long id = eidolon.EntityId;
-            var board = Board;
-            var why = p.Stations.Where(st => st.Cells.Any(live.Remaining.Contains)).Take(8).Select(st =>
-            {
-                var f = board == null ? st : MineDispatch.Fit(st, p.Tunnel, u => board.Free(id, u, now));
-                if (f == null) return $"{st.Id} nofit";
-                if (Taken(f.Stand, workers)) return $"{st.Id} taken";
-                MineDispatch.Executable(p, live, Usable(f, workers), At(workers), out var r, ParkedClear(workers));
-                return $"{st.Id} {r}";
-            });
-            eidolon.World.Logger.Debug($"[eidolon-mine] {id} idle at {eidolon.Pos.XYZ}, stair {cells.StairHolder}, yield {_yieldUntil - now:0.0}: {string.Join(", ", why)}; others "
-                + string.Join(" ", workers.Select(w => $"{w.Id} ({w.X:0.0},{w.Feet},{w.Z:0.0}) q{w.Queue.Count}")));
-        }
         bool unloaded = live.Site.UnloadedColumns.Count > 0;
         bool working = workers.Any(w => w.Queue.Count > 0);
         // Eidolons parked in the area hold up what is under them: with none at work, the plan is made again
@@ -680,9 +696,18 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             var under = cells.Parked.Concat(live.Remaining).Where(c => parked.Any(w => EidolonMining.UnderFoot(w.X, w.Z, c))).ToHashSet();
             if (!under.SetEquals(cells.Parked))
             {
-                cells.Parked = under;
-                Plans?.Replan(cells, true);
-                eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: {under.Count} blocks under eidolons parked there, planned again");
+                // only once it has stayed so a while: one crossing the area stirs no plan
+                if (!under.SetEquals(cells.ParkedSeen))
+                {
+                    cells.ParkedSeen = under;
+                    cells.ParkedSince = now;
+                }
+                else if (now - cells.ParkedSince >= ParkedSeconds)
+                {
+                    cells.Parked = under;
+                    Plans?.Replan(cells, false);
+                    eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: {under.Count} blocks under eidolons parked there, planned again");
+                }
                 Unfinish(eidolon);
                 return Wait(eidolon, now);
             }
@@ -702,13 +727,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             {
                 cells.StuckReplanned = true;
                 Plans?.Replan(cells, true);
-                var why = Cells.Plan!.Stations.Where(st => st.Cells.Any(live.Remaining.Contains)).Take(6).Select(st =>
-                {
-                    MineDispatch.Executable(Cells.Plan, live, Usable(st, workers), At(workers), out var r, ParkedClear(workers));
-                    return $"{st.Id} {r}";
-                });
-                eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} stuck on {EidolonMinePlans.Describe(area)} with {live.Remaining.Count} left "
-                    + $"({string.Join(", ", why)}): planned again");
+                eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId} stuck on {EidolonMinePlans.Describe(area)} with {live.Remaining.Count} left: planned again");
             }
             else
             {
@@ -1030,6 +1049,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <see cref="WaitCheckSeconds"/>.</summary>
     private bool Wait(EntityLaborEidolon eidolon, double now)
     {
+        // its way to where it waits keeps out of the columns the others work, as its way to a station does
+        _rim.Crosses = to => CrossesClaims(eidolon, WidePath.NodeAt(to.X, to.Y, to.Z), now);
         DropQueue(eidolon);
         Board?.Release(eidolon.EntityId);
         _phase = Phase.Wait;
@@ -1313,6 +1334,12 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         eidolon.AnimManager.StopAnimation(SlamAnimation);
         _group = null;
         _phase = Phase.Seek;
+        if (_headDone)
+        {
+            _headDone = false;
+            DropHead(eidolon);
+            _yieldUntil = now + YieldSeconds;
+        }
         return true;
     }
 
@@ -1340,7 +1367,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             var rule = GameMineWorld.Rule(world, pos, block, near, _pick, _maxTier, _mineThrough);
             if (rule != MineRule.Mine)
             {
-                Plans?.Seen(Cells, cell, new MineVoxel(block.GetCollisionBoxes(world.BlockAccessor, pos) is { Length: > 0 }, rule));
+                Plans?.Seen(Cells, cell, new MineVoxel(GameMineWorld.Solid(block.GetCollisionBoxes(world.BlockAccessor, pos)), rule));
                 continue;
             }
             breakable.Add(cell);
@@ -1390,11 +1417,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         Strikes++;
         _job?.Tally(eidolon.EntityId, broken.Count);
         Board?.Struck(eidolon.EntityId, EidolonJobSystem.Now(world));
+        // its station done: let go once the strike is over (it stands in its claim till then)
         if (Station is { } head && Cells.Live is { } live && !head.Cells.Any(live.Remaining.Contains))
-        {
-            DropHead(eidolon);
-            _yieldUntil = EidolonJobSystem.Now(world) + YieldSeconds;
-        }
+            _headDone = true;
         // Last: a dry reservoir stops it at once (the order is cancelled and started again later).
         eidolon.SpendOil(EidolonJob.MiningStrike);
     }

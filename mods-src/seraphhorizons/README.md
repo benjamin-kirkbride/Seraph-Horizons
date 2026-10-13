@@ -3341,25 +3341,38 @@ leave stays, its way out (`MinePlan.WayOut`). In the game a block of it whose lo
 it with nothing under it or beside it is left too (the game's rock caves in where it hangs free, and a
 tread that fell would take the way out with it: `MineOrder.Unhung`); and a plan made again late, which
 would take what is left of the stair for blocks out of reach, does not make them so: the job keeps every
-stair its plans left (`MineJobCells.Stair`), told and reported as the way out. *Planning in slices*: the window is read a block column at
-a time, the plan made and the live state built over it in slices of at most 2 ms a tick across every job
-(`EidolonMinePlans`, `MinePlanner.BudgetMs`), the members waiting meanwhile
-(`eidolon-status-mine-planning`); a largest area (16384 blocks) plans in under a second of slices.
-*The live state*: the job keeps its picture of the world (`MineJobCells.Live`) as the world changes: its
-own breaks at once; a player's breaks and placings in the window by the server's events; anything else
-(water, falling sand, a column that loads) by a sweep of the area's columns every 10 seconds. A block gone
-is taken as dug; any other change, and a stand the game's pathfinder finds no way to (a *bad stand*, partial
-blocks the plan took as whole: `MineJobCells.BadStands`, tried again once when a block near it changes),
-has the plan made again, at most every 2 seconds, from a copy of the live state, the old plan serving
-meanwhile and the new one swapped in whole. Every claim and strike is checked against the live state
-(`MineDispatch.Executable`, `MineState.Check`), so a stale plan only costs a worse order, never a
-stranding. *Out of reach*: the owner is told once, by the job (`eidolon-mine-outofreach`: how many, how
+stair its plans left (`MineJobCells.Stair`), told and reported as the way out. *Planning off the main thread*: what reads the world stays on the server's thread, in slices of at
+most 2 ms a tick across every job (the game's block accessor is not thread-safe): the window read a
+block column at a time and the area's roofs (`EidolonMinePlans`, `MinePlanner.BudgetMs`). The plan
+itself and the live state built over it are made on a worker thread, from copies (the site twice, the
+skipped, parked and roofed cells and the bad stands snapshotted), sharing nothing the main thread
+changes; the main thread swaps the result in on a later tick, playing over it what changed meanwhile, and
+drops a result nobody wants any more (the job done, a newer plan asked for, the server stopping: each
+worker has a cancellation token). A worker that fails is logged, the job keeps its plan and asks again
+later (a first plan failing three times leaves the job an empty one, so its members report and go, and
+its outlines are cleared). The members wait for the first plan (`eidolon-status-mine-planning`); a
+largest area (16384 blocks) plans in under a second of the worker's time. The planner is
+still a step iterator (its steps a few ms at most), so the tests run it synchronously. What runs on the
+main thread for a member each look (the dispatch over the plan's next 24 stations, the guard, a dig taken
+in) is about a millisecond on the largest plan. *The live state*: the job keeps its picture of the world
+(`MineJobCells.Live`) as the world changes: its own breaks at once; a player's breaks and placings in the
+window by the server's events; anything else (water, falling sand, a column that loads) by a sweep of the
+area's columns every 10 seconds, each taken in locally. Only what can change the plan has it made again: a
+block placed, a new target, a block that holds its column up, a block near the area going, a stand the
+game's pathfinder finds no way to (a *bad stand*, partial blocks the plan took as whole:
+`MineJobCells.BadStands`, tried again once when a block near it changes); a target turned into one it
+leaves, a liquid over dug ground, a thin cover (snow, a carpet: under half a block counts as air) or a
+change more than 5 columns from the area does not. It is made again at most every 2 seconds, from a copy
+of the live state, the old plan serving meanwhile and the new one swapped in whole; a member walking to a
+station keeps it when the new plan has one at the same stand with its blocks. Every claim and strike is
+checked against the live state (`MineDispatch.Executable`, `MineState.Check`), so a stale plan only costs
+a worse order, never a stranding. *Out of reach*: the owner is told once, by the job (`eidolon-mine-outofreach`: how many, how
 many kept under them, and how high a step in front of the face would bring them in reach,
 `MinePlan.StepNeeded`; `-nostep` without), again only when that grows, or when the world changes so it
 can reach them (`eidolon-mine-inreach-now`), the count saved with the order (`outofreach`); and the boxes
 of those blocks go to the owner's client (`MineOutOfReachPacket`, channel `seraphhorizons-eidolonmine`,
-`MineOutlines.Boxes`), outlined in red while they hold the command tool in mine mode, until the job is
-done. The marking itself is never refused for it: the plan runs after the click.
+`MineOutlines.Boxes`), outlined in red while they hold the command tool in mine mode (sent again when
+they join), until the job is done. The marking itself is never refused for it: the plan runs after the click.
 
 *Tunnels* (`Eidolon/Core/EidolonTunnels.cs`). Quarried top down, an area dug into a hillside would start
 on its ceiling, out of reach from the mouth. So a column of the area with a full block of ground (stone,
@@ -3507,7 +3520,8 @@ over it), its job's or not, with an order or not, nor one whose loss would leave
 another holds, with no way out; asked as it takes a station and again at each strike, against the
 eidolons loaded over the area. A station's blocks in the columns of an eidolon parked in the area (no
 order, or waiting) are left out of it, and a place it stands on or by is not made for; with none at work,
-the plan is made again round what is under such eidolons not of its job (`MineJobCells.Parked`), so it is worked round,
+the plan is made again round what is under such eidolons not of its job once that has stayed the same
+3 seconds (`MineJobCells.Parked`; one crossing the area stirs no plan), so it is worked round,
 then waited for at the rim (the order is not done while blocks under one are left), and planned again
 with its blocks once it moves, which are mined, with no pillar left. *The report*: a member
 with nothing left it may break and reach tells the job and waits at the rim; the job is done when every
