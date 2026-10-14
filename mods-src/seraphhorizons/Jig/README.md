@@ -5,8 +5,8 @@ Part of the Seraph Horizons mod (`../README.md`): the second concentrator of the
 box of water, the **hutch**, is divided across by a **partition** open below it: the **sieve compartment**
 at the front, the **plunger compartment** behind. An **eccentric** on the jig's own shaft works the
 **plunger** up and down; each stroke pulses the water up through the ore bed on the sieve, so the heavy
-grains sink through it into the hutch and leave by the **spigot**, and the light ones wash over the
-**weir**. Crushed or ground ore comes in by chute; concentrate leaves by one chute, tailings by another
+grains sink through it into the hutch and leave by the **spout**, and the light ones are carried along the
+sieve to its tail end and over the **weir**. Crushed or ground ore comes in by chute; concentrate leaves by one chute, tailings by another
 (#919: r = 0.60, 8 rock an hour, on the sluice's tailings, before the table).
 
 This folder holds the model's generator (`tools/`). The gameplay is #919 and is not built yet; the model
@@ -19,9 +19,10 @@ of the generator is `Machines/tools/machinegen/`, unchanged by this machine: no 
 ## The machine
 
 **Footprint.** 4 cells, 1 wide (x), 2 high, 2 deep (z, away from the player): the controller `[0,0,0]`
-is the front bottom cell, the hutch's spigot end, nearest the player who placed it; the jig runs south
-from it. The hutch is 13 × 26 × 17.5 voxels (x 2.5..15.5, z 3..29, its floor's top at 5, its rim at 22.5)
-on three oak sills; the drive stands on it at the back, the feed at the front.
+is the front bottom cell, the hutch's spout end, nearest the player who placed it; the jig runs south
+from it. The hutch is 13 × 26 × 17.5 voxels (x 2.5..15.5, z 3..29, its floor's top at 5, its rim at 22.5;
+its west wall's head rises to 28 round the tailings chute's end) on three oak sills; the drive stands on it
+at the back, the feed at the front.
 
 **Services.** Each on a face of its own, centred in it, so the vanilla block placed beyond meets it with
 no gap or step (anchors in `assets/seraphhorizons/config/jig-rig.json`; provisional until #711 settles
@@ -31,8 +32,8 @@ the shared ones):
 |---|---|---|
 | `powerCell`, `powerFace` | `[0,1,1]`, west | The vanilla axle along x at the face's centre (y 24, z 24 voxels), on the shaft's oak end: the axle's own cross profile, 4 × 2 and 2 × 4 |
 | `infeedCell`, `infeedFace` | `[0,1,0]`, up | A vanilla chute above (`chute-straight-ud`) pushes down into the infeed: vanilla's straight chute section, upright, from the top face down onto the feed trough |
-| `tailingsCell`, `tailingsFace` | `[0,1,0]`, west | The tailings chute: vanilla's section along x from the weir out of the face, to a `chute-straight-we` beyond |
-| `concentrateCell`, `concentrateFace` | `[0,0,0]`, north | The concentrate chute: vanilla's section along z from the spigot out of the face, to a `chute-straight-ns` beyond |
+| `tailingsCell`, `tailingsFace` | `[0,1,0]`, west | The tailings chute: vanilla's section along x from the port in the tail end's head (the weir's lip in its mouth) out of the face, to a `chute-straight-we` beyond |
+| `concentrateCell`, `concentrateFace` | `[0,0,0]`, north | The concentrate chute: vanilla's section along z from the front wall (the spout's lip in its mouth) out of the face, to a `chute-straight-ns` beyond |
 | `waterCell`, `waterFace` | `[0,0,1]`, south | A ppex pipe meets the water inlet end to end on the face's centre (x 8, y 8) |
 
 Also `sieve.pos` (the middle of the sieve's top: sounds and splashes), `levels` (the weir's sill, the
@@ -50,11 +51,29 @@ of the front; the water comes in low at the back, under the plunger (the upper r
 Every block beyond a face is a different one.
 
 **The flows.** The feed falls from the infeed chute onto the **feed trough**, closed at its west end and
-falling east 1 in 10, which drops it at the sieve's east end; it crosses the sieve (9 voxels) to the weir in
-the west wall. The heavy grains sink through the bed and the sieve into the hutch, whose floor drains to
-the spigot at the front wall's foot; the spigot pours into the concentrate chute's mouth. The light ones
-wash over the weir's iron lip, which reaches half a voxel into the tailings chute's mouth. The water comes
-in under the plunger and leaves with them.
+falling east 1 in 10, which drops it at the sieve's east end, the **head end**; the water carries it along
+the sieve (9 voxels, along the partition, as a Harz jig's flow runs) to the **tail end**, the west wall.
+Two ways out, one each side of the sieve:
+
+- **Tailings** (the light grains, on top of the bed): over the **weir** at the tail end. The bed's top
+  stands 1.65 under the weir's sill (the sieve is high in the hutch, at 17.2..17.6, the bed two voxels on
+  it), so the light grains lifted on each pulse rise into the overflow: through a **port** in the west
+  wall (z 5.2..10.8, from the sill at 21.25 up to 24) over the weir's **iron lip**, which reaches from the
+  wall's inner face half a voxel into the tailings chute's mouth, and down onto the chute's floor (y 21).
+  The west wall rises over the rim as a plank **head** round the chute's end (two cheeks and a lintel over
+  the port, to y 28, the chute section's top), so the chute leaves a wall, not the rim, and the port and
+  lip show at the end of its bore.
+- **Concentrate** (the heavy grains): down through the bed and the sieve into the hutch, whose bottom under
+  the sieve compartment **slopes** (boards on an oak cleat at the partition, 1 in 6) down to the front
+  wall; there an iron **spout** lines a port through the front wall's foot (x 5.2..10.8, y 5..8.5), its
+  floor flush with the slope's foot (5.65), its lip 0.6 into the concentrate chute's mouth, 0.65 over the
+  chute's floor, so it pours.
+
+**Why the tailings leave by the west face.** It is where the flow ends: the feed lands at the east end and
+the overflow is the far end of the sieve from it, the tail end. A chute section is centred in its face, so
+the tailings chute must be in the upper row (its bore's floor at 21, the weir's sill just over it); the
+front top cell's north face would put the tail end across the flow, at the front wall, with the feed
+landing beside it. The water comes in under the plunger and leaves with the products.
 
 ## How it works
 
@@ -63,11 +82,14 @@ machine box's north-west bottom corner), which is the shipped frame times 16: th
 the build frame's.
 
 **The hutch** (the frame, `hutch_*`). Three oak sills across (4 high, under the front wall, the partition
-and the back wall), a plank floor on them, four plank walls 1.5 thick to the rim. The west wall is notched
-over the sieve compartment for the **weir**: its sill at 21.25 under an iron lip that reaches into the
-tailings chute. The **partition** (z 16.5..17.5) runs from the rim down to y 10, so the water passes under
-it. Oak **ledges** round the sieve compartment carry the sieve at y 14..14.4. The **spigot**, a square iron
-spout, runs through the front wall at the floor into the concentrate chute's mouth.
+and the back wall), a plank floor on them, four plank walls 1.5 thick to the rim. The west wall, the tail
+end, is notched over the sieve compartment for the **weir**: its sill at 21.25 under an iron lip that
+reaches into the tailings chute; over the rim it rises as the **head** (cheeks and a lintel, to 28) round
+the chute's end, leaving the **port** over the lip. The **partition** (z 16.5..17.5) runs from the rim
+down to y 10, so the water passes under it. Oak **ledges** round the sieve compartment carry the sieve at
+y 17.2..17.6. Under the sieve compartment the hutch's **bottom slopes** from 7.65 at the partition (on an
+oak cleat) to 5.65 at the front wall, where the iron **spout** (a floor, two sides and a head, 0.5
+thick round a 4.6 × 2.35 bore) lines a port through the wall's foot into the concentrate chute's mouth.
 
 **The sieve** (`sieve`): an iron mesh (`game:block/metal/mesh1`) across the sieve compartment, on its
 ledges.
@@ -92,7 +114,7 @@ span the sieve compartment from the front wall's rim to the partition's; four ir
 down its north and south walls onto the bearers.
 
 **The outlets** (`outlets`). Vanilla's straight chute section from the weir out of the west face (2.5
-long, on an iron bracket from the hutch's west wall), and from the spigot out of the north face (3 long, on
+long, on an iron bracket from the hutch's west wall), and from the spout out of the north face (3 long, on
 an oak block). Each is the game's section exactly: its four walls (an 8 × 8 tube 1 thick, two full-width
 walls and two between them, centred in the face), in the texture a placed chute shows in the pack,
 `game:block/metal/sheet/copper1`. The generator keeps the game's profile as a constant (`VANILLA_CHUTE`),
@@ -172,8 +194,8 @@ python3 mods-src/seraphhorizons/Jig/tools/make_shape.py --out DIR    # or writes
 python3 mods-src/seraphhorizons/Jig/tools/make_shape.py --quick      # skips the z-fighting fix and the swept paths (not for files that ship)
 ```
 
-It writes `assets/seraphhorizons/shapes/block/jig.json` (the whole machine, 111 elements),
-`assets/seraphhorizons/shapes/block/jig_frame.json` (the hutch, 20), `assets/seraphhorizons/config/jig-rig.json`
+It writes `assets/seraphhorizons/shapes/block/jig.json` (the whole machine, 121 elements),
+`assets/seraphhorizons/shapes/block/jig_frame.json` (the hutch, 30), `assets/seraphhorizons/config/jig-rig.json`
 and `tests/Jig/rig-reference.json` (every part's matrix at ten values of θ). A full run takes about 2 s and
 is deterministic (two runs into two folders are byte-identical, logs included).
 
@@ -199,12 +221,22 @@ Every run checks its output and exits non-zero if a check fails:
   face of its own, the blocks beyond them all outside the machine and apart.
 - **Levels:** the weir's sill over the tailings chute's bore floor and under the rim; the bed and the
   plunger board under the water through the stroke; the yoke at least 0.3 over the plunger compartment's
-  surface through a turn (they move together); the partition open under the plunger's stroke; the spigot
-  draining the floor into the concentrate chute's bore; the contents' amplitudes and directions.
+  surface through a turn (they move together); the partition open over the slope and under the plunger's
+  stroke; the spout's floor flush with the slope's foot, over the concentrate chute's bore floor, the
+  spout inside the chute's bore and its lip in the chute's mouth; the contents' amplitudes and directions.
 - **Flows** (ray drops, the water's surface not counted): the infeed onto the feed trough at its corners
   and middle; the trough's lip onto the sieve (and onto the bed, through a turn), clear of the bearers;
-  the weir's lip into the tailings chute's floor across its width; the spigot into the concentrate chute's;
-  the feed landing at least 8 from the weir.
+  the weir's lip into the tailings chute's floor across its width; through the sieve onto the hutch's
+  slope; the spout's lip into the concentrate chute's floor across its bore; the feed landing at least 8
+  from the weir.
+- **Ways out** (`check_paths`): each output has an open way from where its product collects to its
+  chute's face. A grain (a probe 0.6 across) walked along it in steps of 0.1, at four poses of a turn,
+  touches nothing but the water and the bed: the tailings from the bed's top at the tail end up over the
+  weir's lip, through the port, down onto the tailings chute's floor and along its bore to the west face;
+  the concentrate from under the sieve down onto the slope, down it into the spout, off its lip onto the
+  concentrate chute's floor and along its bore to the north face. Each way ends inside its chute's bore on
+  its anchor's face, the tailings' stays over the sieve and the concentrate's under it, so the two leave
+  by separate ways.
 - **The yoke:** through a turn the sheave's centre on the slot's line, the bars 0.01 off its corners, the
   sheave inside the slot's length; the plunger at 0.5 sin θ and the same stroke backwards; the sheave
   enclosing the shaft off its centre.
@@ -230,7 +262,8 @@ First-match globs, in the rig's order: `shaft_*` (`entrya`, `entryb`, `flange_*`
 `trough_s`, `trough_end`, `bearer1`, `bearer2`, `strap1n`..), `outlet_*` (`tailchute_n/s/bottom/top`,
 `tail_arm`, `tail_leg`, `concchute_w/e/bottom/top`, `conc_block`), `pipecopper_*` and `pipelead_*`
 (`inlet_*`), and `hutch_*` for the frame (`sill1..3`, `floor1..2`, `wall_n`, `wall_s`, `wall_e1..2`,
-`wall_w1..2`, `wall_wn`, `wall_ws`, `weir_lip`, `partition`, `ledge_w/e/n/s`, `spigot`). Hand edits are
+`wall_nw`, `wall_ne`, `wall_w1..2`, `wall_wn`, `wall_ws`, `weir_lip`, `head_n`, `head_s`, `head_lintel`, `partition`,
+`ledge_w/e/n/s`, `hopper`, `hopper_cleat`, `spigot_bottom/top/w/e`). Hand edits are
 lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Salvaged from the v2 branch
@@ -251,8 +284,9 @@ tests.
 
 The model has been reviewed in projections rendered from the written files, not yet in a client.
 
-1. **The hutch's floor is flat.** A period hutch narrows to its spigot; this one drains along a level
-   floor to a spigot at the front wall's foot. Only a section would show it.
+1. **The hutch's bottom slopes one way only.** It falls from the partition to the front wall, the full
+   inside width; a period hutch narrows to its spigot every way, so the corners either side of the spout
+   (x 4..5.2 and 10.8..14) are dead. Only a section shows it.
 2. **The water is two surfaces, not a volume**, and the water over the weir is not drawn falling into
    the chute; nothing shows the feed in the trough or the concentrate in the chutes.
 3. **The bed's lift is a sine of θ,** like the stroke: a real bed opens on the pulsion stroke and packs
@@ -289,11 +323,19 @@ The model has been reviewed in projections rendered from the written files, not 
    hutch, the sieve, the drive, the plunger, the infeed and outlets, the water inlet.
 9. **Anchors provisional pending #711**: the `<name>Cell`/`<name>Face` pairs for chutes and water.
 10. **Box ironwork.** The hutch is plain plank; iron corner straps or tie rods would read as a period box.
+11. **One concentrate, the hutch product.** The concentrate is the fine heavy grains through the sieve,
+    drawn off the hutch's bottom by the spout. A Harz jig also drew the coarse heavy grains lying on the
+    sieve off through a gate at the tail end under the tail board; that would be a third product and a
+    third way out, which #919 does not have.
+12. **The spout runs open.** No plug or gate on it (a period spigot was throttled by a plug with a hole);
+    the game meters the output, so nothing regulates it in the model.
+13. **The sieve raised** from 14 to 17.2 this pass, so the bed's top stands just under the weir (1.65)
+    and the tailings plainly overflow it; the plunger and the levels are unchanged.
 
 ## Tests
 
 `tools/tests/test_jig_model.py` (the generated files against their own rules: the rig's vocabulary, its
 reference poses, the cells rebuilt from the shipped shape, the motion, the anchors, the chutes' section,
-the textures), `site/test/jig.test.ts` (the site's rig maths against the reference poses, the anchors the
+the port in the tail end's head and the spout's open bore, the textures), `site/test/jig.test.ts` (the site's rig maths against the reference poses, the anchors the
 viewer finds, the page's contents and inlet choice) and `tests/Jig/JigRigTests.cs` (the shipped rig through
 `Machines/Core`'s parser and maths against the same poses).

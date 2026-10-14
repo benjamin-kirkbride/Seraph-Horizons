@@ -7,16 +7,19 @@ compartment at the front and the plunger compartment behind. An eccentric on the
 from the vanilla axle at the power face, works the plunger up and down through an iron yoke (a slotted
 crosshead, the Scotch yoke's way, so the stroke is exactly a sine of the shaft's angle and the same
 either way the axle turns: no rectifier). Each stroke pulses the water up through the sieve and the
-ore bed on it: the heavy grains sink through into the hutch and are drawn off at the spigot, into the
-concentrate chute; the light ones wash over the weir, into the tailings chute. Richards 1903, I, Harz
-jigs, figs. 306-307.
+ore bed on it: the heavy grains sink through into the hutch, whose bottom slopes to the spout at the front
+wall's foot, into the concentrate chute; the light ones are carried along the sieve, from the head end where
+the feed lands (east) to the tail end (west), and over the weir in the tail end's wall, into the tailings
+chute. Richards 1903, I, Harz jigs, figs. 306-307.
 
     feed         vanilla's straight chute, upright, down through the front top cell's top face onto a
                  feed trough that carries the ore to the east end of the sieve
-    tailings     over the weir in the west wall, straight into vanilla's chute out of the front top
-                 cell's west face
-    concentrate  through the sieve into the hutch, out of the spigot at the front wall's foot into
-                 vanilla's chute out of the front bottom cell's north face
+    tailings     along the sieve to its tail end and over the weir, an iron lip in a port through the
+                 west wall's head (the wall raised round the chute's end), into vanilla's chute out of
+                 the front top cell's west face
+    concentrate  through the sieve into the hutch, down its sloping bottom into the iron spout through
+                 the front wall's foot, off its lip into vanilla's chute out of the front bottom cell's
+                 north face
     water        a ppex pipe (soldered copper or lead, Pipes/tools/solderedpipe.py) into the plunger
                  compartment under the plunger, through the back bottom cell's south face
     power        the vanilla axle into the back top cell's west face, on the shaft's oak end
@@ -117,7 +120,8 @@ SILLS_Z = ((3.0, 5.5), (15.5, 18.0), (26.5, 29.0))   # three oak sills across, u
 SILL_X = (2.0, 16.0)                                 # partition and the back wall
 PART_Z = (16.5, 17.5)                        # the partition: the sieve compartment north, the plunger's south
 PART_Y0 = 10.0                               # it stops this far up: the water passes under it
-SIEVE_Y = (14.0, 14.4)                       # the sieve's underside and top, on its ledges
+SIEVE_Y = (17.2, 17.6)                       # the sieve's underside and top, on its ledges: high in the hutch, so
+                                             # the bed's top stands a little under the weir (the tail board's top)
 LEDGE = 0.8                                  # the ledges under the sieve, round the sieve compartment
 IN_X = (HUTCH_X[0] + WALL_T, HUTCH_X[1] - WALL_T)        # the inside: x 4 .. 14
 SIEVE_Z = (HUTCH_Z[0] + WALL_T, PART_Z[0])               # the sieve compartment: z 4.5 .. 16.5
@@ -138,7 +142,7 @@ TAIL_X1 = HUTCH_X[0]                         # the tailings section: from the we
 CONC_Z1 = HUTCH_Z[0]                         # the concentrate section: from the north face to the hutch's front wall
 
 # ---------------------------------------------------------------- the feed, the weir, the spigot
-TROUGH_X = (4.0, 13.0)                       # the feed trough: its closed west end under the chute, its lip east
+TROUGH_X = (4.1, 13.0)                       # the feed trough: its closed west end under the chute, its lip east
 TROUGH_Y0 = 24.86                            # its floor's top at the west end; it falls 1 in 10 to the lip
 TROUGH_SLOPE = 0.1
 TROUGH_T = 0.6                               # its boards
@@ -150,11 +154,26 @@ STRAP_T = 0.4
 STRAP_TOP = 30.0
 WEIR_Y = 21.25                               # the weir's sill (the iron lip's top): the water's level
 WEIR_Z = (5.2, 10.8)                         # the notch in the west wall, inside the tailings chute's bore
-LIP_X0 = 2.0                                 # the lip reaches half a voxel into the chute's mouth
+LIP_X0 = 2.0                                 # the lip reaches half a voxel into the chute's mouth from the wall's
+LIP_X1 = HUTCH_X[0] + WALL_T                 # inner face (the water's surface meets it there, at its top)
 LIP_T = 0.1
-SPIGOT_X = (6.5, 9.5)                        # the concentrate spigot: through the front wall at the floor, into the
-SPIGOT_Y = (5.05, 7.55)                      # concentrate chute's mouth
-SPIGOT_Z = (2.5, 5.0)
+# The tail end: the west wall rises over the rim as a plank head round the tailings chute's end (the chute's
+# section reaches 5.5 over the rim), the overflow passing through a port in it over the weir's iron lip.
+HEAD_Z = (HUTCH_Z[0], 13.0)                  # the head's width: the front wall's west end to past the chute
+HEAD_TOP = 28.0                              # the chute section's top
+PORT_TOP = 24.0                              # the port: from the weir's sill up to here, across WEIR_Z
+# The concentrate: through the sieve into the hutch, whose bottom under the sieve compartment slopes down to
+# the front wall (boards on an oak cleat at the partition); at the front wall's foot a port lined with an iron
+# spout, its floor flush with the slope's foot, its lip in the concentrate chute's mouth, over the chute's floor.
+HOPPER_Z = (SIEVE_Z[0], PART_Z[0] - 0.1)     # the slope: from the front wall's inner face to the partition
+HOPPER_Y = (5.65, 7.65)                      # its top at the front wall and at the partition (1 in 6)
+HOPPER_T = 0.6
+CLEAT_Z = (HOPPER_Z[1] - 1.0, HOPPER_Z[1])   # the oak cleat under its upper edge
+SPIGOT_X = (5.2, 10.8)                       # the spout's outside: the wall's port, inside the chute's bore
+SPIGOT_Y = (FLOOR[1], 8.5)                   # from the floor to the port's head
+SPIGOT_FLOOR = HOPPER_Y[0]                   # the spout's floor top, flush with the slope's foot
+SPIGOT_T = 0.5                               # its sides and head
+SPIGOT_Z = (2.4, HUTCH_Z[0] + WALL_T)        # from 0.6 into the chute's mouth to the wall's inner face
 
 # ---------------------------------------------------------------- the drive
 SHAFT = (24.0, 24.0)                         # (y, z): the shaft along x, at the power cell's face's centre
@@ -402,10 +421,13 @@ def read_vanilla_chute():
 
 # ---------------------------------------------------------------- builders: the hutch (frame)
 def build_hutch():
-    """The hutch: three oak sills across, a plank floor on them, four plank walls to the rim (the west wall
-    notched for the weir, an iron lip on its sill reaching into the tailings chute's mouth), the partition
-    across, open under it, the ledges the sieve lies on, the concentrate spigot through the front wall at
-    the floor, and an oak block under the concentrate chute."""
+    """The hutch: three oak sills across, a plank floor on them, four plank walls to the rim (the west wall,
+    the tail end, notched for the weir, an iron lip on its sill reaching from its inner face into the tailings
+    chute's mouth, and raised over the rim as a head round the chute's end, the port through it over the
+    lip), the partition across, open under it, the ledges the sieve lies on, the bottom under the sieve
+    compartment sloping down to the front wall on an oak cleat, and the spout, an iron lining in a port
+    through the front wall's foot, its floor flush with the slope's foot and its lip in the concentrate
+    chute's mouth."""
     f = "frame"
     x0, x1 = HUTCH_X
     z0, z1 = HUTCH_Z
@@ -415,7 +437,12 @@ def build_hutch():
         out.append(box([SILL_X[0], 0.0, sz0], [SILL_X[1], FLOOR[0], sz1], f"hutch_sill{i}", f, "oak"))
     out += beam([x0, FLOOR[0], z0], [x1, FLOOR[1], z1], "hutch_floor", f, "planks")
     y0 = FLOOR[1]
-    out.append(box([x0, y0, z0], [x1, RIM, z0 + t], "hutch_wall_n", f, "planks"))
+    # the front wall, round the spout's port at its foot
+    sx0, sx1 = SPIGOT_X
+    py1 = SPIGOT_Y[1]
+    out.append(box([x0, y0, z0], [sx0, py1, z0 + t], "hutch_wall_nw", f, "planks"))
+    out.append(box([sx1, y0, z0], [x1, py1, z0 + t], "hutch_wall_ne", f, "planks"))
+    out.append(box([x0, py1, z0], [x1, RIM, z0 + t], "hutch_wall_n", f, "planks"))
     out.append(box([x0, y0, z1 - t], [x1, RIM, z1], "hutch_wall_s", f, "planks"))
     out += beam([x1 - t, y0, z0 + t], [x1, RIM, z1 - t], "hutch_wall_e", f, "planks")
     # the west wall: under the weir's sill its whole length, then beside the notch to the rim
@@ -424,7 +451,12 @@ def build_hutch():
     out += beam([x0, y0, z0 + t], [x0 + t, sill, z1 - t], "hutch_wall_w", f, "planks")
     out.append(box([x0, sill, z0 + t], [x0 + t, RIM, wz0], "hutch_wall_wn", f, "planks"))
     out.append(box([x0, sill, wz1], [x0 + t, RIM, z1 - t], "hutch_wall_ws", f, "planks"))
-    out.append(box([LIP_X0, sill, wz0], [x0 + t, WEIR_Y, wz1], "hutch_weir_lip", f, "iron"))
+    out.append(box([LIP_X0, sill, wz0], [LIP_X1, WEIR_Y, wz1], "hutch_weir_lip", f, "iron"))
+    # the head over the tail end: two cheeks beside the port on the walls' rims, its lintel over the port
+    hz0, hz1 = HEAD_Z
+    out.append(box([x0, RIM, hz0], [x0 + t, HEAD_TOP, wz0], "hutch_head_n", f, "planks"))
+    out.append(box([x0, RIM, wz1], [x0 + t, HEAD_TOP, hz1], "hutch_head_s", f, "planks"))
+    out.append(box([x0, PORT_TOP, wz0], [x0 + t, HEAD_TOP, wz1], "hutch_head_lintel", f, "planks"))
     # the partition, open below
     out.append(box([IN_X[0], PART_Y0, PART_Z[0]], [IN_X[1], RIM, PART_Z[1]], "hutch_partition", f, "planks"))
     # the sieve's ledges round the sieve compartment
@@ -434,8 +466,21 @@ def build_hutch():
             box([IN_X[1] - LEDGE, ly0, sz0], [IN_X[1], ly1, sz1], "hutch_ledge_e", f, "oak"),
             box([IN_X[0] + LEDGE, ly0, sz0], [IN_X[1] - LEDGE, ly1, sz0 + LEDGE], "hutch_ledge_n", f, "oak"),
             box([IN_X[0] + LEDGE, ly0, sz1 - LEDGE], [IN_X[1] - LEDGE, ly1, sz1], "hutch_ledge_s", f, "oak")]
-    # the spigot: a square iron spout through the front wall at the floor, into the concentrate chute's mouth
-    out.append(box([SPIGOT_X[0], SPIGOT_Y[0], SPIGOT_Z[0]], [SPIGOT_X[1], SPIGOT_Y[1], SPIGOT_Z[1]], "hutch_spigot", f, "iron"))
+    # the hutch's bottom under the sieve compartment, sloping down to the spout; the cleat under its upper edge
+    hz0, hz1 = HOPPER_Z
+    hy0, hy1 = HOPPER_Y
+    run = slope_len(hz1, hz0, hy1, hy0)
+    out += sloped("z", hz1, hz0, hy1, hy0, [(0.0, run, -HOPPER_T, 0.0, IN_X[0], IN_X[1], "hutch_hopper", "planks")], f)
+    cz0, cz1 = CLEAT_Z
+    out.append(box([IN_X[0], y0, cz0], [IN_X[1], under_slope(hy1, hy0, hz1, hz0, cz0, cz1, HOPPER_T), cz1], "hutch_hopper_cleat", f, "oak"))
+    # the spout: an iron lining in the front wall's port, its floor flush with the slope's foot, its lip in the
+    # concentrate chute's mouth, over the chute's floor
+    sz0, sz1 = SPIGOT_Z
+    st = SPIGOT_T
+    out.append(box([sx0, y0, sz0], [sx1, SPIGOT_FLOOR, sz1], "hutch_spigot_bottom", f, "iron"))
+    out.append(box([sx0, SPIGOT_FLOOR, sz0], [sx0 + st, py1 - st, sz1], "hutch_spigot_w", f, "iron"))
+    out.append(box([sx1 - st, SPIGOT_FLOOR, sz0], [sx1, py1 - st, sz1], "hutch_spigot_e", f, "iron"))
+    out.append(box([sx0, py1 - st, sz0], [sx1, py1, sz1], "hutch_spigot_top", f, "iron"))
     return out
 
 

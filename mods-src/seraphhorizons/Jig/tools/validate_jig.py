@@ -119,9 +119,9 @@ def check_requires(v):
 
 ROLES = [
     # the hutch
-    (r"^hutch_(sill|ledge)", {"oak"}),
-    (r"^hutch_(floor|wall|partition)", {"planks"}),
-    (r"^hutch_(weir_lip|spigot)$", {"iron"}),
+    (r"^hutch_(sill|ledge|hopper_cleat)", {"oak"}),
+    (r"^hutch_(floor|wall|partition|head_|hopper$)", {"planks"}),
+    (r"^hutch_(weir_lip|spigot_(bottom|top|w|e))$", {"iron"}),
     (r"^sieve_mesh$", {"screen"}),
     # the drive: the vanilla axle's oak end, then iron and steel
     (r"^shaft_entry[ab]$", {"oak"}),
@@ -293,12 +293,19 @@ def check_levels(v):
     rim = m.RIM
     low_board_top = m.BOARD_Y[1] + m.BOSS[1] + m.E
     yoke_low = m.yoke_bottom() - m.E
-    spigot_ok = m.FLOOR[1] <= m.SPIGOT_Y[0] < m.CONCENTRATE_CELL[1] * 16 + m.BORE[0] + 1.0 and \
-        m.SPIGOT_Y[0] >= m.CONCENTRATE_CELL[1] * 16 + m.BORE[0]
+    # the spout: its floor flush with the slope's foot and over the concentrate chute's bore floor, its sides
+    # and head inside the chute's bore, its lip in the chute's mouth
+    cb = (m.CONCENTRATE_CELL[1] * 16 + m.BORE[0], m.CONCENTRATE_CELL[1] * 16 + m.BORE[1])
+    cx = (m.CONCENTRATE_CELL[0] * 16 + m.BORE[0], m.CONCENTRATE_CELL[0] * 16 + m.BORE[1])
+    (hop,) = v.named("frame", r"^hutch_hopper$")
+    hop_foot = max(c[1] for c in corners(hop) if c[2] < m.HOPPER_Z[0] + 0.01)
+    spigot_ok = (abs(hop_foot - m.SPIGOT_FLOOR) < 1e-6 and cb[0] < m.SPIGOT_FLOOR and m.SPIGOT_Y[1] < cb[1]
+                 and cx[0] <= m.SPIGOT_X[0] and m.SPIGOT_X[1] <= cx[1] and m.SPIGOT_Z[0] < m.CONC_Z1 <= m.SPIGOT_Z[1])
     print(f"levels: weir {m.WEIR_Y} over the tailings chute's bore floor {bore_floor}, under the rim {rim}; the sieve's top "
           f"{m.SIEVE_Y[1]}, the plunger board's boss up to {low_board_top:.2f}, the yoke down to {yoke_low:.2f} over the "
           f"water's highest {m.WEIR_Y + abs(m.WATER_PLUNGE_E):.2f}; the partition open {m.FLOOR[1]}..{m.PART_Y0} under the "
-          f"board's lowest {m.BOARD_Y[0] - m.E}; the spigot from {m.SPIGOT_Y[0]} over the floor {m.FLOOR[1]}")
+          f"board's lowest {m.BOARD_Y[0] - m.E}; the hutch's slope down to {hop_foot:.2f} at the spout, its floor "
+          f"{m.SPIGOT_FLOOR} over the concentrate chute's bore floor {cb[0]}")
     if not (bore_floor < m.WEIR_Y < rim - 1.0):
         v.fail("the weir does not overflow into the tailings chute under the rim")
     if not (m.SIEVE_Y[1] + (m.BED_Y[1] - m.BED_Y[0]) + abs(m.BED_E) < m.WEIR_Y - abs(m.WATER_SIEVE_E) - 1.0):
@@ -310,10 +317,10 @@ def check_levels(v):
               (TAU * i / 48 for i in range(48)))
     if gap < 0.3:
         v.fail(f"the yoke comes within {gap:.2f} of the water")
-    if not (m.FLOOR[1] + 2.0 < m.PART_Y0 < m.BOARD_Y[0] - m.E - 2.0):
+    if not (max(m.HOPPER_Y) + 2.0 < m.PART_Y0 < m.BOARD_Y[0] - m.E - 2.0):
         v.fail("the partition does not leave the water a way under it, below the plunger's stroke")
     if not spigot_ok:
-        v.fail("the spigot does not drain the hutch's floor into the concentrate chute's bore")
+        v.fail("the spout does not drain the hutch's slope into the concentrate chute's bore")
     for pid, amp in (("watersieve", m.WATER_SIEVE_E), ("waterplunger", m.WATER_PLUNGE_E), ("bed", m.BED_E)):
         drv = next(p for p in v.parts if p["id"] == pid)["drivers"]
         if len(drv) != 1 or drv[0]["type"] != "slide" or abs(drv[0]["amplitude"] * 16 - amp) > 1e-4:
@@ -383,8 +390,12 @@ def flows(v):
     for z in (m.WEIR_Z[0] + 0.3, sum(m.WEIR_Z) / 2, m.WEIR_Z[1] - 0.3):
         out.append((f"the weir into the tailings chute at z {z:.1f}", [m.LIP_X0 - 0.05, m.WEIR_Y, z], r"^outlet_tailchute_bottom$",
                     rest("complete")))
-    out.append(("the spigot into the concentrate chute", [sum(m.SPIGOT_X) / 2, m.SPIGOT_Y[0] - 0.01, m.SPIGOT_Z[0] - 0.05],
-                r"^outlet_concchute_bottom$", rest("complete")))
+    for x in (m.SPIGOT_X[0] + m.SPIGOT_T + 0.2, sum(m.SPIGOT_X) / 2, m.SPIGOT_X[1] - m.SPIGOT_T - 0.2):
+        out.append((f"the spout's lip into the concentrate chute at x {x:.1f}", [x, m.SPIGOT_FLOOR - 0.01, m.SPIGOT_Z[0] - 0.05],
+                    r"^outlet_concchute_bottom$", rest("complete")))
+    for x, z in ((m.IN_X[0] + 1.0, m.SIEVE_Z[0] + 1.0), (9.0, 10.0), (m.IN_X[1] - 1.0, m.SIEVE_Z[1] - 1.0)):
+        out.append((f"through the sieve onto the hutch's slope at (x {x}, z {z})", [x, m.SIEVE_Y[0] - 0.05, z],
+                    r"^hutch_hopper$", rest("complete")))
     out.append(("the trough's lip clears the bearers", [m.TROUGH_X[1] + 0.1, m.trough_floor(m.TROUGH_X[1]) - 0.2, cz - 2.5],
                 r"^sieve_mesh$", rest("complete")))
     return out
@@ -401,11 +412,113 @@ def check_flows(v):
                 v.fail(f"flow: {label} from {[round(c, 2) for c in p]} at {pose} lands on {hit[1] if hit else 'nothing'}, not {rx}")
                 break
     print(f"flows: {len(fl)} lips, {n} drops: the feed onto the trough and off its lip onto the sieve's east end, over the "
-          "weir into the tailings chute, the spigot into the concentrate chute")
+          "weir into the tailings chute, through the sieve onto the hutch's slope, off the spout's lip into the concentrate chute")
     # the weir is the only way out over the walls: the feed lands the sieve's length from it
     run = v.m.TROUGH_X[1] - (v.m.HUTCH_X[0] + v.m.WALL_T)
     if run < 8.0:
         v.fail(f"the feed lands only {run:.1f} from the weir")
+
+
+def corners(el):
+    """An element's eight corners, posed (build frame)."""
+    out = []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            for sz in (-1, 1):
+                loc = [sx * abs(el.size[0]) / 2, sy * abs(el.size[1]) / 2, sz * abs(el.size[2]) / 2]
+                out.append([el.c[k] + sum(el.r[k][i] * loc[i] for i in range(3)) for k in range(3)])
+    return out
+
+
+GRAIN = 0.3                                    # the half-size of the probe walked along an outlet's path
+
+
+def outlet_paths(v):
+    """Each product's way out, from where it collects to its chute's face: (label, anchor key, points). The
+    tailings collect on the bed at the tail end, rise through the water over the weir's lip, pass the port in
+    the head and run down the tailings chute's bore to the west face; the concentrate falls through the sieve
+    onto the hutch's slope, runs down it into the spout, off its lip into the concentrate chute and along its
+    bore to the north face."""
+    m = v.m
+    zc = sum(m.WEIR_Z) / 2
+    bed_top = m.BED_Y[1] + abs(m.BED_E)
+    tb = m.TAILINGS_CELL[1] * 16 + m.BORE[0]
+    tail = [[m.IN_X[0] + 1.5, bed_top + 0.4, zc],          # on the bed at the tail end
+            [m.IN_X[0] + 0.8, m.WEIR_Y + GRAIN + 0.05, zc],  # up to the lip's height, inside the wall
+            [m.LIP_X0 - GRAIN - 0.05, m.WEIR_Y + GRAIN + 0.05, zc],   # over the lip, through the port, past it
+            [m.LIP_X0 - GRAIN - 0.05, tb + GRAIN + 0.05, zc],         # off the lip onto the chute's floor
+            [0.0, tb + GRAIN + 0.05, zc]]                   # along the bore to the face
+    xc = sum(m.SPIGOT_X) / 2
+    cb = m.CONCENTRATE_CELL[1] * 16 + m.BORE[0]
+    zm = 10.0
+    slope_at = lambda z: m.HOPPER_Y[0] + (m.HOPPER_Y[1] - m.HOPPER_Y[0]) * (z - m.HOPPER_Z[0]) / (m.HOPPER_Z[1] - m.HOPPER_Z[0])  # noqa: E731
+    conc = [[xc, m.SIEVE_Y[0] - GRAIN - 0.05, zm],              # under the sieve
+            [xc, slope_at(zm) + GRAIN + 0.1, zm],               # down onto the slope
+            [xc, m.SPIGOT_FLOOR + GRAIN + 0.1, m.SPIGOT_Z[1]],    # down it to the spout
+            [xc, m.SPIGOT_FLOOR + GRAIN + 0.1, m.SPIGOT_Z[0] - GRAIN - 0.05],   # through the spout, past its lip
+            [xc, cb + GRAIN + 0.05, m.SPIGOT_Z[0] - GRAIN - 0.05],   # off it onto the chute's floor
+            [xc, cb + GRAIN + 0.05, 0.0]]                       # along the bore to the face
+    return [("tailings", "tailings", tail), ("concentrate", "concentrate", conc)]
+
+
+def probe_hits(v, p, pose, skip):
+    g = GRAIN
+    probe = v.m.box([p[k] - g for k in range(3)], [p[k] + g for k in range(3)], "probe", "probe", "iron")
+    plo, phi = probe.aabb()
+    for pid in v.shown(pose[1]):
+        if pid in skip:
+            continue
+        for el in v.posed(pid, pose):
+            lo, hi = el.aabb()
+            if all(lo[k] < phi[k] and plo[k] < hi[k] for k in range(3)) and obb_obb(probe, el, eps=0.0):
+                return el.name
+    return None
+
+
+def check_paths(v):
+    """Each outlet has an open way from where its product collects to its chute's face: a grain (a probe
+    GRAIN each way) walked along the path in steps of a tenth of a voxel touches nothing but the water and the
+    bed, through a turn; the path ends inside its chute's bore on its anchor's face; the tailings' path stays
+    over the sieve and the concentrate's under it until it leaves the hutch, so they leave by separate ways."""
+    m = v.m
+    skip = ("watersieve", "waterplunger", "bed")
+    poses = [(a, "working") for a in (0.0, 1.6, 3.1, 4.7)]
+    n = 0
+    for label, key, pts in outlet_paths(v):
+        cell, face = v.rig[f"{key}Cell"], v.rig[f"{key}Face"]
+        blocked = None
+        for a, b in zip(pts, pts[1:]):
+            steps = max(1, int(math.ceil(math.dist(a, b) / 0.1)))
+            for i in range(steps + 1):
+                p = [a[k] + (b[k] - a[k]) * i / steps for k in range(3)]
+                for pose in poses:
+                    n += 1
+                    hit = probe_hits(v, p, pose, skip)
+                    if hit:
+                        blocked = (p, hit, pose)
+                        break
+                if blocked:
+                    break
+            if blocked:
+                break
+        if blocked:
+            p, hit, pose = blocked
+            v.fail(f"path: the {label} way out is blocked at {[round(c, 2) for c in p]} by {hit} at {pose}")
+        end = pts[-1]
+        ax, side = {"west": (0, cell[0] * 16.0), "north": (2, cell[2] * 16.0), "east": (0, cell[0] * 16.0 + 16),
+                    "south": (2, cell[2] * 16.0 + 16)}[face]
+        across = [k for k in range(3) if k != ax]
+        in_bore = all(cell[k] * 16 + m.BORE[0] + GRAIN <= end[k] <= cell[k] * 16 + m.BORE[1] - GRAIN for k in across)
+        if abs(end[ax] - side) > 1e-6 or not in_bore:
+            v.fail(f"path: the {label} way out does not end in its chute's bore on the {face} face of {cell}")
+        inside = [p for p in pts if m.HUTCH_X[0] + m.WALL_T <= p[0] and m.HUTCH_Z[0] + m.WALL_T <= p[2]]
+        if label == "tailings" and min(p[1] for p in inside) - GRAIN < m.SIEVE_Y[1]:
+            v.fail("path: the tailings' way out goes under the sieve")
+        if label == "concentrate" and max(p[1] for p in inside) + GRAIN > m.SIEVE_Y[0]:
+            v.fail("path: the concentrate's way out goes over the sieve")
+        print(f"path: {label} from {[round(c, 2) for c in pts[0]]} to {[round(c, 2) for c in end]} on {cell} {face}, "
+              f"{len(pts) - 1} legs: {'open' if not blocked else 'BLOCKED'}")
+    print(f"paths: {n} probes of a grain {2 * GRAIN} across, the water and the bed not counted")
 
 
 # ---------------------------------------------------------------- mechanism
@@ -588,6 +701,7 @@ def validate(m, els, parts, rig, quick=False):
     check_anchors(v)
     check_levels(v)
     check_flows(v)
+    check_paths(v)
     check_yoke(v)
     check_supports(v)
     check_clearances(v, [p for st in ("working", "complete") for p in turns(12 if quick else 24, st)]

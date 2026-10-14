@@ -177,6 +177,42 @@ class Anchors(unittest.TestCase):
         self.assertGreater(lip["to"][1], bore_floor)
         self.assertLess(lip["from"][0], make_shape.HUTCH_X[0])
         self.assertAlmostEqual(RIG["levels"]["weirY"] * 16, lip["to"][1], places=4)
+        # the bed's top stands a little under the lip
+        bed = elements("bed_ore")[0]
+        self.assertLess(lip["to"][1] - bed["to"][1], 2.0)
+
+    def test_the_tailings_leave_through_a_port_in_the_tail_ends_head(self):
+        # the west wall rises round the tailings chute's end; the port through it over the lip is open
+        head = elements("hutch_head_")
+        self.assertEqual({e["name"] for e in head}, {"hutch_head_n", "hutch_head_s", "hutch_head_lintel"})
+        tail = elements("outlet_tailchute_")
+        self.assertLessEqual(span(head, 2)[0], span(tail, 2)[0])
+        self.assertGreaterEqual(span(head, 2)[1], span(tail, 2)[1])
+        self.assertAlmostEqual(span(head, 1)[1], span(tail, 1)[1], delta=0.05)
+        lintel = elements("hutch_head_lintel")[0]
+        lip = elements("hutch_weir_lip")[0]
+        self.assertGreater(lintel["from"][1] - lip["to"][1], 2.0)
+        for e in elements("hutch_wall_w") + head:
+            port = e["from"][1] < lintel["from"][1] - 0.05 and e["to"][1] > lip["to"][1] + 0.05
+            across = e["from"][2] < lip["to"][2] - 0.05 and e["to"][2] > lip["from"][2] + 0.05
+            self.assertFalse(port and across, f"{e['name']} closes the weir's port")
+
+    def test_the_concentrate_leaves_by_an_open_spout(self):
+        # an iron spout lines a port through the front wall's foot: a bore through it, its lip in the chute's mouth
+        sp = {e["name"].rsplit("_", 1)[1]: e for e in elements("hutch_spigot_")}
+        self.assertEqual(set(sp), {"bottom", "top", "w", "e"})
+        bore = ((sp["w"]["to"][0], sp["e"]["from"][0]), (sp["bottom"]["to"][1], sp["top"]["from"][1]))
+        self.assertGreater(bore[0][1] - bore[0][0], 3.0)
+        self.assertGreater(bore[1][1] - bore[1][0], 1.5)
+        conc = elements("outlet_concchute_")
+        self.assertGreaterEqual(span(sp.values(), 0)[0], 5.0 - 0.05)
+        self.assertLessEqual(span(sp.values(), 0)[1], 11.0 + 0.05)
+        self.assertLess(span(sp.values(), 2)[0], span(conc, 2)[1])
+        self.assertGreater(bore[1][0], 5.0)                     # it pours down onto the chute's floor
+        for e in elements("hutch_wall_n"):
+            through = (e["from"][0] < bore[0][1] and e["to"][0] > bore[0][0]
+                       and e["from"][1] < bore[1][1] and e["to"][1] > bore[1][0])
+            self.assertFalse(through, f"{e['name']} closes the spout's port")
 
 
 class Textures(unittest.TestCase):
