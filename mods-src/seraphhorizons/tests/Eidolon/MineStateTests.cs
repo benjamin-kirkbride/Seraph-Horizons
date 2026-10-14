@@ -48,6 +48,24 @@ public class MineStateTests
     }
 
     [Fact]
+    public void A_copy_keeps_its_own_bad_stands_for_its_walk_and_reach_too()
+    {
+        // The routes' solve reads a copy off the main thread while the job adds and retries bad stands.
+        var (world, area) = Pillar();
+        var bad = new HashSet<PathCell>();
+        var state = new MineState(world.Site(area), Home, bad);
+        state.BuildNow(EidolonMining.Targets(area, state.Site, _ => false).Dig);
+        var copy = state.Clone();
+        Assert.NotSame(state.BadStands, copy.BadStands);
+        Assert.Same(copy.BadStands, copy.Walk.Bad);
+        Assert.Same(copy.BadStands, copy.Reach.Bad);
+        bad.Add(OnPillar);
+        Assert.Equal(MineRefusal.NotStandable, state.Check(OnPillar, [new MarkPos(6, L - 1, 4)], []));
+        Assert.Equal(MineRefusal.None, copy.Check(OnPillar, [new MarkPos(6, L - 1, 4)], []));
+        Assert.DoesNotContain(OnPillar, copy.Walk.Bad);
+    }
+
+    [Fact]
     public void ItRefusesACellOutOfReachOrNotLeft()
     {
         var (world, area) = Pillar();

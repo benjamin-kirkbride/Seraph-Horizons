@@ -31,10 +31,10 @@ public abstract class MineGraph
         Array.Fill(Parent, -1);
     }
 
-    protected MineGraph(MineGraph other, MineSite site)
+    protected MineGraph(MineGraph other, MineSite site, IReadOnlySet<PathCell>? bad)
     {
         Site = site;
-        Bad = other.Bad;
+        Bad = bad ?? other.Bad;
         HomeNode = other.HomeNode;
         Parent = (int[])other.Parent.Clone();
         Kids = (byte[])other.Kids.Clone();
@@ -439,10 +439,12 @@ public sealed class MineWalk : MineGraph
     public MineWalk(MineSite site, PathCell? home, IReadOnlySet<PathCell>? bad = null) : base(site, home, bad) =>
         _node = new byte[site.Volume];
 
-    private MineWalk(MineWalk other, MineSite site) : base(other, site) => _node = (byte[])other._node.Clone();
+    private MineWalk(MineWalk other, MineSite site, IReadOnlySet<PathCell>? bad) : base(other, site, bad) =>
+        _node = (byte[])other._node.Clone();
 
-    /// <summary>A copy on <paramref name="site"/> (a copy of this one's).</summary>
-    public MineWalk Clone(MineSite site) => new(this, site);
+    /// <summary>A copy on <paramref name="site"/> (a copy of this one's), reading <paramref name="bad"/> for its
+    /// bad stands if given (else this one's set).</summary>
+    public MineWalk Clone(MineSite site, IReadOnlySet<PathCell>? bad = null) => new(this, site, bad);
 
     protected override bool Clear(int x, int y, int z) => !Site.Solid(x, y, z);
 

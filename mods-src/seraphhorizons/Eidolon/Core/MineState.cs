@@ -40,9 +40,12 @@ public sealed class MineState
     {
         Site = other.Site.Clone();
         Home = other.Home;
-        BadStands = other.BadStands;
-        Walk = other.Walk.Clone(Site);
-        _reach = other._reach?.Clone(Site);
+        // Its own copy of the bad stands, for its walk and reach too: a copy may be read on another thread
+        // (the routes' solve) while the job's live set changes on the main one.
+        var bad = new HashSet<PathCell>(other.BadStands);
+        BadStands = bad;
+        Walk = other.Walk.Clone(Site, bad);
+        _reach = other._reach?.Clone(Site, bad);
         _remaining = new HashSet<MarkPos>(other._remaining);
         _targets = other._targets;
         _dirty = other._dirty;
@@ -324,5 +327,7 @@ public sealed class MineState
         foreach (var _ in Rebuild()) { }
     }
 
+    /// <summary>A copy that shares nothing it may change with this one, its bad stands included (a copy is
+    /// read off the main thread while the job's own set changes).</summary>
     public MineState Clone() => new(this);
 }
