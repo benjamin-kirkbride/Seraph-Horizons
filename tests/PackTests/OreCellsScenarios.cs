@@ -324,17 +324,59 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.All(sizes, size => Assert.Equal(7000, size));
     }
 
+    /// <summary>The rock strata predicted for a column before it generates (#946,
+    /// <see cref="RockStrataPrediction"/>, a replay of <c>GenRockStrataNew.genBlockColumn</c> with the
+    /// live generator's noise) are the strata the game lays there, given the column's surface height:
+    /// four chunk columns generated and compared block for block (deposits and structures replace a
+    /// few later). Seeds 1101, 1103 and 1105 matched 99.6–99.9 %.</summary>
+    [AtlasScenario(TimeoutMs = 300_000)]
+    public async Task District_country_rock_is_predicted_from_the_strata()
+    {
+        var sapi = (ICoreServerAPI)World.Api;
+        var strata = RockStrataPrediction.TryCreate(sapi, out var why);
+        Assert.True(strata != null, why);
+        var rocks = strata!.RockIds.ToHashSet();
+        var rock = new int[sapi.World.BlockAccessor.MapSizeY];
+        int cx0 = sapi.World.BlockAccessor.MapSizeX / 64 + 40, cz0 = sapi.World.BlockAccessor.MapSizeZ / 64 - 40;
+        long same = 0, total = 0;
+        foreach (var (cx, cz) in new[] { (cx0, cz0), (cx0 + 60, cz0), (cx0, cz0 + 60), (cx0 + 60, cz0 + 60) })
+        {
+            bool loaded = false;
+            sapi.WorldManager.LoadChunkColumnPriority(cx, cz, new ChunkLoadOptions { OnLoaded = () => loaded = true });
+            await World.Until(() => loaded, 6000);
+            var map = sapi.WorldManager.GetMapChunk(cx, cz);
+            Assert.NotNull(map);
+            for (int lx = 0; lx < 32; lx += 4)
+                for (int lz = 0; lz < 32; lz += 4)
+                {
+                    int x = cx * 32 + lx, z = cz * 32 + lz, h = map.WorldGenTerrainHeightMap[lz * 32 + lx];
+                    strata.Column(x, z, h, rock);
+                    for (int y = 1; y <= h; y++)
+                    {
+                        int actual = sapi.World.BlockAccessor.GetBlockId(new BlockPos(x, y, z));
+                        if (!rocks.Contains(actual)) continue;
+                        total++;
+                        if (actual == rock[y]) same++;
+                    }
+                }
+        }
+        output.WriteLine($"strata predicted for {total} rock blocks: {(double)same / total:P2} as generated");
+        Assert.True(total > 10_000, $"only {total} rock blocks");
+        Assert.True(same >= 0.98 * total, $"{same} of {total} rock blocks as predicted");
+    }
+
     /// <summary>District veins (under SmallerDeposits): a district built from the granite config,
     /// as IOG builds one when a chunk near it generates, comes out with at most the configured
     /// number of veins of each base metal, every one cut to a band of heights under sea level (one
     /// too tall for that room is the room, #943), and its gold untouched in number. With ore
     /// processing's quarter units (#863) every kept vein of a sized metal is widened four times (a
-    /// shoot four times as long and no wider, #943; a ladder's slabs closer). Granite is a country
-    /// rock as well as the host, so a shoot is sized as its whole ellipse and a horsetail lens
-    /// holding a sized metal (gold, silver) has its lenses twice IOG's horizontal radius and its
-    /// vertical one, four times the spheroid, its box around them. A felsic district (tin, bismuth,
-    /// lead, silver) the same. Each band's height is grown by its fault's richness (IOG's
-    /// <c>RichnessAt</c>, still there to read).</summary>
+    /// shoot four times as long and no wider, #943; a ladder's slabs closer). A horsetail lens
+    /// holding a sized metal (gold, silver) has its lenses twice IOG's horizontal radius and, where
+    /// the predicted strata there are mostly not granite, twice its vertical one too (#946), its box
+    /// around them. A felsic district (tin, bismuth, lead, silver) the same. Each band's height is
+    /// grown by its fault's richness (IOG's <c>RichnessAt</c>, still there to read). No zone keeps an
+    /// ore whose code names no block in granite (the geology add-on ores name basalt, #946), so
+    /// neither district holds copper or iron.</summary>
     [AtlasScenario]
     public void Hydrothermal_district_veins_are_counted_and_sized()
     {
@@ -346,6 +388,13 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(OreProducts.DepositBlocks, OreSystem.GradedOreBlocks(World.Api));
         // A band's grades are reckoned from its fault's rich bands (#943).
         Assert.Equal(typeof(float), AccessTools.Method(AccessTools.TypeByName("InterestingOreGen.Generators.HydrothermalFaultSpline"), "RichnessAt", [typeof(int)])?.ReturnType);
+        // The country rock is predicted from the strata (#946): the predictor binds, and a deep
+        // column's rock is a stratum's.
+        var strata = RockStrataPrediction.TryCreate(World.Api as ICoreServerAPI ?? throw new Xunit.Sdk.XunitException("no server api"), out var why);
+        Assert.True(strata != null, why);
+        var column = new int[World.Api.World.BlockAccessor.MapSizeY];
+        strata!.Column(100_000, 100_000, World.Api.World.SeaLevel + 25, column);
+        Assert.Contains(column[30], strata.RockIds);
 
         var system = World.Api.ModLoader.Systems.First(s => s.GetType().FullName == OreDistricts.SystemTypeName);
         var configs = ((System.Collections.IEnumerable)AccessTools.Field(system.GetType(), "_configs").GetValue(system)!).Cast<object>().ToList();
@@ -386,18 +435,25 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
                     .Select(o => OreMetals.MetalOf(DistrictVeins.OreOfCode(o.Field("OreCode").GetValue<string>())))
                     .OfType<string>().Distinct().ToList();
                 if (metals.Contains("gold")) gold++;
+                // IOG places nothing of an ore whose code names no block in granite: none is left (#946).
+                Assert.All(((System.Collections.IEnumerable)t.Field("EligibleOres").GetValue()).Cast<object>().Select(Traverse.Create)
+                        .Where(o => o.Field("Density").GetValue<float>() > 0),
+                    o => Assert.True(DistrictVeinSizes.IngotsPerBlock(o.Field("OreCode").GetValue<string>(), host,
+                        o.Field("AllowedVariantsByInBlock").GetValue<Dictionary<string, List<string>>>()).Resolved, o.Field("OreCode").GetValue<string>()));
+                Assert.DoesNotContain("copper", metals);
+                Assert.DoesNotContain("iron", metals);
                 if (kind == "HorsetailLens")
                 {
                     Assert.DoesNotContain("tin", metals);
                     if (!metals.Any(m => oreSizes.TargetsFor(m) is not null)) continue;
-                    // Widened four times in ore (#863): in granite, which is country rock too, the
-                    // horizontal radius doubled (#943).
+                    // Widened four times in ore (#863): the horizontal radius doubled, and the
+                    // vertical one too where the lens is not mostly in granite (#943, #946).
                     foreach (var lens in (System.Collections.IEnumerable)t.Field("Sampler").Field("_lenses").GetValue())
                     {
                         var l = Traverse.Create(lens);
                         float rh = l.Field("RadiusH").GetValue<float>(), rv = l.Field("RadiusV").GetValue<float>();
                         Assert.InRange(rh, 2 * Cfg("MinHorsetailLensRadius") - 0.01, 2 * Cfg("MaxHorsetailLensRadius") + 0.01);
-                        Assert.InRange(rv, Cfg("MinHorsetailLensVerticalRadius") - 0.01, Cfg("MaxHorsetailLensVerticalRadius") + 0.01);
+                        Assert.InRange(rv, Cfg("MinHorsetailLensVerticalRadius") - 0.01, 2 * Cfg("MaxHorsetailLensVerticalRadius") + 0.01);
                         int cy = l.Field("CentreY").GetValue<int>();
                         Assert.True(box.Y1 <= cy - (int)rv && box.Y2 >= cy + (int)rv, $"lens box y {box.Y1}..{box.Y2} under its lens {cy} ± {rv}");
                         Assert.True(box.X2 - box.X1 >= 2 * rh && box.Z2 - box.Z1 >= 2 * rh, $"lens box {box.X1}..{box.X2}, {box.Z1}..{box.Z2} under its radius {rh}");
@@ -414,9 +470,13 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
                     float r = sampler.Field("_halfStrike").GetValue<float>();
                     float across = sampler.Field("_halfAcross").GetValue<float>();
                     output.WriteLine($"{code} {kind} {string.Join("+", metals)}: half strike {r}, across {across}");
-                    Assert.InRange(r, 4 * (shootRadius - radiusVariance) - 0.01, 4 * (shootRadius + radiusVariance) + 0.01);
-                    // Along the strike only (#943): IOG's half across is half its radius.
-                    Assert.InRange(across, (shootRadius - radiusVariance) / 2 - 0.01, (shootRadius + radiusVariance) / 2 + 0.01);
+                    // Along the strike (#943): four times IOG's radius, and IOG's half across, half its
+                    // radius; or, for a shoot too thin for the room, a wider shape of 8 to 64 times
+                    // IOG's area, across at most 8 times (#946).
+                    Assert.InRange(r, shootRadius - radiusVariance - 0.01, 64 * (shootRadius + radiusVariance) + 0.01);
+                    Assert.InRange(across, (shootRadius - radiusVariance) / 2 - 0.01, 8 * (shootRadius + radiusVariance) / 2 + 0.01);
+                    Assert.InRange(r * across, 4 * (shootRadius - radiusVariance) * (shootRadius - radiusVariance) / 2 - 1,
+                        64 * (shootRadius + radiusVariance) * (shootRadius + radiusVariance) / 2 + 1);
                     Assert.True(box.X2 - box.X1 >= 2 * r && box.Z2 - box.Z1 >= 2 * r, $"{kind} box {box.X1}..{box.X2}, {box.Z1}..{box.Z2} under its strike {r}");
                     shoots++;
                 }

@@ -4927,20 +4927,35 @@ fixed at creation. The server log says what the world has
   ores' shares and, layer by layer, the ingots of their grades as IOG draws them at the fault's
   richness there, so a band that runs into a fault's rich band is thinner, #943); a band
   taller than the room under sea level is that room, never the whole column (#943). IOG makes ore
-  only where a zone's block is the district's host rock; where the host is also a country rock (a
-  rock stratum or the default rock: granite in the granitic and felsic districts, basalt in the
-  mafic, not the cold districts' travertine) an ore shoot can be ore across its whole ellipse, so
-  it is sized as that, not as cut to its fault (#943). With ore
+  only where a zone's block is the district's host rock: the fault rock it lays, and where the host
+  is also one of the world's rocks (granite in the granitic and felsic districts, basalt in the
+  mafic) the country rock that happens to be it. So a band is grown by its host rock per layer
+  (#946): an ore shoot's fault rock, counted from its fault's spline (IOG's shoot is a sheared
+  ellipse the curving fault soon leaves, `Ore/Core/ShootShape.cs`), and the share of the rest
+  whose rock is the host too, from the game's rock strata replayed for its columns before they
+  generate (`Ore/Game/RockStrataPrediction.cs`: `GenRockStrataNew` with the live generator's
+  noise, at five terrain heights, `surfaceAboveSeaLevel`, since the surface is the one input not
+  known). Below sea level basalt is almost never a country rock, so mafic shoots are their fault
+  rock; granite is 10–50 % of a band. An ore whose code names no block in the host rock (the geology
+  add-on ores of IOG's granite configs name basalt: no felsic copper or iron) is taken out of its
+  zone, so the ores that place share its blocks and the count never spends a vein on it. With ore
   processing's units (#863: the poorest grade at a fifth to a quarter of vanilla's), every kept
-  vein of a sized metal is widened four times in ore per layer, so its band is about the height it
+  vein of a sized metal is widened four times in area, so its band is about the height it
   was: an ore shoot is made four times as long along its fault and no wider, a ladder vein's slabs
-  about four times closer (its width, and so the fault rock, is kept). A horsetail lens of gold or
-  silver, which has no band, is grown to four times its ore: in travertine twice IOG's radii both
-  ways (its ore is the disc where it crosses its one-block fracture), in a country rock host twice
-  its horizontal radius (the whole spheroid is ore). `gradeAllowance` went from 1.15 to 1.25
+  about four times closer (its width, and so the fault rock, is kept). A shoot still too thin for
+  the room (its band would be the room and short of its size) takes the first of four wider
+  shapes, 8 to 64 times IOG's area split between strike and across to hold the most fault
+  rock, whose band holds its size (#946). A vein of two sized metals grows until the poorer holds its
+  size, and the richer one's ore is thinned to its own. A horsetail lens of gold or silver, which has no band, is
+  grown to four times its ore: twice IOG's radii both ways (its ore is the disc where it crosses its
+  one-block fracture), or, where the predicted strata at it are mostly the host rock, twice its
+  horizontal radius (the whole spheroid is ore). `gradeAllowance` went from 1.15 to 1.25
   with the wider spread of grades; since #943 it is used only where the grades or the fault's rich
-  bands can't be read. Gems and minerals are left as IOG makes them. The log has a line per district (`Smaller deposits: district 'magmatic-granitic-deep' at
-  (...), host rock-granite (a country rock: shoots counted whole): 65 of 310 ore zones kept; veins per metal bismuth 8 (was 69), ...`).
+  bands can't be read. Gems and minerals are left as IOG makes them. The log has a line per
+  district (`Smaller deposits: district 'magmatic-granitic-deep' at (...), host rock-granite: 58 of
+  226 ore zones kept, 25 ores that place nothing in rock-granite taken out; veins per metal bismuth 8
+  (was 35), ...; 25 veins banded, 8 of them wider, 3 cut to the room under their drawn size (median
+  holds 100% of drawn); sized in ... ms; 4 of 33 widened lenses in rock-granite country rock`).
 - **`RarerDistricts`** (#441): IOG's hydrothermal districts, the only source of gold and silver
   quartz and most chromite and platinum, tile the world in 7 km squares instead of 4–6 km
   (`patches/ore-rarerdistricts.json`, on its `minDistanceBetweenDistricts`); with IOG's hard-coded

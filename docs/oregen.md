@@ -129,8 +129,13 @@ How district ore is made (IOG 2.3.8, `HydrothermalDistrict`, `HydrothermalDistri
 - Each zone draws one ore from its type's pool by `weight`, and a second with even chance; a
   block becomes an ore with chance `geometric density × density`. The grade is the poorest nine
   times in ten except in a fault's 1–2 rich bands (`RichnessAt`). An ore whose
-  `allowedVariantsByInBlock` has no entry for the district's rock places nothing (the geology
-  add-on ores of the granite configs name basalt).
+  `allowedVariantsByInBlock` has no entry for the district's rock places nothing
+  (`ResolveOreCode` returns null), yet IOG still draws it for its share of the zone's blocks: the
+  geology add-on ores of the granite configs (chalcopyrite, pyrite, cerussite, wulfenite, the
+  beryls and topazes, `REQUIRES: geoaddons`) list only `rock-basalt`, copied from the mafic config,
+  so a felsic or granitic-deep district places no copper or iron and none of that lead (#946; main
+  is the same, it is IOG's config: the census of main's mod found 0 ingots in all 48 felsic copper
+  and 54 iron veins).
 - The config sets fault and zone geometry per district type, not per ore, and has no field for a
   zone's height or for a number of zones per ore. Lowering an ore's `weight` hands its zones to
   the other ores (gold, gems), and lowering `density` only thins the ore into specks. So district
@@ -141,22 +146,31 @@ How district ore is made (IOG 2.3.8, `HydrothermalDistrict`, `HydrothermalDistri
 `DetectOreZones`, before the zones are indexed, so each district is decided once from what IOG
 builds from the seed, the same after every restart.
 
+- Ores that place nothing (#946): an ore whose code names no block in the host rock is taken out
+  of its zone (and the zone's cached `TotalOreWeight` redone), so the ores that place share its
+  blocks, and the count below never spends a vein on it. A zone left with nothing that places is
+  dropped. The census table counts such veins no more: felsic districts hold no copper or iron.
 - Count: per district, at most 8 veins (shoots and ladders) hold each metal with a size target
   that is not one only districts provide; which ones is a stable hash of the district and the
   zone. The metal's ore in further veins and in every horsetail lens is swapped for a copy that
   places nothing (same weight, so the others' shares stay), and a zone left with nothing is
   dropped. Gold, silver, platinum and chromium keep all their zones.
 - Size: each kept vein holding a sized metal is cut to a band of heights (its bounding box, which
-  `GetOreBlocksInChunk` iterates). The ore a layer gives is estimated from the zone's geometry
-  (a shoot: fault width × 4r/3, or its whole ellipse, π · r · r/2 ÷ 2, where the host is a
-  country rock, below; a ladder: stretch × widened width ÷ slab spacing), the ore's
-  share and density, and the ingots a block gives at that height: the mean of the ore's grades
+  `GetOreBlocksInChunk` iterates). The ore a layer gives is estimated from the zone's host rock
+  per layer (a shoot: the fault rock IOG lays through it, counted from the fault's spline, and
+  the share of the rest of it whose country rock is the host rock too, from the strata predicted
+  there, below, #946; a ladder: stretch × widened width ÷ slab spacing, all fault rock), the
+  ore's share of the ores that place and its density, and the ingots a block gives at that
+  height: the mean of the ore's grades
   (each read from its block's drops) as IOG draws them at the fault's richness there
   (`DistrictVeins.ExpectedIngots`, #943). Before #943 it was the poorest grade times 1.25 (1.15
   before #863 widened the grades), which still stands in where the grades or the fault can't be
   read. The band starts at a height from the hash between y 4 and sea level less 6, so it lies in
   rock, leaving room for the most height it can need (all of it away from rich bands), and grows a
-  layer at a time until one of its ores holds the size drawn for the zone (log-linear through the
+  layer at a time until each of its metals (all its ores of that metal together) holds the size
+  drawn for the zone, the richer of two then thinned to its size by cutting its ores' density in
+  that zone (#946: the band used to stop at the first, so the other, tin beside bismuth, always
+  fell short; stopping where they average out pushed zinc and lead 30–40 % over) (log-linear through the
   metal's small, typical and large at the 10th, 50th and 90th percentile). A band taller than that
   room is the room (#943): the vein holds less than drawn. Before #943 such a vein kept IOG's whole
   column, still widened.
@@ -166,24 +180,77 @@ builds from the seed, the same after every restart.
   tin vein after the host fix, 1,148 ingots against a drawn ~490, was one shoot with y 24–47 in
   its fault's rich band (2.9 units a block on average against the 1.25 allowed). Reckoning each
   layer's grades makes such a band thinner, not the vein richer.
-- Host rock (#943): IOG turns a zone block into ore only where it is the district's host rock,
-  which is what cuts a shoot to its fault. The granitic and felsic configs' host is
-  `rock-granite` and the mafic one's `rock-basalt`, both country rocks too, so where the fault
-  runs through granite (or basalt) a shoot is ore across its whole ellipse: about 960 blocks a
-  layer at r = 35 against the 190–370 the fault estimate gave, and, with #863's widening growing
-  both axes (16×, against the 4× the band counted), up to 15,000 a layer. So a district whose host
-  is one of the world's rock strata or its default rock (`worldgen/rockstrata.json`,
-  `worldgen/global.json`, as the geology mods patch them; `DistrictVeins.HostIsCountryRock`) has its
-  shoots counted whole; the cold districts' travertine, a deposit rock and not a stratum, keeps the
-  fault estimate. In such a district a shoot whose country rock is not the host holds about a
-  quarter to a third of its drawn size: the rule takes the large side, since what a zone's rock
-  will be is not known when IOG builds it (its chunks are not generated). A ladder needs no
-  change: IOG lays fault rock across its whole widened stretch, the region its slabs fill. Moving
-  the granite districts' host to a fault rock instead was ruled out: no rock in the pack has ore
-  blocks for every ore they place (granite is the only one with cassiterite, bismuthinite, gold and
-  silver quartz, sphalerite, both galenas, cinnabar, sulfur, alum and quartz; quartzite has only
-  the two quartz ores and quartz, monzonite lacks cassiterite, cinnabar and alum), and IOG names
-  the rock in each ore's code.
+- Host rock (#943, #946): IOG turns a zone block into ore only where it is the district's host
+  rock: the fault rock it lays along its faults (rock, gravel or sand replaced by
+  `hostMaterialCode`), and, where the host is also one of the world's rocks (granite in the
+  granitic and felsic districts, basalt in the mafic), the country rock that happens to be it.
+  #943 counted a shoot whole wherever the host was a stratum; the census of #946 showed that wrong
+  both ways: mafic veins held a tenth of their drawn size (copper median 10 ingots), since basalt is
+  1–5 % of their bands. Now each part is measured:
+  - **The shoot's fault rock** (`Ore/Core/ShootShape.cs`): IOG's shoot (`OreShootSampler`) is an
+    ellipse in a sheared frame, `s` along the bend segment's own tangent and `t` along the fault's
+    global across direction (perpendicular to its overall heading, the direction it dips in), at
+    density 1 − (s/a)² − (t/b)², cut to its box (centre ± a + 2). A shoot sits at a bend, so its
+    tangent turns 10–30° from the heading and the fault, which curves on, leaves the ellipse
+    within a few dozen blocks of the centre: along the tangent the ellipse reaches only
+    1 / √(1/a² + c²/b²), c = tangent · across. The fault rock is counted from the fault's spline
+    (`HydrothermalFaultSpline.PlaceInChunk`: at every block of its length, a ray down from each block
+    across within its half width there, tapered over its ends and widened along a ladder stretch;
+    each ray steps `dip` across a layer, and where it moves into a new column it lays the column it
+    leaves too, at the same height, which fills the gaps of a fault at a slant to the block grid:
+    leaving that out undercounted the fault rock by about a sixth), at eight depths in the band's
+    range, averaged, each block's centre moved back up the dip, where the shoot's density is read
+    (the shoot and its fault dip together along the global across). #943's "fault width × 4r/3" assumed the fault ran along the strike: for a shoot
+    widened four times along its strike (#863) that was up to six times its fault rock.
+  - **The country rock** (`Ore/Game/RockStrataPrediction.cs`): the game's strata are a function of
+    the seed, so they are replayed for a column before it generates: `GenRockStrataNew.genBlockColumn`
+    (game 1.22.7, Terrain pass), step for step, with the live generator's strata
+    (`worldgen/rockstrata.json` as GeologyAdditions and MaterialNeedsGeology patch it: 40 strata),
+    its per-stratum noise layers and its distortion noise, read by reflection, the region's strata
+    map cells (`MapLayerCustomPerlin`, 16 blocks a cell, lerped as `GetIntLerpedCorrectly`) and the
+    geologic province map (`GenMaps`' province layer, smoothed as the strata do), rebuilt with its
+    position seed kept local, since the game's own noise object keeps state between calls. Strata
+    are laid in config order, bottom-up ones (kimberlite, phyllite, andesite, peridotite, igneous
+    basalt, granite, gabbro, the metamorphics, monzonite, syenite, pyroxenite, ...) from y 1 up and
+    top-down ones (basalt as a volcanic, the sedimentaries, bauxite, slate, diorite, ...) from the
+    surface down, each as thick as its noise allows within its rock group's thickness for the
+    province; what neither reaches stays the default rock, granite. Against generated columns
+    (Atlas, seeds 1101, 1103, 1105, 48 chunk columns, 3,072 block columns) the replay matches
+    99.6–99.9 % of strata blocks, the rest deposits and structures. The one input not known before a
+    column generates is its surface height (`WorldGenTerrainHeightMap`, from the landforms): the
+    top-down strata hang from it, and so does how far down they reach. So each column is predicted
+    at five heights, the 10th to 90th percentile of the pack's terrain (`surfaceAboveSeaLevel` in
+    `config/ore-districts.json`: sea level −34, +13, +25, +31, +50), and the shares averaged; that
+    is the approximation. Over the band (y 4 to sea level − 6) it gives granite 12.8 / 30.3 /
+    49.3 % against 13.9 / 33.1 / 50.5 % in those columns, an 8-layer slab off by 1–5 points on
+    average. Basalt is 0.0–0.3 % of the band (it is a top-down volcanic stratum, near the surface,
+    or an igneous one below granite in the stack), which is why mafic shoots are their fault rock.
+    A shoot's share is sampled at about 24 points of its plan, density-weighted, a column every
+    8 layers shifted by its dip, only for the kept shoots of sized metals (lazily, when the band is
+    grown); the province maps and strata cells are cached. A district is sized in a few hundred
+    milliseconds (the log line's `sized in`).
+  - **Wider shapes**: with the fault rock counted honestly, a thin shoot (a fault-rock host, or
+    a sheared one) often needs more height than the room under sea level holds: a third of the
+    sized veins in the Atlas districts. Its band would then be the room and hold less than drawn.
+    So a widened shoot whose band is the room and still short takes the first of four wider shapes
+    (two, four, eight and sixteen times its own widened area: 8 to 64 times IOG's) whose band holds
+    its size, or the widest; each splits the area between strike and across (strike at most
+    sixteen times IOG's, across eight) the way that keeps the most fault rock in it, its box what the sheared ellipse
+    needs. Where it is all fault rock this is a wider vein along the fault, never a blob in
+    country rock that places nothing.
+  - **Horsetail lenses**: a lens whose centre column's predicted strata are mostly host rock over
+    its height is grown across only (the whole spheroid is ore, #943); every other lens both ways
+    (#863: its ore is the disc on its fracture).
+  - What it misses: the surface height (the mixture above), deposits and structures that replace
+    strata later, other faults' fault rock crossing a shoot, zones overlapping (IOG gives a block to
+    the first zone that draws it, even an ore that places nothing), and fault rock above the surface
+    or in caves (IOG only replaces rock, gravel and sand).
+  A ladder needs no change: IOG lays fault rock across its whole widened stretch, the region its
+  slabs fill. Moving the granite districts' host to a fault rock instead was ruled out: no rock in
+  the pack has ore blocks for every ore they place (granite is the only one with cassiterite,
+  bismuthinite, gold and silver quartz, sphalerite, both galenas, cinnabar, sulfur, alum and
+  quartz; quartzite has only the two quartz ores and quartz, monzonite lacks cassiterite, cinnabar
+  and alum), and IOG names the rock in each ore's code.
 - Unmanaged ores (gems, sulfur, halite, ...) keep their counts; in a vein that also holds a
   sized metal they share its band.
 
@@ -620,13 +687,69 @@ richness 0 is under 1.25 times it for most ores). Smaller veins dropped under th
 50-ingot floor, so fewer are counted. Neither window held district copper or iron (their mafic
 districts lie outside), so mafic veins were not measured here.
 
+### Districts after #946
+
+A census (`tools/ore-survey/run.sh --census --fast --kinds districts`) of seeds 1101–1110, 640 ×
+640 chunks each, every district vein of a sized metal centred in the area (horsetail lenses left
+out), with every pinned mod: before is #943 (the ten-seed census that found the mafic, felsic and
+granitic-deep veins wrong), after is #946. Ingots per vein, every vein (small ones too):
+
+| District, metal (small / typical / large) | Veins before → after | Before p10 / median / p90 | After p10 / median / p90 | After median ÷ typical |
+|---|---|---|---|---|
+| cold copper (150 / 400 / 1000) | 58 → 56 | 46 / 199 / 680 | 127 / 479 / 2,656 | 1.20 |
+| felsic bismuth (60 / 150 / 400) | 90 → 87 | 0 / 22 / 157 | 39 / 152 / 561 | 1.01 |
+| felsic copper (150 / 400 / 1000) | 61 → 0 | 0 / 0 / 0 | – | – |
+| felsic gold (30 / 80 / 200) | 101 → 94 | 0 / 11 / 109 | 26 / 83 / 211 | 1.03 |
+| felsic iron (150 / 400 / 1000) | 79 → 0 | 0 / 0 / 0 | – | – |
+| felsic lead (60 / 150 / 400) | 212 → 93 | 0 / 0 / 264 | 37 / 166 / 990 | 1.11 |
+| felsic silver (30 / 80 / 200) | 105 → 103 | 0 / 14 / 152 | 24 / 104 / 380 | 1.29 |
+| felsic zinc (60 / 150 / 400) | 98 → 97 | 0 / 29 / 316 | 52 / 208 / 524 | 1.39 |
+| granitic-deep bismuth (60 / 150 / 400) | 50 → 50 | 0 / 20 / 261 | 60 / 132 / 447 | 0.88 |
+| granitic-deep copper (150 / 400 / 1000) | 8 → 0 | 0 / 0 / 0 | – | – |
+| granitic-deep iron (150 / 400 / 1000) | 20 → 0 | 0 / 0 / 0 | – | – |
+| granitic-deep lead (60 / 150 / 400) | 68 → 50 | 0 / 19 / 246 | 51 / 137 / 422 | 0.91 |
+| granitic-deep tin (60 / 150 / 400) | 53 → 50 | 0 / 18 / 341 | 60 / 124 / 915 | 0.82 |
+| granitic-deep zinc (60 / 150 / 400) | 49 → 49 | 0 / 74 / 447 | 70 / 207 / 472 | 1.38 |
+| mafic chromium (60 / 150 / 400) | 2 → 2 | 121 / 202 / 202 | 121 / 202 / 202 | 1.35 |
+| mafic copper (150 / 400 / 1000) | 32 → 31 | 0 / 12 / 92 | 110 / 313 / 1,197 | 0.78 |
+| mafic iron (150 / 400 / 1000) | 36 → 35 | 0 / 32 / 228 | 117 / 482 / 1,362 | 1.21 |
+| mafic lead (60 / 150 / 400) | 35 → 31 | 0 / 8 / 50 | 28 / 237 / 1,424 | 1.58 |
+| mafic nickel (60 / 150 / 400) | 35 → 34 | 0 / 13 / 96 | 60 / 162 / 602 | 1.08 |
+| mafic platinum (60 / 150 / 400) | 23 → 22 | 0 / 10 / 38 | 38 / 112 / 256 | 0.75 |
+
+- Felsic and granitic-deep copper and iron are gone: their ores never placed (IOG's config, above),
+  and the zones' blocks go to the ores that do. Felsic lead went from 212 veins to 93 for the same
+  reason (cerussite and wulfenite name basalt; only galena places).
+- The estimate is unbiased: matching each vein's estimate (the debug log's `the band holds N by
+  the estimate`) to its census, every district type and metal holds its draw (1.00 at the median)
+  and measures 1.01–1.16 times its estimate (about 900 veins); 1.15–1.30 before the fault rock was
+  counted at depth (IOG's rays fill a slanted fault's gaps), and ore shoots counted whole or as
+  their fault's width × 4r/3 before that.
+- Two sized metals in one vein (tin and bismuth, gold and lead, copper and iron): the band grows
+  until the poorer holds its size and the richer one's ore is thinned to its own. Stopping at the
+  first left the other short (granitic-deep tin 0.65 of typical); stopping where they average out
+  pushed zinc and lead 30–40 % over.
+- Four groups land over typical, and are accepted as they are (owner's ruling): felsic silver
+  (1.29) and zinc (1.39), granitic-deep zinc (1.38) and mafic lead (1.58). Each of their veins holds
+  its draw (held ÷ drawn 1.00, measured 1.02–1.09 times its estimate); the census counts deposits,
+  not veins: `ore_survey.py` joins fragments of one metal whose centres are closer than 150 m
+  (`--link`), and a district's 8 kept veins of a metal often sit that close along one fault, so two
+  or three count as one larger deposit. That is how a player finds them too: one long run of ore
+  along the fault. The sizes drawn also scatter: about 50 veins per district type and metal draw
+  their median within ±16 % of typical two times in three.
+- Mafic platinum stays at 0.75 of typical, accepted (owner's ruling): nativeplatinum and sperrylite
+  weigh 0.0325 in their zones against about 1.0 for copper and iron, so a vein's platinum is a
+  sliver of its blocks, and 16 of its 24 veins are cut to the room under sea level even at the widest
+  shape (64 times IOG's area), holding 0.78 of their draw at the median.
+- Sizing a district takes 31–877 ms, median 193, over the census's 139 districts (the log's
+  `sized in`), once per district per run.
+
 ### Open
 
-- Mafic districts' copper and iron veins are now sized as whole ellipses (basalt is a stratum):
-  where their country rock is not basalt they hold a quarter to a third of the drawn size; a
-  survey window holding a mafic district would show how often.
-- District vein sizes rest on 30 deposits in two windows; a wider survey would show whether
-  `gradeAllowance` (`config/ore-districts.json`) needs raising.
+- The surface heights the strata are predicted at (`surfaceAboveSeaLevel`) come from three seeds'
+  terrain near the map centre; a world type or landform mod that moves the terrain would want them
+  measured again (the Atlas scenario `District_country_rock_is_predicted_from_the_strata` checks the
+  replay itself).
 - Lead, nickel, silver, gold, titanium and chromium sizes, and counts per 25 km² for every metal,
   need a survey of several cells (160 × 160 chunks or more, five seeds).
 - Not walked in game yet: finding a gravel field by map, panning, buying an ore map and reaching
@@ -647,6 +770,12 @@ python3 tools/ore-survey/ore_survey.py summary build/orescan-pack-s{101,202,303}
 python3 tools/ore-survey/ore_survey.py compare build/ore-survey/before.json build/ore-survey/tuned.json
 grep -h "Ore cells: .*: \|Placer fields: cell" build/ore-survey/tuned-s*/Logs/server-main.log
 grep -h "\[HydrothermalDistrict\] '" build/ore-survey/tuned-s*/Logs/*.log | sort -u
+# District veins only (#946): a census, and each vein's estimate in the debug log
+VINTAGE_STORY=$HOME/Games/vintagestory tools/ore-survey/run.sh --census --fast --kinds districts \
+  --name d --size 640 -j 3 --port 42650 --mod build/seraphhorizons_<version>.zip 1101 1102 1103 1104 1105 1106
+python3 tools/ore-survey/ore_survey.py census build/ore-survey/d-s110{1,2,3,4,5,6} \
+  --dump build/ore-survey/<name>-dump/orescan.json --json build/ore-survey/d-census.json
+grep -h "the band holds" build/ore-survey/d-s*/Logs/server-debug.log
 ```
 
 A 96 square takes 12–16 minutes per seed with five at once. The server log lists every cell
