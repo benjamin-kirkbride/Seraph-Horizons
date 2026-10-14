@@ -120,6 +120,9 @@ public static class MineRoutePlanner
         return work * (0.7 + 0.6 * (h % 10000) / 10000.0);
     }
 
+    /// <summary>A candidate whose run as estimated is this share behind the best is not run shaken.</summary>
+    public const double PruneShare = 0.10;
+
     /// <summary>Routes are taken over today's dispatch only when their simulated finish is sooner by more than
     /// this share (0: any sooner; a tie goes to today's, and the choice is kept for the job, so it never flips on
     /// noise).</summary>
@@ -155,14 +158,22 @@ public static class MineRoutePlanner
             chosen = Variants[reused];
         else if (input.Members.Count > 1 && input.Plan.Stations.Count(s => s.Cells.Any(pristine.Remaining.Contains)) <= WholeJobStations)
         {
+            // today's dispatch, simulated the same way: the job is left to it unless routes finish sooner. Its run as
+            // estimated first, so a candidate already well behind on its own (PruneShare) is not run shaken
+            double TodayRun(int seed)
+            {
+                var sim = new TodaySim(context, pristine.Clone(), seed);
+                sim.Run(cancel);
+                return sim.Makespan();
+            }
+            double todayFirst = TodayRun(0);
             double best = double.PositiveInfinity;
             foreach (var variant in Variants)
             {
                 double sum = 0;
                 for (int seed = 0; seed < ShakenRuns; seed++)
                 {
-                    // one already well behind the best on its first simulation is not run again
-                    if (seed == 1 && sum > best * 1.1)
+                    if (seed == 1 && sum > Math.Min(best, todayFirst) * (1 + PruneShare))
                     {
                         sum = double.PositiveInfinity;
                         break;
@@ -178,15 +189,9 @@ public static class MineRoutePlanner
                 if (sum / ShakenRuns < best - ScoreSlack)
                     (best, chosen) = (sum / ShakenRuns, variant);
             }
-            // today's dispatch, simulated the same way: the job is left to it unless routes finish sooner by a margin
-            double today = 0;
-            for (int seed = 0; seed < ShakenRuns; seed++)
-            {
-                var sim = new TodaySim(context, pristine.Clone(), seed);
-                sim.Run(cancel);
-                today += sim.Makespan();
-            }
-            today /= ShakenRuns;
+            double today = todayFirst > best * (1 + PruneShare)
+                ? double.PositiveInfinity
+                : (todayFirst + Enumerable.Range(1, ShakenRuns - 1).Sum(TodayRun)) / ShakenRuns;
             if (!(best < today * (1 - TodayMargin)))
                 return Today(input, context, zones, index, today, clock);
             // every variant stalled (the crew in its own way to the end): the first, as for a large job
