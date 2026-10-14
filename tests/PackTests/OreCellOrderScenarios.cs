@@ -107,14 +107,49 @@ public static class OreCellOrder
         }
         Assert.Equal(0, placement.MissedReplays);
         Results[name] = results;
+        Blocks = sapi.World.Blocks;
+        Save(name, results, sapi);
+        // Worlds booted one after another in one process do not come out alike, stable veins or
+        // not: a second world's vanilla deposits (cracked rock) differ from the same world booted in
+        // a process of its own, so something outlives a server in the process (#946, open). The
+        // orders are compared across processes: run each class in its own `dotnet test`.
         var other = Results.Keys.FirstOrDefault(k => k != name);
-        if (other == null)
+        if (other != null)
+            output.WriteLine($"{name}: '{other}' ran in this process too; worlds booted in one process differ (see the code), so it is compared only from its own process's file");
+        var otherName = name == "anchor first" ? "far first" : "anchor first";
+        if (Load(otherName, sapi) is not { } fromFile)
         {
-            output.WriteLine($"{name}: recorded; the other order has not run in this test run, nothing to compare yet");
+            output.WriteLine($"{name}: recorded in {FileOf(name)}; '{otherName}' has no file from another process yet, nothing to compare");
             return;
         }
-        Blocks = sapi.World.Blocks;
-        Compare(output, Results[other], results, other, name);
+        Compare(output, fromFile, results, otherName, name);
+    }
+
+    // Results kept between processes: per metal, anchor, variant and every ore block by code.
+    private static string FileOf(string name) =>
+        Path.Combine(Path.GetTempPath(), $"orecellorder-{Seed}-{name.Replace(' ', '-')}.json");
+
+    private sealed record Saved(int Pid, Dictionary<string, SavedMetal> Metals);
+
+    private sealed record SavedMetal(int AnchorX, int AnchorZ, string Variant, List<int[]> Positions, List<string> Codes);
+
+    private static void Save(string name, Dictionary<string, Result> results, ICoreServerAPI sapi)
+    {
+        var metals = results.ToDictionary(kv => kv.Key, kv => new SavedMetal(kv.Value.Anchor.X, kv.Value.Anchor.Z, kv.Value.Variant,
+            kv.Value.Ore.Keys.Select(k => new[] { k.X, k.Y, k.Z }).ToList(),
+            kv.Value.Ore.Values.Select(id => sapi.World.Blocks[id].Code.ToString()).ToList()));
+        File.WriteAllText(FileOf(name), System.Text.Json.JsonSerializer.Serialize(new Saved(Environment.ProcessId, metals)));
+    }
+
+    private static Dictionary<string, Result>? Load(string name, ICoreServerAPI sapi)
+    {
+        if (!File.Exists(FileOf(name))) return null;
+        var saved = System.Text.Json.JsonSerializer.Deserialize<Saved>(File.ReadAllText(FileOf(name)));
+        if (saved == null || saved.Pid == Environment.ProcessId) return null;
+        return saved.Metals.ToDictionary(kv => kv.Key, kv => new Result(new ChunkPos(kv.Value.AnchorX, kv.Value.AnchorZ), kv.Value.Variant,
+            kv.Value.Positions.Zip(kv.Value.Codes).ToDictionary(p => (p.First[0], p.First[1], p.First[2]),
+                p => sapi.World.GetBlock(new Vintagestory.API.Common.AssetLocation(p.Second))?.BlockId ?? -1),
+            []));
     }
 
     /// <summary>Every block of a chunk column, bottom up (for telling what else differs).</summary>
@@ -147,7 +182,7 @@ public static class OreCellOrder
                 + (differ > 0 ? ": by column " + string.Join(", ", diff.GroupBy(k => (k.X >> 5, k.Z >> 5)).OrderByDescending(g => g.Count()).Take(12)
                     .Select(g => $"({g.Key.Item1 - ra.Anchor.X},{g.Key.Item2 - ra.Anchor.Z}) {g.Count()} y{g.Min(k => k.Y)}-{g.Max(k => k.Y)}")) : ""));
             if (ra.Anchor != rb.Anchor || differ > 0) failures.Add($"{metal}: anchors {ra.Anchor} / {rb.Anchor}, {differ} positions differ");
-            if (ra.Anchor == rb.Anchor && Blocks is { } blocks)
+            if (ra.Anchor == rb.Anchor && Blocks is { } blocks && ra.AnchorColumn.Length > 0 && ra.AnchorColumn.Length == rb.AnchorColumn.Length)
             {
                 var pairs = new Dictionary<(int, int), int>();
                 for (int i = 0; i < ra.AnchorColumn.Length; i++)

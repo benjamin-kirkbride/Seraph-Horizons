@@ -150,7 +150,7 @@ public sealed partial class OreCellPlacement
             return false;
         }
         int ore = 0;
-        if (Replay(vein, request.Chunks, request.ChunkX, request.ChunkZ) is { } writes)
+        if (Replay(vein, request.Chunks) is { } writes)
         {
             var overlay = new Dictionary<(int, int, int), int>();
             int Get(int x, int y, int z) => overlay.TryGetValue((x, y, z), out var id) ? id : BlockAt(request.Chunks, x, y, z);
@@ -216,7 +216,7 @@ public sealed partial class OreCellPlacement
                             continue;
                         }
                         if (_veins.Get(metal, cell, state.Active) is not { Holds: true } vein) continue;
-                        if (Replay(vein, request.Chunks, c.X, c.Z) is not { } writes) continue;
+                        if (Replay(vein, request.Chunks) is not { } writes) continue;
                         Lay(vein, writes, request.Chunks, c);
                     }
             }
@@ -240,27 +240,42 @@ public sealed partial class OreCellPlacement
     }
 
     /// <summary>IOG's own generator for the vein's try, run against a world of its host rock; its
-    /// writes in order, or null if the try's variant is gone.</summary>
-    private List<(int X, int Y, int Z, int Id)>? Replay(StableVein vein, IServerChunk[] chunks, int chunkX, int chunkZ)
+    /// writes in order, or null if the try's variant is gone. The whole vein: it is run as the
+    /// anchor's own pass (IOG's <c>GenDeposit</c> skips a vein whose radius misses the column it is
+    /// given, though its tendrils reach further; it uses the column for nothing else), and the
+    /// caller keeps the writes in its column. The same for every column, so kept for the next.</summary>
+    private List<(int X, int Y, int Z, int Id)>? Replay(StableVein vein, IServerChunk[] chunks)
     {
+        if (_replays.TryGetValue(vein, out var cached)) return cached;
         if (Generator(vein.Variant) is not { DepositRand: { } rand } generator) return null;
         var world = new StableVeinWorlds.HostRockWorld(HostId(vein), _api.WorldManager.MapSizeY, _api.World.Blocks);
         Monitor.Enter(IogLock);
-        rand.SetWorldSeed(vein.WorldSeed);
-        rand.InitPositionSeed(vein.SourceX, vein.SourceZ);
+        // The replay's own random sequence, seeded as GenDeposits seeds the try: the one it shares
+        // with every deposit generator, vanilla ones included, may be mid-try on another thread.
+        var own = new LCGRandom { worldSeed = rand.worldSeed, mapGenSeed = rand.mapGenSeed, currentSeed = rand.currentSeed };
+        own.SetWorldSeed(vein.WorldSeed);
+        own.InitPositionSeed(vein.SourceX, vein.SourceZ);
+        generator.DepositRand = own;
         _replaying = true;
         try
         {
             var subDeposits = new Dictionary<BlockPos, DepositVariant>();
-            generator.GenDeposit(world.Accessor, chunks, chunkX, chunkZ, new BlockPos(vein.CentreX, -99, vein.CentreZ, 0), ref subDeposits);
+            generator.GenDeposit(world.Accessor, chunks, vein.SourceX, vein.SourceZ, new BlockPos(vein.CentreX, -99, vein.CentreZ, 0), ref subDeposits);
         }
         finally
         {
+            generator.DepositRand = rand;
             _replaying = false;
             Monitor.Exit(IogLock);
         }
+        if (_replays.Count >= MaxReplaysKept) _replays.Clear();
+        _replays[vein] = world.Writes;
         return world.Writes;
     }
+
+    // A vein's replay, kept for the next column (a few dozen veins are being laid at any time).
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<StableVein, List<(int X, int Y, int Z, int Id)>> _replays = new();
+    private const int MaxReplaysKept = 64;
 
     private static IEnumerable<(int X, int Y, int Z, int Id)> InColumn(List<(int X, int Y, int Z, int Id)> writes, int chunkX, int chunkZ) =>
         writes.Where(w => w.X >> 5 == chunkX && w.Z >> 5 == chunkZ);
@@ -293,16 +308,23 @@ public sealed partial class OreCellPlacement
         }
     }
 
+    // Built on first use, under IOG's lock: worldgen threads may ask at once.
     private string? VariantKey(DepositGeneratorBase generator)
     {
-        if (_variantKeys == null) BuildVariantKeys();
-        return _variantKeys!.GetValueOrDefault(generator);
+        lock (IogLock)
+        {
+            if (_variantKeys == null) BuildVariantKeys();
+            return _variantKeys!.GetValueOrDefault(generator);
+        }
     }
 
     private DepositGeneratorBase? Generator(string key)
     {
-        if (_generators == null) BuildVariantKeys();
-        return _generators!.GetValueOrDefault(key);
+        lock (IogLock)
+        {
+            if (_generators == null) BuildVariantKeys();
+            return _generators!.GetValueOrDefault(key);
+        }
     }
 
     private void SaveStable()
