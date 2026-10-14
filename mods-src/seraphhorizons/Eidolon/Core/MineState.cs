@@ -49,6 +49,7 @@ public sealed class MineState
         _built = other._built;
         Stale = other.Stale;
         Bands = other.Bands?.Clone();
+        Version = other.Version;
     }
 
     public MineSite Site { get; }
@@ -69,6 +70,11 @@ public sealed class MineState
     /// <summary>Which remaining targets may be dug now (the plan's bands), if a plan set them
     /// (<see cref="Adopt"/>; the planner's own).</summary>
     public MineBands? Bands { get; set; }
+
+    /// <summary>Counts every change taken in (<see cref="Apply"/>, <see cref="Changed(MarkPos, MineVoxel, bool)"/>,
+    /// <see cref="Reloaded"/>), so the routes' repair knows whether the live state moved since it last looked
+    /// (README "Eidolon", working together, *Routes*).</summary>
+    public int Version { get; private set; }
 
     /// <summary>Whether the world changed under it in a way the job did not make (<see cref="Changed"/>):
     /// its plan is to be made again.</summary>
@@ -236,6 +242,7 @@ public sealed class MineState
     public void Apply(IEnumerable<MarkPos> broken)
     {
         Refresh();
+        Version++;
         var dug = new List<MarkPos>();
         foreach (var c in broken)
         {
@@ -261,6 +268,7 @@ public sealed class MineState
     /// <paramref name="stale"/> (a change that only takes a target away, say, leaves it as it is).</summary>
     public void Changed(MarkPos cell, MineVoxel voxel, bool stale)
     {
+        Version++;
         bool was = Site.Solid(cell.X, cell.Y, cell.Z);
         Site.Set(cell, voxel);
         if (voxel.Rule != MineRule.Mine)
@@ -284,6 +292,7 @@ public sealed class MineState
     /// taken in as <see cref="Changed"/> takes a block.</summary>
     public void Reloaded(IMineWorld world, int x, int z)
     {
+        Version++;
         Site.Reload(world, x, z);
         if (_built && !_dirty)
         {

@@ -136,6 +136,16 @@ public abstract class MineGraph
         return count;
     }
 
+    /// <summary>The nodes joined to one by its index in the site, in a fixed order, into <paramref name="into"/>
+    /// (40 long); how many (the routes' searches, <see cref="MineCosts.From"/>, which walk it by index).</summary>
+    internal int JoinedTo(int index, Span<int> into) => NeighboursOf(index, into);
+
+    /// <summary>Whether a node is out, by its index in the site.</summary>
+    internal bool OutAt(int index) => Parent[index] >= 0;
+
+    /// <summary>The site it is a graph of.</summary>
+    internal MineSite Space => Site;
+
     /// <summary>The nodes joined to <paramref name="node"/> (a node of this graph), in a fixed order.</summary>
     public IEnumerable<PathCell> Joins(PathCell node) =>
         Site.InWindow(node.X, node.Y, node.Z) && IsNode(node.X, node.Y, node.Z)
