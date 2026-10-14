@@ -175,5 +175,40 @@ class Build(unittest.TestCase):
         self.assertEqual(select["options"], crucible["options"])
 
 
+class Binding(unittest.TestCase):
+    """The shipped shape's binding (the corner angles, the knees, the bands and the ironwork) is one connected frame:
+    every member meets another over an area, and the two end faces are tied through the skewback bar."""
+
+    @staticmethod
+    def boxes():
+        return {e["name"]: (e["from"], e["to"]) for e in SHAPE["elements"]
+                if e["name"].startswith(("fr_angle_", "fr_knee_", "fr_band_", "iw_"))}
+
+    @staticmethod
+    def touch(a, b, eps=1e-6):
+        gap = [max(a[0][k], b[0][k]) - min(a[1][k], b[1][k]) for k in range(3)]
+        return all(g <= eps for g in gap) and sum(1 for g in gap if g < -eps) >= 2
+
+    def test_one_connected_frame(self):
+        boxes = self.boxes()
+        for f in ("n", "s"):
+            for leg in ("face", "top"):
+                self.assertIn(f"fr_knee_{f}_{leg}", boxes)
+        seen, todo = set(), [next(iter(boxes))]
+        while todo:
+            n = todo.pop()
+            if n not in seen:
+                seen.add(n)
+                todo += [o for o in boxes if o not in seen and self.touch(boxes[n], boxes[o])]
+        self.assertEqual(seen, set(boxes))
+
+    def test_knees_join_the_footing_and_end_block_angles(self):
+        boxes = self.boxes()
+        for f in ("n", "s"):
+            knee = boxes[f"fr_knee_{f}_face"]
+            self.assertTrue(self.touch(knee, boxes[f"fr_angle_{f}f_face"]))
+            self.assertTrue(any(self.touch(knee, b) for n, b in boxes.items() if n.startswith(f"fr_angle_{f}e_face")))
+
+
 if __name__ == "__main__":
     unittest.main()

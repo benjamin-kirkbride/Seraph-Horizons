@@ -81,10 +81,10 @@ crucible furnace's pattern:
 
 | | Stage | `requires` | What it puts in | Materials (measured) |
 |---|---|---|---|---|
-| Frame | **Iron frame**, a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (`frame`) | The fire end's and the flue end's corner angles and angle bands, the ash mouth's lintel and the damper's guides, standing on their own (the end blocks' east corner angles on a short post each, the lintel on two, hidden in the brickwork) | not settled |
-| 1 | **Brickwork** | `brickwork` (and `frames`) | The base, the shared wall, the outer walls, the footing, the end blocks: 13.22 blocks; with it, at no cost of its own, the iron set in as it is laid (the fire door's lintel, the flat grate's bearers, the work doors' frames and guides, the discharge door's rails) | **27 fired bricks**, any one type |
+| Frame | **Iron frame**, a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (`frame`) | The fire end's and the flue end's corner angles, knees and angle bands, the ash mouth's lintel and the damper's guides, standing on their own (the end blocks' east corner angles on a short post each, the lintel on two, hidden in the brickwork) | not settled |
+| 1 | **Brickwork** | `brickwork` (and `frames`) | The base, the shared wall, the outer walls, the footing, the end blocks: 13.19 blocks; with it, at no cost of its own, the iron set in as it is laid (the fire door's lintel, the flat grate's bearers, the work doors' frames and guides, the discharge door's rails) | **27 fired bricks**, any one type |
 | 2 | **Lining** | `lining` | Tier-3 refractory 3 thick on every hot face: 4.07 blocks | **17 tier-3 refractory bricks, 7 fire clay** |
-| 3 | **Arch** | `arch` (and `ironwork`) | The arch's 9 strips and the east skewback, tier-3 refractory: 2.08 blocks; with it the angle buckstays, the skewback bar, the tie rods and their anchors | **9 tier-3 refractory bricks, 4 fire clay** (the ironwork not settled) |
+| 3 | **Arch** | `arch` (and `ironwork`) | The arch's 9 strips and the east skewback, tier-3 refractory: 2.08 blocks; with it the angle buckstays, the skewback bar (the east side's length, end to end), the tie rods and their anchors | **9 tier-3 refractory bricks, 4 fire clay** (the ironwork not settled) |
 | | Level 1, level 2 | as above | | not settled |
 | | *Outlet cap* | `outletcap` | Not a stage: on the furnace of a pair that does not carry the chimney | 1 iron plate |
 
@@ -103,17 +103,34 @@ both faces of their corner.
 - **Corner angles** (`fr_angle_<n|s><w|e|f>_face`, `_side`; the iron frame): at each vertical corner of the fire end's and
   the flue end's faces, full height at the shared wall's corners, from the footing up at the end blocks' east corners (each
   on a short post hidden in the footing, `fr_tie_angle_*`), and to the footing's top at its east corners.
+- **Knees** (`fr_knee_<n|s>_face`, `_top`; the iron frame): where the footing steps out from under the end block's east
+  corner, the footing's corner angle and the end block's are one stepped member. A knee plate in the end face, 2 × 2,
+  set in flush, fills the step's inside corner under the end block's angle, so the end-face legs run through the step
+  without a break (footing angle, knee, end block angle, ground to top); a short leg in the footing's top wraps the
+  ledge's edge from the end block's face to the footing angle's side leg, closing the footing angle's top.
 - **Angle bands** (`fr_band_<n|s>_face`, `_top`; the iron frame): along the top edge of each end face between its corner
-  angles, wrapping that edge (a leg down the face, a leg on the top), their ends meeting the corner angles.
+  angles, wrapping that edge (a leg down the face, a leg on the top), their ends meeting the corner angles: the face
+  leg butts the corner angles' end-face legs and the top leg runs on to their side legs, so each top corner is iron to
+  the corner.
 - **Buckstays** (`iw_stay<i>_flange`, `_web`; the ironwork, with the arch): the east wall between the end blocks has no
   vertical corner, so each buckstay is an angle standing on the face, its flange bedded against the wall and the skewback
   bar, its web standing out from the flange's south edge to the footprint's face; the tie rod passes through the flange
   and its nut bears on it, against the web.
+- **Skewback bar** (`iw_skewbar`; the ironwork): behind the buckstays, where the arch's east skewback bears on it, and on
+  through the end blocks' east faces, set in flush, to the east corner angles' side legs at both ends. It ties the fire
+  end's and the flue end's binding together along the east side; the tie rods tie the buckstays across to the shared
+  wall. The binding is one frame, not two end frames and loose ironwork.
 
 A check holds it (`check_binding`): each corner angle's two legs are 0.75 × 2 in the two faces of its corner, flush, with
 brick behind each leg and the face running on in brick past it, nothing proud of either face, the legs meeting at the
 corner; each band's legs in the end face and the top, bedded the same way, its ends on the corner angles; each buckstay's
 flange on the east face, bedded against the wall and the skewback bar, its web at the flange's edge, its nut on the flange.
+A second check holds the joins (`check_frame_connected`): on each end face every member (corner angles' legs, knee,
+band's legs) meets another over an area, not an edge, and they form one group; the corner chains run without a gap from
+the ground to the top (the shared wall's angle; the footing's angle, the knee, the end block's angle); the knee meets
+both angles, the bands' legs both corners' legs; and both end faces' binding with the ironwork (buckstays, skewback bar,
+rods, anchors, nuts) is one group, the skewback bar meeting both east corner angles. Removing a knee, shortening the
+band's top leg or the skewback bar each fails it.
 
 ## How it works
 
@@ -196,8 +213,8 @@ Everything was made for this mod; no other mod's model is used, and the generato
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/reverberatory.json` | The whole furnace, both levels' parts (758 elements: 421 built, 475 at level 1 roasting, 712 at level 2 running) |
-| `assets/seraphhorizons/shapes/block/reverberatory_frame.json` | The iron frame only (39 elements) |
+| `assets/seraphhorizons/shapes/block/reverberatory.json` | The whole furnace, both levels' parts (772 elements: 435 built, 489 at level 1 roasting, 726 at level 2 running) |
+| `assets/seraphhorizons/shapes/block/reverberatory_frame.json` | The iron frame only (43 elements) |
 | `assets/seraphhorizons/config/reverberatory-rig.json` | Cells, anchors, the build, the bricks, the row, the gearing and the part rig (33 parts) |
 | `tests/ReverberatoryRoaster/rig-reference.json` | Every part's matrix at a spread of axle angles, from the reference maths |
 

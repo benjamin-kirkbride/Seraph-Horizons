@@ -297,7 +297,7 @@ def check_binding(v):
     """The binding is angle iron (the owner's rule): at every vertical corner of the end faces (the shared wall's, the end
     block's east corner, the footing's) an angle of two legs, each ANGLE_T thick and ANGLE_L wide from the corner, one in
     each face, set in flush: its outer faces in the faces' planes with nothing proud of them, its inner faces bedded
-    against the brick, the brick's faces running on past each leg, the two legs meeting at the corner. Each band is an
+    against the brick, the brick's faces (or the iron the leg meets) running on past each leg, the two legs meeting at the corner. Each band is an
     angle wrapping its end face's top edge (a leg in the face, a leg in the top), bedded the same way, its ends meeting
     the corner angles' end-face legs. Each buckstay is an angle: its flange on the east face, bedded against the wall and
     then the skewback bar, its web standing out from the flange's edge to the footprint's face, its rod's nut on the
@@ -306,6 +306,8 @@ def check_binding(v):
     t, l = m.ANGLE_T, m.ANGLE_L
     bk = v.by_part["brickwork"]
     bands = [e for e in v.by_part["frame"] if e.name.startswith("fr_band_")]
+    knees = [e for e in v.by_part["frame"] if e.name.startswith("fr_knee_")]
+    knees += [e for e in v.by_part["ironwork"] if e.name.startswith("iw_skewbar")]   # the bar runs on from the side legs
     struct = [e for pid in ("brickwork", "lining", "frame", "frames", "arch", "ironwork") for e in v.by_part[pid]]
 
     def brick(p):
@@ -338,7 +340,7 @@ def check_binding(v):
                     if not brick(p):
                         bad.append(f"{name}: no brick behind its side leg at {p}")
                 for p in ((xc + inx * (l + 0.05), y, zf + inz * t / 2), (xc + inx * t / 2, y, zf + inz * (l + 0.05))):
-                    if not (brick(p) or any(inside(p, e) for e in bands)):
+                    if not (brick(p) or any(inside(p, e) for e in bands + knees)):  # or the iron it meets
                         bad.append(f"{name}: the face does not run on in brick (or the band) past its leg at {p}")
                 # flush: nothing proud of either face; the legs meet at the corner
                 for p in ((xc + inx * l / 2, y, zf - inz * 0.05), (xc - inx * 0.05, y, zf + inz * l / 2)):
@@ -369,6 +371,9 @@ def check_binding(v):
         ends = [leg_box(v, f"fr_angle_{face}{s}_face") for s in ("w", "e")]
         if abs(fl[0][0] - ends[0][1][0]) > 1e-6 or abs(fl[1][0] - ends[1][0][0]) > 1e-6:
             bad.append(f"{name}: its ends do not meet the corner angles")
+        sides = [leg_box(v, f"fr_angle_{face}{s}_side") for s in ("w", "e")]
+        if abs(tl[0][0] - sides[0][1][0]) > 1e-6 or abs(tl[1][0] - sides[1][0][0]) > 1e-6:
+            bad.append(f"{name}: its top leg does not run on to the corner angles' side legs")
     for i, zc in enumerate(m.STAY_Z, 1):
         fl, wb = leg_box(v, f"iw_stay{i}_flange"), leg_box(v, f"iw_stay{i}_web")
         if fl is None or wb is None:
@@ -390,6 +395,92 @@ def check_binding(v):
           f"bands and {len(m.STAY_Z)} angle buckstays: legs in their faces, bedded against the brick, flush ({n} stations)")
     if bad:
         v.fail(f"the binding is not angle iron wrapping its corners: {bad[:5]} ({len(bad)})")
+
+
+def touching(a, b, eps=1e-6):
+    """Two boxes (lo, hi) meet: they overlap or share a face, over an area (not just along an edge)."""
+    gap = [max(a[0][k], b[0][k]) - min(a[1][k], b[1][k]) for k in range(3)]   # > 0 apart, 0 touching, < 0 overlapping
+    if any(g > eps for g in gap):
+        return False
+    return sum(1 for g in gap if g < -eps) >= 2
+
+
+def components(boxes):
+    """The connected groups of named boxes {name: (lo, hi)} (touching()), as sorted lists of names."""
+    left, out = set(boxes), []
+    while left:
+        seen, todo = set(), [min(left)]
+        while todo:
+            n = todo.pop()
+            if n in seen:
+                continue
+            seen.add(n)
+            todo += [o for o in left if o not in seen and touching(boxes[n], boxes[o])]
+        left -= seen
+        out.append(sorted(seen))
+    return out
+
+
+def check_frame_connected(v):
+    """The binding is one connected frame, not pieces (the owner's rule): on each end face its members (the corner
+    angles' legs, the knees, the bands' legs, each merged across its block-grid cuts) form one group, each member
+    meeting another over an area, not an edge; each corner's chain is continuous from the ground to the top: at the
+    shared wall's corner one angle, at the east the footing's angle, the knee and the end block's angle, the knee's
+    face plate meeting both angles' end-face legs and its top leg the footing angle's two legs. And the whole binding is
+    one frame: both end faces' and the ironwork (buckstays, skewback bar, tie rods, anchor plates, nuts), the skewback bar
+    running the east side's length to the east corner angles' side legs at both ends."""
+    m = v.m
+    bad = []
+    for face, _, _ in m.ANGLE_FACES:
+        names = [f"fr_angle_{face}{s}_{leg}" for s, *_ in m.ANGLE_SIDES for leg in ("face", "side")]
+        names += [f"fr_knee_{face}_face", f"fr_knee_{face}_top", f"fr_band_{face}_face", f"fr_band_{face}_top"]
+        boxes = {}
+        for n in names:
+            b = leg_box(v, n)
+            if b is None:
+                bad.append(f"{n}: missing")
+            else:
+                boxes[n] = b
+        for n, b in boxes.items():
+            if not any(touching(b, boxes[o]) for o in boxes if o != n):
+                bad.append(f"{n}: meets no other member")
+        groups = components(boxes)
+        if len(groups) != 1:
+            bad.append(f"the {face} end face's binding is {len(groups)} pieces: {groups}")
+        for a, b in ((f"fr_angle_{face}f_face", f"fr_knee_{face}_face"), (f"fr_knee_{face}_face", f"fr_angle_{face}e_face"),
+                     (f"fr_knee_{face}_top", f"fr_angle_{face}f_face"), (f"fr_knee_{face}_top", f"fr_angle_{face}f_side"),
+                     (f"fr_band_{face}_face", f"fr_angle_{face}w_face"), (f"fr_band_{face}_face", f"fr_angle_{face}e_face"),
+                     (f"fr_band_{face}_top", f"fr_angle_{face}w_side"), (f"fr_band_{face}_top", f"fr_angle_{face}e_side")):
+            if a in boxes and b in boxes and not touching(boxes[a], boxes[b]):
+                bad.append(f"{a} does not meet {b}")
+        # each corner's chain of end-face legs from the ground to the top, no gap in y
+        for chain in ((f"fr_angle_{face}w_face",), (f"fr_angle_{face}f_face", f"fr_knee_{face}_face", f"fr_angle_{face}e_face")):
+            if not all(c in boxes for c in chain):
+                continue
+            spans = sorted((boxes[c][0][1], boxes[c][1][1]) for c in chain)
+            reach = 0.0
+            for y0, y1 in spans:
+                if y0 > reach + 1e-6:
+                    break
+                reach = max(reach, y1)
+            if abs(reach - m.TOP) > 1e-6:
+                bad.append(f"the {face} end face's corner chain {chain} stops at y {reach}, not the top")
+    # the whole binding, both end faces' and the ironwork, one group: each piece (a long member's block-grid pieces meet
+    # end to end), the skewback bar running on to the east corner angles' side legs at both ends
+    iron = {e.name: e.aabb() for pid in ("frame", "ironwork") for e in v.by_part[pid]
+            if e.name.startswith(("fr_angle_", "fr_knee_", "fr_band_", "iw_"))}
+    groups = components(iron)
+    if len(groups) != 1:
+        bad.append(f"the binding and the ironwork are {len(groups)} pieces: {[g[:3] for g in groups]}")
+    for face, _, _ in m.ANGLE_FACES:
+        side = leg_box(v, f"fr_angle_{face}e_side")
+        if side is not None and not any(touching(side, iron[n]) for n in iron if n.startswith("iw_skewbar")):
+            bad.append(f"the skewback bar does not run on to fr_angle_{face}e_side")
+    print(f"frame: each end face's binding one connected frame ({len(m.ANGLE_FACES)} faces, corner chains continuous to the "
+          f"top, knees at the footing's step); both faces and the ironwork one frame of {len(iron)} pieces, the skewback bar "
+          f"meeting both east corner angles")
+    if bad:
+        v.fail(f"the binding is not one connected frame: {bad[:5]} ({len(bad)})")
 
 
 # ---------------------------------------------------------------- the brick
@@ -1079,6 +1170,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v)
     check_sides(v)
     check_binding(v)
+    check_frame_connected(v)
     check_lining(v)
     check_build(v)
     check_path(v)

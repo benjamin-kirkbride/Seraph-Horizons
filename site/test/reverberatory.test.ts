@@ -148,4 +148,27 @@ describe("the reverberatory roaster's scenario", () => {
     expect(cells).not.toContain("-1,2,4");
     expect(cells).toContain("0,2,4");
   });
+
+  it("binds its brick in one connected frame: corner angles, knees at the footing's step, bands and the ironwork", () => {
+    type Box = [number[], number[]];
+    const boxes = new Map<string, Box>();
+    for (const e of shape.elements)
+      if (/^(fr_angle_|fr_knee_|fr_band_|iw_)/.test(e.name)) boxes.set(e.name, [e.from, e.to]);
+    for (const f of ["n", "s"]) for (const leg of ["face", "top"]) expect(boxes.has(`fr_knee_${f}_${leg}`)).toBe(true);
+    // two members meet over an area: apart along no axis, overlapping along at least two
+    const touch = (a: Box, b: Box) => {
+      const gap = [0, 1, 2].map((k) => Math.max(a[0][k]!, b[0][k]!) - Math.min(a[1][k]!, b[1][k]!));
+      return gap.every((g) => g <= 1e-6) && gap.filter((g) => g < -1e-6).length >= 2;
+    };
+    const names = [...boxes.keys()];
+    const seen = new Set<string>();
+    const todo = [names[0]!];
+    while (todo.length) {
+      const n = todo.pop()!;
+      if (seen.has(n)) continue;
+      seen.add(n);
+      for (const o of names) if (!seen.has(o) && touch(boxes.get(n)!, boxes.get(o)!)) todo.push(o);
+    }
+    expect(names.filter((n) => !seen.has(n))).toEqual([]);
+  });
 });

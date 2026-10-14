@@ -202,7 +202,8 @@ STAY_Z = (21.5, 29.5, 51.0)                  # the east buckstays (centres): cle
 STAY_X = (FACE_E, FACE_E + ANGLE_T)          # each an angle: its flange on the east face (x), 2.5 wide (z),
 STAY_W = 2.5
 STAY_Y = (HEARTH_Y, TOP)                     # its web standing out from the flange's south edge to the footprint's face
-SKEWBAR_X = (45.0, FACE_E)                   # the east skewback bar, behind the buckstays
+SKEWBAR_X = (45.0, FACE_E)                   # the east skewback bar, behind the buckstays, set in flush the whole length:
+SKEWBAR_Z = (ANGLE_L, D - ANGLE_L)           # on through the end blocks' east faces to the corner angles' side legs
 ROD_Y = (31.4, TOP)                          # the tie rods over the arch's crown (31), from the east buckstays into the shared
 ROD_T = 0.8                                  # wall, where each ends on an anchor plate set in the wall's top
 ROD_X = (2.5, STAY_X[1] + 1.0)               # through the buckstay's flange and its nut
@@ -609,15 +610,34 @@ def band_angles():
     for face, zf, inz in ANGLE_FACES:
         zs = sorted((zf, zf + inz * t))
         out.append((f"fr_band_{face}_face", [x0, TOP - l, zs[0]], [x1, TOP, zs[1]]))
+        # the top leg runs on to the corner angles' side legs, so the top's corners are iron to the corner
         zs = sorted((zf + inz * t, zf + inz * l))
-        out.append((f"fr_band_{face}_top", [x0, TOP - t, zs[0]], [x1, TOP, zs[1]]))
+        out.append((f"fr_band_{face}_top", [WEST[0] + t, TOP - t, zs[0]], [FACE_E - t, TOP, zs[1]]))
+    return out
+
+
+def knee_angles():
+    """The knees, as (name, lo, hi): where the footing steps out from under the end block's east corner, the footing's
+    corner angle and the end block's are one stepped member. A knee plate in the end face (`_face`, ANGLE_T deep, set in
+    flush) fills the step's inside corner under the end block's angle, ANGLE_L each way, so the end-face legs run on
+    through the step: the footing angle's leg, the knee, the end block angle's leg. A short leg in the footing's top
+    (`_top`, ANGLE_T deep, from the end block's face out to the footing angle's side leg) wraps the ledge's edge, so the
+    footing angle's top is a closed corner, the end block's post in the footing behind it."""
+    out = []
+    t, l = ANGLE_T, ANGLE_L
+    for face, zf, inz in ANGLE_FACES:
+        zs = sorted((zf, zf + inz * t))
+        out.append((f"fr_knee_{face}_face", [FACE_E - l, HEARTH_Y - l, zs[0]], [FACE_E, HEARTH_Y, zs[1]]))
+        zs = sorted((zf + inz * t, zf + inz * l))
+        out.append((f"fr_knee_{face}_top", [FACE_E, HEARTH_Y - t, zs[0]], [W - t, HEARTH_Y, zs[1]]))
     return out
 
 
 def binding():
-    """The end faces' binding, as (name, lo, hi): the corner angles and the bands between them. The west face is the
-    shared wall's, plain but for its corner angles' legs, flush; the east side's binding is its buckstays."""
-    return corner_angles() + band_angles()
+    """The end faces' binding, as (name, lo, hi): the corner angles, the knees joining the footing's and the end block's
+    east corner angles across the step, and the bands between them, one connected frame on each end face. The west face
+    is the shared wall's, plain but for its corner angles' legs, flush; the east side's binding is its buckstays."""
+    return corner_angles() + knee_angles() + band_angles()
 
 
 def frame_ties():
@@ -649,6 +669,13 @@ def rod_boxes():
     return [(f"iw_rod{i}", [ROD_X[0], ROD_Y[0], zc - ROD_T / 2], [ROD_X[1], ROD_Y[1], zc + ROD_T / 2]) for i, zc in enumerate(STAY_Z, 1)]
 
 
+def skewbar_box():
+    """The east skewback bar, as (name, lo, hi): behind the buckstays over the arched part, where the skewback bears on
+    it, and on through the end blocks' east faces, set in flush, to the corner angles' side legs, so the two end faces'
+    binding and the buckstays are one frame."""
+    return ("iw_skewbar", [SKEWBAR_X[0], SKEW[1][0], SKEWBAR_Z[0]], [SKEWBAR_X[1], SKEW[1][1], SKEWBAR_Z[1]])
+
+
 def anchor_boxes():
     (ax, ay, hw) = ANCHOR
     return [(f"iw_anchor{i}", [ax[0], ay[0], zc - hw], [ax[1], ay[1], zc + hw]) for i, zc in enumerate(STAY_Z, 1)]
@@ -660,7 +687,7 @@ def brick_voids():
     chamber and the flue end's cavity; the uptake, the feed hole, the well with its cover's seat and the throat from its
     floor; the ash mouth, the fire door and their recesses; the work doors; the discharge hole, the tunnel and the
     discharge door's recess; the outlet cap's seat; and the room for the iron set into the brick (the binding, the
-    lintels, the grate's bearers, the tie rods' chases and anchors, the frame's ties)."""
+    lintels, the grate's bearers, the tie rods' chases and anchors, the skewback bar, the frame's ties)."""
     v = []
 
     def add(lo, hi):
@@ -694,7 +721,7 @@ def brick_voids():
     add([rx[0], ry[0], rz[0]], [rx[1], ry[1], rz[1]])
     (cx, cz) = CAP_SEAT
     add([cx[0], CAP_Y[0], cz[0]], [cx[1], CAP_Y[1], cz[1]])
-    v += [(lo, hi) for _, lo, hi in binding() + frame_ties() + bearers() + rod_boxes() + anchor_boxes()]
+    v += [(lo, hi) for _, lo, hi in binding() + frame_ties() + bearers() + rod_boxes() + anchor_boxes() + [skewbar_box()]]
     return v
 
 
@@ -805,8 +832,9 @@ def build_brick():
 # ---------------------------------------------------------------- builders: the structure
 def build_frame_iron():
     """The iron frame (`frame`, `fr_*`): what the frame stage puts down, standing on its own, set into the brick once it
-    is in: the end faces' binding (the corner angles and the angle bands), the ash mouth's lintel and the damper's guides,
-    and the posts under the lintel and the east corner angles (hidden in the brickwork)."""
+    is in: the end faces' binding (the corner angles, the knees at the footing's step and the angle bands), the ash
+    mouth's lintel and the damper's guides, and the posts under the lintel and the east corner angles (hidden in the
+    brickwork)."""
     f, t = "frame", "iron"
     out = []
     for name, lo, hi in binding():
@@ -864,7 +892,8 @@ def build_arch():
 
 def build_ironwork():
     """The ironwork (`ironwork`, `iw_*`, fitted with the arch): the east buckstays on the footing, each an angle iron (its
-    flange on the face, its web standing out from the flange's south edge), the skewback bar behind them, the tie rods
+    flange on the face, its web standing out from the flange's south edge), the skewback bar behind them (on through the
+    end blocks to the corner angles), the tie rods
     over the crown from them into the shared wall, where each ends on an anchor plate set in its top, and the nuts on the
     buckstays' flanges. Nothing stands beyond the shared wall's face."""
     p, t = "ironwork", "iron"
@@ -875,7 +904,7 @@ def build_ironwork():
         out += long_box([STAY_X[1], STAY_Y[0], z1 - ANGLE_T], [W, STAY_Y[1], z1], f"iw_stay{i}_web", p, t)
         (nx, ny, nhw) = NUT
         out.append(box([nx[0], ny[0], zc - nhw], [nx[1], ny[1], zc + nhw], f"iw_nut{i}", p, t))
-    out += long_box([SKEWBAR_X[0], SKEW[1][0], ARCH_Z[0]], [SKEWBAR_X[1], SKEW[1][1], ARCH_Z[1]], "iw_skewbar", p, t)
+    out += long_box(*skewbar_box()[1:], "iw_skewbar", p, t)
     for name, lo, hi in rod_boxes():
         out += long_box(lo, hi, name, p, t)
     out += [box(lo, hi, name, p, t) for name, lo, hi in anchor_boxes()]
