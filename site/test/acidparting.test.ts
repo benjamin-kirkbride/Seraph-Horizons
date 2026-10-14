@@ -122,6 +122,15 @@ describe("the acid parting vessel's rig against its rig-reference.json", () => {
     expect(used.has(-1)).toBe(false);
     expect(used.size).toBe(parts.length);
   });
+
+  it("binds with eight angles, four at the corners and a ring of four along the top edges, and stands its chimney through the middle of its cell", () => {
+    const names = new Set(flattenShape(shape.elements).map((f) => f.element.name));
+    for (const a of ["fr_angle_nw", "fr_angle_ne", "fr_angle_sw", "fr_angle_se", "fr_band_n", "fr_band_s", "fr_band_w", "fr_band_e"])
+      for (const leg of ["a", "b"]) expect([...names].some((n) => n.startsWith(`${a}_${leg}`)), `${a}_${leg}`).toBe(true);
+    const chimney = (rig as unknown as { chimney: { origin: number[]; axis: string } }).chimney;
+    expect(chimney.axis).toBe("y");
+    expect([chimney.origin[0], chimney.origin[2]]).toEqual([0.5, 1.5]);
+  });
 });
 
 describe("the acid parting vessel's page in site/models.json", () => {

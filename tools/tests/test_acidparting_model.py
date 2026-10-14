@@ -8,10 +8,10 @@ types map to the game's textures (checked against the game's files when they are
 ~/Games/vintagestory), the cells are rebuilt from the shipped shape, the sliding fire door is the only part that moves
 (in its recess, shut over its opening, open clear of it), the precipitating tub stands in front of the vessel on the
 cold bench with the siphon from the vessel into it, there is no water line (watered from a bucket), the binding is
-angle iron wrapping the corners, the textures are the game's own (no new texture), only the burning fuel glows, the
+angle iron wrapping the corners and a ring of top angles whose ends meet them, one connected frame, the textures are the game's own (no new texture), only the burning fuel glows, the
 anchors are where the contract puts them (no power cell, no air port, no chute, no water anchor; the vessel and the tub
-worked from the front; the outlet under the chimney's cell, the chimney six blocks from it up), the side faces are
-plain brick but for the corner angles' legs, for a row, and the model viewer's scenario (site/models.json) gives the generator's states.
+worked from the front; the outlet square and centred under the chimney's cell, the chimney six blocks from it up), the
+side faces are plain brick but for the angles' legs, for a row, and the model viewer's scenario (site/models.json) gives the generator's states.
 Run with `python3 -m unittest discover -s tools/tests -p test_acidparting_model.py`.
 """
 
@@ -199,6 +199,40 @@ class Binding(unittest.TestCase):
             ov = [min(a[1][k], b[1][k]) - max(a[0][k], b[0][k]) for k in range(3)]
             self.assertEqual(sum(o > 0.05 for o in ov), 2)
 
+    def test_top_angles_close_every_corner_in_one_frame(self):
+        # a ring of top angles along all four top edges; each leg's end is butted by iron (no brick between members),
+        # and the angles are one connected frame
+        legs = {n: [aabb_of([e for e in FLAT if e.name.startswith(f"{n}_{leg}")]) for leg in ("a", "b")]
+                for n in [f"fr_angle_{c}" for c in ("nw", "ne", "sw", "se")] + [f"fr_band_{f}" for f in "nswe"]}
+        iron = [b for bs in legs.values() for b in bs]
+
+        def in_iron(p):
+            return any(all(lo[k] - 1e-9 <= p[k] <= hi[k] + 1e-9 for k in range(3)) for lo, hi in iron)
+
+        for face in "nswe":
+            axis = 0 if face in "ns" else 2
+            for lo, hi in legs[f"fr_band_{face}"]:
+                self.assertAlmostEqual(hi[1], 32.0)
+                o = [k for k in range(3) if k != axis]
+                mid = [(lo[k] + hi[k]) / 2 for k in range(3)]
+                for at in (lo[axis] - 0.1, hi[axis] + 0.1):
+                    p = list(mid)
+                    p[axis] = at
+                    self.assertTrue(in_iron(p), (face, p))
+
+        def meet(a, b):
+            ov = [min(a[1][k], b[1][k]) - max(a[0][k], b[0][k]) for k in range(3)]
+            return min(ov) > -1e-9 and sum(x > 1e-6 for x in ov) >= 2
+
+        seen, todo = {"fr_angle_nw"}, ["fr_angle_nw"]
+        while todo:
+            n = todo.pop()
+            for o in legs:
+                if o not in seen and any(meet(a, b) for a in legs[n] for b in legs[o]):
+                    seen.add(o)
+                    todo.append(o)
+        self.assertEqual(seen, set(legs))
+
 
 class Vessel(unittest.TestCase):
     def test_cells_decks_and_anchors(self):
@@ -212,6 +246,11 @@ class Vessel(unittest.TestCase):
         chimney = RIG["chimney"]
         self.assertEqual((chimney["axis"], chimney["length"]), ("y", 6.0))
         self.assertAlmostEqual(chimney["origin"][1] - chimney["length"] / 2, 2.0)
+        # the chimney's line through the middle of its cell [0,2,1], the outlet square and centred on it
+        self.assertEqual((chimney["origin"][0], chimney["origin"][2]), (0.5, 1.5))
+        for xs, _, zs in (make_shape.STACK, make_shape.CURB):
+            self.assertEqual(xs[1] - xs[0], zs[1] - zs[0])
+            self.assertEqual(((xs[0] + xs[1]) / 2, (zs[0] + zs[1]) / 2), (8.0, 24.0))
         self.assertEqual((RIG["vesselCell"], RIG["vesselFace"]), ([0, 1, 0], "north"))
         for key in ("ash", "firedoor"):
             self.assertEqual(RIG[f"{key}Side"], "north")
@@ -223,7 +262,7 @@ class Vessel(unittest.TestCase):
             lo, hi = el.aabb()
             if lo[0] < 1e-6 or hi[0] > 16 - 1e-6:
                 part = rigmath.part_of(RIG["parts"], el.name)
-                self.assertTrue(part == "brickwork" or el.name.startswith("fr_angle_"), el.name)
+                self.assertTrue(part == "brickwork" or el.name.startswith(("fr_angle_", "fr_band_w_", "fr_band_e_")), el.name)
 
 
 class Build(unittest.TestCase):

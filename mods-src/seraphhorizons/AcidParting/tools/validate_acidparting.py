@@ -252,13 +252,17 @@ def check_top(v):
         v.fail(f"the top is not flat at {len(bad)} points, e.g. {bad[:4]}")
 
 
+SIDE_IRON = ("fr_angle_", "fr_band_w_", "fr_band_e_")   # the binding's iron on a side face: flush, angle against angle
+
+
 def check_sides(v):
     """Vessels tile into a row: each side face is flush, plain brick over its whole area (sampled every half voxel)
-    but for the corner angles' side legs, flush with it; nothing but the brick and those legs reaches either side
+    but for the corner angles' side legs and the side's top angle, flush with it; nothing but the brick and that iron
+    reaches either side
     plane, of any part at any depth; two vessels side by side (one moved a vessel's width along x) touch nowhere but at
     their shared walls (brick against brick, angle against angle), over the door's whole travel."""
     m = v.m
-    bricks = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if e.name.startswith("fr_angle_")]
+    bricks = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if e.name.startswith(SIDE_IRON)]
     bad, n = [], 0
     for x in (0.05, m.W - 0.05):
         y = 0.25
@@ -277,7 +281,7 @@ def check_sides(v):
         for pid in v.by_part:
             for e in v.posed(pid, dp):
                 lo, hi = e.aabb()
-                if (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not e.name.startswith(("bk_brick", "fr_angle_")):
+                if (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not e.name.startswith(("bk_brick",) + SIDE_IRON):
                     reach.add(e.name)
     if reach:
         v.fail(f"not brick at a side plane: {sorted(reach)[:4]}")
@@ -357,8 +361,11 @@ def check_binding(v):
     ANGLE_T thick that meet in its corner, each leg's outer face flush with one of the two faces of the brick corner it
     wraps, and each leg's inner face bedded against the brick: points just behind every inner face (every voxel along
     it, a tenth in) are brick (either role) or iron set into it, at least nine in ten of them brick. The corner angles
-    stand on the ground the block's full height at its four vertical corners; the top angles run along the top edge of
-    the front and of the back and join the corner angles' face legs. No flat strap or band is left."""
+    stand on the ground the block's full height at its four vertical corners; the top angles run along all four top
+    edges. Every top angle's end meets an upright (it shares a face with the corner angle at that end), and each of
+    its legs' end faces is closed: the points just past it (every voxel over it, a tenth out) are all in the binding's
+    iron, so no brick shows between members at a corner. The binding is one connected frame (its angles joined by
+    shared faces). No flat strap or band is left."""
     m = v.m
     frame = v.by_part["frame"]
     flats = [e.name for e in frame if e.name.startswith(("fr_strap", "fr_kerb"))]
@@ -405,8 +412,64 @@ def check_binding(v):
         out.append(f"{name} {bricks}/{total}")
         if name.startswith("fr_angle") and (min(alo[1], blo[1]) > 1e-9 or max(ahi[1], bhi[1]) < m.H - 1e-9):
             v.fail(f"{name} does not stand the block's full height")
-    print(f"binding: {len(m.angles())} angles, each two legs {m.ANGLE_T} thick meeting in the brick's corner, flush with "
+    joints = check_binding_joints(v)
+    print(f"binding: {len(m.angles())} angles, {joints}; each two legs {m.ANGLE_T} thick meeting in the brick's corner, flush with "
           f"its faces, bedded on the brick (points behind the legs that are brick: {', '.join(out)})")
+
+
+def faces_meet(a, b):
+    """Two boxes share a face of some area (or overlap)."""
+    ov = [min(a[1][k], b[1][k]) - max(a[0][k], b[0][k]) for k in range(3)]
+    return min(ov) > -1e-9 and sum(o > 1e-6 for o in ov) >= 2
+
+
+def check_binding_joints(v):
+    """The binding's joints (`check_binding`): each top angle's two ends meet the corner angle there and close every
+    leg's end face; all the angles one connected frame."""
+    m = v.m
+    frame = v.by_part["frame"]
+    boxes = {name: [aabb_of([e for e in frame if e.name.startswith(f"{name}_{leg}")]) for leg in ("a", "b")]
+             for name, _, _ in m.angles()}
+    iron_boxes = [b for bs in boxes.values() for b in bs]
+    ends = 0
+    for name, legs in boxes.items():
+        if not name.startswith("fr_band_"):
+            continue
+        axis = 0 if name[-1] in "ns" else 2                      # the band's long axis
+        for end in (0, 1):
+            ref = [0.0, 0.0, 0.0]
+            ref[axis] = (min(lo[axis] for lo, _ in legs), max(hi[axis] for _, hi in legs))[end]
+            ref[2 - axis] = sum((lo[2 - axis] + hi[2 - axis]) / 2 for lo, hi in legs) / 2
+            ups = [n for n in boxes if n.startswith("fr_angle_")]
+            up = min(ups, key=lambda n: sum(((boxes[n][0][0][k] + boxes[n][0][1][k]) / 2 - ref[k]) ** 2 for k in (0, 2)))
+            if not any(faces_meet(lb, ub) for lb in legs for ub in boxes[up]):
+                v.fail(f"{name}'s end {'lo' if end == 0 else 'hi'} does not meet the upright {up}")
+            for leg, (lo, hi) in zip(("a", "b"), legs):
+                at = lo[axis] - 0.1 if end == 0 else hi[axis] + 0.1
+                others = [q for q in range(3) if q != axis]
+                open_ = []
+                for ua in [lo[others[0]] + 0.25 + k * 0.5 for k in range(int(2 * (hi[others[0]] - lo[others[0]])))]:
+                    for ub in [lo[others[1]] + 0.25 + k * 0.5 for k in range(int(2 * (hi[others[1]] - lo[others[1]])))]:
+                        p = [0.0, 0.0, 0.0]
+                        p[axis], p[others[0]], p[others[1]] = at, ua, ub
+                        if not any(all(b[0][k] - 1e-9 <= p[k] <= b[1][k] + 1e-9 for k in range(3)) for b in iron_boxes):
+                            open_.append(tuple(p))
+                if open_:
+                    v.fail(f"{name}_{leg}'s {'lo' if end == 0 else 'hi'} end is not closed by iron at {len(open_)} "
+                           f"points, e.g. {open_[:3]}")
+            ends += 1
+    names = list(boxes)
+    seen, todo = {names[0]}, [names[0]]
+    while todo:
+        n = todo.pop()
+        for o in names:
+            if o not in seen and any(faces_meet(a, b) for a in boxes[n] for b in boxes[o]):
+                seen.add(o)
+                todo.append(o)
+    if len(seen) != len(names):
+        v.fail(f"the binding is not one connected frame: {sorted(set(names) - seen)} apart from {names[0]}")
+    return (f"{ends} top-angle ends each meeting its upright, every leg's end face closed by iron; one connected frame "
+            f"of {len(names)}")
 
 
 # ---------------------------------------------------------------- the lining
@@ -841,7 +904,20 @@ def check_outlet(v):
         v.fail(f"the curb is not the lining's brick at {len(missing)} points, e.g. {missing[:3]}")
     if not (cap[0][0] < sx0 and cap[1][0] > sx1 and cap[0][2] < sz0 and cap[1][2] > sz1):
         v.fail("the cap does not cover the stack's mouth")
-    print(f"outlet: open to the sky through the stack; capped by a plate flush in the curb's seat ({cap[1][0] - cap[0][0]:.0f} "
+    # the outlet square and centred under the chimney: the stack's mouth and the curb both square, their centres on the
+    # chimney's line, and that line through the middle of the chimney's cell
+    ch = v.rig["chimney"]["origin"]
+    line = (ch[0] * m.B, ch[2] * m.B)
+    cell = ((m.CHIMNEY_CELL[0] + 0.5) * m.B, (m.CHIMNEY_CELL[2] + 0.5) * m.B)
+    if any(abs(a - b) > 1e-6 for a, b in zip(line, cell)):
+        v.fail(f"the chimney's line {line} is not through the middle of its cell {cell}")
+    for what, (xs, _, zs) in (("stack's mouth", m.STACK), ("curb", m.CURB)):
+        if abs((xs[1] - xs[0]) - (zs[1] - zs[0])) > 1e-6:
+            v.fail(f"the {what} is not square: {xs[1] - xs[0]} x {zs[1] - zs[0]}")
+        if abs((xs[0] + xs[1]) / 2 - line[0]) > 1e-6 or abs((zs[0] + zs[1]) / 2 - line[1]) > 1e-6:
+            v.fail(f"the {what} is not centred on the chimney's line {line}: {((xs[0] + xs[1]) / 2, (zs[0] + zs[1]) / 2)}")
+    print(f"outlet: the stack's mouth {sx1 - sx0:.0f} square and the curb {cx1 - cx0:.0f} square, centred on the chimney's "
+          f"line through the middle of its cell ({line[0]:.1f}, {line[1]:.1f}); open to the sky through the stack; capped by a plate flush in the curb's seat ({cap[1][0] - cap[0][0]:.0f} "
           f"square, {m.CAP_Y[1] - m.CAP_Y[0]} thick), over the stack's mouth; the curb the lining's brick, rim and ledge "
           f"({len(rim) + len(ledge)} points)")
 

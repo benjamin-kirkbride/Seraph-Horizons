@@ -5,7 +5,7 @@ The acid parting vessel parts gold from silver with nitric acid, as the mints an
 century did (Rose 1898, pp. 398-400: the granulated alloy in "cylindrical vessels of earthenware, porcelain, or
 platinum" set in a cast-iron sand bath over a small fire, under a brick hood to the chimney; the gold left behind
 washed with water). It is one such vessel, built whole as one machine: a block of brickwork one block wide, two deep
-and two high, bound at its corners and top edges with angle iron. In its front row a small fire burns on a grate of iron firebars, stoked through a sliding iron fire door
+and two high, bound at its corners and all four top edges with angle iron. In its front row a small fire burns on a grate of iron firebars, stoked through a sliding iron fire door
 in the front, its ash pit under the grate reached by the ash mouth under the door, which an iron damper slides over
 (open, half, shut), natural draught only. Over the fire a cast-iron sand bath is let into the masonry, its iron
 bottom the fire chamber's roof; a porcelain parting vessel stands in its sand, under a brick hood on two piers, open
@@ -172,13 +172,13 @@ WASH_Y = (18.0, 19.0)                        # the wash water's
 # ---------------------------------------------------------------- the hood
 # Two piers carry a breast over the front opening, on an iron lintel; the roof spans the piers; the hood's back wall
 # stands behind the bath, a flue opening near its top into the stack. The hood is the brickwork's.
-HOOD = ((2.5, 13.5), (BENCH, 30.0), (3.0, 18.0))     # the hood's chamber, behind the breast, over the tub and the bath
+HOOD = ((2.5, 13.5), (BENCH, 30.0), (3.0, 17.0))     # the hood's chamber, behind the breast, over the tub and the bath
 HOOD_OPEN = ((2.5, 13.5), (BENCH, 28.0), (0.0, 3.0))  # its front opening, under the breast: tall enough to reach over
 #                                                       the tub to the vessel, and for the siphon's run over the tub
 HOOD_LINTEL = ((1.5, 14.5), (28.0, 29.0), (1.0, 3.0))   # the breast's iron lintel, its ends in the piers, the breast's
 #                                                         depth, set back behind the corner angles' face legs
 LINTEL_FACE = ((2.5, 13.5), (28.0, 29.0), (0.0, 1.0))   # where it shows, set back a voxel under the brick face
-HOOD_FLUE = ((5.0, 11.0), (25.0, 30.0), (18.0, 22.0))   # from the top of the hood's back wall into the stack
+HOOD_FLUE = ((5.0, 11.0), (25.0, 30.0), (17.0, 21.0))   # from the top of the hood's back wall into the stack
 
 # ---------------------------------------------------------------- the precipitating tub
 # Period practice (#931): the silver-bearing acid is drawn off the vessel into a separate tub, where copper plates throw
@@ -201,9 +201,10 @@ SIPHON = (0.8, (9.0, 9.8), (9.8, 10.6), 16.8, 1.5, 18.0)   # the siphon: its sec
 #                                                             foot (y, over the gold); the tub leg's z (from); its foot (y)
 
 # ---------------------------------------------------------------- the flue, the stack, the outlet
-FIRE_FLUE = ((6.0, 10.0), (8.5, 12.0), (FIRE_Z[1], 22.0))   # from the top of the fire chamber's back wall to the stack
-STACK = ((5.0, 11.0), (8.5, TOP), (22.0, 27.0))             # the stack, in the back row behind the hood, to the outlet
-CURB = ((3.0, 13.0), (30.0, TOP), (20.0, 29.0))  # the outlet's curb, of the lining's refractory brick, flush: a rim 1
+FIRE_FLUE = ((6.0, 10.0), (8.5, 12.0), (FIRE_Z[1], 21.0))   # from the top of the fire chamber's back wall to the stack
+STACK = ((5.0, 11.0), (8.5, TOP), (21.0, 27.0))             # the stack, in the back row behind the hood, to the outlet:
+#                                                              6 square, centred in the back cell, under the chimney's line
+CURB = ((3.0, 13.0), (30.0, TOP), (19.0, 29.0))  # the outlet's curb, of the lining's refractory brick, flush: a rim 1
 CURB_RIM = 1.0                                   # wide round the cap's seat, the seat a ledge 1 wide round the mouth
 CAP_Y = (31.5, TOP)                          # the cap, a flat iron plate, set flush in it
 CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y, (CURB[2][0] + CURB_RIM, CURB[2][1] - CURB_RIM))
@@ -219,10 +220,11 @@ FRONT_WALL = 7.0                             # the front wall behind the recess,
 
 # The iron binding is angle iron (the owner's rule for every furnace-like brickwork): an L section wrapping each of the
 # block's four vertical corners, one leg on each face, its inside corner bedded against the brick's outside corner, so
-# it locks the brick in on both faces; and along the top edge of the front and of the back an angle wrapping that edge
-# (a leg down the face, a leg on the top), joining the corner angles. The brick is cut back by a leg's thickness where
-# the iron lies, so the angles' outer faces are flush with the block's: on a side face only the corner angles' side
-# legs show, and two vessels side by side in a row meet there, angle against angle and brick against brick.
+# it locks the brick in on both faces; and along all four top edges an angle wrapping that edge (a leg down the face, a
+# leg on the top), a ring whose ends meet the corner angles and each other, so the binding is one closed frame. The
+# brick is cut back by a leg's thickness where the iron lies, so the angles' outer faces are flush with the block's:
+# on a side face only the corner angles' side legs and the side's top angle show, and two vessels side by side in a
+# row meet there, angle against angle and brick against brick.
 ANGLE_T = 1.0                                # a leg's thickness
 ANGLE_LEG = 2.5                              # the corner angles' legs, from the corner
 BAND_FACE = 3.0                              # the top angles' legs: down the face, from the top
@@ -431,19 +433,24 @@ def angles():
     """The binding's angles, as (name, corner, legs): each leg (lo, hi). The corner angles (`fr_angle_<n|s><w|e>`), the
     full height at each vertical corner: a leg on the front or back face (`a`, ANGLE_LEG wide) and a leg on the side
     face (`b`, from the first leg's back to ANGLE_LEG from the corner), the two meeting in the corner. The top angles
-    (`fr_band_<n|s>`), along the top edge of the front and of the back between the corner angles' face legs: a leg
-    down the face (`a`, BAND_FACE) and a leg on the top (`b`, to BAND_TOP from the face). `corner` is the brick's
-    outside corner the angle wraps: (axis, the face's coordinate) for each of its two faces."""
-    t, g = ANGLE_T, ANGLE_LEG
+    (`fr_band_<n|s|w|e>`), along all four top edges, a ring joining the corner angles: a leg down the face (`a`,
+    BAND_FACE, between the corner angles' legs on that face, meeting them end to end) and a leg on the top (`b`, to
+    BAND_TOP from the face). The front's and the back's top legs run the block's width between the corner angles' side
+    legs, which close their ends; the sides' run between the front's and the back's top legs, which close theirs, so
+    the top is iron BAND_TOP wide all round and each corner a closed joint. `corner` is the brick's outside corner the
+    angle wraps: (axis, the face's coordinate) for each of its two faces."""
+    t, g, bt = ANGLE_T, ANGLE_LEG, BAND_TOP
     out = []
     for face, (z0, z1), zf, zin in (("n", (0.0, t), 0.0, (t, g)), ("s", (D - t, D), D, (D - g, D - t))):
         for side, (x0, x1), xf, xin in (("w", (0.0, g), 0.0, (0.0, t)), ("e", (W - g, W), W, (W - t, W))):
             out.append((f"fr_angle_{face}{side}", ((2, zf), (0, xf)),
                         [([x0, 0.0, z0], [x1, H, z1]), ([xin[0], 0.0, zin[0]], [xin[1], H, zin[1]])]))
-        za, zb = (0.0, t) if face == "n" else (D - t, D)
-        top = (t, BAND_TOP) if face == "n" else (D - BAND_TOP, D - t)
+    for face, zf, za, top in (("n", 0.0, (0.0, t), (t, bt)), ("s", D, (D - t, D), (D - bt, D - t))):
         out.append((f"fr_band_{face}", ((2, zf), (1, TOP)),
-                    [([g, TOP - BAND_FACE, za], [W - g, TOP, zb]), ([g, TOP - t, top[0]], [W - g, TOP, top[1]])]))
+                    [([g, TOP - BAND_FACE, za[0]], [W - g, TOP, za[1]]), ([t, TOP - t, top[0]], [W - t, TOP, top[1]])]))
+    for side, xf, xa, top in (("w", 0.0, (0.0, t), (t, bt)), ("e", W, (W - t, W), (W - bt, W - t))):
+        out.append((f"fr_band_{side}", ((0, xf), (1, TOP)),
+                    [([xa[0], TOP - BAND_FACE, g], [xa[1], TOP, D - g]), ([top[0], TOP - t, bt], [top[1], TOP, D - bt])]))
     return out
 
 

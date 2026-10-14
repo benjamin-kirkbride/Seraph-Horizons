@@ -21,7 +21,7 @@ copper plates throw the silver down as a grey sludge, which is collected, washed
 is washed with water. The Philadelphia Mint's porcelain pots held 2,080 oz, twelve to a bath.
 
 The model is **one vessel and its tub**, in one block of brickwork **one block wide (x), two deep (z) and two high**,
-bound at its corners with angle iron. Its front faces the player.
+bound at its corners and all four top edges with angle iron, one closed frame. Its front faces the player.
 
 - **The fire**, under the vessel in the front row's lower cell.
   - A grate of four iron **firebars** across two iron **bearers** that run front to back, their ends built into the
@@ -64,7 +64,7 @@ bound at its corners with angle iron. Its front faces the player.
   has. There is no water anchor; the wash water is drawn as contents.
 - **The flue and the stack.**
   - The fire's flue leaves the fire chamber at the top of its back wall (4 wide, 3.5 high).
-  - It runs back into a **stack** 6 by 5, centred in the back row, from the flue's floor up to an **outlet** on the
+  - It runs back into a **stack** 6 square, centred in the back cell under the chimney's line, from the flue's floor up to an **outlet** on the
     top. The hood's flue joins it there too. All of it is lined.
   - The outlet's **curb** is the lining's brick, flush: a rim round a seat half a voxel deep. The **cap** is a flat iron
     plate set flush in the seat.
@@ -74,12 +74,17 @@ bound at its corners with angle iron. Its front faces the player.
   - Each of the four vertical corners has an L section 1 voxel thick, the block's full height, legs 2.5. One leg lies
     on the front or back face and one on the side face, its inside corner bedded against the brick's outside corner,
     so it locks the brick in on both faces.
-  - Along the top edge of the front and of the back, an angle wraps the edge (a leg 3 down the face, a leg 2 on the
-    top) and joins the corner angles.
+  - Along all four top edges, an angle wraps the edge (a leg 3 down the face, a leg 2 on the top): a ring joining the
+    corner angles. Each face leg runs between the corner angles' legs on its face and meets them end to end. The
+    front's and the back's top legs run the block's width between the corner angles' side legs, which close their
+    ends; the sides' top legs run between the front's and the back's. So the top is iron 2 wide all round, every
+    corner is a closed joint with no brick between members, and the binding is one connected frame (owner's review:
+    the top angles had stopped 1.5 short of the corner angles' side legs, and the front and the back were two pieces).
   - The brick is cut back by a leg's thickness where the iron lies, so the angles' outer faces are flush with the
     block's.
 - **Vessels stand in a row** along their width (x), sharing walls.
-  - The side faces are flush, plain brickwork, but for the corner angles' side legs, flush with them.
+  - The side faces are flush, plain brickwork, but for the corner angles' side legs and the side's top angle, flush
+    with them.
   - Two vessels side by side meet only at their shared walls: brick against brick, angle against angle.
   - The flues between them are implied, not modelled.
 
@@ -103,8 +108,9 @@ fire, the bath, the vessel, the tub, the hood) and the back row (the stack).
   frame is the shipped frame.
 - The cell over the outlet, `[0,2,1]`, is the chimney's, not the machine's.
 - Placed like the crucible furnace, it extends away from the player along their line of sight.
-- **The tub cost no growth.** The fire, the bath and the vessel moved back 4 voxels (the front wall grew from 4 to 8,
-  the stack shrank from 6 deep to 5 and moved back), and the tub took the front of the bench.
+- **The tub cost no growth.** The fire, the bath and the vessel moved back 4 voxels (the front wall grew from 4 to 8),
+  and the tub took the front of the bench. The stack is 6 square, centred in the back cell under the chimney's line;
+  the hood's chamber ends a voxel short of the stack's lining, so its back wall is brickwork in front of the lining.
 
 **Why 1 × 2 × 2.** As small as the fire, the bath, the vessel, the tub, the hood and a lined stack allow:
 
@@ -116,7 +122,7 @@ fire, the bath, the vessel, the tub, the hood) and the back row (the stack).
 - **Two deep**:
   - The front row is the tub (5 deep) on the cold front of the bench, then the bath and the vessel over the fire.
   - The fire chamber's 8 deep sits behind a front wall of 8; its back wall runs into the back row.
-  - The stack, 5 deep with 3 of lining each side and brick behind, is the back row's rest, with the outlet on its top:
+  - The stack, 6 square with 3 of lining each side and brick behind, is the back row's rest, with the outlet on its top:
     "the outlet behind".
 - **Two high**:
   - The ash pit, the grate and the fire chamber reach 13; the bath's tray 16 (the bench).
@@ -132,7 +138,7 @@ fire, the bath, the vessel, the tub, the hood) and the back row (the stack).
 | `firedoor`, `firedoorSide` | `[0.5,0.625,0]`, `north` | The middle of the fire door's opening in the controller's front face: the fuel in |
 | `ash`, `ashSide` | `[0.5,0.1406,0]`, `north` | The middle of the ash mouth in the controller's front face: the damper, the ash out |
 | `outletCell`, `outletFace` | `[0,1,1]`, `up` | The stack's head, in the back row; the chimney (or the cap) on its top, the chimney from `[0,2,1]` up |
-| `chimney` | origin `[0.5,5,1.5312]`, `y`, 6 | The shortest chimney, six blocks counted from the outlet up (y 2 to 8), drawn as a line |
+| `chimney` | origin `[0.5,5,1.5]`, `y`, 6 | The shortest chimney, six blocks counted from the outlet up (y 2 to 8), drawn as a line |
 | `build` | | The build's stages and their materials (below); not drawn |
 | `bricks` | | The fired brick types and their textures (the crucible furnace's table); not drawn |
 | `parting` | | `minChimney` 6, `rowMax` 6, `rowAxis` `x`; not drawn |
@@ -154,9 +160,9 @@ one per 2.5 of those), rounded up. Everything else is a first proposal for the o
 
 | | Stage | `requires` | What it puts in | Materials |
 |---|---|---|---|---|
-| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | The binding's six angles; the grate's bearers and firebars; the ash mouth's and the fire door's lintels and the recess's guides; standing on their own, on 6 short posts hidden in the brickwork | 1 iron plate, 2 iron rods, 6 iron nails and strips (proposal) |
-| 1 | **Brickwork** | `brickwork` (and the `hoodiron` part) | The base, the ash pit, the walls, the bench, the hood on its piers and the stack's outer walls: 1.76 blocks; with it, at no cost of its own, the hood's lintel | **4 fired bricks**, any one type |
-| 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on the hot faces (the fire chamber, its flue, the stack) and the outlet's curb: 0.88 blocks | **4 tier-3 refractory bricks**, **2 fire clay** |
+| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | The binding's eight angles (four corner, four top); the grate's bearers and firebars; the ash mouth's and the fire door's lintels and the recess's guides; standing on their own, on 6 short posts hidden in the brickwork | 1 iron plate, 2 iron rods, 6 iron nails and strips (proposal) |
+| 1 | **Brickwork** | `brickwork` (and the `hoodiron` part) | The base, the ash pit, the walls, the bench, the hood on its piers and the stack's outer walls: 1.69 blocks; with it, at no cost of its own, the hood's lintel | **4 fired bricks**, any one type |
+| 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on the hot faces (the fire chamber, its flue, the stack) and the outlet's curb: 0.90 blocks | **4 tier-3 refractory bricks**, **2 fire clay** |
 | 3 | **Fittings** | `fittings` (the `bath`, `vessel`, `tub`, `siphon` and `door` parts; the damper in one of its places) | The sand bath with its sand, the vessel, the precipitating tub, the siphon, the fire door, the damper | 3 iron plates, 2 sand, 4 oak planks, 1 lead plate (proposal); the vessel's own item is open |
 | | *Copper plates* | `copper` | Contents, not a stage: hung in the tub by hand, worn away as the silver comes down | copper plates (gameplay's) |
 | | *Outlet cap* | `outletcap` | Not a stage: put on (or taken off) by hand, any time after the lining | 1 iron plate |
@@ -255,16 +261,21 @@ types and every texture are checked against the game's files when they are at ha
   chimney's cell.
 - **A flat, whole top:** every half voxel of the top is brick, the curb or flush iron (the angles' tops), but for the
   outlet's seat.
-- **A row:** each side face is plain brickwork over its whole area (8192 points) but for the corner angles' side legs.
+- **A row:** each side face is plain brickwork over its whole area (8192 points) but for the corner angles' side legs
+  and the side's top angle.
   Nothing else reaches either side plane at any depth, and two vessels side by side touch nowhere but at their shared
   walls.
-- **The binding** *(owner's rule)*: six angles, each two legs 1 thick meeting in the corner, each leg's outer face
+- **The binding** *(owner's rule)*: eight angles, each two legs 1 thick meeting in the corner, each leg's outer face
   flush with one face of the brick corner it wraps. Points behind every leg's inner face are brick or iron set into it
   (at least nine in ten brick). The corner angles stand the full height, and no flat strap or band is left.
+  - **Joints** *(owner's review)*: each top angle's two ends meet an upright (share a face with the corner angle at
+    that end), and each leg's end face is closed: points just past it, every half voxel over it, are all in the
+    binding's iron, so no brick shows between members at a corner.
+  - **One frame:** the angles, joined by shared faces, are one connected piece.
 - **Centred, walls:** the fire chamber, the ash mouth, the fire door, the recess, the bath, the vessel, the tub, the
   hood, the stack and the curb are centred left to right. The brick beside the fire chamber, sampled every half voxel
   from the grate to its top, runs at least `MIN_WALL` (4.5) to each side face and `FRONT_WALL` (7) to the recess.
-- **The lining:** behind every hot face (the fire chamber's walls from the bearers up, the fire's flue, the stack; 798
+- **The lining:** behind every hot face (the fire chamber's walls from the bearers up, the fire's flue, the stack; 834
   points, walked out every quarter) the brick is the lining's for at least `LINING_T` (3), or to where the brick ends.
   The ash pit's, the ash mouth's and the hood's faces are the brickwork's.
 - **The stages' counts:** the brick boxes' volumes add up to the lattice's, the brickwork's and the lining's apart, and
@@ -296,7 +307,9 @@ types and every texture are checked against the game's files when they are at ha
   - The copper rod rests on the tub's two side rims; each plate hangs from it into the liquor, inside the tub, clear of
     the sludge.
   - The sludge lies on the tub's floor, inside it, and the liquor is the tub's inside at its level.
-- **The outlet:** open, it is clear to the sky through the stack; the cap is flush in the curb's seat over the stack's
+- **The outlet:** the stack's mouth (6) and the curb (10) are square and centred on the chimney's line, which runs
+  through the middle of the chimney's cell `[0,2,1]` (the owner's note on the liquation furnace). Open, it is clear to
+  the sky through the stack; the cap is flush in the curb's seat over the stack's
   mouth; the curb is the lining's brick, rim and ledge.
 - **Draught:** sampled points lie in no element built in, the tub and its siphon among them:
   - along the fire's way (in at the ash mouth, up through every gap of the grate, over the fuel, out at its flue, up
@@ -309,7 +322,7 @@ types and every texture are checked against the game's files when they are at ha
   parting and washing), of the fire and of the damper; the cap; and the three stages before the build is complete.
   The only overlaps allowed are the siphon's legs through a liquid's surface and the plates through the tub's liquor.
   The door, slid every 0.02 of depth, touches nothing.
-- **No z-fighting** at 27 poses (nine scenes, three depths) with only what each shows, after the fix (99 faces pressed
+- **No z-fighting** at 27 poses (nine scenes, three depths) with only what each shows, after the fix (117 faces pressed
   against their own part removed).
 - **Files:**
   - Every texture code is declared; only the burning fuel glows; the frame's shape is the iron frame alone.
@@ -328,7 +341,9 @@ types and every texture are checked against the game's files when they are at ha
 - the door alone moves, in its recess;
 - the tub stands in front of the vessel with the siphon between them, there is no water line, and the anchors are
   where the contract puts them;
-- the angles wrap the corners, and the side faces are plain brick for a row;
+- the angles wrap the corners, the top angles close every corner in one connected frame, and the side faces are plain
+  brick for a row;
+- the chimney's line is through the middle of its cell, the stack's mouth and the curb square and centred on it;
 - the stages' counts come from the shape's brick, and the brick types are the game's;
 - `site/models.json`'s states and Play match the generator's.
 
@@ -471,8 +486,12 @@ Reviewed in projections rendered from the written files and in the viewer; not i
    ash-pit door. Kept, as the issue's conventions ask; easy to drop.
 6. **The hood** is not lined (it carries fumes, not heat) and not acid-proofed (period hoods were sometimes
    lead-lined). Its opening is 12 high so the vessel is reached over the tub; the breast is 4.
-7. **The angles at a row's inner corners**: every vessel's four corners are bound, so in a row the angles of
-   neighbours stand back to back at their shared walls.
+7. **The angles at a row's inner corners**: every vessel's four corners and top edges are bound, so in a row the
+   angles of neighbours (the corner angles' side legs and the sides' top angles) stand back to back at their shared
+   walls.
+12. **Top angles on the sides.** To make the binding one connected frame, as asked, the side faces' top edges now carry
+    an angle too (flush, so rows still tile). Without them the front and the back would be two separate U-frames. No
+    bottom angles: the corner angles stand on the ground, and the ground is the frame's foot.
 8. **One vessel a unit** (the Mint's baths held twelve): more vessels are more units in a row.
 9. **The minimum chimney** is the crucible furnace's six blocks.
 10. **The gold is drawn as gold** (the period's parted gold is a brown spongy mass), the sludge as silver and the fuel
