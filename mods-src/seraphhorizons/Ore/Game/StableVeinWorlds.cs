@@ -75,9 +75,18 @@ public static class StableVeinWorlds
         }
     }
 
+    // One column wrapper per worldgen thread, reused for every vein of the pass over the same column;
+    // its read-only stand-ins for other columns' chunks are kept by the real chunk and its data.
+    [ThreadStatic] private static (IBlockAccessor Real, int X, int Z, IBlockAccessor Proxy)? _column;
+    [ThreadStatic] private static Dictionary<IChunkBlocks, IServerChunk>? _readOnly;
+
     /// <summary>The worldgen accessor with writes kept to one chunk column (see the class).</summary>
     public static IBlockAccessor ColumnWorld(IBlockAccessor real, int chunkX, int chunkZ)
     {
+        if (_column is { } cached && ReferenceEquals(cached.Real, real) && cached.X == chunkX && cached.Z == chunkZ)
+            return cached.Proxy;
+        var readOnly = _readOnly ??= new Dictionary<IChunkBlocks, IServerChunk>(ReferenceEqualityComparer.Instance);
+        readOnly.Clear();
         var a = DispatchProxy.Create<IBlockAccessor, AccessorProxy>();
         var proxy = (AccessorProxy)(object)a;
         proxy.Valid = real.IsValidPos;
@@ -89,14 +98,16 @@ public static class StableVeinWorlds
             if (p.X >> 5 == chunkX && p.Z >> 5 == chunkZ) return chunk;
             // Another column: read it as IOG would, write nothing. No data: as IOG sees it, no chunk.
             if (chunk.Data is not { } real3d) return null;
+            if (readOnly.TryGetValue(real3d, out var c)) return c;
             var data = DispatchProxy.Create<IChunkBlocks, BlocksProxy>();
             var bp = (BlocksProxy)(object)data;
             bp.GetId = i => real3d.GetBlockIdUnsafe(i);
             bp.SetId = (_, _) => { };
-            var c = DispatchProxy.Create<IServerChunk, ChunkProxy>();
+            c = DispatchProxy.Create<IServerChunk, ChunkProxy>();
             ((ChunkProxy)(object)c).Blocks = data;
-            return c;
+            return readOnly[real3d] = c;
         };
+        _column = (real, chunkX, chunkZ, a);
         return a;
     }
 
