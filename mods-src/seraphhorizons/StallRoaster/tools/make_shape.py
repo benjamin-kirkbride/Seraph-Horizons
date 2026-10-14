@@ -7,10 +7,12 @@ The bay is the front row: its floor and the inner faces of its side walls and it
 refractory brick; the back row is the back wall, with the flue in it: a flue mouth at the foot of the bay's back face,
 centred, leads into a back flue low in the wall and up a stack to an outlet on the top over the stack, where the
 player stands the chimney (or a flat iron cap, as on every stall in a row but one). The brickwork is any one type of
-fired brick (its texture the renderer's, from the rig's bricks). The front's iron is a frame: an angle up each jamb
-of the opening, a sill across its foot and a tie bar across its top; the back has a strap up each end and a band
-along its top edge. The side faces are plain brick, so stalls stand side by side in a row along their width, their
-side walls meeting.
+fired brick (its texture the renderer's, from the rig's bricks). It is bound with angle iron, every binder an L that
+wraps a corner of the brickwork, one leg on each face, its inside corner bedded against the brick's corner, set into
+the brick flush: an angle up each of its four outer vertical corners and up each jamb of the opening, a sill angle
+along the opening's foot, and an angle band wrapping the front and the back top edges, which joins the angles' tops.
+The side faces are brick but for the corner angles' legs, flush, so stalls stand side by side in a row along their
+width, their side walls meeting.
 
 The charge is laid by hand through the open front: a bed of firewood (logs across the bay and sticks along it), the
 ore on it in four courses of eight rock (32, two stacks), each course stepped back at the front. It is kindled at the
@@ -114,28 +116,42 @@ CURB_RIM = 1.0                                         # a rim 1 wide round the 
 CAP_Y = (TOP - 0.5, TOP)                     # round the stack's mouth; the cap, a flat iron plate, set flush in it
 CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y, (CURB[2][0] + CURB_RIM, CURB[2][1] - CURB_RIM))
 
-# ---------------------------------------------------------------- the iron
-IRON_T = 0.5                                 # plates and angles set into the brick, flush
-JAMB_X = ((0.5, WALL_T), (W - WALL_T, W - 0.5))   # each jamb angle's front leg, over the side wall's front face
-JAMB_LEG = 2.5                               # its inner leg, along the opening's side face, flush in the lining
-JAMB_TOP = 30.0                              # the jambs stand up to the tie bar
-TIE_Y = (JAMB_TOP, TOP)                      # the tie bar across the top of the opening, its ends let into the walls
-TIE_Z = (0.0, 1.5)
-TIE_X = (0.5, W - 0.5)
-SILL_D = 2.5                                 # the sill angle across the opening's foot: its top leg, flush in the floor
-STRAP_X = ((0.5, 3.0), (W - 3.0, W - 0.5))   # the back: a flat strap up each end
-KERB_Y = (TOP - 1.5, TOP)                    # and a band along its top edge between them
+# ---------------------------------------------------------------- the iron: angle iron at every corner
+# Every binder is an angle (an L section) wrapping a corner of the brickwork: one leg on each of the corner's two
+# faces, its inside corner bedded against the brick's corner, set into the brick so its outside is flush with the
+# faces (owner's rule for brick structures: no flat bar on one face). IRON_T thick, LEG wide each way.
+IRON_T = 1.0
+LEG = 2.5
+BAND_Y = (TOP - LEG, TOP)                    # the angle bands wrapping the front and back top edges
+ANGLE_TOP = BAND_Y[0]                        # the vertical angles stand up to the bands, which join their tops
+# Each angle: (name, the axis it runs along, the span along it, its corner (the brick's outer corner) in the other two
+# axes in order (x, z for a vertical angle; y, z for one along x), the signs from the corner into the brick along those
+# two axes, the span of its second leg where it differs, and a span along its axis where it crosses the opening and
+# has no brick behind it (a tie, there)). Leg a lies on the face across the second of the two axes and takes the
+# corner; leg b lies on the face across the first.
+ANGLES = (
+    ("fr_corner_nw", "y", (0.0, ANGLE_TOP), (0.0, 0.0), (1, 1), None, None),        # the four outer vertical corners
+    ("fr_corner_ne", "y", (0.0, ANGLE_TOP), (W, 0.0), (-1, 1), None, None),
+    ("fr_corner_sw", "y", (0.0, ANGLE_TOP), (0.0, D), (1, -1), None, None),
+    ("fr_corner_se", "y", (0.0, ANGLE_TOP), (W, D), (-1, -1), None, None),
+    ("fr_jamb_w", "y", (0.0, ANGLE_TOP), (BAY_X[0], 0.0), (-1, 1), (FLOOR_Y, ANGLE_TOP), None),   # the opening's jambs:
+    ("fr_jamb_e", "y", (0.0, ANGLE_TOP), (BAY_X[1], 0.0), (1, 1), (FLOOR_Y, ANGLE_TOP), None),    # the bay's face above the floor
+    ("fr_sill", "x", BAY_X, (FLOOR_Y, 0.0), (-1, 1), None, None),                  # the floor's front edge, between the jambs
+    ("fr_band_n", "x", (0.0, W), (TOP, 0.0), (-1, 1), None, BAY_X),                 # the front top edge, a tie over the opening
+    ("fr_band_s", "x", (0.0, W), (TOP, D), (-1, -1), None, None),                   # the back top edge
+)
+AXIS = {"x": 0, "y": 1, "z": 2}
 
 # ---------------------------------------------------------------- the front's walling
 # Loose fired brick, dry-laid in the opening in courses of the brick texture's own size (8 long, 4 high, 4 deep), in
 # running bond: whole bricks and halves, 0.2 apart, each set back a little more or less (JITTER) so the wall reads as
-# loose. The bottom course has two draught holes. Half walled is three courses; walled up, six, to a voxel under the
-# tie bar.
+# loose. The bottom course has two draught holes. Half walled is three courses; walled up, six, to half a voxel under
+# the front's angle band.
 FRONTS = ("open", "half", "walled")          # the front's three places; open has no walling
 FRONT_COURSES = {"half": 3, "walled": 6}
 BRICK_H = 4.0                                # a course: the texture's own courses are 4 voxels
 BRICK_L = 8.0
-FRONT_Z = (0.5, 4.5)                         # the walling's thickness, behind the jambs' front legs
+FRONT_Z = (0.5, 4.5)                         # the walling's thickness, just inside the front face
 BRICK_GAP = 0.2
 JITTER = (0.0, 0.15, -0.1, 0.1, 0.2, -0.05, 0.05, -0.1, 0.15)   # each brick's set back (z), in turn
 # the courses' bricks, (x0, x1) across the opening (BAY_X 6..26): the bottom course with two draught holes, then
@@ -313,23 +329,38 @@ def lump(c, size, turns, name, part, tex):
 
 
 # ---------------------------------------------------------------- the iron frame
+def other_axes(axis):
+    """The two axes across an angle running along `axis`, in order."""
+    return [k for k in range(3) if k != AXIS[axis]]
+
+
+def angle_legs(angle):
+    """An angle's two legs as (leg, lo, hi): leg a on the face across its second cross axis, taking the corner, LEG
+    wide along the first and IRON_T thick along the second; leg b on the face across its first cross axis, IRON_T
+    thick along the first and the rest of LEG along the second. Each runs its span along the angle's axis."""
+    name, axis, span, (c0, c1), (s0, s1), span_b, _ = angle
+    a = AXIS[axis]
+    u, v = other_axes(axis)
+
+    def leg(sp, ru, rv):
+        lo, hi = [0.0] * 3, [0.0] * 3
+        lo[a], hi[a] = sp
+        for k, c, s, (r0, r1) in ((u, c0, s0, ru), (v, c1, s1, rv)):
+            p, q = c + s * r0, c + s * r1
+            lo[k], hi[k] = min(p, q), max(p, q)
+        return lo, hi
+    la = leg(span, (0.0, LEG), (0.0, IRON_T))
+    lb = leg(span_b or span, (0.0, IRON_T), (IRON_T, LEG))
+    return [("a", *la), ("b", *lb)]
+
+
 def iron_pieces():
-    """The iron frame, as (name, lo, hi): at the front, an angle up each jamb of the opening (its front leg over the
-    side wall's front face, its inner leg along the opening's side, both flush), a sill angle across the opening's
-    foot (its top leg flush in the floor, its front leg in the floor's front face) and a tie bar across the top of the
-    opening, its ends let into the side walls' tops; at the back, a flat strap up each end and a band along the top
-    edge between them. The side faces are left plain brick: a row's neighbours meet there."""
+    """The iron frame, as (name, lo, hi): every angle's two legs (ANGLES), each cut at the blocks' boundaries along its
+    length so its texture is not stretched: `<angle>_<leg><n>`."""
     out = []
-    for side, (x0, x1) in zip(("w", "e"), JAMB_X):
-        out.append((f"fr_jamb_{side}_front", [x0, 0.0, 0.0], [x1, JAMB_TOP, IRON_T]))
-        lx = (BAY_X[0] - IRON_T, BAY_X[0]) if side == "w" else (BAY_X[1], BAY_X[1] + IRON_T)
-        out.append((f"fr_jamb_{side}_side", [lx[0], FLOOR_Y, IRON_T], [lx[1], JAMB_TOP, JAMB_LEG]))
-    out += split_blocks("fr_sill_top", [BAY_X[0], FLOOR_Y - IRON_T, 0.0], [BAY_X[1], FLOOR_Y, SILL_D])
-    out += split_blocks("fr_sill_front", [BAY_X[0], BASE_TOP, 0.0], [BAY_X[1], FLOOR_Y - IRON_T, IRON_T])
-    out += split_blocks("fr_tiebar", [TIE_X[0], TIE_Y[0], TIE_Z[0]], [TIE_X[1], TIE_Y[1], TIE_Z[1]])
-    for side, (x0, x1) in zip(("w", "e"), STRAP_X):
-        out += split_blocks(f"fr_strap_{side}", [x0, 0.0, D - IRON_T], [x1, H, D])
-    out += split_blocks("fr_kerb", [STRAP_X[0][1], KERB_Y[0], D - IRON_T], [STRAP_X[1][0], KERB_Y[1], D])
+    for angle in ANGLES:
+        for leg, lo, hi in angle_legs(angle):
+            out += split_blocks(f"{angle[0]}_{leg}", lo, hi)
     return out
 
 
@@ -540,7 +571,7 @@ def front_bricks(place):
 
 def build_front(place):
     """The front's walling (`front<place>`): loose fired brick in the opening, half (three courses) or whole (six, to
-    a voxel under the tie bar). Each place is its own part; gameplay draws the one the front is in. Open has none."""
+    half a voxel under the front's angle band). Each place is its own part; gameplay draws the one the front is in. Open has none."""
     p = f"front{place}"
     return [brick_skin(box(lo, hi, f"{p}_{name}", p, "brick"), n) for n, (name, lo, hi) in enumerate(front_bricks(place))]
 

@@ -10,7 +10,7 @@ folder's `tools/` holds the generator and its checks.
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/` and `CrucibleFurnace/`, this folder's neighbours. The model follows the
 crucible furnace's conventions (`../CrucibleFurnace/README.md`): any fired brick, tier-3 lining 3 voxels thick on every
-hot face, iron binding on the faces that are not shared, flush side walls for a row, an outlet with a curb and a cap,
+hot face, iron binding (here angle iron wrapping every corner, by the owner's later rule), flush side walls for a row, an outlet with a curb and a cap,
 a minimum chimney, a staged build measured from the model. The generic half of the generator is
 `Machines/tools/machinegen/`, unchanged: no new driver and no change to the package.
 
@@ -35,11 +35,15 @@ high**:
 - **The outlet** has a **curb** of the lining's brick, flush with the top: a rim round a seat half a voxel down, a
   ledge round the stack's mouth. **The model stops at the outlet**: the player stands the chimney on it, or a flat iron
   **cap** set flush in the curb's seat, as on every stall in a row but the one carrying the chimney.
-- **The iron frame**: at the front, an **angle up each jamb** of the opening (its front leg over the side wall's front
-  face, its inner leg along the opening's side, both flush), a **sill angle** across the opening's foot (flush in the
-  floor) and a **tie bar** across the top of the opening, its ends let into the side walls' tops; at the back, a flat
-  **strap** up each end and a **band** along the top edge. All of it is set into the brick, flush. The side faces are
-  plain brickwork.
+- **The iron binding is angle iron** (the owner's rule for brick structures): every binder is an L, 1 voxel thick
+  with legs 2.5 wide, that **wraps a corner** of the brickwork, one leg on each of the corner's two faces, its inside
+  corner bedded against the brick's corner, so it holds the brick in on both faces. Each is set into the brick, its
+  outside flush with the faces. An angle stands up each of the **four outer vertical corners** (from the ground to
+  the bands) and up each **jamb** of the opening (one leg on the front face, one on the bay's side face, above the
+  floor); a **sill angle** wraps the floor's front edge between the jambs; an **angle band** wraps the **front top
+  edge** and another the **back top edge**, each sitting on the vertical angles' tops and joining them (the front one
+  is a tie across the top of the opening, where there is no brick). The side faces are brick but for the corner
+  angles' legs (2.5 deep at each end) and the bands' ends, all flush.
 - **The charge**: a **bed of firewood** (four logs across the bay, five sticks along it), the rock on it in **four
   courses of eight** (32, two stacks, #925), each course across the bay from wall to wall, stepped back at the front, the
   top one mounded in from the walls, lumps of rock lying on each course's top. Cold, burning (the ember texture,
@@ -48,13 +52,13 @@ high**:
 - **The sulfur** collects in **pools in the roasted heap's crust**, on its top course: the sulfur driven off the
   sulfide condenses in the cooler top of the heap and is taken out by hand when the stall is cold.
 - **The front** has **three places** (#925): **open** (charging, kindling, raking out); **half walled**, three courses
-  of loose fired brick; **walled up**, six courses, to a voxel under the tie bar. The loose brick is dry-laid in running
+  of loose fired brick; **walled up**, six courses, to half a voxel under the front's angle band. The loose brick is dry-laid in running
   bond in the bricks' own size (8 long, 4 high, 4 deep: the brick texture's), whole bricks and halves, each set back a
   little more or less so the wall reads as loose, and the bottom course leaves **two draught holes** at the floor. The
   walling is the stall's own brick type, each brick's faces one brick of the texture, its mortar cropped.
 - **Stalls stand in a row**, up to six side by side along their width (x), sharing walls: the side faces are flush,
-  plain brickwork with nothing beyond the footprint (the binding is on the front and back only), so two stalls' side
-  walls meet and touch nowhere else. A row of six is **12 blocks** long. The flues between them are implied.
+  brickwork with the corner angles' legs flush in it and nothing beyond the footprint, so two stalls' side walls meet
+  (iron to iron at the corners) and touch nowhere else. A row of six is **12 blocks** long. The flues between them are implied.
 
 **Footprint and cells.** The stall's eight cells, every one with boxes from the built stall (the iron, the brickwork,
 the lining), a **deck** (`lid`) at the top of each top cell, so a player walks over the open bay and does not fall
@@ -70,7 +74,7 @@ cell): the stall extends one block east (+x) and one back (+z) from it.
 - **Two deep**: the bay (the front row) and the back wall with its flue and outlet (the back row). The chimney stands on
   the back wall's top, over the back row, never over the bay.
 - **Two high**: the heap (a bed to 9, four courses to 26.5, lumps to about 27.7) and the front's walling (six courses,
-  5 to 29) under the walls' top at 32 and the tie bar at 30.
+  5 to 29) under the walls' top at 32 and the front's angle band at 29.5.
 
 | Anchor (rig key) | Shipped | What |
 |---|---|---|
@@ -93,9 +97,9 @@ through them:
 
 | | Stage | `requires` | What it puts in | Materials |
 |---|---|---|---|---|
-| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | The jamb angles, the sill and the tie bar round the opening; the straps and the band on the back; standing on their own | 2 iron plates, 2 iron rods, 6 iron nails and strips (a proposal, not measured) |
-| 1 | **Brickwork** | `brickwork` | The base, the side walls' outer halves, the back wall: 3.24 blocks of brick | **7 fired bricks**, any one type (`game:burnedbrick-*`) |
-| 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on the hot faces (the bay's floor, its side and back faces, the flue mouth, the back flue, the stack), the outlet's curb: 2.21 blocks | **9 tier-3 refractory bricks**, **4 fire clay** |
+| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | The angles: four up the outer corners, two up the jambs, the sill angle, the front and back angle bands; standing on their own | 2 iron plates, 2 iron rods, 6 iron nails and strips (a proposal, not measured) |
+| 1 | **Brickwork** | `brickwork` | The base, the side walls' outer halves, the back wall: 3.13 blocks of brick | **7 fired bricks**, any one type (`game:burnedbrick-*`) |
+| 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on the hot faces (the bay's floor, its side and back faces, the flue mouth, the back flue, the stack), the outlet's curb: 2.19 blocks | **9 tier-3 refractory bricks**, **4 fire clay** |
 | | *The front's walling* | `fronthalf`, `frontwalled` | Not a stage: the loose brick, one fired brick of the stall's own type a brick drawn, kept by the stall once given | 18 fired bricks (9 for half walled) |
 | | *Outlet cap* | `outletcap` | Not a stage: put on or taken off by hand, any time after the lining | 1 iron plate |
 
@@ -126,8 +130,8 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/stallroaster.json` | The whole stall, every part (227 elements) |
-| `assets/seraphhorizons/shapes/block/stallroaster_frame.json` | The iron frame only (16 elements): what the placed frame draws |
+| `assets/seraphhorizons/shapes/block/stallroaster.json` | The whole stall, every part (272 elements) |
+| `assets/seraphhorizons/shapes/block/stallroaster_frame.json` | The iron frame only (36 elements): what the placed frame draws |
 | `assets/seraphhorizons/config/stallroaster-rig.json` | Cells, anchors, the build and the brick types, and the part rig (21 parts) |
 | `tests/StallRoaster/rig-reference.json` | Every part's matrix at three poses (all the identity) |
 
@@ -148,8 +152,8 @@ Nothing turns or slides; every row is a state gameplay fits.
 
 | Part (rig id) | Driven by | Drives |
 |---|---|---|
-| The iron frame (`frame`, no requires) | fixed: placed as the machine | binds the front and the back; the jamb angles and the sill guard the opening's brick from the rakes and the walling; the tie bar holds the side walls together across the opening |
-| The brickwork (`brickwork`) | stage 1 | the base, the side walls' outer halves, the back wall; plain brick on the side faces for a row |
+| The iron frame (`frame`, no requires) | fixed: placed as the machine | angle iron at every corner: holds the brick in on both faces of each; the jamb angles and the sill guard the opening's brick from the rakes and the walling; the front band ties the side walls together across the opening |
+| The brickwork (`brickwork`) | stage 1 | the base, the side walls' outer halves, the back wall; brick on the side faces for a row, the corner angles' legs flush in it |
 | The lining (`lining`) | stage 2 | the hot faces: the bay's floor and inner faces, the flue mouth, the back flue and the stack; the outlet's curb |
 | The bed (`wood`) | laid by hand through the open front | carries the charge; kindled, it lights it |
 | The bed burning (`kindling`) | lit | lights the charge's bottom course; burns away |
@@ -178,11 +182,16 @@ says it was skipped.
   Euler angles round-trip.
 - **The stages:** at each stage (the iron frame alone, with the brickwork, with the lining) nothing floats: every
   element drawn is joined to the ground. The iron frame is iron only and has no thin post taller than half the stall.
+- **Angle iron:** every element of the iron frame is a leg of one of the nine angles; each is an L of two legs 1
+  thick and 2.5 wide, meeting at a corner of the brickwork, each leg's outside flush with its face (open beyond it) and
+  its inside against brick over its whole length and width (but where the front band crosses the opening), its inside
+  corner bedded against the brick's corner; the vertical angles stand on the ground and the bands and the sill join
+  vertical angles at both ends. A flat bar, or an angle off its corner, fails it.
 - **Textures by role:** brick, lining, iron, wood, ore, ember, roasted, sulfur where the table above puts them.
 - **Containment:** nothing leaves the eight cells, nothing stands over the top.
 - **A flat top:** every half voxel of the top, but the bay and the outlet's seat, is brick or flush iron at the top.
-- **A row:** each side face is plain brickwork over its whole area (8192 points over the two); nothing but the
-  brickwork reaches either side plane; two stalls side by side touch nowhere but at their shared walls.
+- **A row:** each side face is brickwork, or a corner angle's leg flush in it, over its whole area (8192 points over
+  the two); nothing else reaches either side plane; two stalls side by side touch nowhere but at their shared walls.
 - **The walls:** the bay centred left to right, the curb in the outlet's cell; each side wall solid for 6 out from the
   bay at every half voxel from the floor to the top; the bay's back face solid for 3 back but at the flue mouth; the
   back face solid for 6 in from it everywhere under the outlet's seat.
@@ -196,7 +205,7 @@ says it was skipped.
   against the back wall, under the walls' top; 32 rock, 8 a course; the burning and roasted twins and the burning bed
   the same boxes; the sulfur on the top course's crust.
 - **The front:** each place's bricks in the opening between the jambs, on the floor and the sill or on bricks of the
-  course below, three or six courses, under the tie bar, two draught holes in the bottom course, no two bricks
+  course below, three or six courses, under the front's angle band, two draught holes in the bottom course, no two bricks
   overlapping.
 - **The outlet:** the cap flush in the curb's seat over the stack's mouth; the curb the lining's brick, rim and ledge.
 - **The draught:** sampled points from in front through the walling's draught holes, back through the bay, into the
@@ -204,7 +213,7 @@ says it was skipped.
   run into each other; the stack's mouth is clear of everything but the cap.
 - **Clearances:** in twelve scenes (every state of the charge walled up and capped, two half walled, the two stages
   before the stall is built), no two parts overlap (a lump on a course inside the course over it excepted).
-- **No z-fighting** at 14 poses after the fix (22 faces pressed against their own part removed).
+- **No z-fighting** at 14 poses after the fix (62 faces pressed against their own part removed).
 - **Files:** every texture code declared; glow on the burning bed and the burning charge only; the frame's shape the
   iron frame alone; no power cell, air port or chute; the eight cells with boxes, decks on the four top ones; the outlet
   under the chimney's cell, in the back row of the controller's column; the chimney's line six blocks from the outlet
@@ -248,8 +257,8 @@ changes.
 Element names are the rig's interface (first-match globs, in the rig's order): `bk_*` the brickwork (`bk_brick_NNN`),
 `ln_*` the lining (`ln_brick_NNN`), `wood_*` and `kindling_*` (`log1..4`, `stick1..5`), `ore<j>_*`, `fire<j>_*`,
 `roasted<j>_*` (`course`, `lump1..6`), `sulfur_*` (`pool1`, `pool2`), `fronthalf_*` and `frontwalled_*`
-(`brick<course><n>`), `outletcap_*`; and `fr_*` the iron frame (`fr_jamb_{w,e}_{front,side}`, `fr_sill_top*`,
-`fr_sill_front*`, `fr_tiebar*`, `fr_strap_{w,e}*`, `fr_kerb*`). Hand edits are lost when the script runs again: port
+(`brick<course><n>`), `outletcap_*`; and `fr_*` the iron frame : each angle's legs `<angle>_a<n>` and `<angle>_b<n>`,
+the angles `fr_corner_{nw,ne,sw,se}`, `fr_jamb_{w,e}`, `fr_sill`, `fr_band_{n,s}`). Hand edits are lost when the script runs again: port
 them into `make_shape.py`, or stop regenerating.
 
 ## Salvaged from v2
@@ -276,7 +285,7 @@ v2's three stalls, rubble walls, collecting flue, header, flue chamber, stack, t
 The model has been reviewed in projections rendered from the written files. No one has looked at it in a client or in
 the WebGL viewer (the sandbox's headless browser had no WebGL).
 
-1. **Texture seams.** The brick is 79 boxes (37 of brickwork, 42 of lining), world-mapped as the crucible furnace's.
+1. **Texture seams.** The brick is 104 boxes (54 of brickwork, 50 of lining), world-mapped as the crucible furnace's.
 2. **The loose bricks' UVs** each crop one brick of the running-bond texture (its mortar left out); how they read in
    the game, and with every brick type's overlay, is not seen.
 3. **The charge is flat courses** with lumps, not a sloped heap; a part charge shows whole courses.
@@ -305,7 +314,8 @@ the WebGL viewer (the sandbox's headless browser had no WebGL).
 6. **The build stages.** Proposed: the iron frame (2 iron plates, 2 rods, 6 nails and strips, not measured), then the
    brickwork (7 fired bricks) and the lining (9 tier-3 refractory bricks, 4 fire clay). There is no third stage: after
    the lining nothing is fitted but the walling and the cap.
-7. **The jambs.** The jamb angles' front legs cover nearly all of each side wall's front face (iron cladding round the
-   opening); narrower angles with brick showing, as the crucible furnace's straps, are the other choice.
+7. **The corner angles on the side faces.** Wrapping the outer corners puts a leg 2.5 wide in each side face at its
+   front and back edges, flush, so in a row two stalls' angles meet iron to iron at every party wall. Each side wall's
+   front face shows the corner angle, a voxel of brick and the jamb angle.
 8. **The texture families** appended to the viewer (`ember`, roasted rock, sulfur, sulfide) also recolour the crucible
    furnace's burning coke in the viewer, from a hashed blue to ember orange.

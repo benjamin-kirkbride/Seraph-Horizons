@@ -139,13 +139,34 @@ class Stall(unittest.TestCase):
         lo, hi = aabb_of(FLAT)
         self.assertTrue(all(lo[k] >= -1e-6 and hi[k] <= 32.0 + 1e-6 for k in range(3)), (lo, hi))
 
-    def test_side_faces_are_plain_brick_for_a_row(self):
+    def test_side_faces_are_brick_and_flush_angles_for_a_row(self):
+        # only the brickwork and the corner angles' legs (and the angle bands' ends) reach a side plane, flush
         for el in FLAT:
             lo, hi = el.aabb()
             if lo[0] < 1e-6 or hi[0] > 32.0 - 1e-6:
-                self.assertTrue(el.name.startswith("bk_brick"), el.name)
+                self.assertTrue(el.name.startswith(("bk_brick", "fr_corner_", "fr_band_")), el.name)
+                self.assertTrue(lo[0] >= -1e-6 and hi[0] <= 32.0 + 1e-6, el.name)
                 faces = next(e for e in SHAPE["elements"] if e["name"] == el.name)["faces"]
-                self.assertEqual({f["texture"] for f in faces.values()}, {"#brick"})
+                want = {"#iron"} if el.name.startswith("fr_") else {"#brick"}
+                self.assertEqual({f["texture"] for f in faces.values()}, want)
+
+    def test_every_binder_is_an_angle_wrapping_a_corner(self):
+        # owner's rule: the iron is angle iron, an L of two legs IRON_T thick, LEG wide, one on each face of a corner
+        frame = part("frame")
+        legs = {}
+        for e in frame:
+            stem = re.sub(r"\d+$", "", e.name)
+            self.assertRegex(stem, r"^fr_(corner_(nw|ne|sw|se)|jamb_[we]|sill|band_[ns])_[ab]$")
+            legs.setdefault(stem, []).append(e)
+        for name, *_ in make_shape.ANGLES:
+            a, b = aabb_of(legs[f"{name}_a"]), aabb_of(legs[f"{name}_b"])
+            for lo, hi in (a, b):
+                cross = sorted(hi[k] - lo[k] for k in range(3))[:2]
+                self.assertAlmostEqual(cross[0], make_shape.IRON_T, msg=name)
+                self.assertGreaterEqual(cross[1] + 1e-9, make_shape.LEG - make_shape.IRON_T, name)
+            # the legs meet: they share a face along the angle's length, at right angles to each other
+            ov = [min(a[1][k], b[1][k]) - max(a[0][k], b[0][k]) for k in range(3)]
+            self.assertTrue(min(ov) > -1e-6 and sum(o > 0.05 for o in ov) == 2, name)
 
     def test_the_charge_lies_in_the_bay_in_four_courses(self):
         bay_x, bay_z = make_shape.BAY_X, make_shape.BAY_Z
@@ -160,7 +181,7 @@ class Stall(unittest.TestCase):
         self.assertGreater(wood[0][2], aabb_of(part("frontwalled"))[1][2])           # behind the walling
 
     def test_the_walling_stands_in_the_opening(self):
-        tie = aabb_of([e for e in part("frame") if e.name.startswith("fr_tiebar")])
+        tie = aabb_of([e for e in part("frame") if e.name.startswith("fr_band_n")])
         for place, courses in (("half", 3), ("walled", 6)):
             els = part(f"front{place}")
             lo, hi = aabb_of(els)

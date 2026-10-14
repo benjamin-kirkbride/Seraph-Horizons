@@ -68,7 +68,7 @@ def static(v):
     return v.by_part["frame"] + v.by_part["brickwork"] + v.by_part["lining"]
 
 
-THIN_POST = 1.5                              # a post: a vertical element under this across both ways (a strap is wider)
+THIN_POST = 1.5                              # a post: a vertical element under this across both ways (an angle's leg is wider)
 
 
 # ---------------------------------------------------------------- parts, frame, textures
@@ -97,8 +97,8 @@ def check_basic(v):
 def check_stages(v):
     """The build: at each stage (the iron frame alone, with the brickwork, with the lining too) nothing floats: every
     element drawn is joined to the ground. The iron frame stands on its own: it is iron only, and no thin post stands
-    in it taller than half the stall (a vertical element under THIN_POST across both ways; the jambs and the straps
-    are angles and bands, wider)."""
+    in it taller than half the stall (a vertical element under THIN_POST across both ways; every angle's leg is LEG
+    wide one way)."""
     m = v.m
     out = []
     for sid, fitted in m.STAGE_STATES:
@@ -125,7 +125,7 @@ def check_stages(v):
 ROLES = [
     (r"^bk_brick_", {"brick"}),
     (r"^ln_brick_", {"lining"}),
-    (r"^fr_(jamb|sill|tiebar|strap|kerb)", {"iron"}),
+    (r"^fr_(corner|jamb|sill|band)_", {"iron"}),
     (r"^wood_", {"wood"}),
     (r"^kindling_", {"ember"}),
     (r"^ore\d_", {"ore"}),
@@ -191,11 +191,12 @@ def check_top(v):
 
 
 def check_sides(v):
-    """Stalls tile into a row: each side face is flush, plain brick over its whole area (sampled every half voxel),
-    and nothing but the brickwork reaches either side plane, in any part; two stalls side by side (one moved a stall's
-    width along x) touch nowhere but at their shared walls, whatever either holds."""
+    """Stalls tile into a row: each side face is flush, brick over its whole area (sampled every half voxel) but for the
+    corner angles' legs and the angle bands' ends, flush in it; nothing but the brickwork and those reaches either
+    side plane, in any part; two stalls side by side (one moved a stall's width along x) touch nowhere but at their
+    shared walls, whatever either holds."""
     m = v.m
-    bricks = v.by_part["brickwork"]
+    bricks = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if e.name.startswith(SIDE_IRON)]
     bad, n = [], 0
     for x in (0.05, m.W - 0.05):
         y = 0.25
@@ -208,9 +209,9 @@ def check_sides(v):
                 z += 0.5
             y += 0.5
     if bad:
-        v.fail(f"the side faces are not plain brick at {len(bad)} of {n} points, e.g. {bad[:4]}")
+        v.fail(f"the side faces are not brick or flush angle iron at {len(bad)} of {n} points, e.g. {bad[:4]}")
     reach = sorted(e.name for pid in v.by_part for e in v.posed(pid)
-                   if (e.aabb()[0][0] < 1e-6 or e.aabb()[1][0] > m.W - 1e-6) and not e.name.startswith("bk_brick"))
+                   if (e.aabb()[0][0] < 1e-6 or e.aabb()[1][0] > m.W - 1e-6) and not e.name.startswith(("bk_brick",) + SIDE_IRON))
     if reach:
         v.fail(f"not brick at a side plane: {reach[:4]}")
     a = [e for pid in v.by_part for e in v.posed(pid)]
@@ -230,8 +231,109 @@ def check_sides(v):
                 hits += 1
     if hits:
         v.fail(f"two stalls side by side run into each other ({hits} pairs)")
-    print(f"sides: plain brick at {n - len(bad)} of {n} points on the two side faces; nothing else reaches them; two "
+    print(f"sides: brick or the corner angles' flush legs at {n - len(bad)} of {n} points on the two side faces; nothing "
+          f"else reaches them; two "
           f"stalls side by side clear of each other but at the shared walls")
+
+
+SIDE_IRON = ("fr_corner_", "fr_band_")       # the iron that may reach a side face: the corner angles' side legs, the bands' ends
+
+
+def angle_els(v, name, leg):
+    """The frame's elements of an angle's leg (cut at the blocks' boundaries)."""
+    rx = re.compile(re.escape(f"{name}_{leg}") + r"\d*$")
+    return [e for e in v.by_part["frame"] if rx.match(e.name)]
+
+
+def check_angles(v):
+    """Angle iron at every corner (owner's rule): every element of the iron frame is a leg of one of ANGLES, and each
+    angle is an L, its two legs IRON_T thick and LEG wide, meeting at the brick's corner, one on each of the corner's
+    two faces: the leg's outside flush with its face (open beyond it), its inside against brick along its whole length
+    and width (every half voxel, but where it crosses the opening as a tie), and the angle's inside corner bedded against
+    the brick's corner. Each vertical angle reaches the ground; each angle along x joins vertical angles at both ends
+    (sharing a face with them): the bands sit on the angles' tops, the sill between the jambs."""
+    m = v.m
+    brick_els = brick(v)
+
+    def in_brick(p):
+        return any(inside(e, p) for e in brick_els)
+    named = set()
+    bad = []
+    pts = 0
+    for angle in m.ANGLES:
+        name, axis, span, corner, signs, _, free = angle
+        a = m.AXIS[axis]
+        u, w = m.other_axes(axis)
+        own = angle_els(v, name, "a") + angle_els(v, name, "b")
+        for leg, lo, hi in m.angle_legs(angle):
+            els = angle_els(v, name, leg)
+            named |= {e.name for e in els}
+            if not els or not same_box(aabb_of(els), (lo, hi)):
+                bad.append(f"{name} leg {leg} is not its box")
+                continue
+            thick = sorted(hi[k] - lo[k] for k in (u, w))
+            if abs(thick[0] - m.IRON_T) > 1e-9 or abs(thick[1] - (m.LEG if leg == "a" else m.LEG - m.IRON_T)) > 1e-9:
+                bad.append(f"{name} leg {leg} is {thick}, not {m.IRON_T} by {m.LEG}")
+            # the face the leg lies on is across `n`, at the corner's coordinate there; the brick is behind it
+            n, c, s = (w, corner[1], signs[1]) if leg == "a" else (u, corner[0], signs[0])
+            o = u if n == w else w
+            t = 0.5
+            while t < (hi[a] - lo[a]):
+                at = lo[a] + t
+                if not (free and free[0] - 0.25 < at < free[1] + 0.25):
+                    q = lo[o] + 0.25
+                    while q < hi[o]:
+                        p_in, p_out = [0.0] * 3, [0.0] * 3
+                        p_in[a] = p_out[a] = at
+                        p_in[o] = p_out[o] = q
+                        p_in[n] = c + s * (m.IRON_T + 0.1)          # just behind the leg: brick
+                        p_out[n] = c - s * 0.1                      # just outside it: open
+                        if any(inside(e, p_in) for e in own):
+                            q += 0.5                                # behind leg a's corner end lies leg b
+                            continue
+                        pts += 1
+                        if not in_brick(p_in):
+                            bad.append(f"{name} leg {leg}: no brick behind it at {[round(x, 2) for x in p_in]}")
+                        if in_brick(p_out) or not (abs((hi[n] if s < 0 else lo[n]) - c) < 1e-9):
+                            bad.append(f"{name} leg {leg}: not on its face at {[round(x, 2) for x in p_out]}")
+                        q += 0.5
+                t += 0.5
+        # the inside corner, bedded against the brick's corner
+        mid = (span[0] + span[1]) / 2 if not free else (span[0] + free[0]) / 2
+        p = [0.0] * 3
+        p[a] = mid
+        p[u] = corner[0] + signs[0] * (m.IRON_T + 0.1)
+        p[w] = corner[1] + signs[1] * (m.IRON_T + 0.1)
+        if not in_brick(p):
+            bad.append(f"{name}: its inside corner is not against brick at {p}")
+    loose = sorted(e.name for e in v.by_part["frame"] if e.name not in named)
+    if loose:
+        bad.append(f"iron that is no angle's leg: {loose}")
+    # joints: vertical angles stand on the ground; angles along x share a face with vertical angles at both ends
+    vertical = [ang for ang in m.ANGLES if ang[1] == "y"]
+    for ang in vertical:
+        if ang[2][0] > 1e-9:
+            bad.append(f"{ang[0]} does not stand on the ground")
+    for ang in m.ANGLES:
+        if ang[1] != "x":
+            continue
+        ends = set()
+        mine = [e for e in v.by_part["frame"] if e.name.startswith(ang[0] + "_")]
+        for other in vertical:
+            theirs = [e for e in v.by_part["frame"] if e.name.startswith(other[0] + "_")]
+            for e in mine:
+                for f in theirs:
+                    (alo, ahi), (blo, bhi) = e.aabb(), f.aabb()
+                    ov = [min(ahi[k], bhi[k]) - max(alo[k], blo[k]) for k in range(3)]
+                    if min(ov) > -1e-6 and sum(o > 0.05 for o in ov) >= 2:
+                        ends.add("w" if (blo[0] + bhi[0]) / 2 < (ang[2][0] + ang[2][1]) / 2 else "e")
+        if ends != {"w", "e"}:
+            bad.append(f"{ang[0]} does not join vertical angles at both ends ({sorted(ends)})")
+    for b in bad[:8]:
+        v.fail(b)
+    print(f"angles: {len(m.ANGLES)} angles of {m.IRON_T} by {m.LEG}, every one wrapping a corner of the brickwork, its legs "
+          f"flush on the corner's two faces and against brick behind ({pts} points), inside corners bedded; all the "
+          f"frame's iron is angles' legs; the bands and the sill join vertical angles at both ends")
 
 
 def check_walls(v):
@@ -458,23 +560,23 @@ def check_heap(v):
 
 
 def check_front(v):
-    """The front's walling: in each place its bricks stand in the opening between the jambs, behind their front legs,
+    """The front's walling: in each place its bricks stand in the opening between the jambs, inside the front face,
     each on the sill and the floor or on bricks of the course below; half walled is FRONT_COURSES['half'] courses,
-    walled up FRONT_COURSES['walled'], its top under the tie bar; the bottom course leaves two draught holes at the
+    walled up FRONT_COURSES['walled'], its top under the front's angle band; the bottom course leaves two draught holes at the
     floor; no two bricks overlap."""
     m = v.m
     for place in m.FRONTS[1:]:
         els = v.by_part[f"front{place}"]
         lo, hi = aabb_of(els)
-        if lo[0] < m.BAY_X[0] or hi[0] > m.BAY_X[1] or lo[2] < m.IRON_T - 0.15 or abs(lo[1] - m.FLOOR_Y) > 1e-9:
+        if lo[0] < m.BAY_X[0] or hi[0] > m.BAY_X[1] or lo[2] <= 0.0 or abs(lo[1] - m.FLOOR_Y) > 1e-9:
             v.fail(f"the {place} walling is not in the opening, on the floor: {lo}, {hi}")
         if hi[2] >= m.COURSE_FRONT[0]:
             v.fail(f"the {place} walling reaches the charge")
         courses = round((hi[1] - lo[1]) / m.BRICK_H)
         if courses != m.FRONT_COURSES[place]:
             v.fail(f"the {place} walling is {courses} courses, not {m.FRONT_COURSES[place]}")
-        if hi[1] > m.TIE_Y[0] - 0.5:
-            v.fail(f"the {place} walling reaches the tie bar")
+        if hi[1] > m.BAND_Y[0] - 0.5:
+            v.fail(f"the {place} walling reaches the front's angle band")
         loose = []
         for e in els:
             elo, ehi = e.aabb()
@@ -495,8 +597,8 @@ def check_front(v):
                 blo, bhi = b.aabb()
                 if all(alo[q] < bhi[q] - 1e-6 and blo[q] < ahi[q] - 1e-6 for q in range(3)):
                     v.fail(f"{a.name} and {b.name} overlap")
-        print(f"front {place}: {len(els)} loose bricks in {courses} courses, to {hi[1]:.1f} (the tie bar at "
-              f"{m.TIE_Y[0]}), draught holes {', '.join(f'{h:.1f}' for h in holes)} wide at the floor")
+        print(f"front {place}: {len(els)} loose bricks in {courses} courses, to {hi[1]:.1f} (the front's angle band at "
+              f"{m.BAND_Y[0]}), draught holes {', '.join(f'{h:.1f}' for h in holes)} wide at the floor")
 
 
 # ---------------------------------------------------------------- the outlet, the draught
@@ -636,6 +738,7 @@ def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
     check_stages(v)
+    check_angles(v)
     check_textures(v)
     check_containment(v)
     check_top(v)
