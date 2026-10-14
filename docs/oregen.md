@@ -167,7 +167,10 @@ builds from the seed, the same after every restart.
   before #863 widened the grades), which still stands in where the grades or the fault can't be
   read. The band starts at a height from the hash between y 4 and sea level less 6, so it lies in
   rock, leaving room for the most height it can need (all of it away from rich bands), and grows a
-  layer at a time until one of its metals (all its ores of that metal together, #946) holds the size drawn for the zone (log-linear through the
+  layer at a time until each of its metals (all its ores of that metal together) holds the size
+  drawn for the zone, the richer of two then thinned to its size by cutting its ores' density in
+  that zone (#946: the band used to stop at the first, so the other, tin beside bismuth, always
+  fell short; stopping where they average out pushed zinc and lead 30–40 % over) (log-linear through the
   metal's small, typical and large at the 10th, 50th and 90th percentile). A band taller than that
   room is the room (#943): the vein holds less than drawn. Before #943 such a vein kept IOG's whole
   column, still widened.
@@ -586,55 +589,55 @@ districts lie outside), so mafic veins were not measured here.
 
 ### Districts after #946
 
-A census (`tools/ore-survey/run.sh --census --fast --kinds districts`) of seeds 1101–1106, 640 ×
+A census (`tools/ore-survey/run.sh --census --fast --kinds districts`) of seeds 1101–1110, 640 ×
 640 chunks each, every district vein of a sized metal centred in the area (horsetail lenses left
-out), with every pinned mod: before is #943 (the census of 2026-10-13 that found the mafic and
-felsic veins wrong), after is #946. Ingots per vein, every vein (small ones too):
+out), with every pinned mod: before is #943 (the ten-seed census that found the mafic, felsic and
+granitic-deep veins wrong), after is #946. Ingots per vein, every vein (small ones too):
 
 | District, metal (small / typical / large) | Veins before → after | Before p10 / median / p90 | After p10 / median / p90 | After median ÷ typical |
 |---|---|---|---|---|
-| cold copper (150 / 400 / 1000) | 42 → 42 | 46 / 173 / 629 | 127 / 479 / 1,956 | 1.20 |
-| felsic bismuth (60 / 150 / 400) | 55 → 53 | 0 / 21 / 157 | 36 / 119 / 561 | 0.80 |
-| felsic copper (150 / 400 / 1000) | 48 → 0 | 0 / 0 / 0 | – | – |
-| felsic gold (30 / 80 / 200) | 68 → 64 | 0 / 13 / 109 | 19 / 83 / 206 | 1.03 |
-| felsic iron (150 / 400 / 1000) | 54 → 0 | 0 / 0 / 0 | – | – |
-| felsic lead (60 / 150 / 400) | 129 → 55 | 0 / 0 / 272 | 45 / 168 / 744 | 1.12 |
-| felsic silver (30 / 80 / 200) | 65 → 64 | 0 / 13 / 107 | 24 / 91 / 380 | 1.14 |
-| felsic zinc (60 / 150 / 400) | 62 → 61 | 0 / 20 / 181 | 43 / 158 / 526 | 1.06 |
-| granitic-deep bismuth (60 / 150 / 400) | 31 → 32 | 0 / 20 / 237 | 71 / 160 / 389 | 1.07 |
-| granitic-deep copper (150 / 400 / 1000) | 6 → 0 | 0 / 0 / 0 | – | – |
-| granitic-deep iron (150 / 400 / 1000) | 13 → 0 | 0 / 0 / 0 | – | – |
-| granitic-deep lead (60 / 150 / 400) | 47 → 33 | 0 / 11 / 223 | 68 / 142 / 396 | 0.95 |
-| granitic-deep tin (60 / 150 / 400) | 32 → 30 | 0 / 18 / 305 | 38 / 97 / 920 | 0.65 |
-| granitic-deep zinc (60 / 150 / 400) | 34 → 34 | 0 / 81 / 447 | 68 / 190 / 464 | 1.27 |
+| cold copper (150 / 400 / 1000) | 58 → 56 | 46 / 199 / 680 | 127 / 479 / 2,656 | 1.20 |
+| felsic bismuth (60 / 150 / 400) | 90 → 87 | 0 / 22 / 157 | 39 / 152 / 561 | 1.01 |
+| felsic copper (150 / 400 / 1000) | 61 → 0 | 0 / 0 / 0 | – | – |
+| felsic gold (30 / 80 / 200) | 101 → 94 | 0 / 11 / 109 | 26 / 83 / 211 | 1.03 |
+| felsic iron (150 / 400 / 1000) | 79 → 0 | 0 / 0 / 0 | – | – |
+| felsic lead (60 / 150 / 400) | 212 → 93 | 0 / 0 / 264 | 37 / 166 / 990 | 1.11 |
+| felsic silver (30 / 80 / 200) | 105 → 103 | 0 / 14 / 152 | 24 / 104 / 380 | 1.29 |
+| felsic zinc (60 / 150 / 400) | 98 → 97 | 0 / 29 / 316 | 52 / 208 / 524 | 1.39 |
+| granitic-deep bismuth (60 / 150 / 400) | 50 → 50 | 0 / 20 / 261 | 60 / 132 / 447 | 0.88 |
+| granitic-deep copper (150 / 400 / 1000) | 8 → 0 | 0 / 0 / 0 | – | – |
+| granitic-deep iron (150 / 400 / 1000) | 20 → 0 | 0 / 0 / 0 | – | – |
+| granitic-deep lead (60 / 150 / 400) | 68 → 50 | 0 / 19 / 246 | 51 / 137 / 422 | 0.91 |
+| granitic-deep tin (60 / 150 / 400) | 53 → 50 | 0 / 18 / 341 | 60 / 124 / 915 | 0.82 |
+| granitic-deep zinc (60 / 150 / 400) | 49 → 49 | 0 / 74 / 447 | 70 / 207 / 472 | 1.38 |
 | mafic chromium (60 / 150 / 400) | 2 → 2 | 121 / 202 / 202 | 121 / 202 / 202 | 1.35 |
-| mafic copper (150 / 400 / 1000) | 19 → 18 | 0 / 10 / 110 | 146 / 496 / 1,137 | 1.24 |
-| mafic iron (150 / 400 / 1000) | 22 → 21 | 8 / 38 / 236 | 216 / 737 / 1,372 | 1.84 |
-| mafic lead (60 / 150 / 400) | 20 → 17 | 0 / 15 / 89 | 52 / 190 / 2,389 | 1.27 |
-| mafic nickel (60 / 150 / 400) | 22 → 21 | 0 / 20 / 96 | 87 / 196 / 548 | 1.30 |
-| mafic platinum (60 / 150 / 400) | 16 → 15 | 0 / 9 / 49 | 36 / 90 / 437 | 0.60 |
+| mafic copper (150 / 400 / 1000) | 32 → 31 | 0 / 12 / 92 | 110 / 313 / 1,197 | 0.78 |
+| mafic iron (150 / 400 / 1000) | 36 → 35 | 0 / 32 / 228 | 117 / 482 / 1,362 | 1.21 |
+| mafic lead (60 / 150 / 400) | 35 → 31 | 0 / 8 / 50 | 28 / 237 / 1,424 | 1.58 |
+| mafic nickel (60 / 150 / 400) | 35 → 34 | 0 / 13 / 96 | 60 / 162 / 602 | 1.08 |
+| mafic platinum (60 / 150 / 400) | 23 → 22 | 0 / 10 / 38 | 38 / 112 / 256 | 0.75 |
 
 - Felsic and granitic-deep copper and iron are gone: their ores never placed (IOG's config, above),
-  and the zones' blocks go to the ores that do. Felsic lead went from 129 veins to 55 for the same
+  and the zones' blocks go to the ores that do. Felsic lead went from 212 veins to 93 for the same
   reason (cerussite and wulfenite name basalt; only galena places).
 - The estimate is unbiased: matching each vein's estimate (the debug log's `the band holds N by
-  the estimate`) to its census, the veins that reached their drawn size measure 1.00–1.03 times
-  their estimate at the median (621 veins); 1.15–1.30 before the fault rock was counted at depth
-  (IOG's rays fill a slanted fault's gaps), and ore shoots counted whole or as their fault's width ×
-  4r/3 before that.
-- What is left off typical is mostly the sizes drawn: about 20 veins per district type and metal
-  draw their median within ±23 % of typical one time in three (the drawn sizes spread
-  log-normally from small to large), and flood merges (veins of one metal along one fault, which a
-  player would find as one deposit). Mafic iron's 21 veins drew a median of 693 against 400, and
-  they measure 1.19 times their estimate, two iron ores (magnetite and pyrite, or limonite) to many
-  of its zones and a merge or two. Granitic-deep tin drew 124 and six of 35 were cut to the room.
+  the estimate`) to its census, every district type and metal holds its draw (1.00 at the median)
+  and measures 1.01–1.16 times its estimate (about 900 veins); 1.15–1.30 before the fault rock was
+  counted at depth (IOG's rays fill a slanted fault's gaps), and ore shoots counted whole or as
+  their fault's width × 4r/3 before that.
+- Two sized metals in one vein (tin and bismuth, gold and lead, copper and iron): the band grows
+  until the poorer holds its size and the richer one's ore is thinned to its own. Stopping at the
+  first left the other short (granitic-deep tin 0.65 of typical); stopping where they average out
+  pushed zinc and lead 30–40 % over.
+- What is over typical (felsic silver and zinc, granitic-deep zinc, mafic lead) is the census
+  joining veins of one metal along one fault into one deposit, as a player would find them: their
+  veins hold their draws one by one. The sizes drawn also scatter: about 50 veins per district type
+  and metal draw their median within ±16 % of typical two times in three.
 - Platinum (mafic) is a sliver of its zones (nativeplatinum and sperrylite weigh 0.0325 against
-  1.0 for copper and iron): 11 of its 17 veins are cut to the room under sea level even at the
+  1.0 for copper and iron): 16 of its 24 veins are cut to the room under sea level even at the
   widest shape, and hold 0.78 of their draw at the median.
-- p10 is under small for felsic bismuth, gold, silver and zinc: the census counts a vein's ore in
-  fragments of 100 blocks or more, and a vein cut to the room in a thin shoot is ore in specks.
-- Sizing a district takes 29–633 ms, median 194, over the census's 93 districts (the log's `sized in`),
-  once per district per run.
+- Sizing a district takes 31–877 ms, median 193, over the census's 139 districts (the log's
+  `sized in`), once per district per run.
 
 ### Open
 

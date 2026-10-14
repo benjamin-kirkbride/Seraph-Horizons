@@ -4945,7 +4945,8 @@ fixed at creation. The server log says what the world has
   about four times closer (its width, and so the fault rock, is kept). A shoot still too thin for
   the room (its band would be the room and short of its size) takes the first of four wider
   shapes, 8 to 64 times IOG's area split between strike and across to hold the most fault
-  rock, whose band holds its size (#946). A horsetail lens of gold or silver, which has no band, is
+  rock, whose band holds its size (#946). A vein of two sized metals grows until the poorer holds its
+  size, and the richer one's ore is thinned to its own. A horsetail lens of gold or silver, which has no band, is
   grown to four times its ore: twice IOG's radii both ways (its ore is the disc where it crosses its
   one-block fracture), or, where the predicted strata at it are mostly the host rock, twice its
   horizontal radius (the whole spheroid is ore). `gradeAllowance` went from 1.15 to 1.25

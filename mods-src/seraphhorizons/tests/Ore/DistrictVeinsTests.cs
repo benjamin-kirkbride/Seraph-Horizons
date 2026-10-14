@@ -299,6 +299,27 @@ public class DistrictVeinsTests
         }
     }
 
+    // #946: a vein of two sized metals, one richer a block than the other, grows to the poorer's size
+    // and thins the richer one's ore to its own (both share the zone's draw).
+    [Fact]
+    public void TwoMetalsInAVeinEachHoldTheirSize()
+    {
+        var zones = Enumerable.Range(0, 8).Select(_ => Shoot(Ore("tin", ingots: 0.4), Ore("bismuth", ingots: 0.1))).ToList();
+        foreach (var p in Rules.Plan(3, zones, 110))
+        {
+            Assert.True(p.Held >= p.Drawn * 0.9, "cut to the room");
+            int h = p.BandMax!.Value - p.BandMin!.Value + 1;
+            double layer = 100 * 0.35 * 0.1;
+            Assert.InRange(h * layer, p.Drawn - layer, p.Drawn + layer);
+            Assert.NotNull(p.Thin);
+            Assert.InRange(p.Thin![0], 0.2, 0.3);
+            Assert.Equal(1.0, p.Thin[1]);
+            Assert.InRange(h * 100 * 0.35 * 0.4 * p.Thin[0], p.Drawn * 0.9, p.Drawn * 1.1);
+        }
+        // One metal: nothing thinned.
+        Assert.All(Rules.Plan(3, Enumerable.Range(0, 8).Select(_ => Shoot(Ore("tin"))).ToList(), 110), p => Assert.Null(p.Thin));
+    }
+
     // #946: an ore that places nothing (density 0: its code names no block in the host rock) is
     // taken out of its zone by the game side, so the ores that place hold all its blocks.
     [Fact]

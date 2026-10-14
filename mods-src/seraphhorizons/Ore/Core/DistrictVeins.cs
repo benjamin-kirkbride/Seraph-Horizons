@@ -47,9 +47,11 @@ public sealed record DistrictZone(DistrictZoneKind Kind, IReadOnlyList<DistrictO
 /// to its <see cref="DistrictZone.Widening"/> if <paramref name="Widen"/>. A banded vein also
 /// carries the size drawn for it and the ingots its band holds by the estimate (the ore that
 /// reached its size first; less than drawn where the band is the whole room), and which of the
-/// zone's <see cref="DistrictZone.Wider"/> shapes it takes (0: none, its own widening; i: the i-th).</summary>
+/// zone's <see cref="DistrictZone.Wider"/> shapes it takes (0: none, its own widening; i: the i-th),
+/// and, for a vein of two sized metals, the factor each ore's density is cut by so the richer metal
+/// holds its own size while the band grows to the poorer's (null: none cut).</summary>
 public sealed record DistrictZonePlan(bool Keep, IReadOnlyList<bool> OreKept, int? BandMin, int? BandMax, bool Widen = false,
-    double Drawn = 0, double Held = 0, int Wider = 0)
+    double Drawn = 0, double Held = 0, int Wider = 0, IReadOnlyList<double>? Thin = null)
 {
     public static DistrictZonePlan Unchanged(int ores) => new(true, Enumerable.Repeat(true, ores).ToArray(), null, null);
 }
@@ -100,8 +102,9 @@ public sealed record DistrictVeinSettings(int VeinsPerMetal, IReadOnlyCollection
 /// the poorest grade), or the poorest grade's times the grade allowance where either is unknown.
 /// The band starts at a height from the hash between <see cref="DistrictVeinSettings.BandFloor"/>
 /// and sea level less <see cref="DistrictVeinSettings.BandBelowSeaLevel"/>, so that it lies in
-/// rock, room left for the most height it can need, and grows a layer at a time until one of its
-/// metals (its ores of that metal together, #946) holds the zone's drawn size (<see cref="DrawSize"/>: small, typical and large are the 10th,
+/// rock, room left for the most height it can need, and grows a layer at a time until each of its
+/// metals (its ores of that metal together) holds the zone's drawn size, the richer of two then
+/// thinned to its size (<see cref="DistrictZonePlan.Thin"/>, #946) (<see cref="DrawSize"/>: small, typical and large are the 10th,
 /// 50th and 90th percentile, as the epic reads them). A band taller than that room is the room
 /// (#943): the vein holds less than drawn.</item>
 /// </list>
@@ -184,16 +187,16 @@ public sealed class DistrictVeins
                     wider = o + 1;
                     if (band.Full) break;
                 }
-            plans[i] = new DistrictZonePlan(true, kept[i], band.Min, band.Max, widen, band.Drawn, band.Held, wider);
+            plans[i] = new DistrictZonePlan(true, kept[i], band.Min, band.Max, widen, band.Drawn, band.Held, wider, band.Thin);
         }
         return plans;
     }
 
-    private (int? Min, int? Max, double Drawn, double Held, bool Full) Band(long districtSeed, int index, DistrictZone zone, bool[] kept, int seaLevel, double widening)
+    private (int? Min, int? Max, double Drawn, double Held, bool Full, double[]? Thin) Band(long districtSeed, int index, DistrictZone zone, bool[] kept, int seaLevel, double widening)
     {
         // An ore that places nothing is taken out of the zone (#946): the rest share its blocks.
         double totalWeight = zone.Ores.Where(o => o.Density > 0).Sum(o => o.Weight);
-        if (totalWeight <= 0 || zone.BlocksPerLayer <= 0 && zone.CountryBlocks <= 0) return (null, null, 0, 0, true);
+        if (totalWeight <= 0 || zone.BlocksPerLayer <= 0 && zone.CountryBlocks <= 0) return (null, null, 0, 0, true, null);
         double u = Unit(Hash(districtSeed, "size", index));
                 int lo = Math.Max(zone.YMin, _settings.BandFloor);
         int hi = Math.Min(zone.YMax, seaLevel - _settings.BandBelowSeaLevel);
@@ -201,7 +204,7 @@ public sealed class DistrictVeins
         // Each sized metal: its drawn size and the ingots a layer of the vein holds of it, the sum
         // over its ores (a zone can draw two ores of one metal, magnetite and pyrite, which together
         // are the vein's iron, #946).
-        var layers = new Dictionary<string, (double Size, List<Func<int, double>> Ores)>(StringComparer.Ordinal);
+        var layers = new Dictionary<string, (double Size, List<Func<int, double>> Ores, List<int> Index)>(StringComparer.Ordinal);
         for (int j = 0; j < zone.Ores.Count; j++)
         {
             var ore = zone.Ores[j];
@@ -211,23 +214,24 @@ public sealed class DistrictVeins
             Func<int, double> ingots = ore.GradeIngots is { Count: > 0 } grades && zone.Richness is { Count: > 0 } richness
                 ? y => ExpectedIngots(grades, richness[Math.Clamp(y, 0, richness.Count - 1)])
                 : _ => ore.IngotsPerBlock * _settings.GradeAllowance;
-            if (!layers.TryGetValue(metal, out var entry)) layers[metal] = entry = (DrawSize(targets, u), []);
+            if (!layers.TryGetValue(metal, out var entry)) layers[metal] = entry = (DrawSize(targets, u), [], []);
             entry.Ores.Add(y => zone.HostBlocksAt(y) * share * ingots(y));
+            entry.Index.Add(j);
         }
-        var sized = new List<(double Size, Func<int, double> Layer, double Least)>();
-        foreach (var (size, ores) in layers.Values)
+        var sized = new List<(double Size, Func<int, double> Layer, double Least, List<int> Index)>();
+        foreach (var (size, ores, idx) in layers.Values)
         {
             Func<int, double> layer = y => ores.Sum(o => o(y));
             double least = LeastLayer(layer, lo, hi);
-            if (least > 0) sized.Add((size, layer, least));
+            if (least > 0) sized.Add((size, layer, least, idx));
         }
-        if (sized.Count == 0) return (null, null, 0, 0, true);
+        if (sized.Count == 0) return (null, null, 0, 0, true, null);
         // Placed by the height it needs at its poorest layer (away from any rich band, IOG's grades
         // at richness 0, and where the least of its country rock is host rock), which is the most it
         // can need; then grown layer by layer from there, by each layer's host rock and expected
         // grade, until an ore reaches its drawn size (#943, #946). A band taller than the room is
         // the room: the vein holds less than drawn, never IOG's whole column.
-        double most = sized.Min(o => o.Size / o.Least);
+        double most = sized.Max(o => o.Size / o.Least);
         int room = hi - lo + 1;
         int placed = Math.Clamp((int)Math.Round(most), 1, room);
         int start = lo + (int)(Unit(Hash(districtSeed, "height", index)) * (room + 1 - placed));
@@ -238,19 +242,36 @@ public sealed class DistrictVeins
         for (int y = start; y <= hi; y++)
         {
             end = y;
+            // A vein of two sized metals (tin and bismuth) grows until the poorer holds its size
+            // too; the richer one's ore is then thinned to its own (#946). Rounded to the nearest
+            // layer, as a height of size / ingots per layer would be.
+            bool all = true;
             for (int k = 0; k < sized.Count; k++)
             {
                 double layer = sized[k].Layer(y);
                 held[k] += layer;
-                // Rounded to the nearest layer, as a height of size / ingots per layer would be.
-                if (held[k] >= sized[k].Size - layer / 2) full = true;
+                if (held[k] < sized[k].Size - layer / 2) all = false;
             }
-            if (full) break;
+            if (all)
+            {
+                full = true;
+                break;
+            }
         }
-        // The metal nearest its drawn size reports: the one that filled the band, or in a band that is
-        // the whole room the one that came closest.
-        int best = Enumerable.Range(0, sized.Count).MaxBy(k => held[k] / sized[k].Size);
-        return (start, end, sized[best].Size, held[best], full);
+        // Each metal over its size has its ores' density cut to hold just that: IOG then places that
+        // share of the blocks it drew for them, and the rest stay rock.
+        double[]? thin = null;
+        for (int k = 0; k < sized.Count; k++)
+        {
+            if (held[k] <= sized[k].Size * 1.05) continue;
+            thin ??= Enumerable.Repeat(1.0, zone.Ores.Count).ToArray();
+            foreach (int j in sized[k].Index) thin[j] = sized[k].Size / held[k];
+            held[k] = sized[k].Size;
+        }
+        // Reported as the metals' geometric means: the size drawn and the ingots held.
+        double drawn = Math.Exp(sized.Average(o => Math.Log(o.Size)));
+        double holds = Math.Exp(Enumerable.Range(0, sized.Count).Average(k => Math.Log(Math.Max(1e-12, held[k]))));
+        return (start, end, drawn, holds, full, thin);
     }
 
     // The least ingots a layer of an ore holds over the room: at the room's least richness and

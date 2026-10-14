@@ -148,7 +148,7 @@ public static class DistrictVeinSizes
         var assignmentType = AssignmentType!;
         var kept = new List<object>(zones.Count);
         var before = Tally(rules, views, null);
-        int removed = 0, inHost = 0, lensesWidened = 0;
+        int removed = 0, inHost = 0, lensesWidened = 0, thinned = 0;
         for (int i = 0; i < zones.Count; i++)
         {
             var zone = zones[i]!;
@@ -167,7 +167,19 @@ public static class DistrictVeinSizes
                 }
                 if (plan.OreKept[j])
                 {
-                    placing.Add(ores[j]!);
+                    // The richer metal of a two-metal vein, thinned to its own size (#946): a copy
+                    // (IOG shares an ore's assignment between its zones) at the cut density.
+                    if (plan.Thin is { } thin && thin[j] < 1)
+                    {
+                        var copy = Activator.CreateInstance(assignmentType)!;
+                        foreach (var f in AccessTools.GetDeclaredFields(assignmentType).Where(f => !f.IsStatic))
+                            f.SetValue(copy, f.GetValue(ores[j]));
+                        var d = Traverse.Create(copy).Field("Density");
+                        d.SetValue((float)(d.GetValue<float>() * thin[j]));
+                        placing.Add(copy);
+                        thinned++;
+                    }
+                    else placing.Add(ores[j]!);
                     continue;
                 }
                 var none = Activator.CreateInstance(assignmentType)!;
@@ -220,7 +232,7 @@ public static class DistrictVeinSizes
         int roomed = banded.Count(p => p.Held < p.Drawn * 0.9);
         var ratios = banded.Select(p => p.Held / p.Drawn).Order().ToList();
         string sizing = banded.Count == 0 ? "no vein banded"
-            : $"{banded.Count} veins banded, {banded.Count(p => p.Wider > 0)} of them wider, {roomed} cut to the room under their drawn size (median holds {ratios[ratios.Count / 2]:P0} of drawn); sized in {clock.ElapsedMilliseconds} ms";
+            : $"{banded.Count} veins banded, {banded.Count(p => p.Wider > 0)} of them wider, {thinned} ores thinned to their metal's size, {roomed} cut to the room under their drawn size (median holds {ratios[ratios.Count / 2]:P0} of drawn); sized in {clock.ElapsedMilliseconds} ms";
         sapi.Logger.Notification("[seraphhorizons] Smaller deposits: district '{0}' at ({1}, {2}), host {6}: {3} of {4} ore zones kept, {7} ores that place nothing in {6} taken out; veins per metal {5}; {9}; {8}",
             code, centre.X, centre.Y, kept.Count, views.Count,
             string.Join(", ", after.Select(kv => $"{kv.Key} {kv.Value} (was {before.GetValueOrDefault(kv.Key)})")),
