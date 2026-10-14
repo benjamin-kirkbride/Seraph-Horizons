@@ -237,13 +237,14 @@ def check_top(v):
 
 
 def side_leg(e):
-    """Whether e is a corner angle's leg (flush in the side face at the corner, so a row's walls still meet)."""
-    return e.name.startswith("fr_angle_")
+    """Whether e is a corner angle's leg or a side band's leg down the side face (flush in it, so a row's walls still
+    meet)."""
+    return re.match(r"^fr_(angle_|band_[we]_face)", e.name) is not None
 
 
 def check_sides(v):
     """Furnaces tile into a row: each side face is flush, plain brick over its whole area (sampled every half voxel)
-    but for the corner angles' side legs, flush in it; nothing but that brick and those legs reaches either side plane,
+    but for the corner angles' side legs and the side bands' legs, flush in it; nothing but that brick and those legs reaches either side plane,
     of any part at any depth; two furnaces side by side (one moved a furnace's width along x) touch nowhere but at their
     shared walls (and their corner angles' side legs, face to face), over the door's travel."""
     m = v.m
@@ -263,7 +264,7 @@ def check_sides(v):
                 z += 0.5
             y += 0.5
     if bad:
-        v.fail(f"the side faces are not plain brick or the angles' side legs at {len(bad)} of {n} points, e.g. {bad[:4]}")
+        v.fail(f"the side faces are not plain brick or the angles' legs at {len(bad)} of {n} points, e.g. {bad[:4]}")
     reach = set()
     for dp in depths(0.1):
         for pid in v.by_part:
@@ -291,8 +292,8 @@ def check_sides(v):
                     hits += 1
     if hits:
         v.fail(f"two furnaces side by side run into each other ({hits} pairs)")
-    print(f"sides: plain brick at {n - len(bad) - legs} of {n} points on the two side faces, the corner angles' side legs "
-          f"flush at the other {legs}; nothing else reaches them; two furnaces side by side clear of each other but at "
+    print(f"sides: plain brick at {n - len(bad) - legs} of {n} points on the two side faces, the corner angles' and the "
+          f"side bands' legs flush at the other {legs}; nothing else reaches them; two furnaces side by side clear of each other but at "
           "the shared walls")
 
 
@@ -345,17 +346,36 @@ def check_binding(v):
     if worst:
         v.fail(f"angle legs not bedded on brick: {worst[:4]}")
     angles = {name: legs for name, legs, _ in m.binding_angles()}
+
+    def meet(a, b):
+        return any(all(p[0][q] <= c[1][q] + 1e-9 and c[0][q] <= p[1][q] + 1e-9 for q in range(3)) for p in a for c in b)
     for face in ("n", "s"):
-        band = angles[f"fr_band_{face}"]
         for side in ("w", "e"):
             corner = angles[f"fr_angle_{face}{side}"]
-            if not any(all(b[0][q] <= c[1][q] + 1e-9 and c[0][q] <= b[1][q] + 1e-9 for q in range(3)) for b in band for c in corner):
-                v.fail(f"the {face} band does not reach the {side} corner angle")
+            for band in (f"fr_band_{face}", f"fr_band_{side}"):
+                if not meet(angles[band], corner):
+                    v.fail(f"{band} does not reach the {face}{side} corner angle")
+            if not meet(angles[f"fr_band_{face}"], angles[f"fr_band_{side}"]):
+                v.fail(f"the {face} and {side} bands do not meet at the top corner")
+    # one frame: every binder's piece (as drawn, after the block split) joined to every other through pieces it
+    # touches, no gap and no loose end
+    pieces = [e.aabb() for e in binders]
+    seen, todo = {0}, [0]
+    while todo:
+        i = todo.pop()
+        for j, b in enumerate(pieces):
+            if j not in seen and meet([pieces[i]], [b]):
+                seen.add(j)
+                todo.append(j)
+    if len(seen) != len(pieces):
+        loose = sorted({binders[j].name for j in range(len(pieces)) if j not in seen})
+        v.fail(f"the binding is not one frame: {loose[:6]} not joined to the rest")
     straps = [e.name for e in frame if re.match(r"^fr_(strap|kerb)", e.name)]
     if straps:
         v.fail(f"flat straps in the binding: {straps}")
-    print(f"binding: {len(angles)} angles (4 corner angles, 2 top bands), legs {m.ANGLE_T} thick and {m.ANGLE_LEG} wide, "
-          f"each flush with its two faces and bedded on brick ({n} points); the bands joining the corner angles")
+    print(f"binding: {len(angles)} angles (4 corner angles, 4 top bands), legs {m.ANGLE_T} thick and {m.ANGLE_LEG} wide, "
+          f"each flush with its two faces and bedded on brick ({n} points); each band meeting both its corner angles and "
+          f"the bands beside it, the {len(pieces)} pieces one frame")
 
 
 def check_walls(v):
@@ -810,7 +830,7 @@ def check_damper(v):
 def check_outlet(v):
     """The outlet: open, its mouth clear to the sky through the stack; capped, a flat iron plate flush with the top in
     the curb's seat, covering the stack's mouth; the curb, the lining's refractory brick, a rim round the cap (sampled
-    every voxel) and a ledge under its edge all round."""
+    every half voxel) and a ledge under its edge all round."""
     m = v.m
     cap = aabb_of(v.by_part["outletcap"])
     (cx0, cx1), _, (cz0, cz1) = m.CURB
@@ -819,15 +839,55 @@ def check_outlet(v):
         v.fail(f"the cap is not flush in the curb's seat: {cap}")
     lining = v.by_part["lining"]
     (sx0, sx1), _, (sz0, sz1) = m.STACK
-    rim = [(x + 0.25, m.FLOOR_TOP - 0.25, z + 0.25) for x in range(int(cx0), int(cx1)) for z in range(int(cz0), int(cz1))
-           if not (cx0 + r <= x + 0.25 <= cx1 - r and cz0 + r <= z + 0.25 <= cz1 - r)]
-    ledge = [(x + 0.25, m.CAP_Y[0] - 0.1, z + 0.25) for x in range(int(cx0 + r), int(cx1 - r)) for z in range(int(cz0 + r), int(cz1 - r))
-             if not (sx0 <= x + 0.25 <= sx1 and sz0 <= z + 0.25 <= sz1)]
+    def halves(a0, a1):
+        return [a0 + 0.25 + 0.5 * k for k in range(int(round((a1 - a0) * 2)))]
+    rim = [(x, m.FLOOR_TOP - 0.25, z) for x in halves(cx0, cx1) for z in halves(cz0, cz1)
+           if not (cx0 + r <= x <= cx1 - r and cz0 + r <= z <= cz1 - r)]
+    ledge = [(x, m.CAP_Y[0] - 0.1, z) for x in halves(cx0 + r, cx1 - r) for z in halves(cz0 + r, cz1 - r)
+             if not (sx0 <= x <= sx1 and sz0 <= z <= sz1)]
     missing = [p for p in rim + ledge if not any(inside(e, p) for e in lining)]
     if missing:
         v.fail(f"the curb is not the lining's brick at {len(missing)} points, e.g. {missing[:3]}")
     if not (cap[0][0] < sx0 and cap[1][0] > sx1 and cap[0][2] < sz0 and cap[1][2] > sz1):
         v.fail("the cap does not cover the stack's mouth")
+    # the opening, measured from the elements (not the constants): just under the cap's seat and at the bottom of the
+    # stack, the clear span through its middle along x and along z. It must be square, STACK_SIDE across (the crucible
+    # furnace's flue, which the chimney's shaft stands on), and centred under the chimney's line, the outlet cell's
+    # middle; the curb square and centred with it.
+    solid = static(v)
+    line = v.rig["chimney"]["origin"]
+    cx, cz = line[0] * m.B, line[2] * m.B
+    oc = m.outlet_cell()
+    if abs(cx - (oc[0] + 0.5) * m.B) > 1e-6 or abs(cz - (oc[2] + 0.5) * m.B) > 1e-6:
+        v.fail(f"the chimney's line ({cx}, {cz}) is not over the outlet cell's middle")
+
+    def span(y, axis):
+        ends = []
+        for sign in (-1, 1):
+            t = 0.0
+            while t < m.B:
+                p = [cx, y, cz]
+                p[axis] += sign * (t + 0.0625)
+                if any(inside(e, p) for e in solid):
+                    break
+                t += 0.125
+            ends.append(p[axis] - sign * 0.0625)
+        return ends
+    measured = []
+    for y in (m.CAP_Y[0] - 0.25, m.STACK[1][0] + 3.5, (m.STACK[1][0] + m.FLOOR_TOP) / 2):
+        (ax0, ax1), (az0, az1) = span(y, 0), span(y, 2)
+        measured.append((y, ax1 - ax0, az1 - az0))
+        if abs((ax1 - ax0) - m.STACK_SIDE) > 0.13 or abs((az1 - az0) - m.STACK_SIDE) > 0.13:
+            v.fail(f"the flue at y {y} is {ax1 - ax0:.2f} by {az1 - az0:.2f}, not {m.STACK_SIDE} square")
+        if abs((ax0 + ax1) / 2 - cx) > 0.07 or abs((az0 + az1) / 2 - cz) > 0.07:
+            v.fail(f"the flue at y {y} is not centred under the chimney's line: x {ax0}..{ax1}, z {az0}..{az1}")
+    if abs((cx0 + cx1) / 2 - cx) > 1e-6 or abs((cz0 + cz1) / 2 - cz) > 1e-6 or abs((cx1 - cx0) - (cz1 - cz0)) > 1e-6:
+        v.fail("the curb is not square and centred under the chimney's line")
+    if abs(cap[1][0] - cap[0][0] - (cap[1][2] - cap[0][2])) > 1e-6:
+        v.fail("the cap is not square")
+    print(f"outlet: the flue square and centred under the chimney's line (x {cx}, z {cz}): "
+          + ", ".join(f"{a:.2f} by {b:.2f} at y {y}" for y, a, b in measured)
+          + f" (the crucible furnace's {m.STACK_SIDE}); the curb {cx1 - cx0} square round it")
     print(f"outlet: open to the sky through the stack; capped by a plate flush in the curb's seat "
           f"({cap[1][0] - cap[0][0]:.0f} by {cap[1][2] - cap[0][2]:.0f}, {m.CAP_Y[1] - m.CAP_Y[0]} thick), over the "
           f"stack's mouth; the curb the lining's brick, rim and ledge ({len(rim) + len(ledge)} points)")
@@ -873,7 +933,7 @@ def check_draught(v):
         chamber.append((xm, min(m.plate_top(z) + 2.5, m.SPRING - 0.5) if z < m.HANG_Z[0] else (m.plate_top(z) + m.HANG_FOOT) / 2 + 1.0, z))
         chamber.append((10.5, m.plate_top(z) + 2.2, z))
     chamber += [(xm, (m.plate_top(m.HANG_Z[0]) + m.HANG_FOOT) / 2 + 1.0, z) for z in (m.HANG_Z[0] + 0.5, m.HANG_Z[1] - 0.5)]
-    chamber += [(sx, 20.0, z) for z in (m.HANG_Z[1] + 0.5, sz)]
+    chamber += [((sx0 + m.IN_X[1]) / 2, 21.0, z) for z in (m.HANG_Z[1] + 0.5, sz)]
     blocked = [p for p in fire + chamber if not empty(v, p, m.SHUT)]
     if blocked:
         v.fail(f"the draught's way is blocked at {blocked[:5]}")
@@ -1136,6 +1196,9 @@ def validate_files(m, shape, frame_shape, ship):
         fail("the chimney's line does not stand on the outlet")
     if not (out[0] <= line["origin"][0] <= out[0] + 1 and out[2] <= line["origin"][2] <= out[2] + 1):
         fail("the chimney's line is not over the outlet")
+    sx, sz = (m.STACK[0][0] + m.STACK[0][1]) / 2 / m.B, (m.STACK[2][0] + m.STACK[2][1]) / 2 / m.B
+    if any(abs(a - b) > 1e-9 for a, b in ((line["origin"][0], out[0] + 0.5), (line["origin"][2], out[2] + 0.5), (sx, out[0] + 0.5), (sz, out[2] + 0.5))):
+        fail("the chimney's line and the stack's square mouth are not both centred on the outlet's cell")
     front = [ship[k]["pos"] for k in ("pot", "spout", "opening")]
     if any(not (0.0 <= p[2] <= 1.0) for p in front):
         fail("the pot, the spout and the opening are not in the front row")

@@ -205,7 +205,8 @@ class Furnace(unittest.TestCase):
         self.assertEqual((line["axis"], line["length"]), ("y", 6.0))
         self.assertAlmostEqual(line["origin"][1] - line["length"] / 2, 2.0)
         self.assertAlmostEqual(line["origin"][1] + line["length"] / 2, 8.0)
-        self.assertTrue(1.0 <= line["origin"][0] <= 2.0 and 1.0 <= line["origin"][2] <= 2.0)
+        # centred on the outlet's cell, as the crucible furnace's is: the chimney stands on that cell's middle
+        self.assertEqual((line["origin"][0], line["origin"][2]), (1.5, 1.5))
         self.assertEqual(RIG["furnace"]["minChimney"], 6)
         self.assertEqual((RIG["furnace"]["rowMax"], RIG["furnace"]["rowAxis"]), (5, "x"))
 
@@ -214,19 +215,40 @@ class Furnace(unittest.TestCase):
         for x0, x1 in (m.IN_X, m.NICHE[0], m.SPOUT_GAP, m.FIRE_HOLE[0], m.ASH_MOUTH[0], m.DOOR_RECESS[0]):
             self.assertAlmostEqual(x0 + x1, m.W)
         self.assertAlmostEqual(m.POT_C[0], m.W / 2)
-        # the stack's mouth inside the outlet's cell, the east one
+        # the stack's mouth inside the outlet's cell, the east one, square and centred in it (under the chimney)
         self.assertTrue(16.0 <= m.STACK[0][0] and m.STACK[0][1] <= 32.0 and 16.0 <= m.STACK[2][0] and m.STACK[2][1] <= 32.0)
+        self.assertEqual((m.STACK[0], m.STACK[2]), ((20.0, 28.0), (20.0, 28.0)))
+        self.assertEqual((m.CURB[0], m.CURB[2]), ((18.5, 29.5), (18.5, 29.5)))
+
+    def test_the_outlet_is_square_under_the_chimney(self):
+        # from the written shape: just under the cap's seat and down the stack, the flue is open over the 8 by 8 square
+        # centred on the outlet cell's middle (x 24, z 24, the chimney's line) and closed just outside it, as the
+        # crucible furnace's stack (8 square, centred under its chimney) is
+        solid = [e for e in FLAT if not e.name.startswith("outletcap")]
+
+        def filled(p):
+            return any(all(lo[k] < p[k] < hi[k] for k in range(3)) for lo, hi in (e.aabb() for e in solid))
+        cx, cz = RIG["chimney"]["origin"][0] * 16.0, RIG["chimney"]["origin"][2] * 16.0
+        self.assertEqual((cx, cz), (24.0, 24.0))
+        for y in (31.25, 28.0, 24.0):
+            for t in [k * 0.5 - 3.75 for k in range(16)]:
+                for p in ((cx + t, y, cz - 3.75), (cx + t, y, cz + 3.75), (cx - 3.75, y, cz + t), (cx + 3.75, y, cz + t), (cx + t, y, cz + t)):
+                    self.assertFalse(filled(p), p)
+                for p in ((cx + t, y, cz - 4.25), (cx + t, y, cz + 4.25), (cx - 4.25, y, cz + t), (cx + 4.25, y, cz + t)):
+                    self.assertTrue(filled(p), p)
 
     def test_side_faces_are_plain_brick_for_a_row(self):
-        # nothing but brick, and the corner angles' legs flush at the corners, reaches the side planes, and nothing
-        # passes them, so furnaces stand side by side, walls meeting
+        # nothing but brick, and the corner angles' and the side bands' legs flush (at the corners, along the top),
+        # reaches the side planes, and nothing passes them, so furnaces stand side by side, walls meeting
         for el in FLAT:
             lo, hi = el.aabb()
             self.assertTrue(lo[0] > -1e-6 and hi[0] < 32.0 + 1e-6, el.name)
             if lo[0] < 1e-6 or hi[0] > 32.0 - 1e-6:
-                self.assertTrue(el.name.startswith(("bk_brick", "fr_angle_")), el.name)
+                self.assertTrue(el.name.startswith(("bk_brick", "fr_angle_", "fr_band_w_face", "fr_band_e_face")), el.name)
                 if el.name.startswith("fr_angle_"):
                     self.assertTrue(lo[2] < 2.5 + 1e-6 or hi[2] > 29.5 - 1e-6, el.name)          # at a corner
+                if el.name.startswith("fr_band_"):
+                    self.assertGreaterEqual(lo[1], 32.0 - 2.5 - 1e-6, el.name)                    # along the top
 
     def test_the_binding_is_angle_iron_wrapping_the_corners(self):
         # every corner binder and top band is an angle: two legs about a voxel thick, 2 to 3 wide, meeting along the
@@ -242,7 +264,8 @@ class Furnace(unittest.TestCase):
         angles = {}
         for base, box in legs.items():
             angles.setdefault(base.rsplit("_", 1)[0], []).append(box)
-        self.assertEqual(sorted(angles), ["fr_angle_ne", "fr_angle_nw", "fr_angle_se", "fr_angle_sw", "fr_band_n", "fr_band_s"])
+        self.assertEqual(sorted(angles), ["fr_angle_ne", "fr_angle_nw", "fr_angle_se", "fr_angle_sw",
+                                          "fr_band_e", "fr_band_n", "fr_band_s", "fr_band_w"])
         for name, boxes in angles.items():
             self.assertEqual(len(boxes), 2, name)
             (alo, ahi), (blo, bhi) = boxes
@@ -256,6 +279,22 @@ class Furnace(unittest.TestCase):
             # flush with the furnace's box on two faces (its corner)
             flush = sum(1 for k in range(3) if abs(ulo[k]) < 1e-6) + sum(1 for k in range(3) if abs(uhi[k] - 32.0) < 1e-6 and uhi[k] - ulo[k] < 4)
             self.assertGreaterEqual(flush, 2, name)
+
+    def test_the_binding_is_one_frame(self):
+        # the owner's rule: the binding's members connect, no gap and no loose end: every angle and band piece is
+        # joined to every other through pieces it touches (the four corner angles and the ring of four top bands)
+        boxes = [(e["from"], e["to"], e["name"]) for e in FRAME["elements"] if e["name"].startswith(("fr_angle_", "fr_band_"))]
+
+        def meet(a, b):
+            return all(a[0][k] <= b[1][k] + 1e-6 and b[0][k] <= a[1][k] + 1e-6 for k in range(3))
+        seen, todo = {0}, [0]
+        while todo:
+            i = todo.pop()
+            for j, b in enumerate(boxes):
+                if j not in seen and meet(boxes[i], b):
+                    seen.add(j)
+                    todo.append(j)
+        self.assertEqual(sorted(b[2] for j, b in enumerate(boxes) if j not in seen), [])
 
 
 def game_assets():

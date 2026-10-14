@@ -7,7 +7,7 @@ tin out, and it runs down the plate, which falls to the front, off its low end t
 receiving pot, while the lead stays on the plate until it is melted off or raked out. It is one small furnace of
 brick, two blocks wide, two deep and two high, on the crucible furnace's conventions (CrucibleFurnace/): its
 brickwork is any one type of fired brick (its texture the renderer's, from the rig's bricks), its hot faces are
-lined with tier-3 refractory brick 3 voxels thick, it is bound with iron on its front and back, fired on natural
+lined with tier-3 refractory brick 3 voxels thick, it is bound with angle iron, one frame, fired on natural
 draught only, through an ash mouth with a three-place damper, and its smoke leaves by an outlet on the top, where
 the player stands the chimney, or which a flat iron plate caps in a row of furnaces sharing one chimney.
 
@@ -18,7 +18,7 @@ the player stands the chimney, or which a flat iron plate caps in a row of furna
                 ash pit under it), the cakes on its upper part, over the fire.
     the back    behind the plate's high end the throat, open to the fire behind the plate and to the chamber under
                 a hanging wall, and the stack rising from it to the outlet, in the back row's east cell (a chimney
-                stands on one cell); in the back face the fire door, an iron plate sliding up in iron guides,
+                stands on one cell), the stack a square flue centred under the chimney; in the back face the fire door, an iron plate sliding up in iron guides,
                 over the ash mouth and its damper, which slides sideways.
 
 Everything is built here from plain boxes; no other mod's model is used.
@@ -157,7 +157,7 @@ FIREBOX_TOP = 16.0                           # the firebox's void reaches the pl
 # the chamber over the plate, under a segmental barrel vault along z, open at the front
 SPRING = 21.0                                # the vault springs off the side walls here
 RISE = 4.0                                   # its rise: span 16, so a radius of 10
-VAULT_Z = (0.0, 19.0)                        # from the front face to the hanging wall
+VAULT_Z = (0.0, 17.0)                        # from the front face to the hanging wall
 STAVES = 8
 VAULT_R = ((IN_X[1] - IN_X[0]) ** 2 / 4 + RISE * RISE) / (2 * RISE)
 VAULT_CY = SPRING + RISE - VAULT_R           # the arc's centre's height
@@ -168,14 +168,22 @@ CHAMBER_BACK = (IN_X, (FRONT_WALL_TOP, SPRING), (FRONT_WALL_Z[0], VAULT_Z[1]))
 
 # behind the plate's high end: the hanging wall (the chamber's back wall, its foot over the plate, the chamber's air
 # going under it), the throat behind it (open down to the fire behind the plate's high end), and the stack
-HANG_Z = (VAULT_Z[1], 22.0)
+HANG_Z = (VAULT_Z[1], 20.0)                  # 3 thick, the lining's
 HANG_FOOT = 20.0
 THROAT_TOP = 23.0
-STACK = ((18.0, 26.0), (THROAT_TOP, FLOOR_TOP), (HANG_Z[1], FIRE_Z[1]))   # 8 by 4, in the back east cell
-CURB = ((STACK[0][0] - 2.0, STACK[0][1] + 2.0), (30.0, FLOOR_TOP), (STACK[2][0] - 2.0, STACK[2][1] + 2.0))
+# The stack: the crucible furnace's, a square flue 8 by 8 (STACK_SIDE) centred under the chimney's line, the middle of
+# the outlet's cell, from the hanging wall's foot (where it opens off the throat) to the top; its mouth is the
+# outlet's opening, square and centred under the chimney the player stands on it.
+STACK_SIDE = 8.0
+STACK_C = ((OUTLET_CELL[0] + 0.5) * B, (OUTLET_CELL[2] + 0.5) * B)   # (x, z): the outlet cell's middle, the chimney's
+STACK = ((STACK_C[0] - STACK_SIDE / 2, STACK_C[0] + STACK_SIDE / 2), (HANG_FOOT, FLOOR_TOP),
+         (STACK_C[1] - STACK_SIDE / 2, STACK_C[1] + STACK_SIDE / 2))
+CURB_W = 1.5                                 # the outlet's curb round the stack's mouth: square and centred with it, out to
+#                                              the top bands' legs (back and east), which it meets
+CURB = ((STACK[0][0] - CURB_W, STACK[0][1] + CURB_W), (30.0, FLOOR_TOP), (STACK[2][0] - CURB_W, STACK[2][1] + CURB_W))
 CURB_RIM = 1.0                               # the outlet's curb, of the lining's refractory brick, flush: a rim 1 wide round
-CAP_Y = (31.5, FLOOR_TOP)                    # the cap's seat, the seat a ledge 1 wide round the stack's mouth; the cap, a
-CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y,   # flat iron plate, set flush in it
+CAP_Y = (31.5, FLOOR_TOP)                    # the cap's seat, the seat a ledge 0.5 wide round the stack's mouth; the cap,
+CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y,   # a flat iron plate, set flush in it
             (CURB[2][0] + CURB_RIM, CURB[2][1] - CURB_RIM))
 
 # the back face: the fire door over the ash mouth, both centred, each in its recess with its iron
@@ -228,10 +236,10 @@ LUMP = 1.4
 
 # The iron binding, angle iron (an L section) throughout, set flush into the brick so nothing stands proud of the
 # furnace's box: an angle up each of the four vertical corners, wrapping it, one leg on the front or back face and one
-# on the side face, its inside corner bedded against the brick's corner; and along the top front edge and the top back
-# edge an angle band wrapping that edge (one leg down the face, one on the top), running from corner angle to corner
-# angle and joining them. The side faces are plain brick but for the corner angles' side legs, flush, so furnaces still
-# stand side by side in a row, their walls meeting.
+# on the side face, its inside corner bedded against the brick's corner; and along each of the four top edges an angle
+# band wrapping that edge (one leg down the face, one on the top), running from corner angle to corner angle and
+# joining them, the four bands one ring round the top: one frame. The side faces are plain brick but for the corner
+# angles' and the side bands' legs, flush, so furnaces still stand side by side in a row, their walls meeting.
 ANGLE_T = 1.0                                # the legs' thickness
 ANGLE_LEG = 2.5                              # each leg's width, outside
 
@@ -542,7 +550,10 @@ def binding():
     furnace's faces: up each vertical corner an angle (`fr_angle_<face><side>_face`, its leg on the front or back face,
     and `_side`, its leg on the side face), and along the top front and back edges an angle band (`fr_band_<face>_face`,
     its leg down the face between the corner angles, and `_top`, its leg on the top from one corner angle's side leg to
-    the other's). The legs of one angle meet along its corner and do not overlap."""
+    the other's), and along the top side edges an angle band (`fr_band_<w|e>_face`, its leg down the side face, flush,
+    between the corner angles' side legs, and `_top`, its leg on the top between the front and back bands' top legs),
+    so the four bands are one ring round the top, joined to the four corner angles: one frame. The legs of one angle
+    meet along its corner and do not overlap."""
     t, leg = ANGLE_T, ANGLE_LEG
     out = []
     for face, (zf0, zf1), (zs0, zs1) in (("n", (0.0, t), (t, leg)), ("s", (D - t, D), (D - leg, D - t))):
@@ -551,6 +562,9 @@ def binding():
             out.append((f"fr_angle_{face}{side}_side", [xs0, 0.0, zs0], [xs1, H, zs1]))
         out.append((f"fr_band_{face}_face", [leg, FLOOR_TOP - leg, zf0], [W - leg, FLOOR_TOP, zf1]))
         out.append((f"fr_band_{face}_top", [t, FLOOR_TOP - t, zs0], [W - t, FLOOR_TOP, zs1]))
+    for side, (xf0, xf1), (xs0, xs1) in (("w", (0.0, t), (t, leg)), ("e", (W - t, W), (W - leg, W - t))):
+        out.append((f"fr_band_{side}_face", [xf0, FLOOR_TOP - leg, leg], [xf1, FLOOR_TOP, D - leg]))
+        out.append((f"fr_band_{side}_top", [xs0, FLOOR_TOP - t, leg], [xs1, FLOOR_TOP, D - leg]))
     return [piece for name, lo, hi in out for piece in split_blocks(name, lo, hi)]
 
 
@@ -573,6 +587,9 @@ def binding_angles():
             out.append((n, (whole(n + "_face"), whole(n + "_side")), ((2, zsign), (0, xsign))))
         n = f"fr_band_{face}"
         out.append((n, (whole(n + "_face"), whole(n + "_top")), ((2, zsign), (1, 1))))
+    for side, xsign in (("w", -1), ("e", 1)):
+        n = f"fr_band_{side}"
+        out.append((n, (whole(n + "_face"), whole(n + "_top")), ((0, xsign), (1, 1))))
     return out
 
 
@@ -650,7 +667,7 @@ def ties():
 
 # where the brick is the lining's, as (lo, hi): round the chamber over the plate (its side walls from just under the
 # plate's low end to the springing), the hanging wall, round the firebox and the throat (from the grate's bearers up),
-# and round the stack (to the top, the outlet's curb with it). The rest is the brickwork's: the base, the niche, the ash
+# and round the stack (up to the outlet's curb, which is the top course round its mouth). The rest is the brickwork's: the base, the niche, the ash
 # pit and the ash mouth, the outer walls, the brick over the vault.
 def lining_zones():
     t = LINING_T
@@ -658,7 +675,8 @@ def lining_zones():
     return [([x0 - t, 12.5, VAULT_Z[0]], [x1 + t, SPRING, VAULT_Z[1]]),
             ([x0 - t, FRONT_WALL_TOP, HANG_Z[0]], [x1 + t, VAULT_ZONE[1][1], HANG_Z[1]]),
             ([x0 - t, BEARER_Y[0], FIRE_Z[0] - t], [x1 + t, THROAT_TOP + t, FIRE_Z[1] + t]),
-            ([STACK[0][0] - t, HANG_FOOT, STACK[2][0] - t], [STACK[0][1] + t, FLOOR_TOP, STACK[2][1] + t])]
+            ([STACK[0][0] - t, STACK[1][0] - t, STACK[2][0] - t], [STACK[0][1] + t, CURB[1][0], STACK[2][1] + t]),
+            ([CURB[0][0], CURB[1][0], CURB[2][0]], [CURB[0][1], CURB[1][1], CURB[2][1]])]   # the curb, square on the mouth
 
 
 def _inside(p, lo, hi):

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ManifestModel } from "../src/lib/model-manifest.ts";
 import { pickedTextures } from "../src/lib/model-scenario.ts";
 import { buildModelView, withPickedTextures } from "../src/lib/model-view.ts";
-import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rideOrder, rigInputs, textureCodes, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
+import { compileGlobs, corners, flattenShape, partMatrices, partOf, requiresValues, rideOrder, rigInputs, textureCodes, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The liquation furnace's shipped files, and the poses LiquationFurnace/tools/make_shape.py computes from them with
 // machinegen's reference maths. Its rig reads depth (the fire door: 0 open, slid up its guides, 1 shut; the door is
@@ -142,5 +142,29 @@ describe("the liquation furnace's Brick select against the rig's bricks", () => 
     expect(opening.colour).toBe(select[0]!.options.find((o) => o.id === "red")!.colour);
     const black = withPickedTextures(view.textures, pickedTextures(select, { brick: "black" })).find((t) => t.code === "brick")!;
     expect(black).toMatchObject({ path: "game:block/clay/brick/four/running/black1", colour: "#494339", elements: opening.elements });
+  });
+});
+
+describe("the liquation furnace's outlet", () => {
+  it("stands the chimney's line on the middle of the outlet's cell, over a square flue open in the shape", () => {
+    const r = rig as unknown as { outletCell: number[]; chimney: { origin: number[]; axis: string; length: number } };
+    const [ox, oy, oz] = r.outletCell as [number, number, number];
+    expect(r.chimney.origin).toEqual([ox + 0.5, oy + 1 + r.chimney.length / 2, oz + 0.5]);
+    // the flue under the line, as the crucible furnace's: open over the 8 by 8 square centred on it, closed just
+    // outside it (the cap aside); sampled off the brick boxes' faces, where a point is inside neither box
+    const boxes = flattenShape(shape.elements)
+      .filter((f) => !f.element.name.startsWith("outletcap"))
+      .map((f) => {
+        const cs = corners(f);
+        return [0, 1, 2].map((k) => [Math.min(...cs.map((c) => c[k]!)), Math.max(...cs.map((c) => c[k]!))]);
+      });
+    const filled = (p: number[]) => boxes.some((b) => [0, 1, 2].every((k) => b[k]![0]! < p[k]! && p[k]! < b[k]![1]!));
+    const cx = (ox + 0.5) * 16, cz = (oz + 0.5) * 16;
+    for (const y of [31.25, 27.25]) {
+      for (const t of [-3.75, -2.25, -0.75, 0.75, 2.25, 3.75]) {
+        for (const p of [[cx + t, y, cz - 3.75], [cx + t, y, cz + 3.75], [cx - 3.75, y, cz + t], [cx + 3.75, y, cz + t]]) expect(filled(p), String(p)).toBe(false);
+        for (const p of [[cx + t, y, cz - 4.25], [cx + t, y, cz + 4.25], [cx - 4.25, y, cz + t], [cx + 4.25, y, cz + t]]) expect(filled(p), String(p)).toBe(true);
+      }
+    }
   });
 });
