@@ -62,6 +62,10 @@ public class EidolonMinePlans : ModSystem
     /// <summary>The least time between two route solves asked for by repair (drops, a member gone, late).</summary>
     public const double SolveMinSeconds = 2;
 
+    /// <summary>The least time between two route solves when the one asked for is urgent (a member with no stop
+    /// and stations left, a new station plan, a deadlock).</summary>
+    public const double UrgentMinSeconds = 0.5;
+
     private ICoreServerAPI? _api;
     private readonly List<Work> _work = new();
     private readonly Stopwatch _clock = new();
@@ -189,8 +193,8 @@ public class EidolonMinePlans : ModSystem
     }
 
     /// <summary>Asks for <paramref name="cells"/>' routes to be solved again (README "Eidolon", working together,
-    /// *Routes*), for <paramref name="why"/>: at once when <paramref name="urgent"/>, else at most every
-    /// <see cref="SolveMinSeconds"/>.</summary>
+    /// *Routes*), for <paramref name="why"/>, once no solve is under way: when <paramref name="urgent"/>, as soon
+    /// as <see cref="UrgentMinSeconds"/> have passed since the last started, else <see cref="SolveMinSeconds"/>.</summary>
     public static void RequestRoutes(MineJobCells cells, string why, bool urgent)
     {
         cells.RoutesWanted = why;
@@ -440,8 +444,18 @@ public class EidolonMinePlans : ModSystem
                 RequestRoutes(cells, "plan", true);
                 return;
             }
+            cells.RoutesChoice = made.VariantIndex;
+            cells.RoutesChoicePlan = cells.PlanVersion;
             if (made.Stats.KeptCurrent && cells.Routes != null)
                 return;
+            // Members gone from the job while it was solved: their routes are taken out as Stop does, their
+            // stations handed on.
+            var present = _api == null ? null : EidolonJobSystem.Of(_api)?.Mining.Jobs.FirstOrDefault(j => j.Shared == cells && !j.Closed)?.Present;
+            if (present == null || present.Count < 2)
+                return;
+            foreach (long gone in made.Routes.Keys.Where(m => !present.Contains(m)).ToList())
+                if (made.Gone(gone, now, live) is { } again)
+                    RequestRoutes(cells, again, false);
             cells.Routes = made;
             cells.RoutesVersion++;
             made.Sweep(live, now);
@@ -456,19 +470,26 @@ public class EidolonMinePlans : ModSystem
         var job = jobs?.Mining.Jobs.FirstOrDefault(j => j.Shared == cells && !j.Closed);
         if (job == null || job.Present.Count < 2)
         {
+            // dispatched as before; the choice (RoutesChoice) is kept for when the job is a crew again
             cells.Routes = null;
             cells.RoutesWanted = null;
+            cells.RoutesUrgent = false;
             return;
         }
-        bool fresh = cells.Routes == null || cells.Routes.PlanVersion != cells.PlanVersion;
+        int? choice = cells.RoutesChoicePlan == cells.PlanVersion ? cells.RoutesChoice : null;
+        // routes for this station plan (or its choice from before the job was down to one): no fresh solve
+        bool fresh = choice == null && (cells.Routes == null || cells.Routes.PlanVersion != cells.PlanVersion);
+        bool missing = cells.Routes == null || cells.Routes.PlanVersion != cells.PlanVersion;
         bool joined = cells.Routes is { Today: false } r && job.Present.Any(m => !r.Routes.ContainsKey(m));
         string? why = fresh ? (cells.Routes == null ? "first" : "plan")
+            : missing ? "members"
             : cells.RoutesWanted ?? (joined ? "members" : now - work.RoutedAt >= MineRoutes.ResolveSeconds ? "periodic" : null);
-        // at most every SolveMinSeconds, but for the first solve of a station plan
-        if (why == null || now - work.RoutedAt < SolveMinSeconds && !(fresh && work.RoutingPlanVersion != cells.PlanVersion))
+        // at most every SolveMinSeconds (UrgentMinSeconds when asked so), but for the first solve of a station plan
+        double least = cells.RoutesUrgent && cells.RoutesWanted != null ? UrgentMinSeconds : SolveMinSeconds;
+        if (why == null || now - work.RoutedAt < least && !(fresh && work.RoutingPlanVersion != cells.PlanVersion))
             return;
         // left to today's dispatch: kept so until a new station plan
-        if (!fresh && cells.Routes!.Today)
+        if (!fresh && choice == MineRoutePlanner.TodayIndex)
         {
             cells.RoutesWanted = null;
             cells.RoutesUrgent = false;
@@ -483,7 +504,7 @@ public class EidolonMinePlans : ModSystem
         var input = new MineRouteInput(cells.Plan!, cells.PlanVersion, live.Clone(), members, [], now,
             why == "periodic" ? cells.Routes!.Copy() : null, null)
         {
-            Keep = fresh ? null : cells.Routes!.VariantIndex,
+            Keep = fresh ? null : choice ?? cells.Routes!.VariantIndex,
         };
         var token = new CancellationTokenSource();
         var cancel = token.Token;

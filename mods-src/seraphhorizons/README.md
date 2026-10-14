@@ -3459,9 +3459,10 @@ present gets look-ahead routes, each member's next 5 to 10 stations, solved toge
 from a copy of the live state. The solver simulates the crew working forward with the same guard as live:
 each station's work timed strike by strike at its blocks' pace (the quicker of the steel pick and shovel),
 the walk on the walk graph, a way crossing another's claim only after waiting 4 seconds for it (as the game
-goes through) and the narrow ways (stairs, lanes 2 or 3 wide, ramps) taken one at a time in slots; a member
-that would otherwise wait 10 seconds takes a station of the next band where nothing still to dig is above
-it (spare work, at most one open band deeper, so the floors may be two climbs apart). Each member's
+goes through) and the narrow ways (stairs, lanes 2 or 3 wide, ramps) taken one at a time in slots (the
+slots set only when each sets off: in the game no one holds a narrow way, the stair keeping its own turn
+as under *Dispatch*); a member that would otherwise wait 10 seconds takes a station of the next band
+where nothing still to dig is above it (spare work, at most one open band deeper, so the floors may be two climbs apart). Each member's
 stations are then put in their best order exactly (Held-Karp, with when each became workable and what must
 come first) and moved off the member that finishes last, each change simulated again and kept only if it
 holds. For a job of up to 300 stations it chooses how to choose: eight ways (the soonest finish, or leaving a
@@ -3469,16 +3470,19 @@ station to whoever would finish it sooner; a bonus for the work under a station;
 off cells still to dig) and today's dispatch below are each simulated to the job's end, as estimated and with
 strike lengths shaken by up to 30 %, and the soonest on the mean wins, a tie going to today's: where today's
 wins (a pit that holds one at a time, a narrow tunnel's mouth) the job is dispatched as below, with no routes.
-The choice holds for the job (every re-solve keeps it) until a new station plan. A member follows its
+The choice holds for the job (every re-solve keeps it, and it outlasts the job being down to one member)
+until a new station plan, which is dispatched as below until its own first solve lands. A member follows its
 route: it claims its head when it may set off, at its planned time or sooner when the station is ready and
 the plan has no other set off first there, waits out a planned wait where it is planned
 (`eidolon-status-mine-waiting-route`), crosses another's claim after 4 seconds, passes another eidolon only
 briefly and rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the
 stair), lets its claims go while it waits, and drops a stop whose claim stays taken 2 seconds. Small events
 are repaired in place on the main thread (begun, finished, dropped, a member gone, a new plan); a full solve
-follows a failed repair, a member joining, a new station plan, or every 15 seconds, the routes running kept
-unless the new are 10 % better. A lone member, routing off (`EidolonMinePlans.Routing`; `SH_MINE_BASELINE=1`
-in the environment, for measuring), or routes not made yet: the job is dispatched as below. *Dispatch*
+follows a failed repair, a member joining, a new station plan, or every 15 seconds (no two within 2
+seconds, or half a second when urgent: a member with no stop left while stations are, a deadlock), and a
+periodic one keeps the routes running unless the new are 10 % better. A lone member, routing off
+(`EidolonMinePlans.Routing`; `SH_MINE_BASELINE=1` in the environment, for measuring), or routes not made
+yet: the job is dispatched as below. *Dispatch*
 (mining; `Eidolon/Core/MineDispatch.cs`): the job's members work one plan. Each
 holds a short queue of stations (`MineDispatch.QueueLength`, 2: the one it works and the next) and takes
 the next from the first 24 in the plan's order that nobody holds, whose columns are free and that pass

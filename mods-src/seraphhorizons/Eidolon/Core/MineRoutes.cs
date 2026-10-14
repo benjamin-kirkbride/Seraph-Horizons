@@ -403,8 +403,9 @@ public sealed class MineRoutes
     private static double Groups(int cells) =>
         (cells + 3) / 4 * EidolonMining.Timing(EidolonMining.StrikeSeconds([MineCosts.DefaultPlayerSeconds])).Seconds;
 
-    // some station with cells it may dig now (or ahead) that no route holds
-    private bool Unrouted(MineState live)
+    /// <summary>Whether some station has cells it may dig now (or ahead) that no route holds: a member with no
+    /// stop left asks for a solve only then.</summary>
+    public bool Unrouted(MineState live)
     {
         var assigned = Assigned;
         foreach (var s in Plan.Stations)

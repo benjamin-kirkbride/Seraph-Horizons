@@ -132,14 +132,19 @@ public sealed class MineJobCells
     /// <summary>Counts every swap of <see cref="Routes"/> and every repair that changes a route.</summary>
     public int RoutesVersion { get; set; }
 
-    /// <summary>Why a route solve is asked for (null: none), and whether at once.</summary>
+    /// <summary>Why a route solve is asked for (null: none).</summary>
     public string? RoutesWanted { get; set; }
 
+    /// <summary>Whether the solve asked for may start before the least time between solves is up.</summary>
     public bool RoutesUrgent { get; set; }
 
-    /// <summary>Who holds each narrow way (README "Eidolon", working together, *Narrow ways*), by its zone's
-    /// key, and until when (a lease, refreshed while it walks there or stands in it).</summary>
-    public Dictionary<PathCell, (long Member, double Until)> Holders { get; } = new();
+    /// <summary>The choice the job's routes were last made by (<see cref="MineRoutes.VariantIndex"/>, or
+    /// <c>MineRoutePlanner.TodayIndex</c> for today's dispatch) for the station plan
+    /// <see cref="RoutesChoicePlan"/>: kept apart from <see cref="Routes"/> so that it outlasts routes let go
+    /// (a job down to one member), until a new station plan.</summary>
+    public int? RoutesChoice { get; set; }
+
+    public int RoutesChoicePlan { get; set; } = -1;
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>

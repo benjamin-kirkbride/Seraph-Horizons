@@ -549,13 +549,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             var at = WidePath.NodeAt(e.Pos.X, e.Pos.Y, e.Pos.Z);
             int? head = null;
             double free = now;
-            if (o.Station is { } st && o._phase is Phase.Walk or Phase.Strike && live != null)
+            // Whatever station it holds is pinned, whatever it is doing (a held station is claimed and its own).
+            if (o.Station is { } st && live != null)
             {
                 head = st.Id;
                 var left = st.Cells.Where(live.Remaining.Contains).ToList();
-                free = now + (o._phase == Phase.Walk ? MineCosts.Estimate(at, st.Stand) + MineCosts.ArriveSeconds : 0) + MineCosts.WorkSeconds(live.Site, left);
+                free = now + (o._phase == Phase.Strike ? 0 : MineCosts.Estimate(at, st.Stand) + MineCosts.ArriveSeconds) + MineCosts.WorkSeconds(live.Site, left);
             }
-            members.Add(new MineRouteMember(id, at, head, false, free));
+            members.Add(new MineRouteMember(id, at, head, head != null && o._headAhead, free));
         }
         return members;
     }
@@ -588,7 +589,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             var head = routes.Head(id);
             if (head == null)
             {
-                if (_queue.Count == 0)
+                if (_queue.Count == 0 && routes.Unrouted(live))
                     EidolonMinePlans.RequestRoutes(Cells, "empty", true);
                 return;
             }
@@ -618,7 +619,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 continue;
             }
             if (_queue.Count > 0 && _queue[0].Id == station.Id)
+            {
+                // The route holds one station at a time: any dispatch queued behind it is let go.
+                DropQueueAfterHead(eidolon);
                 return;
+            }
             DropQueue(eidolon);
             if (now < head.Depart && !Ready(eidolon, head, plan, live, workers, now))
             {
@@ -880,6 +885,15 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     }
 
     /// <summary>Lets go of every station it holds.</summary>
+    /// <summary>Lets go of every station it holds but its head.</summary>
+    private void DropQueueAfterHead(EntityLaborEidolon eidolon)
+    {
+        for (int i = 1; i < _queue.Count; i++)
+            Board?.Unclaim(eidolon.EntityId, _queue[i].Id);
+        if (_queue.Count > 1)
+            _queue.RemoveRange(1, _queue.Count - 1);
+    }
+
     private void DropQueue(EntityLaborEidolon eidolon)
     {
         foreach (var s in _queue)
