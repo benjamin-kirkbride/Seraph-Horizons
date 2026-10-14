@@ -4979,7 +4979,7 @@ fixed at creation. The server log says what the world has
   generated, so a deposit could come out at half or twice its size depending on how the land was
   explored. With it, the anchor column's own pass decides the vein (its try and host rock, saved
   as `seraphhorizons:stableveins`), and every column within 3 chunks lays its part at its PreDone
-  pass from a replay of IOG's own generator in a world of the host rock, onto the rock it has; IOG's
+  pass from a replay of IOG's own generator in a world of the host rock, onto the rock it has, with its boulder indicators on the surface where IOG's tracer paths meet it; IOG's
   other veins (gems, quartz, olivine) write only into the column being generated
   (`Ore/Game/StableVeins.cs`, `StableVeinWorlds.cs`, `Ore/Core/StableVeinBook.cs`). Needs `OreCells`.
   Details in `docs/oregen.md`, "Stable veins".

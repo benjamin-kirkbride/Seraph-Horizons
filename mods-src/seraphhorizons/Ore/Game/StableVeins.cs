@@ -81,6 +81,11 @@ public sealed partial class OreCellPlacement
         _veins = LoadVeins(_api);
         harmony.Patch(GenDepositMethod, prefix: new HarmonyMethod(typeof(OreCellPlacement), nameof(GenDepositPrefix)),
             finalizer: new HarmonyMethod(typeof(OreCellPlacement), nameof(GenDepositFinalizer)));
+        // Boulder indicators: captured in a replay, laid on the surface (LayBoulders).
+        harmony.Patch(AccessTools.Method(GeneratorType, "BuildTracerPath"),
+            postfix: new HarmonyMethod(typeof(OreCellPlacement), nameof(BuildTracerPathPostfix)));
+        harmony.Patch(AccessTools.Method(GeneratorType, "PlaceDeformedBoulder"),
+            prefix: new HarmonyMethod(typeof(OreCellPlacement), nameof(PlaceDeformedBoulderPrefix)));
         _api.Event.ChunkColumnGeneration(OnPreDone, EnumWorldGenPass.PreDone, "standard");
         _api.Logger.Notification("[seraphhorizons] Stable veins: ore cell veins decided in their anchor's pass and replayed at PreDone; IOG's other veins kept to their column");
     }
@@ -92,6 +97,11 @@ public sealed partial class OreCellPlacement
         var m = AccessTools.Method(type, "GenDeposit");
         if (m == null || m.GetParameters().Length != 6 || m.GetParameters()[0].ParameterType != typeof(IBlockAccessor))
             return $"{GeneratorTypeName}.GenDeposit changed";
+        if (AccessTools.Method(type, "BuildTracerPath") is not { } path || path.ReturnType != typeof(List<BlockPos>))
+            return $"{GeneratorTypeName}.BuildTracerPath changed";
+        if (AccessTools.Method(type, "PlaceDeformedBoulder") is not { } boulder || boulder.GetParameters().Length != 5
+            || boulder.GetParameters()[1].ParameterType != typeof(Block) || boulder.GetParameters()[3].ParameterType != typeof(int))
+            return $"{GeneratorTypeName}.PlaceDeformedBoulder changed";
         return null;
     }
 
@@ -218,6 +228,7 @@ public sealed partial class OreCellPlacement
                         if (_veins.Get(metal, cell, state.Active) is not { Holds: true } vein) continue;
                         if (Replay(vein, request.Chunks) is not { } writes) continue;
                         Lay(vein, writes, request.Chunks, c);
+                        LayBoulders(vein, request.Chunks, c);
                     }
             }
         }
@@ -257,6 +268,7 @@ public sealed partial class OreCellPlacement
         own.InitPositionSeed(vein.SourceX, vein.SourceZ);
         generator.DepositRand = own;
         _replaying = true;
+        var boulders = _replayBoulders = new List<Boulder>();
         try
         {
             var subDeposits = new Dictionary<BlockPos, DepositVariant>();
@@ -266,16 +278,82 @@ public sealed partial class OreCellPlacement
         {
             generator.DepositRand = rand;
             _replaying = false;
+            _replayBoulders = null;
+            _replayPath = null;
             Monitor.Exit(IogLock);
         }
-        if (_replays.Count >= MaxReplaysKept) _replays.Clear();
+        if (_replays.Count >= MaxReplaysKept)
+        {
+            _replays.Clear();
+            _boulders.Clear();
+        }
+        _boulders[vein] = boulders;
         _replays[vein] = world.Writes;
         return world.Writes;
     }
 
     // A vein's replay, kept for the next column (a few dozen veins are being laid at any time).
     private readonly System.Collections.Concurrent.ConcurrentDictionary<StableVein, List<(int X, int Y, int Z, int Id)>> _replays = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<StableVein, List<Boulder>> _boulders = new();
     private const int MaxReplaysKept = 64;
+
+    /// <summary>A boulder indicator IOG would have placed in the replay: the tracer path it walked
+    /// up from an ore block (in the world of rock, it never met air), the host rock and its radii.</summary>
+    private sealed record Boulder(IReadOnlyList<(int X, int Y, int Z)> Path, int HostId, int MinRadius, int MaxRadius);
+
+    // Within a replay, the last tracer path IOG built and the boulders it would place (captured,
+    // not placed: IOG would put them where its path ended, in the sky of the world of rock).
+    [ThreadStatic] private static List<(int X, int Y, int Z)>? _replayPath;
+    [ThreadStatic] private static List<Boulder>? _replayBoulders;
+
+    /// <summary>Boulder indicators laid, by site (for the order check): its host rock and radii.</summary>
+    public System.Collections.Concurrent.ConcurrentDictionary<(int X, int Y, int Z), (int HostId, int MinRadius, int MaxRadius)> BoulderSites { get; } = new();
+
+    // Harmony: IOG's BuildTracerPath(accessor, startPos, maxSteps), within a replay: keep the path.
+    private static void BuildTracerPathPostfix(List<BlockPos> __result)
+    {
+        if (!_replaying) return;
+        _replayPath = __result?.Select(p => (p.X, p.Y, p.Z)).ToList();
+    }
+
+    // Harmony: IOG's PlaceDeformedBoulder(accessor, hostBlock, center, minRadius, maxRadius), within a
+    // replay: record it instead (its own Random, no DepositRand draws, so skipping changes nothing else).
+    private static bool PlaceDeformedBoulderPrefix(Block __1, int __3, int __4)
+    {
+        if (!_replaying) return true;
+        if (_replayBoulders is { } list && _replayPath is { Count: > 0 } path && __1 != null)
+            list.Add(new Boulder(path, __1.BlockId, __3, __4));
+        return false;
+    }
+
+    /// <summary>Lays the vein's boulder indicators that reach this column, on its surface as IOG
+    /// would (<see cref="StableVeinApply.BoulderSite"/>, <see cref="StableVeinApply.BoulderBlocks"/>):
+    /// over whatever is there, as IOG's boulder does.</summary>
+    private void LayBoulders(StableVein vein, IServerChunk[] chunks, ChunkPos c)
+    {
+        if (!_boulders.TryGetValue(vein, out var boulders)) return;
+        int height = _api.WorldManager.MapSizeY;
+        foreach (var b in boulders)
+        {
+            if (StableVeinApply.BoulderSite(b.Path, HeightAt) is not { } site) continue;
+            // A boulder reaches at most its radius from its site: skip it unless it can touch this column.
+            if (Math.Abs((site.X >> 5) - c.X) > 1 || Math.Abs((site.Z >> 5) - c.Z) > 1) continue;
+            BoulderSites[site] = (b.HostId, b.MinRadius, b.MaxRadius);
+            foreach (var (x, y, z) in StableVeinApply.BoulderBlocks(site.X, site.Y, site.Z, b.MinRadius, b.MaxRadius))
+            {
+                if (x >> 5 != c.X || z >> 5 != c.Z || y <= 0 || y >= height) continue;
+                var data = chunks[y / OreCells.ChunkSize].Data;
+                int i = Index(x, y, z);
+                data.SetBlockUnsafe(i, b.HostId);
+                data.SetFluid(i, 0);
+            }
+        }
+    }
+
+    /// <summary>The worldgen terrain height (top solid block) at a column, from its map chunk; null
+    /// where that is not there yet.</summary>
+    private int? HeightAt(int x, int z) =>
+        _api.WorldManager.GetMapChunk(x >> 5, z >> 5)?.WorldGenTerrainHeightMap is { } heights ? heights[(z & 31) * 32 + (x & 31)] : null;
 
     private static IEnumerable<(int X, int Y, int Z, int Id)> InColumn(List<(int X, int Y, int Z, int Id)> writes, int chunkX, int chunkZ) =>
         writes.Where(w => w.X >> 5 == chunkX && w.Z >> 5 == chunkZ);

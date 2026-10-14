@@ -51,6 +51,33 @@ public class StableVeinsTests
     }
 
     [Fact]
+    public void ABoulderSitsWhereItsPathFirstReachesTheSurfaceOfItsColumn()
+    {
+        int? Flat(int x, int z) => 110;
+        var path = new List<(int, int, int)> { (40, 100, 40), (41, 101, 40), (41, 109, 41), (42, 110, 41), (42, 111, 41) };
+        Assert.Equal((42, 110, 41), StableVeinApply.BoulderSite(path, Flat));
+        // Higher ground under the path: the first point at or above the height there.
+        int? Hill(int x, int z) => x >= 41 ? 101 : 120;
+        Assert.Equal((41, 101, 40), StableVeinApply.BoulderSite(path, Hill));
+        // A path that leaves its column (x 63 -> 64) before the surface has none, nor one without heights.
+        var drifting = new List<(int, int, int)> { (63, 100, 40), (64, 101, 40), (64, 115, 40) };
+        Assert.Null(StableVeinApply.BoulderSite(drifting, Flat));
+        Assert.Null(StableVeinApply.BoulderSite(path, (_, _) => null));
+        Assert.Null(StableVeinApply.BoulderSite(new List<(int, int, int)>(), Flat));
+    }
+
+    [Fact]
+    public void ABouldersBlocksDependOnItsSiteAlone()
+    {
+        var a = StableVeinApply.BoulderBlocks(512010, 120, 511990, 2, 5);
+        Assert.Equal(a, StableVeinApply.BoulderBlocks(512010, 120, 511990, 2, 5));
+        Assert.NotEqual(a, StableVeinApply.BoulderBlocks(512011, 120, 511990, 2, 5));
+        Assert.Contains((512010, 120, 511990), a); // the centre
+        Assert.All(a, b => Assert.True(Math.Abs(b.X - 512010) <= 5 && Math.Abs(b.Y - 120) <= 5 && Math.Abs(b.Z - 511990) <= 5));
+        Assert.Equal(a.Count, a.Distinct().Count());
+    }
+
+    [Fact]
     public void TheBookRoundTripsAndKeepsTheFirstDecision()
     {
         var book = new StableVeinBook();

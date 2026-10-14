@@ -108,7 +108,11 @@ public static class OreCellOrder
             var vein = placement.Veins!.Get(metal, cell, spot.Index)!;
             var ore = OreAround(sapi, spot.Chunk, metal);
             results[metal] = new Result(spot.Chunk, vein.Variant, ore, Column(sapi, spot.Chunk));
-            output.WriteLine($"{name}: {metal} cell {cell} spot {spot.Index} anchor {spot.Chunk}: {vein.Variant} in {vein.Host}, {ore.Count} ore blocks");
+            // The vein's boulder indicators laid in its area, block by block as they stand in the world.
+            var boulders = Boulders(sapi, placement, spot.Chunk);
+            results[metal + " boulders"] = new Result(spot.Chunk, vein.Variant, boulders, []);
+            output.WriteLine($"{name}: {metal} cell {cell} spot {spot.Index} anchor {spot.Chunk}: {vein.Variant} in {vein.Host}, {ore.Count} ore blocks, "
+                + $"{boulders.Count} boulder blocks");
         }
         Assert.Equal(0, placement.MissedReplays);
         string key = $"{set}/{name}";
@@ -163,6 +167,26 @@ public static class OreCellOrder
             kv.Value.Positions.Zip(kv.Value.Codes).ToDictionary(p => (p.First[0], p.First[1], p.First[2]),
                 p => sapi.World.GetBlock(new Vintagestory.API.Common.AssetLocation(p.Second))?.BlockId ?? -1),
             []));
+    }
+
+    /// <summary>The blocks of every boulder indicator stable veins laid with a site in the columns
+    /// within reach of the anchor, as they stand in the world (positions in those columns only).</summary>
+    public static Dictionary<(int X, int Y, int Z), int> Boulders(ICoreServerAPI sapi, OreCellPlacement placement, ChunkPos anchor)
+    {
+        var area = Around(anchor).ToHashSet();
+        var blocks = new Dictionary<(int, int, int), int>();
+        foreach (var (site, b) in placement.BoulderSites)
+        {
+            if (!area.Contains(new ChunkPos(site.X >> 5, site.Z >> 5))) continue;
+            foreach (var (x, y, z) in StableVeinApply.BoulderBlocks(site.X, site.Y, site.Z, b.MinRadius, b.MaxRadius))
+            {
+                if (!area.Contains(new ChunkPos(x >> 5, z >> 5)) || y <= 0 || y >= sapi.WorldManager.MapSizeY) continue;
+                var chunk = sapi.WorldManager.GetChunk(x >> 5, y >> 5, z >> 5)!;
+                chunk.Unpack();
+                blocks[(x, y, z)] = chunk.Data.GetBlockIdUnsafe(((y & 31) * 32 + (z & 31)) * 32 + (x & 31));
+            }
+        }
+        return blocks;
     }
 
     /// <summary>Every block of a chunk column, bottom up (for telling what else differs).</summary>

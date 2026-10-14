@@ -363,11 +363,22 @@ new worlds only, recorded in `seraphhorizons:oreworld` as `stableVeins`; needs `
   with a random sequence of its own (the one `GenDeposits` shares with every generator, vanilla's
   too, may be mid-try on another worldgen thread); it is the same for every column and kept for
   the next. Its writes in this column are laid on the real blocks in IOG's order (`StableVeinApply`): its host
-  rock (the shell IOG paints around a vein, its "normal" blocks, boulders) only onto stone or
+  rock (the shell IOG paints around a vein, its "normal" blocks) only onto stone or
   `rock-*`, ore only onto the host rock. Each pass waits for its neighbours to finish the one before
   (`ensurePrettyNeighbourhood`), so by a column's PreDone every column within 3 has finished
   TerrainFeatures and the anchor has decided. Grade pockets (#944) run inside the replay, as they
   depend on the seed and the position only.
+- **Boulder indicators on the surface.** One placed ore block in 300, IOG walks a tracer path up
+  from it until the block above is air and, 15 % of the time, puts a deformed boulder of the host
+  rock there (`TryPlaceSurfaceIndicator`, `BuildTracerPath`, `PlaceDeformedBoulder`). In the
+  replay's world of rock the path never meets air, so the boulder is captured instead (its path,
+  rock and radii; skipping it draws nothing from the vein's sequence) and laid at PreDone where the
+  path first reaches the worldgen terrain height of the column it starts in, at that height
+  (`StableVeinApply.BoulderSite`: the Terrain pass's heights, there for every neighbour by
+  PreDone; a path that drifts out of its start column first has no boulder). Its blocks are IOG's
+  own ellipsoid from IOG's position-seeded `Random` (`BoulderBlocks`, with the rock below taken at
+  the site), laid over whatever is there as IOG does, by each column it reaches. The prospect
+  veins along the path stay as the replay draws them, laid where the column has the host rock.
 - **Other IOG veins kept to their column.** Gems, quartz and olivine keep IOG's own rule but write
   only into the column being generated (`StableVeinWorlds.ColumnWorld`), so no pass changes another
   column's blocks. They stay as order-dependent as before within their own column.
@@ -380,9 +391,8 @@ new worlds only, recorded in `seraphhorizons:oreworld` as `stableVeins`; needs `
   one thread.
 
 What changes in the ore: a vein no longer stops where its centre's chunk was not loaded or its
-chimney stepped into another rock; it is drawn whole and laid where the column has rock. Boulder
-indicators on cell veins are gone (IOG put them above ground, where the lay rule puts no host rock).
-Which fallback spot a cell ends on can still depend on order: a fallback whose anchor generates
+chimney stepped into another rock; it is drawn whole and laid where the column has rock; its
+boulders sit where its tracer paths meet the terrain. Which fallback spot a cell ends on can still depend on order: a fallback whose anchor generates
 before its turn is skipped, as before (`OreCellBook`).
 
 **Measured** (`tools/ore-survey`, the pins of 2026-10-13, `--fast`):
@@ -411,7 +421,10 @@ directory), generate the spawn cells of seed 424242 anchor first and far first: 
 (`nativecopper` chimney), iron (`limonite` hydrotube), tin (`cassiterite` chimney), bismuth
 (`bismuthinite` chimney) and zinc (`sphalerite` hydrotube) veins come out identical block for
 block, and `OreCellOrderSeamAnchorFirst` / `FarFirst` do the same for seed 101's iron cell 103,101,
-a `hematite` seam (IOG's multi-ore fault pocket) of 11,948 blocks. `OreCellOrderScenarios` deletes
+a `hematite` seam (IOG's multi-ore fault pocket) of 11,948 blocks. Their boulder indicators too,
+read back block by block: 194 blocks around the limonite vein and 444 around the seam, the same
+in both orders (the other veins' tracer paths left their start columns, or drew no boulder).
+`OreCellOrderScenarios` deletes
 one anchor's area and generates it again in the other order, in one world. Worlds booted one after another in one process do not: the second world's vanilla deposits
 (cracked rock, and the ore with it) differ from the same world booted alone, with stable veins on
 or off (an Atlas experiment with the switch off: 8,751 of one column's blocks differed between two

@@ -86,6 +86,56 @@ public sealed class StableVeinBook
 /// </summary>
 public static class StableVeinApply
 {
+    /// <summary>
+    /// Where a boulder indicator goes (#946): IOG walks a tracer path up from an ore block until the
+    /// block above is air and puts the boulder there. In the replay's world of rock the path never
+    /// meets air, so the site is taken from the path as it stands: the first point at or above the
+    /// worldgen terrain height of its column (<paramref name="heightAt"/>, the top solid block, fixed
+    /// by the Terrain pass), at that height. Only the column the path starts in is walked (IOG let it
+    /// drift up to 2 chunks), so the site depends on that column's heights alone; a path that
+    /// leaves it first, or whose heights are unknown, has no boulder.
+    /// </summary>
+    public static (int X, int Y, int Z)? BoulderSite(IReadOnlyList<(int X, int Y, int Z)> path, Func<int, int, int?> heightAt)
+    {
+        if (path.Count == 0) return null;
+        int cx = path[0].X >> 5, cz = path[0].Z >> 5;
+        foreach (var (x, y, z) in path)
+        {
+            if (x >> 5 != cx || z >> 5 != cz) return null;
+            if (heightAt(x, z) is not { } h) return null;
+            if (y >= h) return (x, h, z);
+        }
+        return null;
+    }
+
+    /// <summary>The blocks of IOG's deformed boulder (<c>PlaceDeformedBoulder</c>) centred on a site:
+    /// its own position-seeded <see cref="Random"/>, radii between <paramref name="minRadius"/> and
+    /// <paramref name="maxRadius"/>, the same draws in the same order. IOG lowers the centre to a
+    /// height between the site and the first rock below it; here the rock is taken at the site
+    /// itself (the draw is still made), so nothing is read.</summary>
+    public static List<(int X, int Y, int Z)> BoulderBlocks(int x, int y, int z, int minRadius, int maxRadius)
+    {
+        int seed = unchecked(x * 734287 + y * 912271 + z * 438289);
+        var random = new Random(seed);
+        int cy = random.Next(y, y + 1);
+        int rx = random.Next(minRadius, maxRadius + 1);
+        int ry = random.Next(minRadius, maxRadius + 1);
+        int rz = random.Next(minRadius, maxRadius + 1);
+        const float jitter = 0.25f;
+        var blocks = new List<(int, int, int)>();
+        var seen = new HashSet<(int, int, int)>();
+        for (int i = -rx; i <= rx; i++)
+            for (int j = -ry; j <= ry; j++)
+                for (int k = -rz; k <= rz; k++)
+                {
+                    float a = (float)i / rx, b = (float)j / ry, c = (float)k / rz;
+                    float d = a * a + b * b + c * c;
+                    float n = (float)random.NextDouble() * jitter - jitter * 0.5f;
+                    if (d + n <= 1f && seen.Add((x + i, cy + j, z + k))) blocks.Add((x + i, cy + j, z + k));
+                }
+        return blocks;
+    }
+
     /// <summary>Applies <paramref name="writes"/> (block position, block id, in IOG's order) to the
     /// column whose blocks <paramref name="get"/> / <paramref name="set"/> read and write; positions
     /// outside it are the caller's to skip. Returns the blocks set.</summary>
