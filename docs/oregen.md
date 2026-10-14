@@ -320,9 +320,13 @@ before its turn is skipped, as before (`OreCellBook`).
 
 **Measured** (`tools/ore-survey`, the pins of 2026-10-13, `--fast`):
 
-- *Census against a full scan, seed 101* (320 × 320 chunks): of the 20 cell deposits both saw at
-  the same place, 19 agree exactly and one by 1.5 % (a fragment 9 m off); before, 9 of 36 did. 26
-  of 29 cells chose the same spot; the other 3 ended on different fallbacks (above).
+- *Census against a full scan, seeds 101 and 303* (320 × 320 chunks): of the 39 cell deposits
+  both saw at the same place, 37 agree exactly and two by 1.5 % and 0.8 %; before, 9 of 36 did.
+  47 of 51 cells chose the same spot; the other 4 ended on different fallbacks (above). District
+  veins agree as before.
+- *A larger census*, seeds 1101 and 1102 (640 × 640 chunks), before and after: cell deposits at a
+  median 0.81 and 0.78 times their old ingots; medians iron 345 → 267, tin 178 → 110, copper
+  185 → 144, zinc 80 → 75, lead 168 → 176.
 - *Vein sizes*, the census before and after on the same seeds and mods: seed 101's cell deposits
   at a median 0.79 times their old ingots (p10 0.52, p90 1.15; 13,121 → 8,901 in all), seed 303's
   at 0.71 (0.38, 1.26; 14,451 → 9,302). Medians over both: iron 412 → 215 ingots, tin 237 → 139,
