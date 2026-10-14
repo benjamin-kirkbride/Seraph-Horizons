@@ -109,7 +109,10 @@ What it measures, in the area (`--size` chunk columns square at the map centre, 
   finished TerrainFeatures, where all ore is placed), so the census reads every column at its
   Vegetation pass (its own handler there) and asks only for columns not seen yet. Each column
   asked for is read again once complete and compared (`earlyChecked`, `earlyMismatch` in
-  census.json; `ORE_CENSUS_EARLY=0` turns this off).
+  census.json; `ORE_CENSUS_EARLY=0` turns this off). With the pack's stable veins (#946,
+  `docs/oregen.md`) cell veins are laid at PreDone, so the census reads columns there instead
+  (after the pack's handler); only a column's direct neighbours reach PreDone with it, so it asks
+  for more columns and runs about a third slower. `--fast` keeps the pack's own handlers.
 
 `ore_survey.py census` joins records of one metal that share a cell into one deposit (a vein
 reached from two anchors, or a cell's vein run into a district's), counts its ingots from its
