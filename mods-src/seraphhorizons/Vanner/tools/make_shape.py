@@ -19,7 +19,8 @@ real machine, one level.
                       and holds it along its length), tied at the ends and the middle; on them the head
                       and foot rollers' bearings, and the hangers of the worm shaft
     the belt          stitched leather, round the head roller (north, at the front, the higher) and the
-                      foot roller (south), with raised edges along its top run and its laced seams across it
+                      foot roller (south), with raised edges along its top run and its laced seams across it;
+                      it travels with the head drum's surface, its seams (a part each) going round the loop
     the creep         a ratchet on the worm shaft, which a pawl fixed to the frame pushes a tooth each
                       stroke of the shake (and slips back under it on the return), so it turns one way
                       whichever way the axle turns; the worm on the same shaft turns the worm wheel on
@@ -53,7 +54,7 @@ The rig's inputs (README "Rig schema"):
 
     theta   the axle's angle: the countershaft turns with it, and the shaking frame follows its eccentrics
     travel  psi, the axle's travel either way: the ratchet and worm, and the rollers they creep, which only
-            ever turn forward
+            ever turn forward, and the belt's seams round its loop
 """
 
 from __future__ import annotations
@@ -133,6 +134,9 @@ BELT_T = 0.4
 EDGE_W, EDGE_H = 0.7, 0.6                    # the raised edges along the top run, inside the belt's sides
 SEAMS_Z = (10.5, 33.0)                       # the laced seams across the top run, where hides are joined
 SEAM_L, SEAM_H = 0.8, 0.12                   # each seam's lap: along the belt, how proud of it
+SEAM_SINK = 0.05                             # ... and how far its foot is let into the belt (it lies on another part)
+BELT_HARMONICS = 32                          # the seams' travel round the belt's loop, as a sum of this many harmonics
+BELT_SAMPLES = 2048                          # points of the loop the harmonics are fitted to
 LACES = 8                                    # the rawhide stitches across each seam
 LACE_W, LACE_L, LACE_H = 0.35, 0.6, 0.06     # each stitch: across, along, how proud of the lap
 JOURNAL_R = 0.5
@@ -384,7 +388,7 @@ def belt(axis, c1, r1, c2, r2, a0, a1, name, part, tex, t, n_wrap=8):
     """An endless belt on two rollers of radii r1, r2 about `axis` through c1, c2 (3-vectors; the axis
     coordinate is ignored), a0..a1 along the axis: two straight runs on the outer tangents and a wrap of
     short boxes round the far side of each roller. Drawn still: a plain belt moving along its length looks
-    the same."""
+    the same (what shows its travel, the vanner's seams, is carried round by parts of its own)."""
     ia = AX[axis]
     u, v = [(1, 2), (2, 0), (0, 1)][ia]
     p1, p2 = (c1[u], c1[v]), (c2[u], c2[v])
@@ -704,12 +708,127 @@ def build_belt():
     x0, x1 = BELT_X[0] + EDGE_W + 0.02, BELT_X[1] - EDGE_W - 0.02
     pitch = (x1 - x0) / LACES
     for i, z in enumerate(SEAMS_Z, 1):
-        out.append(on_run(z - SEAM_L / 2, z + SEAM_L / 2, 0.0, SEAM_H, x0, x1, f"belt_seam{i}", p, "leather"))
+        out.append(on_run(z - SEAM_L / 2, z + SEAM_L / 2, -SEAM_SINK, SEAM_H, x0, x1, f"belt_seam{i}", f"seam{i}", "leather"))
         for k in range(LACES):
             xc = x0 + pitch * (k + 0.5)
             out.append(on_run(z - LACE_L / 2, z + LACE_L / 2, SEAM_H, SEAM_H + LACE_H, xc - LACE_W / 2, xc + LACE_W / 2,
-                              f"belt_lace{i}_{k + 1}", p, "lacing"))
+                              f"belt_lace{i}_{k + 1}", f"seam{i}", "lacing"))
     return out
+
+
+# ---------------------------------------------------------------- the belt's travel
+# The belt's inner face lies on the drums (radius ROLL_R) and does not slip on them, so it travels at the head
+# roller's surface speed: the top run to the head, round the head roller, back along the bottom run to the foot
+# and round the foot roller. The drums are the same size, so each wrap is half a turn and the loop's inner face is
+# two runs of BELT_D and two half circles. s is the distance along that inner face from the foot's end of the top
+# run, in the belt's direction of travel.
+BELT_D = math.hypot(FOOT[0] - HEAD[0], FOOT[1] - HEAD[1])
+BELT_LOOP = 2 * BELT_D + TAU * ROLL_R
+_TY, _TZ = (FOOT[0] - HEAD[0]) / BELT_D, (FOOT[1] - HEAD[1]) / BELT_D   # along the line of centres, to the foot
+_NY, _NZ = -_TZ, _TY                                                   # square to it, up: the top run's side
+if _NY < 0:
+    _NY, _NZ = -_NY, -_NZ
+
+
+def belt_inner(s):
+    """The belt's inner face at s along the loop, (y, z): on the drums round the wraps."""
+    s %= BELT_LOOP
+    if s < BELT_D:                                                     # the top run, to the head
+        return FOOT[0] + _NY * ROLL_R - s * _TY, FOOT[1] + _NZ * ROLL_R - s * _TZ
+    s -= BELT_D
+    if s < math.pi * ROLL_R:                                           # round the head, turning with it
+        a = math.atan2(_NZ, _NY) - s / ROLL_R
+        return HEAD[0] + ROLL_R * math.cos(a), HEAD[1] + ROLL_R * math.sin(a)
+    s -= math.pi * ROLL_R
+    if s < BELT_D:                                                     # the bottom run, to the foot
+        return HEAD[0] - _NY * ROLL_R + s * _TY, HEAD[1] - _NZ * ROLL_R + s * _TZ
+    s -= BELT_D
+    a = math.atan2(-_NZ, -_NY) - s / ROLL_R                            # round the foot
+    return FOOT[0] + ROLL_R * math.cos(a), FOOT[1] + ROLL_R * math.sin(a)
+
+
+def seam_frame(s):
+    """Where a seam's lap lies with its middle at s: rigid, its two ends on the belt (the chord of the inner face
+    from s - SEAM_L/2 to s + SEAM_L/2): (its middle (y, z), the chord's angle about x, radians, atan2(z, y))."""
+    a, b = belt_inner(s - SEAM_L / 2), belt_inner(s + SEAM_L / 2)
+    return ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), math.atan2(b[1] - a[1], b[0] - a[0])
+
+
+def seam_s(z):
+    """s of the point on the top run over z."""
+    return (FOOT[1] + _NZ * ROLL_R - z) / _TZ
+
+
+def belt_speed():
+    """Voxels the belt travels a radian of the axle's travel: the head roller's surface speed, from the rig's
+    own (rounded) ratio, so the seams keep pace with the drums however long the machine runs."""
+    return abs(r6(HEAD_RATIO)) * ROLL_R
+
+
+def belt_cycle():
+    """The axle's travel (radians) that takes the belt once round."""
+    return BELT_LOOP / belt_speed()
+
+
+_FOURIER = []
+
+
+def belt_fourier():
+    """The seam's frame round the loop as harmonics of the loop's phase phi = TAU s / BELT_LOOP: complex
+    coefficients c_0 .. c_N for y, z and the angle less its steady turn (-phi: once round, backwards about x)."""
+    if not _FOURIER:
+        n = BELT_SAMPLES
+        ys, zs, gs = [], [], []
+        last = acc = seam_frame(0.0)[1]
+        for i in range(n):
+            (y, z), a = seam_frame(BELT_LOOP * i / n)
+            acc += math.remainder(a - last, TAU)
+            last = a
+            ys.append(y)
+            zs.append(z)
+            gs.append(acc + TAU * i / n)
+        turn = acc + math.remainder(seam_frame(0.0)[1] - last, TAU) - gs[0]
+        assert abs(turn + TAU) < 1e-9, turn                            # once round, backwards about x
+        for vals in (ys, zs, gs):
+            _FOURIER.append([sum(v * complex(math.cos(TAU * k * i / n), -math.sin(TAU * k * i / n)) for i, v in enumerate(vals)) / n
+                             for k in range(BELT_HARMONICS + 1)])
+    return _FOURIER
+
+
+def seam_drivers(s0):
+    """A seam at s0 at rest carried round the loop by the travel: turned about its rest middle by the chord's
+    angle, then moved by its middle's path, each a sum of harmonics in psi (a rotate for the steady turn, swings
+    and slides for the rest, and one of each with ratio 0 that makes the rest pose exact). Every driver is an
+    existing one on the travel; the belt's speed is the head roller's surface speed."""
+    w = TAU * belt_speed() / BELT_LOOP                                 # the loop's phase per radian of travel
+    phi0 = TAU * s0 / BELT_LOOP
+    (cy, cz), _ = seam_frame(s0)
+    pivot = [0.0, cy / B, cz / B]
+    fy, fz, fg = belt_fourier()
+
+    def harmonics(coef, scale):
+        out, at_rest = [], 0.0
+        for k in range(1, BELT_HARMONICS + 1):
+            amp, ph = 2 * abs(coef[k]) * scale, math.remainder(k * phi0 + math.atan2(coef[k].imag, coef[k].real) + math.pi / 2, TAU)
+            if round(amp, 7):                                          # a harmonic the loop's symmetry leaves out is not drawn
+                out.append((round(amp, 7), round(k * w, 12), round(ph, 9)))
+                at_rest += round(amp, 7) * math.sin(round(ph, 9))
+        return out, at_rest
+
+    drivers = [{"type": "rotate", "axis": "x", "pivot": [r6(c) for c in pivot], "ratio": round(-w, 12), "input": "travel"}]
+    gh, g0 = harmonics(fg, 1.0)
+    for amp, ratio, ph in gh:
+        drivers.append({"type": "swing", "axis": "x", "pivot": [r6(c) for c in pivot], "amplitude": amp, "ratio": ratio,
+                        "phase": ph, "input": "travel"})
+    drivers.append({"type": "swing", "axis": "x", "pivot": [r6(c) for c in pivot], "amplitude": round(-g0, 9), "ratio": 0.0,
+                    "phase": round(math.pi / 2, 9), "input": "travel"})
+    for axis, coef in (("y", fy), ("z", fz)):
+        hs, h0 = harmonics(coef, 1.0 / B)
+        for amp, ratio, ph in hs:
+            drivers.append({"type": "slide", "axis": axis, "amplitude": amp, "ratio": ratio, "phase": ph, "input": "travel"})
+        drivers.append({"type": "slide", "axis": axis, "amplitude": round(-h0, 9), "ratio": 0.0, "phase": round(math.pi / 2, 9),
+                        "input": "travel"})
+    return drivers
 
 
 def build_rollers():
@@ -946,6 +1065,10 @@ def _rig_parts():
         *[{"id": f"upright{side}", "match": [f"up{side}_*"], "requires": "shaker",
            "drivers": [{"type": "swing", "axis": "z", "pivot": pt(sum(RAILS_X[k]) / 2, UP_PIVOTS_Y[0], 0.0),
                         "amplitude": r6(-UP_SWING), "ratio": 1.0}]} for k, side in enumerate("we")],
+        # the belt travels with the head roller's surface, which a plain belt does not show: its two laced seams
+        # go round the loop with it (each its own part, carried by harmonics of the travel), and shake with the frame
+        *[{"id": f"seam{i}", "match": [f"belt_seam{i}", f"belt_lace{i}_*"], "requires": "belt", "ride": "shaker",
+           "drivers": seam_drivers(seam_s(z))} for i, z in enumerate(SEAMS_Z, 1)],
         {"id": "belt", "match": ["belt_*"], "requires": "belt", "ride": "shaker", "drivers": []},
         # the creep, by the travel: the ratchet a tooth a turn, one way; the worm with it; the rollers a
         # tooth of the wheel a worm turn
@@ -1031,13 +1154,15 @@ def make_rig(parts):
                               "per metal (the same elements); only the supplied metal's is drawn."},
         "drive": {"strokesPerTurn": 1.0,
                   "shake": r6(2 * E / B),
-                  "beltPerTurn": r6(abs(HEAD_RATIO) * (ROLL_R + BELT_T / 2) * TAU / B),
+                  "beltPerTurn": r6(belt_speed() * TAU / B),
+                  "beltLength": r6(BELT_LOOP / B),
                   "ratchet": {"teeth": RATCHET_N, "teethPerTurn": 1.0},
                   "worm": {"starts": 1, "wheelTeeth": WHEEL_N},
                   "_comment": "strokesPerTurn: the shaking frame's strokes (one across and back) per turn of the axle; "
                               "shake: the stroke, blocks. beltPerTurn: blocks the belt creeps to the head per turn of the "
-                              "axle, either way (the fixed pawl pushes the ratchet a tooth a stroke; a single-start worm on "
-                              "the head roller's 12-tooth wheel)."},
+                              "axle, either way, at the head drum's surface (the fixed pawl pushes the ratchet a tooth a stroke; a "
+                              "single-start worm on the head roller's 12-tooth wheel); beltLength: its loop round the drums, "
+                              "blocks (the seams' parts carry them round it)."},
         "parts": parts,
     }
 
@@ -1103,7 +1228,7 @@ def reference_poses():
     """(theta, travel): turned from rest either way, and with travel run up both ways first."""
     out = []
     for th in (0.0, 0.7, -1.9, 2.6, 4.1, -5.3, 11.05):
-        for extra in (0.0, 3.7, 150.0):
+        for extra in (0.0, 3.7, 150.0, 2500.0):                       # the last takes the seams round the head
             out.append((th, round(abs(th) + extra, 6)))
     return out
 
@@ -1145,7 +1270,8 @@ def shown(posed_els, pose, req_of):
 
 
 def coplanar_poses():
-    return ((0.0,), (0.9,), (2.3, 40.0), (math.pi / 2,), (4.0, 7.0), (-math.pi / 2,))
+    return ((0.0,), (0.9,), (2.3, 40.0), (math.pi / 2,), (4.0, 7.0), (-math.pi / 2,),
+            (1.1, belt_cycle() * 0.07), (2.0, belt_cycle() * 0.5), (-0.6, belt_cycle() * 0.83))   # the seams round the loop
 
 
 def fix_coplanar(els, parts):

@@ -64,7 +64,7 @@ tailings boxes with their chute sections. The rest:
 | `countershaft` | `countershaft` | The axle's oak cross, the steel shaft, two collars, the two eccentric sheaves |
 | `shaker` | `shaker`, `uprightw`, `uprighte` | The shaking frame: two oak rails, three ties, the rollers' bearing blocks, the two yokes and their arms, the worm shaft's bearings and hangers, the rails' clevises and pins; and the six oak uprights it stands on |
 | `rollers` | `head`, `foot` | The head roller with its journal, collars and worm wheel; the foot roller |
-| `belt` | `belt` | The stitched leather belt round both rollers, its two raised edges, and two laced seams across its top run |
+| `belt` | `belt`, `seam1`, `seam2` | The stitched leather belt round both rollers and its two raised edges; its two laced seams, each a part that travels round the loop with the belt |
 | `creep` | `worm`, `pawl` | The worm shaft: its rod, collars, the worm (core and helical thread) and the ratchet; the fixed pawl on its post |
 | `feedbox` | `feedbox` | The feed box, its weir and apron, and the infeed chute section |
 | `pipecopper`, `pipelead` | one each | The water line in copper or in lead: the same elements, one drawn |
@@ -85,7 +85,7 @@ writes:
 |---|---|
 | `assets/seraphhorizons/shapes/block/vanner.json` | The whole machine, both water lines (475 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/vanner_frame.json` | The frame only (87 elements). The block draws it and the inventory shows it. |
-| `assets/seraphhorizons/config/vanner-rig.json` | The cells, the anchors and the part rig (13 parts). |
+| `assets/seraphhorizons/config/vanner-rig.json` | The cells, the anchors and the part rig (15 parts). |
 | `tests/Vanner/rig-reference.json` | Every part's matrix at 21 poses of θ and ψ, from the reference maths. |
 
 ### How the machine works
@@ -118,7 +118,20 @@ of a stroke against the rail's straight slide.
 into them), with a collar outside each. The belt, stitched leather 0.4 thick, runs round both, its top run on
 their upper tangent, falling 1.2 in 31 (1 in 26) to the foot; two raised edges, 0.6 high, run along the top run
 inside its sides to keep the water on it. A belt that wide is made of hides joined end to end: two seams cross
-the top run (z 10.5 and 33), each a lap 0.8 long with eight rawhide stitches laced over it.
+it (at rest on the top run, z 10.5 and 33), each a lap 0.8 long, let 0.05 into the belt and 0.12 proud of it, with
+eight rawhide stitches laced over it.
+
+**The belt travels.** Its inner face lies on the drums and does not slip, so it moves at the head drum's surface
+speed (|ratio| x 2 voxels a radian of the axle's travel, 0.087 a turn): the top run to the head, round the head
+roller, back along the bottom run to the foot and round the foot roller, its loop 74.6 long (two runs of 31.02 and
+two half turns of the drums; the drums are the same size, so each wrap is half a turn), once round in about 855
+turns of the axle. A plain belt moving along its length looks the same, so the belt itself is drawn still; what
+shows the travel is its two seams, each its own part (`seam1`, `seam2`) carried round the loop by the travel and
+shaking with the frame. A seam is rigid: its middle and its angle are those of the chord between the two points of
+the belt's inner face half a lap either side of it, so on a run it lies flat on the belt and round a drum its ends
+stay on it. The rig has no driver that wraps round a loop, so each seam's motion is written as a sum of harmonics of
+the travel with the existing drivers (see "Moving parts"); the fit is held to the loop within 0.03 (worst 0.014)
+by the checks.
 
 **The creep.** Under the head roller's east journal, on two iron bearings hung from the east rail, is the worm
 shaft (along z, at x 19.6, y 4.3), riding the shaking frame. On it are a **ratchet** of 12 saw teeth, pitch
@@ -137,7 +150,7 @@ the ground, lies just under the ratchet's bottom teeth (0.05 clear of their reac
 the frame moves east the bottom tooth catches on it and the ratchet turns a tooth; as the frame moves back the
 tooth slips over it. So the ratchet turns a tooth a stroke, one way, whichever way the axle turns, the worm turns
 with it, and the wheel turns a tooth for every turn of the worm: the head roller draws the belt's top run up to
-the head by about 0.1 voxel a turn of the axle (0.4 in a stroke at the model's scale; the period's belt crept
+the head by 0.087 voxel a turn of the axle, its drums' surface (0.4 in a stroke at the model's scale; the period's belt crept
 0.2 to 0.8 in a stroke). The worm and its wheel both ride the frame, so they never move on each other. The foot
 roller turns with the belt.
 
@@ -168,6 +181,7 @@ Every moving part (θ the axle's angle, ψ its travel either way):
 | Shaking frame (`shaker`) [shaker] | The sheaves, in its yokes | The rollers, the belt, the worm shaft, the uprights' heads | `slide` x, amplitude 0.5 voxel (1/32 block), on θ: x = 0.5 sin θ |
 | Uprights (`uprightw`, `uprighte`) [shaker] | The shaking frame, at their head pins | — (they carry it) | `swing` z about each side's foot pins (y 1.9), amplitude −asin(0.5/4.4) (6.5°), on θ |
 | Belt (`belt`) [belt] | The head roller | The foot roller | none; rides `shaker` (drawn still: a plain belt moving along its length looks the same) |
+| Laced seams (`seam1`, `seam2`) [belt] | The belt, at the head drum's surface speed | — | Round the loop by ψ, a harmonic series of existing drivers: a `rotate` x about the seam's rest middle, ratio −ω (ω = 2π × 0.01389 / 74.61, once round the loop a cycle, backwards about x), then `swing` x about the same point and `slide` y and z, each `amplitude` sin(k ω ψ + `phase`) for the harmonics k up to 32 the loop needs (52 drivers a seam), and one of each with ratio 0 that makes the rest pose exact; rides `shaker` |
 | Head roller (`head`) [rollers] | The worm, by its wheel | The belt | `rotate` x about (y 9.3, z 7), ratio −1/144, on ψ; rides `shaker` |
 | Foot roller (`foot`) [rollers] | The belt | — | `rotate` x about (y 8.1, z 38), ratio −1/144, on ψ; rides `shaker` |
 | Worm shaft: rod, worm, ratchet (`worm`) [creep] | The fixed pawl, a tooth a stroke | The head roller's worm wheel | `rotate` z about (19.6, 4.3), ratio −1/12, on ψ; rides `shaker` |
@@ -221,14 +235,20 @@ one fails:
   the space between the wheel's two lowest teeth, within a twentieth of the pitch (worst 0.0001); thread and
   teeth lean alike, the lead angle; they share 1.15 of depth, and the tips clear the worm's core at the throat.
   The worm and its wheel are not in `ALLOWED`, so the clearance checks prove the thread never runs into a tooth.
+- **Belt:** each seam, posed by the rig, where a rigid lap with its ends on the belt lies at s0 + the drum's surface
+  speed x travel (every corner, at 385 points of a turn of the loop, the frame shaking: within 0.03, worst 0.014);
+  along the top run it goes to the head (−z) as far as the head drum's surface turns (worst 0.0003), at θ either
+  way; once round it is back where it started.
 - **Supports:** the countershaft in its three bearings, the worm shaft and each roller's journal in two.
 - **Uprights:** each leaning about its foot pin, its head within the arc's drop (0.03) of the rail's pin through a
   turn, clear of the rail above it.
-- **Clearances:** no two parts touch over 36 poses (turns either way, the creep run on) except the intended
-  contacts listed in `ALLOWED` (shafts in their bearings, sheaves in their yokes, the belt on
-  its rollers, the uprights on their pins, the foot's journals through the rails).
-- **Swept paths** (full runs): the same for the moving parts every 3.75° of a turn, and with the creep run on.
-- **No z-fighting** (full runs): no coplanar overlapping faces at six poses after the fix (`fix_coplanar`), which
+- **Clearances:** no two parts touch over 85 poses (turns either way, the creep run on, the belt once round in 48
+  steps) except the intended contacts listed in `ALLOWED` (shafts in their bearings, sheaves in their yokes, the
+  belt on its rollers, each seam's lap let into the belt, the uprights on their pins, the foot's journals through
+  the rails).
+- **Swept paths** (full runs): the same for the moving parts every 3.75° of a turn, with the creep run on, and the
+  belt once round in 384 steps.
+- **No z-fighting** (full runs): no coplanar overlapping faces at nine poses (three with the seams round the loop) after the fix (`fix_coplanar`), which
   removes the faces pressed against their own part and insets the rest.
 - **Files:** every texture declared; a lid over every column; no anchor cell hollow; the shipped model is the
   checked one (no move: the build frame's corner is the controller's).
@@ -244,13 +264,15 @@ is added to the shared rig maths.
 - **Inputs.** θ, the axle's angle (radians), and ψ, its travel either way (`"input": "travel"`). The
   countershaft rotates about z by θ; the shaking frame slides along x by 1/32 sin θ; the uprights swing about z by
   −0.1139 sin θ about their feet; the worm shaft (ratio −1/12), the head and the foot rollers (−1/144) rotate by ψ
-  and ride the shaking frame. No work, class or presence.
+  and ride the shaking frame; the two seams go round the belt's loop by ψ (harmonics of `rotate`, `swing` and
+  `slide` on the travel) and ride it too. No work, class or presence.
 - **Keys.** `cells` (six, each with its boxes and a `lid`), `powerCell`/`powerFace`, `waterCell`/`waterFace`,
   `feedCell`/`feedFace`, `concentrateCell`/`concentrateFace`, `tailingsCell`/`tailingsFace`, `pipes` (`requires`
   per metal), `drive` and `parts`. `requires` values: `countershaft`, `shaker`, `rollers`, `belt`, `creep`,
   `feedbox`, `pipecopper`, `pipelead`, or null.
 - **`drive`**: `strokesPerTurn` (1: one stroke across and back a turn), `shake` (the stroke, blocks), `beltPerTurn`
-  (blocks the belt creeps to the head a turn, either way), `ratchet` (`teeth`, `teethPerTurn`) and `worm`
+  (blocks the belt creeps to the head a turn, either way: the head drum's surface), `beltLength` (its loop round the
+  drums, blocks), `ratchet` (`teeth`, `teethPerTurn`) and `worm`
   (`starts`, `wheelTeeth`): figures a renderer or sound can use; the rig's drivers already pose them.
 
 **In the viewer** (`site/models.json`, `vanner`): the axle is the θ slider and Play turns it at two turns a
@@ -263,7 +285,7 @@ value is a checkbox, and the water line is a "Water line" select, copper or lead
 Element names are the rig's interface (first-match globs, in the rig's order): `cs_*` (`entrya`, `entryb`,
 `rod`, `collar1`/`2`, `sheave1`/`2`), `sk_*` (`rail_w`/`e`, `tie1`..`3`, `headbearing_*`, `footbearing_*`,
 `yoke1`/`2_*`, `arm1`/`2`, `wbearing1`/`2`, `whanger1`/`2`, `up<side><n>_cheek*`/`_pin`), `upw_*` and `upe_*` (the
-uprights), `belt_*` (`runa`, `runb`, `wrap*`, `edge1`/`2`, `seam1`/`2`, `lace<seam>_<n>`), `head_*` (`drum`, `journal`, `collar*`, `wheel_body_*`, `wheel_tooth<n>_w`/`c`/`e`),
+uprights), `belt_seam<n>` and `belt_lace<n>_*` (the seams' parts, before the belt's), `belt_*` (`runa`, `runb`, `wrap*`, `edge1`/`2`), `head_*` (`drum`, `journal`, `collar*`, `wheel_body_*`, `wheel_tooth<n>_w`/`c`/`e`),
 `foot_*`, `worm_*` (`rod`, `collar*`, `core_*`, `thread1`..`49`, `ratchet_*`), `pawl_*` (`post`, `arm`), `fb_*`
 (`floor`, `w`, `e`, `s`, `weir`, `apron`, `chute_*`), `pipecopper_*` and `pipelead_*`, and `fr_*` for the frame
 (`sill_*`, `up<side><n>_*`, `pedestal*`, `bearing*`, `saddle`, `post_*`, `bracket_*`, `spraypost`,
@@ -275,9 +297,11 @@ port them into `make_shape.py`, or stop regenerating.
 The model has been reviewed in projections rendered from the written files. No one has yet looked at it in a
 client or the site's viewer.
 
-1. **The belt is drawn still**, its seams with it, and its rollers turn under it; in the game a renderer could
-   scroll its texture by `beltPerTurn`. The creep is a tenth of a voxel a turn, so this shows only over many
-   turns. The seams are drawn on the top run only.
+1. **The belt body is drawn still**; its two seams travel round it at the drums' surface speed and show the
+   creep (a renderer could also scroll the belt's texture by `beltPerTurn`). The creep is 0.087 voxel a turn, so a
+   seam goes round in about 855 turns: in the viewer's Play, about 0.17 voxel a second, seven minutes round. The
+   seams are rigid laps (a chord of the wrap, 0.04 into the belt at its middle there), and their path is a fit of
+   32 harmonics, within 0.014 of the loop. The raised edges are drawn along the top run only and do not travel.
 2. **The ratchet turns evenly** with ψ rather than a tooth at a time.
 3. **The uprights are rigid posts on pins**, not the period's bending springs; their heads drift 0.03 off the
    rail's pins at the ends of a stroke.
@@ -330,8 +354,9 @@ metal at 3 rock an hour; resistance 0.08, 0.016 empty; 15 L of water a rock). Wh
 
 - **The drive.** A renderer turns θ with the axle's angle and ψ with its travel (the shared `ShaftClock`), and
   draws every part by the shared rig maths (`Machines/Core/RigAnimation.cs`): the countershaft, the shake and the
-  uprights by θ, the creep by ψ, so the belt goes to the head whichever way the axle turns. `drive` gives the
-  stroke and the belt's creep per turn for sounds and a scrolling belt texture.
+  uprights by θ, the creep by ψ, so the belt goes to the head whichever way the axle turns and its seams go round
+  with it. `drive` gives the stroke, the belt's creep per turn and its loop's length for sounds and a scrolling belt
+  texture.
 - **Parts.** Every part with a `requires` is drawn when its value is fitted, the water line in the supplied metal
   (`pipes.requires`); the frame shape is the block's.
 - **Anchors.** The power, water, infeed and the two output chutes, each a cell and a face (above).

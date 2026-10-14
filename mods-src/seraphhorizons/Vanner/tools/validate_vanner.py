@@ -20,7 +20,8 @@ from machinegen.rigmath import apply as _apply
 from machinegen.rigmath import part_of, posed
 
 TAU = 2 * math.pi
-MOVING = ("countershaft", "shaker", "uprightw", "uprighte", "belt", "head", "foot", "worm")
+MOVING = ("countershaft", "shaker", "uprightw", "uprighte", "seam1", "seam2", "belt", "head", "foot", "worm")
+SEAMS = ("seam1", "seam2")
 
 
 class V:
@@ -66,6 +67,11 @@ class V:
 def turns(n=24, state="all", travel_extra=0.0):
     """A turn of the axle in n steps, in a state (turned from rest, plus `travel_extra` of travel)."""
     return [(TAU * i / n, TAU * i / n + travel_extra, state) for i in range(n + 1)]
+
+
+def belt_round(m, n=48):
+    """The belt once round in n steps of the travel, the frame at a different point of its shake at each."""
+    return [(1.37 * i, m.belt_cycle() * i / n) for i in range(n + 1)]
 
 
 # ---------------------------------------------------------------- parts
@@ -458,11 +464,67 @@ def check_drive(v):
         f1 = v.point("shaker", (th, abs(th)), [0.0, 0.0, 0.0])
         if p1[2] - p0[2] >= 0 or abs((p1[0] - f1[0]) - p0[0]) > 1e-9:
             v.fail(f"the belt does not creep to the head with the axle turned {th:+}: the ratchet must turn the worm one way either way")
-    per_turn = abs(m.HEAD_RATIO) * (m.ROLL_R + m.BELT_T) * TAU
+    per_turn = m.belt_speed() * TAU
     print(f"drive: the countershaft with the axle, the frame E sin theta across ({2 * m.E} a stroke, a stroke a turn); the ratchet: "
           f"{m.RATCHET_N} teeth {tooth:.3f} apart (the stroke), the fixed pawl {worst_gap:.2f} under their tips through the shake: a "
           f"tooth a turn, one way; the worm on the wheel's pitch circle ({m.WHEEL_R:.2f} + {m.WORM_R:.2f}), the wheel a tooth a worm "
           f"turn (1/{m.WHEEL_N}): the belt creeps {per_turn:.3f} voxels a turn to the head, whichever way the axle turns")
+
+
+def check_belt(v):
+    """The belt travels with the head roller's surface: each seam, carried round the loop by the travel, lies
+    where a rigid lap with both ends on the belt lies at the same distance along it (s0 + speed x travel), its
+    every corner within BELT_TOL, at 384 points of a turn of the loop, the frame shaking; along the top run it
+    goes to the head, and as far as the head drum's surface turns; it shakes with the frame; once round, it is
+    back where it started."""
+    m = v.m
+    tol = 0.03
+    speed, cycle = m.belt_speed(), m.belt_cycle()
+    worst, where = 0.0, None
+    for pid, z0 in zip(SEAMS, m.SEAMS_Z):
+        s0 = m.seam_s(z0)
+        (c0y, c0z), a0 = m.seam_frame(s0)
+        rest = v.by_part[pid]
+        for i in range(385):
+            ps, th = cycle * i / 384, 0.9 * i
+            (cy, cz), a = m.seam_frame(s0 + speed * ps)
+            da = a - a0
+            shift = v.point("shaker", (th, ps), (0.0, 0.0, 0.0))[0]
+            for el, got in zip(rest, v.posed(pid, (th, ps))):
+                for p, q in zip(el.corners(), got.corners()):
+                    y, z = p[1] - c0y, p[2] - c0z
+                    want = (p[0] + shift, cy + y * math.cos(da) - z * math.sin(da), cz + y * math.sin(da) + z * math.cos(da))
+                    d = math.dist(want, q)
+                    if d > worst:
+                        worst, where = d, (pid, el.name, round(ps, 1))
+    if worst > tol:
+        v.fail(f"a seam leaves the belt's path by {worst:.3f} (more than {tol}) at {where}")
+    # along the top run: to the head (-z), as far as the head drum's surface turns, whichever way theta went
+    run = []
+    for th in (0.0, 3.0, -3.0):
+        for pid, z0 in zip(SEAMS, m.SEAMS_Z):
+            steps, step = 6, 1.5 / speed                               # 9 voxels of belt in six steps, about the top
+            ps0 = ((m.BELT_D / 2 - 4.5 - m.seam_s(z0)) % m.BELT_LOOP) / speed   # run's middle, where it comes to it
+            c0 = v.posed(pid, (th, ps0))[0].c
+            c1 = v.posed(pid, (th, ps0 + steps * step))[0].c
+            turned = 0.0
+            for k in range(steps):
+                ma, mb = v.mat("head", (th, ps0 + k * step)), v.mat("head", (th, ps0 + (k + 1) * step))
+                turned += math.remainder(math.atan2(mb[2][1], mb[1][1]) - math.atan2(ma[2][1], ma[1][1]), TAU)
+            arc = m.ROLL_R * abs(turned)
+            moved = math.hypot(c1[1] - c0[1], c1[2] - c0[2])
+            run.append(moved - arc)
+            if c1[2] >= c0[2] or turned >= 0 or abs(moved - arc) > tol or abs(c1[0] - c0[0]) > 1e-9:
+                v.fail(f"{pid} does not keep pace with the head drum along the top run, to the head (moved {moved:.4f}, "
+                       f"{c1[2] - c0[2]:+.3f} in z; the drum's surface {arc:.4f})")
+    for pid in SEAMS:
+        m1 = v.mat(pid, (0.0, cycle))
+        if max(abs(m1[r][c] - (1.0 if r == c else 0.0)) for r in range(3) for c in range(4)) > 1e-4:
+            v.fail(f"{pid} is not back where it started once the belt has gone round")
+    print(f"belt: travels {speed:.5f} voxels a radian of travel (the head drum's surface, {speed * TAU:.3f} a turn; once round "
+          f"its {m.BELT_LOOP:.2f} loop in {cycle / TAU:.0f} turns); each seam on the loop (a rigid lap, its ends on the belt) to "
+          f"within {worst:.4f} through a turn of the loop, the frame shaking; along the top run to the head, worst "
+          f"{max(map(abs, run)):.4f} off the drum's surface; back where it started once round")
 
 
 def thread_crossings(v, pose):
@@ -604,6 +666,7 @@ ALLOWED = [
     # in the tooth spaces clear of the teeth, check_mesh)
     ("countershaft", r"_sheave", "shaker", r"_yoke"),
     ("belt", None, "head|foot", r"_drum"),
+    ("seam1|seam2", r"_seam\d$", "belt", None),              # each seam's lap let into the belt it joins
     # the uprights on their pins
     ("uprightw|uprighte", None, "frame", r"^fr_up[we]\d_pin"),
     ("uprightw|uprighte", None, "shaker", r"^sk_up[we]\d_pin"),
@@ -688,18 +751,20 @@ def validate(m, els, parts, rig, quick=False):
     check_textures(v)
     check_thickness(v)
     check_floating(v)
-    check_containment(v, [(a, None) for a in (0.0, 0.7, math.pi / 2, 2.5, 3.3, 4.1, -math.pi / 2, 5.8, -1.2)])
+    check_containment(v, [(a, None) for a in (0.0, 0.7, math.pi / 2, 2.5, 3.3, 4.1, -math.pi / 2, 5.8, -1.2)] + belt_round(m, 24))
     check_anchors(v)
     check_drops(v)
     check_yokes(v)
     check_drive(v)
+    check_belt(v)
     check_mesh(v)
     check_supports(v)
     check_uprights(v)
-    check_clearances(v, turns(12 if quick else 24) + turns(8, travel_extra=37.0) + [(-0.9, None), (-2.4, None)], "clearances")
+    check_clearances(v, turns(12 if quick else 24) + turns(8, travel_extra=37.0) + [(-0.9, None), (-2.4, None)]
+                     + belt_round(m, 24 if quick else 48), "clearances")
     if not quick:
-        check_clearances(v, turns(96) + turns(48, travel_extra=TAU * 6.5), "swept paths (every 3.75 degrees of the axle, the creep "
-                         "run on)", moving_only=True)
+        check_clearances(v, turns(96) + turns(48, travel_extra=TAU * 6.5) + belt_round(m, 384), "swept paths (every 3.75 degrees "
+                         "of the axle, the creep run on, the belt once round in 384 steps)", moving_only=True)
         check_zfight(v)
     return v.ok
 

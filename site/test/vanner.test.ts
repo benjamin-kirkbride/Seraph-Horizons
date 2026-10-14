@@ -33,6 +33,8 @@ describe("the vanner's rig against its rig-reference.json", () => {
       ["shaker", "shaker", null],
       ["uprightw", "shaker", null],
       ["uprighte", "shaker", null],
+      ["seam1", "belt", "shaker"],
+      ["seam2", "belt", "shaker"],
       ["belt", "belt", "shaker"],
       ["head", "rollers", "shaker"],
       ["foot", "rollers", "shaker"],
@@ -82,6 +84,48 @@ describe("the vanner's rig against its rig-reference.json", () => {
       const moved = apply(ms[index("head")]!, top);
       expect(moved[2]!).toBeLessThan(top[2]!);
       expect(moved[0]! - top[0]!).toBeCloseTo(shaker[12]!, 9);
+    }
+  });
+
+  it("carries the belt's laced seams round its loop at the head drum's surface speed, the top run to the head", () => {
+    // the belt's inner face rides the drums (radius 2) without slipping: it travels |head ratio| x 2 voxels a radian
+    // of travel, round a loop of two runs and two half turns; each seam (its own part) goes round it with the
+    // travel, shaking with the frame, and is back where it started once round
+    const head = parts[index("head")]!.drivers![0] as unknown as { ratio: number };
+    const speed = Math.abs(head.ratio) * 2 / 16;                      // blocks a radian of travel
+    const drive = rig.drive as { beltPerTurn: number; beltLength: number };
+    expect(drive.beltPerTurn).toBeCloseTo(speed * 2 * Math.PI, 6);
+    const cycle = drive.beltLength / speed;
+    const flat = flattenShape(shape.elements);
+    for (const id of ["seam1", "seam2"]) {
+      const lap = flat.find((f) => f.element.name === `belt_${id}`)!;
+      const a = lap.element.from, b = lap.element.to;
+      const mid = apply(lap.world, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]).map((x) => x / 16);
+      const at = (theta: number, travel: number) => {
+        const ms = partMatrices(parts, pose(theta, travel), order, null);
+        return { p: apply(ms[index(id)]!, mid), shift: ms[index("shaker")]![12]! };
+      };
+      // through a turn of the loop: never off the loop's band (between the drums' axes' line less 3 and more 3
+      // voxels), shaking with the frame, and its z sweeping from the head roller's front to the foot roller's back
+      let zmin = Infinity, zmax = -Infinity;
+      for (let k = 0; k <= 96; k++) {
+        const { p, shift } = at(0.9 * k, (cycle * k) / 96);
+        expect(p[0]! - mid[0]!).toBeCloseTo(shift, 9);
+        zmin = Math.min(zmin, p[2]!);
+        zmax = Math.max(zmax, p[2]!);
+        const axisY = (9.3 + ((p[2]! * 16 - 7) * (8.1 - 9.3)) / 31) / 16;   // the line of the drums' axes under it
+        const r = Math.hypot(p[1]! - axisY, p[2]! < 7 / 16 ? p[2]! - 7 / 16 : p[2]! > 38 / 16 ? p[2]! - 38 / 16 : 0);
+        expect(r * 16).toBeGreaterThan(2.3);
+        expect(r * 16).toBeLessThan(2.7);
+      }
+      expect(zmin * 16).toBeLessThan(5.0);
+      expect(zmax * 16).toBeGreaterThan(40.0);
+      // the seam at rest is on the top run; a little travel on, it is nearer the head (−z) by the drum's surface
+      const { p: p0 } = at(0, 0), { p: p1 } = at(0, 0.03 / speed);
+      expect(p1[2]!).toBeLessThan(p0[2]!);
+      expect(Math.hypot(p1[1]! - p0[1]!, p1[2]! - p0[2]!)).toBeCloseTo(0.03, 3);
+      const back = at(0, cycle).p;
+      for (let c = 0; c < 3; c++) expect(back[c]!).toBeCloseTo(mid[c]!, 4);
     }
   });
 

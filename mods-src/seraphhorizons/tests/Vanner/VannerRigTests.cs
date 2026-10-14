@@ -34,7 +34,7 @@ public class VannerRigTests
     public void The_shipped_rig_parses_with_no_work_and_its_anchors()
     {
         var parts = Shipped();
-        Assert.Equal(["countershaft", "shaker", "uprightw", "uprighte", "belt", "head", "foot", "worm", "pawl", "feedbox",
+        Assert.Equal(["countershaft", "shaker", "uprightw", "uprighte", "seam1", "seam2", "belt", "head", "foot", "worm", "pawl", "feedbox",
             "pipecopper", "pipelead", "frame"], parts.Parts.Select(p => p.Id));
         using var doc = JsonDocument.Parse(File("vanner-rig.json"));
         var root = doc.RootElement;

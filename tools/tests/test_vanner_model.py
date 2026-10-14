@@ -13,6 +13,7 @@ import importlib.util
 import json
 import math
 import os
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -55,7 +56,8 @@ def aabb(els):
 class Rig(unittest.TestCase):
     def test_parts_parse_and_use_the_vocabulary(self):
         ids = [p["id"] for p in RIG["parts"]]
-        self.assertEqual(ids, ["countershaft", "shaker", "uprightw", "uprighte", "belt", "head", "foot", "worm", "pawl", "feedbox",
+        self.assertEqual(ids, ["countershaft", "shaker", "uprightw", "uprighte", "seam1", "seam2", "belt", "head", "foot", "worm",
+                               "pawl", "feedbox",
                                "pipecopper", "pipelead", "frame"])
         for p in RIG["parts"]:
             self.assertIn(p["requires"], REQUIRES, p["id"])
@@ -129,6 +131,43 @@ class Motion(unittest.TestCase):
         head = {d["ratio"] for p in RIG["parts"] if p["id"] == "head" for d in p["drivers"]}
         self.assertEqual(worm, {round(-1 / 12, 6)})
         self.assertEqual(head, {round(-1 / 144, 6)})
+
+    def test_the_belts_seams_travel_round_the_loop_with_the_head_drums_surface(self):
+        # each seam's lap, carried by the travel, lies where the generator's belt path puts it (a rigid lap, its
+        # ends on the belt, at s0 + the drum's surface speed x travel) through a turn of the loop, shaking with the
+        # frame; on the top run it goes to the head as far as the drum's surface turns
+        speed = abs(next(d["ratio"] for p in RIG["parts"] if p["id"] == "head" for d in p["drivers"])) * make_shape.ROLL_R
+        self.assertAlmostEqual(speed, make_shape.belt_speed(), places=12)
+        self.assertAlmostEqual(RIG["drive"]["beltPerTurn"], speed * 2 * math.pi / 16, places=6)
+        cycle = make_shape.BELT_LOOP / speed
+        laps = {e["name"]: flatten([e], textures={})[0] for e in SHAPE["elements"] if re.fullmatch(r"belt_seam\d", e["name"])}
+        self.assertEqual(sorted(laps), ["belt_seam1", "belt_seam2"])
+        for i, z0 in enumerate(make_shape.SEAMS_Z, 1):
+            s0 = make_shape.seam_s(z0)
+            (c0y, c0z), a0 = make_shape.seam_frame(s0)
+            lap = laps[f"belt_seam{i}"]
+            for k in range(97):
+                travel, theta = cycle * k / 96, 0.7 * k
+                (cy, cz), a = make_shape.seam_frame(s0 + speed * travel)
+                da = a - a0
+                shift = rigmath.apply(matrix("shaker", theta, travel), [0.0, 0.0, 0.0])[0] * 16
+                got = rigmath.posed(lap, matrix(f"seam{i}", theta, travel))
+                for p, q in zip(lap.corners(), got.corners()):
+                    y, z = p[1] - c0y, p[2] - c0z
+                    want = (p[0] + shift, cy + y * math.cos(da) - z * math.sin(da), cz + y * math.sin(da) + z * math.cos(da))
+                    self.assertLess(math.dist(want, q), 0.03, (i, travel))
+            # on the top run, 6 voxels of belt: to the head, as far as the drum's surface turns
+            t0 = ((make_shape.BELT_D / 2 - 3 - s0) % make_shape.BELT_LOOP) / speed
+            t1 = t0 + 6 / speed
+            c0 = rigmath.posed(lap, matrix(f"seam{i}", 0.0, t0)).c
+            c1 = rigmath.posed(lap, matrix(f"seam{i}", 0.0, t1)).c
+            self.assertLess(c1[2], c0[2])
+            self.assertAlmostEqual(math.hypot(c1[1] - c0[1], c1[2] - c0[2]), 6.0, delta=0.03)
+            # once round, back where it started
+            back = matrix(f"seam{i}", 0.0, cycle)
+            for r in range(3):
+                for c in range(4):
+                    self.assertAlmostEqual(back[r][c], 1.0 if r == c else 0.0, places=4)
 
     def test_the_worms_thread_runs_in_the_wheels_tooth_spaces(self):
         # the shipped thread is a helix (bars a 16th of a turn apart, rising a 16th of the lead), and wherever
