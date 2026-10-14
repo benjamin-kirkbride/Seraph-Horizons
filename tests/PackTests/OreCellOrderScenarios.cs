@@ -117,11 +117,18 @@ public static class OreCellOrder
         Save(seed, set, name, results, sapi);
         // Worlds booted one after another in one process do not come out alike: a second world's
         // vanilla deposits (cracked rock) differ from the same world booted in a process of its
-        // own, so something outlives a server in the process (#946, open). The
-        // orders are compared across processes: run each class in its own `dotnet test`.
+        // own, so something outlives a server in the process (#946, open). The orders are compared
+        // across processes, each class run alone in its own `dotnet test` (its world the first in
+        // the process) with ORE_CELL_ORDER_COMPARE=1; otherwise (CI's shard, many worlds in one
+        // process) each only records.
         var other = Results.Keys.FirstOrDefault(k => k != key && k.StartsWith(set + "/", StringComparison.Ordinal));
         if (other != null)
             output.WriteLine($"{name}: '{other}' ran in this process too; worlds booted in one process differ (see the code), so it is compared only from its own process's file");
+        if (Environment.GetEnvironmentVariable("ORE_CELL_ORDER_COMPARE") != "1")
+        {
+            output.WriteLine($"{name}: recorded in {FileOf(seed, set, name)}; set ORE_CELL_ORDER_COMPARE=1 and run each order alone to compare");
+            return;
+        }
         var otherName = name == "anchor first" ? "far first" : "anchor first";
         if (Load(seed, set, otherName, sapi) is not { } fromFile)
         {

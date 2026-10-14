@@ -406,7 +406,7 @@ before its turn is skipped, as before (`OreCellBook`).
   it asks for more of them: about a third slower.
 
 Checked by `tests/PackTests/OreCellOrderScenarios.cs`: `OreCellOrderAnchorFirst` and
-`OreCellOrderFarFirst`, each in its own `dotnet test` run (they compare through a file in the temp
+`OreCellOrderFarFirst`, each alone in its own `dotnet test` run with `ORE_CELL_ORDER_COMPARE=1` (they compare through a file in the temp
 directory), generate the spawn cells of seed 424242 anchor first and far first: the copper
 (`nativecopper` chimney), iron (`limonite` hydrotube), tin (`cassiterite` chimney), bismuth
 (`bismuthinite` chimney) and zinc (`sphalerite` hydrotube) veins come out identical block for
