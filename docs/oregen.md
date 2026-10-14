@@ -290,8 +290,12 @@ new worlds only, recorded in `seraphhorizons:oreworld` as `stableVeins`; needs `
 - **Laid at PreDone, alike everywhere.** At each column's PreDone pass every held vein whose anchor
   is within 3 chunks is replayed: IOG's own `GenDeposit`, seeded as `GenDeposits` seeds the try,
   against a world that is the vein's host rock everywhere (`StableVeinWorlds.HostRockWorld`, a
-  `DispatchProxy` for the five calls IOG makes), so every draw is made whatever is real. Its
-  writes in this column are laid on the real blocks in IOG's order (`StableVeinApply`): its host
+  `DispatchProxy` for the five calls IOG makes), so every draw is made whatever is real. The replay
+  runs as the anchor's own pass, so the whole vein is drawn (IOG's `GenDeposit` otherwise skips a
+  vein whose radius misses the column it is given, though chimney and tube tendrils reach further),
+  with a random sequence of its own (the one `GenDeposits` shares with every generator, vanilla's
+  too, may be mid-try on another worldgen thread); it is the same for every column and kept for
+  the next. Its writes in this column are laid on the real blocks in IOG's order (`StableVeinApply`): its host
   rock (the shell IOG paints around a vein, its "normal" blocks, boulders) only onto stone or
   `rock-*`, ore only onto the host rock. Each pass waits for its neighbours to finish the one before
   (`ensurePrettyNeighbourhood`), so by a column's PreDone every column within 3 has finished
@@ -313,6 +317,16 @@ chimney stepped into another rock; it is drawn whole and laid where the column h
 indicators on cell veins are gone (IOG put them above ground, where the lay rule puts no host rock).
 Which fallback spot a cell ends on can still depend on order: a fallback whose anchor generates
 before its turn is skipped, as before (`OreCellBook`).
+
+Checked by `tests/PackTests/OreCellOrderScenarios.cs`: `OreCellOrderAnchorFirst` and
+`OreCellOrderFarFirst`, each in its own `dotnet test` run (they compare through a file in the temp
+directory), generate the spawn cells of seed 424242 anchor first and far first: the copper
+(`nativecopper` chimney), iron (`limonite` hydrotube), tin (`cassiterite` chimney), bismuth
+(`bismuthinite` chimney) and zinc (`sphalerite` hydrotube) veins come out identical block for
+block. Worlds booted one after another in one process do not: the second world's vanilla deposits
+(cracked rock) differ from the same world booted alone, so something outlives a server in the
+process (open: seen with stable veins on, not yet checked without; it would matter where a client
+switches worlds without restarting).
 
 ## Deposit registry (#443)
 

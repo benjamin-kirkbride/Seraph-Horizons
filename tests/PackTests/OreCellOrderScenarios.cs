@@ -109,9 +109,9 @@ public static class OreCellOrder
         Results[name] = results;
         Blocks = sapi.World.Blocks;
         Save(name, results, sapi);
-        // Worlds booted one after another in one process do not come out alike, stable veins or
-        // not: a second world's vanilla deposits (cracked rock) differ from the same world booted in
-        // a process of its own, so something outlives a server in the process (#946, open). The
+        // Worlds booted one after another in one process do not come out alike: a second world's
+        // vanilla deposits (cracked rock) differ from the same world booted in a process of its
+        // own, so something outlives a server in the process (#946, open). The
         // orders are compared across processes: run each class in its own `dotnet test`.
         var other = Results.Keys.FirstOrDefault(k => k != name);
         if (other != null)

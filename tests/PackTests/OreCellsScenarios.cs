@@ -109,6 +109,16 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             (bool)OreCellPlacement.ApproveMethod!.Invoke(gen, [new BlockPos(x, 0, z)])!;
 
         int cx = spot.Chunk.X * 32, cz = spot.Chunk.Z * 32;
+        if (Placement.Veins != null)
+        {
+            // Stable veins (#946, on in this world): no managed try is approved in TerrainFeatures.
+            // The anchor's own pass records the vein (OreCellOrderScenarios checks that), which is
+            // laid at PreDone; IOG never places it itself.
+            Assert.False(Approves(chimney, cx + 3, cz + 7));
+            Assert.False(Approves(tube, cx + 3, cz + 7));
+            Assert.False(Approves(chimney, cx - 1, cz + 5));
+            return;
+        }
         Assert.False(Approves(chimney, cx - 1, cz + 5)); // the next chunk west
         Assert.True(Approves(chimney, cx + 3, cz + 7)); // the first copper try from the anchor
         Assert.False(Approves(chimney, cx + 20, cz + 20)); // a second one
