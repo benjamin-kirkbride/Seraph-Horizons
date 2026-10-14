@@ -204,7 +204,6 @@ def check_build(v):
 
 # ---------------------------------------------------------------- textures
 ROLES = [
-    (r"^hopper_", {"planks"}),
     (r"^fr_(post|stringer|brace|transom)", {"oak"}),
     (r"^fr_hanger", {"iron"}),
     (r"^pit_gate_jamb", {"oak"}),
@@ -234,13 +233,17 @@ def check_textures(v):
         if rule is None or not tex <= rule:
             bad.append((el.name, sorted(tex), sorted(rule or [])))
     print(f"textures by role: {len(v.els) - len(bad)} of {len(v.els)} elements as their role says (oak for the timber, "
-          f"planks for the hopper and the gate, iron castings and fittings, steel shafts and pinion, granite, cobble and "
+          f"planks for the gate, iron castings and fittings, steel shafts and pinion, granite, cobble and "
           f"drystone for the pit, basalt drag stones, chains, the contents' own)")
     if bad:
         v.fail(f"textures off their role: {bad[:6]}")
 
 
 # ---------------------------------------------------------------- anchors
+# Anchor keys the arrastra must never have: nothing automated feeds or empties it (the owner's rule for batch hand
+# machines), and it is watered by bucket.
+FORBIDDEN_ANCHOR = re.compile(r"load|feed|chute|hopper|pour|water|output|return|fill|input", re.I)
+
 def cell_face_box(m, cell, face):
     """The face's square (voxels) as (lo, hi) with zero thickness, and its axis."""
     lo = [cell[k] * m.B for k in range(3)]
@@ -255,9 +258,10 @@ def cell_face_box(m, cell, face):
 
 def check_anchors(v):
     """The anchor faces are on the footprint's outside, looking out of it, and all different; the power cell is no
-    other anchor's; the power face is on a side; the axle's cross reaches the power face at its centre. Load: the
-    hopper's mouth is the load cell's top face, and nothing else reaches the machine's top (the water goes in there
-    too, by bucket: no pipe and no water anchor). Draw: the gate is in the draw cell, square to the draw
+    other anchor's; the power face is on a side; the axle's cross reaches the power face at its centre. No load:
+    nothing automated feeds the arrastra (the owner's rule), so it has no load, feed, chute or pour anchor and nothing
+    a chute could meet (no hopper or spout); the charge and the water are tipped into the open pit by hand
+    (check_flow). Draw: the gate is in the draw cell, square to the draw
     face, its outer face the frontmost of the pit, between the front posts. The controller is the draw cell, at the
     front, where the player stands."""
     m, rig = v.m, v.rig
@@ -285,17 +289,12 @@ def check_anchors(v):
     print(f"anchors: the axle's cross reaches z {axle[1][2]:.2f} (the power face at {lo[2]:.0f}), {off:.3f} off its centre; {anchors}")
     if abs(axle[1][2] - lo[2]) > 0.02 or off > 1e-6:
         v.fail("the axle's cross does not meet the power face at its centre")
-    # load: the hopper's mouth, and nothing else at the top
-    flo, fhi, _ = cell_face_box(m, m.LOAD_CELL, m.LOAD_FACE)
-    wlo, whi = aabb_of(v.posed("hopper", 0.0))
-    inside = all(flo[q] - 1e-6 <= wlo[q] and whi[q] <= fhi[q] + 1e-6 for q in (0, 2))
-    top = m.CELLS_Y * m.B
-    high = sorted({e.name for pid in v.state(m.CONTENTS[0]) for e in v.posed(pid, 0.0) if e.aabb()[1][1] > top - 0.5})
-    others = [n for n in high if not n.startswith("hopper_")]
-    print(f"  load: the hopper's mouth x {wlo[0]:.1f}..{whi[0]:.1f}, z {wlo[2]:.1f}..{whi[2]:.1f}, top {whi[1]:.3f} (the load "
-          f"cell's top {fhi[1]:.0f}); at the machine's top: {len(high)} of the hopper's walls, others {others or 'none'}")
-    if not inside or abs(whi[1] - fhi[1]) > 0.02 or others or not high:
-        v.fail("the hopper's mouth is not the load cell's top face, alone at the top")
+    # no load: no anchor a chute or a feed could meet, and nothing drawn as a hopper or a spout
+    fed = [k for k in rig if FORBIDDEN_ANCHOR.search(k)] + [k for k in ("LOAD_CELL", "LOAD_FACE") if hasattr(m, k)]
+    hopper = sorted({e.name for e in v.els if re.search(r"hopper|spout|chute|funnel|bin_", e.name)})
+    print(f"  no load: load, feed, chute or pour anchors {fed or 'none'}; hopper, spout or chute elements {hopper or 'none'}")
+    if fed or hopper:
+        v.fail("the arrastra has a load or chute anchor, or a hopper or spout a chute could meet: nothing automated feeds it")
     # draw: the gate in the draw cell, square to its face, the pit's frontmost, between the front posts
     gate = aabb_of(v.named("pit", r"_gate_"))
     clo = [m.DRAW_CELL[q] * m.B for q in range(3)]
@@ -349,27 +348,25 @@ def check_pit(v):
 
 # ---------------------------------------------------------------- the charge's way
 def check_flow(v):
-    """The charge's way, by hand. In: the player tips it into the hopper's mouth, and pours the water in after it by
-    bucket; the bin's floor runs down to the outlet, and the spout runs from under the outlet down to over the stones'
-    track, clear above the arms. The contents lie
-    on the paving inside the curb, clear of the footstep, the drag stones standing out of them. Out: the gate's
-    threshold is below the contents' tops (they are drawn out over it with the gate lifted), the gate stands above
-    them, and its front is the draw face."""
+    """The charge's way, by hand. In: the player tips the charge straight into the open pit over its low curb, and
+    pours a bucket of water a rock after it, so the curb is a rim to tip over (no higher than TIP_RIM_MAX) and the pit
+    is open from above either side of the head frame: no fixed part of the machine stands over the pit outside the
+    middle column above the curb's top (only the sweep passes there). The contents lie on the paving inside the curb,
+    clear of the footstep, the drag stones standing out of them. Out: the gate's threshold is below the contents' tops
+    (they are drawn out over it with the gate lifted), the gate stands above them, and its front is the draw face."""
     m = v.m
-    floor = v.named("hopper", r"_floor$")[0]
-    low = min(p[1] for p in floor.corners())
-    spout = v.named("hopper", r"_spout_floor$")[0]
-    cz = sorted(p[2] for p in spout.corners())
-    (_, _), (ez, ey) = m.SPOUT
-    r_end = abs(ez - m.CZ)
-    under = min(p[1] for e in v.named("hopper", r"_spout_") for p in e.corners() if p[2] > ez - 1.0)
-    print(f"flow: the bin's floor runs down to y {low:.2f} at the outlet (z {m.OUTLET_Z[0]}..{m.OUTLET_Z[1]}); the spout from "
-          f"z {cz[0]:.2f} to its end at z {ez}, {r_end:.2f} from the centre (the stones' track {m.STONE_R[0]}..{m.STONE_R[1]}), "
-          f"its underside there at y {under:.2f} (the arms' top {m.ARM_Y[1]})")
-    if not (cz[0] <= m.OUTLET_Z[0] + 0.2 and cz[-1] > m.OUTLET_Z[1]):
-        v.fail("the spout does not run from under the hopper's outlet")
-    if not (m.STONE_R[0] <= r_end <= m.STONE_R[1]) or under < m.ARM_Y[1] + 0.3:
-        v.fail("the spout's end is not over the stones' track, clear above the arms")
+    rim = max(e.aabb()[1][1] for e in v.named("pit", r"_curb\d+$"))
+    mid = (m.ORIGIN_CELL[0] * m.B, (m.ORIGIN_CELL[0] + 1) * m.B)
+    over = sorted({e.name for pid in v.state(None) if pid not in m.SWEEP_PARTS for e in v.posed(pid, 0.0)
+                   if e.aabb()[1][1] > rim + 1e-6
+                   and (e.aabb()[0][0] < mid[0] - 1e-6 or e.aabb()[1][0] > mid[1] + 1e-6)
+                   and math.hypot(max(e.aabb()[0][0], min(m.CX, e.aabb()[1][0])) - m.CX,
+                                  max(e.aabb()[0][2], min(m.CZ, e.aabb()[1][2])) - m.CZ) < m.CURB_R[1]})
+    print(f"flow: the charge and the water tipped in by hand over the curb, its top at y {rim:.2f} (a rim: at most "
+          f"{m.TIP_RIM_MAX}); fixed parts over the pit outside the middle column x {mid[0]:.0f}..{mid[1]:.0f}, above "
+          f"the rim: {over or 'none'} (open from above)")
+    if rim > m.TIP_RIM_MAX or over:
+        v.fail("the pit is not open to tip the charge into by hand over a low rim")
     tops = {k: max(e.aabb()[1][1] for e in v.posed(k, 0.0)) for k in m.CONTENTS}
     stone_top = min(e.aabb()[1][1] for e in v.named("stones", r"_stone\d"))
     sole = v.named("step", r"_sole$")[0].aabb()
@@ -571,13 +568,11 @@ def check_clearances(v, poses, label):
 
 
 def check_gaps(v):
-    """The parts that pass close to each other keep a visible gap over the cycle: the sweep arms under the spout, the
-    bevel wheel under the hopper, and the sweep (the arms and the stones) clear of the curb and the gate."""
+    """The parts that pass close to each other keep a visible gap over the cycle: the sweep (the arms and the stones)
+    clear of the curb and the gate."""
     m = v.m
     rows = []
-    for label, (pa, ra), (pb, rb) in (("arms under the spout", ("arms", r"_arm"), ("hopper", r"_spout")),
-                                      ("wheel under the hopper", ("post", r"_wheel"), ("hopper", r".")),
-                                      ("arms clear of the curb and the gate", ("arms", r"."), ("pit", r"_(curb|gate)")),
+    for label, (pa, ra), (pb, rb) in (("arms clear of the curb and the gate", ("arms", r"."), ("pit", r"_(curb|gate)")),
                                       ("stones clear of the curb and the gate", ("stones", r"."), ("pit", r"_(curb|gate)"))):
         near = None
         for pose in cycle(m, 24):
@@ -631,9 +626,9 @@ def validate(m, els, parts, rig, quick=False):
 
 def validate_files(m, shape, frame_shape, ship):
     """The written files: every texture declared; the frame shape the frame part alone; the footprint's cells, every
-    one holding part of the machine (none hollow), with boxes inside them, no lids; batch and watered by hand: no chute
-    and no pipe (no chute, pipe or solder texture), and of the anchors only the power and the two hand actions (no
-    infeed, output, chute or water); the rig's build lists the stages in order."""
+    one holding part of the machine (none hollow), with boxes inside them, no lids; batch, loaded and watered by hand:
+    no chute and no pipe (no chute, pipe or solder texture), and of the anchors only the power and the draw (no load,
+    infeed, output, chute, pour or water: FORBIDDEN_ANCHOR); the rig's build lists the stages in order."""
     ok = True
     used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
     missing = used - set(shape["textures"])
@@ -661,8 +656,11 @@ def validate_files(m, shape, frame_shape, ship):
     want = [k for key in m.CELL_KEYS for k in (key, key.replace("Cell", "Face"))]
     chutes = [k for k in shape["textures"] if any(w in k or w in shape["textures"][k] for w in ("chute", "pipe", "solder"))]
     print(f"  anchors {keys}; chute or pipe textures {chutes or 'none'}; build stages {[s['requires'] for s in ship['build']['stages']]}")
-    if keys != want or chutes:
-        print("FAIL batch and watered by hand: the anchors are the power and the two hand actions, and nothing is a chute or pipe")
+    fed = [k for k in ship if FORBIDDEN_ANCHOR.search(k)] + [n for n in {e["name"] for e in shape["elements"]}
+                                                             if re.search(r"hopper|spout|chute", n)]
+    if keys != want or chutes or fed:
+        print(f"FAIL batch, loaded and watered by hand: the anchors are the power and the draw, nothing is a chute or "
+              f"pipe, and no load or chute anchor or hopper: {fed}")
         ok = False
     if [s["requires"] for s in ship["build"]["stages"]] != [req for req, _ in m.STAGES]:
         print("FAIL the rig's build stages are not the generator's")

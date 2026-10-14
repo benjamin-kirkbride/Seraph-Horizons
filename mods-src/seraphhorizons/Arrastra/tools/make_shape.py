@@ -15,14 +15,14 @@ stages on its frame (the crucible furnace's pattern):
               its bevel wheel, and the bevel pinion on the power shaft's end: the post turns at a third of the axle
     arms      four sweep arms through the post
     stones    four basalt drag stones, each on a bridle of two chains from its arm
-    hopper    the hopper between the stringers over the pit's front edge, its mouth the machine's top face, its floor
-              falling to an outlet over a steep plank spout that drops the charge onto the stones' track
 
 and, apart from the stages, the pit's contents: the charge as tipped in (crushed rock, damped) or the same ground to a
-paste. No chute and no pipe anywhere: batch equipment is loaded and emptied by hand (#711), and the arrastra is watered
-by hand too, a bucket a rock poured in with the charge (the owner's ruling: the period damped a charge to a paste and
-added a little as needed, by the barrel, not a flow). So the model shows where the hands go: the hopper's mouth on top
-(load: the charge, and the water after it) and the gate at the pit's front (draw), both over the controller.
+paste. No chute, no pipe and no load anchor anywhere: batch equipment is loaded and emptied by hand (#711), and the
+owner's rule is that nothing automated feeds it, so nothing is drawn that a chute could meet (no hopper). The player
+tips the charge straight into the open pit over its low curb, and pours a bucket of water a rock in after it (the
+owner's ruling: the period damped a charge to a paste and added a little as needed, by the barrel, not a flow). The
+pit is open from above either side of the head frame for it. The ground charge is drawn out at the gate in the curb
+at the pit's front, at the controller (draw, the only hand action with an anchor).
 
 Everything is built here from plain boxes; no other mod's model is used. No mule, wheel or engine: power comes from a
 vanilla axle on the power face, and the arrastra grinds whichever way it turns (the sweep is symmetric).
@@ -39,7 +39,7 @@ check fails.
 
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the machine
 box's north-west-bottom corner (the "build frame"); `shipped()` moves it so the controller cell (ORIGIN_CELL, the
-middle of the front (north) row at ground level, under the hopper, at the draw gate) is [0,0,0]. The player works it
+middle of the front (north) row at ground level, at the draw gate) is [0,0,0]. The player works it
 from the front, and the axle comes in at the back.
 
 The rig reads theta alone: the axle's angle. Every part turns with it at its gearing's ratio, or stands still.
@@ -79,13 +79,12 @@ TAU = 2 * math.pi
 # ---------------------------------------------------------------- the box, the cells, the anchors
 CELLS_X, CELLS_Y, CELLS_Z = 3, 2, 2          # the box: three wide, two high, two deep; the pit is two blocks across
 EMPTY_CELLS = ((0, 1, 0), (2, 1, 0), (0, 1, 1), (2, 1, 1))   # the upper layer's side cells, over the pit's four corners:
-                                             # nothing of the machine is ever there (the head frame, the drive and the hopper
-                                             # are all in the middle column), so they are not the machine's (8 cells, not 12)
+                                             # nothing of the machine is ever there (the head frame and the drive are all in
+                                             # the middle column), so they are not the machine's (8 cells, not 12); over
+                                             # the pit's front corners they leave it open for tipping the charge in by hand
 ORIGIN_CELL = (1, 0, 0)                      # the controller: the middle of the front row at ground level, the draw gate's
 CX, CZ = 24.0, 16.0                          # the pit's centre: the post's axis
 POWER_CELL, POWER_FACE = (1, 1, 1), "south"  # the vanilla axle comes in along z at (x 24, y 24), high: the drive is overhead
-LOAD_CELL, LOAD_FACE = (1, 1, 0), "up"       # a hand action: the hopper's mouth, where the player tips the charge in, and
-                                             # pours a bucket of water a rock after it (no pipe: watered by hand)
 DRAW_CELL, DRAW_FACE = (1, 0, 0), "north"    # a hand action: the draw gate in the curb, where the player draws it out
 
 TEXTURES = {
@@ -113,7 +112,8 @@ PAVE_ROWS = 9                                # the paving: rows of cobbled flags
 EDGING = (12.0, 13.5, 16)                    # a course of edging stones round the paving, against the curb (radii, stones)
 EDGING_TOP = PAVE_TOP + 0.3
 CURB_R = (13.5, 16.0)                        # the drystone curb round the paving, two blocks across outside
-CURB_TOP = 6.0
+CURB_TOP = 6.0                               # low: the curb is the open rim the charge and the water are tipped over by hand
+TIP_RIM_MAX = 8.0                            # no higher than half a block, so it reads as a rim to tip over, not a wall
 CURB_N = 16                                  # its stones, stone i centred at i / 16 of a turn from +z towards +x
 CURB_W = 2 * CURB_R[1] * math.tan(math.pi / CURB_N)   # a curb stone's width (its box, across its axis)
 GATE_STONE = CURB_N // 2                     # the stone at the front (-z), left out: the draw gate stands in its place
@@ -141,20 +141,6 @@ COUPLING_Z = 30.6                            # from here to the back face, the v
 HANGERS_Z = ((25.4, 27.4), (28.4, 30.0))     # its two drop hangers under T2
 COLLAR_R = 1.6
 P = (CX, SHAFT_Y, CZ)                        # where the power shaft's axis meets the post's: the bevels' apex
-
-# ---------------------------------------------------------------- the hopper and its spout (stage `hopper`)
-HOP_X = (20.0, 28.0)                         # between the stringers, over the pit's front edge
-HOP_Z = (1.0, 13.0)
-HOP_TOP = CELLS_Y * B                        # its mouth: the load cell's top face
-HOP_WALL = 0.8
-HOP_STEP_Z = 8.2                             # its walls come down to HOP_LOW in front of here, HOP_HIGH behind it (over the
-HOP_LOW, HOP_HIGH = 19.6, 23.8               # bevel wheel)
-HOP_FLOOR = ((12.2, 28.2), (4.4, 20.4))      # (z, y): its floor's top, falling to the front, to the outlet, at 45 degrees
-OUTLET_Z = (HOP_Z[0] + HOP_WALL, HOP_FLOOR[1][0])   # the outlet: the open end of the floor, over the spout
-SPOUT = ((HOP_Z[0] + HOP_WALL, HOP_FLOOR[1][1]), (5.6, 13.0))   # (z, y): the spout's floor's top, from the outlet down
-SPOUT_W = 3.6                                # its floor's width (x); its sides stand on its edges
-SPOUT_SIDE = 1.6
-SPOUT_SIDES_END = 4.0                        # z: the sides stop here, square to the slope
 
 # ---------------------------------------------------------------- the post and the sweep (stages `post`, `arms`, `stones`)
 BEVEL = {"wheel": 18, "pinion": 6, "m": 0.8333, "face": 2.0}   # 3:1, the post turns a third of the axle
@@ -270,18 +256,6 @@ def bar(a, b, w, h, name, part, tex, up=(0.0, 1.0, 0.0), extend=0.0):
     t = v_cross(d, u)
     length = math.dist(a, b) + 2 * extend
     return oriented(name, [length, h, w], v_mul(v_add(a, b), 0.5), [d, u, t], part, tex)
-
-
-def tilted(top0, top1, across, th, name, part, tex, axis, extend=0.0):
-    """A board whose top runs from top0 to top1 (points in the plane normal to `axis`), `across` wide along `axis`
-    about the points' own coordinate on it, `th` thick under the top."""
-    d = v_norm(v_sub(top1, top0))
-    up = v_norm(v_cross(UNIT[axis], d))
-    if up[1] < 0:
-        up = v_mul(up, -1.0)
-    a = v_add(top0, v_mul(up, -th / 2))
-    b = v_add(top1, v_mul(up, -th / 2))
-    return bar(a, b, across, th, name, part, tex, up=up, extend=extend)
 
 
 def radial(axis, c, a0, a1, r0, r1, width, ang, name, part, tex):
@@ -466,36 +440,6 @@ def build_gate():
     return out
 
 
-# ---------------------------------------------------------------- stage: the hopper
-def build_hopper():
-    """The hopper (stage `hopper`) between the stringers, over the pit's front edge: four plank walls up to the load
-    cell's top face, its mouth (stepped up behind HOP_STEP_Z over the bevel wheel), a floor falling to the front to
-    the outlet, and the steep plank spout from the outlet back down onto the stones' track."""
-    q, t = "hopper", "planks"
-    (x0, x1), (z0, z1), w = HOP_X, HOP_Z, HOP_WALL
-    top = HOP_TOP
-    out = [box([x0, HOP_LOW, z0], [x1, top, z0 + w], f"{q}_n", q, t),
-           box([x0, HOP_HIGH, z1 - w], [x1, top, z1], f"{q}_s", q, t)]
-    for tag, (a, b) in (("w", (x0, x0 + w)), ("e", (x1 - w, x1))):
-        out += [box([a, HOP_LOW, z0 + w], [b, top, HOP_STEP_Z], f"{q}_{tag}1", q, t),
-                box([a, HOP_HIGH, HOP_STEP_Z], [b, top, z1 - w], f"{q}_{tag}2", q, t)]
-    (fz0, fy0), (fz1, fy1) = HOP_FLOOR
-    out.append(tilted([CX, fy0, fz0 + 0.1], [CX, fy1, fz1], x1 - x0 - 2 * w, 0.6, f"{q}_floor", q, t, "x"))
-    # the spout: a floor and two sides from the outlet down, steep
-    (cz0, cy0), (cz1, cy1) = SPOUT
-    out.append(tilted([CX, cy0, cz0], [CX, cy1, cz1], SPOUT_W, 0.6, f"{q}_spout_floor", q, t, "x"))
-    d = v_norm([0.0, cy1 - cy0, cz1 - cz0])
-    up = [0.0, -d[2], d[1]] if d[2] > 0 else [0.0, d[2], -d[1]]
-    up = up if up[1] > 0 else v_mul(up, -1.0)
-    t_end = (SPOUT_SIDES_END - cz0) / d[2]
-    for tag, sgn in (("w", -1.0), ("e", 1.0)):
-        xs = CX + sgn * (SPOUT_W / 2 + 0.4)
-        a = v_add([xs, cy0, cz0], v_mul(up, SPOUT_SIDE))
-        b = v_add(v_add([xs, cy0, cz0], v_mul(d, t_end)), v_mul(up, SPOUT_SIDE))
-        out.append(tilted(a, b, 0.8, SPOUT_SIDE + 0.6, f"{q}_spout_{tag}", q, t, "x"))
-    return out
-
-
 # ---------------------------------------------------------------- stages: the post, the arms, the stones
 def build_post():
     """Stage `post`: the footstep on the centre stone and the top bearing under T1 (`step`, fixed), the post with its
@@ -568,7 +512,7 @@ def build_contents():
 
 
 def build():
-    return build_frame() + build_pit() + build_post() + build_sweep() + build_hopper() + build_contents()
+    return build_frame() + build_pit() + build_post() + build_sweep() + build_contents()
 
 
 # ---------------------------------------------------------------- the build's stages
@@ -579,10 +523,10 @@ STAGES = (
     ("post", ("step", "post", "pinion")),
     ("arms", ("arms",)),
     ("stones", ("stones",)),
-    ("hopper", ("hopper",)),
 )
 FRAME_PARTS = ("frame", "shaft")             # the frame's parts, requires null
 CONTENTS = ("charge", "paste")               # the pit's contents, one at a time; needs the whole build
+SWEEP_PARTS = ("arms", "stones")            # what passes over the pit as it turns; the only parts over it outside the middle column
 
 
 def stage_of_part():
@@ -638,7 +582,6 @@ def _rig_parts():
              part("stones", ride="post"),
              part("step"),
              part("pit"),
-             part("hopper"),
              *[part(c) for c in CONTENTS],
              part("frame", match="fr_*")]
     for p in parts:
@@ -680,18 +623,16 @@ def build_json():
 def make_rig(parts):
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the middle of the "
-                    "front (north) row at ground level, under the hopper, where the draw gate is. Batch, by hand: no chute, "
-                    "no output and no pipe. The player tips the charge into the hopper's mouth (loadCell, its top face) and "
-                    "pours a bucket of water a rock after it, and draws the ground charge out at the gate in the curb "
-                    "(drawCell, its north face); the axle comes in high at the back (powerCell). Model only: no block or "
+                    "front (north) row at ground level, where the draw gate is. Batch, by hand: no chute, "
+                    "no load or output anchor and no pipe; nothing automated feeds it. The player tips the charge "
+                    "straight into the open pit over its low curb and pours a bucket of water a rock after it, and draws "
+                    "the ground charge out at the gate in the curb (drawCell, its north face); the axle comes in high at the back (powerCell). Model only: no block or "
                     "renderer reads it yet (#732). build: the stages in order. cells: the boxes of the whole machine built "
                     "(the frame and every stage), the turning parts' swept over the cycle. The only "
                     "input is theta, the axle's angle. See the arrastra's README.",
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
-        "loadCell": list(LOAD_CELL),
-        "loadFace": LOAD_FACE,
         "drawCell": list(DRAW_CELL),
         "drawFace": DRAW_FACE,
         "build": build_json(),
@@ -700,7 +641,7 @@ def make_rig(parts):
 
 
 # ---------------------------------------------------------------- shipped
-CELL_KEYS = ("powerCell", "loadCell", "drawCell")
+CELL_KEYS = ("powerCell", "drawCell")
 CELL_PARTS_OUT = CONTENTS                    # not in the cells' boxes: the batch's contents
 
 
@@ -757,8 +698,7 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
     cells = [tuple(c["pos"]) for c in ship["cells"]]
     span = [(min(c[k] for c in cells), max(c[k] for c in cells)) for k in range(3)]
     print(f"shipped: moved by {[v / B for v in d]} blocks, worst posed difference {worst:.2e} voxels; cells x {span[0]}, "
-          f"y {span[1]}, z {span[2]}; power {ship['powerCell']} {ship['powerFace']}, load {ship['loadCell']} "
-          f"{ship['loadFace']}, draw {ship['drawCell']} {ship['drawFace']}")
+          f"y {span[1]}, z {span[2]}; power {ship['powerCell']} {ship['powerFace']}, draw {ship['drawCell']} {ship['drawFace']}")
     if worst > 1e-6 or (0, 0, 0) not in cells:
         print("FAIL: the shipped model is not the checked one moved")
         return False

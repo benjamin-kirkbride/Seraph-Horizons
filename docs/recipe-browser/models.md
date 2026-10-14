@@ -629,7 +629,7 @@ rebuilt from the shipped shape, hollow cells with none.
 checks the handcar's anchors, its grips riding the beam, and the handcar as a vehicle: a stroke's
 three turns, `distancePerCycle` rolled in one, and its axle boxes on its axles.
 `site/test/arrastra.test.ts` replays `mods-src/seraphhorizons/tests/Arrastra/rig-reference.json` (θ alone) and checks the
-arrastra's anchors (batch, loaded, watered and emptied by hand: no chute and no pipe), its cells, and its two selects: the
+arrastra's anchors (batch, loaded, watered and emptied by hand: only the draw gate, no load anchor, chute or pipe), its cells, and its two selects: the
 build stage by stage, and the pit's contents waiting on the whole build.
 `site/test/keyframes.test.ts` holds the keyframe maths to `site/test/fixtures/keyframes.json`, a small
 shape with three animations (a channel set on one keyframe only, wrapping round the end,

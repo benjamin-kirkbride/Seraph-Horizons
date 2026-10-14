@@ -10,7 +10,8 @@ import { compileGlobs, fitted, flattenShape, partMatrices, partOf, requiresValue
 // reference maths. Its rig reads θ alone (the axle's angle): the power shaft turns with it, the post at a third of it
 // through the bevel pair, the arms and stones ride the post; everything else stands still. The machine is built in
 // stages by requires on a placed frame, and the page fits them from a Build select; the pit's contents wait on the
-// whole build. It is watered by hand (a bucket a rock, at the load), so there is no pipe and no water anchor.
+// whole build. Nothing automated feeds it: the charge and its bucket of water are tipped straight into the open pit
+// by hand, so there is no load anchor, no hopper, no pipe and no water anchor; only the draw gate is a hand anchor.
 // tools/tests/test_arrastra_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
@@ -23,7 +24,7 @@ const manifest = JSON.parse(readFileSync(new URL("../models.json", import.meta.u
 const model = manifest.models.find((m) => m.id === "arrastra")!;
 const parts = rig.parts!;
 const order = rideOrder(parts);
-const STAGES = ["pit", "post", "arms", "stones", "hopper"];
+const STAGES = ["pit", "post", "arms", "stones"];
 
 const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 + r]!));
 const pose = (theta: number, travel = Math.abs(theta)): Pose => ({ theta, depth: 0, lifting: 0, travel, work: 0, size: 0, presence: 0, feed: 0, oil: 0 });
@@ -41,7 +42,6 @@ describe("the arrastra's rig against its rig-reference.json", () => {
       ["stones", "stones", "post"],
       ["step", "post", null],
       ["pit", "pit", null],
-      ["hopper", "hopper", null],
       ["charge", "charge", null],
       ["paste", "paste", null],
       ["frame", null, null],
@@ -86,12 +86,14 @@ describe("the arrastra's rig against its rig-reference.json", () => {
 });
 
 describe("the arrastra's anchors: batch, loaded, watered and emptied by hand", () => {
-  it("has the power at the back and the two hand actions at the front, over the controller, and no pipe", () => {
+  it("has the power at the back and the draw gate at the front, at the controller, and no load anchor or pipe", () => {
     const keys = discoverAnchors(rig).anchors.map((a) => a.key);
-    expect(keys).toEqual(["powerCell", "loadCell", "drawCell"]);
+    expect(keys).toEqual(["powerCell", "drawCell"]);
     expect([rig.powerCell, rig.powerFace]).toEqual([[0, 1, 1], "south"]);
-    expect([rig.loadCell, rig.loadFace, rig.drawCell, rig.drawFace]).toEqual([[0, 1, 0], "up", [0, 0, 0], "north"]);
-    expect(Object.keys(rig).filter((k) => /infeed|output|chute|return|water/i.test(k))).toEqual([]);
+    expect([rig.drawCell, rig.drawFace]).toEqual([[0, 0, 0], "north"]);
+    // nothing automated feeds or empties it: no load, feed, chute, pour or water anchor, and no hopper a chute could meet
+    expect(Object.keys(rig).filter((k) => /load|feed|chute|hopper|pour|water|output|return|fill|input/i.test(k))).toEqual([]);
+    expect(flattenShape(shape.elements).filter((f) => /hopper|spout|chute/.test(f.chain.join("/")))).toEqual([]);
     expect(Object.keys(shape.textures!).filter((k) => /chute|pipe|solder/.test(k + shape.textures![k]))).toEqual([]);
     // the ground layer's six cells and the middle column's upper two: nothing of the machine is over the pit's corners
     expect(rig.cells!.map((c) => c.pos.join(",")).sort()).toEqual(

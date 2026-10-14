@@ -4,7 +4,7 @@ These hold what the generator wrote to its own rules, without running it: the sh
 maths and uses the build's `requires` vocabulary, its `build` lists the stages in order, its reference poses are its
 own maths, the cells are rebuilt from the shipped shape, the frame shape is the frame part, the only input is the
 axle's angle and the machine repeats every three turns at its gearing's ratio, the anchors are where the layout puts
-them (batch, loaded, watered and emptied by hand: no chute, no output and no pipe), the pit is at ground level, and
+them (batch, loaded, watered and emptied by hand: no load anchor, no hopper, no chute, no output and no pipe), the pit is at ground level, and
 the README's stage table is the generator's. Run with `python3 -m unittest discover -s tools/tests -p test_arrastra_model.py`.
 """
 
@@ -33,7 +33,7 @@ SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "ar
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "arrastra_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "Arrastra" / "rig-reference.json").read_text())
 README = (MOD / "Arrastra" / "README.md").read_text()
-STAGES = ("pit", "post", "arms", "stones", "hopper")
+STAGES = ("pit", "post", "arms", "stones")
 CONTENTS = ("charge", "paste")
 
 
@@ -131,29 +131,36 @@ class Anchors(unittest.TestCase):
         cells = {tuple(c["pos"]) for c in RIG["cells"]}
         # the ground layer, and over it the middle column only: nothing of the machine is over the pit's four corners
         self.assertEqual(cells, {(x, 0, z) for x in (-1, 0, 1) for z in (0, 1)} | {(0, 1, 0), (0, 1, 1)})
-        got = {k: (tuple(RIG[k + "Cell"]), RIG[k + "Face"]) for k in ("power", "load", "draw")}
-        self.assertEqual(got, {"power": ((0, 1, 1), "south"), "load": ((0, 1, 0), "up"), "draw": ((0, 0, 0), "north")})
-        # batch equipment, loaded, watered (a bucket a rock, at the load) and emptied by hand: no chute, no infeed, no
-        # output, no return, no water anchor
-        self.assertFalse([k for k in RIG if re.search(r"infeed|output|chute|return|water", k, re.I)])
+        got = {k: (tuple(RIG[k + "Cell"]), RIG[k + "Face"]) for k in ("power", "draw")}
+        self.assertEqual(got, {"power": ((0, 1, 1), "south"), "draw": ((0, 0, 0), "north")})
+        # batch equipment, loaded, watered (a bucket a rock) and emptied by hand, nothing automated feeding it: no load,
+        # feed, chute, pour or water anchor, no output, no return
+        self.assertFalse([k for k in RIG if re.search(r"load|feed|chute|hopper|pour|water|output|return|fill|input", k, re.I)])
+        self.assertFalse([e.name for e in flatten(SHAPE["elements"], textures={}) if re.search(r"hopper|spout|chute", e.name)])
         self.assertFalse([k for k, v in SHAPE["textures"].items() if "chute" in k or "chute" in v])
 
-    def test_the_axle_meets_the_power_face_high_and_the_hopper_alone_reaches_the_top(self):
+    def test_the_axle_meets_the_power_face_high_and_the_pit_is_open_to_tip_into(self):
         # shipped voxels: the power cell [0,1,1] spans x 0..16, y 16..32, z 16..32
         axle = aabb_of([e for e in posed_part("shaft") if e.name.startswith("sh_axle")])
         self.assertAlmostEqual(axle[1][2], 32.0, places=4)
         self.assertAlmostEqual((axle[0][0] + axle[1][0]) / 2, 8.0, places=4)
         self.assertAlmostEqual((axle[0][1] + axle[1][1]) / 2, 24.0, places=4)
-        # the load: the hopper's mouth is the load cell's top face [0,1,0], and nothing else reaches the machine's top
-        mouth = aabb_of(posed_part("hopper"))
-        self.assertAlmostEqual(mouth[1][1], 32.0, places=3)
-        self.assertTrue(0.0 <= mouth[0][0] and mouth[1][0] <= 16.0 and 0.0 <= mouth[0][2] and mouth[1][2] <= 16.0)
-        high = set()
+        # the charge and the water are tipped into the pit by hand over a low curb: nothing fixed stands over the pit
+        # above the curb outside the middle column (shipped x 0..16), where only the sweep passes
+        curb = [e for e in posed_part("pit") if re.fullmatch(r"pit_curb\d+", e.name)]
+        rim = max(e.aabb()[1][1] for e in curb)
+        self.assertLessEqual(rim, make_shape.TIP_RIM_MAX)
+        cx, cz = make_shape.CX - 16.0, make_shape.CZ
+        over = []
         for el in flatten(SHAPE["elements"], textures={}):
             pid = rigmath.part_of(RIG["parts"], el.name)
-            if rigmath.posed(el, matrix(pid, 0.0)).aabb()[1][1] > 31.5:
-                high.add(pid)
-        self.assertEqual(high, {"hopper"})
+            if pid in make_shape.SWEEP_PARTS:
+                continue
+            lo, hi = rigmath.posed(el, matrix(pid, 0.0)).aabb()
+            near = math.hypot(max(lo[0], min(cx, hi[0])) - cx, max(lo[2], min(cz, hi[2])) - cz)
+            if hi[1] > rim + 1e-6 and (lo[0] < -1e-6 or hi[0] > 16.0 + 1e-6) and near < make_shape.CURB_R[1]:
+                over.append(el.name)
+        self.assertEqual(over, [])
 
     def test_the_draw_gate_is_at_the_front_of_the_curb_in_the_controller_cell(self):
         gate = aabb_of([e for e in posed_part("pit") if "_gate_" in e.name])
