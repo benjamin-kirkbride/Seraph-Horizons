@@ -44,7 +44,13 @@ public readonly record struct MineRouteMember(long Id, PathCell At, int? Head, b
 /// in it), the present members, eidolons parked over the area (no holds), the time, the routes running now
 /// (for a re-solve, <see cref="MineRoutePlanner.Solve"/> compares), and which cells may be dug for now.</summary>
 public sealed record MineRouteInput(MinePlan Plan, int PlanVersion, MineState State, IReadOnlyList<MineRouteMember> Members,
-    IReadOnlyList<MineWorkerAt> Parked, double Now, MineRoutes? Current, Func<MarkPos, bool>? Usable);
+    IReadOnlyList<MineWorkerAt> Parked, double Now, MineRoutes? Current, Func<MarkPos, bool>? Usable)
+{
+    /// <summary>The choice the job's routes were made by (<see cref="MineRoutes.VariantIndex"/>), kept by every
+    /// re-solve of the job, urgent or periodic: the choice between today's dispatch and routes, and among the
+    /// routes' variants, is made once a job (and again on a new station plan). Null: choose.</summary>
+    public int? Keep { get; init; }
+}
 
 /// <summary>What a solve did, for the debug command: decisions taken, guard checks, searches, relocations
 /// kept, validations run, whether the improved routes held, whether the routes running were kept, and how
@@ -129,6 +135,10 @@ public sealed class MineRoutes
 
     /// <summary>Which of the planner's ways of choosing made them (a re-solve against them keeps it).</summary>
     public int VariantIndex { get; internal set; } = -1;
+
+    /// <summary>Whether the job is left to today's dispatch (it finished soonest in the planner's simulations):
+    /// no route, and the game dispatches as before; a re-solve against these keeps it.</summary>
+    public bool Today => VariantIndex == MineRoutePlanner.TodayIndex;
 
     /// <summary>Stops dropped when these routes were evaluated again (<see cref="MineRoutePlanner.Evaluate"/>).</summary>
     public int Dropped { get; internal set; }

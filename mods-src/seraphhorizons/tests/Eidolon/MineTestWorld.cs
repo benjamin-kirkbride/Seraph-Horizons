@@ -618,6 +618,7 @@ internal sealed class RouteRunner
     {
         var path = new WidePath(_live.Site, 2, 2);
         Solve("first", 0, null);
+        _firstChoice = _routes!.VariantIndex;
         int idle = 0;
         while (_workers.Any(w => !w.Done))
         {
@@ -628,7 +629,15 @@ internal sealed class RouteRunner
             MaybeSolve(now);
             if (w.Station != null)
             {
-                Work(w, now);
+                if (_routes!.Today)
+                    TodayWork(w, now);
+                else
+                    Work(w, now);
+                continue;
+            }
+            if (_routes!.Today)
+            {
+                TodayStep(w, now, path, ref idle);
                 continue;
             }
             var head = _routes!.Routes.GetValueOrDefault(w.Id)?.Head;
@@ -660,6 +669,9 @@ internal sealed class RouteRunner
 
     private void MaybeSolve(double now)
     {
+        // a job left to today's dispatch stays with it (a re-solve against it keeps it)
+        if (_routes is { Today: true })
+            return;
         bool due = _wanted != null && (_urgent || now - _lastSolve >= 2) || now - _lastSolve >= MineRoutes.ResolveSeconds;
         if (!due)
             return;
@@ -674,7 +686,11 @@ internal sealed class RouteRunner
         Probe?.Invoke(now);
         var members = _workers.Where(w => !w.Done).Select(w => new MineRouteMember(w.Id, w.At, w.Station?.Id, w.Ahead,
             w.Station is { } s ? Math.Max(w.FreeAt, now) + MineCosts.WorkSeconds(_live.Site, s.Cells.Where(_live.Remaining.Contains).ToList()) : now)).ToList();
-        var input = new MineRouteInput(_plan, _planVersion, _live.Clone(), members, [], now, current, null);
+        // the job's choice (today's or routes, and which variant) kept by every re-solve but on a new plan
+        var input = new MineRouteInput(_plan, _planVersion, _live.Clone(), members, [], now, current, null)
+        {
+            Keep = why == "plan" || _routes == null ? null : _routes.VariantIndex,
+        };
         var made = MineRoutePlanner.Solve(input);
         Solves++;
         if (made.Stats.KeptCurrent && _routes != null)
@@ -690,7 +706,7 @@ internal sealed class RouteRunner
         Assert.False(_routes.Slots.Overlaps(), $"slots overlap after a solve at {now}");
         Watch?.Invoke(_routes, "solve");
         // stuck: no route has a station, nobody works one, yet cells may be dug: the plan made again from the world as it is
-        if (!_replanned && !_routes.Routes.Values.Any(r => r.Stops.Any(s => s.Kind == MineStopKind.Station))
+        if (!_routes.Today && !_replanned && !_routes.Routes.Values.Any(r => r.Stops.Any(s => s.Kind == MineStopKind.Station))
             && _workers.All(w => w.Station == null) && _live.Remaining.Any(c => _live.Bands!.Eligible(c)))
         {
             _plan = MinePlanner.Run(new MinePlanInput(_live, _home, _ => false, new HashSet<PathCell>()));
@@ -709,7 +725,128 @@ internal sealed class RouteRunner
         Repairs++;
         Assert.False(_routes!.Slots.Overlaps(), $"slots overlap after a repair at {now}");
         Watch?.Invoke(_routes, "repair");
-        Want(why);
+        if (!_routes.Today)
+            Want(why);
+    }
+
+    /// <summary>Which candidate the first solve chose: a variant's index, or today's dispatch.</summary>
+    public string Chosen => _firstChoice is MineRoutePlanner.TodayIndex ? "today" : $"variant {_firstChoice}";
+
+    private int? _firstChoice;
+
+    /// <summary>Whether the planner left the job to today's dispatch.</summary>
+    public bool LeftToToday => _routes?.Today == true;
+
+    // ---- today's dispatch (the planner left the job to it) ----
+
+    // a strike as TeamRunner strikes: the next group of cells it may dig, the guard with the others where they
+    // are; refused or done, the station is let go at once
+    private void TodayWork(Worker w, double now)
+    {
+        var station = w.Station!;
+        var group = MineStations.NextGroup(station, _plan.Tunnel, c => _live.Remaining.Contains(c) && _live.Bands!.Eligible(c), w.At.X, w.At.Y, w.At.Z);
+        var others = _workers.Where(o => o != w).ToList();
+        var at = others.Select(o => new MineWorkerAt(o.Id, o.At.X, o.At.Y, o.At.Z, o.Station is { } s ? [s.Stand] : [])).ToList();
+        var before = group == null ? [] : MineDispatch.Before(_plan, _live, station);
+        if (group == null || MineDispatch.Footing(before, group.Cells) || _live.Check(w.At, group.Cells, at, null, before) != MineRefusal.None)
+        {
+            _board.Unclaim(w.Id, station.Id);
+            w.Station = null;
+            w.FreeAt = now + (group == null ? 0 : 0.5);
+            if (group != null)
+                AddIdle(w, now);
+            return;
+        }
+        foreach (var o in others)
+            Assert.All(group.Cells, c => Assert.False(EidolonMining.UnderFoot(o.At.X, o.At.Z, c), $"eidolon {w.Id} digs {c} in eidolon {o.Id}'s columns at {o.At}"));
+        AssertClaimsApart(now);
+        double seconds = TeamRunner.StrikeSeconds(_live.Site, group.Cells) * (_jitter is { } j ? 0.7 + 0.6 * j.NextDouble() : 1);
+        _live.Apply(group.Cells);
+        foreach (var c in group.Cells)
+            _world.Dig(c);
+        Log.Add($"{now:0.0}: {w.Id} at {w.At} station {station.Id} digs {string.Join(" ", group.Cells)}");
+        w.Mined += group.Cells.Count;
+        _replanned = false;
+        _board.Struck(w.Id, now);
+        foreach (var o in _workers)
+        {
+            Assert.True(_live.Site.Standable(o.At), $"after a strike by {w.Id}, eidolon {o.Id} has no place to stand at {o.At}");
+            Assert.True(_live.Walk.Out(o.At), $"after a strike by {w.Id}, eidolon {o.Id} at {o.At} is not out");
+        }
+        w.Waiting = false;
+        w.FreeAt = now + seconds;
+        w.Work += seconds;
+        Makespan = Math.Max(Makespan, w.FreeAt);
+        Strikes.Add((w.Id, station.Kind, now, w.FreeAt, group.Cells));
+    }
+
+    // as TeamRunner with the game's rules: MineDispatch.Next over the board's claims; it goes round another
+    // eidolon where there is room, else waits up to 20 s (as for a claim on its way) and goes
+    private void TodayStep(Worker w, double now, WidePath path, ref int idle)
+    {
+        var me = new MineWorker(w.Id, w.At.X, w.At.Y, w.At.Z, [], 0);
+        var others = _workers.Where(o => o != w).Select(o => new MineWorker(o.Id, o.At.X, o.At.Y, o.At.Z,
+            o.Station is { } s ? [s] : [], Math.Max(0, o.FreeAt - now))).ToList();
+        var next = MineDispatch.Next(_plan, _live, me, others,
+            s => MineDispatch.Claim(s, _plan.Tunnel).All(u => _board.Free(w.Id, u, now)),
+            fit: s => MineDispatch.Fit(s, _plan.Tunnel, u => _board.Free(w.Id, u, now)));
+        if (next == null && !_replanned && _workers.All(o => o.Station == null) && _live.Remaining.Any(c => _live.Bands!.Eligible(c)))
+        {
+            _plan = MinePlanner.Run(new MinePlanInput(_live, _home, _ => false, new HashSet<PathCell>()));
+            _live.AdoptNow(_plan);
+            _planVersion++;
+            _replanned = true;
+            Replans++;
+            w.FreeAt = now;
+            return;
+        }
+        var route = next == null ? null : path.Find(w.At, next.Stand, PlanRunner.MaxNodes);
+        if (next == null || route == null || route[^1] != next.Stand)
+        {
+            Waiting(w, now, "no stop");
+            if (w.At != w.Rest && Walkable(w, path.Find(w.At, w.Rest, PlanRunner.MaxNodes), w.Rest) is { } away)
+            {
+                w.FreeAt = now + (away.Count - 1) * MineDispatch.WalkSecondsPerBlock;
+                w.Walked += away.Count - 1;
+                AddIdle(w, now);
+                w.At = w.Rest;
+                return;
+            }
+            if (!_live.Remaining.Any(c => _live.Bands!.Eligible(c)) || ++idle > 400)
+                w.Done = _workers.All(o => o == w || o.Station == null);
+            w.FreeAt = now + 1;
+            AddIdle(w, now);
+            return;
+        }
+        idle = 0;
+        if (Bodies.Contact(route, Others(w)) && Bodies.Round(_live, w.At, next.Stand, Others(w)) is { } round)
+            route = round;
+        if ((Crosses(w, route, now) || Bodies.Contact(route, Others(w))) && (w.HeadWait ??= now) > now - 20)
+        {
+            Waiting(w, now, $"head #{next.Id} (crossing)");
+            w.FreeAt = now + Check;
+            AddIdle(w, now);
+            return;
+        }
+        w.HeadWait = null;
+        if (Bodies.Contact(route, Others(w)))
+        {
+            Contacts++;
+            w.Contacts++;
+            ContactSeconds = Math.Max(ContactSeconds, Touching(w, route) * MineDispatch.WalkSecondsPerBlock);
+        }
+        if (Crosses(w, route, now))
+            Crossings++;
+        Assert.True(_board.TryClaim(w.Id, next.Id, MineDispatch.Claim(next, _plan.Tunnel), now), "a claim that fit is taken");
+        Log.Add($"{now:0.0}: {w.Id} (today's) sets off for #{next.Id} at {next.Stand}, {route.Count - 1} steps");
+        w.Station = next;
+        w.Ahead = false;
+        w.Started = true;
+        w.Waiting = false;
+        w.FreeAt = now + (route.Count - 1) * MineDispatch.WalkSecondsPerBlock;
+        w.Walked += route.Count - 1;
+        w.At = next.Stand;
+        _board.Struck(w.Id, now);
     }
 
     // ---- a member with no stop ----

@@ -7,8 +7,9 @@ namespace SeraphHorizons.Mod.Tests.Eidolon;
 /// <see cref="MineCases"/> worked by <see cref="TeamRunner"/> as the game does today (it waits while its way
 /// crosses another's claim or another eidolon, up to 20 s, and goes round one where there is room) and by
 /// <see cref="RouteRunner"/>, timed alike, with two and three eidolons, as estimated and averaged over strikes
-/// jittered by seeds 7, 11 and 13. The owner's targets: a makespan within 2 % of today's everywhere; in the open
-/// pit and the trench with three, 10 % under it with less idling; contacts rare and brief (at most about one
+/// jittered by seeds 7, 11 and 13. The planner leaves a job to today's dispatch where that finishes no later in
+/// its simulations, so the owner's targets are: a makespan no later than today's everywhere; in the open pit and
+/// the trench with three, 10 % under it with less idling; contacts rare and brief (at most about one
 /// a member each 2 minutes of work, none over 2 s, none with one on a narrow way) and no fault.</summary>
 public class MineRouteBenchmarkTests(ITestOutputHelper output)
 {
@@ -58,7 +59,7 @@ public class MineRouteBenchmarkTests(ITestOutputHelper output)
         foreach (var (contacts, work) in runner.ContactRates)
             Assert.True(contacts <= 1 + work / 120, $"{contacts} contacts in {work:0} s of work");
         return new Result(runner.Makespan, runner.Idle.Sum(), runner.Walked.Sum(), runner.Contacts,
-            $", across claims {runner.Crossings}, solves {runner.Solves} (kept {runner.Kept}), repairs {runner.Repairs}, ahead {runner.AheadStops}, replans {runner.Replans}; idle by: {runner.IdleWhy}");
+            $", chosen {runner.Chosen}, across claims {runner.Crossings}, solves {runner.Solves} (kept {runner.Kept}), repairs {runner.Repairs}, ahead {runner.AheadStops}, replans {runner.Replans}; idle by: {runner.IdleWhy}");
     }
 
     // the open pit and the trench with three: 10 % under today's, with less idling
@@ -68,7 +69,7 @@ public class MineRouteBenchmarkTests(ITestOutputHelper output)
     {
         output.WriteLine($"{label}: today  {today}");
         output.WriteLine($"{label}: routes {routes}");
-        Assert.True(routes.Makespan <= 1.02 * today.Makespan, $"{label}: routes' makespan {routes.Makespan:0.0} s over 1.02 x today's {today.Makespan:0.0} s");
+        Assert.True(routes.Makespan <= today.Makespan + 1e-6, $"{label}: routes' makespan {routes.Makespan:0.0} s over today's {today.Makespan:0.0} s");
         if (MustGain(geometry, crew))
         {
             Assert.True(routes.Makespan <= 0.90 * today.Makespan, $"{label}: routes' makespan {routes.Makespan:0.0} s not 10 % under today's {today.Makespan:0.0} s");
@@ -76,25 +77,17 @@ public class MineRouteBenchmarkTests(ITestOutputHelper output)
         }
     }
 
-    // Cases that do not meet the targets are skipped with what they measured, the targets left as they are, until
-    // the owner decides (mine-lookahead design, "Wave 2 deviations").
-    private const string Pending = "Owner decision pending: routes miss the target here; ";
-
-    private const string NarrowTunnel = "the members' stations are today's, but routes walk round the eidolon at the tunnel's mouth (or wait for its claim) where today's crosses";
-
-    private const string Spiral = "one at a time fits in the pit: routes keep the work with one member after the start as today's does, but lose the first half minute to the handover";
-
     [Theory]
     [InlineData("G1", 2)]
     [InlineData("G1", 3)]
     [InlineData("G2", 2)]
     [InlineData("G2", 3)]
-    [InlineData("G3", 2, Skip = Pending + "58.8 s against today's 54.4 s (1.081); averaged 59.2 against 54.3 (1.090); " + NarrowTunnel)]
-    [InlineData("G3", 3, Skip = Pending + "64.3 s against today's 51.6 s (1.246); averaged 66.5 against 56.4 (1.179); " + NarrowTunnel)]
+    [InlineData("G3", 2)]
+    [InlineData("G3", 3)]
     [InlineData("G4", 2)]
     [InlineData("G4", 3)]
-    [InlineData("G5", 2, Skip = Pending + "spiral pit: 477.6 s against today's 466.2 s (1.025); averaged 479.3 against 465.8 (1.029); " + Spiral)]
-    [InlineData("G5", 3, Skip = Pending + "spiral pit: 494.0 s against today's 466.5 s (1.059); averaged 492.2 against 466.4 (1.055); " + Spiral)]
+    [InlineData("G5", 2)]
+    [InlineData("G5", 3)]
     public void Routes_meet_the_owner_s_targets(string geometry, int crew)
     {
         var c = MineCases.ByName(geometry, crew);

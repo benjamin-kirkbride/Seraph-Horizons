@@ -276,9 +276,10 @@ public class MineRoutesTests(ITestOutputHelper output)
     [Fact]
     public void A_member_gone_leaves_its_stations_to_the_others()
     {
-        // room in the others' routes: every freed station placed
+        // room in the others' routes: every freed station placed (the two-wide tunnel's routes are short; routes
+        // asked for, though the planner would leave this job to today's dispatch)
         var start = Begin(MineCases.NarrowTunnel(3));
-        var routes = MineRoutePlanner.Solve(start.Input());
+        var routes = MineRoutePlanner.Solve(start.Input() with { Keep = 0 });
         var freed = routes.Routes[3].Stops.Where(s => s.Kind == MineStopKind.Station).Select(s => s.Station).ToList();
         output.WriteLine($"3 had {string.Join(" ", freed)}; others {string.Join(" | ", Orders(routes).Where(p => p.Key != 3).Select(p => string.Join(" ", p.Value)))}");
         Assert.NotEmpty(freed);

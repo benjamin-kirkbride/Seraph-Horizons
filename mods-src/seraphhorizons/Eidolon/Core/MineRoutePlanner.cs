@@ -17,8 +17,10 @@ namespace SeraphHorizons.Mod.Eidolon.Core;
 /// <see cref="AheadWaitSeconds"/>, and a planned wait out of the narrow ways and the others' claims when there
 /// is nothing. How it chooses is one of a few <see cref="Variant"/>s: for a job of at most
 /// <see cref="WholeJobStations"/> stations each is simulated to the job's end, as estimated and with its strikes
-/// shaken, and the one that finishes soonest on the mean makes the routes (a re-solve against routes running
-/// keeps theirs). A station a stop took only part of (its claim cut round another's) is free again for the rest
+/// shaken, and the one that finishes soonest on the mean makes the routes; today's dispatch is simulated the same
+/// way (<c>TodaySim</c>), and where it finishes no later the job is left to it (<see cref="MineRoutes.Today"/>: no
+/// routes, the game dispatches as before). The choice is made once a job and kept by its re-solves
+/// (<see cref="MineRouteInput.Keep"/>). A station a stop took only part of (its claim cut round another's) is free again for the rest
 /// once that stop is done. Then each member's stations are put in their best order exactly
 /// (<see cref="MineOrdering"/>, with when each became workable and what must come first), and stations are
 /// moved, one at a time, off the member the simulation finishes last while that brings the whole job's finish
@@ -105,6 +107,27 @@ public static class MineRoutePlanner
     /// <summary>How long a way across another's claim waits for it before it goes through (the live rule).</summary>
     public const double PassAfter = 4;
 
+    /// <summary>A station's work shaken by up to ±30 % by <paramref name="seed"/> (0: as estimated), the same for
+    /// every simulation with that seed.</summary>
+    private static double ShakenWork(int seed, int station, double work)
+    {
+        if (seed == 0)
+            return work;
+        uint h = (uint)(station * 73856093) ^ (uint)(seed * 19349663);
+        h ^= h >> 13;
+        h *= 0x5bd1e995;
+        h ^= h >> 15;
+        return work * (0.7 + 0.6 * (h % 10000) / 10000.0);
+    }
+
+    /// <summary>Routes are taken over today's dispatch only when their simulated finish is sooner by more than
+    /// this share (0: any sooner; a tie goes to today's, and the choice is kept for the job, so it never flips on
+    /// noise).</summary>
+    public const double TodayMargin = 0.0;
+
+    /// <summary><see cref="MineRoutes.VariantIndex"/> of routes that leave the job to today's dispatch.</summary>
+    public const int TodayIndex = 1000;
+
     /// <summary>A member leaves a station to another this much sooner at it (one at work: any sooner).</summary>
     private const double LeaveMargin = 5;
 
@@ -125,7 +148,10 @@ public static class MineRoutePlanner
         // keeping the work with one member, and a crew that waits on itself to one that does not
         // a re-solve against the routes running keeps their variant (the choice is made when routes are made anew)
         var chosen = Variants[0];
-        if (input.Current is { VariantIndex: var reused } && reused >= 0 && reused < Variants.Length)
+        int? keep = input.Keep ?? input.Current?.VariantIndex;
+        if (keep == TodayIndex)
+            return Today(input, context, zones, index, input.Current?.Score.J ?? 0, clock);
+        if (keep is { } reused && reused >= 0 && reused < Variants.Length)
             chosen = Variants[reused];
         else if (input.Members.Count > 1 && input.Plan.Stations.Count(s => s.Cells.Any(pristine.Remaining.Contains)) <= WholeJobStations)
         {
@@ -152,6 +178,17 @@ public static class MineRoutePlanner
                 if (sum / ShakenRuns < best - ScoreSlack)
                     (best, chosen) = (sum / ShakenRuns, variant);
             }
+            // today's dispatch, simulated the same way: the job is left to it unless routes finish sooner by a margin
+            double today = 0;
+            for (int seed = 0; seed < ShakenRuns; seed++)
+            {
+                var sim = new TodaySim(context, pristine.Clone(), seed);
+                sim.Run(cancel);
+                today += sim.Makespan();
+            }
+            today /= ShakenRuns;
+            if (!(best < today * (1 - TodayMargin)))
+                return Today(input, context, zones, index, today, clock);
             // every variant stalled (the crew in its own way to the end): the first, as for a large job
             if (best >= Stalled)
                 chosen = Variants[0];
@@ -206,6 +243,14 @@ public static class MineRoutePlanner
         }
         made.Stats = made.Stats with { Took = clock.Elapsed };
         return made;
+    }
+
+    // routes that leave the job to today's dispatch: none, the choice recorded (a re-solve against them keeps it)
+    private static MineRoutes Today(MineRouteInput input, Context context, IReadOnlyList<MineZone> zones, MineZoneIndex index, double j, Stopwatch clock)
+    {
+        var routes = input.Members.OrderBy(m => m.Id).ToDictionary(m => m.Id, m => new MineRoute(m.Id, []) { FreeAt = input.Now });
+        return new MineRoutes(input.Plan, input.PlanVersion, input.Now, routes, zones, index, new MineSlots(), (j, 0, 0),
+            context.Stats(0, false, false, clock.Elapsed), 0) { VariantIndex = TodayIndex };
     }
 
     /// <summary>The objective of <paramref name="routes"/> re-simulated on <paramref name="input"/>'s state (a
@@ -379,16 +424,7 @@ public static class MineRoutePlanner
         /// <summary>A seed that shakes each station's work by up to ±30 % (0: as estimated).</summary>
         public int Shake { get; init; }
 
-        private double Shaken(int station, double work)
-        {
-            if (Shake == 0)
-                return work;
-            uint h = (uint)(station * 73856093) ^ (uint)(Shake * 19349663);
-            h ^= h >> 13;
-            h *= 0x5bd1e995;
-            h ^= h >> 15;
-            return work * (0.7 + 0.6 * (h % 10000) / 10000.0);
-        }
+        private double Shaken(int station, double work) => ShakenWork(Shake, station, work);
 
         /// <summary>Whether it runs to the job's end (no horizon in time).</summary>
         public bool Whole { get; init; }
@@ -1066,6 +1102,144 @@ public static class MineRoutePlanner
                     slots.Hold(slot.Member, slot.Stop, slot.Zone, slot.From, slot.To);
             }
             return new MineRoutes(_c.Plan, _c.Input.PlanVersion, _now, routes, _c.Zones, _c.Index, slots, Score(), stats, _seq);
+        }
+    }
+
+    // ---- today's dispatch, simulated ----
+
+    /// <summary>Today's dispatch (README "Eidolon", working together, *Dispatch*) worked to the job's end on the
+    /// same model as the routes' simulations, for the choice between them: each member, free, takes
+    /// <see cref="MineDispatch.Next"/> of the plan with the others' stations as their queues and their claims,
+    /// walks there on the walk graph (waiting up to 20 s while its way crosses another's claim, then going, as
+    /// the game does), and digs it whole at its finish; with nothing for it, it walks back to where it started and
+    /// waits there.</summary>
+    private sealed class TodaySim
+    {
+        private const double ThroughSeconds = 20;
+
+        private sealed class Member(MineRouteMember input)
+        {
+            public readonly long Id = input.Id;
+            public PathCell At = input.At;
+            public readonly PathCell Rest = input.At;
+            public double Free;
+            public MineStation? Station;
+            public HashSet<(int X, int Z)> Claim = new();
+            public double? Through;
+            public bool Done;
+        }
+
+        private readonly Context _c;
+        private readonly MineState _state;
+        private readonly int _shake;
+        private readonly double _now;
+        private readonly List<Member> _members;
+        private double _end;
+
+        public TodaySim(Context context, MineState state, int shake)
+        {
+            _c = context;
+            _state = state;
+            _shake = shake;
+            _now = context.Input.Now;
+            _members = context.Input.Members.OrderBy(m => m.Id).Select(m => new Member(m) { Free = _now }).ToList();
+            _end = _now;
+            // a head held now: worked until its member is free
+            foreach (var (m, input) in _members.Zip(context.Input.Members.OrderBy(m => m.Id)))
+                if (input.Head is { } h && h >= 0 && h < _c.Plan.Stations.Count)
+                {
+                    var station = _c.Plan.Stations[h];
+                    var cells = station.Cells.Where(state.Remaining.Contains).ToList();
+                    if (cells.Count == 0)
+                        continue;
+                    m.Station = station with { Cells = cells };
+                    m.Claim = MineDispatch.Claim(m.Station, _c.Plan.Tunnel).ToHashSet();
+                    m.At = station.Stand;
+                    m.Free = Math.Max(_now, input.FreeAt);
+                }
+        }
+
+        public double Makespan()
+        {
+            var left = _state.Remaining.Where(c => !_c.Plan.WayOut.Contains(c)).ToList();
+            return _end - _now + (left.Count == 0 ? 0 : MineCosts.WorkSeconds(_state.Site, left) + Stalled);
+        }
+
+        public void Run(CancellationToken cancel)
+        {
+            int idle = 0;
+            for (int events = 0; events < MaxEvents; events++)
+            {
+                var m = _members.Where(x => !x.Done).MinBy(x => (x.Free, x.Id));
+                if (m == null)
+                    return;
+                cancel.ThrowIfCancellationRequested();
+                double t = m.Free;
+                if (m.Station is { } done)
+                {
+                    _state.Apply(done.Cells.Where(_state.Remaining.Contains).ToList());
+                    m.Station = null;
+                    m.Claim.Clear();
+                    _end = Math.Max(_end, t);
+                    idle = 0;
+                }
+                var me = new MineWorker(m.Id, m.At.X, m.At.Y, m.At.Z, [], 0);
+                var others = _members.Where(o => o != m).Select(o =>
+                    new MineWorker(o.Id, o.At.X, o.At.Y, o.At.Z, o.Station is { } s ? [s] : [], Math.Max(0, o.Free - t))).ToList();
+                bool Free((int X, int Z) col) => !_members.Any(o => o != m && o.Claim.Contains(col));
+                _c.Decisions++;
+                var next = MineDispatch.Next(_c.Plan, _state, me, others, s => MineDispatch.Claim(s, _c.Plan.Tunnel).All(Free),
+                    _c.Input.Usable, s => MineDispatch.Fit(s, _c.Plan.Tunnel, Free));
+                IReadOnlyList<PathCell> path = [];
+                double walk = 0;
+                if (next != null)
+                {
+                    var d = MineCosts.From(_state.Walk, m.At, [next.Stand]);
+                    _c.Searches++;
+                    path = d.Path(next.Stand);
+                    walk = d.Seconds(next.Stand) ?? 0;
+                    if (path.Count == 0)
+                        next = null;
+                }
+                if (next == null)
+                {
+                    bool busy = _members.Any(o => o.Station != null);
+                    if (!busy && (!_state.Remaining.Any(c => _state.Bands?.Eligible(c) ?? true) || ++idle > 3 * _members.Count + 3))
+                    {
+                        m.Done = true;
+                        continue;
+                    }
+                    // nothing for it: it walks out of the others' way, to where it started, and waits there
+                    if (m.At != m.Rest && MineCosts.From(_state.Walk, m.At, [m.Rest]).Seconds(m.Rest) is { } back)
+                    {
+                        m.At = m.Rest;
+                        m.Free = t + back;
+                        continue;
+                    }
+                    double until = _members.Where(o => o != m && !o.Done && o.Free > t).Select(o => o.Free).DefaultIfEmpty(t + 1).Min();
+                    m.Free = Math.Max(until, t + 0.5);
+                    continue;
+                }
+                // its way crosses another's claim: it waits for room, at most 20 s, then goes through
+                var columns = new HashSet<(int X, int Z)>();
+                foreach (var n in path.Skip(2))
+                    for (int x = n.X - 1; x <= n.X; x++)
+                    for (int z = n.Z - 1; z <= n.Z; z++)
+                        columns.Add((x, z));
+                if (_members.Any(o => o != m && o.Claim.Overlaps(columns)) && (m.Through ??= t) > t - ThroughSeconds)
+                {
+                    m.Free = t + 0.5;
+                    continue;
+                }
+                m.Through = null;
+                var cells = MineDispatch.Cells(_state, next);
+                var station = next with { Cells = cells };
+                m.Station = station;
+                m.Claim = MineDispatch.Claim(station, _c.Plan.Tunnel).ToHashSet();
+                m.At = next.Stand;
+                m.Free = t + walk + MineCosts.ArriveSeconds + ShakenWork(_shake, next.Id, MineCosts.WorkSeconds(_state.Site, station, _c.Plan.Tunnel));
+                idle = 0;
+            }
         }
     }
 
