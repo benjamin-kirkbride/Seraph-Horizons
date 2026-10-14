@@ -188,19 +188,26 @@ FEED_HOLE = ((21.5, 26.5), (69.0, 73.0))     # (x, z) the feed chute's hole thro
 MIN_CHIMNEY = 6                              # chimney blocks stood on the outlet, counted from it up (the crucible furnace's)
 
 # ---------------------------------------------------------------- the iron: binding, buckstays, rods
-BIND_T = 0.5                                 # the end faces' binding, set into the brick, flush
-STRAP_X = ((0.5, 3.0), (43.5, FACE_E))       # a flat strap up each edge of the fire end and the flue end faces
-BAND_Y = (30.5, TOP)                         # a band along their top edge, between the straps
+# The binding is angle iron (the owner's rule for every furnace): an L section wrapping the brickwork's corner, one leg on
+# each face, its inside corner bedded against the brick's corner, so it holds the brick in on both faces. The end faces
+# are the footprint's and the west face is the shared wall's, so nothing may stand proud of them: the corner angles and
+# the bands are set into the brick, their outer faces flush with both faces of their corner.
+ANGLE_T = 0.75                               # angle iron: a leg's thickness
+ANGLE_L = 2.0                                # and its width, out from the corner along its face
+ANGLE_FACES = (("n", 0.0, 1.0), ("s", D, -1.0))   # the end faces: (name, z, inward)
+ANGLE_SIDES = (("w", WEST[0], 1.0, (0.0, TOP)),   # the corners of each: (name, x, inward, y span): the shared wall's,
+               ("e", FACE_E, -1.0, (HEARTH_Y, TOP)),   # the end block's east corner over the footing,
+               ("f", W, -1.0, (0.0, HEARTH_Y)))        # the footing's east corner
 STAY_Z = (21.5, 29.5, 51.0)                  # the east buckstays (centres): clear of the doors, the pedestals and the brackets
-STAY_X = (FACE_E, 47.0)
-STAY_W = 2.0
-STAY_Y = (HEARTH_Y, TOP)
+STAY_X = (FACE_E, FACE_E + ANGLE_T)          # each an angle: its flange on the east face (x), 2.5 wide (z),
+STAY_W = 2.5
+STAY_Y = (HEARTH_Y, TOP)                     # its web standing out from the flange's south edge to the footprint's face
 SKEWBAR_X = (45.0, FACE_E)                   # the east skewback bar, behind the buckstays
 ROD_Y = (31.4, TOP)                          # the tie rods over the arch's crown (31), from the east buckstays into the shared
 ROD_T = 0.8                                  # wall, where each ends on an anchor plate set in the wall's top
-ROD_X = (2.5, STAY_X[1])
+ROD_X = (2.5, STAY_X[1] + 1.0)               # through the buckstay's flange and its nut
 ANCHOR = ((1.5, 2.5), (29.5, TOP), 1.5)      # the anchor plates in the shared wall: x, y, half width (z)
-NUT = ((STAY_X[1], W), (31.0, TOP), 0.8)
+NUT = ((STAY_X[1], STAY_X[1] + 1.0), (31.0, TOP), 0.5)   # on the flange, against the web
 
 # ---------------------------------------------------------------- the vanilla chute (the game's blocktypes/metal/chute-straight.json,
 # shapes/block/metal/chute/straight.json): an 8 x 8 square tube centred in its cell, walls 1 thick, along x as drawn (its
@@ -575,24 +582,55 @@ def crown_holes():
 
 
 # ---------------------------------------------------------------- the brick
-def binding():
-    """The end faces' iron binding, as (name, lo, hi): a flat strap up each edge of the fire end face and of the flue end
-    face, and a band along the top edge of each between them, BIND_T thick, set in flush. The west face is the shared
-    wall's, plain brick; the east side's binding is its buckstays."""
+def corner_angles():
+    """The binding's corner angles, as (name, lo, hi): at each vertical corner of the fire end's and the flue end's faces
+    an angle iron wraps the corner (ANGLE_SIDES: the shared wall's corner, the end block's east corner over the footing,
+    the footing's east corner), set in flush with both faces: its leg in the end face (`_face`, ANGLE_L along x from the
+    corner, ANGLE_T deep, the corner square its own) and its leg in the side face (`_side`, ANGLE_T deep, running on from
+    the first to ANGLE_L along z)."""
     out = []
-    for face, z0, z1 in (("n", 0.0, BIND_T), ("s", D - BIND_T, D)):
-        for side, (x0, x1) in zip(("w", "e"), STRAP_X):
-            out.append((f"fr_strap_{face}{side}", [x0, 0.0, z0], [x1, TOP, z1]))
-        out.append((f"fr_band_{face}", [STRAP_X[0][1], BAND_Y[0], z0], [STRAP_X[1][0], BAND_Y[1], z1]))
+    t, l = ANGLE_T, ANGLE_L
+    for face, zf, inz in ANGLE_FACES:
+        for side, xc, inx, (y0, y1) in ANGLE_SIDES:
+            xs, zs = sorted((xc, xc + inx * l)), sorted((zf, zf + inz * t))
+            out.append((f"fr_angle_{face}{side}_face", [xs[0], y0, zs[0]], [xs[1], y1, zs[1]]))
+            xs, zs = sorted((xc, xc + inx * t)), sorted((zf + inz * t, zf + inz * l))
+            out.append((f"fr_angle_{face}{side}_side", [xs[0], y0, zs[0]], [xs[1], y1, zs[1]]))
     return out
 
 
+def band_angles():
+    """The bands, as (name, lo, hi): along the top edge of each end face, between its corner angles, an angle iron
+    wrapping that edge, set in flush: a leg in the end face (`_face`, ANGLE_L down from the top) and a leg in the top
+    (`_top`, running on from it to ANGLE_L in from the face). Its ends meet the corner angles' end-face legs."""
+    out = []
+    t, l = ANGLE_T, ANGLE_L
+    x0, x1 = WEST[0] + l, FACE_E - l
+    for face, zf, inz in ANGLE_FACES:
+        zs = sorted((zf, zf + inz * t))
+        out.append((f"fr_band_{face}_face", [x0, TOP - l, zs[0]], [x1, TOP, zs[1]]))
+        zs = sorted((zf + inz * t, zf + inz * l))
+        out.append((f"fr_band_{face}_top", [x0, TOP - t, zs[0]], [x1, TOP, zs[1]]))
+    return out
+
+
+def binding():
+    """The end faces' binding, as (name, lo, hi): the corner angles and the bands between them. The west face is the
+    shared wall's, plain but for its corner angles' legs, flush; the east side's binding is its buckstays."""
+    return corner_angles() + band_angles()
+
+
 def frame_ties():
-    """The iron frame's ties, as (name, lo, hi): a post under each end of the ash mouth's lintel, hidden in the
-    brickwork (the damper's guides stand against the lintel's face)."""
+    """The iron frame's ties, as (name, lo, hi): a post under each end of the ash mouth's lintel, and one under each end
+    block's east corner angle, hidden in the brickwork (the damper's guides stand against the lintel's face)."""
     (lx, ly, lz) = ASH_LINTEL
-    return [("fr_tie_lintel_w", [lx[0] - 1.0, 0.0, lz[0]], [lx[0], ly[1], lz[1]]),
-            ("fr_tie_lintel_e", [lx[1], 0.0, lz[0]], [lx[1] + 1.0, ly[1], lz[1]])]
+    out = [("fr_tie_lintel_w", [lx[0] - 1.0, 0.0, lz[0]], [lx[0], ly[1], lz[1]]),
+           ("fr_tie_lintel_e", [lx[1], 0.0, lz[0]], [lx[1] + 1.0, ly[1], lz[1]])]
+    # a post in the footing under each end block's east corner angle, inside its side leg, clear of the end face
+    for face, zf, inz in ANGLE_FACES:
+        zs = sorted((zf + inz * (ANGLE_T + 0.25), zf + inz * ANGLE_L))
+        out.append((f"fr_tie_angle_{face}e", [FACE_E - ANGLE_T, 0.0, zs[0]], [FACE_E, HEARTH_Y, zs[1]]))
+    return out
 
 
 def bearers():
@@ -767,8 +805,8 @@ def build_brick():
 # ---------------------------------------------------------------- builders: the structure
 def build_frame_iron():
     """The iron frame (`frame`, `fr_*`): what the frame stage puts down, standing on its own, set into the brick once it
-    is in: the end faces' binding (straps and bands), the ash mouth's lintel and the damper's guides, and the posts under
-    the lintel (hidden in the brickwork)."""
+    is in: the end faces' binding (the corner angles and the angle bands), the ash mouth's lintel and the damper's guides,
+    and the posts under the lintel and the east corner angles (hidden in the brickwork)."""
     f, t = "frame", "iron"
     out = []
     for name, lo, hi in binding():
@@ -825,13 +863,16 @@ def build_arch():
 
 
 def build_ironwork():
-    """The ironwork (`ironwork`, `iw_*`, fitted with the arch): the east buckstays on the footing, the skewback bar
-    behind them, the tie rods over the crown from them into the shared wall, where each ends on an anchor plate set in
-    its top, and the nuts outside the buckstays. Nothing stands beyond the shared wall's face."""
+    """The ironwork (`ironwork`, `iw_*`, fitted with the arch): the east buckstays on the footing, each an angle iron (its
+    flange on the face, its web standing out from the flange's south edge), the skewback bar behind them, the tie rods
+    over the crown from them into the shared wall, where each ends on an anchor plate set in its top, and the nuts on the
+    buckstays' flanges. Nothing stands beyond the shared wall's face."""
     p, t = "ironwork", "iron"
     out = []
     for i, zc in enumerate(STAY_Z, 1):
-        out += long_box([STAY_X[0], STAY_Y[0], zc - STAY_W / 2], [STAY_X[1], STAY_Y[1], zc + STAY_W / 2], f"iw_stay{i}", p, t)
+        z0, z1 = zc - STAY_W / 2, zc + STAY_W / 2
+        out += long_box([STAY_X[0], STAY_Y[0], z0], [STAY_X[1], STAY_Y[1], z1], f"iw_stay{i}_flange", p, t)
+        out += long_box([STAY_X[1], STAY_Y[0], z1 - ANGLE_T], [W, STAY_Y[1], z1], f"iw_stay{i}_web", p, t)
         (nx, ny, nhw) = NUT
         out.append(box([nx[0], ny[0], zc - nhw], [nx[1], ny[1], zc + nhw], f"iw_nut{i}", p, t))
     out += long_box([SKEWBAR_X[0], SKEW[1][0], ARCH_Z[0]], [SKEWBAR_X[1], SKEW[1][1], ARCH_Z[1]], "iw_skewbar", p, t)

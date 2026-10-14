@@ -20,7 +20,8 @@ footprint, the brick and the arch are the same at both, and level 2 adds its par
 three places only (the issue's "in place of"). It follows the **crucible furnace's conventions** (`CrucibleFurnace/README.md`):
 the model stops at an **outlet** on the top; the **brickwork takes any fired brick** and the **hot faces are lined
 with tier-3 refractory brick 3 voxels thick**, the arch being that refractory; natural draught through an **ash mouth
-with a three-place damper**; iron binding on the faces that are not shared; **build stages**.
+with a three-place damper**; iron binding on the faces that are not shared; **build stages**. The binding is **angle
+iron** (the owner's rule for every furnace): see "The binding", below.
 
 **Footprint: 3 wide (x) × 2 high × 5 long (z), 30 cells, and the drive's row on the roof's middle** (5 cells,
 x 0, y 2, z 0..4, fixed from the frame on, as on the branch): 35 cells. In the native, south-facing frame with the
@@ -80,16 +81,39 @@ crucible furnace's pattern:
 
 | | Stage | `requires` | What it puts in | Materials (measured) |
 |---|---|---|---|---|
-| Frame | **Iron frame**, a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (`frame`) | The fire end's and the flue end's straps and top bands, the ash mouth's lintel and the damper's guides, standing on two short posts hidden in the brickwork | not settled |
-| 1 | **Brickwork** | `brickwork` (and `frames`) | The base, the shared wall, the outer walls, the footing, the end blocks: 13.30 blocks; with it, at no cost of its own, the iron set in as it is laid (the fire door's lintel, the flat grate's bearers, the work doors' frames and guides, the discharge door's rails) | **27 fired bricks**, any one type |
+| Frame | **Iron frame**, a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (`frame`) | The fire end's and the flue end's corner angles and angle bands, the ash mouth's lintel and the damper's guides, standing on their own (the end blocks' east corner angles on a short post each, the lintel on two, hidden in the brickwork) | not settled |
+| 1 | **Brickwork** | `brickwork` (and `frames`) | The base, the shared wall, the outer walls, the footing, the end blocks: 13.22 blocks; with it, at no cost of its own, the iron set in as it is laid (the fire door's lintel, the flat grate's bearers, the work doors' frames and guides, the discharge door's rails) | **27 fired bricks**, any one type |
 | 2 | **Lining** | `lining` | Tier-3 refractory 3 thick on every hot face: 4.07 blocks | **17 tier-3 refractory bricks, 7 fire clay** |
-| 3 | **Arch** | `arch` (and `ironwork`) | The arch's 9 strips and the east skewback, tier-3 refractory: 2.08 blocks; with it the buckstays, the skewback bar, the tie rods and their anchors | **9 tier-3 refractory bricks, 4 fire clay** (the ironwork not settled) |
+| 3 | **Arch** | `arch` (and `ironwork`) | The arch's 9 strips and the east skewback, tier-3 refractory: 2.08 blocks; with it the angle buckstays, the skewback bar, the tie rods and their anchors | **9 tier-3 refractory bricks, 4 fire clay** (the ironwork not settled) |
 | | Level 1, level 2 | as above | | not settled |
 | | *Outlet cap* | `outletcap` | Not a stage: on the furnace of a pair that does not carry the chimney | 1 iron plate |
 
 The counts are measured from the model as the crucible furnace's are: the brick is a lattice (every void's faces, the
 lining's zones' and the blocks' boundaries) merged into world-mapped boxes, the brickwork's and the lining's apart, at 2
 fired bricks or 4 refractory bricks a block, rounded up, fire clay one per 2.5 refractory bricks.
+
+## The binding
+
+Every piece of iron that binds the brickwork is **angle iron**, an L section 0.75 thick with legs 2 wide (`ANGLE_T`,
+`ANGLE_L`), wrapping the brick's corner: one leg on each face, its inside corner bedded against the brick's corner, so it
+holds the brick in on both faces (the owner's rule for every furnace). The end faces are the footprint's faces and the west
+face is the shared wall's, so nothing may stand proud of them: the angles there are **set into the brick, flush** with
+both faces of their corner.
+
+- **Corner angles** (`fr_angle_<n|s><w|e|f>_face`, `_side`; the iron frame): at each vertical corner of the fire end's and
+  the flue end's faces, full height at the shared wall's corners, from the footing up at the end blocks' east corners (each
+  on a short post hidden in the footing, `fr_tie_angle_*`), and to the footing's top at its east corners.
+- **Angle bands** (`fr_band_<n|s>_face`, `_top`; the iron frame): along the top edge of each end face between its corner
+  angles, wrapping that edge (a leg down the face, a leg on the top), their ends meeting the corner angles.
+- **Buckstays** (`iw_stay<i>_flange`, `_web`; the ironwork, with the arch): the east wall between the end blocks has no
+  vertical corner, so each buckstay is an angle standing on the face, its flange bedded against the wall and the skewback
+  bar, its web standing out from the flange's south edge to the footprint's face; the tie rod passes through the flange
+  and its nut bears on it, against the web.
+
+A check holds it (`check_binding`): each corner angle's two legs are 0.75 × 2 in the two faces of its corner, flush, with
+brick behind each leg and the face running on in brick past it, nothing proud of either face, the legs meeting at the
+corner; each band's legs in the end face and the top, bedded the same way, its ends on the corner angles; each buckstay's
+flange on the east face, bedded against the wall and the skewback bar, its web at the flange's edge, its nut on the flange.
 
 ## How it works
 
@@ -172,8 +196,8 @@ Everything was made for this mod; no other mod's model is used, and the generato
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/reverberatory.json` | The whole furnace, both levels' parts (716 elements: 379 built, 433 at level 1 roasting, 670 at level 2 running) |
-| `assets/seraphhorizons/shapes/block/reverberatory_frame.json` | The iron frame only (19 elements) |
+| `assets/seraphhorizons/shapes/block/reverberatory.json` | The whole furnace, both levels' parts (758 elements: 421 built, 475 at level 1 roasting, 712 at level 2 running) |
+| `assets/seraphhorizons/shapes/block/reverberatory_frame.json` | The iron frame only (39 elements) |
 | `assets/seraphhorizons/config/reverberatory-rig.json` | Cells, anchors, the build, the bricks, the row, the gearing and the part rig (33 parts) |
 | `tests/ReverberatoryRoaster/rig-reference.json` | Every part's matrix at a spread of axle angles, from the reference maths |
 
@@ -212,6 +236,7 @@ the checks, and the run exits non-zero if one fails. Checks that look at parts t
 - **The shared wall** (the owner's rule): its face plain brick at every half voxel (10240 points), nothing else at its
   plane; the doors and the buckstays on the east; two furnaces back to back (the second turned half round) touch nowhere
   but at their shared walls, at rest and turning.
+- **The binding** (the owner's rule: angle iron): as "The binding" above.
 - **The lining:** every hot face (the firebox and its roof, the bridge, the hearth's bed and walls, the cavity, the
   uptake, the feed hole, the throat) lined at least 3 deep or to where the brick ends (4576 points); the ash pit, the
   ash mouth and the tunnel the brickwork's; the arch refractory.
