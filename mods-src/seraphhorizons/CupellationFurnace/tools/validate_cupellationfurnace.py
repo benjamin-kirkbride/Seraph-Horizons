@@ -3,8 +3,7 @@
 Every check prints what it measured and fails the run (the script exits non-zero) when the model breaks its rule.
 Everything is in the build frame (voxels), on the model before the origin shift; `check_shipped` in make_shape.py
 proves the shipped files are this model moved. The furnace's checks follow the crucible furnace's
-(`CrucibleFurnace/tools/validate_cruciblefurnace.py`); the blowing engine's follow the parting furnace's v2 branch
-(`741-parting-furnace-model-v2`: the yoke, the supports, the intended contacts).
+(`CrucibleFurnace/tools/validate_cruciblefurnace.py`).
 """
 
 from __future__ import annotations
@@ -14,10 +13,9 @@ import os
 import re
 from pathlib import Path
 
-from machinegen.checks import bearing_margin, coplanar_faces, euler_round_trip, frame_floating, obb_obb
-from machinegen.checks import supports as shaft_supports
+from machinegen.checks import coplanar_faces, euler_round_trip, frame_floating, obb_obb
 from machinegen.geometry import aabb_of
-from machinegen.rigmath import apply, part_of, posed
+from machinegen.rigmath import part_of, posed
 
 
 class V:
@@ -42,14 +40,6 @@ class V:
             self.cache[key] = [posed(el, mm) for el in self.by_part.get(pid, [])]
         return self.cache[key]
 
-    def point(self, pid, theta, p):
-        """A point (voxels) moved with part `pid` at `theta` (the part matrices are in blocks)."""
-        q = apply(self.m.pm(self.parts, pid, (theta, None)), [c / self.m.B for c in p])
-        return [c * self.m.B for c in q]
-
-    def named(self, pid, rx, theta=0.0):
-        return [e for e in self.posed(pid, theta) if re.match(rx, e.name)]
-
     def shown(self, scene, theta=0.0):
         """Every element drawn in `scene`, at `theta`."""
         return [e for pid in self.by_part if self.m.on_show(pid, scene) for e in self.posed(pid, theta)]
@@ -63,10 +53,6 @@ def inside(el, p, eps=0.0):
         if abs(sum(d[i] * axis[i] for i in range(3))) > abs(el.size[k]) / 2 - eps:
             return False
     return True
-
-
-def thetas(n):
-    return [2 * math.pi * i / n for i in range(n)]
 
 
 def same_box(a, b, tol=1e-6):
@@ -84,8 +70,8 @@ def static(v):
 
 
 def fixed(v):
-    """Everything that stands still once built: the body, the test, the engine's fixed parts, the fittings."""
-    return static(v) + v.by_part["test"] + v.by_part["engine"] + v.by_part["fittings"]
+    """Everything that stands once built: the body, the test, the fittings."""
+    return static(v) + v.by_part["test"] + v.by_part["fittings"]
 
 
 THIN_POST = 1.5                              # a post: a vertical element under this across both ways
@@ -112,8 +98,8 @@ def check_basic(v):
 
 
 def check_stages(v):
-    """The build: at each stage (the iron frame alone, with the brickwork, the lining, the test, the engine, the
-    fittings) nothing floats: every element drawn is joined to the ground (the engine's moving parts at rest). The iron
+    """The build: at each stage (the iron frame alone, with the brickwork, the lining, the test, the fittings)
+    nothing floats: every element drawn is joined to the ground. The iron
     frame stands on its own: it is iron only, and no thin post stands in it taller than half the furnace. Every tie is
     hidden once the brick is in: points just off every face of it lie in brick or in other iron."""
     m = v.m
@@ -168,13 +154,6 @@ ROLES = [
     (r"^fr_", {"iron"}),
     (r"^ts_(ring)", {"iron"}),
     (r"^ts_(ash|rim|breast)", {"boneash"}),
-    (r"^en_chest\d_flap", {"leather"}),
-    (r"^en_", {"iron"}),
-    (r"^sh_oak", {"oak"}),
-    (r"^sh_web", {"iron"}),
-    (r"^sh_(shaft|pin)", {"steel"}),
-    (r"^yk_(rod|slipper)", {"steel"}),
-    (r"^yk_", {"iron"}),
     (r"^ft_", {"iron"}),
     (r"^coal_", {"coal"}),
     (r"^fire_", {"ember"}),
@@ -200,85 +179,162 @@ def check_textures(v):
 
 # ---------------------------------------------------------------- containment, the sides, the walls
 def check_containment(v):
-    """Nothing leaves the furnace's eighteen cells over a whole turn of the shaft (every 7.5 degrees): nothing stands
-    over the top, so the chimney's cell and every cell over the furnace are free."""
+    """Nothing leaves the furnace's fourteen cells: nothing over the top, so the chimney's cell and every cell over the
+    furnace are free, and nothing in the back row's middle and east columns, where the blast's pipe comes in."""
     m = v.m
     worst, where = -1e9, None
-    for th in thetas(48):
-        for pid in v.by_part:
-            if pid not in m.MOVING and th:
-                continue
-            for el in v.posed(pid, th):
-                lo, hi = el.aabb()
-                o = max(-lo[0], hi[0] - m.W, -lo[1], hi[1] - m.H, -lo[2], hi[2] - m.D)
-                if o > worst:
-                    worst, where = o, (el.name, th)
-    print(f"containment over a turn: worst overhang {worst:.3f} voxels ({where[0]} at theta {where[1]:.2f})")
+    (gx0, gx1), (gy0, gy1), (gz0, gz1) = m.GAP
+    for pid in v.by_part:
+        for el in v.posed(pid):
+            lo, hi = el.aabb()
+            o = max(-lo[0], hi[0] - m.W, -lo[1], hi[1] - m.H, -lo[2], hi[2] - m.D)
+            o = max(o, min(hi[0] - gx0, gx1 - lo[0], hi[1] - gy0, gy1 - lo[1], hi[2] - gz0, gz1 - lo[2]))
+            if o > worst:
+                worst, where = o, el.name
+    print(f"containment: worst overhang {worst:.3f} voxels ({where}) out of the {len(m.footprint())} cells")
     if worst > 1e-6:
-        v.fail(f"{where[0]} leaves the furnace's cells at theta {where[1]}")
+        v.fail(f"{where} leaves the furnace's cells")
+
+
+def binder(name):
+    return name.startswith(("fr_angle_", "fr_band_"))
 
 
 def check_sides(v):
-    """Furnaces tile into a row: the west face is plain brickwork over its whole area, and the east face wherever the
-    furnace reaches it (the front two rows and the back row's base; the engine's bay above the base is open to the
-    east, and nothing in it reaches the plane); nothing but the brickwork reaches either side plane at any angle of the
-    shaft, and two furnaces side by side (one moved a furnace's width along x) touch nowhere but at their walls."""
+    """Furnaces tile into a row: the west face (the front two rows and the stack column) and the east face (the front two
+    rows) are plain brickwork but for the binding's angle legs and top band at their edges, sampled every half voxel;
+    nothing but the brickwork and the binding reaches either side plane, the binding flush; and two furnaces side by
+    side (one moved a furnace's width along x) touch nowhere but at their walls."""
     m = v.m
-    bricks = v.by_part["brickwork"]
+    walls = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if binder(e.name)]
     bad, n = [], 0
     for x in (0.05, m.W - 0.05):
         y = 0.25
         while y < m.H:
             z = 0.25
             while z < m.D:
-                if x > m.W / 2 and y > m.BASE_TOP and z > m.BODY_D:
+                if x > m.W / 2 and z > m.BODY_D:
                     z += 0.5
                     continue
                 n += 1
-                if not any(inside(e, (x, y, z)) for e in bricks):
+                if not any(inside(e, (x, y, z)) for e in walls):
                     bad.append((x, y, z))
                 z += 0.5
             y += 0.5
     if bad:
-        v.fail(f"the side faces are not plain brickwork at {len(bad)} of {n} points, e.g. {bad[:4]}")
+        v.fail(f"the side faces are not plain brickwork and binding at {len(bad)} of {n} points, e.g. {bad[:4]}")
     reach = set()
-    for th in thetas(24):
-        for pid in v.by_part:
-            if pid not in m.MOVING and th:
-                continue
-            for e in v.posed(pid, th):
-                lo, hi = e.aabb()
-                if (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not e.name.startswith("bk_brick"):
-                    reach.add(e.name)
+    for pid in v.by_part:
+        for e in v.posed(pid):
+            lo, hi = e.aabb()
+            if (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not (e.name.startswith("bk_brick") or binder(e.name)):
+                reach.add(e.name)
     if reach:
-        v.fail(f"not brickwork at a side plane: {sorted(reach)[:4]}")
+        v.fail(f"not brickwork or binding at a side plane: {sorted(reach)[:4]}")
     hits = 0
-    for th in (0.0, math.pi / 2, math.pi, 3 * math.pi / 2):
-        a = [e for pid in v.by_part for e in v.posed(pid, th)]
-        near_a = [e for e in a if e.aabb()[1][0] > m.W - 2.0]
-        near_b = []
-        for e in a:
-            if e.aabb()[0][0] < 2.0:
-                c = e.clone()
-                c.c = [c.c[0] + m.W, c.c[1], c.c[2]]
-                near_b.append(c)
-        for ea in near_a:
-            for eb in near_b:
-                alo, ahi = ea.aabb()
-                blo, bhi = eb.aabb()
-                if all(alo[q] < bhi[q] - 0.02 and blo[q] < ahi[q] - 0.02 for q in range(3)) and obb_obb(ea, eb):
-                    hits += 1
+    a = [e for pid in v.by_part for e in v.posed(pid)]
+    near_a = [e for e in a if e.aabb()[1][0] > m.W - 2.0]
+    near_b = []
+    for e in a:
+        if e.aabb()[0][0] < 2.0:
+            c = e.clone()
+            c.c = [c.c[0] + m.W, c.c[1], c.c[2]]
+            near_b.append(c)
+    for ea in near_a:
+        for eb in near_b:
+            alo, ahi = ea.aabb()
+            blo, bhi = eb.aabb()
+            if all(alo[q] < bhi[q] - 0.02 and blo[q] < ahi[q] - 0.02 for q in range(3)) and obb_obb(ea, eb):
+                hits += 1
     if hits:
         v.fail(f"two furnaces side by side run into each other ({hits} pairs)")
-    print(f"sides: plain brickwork at {n - len(bad)} of {n} points on the two side faces (the engine's bay open to the "
-          f"east); nothing else reaches them; two furnaces side by side clear of each other but at their walls")
+    print(f"sides: plain brickwork and binding at {n - len(bad)} of {n} points on the two side faces; nothing else "
+          f"reaches them; two furnaces side by side clear of each other but at their walls")
+
+
+def check_binding(v):
+    """The binding is angle iron (the owner's rule): an upright angle at every outside vertical corner of the
+    brickwork, its two legs ANGLE_T thick and 2 to 3 wide, flush with the two faces of its corner and meeting at it,
+    each leg's inside face bedded on the brick of its face (points just inside it, every voxel up its height and across
+    its width, are brick, or the band over its head); and an angle band wrapping every top edge, its top leg bedded on the brick of the top and its
+    face leg on the brick of the face, joining the uprights' heads. No flat strap or kerb is left."""
+    m = v.m
+    frame = {e.name: e for e in v.by_part["frame"]}
+    bricks = brick(v)
+    binders = [e for n, e in frame.items() if binder(n)]       # the band wraps over the uprights' heads
+
+    def pieces(stem):
+        return [e for n, e in frame.items() if n == stem or (n.startswith(stem) and n[len(stem):].isdigit())]
+
+    def bedded(els, axis, sign):
+        """Points just past the legs' inside face (normal `axis`, towards the brick by `sign`), on a voxel grid."""
+        out, missing = 0, []
+        for e in els:
+            lo, hi = e.aabb()
+            k = (lo[axis] if sign < 0 else hi[axis]) + sign * 0.05
+            a, b = [q for q in range(3) if q != axis]
+            ua = lo[a] + 0.25
+            while ua < hi[a] - 0.2:
+                ub = lo[b] + 0.25
+                while ub < hi[b] - 0.2:
+                    p = [0.0, 0.0, 0.0]
+                    p[axis], p[a], p[b] = k, ua, ub
+                    out += 1
+                    if not any(inside(e2, p) for e2 in bricks + [b2 for b2 in binders if b2 not in els]):
+                        missing.append(tuple(round(c, 2) for c in p))
+                    ub += 1.0
+                ua += 1.0
+        return out, missing
+    tol = 0.05                                   # the z-fighting fix steps a face in by 0.015
+    bad, points = [], 0
+    if any(n.startswith(("fr_strap", "fr_kerb")) for n in frame):
+        v.fail("a flat strap or kerb is left in the binding")
+    for name, x, z, dx, dz in m.CORNERS:
+        legs = {leg: pieces(f"fr_angle_{name}_{leg}") for leg in "ab"}
+        if not legs["a"] or not legs["b"]:
+            v.fail(f"the {name} corner has no angle")
+            continue
+        alo, ahi = aabb_of(legs["a"])
+        blo, bhi = aabb_of(legs["b"])
+        thick = (ahi[2] - alo[2], bhi[0] - blo[0])
+        wide = (ahi[0] - alo[0], bhi[2] - blo[2] + m.ANGLE_T)
+        if any(abs(t - m.ANGLE_T) > tol for t in thick) or any(not 2.0 - tol <= w <= 3.0 + tol for w in wide):
+            v.fail(f"the {name} angle's legs are {thick} thick and {wide} wide")
+        za, xb = (alo[2] if dz > 0 else ahi[2]), (blo[0] if dx > 0 else bhi[0])
+        if abs(za - z) > tol or abs(xb - x) > tol or abs((alo[0] if dx > 0 else ahi[0]) - x) > tol:
+            v.fail(f"the {name} angle is not flush with its corner's faces")
+        if abs(alo[1]) > tol or abs(ahi[1] - m.H) > tol:
+            v.fail(f"the {name} angle does not run the corner's height")
+        for leg, axis, sign in (("a", 2, dz), ("b", 0, dx)):
+            n, miss = bedded(legs[leg], axis, sign)
+            points += n
+            bad += [(name, leg, p) for p in miss]
+    for name, axis, at, d, span in m.TOP_EDGES:
+        top, face = pieces(f"fr_band_{name}_top"), pieces(f"fr_band_{name}_face")
+        if not top or not face:
+            v.fail(f"the {name} top edge has no band")
+            continue
+        n, miss = bedded(top, 1, -1)
+        points += n
+        bad += [(name, "top", p) for p in miss]
+        n, miss = bedded(face, 2 if axis == "x" else 0, d)
+        points += n
+        bad += [(name, "face", p) for p in miss]
+        tlo, thi = aabb_of(top)
+        if abs(thi[1] - m.TOP) > tol or abs(thi[1] - tlo[1] - m.ANGLE_T) > tol:
+            v.fail(f"the {name} band's top leg is not flush with the top, ANGLE_T thick")
+    print(f"binding: angle iron, {len(m.CORNERS)} uprights wrapping the outside corners and a band round the {len(m.TOP_EDGES)} "
+          f"top edges, legs {m.ANGLE_T} thick, {m.BAND_W} to {m.ANGLE_W} wide, flush; bedded on the brick at "
+          f"{points - len(bad)} of {points} points")
+    if bad:
+        v.fail(f"binding legs not bedded on the brick at {len(bad)} points, e.g. {bad[:4]}")
 
 
 def check_walls(v):
     """Thick walls round the hot room: from the chamber's west face, the fireplace's east face, the back wall's face
-    and the front wall's face (clear of the working door's bay, the fire door and the ash mouth), sampled every half
-    voxel from the hearth (the grate, in the fireplace) to the springing, the brick (or iron set into it) runs at
-    least MIN_WALL out to the furnace's face, or into the engine's bay."""
+    (clear of the wind box) and the front wall's face (clear of the working door's bay, the fire door and the ash
+    mouth), sampled every half voxel from the hearth (the grate, in the fireplace) to the springing, the brick (or iron
+    set into it) runs at least MIN_WALL out to the furnace's face."""
     m = v.m
     near = brick(v) + [e for e in v.by_part["frame"]]
 
@@ -309,7 +365,8 @@ def check_walls(v):
         x = cx0 + 0.25
         while x < m.FIRE_X[1]:
             first = (x, y, cz1 + 0.125)
-            if solid(first):
+            (wx0, wx1), (wy0, wy1), _ = m.WINDBOX
+            if solid(first) and not (wx0 - 0.5 <= x <= wx1 + 0.5 and wy0 - 0.5 <= y <= wy1 + 0.5):
                 walls.setdefault("back", []).append((run((x, y, cz1), 2, 1, m.BODY_D - cz1), (x, y)))
             if not (bay[0] <= x <= bay[1] or fire[0] <= x <= fire[1]) and solid((x, y, cz0 - 0.125)):
                 walls.setdefault("front", []).append((run((x, y, cz0), 2, -1, cz0), (x, y)))
@@ -540,100 +597,58 @@ def check_litharge(v):
 
 
 def check_blast(v):
-    """The blast's way, joined piece to piece: each valve chest stands on the main; the main runs into the elbow, the
-    elbow into the blast pipe, and the blast pipe ends at the back wall's face, where the tuyere's back end is; the
-    tuyere runs through the back wall into the chamber."""
+    """The blast's way: the blast inlet's socket at the middle of the blast cell's face (a square opening as large as
+    ppex's pipe, its rim the wind box's face plate, flush with the back wall's face, the opening clear for a pipe to
+    meet), the wind box behind it in the back wall, closed on every side, taking the tuyere's back end, and the tuyere on
+    through the wall into the chamber. The blast face looks out of the furnace's cells, onto a cell that is not the
+    furnace's (where the pipe is laid), and is one of the back wall's."""
     m = v.m
-    eng = v.by_part["engine"]
-    main = aabb_of([e for e in eng if e.name.startswith("en_main")])
-    elbow = aabb_of([e for e in eng if e.name == "en_elbow"])
-    pipe = aabb_of([e for e in eng if e.name.startswith("en_blastpipe")])
-    tuyere = aabb_of([e for e in v.by_part["frame"] if e.name.startswith("fr_tuyere")])
-    for n in (1, 2):
-        chest = aabb_of([e for e in eng if e.name == f"en_chest{n}"])
-        if abs(chest[0][1] - main[1][1]) > 1e-6 or not (main[0][0] < chest[1][0] and chest[0][0] < main[1][0] + 2.4):
-            v.fail(f"valve chest {n} does not stand on the blast main")
-    if abs(main[0][0] - elbow[1][0]) > 0.02 or abs(pipe[1][2] - elbow[0][2]) > 0.02:
-        v.fail("the main, the elbow and the blast pipe do not run into each other")
-    if abs(pipe[0][2] - m.BODY_D) > 1e-6 or abs(tuyere[1][2] - m.BODY_D) > 1e-6:
-        v.fail("the blast pipe and the tuyere do not meet at the back wall's face")
+    frame = v.by_part["frame"]
+    cell, face = m.BLAST_CELL, m.BLAST_FACE
+    (sx0, sx1), (sy0, sy1) = m.SOCKET
+    mid = ((cell[0] + 0.5) * m.B, (cell[1] + 0.5) * m.B)
+    if face != "south" or abs((sx0 + sx1) / 2 - mid[0]) > 1e-9 or abs((sy0 + sy1) / 2 - mid[1]) > 1e-9:
+        v.fail("the socket is not at the middle of the blast face")
+    if abs((sx1 - sx0) - 6.0) > 1e-9 or abs((sy1 - sy0) - 6.0) > 1e-9:
+        v.fail("the socket's opening is not ppex's pipe's 6 x 6")
+    zf = (cell[2] + 1) * m.B
+    if abs(zf - m.BODY_D) > 1e-9 or (cell[0], cell[1], cell[2] + 1) in set(m.footprint()) or cell not in set(m.footprint()):
+        v.fail("the blast face is not the back wall's, looking out of the furnace's cells")
+    box = [e for e in frame if e.name.startswith("fr_windbox")]
+    lo, hi = aabb_of(box)
+    if abs(hi[2] - zf) > 1e-6:
+        v.fail("the wind box's face plate is not flush with the back wall's face")
+    rim = [((sx0 + sx1) / 2, sy0 - 0.5, zf - 0.1), ((sx0 + sx1) / 2, sy1 + 0.5, zf - 0.1), (sx0 - 0.5, (sy0 + sy1) / 2, zf - 0.1),
+           (sx1 + 0.5, (sy0 + sy1) / 2, zf - 0.1)]
+    if not all(any(inside(e, p) for e in box) for p in rim):
+        v.fail("the socket has no rim round it")
+    opening = [(sx0 + 0.25 + 0.5 * i, sy0 + 0.25 + 0.5 * j, zf - 0.05 - 0.5 * k) for i in range(12) for j in range(12) for k in range(3)]
+    blocked = [p for p in opening if any(inside(e, p) for e in fixed(v))]
+    if blocked:
+        v.fail(f"the socket's opening is blocked at {blocked[:3]}")
+    # closed: points just outside the box's interior, on each side but the socket, are in its walls
+    (wx0, wx1), (wy0, wy1), (wz0, wz1) = m.WINDBOX
+    t = m.WINDBOX_T
+    walls = [((wx0 + wx1) / 2, (wy0 + wy1) / 2, wz0 + t / 2), (wx0 + t / 2, (wy0 + wy1) / 2, (wz0 + wz1) / 2),
+             (wx1 - t / 2, (wy0 + wy1) / 2, (wz0 + wz1) / 2), ((wx0 + wx1) / 2, wy0 + t / 2, (wz0 + wz1) / 2),
+             ((wx0 + wx1) / 2, wy1 - t / 2, (wz0 + wz1) / 2)]
+    if not all(any(inside(e, p) for e in box) for p in walls):
+        v.fail("the wind box is not closed")
+    tuyere = aabb_of([e for e in frame if e.name.startswith("fr_tuyere")])
+    tx, ty = m.TUYERE
+    if abs(tuyere[1][2] - wz0) > 1e-6 or not (wx0 + t <= tx - m.TUYERE_R and tx + m.TUYERE_R <= wx1 - t
+                                             and wy0 + t <= ty - m.TUYERE_R + 1e-9 and ty + m.TUYERE_R <= wy1 - t):
+        v.fail("the tuyere does not run into the wind box's front")
     if tuyere[0][2] > m.CH_Z[1]:
         v.fail("the tuyere does not reach into the chamber")
-    print(f"blast: the chests on the main, the main into the elbow, the blast pipe to the back face at z {m.BODY_D}, the "
-          f"tuyere on through the wall to z {tuyere[0][2]:.1f} in the chamber")
-
-
-# ---------------------------------------------------------------- the engine
-def check_engine(v):
-    """The blowing engine: the shaft continues the vanilla axle at the power cell's centre, its oak end at the power
-    face, and is carried by its two pedestal bearings, each round it at rest and turned 45 degrees; the crank pin stays
-    on the yoke's slot's middle line (x) at every angle and inside its length (an exact Scotch yoke); the slippers run
-    on the rail and under the top guide over the whole stroke; the piston rod stays in its gland, its end inside the
-    barrel, at both ends of the stroke; the stroke clears the guides' standards."""
-    m = v.m
-    x, y = m.SHAFT
-    cell = m.POWER_CELL
-    if abs(x - (cell[0] + 0.5) * m.B) > 1e-9 or abs(y - (cell[1] + 0.5) * m.B) > 1e-9 or m.POWER_FACE != "south" or cell[2] != m.CELLS_Z - 1:
-        v.fail("the shaft is not at the power cell's centre on its south face")
-    oak = aabb_of(v.named("shaft", r"^sh_oak"))
-    if abs(oak[1][2] - m.D) > 1e-9:
-        v.fail("the shaft's oak end is not at the power face")
-    eng = v.by_part["engine"]
-    found, _ = shaft_supports(eng, v.named("shaft", r"^sh_shaft"), 2, m.SHAFT)
-    named = sorted(n for n in found if re.match(r"^en_ped[ns]_bearing$", n))
-    if len(named) != 2:
-        v.fail(f"the shaft is not carried by its two pedestal bearings: {found}")
-    for th in (0.0, math.pi / 4):
-        els = v.named("shaft", r"^sh_shaft", th)
-        for b in [e for e in eng if re.match(r"^en_ped[ns]_bearing$", e.name)]:
-            mg = bearing_margin(b, els, 2)
-            if not 0 < mg < 1e8:
-                v.fail(f"{b.name} does not enclose the shaft at theta {th:.2f} (margin {mg:.3f})")
-    zc = (m.YOKE_Z[0] + m.YOKE_Z[1]) / 2
-    pin0 = [x, y - m.CRANK_R, zc]
-    worst_x, worst_y = 0.0, 0.0
-    for th in thetas(48):
-        pin = v.point("shaft", th, pin0)
-        slot = v.point("yoke", th, [x, y, zc])
-        worst_x = max(worst_x, abs(pin[0] - slot[0]))
-        worst_y = max(worst_y, abs(pin[1] - slot[1]))
-    room = m.SLOT_L - m.PIN_R / math.cos(math.pi / 8)
-    if worst_x > 1e-6 or worst_y > room + 1e-6:
-        v.fail(f"the crank pin leaves the yoke's slot ({worst_x:.1e} off its middle line, {worst_y:.3f} along it)")
-    rail = next(e for e in eng if e.name == "en_rail").aabb()
-    top = next(e for e in eng if e.name == "en_topguide").aabb()
-    cheek = max(e.aabb()[1][0] for e in eng if e.name.startswith("en_standardw"))
-    east = min(e.aabb()[0][0] for e in eng if e.name == "en_standarde")
-    rod_end, rod_x = [], []
-    for th in thetas(24):
-        sl = {e.name: e.aabb() for e in v.posed("yoke", th)}
-        b, t = sl["yk_slipperbottom"], sl["yk_slippertop"]
-        if abs(b[0][1] - rail[1][1]) > 1e-6 or abs(t[1][1] - top[0][1]) > 1e-6:
-            v.fail(f"a slipper leaves its guide at theta {th:.2f}")
-        if b[0][0] < rail[0][0] - 1e-6 or b[1][0] > rail[1][0] + 1e-6 or t[0][0] < top[0][0] or t[1][0] > top[1][0]:
-            v.fail(f"a slipper runs off its guide's end at theta {th:.2f}")
-        ylo = min(bb[0][0] for n, bb in sl.items() if n != "yk_rod")
-        yhi = max(bb[1][0] for bb in sl.values())
-        if ylo < cheek + 0.3 or yhi > east - 0.3:
-            v.fail(f"the yoke runs into a standard at theta {th:.2f}")
-        rod_end.append(sl["yk_rod"][0][0])
-        rod_x.append(sl["yk_rod"][1][0])
-    g0 = m.CYL_X[1] + m.FLANGE_T + m.COVER_T
-    if min(rod_end) < m.CYL_X[0] + 1.0 or max(rod_end) > m.CYL_X[1] - 1.0 or min(rod_x) < g0 + m.GLAND[0]:
-        v.fail(f"the piston rod's end leaves the barrel or the rod the gland ({min(rod_end):.2f}..{max(rod_end):.2f})")
-    print(f"engine: the shaft at the power cell's centre, its oak end at the power face, in its bearings {', '.join(named)} "
-          f"(enclosed at rest and at 45 degrees); the pin {worst_x:.1e} off the slot's middle line and {worst_y:.2f} along "
-          f"it (room {room:.2f}); the slippers on the rail and under the top guide over the stroke {2 * m.CRANK_R}; the "
-          f"rod's end {min(rod_end):.2f}..{max(rod_end):.2f} in the barrel ({m.CYL_X[0]}..{m.CYL_X[1]}), the rod always "
-          f"through the gland")
+    print(f"blast: the socket's 6 x 6 opening at the middle of the blast face ({face}, the back wall's, onto a cell that "
+          f"is not the furnace's), clear, its rim the wind box's face plate flush with the wall; the box closed, the "
+          f"tuyere from its front through the wall to z {tuyere[0][2]:.1f} in the chamber")
 
 
 # ---------------------------------------------------------------- clearances
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way round.
 ALLOWED = [
-    ("shaft", r"^sh_shaft", "engine", r"^en_ped[ns]_bearing"),
-    ("yoke", r"^yk_rod", "engine", r"^en_(cyl|flange|cover|gland)"),
-    ("yoke", r"^yk_slipper", "engine", r"^en_(rail|topguide)"),
     ("fittings", r"^ft_gutter", "brickwork", None),
     ("fittings", r"^ft_gutter", "lining", None),
 ]
@@ -671,26 +686,19 @@ def scenes(m):
             + [("cold", "open", False, sid) for sid, _ in m.STAGE_STATES[:-1]])
 
 
-def check_clearances(v, n):
-    """In every scene, at rest, nothing of one part runs into another's (the brick, the iron and the engine are parts
-    apart: the brick's voids hold the iron); and the shaft and the yoke, turned through n angles, touch nothing but
-    their intended contacts."""
+def check_clearances(v):
+    """In every scene nothing of one part runs into another's (the brick, the iron and the test are parts apart: the
+    brick's voids hold the iron), but for the intended contacts (the gutter bedded in its groove)."""
     m = v.m
     allhits = {}
     for scene in scenes(m):
         items = [(e.part, e, e.aabb()) for e in v.shown(scene, 0.0)]
         for key, hs in touches(items).items():
-            allhits.setdefault(key, {}).update({h: (scene, 0.0) for h in hs})
-    near = [e for e in v.shown(m.DEFAULT_SCENE, 0.0) if e.part not in m.MOVING and e.aabb()[1][2] > m.BODY_D - 1.0]
-    for th in thetas(n):
-        items = [(e.part, e, e.aabb()) for pid in m.MOVING for e in v.posed(pid, th)] + [(e.part, e, e.aabb()) for e in near]
-        for key, hs in touches(items, movers=set(m.MOVING)).items():
-            allhits.setdefault(key, {}).update({h: (m.DEFAULT_SCENE, th) for h in hs})
-    print(f"clearances in {len(scenes(m))} scenes at rest, and the engine turned through {n} angles: "
-          f"{'all clear' if not allhits else f'{len(allhits)} pairs of parts touch'}")
+            allhits.setdefault(key, {}).update({h: scene for h in hs})
+    print(f"clearances in {len(scenes(m))} scenes: {'all clear' if not allhits else f'{len(allhits)} pairs of parts touch'}")
     for key, hs in sorted(allhits.items()):
         ex = sorted(hs.items())[:3]
-        print(f"  TOUCH {key[0]} x {key[1]}: {len(hs)}, e.g. " + "; ".join(f"{a}/{b} ({s[0]}, theta {d:.2f})" for (a, b), (s, d) in ex))
+        print(f"  TOUCH {key[0]} x {key[1]}: {len(hs)}, e.g. " + "; ".join(f"{a}/{b} ({s[0]})" for (a, b), s in ex))
     if allhits:
         v.fail("parts run into each other")
 
@@ -755,8 +763,8 @@ def check_draught(v):
     """The way the air goes, natural draught only: in at the ash mouth into the cave, up between the firebars, through
     the fire, over the fire bridge, across the chamber over the test, out at the flue opening at the chamber's west
     end, along the back flue and up the stack to the outlet. Sampled points along it lie in no element of the
-    furnace built (the brick, the frame, the test, the engine, the fittings), and the stack and the outlet's mouth in
-    none at all at any angle but the cap. The firebars lie on their bearers and the bearers' ends are built into the
+    furnace built (the brick, the frame, the test, the fittings), and the stack and the outlet's mouth in
+    none at all but the cap. The firebars lie on their bearers and the bearers' ends are built into the
     bridge and the east wall."""
     m = v.m
     (mx0, mx1), (my0, my1) = m.MOUTH
@@ -786,14 +794,13 @@ def check_draught(v):
     if blocked:
         v.fail(f"the draught's way is blocked at {blocked[:5]}")
     mouth_lo, mouth_hi = [sx0, sy0, sz0], [sx1, m.TOP + m.B, sz1]
-    for th in thetas(12):
-        for pid in v.by_part:
-            if pid == "outletcap" or (pid not in m.MOVING and th):
-                continue
-            for e in v.posed(pid, th):
-                lo, hi = e.aabb()
-                if all(lo[q] < mouth_hi[q] - 0.02 and mouth_lo[q] < hi[q] - 0.02 for q in range(3)):
-                    v.fail(f"{e.name} is in the stack or over the outlet at theta {th}")
+    for pid in v.by_part:
+        if pid == "outletcap":
+            continue
+        for e in v.posed(pid):
+            lo, hi = e.aabb()
+            if all(lo[q] < mouth_hi[q] - 0.02 and mouth_lo[q] < hi[q] - 0.02 for q in range(3)):
+                v.fail(f"{e.name} is in the stack or over the outlet")
     frame = v.by_part["frame"]
     bearers = [e.aabb() for e in frame if e.name.startswith("fr_bearer")]
     for e in frame:
@@ -840,17 +847,17 @@ def validate(m, els, parts, rig, quick=False):
     check_textures(v)
     check_containment(v)
     check_sides(v)
+    check_binding(v)
     check_walls(v)
     check_lining(v)
     check_build(v)
     check_test(v)
     check_litharge(v)
     check_blast(v)
-    check_engine(v)
     check_damper(v)
     check_outlet(v)
     check_draught(v)
-    check_clearances(v, 12 if quick else 48)
+    check_clearances(v)
     if not quick:
         check_zfight(v)
     return v.ok
@@ -918,17 +925,21 @@ def validate_files(m, shape, frame_shape, ship):
         if got and got != {want}:                 # an element with every face hidden (inside the brick) has none
             fail(f"{e['name']}'s faces glow {got}, not {want}")
     cells = {tuple(c["pos"]): c for c in ship["cells"]}
-    if len(cells) != m.CELLS_X * m.CELLS_Y * m.CELLS_Z or any(not c.get("boxes") or c.get("hollow") for c in cells.values()):
-        fail("the cells are not the furnace's eighteen, each with its boxes")
+    want = {tuple(c[k] - m.ORIGIN_CELL[k] for k in range(3)) for c in m.footprint()}
+    if set(cells) != want or len(cells) != 14 or any(not c.get("boxes") or c.get("hollow") for c in cells.values()):
+        fail("the cells are not the furnace's fourteen, each with its boxes")
     lids = {p for p, c in cells.items() if "lid" in c}
     top = {p for p in cells if p[1] == m.CELLS_Y - 1 - m.ORIGIN_CELL[1]}
     if lids != top or any(cells[p]["lid"] != 1.0 for p in lids):
         fail(f"decks on {sorted(lids)}, not on the top cells {sorted(top)}")
-    power = tuple(ship["powerCell"])
-    face = {"south": (0, 0, 1)}[ship["powerFace"]]
-    beyond = tuple(power[k] + face[k] for k in range(3))
-    if power not in cells or beyond in cells:
-        fail("the power cell is not a cell of the furnace whose face looks out of it")
+    for key in ("powerCell", "powerFace"):
+        if key in ship:
+            fail("the furnace takes no mechanical power: the blast comes by pipe")
+    blast = tuple(ship["blastCell"])
+    face = {"south": (0, 0, 1)}[ship["blastFace"]]
+    beyond = tuple(blast[k] + face[k] for k in range(3))
+    if blast not in cells or beyond in cells:
+        fail("the blast cell is not a cell of the furnace whose face looks out of it")
     chim = tuple(m.CHIMNEY_CELL[k] - m.ORIGIN_CELL[k] for k in range(3))
     if chim in cells:
         fail("the chimney's cell is the furnace's")
@@ -947,7 +958,7 @@ def validate_files(m, shape, frame_shape, ship):
         if abs(ship[key]["pos"][2]) > 1e-9:
             fail(f"{key} is not on the front face")
     print(f"files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; {len(cells)} cells, decks on "
-          f"{len(lids)}; glow on the burning coal, the lead, the cake and the running litharge only; the power cell "
-          f"{list(power)} facing {ship['powerFace']}; the outlet under the chimney's cell {list(chim)}, the chimney "
+          f"{len(lids)}; glow on the burning coal, the lead, the cake and the running litharge only; the blast cell "
+          f"{list(blast)} facing {ship['blastFace']}, no power cell; the outlet under the chimney's cell {list(chim)}, the chimney "
           f"{m.MIN_CHIMNEY} blocks from it up; the ash mouth, the fire door and the working door on the front face")
     return ok

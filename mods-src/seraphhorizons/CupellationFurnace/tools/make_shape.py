@@ -1,45 +1,42 @@
 #!/usr/bin/env python3
-"""Generate the cupellation furnace's shapes, rig and reference poses.
+"""Generate the cupellation furnace's shapes and rig.
 
 The cupellation furnace is an English cupellation (test) furnace of the nineteenth century [Percy 1870; Hofman
-1904, ch. XI], built whole as one machine: a block of brickwork three blocks wide (x), three deep (z) and two high,
-bound with iron on its front and back. In its front two rows, side by side, the test and the fireplace: the test,
-an oval of bone ash in an iron ring, stands on the hearth of a low chamber under a stepped vault; east of it, behind
-a fire bridge, the fireplace burns coal on a grate of firebars over an ash pit, which the air enters at an ash mouth
-under an iron damper (open, half, shut). The flame crosses the bridge and the test and leaves at the chamber's west
-end, by a flue opening in the back wall, along a flue into the back row's west column and up its stack to an outlet
-on the top, where the player stands the chimney (or a flat iron cap, every furnace but one in a row). Through the
-back wall a tuyere blows across the lead on the test towards the front, where the litharge runs out at a gate in
-the test's breast, along an iron gutter through the working door's sill, and falls into an iron pot standing in a
-bay of the front face under the door.
+1904, ch. XI], built whole as one machine: brickwork three blocks wide (x), two high and two deep in its front two
+rows, with the stack in a column behind their west end, bound with iron on its front and back faces. In the front two
+rows, side by side, the test and the fireplace: the test, an oval of bone ash in an iron ring, stands on the hearth of
+a low chamber under a stepped vault; east of it, behind a fire bridge, the fireplace burns coal on a grate of
+firebars over an ash pit, which the air enters at an ash mouth under an iron damper (open, half, shut). The flame
+crosses the bridge and the test and leaves at the chamber's west end, by a flue opening in the back wall, along a flue
+into the stack column and up its stack to an outlet on the top, where the player stands the chimney (or a flat iron
+cap, every furnace but one in a row). Through the back wall a tuyere blows across the lead on the test towards the
+front, where the litharge runs out at a gate in the test's breast, along an iron gutter through the working door's
+sill, and falls into an iron pot standing in a bay of the front face under the door.
 
-The blast comes from the furnace's own blowing engine, which stands on the back row's top, on an iron bedplate over
-the back row's brick base (the owner's spec: "the blowing cylinder on the back row's top"): the vanilla axle comes
-in at the back (south) face of the back row's east top cell and turns the engine shaft in two pedestal bearings; a
-double-web crank between them works a Scotch yoke, sliding east and west on guides, whose piston rod drives a
-horizontal, double-acting blowing cylinder (flap valves in a chest at each end, so it blows on both strokes and
-either way round, no rectifier); its blast main runs along the cylinder's north side to an elbow and through the
-back wall as the tuyere. Everything is built here from plain boxes; no other mod's model is used.
+The blast comes by pipe (the owner's ruling on #740): Steelmaking Expanded's engine air blower, a sub-machine of
+Pipes and Power Expanded's steam engine, puts air into the pipe network at its output face, and ppex pipes carry it to
+the furnace's blast inlet, a socket at the middle of the back wall's face (blastCell, blastFace), as smex's own blast
+furnace takes its air from the network at its tuyere blocks. Behind the socket an iron wind box in the back wall feeds
+the tuyere. The furnace takes no mechanical power. Everything is built here from plain boxes; no other mod's model is
+used.
 
 It writes, deterministically,
 
-    cupellationfurnace.json          the whole furnace, every part that moves or comes and goes   (assets/.../shapes/block/)
-    cupellationfurnace_frame.json    the iron frame only (block and item)                         (assets/.../shapes/block/)
-    cupellationfurnace-rig.json      cells, anchors and the part rig                              (assets/.../config/)
-    rig-reference.json               every part's matrix at a grid of poses                       (tests/CupellationFurnace/)
+    cupellationfurnace.json          the whole furnace, every part that comes and goes   (assets/.../shapes/block/)
+    cupellationfurnace_frame.json    the iron frame only (block and item)                 (assets/.../shapes/block/)
+    cupellationfurnace-rig.json      cells, anchors and the part rig                      (assets/.../config/)
 
-or, with `--out DIR`, all four into DIR. It validates its own output (validate_cupellationfurnace.py) and exits
+or, with `--out DIR`, all three into DIR. It validates its own output (validate_cupellationfurnace.py) and exits
 non-zero if a check fails.
 
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the machine
-box's north-west-bottom corner. The working face is the front (north); the stack, the outlet and the engine are in
-the back row (south). The controller cell is the front middle cell at ground level, build cell (1, 0, 0): the
-shipped files move it to [0,0,0].
+box's north-west-bottom corner. The working face is the front (north); the stack, the outlet and the blast inlet face
+the back (south). The controller cell is the front middle cell at ground level, build cell (1, 0, 0): the shipped
+files move it to [0,0,0].
 
-The rig reads one input, theta, the axle's angle: the engine shaft turns with it (ratio 1 about z) and the yoke
-slides along x by r sin(theta), exactly with the crank pin (an exact Scotch yoke). Everything else that shows or not
-(the build's stages, the test's contents, the fire, the litharge, the damper's places, the outlet's cap) is a
-`requires`: gameplay's state, not a motion. The iron frame has none.
+Nothing moves: the rig's parts have no drivers. Everything that shows or not (the build's stages, the test's
+contents, the fire, the litharge, the damper's places, the outlet's cap) is a `requires`: gameplay's state, not a
+motion. The iron frame has none.
 """
 
 from __future__ import annotations
@@ -57,7 +54,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
 from machinegen.checks import fix_coplanar as fix_coplanar_posed  # noqa: E402
 from machinegen.geometry import IDENT, El, flatten, rotate  # noqa: E402
-from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_dumps, shift_cell,  # noqa: E402
+from machinegen.output import (rig_dumps, shape_dumps, shift_cell,  # noqa: E402
                                shift_point, worst_shift_error)
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
 from machinegen.rigmath import part_of, posed, validate_driver  # noqa: E402
@@ -67,7 +64,6 @@ ROOT = Path(__file__).resolve().parents[4]
 MOD = ROOT / "mods-src" / "seraphhorizons"
 SHAPE_DIR = MOD / "assets" / "seraphhorizons" / "shapes" / "block"
 RIG_DIR = MOD / "assets" / "seraphhorizons" / "config"
-REFERENCE_OUT = MOD / "tests" / "CupellationFurnace" / "rig-reference.json"
 SCRIPT = "mods-src/seraphhorizons/CupellationFurnace/tools/make_shape.py"
 
 B = 16.0
@@ -78,21 +74,21 @@ C22, S22 = math.cos(math.pi / 8), math.sin(math.pi / 8)
 # ---------------------------------------------------------------- the box, the cells
 CELLS_X, CELLS_Y, CELLS_Z = 3, 2, 3          # three wide (x, the row's way), two high, three deep (z)
 ORIGIN_CELL = (1, 0, 0)                      # the controller: the front middle cell at ground level (the litharge bay's)
-POWER_CELL, POWER_FACE = (2, 1, 2), "south"  # the vanilla axle comes in along z at the back of the east top cell
+BLAST_CELL, BLAST_FACE = (1, 1, 1), "south"  # the blast inlet: the back wall's face of the middle top cell, where a
+#                                              ppex pipe carrying smex's air blower's air meets the wind box's socket
+GAP = ((B, 3 * B), (0.0, 2 * B), (2 * B, 3 * B))   # the back row's middle and east columns: not the furnace's (the
+#                                                  blast's pipe comes in there, behind the back wall)
 CHIMNEY_CELL = (0, 2, 2)                     # over the outlet: the chimney's, not the machine's
 ROW_MAX = 5                                  # furnaces in a row, side by side along x, sharing one chimney
 
 TEXTURES = {
     "brick": "game:block/clay/brick/four/running/red1",     # the common brickwork: the red brick's colour (BRICKS)
     "lining": "game:block/clay/refractory/tier3/front1",    # the hot-face lining, the vault, the fire bridge
-    "iron": "game:block/metal/plate/iron",                  # the binding, the grate, castings, the engine's frame
-    "steel": "game:block/metal/sheet-plain/steel1",         # the shaft, the crank pin, the piston rod, the slippers
-    "oak": "game:block/wood/debarked/oak",                  # the shaft's oak end where the vanilla axle meets it
+    "iron": "game:block/metal/plate/iron",                  # the binding, the grate, the castings, the wind box
     "boneash": "game:item/resource/crushed/lime",           # the test's bone ash: the fired cupel's texture
     "lead": "game:block/metal/ingot/lead",                  # the molten lead on the test
     "silver": "game:block/metal/ingot/silver",              # the silver cake, brightened
     "litharge": "game:item/resource/crushed/limonite",      # litharge (the litharge item's base texture)
-    "leather": "game:block/leather/plain",                     # the blowing cylinder's flap valves
     "coal": "game:block/coal/bituminous",                   # the fuel on the grate
     "ember": "game:block/coal/ember",                       # the same coal, burning
 }
@@ -194,80 +190,48 @@ CURB_RIM = 1.0                                     # a rim 1 wide round the cap'
 CAP_Y = (31.5, TOP)                                # stack's mouth; the cap, a flat iron plate, set flush in it
 CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y, (CURB[2][0] + CURB_RIM, CURB[2][1] - CURB_RIM))
 
-# the tuyere, through the back wall over the test's back, blowing north across the lead towards the breast
+# the tuyere, through the back wall over the test's back, blowing north across the lead towards the breast; fed from an
+# iron wind box set in the back wall, whose face plate, flush with the wall's face, holds the blast inlet's socket at
+# the middle of the blast cell's face: a square opening as large as ppex's pipe (a square tube 6 across, its block's
+# 5..11), so the pipe the player lays to it butts onto the socket
 TUYERE = (X_T, 17.1)                         # (x, y): its axis, along z
 TUYERE_R = 1.1
-TUYERE_Z = (23.0, BODY_D)                    # its mouth a voxel into the chamber, its back end at the back face
+SOCKET = ((B + 5.0, B + 11.0), (B + 5.0, B + 11.0))   # (x, y): the socket's opening, the blast face's middle 6 x 6
+SOCKET_RIM = 1.0
+WINDBOX = ((17.5, 28.5), (15.5, 28.5), (29.0, BODY_D))   # the wind box, in the back wall's face (x, y, z)
+WINDBOX_T = 0.5                              # its walls
+FACEPLATE_T = 0.6                            # its face plate, flush with the back wall's face
+TUYERE_Z = (23.0, WINDBOX[2][0])             # the tuyere: its mouth a voxel into the chamber, its back end in the box
 
 # the brick, in two roles: the brickwork (any one fired brick) and the lining (tier-3 refractory brick, LINING_T
 # thick on every hot face: the chamber's walls, floor and vault, the fire bridge, the fireplace from its bearers up,
 # the flue opening, the back flue, the stack and the outlet's curb)
 LINING_T = 3.0
-BASE_TOP = B                                 # the back row's base under the engine (x 16..48): brick to here
-BAY_X = (B, W)                               # the engine's bay over the base, open to the back and the top
 
-# the iron binding, on the front and back faces (the sides meet the row's neighbours and are plain brick)
-BIND_T = 0.5
-STRAP_X = ((0.5, 3.0), (45.0, 47.5))
-KERB_H = 1.5
-
-# ---------------------------------------------------------------- the blowing engine (on the back row's top)
-SHAFT = (40.0, 24.0)                         # (x, y): the engine shaft's axis, along z: the power cell's centre
-SHAFT_R = 1.0                                # its apothem (an octagon)
-OAK_Z = 47.0                                 # the axle's oak continuation, z OAK_Z..D (the power face)
-CRANK_R = 3.0                                # the crank's throw: the yoke's stroke is twice it
-PIN_R = 0.8                                  # the crank pin's apothem (an octagon, 0.866 to its corners)
-WEB_Z = ((38.2, 39.2), (40.8, 41.8))         # the crank's two webs, either side of the yoke
-WEB = (1.4, 1.6, 1.3)                        # a web's half width, its reach behind the shaft and beyond the pin
-YOKE_Z = (39.35, 40.65)                      # the yoke, its slippers and its rail
-SLOT_H = 0.95                                # the yoke's slot's half width (x): the pin's corners, and a little
-SLOT_L = CRANK_R + 0.87 + 0.2                # its half length (y)
-YOKE_BAR, YOKE_SIDE, SLIPPER = 1.2, 1.2, 0.6
-BEARINGS = (("n", (35.8, 37.8)), ("s", (43.5, 45.5)))   # the two pedestal bearings (z)
-SHAFT_N_END = 35.5                           # the shaft's north end, just out of its bearing
-BEDPLATE = ((17.0, 47.0), (BASE_TOP, 17.0), (35.4, 47.0))
-BED_TOP = BEDPLATE[1][1]
-CYL = (24.0, 40.0)                           # (y, z): the blowing cylinder's axis, along x, in the yoke's plane
-CYL_X = (19.0, 30.0)                         # its barrel
-CYL_R, FLANGE_R, FLANGE_T = 4.5, 5.1, 0.6
-COVER_R, COVER_T = 4.3, 0.6
-GLAND = (1.2, 1.4)                           # the stuffing box on the east cover: its length (x), its apothem
-CRADLES = ((20.2, 21.6), (27.4, 28.8))       # the saddles under the barrel (x)
-CRADLE_Z = (37.0, 43.0)
-CHESTS = ((19.4, 22.4), (26.6, 29.6))        # a valve chest at each end, on the north side (x)
-CHEST_Y = (18.2, 27.0)
-CHEST_Z = (33.6, CYL[1] - CYL_R + 0.1)
-ROD = 0.5                                    # the piston rod's half width
-ROD_END = 24.0                               # its end in the barrel at rest (the piston, hidden in the barrel)
-MAIN = (TUYERE[1], 34.3)                     # (y, z): the blast main's axis, along x on the base, under the chests
-MAIN_R = TUYERE_R
-MAIN_X = (X_T, CHESTS[1][1])
-GUIDE_X = ((33.0, 34.0), (46.0, 47.0))       # the guides' standards (x): forked about the rod at the west
-CHEEKS_Z = ((38.0, 39.1), (40.9, 42.0))
-GUIDE_Z = (CHEEKS_Z[0][0], CHEEKS_Z[1][1])
-RAIL_X = (34.0, 46.0)
-
-
-def yoke_bottom():
-    return SHAFT[1] - SLOT_L - YOKE_BAR
-
-
-def yoke_top():
-    return SHAFT[1] + SLOT_L + YOKE_BAR
-
-
-TOPGUIDE_Y = (yoke_top() + SLIPPER, yoke_top() + SLIPPER + 1.0)
-RAIL_Y = (BED_TOP, yoke_bottom() - SLIPPER)
+# the iron binding: angle iron (an L section, ANGLE_T thick) wrapping the brickwork's corners, one leg on each face, its
+# inside corner bedded against the brick's corner, set flush in a rebate cut in the brick so nothing leaves the
+# footprint. An angle up every outside vertical corner (the owner's rule for furnace brickwork: the binding locks the
+# brick in on both faces), and an angle band round the top, wrapping every top edge, joining their heads.
+ANGLE_T = 1.0                                # the legs' thickness (period angle iron)
+ANGLE_W = 2.5                                # an upright's legs: their width over the brick's faces
+BAND_W = 2.0                                 # the top band's legs (the stack column's top: clear of the outlet's curb)
+# the outside vertical corners: (name, x, z, dx, dz), the corner's point and the way into the brick along x and z
+CORNERS = (("nw", 0.0, 0.0, 1, 1), ("ne", 3 * B, 0.0, -1, 1), ("se", 3 * B, 2 * B, -1, -1),
+           ("sw", 0.0, 3 * B, 1, -1), ("sm", B, 3 * B, -1, -1))
+# the top edges: (name, the axis the edge runs along, its fixed coordinate on the other axis, the way into the brick
+# from it, its span along its axis)
+TOP_EDGES = (("n", "x", 0.0, 1, (0.0, 3 * B)), ("e", "z", 3 * B, -1, (0.0, 2 * B)), ("s", "x", 2 * B, -1, (B, 3 * B)),
+             ("m", "z", B, -1, (2 * B, 3 * B)), ("sw", "x", 3 * B, -1, (0.0, B)), ("w", "z", 0.0, 1, (0.0, 3 * B)))
 
 # ---------------------------------------------------------------- the build
 # Built in stages (the rig's `build`; their requires values are the viewer's Build states): the iron frame, a grid
-# recipe placed as the machine (the controller and its ghosts), then the brickwork, the lining, the test, the blowing
-# engine and the fittings (the fire door, the gutter, the litharge pot and the damper). The brickwork's and the
+# recipe placed as the machine (the controller and its ghosts), then the brickwork, the lining, the test and the
+# fittings (the fire door, the gutter, the litharge pot and the damper). The brickwork's and the
 # lining's counts are measured from the model's volume at the game's rates, as the crucible furnace's are: a claybricks
 # block is 2 fired bricks, a refractory brick block 4, rounded up; the lining's fire clay one for every
 # LINING_PER_FIRECLAY of its bricks; the test's bone meal at the bone-ash cupel's rate (4 bone meal for its 41 cubic
 # voxels). The frame's recipe and the other stages' materials are proposals for the owner (README, "Open").
-FRAME_RECIPE = (("game:metalplate-iron", 2), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 12))
+FRAME_RECIPE = (("game:metalplate-iron", 3), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 12))
 BRICKS_PER_BLOCK = 2
 LINING_PER_BLOCK = 4
 LINING_PER_FIRECLAY = 2.5
@@ -277,16 +241,14 @@ LINING_BRICK = "game:refractorybrick-fired-tier3"
 FIRECLAY = "game:clay-fire"
 BONEMEAL = "game:bonemeal"
 TEST_IRON = ("game:metalplate-iron", 1)      # the test's ring
-ENGINE_STAGE = (("game:metalplate-iron", 4), ("game:rod-iron", 2), ("game:leather-normal-plain", 1))
 FITTINGS_STAGE = (("game:metalplate-iron", 2),)
 CAP_ITEM = ("game:metalplate-iron", 1)
-STAGES = ("brickwork", "lining", "test", "engine", "fittings")   # the stages after the frame, in order
+STAGES = ("brickwork", "lining", "test", "fittings")   # the stages after the frame, in order
 STAGE_STATES = (                             # the viewer's Build select: (id, the stages fitted)
     ("frame", ()),
     ("brickwork", ("brickwork",)),
     ("lining", ("brickwork", "lining")),
     ("test", ("brickwork", "lining", "test")),
-    ("engine", ("brickwork", "lining", "test", "engine")),
     ("complete", STAGES),
 )
 
@@ -407,21 +369,6 @@ def obox(c, ax, size, name, part, tex):
 
 AX = {"x": 0, "y": 1, "z": 2}
 REF = {"x": (1, 2), "y": (2, 0), "z": (1, 0)}   # a disc's angle 0 direction, and the in-plane direction across it
-
-
-def radial(axis, c, a0, a1, r0, r1, width, ang, name, part, tex):
-    """A box from radius r0 to r1 about `axis` through c, a0..a1 along the axis, `width` across, at angle `ang`
-    (radians, right-handed about +axis from the axis's reference direction)."""
-    a = AX[axis]
-    u, w = REF[axis]
-    lo, hi = [0.0] * 3, [0.0] * 3
-    lo[a], hi[a] = a0, a1
-    lo[u], hi[u] = c[u] + r0, c[u] + r1
-    lo[w], hi[w] = c[w] - width / 2, c[w] + width / 2
-    el = box(lo, hi, name, part, tex)
-    if abs(ang) > 1e-12:
-        rotate([el], axis, math.degrees(ang), c)
-    return el
 
 
 def disc(axis, c, a0, a1, r, name, part, tex, k=4, phase=0.0):
@@ -549,21 +496,36 @@ def bar(c, size, turns, name, part, tex):
 
 
 # ---------------------------------------------------------------- the brickwork
+def angle_legs(name, x, z, dx, dz):
+    """An upright angle at the corner (x, z), the brick towards (dx, dz): two legs, as (name, lo, hi): `a` over the face
+    across z (its full width), `b` over the face across x (from the first's back on), ANGLE_T thick, flush."""
+    t, w = ANGLE_T, ANGLE_W
+    xa, za = sorted((x, x + dx * w)), sorted((z, z + dz * t))
+    xb, zb = sorted((x, x + dx * t)), sorted((z + dz * t, z + dz * w))
+    return [(f"fr_angle_{name}_a", [xa[0], 0.0, za[0]], [xa[1], H, za[1]]),
+            (f"fr_angle_{name}_b", [xb[0], 0.0, zb[0]], [xb[1], H, zb[1]])]
+
+
+def band_legs(name, axis, at, d, span):
+    """The top band along one top edge: an angle wrapping it, as (name, lo, hi): its top leg over the top, BAND_W
+    wide, and its face leg down the face, ANGLE_T thick, flush."""
+    t, w = ANGLE_T, BAND_W
+    (s0, s1), across = span, sorted((at, at + d * w))
+    face = sorted((at, at + d * t))
+    if axis == "x":
+        return [(f"fr_band_{name}_top", [s0, TOP - t, across[0]], [s1, TOP, across[1]]),
+                (f"fr_band_{name}_face", [s0, TOP - w, face[0]], [s1, TOP - t, face[1]])]
+    return [(f"fr_band_{name}_top", [across[0], TOP - t, s0], [across[1], TOP, s1]),
+            (f"fr_band_{name}_face", [face[0], TOP - w, s0], [face[1], TOP - t, s1])]
+
+
 def binding():
-    """The iron binding, as (name, lo, hi): flat straps up the ends of the front face and of the back face, and a band
-    along the top edge of each between them (on the back, along the stack column's top and along the base's top
-    under the engine), all BIND_T thick and flush. The side faces are left plain brick: a row's neighbours meet
-    there."""
-    out = []
-    z0, z1 = 0.0, BIND_T
-    for side, (x0, x1) in zip(("w", "e"), STRAP_X):
-        out.append((f"fr_strap_n{side}", [x0, 0.0, z0], [x1, H, z1]))
-    out.append(("fr_kerb_n", [STRAP_X[0][1], TOP - KERB_H, z0], [STRAP_X[1][0], TOP, z1]))
-    z0, z1 = D - BIND_T, D
-    out.append(("fr_strap_sw", [STRAP_X[0][0], 0.0, z0], [STRAP_X[0][1], H, z1]))
-    out.append(("fr_strap_se", [STRAP_X[1][0], 0.0, z0], [STRAP_X[1][1], BASE_TOP, z1]))
-    out.append(("fr_kerb_sw", [STRAP_X[0][1], TOP - KERB_H, z0], [BAY_X[0], TOP, z1]))
-    out.append(("fr_kerb_se", [BAY_X[0], BASE_TOP - KERB_H, z0], [STRAP_X[1][0], BASE_TOP, z1]))
+    """The iron binding, as (name, lo, hi): an angle up each outside vertical corner (`angle_legs`) and an angle band
+    round the top wrapping each top edge (`band_legs`), its legs over the faces next to the corners and over the top,
+    set flush in rebates in the brick. The side faces carry the angles' legs and the band at their edges and are
+    otherwise plain brick: in a row, the neighbours' legs meet flush at the shared plane."""
+    out = [leg for c in CORNERS for leg in angle_legs(*c)]
+    out += [leg for e in TOP_EDGES for leg in band_legs(*e)]
     return [piece for name, lo, hi in out for piece in split_blocks(name, lo, hi)]
 
 
@@ -588,9 +550,10 @@ def flue_voids():
 def brick_voids():
     """Every space cut out of the brick, as (lo, hi) in voxels: the chamber, the bridge's top, the fireplace and the
     vault; the cave and the ash mouth; the bay, the working door, the niche and the gutter's groove; the fire door's
-    opening, its rebate and its frame; the flue opening, the back flue, the stack and the cap's seat; the engine's
-    bay over the base; and the room for the iron set into the brick (the bearers' ends, the lintels, the jambs, the
-    damper's recess with its guides, the tuyere, the binding, the frame's ties)."""
+    opening, its rebate and its frame; the flue opening, the back flue, the stack and the cap's seat; the room for
+    the iron set into the brick (the bearers' ends, the lintels, the jambs, the damper's recess with its guides, the
+    tuyere and its wind box, the binding, the frame's ties); and the back row's middle and east columns, which are
+    not the furnace's."""
     v = hot_voids()
     (mx0, mx1), (my0, my1) = MOUTH
     v.append(([mx0, my0, 0.0], [mx1, my1, CH_Z[0]]))                                       # the ash mouth
@@ -610,11 +573,14 @@ def brick_voids():
         v.append(([x0, 0.0, JAMB_Z[0]], [x1, BAY[1][1], JAMB_Z[1]]))                       # the jambs
     for _, (z0, z1) in BAY_LINTELS:
         v.append(([JAMBS[0][0], BAY_LINTEL_Y[0], z0], [JAMBS[1][1], BAY_LINTEL_Y[1], z1]))   # the bay's lintels
-    v.append(([TUYERE[0] - TUYERE_R, TUYERE[1] - TUYERE_R, CH_Z[1]], [TUYERE[0] + TUYERE_R, TUYERE[1] + TUYERE_R, BODY_D]))
+    v.append(([TUYERE[0] - TUYERE_R, TUYERE[1] - TUYERE_R, CH_Z[1]], [TUYERE[0] + TUYERE_R, TUYERE[1] + TUYERE_R, WINDBOX[2][0]]))
+    (wx0, wx1), (wy0, wy1), (wz0, wz1) = WINDBOX
+    v.append(([wx0, wy0, wz0], [wx1, wy1, wz1]))                                           # the wind box
     v += flue_voids()
     (sx0, sx1), (sy0, sy1), (sz0, sz1) = CAP_SEAT
     v.append(([sx0, sy0, sz0], [sx1, sy1, sz1]))                                           # the cap's seat
-    v.append(([BAY_X[0], BASE_TOP, BODY_D], [BAY_X[1], TOP, D]))                           # the engine's bay
+    (gx0, gx1), (gy0, gy1), (gz0, gz1) = GAP
+    v.append(([gx0, gy0, gz0], [gx1, gy1, gz1]))                                           # not the furnace's
     v += [(lo, hi) for _, lo, hi in binding()]
     v += [(lo, hi) for _, lo, hi in ties()]
     return v
@@ -625,7 +591,7 @@ def ties():
     brick is in, all of it inside the brickwork (voids are cut for it), so it is hidden once the brick is in: a post
     under each end of each grate bearer (in the bridge's foot and in the east wall), a post each side of the ash
     mouth under the lintel's ends, behind the damper's recess (the guides stand against the lintel's face), and a
-    post under the tuyere in the back wall."""
+    post under the wind box in the back wall (the tuyere is carried by the box)."""
     out = []
     for side, (x0, x1) in (("w", (BEARER_X[0], BEARER_X[0] + 1.0)), ("e", (BEARER_X[1] - 1.0, BEARER_X[1]))):
         for end, (z0, z1) in zip(("n", "s"), BEARER_Z):
@@ -633,17 +599,15 @@ def ties():
     (lx, ly, lz) = LINTEL
     for side, (x0, x1) in (("w", (lx[0] - 1.0, lx[0])), ("e", (lx[1], lx[1] + 1.0))):
         out.append((f"fr_tie_lintel_{side}", [x0, 0.0, lz[0]], [x1, ly[1], lz[1]]))
-    tx, ty = TUYERE
-    flat = TUYERE_R * OCT - 0.01                   # under the tuyere's bottom flat, and 0.05 into it
-    out.append(("fr_tie_tuyere", [tx - flat, 0.0, 27.7], [tx + flat, ty - TUYERE_R + 0.05, 29.3]))
+    (wx0, _), (wy0, _), (wz0, wz1) = WINDBOX
+    out.append(("fr_tie_windbox", [22.0, 0.0, wz0 + WINDBOX_T + 0.2], [24.5, wy0, wz1 - FACEPLATE_T - 0.2]))
     return out
 
 
 def lining_zones():
     """Where the brick is the lining's, as (lo, hi): LINING_T round the hot spaces (the chamber, the bridge, the
     fireplace from its bearers up, the vault), and round the flue (the opening, the back flue, the stack and the
-    outlet's curb). The rest of the brick is the brickwork's: the base, the cave and the ash mouth, the outer walls,
-    the back row's base under the engine."""
+    outlet's curb). The rest of the brick is the brickwork's: the base, the cave and the ash mouth, the outer walls."""
     t = LINING_T
     out = [([lo[0] - t, max(lo[1] - t, CAVE[1][1]), lo[2] - t], [hi[0] + t, hi[1] + t, hi[2] + t]) for lo, hi in hot_voids()]
     out += [([lo[0] - t, lo[1] - t, lo[2] - t], [hi[0] + t, min(hi[1] + t, TOP), hi[2] + t]) for lo, hi in flue_voids()]
@@ -747,8 +711,8 @@ def build_iron():
     """The iron frame (`frame`): what the frame stage puts down, all of it standing on its own, set into the brick once
     it is in. The binding; the grate's two bearers and its firebars; the ash mouth's lintel and the damper's guides;
     the fire door's cast frame on the guides; the jambs of the bay and the working door, with the lintels over the
-    bay, the door and the niche; the tuyere through the back wall; and the frame's ties (`ties`, hidden in the
-    brickwork)."""
+    bay, the door and the niche; the tuyere through the back wall and its wind box, the blast inlet's socket in its
+    face plate; and the frame's ties (`ties`, hidden in the brickwork)."""
     f, t = "frame", "iron"
     out = [box(lo, hi, name, f, t) for name, lo, hi in binding()]
     for n, (z0, z1) in enumerate(BEARER_Z, 1):
@@ -777,7 +741,29 @@ def build_iron():
     out.append(box([nx[0], ny[0], nz[0]], [nx[1], ny[1], nz[1]], "fr_nichelintel", f, t))
     tx, ty = TUYERE
     out += disc("z", (tx, ty, 0.0), TUYERE_Z[0], TUYERE_Z[1], TUYERE_R, "fr_tuyere", f, t)
+    out += build_windbox()
     out += [box(lo, hi, name, f, t) for name, lo, hi in ties()]
+    return out
+
+
+def build_windbox():
+    """The wind box (`fr_windbox_*`): an iron box set in the back wall's face, its front plate (towards the chamber)
+    taking the tuyere's back end, its walls round it, and its face plate flush with the wall's face, with the blast
+    inlet's socket in it: a square opening the size of ppex's pipe at the middle of the blast face, a rim round it."""
+    f, t = "frame", "iron"
+    (x0, x1), (y0, y1), (z0, z1) = WINDBOX
+    w, fp = WINDBOX_T, FACEPLATE_T
+    zf = z1 - fp
+    out = [box([x0, y0, z0], [x1, y1, z0 + w], "fr_windbox_front", f, t),
+           box([x0, y0, z0 + w], [x0 + w, y1, zf], "fr_windbox_w", f, t),
+           box([x1 - w, y0, z0 + w], [x1, y1, zf], "fr_windbox_e", f, t),
+           box([x0 + w, y0, z0 + w], [x1 - w, y0 + w, zf], "fr_windbox_bottom", f, t),
+           box([x0 + w, y1 - w, z0 + w], [x1 - w, y1, zf], "fr_windbox_top", f, t)]
+    (sx0, sx1), (sy0, sy1) = SOCKET
+    out += [box([x0, y0, zf], [sx0, y1, z1], "fr_windbox_face_w", f, t),
+            box([sx1, y0, zf], [x1, y1, z1], "fr_windbox_face_e", f, t),
+            box([sx0, y0, zf], [sx1, sy0, z1], "fr_windbox_face_s", f, t),
+            box([sx0, sy1, zf], [sx1, y1, z1], "fr_windbox_face_n", f, t)]
     return out
 
 
@@ -929,100 +915,6 @@ def build_coal(kind):
     return out
 
 
-# ---------------------------------------------------------------- the blowing engine
-SH_C = (SHAFT[0], SHAFT[1], 0.0)
-
-
-def build_shaft():
-    """The engine shaft (`shaft`): the axle's oak continuation at the power face, the steel shaft in its two pedestal
-    bearings, and between them a crank (two webs and a pin) in the yoke's slot. At theta 0 the pin is under the shaft:
-    the yoke at mid stroke."""
-    p = "shaft"
-    x, y = SHAFT
-    out = [box([x - 1.5, y - 0.6, OAK_Z], [x + 1.5, y + 0.6, D], "sh_oaka", p, "oak"),
-           box([x - 0.6, y - 1.5, OAK_Z], [x + 0.6, y + 1.5, D], "sh_oakb", p, "oak")]
-    out += disc("z", SH_C, SHAFT_N_END, WEB_Z[0][0], SHAFT_R, "sh_shaftn", p, "steel")
-    out += disc("z", SH_C, WEB_Z[1][1], OAK_Z, SHAFT_R, "sh_shafts", p, "steel")
-    hw, back, beyond = WEB
-    for tag, (z0, z1) in (("n", WEB_Z[0]), ("s", WEB_Z[1])):
-        out.append(box([x - hw, y - CRANK_R - beyond, z0], [x + hw, y + back, z1], f"sh_web{tag}", p, "iron"))
-    out += disc("z", (x, y - CRANK_R, 0.0), WEB_Z[0][1], WEB_Z[1][0], PIN_R, "sh_pin", p, "steel")
-    return out
-
-
-def build_yoke():
-    """The slotted yoke (`yoke`, a Scotch yoke): the crank pin runs up and down its slot, so it slides east and west
-    exactly with the pin; slippers on its top and bottom run under the top guide and on the rail; its piston rod runs
-    west through the gland into the blowing cylinder (the piston on its end, hidden in the barrel)."""
-    p = "yoke"
-    x, y = SHAFT
-    z0, z1 = YOKE_Z
-    xs0, xs1 = x - SLOT_H, x + SLOT_H
-    ys0, ys1 = y - SLOT_L, y + SLOT_L
-    out = [box([xs0 - YOKE_SIDE, ys1, z0], [xs1 + YOKE_SIDE, ys1 + YOKE_BAR, z1], "yk_top", p, "iron"),
-           box([xs0 - YOKE_SIDE, ys0 - YOKE_BAR, z0], [xs1 + YOKE_SIDE, ys0, z1], "yk_bottom", p, "iron"),
-           box([xs0 - YOKE_SIDE, ys0, z0], [xs0, ys1, z1], "yk_sidew", p, "iron"),
-           box([xs1, ys0, z0], [xs1 + YOKE_SIDE, ys1, z1], "yk_sidee", p, "iron"),
-           box([xs0 - YOKE_SIDE, ys1 + YOKE_BAR, z0], [xs1 + YOKE_SIDE, ys1 + YOKE_BAR + SLIPPER, z1], "yk_slippertop", p, "steel"),
-           box([xs0 - YOKE_SIDE, ys0 - YOKE_BAR - SLIPPER, z0], [xs1 + YOKE_SIDE, ys0 - YOKE_BAR, z1], "yk_slipperbottom", p, "steel")]
-    zc = (z0 + z1) / 2
-    out.append(box([ROD_END, y - ROD, zc - ROD], [xs0 - YOKE_SIDE, y + ROD, zc + ROD], "yk_rod", p, "steel"))
-    return out
-
-
-def build_engine():
-    """The blowing engine's fixed parts (`engine`): the bedplate on the back row's brick base; two cast-iron pedestals
-    carrying the shaft's bearings; the yoke's guides (a rail on the bedplate, a top guide on two standards, the west
-    one forked about the piston rod); the blowing cylinder (barrel, flanges, covers, the gland on the east cover) on
-    two saddles; a valve chest at each end on its north side, the flap valves on its top and north faces; and the
-    blast main along the base under the chests to an elbow at the tuyere, through the back wall."""
-    p = "engine"
-    out = []
-    (bx0, bx1), (by0, by1), (bz0, bz1) = BEDPLATE
-    out += [box(lo, hi, n2, p, "iron") for n2, lo, hi in split_blocks("en_bed", [bx0, by0, bz0], [bx1, by1, bz1])]
-    x, y = SHAFT
-    for tag, (z0, z1) in BEARINGS:
-        out.append(box([x - 2.2, BED_TOP, z0 - 0.4], [x + 2.2, BED_TOP + 0.8, z1 + 0.4], f"en_ped{tag}_foot", p, "iron"))
-        out.append(box([x - 1.0, BED_TOP + 0.8, z0], [x + 1.0, y - 2.4, z1], f"en_ped{tag}", p, "iron"))
-        out.append(box([x - 2.2, y - 2.4, z0], [x + 2.2, y + 2.6, z1], f"en_ped{tag}_bearing", p, "iron"))
-    # the guides
-    (rx0, rx1), (ry0, ry1) = RAIL_X, RAIL_Y
-    out.append(box([rx0, ry0, YOKE_Z[0]], [rx1, ry1, YOKE_Z[1]], "en_rail", p, "iron"))
-    (wx0, wx1), (ex0, ex1) = GUIDE_X
-    gy0, gy1 = TOPGUIDE_Y
-    for n, (z0, z1) in enumerate(CHEEKS_Z, 1):
-        out.append(box([wx0, BED_TOP, z0], [wx1, gy0, z1], f"en_standardw{n}", p, "iron"))
-    out.append(box([ex0, BED_TOP, GUIDE_Z[0]], [ex1, gy0, GUIDE_Z[1]], "en_standarde", p, "iron"))
-    out.append(box([wx0, gy0, GUIDE_Z[0]], [ex1, gy1, GUIDE_Z[1]], "en_topguide", p, "iron"))
-    # the cylinder, along x in the yoke's plane
-    cy, cz = CYL
-    c = (0.0, cy, cz)
-    x0, x1 = CYL_X
-    out += disc("x", c, x0, x1, CYL_R, "en_cyl", p, "iron")
-    out += disc("x", c, x0 - FLANGE_T, x0, FLANGE_R, "en_flangew", p, "iron")
-    out += disc("x", c, x1, x1 + FLANGE_T, FLANGE_R, "en_flangee", p, "iron")
-    out += disc("x", c, x0 - FLANGE_T - COVER_T, x0 - FLANGE_T, COVER_R, "en_coverw", p, "iron")
-    out += disc("x", c, x1 + FLANGE_T, x1 + FLANGE_T + COVER_T, COVER_R, "en_covere", p, "iron")
-    g0 = x1 + FLANGE_T + COVER_T
-    out += disc("x", c, g0, g0 + GLAND[0], GLAND[1], "en_gland", p, "iron")
-    for n, (sx0, sx1) in enumerate(CRADLES, 1):
-        out.append(box([sx0, BED_TOP, CRADLE_Z[0]], [sx1, cy - CYL_R, CRADLE_Z[1]], f"en_cradle{n}", p, "iron"))
-    # the valve chests: the flap valves (leather flaps on a grid) in the top and the north face of each
-    (cy0, cy1), (cz0, cz1) = CHEST_Y, CHEST_Z
-    for n, (sx0, sx1) in enumerate(CHESTS, 1):
-        out.append(box([sx0, cy0, cz0], [sx1, cy1, cz1], f"en_chest{n}", p, "iron"))
-        out.append(box([sx0 + 0.4, cy1, cz0 + 0.3], [sx1 - 0.4, cy1 + 0.3, cz1 - 0.4], f"en_chest{n}_flaptop", p, "leather"))
-        for m, fy in enumerate((20.6, 22.8, 25.0), 1):
-            out.append(box([sx0 + 0.4, fy, cz0 - 0.25], [sx1 - 0.4, fy + 1.4, cz0], f"en_chest{n}_flap{m}", p, "leather"))
-    # the blast main: along x on the base, under the chests, to the elbow at the tuyere, and on into the back wall
-    my, mz = MAIN
-    tx = TUYERE[0]
-    out.append(box([tx - MAIN_R, my - MAIN_R, mz - MAIN_R], [tx + MAIN_R, my + MAIN_R, mz + MAIN_R], "en_elbow", p, "iron"))
-    out += disc("x", (0.0, my, mz), tx + MAIN_R, MAIN_X[1], MAIN_R, "en_main", p, "iron")
-    out += disc("z", (tx, my, 0.0), BODY_D, mz - MAIN_R, MAIN_R, "en_blastpipe", p, "iron")
-    return out
-
-
 def build():
     els = []
     for kind in ("coal", "fire"):
@@ -1030,7 +922,7 @@ def build():
     els += build_lead() + build_silver() + build_stream() + build_litharge()
     for place in DAMPERS:
         els += build_damper(place)
-    els += build_cap() + build_fittings() + build_shaft() + build_yoke() + build_engine() + build_test()
+    els += build_cap() + build_fittings() + build_test()
     return els + build_frame()
 
 
@@ -1043,28 +935,14 @@ def pt(*v):
     return [r6(x / B) for x in v]
 
 
-def shaft_driver():
-    return {"type": "rotate", "axis": "z", "pivot": pt(SHAFT[0], SHAFT[1], 0.0), "ratio": 1.0}
-
-
-def yoke_driver():
-    """The crank pin is under the shaft at theta 0, so the shaft's turn carries it to x + r sin(theta): the yoke
-    slides with it, exactly."""
-    return {"type": "slide", "axis": "x", "amplitude": r6(CRANK_R / B), "ratio": 1.0, "phase": 0.0}
-
-
-PART_IDS = ("brickwork", "lining", "test", "engine", "shaft", "yoke", "fittings") + CONTENTS + \
-    tuple(f"damper{d}" for d in DAMPERS) + ("outletcap",)
-MATCH = {"brickwork": "bk_*", "lining": "ln_*", "test": "ts_*", "engine": "en_*", "shaft": "sh_*", "yoke": "yk_*",
-         "fittings": "ft_*"}
-REQUIRES_OF = {"shaft": "engine", "yoke": "engine"}   # parts fitted with another's requires: the engine's moving parts
-DRIVERS = {"shaft": shaft_driver, "yoke": yoke_driver}
-MOVING = ("shaft", "yoke")
+PART_IDS = ("brickwork", "lining", "test", "fittings") + CONTENTS + tuple(f"damper{d}" for d in DAMPERS) + ("outletcap",)
+MATCH = {"brickwork": "bk_*", "lining": "ln_*", "test": "ts_*", "fittings": "ft_*"}
+MOVING = ()                                  # nothing moves: the blast comes by pipe
 
 
 def requires_of(pid):
     """The requires value a part is fitted by (None for the iron frame)."""
-    return None if pid == "frame" else REQUIRES_OF.get(pid, pid)
+    return None if pid == "frame" else pid
 
 
 _PARTS = []
@@ -1079,8 +957,7 @@ def rig_parts():
 def _rig_parts():
     parts = []
     for pid in PART_IDS:
-        parts.append({"id": pid, "match": [MATCH.get(pid, f"{pid}_*")], "requires": requires_of(pid),
-                      "drivers": [DRIVERS[pid]()] if pid in DRIVERS else []})
+        parts.append({"id": pid, "match": [MATCH.get(pid, f"{pid}_*")], "requires": requires_of(pid), "drivers": []})
     parts.append({"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []})
     for p in parts:
         p["ride"] = None
@@ -1091,7 +968,7 @@ def _rig_parts():
 
 
 # ---------------------------------------------------------------- poses
-# A pose is (theta, scene): the axle's angle, and what is fitted. A scene is (the test's state, the damper's place,
+# A pose is (theta, scene): theta reads nothing (no part moves), and what is fitted. A scene is (the test's state, the damper's place,
 # whether the outlet is capped, the build's state): gameplay's requires. The test's contents, the fire and the
 # litharge need the furnace built (the fittings stage: the pot, the gutter); the damper is fitted with the fittings,
 # the cap once the curb is in (the lining).
@@ -1137,15 +1014,15 @@ def shown(parts, posed_els, pose):
     return out
 
 
-def cycle_poses(n, turns=1):
-    """n poses over `turns` turns of the shaft."""
-    return [(turns * TAU * i / n, DEFAULT_SCENE) for i in range(n)]
-
-
 # ---------------------------------------------------------------- the rig file
+def in_gap(c):
+    """Whether cell c is in the back row's middle and east columns, which are not the furnace's."""
+    return all(GAP[k][0] <= c[k] * B < GAP[k][1] for k in range(3))
+
+
 def footprint():
-    """The machine's eighteen cells: the whole box."""
-    return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
+    """The machine's fourteen cells: the front two rows' twelve and the stack column behind their west end."""
+    return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z) if not in_gap((x, y, z))]
 
 
 ANCHORS = ("ash", "fireDoor", "door", "dish", "litharge", "tuyere")
@@ -1252,7 +1129,6 @@ def build_json():
              "materials": materials(((LINING_BRICK, c["lining"]), (FIRECLAY, c["fireclay"])))},
             {"requires": "test", "volumeBlocks": r6(c["ashVolume"]), "perClick": "stack",
              "materials": materials(((BONEMEAL, c["bonemeal"]), TEST_IRON))},
-            {"requires": "engine", "alsoParts": list(MOVING), "materials": materials(ENGINE_STAGE)},
             {"requires": "fittings", "also": [f"damper{d}" for d in DAMPERS], "materials": materials(FITTINGS_STAGE)},
         ],
         "outletCap": materials((CAP_ITEM,))[0],
@@ -1262,8 +1138,7 @@ def build_json():
                     "volumeBlocks measured from the model; 2 fired bricks or 4 refractory bricks a block, rounded up, "
                     "fire clay one per 2.5 refractory bricks; oneType: the first fired brick sets the furnace's type, "
                     "bricks), test (the bone ash measured from the model at the bone-ash cupel's rate, 4 bone meal for "
-                    "41 cubic voxels, and the ring), engine (with its moving parts, alsoParts: the shaft and the yoke), "
-                    "fittings (the fire door, the gutter and the litharge pot; also: the damper's places, one fitted). "
+                    "41 cubic voxels, and the ring), fittings (the fire door, the gutter and the litharge pot; also: the damper's places, one fitted). "
                     "outletCap: an item interaction, not a stage. The test's contents, the fire and the litharge are "
                     "drawn once the fittings are in, the cap once the lining is."}
 
@@ -1284,23 +1159,23 @@ def make_rig(parts):
     rig = {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the front middle "
                     "cell at ground level, the litharge bay's. An English cupellation (test) furnace: the test and the "
-                    "fireplace side by side in the front two rows, the stack and the blowing engine in the back row. "
+                    "fireplace side by side in the front two rows, the stack in a column behind their west end. "
                     "Furnaces stand side by side in a row along x (up to furnace.rowMax), sharing one chimney on one "
-                    "member's outlet, the others capped. Power: the vanilla axle at powerCell's powerFace turns the "
-                    "engine shaft (theta, ratio 1 about z); its crank works the yoke (a slide along x, exactly with the "
-                    "pin), whose rod drives the double-acting blowing cylinder: the blast either way round. Natural "
-                    "draught for the fire, in at the ash mouth (ash, ashSide) under the damper. requires: the build's "
-                    "stages, brickwork, lining, test, engine (the shaft and the yoke with it) and fittings (build; the "
-                    "frame, iron, has none); coal, fire, lead, silver, stream, litharge (the test's and the fire's "
-                    "state); the damper's place, damperopen, damperhalf or dampershut (one at a time); outletcap. The "
-                    "brickwork's texture is the furnace's brick type's (bricks). door: the working door, where the lead "
-                    "is charged and the cake taken out (over dish, the middle of the test's dish); fireDoor: fuel by hand; litharge: the pot the "
-                    "litharge runs into, emptied by hand; tuyere: the blast's mouth. outletCell: the stack's top cell, "
-                    "the chimney stood on its top; chimney: the shortest chimney, counted from the outlet up. See "
+                    "member's outlet, the others capped. No mechanical power: the blast comes by pipe, air in the ppex "
+                    "pipe network (Steelmaking Expanded's engine air blower makes it) taken at blastCell's blastFace, "
+                    "where the wind box's socket is, and blown by the tuyere across the test. Natural draught for the "
+                    "fire, in at the ash mouth (ash, ashSide) under the damper. Nothing moves. requires: the build's "
+                    "stages, brickwork, lining, test and fittings (build; the frame, iron, has none); coal, fire, lead, "
+                    "silver, stream, litharge (the test's and the fire's state); the damper's place, damperopen, "
+                    "damperhalf or dampershut (one at a time); outletcap. The brickwork's texture is the furnace's "
+                    "brick type's (bricks). door: the working door, where the lead is charged and the cake taken out "
+                    "(over dish, the middle of the test's dish); fireDoor: fuel by hand; litharge: the pot the litharge "
+                    "runs into, emptied by hand; tuyere: the blast's mouth. outletCell: the stack's top cell, the "
+                    "chimney stood on its top; chimney: the shortest chimney, counted from the outlet up. See "
                     "CupellationFurnace/README.md.",
         "cells": [],
-        "powerCell": list(POWER_CELL),
-        "powerFace": POWER_FACE,
+        "blastCell": list(BLAST_CELL),
+        "blastFace": BLAST_FACE,
         "outletCell": list(outlet_cell()),
         "outletFace": "up",
     }
@@ -1312,10 +1187,11 @@ def make_rig(parts):
         "chimney": {"origin": pt(sx, TOP + MIN_CHIMNEY * B / 2, sz), "axis": "y", "length": float(MIN_CHIMNEY)},
         "build": build_json(),
         "bricks": bricks_json(),
-        "furnace": {"minChimney": MIN_CHIMNEY, "rowMax": ROW_MAX, "rowAxis": "x", "doubleActing": True,
+        "furnace": {"minChimney": MIN_CHIMNEY, "rowMax": ROW_MAX, "rowAxis": "x", "blastGas": "Air",
                     "_comment": "minChimney: chimney blocks stood on the outlet, counted from it up; rowMax, rowAxis: "
-                                "furnaces in a row, side by side along x, sharing one chimney; doubleActing: the blowing "
-                                "cylinder blows on both strokes, either way round (no rectifier)."},
+                                "furnaces in a row, side by side along x, sharing one chimney; blastGas: the gas the "
+                                "tuyere takes from the ppex pipe network at blastFace (exlib's PipeNetwork, network type "
+                                "'pipe'; Steelmaking Expanded's engine air blower produces it)."},
         "parts": parts,
     })
     return rig
@@ -1335,7 +1211,7 @@ def shipped(els, parts, rig):
             if "pivot" in drv:
                 drv["pivot"] = [r6(drv["pivot"][k] + db[k]) for k in range(3)]
     ship = copy.deepcopy(rig)
-    for key in ("powerCell", "outletCell"):
+    for key in ("blastCell", "outletCell"):
         ship[key] = shift_cell(rig[key], ORIGIN_CELL)
     for key in ANCHORS:
         ship[key] = {"pos": shift_point(rig[key]["pos"], db)}
@@ -1344,13 +1220,12 @@ def shipped(els, parts, rig):
     return ship_els, ship_parts, ship
 
 
-CELL_PARTS = ("frame", "brickwork", "lining", "test", "engine", "fittings")   # the cells' boxes: the furnace built
+CELL_PARTS = ("frame", "brickwork", "lining", "test", "fittings")   # the cells' boxes: the furnace built
 
 
 def shipped_cells(shape, ship_parts):
-    """The cells' boxes from the shipped shape as written (the furnace built, its fixed parts only: the shaft and the
-    yoke move, so their collision is gameplay's, and they stay inside the engine's fixed parts' boxes); a lid (a deck)
-    on every top cell at the top, so a player walks over the engine."""
+    """The cells' boxes from the shipped shape as written (the furnace built, the contents aside); a lid (a deck) on
+    every top cell at the top."""
     by_cell = {}
     for w in flatten(shape["elements"], textures={}):
         pid = part_of(ship_parts, w.name)
@@ -1383,21 +1258,6 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
     return True
 
 
-# ---------------------------------------------------------------- reference poses
-REF_THETAS = (0.0, 0.3, 1.1, math.pi / 2, 2.3, math.pi, 4.0, 3 * math.pi / 2, 5.5, TAU, -1.2, 7.9, -9.4)
-
-
-def reference_json(ship_parts):
-    poses = []
-    for th in REF_THETAS:
-        mats = {q["id"]: round_matrix(_part_matrix(ship_parts, q["id"], {"theta": th, "travel": abs(th)})) for q in ship_parts}
-        poses.append({"theta": r6(th), "matrices": mats})
-    return {"_comment": f"Generated by {SCRIPT} from the shipped cupellationfurnace-rig.json's parts: each part's matrix as "
-                        "3 rows of 4 (block units) at each pose (theta, the axle's angle: the shaft turns, the yoke "
-                        "slides). The site's and the Python tests check their rig maths against it.",
-            "poses": poses}
-
-
 # ---------------------------------------------------------------- shape files
 GLOWS = {"fire": FIRE_GLOW, "lead": LEAD_GLOW, "silver": SILVER_GLOW, "stream": STREAM_GLOW}
 
@@ -1420,13 +1280,13 @@ def shape_json(els):
 def coplanar_scenes():
     scenes = [(st, "open", False, "complete") for st in ("running", "brightened", "coal")]
     scenes += [("cold", "half", True, "complete"), ("cold", "shut", True, "complete")]
-    scenes += [("cold", "open", False, s) for s in ("frame", "brickwork", "test", "engine")]
+    scenes += [("cold", "open", False, s) for s in ("frame", "brickwork", "test")]
     scenes += [("cold", "open", True, "lining")]
     return scenes
 
 
 def coplanar_poses():
-    return tuple((th, sc) for sc in coplanar_scenes() for th in (0.0, 1.1))
+    return tuple((0.0, sc) for sc in coplanar_scenes())
 
 
 def fix_coplanar(els, parts):
@@ -1436,8 +1296,8 @@ def fix_coplanar(els, parts):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Generate the cupellation furnace's shapes, rig and reference poses.")
-    ap.add_argument("--out", type=Path, help="write the four files into this directory instead of the mod's assets and tests")
+    ap = argparse.ArgumentParser(description="Generate the cupellation furnace's shapes and rig.")
+    ap.add_argument("--out", type=Path, help="write the three files into this directory instead of the mod's assets")
     ap.add_argument("--quick", action="store_true", help="skip the z-fighting fix and the slow checks (not for files that ship)")
     args = ap.parse_args()
     import validate_cupellationfurnace
@@ -1449,16 +1309,16 @@ def main():
         print(f"coplanar faces: {hidden} faces pressed against their own part removed")
     rig = make_rig(parts)
     ok = validate_cupellationfurnace.validate(sys.modules[__name__], els, parts, rig, quick=args.quick)
-    names = ("cupellationfurnace.json", "cupellationfurnace_frame.json", "cupellationfurnace-rig.json", "rig-reference.json")
+    names = ("cupellationfurnace.json", "cupellationfurnace_frame.json", "cupellationfurnace-rig.json")
     if args.out:
         outs = tuple(args.out / n for n in names)
     else:
-        outs = (SHAPE_DIR / names[0], SHAPE_DIR / names[1], RIG_DIR / names[2], REFERENCE_OUT)
+        outs = (SHAPE_DIR / names[0], SHAPE_DIR / names[1], RIG_DIR / names[2])
     ship_els, ship_parts, ship = shipped(els, parts, rig)
     shape, frame_shape = shape_json(ship_els), shape_json([el for el in ship_els if el.part == "frame"])
     ship["cells"] = shipped_cells(shape, ship_parts)
     ok = validate_cupellationfurnace.validate_files(sys.modules[__name__], shape, frame_shape, ship) and ok
-    texts = (shape_dumps(shape), shape_dumps(frame_shape), rig_dumps(ship), reference_dumps(reference_json(ship_parts)))
+    texts = (shape_dumps(shape), shape_dumps(frame_shape), rig_dumps(ship))
     for path, text in zip(outs, texts):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
