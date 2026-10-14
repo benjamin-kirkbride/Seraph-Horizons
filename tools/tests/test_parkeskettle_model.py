@@ -179,12 +179,41 @@ class Anchors(unittest.TestCase):
             self.assertEqual((RIG[f"{key}Side"], RIG[key]["pos"][0], RIG[key]["pos"][2]), ("north", 0.5, 0.0))
         self.assertEqual((RIG["kettleCell"], RIG["kettleFace"]), ([0, 1, 1], "up"))
 
-    def test_side_faces_are_plain_brick_for_a_row(self):
+    def test_side_faces_are_flush_for_a_row(self):
+        # only the brick and the corner angles' legs, set flush, reach the side planes, and nothing passes them
         west, east = DX, DX + 48.0
         for el in FLAT:
             lo, hi = el.aabb()
+            self.assertGreaterEqual(lo[0], west - 1e-6, el.name)
+            self.assertLessEqual(hi[0], east + 1e-6, el.name)
             if lo[0] < west + 1e-6 or hi[0] > east - 1e-6:
-                self.assertTrue(el.name.startswith("bk_brick"), el.name)
+                self.assertTrue(el.name.startswith(("bk_brick", "fr_angle_")), el.name)
+
+    def test_the_binding_is_angle_iron(self):
+        # an angle at each vertical corner, ground to floor, legs 1 thick and 2.5 along each face from the corner; an
+        # angle band along the top edge of the front and of the back between them; no flat strap or band
+        names = [e["name"] for e in FRAME["elements"]]
+        self.assertFalse(any(n.startswith(("fr_strap", "fr_kerb")) for n in names))
+        t, leg = make_shape.BIND_T, make_shape.BIND_LEG
+        self.assertLessEqual(t, 1.0)
+        self.assertTrue(2.0 <= leg <= 3.0)
+        for tag, xc, zc, sx, sz in make_shape.CORNERS:
+            lo, hi = aabb_of([el for el in FLAT if el.name.startswith(f"fr_angle_{tag}_")])
+            x0, x1 = sorted((xc + DX, xc + DX + sx * leg))
+            z0, z1 = sorted((zc, zc + sz * leg))
+            for a, b in zip(lo + hi, [x0, 0.0, z0, x1, 32.0, z1]):
+                self.assertAlmostEqual(a, b, delta=0.05, msg=tag)
+            # two legs, each thin across its own face
+            legs = [el for el in FLAT if el.name.startswith(f"fr_angle_{tag}_")]
+            thin_z = [el for el in legs if el.aabb()[1][2] - el.aabb()[0][2] <= t + 0.05]
+            thin_x = [el for el in legs if el.aabb()[1][0] - el.aabb()[0][0] <= t + 0.05]
+            self.assertTrue(thin_z and thin_x, tag)
+        for face in ("n", "s"):
+            lo, hi = aabb_of([el for el in FLAT if el.name.startswith(f"fr_band_{face}_")])
+            self.assertAlmostEqual(lo[0], DX + leg, delta=0.05)
+            self.assertAlmostEqual(hi[0], DX + 48.0 - leg, delta=0.05)
+            self.assertAlmostEqual(hi[1], 32.0, delta=0.05)
+            self.assertAlmostEqual(hi[1] - lo[1], leg, delta=0.05)
 
 
 def element_volume(e):

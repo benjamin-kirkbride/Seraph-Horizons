@@ -6,7 +6,8 @@ into which zinc is stirred; the zinc takes up the silver and rises as a crust th
 desilverized lead to be ladled out. It is one machine, built on the crucible furnace's conventions (its generator,
 `CrucibleFurnace/tools/make_shape.py`, is the template): a block of brickwork three blocks wide (x), three deep (z)
 and two high, any one type of fired brick with tier-3 refractory lining 3 voxels thick on every hot face, bound with
-iron on its front and back, its top flat (the floor). The kettle hangs by its flange in the setting, the flange flush
+angle iron (an angle wrapping each vertical corner, angle bands wrapping the top edges of its front and back), its
+top flat (the floor). The kettle hangs by its flange in the setting, the flange flush
 with the floor, centred left to right in the front two rows: a faceted hemisphere 24 across inside, its flange 28
 across. Under it the fire burns on a grate of iron firebars over an ash pit; the fuel goes in at a fire door in the
 front (an iron door lifting in guides), the air at the ash mouth under it, which an iron damper slides across (open,
@@ -162,10 +163,11 @@ FD_Z = (0.45, 0.85)
 FD_LIFT = 7.2                                # how far it lifts to open: clear of the opening, inside its recess
 
 # ---------------------------------------------------------------- the flue, the stack, the outlet
-FLUE_OPENING = ((28.0, 36.0), (22.0, 27.0), (CAVITY[2][1], 36.5))   # through the setting's back wall, under the seat
-BACK_FLUE = ((28.0, 42.5), (21.0, 27.0), (36.5, 43.5))
-STACK = ((35.5, 42.5), (21.0, 31.5), (36.5, 43.5))       # in the back row's east corner, under the outlet
-CURB = ((33.5, 44.5), (30.0, FLOOR_TOP), (34.5, 45.5))   # the outlet's curb, the lining's, flush: a rim 1 wide round
+FLUE_OPENING = ((28.0, 36.0), (22.0, 27.0), (CAVITY[2][1], 35.5))   # through the setting's back wall, under the seat
+BACK_FLUE = ((28.0, 42.5), (21.0, 27.0), (35.5, 42.5))
+STACK = ((35.5, 42.5), (21.0, 31.5), (35.5, 42.5))       # in the back row's east corner, under the outlet, clear of
+#                                                          the back's top angle band
+CURB = ((33.5, 44.5), (30.0, FLOOR_TOP), (33.5, 44.5))   # the outlet's curb, the lining's, flush: a rim 1 wide round
 CURB_RIM = 1.0                                           # the cap's seat, the seat a ledge 1 wide round the stack
 CAP_Y = (31.5, FLOOR_TOP)
 CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y, (CURB[2][0] + CURB_RIM, CURB[2][1] - CURB_RIM))
@@ -177,9 +179,8 @@ LINING_T = 3.0
 MIN_WALL = 5.5                               # the least brick between the setting's inside and its faces: the front wall
 #                                              is 6.5, 5.5 behind the doors' recesses (the kettle stands as far back as
 #                                              the chimney's cell lets its flange)
-BIND_T = 0.5
-STRAP_X = ((0.5, 3.0), (45.0, 47.5))
-KERB_Y = (30.5, FLOOR_TOP)
+BIND_T = 1.0                                 # the binding is angle iron (the owner's rule for brick structures): its
+BIND_LEG = 2.5                               # legs 1 thick and 2.5 long, from the brick's corner out along each face
 
 # ---------------------------------------------------------------- the gallows, the drive, the stirrer
 AXLE = (KX, 40.0)                            # (x, y): the drive's axis along z, the power cell's face centre
@@ -522,15 +523,33 @@ MOUTH_RECTS = mouth_rects()
 
 
 # ---------------------------------------------------------------- the brickwork
+CORNERS = (("nw", 0.0, 0.0, 1, 1), ("ne", W, 0.0, -1, 1), ("sw", 0.0, D, 1, -1), ("se", W, D, -1, -1))
+#                                              (tag, the brick's corner x and z, the way into the brick along x and z)
+
+
+def span(c, sign, a, b):
+    """The interval from a to b in from c, inward along `sign`."""
+    return tuple(sorted((c + sign * a, c + sign * b)))
+
+
 def binding():
-    """The iron binding, as (name, lo, hi): a flat strap up each end of the front and of the back, and a band along
-    the top edge of each between them, all BIND_T thick and flush. The side faces are left plain brick: a row's
-    neighbours meet there."""
+    """The iron binding, as (name, lo, hi), all angle iron (an L section, legs BIND_T thick and BIND_LEG long),
+    flush with the setting's faces, the brick notched for it. At each vertical corner, from the ground to the floor,
+    an angle wraps the corner (`fr_angle_<corner>_a` on the front or back face, `_b` on the side face): its inside
+    corner bedded against the brick's outside corner, a leg on each face, so it locks the brick in on both. Along the
+    top edge of the front and of the back, between the corner angles and joining their face legs, an angle band wraps
+    that edge (`fr_band_<face>_a` down the face, `_b` on the top). The side legs lie flush, so a row's neighbours meet
+    face to face."""
+    t, leg = BIND_T, BIND_LEG
     out = []
-    for face, z0, z1 in (("n", 0.0, BIND_T), ("s", D - BIND_T, D)):
-        for side, (x0, x1) in zip(("w", "e"), STRAP_X):
-            out.append((f"fr_strap_{face}{side}", [x0, 0.0, z0], [x1, H, z1]))
-        out.append((f"fr_kerb_{face}", [STRAP_X[0][1], KERB_Y[0], z0], [STRAP_X[1][0], KERB_Y[1], z1]))
+    for tag, xc, zc, sx, sz in CORNERS:
+        out.append((f"fr_angle_{tag}_a", [span(xc, sx, 0.0, leg)[0], 0.0, span(zc, sz, 0.0, t)[0]],
+                    [span(xc, sx, 0.0, leg)[1], H, span(zc, sz, 0.0, t)[1]]))
+        out.append((f"fr_angle_{tag}_b", [span(xc, sx, 0.0, t)[0], 0.0, span(zc, sz, t, leg)[0]],
+                    [span(xc, sx, 0.0, t)[1], H, span(zc, sz, t, leg)[1]]))
+    for face, zc, sz in (("n", 0.0, 1), ("s", D, -1)):
+        out.append((f"fr_band_{face}_a", [leg, H - leg, span(zc, sz, 0.0, t)[0]], [W - leg, H, span(zc, sz, 0.0, t)[1]]))
+        out.append((f"fr_band_{face}_b", [leg, H - t, span(zc, sz, t, leg)[0]], [W - leg, H, span(zc, sz, t, leg)[1]]))
     return [piece for name, lo, hi in out for piece in split_blocks(name, lo, hi)]
 
 
@@ -587,9 +606,9 @@ def lining_zones():
     rest is the brickwork's: the base, the ash pit and the ash mouth, the outer walls."""
     t = LINING_T
     (cx0, cx1), _, (cz0, cz1) = CAVITY
-    (bx0, bx1), (by0, _), (_, bz1) = BACK_FLUE
+    (bx0, bx1), (by0, _), (bz0, bz1) = BACK_FLUE
     return [([cx0 - t, GRATE[1][0], cz0 - t], [cx1 + t, FLOOR_TOP, cz1 + t]),
-            ([bx0 - t, by0 - t, cz1], [bx1 + t, FLOOR_TOP, bz1 + t])]
+            ([bx0 - t, by0 - t, min(cz1, bz0 - t)], [bx1 + t, FLOOR_TOP, bz1 + t])]
 
 
 def _inside(p, lo, hi):
