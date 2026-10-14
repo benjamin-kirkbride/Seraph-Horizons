@@ -70,17 +70,25 @@ public class MineRoutesTests(ITestOutputHelper output)
         return columns;
     }
 
+    // A way may cross another's claim only once one of the two has waited MineRoutePlanner.PassAfter for the other
+    // (the walker for the claim, or the claim's for the way: the game goes through then); none crosses one sooner.
+    // Ways to a planned wait are not held to it: they lead out of the others' way.
     [Fact]
-    public void No_member_s_way_crosses_another_s_claim()
+    public void A_member_s_way_crosses_another_s_claim_only_after_waiting_for_it()
     {
+        static double Waited(MineRoute r, MineStop stop)
+        {
+            int k = r.Stops.ToList().IndexOf(stop);
+            return stop.Depart - (k == 0 ? 0 : r.Stops[k - 1].Finish);
+        }
         foreach (string g in Geometries)
         foreach (int crew in new[] { 2, 3 })
         {
             var start = Begin(MineCases.ByName(g, crew));
             var routes = MineRoutePlanner.Solve(start.Input());
-            int legs = 0;
+            int legs = 0, crossing = 0;
             foreach (var r in routes.Routes.Values)
-            foreach (var leg in r.Stops.Where(s => s.Leg.Count > 2))
+            foreach (var leg in r.Stops.Where(s => s.Kind == MineStopKind.Station && s.Leg.Count > 2))
             {
                 legs++;
                 var columns = Columns(leg.Leg);
@@ -90,11 +98,14 @@ public class MineRoutesTests(ITestOutputHelper output)
                     if (!(leg.Depart < stop.Finish && stop.Depart < leg.Arrive))
                         continue;
                     var claim = MineDispatch.Claim(start.Plan.Stations[stop.Station] with { Cells = stop.Cells }, start.Plan.Tunnel).ToHashSet();
-                    Assert.False(claim.Overlaps(columns),
-                        $"{g} x{crew}: {r.Member}'s way to {leg.At} ({leg.Depart:0.0}..{leg.Arrive:0.0}) crosses {o.Member}'s #{stop.Station} ({stop.Depart:0.0}..{stop.Finish:0.0})");
+                    if (!claim.Overlaps(columns))
+                        continue;
+                    crossing++;
+                    Assert.True(Waited(r, leg) >= MineRoutePlanner.PassAfter - 1e-6 || Waited(o, stop) >= MineRoutePlanner.PassAfter - 1e-6,
+                        $"{g} x{crew}: {r.Member}'s way to {leg.At} ({leg.Depart:0.0}..{leg.Arrive:0.0}) crosses {o.Member}'s #{stop.Station} ({stop.Depart:0.0}..{stop.Finish:0.0}), neither waiting");
                 }
             }
-            output.WriteLine($"{g} x{crew}: {legs} ways, none across a claim");
+            output.WriteLine($"{g} x{crew}: {legs} ways, {crossing} across a claim after a wait");
         }
     }
 
@@ -321,7 +332,7 @@ public class MineRoutesTests(ITestOutputHelper output)
         }
     }
 
-    // the design's bound is 100 ms in Release; 128 x 1 x 128 measured about 190 ms there (the wave 2 handback)
+    // the owner's bound: 250 ms in Release (128 x 1 x 128 measured about 220 ms there; the design's was 100 ms)
 #if DEBUG
     private const int SolveBoundMs = 1000;
 #else

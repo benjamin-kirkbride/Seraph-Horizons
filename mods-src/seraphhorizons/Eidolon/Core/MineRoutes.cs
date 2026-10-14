@@ -127,6 +127,9 @@ public sealed class MineRoutes
 
     public MineRouteStats Stats { get; internal set; }
 
+    /// <summary>Which of the planner's ways of choosing made them (a re-solve against them keeps it).</summary>
+    public int VariantIndex { get; internal set; } = -1;
+
     /// <summary>Stops dropped when these routes were evaluated again (<see cref="MineRoutePlanner.Evaluate"/>).</summary>
     public int Dropped { get; internal set; }
 
@@ -355,7 +358,7 @@ public sealed class MineRoutes
     {
         var copy = new MineRoutes(Plan, PlanVersion, MadeAt, new Dictionary<long, MineRoute>(_routes), Zones, ZoneIndex, Slots.Clone(), Score, Stats, _seq)
         {
-            Dropped = Dropped,
+            Dropped = Dropped, VariantIndex = VariantIndex,
         };
         copy._log.AddRange(_log);
         foreach (var (k, v) in _dropped)

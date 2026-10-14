@@ -252,7 +252,9 @@ internal sealed class TeamRunner
                     w.Waiting = true;
                     // nothing for it now: it walks out of the others' way, to where it started, and waits there;
                     // done when nothing is left anyone may dig, or nobody has had anything for a long while
-                    if (w.At != w.Rest && path.Find(w.At, w.Rest, PlanRunner.MaxNodes) is { } away)
+                    if (w.At != w.Rest && path.Find(w.At, w.Rest, PlanRunner.MaxNodes) is { } way
+                        && (!_crossing || !Bodies.Contact(way, _workers.Where(o => o != w).Select(o => o.At))
+                            ? way : Bodies.Round(_live, w.At, w.Rest, _workers.Where(o => o != w).Select(o => o.At).ToList())) is { } away)
                     {
                         w.FreeAt = now + (away.Count - 1) * MineDispatch.WalkSecondsPerBlock;
                         w.Walked += away.Count - 1;
@@ -271,7 +273,10 @@ internal sealed class TeamRunner
                 AssertClaimsApart(now);
                 var route = path.Find(w.At, next.Stand, PlanRunner.MaxNodes);
                 Assert.True(route != null, $"eidolon {w.Id}: no way from {w.At} to station {next.Id} at {next.Stand}");
-                if (_crossing && Crosses(w, route!, now) && (w.ThroughSince ??= now) > now - ThroughSeconds)
+                var bodies = _workers.Where(o => o != w).Select(o => o.At).ToList();
+                if (_crossing && Bodies.Contact(route!, bodies) && Bodies.Round(_live, w.At, next.Stand, bodies) is { } round)
+                    route = round; // the game's navigator goes round another eidolon where there is room
+                if (_crossing && (Crosses(w, route!, now) || Bodies.Contact(route!, bodies)) && (w.ThroughSince ??= now) > now - ThroughSeconds)
                 {
                     // the game drops its queue and waits for room, at most ThroughSeconds, then goes through
                     _board.Unclaim(w.Id, next.Id);
@@ -280,6 +285,8 @@ internal sealed class TeamRunner
                     w.Idle.Add((now, w.FreeAt));
                     continue;
                 }
+                if (_crossing && Bodies.Contact(route!, bodies))
+                    Contacts++;
                 w.ThroughSince = null;
                 w.Station = next;
                 w.FreeAt = now + (route!.Count - 1) * MineDispatch.WalkSecondsPerBlock;
@@ -323,6 +330,10 @@ internal sealed class TeamRunner
         }
     }
 
+    /// <summary>Ways walked through another eidolon (after waiting <see cref="ThroughSeconds"/> for room, as the
+    /// game does; crossing runs only).</summary>
+    public int Contacts { get; private set; }
+
     /// <summary>The game's cap on waiting for a way across another's columns (MineOrder.ThroughSeconds).</summary>
     public const double ThroughSeconds = 20;
 
@@ -358,6 +369,45 @@ internal sealed class TeamRunner
         var path = new WidePath(_live.Site, 2, 2);
         var start = PlanRunner.Start(_live.Site, home);
         return _workers.All(w => path.Find(w.At, start, PlanRunner.MaxNodes) != null);
+    }
+}
+
+/// <summary>Other eidolons' boxes on a way (README "Eidolon", working together): a way touches one where a node
+/// of it puts its box over another's, standing where it is (those beside its start or its goal left out: it sets
+/// off from beside one, or makes for a stand beside one); and the way round them, and round claimed columns.</summary>
+internal static class Bodies
+{
+    public const double Box = 2 * EidolonMining.HalfWidth;
+
+    public static bool Touch(PathCell n, PathCell o, double reach = Box) =>
+        Math.Abs(n.X - o.X) < reach && Math.Abs(n.Z - o.Z) < reach && Math.Abs(n.Y - o.Y) < 4;
+
+    public static bool Contact(IReadOnlyList<PathCell> path, IEnumerable<PathCell> others, double reach = Box)
+    {
+        var start = path[0];
+        var goal = path[^1];
+        foreach (var o in others)
+        {
+            if (Touch(start, o, reach) || Touch(goal, o, reach))
+                continue;
+            foreach (var n in path.Skip(1))
+                if (Touch(n, o, reach))
+                    return true;
+        }
+        return false;
+    }
+
+    /// <summary>The way from <paramref name="from"/> to <paramref name="to"/> keeping a margin off the others'
+    /// boxes and out of <paramref name="claimed"/> columns past its first steps; null for none.</summary>
+    public static List<PathCell>? Round(MineState live, PathCell from, PathCell to, IReadOnlyList<PathCell> others, ISet<(int X, int Z)>? claimed = null)
+    {
+        const double margin = Box + 0.3;
+        var away = others.Where(o => !Touch(from, o, margin) && !Touch(to, o, margin)).ToList();
+        var d = MineCosts.From(live.Walk, from, [to], avoid: n =>
+            away.Any(o => Touch(n, o, margin))
+            || claimed != null && (claimed.Contains((n.X - 1, n.Z - 1)) || claimed.Contains((n.X, n.Z - 1)) || claimed.Contains((n.X - 1, n.Z)) || claimed.Contains((n.X, n.Z))));
+        var path = d.Path(to);
+        return path.Count > 0 && path[0] == from && path[^1] == to ? path.ToList() : null;
     }
 }
 
@@ -441,7 +491,7 @@ internal static class MineCases
 internal sealed class RouteRunner
 {
     private const double Check = 0.5;
-    private const double ClaimPatience = 5, StrikePatience = 10, ThroughSeconds = 20, DeadlockSeconds = 8;
+    private const double ClaimPatience = 2, StrikePatience = 10, ThroughSeconds = 20, DeadlockSeconds = 8;
 
     private sealed class Worker(long id, PathCell at)
     {
@@ -461,6 +511,8 @@ internal sealed class RouteRunner
         public readonly List<(double From, double To)> Idle = new();
         public readonly Dictionary<string, double> IdleBy = new();
         public string? Why;
+        public int Contacts;
+        public double Work;
     }
 
     private void AddIdle(Worker w, double now)
@@ -673,7 +725,7 @@ internal sealed class RouteRunner
         }
         Waiting(w, now, "no stop");
         // nothing for it: as TeamRunner, it walks out of the others' way to where it started and waits there
-        if (w.At != w.Rest && path.Find(w.At, w.Rest, PlanRunner.MaxNodes) is { } away)
+        if (w.At != w.Rest && Walkable(w, path.Find(w.At, w.Rest, PlanRunner.MaxNodes), w.Rest) is { } away)
         {
             CloseZone(w, now);
             w.FreeAt = now + (away.Count - 1) * MineDispatch.WalkSecondsPerBlock;
@@ -700,7 +752,7 @@ internal sealed class RouteRunner
 
     private void PlannedWait(Worker w, MineStop head, double now, WidePath path)
     {
-        if (w.At != head.At && _live.Site.Standable(head.At) && path.Find(w.At, head.At, PlanRunner.MaxNodes) is { } way && way[^1] == head.At)
+        if (w.At != head.At && _live.Site.Standable(head.At) && Walkable(w, path.Find(w.At, head.At, PlanRunner.MaxNodes), head.At) is { } way)
         {
             CloseZone(w, now);
             w.FreeAt = now + (way.Count - 1) * MineDispatch.WalkSecondsPerBlock;
@@ -728,12 +780,20 @@ internal sealed class RouteRunner
         var cells = (stop.Cells.Count > 0 ? stop.Cells : station.Cells).Where(_live.Remaining.Contains).ToList();
         if (cells.Count == 0 || MineDispatch.Cells(_live, station with { Cells = cells }, stop.Ahead).Count == 0 || !_live.Walk.Out(station.Stand))
             return false;
-        if (MineDispatch.Fit(station with { Cells = cells }, _plan.Tunnel, u => _board.Free(w.Id, u, now)) == null)
+        if (MineDispatch.Fit(station with { Cells = cells }, _plan.Tunnel, u => _board.Free(w.Id, u, now)) is not { } fit)
             return false;
+        // not ahead of another's stop the plan has go first there: its claim, or its way, meets this one
+        var claim = MineDispatch.Claim(fit, _plan.Tunnel).ToHashSet();
+        foreach (var o in _routes!.Routes.Values.Where(r => r.Member != w.Id))
+            foreach (var other in o.Stops.Where(x => x.Kind == MineStopKind.Station).Take(2))
+                if (other.Depart < stop.Depart && other.Station < _plan.Stations.Count
+                    && (MineDispatch.Claim(_plan.Stations[other.Station] with { Cells = other.Cells.Count > 0 ? other.Cells : _plan.Stations[other.Station].Cells }, _plan.Tunnel).Any(claim.Contains)
+                        || Bodies.Touch(other.At, station.Stand, Bodies.Box + 0.3)))
+                    return false;
         if (_workers.Any(o => o != w && Math.Abs(o.At.X - station.Stand.X) < 1.7 && Math.Abs(o.At.Z - station.Stand.Z) < 1.7 && Math.Abs(o.At.Y - station.Stand.Y) < 4))
             return false;
         var leg = path.Find(w.At, station.Stand, PlanRunner.MaxNodes);
-        return leg != null && leg[^1] == station.Stand && !Crosses(w, leg, now);
+        return leg != null && leg[^1] == station.Stand && !Crosses(w, leg, now) && !Bodies.Contact(leg, Others(w));
     }
 
     // ---- setting off ----
@@ -769,6 +829,8 @@ internal sealed class RouteRunner
         bool taken = _workers.Any(o => o != w && Math.Abs(o.At.X - station.Stand.X) < 1.7 && Math.Abs(o.At.Z - station.Stand.Z) < 1.7 && Math.Abs(o.At.Y - station.Stand.Y) < 4);
         if (fit == null || taken)
         {
+            if (w.HeadWait == null)
+                Log.Add($"{now:0.0}: {w.Id} #{station.Id} at {station.Stand}: {(taken ? "taken" : "no fit")}; held by {string.Join(",", MineDispatch.Claim(station with { Cells = cells }, _plan.Tunnel).Select(u => _board.Holder(u, now)).Where(h => h != null && h != w.Id).Distinct())}; others at {string.Join(" ", _workers.Where(o => o != w).Select(o => $"{o.Id}@{o.At}"))}");
             Hold(w, now, ClaimPatience, MineRefusal.None);
             return;
         }
@@ -779,19 +841,28 @@ internal sealed class RouteRunner
             w.FreeAt = now + Check;
             return;
         }
-        if (Crosses(w, leg, now))
+        if (Crosses(w, leg, now) || Bodies.Contact(leg, Others(w)))
         {
-            // a way round the columns the others hold, if not much longer; else it waits
+            // a way round the columns the others hold and the others themselves, if not much longer; else it waits
             var held = new HashSet<(int X, int Z)>(_workers.Where(o => o != w).SelectMany(o => _board.Held(o.Id)).Where(u => _board.Holder(u, now) is { } h && h != w.Id));
-            var round = MineCosts.From(_live.Walk, w.At, [station.Stand],
-                avoid: n => held.Contains((n.X - 1, n.Z - 1)) || held.Contains((n.X, n.Z - 1)) || held.Contains((n.X - 1, n.Z)) || held.Contains((n.X, n.Z)));
-            var way = round.Path(station.Stand);
-            if (way.Count > 0 && way[0] == w.At && (way.Count - 1) <= (leg.Count - 1) + MineRoutePlanner.DetourSeconds / MineDispatch.WalkSecondsPerBlock && !Crosses(w, way, now))
-                leg = way.ToList();
+            var way = Bodies.Round(_live, w.At, station.Stand, Others(w), held);
+            if (way != null && (way.Count - 1) <= (leg.Count - 1) + MineRoutePlanner.DetourSeconds / MineDispatch.WalkSecondsPerBlock
+                && !Crosses(w, way, now) && !Bodies.Contact(way, Others(w)))
+                leg = way;
             else
             {
-                Hold(w, now, ThroughSeconds, MineRefusal.None);
-                return;
+                // no way round: past another's claim after a while (as the game goes through), and past another
+                // eidolon briefly, rarely, never one on a stair or a narrow way (the owner's rule)
+                w.HeadWait ??= now;
+                double waited = now - w.HeadWait.Value;
+                bool touch = Bodies.Contact(leg, Others(w));
+                bool passes = !touch || waited >= PassAfter && MayPass(w, leg);
+                bool crosses = !Crosses(w, leg, now) || waited >= CrossAfter;
+                if (!(passes && crosses))
+                {
+                    Hold(w, now, ThroughSeconds, MineRefusal.None);
+                    return;
+                }
             }
         }
         if (Gate(w, head, leg, now) is { } blocked)
@@ -829,10 +900,15 @@ internal sealed class RouteRunner
             if (_holders.TryGetValue(left.Zone, out var lh) && lh.Member == w.Id)
                 _holders[left.Zone] = (w.Id, now);
         }
-        foreach (var node in leg.Skip(2))
-            for (int x = node.X - 1; x <= node.X; x++)
-            for (int z = node.Z - 1; z <= node.Z; z++)
-                Assert.False(_board.Holder((x, z), now) is { } h && h != w.Id, $"{w.Id} sets off at {now} through {(x, z)}, held by another");
+        Log.Add($"{now:0.0}: {w.Id} sets off for #{station.Id} at {station.Stand}, {leg.Count - 1} steps{(Crosses(w, leg, now) ? ", across a claim" : "")}{(Bodies.Contact(leg, Others(w)) ? ", past another" : "")}");
+        if (Crosses(w, leg, now))
+            Crossings++;
+        if (Bodies.Contact(leg, Others(w)))
+        {
+            Contacts++;
+            w.Contacts++;
+            ContactSeconds = Math.Max(ContactSeconds, Touching(w, leg) * step);
+        }
         w.FreeAt = now + (leg.Count - 1) * step;
         w.Walked += leg.Count - 1;
         w.At = station.Stand;
@@ -844,6 +920,54 @@ internal sealed class RouteRunner
         w.TurnZone = null;
         w.Waiting = false;
         _board.Struck(w.Id, now);
+    }
+
+    private List<PathCell> Others(Worker w) => _workers.Where(o => o != w).Select(o => o.At).ToList();
+
+    // a way to walk that touches no other eidolon: as found, or round them; null for none (it stays)
+    private List<PathCell>? Walkable(Worker w, List<PathCell>? found, PathCell to)
+    {
+        if (found == null || found[^1] != to)
+            return null;
+        if (!Bodies.Contact(found, Others(w)))
+            return found;
+        var round = Bodies.Round(_live, w.At, to, Others(w));
+        return round != null && !Bodies.Contact(round, Others(w)) ? round : null;
+    }
+
+    /// <summary>Ways walked touching another eidolon's box (passing it), and the longest such touch.</summary>
+    public int Contacts { get; private set; }
+
+    public double ContactSeconds { get; private set; }
+
+    /// <summary>Ways walked across columns another held (after waiting <see cref="CrossAfter"/>).</summary>
+    public int Crossings { get; private set; }
+
+    /// <summary>Each member's passes, against the work it did (the owner's rule: about one each 2 minutes).</summary>
+    public IReadOnlyList<(int Contacts, double WorkSeconds)> ContactRates => _workers.Select(w => (w.Contacts, w.Work)).ToList();
+
+    private const double PassAfter = 2, CrossAfter = 4, PassEach = 120, PassLongest = 2;
+
+    // the nodes of a way, in a row at most, that touch another
+    private int Touching(Worker w, IReadOnlyList<PathCell> leg)
+    {
+        var others = Others(w).Where(o => !Bodies.Touch(leg[0], o) && !Bodies.Touch(leg[^1], o)).ToList();
+        int run = 0, longest = 0;
+        foreach (var n in leg.Skip(1))
+        {
+            run = others.Any(o => Bodies.Touch(n, o)) ? run + 1 : 0;
+            longest = Math.Max(longest, run);
+        }
+        return longest;
+    }
+
+    // whether it may pass the others its way touches: briefly, within its share of passes, none on a narrow way
+    private bool MayPass(Worker w, IReadOnlyList<PathCell> leg)
+    {
+        if (w.Contacts + 1 > 1 + w.Work / PassEach || Touching(w, leg) * MineDispatch.WalkSecondsPerBlock > PassLongest)
+            return false;
+        var touched = Others(w).Where(o => !Bodies.Touch(leg[0], o) && !Bodies.Touch(leg[^1], o) && leg.Skip(1).Any(n => Bodies.Touch(n, o)));
+        return touched.All(o => _routes!.ZoneIndex.Of(o) == null);
     }
 
     // its route's leg still holds: from where it is, every node a place it may stand and out
@@ -948,7 +1072,7 @@ internal sealed class RouteRunner
             if (parent.Count > 2000)
                 break;
             foreach (var v in _live.Walk.Joins(u))
-                if (_live.Walk.Out(v) && parent.TryAdd(v, u))
+                if (_live.Walk.Out(v) && !Others(w).Any(o => !Bodies.Touch(w.At, o) && Bodies.Touch(v, o)) && parent.TryAdd(v, u))
                     queue.Enqueue(v);
         }
         w.FreeAt = now + Check;
@@ -1039,6 +1163,7 @@ internal sealed class RouteRunner
         w.HeadWait = null;
         w.Waiting = false;
         w.FreeAt = now + seconds;
+        w.Work += seconds;
         Strikes.Add((w.Id, station.Kind, now, w.FreeAt, group.Cells));
         Makespan = Math.Max(Makespan, w.FreeAt);
     }
