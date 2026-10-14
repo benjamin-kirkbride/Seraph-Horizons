@@ -124,6 +124,22 @@ public sealed class MineJobCells
     /// <summary>Whether the plan was made again because no member had a station it could work while
     /// cells were left (README "Eidolon", working together, *Dispatch*): once, until a block is broken.</summary>
     public bool StuckReplanned { get; set; }
+
+    /// <summary>The job's route plan (README "Eidolon", working together, *Routes*), main thread only; null
+    /// before the first, and while today's dispatch is used instead.</summary>
+    public MineRoutes? Routes { get; set; }
+
+    /// <summary>Counts every swap of <see cref="Routes"/> and every repair that changes a route.</summary>
+    public int RoutesVersion { get; set; }
+
+    /// <summary>Why a route solve is asked for (null: none), and whether at once.</summary>
+    public string? RoutesWanted { get; set; }
+
+    public bool RoutesUrgent { get; set; }
+
+    /// <summary>Who holds each narrow way (README "Eidolon", working together, *Narrow ways*), by its zone's
+    /// key, and until when (a lease, refreshed while it walks there or stands in it).</summary>
+    public Dictionary<PathCell, (long Member, double Until)> Holders { get; } = new();
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>
