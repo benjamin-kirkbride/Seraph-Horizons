@@ -74,7 +74,12 @@ public static class OreCellOrder
     /// <summary>Settles each metal's cell at the spawn by generating around its active spot in the
     /// order given (the anchor's columns sorted by <paramref name="order"/>), moving on while the
     /// spot fails, then records the ore around the placed anchor.</summary>
-    public static async Task Run(Atlas.Api.IWorldSession world, ITestOutputHelper output, string name, Func<ChunkPos, IEnumerable<ChunkPos>, IEnumerable<ChunkPos>> order)
+    public static Task Run(Atlas.Api.IWorldSession world, ITestOutputHelper output, string name, Func<ChunkPos, IEnumerable<ChunkPos>, IEnumerable<ChunkPos>> order) =>
+        Run(world, output, name, order, "spawn", Seed, Metals.Select(m => (m, (CellPos?)null)));
+
+    /// <summary>The same for given cells (null: the metal's cell at the spawn), as the set <paramref name="set"/>.</summary>
+    public static async Task Run(Atlas.Api.IWorldSession world, ITestOutputHelper output, string name, Func<ChunkPos, IEnumerable<ChunkPos>, IEnumerable<ChunkPos>> order,
+        string set, int seed, IEnumerable<(string Metal, CellPos? Cell)> cells)
     {
         var sapi = (ICoreServerAPI)world.Api;
         var placement = sapi.ModLoader.GetModSystem<OreSystem>().Placement ?? throw new Xunit.Sdk.XunitException("ore cells are not bound");
@@ -82,9 +87,9 @@ public static class OreCellOrder
         await world.JoinAtSpawn("surveyor");
         var spawn = sapi.World.DefaultSpawnPosition.AsBlockPos;
         var results = new Dictionary<string, Result>();
-        foreach (var metal in Metals)
+        foreach (var (metal, given) in cells)
         {
-            var cell = placement.Cells.CellOf(metal, spawn.X, spawn.Z);
+            var cell = given ?? placement.Cells.CellOf(metal, spawn.X, spawn.Z);
             for (int round = 0; round < OreCells.SpotCount; round++)
             {
                 var state = placement.StateOf(metal, cell);
@@ -106,45 +111,46 @@ public static class OreCellOrder
             output.WriteLine($"{name}: {metal} cell {cell} spot {spot.Index} anchor {spot.Chunk}: {vein.Variant} in {vein.Host}, {ore.Count} ore blocks");
         }
         Assert.Equal(0, placement.MissedReplays);
-        Results[name] = results;
+        string key = $"{set}/{name}";
+        Results[key] = results;
         Blocks = sapi.World.Blocks;
-        Save(name, results, sapi);
+        Save(seed, set, name, results, sapi);
         // Worlds booted one after another in one process do not come out alike: a second world's
         // vanilla deposits (cracked rock) differ from the same world booted in a process of its
         // own, so something outlives a server in the process (#946, open). The
         // orders are compared across processes: run each class in its own `dotnet test`.
-        var other = Results.Keys.FirstOrDefault(k => k != name);
+        var other = Results.Keys.FirstOrDefault(k => k != key && k.StartsWith(set + "/", StringComparison.Ordinal));
         if (other != null)
             output.WriteLine($"{name}: '{other}' ran in this process too; worlds booted in one process differ (see the code), so it is compared only from its own process's file");
         var otherName = name == "anchor first" ? "far first" : "anchor first";
-        if (Load(otherName, sapi) is not { } fromFile)
+        if (Load(seed, set, otherName, sapi) is not { } fromFile)
         {
-            output.WriteLine($"{name}: recorded in {FileOf(name)}; '{otherName}' has no file from another process yet, nothing to compare");
+            output.WriteLine($"{name}: recorded in {FileOf(seed, set, name)}; '{otherName}' has no file from another process yet, nothing to compare");
             return;
         }
         Compare(output, fromFile, results, otherName, name);
     }
 
     // Results kept between processes: per metal, anchor, variant and every ore block by code.
-    private static string FileOf(string name) =>
-        Path.Combine(Path.GetTempPath(), $"orecellorder-{Seed}-{name.Replace(' ', '-')}.json");
+    private static string FileOf(int seed, string set, string name) =>
+        Path.Combine(Path.GetTempPath(), $"orecellorder-{seed}-{set}-{name.Replace(' ', '-')}.json");
 
     private sealed record Saved(int Pid, Dictionary<string, SavedMetal> Metals);
 
     private sealed record SavedMetal(int AnchorX, int AnchorZ, string Variant, List<int[]> Positions, List<string> Codes);
 
-    private static void Save(string name, Dictionary<string, Result> results, ICoreServerAPI sapi)
+    private static void Save(int seed, string set, string name, Dictionary<string, Result> results, ICoreServerAPI sapi)
     {
         var metals = results.ToDictionary(kv => kv.Key, kv => new SavedMetal(kv.Value.Anchor.X, kv.Value.Anchor.Z, kv.Value.Variant,
             kv.Value.Ore.Keys.Select(k => new[] { k.X, k.Y, k.Z }).ToList(),
             kv.Value.Ore.Values.Select(id => sapi.World.Blocks[id].Code.ToString()).ToList()));
-        File.WriteAllText(FileOf(name), System.Text.Json.JsonSerializer.Serialize(new Saved(Environment.ProcessId, metals)));
+        File.WriteAllText(FileOf(seed, set, name), System.Text.Json.JsonSerializer.Serialize(new Saved(Environment.ProcessId, metals)));
     }
 
-    private static Dictionary<string, Result>? Load(string name, ICoreServerAPI sapi)
+    private static Dictionary<string, Result>? Load(int seed, string set, string name, ICoreServerAPI sapi)
     {
-        if (!File.Exists(FileOf(name))) return null;
-        var saved = System.Text.Json.JsonSerializer.Deserialize<Saved>(File.ReadAllText(FileOf(name)));
+        if (!File.Exists(FileOf(seed, set, name))) return null;
+        var saved = System.Text.Json.JsonSerializer.Deserialize<Saved>(File.ReadAllText(FileOf(seed, set, name)));
         if (saved == null || saved.Pid == Environment.ProcessId) return null;
         return saved.Metals.ToDictionary(kv => kv.Key, kv => new Result(new ChunkPos(kv.Value.AnchorX, kv.Value.AnchorZ), kv.Value.Variant,
             kv.Value.Positions.Zip(kv.Value.Codes).ToDictionary(p => (p.First[0], p.First[1], p.First[2]),
@@ -210,6 +216,32 @@ public class OreCellOrderFarFirst(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = 900_000)]
     public Task Cell_veins_generated_from_far_to_near() =>
         OreCellOrder.Run(World, output, "far first", (anchor, cols) => cols.OrderByDescending(c => c.X).ThenByDescending(c => c.Z));
+}
+
+/// <summary>A seam pocket (IOG's multi-ore fault pocket, <c>hematite</c>): seed 101's iron cell
+/// 103,101, whose first spot holds a <c>hematite#1</c> seam in granite.</summary>
+public static class OreCellOrderSeam
+{
+    public const int Seed = 101;
+    public static readonly (string, CellPos?)[] Cells = [("iron", new CellPos(103, 101))];
+}
+
+[AtlasWorld(Seed = OreCellOrderSeam.Seed, WorldType = "standard")]
+public class OreCellOrderSeamAnchorFirst(ITestOutputHelper output) : AtlasScenarioBase
+{
+    [AtlasScenario(TimeoutMs = 900_000)]
+    public Task Seam_vein_generated_anchor_first() =>
+        OreCellOrder.Run(World, output, "anchor first", (anchor, cols) => cols.OrderBy(c => OreCellOrder.Ring(anchor, c)).ThenBy(c => c.X).ThenBy(c => c.Z),
+            "seam", OreCellOrderSeam.Seed, OreCellOrderSeam.Cells);
+}
+
+[AtlasWorld(Seed = OreCellOrderSeam.Seed, WorldType = "standard")]
+public class OreCellOrderSeamFarFirst(ITestOutputHelper output) : AtlasScenarioBase
+{
+    [AtlasScenario(TimeoutMs = 900_000)]
+    public Task Seam_vein_generated_from_far_to_near() =>
+        OreCellOrder.Run(World, output, "far first", (anchor, cols) => cols.OrderByDescending(c => c.X).ThenByDescending(c => c.Z),
+            "seam", OreCellOrderSeam.Seed, OreCellOrderSeam.Cells);
 }
 
 /// <summary>One world: an anchor's area generated anchor first, deleted, and generated again from
