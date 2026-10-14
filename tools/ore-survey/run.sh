@@ -15,6 +15,7 @@
 #                    scanning it all (census.json; default name census, size 320)
 #   --metals LIST    census only these metals (comma-separated; default every sized metal)
 #   --floods N       census: deposits flooded at once per server (default 4)
+#   --kinds K        census: only ore cells (cells) or only district veins (districts)
 #   --fast           leave out the worldgen passes after ore (vegetation, ...); scan or census
 #   --profile        log each worldgen handler's time at the end
 #   -j N             runs at once (default 4)
@@ -28,7 +29,7 @@ set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 size="" vanilla=0 mods_dir=$root/build/mods modconfig="" name="" dump=0 jobs=4 port=42460
-census=0 metals="" floods=4 fast=0 profile=0
+census=0 metals="" kinds="" floods=4 fast=0 profile=0
 extra=()
 seeds=()
 while [ $# -gt 0 ]; do
@@ -43,6 +44,7 @@ while [ $# -gt 0 ]; do
     --census) census=1; shift ;;
     --metals) metals=$2; shift 2 ;;
     --floods) floods=$2; shift 2 ;;
+    --kinds) kinds=$2; shift 2 ;;
     --fast) fast=1; shift ;;
     --profile) profile=1; shift ;;
     -j) jobs=$2; shift 2 ;;
@@ -96,7 +98,7 @@ survey() {  # survey SEED PORT
   (
     cd "$VINTAGE_STORY"
     ORE_SURVEY_OUT=$data/$o ORE_SURVEY_SIZE=$size ORE_SURVEY_MODE=$m \
-    ORE_SURVEY_FAST=$fast ORE_SURVEY_PROFILE=$profile ORE_CENSUS_METALS=$metals ORE_CENSUS_PARALLEL=$floods \
+    ORE_SURVEY_FAST=$fast ORE_SURVEY_PROFILE=$profile ORE_CENSUS_METALS=$metals ORE_CENSUS_KINDS=$kinds ORE_CENSUS_PARALLEL=$floods \
     dotnet VintagestoryServer.dll --dataPath "$data" --port "$p" \
       '--withconfig={"WorldConfig":{"Seed":"'"$([ "$seed" = dump ] && echo 101 || echo "$seed")"'","WorldName":"oresurvey","WorldType":"standard","PlayStyle":"surviveandbuild"}}' \
       > "$data/server.out" 2>&1 < /dev/null
