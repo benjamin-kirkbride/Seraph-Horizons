@@ -180,14 +180,14 @@ class Anchors(unittest.TestCase):
         self.assertEqual((RIG["kettleCell"], RIG["kettleFace"]), ([0, 1, 1], "up"))
 
     def test_side_faces_are_flush_for_a_row(self):
-        # only the brick and the corner angles' legs, set flush, reach the side planes, and nothing passes them
+        # only the brick and the binding's side legs (corner angles, side bands), set flush, reach the side planes, and nothing passes them
         west, east = DX, DX + 48.0
         for el in FLAT:
             lo, hi = el.aabb()
             self.assertGreaterEqual(lo[0], west - 1e-6, el.name)
             self.assertLessEqual(hi[0], east + 1e-6, el.name)
             if lo[0] < west + 1e-6 or hi[0] > east - 1e-6:
-                self.assertTrue(el.name.startswith(("bk_brick", "fr_angle_")), el.name)
+                self.assertTrue(el.name.startswith(("bk_brick", "fr_angle_", "fr_band_")), el.name)
 
     def test_the_binding_is_angle_iron(self):
         # an angle at each vertical corner, ground to floor, legs 1 thick and 2.5 along each face from the corner; an
@@ -208,12 +208,38 @@ class Anchors(unittest.TestCase):
             thin_z = [el for el in legs if el.aabb()[1][2] - el.aabb()[0][2] <= t + 0.05]
             thin_x = [el for el in legs if el.aabb()[1][0] - el.aabb()[0][0] <= t + 0.05]
             self.assertTrue(thin_z and thin_x, tag)
-        for face in ("n", "s"):
+        # an angle band along the top edge of every face, corner to corner, the top of each corner closed
+        for face, (x0, x1), (z0, z1) in (("n", (t, 48.0 - t), (0.0, leg)), ("s", (t, 48.0 - t), (48.0 - leg, 48.0)),
+                                         ("w", (0.0, leg), (leg, 48.0 - leg)), ("e", (48.0 - leg, 48.0), (leg, 48.0 - leg))):
             lo, hi = aabb_of([el for el in FLAT if el.name.startswith(f"fr_band_{face}_")])
-            self.assertAlmostEqual(lo[0], DX + leg, delta=0.05)
-            self.assertAlmostEqual(hi[0], DX + 48.0 - leg, delta=0.05)
-            self.assertAlmostEqual(hi[1], 32.0, delta=0.05)
-            self.assertAlmostEqual(hi[1] - lo[1], leg, delta=0.05)
+            for a, b in zip(lo + hi, [DX + x0, 32.0 - leg, z0, DX + x1, 32.0, z1]):
+                self.assertAlmostEqual(a, b, delta=0.05, msg=face)
+
+    def test_the_binding_is_one_closed_frame(self):
+        # the owner's rule that members meet: each corner's top is iron all over (the bands run onto the uprights'
+        # heads), and the binding's pieces, joined where two touch over an area, are one connected frame
+        t, leg = make_shape.BIND_T, make_shape.BIND_LEG
+        binders = [el for el in FLAT if el.name.startswith(("fr_angle_", "fr_band_"))]
+        boxes = [el.aabb() for el in binders]
+
+        def iron(p):
+            return any(all(lo[k] + 1e-6 < p[k] < hi[k] - 1e-6 for k in range(3)) for lo, hi in boxes)
+        for xc, zc, sx, sz in ((0.0, 0.0, 1, 1), (48.0, 0.0, -1, 1), (0.0, 48.0, 1, -1), (48.0, 48.0, -1, -1)):
+            for u in (0.25, 1.25, leg - 0.25):
+                for w in (0.25, 1.25, leg - 0.25):
+                    self.assertTrue(iron((DX + xc + sx * u, 31.9, zc + sz * w)), (xc, zc, u, w))
+
+        def joined(a, b):
+            gaps = [min(a[1][k], b[1][k]) - max(a[0][k], b[0][k]) for k in range(3)]
+            return all(g > -1e-6 for g in gaps) and sum(g > 0.2 for g in gaps) >= 2
+        seen, todo = {0}, [0]
+        while todo:
+            i = todo.pop()
+            for j in range(len(boxes)):
+                if j not in seen and joined(boxes[i], boxes[j]):
+                    seen.add(j)
+                    todo.append(j)
+        self.assertEqual(len(seen), len(boxes), sorted(binders[j].name for j in range(len(boxes)) if j not in seen))
 
 
 def element_volume(e):

@@ -26,9 +26,13 @@ crucible furnace's.
   corner, so it locks the brick in on both faces. At each of the four vertical corners an **angle** runs from the
   ground to the floor, one leg on the front (or back) face and one on the side face, each 1 thick and 2.5 from the
   corner, its inside corner bedded against the brick's outside corner (the brick is notched for it, so its legs lie
-  flush with the faces). Along the top edge of the front and of the back an **angle band** wraps that edge, one leg down
-  the face and one on the top (flush with the floor), its ends meeting the corner angles' face legs. No flat strap is
-  left.
+  flush with the faces). Along the top edge of every face (front, back and both sides) an **angle band** wraps that edge, one leg
+  down the face and one on the top (flush with the floor), and every band end lands on an upright's head, so each
+  corner is a closed joint: the front's and the back's face legs butt the corner angles' face legs and their top legs
+  run on over the corner to the angles' side legs; the side bands' face legs butt the angles' side legs and their top
+  legs the front's and back's top legs. The top of each corner is iron all over, 2.5 by 2.5, and the binding is one
+  connected frame (four uprights and a ring round the top). The side bands lie flush, like the angles' side legs, so a
+  row's neighbours still meet face to face. No flat strap is left.
 
 - **The kettle** hangs by its flange in the setting, **centred left to right in the front two rows** (its axis at
   x 24, z 20 in the build frame): a hemispherical bowl 24 voxels across inside (a faceted hemisphere: three bands of
@@ -61,7 +65,7 @@ crucible furnace's.
   the stirrer turns at the axle's speed. **No rectifier:** flat paddles stir alike either way (#927, rule 3).
 - **Kettles stand in a row**, side by side along their width (x), sharing walls: the side faces are flush, brickwork
   but for the corner angles' side legs set flush in them, with nothing beyond the footprint, so two settings' side
-  walls meet (their corner angles back to back) and touch nowhere else, the stirrers turning. A row shares one chimney; the flues between the settings are
+  walls meet (their corner angles and side bands back to back) and touch nowhere else, the stirrers turning. A row shares one chimney; the flues between the settings are
   implied, not modelled. A row's axles come from a line shaft along x behind it, at 2.5 blocks up, an angled gear
   turning into each kettle's power face.
 
@@ -117,7 +121,7 @@ order), and the viewer's **Build** select steps through them:
 | | Stage | `requires` | What it puts in | Materials |
 |---|---|---|---|---|
 | Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | The binding's corner angles and top angle bands, the grate's bearers and firebars on three short posts (hidden in the brickwork), the cast-iron front with the damper's rails and the fire door's guides | 2 iron plates, 4 iron rods, 10 iron nails and strips (the crucible furnace's, unchanged: to settle) |
-| 1 | **Brickwork** | `brickwork` | The base, the ash pit and the ash mouth, the outer walls: 9.60 blocks | **20 fired bricks**, any one type (`game:burnedbrick-*`) |
+| 1 | **Brickwork** | `brickwork` | The base, the ash pit and the ash mouth, the outer walls: 9.51 blocks | **20 fired bricks**, any one type (`game:burnedbrick-*`) |
 | 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on the hot faces (round the fire and the kettle, the seat the flange lies on, the flue, the stack and the outlet's curb): 2.97 blocks | **12 tier-3 refractory bricks**, **5 fire clay** |
 | 3 | **Kettle and doors** | `kettle` (and the `firedoor` part, and the damper's places) | The cast-iron kettle let down into its seat; the fire door; the damper | 6 iron plates (a proposal: the kettle's iron measures 0.39 blocks) |
 | 4 | **Stirrer** | `stirrer` (and the `gallows` and `drive` parts) | The gallows, the pedestal, the drive shaft and its pinion, the stirrer with its mitre wheel and paddles | 4 iron plates, 4 iron rods, 4 iron nails and strips (a proposal: the gallows measure 0.31 blocks of iron, the drive and the stirrer 0.15) |
@@ -216,14 +220,19 @@ A full run is deterministic (two runs into two folders are byte-identical). It e
   flange's 0.15.
 - **A flat top:** every half voxel of the top, but the kettle's mouth and the outlet's cap seat, is brick whose top is
   the floor, or the flange.
-- **A row:** each side face is flush, brickwork over its whole area but for the corner angles' legs, nothing else
+- **A row:** each side face is flush, brickwork over its whole area but for the binding's flush side legs (the corner angles' and the side
+  bands'), nothing else
   reaches either side plane in any pose, and two settings side by side touch nowhere but at their shared walls, the
   stirrers turning.
 - **The binding is angle iron** (the owner's rule): no flat strap or band; at each vertical corner an angle from the
   ground to the floor whose section is iron along both legs (1 thick, 2.5 from the corner) and brick beyond; the brick
   behind each leg's inside face and at its inside corner, sampled up its height, so both legs bear on the corner's two
-  brick faces; along the top edge of the front and of the back an angle band wrapping the edge, the brick behind both
-  its legs and at its inside corner, its ends on the corner angles.
+  brick faces; along the top edge of every face an angle band wrapping the edge from corner to corner, the brick behind
+  both its legs and at its inside corner.
+- **The binding is one closed frame** (the owner's rule that members meet): every end face of every band leg lies
+  on iron over its whole section, and at each end of each band at least one leg lands on an upright; the top of each
+  corner is iron all over, leg by leg; and the binding's pieces, joined wherever two touch over an area, are one
+  connected frame. (Run on the previous geometry, whose top legs stopped short of the corners, this check fails.)
 - **Centred, walls:** the kettle, the ash mouth, the fire door and its recess, the setting's inside and the iron front
   are centred left to right; the brick round the setting's inside is at least `MIN_WALL` (5.5) to the faces.
 - **The lining:** behind every hot face (the setting's inside from the grate to the seat, the flue opening, the back
@@ -310,7 +319,7 @@ fire door (`fd_plate`, `fd_handle`), `lead<n>_*`, `zinc_*`, `crust_*` (`cake`, `
 `knob`), `outletcap_*`, `gl_*` the gallows (`gl_foot_*`, `gl_standard_*`, `gl_lower*`, `gl_middle*`, `gl_upper*`,
 `gl_boss_*`, `gl_ped_*`), `dr_*` the drive (`dr_oaka`, `dr_oakb`, `dr_shaft_*`, `dr_collar_*`, `dr_pinion_*`,
 `dr_hub_*`), `st_*` the stirrer (`st_shaft_*`, `st_collar_*`, `st_hub_*`, `st_wheel_*`, `st_paddle<tier><n>`); and
-`fr_*` the iron frame (`fr_bearer`, `fr_bar`, `fr_front_*`, `fr_rail_*`, `fr_guide_*`, `fr_angle_<corner>_a`/`_b` (the corner angles' face and side legs), `fr_band_<face>_a`/`_b`,
+`fr_*` the iron frame (`fr_bearer`, `fr_bar`, `fr_front_*`, `fr_rail_*`, `fr_guide_*`, `fr_angle_<corner>_a`/`_b` (the corner angles' face and side legs), `fr_band_<face>_a`/`_b` (the top bands' face and top legs, `<face>` n, s, w or e),
 `fr_tie_*`). Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Salvage

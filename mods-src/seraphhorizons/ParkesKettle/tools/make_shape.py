@@ -534,12 +534,15 @@ def span(c, sign, a, b):
 
 def binding():
     """The iron binding, as (name, lo, hi), all angle iron (an L section, legs BIND_T thick and BIND_LEG long),
-    flush with the setting's faces, the brick notched for it. At each vertical corner, from the ground to the floor,
-    an angle wraps the corner (`fr_angle_<corner>_a` on the front or back face, `_b` on the side face): its inside
-    corner bedded against the brick's outside corner, a leg on each face, so it locks the brick in on both. Along the
-    top edge of the front and of the back, between the corner angles and joining their face legs, an angle band wraps
-    that edge (`fr_band_<face>_a` down the face, `_b` on the top). The side legs lie flush, so a row's neighbours meet
-    face to face."""
+    flush with the setting's faces, the brick notched for it, and one closed frame. At each vertical corner, from the
+    ground to the floor, an upright angle wraps the corner (`fr_angle_<corner>_a` on the front or back face, `_b` on
+    the side face): its inside corner bedded against the brick's outside corner, a leg on each face, so it locks the
+    brick in on both. Along the top edge of every face an angle band wraps that edge (`fr_band_<face>_a` down the
+    face, `_b` on the top), and every band end lands on an upright's head: the front's and the back's face legs butt
+    the uprights' face legs, their top legs run on to the uprights' side legs, over the corner, so the top of each
+    corner is iron all over its leg by leg; the side bands' face legs butt the uprights' side legs, their top legs the
+    front's and back's top legs. The side bands' and the uprights' side legs lie flush, so a row's neighbours meet face
+    to face."""
     t, leg = BIND_T, BIND_LEG
     out = []
     for tag, xc, zc, sx, sz in CORNERS:
@@ -549,7 +552,10 @@ def binding():
                     [span(xc, sx, 0.0, t)[1], H, span(zc, sz, t, leg)[1]]))
     for face, zc, sz in (("n", 0.0, 1), ("s", D, -1)):
         out.append((f"fr_band_{face}_a", [leg, H - leg, span(zc, sz, 0.0, t)[0]], [W - leg, H, span(zc, sz, 0.0, t)[1]]))
-        out.append((f"fr_band_{face}_b", [leg, H - t, span(zc, sz, t, leg)[0]], [W - leg, H, span(zc, sz, t, leg)[1]]))
+        out.append((f"fr_band_{face}_b", [t, H - t, span(zc, sz, t, leg)[0]], [W - t, H, span(zc, sz, t, leg)[1]]))
+    for face, xc, sx in (("w", 0.0, 1), ("e", W, -1)):
+        out.append((f"fr_band_{face}_a", [span(xc, sx, 0.0, t)[0], H - leg, leg], [span(xc, sx, 0.0, t)[1], H, D - leg]))
+        out.append((f"fr_band_{face}_b", [span(xc, sx, t, leg)[0], H - t, leg], [span(xc, sx, t, leg)[1], H, D - leg]))
     return [piece for name, lo, hi in out for piece in split_blocks(name, lo, hi)]
 
 

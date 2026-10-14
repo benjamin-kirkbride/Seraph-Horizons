@@ -298,11 +298,11 @@ def check_top(v):
 
 def check_sides(v):
     """Kettles tile into a row: each side face is flush, brick over its whole area (sampled every half voxel) but for
-    the corner angles' legs set flush in it, and nothing but brick and those angles reaches either side plane, of any
+    the binding's side legs (the corner angles' and the side top bands') set flush in it, and nothing but brick and those angles reaches either side plane, of any
     part in any pose; two side by side (one moved a setting's width along x) touch nowhere but at their shared walls,
     the stirrers turning."""
     m = v.m
-    flush = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if e.name.startswith("fr_angle_")]
+    flush = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if e.name.startswith(("fr_angle_", "fr_band_"))]
     bad, n = [], 0
     for x in (0.05, m.W - 0.05):
         y = 0.25
@@ -315,7 +315,7 @@ def check_sides(v):
                 z += 0.5
             y += 0.5
     if bad:
-        v.fail(f"the side faces are not brick and the corner angles at {len(bad)} of {n} points, e.g. {bad[:4]}")
+        v.fail(f"the side faces are not brick and the binding at {len(bad)} of {n} points, e.g. {bad[:4]}")
     reach = set()
     for th, dp in [(t, 0.0) for t in thetas(12)] + [(0.0, d) for d in depths(0.25)]:
         for pid in v.by_part:
@@ -323,7 +323,7 @@ def check_sides(v):
                 lo, hi = e.aabb()
                 if lo[0] < -1e-6 or hi[0] > m.W + 1e-6:
                     reach.add(e.name)
-                elif (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not e.name.startswith(("bk_brick", "fr_angle_")):
+                elif (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not e.name.startswith(("bk_brick", "fr_angle_", "fr_band_")):
                     reach.add(e.name)
     if reach:
         v.fail(f"not brick at a side plane: {sorted(reach)[:4]}")
@@ -345,7 +345,7 @@ def check_sides(v):
                     hits += 1
     if hits:
         v.fail(f"two kettles side by side run into each other ({hits} pairs)")
-    print(f"sides: flush brick or corner angle at {n - len(bad)} of {n} points on the two side faces; nothing else "
+    print(f"sides: flush brick or binding at {n - len(bad)} of {n} points on the two side faces; nothing else "
           f"reaches them; two kettles side by side clear of each other but at the shared walls")
 
 
@@ -370,7 +370,7 @@ def check_binding(v):
     def iron(p):
         return any(inside(e, p, eps=-1e-6) for e in binders)
     bad, pts = [], 0
-    ys = [0.5 + 1.0 * k for k in range(int(m.H))]
+    ys = [0.5 + 1.0 * k for k in range(int(m.H)) if 0.5 + k < m.H - t]   # under the top bands, which cap the corners
     for tag, xc, zc, sx, sz in m.CORNERS:
         els = [e for e in frame if e.name.startswith(f"fr_angle_{tag}_")]
         lo, hi = aabb_of(els)
@@ -393,33 +393,115 @@ def check_binding(v):
             pts += 1
             if not is_brick((xc + sx * (t + 0.05), y, zc + sz * (t + 0.05))):
                 bad.append((tag, "inside corner", (xc, y, zc)))
-    for face, zc, sz in (("n", 0.0, 1), ("s", m.D, -1)):
+    # the top bands, one along the top edge of every face: (face, the leg down the face's axis, its plane, inward)
+    for face, ax, c, sgn in (("n", 2, 0.0, 1), ("s", 2, m.D, -1), ("w", 0, 0.0, 1), ("e", 0, m.W, -1)):
+        al = 0 if ax == 2 else 2                                  # the band's long axis
+        length = m.W if ax == 2 else m.D
         els = [e for e in frame if e.name.startswith(f"fr_band_{face}_")]
+        if not els:
+            v.fail(f"no top band along the {face} face's top edge")
+            continue
         lo, hi = aabb_of(els)
-        want = ([leg, m.H - leg, min(zc, zc + sz * leg)], [m.W - leg, m.H, max(zc, zc + sz * leg)])
-        if not same_box((lo, hi), want, tol=0.05):
-            v.fail(f"the {face} top band does not wrap the top edge between the corner angles: {lo}..{hi}")
-        ends = [e for e in frame if e.name.startswith(("fr_angle_" + face + "w_a", "fr_angle_" + face + "e_a"))]
-        for x in (leg - 0.05, m.W - leg + 0.05):
-            pts += 1
-            if not any(inside(e, (x, m.H - 0.5, zc + sz * 0.5 * t)) for e in ends):
-                bad.append((face, "band's end on no corner angle", x))
-        for x in [leg + 0.5 + 2.0 * k for k in range(int((m.W - 2 * leg) / 2.0))]:
+        want_lo, want_hi = [0.0, m.H - leg, 0.0], [0.0, m.H, 0.0]
+        want_lo[ax], want_hi[ax] = min(c, c + sgn * leg), max(c, c + sgn * leg)
+        want_lo[al], want_hi[al] = (t, length - t) if ax == 2 else (leg, length - leg)
+        if not same_box((lo, hi), (want_lo, want_hi), tol=0.05):
+            v.fail(f"the {face} top band does not wrap the top edge from corner to corner: {lo}..{hi}")
+
+        def at(along, y, inward):
+            p = [0.0, y, 0.0]
+            p[al], p[ax] = along, c + sgn * inward
+            return tuple(p)
+        for x in [leg + 0.5 + 2.0 * k for k in range(int((length - 2 * leg) / 2.0))]:
             for u in (0.25, t - 0.25):
-                for p in ((x, m.H - leg + 0.25, zc + sz * u), (x, m.H - u, zc + sz * (leg - 0.25))):
+                for p in (at(x, m.H - leg + 0.25, u), at(x, m.H - u, leg - 0.25)):
                     pts += 1
                     if not iron(p):
                         bad.append((face, "band's section", p))
-            for p in ((x, m.H - 0.5 * (leg + t), zc + sz * (t + 0.05)), (x, m.H - t - 0.05, zc + sz * 0.5 * (t + leg)),
-                      (x, m.H - t - 0.05, zc + sz * (t + 0.05))):
+            for p in (at(x, m.H - 0.5 * (leg + t), t + 0.05), at(x, m.H - t - 0.05, 0.5 * (t + leg)),
+                      at(x, m.H - t - 0.05, t + 0.05)):
                 pts += 1
                 if not is_brick(p):
                     bad.append((face, "band's inside face", p))
+    joints, jpts = check_binding_joints(v, binders)
+    pts += jpts
+    bad += joints
     if bad:
-        v.fail(f"the binding's angles do not bear on the brick at {len(bad)} of {pts} points, e.g. {bad[:4]}")
+        v.fail(f"the binding is not a closed angle-iron frame bearing on the brick at {len(bad)} of {pts} points, e.g. {bad[:4]}")
     print(f"binding: angle iron only ({len(binders)} pieces, legs {t} thick and {leg} long): an angle at each of the 4 "
-          f"vertical corners, ground to floor, and an angle band along the top edge of the front and of the back joining "
-          f"them; the brick behind every leg and at every inside corner ({pts} points)")
+          f"vertical corners, ground to floor, and an angle band along the top edge of every face; every band end on an "
+          f"upright's head, every corner's top iron all over, one connected frame; the brick behind every leg and at "
+          f"every inside corner ({pts} points)")
+
+
+def check_binding_joints(v, binders):
+    """The binding is one closed frame, the owner's rule that members meet (no gaps, no floating ends). Every end face
+    of every top band's leg lies on iron over its whole section (sampled just past it), and at each end of each band
+    at least one of its legs lands on an upright (a corner angle); the top of each corner is iron all over, leg by
+    leg (the bands run onto the uprights' heads, so the joint is closed); and the pieces, joined wherever two touch
+    over an area, are one connected frame."""
+    m = v.m
+    t, leg = m.BIND_T, m.BIND_LEG
+    uprights = [e for e in binders if e.name.startswith("fr_angle_")]
+    bad, pts = [], 0
+
+    def on(p, els):
+        return any(inside(e, p, eps=-1e-6) for e in els)
+    for face in ("n", "s", "w", "e"):
+        legs = {}
+        for e in binders:
+            mt = re.match(rf"^fr_band_{face}_([ab])", e.name)
+            if mt:
+                legs.setdefault(mt.group(1), []).append(e)
+        if sorted(legs) != ["a", "b"]:
+            bad.append((face, "no angle band (two legs) along the top edge"))
+            continue
+        for end in (0, 1):
+            landed = False
+            for which, els in sorted(legs.items()):
+                lo, hi = aabb_of(els)
+                al = max(range(3), key=lambda k: hi[k] - lo[k])
+                across = [k for k in range(3) if k != al]
+                x = (lo[al] - 0.05) if end == 0 else (hi[al] + 0.05)
+                samples = []
+                for f0 in (0.1, 0.5, 0.9):
+                    for f1 in (0.1, 0.5, 0.9):
+                        p = [0.0, 0.0, 0.0]
+                        p[al] = x
+                        p[across[0]] = lo[across[0]] + f0 * (hi[across[0]] - lo[across[0]])
+                        p[across[1]] = lo[across[1]] + f1 * (hi[across[1]] - lo[across[1]])
+                        samples.append(tuple(p))
+                pts += len(samples)
+                if not all(on(p, binders) for p in samples):
+                    bad.append((face, which, "band end on no iron", end))
+                if all(on(p, uprights) for p in samples):
+                    landed = True
+            pts += 1
+            if not landed:
+                bad.append((face, "band end on no upright", end))
+    for tag, xc, zc, sx, sz in m.CORNERS:
+        for u in (0.25, 0.5 * leg, leg - 0.25):
+            for w in (0.25, 0.5 * leg, leg - 0.25):
+                pts += 1
+                if not on((xc + sx * u, m.H - 0.1, zc + sz * w), binders):
+                    bad.append((tag, "corner's top not closed", (u, w)))
+    # one connected frame: two pieces join where they overlap or touch over an area (not an edge or a point)
+    boxes = [e.aabb() for e in binders]
+
+    def joined(a, b):
+        gaps = [min(a[1][k], b[1][k]) - max(a[0][k], b[0][k]) for k in range(3)]
+        return all(g > -1e-6 for g in gaps) and sum(g > 0.2 for g in gaps) >= 2
+    seen, todo = {0}, [0]
+    while todo:
+        i = todo.pop()
+        for j in range(len(boxes)):
+            if j not in seen and joined(boxes[i], boxes[j]):
+                seen.add(j)
+                todo.append(j)
+    pts += 1
+    if len(seen) != len(boxes):
+        bad.append(("frame", "not one connected frame", sorted(binders[j].name for j in range(len(boxes)) if j not in seen)[:4]))
+    return bad, pts
 
 
 def check_walls(v):
