@@ -86,7 +86,7 @@ def box_corners(e):
     return out
 
 
-THIN_POST = 1.5                              # a post: a vertical element under this across both ways (a strap is wider)
+THIN_POST = 1.5                              # a post: a vertical element under this across both ways (an angle's leg is wider)
 
 
 # ---------------------------------------------------------------- parts, frame, textures
@@ -168,7 +168,7 @@ def check_stages(v):
 ROLES = [
     (r"^bk_brick_", {"brick"}),
     (r"^ln_(brick_|vault\d|backing)", {"lining"}),
-    (r"^fr_(bearer|bar|platebearer|jamb|doorlintel|ashlintel|guide|rail|strap|kerb|tie)", {"iron"}),
+    (r"^fr_(bearer|bar|platebearer|jamb|doorlintel|ashlintel|guide|rail|angle|band|tie)", {"iron"}),
     (r"^plate_", {"iron"}),
     (r"^pot_", {"iron"}),
     (r"^door_", {"iron"}),
@@ -236,34 +236,43 @@ def check_top(v):
         v.fail(f"the top is not flat at {len(bad)} points, e.g. {bad[:4]}")
 
 
+def side_leg(e):
+    """Whether e is a corner angle's leg (flush in the side face at the corner, so a row's walls still meet)."""
+    return e.name.startswith("fr_angle_")
+
+
 def check_sides(v):
-    """Furnaces tile into a row: each side face is flush, plain brick over its whole area (sampled every half voxel),
-    and nothing but brick reaches either side plane, of any part at any depth; two furnaces side by side (one moved a
-    furnace's width along x) touch nowhere but at their shared walls, over the door's travel."""
+    """Furnaces tile into a row: each side face is flush, plain brick over its whole area (sampled every half voxel)
+    but for the corner angles' side legs, flush in it; nothing but that brick and those legs reaches either side plane,
+    of any part at any depth; two furnaces side by side (one moved a furnace's width along x) touch nowhere but at their
+    shared walls (and their corner angles' side legs, face to face), over the door's travel."""
     m = v.m
-    bricks = v.by_part["brickwork"]
-    bad, n = [], 0
+    flush = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if side_leg(e)]
+    bad, n, legs = [], 0, 0
     for x in (0.05, m.W - 0.05):
         y = 0.25
         while y < m.H:
             z = 0.25
             while z < m.D:
                 n += 1
-                if not any(inside(e, (x, y, z)) for e in bricks):
+                hit = [e for e in flush if inside(e, (x, y, z))]
+                if not hit:
                     bad.append((x, y, z))
+                elif all(side_leg(e) for e in hit):
+                    legs += 1
                 z += 0.5
             y += 0.5
     if bad:
-        v.fail(f"the side faces are not plain brick at {len(bad)} of {n} points, e.g. {bad[:4]}")
+        v.fail(f"the side faces are not plain brick or the angles' side legs at {len(bad)} of {n} points, e.g. {bad[:4]}")
     reach = set()
     for dp in depths(0.1):
         for pid in v.by_part:
             for e in v.posed(pid, dp):
                 lo, hi = e.aabb()
-                if (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not e.name.startswith("bk_brick"):
+                if (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not (e.name.startswith("bk_brick") or side_leg(e)):
                     reach.add(e.name)
     if reach:
-        v.fail(f"not brick at a side plane: {sorted(reach)[:4]}")
+        v.fail(f"not brick or an angle's side leg at a side plane: {sorted(reach)[:4]}")
     hits = 0
     for dp in (0.0, 0.5, 1.0):
         a = [e for pid in v.by_part for e in v.posed(pid, dp)]
@@ -282,8 +291,71 @@ def check_sides(v):
                     hits += 1
     if hits:
         v.fail(f"two furnaces side by side run into each other ({hits} pairs)")
-    print(f"sides: plain brick at {n - len(bad)} of {n} points on the two side faces; nothing else reaches them; two "
-          f"furnaces side by side clear of each other but at the shared walls")
+    print(f"sides: plain brick at {n - len(bad) - legs} of {n} points on the two side faces, the corner angles' side legs "
+          f"flush at the other {legs}; nothing else reaches them; two furnaces side by side clear of each other but at "
+          "the shared walls")
+
+
+def check_binding(v):
+    """The binding is angle iron (the owner's rule for every brick furnace): each vertical corner binder, and each band
+    along a top edge, is an angle of two legs, each at most ANGLE_T + 0.01 thick, 2 to 3 wide outside, meeting along the
+    angle's corner, its outside faces flush with the furnace's two faces at that corner; and each leg's inside face is
+    bedded on brick over its whole length (sampled every half voxel just inside it, where no other binder is), so
+    the angle wraps the brick's corner and holds it on both faces. The bands run from corner angle to corner angle,
+    touching both, and no flat strap is left."""
+    m = v.m
+    frame = v.by_part["frame"]
+    bk = brick(v)
+    box_hi = (m.W, m.H, m.D)
+    worst, n = [], 0
+    binders = [e for e in frame if e.name.startswith(("fr_angle_", "fr_band_"))]
+    for name, legs, corner in m.binding_angles():
+        for (lo, hi), (axis, sign), other in zip(legs, corner, (legs[1], legs[0])):
+            size = [hi[k] - lo[k] for k in range(3)]
+            across = [k for k in range(3) if k != axis and size[k] < 4.0]
+            if size[axis] > m.ANGLE_T + 0.01 or len(across) != 1:
+                v.fail(f"{name}'s leg across axis {axis} is not a thin leg: {size}")
+                continue
+            face = 0.0 if sign < 0 else box_hi[axis]
+            if abs((lo[axis] if sign < 0 else hi[axis]) - face) > 1e-9:
+                v.fail(f"{name}'s leg on the {'+-'[sign < 0]}{'xyz'[axis]} face is not flush with it")
+            k = across[0]
+            width = max(hi[k], other[1][k]) - min(lo[k], other[0][k])
+            if not (2.0 - 1e-9 <= width <= 3.0 + 1e-9):
+                v.fail(f"{name}'s leg is {width:.2f} wide, not 2 to 3")
+            if not all(lo[q] <= other[1][q] + 1e-9 and other[0][q] <= hi[q] + 1e-9 for q in range(3)):
+                v.fail(f"{name}'s two legs do not meet")
+            inner = lo[axis] - 0.05 if sign > 0 else hi[axis] + 0.05
+            q = max(range(3), key=lambda r: size[r])
+            bare = 0
+            t = lo[q] + 0.25
+            while t < hi[q]:
+                u = lo[k] + 0.25
+                while u < hi[k]:
+                    p = [0.0, 0.0, 0.0]
+                    p[axis], p[q], p[k] = inner, t, u
+                    if not any(inside(e, p) for e in binders):
+                        n += 1
+                        if not any(inside(e, p) for e in bk):
+                            bare += 1
+                    u += 0.5
+                t += 0.5
+            if bare:
+                worst.append((name, "xyz"[axis], bare))
+    if worst:
+        v.fail(f"angle legs not bedded on brick: {worst[:4]}")
+    angles = {name: legs for name, legs, _ in m.binding_angles()}
+    for face in ("n", "s"):
+        band = angles[f"fr_band_{face}"]
+        for side in ("w", "e"):
+            corner = angles[f"fr_angle_{face}{side}"]
+            if not any(all(b[0][q] <= c[1][q] + 1e-9 and c[0][q] <= b[1][q] + 1e-9 for q in range(3)) for b in band for c in corner):
+                v.fail(f"the {face} band does not reach the {side} corner angle")
+    straps = [e.name for e in frame if re.match(r"^fr_(strap|kerb)", e.name)]
+    if straps:
+        v.fail(f"flat straps in the binding: {straps}")
+    print(f"binding: {len(angles)} angles (4 corner angles, 2 top bands), legs {m.ANGLE_T} thick and {m.ANGLE_LEG} wide, "
+          f"each flush with its two faces and bedded on brick ({n} points); the bands joining the corner angles")
 
 
 def check_walls(v):
@@ -925,6 +997,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v)
     check_top(v)
     check_sides(v)
+    check_binding(v)
     check_walls(v)
     check_lining(v)
     check_vault(v)

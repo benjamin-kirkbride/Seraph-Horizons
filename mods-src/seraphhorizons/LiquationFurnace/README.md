@@ -22,7 +22,8 @@ furnace as one block of brickwork **two blocks wide (x), two deep (z) and two hi
 conventions: the **brickwork** (the base, the outer walls, the niche, the ash pit and the ash mouth, the brick over
 the vault) is **any one type of the game's fired brick**, and the walls take that brick's texture ("The brick",
 below); the **hot faces are lined** with tier-3 refractory brick 3 voxels thick, the vault with them; it is **bound
-with iron on its front and back**, its side faces plain brick so furnaces stand in a row; it is fired on **natural
+with angle iron** ("The binding", below), its side faces plain brick but for the corner angles' legs, flush, so
+furnaces stand in a row; it is fired on **natural
 draught only**, through an **ash mouth with a three-place damper**; and its smoke leaves by an **outlet on the top**,
 where the player stands the chimney, or which a flat iron plate caps. Its top is flat, a deck.
 
@@ -64,8 +65,14 @@ where the player stands the chimney, or which a flat iron plate caps. Its top is
   other furnace in a row sharing one chimney is.
 - **The outlet is in the back row's east cell**, not centred: a chimney stands on one cell, and a two-wide furnace has
   no middle cell. Everything else is centred left to right.
+- **The binding** is **angle iron** (an L section, 1 voxel thick, legs 2.5 wide), set flush into the brick so nothing
+  stands proud of the furnace's box: an **angle up each of the four vertical corners**, wrapping it, one leg on the
+  front or back face and one on the side face, its inside corner bedded against the brick's corner, so it holds the
+  brick in on both faces; and along the **top front and top back edges an angle band** wrapping that edge, one leg down
+  the face between the corner angles and one on the top from one corner angle's side leg to the other's, joining them.
 - **Furnaces stand in a row**, side by side along their width (x), up to five, sharing walls: the side faces are flush,
-  plain brickwork with nothing beyond the footprint (the binding is on the front and back only). The flues between them
+  plain brickwork but for the corner angles' side legs (flush), with nothing beyond the footprint; two furnaces' corner
+  angles meet face to face at the shared corners. The flues between them
   are implied, not modelled.
 
 **Footprint and cells.** The furnace's 8 cells, all solid (no hollow cell: nothing moves outside the brickwork). The
@@ -113,8 +120,8 @@ the owner to settle ("Open for the owner").
 
 | | Stage | `requires` | What it puts in | Materials |
 |---|---|---|---|---|
-| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | What stands on its own: the binding's straps and top bands, the grate's bearers and firebars, the plate's two cross bearers, the fire hole's jambs and lintel, the ash mouth's lintel, the fire door's guides and the damper's rails, on 7 short posts hidden in the brickwork | proposed: 1 iron plate, 4 iron rods, 8 iron nails and strips |
-| 1 | **Brickwork** | `brickwork` | The base, the outer walls, the niche, the ash pit and the ash mouth, the brick over the vault: 3.92 blocks | **8 fired bricks**, any one type (`game:burnedbrick-*`) |
+| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | What stands on its own: the angle-iron binding (the four corner angles and the two top bands), the grate's bearers and firebars, the plate's two cross bearers, the fire hole's jambs and lintel, the ash mouth's lintel, the fire door's guides and the damper's rails, on 7 short posts hidden in the brickwork | proposed: 1 iron plate, 4 iron rods, 8 iron nails and strips |
+| 1 | **Brickwork** | `brickwork` | The base, the outer walls, the niche, the ash pit and the ash mouth, the brick over the vault: 3.79 blocks | **8 fired bricks**, any one type (`game:burnedbrick-*`) |
 | 2 | **Lining** | `lining` | Tier-3 refractory 3 thick on the hot faces (the firebox, the chamber's side walls, the hanging wall, the throat, the stack, the outlet's curb) and the vault with its backing: 1.76 blocks (the vault 0.53) | **8 tier-3 refractory bricks**, **4 fire clay** |
 | 3 | **Fittings** | `fittings` (the parts `plate`, `pot`, `door`; and the damper's place) | The hearth plate with its rims and spout, the receiving pot, the fire door, the damper | proposed: 4 iron plates |
 | | *Outlet cap* | `outletcap` | Not a stage: put on (or taken off) by hand, any time after the lining | 1 iron plate |
@@ -123,7 +130,7 @@ the owner to settle ("Open for the owner").
 the lining's zones' and the blocks' boundaries along each axis) merged into boxes, the brickwork's and the lining's
 apart; the vault's zone (its staves and their backing) is its box less the chamber's segment under the arc. At the
 game's rates (2 fired bricks a block, 4 refractory bricks a block, rounded up, fire clay one per 2.5 refractory
-bricks): 7.85 → 8 fired bricks, 7.05 → 8 refractory bricks, 4 fire clay.
+bricks): 7.59 → 8 fired bricks, 7.05 → 8 refractory bricks, 4 fire clay.
 
 **The ties.** So that nothing floats before the brick is in, the least iron joins the frame to the ground, all of it
 inside the brickwork: a post under the back end of each outer grate bearer and under the front end of the middle one
@@ -157,8 +164,8 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/liquationfurnace.json` | The whole furnace, every part (394 elements) |
-| `assets/seraphhorizons/shapes/block/liquationfurnace_frame.json` | The iron frame only (46 elements): what the placed frame draws, before any stage |
+| `assets/seraphhorizons/shapes/block/liquationfurnace.json` | The whole furnace, every part (414 elements) |
+| `assets/seraphhorizons/shapes/block/liquationfurnace_frame.json` | The iron frame only (58 elements): what the placed frame draws, before any stage |
 | `assets/seraphhorizons/config/liquationfurnace-rig.json` | Cells, anchors, the build and the brick types, and the part rig (18 parts) |
 | `tests/LiquationFurnace/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths |
 
@@ -219,7 +226,11 @@ skipped. Most checks are the crucible furnace's:
   floats; the iron frame is iron only, with no thin post over half the furnace (its tallest, a plate bearer's post,
   14.2); every tie is hidden in the brickwork.
 - **Textures by role**; **containment** in the eight cells over the door's travel; **a flat top** but for the outlet;
-  **a row**: plain brick side faces, nothing else reaching them, two furnaces side by side touching only at their walls.
+  **a row**: plain brick side faces but for the corner angles' flush legs, nothing else reaching them, two furnaces
+  side by side touching only at their walls.
+- **The binding** *(owner's rule)*: every corner binder and top band is an angle of two legs at most 1 thick, 2 to 3
+  wide, meeting along its corner, flush with the furnace's two faces there, each leg's inside face bedded on brick its
+  whole length (2172 points); the bands touch the corner angles at both ends; no flat strap.
 - **The walls**: everything centred left to right but the outlet, whose stack's mouth lies in the outlet's cell; the
   wall round the fire and the chamber at least `MIN_WALL` (5): 8 at the sides, 5 at the front (to the niche), 6 at the
   back outside the fire hole, the ash mouth and their recesses.
@@ -288,7 +299,7 @@ Element names are the rig's interface (first-match globs, in the rig's order): `
 `tin_pool`, `lead_<n>` and `lead_knob<n>`, `fuel<j>_*` and `fire<j>_*` (`bedw`, `bede`, the lumps, the burning bottom
 layer's cinders), `damperopen_*`, `damperhalf_*`, `dampershut_*` (`plate`, `knob`), `outletcap_*`; and `fr_*` the iron
 frame (`fr_bearer`, `fr_bar`, `fr_platebearer`, `fr_jamb`, `fr_doorlintel`, `fr_ashlintel`, `fr_guide`, `fr_rail`,
-`fr_strap`, `fr_kerb`, `fr_tie_*`). Hand edits are lost when the script runs again: port them into `make_shape.py`, or
+`fr_angle_<face><side>_face`/`_side`, `fr_band_<face>_face`/`_top`, `fr_tie_*`). Hand edits are lost when the script runs again: port them into `make_shape.py`, or
 stop regenerating.
 
 ## Salvage
@@ -297,7 +308,7 @@ From `origin/741-parting-furnace-model-v2`'s `build_liquation`, as its evaluatio
 `liq_world`): the **mechanism** is the v2 furnace's (a brick base over a fire, an inclined cast-iron hearth plate with
 raised rims, cakes on its slope, a low vault open at the low end, a spout out of the open end into a receiving pot),
 **rebuilt in its own frame** (no quarter turn: the plate falls to the front) on the crucible furnace's generator: its
-box and lattice helpers, world-mapped brick, lining zones, binding and ties, the damper, the cap and curb, the build's
+box and lattice helpers, world-mapped brick, lining zones, ties (the binding is angle iron here, not its flat straps), the damper, the cap and curb, the build's
 counts, the brick types, the shipped cells, the coplanar fix. Changed from v2:
 
 - **The fire door** from the side to the **back** (a row's sides are shared); with it the ash mouth and its damper.
@@ -315,7 +326,7 @@ counts, the brick types, the shipped cells, the coplanar fix. Changed from v2:
 The model has been reviewed in projections rendered from the written files and in the site's viewer (a standalone
 copy). No one has looked at it in a client.
 
-1. **Texture seams.** The brick is 240 boxes (140 of brickwork, 60 of lining, 40 of the vault's backing), world-mapped;
+1. **Texture seams.** The brick is 248 boxes (148 of brickwork, 60 of lining, 40 of the vault's backing), world-mapped;
    the vault's 16 staves are mapped to their own size.
    That the brick runs on across them is not yet seen in the game.
 2. **Small slivers under the plate**: a cross bearer's top touches the plate's underside along its front edge; behind

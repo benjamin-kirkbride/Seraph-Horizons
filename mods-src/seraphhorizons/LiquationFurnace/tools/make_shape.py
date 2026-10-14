@@ -226,10 +226,14 @@ CAKE = (4.0, 1.8)                            # along the slope, thick
 FUEL_LAYERS = ((GRATE_TOP, 9.5), (9.5, 11.0))
 LUMP = 1.4
 
-# the iron binding, on the front and back faces only (the sides meet the row's neighbours and are plain brick)
-BIND_T = 0.5
-STRAP_X = ((0.5, 3.0), (29.0, 31.5))
-KERB_Y = (30.5, FLOOR_TOP)
+# The iron binding, angle iron (an L section) throughout, set flush into the brick so nothing stands proud of the
+# furnace's box: an angle up each of the four vertical corners, wrapping it, one leg on the front or back face and one
+# on the side face, its inside corner bedded against the brick's corner; and along the top front edge and the top back
+# edge an angle band wrapping that edge (one leg down the face, one on the top), running from corner angle to corner
+# angle and joining them. The side faces are plain brick but for the corner angles' side legs, flush, so furnaces still
+# stand side by side in a row, their walls meeting.
+ANGLE_T = 1.0                                # the legs' thickness
+ANGLE_LEG = 2.5                              # each leg's width, outside
 
 # ---------------------------------------------------------------- the build
 # Built in stages (the rig's `build`; their requires values are the viewer's Build states): the iron frame, a grid
@@ -534,14 +538,42 @@ def build_vault():
 
 # ---------------------------------------------------------------- the brickwork
 def binding():
-    """The iron binding, as (name, lo, hi): a flat strap up each end of the front and of the back, and a band along
-    the top edge of each between them, all BIND_T thick and flush. The side faces are left plain brick."""
+    """The iron binding, as (name, lo, hi), all angle iron ANGLE_T thick with legs ANGLE_LEG wide, flush with the
+    furnace's faces: up each vertical corner an angle (`fr_angle_<face><side>_face`, its leg on the front or back face,
+    and `_side`, its leg on the side face), and along the top front and back edges an angle band (`fr_band_<face>_face`,
+    its leg down the face between the corner angles, and `_top`, its leg on the top from one corner angle's side leg to
+    the other's). The legs of one angle meet along its corner and do not overlap."""
+    t, leg = ANGLE_T, ANGLE_LEG
     out = []
-    for face, z0, z1 in (("n", 0.0, BIND_T), ("s", D - BIND_T, D)):
-        for side, (x0, x1) in zip(("w", "e"), STRAP_X):
-            out.append((f"fr_strap_{face}{side}", [x0, 0.0, z0], [x1, H, z1]))
-        out.append((f"fr_kerb_{face}", [STRAP_X[0][1], KERB_Y[0], z0], [STRAP_X[1][0], KERB_Y[1], z1]))
+    for face, (zf0, zf1), (zs0, zs1) in (("n", (0.0, t), (t, leg)), ("s", (D - t, D), (D - leg, D - t))):
+        for side, (xf0, xf1), (xs0, xs1) in (("w", (0.0, leg), (0.0, t)), ("e", (W - leg, W), (W - t, W))):
+            out.append((f"fr_angle_{face}{side}_face", [xf0, 0.0, zf0], [xf1, H, zf1]))
+            out.append((f"fr_angle_{face}{side}_side", [xs0, 0.0, zs0], [xs1, H, zs1]))
+        out.append((f"fr_band_{face}_face", [leg, FLOOR_TOP - leg, zf0], [W - leg, FLOOR_TOP, zf1]))
+        out.append((f"fr_band_{face}_top", [t, FLOOR_TOP - t, zs0], [W - t, FLOOR_TOP, zs1]))
     return [piece for name, lo, hi in out for piece in split_blocks(name, lo, hi)]
+
+
+def binding_angles():
+    """The binding as angles: [(name, (leg, leg), corner)] for each corner angle and each top band, the two legs'
+    (lo, hi) and the brick corner the angle wraps: (axis a, side a, axis b, side b) for its two faces."""
+    t, leg = ANGLE_T, ANGLE_LEG
+    pieces = {}
+    for name, lo, hi in binding():
+        base = name.rstrip("0123456789")
+        pieces.setdefault(base, []).append((lo, hi))
+
+    def whole(base):
+        ps = pieces[base]
+        return [min(p[0][k] for p in ps) for k in range(3)], [max(p[1][k] for p in ps) for k in range(3)]
+    out = []
+    for face, zsign in (("n", -1), ("s", 1)):
+        for side, xsign in (("w", -1), ("e", 1)):
+            n = f"fr_angle_{face}{side}"
+            out.append((n, (whole(n + "_face"), whole(n + "_side")), ((2, zsign), (0, xsign))))
+        n = f"fr_band_{face}"
+        out.append((n, (whole(n + "_face"), whole(n + "_top")), ((2, zsign), (1, 1))))
+    return out
 
 
 def plate_bearer(z0, z1):
@@ -723,7 +755,8 @@ def build_iron():
     """The iron frame (`frame`): what the frame stage puts down, all of it standing on its own, set into the brick once
     it is in. The grate (three bearers and the firebars, two lengths a row), the plate's two cross bearers, the back
     face's iron (the fire hole's jambs and lintel, the ash mouth's lintel, the fire door's guides, the damper's rails),
-    the binding, and the frame's ties (`ties`, hidden in the brickwork)."""
+    the binding (angle iron: the corner angles and the top bands), and the frame's ties (`ties`, hidden in the
+    brickwork)."""
     f, t = "frame", "iron"
     out = []
     for n, (x0, x1) in enumerate(BEARER_X, 1):

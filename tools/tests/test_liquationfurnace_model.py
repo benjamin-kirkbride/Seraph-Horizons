@@ -218,12 +218,44 @@ class Furnace(unittest.TestCase):
         self.assertTrue(16.0 <= m.STACK[0][0] and m.STACK[0][1] <= 32.0 and 16.0 <= m.STACK[2][0] and m.STACK[2][1] <= 32.0)
 
     def test_side_faces_are_plain_brick_for_a_row(self):
-        # nothing but brick reaches the side planes, so furnaces stand side by side, walls meeting
+        # nothing but brick, and the corner angles' legs flush at the corners, reaches the side planes, and nothing
+        # passes them, so furnaces stand side by side, walls meeting
         for el in FLAT:
             lo, hi = el.aabb()
+            self.assertTrue(lo[0] > -1e-6 and hi[0] < 32.0 + 1e-6, el.name)
             if lo[0] < 1e-6 or hi[0] > 32.0 - 1e-6:
-                self.assertTrue(el.name.startswith("bk_brick"), el.name)
-                self.assertEqual({f["texture"] for f in next(e for e in SHAPE["elements"] if e["name"] == el.name)["faces"].values()} - {"#brick"}, set())
+                self.assertTrue(el.name.startswith(("bk_brick", "fr_angle_")), el.name)
+                if el.name.startswith("fr_angle_"):
+                    self.assertTrue(lo[2] < 2.5 + 1e-6 or hi[2] > 29.5 - 1e-6, el.name)          # at a corner
+
+    def test_the_binding_is_angle_iron_wrapping_the_corners(self):
+        # every corner binder and top band is an angle: two legs about a voxel thick, 2 to 3 wide, meeting along the
+        # corner, flush with both faces; no flat strap
+        legs = {}
+        for e in FRAME["elements"]:
+            if e["name"].startswith(("fr_angle_", "fr_band_")):
+                base = e["name"].rstrip("0123456789")
+                lo, hi = e["from"], e["to"]
+                prev = legs.get(base)
+                legs[base] = (lo, hi) if prev is None else ([min(a, b) for a, b in zip(prev[0], lo)], [max(a, b) for a, b in zip(prev[1], hi)])
+        self.assertFalse([e["name"] for e in FRAME["elements"] if e["name"].startswith(("fr_strap", "fr_kerb"))])
+        angles = {}
+        for base, box in legs.items():
+            angles.setdefault(base.rsplit("_", 1)[0], []).append(box)
+        self.assertEqual(sorted(angles), ["fr_angle_ne", "fr_angle_nw", "fr_angle_se", "fr_angle_sw", "fr_band_n", "fr_band_s"])
+        for name, boxes in angles.items():
+            self.assertEqual(len(boxes), 2, name)
+            (alo, ahi), (blo, bhi) = boxes
+            # each leg about a voxel thick, the two meeting (touching), together 2 to 3 across both ways in section
+            for lo, hi in boxes:
+                self.assertLessEqual(min(hi[k] - lo[k] for k in range(3)), 1.01, name)
+            self.assertTrue(all(alo[k] <= bhi[k] + 1e-6 and blo[k] <= ahi[k] + 1e-6 for k in range(3)), name)
+            ulo, uhi = [min(a, b) for a, b in zip(alo, blo)], [max(a, b) for a, b in zip(ahi, bhi)]
+            section = sorted(uhi[k] - ulo[k] for k in range(3))[:2]
+            self.assertTrue(all(2.0 - 1e-6 <= w <= 3.0 + 1e-6 for w in section), (name, section))
+            # flush with the furnace's box on two faces (its corner)
+            flush = sum(1 for k in range(3) if abs(ulo[k]) < 1e-6) + sum(1 for k in range(3) if abs(uhi[k] - 32.0) < 1e-6 and uhi[k] - ulo[k] < 4)
+            self.assertGreaterEqual(flush, 2, name)
 
 
 def game_assets():
@@ -263,7 +295,7 @@ class Build(unittest.TestCase):
 
     def test_the_frame_is_the_iron_frame(self):
         # the block draws the iron frame alone: the brick, the lining and the fittings are stages; what is left stands
-        # on its own, with no thin post taller than half the furnace (the straps are bands, wider)
+        # on its own, with no thin post taller than half the furnace (an angle's legs are wider)
         self.assertEqual({f["texture"] for e in FRAME["elements"] for f in e["faces"].values()}, {"#iron"})
         self.assertTrue(all(e["name"].startswith("fr_") for e in FRAME["elements"]))
         for e in FRAME["elements"]:
