@@ -85,6 +85,35 @@ describe("the vanner's rig against its rig-reference.json", () => {
     }
   });
 
+  it("advances the worm's helical thread under the wheel as the travel turns it, the way the wheel's bottom runs", () => {
+    // 49 bars, a 16th of a turn apart (3 turns), and 12 teeth cut across the rim in three slices each
+    const flat = flattenShape(shape.elements);
+    const named = (rx: RegExp) => flat.filter((f) => rx.test(f.element.name));
+    const bars = named(/^worm_thread\d+$/);
+    expect(bars.length).toBe(49);
+    expect(named(/^head_wheel_tooth\d+_[wce]$/).length).toBe(36);
+    const centre = (f: (typeof flat)[number], m: Mat4) => {
+      const a = f.element.from, b = f.element.to;
+      const v = apply(f.world, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]);   // voxels
+      return apply(m, v.map((x) => x / 16));
+    };
+    const lead = (Math.PI * 0.6) / 16;   // the lead in blocks
+    const step = (12 * 2 * Math.PI) / 16; // the travel that turns the worm a 16th of a turn
+    let last: number | null = null;
+    for (let k = 0; k <= 6; k++) {
+      const ms = partMatrices(parts, pose(0, step * k), order, null);
+      // the bar on top of the worm under the wheel (within half a lead of the wheel's axis, z 7/16)
+      const top = bars.map((f) => centre(f, ms[index("worm")]!)).filter((c) => Math.abs(c[2]! - 7 / 16) <= lead / 2 + 1e-4)
+        .reduce((a, b) => (b[1]! > a[1]! ? b : a));
+      if (last !== null) {
+        const moved = top[2]! - last;
+        const d = moved < -lead / 4 ? moved + lead : moved;   // past the window's end, the next turn's bar takes over
+        expect(d).toBeCloseTo(lead / 16, 3);                   // to the south (+z), as the wheel's bottom teeth go
+      }
+      last = top[2]!;
+    }
+  });
+
   it("gives every element a part and every part an element, the water line twice over", () => {
     const flat = flattenShape(shape.elements);
     const globs = compileGlobs(parts);

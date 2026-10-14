@@ -160,7 +160,7 @@ def check_textures(v):
 
 def check_thickness(v):
     """No part thinner than about a voxel: every element at least 0.6 across in its two larger dimensions'
-    smaller one, but for the listed thin-by-nature pieces (the belt, gear teeth, thread rings, joints)."""
+    smaller one, but for the listed thin-by-nature pieces (the belt, gear teeth, the worm's thread, joints)."""
     thin_ok = re.compile(r"(belt_|tooth|thread|reducer|_cap|joint)")
     bad = []
     for el in v.els:
@@ -465,6 +465,85 @@ def check_drive(v):
           f"turn (1/{m.WHEEL_N}): the belt creeps {per_turn:.3f} voxels a turn to the head, whichever way the axle turns")
 
 
+def thread_crossings(v, pose):
+    """Where the worm's thread crosses the worm's top (the line under the wheel's axis), as z along the
+    worm: between each two neighbouring bars of the helix whose angles about the worm straddle the top,
+    interpolated (the helix is linear in its angle, so this is exact for its middle line). Also the bar's
+    lean there: the angle its long axis makes with the plane square to the worm (signed: + rising along +z
+    as it runs along +x)."""
+    m = v.m
+    ax, ay, _ = v.point("worm", pose, (*m.WORM, 0.0))
+    bars = sorted(v.named("worm", r"_thread\d+$", pose), key=lambda e: int(re.search(r"(\d+)$", e.name).group(1)))
+    angs, prev = [], None
+    for e in bars:
+        a = math.atan2(-(e.c[0] - ax), e.c[1] - ay)        # from the top, right-handed about +z
+        if prev is not None:
+            a = prev + math.remainder(a - prev, TAU)
+        angs.append(a)
+        prev = a
+    out = []
+    for i in range(len(bars) - 1):
+        a0, a1 = angs[i], angs[i + 1]
+        k = math.ceil(a0 / TAU)
+        if a0 <= k * TAU < a1:
+            f = (k * TAU - a0) / (a1 - a0)
+            lean = math.copysign(math.asin(abs(bars[i].r[2][0])), bars[i].r[2][0] * bars[i].r[0][0])
+            out.append((bars[i].c[2] + f * (bars[i + 1].c[2] - bars[i].c[2]), lean))
+    return out
+
+
+def check_mesh(v):
+    """The worm's thread in the wheel's tooth spaces: at every sampled pose (a worm turn in 32 steps, and the
+    frame across its stroke), the thread's crossing under the wheel (the one nearest the wheel's lowest
+    point, within half a pitch of it) lies in the middle of the space between the two lowest teeth, measured round the
+    pitch circle, within a twentieth of the pitch; the thread leans as the teeth there do (both the lead
+    angle); its crest reaches past the teeth's tips into the spaces and the teeth's tips reach past its crest
+    into the thread's (the depth they share). The clearance checks then prove the thread never runs into a
+    tooth (the pair is not in ALLOWED)."""
+    m = v.m
+    pitch = TAU * m.WHEEL_R / m.WHEEL_N
+    worst, worst_lean, n = 0.0, 0.0, 0
+    worm_turn = TAU / abs(m.WORM_RATIO)
+    poses = [(th, worm_turn * i / 32 + abs(th)) for i in range(33) for th in (0.0, math.pi / 2, -math.pi / 2)]
+    for pose in poses:
+        hy, hz = v.point("head", pose, (0.0, *m.HEAD))[1:]
+        cross = thread_crossings(v, pose)
+        z, lean = min(cross, key=lambda c: abs(c[0] - hz)) if cross else (math.inf, 0.0)
+        if abs(z - hz) > pitch / 2 + 1e-9:
+            v.fail(f"the worm's thread does not cross under the wheel at {pose}")
+            continue
+        s = z - hz                                         # along the pitch line, from under the wheel's axis
+        teeth = []
+        for e in v.named("head", r"_wheel_tooth\d+_c$", pose):
+            b = math.atan2(e.c[2] - hz, -(e.c[1] - hy))     # its angle from the wheel's lowest point, towards +z
+            teeth.append((m.WHEEL_R * b, e))
+        below = max((t for t in teeth if t[0] <= s), key=lambda t: t[0], default=None)
+        above = min((t for t in teeth if t[0] > s), key=lambda t: t[0], default=None)
+        if below is None or above is None or abs(above[0] - below[0] - pitch) > 1e-6:
+            v.fail(f"the worm's thread is not between two of the wheel's teeth at {pose}")
+            continue
+        off = s - (below[0] + above[0]) / 2
+        worst = max(worst, abs(off))
+        for t in (below, above):
+            r = t[1].r                                      # a tooth's lean off the wheel's axis, whatever its angle round it
+            tl = math.copysign(math.atan2(math.hypot(r[1][0], r[2][0]), abs(r[0][0])), r[2][0] * r[0][0])
+            worst_lean = max(worst_lean, abs(tl - lean), abs(abs(lean) - m.WORM_LAMBDA))
+        n += 1
+        if abs(off) > pitch / 20:
+            v.fail(f"the worm's thread is {off:+.3f} off the middle of the wheel's tooth space at {pose}")
+    if worst_lean > 1e-6:
+        v.fail(f"the worm's thread and the wheel's teeth do not lean alike at the mesh ({math.degrees(worst_lean):.2f} degrees)")
+    tips = m.WHEEL_R + m.WORM_R - m.wheel_tip(0.0)          # the teeth's tips at the throat, from the worm's axis
+    roots = m.WHEEL_R + m.WORM_R - (m.WHEEL_R - 1.25 * m.WHEEL_MOD)   # the wheel's root, from the worm's axis
+    depth = min(m.WORM_OUT, roots) - tips                   # the depth across which thread and teeth overlap
+    if depth < 0.8 or tips > m.WORM_R - 0.3 or tips < m.WORM_CORE / math.cos(math.pi / 8):
+        v.fail(f"the worm's thread and the wheel's teeth do not engage (shared depth {depth:.2f}) or the tips reach its core")
+    print(f"mesh: over {n} poses (a worm turn in 32 steps, the frame at rest and at each end of its stroke) the worm's thread "
+          f"crosses under the wheel in the middle of a tooth space (worst {worst:.4f} off it, the pitch {pitch:.3f}), leaning the lead "
+          f"angle as the teeth either side do ({math.degrees(m.WORM_LAMBDA):.1f} degrees, worst {math.degrees(worst_lean):.1e} off); thread and teeth share "
+          f"{depth:.2f} of depth, the tips {tips - m.WORM_CORE / math.cos(math.pi / 8):.2f} off the worm's core at the throat")
+
+
 def check_supports(v):
     """Every shaft in two bearings or more: the countershaft in the frame's three, the worm shaft in its two
     on the shaking frame, the head and foot rollers' journals in theirs."""
@@ -521,9 +600,9 @@ ALLOWED = [
     ("head|foot", r"_journal|_collar", "shaker", r"bearing_"),
     ("foot", r"_journal", "shaker", r"^sk_rail_"),          # through the rails where its bearings are set into them
     ("worm", r"_rod|_collar", "shaker", r"_wbearing"),
-    # the sheaves in their yokes; the worm and its wheel; the belt on its rollers
+    # the sheaves in their yokes; the belt on its rollers (the worm and its wheel are not here: the thread runs
+    # in the tooth spaces clear of the teeth, check_mesh)
     ("countershaft", r"_sheave", "shaker", r"_yoke"),
-    ("worm", r"_thread|_core", "head", r"_wheel"),
     ("belt", None, "head|foot", r"_drum"),
     # the uprights on their pins
     ("uprightw|uprighte", None, "frame", r"^fr_up[we]\d_pin"),
@@ -614,6 +693,7 @@ def validate(m, els, parts, rig, quick=False):
     check_drops(v)
     check_yokes(v)
     check_drive(v)
+    check_mesh(v)
     check_supports(v)
     check_uprights(v)
     check_clearances(v, turns(12 if quick else 24) + turns(8, travel_extra=37.0) + [(-0.9, None), (-2.4, None)], "clearances")

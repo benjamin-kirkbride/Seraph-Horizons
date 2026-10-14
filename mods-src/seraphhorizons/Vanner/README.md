@@ -65,7 +65,7 @@ tailings boxes with their chute sections. The rest:
 | `shaker` | `shaker`, `uprightw`, `uprighte` | The shaking frame: two oak rails, three ties, the rollers' bearing blocks, the two yokes and their arms, the worm shaft's bearings and hangers, the rails' clevises and pins; and the six oak uprights it stands on |
 | `rollers` | `head`, `foot` | The head roller with its journal, collars and worm wheel; the foot roller |
 | `belt` | `belt` | The stitched leather belt round both rollers, its two raised edges, and two laced seams across its top run |
-| `creep` | `worm`, `pawl` | The worm shaft: its rod, collars, the worm (core and thread rings) and the ratchet; the fixed pawl on its post |
+| `creep` | `worm`, `pawl` | The worm shaft: its rod, collars, the worm (core and helical thread) and the ratchet; the fixed pawl on its post |
 | `feedbox` | `feedbox` | The feed box, its weir and apron, and the infeed chute section |
 | `pipecopper`, `pipelead` | one each | The water line in copper or in lead: the same elements, one drawn |
 
@@ -83,7 +83,7 @@ writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/vanner.json` | The whole machine, both water lines (418 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/vanner.json` | The whole machine, both water lines (475 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/vanner_frame.json` | The frame only (87 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/vanner-rig.json` | The cells, the anchors and the part rig (13 parts). |
 | `tests/Vanner/rig-reference.json` | Every part's matrix at 21 poses of θ and ψ, from the reference maths. |
@@ -123,7 +123,16 @@ the top run (z 10.5 and 33), each a lap 0.8 long with eight rawhide stitches lac
 **The creep.** Under the head roller's east journal, on two iron bearings hung from the east rail, is the worm
 shaft (along z, at x 19.6, y 4.3), riding the shaking frame. On it are a **ratchet** of 12 saw teeth, pitch
 radius 1.91 so a tooth's pitch is the shake's stroke (1.0), and a single-start **worm** under the head roller's
-12-tooth **worm wheel** (pitch radius 3.6; the worm's 1.4; module 0.6). A **pawl**, fixed on a short oak post from
+12-tooth **worm wheel** (pitch radius 3.6; the worm's 1.4; module 0.6), the two shafts at right angles. The worm
+is a real screw: an octagonal core (0.6) and a right-hand thread wound round it three turns, drawn as a helix of
+short steel bars, sixteen a turn, each from the core to the crest (2.0) and 0.45 thick along the worm, each a
+sixteenth of a turn round from the last and a sixteenth of the lead (1.885, the wheel's circular pitch) along,
+leaning the lead angle (12.1°); as the worm turns, the thread's crossing under the wheel runs along it a lead a
+turn, carrying the wheel's teeth with it. The wheel's teeth are cut across its rim (1.6 wide) to take the
+thread: each leans the same lead angle, so at the mesh it lies along the thread, 0.8 thick at the pitch circle
+in a space of 1.08 that the thread runs in, and its tip follows the throat, a circle 0.85 about the worm's axis
+(three slices across the rim, the middle lowest), so the wheel wraps the worm. At rest the thread crosses under
+the wheel in the middle of the space between its two lowest teeth. A **pawl**, fixed on a short oak post from
 the ground, lies just under the ratchet's bottom teeth (0.05 clear of their reach) through the whole shake: as
 the frame moves east the bottom tooth catches on it and the ratchet turns a tooth; as the frame moves back the
 tooth slips over it. So the ratchet turns a tooth a stroke, one way, whichever way the axle turns, the worm turns
@@ -189,7 +198,7 @@ one fails:
   the wheel and the ratchet; leather for the belt, its edges and its seams, rawhide for their lacing; the chute
   texture for the chute sections; each water line in its
   metal, solder only on the reducer and the cap.
-- **Thickness:** nothing thinner than 0.6 across but the belt, teeth, thread rings and solder.
+- **Thickness:** nothing thinner than 0.6 across but the belt, teeth, the worm's thread and solder.
 - **Floating** at every build state (the frame, then each part added in turn, then the water line): one piece
   from the ground.
 - **Containment:** nothing leaves the machine box over a turn.
@@ -207,11 +216,16 @@ one fails:
   just under its teeth's reach and under the bottom tooth through the shake; the worm on the wheel's pitch circle, in
   its plane; the ratchet a tooth a turn, the wheel a tooth a worm turn, the foot with the head; the belt's top run
   moving to the head for θ either way.
+- **Mesh:** over a worm turn in 32 steps, the frame at rest and at each end of its stroke, the worm's thread
+  crosses under the wheel (where its helix passes the worm's top, from the bars either side) in the middle of
+  the space between the wheel's two lowest teeth, within a twentieth of the pitch (worst 0.0001); thread and
+  teeth lean alike, the lead angle; they share 1.15 of depth, and the tips clear the worm's core at the throat.
+  The worm and its wheel are not in `ALLOWED`, so the clearance checks prove the thread never runs into a tooth.
 - **Supports:** the countershaft in its three bearings, the worm shaft and each roller's journal in two.
 - **Uprights:** each leaning about its foot pin, its head within the arc's drop (0.03) of the rail's pin through a
   turn, clear of the rail above it.
 - **Clearances:** no two parts touch over 36 poses (turns either way, the creep run on) except the intended
-  contacts listed in `ALLOWED` (shafts in their bearings, sheaves in their yokes, the worm in its wheel, the belt on
+  contacts listed in `ALLOWED` (shafts in their bearings, sheaves in their yokes, the belt on
   its rollers, the uprights on their pins, the foot's journals through the rails).
 - **Swept paths** (full runs): the same for the moving parts every 3.75° of a turn, and with the creep run on.
 - **No z-fighting** (full runs): no coplanar overlapping faces at six poses after the fix (`fix_coplanar`), which
@@ -249,8 +263,8 @@ value is a checkbox, and the water line is a "Water line" select, copper or lead
 Element names are the rig's interface (first-match globs, in the rig's order): `cs_*` (`entrya`, `entryb`,
 `rod`, `collar1`/`2`, `sheave1`/`2`), `sk_*` (`rail_w`/`e`, `tie1`..`3`, `headbearing_*`, `footbearing_*`,
 `yoke1`/`2_*`, `arm1`/`2`, `wbearing1`/`2`, `whanger1`/`2`, `up<side><n>_cheek*`/`_pin`), `upw_*` and `upe_*` (the
-uprights), `belt_*` (`runa`, `runb`, `wrap*`, `edge1`/`2`, `seam1`/`2`, `lace<seam>_<n>`), `head_*` (`drum`, `journal`, `collar*`, `wheel_*`),
-`foot_*`, `worm_*` (`rod`, `collar*`, `core`, `thread1`..`4`, `ratchet_*`), `pawl_*` (`post`, `arm`), `fb_*`
+uprights), `belt_*` (`runa`, `runb`, `wrap*`, `edge1`/`2`, `seam1`/`2`, `lace<seam>_<n>`), `head_*` (`drum`, `journal`, `collar*`, `wheel_body_*`, `wheel_tooth<n>_w`/`c`/`e`),
+`foot_*`, `worm_*` (`rod`, `collar*`, `core_*`, `thread1`..`49`, `ratchet_*`), `pawl_*` (`post`, `arm`), `fb_*`
 (`floor`, `w`, `e`, `s`, `weir`, `apron`, `chute_*`), `pipecopper_*` and `pipelead_*`, and `fr_*` for the frame
 (`sill_*`, `up<side><n>_*`, `pedestal*`, `bearing*`, `saddle`, `post_*`, `bracket_*`, `spraypost`,
 `spraybracket`, `cb_*`, `tb_*`, `chute_conc_*`, `chute_tail_*`). Hand edits are lost when the script runs again:
@@ -273,6 +287,9 @@ client or the site's viewer.
    machine, where the concentrate washed off, over tightener rollers, and small idlers carried its top run; here
    the belt runs round its two rollers only, and the concentrate drops into the box under the head.
 7. **Round parts are polygons:** the drums and sheaves 12-sided, shafts and pins 8-sided.
+8. **The worm's thread is straight bars**, sixteen a turn with square flanks (no trapezoid section), and the
+   wheel's teeth are flat-sided slices (no involute or hobbed form); the mesh check holds the thread in the
+   middle of the tooth spaces and the clearance checks keep them apart at every sampled pose.
 
 ## Open for the owner
 

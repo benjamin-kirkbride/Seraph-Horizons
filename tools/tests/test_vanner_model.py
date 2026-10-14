@@ -130,6 +130,42 @@ class Motion(unittest.TestCase):
         self.assertEqual(worm, {round(-1 / 12, 6)})
         self.assertEqual(head, {round(-1 / 144, 6)})
 
+    def test_the_worms_thread_runs_in_the_wheels_tooth_spaces(self):
+        # the shipped thread is a helix (bars a 16th of a turn apart, rising a 16th of the lead), and wherever
+        # the travel has turned the worm, the thread crosses under the wheel mid-way between two of its teeth
+        bars = sorted(flatten(elements("worm_thread"), textures={}), key=lambda e: int(e.name[len("worm_thread"):]))
+        teeth = [e for e in flatten(elements("head_wheel_tooth"), textures={}) if e.name.endswith("_c")]
+        self.assertEqual((len(bars), len(teeth)), (make_shape.WORM_TURNS * make_shape.WORM_SEGS + 1, make_shape.WHEEL_N))
+        lead, segs = make_shape.WORM_LEAD, make_shape.WORM_SEGS
+        for a, b in zip(bars, bars[1:]):
+            self.assertAlmostEqual(b.c[2] - a.c[2], lead / segs, delta=0.002)   # the files round, the z-fight fix nudges
+        pitch = 2 * math.pi * make_shape.WHEEL_R / make_shape.WHEEL_N
+        wx, wy = make_shape.WORM
+        hy, hz = make_shape.HEAD
+        worm_turn = 12 * 2 * math.pi
+        for theta, travel in [(0.0, worm_turn * i / 10) for i in range(10)] + [(1.2, 33.0), (-2.0, 71.0)]:
+            mw, mh = matrix("worm", theta, travel), matrix("head", theta, travel)
+            shift = rigmath.apply(matrix("shaker", theta, travel), [0.0, 0.0, 0.0])[0] * 16
+            posed = [rigmath.posed(e, mw) for e in bars]
+            angs = []
+            for e in posed:
+                a = math.atan2(-(e.c[0] - wx - shift), e.c[1] - wy)
+                angs.append(a if not angs else angs[-1] + math.remainder(a - angs[-1], 2 * math.pi))
+            cross = []
+            for i in range(len(posed) - 1):
+                k = math.ceil(angs[i] / (2 * math.pi)) * 2 * math.pi
+                if angs[i] <= k < angs[i + 1]:
+                    f = (k - angs[i]) / (angs[i + 1] - angs[i])
+                    z = posed[i].c[2] + f * (posed[i + 1].c[2] - posed[i].c[2])
+                    cross.append(z - hz)
+            cross = [min(cross, key=abs)]                  # the crossing nearest under the wheel's axis
+            self.assertLessEqual(abs(cross[0]), pitch / 2 + 1e-3, (theta, travel))
+            arcs = sorted(make_shape.WHEEL_R * math.atan2(t.c[2] - hz, -(t.c[1] - hy)) for t in (rigmath.posed(e, mh) for e in teeth))
+            below = max(s for s in arcs if s <= cross[0])
+            above = min(s for s in arcs if s > cross[0])
+            self.assertAlmostEqual(above - below, pitch, places=3)
+            self.assertLess(abs(cross[0] - (below + above) / 2), pitch / 20, (theta, travel))
+
     def test_nothing_else_moves(self):
         ident = rigmath.m4()
         for pid in ("pawl", "feedbox", "pipecopper", "pipelead", "frame"):

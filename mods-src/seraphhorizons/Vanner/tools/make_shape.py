@@ -181,11 +181,21 @@ ARM_Y = (7.3, 8.3)                           # each yoke's arm to the east rail
 # ---------------------------------------------------------------- the creep: worm wheel, worm, ratchet, pawl
 WHEEL_N, WHEEL_MOD = 12, 0.6                 # the head roller's worm wheel: 12 teeth, module 0.6
 WHEEL_R = WHEEL_N * WHEEL_MOD / 2            # its pitch radius, 3.6
-WHEEL_X = (18.9, 20.3)                       # on the head roller's journal, east of the east rail
+WHEEL_X = (18.8, 20.4)                       # on the head roller's journal, east of the east rail: its face
 WORM = (19.6, 4.3)                           # (x, y): the worm shaft, along z under the wheel, on the shaker
 WORM_R = HEAD[0] - WHEEL_R - WORM[1]         # the worm's pitch radius: the wheel's pitch circle on it, 1.4
-WORM_LEAD = math.pi * WHEEL_MOD              # a single-start worm: one tooth a turn
-WORM_TILT = 7.0                              # the thread rings' lean (degrees about x): drawn right-handed
+WORM_LEAD = math.pi * WHEEL_MOD              # a single-start worm: its lead is the wheel's circular pitch
+WORM_LAMBDA = math.atan2(WORM_LEAD, TAU * WORM_R)   # the thread's lead angle at the pitch radius (12.1 degrees)
+WORM_CORE = 0.6                              # the worm's core (its root), an octagon's apothem, over the rod's 0.5
+WORM_OUT = WORM_R + WHEEL_MOD                # the thread's crest
+WORM_THREAD_T = 0.45                         # the thread's thickness along the worm: in the wheel's tooth spaces
+WORM_SEGS = 16                               # the thread's segments a turn: a helix of short leaning bars
+WORM_TURNS = 3                               # turns of thread, centred under the wheel
+WORM_PHASE = math.pi                         # the thread's first segment's angle: it crosses the top at the head's z
+THROAT_R = 0.85                              # the wheel's throat: its tips stand this far off the worm's axis
+WHEEL_TOOTH_W = 0.8                          # a wheel tooth's thickness at the pitch circle (its space, 1.08, takes the thread)
+WHEEL_SLICES = ((-0.8, -0.3), (-0.3, 0.3), (0.3, 0.8))   # each tooth across the rim (x about the worm's): its tip
+                                             # follows the throat, higher at the rim's edges
 WORM_SHAFT_Z = (1.6, 14.0)
 WORM_BEARINGS_Z = ((2.2, 3.2), (10.8, 11.8))
 WORM_BRG = 1.3
@@ -713,14 +723,60 @@ def build_rollers():
         out += disc("x", c, BRG_X[0][0] - 0.6, x1, JOURNAL_R, f"{p}_journal", p, "steel")
         out += disc("x", c, BRG_X[0][0] - 0.6, BRG_X[0][0], COLLAR_R, f"{p}_collar1", p, "steel")
         out += disc("x", c, BRG_X[1][1], BRG_X[1][1] + 0.6, COLLAR_R, f"{p}_collar2", p, "steel")
-    out += gear("x", (0.0, HEAD[0], HEAD[1]), *WHEEL_X, WHEEL_R, WHEEL_N, WHEEL_MOD, "head_wheel", "head", "steel", body_k=6)
+    out += worm_wheel()
+    return out
+
+
+def wheel_tip(dx):
+    """How far a wheel tooth reaches from the wheel's axis at dx across the rim from the worm's axis: the
+    throat, a circle THROAT_R about the worm's axis, so the tips wrap the worm."""
+    return WHEEL_R + WORM_R - math.sqrt(max(0.0, THROAT_R ** 2 - dx * dx))
+
+
+def worm_wheel():
+    """The head roller's worm wheel: a body to the root and WHEEL_N teeth cut across the rim to take the
+    worm, each leaning the thread's lead angle (so at the mesh a tooth lies along the thread) and its tip
+    following the throat (three slices across the rim, the middle lowest). Drawn with a tooth space at the
+    bottom, where the worm's thread crosses under it at rest."""
+    hy, hz = HEAD
+    wx = WORM[0]
+    root = WHEEL_R - 1.25 * WHEEL_MOD
+    out = disc("x", (0.0, hy, hz), *WHEEL_X, root, "head_wheel_body", "head", "steel", k=6)
+    for j in range(WHEEL_N):
+        tooth = []
+        for k, (d0, d1) in enumerate(WHEEL_SLICES):
+            tip = wheel_tip((d0 + d1) / 2 if k != 1 else 0.0)
+            tooth.append(box([wx + d0, hy - tip, hz - WHEEL_TOOTH_W / 2], [wx + d1, hy - root + 0.25, hz + WHEEL_TOOTH_W / 2],
+                             f"head_wheel_tooth{j + 1}_{'wce'[k]}", "head", "steel"))
+        rotate(tooth, "y", math.degrees(WORM_LAMBDA), (wx, hy - WHEEL_R, hz))
+        rotate(tooth, "x", 360.0 * (j + 0.5) / WHEEL_N, (0.0, hy, hz))
+        out += tooth
+    return out
+
+
+def worm_thread():
+    """The worm's thread: a single-start right-hand helix of WORM_SEGS short bars a turn, each from the core
+    to the crest, WORM_THREAD_T thick along the worm, leaning the lead angle, its middle on the helix: turned
+    about the worm, the thread's crossing under the wheel moves along it a lead a turn."""
+    wx, wy = WORM
+    z0 = HEAD[1] - WORM_TURNS * WORM_LEAD / 2
+    r_mid = (WORM_R + WORM_OUT) / 2
+    chord = TAU * r_mid / WORM_SEGS / math.cos(WORM_LAMBDA) + 0.06
+    out = []
+    for i in range(WORM_TURNS * WORM_SEGS + 1):
+        z = z0 + WORM_LEAD * i / WORM_SEGS
+        el = box([wx - chord / 2, wy + WORM_CORE - 0.1, z - WORM_THREAD_T / 2], [wx + chord / 2, wy + WORM_OUT, z + WORM_THREAD_T / 2],
+                 f"worm_thread{i + 1}", "worm", "steel")
+        rotate([el], "y", math.degrees(WORM_LAMBDA), (wx, wy + WORM_R, z))
+        rotate([el], "z", math.degrees(WORM_PHASE + TAU * i / WORM_SEGS), (wx, wy, z))
+        out.append(el)
     return out
 
 
 def build_creep():
     """The worm shaft (`worm`, riding the shaking frame): its rod in the two hung bearings, a collar at its
-    north end and one each side of the ratchet; the worm under the head roller's wheel, a core and four
-    thread rings a tooth's pitch apart, leaning as a right-hand thread does; the ratchet. The pawl
+    north end and one each side of the ratchet; the worm under the head roller's wheel, a core and its
+    helical thread (`worm_thread`); the ratchet. The pawl
     (`pawl`): fixed, on a short oak post from the ground, just under the ratchet's bottom teeth: the
     bottom tooth catches on it as the frame moves east and slips over it as the frame moves back."""
     w = "worm"
@@ -731,13 +787,9 @@ def build_creep():
     out += disc("z", c, WORM_SHAFT_Z[0], WORM_BEARINGS_Z[0][0], 1.0, "worm_collar1", w, "steel")
     out += disc("z", c, WORM_BEARINGS_Z[1][1], RATCHET_Z[0], 1.0, "worm_collar2", w, "steel")
     out += disc("z", c, RATCHET_Z[1], WORM_SHAFT_Z[1], 1.0, "worm_collar3", w, "steel")
-    span = 1.5 * WORM_LEAD + 0.35
-    out += disc("z", c, hz - span, hz + span, WORM_R - 1.25 * WHEEL_MOD + 0.15, "worm_core", w, "steel", k=4)
-    for i in range(4):
-        zt = hz - 1.5 * WORM_LEAD + i * WORM_LEAD
-        ring = disc("z", c, zt - 0.35, zt + 0.35, WORM_R + WHEEL_MOD * 0.8, f"worm_thread{i + 1}", w, "steel", k=4)
-        rotate(ring, "x", WORM_TILT, (wx, wy, zt))
-        out += ring
+    span = WORM_TURNS * WORM_LEAD / 2 + 0.5
+    out += disc("z", c, hz - span, hz + span, WORM_CORE, "worm_core", w, "steel", k=4)
+    out += worm_thread()
     out += ratchet(c, *RATCHET_Z, RATCHET_R, RATCHET_N, RATCHET_MOD, "worm_ratchet", w, "steel", lean=RATCHET_LEAN)
     p = "pawl"
     tip = wy - ratchet_reach() - PAWL_GAP
