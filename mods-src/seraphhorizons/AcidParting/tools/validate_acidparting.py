@@ -3,7 +3,8 @@
 Every check prints what it measured and fails the run (the script exits non-zero) when the model breaks its rule. The
 catalogue follows the crucible furnace's (`CrucibleFurnace/tools/validate_cruciblefurnace.py`), for what this vessel
 takes from it (the stages, the brick's roles, the row, the lining, the damper, the outlet, the draught), and adds its
-own (the fire door, the sand bath and the vessel, the water line and the cock, the hood). Everything is in the native
+own (the fire door, the sand bath and the vessel, the precipitating tub and its siphon, the hood). Everything is in
+the native
 frame (voxels); `check_shipped` in make_shape.py proves the shipped files are this model moved.
 """
 
@@ -80,11 +81,12 @@ def iron(v):
 
 def static(v):
     """Everything built in that stands still, the vessel built: the iron frame, the brickwork with the hood's lintel,
-    the lining, the sand bath and the vessel."""
-    return iron(v) + v.by_part["brickwork"] + v.by_part["lining"] + v.by_part["bath"] + v.by_part["vessel"]
+    the lining, the sand bath, the vessel, the tub and its siphon."""
+    return (iron(v) + v.by_part["brickwork"] + v.by_part["lining"] + v.by_part["bath"] + v.by_part["vessel"]
+            + v.by_part["tub"] + v.by_part["siphon"])
 
 
-THIN_POST = 1.5                              # a post: a vertical element under this across both ways (a strap is wider)
+THIN_POST = 1.5                              # a post: a vertical element under this across both ways (an angle's leg is wider)
 
 
 # ---------------------------------------------------------------- parts, the stages, textures
@@ -111,13 +113,14 @@ def check_stages(v):
     """The build: at each stage (the iron frame alone, with the brickwork and the hood's lintel, with the lining, with
     the fittings) nothing floats: every element drawn is joined to the ground. The iron frame stands on its own: it is
     iron only, and no thin post stands in it taller than half the vessel (a vertical element under THIN_POST across
-    both ways; the straps are bands, wider): the hood's lintel comes with the brickwork that carries it. Every tie is
+    both ways; the corner angles' legs are wider): the hood's lintel comes with the brickwork that carries it. Every tie is
     hidden once the brick is in: points just off every face of it lie in brick (the brickwork's) or in other iron."""
     m = v.m
     out = []
     for sid, fitted in m.STAGE_STATES:
         drawn = [e for p in v.parts if p["requires"] is None or (p["requires"] in fitted and not p["drivers"]
-                                                                  and p["id"] in ("brickwork", "hoodiron", "lining", "bath", "vessel"))
+                                                                  and p["id"] in ("brickwork", "hoodiron", "lining", "bath", "vessel",
+                                                                                  "tub", "siphon"))
                  for e in v.by_part[p["id"]]]
         seen, loose = frame_floating(drawn)
         out.append(f"{sid} {len(seen)}")
@@ -172,20 +175,15 @@ def check_stages(v):
 ROLES = [
     (r"^bk_brick_", {"brick"}),
     (r"^ln_brick_", {"lining"}),
-    (r"^fr_(bearer|bar|lintel|guide|strap|kerb|tie)", {"iron"}),
+    (r"^fr_(bearer|bar|lintel|guide|angle|band|tie)", {"iron"}),
     (r"^hi_lintel", {"iron"}),
     (r"^bath_(tray|rim)", {"iron"}),
     (r"^bath_sand", {"sand"}),
     (r"^vessel_", {"porcelain"}),
     (r"^door_", {"iron"}),
     (r"^damper(open|half|shut)_", {"iron"}),
-    (r"^pipe(copper|lead)_cock_", {"brass"}),
-    (r"^pipecopper_joint", {"solder"}),
-    (r"^pipelead_joint", {"solder"}),
-    (r"^pipecopper_inlet", {"pipecopper"}),
-    (r"^pipelead_inlet", {"pipelead"}),
-    (r"^cock(shut|open)_(boss|lever)", {"brass"}),
-    (r"^cockopen_stream", {"water"}),
+    (r"^tub_", {"oak"}),
+    (r"^siphon_", {"lead"}),
     (r"^fuel_", {"fuel"}),
     (r"^fire_", {"ember"}),
     (r"^charge_", {"dore"}),
@@ -193,6 +191,9 @@ ROLES = [
     (r"^solution_", {"solution"}),
     (r"^gold_", {"gold"}),
     (r"^wash_", {"water"}),
+    (r"^copper_", {"copper"}),
+    (r"^liquor_", {"solution"}),
+    (r"^silver_", {"silver"}),
     (r"^outletcap_", {"iron"}),
 ]
 
@@ -212,7 +213,7 @@ def check_textures(v):
 # ---------------------------------------------------------------- containment, the top, the sides, the walls
 def check_containment(v):
     """Nothing leaves the vessel's four cells over the door's whole travel (every 0.01), so nothing reaches the
-    chimney's cell or the water pipe's over the front row; nothing stands over the top."""
+    chimney's cell; nothing stands over the top."""
     m = v.m
     worst, where = -1e9, None
     for dp in depths(0.01):
@@ -229,37 +230,35 @@ def check_containment(v):
 
 
 def check_top(v):
-    """The top is flat: every half voxel of it, just under the top, is brick, the lining's curb, iron set flush in it
-    (the binding's bands) or the water line's pipe ending flush at the water face, whose top is the top, but for the
-    outlet's seat; nothing stands above it."""
+    """The top is flat and whole: every half voxel of it, just under the top, is brick, the lining's curb or iron set
+    flush in it (the angles' tops), whose top is the top, but for the outlet's seat; nothing stands above it."""
     m = v.m
-    solid = static(v) + v.by_part["pipecopper"]
+    solid = static(v)
     (sx0, sx1), _, (sz0, sz1) = m.CAP_SEAT
-    (px0, px1), _, (pz0, pz1) = m.PIPE_WAY
     bad, n = [], 0
     x = 0.25
     while x < m.W:
         z = 0.25
         while z < m.D:
-            if not (sx0 <= x <= sx1 and sz0 <= z <= sz1) and not (px0 + 1.0 < x < px1 - 1.0 and pz0 + 1.0 < z < pz1 - 1.0):
+            if not (sx0 <= x <= sx1 and sz0 <= z <= sz1):
                 n += 1
                 under = [e for e in solid if inside(e, (x, m.TOP - 0.05, z))]
                 if not under or any(abs(e.aabb()[1][1] - m.TOP) > 1e-6 for e in under):
                     bad.append((x, z))
             z += 0.5
         x += 0.5
-    print(f"top: flat at the top at {n - len(bad)} of {n} points (every half voxel; the outlet's seat and the pipe's bore "
-          f"aside), the pipe flush at the water face")
+    print(f"top: flat and whole at the top at {n - len(bad)} of {n} points (every half voxel, the outlet's seat aside)")
     if bad:
         v.fail(f"the top is not flat at {len(bad)} points, e.g. {bad[:4]}")
 
 
 def check_sides(v):
-    """Vessels tile into a row: each side face is flush, plain brick over its whole area (sampled every half voxel),
-    and nothing but brick reaches either side plane, of any part at any depth; two vessels side by side (one moved a
-    vessel's width along x) touch nowhere but at their shared walls, over the door's whole travel."""
+    """Vessels tile into a row: each side face is flush, plain brick over its whole area (sampled every half voxel)
+    but for the corner angles' side legs, flush with it; nothing but the brick and those legs reaches either side
+    plane, of any part at any depth; two vessels side by side (one moved a vessel's width along x) touch nowhere but at
+    their shared walls (brick against brick, angle against angle), over the door's whole travel."""
     m = v.m
-    bricks = v.by_part["brickwork"]
+    bricks = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if e.name.startswith("fr_angle_")]
     bad, n = [], 0
     for x in (0.05, m.W - 0.05):
         y = 0.25
@@ -278,7 +277,7 @@ def check_sides(v):
         for pid in v.by_part:
             for e in v.posed(pid, dp):
                 lo, hi = e.aabb()
-                if (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not e.name.startswith("bk_brick"):
+                if (lo[0] < 1e-6 or hi[0] > m.W - 1e-6) and not e.name.startswith(("bk_brick", "fr_angle_")):
                     reach.add(e.name)
     if reach:
         v.fail(f"not brick at a side plane: {sorted(reach)[:4]}")
@@ -306,18 +305,18 @@ def check_sides(v):
 
 def check_walls(v):
     """Walls, everything centred: the fire chamber, the ash mouth, the fire door's opening, the recess, the sand bath,
-    the vessel, the hood, the water pipe, the stack and the outlet's curb are centred left to right; the brick beside
+    the vessel, the tub, the hood, the stack and the outlet's curb are centred left to right; the brick beside
     the fire chamber, sampled every half voxel from the grate to its top, runs at least MIN_WALL out to each side face,
     and at least FRONT_WALL to the recess in front (the door's opening aside)."""
     m = v.m
     mid = m.W / 2
     spans = (("fire chamber", m.FIRE_X), ("ash mouth", m.MOUTH[0]), ("fire door", m.DOOR_HOLE[0]), ("recess", m.RECESS[0]),
-             ("sand bath", m.TRAY[0]), ("vessel", (m.VESSEL_C[0] - 1, m.VESSEL_C[0] + 1)), ("hood", m.HOOD[0]),
-             ("water pipe", m.PIPE_WAY[0]), ("stack", m.STACK[0]), ("outlet's curb", m.CURB[0]))
+             ("sand bath", m.TRAY[0]), ("vessel", (m.VESSEL_C[0] - 1, m.VESSEL_C[0] + 1)), ("tub", m.TUB[0]),
+             ("hood", m.HOOD[0]), ("stack", m.STACK[0]), ("outlet's curb", m.CURB[0]))
     for what, (x0, x1) in spans:
         if abs((x0 + x1) / 2 - mid) > 1e-9:
             v.fail(f"the {what} is not centred left to right")
-    near = brick(v) + [e for e in iron(v) if e.name.startswith(("fr_strap", "fr_kerb", "fr_bearer", "fr_tie", "fr_lintel"))]
+    near = brick(v) + [e for e in iron(v) if e.name.startswith(("fr_angle", "fr_band", "fr_bearer", "fr_tie", "fr_lintel"))]
 
     def solid(p):
         return any(inside(e, p, eps=-1e-9) for e in near)
@@ -343,13 +342,71 @@ def check_walls(v):
             if not (dx0 <= x <= dx1 and dy0 <= y <= dy1):
                 walls.setdefault("front", []).append((run((x, y, m.FIRE_Z[0]), 2, -1, m.FIRE_Z[0]), (x, y)))
     worst = {k: min(w) for k, w in walls.items()}
-    print("walls: the fire, the ash mouth, the door, the bath, the vessel, the hood, the pipe, the stack and the curb "
+    print("walls: the fire, the ash mouth, the door, the bath, the vessel, the tub, the hood, the stack and the curb "
           "centred; brick beside the fire chamber at least " + ", ".join(f"{k} {t:.2f}" for k, (t, _) in worst.items())
           + f" (MIN_WALL {m.MIN_WALL} at the sides, FRONT_WALL {m.FRONT_WALL} to the recess)")
     for k, (t, at) in worst.items():
         need = m.FRONT_WALL if k == "front" else m.MIN_WALL
         if t < need - 1e-9:
             v.fail(f"the {k} wall is {t:.2f} thick at {at}")
+
+
+# ---------------------------------------------------------------- the binding: angle iron
+def check_binding(v):
+    """The binding is angle iron (the owner's rule for furnace-like brickwork): every binder is an L of two legs
+    ANGLE_T thick that meet in its corner, each leg's outer face flush with one of the two faces of the brick corner it
+    wraps, and each leg's inner face bedded against the brick: points just behind every inner face (every voxel along
+    it, a tenth in) are brick (either role) or iron set into it, at least nine in ten of them brick. The corner angles
+    stand on the ground the block's full height at its four vertical corners; the top angles run along the top edge of
+    the front and of the back and join the corner angles' face legs. No flat strap or band is left."""
+    m = v.m
+    frame = v.by_part["frame"]
+    flats = [e.name for e in frame if e.name.startswith(("fr_strap", "fr_kerb"))]
+    if flats:
+        v.fail(f"flat binding left: {flats}")
+    built_iron = iron(v)
+    out = []
+    for name, corner, legs in m.angles():
+        els = {leg: [e for e in frame if e.name.startswith(f"{name}_{leg}")] for leg in ("a", "b")}
+        if not els["a"] or not els["b"]:
+            v.fail(f"{name} has not both legs")
+            continue
+        boxes = {leg: aabb_of(es) for leg, es in els.items()}
+        thick = [min(hi[k] - lo[k] for k in range(3)) for lo, hi in boxes.values()]
+        if any(abs(t - m.ANGLE_T) > 1e-9 for t in thick):
+            v.fail(f"{name}'s legs are not {m.ANGLE_T} thick")
+        (alo, ahi), (blo, bhi) = boxes["a"], boxes["b"]
+        ov = [min(ahi[k], bhi[k]) - max(alo[k], blo[k]) for k in range(3)]
+        if not (sum(o > 0.05 for o in ov) == 2 and min(ov) > -1e-9):
+            v.fail(f"{name}'s legs do not meet in its corner")
+        bad, total, bricks = 0, 0, 0
+        for leg, (axis, plane) in zip(("a", "b"), corner):
+            lo, hi = boxes[leg]
+            if abs((lo[axis] if plane < 1e-9 else hi[axis]) - plane) > 1e-9:
+                v.fail(f"{name}'s {leg} leg is not flush with its face")
+            inward = 1.0 if abs(lo[axis] - plane) < 1e-9 else -1.0
+            back = (hi[axis] if inward > 0 else lo[axis]) + inward * 0.1
+            others = [q for q in range(3) if q != axis]
+            other = boxes["b" if leg == "a" else "a"]
+            for ua in [lo[others[0]] + 0.25 + k for k in range(int(hi[others[0]] - lo[others[0]]))]:
+                for ub in [lo[others[1]] + 0.25 + k for k in range(int(hi[others[1]] - lo[others[1]]))]:
+                    pnt = [0.0, 0.0, 0.0]
+                    pnt[axis], pnt[others[0]], pnt[others[1]] = back, ua, ub
+                    if all(other[0][k] - 1e-9 <= pnt[k] <= other[1][k] + 1e-9 for k in range(3)):
+                        continue                         # behind this leg is the other leg
+                    total += 1
+                    w = what_is(v, pnt)
+                    if w in ("ln", "bk"):
+                        bricks += 1
+                    elif not any(inside(e, pnt) for e in built_iron if not e.name.startswith(name)):
+                        bad += 1
+        if bad or bricks < 0.9 * total:
+            v.fail(f"{name}'s legs are not bedded against the brick ({bad} open of {total}, {bricks} brick)")
+        out.append(f"{name} {bricks}/{total}")
+        if name.startswith("fr_angle") and (min(alo[1], blo[1]) > 1e-9 or max(ahi[1], bhi[1]) < m.H - 1e-9):
+            v.fail(f"{name} does not stand the block's full height")
+    print(f"binding: {len(m.angles())} angles, each two legs {m.ANGLE_T} thick meeting in the brick's corner, flush with "
+          f"its faces, bedded on the brick (points behind the legs that are brick: {', '.join(out)})")
 
 
 # ---------------------------------------------------------------- the lining
@@ -444,8 +501,8 @@ def check_lining(v):
 def check_build(v):
     """The stages' counts: the brickwork's and the lining's volumes, measured from their elements (each lattice box in
     exactly one brick box: their volumes add up to the lattice's), give the rig's quantities at the game's rates,
-    rounded up; the frame's recipe, the fittings', the water line's and the cap's are the generator's proposal; every
-    stage's requires and parts are the rig's."""
+    rounded up; the frame's recipe, the fittings' and the cap's are the generator's proposal; every stage's requires
+    and parts are the rig's; there is no water line."""
     m = v.m
     xs, ys, zs, mat = m.brick_lattice()
     lat = {"bk": 0.0, "ln": 0.0}
@@ -481,12 +538,13 @@ def check_build(v):
     if any(by_id[p]["requires"] != "fittings" for p in st["fittings"]["parts"]):
         v.fail("a part of the fittings stage is not fitted by it")
     requires = {p["requires"] for p in v.parts}
-    also = st["fittings"]["also"] + build["waterLine"]["also"] + list(build["waterLine"]["parts"].values())
-    if not set(m.STAGES) <= requires or any(a not in requires for a in also):
+    if not set(m.STAGES) <= requires or any(a not in requires for a in st["fittings"]["also"]):
         v.fail("a stage's requires is no part's")
+    if set(st["fittings"]["parts"]) != {"bath", "vessel", "tub", "siphon", "door"} or "waterLine" in build:
+        v.fail("the fittings are not the bath, the vessel, the tub, the siphon and the door, with no water line")
     print(f"build: brickwork {lat['bk'] / m.B ** 3:.2f} blocks -> {got['bricks']} fired bricks; lining "
           f"{lat['ln'] / m.B ** 3:.2f} blocks -> {got['lining']} refractory bricks and {got['fireclay']} fire clay; "
-          f"fittings {dict(m.FITTINGS_STAGE)}; the frame {dict(m.FRAME_RECIPE)}; the water line {dict(m.WATER_LINE)}")
+          f"fittings {dict(m.FITTINGS_STAGE)}; the frame {dict(m.FRAME_RECIPE)}; no water line")
 
 
 # ---------------------------------------------------------------- the fire door, the damper, the fire
@@ -684,82 +742,81 @@ def check_contents(v):
           + f"; the liquids {m.LIQUID_A - m.INNER_A:.2f} into the walls")
 
 
-# ---------------------------------------------------------------- the water line, the cock, the flows
-def check_water(v):
-    """The water line as UnifiedPipes draws soldered ppex pipe: a straight length of ppex's section, four walls round
-    the bore, from the water face (the top of the front row) at the cell's centre down through the hood's roof to the
-    brass cock, a wiped joint of solder where it meets the cock; its way through the roof is the pipe's (no gap); the
-    lead part is the copper part's elements in lead, the joint solder and the cock brass. The cock: its nozzle over the
-    vessel's mouth, inside it, over the lip; the key's boss on the body, the lever across the flow shut (horizontal)
-    and along it open (down), clear of the vessel; open, the stream runs from the nozzle's tip into the vessel, down to
-    the wash water."""
+# ---------------------------------------------------------------- the precipitating tub and its siphon
+def check_tub(v):
+    """The precipitating tub (#931): a wooden vat on the cold front of the bench, under the hood's open front, in front
+    of the bath and clear of it and of the fire chamber below (nothing hot under it: its floor on the brickwork's
+    bench, over the front wall); in the vessel's cell, centred. The siphon: its leg dips into the vessel (inside its
+    inner octagon, over the gold and the charge, under the acid's surface), its run lies on the vessel's lip, its
+    outlet leg dips into the tub (inside it, under its rim, into the liquor and under the vessel's liquid surface, so it
+    runs), and it touches nothing hot. The copper: a rod resting on the tub's two side rims, the plates hanging from
+    it into the liquor, clear of the siphon and the sludge, inside the tub. The silver sludge lies on the tub's floor,
+    its lumps under the plates' feet; the liquor's surface is inside the tub, under the vessel's."""
     m = v.m
-    first = "pipecopper"
-    els = sorted(v.by_part[first], key=lambda e: e.name)
-    walls = [e for e in els if e.name.startswith(f"{first}_inlet_")]
-    joint = [e for e in els if e.name.startswith(f"{first}_joint")]
-    lo, hi = aabb_of(walls)
-    wc = m.water_cell()
-    centre = (wc[0] * 16 + 8, wc[2] * 16 + 8)
-    section = (hi[0] - lo[0], hi[2] - lo[2])
-    mid = ((lo[0] + hi[0]) / 2, (lo[2] + hi[2]) / 2)
     bad = []
-    if len(walls) != 4:
-        bad.append(f"{len(walls)} walls, 4 wanted")
-    if abs(hi[1] - (wc[1] + 1) * 16) > 1e-6 or max(abs(mid[0] - centre[0]), abs(mid[1] - centre[1])) > 1e-6 \
-            or max(abs(s - 2 * m.PIPE_HALF) for s in section) > 1e-6:
-        bad.append("the pipe does not meet the water face at the cell's centre in ppex's section")
-    way_lo, way_hi = m.span(m.PIPE_WAY)
-    if any(abs(lo[k] - way_lo[k]) > 1e-6 or abs(hi[k] - way_hi[k]) > 1e-6 for k in (0, 2)) \
-            or lo[1] > way_lo[1] or hi[1] < way_hi[1]:
-        bad.append("the pipe's way through the roof is not the pipe's")
-    body = next(e for e in els if e.name == f"{first}_cock_body").aabb()
-    nozzle = next(e for e in els if e.name == f"{first}_cock_nozzle").aabb()
-    if abs(lo[1] - body[1][1]) > 1e-6 or not (body[0][0] <= lo[0] and hi[0] <= body[1][0]):
-        bad.append("the pipe does not end in the cock")
-    if len(joint) != 4 or abs(aabb_of(joint)[0][1] - body[1][1]) > 0.05:
-        bad.append("no wiped joint where the pipe meets the cock")
-    for metal in m.PIPE_METALS[1:]:
-        copies = sorted(v.by_part.get(f"pipe{metal}", []), key=lambda e: e.name)
-        if len(copies) != len(els):
-            bad.append(f"{metal} has {len(copies)} elements, {len(els)} wanted")
-            continue
-        for a, b in zip(els, copies):
-            same = max(abs(a.c[k] - b.c[k]) + abs(a.size[k] - b.size[k]) for k in range(3)) < 1e-9
-            texa = {f["texture"].replace(first, f"pipe{metal}") for f in a.faces.values()}
-            texb = {f["texture"] for f in b.faces.values()}
-            if b.name != f"pipe{metal}" + a.name[len(first):] or not same or texa != texb:
-                bad.append(f"{b.name} is not {a.name} in {metal}")
-    tip = ((nozzle[0][0] + nozzle[1][0]) / 2, nozzle[0][1], (nozzle[0][2] + nozzle[1][2]) / 2)
+    tub = aabb_of(v.by_part["tub"])
+    (x0, x1), (y0, y1), (z0, z1) = m.TUB
+    if not same_box(tub, ([x0, y0, z0], [x1, y1, z1])):
+        bad.append(f"the tub is not where TUB puts it: {tub}")
+    if abs(y0 - m.BENCH) > 1e-9 or z1 > m.TRAY[2][0] - 0.5 or z1 > m.FIRE_Z[0] - 1.0:
+        bad.append("the tub is not on the cold bench, in front of the bath and the fire")
+    under = [(x, m.BENCH - 0.1, z) for x in (x0 + 0.5, (x0 + x1) / 2, x1 - 0.5) for z in (z0 + 0.5, (z0 + z1) / 2, z1 - 0.5)]
+    if any(what_is(v, q) != "bk" for q in under):
+        bad.append("the tub does not stand on the brickwork's bench")
+    (hx0, hx1), _, (hz0, _) = m.HOOD_OPEN
+    if not (hx0 < x0 and x1 < hx1 and hz0 <= z0 and y1 < m.HOOD_OPEN[1][1] - 4.0):
+        bad.append("the tub is not under the hood's open front")
+    cell = tuple(int(c // m.B) for c in m.tub_point())
+    if (cell[0], int((m.tub_point()[1] - 0.5) // m.B), cell[2]) != m.tub_cell():
+        bad.append("the tub's mouth is not in its cell")
+    # the siphon
+    legs = {e.name: e.aabb() for e in v.by_part["siphon"]}
+    vleg, run, tleg = legs["siphon_vesselleg"], legs["siphon_run"], legs["siphon_tubleg"]
     cx, cz = m.VESSEL_C
-    if not (inside_oct(cx, cz, m.INNER_A - 1.0, tip[0], tip[2]) and m.VESSEL_Y[3] < tip[1] <= m.VESSEL_Y[3] + 2.0):
-        bad.append("the cock's nozzle is not over the vessel's mouth")
-    if abs(nozzle[1][1] - body[0][1]) > 1e-9:
-        bad.append("the nozzle is not on the cock's body")
-    vessel = v.by_part["vessel"]
-    for place in m.COCKS:
-        boss = v.named(f"cock{place}", r".*_boss")[0].aabb()
-        lever = v.named(f"cock{place}", r".*_lever")[0].aabb()
-        if abs(boss[0][0] - body[1][0]) > 1e-6 or not (body[0][1] < boss[0][1] and boss[1][1] < body[1][1]):
-            bad.append(f"the key's boss is not on the cock's body ({place})")
-        if abs(lever[0][0] - boss[1][0]) > 1e-6:
-            bad.append(f"the lever is not on the key's boss ({place})")
-        flat = lever[1][1] - lever[0][1] < 1.0
-        if (place == "shut") != flat:
-            bad.append(f"the lever is not {'across' if place == 'shut' else 'along'} the flow when {place}")
-        if any(obb_obb(e, f) for e in v.by_part[f"cock{place}"] for f in vessel):
-            bad.append(f"the {place} cock runs into the vessel")
-    stream = v.named("cockopen", r".*_stream")[0].aabb()
-    wash = aabb_of(v.by_part["wash"])
-    if abs(stream[1][1] - tip[1]) > 1e-9 or abs(stream[0][1] - wash[1][1]) > 1e-9 \
-            or not inside_oct(cx, cz, m.INNER_A, stream[0][0], stream[0][2]):
-        bad.append("the open cock's stream does not run from the nozzle into the vessel's water")
+    corners = [(x, z) for x in (vleg[0][0], vleg[1][0]) for z in (vleg[0][2], vleg[1][2])]
+    if not all(inside_oct(cx, cz, m.INNER_A, x, z) for x, z in corners):
+        bad.append("the siphon's leg is not inside the vessel")
+    top_gold = max(aabb_of(v.by_part[p])[1][1] for p in ("gold", "charge"))
+    if not (top_gold + 0.2 < vleg[0][1] < m.ACID_Y[0]):
+        bad.append(f"the siphon's leg does not dip into the liquid over the gold ({vleg[0][1]:.2f})")
+    if abs(run[0][1] - m.VESSEL_Y[3]) > 1e-9:
+        bad.append("the siphon's run does not lie on the vessel's lip")
+    (ix0, ix1), (iy0, _), (iz0, iz1) = m.TUB_IN
+    if not (ix0 < tleg[0][0] and tleg[1][0] < ix1 and iz0 < tleg[0][2] and tleg[1][2] < iz1):
+        bad.append("the siphon's outlet leg is not inside the tub")
+    if not (m.SLUDGE_Y[1] + 0.5 < tleg[0][1] < m.LIQUOR_Y[0] and tleg[0][1] < m.ACID_Y[1]):
+        bad.append(f"the siphon's outlet does not dip into the liquor under the vessel's surface ({tleg[0][1]:.2f})")
+    if m.LIQUOR_Y[1] >= m.ACID_Y[1]:
+        bad.append("the tub's liquor stands as high as the vessel's: the siphon would not run")
+    if any(obb_obb(e, f) for e in v.by_part["siphon"] for f in v.by_part["frame"] + v.by_part["hoodiron"] + v.by_part["brickwork"]):
+        bad.append("the siphon runs into the hood")
+    # the copper
+    rod = next(e for e in v.by_part["copper"] if e.name == "copper_rod").aabb()
+    if abs(rod[0][1] - y1) > 1e-9 or rod[0][0] > x0 + 1e-9 or rod[1][0] < x1 - 1e-9 or not (iz0 < rod[0][2] and rod[1][2] < iz1):
+        bad.append("the copper rod does not rest on the tub's side rims")
+    plates = [e.aabb() for e in v.by_part["copper"] if e.name.startswith("copper_plate")]
+    for lo, hi in plates:
+        if not (ix0 < lo[0] and hi[0] < ix1 and iz0 < lo[2] and hi[2] < iz1 and lo[1] > m.SLUDGE_Y[1]
+                and lo[1] < m.LIQUOR_Y[0] and hi[1] > rod[0][1] and hi[1] <= rod[1][1]):
+            bad.append(f"a copper plate does not hang from the rod into the liquor: {lo}, {hi}")
+    if len(plates) < 2:
+        bad.append("fewer than two copper plates")
+    # the silver and the liquor
+    sludge = aabb_of(v.by_part["silver"])
+    if abs(sludge[0][1] - iy0) > 1e-9 or not (ix0 - 1e-9 <= sludge[0][0] and sludge[1][0] <= ix1 + 1e-9
+                                              and iz0 - 1e-9 <= sludge[0][2] and sludge[1][2] <= iz1 + 1e-9):
+        bad.append("the silver sludge does not lie on the tub's floor, inside it")
+    if sludge[1][1] >= min(lo[1] for lo, _ in plates):
+        bad.append("the sludge reaches the copper plates' feet")
+    liquor = aabb_of(v.by_part["liquor"])
+    if not same_box(liquor, ([ix0, m.LIQUOR_Y[0], iz0], [ix1, m.LIQUOR_Y[1], iz1])):
+        bad.append("the liquor is not the tub's inside at its level")
     for msg in bad:
-        v.fail(f"water: {msg}")
-    print(f"water: {len(els)} elements a metal in {', '.join('pipe' + x for x in m.PIPE_METALS)}: ppex's section from the "
-          f"water face (y {hi[1]:.1f}, the cell {list(wc)}'s centre) through the roof to the cock (y {lo[1]:.1f}), a "
-          f"wiped joint there; the nozzle's tip {tip[1] - m.VESSEL_Y[3]:.2f} over the lip, the lever across the flow "
-          f"shut, along it open, the stream into the vessel")
+        v.fail(f"tub: {msg}")
+    print(f"tub: on the cold bench in front of the bath ({m.TRAY[2][0] - z1:.1f} clear), under the hood's open front, its "
+          f"mouth in {list(m.tub_cell())}; the siphon from over the gold in the vessel, on its lip, to {tleg[0][1]:.2f} in "
+          f"the tub, under the vessel's surface ({m.ACID_Y[1]}); {len(plates)} copper plates on a rod on the rims, into the "
+          f"liquor; the sludge on the floor to {sludge[1][1]:.2f}")
 
 
 # ---------------------------------------------------------------- the outlet, the draught
@@ -796,15 +853,15 @@ def empty(v, p, solid):
 def check_draught(v):
     """The ways the air goes, natural draught only. The fire's: in at the ash mouth into the ash pit, up between the
     firebars, over the fuel, out at the flue near the top of the chamber's back wall and along it into the stack, up
-    the stack to the outlet. The hood's: in at its open front, over the vessel, back under the roof, out at its flue
-    near the top of its back wall into the stack. Sampled points along both lie in no element built in (the iron, the
-    brick, the bath, the vessel, the water line), and the stack and the outlet's mouth in no element at all at any
-    depth but the cap. The flues and the stack run into each other."""
+    the stack to the outlet. The hood's: in at its open front over the tub, over the vessel, back under the roof, out
+    at its flue near the top of its back wall into the stack. Sampled points along both lie in no element built in (the
+    iron, the brick, the bath, the vessel, the tub and its siphon), and the stack and the outlet's mouth in no element
+    at all at any depth but the cap. The flues and the stack run into each other."""
     m = v.m
-    solid = static(v) + v.by_part["pipecopper"] + v.by_part["cockshut"] + v.by_part["cockopen"]
+    solid = static(v) + v.by_part["copper"]
     (mx0, mx1), (my0, my1) = m.MOUTH
     xm, ym = (mx0 + mx1) / 2, (my0 + my1) / 2
-    path = [(xm, ym, z) for z in (-0.5, 0.5, 1.5, 2.5, 3.5)]
+    path = [(xm, ym, z) for z in [-0.5] + [0.5 + q for q in range(int(m.FIRE_Z[0]))]]
     path += [(xm, (m.CAVE_Y[0] + m.CAVE_Y[1]) / 2, m.FIRE_Z[0] + 0.5 + q) for q in range(int(m.FIRE_Z[1] - m.FIRE_Z[0]))]
     bars = sorted((e.aabb() for e in v.by_part["frame"] if e.name.startswith("fr_bar")), key=lambda b: b[0][2])
     for (alo, ahi), (blo, _) in zip(bars, bars[1:]):
@@ -812,13 +869,13 @@ def check_draught(v):
         path += [(m.FIRE_X[0] + (m.FIRE_X[1] - m.FIRE_X[0]) * f, (m.BAR_Y[0] + m.BAR_Y[1]) / 2, gz) for f in (0.2, 0.5, 0.8)]
     (fx0, fx1), (fy0, fy1), (fz0, fz1) = m.FIRE_FLUE
     fx, fy = (fx0 + fx1) / 2, (fy0 + fy1) / 2
-    path += [(fx, 11.0, z) for z in (5.0, 8.0, 11.0)] + [(fx, fy, fz0 + 0.5 + q) for q in range(int(fz1 - fz0))]
+    path += [(fx, 11.0, m.FIRE_Z[0] + d) for d in (1.0, 4.0, 7.0)] + [(fx, fy, fz0 + 0.5 + q) for q in range(int(fz1 - fz0))]
     (sx0, sx1), (sy0, _), (sz0, sz1) = m.STACK
     sx, sz = (sx0 + sx1) / 2, (sz0 + sz1) / 2
     path += [(sx, sy0 + 0.5 + q * 0.5, sz) for q in range(int((m.TOP + m.B - sy0) * 2) - 1)]
     (hx0, hx1), (hy0, hy1), (hz0, hz1) = m.HOOD_FLUE
-    hood = [(8.0, 20.0, z) for z in (-0.5, 0.5, 2.0, 3.5)] + [(3.5, 20.0, z) for z in (3.5, 4.0)]
-    hood += [(3.5, y, 4.0) for y in (22.0, 24.0, 26.0, 28.0, 29.5)] + [(3.5, 28.0, z) for z in range(4, 14)]
+    hood = [(8.0, 22.5, z) for z in (-0.5, 0.5, 2.0, 3.5)] + [(3.5, 22.5, z) for z in (3.5, 4.0)]
+    hood += [(3.5, y, 4.0) for y in (24.0, 26.0, 28.0, 29.5)] + [(3.5, 28.0, z) for z in range(4, int(m.HOOD[2][1]))]
     hood += [((hx0 + hx1) / 2, (hy0 + hy1) / 2, hz0 + 0.5 + q) for q in range(int(hz1 - hz0))]
     if not (fx0 >= sx0 and fx1 <= sx1 and abs(fz1 - sz0) < 1e-9 and abs(fy0 - sy0) < 1e-9 and hx0 >= sx0 and hx1 <= sx1
             and abs(hz1 - sz0) < 1e-9 and abs(hy1 - m.HOOD[1][1]) < 1e-9 and abs(fz0 - m.FIRE_Z[1]) < 1e-9
@@ -842,9 +899,14 @@ def check_draught(v):
 
 
 # ---------------------------------------------------------------- clearances, z-fighting
+LIQUIDS = {"acid", "solution", "wash", "liquor"}
+
+
 def allowed(pa, pb, ea, eb):
-    """Intended overlaps: none but a lump or grain lying on its own layer (the same part)."""
-    return False
+    """Intended overlaps: the siphon's legs dipping through a liquid's surface (the vessel's, the tub's), and the
+    copper plates hanging through the tub's liquor."""
+    pair = {pa, pb}
+    return ("siphon" in pair and bool(pair & LIQUIDS)) or pair == {"copper", "liquor"}
 
 
 def touches(items, movers=None):
@@ -866,14 +928,15 @@ def touches(items, movers=None):
 
 
 def scenes(m):
-    """The vessel built: every state of the vessel with the fire burning, the damper open and the copper line's cock
-    shut (washing: open); every state of the fire; every place of the damper and the lead line with the outlet capped;
-    and each stage of the build before it is complete."""
-    out = [(vs, "burning", "open", "copperopen" if vs == "washing" else "coppershut", False, "complete") for vs, _, _ in m.VESSEL_STATES]
-    out += [("empty", f, "open", "none", False, "complete") for f, _, _ in m.FIRE_STATES]
-    out += [("washing", "laid", d, "leadopen", True, "complete") for d in m.DAMPERS] + [("parted", "laid", "open", "leadshut", True, "complete")]
-    out += [("empty", "none", "open", "none", False, "frame"), ("empty", "none", "open", "none", False, "brickwork"),
-            ("empty", "none", "open", "none", True, "lining")]
+    """The vessel built: every state of the vessel with the tub precipitating, the fire burning and the damper open;
+    every state of the tub (with the vessel parting and washing); every state of the fire; every place of the damper
+    with the outlet capped; and each stage of the build before it is complete."""
+    out = [(vs, "precipitating", "burning", "open", False, "complete") for vs, _, _ in m.VESSEL_STATES]
+    out += [(vs, ts, "burning", "open", False, "complete") for ts, _, _ in m.TUB_STATES for vs in ("parting", "washing")]
+    out += [("empty", "empty", f, "open", False, "complete") for f, _, _ in m.FIRE_STATES]
+    out += [("washing", "sludge", "laid", d, True, "complete") for d in m.DAMPERS]
+    out += [("empty", "empty", "none", "open", False, "frame"), ("empty", "empty", "none", "open", False, "brickwork"),
+            ("empty", "empty", "none", "open", True, "lining")]
     return out
 
 
@@ -921,6 +984,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v)
     check_top(v)
     check_sides(v)
+    check_binding(v)
     check_walls(v)
     check_lining(v)
     check_build(v)
@@ -929,7 +993,7 @@ def validate(m, els, parts, rig, quick=False):
     check_fire(v)
     check_bath(v)
     check_contents(v)
-    check_water(v)
+    check_tub(v)
     check_outlet(v)
     check_draught(v)
     check_clearances(v, 0.1 if quick else 0.02)
@@ -1039,6 +1103,10 @@ def validate_files(m, shape, frame_shape, ship):
         fail("batch equipment has no chute anchor")
     if any(k.startswith("return") for k in ship):
         fail("the water is used up: no return-water anchor")
+    if any(k.startswith(("water", "cock", "pipe")) for k in ship) or "pipeMetals" in ship.get("parting", {}):
+        fail("watered by bucket, at the vessel: no water anchor, no water line")
+    if any(p["id"].startswith(("pipe", "cock")) for p in ship["parts"]) or set(shape["textures"]) & {"pipecopper", "pipelead", "solder", "brass"}:
+        fail("watered by bucket: no water line or cock in the model")
     cells = {tuple(c["pos"]): c for c in ship["cells"]}
     want_cells = {tuple(c[k] - m.ORIGIN_CELL[k] for k in range(3)) for c in m.footprint()}
     if set(cells) != want_cells or any(c.get("hollow") or not c.get("boxes") for c in cells.values()):
@@ -1048,9 +1116,8 @@ def validate_files(m, shape, frame_shape, ship):
     if lids != top or any(cells[p]["lid"] != 1.0 for p in lids):
         fail(f"decks on {sorted(lids)}, not at the top of the top cells {sorted(top)}")
     chim = tuple(m.CHIMNEY_CELL[k] - m.ORIGIN_CELL[k] for k in range(3))
-    pipe = tuple(m.PIPE_CELL[k] - m.ORIGIN_CELL[k] for k in range(3))
-    if chim in cells or pipe in cells:
-        fail("the chimney's cell or the water pipe's is the vessel's")
+    if chim in cells:
+        fail("the chimney's cell is the vessel's")
     out = tuple(ship["outletCell"])
     if (out[0], out[1] + 1, out[2]) != chim or ship["outletFace"] != "up":
         fail("the outlet is not under the chimney's cell")
@@ -1061,18 +1128,18 @@ def validate_files(m, shape, frame_shape, ship):
         fail("the chimney's line does not stand on the outlet, the minimum counted from it up")
     if not (out[0] <= line["origin"][0] <= out[0] + 1 and out[2] <= line["origin"][2] <= out[2] + 1):
         fail("the chimney's line is not over the outlet")
-    water = tuple(ship["waterCell"])
-    if ship["waterFace"] != "up" or water not in cells or (water[0], water[1] + 1, water[2]) != pipe:
-        fail("the water face is not the top of the front row, under the water pipe's cell")
     vc = tuple(ship["vesselCell"])
     if ship["vesselFace"] != "north" or vc not in cells or vc[2] != 0:
         fail("the vessel's cell is not worked from the front")
     vp = ship["vessel"]["pos"]
     if any(not (vc[k] <= vp[k] <= vc[k] + 1) for k in range(3)):
         fail("the vessel's mouth is not in its cell")
-    cp = ship["cock"]["pos"]
-    if any(not (water[k] <= cp[k] <= water[k] + 1) for k in range(3)) or cp[1] <= vp[1]:
-        fail("the cock's nozzle is not over the vessel's mouth in the water cell")
+    tc = tuple(ship["tubCell"])
+    tp = ship["tub"]["pos"]
+    if ship["tubFace"] != "north" or tc not in cells or tc[2] != 0 or any(not (tc[k] <= tp[k] <= tc[k] + 1) for k in range(3)):
+        fail("the tub's cell is not worked from the front, or its mouth is not in it")
+    if not tp[2] < vp[2] or not tp[1] < vp[1]:
+        fail("the tub is not in front of the vessel and under its mouth")
     for key in ("ash", "firedoor"):
         p = ship[key]["pos"]
         if ship[f"{key}Side"] != "north" or abs(p[2]) > 1e-9 or not (0.0 <= p[0] <= 1.0 and 0.0 <= p[1] <= 1.0):
@@ -1081,7 +1148,7 @@ def validate_files(m, shape, frame_shape, ship):
         fail("the ash mouth is not under the fire door")
     print(f"files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; {len(ship['cells'])} cells, "
           f"decks on {len(lids)}; glow on the burning fuel only; no power cell, no air port, no chute or return-water "
-          f"anchor; the fire door and the ash mouth on the controller's front face; the vessel worked from the front of "
-          f"{list(vc)}; the water face the top of {list(water)}, under the pipe's cell {list(pipe)}; the outlet under the "
-          f"chimney's cell {list(chim)}, the chimney {m.MIN_CHIMNEY} blocks from it up")
+          f"anchor, no water anchor or water line; the fire door and the ash mouth on the controller's front face; the "
+          f"vessel (the gold) and the tub in front of it (the silver) worked from the front of {list(vc)}; the outlet "
+          f"under the chimney's cell {list(chim)}, the chimney {m.MIN_CHIMNEY} blocks from it up")
     return ok

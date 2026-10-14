@@ -5,13 +5,15 @@ The acid parting vessel parts gold from silver with nitric acid, as the mints an
 century did (Rose 1898, pp. 398-400: the granulated alloy in "cylindrical vessels of earthenware, porcelain, or
 platinum" set in a cast-iron sand bath over a small fire, under a brick hood to the chimney; the gold left behind
 washed with water). It is one such vessel, built whole as one machine: a block of brickwork one block wide, two deep
-and two high. In its front row a small fire burns on a grate of iron firebars, stoked through a sliding iron fire door
+and two high, bound at its corners and top edges with angle iron. In its front row a small fire burns on a grate of iron firebars, stoked through a sliding iron fire door
 in the front, its ash pit under the grate reached by the ash mouth under the door, which an iron damper slides over
 (open, half, shut), natural draught only. Over the fire a cast-iron sand bath is let into the masonry, its iron
 bottom the fire chamber's roof; a porcelain parting vessel stands in its sand, under a brick hood on two piers, open
-in front, whose breast is carried on an iron lintel. The process water comes down through the hood's roof in a
-soldered copper or lead pipe (UnifiedPipes' soldered ppex pipe, as the rosser's) to a brass cock over the vessel's
-mouth. The fire's flue runs back from the top of the fire chamber's back wall into a stack in the back row; the hood
+in front, whose breast is carried on an iron lintel. In front of the bath, on the cold end of the bench under the same
+hood, stands the precipitating tub: a lead siphon draws the silver solution off the vessel into it, copper plates hang
+in it on a copper rod, and the silver comes down on them as a grey sludge on its bottom, which is drawn by hand; the
+gold stays in the vessel. The wash water is poured in by hand from a bucket (no pipe: #931's draw is 1 L a 10 units).
+The fire's flue runs back from the top of the fire chamber's back wall into a stack in the back row; the hood
 draws its fumes back into the same stack near its top, and the stack rises to an outlet on the top, centred in the
 back row, where the player stands the chimney (or a flat iron cap, on every vessel in a row but the one carrying the
 row's chimney). Units stand side by side in a row along their width, their plain brick side walls meeting.
@@ -19,7 +21,7 @@ row's chimney). Units stand side by side in a row along their width, their plain
 It is not a furnace, and takes from the crucible furnace (`CrucibleFurnace/`) only what it needs: the fire (a grate on
 bearers, an ash mouth with the three-place damper, natural draught), the outlet with its curb and cap and the chimney
 counted from it, the brick in its two roles (any fired brick for the brickwork, tier-3 refractory lining 3 voxels
-thick on the hot faces: the fire chamber, its flue and the stack), the iron binding on the front and back, the staged
+thick on the hot faces: the fire chamber, its flue and the stack), the iron binding (here angle iron wrapping the corners and the top edges, the owner's rule), the staged
 build and its measured counts, and the contents drawn as parts that come and go. The hood is brickwork, not lined:
 it carries acid fumes, not the fire's heat.
 
@@ -45,9 +47,9 @@ The rig's inputs, as this vessel uses them:
            which opens and shuts the door). Nothing turns: no power.
 
 Everything else that shows or not (the build's stages: the brickwork with the hood's lintel, the lining, the fittings
-(the sand bath, the vessel, the fire door); the water line, a copper or a lead pipe with its brass cock, and the cock's
-two places; the damper's three places; the fire laid and burning; the vessel's contents: the dore, the acid, the
-silver solution, the parted gold, the wash water; the outlet's cap) is a `requires`: gameplay's state, not a motion.
+(the sand bath, the vessel, the precipitating tub and its siphon, the fire door); the damper's three places; the fire laid and burning; the vessel's contents: the dore, the acid, the
+silver solution, the parted gold, the wash water; the tub's: the copper plates, the drawn-off liquor, the silver
+sludge; the outlet's cap) is a `requires`: gameplay's state, not a motion.
 The iron frame has none.
 """
 
@@ -61,7 +63,6 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Machines" / "tools"))
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Pipes" / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from machinegen.checks import cell_boxes, cells_touched  # noqa: E402
@@ -72,7 +73,6 @@ from machinegen.output import (reference_dumps, rig_dumps, round_matrix, shape_d
 from machinegen.output import shape_json as machine_shape_json  # noqa: E402
 from machinegen.rigmath import part_of, posed, validate_driver  # noqa: E402
 from machinegen.rigmath import part_matrix as _part_matrix  # noqa: E402
-import solderedpipe  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[4]
 MOD = ROOT / "mods-src" / "seraphhorizons"
@@ -89,14 +89,12 @@ CELLS_X, CELLS_Y, CELLS_Z = 1, 2, 2          # one wide (x, the row's way), two 
 ORIGIN_CELL = (0, 0, 0)                      # the controller: the front cell at ground level (the fire door's, the ash
 #                                              mouth's): the build frame is the shipped frame
 CHIMNEY_CELL = (0, 2, 1)                     # over the outlet: the player's chimney, not the machine's
-PIPE_CELL = (0, 2, 0)                        # over the water face: the player's ppex pipe, not the machine's
 ROW_MAX = 6                                  # vessels in a row, side by side along x, sharing one chimney
 
 TEXTURES = {
     "brick": "game:block/clay/brick/four/running/red1",     # the brickwork: the red brick's colour (BRICKS)
     "lining": "game:block/clay/refractory/tier3/front1",    # the hot-face lining and the outlet's curb: tier-3 refractory
     "iron": "game:block/metal/plate/iron",                  # the frame, the hood's lintel, the sand bath, door, damper, cap
-    "brass": "game:block/metal/plate/brass",                # the water cock, its key and lever
     "sand": "game:block/stone/sand/sandstone",              # the sand bath's sand
     "porcelain": "game:block/clay/flintporcelain/fired",    # the parting vessel: porcelain (Rose's Philadelphia Mint pots)
     "fuel": "game:block/coal/charcoal",                     # the fire laid
@@ -105,11 +103,11 @@ TEXTURES = {
     "gold": "game:block/metal/ingot/gold",                  # the parted gold
     "acid": "game:block/liquid/brine",                      # aqua fortis: nitric acid, pale yellow
     "solution": "game:block/liquid/dye/woad",               # the acid with the silver (and the dore's copper) in it: blue
-    "water": "game:block/liquid/waterportion",              # the wash water, and the stream from the cock
-    # the water pipe wears ppex's pipe textures as UnifiedPipes gives them, its joint the solder it is wiped with
-    "pipecopper": "game:block/metal/sheet-plain/copper4",
-    "pipelead": "game:block/metal/sheet-plain/lead4",
-    "solder": solderedpipe.SOLDER_TEXTURE,
+    "water": "game:block/liquid/waterportion",              # the wash water, poured in from a bucket
+    "oak": "game:block/wood/planks/oak1",                   # the precipitating tub's boards
+    "lead": "game:block/metal/sheet-plain/lead4",           # the siphon: lead pipe
+    "copper": "game:block/metal/plate/copper",              # the copper plates and their rod
+    "silver": "game:block/metal/ingot/silver",              # the silver sludge
 }
 TEX = 16                                     # shape texture units: one a voxel, one texture across a block face
 FIRE_GLOW = 200                              # the burning fuel's faces (the crucible furnace's coke; a lit firepit is 160)
@@ -123,7 +121,8 @@ TOP = H                                      # the top: flat, the roof over the 
 # chamber, its roof the sand bath's iron bottom. The fire door and the ash mouth are both in the front, one over the
 # other, centred, in one recess in the front face whose iron guides carry the damper (low) and the door (high).
 FIRE_X = (4.5, 11.5)                         # the ash pit and the fire chamber: 7 wide, centred, walls of 4.5 each side
-FIRE_Z = (4.0, 12.0)                         # 8 deep: a front wall of 4 (behind the recess, 3), the back wall to the flue
+FIRE_Z = (8.0, 16.0)                         # 8 deep, under the vessel: a front wall of 8 (the stoke hole and the ash
+#                                              mouth run through it) under the cold front of the bench, where the tub stands
 CAVE_Y = (1.0, 5.0)                          # the ash pit, on a course of brick
 BEARER_Y = (5.0, 6.0)                        # the bearers, along z, their ends in the front and back walls
 BEARER_X = ((4.5, 5.5), (10.5, 11.5))        # one under each end of the bars
@@ -151,13 +150,13 @@ DOOR_HANDLE = ((6.75, 9.25), (0.1, 0.35), (0.55, 1.15))   # its handle bar (x, z
 
 # ---------------------------------------------------------------- the sand bath and the vessel
 # The cast-iron sand bath is let into the masonry over the fire, its rim flush with the bench (the hood's floor), its
-# bottom bearing on the fire chamber's walls all round; the porcelain vessel stands in its sand, centred under the
-# water pipe.
-TRAY = ((3.0, 13.0), (FIRE_TOP, 16.0), (2.0, 14.0))   # the bath: a plate 0.75 thick, a rim 0.5 thick, flush at the bench
+# bottom bearing on the fire chamber's walls all round; the porcelain vessel stands in its sand, centred on it and on
+# the fire, behind the precipitating tub.
+TRAY = ((3.0, 13.0), (FIRE_TOP, 16.0), (6.5, 17.5))   # the bath: a plate 0.75 thick, a rim 0.5 thick, flush at the bench
 TRAY_T, RIM_T = 0.75, 0.5
 BENCH = TRAY[1][1]                           # the bench: the tray's rim and the brick round it, the hood's floor
 SAND_TOP = 15.5                              # the sand's top, half a voxel under the rim
-VESSEL_C = (8.0, 8.0)                        # (x, z): the vessel's axis, under the water face's centre
+VESSEL_C = (8.0, 12.0)                       # (x, z): the vessel's axis, centred on the bath and the fire
 VESSEL_Y = (14.25, 15.0, 23.0, 23.5)         # its bottom (set in the sand, half a voxel of sand under it), the bottom's
 #                                              top, the wall's top, the lip's top
 VESSEL_A = 3.5                               # its outer apothem (an octagon, 7 across), the wall 0.6
@@ -173,38 +172,41 @@ WASH_Y = (18.0, 19.0)                        # the wash water's
 # ---------------------------------------------------------------- the hood
 # Two piers carry a breast over the front opening, on an iron lintel; the roof spans the piers; the hood's back wall
 # stands behind the bath, a flue opening near its top into the stack. The hood is the brickwork's.
-HOOD = ((2.5, 13.5), (BENCH, 30.0), (3.0, 14.0))     # the hood's chamber, behind the breast
-HOOD_OPEN = ((2.5, 13.5), (BENCH, 28.0), (0.0, 3.0))  # its front opening, under the breast: tall enough that the cock
-#                                                       shows over the vessel from a stoker's eye height
-HOOD_LINTEL = ((1.5, 14.5), (28.0, 29.0), (0.5, 3.0))   # the breast's iron lintel, its ends in the piers, the breast's
-#                                                         depth, set back behind the straps' line
-LINTEL_FACE = ((2.5, 13.5), (28.0, 29.0), (0.0, 0.5))   # where it shows, set back half a voxel under the brick face
-HOOD_FLUE = ((5.0, 11.0), (25.0, 30.0), (14.0, 20.0))   # from the top of the hood's back wall into the stack
+HOOD = ((2.5, 13.5), (BENCH, 30.0), (3.0, 18.0))     # the hood's chamber, behind the breast, over the tub and the bath
+HOOD_OPEN = ((2.5, 13.5), (BENCH, 28.0), (0.0, 3.0))  # its front opening, under the breast: tall enough to reach over
+#                                                       the tub to the vessel, and for the siphon's run over the tub
+HOOD_LINTEL = ((1.5, 14.5), (28.0, 29.0), (1.0, 3.0))   # the breast's iron lintel, its ends in the piers, the breast's
+#                                                         depth, set back behind the corner angles' face legs
+LINTEL_FACE = ((2.5, 13.5), (28.0, 29.0), (0.0, 1.0))   # where it shows, set back a voxel under the brick face
+HOOD_FLUE = ((5.0, 11.0), (25.0, 30.0), (18.0, 22.0))   # from the top of the hood's back wall into the stack
+
+# ---------------------------------------------------------------- the precipitating tub
+# Period practice (#931): the silver-bearing acid is drawn off the vessel into a separate tub, where copper plates throw
+# the silver down as a grey sludge, which is collected, washed and melted. The tub stands on the cold front of the bench,
+# in front of the bath, under the hood's open front: a wooden vat (oak boards) with a copper rod across its rims from
+# which three copper plates hang into the liquor. A lead siphon draws the solution off: its leg dips into the vessel
+# (above the gold), it rests on the vessel's lip, runs forward over the tub, and its outlet leg dips
+# into the tub, under the vessel's liquid surface, so it runs. The sludge lies on the tub's bottom; it is the silver's
+# hand-draw point (tubCell, tubFace, tub), the gold staying in the vessel.
+TUB = ((3.0, 13.0), (BENCH, 21.0), (0.5, 5.5))      # the tub, outside (x, y, z): its floor on the bench
+TUB_T = 0.75                                 # its boards
+TUB_IN = ((TUB[0][0] + TUB_T, TUB[0][1] - TUB_T), (TUB[1][0] + TUB_T, TUB[1][1]), (TUB[2][0] + TUB_T, TUB[2][1] - TUB_T))
+LIQUOR_Y = (18.5, 19.25)                     # the drawn-off liquor's surface in the tub, under the vessel's (ACID_Y)
+SLUDGE_Y = (TUB_IN[1][0], 17.25)             # the silver sludge on the tub's bottom
+SLUDGE_LUMPS = ((6.0, 2.0, 30.0), (8.2, 4.0, 65.0), (10.9, 1.8, 15.0))   # (x, z, turn): lumps on it, clear of the plates
+ROD = (0.6, 3.4)                             # the copper rod along x across the tub's rims: its section, its axis (z)
+PLATES = (5.0, 7.0, 11.0)                    # the copper plates' middles (x), hung from the rod, thin across x
+PLATE = (0.3, 1.2, 18.25)                    # a plate's thickness (x), its half depth (z) about the rod, its foot (y)
+SIPHON = (0.8, (9.0, 9.8), (9.8, 10.6), 16.8, 1.5, 18.0)   # the siphon: its section; its x; the vessel leg's z; that leg's
+#                                                             foot (y, over the gold); the tub leg's z (from); its foot (y)
 
 # ---------------------------------------------------------------- the flue, the stack, the outlet
-FIRE_FLUE = ((6.0, 10.0), (8.5, 12.0), (FIRE_Z[1], 20.0))   # from the top of the fire chamber's back wall to the stack
-STACK = ((5.0, 11.0), (8.5, TOP), (20.0, 26.0))             # the stack, centred in the back row, to the outlet
-CURB = ((3.0, 13.0), (30.0, TOP), (18.0, 28.0))  # the outlet's curb, of the lining's refractory brick, flush: a rim 1
+FIRE_FLUE = ((6.0, 10.0), (8.5, 12.0), (FIRE_Z[1], 22.0))   # from the top of the fire chamber's back wall to the stack
+STACK = ((5.0, 11.0), (8.5, TOP), (22.0, 27.0))             # the stack, in the back row behind the hood, to the outlet
+CURB = ((3.0, 13.0), (30.0, TOP), (20.0, 29.0))  # the outlet's curb, of the lining's refractory brick, flush: a rim 1
 CURB_RIM = 1.0                                   # wide round the cap's seat, the seat a ledge 1 wide round the mouth
 CAP_Y = (31.5, TOP)                          # the cap, a flat iron plate, set flush in it
 CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y, (CURB[2][0] + CURB_RIM, CURB[2][1] - CURB_RIM))
-
-# ---------------------------------------------------------------- the water line
-# One straight ppex pipe's worth of UnifiedPipes' soldered pipe, copper or lead, from the water face (the top of the
-# front row, under the player's pipe) down through the hood's roof to a brass cock over the vessel's mouth, a wiped
-# joint where it meets the cock. The cock is a plug cock: its key's lever lies across the flow shut, along it open.
-PIPE_HALF = solderedpipe.HALF                # ppex's pipe: a square tube 6 voxels across (its block's 5..11)
-PIPE_METALS = ("copper", "lead")             # the pipe in UnifiedPipes' metals: one part each, the fitted one drawn
-PIPE_WAY = ((VESSEL_C[0] - PIPE_HALF, VESSEL_C[0] + PIPE_HALF), (HOOD[1][1], TOP),
-            (VESSEL_C[1] - PIPE_HALF, VESSEL_C[1] + PIPE_HALF))       # its way through the roof
-COCK_Y = (25.5, 27.0)                        # the cock's body, under the pipe
-COCK_HALF = PIPE_HALF + 0.2                  # its body, a little wider than the pipe
-NOZZLE = (0.6, 24.5)                         # the nozzle: its half width, its tip (y), a voxel over the vessel's lip
-KEY = ((COCK_HALF, COCK_HALF + 0.8), (25.75, 26.75), (-0.5, 0.5))   # the key's boss, east of the body (x, y, z from
-#                                                                     the axis)
-KEY_AXIS = (26.25, VESSEL_C[1])              # (y, z): the key's axis, along x
-LEVER = (0.5, 3.5)                           # the lever: its section, its length from the key's axis
-STREAM = 0.25                                # the stream from the open cock: its half width
 
 # ---------------------------------------------------------------- the brick
 # Two roles. The brickwork (the base, the ash pit and the ash mouth, the walls, the bench, the hood, the stack's outer
@@ -213,18 +215,24 @@ STREAM = 0.25                                # the stream from the open cock: it
 LINING_T = 3.0
 MIN_WALL = 4.5                               # the least brick beside the fire chamber (the side walls: a half-brick skin
 #                                              outside the lining); the front wall is 3 behind the recess
-FRONT_WALL = 3.0
+FRONT_WALL = 7.0                             # the front wall behind the recess, the stoke hole's depth
 
-# the iron binding, on the front and back faces only (the sides meet the row's neighbours and are plain brick)
-BIND_T = 0.5                                 # set into the brick, flush
-STRAP_X = ((0.5, 2.5), (13.5, 15.5))         # a flat strap up each end of the front and the back
-KERB_Y = (31.0, TOP)                         # a band along the top edge of the front and the back, between the straps
+# The iron binding is angle iron (the owner's rule for every furnace-like brickwork): an L section wrapping each of the
+# block's four vertical corners, one leg on each face, its inside corner bedded against the brick's outside corner, so
+# it locks the brick in on both faces; and along the top edge of the front and of the back an angle wrapping that edge
+# (a leg down the face, a leg on the top), joining the corner angles. The brick is cut back by a leg's thickness where
+# the iron lies, so the angles' outer faces are flush with the block's: on a side face only the corner angles' side
+# legs show, and two vessels side by side in a row meet there, angle against angle and brick against brick.
+ANGLE_T = 1.0                                # a leg's thickness
+ANGLE_LEG = 2.5                              # the corner angles' legs, from the corner
+BAND_FACE = 3.0                              # the top angles' legs: down the face, from the top
+BAND_TOP = 2.0                               #                      and on the top, from the face
 
 # ---------------------------------------------------------------- the build
 # Built in stages (the rig's `build`; their requires values are the viewer's Build states): the iron frame, a grid
 # recipe placed as the machine, then the brickwork (with the hood's lintel at no cost of its own), the lining, and the
-# fittings (the sand bath, the vessel, the fire door and the damper). The water line (the pipe in copper or lead with
-# its cock) and the outlet's cap are fitted by hand. The brickwork's and the lining's counts are measured from the
+# fittings (the sand bath, the vessel, the precipitating tub and its siphon, the fire door and the damper). The outlet's
+# cap is fitted by hand. The brickwork's and the lining's counts are measured from the
 # model's volume at the game's rates, as the crucible furnace's: a claybricks block is 2 fired bricks, a refractory
 # brick block 4, rounded up, the lining's fire clay one for every LINING_PER_FIRECLAY of its bricks. Everything else
 # is a proposal for the owner.
@@ -235,8 +243,8 @@ LINING_PER_FIRECLAY = 2.5
 FIRED_BRICK = "game:burnedbrick-*"
 LINING_BRICK = "game:refractorybrick-fired-tier3"
 FIRECLAY = "game:clay-fire"
-FITTINGS_STAGE = (("game:metalplate-iron", 3), ("game:sand-*", 2))   # the bath's tray, the door and the damper; its sand
-WATER_LINE = (("ppex:pipe-straight-ud-{metal}", 1), ("game:metalplate-brass", 1))   # the pipe, the cock
+FITTINGS_STAGE = (("game:metalplate-iron", 3), ("game:sand-*", 2), ("game:plank-oak", 4), ("game:metalplate-lead", 1))
+#                                              the bath's tray, the door and the damper; its sand; the tub; the siphon
 CAP_ITEM = ("game:metalplate-iron", 1)
 STAGES = ("brickwork", "lining", "fittings")  # the stages after the frame, in order: their requires values
 STAGE_STATES = (                             # the viewer's Build select: (id, the stages fitted)
@@ -269,24 +277,23 @@ VESSEL_STATES = (
     ("charged", "Charged: granulated dore", ("charge",)),
     ("acid", "The acid poured on", ("charge", "acid")),
     ("parting", "Parting: the silver dissolved, the gold left", ("gold", "solution")),
-    ("washing", "The solution drawn off, the gold washed", ("gold", "wash")),
+    ("washing", "The solution drawn off into the tub, the gold washed", ("gold", "wash")),
     ("parted", "Parted: the gold left, washed", ("gold",)),
+)
+TUB_STATES = (
+    ("empty", "Empty", ()),
+    ("copper", "Copper plates hung", ("copper",)),
+    ("drawn", "The solution drawn off into it", ("copper", "liquor")),
+    ("precipitating", "The silver coming down on the copper", ("copper", "liquor", "silver")),
+    ("sludge", "The liquor run off, the sludge to draw", ("copper", "silver")),
 )
 FIRE_STATES = (
     ("none", "No fire", ()),
     ("laid", "Laid, not lit", ("fuel",)),
     ("burning", "Burning", ("fire",)),
 )
-WATER_STATES = (
-    ("none", "Not fitted", ()),
-    ("coppershut", "Copper pipe, cock shut", ("pipecopper", "cockshut")),
-    ("copperopen", "Copper pipe, cock open", ("pipecopper", "cockopen")),
-    ("leadshut", "Lead pipe, cock shut", ("pipelead", "cockshut")),
-    ("leadopen", "Lead pipe, cock open", ("pipelead", "cockopen")),
-)
 DAMPERS = ("open", "half", "shut")
-COCKS = ("shut", "open")
-CONTENTS = ("fuel", "fire", "charge", "acid", "solution", "gold", "wash")
+CONTENTS = ("fuel", "fire", "charge", "acid", "solution", "gold", "wash", "copper", "liquor", "silver")
 
 
 # ---------------------------------------------------------------- box helpers (the crucible furnace's)
@@ -420,16 +427,34 @@ def span(t):
 
 
 # ---------------------------------------------------------------- the brickwork
-def binding():
-    """The iron binding, as (name, lo, hi): a flat strap up each end of the front and of the back, and a band along
-    the top edge of each between them, all BIND_T thick and flush. The side faces are left plain brick: a row's
-    neighbours meet there."""
+def angles():
+    """The binding's angles, as (name, corner, legs): each leg (lo, hi). The corner angles (`fr_angle_<n|s><w|e>`), the
+    full height at each vertical corner: a leg on the front or back face (`a`, ANGLE_LEG wide) and a leg on the side
+    face (`b`, from the first leg's back to ANGLE_LEG from the corner), the two meeting in the corner. The top angles
+    (`fr_band_<n|s>`), along the top edge of the front and of the back between the corner angles' face legs: a leg
+    down the face (`a`, BAND_FACE) and a leg on the top (`b`, to BAND_TOP from the face). `corner` is the brick's
+    outside corner the angle wraps: (axis, the face's coordinate) for each of its two faces."""
+    t, g = ANGLE_T, ANGLE_LEG
     out = []
-    for face, z0, z1 in (("n", 0.0, BIND_T), ("s", D - BIND_T, D)):
-        for side, (x0, x1) in zip(("w", "e"), STRAP_X):
-            out.append((f"fr_strap_{face}{side}", [x0, 0.0, z0], [x1, H, z1]))
-        out.append((f"fr_kerb_{face}", [STRAP_X[0][1], KERB_Y[0], z0], [STRAP_X[1][0], KERB_Y[1], z1]))
-    return [piece for name, lo, hi in out for piece in split_blocks(name, lo, hi)]
+    for face, (z0, z1), zf, zin in (("n", (0.0, t), 0.0, (t, g)), ("s", (D - t, D), D, (D - g, D - t))):
+        for side, (x0, x1), xf, xin in (("w", (0.0, g), 0.0, (0.0, t)), ("e", (W - g, W), W, (W - t, W))):
+            out.append((f"fr_angle_{face}{side}", ((2, zf), (0, xf)),
+                        [([x0, 0.0, z0], [x1, H, z1]), ([xin[0], 0.0, zin[0]], [xin[1], H, zin[1]])]))
+        za, zb = (0.0, t) if face == "n" else (D - t, D)
+        top = (t, BAND_TOP) if face == "n" else (D - BAND_TOP, D - t)
+        out.append((f"fr_band_{face}", ((2, zf), (1, TOP)),
+                    [([g, TOP - BAND_FACE, za], [W - g, TOP, zb]), ([g, TOP - t, top[0]], [W - g, TOP, top[1]])]))
+    return out
+
+
+def binding():
+    """The binding's elements, as (name, lo, hi): every angle's two legs (`angles`), each long leg cut at the blocks'
+    boundaries. The side faces are plain brick but for the corner angles' side legs, flush."""
+    out = []
+    for name, _, legs in angles():
+        for leg, (lo, hi) in zip(("a", "b"), legs):
+            out += split_blocks(f"{name}_{leg}", lo, hi)
+    return out
 
 
 def ties():
@@ -452,9 +477,9 @@ def ties():
 def brick_voids():
     """Every space cut out of the brick, as (lo, hi) in voxels: the ash pit and the fire chamber; the ash mouth's and
     the fire door's passages and the recess in the front face; the sand bath's seat; the hood's chamber and its front
-    opening; the fire's flue, the hood's flue, the stack and the cap's seat in the curb; the water pipe's way through the
-    roof; and the room for the iron set into the brick (the bearers' ends, the lintels, the hood's lintel, the binding,
-    the frame's ties). The top is flat but for the pipe's way and the outlet."""
+    opening; the fire's flue, the hood's flue, the stack and the cap's seat in the curb; and the room for the iron set
+    into the brick (the bearers' ends, the lintels, the hood's lintel, the binding,
+    the frame's ties). The top is flat but for the outlet."""
     v = [([FIRE_X[0], CAVE_Y[0], FIRE_Z[0]], [FIRE_X[1], FIRE_TOP, FIRE_Z[1]])]      # the ash pit and the fire chamber
     for x0, x1 in BEARER_X:
         v.append(([x0, BEARER_Y[0], BEARER_Z[0]], [x1, BEARER_Y[1], BEARER_Z[1]]))      # the bearers, ends in the walls
@@ -463,7 +488,7 @@ def brick_voids():
     (dx0, dx1), (dy0, dy1) = DOOR_HOLE
     v.append(([dx0, dy0, 0.0], [dx1, dy1, FIRE_Z[0]]))                                  # the fire door's opening
     for t in (RECESS, LINTEL, DOOR_LINTEL, TRAY, HOOD, HOOD_OPEN, HOOD_LINTEL, LINTEL_FACE, HOOD_FLUE, FIRE_FLUE, STACK,
-              CAP_SEAT, PIPE_WAY):
+              CAP_SEAT):
         v.append(span(t))
     v += [(lo, hi) for _, lo, hi in binding()]
     v += [(lo, hi) for _, lo, hi in ties()]
@@ -575,10 +600,10 @@ def build_brick():
 
 # ---------------------------------------------------------------- builders: the frame and the hood's iron
 def build_iron():
-    """The iron frame (`frame`): what the frame stage puts down, all of it standing on its own, set into the brick once
-    it is in. The two bearers (front to back) and the four firebars across them, the ash mouth's lintel and the fire
-    door's, the recess's guides (they stand against both lintels' faces), the binding, and the frame's ties (`ties`,
-    hidden in the brickwork) under the bearers and the ash mouth's lintel."""
+    """The iron frame (`frame`): what the frame stage puts down, all of it standing on its own, bedded in the brick
+    once it is in. The two bearers (front to back) and the four firebars across them, the ash mouth's lintel and the
+    fire door's, the recess's guides (they stand against both lintels' faces), the binding's angles, and the frame's
+    ties (`ties`, hidden in the brickwork) under the bearers and the ash mouth's lintel."""
     f, t = "frame", "iron"
     out = []
     for n, (x0, x1) in enumerate(BEARER_X, 1):
@@ -643,7 +668,8 @@ def build_bath():
 
 def build_vessel():
     """The parting vessel (`vessel`): a porcelain pot, an octagonal barrel 7 across with a flat bottom and a flared lip,
-    standing in the sand, its mouth open (the acid and the gold show), under the cock."""
+    standing in the sand, its mouth open (the acid and the gold show): the dore, the acid and the wash water's bucket go
+    in there, and the gold comes out."""
     p = "vessel"
     cx, cz = VESSEL_C
     yb, yf, yw, yl = VESSEL_Y
@@ -682,78 +708,13 @@ def build_cap():
     return [box(lo, hi, "outletcap_plate", "outletcap", "iron")]
 
 
-# ---------------------------------------------------------------- builders: the water line
-def pipe_boxes():
-    """The water line as UnifiedPipes' soldered pipe (solderedpipe's boxes, voxels), one straight pipe's worth: from
-    the water face (the top of the front row) on the axis of the ppex pipe over it, down through the hood's roof to the
-    brass cock, a wiped joint of solder where it meets the cock. It has no joint of its own at the face: the pipe beyond
-    brings its own half joint there, as a soldered ppex pipe does against any block it meets."""
-    cx, cz = VESSEL_C
-    out = solderedpipe.tube("inlet", 1, COCK_Y[1], TOP, (cx, cz))
-    out += solderedpipe.half_joint("joint_cock", 1, COCK_Y[1], 1, (cx, cz))
-    return solderedpipe.cull_pressed(out)
-
-
-def build_pipes():
-    """The water line as elements of the part `pipe<first metal>`: the pipe (`pipe_boxes`), its body in that metal's
-    pipe texture (ppex's, as UnifiedPipes gives it), the joint in solder, each face's UVs solderedpipe's; and the brass
-    cock on its end, its body and its nozzle down over the vessel's mouth. Built in copper; `pipe_copies` makes lead."""
-    p = f"pipe{PIPE_METALS[0]}"
-    codes = {solderedpipe.BODY: f"#{p}", solderedpipe.SOLDER: "#solder"}
-    out = []
-    for b in pipe_boxes():
-        size = b.size()
-        faces = {d: {"texture": codes[b.role], "uv": solderedpipe.uv(d, size, TEX / 16)} for d in b.faces}
-        out.append(El(f"{p}_{b.name}", size, [(b.lo[k] + b.hi[k]) / 2 for k in range(3)], [row[:] for row in IDENT], faces, p))
-    cx, cz = VESSEL_C
-    h, (n, tip) = COCK_HALF, NOZZLE
-    out.append(box([cx - h, COCK_Y[0], cz - h], [cx + h, COCK_Y[1], cz + h], f"{p}_cock_body", p, "brass"))
-    out.append(box([cx - n, tip, cz - n], [cx + n, COCK_Y[0], cz + n], f"{p}_cock_nozzle", p, "brass"))
-    return out
-
-
-def pipe_copies(els):
-    """The water line in the other metals: the first metal's elements as they are (after the z-fighting fix, so every
-    copy gets the same insets), renamed and in their own metal's pipe texture; the joint stays solder and the cock
-    brass. Only the fitted metal's is ever drawn, so the copies are not checked against each other."""
-    first = f"pipe{PIPE_METALS[0]}"
-    out = []
-    for m in PIPE_METALS[1:]:
-        for el in els:
-            if el.part == first:
-                c = el.clone(f"pipe{m}" + el.name[len(first):], f"pipe{m}")
-                for face in c.faces.values():
-                    if face["texture"] == f"#{first}":
-                        face["texture"] = f"#pipe{m}"
-                out.append(c)
-    return out
-
-
-def build_cock(place):
-    """The cock's key (`cock<place>`): its square boss out of the body's east side and its lever, across the flow
-    (forward, towards the front) shut, along it (down) open; open, the water runs from the nozzle into the vessel. Each
-    place is its own part; gameplay draws the one the cock is in."""
-    p = f"cock{place}"
-    cx, cz = VESSEL_C
-    (bx0, bx1), (by0, by1), (bz0, bz1) = KEY
-    ky, kz = KEY_AXIS
-    s, length = LEVER
-    out = [box([cx + bx0, by0, cz + bz0], [cx + bx1, by1, cz + bz1], f"{p}_boss", p, "brass")]
-    lx = (cx + bx1, cx + bx1 + s)
-    if place == "shut":
-        out.append(box([lx[0], ky - s / 2, kz - length], [lx[1], ky + s / 2, kz + s / 2], f"{p}_lever", p, "brass"))
-    else:
-        out.append(box([lx[0], ky - length, kz - s / 2], [lx[1], ky + s / 2, kz + s / 2], f"{p}_lever", p, "brass"))
-        out.append(box([cx - STREAM, WASH_Y[1], cz - STREAM], [cx + STREAM, NOZZLE[1], cz + STREAM], f"{p}_stream", p, "water"))
-    return out
-
-
 # ---------------------------------------------------------------- builders: the fire and the vessel's contents
 FUEL_Y = (GRATE_TOP, 8.5)                    # the fuel's bed on the bars, to the fire door's sill
 LUMP = 1.2
-LUMP_PLACES = ((6.0, 6.0), (10.0, 6.5), (7.5, 10.0), (10.0, 10.5))   # (x, z): lumps lying on the bed
+LUMP_PLACES = ((6.0, 2.0), (10.0, 2.5), (7.5, 6.0), (10.0, 6.5))   # (x, z from the chamber's front): lumps on the bed
 LUMP_TURNS = ((("y", 28.0), ("x", 21.0)), (("y", 63.0), ("z", 17.0)), (("y", 11.0), ("x", -24.0)), (("y", 47.0), ("z", -19.0)))
-CINDERS = ((6.5, 7.0, 2.0, 1.6, 20.0), (9.2, 9.0, 1.8, 1.4, -35.0), (8.0, 5.6, 1.6, 1.2, 60.0))   # (x, z, w, d, turn)
+CINDERS = ((6.5, 3.0, 2.0, 1.6, 20.0), (9.2, 5.0, 1.8, 1.4, -35.0), (8.0, 1.6, 1.6, 1.2, 60.0))   # (x, z from the
+#                                                                                                     front, w, d, turn)
 
 
 def build_fuel(kind):
@@ -764,10 +725,10 @@ def build_fuel(kind):
     tex = "fuel" if kind == "fuel" else "ember"
     out = [box([FIRE_X[0], FUEL_Y[0], FIRE_Z[0]], [FIRE_X[1], FUEL_Y[1], FIRE_Z[1]], f"{p}_bed", p, tex)]
     for n, (x, z) in enumerate(LUMP_PLACES):
-        out.append(lump([x, FUEL_Y[1] + 0.1, z], LUMP, LUMP_TURNS[n % 4], f"{p}_lump{n + 1}", p, tex))
+        out.append(lump([x, FUEL_Y[1] + 0.1, FIRE_Z[0] + z], LUMP, LUMP_TURNS[n % 4], f"{p}_lump{n + 1}", p, tex))
     if kind == "fire":
         for n, (x, z, w, d, deg) in enumerate(CINDERS, 1):
-            out.append(bar([x, CAVE_Y[0] + 0.3, z], (w, 0.6, d), (("y", deg),), f"{p}_cinder{n}", p, tex))
+            out.append(bar([x, CAVE_Y[0] + 0.3, FIRE_Z[0] + z], (w, 0.6, d), (("y", deg),), f"{p}_cinder{n}", p, tex))
     return out
 
 
@@ -802,16 +763,71 @@ def build_liquid(part, ys, tex):
     return oct_disc(cx, cz, ys[0], ys[1], LIQUID_A, f"{part}_surface", part, tex)
 
 
+def build_tub():
+    """The precipitating tub (`tub`, a fitting): a wooden vat of oak boards standing on the cold front of the bench,
+    under the hood's open front: a floor and four walls."""
+    p = "tub"
+    (x0, x1), (y0, y1), (z0, z1) = TUB
+    t = TUB_T
+    yf = y0 + t
+    return [box([x0, y0, z0], [x1, yf, z1], "tub_floor", p, "oak"),
+            box([x0, yf, z0], [x1, y1, z0 + t], "tub_n", p, "oak"),
+            box([x0, yf, z1 - t], [x1, y1, z1], "tub_s", p, "oak"),
+            box([x0, yf, z0 + t], [x0 + t, y1, z1 - t], "tub_w", p, "oak"),
+            box([x1 - t, yf, z0 + t], [x1, y1, z1 - t], "tub_e", p, "oak")]
+
+
+def build_siphon():
+    """The siphon (`siphon`, a fitting): a lead pipe bent over the vessel's lip, its leg dipping into the vessel over the
+    gold, its run lying on the lip and going forward over the tub, its outlet leg dipping into the tub,
+    under the vessel's liquid surface (so it runs: the solution drawn off into the tub)."""
+    p = "siphon"
+    s, (x0, x1), (vz0, vz1), vfoot, tz0, tfoot = SIPHON
+    ry0 = VESSEL_Y[3]                        # the run lies on the lip
+    ry1 = ry0 + s
+    return [box([x0, vfoot, vz0], [x1, ry1, vz1], "siphon_vesselleg", p, "lead"),
+            box([x0, ry0, tz0], [x1, ry1, vz0], "siphon_run", p, "lead"),
+            box([x0, tfoot, tz0], [x1, ry0, tz0 + s], "siphon_tubleg", p, "lead")]
+
+
+def build_copper():
+    """The copper plates (`copper`): a copper rod across the tub's rims along x, and three plates hung from it into
+    the liquor, thin across x, clear of the siphon's leg; the silver comes down on them."""
+    p = "copper"
+    s, rz = ROD
+    (x0, x1), (_, y1), _ = TUB
+    out = [box([x0, y1, rz - s / 2], [x1, y1 + s, rz + s / 2], "copper_rod", p, "copper")]
+    t, hz, foot = PLATE
+    for n, x in enumerate(PLATES, 1):
+        out.append(box([x - t / 2, foot, rz - hz], [x + t / 2, y1 + s / 2, rz + hz], f"copper_plate{n}", p, "copper"))
+    return out
+
+
+def build_liquor():
+    """The liquor in the tub (`liquor`): the drawn-off solution's surface, a level under the vessel's."""
+    (x0, x1), _, (z0, z1) = TUB_IN
+    return [box([x0, LIQUOR_Y[0], z0], [x1, LIQUOR_Y[1], z1], "liquor_surface", "liquor", "solution")]
+
+
+def build_silver():
+    """The silver (`silver`): the grey sludge the copper throws down, on the tub's bottom, with lumps on it."""
+    p = "silver"
+    (x0, x1), _, (z0, z1) = TUB_IN
+    out = [box([x0, SLUDGE_Y[0], z0], [x1, SLUDGE_Y[1], z1], "silver_sludge", p, "silver")]
+    for n, (x, z, deg) in enumerate(SLUDGE_LUMPS, 1):
+        out.append(lump([x, SLUDGE_Y[1] + 0.15, z], 0.7, (("y", deg), ("x", 20.0)), f"silver_lump{n}", p, "silver"))
+    return out
+
+
 def build():
     els = build_door()
     for place in DAMPERS:
         els += build_damper(place)
-    els += build_bath() + build_vessel() + build_pipes()
-    for place in COCKS:
-        els += build_cock(place)
+    els += build_bath() + build_vessel() + build_tub() + build_siphon()
     els += build_fuel("fuel") + build_fuel("fire") + build_charge()
     els += build_liquid("acid", ACID_Y, "acid") + build_liquid("solution", ACID_Y, "solution")
     els += build_gold() + build_liquid("wash", WASH_Y, "water")
+    els += build_copper() + build_liquor() + build_silver()
     return els + build_cap() + build_frame()
 
 
@@ -833,10 +849,11 @@ def door_drivers():
              "amount": r6((DOOR_SHUT_Y - DOOR_OPEN_Y) / B)}]
 
 
-PART_IDS = (("brickwork", "hoodiron", "lining", "bath", "vessel", "door") + tuple(f"damper{d}" for d in DAMPERS)
-            + tuple(f"pipe{m}" for m in PIPE_METALS) + tuple(f"cock{c}" for c in COCKS) + CONTENTS + ("outletcap",))
+PART_IDS = (("brickwork", "hoodiron", "lining", "bath", "vessel", "tub", "siphon", "door") + tuple(f"damper{d}" for d in DAMPERS)
+            + CONTENTS + ("outletcap",))
 MATCH = {"brickwork": "bk_*", "hoodiron": "hi_*", "lining": "ln_*"}
-REQUIRES_OF = {"hoodiron": "brickwork", "bath": "fittings", "vessel": "fittings", "door": "fittings"}
+REQUIRES_OF = {"hoodiron": "brickwork", "bath": "fittings", "vessel": "fittings", "tub": "fittings", "siphon": "fittings",
+               "door": "fittings"}
 
 
 def requires_of(pid):
@@ -869,10 +886,9 @@ def _rig_parts():
 
 # ---------------------------------------------------------------- poses
 # A pose is (theta, depth, scene): the clock, the fire door, and what is fitted. A scene is (the vessel's state, the
-# fire's, the damper's place, the water line's state, whether the outlet is capped, the build's state): gameplay's
-# requires. The fittings' contents, the damper and the water line are fitted only once the build is complete, the cap
-# once the curb is in (the lining).
-DEFAULT_SCENE = ("parting", "burning", "open", "coppershut", False, "complete")
+# tub's, the fire's, the damper's place, whether the outlet is capped, the build's state): gameplay's requires. The
+# contents and the damper are fitted only once the build is complete, the cap once the curb is in (the lining).
+DEFAULT_SCENE = ("parting", "precipitating", "burning", "open", False, "complete")
 REST = (0.0, 0.0, DEFAULT_SCENE)
 SHUT = 1.0
 
@@ -887,12 +903,12 @@ def pm(parts, pid, pose):
 
 def fitted(scene):
     """The requires values fitted in a scene."""
-    vessel, fire, damper, water, capped, stage = scene
+    vessel, tub, fire, damper, capped, stage = scene
     out = set(dict(STAGE_STATES)[stage])
     if "fittings" in out:
         out |= set(dict((s[0], s[2]) for s in VESSEL_STATES)[vessel])
+        out |= set(dict((s[0], s[2]) for s in TUB_STATES)[tub])
         out |= set(dict((s[0], s[2]) for s in FIRE_STATES)[fire])
-        out |= set(dict((s[0], s[2]) for s in WATER_STATES)[water])
         out.add(f"damper{damper}")
     if capped and "lining" in out:
         out.add("outletcap")
@@ -923,12 +939,19 @@ def footprint():
     return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
 
 
-ANCHORS = ("vessel", "firedoor", "ash", "cock")
+ANCHORS = ("vessel", "tub", "firedoor", "ash")
 
 
 def vessel_point():
     """The middle of the vessel's mouth: where the charge goes in and the gold comes out, and the fumes rise."""
     return (VESSEL_C[0], VESSEL_Y[3], VESSEL_C[1])
+
+
+def tub_point():
+    """The middle of the tub's mouth: the silver's hand-draw point (the sludge drawn from its bottom), the copper put
+    in and taken out."""
+    (x0, x1), (_, y1), (z0, z1) = TUB
+    return ((x0 + x1) / 2, y1, (z0 + z1) / 2)
 
 
 def firedoor_point():
@@ -943,12 +966,7 @@ def ash_point():
     return ((mx0 + mx1) / 2, (my0 + my1) / 2, 0.0)
 
 
-def cock_point():
-    """The nozzle's tip: where the water runs out, over the vessel's mouth."""
-    return (VESSEL_C[0], NOZZLE[1], VESSEL_C[1])
-
-
-POINTS = {"vessel": vessel_point, "firedoor": firedoor_point, "ash": ash_point, "cock": cock_point}
+POINTS = {"vessel": vessel_point, "tub": tub_point, "firedoor": firedoor_point, "ash": ash_point}
 
 
 def outlet_cell():
@@ -959,8 +977,9 @@ def vessel_cell():
     return tuple(int(v // B) for v in (VESSEL_C[0], VESSEL_Y[3] + 0.5, VESSEL_C[1]))
 
 
-def water_cell():
-    return tuple(int(v // B) for v in (VESSEL_C[0], TOP - 1.0, VESSEL_C[1]))
+def tub_cell():
+    x, y, z = tub_point()
+    return tuple(int(v // B) for v in (x, y - 0.5, z))
 
 
 MIN_CHIMNEY = 6                              # chimney blocks stood on the outlet, counted from it up: the crucible
@@ -1012,25 +1031,23 @@ def build_json():
              "materials": materials(((FIRED_BRICK, c["bricks"]),)), "alsoParts": ["hoodiron"]},
             {"requires": "lining", "volumeBlocks": r6(c["liningVolume"]), "perClick": "stack",
              "materials": materials(((LINING_BRICK, c["lining"]), (FIRECLAY, c["fireclay"])))},
-            {"requires": "fittings", "parts": ["bath", "vessel", "door"], "also": [f"damper{d}" for d in DAMPERS],
+            {"requires": "fittings", "parts": ["bath", "vessel", "tub", "siphon", "door"], "also": [f"damper{d}" for d in DAMPERS],
              "materials": materials(FITTINGS_STAGE)},
         ],
-        "waterLine": {"parts": {m: f"pipe{m}" for m in PIPE_METALS}, "also": [f"cock{c}" for c in COCKS],
-                      "materials": materials(WATER_LINE)},
         "outletCap": materials((CAP_ITEM,))[0],
         "_comment": "The build's stages, in order (a proposal for the owner but for the counts measured from the model). "
                     "frame: the iron frame's grid recipe (with a hammer); placing it puts down the controller and its "
                     "ghosts, and draws the frame part. Each stage then fits its requires when its materials are all "
                     "in: brickwork (its alsoParts, the hood's lintel, comes with it at no cost of its own), then "
-                    "lining, then fittings (its parts: the sand bath with its sand, the vessel and the fire door; also: "
-                    "the damper, in one of its places). volumeBlocks: the stage's brick measured from the model, in "
-                    "blocks; its quantities are that at 2 fired bricks or 4 refractory bricks a block (the game's "
-                    "brick block recipes), rounded up, fire clay one per 2.5 refractory bricks. perClick stack: a click "
-                    "puts in as many of the held stack as are still needed. oneType: the first fired brick put in sets "
-                    "the brick type (bricks), and the rest must match. The parting vessel's own item is open (the game "
-                    "has no porcelain vessel). waterLine: one ppex straight pipe, copper or lead, fits the part of its "
-                    "metal, and a brass plate the cock, in one of its places (also). outletCap: an item interaction, "
-                    "not a stage."}
+                    "lining, then fittings (its parts: the sand bath with its sand, the vessel, the precipitating tub "
+                    "and its siphon, and the fire door; also: the damper, in one of its places). volumeBlocks: the "
+                    "stage's brick measured from the model, in blocks; its quantities are that at 2 fired bricks or 4 "
+                    "refractory bricks a block (the game's brick block recipes), rounded up, fire clay one per 2.5 "
+                    "refractory bricks. perClick stack: a click puts in as many of the held stack as are still needed. "
+                    "oneType: the first fired brick put in sets the brick type (bricks), and the rest must match. The "
+                    "parting vessel's own item is open (the game has no porcelain vessel). The tub's copper plates are "
+                    "contents (copper), put in by hand and worn away. No water line: the wash water is poured in from "
+                    "a bucket. outletCap: an item interaction, not a stage."}
 
 
 def bricks_json():
@@ -1054,37 +1071,39 @@ def make_rig(parts):
                     "the fire door (firedoor, firedoorSide). depth is the fire door: 0 open, slid up in its guides "
                     "(the rest pose), 1 shut. theta is the stoker's clock, carried by a ratio-0 rotate on the door: "
                     "nothing turns. requires: the build's stages, brickwork (with the hoodiron part), lining and "
-                    "fittings (the bath, vessel and door parts) (build; the frame, iron, has none); the water line, "
-                    "pipecopper or pipelead (one straight ppex pipe with its brass cock), and the cock's key, cockshut "
-                    "or cockopen; the damper's place, damperopen, damperhalf or dampershut (one at a time); the fire, "
+                    "fittings (the bath, vessel, tub, siphon and door parts) (build; the frame, iron, has none); the "
+                    "damper's place, damperopen, damperhalf or dampershut (one at a time); the fire, "
                     "fuel (laid) or fire (burning); the vessel's contents: charge (granulated dore), acid, solution "
-                    "(the silver dissolved), gold (the parted gold), wash (the wash water); and outletcap. The "
+                    "(the silver dissolved), gold (the parted gold), wash (the wash water, poured in from a bucket); the "
+                    "tub's: copper (the copper "
+                    "plates on their rod), liquor (the drawn-off solution), silver (the silver sludge); and outletcap. The "
                     "brickwork's texture is the brick type's (bricks). vesselCell, vesselFace: the hood's cell, the "
-                    "vessel worked through its open front (vessel: its mouth); waterCell, waterFace: the top of the "
-                    "front row, where the player's ppex pipe meets the water line (cock: the nozzle's tip, where the "
-                    "water runs out); outletCell: the stack's head, in the back row, the chimney stood on its top; "
+                    "vessel worked through its open front (vessel: its mouth, where the gold comes out); tubCell, tubFace: "
+                    "the same cell and face, the precipitating tub at its front (tub: its mouth, the silver's hand-draw "
+                    "point): a click there is the nearer of vessel and tub's. No water anchor: the vessel is watered "
+                    "from a bucket, at the vessel. outletCell: the stack's head, in the back row, the chimney stood "
+                    "on its top; "
                     "chimney: the shortest chimney, counted from the outlet up. See AcidParting/README.md.",
         "cells": [],
         "vesselCell": list(vessel_cell()),
         "vesselFace": "north",
         "vessel": {"pos": pt(*vessel_point())},
+        "tubCell": list(tub_cell()),
+        "tubFace": "north",
+        "tub": {"pos": pt(*tub_point())},
         "firedoor": {"pos": pt(*firedoor_point())},
         "firedoorSide": "north",
         "ash": {"pos": pt(*ash_point())},
         "ashSide": "north",
-        "cock": {"pos": pt(*cock_point())},
-        "waterCell": list(water_cell()),
-        "waterFace": "up",
         "outletCell": list(outlet_cell()),
         "outletFace": "up",
         "chimney": {"origin": pt(sx, TOP + MIN_CHIMNEY * B / 2, sz), "axis": "y", "length": float(MIN_CHIMNEY)},
         "build": build_json(),
         "bricks": bricks_json(),
-        "parting": {"minChimney": MIN_CHIMNEY, "rowMax": ROW_MAX, "rowAxis": "x", "pipeMetals": list(PIPE_METALS),
+        "parting": {"minChimney": MIN_CHIMNEY, "rowMax": ROW_MAX, "rowAxis": "x",
                     "_comment": "minChimney: chimney blocks stood on the outlet, counted from it up (the crucible "
                                 "furnace's MinChimneyHeight); rowMax, rowAxis: vessels in a row, side by side along x, "
-                                "sharing one chimney; pipeMetals: the water line's metals, the part pipe<metal> "
-                                "drawn for the fitted one."},
+                                "sharing one chimney."},
         "parts": parts,
     }
     return rig
@@ -1105,7 +1124,7 @@ def shipped(els, parts, rig):
             if "pivot" in drv:
                 drv["pivot"] = [r6(drv["pivot"][k] + db[k]) for k in range(3)]
     ship = copy.deepcopy(rig)
-    for key in ("vesselCell", "waterCell", "outletCell"):
+    for key in ("vesselCell", "tubCell", "outletCell"):
         ship[key] = shift_cell(rig[key], ORIGIN_CELL)
     for key in ANCHORS:
         ship[key] = {"pos": shift_point(rig[key]["pos"], db)}
@@ -1114,7 +1133,8 @@ def shipped(els, parts, rig):
     return ship_els, ship_parts, ship
 
 
-CELL_PARTS = ("frame", "brickwork", "hoodiron", "lining", "bath", "vessel", "door")   # the cells' boxes: built, door shut
+CELL_PARTS = ("frame", "brickwork", "hoodiron", "lining", "bath", "vessel", "tub", "door")   # the cells' boxes: built,
+#                                                                                        door shut
 CELL_POSE = (0.0, SHUT, DEFAULT_SCENE)
 
 
@@ -1189,10 +1209,12 @@ def shape_json(els):
 
 
 def coplanar_scenes():
-    scenes = [(vs, "burning", "open", "coppershut", False, "complete") for vs in ("charged", "acid", "parting", "parted")]
-    scenes += [("washing", "laid", "half", "copperopen", True, "complete"), ("empty", "none", "shut", "coppershut", True, "complete")]
-    scenes += [("empty", "none", "open", "none", False, "frame"), ("empty", "none", "open", "none", False, "brickwork"),
-               ("empty", "none", "open", "none", True, "lining")]
+    scenes = [(vs, ts, "burning", "open", False, "complete")
+              for vs, ts in (("charged", "copper"), ("acid", "drawn"), ("parting", "precipitating"), ("parted", "sludge"))]
+    scenes += [("washing", "precipitating", "laid", "half", True, "complete"),
+               ("empty", "empty", "none", "shut", True, "complete")]
+    scenes += [("empty", "empty", "none", "open", False, "frame"), ("empty", "empty", "none", "open", False, "brickwork"),
+               ("empty", "empty", "none", "open", True, "lining")]
     return scenes
 
 
@@ -1218,7 +1240,6 @@ def main():
         before, hidden = fix_coplanar(els, parts)
         print(f"coplanar faces before the fix: {sum(len(p) for p in before.values())} pairs over {len(before)} poses")
         print(f"coplanar faces: {hidden} faces pressed against their own part removed")
-    els += pipe_copies(els)
     rig = make_rig(parts)
     ok = validate_acidparting.validate(sys.modules[__name__], els, parts, rig, quick=args.quick)
     if args.out:

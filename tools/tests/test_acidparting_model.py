@@ -1,16 +1,17 @@
 """The acid parting vessel's generated model files (mods-src/seraphhorizons/AcidParting/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
-maths and uses the `requires` vocabulary (the build's stages, brickwork, lining and fittings; the water line in copper
-or lead and its cock's two places; the damper's three places; the fire laid and burning; the vessel's contents; the
-outlet's cap), its reference poses are its own maths, the stages' counts are measured from the shape's brick, the brick
+maths and uses the `requires` vocabulary (the build's stages, brickwork, lining and fittings; the damper's three
+places; the fire laid and burning; the vessel's contents; the precipitating tub's; the outlet's cap), its reference
+poses are its own maths, the stages' counts are measured from the shape's brick, the brick
 types map to the game's textures (checked against the game's files when they are at hand: $VINTAGE_STORY or
 ~/Games/vintagestory), the cells are rebuilt from the shipped shape, the sliding fire door is the only part that moves
-(in its recess, shut over its opening, open clear of it), the water line is ppex's section from the water face at its
-centre to the cock over the vessel, in both metals, the textures are the game's own (no new texture), only the burning
-fuel glows, the anchors are where the contract puts them (no power cell, no air port, no chute; the outlet under the
-chimney's cell, the chimney six blocks from it up; the water face under the player's pipe), the side faces are plain
-brick for a row, and the model viewer's scenario (site/models.json) gives the generator's states.
+(in its recess, shut over its opening, open clear of it), the precipitating tub stands in front of the vessel on the
+cold bench with the siphon from the vessel into it, there is no water line (watered from a bucket), the binding is
+angle iron wrapping the corners, the textures are the game's own (no new texture), only the burning fuel glows, the
+anchors are where the contract puts them (no power cell, no air port, no chute, no water anchor; the vessel and the tub
+worked from the front; the outlet under the chimney's cell, the chimney six blocks from it up), the side faces are
+plain brick but for the corner angles' legs, for a row, and the model viewer's scenario (site/models.json) gives the generator's states.
 Run with `python3 -m unittest discover -s tools/tests -p test_acidparting_model.py`.
 """
 
@@ -26,7 +27,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 MOD = ROOT / "mods-src" / "seraphhorizons"
 sys.path.insert(0, str(MOD / "Machines" / "tools"))
-sys.path.insert(0, str(MOD / "Pipes" / "tools"))
 sys.path.insert(0, str(MOD / "AcidParting" / "tools"))
 
 from machinegen import rigmath  # noqa: E402
@@ -42,9 +42,8 @@ FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "ac
 REFERENCE = json.loads((MOD / "tests" / "AcidParting" / "rig-reference.json").read_text())
 MODELS = json.loads((ROOT / "site" / "models.json").read_text())
 STAGES = ("brickwork", "lining", "fittings")
-CONTENTS = ("charge", "acid", "solution", "gold", "wash")
-REQUIRES = {None, *STAGES, "damperopen", "damperhalf", "dampershut", "pipecopper", "pipelead", "cockshut", "cockopen",
-            "fuel", "fire", *CONTENTS, "outletcap"}
+CONTENTS = ("charge", "acid", "solution", "gold", "wash", "copper", "liquor", "silver")
+REQUIRES = {None, *STAGES, "damperopen", "damperhalf", "dampershut", "fuel", "fire", *CONTENTS, "outletcap"}
 FLAT = flatten(SHAPE["elements"], textures={})
 
 
@@ -82,8 +81,8 @@ class Rig(unittest.TestCase):
         moving = {p["id"] for p in RIG["parts"] if p["drivers"]}
         self.assertEqual(moving, {"door"})
         req = {p["id"]: p["requires"] for p in RIG["parts"]}
-        self.assertEqual((req["hoodiron"], req["bath"], req["vessel"], req["door"], req["frame"]),
-                         ("brickwork", "fittings", "fittings", "fittings", None))
+        self.assertEqual((req["hoodiron"], req["bath"], req["vessel"], req["tub"], req["siphon"], req["door"], req["frame"]),
+                         ("brickwork", "fittings", "fittings", "fittings", "fittings", "fittings", None))
         door = next(p for p in RIG["parts"] if p["id"] == "door")
         self.assertEqual([(d["type"], d.get("motion"), d.get("ratio")) for d in door["drivers"]],
                          [("rotate", None, 0.0), ("step", "slide", None)])
@@ -155,33 +154,50 @@ class FireDoor(unittest.TestCase):
                     self.assertEqual([[round(v, 9) for v in r] for r in a[:3]], [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]], p["id"])
 
 
-class Water(unittest.TestCase):
-    def test_the_pipe_meets_the_water_face_and_ends_in_the_cock_over_the_vessel(self):
-        wc = RIG["waterCell"]
-        self.assertEqual(RIG["waterFace"], "up")
-        walls = named("pipecopper", "pipecopper_inlet_")
-        lo, hi = aabb_of(walls)
-        self.assertEqual(len(walls), 4)
-        self.assertAlmostEqual(hi[1], (wc[1] + 1) * 16)
-        self.assertAlmostEqual((lo[0] + hi[0]) / 2, wc[0] * 16 + 8)
-        self.assertAlmostEqual((lo[2] + hi[2]) / 2, wc[2] * 16 + 8)
-        self.assertAlmostEqual(hi[0] - lo[0], 6.0)
-        body = named("pipecopper", "pipecopper_cock_body")[0].aabb()
-        self.assertAlmostEqual(body[1][1], lo[1])
-        tip = RIG["cock"]["pos"]
-        vessel = RIG["vessel"]["pos"]
-        self.assertGreater(tip[1], vessel[1])
-        self.assertAlmostEqual(tip[0], vessel[0])
-        self.assertAlmostEqual(tip[2], vessel[2])
+class Tub(unittest.TestCase):
+    def test_in_front_of_the_vessel_with_the_siphon_between(self):
+        tub = aabb_of(named("tub", "tub_"))
+        vessel = aabb_of(named("vessel", "vessel_"))
+        self.assertLess(tub[1][2], vessel[0][2])
+        self.assertLess(tub[1][1], vessel[1][1])
+        self.assertAlmostEqual(tub[0][1], 16.0)
+        legs = {e.name: e.aabb() for e in named("siphon", "siphon_")}
+        vleg, tleg = legs["siphon_vesselleg"], legs["siphon_tubleg"]
+        self.assertTrue(vessel[0][2] < vleg[0][2] and vleg[1][2] < vessel[1][2])
+        self.assertTrue(tub[0][2] < tleg[0][2] and tleg[1][2] < tub[1][2])
+        self.assertLess(tleg[0][1], vleg[1][1])
+        sludge = aabb_of(named("silver", "silver_"))
+        self.assertTrue(tub[0][2] < sludge[0][2] and sludge[1][2] < tub[1][2] and sludge[0][1] < tleg[0][1])
+        self.assertEqual(len(named("copper", "copper_plate")), 3)
 
-    def test_lead_is_copper_in_lead(self):
-        cu = sorted(named("pipecopper", "pipecopper_"), key=lambda e: e.name)
-        pb = sorted(named("pipelead", "pipelead_"), key=lambda e: e.name)
-        self.assertEqual([e.name.replace("pipecopper", "pipelead") for e in cu], [e.name for e in pb])
-        for a, b in zip(cu, pb):
-            self.assertEqual(a.aabb(), b.aabb())
-            self.assertEqual({f["texture"].replace("pipecopper", "pipelead") for f in a.faces.values()},
-                             {f["texture"] for f in b.faces.values()})
+    def test_the_tub_is_the_silvers_draw_point_and_there_is_no_water_line(self):
+        self.assertEqual((RIG["tubCell"], RIG["tubFace"]), ([0, 1, 0], "north"))
+        self.assertEqual((RIG["vesselCell"], RIG["vesselFace"]), ([0, 1, 0], "north"))
+        self.assertLess(RIG["tub"]["pos"][2], RIG["vessel"]["pos"][2])
+        for key in ("waterCell", "waterFace", "cock"):
+            self.assertNotIn(key, RIG)
+        self.assertFalse(any(p["id"].startswith(("pipe", "cock")) for p in RIG["parts"]))
+        self.assertFalse(set(SHAPE["textures"]) & {"pipecopper", "pipelead", "solder", "brass"})
+
+
+class Binding(unittest.TestCase):
+    def test_angle_iron_wraps_the_corners(self):
+        names = {e["name"] for e in FRAME["elements"]}
+        self.assertFalse(any(n.startswith(("fr_strap", "fr_kerb")) for n in names))
+        for corner in ("nw", "ne", "sw", "se"):
+            a = aabb_of([e for e in FLAT if e.name.startswith(f"fr_angle_{corner}_a")])
+            b = aabb_of([e for e in FLAT if e.name.startswith(f"fr_angle_{corner}_b")])
+            for lo, hi in (a, b):
+                self.assertAlmostEqual(min(hi[k] - lo[k] for k in range(3)), make_shape.ANGLE_T)
+                self.assertAlmostEqual(lo[1], 0.0)
+                self.assertAlmostEqual(hi[1], 32.0)
+            # one leg on the front or back face, the other on the side face, meeting in the corner
+            x = 0.0 if corner[1] == "w" else 16.0
+            z = 0.0 if corner[0] == "n" else 32.0
+            self.assertIn(z, (a[0][2], a[1][2]))
+            self.assertIn(x, (b[0][0], b[1][0]))
+            ov = [min(a[1][k], b[1][k]) - max(a[0][k], b[0][k]) for k in range(3)]
+            self.assertEqual(sum(o > 0.05 for o in ov), 2)
 
 
 class Vessel(unittest.TestCase):
@@ -190,7 +206,7 @@ class Vessel(unittest.TestCase):
         self.assertEqual(set(cells), {(0, 0, 0), (0, 1, 0), (0, 0, 1), (0, 1, 1)})
         self.assertEqual({p for p, c in cells.items() if "lid" in c}, {(0, 1, 0), (0, 1, 1)})
         self.assertFalse(any(c.get("hollow") for c in cells.values()))
-        for key in ("powerCell", "powerFace", "airCell", "inputCell", "outputCell", "infeedSide", "outputSide"):
+        for key in ("powerCell", "powerFace", "airCell", "inputCell", "outputCell", "infeedSide", "outputSide", "waterCell", "waterFace"):
             self.assertNotIn(key, RIG)
         self.assertEqual((RIG["outletCell"], RIG["outletFace"]), ([0, 1, 1], "up"))
         chimney = RIG["chimney"]
@@ -206,7 +222,8 @@ class Vessel(unittest.TestCase):
         for el in FLAT:
             lo, hi = el.aabb()
             if lo[0] < 1e-6 or hi[0] > 16 - 1e-6:
-                self.assertEqual(rigmath.part_of(RIG["parts"], el.name), "brickwork", el.name)
+                part = rigmath.part_of(RIG["parts"], el.name)
+                self.assertTrue(part == "brickwork" or el.name.startswith("fr_angle_"), el.name)
 
 
 class Build(unittest.TestCase):
@@ -224,8 +241,8 @@ class Build(unittest.TestCase):
         self.assertEqual(st["lining"]["materials"], [{"code": "game:refractorybrick-fired-tier3", "quantity": lining},
                                                      {"code": "game:clay-fire", "quantity": math.ceil(lining / make_shape.LINING_PER_FIRECLAY - 1e-9)}])
         self.assertEqual(st["brickwork"]["alsoParts"], ["hoodiron"])
-        self.assertEqual(set(st["fittings"]["parts"]), {"bath", "vessel", "door"})
-        self.assertEqual(set(build["waterLine"]["parts"].values()), {"pipecopper", "pipelead"})
+        self.assertEqual(set(st["fittings"]["parts"]), {"bath", "vessel", "tub", "siphon", "door"})
+        self.assertNotIn("waterLine", build)
 
     def test_any_fired_brick_maps_to_its_blocks_texture(self):
         bricks = RIG["bricks"]
@@ -248,11 +265,11 @@ class Scenario(unittest.TestCase):
         self.assertEqual(set(sc["requires"]), REQUIRES - {None})
         self.assertNotIn("choices", sc)
         groups = {g["id"]: g for g in sc["states"]}
-        self.assertEqual(set(groups), {"build", "water", "vessel", "fire", "damper", "outlet"})
+        self.assertEqual(set(groups), {"build", "vessel", "tub", "fire", "damper", "outlet"})
         build = groups["build"]
         self.assertEqual((build["values"], build["default"]), (list(STAGES), "complete"))
         self.assertEqual([(o["id"], tuple(o["fitted"])) for o in build["options"]], list(make_shape.STAGE_STATES))
-        for gid, states in (("vessel", make_shape.VESSEL_STATES), ("fire", make_shape.FIRE_STATES), ("water", make_shape.WATER_STATES)):
+        for gid, states in (("vessel", make_shape.VESSEL_STATES), ("tub", make_shape.TUB_STATES), ("fire", make_shape.FIRE_STATES)):
             self.assertEqual([(o["id"], tuple(o["fitted"])) for o in groups[gid]["options"]], [(s, tuple(w)) for s, _, w in states], gid)
             self.assertEqual(groups[gid]["needs"], list(STAGES))
         self.assertEqual([(o["id"], o["fitted"]) for o in groups["damper"]["options"]],
