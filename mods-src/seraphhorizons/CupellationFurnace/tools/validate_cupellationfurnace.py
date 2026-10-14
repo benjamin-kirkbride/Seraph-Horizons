@@ -256,8 +256,9 @@ def check_binding(v):
     """The binding is angle iron (the owner's rule): an upright angle at every outside vertical corner of the
     brickwork, its two legs ANGLE_T thick and 2 to 3 wide, flush with the two faces of its corner and meeting at it,
     each leg's inside face bedded on the brick of its face (points just inside it, every voxel up its height and across
-    its width, are brick, or the band over its head); and an angle band wrapping every top edge, its top leg bedded on the brick of the top and its
-    face leg on the brick of the face, joining the uprights' heads. No flat strap or kerb is left."""
+    its width, are brick, or the band over its head), from the ground to the band; and an angle band wrapping every top
+    edge, its top leg bedded on the brick of the top and its face leg on the brick of the face, sitting on the uprights'
+    heads. No flat strap or kerb is left. That the pieces make one frame is `check_binding_frame`'s."""
     m = v.m
     frame = {e.name: e for e in v.by_part["frame"]}
     bricks = brick(v)
@@ -303,8 +304,8 @@ def check_binding(v):
         za, xb = (alo[2] if dz > 0 else ahi[2]), (blo[0] if dx > 0 else bhi[0])
         if abs(za - z) > tol or abs(xb - x) > tol or abs((alo[0] if dx > 0 else ahi[0]) - x) > tol:
             v.fail(f"the {name} angle is not flush with its corner's faces")
-        if abs(alo[1]) > tol or abs(ahi[1] - m.H) > tol:
-            v.fail(f"the {name} angle does not run the corner's height")
+        if abs(alo[1]) > tol or abs(ahi[1] - m.UPRIGHT_TOP) > tol:
+            v.fail(f"the {name} angle does not run from the ground to the band over its head")
         for leg, axis, sign in (("a", 2, dz), ("b", 0, dx)):
             n, miss = bedded(legs[leg], axis, sign)
             points += n
@@ -328,6 +329,107 @@ def check_binding(v):
           f"{points - len(bad)} of {points} points")
     if bad:
         v.fail(f"binding legs not bedded on the brick at {len(bad)} points, e.g. {bad[:4]}")
+
+
+def member_of(name):
+    """The binding member a piece belongs to: an upright (`fr_angle_<corner>`) or a band (`fr_band_<edge>`)."""
+    return "_".join(name.split("_")[:3])
+
+
+def contact(a, b, tol=0.06):
+    """Where two axis-aligned boxes touch face to face: (axis, plane, (lo, hi)) with the patch's extent, or None. A
+    touch along an edge or at a point is not one."""
+    (alo, ahi), (blo, bhi) = a, b
+    for k in range(3):
+        for plane, other in ((ahi[k], blo[k]), (alo[k], bhi[k])):
+            if abs(plane - other) > tol:
+                continue
+            lo, hi = list(alo), list(ahi)
+            ok = True
+            for q in range(3):
+                if q == k:
+                    lo[q] = hi[q] = plane
+                    continue
+                lo[q], hi[q] = max(alo[q], blo[q]), min(ahi[q], bhi[q])
+                if hi[q] - lo[q] < 0.3:
+                    ok = False
+            if ok:
+                return k, plane, (lo, hi)
+    return None
+
+
+def check_binding_frame(v):
+    """The binding is one frame (the owner's rule: members connect, no gaps, no floating ends). Its members are the
+    uprights and the bands, each piece axis-aligned. Every two members butt and never run into each other; every band's
+    two ends each meet another band or an upright face to face (within BAND_W + ANGLE_W of the end); every upright's
+    foot stands on the ground and its head carries a band; a band's own two legs meet along it; and the members, joined
+    where they meet, are one connected frame."""
+    m = v.m
+    was_ok, v.ok = v.ok, True
+    pieces = [e for e in v.by_part["frame"] if binder(e.name)]
+    boxes = {}
+    for e in pieces:
+        boxes.setdefault(member_of(e.name), []).append(e.aabb())
+    names = sorted(boxes)
+    for e in pieces:
+        if any(abs(abs(e.r[i][j]) - (i == j)) > 1e-9 for i in range(3) for j in range(3)):
+            v.fail(f"binding piece {e.name} is turned")
+    links, overlaps = {n: set() for n in names}, []
+    patches = {}                                 # (member, other) -> the patches where they meet
+    for i, a in enumerate(names):
+        for b in names[i + 1:]:
+            for ba in boxes[a]:
+                for bb in boxes[b]:
+                    if all(min(ba[1][q], bb[1][q]) - max(ba[0][q], bb[0][q]) > 0.1 for q in range(3)):
+                        overlaps.append((a, b))
+                    c = contact(ba, bb)
+                    if c:
+                        links[a].add(b)
+                        links[b].add(a)
+                        patches.setdefault((a, b), []).append(c)
+                        patches.setdefault((b, a), []).append(c)
+    if overlaps:
+        v.fail(f"binding members run into each other instead of butting: {sorted(set(overlaps))[:4]}")
+    reach = m.BAND_W + m.ANGLE_W
+    loose = []
+    for name, axis, at, d, span in m.TOP_EDGES:
+        member = f"fr_band_{name}"
+        k = 0 if axis == "x" else 2
+        lo = min(b[0][k] for b in boxes[member])
+        hi = max(b[1][k] for b in boxes[member])
+        for end, sign in ((lo, 1), (hi, -1)):
+            near = lambda plo, phi: (plo[k] - end < reach) if sign > 0 else (end - phi[k] < reach)
+            if not any(near(plo, phi) for o in links[member] for _, _, (plo, phi) in patches[(member, o)]):
+                loose.append(f"{member} at {'xyz'[k]} {end:g}")
+    for name, *_ in m.CORNERS:
+        member = f"fr_angle_{name}"
+        top = max(b[1][1] for b in boxes[member])
+        if min(b[0][1] for b in boxes[member]) > 0.06:
+            loose.append(f"{member}'s foot")
+        heads = [o for o in links[member] if o.startswith("fr_band_")
+                 and any(ax == 1 and abs(pl - top) < 0.06 for ax, pl, _ in patches[(member, o)])]
+        if not heads:
+            loose.append(f"{member}'s head")
+    if loose:
+        v.fail(f"binding ends meeting nothing: {loose}")
+    for name, *_ in m.TOP_EDGES:                 # a band's legs meet along it, so it is one angle
+        top = [e.aabb() for e in pieces if e.name.startswith(f"fr_band_{name}_top")]
+        face = [e.aabb() for e in pieces if e.name.startswith(f"fr_band_{name}_face")]
+        if not any(contact(a, b) for a in top for b in face):
+            v.fail(f"the {name} band's two legs do not meet")
+    seen, todo = set(), [names[0]]
+    while todo:
+        n = todo.pop()
+        if n not in seen:
+            seen.add(n)
+            todo += links[n] - seen
+    if len(seen) != len(names):
+        v.fail(f"the binding is not one frame: {sorted(set(names) - seen)} apart from the rest")
+    joints = sum(len(x) for x in links.values()) // 2
+    ok, v.ok = v.ok, v.ok and was_ok
+    if ok:
+        print(f"binding frame: {len(names)} members ({len(m.CORNERS)} uprights, {len(m.TOP_EDGES)} bands) in one frame, "
+              f"{joints} joints, all butted; every band end meets a band or an upright, every upright carries the band")
 
 
 def check_walls(v):
@@ -848,6 +950,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v)
     check_sides(v)
     check_binding(v)
+    check_binding_frame(v)
     check_walls(v)
     check_lining(v)
     check_build(v)

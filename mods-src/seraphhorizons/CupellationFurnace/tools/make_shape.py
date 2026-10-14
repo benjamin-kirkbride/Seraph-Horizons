@@ -219,7 +219,9 @@ BAND_W = 2.0                                 # the top band's legs (the stack co
 CORNERS = (("nw", 0.0, 0.0, 1, 1), ("ne", 3 * B, 0.0, -1, 1), ("se", 3 * B, 2 * B, -1, -1),
            ("sw", 0.0, 3 * B, 1, -1), ("sm", B, 3 * B, -1, -1))
 # the top edges: (name, the axis the edge runs along, its fixed coordinate on the other axis, the way into the brick
-# from it, its span along its axis)
+# from it, its span along its axis). The band is one frame (`band_ends`): the bands along x run through every corner,
+# the bands along z butt against them, and at the L's inside corner the x band reaches over the top to meet the z one;
+# the uprights stop under the band and carry it.
 TOP_EDGES = (("n", "x", 0.0, 1, (0.0, 3 * B)), ("e", "z", 3 * B, -1, (0.0, 2 * B)), ("s", "x", 2 * B, -1, (B, 3 * B)),
              ("m", "z", B, -1, (2 * B, 3 * B)), ("sw", "x", 3 * B, -1, (0.0, B)), ("w", "z", 0.0, 1, (0.0, 3 * B)))
 
@@ -496,27 +498,49 @@ def bar(c, size, turns, name, part, tex):
 
 
 # ---------------------------------------------------------------- the brickwork
+UPRIGHT_TOP = TOP - BAND_W                   # the uprights' heads: under the band's face leg, which sits on them
+
+
 def angle_legs(name, x, z, dx, dz):
     """An upright angle at the corner (x, z), the brick towards (dx, dz): two legs, as (name, lo, hi): `a` over the face
-    across z (its full width), `b` over the face across x (from the first's back on), ANGLE_T thick, flush."""
+    across z (its full width), `b` over the face across x (from the first's back on), ANGLE_T thick, flush, from the
+    ground to UPRIGHT_TOP, where the band's face legs sit on their heads."""
     t, w = ANGLE_T, ANGLE_W
     xa, za = sorted((x, x + dx * w)), sorted((z, z + dz * t))
     xb, zb = sorted((x, x + dx * t)), sorted((z + dz * t, z + dz * w))
-    return [(f"fr_angle_{name}_a", [xa[0], 0.0, za[0]], [xa[1], H, za[1]]),
-            (f"fr_angle_{name}_b", [xb[0], 0.0, zb[0]], [xb[1], H, zb[1]])]
+    return [(f"fr_angle_{name}_a", [xa[0], 0.0, za[0]], [xa[1], UPRIGHT_TOP, za[1]]),
+            (f"fr_angle_{name}_b", [xb[0], 0.0, zb[0]], [xb[1], UPRIGHT_TOP, zb[1]])]
+
+
+def band_ends(axis, at, span):
+    """How far the band along one top edge reaches past (+) or stops short of (-) its edge's two ends, for its top leg
+    and its face leg: ((top0, face0), (top1, face1)). At an outside corner (in CORNERS) the band along x runs to the
+    corner and the band along z butts against it (its top leg against the x band's top leg's side, its face leg against
+    the x band's face leg's back). At the inside corner the band along x reaches BAND_W on over the top, so the band
+    along z, running to the corner, butts against its side: the two top legs meet in one piece of frame."""
+    outside = {(x, z) for _, x, z, _, _ in CORNERS}
+    ends = []
+    for s in span:
+        pt = (s, at) if axis == "x" else (at, s)
+        if pt in outside:
+            ends.append((0.0, 0.0) if axis == "x" else (-BAND_W, -ANGLE_T))
+        else:
+            ends.append((BAND_W, 0.0) if axis == "x" else (0.0, 0.0))
+    return tuple(ends)
 
 
 def band_legs(name, axis, at, d, span):
     """The top band along one top edge: an angle wrapping it, as (name, lo, hi): its top leg over the top, BAND_W
-    wide, and its face leg down the face, ANGLE_T thick, flush."""
+    wide, and its face leg down the face, ANGLE_T thick, flush; their ends set by `band_ends`."""
     t, w = ANGLE_T, BAND_W
-    (s0, s1), across = span, sorted((at, at + d * w))
-    face = sorted((at, at + d * t))
+    (t0, f0), (t1, f1) = band_ends(axis, at, span)
+    ts, fs = (span[0] - t0, span[1] + t1), (span[0] - f0, span[1] + f1)
+    across, face = sorted((at, at + d * w)), sorted((at, at + d * t))
     if axis == "x":
-        return [(f"fr_band_{name}_top", [s0, TOP - t, across[0]], [s1, TOP, across[1]]),
-                (f"fr_band_{name}_face", [s0, TOP - w, face[0]], [s1, TOP - t, face[1]])]
-    return [(f"fr_band_{name}_top", [across[0], TOP - t, s0], [across[1], TOP, s1]),
-            (f"fr_band_{name}_face", [face[0], TOP - w, s0], [face[1], TOP - t, s1])]
+        return [(f"fr_band_{name}_top", [ts[0], TOP - t, across[0]], [ts[1], TOP, across[1]]),
+                (f"fr_band_{name}_face", [fs[0], TOP - w, face[0]], [fs[1], TOP - t, face[1]])]
+    return [(f"fr_band_{name}_top", [across[0], TOP - t, ts[0]], [across[1], TOP, ts[1]]),
+            (f"fr_band_{name}_face", [face[0], TOP - w, fs[0]], [face[1], TOP - t, fs[1]])]
 
 
 def binding():

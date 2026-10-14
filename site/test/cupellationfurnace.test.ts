@@ -68,6 +68,47 @@ describe("the cupellation furnace's rig", () => {
     }
   });
 
+  it("binds the brickwork with one frame of angle iron, its members butted face to face, the L's inside corner joined", () => {
+    type Box = { lo: number[]; hi: number[] };
+    const members = new Map<string, Box[]>();
+    for (const f of flattenShape(shape.elements)) {
+      const e = f.element as { name: string; from: number[]; to: number[]; rotationX?: number; rotationY?: number; rotationZ?: number };
+      if (!/^fr_(angle|band)_/.test(e.name)) continue;
+      expect(f.chain).toHaveLength(1);
+      expect([e.rotationX ?? 0, e.rotationY ?? 0, e.rotationZ ?? 0]).toEqual([0, 0, 0]);
+      const key = e.name.split("_").slice(0, 3).join("_");
+      members.set(key, [...(members.get(key) ?? []), { lo: e.from, hi: e.to }]);
+    }
+    const span = (a: Box, b: Box, q: number) => Math.min(a.hi[q]!, b.hi[q]!) - Math.max(a.lo[q]!, b.lo[q]!);
+    const touch = (a: Box, b: Box) =>
+      [0, 1, 2].some((k) => Math.min(Math.abs(a.hi[k]! - b.lo[k]!), Math.abs(a.lo[k]! - b.hi[k]!)) < 0.06 && [0, 1, 2].every((q) => q === k || span(a, b, q) >= 0.3));
+    const names = [...members.keys()].sort();
+    expect(names.filter((n) => n.startsWith("fr_angle_"))).toHaveLength(5);
+    expect(names.filter((n) => n.startsWith("fr_band_"))).toHaveLength(6);
+    const links = new Map(names.map((n) => [n, new Set<string>()]));
+    for (const m of names)
+      for (const n of names) {
+        if (m >= n) continue;
+        const pairs = members.get(m)!.flatMap((a) => members.get(n)!.map((b) => [a, b] as const));
+        expect(pairs.some(([a, b]) => [0, 1, 2].every((q) => span(a, b, q) > 0.1)), `${m} runs into ${n}`).toBe(false);
+        if (pairs.some(([a, b]) => touch(a, b))) {
+          links.get(m)!.add(n);
+          links.get(n)!.add(m);
+        }
+      }
+    expect(links.get("fr_band_s")!.has("fr_band_m")).toBe(true);
+    for (const n of names) if (n.startsWith("fr_angle_")) expect([...links.get(n)!].some((o) => o.startsWith("fr_band_")), n).toBe(true);
+    const seen = new Set<string>();
+    const todo = [names[0]!];
+    while (todo.length) {
+      const n = todo.pop()!;
+      if (seen.has(n)) continue;
+      seen.add(n);
+      todo.push(...links.get(n)!);
+    }
+    expect([...seen].sort()).toEqual(names);
+  });
+
   it("gives every element a part and every part an element", () => {
     const flat = flattenShape(shape.elements);
     const globs = compileGlobs(parts);

@@ -48,8 +48,12 @@ iron:
   face) is over the grate, above the damper.
 - **The binding is angle iron** (the owner's rule for furnace brickwork): an **angle up every outside vertical
   corner** (five: the front two, the back's east corner, the stack column's two back corners), one leg on each face,
-  its inside corner bedded against the brick's corner, so it locks the brick in on both faces; and an **angle band round
-  the top**, wrapping every top edge, joining the angles' heads. Legs 1 thick, the uprights' 2.5 wide and the band's 2
+  its inside corner bedded against the brick's corner, so it locks the brick in on both faces, from the ground to just
+  under the top; and an **angle band round the top**, wrapping every top edge, its face legs sitting on the uprights'
+  heads. The binding is **one frame**: the bands along x (front, back, the stack column's back) run through the
+  corners and the bands along z butt against them, top leg to top leg and face leg to face leg; at the L's **inside
+  corner** the back band's top leg reaches 2 on over the top so the stack column's east band runs into its side, the
+  two top legs one piece of frame. No two members overlap. Legs 1 thick, the uprights' 2.5 wide and the band's 2
   (clear of the outlet's curb), all set flush in rebates in the brick, so nothing leaves the footprint.
 
 **Footprint and cells.** **14 cells**: the front two rows' twelve (3 × 2 × 2) and the stack column behind their west
@@ -203,9 +207,13 @@ if a check fails (`tools/validate_cupellationfurnace.py`):
 - **A row:** the side faces plain brickwork and binding (10240 points), nothing else at either side plane, the binding
   flush; two furnaces side by side touch only at their walls.
 - **The binding is angle iron** *(review)*: an upright angle at each of the 5 outside vertical corners, its legs 1
-  thick and 2 to 3 wide, flush with both faces of its corner and meeting at it, running the full height, and an angle
-  band wrapping each of the 6 top edges; every leg's inside face bedded on the brick of its face (or on the band over an
-  upright's head), 1376 points; no flat strap or kerb left.
+  thick and 2 to 3 wide, flush with both faces of its corner and meeting at it, from the ground to the band, and an
+  angle band wrapping each of the 6 top edges; every leg's inside face bedded on the brick of its face (or on the band
+  over an upright's head), 1305 points; no flat strap or kerb left.
+- **The binding is one frame** *(review)*: its 11 members (5 uprights, 6 bands) butt and never run into each other;
+  every band's two ends meet another band or an upright face to face (a touch along an edge is not a meeting); every
+  upright stands on the ground and carries the band on its head; each band's two legs meet; and the members, joined
+  where they meet, are one connected frame (16 joints).
 - **Thick walls:** at least `MIN_WALL` (8) of brick, or iron set in it, round the chamber and the fireplace, west,
   east, behind (the wind box aside), and in front clear of the openings.
 - **The lining:** at least `LINING_T` (3) of the lining's brick behind every hot face (3441 points), the cave and the
@@ -238,10 +246,11 @@ if a check fails (`tools/validate_cupellationfurnace.py`):
   are the checked model.
 
 `tools/tests/test_cupellationfurnace_model.py` holds the written files to these without the generator (the
-vocabulary, nothing moving, the 14 cells rebuilt from the shape, the blast inlet and the socket, the angle binding, the
+vocabulary, nothing moving, the 14 cells rebuilt from the shape, the blast inlet and the socket, the angle binding and
+that it is one frame, the
 stages' counts, the frame, the brick types, the anchors, the side faces, the textures and glow, and
 `site/models.json`'s states); `site/test/cupellationfurnace.test.ts` holds the rig in the viewer's maths (no input,
-the blast cell, every part still).
+the blast cell, every part still, the binding one frame of butted members).
 
 ### Rig schema (`cupellationfurnace-rig.json`)
 
@@ -292,6 +301,11 @@ binding, the ties, the damper, the outlet and its cap, the stages, the rig's `bu
    blocks); the footprint shrunk to 14 cells, the back row's middle and east columns left free for the pipe.
 3. **Angle iron** (the owner's rule for furnace brickwork): the flat straps and kerbs became angle uprights wrapping
    the outside corners and an angle band round the top edges, checked bedded on both faces.
+4. **One frame** (owner's note: the back band's top leg did not meet the stack column's east band at the L's inside
+   corner, the two touching only along an edge, and at the outside corners the bands and the uprights' heads ran into
+   each other): the bands along x run through the corners, those along z butt against them, the back band reaches over
+   the inside corner to meet the stack column's band, and the uprights stop under the band and carry it. A new check
+   (and model test) holds the binding to one connected frame of butted members, every band end meeting another member.
 
 ## Known weak spots, and what is not checked
 

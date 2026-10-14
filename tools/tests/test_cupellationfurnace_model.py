@@ -180,12 +180,62 @@ class Furnace(unittest.TestCase):
             self.assertAlmostEqual(a[0][2] if dz > 0 else a[1][2], z, delta=0.05, msg=name)
             self.assertAlmostEqual(b[0][0] if dx > 0 else b[1][0], x, delta=0.05, msg=name)
             self.assertAlmostEqual(a[0][0] if dx > 0 else a[1][0], x, delta=0.05, msg=name)
-            self.assertAlmostEqual(a[1][1] - a[0][1], 32.0, delta=0.05, msg=name)
+            # from the ground to under the band, which sits on its head
+            self.assertAlmostEqual(a[0][1], 0.0, delta=0.05, msg=name)
+            self.assertAlmostEqual(a[1][1], 32.0 - make_shape.BAND_W, delta=0.05, msg=name)
         for name, *_ in make_shape.TOP_EDGES:
             top = [e for e in FLAT if re.fullmatch(rf"fr_band_{name}_top\d*", e.name)]
             face = [e for e in FLAT if re.fullmatch(rf"fr_band_{name}_face\d*", e.name)]
             self.assertTrue(top and face, name)
             self.assertAlmostEqual(aabb_of(top)[1][1], 32.0, delta=0.05, msg=name)
+
+    def test_the_binding_is_one_frame(self):
+        # the owner's rule: the members connect. Every two members butt (never run into each other), every band's two
+        # ends meet another member face to face, every upright's head carries a band, and the whole is one frame; the
+        # L's inside corner's two top legs (the s band and the m band) meet
+        members = {}
+        for e in FLAT:
+            if e.name.startswith(("fr_angle_", "fr_band_")):
+                members.setdefault("_".join(e.name.split("_")[:3]), []).append(e.aabb())
+
+        def touch(a, b):
+            for k in range(3):
+                if min(abs(a[1][k] - b[0][k]), abs(a[0][k] - b[1][k])) < 0.06 and all(
+                        min(a[1][q], b[1][q]) - max(a[0][q], b[0][q]) >= 0.3 for q in range(3) if q != k):
+                    return True
+            return False
+
+        def overlap(a, b):
+            return all(min(a[1][q], b[1][q]) - max(a[0][q], b[0][q]) > 0.1 for q in range(3))
+
+        names = sorted(members)
+        links = {n: set() for n in names}
+        for i, m in enumerate(names):
+            for n in names[i + 1:]:
+                pairs = [(a, b) for a in members[m] for b in members[n]]
+                self.assertFalse(any(overlap(a, b) for a, b in pairs), (m, n))
+                if any(touch(a, b) for a, b in pairs):
+                    links[m].add(n)
+                    links[n].add(m)
+        self.assertIn("fr_band_m", links["fr_band_s"])
+        for name, axis, *_ in make_shape.TOP_EDGES:
+            member, k = f"fr_band_{name}", 0 if axis == "x" else 2
+            lo = min(b[0][k] for b in members[member])
+            hi = max(b[1][k] for b in members[member])
+            reach = make_shape.BAND_W + make_shape.ANGLE_W
+            for end in (lo, hi):
+                near = [o for o in links[member] for a in members[member] for b in members[o]
+                        if touch(a, b) and min(a[1][k], b[1][k]) > end - reach and max(a[0][k], b[0][k]) < end + reach]
+                self.assertTrue(near, f"{member} at {end}")
+        for name, *_ in make_shape.CORNERS:
+            self.assertTrue(any(o.startswith("fr_band_") for o in links[f"fr_angle_{name}"]), name)
+        seen, todo = set(), [names[0]]
+        while todo:
+            n = todo.pop()
+            if n not in seen:
+                seen.add(n)
+                todo += links[n] - seen
+        self.assertEqual(seen, set(names))
 
 
 def element_volume(e):
