@@ -149,12 +149,21 @@ describe("the reverberatory roaster's scenario", () => {
     expect(cells).toContain("0,2,4");
   });
 
-  it("binds its brick in one connected frame: corner angles, knees at the footing's step, bands and the ironwork", () => {
+  it("binds its brick in a closed box frame of angle iron, one connected frame with the ironwork", () => {
     type Box = [number[], number[]];
     const boxes = new Map<string, Box>();
     for (const e of shape.elements)
-      if (/^(fr_angle_|fr_knee_|fr_band_|iw_)/.test(e.name)) boxes.set(e.name, [e.from, e.to]);
-    for (const f of ["n", "s"]) for (const leg of ["face", "top"]) expect(boxes.has(`fr_knee_${f}_${leg}`)).toBe(true);
+      if (/^(fr_angle_|fr_knee_|fr_band_|fr_skew_|iw_)/.test(e.name)) boxes.set(e.name, [e.from, e.to]);
+    // a leg is drawn as its name, or its name and a number (cut at the block grid)
+    const has = (leg: string) => [...boxes.keys()].some((n) => n === leg || (n.startsWith(leg) && /^\d+$/.test(n.slice(leg.length))));
+    const legs: string[] = [];
+    for (const f of ["n", "s"]) {
+      for (const s of ["w", "e", "f", "i"]) legs.push(`fr_angle_${f}${s}_face`, `fr_angle_${f}${s}_side`);
+      legs.push(`fr_knee_${f}_face`, `fr_band_${f}i_top`, `fr_band_${f}i_facea`);
+    }
+    for (const b of ["n", "s", "w", "ne", "se", "f"]) legs.push(`fr_band_${b}_face`, `fr_band_${b}_top`);
+    legs.push("fr_band_wi_face", "fr_skew_face", "fr_skew_top");
+    expect(legs.filter((l) => !has(l))).toEqual([]);
     // two members meet over an area: apart along no axis, overlapping along at least two
     const touch = (a: Box, b: Box) => {
       const gap = [0, 1, 2].map((k) => Math.max(a[0][k]!, b[0][k]!) - Math.min(a[1][k]!, b[1][k]!));

@@ -81,10 +81,10 @@ crucible furnace's pattern:
 
 | | Stage | `requires` | What it puts in | Materials (measured) |
 |---|---|---|---|---|
-| Frame | **Iron frame**, a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (`frame`) | The fire end's and the flue end's corner angles, knees and angle bands, the ash mouth's lintel and the damper's guides, standing on their own (the end blocks' east corner angles on a short post each, the lintel on two, hidden in the brickwork) | not settled |
-| 1 | **Brickwork** | `brickwork` (and `frames`) | The base, the shared wall, the outer walls, the footing, the end blocks: 13.19 blocks; with it, at no cost of its own, the iron set in as it is laid (the fire door's lintel, the flat grate's bearers, the work doors' frames and guides, the discharge door's rails) | **27 fired bricks**, any one type |
-| 2 | **Lining** | `lining` | Tier-3 refractory 3 thick on every hot face: 4.07 blocks | **17 tier-3 refractory bricks, 7 fire clay** |
-| 3 | **Arch** | `arch` (and `ironwork`) | The arch's 9 strips and the east skewback, tier-3 refractory: 2.08 blocks; with it the angle buckstays, the skewback bar (the east side's length, end to end), the tie rods and their anchors | **9 tier-3 refractory bricks, 4 fire clay** (the ironwork not settled) |
+| Frame | **Iron frame**, a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (`frame`) | The box frame (every upright, the knees, every band, the skewback angle), the ash mouth's lintel, the damper's guides and sill, standing on their own (the end blocks' east corner angles on a short post each, the lintel on two, hidden in the brickwork) | not settled |
+| 1 | **Brickwork** | `brickwork` (and `frames`) | The base, the shared wall, the outer walls, the footing, the end blocks: 12.92 blocks; with it, at no cost of its own, the iron set in as it is laid (the fire door's lintel and dead plate, the flat grate's bearers, the work doors' frames and guides, the discharge door's rail) | **26 fired bricks**, any one type |
+| 2 | **Lining** | `lining` | Tier-3 refractory 3 thick on every hot face: 4.14 blocks | **17 tier-3 refractory bricks, 7 fire clay** |
+| 3 | **Arch** | `arch` (and `ironwork`) | The arch's 9 strips and the east skewback, tier-3 refractory: 2.02 blocks; with it the angle buckstays, the tie rods and their anchors | **9 tier-3 refractory bricks, 4 fire clay** (the ironwork not settled) |
 | | Level 1, level 2 | as above | | not settled |
 | | *Outlet cap* | `outletcap` | Not a stage: on the furnace of a pair that does not carry the chimney | 1 iron plate |
 
@@ -96,41 +96,55 @@ fired bricks or 4 refractory bricks a block, rounded up, fire clay one per 2.5 r
 
 Every piece of iron that binds the brickwork is **angle iron**, an L section 0.75 thick with legs 2 wide (`ANGLE_T`,
 `ANGLE_L`), wrapping the brick's corner: one leg on each face, its inside corner bedded against the brick's corner, so it
-holds the brick in on both faces (the owner's rule for every furnace). The end faces are the footprint's faces and the west
-face is the shared wall's, so nothing may stand proud of them: the angles there are **set into the brick, flush** with
-both faces of their corner.
+holds the brick in on both faces (the owner's rule for every furnace). It is one **closed box frame** following the
+brickwork's outline (`binding_members` in `make_shape.py`): an angle up every outside vertical corner, an angle band along
+every top edge, each meeting the next at its ends, so the iron reads as a box round the whole furnace, not end frames
+and pieces. The end faces are the footprint's and the west face is the shared wall's, so nothing may stand proud of
+them: every leg is **set into the brick, flush**.
 
-- **Corner angles** (`fr_angle_<n|s><w|e|f>_face`, `_side`; the iron frame): at each vertical corner of the fire end's and
-  the flue end's faces, full height at the shared wall's corners, from the footing up at the end blocks' east corners (each
-  on a short post hidden in the footing, `fr_tie_angle_*`), and to the footing's top at its east corners.
-- **Knees** (`fr_knee_<n|s>_face`, `_top`; the iron frame): where the footing steps out from under the end block's east
-  corner, the footing's corner angle and the end block's are one stepped member. A knee plate in the end face, 2 × 2,
-  set in flush, fills the step's inside corner under the end block's angle, so the end-face legs run through the step
-  without a break (footing angle, knee, end block angle, ground to top); a short leg in the footing's top wraps the
-  ledge's edge from the end block's face to the footing angle's side leg, closing the footing angle's top.
-- **Angle bands** (`fr_band_<n|s>_face`, `_top`; the iron frame): along the top edge of each end face between its corner
-  angles, wrapping that edge (a leg down the face, a leg on the top), their ends meeting the corner angles: the face
-  leg butts the corner angles' end-face legs and the top leg runs on to their side legs, so each top corner is iron to
-  the corner.
-- **Buckstays** (`iw_stay<i>_flange`, `_web`; the ironwork, with the arch): the east wall between the end blocks has no
-  vertical corner, so each buckstay is an angle standing on the face, its flange bedded against the wall and the skewback
-  bar, its web standing out from the flange's south edge to the footprint's face; the tie rod passes through the flange
-  and its nut bears on it, against the web.
-- **Skewback bar** (`iw_skewbar`; the ironwork): behind the buckstays, where the arch's east skewback bears on it, and on
-  through the end blocks' east faces, set in flush, to the east corner angles' side legs at both ends. It ties the fire
-  end's and the flue end's binding together along the east side; the tie rods tie the buckstays across to the shared
-  wall. The binding is one frame, not two end frames and loose ironwork.
+- **Uprights** (`fr_angle_<n|s><w|e|f|i>_face`, `_side`): at the shared wall's corners, full height; at the end blocks'
+  east corners, from the footing up (each on a short post hidden in the footing, `fr_tie_angle_*`); at the footing's east
+  corners, to its top; and at each end block's **inner** east corner (`i`), where the east wall drops to the skewback
+  angle under the arch's bay, standing on it.
+- **Knees** (`fr_knee_<n|s>_face`): where the footing steps out from under the end block's east corner, a plate in the
+  end face fills the step's inside corner, so the end-face legs run without a break from the ground to the top.
+- **Bands** round every top edge: the end faces' (`fr_band_<n|s>`), the shared wall's outer one (`fr_band_w`, flush in
+  its face), each end block's east one (`fr_band_<n|s>e`), the footing's (`fr_band_f`, the length of the east side: the
+  buckstays, the work doors' guides and the discharge door's recess stand under or on it), and round the arch's bay:
+  the shared wall's inner one (`fr_band_wi`, the tie rods passing through it), each end block's inner one
+  (`fr_band_<n|s>i`, its face leg reaching down to the arch in steps following the strips, hidden behind the arch's end,
+  so no brick shows between the band and the arch; over the flue end's cavity no lower than its roof) and the
+  **skewback angle** (`fr_skew`): its face leg the skewback's back, the east side's length, on through the end blocks to
+  their corner angles; its top leg the skewback's top to the arch's foot (the skewback now stops at the foot).
+- **Buckstays** (`iw_stay<i>_flange`, `_web`; the ironwork, with the arch): each an angle standing on the footing band,
+  its flange against the wall and the skewback angle, its web standing out from the flange's south edge to the
+  footprint's face; the tie rod passes through the flange and its nut bears on it. The second and third stand against
+  the work doors' north guides (no strip of wall between). The **tie rods** run over the crown from them through the
+  west inner band to **anchor plates** in the shared wall's top, bearing against the west band's top leg.
 
-A check holds it (`check_binding`): each corner angle's two legs are 0.75 × 2 in the two faces of its corner, flush, with
-brick behind each leg and the face running on in brick past it, nothing proud of either face, the legs meeting at the
-corner; each band's legs in the end face and the top, bedded the same way, its ends on the corner angles; each buckstay's
-flange on the east face, bedded against the wall and the skewback bar, its web at the flange's edge, its nut on the flange.
-A second check holds the joins (`check_frame_connected`): on each end face every member (corner angles' legs, knee,
-band's legs) meets another over an area, not an edge, and they form one group; the corner chains run without a gap from
-the ground to the top (the shared wall's angle; the footing's angle, the knee, the end block's angle); the knee meets
-both angles, the bands' legs both corners' legs; and both end faces' binding with the ironwork (buckstays, skewback bar,
-rods, anchors, nuts) is one group, the skewback bar meeting both east corner angles. Removing a knee, shortening the
-band's top leg or the skewback bar each fails it.
+The frame is the build's first stage, so the box and the skewback angle stand on their own before any brick (the
+uprights on the ground or the posts, the inner uprights on the skewback angle, the bands between them).
+
+**No slivers of brick** (the owner's rule): no piece of the brickwork or the lining that shows from outside is narrower
+than 3 voxels (`MIN_BRICK`) either way. For it the well's seat and the cover run out to the bands; the outlet's curb and
+the feed hole's top course are the lining's out to the bands; the hopper's neck stands on a base plate from the inner
+band to the south band, over the feed hole's lining; the damper's recess runs from the ground (an iron sill under the
+damper) to the fire door's recess, and the damper's open place is at the recess's top; the fire door's plate fills its
+recess and its opening has an iron dead plate through the brickwork to the lining; the discharge door's recess is the
+mouth's length twice, its plate the mouth's length, its low rail at the tunnel's floor and its top edge in a slot behind
+the footing band's face leg; the coal well's floor beside the throat is the lining's.
+
+Checks hold it. `check_binding`: every leg is its box, `ANGLE_T` thick across its face, flush in the face's plane with no
+brick proud of it, bedded behind (brick, the arch, or the iron it joins; the footing band's face leg is the discharge
+recess's lip there), each angle's legs meeting; the buckstays as above. `check_box_frame` reads the outline afresh (the
+height of the brick, the arch and the frame over every voxel column, the openings in the top filled) and requires: every
+top edge (a step of 3 or more) wrapped by iron in its face just under the edge and in its top just in from it, all along
+it; every outside vertical corner (every voxel up to the bands) with iron in both its faces beside it; every band's and
+upright's ends meeting another member over an area (an upright's foot may stand on the ground); the frame one connected
+group, and one with the ironwork. `check_slivers` measures every showing face of brick (built, level 1, level 2) along the
+face to the iron, the other brick, an edge or a corner (a recess's reveal and a seat's rebate do not count). Dropping
+the west band, an inner upright, the footing band or the west inner band, shortening a band's leg or the skewback's top
+leg, or putting the well's seat or the buckstays back where they were, each fails.
 
 ## How it works
 
@@ -150,10 +164,11 @@ in the first rabble's sweep) drops through the hearth's bed into the **tunnel** 
 footing's face.
 
 **The fire end.** On the controller's face: the **ash mouth** (x 18..30, y 1..6.5) into the ash pit, an iron **damper**
-sliding in a recess over it (open, half, shut: the crucible furnace's), and above it the **fire door** (x 19..29, y
-14..20), shut in its recess, over the flat grate (level 1: 14 bars on two bearers built into the side walls, the fire
+sliding in a recess over it from the ground, on an iron sill, between its guides (open, half, shut: the crucible
+furnace's), and above it the **fire door** (x 19..29, y 14..20), its plate shut filling its recess, an iron dead plate
+on its sill, over the flat grate (level 1: 14 bars on two bearers built into the side walls, the fire
 bed on them). In the fire end block's top, the **coal well** (x 3..41, z 3..13, y 25..31.5) over a **throat** through the
-firebox's roof (x 9..39, z 7..12): covered flush by three iron plates at level 1; at level 2 the **bunker**'s iron liner,
+firebox's roof (x 9..39, z 7..12): covered flush by three iron plates at level 1 (their seat out to the bands); at level 2 the **bunker**'s iron liner,
 an iron throat hanging to y 20 over the top tread, and the **step grate** (four treads from z 6 to the bridge, tops
 18.5, 16.5, 14.5, 12.5, the air rising between them), the coal sliding down the steps as it burns. The fuel's chute
 section drops into the bunker's west end from the fuel cell's top, hung from a strap on the liner. The gear case stands
@@ -173,16 +188,17 @@ the swivel. In the hearth it carries a hub with two arms, three ploughs on each 
 12.44 from each spindle, so the second rabble's takes in the charge under the feed chute, the first's the discharge
 hole, and the two overlap between (a quarter turn apart, the arms never meet: the swept paths).
 
-**The feed.** The **hopper** (level 1, x 16.5..31.5, y 42..48, z 66..78) on its **neck** (x 20..28, y 33..42) on a flange
-on the flue end block's top; the iron **feed chute** from the neck down through the roof into the cavity (y 26.5..35).
+**The feed.** The **hopper** (level 1, x 16.5..31.5, y 42..48, z 66..78) on its **neck** (x 20..28, y 33..42) on a base
+plate on the flue end block's top, from the inner band to the south band; the iron **feed chute** from the neck down through the roof into the cavity (y 26.5..35).
 At level 1 a charge thrown in falls through to the hearth's far end. At level 2 a **fluted feed roll** keyed on the line
 shaft's end turns in the neck under the hopper's slot and meters the charge down the chute, and a **section of the
 vanilla chute** hangs in the hopper's mouth from two straps on its rim.
 
 **The output** (level 2): a **section of the vanilla chute** along x in the tunnel's mouth (x 40..48), flush with the
 face, and an iron **spout** from under the discharge hole down onto its floor, so the roasted charge falling through
-slides into the chute. The discharge door (a plate sliding along z on rails in its recess in the footing's face) is
-slid clear of it; at level 1 it is shut over the mouth, and the player opens it to draw the charge.
+slides into the chute. The discharge door (a plate sliding along z in its recess in the footing's face, on a low rail at
+the tunnel's floor, its top edge in a slot behind the footing band's face leg) is slid clear of it, into the recess's
+other half; at level 1 it is shut over the mouth, and the player opens it to draw the charge.
 
 **The water** (level 2): the **manifold**, a cube of ppex's pipe (UnifiedPipes' soldered pipe, 6 across) under the water
 cell's top, open up to the player's pipe and plugged below; from its side a **small-bore pipe** runs east, down the drive
@@ -213,8 +229,8 @@ Everything was made for this mod; no other mod's model is used, and the generato
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/reverberatory.json` | The whole furnace, both levels' parts (772 elements: 435 built, 489 at level 1 roasting, 726 at level 2 running) |
-| `assets/seraphhorizons/shapes/block/reverberatory_frame.json` | The iron frame only (43 elements) |
+| `assets/seraphhorizons/shapes/block/reverberatory.json` | The whole furnace, both levels' parts (906 elements: 570 built, 623 at level 1 roasting, 861 at level 2 running) |
+| `assets/seraphhorizons/shapes/block/reverberatory_frame.json` | The iron frame only (131 elements) |
 | `assets/seraphhorizons/config/reverberatory-rig.json` | Cells, anchors, the build, the bricks, the row, the gearing and the part rig (33 parts) |
 | `tests/ReverberatoryRoaster/rig-reference.json` | Every part's matrix at a spread of axle angles, from the reference maths |
 
@@ -253,9 +269,10 @@ the checks, and the run exits non-zero if one fails. Checks that look at parts t
 - **The shared wall** (the owner's rule): its face plain brick at every half voxel (10240 points), nothing else at its
   plane; the doors and the buckstays on the east; two furnaces back to back (the second turned half round) touch nowhere
   but at their shared walls, at rest and turning.
-- **The binding** (the owner's rule: angle iron): as "The binding" above.
+- **The binding, the box frame and slivers** (the owner's rules): as "The binding" above (`check_binding`,
+  `check_box_frame`, `check_slivers`).
 - **The lining:** every hot face (the firebox and its roof, the bridge, the hearth's bed and walls, the cavity, the
-  uptake, the feed hole, the throat) lined at least 3 deep or to where the brick ends (4576 points); the ash pit, the
+  uptake, the feed hole, the throat) lined at least 3 deep or to where the brick ends (4572 points); the ash pit, the
   ash mouth and the tunnel the brickwork's; the arch refractory.
 - **The build's counts:** the brick boxes' volumes are the lattice's, and give the rig's quantities.
 - **The charge's path:** the feed drops in the second rabble's sweep, the sweeps meet, the discharge hole is in the
@@ -377,7 +394,7 @@ above) and the reservoir it fills, and the furnace's row (`furnace`).
   the vanilla section flush with the face, so the section fills the tunnel's mouth and an iron spout carries the charge
   from under the hole down onto its floor.
 - **The discharge door slides along z.** It cannot swing out past the footprint, nor slide up into work door 1's frame
-  above it; it slides on rails in a recess in the footing's face.
+  above it; it slides in a recess in the footing's face under the footing band, the band's face leg its lip.
 - **Nine voussoirs** (the branch's weak spot: seven): the crown strip still takes the glands and the pedestals' bases.
 
 ## Open for the owner
@@ -391,7 +408,7 @@ above) and the reservoir it fills, and the furnace's row (`furnace`).
 4. **Water to the swivels by small-bore pipe** from a ppex manifold, not ppex's own pipe (which cannot reach them); and
    where the water anchor is (the drive row's top over the first rabble, so the player's pipe comes from above).
 5. **The build**: the frame's recipe, the stages and their order (the frame, brickwork, lining, arch with ironwork as
-   drawn), the ironwork's and the levels' materials; the brick counts are measured (27 fired bricks; 17 + 9 refractory
+   drawn), the ironwork's and the levels' materials; the brick counts are measured (26 fired bricks; 17 + 9 refractory
    bricks, 7 + 4 fire clay).
 6. **The chimney's minimum**: the crucible furnace's six blocks, taken as they are.
 7. **The sulfur** (0.7 of a sulfide's sulfur through the flue, #736): nothing is drawn for it; an anchor at the outlet
@@ -399,6 +416,11 @@ above) and the reservoir it fills, and the furnace's row (`furnace`).
 8. **Readability:** level 1's open work doors show the hearth from the east; level 2's are shut (the issue), so its
    rabbles are seen only from above with the arch hidden, or through level 1's doors.
 9. **Rabble count**: two, as the branch's; real furnaces had more.
+10. **The box frame over the arch's bay** (this pass): the end blocks' inner bands reach down to the arch in steps
+    behind its ends (an unequal angle, its face leg up to 6.6 deep), so they read as iron plates over the arch's ends
+    rather than 2-wide bands with a sliver of brick under them; and to keep every piece of brick at least 3 wide, the
+    well's cover, the hopper's base plate and the flue end block's lining run out to the bands. Narrower bands with more
+    brick between would need the brick re-laid round them.
 
 ## Known weak spots, and what is not checked
 
@@ -408,8 +430,9 @@ Reviewed in projections rendered from the written files; no one has looked at it
 2. **The arch is nine strips**: its outside is a polygon; the strips' feet run into the shared wall and the skewback.
 3. **Static contents**: the charge, the fire and the coal are parts, not work.
 4. **The feed roll and the rectifier are hidden** in the neck and the gear case.
-5. **Lining on an outside face**: the flue end block's north face, just above the arch's haunches, shows the cavity
-   roof's lining edge (y 27..30).
+5. **The flue end's cavity at the arch's haunches**: the cavity's roof (27) is higher than the arch's extrados at its
+   two feet (26.7 at x 8..9.2 and 38.8..40), so a sliver of the cavity shows between the arch's end and the flue end
+   block's inner band there (under a quarter voxel); the band's face leg stops at the roof, not to hang in the cavity.
 6. **Collision is the finished machine's** at level 2, with the doors shut: level 1's and a part-built furnace's are
    gameplay's.
 7. **The tie rods are straight over the crown**, standing clear of the arch's haunches.

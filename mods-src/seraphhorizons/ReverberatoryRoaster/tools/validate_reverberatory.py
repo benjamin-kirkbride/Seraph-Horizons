@@ -234,14 +234,17 @@ def check_containment(v):
         v.fail("the chimney's cell is the furnace's")
 
 
+FLUSH_WEST = ("fr_angle_nw_", "fr_angle_sw_", "fr_band_w_")   # the box frame's legs set flush in the shared wall's face
+
+
 def check_sides(v):
     """The shared long wall (west) is flush, plain brick over its whole face (sampled every half voxel) but for its
-    corner angles' legs, set in flush, and nothing else reaches its plane (no buckstay, nut or door stands beyond it); the
+    corner angles' and its band's legs, set in flush, and nothing else reaches its plane (no buckstay, nut or door stands beyond it); the
     work doors, the buckstays and every door's iron are on the east side or the end faces; two furnaces back to back (the
     second turned half round about the shared plane's middle, x 0, z 40) touch nowhere but at their shared walls, at rest
     and turning."""
     m = v.m
-    bricks = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if e.name.startswith("fr_angle_")]
+    bricks = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if e.name.startswith(FLUSH_WEST)]
     bad, n = [], 0
     y = 0.25
     while y < m.TOP:
@@ -257,12 +260,12 @@ def check_sides(v):
     reach = set()
     for pid in v.by_part:
         for e in v.by_part[pid]:
-            if e.aabb()[0][0] < 1e-6 and not e.name.startswith(("bk_brick", "fr_angle_")):
+            if e.aabb()[0][0] < 1e-6 and not e.name.startswith(("bk_brick",) + FLUSH_WEST):
                 reach.add(e.name)
     if reach:
         v.fail(f"not brickwork at the shared wall's plane: {sorted(reach)[:4]}")
     doors = [e.name for pid in ("frames", "doorsopen", "doorsshut", "ironwork") for e in v.by_part[pid]
-             if e.aabb()[0][0] < m.EAST[0] and not e.name.startswith(("fm_fdlintel", "fm_bearer", "iw_rod", "iw_anchor"))]
+             if e.aabb()[0][0] < m.EAST[0] and not e.name.startswith(("fm_fdlintel", "fm_fdsill", "fm_bearer", "iw_rod", "iw_anchor"))]
     if doors:
         v.fail(f"door or buckstay iron off the east side: {doors[:4]}")
     hits = 0
@@ -283,118 +286,8 @@ def check_sides(v):
                     hits += 1
     if hits:
         v.fail(f"two furnaces back to back run into each other ({hits} pairs)")
-    print(f"sides: the shared west wall plain brick (its corner angles flush) at {n - len(bad)} of {n} points, nothing else at "
+    print(f"sides: the shared west wall plain brick (its corner angles and band flush) at {n - len(bad)} of {n} points, nothing else at "
           f"its plane; the doors and buckstays on the east; two back to back clear of each other but at the shared walls")
-
-
-def leg_box(v, prefix):
-    """The box of an angle's leg (its pieces cut at the block grid), from the frame or the ironwork."""
-    els = [e for pid in ("frame", "ironwork") for e in v.by_part[pid] if e.name == prefix or e.name.startswith(prefix) and e.name[len(prefix):].isdigit()]
-    return aabb_of(els) if els else None
-
-
-def check_binding(v):
-    """The binding is angle iron (the owner's rule): at every vertical corner of the end faces (the shared wall's, the end
-    block's east corner, the footing's) an angle of two legs, each ANGLE_T thick and ANGLE_L wide from the corner, one in
-    each face, set in flush: its outer faces in the faces' planes with nothing proud of them, its inner faces bedded
-    against the brick, the brick's faces (or the iron the leg meets) running on past each leg, the two legs meeting at the corner. Each band is an
-    angle wrapping its end face's top edge (a leg in the face, a leg in the top), bedded the same way, its ends meeting
-    the corner angles' end-face legs. Each buckstay is an angle: its flange on the east face, bedded against the wall and
-    then the skewback bar, its web standing out from the flange's edge to the footprint's face, its rod's nut on the
-    flange."""
-    m = v.m
-    t, l = m.ANGLE_T, m.ANGLE_L
-    bk = v.by_part["brickwork"]
-    bands = [e for e in v.by_part["frame"] if e.name.startswith("fr_band_")]
-    knees = [e for e in v.by_part["frame"] if e.name.startswith("fr_knee_")]
-    knees += [e for e in v.by_part["ironwork"] if e.name.startswith("iw_skewbar")]   # the bar runs on from the side legs
-    struct = [e for pid in ("brickwork", "lining", "frame", "frames", "arch", "ironwork") for e in v.by_part[pid]]
-
-    def brick(p):
-        return any(inside(p, e) for e in bk)
-
-    def free(p):
-        return not any(inside(p, e) for e in struct)
-
-    def near(a, b):
-        return all(abs(a[k] - b[k]) < 1e-6 for k in range(3))
-    bad, n = [], 0
-    for face, zf, inz in m.ANGLE_FACES:
-        for side, xc, inx, (y0, y1) in m.ANGLE_SIDES:
-            name = f"fr_angle_{face}{side}"
-            fl, sl = leg_box(v, f"{name}_face"), leg_box(v, f"{name}_side")
-            if fl is None or sl is None:
-                bad.append(f"{name}: a leg missing")
-                continue
-            want_f = ([min(xc, xc + inx * l), y0, min(zf, zf + inz * t)], [max(xc, xc + inx * l), y1, max(zf, zf + inz * t)])
-            want_s = ([min(xc, xc + inx * t), y0, min(zf + inz * t, zf + inz * l)], [max(xc, xc + inx * t), y1, max(zf + inz * t, zf + inz * l)])
-            if not (near(fl[0], want_f[0]) and near(fl[1], want_f[1]) and near(sl[0], want_s[0]) and near(sl[1], want_s[1])):
-                bad.append(f"{name}: its legs are not ANGLE_T x ANGLE_L in the two faces of its corner")
-            for y in [y0 + 0.5 + k * 2.0 for k in range(int((y1 - y0) / 2.0))]:
-                n += 1
-                # bedded: behind each leg's inner face, brick; past each leg's end, the face runs on in brick
-                for p in [(xc + inx * x, y, zf + inz * (t + 0.05)) for x in (t + 0.2, (t + l) / 2, l - 0.2)]:
-                    if not brick(p):
-                        bad.append(f"{name}: no brick behind its end-face leg at {p}")
-                for p in [(xc + inx * (t + 0.05), y, zf + inz * z) for z in (t + 0.2, (t + l) / 2, l - 0.2)]:
-                    if not brick(p):
-                        bad.append(f"{name}: no brick behind its side leg at {p}")
-                for p in ((xc + inx * (l + 0.05), y, zf + inz * t / 2), (xc + inx * t / 2, y, zf + inz * (l + 0.05))):
-                    if not (brick(p) or any(inside(p, e) for e in bands + knees)):  # or the iron it meets
-                        bad.append(f"{name}: the face does not run on in brick (or the band) past its leg at {p}")
-                # flush: nothing proud of either face; the legs meet at the corner
-                for p in ((xc + inx * l / 2, y, zf - inz * 0.05), (xc - inx * 0.05, y, zf + inz * l / 2)):
-                    if not free(p):
-                        bad.append(f"{name}: something stands proud of its faces at {p}")
-            corner = (xc + inx * t / 2, (y0 + y1) / 2, zf + inz * t / 2)
-            if not (fl[0][0] <= corner[0] <= fl[1][0] and fl[0][2] <= corner[2] <= fl[1][2]):
-                bad.append(f"{name}: its legs do not meet at the corner")
-            if abs((sl[0][2] if inz > 0 else sl[1][2]) - (zf + inz * t)) > 1e-6:
-                bad.append(f"{name}: its side leg does not run on from its end-face leg")
-    for face, zf, inz in m.ANGLE_FACES:
-        name = f"fr_band_{face}"
-        fl, tl = leg_box(v, f"{name}_face"), leg_box(v, f"{name}_top")
-        if fl is None or tl is None:
-            bad.append(f"{name}: a leg missing")
-            continue
-        if abs(fl[1][1] - fl[0][1] - l) > 1e-6 or abs(fl[1][2] - fl[0][2] - t) > 1e-6 or abs(fl[1][1] - m.TOP) > 1e-6 \
-                or abs(tl[1][1] - tl[0][1] - t) > 1e-6 or abs(abs(tl[1][2] - tl[0][2]) - (l - t)) > 1e-6 or abs(tl[1][1] - m.TOP) > 1e-6:
-            bad.append(f"{name}: its legs are not ANGLE_T x ANGLE_L in the end face and the top")
-        for x in [fl[0][0] + 1.0 + 4.0 * k for k in range(int((fl[1][0] - fl[0][0] - 1.0) / 4.0) + 1)]:
-            n += 1
-            for p in ((x, m.TOP - (t + l) / 2, zf + inz * (t + 0.05)), (x, m.TOP - t - 0.05, zf + inz * (t + l) / 2)):
-                if not brick(p):
-                    bad.append(f"{name}: no brick behind a leg at {p}")
-            for p in ((x, m.TOP - l / 2, zf - inz * 0.05),):
-                if not free(p):
-                    bad.append(f"{name}: something stands proud of the end face at {p}")
-        ends = [leg_box(v, f"fr_angle_{face}{s}_face") for s in ("w", "e")]
-        if abs(fl[0][0] - ends[0][1][0]) > 1e-6 or abs(fl[1][0] - ends[1][0][0]) > 1e-6:
-            bad.append(f"{name}: its ends do not meet the corner angles")
-        sides = [leg_box(v, f"fr_angle_{face}{s}_side") for s in ("w", "e")]
-        if abs(tl[0][0] - sides[0][1][0]) > 1e-6 or abs(tl[1][0] - sides[1][0][0]) > 1e-6:
-            bad.append(f"{name}: its top leg does not run on to the corner angles' side legs")
-    for i, zc in enumerate(m.STAY_Z, 1):
-        fl, wb = leg_box(v, f"iw_stay{i}_flange"), leg_box(v, f"iw_stay{i}_web")
-        if fl is None or wb is None:
-            bad.append(f"buckstay {i}: a leg missing")
-            continue
-        if abs(fl[0][0] - m.FACE_E) > 1e-6 or abs(fl[1][0] - fl[0][0] - t) > 1e-6 or abs(wb[0][0] - fl[1][0]) > 1e-6 \
-                or abs(wb[1][2] - fl[1][2]) > 1e-6 or abs(wb[1][2] - wb[0][2] - t) > 1e-6 or abs(wb[1][0] - m.W) > 1e-6:
-            bad.append(f"buckstay {i}: not an angle with its flange on the east face and its web standing out from its edge")
-        for y in [m.HEARTH_Y + 0.5 + k for k in range(int(m.SKEW[1][1] - m.HEARTH_Y))]:
-            n += 1
-            p = (m.FACE_E - 0.05, y, zc)
-            backing = v.by_part["brickwork"] + [e for e in v.by_part["ironwork"] if e.name.startswith("iw_skewbar")]
-            if not any(inside(p, e) for e in backing):
-                bad.append(f"buckstay {i}: its flange is not bedded against the wall at y {y}")
-        nut = next(e for e in v.by_part["ironwork"] if e.name == f"iw_nut{i}").aabb()
-        if abs(nut[0][0] - fl[1][0]) > 1e-6:
-            bad.append(f"buckstay {i}: its nut does not bear on the flange")
-    print(f"binding: {len(m.ANGLE_FACES) * len(m.ANGLE_SIDES)} corner angles ({t} thick, legs {l}), {len(m.ANGLE_FACES)} angle "
-          f"bands and {len(m.STAY_Z)} angle buckstays: legs in their faces, bedded against the brick, flush ({n} stations)")
-    if bad:
-        v.fail(f"the binding is not angle iron wrapping its corners: {bad[:5]} ({len(bad)})")
 
 
 def touching(a, b, eps=1e-6):
@@ -421,66 +314,439 @@ def components(boxes):
     return out
 
 
-def check_frame_connected(v):
-    """The binding is one connected frame, not pieces (the owner's rule): on each end face its members (the corner
-    angles' legs, the knees, the bands' legs, each merged across its block-grid cuts) form one group, each member
-    meeting another over an area, not an edge; each corner's chain is continuous from the ground to the top: at the
-    shared wall's corner one angle, at the east the footing's angle, the knee and the end block's angle, the knee's
-    face plate meeting both angles' end-face legs and its top leg the footing angle's two legs. And the whole binding is
-    one frame: both end faces' and the ironwork (buckstays, skewback bar, tie rods, anchor plates, nuts), the skewback bar
-    running the east side's length to the east corner angles' side legs at both ends."""
+def leg_els(v, name):
+    """A leg's elements: by its name, or its pieces cut at the block grid (its name and a number)."""
+    rx = re.compile(re.escape(name) + r"\d*$")
+    return [e for pid in ("frame", "ironwork") for e in v.by_part[pid] if rx.match(e.name)]
+
+
+def leg_box(v, name):
+    """The box of a leg (its pieces cut at the block grid), from the frame or the ironwork."""
+    els = leg_els(v, name)
+    return aabb_of(els) if els else None
+
+
+def _span(a, b, step=1.0):
+    """Sample positions across a..b: every `step` from a quarter in, and a quarter short of b."""
+    out, q = [], a + 0.25
+    while q < b - 0.2:
+        out.append(q)
+        q += step
+    if b - a > 0.5:
+        out.append(b - 0.25)
+    return out
+
+
+def check_binding(v):
+    """The binding is angle iron (the owner's rule), every member of the box frame (make_shape.binding_members) as
+    drawn: each leg its box, ANGLE_T thick across the face it is set into, its outer face flush in that face's plane with
+    no brick proud of it, its inner face bedded against the brick (or the iron it joins, or the arch) at every voxel but
+    where it spans the discharge door's recess as its lip; each angle's legs meeting over an area. Each buckstay is an
+    angle: its flange on the east face, bedded against the wall and the skewback angle, its web standing out from the
+    flange's edge to the footprint's face, its rod's nut on the flange."""
     m = v.m
-    bad = []
-    for face, _, _ in m.ANGLE_FACES:
-        names = [f"fr_angle_{face}{s}_{leg}" for s, *_ in m.ANGLE_SIDES for leg in ("face", "side")]
-        names += [f"fr_knee_{face}_face", f"fr_knee_{face}_top", f"fr_band_{face}_face", f"fr_band_{face}_top"]
+    t = m.ANGLE_T
+    brick_els = v.by_part["brickwork"] + v.by_part["lining"]
+    backing = brick_els + v.by_part["arch"] + v.by_part["frame"] + v.by_part["ironwork"]
+    (rx, ry, rz), (sx, sy) = m.D_RECESS, m.D_SLOT
+
+    def lip(p):
+        return rz[0] <= p[2] <= rz[1] and ((rx[0] <= p[0] <= rx[1] and ry[0] <= p[1] <= ry[1])
+                                           or (sx[0] <= p[0] <= sx[1] and sy[0] <= p[1] <= sy[1]))
+    bad, n, legs_n = [], 0, 0
+    members = m.binding_members()
+    for member, kind, axis, legs in members:
         boxes = {}
-        for n in names:
-            b = leg_box(v, n)
-            if b is None:
-                bad.append(f"{n}: missing")
-            else:
-                boxes[n] = b
-        for n, b in boxes.items():
-            if not any(touching(b, boxes[o]) for o in boxes if o != n):
-                bad.append(f"{n}: meets no other member")
-        groups = components(boxes)
-        if len(groups) != 1:
-            bad.append(f"the {face} end face's binding is {len(groups)} pieces: {groups}")
-        for a, b in ((f"fr_angle_{face}f_face", f"fr_knee_{face}_face"), (f"fr_knee_{face}_face", f"fr_angle_{face}e_face"),
-                     (f"fr_knee_{face}_top", f"fr_angle_{face}f_face"), (f"fr_knee_{face}_top", f"fr_angle_{face}f_side"),
-                     (f"fr_band_{face}_face", f"fr_angle_{face}w_face"), (f"fr_band_{face}_face", f"fr_angle_{face}e_face"),
-                     (f"fr_band_{face}_top", f"fr_angle_{face}w_side"), (f"fr_band_{face}_top", f"fr_angle_{face}e_side")):
-            if a in boxes and b in boxes and not touching(boxes[a], boxes[b]):
-                bad.append(f"{a} does not meet {b}")
-        # each corner's chain of end-face legs from the ground to the top, no gap in y
-        for chain in ((f"fr_angle_{face}w_face",), (f"fr_angle_{face}f_face", f"fr_knee_{face}_face", f"fr_angle_{face}e_face")):
-            if not all(c in boxes for c in chain):
+        for name, lo, hi, (k, c, sg) in legs:
+            legs_n += 1
+            bx = leg_box(v, name)
+            if bx is None:
+                bad.append(f"{name}: missing")
                 continue
-            spans = sorted((boxes[c][0][1], boxes[c][1][1]) for c in chain)
-            reach = 0.0
-            for y0, y1 in spans:
-                if y0 > reach + 1e-6:
-                    break
-                reach = max(reach, y1)
-            if abs(reach - m.TOP) > 1e-6:
-                bad.append(f"the {face} end face's corner chain {chain} stops at y {reach}, not the top")
-    # the whole binding, both end faces' and the ironwork, one group: each piece (a long member's block-grid pieces meet
-    # end to end), the skewback bar running on to the east corner angles' side legs at both ends
-    iron = {e.name: e.aabb() for pid in ("frame", "ironwork") for e in v.by_part[pid]
-            if e.name.startswith(("fr_angle_", "fr_knee_", "fr_band_", "iw_"))}
-    groups = components(iron)
-    if len(groups) != 1:
-        bad.append(f"the binding and the ironwork are {len(groups)} pieces: {[g[:3] for g in groups]}")
-    for face, _, _ in m.ANGLE_FACES:
-        side = leg_box(v, f"fr_angle_{face}e_side")
-        if side is not None and not any(touching(side, iron[n]) for n in iron if n.startswith("iw_skewbar")):
-            bad.append(f"the skewback bar does not run on to fr_angle_{face}e_side")
-    print(f"frame: each end face's binding one connected frame ({len(m.ANGLE_FACES)} faces, corner chains continuous to the "
-          f"top, knees at the footing's step); both faces and the ironwork one frame of {len(iron)} pieces, the skewback bar "
-          f"meeting both east corner angles")
+            boxes[name] = bx
+            if any(abs(bx[0][q] - lo[q]) > 1e-6 or abs(bx[1][q] - hi[q]) > 1e-6 for q in range(3)):
+                bad.append(f"{name}: not its box")
+            if abs(hi[k] - lo[k] - t) > 1e-6 or abs((hi[k] if sg > 0 else lo[k]) - c) > 1e-6:
+                bad.append(f"{name}: not ANGLE_T thick with its outer face in its face's plane")
+            a, b = [q for q in range(3) if q != k]
+            for pa in _span(lo[a], hi[a]):
+                for pb in _span(lo[b], hi[b]):
+                    n += 1
+                    p_out, p_in = [0.0] * 3, [0.0] * 3
+                    p_out[a] = p_in[a] = pa
+                    p_out[b] = p_in[b] = pb
+                    p_out[k], p_in[k] = c + sg * 0.05, c - sg * (t + 0.05)
+                    if any(inside(p_out, e) for e in brick_els):
+                        bad.append(f"{name}: brick stands proud of it at {p_out}")
+                    if not lip(p_in) and not any(inside(p_in, e) for e in backing):
+                        bad.append(f"{name}: not bedded at {[round(q, 3) for q in p_in]}")
+        if kind != "knee" and len(boxes) == len(legs) and len(components(boxes)) != 1:
+            bad.append(f"{member}: its legs do not meet")
+    for i, zc in enumerate(m.STAY_Z, 1):
+        fl, wb = leg_box(v, f"iw_stay{i}_flange"), leg_box(v, f"iw_stay{i}_web")
+        if fl is None or wb is None:
+            bad.append(f"buckstay {i}: a leg missing")
+            continue
+        if abs(fl[0][0] - m.FACE_E) > 1e-6 or abs(fl[1][0] - fl[0][0] - t) > 1e-6 or abs(wb[0][0] - fl[1][0]) > 1e-6 \
+                or abs(wb[1][2] - fl[1][2]) > 1e-6 or abs(wb[1][2] - wb[0][2] - t) > 1e-6 or abs(wb[1][0] - m.W) > 1e-6:
+            bad.append(f"buckstay {i}: not an angle with its flange on the east face and its web standing out from its edge")
+        backs = v.by_part["brickwork"] + [e for e in v.by_part["frame"] if e.name.startswith("fr_skew_")]
+        for y in [m.HEARTH_Y + 0.5 + k for k in range(int(m.SKEW[1][1] - m.HEARTH_Y))]:
+            n += 1
+            if not any(inside((m.FACE_E - 0.05, y, zc), e) for e in backs):
+                bad.append(f"buckstay {i}: its flange is not bedded against the wall at y {y}")
+        nut = next(e for e in v.by_part["ironwork"] if e.name == f"iw_nut{i}").aabb()
+        if abs(nut[0][0] - fl[1][0]) > 1e-6:
+            bad.append(f"buckstay {i}: its nut does not bear on the flange")
+    print(f"binding: {len(members)} members of angle iron ({legs_n} legs, {t} thick), {len(m.STAY_Z)} angle buckstays: each "
+          f"leg its box, flush in its face, bedded ({n} points); each angle's legs meeting")
     if bad:
-        v.fail(f"the binding is not one connected frame: {bad[:5]} ({len(bad)})")
+        v.fail(f"the binding is not angle iron wrapping its corners: {bad[:5]} ({len(bad)})")
+
+
+def outline_heights(v):
+    """The brickwork's outline as a height over each column of a voxel (x, z): the top of the brick, the lining, the arch
+    and the box frame (and the tie rods and anchors where they lie in the shared wall's top, in their chases), built
+    and nothing fitted, the openings in its top filled (to the top they open in): the furnace's 2.5-D envelope, its openings in the faces
+    ignored."""
+    m = v.m
+    nx, nz = int(m.W), int(m.D)
+    hgt = [[0.0] * nz for _ in range(nx)]
+    els = [e for pid in ("brickwork", "lining", "arch", "frame") for e in v.by_part[pid]]
+    clip = {e.name: m.IN_X[0] for e in v.by_part["ironwork"] if e.name.startswith(("iw_rod", "iw_anchor"))}
+    els += [e for e in v.by_part["ironwork"] if e.name in clip]
+    for e in els:
+        lo, hi = e.aabb()
+        x1 = min(hi[0], clip.get(e.name, hi[0]))
+        square = all(abs(abs(e.r[i][i]) - 1.0) < 1e-9 for i in range(3))
+        for i in range(max(0, int(math.floor(lo[0]))), min(nx, int(math.ceil(x1)))):
+            for k in range(max(0, int(math.floor(lo[2]))), min(nz, int(math.ceil(hi[2])))):
+                p = (i + 0.5, k + 0.5)
+                if not (lo[0] <= p[0] <= x1 and lo[2] <= p[1] <= hi[2]):   # (a box edge on a column's middle counts)
+                    continue
+                if square:
+                    top = hi[1]
+                else:
+                    top, y = None, hi[1]
+                    while y > lo[1]:
+                        if inside((p[0], y, p[1]), e):
+                            top = y
+                            break
+                        y -= 0.0625
+                    if top is None:
+                        continue
+                hgt[i][k] = max(hgt[i][k], top)
+    # the openings in the top (the well and its seat, the outlet's seat and bore, the feed hole; the glands' holes in
+    # the arch's crown) count as the top they open in
+    holes = [((m.WELL_SEAT[0], m.WELL_SEAT[2]), m.TOP), (m.CAP_SEAT, m.TOP), (m.UPTAKE, m.TOP), (m.FEED_HOLE, m.TOP)]
+    holes += [((m.CROWN_X, (z0, z1)), m.CROWN_Y[1]) for z0, z1 in m.crown_holes()]
+    for ((x0, x1), (z0, z1)), top in holes:
+        for i in range(int(x0), int(math.ceil(x1))):
+            for k in range(int(z0), int(math.ceil(z1))):
+                hgt[i][k] = max(hgt[i][k], top)
+    return hgt
+
+
+EDGE_DROP = 3.0                              # a step in the outline at least this high is a top edge to be banded
+
+
+def check_box_frame(v):
+    """The box frame (the owner's rule): the iron reads as one closed box round the whole furnace, following its outline
+    (outline_heights). Every top edge (a step of at least EDGE_DROP from a column of the outline to the next or to the
+    ground beyond it) is wrapped by a band: iron in its face just under the edge and in its top just in from it, all
+    along it. Every outside vertical corner of the outline (sampled every voxel up to the bands) has an angle: iron in
+    both its faces beside the corner. Every band's and upright's ends meet another member of the frame (an upright's foot
+    may stand on the ground), over an area. The box frame is one connected frame, and with the ironwork (buckstays,
+    rods, anchors, nuts) still one."""
+    m = v.m
+    if not hasattr(v, "outline_h"):
+        v.outline_h = outline_heights(v)
+    hgt = v.outline_h
+    nx, nz = len(hgt), len(hgt[0])
+    iron_els = v.by_part["frame"] + v.by_part["ironwork"]
+
+    def iron(p):
+        return any(inside(p, e) for e in iron_els)
+    bad, edges, corners = [], 0, 0
+    for i in range(nx):
+        for k in range(nz):
+            ha = hgt[i][k]
+            for di, dk in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                a, b = i + di, k + dk
+                hb = hgt[a][b] if 0 <= a < nx and 0 <= b < nz else 0.0
+                if ha - hb < EDGE_DROP:
+                    continue
+                edges += 1
+                # the boundary between the columns, and probes in column (i, k)
+                bx = i + 0.5 + di * 0.5
+                bz = k + 0.5 + dk * 0.5
+                p1 = (bx - di * 0.3 if di else i + 0.5, ha - 1.0, bz - dk * 0.3 if dk else k + 0.5)
+                p2 = (bx - di * 1.0 if di else i + 0.5, ha - 0.3, bz - dk * 1.0 if dk else k + 0.5)
+                for p in (p1, p2):
+                    if not iron(p):
+                        bad.append(f"a top edge unbanded at {p}")
+    ytop = m.TOP - m.ANGLE_L
+    y = 0.5
+    while y < ytop:
+        for xv in range(nx + 1):
+            for zv in range(nz + 1):
+                ins = []
+                for ci, ck in ((xv - 1, zv - 1), (xv, zv - 1), (xv - 1, zv), (xv, zv)):
+                    if 0 <= ci < nx and 0 <= ck < nz and hgt[ci][ck] > y:
+                        ins.append((ci, ck))
+                if len(ins) != 1:
+                    continue
+                corners += 1
+                ci, ck = ins[0]
+                sx = 1.0 if ci == xv - 1 else -1.0      # outward from the inside column across the corner
+                sz = 1.0 if ck == zv - 1 else -1.0
+                for p in ((xv - sx * 0.3, y, zv - sz * 1.0), (xv - sx * 1.0, y, zv - sz * 0.3)):
+                    if not iron(p):
+                        bad.append(f"an outside corner without its angle at {p}")
+        y += 1.0
+    # every band's and upright's ends meet another member; one frame
+    members = m.binding_members()
+    boxes = {}
+    owner = {}
+    for member, kind, axis, legs in members:
+        for name, *_ in legs:
+            bx = leg_box(v, name)
+            if bx is not None:
+                boxes[name] = bx
+                owner[name] = member
+    for member, kind, axis, legs in members:
+        if kind == "knee":
+            continue
+        mine = [n for n, *_ in legs if n in boxes]
+        theirs = [n for n in boxes if owner[n] != member]
+        lo_end = min(boxes[n][0][axis] for n in mine)
+        hi_end = max(boxes[n][1][axis] for n in mine)
+        for end, at in ((0, lo_end), (1, hi_end)):
+            if kind == "upright" and end == 0 and at < 1e-6:
+                continue
+            ok = any(touching(boxes[n], boxes[o]) for n in mine if abs(boxes[n][end][axis] - at) < 1e-6 for o in theirs)
+            if not ok:
+                bad.append(f"{member}'s {'low' if end == 0 else 'high'} end ({'xyz'[axis]} {at:.3f}) meets no other member")
+    groups = components(boxes)
+    if len(groups) != 1:
+        bad.append(f"the box frame is {len(groups)} pieces: {[g[:3] for g in groups]}")
+    work = {e.name: e.aabb() for e in v.by_part["ironwork"]}
+    allg = components({**boxes, **work})
+    if len(allg) != 1:
+        bad.append(f"the box frame and the ironwork are {len(allg)} pieces: {[g[:3] for g in allg]}")
+    print(f"box frame: {edges} column edges of the outline's top edges banded, {corners} outside corner stations (every "
+          f"voxel to y {ytop:g}) with their angles; every band's and upright's ends meet another member; {len(boxes)} legs "
+          f"one frame, and one with the {len(work)} pieces of ironwork")
+    for b in bad[:6]:
+        v.fail(f"the box frame: {b}")
+    if bad:
+        v.fail(f"the box frame: {len(bad)} faults")
+
+
+# ---------------------------------------------------------------- slivers
+def material_lattice(v, sc):
+    """The structure drawn in scene `sc` (no moving part) as a rectilinear lattice: breakpoints along each axis (every
+    axis-aligned element's faces; every half voxel across the arch's span, whose strips are turned) and for each cell
+    what fills its middle: "bk" (the brickwork), "ln" (the lining), "arch", "iron" or None. Every box is taken to the
+    quarter voxel (the z-fighting fix moves faces in by up to an eighth: not a piece of brick), the arch's strips a
+    little large for the same reason."""
+    import bisect
+    m = v.m
+    els = [e for pid in v.by_part if pid not in m.MOVING and v.shows(pid, sc) for e in v.by_part[pid]]
+    turned = [e for e in els if e.part == "arch" and not all(abs(abs(e.r[i][i]) - 1.0) < 1e-9 for i in range(3))]
+    square = [e for e in els if e not in turned]   # (any other turned part, small, by its box)
+    lim = (m.W, m.CELLS_Y * m.B, m.D)
+    axes = [{0.0, lim[k]} for k in range(3)]
+    def snap(q):
+        return round(q * 4.0) / 4.0
+    for e in square:
+        lo, hi = e.aabb()
+        for k in range(3):
+            axes[k].add(snap(min(max(lo[k], 0.0), lim[k])))
+            axes[k].add(snap(min(max(hi[k], 0.0), lim[k])))
+    tlo = [min(e.aabb()[0][k] for e in turned) for k in range(3)] if turned else None
+    thi = [max(e.aabb()[1][k] for e in turned) for k in range(3)] if turned else None
+    if turned:
+        for k in (0, 1):
+            q = math.floor(tlo[k] * 2) / 2
+            while q <= thi[k]:
+                axes[k].add(round(min(max(q, 0.0), lim[k]), 6))
+                q += 0.5
+    xs, ys, zs = (sorted(a) for a in axes)
+    n = (len(xs) - 1, len(ys) - 1, len(zs) - 1)
+    grid = {}
+    rank = {"brickwork": "bk", "lining": "ln", "arch": "arch"}
+    order = sorted(square, key=lambda e: 0 if e.part in rank else 1)    # the iron over the brick it is set into
+    for e in order:
+        tag = rank.get(e.part, "iron")
+        lo, hi = e.aabb()
+        r = []
+        for k, vals in enumerate((xs, ys, zs)):
+            a = bisect.bisect_left(vals, snap(max(lo[k], 0.0)) - 1e-6)
+            b = bisect.bisect_left(vals, snap(min(hi[k], lim[k])) - 1e-6)
+            r.append(range(a, b))
+        for i in r[0]:
+            for j in r[1]:
+                for k in r[2]:
+                    grid[(i, j, k)] = tag
+    if turned:
+        boxes = [(e, e.aabb()) for e in turned]
+        rr = []
+        for k, vals in enumerate((xs, ys, zs)):
+            rr.append(range(max(0, bisect.bisect_right(vals, tlo[k]) - 1), min(n[k], bisect.bisect_left(vals, thi[k]) + 1)))
+        for i in rr[0]:
+            for j in rr[1]:
+                for k in rr[2]:
+                    if (i, j, k) in grid:
+                        continue
+                    p = ((xs[i] + xs[i + 1]) / 2, (ys[j] + ys[j + 1]) / 2, (zs[k] + zs[k + 1]) / 2)
+                    if any(lo[0] - 0.13 < p[0] < hi[0] + 0.13 and lo[1] - 0.13 < p[1] < hi[1] + 0.13
+                           and lo[2] - 0.13 < p[2] < hi[2] + 0.13 and inside(p, e, eps=-0.13) for e, (lo, hi) in boxes):
+                        grid[(i, j, k)] = "arch"
+    return (xs, ys, zs), n, grid
+
+
+def slivers(v, sc):
+    """Every piece of brick showing in scene `sc` narrower than MIN_BRICK either way on its face: [(width, material,
+    the face's normal, a point on it)]. A face cell of the brickwork or the lining shows when the cell beyond it is
+    empty; its width each way along the face is the run of showing cells of its own material through it. A run ends at
+    iron, at the other brick, at the arch, at an outer edge (the face turns away: the cell beyond is empty) or in a
+    corner (the face meets another rising from it: the cell beyond is solid and does not show). A run from an outer
+    edge into a corner is a recess's reveal, not a piece of brick, and counts as wide. Only faces seen from outside
+    count (seen_from_outside: not the hearth's and the firebox's insides), not an underside, and not a seat's rebate
+    (the well's cover's and the outlet cap's)."""
+    m = v.m
+    seats = [([x[0], y[0], z[0]], [x[1], y[1], z[1]]) for x, y, z in (m.WELL_SEAT, (m.CAP_SEAT[0], m.CAP_Y, m.CAP_SEAT[1]))]
+    if not hasattr(v, "outline_h"):
+        v.outline_h = outline_heights(v)
+    hgt = v.outline_h
+    (xs, ys, zs), n, grid = material_lattice(v, sc)
+    vals = (xs, ys, zs)
+    out = []
+    seen = set()
+    for c, mat in grid.items():
+        if mat not in ("bk", "ln"):
+            continue
+        for ax in range(3):
+            for sg in (-1, 1):
+                q = list(c)
+                q[ax] += sg
+                if 0 <= q[ax] < n[ax] and grid.get(tuple(q)) is not None:
+                    continue
+                if ax == 1 and sg < 0:
+                    continue                                # an underside: on the ground, or under an overhang
+                beyond = tuple((vals[d][q[d]] + vals[d][q[d] + 1]) / 2 if 0 <= q[d] < n[d] else -1.0 for d in range(3))
+                if any(all(lo[d] < beyond[d] < hi[d] for d in range(3)) for lo, hi in seats):
+                    continue                                # a seat's floor or side: the rebate a cover or cap sits in
+
+                def shows(cc):
+                    if grid.get(cc) != mat:
+                        return False
+                    qq = list(cc)
+                    qq[ax] += sg
+                    return not (0 <= qq[ax] < n[ax] and grid.get(tuple(qq)) is not None)
+                widths = []
+                for d in range(3):
+                    if d == ax:
+                        continue
+                    w = vals[d][c[d] + 1] - vals[d][c[d]]
+                    ends = []
+                    for dirn in (-1, 1):
+                        cc = list(c)
+                        while True:
+                            cc[d] += dirn
+                            if not (0 <= cc[d] < n[d]):
+                                ends.append("edge")
+                                break
+                            t = tuple(cc)
+                            if shows(t):
+                                w += vals[d][cc[d] + 1] - vals[d][cc[d]]
+                                continue
+                            g = grid.get(t)
+                            if g is None:
+                                ends.append("edge")
+                            elif g in ("bk", "ln"):
+                                qq = list(cc)
+                                qq[ax] += sg
+                                bare = not (0 <= qq[ax] < n[ax] and grid.get(tuple(qq)) is not None)
+                                ends.append(g if bare else "corner")
+                            else:
+                                ends.append(g)
+                            break
+                    if sorted(ends) == ["corner", "edge"]:
+                        w = max(w, m.MIN_BRICK)
+                    widths.append(w)
+                if min(widths) < m.MIN_BRICK - 1e-6:
+                    p = [(vals[k][c[k]] + vals[k][c[k] + 1]) / 2 for k in range(3)]
+                    p[ax] = vals[ax][c[ax] + 1] if sg > 0 else vals[ax][c[ax]]
+                    if seen_from_outside(m, vals, n, grid, hgt, p, ax, sg):
+                        out.append((round(min(widths), 3), mat, "xyz"[ax] + ("+" if sg > 0 else "-"), tuple(round(q, 3) for q in p)))
+    return out
+
+
+SEEN_DEPTH = 8.0                             # a face farther than this inside the outline is not seen (the hearth down the uptake)
+
+
+def seen_from_outside(m, vals, n, grid, hgt, p, ax, sg):
+    """Whether a face at p (normal ax, sg) is seen from outside: a ray from it straight out along its normal, or (a side
+    face) out and up at 45 degrees, or (a top face) up and out at 45 degrees, reaches the air beyond the machine box through nothing solid, having run at most
+    SEEN_DEPTH below the outline's height (outline_heights) on the way. A top face is seen straight up or at 45 degrees
+    each way (under the hopper, beside its base plate)."""
+    import bisect
+    lim = (m.W, m.CELLS_Y * m.B, m.D)
+    dirs = [[0.0, 0.0, 0.0]]
+    dirs[0][ax] = float(sg)
+    r = 1.0 / math.sqrt(2.0)
+    if ax != 1:
+        d = [0.0, 0.0, 0.0]
+        d[ax], d[1] = sg * r, r
+        dirs.append(d)
+    else:
+        for k in (0, 2):
+            for side in (-1.0, 1.0):
+                d = [0.0, sg * r, 0.0]
+                d[k] = side * r
+                dirs.append(d)
+    for d in dirs:
+        q, inside_len, step, ok = list(p), 0.0, 0.25, False
+        q = [q[k] + d[k] * 0.01 for k in range(3)]
+        while True:
+            q = [q[k] + d[k] * step for k in range(3)]
+            if not all(0.0 < q[k] < lim[k] for k in range(3)):
+                ok = True
+                break
+            cell = tuple(min(n[k] - 1, max(0, bisect.bisect_right(vals[k], q[k]) - 1)) for k in range(3))
+            if grid.get(cell) is not None:
+                break
+            i, kk = int(q[0]), int(q[2])
+            if 0 <= i < len(hgt) and 0 <= kk < len(hgt[0]) and q[1] < hgt[i][kk]:
+                inside_len += step
+                if inside_len > SEEN_DEPTH:
+                    break
+        if ok:
+            return True
+    return False
+
+
+def check_slivers(v):
+    """No sliver of brick (the owner's rule): built with nothing fitted, and at each level's state, no piece of the
+    brickwork or the lining that shows from outside is narrower than MIN_BRICK either way along its face (slivers())."""
+    m = v.m
+    bad, out = [], []
+    for sid in ("none", "level1", "level2"):
+        found = slivers(v, scene(sid))
+        out.append(f"{sid} {len(found)}")
+        bad += [(sid,) + f for f in found]
+    print(f"slivers: no piece of brick showing narrower than {m.MIN_BRICK:g} either way ({'; '.join(out)} face cells too narrow)")
+    seen = set()
+    for sid, w, mat, face, p in bad:
+        key = (mat, face, p[0] // 4, p[1] // 4, p[2] // 4)
+        if key in seen:
+            continue
+        seen.add(key)
+        if len(seen) > 12:
+            break
+        v.fail(f"a sliver of {'brickwork' if mat == 'bk' else 'lining'} {w} wide on its {face} face at {p} ({sid})")
 
 
 # ---------------------------------------------------------------- the brick
@@ -1170,7 +1436,8 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v)
     check_sides(v)
     check_binding(v)
-    check_frame_connected(v)
+    check_box_frame(v)
+    check_slivers(v)
     check_lining(v)
     check_build(v)
     check_path(v)

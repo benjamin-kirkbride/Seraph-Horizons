@@ -133,22 +133,27 @@ LINING_T = 3.0                               # the lining: tier-3 refractory bri
 
 # the arch: segmental, over IN_X, VOUSSOIRS strips of refractory round its centre, springing at SPRING_Y
 RISE, ARCH_T, VOUSSOIRS = 5.0, 4.0, 9
-SKEW = ((39.0, 45.0), (SPRING_Y, 26.0))      # the east skewback (x, y), refractory, on the east wall's top; the west foot
-#                                              is built into the shared wall
+SKEW_X = (39.0, 45.25)                       # the east skewback (x), refractory, on the east wall's top, to the skewback
+#                                              angle's face leg; its top is the arch's foot (SKEW, under the arch); the
+#                                              west foot is built into the shared wall
 
 # ---------------------------------------------------------------- the fire end: ash mouth, damper, fire door, grates, well
 MOUTH = ((18.0, 30.0), (1.0, 6.5))           # the ash mouth, centred in the fire end face (x, y), a passage into the ash pit
-RECESS = ((17.0, 31.0), (1.0, 12.5), (0.0, 1.0))   # the damper's recess in the face, its slide
-GUIDES = ((17.0, 18.0), (30.0, 31.0))        # its iron guides (x), the recess's full height and depth
+RECESS = ((17.0, 31.0), (0.0, 13.0), (0.0, 1.0))   # the damper's recess in the face, its slide, from the ground to the
+#                                                    fire door's recess (no course of brick under it or between them)
+SILL = (0.0, 1.0)                            # (y) the damper's iron sill, between the guides under the ash mouth
+GUIDES = ((17.0, 18.0), (30.0, 31.0))        # its iron guides (x), the recess's full height and depth, on the ground
 ASH_LINTEL = ((17.0, 31.0), (6.5, 7.5), (1.0, 2.0))  # the iron lintel over the ash mouth, behind the recess
 DAMPER_Z = (0.35, 0.85)
 DAMPER_H = 6.0
-DAMPER = {"open": 6.5, "half": 3.75, "shut": 1.0}   # the plate's underside in each place: clear of the mouth, over its upper
+DAMPER = {"open": 7.0, "half": 3.75, "shut": 1.0}   # the plate's underside in each place: clear of the mouth (to the recess's
+#                                                     top, so no brick shows over it), over its upper
 #                                                     half, over all of it
 KNOB = ((23.0, 25.0), (0.1, 0.35), (2.4, 3.6))   # the damper's knob (x, z, y over its underside), in the recess
 FIRE_DOOR = ((19.0, 29.0), (14.0, 20.0))     # the fire door's opening through the fire end wall (x, y), over the flat grate
 FD_RECESS = ((18.0, 30.0), (13.0, 21.0), (0.0, 1.0))   # its recess in the face: the door shuts in it, flush
 FD_LINTEL = ((18.0, 30.0), (20.0, 21.0), (1.0, 3.0))   # the iron lintel over the opening
+FD_SILL = ((18.0, 30.0), (13.0, 14.0), (1.0, 3.0))     # the dead plate: the iron sill of the opening, the recess wide, to the lining
 # the flat grate (level 1): bars along z on two bearers across the firebox, the bearers' ends built into the side walls
 BEARER_Y = (8.5, 10.0)
 BEARER_Z = ((7.0, 8.5), (17.5, 19.0))
@@ -161,7 +166,7 @@ STEP_Z0, STEP_D = FIREBOX_Z[0], 3.5
 STEP_TOP0, STEP_DROP, STEP_T = 18.5, 2.0, 1.0
 # the well in the fire end block's top: the coal bunker's place (level 2), covered flush at level 1
 WELL = ((3.0, 41.0), (25.0, 31.5), (3.0, 13.0))
-WELL_SEAT = ((2.0, 42.0), (31.5, TOP), (2.0, 14.0))   # the cover's seat round its mouth
+WELL_SEAT = ((2.0, 44.0), (31.5, TOP), (2.0, 14.0))   # the cover's seat round its mouth, out to the binding's top legs
 THROAT = ((9.0, 39.0), (SPRING_Y, 25.0), (7.0, 12.0))   # the slot from the well's floor through the firebox's roof
 LINER_T = 0.5                                # the bunker's iron liner (level 2)
 THROAT_FOOT = 20.0                           # the iron throat hangs to here, over the top tread
@@ -174,40 +179,48 @@ DOOR_PLATE = {"open": (22.5, 29.5), "shut": (14.5, 21.5)}   # the plates' y: rai
 GUIDE_TOP = 30.0
 DISCHARGE = ((30.0, 36.0), (37.0, 43.0))     # (x, z) the discharge hole through the hearth, in the first rabble's sweep
 TUNNEL = ((30.0, W), (4.0, 12.0), (36.0, 44.0))   # the tunnel under it to the east face: the output chute's bore and walls
-D_RECESS = ((47.0, W), (3.0, 13.0), (35.0, 53.5))   # the discharge door's recess in the footing's face: it slides along z
-D_RAIL = 0.5
-D_PLATE = {"shut": (35.5, 44.5), "open": (44.25, 53.25)}   # the plate's z: over the mouth, or slid south clear of it
-D_PLATE_X = (47.15, 47.65)
+D_RECESS = ((46.5, W), (3.5, 12.0), (36.0, 52.0))   # the discharge door's recess in the footing's face: it slides along z,
+#                                              under the footing band's face leg; twice the mouth's length, its low rail's
+#                                              top the tunnel's floor (no strip of brick shows round the plate or the chute)
+D_SLOT = ((46.5, W - 0.75), (12.0, 12.5))    # (x, y) the plate's top edge runs in a slot behind the band's face leg, its lip
+D_RAIL = 0.5                                 # the low rail the plate runs on
+D_PLATE = {"shut": (36.0, 44.0), "open": (44.0, 52.0)}   # the plate's z: over the mouth, or slid south clear of it
+D_PLATE_X = (46.65, 47.15)
+D_PLATE_Y = (D_RECESS[1][0] + D_RAIL, D_SLOT[1][1])
 
 # ---------------------------------------------------------------- the flue end: uptake, outlet, feed hole
 UPTAKE = ((8.0, 14.0), (68.0, 74.0))         # (x, z) the bore from the cavity's roof to the outlet, its south-west corner
-CURB = ((6.0, 16.0), (66.0, 76.0))           # the outlet's curb, the lining's brick, flush: a rim round the cap's seat
+CURB = ((2.0, 18.0), (66.0, 78.0))           # the outlet's curb, the lining's brick, flush: from the binding's top legs (west,
+#                                              north, south) round the cap's seat, so no brickwork shows narrower than a brick
 CAP_Y = (31.5, TOP)
-CAP_SEAT = ((7.0, 15.0), (67.0, 75.0))
+CAP_SEAT = ((7.0, 15.0), (66.0, 75.0))       # the cap's seat, in the curb against the inner band's top leg
 FEED_HOLE = ((21.5, 26.5), (69.0, 73.0))     # (x, z) the feed chute's hole through the flue end block's roof
 MIN_CHIMNEY = 6                              # chimney blocks stood on the outlet, counted from it up (the crucible furnace's)
 
-# ---------------------------------------------------------------- the iron: binding, buckstays, rods
+# ---------------------------------------------------------------- the iron: the box frame, buckstays, rods
 # The binding is angle iron (the owner's rule for every furnace): an L section wrapping the brickwork's corner, one leg on
-# each face, its inside corner bedded against the brick's corner, so it holds the brick in on both faces. The end faces
-# are the footprint's and the west face is the shared wall's, so nothing may stand proud of them: the corner angles and
-# the bands are set into the brick, their outer faces flush with both faces of their corner.
+# each face, its inside corner bedded against the brick's corner, so it holds the brick in on both faces. It is a closed
+# box frame following the brickwork's outline (binding_members): an angle up every outside vertical corner and an angle
+# band along every top edge, each meeting the next at its ends. The end faces are the footprint's and the west face is
+# the shared wall's, so nothing may stand proud of them: every leg is set into the brick, its outer face flush.
 ANGLE_T = 0.75                               # angle iron: a leg's thickness
 ANGLE_L = 2.0                                # and its width, out from the corner along its face
 ANGLE_FACES = (("n", 0.0, 1.0), ("s", D, -1.0))   # the end faces: (name, z, inward)
 ANGLE_SIDES = (("w", WEST[0], 1.0, (0.0, TOP)),   # the corners of each: (name, x, inward, y span): the shared wall's,
                ("e", FACE_E, -1.0, (HEARTH_Y, TOP)),   # the end block's east corner over the footing,
                ("f", W, -1.0, (0.0, HEARTH_Y)))        # the footing's east corner
-STAY_Z = (21.5, 29.5, 51.0)                  # the east buckstays (centres): clear of the doors, the pedestals and the brackets
+INNER_FACES = (("n", FIRE_BLOCK[1], 1.0), ("s", FLUE_BLOCK[0], -1.0))   # the end blocks' inner faces over the arch: (name,
+#                                              z, outward into the arch's bay)
+MIN_BRICK = 3.0                              # no piece of brick showing narrower than this either way (check_slivers)
+STAY_Z = (21.5, 30.75, 51.75)                # the east buckstays (centres): clear of the pedestals and the brackets, the
+#                                              second and third against the work doors' north guides (no sliver of wall)
 STAY_X = (FACE_E, FACE_E + ANGLE_T)          # each an angle: its flange on the east face (x), 2.5 wide (z),
 STAY_W = 2.5
 STAY_Y = (HEARTH_Y, TOP)                     # its web standing out from the flange's south edge to the footprint's face
-SKEWBAR_X = (45.0, FACE_E)                   # the east skewback bar, behind the buckstays, set in flush the whole length:
-SKEWBAR_Z = (ANGLE_L, D - ANGLE_L)           # on through the end blocks' east faces to the corner angles' side legs
 ROD_Y = (31.4, TOP)                          # the tie rods over the arch's crown (31), from the east buckstays into the shared
-ROD_T = 0.8                                  # wall, where each ends on an anchor plate set in the wall's top
-ROD_X = (2.5, STAY_X[1] + 1.0)               # through the buckstay's flange and its nut
-ANCHOR = ((1.5, 2.5), (29.5, TOP), 1.5)      # the anchor plates in the shared wall: x, y, half width (z)
+ROD_T = 0.8                                  # wall, through the west inner band, each ending on an anchor plate in its top
+ANCHOR = ((ANGLE_L, ANGLE_L + 1.0), (29.5, TOP), 1.5)   # the anchor plates: x (against the west band's top leg), y, half width
+ROD_X = ((ANCHOR[0][0] + ANCHOR[0][1]) / 2, STAY_X[1] + 1.0)   # from the anchor through the buckstay's flange and its nut
 NUT = ((STAY_X[1], STAY_X[1] + 1.0), (31.0, TOP), 0.5)   # on the flange, against the web
 
 # ---------------------------------------------------------------- the vanilla chute (the game's blocktypes/metal/chute-straight.json,
@@ -271,7 +284,8 @@ HOPPER_T = 1.0
 HOPPER_SLOT = ((21.0, 27.0), (68.5, 73.5))   # (x, z): the slot in its floor into the neck
 NECK = ((20.0, 28.0), (33.0, HOPPER[1][0]), (67.5, 74.5))   # the neck under it: the feed roll's casing at level 2
 NECK_T = 1.0
-FLANGE = ((19.5, 28.5), (TOP, 33.0), (67.5, 74.5))
+FLANGE = ((18.5, 29.5), (TOP, 33.0), (FLUE_BLOCK[0] + ANGLE_L, D - ANGLE_L))   # the neck's base plate: across the feed
+#                                              hole's lining (no strip of it shows), from the inner band to the south band
 FEED_CHUTE = (26.5, 35.0)                    # y: the iron feed chute down through FEED_HOLE into the cavity
 FEED_CHUTE_T = 1.0
 ROLL_Z = (69.0, 73.0)
@@ -577,67 +591,113 @@ def intrados(x):
     return ARCH_C[1] + math.sqrt(max(0.0, R_IN ** 2 - (x - ARCH_C[0]) ** 2))
 
 
+def strip_corners(i):
+    """Strip i's corners in (x, y) as they stand, turned about the arch's centre: (inner pair, outer pair), each by x."""
+    phi = ALPHA - (i + 0.5) * DELTA
+    (cx, cy), c, s_ = ARCH_C, math.cos(phi), math.sin(phi)
+
+    def at(u, r):
+        return (cx + u * c - r * s_, cy + u * s_ + r * c)
+    return (sorted((at(-STRIP_W / 2, R_IN), at(STRIP_W / 2, R_IN))),
+            sorted((at(-STRIP_W / 2, R_OUT), at(STRIP_W / 2, R_OUT))))
+
+
+EXTRADOS = sorted({(round(x, 9), round(y, 9)) for i in range(VOUSSOIRS) for x, y in strip_corners(i)[1]})   # its polygon
+ARCH_FOOT = EXTRADOS[-1]                     # the east strip's outer foot: the skewback's top and the skewback angle's edge
+SKEW = (SKEW_X, (SPRING_Y, ARCH_FOOT[1]))    # the east skewback (x, y): to the arch's foot, under the skewback angle
+
+
+def extrados_at(x):
+    """The arch's extrados (its strips' outer faces) over x, between the feet."""
+    for (x0, y0), (x1, y1) in zip(EXTRADOS, EXTRADOS[1:]):
+        if x0 - 1e-9 <= x <= x1 + 1e-9:
+            return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+    raise ValueError(f"x {x} is off the arch")
+
+
 def crown_holes():
     """The holes through the crown strip: a gland round each spindle."""
     return [(z - GLAND_Z, z + GLAND_Z) for z in RABBLE_Z]
 
 
-# ---------------------------------------------------------------- the brick
-def corner_angles():
-    """The binding's corner angles, as (name, lo, hi): at each vertical corner of the fire end's and the flue end's faces
-    an angle iron wraps the corner (ANGLE_SIDES: the shared wall's corner, the end block's east corner over the footing,
-    the footing's east corner), set in flush with both faces: its leg in the end face (`_face`, ANGLE_L along x from the
-    corner, ANGLE_T deep, the corner square its own) and its leg in the side face (`_side`, ANGLE_T deep, running on from
-    the first to ANGLE_L along z)."""
-    out = []
+# ---------------------------------------------------------------- the box frame
+def binding_members():
+    """The box frame: every member of the binding, as (name, kind, axis, legs), kind "upright" (up a vertical corner),
+    "band" (along a top edge, `axis` 0 for x, 2 for z) or "knee" (a plate across a step), each leg (name, lo, hi, face):
+    face (axis, plane, outward sign) the brickwork's face the leg is set into, its outer face flush in that plane.
+
+    Uprights: at each vertical corner of the end faces (the shared wall's, full height; the end block's east corner over
+    the footing; the footing's east corner) and at each end block's inner east corner, where the east wall drops to the
+    skewback angle (standing on it). Knees: in each end face where the footing steps out from under the end block. Bands
+    wrap every top edge: the end faces' (`fr_band_<n|s>`), the west wall's outer one (`fr_band_w`), each end block's east
+    one (`fr_band_<n|s>e`) and inner one over the arch (`fr_band_<n|s>i`, its face leg reaching down behind the arch's
+    end so no brick shows under it), the west wall's inner one over the arch (`fr_band_wi`, the tie rods through it),
+    the footing's (`fr_band_f`) and the east wall's under the arch's bay: the skewback angle (`fr_skew`), its face leg the
+    skewback's back, its top leg the skewback's top to the arch's foot, and its face leg on through the end blocks to the
+    corner angles. A face leg takes the corner; the other leg runs on from it."""
     t, l = ANGLE_T, ANGLE_L
+    out = []
     for face, zf, inz in ANGLE_FACES:
         for side, xc, inx, (y0, y1) in ANGLE_SIDES:
             xs, zs = sorted((xc, xc + inx * l)), sorted((zf, zf + inz * t))
-            out.append((f"fr_angle_{face}{side}_face", [xs[0], y0, zs[0]], [xs[1], y1, zs[1]]))
+            a = (f"fr_angle_{face}{side}_face", [xs[0], y0, zs[0]], [xs[1], y1, zs[1]], (2, zf, -inz))
             xs, zs = sorted((xc, xc + inx * t)), sorted((zf + inz * t, zf + inz * l))
-            out.append((f"fr_angle_{face}{side}_side", [xs[0], y0, zs[0]], [xs[1], y1, zs[1]]))
-    return out
-
-
-def band_angles():
-    """The bands, as (name, lo, hi): along the top edge of each end face, between its corner angles, an angle iron
-    wrapping that edge, set in flush: a leg in the end face (`_face`, ANGLE_L down from the top) and a leg in the top
-    (`_top`, running on from it to ANGLE_L in from the face). Its ends meet the corner angles' end-face legs."""
-    out = []
-    t, l = ANGLE_T, ANGLE_L
-    x0, x1 = WEST[0] + l, FACE_E - l
+            b = (f"fr_angle_{face}{side}_side", [xs[0], y0, zs[0]], [xs[1], y1, zs[1]], (0, xc, -inx))
+            out.append((f"fr_angle_{face}{side}", "upright", 1, [a, b]))
+    ys = SKEW[1][1]
+    for face, zi, outz in INNER_FACES:
+        zs = sorted((zi, zi - outz * t))
+        a = (f"fr_angle_{face}i_face", [FACE_E - l, ys, zs[0]], [FACE_E, TOP, zs[1]], (2, zi, outz))
+        zs = sorted((zi - outz * t, zi - outz * l))
+        b = (f"fr_angle_{face}i_side", [FACE_E - t, ys, zs[0]], [FACE_E, TOP, zs[1]], (0, FACE_E, 1.0))
+        out.append((f"fr_angle_{face}i", "upright", 1, [a, b]))
     for face, zf, inz in ANGLE_FACES:
         zs = sorted((zf, zf + inz * t))
-        out.append((f"fr_band_{face}_face", [x0, TOP - l, zs[0]], [x1, TOP, zs[1]]))
-        # the top leg runs on to the corner angles' side legs, so the top's corners are iron to the corner
-        zs = sorted((zf + inz * t, zf + inz * l))
-        out.append((f"fr_band_{face}_top", [WEST[0] + t, TOP - t, zs[0]], [FACE_E - t, TOP, zs[1]]))
-    return out
-
-
-def knee_angles():
-    """The knees, as (name, lo, hi): where the footing steps out from under the end block's east corner, the footing's
-    corner angle and the end block's are one stepped member. A knee plate in the end face (`_face`, ANGLE_T deep, set in
-    flush) fills the step's inside corner under the end block's angle, ANGLE_L each way, so the end-face legs run on
-    through the step: the footing angle's leg, the knee, the end block angle's leg. A short leg in the footing's top
-    (`_top`, ANGLE_T deep, from the end block's face out to the footing angle's side leg) wraps the ledge's edge, so the
-    footing angle's top is a closed corner, the end block's post in the footing behind it."""
-    out = []
-    t, l = ANGLE_T, ANGLE_L
+        out.append((f"fr_knee_{face}", "knee", None,
+                    [(f"fr_knee_{face}_face", [FACE_E - l, HEARTH_Y - l, zs[0]], [FACE_E, HEARTH_Y, zs[1]], (2, zf, -inz))]))
     for face, zf, inz in ANGLE_FACES:
         zs = sorted((zf, zf + inz * t))
-        out.append((f"fr_knee_{face}_face", [FACE_E - l, HEARTH_Y - l, zs[0]], [FACE_E, HEARTH_Y, zs[1]]))
+        a = (f"fr_band_{face}_face", [WEST[0] + l, TOP - l, zs[0]], [FACE_E - l, TOP, zs[1]], (2, zf, -inz))
         zs = sorted((zf + inz * t, zf + inz * l))
-        out.append((f"fr_knee_{face}_top", [FACE_E, HEARTH_Y - t, zs[0]], [W - t, HEARTH_Y, zs[1]]))
+        b = (f"fr_band_{face}_top", [WEST[0] + t, TOP - t, zs[0]], [FACE_E - t, TOP, zs[1]], (1, TOP, 1.0))
+        out.append((f"fr_band_{face}", "band", 0, [a, b]))
+    out.append(("fr_band_w", "band", 2, [("fr_band_w_face", [WEST[0], TOP - l, l], [WEST[0] + t, TOP, D - l], (0, WEST[0], -1.0)),
+                                         ("fr_band_w_top", [WEST[0] + t, TOP - t, l], [WEST[0] + l, TOP, D - l], (1, TOP, 1.0))]))
+    for (face, zf, inz), (_, zi, _) in zip(ANGLE_FACES, INNER_FACES):
+        zs = sorted((zf + inz * l, zi - inz * l))
+        a = (f"fr_band_{face}e_face", [FACE_E - t, TOP - l, zs[0]], [FACE_E, TOP, zs[1]], (0, FACE_E, 1.0))
+        zs = sorted((zf + inz * l, zi - inz * t))
+        b = (f"fr_band_{face}e_top", [FACE_E - l, TOP - t, zs[0]], [FACE_E - t, TOP, zs[1]], (1, TOP, 1.0))
+        out.append((f"fr_band_{face}e", "band", 2, [a, b]))
+    cuts = sorted({IN_X[0], IN_X[1], ARCH_FOOT[0], FACE_E - l} | {x for x, _ in EXTRADOS if IN_X[0] < x < ARCH_FOOT[0] - 1e-9})
+    for face, zi, outz in INNER_FACES:
+        zs = sorted((zi, zi - outz * t))
+        legs = []
+        for j, (x0, x1) in enumerate(zip(cuts, cuts[1:])):
+            y0 = ys if x0 >= ARCH_FOOT[0] - 1e-9 else min(extrados_at(x0), extrados_at(x1))
+            if face == "s" and x0 < IN_X[1] - 1e-9:
+                y0 = max(y0, CAVITY_TOP)             # over the flue end's cavity: down to its roof, never into it
+            legs.append((f"fr_band_{face}i_face{chr(97 + j)}", [x0, y0, zs[0]], [x1, TOP, zs[1]], (2, zi, outz)))
+        zs = sorted((zi - outz * t, zi - outz * l))
+        legs.append((f"fr_band_{face}i_top", [IN_X[0] - l, TOP - t, zs[0]], [FACE_E - l, TOP, zs[1]], (1, TOP, 1.0)))
+        out.append((f"fr_band_{face}i", "band", 0, legs))
+    z0, z1 = FIRE_BLOCK[1] - t, FLUE_BLOCK[0] + t
+    legs = [("fr_band_wi_face", [IN_X[0] - t, TOP - l, z0], [IN_X[0], ROD_Y[0], z1], (0, IN_X[0], 1.0))]
+    gaps = [z0] + [q for zc in STAY_Z for q in (zc - ROD_T / 2, zc + ROD_T / 2)] + [z1]
+    for j, (a0, a1) in enumerate(zip(gaps[::2], gaps[1::2])):
+        legs.append((f"fr_band_wi_lip{chr(97 + j)}", [IN_X[0] - t, ROD_Y[0], a0], [IN_X[0], TOP, a1], (0, IN_X[0], 1.0)))
+        legs.append((f"fr_band_wi_top{chr(97 + j)}", [IN_X[0] - l, TOP - t, a0], [IN_X[0] - t, TOP, a1], (1, TOP, 1.0)))
+    out.append(("fr_band_wi", "band", 2, legs))
+    out.append(("fr_band_f", "band", 2, [("fr_band_f_face", [W - t, HEARTH_Y - l, l], [W, HEARTH_Y, D - l], (0, W, 1.0)),
+                                         ("fr_band_f_top", [FACE_E, HEARTH_Y - t, t], [W - t, HEARTH_Y, D - t], (1, HEARTH_Y, 1.0))]))
+    out.append(("fr_skew", "band", 2, [("fr_skew_face", [FACE_E - t, SPRING_Y, l], [FACE_E, ys, D - l], (0, FACE_E, 1.0)),
+                                       ("fr_skew_top", [ARCH_FOOT[0], ys - t, ARCH_Z[0]], [FACE_E - t, ys, ARCH_Z[1]], (1, ys, 1.0))]))
     return out
 
 
 def binding():
-    """The end faces' binding, as (name, lo, hi): the corner angles, the knees joining the footing's and the end block's
-    east corner angles across the step, and the bands between them, one connected frame on each end face. The west face
-    is the shared wall's, plain but for its corner angles' legs, flush; the east side's binding is its buckstays."""
-    return corner_angles() + knee_angles() + band_angles()
+    """The box frame's legs, as (name, lo, hi)."""
+    return [(n, lo, hi) for _, _, _, legs in binding_members() for n, lo, hi, _ in legs]
 
 
 def frame_ties():
@@ -669,13 +729,6 @@ def rod_boxes():
     return [(f"iw_rod{i}", [ROD_X[0], ROD_Y[0], zc - ROD_T / 2], [ROD_X[1], ROD_Y[1], zc + ROD_T / 2]) for i, zc in enumerate(STAY_Z, 1)]
 
 
-def skewbar_box():
-    """The east skewback bar, as (name, lo, hi): behind the buckstays over the arched part, where the skewback bears on
-    it, and on through the end blocks' east faces, set in flush, to the corner angles' side legs, so the two end faces'
-    binding and the buckstays are one frame."""
-    return ("iw_skewbar", [SKEWBAR_X[0], SKEW[1][0], SKEWBAR_Z[0]], [SKEWBAR_X[1], SKEW[1][1], SKEWBAR_Z[1]])
-
-
 def anchor_boxes():
     (ax, ay, hw) = ANCHOR
     return [(f"iw_anchor{i}", [ax[0], ay[0], zc - hw], [ax[1], ay[1], zc + hw]) for i, zc in enumerate(STAY_Z, 1)]
@@ -686,8 +739,8 @@ def brick_voids():
     between the end blocks (the arch's place, open above it); the ash pit and the firebox, over the bridge, the hearth's
     chamber and the flue end's cavity; the uptake, the feed hole, the well with its cover's seat and the throat from its
     floor; the ash mouth, the fire door and their recesses; the work doors; the discharge hole, the tunnel and the
-    discharge door's recess; the outlet cap's seat; and the room for the iron set into the brick (the binding, the
-    lintels, the grate's bearers, the tie rods' chases and anchors, the skewback bar, the frame's ties)."""
+    discharge door's recess and its plate's slot; the outlet cap's seat; and the room for the iron set into the brick (the binding, the
+    lintels, the grate's bearers, the tie rods' chases and anchors, the frame's ties)."""
     v = []
 
     def add(lo, hi):
@@ -708,7 +761,7 @@ def brick_voids():
     add([mx[0], my[0], FRONT_Z[0]], [mx[1], my[1], FRONT_Z[1]])
     (dx, dy) = FIRE_DOOR
     add([dx[0], dy[0], FRONT_Z[0]], [dx[1], dy[1], FRONT_Z[1]])
-    for (x, y, z) in (RECESS, FD_RECESS, ASH_LINTEL, FD_LINTEL):
+    for (x, y, z) in (RECESS, FD_RECESS, ASH_LINTEL, FD_LINTEL, FD_SILL):
         add([x[0], y[0], z[0]], [x[1], y[1], z[1]])
     _, (wy0, wy1) = WORK_DOOR
     for z0, z1 in door_spans():
@@ -719,24 +772,32 @@ def brick_voids():
     add([tx[0], ty[0], tz[0]], [tx[1], ty[1], tz[1]])
     (rx, ry, rz) = D_RECESS
     add([rx[0], ry[0], rz[0]], [rx[1], ry[1], rz[1]])
+    (sx, sy) = D_SLOT
+    add([sx[0], sy[0], rz[0]], [sx[1], sy[1], rz[1]])
     (cx, cz) = CAP_SEAT
     add([cx[0], CAP_Y[0], cz[0]], [cx[1], CAP_Y[1], cz[1]])
-    v += [(lo, hi) for _, lo, hi in binding() + frame_ties() + bearers() + rod_boxes() + anchor_boxes() + [skewbar_box()]]
+    v += [(lo, hi) for _, lo, hi in binding() + frame_ties() + bearers() + rod_boxes() + anchor_boxes()]
     return v
 
 
 def lining_zones():
     """Where the brick is the lining's, as (lo, hi): LINING_T round every hot space, from where the fire is up. The
     firebox's walls from the grate's level and its roof (with the throat through it); the bridge, the hearth's bed and
-    its walls to the springing; the flue end's cavity, its walls and roof; the uptake and the outlet's curb; the feed
-    hole. The rest is the brickwork's: the base, the ash pit and the ash mouth, the tunnel, the outer walls."""
+    its walls to the springing; the flue end's cavity, its walls and roof; the uptake and the outlet's curb (out to the
+    binding's top legs); the feed hole (its top course on to the curb and the bands). And so no brickwork shows narrower
+    than a brick: the coal well's floor beside the throat. The rest is the brickwork's: the base, the ash pit and the
+    ash mouth, the tunnel, the outer walls."""
     t = LINING_T
     (ux, uz), (fx, fz) = UPTAKE, FEED_HOLE
+    (kx, kz), (wx, _, wz) = CURB, WELL
     return [([IN_X[0] - t, BEARER_Y[0] + 0.5, FRONT_Z[1] - t], [IN_X[1] + t, SPRING_Y + t, BRIDGE_Z[0] + t]),
             ([IN_X[0] - t, HEARTH_Y - t, BRIDGE_Z[0]], [IN_X[1] + t, SPRING_Y, HEARTH_Z[1] + t]),
             ([IN_X[0] - t, SPRING_Y, FLUE_BLOCK[0]], [IN_X[1] + t, CAVITY_TOP + t, HEARTH_Z[1] + t]),
             ([ux[0] - t, CAVITY_TOP, uz[0] - t], [ux[1] + t, TOP, uz[1] + t]),
-            ([fx[0] - t, CAVITY_TOP, fz[0] - t], [fx[1] + t, TOP, fz[1] + t])]
+            ([fx[0] - t, CAVITY_TOP, fz[0] - t], [fx[1] + t, TOP, fz[1] + t]),
+            ([kx[0], TOP - t, FLUE_BLOCK[0] + ANGLE_T], [kx[1], TOP, kz[1]]),
+            ([kx[1], TOP - t, kz[0]], [fx[1] + t, TOP, kz[1]]),
+            ([wx[0], SPRING_Y, wz[0]], [IN_X[0] - t, SPRING_Y + t, wz[1]])]
 
 
 def _inside(p, lo, hi):
@@ -832,9 +893,9 @@ def build_brick():
 # ---------------------------------------------------------------- builders: the structure
 def build_frame_iron():
     """The iron frame (`frame`, `fr_*`): what the frame stage puts down, standing on its own, set into the brick once it
-    is in: the end faces' binding (the corner angles, the knees at the footing's step and the angle bands), the ash
-    mouth's lintel and the damper's guides, and the posts under the lintel and the east corner angles (hidden in the
-    brickwork)."""
+    is in: the box frame (binding_members: the uprights, the knees at the footing's steps, the bands round every top
+    edge and the skewback angle), the ash mouth's lintel, the damper's guides and its sill between them, and the posts
+    under the lintel and the end blocks' east corner angles (hidden in the brickwork)."""
     f, t = "frame", "iron"
     out = []
     for name, lo, hi in binding():
@@ -844,17 +905,22 @@ def build_frame_iron():
     (_, ry, rz) = RECESS
     for side, (x0, x1) in zip(("w", "e"), GUIDES):
         out.append(box([x0, ry[0], rz[0]], [x1, ry[1], rz[1]], f"fr_guide_{side}", f, t))
+    out.append(box([GUIDES[0][1], SILL[0], rz[0]], [GUIDES[1][0], SILL[1], rz[1]], "fr_sill", f, t))
     out += [box(lo, hi, name, f, t) for name, lo, hi in frame_ties()]
     return out
 
 
 def build_frames():
-    """The iron set into the brick as it is laid (`frames`, `fm_*`, fitted with the brickwork): the fire door's lintel,
+    """The iron set into the brick as it is laid (`frames`, `fm_*`, fitted with the brickwork): the fire door's lintel and
+    its dead plate (the sill, through the brickwork to the lining),
     the flat grate's bearers (the step grate's treads are built into the side walls), and on the east side each work
-    door's frame and guides and the discharge door's rails in its recess."""
+    door's frame and guides and the discharge door's low rail in its recess (its top edge runs behind the footing band's
+    face leg)."""
     p, t = "frames", "iron"
     (lx, ly, lz) = FD_LINTEL
     out = [box([lx[0], ly[0], lz[0]], [lx[1], ly[1], lz[1]], "fm_fdlintel", p, t)]
+    (sx, sy, sz) = FD_SILL
+    out.append(box([sx[0], sy[0], sz[0]], [sx[1], sy[1], sz[1]], "fm_fdsill", p, t))
     out += [box(lo, hi, name, p, t) for name, lo, hi in bearers()]
     fr = DOOR_FRAME
     hw, (y0, y1) = WORK_DOOR
@@ -866,7 +932,6 @@ def build_frames():
             out.append(box([face, y0 - fr, gz0], [W, GUIDE_TOP, gz1], f"fm_door{k}_guide{g}", p, t))
     (rx, ry, rz) = D_RECESS
     out.append(box([rx[0], ry[0], rz[0]], [rx[1], ry[0] + D_RAIL, rz[1]], "fm_drail_low", p, t))
-    out.append(box([rx[0], ry[1] - D_RAIL, rz[0]], [rx[1], ry[1], rz[1]], "fm_drail_high", p, t))
     return out
 
 
@@ -886,16 +951,18 @@ def build_arch():
                 rotate([el], "z", math.degrees(phi), (cx, cy, 0.0))
             out.append(el)
     (sx, sy) = SKEW
-    out += wboxes([sx[0], sy[0], ARCH_Z[0]], [sx[1], sy[1], ARCH_Z[1]], "arch_skew", p, "lining")
+    # under the skewback angle's top leg, and to the arch's foot beside it (under the east strip)
+    out += wboxes([sx[0], sy[0], ARCH_Z[0]], [sx[1], sy[1] - ANGLE_T, ARCH_Z[1]], "arch_skew", p, "lining")
+    out += wboxes([sx[0], sy[1] - ANGLE_T, ARCH_Z[0]], [ARCH_FOOT[0], sy[1], ARCH_Z[1]], "arch_skewfoot", p, "lining")
     return out
 
 
 def build_ironwork():
     """The ironwork (`ironwork`, `iw_*`, fitted with the arch): the east buckstays on the footing, each an angle iron (its
-    flange on the face, its web standing out from the flange's south edge), the skewback bar behind them (on through the
-    end blocks to the corner angles), the tie rods
-    over the crown from them into the shared wall, where each ends on an anchor plate set in its top, and the nuts on the
-    buckstays' flanges. Nothing stands beyond the shared wall's face."""
+    flange on the face against the skewback angle and the wall, its foot on the footing band, its web standing out from
+    the flange's south edge), the tie rods over the crown from them through the west inner band into the shared wall,
+    where each ends on an anchor plate set in its top against the west band, and the nuts on the buckstays' flanges.
+    Nothing stands beyond the shared wall's face."""
     p, t = "ironwork", "iron"
     out = []
     for i, zc in enumerate(STAY_Z, 1):
@@ -904,7 +971,6 @@ def build_ironwork():
         out += long_box([STAY_X[1], STAY_Y[0], z1 - ANGLE_T], [W, STAY_Y[1], z1], f"iw_stay{i}_web", p, t)
         (nx, ny, nhw) = NUT
         out.append(box([nx[0], ny[0], zc - nhw], [nx[1], ny[1], zc + nhw], f"iw_nut{i}", p, t))
-    out += long_box(*skewbar_box()[1:], "iw_skewbar", p, t)
     for name, lo, hi in rod_boxes():
         out += long_box(lo, hi, name, p, t)
     out += [box(lo, hi, name, p, t) for name, lo, hi in anchor_boxes()]
@@ -931,7 +997,7 @@ def chute_we(cell, x0, name, part):
 def build_hopper():
     """The hopper (`hopper`, level 1, kept at level 2): an open iron bin on the roof, its mouth the infeed cell's top,
     filled by hand; under its slot a neck (the feed roll's casing at level 2, its end walls the line shaft's last
-    bearings) on a flange on the flue end block's top, and the iron feed chute down through the block's roof into the
+    bearings) on a base plate on the flue end block's top, between the bands, and the iron feed chute down through the block's roof into the
     cavity over the hearth's far end, so a charge thrown in at level 1 falls through to the hearth."""
     p, t = "hopper", "iron"
     (x0, x1), (y0, y1), (z0, z1) = HOPPER
@@ -951,10 +1017,10 @@ def build_hopper():
 
 def build_firedoor():
     """The fire door (`firedoor`, level 1, kept shut at level 2): an iron plate shut in its recess in the fire end face,
-    over the opening, with a handle bar in the recess; stoked through at level 1."""
+    filling it, over the opening, with a handle bar in the recess; stoked through at level 1."""
     p, t = "firedoor", "iron"
     (rx, ry, _) = FD_RECESS
-    return [box([rx[0] + 0.5, ry[0] + 0.5, 0.4], [rx[1] - 0.5, ry[1] - 0.5, FD_RECESS[2][1]], "firedoor_plate", p, t),
+    return [box([rx[0], ry[0], 0.4], [rx[1], ry[1], FD_RECESS[2][1]], "firedoor_plate", p, t),
             box([22.0, 17.0, 0.12], [26.0, 17.6, 0.4], "firedoor_handle", p, t)]
 
 
@@ -990,13 +1056,12 @@ def build_doors(place):
 
 
 def build_discharge(place):
-    """The discharge door (`discharge<place>`): an iron plate sliding along z on its rails in its recess in the
-    footing's face: shut over the tunnel's mouth (level 1, the player opens it to draw the roasted charge), or slid
+    """The discharge door (`discharge<place>`): an iron plate sliding along z in its recess in the footing's face, on
+    its low rail, its top edge in the slot behind the footing band's face leg: shut over the tunnel's mouth (level 1, the player opens it to draw the roasted charge), or slid
     clear of it (level 2, the output chute in the mouth)."""
     p, t = f"discharge{place}", "iron"
     z0, z1 = D_PLATE[place]
-    (_, ry, _) = D_RECESS
-    out = [box([D_PLATE_X[0], ry[0] + D_RAIL, z0], [D_PLATE_X[1], ry[1] - D_RAIL, z1], f"{p}_plate", p, t)]
+    out = [box([D_PLATE_X[0], D_PLATE_Y[0], z0], [D_PLATE_X[1], D_PLATE_Y[1], z1], f"{p}_plate", p, t)]
     zm = (z0 + z1) / 2
     out.append(box([D_PLATE_X[1], 7.4, zm - 0.6], [W - 0.05, 8.6, zm + 0.6], f"{p}_knob", p, t))
     return out
