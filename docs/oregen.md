@@ -629,20 +629,23 @@ granitic-deep veins wrong), after is #946. Ingots per vein, every vein (small on
   until the poorer holds its size and the richer one's ore is thinned to its own. Stopping at the
   first left the other short (granitic-deep tin 0.65 of typical); stopping where they average out
   pushed zinc and lead 30–40 % over.
-- What is over typical (felsic silver and zinc, granitic-deep zinc, mafic lead) is the census
-  joining veins of one metal along one fault into one deposit, as a player would find them: their
-  veins hold their draws one by one. The sizes drawn also scatter: about 50 veins per district type
-  and metal draw their median within ±16 % of typical two times in three.
-- Platinum (mafic) is a sliver of its zones (nativeplatinum and sperrylite weigh 0.0325 against
-  1.0 for copper and iron): 16 of its 24 veins are cut to the room under sea level even at the
-  widest shape, and hold 0.78 of their draw at the median.
+- Four groups land over typical, and are accepted as they are (owner's ruling): felsic silver
+  (1.29) and zinc (1.39), granitic-deep zinc (1.38) and mafic lead (1.58). Each of their veins holds
+  its draw (held ÷ drawn 1.00, measured 1.02–1.09 times its estimate); the census counts deposits,
+  not veins: `ore_survey.py` joins fragments of one metal whose centres are closer than 150 m
+  (`--link`), and a district's 8 kept veins of a metal often sit that close along one fault, so two
+  or three count as one larger deposit. That is how a player finds them too: one long run of ore
+  along the fault. The sizes drawn also scatter: about 50 veins per district type and metal draw
+  their median within ±16 % of typical two times in three.
+- Mafic platinum stays at 0.75 of typical, accepted (owner's ruling): nativeplatinum and sperrylite
+  weigh 0.0325 in their zones against about 1.0 for copper and iron, so a vein's platinum is a
+  sliver of its blocks, and 16 of its 24 veins are cut to the room under sea level even at the widest
+  shape (64 times IOG's area), holding 0.78 of their draw at the median.
 - Sizing a district takes 31–877 ms, median 193, over the census's 139 districts (the log's
   `sized in`), once per district per run.
 
 ### Open
 
-- District platinum is cut to the room in most veins (#946, above): a larger widening for it, or
-  sizing it as the zone's share and not its own, would be its own decision.
 - The surface heights the strata are predicted at (`surfaceAboveSeaLevel`) come from three seeds'
   terrain near the map centre; a world type or landform mod that moves the terrain would want them
   measured again (the Atlas scenario `District_country_rock_is_predicted_from_the_strata` checks the
