@@ -4,18 +4,21 @@
 The sluice is the first concentrator of the ore line (#734, model #735): a riffled plank sluice of a
 stamp mill, "10 to 15 feet of sluice boxes fitted with transverse riffles" [Louis 1902, p. 293], scaled
 to three blocks. The pulp comes down a vanilla copper chute into a plank head box at the head, where a
-ppex water pipe (drawn soldered, in copper or lead, as UnifiedPipes draws them) runs in through the box's
-end wall to a nozzle; it overflows a sill onto the sluice, a plank trough falling 1 in 12 on two trestles,
-seven oak riffles across its floor, each faced with strap iron; the heavy grains settle behind the
-riffles, and the rest runs off the tail into a second chute section, the tailings chute, flush with the
-tail's end face. The concentrate is held behind the riffles until the player cleans them up by hand: it is
-drawn in three states of filling. Nothing moves: there is no power, no axle and no driver. Everything is
-built here from plain boxes; no other mod's model is used.
+ppex water pipe (drawn soldered, in copper or lead, as UnifiedPipes draws them) comes in under the box and
+rises through its floor to a nozzle; it overflows a sill onto the sluice, a plank trough falling 1 in 12 on
+two trestles, seven oak riffles across its floor, each faced with strap iron. The heavy grains settle
+behind the riffles and are drawn off as the sluice runs, through a draw slot in the floor behind each
+riffle, into the concentrate launder slung under the floor, which falls with the sluice to the concentrate
+box under the tail; the box opens into the concentrate chute, a vanilla chute section flush with the tail
+cell's west face. The rest runs off the tail into the tailings chute, flush with the tail's south face.
+Nothing moves: there is no power, no axle and no driver. Everything is built here from plain boxes; no other
+mod's model is used.
 
 It writes, deterministically,
 
-    sluice.json         the whole sluice, every fitted part and each concentrate state   (assets/.../shapes/block/)
-    sluice_frame.json   the frame only: the head box, the sluice box, the trestles        (assets/.../shapes/block/)
+    sluice.json         the whole sluice, every fitted part and the concentrate          (assets/.../shapes/block/)
+    sluice_frame.json   the frame only: the head box, the sluice box, the launder, the
+                        concentrate box, the trestles                                     (assets/.../shapes/block/)
     sluice-rig.json     the cells, the anchors and the part rig                           (assets/.../config/)
 
 or, with `--out DIR`, all three into DIR. It validates its own output (validate_sluice.py) and exits
@@ -67,16 +70,17 @@ B = 16.0
 # ---------------------------------------------------------------- the box, the cells, the anchors
 CELLS_X, CELLS_Y, CELLS_Z = 1, 1, 3          # one wide, one high, three long (z, away from the player)
 ORIGIN_CELL = (0, 0, 0)                      # the controller: the head cell, nearest the player
-CX = 8.0                                     # the machine's centre line (x): the sluice's, both chutes' and the pipe's
+CX = 8.0                                     # the machine's centre line (x): the sluice's, the infeed's, the tailings' and the pipe's
 INFEED_CELL, INFEED_FACE = (0, 0, 0), "up"   # a vanilla chute from above meets the infeed section at the head cell's top
 WATER_CELL, WATER_FACE = (0, 0, 0), "north"  # a ppex pipe meets the water inlet on the head's end face
 TAILINGS_CELL, TAILINGS_FACE = (0, 0, 2), "south"   # the tailings chute leaves through the tail's end face
+CONC_CELL, CONC_FACE = (0, 0, 2), "west"     # the concentrate chute leaves through the tail cell's west face
 
 TEXTURES = {
-    "oak": "game:block/wood/debarked/oak",         # timber: the trestles, the riffles' bars
-    "planks": "game:block/wood/planks/oak1",       # boards: the head box, the sluice's floor and sides
+    "oak": "game:block/wood/debarked/oak",         # timber: the trestles, bearers and sleepers, the riffles' bars
+    "planks": "game:block/wood/planks/oak1",       # boards: the head box, the sluice, the launder, the concentrate box
     "iron": "game:block/metal/plate/iron",         # the riffles' wearing straps
-    "chute": "game:block/metal/sheet/copper1",     # the infeed and tailings sections: vanilla's chute, as placed in the pack
+    "chute": "game:block/metal/sheet/copper1",     # the three chute sections: vanilla's chute, as placed in the pack
     "pipecopper": "game:block/metal/sheet-plain/copper4",   # the water inlet in copper (UnifiedPipes' copper pipe)
     "pipelead": "game:block/metal/sheet-plain/lead4",       # ... in lead (UnifiedPipes' lead pipe)
     "solder": solderedpipe.SOLDER_TEXTURE,         # (the pipes' joints: none inside the machine; kept for the copies)
@@ -94,23 +98,25 @@ VANILLA_CHUTE = {                            # game 1.22.7, shapes/block/metal/c
     "shape": "shapes/block/metal/chute/straight.json",
 }
 CHUTE_BORE = (5.0, 11.0)                     # the bore, cell-local, across either axis
-CHUTE_IN_Y0 = 12.0                           # the infeed section: from the head cell's top face down to here, into the head box
+CHUTE_IN_Y0 = 14.5                           # the infeed section: from the head cell's top face down to here, into the head box
 CHUTE_OUT_Z0 = 44.0                          # the tailings section: from here to the tail's end face (z 48)
+CHUTE_CONC_X1 = 4.0                          # the concentrate section: from the tail cell's west face (x 0) to here, the box's mouth
 
 # ---------------------------------------------------------------- the sluice
 SL_Z = (13.0, CHUTE_OUT_Z0)                  # its head (against the head box) .. its tail (the tailings chute's mouth)
-SL_TAIL_Y = 5.5                              # its floor's top at the tail: half a voxel over the chute's bore floor (5)
+SL_HEAD_Y = 13.0                             # its floor's top at the head: the head box's sill, a voxel over the box's floor
 SL_SLOPE = 1.0 / 12.0                        # it falls 1 in 12 (Louis: an inch to the foot), head to tail
-SL_HEAD_Y = SL_TAIL_Y + (SL_Z[1] - SL_Z[0]) * SL_SLOPE   # its floor's top at the head: 8.083, the head box's sill
+SL_TAIL_Y = SL_HEAD_Y - (SL_Z[1] - SL_Z[0]) * SL_SLOPE   # its floor's top at the tail, 10.42: in the tailings chute's mouth,
+                                             # under its bore's top (11), leaving room under the floor for the launder
 SL_IN = (4.95, 11.05)                        # the channel: 6.1 wide, over the chute's 6 bore by a hair each side
 SL_SIDE_T = 0.9                              # its sides (the boards' thickness): outside 4.05 .. 11.95, inside the chute's walls
 SL_FLOOR_T = 1.0
-SL_SIDE_H = 3.0                              # the sides above the floor's top
-SL_SPLIT_Z = 28.5                            # the floor and sides are two boards' lengths each (no longer than the texture),
-                                             # butted here over the first trestle
+SL_SIDE_H = 2.5                              # the sides above the floor's top
+SL_SPLITS = (23.5, 34.0)                     # the sides are three boards' lengths each (none longer than the texture),
+                                             # butted here, each joint over a trestle
 THETA = math.atan(SL_SLOPE)                  # the slope's angle
 
-# ---------------------------------------------------------------- the riffles (`riffles`)
+# ---------------------------------------------------------------- the riffles (`riffles`) and the draw slots
 RIFFLE_Z0 = 18.0                             # the first riffle's upstream face (on the floor's top line): 5 of plain floor at
 RIFFLE_PITCH = 4.0                           # the head for the pulp to spread on; then one every 4
 RIFFLE_N = 7
@@ -118,42 +124,58 @@ RIFFLE_T = 1.0                               # each an oak bar 1 along the flow 
 RIFFLE_H = 1.1                               # ... and 1.1 high, ...
 STRAP_T = 0.2                                # ... faced on top with strap iron 0.2 thick (the wearing surface) ...
 STRAP_LIP = 0.3                              # ... overhanging its downstream face (a Hungarian riffle's lip)
+SLOT = 1.0                                   # the draw slot through the floor right behind each riffle (along the slope),
+                                             # across the channel; behind riffles 1..6 (the 7th stands at the lip)
 
-# ---------------------------------------------------------------- the concentrate (`concentrate1..3`)
+# ---------------------------------------------------------------- the concentrate launder, under the floor
+LD_Z = (18.0, 41.0)                          # from just upstream of the first slot to its open end over the concentrate box
+LD_SPLIT_Z = 29.5                            # two boards' lengths
+LD_T = 0.8                                   # its boards
+LD_DEPTH = 1.6                               # inside, under the sluice's floor
+LD_OUT = (4.15, 11.85)                       # outside across: under the sluice's sides; inside, the channel (the slots drop straight in)
+LD_H = (-SL_FLOOR_T - LD_DEPTH - LD_T, -SL_FLOOR_T)   # its height over the floor's top line: bottom .. its sides' top, on the floor
+
+# ---------------------------------------------------------------- the concentrate box, under the tail, and its chute
+CB_X = (4.0, 12.0)                           # outside; open on the west over the chute's bore (its inside is the bore's z)
+CB_Z = (36.0, 44.0)                          # the tail cell's face centre z 40 +- 4: the chute's section
+CB_Y0 = 4.0                                  # its floor's underside: the chute's bottom wall's; its floor's top the bore floor (5)
+CB_T = 1.0
+CB_TOP = 6.8                                 # its north and east walls' top, under the launder; the south wall rises to the
+                                             # sluice's floor, closing the tailings chute's mouth under the lip
+CB_SLEEPERS_Z = ((37.2, 38.6), (41.4, 42.8))  # two oak sleepers under it
+CB_SLEEPER_X = (4.5, 11.5)
+
+# ---------------------------------------------------------------- the concentrate (`concentrate`)
 CONC_FULL = 1.0                              # a full pocket's depth over the floor: 0.1 under the straps' lips
 CONC_IN = 0.05                               # how far a deposit runs into the riffle it lies against, the floor and the sides
-# How full each pocket is in each state (pocket i lies behind riffle i, up to riffle i + 1). The heavy grains
-# settle first behind the upper riffles, so the pockets fill from the head down; full, every pocket is brimming.
-FILL = {
-    1: (1.0, 0.8, 0.6, 0.35, 0.1, 0.0),      # about a third of full
-    2: (1.0, 1.0, 1.0, 0.9, 0.6, 0.3),       # about two thirds
-    3: (1.0, 1.0, 1.0, 1.0, 1.0, 1.0),       # full: every pocket brimming
-}
-STATES = (1, 2, 3)
+# The bed each pocket holds while the sluice runs (pocket i lies behind riffle i, up to riffle i + 1), drawn off
+# through its slot as fast as it settles: deeper at the head, where the heavy grains settle first.
+BED = (0.75, 0.7, 0.65, 0.6, 0.55, 0.5)
+CONC_LAYER = 0.25                            # the concentrate running down the launder's floor and lying in the box
 
 # ---------------------------------------------------------------- the head box
 HB_X = (3.0, 13.0)                           # outside; plank walls 1 thick round the infeed chute's 8 x 8
 HB_Z = (3.0, 13.0)
-HB_Y = (5.0, 13.0)                           # its floor's underside (on its trestles) and its walls' top
+HB_Y = (11.0, 15.5)                          # its floor's underside (on the water pipe and its bearers) and its walls' top
 HB_T = 1.0
-HB_FLOOR = 6.0                               # its floor's top: the water pipe's bore floor, 2 under the sill
+HB_FLOOR = 12.0                              # its floor's top, a voxel under the sill: the pool the ore falls into
 HB_NOTCH = (SL_IN[0] - 0.05, SL_IN[1] + 0.05)   # the south wall's notch over the sill: the channel and a hair, so the
                                              # sides' ends, cut square to the slope, sink into the wall beside it unseen
 
 # ---------------------------------------------------------------- the trestles
 LEG = 1.6                                    # the legs, square
-BEAM_H, BEAM_D = 1.4, 1.2                    # the cross beams: high, along z (narrower than the legs, mortised through them)
-HB_TRESTLES_Z = (4.4, 11.6)                  # the head box's two trestles (centres)
-HB_LEG_TOP = 12.0                            # their legs rise beside the box's walls to here
-SL_TRESTLES_Z = (SL_SPLIT_Z, 42.0)           # the sluice's two (centres): under the boards' joint, and at the tail
+BEAM_H, BEAM_D = 1.4, 1.2                    # the cross beams and bearers: high, deep (narrower than the legs, mortised in)
+HB_LEG_TOP = 14.5                            # the head box's four corner legs rise beside its walls to here
+SL_TRESTLES_Z = SL_SPLITS                    # the sluice's two (centres): under the sides' joints
 SL_LEG_DROP = 0.5                            # their legs stop this far under the sides' top
 
 # ---------------------------------------------------------------- the water inlet (soldered ppex pipe)
 PIPE_HALF = solderedpipe.HALF                # 3: ppex's pipe is 6 across
 WATER_IN = (CX, 8.0)                         # (x, y): the inlet's axis, the middle of the water face
-NOZZLE_CAP = (4.0, 4.3)                      # the reducer on the pipe's end inside the box (z), on the box's floor
-NOZZLE = ((6.5, 9.5, 4.3, 4.65), (7.0, 9.0, 4.65, 5.0))   # the nozzle: two steps down from the cap, (x0/y0, x1/y1, z0, z1),
-                                             # its mouth at the falling ore's edge (the chute's bore, from z 5)
+RISER_Z = 7.0                                # the pipe runs south under the head box to here and turns up through its floor
+REDUCER_T = 0.3                              # the reducer on the riser's end, on the box's floor
+NOZZLE = ((1.5, 0.3), (1.0, 0.3))            # the nozzle: two steps up from the reducer, (half across, height): its mouth
+                                             # under the sill, in the pool, under the falling ore
 PIPE_METALS = ("copper", "lead")             # one part each, the same elements; only the supplied metal's is drawn
 PIPES = tuple(f"pipe{m}" for m in PIPE_METALS)
 
@@ -220,55 +242,70 @@ def sl_floor(z):
     return floor_y(SL_HEAD_Y, SL_TAIL_Y, SL_Z[0], SL_Z[1], z)
 
 
+def slope_point(s, h, x=CX):
+    """The build-frame point at s along the slope and h over the floor's top line."""
+    return [x, SL_HEAD_Y - s * math.sin(THETA) + h * math.cos(THETA), SL_Z[0] + s * math.cos(THETA) + h * math.sin(THETA)]
+
+
 def s_end_at(z, h):
     """The s at which a sloped piece's corner at height h (over the floor's top line) lies over z."""
     return (z - SL_Z[0] - h * math.sin(THETA)) / math.cos(THETA)
 
 
-def under_slope(lo, hi, t=SL_FLOOR_T):
-    """The lowest point of the sluice's underside over lo..hi along z, less a hundredth: where a beam
-    under it stops."""
-    return min(sl_floor(lo), sl_floor(hi)) - t / math.cos(THETA) - 0.01
+def under_slope(lo, hi, h):
+    """The lowest point over lo..hi along z of the slope's line at height h (a sloped piece's underside), less
+    a hundredth: where a beam or a wall under it stops."""
+    return min(sl_floor(lo), sl_floor(hi)) + h / math.cos(THETA) - 0.01
 
 
 # ---------------------------------------------------------------- the vanilla chute's profile
-def chute_walls(axis, a0, a1, name, part):
-    """A vanilla straight chute section running along `axis` ("y" upright, "z" north-south) from a0 to a1
-    in the machine's one column (x 0..16): VANILLA_CHUTE's walls, its section, wall thickness, place in the
-    block and texture exactly, so a chute placed beyond meets it with no gap or step. Named for the side each
-    wall faces."""
+def chute_walls(axis, a0, a1, cell, name, part):
+    """A vanilla straight chute section running along `axis` ("x" east-west, "y" upright, "z" north-south)
+    from a0 to a1 in `cell`: VANILLA_CHUTE's walls, its section, wall thickness, place in the block and
+    texture exactly, so a chute placed beyond meets it with no gap or step. Named for the side each wall
+    faces."""
+    o = [cell[k] * B for k in range(3)]
     out = []
-    if axis == "y":
+    if axis == "x":
+        # east-west ("we"): the game's shape as it is, over (y, z)
+        for (y0, y1, z0, z1), side in zip(VANILLA_CHUTE["walls"], ("n", "s", "bottom", "top")):
+            out.append(box([a0, o[1] + y0, o[2] + z0], [a1, o[1] + y1, o[2] + z1], f"{name}_{side}", part, "chute"))
+    elif axis == "y":
         # upright ("ud"): the "we" shape turned about z, its y becoming x (mirrored, which the square
         # section does not mind) and its z staying z
         for (y0, y1, z0, z1), side in zip(VANILLA_CHUTE["walls"], ("n", "s", "e", "w")):
-            out.append(box([16.0 - y1, a0, z0], [16.0 - y0, a1, z1], f"{name}_{side}", part, "chute"))
+            out.append(box([o[0] + 16.0 - y1, a0, o[2] + z0], [o[0] + 16.0 - y0, a1, o[2] + z1], f"{name}_{side}", part, "chute"))
     else:
         # north-south ("ns"): the "we" shape turned about y, its z becoming x (mirrored) and its y staying y
         for (y0, y1, z0, z1), side in zip(VANILLA_CHUTE["walls"], ("e", "w", "bottom", "top")):
-            out.append(box([16.0 - z1, y0, a0], [16.0 - z0, y1, a1], f"{name}_{side}", part, "chute"))
+            out.append(box([o[0] + 16.0 - z1, o[1] + y0, a0], [o[0] + 16.0 - z0, o[1] + y1, a1], f"{name}_{side}", part, "chute"))
     return out
 
 
-def chute_profile(els, part, axis):
-    """A chute section's walls, cell-local, across its run (x0, x1, b0, b1, b the other axis across: z for
-    an upright one, y for one running north-south; the machine is one cell wide and high, so both are
-    already cell-local), sorted; with the sets of its walls' near and far ends along the run."""
+ACROSS = {"x": (1, 2), "y": (0, 2), "z": (0, 1)}   # the two axes across a chute along each axis, as its profile lists them
+
+
+def chute_profile(els, part, axis, cell):
+    """A chute section's walls, cell-local, across its run (over ACROSS[axis]), sorted; with the sets of its
+    walls' near and far ends along the run, cell-local."""
     out, near, far = [], set(), set()
-    k = {"y": 1, "z": 2}[axis]
-    b = 2 if axis == "y" else 1
+    k = "xyz".index(axis)
+    a, b = ACROSS[axis]
+    o = [cell[i] * B for i in range(3)]
     for el in els:
         if el.part != part:
             continue
         lo, hi = el.aabb()
-        out.append(tuple(round(v, 4) for v in (lo[0], hi[0], lo[b], hi[b])))
-        near.add(round(lo[k], 4))
-        far.add(round(hi[k], 4))
+        out.append(tuple(round(v, 4) for v in (lo[a] - o[a], hi[a] - o[a], lo[b] - o[b], hi[b] - o[b])))
+        near.add(round(lo[k] - o[k], 4))
+        far.add(round(hi[k] - o[k], 4))
     return sorted(out), near, far
 
 
 def vanilla_profile(axis):
-    """VANILLA_CHUTE's walls as a chute along `axis` has them, over (x, the other axis across), sorted."""
+    """VANILLA_CHUTE's walls as a chute along `axis` has them, over ACROSS[axis], sorted."""
+    if axis == "x":
+        return sorted(VANILLA_CHUTE["walls"])
     if axis == "y":
         return sorted((16.0 - y1, 16.0 - y0, z0, z1) for y0, y1, z0, z1 in VANILLA_CHUTE["walls"])
     return sorted((16.0 - z1, 16.0 - z0, y0, y1) for y0, y1, z0, z1 in VANILLA_CHUTE["walls"])
@@ -294,8 +331,8 @@ def read_vanilla_chute():
 # ---------------------------------------------------------------- builders: the frame
 def trestle(zc, xs, beam_top, leg_top, name):
     """A trestle across the machine at z zc: two oak legs from the ground, their inner faces on x = xs[0]
-    and xs[1] (the box they carry, which they rise beside to `leg_top`), and a cross beam under the box, its
-    top at `beam_top`, mortised through the legs to their middles."""
+    and xs[1] (the box they carry, which they rise beside to `leg_top`), and a cross beam under it, its top
+    at `beam_top`, mortised through the legs to their middles."""
     f = "frame"
     w0, w1 = xs[0] - LEG, xs[1] + LEG
     return [box([w0, 0.0, zc - LEG / 2], [xs[0], leg_top, zc + LEG / 2], f"{name}_legw", f, "oak"),
@@ -303,64 +340,119 @@ def trestle(zc, xs, beam_top, leg_top, name):
             box([w0 + LEG / 2, beam_top - BEAM_H, zc - BEAM_D / 2], [w1 - LEG / 2, beam_top, zc + BEAM_D / 2], f"{name}_beam", f, "oak")]
 
 
+def riser_span():
+    """The riser's outside across (x0, x1, z0, z1): the pipe turned up through the head box's floor."""
+    return (WATER_IN[0] - PIPE_HALF, WATER_IN[0] + PIPE_HALF, RISER_Z - PIPE_HALF, RISER_Z + PIPE_HALF)
+
+
 def build_head_box():
-    """The head box: a plank box round the infeed chute's mouth, open at the top, on two trestles. Its north
-    wall is pierced by the water inlet; its south wall stops at the sill (the sluice's head floor) across
-    the channel, so the pulp and water in it overflow onto the sluice. Its floor lies 2 under the sill: the
-    pool the ore falls into and the water stirs."""
+    """The head box: a plank box round the infeed chute's mouth, open at the top, standing on two bearers
+    along its sides, each mortised into two corner legs that rise beside its walls; the water pipe runs in
+    under it, between the bearers, and turns up through its floor. Its south wall stops at the sill (the
+    sluice's head floor) across the channel, so the pulp and water in it overflow onto the sluice. Its floor
+    lies a voxel under the sill: the pool the ore falls into and the water stirs."""
     f = "frame"
     x0, x1 = HB_X
     z0, z1 = HB_Z
     y0, y1 = HB_Y
     t = HB_T
-    px0, px1 = WATER_IN[0] - PIPE_HALF, WATER_IN[0] + PIPE_HALF
-    py1 = WATER_IN[1] + PIPE_HALF
-    out = [box([x0 + t, y0, z0 + t], [x1 - t, HB_FLOOR, z1 - t], "fr_hb_floor", f, "planks", along_z=True),
+    rx0, rx1, rz0, rz1 = riser_span()
+    out = [# the floor, round the riser
+           box([x0 + t, y0, z0 + t], [rx0, HB_FLOOR, z1 - t], "fr_hb_floor_w", f, "planks", along_z=True),
+           box([rx1, y0, z0 + t], [x1 - t, HB_FLOOR, z1 - t], "fr_hb_floor_e", f, "planks", along_z=True),
+           box([rx0, y0, rz1], [rx1, HB_FLOOR, z1 - t], "fr_hb_floor_s", f, "planks", along_z=True),
            box([x0, y0, z0 + t], [x0 + t, y1, z1 - t], "fr_hb_wall_w", f, "planks", along_z=True),
            box([x1 - t, y0, z0 + t], [x1, y1, z1 - t], "fr_hb_wall_e", f, "planks", along_z=True),
-           # the north wall, round the inlet (the pipe's bottom is the box's)
-           box([x0, y0, z0], [px0, y1, z0 + t], "fr_hb_wall_nw", f, "planks"),
-           box([px1, y0, z0], [x1, y1, z0 + t], "fr_hb_wall_ne", f, "planks"),
-           box([px0, py1, z0], [px1, y1, z0 + t], "fr_hb_wall_nt", f, "planks"),
+           box([x0, y0, z0], [x1, y1, z0 + t], "fr_hb_wall_n", f, "planks"),
            # the south wall: full height beside the channel, the sill across it
            box([x0, y0, z1 - t], [HB_NOTCH[0], y1, z1], "fr_hb_wall_sw", f, "planks"),
            box([HB_NOTCH[1], y0, z1 - t], [x1, y1, z1], "fr_hb_wall_se", f, "planks"),
            box([HB_NOTCH[0], y0, z1 - t], [HB_NOTCH[1], SL_HEAD_Y, z1], "fr_hb_sill", f, "planks")]
-    for i, zc in enumerate(HB_TRESTLES_Z, 1):
-        out += trestle(zc, HB_X, y0, HB_LEG_TOP, f"fr_hb_trestle{i}")
+    legs_x = ((x0 - LEG, x0, "w"), (x1, x1 + LEG, "e"))
+    legs_z = ((z0, z0 + LEG, "n"), (z1 - LEG, z1, "s"))
+    for lx0, lx1, sx in legs_x:
+        for lz0, lz1, sz in legs_z:
+            out.append(box([lx0, 0.0, lz0], [lx1, HB_LEG_TOP, lz1], f"fr_hb_leg_{sz}{sx}", f, "oak"))
+    # the bearers, along z under the side walls, mortised into the legs to their middles: clear of the pipe
+    for bx0, bx1, sx in ((x0 - LEG / 2, rx0 - 0.4, "w"), (rx1 + 0.4, x1 + LEG / 2, "e")):
+        out.append(box([bx0, y0 - BEAM_H, z0 + LEG / 2], [bx1, y0, z1 - LEG / 2], f"fr_hb_bearer_{sx}", f, "oak"))
     return out
+
+
+def slot_spans():
+    """Each draw slot's (s from, s to) along the floor: right behind riffles 1..6."""
+    rz = riffle_zs()
+    return [(s_at(rz[i][1]), s_at(rz[i][1]) + SLOT) for i in range(RIFFLE_N - 1)]
 
 
 def build_sluice():
     """The sluice box: a plank floor between two plank sides, falling 1 in 12 from the head box's sill to
-    the tailings chute's mouth, in two boards' lengths butted at SL_SPLIT_Z; on two trestles whose legs
-    rise beside its sides. Every piece's ends are cut square to the slope: at the head its top corner meets
-    the head box's south wall (the rest of the end runs into the wall), at the tail its bottom corner meets
-    the chute's mouth (the rest runs into the chute's walls), so neither end shows a gap."""
+    the tailings chute's mouth; the floor in lengths between the draw slots, the sides in three boards'
+    lengths butted over the two trestles, whose legs rise beside them. Every piece's ends are cut square to
+    the slope: at the head its top corner meets the head box's south wall (the rest of the end runs into the
+    wall), at the tail its bottom corner meets the chute's mouth (the rest runs into the chute's walls), so
+    neither end shows a gap."""
     f = "frame"
-    s_mid = s_at(SL_SPLIT_Z)
     floor0 = s_end_at(SL_Z[0], 0.0)
     floor1 = s_end_at(SL_Z[1], -SL_FLOOR_T)
     side0 = s_end_at(SL_Z[0], SL_SIDE_H)
     side1 = s_end_at(SL_Z[1], -SL_FLOOR_T)
     xw, xe = (SL_IN[0] - SL_SIDE_T, SL_IN[0]), (SL_IN[1], SL_IN[1] + SL_SIDE_T)
     pieces = []
-    for i, (a, b) in enumerate(((floor0, s_mid), (s_mid, floor1)), 1):
-        pieces.append((a, b, -SL_FLOOR_T, 0.0, SL_IN[0], SL_IN[1], f"fr_sl_floor{i}", "planks"))
-    for i, (a, b) in enumerate(((side0, s_mid), (s_mid, side1)), 1):
+    edges = [floor0] + [v for a, b in slot_spans() for v in (a, b)] + [floor1]
+    for i in range(0, len(edges), 2):
+        pieces.append((edges[i], edges[i + 1], -SL_FLOOR_T, 0.0, SL_IN[0], SL_IN[1], f"fr_sl_floor{i // 2 + 1}", "planks"))
+    joints = [side0] + [s_at(z) for z in SL_SPLITS] + [side1]
+    for i, (a, b) in enumerate(zip(joints, joints[1:]), 1):
         pieces.append((a, b, -SL_FLOOR_T, SL_SIDE_H, *xw, f"fr_sl_side_w{i}", "planks"))
         pieces.append((a, b, -SL_FLOOR_T, SL_SIDE_H, *xe, f"fr_sl_side_e{i}", "planks"))
     out = sloped(pieces, f)
     xs = (xw[0], xe[1])
     for i, zc in enumerate(SL_TRESTLES_Z, 1):
-        top = under_slope(zc - BEAM_D / 2, zc + BEAM_D / 2)
+        top = under_slope(zc - BEAM_D / 2, zc + BEAM_D / 2, LD_H[0])
         leg_top = sl_floor(zc + LEG / 2) + SL_SIDE_H - SL_LEG_DROP
         out += trestle(zc, xs, top, leg_top, f"fr_sl_trestle{i}")
     return out
 
 
+def build_launder():
+    """The concentrate launder: a closed plank trough slung under the sluice's floor at its grade, its sides
+    under the sluice's sides and its inside the channel's width, so each draw slot drops straight into it;
+    closed at its head, open at its end over the concentrate box. Two boards' lengths."""
+    f = "frame"
+    s0, s1 = s_at(LD_Z[0]), s_at(LD_Z[1])
+    sm = s_at(LD_SPLIT_Z)
+    bottom, top = LD_H
+    pieces = []
+    for i, (a, b) in enumerate(((s0, sm), (sm, s1)), 1):
+        pieces.append((a, b, bottom, bottom + LD_T, SL_IN[0], SL_IN[1], f"fr_ld_floor{i}", "planks"))
+        pieces.append((a, b, bottom, top, LD_OUT[0], SL_IN[0], f"fr_ld_side_w{i}", "planks"))
+        pieces.append((a, b, bottom, top, SL_IN[1], LD_OUT[1], f"fr_ld_side_e{i}", "planks"))
+    pieces.append((s0, s0 + LD_T, bottom + LD_T, top, SL_IN[0], SL_IN[1], "fr_ld_head", "planks"))
+    return sloped(pieces, f)
+
+
+def build_conc_box():
+    """The concentrate box under the tail: a plank box the concentrate chute's bore wide, open on its west
+    side into the chute, its floor the chute's bore floor; the launder pours into it over its north wall.
+    Its south wall rises to the sluice's floor, closing the tailings chute's mouth under the lip. On two
+    oak sleepers."""
+    f = "frame"
+    x0, x1 = CB_X
+    z0, z1 = CB_Z
+    y0, t = CB_Y0, CB_T
+    south_top = under_slope(z1 - t, z1, -SL_FLOOR_T)
+    out = [box([x0, y0, z0 + t], [x1 - t, y0 + t, z1 - t], "fr_cb_floor", f, "planks"),
+           box([x0, y0, z0], [x1, CB_TOP, z0 + t], "fr_cb_wall_n", f, "planks"),
+           box([x1 - t, y0, z0 + t], [x1, CB_TOP, z1 - t], "fr_cb_wall_e", f, "planks", along_z=True),
+           box([x0, y0, z1 - t], [x1, south_top, z1], "fr_cb_wall_s", f, "planks")]
+    for i, (a, b) in enumerate(CB_SLEEPERS_Z, 1):
+        out.append(box([CB_SLEEPER_X[0], 0.0, a], [CB_SLEEPER_X[1], y0, b], f"fr_cb_sleeper{i}", f, "oak"))
+    return out
+
+
 def build_frame():
-    return build_head_box() + build_sluice()
+    return build_head_box() + build_sluice() + build_launder() + build_conc_box()
 
 
 # ---------------------------------------------------------------- builders: the fitted parts
@@ -371,7 +463,7 @@ def riffle_zs():
 
 def build_riffles():
     """The riffles (`riffles`): seven oak bars across the channel, standing on the floor square to the
-    slope, each faced on top with a strap of iron that overhangs its downstream face."""
+    slope, each faced on top with a strap of iron that overhangs its downstream face, over its draw slot."""
     p = "riffles"
     pieces = []
     for i, (zu, zd) in enumerate(riffle_zs(), 1):
@@ -383,62 +475,88 @@ def build_riffles():
 
 def pockets():
     """Each pocket's (s from, s to): behind riffle i (its downstream face) up to riffle i + 1 (its upstream
-    face), six of them."""
+    face), six of them, each over its draw slot."""
     rz = riffle_zs()
     return [(s_at(rz[i][1]), s_at(rz[i + 1][0])) for i in range(RIFFLE_N - 1)]
 
 
-def deposit_pieces(state):
-    """The concentrate in one state, as sloped pieces: per pocket, by how full it is (FILL), a deposit
-    against the riffle's downstream face. Full, one block of sand filling the pocket to CONC_FULL, into the
-    riffles at both ends; part full, a wedge in two steps, deepest against the riffle: a lower layer most of
-    the way along and a deeper half as long. Each runs a hair into the floor and the sides (and the riffle),
-    so no gap shows; the two steps' hidden faces are staggered so none shares a plane."""
+def bed_pieces():
+    """The concentrate's bed in each pocket while the sluice runs: a wedge in two steps against the riffle,
+    over its draw slot, deepest against the riffle: a lower layer most of the way along and a deeper one half
+    as long (and over the whole slot). Each runs a hair into the floor and the sides (and the riffle), so no gap shows; the two steps'
+    hidden faces are staggered so none shares a plane."""
     out = []
-    for i, ((a, b), f) in enumerate(zip(pockets(), FILL[state]), 1):
-        if f <= 0:
-            continue
-        name = f"conc{state}_pocket{i}"
-        if f >= 1:
-            out.append((a - CONC_IN, b + CONC_IN, -CONC_IN, CONC_FULL, SL_IN[0] - CONC_IN, SL_IN[1] + CONC_IN, name, "concentrate"))
-            continue
+    for i, ((a, b), f) in enumerate(zip(pockets(), BED), 1):
+        name = f"conc_pocket{i}"
         length = (b - a) * (0.3 + 0.7 * f)
         lo = CONC_IN + 0.01
         out.append((a - lo, a + length, -lo, CONC_FULL * f * 0.5, SL_IN[0] - lo, SL_IN[1] + lo, f"{name}a", "concentrate"))
-        out.append((a - CONC_IN, a + length * 0.5, -CONC_IN, CONC_FULL * f, SL_IN[0] - CONC_IN, SL_IN[1] + CONC_IN, f"{name}b", "concentrate"))
+        deep = max(length * 0.5, SLOT + 0.15)     # the deeper step covers the draw slot under it
+        out.append((a - CONC_IN, a + deep, -CONC_IN, CONC_FULL * f, SL_IN[0] - CONC_IN, SL_IN[1] + CONC_IN, f"{name}b", "concentrate"))
+    return out
+
+
+def stream_pieces():
+    """The concentrate drawn off: through each slot and down onto the launder's floor (a sheet the slot's
+    length, a hair narrower than the channel), and the layer running down the launder's floor to its end."""
+    out = []
+    floor_top = LD_H[0] + LD_T
+    for i, (a, b) in enumerate(slot_spans(), 1):
+        out.append((a + 0.02, b - 0.02, floor_top - 0.02, 0.0, SL_IN[0] + 0.1, SL_IN[1] - 0.1, f"conc_slot{i}", "concentrate"))
+    s0, s1 = s_at(LD_Z[0]) + LD_T, s_at(LD_Z[1])
+    sm = s_at(LD_SPLIT_Z) + 1.5                  # its two lengths butted away from the launder's boards' joint
+    for i, (a, b) in enumerate(((s0, sm), (sm, s1 - 0.02)), 1):
+        out.append((a, b, floor_top - 0.03, floor_top + CONC_LAYER, SL_IN[0] - 0.04, SL_IN[1] + 0.04, f"conc_launder{i}", "concentrate"))
     return out
 
 
 def build_concentrate():
-    out = []
-    for k in STATES:
-        out += sloped(deposit_pieces(k), f"concentrate{k}")
+    """The concentrate (`concentrate`), drawn while the sluice runs: the beds behind the riffles, the sheets
+    falling through the slots, the layer down the launder and the concentrate lying in the box, running out
+    into the chute."""
+    out = sloped(bed_pieces() + stream_pieces(), "concentrate")
+    x0, x1 = CB_X
+    z0, z1 = CB_Z
+    top = CB_Y0 + CB_T
+    out.append(box([x0 + 0.2, top - 0.03, z0 + CB_T - 0.04], [x1 - CB_T + 0.04, top + CONC_LAYER, z1 - CB_T + 0.04], "conc_box", "concentrate",
+                   "concentrate"))
     return out
 
 
 def build_chutes():
     """The infeed (`infeedchute`): vanilla's straight chute, upright, from the head cell's top face down into
     the head box, held by the box's walls round it. The tailings chute (`tailingschute`): the same section
-    running south from the sluice's tail to the tail cell's end face."""
+    running south from the sluice's tail to the tail cell's south face. The concentrate chute
+    (`concentratechute`): the same section running west from the concentrate box's open side to the tail
+    cell's west face."""
     top = (INFEED_CELL[1] + 1) * B
     end = (TAILINGS_CELL[2] + 1) * B
-    return (chute_walls("y", CHUTE_IN_Y0, top, "infeedchute", "infeedchute")
-            + chute_walls("z", CHUTE_OUT_Z0, end, "tailingschute", "tailingschute"))
+    return (chute_walls("y", CHUTE_IN_Y0, top, INFEED_CELL, "infeedchute", "infeedchute")
+            + chute_walls("z", CHUTE_OUT_Z0, end, TAILINGS_CELL, "tailingschute", "tailingschute")
+            + chute_walls("x", CONC_CELL[0] * B, CHUTE_CONC_X1, CONC_CELL, "concentratechute", "concentratechute"))
 
 
 def pipe_boxes():
     """The water inlet as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels): a straight
-    length from the water face, on the axis of the ppex pipe beyond it, through the head box's north wall;
-    on its end inside the box a reducer plate standing on the box's floor and a nozzle in two steps from its
-    middle, pointing down the sluice. As in the rosser's drip, the inlet has no joint at the face: the pipe
-    beyond brings its own."""
+    length from the water face, on the axis of the ppex pipe beyond it, south under the head box between its
+    bearers, to a bend (a hub, as UnifiedPipes' soldered bend) that turns it up through the box's floor; on
+    the riser's end, on the floor, a reducer plate and the nozzle in two steps from its middle, pointing up
+    into the pool. As in the rosser's drip, the inlet has no joint at the face: the pipe beyond brings its own."""
     x, y = WATER_IN
-    out = solderedpipe.tube("inlet", 2, 0.0, NOZZLE_CAP[0], (x, y))
-    out.append(solderedpipe.Box("reducer", [x - PIPE_HALF, HB_FLOOR, NOZZLE_CAP[0]], [x + PIPE_HALF, y + PIPE_HALF, NOZZLE_CAP[1]],
-                                solderedpipe.BODY))
-    for i, (a0, a1, z0, z1) in enumerate(NOZZLE, 1):
-        out.append(solderedpipe.Box(f"nozzle{i}", [a0, a0 - x + y, z0], [a1, a1 - x + y, z1], solderedpipe.BODY))
+    h = PIPE_HALF
+    out = solderedpipe.tube("inlet", 2, 0.0, RISER_Z - h, (x, y))
+    out += solderedpipe.hub("bend", (x, y, RISER_Z), ("north", "up"))
+    out += solderedpipe.tube("riser", 1, y + h, HB_FLOOR, (x, RISER_Z))
+    out.append(solderedpipe.Box("reducer", [x - h, HB_FLOOR, RISER_Z - h], [x + h, HB_FLOOR + REDUCER_T, RISER_Z + h], solderedpipe.BODY))
+    y0 = HB_FLOOR + REDUCER_T
+    for i, (half, height) in enumerate(NOZZLE, 1):
+        out.append(solderedpipe.Box(f"nozzle{i}", [x - half, y0, RISER_Z - half], [x + half, y0 + height, RISER_Z + half], solderedpipe.BODY))
+        y0 += height
     return solderedpipe.cull_pressed(out)
+
+
+def nozzle_mouth():
+    return HB_FLOOR + REDUCER_T + sum(hh for _, hh in NOZZLE)
 
 
 def build_pipes(metal_=PIPE_METALS[0]):
@@ -494,13 +612,15 @@ def rig_parts():
     return copy.deepcopy(_PARTS)
 
 
+CHUTES = ("infeedchute", "tailingschute", "concentratechute")
+
+
 def _rig_parts():
     parts = [
-        # nothing moves: every part is fitted or drawn by state, with no driver
+        # nothing moves: every part is fitted, or drawn while the sluice runs, with no driver
         {"id": "riffles", "match": ["riffle_*"], "requires": "riffles", "drivers": []},
-        *[{"id": f"concentrate{k}", "match": [f"conc{k}_*"], "requires": f"concentrate{k}", "drivers": []} for k in STATES],
-        {"id": "infeedchute", "match": ["infeedchute_*"], "requires": "infeedchute", "drivers": []},
-        {"id": "tailingschute", "match": ["tailingschute_*"], "requires": "tailingschute", "drivers": []},
+        {"id": "concentrate", "match": ["conc_*"], "requires": "concentrate", "drivers": []},
+        *[{"id": c, "match": [f"{c}_*"], "requires": c, "drivers": []} for c in CHUTES],
         # the water inlet, one part per metal: only the supplied metal's is drawn
         *[{"id": pid, "match": [f"{pid}_*"], "requires": pid, "drivers": []} for pid in PIPES],
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
@@ -513,10 +633,10 @@ def _rig_parts():
 
 
 # ---------------------------------------------------------------- poses: what is shown
-# A pose is (concentrate state, pipe metal): the state 0 (empty) .. 3 (full), the metal's pipe part drawn.
-# Nothing moves, so a pose only says which parts show; every part's matrix is the identity.
+# A pose is (concentrate shown 0 or 1, pipe part): nothing moves, so a pose only says which parts show; every
+# part's matrix is the identity.
 REST = (0, PIPES[0])
-POSES = tuple((k, pid) for k in (0, *STATES) for pid in PIPES)
+POSES = tuple((k, pid) for k in (0, 1) for pid in PIPES)
 
 
 def inputs_of(pose):
@@ -528,10 +648,10 @@ def pm(parts, pid, pose):
 
 
 def on_show(part, pose):
-    """Whether a part shows in a pose: each concentrate state only as itself, each pipe metal only as itself."""
-    state, pipe = pose
-    if part.startswith("concentrate"):
-        return int(part[len("concentrate"):]) == state
+    """Whether a part shows in a pose: the concentrate only while it runs, each pipe metal only as itself."""
+    shown, pipe = pose
+    if part == "concentrate":
+        return bool(shown)
     if part in PIPES:
         return part == pipe
     return True
@@ -542,24 +662,25 @@ def footprint():
     return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
 
 
-POINTS = ("feedSpout", "waterSpout", "concentrate")
+POINTS = ("feedSpout", "waterSpout", "concentrateSpout")
+FACE_ANCHORS = ("infeed", "water", "tailings", "concentrate")
 
 
-def riffled_middle():
-    rz = riffle_zs()
-    return (rz[0][0] + rz[-1][1]) / 2
+def launder_lip():
+    """The launder's floor's top at its open end, over the concentrate box (build frame)."""
+    return slope_point(s_at(LD_Z[1]), LD_H[0] + LD_T)
 
 
 def make_rig(parts):
-    zc = riffled_middle()
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, the controller [0,0,0]: the head cell, nearest the "
                     "player; the sluice runs south from it, three blocks. Nothing moves: no power cell, no work, no driver. "
                     "infeedCell/infeedFace: a vanilla chute from above meets the infeed section; waterCell/waterFace: a ppex "
-                    "pipe meets the water inlet; tailingsCell/tailingsFace: the tailings chute leaves the tail. feedSpout is "
-                    "where the ore falls into the head box, waterSpout the nozzle's mouth, concentrate the middle of the "
-                    "riffles (clean-up). fill lists the concentrate's states, emptiest first: one is drawn at a time, or none. "
-                    "See the sluice's README for the schema.",
+                    "pipe meets the water inlet; tailingsCell/tailingsFace: the tailings chute leaves the tail; "
+                    "concentrateCell/concentrateFace: the concentrate chute leaves the concentrate box, which the launder under "
+                    "the riffles fills through their draw slots as the sluice runs. feedSpout is where the ore falls into the "
+                    "head box, waterSpout the nozzle's mouth, concentrateSpout where the launder pours into the concentrate "
+                    "box. See the sluice's README for the schema.",
         "cells": [],
         "infeedCell": list(INFEED_CELL),
         "infeedFace": INFEED_FACE,
@@ -567,13 +688,11 @@ def make_rig(parts):
         "waterFace": WATER_FACE,
         "tailingsCell": list(TAILINGS_CELL),
         "tailingsFace": TAILINGS_FACE,
+        "concentrateCell": list(CONC_CELL),
+        "concentrateFace": CONC_FACE,
         "feedSpout": {"pos": pt(CX, CHUTE_IN_Y0, (HB_Z[0] + HB_Z[1]) / 2)},
-        "waterSpout": {"pos": pt(CX, WATER_IN[1], NOZZLE[-1][3])},
-        "concentrate": {"pos": pt(CX, sl_floor(zc), zc)},
-        "fill": {"requires": [f"concentrate{k}" for k in STATES],
-                 "_comment": "The concentrate held behind the riffles, one state drawn at a time by how full they are: "
-                             "concentrate1 the head pockets part full, concentrate2 most of them, concentrate3 every "
-                             "pocket brimming (full: the sluice passes everything on until it is cleaned up)."},
+        "waterSpout": {"pos": pt(CX, nozzle_mouth(), RISER_Z)},
+        "concentrateSpout": {"pos": pt(*launder_lip())},
         "parts": parts,
     }
 
@@ -588,8 +707,8 @@ def shipped(els, parts, rig):
     translate(ship_els, d)
     ship_parts = copy.deepcopy(parts)
     ship = copy.deepcopy(rig)
-    for key in ("infeedCell", "waterCell", "tailingsCell"):
-        ship[key] = shift_cell(rig[key], ORIGIN_CELL)
+    for key in FACE_ANCHORS:
+        ship[key + "Cell"] = shift_cell(rig[key + "Cell"], ORIGIN_CELL)
     for key in POINTS:
         ship[key] = {"pos": shift_point(rig[key]["pos"], db)}
     ship["parts"] = ship_parts
@@ -631,15 +750,16 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
 def shape_json(els):
     return machine_shape_json(
         els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. The frame (fr_*: the head box, "
-             "the sluice box, the trestles) and the fitted parts (riffle_*: the riffles; infeedchute_* / tailingschute_*: "
-             "vanilla's chute section, in and out; pipecopper_* / pipelead_*: the water inlet in each metal) and the "
-             "concentrate in three states (conc1_* .. conc3_*). The concentrate's texture code is 'concentrate', so a "
-             "renderer can set it to the ore's. Keep element names when editing: the rig finds its parts by them.",
+             "the sluice box, the concentrate launder under it, the concentrate box, the trestles), the fitted parts "
+             "(riffle_*: the riffles; infeedchute_* / tailingschute_* / concentratechute_*: vanilla's chute section, in and "
+             "the two outputs; pipecopper_* / pipelead_*: the water inlet in each metal) and the concentrate drawn while the "
+             "sluice runs (conc_*). The concentrate's texture code is 'concentrate', so a renderer can set it to the ore's. "
+             "Keep element names when editing: the rig finds its parts by them.",
         TEXTURES, tex_size=TEX)
 
 
 def coplanar_poses():
-    return POSES[::2]                        # each state, with the copper pipe (lead is the same elements)
+    return POSES[::2]                        # with and without the concentrate, the copper pipe (lead is the same elements)
 
 
 def shown(posed_els, pose):
