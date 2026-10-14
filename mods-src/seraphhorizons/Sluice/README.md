@@ -22,27 +22,32 @@ rosser's drip is.
 part, or the concentrate drawn while the sluice runs. Its services are water (a ppex pipe) and chutes (vanilla's
 copper chute: one in, two out).
 
-**Footprint.** 1 wide (x) × 1 high (y) × 3 long (z): cells `[0,0,0]`, `[0,0,1]`, `[0,0,2]`. The controller is
-the **head cell**, `[0,0,0]`, nearest the player; the sluice runs away from them, south (+z), and falls that way.
+**Footprint.** 1 wide (x) × 1 high (y) × 4 long (z): cells `[0,0,0]` to `[0,0,3]`. The controller is the
+**head cell**, `[0,0,0]`, nearest the player; the sluice runs away from them, south (+z), and falls that way.
 Each dimension is what has to fit: one block high, because the infeed chute comes down into the head from above,
 the water pipe comes in under the head box at its face's centre (y 5..11), and the sluice's floor runs from the
-head box's sill (y 13) at 1 in 12 to its lip (y 10.42) in the tailings chute's mouth (bore y 5..11), which leaves
-room under the floor for the concentrate launder and, under the tail, for the concentrate box at the concentrate
-chute's height (bore floor y 5); one wide, because the channel is the chute's bore; three long, for the head box
-(10), the riffled run (31) and the two output chutes at the tail (8).
+head box's sill (y 13) at 1 in 12 to its lip (y 9.08) in the tailings chute's mouth (bore y 5..11), which leaves
+room under the riffles for the concentrate launder and, under its end, for the upright concentrate chute (y 0..7);
+one wide, because the channel is the chute's bore; four long (the owner's review, from three), so that the two
+products leave by **different cells and faces**: the head box (cell 0), the riffles over cells 1 and 2 with the
+concentrate's way out under them and down out of cell 2's bottom face, and cell 3 a plain run-off to the tailings
+chute in its south face.
 
 **The flow.** Ore (crushed or ground rock, or placer gravel) comes down a vanilla chute into the head cell's top
 face and falls into the **head box**, where the water comes up through the box's floor from a nozzle; the pulp
 overflows the box's **sill** onto the sluice and runs down over the seven **riffles**. Two streams leave:
 
-- **The concentrate.** The heavy grains settle behind riffles 1 to 6 and drop, as they settle, through a **draw
+- **The concentrate.** The heavy grains settle behind the riffles and drop, as they settle, through a **draw
   slot** in the floor right behind each riffle into the **concentrate launder** slung under the floor, which falls
-  with the sluice to the **concentrate box** under the tail; the box opens into the **concentrate chute**, flush
-  with the tail cell's **west** face.
-- **The tailings** run off the tail's lip into the **tailings chute**, flush with the tail cell's **south** face.
+  with the sluice and, just past the last riffle, pours off its open end **straight down** into the **concentrate
+  chute**, a vanilla chute section standing upright in cell 2 from its **bottom** face: the concentrate leaves into
+  a chute (or a container) in the block below.
+- **The tailings** run on over cell 3's plain floor and off the tail's lip into the **tailings chute**, flush with
+  the tail cell's **south** face.
 
-So a chute line to the jig (#919, on the tailings) runs on south from the tail, and the concentrate's chute leaves
-sideways, west, clear of it; neither crosses the other, and either can turn as the player lays it.
+The two ways are visibly apart: the concentrate goes through the floor and down, under the riffles; the tailings
+go over the floor and out of the far end, a block further on. A chute line to the jig (#919, on the tailings) runs
+on south from the tail; the concentrate's chute goes down from the middle, under the sluice, clear of it.
 
 **Anchors** (in `assets/seraphhorizons/config/sluice-rig.json`; all provisional pending #711, the shared chute and
 water code):
@@ -51,27 +56,27 @@ water code):
 |---|---|---|
 | `infeedCell`, `infeedFace` | `[0,0,0]`, `up` | A vanilla chute from above meets the infeed section, centred in the face and flush with it |
 | `waterCell`, `waterFace` | `[0,0,0]`, `north` | A ppex pipe meets the water inlet, end to end, on the face's centre (ppex's pipe is its block's 5..11) |
-| `tailingsCell`, `tailingsFace` | `[0,0,2]`, `south` | The tailings chute leaves the tail: chuted on, the tailings go to the next machine (the jig); else they are discarded beyond this face (#694: gravel, a layer a rock) |
-| `concentrateCell`, `concentrateFace` | `[0,0,2]`, `west` | The concentrate chute leaves the concentrate box, continuously, while the sluice runs |
+| `tailingsCell`, `tailingsFace` | `[0,0,3]`, `south` | The tailings chute leaves the tail: chuted on, the tailings go to the next machine (the jig); else they are discarded beyond this face (#694: gravel, a layer a rock) |
+| `concentrateCell`, `concentrateFace` | `[0,0,2]`, `down` | The concentrate chute leaves through the bottom face, continuously, while the sluice runs: a vanilla chute (or a container) in the block below takes it |
 | `feedSpout.pos` | `[0.5, 0.906, 0.5]` | Where the ore falls into the head box (the infeed chute's mouth): particles, sound |
 | `waterSpout.pos` | `[0.5, 0.806, 0.4375]` | The nozzle's mouth, in the pool: splash |
-| `concentrateSpout.pos` | `[0.5, 0.505, 2.549]` | Where the launder pours into the concentrate box: particles, sound |
+| `concentrateSpout.pos` | `[0.5, 0.512, 2.4615]` | Where the launder pours down into the concentrate chute: particles, sound |
 
 There is no `powerCell`, `powerFace`, `infeedSide`, `outputSide` or work, no return-water anchor (the water is used
 up, #694), and no hand clean-up point.
 
 **Fitted parts** (the rig's `requires`). Everything with `requires` null is the frame (`sluice_frame.json`): the
-head box with its legs and bearers, the sluice box, the concentrate launder, the concentrate box with its sleepers,
-and the two trestles.
+head box with its legs and bearers, the sluice box and its tail board, the concentrate launder, and the three
+trestles.
 
 | `requires` | Part | Draws |
 |---|---|---|
 | `riffles` | `riffles` | The seven riffles: oak bars across the channel, each faced with strap iron |
 | `infeedchute` | `infeedchute` | Vanilla's straight chute section, upright, from the head cell's top face into the head box |
 | `tailingschute` | `tailingschute` | Vanilla's straight chute section, from the tail into the tail cell's south face |
-| `concentratechute` | `concentratechute` | Vanilla's straight chute section, from the concentrate box into the tail cell's west face |
+| `concentratechute` | `concentratechute` | Vanilla's straight chute section, upright, from cell 2's bottom face up to its open top under the launder's end |
 | `pipecopper`, `pipelead` | `pipecopper`, `pipelead` | The water inlet, its riser and nozzle, soldered, in copper or in lead: the same elements, one drawn |
-| `concentrate` | `concentrate` | The concentrate while the sluice runs: a bed behind each riffle over its slot, a sheet falling through each slot, a layer running down the launder and lying in the box |
+| `concentrate` | `concentrate` | The concentrate while the sluice runs: a bed behind each riffle over its slot, a sheet falling through each slot, a layer running down the launder and a stream falling off its end down the concentrate chute |
 
 The build stages (what the frame is made of, what each stage takes) are not designed yet: the ids split the
 sluice where a stage could, and the stages are worked out with the owner afterwards (`Open for the owner`).
@@ -88,9 +93,9 @@ code `concentrate` so a renderer can set it to the ore's look. `tools/make_shape
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/sluice.json` | The whole sluice: the frame, every fitted part, both pipe metals and the concentrate (132 elements). The renderer splits it into parts by element name. |
-| `assets/seraphhorizons/shapes/block/sluice_frame.json` | The frame only (47 elements). The block draws it and the inventory shows it. |
-| `assets/seraphhorizons/config/sluice-rig.json` | The three cells, the anchors and the part rig (8 parts, none with a driver). |
+| `assets/seraphhorizons/shapes/block/sluice.json` | The whole sluice: the frame, every fitted part, both pipe metals and the concentrate (138 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/sluice_frame.json` | The frame only (50 elements). The block draws it and the inventory shows it. |
+| `assets/seraphhorizons/config/sluice-rig.json` | The four cells, the anchors and the part rig (8 parts, none with a driver). |
 
 There are **no reference poses** (`tests/Sluice/rig-reference.json`): no part has a driver or rides another, so
 every part's matrix is the identity at any input, which the generator's checks, `site/test/sluice.test.ts` and
@@ -120,50 +125,58 @@ on the floor, a **reducer** plate and the **nozzle** in two steps from its middl
 its mouth at y 12.9, in the pool under the sill, where the ore lands. No joint at the face: the pipe beyond brings
 its own, as on the rosser.
 
-**The sluice box** is a plank trough from the head box's south wall (z 13) to the tailings chute's mouth (z 44):
+**The sluice box** is a plank trough from the head box's south wall (z 13) to the tailings chute's mouth (z 60):
 a floor 1 thick between two sides 0.9 thick, standing 2.5 over the floor. The **channel** is 6.1 wide
 (x 4.95..11.05), the chute's 6 bore and a hair: the sides (x 4.05..4.95, 11.05..11.95) run into the tailings
 chute's walls (x 4..5, 11..12) at the tail. The floor falls **1 in 12**, from y 13 at the sill to **y 10.42** at the
-lip, which stands in the tailings chute's mouth, under its bore's top (y 11). The floor is laid in seven lengths
-between the six draw slots; the sides in three boards' lengths, butted at z 23.5 and 34 over the sluice's **two
-trestles**, each a beam under the launder and two legs rising beside the sides to half a voxel under their top.
+lip, which stands in the tailings chute's mouth, under its bore's top (y 11). The floor is laid in lengths between
+the seven draw slots, and cut at the sides' joints past them (ten in all); the sides in four boards' lengths, butted
+at z 27.5, 43.1 and 51.5 over the sluice's **three trestles**, each a beam under what it carries (the launder at the
+first, the floor at the others) mortised into two legs. The first and third trestles' legs rise beside the sides to
+half a voxel under their top; the second is the **outlet trestle** (below). At the tail a plank **tail board**
+(x 4..12, z 59..60) stands on the ground against the tailings chute's mouth, carrying the tail and closing the mouth
+under the lip.
 Every sloped piece is cut square to the slope: at the head its top corner meets the head box's wall (the rest runs
 into the wall), at the tail its bottom corner meets the chute's mouth (the rest runs 0.08 to 0.29 into the chute's
 walls), so neither end shows a gap.
 
-**The riffles.** Seven, every 4 voxels along the floor's top line (upstream faces at z 18, 22, .., 42), leaving 5
-of plain floor at the head for the pulp to spread on and 1 between the last and the lip. Each is an oak bar 1
+**The riffles.** Seven, every 3.5 voxels along the floor's top line (upstream faces at z 16, 19.5, .., 37), over
+cells 1 and 2, leaving 3 of plain floor at the head for the pulp to spread on, and 22 of plain floor past the last,
+over the concentrate chute's cell and the whole tail cell, down which the tailings run off. Each is an oak bar 1
 along the flow and 1.1 high, standing on the floor square to the slope from side to side, faced on top with a strap
 of iron 0.2 thick that overhangs its downstream face by 0.3 (a Hungarian riffle's lip: the wearing surface, and the
 eddy behind it).
 
-**The draw slots.** Right behind each of riffles 1 to 6, a slot 1 long (along the slope) runs through the floor
-across the channel, under the strap's lip: in the lee where the heavy grains settle. The seventh riffle stands at
-the lip and has none.
+**The draw slots.** Right behind every riffle, a slot 1 long (along the slope) runs through the floor across the
+channel, under the strap's lip: in the lee where the heavy grains settle.
 
 **The concentrate launder** is a closed plank trough slung under the sluice's floor at its grade (1 in 12): its
 boards 0.8 thick, its sides under the sluice's sides (x 4.15..4.95, 11.05..11.85) with their tops on the floor's
 underside, its inside the channel's width and 1.6 deep, so each slot drops straight into it. It is closed at its
-head (z 17.8, upstream of the first slot) and open at its end (z 41), over the concentrate box, in two lengths.
+head (z 15.8, upstream of the first slot) and open at its end (its lip y 8.19 at z 39.38), just past the last
+slot, over the concentrate chute's open top, in two lengths.
 
-**The concentrate box** stands under the tail (x 4..12, z 36..44), on two oak sleepers: its floor is the
-concentrate chute's bore floor (y 5) and its inside the bore's width (z 37..43), and it lies **open on its west
-side** into the chute; its north and east walls stop at y 6.8, under the launder, which pours in over the north
-wall; its south wall rises to the sluice's floor, closing the tailings chute's mouth under the lip.
+**The concentrate outlet.** The **concentrate chute** stands upright in cell 2 (x 4..12, z 36..44, its bore x 5..11,
+z 37..43), from the cell's **bottom face** (y 0) up to its open top at y 7, 0.4 under the launder's underside. The
+launder's lip lies over the bore's north half, so what comes off it falls down the bore and out of the bottom face;
+nothing of the machine lies in the bore's column below the launder (a check drops 49 grains over the bore and every
+one leaves by the bottom face). The chute is held between the legs of the **outlet trestle** (z 43.1), which stand
+against its east and west walls (x 2.4..4 and 12..13.6) along their whole height and stop a tenth under their beam,
+which carries the sluice's floor (y 8.0..9.4, over the chute's south wall, clear of the bore where the concentrate
+falls).
 
 **The chutes.** All three sections are vanilla's straight chute exactly (`VANILLA_CHUTE`, salvaged from the
 concentrator's v2 generator: an 8 × 8 tube 1 thick, centred in the block, a 6 × 6 bore, two full-width walls and
 two between them), checked against the game's `shapes/block/metal/chute/straight.json` wherever the game is
 installed: the **infeed** upright (its "ud" variant) from y 16, flush with the head cell's top face, down to y 14.5;
-the **tailings chute** north-south (its "ns" variant) from z 44 to z 48, flush with the tail cell's south face; the
-**concentrate chute** east-west (its "we" variant, the file as it is) from x 0, flush with the tail cell's west face,
-to x 4, the concentrate box's open side.
+the **tailings chute** north-south (its "ns" variant) from z 60 to z 64, flush with the tail cell's south face; the
+**concentrate chute** upright too, from y 0, flush with cell 2's bottom face, to y 7, under the launder's end.
 
-**The concentrate** (drawn while the sluice runs): in each pocket behind riffles 1 to 6, a bed over its slot, a
-wedge in two steps deepest against the riffle, deeper at the head (0.75 to 0.5 of the riffle's height under the
+**The concentrate** (drawn while the sluice runs): in each pocket behind the seven riffles, a bed over its slot, a
+wedge in two steps deepest against the riffle, deeper at the head (0.75 to 0.45 of the riffle's height under the
 strap), the deeper step always over the whole slot; under each slot a sheet falling through it onto the launder's
-floor; a layer running down the launder's floor to its end; and a layer on the box's floor, running out into the
-chute. Each runs a hair into what it lies on and against, so no gap shows.
+floor; a layer running down the launder's floor to its end; and a stream (4 across) falling off the lip down the
+concentrate chute's bore and out of the bottom face. Each runs a hair into what it lies on and against, so no gap shows.
 
 Every part (nothing moves; θ and every other input change nothing):
 
@@ -175,7 +188,7 @@ Every part (nothing moves; θ and every other input change nothing):
 | Tailings chute section (`tailingschute`) [tailingschute] | Static | — | none |
 | Concentrate chute section (`concentratechute`) [concentratechute] | Static | — | none |
 | Water inlet (`pipecopper`, `pipelead`) [the same] | Static: the supplied metal's drawn | — | none |
-| Frame (`frame`): head box, sluice box, launder, concentrate box, legs, bearers, trestles, sleepers | Static | — | none |
+| Frame (`frame`): head box, sluice box, tail board, launder, legs, bearers, trestles | Static | — | none |
 
 There are no gears, shafts or bearings, so no toothed wheel meshes with nothing and no shaft wants carrying.
 
@@ -195,12 +208,12 @@ A full run takes about 2 s and is deterministic (two runs into two folders are b
   has no work and no power cell.
 - **Nothing floats:** the frame is one piece from the ground; each fitted part and the concentrate is held by the
   frame (the concentrate by the frame or a riffle), through its own elements.
-- **Textures** by role: planks for the boxes', the sluice's and the launder's boards, oak for the legs, bearers,
-  trestles, sleepers and the riffles' bars, iron for the straps, `chute` for the three sections, each pipe metal its
+- **Textures** by role: planks for the head box's, the sluice's, the tail board's and the launder's boards, oak for
+  the legs, bearers, trestles and the riffles' bars, iron for the straps, `chute` for the three sections, each pipe metal its
   own, `concentrate` for the concentrate; and no element longer than a texture (16), so none is stretched.
-- **Containment:** nothing leaves the three cells.
+- **Containment:** nothing leaves the four cells.
 - **Chutes:** all three sections vanilla's walls exactly, flush with their faces (the infeed's top at y 16, the
-  tailings chute's end at z 48, the concentrate chute's at x 0), in the chute's texture; `VANILLA_CHUTE` is the game's
+  tailings chute's end at z 64, the concentrate chute's foot at y 0), in the chute's texture; `VANILLA_CHUTE` is the game's
   file, where the game is here; the infeed, water, tailings and concentrate faces all differ.
 - **Water:** the inlet meets a ppex pipe end to end on the water face's centre, ppex's 6 × 6 tube with its 4 × 4
   bore; it runs under the head box (its top on the floor's underside), between the bearers, and its riser comes up
@@ -215,23 +228,29 @@ A full run takes about 2 s and is deterministic (two runs into two folders are b
   the tailings chute's floor.
 - **Riffles:** seven, evenly spaced, each bar on the floor from side to side and square to the slope, its strap on
   its top over its downstream face; 3 or more of plain floor at the head, the last short of the lip.
-- **The concentrate's way out** *(the owner's ruling: by chute, continuously)*: a slot right behind each of riffles 1
-  to 6, through which a grain lands on the launder's floor; the launder falls at 1 in 12, closed upstream of the first
-  slot, and a grain off its lip lands on the concentrate box's floor; the box's floor is the concentrate chute's bore
-  floor, its inside the bore's width, and nothing of the frame closes it from the chute; the beds lie in their pockets
-  over their slots, on the floor, just into the sides, under the straps; a sheet through each slot, the layers in the
-  launder and the box.
-- **Supports:** each beam, bearer and sleeper under what it carries (within 0.02), each leg on the ground beside the
-  box it carries; the sluice sides' joints over the trestles' beams.
+- **The concentrate's way out** *(the owner's rulings: by chute, continuously; out of the bottom, apart from the
+  tailings)*: a slot right behind every riffle, through which a grain lands on the launder's floor; the launder falls
+  at 1 in 12, closed upstream of the first slot and open past the last; a grain off its lip is over the concentrate
+  chute's bore, above its top, and falls out of the bottom face with nothing in its way; a grid of 49 grains over the
+  bore all leave by the bottom face (the outlet is open to a chute below); the chute stands from y 0 up under the
+  launder, clear of it; the concentrate face is `down`, in another cell and face than the tailings', and nothing of
+  the concentrate's way (riffles, launder, chute, concentrate) reaches into the tail cell; the beds lie in their
+  pockets over their slots, on the floor, just into the sides, under the straps; a sheet through each slot, the layer
+  in the launder and the stream down the chute's bore to the bottom face.
+- **Supports:** each beam and bearer under what it carries (within 0.02), each leg on the ground beside the box it
+  carries, the outlet trestle's legs against the concentrate chute's walls along its height, stopping 0.1 under their
+  beam, which lies clear of where the concentrate falls; the tail board on the ground under the tail, against the
+  tailings chute's mouth; the sluice sides' joints over the trestles' beams.
 - **Clearances:** with the concentrate drawn and not, either metal, no two parts touch except the intended contacts
   listed in `ALLOWED` (the riffles and the concentrate on the floor and against the sides, the concentrate in the
-  launder and the box and against the riffles, the infeed in the head box's mouth, the sluice's tail into the
-  tailings chute, the riser up through the head box's floor and the reducer on it).
+  launder and against the riffles, the infeed in the head box's mouth, the sluice's tail into the tailings chute,
+  the concentrate chute between the outlet trestle's legs, the riser up through the head box's floor and the reducer
+  on it).
 - **No z-fighting** (full runs): no coplanar overlapping faces, with the concentrate drawn and not. The model is built
   with none before the fix (the beds' two steps stagger their hidden faces, the sill's notch is a hair wider than the
   channel, the launder's concentrate is butted away from the launder's own joint); the fix only removes the faces
-  pressed against their own part (73).
-- **Files:** every texture declared; three cells, each with boxes and none hollow, no lid (the channel is narrower
+  pressed against their own part (86).
+- **Files:** every texture declared; four cells, each with boxes and none hollow, no lid (the channel is narrower
   than a player, and the boxes are the deck); no power cell, work, sides or `fill`, and no key naming a hand clean-up;
   the point anchors inside the footprint; the shipped model is the checked one (no move).
 
@@ -243,7 +262,7 @@ The amalgam pan's schema (`../AmalgamPan/README.md`, "Rig schema") without even 
 shared rig maths.
 
 - **Inputs.** None. Every part's `drivers` is empty and its `ride` null.
-- **Keys.** `cells` (three, each with its boxes), `infeedCell`/`infeedFace`, `waterCell`/`waterFace`,
+- **Keys.** `cells` (four, each with its boxes), `infeedCell`/`infeedFace`, `waterCell`/`waterFace`,
   `tailingsCell`/`tailingsFace`, `concentrateCell`/`concentrateFace`, the points `feedSpout`, `waterSpout`,
   `concentrateSpout`, and `parts`. `requires` values: `riffles`, `infeedchute`, `tailingschute`, `concentratechute`,
   `pipecopper`, `pipelead`, `concentrate`, or null. The texture code a renderer may set: `concentrate` (the ore's look).
@@ -256,12 +275,12 @@ drawn. There is no Play: nothing turns.
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, in the rig's order): `riffle_<i>_bar`, `riffle_<i>_strap`;
-`conc_pocket<i>a`/`b` (a bed's two steps), `conc_slot<i>`, `conc_launder<i>`, `conc_box`; `infeedchute_{n,s,e,w}`;
-`tailingschute_{e,w,bottom,top}`; `concentratechute_{n,s,bottom,top}`; `pipecopper_*` and `pipelead_*` (`inlet_*`,
+`conc_pocket<i>a`/`b` (a bed's two steps), `conc_slot<i>`, `conc_launder<i>`, `conc_drop`; `infeedchute_{n,s,e,w}`;
+`tailingschute_{e,w,bottom,top}`; `concentratechute_{n,s,e,w}`; `pipecopper_*` and `pipelead_*` (`inlet_*`,
 `bend_*`, `riser_*`, `reducer`, `nozzle1`, `nozzle2`); and `fr_*` for the frame (`fr_hb_floor_{w,e,s}`,
 `fr_hb_wall_{w,e,n,sw,se}`, `fr_hb_sill`, `fr_hb_leg_{nw,ne,sw,se}`, `fr_hb_bearer_{w,e}`, `fr_sl_floor<i>`,
-`fr_sl_side_{w,e}<i>`, `fr_sl_trestle<i>_{legw,lege,beam}`, `fr_ld_floor<i>`, `fr_ld_side_{w,e}<i>`, `fr_ld_head`,
-`fr_cb_floor`, `fr_cb_wall_{n,e,s}`, `fr_cb_sleeper<i>`). Hand edits are lost when the script runs again: port them
+`fr_sl_side_{w,e}<i>`, `fr_sl_trestle<i>_{legw,lege,beam}` (2 is the outlet trestle), `fr_sl_tailboard`,
+`fr_ld_floor<i>`, `fr_ld_side_{w,e}<i>`, `fr_ld_head`). Hand edits are lost when the script runs again: port them
 into `make_shape.py`, or stop regenerating.
 
 ## Salvaged and new
@@ -274,7 +293,8 @@ seven riffles at a pitch of 4, 1 in 12 and the trestles. The validator's `ray_do
 too.
 
 New: the head box with its sill, the water inlet under it and up through its floor, the reducer and nozzle, the
-draw slots, the concentrate launder and box and the concentrate chute, the tailings chute at the tail's end face, the
+draw slots, the concentrate launder, the upright concentrate chute out of the bottom face and its outlet trestle, the
+tail board, the tailings chute at the tail's end face, the
 channel narrowed to the chute's bore, the floor set to one block (v2's head was at y 18.3 under a wash house), the
 riffles' iron straps, the trestles' legs rising beside what they carry, and the checks of the flow, the riffles, the
 concentrate's way out and the supports.
@@ -289,8 +309,9 @@ or in a browser with WebGL (the standalone viewer's controls were checked headle
    runs.
 2. **The draw slots are narrow from above**: 1 long, 0.3 of it under the strap's lip, so about 0.7 shows behind each
    riffle when the concentrate is not drawn.
-3. **The concentrate chute's mouth is half closed**: its bore (y 5..11) opens into the box below y 6.8; above that it
-   faces the launder's and the sluice's west sides, a hair beyond it.
+3. **The outlet trestle's beam lies over the concentrate chute's south wall** and a half voxel of its bore (z 42.5..43),
+   0.9 over its top: clear of where the concentrate falls (z 39.4..40.2), but seen from above or below it crosses the
+   open top's south edge. The legs had to stand against the chute's walls inside the chute's z, so the beam is there.
 4. **Collision follows the shapes at rest, every part shown:** the three chute sections are in the boxes whether
    fitted or not.
 5. **The concentrate's colour in the viewer** by texture is the stone family's grey (its path names `stone`): the
@@ -301,17 +322,22 @@ or in a browser with WebGL (the standalone viewer's controls were checked headle
 1. **Width: the channel is 6.1, not the issue's 7.** Matched to the chute's 6 bore, so the tail pours straight into
    the tailings chute with nothing to narrow it; 7 would need a tail spout or box to come down to the bore. Period
    mill sluices were 12 to 18 inches wide; 6.1 voxels is about 15 inches.
-2. **The concentrate chute on the west face.** It must be centred in a face of its own, apart from the tailings
-   chute's (south), at the concentrate box under the tail; west or east is a coin toss (both are free). A chute to the
-   jig runs on south from the tailings chute, the concentrate's leaves sideways.
+2. **The concentrate out of the bottom face, in its own cell (the owner's review).** The sluice is now four long,
+   not three: the riffles and the concentrate's outlet over cells 1 and 2, cell 3 a plain run-off of 22 voxels (no
+   riffles) to the tailings chute. The concentrate chute stands upright in cell 2 from its bottom face, so the
+   block under cell 2 must be a chute (or a container) to take it, and the sluice stands a block up off the ground
+   there, or over a trench. The other way round (concentrate chute in cell 3, tailings off a longer sluice into cell
+   4) would make it five long. Riffles could be added over cell 3 only without slots (their catch could not reach the
+   launder, which falls the other way).
 3. **The water comes up through the head box's floor.** The ppex pipe meets a face at its centre (y 5..11) and the
    sluice had to rise to leave room under its floor for the launder, so the head box's floor (y 12) is now over the
    pipe: it runs in under the box and rises through the floor to a nozzle pointing up into the pool, where the ore
    lands (a "boil"). The alternative was a pipe through a side face into a much deeper box, which would settle out the
-   heavy grains before the riffles.
+   heavy grains before the riffles. The longer sluice does not change this (the head is where it was; the extra block
+   is at the tail), so the inlet is kept as it was.
 4. **The draw-off.** Slots in the floor behind the riffles into a launder underneath (a period draw-off box under the
    riffles; an undercurrent proper would be a second, wider sluice beside this one). The slot is 1 long, the launder
-   1.6 deep; the seventh riffle, at the lip, has no slot.
+   1.6 deep; every riffle has one (the riffles closed up to a pitch of 3.5 from 4 so the seven fit before the outlet).
 5. **The riffles' iron straps** (Hungarian riffles) are new: iron for the wearing surface. Plain oak bars, as v2's,
    if they are not wanted.
 6. **The chute sections as fitted parts** (`infeedchute`, `tailingschute`, `concentratechute`), so a renderer can
@@ -335,12 +361,14 @@ Not built: #734 (crushed or ground rock and placer gravel in, r = 0.55, 16 rock 
 discarded as gravel). What the rig offers it:
 
 - **Placement.** The controller is the head cell; the sluice runs away from the player (`side` the way they look, as
-  the press brake's), three cells long. The infeed face is the head's top, the water face its north end; the
-  tailings face is the tail's south end and the concentrate face its west side, each turned with the facing.
-- **Outputs.** Two chute outputs on different faces of the tail cell: `concentrateCell`/`concentrateFace` for the
-  concentrate, `tailingsCell`/`tailingsFace` for the tailings.
+  the press brake's), four cells long. The infeed face is the head's top, the water face its north end; the
+  tailings face is the tail's south end, each turned with the facing; the concentrate face is cell 2's bottom,
+  whatever the facing.
+- **Outputs.** Two chute outputs in different cells and on different faces: `concentrateCell`/`concentrateFace`
+  (`[0,0,2]`, `down`) for the concentrate, into whatever lies under that cell (a vanilla chute, which takes items from
+  above), and `tailingsCell`/`tailingsFace` (`[0,0,3]`, `south`) for the tailings.
 - **Parts.** The frame shape is the block's. A renderer draws the parts whose `requires` are fitted: the riffles, the
   chute sections, the supplied metal's inlet, and `concentrate` while the sluice runs. No part moves, so a renderer
   needs no clock: the parts could as well be tessellated into the block's mesh when they change.
 - **Points.** `feedSpout` (ore falling into the box), `waterSpout` (the nozzle) and `concentrateSpout` (the launder
-  pouring into the concentrate box).
+  pouring down into the concentrate chute).

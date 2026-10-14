@@ -8,8 +8,8 @@ import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs,
 // The sluice's shipped files (Sluice/tools/make_shape.py). Nothing in it moves: it takes no power, and
 // its parts are fitted or drawn while it runs, with no driver, so it has no reference poses; every part's
 // matrix is the identity at any input. Its concentrate leaves by chute, continuously: drawn off through a
-// slot behind each riffle into a launder under the floor, to a box under the tail that opens into the
-// concentrate chute on the tail cell's west face, apart from the tailings chute on its south face.
+// slot behind each riffle into a launder under the floor, which pours down the concentrate chute standing
+// upright in the third cell, out of its bottom face; the tailings run on to the fourth cell's south face.
 // tools/tests/test_sluice_model.py checks the same files' geometry.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
@@ -63,15 +63,15 @@ describe("the sluice's rig", () => {
     expect(shape.textures!.chute).toBe("game:block/metal/sheet/copper1");
   });
 
-  it("marks the infeed at the head's top, the water at its end face, and the two outputs on different faces of the tail", () => {
+  it("marks the infeed at the head's top, the water at its end face, and the two outputs from different cells and faces", () => {
     const { anchors } = discoverAnchors(rig);
     expect(anchors.find((a) => a.key === "infeedCell")).toMatchObject({ kind: "cell", pos: [0, 0, 0], face: "up" });
     expect(anchors.find((a) => a.key === "waterCell")).toMatchObject({ kind: "cell", pos: [0, 0, 0], face: "north" });
-    expect(anchors.find((a) => a.key === "tailingsCell")).toMatchObject({ kind: "cell", pos: [0, 0, 2], face: "south" });
-    expect(anchors.find((a) => a.key === "concentrateCell")).toMatchObject({ kind: "cell", pos: [0, 0, 2], face: "west" });
+    expect(anchors.find((a) => a.key === "tailingsCell")).toMatchObject({ kind: "cell", pos: [0, 0, 3], face: "south" });
+    expect(anchors.find((a) => a.key === "concentrateCell")).toMatchObject({ kind: "cell", pos: [0, 0, 2], face: "down" });
     for (const key of ["feedSpout", "waterSpout", "concentrateSpout"]) expect(anchors.find((a) => a.key === key)).toMatchObject({ kind: "point" });
     expect(anchors.some((a) => /clean/i.test(a.key))).toBe(false);
-    expect((rig.cells as { pos: number[] }[]).map((c) => c.pos)).toEqual([[0, 0, 0], [0, 0, 1], [0, 0, 2]]);
+    expect((rig.cells as { pos: number[] }[]).map((c) => c.pos)).toEqual([[0, 0, 0], [0, 0, 1], [0, 0, 2], [0, 0, 3]]);
   });
 });
 
@@ -95,6 +95,7 @@ describe("the sluice's page", () => {
     expect(statesShow("concentrate", { ...fitted, riffles: false }, groups)).toBe(false);
     expect(statesShow("concentrate", fitted, groups)).toBe(true);
     expect(model.description).toMatch(/concentrate chute/);
+    expect(model.description).toMatch(/bottom face/);
     expect(model.description).not.toMatch(/cleans them up/);
   });
 

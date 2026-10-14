@@ -3,14 +3,16 @@
 
 The sluice is the first concentrator of the ore line (#734, model #735): a riffled plank sluice of a
 stamp mill, "10 to 15 feet of sluice boxes fitted with transverse riffles" [Louis 1902, p. 293], scaled
-to three blocks. The pulp comes down a vanilla copper chute into a plank head box at the head, where a
+to four blocks. The pulp comes down a vanilla copper chute into a plank head box at the head, where a
 ppex water pipe (drawn soldered, in copper or lead, as UnifiedPipes draws them) comes in under the box and
 rises through its floor to a nozzle; it overflows a sill onto the sluice, a plank trough falling 1 in 12 on
-two trestles, seven oak riffles across its floor, each faced with strap iron. The heavy grains settle
-behind the riffles and are drawn off as the sluice runs, through a draw slot in the floor behind each
-riffle, into the concentrate launder slung under the floor, which falls with the sluice to the concentrate
-box under the tail; the box opens into the concentrate chute, a vanilla chute section flush with the tail
-cell's west face. The rest runs off the tail into the tailings chute, flush with the tail's south face.
+three trestles, seven oak riffles across its floor over the second and third blocks, each faced with strap
+iron. The heavy grains settle behind the riffles and are drawn off as the sluice runs, through a draw slot
+in the floor behind each riffle, into the concentrate launder slung under the floor, which falls with the
+sluice and pours, past the last riffle, straight down into the concentrate chute: a vanilla chute section
+standing upright in the third block, flush with its bottom face, held between the legs of the trestle
+beside it. The rest runs on over the fourth block's plain floor and off the tail into the tailings chute,
+flush with the tail's south face: the two products leave by different cells and faces.
 Nothing moves: there is no power, no axle and no driver. Everything is built here from plain boxes; no other
 mod's model is used.
 
@@ -18,7 +20,7 @@ It writes, deterministically,
 
     sluice.json         the whole sluice, every fitted part and the concentrate          (assets/.../shapes/block/)
     sluice_frame.json   the frame only: the head box, the sluice box, the launder, the
-                        concentrate box, the trestles                                     (assets/.../shapes/block/)
+                        tail board, the trestles                                          (assets/.../shapes/block/)
     sluice-rig.json     the cells, the anchors and the part rig                           (assets/.../config/)
 
 or, with `--out DIR`, all three into DIR. It validates its own output (validate_sluice.py) and exits
@@ -28,7 +30,7 @@ the identity at any input, which the validator and the tests check instead.
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the
 machine box's north-west-bottom corner (the "build frame"). The controller is the head cell, [0,0,0], the
 build frame's own corner, so the shipped files are the build frame divided by 16. The player stands at the
-head (north) and the sluice runs away from them, south, three blocks.
+head (north) and the sluice runs away from them, south, four blocks.
 
 The vanilla chute's profile (VANILLA_CHUTE, chute_profile, vanilla_profile, read_vanilla_chute) and the
 helpers skin, box, sloped, slope_len, along, floor_y and under_slope are taken from the concentrator's v2
@@ -68,17 +70,18 @@ SCRIPT = "mods-src/seraphhorizons/Sluice/tools/make_shape.py"
 B = 16.0
 
 # ---------------------------------------------------------------- the box, the cells, the anchors
-CELLS_X, CELLS_Y, CELLS_Z = 1, 1, 3          # one wide, one high, three long (z, away from the player)
+CELLS_X, CELLS_Y, CELLS_Z = 1, 1, 4          # one wide, one high, four long (z, away from the player)
 ORIGIN_CELL = (0, 0, 0)                      # the controller: the head cell, nearest the player
 CX = 8.0                                     # the machine's centre line (x): the sluice's, the infeed's, the tailings' and the pipe's
 INFEED_CELL, INFEED_FACE = (0, 0, 0), "up"   # a vanilla chute from above meets the infeed section at the head cell's top
 WATER_CELL, WATER_FACE = (0, 0, 0), "north"  # a ppex pipe meets the water inlet on the head's end face
-TAILINGS_CELL, TAILINGS_FACE = (0, 0, 2), "south"   # the tailings chute leaves through the tail's end face
-CONC_CELL, CONC_FACE = (0, 0, 2), "west"     # the concentrate chute leaves through the tail cell's west face
+TAILINGS_CELL, TAILINGS_FACE = (0, 0, 3), "south"   # the tailings chute leaves through the tail's end face
+CONC_CELL, CONC_FACE = (0, 0, 2), "down"     # the concentrate chute leaves through the third cell's bottom face, into a
+                                             # chute below it (the riffles' cell, a block short of the tail)
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",         # timber: the trestles, bearers and sleepers, the riffles' bars
-    "planks": "game:block/wood/planks/oak1",       # boards: the head box, the sluice, the launder, the concentrate box
+    "planks": "game:block/wood/planks/oak1",       # boards: the head box, the sluice, its tail board, the launder
     "iron": "game:block/metal/plate/iron",         # the riffles' wearing straps
     "chute": "game:block/metal/sheet/copper1",     # the three chute sections: vanilla's chute, as placed in the pack
     "pipecopper": "game:block/metal/sheet-plain/copper4",   # the water inlet in copper (UnifiedPipes' copper pipe)
@@ -99,59 +102,56 @@ VANILLA_CHUTE = {                            # game 1.22.7, shapes/block/metal/c
 }
 CHUTE_BORE = (5.0, 11.0)                     # the bore, cell-local, across either axis
 CHUTE_IN_Y0 = 14.5                           # the infeed section: from the head cell's top face down to here, into the head box
-CHUTE_OUT_Z0 = 44.0                          # the tailings section: from here to the tail's end face (z 48)
-CHUTE_CONC_X1 = 4.0                          # the concentrate section: from the tail cell's west face (x 0) to here, the box's mouth
+CHUTE_OUT_Z0 = 60.0                          # the tailings section: from here to the tail's end face (z 64)
+CHUTE_CONC_Y1 = 7.0                          # the concentrate section: upright from its cell's bottom face (y 0) to here, its
+                                             # open top under the launder's open end
 
 # ---------------------------------------------------------------- the sluice
 SL_Z = (13.0, CHUTE_OUT_Z0)                  # its head (against the head box) .. its tail (the tailings chute's mouth)
 SL_HEAD_Y = 13.0                             # its floor's top at the head: the head box's sill, a voxel over the box's floor
 SL_SLOPE = 1.0 / 12.0                        # it falls 1 in 12 (Louis: an inch to the foot), head to tail
-SL_TAIL_Y = SL_HEAD_Y - (SL_Z[1] - SL_Z[0]) * SL_SLOPE   # its floor's top at the tail, 10.42: in the tailings chute's mouth,
-                                             # under its bore's top (11), leaving room under the floor for the launder
+SL_TAIL_Y = SL_HEAD_Y - (SL_Z[1] - SL_Z[0]) * SL_SLOPE   # its floor's top at the tail, 9.08: in the tailings chute's mouth,
+                                             # under its bore's top (11), over its floor (5)
 SL_IN = (4.95, 11.05)                        # the channel: 6.1 wide, over the chute's 6 bore by a hair each side
 SL_SIDE_T = 0.9                              # its sides (the boards' thickness): outside 4.05 .. 11.95, inside the chute's walls
 SL_FLOOR_T = 1.0
 SL_SIDE_H = 2.5                              # the sides above the floor's top
-SL_SPLITS = (23.5, 34.0)                     # the sides are three boards' lengths each (none longer than the texture),
-                                             # butted here, each joint over a trestle
+SL_SPLITS = (27.5, 43.1, 51.5)               # the sides are four boards' lengths each (none longer than the texture),
+                                             # butted here, each joint over a trestle; the floor is cut here too past the
+                                             # last draw slot
 THETA = math.atan(SL_SLOPE)                  # the slope's angle
 
 # ---------------------------------------------------------------- the riffles (`riffles`) and the draw slots
-RIFFLE_Z0 = 18.0                             # the first riffle's upstream face (on the floor's top line): 5 of plain floor at
-RIFFLE_PITCH = 4.0                           # the head for the pulp to spread on; then one every 4
+RIFFLE_Z0 = 16.0                             # the first riffle's upstream face (on the floor's top line): 3 of plain floor at
+RIFFLE_PITCH = 3.5                           # the head for the pulp to spread on; then one every 3.5
 RIFFLE_N = 7
 RIFFLE_T = 1.0                               # each an oak bar 1 along the flow ...
 RIFFLE_H = 1.1                               # ... and 1.1 high, ...
 STRAP_T = 0.2                                # ... faced on top with strap iron 0.2 thick (the wearing surface) ...
 STRAP_LIP = 0.3                              # ... overhanging its downstream face (a Hungarian riffle's lip)
 SLOT = 1.0                                   # the draw slot through the floor right behind each riffle (along the slope),
-                                             # across the channel; behind riffles 1..6 (the 7th stands at the lip)
+                                             # across the channel; behind every riffle
 
 # ---------------------------------------------------------------- the concentrate launder, under the floor
-LD_Z = (18.0, 41.0)                          # from just upstream of the first slot to its open end over the concentrate box
-LD_SPLIT_Z = 29.5                            # two boards' lengths
+LD_Z = (16.0, 39.6)                          # from just upstream of the first slot to its open end over the concentrate chute
+LD_SPLIT_Z = 28.0                            # two boards' lengths
 LD_T = 0.8                                   # its boards
 LD_DEPTH = 1.6                               # inside, under the sluice's floor
 LD_OUT = (4.15, 11.85)                       # outside across: under the sluice's sides; inside, the channel (the slots drop straight in)
 LD_H = (-SL_FLOOR_T - LD_DEPTH - LD_T, -SL_FLOOR_T)   # its height over the floor's top line: bottom .. its sides' top, on the floor
 
-# ---------------------------------------------------------------- the concentrate box, under the tail, and its chute
-CB_X = (4.0, 12.0)                           # outside; open on the west over the chute's bore (its inside is the bore's z)
-CB_Z = (36.0, 44.0)                          # the tail cell's face centre z 40 +- 4: the chute's section
-CB_Y0 = 4.0                                  # its floor's underside: the chute's bottom wall's; its floor's top the bore floor (5)
-CB_T = 1.0
-CB_TOP = 6.8                                 # its north and east walls' top, under the launder; the south wall rises to the
-                                             # sluice's floor, closing the tailings chute's mouth under the lip
-CB_SLEEPERS_Z = ((37.2, 38.6), (41.4, 42.8))  # two oak sleepers under it
-CB_SLEEPER_X = (4.5, 11.5)
+# ---------------------------------------------------------------- the tail board
+TB_T = 1.0                                   # a plank standing on the ground against the tailings chute's mouth, carrying the
+                                             # tail and closing the mouth under the lip
 
 # ---------------------------------------------------------------- the concentrate (`concentrate`)
 CONC_FULL = 1.0                              # a full pocket's depth over the floor: 0.1 under the straps' lips
 CONC_IN = 0.05                               # how far a deposit runs into the riffle it lies against, the floor and the sides
-# The bed each pocket holds while the sluice runs (pocket i lies behind riffle i, up to riffle i + 1), drawn off
-# through its slot as fast as it settles: deeper at the head, where the heavy grains settle first.
-BED = (0.75, 0.7, 0.65, 0.6, 0.55, 0.5)
-CONC_LAYER = 0.25                            # the concentrate running down the launder's floor and lying in the box
+# The bed each pocket holds while the sluice runs (pocket i lies behind riffle i, up to riffle i + 1, the last a
+# pitch long), drawn off through its slot as fast as it settles: deeper at the head, where the heavy grains settle first.
+BED = (0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45)
+CONC_LAYER = 0.25                            # the concentrate running down the launder's floor
+CONC_DROP = (2.0, 0.8)                       # the stream falling off the launder's lip down the chute's bore: (half across, thick)
 
 # ---------------------------------------------------------------- the head box
 HB_X = (3.0, 13.0)                           # outside; plank walls 1 thick round the infeed chute's 8 x 8
@@ -166,8 +166,12 @@ HB_NOTCH = (SL_IN[0] - 0.05, SL_IN[1] + 0.05)   # the south wall's notch over th
 LEG = 1.6                                    # the legs, square
 BEAM_H, BEAM_D = 1.4, 1.2                    # the cross beams and bearers: high, deep (narrower than the legs, mortised in)
 HB_LEG_TOP = 14.5                            # the head box's four corner legs rise beside its walls to here
-SL_TRESTLES_Z = SL_SPLITS                    # the sluice's two (centres): under the sides' joints
-SL_LEG_DROP = 0.5                            # their legs stop this far under the sides' top
+SL_TRESTLES_Z = SL_SPLITS                    # the sluice's three (centres): under the sides' joints
+OUTLET_TRESTLE = 1                           # the second, beside the concentrate chute: its legs stand against the chute's
+                                             # east and west walls, holding it between them, and stop at its beam, which
+                                             # lies over the chute's south wall, clear of its open bore
+SL_LEG_DROP = 0.5                            # the others' legs stop this far under the sides' top
+OUTLET_LEG_DROP = 0.1                        # the outlet trestle's legs stop this far under its beam's top
 
 # ---------------------------------------------------------------- the water inlet (soldered ppex pipe)
 PIPE_HALF = solderedpipe.HALF                # 3: ppex's pipe is 6 across
@@ -380,18 +384,25 @@ def build_head_box():
 
 
 def slot_spans():
-    """Each draw slot's (s from, s to) along the floor: right behind riffles 1..6."""
-    rz = riffle_zs()
-    return [(s_at(rz[i][1]), s_at(rz[i][1]) + SLOT) for i in range(RIFFLE_N - 1)]
+    """Each draw slot's (s from, s to) along the floor: right behind every riffle."""
+    return [(s_at(zd), s_at(zd) + SLOT) for _, zd in riffle_zs()]
+
+
+def beam_h(zc):
+    """The height (over the floor's top line) of what a trestle's beam at zc carries: the launder's underside
+    where the launder runs over it, else the sluice floor's."""
+    return LD_H[0] if LD_Z[0] < zc - BEAM_D / 2 and zc + BEAM_D / 2 < LD_Z[1] else -SL_FLOOR_T
 
 
 def build_sluice():
     """The sluice box: a plank floor between two plank sides, falling 1 in 12 from the head box's sill to
-    the tailings chute's mouth; the floor in lengths between the draw slots, the sides in three boards'
-    lengths butted over the two trestles, whose legs rise beside them. Every piece's ends are cut square to
-    the slope: at the head its top corner meets the head box's south wall (the rest of the end runs into the
-    wall), at the tail its bottom corner meets the chute's mouth (the rest runs into the chute's walls), so
-    neither end shows a gap."""
+    the tailings chute's mouth; the floor in lengths between the draw slots (and cut at the sides' joints past
+    the last), the sides in four boards' lengths butted over the three trestles, whose legs rise beside them
+    (the second's stand against the concentrate chute instead, holding it, and stop at its beam). Every
+    piece's ends are cut square to the slope: at the head its top corner meets the head box's south wall (the
+    rest of the end runs into the wall), at the tail its bottom corner meets the chute's mouth (the rest runs
+    into the chute's walls), so neither end shows a gap. At the tail a board stands on the ground against the
+    tailings chute's mouth, carrying the tail and closing the mouth under the lip."""
     f = "frame"
     floor0 = s_end_at(SL_Z[0], 0.0)
     floor1 = s_end_at(SL_Z[1], -SL_FLOOR_T)
@@ -399,7 +410,9 @@ def build_sluice():
     side1 = s_end_at(SL_Z[1], -SL_FLOOR_T)
     xw, xe = (SL_IN[0] - SL_SIDE_T, SL_IN[0]), (SL_IN[1], SL_IN[1] + SL_SIDE_T)
     pieces = []
-    edges = [floor0] + [v for a, b in slot_spans() for v in (a, b)] + [floor1]
+    last = slot_spans()[-1][1]
+    edges = [floor0] + [v for a, b in slot_spans() for v in (a, b)] + [v for z in SL_SPLITS if s_at(z) > last for v in (s_at(z),) * 2] \
+        + [floor1]
     for i in range(0, len(edges), 2):
         pieces.append((edges[i], edges[i + 1], -SL_FLOOR_T, 0.0, SL_IN[0], SL_IN[1], f"fr_sl_floor{i // 2 + 1}", "planks"))
     joints = [side0] + [s_at(z) for z in SL_SPLITS] + [side1]
@@ -408,17 +421,24 @@ def build_sluice():
         pieces.append((a, b, -SL_FLOOR_T, SL_SIDE_H, *xe, f"fr_sl_side_e{i}", "planks"))
     out = sloped(pieces, f)
     xs = (xw[0], xe[1])
-    for i, zc in enumerate(SL_TRESTLES_Z, 1):
-        top = under_slope(zc - BEAM_D / 2, zc + BEAM_D / 2, LD_H[0])
-        leg_top = sl_floor(zc + LEG / 2) + SL_SIDE_H - SL_LEG_DROP
-        out += trestle(zc, xs, top, leg_top, f"fr_sl_trestle{i}")
+    for i, zc in enumerate(SL_TRESTLES_Z):
+        top = under_slope(zc - BEAM_D / 2, zc + BEAM_D / 2, beam_h(zc))
+        if i == OUTLET_TRESTLE:
+            # the legs stop a tenth under the beam's top, so their tops and its do not share a plane
+            out += trestle(zc, (CHUTE_BORE[0] - 1.0, CHUTE_BORE[1] + 1.0), top, top - OUTLET_LEG_DROP, f"fr_sl_trestle{i + 1}")
+        else:
+            out += trestle(zc, xs, top, sl_floor(zc + LEG / 2) + SL_SIDE_H - SL_LEG_DROP, f"fr_sl_trestle{i + 1}")
+    z1 = SL_Z[1]
+    out.append(box([CHUTE_BORE[0] - 1.0, 0.0, z1 - TB_T], [CHUTE_BORE[1] + 1.0, under_slope(z1 - TB_T, z1, -SL_FLOOR_T), z1],
+                   "fr_sl_tailboard", f, "planks"))
     return out
 
 
 def build_launder():
     """The concentrate launder: a closed plank trough slung under the sluice's floor at its grade, its sides
     under the sluice's sides and its inside the channel's width, so each draw slot drops straight into it;
-    closed at its head, open at its end over the concentrate box. Two boards' lengths."""
+    closed at its head, open at its end over the concentrate chute's open top, past the last slot. Two
+    boards' lengths."""
     f = "frame"
     s0, s1 = s_at(LD_Z[0]), s_at(LD_Z[1])
     sm = s_at(LD_SPLIT_Z)
@@ -432,27 +452,8 @@ def build_launder():
     return sloped(pieces, f)
 
 
-def build_conc_box():
-    """The concentrate box under the tail: a plank box the concentrate chute's bore wide, open on its west
-    side into the chute, its floor the chute's bore floor; the launder pours into it over its north wall.
-    Its south wall rises to the sluice's floor, closing the tailings chute's mouth under the lip. On two
-    oak sleepers."""
-    f = "frame"
-    x0, x1 = CB_X
-    z0, z1 = CB_Z
-    y0, t = CB_Y0, CB_T
-    south_top = under_slope(z1 - t, z1, -SL_FLOOR_T)
-    out = [box([x0, y0, z0 + t], [x1 - t, y0 + t, z1 - t], "fr_cb_floor", f, "planks"),
-           box([x0, y0, z0], [x1, CB_TOP, z0 + t], "fr_cb_wall_n", f, "planks"),
-           box([x1 - t, y0, z0 + t], [x1, CB_TOP, z1 - t], "fr_cb_wall_e", f, "planks", along_z=True),
-           box([x0, y0, z1 - t], [x1, south_top, z1], "fr_cb_wall_s", f, "planks")]
-    for i, (a, b) in enumerate(CB_SLEEPERS_Z, 1):
-        out.append(box([CB_SLEEPER_X[0], 0.0, a], [CB_SLEEPER_X[1], y0, b], f"fr_cb_sleeper{i}", f, "oak"))
-    return out
-
-
 def build_frame():
-    return build_head_box() + build_sluice() + build_launder() + build_conc_box()
+    return build_head_box() + build_sluice() + build_launder()
 
 
 # ---------------------------------------------------------------- builders: the fitted parts
@@ -475,9 +476,10 @@ def build_riffles():
 
 def pockets():
     """Each pocket's (s from, s to): behind riffle i (its downstream face) up to riffle i + 1 (its upstream
-    face), six of them, each over its draw slot."""
+    face), the last a pitch's gap long, seven of them, each over its draw slot."""
     rz = riffle_zs()
-    return [(s_at(rz[i][1]), s_at(rz[i + 1][0])) for i in range(RIFFLE_N - 1)]
+    ends = [rz[i + 1][0] for i in range(RIFFLE_N - 1)] + [rz[-1][1] + RIFFLE_PITCH - RIFFLE_T]
+    return [(s_at(rz[i][1]), s_at(ends[i])) for i in range(RIFFLE_N)]
 
 
 def bed_pieces():
@@ -512,14 +514,13 @@ def stream_pieces():
 
 def build_concentrate():
     """The concentrate (`concentrate`), drawn while the sluice runs: the beds behind the riffles, the sheets
-    falling through the slots, the layer down the launder and the concentrate lying in the box, running out
-    into the chute."""
+    falling through the slots, the layer down the launder and the stream falling off its lip, down the
+    concentrate chute's bore and out of the bottom face."""
     out = sloped(bed_pieces() + stream_pieces(), "concentrate")
-    x0, x1 = CB_X
-    z0, z1 = CB_Z
-    top = CB_Y0 + CB_T
-    out.append(box([x0 + 0.2, top - 0.03, z0 + CB_T - 0.04], [x1 - CB_T + 0.04, top + CONC_LAYER, z1 - CB_T + 0.04], "conc_box", "concentrate",
-                   "concentrate"))
+    lip = launder_lip()
+    half, t = CONC_DROP
+    z0 = lip[2] - 0.05
+    out.append(box([CX - half, 0.0, z0], [CX + half, lip[1] + CONC_LAYER * 0.5, z0 + t], "conc_drop", "concentrate", "concentrate"))
     return out
 
 
@@ -527,13 +528,13 @@ def build_chutes():
     """The infeed (`infeedchute`): vanilla's straight chute, upright, from the head cell's top face down into
     the head box, held by the box's walls round it. The tailings chute (`tailingschute`): the same section
     running south from the sluice's tail to the tail cell's south face. The concentrate chute
-    (`concentratechute`): the same section running west from the concentrate box's open side to the tail
-    cell's west face."""
+    (`concentratechute`): the same section upright, from the third cell's bottom face up to its open top
+    under the launder's open end, held between the second trestle's legs."""
     top = (INFEED_CELL[1] + 1) * B
     end = (TAILINGS_CELL[2] + 1) * B
     return (chute_walls("y", CHUTE_IN_Y0, top, INFEED_CELL, "infeedchute", "infeedchute")
             + chute_walls("z", CHUTE_OUT_Z0, end, TAILINGS_CELL, "tailingschute", "tailingschute")
-            + chute_walls("x", CONC_CELL[0] * B, CHUTE_CONC_X1, CONC_CELL, "concentratechute", "concentratechute"))
+            + chute_walls("y", CONC_CELL[1] * B, CONC_CELL[1] * B + CHUTE_CONC_Y1, CONC_CELL, "concentratechute", "concentratechute"))
 
 
 def pipe_boxes():
@@ -674,13 +675,13 @@ def launder_lip():
 def make_rig(parts):
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, the controller [0,0,0]: the head cell, nearest the "
-                    "player; the sluice runs south from it, three blocks. Nothing moves: no power cell, no work, no driver. "
+                    "player; the sluice runs south from it, four blocks. Nothing moves: no power cell, no work, no driver. "
                     "infeedCell/infeedFace: a vanilla chute from above meets the infeed section; waterCell/waterFace: a ppex "
                     "pipe meets the water inlet; tailingsCell/tailingsFace: the tailings chute leaves the tail; "
-                    "concentrateCell/concentrateFace: the concentrate chute leaves the concentrate box, which the launder under "
-                    "the riffles fills through their draw slots as the sluice runs. feedSpout is where the ore falls into the "
-                    "head box, waterSpout the nozzle's mouth, concentrateSpout where the launder pours into the concentrate "
-                    "box. See the sluice's README for the schema.",
+                    "concentrateCell/concentrateFace: the concentrate chute leaves through the bottom face, fed from above by the "
+                    "launder under the riffles, which fills through their draw slots as the sluice runs. feedSpout is where the ore "
+                    "falls into the head box, waterSpout the nozzle's mouth, concentrateSpout where the launder pours down into the "
+                    "concentrate chute. See the sluice's README for the schema.",
         "cells": [],
         "infeedCell": list(INFEED_CELL),
         "infeedFace": INFEED_FACE,
@@ -750,7 +751,7 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
 def shape_json(els):
     return machine_shape_json(
         els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. The frame (fr_*: the head box, "
-             "the sluice box, the concentrate launder under it, the concentrate box, the trestles), the fitted parts "
+             "the sluice box and its tail board, the concentrate launder under it, the trestles), the fitted parts "
              "(riffle_*: the riffles; infeedchute_* / tailingschute_* / concentratechute_*: vanilla's chute section, in and "
              "the two outputs; pipecopper_* / pipelead_*: the water inlet in each metal) and the concentrate drawn while the "
              "sluice runs (conc_*). The concentrate's texture code is 'concentrate', so a renderer can set it to the ore's. "

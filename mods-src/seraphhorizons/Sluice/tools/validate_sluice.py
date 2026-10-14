@@ -135,15 +135,13 @@ def check_static(v):
 ROLES = [
     # (element regex, the textures it may wear)
     (r"^fr_hb_(floor_|wall_|sill)", {"planks"}),
-    (r"^fr_sl_(floor|side_)", {"planks"}),
+    (r"^fr_sl_(floor|side_|tailboard$)", {"planks"}),
     (r"^fr_ld_(floor|side_|head)", {"planks"}),
-    (r"^fr_cb_(floor|wall_)", {"planks"}),
     (r"^fr_hb_(leg_|bearer_)", {"oak"}),
     (r"^fr_sl_trestle\d_(legw|lege|beam)$", {"oak"}),
-    (r"^fr_cb_sleeper\d$", {"oak"}),
     (r"^riffle_\d_bar$", {"oak"}),
     (r"^riffle_\d_strap$", {"iron"}),
-    (r"^conc_(pocket\d[ab]|slot\d|launder\d|box)$", {"concentrate"}),
+    (r"^conc_(pocket\d[ab]|slot\d|launder\d|drop)$", {"concentrate"}),
     (r"^(infeedchute|tailingschute|concentratechute)_", {"chute"}),
     (r"^pipecopper_", {"pipecopper", "solder"}),
     (r"^pipelead_", {"pipelead", "solder"}),
@@ -211,14 +209,14 @@ def check_chutes(v):
     """The three chute sections are vanilla's straight chute exactly (its walls, wall thickness, place in the
     block and texture), centred in their faces and flush with them, so a chute placed beyond meets each with
     no gap or step: the infeed upright at the head cell's top face, the tailings chute north-south at the
-    tail cell's south face, the concentrate chute east-west at the tail cell's west face. VANILLA_CHUTE is
+    tail cell's south face, the concentrate chute upright at the third cell's bottom face. VANILLA_CHUTE is
     held to the game's own file wherever the game is installed. The four service faces all differ."""
     m = v.m
     rig = v.rig
     tex = {f["texture"] for pid in m.CHUTES for e in v.by_part[pid] for f in e.faces.values()}
     for pid, key, axis, cell, face, at_face in (("infeedchute", "infeed", "y", m.INFEED_CELL, "up", ("far", 16.0)),
                                                 ("tailingschute", "tailings", "z", m.TAILINGS_CELL, "south", ("far", 16.0)),
-                                                ("concentratechute", "concentrate", "x", m.CONC_CELL, "west", ("near", 0.0))):
+                                                ("concentratechute", "concentrate", "y", m.CONC_CELL, "down", ("near", 0.0))):
         prof, near, far = m.chute_profile(v.els, pid, axis, cell)
         want = m.vanilla_profile(axis)
         ends = far if at_face[0] == "far" else near
@@ -285,7 +283,7 @@ def check_water(v):
         v.fail(f"waterSpout {sp} is not the nozzle's mouth")
 
 
-FLOOR_HITS = r"^(fr_sl_floor\d|riffle_\d_(bar|strap)|conc_(pocket\d[ab]|slot\d|launder\d)|fr_ld_floor\d)$"
+FLOOR_HITS = r"^(fr_sl_floor\d+|riffle_\d_(bar|strap)|conc_(pocket\d[ab]|slot\d|launder\d)|fr_ld_floor\d)$"
 
 
 def check_flow(v):
@@ -294,8 +292,7 @@ def check_flow(v):
     as wide as the chute's bore or a hair wider, over it; the floor falls at exactly 1 in 12 from the sill to
     the tail; a grain dropped anywhere on the channel's centre line lands on the floor, a riffle or the
     concentrate, or through a draw slot into the launder; the tail's lip stands in the tailings chute's
-    mouth, over its bore floor and under its top, the last riffle too, and a grain off the lip lands in the
-    tailings chute, not the concentrate box."""
+    mouth, over its bore floor and under its top, and a grain off the lip lands in the tailings chute."""
     m = v.m
     pose = (0, m.PIPES[0])
     cz = (m.HB_Z[0] + m.HB_Z[1]) / 2
@@ -311,7 +308,7 @@ def check_flow(v):
     if not (m.HB_FLOOR < sill[1][1] and abs(sill[1][1] - m.SL_HEAD_Y) < 1e-6 and m.SL_IN[0] - 0.1 < sill[0][0] <= m.SL_IN[0]
             and m.SL_IN[1] <= sill[1][0] < m.SL_IN[1] + 0.1):
         v.fail("the head box's sill is not the sluice's head floor across the channel")
-    fl = v.named("frame", r"^fr_sl_floor\d$")
+    fl = v.named("frame", r"^fr_sl_floor\d+$")
     grades = {round(-e.r[1][2] / e.r[1][1], 9) for e in fl}
     head = max((c for e in fl for c in e.corners()), key=lambda c: c[1])
     head_top = math.hypot(head[1] - m.SL_HEAD_Y, head[2] - m.SL_Z[0])
@@ -339,15 +336,13 @@ def check_flow(v):
     lip = m.sl_floor(m.SL_Z[1])
     bottom = [e for e in v.by_part["tailingschute"] if e.name.endswith("_bottom")][0].aabb()
     top = [e for e in v.by_part["tailingschute"] if e.name.endswith("_top")][0].aabb()
-    riffle_top = max(c[1] for e in v.named("riffles", r"^riffle_\d+_strap$") if e.c[2] > m.SL_Z[1] - 4 for c in e.corners())
-    side_end = max(c[2] for e in v.named("frame", r"^fr_sl_(floor|side_[we])\d$") for c in e.corners())
-    tail_pieces = [e for e in v.named("frame", r"^fr_sl_(floor|side_[we])\d$") if max(c[2] for c in e.corners()) > m.SL_Z[1] - 0.5]
+    side_end = max(c[2] for e in v.named("frame", r"^fr_sl_(floor|side_[we])\d+$") for c in e.corners())
+    tail_pieces = [e for e in v.named("frame", r"^fr_sl_(floor|side_[we])\d+$") if max(c[2] for c in e.corners()) > m.SL_Z[1] - 0.5]
     side_bottom_end = min(max(c[2] for c in e.corners() if slope_h(m, c)[0] < -m.SL_FLOOR_T + 1e-6) for e in tail_pieces)
     off = first_below(v, [m.CX, lip + 0.2, m.SL_Z[1] + 0.3], (1, m.PIPES[0]))
-    print(f"flow: the lip {lip:.2f} in the tailings chute's mouth (bore floor {bottom[1][1]:.2f}, top {top[0][1]:.2f}), the last "
-          f"riffle's top {riffle_top:.2f}; the sluice's pieces reach z {side_bottom_end:.3f} at their bottoms, {side_end:.3f} at "
+    print(f"flow: the lip {lip:.2f} in the tailings chute's mouth (bore floor {bottom[1][1]:.2f}, top {top[0][1]:.2f}); the sluice's pieces reach z {side_bottom_end:.3f} at their bottoms, {side_end:.3f} at "
           f"most (the chute's mouth {m.CHUTE_OUT_Z0}); a grain off the lip lands on {off[1] if off else None}")
-    if not (bottom[1][1] < lip < top[0][1] - 0.3) or riffle_top > top[1][1] + 1.5 or abs(side_bottom_end - m.CHUTE_OUT_Z0) > 1e-6 \
+    if not (bottom[1][1] < lip < top[0][1] - 0.3) or abs(side_bottom_end - m.CHUTE_OUT_Z0) > 1e-6 \
             or side_end > m.CHUTE_OUT_Z0 + 0.5 or abs(bottom[0][2] - m.CHUTE_OUT_Z0) > 1e-6 or not off \
             or off[1] != "tailingschute_bottom":
         v.fail("the sluice's tail does not pour into the tailings chute's bore")
@@ -384,14 +379,17 @@ def check_riffles(v):
 
 
 def check_concentrate(v):
-    """The concentrate leaves by chute, continuously. Behind each of riffles 1..6 a draw slot runs through
-    the floor, from the riffle's downstream face, across the channel, under its strap's lip; a grain dropped
-    through each slot lands on the launder's floor. The launder, closed at its head and slung under the floor
-    at its grade, runs from upstream of the first slot to its open end over the concentrate box; a grain off
-    its lip lands on the box's floor. The box's floor is the concentrate chute's bore floor, its inside the
-    bore's width, and it lies open to the chute. Drawn while it runs, the concentrate is a bed behind each
-    riffle over its slot (on the floor and just into the sides, under the straps), a sheet through each slot,
-    a layer down the launder and in the box."""
+    """The concentrate leaves by chute, continuously, by its own way. Behind every riffle a draw slot runs
+    through the floor, from the riffle's downstream face, across the channel, under its strap's lip; a grain
+    dropped through each slot lands on the launder's floor. The launder, closed at its head and slung under
+    the floor at its grade, runs from upstream of the first slot to its open end past the last, over the
+    concentrate chute's open top (standing upright from the concentrate cell's bottom face): a grain off its
+    lip falls down the chute's bore and out of the bottom face with nothing in its way, and nothing of the
+    machine lies under the bore anywhere (the bottom outlet is open to a chute below). The chute's top is
+    under the launder, clear of it. The concentrate's way (riffles, slots, launder, chute) lies wholly in the
+    cells before the tail cell; the tailings leave the tail cell by its south face. Drawn while it runs, the
+    concentrate is a bed behind each riffle over its slot (on the floor and just into the sides, under the
+    straps), a sheet through each slot, a layer down the launder and a stream down the chute."""
     m = v.m
     bad = []
     pose = (0, m.PIPES[0])
@@ -401,29 +399,51 @@ def check_concentrate(v):
         hit = first_below(v, m.slope_point((a + b) / 2, 0.5), pose)
         if not hit or not re.match(r"^fr_ld_floor\d$", hit[1]):
             bad.append(f"a grain through slot {i} lands on {hit}")
-    ld = v.named("frame", r"^fr_ld_floor\d$")
-    grades = {round(-e.r[1][2] / e.r[1][1], 9) for e in ld}
+    if len(m.slot_spans()) != m.RIFFLE_N:
+        bad.append("not a slot behind every riffle")
+    ld = v.named("frame", r"^fr_ld_")
+    grades = {round(-e.r[1][2] / e.r[1][1], 9) for e in ld if re.match(r"^fr_ld_floor\d$", e.name)}
     lip = m.launder_lip()
-    off = first_below(v, [lip[0], lip[1] + 0.1, lip[2] + 0.3], pose)
     first_slot = m.slope_point(m.slot_spans()[0][0], 0.0)[2]
+    last_slot = m.slope_point(m.slot_spans()[-1][1], 0.0)[2]
     head = v.named("frame", r"^fr_ld_head$")[0].aabb()
-    floor = v.named("frame", r"^fr_cb_floor$")[0].aabb()
-    chute = {e.name.rsplit("_", 1)[1]: e.aabb() for e in v.by_part["concentratechute"]}
-    print(f"concentrate: {len(m.slot_spans())} draw slots, each into the launder; the launder ({len(ld)} lengths) falls "
-          f"{sorted(grades)}, closed at z {head[0][2]:.2f} (the first slot from {first_slot:.2f}), its lip {lip[1]:.2f} at z "
-          f"{lip[2]:.2f}, a grain off it landing on {off[1] if off else None}; the box's floor at {floor[1][1]:.2f}, z "
-          f"{floor[0][2]:.2f}..{floor[1][2]:.2f}, the concentrate chute's bore floor {chute['bottom'][1][1]:.2f}, z "
-          f"{chute['n'][1][2]:.2f}..{chute['s'][0][2]:.2f}")
-    if grades != {round(m.SL_SLOPE, 9)} or not head[1][2] <= first_slot or not off or off[1] != "fr_cb_floor":
-        bad.append("the launder does not carry the slots' catch to the concentrate box")
-    if abs(floor[1][1] - chute["bottom"][1][1]) > 1e-6 or abs(floor[0][2] - chute["n"][1][2]) > 1e-6 \
-            or abs(floor[1][2] - chute["s"][0][2]) > 1e-6 or abs(floor[0][0] - chute["bottom"][1][0]) > 1e-6:
-        bad.append("the concentrate box's floor is not the concentrate chute's bore floor, its width")
-    # the box lies open to the chute: nothing of the frame across the chute's mouth in its bore under the launder
-    mouth = [m.CHUTE_CONC_X1 + 0.5, (m.CB_Y0 + m.CB_T + m.CB_TOP) / 2, (m.CB_Z[0] + m.CB_Z[1]) / 2]
-    blocked = [e.name for e in v.by_part["frame"] if inside(e, mouth, eps=0.0)]
+    chute = v.by_part["concentratechute"]
+    clo, chi = aabb_of(chute)
+    cell_z = m.CONC_CELL[2] * 16
+    bore = (m.CHUTE_BORE[0], m.CHUTE_BORE[1], cell_z + m.CHUTE_BORE[0], cell_z + m.CHUTE_BORE[1])
+    ld_under = min(c[1] for e in ld for c in e.corners() if clo[2] <= c[2] <= chi[2]) if ld else None
+    falls = [lip[0], lip[1] + 0.1, lip[2] + 0.3]
+    off = first_below(v, falls, pose)
+    # the bore open to the bottom face: a grid of grains over the bore, from just under the launder, fall
+    # through and out with nothing of the machine under them (the concentrate hidden)
+    blocked = []
+    for i in range(7):
+        for j in range(7):
+            p = [bore[0] + 0.2 + (bore[1] - bore[0] - 0.4) * i / 6, chi[1] + 0.05, bore[2] + 0.2 + (bore[3] - bore[2] - 0.4) * j / 6]
+            hit = first_below(v, p, pose)
+            if hit:
+                blocked.append((round(p[0], 2), round(p[2], 2), hit[1]))
+    print(f"concentrate: {len(m.slot_spans())} draw slots (z {first_slot:.2f}..{last_slot:.2f}), each into the launder; the launder "
+          f"falls {sorted(grades)}, closed at z {head[0][2]:.2f}, its lip {lip[1]:.2f} at z {lip[2]:.2f}; the concentrate chute "
+          f"x {clo[0]}..{chi[0]}, y {clo[1]}..{chi[1]}, z {clo[2]}..{chi[2]} ({m.CONC_FACE} face of {list(m.CONC_CELL)}), the launder's "
+          f"underside over it at {ld_under:.2f}; a grain off the lip lands on {off[1] if off else 'nothing: out of the bottom face'}; "
+          f"{49 - len(blocked)} of 49 grains over the bore fall out of the bottom face")
+    if grades != {round(m.SL_SLOPE, 9)} or not head[1][2] <= first_slot or not last_slot < lip[2]:
+        bad.append("the launder does not run under every slot")
+    if not (bore[0] < falls[0] < bore[1] and bore[2] < falls[2] < bore[3]) or off is not None or lip[1] <= chi[1]:
+        bad.append("a grain off the launder's lip does not fall down the concentrate chute's bore and out of the bottom face")
     if blocked:
-        bad.append(f"the concentrate box is closed to its chute by {blocked}")
+        bad.append(f"the concentrate chute's bore is closed below: {blocked[:3]}")
+    if abs(clo[1]) > 1e-9 or ld_under is None or not (chi[1] + 0.2 < ld_under):
+        bad.append("the concentrate chute does not stand from the bottom face up under the launder, clear of it")
+    # the two paths apart: everything of the concentrate's way before the tail cell, the tail's lip in it
+    tail_z = m.TAILINGS_CELL[2] * 16
+    way = [e for pid in ("riffles", "concentrate", "concentratechute") for e in v.by_part[pid]] + ld
+    late = [e.name for e in way if e.aabb()[1][2] > tail_z + 1e-6]
+    print(f"concentrate: its way ends by z {max(e.aabb()[1][2] for e in way):.2f}; the tail cell from z {tail_z} (tailings out of "
+          f"its {m.TAILINGS_FACE} face, concentrate out of {list(m.CONC_CELL)}'s {m.CONC_FACE} face)")
+    if late or m.CONC_CELL == m.TAILINGS_CELL or m.CONC_FACE == m.TAILINGS_FACE or m.CONC_FACE != "down":
+        bad.append(f"the concentrate's way and the tailings' are not apart: {late[:4]}")
     # the concentrate, while it runs
     pk = m.pockets()
     for e in v.named("concentrate", r"^conc_pocket"):
@@ -443,38 +463,53 @@ def check_concentrate(v):
         if not (s0 < sa and sb < s1):
             bad.append(f"{e.name} does not lie over slot {i + 1}")
     sheets = v.named("concentrate", r"^conc_slot\d$")
-    layers = v.named("concentrate", r"^conc_(launder\d|box)$")
-    if len(v.named("concentrate", r"^conc_pocket")) != 2 * len(pk) or len(sheets) != len(pk) or len(layers) != 3:
-        bad.append("the concentrate is not a bed in each pocket, a sheet through each slot and the layers in the launder and box")
-    print(f"concentrate: beds in {len(pk)} pockets, {len(sheets)} sheets through the slots, {len(layers)} layers in the launder and box")
+    layers = v.named("concentrate", r"^conc_(launder\d|drop)$")
+    drop = v.named("concentrate", r"^conc_drop$")
+    if len(v.named("concentrate", r"^conc_pocket")) != 2 * len(pk) or len(sheets) != len(pk) or len(layers) != 3 or len(drop) != 1:
+        bad.append("the concentrate is not a bed in each pocket, a sheet through each slot, the layer in the launder and the stream down the chute")
+    elif not (bore[0] < drop[0].aabb()[0][0] and drop[0].aabb()[1][0] < bore[1] and bore[2] < drop[0].aabb()[0][2]
+              and drop[0].aabb()[1][2] < bore[3] and abs(drop[0].aabb()[0][1]) < 1e-9):
+        bad.append("the concentrate's stream is not down the chute's bore to the bottom face")
+    print(f"concentrate: beds in {len(pk)} pockets, {len(sheets)} sheets through the slots, {len(layers)} layers in the launder and down the chute")
     if bad:
         v.fail(f"the concentrate's way out is off: {bad[:4]}")
 
 
 def check_supports(v):
-    """Each beam, bearer and sleeper meets what it carries (the head box's underside, the launder's, the
-    concentrate box's) and each leg stands on the ground beside the box it carries, touching it; the sluice
-    sides' joints lie over the trestles."""
+    """Each beam and bearer meets what it carries (the head box's underside, the launder's or the sluice
+    floor's) and each leg stands on the ground beside the box it carries, touching it, except the outlet
+    trestle's, which stand against the concentrate chute's east and west walls along its height, holding it,
+    and stop at their beam; the tail board stands on the ground under the tail's floor; the sluice sides'
+    joints lie over the trestles."""
     m = v.m
     frame = {e.name: e for e in v.by_part["frame"]}
     bad = []
     carried = 0
-    for name in sorted(n for n in frame if re.search(r"_(beam|bearer_[we]|sleeper\d)$", n)):
+    for name in sorted(n for n in frame if re.search(r"_(beam|bearer_[we])$", n)):
         top = frame[name].aabb()[1][1]
         zc = frame[name].c[2]
         if name.startswith("fr_hb_"):
             want = m.HB_Y[0]
-        elif name.startswith("fr_cb_"):
-            want = m.CB_Y0
         else:
-            want = min(m.sl_floor(zc - m.BEAM_D / 2), m.sl_floor(zc + m.BEAM_D / 2)) + m.LD_H[0] / math.cos(m.THETA)
+            want = min(m.sl_floor(zc - m.BEAM_D / 2), m.sl_floor(zc + m.BEAM_D / 2)) + m.beam_h(zc) / math.cos(m.THETA)
         gap = want - top
         carried += 1
         if not (0.0 <= gap < 0.02):
             bad.append(f"{name} is {gap:.3f} under what it carries")
+    outlet = f"fr_sl_trestle{m.OUTLET_TRESTLE + 1}_"
+    clo, chi = aabb_of(v.by_part["concentratechute"])
     for name in sorted(n for n in frame if re.search(r"_leg(w|e|_[ns][we])$", n)):
         lo, hi = frame[name].aabb()
-        box_ = m.HB_X if name.startswith("fr_hb_") else (m.SL_IN[0] - m.SL_SIDE_T, m.SL_IN[1] + m.SL_SIDE_T)
+        if name.startswith("fr_hb_"):
+            box_ = m.HB_X
+        elif name.startswith(outlet):
+            box_ = (clo[0], chi[0])
+            beam = frame[outlet + "beam"].aabb()
+            if not (clo[2] < lo[2] and hi[2] < chi[2] and hi[1] >= chi[1] and abs(beam[1][1] - hi[1] - m.OUTLET_LEG_DROP) < 1e-6):
+                bad.append(f"{name} does not stand against the concentrate chute along its height, up to its beam "
+                           f"(z {lo[2]:.2f}..{hi[2]:.2f}, top {hi[1]:.3f}, the beam's {beam[1][1]:.3f})")
+        else:
+            box_ = (m.SL_IN[0] - m.SL_SIDE_T, m.SL_IN[1] + m.SL_SIDE_T)
         west = name.endswith(("legw", "w"))
         if lo[1] != 0.0 or abs((hi[0] if west else lo[0]) - (box_[0] if west else box_[1])) > 1e-6:
             bad.append(f"{name} is not on the ground beside the box it carries")
@@ -484,7 +519,11 @@ def check_supports(v):
         joints.append((z, under))
         if not under:
             bad.append(f"no trestle's beam under the sluice sides' joint at z {z}")
-    print(f"supports: {carried} beams, bearers and sleepers under what they carry, legs on the ground beside it; the sides' joints "
+    tb = frame["fr_sl_tailboard"].aabb()
+    tb_gap = m.sl_floor(tb[1][2]) - m.SL_FLOOR_T / math.cos(m.THETA) - tb[1][1]
+    if tb[0][1] != 0.0 or not (0.0 <= tb_gap < 0.02) or abs(tb[1][2] - m.CHUTE_OUT_Z0) > 1e-9:
+        bad.append(f"the tail board does not stand on the ground under the tail, against the chute's mouth (gap {tb_gap:.3f})")
+    print(f"supports: {carried} beams and bearers under what they carry, legs on the ground beside it; the sides' joints "
           f"{joints}")
     if bad:
         v.fail(f"supports are off: {bad[:4]}")
@@ -497,7 +536,8 @@ ALLOWED = [
     ("concentrate", None, "frame", r"^fr_(sl_(floor|side_)|ld_|cb_)"),           # on the floor, in the launder and the box
     ("concentrate", None, "riffles", r"_bar$"),                                   # packed against the riffles
     ("infeedchute", None, "frame", r"^fr_hb_wall_"),                              # held in the head box's mouth
-    ("tailingschute", None, "frame", r"^fr_sl_(floor|side_[we])\d$"),             # the sluice's tail into its mouth
+    ("tailingschute", None, "frame", r"^fr_sl_(floor|side_[we])\d+$"),             # the sluice's tail into its mouth
+    ("concentratechute", None, "frame", r"^fr_sl_trestle2_leg[we]$"),             # held between the outlet trestle's legs
     (r"pipe(copper|lead)", r"_(reducer|riser_\w+)$", "frame", r"^fr_hb_floor_"),  # up through the head box's floor, onto it
 ]
 
@@ -581,7 +621,7 @@ def validate_files(m, shape, frame_shape, ship):
     for c in cells:
         print(f"  cell {c['pos']}: boxes {c.get('boxes')}")
     if hollow or lids or [c["pos"] for c in cells] != [list(p) for p in m.footprint()]:
-        print("FAIL the cells are not the three of the footprint, each with boxes and no lid")
+        print("FAIL the cells are not the four of the footprint, each with boxes and no lid")
         ok = False
     for key in ("powerCell", "powerFace", "work", "trunkPath", "infeedSide", "outputSide", "fill"):
         if key in ship:
