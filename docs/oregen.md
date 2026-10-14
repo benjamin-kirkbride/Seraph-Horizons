@@ -342,9 +342,10 @@ directory), generate the spawn cells of seed 424242 anchor first and far first: 
 block, and `OreCellOrderSeamAnchorFirst` / `FarFirst` do the same for seed 101's iron cell 103,101,
 a `hematite` seam (IOG's multi-ore fault pocket) of 11,948 blocks. `OreCellOrderScenarios` deletes
 one anchor's area and generates it again in the other order, in one world. Worlds booted one after another in one process do not: the second world's vanilla deposits
-(cracked rock) differ from the same world booted alone, so something outlives a server in the
-process (open: seen with stable veins on, not yet checked without; it would matter where a client
-switches worlds without restarting).
+(cracked rock, and the ore with it) differ from the same world booted alone, with stable veins on
+or off (an Atlas experiment with the switch off: 8,751 of one column's blocks differed between two
+worlds of one seed booted in turn), so something outlives a server in the process. Open; it would
+matter where a client switches worlds without restarting.
 
 ## Deposit registry (#443)
 
