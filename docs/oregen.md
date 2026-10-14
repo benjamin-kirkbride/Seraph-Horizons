@@ -318,12 +318,30 @@ indicators on cell veins are gone (IOG put them above ground, where the lay rule
 Which fallback spot a cell ends on can still depend on order: a fallback whose anchor generates
 before its turn is skipped, as before (`OreCellBook`).
 
+**Measured** (`tools/ore-survey`, the pins of 2026-10-13, `--fast`):
+
+- *Census against a full scan, seed 101* (320 × 320 chunks): of the 20 cell deposits both saw at
+  the same place, 19 agree exactly and one by 1.5 % (a fragment 9 m off); before, 9 of 36 did. 26
+  of 29 cells chose the same spot; the other 3 ended on different fallbacks (above).
+- *Vein sizes*, the census before and after on the same seeds and mods: seed 101's cell deposits
+  at a median 0.79 times their old ingots (p10 0.52, p90 1.15; 13,121 → 8,901 in all), seed 303's
+  at 0.71 (0.38, 1.26; 14,451 → 9,302). Medians over both: iron 412 → 215 ingots, tin 237 → 139,
+  copper 192 → 141. The old sizes were inflated: every pass within 3 chunks wrote its own,
+  slightly different draw of the vein into every neighbour it reached, so a deposit was the union
+  of up to 49 of them. `config/ore-sizes.json`'s factors were tuned against those (#945).
+- *Worldgen time*: all handlers together 23.1 ms per generated column against 22.7 (+2 %):
+  `GenDeposits` 13.2 ms against 10.4 (IOG's other veins go through the column wrapper), the PreDone
+  lay 0.8 ms (a vein's replay is kept for the next column). A census reads columns at PreDone, so
+  it asks for more of them: about a third slower.
+
 Checked by `tests/PackTests/OreCellOrderScenarios.cs`: `OreCellOrderAnchorFirst` and
 `OreCellOrderFarFirst`, each in its own `dotnet test` run (they compare through a file in the temp
 directory), generate the spawn cells of seed 424242 anchor first and far first: the copper
 (`nativecopper` chimney), iron (`limonite` hydrotube), tin (`cassiterite` chimney), bismuth
 (`bismuthinite` chimney) and zinc (`sphalerite` hydrotube) veins come out identical block for
-block. Worlds booted one after another in one process do not: the second world's vanilla deposits
+block, and `OreCellOrderSeamAnchorFirst` / `FarFirst` do the same for seed 101's iron cell 103,101,
+a `hematite` seam (IOG's multi-ore fault pocket) of 11,948 blocks. `OreCellOrderScenarios` deletes
+one anchor's area and generates it again in the other order, in one world. Worlds booted one after another in one process do not: the second world's vanilla deposits
 (cracked rock) differ from the same world booted alone, so something outlives a server in the
 process (open: seen with stable veins on, not yet checked without; it would matter where a client
 switches worlds without restarting).
