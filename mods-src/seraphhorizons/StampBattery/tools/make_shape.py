@@ -2,24 +2,20 @@
 """Generate the stamp battery's shapes, rig and reference poses.
 
 The stamp battery crushes and classifies in one machine (#728, model #729): a wet five-stamp gravity battery
-with its mesh discharge screen, and at level 2 the Challenge self-feeder. One machine is one piece of equipment
-(#711): a timber battery frame whose footprint is fixed from the frame on, and the parts each level fits into it.
+with its mesh discharge screen, fed by chute from above and discharging by chute in front. One machine is one piece
+of equipment (#711): a timber battery frame whose footprint is fixed from the frame on, and the parts its one level
+fits into it.
 
     frame    two oak end frames (sill, front, middle and back posts, cap, the guide and cam rails), the guide
-             girts, the ties and the hopper's two bearers; the power train: the entry shaft from the vanilla axle
-             into a closed rectifier gear case, and the line shaft along the back row
+             girts, the ties and the two bearers; the power train: the entry shaft from the vanilla axle into a
+             closed rectifier gear case, and the line shaft along the back row
     level 1  the battery: the mortar box on its block, with its dies, the mesh screen in its front wall, the
-             apron and the launder along the front, the output chute section flush with the front face, the
-             shoot from the feed opening, and the infeed chute section in the top face (`mortar`); the camshaft
-             with ten involute cams and the bull pulley, belted from the line shaft (`camshaft`); five stamps
-             (`stamps`); the plank feed box behind the mortar under the infeed (`feedbox`); the water line from
-             the west face into the feed opening, ppex's straight pipe soldered in copper or lead (`pipecopper`,
-             `pipelead`)
-    level 2  the Challenge feeder in the feed box's place (`feeder`): a sheet-iron hopper with an inclined
-             floor on the two bearers, a round tray under it on a vertical spindle, turned through teeth in its
-             bottom by a pinion whose shaft carries the friction grip; the grip is worked by the lever E and the
-             bumper rod G, which the feeding tappet on stamp 3 strikes each time the stamp drops low. Fitting the
-             feeder takes the feed box off.
+             output chute (a funnel section of the game's chute whose mouth spans the whole screen, under it, and
+             a stub of the game's chute section from the funnel to the front face, on an oak block), the shoot from
+             the feed opening, and the infeed chute section in the top face (`mortar`); the camshaft with ten
+             involute cams and the bull pulley, belted from the line shaft (`camshaft`); five stamps (`stamps`);
+             the plank feed box behind the mortar under the infeed (`feedbox`); the water line from the west face
+             into the feed opening, ppex's straight pipe soldered in copper or lead (`pipecopper`, `pipelead`)
 
 Everything is built here from plain boxes; no other mod's model is used. It writes, deterministically,
 
@@ -34,13 +30,11 @@ non-zero if a check fails.
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the machine
 box's north-west bottom corner (the "build frame"); the controller cell is the bottom middle cell of the north
 face, ORIGIN_CELL, so the shipped files are the build frame moved by -ORIGIN_CELL blocks. The machine is placed
-with its north face (the screen, the launder and the output) towards the player, extending away from them.
+with its north face (the screen and the output chute) towards the player, extending away from them.
 
 The rig's inputs: theta, the axle's angle (the entry shaft), and psi, its travel either way, which everything
 behind the rectifier follows: the line shaft, the camshaft, the stamps (each a sum of harmonics of the camshaft's
-turn: lifted by its cam, thrown, falling and resting on its die) and the feeder (its bumper rod and lever follow
-stamp 3's drop; the grip, the pinion and the tray turn a step at each strike, a steady turn plus harmonics).
-The rig has no work.
+turn: lifted by its cam, thrown, falling and resting on its die). The rig has no work.
 """
 
 from __future__ import annotations
@@ -78,21 +72,19 @@ B = 16.0
 TAU = 2 * math.pi
 
 # ---------------------------------------------------------------- the box, the cells, the anchors
-# Three deep: the front row (z 0..16) holds the apron, the launder and the output chute; the middle row (z 16..32)
-# the mortar, the stamps and the camshaft; the back row (z 32..48) the feed box or the feeder under the infeed, the
-# line shaft and the gear case.
+# Three deep: the front row (z 0..16) holds the output chute's funnel and stub; the middle row (z 16..32) the mortar,
+# the stamps and the camshaft; the back row (z 32..48) the feed box under the infeed, the line shaft and the gear case.
 CELLS_X, CELLS_Y, CELLS_Z = 3, 4, 3          # fixed from the frame on
 ORIGIN_CELL = (1, 0, 0)                      # the controller: the bottom middle cell of the north face, the output's
 POWER_CELL, POWER_FACE = (2, 0, 2), "east"   # the vanilla axle, along x at (y 8, z 40), into the gear case
 WATER_CELL, WATER_FACE = (0, 2, 2), "west"   # the ppex pipe, along x at (y 40, z 40), the water line to the feed opening
-INFEED_CELL, INFEED_FACE = (1, 3, 2), "up"   # the infeed chute's mouth: ore by chute from above, or by hand, at both levels
+INFEED_CELL, INFEED_FACE = (1, 3, 2), "up"   # the infeed chute's mouth: ore by chute from above, or by hand
 OUTPUT_CELL, OUTPUT_FACE = (1, 0, 0), "north"   # the output chute's mouth, flush with the front face
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
     "planks": "game:block/wood/planks/oak1",
     "iron": "game:block/metal/plate/iron",
-    "sheet": "game:block/metal/sheet/iron1",  # the feeder's sheet-iron hopper (Rose 1898, p. 122)
     "steel": "game:block/metal/sheet-plain/steel1",
     # the water line wears ppex's pipe textures as UnifiedPipes gives them, as the rosser's drip pipes do
     **{f"pipe{m}": f"game:block/metal/sheet-plain/{m}4" for m in ("copper", "lead")},
@@ -115,8 +107,9 @@ RAIL_HI_Y = (42.0, 46.0)                     # carries the upper guide girts
 GUIDE_H = 3.0                                # the guide girts' height over their rails
 TIE_C_Z = (32.0, 36.0)                       # the chute tie at the caps, against the infeed chute's north wall
 TIE_B_Z = (44.0, POST_B[1])                  # the back tie at the caps, against its south wall
-BEARER_Y = (44.0, 48.0)                      # the hopper's two bearers, between the middle and the back posts
-PLANK = 1.0                                  # board thickness: launder, feed box, guides' strips
+BEARER_Y = (44.0, 48.0)                      # the two bearers, between the middle and the back posts: the feed box's
+                                             # back board hangs on the back one, the water line's hanger on the front one
+PLANK = 1.0                                  # board thickness: the feed box
 
 # ---------------------------------------------------------------- level 1: the stamps
 STAMPS = 5
@@ -156,7 +149,7 @@ SMOOTH = 0.06
 HARMONICS = 10
 PROFILE_SAMPLES = 2048
 
-# ---------------------------------------------------------------- level 1: the mortar, the launder, the chutes
+# ---------------------------------------------------------------- level 1: the mortar and the chutes
 MORTAR_X = (8.0, 40.0)
 MORTAR_Z = (18.5, 29.5)
 MORTAR_Y = (3.0, 16.5)                       # on the mortar block (oak, y 0..3): low, so the heads show over its rim
@@ -165,10 +158,7 @@ MORTAR_FLOOR = 6.0                           # the floor's top; the dies stand o
 SCREEN_Y = (11.0, 15.2)                      # the screen in the front wall, over the dies
 FEED_LIP_Y = 14.0                            # the feed opening in the back wall, over the lip
 FEED_X = (11.0, 37.0)                        # the feed opening (x)
-LAUNDER_Z = (6.0, 12.4)                      # the launder along the front: its front board's north face, its back board's south face
-LAUNDER_Y = (4.4, 8.5)                       # its floor's underside, its sides' top
-LAUNDER_X = (8.5, 39.5)
-# The shoot: an iron spout from the feed lip up under the tray's front edge (and the feed box's floor), sides on it.
+# The shoot: an iron spout from the feed lip up under the feed box's floor, sides on it.
 SHOOT_LO = (FEED_LIP_Y, MORTAR_Z[1])         # (y, z) its working face's lower end, the lip's back edge
 SHOOT_HI = (19.5, 32.5)                      # its upper end
 SHOOT_X = (18.0, 30.0)
@@ -176,8 +166,8 @@ SHOOT_T = 0.8
 
 # The chutes are the game's own chute section (shapes/block/metal/chute/straight.json, game 1.22.7), so a player's
 # chute line meets them seamlessly: the infeed, a vanilla `chute-straight-ud` placed on the infeed cell's top face,
-# carries straight on down the machine's own section into the feed box or the feeder's hopper; the output, a vanilla
-# `chute-straight-ns` placed against the output cell's north face, takes the launder's pulp on. Its four walls, as the
+# carries straight on down the machine's own section into the feed box; the output, a vanilla `chute-straight-ns`
+# placed against the output cell's north face, takes the pulp on from the machine's stub. Its four walls, as the
 # game has them along x (the `we` chute; voxels in a block, 16 a block, UVs on the game's 16 scale), turned as the
 # blocktype turns them (`ud`: rotateZ 90; `ns`: rotateY 90, about the block's centre), and cut to the length the
 # machine holds: 8 across, walls 1 thick round a 6 x 6 bore, in the block's middle (4..12). Its texture is the
@@ -197,8 +187,16 @@ VANILLA_CHUTE = (
      {"east": ((5.0, 0.0, 11.0, 1.0), 0), "west": ((0.0, 2.0, 1.0, 8.0), 90), "up": ((0.0, 5.0, 16.0, 11.0), 0),
       "down": ((5.0, 0.0, 11.0, 16.0), 90)}),
 )
-CHUTE_IN_LEN = 16.0                          # the infeed section: the whole top cell, down to the hopper's mouth
-CHUTE_OUT_LEN = LAUNDER_Z[0]                 # the output section: from the front face to the launder's front board
+CHUTE_IN_LEN = 16.0                          # the infeed section: the whole top cell, down over the feed box
+CHUTE_OUT_LEN = 5.0                          # the output stub: from the front face back to the funnel
+
+# The output funnel: a section of the chute flared in plan, from the stub's bore (6 wide) to the whole screen's width,
+# its back closed by the mortar's front wall under the screen, open on top, so the pulp splashing out through the
+# screen falls straight into it and runs out along its floor, level with the stub's, into the stub. Its walls and floor
+# are the chute's sheet, 1 thick, as the game's chute's are; an oak block under the joint carries it.
+FUNNEL_Z = (CHUTE_OUT_LEN, MORTAR_Z[0])      # from the stub to the mortar's front face
+FUNNEL_Y = (4.0, 12.0)                       # its floor's underside (the stub's) and its walls' top (the stub's)
+FUNNEL_T = 1.0
 
 # ---------------------------------------------------------------- level 1: the feed box (plank), behind the mortar
 FEEDBOX_X = (17.5, 30.5)                     # its sides' outer faces
@@ -210,13 +208,13 @@ FEEDBOX_SIDE = 6.0                           # its sides' height over the floor
 # Pipes and Power Expanded's straight pipe in copper or lead, drawn as UnifiedPipes draws those pipes, soldered
 # (Pipes/tools/solderedpipe.py), as the rosser's drip pipes are: ppex's tube round its bore, a hub where two lengths
 # meet. From the west face's inlet it runs east through the west end frame between its middle and back posts, turns
-# north beside the hopper, and drops in front of the west end of the shoot, open over the feed opening's west end:
+# north beside the feed box, and drops in front of the west end of the shoot, open over the feed opening's west end:
 # the water goes into the mortar with the ore at either level. A part per metal (`pipecopper`, `pipelead`); a renderer
 # draws the fitted metal's.
 PIPE_METALS = ("copper", "lead")
 PIPE_HALF = solderedpipe.HALF
 WATER_Y, WATER_Z = 40.0, 40.0                # the inlet's axis: the water cell's centre, on the ppex pipe beyond the face
-PIPE_X = 13.8                                # the north run and the drop (x): west of the hopper and the feed box
+PIPE_X = 13.8                                # the north run and the drop (x): west of the feed box
 PIPE_Z = 29.8                                # the drop (z): behind the stamps' guides and heads, over the back wall
 PIPE_END_Y = 21.5                            # the drop's open end, over the feed opening (the drop under a block long)
 
@@ -235,54 +233,6 @@ LINE_RATIO = -1.0                            # the line shaft per radian of the 
 CAM_RATIO = LINE_RATIO * LINE_PULLEY_R / BULL_R   # the camshaft (an open belt: the same sense)
 TURNS_PER_REV = abs(1.0 / CAM_RATIO)         # axle turns a camshaft turn
 
-# ---------------------------------------------------------------- level 2: the Challenge feeder
-# Rose (1898, pp. 122-123): "the tray, A, below the sheet-iron hopper, B, is revolved in a horizontal plane by means
-# of a gear-wheel below it ... and this gears with teeth set in the bottom of the tray ... The gear-wheel is set in
-# motion by a friction grip, D, placed on the outside of the frame, and actuated through the lever, E, by the
-# bumper-rod, G, against which the tappet of the stamp strikes. At each partial rotation a given quantity of ore is
-# scraped off by the stationary wings or side plates, H, resting on the tray". Every feeder of the kind is "a
-# pyramidal hopper with inclined floor, connected with the feed-opening of the mortar-box by a spout or shoot" (p. 121).
-HOPPER_X = (17.0, 31.0)                      # its side walls' outer faces
-HOPPER_SHEET = 0.5
-HOPPER_FRONT_Z = POST_M[1]                   # its front wall against the front bearer's back face
-HOPPER_BACK_Z = POST_B[0]                    # its back wall against the back bearer's front face
-HOPPER_FRONT_Y = 29.0                        # the front wall's bottom edge: the throat is under it
-HOPPER_FLOOR_HI = (37.5, HOPPER_BACK_Z - HOPPER_SHEET)   # (y, z): the inclined floor's upper end, at the back wall
-HOPPER_FLOOR_LO = (25.5, 36.5)               # its lower end, over the tray
-TRAY_C = (24.0, 37.0)                        # (x, z): the spindle, behind stamp 3
-TRAY_R = 6.0
-TRAY_Y = (22.0, 23.0)                        # the tray's plate
-TEETH_N = 16                                 # the teeth set in its bottom
-TEETH_R = (3.6, TRAY_R)
-TEETH_Y = (20.8, TRAY_Y[0] + 0.1)        # their top a little into the plate (its strips stand a hair apart)
-TEETH_W = 0.6
-MESH_R = 4.8                                 # where the pinion meshes them (the pitch radius)
-PINION_N = 6
-PINION_R = MESH_R * PINION_N / TEETH_N       # the pinion's pitch radius: 1.8
-PINION_TIP = PINION_R + 0.5
-PINION_HUB = 1.0
-PINION_X = (TRAY_C[0] + MESH_R - 0.6, TRAY_C[0] + MESH_R + 0.6)
-SHAFT_Y = (TEETH_Y[0] + TRAY_Y[0]) / 2 - PINION_R     # the pinion's shaft: the pitch lines meet at the teeth's middle
-FEED_AXIS = (SHAFT_Y, TRAY_C[1])             # (y, z): the shaft along x, under the tray's east side
-FEED_SHAFT_X = (26.4, 35.2)
-FEED_SHAFT_R = 0.7
-STRAP_Y = (14.0, HOPPER_FLOOR_LO[0])         # the two hanger straps from the hopper's side walls down to the step bracket
-STRAP_Z = (TRAY_C[1] - 1.2, TRAY_C[1] + 1.2)
-STEP_Y = (14.0, 15.5)                        # the step bracket across the straps' feet: the spindle's step bearing on it
-SPINDLE_R = 0.8
-DRUM_X = (31.6, 33.0)                        # the friction grip's drum, outside the east strap
-DRUM_R = 2.4
-LEVER_X = (33.2, 34.2)                       # the lever E: loose on the shaft beside the drum
-LEVER_PIN_Z = 27.5                           # E's arm runs north to its cross pin, over the mortar's back wall
-LEVER_TAIL_Z = 41.6                          # and south to its counterweight
-BUMPER_X = 26.9                              # the bumper rod G (x): between stamps 3 and 4, behind their stems
-BUMPER_R = 0.5
-PUSH = 1.0                                   # how far stamp 3's feeding tappet pushes G down when the stamp lands
-TAPPET_F_Y = 50.0                            # the feeding tappet's lug's underside, the stamp resting on its die
-GUIDE_HI_TOP = RAIL_HI_Y[1] + GUIDE_H        # the upper guide girts' top
-FEED_SMOOTH = 0.03                           # the bumper's drop, smoothed (radians of the camshaft): the strike's impact
-GRIP_SMOOTH = 0.04                           # the grip's turn, smoothed: the friction grip takes hold and lets go
-FEED_HARMONICS = 24
 
 
 def stem_x(i):
@@ -539,76 +489,6 @@ def cam_normal(i, lobe, t):
     return rot2(phi, (1.0, 0.0))
 
 
-# ---------------------------------------------------------------- the feeder's motion (stamp 3's period)
-FEED_STAMP = 2                               # 0-based: stamp 3, the middle one, carries the feeding tappet
-LEVER_R = TRAY_C[1] - LEVER_PIN_Z            # E's arm from the shaft to its cross pin (horizontal at rest)
-
-
-def _feeder_motion():
-    """Over stamp 3's period (x radians of the camshaft from its pick-up): G's drop below its stop, which the feeding
-    tappet pushes while the stamp is less than PUSH over its die (fitted, smoothed and lowered so G never stands
-    over its stop or into the tappet); E's turn, which carries G's foot; and the grip's one-way turn, which follows E
-    down and holds while E comes back up, a steady turn plus a periodic remainder. Returns each as (mean, harmonics)
-    and the figures the checks and the rig use."""
-    m = PROFILE_SAMPLES
-    xs = [math.pi * k / m for k in range(m)]
-    want = [min(0.0, lift_of(x) - PUSH) for x in xs]            # G's drop: in contact while the stamp is low
-    g0, gh = harmonics_of(want, FEED_HARMONICS, FEED_SMOOTH)
-    over = max(g0 + series(gh, x) - w for x, w in zip(xs, want))
-    g0 -= over + 0.005                                          # never over the stop or into the tappet
-    drop = [g0 + series(gh, x) for x in xs]
-    angle = [math.asin(d / LEVER_R) for d in drop]              # E's turn about +x: its arm points north (-z)
-    e0, eh = harmonics_of(angle, FEED_HARMONICS, 0.0)
-    # the grip turns with E only while E goes down, and stands while E comes back up: the one-way sum of E's ideal
-    # turn (the drop as the tappet pushes it), whose steady part is a rotate and whose remainder is fitted, smoothed
-    ideal = [math.asin(w / LEVER_R) for w in want]
-    grip, acc = [], 0.0
-    for k in range(m):
-        grip.append(acc)
-        acc += min(0.0, ideal[(k + 1) % m] - ideal[k])
-    per = acc                                                   # the grip's turn over one period (negative)
-    rest = [grip[k] - per * xs[k] / math.pi for k in range(m)]  # its periodic remainder
-    s0, sh = harmonics_of(rest, FEED_HARMONICS, GRIP_SMOOTH)
-    return {"drop": (g0, gh), "lever": (e0, eh), "grip": (s0, sh), "per": per}
-
-
-FEED = _feeder_motion()
-GRIP_PER_STRIKE = FEED["per"]                # radians of the grip (and pinion) a strike: one a period of stamp 3
-TRAY_RATIO = -PINION_N / TEETH_N             # the tray's turn per radian of the pinion's (teeth in its bottom)
-
-
-def bumper_drop(x):
-    g0, gh = FEED["drop"]
-    return g0 + series(gh, x)
-
-
-def lever_angle(x):
-    e0, eh = FEED["lever"]
-    return e0 + series(eh, x)
-
-
-def grip_angle(x_total):
-    """The grip's turn after the camshaft has turned x_total radians into stamp 3's periods from its first pick-up
-    (any real x): the steady turn plus the remainder."""
-    s0, sh = FEED["grip"]
-    return FEED["per"] * x_total / math.pi + s0 + series(sh, x_total)
-
-
-def feed_x(psi):
-    """x, the camshaft's angle into stamp 3's periods (from its first pick-up), after the axle's travel psi."""
-    return cam_angle(psi) - stamp_phase(FEED_STAMP)
-
-
-# The feeder's parts are drawn at their mean pose (as the stamps at their mean lift): G at its mean drop, E at its mean
-# turn, the grip and pinion at their turn at psi 0 less the harmonics' value there (so the rig's rotate and swings
-# add up to the turn), and the tray likewise. The design pose (G on its stop, E's arm level, a pinion tooth up
-# between two of the tray's teeth) is turned from these by the rig.
-G_MEAN = FEED["drop"][0]
-E_MEAN = FEED["lever"][0]
-GRIP_MEAN = FEED["per"] * (-stamp_phase(FEED_STAMP)) / math.pi + FEED["grip"][0]   # the grip's constant at psi 0
-TRAY_MEAN = TRAY_RATIO * GRIP_MEAN
-
-
 # ---------------------------------------------------------------- builders: the frame
 def build_frame():
     f = "frame"
@@ -717,9 +597,9 @@ def chute_origin(cell):
 # ---------------------------------------------------------------- builders: level 1
 def build_mortar():
     """The mortar set: the oak mortar block, the cast-iron mortar box with five dies, the screen in its front wall and
-    the feed opening in its back; the apron under the screen and the launder along the front, on two legs, out
-    through the output chute's section to the front face; the shoot from the feed lip; and the infeed chute's
-    section in the top face, hung from the frame's two top ties over the feed box or the hopper."""
+    the feed opening in its back; the output chute: its funnel under the screen and its stub of the game's chute out to
+    the front face, on an oak block; the shoot from the feed lip; and the infeed chute's section in the top face, hung
+    from the frame's two top ties over the feed box."""
     p = "mortar"
     (x0, x1), (z0, z1), (y0, y1) = MORTAR_X, MORTAR_Z, MORTAR_Y
     w = MORTAR_WALL
@@ -738,11 +618,7 @@ def build_mortar():
            box([x1 - w, MORTAR_FLOOR, z0 + w], [x1, y1, z1 - w], "mortar_end_e", p, "iron")]
     for i in range(STAMPS):
         out += disc("y", (stem_x(i), 0.0, STEM_Z), MORTAR_FLOOR, DIE_TOP, HEAD_R, f"mortar_die{i + 1}", p, "steel")
-    # the apron: from under the screen's lip down onto the launder's back board
-    lz0, lz1 = LAUNDER_Z
-    ly0, ly1 = LAUNDER_Y
-    out.append(plank((SCREEN_Y[0] - 0.3, z0), (ly1 + 0.5, lz1 - 0.6), x0 + w, x1 - w, "mortar_apron", p, "iron", t=0.8))
-    out += build_launder()
+    out += build_funnel()
     out += build_shoot()
     out += chute_section(OUTPUT_CELL, ("y", 90.0), CHUTE_OUT_LEN, "mortar_chuteout", p)
     out += chute_section(INFEED_CELL, ("z", 90.0), CHUTE_IN_LEN, "mortar_chutein", p)
@@ -754,23 +630,66 @@ def chute_bore_x():
     return (OUTPUT_CELL[0] * B + 5.0, OUTPUT_CELL[0] * B + 11.0)
 
 
-def build_launder():
-    """The launder: a plank trough along the front under the apron, on two oak legs; its front board opens where the
-    output chute's section meets it, and its floor stands a little over the chute's, so the pulp runs out into it."""
-    p = "mortar"
-    lz0, lz1 = LAUNDER_Z
-    ly0, ly1 = LAUNDER_Y
-    lx0, lx1 = LAUNDER_X
+def funnel_lines():
+    """The funnel's two walls' inner lines in plan, (x, z) from the stub's bore at its back end to the screen's ends at
+    the mortar's front face: west first."""
     cx0, cx1 = chute_bore_x()
-    out = [box([lx0, ly0, lz0], [lx1, ly0 + PLANK, lz1], "mortar_launder_floor", p, "planks"),
-           box([lx0, ly0 + PLANK, lz1 - PLANK], [lx1, ly1, lz1], "mortar_launder_back", p, "planks"),
-           box([lx0, ly0 + PLANK, lz0], [cx0, ly1, lz0 + PLANK], "mortar_launder_frontw", p, "planks"),
-           box([cx1, ly0 + PLANK, lz0], [lx1, ly1, lz0 + PLANK], "mortar_launder_fronte", p, "planks"),
-           box([lx0, ly0 + PLANK, lz0 + PLANK], [lx0 + PLANK, ly1 - 0.02, lz1 - PLANK], "mortar_launder_endw", p, "planks"),
-           box([lx1 - PLANK, ly0 + PLANK, lz0 + PLANK], [lx1, ly1 - 0.02, lz1 - PLANK], "mortar_launder_ende", p, "planks")]
-    for tag, (x0, x1) in (("w", (lx0 + 0.5, lx0 + 2.5)), ("e", (lx1 - 2.5, lx1 - 0.5))):
-        out.append(box([x0, 0.0, lz0 + 1.0], [x1, ly0, lz1 - 1.0], f"mortar_launder_leg{tag}", p, "oak"))
+    sx0, sx1 = MORTAR_X[0] + MORTAR_WALL, MORTAR_X[1] - MORTAR_WALL
+    za, zb = FUNNEL_Z
+    return (((cx0, za), (sx0, zb)), ((cx1, za), (sx1, zb)))
+
+
+def funnel_frame(line):
+    """A funnel wall's unit direction (from the stub to the mortar) and its unit normal out of the funnel, in plan."""
+    (xa, za), (xb, zb) = line
+    n = math.hypot(xb - xa, zb - za)
+    d = ((xb - xa) / n, (zb - za) / n)
+    c = (d[1], -d[0])
+    out = c if (c[0] > 0) == (xb > xa) else (-c[0], -c[1])     # away from the funnel's middle: west outward is -x
+    return d, out
+
+
+FUNNEL_EXT = 1.0                             # the walls and floor run on this far into the mortar's front wall
+
+
+def build_funnel():
+    """The output chute's funnel (FUNNEL_*): two walls of the chute's sheet standing on the stub's walls' line, flared
+    in plan to the screen's two ends at the mortar's front face, and a floor level with the stub's: a strip as wide as
+    the stub's floor, and a plate along each wall covering the flare. Both walls and the floor run on into the mortar's
+    front wall, so the mortar closes its back from its floor up to the screen; its top is open. An oak block under the
+    joint with the stub carries it."""
+    p = "mortar"
+    y0, y1 = FUNNEL_Y
+    t = FUNNEL_T
+    cx0, cx1 = chute_bore_x()
+    za, zb = FUNNEL_Z
+    out = [box([cx0, y0, za], [cx1, y0 + t, zb + FUNNEL_EXT], "mortar_funnel_floor", p, "chute")]
+    for tag, line in zip("we", funnel_lines()):
+        d, o = funnel_frame(line)
+        (xa, zza), (xb, zzb) = line
+        xb, zzb = xb + d[0] * FUNNEL_EXT, zzb + d[1] * FUNNEL_EXT
+        ym = (y0 + y1) / 2
+        # the wall: its inner face on the line, its thickness outside it; its end runs into the stub's wall, so it
+        # stands 0.02 inside the stub's height, and the stub keeps the game's chute's profile exactly
+        a = (xa + o[0] * t / 2, ym, zza + o[1] * t / 2)
+        b = (xb + o[0] * t / 2, ym, zzb + o[1] * t / 2)
+        out.append(strut(a, b, t, y1 - y0 - 0.04, f"mortar_funnel_wall{tag}", p, "chute", axis="y"))
+        # the floor's plate: its outer edge on the line, as wide as the flare is deep from it
+        wide = flare_depth(line)
+        a = (xa - o[0] * wide / 2, y0 + t / 2, zza - o[1] * wide / 2)
+        b = (xb - o[0] * wide / 2, y0 + t / 2, zzb - o[1] * wide / 2)
+        out.append(strut(a, b, wide, t, f"mortar_funnel_floor{tag}", p, "chute", axis="y"))
+    cx = (cx0 + cx1) / 2
+    out.append(box([cx - 4.5, 0.0, za - 1.5], [cx + 4.5, y0, za + 1.5], "mortar_chuteleg", p, "oak"))
     return out
+
+
+def flare_depth(line):
+    """How far the flare's triangle (between the wall's inner line and the stub's floor's edge) reaches in from the
+    line: its height over the line, and a little more."""
+    (xa, za), (xb, zb) = line
+    leg_x, leg_z = abs(xb - xa), zb - za
+    return leg_x * leg_z / math.hypot(leg_x, leg_z) + 0.3
 
 
 def shoot_y(z):
@@ -780,8 +699,8 @@ def shoot_y(z):
 
 
 def build_shoot():
-    """The shoot: an iron spout from the feed lip up and back under the tray's front edge, which the feed box's floor
-    (level 1) and the tray's wings (level 2) put the ore onto; two low sides on it."""
+    """The shoot: an iron spout from the feed lip up and back under the feed box's floor, which puts the ore onto it;
+    two low sides on it."""
     p = "mortar"
     sx0, sx1 = SHOOT_X
     out = [plank(SHOOT_LO, SHOOT_HI, sx0, sx1, "mortar_shoot", p, "iron", t=SHOOT_T)]
@@ -800,7 +719,7 @@ def feedbox_y(z):
 def build_feed_box():
     """Level 1's feed box: a plank box behind the mortar under the infeed chute, its floor falling 50 degrees onto the
     shoot, two sides and a back board hung on the back bearer; open on top, where the chute (or the player, by hand at
-    the chute's mouth) drops the ore in. The feeder takes its place at level 2."""
+    the chute's mouth) drops the ore in."""
     p = "feedbox"
     fx0, fx1 = FEEDBOX_X
     za, zb = FEEDBOX_Z
@@ -809,7 +728,7 @@ def build_feed_box():
     for tag, (sx0, sx1) in (("w", (fx0, fx0 + PLANK)), ("e", (fx1 - PLANK, fx1))):
         # a plain board from under the floor's low end to FEEDBOX_SIDE over its high end
         out.append(box([sx0, a[0] - 1.6, za], [sx1, b[0] + FEEDBOX_SIDE, zb], f"feedbox_{tag}", p, "planks"))
-    out.append(box([fx0, b[0] - 0.4, zb], [fx1, BEARER_Y[1] - 0.1, HOPPER_BACK_Z], "feedbox_back", p, "planks"))
+    out.append(box([fx0, b[0] - 0.4, zb], [fx1, BEARER_Y[1] - 0.1, POST_B[0]], "feedbox_back", p, "planks"))
     return out
 
 
@@ -911,168 +830,24 @@ def build_stamps():
     return out
 
 
-# ---------------------------------------------------------------- builders: level 2, the Challenge feeder
-def bumper_dir():
-    """The unit (x, z) from stamp 3's stem to the bumper rod G."""
-    dx, dz = BUMPER_X - stem_x(FEED_STAMP), LEVER_PIN_Z - STEM_Z
-    n = math.hypot(dx, dz)
-    return dx / n, dz / n
-
-
-def build_feeder_frame():
-    """The feeder's fixed parts (`feeder`): the sheet-iron hopper with its inclined floor, hung between the two bearers;
-    the two hanger straps from its side walls down to the step bracket under the tray, the spindle's step bearing on
-    it, the pinion shaft's two bearings (a pedestal on the bracket, a boss on the east strap); the two wings resting
-    on the tray's front; and G's guide bracket on the upper guide girts' back strip."""
-    p = "feeder"
-    hx0, hx1 = HOPPER_X
-    t = HOPPER_SHEET
-    zf, zb = HOPPER_FRONT_Z, HOPPER_BACK_Z
-    (fy, fz), (ly, lz) = HOPPER_FLOOR_HI, HOPPER_FLOOR_LO
-    out = [box([hx0, HOPPER_FRONT_Y, zf], [hx1, BEARER_Y[1], zf + t], "feeder_hopper_front", p, "sheet"),
-           box([hx0, fy, zb - t], [hx1, BEARER_Y[1], zb], "feeder_hopper_back", p, "sheet")]
-    for tag, (x0, x1) in (("w", (hx0, hx0 + t)), ("e", (hx1 - t, hx1))):
-        # the side walls whole, down to the throat: over the floor they close the hopper, under it they are its cheeks
-        out.append(box([x0, ly, zf], [x1, BEARER_Y[1], zb], f"feeder_hopper_{tag}", p, "sheet"))
-    out.append(plank((fy, fz), (ly, lz), hx0 + t, hx1 - t, "feeder_hopper_floor", p, "sheet", t=t))
-    # the hanger straps, the step bracket and the spindle's step bearing
-    sz0, sz1 = STRAP_Z
-    for tag, (x0, x1) in (("w", (hx0, hx0 + t)), ("e", (hx1 - t, hx1))):
-        out.append(box([x0, STRAP_Y[0], sz0], [x1, STRAP_Y[1], sz1], f"feeder_strap_{tag}", p, "iron"))
-    out.append(box([hx0, STEP_Y[0], sz0], [hx1, STEP_Y[1], sz1], "feeder_bracket", p, "iron"))
-    tx, tz = TRAY_C
-    out.append(box([tx - 1.2, STEP_Y[1], tz - 1.2], [tx + 1.2, STEP_Y[1] + 1.5, tz + 1.2], "feeder_stepbearing", p, "iron"))
-    # the pinion shaft's bearings: a pedestal on the bracket inside the teeth, a boss on the east strap
-    sy, szc = FEED_AXIS
-    out.append(box([FEED_SHAFT_X[0], STEP_Y[1], szc - 1.0], [FEED_SHAFT_X[0] + 1.0, sy + 1.0, szc + 1.0], "feeder_pedestal", p, "iron"))
-    out.append(box([hx1 - 0.7, sy - 1.5, szc - 1.0], [hx1 + 0.4, sy + 1.5, szc + 1.0], "feeder_boss", p, "iron"))
-    # the wings (Rose's H): two plates standing on the tray's front, from the throat's front corners out over its edge
-    wy0, wy1 = TRAY_Y[1], HOPPER_FRONT_Y
-    for tag, sgn in (("w", -1.0), ("e", 1.0)):
-        a = (tx + sgn * 3.0, 0.0, zf + 0.3)
-        b = (tx + sgn * 5.8, 0.0, tz - TRAY_R - 0.4)
-        el = strut((a[0], (wy0 + wy1) / 2, a[2]), (b[0], (wy0 + wy1) / 2, b[2]), t, wy1 - wy0, f"feeder_wing_{tag}", p, "iron", axis="y")
-        out.append(el)
-    # G's guide bracket, bolted to the upper guide girts' back strip
-    gz0 = STEM_Z + 2.0
-    out.append(box([BUMPER_X - 1.0, RAIL_HI_Y[1] + 0.5, gz0], [BUMPER_X + 1.0, GUIDE_HI_TOP - 0.5, LEVER_PIN_Z + 1.1], "feeder_guide", p, "iron"))
-    return out
-
-
-def build_tray():
-    """The tray (Rose's A) on its spindle, drawn at its mean turn: a cast-iron plate, its hub and nut, and the teeth set
-    in its bottom, which the pinion meshes; the spindle stands in the step bearing."""
-    p = "tray"
-    tx, tz = TRAY_C
-    c = (tx, 0.0, tz)
-    out = disc("y", c, TRAY_Y[0], TRAY_Y[1], TRAY_R, "tray_plate", p, "iron", k=6)
-    out += disc("y", c, TEETH_Y[0] + 0.3, TRAY_Y[0], 1.6, "tray_hub", p, "iron", k=3)
-    out += disc("y", c, TRAY_Y[1], TRAY_Y[1] + 0.6, 1.1, "tray_nut", p, "iron", k=3)
-    out += disc("y", c, STEP_Y[1] + 0.3, TRAY_Y[1] + 0.3, SPINDLE_R, "tray_spindle", p, "steel", k=3)
-    for k in range(TEETH_N):
-        # a gap where the pinion meshes (+x) at the design pose: the teeth half a pitch either side of it
-        ang = TAU * (k + 0.5) / TEETH_N
-        el = box([tx + TEETH_R[0], TEETH_Y[0], tz - TEETH_W / 2], [tx + TEETH_R[1], TEETH_Y[1], tz + TEETH_W / 2], f"tray_tooth{k + 1}", p, "iron")
-        rotate([el], "y", math.degrees(ang), [tx, 0.0, tz])
-        out.append(el)
-    rotate(out, "y", math.degrees(TRAY_MEAN), [tx, 0.0, tz])
-    return out
-
-
-def build_feedshaft():
-    """The pinion's shaft (Rose's gear-wheel), drawn at its mean turn: the shaft in its two bearings, the pinion meshing
-    the tray's teeth, the friction grip's drum outside the east strap, a collar at its end."""
-    p = "feedshaft"
-    c = yz(FEED_AXIS)
-    out = disc("x", c, FEED_SHAFT_X[0] + 0.05, FEED_SHAFT_X[1], FEED_SHAFT_R, "feedshaft_shaft", p, "steel", k=3)
-    out += disc("x", c, PINION_X[0], PINION_X[1], PINION_HUB, "feedshaft_pinion", p, "iron", k=3)
-    for k in range(PINION_N):
-        # a tooth up into the tray's gap at the design pose
-        out.append(radial("x", c, PINION_X[0] + 0.02 * (k % 2), PINION_X[1] - 0.02 * (k % 2), PINION_HUB - 0.2, PINION_TIP, TEETH_W,
-                          TAU * k / PINION_N, f"feedshaft_tooth{k + 1}", p, "iron"))
-    out += disc("x", c, DRUM_X[0], DRUM_X[1], DRUM_R, "feedshaft_drum", p, "iron", k=6)
-    out += disc("x", c, FEED_SHAFT_X[1] - 0.8, FEED_SHAFT_X[1] + 0.02, 1.1, "feedshaft_collar", p, "iron", k=3)
-    rotate(out, "x", math.degrees(GRIP_MEAN), c)
-    return out
-
-
-def build_lever():
-    """The lever E, drawn at its mean turn: loose on the shaft beside the drum, its arm north to the cross pin G hangs on,
-    its tail south to the counterweight that holds G up on its stop, and the grip's shoe (Rose's D) bearing on the
-    drum's rim: it takes the drum round with it as G pushes the arm down, and slips back over it as the weight lifts
-    it."""
-    p = "lever"
-    sy, sz = FEED_AXIS
-    x0, x1 = LEVER_X
-    out = disc("x", yz(FEED_AXIS), x0, x1, 1.3, "lever_hub", p, "iron", k=3)
-    out.append(box([x0 + 0.01, sy - 0.6, LEVER_PIN_Z], [x1 - 0.01, sy + 0.6, sz - 0.8], "lever_arm", p, "iron"))
-    out.append(box([x0 + 0.01, sy - 0.6, sz + 0.8], [x1 - 0.01, sy + 0.6, LEVER_TAIL_Z], "lever_tail", p, "iron"))
-    out.append(box([x0 - 0.4, sy - 2.2, LEVER_TAIL_Z - 1.0], [x1 + 0.4, sy + 2.2, LEVER_TAIL_Z + 1.2], "lever_weight", p, "iron"))
-    out += disc("x", yz((sy, LEVER_PIN_Z)), BUMPER_X - 0.7, x1 - 0.02, 0.5, "lever_pin", p, "steel", k=3)
-    top = sy + DRUM_R * 1.04
-    out.append(box([DRUM_X[0] + 0.2, top, sz - 1.4], [x1 - 0.02, top + 0.7, sz + 1.4], "lever_shoe", p, "iron"))
-    out.append(box([x0 + 0.02, sy + 1.2, sz - 0.6], [x1 - 0.04, top, sz + 0.6], "lever_web", p, "iron"))
-    rotate(out, "x", math.degrees(E_MEAN), yz(FEED_AXIS))
-    return out
-
-
-def bumper_top():
-    """G's head's top on its stop (the design pose): PUSH over the feeding tappet's lug, the stamp resting."""
-    return TAPPET_F_Y + PUSH
-
-
-def build_bumper():
-    """The bumper rod G, drawn at its mean drop: an eye on E's cross pin, the rod up through its guide bracket, a stop
-    collar under the bracket, and its head under the feeding tappet's lug."""
-    p = "bumper"
-    sy = FEED_AXIS[0]
-    c = (BUMPER_X, 0.0, LEVER_PIN_Z)
-    top = bumper_top()
-    out = [box([BUMPER_X - 0.7, sy - 0.9, LEVER_PIN_Z - 0.7], [BUMPER_X + 0.7, sy + 0.9, LEVER_PIN_Z + 0.7], "bumper_eye", p, "iron")]
-    out += disc("y", c, sy + 0.9, top - 1.0, BUMPER_R, "bumper_rod", p, "steel", k=3)
-    out += disc("y", c, RAIL_HI_Y[1] + 0.5 - 1.0, RAIL_HI_Y[1] + 0.5, 0.9, "bumper_stop", p, "iron", k=3)
-    out += disc("y", c, top - 1.0, top, 1.0, "bumper_head", p, "iron", k=3)
-    translate(out, [0.0, G_MEAN, 0.0])
-    return out
-
-
-def build_feed_tappet():
-    """The feeding tappet on stamp 3 (Rose's F), drawn with the stamp at its mean lift: a collar near the top of the
-    stem, above the upper guide girts, and a lug reaching back to over G's head."""
-    p = "feedtappet"
-    x = stem_x(FEED_STAMP)
-    y0 = TAPPET_F_Y + DRAWN_LIFT
-    dx, dz = bumper_dir()
-    reach = math.hypot(BUMPER_X - x, LEVER_PIN_Z - STEM_Z) + 0.9
-    out = [box([x - 1.4, y0, STEM_Z - 1.4], [x + 1.4, y0 + 1.6, STEM_Z + 1.4], "feedtappet_collar", p, "iron")]
-    a = (x + dx * 1.2, y0 + 0.5, STEM_Z + dz * 1.2)
-    b = (x + dx * reach, y0 + 0.5, STEM_Z + dz * reach)
-    out.append(strut(a, b, 1.6, 1.0, "feedtappet_lug", p, "iron", axis="y"))
-    return out
-
-
-def build_feeder():
-    return build_feeder_frame() + build_tray() + build_feedshaft() + build_lever() + build_bumper() + build_feed_tappet()
-
-
 def build():
     els = build_frame() + build_drive() + build_line_pulleys()
     els += build_mortar() + build_camshaft() + build_stamps() + build_feed_box()
-    els += build_feeder() + build_pipes()
+    els += build_pipes()
     return els
 
 
 # ---------------------------------------------------------------- the levels
-# A level is only parts fitted to the same equipment (#711). Level 2's feeder goes where level 1's feed box was, so
-# fitting it takes the feed box off: the levels' sets are the scenario's states, not nested.
-LEVELS = {"level1": ("mortar", "camshaft", "stamps", "feedbox"), "level2": ("mortar", "camshaft", "stamps", "feeder")}
-LEVEL_VALUES = ("mortar", "camshaft", "stamps", "feedbox", "feeder")
+# A level is only parts fitted to the same equipment (#711). The machine has one: the battery, fed by chute (or by hand)
+# into its feed box and discharging by chute.
+LEVELS = {"level1": ("mortar", "camshaft", "stamps", "feedbox")}
+LEVEL_VALUES = LEVELS["level1"]
 PIPE_REQUIRES = tuple(f"pipe{m}" for m in PIPE_METALS)
-STATES = ("frame", "level1", "level2")
+STATES = ("frame", "level1")
 
 
 def in_state(requires, state):
-    """Whether a part with this `requires` is drawn in a build state ("frame", "level1", "level2"): at each level
+    """Whether a part with this `requires` is drawn in a build state ("frame", "level1"): at the level
     the water line in its first metal (the others are copies, never drawn with it)."""
     if requires == PIPE_REQUIRES[0]:
         return state != "frame"
@@ -1114,15 +889,6 @@ def stamp_drivers(i):
     return period_drivers(PROFILE_H, i, "slide", "y", 1.0 / B)
 
 
-def staircase_drivers(axis, pivot, ratio_scale):
-    """The grip's one-way turn (times ratio_scale: 1 for the shaft, TRAY_RATIO for the tray) as a steady rotate on the
-    axle's travel plus its periodic remainder's harmonics as swings about the same axis."""
-    per = FEED["per"] * ratio_scale
-    rot_ = {"type": "rotate", "axis": axis, "pivot": pivot, "ratio": r6(per / math.pi * abs(CAM_RATIO)), "input": "travel"}
-    sh = [(n, s * ratio_scale, c * ratio_scale) for n, s, c in FEED["grip"][1]]
-    return [rot_] + period_drivers(sh, FEED_STAMP, "swing", axis, 1.0, pivot)
-
-
 _PARTS = []
 
 
@@ -1135,8 +901,6 @@ def rig_parts():
 def _rig_parts():
     def rot_x(centre, ratio, inp=None):
         return dict({"type": "rotate", "axis": "x", "pivot": pt(*yz(centre)), "ratio": r6(ratio)}, **({"input": inp} if inp else {}))
-    feed_pivot = pt(*yz(FEED_AXIS))
-    tray_pivot = pt(TRAY_C[0], 0.0, TRAY_C[1])
     parts = [
         {"id": "entry", "match": ["entry_*"], "requires": None, "drivers": [rot_x(ENTRY, 1.0)]},
         {"id": "line", "match": ["line_*"], "requires": None, "drivers": [rot_x(LINE, LINE_RATIO, "travel")]},
@@ -1150,14 +914,6 @@ def _rig_parts():
     parts += [
         {"id": "mortar", "match": ["mortar_*"], "requires": "mortar", "drivers": []},
         {"id": "feedbox", "match": ["feedbox_*"], "requires": "feedbox", "drivers": []},
-        # level 2: the Challenge feeder, worked by stamp 3's drop
-        {"id": "feedtappet", "match": ["feedtappet_*"], "requires": "feeder", "ride": f"stamp{FEED_STAMP + 1}", "drivers": []},
-        {"id": "bumper", "match": ["bumper_*"], "requires": "feeder", "drivers": period_drivers(FEED["drop"][1], FEED_STAMP, "slide", "y", 1.0 / B)},
-        {"id": "lever", "match": ["lever_*"], "requires": "feeder",
-         "drivers": period_drivers(FEED["lever"][1], FEED_STAMP, "swing", "x", 1.0, feed_pivot)},
-        {"id": "feedshaft", "match": ["feedshaft_*"], "requires": "feeder", "drivers": staircase_drivers("x", feed_pivot, 1.0)},
-        {"id": "tray", "match": ["tray_*"], "requires": "feeder", "drivers": staircase_drivers("y", tray_pivot, TRAY_RATIO)},
-        {"id": "feeder", "match": ["feeder_*"], "requires": "feeder", "drivers": []},
         # the water line, one part per metal (requires pipecopper, pipelead): only the fitted metal's is drawn
         *({"id": r, "match": [f"{r}_*"], "requires": r, "drivers": []} for r in PIPE_REQUIRES),
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
@@ -1193,11 +949,6 @@ def at_cam(phi):
     return (psi, psi)
 
 
-def at_feed(x):
-    """A pose with the camshaft x radians into stamp 3's periods (from its first pick-up)."""
-    return at_cam(x + stamp_phase(FEED_STAMP))
-
-
 # ---------------------------------------------------------------- the rig file
 def footprint():
     return [(x, y, z) for x in range(CELLS_X) for y in range(CELLS_Y) for z in range(CELLS_Z)]
@@ -1218,12 +969,11 @@ def anchor_points():
 
 def make_rig(parts):
     rig = {"_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the bottom middle cell of the "
-                       "north face, the output chute's. One machine, its levels parts fitted to it (#711): the frame's parts have no "
-                       "requires; level 1 fits mortar, camshaft, stamps and feedbox, level 2 the feeder in the feed box's place "
-                       "(levels); the water line is pipecopper or pipelead, the same pipe in the fitted metal. Hand feeding goes "
-                       "in at the infeed's mouth, as a chute does, at both levels. theta turns the entry shaft; everything "
-                       "behind the rectifier's gear case follows travel (psi): the line shaft, the camshaft, the stamps "
-                       "(harmonics of the camshaft's turn) and the feeder (stamp 3's strikes). No work. See the stamp "
+                       "north face, the output chute's. One machine, its level's parts fitted to it (#711): the frame's parts have no "
+                       "requires; its one level fits mortar, camshaft, stamps and feedbox (levels); the water line is pipecopper "
+                       "or pipelead, the same pipe in the fitted metal. Hand feeding goes in at the infeed's mouth, as a chute "
+                       "does. theta turns the entry shaft; everything behind the rectifier's gear case follows travel (psi): the "
+                       "line shaft, the camshaft and the stamps (harmonics of the camshaft's turn). No work. See the stamp "
                        "battery's README for the schema.",
            "cells": []}
     for name, cell, face in CELL_ANCHORS:
@@ -1235,15 +985,9 @@ def make_rig(parts):
                      "_comment": f"turnsPerRev: axle turns per camshaft turn as the belt is drawn (the line pulley's radius "
                                  f"{LINE_PULLEY_R} to the bull pulley's {BULL_R}, behind a 1:1 rectifier); each stamp drops "
                                  "dropsPerRev times a camshaft turn, in firingOrder, and is lifted `lift` blocks by its cam."}
-    rig["feeder"] = {"stamp": FEED_STAMP + 1, "strikesPerRev": 2, "push": r6(PUSH / B),
-                     "trayDegreesPerStrike": r6(math.degrees(abs(GRIP_PER_STRIKE * TRAY_RATIO))),
-                     "_comment": "Level 2, the Challenge feeder: the feeding tappet on `stamp` strikes the bumper rod each time "
-                                 "the stamp lands (strikesPerRev a camshaft turn), pushing it `push` blocks down; the grip turns "
-                                 "the pinion and the tray a step each strike."}
-    rig["levels"] = {"1": list(LEVELS["level1"]), "2": list(LEVELS["level2"]),
-                     "_comment": "The requires values fitted at each level. The feeder goes where the feed box was: fitting it "
-                                 "takes the feed box off. From level 1 the water line is fitted too, in one metal: pipecopper or "
-                                 "pipelead."}
+    rig["levels"] = {"1": list(LEVELS["level1"]),
+                     "_comment": "The requires values fitted at the machine's one level. The water line is fitted with it, in one "
+                                 "metal: pipecopper or pipelead."}
     rig["parts"] = parts
     return rig
 
@@ -1271,8 +1015,8 @@ def shipped(els, parts, rig):
 
 
 def complete(requires):
-    """The finished machine the cells' boxes are built from: the frame, level 2 and the water line in copper."""
-    return requires is None or requires in LEVELS["level2"] or requires == PIPE_REQUIRES[0]
+    """The finished machine the cells' boxes are built from: the frame, level 1 and the water line in copper."""
+    return requires is None or requires in LEVELS["level1"] or requires == PIPE_REQUIRES[0]
 
 
 def shipped_cells(shape, ship_parts):
@@ -1305,7 +1049,7 @@ def shipped_cells(shape, ship_parts):
 
 def check_shipped(els, parts, ship_els, ship_parts, ship):
     d = [-ORIGIN_CELL[k] * B for k in range(3)]
-    poses = [REST, turning(0.3), turning(4.77, -2.0), at_cam(1.1), at_feed(2.2), turning(31.0, 1.0), turning(101.0, -7.0)]
+    poses = [REST, turning(0.3), turning(4.77, -2.0), at_cam(1.1), at_cam(3.9), turning(31.0, 1.0), turning(101.0, -7.0)]
     worst = worst_shift_error(els, ship_els, lambda el, pose: pm(parts, el.part, pose),
                               lambda el, pose: _part_matrix(ship_parts, el.part, inputs_of(pose)), d, poses)
     cells = [tuple(c["pos"]) for c in ship["cells"]]
@@ -1321,7 +1065,7 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
 # ---------------------------------------------------------------- reference poses
 def reference_poses():
     """theta and psi: the axle at rest, either way, through several turns, at every stamp's pick-up, mid-lift,
-    release and landing, stamp 3's strike on the bumper through it, and a long run."""
+    release and landing, and a long run."""
     out = []
     for th in (0.0, 1.1, -2.3, 2.9, -5.4):
         out.append((th, abs(th)))
@@ -1331,9 +1075,6 @@ def reference_poses():
         for x in (0.0, 0.4, LIFT / CAM_RB, LIFT / CAM_RB + 0.45, LIFT / CAM_RB + FALL, 2.6):
             psi = r6((stamp_phase(i) + x) / abs(CAM_RATIO))
             out.append((r6(-psi), psi))
-    for x in (1.85, 1.95, 2.0, 2.05, 2.1, 2.5, 3.1, 3.3, 3.5):
-        psi = r6(at_feed(x)[1])
-        out.append((psi, psi))
     return out
 
 
@@ -1360,8 +1101,8 @@ def shape_json(els):
 def coplanar_poses():
     """(pose, state): the machine at each level at rest and running, so faces that never show together are never
     compared."""
-    return (REST + ("level2",), at_cam(0.7) + ("level1",), at_cam(2.3) + ("level2",), at_feed(2.3) + ("level2",),
-            at_feed(0.6) + ("level1",), REST + ("frame",))
+    return (REST + ("level1",), at_cam(0.7) + ("level1",), at_cam(2.3) + ("level1",), at_cam(4.4) + ("level1",),
+            REST + ("frame",))
 
 
 REQUIRES = {}
@@ -1370,7 +1111,7 @@ REQUIRES = {}
 def shown(posed_els, pose):
     """The posed elements of the pose's build state; the rest moved far away (copies; the order kept), so the
     z-fighting fix and its check deal only with faces that show together."""
-    state = pose[2] if len(pose) > 2 else "level2"
+    state = pose[2] if len(pose) > 2 else "level1"
     out = []
     for e in posed_els:
         if not in_state(REQUIRES[e.part], state):

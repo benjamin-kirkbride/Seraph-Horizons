@@ -1,12 +1,12 @@
 """The stamp battery's generated model files (mods-src/seraphhorizons/StampBattery/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
-maths and its `requires` are the levels' sets (the frame's none; level 1 mortar, camshaft, stamps and feedbox; level 2
-the feeder in the feed box's place), which site/models.json's build states fit; its reference poses are its own maths;
-the cells are rebuilt from the shipped shape, every column decked; the line shaft turns one way whichever way the axle
-turns; each stamp drops twice a camshaft turn in the firing order and rests between drops; the feeder's tray turns one
-way, a step at each of the middle stamp's strikes; both chutes are the game's chute section on their cells' axes; and
-the anchors (power, water, infeed and output) are on their cells' faces. Run with
+maths and its `requires` are its one level's set (the frame's none; the level mortar, camshaft, stamps and feedbox),
+which site/models.json's build states fit; its reference poses are its own maths; the cells are rebuilt from the
+shipped shape, every column decked; the line shaft turns one way whichever way the axle turns; each stamp drops twice a
+camshaft turn in the firing order and rests between drops; both chutes are the game's chute section on their cells'
+axes, the output's funnel spanning the screen with no launder or apron; and the anchors (power, water, infeed and
+output) are on their cells' faces. Run with
 `python3 -m unittest discover -s tools/tests -p test_stampbattery_model.py`.
 """
 
@@ -37,8 +37,7 @@ MANIFEST = json.loads((ROOT / "site" / "models.json").read_text())
 README = (MOD / "StampBattery" / "README.md").read_text()
 BATTERY = ["mortar", "camshaft", "stamps"]
 LEVEL1 = BATTERY + ["feedbox"]
-LEVEL2 = BATTERY + ["feeder"]
-VALUES = BATTERY + ["feedbox", "feeder"]
+VALUES = LEVEL1
 PIPES = ["pipecopper", "pipelead"]
 
 
@@ -54,26 +53,21 @@ def angle_x(m):
     return math.atan2(m[2][1], m[1][1])
 
 
-def angle_y(m):
-    return math.atan2(m[0][2], m[0][0])
-
-
 class Rig(unittest.TestCase):
     def test_parts_parse_and_requires_are_the_levels(self):
         ids = [p["id"] for p in RIG["parts"]]
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(ids[-1], "frame")
         for p in RIG["parts"]:
-            self.assertEqual(p.get("ride"), "stamp3" if p["id"] == "feedtappet" else None, p["id"])
+            self.assertIsNone(p.get("ride"), p["id"])
             for d in p["drivers"]:
                 rigmath.validate_driver(d)
         self.assertIsNone(rigmath.progress_of(RIG))
-        self.assertEqual({k: v for k, v in RIG["levels"].items() if not k.startswith("_")}, {"1": LEVEL1, "2": LEVEL2})
+        self.assertEqual({k: v for k, v in RIG["levels"].items() if not k.startswith("_")}, {"1": LEVEL1})
+        self.assertNotIn("feeder", RIG)
         self.assertEqual({p["requires"] for p in RIG["parts"]}, {None} | set(VALUES) | set(PIPES))
         for pid in ("entry", "line", "frame"):
             self.assertIsNone(part(pid)["requires"], pid)
-        for pid in ("feedtappet", "bumper", "lever", "feedshaft", "tray", "feeder"):
-            self.assertEqual(part(pid)["requires"], "feeder", pid)
 
     def test_every_element_has_a_part_and_every_part_an_element(self):
         names = [e["name"] for e in SHAPE["elements"]]
@@ -128,6 +122,20 @@ class Rig(unittest.TestCase):
             self.assertEqual(len(walls), 4, tag)
             for e in walls:
                 self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#chute"})
+
+    def test_the_output_funnel_spans_the_screen_and_replaces_the_launder(self):
+        names = [e["name"] for e in SHAPE["elements"]]
+        self.assertFalse([n for n in names if "launder" in n or "apron" in n])
+        funnel = [e for e in SHAPE["elements"] if e["name"].startswith("mortar_funnel_")]
+        self.assertEqual(sorted(e["name"] for e in funnel),
+                         ["mortar_funnel_floor", "mortar_funnel_floore", "mortar_funnel_floorw", "mortar_funnel_walle", "mortar_funnel_wallw"])
+        for e in funnel:
+            self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#chute"}, e["name"])
+        (wa, wb), (ea, eb) = make_shape.funnel_lines()
+        sx0 = make_shape.MORTAR_X[0] + make_shape.MORTAR_WALL
+        sx1 = make_shape.MORTAR_X[1] - make_shape.MORTAR_WALL
+        self.assertEqual((wb[0], eb[0], wb[1]), (sx0, sx1, make_shape.MORTAR_Z[0]))          # the whole screen, at the mortar
+        self.assertEqual((wa[0], ea[0], wa[1]), (*make_shape.chute_bore_x(), make_shape.CHUTE_OUT_LEN))   # the stub's bore
 
 
 class Drive(unittest.TestCase):
@@ -185,50 +193,14 @@ class Battery(unittest.TestCase):
                 self.assertLess(y - lo, 0.12, f"stamp {i + 1} at {x:.2f}")
 
 
-class Feeder(unittest.TestCase):
-    def test_the_tray_turns_one_way_a_step_a_strike(self):
-        per_rev = RIG["stamps"]["turnsPerRev"]
-        n, turns = 1440, 4
-        total, back, prev = 0.0, 0.0, None
-        for k in range(n + 1):
-            psi = 2 * math.pi * per_rev * turns * k / n
-            a = angle_y(matrix("tray", psi, psi))
-            if prev is not None:
-                d = math.remainder(a - prev, math.tau)
-                total += d
-                back = max(back, -d)                    # the tray turns forwards, positive about y
-            prev = a
-        per_strike = math.degrees(total) / (turns * RIG["feeder"]["strikesPerRev"])
-        self.assertAlmostEqual(abs(per_strike), RIG["feeder"]["trayDegreesPerStrike"], places=2)
-        self.assertGreater(per_strike, 0.0)
-        self.assertLess(math.degrees(back), 0.05)
-
-    def test_the_pinion_and_the_tray_keep_their_gearing(self):
-        # both are drawn at their mean turn, in mesh; the rig turns them by the same terms in the teeth's ratio (the
-        # shaft less than half a turn here, so its angle does not wrap)
-        ratio = -make_shape.PINION_N / make_shape.TEETH_N
-        for psi in (0.0, 3.1, 17.7, 64.2, 140.0):
-            shaft = angle_x(matrix("feedshaft", psi, psi))
-            tray = angle_y(matrix("tray", psi, psi))
-            self.assertLess(abs(shaft), math.pi)
-            self.assertAlmostEqual(math.remainder(tray - ratio * shaft, math.tau), 0.0, places=4)
-
-    def test_the_bumper_rod_is_pushed_down_by_the_middle_stamp_and_comes_back(self):
-        ys = [matrix("bumper", psi, psi)[1][3] * 16 for psi in (k * 0.01 for k in range(int(2 * math.pi * RIG["stamps"]["turnsPerRev"] / 0.01)))]
-        push = RIG["feeder"]["push"] * 16
-        self.assertGreater(max(ys) - min(ys), push * 0.95)
-        self.assertLess(max(ys) - min(ys), push * 1.1)
-        self.assertEqual(RIG["feeder"]["stamp"], 3)
-
-
 class Manifest(unittest.TestCase):
     def test_the_viewer_shows_each_level(self):
         model = next(m for m in MANIFEST["models"] if m["id"] == "stamp-battery")
         self.assertTrue(model["rig"].endswith("stampbattery-rig.json"))
         group, pipes = model["scenario"]["states"]
         got = {o["id"]: o["fitted"] for o in group["options"]}
-        self.assertEqual(got, {"frame": [], "level1": LEVEL1, "level2": LEVEL2})
-        self.assertEqual((group["default"], group["values"]), ("level2", VALUES))
+        self.assertEqual(got, {"frame": [], "level1": LEVEL1})
+        self.assertEqual((group["default"], group["values"]), ("level1", VALUES))
         self.assertEqual({o["id"]: o["fitted"] for o in pipes["options"]}, {m: [m] for m in PIPES})
         self.assertEqual((pipes["default"], pipes["values"], pipes["needs"]), ("pipecopper", PIPES, ["mortar"]))
 

@@ -8,8 +8,7 @@ import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs,
 // The stamp battery's shipped files, and the poses StampBattery/tools/make_shape.py computes from them with machinegen's
 // reference maths. Its rig reads the axle's angle θ (the entry shaft) and its travel ψ, which everything behind the
 // rectifier follows: the line shaft and its pulley, the camshaft, the stamps (each a sum of harmonics of the camshaft's
-// turn) and the Challenge feeder (its bumper rod and lever on the middle stamp's drop, its grip, pinion and tray a
-// steady turn plus harmonics). It has no work. tools/tests/test_stampbattery_model.py replays the same file in Python.
+// turn). It has one level and no work. tools/tests/test_stampbattery_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
 const rig = read("assets/seraphhorizons/config/stampbattery-rig.json") as Rig & Record<string, unknown>;
@@ -21,23 +20,24 @@ const parts = rig.parts!;
 const order = rideOrder(parts);
 const BATTERY = ["mortar", "camshaft", "stamps"];
 const LEVEL1 = [...BATTERY, "feedbox"];
-const LEVEL2 = [...BATTERY, "feeder"];
-const VALUES = [...BATTERY, "feedbox", "feeder"];
+const VALUES = LEVEL1;
 const PIPES = ["pipecopper", "pipelead"];
 
 const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 + r]!));
 const pose = (theta: number, travel: number): Pose => ({ theta, depth: 0, lifting: 0, travel, work: 0, size: 0, presence: 0, feed: 0, oil: 0 });
 
 describe("the stamp battery's rig against its rig-reference.json", () => {
-  it("reads the axle's angle and travel, has no work, and fits each level's parts", () => {
+  it("reads the axle's angle and travel, has no work, and fits its one level's parts", () => {
     expect(rigInputs(parts)).toEqual({ theta: true, travel: true, depth: false, lifting: false });
     expect(workOf(rig)).toBeNull();
     expect(new Set(parts.map((p) => p.requires ?? null))).toEqual(new Set([null, ...VALUES, ...PIPES]));
     const byId = Object.fromEntries(parts.map((p) => [p.id, p]));
     for (const id of ["entry", "line", "frame"]) expect(byId[id]!.requires ?? null).toBeNull();
-    expect(byId["feedtappet"]!.ride).toBe("stamp3");
+    for (const p of parts) expect(p.ride ?? null).toBeNull();
     const levels = rig.levels as Record<string, string[]>;
-    expect([levels["1"], levels["2"]]).toEqual([LEVEL1, LEVEL2]);
+    expect(Object.keys(levels).filter((k) => !k.startsWith("_"))).toEqual(["1"]);
+    expect(levels["1"]).toEqual(LEVEL1);
+    expect(rig.feeder).toBeUndefined();
     for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
   });
 
@@ -78,34 +78,13 @@ describe("the stamp battery's rig against its rig-reference.json", () => {
     }
   });
 
-  it("turns the feeder's tray one way, a step at each strike of the middle stamp", () => {
-    const turnsPerRev = (rig.stamps as { turnsPerRev: number }).turnsPerRev;
-    const feeder = rig.feeder as { strikesPerRev: number; push: number; trayDegreesPerStrike: number };
-    const tray = parts.findIndex((p) => p.id === "tray");
-    const bumper = parts.findIndex((p) => p.id === "bumper");
-    const n = 1440, turns = 4;
-    let angle = 0, prev: number | null = null, back = 0;
-    const ys: number[] = [];
-    for (let k = 0; k <= n; k++) {
-      const psi = (2 * Math.PI * turnsPerRev * turns * k) / n;
-      const ms = partMatrices(parts, pose(psi, psi), order, null);
-      const m = ms[tray]!;
-      const a = Math.atan2(m[8]!, m[0]!); // the tray's turn about y
-      if (prev !== null) {
-        let d = a - prev;
-        d -= 2 * Math.PI * Math.round(d / (2 * Math.PI));
-        angle += d;
-        back = Math.max(back, -d); // the tray turns forwards (positive about y): back is any turn the other way
-      }
-      prev = a;
-      ys.push(ms[bumper]![13]!);
-    }
-    const perStrike = (angle * 180) / Math.PI / (turns * feeder.strikesPerRev);
-    expect(Math.abs(perStrike)).toBeCloseTo(feeder.trayDegreesPerStrike, 2);
-    expect((back * 180) / Math.PI).toBeLessThan(0.05);
-    // the bumper rod goes down by the push at each strike and back up onto its stop
-    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(feeder.push * 0.95);
-    expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(feeder.push * 1.1);
+  it("discharges through a funnel of the chute's sheet spanning the screen, with no launder or apron", () => {
+    const flat = flattenShape(shape.elements);
+    const names = flat.map((f) => f.element.name);
+    expect(names.filter((n) => /launder|apron/.test(n))).toEqual([]);
+    const funnel = flat.filter((f) => f.element.name.startsWith("mortar_funnel_"));
+    expect(funnel.map((f) => f.element.name).sort()).toEqual(["mortar_funnel_floor", "mortar_funnel_floore", "mortar_funnel_floorw", "mortar_funnel_walle", "mortar_funnel_wallw"]);
+    for (const f of funnel) for (const face of Object.values(f.element.faces ?? {})) expect(face.texture).toBe("#chute");
   });
 
   it("gives every element a part and every part an element", () => {
@@ -141,16 +120,16 @@ describe("the stamp battery's rig against its rig-reference.json", () => {
 describe("the stamp battery's page", () => {
   const model = manifest.models.find((m) => m.id === "stamp-battery")!;
 
-  it("builds the machine level by level from a select, the feeder taking the feed box's place", () => {
+  it("builds the machine from a select: the frame, then its one level", () => {
     const groups = stateGroups(model.scenario!.states, [...VALUES, ...PIPES]);
     expect(groups.map((g) => [g.id, g.owns])).toEqual([["level", VALUES], ["pipes", PIPES]]);
     const none = Object.fromEntries(VALUES.map((r) => [r, false]));
     const spec = groups[0]!.spec;
     const at = (id: string) => applyState(none, spec.options.find((o) => o.id === id)!, groups[0]!.owns);
     expect(Object.values(at("frame")).every((v) => !v)).toBe(true);
-    expect(at("level1")).toEqual({ mortar: true, camshaft: true, stamps: true, feedbox: true, feeder: false });
-    expect(at("level2")).toEqual({ mortar: true, camshaft: true, stamps: true, feedbox: false, feeder: true });
-    expect(spec.default).toBe("level2");
+    expect(at("level1")).toEqual({ mortar: true, camshaft: true, stamps: true, feedbox: true });
+    expect(spec.options.map((o) => o.id)).toEqual(["frame", "level1"]);
+    expect(spec.default).toBe("level1");
   });
 
   it("draws the water line in one metal at a time, copper by default, once the mortar is fitted", () => {

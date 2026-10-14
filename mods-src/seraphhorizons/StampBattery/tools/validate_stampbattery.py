@@ -4,9 +4,9 @@ Every check prints what it measured and fails the run (the script exits non-zero
 Everything is in the build frame (voxels), on the model before the origin shift; `check_shipped` in make_shape.py
 proves the shipped files are this model moved.
 
-The levels are sets of fitted parts: level 1 fits the battery and its feed box into the frame, level 2 the Challenge
-feeder in the feed box's place. So every check that sets parts against each other is run per build state
-(`make_shape.STATES`): the frame alone, level 1's parts with it, level 2's with it.
+The machine's one level is a set of fitted parts: the battery and its feed box, fitted into the frame. So every check
+that sets parts against each other is run per build state (`make_shape.STATES`): the frame alone, and the level's
+parts with it.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from machinegen.geometry import aabb_of
 from machinegen.rigmath import apply as _apply
 from machinegen.rigmath import part_of, posed
 
-LEVEL_STATES = ("level1", "level2")
+LEVEL_STATES = ("level1",)
 
 
 class V:
@@ -83,12 +83,10 @@ def check_basic(v):
     counts = {p["id"]: len(v.by_part.get(p["id"], [])) for p in v.parts}
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
     per_state = {s: sum(len(v.by_part[p]) for p in v.parts_in(s)) for s in m.STATES}
-    feeder = sum(n for pid, n in counts.items() if v.requires[pid] == "feeder")
-    print(f"elements drawn per state: {per_state}; the feeder's {feeder}")
+    print(f"elements drawn per state: {per_state}")
     want = {None} | set(m.LEVEL_VALUES) | set(m.PIPE_REQUIRES)
-    l1, l2 = set(m.LEVELS["level1"]), set(m.LEVELS["level2"])
-    if {p["requires"] for p in v.parts} != want or l1 - {"feedbox"} != l2 - {"feeder"} or "feedbox" in l2 or "feeder" in l1:
-        v.fail("the parts' requires are not the levels' sets, or level 2 does not keep level 1's battery with the feeder for the feed box")
+    if {p["requires"] for p in v.parts} != want or list(m.LEVELS) != ["level1"] or set(m.LEVELS["level1"]) != set(m.LEVEL_VALUES):
+        v.fail("the parts' requires are not the one level's set and the water line's metals")
 
 
 def check_containment(v, poses):
@@ -137,17 +135,8 @@ ALLOWED = [
     ("mortar", r"_block", "frame", r"fr_sill"), ("mortar", r"_chutein_", "frame", r"fr_tie_[cb]$"),
     # the feed box on the shoot and hung on the back bearer
     ("feedbox", r"_floor|_[we]$", "mortar", r"_shoot"), ("feedbox", r"_back", "frame", r"fr_bearer_b"),
-    # level 2: the hopper between the bearers, the infeed chute's end on its mouth; the feeding tappet on stamp 3's
-    # stem and on G's head as it strikes; G through its guide, its stop under it, its eye on E's cross pin; E loose on
-    # the shaft, its shoe on the drum; the shaft in its bearings; the tray's spindle in its step bearing, its plate under
-    # the wings
-    ("feeder", r"_hopper_(front|back)$", "frame", r"fr_bearer_[fb]"), ("feeder", r"_hopper", "mortar", r"_chutein_"),
-    ("feeder", r"_guide", "frame", r"fr_guidehi_b"),
-    ("feedtappet", r"_collar", "stamp3", r"_stem"), ("feedtappet", r"_lug", "bumper", r"_head"),
-    ("bumper", r"_rod|_stop", "feeder", r"_guide"), ("bumper", r"_eye", "lever", r"_pin"),
-    ("lever", r"_hub", "feedshaft", r"_shaft"), ("lever", r"_shoe", "feedshaft", r"_drum"),
-    ("feedshaft", r"_shaft", "feeder", r"_pedestal|_boss|_strap_e"), ("pipecopper", r"_hub2_|_north_", "frame", r"fr_hanger"),
-    ("tray", r"_spindle", "feeder", r"_stepbearing"), ("tray", r"_plate|_nut", "feeder", r"_wing"),
+    # the water line in its hanger
+    ("pipecopper", r"_hub2_|_north_", "frame", r"fr_hanger"),
 ]
 
 
@@ -209,9 +198,6 @@ def clearance_poses(m):
     out = [(m.REST, s) for s in m.STATES]
     for k in range(40):
         out.append((m.at_cam(math.pi * k / 40), "level1"))
-    # the feeder over five camshaft turns (a whole tooth of its gearing), around stamp 3's strike
-    for k in range(60):
-        out.append((m.at_feed(math.pi * k / 12), "level2"))
     return out
 
 
@@ -223,27 +209,23 @@ def check_clearances(v):
 
 def check_swept(v):
     """The battery through a whole camshaft turn every 0.5 degrees of it (each stamp lifted, thrown, falling and
-    resting, its cams sweeping past and under its tappet), and the feeder through five camshaft turns (ten strikes, a
-    whole tooth of the pinion and the tray) every 2 degrees, everything fitted: nothing touches but the intended
+    resting, its cams sweeping past and under its tappet), everything fitted: nothing touches but the intended
     contacts."""
     m = v.m
-    ps = [(m.at_cam(math.tau * k / 720), "level2") for k in range(720)]
-    ps += [(m.at_feed(5 * math.tau * k / 900), "level2") for k in range(900)]
-    only = {f"stamp{i + 1}" for i in range(m.STAMPS)} | {"camshaft", "line", "linepulley", "feedtappet", "bumper", "lever", "feedshaft", "tray"}
+    ps = [(m.at_cam(math.tau * k / 720), "level1") for k in range(720)]
+    only = {f"stamp{i + 1}" for i in range(m.STAMPS)} | {"camshaft", "line", "linepulley"}
     hits = report_touches(v, "swept paths", ps, only)
     if hits:
         v.fail("something stands in a moving part's path")
 
 
 TEX_RULES = [
-    (r"^mortar_chute(in|out)_", "chute"),
-    (r"^(fr_(sill|cap|post|rail|tie|guide|bearer)|entry_shaft[ab]|mortar_(block|launder_leg)|camshaft_bull_(rim|arm))", "oak"),
-    (r"^(mortar_launder|feedbox_)", "planks"),
-    (r"^feeder_hopper", "sheet"),
-    (r"^(fr_(gearcase|ped|hanger)|mortar_(floor|front|back|end|apron|shoot)|camframe_pillow|camshaft_(hub|cam|bull_hub)|linepulley|"
-     r"stamp\d_(head|tappet)|feeder_(strap|bracket|stepbearing|pedestal|boss|wing|guide)|tray_(plate|hub|nut|tooth)|"
-     r"feedshaft_(pinion|tooth|drum|collar)|lever_(hub|arm|tail|weight|shoe|web)|bumper_(eye|stop|head)|feedtappet_)", "iron"),
-    (r"^(line_|camshaft_shaft|stamp\d_(shoe|stem)|mortar_die|tray_spindle|feedshaft_shaft|lever_pin|bumper_rod)", "steel"),
+    (r"^mortar_(chute(in|out)_|funnel_)", "chute"),
+    (r"^(fr_(sill|cap|post|rail|tie|guide|bearer)|entry_shaft[ab]|mortar_(block|chuteleg)|camshaft_bull_(rim|arm))", "oak"),
+    (r"^feedbox_", "planks"),
+    (r"^(fr_(gearcase|ped|hanger)|mortar_(floor|front|back|end|shoot)|camframe_pillow|camshaft_(hub|cam|bull_hub)|linepulley|"
+     r"stamp\d_(head|tappet))", "iron"),
+    (r"^(line_|camshaft_shaft|stamp\d_(shoe|stem)|mortar_die)", "steel"),
     (r"^pipecopper_", "pipecopper"),
     (r"^pipelead_", "pipelead"),
     (r"^mortar_screen", "mesh"),
@@ -262,8 +244,8 @@ def check_textures(v):
                 break
         else:
             unruled.append(el.name)
-    print(f"textures: {len(TEX_RULES)} rules (oak timber, planks for the launder and the feed box, the feeder's sheet-iron hopper, iron "
-          f"castings, steel shafts and wearing parts, the water line's copper or lead, the game's chute, a mesh screen, leather belt): "
+    print(f"textures: {len(TEX_RULES)} rules (oak timber, planks for the feed box, iron castings, steel shafts and wearing parts, the "
+          f"water line's copper or lead, the game's chute for both chutes and the funnel, a mesh screen, leather belt): "
           f"{len(bad)} break them, {len(unruled)} have no rule")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")
@@ -279,8 +261,8 @@ def on_face(cell, face, pos):
 
 def check_anchors(v):
     """The entry shaft meets the power face at the cell's centre; every anchor's point on its cell's face; and each
-    anchor at the thing it names: the water line's inlet, the infeed chute's mouth over the hopper and the feed box,
-    the output chute's mouth at the front face."""
+    anchor at the thing it names: the water line's inlet, the infeed chute's mouth over the feed box, the output chute's
+    mouth at the front face."""
     m, rig = v.m, v.rig
     entry = v.named("entry", r"_shaft[ab]")
     lo, hi = aabb_of(entry)
@@ -301,16 +283,19 @@ def check_anchors(v):
     output = [c * 16 for c in rig["output"]["pos"]]
     cin = aabb_of(v.named("mortar", r"_chutein_"))
     cout = aabb_of(v.named("mortar", r"_chuteout_"))
-    hopper = aabb_of(v.named("feeder", r"_hopper_(front|back|[we])$"))
     box = aabb_of(v.by_part["feedbox"])
+    floor = aabb_of(v.named("feedbox", r"_floor"))
+    sides = aabb_of(v.named("feedbox", r"_[we]$"))
+    o = m.chute_origin(m.INFEED_CELL)
+    bore = ((o[0] + 5.0, o[0] + 11.0), (o[2] + 5.0, o[2] + 11.0))
     checks = [("the water line's inlet reaches the water face, on the anchor's axis", abs(inlet[0][0] - water[0]) < 0.01
                and abs((inlet[0][1] + inlet[1][1]) / 2 - water[1]) < 0.01 and abs((inlet[0][2] + inlet[1][2]) / 2 - water[2]) < 0.01),
               ("the infeed anchor is on the infeed chute's axis, at its mouth",
                abs((cin[0][0] + cin[1][0]) / 2 - infeed[0]) < 1e-6 and abs((cin[0][2] + cin[1][2]) / 2 - infeed[2]) < 1e-6
                and abs(cin[1][1] - infeed[1]) < 1e-6),
-              ("the infeed chute's end is over the hopper's mouth and the feed box (level 1 and 2 take it in one mouth)",
-               hopper[0][0] < cin[0][0] and cin[1][0] < hopper[1][0] and hopper[0][2] < cin[0][2] + 1.0 and cin[1][2] - 1.0 < hopper[1][2]
-               and abs(cin[0][1] - hopper[1][1]) < 0.01 and box[0][0] < cin[0][0] + 1.0 and cin[1][0] - 1.0 < box[1][0]),
+              ("the infeed chute's end is over the feed box, its bore inside the box's sides and over its floor",
+               cin[0][1] >= box[1][1] and sides[0][0] + 1.0 <= bore[0][0] and bore[0][1] <= sides[1][0] - 1.0
+               and floor[0][2] <= bore[1][0] and bore[1][1] <= floor[1][2]),
               ("the output anchor is on the output chute's axis, at its mouth, flush with the front face",
                abs((cout[0][0] + cout[1][0]) / 2 - output[0]) < 1e-6 and abs((cout[0][1] + cout[1][1]) / 2 - output[1]) < 1e-6
                and abs(cout[0][2] - output[2]) < 1e-6)]
@@ -387,36 +372,35 @@ def check_chute(v):
 
 
 def check_paths(v):
-    """The ore's way through the machine, at rest: the infeed chute drops into the feed box (level 1) or the hopper
-    (level 2); the feed box's floor falls steeply enough onto the shoot, and the hopper's inclined floor onto the tray;
-    the tray's front edge stands over the shoot, between the wings; the shoot falls to the feed lip; the screen is over
-    the apron, which ends over the launder, whose floor stands over the output chute's; and the water line's drop is
-    over the feed opening."""
+    """The ore's way through the machine, at rest: the infeed chute drops into the feed box, whose floor falls steeply
+    enough onto the shoot; the shoot falls from under the feed box's floor's lower end to the feed lip; the output
+    funnel's mouth spans the whole screen, its back against the mortar's front under it, and its floor is level with the
+    output stub's and runs into it; and the water line's drop is over the feed opening."""
     m = v.m
     screen = aabb_of(v.named("mortar", r"_screen"))
-    apron = aabb_of(v.named("mortar", r"_apron"))
-    launder = aabb_of(v.named("mortar", r"_launder_floor"))
-    cout = aabb_of(v.named("mortar", r"_chuteout_bottom"))
+    stub = aabb_of(v.named("mortar", r"_chuteout_bottom"))
+    floors = [aabb_of([e]) for e in v.named("mortar", r"_funnel_floor")]
     shoot = aabb_of(v.named("mortar", r"_shoot$"))
     back = aabb_of(v.named("mortar", r"_back_lo"))
-    tray = aabb_of(v.named("tray", r"_plate"))
+    box_floor = aabb_of(v.named("feedbox", r"_floor"))
     drop = aabb_of(v.named("pipecopper", r"_drop_"))
     (ya, za), (yb, zb) = m.SHOOT_LO, m.SHOOT_HI
     shoot_deg = math.degrees(math.atan2(yb - ya, zb - za))
-    (fy, fz), (ly, lz) = m.HOPPER_FLOOR_HI, m.HOPPER_FLOOR_LO
-    hopper_deg = math.degrees(math.atan2(fy - ly, fz - lz))
-    tray_front = m.TRAY_C[1] - m.TRAY_R
+    (wa, wb), (ea, eb) = m.funnel_lines()
     checks = [
         (f"the feed box's floor falls {math.degrees(m.FEEDBOX_SLOPE):.0f} degrees (at least 35) onto the shoot",
          m.FEEDBOX_SLOPE >= math.radians(35.0) and abs(m.feedbox_y(m.FEEDBOX_Z[0]) - (m.SHOOT_HI[0] + 0.1)) < 1e-9),
-        (f"the hopper's inclined floor falls {hopper_deg:.0f} degrees (at least 45) to its throat over the tray",
-         hopper_deg >= 45.0 and m.TRAY_Y[1] < ly and abs(lz - m.TRAY_C[1]) < m.TRAY_R),
-        (f"the shoot falls {shoot_deg:.0f} degrees (at least 45) from under the tray's front edge (z {tray_front:.2f}) to the feed lip",
-         shoot_deg >= 45.0 and za <= tray_front <= zb and shoot[1][1] < tray[0][1] and abs(ya - back[1][1]) < 0.01),
-        ("the apron starts under the screen and ends over the launder", apron[1][1] <= screen[0][1] and apron[0][2] > launder[0][2]
-         and apron[0][2] < launder[1][2]),
-        (f"the launder's floor (top y {launder[1][1]:.2f}) stands over the output chute's (y {cout[1][1]:.2f}) where they meet",
-         launder[1][1] > cout[1][1] and abs(launder[0][2] - cout[1][2]) < 0.01),
+        (f"the shoot falls {shoot_deg:.0f} degrees (at least 45) from under the feed box floor's lower end to the feed lip",
+         shoot_deg >= 45.0 and za <= box_floor[0][2] <= zb + 0.5 and shoot[1][1] < box_floor[1][1] and abs(ya - back[1][1]) < 0.01),
+        (f"the funnel's mouth spans the whole screen (x {screen[0][0]:.1f}..{screen[1][0]:.1f}) at the mortar's front face, under it",
+         wb[0] <= screen[0][0] + 1e-9 and eb[0] >= screen[1][0] - 1e-9 and abs(wb[1] - m.MORTAR_Z[0]) < 1e-9
+         and abs(eb[1] - m.MORTAR_Z[0]) < 1e-9 and m.FUNNEL_Y[0] + m.FUNNEL_T < screen[0][1]),
+        (f"the funnel narrows to the stub's bore where they meet (x {wa[0]:.1f}..{ea[0]:.1f} at z {wa[1]:.1f})",
+         abs(wa[1] - stub[1][2]) < 1e-6 and abs(ea[1] - stub[1][2]) < 1e-6 and abs(wa[0] - stub[0][0]) < 1e-6
+         and abs(ea[0] - stub[1][0]) < 1e-6),
+        (f"the funnel's floor (top y {max(f[1][1] for f in floors):.2f}) is level with the stub's (y {stub[1][1]:.2f}) and reaches "
+         f"the mortar's front", all(abs(f[1][1] - stub[1][1]) < 0.05 for f in floors)
+         and max(f[1][2] for f in floors) > m.MORTAR_Z[0]),
         ("the water line's drop is open over the mortar's back wall and the feed opening", drop[0][1] > m.MORTAR_Y[1]
          and drop[0][2] < m.MORTAR_Z[1] and drop[1][2] > m.MORTAR_Z[1] - m.MORTAR_WALL and drop[1][0] > m.FEED_X[0]),
     ]
@@ -426,15 +410,44 @@ def check_paths(v):
             v.fail(label)
 
 
+def inside(el, q, margin=0.0):
+    """Whether the point q is inside the element's box (grown by margin)."""
+    rel = [q[i] - el.c[i] for i in range(3)]
+    return all(abs(sum(rel[i] * el.r[i][k] for i in range(3))) <= el.size[k] / 2 + margin for k in range(3))
+
+
+def check_outlet_clear(v):
+    """The pulp's path out is open, at rest with everything fitted: the space in the funnel from its floor up to the
+    screen's top, from the mortar's front to the stub, and the stub's bore out to the front face, hold no element of any
+    part (the funnel's walls and floor bound it; nothing stands in it or over its open top in front of the screen)."""
+    m = v.m
+    els = [e for pid in v.parts_in("level1") for e in v.posed(pid, m.REST)]
+    (wa, wb), (ea, eb) = m.funnel_lines()
+    y_lo, y_hi = m.FUNNEL_Y[0] + m.FUNNEL_T + 0.2, m.SCREEN_Y[1] - 0.2
+    pts = []
+    za, zb = m.FUNNEL_Z
+    for k in range(25):
+        z = za + 0.2 + (zb - za - 0.4) * k / 24
+        f = (z - wa[1]) / (wb[1] - wa[1])
+        x0, x1 = wa[0] + (wb[0] - wa[0]) * f + 0.3, ea[0] + (eb[0] - ea[0]) * f - 0.3
+        for i in range(13):
+            for j in range(9):
+                pts.append((x0 + (x1 - x0) * i / 12, y_lo + (y_hi - y_lo) * j / 8, z))
+    cx0, cx1 = m.chute_bore_x()
+    for k in range(6):
+        for i in range(5):
+            for j in range(5):
+                pts.append((cx0 + 0.2 + (cx1 - cx0 - 0.4) * i / 4, 5.2 + 5.6 * j / 4, 0.2 + (za - 0.2) * k / 5))
+    hits = sorted({e.name for q in pts for e in els if inside(e, q)})
+    print(f"outlet: {len(pts)} points of the funnel's space (to the screen's top) and the stub's bore: {len(hits)} elements in it {hits[:6]}")
+    if hits:
+        v.fail(f"something stands in the pulp's path out: {hits[:6]}")
+
+
 # ---------------------------------------------------------------- mechanism
 def angle_x(v, pid, pose):
     mm = v.mat(pid, pose)
     return math.atan2(mm[2][1], mm[1][1])
-
-
-def angle_y(v, pid, pose):
-    mm = v.mat(pid, pose)
-    return math.atan2(mm[0][2], mm[0][0])
 
 
 def check_drive(v):
@@ -554,82 +567,12 @@ def check_stamps(v):
         v.fail("the stamps do not drop twice a camshaft turn each, in the firing order")
 
 
-def check_feeder(v):
-    """The Challenge feeder through stamp 3's strikes (five camshaft turns, every 0.2 degrees): the feeding tappet's lug
-    never in G's head, and on it (within 0.06) while the stamp rests on its die; G never over its stop, and back on it
-    (within 0.06) while the stamp is high; G's eye on E's cross pin; E's shoe on the drum's rim, the drum coaxial with
-    E; the pinion and the tray in their gearing's ratio at every pose; the grip, the pinion and the tray turning one
-    way (back under 5 % of a step a strike), a step a strike, all but standing (under 10 %) while the stamp is high."""
-    m = v.m
-    x0, z0 = m.BUMPER_X, m.LEVER_PIN_Z
-    head_top_design = m.bumper_top()
-    worst_in, worst_off, worst_stop, worst_up, worst_pin, worst_ratio, back = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    steps = []
-    prev = None
-    n = 1800
-    for k in range(n + 1):
-        x = 5 * math.tau * k / n
-        pose = m.at_feed(x)
-        lift = m.lift_of(x)
-        lug = m.TAPPET_F_Y + lift                                # the lug's underside
-        head = v.point("bumper", pose, (x0, head_top_design + m.G_MEAN, z0))[1]
-        gap = lug - head
-        worst_in = min(worst_in, gap)
-        drop = head - head_top_design
-        if lift < 0.15:
-            worst_off = max(worst_off, gap)
-        worst_stop = max(worst_stop, drop)
-        if lift > m.PUSH + 0.3:
-            worst_up = min(worst_up, drop)
-        eye = v.point("bumper", pose, (x0, m.FEED_AXIS[0] + m.G_MEAN, z0))
-        dy, dz = m.rot2(m.E_MEAN, (0.0, z0 - m.FEED_AXIS[1]))
-        pin = v.point("lever", pose, (x0, m.FEED_AXIS[0] + dy, m.FEED_AXIS[1] + dz))
-        worst_pin = max(worst_pin, math.dist(eye[1:], pin[1:]))
-        g = angle_x(v, "feedshaft", pose)
-        t = angle_y(v, "tray", pose)
-        worst_ratio = max(worst_ratio, abs(math.remainder(t - m.TRAY_MEAN - m.TRAY_RATIO * (g - m.GRIP_MEAN), math.tau)))
-        if prev is not None:
-            dg = math.remainder(g - prev, math.tau)
-            back += max(0.0, dg)
-            steps.append(dg)
-        prev = g
-    per_turn = sum(steps) / 5
-    strikes = 10
-    back /= strikes
-    print(f"feeder: the lug never in G's head (worst {-worst_in:.3f}), on it within {worst_off:.3f} while G is down; G never over its "
-          f"stop ({worst_stop:+.3f}), on it within {-worst_up:.3f} while the stamp is high; G's eye on E's pin within {worst_pin:.3f}")
-    print(f"feeder: the tray in the gearing's ratio {m.TRAY_RATIO:.4f} of the pinion (worst {worst_ratio:.1e}); the grip turns "
-          f"{math.degrees(per_turn):.2f} degrees a camshaft turn ({math.degrees(m.GRIP_PER_STRIKE):.2f} a strike), back "
-          f"{math.degrees(back):.3f} degrees a strike in all; the tray {math.degrees(per_turn * m.TRAY_RATIO):.2f} a camshaft turn")
-    if worst_in < -0.01 or worst_off > 0.06 or worst_stop > 0.01 or worst_up < -0.06 or worst_pin > 0.08:
-        v.fail("the feeding tappet, the bumper rod and the lever do not stay together")
-    if worst_ratio > 5e-5 or back > 0.05 * abs(m.GRIP_PER_STRIKE) or per_turn >= 0:
-        v.fail("the grip, the pinion and the tray do not turn one way together")
-    # E's shoe on the drum's rim: its underside's distance from the shaft's axis, about which E and the drum both turn
-    shoe = v.named("lever", r"_shoe")[0]
-    nrm = [shoe.r[i][1] for i in range(3)]
-    rel = [shoe.c[0], shoe.c[1] - m.FEED_AXIS[0], shoe.c[2] - m.FEED_AXIS[1]]
-    r_shoe = sum(rel[i] * nrm[i] for i in (1, 2)) - shoe.size[1] / 2
-    print(f"feeder: E's shoe stands {r_shoe - m.DRUM_R:.3f} over the drum's flats (the drum's corners at {m.DRUM_R / math.cos(math.pi / 12) - m.DRUM_R:.3f})")
-    if not (0.0 <= r_shoe - m.DRUM_R <= 0.15):
-        v.fail("E's shoe is not on the drum's rim")
-    # the strike: G is pushed only while stamp 3 is low, and the tray stands while it is lifted
-    high = sum(abs(steps[k]) for k in range(len(steps)) if m.lift_of(5 * math.tau * k / n) > m.PUSH + 0.6) / strikes
-    print(f"feeder: while stamp 3 is high the grip all but stands ({math.degrees(high):.3f} degrees a strike in all, "
-          f"{100 * high / abs(m.GRIP_PER_STRIKE):.1f} % of its step)")
-    if high > 0.1 * abs(m.GRIP_PER_STRIKE):
-        v.fail("the feeder turns while the stamp is high")
-
-
 def check_supports(v):
     m = v.m
     shafts = [
         ("entry shaft", "entry", r"_shaft", 0, m.ENTRY, "frame", r"^fr_gearcase$", 1),
         ("line shaft", "line", r"_shaft", 0, m.LINE, "frame", r"^fr_(gearcase_boss|pedw|pedm)$", 3),
         ("camshaft", "camshaft", r"_shaft", 0, m.CAM_C, "camframe", r"_pillow", 2),
-        ("pinion shaft", "feedshaft", r"_shaft", 0, m.FEED_AXIS, "feeder", r"_pedestal|_boss", 2),
-        ("tray spindle", "tray", r"_spindle", 1, (m.TRAY_C[0], m.TRAY_C[1]), "feeder", r"_stepbearing", 1),
-        ("bumper rod", "bumper", r"_rod", 1, (m.BUMPER_X, m.LEVER_PIN_Z), "feeder", r"_guide", 1),
     ]
     for label, pid, rx, axis, c, bpid, brx, need in shafts:
         els_ = v.named(pid, rx)
@@ -638,8 +581,7 @@ def check_supports(v):
         print(f"support {label}: {len(found)} bearing(s) {', '.join(sorted(found)) or 'NONE'}")
         if len(found) < need:
             v.fail(f"the {label} is not carried by {need} bearings")
-    print("support: the entry shaft is the vanilla axle's end, carried by the axle beyond the face and the gear case; the tray's spindle "
-          "stands in its step bearing and turns in the tray's hub; the bumper rod is held by its guide at the top and E's pin at the foot")
+    print("support: the entry shaft is the vanilla axle's end, carried by the axle beyond the face and the gear case")
 
 
 def check_zfight(v):
@@ -661,15 +603,15 @@ def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
     check_floating(v)
-    poses = [m.REST] + [m.at_cam(a) for a in (0.3, 1.2, 2.2, 3.0)] + [m.at_feed(a) for a in (2.0, 2.5, 7.3)] + [m.turning(31.0, -1.0)]
+    poses = [m.REST] + [m.at_cam(a) for a in (0.3, 1.2, 2.2, 3.0, 4.1, 5.0, 5.9)] + [m.turning(31.0, -1.0)]
     check_containment(v, poses)
     check_anchors(v)
     check_paths(v)
+    check_outlet_clear(v)
     check_chute(v)
     check_textures(v)
     check_drive(v)
     check_stamps(v)
-    check_feeder(v)
     check_supports(v)
     check_clearances(v)
     if not quick:
