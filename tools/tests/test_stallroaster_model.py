@@ -151,22 +151,57 @@ class Stall(unittest.TestCase):
                 self.assertEqual({f["texture"] for f in faces.values()}, want)
 
     def test_every_binder_is_an_angle_wrapping_a_corner(self):
-        # owner's rule: the iron is angle iron, an L of two legs IRON_T thick, LEG wide, one on each face of a corner
+        # owner's rule: the iron is angle iron, an L of two legs IRON_T thick, one on each face of a corner
         frame = part("frame")
         legs = {}
         for e in frame:
             stem = re.sub(r"\d+$", "", e.name)
-            self.assertRegex(stem, r"^fr_(corner_(nw|ne|sw|se)|jamb_[we]|sill|band_[ns])_[ab]$")
+            self.assertRegex(stem, r"^fr_(corner_(nw|ne|sw|se)|jamb_[we]|sill|band_[nswe])_[ab]$")
             legs.setdefault(stem, []).append(e)
         for name, *_ in make_shape.ANGLES:
             a, b = aabb_of(legs[f"{name}_a"]), aabb_of(legs[f"{name}_b"])
             for lo, hi in (a, b):
                 cross = sorted(hi[k] - lo[k] for k in range(3))[:2]
                 self.assertAlmostEqual(cross[0], make_shape.IRON_T, msg=name)
-                self.assertGreaterEqual(cross[1] + 1e-9, make_shape.LEG - make_shape.IRON_T, name)
+                self.assertGreaterEqual(cross[1] + 1e-9, make_shape.BAND_LEG - make_shape.IRON_T, name)
             # the legs meet: they share a face along the angle's length, at right angles to each other
             ov = [min(a[1][k], b[1][k]) - max(a[0][k], b[0][k]) for k in range(3)]
             self.assertTrue(min(ov) > -1e-6 and sum(o > 0.05 for o in ov) == 2, name)
+
+    def test_the_frame_is_one_piece(self):
+        # owner's rule: the members connect (bands meet uprights, the sill the jambs): the frame's elements, joined
+        # where they share a face, make one piece
+        frame = part("frame")
+        boxes = [e.aabb() for e in frame]
+        seen, todo = {0}, [0]
+        while todo:
+            i = todo.pop()
+            for j, (lo, hi) in enumerate(boxes):
+                if j in seen:
+                    continue
+                ov = [min(boxes[i][1][k], hi[k]) - max(boxes[i][0][k], lo[k]) for k in range(3)]
+                if min(ov) > -1e-6 and sum(o > 0.05 for o in ov) >= 2:
+                    seen.add(j)
+                    todo.append(j)
+        self.assertEqual(len(seen), len(frame), sorted(frame[j].name for j in range(len(frame)) if j not in seen))
+
+    def test_no_sliver_of_brick_on_the_front_face(self):
+        # each side wall's front face is too narrow for brick between two angles: the corner's and the jamb's legs meet
+        # in the middle of it, and the sill's front leg runs to the ground, so only iron shows on the front face
+        on_front = [e.name for e in FLAT if e.aabb()[0][2] < 1e-6 and e.name.startswith(("bk_", "ln_"))]
+        self.assertEqual(on_front, [])
+        legs = {n: aabb_of([e for e in part("frame") if re.fullmatch(n + r"\d*", e.name)])
+                for n in ("fr_corner_nw_a", "fr_jamb_w_a", "fr_corner_ne_a", "fr_jamb_e_a")}
+        self.assertAlmostEqual(legs["fr_corner_nw_a"][1][0], legs["fr_jamb_w_a"][0][0])
+        self.assertAlmostEqual(legs["fr_jamb_e_a"][1][0], legs["fr_corner_ne_a"][0][0])
+
+    def test_the_cap_meets_the_bands(self):
+        # no strip of brick between the outlet's cap and the side and back bands' top legs
+        cap = aabb_of(part("outletcap"))
+        west = aabb_of([e for e in part("frame") if e.name.startswith("fr_band_w_a")])
+        back = aabb_of([e for e in part("frame") if e.name.startswith("fr_band_s_b")])
+        self.assertAlmostEqual(cap[0][0], west[1][0])
+        self.assertAlmostEqual(cap[1][2], back[0][2])
 
     def test_the_charge_lies_in_the_bay_in_four_courses(self):
         bay_x, bay_z = make_shape.BAY_X, make_shape.BAY_Z

@@ -247,37 +247,42 @@ def angle_els(v, name, leg):
 
 def check_angles(v):
     """Angle iron at every corner (owner's rule): every element of the iron frame is a leg of one of ANGLES, and each
-    angle is an L, its two legs IRON_T thick and LEG wide, meeting at the brick's corner, one on each of the corner's
-    two faces: the leg's outside flush with its face (open beyond it), its inside against brick along its whole length
-    and width (every half voxel, but where it crosses the opening as a tie), and the angle's inside corner bedded against
-    the brick's corner. Each vertical angle reaches the ground; each angle along x joins vertical angles at both ends
-    (sharing a face with them): the bands sit on the angles' tops, the sill between the jambs."""
+    angle is an L, its two legs IRON_T thick and as wide as it says, meeting at the brick's corner, one on each of the
+    corner's two faces: the leg's outside flush with its face (open beyond it), its inside against brick along its
+    whole length and width (every half voxel, but where it crosses the opening as a tie, or where another angle's leg
+    lies behind it at a joint), and the angle's inside corner bedded against the brick's corner. The angles make one
+    frame: each vertical angle reaches the ground and its top meets a band; each angle along x or z joins other angles
+    at both its ends (sharing a face with them): the bands meet the uprights and each other, the sill the jambs."""
     m = v.m
     brick_els = brick(v)
+    frame = v.by_part["frame"]
 
     def in_brick(p):
         return any(inside(e, p) for e in brick_els)
     named = set()
     bad = []
-    pts = 0
+    pts = joints = 0
     for angle in m.ANGLES:
-        name, axis, span, corner, signs, _, free = angle
+        name, axis, span_a, span_b, corner, signs, widths, free = angle
         a = m.AXIS[axis]
         u, w = m.other_axes(axis)
         own = angle_els(v, name, "a") + angle_els(v, name, "b")
+        others = [e for e in frame if e not in own]
         for leg, lo, hi in m.angle_legs(angle):
             els = angle_els(v, name, leg)
             named |= {e.name for e in els}
             if not els or not same_box(aabb_of(els), (lo, hi)):
                 bad.append(f"{name} leg {leg} is not its box")
                 continue
-            thick = sorted(hi[k] - lo[k] for k in (u, w))
-            if abs(thick[0] - m.IRON_T) > 1e-9 or abs(thick[1] - (m.LEG if leg == "a" else m.LEG - m.IRON_T)) > 1e-9:
-                bad.append(f"{name} leg {leg} is {thick}, not {m.IRON_T} by {m.LEG}")
+            # leg a: its width along u, IRON_T along w; leg b: IRON_T along u, the rest of its width along w
+            want = (widths[0], m.IRON_T) if leg == "a" else (m.IRON_T, widths[1] - m.IRON_T)
+            got = (hi[u] - lo[u], hi[w] - lo[w])
+            if max(abs(got[q] - want[q]) for q in range(2)) > 1e-9:
+                bad.append(f"{name} leg {leg} is {got}, not {want}")
             # the face the leg lies on is across `n`, at the corner's coordinate there; the brick is behind it
             n, c, s = (w, corner[1], signs[1]) if leg == "a" else (u, corner[0], signs[0])
             o = u if n == w else w
-            t = 0.5
+            t = 0.25
             while t < (hi[a] - lo[a]):
                 at = lo[a] + t
                 if not (free and free[0] - 0.25 < at < free[1] + 0.25):
@@ -288,52 +293,133 @@ def check_angles(v):
                         p_in[o] = p_out[o] = q
                         p_in[n] = c + s * (m.IRON_T + 0.1)          # just behind the leg: brick
                         p_out[n] = c - s * 0.1                      # just outside it: open
+                        q += 0.5
                         if any(inside(e, p_in) for e in own):
-                            q += 0.5                                # behind leg a's corner end lies leg b
+                            continue                                # behind leg a's corner end lies leg b
+                        if any(inside(e, p_in) for e in others):
+                            joints += 1                             # a joint: another angle's leg behind it
                             continue
                         pts += 1
                         if not in_brick(p_in):
                             bad.append(f"{name} leg {leg}: no brick behind it at {[round(x, 2) for x in p_in]}")
                         if in_brick(p_out) or not (abs((hi[n] if s < 0 else lo[n]) - c) < 1e-9):
                             bad.append(f"{name} leg {leg}: not on its face at {[round(x, 2) for x in p_out]}")
-                        q += 0.5
                 t += 0.5
         # the inside corner, bedded against the brick's corner
-        mid = (span[0] + span[1]) / 2 if not free else (span[0] + free[0]) / 2
+        lo_s, hi_s = max(span_a[0], span_b[0]), min(span_a[1], span_b[1])
+        mid = (lo_s + hi_s) / 2 if not free else (lo_s + free[0]) / 2
         p = [0.0] * 3
         p[a] = mid
         p[u] = corner[0] + signs[0] * (m.IRON_T + 0.1)
         p[w] = corner[1] + signs[1] * (m.IRON_T + 0.1)
         if not in_brick(p):
             bad.append(f"{name}: its inside corner is not against brick at {p}")
-    loose = sorted(e.name for e in v.by_part["frame"] if e.name not in named)
+    loose = sorted(e.name for e in frame if e.name not in named)
     if loose:
         bad.append(f"iron that is no angle's leg: {loose}")
-    # joints: vertical angles stand on the ground; angles along x share a face with vertical angles at both ends
-    vertical = [ang for ang in m.ANGLES if ang[1] == "y"]
-    for ang in vertical:
-        if ang[2][0] > 1e-9:
-            bad.append(f"{ang[0]} does not stand on the ground")
+
+    def meets(mine, theirs, axis, end):
+        """Whether an element of `mine` lying at its angle's `end` along `axis` shares a face with one of `theirs`."""
+        for e in mine:
+            for f in theirs:
+                (alo, ahi), (blo, bhi) = e.aabb(), f.aabb()
+                ov = [min(ahi[k], bhi[k]) - max(alo[k], blo[k]) for k in range(3)]
+                if min(ov) > -1e-6 and sum(o > 0.05 for o in ov) >= 2 and abs((ahi if end else alo)[axis] - end_at[end]) < 1e-6:
+                    return True
+        return False
     for ang in m.ANGLES:
-        if ang[1] != "x":
-            continue
-        ends = set()
-        mine = [e for e in v.by_part["frame"] if e.name.startswith(ang[0] + "_")]
-        for other in vertical:
-            theirs = [e for e in v.by_part["frame"] if e.name.startswith(other[0] + "_")]
-            for e in mine:
-                for f in theirs:
-                    (alo, ahi), (blo, bhi) = e.aabb(), f.aabb()
-                    ov = [min(ahi[k], bhi[k]) - max(alo[k], blo[k]) for k in range(3)]
-                    if min(ov) > -1e-6 and sum(o > 0.05 for o in ov) >= 2:
-                        ends.add("w" if (blo[0] + bhi[0]) / 2 < (ang[2][0] + ang[2][1]) / 2 else "e")
-        if ends != {"w", "e"}:
-            bad.append(f"{ang[0]} does not join vertical angles at both ends ({sorted(ends)})")
+        a = m.AXIS[ang[1]]
+        mine = [e for e in frame if e.name.startswith(ang[0] + "_")]
+        theirs = [e for e in frame if not e.name.startswith(ang[0] + "_")]
+        end_at = (min(ang[2][0], ang[3][0]), max(ang[2][1], ang[3][1]))
+        for end in (0, 1):
+            if ang[1] == "y" and end == 0:
+                if end_at[0] > 1e-9:
+                    bad.append(f"{ang[0]} does not stand on the ground")
+                continue
+            # an end meets another angle: at the ground end of a vertical angle, the ground
+            ok = any(meets([e], theirs, a, end) for e in mine
+                     if abs((e.aabb()[1] if end else e.aabb()[0])[a] - end_at[end]) < 1e-6)
+            if not ok:
+                bad.append(f"{ang[0]}'s {'top' if ang[1] == 'y' else ('east' if a == 0 else 'south') if end else ('west' if a == 0 else 'north')} end meets no other angle")
     for b in bad[:8]:
         v.fail(b)
-    print(f"angles: {len(m.ANGLES)} angles of {m.IRON_T} by {m.LEG}, every one wrapping a corner of the brickwork, its legs "
-          f"flush on the corner's two faces and against brick behind ({pts} points), inside corners bedded; all the "
-          f"frame's iron is angles' legs; the bands and the sill join vertical angles at both ends")
+    print(f"angles: {len(m.ANGLES)} angles, legs {m.IRON_T} thick, every one wrapping a corner of the brickwork, its legs "
+          f"flush on the corner's two faces and against brick behind ({pts} points, {joints} at joints with other "
+          f"angles), inside corners bedded; all the frame's iron is angles' legs; every angle meets others at both "
+          f"ends (the uprights on the ground)")
+
+
+def material_grid(v, parts, step=0.5):
+    """The stall as a grid of cells `step` on a side, each the part of the element filling it (the brick and the iron
+    are axis-aligned boxes on the half voxel): "bk", "ln", "iron" or None."""
+    m = v.m
+    nx, ny, nz = int(m.W / step), int(m.H / step), int(m.D / step)
+    grid = {}
+    tag = {"brickwork": "bk", "lining": "ln", "frame": "iron"}
+    for pid in parts:
+        for e in v.by_part[pid]:
+            lo, hi = e.aabb()
+            r = [range(int(round(lo[k] / step)), int(round(hi[k] / step))) for k in range(3)]
+            for i in r[0]:
+                for j in r[1]:
+                    for k in r[2]:
+                        grid[(i, j, k)] = tag[pid]
+    return grid, (nx, ny, nz)
+
+
+def check_slivers(v):
+    """Every brick a plausible brick (owner's rule): at the brickwork stage and with the lining in, every piece of
+    brick that shows (the brickwork's or the lining's, its face open to the air) is at least MIN_BRICK across both
+    ways on its face, measured along the face between whatever bounds it there: iron, the other brick, an opening or
+    an edge. No strip of brick narrower than that shows between two iron members, or between iron and an opening. The
+    sides of the outlet's seat in the lining (half a voxel deep, the cap's edges against them) are the seat's, not
+    pieces of brick."""
+    m = v.m
+    step = 0.5
+    (sx0, sx1), (sy0, sy1), (sz0, sz1) = m.CAP_SEAT
+
+    def in_seat(q):
+        return sx0 < (q[0] + 0.5) * step < sx1 and sy0 < (q[1] + 0.5) * step < sy1 and sz0 < (q[2] + 0.5) * step < sz1
+    bad = {}
+    faces_n = 0
+    for sid, parts in (("brickwork", ("frame", "brickwork")), ("complete", ("frame", "brickwork", "lining"))):
+        grid, (nx, ny, nz) = material_grid(v, parts, step)
+        # the exposed face cells: (axis, sign, plane index) -> {(i, j, k): material}
+        planes = {}
+        for (i, j, k), mat in grid.items():
+            if mat == "iron":
+                continue
+            for ax in range(3):
+                for sg in (-1, 1):
+                    q = [i, j, k]
+                    q[ax] += sg
+                    if grid.get(tuple(q)) is None and not (sid == "complete" and ax != 1 and in_seat(q)):
+                        planes.setdefault((ax, sg, (i, j, k)[ax]), {})[(i, j, k)] = mat
+        for (ax, sg, _), cells in planes.items():
+            faces_n += len(cells)
+            for c, mat in cells.items():
+                runs = []
+                for d in range(3):
+                    if d == ax:
+                        continue
+                    n = 1
+                    for dirn in (-1, 1):
+                        q = list(c)
+                        while True:
+                            q[d] += dirn
+                            if cells.get(tuple(q)) != mat:
+                                break
+                            n += 1
+                    runs.append(n * step)
+                if min(runs) < m.MIN_BRICK - 1e-9:
+                    p = tuple((c[k] + 0.5) * step for k in range(3))
+                    owner = next((e.name for pid in parts for e in v.by_part[pid] if inside(e, p)), "?")
+                    bad.setdefault((sid, owner), (min(runs), p, "xyz"[ax] + ("+" if sg > 0 else "-")))
+    print(f"slivers: every piece of brick showing at the brickwork and complete stages at least {m.MIN_BRICK} across "
+          f"both ways ({faces_n} face cells of {step}); {len(bad)} slivers")
+    for (sid, owner), (w, p, face) in sorted(bad.items())[:12]:
+        v.fail(f"a sliver of brick at the {sid} stage: {owner}, {w} wide on its {face} face at {p}")
 
 
 def check_walls(v):
@@ -345,7 +431,7 @@ def check_walls(v):
     m = v.m
     if abs(sum(m.BAY_X) - m.W) > 1e-9:
         v.fail("the bay is not centred left to right")
-    (cx0, cx1), _, (cz0, cz1) = m.CURB
+    (cx0, cx1), _, (cz0, cz1) = m.CAP_SEAT
     oc = m.outlet_cell()
     if not (oc[0] * m.B <= cx0 and cx1 <= (oc[0] + 1) * m.B and oc[2] * m.B <= cz0 and cz1 <= (oc[2] + 1) * m.B):
         v.fail("the outlet's curb is not in the outlet's cell")
@@ -603,29 +689,36 @@ def check_front(v):
 
 # ---------------------------------------------------------------- the outlet, the draught
 def check_outlet(v):
-    """The outlet: capped, a flat iron plate flush with the top in the curb's seat, covering the stack's mouth; the
-    curb, the lining's refractory brick, a rim round the cap (sampled every voxel) and a ledge under its edge all
-    round."""
+    """The outlet: capped, a flat iron plate flush with the top in its seat, covering the stack's mouth; the seat's
+    floor a ledge of the lining's refractory brick (the curb) under the cap's edge wherever the stack is not (sampled
+    every voxel); the cap's edges all round against something solid at the top (iron or brick: the side and back bands'
+    top legs on the west and back, the brick on the others), so no strip of brick lies between the cap and the
+    bands."""
     m = v.m
     cap = aabb_of(v.by_part["outletcap"])
-    (cx0, cx1), _, (cz0, cz1) = m.CURB
-    r = m.CURB_RIM
-    if not same_box(cap, ([cx0 + r, m.CAP_Y[0], cz0 + r], [cx1 - r, m.TOP, cz1 - r])):
-        v.fail(f"the cap is not flush in the curb's seat: {cap}")
+    (cx0, cx1), _, (cz0, cz1) = m.CAP_SEAT
+    if not same_box(cap, ([cx0, m.CAP_Y[0], cz0], [cx1, m.TOP, cz1])):
+        v.fail(f"the cap is not flush in its seat: {cap}")
     lining = [e for e in v.by_part["lining"] if e.name.startswith("ln_brick_")]
     (sx0, sx1), _, (sz0, sz1) = m.STACK
-    rim = [(x + 0.25, m.TOP - 0.25, z + 0.25) for x in range(int(cx0), int(cx1)) for z in range(int(cz0), int(cz1))
-           if not (cx0 + r <= x + 0.25 <= cx1 - r and cz0 + r <= z + 0.25 <= cz1 - r)]
-    ledge = [(x + 0.25, m.CAP_Y[0] - 0.1, z + 0.25) for x in range(int(cx0 + r), int(cx1 - r)) for z in range(int(cz0 + r), int(cz1 - r))
+    ledge = [(x + 0.25, m.CAP_Y[0] - 0.1, z + 0.25) for x in range(int(cx0), int(cx1)) for z in range(int(cz0), int(cz1))
              if not (sx0 <= x + 0.25 <= sx1 and sz0 <= z + 0.25 <= sz1)]
-    missing = [p for p in rim + ledge if not any(inside(e, p) for e in lining)]
+    missing = [p for p in ledge if not any(inside(e, p) for e in lining)]
     if missing:
-        v.fail(f"the curb is not the lining's brick at {len(missing)} points, e.g. {missing[:3]}")
-    if not (cap[0][0] < sx0 and cap[1][0] > sx1 and cap[0][2] < sz0 and cap[1][2] > sz1):
+        v.fail(f"the seat's ledge is not the lining's brick at {len(missing)} points, e.g. {missing[:3]}")
+    y = m.TOP - 0.25
+    rim = [(cx0 - 0.1, y, z + 0.25) for z in range(int(cz0), int(cz1))] + [(cx1 + 0.1, y, z + 0.25) for z in range(int(cz0), int(cz1))]
+    rim += [(x + 0.25, y, cz0 - 0.1) for x in range(int(cx0), int(cx1))] + [(x + 0.25, y, cz1 + 0.1) for x in range(int(cx0), int(cx1))]
+    solid = static(v)
+    open_ = [p for p in rim if not any(inside(e, p) for e in solid)]
+    if open_:
+        v.fail(f"the cap's edge is open at {len(open_)} points, e.g. {open_[:3]}")
+    iron = [p for p in rim if any(inside(e, p) for e in v.by_part["frame"])]
+    if not (cap[0][0] < sx0 and cap[1][0] > sx1 and cap[0][2] <= sz0 and cap[1][2] > sz1):
         v.fail("the cap does not cover the stack's mouth")
-    print(f"outlet: capped by a plate flush in the curb's seat ({cap[1][0] - cap[0][0]:.0f} square, "
-          f"{m.CAP_Y[1] - m.CAP_Y[0]} thick), over the stack's mouth; the curb the lining's brick, rim and ledge "
-          f"({len(rim) + len(ledge)} points)")
+    print(f"outlet: capped by a plate flush in its seat ({cap[1][0] - cap[0][0]:.0f} by {cap[1][2] - cap[0][2]:.0f}, "
+          f"{m.CAP_Y[1] - m.CAP_Y[0]} thick), over the stack's mouth, on a ledge of the lining's brick ({len(ledge)} "
+          f"points); its edges against the bands' iron at {len(iron)} and brick at {len(rim) - len(iron)} points")
 
 
 def check_draught(v):
@@ -739,6 +832,7 @@ def validate(m, els, parts, rig, quick=False):
     check_basic(v)
     check_stages(v)
     check_angles(v)
+    check_slivers(v)
     check_textures(v)
     check_containment(v)
     check_top(v)

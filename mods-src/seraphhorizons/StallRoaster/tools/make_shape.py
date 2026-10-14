@@ -9,10 +9,11 @@ centred, leads into a back flue low in the wall and up a stack to an outlet on t
 player stands the chimney (or a flat iron cap, as on every stall in a row but one). The brickwork is any one type of
 fired brick (its texture the renderer's, from the rig's bricks). It is bound with angle iron, every binder an L that
 wraps a corner of the brickwork, one leg on each face, its inside corner bedded against the brick's corner, set into
-the brick flush: an angle up each of its four outer vertical corners and up each jamb of the opening, a sill angle
-along the opening's foot, and an angle band wrapping the front and the back top edges, which joins the angles' tops.
-The side faces are brick but for the corner angles' legs, flush, so stalls stand side by side in a row along their
-width, their side walls meeting.
+the brick flush, one frame: an angle up each of its four outer vertical corners and up each jamb of the opening (on
+each side wall's narrow front face their legs meet), a sill angle along the opening's foot, its front leg down to the
+ground, and an angle band round each of the four top edges, which joins the angles' tops; no sliver of brick shows
+between two irons (MIN_BRICK). The side faces are brick in a border of flush iron, so stalls stand side by side in a
+row along their width, their side walls meeting.
 
 The charge is laid by hand through the open front: a bed of firewood (logs across the bay and sticks along it), the
 ore on it in four courses of eight rock (32, two stacks), each course stepped back at the front. It is kindled at the
@@ -111,35 +112,51 @@ FLOOR_Y = BASE_TOP + LINING_T                # the bay's floor: the lining's, on
 MOUTH = ((12.0, 20.0), (FLOOR_Y, 10.0), (BAY_Z[1], 20.0))
 BACK_FLUE = ((6.0, 20.0), (FLOOR_Y, 10.0), (20.0, 26.0))
 STACK = ((6.0, 12.0), (FLOOR_Y, TOP), (20.0, 26.0))
-CURB = ((4.0, 14.0), (TOP - 2.0, TOP), (18.0, 28.0))  # the outlet's curb, of the lining's refractory brick, flush:
-CURB_RIM = 1.0                                         # a rim 1 wide round the cap's seat, the seat a ledge 1 wide
-CAP_Y = (TOP - 0.5, TOP)                     # round the stack's mouth; the cap, a flat iron plate, set flush in it
-CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y, (CURB[2][0] + CURB_RIM, CURB[2][1] - CURB_RIM))
+CAP_Y = (TOP - 0.5, TOP)                     # the outlet's cap, a flat iron plate, set flush in a seat (CAP_SEAT, below)
 
 # ---------------------------------------------------------------- the iron: angle iron at every corner
 # Every binder is an angle (an L section) wrapping a corner of the brickwork: one leg on each of the corner's two
 # faces, its inside corner bedded against the brick's corner, set into the brick so its outside is flush with the
-# faces (owner's rule for brick structures: no flat bar on one face). IRON_T thick, LEG wide each way.
+# faces (owner's rule for brick structures: no flat bar on one face). Every leg is IRON_T thick. The angles make one
+# frame with no sliver of brick between two of them (MIN_BRICK, below): a side wall's front face is 6 wide, too narrow
+# for brick between two angles, so its corner angle's and its jamb's front legs are LEG wide each and meet in the
+# middle of it, the wall's end cased in iron; the sill's front leg runs down to the ground (the base under the floor
+# is 5 high); every vertical angle's side leg runs up under the top leg of the band over it and its front leg up to
+# the band's front leg; and the bands wrap all four top edges, the side bands between the front and back bands'
+# top legs, so each band meets the uprights at both its ends.
 IRON_T = 1.0
-LEG = 2.5
-BAND_Y = (TOP - LEG, TOP)                    # the angle bands wrapping the front and back top edges
-ANGLE_TOP = BAND_Y[0]                        # the vertical angles stand up to the bands, which join their tops
-# Each angle: (name, the axis it runs along, the span along it, its corner (the brick's outer corner) in the other two
-# axes in order (x, z for a vertical angle; y, z for one along x), the signs from the corner into the brick along those
-# two axes, the span of its second leg where it differs, and a span along its axis where it crosses the opening and
-# has no brick behind it (a tie, there)). Leg a lies on the face across the second of the two axes and takes the
-# corner; leg b lies on the face across the first.
+LEG = 3.0                                    # a leg's width, from the corner: an equal angle 3 by 3
+BAND_LEG = 2.5                               # a band's leg down the face under the top edge
+BAND_Y = (TOP - BAND_LEG, TOP)               # the bands' legs on the faces
+ANGLE_TOP = BAND_Y[0]                        # the vertical angles' face legs stand up to the bands' face legs,
+ANGLE_TOP_B = TOP - IRON_T                   # their side legs up under the bands' top legs, which join their tops
+MIN_BRICK = 3.0                              # no piece of brick showing narrower than this, either way, on any face:
+#                                              the lining's (and the walls' brickwork's) own thickness; every sliver the
+#                                              frame used to leave was 0.5 to 2.5
+# Each angle: (name, the axis it runs along, the span of leg a along it, the span of leg b, its corner (the brick's
+# outer corner) in the other two axes in order (x, z for a vertical angle; y, z for one along x; x, y for one along
+# z), the signs from the corner into the brick along those two axes, (leg a's width, leg b's width) from the corner,
+# and a span along its axis where it crosses the opening and has no brick behind it (a tie, there)). Leg a lies on
+# the face across the second of the two axes and takes the corner; leg b lies on the face across the first.
 ANGLES = (
-    ("fr_corner_nw", "y", (0.0, ANGLE_TOP), (0.0, 0.0), (1, 1), None, None),        # the four outer vertical corners
-    ("fr_corner_ne", "y", (0.0, ANGLE_TOP), (W, 0.0), (-1, 1), None, None),
-    ("fr_corner_sw", "y", (0.0, ANGLE_TOP), (0.0, D), (1, -1), None, None),
-    ("fr_corner_se", "y", (0.0, ANGLE_TOP), (W, D), (-1, -1), None, None),
-    ("fr_jamb_w", "y", (0.0, ANGLE_TOP), (BAY_X[0], 0.0), (-1, 1), (FLOOR_Y, ANGLE_TOP), None),   # the opening's jambs:
-    ("fr_jamb_e", "y", (0.0, ANGLE_TOP), (BAY_X[1], 0.0), (1, 1), (FLOOR_Y, ANGLE_TOP), None),    # the bay's face above the floor
-    ("fr_sill", "x", BAY_X, (FLOOR_Y, 0.0), (-1, 1), None, None),                  # the floor's front edge, between the jambs
-    ("fr_band_n", "x", (0.0, W), (TOP, 0.0), (-1, 1), None, BAY_X),                 # the front top edge, a tie over the opening
-    ("fr_band_s", "x", (0.0, W), (TOP, D), (-1, -1), None, None),                   # the back top edge
+    ("fr_corner_nw", "y", (0.0, ANGLE_TOP), (0.0, ANGLE_TOP_B), (0.0, 0.0), (1, 1), (LEG, LEG), None),   # the four
+    ("fr_corner_ne", "y", (0.0, ANGLE_TOP), (0.0, ANGLE_TOP_B), (W, 0.0), (-1, 1), (LEG, LEG), None),    # outer vertical
+    ("fr_corner_sw", "y", (0.0, ANGLE_TOP), (0.0, ANGLE_TOP_B), (0.0, D), (1, -1), (LEG, LEG), None),    # corners
+    ("fr_corner_se", "y", (0.0, ANGLE_TOP), (0.0, ANGLE_TOP_B), (W, D), (-1, -1), (LEG, LEG), None),
+    ("fr_jamb_w", "y", (0.0, ANGLE_TOP), (FLOOR_Y, ANGLE_TOP_B), (BAY_X[0], 0.0), (-1, 1), (LEG, LEG), None),  # the
+    ("fr_jamb_e", "y", (0.0, ANGLE_TOP), (FLOOR_Y, ANGLE_TOP_B), (BAY_X[1], 0.0), (1, 1), (LEG, LEG), None),   # jambs
+    ("fr_sill", "x", BAY_X, BAY_X, (FLOOR_Y, 0.0), (-1, 1), (FLOOR_Y, LEG), None),   # the floor's front edge, its front
+    #                                                                                  leg down to the ground
+    ("fr_band_n", "x", (0.0, W), (0.0, W), (TOP, 0.0), (-1, 1), (BAND_LEG, LEG), BAY_X),   # front, a tie over the opening
+    ("fr_band_s", "x", (0.0, W), (0.0, W), (TOP, D), (-1, -1), (BAND_LEG, LEG), None),     # back
+    ("fr_band_w", "z", (LEG, D - LEG), (LEG, D - LEG), (0.0, TOP), (1, -1), (LEG, BAND_LEG), None),   # the sides, between
+    ("fr_band_e", "z", (LEG, D - LEG), (LEG, D - LEG), (W, TOP), (-1, -1), (LEG, BAND_LEG), None),    # the two bands
 )
+# The outlet's seat: a recess half a voxel deep in the stack's lining (the curb, the lining's refractory brick), the cap
+# lying flush in it. It runs out to the side and back bands' top legs, so the cap's west and back edges meet the frame's
+# iron with no strip of brick between them, and east to the stack's lining's edge: it rests on a ledge of the lining 3
+# wide on those three sides; its front edge is the stack's own front face, against the lining 4 wide behind the bay.
+CAP_SEAT = ((LEG, STACK[0][1] + LINING_T), CAP_Y, (STACK[2][0], D - LEG))
 AXIS = {"x": 0, "y": 1, "z": 2}
 
 # ---------------------------------------------------------------- the front's walling
@@ -335,10 +352,11 @@ def other_axes(axis):
 
 
 def angle_legs(angle):
-    """An angle's two legs as (leg, lo, hi): leg a on the face across its second cross axis, taking the corner, LEG
-    wide along the first and IRON_T thick along the second; leg b on the face across its first cross axis, IRON_T
-    thick along the first and the rest of LEG along the second. Each runs its span along the angle's axis."""
-    name, axis, span, (c0, c1), (s0, s1), span_b, _ = angle
+    """An angle's two legs as (leg, lo, hi): leg a on the face across its second cross axis, taking the corner, its
+    width along the first and IRON_T thick along the second; leg b on the face across its first cross axis, IRON_T
+    thick along the first and on from leg a to its width along the second. Each runs its own span along the angle's
+    axis."""
+    name, axis, span_a, span_b, (c0, c1), (s0, s1), (wa, wb), _ = angle
     a = AXIS[axis]
     u, v = other_axes(axis)
 
@@ -349,8 +367,8 @@ def angle_legs(angle):
             p, q = c + s * r0, c + s * r1
             lo[k], hi[k] = min(p, q), max(p, q)
         return lo, hi
-    la = leg(span, (0.0, LEG), (0.0, IRON_T))
-    lb = leg(span_b or span, (0.0, IRON_T), (IRON_T, LEG))
+    la = leg(span_a, (0.0, wa), (0.0, IRON_T))
+    lb = leg(span_b, (0.0, IRON_T), (IRON_T, wb))
     return [("a", *la), ("b", *lb)]
 
 
@@ -373,7 +391,7 @@ def build_iron():
 # ---------------------------------------------------------------- the brickwork
 def brick_voids():
     """Every space cut out of the brick, as (lo, hi) in voxels: the bay (open at the front and the top, its floor
-    the lining's); the flue mouth, the back flue and the stack, and the cap's seat in the curb; and the room for the
+    the lining's); the flue mouth, the back flue and the stack, and the cap's seat in the stack's lining (the curb); and the room for the
     iron set into the brick. The top is flat but for the bay and the outlet."""
     v = [([BAY_X[0], FLOOR_Y, BAY_Z[0]], [BAY_X[1], TOP, BAY_Z[1]])]
     for (x0, x1), (y0, y1), (z0, z1) in (MOUTH, BACK_FLUE, STACK, CAP_SEAT):
@@ -577,7 +595,7 @@ def build_front(place):
 
 
 def build_cap():
-    """The outlet's cap (`outletcap`): a flat iron plate set flush in the curb's seat, closing the outlet of a stall
+    """The outlet's cap (`outletcap`): a flat iron plate set flush in the curb's seat, its west and back edges against the side and back bands, closing the outlet of a stall
     whose chimney is another's in the row."""
     (x0, x1), _, (z0, z1) = CAP_SEAT
     return [box([x0, CAP_Y[0], z0], [x1, CAP_Y[1], z1], "outletcap_plate", "outletcap", "iron")]
