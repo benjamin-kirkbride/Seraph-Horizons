@@ -1247,13 +1247,13 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>OreCells</c>, <c>NoSurfaceCopper</c>, <c>SmallerDeposits</c>,
-    /// <c>RarerDistricts</c>, <c>PlacerFields</c>, <c>GradePockets</c>: a world created with them off
+    /// <c>RarerDistricts</c>, <c>PlacerFields</c>, <c>GradePockets</c>, <c>StableVeins</c>: a world created with them off
     /// records them off, Interesting Ore Gen's spacing filter and main ore placement are not patched, and the deposits are as the mods ship
     /// them.</summary>
     [AtlasScenario]
     public void Ore_worldgen_off_ore_is_as_the_mods_ship_it()
     {
-        foreach (var key in new[] { "OreCells", "NoSurfaceCopper", "SmallerDeposits", "RarerDistricts", "PlacerFields", "GradePockets" })
+        foreach (var key in new[] { "OreCells", "NoSurfaceCopper", "SmallerDeposits", "RarerDistricts", "PlacerFields", "GradePockets", "StableVeins" })
             Assert.True(Off(key), key);
         var ore = World.Api.ModLoader.GetModSystem<SeraphHorizons.Mod.Ore.OreSystem>();
         Assert.Equal(SeraphHorizons.Mod.Ore.Core.OreWorldRecord.AllOff, ore.World);
@@ -1264,6 +1264,9 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(Harmony.GetPatchInfo(approve)?.Prefixes ?? [], p => p.owner == SeraphHorizons.Mod.Ore.OreSystem.HarmonyId);
         var mainOre = AccessTools.Method(SeraphHorizons.Mod.Ore.OreCellPlacement.GeneratorType!, SeraphHorizons.Mod.Ore.GradePocketPlacement.MethodName);
         Assert.DoesNotContain(Harmony.GetPatchInfo(mainOre)?.Prefixes ?? [], p => p.owner == SeraphHorizons.Mod.Ore.OreSystem.HarmonyId);
+        // Stable veins (#946): IOG's vein generator is not wrapped.
+        var genDeposit = AccessTools.Method(SeraphHorizons.Mod.Ore.OreCellPlacement.GeneratorType!, "GenDeposit");
+        Assert.DoesNotContain(Harmony.GetPatchInfo(genDeposit)?.Prefixes ?? [], p => p.owner == SeraphHorizons.Mod.Ore.OreSystem.HarmonyId);
 
         var deposits = World.Api.ModLoader.Systems.OfType<Vintagestory.ServerMods.GenDeposits>().SelectMany(g => g.Deposits ?? []).ToList();
         Assert.Contains(deposits, v => v.Code == "surfacecopper" && v.TriesPerChunk > 0);
