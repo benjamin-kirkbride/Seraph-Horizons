@@ -166,7 +166,7 @@ def check_stages(v):
 
 
 ROLES = [
-    (r"^bk_brick_", {"brick"}),
+    (r"^bk_(brick_|ring\d|ringbacking)", {"brick"}),
     (r"^ln_(brick_|vault\d|backing)", {"lining"}),
     (r"^fr_(bearer|bar|platebearer|jamb|doorlintel|ashlintel|guide|rail|angle|band|tie)", {"iron"}),
     (r"^plate_", {"iron"}),
@@ -382,8 +382,9 @@ def check_walls(v):
     """The walls, everything centred but the outlet: the chamber, the firebox, the niche, the plate, the spout, the pot,
     the fire hole and the ash mouth are centred left to right (the stack is in the back row's east cell, where its
     chimney stands); the wall (brick, or iron set into it) round the firebox, from the grate to the plate, and round the
-    chamber, from the plate to the springing, sampled every half voxel, runs at least MIN_WALL out to the furnace's
-    face (the front wall's to the niche), outside the fire hole, the ash mouth and their recesses."""
+    chamber, from the plate to the springing, and from the stack to the east and back faces, from its foot to the cap's
+    seat, sampled every half voxel, runs at least MIN_WALL out to the furnace's face (the front wall's to the niche),
+    outside the fire hole, the ash mouth and their recesses."""
     m = v.m
     mid = m.W / 2
     for what, (x0, x1) in (("chamber and firebox", m.IN_X), ("niche", m.NICHE[0]), ("spout", m.SPOUT_GAP),
@@ -433,9 +434,15 @@ def check_walls(v):
             for x in [x0 + 0.25 + 0.5 * k for k in range(int((x1 - x0) * 2))]:
                 if not open_back(x, y):
                     walls.setdefault("back", []).append((run((x, y, m.FIRE_Z[1]), 2, 1, m.D - m.FIRE_Z[1]), (x, y)))
+    (sx0, sx1), (sy0, _), (sz0, sz1) = m.STACK
+    for y in [sy0 + 0.25 + 0.5 * k for k in range(int((m.CAP_Y[0] - sy0) * 2))]:
+        for z in [sz0 + 0.25 + 0.5 * k for k in range(int((sz1 - sz0) * 2))]:
+            walls.setdefault("stack east", []).append((run((sx1, y, z), 0, 1, m.W - sx1), (y, z)))
+        for x in [sx0 + 0.25 + 0.5 * k for k in range(int((sx1 - sx0) * 2))]:
+            walls.setdefault("stack back", []).append((run((x, y, sz1), 2, 1, m.D - sz1), (x, y)))
     worst = {k: min(w) for k, w in walls.items()}
     print("walls: the chamber, the firebox, the niche, the spout, the pot, the fire hole and the ash mouth centred, the "
-          f"stack in the outlet's cell (x {sx}); the wall round the fire and the plate at least "
+          f"stack in the outlet's cell (x {sx}); the wall round the fire, the plate and the stack at least "
           + ", ".join(f"{k} {t:.2f}" for k, (t, _) in worst.items()) + f" (MIN_WALL {m.MIN_WALL})")
     for k, (t, at) in worst.items():
         if t < m.MIN_WALL - 1e-9:
@@ -484,8 +491,8 @@ def check_lining(v):
     x0, x1 = m.IN_X
     hot = [([x0, m.BEARER_Y[0], m.FIRE_Z[0]], [x1, m.FIREBOX_TOP, m.FIRE_Z[1]]),          # the firebox
            ([x0, m.BEARER_Y[0], m.HANG_Z[1]], [x1, m.THROAT_TOP, m.FIRE_Z[1]]),          # the throat
-           (list(m.STACK[0][:1]) + [m.STACK[1][0]] + [m.STACK[2][0]], [m.STACK[0][1], m.FLOOR_TOP - 2.0, m.STACK[2][1]]),
-           ([x0, m.PLATE_LOW_TOP, m.VAULT_Z[0]], [x1, m.SPRING, m.VAULT_Z[1]]),          # the chamber's side walls
+           (list(m.STACK[0][:1]) + [m.STACK[1][0]] + [m.STACK[2][0]], [m.STACK[0][1], m.STACK_LINING_TOP, m.STACK[2][1]]),
+           ([x0, m.PLATE_LOW_TOP, m.FRONT_RING], [x1, m.SPRING, m.VAULT_Z[1]]),         # the chamber's side walls
            ([x0, m.HANG_FOOT, m.HANG_Z[0] - 0.5], [x1, m.SPRING, m.HANG_Z[0]])]          # the hanging wall's face
     thinnest, where, n = 1e9, None, 0
     for idx, (lo, hi) in enumerate(hot):
@@ -537,33 +544,101 @@ def check_lining(v):
           f"the lining reaching through; the niche, the ash pit and the ash mouth the brickwork's ({cold} points)")
 
 
+SKIN_OPEN = 1.0 + 1e-6                       # how deep a dent in an outer face may be and still be the outside (a recess, the
+#                                              cap's seat): deeper is an opening into the furnace, its inside lined
+
+
+def check_skin(v):
+    """The outside is fired brick or iron everywhere (owner's rule): the lining never shows from outside the
+    footprint. Every half voxel of each of the six outer faces, a ray walks in square to the face (every eighth of a
+    voxel) through the masonry and the iron frame alone (the movable fittings, the door, the damper and the cap, left
+    out, so nothing covers for the lining when it is open or off); where it meets something within SKIN_OPEN of the face
+    (the face itself, or a recess's or a seat's floor), that and the next OUTER_BRICK behind it hold no lining. Deeper
+    hits are the furnace's openings (the working opening, the niche, the fire hole, the ash mouth, the flue), whose
+    insides are lined by design."""
+    m = v.m
+    lining = v.by_part["lining"]
+    masonry = v.by_part["brickwork"] + v.by_part["frame"] + lining
+    size = (m.W, m.H, m.D)
+    names = "xyz"
+    reach = SKIN_OPEN + m.OUTER_BRICK
+    bad, n, thinnest, openings = {}, 0, 1e9, 0
+    for k in range(3):
+        a, b = [q for q in range(3) if q != k]
+        for sign in (-1, 1):
+            face = f"{'+-'[sign < 0]}{names[k]}"
+            base = 0.0 if sign < 0 else size[k]
+            slab = []
+            for e in masonry:
+                lo, hi = e.aabb()
+                if (lo[k] < reach if sign < 0 else hi[k] > size[k] - reach):
+                    slab.append((e, lo, hi))
+            ua = 0.25
+            while ua < size[a]:
+                ub = 0.25
+                while ub < size[b]:
+                    n += 1
+                    hit, first_ln = None, None
+                    line = [e for e, lo, hi in slab if lo[a] <= ua <= hi[a] and lo[b] <= ub <= hi[b]]
+                    d = 0.0625
+                    while d < reach:
+                        p = [0.0, 0.0, 0.0]
+                        p[a], p[b], p[k] = ua, ub, base - sign * d
+                        near = [e for e in line if inside(e, p)]
+                        if near:
+                            if hit is None:
+                                hit = d
+                            if any(e in lining for e in near):
+                                first_ln = d
+                                break
+                        elif hit is None and d > SKIN_OPEN:
+                            break
+                        d += 0.125
+                    if hit is None:
+                        openings += 1
+                    elif first_ln is not None and first_ln - hit < m.OUTER_BRICK - 1e-9:
+                        owner = next(e.name for e in lining if inside(e, [ua if q == a else ub if q == b else
+                                                                          base - sign * first_ln for q in range(3)]))
+                        bad.setdefault((face, owner), (round(first_ln - hit, 3), (ua, ub)))
+                    elif first_ln is not None:
+                        thinnest = min(thinnest, first_ln - hit)
+                    ub += 0.5
+                ua += 0.5
+    print(f"skin: the outside fired brick or iron at {n - openings} of {n} points on the six faces (the other "
+          f"{openings} the furnace's openings), at least {m.OUTER_BRICK} of it before any lining"
+          + (f" (the thinnest {thinnest:.2f})" if thinnest < 1e9 else " (no lining within reach)"))
+    for (face, owner), (t, at) in sorted(bad.items())[:12]:
+        v.fail(f"the lining ({owner}) is {t} in from the {face} face at {at}: it shows, or the brick over it is too thin")
+
+
 def check_vault(v):
-    """The vault: its staves stay in the vault's zone (they bed into the side walls' lining at the springing, which is
-    theirs), and with their backing they are solid between the intrados and the zone's top: points just over the
-    arc, every half voxel across and every two along, are the lining's, and every point under it (the chamber) is
-    open; at the front face the arch ring and its backing run flush."""
+    """The vault: its staves stay in the vault's zone (they bed into the side walls at the springing), and with their
+    backing they are solid between the intrados and the zone's top: points just over the arc, every half voxel across
+    and every two along (and at the front ring's middle), are the brickwork's fired brick within FRONT_RING of the
+    front face (the arch ring) and the lining's behind it, and every point under it (the chamber) is open; at the
+    front face the arch ring and its backing run flush."""
     m = v.m
     (zx0, zx1), (zy0, zy1), (zz0, zz1) = m.VAULT_ZONE
     out = []
     for e in v.by_part["lining"]:
-        if not e.name.startswith("ln_vault"):
+        if not e.name.startswith(("ln_vault", "bk_ring")):
             continue
         lo, hi = e.aabb()
         if lo[0] < zx0 - 1e-6 or hi[0] > zx1 + 1e-6 or hi[1] > zy1 + 1e-6 or lo[1] < zy0 - 0.5 or lo[2] < zz0 - 1e-6 or hi[2] > zz1 + 1e-6:
             out.append(e.name)
     if out:
         v.fail(f"vault staves leave the vault's zone: {out}")
-    lining = v.by_part["lining"]
+    lining, bk = v.by_part["lining"], v.by_part["brickwork"]
     holes, opens, n = [], [], 0
     x = m.IN_X[0] + 0.25
     while x < m.IN_X[1]:
         yi = m.intrados(x)
-        for z in [zz0 + 0.5 + 2 * k for k in range(int((zz1 - zz0) / 2))]:
+        for z in [zz0 + m.FRONT_RING / 2] + [zz0 + m.FRONT_RING + 0.5 + 2 * k for k in range(int((zz1 - zz0 - m.FRONT_RING) / 2))]:
             for y in (yi + 0.15, yi + 1.5, yi + 2.9, (yi + 3 + zy1) / 2):
                 if y >= zy1:
                     continue
                 n += 1
-                if not any(inside(e, (x, y, z)) for e in lining):
+                if not any(inside(e, (x, y, z)) for e in (bk if z < m.FRONT_RING else lining)):
                     holes.append((x, y, z))
             under = (x, max(m.SPRING, yi - 0.15), z)
             if any(inside(e, under) for e in static(v)):
@@ -598,8 +673,8 @@ def check_build(v):
     st = {s["requires"]: s for s in build["stages"]}
     got = {"bricks": st["brickwork"]["materials"][0]["quantity"], "lining": st["lining"]["materials"][0]["quantity"],
            "fireclay": st["lining"]["materials"][1]["quantity"]}
-    vault = m.vault_volume()
-    want = {"bricks": math.ceil(lat["bk"] / m.B ** 3 * m.BRICKS_PER_BLOCK - 1e-9),
+    ring, vault = m.vault_volume()
+    want = {"bricks": math.ceil((lat["bk"] + ring) / m.B ** 3 * m.BRICKS_PER_BLOCK - 1e-9),
             "lining": math.ceil((lat["ln"] + vault) / m.B ** 3 * m.LINING_PER_BLOCK - 1e-9)}
     want["fireclay"] = math.ceil(want["lining"] / m.LINING_PER_FIRECLAY - 1e-9)
     if got != want or any(got[k] != c[k] for k in got):
@@ -617,7 +692,8 @@ def check_build(v):
         v.fail("a stage's requires is no part's")
     if sorted(st["fittings"]["parts"]) != sorted(p["id"] for p in v.parts if p["requires"] == "fittings"):
         v.fail("the fittings stage's parts are not the parts it fits")
-    print(f"build: brickwork {lat['bk'] / m.B ** 3:.2f} blocks -> {got['bricks']} fired bricks; lining "
+    print(f"build: brickwork {(lat['bk'] + ring) / m.B ** 3:.2f} blocks (the arch ring {ring / m.B ** 3:.3f}) -> "
+          f"{got['bricks']} fired bricks; lining "
           f"{(lat['ln'] + vault) / m.B ** 3:.2f} blocks (the vault {vault / m.B ** 3:.3f}) -> {got['lining']} "
           f"refractory bricks and {got['fireclay']} fire clay; fittings {dict(m.FITTINGS_STAGE)}; the frame "
           f"{dict(m.FRAME_RECIPE)}")
@@ -829,15 +905,15 @@ def check_damper(v):
 
 def check_outlet(v):
     """The outlet: open, its mouth clear to the sky through the stack; capped, a flat iron plate flush with the top in
-    the curb's seat, covering the stack's mouth; the curb, the lining's refractory brick, a rim round the cap (sampled
-    every half voxel) and a ledge under its edge all round."""
+    the curb's seat, covering the stack's mouth; the curb, the top course's fired brick, a rim round the cap (sampled
+    every half voxel) and a ledge under its edge all round, both the brickwork's fired brick (the outside's)."""
     m = v.m
     cap = aabb_of(v.by_part["outletcap"])
     (cx0, cx1), _, (cz0, cz1) = m.CURB
     r = m.CURB_RIM
     if not same_box(cap, ([cx0 + r, m.CAP_Y[0], cz0 + r], [cx1 - r, m.FLOOR_TOP, cz1 - r])):
         v.fail(f"the cap is not flush in the curb's seat: {cap}")
-    lining = v.by_part["lining"]
+    curb_brick = v.by_part["brickwork"]
     (sx0, sx1), _, (sz0, sz1) = m.STACK
     def halves(a0, a1):
         return [a0 + 0.25 + 0.5 * k for k in range(int(round((a1 - a0) * 2)))]
@@ -845,15 +921,15 @@ def check_outlet(v):
            if not (cx0 + r <= x <= cx1 - r and cz0 + r <= z <= cz1 - r)]
     ledge = [(x, m.CAP_Y[0] - 0.1, z) for x in halves(cx0 + r, cx1 - r) for z in halves(cz0 + r, cz1 - r)
              if not (sx0 <= x <= sx1 and sz0 <= z <= sz1)]
-    missing = [p for p in rim + ledge if not any(inside(e, p) for e in lining)]
+    missing = [p for p in rim + ledge if not any(inside(e, p) for e in curb_brick)]
     if missing:
-        v.fail(f"the curb is not the lining's brick at {len(missing)} points, e.g. {missing[:3]}")
+        v.fail(f"the curb is not the brickwork's fired brick at {len(missing)} points, e.g. {missing[:3]}")
     if not (cap[0][0] < sx0 and cap[1][0] > sx1 and cap[0][2] < sz0 and cap[1][2] > sz1):
         v.fail("the cap does not cover the stack's mouth")
     # the opening, measured from the elements (not the constants): just under the cap's seat and at the bottom of the
-    # stack, the clear span through its middle along x and along z. It must be square, STACK_SIDE across (the crucible
-    # furnace's flue, which the chimney's shaft stands on), and centred under the chimney's line, the outlet cell's
-    # middle; the curb square and centred with it.
+    # stack, the clear span through its middle along x and along z. It must be square, STACK_SIDE across, and centred
+    # under the chimney's line, the outlet cell's middle, which the chimney's shaft stands on; the curb square and
+    # centred with it.
     solid = static(v)
     line = v.rig["chimney"]["origin"]
     cx, cz = line[0] * m.B, line[2] * m.B
@@ -887,10 +963,10 @@ def check_outlet(v):
         v.fail("the cap is not square")
     print(f"outlet: the flue square and centred under the chimney's line (x {cx}, z {cz}): "
           + ", ".join(f"{a:.2f} by {b:.2f} at y {y}" for y, a, b in measured)
-          + f" (the crucible furnace's {m.STACK_SIDE}); the curb {cx1 - cx0} square round it")
+          + f" ({m.STACK_SIDE} square); the curb {cx1 - cx0} square round it")
     print(f"outlet: open to the sky through the stack; capped by a plate flush in the curb's seat "
           f"({cap[1][0] - cap[0][0]:.0f} by {cap[1][2] - cap[0][2]:.0f}, {m.CAP_Y[1] - m.CAP_Y[0]} thick), over the "
-          f"stack's mouth; the curb the lining's brick, rim and ledge ({len(rim) + len(ledge)} points)")
+          f"stack's mouth; the curb the brickwork's fired brick, rim and ledge ({len(rim) + len(ledge)} points)")
 
 
 # ---------------------------------------------------------------- the draught
@@ -1060,6 +1136,7 @@ def validate(m, els, parts, rig, quick=False):
     check_binding(v)
     check_walls(v)
     check_lining(v)
+    check_skin(v)
     check_vault(v)
     check_build(v)
     check_plate(v)

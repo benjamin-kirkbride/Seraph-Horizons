@@ -108,7 +108,12 @@ W, H, D = CELLS_X * B, CELLS_Y * B, CELLS_Z * B
 FLOOR_TOP = H                                # the furnace's top: flat, a deck
 BASE_TOP = 1.0                               # the base course: the niche's and the ash pit's floor
 LINING_T = 3.0
-MIN_WALL = 5.0                               # the least wall (brick, lining, iron set in it) round the fire and the plate
+MIN_WALL = 5.0                               # the least wall (brick, lining, iron set in it) round the fire, the plate
+#                                              and the stack
+OUTER_BRICK = 2.0                            # the least fired brick (or iron) in from any outer face, a recess's or a
+#                                              seat's floor with it, before the lining: the lining never shows outside
+FRONT_RING = OUTER_BRICK                     # the front face's fired brick round the working opening: the arch ring
+#                                              over it and the side walls' reveals, the lining behind them
 
 # ---------------------------------------------------------------- the inside: one width, the chamber over the plate,
 # the firebox under it, the niche under its low end
@@ -162,7 +167,8 @@ STAVES = 8
 VAULT_R = ((IN_X[1] - IN_X[0]) ** 2 / 4 + RISE * RISE) / (2 * RISE)
 VAULT_CY = SPRING + RISE - VAULT_R           # the arc's centre's height
 VAULT_TH = math.asin((IN_X[1] - IN_X[0]) / 2 / VAULT_R)   # half the arc's angle
-VAULT_ZONE = ((IN_X[0] - LINING_T, IN_X[1] + LINING_T), (SPRING, 28.25), VAULT_Z)  # the staves and their backing
+VAULT_ZONE = ((IN_X[0] - LINING_T, IN_X[1] + LINING_T), (SPRING, 28.25), VAULT_Z)  # the staves and their backing:
+#                                              fired brick for FRONT_RING from the front face (the arch ring), lining behind
 CHAMBER_FRONT = (IN_X, (12.0, SPRING), (0.0, FRONT_WALL_Z[0]))
 CHAMBER_BACK = (IN_X, (FRONT_WALL_TOP, SPRING), (FRONT_WALL_Z[0], VAULT_Z[1]))
 
@@ -171,20 +177,24 @@ CHAMBER_BACK = (IN_X, (FRONT_WALL_TOP, SPRING), (FRONT_WALL_Z[0], VAULT_Z[1]))
 HANG_Z = (VAULT_Z[1], 20.0)                  # 3 thick, the lining's
 HANG_FOOT = 20.0
 THROAT_TOP = 23.0
-# The stack: the crucible furnace's, a square flue 8 by 8 (STACK_SIDE) centred under the chimney's line, the middle of
-# the outlet's cell, from the hanging wall's foot (where it opens off the throat) to the top; its mouth is the
-# outlet's opening, square and centred under the chimney the player stands on it.
-STACK_SIDE = 8.0
+# The stack: a square flue 4 by 4 (STACK_SIDE) centred under the chimney's line, the middle of the outlet's cell, from
+# the hanging wall's foot (where it opens off the throat) to the top; its mouth is the outlet's opening, square and
+# centred under the chimney the player stands on it. The outlet cell is the back east corner's, so the flue's side is
+# what the wall to the east and back faces leaves: 6 from the flue to each face (MIN_WALL and more), LINING_T of
+# lining and 3 of fired brick, the back wall's (an 8 by 8 flue, the crucible furnace's, left 3 of lining and 1 of
+# brick, and the lining showed in the fire door's recess).
+STACK_SIDE = 4.0
 STACK_C = ((OUTLET_CELL[0] + 0.5) * B, (OUTLET_CELL[2] + 0.5) * B)   # (x, z): the outlet cell's middle, the chimney's
 STACK = ((STACK_C[0] - STACK_SIDE / 2, STACK_C[0] + STACK_SIDE / 2), (HANG_FOOT, FLOOR_TOP),
          (STACK_C[1] - STACK_SIDE / 2, STACK_C[1] + STACK_SIDE / 2))
-CURB_W = 1.5                                 # the outlet's curb round the stack's mouth: square and centred with it, out to
-#                                              the top bands' legs (back and east), which it meets
+CURB_W = 1.5                                 # the outlet's curb round the stack's mouth: square and centred with it, the
+#                                              top course's fired brick
 CURB = ((STACK[0][0] - CURB_W, STACK[0][1] + CURB_W), (30.0, FLOOR_TOP), (STACK[2][0] - CURB_W, STACK[2][1] + CURB_W))
-CURB_RIM = 1.0                               # the outlet's curb, of the lining's refractory brick, flush: a rim 1 wide round
+CURB_RIM = 1.0                               # the outlet's curb, of the brickwork's fired brick, flush: a rim 1 wide round
 CAP_Y = (31.5, FLOOR_TOP)                    # the cap's seat, the seat a ledge 0.5 wide round the stack's mouth; the cap,
 CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y,   # a flat iron plate, set flush in it
             (CURB[2][0] + CURB_RIM, CURB[2][1] - CURB_RIM))
+STACK_LINING_TOP = CAP_Y[0] - OUTER_BRICK    # the stack's lining ends OUTER_BRICK under the cap's seat, the curb over it
 
 # the back face: the fire door over the ash mouth, both centred, each in its recess with its iron
 FIRE_HOLE = ((12.0, 20.0), (GRATE_TOP, 13.0))           # through the back wall, its sill the grate's top
@@ -512,13 +522,16 @@ STRIP_X = (5.0, 6.5, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 1
 
 
 def build_vault():
-    """The vault (the lining's): STAVES staves of refractory, each LINING_T thick, on the arc through the springing
-    points and the crown, from the front face to the hanging wall (cut at the block's boundary), and their backing:
-    upright strips of the same refractory from the staves' back (or the springing, beside the span) up to the vault
-    zone's top, where the brickwork above begins. Each strip dips into the staves at its higher edge, so no gap
-    shows between them; each stave is a hair shorter than its neighbour at its ends, so their end faces never share
-    a plane."""
+    """The vault: STAVES staves, each LINING_T thick, on the arc through the springing points and the crown, from the
+    front face to the hanging wall (cut at the block's boundary), and their backing: upright strips from the staves'
+    back (or the springing, beside the span) up to the vault zone's top, where the brickwork above begins. For
+    FRONT_RING from the front face they are the brickwork's fired brick (`bk_ring<n>`, `bk_ringbacking<nn>`: the arch
+    ring the front face shows), behind it the lining's refractory (`ln_vault<n>_<j>`, `ln_backing<nn>_<j>`), whose
+    front faces, against the ring, are left out. Each strip dips into the staves at its higher edge, so no gap shows
+    between them; each stave is a hair shorter than its neighbour at its ends, so their end faces never share a
+    plane."""
     p, t = "lining", "lining"
+    ring = FRONT_RING
     out = []
     d = 2 * VAULT_TH / STAVES
     width = 2 * (VAULT_R + LINING_T) * math.tan(d / 2) + 0.02
@@ -526,9 +539,15 @@ def build_vault():
     for i in range(STAVES):
         ang = -VAULT_TH + d * (i + 0.5)
         s = 0.006 * (i % 2)
-        for j, (z0, z1) in enumerate(((VAULT_Z[0] + s, B), (B, VAULT_Z[1] - s)), 1):
+        el = box([XM - width / 2, VAULT_CY + VAULT_R, VAULT_Z[0] + s], [XM + width / 2, VAULT_CY + VAULT_R + LINING_T,
+                 ring + s], f"bk_ring{i + 1}", "brickwork", "brick")
+        rotate([el], "z", math.degrees(ang), c)
+        out.append(el)
+        for j, (z0, z1) in enumerate(((ring + s, B), (B, VAULT_Z[1] - s)), 1):
             el = box([XM - width / 2, VAULT_CY + VAULT_R, z0], [XM + width / 2, VAULT_CY + VAULT_R + LINING_T, z1],
                      f"ln_vault{i + 1}_{j}", p, t)
+            if j == 1:
+                del el.faces["north"]
             rotate([el], "z", math.degrees(ang), c)
             out.append(el)
     (_, _), (_, top), (z0, z1) = VAULT_ZONE
@@ -539,8 +558,12 @@ def build_vault():
             bottom = min(extrados(a), extrados(b))
         if top - bottom < 0.05:
             continue
-        for n, (_, lo, hi) in enumerate(split_cells("backing", [a, bottom, z0], [b, top, z1]), 1):
-            out.append(wbox(lo, hi, f"ln_backing{idx:02d}_{n}", p, t))
+        out.append(wbox([a, bottom, z0], [b, top, ring], f"bk_ringbacking{idx:02d}", "brickwork", "brick"))
+        for n, (_, lo, hi) in enumerate(split_cells("backing", [a, bottom, ring], [b, top, z1]), 1):
+            el = wbox(lo, hi, f"ln_backing{idx:02d}_{n}", p, t)
+            if lo[2] <= ring + 1e-9:
+                del el.faces["north"]
+            out.append(el)
     return out
 
 
@@ -667,16 +690,16 @@ def ties():
 
 # where the brick is the lining's, as (lo, hi): round the chamber over the plate (its side walls from just under the
 # plate's low end to the springing), the hanging wall, round the firebox and the throat (from the grate's bearers up),
-# and round the stack (up to the outlet's curb, which is the top course round its mouth). The rest is the brickwork's: the base, the niche, the ash
-# pit and the ash mouth, the outer walls, the brick over the vault.
+# and round the stack (up to OUTER_BRICK under the cap's seat: the top courses round its mouth are the curb's), none
+# of it nearer an outer face than OUTER_BRICK (the chamber's side walls' begin FRONT_RING back from the front face).
+# The rest is the brickwork's: the base, the niche, the ash pit and the ash mouth, the outer walls, the curb, the brick over the vault.
 def lining_zones():
     t = LINING_T
     (x0, x1) = IN_X
-    return [([x0 - t, 12.5, VAULT_Z[0]], [x1 + t, SPRING, VAULT_Z[1]]),
+    return [([x0 - t, 12.5, FRONT_RING], [x1 + t, SPRING, VAULT_Z[1]]),
             ([x0 - t, FRONT_WALL_TOP, HANG_Z[0]], [x1 + t, VAULT_ZONE[1][1], HANG_Z[1]]),
             ([x0 - t, BEARER_Y[0], FIRE_Z[0] - t], [x1 + t, THROAT_TOP + t, FIRE_Z[1] + t]),
-            ([STACK[0][0] - t, STACK[1][0] - t, STACK[2][0] - t], [STACK[0][1] + t, CURB[1][0], STACK[2][1] + t]),
-            ([CURB[0][0], CURB[1][0], CURB[2][0]], [CURB[0][1], CURB[1][1], CURB[2][1]])]   # the curb, square on the mouth
+            ([STACK[0][0] - t, STACK[1][0] - t, STACK[2][0] - t], [STACK[0][1] + t, STACK_LINING_TOP, STACK[2][1] + t])]
 
 
 def _inside(p, lo, hi):
@@ -1012,7 +1035,7 @@ def _rig_parts():
 # ---------------------------------------------------------------- poses
 # A pose is (theta, depth, scene): the clock, the fire door, and what is fitted. A scene is (the charge's state, the
 # fire's state, the damper's place, whether the outlet is capped, the build's state): gameplay's requires. The contents
-# and the damper are fitted only once the furnace is built (the fittings stage), the cap once the curb is in (the lining).
+# and the damper are fitted only once the furnace is built (the fittings stage), the cap once the stack is lined (the lining).
 DEFAULT_SCENE = ("sweating", "lit", "open", False, "complete")
 REST = (0.0, 0.0, DEFAULT_SCENE)
 SHUT = 1.0
@@ -1112,16 +1135,19 @@ def box_volume(el):
 
 
 def vault_volume():
-    """The vault zone's refractory, in cubic voxels: the zone's box less the chamber's segment under the arc."""
+    """The vault zone's brick, in cubic voxels, as (the arch ring's fired brick, the lining's refractory): the zone's
+    box less the chamber's segment under the arc, the first FRONT_RING of it the ring's."""
     (x0, x1), (y0, y1), (z0, z1) = VAULT_ZONE
-    return ((x1 - x0) * (y1 - y0) - segment_area()) * (z1 - z0)
+    a = (x1 - x0) * (y1 - y0) - segment_area()
+    return a * FRONT_RING, a * (z1 - z0 - FRONT_RING)
 
 
 def build_volumes(els):
     """The brickwork's and the lining's volumes, in blocks, measured from their elements: the brick boxes (each lattice
     box in exactly one), and the vault's zone, which its staves and backing fill but for the chamber under the arc."""
-    bk = sum(box_volume(e) for e in els if e.name.startswith("bk_brick_"))
-    ln = sum(box_volume(e) for e in els if e.name.startswith("ln_brick_")) + vault_volume()
+    ring, vault = vault_volume()
+    bk = sum(box_volume(e) for e in els if e.name.startswith("bk_brick_")) + ring
+    ln = sum(box_volume(e) for e in els if e.name.startswith("ln_brick_")) + vault
     return bk / B ** 3, ln / B ** 3
 
 

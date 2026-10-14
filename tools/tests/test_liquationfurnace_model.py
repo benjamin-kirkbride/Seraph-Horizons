@@ -217,13 +217,15 @@ class Furnace(unittest.TestCase):
         self.assertAlmostEqual(m.POT_C[0], m.W / 2)
         # the stack's mouth inside the outlet's cell, the east one, square and centred in it (under the chimney)
         self.assertTrue(16.0 <= m.STACK[0][0] and m.STACK[0][1] <= 32.0 and 16.0 <= m.STACK[2][0] and m.STACK[2][1] <= 32.0)
-        self.assertEqual((m.STACK[0], m.STACK[2]), ((20.0, 28.0), (20.0, 28.0)))
-        self.assertEqual((m.CURB[0], m.CURB[2]), ((18.5, 29.5), (18.5, 29.5)))
+        self.assertEqual((m.STACK[0], m.STACK[2]), ((22.0, 26.0), (22.0, 26.0)))
+        self.assertEqual((m.CURB[0], m.CURB[2]), ((20.5, 27.5), (20.5, 27.5)))
+        # the wall from the flue to the east and back faces: 6, LINING_T of lining and 3 of fired brick (MIN_WALL and more)
+        self.assertGreaterEqual(m.W - m.STACK[0][1], m.LINING_T + 3.0)
+        self.assertGreaterEqual(m.D - m.STACK[2][1], m.LINING_T + 3.0)
 
     def test_the_outlet_is_square_under_the_chimney(self):
-        # from the written shape: just under the cap's seat and down the stack, the flue is open over the 8 by 8 square
-        # centred on the outlet cell's middle (x 24, z 24, the chimney's line) and closed just outside it, as the
-        # crucible furnace's stack (8 square, centred under its chimney) is
+        # from the written shape: just under the cap's seat and down the stack, the flue is open over the 4 by 4 square
+        # centred on the outlet cell's middle (x 24, z 24, the chimney's line) and closed just outside it
         solid = [e for e in FLAT if not e.name.startswith("outletcap")]
 
         def filled(p):
@@ -231,11 +233,32 @@ class Furnace(unittest.TestCase):
         cx, cz = RIG["chimney"]["origin"][0] * 16.0, RIG["chimney"]["origin"][2] * 16.0
         self.assertEqual((cx, cz), (24.0, 24.0))
         for y in (31.25, 28.0, 24.0):
-            for t in [k * 0.5 - 3.75 for k in range(16)]:
-                for p in ((cx + t, y, cz - 3.75), (cx + t, y, cz + 3.75), (cx - 3.75, y, cz + t), (cx + 3.75, y, cz + t), (cx + t, y, cz + t)):
+            for t in [k * 0.5 - 1.75 for k in range(8)]:
+                for p in ((cx + t, y, cz - 1.75), (cx + t, y, cz + 1.75), (cx - 1.75, y, cz + t), (cx + 1.75, y, cz + t), (cx + t, y, cz + t)):
                     self.assertFalse(filled(p), p)
-                for p in ((cx + t, y, cz - 4.25), (cx + t, y, cz + 4.25), (cx - 4.25, y, cz + t), (cx + 4.25, y, cz + t)):
+                for p in ((cx + t, y, cz - 2.25), (cx + t, y, cz + 2.25), (cx - 2.25, y, cz + t), (cx + 2.25, y, cz + t)):
                     self.assertTrue(filled(p), p)
+
+    def test_the_lining_never_shows_outside(self):
+        # from the written shape: every lining-textured element stays at least OUTER_BRICK (2) of fired brick behind
+        # the outer faces and behind the back face's recesses (1 deep) and the cap's seat (0.5 deep), so the outside is
+        # fired brick or iron everywhere (the owner's rule); the front face's arch ring and the curb are fired brick
+        m = make_shape
+        self.assertEqual(m.OUTER_BRICK, 2.0)
+        lining = [e for e in FLAT if any(f.get("texture") == "#lining" for f in e.faces.values())]
+        self.assertTrue(lining)
+        for e in lining:
+            lo, hi = e.aabb()
+            self.assertTrue(e.name.startswith("ln_"), e.name)
+            self.assertGreaterEqual(min(lo[0], 32.0 - hi[0]), 2.0 - 1e-6, e.name)          # the side faces
+            self.assertGreaterEqual(lo[2], 2.0 - 1e-6, e.name)                              # the front face
+            self.assertGreaterEqual(32.0 - hi[2], 1.0 + 2.0 - 1e-6, e.name)                 # the back face's recesses
+            self.assertGreaterEqual(32.0 - hi[1], 0.5 + 2.0 - 1e-6, e.name)                 # the cap's seat
+            self.assertGreaterEqual(lo[1], 2.0 - 1e-6, e.name)                              # the base
+        ring = [e for e in FLAT if e.name.startswith("bk_ring")]
+        self.assertEqual(len([e for e in ring if re.match(r"^bk_ring\d", e.name)]), m.STAVES)
+        for e in ring:
+            self.assertEqual({f.get("texture") for f in e.faces.values()}, {"#brick"}, e.name)
 
     def test_side_faces_are_plain_brick_for_a_row(self):
         # nothing but brick, and the corner angles' and the side bands' legs flush (at the corners, along the top),
@@ -316,9 +339,11 @@ class Build(unittest.TestCase):
         build = RIG["build"]
         self.assertEqual([s["requires"] for s in build["stages"]], list(STAGES))
         st = {s["requires"]: s for s in build["stages"]}
+        ring, vault = make_shape.vault_volume()
         bk = sum(element_volume(e) for e in SHAPE["elements"] if e["name"].startswith("bk_brick_")) / 4096
+        bk += ring / 4096
         ln = sum(element_volume(e) for e in SHAPE["elements"] if e["name"].startswith("ln_brick_")) / 4096
-        ln += make_shape.vault_volume() / 4096
+        ln += vault / 4096
         self.assertAlmostEqual(bk, st["brickwork"]["volumeBlocks"], delta=0.01)
         self.assertAlmostEqual(ln, st["lining"]["volumeBlocks"], delta=0.01)
         bricks, lining = math.ceil(st["brickwork"]["volumeBlocks"] * 2), math.ceil(st["lining"]["volumeBlocks"] * 4)

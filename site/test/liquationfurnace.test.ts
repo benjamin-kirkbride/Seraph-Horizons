@@ -150,7 +150,7 @@ describe("the liquation furnace's outlet", () => {
     const r = rig as unknown as { outletCell: number[]; chimney: { origin: number[]; axis: string; length: number } };
     const [ox, oy, oz] = r.outletCell as [number, number, number];
     expect(r.chimney.origin).toEqual([ox + 0.5, oy + 1 + r.chimney.length / 2, oz + 0.5]);
-    // the flue under the line, as the crucible furnace's: open over the 8 by 8 square centred on it, closed just
+    // the flue under the line: open over the 4 by 4 square centred on it, closed just
     // outside it (the cap aside); sampled off the brick boxes' faces, where a point is inside neither box
     const boxes = flattenShape(shape.elements)
       .filter((f) => !f.element.name.startsWith("outletcap"))
@@ -161,9 +161,9 @@ describe("the liquation furnace's outlet", () => {
     const filled = (p: number[]) => boxes.some((b) => [0, 1, 2].every((k) => b[k]![0]! < p[k]! && p[k]! < b[k]![1]!));
     const cx = (ox + 0.5) * 16, cz = (oz + 0.5) * 16;
     for (const y of [31.25, 27.25]) {
-      for (const t of [-3.75, -2.25, -0.75, 0.75, 2.25, 3.75]) {
-        for (const p of [[cx + t, y, cz - 3.75], [cx + t, y, cz + 3.75], [cx - 3.75, y, cz + t], [cx + 3.75, y, cz + t]]) expect(filled(p), String(p)).toBe(false);
-        for (const p of [[cx + t, y, cz - 4.25], [cx + t, y, cz + 4.25], [cx - 4.25, y, cz + t], [cx + 4.25, y, cz + t]]) expect(filled(p), String(p)).toBe(true);
+      for (const t of [-1.75, -0.75, 0.75, 1.75]) {
+        for (const p of [[cx + t, y, cz - 1.75], [cx + t, y, cz + 1.75], [cx - 1.75, y, cz + t], [cx + 1.75, y, cz + t]]) expect(filled(p), String(p)).toBe(false);
+        for (const p of [[cx + t, y, cz - 2.25], [cx + t, y, cz + 2.25], [cx - 2.25, y, cz + t], [cx + 2.25, y, cz + t]]) expect(filled(p), String(p)).toBe(true);
       }
     }
   });

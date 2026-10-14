@@ -21,14 +21,19 @@ fire** (#929; Hofman's crust liquation used a 10 × 5 ft plate, Hofman 1904, pp.
 furnace as one block of brickwork **two blocks wide (x), two deep (z) and two high**, on the crucible furnace's
 conventions: the **brickwork** (the base, the outer walls, the niche, the ash pit and the ash mouth, the brick over
 the vault) is **any one type of the game's fired brick**, and the walls take that brick's texture ("The brick",
-below); the **hot faces are lined** with tier-3 refractory brick 3 voxels thick, the vault with them; it is **bound
+below); the **hot faces are lined** with tier-3 refractory brick 3 voxels thick, the vault with them, **the lining
+never showing outside**: every outer face is fired brick or the iron binding, with at least 2 voxels of fired brick
+(`OUTER_BRICK`) between any outer face (or a recess's or the cap's seat's floor) and the lining; it is **bound
 with angle iron** in one frame ("The binding", below), its side faces plain brick but for the angles' legs, flush,
 so furnaces stand in a row; it is fired on **natural
 draught only**, through an **ash mouth with a three-place damper**; and its smoke leaves by an **outlet on the top**,
 where the player stands the chimney, or which a flat iron plate caps. Its top is flat, a deck.
 
 - **The front: the working opening.** The plate's low end, under a segmental **barrel vault** of refractory open at
-  the front (span 16, rise 4, eight staves 3 thick, their front ends the arch's ring), its springing 21 voxels up. The
+  the front (span 16, rise 4, eight staves 3 thick), its springing 21 voxels up. The front face round the opening is
+  fired brick: for its first 2 voxels (`FRONT_RING`) the vault is an **arch ring of fired brick** (eight voussoirs, the
+  staves' shape, `bk_ring<n>`, with their backing) and the chamber's side walls are fired brick too, the refractory
+  starting behind them. The
   cakes go on and the lead comes off from in front, through the opening. Under the plate's low end is a **niche** the
   chamber's width (16), 11 high, open to the front and, in front of the plate's low end, above: there the **receiving
   pot** stands on the niche's floor, a cast-iron kettle 7.9 across and 6.6 tall, as wide as the niche's depth allows.
@@ -60,13 +65,16 @@ where the player stands the chimney, or which a flat iron plate caps. Its top is
   underside up to its high end and up behind it into the **throat**. The chamber's air comes in at the working opening,
   over the plate and under the **hanging wall** (the chamber's back wall, 3 of lining from 17 to 20 behind the front
   face, its foot 20 voxels up, over the plate's upper part) into the throat. From the throat the **stack** rises to
-  the **outlet**: as the crucible furnace's, a **square flue 8 by 8 centred under the chimney's line**, the middle of
-  the outlet's cell, from the hanging wall's foot (where it opens off the throat's top and its east side) to the top,
-  so the chimney the player stands on the outlet sits square over its mouth. **The model stops at the
-  outlet**: the player stands the chimney on it ("The chimney", below). The outlet has two states, open or **capped**
-  with a flat iron plate (9 square) set flush in its **curb** (the lining's refractory, 11 square, centred on the
-  mouth: a rim 1 wide round a seat half a voxel down, the seat a ledge 0.5 wide round the mouth), as every other
-  furnace in a row sharing one chimney is. The curb meets the back and east top bands.
+  the **outlet**: a **square flue 4 by 4 centred under the chimney's line**, the middle of the outlet's cell, from the
+  hanging wall's foot (where it opens off the throat's top and its east side) to the top, so the chimney the player
+  stands on the outlet sits square over its mouth. Its lining (3) stops 2 under the cap's seat, and **6 of wall** (3 of
+  lining, 3 of fired brick, the back wall's) lie between the flue and the east and back faces. (The crucible furnace's
+  8 by 8 flue, which this one had, left only 3 of lining and 1 of brick there, and the stack's lining showed in the
+  fire door's recess: an outlet cell in the corner leaves room for 4.) **The model stops at the outlet**: the player
+  stands the chimney on it ("The chimney", below). The outlet has two states, open or **capped** with a flat iron
+  plate (5 square) set flush in its **curb** (the top course's fired brick, 7 square, centred on the mouth: a rim 1
+  wide round a seat half a voxel down, the seat a ledge 0.5 wide round the mouth), as every other furnace in a row
+  sharing one chimney is.
 - **The outlet is in the back row's east cell**, centred in it, not on the furnace: a chimney stands on one cell, and a
   two-wide furnace has no middle cell. Everything else is centred left to right.
 - **The binding** is **angle iron** (an L section, 1 voxel thick, legs 2.5 wide), set flush into the brick so nothing
@@ -88,13 +96,13 @@ front middle cell. The furnace extends a block east (x) and a block back (z) fro
 **Why 2 × 2 × 2** (the issue's "about 2 × 2 × 2", held to the crucible furnace's standard, dimension by dimension):
 
 - **Two wide**: a chamber and firebox 16 wide (a plate 16 wide, four cakes two by two between its rims) with side walls
-  of 8 (5 of brick, 3 of lining) is 32 voxels, two blocks. The stack (8 square, centred in the east cell) has 3 of
-  lining and 1 of brick outside it to the east face (and the same to the back).
+  of 8 (5 of brick, 3 of lining) is 32 voxels, two blocks. The stack (4 square, centred in the east cell) has 3 of
+  lining and 3 of brick outside it to the east face (and the same to the back).
 - **Two deep**: the niche and the pot (9), the front wall (5), the firebox (12) and the back wall (6) are 32. The plate
   runs from 5 behind the front face over the niche and the front wall to over the firebox's back half; the throat
-  (from the hanging wall at 20 to the back wall at 26) and the stack (20 to 28) rise over the firebox's back end and
+  (from the hanging wall at 20 to the back wall at 26) and the stack (22 to 26) rise over the firebox's back end and
   the back wall, so they cost no depth of their own. The vault runs from the front face to 17, the hanging wall 17 to
-  20: shorter than the plate, so the square stack, centred in the back cell, clears the chamber by the hanging wall's 3.
+  20: shorter than the plate, so the square stack, centred in the back cell, clears the chamber.
 - **Two high**: the ash pit (4) and the grate (3) under the plate, the plate falling from 16.8 to 13, a chamber over it
   to the vault's springing at 21 and its crown at 25, the vault's lining (3, its backing to 28.25) and the brick over it: 32.
 
@@ -128,16 +136,16 @@ the owner to settle ("Open for the owner").
 | | Stage | `requires` | What it puts in | Materials |
 |---|---|---|---|---|
 | Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | What stands on its own: the angle-iron binding, one frame (the four corner angles and the ring of four top bands), the grate's bearers and firebars, the plate's two cross bearers, the fire hole's jambs and lintel, the ash mouth's lintel, the fire door's guides and the damper's rails, on 7 short posts hidden in the brickwork | proposed: 1 iron plate, 4 iron rods, 8 iron nails and strips |
-| 1 | **Brickwork** | `brickwork` | The base, the outer walls, the niche, the ash pit and the ash mouth, the brick over the vault: 3.58 blocks | **8 fired bricks**, any one type (`game:burnedbrick-*`) |
-| 2 | **Lining** | `lining` | Tier-3 refractory 3 thick on the hot faces (the firebox, the chamber's side walls, the hanging wall, the throat, the stack, the outlet's curb) and the vault with its backing: 1.83 blocks (the vault 0.48) | **8 tier-3 refractory bricks**, **4 fire clay** |
+| 1 | **Brickwork** | `brickwork` | The base, the outer walls, the niche, the ash pit and the ash mouth, the brick over the vault, the front's arch ring, the outlet's curb: 3.92 blocks | **8 fired bricks**, any one type (`game:burnedbrick-*`) |
+| 2 | **Lining** | `lining` | Tier-3 refractory 3 thick on the hot faces (the firebox, the chamber's side walls, the hanging wall, the throat, the stack) and the vault with its backing behind the arch ring: 1.62 blocks (the vault 0.42) | **7 tier-3 refractory bricks**, **3 fire clay** |
 | 3 | **Fittings** | `fittings` (the parts `plate`, `pot`, `door`; and the damper's place) | The hearth plate with its rims and spout, the receiving pot, the fire door, the damper | proposed: 4 iron plates |
 | | *Outlet cap* | `outletcap` | Not a stage: put on (or taken off) by hand, any time after the lining | 1 iron plate |
 
 **The counts are measured from the model**, as the crucible furnace's are: the brick is a lattice (every void's faces,
 the lining's zones' and the blocks' boundaries along each axis) merged into boxes, the brickwork's and the lining's
-apart; the vault's zone (its staves and their backing) is its box less the chamber's segment under the arc. At the
-game's rates (2 fired bricks a block, 4 refractory bricks a block, rounded up, fire clay one per 2.5 refractory
-bricks): 7.16 → 8 fired bricks, 7.32 → 8 refractory bricks, 4 fire clay.
+apart; the vault's zone (its staves and their backing) is its box less the chamber's segment under the arc, its
+first 2 (the arch ring) the brickwork's. At the game's rates (2 fired bricks a block, 4 refractory bricks a block,
+rounded up, fire clay one per 2.5 refractory bricks): 7.85 → 8 fired bricks, 6.47 → 7 refractory bricks, 3 fire clay.
 
 **The ties.** So that nothing floats before the brick is in, the least iron joins the frame to the ground, all of it
 inside the brickwork: a post under the back end of each outer grate bearer and under the front end of the middle one
@@ -171,7 +179,7 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/liquationfurnace.json` | The whole furnace, every part (444 elements) |
+| `assets/seraphhorizons/shapes/block/liquationfurnace.json` | The whole furnace, every part (474 elements) |
 | `assets/seraphhorizons/shapes/block/liquationfurnace_frame.json` | The iron frame only (66 elements): what the placed frame draws, before any stage |
 | `assets/seraphhorizons/config/liquationfurnace-rig.json` | Cells, anchors, the build and the brick types, and the part rig (18 parts) |
 | `tests/LiquationFurnace/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths |
@@ -179,7 +187,7 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 | Code | Texture | On |
 |---|---|---|
 | `brick` | The furnace's brick type's block texture, set by the renderer (`bricks`); the shape's own is `game:block/clay/brick/four/running/red1` | The brickwork: world-mapped, so the many boxes read as one wall |
-| `lining` | `game:block/clay/refractory/tier3/front1` (the crucible furnace's) | The lining, the vault's staves and backing, the curb: world-mapped (the staves, turned, mapped to their size) |
+| `lining` | `game:block/clay/refractory/tier3/front1` (the crucible furnace's) | The lining, the vault's staves and backing behind the arch ring: world-mapped (the staves, turned, mapped to their size); never on an outer face |
 | `iron` | `game:block/metal/plate/iron` | The frame, the hearth plate and its spout, the pot, the fire door, the damper, the cap |
 | `cake` | `game:block/metal/ingot/leadsolder` (the game's solder is tin and lead) | The tin-lead cakes |
 | `tin` | `game:block/metal/ingot/tin` | The tin running and the tin in the pot |
@@ -198,8 +206,8 @@ gameplay's state.
 | Part (rig id) | Driven by | Drives |
 |---|---|---|
 | The iron frame (`frame`, no requires) | fixed: placed as the machine | carries the grate and the plate's bearers; its binding holds the brick; its ties hold it up before the brick is in |
-| The brickwork (`brickwork`) | stage 1 | the base, the outer walls, the niche, the ash pit and the ash mouth; plain brick on the side faces for a row |
-| The lining (`lining`) | stage 2 | the hot faces: the firebox, the chamber's side walls, the hanging wall, the throat, the stack, the curb; the vault |
+| The brickwork (`brickwork`) | stage 1 | the base, the outer walls, the niche, the ash pit and the ash mouth, the front's arch ring, the curb: every outer face; plain brick on the side faces for a row |
+| The lining (`lining`) | stage 2 | the hot faces: the firebox, the chamber's side walls, the hanging wall, the throat, the stack; the vault behind the arch ring |
 | The grate's bearers and firebars (`frame`) | fixed: the bearers built into the front and back walls, the bars across them | carry the fuel; the draught comes up between the bars |
 | The plate's bearers (`frame`) | fixed: their ends built into the side walls | carry the plate at its low end and its high end |
 | The hearth plate, its rims and spout (`plate`) | stage 3 (fittings), laid on its bearers and the front wall's top | carries the cakes over the fire; its fall runs the tin to the low end, off through the spout into the pot |
@@ -241,10 +249,16 @@ skipped. Most checks are the crucible furnace's:
   corners; every piece of the binding is joined to every other (one frame, 32 pieces); no flat strap.
 - **The walls**: everything centred left to right but the outlet, whose stack's mouth lies in the outlet's cell; the
   wall round the fire and the chamber at least `MIN_WALL` (5): 8 at the sides, 5 at the front (to the niche), 6 at the
-  back outside the fire hole, the ash mouth and their recesses.
+  back outside the fire hole, the ash mouth and their recesses; and *(owner's review)* round the stack, from its foot
+  to the cap's seat, out to the east and back faces: 6.
 - **The lining**: behind every hot face at least 3 of the lining's brick; the niche, the ash pit and the ash mouth the
   brickwork's.
-- **The vault**: its staves in their zone; solid lining over the arc up to the brickwork, open under it.
+- **The skin** *(owner's rule: the outside is fired brick or iron, the lining never shows)*: every half voxel of all
+  six outer faces, a ray square to the face through the masonry and the frame (the door, the damper and the cap left
+  out): where it meets something within 1 of the face (the face, a recess's floor, the cap's seat), that and the next
+  `OUTER_BRICK` (2) behind it hold no lining; deeper hits are the furnace's openings, lined inside by design.
+- **The vault**: its staves in their zone; solid over the arc up to the brickwork, the arch ring's fired brick for its
+  first 2, the lining behind; open under it.
 - **The stages' counts**: measured from the lattice and the vault's zone, as the rig's.
 - **The plate**: its top and underside where the slope puts them, falling to the front, wall to wall, its edges
   against the lining, touching its three supports exactly; the rims on it; the spout's lip over the pot's mouth; the
@@ -259,9 +273,9 @@ skipped. Most checks are the crucible furnace's:
 - **The damper**: in each place between its rails, spanning the mouth's height; shut over the whole mouth, half over
   its east half, open clear of it.
 - **The outlet** *(owner's review)*: the flue measured from the elements just under the cap's seat and down the
-  stack is **square, 8 by 8 (the crucible furnace's), and centred under the chimney's line**, which is the middle of
-  the outlet's cell; the curb square and centred with it; the cap square, flush in the curb's seat over the mouth;
-  the curb the lining's (rim and ledge every half voxel).
+  stack is **square, 4 by 4, and centred under the chimney's line**, which is the middle of the outlet's cell; the
+  curb square and centred with it; the cap square, flush in the curb's seat over the mouth; the curb the brickwork's
+  fired brick (rim and ledge every half voxel).
 - **The draught**: both ways sampled point by point, clear with the door shut; the stack's mouth clear at every depth
   but for the cap; every firebar on a bearer at each end, the bearers built into the walls, the gaps at least 0.8.
 - **Clearances** in fourteen scenes, the door slid every 0.02: no two parts overlap (a fuel layer's lumps in the layer
@@ -297,14 +311,15 @@ The crucible furnace's format with nothing added to the shared rig maths: two in
 it (open 2 s, shut in 1 s, sweating 3 s, open in 1 s). Five selects of states: **Build** (the iron frame, 1: brickwork,
 2: lining and vault, 3: fittings, complete; each with its materials), **The charge** (empty, charged, sweating, sweated,
 the tin taken), **The fire** (no fire, laid, lit, burnt low), **Ash-mouth damper** (open, half, shut) and **Outlet**
-(open or capped); the first four after the build wait for the fittings, the outlet for the lining. The page opens with
+(open or capped); the first four after the build wait for the fittings, the outlet for the lining (the stack lined). The page opens with
 the furnace built, the charge sweating, the fire lit, the door open, the damper open and the outlet open. A **Brick**
 select, as the crucible furnace's.
 
 ### Editing by hand
 
-Element names are the rig's interface (first-match globs, in the rig's order): `bk_*` the brickwork (`bk_brick_NNN`),
-`ln_*` the lining (`ln_brick_NNN`, the vault's staves `ln_vault<i>_<j>`, their backing `ln_backing<nn>_<j>`),
+Element names are the rig's interface (first-match globs, in the rig's order): `bk_*` the brickwork (`bk_brick_NNN`,
+the arch ring's voussoirs `bk_ring<i>` and their backing `bk_ringbacking<nn>`), `ln_*` the lining (`ln_brick_NNN`,
+the vault's staves `ln_vault<i>_<j>`, their backing `ln_backing<nn>_<j>`),
 `plate_*` (`slab`, `rim_w`, `rim_e`, `rim_high`, `rim_loww`, `rim_lowe`, `spout`, `spout_w`, `spout_e`), `pot_*`
 (`foot`, `lower`, `body`), `door_*` (`plate`, `handle`), `cakes_<n>`, `tinrun_*` (`plate`, `spout`, `stream`),
 `tin_pool`, `lead_<n>` and `lead_knob<n>`, `fuel<j>_*` and `fire<j>_*` (`bedw`, `bede`, the lumps, the burning bottom
@@ -326,7 +341,8 @@ counts, the brick types, the shipped cells, the coplanar fix. Changed from v2:
 - **The plate's support**: v2 laid it on fire-brick steps over a firebox in the base; here the fire is **under the
   plate**, which lies on two iron bearers and the front wall's top.
 - **The vault**: v2's staves (along x, `vault()`), here along z over the chamber, with a backing of strips filling up to
-  the brickwork, so the front face shows a refractory arch ring flush in its surround.
+  the brickwork; the front 2 of the staves and backing are fired brick, so the front face shows a fired-brick arch
+  ring flush in its surround, the refractory behind it.
 - **The pot**: v2's small octagon on the floor is now a kettle in a niche under the plate's low end.
 - **Dropped**: v2's shared floor and stack, `liq_world`, its fixed brick textures (`eight/running/orange1`, `cream1`),
   `TEX=64` proportional UVs, and its dross (the lead left on the plate takes its place). Never ported: commit `9fa58a5`
@@ -337,8 +353,8 @@ counts, the brick types, the shipped cells, the coplanar fix. Changed from v2:
 The model has been reviewed in projections rendered from the written files and in the site's viewer (a standalone
 copy). No one has looked at it in a client.
 
-1. **Texture seams.** The brick is 270 boxes (159 of brickwork, 71 of lining, 40 of the vault's backing), world-mapped;
-   the vault's 16 staves are mapped to their own size.
+1. **Texture seams.** The brick is 292 boxes (171 of brickwork, 61 of lining, 20 and 40 of the arch ring's and the
+   vault's backing), world-mapped; the arch ring's 8 voussoirs and the vault's 16 staves are mapped to their own size.
    That the brick runs on across them is not yet seen in the game.
 2. **Small slivers under the plate**: a cross bearer's top touches the plate's underside along its front edge; behind
    it the slope opens a gap of up to 0.3 (the front bearer, seen from the niche) and over the front wall's top one of
@@ -349,8 +365,9 @@ copy). No one has looked at it in a client.
    furnace's 1.1 cubic voxels a unit (not checked: no capacity is settled, #929).
 6. **The fuel is two flat layers** with lumps, as the crucible furnace's coke.
 7. **The outlet is off the furnace's centre**, in the east cell (centred in that cell): a row of these furnaces carries
-   its chimney on one furnace's east back cell. The square stack leaves 4 (3 of lining, 1 of brick) between it and the
-   east and back faces (`MIN_WALL` is for the fire and the chamber; the stack is not checked against it).
+   its chimney on one furnace's east back cell. The flue is 4 by 4 (a quarter block), smaller than the crucible
+   furnace's 8 by 8, so that 6 of wall (3 of lining, 3 of fired brick) stand between it and the east and back faces;
+   whether it draws enough for the gentle fire is not measured.
 
 ## Open for the owner
 
@@ -362,7 +379,7 @@ copy). No one has looked at it in a client.
    would swing out of the footprint; a damper sliding up would cross the fire hole). Period furnaces had both kinds.
 3. **The frame's recipe** (proposed: 1 iron plate, 4 iron rods, 8 iron nails and strips; the crucible furnace's is 2,
    4 and 10) and **the fittings' materials** (proposed: 4 iron plates for the hearth plate, the pot, the door and the
-   damper). The brick counts are measured: 8 fired bricks, 8 tier-3 refractory bricks, 4 fire clay.
+   damper). The brick counts are measured: 8 fired bricks, 7 tier-3 refractory bricks, 3 fire clay.
 4. **The build's stages** themselves (frame, brickwork, lining, fittings), to settle as the crucible furnace's were.
 5. **The charge's item** (#929's open question): the model draws **cakes of tin-lead** (the solder texture), as v2
    did; if the furnace takes roasted teallite and franckeite concentrate as the clay pan does, the cakes become a heap
@@ -370,8 +387,11 @@ copy). No one has looked at it in a client.
 6. **Thinner walls than the crucible furnace's**: its walls are at least 8 round the hole; here 8 at the sides, 5 at
    the front (to the niche: 2 of brick and 3 of lining, which keeps the pot warm) and 6 at the back. `MIN_WALL` is 5. A
    gentle fire (the tin point is 232 °C) and the two-deep footprint.
-7. **The outlet in the east cell**, the only thing off-centre (a chimney stands on one cell); its square stack,
-   centred in that cell, has 4 of wall to the east and back faces (3 of lining, 1 of brick).
+7. **The outlet in the east cell**, the only thing off-centre (a chimney stands on one cell), and so **a 4 by 4 flue**:
+   centred in that corner cell, the stack has 6 of wall to the east and back faces (3 of lining, 3 of fired brick, the
+   back wall's), where the crucible furnace's 8 by 8 left 1 of brick and let the lining show in the fire door's
+   recess. The alternatives are a 6 by 6 flue with 2 of brick (the least the skin allows, but then only 1 behind the
+   fire door's recess, where the door's top runs past the stack's lining) or a thinner lining round the stack.
 8. **The fuel**: drawn as charcoal; the issue says only "fuel by hand". How much a layer holds is gameplay's.
 9. **Provisional pending #711**: nothing of #711's service anchors applies (batch, no chutes, no water, no power); the
    furnace's anchors follow the crucible furnace's (`outletCell`/`outletFace`, `chimney`, `ash`/`ashSide`) plus the
