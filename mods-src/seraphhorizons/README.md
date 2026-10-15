@@ -3474,9 +3474,9 @@ The choice holds for the job (every re-solve keeps it, and it outlasts the job b
 until a new station plan, which is dispatched as below until its own first solve lands. A member follows its
 route: it claims its head when it may set off, at its planned time or sooner when the station is ready and
 the plan has no other set off first there, waits out a planned wait where it is planned
-(`eidolon-status-mine-waiting-route`), crosses another's claim after 4 seconds, passes another eidolon only
-briefly and rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the
-stair), lets its claims go while it waits, and drops a stop whose claim stays taken 2 seconds. Small events
+(`eidolon-status-mine-waiting-route`), stepping aside for another walking up to it, crosses another's claim
+after 4 seconds, passes another eidolon only briefly and rarely (after 2 seconds, at most one each 2 minutes
+of strikes and one more, never one on the stair or one standing near it, which would be pushed), lets its claims go while it waits, and drops a stop whose claim stays taken 2 seconds. Small events
 are repaired in place on the main thread (begun, finished, dropped, a member gone, a new plan); a full solve
 follows a failed repair, a member joining, a new station plan, or every 15 seconds (no two within 2
 seconds, or half a second when urgent: a member with no stop left while stations are, a deadlock), and a

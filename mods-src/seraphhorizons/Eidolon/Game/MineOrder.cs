@@ -675,14 +675,19 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>Waits as its route plans (a wait, or its next station's time not come): at the planned place
     /// for a planned wait (walked to if it is not there), else where it is, out of no one's way the plan
-    /// knows of; its claims let go meanwhile.</summary>
+    /// knows of, stepping aside for another walking up to it; its claims let go meanwhile.</summary>
     private bool RouteWait(EntityLaborEidolon eidolon, MineStop stop, double now)
     {
         DropQueue(eidolon);
         _rim.Leave(eidolon, _jobs);
         _phase = Phase.Wait;
         _waitCheckAt = now + 0.5;
-        if (stop.Kind == MineStopKind.Wait && !_nav!.Active)
+        // another walking up to where it stands: it steps aside to a place clear of the work left, rather
+        // than stand in that one's way (the plan knows nothing of where the others walk between its stops)
+        if (!_nav!.Active && Others(eidolon, eidolon.Pos.XYZ, 3, 3).Any(o => o.Walking
+            && Math.Abs(o.X - eidolon.Pos.X) < BoxWidth + 1 && Math.Abs(o.Z - eidolon.Pos.Z) < BoxWidth + 1))
+            _rim.Aside(eidolon, _nav, _jobs, AsideClear(eidolon.EntityId, now));
+        if (stop.Kind == MineStopKind.Wait && !_nav.Active)
         {
             var place = stop.At;
             double dx = place.X - eidolon.Pos.X, dz = place.Z - eidolon.Pos.Z;
@@ -703,7 +708,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     {
         if (_contacts + 1 > 1 + _workSeconds / PassEach)
             return false;
-        return !Others(eidolon, eidolon.Pos.XYZ, 6, 4).Any(o => OnStair(o.X, o.Feet, o.Z));
+        var others = Others(eidolon, eidolon.Pos.XYZ, 6, 4);
+        // none on the stair, and none standing near it: one that stands (waiting, at work) is pushed
+        // through, not slid past, which is no brief contact
+        return !others.Any(o => OnStair(o.X, o.Feet, o.Z)
+            || !o.Walking && Math.Abs(o.X - eidolon.Pos.X) < 3 && Math.Abs(o.Z - eidolon.Pos.Z) < 3 && Math.Abs(o.Feet - Feet(eidolon)) < 3);
     }
 
     private bool Seek(EntityLaborEidolon eidolon, double now)
