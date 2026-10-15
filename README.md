@@ -11,7 +11,7 @@ sys.path.insert(0, "tools")
 import packtool
 cog.outl(packtool.readme_status())
 ]]] -->
-**Game version:** 1.22.7 (.NET 10) · **Mods:** 128, listed with the reason for each in [`pack/pack.toml`](pack/pack.toml)
+**Game version:** 1.22.7 (.NET 10) · **Mods:** 129, listed with the reason for each in [`pack/pack.toml`](pack/pack.toml)
 <!-- [[[end]]] -->
 
 ## Motivation
