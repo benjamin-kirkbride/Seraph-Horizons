@@ -2232,6 +2232,7 @@
   "eidolon-status-mine-waiting-stair": "Waiting for the stair to come free",
   "eidolon-status-mine-waiting-done": "Done; waiting at the edge of its area for the others",
   "eidolon-status-mine-waiting-aside": "Waiting out of the others' way: it finds no way to the edge of its area",
+  "eidolon-status-mine-waiting-route": "Waiting for its turn at its next station",
   "eidolon-mine-done-shared": "Your {0} eidolons have mined their area ({1} blocks mined: {2}; {3} left as they were, {4} out of their reach, {5} kept under those as their floor, {6} left as their way out) and walk back",
   "eidolon-mine-share": "{1} by eidolon {0}",
   "eidolon-axe-has": "It already holds an axe: sneak and right-click it with an empty hand to take that one back",

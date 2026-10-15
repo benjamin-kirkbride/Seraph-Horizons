@@ -124,6 +124,35 @@ public sealed class MineJobCells
     /// <summary>Whether the plan was made again because no member had a station it could work while
     /// cells were left (README "Eidolon", working together, *Dispatch*): once, until a block is broken.</summary>
     public bool StuckReplanned { get; set; }
+
+    /// <summary>The job's route plan (README "Eidolon", working together, *Routes*), main thread only; null
+    /// before the first, and while today's dispatch is used instead.</summary>
+    public MineRoutes? Routes { get; set; }
+
+    /// <summary>Counts every swap of <see cref="Routes"/> and every repair that changes a route.</summary>
+    public int RoutesVersion { get; set; }
+
+    /// <summary>Why a route solve is asked for (null: none).</summary>
+    public string? RoutesWanted { get; set; }
+
+    /// <summary>Whether the solve asked for may start before the least time between solves is up.</summary>
+    public bool RoutesUrgent { get; set; }
+
+    /// <summary>The job's choice between today's dispatch and the routes' variants, kept apart from
+    /// <see cref="Routes"/> so that it outlasts routes let go (a job down to one member) and new station plans,
+    /// for as long as the area and the members present are those it was made for.</summary>
+    public MineRouteChoice RouteChoice { get; } = new();
+
+    /// <summary>When a member last began a strike (game seconds; 0: none yet).</summary>
+    public double LastStrikeAt { get; set; }
+
+    /// <summary>The station plan whose routes stalled (no strike for a while by a crew all waiting on them): it
+    /// is dispatched as today's for the rest of that plan; -1 for none.</summary>
+    public int RoutesStalledPlan { get; set; } = -1;
+
+    /// <summary>When routes for the station plan in use first came in (game seconds): a stall is timed from
+    /// it, not from each solve after.</summary>
+    public double RoutesPlanSince { get; set; }
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>

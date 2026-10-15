@@ -48,6 +48,24 @@ public class MineStateTests
     }
 
     [Fact]
+    public void A_copy_keeps_its_own_bad_stands_for_its_walk_and_reach_too()
+    {
+        // The routes' solve reads a copy off the main thread while the job adds and retries bad stands.
+        var (world, area) = Pillar();
+        var bad = new HashSet<PathCell>();
+        var state = new MineState(world.Site(area), Home, bad);
+        state.BuildNow(EidolonMining.Targets(area, state.Site, _ => false).Dig);
+        var copy = state.Clone();
+        Assert.NotSame(state.BadStands, copy.BadStands);
+        Assert.Same(copy.BadStands, copy.Walk.Bad);
+        Assert.Same(copy.BadStands, copy.Reach.Bad);
+        bad.Add(OnPillar);
+        Assert.Equal(MineRefusal.NotStandable, state.Check(OnPillar, [new MarkPos(6, L - 1, 4)], []));
+        Assert.Equal(MineRefusal.None, copy.Check(OnPillar, [new MarkPos(6, L - 1, 4)], []));
+        Assert.DoesNotContain(OnPillar, copy.Walk.Bad);
+    }
+
+    [Fact]
     public void ItRefusesACellOutOfReachOrNotLeft()
     {
         var (world, area) = Pillar();
@@ -206,5 +224,41 @@ public class MineStateTests
         var fresh = new MineWalk(world.Site(area), Home);
         fresh.BuildNow();
         Assert.Equal(fresh.Nodes.ToHashSet(), state.Walk.Nodes.ToHashSet());
+    }
+
+    [Fact]
+    public void The_site_keeps_each_block_s_pace_and_copies_it()
+    {
+        var world = new MineTestWorld().Ground(L - 1);
+        var area = Area(0, 3, L - 2, L - 1, 0, 3);
+        var slow = new MarkPos(1, L - 1, 1);
+        world.Pace[slow] = 2.5f;
+        var site = world.Site(area);
+        Assert.Equal(2.5, site.PlayerSeconds(slow), 6);
+        Assert.Equal(MineCosts.DefaultPlayerSeconds, site.PlayerSeconds(new MarkPos(2, L - 1, 2)), 6);
+        // a change that does not know the pace keeps it; one that does takes it
+        site.Set(slow, new MineVoxel(true, MineRule.Mine));
+        Assert.Equal(2.5, site.PlayerSeconds(slow), 6);
+        site.Set(slow, new MineVoxel(true, MineRule.Mine, 1.2f));
+        Assert.Equal(1.2, site.PlayerSeconds(slow), 6);
+        // a copy has it
+        var copy = site.Clone();
+        Assert.Equal(1.2, copy.PlayerSeconds(slow), 6);
+        site.Set(slow, new MineVoxel(true, MineRule.Mine, 3f));
+        Assert.Equal(1.2, copy.PlayerSeconds(slow), 6);
+        // a tried change is undone with its pace
+        int mark = site.Mark();
+        site.Set(slow, new MineVoxel(true, MineRule.Mine, 0.5f));
+        site.Undo(mark);
+        Assert.Equal(3, site.PlayerSeconds(slow), 6);
+        // outside the area (in the window or not), the default
+        Assert.Equal(MineCosts.DefaultPlayerSeconds, site.PlayerSeconds(new MarkPos(-3, L - 1, 1)), 6);
+        Assert.Equal(MineCosts.DefaultPlayerSeconds, site.PlayerSeconds(new MarkPos(500, L - 1, 1)), 6);
+        // and the strike's work estimate reads it: the slowest of each four
+        world.Pace[new MarkPos(2, L - 1, 2)] = 1.8f;
+        var paced = world.Site(area);
+        double strike(double seconds) => EidolonMining.Timing(EidolonMining.StrikeSeconds([seconds])).Seconds;
+        var cells = Cells(0, 3, L - 1, L - 1, 0, 1).Append(new MarkPos(2, L - 1, 2)).Append(slow).ToList();
+        Assert.Equal(strike(2.5) + strike(0.9) + strike(0.9), MineCosts.WorkSeconds(paced, cells), 6);
     }
 }

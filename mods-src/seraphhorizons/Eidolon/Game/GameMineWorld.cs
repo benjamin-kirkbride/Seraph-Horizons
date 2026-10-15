@@ -11,9 +11,12 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// eidolon's box and its footing meet, <see cref="Solid"/>), and a block of the area, or of the layer over it, is to the order what <see cref="Rule"/> says;
 /// a column is loaded when its chunk is. The land claim is not asked here (the order asks it of a block it
 /// comes to, <see cref="MineOrder"/>): a block its job leaves for the order's life (<see cref="Skip"/>: one
-/// its owner may not break, one that would not break) reads as <see cref="MineRule.Claimed"/>.
+/// its owner may not break, one that would not break) reads as <see cref="MineRule.Claimed"/>. A block it mines
+/// is read with its pace (<see cref="MineVoxel.Seconds"/>: a seraph's seconds to break it with the quicker of
+/// the steel pick and shovel, <paramref name="shovel"/>), for the routes' work estimates.
 /// </summary>
-public sealed class GameMineWorld(IWorldAccessor world, int dimension, MarkArea area, Item? pick, int maxTier, string[] mineThrough) : IMineWorld
+public sealed class GameMineWorld(IWorldAccessor world, int dimension, MarkArea area, Item? pick, int maxTier, string[] mineThrough,
+    Item? shovel = null) : IMineWorld
 {
     private readonly BlockPos _pos = new(dimension);
     private readonly BlockPos _near = new(dimension);
@@ -37,8 +40,24 @@ public sealed class GameMineWorld(IWorldAccessor world, int dimension, MarkArea 
         if (!ruled)
             return new MineVoxel(solid, MineRule.Air);
         var rule = Rule(world, _pos, block, _near, pick, maxTier, mineThrough);
-        return new MineVoxel(solid, rule == MineRule.Mine && Skip?.Contains(new MarkPos(x, y, z)) == true ? MineRule.Claimed : rule);
+        if (rule == MineRule.Mine && Skip?.Contains(new MarkPos(x, y, z)) == true)
+            return new MineVoxel(solid, MineRule.Claimed);
+        return new MineVoxel(solid, rule, rule == MineRule.Mine ? (float)PlayerSeconds(blocks, _pos, block, pick, shovel) : float.NaN);
     }
+
+    /// <summary>A seraph's seconds to break a block with the quicker of the steel pick and shovel for its
+    /// material (as a strike times it, <see cref="EidolonMining.PlayerSeconds"/>).</summary>
+    public static double PlayerSeconds(IBlockAccessor blocks, BlockPos pos, Block block, Item? pick, Item? shovel)
+    {
+        var material = block.GetBlockMaterial(blocks, pos);
+        return EidolonMining.PlayerSeconds(block.GetResistance(blocks, pos),
+            EidolonMining.DigSpeed(SpeedFor(pick, material), SpeedFor(shovel, material), Vintagestory.API.Config.GlobalConstants.ToolMiningSpeedModifier));
+    }
+
+    /// <summary>A tool's mining speed for <paramref name="material"/>, or null where it has none (or the tool
+    /// could not be read).</summary>
+    public static float? SpeedFor(Item? tool, EnumBlockMaterial material) =>
+        tool?.MiningSpeed is { } speeds && speeds.TryGetValue(material, out float s) ? s : null;
 
     /// <summary>Whether collision boxes make a block solid to the planner: one reaching half a block up or
     /// more (a slab, a full block); a thin cover (a snow layer, a carpet, a path's top) is walked on as the
