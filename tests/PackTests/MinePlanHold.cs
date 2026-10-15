@@ -13,11 +13,10 @@ namespace SeraphHorizons.PackTests;
 /// from the planner's private state (its <c>_work</c> list, each entry's <c>Job</c> and <c>Routing</c>
 /// tasks); nothing in mods-src changes.
 ///
-/// <para>Not held: the planner's main-thread slices (reading the job's window and its roofs, a few columns
-/// at a time), which stop each tick at <see cref="Mod.Eidolon.Core.MinePlanner.BudgetMs"/> of wall time
-/// (a const, inlined into a private getter, so the tests cannot widen it). On the virtual clock a slow
-/// runner reads fewer columns a tick and so takes more ticks, which is game time, before a plan starts:
-/// the one way a plan's latency still varies.</para>
+/// <para>Not held, nor need they be: the planner's main-thread slices (reading the job's window and its
+/// roofs, a few columns at a time), which the virtual clock counts in blocks read instead of
+/// <see cref="Mod.Eidolon.Core.MinePlanner.BudgetMs"/> of wall time (<see cref="EidolonMinePlans.BudgetReads"/>),
+/// so a plan starts on the same tick on any runner.</para>
 /// </summary>
 internal static class MinePlanHold
 {
