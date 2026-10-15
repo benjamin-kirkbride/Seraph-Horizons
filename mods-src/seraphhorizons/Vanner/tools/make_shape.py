@@ -9,7 +9,7 @@ real machine.
 
     the frame         oak sills, posts and pedestals, standing still: the pins the shaking frame's
                       uprights stand on, the countershaft's bearings, the posts that carry the feed box and the
-                      spray pipe, and the two boxes, each ending in a vanilla chute section
+                      spray pipe, and the two boxes, each with a spout to its chute section
     the countershaft  along the east side, coaxial with the vanilla axle at the power face (south, at
                       the back): two eccentric sheaves keyed on it, each running in an iron yoke on
                       the shaking frame, so the frame is shaken across (x) once a turn, a sine of the
@@ -28,10 +28,20 @@ real machine.
                       top run up to the head
     the feed box      over the belt below the head, the infeed chute coming down into it through the
                       feed cell's top face; the pulp spills over its weir down an apron onto the belt
+    the chute sections vanilla's straight chute in the feed cell's top face (into the feed box), and in
+                      the front and back faces (from the two boxes' spouts)
     the water line    Pipes and Power Expanded's pipe drawn soldered in copper or lead
                       (Pipes/tools/solderedpipe.py, as the rosser's drip), from the water cell's top
                       face down and round to a perforated spray pipe across the belt near the head; one
                       rig part per metal, `pipecopper` and `pipelead`, the same elements, one drawn
+
+The frame is placed; then five build stages, each one `requires` group fitted in order (BUILD_STAGES):
+
+    stage 1  the countershaft      `countershaft`
+    stage 2  the shaking frame     `shaker` (the rails, ties, uprights and yokes)
+    stage 3  the rollers and creep `rollers`, `creep` (the head and foot rollers; the worm shaft and pawl)
+    stage 4  the belt              `belt`; a wearing part too, renewed when worn, but fitted here
+    stage 5  services              `feedbox`, `chutes` and the water line (`pipecopper` or `pipelead`)
 
 Everything is built here from plain boxes; no other mod's model is used.
 
@@ -103,11 +113,20 @@ FEED_CELL, FEED_FACE = (0, 0, 1), "up"       # a chute from above meets the infe
 CONC_CELL, CONC_FACE = (0, 0, 0), "north"    # the concentrate chute leaves at (x 8, y 8), the front
 TAIL_CELL, TAIL_FACE = (0, 0, 2), "south"    # the tailings chute leaves at (x 8, y 8), the back
 
-# The fitted parts (requires), in the order the floating check builds the machine up (the build stages
-# are the owner's to settle: README "Open for the owner"); the water line is one of PIPES.
-REQUIRES = ("countershaft", "shaker", "rollers", "belt", "creep", "feedbox")
 PIPE_METALS = ("copper", "lead")             # the water line's metals: one part each, the supplied one drawn
 PIPES = tuple(f"pipe{m}" for m in PIPE_METALS)
+# The build stages after the placed frame, in order (owner, 2026-10-15): (the stage's id, its name, the
+# requires it adds). Services last, as on every machine: the feed box, the chute sections and the water line
+# (one of PIPES). The belt also wears and is renewed, but it is fitted as stage 4.
+BUILD_STAGES = (
+    ("countershaft", "the countershaft", ("countershaft",)),
+    ("shaker", "the shaking frame", ("shaker",)),
+    ("rollers", "the rollers and creep", ("rollers", "creep")),
+    ("belt", "the belt", ("belt",)),
+    ("services", "services", ("feedbox", "chutes") + PIPES),
+)
+# the fitted parts (requires) but the water line's, in build order
+REQUIRES = tuple(r for _, _, adds in BUILD_STAGES for r in adds if r not in PIPES)
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",         # timber: sills, posts, pedestals, rails, ties, bearers, rollers
@@ -600,8 +619,8 @@ def build_boxes():
         out.append(box([sx1 - CHEEK_T, SPOUT_Y[1], a], [sx1, CHEEK_TOP, b], f"fr_{tag}_cheek2", f, "planks"))
         for i, (bx0, bx1) in enumerate(BEARER_X, 1):
             out.append(box([bx0, 0.0, z0 + 0.4], [bx1, fl0, z1 - 0.4], f"fr_{tag}_bearer{i}", f, "oak"))
-    out += chute_section("fr_chute_conc", f, CONC_FACE, CONC_CELL, CONC_CHUTE_Z[1] - CONC_CHUTE_Z[0])
-    out += chute_section("fr_chute_tail", f, TAIL_FACE, TAIL_CELL, TAIL_CHUTE_Z[1] - TAIL_CHUTE_Z[0])
+    out += chute_section("fr_chute_conc", "chutes", CONC_FACE, CONC_CELL, CONC_CHUTE_Z[1] - CONC_CHUTE_Z[0])
+    out += chute_section("fr_chute_tail", "chutes", TAIL_FACE, TAIL_CELL, TAIL_CHUTE_Z[1] - TAIL_CHUTE_Z[0])
     return out
 
 
@@ -947,7 +966,7 @@ def build_feedbox():
     el.c[0] = sum(APRON_X) / 2
     out.append(el)
     cell_top = (FEED_CELL[1] + 1) * B
-    out += chute_section("fb_chute", p, FEED_FACE, FEED_CELL, cell_top - FEED_CHUTE_Y0)
+    out += chute_section("fb_chute", "chutes", FEED_FACE, FEED_CELL, cell_top - FEED_CHUTE_Y0)
     return out
 
 
@@ -1086,6 +1105,8 @@ def _rig_parts():
         {"id": "worm", "match": ["worm_*"], "requires": "creep", "ride": "shaker",
          "drivers": [rot("z", (*WORM, 0.0), WORM_RATIO, True)]},
         {"id": "pawl", "match": ["pawl_*"], "requires": "creep", "drivers": []},
+        # the three chute sections, a services part, before the feed box and the frame they sit in take them
+        {"id": "chutes", "match": ["fr_chute_*", "fb_chute_*"], "requires": "chutes", "drivers": []},
         {"id": "feedbox", "match": ["fb_*"], "requires": "feedbox", "drivers": []},
         # the water line, one part per metal: only the supplied metal's is drawn
         *[{"id": pid, "match": [f"{pid}_*"], "requires": pid, "drivers": []} for pid in PIPES],
@@ -1100,7 +1121,7 @@ def _rig_parts():
 
 # ---------------------------------------------------------------- poses and states
 # A pose is (theta,) or (theta, travel) or (theta, travel, state): travel defaults to |theta| (turned from
-# rest), the state to "all" (everything fitted, the water line in copper).
+# rest), the state to "services" (everything fitted, the water line in copper).
 REST = (0.0,)
 
 
@@ -1114,16 +1135,16 @@ def pm(parts, pid, pose, path=None):
     return _part_matrix(parts, pid, inputs_of(pose), path)
 
 
-# what is fitted in each state checked: the frame, then the parts added in REQUIRES' order, the water line
-# last (copper; lead is the same elements, never drawn with it)
+# what is fitted in each state checked: the frame, then each build stage's, named for it, the water line in
+# copper (lead is the same elements, never drawn with it)
 STATES = {"frame": ()}
-for _i, _r in enumerate(REQUIRES):
-    STATES[f"+{_r}"] = REQUIRES[:_i + 1]
-STATES["all"] = REQUIRES + (PIPES[0],)
+for _sid, _, _adds in BUILD_STAGES:
+    STATES[_sid] = tuple(r for r in tuple(STATES.values())[-1] + _adds if r not in PIPES[1:])
+FULL = BUILD_STAGES[-1][0]                   # the state a pose without one is in: the machine finished
 
 
 def state_of(pose):
-    return pose[2] if len(pose) > 2 else "all"
+    return pose[2] if len(pose) > 2 and pose[2] is not None else FULL
 
 
 def on_show(requires, state):
@@ -1144,7 +1165,9 @@ def make_rig(parts):
                     "uprights leaning with it (a swing about each one's foot pin). "
                     "travel is the axle's travel either way: the ratchet the fixed pawl pushes a tooth a stroke turns "
                     "the worm and creeps the belt to the head whichever way the axle turns. The chute and water anchors "
-                    "are provisional (#711). See the vanner's README for the schema.",
+                    "are provisional (#711). buildStages: what each build stage adds after the placed frame, in order, "
+                    "services last (the feed box, the chute sections and the water line, one metal). See the vanner's "
+                    "README for the schema.",
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
@@ -1159,6 +1182,8 @@ def make_rig(parts):
         "pipes": {"requires": {m: f"pipe{m}" for m in PIPE_METALS},
                   "_comment": "The water line, from the inlet to the spray pipe's nozzles: ppex's pipe, soldered, one part "
                               "per metal (the same elements); only the supplied metal's is drawn."},
+        "buildStages": [{"stage": n, "id": sid, "name": name, "adds": list(adds)}
+                        for n, (sid, name, adds) in enumerate(BUILD_STAGES, 1)],
         "drive": {"strokesPerTurn": 1.0,
                   "shake": r6(2 * E / B),
                   "beltPerTurn": r6(belt_speed() * TAU / B),
@@ -1255,10 +1280,10 @@ def reference_json(ship_parts):
 # ---------------------------------------------------------------- shape files
 def shape_json(els):
     return machine_shape_json(
-        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. The frame (fr_*, the chute "
-             "sections fr_chute_*), the countershaft (cs_), the shaking frame (sk_), the belt (belt_), the rollers "
-             "(head_, foot_), the worm shaft (worm_) and the pawl (pawl_), the feed box with the infeed chute section "
-             "(fb_), and the water line in each metal (pipecopper_ / pipelead_). Keep element names when editing: the "
+        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. The frame (fr_*), the outlets' "
+             "chute sections (fr_chute_*, with fb_chute_ the `chutes` part), the countershaft (cs_), the shaking frame (sk_), the belt (belt_), the rollers "
+             "(head_, foot_), the worm shaft (worm_) and the pawl (pawl_), the feed box (fb_, its infeed chute section "
+             "fb_chute_), and the water line in each metal (pipecopper_ / pipelead_). Keep element names when editing: the "
              "rig finds its parts by them.",
         TEXTURES, tex_size=TEX)
 

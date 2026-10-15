@@ -14,7 +14,7 @@ namespace SeraphHorizons.Tests.Vanner;
 public class VannerRigTests
 {
     private static readonly HashSet<string> Requires =
-        ["countershaft", "shaker", "rollers", "belt", "creep", "feedbox", "pipecopper", "pipelead"];
+        ["countershaft", "shaker", "rollers", "belt", "creep", "feedbox", "chutes", "pipecopper", "pipelead"];
 
     private static string File(string name)
     {
@@ -34,8 +34,8 @@ public class VannerRigTests
     public void The_shipped_rig_parses_with_no_work_and_its_anchors()
     {
         var parts = Shipped();
-        Assert.Equal(["countershaft", "shaker", "uprightw", "uprighte", "seam1", "seam2", "belt", "head", "foot", "worm", "pawl", "feedbox",
-            "pipecopper", "pipelead", "frame"], parts.Parts.Select(p => p.Id));
+        Assert.Equal(["countershaft", "shaker", "uprightw", "uprighte", "seam1", "seam2", "belt", "head", "foot", "worm", "pawl", "chutes",
+            "feedbox", "pipecopper", "pipelead", "frame"], parts.Parts.Select(p => p.Id));
         using var doc = JsonDocument.Parse(File("vanner-rig.json"));
         var root = doc.RootElement;
         Assert.Equal([1, 0, 2], root.GetProperty("powerCell").EnumerateArray().Select(v => v.GetInt32()));

@@ -632,11 +632,39 @@
           "rollers": "Head and foot rollers (the head's worm wheel)",
           "belt": "Belt",
           "creep": "Worm shaft (worm and ratchet) and pawl",
-          "feedbox": "Feed box and the infeed chute section",
+          "feedbox": "Feed box",
+          "chutes": "Chute sections (the infeed and the two outlets)",
           "pipecopper": "Copper",
           "pipelead": "Lead"
         },
-        "choices": [{"label": "Water line", "values": ["pipecopper", "pipelead"], "default": "pipecopper"}],
+        "states": [
+          {
+            "id": "stage",
+            "label": "Build stage",
+            "default": "services",
+            "values": ["countershaft", "shaker", "rollers", "creep", "belt", "feedbox", "chutes"],
+            "options": [
+              {"id": "frame", "label": "The frame (placed)", "fitted": [], "hint": "Placed as the machine: the oak sills with the pins the shaking frame's uprights will stand on, the countershaft's three pedestals and bearings, the feed box's posts, the spray pipe's post and saddle, and the concentrate and tailings boxes with their spouts."},
+              {"id": "countershaft", "label": "1. The countershaft", "fitted": ["countershaft"], "hint": "The steel shaft in the pedestals' three bearings along the east side, coaxial with the axle at the back, its two eccentric sheaves keyed on."},
+              {"id": "shaker", "label": "2. The shaking frame", "fitted": ["countershaft", "shaker"], "hint": "The two oak rails and their ties on six uprights pinned in the sills' cheeks, the iron yokes round the sheaves: the frame shakes across once a turn."},
+              {"id": "rollers", "label": "3. The rollers and creep", "fitted": ["countershaft", "shaker", "rollers", "creep"], "hint": "The head and foot rollers in their bearing blocks on the rails, the worm wheel on the head roller's journal; the worm shaft hung from the east rail, its worm in the wheel's teeth and its ratchet against the pawl fixed to the frame."},
+              {"id": "belt", "label": "4. The belt", "fitted": ["countershaft", "shaker", "rollers", "creep", "belt"], "hint": "The endless stitched leather belt slipped on from the side round both rollers, its raised edges and two laced seams. It also wears and is renewed (2 leather)."},
+              {"id": "services", "label": "5. Services: the vanner finished", "fitted": ["countershaft", "shaker", "rollers", "creep", "belt", "feedbox", "chutes"], "hint": "Last, as on every machine: the feed box on its posts over the belt, the vanilla chute's sections (the infeed down into the feed box, the concentrate out of the front, the tailings out of the back), and the water line to the spray pipe, in the metal picked under Water line."}
+            ]
+          },
+          {
+            "id": "water",
+            "label": "Water line",
+            "default": "copper",
+            "values": ["pipecopper", "pipelead"],
+            "needs": ["feedbox", "chutes"],
+            "needsHint": "The water line is part of the services: pick “5. Services” under Build stage.",
+            "options": [
+              {"id": "copper", "label": "Copper", "fitted": ["pipecopper"], "hint": "A ppex pipe comes down onto the inlet on the top face and round to the perforated spray pipe across the belt near the head."},
+              {"id": "lead", "label": "Lead", "fitted": ["pipelead"]}
+            ]
+          }
+        ],
         "play": {"secondsPerTurn": 0.5, "phases": []}
       }
     }

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { discoverAnchors } from "../src/lib/model-anchors.ts";
 import type { ManifestModel } from "../src/lib/model-manifest.ts";
-import { initialFitted } from "../src/lib/model-scenario.ts";
+import { applyState, checkScenario, needsMet, openingFitted, stateGroups, statesShow } from "../src/lib/model-scenario.ts";
 import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rideOrder, rigInputs, workOf, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The vanner's shipped files, and the poses Vanner/tools/make_shape.py computes from them with machinegen's
@@ -40,6 +40,7 @@ describe("the vanner's rig against its rig-reference.json", () => {
       ["foot", "rollers", "shaker"],
       ["worm", "creep", "shaker"],
       ["pawl", "creep", null],
+      ["chutes", "chutes", null],
       ["feedbox", "feedbox", null],
       ["pipecopper", "pipecopper", null],
       ["pipelead", "pipelead", null],
@@ -182,10 +183,39 @@ describe("the vanner's rig against its rig-reference.json", () => {
 describe("the vanner's page", () => {
   const model = manifest.models.find((m) => m.id === "vanner")!;
 
-  it("draws the water line in one metal at a time, from a select, copper first", () => {
-    const choices = model.scenario!.choices!;
-    expect(choices).toEqual([{ label: "Water line", values: ["pipecopper", "pipelead"], default: "pipecopper" }]);
-    const fitted = initialFitted(requiresValues(parts), choices);
-    expect(fitted).toEqual({ countershaft: true, shaker: true, rollers: true, belt: true, creep: true, feedbox: true, pipecopper: true, pipelead: false });
+  const groups = stateGroups(model.scenario!.states, requiresValues(parts));
+  const stage = groups.find((g) => g.id === "stage")!;
+  const water = groups.find((g) => g.id === "water")!;
+
+  it("builds in the settled stages from the placed frame, services last, one state a stage", () => {
+    expect(checkScenario(model.scenario!, rig, discoverAnchors(rig).anchors, requiresValues(parts))).toEqual([]);
+    const adds = (rig.buildStages as { id: string; adds: string[] }[]).map((s) => [s.id, s.adds]);
+    expect(adds).toEqual([
+      ["countershaft", ["countershaft"]],
+      ["shaker", ["shaker"]],
+      ["rollers", ["rollers", "creep"]],
+      ["belt", ["belt"]],
+      ["services", ["feedbox", "chutes", "pipecopper", "pipelead"]],
+    ]);
+    // each state is the frame and the stages up to it, the water line in the services' own select
+    const opts = stage.spec.options;
+    expect(opts.map((o) => o.id)).toEqual(["frame", ...adds.map(([id]) => id)]);
+    let want: string[] = [];
+    opts.slice(1).forEach((o, i) => {
+      want = [...want, ...(adds[i]![1] as string[]).filter((r) => !r.startsWith("pipe"))];
+      expect(o.fitted).toEqual(want);
+    });
+    expect(opts[0]!.fitted).toEqual([]);
+  });
+
+  it("opens finished, the water line in copper, and draws no water line before the services", () => {
+    const { fitted } = openingFitted(requiresValues(parts), model.scenario!.choices, groups);
+    expect(fitted).toEqual({ countershaft: true, shaker: true, rollers: true, belt: true, creep: true, feedbox: true, chutes: true, pipecopper: true, pipelead: false });
+    expect(needsMet(water, fitted)).toBe(true);
+    const belt = applyState(fitted, stage.spec.options.find((o) => o.id === "belt")!, stage.owns);
+    expect(needsMet(water, belt)).toBe(false);
+    expect(statesShow("pipecopper", belt, groups)).toBe(false);
+    const lead = applyState(fitted, water.spec.options.find((o) => o.id === "lead")!, water.owns);
+    expect([lead.pipecopper, lead.pipelead]).toEqual([false, true]);
   });
 });

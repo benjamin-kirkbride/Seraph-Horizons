@@ -6,8 +6,8 @@ feet apart, falling gently to the foot, on a frame that is shaken from side to s
 to the head under a spray of wash water. The period's belt was rubber; this one is stitched leather, which the
 pack can make, its hides laced together across it. Pulp fed onto it a little below the head spreads over
 the shaking belt: the heavy grains settle on it and ride up over the head roller into the **concentrate
-box**, the light ones are washed back down and off the foot into the **tailings box**. Each box ends in a
-vanilla chute section, and the pulp comes in by one down the feed box.
+box**, the light ones are washed back down and off the foot into the **tailings box**. Each box's spout
+leads into a vanilla chute section, and the pulp comes in by one down the feed box.
 
 This folder holds the model's generator and its rig (`tools/`). The gameplay is #923 and is not built yet;
 the model is #924. "Gameplay" below says what the rig offers it.
@@ -57,7 +57,7 @@ is installed). The chute anchors' names and the water cell's place are **provisi
 **Fitted parts** (the rig's `requires`). Everything with `requires` null is the frame: the sills, the
 uprights' foot pins in their cheeks, the countershaft's pedestals and bearings, the feed box's posts and
 brackets, the spray pipe's post and bracket, the saddle under the water line's bend, the concentrate and
-tailings boxes with their chute sections. The rest:
+tailings boxes with their spouts. The rest:
 
 | `requires` | Parts | Draws |
 |---|---|---|
@@ -66,11 +66,29 @@ tailings boxes with their chute sections. The rest:
 | `rollers` | `head`, `foot` | The head roller with its journal, collars and worm wheel; the foot roller |
 | `belt` | `belt`, `seam1`, `seam2` | The stitched leather belt round both rollers and its two raised edges, all round it; its two laced seams, each a part that travels round the loop with the belt |
 | `creep` | `worm`, `pawl` | The worm shaft: its rod, collars, the worm (core and helical thread) and the ratchet; the fixed pawl on its post |
-| `feedbox` | `feedbox` | The feed box, its weir and apron, and the infeed chute section |
+| `feedbox` | `feedbox` | The feed box, its weir and apron |
+| `chutes` | `chutes` | The three chute sections: the infeed (`fb_chute_*`, down into the feed box), the concentrate and the tailings (`fr_chute_conc_*`, `fr_chute_tail_*`, from the boxes' spouts) |
 | `pipecopper`, `pipelead` | one each | The water line in copper or in lead: the same elements, one drawn |
 
-The build stages (which items fit what, in what order) are not designed yet: the ids split the machine where a
-stage could, in the order the floating check builds it up (README "Open for the owner").
+**Build stages** (owner, 2026-10-15; `BUILD_STAGES`, the rig's `buildStages`). The frame is placed, with no
+`requires`; then each stage is one `requires` group, fitted in order, and the vanner runs once it is complete.
+The materials are the measured figures of the stages proposal ("Current figures": 128 voxels of iron or steel
+an ingot, rods first, then whole plates, then nails and strips at 4 an ingot; timber as planks at 1,024 voxels).
+
+| # | Stage | `requires` | Materials |
+|---|---|---|---|
+| F | The frame (placed) | none | 2 iron nails and strips, 1 steel nails and strips, 1 plank |
+| 1 | The countershaft | `countershaft` | 2 steel rod, 1 plank |
+| 2 | The shaking frame | `shaker` | 4 iron nails and strips, 1 steel nails and strips, 1 plank |
+| 3 | The rollers and creep | `rollers`, `creep` | 1 stainless gear (the worm wheel), 1 iron nails and strips, 1 steel rod, 2 steel nails and strips, 1 plank |
+| 4 | The belt | `belt` | 2 leather |
+| 5 | Services | `feedbox`, `chutes`, `pipecopper` or `pipelead` | 1 plank (the feed box), 3 chute section, ~2 pipe section (copper or lead) |
+
+The belt is also a wearing part: it is renewed when worn (2 leather), but it is fitted as stage 4. The feed
+box, once a stage of its own, is part of services (its posts are the frame's). The chute sections were frame
+parts and now have their own `requires`, `chutes`, so they come with the services; the water line is one metal
+of the pair, as on the rosser. The site's page has a **Build stage** select (one state a stage) and a **Water
+line** select (copper or lead) that waits on the services.
 
 ## Model
 
@@ -188,7 +206,7 @@ Every moving part (θ the axle's angle, ψ its travel either way):
 | Foot roller (`foot`) [rollers] | The belt | — | `rotate` x about (y 8.1, z 38), ratio −1/144, on ψ; rides `shaker` |
 | Worm shaft: rod, worm, ratchet (`worm`) [creep] | The fixed pawl, a tooth a stroke | The head roller's worm wheel | `rotate` z about (19.6, 4.3), ratio −1/12, on ψ; rides `shaker` |
 | Pawl (`pawl`) [creep] | Static | The ratchet | none |
-| Feed box, water lines, frame | Static | — | none |
+| Feed box, chute sections, water lines, frame | Static | — | none |
 
 There are two toothed wheels and each meshes: the worm wheel with the worm, the ratchet with the pawl.
 Every shaft runs in two bearings or more: the countershaft in three on the frame, the worm shaft in two and each
@@ -208,15 +226,17 @@ one fails:
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty
   part; the requires vocabulary; the water line's metals the same elements; a part that rides another fitted only
-  with it.
+  with it. The build stages: each `requires` in one stage, the frame placed, services last with every chute
+  section and the water line, the rig's `buildStages` and the states the same; the chute sections all the
+  `chutes` part's.
 - **Textures** by role: oak for timber, the uprights, the rollers' drums, the pawl's post and the axle's cross;
   planks for the boxes and the feed box; iron for castings and straps; steel for shafts, sheaves, pins, the worm,
   the wheel and the ratchet; leather for the belt, its edges and its seams, rawhide for their lacing; the chute
   texture for the chute sections; each water line in its
   metal, solder only on the reducer and the cap.
 - **Thickness:** nothing thinner than 0.6 across but the belt, teeth, the worm's thread and solder.
-- **Floating** at every build state (the frame, then each part added in turn, then the water line): one piece
-  from the ground.
+- **Floating** at every build state (the frame, then each stage's in turn, the last with the water line): one
+  piece from the ground.
 - **Containment:** nothing leaves the machine box over a turn.
 - **Anchors:** the countershaft's oak cross on the power face's centre in the axle's 4 x 4 profile; the water
   line's inlet open on the water face's centre in ppex's 6 x 6 tube; each chute section exactly vanilla's (its four
@@ -272,8 +292,10 @@ is added to the shared rig maths.
   `slide` on the travel) and ride it too. No work, class or presence.
 - **Keys.** `cells` (six, each with its boxes and a `lid`), `powerCell`/`powerFace`, `waterCell`/`waterFace`,
   `feedCell`/`feedFace`, `concentrateCell`/`concentrateFace`, `tailingsCell`/`tailingsFace`, `pipes` (`requires`
-  per metal), `drive` and `parts`. `requires` values: `countershaft`, `shaker`, `rollers`, `belt`, `creep`,
-  `feedbox`, `pipecopper`, `pipelead`, or null.
+  per metal), `buildStages`, `drive` and `parts`. `requires` values: `countershaft`, `shaker`, `rollers`,
+  `creep`, `belt`, `feedbox`, `chutes`, `pipecopper`, `pipelead`, or null.
+- **`buildStages`**: the stages after the placed frame, in order, each `{ "stage", "id", "name", "adds" }`,
+  `adds` the `requires` it fits (services: `feedbox`, `chutes` and both water line metals, one of them fitted).
 - **`drive`**: `strokesPerTurn` (1: one stroke across and back a turn), `shake` (the stroke, blocks), `beltPerTurn`
   (blocks the belt creeps to the head a turn, either way: the head drum's surface), `beltLength` (its loop round the
   drums, blocks), `ratchet` (`teeth`, `teethPerTurn`) and `worm`
@@ -281,8 +303,10 @@ is added to the shared rig maths.
 
 **In the viewer** (`site/models.json`, `vanner`): the axle is the θ slider and Play turns it at two turns a
 second by its input speed (the shake reads as a shake; the game turns about 0.5 a second at the reference speed
-0.6); ψ is added up under it, so the rollers creep on in Play and when θ is dragged either way. Every requires
-value is a checkbox, and the water line is a "Water line" select, copper or lead.
+0.6); ψ is added up under it, so the rollers creep on in Play and when θ is dragged either way. A "Build stage"
+select picks the frame or a stage (each fits the stages up to it; its parts are checkboxes under it), and a
+"Water line" select, copper or lead, waits until the services are fitted. Play's script is unchanged: no phases,
+the axle turns whatever is fitted.
 
 ### Editing by hand
 
@@ -290,10 +314,11 @@ Element names are the rig's interface (first-match globs, in the rig's order): `
 `rod`, `collar1`/`2`, `sheave1`/`2`), `sk_*` (`rail_w`/`e`, `tie1`..`3`, `headbearing_*`, `footbearing_*`,
 `yoke1`/`2_*`, `arm1`/`2`, `wbearing1`/`2`, `whanger1`/`2`, `up<side><n>_cheek*`/`_pin`), `upw_*` and `upe_*` (the
 uprights), `belt_seam<n>` and `belt_lace<n>_*` (the seams' parts, before the belt's), `belt_*` (`runa`, `runb`, `wrap*`, `edge<n>_runa`/`_runb`/`_wrap<roller>_<k>`), `head_*` (`drum`, `journal`, `collar*`, `wheel_body_*`, `wheel_tooth<n>_w`/`c`/`e`),
-`foot_*`, `worm_*` (`rod`, `collar*`, `core_*`, `thread1`..`49`, `ratchet_*`), `pawl_*` (`post`, `arm`), `fb_*`
-(`floor`, `w`, `e`, `s`, `weir`, `apron`, `chute_*`), `pipecopper_*` and `pipelead_*`, and `fr_*` for the frame
-(`sill_*`, `up<side><n>_*`, `pedestal*`, `bearing*`, `saddle`, `post_*`, `bracket_*`, `spraypost`,
-`spraybracket`, `cb_*`, `tb_*`, `chute_conc_*`, `chute_tail_*`). Hand edits are lost when the script runs again:
+`foot_*`, `worm_*` (`rod`, `collar*`, `core_*`, `thread1`..`49`, `ratchet_*`), `pawl_*` (`post`, `arm`), the
+chute sections `fr_chute_conc_*`, `fr_chute_tail_*` and `fb_chute_*` (the `chutes` part, matched before the feed
+box's and the frame's), `fb_*` (`floor`, `w`, `e`, `s`, `weir`, `apron`), `pipecopper_*` and `pipelead_*`, and
+`fr_*` for the frame (`sill_*`, `up<side><n>_*`, `pedestal*`, `bearing*`, `saddle`, `post_*`, `bracket_*`,
+`spraypost`, `spraybracket`, `cb_*`, `tb_*`). Hand edits are lost when the script runs again:
 port them into `make_shape.py`, or stop regenerating.
 
 ## Known weak spots, and what is not checked
@@ -321,9 +346,8 @@ client or the site's viewer.
 
 ## Open for the owner
 
-1. **Build stages.** The `requires` ids are a proposal (countershaft; shaking frame with its uprights; rollers;
-   belt; creep; feed box; water line), in the order the floating check builds the machine up; the frame recipe,
-   the stages and their materials are to be settled, as the crucible furnace's were.
+1. **Build stages: settled** (2026-10-15, above). Still open: the frame's grid recipe, and the items each
+   stage takes in the game (the table's figures are measured, and the pipe count a guess).
 2. **The ratchet's place.** #923 says "the ratchet on it stays" (on the countershaft). v2 put the worm shaft in
    line with the countershaft beyond its end, with the pawl on the shaking frame, and its worm wheel slid along the
    fixed worm by the whole shake. Here the worm shaft with the ratchet rides the shaking frame and the pawl is fixed,

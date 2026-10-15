@@ -5,7 +5,7 @@ rule. Everything is in the build frame (voxels), on the model before the origin 
 make_shape.py proves the shipped files are this model moved.
 
 A pose is (theta,), (theta, travel) or (theta, travel, state): travel None or left out is |theta| (turned
-from rest), the state one of make_shape.STATES (what is fitted; "all" when left out), and the clearance,
+from rest), the state one of make_shape.STATES (what is fitted; the finished machine, make_shape.FULL, when left out), and the clearance,
 drop, floating and z-fighting checks look only at the parts that show in it.
 """
 
@@ -64,7 +64,7 @@ class V:
         return [pid for pid in self.by_part if self.m.on_show(self.req[pid], state)]
 
 
-def turns(n=24, state="all", travel_extra=0.0):
+def turns(n=24, state=None, travel_extra=0.0):
     """A turn of the axle in n steps, in a state (turned from rest, plus `travel_extra` of travel)."""
     return [(TAU * i / n, TAU * i / n + travel_extra, state) for i in range(n + 1)]
 
@@ -113,6 +113,22 @@ def check_requires(v):
             for st, fit in m.STATES.items():
                 if p["requires"] in fit and ride["requires"] not in (None, *fit):
                     v.fail(f"in {st}, {p['id']} rides {ride['id']}, which is not fitted")
+    # the build stages: each requires in one stage, the stages in order after the placed frame, services last
+    # with every chute section and the water line, the rig's buildStages the same
+    adds = [r for _, _, a in m.BUILD_STAGES for r in a]
+    if sorted(adds) != sorted(set(m.REQUIRES) | set(m.PIPES)) or len(adds) != len(set(adds)):
+        v.fail(f"the build stages add {adds}, want each of {m.REQUIRES} and {m.PIPES} once")
+    last = m.BUILD_STAGES[-1]
+    if last[0] != "services" or not {"chutes", *m.PIPES} <= set(last[2]):
+        v.fail("the last build stage is not services with the chute sections and the water line")
+    if [e for e in v.els if e.name.startswith(("fr_chute_", "fb_chute_")) and e.part != "chutes"]:
+        v.fail("a chute section is not the chutes part's")
+    want = [{"stage": n, "id": sid, "name": name, "adds": list(a)} for n, (sid, name, a) in enumerate(m.BUILD_STAGES, 1)]
+    if v.rig.get("buildStages") != want:
+        v.fail("the rig's buildStages are not BUILD_STAGES")
+    if list(m.STATES) != ["frame"] + [sid for sid, _, _ in m.BUILD_STAGES]:
+        v.fail(f"the states are {list(m.STATES)}, want the frame and one a stage")
+    print("stages: frame placed, then " + "; ".join(f"{n} {sid} ({', '.join(a)})" for n, (sid, _, a) in enumerate(m.BUILD_STAGES, 1)))
     counts = {st: sum(len(v.by_part[pid]) for pid in v.shown(st)) for st in m.STATES}
     print("states: " + ", ".join(f"{st} {n}" for st, n in counts.items()) + f"; the water line {len(v.by_part[m.PIPES[0]])} a metal")
 
@@ -269,9 +285,9 @@ def check_anchors(v):
             v.fail(f"{pid}'s inlet is not open to a ppex pipe end to end on the water face's centre")
     cells = {"power": pc, "water": wc}
     for label, part, prefix, face, cell, key in (
-            ("concentrate", "frame", r"^fr_chute_conc_", m.CONC_FACE, m.CONC_CELL, "concentrate"),
-            ("tailings", "frame", r"^fr_chute_tail_", m.TAIL_FACE, m.TAIL_CELL, "tailings"),
-            ("infeed", "feedbox", r"^fb_chute_", m.FEED_FACE, m.FEED_CELL, "feed")):
+            ("concentrate", "chutes", r"^fr_chute_conc_", m.CONC_FACE, m.CONC_CELL, "concentrate"),
+            ("tailings", "chutes", r"^fr_chute_tail_", m.TAIL_FACE, m.TAIL_CELL, "tailings"),
+            ("infeed", "chutes", r"^fb_chute_", m.FEED_FACE, m.FEED_CELL, "feed")):
         els = v.named(part, prefix)
         prof, ends = m.chute_profile(els, face, cell)
         axis = FACE_AXIS[face]
@@ -293,7 +309,7 @@ def check_anchors(v):
         if not ok:
             v.fail("VANILLA_CHUTE is not the game's straight chute")
     # the feed box holds the infeed's foot: its walls round the chute's, its floor under its foot
-    clo, chi = aabb_of(v.named("feedbox", r"^fb_chute_"))
+    clo, chi = aabb_of(v.named("chutes", r"^fb_chute_"))
     blo, bhi = aabb_of(v.named("feedbox", r"^fb_(w|e|s|weir)$"))
     floor = v.named("feedbox", r"^fb_floor$")[0].aabb()
     if not (blo[0] <= clo[0] and chi[0] <= bhi[0] and blo[2] <= clo[2] and chi[2] <= bhi[2] and floor[1][1] < clo[1] < bhi[1]):
@@ -323,7 +339,7 @@ def ray_down(el, p):
 
 
 def first_below(v, p, pose):
-    state = pose[2] if len(pose) > 2 else "all"
+    state = v.m.state_of(pose)
     best = None
     for pid in v.shown(state):
         for el in v.posed(pid, pose):
@@ -717,7 +733,7 @@ def allowed(pa, na, pb, nb):
 
 
 def touching_pairs(v, pose, moving_only=False):
-    state = pose[2] if len(pose) > 2 else "all"
+    state = v.m.state_of(pose)
     items = []
     for pid in v.shown(state):
         for el in v.posed(pid, pose):

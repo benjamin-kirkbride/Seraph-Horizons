@@ -36,7 +36,7 @@ RIG = json.loads((ASSETS / "config" / "vanner-rig.json").read_text())
 SHAPE = json.loads((ASSETS / "shapes" / "block" / "vanner.json").read_text())
 FRAME = json.loads((ASSETS / "shapes" / "block" / "vanner_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "Vanner" / "rig-reference.json").read_text())
-REQUIRES = {"countershaft", "shaker", "rollers", "belt", "creep", "feedbox", "pipecopper", "pipelead", None}
+REQUIRES = {"countershaft", "shaker", "rollers", "belt", "creep", "feedbox", "chutes", "pipecopper", "pipelead", None}
 
 
 def matrix(pid, theta, travel=None):
@@ -57,7 +57,7 @@ class Rig(unittest.TestCase):
     def test_parts_parse_and_use_the_vocabulary(self):
         ids = [p["id"] for p in RIG["parts"]]
         self.assertEqual(ids, ["countershaft", "shaker", "uprightw", "uprighte", "seam1", "seam2", "belt", "head", "foot", "worm",
-                               "pawl", "feedbox",
+                               "pawl", "chutes", "feedbox",
                                "pipecopper", "pipelead", "frame"])
         for p in RIG["parts"]:
             self.assertIn(p["requires"], REQUIRES, p["id"])
@@ -69,6 +69,20 @@ class Rig(unittest.TestCase):
         self.assertIsNone(rigmath.progress_of(RIG))          # no work: nothing is posed by one
         for key in ("work", "trunkPath"):
             self.assertNotIn(key, RIG)
+
+    def test_build_stages_as_settled(self):
+        # the frame placed (owner, 2026-10-15), then five stages in order, services last with every chute
+        # section and the water line in either metal
+        self.assertEqual([(s["stage"], s["id"], s["adds"]) for s in RIG["buildStages"]], [
+            (1, "countershaft", ["countershaft"]),
+            (2, "shaker", ["shaker"]),
+            (3, "rollers", ["rollers", "creep"]),
+            (4, "belt", ["belt"]),
+            (5, "services", ["feedbox", "chutes", "pipecopper", "pipelead"]),
+        ])
+        chutes = {e["name"] for e in SHAPE["elements"] if e["name"].startswith(("fr_chute_", "fb_chute_"))}
+        self.assertEqual(len(chutes), 12)
+        self.assertEqual({rigmath.part_of(RIG["parts"], n) for n in chutes}, {"chutes"})
 
     def test_every_element_has_a_part_and_every_part_an_element(self):
         names = [e["name"] for e in SHAPE["elements"]]
@@ -207,7 +221,7 @@ class Motion(unittest.TestCase):
 
     def test_nothing_else_moves(self):
         ident = rigmath.m4()
-        for pid in ("pawl", "feedbox", "pipecopper", "pipelead", "frame"):
+        for pid in ("pawl", "chutes", "feedbox", "pipecopper", "pipelead", "frame"):
             for theta in (0.0, 2.5, -7.0):
                 m = matrix(pid, theta, 30.0)
                 self.assertEqual([[round(v, 12) + 0.0 for v in row] for row in m], ident, pid)
