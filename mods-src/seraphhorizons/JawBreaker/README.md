@@ -1,7 +1,7 @@
 # Jaw breaker
 
 Part of the Seraph Horizons mod (`../README.md`): the first machine of the ore line (epic #684), a **Blake jaw
-breaker under a grizzly**, one real piece of equipment with one level. Ore comes in by the game's chute onto the
+breaker under a grizzly**, one real piece of equipment. Ore comes in by the game's chute onto the
 grizzly's head and runs down its sloping bars: the fines fall between them, the oversize slides off their foot into
 the breaker's mouth. The breaker crushes it between a fixed iron jaw and a swinging one; its product and the fines
 meet in a small iron hopper under it and run out through the output chute, low on the front face. It is dry, and it
@@ -16,7 +16,7 @@ Paths here are from this folder unless they start with `assets/` or `tests/`, wh
 half of it is `Machines/tools/machinegen/`, shared with the other machines and unchanged by this one (no new driver:
 the linkage is the shared `swing` and `slide` drivers, fitted harmonics of the axle's angle).
 
-**Where it comes from.** The breaker is the second level of the stamp mill v2 (`origin/729-stampmill-model-v2`, its
+**Where it comes from.** The breaker comes from the stamp mill v2 (`origin/729-stampmill-model-v2`, its
 `StampMill/tools/make_shape.py`) moved out into a machine of its own, as #914 asks: the Blake linkage built in its own
 frame (`build_jaw_frame_local`, `build_eshaft_local`, `build_linkage_local`, `build_jaw`), its exact solve (`jaw_at`,
 `linkage`, `solve3`) and its fit to harmonic drivers (`fit`, `harmonics`), the flywheels (now one, 2 blocks across), the buffers'
