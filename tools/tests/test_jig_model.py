@@ -63,6 +63,16 @@ class Rig(unittest.TestCase):
         self.assertEqual({p["requires"] for p in RIG["parts"]}, REQUIRES)
         self.assertIsNone(rigmath.progress_of(RIG))          # no work: only the axle poses it
 
+    def test_build_stages(self):
+        # the hutch is the frame, placed; then the sieve, the drive and plunger, and services last
+        self.assertEqual(RIG["buildStages"], [{"stage": 1, "name": "the sieve", "adds": ["sieve"]},
+                                              {"stage": 2, "name": "the drive and plunger", "adds": ["drive", "plunger"]},
+                                              {"stage": 3, "name": "services",
+                                               "adds": ["infeed", "outlets", "pipecopper", "pipelead"]}])
+        staged = [r for st in RIG["buildStages"] for r in st["adds"]]
+        self.assertEqual(set(staged), REQUIRES - {None, "water", "bed"})   # the contents in no stage
+        self.assertEqual(len(staged), len(set(staged)))
+
     def test_every_element_has_a_part_and_every_part_an_element(self):
         names = [e["name"] for e in SHAPE["elements"]]
         self.assertEqual(len(names), len(set(names)))

@@ -24,6 +24,18 @@ chute. Richards 1903, I, Harz jigs, figs. 306-307.
                  compartment under the plunger, through the back bottom cell's south face
     power        the vanilla axle into the back top cell's west face, on the shaft's oak end
 
+It is built in stages, each fitted after the one before:
+
+    the frame            the hutch, with its sieve ledges, slope and spout (placed: no `requires`)
+    stage 1  the sieve   on its ledges (`sieve`)
+    stage 2  the drive and plunger
+                         the standards, shaft and guide beam (`drive`), the eccentric, yoke and plunger
+                         (`plunger`)
+    stage 3  services    the infeed chute and trough (`infeed`), the tailings and concentrate chutes
+                         (`outlets`) and the water inlet (`pipecopper`/`pipelead`)
+
+The water and the ore bed (`water`, `bed`) are what it holds while it works, in no stage.
+
 It writes, deterministically,
 
     jig.json             the whole machine                       (assets/.../shapes/block/)
@@ -93,6 +105,11 @@ WATER_CELL, WATER_FACE = (0, 0, 1), "south"  # a ppex pipe meets the inlet end t
 REQUIRES = ("sieve", "drive", "plunger", "infeed", "outlets")   # the fitted parts (the hutch is the frame)
 PIPE_METALS = ("copper", "lead")             # the water inlet's metals: one part each, the supplied one drawn
 PIPES = tuple(f"pipe{m}" for m in PIPE_METALS)
+BUILD_STAGES = (                             # (what the stage adds, its name), in build order; services last
+    (("sieve",), "the sieve"),
+    (("drive", "plunger"), "the drive and plunger"),
+    (("infeed", "outlets", *PIPES), "services"),   # one inlet metal drawn (`pipes`)
+)
 CONTENTS = ("water", "bed")                  # what the machine holds while it works (no part of its build)
 
 TEXTURES = {
@@ -811,19 +828,25 @@ def pm(parts, pid, pose, path=None):
 
 
 COMPLETE = REQUIRES + (PIPES[0],)            # the finished machine, its inlet in copper (lead is the same elements)
+
+
+
+def _staged(n):
+    """What is fitted once the first n build stages are (the inlet in copper)."""
+    return tuple(r for adds, _ in BUILD_STAGES[:n] for r in adds if r not in PIPES[1:])
+
+
 STATES = {                                    # what is fitted in each state checked
-    "frame": (),
-    "complete": COMPLETE,                    # the finished machine, dry and empty
+    "frame": (),                             # the frame, placed
+    "sieve": _staged(1),                     # stage 1
+    "drive": _staged(2),                     # stage 2, the drive and plunger
+    "complete": COMPLETE,                    # stage 3, services: the finished machine, dry and empty
     "water": COMPLETE + ("water",),
     "working": COMPLETE + CONTENTS,          # running: water in it and the bed on the sieve
-    # each fitting on the hutch alone, with what it stands on: nothing floats whatever is fitted first
-    "sieve": ("sieve",),
-    "drive": ("drive",),
-    "plunger": ("drive", "plunger"),
-    "infeed": ("infeed",),
-    "outlets": ("outlets",),
-    "pipe": (PIPES[0],),
-    "bed": ("sieve", "bed"),
+    # each service on the machine before it, alone: nothing floats whichever is fitted first
+    "infeed": _staged(2) + ("infeed",),
+    "outlets": _staged(2) + ("outlets",),
+    "pipe": _staged(2) + (PIPES[0],),
 }
 CELL_STATE = "complete"                      # the cells' boxes are the finished machine's, at rest
 
@@ -845,8 +868,9 @@ def make_rig(parts):
                     "the axle turns). Every service is on its own face, centred: the axle (powerCell/powerFace), "
                     "the infeed chute (infeedCell/infeedFace, from above), the tailings and concentrate chutes "
                     "(tailingsCell/tailingsFace, concentrateCell/concentrateFace, out to a chute beyond) and the "
-                    "ppex water pipe (waterCell/waterFace). water and bed are what the machine holds while it "
-                    "works, not parts of its build. See the jig's README for the schema.",
+                    "ppex water pipe (waterCell/waterFace). buildStages: what each build stage adds, in order: the "
+                    "sieve, the drive and plunger, then services (the chutes and the water inlet); the hutch is the "
+                    "frame, placed. water and bed are what the machine holds while it works, in no stage. See the jig's README for the schema.",
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
@@ -859,6 +883,7 @@ def make_rig(parts):
         "waterCell": list(WATER_CELL),
         "waterFace": WATER_FACE,
         "sieve": {"pos": pt((IN_X[0] + IN_X[1]) / 2, SIEVE_Y[1], (SIEVE_Z[0] + SIEVE_Z[1]) / 2)},
+        "buildStages": [{"stage": n, "name": name, "adds": list(req)} for n, (req, name) in enumerate(BUILD_STAGES, 1)],
         "levels": {"weirY": r6(WEIR_Y / B), "sieveY": r6(SIEVE_Y[1] / B), "rimY": r6(RIM / B),
                    "_comment": "Heights in blocks: the weir's sill (the water's level), the sieve's top, the hutch's rim."},
         "pipes": {"requires": {m: f"pipe{m}" for m in PIPE_METALS},

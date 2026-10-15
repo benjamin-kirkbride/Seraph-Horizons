@@ -10,7 +10,7 @@ sieve to its tail end and over the **weir**. Crushed or ground ore comes in by c
 (#919: r = 0.60, 8 rock an hour, on the sluice's tailings, before the table).
 
 This folder holds the model's generator (`tools/`). The gameplay is #919 and is not built yet; the model
-is #920. It is one machine, built in stages (the `requires` ids below).
+is #920. It is one machine, built in stages (below).
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/` and `site/`, which are the repository's. The generic half
@@ -74,6 +74,24 @@ the overflow is the far end of the sieve from it, the tail end. A chute section 
 the tailings chute must be in the upper row (its bore's floor at 21, the weir's sill just over it); the
 front top cell's north face would put the tail end across the flow, at the front wall, with the feed
 landing beside it. The water comes in under the plunger and leaves with the products.
+
+## Build stages
+
+Settled 2026-10-15. The hutch is placed as the machine; then each stage is fitted in order, and the jig runs
+only when the last is in. The materials are the stages' iron and timber measured from the model at the
+settled rate (128 vox of iron or steel an ingot, a rod an ingot, nails and strips 4 an ingot; planks at
+1,024 vox), the chute and pipe sections counted.
+
+| # | Stage | `requires` | Sits on | Materials |
+|---|---|---|---|---|
+| F | The hutch (the frame) | none (placed) | The ground | 3 iron nails and strips, 3 plank |
+| 1 | The sieve | `sieve` | The ledges round the sieve compartment (frame) | 1 iron chain (the sieve, 119 vox²) |
+| 2 | The drive and plunger | `drive`, `plunger` | The standards on the side walls' rims; the sheave keyed on the shaft, the board in the plunger compartment | 1 iron rod, 1 steel rod, 1 plank |
+| 3 | Services | `infeed`, `outlets`, `pipecopper` or `pipelead` | The infeed on its bearers over the sieve; the outlets on their bracket and block on the hutch; the inlet through the back wall | 3 chute section, 1 pipe section (copper or lead), 1 iron nails and strips, 1 plank |
+
+Every chute section and the water inlet are in services; the frame holds none. The water inlet is a choice
+of metal, copper or lead (one part each, the same elements). The water and the ore bed (`water`, `bed`) are
+what the jig holds while it works, in no stage; nothing in it wears out as a part.
 
 ## How it works
 
@@ -182,7 +200,8 @@ rotation and sinusoidal slides of θ. There is no `work`: nothing moves with pro
 
 **Keys.** `cells` (4, each with its boxes, a `lid` over each column's top cell at the top), the five
 service anchors above (`powerCell`/`powerFace`, `infeedCell`/`infeedFace`, `tailingsCell`/`tailingsFace`,
-`concentrateCell`/`concentrateFace`, `waterCell`/`waterFace`), `sieve` (a point), `levels` (`weirY`,
+`concentrateCell`/`concentrateFace`, `waterCell`/`waterFace`), `sieve` (a point), `buildStages` (each
+stage's number, name and the `requires` it adds, in order), `levels` (`weirY`,
 `sieveY`, `rimY`, blocks), `pipes` (the inlet's `requires` per metal), `contents` (the `requires` values
 for the water and the bed), `drive` (`strokesPerTurn` 1 and the `stroke` in blocks, either way the axle
 turns) and `parts`. `requires` values: `sieve`, `drive`, `plunger`, `infeed`, `outlets`, `pipecopper`,
@@ -193,9 +212,10 @@ contents), rebuilt from the shipped, rounded shape posed by the shipped rig, as 
 (`shipped_cells`; `tools/tests/test_jig_model.py` rebuilds them and compares).
 
 **In the viewer** (`site/models.json`, `jig`): θ's slider and Play turn the axle (Play at 2.1 s a turn,
-the reference speed 0.6's 0.48 turns a second); "turn backwards" shows the same stroke. A **Contents**
-select: dry and empty, water with no ore, or working (water and the bed; the default). A **Water inlet**
-choice, copper or lead. The fitted parts are checkboxes. The viewer draws the water opaque (it has no
+the reference speed 0.6's 0.48 turns a second); "turn backwards" shows the same stroke. A **Build stage**
+select: the hutch, 1 the sieve, 2 the drive and plunger, 3 services with the inlet in copper or in lead
+(the default copper). A **Contents** select, once the jig is built: dry and empty, water with no ore, or
+working (water and the bed; the default). The viewer draws the water opaque (it has no
 transparency), so untick Water to see the bed.
 
 ## Regenerating
@@ -222,9 +242,11 @@ Every run checks its output and exits non-zero if a check fails:
   and rods, the mesh, vanilla's chute copper, the pipe's metal, the contents'; only the water's surfaces in
   the transparent pass. **Thickness:** nothing thinner than half a voxel but the mesh, the lip, the
   water's surfaces and the straps (the corner irons and their nail heads among them).
-- **Nothing floats**, at rest: the hutch alone, the finished machine dry, with water, working, and the
-  hutch with each fitting on its own (and what it stands on: the plunger with the drive, the bed with the
-  sieve).
+- **Build stages** (`check_build_stages`): the rig's `buildStages` are the settled ones (the sieve; the
+  drive and plunger; services last, the chutes and the inlet), every fitted part in one stage, the frame
+  and the contents in none, and each stage's state fits the stages up to it.
+- **Nothing floats**, at rest: the hutch alone, after each build stage, the finished machine dry, with
+  water, working, and each service alone on the machine before services.
 - **Containment:** nothing leaves the four cells over a turn.
 - **Anchors:** the shaft's oak end from the power face at its centre in the axle's profile; each chute
   vanilla's section (its walls the game's, for its run), centred in its face, flush with it, in the
@@ -339,10 +361,8 @@ The model has been reviewed in projections rendered from the written files, not 
 7. **The contents.** Water (two surfaces) and the ore bed as `requires` values; their amplitudes from the
    compartments' and the board's areas. Whether gameplay should draw them, and the bed's texture
    (granite gravel now; the ore's host rock, as #694's tailings are, would need the renderer to set it).
-8. **Requires ids for the build stages** (not designed yet, #920 "Open"): `sieve`, `drive` (the
-   standards, shaft, bushes, beam), `plunger` (the eccentric, yoke and plunger), `infeed` (the chute and
-   trough), `outlets` (the two chute sections), `pipecopper`/`pipelead`. A first order to discuss: the
-   hutch, the sieve, the drive, the plunger, the infeed and outlets, the water inlet.
+8. **Build stages** settled 2026-10-15 (above). The screen's item (`game:metalchain-iron`) is the
+   settled rate's, not a mesh of its own.
 9. **Anchors provisional pending #711**: the `<name>Cell`/`<name>Face` pairs for chutes and water.
 10. **Box ironwork** (ruled 2026-10-14: corner straps). Angle-iron straps on the four vertical corners,
     nailed, and corner irons on the three rim corners the head does not cover. No tie rods or bands across
@@ -361,5 +381,5 @@ The model has been reviewed in projections rendered from the written files, not 
 `tools/tests/test_jig_model.py` (the generated files against their own rules: the rig's vocabulary, its
 reference poses, the cells rebuilt from the shipped shape, the motion, the anchors, the chutes' section,
 the port in the tail end's head and the spout's open bore, the hutch's corner straps, the textures), `site/test/jig.test.ts` (the site's rig maths against the reference poses, the anchors the
-viewer finds, the page's contents and inlet choice) and `tests/Jig/JigRigTests.cs` (the shipped rig through
+viewer finds, the page's build stages and contents) and `tests/Jig/JigRigTests.cs` (the shipped rig through
 `Machines/Core`'s parser and maths against the same poses).

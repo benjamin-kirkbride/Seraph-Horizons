@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { discoverAnchors } from "../src/lib/model-anchors.ts";
 import type { ManifestModel } from "../src/lib/model-manifest.ts";
-import { applyState, stateGroups } from "../src/lib/model-scenario.ts";
+import { applyState, needsMet, stateGroups } from "../src/lib/model-scenario.ts";
 import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs, textureCodes, workOf, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The jig's shipped files, and the poses Jig/tools/make_shape.py computes from them with machinegen's
@@ -130,18 +130,36 @@ describe("the jig's rig against its rig-reference.json", () => {
 
 describe("the jig's page", () => {
   const model = manifest.models.find((m) => m.id === "jig")!;
+  const values = ["sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead", "water", "bed"];
+  const groups = stateGroups(model.scenario!.states, values);
 
-  it("shows its contents from a select, its inlet in one metal, and fits its parts by checkbox", () => {
-    const values = ["sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead", "water", "bed"];
-    const groups = stateGroups(model.scenario!.states, values);
-    expect(groups.map((g) => [g.id, g.owns])).toEqual([["contents", ["water", "bed"]]]);
-    const all = Object.fromEntries(values.map((v) => [v, true]));
-    const spec = groups[0]!.spec;
-    const at = (id: string) => applyState(all, spec.options.find((o) => o.id === id)!, groups[0]!.owns);
-    expect(at("dry")).toMatchObject({ water: false, bed: false, plunger: true });
-    expect(at("water")).toMatchObject({ water: true, bed: false });
-    expect(at("working")).toMatchObject({ water: true, bed: true });
-    expect(spec.default).toBe("working");
-    expect(model.scenario!.choices).toEqual([{ label: "Water inlet", values: ["pipecopper", "pipelead"], default: "pipecopper" }]);
+  it("builds in stages (the sieve, the drive and plunger, then services with the inlet in one metal), and shows its contents once built", () => {
+    expect(groups.map((g) => [g.id, g.owns])).toEqual([
+      ["stage", ["sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead"]],
+      ["contents", ["water", "bed"]],
+    ]);
+    expect(rig.buildStages).toEqual([
+      { stage: 1, name: "the sieve", adds: ["sieve"] },
+      { stage: 2, name: "the drive and plunger", adds: ["drive", "plunger"] },
+      { stage: 3, name: "services", adds: ["infeed", "outlets", "pipecopper", "pipelead"] },
+    ]);
+    expect(model.scenario!.choices).toBeUndefined();
+    const [stage, contents] = groups;
+    expect(stage!.spec.options.map((o) => o.id)).toEqual(["frame", "sieve", "drive", "services", "serviceslead"]);
+    expect(stage!.spec.default).toBe("services");
+    const none = Object.fromEntries(values.map((v) => [v, false]));
+    const at = (g: typeof stage, id: string, from: Record<string, boolean> = none) => applyState(from, g!.spec.options.find((o) => o.id === id)!, g!.owns);
+    expect(at(stage, "frame")).toMatchObject({ sieve: false, drive: false, plunger: false, infeed: false, outlets: false, pipecopper: false, pipelead: false });
+    expect(at(stage, "sieve")).toMatchObject({ sieve: true, drive: false, plunger: false, infeed: false });
+    expect(at(stage, "drive")).toMatchObject({ sieve: true, drive: true, plunger: true, infeed: false, outlets: false, pipecopper: false });
+    expect(at(stage, "services")).toMatchObject({ infeed: true, outlets: true, pipecopper: true, pipelead: false });
+    expect(at(stage, "serviceslead")).toMatchObject({ infeed: true, outlets: true, pipecopper: false, pipelead: true });
+    expect(needsMet(contents!, at(stage, "drive"))).toBe(false);
+    expect(needsMet(contents!, at(stage, "serviceslead"))).toBe(true);
+    const built = at(stage, "services");
+    expect(at(contents, "dry", built)).toMatchObject({ water: false, bed: false, plunger: true });
+    expect(at(contents, "water", built)).toMatchObject({ water: true, bed: false });
+    expect(at(contents, "working", built)).toMatchObject({ water: true, bed: true });
+    expect(contents!.spec.default).toBe("working");
   });
 });

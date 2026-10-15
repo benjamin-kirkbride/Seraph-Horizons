@@ -87,6 +87,27 @@ def check_basic(v):
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
 
 
+def check_build_stages(v):
+    """The build stages as settled (2026-10-15): the hutch is the frame, placed; then the sieve, the drive and
+    plunger, and last services (the chutes and the water inlet, one metal). Every fitted part is in one
+    stage, the frame and the contents in none; the rig's buildStages are the generator's; each stage's state
+    fits the stages up to it, so the floating check sees every stage stand on the ones before."""
+    m = v.m
+    stages = v.rig["buildStages"]
+    if [(st["stage"], st["adds"], st["name"]) for st in stages] != [(n, list(req), name) for n, (req, name) in enumerate(m.BUILD_STAGES, 1)]:
+        v.fail(f"the rig's build stages are {stages}")
+    if [st["adds"] for st in stages] != [["sieve"], ["drive", "plunger"], ["infeed", "outlets", *m.PIPES]]:
+        v.fail("the build stages are not the sieve, the drive and plunger and, last, services")
+    staged = [r for st in stages for r in st["adds"]]
+    if len(staged) != len(set(staged)) or set(staged) != set(m.REQUIRES) | set(m.PIPES):
+        v.fail("every fitted part is in one build stage, the frame and the contents in none")
+    for n, name in enumerate(("sieve", "drive", "complete"), 1):
+        want = {r for st in stages[:n] for r in st["adds"]} - set(m.PIPES[1:])
+        if set(m.STATES[name]) != want:
+            v.fail(f"state {name} fits {set(m.STATES[name])}, not build stages 1..{n}")
+    print("build stages: " + ", ".join(f"{st['stage']} {st['name']} ({'+'.join(st['adds'])})" for st in stages))
+
+
 def check_requires(v):
     """The parts' requires are the hutch's (null), the fitted parts', the inlet's metals and the contents'; a
     part riding another is fitted with it in every state; the inlet's metals are the same elements; every
@@ -112,7 +133,7 @@ def check_requires(v):
                     v.fail(f"in {st}, {p['id']} rides {ride['id']}, which is not fitted")
     if not set(m.STATES["complete"]) == set(m.REQUIRES) | {m.PIPES[0]}:
         v.fail("the complete state is not every fitted part with the inlet")
-    counts = {st: sum(len(v.by_part[pid]) for pid in v.shown(st)) for st in ("frame", "complete", "working")}
+    counts = {st: sum(len(v.by_part[pid]) for pid in v.shown(st)) for st in ("frame", "sieve", "drive", "complete", "working")}
     print("requires: " + ", ".join(sorted(str(r) for r in reqs)) + "; elements shown: "
           + ", ".join(f"{k} {n}" for k, n in counts.items()))
 
@@ -198,8 +219,8 @@ def check_containment(v, poses):
 
 
 def check_floating(v):
-    """At rest, the hutch alone, the finished machine, and the hutch with each fitting and what it stands
-    on, are each one piece from the ground (the shaft is joined through its bushes, the plunger through its
+    """At rest, the hutch alone, after each build stage, the finished machine, and each service alone on the
+    machine before it, are each one piece from the ground (the shaft is joined through its bushes, the plunger through its
     yoke on the sheave)."""
     m = v.m
     for state in m.STATES:
@@ -810,6 +831,7 @@ def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
     check_requires(v)
+    check_build_stages(v)
     check_textures(v)
     check_thickness(v)
     check_floating(v)
