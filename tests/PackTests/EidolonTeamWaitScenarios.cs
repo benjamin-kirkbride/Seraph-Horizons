@@ -19,7 +19,8 @@ namespace SeraphHorizons.PackTests;
 /// at the area's rim, holding nothing; one dry when its job is reported goes back once oiled with no
 /// report of its own. The shared pit and the late joiner are <see cref="EidolonTeamMineScenarios"/>, the
 /// shared felling <see cref="EidolonTeamFellScenarios"/>. On floors of their own in the sky
-/// (<see cref="Felling.Sky"/>), apart from those classes' sites.
+/// (<see cref="Felling.Sky"/>), apart from those classes' sites, each from its spawns on the virtual clock
+/// (<see cref="VirtualClock"/>).
 /// </summary>
 [AtlasWorld]
 public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -137,7 +138,7 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
         }
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task An_eidolon_standing_in_the_area_with_no_order_is_waited_for_and_its_squares_mined_once_it_moves()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 1700), reach: 15);
@@ -152,6 +153,7 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
         var toMine = Cells(area);
 
         var (test, player, tool) = await Commander("eidolonbystander", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
         var miner = await Spawn(site.AddCopy(0, 0, -10), player);
         // Standing on the area's top, its box over columns -1 and 0 each way, with no order.
         var idle = await Spawn(site.AddCopy(0, 0, 0), player);
@@ -203,7 +205,7 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
         idle.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 90_000)]
     public async Task Mining_one_with_no_square_free_waits_at_the_rim()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 1900), reach: 12);
@@ -218,6 +220,7 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
             blocks.SetBlock(granite, c);
 
         var (test, player, tool) = await Commander("eidolonspare", site.AddCopy(0, 0, -10));
+        using var clock = VirtualClock.Start(World);
         var e1 = await Spawn(site.AddCopy(-2, 0, 1), player);
         var e2 = await Spawn(site.AddCopy(5, 0, 5), player);
         OrderMine(player, tool, [e1, e2], a, b);
@@ -256,7 +259,7 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
         e2.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 90_000)]
     public async Task Felling_one_with_no_tree_free_waits_at_the_rim()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-820, 90, 1700), reach: 14);
@@ -271,6 +274,7 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
         var area = MarkArea.Between(new MarkPos(a.X, a.Y, a.Z), new MarkPos(b.X, b.Y, b.Z));
 
         var (_, player, tool) = await Commander("eidolonfellspare", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
         var e1 = await Spawn(site.AddCopy(-3, 0, -6), player);
         var e2 = await Spawn(site.AddCopy(8, 0, 8), player);
         GiveAxe(player, e1);
@@ -316,7 +320,7 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
         e2.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task One_dry_when_its_job_is_reported_goes_back_once_oiled_with_no_report_of_its_own()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2000), reach: 15);
@@ -328,6 +332,7 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
         var area = Area(a, b);
 
         var (test, player, tool) = await Commander("eidolondrymate", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
         var e1 = await Spawn(site.AddCopy(-3, 0, -10), player);
         var e2 = await Spawn(site.AddCopy(3, 0, -10), player);
         if (e2.Oil?.Tank == null)

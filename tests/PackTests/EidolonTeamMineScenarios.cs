@@ -18,7 +18,8 @@ namespace SeraphHorizons.PackTests;
 /// joins the job running; and one whose part is mined out takes stations in the other's. Waiting (for a
 /// station, for a bystander, dry) is <see cref="EidolonTeamWaitScenarios"/>, three kept apart and paths
 /// round each other <see cref="EidolonSectorScenarios"/>, tunnels <see cref="EidolonTunnelScenarios"/>.
-/// On floors of their own in the sky (<see cref="Felling.Sky"/>).
+/// On floors of their own in the sky (<see cref="Felling.Sky"/>), each from its spawns on the virtual clock
+/// (<see cref="VirtualClock"/>).
 /// </summary>
 [AtlasWorld]
 public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -109,7 +110,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         }
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 90_000)]
     public async Task Two_eidolons_share_a_pit_a_layer_at_a_time_report_once_and_walk_back_each_to_its_place()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 1600), reach: 15);
@@ -123,6 +124,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         var toMine = Cells(area);
 
         var (test, player, tool) = await Commander("eidolonteam", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
         var e1 = await Spawn(site.AddCopy(-3, 0, -10), player);
         var e2 = await Spawn(site.AddCopy(3, 0, -10), player);
         OrderMine(player, tool, [e1, e2], a, b);
@@ -185,7 +187,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         e2.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 90_000)]
     public async Task One_ordered_later_joins_the_job_running()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 1800), reach: 15);
@@ -199,6 +201,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         var toMine = Cells(area);
 
         var (test, player, tool) = await Commander("eidolonlate", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
         var e1 = await Spawn(site.AddCopy(-3, 0, -10), player);
         var e2 = await Spawn(site.AddCopy(3, 0, -10), player);
         e2.Orders!.ClearOrder();
@@ -226,7 +229,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         e2.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 480_000)]
+    [AtlasScenario(TimeoutMs = 150_000)]
     public async Task One_whose_part_is_mined_out_takes_stations_in_the_others()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2200), reach: 15);
@@ -245,6 +248,7 @@ public class EidolonTeamMineScenarios(ITestOutputHelper output) : AtlasScenarioB
         var westHalf = toMine.Where(c => c.X < a.X + 8).ToList();
 
         var (test, player, tool) = await Commander("eidolonsteal", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
         var west = await Spawn(site.AddCopy(-5, 0, -10), player);
         var east = await Spawn(site.AddCopy(5, 0, -10), player);
         var eidolons = new[] { west, east };

@@ -17,7 +17,8 @@ namespace SeraphHorizons.PackTests;
 /// own, each strike in its station's claimed columns, apart, never pushing into each other nor digging in
 /// another's columns, the floors within a climb, with no slam at nothing, one report; and two ordered across
 /// each other's way walk round each other and both arrive. One taking stations in another's part once its
-/// own is done is <see cref="EidolonTeamMineScenarios"/>'s. On floors of their own in the sky (<see cref="Felling.Sky"/>).
+/// own is done is <see cref="EidolonTeamMineScenarios"/>'s. On floors of their own in the sky (<see cref="Felling.Sky"/>), each
+/// from its spawns on the virtual clock (<see cref="VirtualClock"/>).
 /// </summary>
 [AtlasWorld]
 public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -91,7 +92,7 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
         return cells;
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task Three_eidolons_work_one_area_apart_the_floors_within_a_climb_and_no_slam_at_nothing()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2100), reach: 15);
@@ -110,6 +111,7 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var toMine = Cells(area);
 
         var (test, player, tool) = await Commander("eidolonsectors", site.AddCopy(0, 0, -13));
+        using var clock = VirtualClock.Start(World);
         var eidolons = new[]
         {
             await Spawn(site.AddCopy(-6, 0, -12), player),
@@ -162,13 +164,14 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
             e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Two_ordered_across_each_others_way_walk_round_each_other_and_both_arrive()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2300), reach: 15);
         // A player near: a goto is no work, so an eidolon with none within its simulation range is
         // inactive (README "Chunk loading") and never sets off.
         await Commander("eidoloncrossing", site.AddCopy(0, 0, -10));
+        using var clock = VirtualClock.Start(World);
         var west = await Spawn(site.AddCopy(-9, 0, 0), null!);
         var east = await Spawn(site.AddCopy(9, 0, 0), null!);
         // each to where the other stands, at once: head on
