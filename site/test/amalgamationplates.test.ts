@@ -87,21 +87,27 @@ describe("the amalgamation plates' page", () => {
   const model = manifest.models.find((m) => m.id === "amalgamation-plates")!;
   const values = ["chutes", "plates", "dressing", "amalgam1", "amalgam2", "amalgam3", "trap", "pipecopper", "pipelead"];
   const groups = stateGroups(model.scenario!.states, values);
-  const choices = model.scenario!.choices!;
 
-  it("builds in stages, the trap last, draws one amalgam state at a time on dressed plates, and one pipe metal", () => {
+  it("builds in stages (the plates, the trap, then services), keeps the dressing out of them, and draws one amalgam state and one pipe metal", () => {
     expect(groups.map((g) => [g.id, g.owns])).toEqual([
-      ["stage", ["plates", "dressing", "trap"]],
+      ["stage", ["plates", "trap", "chutes", "pipecopper", "pipelead"]],
+      ["dressing", ["dressing"]],
       ["amalgam", ["amalgam1", "amalgam2", "amalgam3"]],
     ]);
-    const { fitted, picked } = openingFitted(values, choices, groups);
-    expect(picked).toEqual({ stage: "trap", amalgam: "building" });
+    expect(rig.buildStages).toEqual([
+      { stage: 1, name: "the table and plates", adds: ["plates"] },
+      { stage: 2, name: "the mercury trap", adds: ["trap"] },
+      { stage: 3, name: "services", adds: ["chutes", "pipecopper", "pipelead"] },
+    ]);
+    const { fitted, picked } = openingFitted(values, [], groups);
+    expect(picked).toEqual({ stage: "services", dressing: "dressed", amalgam: "building" });
     expect(fitted).toEqual({ chutes: true, plates: true, dressing: true, amalgam1: false, amalgam2: true, amalgam3: false, trap: true, pipecopper: true, pipelead: false });
-    const [stage, amalgam] = groups;
-    const at = (g: typeof stage, id: string, from = fitted) => applyState(from, g!.spec.options.find((o) => o.id === id)!, g!.owns, choices);
-    expect(at(stage, "dressed")).toMatchObject({ plates: true, dressing: true, trap: false });
+    const [stage, dressing, amalgam] = groups;
+    const at = (g: typeof stage, id: string, from = fitted) => applyState(from, g!.spec.options.find((o) => o.id === id)!, g!.owns);
+    expect(at(stage, "plates")).toMatchObject({ plates: true, trap: false, chutes: false, pipecopper: false, pipelead: false, dressing: true });
+    expect(at(stage, "serviceslead")).toMatchObject({ chutes: true, pipecopper: false, pipelead: true });
     expect(at(amalgam, "thick")).toMatchObject({ amalgam1: false, amalgam2: false, amalgam3: true });
-    expect(needsMet(amalgam!, at(stage, "bare"))).toBe(false);
-    expect(needsMet(amalgam!, at(stage, "dressed"))).toBe(true);
+    expect(needsMet(amalgam!, at(dressing, "undressed"))).toBe(false);
+    expect(needsMet(amalgam!, at(dressing, "dressed"))).toBe(true);
   });
 });

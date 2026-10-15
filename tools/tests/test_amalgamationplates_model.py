@@ -61,9 +61,10 @@ class Rig(unittest.TestCase):
             self.assertEqual([[round(v, 12) + 0.0 for v in row] for row in m], ident, p["id"])
 
     def test_build_stages_and_states(self):
-        self.assertEqual(RIG["buildStages"], [{"stage": 1, "name": "the copper plates", "adds": "plates"},
-                                              {"stage": 2, "name": "the mercury dressing", "adds": "dressing"},
-                                              {"stage": 3, "name": "the mercury trap", "adds": "trap"}])
+        self.assertEqual(RIG["buildStages"], [{"stage": 1, "name": "the table and plates", "adds": ["plates"]},
+                                              {"stage": 2, "name": "the mercury trap", "adds": ["trap"]},
+                                              {"stage": 3, "name": "services", "adds": ["chutes", "pipecopper", "pipelead"]}])
+        self.assertNotIn("dressing", [r for st in RIG["buildStages"] for r in st["adds"]])   # recurring, not built
         self.assertEqual(RIG["amalgamStates"], ["amalgam1", "amalgam2", "amalgam3"])
         self.assertEqual(RIG["pipes"]["requires"], {"copper": "pipecopper", "lead": "pipelead"})
 

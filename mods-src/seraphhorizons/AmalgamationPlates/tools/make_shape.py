@@ -5,14 +5,17 @@ The amalgamation plates (#917, model #918) are a plate table of the 1890s stamp 
 an inclined plank bed falling 1 in 10 on three oak trestles, three copper plates laid down it, dressed with
 mercury, a distributor at the head that spreads the pulp across the plates' width, and a spray pipe across
 the head; the pulp runs down the plates in a thin sheet, the free gold and silver that touch them are held as
-amalgam, and the rest falls off the foot into a tail box and out by chute. The last build stage fits a
-mercury trap in the tail box: a cast-iron well with a hanging baffle the pulp passes under and a weir it
-passes over, catching the amalgam and mercury the stream scours off the plates.
+amalgam, and the rest falls off the foot into a tail box and out by chute. A build stage fits a mercury
+trap in the tail box: a cast-iron well with a hanging baffle the pulp passes under and a weir it passes
+over, catching the amalgam and mercury the stream scours off the plates.
 
-    the frame                       sills, trestles, bed, distributor, tail box: the table alone
-    stage 1  the copper plates      laid on the bed (`plates`)
-    stage 2  the mercury dressing   rubbed into the plates (`dressing`)
-    stage 3  the mercury trap       fitted in the tail box (`trap`), the last stage
+    stage 1  the table and plates   the frame (sills, trestles, bed, head board, distributor, tail box) and
+                                    the copper plates (`plates`)
+    stage 2  the mercury trap       fitted in the tail box (`trap`)
+    stage 3  services               the chute sections and the water line (`chutes`, `pipecopper`/`pipelead`)
+
+The plates' mercury dressing (`dressing`) is not a stage: it wears and is renewed as a recurring action, so
+the plates are drawn dressed or undressed.
 
 It takes no power: nothing in it moves (#917: "Water, no power"), so the rig has no power cell and no driver,
 and every part is a still part fitted or drawn by gameplay. Continuous: one vanilla copper chute section in
@@ -80,11 +83,12 @@ FEED_CELL, FEED_FACE = (0, 0, 0), "up"       # a vanilla chute from above meets 
 WATER_CELL, WATER_FACE = (0, 0, 0), "west"   # a ppex pipe meets the spray pipe end to end on the head cell's west face
 OUTPUT_CELL, OUTPUT_FACE = (0, 0, 2), "south"   # the outlet section in the foot cell's end face
 
-BUILD_STAGES = (                             # (what the stage adds, its name), in build order; the trap is the last
-    ("plates", "the copper plates"),
-    ("dressing", "the mercury dressing"),
-    ("trap", "the mercury trap"),
+BUILD_STAGES = (                             # (what the stage adds, its name), in build order; services last
+    (("plates",), "the table and plates"),
+    (("trap",), "the mercury trap"),
+    (("chutes", "pipecopper", "pipelead"), "services"),   # one pipe metal drawn (`pipes`)
 )
+RECURRING = ("dressing",)                    # renewed as the plates are worked, not built: dressed or undressed
 AMALGAM = ("amalgam1", "amalgam2", "amalgam3")   # the amalgam on the plates, one state drawn at a time
 PIPE_METALS = ("copper", "lead")             # the spray pipe's metals: one part each, the supplied one drawn
 PIPES = tuple(f"pipe{m}" for m in PIPE_METALS)
@@ -672,16 +676,17 @@ def _rig_parts():
 # A pose is (state,): what is fitted. Nothing moves, so a state is all a pose says.
 STATES = {
     "frame": (),
-    "frame_chutes": ("chutes", PIPES[0]),
-    "bare": ("chutes", "plates", PIPES[0]),
-    "dressed": ("chutes", "plates", "dressing", PIPES[0]),
-    "dressed_am3": ("chutes", "plates", "dressing", "amalgam3", PIPES[0]),
-    "built": ("chutes", "plates", "dressing", "trap", PIPES[0]),
-    "built_am1": ("chutes", "plates", "dressing", "trap", "amalgam1", PIPES[0]),
-    "built_am2": ("chutes", "plates", "dressing", "trap", "amalgam2", PIPES[0]),
-    "built_am3": ("chutes", "plates", "dressing", "trap", "amalgam3", PIPES[0]),
+    "plates": ("plates",),
+    "dressed": ("plates", "dressing"),
+    "dressed_am3": ("plates", "dressing", "amalgam3"),
+    "trap": ("plates", "dressing", "trap"),
+    "services_undressed": ("plates", "trap", "chutes", PIPES[0]),
+    "services": ("plates", "dressing", "trap", "chutes", PIPES[0]),
+    "services_am1": ("plates", "dressing", "trap", "chutes", "amalgam1", PIPES[0]),
+    "services_am2": ("plates", "dressing", "trap", "chutes", "amalgam2", PIPES[0]),
+    "services_am3": ("plates", "dressing", "trap", "chutes", "amalgam3", PIPES[0]),
 }
-REST_POSE = ("built_am3",)
+REST_POSE = ("services_am3",)
 
 
 def inputs_of(pose):
@@ -713,7 +718,7 @@ def make_rig(parts):
                     "cell, at the front; the plates fall south, away from the player. No power and nothing moves: no "
                     "powerCell and no driver, every part is still and fitted or drawn by its requires. The infeed is "
                     "vanilla's chute section in the feed cell's top face, the outlet the same in the output cell's end "
-                    "face; the water line's inlet meets a ppex pipe end to end on the water face. buildStages: what each build stage adds, in order, the trap last. "
+                    "face; the water line's inlet meets a ppex pipe end to end on the water face. buildStages: what each build stage adds, in order: the plates, the trap, then services (the chutes and the water line). The dressing is recurring, not a stage. "
                     "amalgamStates: the amalgam on the plates, one drawn at a time. See the amalgamation plates' README "
                     "for the schema.",
         "cells": [],
@@ -727,7 +732,7 @@ def make_rig(parts):
         "spray": {"pos": pt(cx, NOZZLE_Y[0], NOZZLE_Z1)},
         "amalgam": {"pos": pt(cx, bed_y(mid_z) + AMALGAM_H0 / COS, mid_z)},
         "trapWell": {"pos": pt((TRAP_X[0] + TRAP_X[1]) / 2, MERCURY_TOP, (TRAP_Z[0] + TRAP_Z[1]) / 2)},
-        "buildStages": [{"stage": n, "name": name, "adds": req} for n, (req, name) in enumerate(BUILD_STAGES, 1)],
+        "buildStages": [{"stage": n, "name": name, "adds": list(req)} for n, (req, name) in enumerate(BUILD_STAGES, 1)],
         "amalgamStates": list(AMALGAM),
         "pipes": {"requires": {m: f"pipe{m}" for m in PIPE_METALS},
                   "_comment": "The spray pipe, ppex's straight pipe soldered, one part per metal (the same elements); "

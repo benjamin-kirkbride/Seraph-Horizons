@@ -100,7 +100,7 @@ def check_basic(v):
 def check_rig(v):
     """No part moves (no power, no driver, no ride); the requires vocabulary is the frame's (null), the chutes,
     the plates and their dressing, the three amalgam states, the trap and the pipe metals; the build stages
-    add the plates, their dressing and, last, the trap; the pipe metals are the same elements; the states only fit what exists,
+    add the plates, the trap and, last, services (the chutes and the water line), the dressing in none; the pipe metals are the same elements; the states only fit what exists,
     the amalgam only on dressed plates."""
     m = v.m
     rig = v.rig
@@ -114,10 +114,13 @@ def check_rig(v):
         if key in rig:
             v.fail(f"the rig has {key}: the plates take no power and do no work a driver follows")
     stages = rig["buildStages"]
-    if [(st["stage"], st["adds"], st["name"]) for st in stages] != [(n, req, name) for n, (req, name) in enumerate(m.BUILD_STAGES, 1)]:
+    if [(st["stage"], st["adds"], st["name"]) for st in stages] != [(n, list(req), name) for n, (req, name) in enumerate(m.BUILD_STAGES, 1)]:
         v.fail(f"the rig's build stages are {stages}")
-    if [st["adds"] for st in stages] != ["plates", "dressing", "trap"]:
-        v.fail("the build stages are not the plates, their dressing and, last, the trap")
+    if [st["adds"] for st in stages] != [["plates"], ["trap"], ["chutes", *m.PIPES]]:
+        v.fail("the build stages are not the plates, the trap and, last, services (the chutes and the water line)")
+    staged = [r for st in stages for r in st["adds"]]
+    if len(staged) != len(set(staged)) or set(staged) | set(m.RECURRING) | set(m.AMALGAM) != set(m.REQUIRES) or set(staged) & set(m.RECURRING):
+        v.fail("every built part is in one build stage, and the dressing and the amalgam in none")
     if rig["amalgamStates"] != list(m.AMALGAM):
         v.fail(f"the rig's amalgam states are {rig['amalgamStates']}")
     for pid in m.PIPES[1:]:
@@ -135,7 +138,7 @@ def check_rig(v):
         if sum(a in fit for a in m.AMALGAM) > 1 or sum(p in fit for p in m.PIPES) > 1:
             v.fail(f"{st} draws two amalgam states or two pipe metals at once")
     counts = {st: len(v.shown_els(st)) for st in m.STATES}
-    print("rig: no driver, no ride, no power; build stages " + ", ".join(f"{st['stage']} ({st['adds']})" for st in stages)
+    print("rig: no driver, no ride, no power; build stages " + ", ".join(f"{st['stage']} ({'+'.join(st['adds'])})" for st in stages)
           + "; elements shown: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
 
 
