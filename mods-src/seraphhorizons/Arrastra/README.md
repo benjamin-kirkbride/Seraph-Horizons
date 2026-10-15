@@ -4,7 +4,7 @@ Part of the Seraph Horizons mod (`../README.md`): the ore line's **small grinder
 epic #684). A mule-sized arrastra: a stone-paved pit where four heavy stones are dragged round and round over the
 ore by a turning post's arms. Batch, worked by hand: the player tips a charge of crushed rock straight into the pit
 and pours a bucket of water a rock after it, the stones grind it to a paste, and the player draws it out. It lifts poor ore's × 0.4
-and loses no metal. One machine with one level, built in stages on its frame (the crucible furnace's pattern); its
+and loses no metal. One machine, built in stages on its frame (the crucible furnace's pattern); its
 continuous successor is the ball mill (#915, its own machine).
 
 **Status: the model only.** This folder holds the generator (`tools/`). There is no block, block entity or renderer
@@ -13,8 +13,8 @@ with `assets/` or `tests/`, which are the mod's (`mods-src/seraphhorizons/`), or
 neighbour. The generic half of the generator is `Machines/tools/machinegen/`, unchanged by this machine:
 no new driver, every motion a `rotate` on the axle's angle or a ride.
 
-It is salvaged from `733-grinder-model-v2` (the grinder, which held this arrastra as its level 1 and a ball mill as
-its level 2): its frame and level 1, copied into a new generator and changed to #733's spec. What changed is listed
+It is salvaged from `733-grinder-model-v2` (the grinder, which held this arrastra and a ball mill
+in one model): its frame and its arrastra, copied into a new generator and changed to #733's spec. What changed is listed
 under [From the grinder](#from-the-grinder).
 
 ## The machine
@@ -299,7 +299,7 @@ stop regenerating.
 
 Copied from `733-grinder-model-v2` (its `Grinder/tools/make_shape.py` and `validate_grinder.py`): the vector and box
 helpers, the bevel pair (since replaced by the wooden `cog_wheel` and `lantern`), the pit (`build_pit`), the head frame
-(`build_head`, `hanger`), the power shaft (`build_power`), level 1's arrastra (`build_l1`), and the checks (gearing, supports, clearances,
+(`build_head`, `hanger`), the power shaft (`build_power`), the grinder's arrastra, and the checks (gearing, supports, clearances,
 gaps, containment, cells, z-fighting, the stage-floating rule). Changed to #733 and #732:
 
 - **No overflow notch, launder or output**: batch, emptied by hand. The notch's curb stone is now the draw gate's
@@ -308,8 +308,8 @@ gaps, containment, cells, z-fighting, the stage-floating rule). Changed to #733 
   is gone, and so are the grinder's hopper and its spout (`build_hopper`): the hopper's mouth was the machine's top
   face, which read as a place a chute could feed, and nothing automated feeds the arrastra (the owner's rule). The
   charge is tipped straight into the pit.
-- **No levels**: the ball mill's parts and `LEVELS` are gone; level 1's parts are the build's stages, renamed off
-  `l1*` (`l1post` → `post`, `pinion`, `step`; `l1arms` → `arms`; `l1stones` → `stones`).
+- **One machine**: the ball mill's parts are gone; the arrastra's parts are the build's stages (`post`, `pinion`,
+  `step`, `arms`, `stones`).
 - **No water inlet**: the grinder's soldered ppex inlet (`build_inlet`, `pipe_copies`) is gone, and with it the water
   anchor. The arrastra is watered by hand, a bucket a rock into the pit (the owner's ruling, [Water by the
   bucket](#water-by-the-bucket)).

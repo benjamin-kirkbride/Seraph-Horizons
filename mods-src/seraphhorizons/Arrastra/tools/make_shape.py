@@ -2,8 +2,8 @@
 """Generate the arrastra's shapes, rig and reference poses.
 
 The arrastra is the ore line's small grinder (behaviour #732, model #733, epic #684): a mule-sized drag-stone mill,
-batch, loaded and emptied by hand, turned by a vanilla axle in place of the mule. One machine, one level, built in
-stages on its frame (the crucible furnace's pattern):
+batch, loaded and emptied by hand, turned by a vanilla axle in place of the mule. One machine, built in stages on
+its frame (the crucible furnace's pattern):
 
     frame     placed: a timber head frame (four posts, two stringers, two transoms, knee braces) and, hung from it, the
               power shaft (the vanilla axle's cross at the back, high, then an iron shaft in two drop hangers); it turns

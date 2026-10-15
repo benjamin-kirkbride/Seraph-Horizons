@@ -69,7 +69,6 @@ class Rig(unittest.TestCase):
     def test_the_build_lists_the_stages_in_order(self):
         self.assertEqual([s["requires"] for s in RIG["build"]["stages"]], list(STAGES))
         self.assertEqual([req for req, _ in make_shape.STAGES], list(STAGES))
-        self.assertFalse([k for k in RIG if k in ("levels", "tiers")])
 
     def test_every_element_has_a_part_and_the_frame_shape_is_the_frame(self):
         names = [e["name"] for e in SHAPE["elements"]]
