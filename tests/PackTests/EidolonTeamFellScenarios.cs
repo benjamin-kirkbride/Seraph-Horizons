@@ -107,13 +107,14 @@ public class EidolonTeamFellScenarios(ITestOutputHelper output) : AtlasScenarioB
         return logs;
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario(TimeoutMs = 300_000)]
     public async Task Two_eidolons_fell_an_area_together_never_the_same_tree_and_report_once()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-820, 90, 1600), reach: 18);
         var logs = await Oaks([site.AddCopy(-9, 0, -2), site.AddCopy(0, 0, 7), site.AddCopy(9, 0, -2), site.AddCopy(-10, 0, 11), site.AddCopy(10, 0, 11)]);
 
         var (player, tool) = await Commander("eidolonfellteam", site.AddCopy(0, 0, -16));
+        using var clock = VirtualClock.Start(World);
         var e1 = await Spawn(site.AddCopy(-4, 0, -12), player);
         var e2 = await Spawn(site.AddCopy(4, 0, -12), player);
         GiveAxe(player, e1);

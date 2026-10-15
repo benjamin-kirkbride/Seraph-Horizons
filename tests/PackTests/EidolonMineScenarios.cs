@@ -17,7 +17,7 @@ namespace SeraphHorizons.PackTests;
 /// left, and the column under the chest; done, it climbs out two blocks up onto a shelf and walks back to
 /// where it was ordered. An area wider than it reaches from the rim, with a worn path across it: the
 /// path is mined, the middle too. On a floor of its own in the sky
-/// (<see cref="Felling.Sky"/>).
+/// (<see cref="Felling.Sky"/>), each from its spawn on the virtual clock (<see cref="VirtualClock"/>).
 /// </summary>
 [AtlasWorld]
 public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -93,7 +93,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(EnumBlockMaterial.Stone, W.GetBlock(new AssetLocation("game:rock-granite"))!.BlockMaterial);
     }
 
-    [AtlasScenario(TimeoutMs = 360_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task It_quarries_a_pit_three_deep_top_down_leaving_water_and_a_chest_and_climbs_out_two_blocks_up_to_walk_back()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-520, 90, 1600), reach: 13);
@@ -128,6 +128,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var toMine = cells.Where(c => !kept.Contains(c)).ToList();
 
         var (player, tool) = await Commander("eidolonminer", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
         var e = await Spawn(site.AddCopy(0, 0, -10), player);
         double oilBefore = e.Oil?.Tank?.Points ?? 0;
         OrderMine(player, tool, e, a, b);
@@ -197,7 +198,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 90_000)]
     public async Task It_mines_worn_paths_and_the_middle_of_a_wide_area_and_leaves_a_chest()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-520, 90, 1900), reach: 14);
@@ -244,6 +245,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var tool = player.InventoryManager.ActiveHotbarSlot;
         tool.Itemstack = new ItemStack(W.GetItem(new AssetLocation(EidolonCommanderSystem.CommanderCode)));
         tool.MarkDirty();
+        using var clock = VirtualClock.Start(World);
         var e = await Spawn(site.AddCopy(0, 0, -9), player);
         OrderMine(player, tool, e, a, b);
         var order = Assert.IsType<MineOrder>(e.Orders!.Current);
@@ -280,7 +282,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 90_000)]
     public async Task A_dry_reservoir_stops_it_and_oil_starts_it_again()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-520, 90, 1700), reach: 10);
@@ -296,6 +298,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         for (int z = 3; z <= 4; z++)
             blocks.SetBlock(granite, site.AddCopy(x, 0, z));
         var (player, tool) = await Commander("eidolondryminer", site.AddCopy(0, 0, -8));
+        using var clock = VirtualClock.Start(World);
         var e = await Spawn(site.AddCopy(0, 0, -2), player);
         if (e.Oil?.Tank == null)
             return; // MachineOil off: never dry.

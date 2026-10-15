@@ -15,11 +15,12 @@ namespace SeraphHorizons.PackTests;
 /// </summary>
 public partial class WoodworkingScenarios
 {
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task The_bucking_mill_starts_dry_takes_oil_on_any_cell_and_a_cut_drains_it()
     {
         var pos = Sky(-90, 120);
         var player = await Player("millgreaser");
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "south");
         Assert.True(mill.Oiling!.Dry, "a new mill is not dry");
         Assemble(mill, player);

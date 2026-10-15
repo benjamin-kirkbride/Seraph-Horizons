@@ -22,7 +22,9 @@ namespace SeraphHorizons.PackTests;
 /// the spiral one round its walls. The tunnels are 4 long, the least that shows each case, to keep the
 /// class within CI's shards (ci.yml: `eidolon-tall`, `eidolon-tall-team`, `eidolon-tall-team-6`, `eidolon-spiral`). The
 /// geometry is that of the planner's tests (MinePlannerTests), shortened. On floors of their own in the sky
-/// (<see cref="Felling.Sky"/>).
+/// (<see cref="Felling.Sky"/>). Each order runs on the virtual clock (<see cref="VirtualClock"/>), from the
+/// order to its end, its mine plans holding game time still; the site, the commander and the spawn before it
+/// in real time. Tick bounds and the seconds logged are game time.
 /// </summary>
 [AtlasWorld]
 public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -120,6 +122,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
     {
         var (_, player, tool) = await Commander(name, site.AddCopy(-10, 0, 1));
         var e = await Spawn(home, player);
+        using var clock = VirtualClock.Start(World);
         OrderMine(player, tool, [e], a, b);
         Assert.Equal(MineOrder.OrderCode, e.Orders!.OrderCode);
         var order = Assert.IsType<MineOrder>(e.Orders.Current);
@@ -160,7 +163,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         Assert.Equal(ordered.Y, e.Pos.Y, 0.6);
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task It_finishes_a_tunnel_six_high_into_a_slope_from_a_step_against_the_face()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-920, 90, 1600), reach: 15);
@@ -192,7 +195,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task It_finishes_a_tunnel_eight_high_into_a_stepped_slope()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-920, 90, 1800), reach: 15);
@@ -222,11 +225,11 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task It_reports_the_top_of_a_tunnel_six_high_into_a_flat_face_out_of_reach_and_keeps_the_floor_under_it() =>
         await FlatFace(6, 2000);
 
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task It_reports_the_top_of_a_tunnel_eight_high_into_a_flat_face_out_of_reach_and_keeps_the_floor_under_it() =>
         await FlatFace(8, 2200);
 
@@ -263,10 +266,10 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 900_000)]
+    [AtlasScenario(TimeoutMs = 360_000)]
     public async Task Two_eidolons_finish_a_tunnel_eight_high_four_wide_into_a_stepped_slope() => await TwoOnAStepped(8, 2400);
 
-    [AtlasScenario(TimeoutMs = 900_000)]
+    [AtlasScenario(TimeoutMs = 360_000)]
     public async Task Two_eidolons_finish_a_tunnel_six_high_four_wide_into_a_stepped_slope() => await TwoOnAStepped(6, 2600);
 
     /// <summary>The stepped slope 4 wide (the hill and its steps z -3 to 6, the tunnel z 0 to 3), two eidolons
@@ -284,6 +287,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         var e1 = await Spawn(site.AddCopy(-6, 0, 0), player);
         var e2 = await Spawn(site.AddCopy(-6, 0, 4), player);
         var eidolons = new[] { e1, e2 };
+        using var clock = VirtualClock.Start(World);
         OrderMine(player, tool, eidolons, a, b);
         var orders = eidolons.Select(e => Assert.IsType<MineOrder>(e.Orders!.Current)).ToArray();
         var homes = eidolons.Select(e => e.Pos.XYZ).ToArray();
@@ -326,7 +330,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
             e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task It_digs_a_stair_out_of_a_pit_five_deep_and_leaves_it()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-920, 90, 2800), reach: 15);
@@ -352,7 +356,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 1_500_000)]
+    [AtlasScenario(TimeoutMs = 480_000)]
     public async Task Two_eidolons_dig_a_pit_too_deep_for_a_straight_stair_and_climb_out_by_its_spiral()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-920, 90, 3000), reach: 15);
@@ -368,6 +372,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         var e1 = await Spawn(site.AddCopy(-4, 0, 0), player);
         var e2 = await Spawn(site.AddCopy(-4, 0, 5), player);
         var eidolons = new[] { e1, e2 };
+        using var clock = VirtualClock.Start(World);
         OrderMine(player, tool, eidolons, a, b);
         var orders = eidolons.Select(e => Assert.IsType<MineOrder>(e.Orders!.Current)).ToArray();
         var homes = eidolons.Select(e => e.Pos.XYZ).ToArray();

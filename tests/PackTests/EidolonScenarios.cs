@@ -195,7 +195,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
     /// it struck, coming for it, lets it go once it is down and does not take it up again while it is.
     /// A player in creative watches (the game runs AI only near a player, and a drifter ignores one in
     /// creative).</summary>
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task It_never_heals_by_itself_and_creatures_lose_it_once_it_is_down()
     {
         var p = await World.JoinPlayer("eidolonbystander");
@@ -203,6 +203,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
         await p.TeleportTo(at.AddCopy(-10, 0, -10));
         ((IServerPlayer)p.Player).WorldData.CurrentGameMode = EnumGameMode.Creative;
         var e = await Spawn(at, null);
+        using var clock = VirtualClock.Start(World);
         var health = e.GetBehavior<EntityBehaviorHealth>()!;
 
         // Hurt, it stays hurt: the health behaviour's regeneration is held at 0.
@@ -262,10 +263,11 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
         return (e, target);
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task It_walks_through_a_two_wide_four_high_gate()
     {
         var (e, target) = await AtTheWall(140, 2, 4, "eidolonwatcher");
+        using var clock = VirtualClock.Start(World);
         await World.Until(() => e.Orders!.OrderCode == null, 2400);
         Log("through the gate: " + State(e));
         Assert.True(e.Pos.XYZ.HorizontalSquareDistanceTo(target) < 1.5 * 1.5, State(e));

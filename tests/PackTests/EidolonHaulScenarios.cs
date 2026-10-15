@@ -23,12 +23,13 @@ namespace SeraphHorizons.PackTests;
 /// </summary>
 public partial class WoodworkingEidolonScenarios
 {
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task An_eidolon_hauls_a_thin_and_a_thick_trunk_to_a_rosser()
     {
         var pos = await RosserSky(-520, -240, reach: 34);
         var player = await Player("hauler");
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, "east");
         RosserReady(rosser, player);
         await PowerRosser(rosser);

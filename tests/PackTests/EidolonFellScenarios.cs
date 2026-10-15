@@ -108,7 +108,7 @@ public class EidolonFellScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(EidolonOrders.Exists(FellOrder.OrderCode));
     }
 
-    [AtlasScenario(TimeoutMs = 480_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task Given_an_axe_it_fells_an_area_of_three_trees_and_replants_them()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-420, 90, 1300), reach: 18);
@@ -134,6 +134,7 @@ public class EidolonFellScenarios(ITestOutputHelper output) : AtlasScenarioBase
         await World.Ticks(5);
 
         var (player, tool) = await Commander("eidolonforester", site.AddCopy(0, 0, -14));
+        using var clock = VirtualClock.Start(World);
         var e = await Spawn(site.AddCopy(0, 0, -11), player);
         double oilBefore = e.Oil?.Tank?.Points ?? 0;
         // It carries a sapling and a seed of oak: two of the three are replanted.
@@ -187,7 +188,7 @@ public class EidolonFellScenarios(ITestOutputHelper output) : AtlasScenarioBase
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 360_000)]
+    [AtlasScenario(TimeoutMs = 180_000)]
     public async Task An_axe_that_breaks_stops_it_until_it_is_given_another()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-420, 90, 1400), reach: 14);
@@ -201,6 +202,7 @@ public class EidolonFellScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(Wood(first) >= Mod.Config.FellMinLogs && Wood(second) >= Mod.Config.FellMinLogs, $"{Wood(first)}, {Wood(second)}");
 
         var (player, tool) = await Commander("eidolonaxebreak", site.AddCopy(0, 0, -12));
+        using var clock = VirtualClock.Start(World);
         var e = await Spawn(site.AddCopy(-4, 0, -6), player);
         // Worn to the felling figure: it shatters after the first tree is down.
         GiveAxe(player, e, durability: FellingWearConfig.Defaults.ThinTree);

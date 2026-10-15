@@ -154,7 +154,7 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(EidolonOrders.Exists(GuardOrder.OrderCode));
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 150_000)]
     public async Task Guarding_it_kills_a_drifter_near_its_point_and_leaves_one_far_and_a_bred_wolf()
     {
         var at = await Floor(0, 0, reach: 28);
@@ -163,6 +163,7 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(4, 0, -6));
         var e = (await SpawnEidolon(at.AddCopy(-3, 0, 0), player));
+        using var clock = VirtualClock.Start(World);
 
         // The owner binds the tool, chooses guard and marks the floor block under the point.
         var item = W.GetItem(new AssetLocation(EidolonCommanderSystem.CommanderCode))!;
@@ -216,7 +217,7 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
             c.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 150_000)]
     public async Task Guards_of_one_point_each_stand_at_a_post_of_their_own()
     {
         var at = await Floor(80, 0, reach: 14);
@@ -226,6 +227,7 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var guards = new List<EntityLaborEidolon>();
         foreach (var (dx, dz) in new[] { (-6, -6), (6, -6), (-6, 6) })
             guards.Add(await SpawnEidolon(at.AddCopy(dx, 0, dz), player));
+        using var clock = VirtualClock.Start(World);
         var point = GuardOrder.PointOn(at.DownCopy());
         foreach (var g in guards)
             g.Orders!.SetOrder(GuardOrder.OrderCode, GuardOrder.Args(point));

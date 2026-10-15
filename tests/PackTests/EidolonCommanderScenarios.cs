@@ -109,7 +109,7 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
         Assert.True(Priority(AiTaskEidolonDefend.Code) > Priority(AiTaskEidolonOrder.Code));
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 150_000)]
     public async Task Bound_by_its_owner_it_follows_them_over_rough_ground()
     {
         var at = await Floor(0, 0, reach: 20);
@@ -135,6 +135,7 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(-3, 0, 1));
         var e = await Spawn(at.AddCopy(-6, 0, 1), player);
+        using var clock = VirtualClock.Start(World);
 
         var slot = Tool(player);
         RightClick(player, slot, entity: e);
@@ -237,7 +238,7 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task It_strikes_back_at_a_creature_that_hurts_it_never_a_player_and_holds_its_order()
     {
         var at = await Floor(180, 0, reach: 12);
@@ -246,6 +247,7 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(-10, 0, -10));
         var e = await Spawn(at, player);
+        using var clock = VirtualClock.Start(World);
         e.Orders!.SetOrder(StayOrder.OrderCode, StayOrder.Args(e.Pos.XYZ));
         var post = e.Pos.XYZ;
         var defend = e.TaskAi!.TaskManager.GetTask<AiTaskEidolonDefend>();
@@ -280,7 +282,7 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task It_runs_down_and_strikes_on_the_move_a_creature_walking_away()
     {
         var at = await Floor(240, 0, reach: 30);
@@ -289,6 +291,7 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(0, 0, -12));
         var e = await Spawn(at.AddCopy(-20, 0, 0), player);
+        using var clock = VirtualClock.Start(World);
         e.Orders!.SetOrder(StayOrder.OrderCode, StayOrder.Args(e.Pos.XYZ));
         var defend = e.TaskAi!.TaskManager.GetTask<AiTaskEidolonDefend>()!;
 

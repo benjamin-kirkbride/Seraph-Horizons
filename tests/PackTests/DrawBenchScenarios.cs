@@ -15,7 +15,8 @@ namespace SeraphHorizons.PackTests;
 // driven by a real mechanical power network (a vanilla creative rotor against its power face). A
 // hollow section (the game's chute section) is four pipe sections of about 8 axle turns each (lead;
 // copper twice that), so each scenario that runs it under power waits for the first pipe section to
-// come off the shaft's own turning, then finishes the hollow through BEDrawBench.Draw, as the gear cutter's scenarios finish a gear through Cut. Every
+// come off the shaft's own turning, then finishes the hollow through BEDrawBench.Draw, as the gear cutter's scenarios finish a gear through Cut,
+// the powered part on the virtual clock (tests/PackTests/README.md). Every
 // scenario builds on a granite floor of its own 40 above spawn at x -240 to -300, z -240 to -260
 // (clear of the gear cutter's at x/z -140 to -200), and they share the gear cutter's player,
 // gearcutterhand (the server takes 16 players at most, and the other scenarios use the rest).
@@ -308,13 +309,14 @@ public partial class SharedWorldScenarios
     // face, the first one by the shaft's own turning; copper is refused by the iron die, and an ingot,
     // an angle or a pipe section is never taken; the die loses a point a hollow and the tank 2 points
     // a pipe section.
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Draw_bench_draws_four_lead_pipe_sections_from_a_hollow_with_an_iron_die_under_power()
     {
         var pos = await CutterSite(-264, -260);
         var player = await CutterPlayer();
         var bench = await PlaceBench(pos, "south");
         AssembleBench(bench, player);
+        using var clock = VirtualClock.Start(World);
 
         // an ingot, an angle or a pipe section (what comes off) is not what it draws: the click is the
         // item's own business
@@ -511,7 +513,7 @@ public partial class SharedWorldScenarios
     // A chest in front of the die end and one by the output face are left alone: the running bench
     // takes no hollow from the first, and the pipe sections of a hollow put on by hand drop by the
     // output face rather than going into the second.
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Draw_bench_takes_nothing_from_a_chest_and_puts_nothing_in_one()
     {
         var pos = await CutterSite(-252, -280);
@@ -528,6 +530,7 @@ public partial class SharedWorldScenarios
         source.Inventory[0].Itemstack = CutterItem(Drawing.LeadHollow, 2);
         source.MarkDirty(true);
 
+        using var clock = VirtualClock.Start(World);
         await PowerBench(bench);
         await World.Ticks(60);
         Assert.False(bench.JobOn);

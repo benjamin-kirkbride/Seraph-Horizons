@@ -23,12 +23,13 @@ namespace SeraphHorizons.PackTests;
 /// </summary>
 public partial class WoodworkingEidolonScenarios
 {
-    [AtlasScenario(TimeoutMs = 600_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task An_eidolon_crew_fells_two_trees_and_hauls_both_trunks_to_a_rosser()
     {
         var pos = await Felling.Sky(World, World.Spawn.AddCopy(-640, 50, 1700), reach: 34);
         var player = await Player("crewboss");
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, "east");
         RosserReady(rosser, player);
         await PowerRosser(rosser);
@@ -106,7 +107,8 @@ public partial class WoodworkingEidolonScenarios
         bool had = false;
         int ticks = 0;
         var crew = Assert.IsType<CrewOrder>(e.Orders.Current);
-        var clock = System.Diagnostics.Stopwatch.StartNew();
+        long start = W.ElapsedMilliseconds;
+        TimeSpan Spent() => TimeSpan.FromMilliseconds(W.ElapsedMilliseconds - start);
         await World.Until(() =>
         {
             var on = rosser.Trunk;
@@ -120,9 +122,9 @@ public partial class WoodworkingEidolonScenarios
                 rosser.TakeFinished();
             if (++ticks % 600 == 0)
                 output.WriteLine(State());
-            return taken.Count >= 2 || (crew.Done && crew.LeftLying(e) > 0) || clock.Elapsed > CrewBudget;
+            return taken.Count >= 2 || (crew.Done && crew.LeftLying(e) > 0) || Spent() > CrewBudget;
         }, int.MaxValue);
-        Assert.True(taken.Count >= 2, $"the rosser took {taken.Count} of 2 trunks in {clock.Elapsed.TotalSeconds:0} s "
+        Assert.True(taken.Count >= 2, $"the rosser took {taken.Count} of 2 trunks in {Spent().TotalSeconds:0} s of game time "
                                       + $"(crew done {crew.Done}, {crew.LeftLying(e)} trunks given up); " + State());
         Assert.All(logs, l => Assert.Equal(0, Wood(l)));
         Assert.Equal(woods.Sum(), taken.Sum(t => Trunks.StoredLogs(t, W)));
@@ -146,8 +148,8 @@ public partial class WoodworkingEidolonScenarios
         KillItemsNear(pos, 40);
     }
 
-    /// <summary>The longest the crew scenario waits for both trunks to reach the rosser (about two
-    /// minutes when it works), well under its watchdog.</summary>
+    /// <summary>The longest the crew scenario waits for both trunks to reach the rosser, in game time
+    /// (about two minutes when it works); on the virtual clock well under its watchdog.</summary>
     private static readonly TimeSpan CrewBudget = TimeSpan.FromMinutes(5);
 
     private List<EntityTrunk> TrunksLying(BlockPos around, int radius) =>
