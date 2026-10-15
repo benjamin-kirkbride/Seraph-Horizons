@@ -36,6 +36,11 @@ public async Task It_digs_the_pit()
   pattern its transpiler looks for in `ServerMain.Process`, is missing, as a game or .NET update can do. Find
   them again by decompiling `VintagestoryLib.dll` (`ilspycmd -t Vintagestory.Server.ServerMain ...`) and
   update `VirtualClock.Engine`.
+- **Its Harmony patch is checked at every `Start`, and put back if gone.** MadMechanics, MadFoundation and
+  MadHoarding call `Harmony.UnpatchAll(null)` when a server stops, which takes every patch in the process
+  off, the clock's too. Patched only once, a later class's clock would stop the server's clock for good and
+  hang until the watchdog. If the patch goes while a clock runs, a watch on a timer sees passes running
+  without it, records a fault and goes back to real time, so `Dispose` fails with the reason instead.
 - **No game time passes while an eidolon mine plan is made off the main thread**: `Start` holds the clock
   while any is on its worker (`MinePlanHold`, read from `EidolonMinePlans`' private state). Pass
   `holdMinePlans: false` to measure the planner's latency in game time instead.

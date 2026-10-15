@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Atlas.XUnit;
+using HarmonyLib;
 using SeraphHorizons.Mod.Eidolon;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -142,6 +143,30 @@ public class VirtualClockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("a hold that never clears", fault.Message);
         Assert.Null(VirtualClock.Current);
         Assert.True(Server.totalUnpausedTime.IsRunning, "the master clock was not started again");
+    }
+
+    [AtlasScenario(TimeoutMs = 60_000)]
+    public async Task Its_patch_is_put_back_when_taken_off_and_a_loss_mid_run_fails_instead_of_hanging()
+    {
+        // As MadMechanics' UnpatchAll(null) does at a server's stop (here only ours, to spare the mods' patches):
+        // Start patches again, and the clock steps as ever.
+        new Harmony(VirtualClock.HarmonyId).UnpatchAll(VirtualClock.HarmonyId);
+        using (VirtualClock.Start(World))
+            Virtual(await Window("virtual after an unpatch", 60), 60);
+
+        // Taken off while a clock runs: the master clock would never move again. The watch sees passes running
+        // with no prefix, faults and goes back to real time; Dispose names it.
+        var clock = VirtualClock.Start(World, holdMinePlans: false);
+        await World.Ticks(5);
+        new Harmony(VirtualClock.HarmonyId).UnpatchAll(VirtualClock.HarmonyId);
+        var wall = Stopwatch.StartNew();
+        await World.Until(() => VirtualClock.Current == null, 600);
+        Log($"patch lost: real time again after {wall.ElapsedMilliseconds} ms of wall time");
+        Assert.True(Server.totalUnpausedTime.IsRunning, "the master clock was not started again");
+        var fault = Assert.Throws<InvalidOperationException>(clock.Dispose);
+        Log("patch lost: " + fault.Message);
+        Assert.Contains("without the virtual clock's patch", fault.Message);
+        Real(await Window("real after a lost patch", 60), 60);
     }
 
     private async Task<(int Mined, int Strikes, string Line)> MineRow(string name, BlockPos origin)

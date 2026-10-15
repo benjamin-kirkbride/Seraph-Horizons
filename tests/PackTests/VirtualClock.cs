@@ -39,6 +39,14 @@ namespace SeraphHorizons.PackTests;
 /// <see cref="Start"/>, which throws <see cref="NotSupportedException"/> naming what is missing (a game or
 /// .NET update can rename them). A scenario that ends with its clock still on (no <c>using</c>) fails and
 /// the clock is stopped (<see cref="VirtualClockGuardAttribute"/>), so it never leaks into the next one.</para>
+///
+/// <para>The patch does not outlive a server: MadMechanics, MadFoundation and MadHoarding call
+/// <c>Harmony.UnpatchAll(null)</c> in their Dispose, which takes off every Harmony patch in the process, ours
+/// too, when a class's server stops. So <see cref="Start"/> checks for it each time and patches again. Without
+/// the prefix the stopped master clock would never move again and every tick wait would hang until the
+/// scenario's watchdog (#960, CI run 38679326640). Should the patch go while a clock runs, a watch on a timer
+/// sees passes running with no prefix, records a fault and goes back to real time, so the scenario fails
+/// with the reason instead of hanging.</para>
 /// </summary>
 public sealed class VirtualClock : IDisposable
 {
@@ -52,6 +60,14 @@ public sealed class VirtualClock : IDisposable
     // physics' sender is a few ms of work: this long busy means it is stuck
     private static readonly TimeSpan PhysicsTimeout = TimeSpan.FromSeconds(10);
 
+    // passes running (the engine's per-pass watch restarted within this) with no prefix for PatchLostAfter:
+    // the patch is gone
+    private static readonly TimeSpan PassesRunning = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan PatchLostAfter = TimeSpan.FromSeconds(3);
+
+    /// <summary>The Harmony id of its patch on Process.</summary>
+    internal const string HarmonyId = "seraphhorizons.packtests.virtualclock";
+
     private static readonly object Gate = new();
     private static Engine? _engine;
     private static VirtualClock? _current;
@@ -64,6 +80,8 @@ public sealed class VirtualClock : IDisposable
     private readonly List<Hold> _holds = new();
     private readonly List<string> _faults = new();
     private bool _disposed;
+    private System.Threading.Timer? _watch;
+    private long _lastPrefix = Environment.TickCount64;
 
     /// <summary>The clock running now, if any.</summary>
     public static VirtualClock? Current
@@ -108,6 +126,8 @@ public sealed class VirtualClock : IDisposable
             if (_current != null)
                 throw new InvalidOperationException($"a virtual clock is already on (started at {_current.StartedAt}); clocks do not nest");
             var e = _engine ??= Engine.Resolve();
+            // a mod's UnpatchAll(null) at the last server's stop took it off
+            e.EnsurePatched();
             var clock = new VirtualClock(e, server, api, e.Physics(server), at);
             if (holdMinePlans && MinePlanHold.For(api) is { } planning)
                 clock._holds.Add(new Hold(clock, planning, "an eidolon mine plan made off the main thread", DefaultHoldTimeout));
@@ -115,6 +135,7 @@ public sealed class VirtualClock : IDisposable
             watch.Stop();
             clock._elapsed = (long)e.Elapsed.GetValue(watch)!;
             _current = clock;
+            clock._watch = new System.Threading.Timer(_ => clock.WatchPatch(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
             return clock;
         }
     }
@@ -161,6 +182,14 @@ public sealed class VirtualClock : IDisposable
     {
         _disposed = true;
         _holds.Clear();
+        RealTimeAgain();
+    }
+
+    // Under Gate: no longer the clock on, the master clock running on from the virtual time.
+    private void RealTimeAgain()
+    {
+        _watch?.Dispose();
+        _watch = null;
         if (_current != this)
             return;
         _current = null;
@@ -198,9 +227,38 @@ public sealed class VirtualClock : IDisposable
     {
         lock (Gate)
         {
-            if (_current is not { } clock || clock._server != __instance || __instance.Suspended)
+            if (_current is not { } clock || clock._server != __instance)
+                return;
+            clock._lastPrefix = Environment.TickCount64;
+            if (__instance.Suspended)
                 return;
             clock.Advance();
+            clock._lastPrefix = Environment.TickCount64;
+        }
+    }
+
+    // On a timer thread, every second: passes running (the engine restarts its per-pass watch each one)
+    // while the prefix has not run for PatchLostAfter means the patch on Process is gone (a mod unpatched
+    // everything). The master clock would never move again, so: a fault, and real time again.
+    private void WatchPatch()
+    {
+        try
+        {
+            lock (Gate)
+            {
+                if (_current != this || _server.Suspended
+                    || Environment.TickCount64 - _lastPrefix < PatchLostAfter.TotalMilliseconds
+                    || _e.FrameWatch.GetValue(_server) is not Stopwatch { Elapsed: var sincePass } || sincePass > PassesRunning)
+                    return;
+                Fault($"passes ran for {PatchLostAfter.TotalSeconds:0} s without the virtual clock's patch on ServerMain.Process "
+                    + $"({_e.PatchState()}): something unpatched it (a mod's Harmony.UnpatchAll(null)?); back on real time");
+                RealTimeAgain();
+            }
+        }
+        catch (Exception ex)
+        {
+            // never let a timer callback take the test host down
+            Api.Logger.Warning("[virtual-clock] the patch watch failed: {0}", ex);
         }
     }
 
@@ -325,6 +383,9 @@ public sealed class VirtualClock : IDisposable
         public required FieldInfo Offthread { get; init; }
         public required FieldInfo OffthreadIdle { get; init; }
         public required FieldInfo OffthreadQueue { get; init; }
+        public required FieldInfo FrameWatch { get; init; }
+
+        private static readonly MethodInfo Process = AccessTools.Method(typeof(ServerMain), nameof(ServerMain.Process));
 
         private const BindingFlags Any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
@@ -350,12 +411,37 @@ public sealed class VirtualClock : IDisposable
                 Offthread = offthread!,
                 OffthreadIdle = Field(tasks, "idle", typeof(bool)),
                 OffthreadQueue = Field(tasks, "queue", typeof(ICollection)),
+                FrameWatch = Field(typeof(ServerMain), "lastFramePassedTime", typeof(Stopwatch)),
             };
             if (missing.Count > 0)
                 throw new NotSupportedException("the virtual clock cannot run on this engine: missing " + string.Join(", ", missing)
                     + ". A game or .NET update renamed them: find them again by decompiling (tests/PackTests/README.md).");
-            Patch();
+            e.EnsurePatched();
             return e;
+        }
+
+        /// <summary>Process carries this clock's prefix and transpiler: patched (again) if not, as after a
+        /// mod's <c>UnpatchAll(null)</c>.</summary>
+        public void EnsurePatched()
+        {
+            if (Patched())
+                return;
+            Patch();
+            if (!Patched())
+                throw new NotSupportedException("the virtual clock patched ServerMain.Process but its patch is not on it: " + PatchState());
+        }
+
+        private static bool Patched()
+        {
+            var info = Harmony.GetPatchInfo(Process);
+            return info != null && info.Prefixes.Any(p => p.owner == HarmonyId) && info.Transpilers.Any(p => p.owner == HarmonyId);
+        }
+
+        /// <summary>Who has patched Process, for the messages.</summary>
+        public string PatchState()
+        {
+            var info = Harmony.GetPatchInfo(Process);
+            return info == null ? "Process carries no Harmony patch" : "Process patched by " + string.Join(", ", info.Owners);
         }
 
         /// <summary>The off-thread sender of <paramref name="server"/>'s physics manager, or null when it has
@@ -375,10 +461,9 @@ public sealed class VirtualClock : IDisposable
 
         private static void Patch()
         {
-            var process = AccessTools.Method(typeof(ServerMain), nameof(ServerMain.Process));
             try
             {
-                new Harmony("seraphhorizons.packtests.virtualclock").Patch(process,
+                new Harmony(HarmonyId).Patch(Process,
                     prefix: new HarmonyMethod(typeof(VirtualClock), nameof(BeforePass)),
                     transpiler: new HarmonyMethod(typeof(Engine), nameof(SkipPacingSleep)));
             }
