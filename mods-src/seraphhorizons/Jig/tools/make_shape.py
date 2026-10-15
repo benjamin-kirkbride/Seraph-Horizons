@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Generate the jig's shapes, rig and reference poses.
 
-The jig (#919, model #920, the ore processing epic #684) is a Harz plunger jig, one machine and one
-level: a plank box of water (the hutch) divided across by a partition open below it, the sieve
-compartment at the front and the plunger compartment behind. An eccentric on the jig's own shaft,
+The jig (#919, model #920, the ore processing epic #684) is a Harz plunger jig: a plank box of water (the
+hutch) divided across by a partition open below it, the sieve compartment at the front and the plunger
+compartment behind. An eccentric on the jig's own shaft,
 from the vanilla axle at the power face, works the plunger up and down through an iron yoke (a slotted
 crosshead, the Scotch yoke's way, so the stroke is exactly a sine of the shaft's angle and the same
 either way the axle turns: no rectifier). Each stroke pulses the water up through the sieve and the

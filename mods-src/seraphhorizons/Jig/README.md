@@ -10,7 +10,7 @@ sieve to its tail end and over the **weir**. Crushed or ground ore comes in by c
 (#919: r = 0.60, 8 rock an hour, on the sluice's tailings, before the table).
 
 This folder holds the model's generator (`tools/`). The gameplay is #919 and is not built yet; the model
-is #920. One machine, one level: nothing is fitted later that changes it.
+is #920. It is one machine, built in stages (the `requires` ids below).
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/` and `site/`, which are the repository's. The generic half
