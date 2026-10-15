@@ -53,7 +53,7 @@ public class CrucibleFurnaceRigTests
         Assert.Equal(new[] { new StageMaterial("game:refractorybrick-fired-tier3", 4), new StageMaterial("game:metalplate-iron", 2) }, rig.Stages[2].Materials);
         Assert.Equal(new[] { "damperopen", "damperhalf", "dampershut" }, rig.Stages[2].Also);
         Assert.Equal(new StageMaterial("game:metalplate-iron", 1), rig.OutletCap);
-        Assert.Equal(new[] { new StageMaterial("game:metalplate-iron", 2), new StageMaterial("game:rod-iron", 4), new StageMaterial("game:metalnailsandstrips-iron", 10) },
+        Assert.Equal(new[] { new StageMaterial("game:metalplate-iron", 1), new StageMaterial("game:rod-iron", 4) },
             rig.FrameIngredients);
         Assert.Equal(new[] { "fire", "black", "brown", "cream", "gray", "orange", "red", "tan", "clinker" }, rig.Bricks.Types.Select(t => t.Id));
         Assert.Equal("red", rig.Bricks.Default);
