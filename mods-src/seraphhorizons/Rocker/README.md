@@ -24,9 +24,8 @@ work, the hold-to-work clock, and unlike on the press brake, the squaring shear 
 (whose θ moves nothing) it is the motion itself: one turn of θ is one rock, over to the south and back
 over to the north. There is no work quantity: the rig reads θ alone.
 
-**One item, no build stages.** A machine's level is parts fitted to that same equipment, and only three of
-the epic's machines have a level 2; a hand station has no levels and no build stages. The rocker is placed
-whole, as one item, and its only `requires` values are what it holds: water, a charge and concentrate.
+**One item, no build stages.** A hand station has no build stages. The rocker is placed whole, as one
+item, and its only `requires` values are what it holds: water, a charge and concentrate.
 
 **By hand only: no automated input or output** (the owner's ruling for every hand station). No chute,
 hopper or other item transfer puts anything into the rocker or takes anything out of it: the player tips a
