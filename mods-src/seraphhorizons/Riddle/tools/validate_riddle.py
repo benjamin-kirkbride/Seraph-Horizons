@@ -1,5 +1,4 @@
-"""The riddle generator's validation: make_shape.py calls `validate` (per form), `check_same_riddle` and
-`validate_files` (per form).
+"""The riddle generator's validation: make_shape.py calls `validate` and `validate_files`.
 
 Every check prints what it measured and fails the run (the script exits non-zero) when the model breaks its rule.
 Everything is in the build frame (voxels), on the model before the origin shift; `check_shipped` in make_shape.py
@@ -17,14 +16,15 @@ from machinegen.rigmath import apply as _apply
 from machinegen.rigmath import part_of, posed
 
 MIN_THICK = 0.75                             # no structural part thinner than this (the charge's layers are a heap, not parts)
-MAX_ELEMENTS = {"hand": 40, "stand": 64}     # kept low: readable at block scale
-CHARGE = r"^c[12]"                           # the charge's parts and elements
+MAX_ELEMENTS = 56                            # kept low: readable at block scale
+CHARGE = r"^(oversize|heap|fines)_"          # the charge's and the fines' elements
+THIN_OK = r"^fr_strap_"                      # iron straps and their nail heads are thin by nature
 
 
 class V:
-    def __init__(self, m, form, els, parts, rig):
-        self.m, self.form, self.els, self.parts, self.rig = m, form, els, parts, rig
-        self.tag = f"[{form}] "
+    def __init__(self, m, els, parts, rig):
+        self.m, self.els, self.parts, self.rig = m, els, parts, rig
+        self.tag = ""
         self.by_part = {}
         for el in els:
             self.by_part.setdefault(el.part, []).append(el)
@@ -76,15 +76,14 @@ def present(m, pid, k):
 
 def cycle_poses(v, step=0.005):
     n = int(round(1 / step))
-    return [v.m.pose_at(k, i * step) for k in (1, 2) for i in range(n + 1)]
+    return [v.m.pose_at(i * step) for i in range(n + 1)]
 
 
 def grid_poses(v):
-    """W over the cycle against the shake's phase (psi a quarter turn apart and between), both classes."""
+    """W over the cycle against the shake's phase (psi an eighth of a turn apart), and a few at half presence."""
     ws = (0.0, 0.03, 0.06, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.64, 0.7, 0.8, 0.82, 0.9, 1.0)
-    psis = [i * math.pi / 4 for i in range(8)]
-    return ([(psi, w, k, 1.0) for k in (1, 2) for w in ws for psi in psis]
-            + [(psi, 0.5, k, 0.5) for k in (1, 2) for psi in psis[::2]])
+    psis = [i * math.pi / 8 for i in range(16)]
+    return [(psi, w, 1, 1.0) for w in ws for psi in psis] + [(psi, 0.5, 1, 0.5) for psi in psis[::2]]
 
 
 def check_basic(v):
@@ -106,11 +105,12 @@ def check_basic(v):
 
 
 def check_readable(v):
-    """Readable at block scale: few elements, and no part of the riddle, the stand or the frame thinner than MIN_THICK
-    (the charge's lumps and layers are a heap, drawn in the ore's texture, and are left out)."""
-    structural = [el for el in v.els if not re.match(CHARGE, el.name)]
+    """Readable at block scale: few elements, and no part of the riddle or the frame thinner than MIN_THICK (the
+    charge's lumps and layers and the fines are a heap, drawn in the ore's texture, and the corner straps and their
+    nails are iron, thin by nature: they are left out)."""
+    structural = [el for el in v.els if not re.match(CHARGE, el.name) and not re.match(THIN_OK, el.name)]
     thin = [(el.name, round(min(abs(s) for s in el.size), 3)) for el in structural if min(abs(s) for s in el.size) < MIN_THICK - 1e-9]
-    most = MAX_ELEMENTS[v.form]
+    most = MAX_ELEMENTS
     v.say(f"readable: {len(v.els)} elements (at most {most}); thinnest structural part "
           f"{min(min(abs(s) for s in el.size) for el in structural):.2f} voxels")
     if len(v.els) > most:
@@ -120,7 +120,7 @@ def check_readable(v):
 
 
 def check_containment(v, poses):
-    """Nothing leaves the cell over the cycle of both charges and the shake's phase."""
+    """Nothing leaves the cell over the cycle and the shake's phase."""
     m = v.m
     size = [n * 16.0 for n in m.CELLS]
     worst, where = -1e9, None
@@ -148,13 +148,11 @@ def check_floating(v):
 ROLES = [
     # (element regex, the textures it may wear)
     (r"^fr_box_(wall|bottom)", {"planks"}),
-    (r"^fr_(bearer|sill|post|head|brace|tie)", {"oak"}),
+    (r"^fr_bearer", {"oak"}),
+    (r"^fr_strap_", {"iron"}),
     (r"^riddle_(lower|upper)", {"oak"}),
     (r"^riddle_wire", {"iron"}),
-    (r"^riddle_grip_bar", {"oak"}),
-    (r"^riddle_(grip_post|pin)", {"iron"}),
-    (r"^hanger_", {"iron"}),
-    (r"^c[12](over|heap|top|fines)", {"ore"}),
+    (r"^(oversize|heap|fines)_", {"ore"}),
 ]
 
 
@@ -204,95 +202,90 @@ def same(a, b, tol=1e-9):
     return max(abs(a[i][j] - b[i][j]) for i in range(3) for j in range(4)) <= tol
 
 
-HEAPS = {1: (("c1heap", "HEAP_Y", "top1"),), 2: (("c2top", "LOW_TOP", "top"), ("c2heap", "HEAP_Y", "mid"))}
-FINES = {1: (("c1fines", "BOX_BOTTOM", "top1"),), 2: (("c2fines1", "BOX_BOTTOM", "top"), ("c2fines2", "F2_FLOOR", "mid"))}
-
-
 def layer(els):
-    """One layer's element: (vanished, bottom, height)."""
-    e = els[0]
-    if e.vanished:
+    """A stretched part's elements: (vanished, bottom, height)."""
+    if all(e.vanished for e in els):
         return True, None, 0.0
-    lo, hi = e.aabb()
+    lo, hi = aabb_of([e for e in els if not e.vanished])
     return False, lo[1], hi[1] - lo[1]
 
 
 def check_charge(v):
-    """The charge through one riddling, each class: as loaded at W 0 (the heap whole, no fines in the box); the lumps
-    riding the riddle; every layer of the heap shrinking onto its own underside in the riddle's frame, never growing,
-    and gone by the end of its window (a full charge's top before its lower layer starts); every layer of fines in the
-    box growing from its underside, never shrinking, from nothing at the start of its window to whole at its end; at
-    W 1 the riddle at rest with the lumps, the oversize, on the mesh, each standing on a wire along z, and the fines in
-    the box. The lumps stand out of the heap from the start and inside the riddle's top tier."""
+    """The charge through one riddling: as loaded at W 0 (the layer of fines on the mesh whole, nothing in the box);
+    the lumps riding the riddle; the layer shrinking onto its own underside in the riddle's frame, never growing, and
+    gone by the end of its window; the fines in the box growing from the box's bottom, never shrinking, from nothing
+    at the start of their window to whole at its end; at W 1 the riddle at rest with the lumps, the oversize, on the
+    mesh, each standing on a wire along z, and the fines whole in the box. The lumps stand out of the layer from the
+    start and inside the riddle's top tier. With no charge on, the fines are drawn whole: the box keeps them."""
     m = v.m
-    floors = {"HEAP_Y": m.Y0 + m.HEAP_Y, "LOW_TOP": m.Y0 + m.LOW_TOP, "BOX_BOTTOM": m.BOX_BOTTOM,
-              "F2_FLOOR": m.BOX_BOTTOM + m.F1[1]}
+    a, b = m.T["fines"]
     ws = [i * 0.005 for i in range(201)]
-    for k, pre in ((1, "c1"), (2, "c2")):
-        start, done = m.pose_at(k, 0.0), m.pose_at(k, 1.0)
-        for pid in v.by_part:
-            if pid.startswith(pre) and not pid.endswith("fines") and not re.match(r"c2fines\d", pid):
-                if any(abs(a - b) > 1e-9 for ea, eb in zip(v.posed(pid, start), v.by_part[pid]) for a, b in zip(ea.c + ea.size, eb.c + eb.size)):
-                    v.fail(f"{pid} is not as loaded at W 0")
-        for w in ws[::4]:
-            for psi in (0.0, 1.3, 2.9):
-                if not same(v.mat(f"{pre}over", (psi, w, k, 1.0)), v.mat("riddle", (psi, w, k, 1.0))):
-                    v.fail(f"the oversize ({pre}) leaves the riddle at W {w:.2f}")
-                    break
-        # the heap, in the riddle's frame
-        for pid, floor, win in HEAPS[k]:
-            a, b = m.T[win]
-            want = floors[floor]
-            last = None
-            for w in ws:
-                gone, bottom, height = layer(v.relative(pid, "riddle", m.pose_at(k, w)))
-                if not gone and abs(bottom - want) > 1e-6:
-                    v.fail(f"{pid} leaves its underside at W {w:.3f} ({bottom:.4f}, want {want:.4f})")
-                if last is not None and height > last + 1e-9:
-                    v.fail(f"{pid} grows at W {w:.3f}")
-                if w <= a + 1e-9 and abs(height - v.by_part[pid][0].size[1]) > 1e-6:
-                    v.fail(f"{pid} is not whole before its window, at W {w:.3f}")
-                if w >= b - 1e-9 and not gone:
-                    v.fail(f"{pid} is not gone after its window, at W {w:.3f}")
-                last = height
-        if k == 2 and m.T["top"][1] > m.T["mid"][0]:
-            v.fail("a full charge's lower layer starts to shrink before its top is gone")
-        # the fines in the box
-        for pid, floor, win in FINES[k]:
-            a, b = m.T[win]
-            want = floors[floor]
-            last = None
-            for w in ws:
-                gone, bottom, height = layer(v.posed(pid, m.pose_at(k, w)))
-                if not gone and abs(bottom - want) > 1e-6:
-                    v.fail(f"{pid} leaves its underside at W {w:.3f} ({bottom:.4f}, want {want:.4f})")
-                if last is not None and height < last - 1e-9:
-                    v.fail(f"{pid} shrinks at W {w:.3f}")
-                if w <= a + 1e-9 and not gone:
-                    v.fail(f"{pid} is in the box before its window, at W {w:.3f}")
-                if w >= b - 1e-9 and abs(height - v.by_part[pid][0].size[1]) > 1e-6:
-                    v.fail(f"{pid} is not whole after its window, at W {w:.3f}")
-                last = height
-        # delivered: the riddle at rest, the lumps on the mesh, each on a wire along z
-        if not same(v.mat("riddle", done), [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]]):
-            v.fail(f"the riddle is not at rest at W 1 ({pre})")
-        wires = [e.aabb() for e in v.named("riddle", r"_wirez_", done)]
-        mesh_top = m.Y0 + m.MESH_TOP
-        heap_top = mesh_top + (m.PART[1] if k == 1 else m.LOW[1])
-        lumps = v.posed(f"{pre}over", done)
-        for lump in lumps:
-            lo, hi = lump.aabb()
-            on_wire = any(w0[0] <= lump.c[0] <= w1[0] for w0, w1 in wires)
-            inside = max(abs(lo[0] - m.CX), abs(hi[0] - m.CX), abs(lo[2] - m.CZ), abs(hi[2] - m.CZ)) <= m.UPPER_HALF - m.BOARD - 0.2
-            if abs(lo[1] - mesh_top) > 1e-6 or not on_wire or not inside or hi[1] - heap_top < 0.25:
-                v.fail(f"{lump.name} does not stand on a wire of the mesh, inside the riddle and out of the heap")
-        for i, a in enumerate(lumps):
-            for b in lumps[i + 1:]:
-                if obb_obb(a, b):
-                    v.fail(f"{a.name} and {b.name} overlap")
-    v.say("charge: as loaded at W 0; the lumps ride the riddle; each layer of the heap shrinks onto its underside, and each "
-          "layer of fines grows in the box from its underside, in turn; at W 1 the riddle at rest, the lumps on the mesh's "
-          "wires and the fines in the box")
+    start, done = m.pose_at(0.0), m.pose_at(1.0)
+    for pid in ("oversize", "heap"):
+        if any(abs(x - y) > 1e-9 for ea, eb in zip(v.posed(pid, start), v.by_part[pid]) for x, y in zip(ea.c + ea.size, eb.c + eb.size)):
+            v.fail(f"{pid} is not as loaded at W 0")
+    for w in ws[::4]:
+        for psi in (0.0, 1.3, 2.9):
+            if not same(v.mat("oversize", (psi, w, 1, 1.0)), v.mat("riddle", (psi, w, 1, 1.0))):
+                v.fail(f"the oversize leaves the riddle at W {w:.2f}")
+                break
+    whole = v.by_part["heap"][0].size[1]
+    fines_whole = aabb_of(v.by_part["fines"])
+    fines_h = fines_whole[1][1] - fines_whole[0][1]
+    last_heap, last_fines = None, None
+    for w in ws:
+        gone, bottom, height = layer(v.relative("heap", "riddle", m.pose_at(w)))
+        if not gone and abs(bottom - (m.Y0 + m.HEAP_Y)) > 1e-6:
+            v.fail(f"the heap leaves its underside at W {w:.3f} ({bottom:.4f})")
+        if last_heap is not None and height > last_heap + 1e-9:
+            v.fail(f"the heap grows at W {w:.3f}")
+        if w <= a + 1e-9 and abs(height - whole) > 1e-6:
+            v.fail(f"the heap is not whole before its window, at W {w:.3f}")
+        if w >= b - 1e-9 and not gone:
+            v.fail(f"the heap is not gone after its window, at W {w:.3f}")
+        last_heap = height
+        gone, bottom, height = layer(v.posed("fines", m.pose_at(w)))
+        if not gone and abs(bottom - m.BOX_BOTTOM) > 1e-6:
+            v.fail(f"the fines leave the box's bottom at W {w:.3f} ({bottom:.4f})")
+        if last_fines is not None and height < last_fines - 1e-9:
+            v.fail(f"the fines shrink at W {w:.3f}")
+        if w <= a + 1e-9 and not gone:
+            v.fail(f"the fines are in the box before their window, at W {w:.3f}")
+        if w >= b - 1e-9 and abs(height - fines_h) > 1e-6:
+            v.fail(f"the fines are not whole after their window, at W {w:.3f}")
+        last_fines = height
+    # with no charge on, at any W and clock, the box's fines are whole and where they were built
+    for pose in ((0.0, 0.0, 0, 0.0), (2.3, 0.5, 0, 0.0), (0.0, 1.0, 0, 1.0)):
+        got = aabb_of(v.posed("fines", pose))
+        if any(abs(got[i][j] - fines_whole[i][j]) > 1e-9 for i in range(2) for j in range(3)):
+            v.fail(f"the fines are not whole in the box with no charge on, at {pose}")
+    # the fines lie in the box, inside its walls, under the riddle's lowest point
+    walls = [e.aabb() for e in v.named("frame", r"box_wall", m.REST)]
+    inner = (max(w[1][0] for w in walls if w[1][0] < m.CX), min(w[0][0] for w in walls if w[0][0] > m.CX))
+    if not (inner[0] < fines_whole[0][0] and fines_whole[1][0] < inner[1] and fines_whole[1][1] < m.BOX_H - 1.0):
+        v.fail("the fines do not lie in the box, inside its walls and under its rim")
+    # delivered: the riddle at rest, the lumps on the mesh, each on a wire along z
+    if not same(v.mat("riddle", done), [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0]]):
+        v.fail("the riddle is not at rest at W 1")
+    wires = [e.aabb() for e in v.named("riddle", r"_wirez_", done)]
+    mesh_top = m.Y0 + m.MESH_TOP
+    heap_top = mesh_top + m.HEAP[1]
+    lumps = v.posed("oversize", done)
+    if len(lumps) != 3:
+        v.fail(f"a charge is three lumps (#714), not {len(lumps)}")
+    for lump in lumps:
+        lo, hi = lump.aabb()
+        on_wire = any(w0[0] <= lump.c[0] <= w1[0] for w0, w1 in wires)
+        inside = max(abs(lo[0] - m.CX), abs(hi[0] - m.CX), abs(lo[2] - m.CZ), abs(hi[2] - m.CZ)) <= m.UPPER_HALF - m.BOARD - 0.2
+        if abs(lo[1] - mesh_top) > 1e-6 or not on_wire or not inside or hi[1] - heap_top < 0.25:
+            v.fail(f"{lump.name} does not stand on a wire of the mesh, inside the riddle and out of the heap")
+    for i, x in enumerate(lumps):
+        for y in lumps[i + 1:]:
+            if obb_obb(x, y):
+                v.fail(f"{x.name} and {y.name} overlap")
+    v.say(f"charge: {len(lumps)} lumps, as loaded at W 0; the lumps ride the riddle; the layer of fines shrinks onto its "
+          f"underside as the fines grow in the box from its bottom ({fines_h:.2f} deep at the end); at W 1 the riddle at "
+          "rest, the lumps on the mesh's wires; with no charge on the fines lie whole in the box")
 
 
 def riddle_centre(v, pose):
@@ -304,7 +297,7 @@ def check_clock(v):
     """The clock's travel moves nothing outside the shaking window, nor with no charge."""
     m = v.m
     psis = [i * math.pi / 8 for i in range(16)]
-    outside = [(w, k) for k in (1, 2) for w in (0.0, 0.02, m.T["shake"][3] + 0.01, 0.9, 1.0)] + [(0.5, 0)]
+    outside = [(w, 1) for w in (0.0, 0.02, m.T["shake"][3] + 0.01, 0.9, 1.0)] + [(0.5, 0)]
     for w, k in outside:
         ref = {p["id"]: v.mat(p["id"], (0.0, w, k, 1.0 if k else 0.0)) for p in v.parts}
         for psi in psis:
@@ -316,13 +309,13 @@ def check_clock(v):
 
 
 def check_shake(v):
-    """The hand riddle: inside the window the riddle goes to and fro and side to side as far as designed."""
+    """Inside the window the riddle goes to and fro and side to side as far as designed."""
     m = v.m
     psis = [i * math.pi / 8 for i in range(16)]
     rest = riddle_centre(v, m.REST)
     w = (m.T["shake"][1] + m.T["shake"][2]) / 2
-    dz = [riddle_centre(v, (psi, w, 2, 1.0))[2] - rest[2] for psi in psis]
-    dx = [riddle_centre(v, (psi, w, 2, 1.0))[0] - rest[0] for psi in psis]
+    dz = [riddle_centre(v, (psi, w, 1, 1.0))[2] - rest[2] for psi in psis]
+    dx = [riddle_centre(v, (psi, w, 1, 1.0))[0] - rest[0] for psi in psis]
     got_z, got_x = max(abs(d) for d in dz), max(abs(d) for d in dx)
     v.say(f"shake: the riddle goes {got_z:.3f} to and fro (want {m.SHAKE_Z}), {got_x:.3f} side to side (want {m.SHAKE_X})")
     if abs(got_z - m.SHAKE_Z) > 0.05 or abs(got_x - m.SHAKE_X) > 0.02:
@@ -330,8 +323,8 @@ def check_shake(v):
 
 
 def check_bearers(v):
-    """The hand riddle rests on the bearers, each under a whole board (north and south), and is lifted clear of them
-    while it is shaken; the bearers lie on the box's walls."""
+    """The riddle rests on the bearers, each under a whole board (north and south), and is lifted clear of them while
+    it is shaken; the bearers lie on the box's walls."""
     m = v.m
     low = aabb_of(v.posed("riddle", m.REST))[0][1]
     if abs(low - m.Y0) > 1e-6:
@@ -357,117 +350,104 @@ def check_bearers(v):
         v.fail("the shaken riddle rubs on the bearers")
 
 
-def pin_points(m):
-    """Each strap's two pins (voxels, at rest): {part: [(top pivot, its pin into the riddle), ...]}."""
-    out = {}
-    for part, z in (("hangernorth", m.HANG_Z[0]), ("hangersouth", m.HANG_Z[1])):
-        out[part] = [([x, m.PIVOT_Y, z], [x, m.PIN_Y, z]) for x in ((m.HANGER_X[0] + m.HANGER_X[1]) / 2,
-                                                                 16.0 - (m.HANGER_X[0] + m.HANGER_X[1]) / 2)]
-    return out
+def box_gap(a, b):
+    """The gap between two boxes (negative: they overlap by that much along the axis that separates them least)."""
+    return max(max(a[0][i] - b[1][i], b[0][i] - a[1][i]) for i in range(3))
 
 
-def check_swing(v):
-    """The riddle on its stand: inside the window the riddle stays level (no turn at all) and goes to and fro as far as
-    designed, never sideways, rising a little at the ends of its swing as it would on straps; every strap's top pin stays
-    put in its head and its bottom pin moves with the riddle's (the joints stay pinned), at every pose."""
-    m = v.m
-    a = m.swing_amplitude()
-    rise = (m.PIVOT_Y - m.PIN_Y) * (1 - math.cos(a))
-    rest = riddle_centre(v, m.REST)
-    worst_pin, worst_turn, dzs, dxs, dys = 0.0, 0.0, [], [], []
-    pins = pin_points(m)
-    for pose in grid_poses(v) + cycle_poses(v, 0.01):
-        r = v.mat("riddle", pose)
-        worst_turn = max(worst_turn, max(abs(r[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(3)))
-        c = riddle_centre(v, pose)
-        dzs.append(c[2] - rest[2])
-        dxs.append(c[0] - rest[0])
-        dys.append(c[1] - rest[1])
-        for part, joints in pins.items():
-            for top, low in joints:
-                t = v.point(part, pose, top)
-                on_strap, on_riddle = v.point(part, pose, low), v.point("riddle", pose, low)
-                worst_pin = max(worst_pin, max(abs(t[i] - top[i]) for i in range(3)),
-                                max(abs(on_strap[i] - on_riddle[i]) for i in range(3)))
-    got_z = max(abs(d) for d in dzs)
-    v.say(f"swing: the riddle goes {got_z:.3f} to and fro (want {m.SWING}), {max(abs(d) for d in dxs):.1e} sideways, rising "
-          f"{max(dys):.3f} (at most {rise:.3f}), turning {worst_turn:.1e}; the pins stay pinned within {worst_pin:.1e} voxels")
-    if abs(got_z - m.SWING) > 0.03 or max(abs(d) for d in dxs) > 1e-6:
-        v.fail("the swing is not as designed")
-    if worst_turn > 1e-9 or min(dys) < -1e-9 or max(dys) > rise + 1e-6:
-        v.fail("the riddle does not stay level, hung on its straps")
-    if worst_pin > 1e-6:
-        v.fail("a strap comes off its pins")
+STRAP_CLEAR = 0.25                           # the corner irons keep this far from anything that moves, and from the bearers
 
 
-def check_stand(v):
-    """The stand carries the riddle: each strap lies between its head's inner face and the riddle's side (nothing to
-    rub), its top pin through its head and its bottom pin into the riddle's upper side board; the riddle hangs clear
-    of the box's walls; each post stands on its sill under its head, and each brace runs from inside its post to inside
-    its head."""
+def check_corner_straps(v):
+    """Every vertical corner of the box (found from its walls) is bound by an angle-iron strap: a leg flat on each of
+    the corner's two outer faces, the two meeting along the corner in an L that wraps it; each leg reaching past the
+    end of the wall it laps onto the other wall's face (so it binds both), running most of the box's height, and
+    nailed with two heads or more on its outer face; the north and south legs' nails over the end walls, the west and
+    east legs' over the side walls, so both walls of the corner are nailed. The irons stop under the rim, stay clear
+    of the bearers, and keep STRAP_CLEAR from the riddle and its charge over the whole swept path."""
     m = v.m
     rest = m.REST
-    heads = {e.name[-1]: e.aabb() for e in v.named("frame", r"^fr_head_", rest)}
-    upper = {e.name[-1]: e.aabb() for e in v.named("riddle", r"_upper_[we]$", rest)}
-    ok = True
-    for part, joints in pin_points(m).items():
-        for (top, low), side in zip(joints, ("w", "e")):
-            strap = [e for e in v.posed(part, rest) if e.name.endswith(f"_{side}")][0]
-            lo, hi = strap.aabb()
-            hlo, hhi = heads[side]
-            blo, bhi = upper[side]
-            inner_head = hhi[0] if side == "w" else hlo[0]
-            outer_riddle = blo[0] if side == "w" else bhi[0]
-            between = abs((lo[0] if side == "w" else hi[0]) - inner_head) < 1e-6 and abs((hi[0] if side == "w" else lo[0]) - outer_riddle) < 1e-6
-            in_head = hlo[1] < top[1] < hhi[1] and hlo[2] < top[2] < hhi[2]
-            h = m.PIN / 2 - 1e-9
-            in_board = blo[1] + h <= low[1] <= bhi[1] - h and blo[2] + h <= low[2] <= bhi[2] - h
-            if not (between and in_head and in_board):
-                ok = False
-                v.fail(f"{strap.name}: between its head and the riddle {between}, its top pin in the head {in_head}, "
-                       f"its bottom pin in the riddle's side board {in_board}")
-    walls = max(e.aabb()[1][1] for e in v.named("frame", r"box_wall", rest))
-    low = min(aabb_of(v.posed("riddle", pose))[0][1] for pose in grid_poses(v))
-    for side in ("w", "e"):
-        post = v.named("frame", rf"^fr_post_{side}$", rest)[0].aabb()
-        sill = v.named("frame", rf"^fr_sill_{side}$", rest)[0].aabb()
-        head = heads[side]
-        if abs(post[0][1] - sill[1][1]) > 1e-6 or abs(post[1][1] - head[0][1]) > 1e-6:
-            ok = False
-            v.fail(f"the {side} post does not stand on its sill under its head")
-        for brace in v.named("frame", rf"^fr_brace_{side}", rest):
-            ends = [[brace.c[i] + s * brace.r[i][1] * brace.size[1] / 2 for i in range(3)] for s in (-1, 1)]
-            low_end, high_end = sorted(ends, key=lambda p: p[1])
-            in_post = post[0][1] < low_end[1] < post[1][1] and post[0][2] < low_end[2] < post[1][2]
-            in_head = head[0][1] < high_end[1] < head[1][1] and head[0][2] < high_end[2] < head[1][2]
-            if not (in_post and in_head):
-                ok = False
-                v.fail(f"{brace.name} does not run from inside its post to inside its head")
-    v.say(f"stand: every strap between its head and the riddle, pinned through the head and into the riddle's side board: "
-          f"{'yes' if ok else 'NO'}; the riddle hangs {low - walls:.3f} over the box's walls at its lowest")
-    if low - walls < 0.5:
-        v.fail("the hung riddle comes near the box's walls")
+    walls = {e.name[-1]: e.aabb() for e in v.named("frame", r"^fr_box_wall_[nswe]$", rest)}
+    lo = [min(b[0][i] for b in walls.values()) for i in range(3)]
+    hi = [max(b[1][i] for b in walls.values()) for i in range(3)]
+    straps = {e.name: e.aabb() for e in v.named("frame", r"^fr_strap_", rest)}
+    eps = 1e-6
+    found = []
+    for xc, sx in ((lo[0], -1), (hi[0], 1)):
+        for zc, sz in ((lo[2], -1), (hi[2], 1)):
+            where = f"({xc:g}, {zc:g})"
+            # the leg on the face across x (north or south: its inner face on the box's z face) and across z
+            lx = [(n, b) for n, b in straps.items() if "nail" not in n and abs((b[0][2] if sz > 0 else b[1][2]) - zc) < eps
+                  and min(abs(b[0][0] - xc), abs(b[1][0] - xc)) < 0.5]
+            lz = [(n, b) for n, b in straps.items() if "nail" not in n and abs((b[0][0] if sx > 0 else b[1][0]) - xc) < eps
+                  and min(abs(b[0][2] - zc), abs(b[1][2] - zc)) < 0.5]
+            if len(lx) != 1 or len(lz) != 1:
+                v.fail(f"the box's corner {where} has no angle-iron strap (legs {[n for n, _ in lx + lz]})")
+                continue
+            (nx, bx), (nz, bz) = lx[0], lz[0]
+            # an L: the two legs share the corner's edge (the x leg laps the z leg's edge) and wrap it
+            outer_x = bx[1][0] if sx > 0 else bx[0][0]
+            outer_z = bz[1][2] if sz > 0 else bz[0][2]
+            t_z = bz[1][0] - bz[0][0]
+            if abs(box_gap(bx, bz)) > eps or abs(abs(outer_x - xc) - t_z) > eps or abs(outer_z - zc) > eps:
+                v.fail(f"the strap's legs at {where} do not meet along the corner in an L ({nx}, {nz})")
+            # each leg reaches past the wall it laps: the x leg past the side wall's thickness, the z leg past the end
+            # wall's, onto the other wall
+            reach_x = abs((bx[0][0] if sx > 0 else bx[1][0]) - xc)
+            reach_z = abs((bz[0][2] if sz > 0 else bz[1][2]) - zc)
+            if reach_x <= m.WALL + 0.25 or reach_z <= m.WALL + 0.25:
+                v.fail(f"the strap at {where} does not reach past the end of each wall ({reach_x:.2f}, {reach_z:.2f})")
+            for n, b in ((nx, bx), (nz, bz)):
+                if b[1][1] - b[0][1] < 0.75 * (hi[1] - lo[1]) or b[1][1] > m.BOX_H - 0.1 or b[0][1] < -eps:
+                    v.fail(f"{n} does not run most of the box's height under its rim")
+                nails = [k for k, nb in straps.items() if "nail" in k and abs(box_gap(nb, b)) < eps]
+                if len(nails) < 2:
+                    v.fail(f"{n} is not nailed (nails on it: {nails})")
+                # the z leg's nails past the end wall, over the side wall; the x leg's over the end wall
+                for k in nails:
+                    nb = straps[k]
+                    if n == nz:
+                        side = "w" if sx < 0 else "e"
+                        ok = walls[side][0][2] < nb[0][2] and nb[1][2] < walls[side][1][2]
+                    else:
+                        end = "n" if sz < 0 else "s"
+                        ok = walls[end][0][0] < nb[0][0] and nb[1][0] < walls[end][1][0]
+                    if not ok:
+                        v.fail(f"{k} is not over the wall its leg binds")
+            found.append(f"{where} {nx[9:11]}")
+    bearers = [e.aabb() for e in v.named("frame", r"bearer", rest)]
+    to_bearers = min(box_gap(s, b) for s in straps.values() for b in bearers)
+    # the swept path: the riddle and its charge over the grid of poses and the cycle at the pace
+    near = 1e9
+    strap_boxes = list(straps.values())
+    for pose in grid_poses(v) + cycle_poses(v, 0.01):
+        for pid in ("riddle", "oversize", "heap"):
+            for e in v.posed(pid, pose):
+                if e.vanished:
+                    continue
+                eb = e.aabb()
+                for s in strap_boxes:
+                    near = min(near, box_gap(eb, s))
+    v.say(f"corner straps: {len(found)} corners bound, each an L of two nailed legs binding both walls; "
+          f"{to_bearers:.2f} from the bearers, {near:.2f} from the riddle's swept path at the nearest")
+    if len(found) != 4:
+        v.fail("not every corner of the box is strapped")
+    if to_bearers < STRAP_CLEAR - eps or near < STRAP_CLEAR - eps:
+        v.fail("a corner strap comes near the bearers or the moving riddle")
 
 
-ALLOWED = {
+ALLOWED = [
     # (part, element regex, part, element regex): intended contacts
-    "hand": [
-        ("riddle", r"_lower_", "frame", r"fr_bearer"),          # the riddle at rest on the bearers
-    ],
-    "stand": [],
-}
-ALLOWED_CHARGE = [
-    ("c[12]fines\\d?", None, "frame", r"box_bottom"),           # the fines on the box's bottom
-    ("c[12]over", None, "riddle", r"_wire"),                    # the lumps on the mesh
-    ("c[12](heap|top)", None, "riddle", r"_wire"),              # the heap settled into the mesh
-    ("c[12](heap|top)", None, "c[12]over", None),               # the lumps standing in the heap
-    ("c2top", None, "c2heap", None),                            # the heap's top on its lower layer
-    ("c2fines2", None, "c2fines1", None),                       # the second layer of fines on the first
+    ("riddle", r"_lower_", "frame", r"fr_bearer"),              # the riddle at rest on the bearers
+    ("fines", None, "frame", r"box_bottom"),                    # the fines on the box's bottom
+    ("oversize", None, "riddle", r"_wire"),                     # the lumps on the mesh
+    ("heap", None, "riddle", r"_wire"),                         # the layer of fines settled into the mesh
+    ("heap", None, "oversize", None),                           # the lumps standing in it
 ]
 
 
-def allowed(form, pa, na, pb, nb):
-    for a, ra, b, rb in ALLOWED[form] + ALLOWED_CHARGE:
+def allowed(pa, na, pb, nb):
+    for a, ra, b, rb in ALLOWED:
         for x, nx, y, ny in ((pa, na, pb, nb), (pb, nb, pa, na)):
             if re.fullmatch(a, x) and re.fullmatch(b, y) and (ra is None or re.search(ra, nx)) and (rb is None or re.search(rb, ny)):
                 return True
@@ -491,7 +471,7 @@ def touching_pairs(v, pose, statics):
                 continue
             if not all(alo[q] < bhi[q] - 0.02 and blo[q] < ahi[q] - 0.02 for q in range(3)):
                 continue
-            if allowed(v.form, pa, ea.name, pb, eb.name):
+            if allowed(pa, ea.name, pb, eb.name):
                 continue
             if obb_obb(ea, eb):
                 hits.setdefault(tuple(sorted((pa, pb))), set()).add(tuple(sorted((ea.name, eb.name))))
@@ -529,8 +509,8 @@ def check_zfight(v):
         v.fail("faces z-fight")
 
 
-def validate(m, form, els, parts, rig, quick=False):
-    v = V(m, form, els, parts, rig)
+def validate(m, els, parts, rig, quick=False):
+    v = V(m, els, parts, rig)
     check_basic(v)
     check_readable(v)
     check_floating(v)
@@ -539,46 +519,25 @@ def validate(m, form, els, parts, rig, quick=False):
     check_containment(v, [m.REST] + grid_poses(v) + cycle_poses(v, 0.005))
     check_charge(v)
     check_clock(v)
-    if form == "hand":
-        check_shake(v)
-        check_bearers(v)
-    else:
-        check_swing(v)
-        check_stand(v)
+    check_shake(v)
+    check_bearers(v)
+    check_corner_straps(v)
     check_clearances(v, [m.REST] + grid_poses(v), "clearances")
     if not quick:
-        check_clearances(v, [m.REST] + cycle_poses(v, 0.0025), "swept paths (every 0.0025 of the cycle at the pace, both charges)")
+        check_clearances(v, [m.REST] + cycle_poses(v, 0.0025), "swept paths (every 0.0025 of the cycle at the pace)")
         check_zfight(v)
     return v.ok
 
 
-def check_same_riddle(hand, stand, tol=0.05):
-    """The stand's riddle is the hand riddle's: every element of the hand riddle is in the stand's riddle part, the same
-    box in the same place, up to the z-fighting fix's insets (the stand adds its grip and pins)."""
-    ours = {e.name: e for e in stand if e.part == "riddle"}
-    bad = []
-    for e in (e for e in hand if e.part == "riddle"):
-        s = ours.get(e.name)
-        if s is None or max(abs(a - b) for a, b in zip(e.c + e.size, s.c + s.size)) > tol or e.r != s.r:
-            bad.append(e.name)
-    extra = sorted(n for n in ours if not any(e.name == n for e in hand))
-    print(f"same riddle: the hand riddle's {sum(1 for e in hand if e.part == 'riddle')} elements in the stand's riddle "
-          f"{'unchanged' if not bad else f'CHANGED {bad[:4]}'}; the stand adds {extra}")
-    if bad or any(not re.match(r"riddle_(grip|pin)_", n) for n in extra):
-        print("FAIL the stand's riddle is not the hand riddle's")
-        return False
-    return True
-
-
-def validate_files(m, form, shape, frame_shape, ship):
+def validate_files(m, shape, frame_shape, ship):
     """Every texture declared; the one cell, boxed inside itself and lidded; no power cell; no automated input or output
-    (no infeed or output side, face, cell or point), only the operator's side."""
+    (no infeed or output side, face, cell or point), only the operator's side; the contents and the pace as #714 has
+    them."""
     ok = True
-    tag = f"[{form}] "
     used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
     missing = used - set(shape["textures"])
     if missing:
-        print(f"FAIL {tag}textures used but not declared: {missing}")
+        print(f"FAIL textures used but not declared: {missing}")
         ok = False
     gaps = lid_gaps(ship["cells"])
     hollow = sum(1 for c in ship["cells"] if c.get("hollow"))
@@ -587,19 +546,31 @@ def validate_files(m, form, shape, frame_shape, ship):
     boxes = [b for c in ship["cells"] for b in c.get("boxes", [])]
     inside_cell = all(0.0 <= b[i] <= 1.0 and b[i] < b[i + 3] <= 1.0 for b in boxes for i in range(3))
     lids = all(0.0 < c.get("lid", 0.0) <= 1.0 for c in ship["cells"])
-    print(f"{tag}files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; cells {cells}, {hollow} hollow; "
+    print(f"files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; cells {cells}, {hollow} hollow; "
           f"{len(boxes)} boxes, all inside their cells: {'yes' if inside_cell else 'NO'}; lid: "
           f"{'yes' if not gaps and lids else gaps}")
     if gaps or hollow or cells != want or not inside_cell or not lids:
-        print(f"FAIL {tag}the cell is not the footprint's, boxed inside it and lidded")
+        print("FAIL the cell is not the footprint's, boxed inside it and lidded")
         ok = False
     if "powerCell" in ship or "powerFace" in ship:
-        print(f"FAIL {tag}a hand station has no power cell")
+        print("FAIL a hand station has no power cell")
         ok = False
     # no automated input or output: no side, face, cell or point for a chute or a hopper, only the operator's side
     transfer = sorted(k for k in ship if k in m.NO_TRANSFER or (k.endswith(("Side", "Face", "Cell")) and k != "operatorSide"))
-    print(f"{tag}no automated input or output: sides {[k for k in ship if k.endswith('Side')]}; transfer keys {transfer or 'none'}")
+    print(f"no automated input or output: sides {[k for k in ship if k.endswith('Side')]}; transfer keys {transfer or 'none'}")
     if transfer or ship.get("operatorSide") != "north":
-        print(f"FAIL {tag}a hand station takes no automated input or output: {transfer}")
+        print(f"FAIL a hand station takes no automated input or output: {transfer}")
+        ok = False
+    # what it holds: each contents value a requires of the rig's parts; one charge, three lumps in twelve shakes (#714)
+    reqs = {p["requires"] for p in ship["parts"]}
+    contents = {k: val for k, val in ship.get("contents", {}).items() if not k.startswith("_")}
+    pace = ship["riddling"]
+    print(f"contents {contents}; a charge {pace['lumpsPerCharge']} lumps in {pace['shakesPerCharge']} shakes; "
+          f"work ends {ship['work']['end']}")
+    if set(contents) != {"charge", "fines"} or not set(contents.values()) <= reqs:
+        print("FAIL the contents are not the charge and the fines, each a requires of the rig")
+        ok = False
+    if pace["lumpsPerCharge"] != 3 or pace["shakesPerCharge"] != {"thin": 12.0} or ship["work"]["end"] != {"thin": 1.0}:
+        print("FAIL a charge is not three lumps riddled in twelve shakes (#714)")
         ok = False
     return ok

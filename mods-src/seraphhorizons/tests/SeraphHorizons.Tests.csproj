@@ -128,12 +128,10 @@
           Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />
     <None Include="MandrelStation/rig-reference.json" Link="mandrelstation-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('MandrelStation/rig-reference.json')" />
-    <!-- The riddle's two shipped rigs, by hand and on its stand, and their reference poses (Riddle/tools/make_shape.py):
+    <!-- The riddle's shipped rig and its reference poses (Riddle/tools/make_shape.py):
          a hand station with no gameplay yet (#714), held to the shared rig maths its renderer will use. -->
     <None Include="../assets/seraphhorizons/config/riddle-rig.json" Link="riddle-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Riddle/rig-reference.json" Link="riddle-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../assets/seraphhorizons/config/riddlestand-rig.json" Link="riddlestand-rig.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="Riddle/stand-rig-reference.json" Link="riddlestand-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eidolon gantry's winch stages and rig reader, its shipped rig, and its README, whose
          stage table the stages are held to. -->
     <Compile Include="../EidolonGantry/Core/**/*.cs" Link="EidolonGantry/Core/%(RecursiveDir)%(Filename)%(Extension)" />

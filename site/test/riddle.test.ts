@@ -2,12 +2,12 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { collapsed, compileGlobs, flattenShape, partMatrices, partOf, rigInputs, rideOrder, textureCodes, workEnd, workOf, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
-// The riddle's two shipped models, one block each: the hand riddle (on its bearers over the fines box) and the riddle
-// on its stand (the same riddle hung by four straps from an oak stand over the same box), and the poses
-// Riddle/tools/make_shape.py computes from them with machinegen's reference maths. Their rigs read W (the riddling of
-// one charge), k (a part or a full charge), p, and ψ, the riddling clock's travel: the shake is a gauge's lobes, eased
-// in and out with its window, so θ moves nothing while no charge is riddled. The heap of fines shrinks and the fines
-// in the box grow on stretching gauges. tools/tests/test_riddle_model.py replays the same files in Python.
+// The riddle's shipped model, one block: the hand riddle on its bearers over the fines box, and the poses
+// Riddle/tools/make_shape.py computes from it with machinegen's reference maths. Its rig reads W (the riddling of one
+// charge), k (a charge or none), p, and ψ, the riddling clock's travel: the shake is a gauge's lobes, eased in and out
+// with its window, so θ moves nothing while no charge is riddled. The layer of fines on the mesh shrinks and the fines
+// in the box grow on stretching gauges; the box's fines are a contents state of their own (`fines`), whole with no
+// charge on. tools/tests/test_riddle_model.py replays the same files in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
 type RefPose = { theta: number; work: number; size: number; presence: number; matrices: Record<string, number[][]> };
@@ -16,8 +16,7 @@ const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 +
 const pose = (theta: number, work: number, size: number, presence: number): Pose => ({ theta, depth: 0, lifting: 0, travel: Math.abs(theta), work, size, presence, feed: 0, oil: 0 });
 
 const forms = [
-  { name: "riddle", ref: "rig-reference.json", requires: [null, "riddle", "chargesmall", "chargefull"] },
-  { name: "riddlestand", ref: "stand-rig-reference.json", requires: [null, "hangers", "riddle", "chargesmall", "chargefull"] },
+  { name: "riddle", ref: "rig-reference.json", requires: [null, "riddle", "charge", "fines"] },
 ].map((f) => {
   const rig = read(`assets/seraphhorizons/config/${f.name}-rig.json`) as Rig;
   const parts = rig.parts!;
@@ -36,12 +35,11 @@ const forms = [
 });
 
 describe.each(forms)("the $name rig against its reference poses", (f) => {
-  it("counts its work in charges, one riddling a charge of either size, and has a matrix for every part", () => {
+  it("counts its work in charges, one riddling a charge, and has a matrix for every part", () => {
     expect(f.path).toMatchObject({ kind: "work", name: "riddling", unit: "charges" });
     expect(f.rig.trunkPath).toBeUndefined();
     expect(workEnd(f.path, 1)).toBe(1);
-    expect(workEnd(f.path, 2)).toBe(1);
-    expect(new Set(f.reference.poses.map((p) => p.size))).toEqual(new Set([0, 1, 2]));
+    expect(new Set(f.reference.poses.map((p) => p.size))).toEqual(new Set([0, 1]));
     for (const p of f.reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(f.parts.map((q) => q.id).sort());
     // the viewer shows the clock (θ, for its travel ψ, so Play), W, the charge and its presence; nothing else
     expect(rigInputs(f.parts)).toMatchObject({ theta: false, travel: true, depth: false, lifting: false, work: true, size: true, presence: true });
@@ -68,32 +66,31 @@ describe.each(forms)("the $name rig against its reference poses", (f) => {
 
   it("moves the riddle with the clock only while a charge is riddled", () => {
     for (const w of [0, 0.9, 1]) {
-      const a = f.at(0, w, 2);
-      const b = f.at(2.2, w, 2);
+      const a = f.at(0, w, 1);
+      const b = f.at(2.2, w, 1);
       a.forEach((mm, i) => mm.forEach((v, j) => expect(Math.abs(v - b[i]![j]!)).toBeLessThan(1e-12)));
     }
     const none = [f.at(0, 0.5, 0, 0), f.at(1.6, 0.5, 0, 0)];
     none[0]!.forEach((mm, i) => mm.forEach((v, j) => expect(Math.abs(v - none[1]![i]![j]!)).toBeLessThan(1e-12)));
     // a quarter turn into the riddling the riddle's middle is a voxel or more along z from where it was
     const z = (theta: number) => {
-      const r = rows(f.at(theta, 0.5, 2)[f.index("riddle")]!);
+      const r = rows(f.at(theta, 0.5, 1)[f.index("riddle")]!);
       return (r[2]![0]! * 0.5 + r[2]![1]! * (6.4 / 16) + r[2]![2]! * 0.5 + r[2]![3]!) * 16;
     };
     expect(Math.abs(z(Math.PI / 2) - z(0))).toBeGreaterThan(1);
   });
 
-  it("shrinks the heap to nothing and grows the fines in the box from nothing", () => {
-    for (const [k, heaps, fines] of [[1, ["c1heap"], ["c1fines"]], [2, ["c2heap", "c2top"], ["c2fines1", "c2fines2"]]] as const) {
-      const start = f.at(0, 0, k);
-      const done = f.at(0, 1, k);
-      for (const id of heaps) {
-        expect(collapsed(start[f.index(id)]!)).toBe(false);
-        expect(collapsed(done[f.index(id)]!)).toBe(true);
-      }
-      for (const id of fines) {
-        expect(collapsed(start[f.index(id)]!)).toBe(true);
-        expect(collapsed(done[f.index(id)]!)).toBe(false);
-      }
+  it("shrinks the heap to nothing and grows the fines in the box from nothing, which stay with no charge on", () => {
+    const start = f.at(0, 0, 1);
+    const done = f.at(0, 1, 1);
+    expect(collapsed(start[f.index("heap")]!)).toBe(false);
+    expect(collapsed(done[f.index("heap")]!)).toBe(true);
+    expect(collapsed(start[f.index("fines")]!)).toBe(true);
+    expect(collapsed(done[f.index("fines")]!)).toBe(false);
+    // no charge on: the box's fines are whole, as built (the identity)
+    for (const ms of [f.at(0, 0, 0, 0), f.at(1.7, 1, 0, 1)]) {
+      const m = ms[f.index("fines")]!;
+      m.forEach((v, j) => expect(Math.abs(v - (j % 5 === 0 ? 1 : 0))).toBeLessThan(1e-12));
     }
   });
 
@@ -106,13 +103,15 @@ describe.each(forms)("the $name rig against its reference poses", (f) => {
       const r = f.parts[partOf(globs, e.chain)]!.requires ?? "frame";
       for (const code of textureCodes(e.element)) (codes[r] ??= new Set()).add(code);
     }
-    expect([...codes.chargesmall!]).toEqual(["ore"]);
-    expect([...codes.chargefull!]).toEqual(["ore"]);
+    expect([...codes.charge!]).toEqual(["ore"]);
+    expect([...codes.fines!]).toEqual(["ore"]);
     expect(codes.riddle).toEqual(new Set(["oak", "iron"]));
-    expect(codes.frame).toEqual(new Set(["oak", "planks"]));
-    if (codes.hangers) expect(codes.hangers).toEqual(new Set(["iron"]));
-    const pace = (f.rig as unknown as { riddling: { shakesPerCharge: { thin: number; thick: number } } }).riddling.shakesPerCharge;
-    expect(pace.thick).toBeGreaterThan(pace.thin);
+    // the box's planks, the bearers' oak and the corner straps' iron
+    expect(codes.frame).toEqual(new Set(["oak", "planks", "iron"]));
+    // #714 (2026-10-14): a charge is three lumps, riddled in twelve shakes
+    const riddling = (f.rig as unknown as { riddling: { shakesPerCharge: { thin: number }; lumpsPerCharge: number } }).riddling;
+    expect(riddling.shakesPerCharge).toEqual({ thin: 12 });
+    expect(riddling.lumpsPerCharge).toBe(3);
   });
 
   it("gives every element a part and every part an element, in one block", () => {
@@ -122,23 +121,5 @@ describe.each(forms)("the $name rig against its reference poses", (f) => {
     expect(used.has(-1)).toBe(false);
     expect(used.size).toBe(f.parts.length);
     expect(f.rig.cells!.map((c) => c.pos)).toEqual([[0, 0, 0]]);
-  });
-});
-
-describe("the riddle on its stand", () => {
-  const stand = forms[1]!;
-  it("hangs the riddle level on its straps, which stay on their pins", () => {
-    for (const theta of [0, 0.7, Math.PI / 2, 2.9, 4.4]) {
-      const ms = stand.at(theta, 0.5, 2);
-      const r = rows(ms[stand.index("riddle")]!);
-      for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) expect(Math.abs(r[i]![j]! - (i === j ? 1 : 0))).toBeLessThan(1e-9);
-      // each strap's pin into the riddle (the west strap's, at its middle) moves with the riddle
-      for (const [id, z] of [["hangernorth", 3.75], ["hangersouth", 12.25]] as const) {
-        const p = [1.875 / 16, 6.9 / 16, z / 16, 1];
-        const onStrap = rows(ms[stand.index(id)]!).map((row) => row.reduce((s, v, c) => s + v * p[c]!, 0));
-        const onRiddle = r.map((row) => row.reduce((s, v, c) => s + v * p[c]!, 0));
-        onStrap.forEach((v, i) => expect(Math.abs(v - onRiddle[i]!)).toBeLessThan(1e-9));
-      }
-    }
   });
 });

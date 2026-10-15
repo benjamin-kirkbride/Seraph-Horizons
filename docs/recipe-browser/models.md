@@ -324,7 +324,8 @@ Everything specific to one machine lives here, as data; the viewer has no machin
   The work's label may be written `trunk` instead (the mill's and the rosser's are), not both; the
   work's unit, step and ends are the rig's (`work`, or the trunkPath's), not the scenario's. `size`
   takes `names`: a name for none and each class up to the rig's last (three for none, thin and thick; the
-  mandrel station's four: none, the two hollows and the steel rod), for the select. Without names the select
+  mandrel station's four: none, the two hollows and the steel rod; the riddle's two: none and its one charge), for
+  the select. Without names the select
   offers None, Thin, Thick and "Class k" for each further class the rig's work has.
 - `requires`: a label for each `requires` value, e.g. `{ "sash1": "Sash 1" }`. Unlabelled values show as they are.
 - `requiresClass`: `{ "<requires value>": "thin" | "thick" | "3" .. "9" }`, parts that belong to one class's
@@ -645,10 +646,10 @@ its select's names, `requiresClass`, the checks) and the hot-metal glow, held to
 whole-degree temperatures.
 `site/test/model-textures.test.ts` covers texture selects: their checks, the opening pick, and the
 picked code's path and colour in the view.
-`site/test/riddle.test.ts` replays `mods-src/seraphhorizons/tests/Riddle/rig-reference.json` and
-`stand-rig-reference.json`, the riddle's two forms: a hand station whose shake is a gauge's `lobes` on ψ with no
-driver reading θ, so the clock moves nothing while no charge is riddled, and whose heap of fines shrinks and fines in
-the box grow on stretching gauges; the stand's riddle hangs level on its straps, which stay on their pins.
+`site/test/riddle.test.ts` replays `mods-src/seraphhorizons/tests/Riddle/rig-reference.json`, the riddle's: a hand
+station whose shake is a gauge's `lobes` on ψ with no driver reading θ, so the clock moves nothing while no charge is
+riddled, whose layer of fines on the mesh shrinks and fines in the box grow on stretching gauges, and whose box keeps
+its fines (a `fines` contents state) whole with no charge on.
 `site/test/models.test.ts` covers the manifest, anchors, the play script and the view, the mill's
 and a trunk travelling through a machine (a small rig on the rosser's trunk path);
 `site/e2e/models.spec.ts` the pages in a browser, with or without WebGL (the handcar's `pump` for the

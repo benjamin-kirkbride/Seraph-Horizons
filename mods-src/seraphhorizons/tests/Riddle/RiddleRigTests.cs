@@ -5,21 +5,20 @@ using Xunit;
 namespace SeraphHorizons.Tests.Riddle;
 
 /// <summary>
-/// The riddle's two shipped rigs, the hand riddle and the riddle on its stand (written by Riddle/tools/make_shape.py),
-/// read by the shared rig maths, which their renderer will use: every part parses with the machines' parser and its
-/// form's <c>requires</c> vocabulary, the work is one charge's riddling, and every reference pose (θ, W, k, p; ψ is
-/// |θ|) gives the matrices the Python reference maths wrote, the charge's stretching gauges included. There is no
+/// The riddle's shipped rig (written by Riddle/tools/make_shape.py), read by the shared rig maths, which its renderer
+/// will use: every part parses with the machines' parser and its <c>requires</c> vocabulary (the riddle, the charge
+/// and the fines in the box), the work is one charge's riddling (three lumps in twelve shakes, #714), and every
+/// reference pose (θ, W, k, p; ψ is |θ|) gives the matrices the Python reference maths wrote, the stretching gauges
+/// of the charge and the fines included. There is no
 /// riddle gameplay yet (#714); this holds the third implementation of the rig maths to the model before there is.
 /// </summary>
 public class RiddleRigTests
 {
-    private static readonly HashSet<string> HandRequires = ["riddle", "chargesmall", "chargefull"];
-    private static readonly HashSet<string> StandRequires = ["riddle", "hangers", "chargesmall", "chargefull"];
+    private static readonly HashSet<string> Requires = ["riddle", "charge", "fines"];
 
     public static TheoryData<string, string> Forms => new()
     {
         { "riddle-rig.json", "riddle-rig-reference.json" },
-        { "riddlestand-rig.json", "riddlestand-rig-reference.json" },
     };
 
     private static string File(string name)
@@ -29,7 +28,7 @@ public class RiddleRigTests
         return System.IO.File.ReadAllText(path);
     }
 
-    private static HashSet<string> RequiresOf(string rig) => rig.StartsWith("riddlestand") ? StandRequires : HandRequires;
+    private static HashSet<string> RequiresOf(string rig) => Requires;
 
     private static (RigParts Parts, IWorkProgress Work) Shipped(string rig)
     {
@@ -50,7 +49,6 @@ public class RiddleRigTests
         Assert.Equal("riddling", work.Name);
         Assert.Equal("charges", work.Unit);
         Assert.Equal(1.0, path.End(1), 6);
-        Assert.Equal(1.0, path.End(2), 6);
         Assert.Equal(RequiresOf(rig), parts.Parts.Select(p => p.Requires).OfType<string>().ToHashSet());
         using var doc = JsonDocument.Parse(File(rig));
         Assert.False(doc.RootElement.TryGetProperty("powerCell", out _));
@@ -59,8 +57,12 @@ public class RiddleRigTests
                                               .Where(n => n.EndsWith("Side") || n.EndsWith("Face") || n.EndsWith("Cell")));
         Assert.Equal("north", doc.RootElement.GetProperty("operatorSide").GetString());
         Assert.False(doc.RootElement.TryGetProperty("output", out _));
-        var pace = doc.RootElement.GetProperty("riddling").GetProperty("shakesPerCharge");
-        Assert.True(pace.GetProperty("thick").GetDouble() > pace.GetProperty("thin").GetDouble());
+        var riddling = doc.RootElement.GetProperty("riddling");
+        Assert.Equal(12.0, riddling.GetProperty("shakesPerCharge").GetProperty("thin").GetDouble());
+        Assert.Equal(3, riddling.GetProperty("lumpsPerCharge").GetInt32());
+        var contents = doc.RootElement.GetProperty("contents");
+        Assert.Equal("charge", contents.GetProperty("charge").GetString());
+        Assert.Equal("fines", contents.GetProperty("fines").GetString());
     }
 
     [Theory]
@@ -91,6 +93,6 @@ public class RiddleRigTests
             poses++;
         }
         Assert.True(poses >= 40, $"only {poses} poses");
-        Assert.Equal([0, 1, 2], classes.Order());
+        Assert.Equal([0, 1], classes.Order());
     }
 }

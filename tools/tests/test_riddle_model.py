@@ -1,11 +1,11 @@
-"""The riddle's generated model files, both forms (mods-src/seraphhorizons/Riddle/tools/make_shape.py).
+"""The riddle's generated model files (mods-src/seraphhorizons/Riddle/tools/make_shape.py).
 
-These hold what the generator wrote to its own rules, without running it: each shipped rig parses with the shared rig
-maths and uses its form's `requires` vocabulary, its reference poses are its own maths, its cell is rebuilt from its
-shipped shape, the work is one charge's riddling, the clock moves the riddle only while a charge is riddled, the heap
-of fines shrinks into the mesh and the fines grow in the box while the oversize stays on the mesh, the stand's riddle
-is the hand riddle's and hangs level on its straps, each form stays one readable block, and the anchors are where the
-model puts them. Run with `python3 -m unittest discover -s tools/tests -p test_riddle_model.py`.
+These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
+maths and uses its `requires` vocabulary, its reference poses are its own maths, its cell is rebuilt from its shipped
+shape, the work is one charge's riddling (three lumps in twelve shakes, #714), the clock moves the riddle only while a
+charge is riddled, the layer of fines shrinks into the mesh and the fines grow in the box while the oversize stays on
+the mesh, the box keeps its fines (a `fines` contents state) once the charge is off, its corners are strapped with
+nailed angle iron, it stays one readable block, and the anchors are where the model puts them. Run with `python3 -m unittest discover -s tools/tests -p test_riddle_model.py`.
 """
 
 import importlib.util
@@ -33,15 +33,15 @@ def load(path):
 
 
 class Form:
-    """One form's shipped files."""
+    """The shipped files."""
 
-    def __init__(self, key, name, ref, requires):
-        self.key = key
-        self.rig = load(f"assets/seraphhorizons/config/{name}-rig.json")
-        self.shape = load(f"assets/seraphhorizons/shapes/block/{name}.json")
-        self.frame = load(f"assets/seraphhorizons/shapes/block/{name}_frame.json")
-        self.reference = load(f"tests/Riddle/{ref}")
-        self.requires = requires
+    def __init__(self):
+        self.key = "riddle"
+        self.rig = load("assets/seraphhorizons/config/riddle-rig.json")
+        self.shape = load("assets/seraphhorizons/shapes/block/riddle.json")
+        self.frame = load("assets/seraphhorizons/shapes/block/riddle_frame.json")
+        self.reference = load("tests/Riddle/rig-reference.json")
+        self.requires = {"riddle", "charge", "fines", None}
 
     def matrix(self, pid, **ins):
         return rigmath.part_matrix(self.rig["parts"], pid, ins, self.rig["work"])
@@ -57,10 +57,9 @@ class Form:
         return [rigmath.posed(e, m) for e in self.elements(part)]
 
 
-CHARGE = {"chargesmall", "chargefull"}
-HAND = Form("hand", "riddle", "rig-reference.json", {"riddle", None} | CHARGE)
-STAND = Form("stand", "riddlestand", "stand-rig-reference.json", {"riddle", "hangers", None} | CHARGE)
-FORMS = (HAND, STAND)
+HAND = Form()
+FORMS = (HAND,)
+ORE_PARTS = ("oversize", "heap", "fines")
 
 
 def inputs(pose):
@@ -101,7 +100,7 @@ class Rig(unittest.TestCase):
             for e in f.shape["elements"]:
                 pid = rigmath.part_of(parts, e["name"])
                 codes = {x["texture"] for x in e["faces"].values()}
-                if pid.startswith(("c1", "c2")):
+                if pid in ORE_PARTS:
                     self.assertEqual(codes, {"#ore"}, e["name"])
                 else:
                     self.assertNotIn("#ore", codes, e["name"])
@@ -111,7 +110,7 @@ class Rig(unittest.TestCase):
         for f in FORMS:
             poses = f.reference["poses"]
             self.assertGreater(len(poses), 40)
-            self.assertEqual({p["size"] for p in poses}, {0, 1, 2})
+            self.assertEqual({p["size"] for p in poses}, {0, 1})
             for pose in poses[::2]:
                 for pid, want in pose["matrices"].items():
                     got = f.matrix(pid, **inputs(pose))
@@ -130,14 +129,14 @@ class Rig(unittest.TestCase):
 
 class Readable(unittest.TestCase):
     def test_one_block_few_elements_nothing_thin(self):
-        # readable at block scale: a low element count, and no part of the riddle, the stand or the frame under 0.75
-        # voxels (the charge's lumps and layers are a heap)
-        for f, most in ((HAND, 40), (STAND, 64)):
+        # readable at block scale: a low element count, and no part of the riddle or the frame under 0.75 voxels (the
+        # charge's lumps and layers and the fines are a heap; the corner straps and their nails are iron)
+        for f, most in ((HAND, 56),):
             self.assertLessEqual(len(f.shape["elements"]), most)
             for e in flatten(f.shape["elements"], textures={}):
                 lo, hi = e.aabb()
                 self.assertTrue(all(-0.01 < lo[i] and hi[i] < 16.01 for i in range(3)), e.name)
-                if not e.name.startswith(("c1", "c2")):
+                if not e.name.startswith(("oversize_", "heap_", "fines_", "fr_strap_")):
                     self.assertGreaterEqual(min(abs(s) for s in e.size), 0.75 - 1e-6, e.name)
 
     def test_the_riddle_is_square_and_shallow_like_the_pan_with_a_woven_iron_mesh(self):
@@ -149,15 +148,17 @@ class Readable(unittest.TestCase):
         self.assertEqual(len([e for e in wires if "wirex" in e.name]), len([e for e in wires if "wirez" in e.name]))
         self.assertTrue(all(x["texture"] == "#iron" for e in HAND.shape["elements"] if "_wire" in e["name"] for x in e["faces"].values()))
 
-    def test_the_stands_riddle_is_the_hand_riddles(self):
-        # the same riddle, element for element (up to the z-fighting fix's insets); the stand adds its grip and pins
-        hand = {e.name: e for e in HAND.elements("riddle")}
-        stand = {e.name: e for e in STAND.elements("riddle")}
-        for name, e in hand.items():
-            self.assertIn(name, stand)
-            s = stand[name]
-            self.assertLess(max(abs(a - b) for a, b in zip(e.c + e.size, s.c + s.size)), 0.05, name)
-        self.assertTrue(all(n.startswith(("riddle_grip_", "riddle_pin_")) for n in set(stand) - set(hand)))
+    def test_the_boxs_corners_are_strapped_with_nailed_angle_iron(self):
+        # an L of two iron legs down each vertical corner, under the rim, each leg with two nail heads
+        straps = [e for e in HAND.frame["elements"] if e["name"].startswith("fr_strap_")]
+        for corner in ("nw", "ne", "sw", "se"):
+            legs = [e for e in straps if e["name"] in (f"fr_strap_{corner}_x", f"fr_strap_{corner}_z")]
+            nails = [e for e in straps if e["name"].startswith(f"fr_strap_{corner}_") and "nail" in e["name"]]
+            self.assertEqual(len(legs), 2, corner)
+            self.assertEqual(len(nails), 4, corner)
+            for e in legs + nails:
+                self.assertEqual({x["texture"] for x in e["faces"].values()}, {"#iron"})
+                self.assertLessEqual(e["to"][1], make_shape.BOX_H)
 
 
 class Riddling(unittest.TestCase):
@@ -166,57 +167,56 @@ class Riddling(unittest.TestCase):
             self.assertNotIn("trunkPath", f.rig)
             w = rigmath.progress_of(f.rig)
             self.assertEqual((w["name"], w["unit"]), ("riddling", "charges"))
-            self.assertEqual(w["end"], {"thin": 1.0, "thick": 1.0})
-            pace = f.rig["riddling"]["shakesPerCharge"]
-            self.assertGreater(pace["thick"], pace["thin"])
+            self.assertEqual(w["end"], {"thin": 1.0})
+            # #714 (2026-10-14): a charge is three lumps, riddled in twelve shakes
+            self.assertEqual(f.rig["riddling"]["shakesPerCharge"], {"thin": 12.0})
+            self.assertEqual(f.rig["riddling"]["lumpsPerCharge"], 3)
+            self.assertEqual(len(f.elements("oversize")), 3)
 
     def test_the_clock_moves_the_riddle_only_while_a_charge_is_riddled(self):
         for f in FORMS:
             pids = [p["id"] for p in f.rig["parts"]]
             for w in (0.0, 0.9, 1.0):
                 for pid in pids:
-                    a = f.matrix(pid, **at(2, w))
-                    b = f.matrix(pid, **at(2, w, 2.2))
+                    a = f.matrix(pid, **at(1, w))
+                    b = f.matrix(pid, **at(1, w, 2.2))
                     self.assertEqual([[round(v, 12) for v in r] for r in a], [[round(v, 12) for v in r] for r in b], pid)
             a = f.matrix("riddle", theta=0.0, work=0.5, size=0, presence=0.0)
             b = f.matrix("riddle", theta=1.6, work=0.5, size=0, presence=0.0)
             self.assertEqual(a, b)
             c = (make_shape.CX, make_shape.Y0 + 1, make_shape.CZ)
             # a quarter turn into the riddling the riddle's middle has moved more than a voxel to or fro
-            rest = f.point("riddle", c, **at(2, 0.4))
-            moved = f.point("riddle", c, **at(2, 0.4, math.pi / 2))
+            rest = f.point("riddle", c, **at(1, 0.4))
+            moved = f.point("riddle", c, **at(1, 0.4, math.pi / 2))
             self.assertGreater(abs(moved[2] - rest[2]), 1.0, f.key)
 
-    def test_the_stands_riddle_hangs_level_on_its_straps(self):
-        # it never turns, and each strap's pin into it moves with it
-        for theta in (0.0, 0.7, math.pi / 2, 2.9, 4.4):
-            ins = at(2, 0.5, theta)
-            r = STAND.matrix("riddle", **ins)
-            self.assertTrue(all(abs(r[i][j] - (1.0 if i == j else 0.0)) < 1e-9 for i in range(3) for j in range(3)))
-            for part, z in (("hangernorth", make_shape.HANG_Z[0]), ("hangersouth", make_shape.HANG_Z[1])):
-                pin = (make_shape.HANGER_X[0], make_shape.PIN_Y, z)
-                a, b = STAND.point(part, pin, **ins), STAND.point("riddle", pin, **ins)
-                self.assertLess(max(abs(a[i] - b[i]) for i in range(3)), 1e-6, part)
-                top = (make_shape.HANGER_X[0], make_shape.PIVOT_Y, z)
-                self.assertLess(max(abs(x - y) for x, y in zip(STAND.point(part, top, **ins), top)), 1e-9)
-
     def test_the_fines_end_in_the_box_and_the_oversize_on_the_mesh(self):
-        for f in FORMS:
-            for k, heaps, fines in ((1, ("c1heap",), ("c1fines",)), (2, ("c2heap", "c2top"), ("c2fines1", "c2fines2"))):
-                start, done = at(k, 0.0), at(k, 1.0)
-                for pid in heaps:
-                    self.assertFalse(any(e.vanished for e in f.posed(pid, **start)), pid)
-                    self.assertTrue(all(e.vanished for e in f.posed(pid, **done)), pid)
-                for pid in fines:
-                    self.assertTrue(all(e.vanished for e in f.posed(pid, **start)), pid)
-                    self.assertFalse(any(e.vanished for e in f.posed(pid, **done)), pid)
-                low = aabb_of(f.posed(fines[0], **done))[0][1]
-                self.assertAlmostEqual(low, make_shape.BOX_BOTTOM, places=3)
-                # the oversize left on the mesh of the riddle at rest
-                lumps = f.posed(f"c{k}over", **done)
-                self.assertGreaterEqual(len(lumps), 3)
-                for e in lumps:
-                    self.assertAlmostEqual(e.aabb()[0][1], make_shape.Y0 + make_shape.MESH_TOP, places=3)
+        f = HAND
+        start, done = at(1, 0.0), at(1, 1.0)
+        self.assertFalse(any(e.vanished for e in f.posed("heap", **start)))
+        self.assertTrue(all(e.vanished for e in f.posed("heap", **done)))
+        self.assertTrue(all(e.vanished for e in f.posed("fines", **start)))
+        self.assertFalse(any(e.vanished for e in f.posed("fines", **done)))
+        low = aabb_of(f.posed("fines", **done))[0][1]
+        self.assertAlmostEqual(low, make_shape.BOX_BOTTOM, places=3)
+        # the oversize left on the mesh of the riddle at rest
+        lumps = f.posed("oversize", **done)
+        self.assertEqual(len(lumps), 3)
+        for e in lumps:
+            self.assertAlmostEqual(e.aabb()[0][1], make_shape.Y0 + make_shape.MESH_TOP, places=3)
+
+    def test_the_box_keeps_its_fines_once_the_charge_is_off(self):
+        # the fines are a contents state of their own: with no charge on they are drawn whole, as built
+        f = HAND
+        self.assertEqual({k: v for k, v in f.rig["contents"].items() if not k.startswith("_")}, {"charge": "charge", "fines": "fines"})
+        built = aabb_of(f.elements("fines"))
+        for ins in (dict(theta=0.0, work=0.0, size=0, presence=0.0), dict(theta=1.7, work=1.0, size=0, presence=1.0)):
+            got = aabb_of(f.posed("fines", **ins))
+            for i in range(2):
+                for j in range(3):
+                    self.assertAlmostEqual(got[i][j], built[i][j], places=9)
+        self.assertEqual({p["requires"] for p in f.rig["parts"] if p["id"] in ("oversize", "heap")}, {"charge"})
+        self.assertEqual(next(p for p in f.rig["parts"] if p["id"] == "fines")["requires"], "fines")
 
 
 class Anchors(unittest.TestCase):
