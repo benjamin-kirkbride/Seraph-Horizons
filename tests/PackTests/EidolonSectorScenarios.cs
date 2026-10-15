@@ -15,9 +15,10 @@ namespace SeraphHorizons.PackTests;
 /// *Dispatch* and *Claims*, and the paths round other eidolons), with the pack's default settings, ordered
 /// with the command tool as a player orders them: three on one area 16 × 3 × 12 each work stations of their
 /// own, each strike in its station's claimed columns, apart, never pushing into each other nor digging in
-/// another's columns, the floors within a climb, with no slam at nothing, one report; and two ordered across
-/// each other's way walk round each other and both arrive. One taking stations in another's part once its
-/// own is done is <see cref="EidolonTeamMineScenarios"/>'s. On floors of their own in the sky (<see cref="Felling.Sky"/>), each
+/// another's columns, the floors within a climb (two by look-ahead routes, whose spare work goes a band
+/// deeper), with no slam at nothing, one report; and two ordered across each other's way walk round each
+/// other and both arrive. One taking stations in another's part once its own is done is
+/// <see cref="EidolonTeamMineScenarios"/>'s. On floors of their own in the sky (<see cref="Felling.Sky"/>), each
 /// from its spawns on the virtual clock (<see cref="VirtualClock"/>).
 /// </summary>
 [AtlasWorld]
@@ -124,7 +125,9 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
         await World.Ticks(5);
         Assert.All(orders, o => Assert.Same(orders[0].Job, o.Job));
 
-        var watch = new MineWatcher(W, toMine, eidolons, orders);
+        // By look-ahead routes a member may take spare work a band deeper (the owner's rule): floors two
+        // climbs apart, not one.
+        var watch = new MineWatcher(W, toMine, eidolons, orders, floorSlack: EidolonMinePlans.Routing ? 2 : 1);
         int ticks = 0, lastMined = -1;
         await World.Until(() =>
         {

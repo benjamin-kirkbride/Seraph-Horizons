@@ -48,8 +48,13 @@ public static class MineDispatch
 
     /// <summary>The station's cells it may dig now: still to dig in the live state, and of a band whose
     /// turn it is (<see cref="MineState.Bands"/>).</summary>
-    public static IReadOnlyList<MarkPos> Cells(MineState live, MineStation station) =>
-        station.Cells.Where(c => live.Remaining.Contains(c) && (live.Bands?.Eligible(c) ?? true)).ToList();
+    public static IReadOnlyList<MarkPos> Cells(MineState live, MineStation station) => Cells(live, station, false);
+
+    /// <summary>The station's cells it may dig now: eligible by band, or with <paramref name="ahead"/> eligible
+    /// ahead of its band (<see cref="MineAhead.Eligible"/>; README "Eidolon", working together, *Spare work*).</summary>
+    public static IReadOnlyList<MarkPos> Cells(MineState live, MineStation station, bool ahead) =>
+        station.Cells.Where(c => live.Remaining.Contains(c)
+            && ((live.Bands?.Eligible(c) ?? true) || ahead && live.Bands != null && MineAhead.Eligible(live, c))).ToList();
 
     /// <summary>Whether a station may be worked now: some of its cells may be dug (<see cref="Cells"/>),
     /// and those pass the guard against the live state with the others where they are
@@ -63,17 +68,28 @@ public static class MineDispatch
     public static bool Executable(MinePlan plan, MineState live, MineStation station, IReadOnlyList<MineWorkerAt> others, out MineRefusal why,
         Func<MarkPos, bool>? usable) => Executable(live, station, others, out why, Alive(plan, live, usable));
 
+    /// <summary><see cref="Executable(MinePlan, MineState, MineStation, IReadOnlyList{MineWorkerAt}, out MineRefusal, Func{MarkPos, bool}?)"/>
+    /// for a station worked ahead of its band (<paramref name="ahead"/>: its cells eligible ahead count,
+    /// <see cref="MineAhead.Eligible"/>), with <paramref name="keepAlso"/> (the stands others plan to work
+    /// at, README "Eidolon", working together, *Routes*) kept as the earlier stations' stands are: not dug
+    /// under (<see cref="Footing"/>) and still out after the dig.</summary>
+    public static bool Executable(MinePlan plan, MineState live, MineStation station, IReadOnlyList<MineWorkerAt> others, out MineRefusal why,
+        Func<MarkPos, bool>? usable, bool ahead, IReadOnlyList<PathCell>? keepAlso = null) =>
+        Executable(live, station, others, out why, Alive(plan, live, usable), ahead, keepAlso);
+
     // Executable with the plan's stations that have cells left (Alive) found already.
     private static bool Executable(MineState live, MineStation station, IReadOnlyList<MineWorkerAt> others, out MineRefusal why,
-        IReadOnlyList<MineStation> alive)
+        IReadOnlyList<MineStation> alive, bool ahead = false, IReadOnlyList<PathCell>? keepAlso = null)
     {
-        var cells = Cells(live, station);
+        var cells = Cells(live, station, ahead);
         if (cells.Count == 0)
         {
             why = MineRefusal.OutOfReach;
             return false;
         }
         var before = Before(alive, station);
+        if (keepAlso is { Count: > 0 })
+            before = before.Concat(keepAlso).Distinct().ToList();
         if (Footing(before, cells))
         {
             why = MineRefusal.CutsOffStation;

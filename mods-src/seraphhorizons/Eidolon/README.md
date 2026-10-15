@@ -461,7 +461,8 @@ piece; the eidolon's plates do not wear.
 - **`/sh eidolon spawn [player] [layer=material ...]`** spawns the old build with the named layers
   changed, `fit layer=material ...` changes the nearest one's (`Core/EidolonBuildSpec.cs`: `bones=pine
   plates=brass sash=cloth-red`, `stainless` for `stainlesssteel`, `all=` the three metal layers), and
-  `info` shows the build and figures.
+  `info` shows the build and figures; `mineplan [dump|draw|clear]` dumps, draws or clears the nearest
+  one's mining job's look-ahead routes (the main README's "Eidolon", working together, *Routes*).
 
 Tests: `tests/Eidolon/EidolonWornFittingsTests.cs`, and the Atlas class `EidolonFittedScenarios` (a
 brass, an iron and a stainless build's health, walking and running speed as the traverser has them and

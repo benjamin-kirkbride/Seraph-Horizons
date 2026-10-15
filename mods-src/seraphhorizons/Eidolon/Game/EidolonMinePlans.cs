@@ -54,6 +54,18 @@ public class EidolonMinePlans : ModSystem
     /// reaching in (its box and reach), with a column to spare.</summary>
     private const int Relevant = 5;
 
+    /// <summary>Whether mining jobs of more than one member are worked by look-ahead routes (README "Eidolon",
+    /// working together, *Routes*); off (and with <c>SH_MINE_BASELINE=1</c> in the environment), every job is
+    /// dispatched as before routes (<see cref="MineDispatch.Next"/>), for measuring and as the fallback.</summary>
+    public static bool Routing { get; set; } = Environment.GetEnvironmentVariable("SH_MINE_BASELINE") != "1";
+
+    /// <summary>The least time between two route solves asked for by repair (drops, a member gone, late).</summary>
+    public const double SolveMinSeconds = 2;
+
+    /// <summary>The least time between two route solves when the one asked for is urgent (a new station plan, a
+    /// deadlock).</summary>
+    public const double UrgentMinSeconds = 0.5;
+
     private ICoreServerAPI? _api;
     private readonly List<Work> _work = new();
     private readonly Stopwatch _clock = new();
@@ -116,9 +128,18 @@ public class EidolonMinePlans : ModSystem
         public readonly HashSet<PathCell> Retried = new();
         public readonly Stopwatch Spent = new();
         public int Ticks;
+        public Task<MineRoutes?>? Routing;
+        public CancellationTokenSource? RoutingToken;
+        public double RoutedAt = double.MinValue;
+        public int RoutingPlanVersion;
+        public string? RoutingWhy;
+
+        // the members present the solve under way was made for (its choice is theirs)
+        public long[] RoutingMembers = [];
 
         public void Cancel()
         {
+            CancelRouting();
             Token?.Cancel();
             Token?.Dispose();
             Token = null;
@@ -126,6 +147,14 @@ public class EidolonMinePlans : ModSystem
             Journal = null;
             Roofing = null;
             Cells.Planning = false;
+        }
+
+        public void CancelRouting()
+        {
+            RoutingToken?.Cancel();
+            RoutingToken?.Dispose();
+            RoutingToken = null;
+            Routing = null;
         }
     }
 
@@ -138,13 +167,14 @@ public class EidolonMinePlans : ModSystem
     /// member's call; nothing if it is made or being made), for <paramref name="eidolon"/>'s owner, with its
     /// pick's rules (<paramref name="pick"/>, <paramref name="maxTier"/>, <paramref name="mineThrough"/>),
     /// ordered from <paramref name="home"/>.</summary>
-    public void Ensure(MineJobCells cells, MarkArea area, PathCell? home, EntityLaborEidolon eidolon, Item? pick, int maxTier, string[] mineThrough)
+    public void Ensure(MineJobCells cells, MarkArea area, PathCell? home, EntityLaborEidolon eidolon, Item? pick, int maxTier, string[] mineThrough,
+        Item? shovel = null)
     {
         if (_api == null || _stopping || _work.Any(w => w.Cells == cells))
             return;
         var config = EidolonSystem.Of(eidolon.Api)?.Config ?? EidolonConfig.Defaults;
         int step = Math.Clamp(Math.Min(config.MaxClimbBlocks, config.MaxFallBlocks), 1, 2);
-        var world = new GameMineWorld(eidolon.World, eidolon.Pos.Dimension, area, pick, maxTier, mineThrough) { Skip = cells.Skip };
+        var world = new GameMineWorld(eidolon.World, eidolon.Pos.Dimension, area, pick, maxTier, mineThrough, shovel) { Skip = cells.Skip };
         _work.Add(new Work(cells, area, home, world, eidolon.Pos.Dimension, eidolon.OwnerUid, step) { SyncAt = Now(eidolon.World) + SyncSeconds });
     }
 
@@ -163,6 +193,15 @@ public class EidolonMinePlans : ModSystem
         }
         else if (cells.Live != null)
             cells.Live.Stale = true;
+    }
+
+    /// <summary>Asks for <paramref name="cells"/>' routes to be solved again (README "Eidolon", working together,
+    /// *Routes*), for <paramref name="why"/>, once no solve is under way: when <paramref name="urgent"/>, as soon
+    /// as <see cref="UrgentMinSeconds"/> have passed since the last started, else <see cref="SolveMinSeconds"/>.</summary>
+    public static void RequestRoutes(MineJobCells cells, string why, bool urgent)
+    {
+        cells.RoutesWanted = why;
+        cells.RoutesUrgent |= urgent;
     }
 
     /// <summary>The job is done: its planning stops, and its owner's outlines go.</summary>
@@ -352,6 +391,8 @@ public class EidolonMinePlans : ModSystem
         }
         if (cells.Live is not { } live)
             return;
+        if (Routing && cells.Plan != null && !cells.Planning)
+            RouteStep(work, live, now);
         if (work.Job == null && (work.Urgent || live.Stale && now - work.PlannedAt >= ReplanSeconds))
         {
             if (work.Roofing == null && work.RoofOf != live.Site)
@@ -380,6 +421,125 @@ public class EidolonMinePlans : ModSystem
                 work.SyncAt = now + SyncSeconds;
             }
         }
+    }
+
+    // ---- routes ----
+
+    /// <summary>
+    /// A job's routes (README "Eidolon", working together, *Routes*): a solve finished on the worker swapped in
+    /// (dropped if the station plan changed meanwhile, or kept out when it kept the routes running); else, with
+    /// none under way, one started when asked (<see cref="RequestRoutes"/>), on a new station plan, or every
+    /// <see cref="MineRoutes.ResolveSeconds"/>, from a copy of the live state taken here (the one main-thread
+    /// cost, a memory copy, made on the tick a solve is due: no wall-time budget decides when). A job of one member present has none (it
+    /// is dispatched as before); a job its routes left to today's dispatch keeps that until a new station plan.
+    /// </summary>
+    private void RouteStep(Work work, MineState live, double now)
+    {
+        var cells = work.Cells;
+        if (work.Routing is { IsCompleted: true } task)
+        {
+            var made = task.Result;
+            work.CancelRouting();
+            if (made == null)
+                return;
+            if (work.RoutingPlanVersion != cells.PlanVersion)
+            {
+                RequestRoutes(cells, "plan", true);
+                return;
+            }
+            cells.RouteChoice.Made(made, work.RoutingMembers, work.Area);
+            if (made.Stats.KeptCurrent && cells.Routes != null)
+                return;
+            // Members gone from the job while it was solved: their routes are taken out as Stop does, their
+            // stations handed on.
+            var present = _api == null ? null : EidolonJobSystem.Of(_api)?.Mining.Jobs.FirstOrDefault(j => j.Shared == cells && !j.Closed)?.Present;
+            if (present == null || present.Count < 2)
+                return;
+            foreach (long gone in made.Routes.Keys.Where(m => !present.Contains(m)).ToList())
+                if (made.Gone(gone, now, live) is { } again)
+                    RequestRoutes(cells, again, false);
+            if (cells.Routes == null || cells.Routes.PlanVersion != made.PlanVersion)
+                cells.RoutesPlanSince = now;
+            cells.Routes = made;
+            cells.RoutesVersion++;
+            made.Sweep(live, now);
+            _api!.Logger.Debug($"[eidolon-mine] routes {cells.RoutesVersion} for {Describe(work.Area)} ({work.RoutingWhy}): "
+                + (made.Today ? "left to today's dispatch" : $"variant {made.VariantIndex}, stops {string.Join("/", made.Routes.Values.Select(r => r.Stops.Count(s => s.Kind == MineStopKind.Station)))}")
+                + $", J {made.Score.J:0.0} s, zones {made.Zones.Count}, solved in {made.Stats.Took.TotalMilliseconds:0} ms off the main thread");
+            return;
+        }
+        if (work.Routing != null || _api == null)
+            return;
+        var jobs = EidolonJobSystem.Of(_api);
+        var job = jobs?.Mining.Jobs.FirstOrDefault(j => j.Shared == cells && !j.Closed);
+        if (job == null || job.Present.Count < 2)
+        {
+            // dispatched as before; the choice (RouteChoice) is kept for when the job is a crew again
+            cells.Routes = null;
+            cells.RoutesWanted = null;
+            cells.RoutesUrgent = false;
+            return;
+        }
+        // the job's choice, kept by every solve (a new station plan's too) while its members present are those
+        // it was made for
+        int? choice = cells.RouteChoice.KeepFor(job.Present, work.Area);
+        bool fresh = cells.Routes == null || cells.Routes.PlanVersion != cells.PlanVersion;
+        bool joined = cells.Routes is { Today: false } r && job.Present.Any(m => !r.Routes.ContainsKey(m));
+        // a choice made for other members (one joined or left since): made again
+        bool rechoose = cells.RouteChoice.Index != null && choice == null;
+        string? why = fresh ? (cells.Routes == null ? "first" : "plan")
+            : rechoose || joined ? "members"
+            : cells.RoutesWanted ?? (now - work.RoutedAt >= MineRoutes.ResolveSeconds ? "periodic" : null);
+        // at most every SolveMinSeconds (UrgentMinSeconds when asked so), but for the first solve of a station plan
+        double least = cells.RoutesUrgent && cells.RoutesWanted != null ? UrgentMinSeconds : SolveMinSeconds;
+        if (why == null || now - work.RoutedAt < least && !(fresh && work.RoutingPlanVersion != cells.PlanVersion))
+            return;
+        // left to today's dispatch: kept so, with no solve, until a new station plan (whose solve keeps it too
+        // while the members are the same)
+        if (!fresh && cells.Routes!.Today && choice == MineRoutePlanner.TodayIndex)
+        {
+            cells.RoutesWanted = null;
+            cells.RoutesUrgent = false;
+            work.RoutedAt = now;
+            return;
+        }
+        // not held back by the planner's wall-time budget: a solve starts on the tick it is due, whatever the
+        // machine (its one main-thread cost, a copy of the live state, is small)
+        var members = MineOrder.RouteMembers(job, jobs!, now);
+        if (members.Count < 2)
+            return;
+        var input = new MineRouteInput(cells.Plan!, cells.PlanVersion, live.Clone(), members, [], now,
+            why == "periodic" ? cells.Routes!.Copy() : null, null)
+        {
+            Keep = choice,
+        };
+        var token = new CancellationTokenSource();
+        var cancel = token.Token;
+        var logger = _api.Logger;
+        var area = work.Area;
+        work.RoutingToken = token;
+        work.RoutingPlanVersion = cells.PlanVersion;
+        work.RoutedAt = now;
+        work.RoutingWhy = why;
+        work.RoutingMembers = job.Present.ToArray();
+        cells.RoutesWanted = null;
+        cells.RoutesUrgent = false;
+        work.Routing = Task.Run(() =>
+        {
+            try
+            {
+                return MineRoutePlanner.Solve(input, cancel);
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            catch (Exception e)
+            {
+                logger.Error("[eidolon-mine] routes for {0} failed: {1}", Describe(area), e);
+                return null;
+            }
+        });
     }
 
     // The roof check run on: true once done.

@@ -31,10 +31,10 @@ public abstract class MineGraph
         Array.Fill(Parent, -1);
     }
 
-    protected MineGraph(MineGraph other, MineSite site)
+    protected MineGraph(MineGraph other, MineSite site, IReadOnlySet<PathCell>? bad)
     {
         Site = site;
-        Bad = other.Bad;
+        Bad = bad ?? other.Bad;
         HomeNode = other.HomeNode;
         Parent = (int[])other.Parent.Clone();
         Kids = (byte[])other.Kids.Clone();
@@ -135,6 +135,16 @@ public abstract class MineGraph
         }
         return count;
     }
+
+    /// <summary>The nodes joined to one by its index in the site, in a fixed order, into <paramref name="into"/>
+    /// (40 long); how many (the routes' searches, <see cref="MineCosts.From"/>, which walk it by index).</summary>
+    internal int JoinedTo(int index, Span<int> into) => NeighboursOf(index, into);
+
+    /// <summary>Whether a node is out, by its index in the site.</summary>
+    internal bool OutAt(int index) => Parent[index] >= 0;
+
+    /// <summary>The site it is a graph of.</summary>
+    internal MineSite Space => Site;
 
     /// <summary>The nodes joined to <paramref name="node"/> (a node of this graph), in a fixed order.</summary>
     public IEnumerable<PathCell> Joins(PathCell node) =>
@@ -429,10 +439,12 @@ public sealed class MineWalk : MineGraph
     public MineWalk(MineSite site, PathCell? home, IReadOnlySet<PathCell>? bad = null) : base(site, home, bad) =>
         _node = new byte[site.Volume];
 
-    private MineWalk(MineWalk other, MineSite site) : base(other, site) => _node = (byte[])other._node.Clone();
+    private MineWalk(MineWalk other, MineSite site, IReadOnlySet<PathCell>? bad) : base(other, site, bad) =>
+        _node = (byte[])other._node.Clone();
 
-    /// <summary>A copy on <paramref name="site"/> (a copy of this one's).</summary>
-    public MineWalk Clone(MineSite site) => new(this, site);
+    /// <summary>A copy on <paramref name="site"/> (a copy of this one's), reading <paramref name="bad"/> for its
+    /// bad stands if given (else this one's set).</summary>
+    public MineWalk Clone(MineSite site, IReadOnlySet<PathCell>? bad = null) => new(this, site, bad);
 
     protected override bool Clear(int x, int y, int z) => !Site.Solid(x, y, z);
 

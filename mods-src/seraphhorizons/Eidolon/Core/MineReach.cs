@@ -48,7 +48,7 @@ public sealed class MineReach : MineGraph
                 _target[site.Index(t.X, t.Y, t.Z)] = 1;
     }
 
-    private MineReach(MineReach other, MineSite site) : base(other, site)
+    private MineReach(MineReach other, MineSite site, IReadOnlySet<PathCell>? bad) : base(other, site, bad)
     {
         _targets = other._targets;
         _target = (byte[])other._target.Clone();
@@ -60,7 +60,8 @@ public sealed class MineReach : MineGraph
         _ran = other._ran;
     }
 
-    public MineReach Clone(MineSite site) => new(this, site);
+    /// <summary>A copy on <paramref name="site"/>, reading <paramref name="bad"/> for its bad stands if given.</summary>
+    public MineReach Clone(MineSite site, IReadOnlySet<PathCell>? bad = null) => new(this, site, bad);
 
     /// <summary>The targets some potential stand reaches (K).</summary>
     public IReadOnlySet<MarkPos> Clearable => _clearable;
