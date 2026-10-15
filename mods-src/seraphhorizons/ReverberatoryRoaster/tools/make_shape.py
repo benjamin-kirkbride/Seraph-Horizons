@@ -177,6 +177,11 @@ WORK_DOOR = (5.0, (15.0, 21.0))              # half width (z) about each rabble,
 DOOR_FRAME = 1.0
 DOOR_PLATE = {"open": (22.5, 29.5), "shut": (14.5, 21.5)}   # the plates' y: raised in their guides, or down over the opening
 GUIDE_TOP = 30.0
+PEEP_DOOR = 1                                # the work door with a peep hole: shut (level 2), the rabble is seen through it
+PEEP = (1.75, (1.6, 5.0))                    # the hole: half width (z) about the door's middle, and y over the plate's foot
+PEEP_SHUTTER = (0.1, 0.3, 0.2)               # its shutter: thickness, lap over the hole each way, gap when slid clear (z)
+PEEP_GUIDE = (0.15, 0.4)                     # the shutter's two guides over and under it: thickness (x, out to the handles'
+#                                              face, inside the footprint), height (y)
 DISCHARGE = ((30.0, 36.0), (37.0, 43.0))     # (x, z) the discharge hole through the hearth, in the first rabble's sweep
 TUNNEL = ((30.0, W), (4.0, 12.0), (36.0, 44.0))   # the tunnel under it to the east face: the output chute's bore and walls
 D_RECESS = ((46.5, W), (3.5, 12.0), (36.0, 52.0))   # the discharge door's recess in the footing's face: it slides along z,
@@ -276,7 +281,8 @@ GLAND_Z = 1.6
 BRACKET = ((21.5, 26.5), 3.0, (31.0, TOP))   # each spindle's bracket on the crown: x, half length z, y
 SWIVEL = (TOP, WHEEL_HUB[0], 2.0)            # the swivel head round each spindle (y0, y1, apothem): its upper bearing,
 #                                              the water's way into the hollow spindle and arms
-PORT = (26.0, 27.0)                          # its port on the east, where the water pipe comes in (x)
+PORT = (26.0, 26.8)                          # its port on the east, where the water pipe comes in (x): against the swivel's
+#                                              flat, clear of the wheel's hub turning over it
 
 # ---------------------------------------------------------------- the hopper and the feeder
 HOPPER = ((16.5, 31.5), (42.0, 48.0), (66.0, 78.0))   # the hopper (level 1): its mouth the infeed cell's top
@@ -293,9 +299,14 @@ ROLL_R, ROLL_FLUTES, ROLL_FLUTE_R = 2.0, 6, 2.6
 
 # ---------------------------------------------------------------- level 2: the water
 MANIFOLD = (24.0, 45.0, 40.0)                # the soldered pipe's cube under the water cell's top (x, y, z): ppex's pipe
-SMALL = 0.45                                 # the small-bore pipes' half side, from the manifold to each swivel
-SMALL_X = 31.4                               # their run down the east side of the drive row, clear of the wheels
-SMALL_Y = (44.5, 33.3)                       # their high run from the manifold, and their low run under the wheels
+CONNECTOR_Z = 46.5                           # a full-size length of it south from the manifold, plugged at its end round the
+#                                              small pipe's bore (the reducer, as the vanner's: Vanner/tools/make_shape.py)
+SMALL_HALF, SMALL_WALL = 1.2, 0.4            # the small pipe: a soldered tube 2.4 across round a 1.6 bore (the vanner's)
+REDUCER_L = 0.6                              # the reducer's ring of solder round the small pipe where it leaves the plug
+SMALL_BEND = SMALL_HALF + solderedpipe.JOINT_SWELL   # each bend and the tee: a soldered cube round the turn
+SMALL_Z = 49.5                               # the small pipe turns east here, between the wheels (z), over pedestal 2
+SMALL_X = 30.4                               # its drop down the drive row's east side, clear of both wheels
+SMALL_Y = (MANIFOLD[1], 33.4)                # its high run (the manifold's height), and its low run under the wheels
 PIPE_METALS = ("copper", "lead")
 
 # ---------------------------------------------------------------- the build
@@ -1043,15 +1054,36 @@ def build_handfiring():
 
 def build_doors(place):
     """The work doors' plates in one place (`doors<place>`): raised in their guides (open, level 1: the hearth can be
-    seen and rabbled through them) or down over the openings (shut, level 2)."""
+    seen and rabbled through them) or down over the openings (shut, level 2). Door PEEP_DOOR's plate has a peep hole
+    over the rabble's arms, with a shutter sliding along z in two guides: over the hole at level 1 (the door itself is
+    open), slid clear of it at level 2, so the rabble is seen turning through the shut door."""
     p, t = f"doors{place}", "iron"
     hw, _ = WORK_DOOR
     fr = DOOR_FRAME
     py0, py1 = DOOR_PLATE[place]
+    x0, x1 = FACE_E + 0.8, FACE_E + 1.8
     out = []
     for k, zc in enumerate(RABBLE_Z, 1):
-        out.append(box([FACE_E + 0.8, py0, zc - hw - fr - 0.5], [FACE_E + 1.8, py1, zc + hw + fr + 0.5], f"{p}_plate{k}", p, t))
-        out.append(box([FACE_E + 1.8, py0 + 1.0, zc - 1.5], [FACE_E + 1.95, py0 + 1.6, zc + 1.5], f"{p}_handle{k}", p, t))
+        za, zb = zc - hw - fr - 0.5, zc + hw + fr + 0.5
+        if k != PEEP_DOOR:
+            out.append(box([x0, py0, za], [x1, py1, zb], f"{p}_plate{k}", p, t))
+            out.append(box([x1, py0 + 1.0, zc - 1.5], [FACE_E + 1.95, py0 + 1.6, zc + 1.5], f"{p}_handle{k}", p, t))
+            continue
+        ph, (pa, pb) = PEEP
+        ha, hb = py0 + pa, py0 + pb
+        out += [box([x0, py0, za], [x1, ha, zb], f"{p}_plate{k}", p, t),
+                box([x0, ha, za], [x1, hb, zc - ph], f"{p}_plate{k}n", p, t),
+                box([x0, ha, zc + ph], [x1, hb, zb], f"{p}_plate{k}s", p, t),
+                box([x0, hb, za], [x1, py1, zb], f"{p}_plate{k}top", p, t)]
+        out.append(box([x1, py0 + 0.2, zc - 1.5], [FACE_E + 1.95, py0 + 0.8, zc + 1.5], f"{p}_handle{k}", p, t))
+        st, lap, gap = PEEP_SHUTTER
+        gt, gh = PEEP_GUIDE
+        w = 2 * (ph + lap)
+        sz = (zc - ph - lap, zc + ph + lap) if place == "open" else (zc + ph + gap, zc + ph + gap + w)
+        out.append(box([x1, ha - lap, sz[0]], [x1 + st, hb + lap, sz[1]], f"{p}_peepshutter{k}", p, t))
+        gz = (zc - ph - lap, zc + ph + gap + w)
+        out.append(box([x1, ha - lap - gh, gz[0]], [x1 + gt, ha - lap, gz[1]], f"{p}_peepguide{k}a", p, t))
+        out.append(box([x1, hb + lap, gz[0]], [x1 + gt, hb + lap + gh, gz[1]], f"{p}_peepguide{k}b", p, t))
     return out
 
 
@@ -1160,8 +1192,8 @@ def build_rabbles():
         out.append(box([bx0, by0, zs - hz], [bx1, by1, zs + hz], f"rabblemount{k}_base", q, "iron"))
         sy0, sy1, sa = SWIVEL
         out += disc("y", (c[0], 0.0, zs), sy0, sy1, sa, f"rabblemount{k}_swivel", q, "iron", k=4)
-        ym = (SMALL_Y[1] - SMALL - 0.15, SMALL_Y[1] + SMALL + 0.15)
-        out.append(box([PORT[0] - 0.2, ym[0], zs - SMALL - 0.15], [PORT[1], ym[1], zs + SMALL + 0.15], f"rabblemount{k}_port", q, "iron"))
+        ly, ph = SMALL_Y[1], SMALL_BEND
+        out.append(box([PORT[0], ly - ph, zs - ph], [PORT[1], ly + ph, zs + ph], f"rabblemount{k}_port", q, "iron"))
     return out
 
 
@@ -1228,35 +1260,51 @@ def build_output():
     return out
 
 
+def small_tube(name, axis, a, b, centre):
+    """A length of the small pipe along `axis` from a to b about `centre` (solderedpipe's (u, v) across it): four walls
+    round its bore, as solderedpipe's tube is built, at the vanner's spray pipe's size."""
+    return solderedpipe._walls(name, axis, a, b, centre, SMALL_HALF, SMALL_HALF - SMALL_WALL, solderedpipe.BODY)
+
+
 def pipe_boxes():
-    """The water as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels): the manifold, a cube of
-    ppex's pipe under the water cell's top, open up to the player's pipe and plugged below; and from it a small-bore pipe
-    to each rabble's swivel: east from the manifold's side, down the east side of the drive's row clear of the wheels,
-    and in under each wheel to the swivel's port, soldered at each bend."""
-    out = solderedpipe.hub("manifold", MANIFOLD, ("up",))
-    s = SMALL
+    """The water as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels), the vanner's way down to a
+    small pipe: the manifold, a cube of ppex's pipe under the water cell's top, open up to the player's pipe and south,
+    plugged below; a full-size length of it south (the connector), its end plugged round the small pipe's bore (four
+    plates inside its walls) with a ring of solder round the small pipe where it leaves (the reducer); and the small pipe,
+    2.4 across, on south over pedestal 2, east, down the drive row's east side clear of both wheels to a tee, along under
+    the wheels both ways and in to each swivel's port, a soldered cube at each bend and the tee, a ring at each port."""
+    h = solderedpipe.HALF
+    x, y, z = MANIFOLD
+    out = solderedpipe.hub("manifold", MANIFOLD, ("up", "south"))
+    ze = CONNECTOR_Z
+    out += solderedpipe.tube("connector", 2, z + h, ze, (x, y))
+    i = h - solderedpipe.WALL
+    si = SMALL_HALF - SMALL_WALL
+    p0, p1 = ze - solderedpipe.WALL, ze
+    Bx = solderedpipe.Box
+    out += [Bx("plug_down", [x - i, y - i, p0], [x + i, y - si, p1], solderedpipe.BODY),
+            Bx("plug_up", [x - i, y + si, p0], [x + i, y + i, p1], solderedpipe.BODY),
+            Bx("plug_west", [x - i, y - si, p0], [x - si, y + si, p1], solderedpipe.BODY),
+            Bx("plug_east", [x + si, y - si, p0], [x + i, y + si, p1], solderedpipe.BODY)]
+    j, sb = solderedpipe.JOINT_SWELL, SMALL_BEND
+    out += solderedpipe._walls("reducer", 2, ze, ze + REDUCER_L, (x, y), SMALL_HALF + j, SMALL_HALF, solderedpipe.SOLDER)
     hy, ly = SMALL_Y
+    zb, xd = SMALL_Z, SMALL_X
     zs1, zs2 = RABBLE_Z
-    x_m = MANIFOLD[0] + solderedpipe.HALF
-    bead = s + 0.1
 
-    def run(name, a, b):
-        lo = [min(a[k], b[k]) - (s if a[k] == b[k] else 0.0) for k in range(3)]
-        hi = [max(a[k], b[k]) + (s if a[k] == b[k] else 0.0) for k in range(3)]
-        return solderedpipe.Box(name, lo, hi, solderedpipe.BODY)
-
-    def elbow(name, p):
-        return solderedpipe.Box(name, [p[k] - bead for k in range(3)], [p[k] + bead for k in range(3)], solderedpipe.SOLDER)
-    out.append(run("small_out", [x_m, hy, zs1], [SMALL_X - bead, hy, zs1]))
-    out.append(elbow("small_tee", [SMALL_X, hy, zs1]))
-    out.append(run("small_down1", [SMALL_X, hy - bead, zs1], [SMALL_X, ly + bead, zs1]))
-    out.append(elbow("small_elbow1", [SMALL_X, ly, zs1]))
-    out.append(run("small_in1", [SMALL_X - bead, ly, zs1], [PORT[1], ly, zs1]))
-    out.append(run("small_along", [SMALL_X, hy, zs1 + bead], [SMALL_X, hy, zs2 - bead]))
-    out.append(elbow("small_elbow2", [SMALL_X, hy, zs2]))
-    out.append(run("small_down2", [SMALL_X, hy - bead, zs2], [SMALL_X, ly + bead, zs2]))
-    out.append(elbow("small_elbow3", [SMALL_X, ly, zs2]))
-    out.append(run("small_in2", [SMALL_X - bead, ly, zs2], [PORT[1], ly, zs2]))
+    def bend(name, p):
+        return Bx(name, [p[k] - sb for k in range(3)], [p[k] + sb for k in range(3)], solderedpipe.SOLDER)
+    out += small_tube("small_south", 2, ze, zb - sb, (x, hy))
+    out.append(bend("small_bend1", (x, hy, zb)))
+    out += small_tube("small_east", 0, x + sb, xd - sb, (zb, hy))
+    out.append(bend("small_bend2", (xd, hy, zb)))
+    out += small_tube("small_down", 1, ly + sb, hy - sb, (xd, zb))
+    out.append(bend("small_tee", (xd, ly, zb)))
+    for k, zs in enumerate((zs1, zs2), 1):
+        out += small_tube(f"small_along{k}", 2, min(zs, zb) + sb, max(zs, zb) - sb, (xd, ly))
+        out.append(bend(f"small_bend{k + 2}", (xd, ly, zs)))
+        out += small_tube(f"small_in{k}", 0, PORT[1], xd - sb, (zs, ly))
+        out += solderedpipe._walls(f"small_port{k}", 0, PORT[1], PORT[1] + REDUCER_L, (zs, ly), SMALL_HALF + j, SMALL_HALF, solderedpipe.SOLDER)
     return solderedpipe.cull_pressed(out)
 
 

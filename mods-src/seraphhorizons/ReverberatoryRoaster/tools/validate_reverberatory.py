@@ -1181,6 +1181,78 @@ def check_firing(v):
           f"({len(holes)} points)")
 
 
+def in_rect(r, y, z, eps=1e-6):
+    (ya, yb), (za, zb) = r
+    return ya + eps < y < yb - eps and za + eps < z < zb - eps
+
+
+def peep_hole(m, k, place):
+    """Door k's peep hole in its plate in `place`, as ((y0, y1), (z0, z1)), or None."""
+    if k != m.PEEP_DOOR:
+        return None
+    zc = m.RABBLE_Z[k - 1]
+    ph, (pa, pb) = m.PEEP
+    py0 = m.DOOR_PLATE[place][0]
+    return (py0 + pa, py0 + pb), (zc - ph, zc + ph)
+
+
+def check_peep(v):
+    """The owner's ruling (level 2's doors are shut, so the rabbles showed only from above): door PEEP_DOOR's plate has a
+    peep hole over the opening, its shutter over it at level 1 and slid clear of it at level 2, inside its guides and
+    the footprint; the hole lies inside the door's opening, so through it only the opening and the hearth show (nothing of
+    the lining but through the hole); and sight lines from outside through it, level and looking down, cross nothing at
+    level 2 (but the charge) and meet the rabble's spindle, hub or arms at every angle of its turn."""
+    m = v.m
+    k = m.PEEP_DOOR
+    zc = m.RABBLE_Z[k - 1]
+    hw, (y0, y1) = m.WORK_DOOR
+    (ha, hb), (za, zb) = peep_hole(m, k, "shut")
+    if not (y0 < ha and hb < y1 and zc - hw < za and zb < zc + hw):
+        v.fail(f"door {k}'s peep hole {(ha, hb), (za, zb)} is not inside its opening")
+    for place, over in (("open", True), ("shut", False)):
+        sh = aabb_of(v.named(f"doors{place}", rf"_peepshutter{k}"))
+        (pa, pb), (qa, qb) = peep_hole(m, k, place)
+        covers = sh[0][1] <= pa and sh[1][1] >= pb and sh[0][2] <= qa and sh[1][2] >= qb
+        clear = sh[0][2] >= qb or sh[1][2] <= qa
+        if (over and not covers) or (not over and not clear):
+            v.fail(f"door {k}'s peep shutter is not {'over' if over else 'clear of'} the hole with the door {place}")
+        gs = v.named(f"doors{place}", rf"_peepguide{k}")
+        g = aabb_of(gs)
+        if len(gs) != 2 or g[1][0] > m.W + 1e-6 or not (g[0][2] <= sh[0][2] + 1e-6 and sh[1][2] <= g[1][2] + 1e-6):
+            v.fail(f"door {k}'s peep shutter does not run in its two guides inside the footprint (door {place})")
+    statics = [e for e in v.drawn(scene("level2"), moving=False) if e.part != "charge"]
+    ym = (ha + hb) / 2
+    xs = m.FACE_E + 1.3
+    lines = [([m.W + 1.0, ym, z], [m.SHAFT[0], ym, zc]) for z in (za + 0.3, zc, zb - 0.3)]
+    arm = (m.ARM_Y[0] + m.ARM_Y[1]) / 2
+    top, run = hb - 0.4, xs - m.SHAFT[0]         # looking down: in under the hole's top edge to the spindle at the arms' height
+    lines.append(([m.W + 4.0, top + (top - arm) * (m.W + 4.0 - xs) / run, zc], [m.SHAFT[0], arm, zc]))
+    rabble = f"rabble{k}"
+    seen = 0
+    for a, b in lines:
+        dx = b[0] - a[0]
+        at_hole = [a[q] + (b[q] - a[q]) * (xs - a[0]) / dx for q in range(3)]
+        if not in_rect(((ha, hb), (za, zb)), at_hole[1], at_hole[2]):
+            v.fail(f"a peep sight line {a} -> {b} misses the hole ({at_hole})")
+            continue
+        pts = [[a[q] + (b[q] - a[q]) * i / 300 for q in range(3)] for i in range(1, 301)]
+        hit = next((e.name for p in pts for e in statics if inside(p, e, 0.01)), None)
+        if hit:
+            v.fail(f"the view through door {k}'s peep hole {a} -> {b} is blocked by {hit}")
+            continue
+        miss = [th for th in thetas(48) if not any(inside(p, e) for p in pts for e in v.posed(rabble, th))]
+        if miss:
+            v.fail(f"the view through door {k}'s peep hole {a} -> {b} misses the rabble at {len(miss)} angles")
+            continue
+        seen += 1
+    a, b = lines[-1]
+    pts = [[a[q] + (b[q] - a[q]) * i / 300 for q in range(3)] for i in range(1, 301)]
+    arms = sum(1 for th in thetas(144) if any(inside(p, e) for p in pts for e in v.posed(rabble, th) if "_arm" in e.name))
+    if arms == 0:
+        v.fail(f"no arm of rabble {k} passes the downward view through the peep hole")
+    return f"{seen} sight lines through it clear to rabble {k} at every angle, its arms across the downward one at {arms} of 144, its shutter over it at level 1, clear at level 2"
+
+
 def check_doors(v):
     """The work doors, on the east side only: the openings through the east wall at each rabble; open (level 1), each
     plate raised clear of its opening and a sight line from outside it to the hearth's middle line, at the arms' height
@@ -1205,12 +1277,17 @@ def check_doors(v):
                     v.fail(f"the view through open door {k} at y {y:g}, z {zc + dz:g} is blocked by {hit}")
                 else:
                     seen += 1
-        shut = [e.aabb() for e in v.named("doorsshut", rf"_plate{k}")][0]
-        if not (shut[0][1] <= y0 and shut[1][1] >= y1 and shut[0][2] <= zc - hw and shut[1][2] >= zc + hw):
-            v.fail(f"door {k}'s plate does not cover its opening shut")
+        plates = v.named("doorsshut", rf"_plate{k}")
+        shut = aabb_of(plates)
+        hole = peep_hole(m, k, "shut")
+        gaps = [(y, z) for y in _span(y0, y1, 0.25) for z in _span(zc - hw, zc + hw, 0.25)
+                if not any(inside([m.FACE_E + 1.3, y, z], e) for e in plates) and not (hole and in_rect(hole, y, z))]
+        if gaps or not (shut[0][1] <= y0 and shut[1][1] >= y1 and shut[0][2] <= zc - hw and shut[1][2] >= zc + hw):
+            v.fail(f"door {k}'s plate does not cover its opening shut (but for a peep hole): {gaps[:3]}")
         op = [e.aabb() for e in v.named("doorsopen", rf"_plate{k}")][0]
         if op[0][1] < y1:
             v.fail(f"door {k}'s plate does not clear its opening open")
+    peeps = check_peep(v)
     west = [p for p in ((4.0, (y0 + y1) / 2, z) for z in range(1, int(m.D))) if not any(inside(p, e) for e in v.by_part["brickwork"] + v.by_part["lining"])]
     if west:
         v.fail(f"the shared wall opens at {west[:3]}")
@@ -1220,7 +1297,7 @@ def check_doors(v):
     if not (sh[0][2] <= tz[0] and sh[1][2] >= tz[1] and sh[0][1] <= ty[0] and sh[1][1] >= ty[1]) or op[0][2] < tz[1]:
         v.fail("the discharge door does not cover the tunnel's mouth shut, or clear it open")
     print(f"work doors: on the east only, {seen} sight lines from outside the open doors to the hearth's middle line clear; "
-          f"shut, each plate over its opening; the shared wall unbroken; the discharge door over the mouth shut, clear of it open")
+          f"shut, each plate over its opening but for door {m.PEEP_DOOR}'s peep hole ({peeps}); the shared wall unbroken; the discharge door over the mouth shut, clear of it open")
 
 
 # ---------------------------------------------------------------- the chutes, the water, the outlet, the damper, the draught
@@ -1280,7 +1357,9 @@ def check_chutes(v):
 
 def check_water(v):
     """The water (level 2): the manifold is ppex's pipe (6 across) at the water cell's top face, at the block's 5..11 both
-    ways, open up to the player's pipe; small-bore pipes join it to each swivel's port, every piece touching the next;
+    ways, open up to the player's pipe; a full-size connector out of its side, its end plugged round the small pipe's bore
+    with a ring of solder (the vanner's reducer); the small pipe the vanner's, 2.4 across, every run; it joins the
+    connector to each swivel's port, every piece touching the next;
     the copper and lead parts are the same boxes; the pipes are drawn only with the rabbles."""
     m = v.m
     cell = [m.WATER_CELL[k] * 16 for k in range(3)]
@@ -1307,14 +1386,43 @@ def check_water(v):
     loose = [group[i].name for i in range(len(group)) if i not in seen]
     if loose:
         v.fail(f"the water's pipes do not join the manifold to every swivel: {loose[:5]}")
+    # the owner's ruling: the vanner's soldered reducer, a full-size connector, its end plugged round the small pipe's bore,
+    # a ring of solder where the small pipe leaves it, and the small pipe the vanner's (2.4 across, a 1.6 bore)
+    def across(rx, axis):
+        lo, hi = aabb_of(v.named("pipecopper", rx))
+        return [round(hi[q] - lo[q], 6) for q in range(3) if q != axis]
+    con = aabb_of(v.named("pipecopper", r"_connector_"))
+    big = 2 * m.solderedpipe.HALF
+    if across(r"_connector_", 2) != [big, big] or abs(con[0][2] - (m.MANIFOLD[2] + m.solderedpipe.HALF)) > 1e-6:
+        v.fail(f"the connector is not ppex's pipe ({big} across) out of the manifold's side: {con}")
+    plug = v.named("pipecopper", r"_plug_")
+    si = m.SMALL_HALF - m.SMALL_WALL
+    if len(plug) != 4 or any(inside([m.MANIFOLD[0] + dx, m.MANIFOLD[1] + dy, m.CONNECTOR_Z - 0.5], e)
+                             for e in plug for dx in (-si + 0.05, 0.0, si - 0.05) for dy in (-si + 0.05, 0.0, si - 0.05)):
+        v.fail("the connector's end is not plugged round the small pipe's open bore")
+    ring = aabb_of(v.named("pipecopper", r"_reducer_"))
+    if across(r"_reducer_", 2) != [round(2 * m.SMALL_BEND, 6)] * 2 or abs(ring[0][2] - m.CONNECTOR_Z) > 1e-6:
+        v.fail(f"the reducer's ring of solder is not round the small pipe at the plug: {ring}")
+    runs = sorted({re.sub(r"_(north|south|east|west|up|down)$", "", e.name) for e in pipes if re.search(r"_small_(south|east|down|along\d|in\d)_", e.name)})
+    small = 2 * m.SMALL_HALF
+    for r in runs:
+        lo, hi = aabb_of([e for e in pipes if e.name.startswith(r + "_")])
+        ax = {"south": 2, "east": 0, "down": 1, "along": 2, "in": 0}[re.sub(r"\d$", "", r.rsplit("_", 1)[1])]
+        sz = [round(hi[q] - lo[q], 6) for q in range(3) if q != ax]
+        if sz != [small, small]:
+            v.fail(f"{r} is not the vanner's small pipe ({small} across): {sz}")
+    if m.SMALL_HALF != 1.2 or m.SMALL_WALL != 0.4:
+        v.fail("the small pipe is not the vanner's size (2.4 across round a 1.6 bore)")
     lead = {e.name.replace("pipelead", "pipecopper"): e for e in v.by_part["pipelead"]}
     diff = [e.name for e in pipes if e.name not in lead or e.aabb() != lead[e.name].aabb()]
     if diff:
         v.fail(f"the lead pipes are not the copper ones: {diff[:3]}")
     if v.shows("pipecopper", scene("level1")) or not v.shows("pipecopper", scene("level2")):
         v.fail("the pipes are not drawn with the rabbles only")
-    print(f"water: the manifold ppex's pipe under the water cell's top, open up; {len(pipes) - len(v.named('pipecopper', r'_manifold'))} "
-          f"small-bore pieces join it to {len(ports)} swivels' ports; copper and lead alike")
+    print(f"water: the manifold ppex's pipe under the water cell's top, open up; a full-size connector out of it, plugged round "
+          f"the small pipe's bore with a ring of solder (the vanner's reducer); {len(runs)} runs of the vanner's {small}-across "
+          f"small pipe, {len(pipes) - len(v.named('pipecopper', r'_manifold'))} pieces in all, join it to {len(ports)} swivels' ports; "
+          f"copper and lead alike")
 
 
 def check_damper(v):

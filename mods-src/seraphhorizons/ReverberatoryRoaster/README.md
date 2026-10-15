@@ -59,7 +59,7 @@ shared wall, which rises to the top the whole length, and the tie rods end on an
 | `infeed`, `output`, `fuel`, `water` | points | The middles of those faces |
 | `charge`, `discharge` | points | Where the feed chute drops the charge on the hearth; the discharge hole by the bridge |
 | `ash` + `ashSide`, `stoke` + `stokeSide` | north | The ash mouth (the damper) and the fire door (level 1's stoking), on the controller's face |
-| `workDoor1`, `workDoor2` + their sides | east | The work doors, at the rabbles |
+| `workDoor1`, `workDoor2` + their sides | east | The work doors, at the rabbles (door 1's plate with the peep hole) |
 | `build`, `bricks`, `furnace`, `gearing` | | The build (below), the brick types (the crucible furnace's), the row, the drawn gearing: not drawn |
 
 ## The levels
@@ -67,7 +67,8 @@ shared wall, which rises to the top the whole length, and the tie rods end on an
 | | Fitted (`requires`) | What it is |
 |---|---|---|
 | Level 1: batch, by hand | `hopper`, `firedoor`, `handfiring`, `doorsopen`, `dischargeshut`; the damper (`damperopen`, `damperhalf` or `dampershut`) | The hopper on the roof, charged by hand, its neck and feed chute dropping the charge through the flue end's roof onto the hearth; the fire door over a **flat grate** (`handfiring`: 14 bars on the bearers, and the coal well's cover); the work doors on the east raised in their guides, so the charge is rabbled through them by hand; the discharge door shut over the tunnel's mouth, opened to draw the roasted charge. No power, no water |
-| Level 2: continuous | `hopper`, `firedoor`, `doorsshut`, `dischargeopen`, `drive`, `rabbles`, `feeder`, `stoker`, `output`; the damper; the pipes (`pipecopper` or `pipelead`) | Adds the drive (gear case with its rectifier, line shaft, bevel pinions, pedestals), the water-cooled rabbles with their swivels, the feed roll and the infeed's chute section, the **stoker** (the coal bunker in the fire end's well, its throat and the **step grate**, in place of the flat grate and the cover), the output's chute section and spout, and the water's pipes. The work doors stay, **shut**; the discharge door is slid clear of the output chute. The hopper and the fire door stay |
+| Level 2: continuous | `hopper`, `firedoor`, `doorsshut`, `dischargeopen`, `drive`, `rabbles`, `feeder`, `stoker`, `output`; the damper; the pipes (`pipecopper` or `pipelead`) | Adds the drive (gear case with its rectifier, line shaft, bevel pinions, pedestals), the water-cooled rabbles with their swivels, the feed roll and the infeed's chute section, the **stoker** (the coal bunker in the fire end's well, its throat and the **step grate**, in place of the flat grate and the cover), the output's chute section and spout, and the water's pipes. The work doors stay, **shut**, the first's **peep hole**
+open (its shutter slid clear), so the first rabble is seen turning from the side; the discharge door is slid clear of the output chute. The hopper and the fire door stay |
 | Contents | `charge` (both), `fireflat` (level 1), `firestep` (level 2) | The bed of concentrate on the hearth; the fire on the flat grate; the fire on the step grate with the coal in the throat and the bunker. Gameplay's state, not fittings |
 
 The rig's `build.levels` lists each level's `fits`, its `also` (the damper's places; the pipes' metals) and level 2's
@@ -201,9 +202,14 @@ the tunnel's floor, its top edge in a slot behind the footing band's face leg) i
 other half; at level 1 it is shut over the mouth, and the player opens it to draw the charge.
 
 **The water** (level 2): the **manifold**, a cube of ppex's pipe (UnifiedPipes' soldered pipe, 6 across) under the water
-cell's top, open up to the player's pipe and plugged below; from its side a **small-bore pipe** runs east, down the drive
-row's east side clear of the wheels (x 31.4), and in under each wheel to its swivel's port, soldered at each bend. The
-same pipes in copper (`pipecopper`) or lead (`pipelead`), one drawn. The water is used up: no return anchor (rule 4).
+cell's top, open up to the player's pipe and south, plugged below; south from it a full-size **connector** of the same
+pipe (z 43..46.5), and at its end the **vanner's soldered reducer** (`Vanner/tools/make_shape.py`): the connector's end
+plugged round the small pipe's bore by four plates inside its walls, a ring of solder round the small pipe where it
+leaves. The **small pipe** is the vanner's spray pipe's size, a soldered tube 2.4 across round a 1.6 bore: on south over
+pedestal 2 to z 49.5, east, down the drive row's east side clear of both wheels (x 30.4), to a tee, then along under the
+wheels both ways (y 33.4) and in to each swivel's **port**, a soldered cube at each bend and the tee and a ring of solder
+at each port. The same pipes in copper (`pipecopper`) or lead (`pipelead`), one drawn. The water is used up: no return
+anchor (rule 4).
 
 Every moving part (θ the axle angle, ψ its travel; none rides another):
 
@@ -281,8 +287,12 @@ the checks, and the run exits non-zero if one fails. Checks that look at parts t
   flush; level 2's treads stepping down to the bridge, the throat's foot over the top tread, the bunker under the fuel
   cell; the two grates never drawn together; the fire end face open only at the fire door and the ash mouth.
 - **The doors:** the work doors on the east only; open, the plates clear of the openings and sight lines from outside
-  them to the hearth's middle line clear but for the charge; shut, the plates over the openings; the shared wall
-  unbroken; the discharge door over the tunnel's mouth shut, clear of it open.
+  them to the hearth's middle line clear but for the charge; shut, the plates over the openings but for door 1's peep
+  hole; the shared wall unbroken; the discharge door over the tunnel's mouth shut, clear of it open.
+- **The peep hole** (the owner's ruling: level 2's doors are shut, so the rabbles showed only from above): inside door
+  1's opening, so through it only the opening and the hearth show; its shutter over it at level 1 and slid clear at level
+  2, in its two guides inside the footprint; three level sight lines and one looking down through it cross nothing at
+  level 2 but the charge and meet the rabble at every angle, its arms crossing the downward one (34 of 144 angles).
 - **Supports:** the line shaft in the gear case's boss, two pedestals and the neck's end walls; the entry in the north
   boss; each spindle in its gland and its swivel, its wheel's hub on the swivel.
 - **Gearing:** each bevel pair's pitch cones share the apex where the axes meet; the contact point moves alike on both
@@ -293,7 +303,9 @@ the checks, and the run exits non-zero if one fails. Checks that look at parts t
 - **The chutes** (the owner's rule): the infeed's and the fuel's sections up and down, the output's along x, each the
   vanilla chute's walls in its cell and texture up to its anchor's face, checked against the game's own
   `shapes/block/metal/chute/straight.json` when the game is at hand.
-- **The water:** the manifold ppex's pipe at the water cell's top face, open up; the small-bore pipes join it to both
+- **The water:** the manifold ppex's pipe at the water cell's top face, open up; the connector ppex's pipe out of its
+  side, its end plugged round the small pipe's open bore, the reducer's ring of solder round the small pipe at the plug
+  (the owner's ruling: the vanner's reducer); every run of the small pipe 2.4 across; the pipes join the manifold to both
   swivels' ports, every piece touching the next; copper and lead the same boxes; drawn only with the rabbles.
 - **The damper:** open, half and shut in its recess between its guides over the ash mouth.
 - **The outlet** (review of the branch: it clashed with the infeed and the drive's row): beside the drive's row, not
@@ -334,7 +346,7 @@ brickwork, 2 lining, 3 arch and ironwork), **Level** (built and nothing fitted, 
 and running; it waits for the furnace to be built), **Ash-mouth damper** (open, half, shut), **Water pipes** (copper,
 lead; it waits for level 2's rabbles) and **Outlet** (open, capped). A **Brick** select gives the crucible furnace's nine
 brick types. The page opens built, at level 2 running, damper open, copper pipes, outlet open. Level 1's open work doors
-show the hearth from the east.
+show the hearth from the east; at level 2 door 1's peep hole shows the first rabble turning.
 
 ### Editing by hand
 
@@ -360,8 +372,8 @@ per-cell `fitted` collision (`9fa58a5`, never ported).
 
 New: the 5-long layout with flat-topped end blocks, the outlet in the flue end's west corner, the shared west wall, the
 work doors on the east only, level 1's fire door, flat grate and well cover, the coal well and stoker at level 2, the ash
-mouth's damper, the discharge door and the output chute with its spout, the water's manifold, small-bore pipes and the
-swivels, the hopper's neck kept at level 1, and the build's states.
+mouth's damper, the discharge door and the output chute with its spout, the water's manifold, connector, the vanner's
+soldered reducer and small pipe, and the swivels, door 1's peep hole, the hopper's neck kept at level 1, and the build's states.
 
 **Provisional pending #711** (shared machine code): the chute anchors (`infeedCell`, `outputCell`, `fuelCell`, drawn as
 the vanilla chute's sections against the game's file), the water's `waterCell` (a ppex pipe onto the manifold from
@@ -386,10 +398,18 @@ above) and the reservoir it fills, and the furnace's row (`furnace`).
 - **The hopper kept at both levels, on a neck.** Level 1 is charged through the hopper's mouth (the issue), so the
   hopper, its neck and the feed chute are level 1's; at level 2 the feed roll turns in that neck, its end walls the line
   shaft's last bearings.
-- **Small-bore pipes from a ppex manifold to the swivels.** ppex's pipe is 6 voxels across; between the crown and the
-  wheels there are 3, and the line shaft runs over the spindles. So ppex's pipe ends in a manifold under the water cell's top (a cube of
-  it, as UnifiedPipes draws a joint) and small pipes in the same metal carry the water to a swivel on each spindle,
-  between the crown and the wheel: the spindle's upper bearing, with a port on its side.
+- **A small pipe from a ppex manifold to the swivels, by the vanner's reducer** (the owner's ruling). ppex's pipe is 6
+  voxels across; between the crown and the wheels there are 3, and the line shaft runs over the spindles. So ppex's pipe
+  ends in a manifold under the water cell's top (a cube of it, as UnifiedPipes draws a joint) and a short full-size
+  connector, narrowed as the vanner's is (a soldered plug in its end, a ring of solder) to the vanner's 2.4 small pipe in
+  the same metal, which carries the water to a swivel on each spindle, between the crown and the wheel: the spindle's
+  upper bearing, with a port on its side. The connector runs south, not east, because a reducer and a bend side by side
+  would not fit east of the manifold inside the drive's row (x to 32); the small pipe drops between the wheels, the only
+  place clear of both at 2.4 across.
+- **A peep hole in work door 1** (the owner's ruling). Level 2's doors are shut, so the rabbles showed only from above;
+  a 3.5 by 3.4 hole low in door 1's plate, over the opening, shows the first rabble's spindle and hub and its arms going
+  by, its shutter (a thin plate sliding along z in two guides, within the 0.15 left between the plate and the
+  footprint's face) slid clear at level 2 and over the hole at level 1, where the door itself is raised.
 - **The output by a spout into the vanilla section.** The discharge hole must be over the hearth (inside the walls) and
   the vanilla section flush with the face, so the section fills the tunnel's mouth and an iron spout carries the charge
   from under the hole down onto its floor.
@@ -399,28 +419,18 @@ above) and the reservoir it fills, and the furnace's row (`furnace`).
 
 ## Open for the owner
 
-1. **The outlet in the flue end's west corner** (beside the hopper), or elsewhere: the middle column's top is the drive's
-   row and the infeed's.
-2. **The coal well and its cover at level 1**: a well built into the fire end block with its throat through the
-   firebox's roof, covered by three iron plates until level 2. The alternative is a firebox roof with no hole at level 1
-   and the bunker's throat cut through at level 2 (brick pulled down at an upgrade).
-3. **Two in a row, back to back** (`rowMax` 2, `rowFacing` opposite): the doors on one side only allow no more.
-4. **Water to the swivels by small-bore pipe** from a ppex manifold, not ppex's own pipe (which cannot reach them); and
-   where the water anchor is (the drive row's top over the first rabble, so the player's pipe comes from above).
-5. **The build**: the frame's recipe, the stages and their order (the frame, brickwork, lining, arch with ironwork as
+Settled by the owner (2026-10-14), not to be changed: the outlet in the flue end's west corner; the covered coal well at
+level 1; two in a row at most, back to back; two rabbles; the flue's sulfur lost (no sulfur anchor); the water by the
+vanner's reducer to a small pipe; a peep hole in a shut door at level 2; the closed box frame as drawn, and the bare
+refractory on the arch's top and the flue end's top. Still open:
+
+1. **Where the water anchor is** (the drive row's top over the first rabble, so the player's pipe comes from above).
+2. **The build**: the frame's recipe, the stages and their order (the frame, brickwork, lining, arch with ironwork as
    drawn), the ironwork's and the levels' materials; the brick counts are measured (26 fired bricks; 17 + 9 refractory
    bricks, 7 + 4 fire clay).
-6. **The chimney's minimum**: the crucible furnace's six blocks, taken as they are.
-7. **The sulfur** (0.7 of a sulfide's sulfur through the flue, #736): nothing is drawn for it; an anchor at the outlet
-   or the uptake if gameplay needs one.
-8. **Readability:** level 1's open work doors show the hearth from the east; level 2's are shut (the issue), so its
-   rabbles are seen only from above with the arch hidden, or through level 1's doors.
-9. **Rabble count**: two, as the branch's; real furnaces had more.
-10. **The box frame over the arch's bay** (this pass): the end blocks' inner bands reach down to the arch in steps
-    behind its ends (an unequal angle, its face leg up to 6.6 deep), so they read as iron plates over the arch's ends
-    rather than 2-wide bands with a sliver of brick under them; and to keep every piece of brick at least 3 wide, the
-    well's cover, the hopper's base plate and the flue end block's lining run out to the bands. Narrower bands with more
-    brick between would need the brick re-laid round them.
+3. **The chimney's minimum**: the crucible furnace's six blocks, taken as they are.
+4. **The peep hole** (this pass): in door 1 only, its shutter a thin plate (0.1) for want of room before the footprint's
+   face; door 2 could have one too.
 
 ## Known weak spots, and what is not checked
 

@@ -180,4 +180,34 @@ describe("the reverberatory roaster's scenario", () => {
     }
     expect(names.filter((n) => !seen.has(n))).toEqual([]);
   });
+
+  it("narrows the water as the vanner does: a full-size connector plugged round the 2.4 small pipe, a ring of solder", () => {
+    const els = shape.elements.filter((e) => e.name.startsWith("pipecopper_"));
+    const across = (re: RegExp, axis: number) => {
+      const es = els.filter((e) => re.test(e.name));
+      const lo = [0, 1, 2].map((k) => Math.min(...es.map((e) => e.from[k]!)));
+      const hi = [0, 1, 2].map((k) => Math.max(...es.map((e) => e.to[k]!)));
+      return [0, 1, 2].filter((k) => k !== axis).map((k) => +(hi[k]! - lo[k]!).toFixed(6));
+    };
+    expect(across(/_connector_/, 2)).toEqual([6, 6]);
+    expect(els.filter((e) => /_plug_/.test(e.name))).toHaveLength(4);
+    expect(across(/_reducer_/, 2)).toEqual([2.8, 2.8]);
+    expect(els.filter((e) => /_reducer_/.test(e.name)).every((e) => Object.values(e.faces ?? {}).every((f) => f.texture === "#solder"))).toBe(true);
+    for (const [run, axis] of [["south", 2], ["east", 0], ["down", 1], ["along1", 2], ["along2", 2], ["in1", 0], ["in2", 0]] as const)
+      expect([run, across(new RegExp(`_small_${run}_`), axis)]).toEqual([run, [2.4, 2.4]]);
+  });
+
+  it("leaves door 1's peep hole open at level 2, its shutter over it at level 1", () => {
+    const box = (re: RegExp) => {
+      const es = shape.elements.filter((e) => re.test(e.name));
+      return [Math.min(...es.map((e) => e.from[2]!)), Math.max(...es.map((e) => e.to[2]!))];
+    };
+    const plates = shape.elements.filter((e) => /^doorsshut_plate1/.test(e.name));
+    expect(plates).toHaveLength(4);
+    const [hz0, hz1] = [box(/^doorsshut_plate1n$/)[1]!, box(/^doorsshut_plate1s$/)[0]!];
+    const shut = box(/^doorsshut_peepshutter1$/);
+    expect(shut[0]! >= hz1 || shut[1]! <= hz0).toBe(true);
+    const open = box(/^doorsopen_peepshutter1$/);
+    expect(open[0]! <= hz0 && open[1]! >= hz1).toBe(true);
+  });
 });
