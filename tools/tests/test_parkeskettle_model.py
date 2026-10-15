@@ -121,6 +121,16 @@ class Motion(unittest.TestCase):
 
 
 class Kettle(unittest.TestCase):
+    def test_the_fuel_is_six_coal_to_a_charge_and_the_grate_holds_eight(self):
+        fu = RIG["furnace"]
+        self.assertEqual((fu["chargeUnits"], fu["coalPerCharge"], fu["fuelLayers"] * fu["fuelPerLayer"]), (2400, 6, 8))
+
+    def test_the_mitre_pair_has_eight_teeth_each_at_module_one(self):
+        names = [e["name"] for e in SHAPE["elements"]]
+        self.assertEqual(sum(n.startswith("dr_pinion_tooth") for n in names), 8)
+        self.assertEqual(sum(n.startswith("st_wheel_tooth") for n in names), 8)
+        self.assertEqual((make_shape.GEAR_MOD, RIG["furnace"]["stirRatio"]), (1.0, 1.0))
+
     def test_each_level_of_the_bath_holds_its_quarter_of_a_charge(self):
         self.assertEqual((RIG["furnace"]["chargeUnits"], RIG["furnace"]["leadLevels"]), (2400, 4))
         for n in range(1, 5):

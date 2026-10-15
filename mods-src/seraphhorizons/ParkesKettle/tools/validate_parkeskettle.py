@@ -888,9 +888,28 @@ def check_gearing(v):
         worst = max(worst, err)
         if err > 1e-3 or size < 1e-6:
             v.fail(f"the mitre pair slips at theta {th}: pinion {da}, wheel {db}")
+    # the teeth in mesh: posed, at every angle a pinion tooth stands in a wheel's gap at the pitch point (the two
+    # gears' teeth half a pitch apart there, measured about each axis from the pitch point towards +x), so they
+    # interleave rather than meet tip to tip, and each gear has its count of teeth
+    n_p = len(v.named("drive", r"^dr_pinion_tooth"))
+    n_w = len(v.named("stirrer", r"^st_wheel_tooth"))
+    if (n_p, n_w) != (m.PINION_TEETH, m.WHEEL_TEETH):
+        v.fail(f"the mitre pair has {n_p} and {n_w} teeth, not {m.PINION_TEETH} and {m.WHEEL_TEETH}")
+    pitch = math.tau / m.PINION_TEETH
+    off = 0.0
+    for th in thetas(48) + thetas(48, -1)[1:]:
+        def nearest(phis):
+            return min((((f + pitch / 2) % pitch) - pitch / 2 for f in phis), key=abs)
+        fp = nearest(math.atan2(e.c[0] - ap[0], -(e.c[1] - ap[1])) for e in v.named("drive", r"^dr_pinion_tooth", th))
+        fw = nearest(math.atan2(e.c[0] - ap[0], e.c[2] - ap[2]) for e in v.named("stirrer", r"^st_wheel_tooth", th))
+        d = abs(abs(((fp - fw + pitch / 2) % pitch) - pitch / 2) - pitch / 2)
+        off = max(off, d)
+    if off > 1e-6:
+        v.fail(f"the mitre pair's teeth are {math.degrees(off):.3f} degrees off a tooth in the other's gap")
     print(f"gearing: a mitre pair, {m.PINION_TEETH} to {m.WHEEL_TEETH} (module {m.GEAR_MOD}), axes crossing at "
           f"{[round(c, 2) for c in ap]}, the pitch point moving alike on both (worst {worst:.1e}): the stirrer turns "
-          f"{m.STIR_RATIO} of the axle")
+          f"{m.STIR_RATIO} of the axle; in mesh every 7.5 degrees either way, a tooth of each in the other's gap at "
+          f"the pitch point (worst {math.degrees(off):.1e} degrees off)")
 
 
 def check_supports(v):
@@ -1365,9 +1384,15 @@ def validate_files(m, shape, frame_shape, ship):
         p = ship[key]["pos"]
         if ship[side] != "north" or abs(p[2]) > 1e-9 or not (0.0 <= p[0] <= 1.0 and 0.0 <= p[1] <= 1.0 + 1e-9):
             fail(f"the {key} is not on the controller cell's front face")
+    fu = ship["furnace"]
+    holds = fu["fuelLayers"] * fu["fuelPerLayer"]
+    if (fu["chargeUnits"], fu["coalPerCharge"], holds) != (2400, 6, 8):
+        fail(f"the fuel is {fu['coalPerCharge']} coal to a {fu['chargeUnits']}-unit charge and a grate of {holds}, "
+             f"not #927's ruling (6 coal to 2,400 units, the fire holding 8)")
     print(f"files: {len(shape['elements'])} elements, frame {len(frame_shape['elements'])}; {len(ship['cells'])} cells, "
           f"{len(hollow)} hollow (over the kettle's mouth), decks on {len(lids)}; glow on the burning coal only; no air, "
           f"water or chute anchor; the power cell {list(pc)} south on the back face; the kettle's cell {list(kc)}; the "
           f"fire door and the ash mouth on the controller's front face; the outlet under the chimney's cell "
-          f"{list(chim)}, the chimney {m.MIN_CHIMNEY} blocks from it up; the cell beside it free")
+          f"{list(chim)}, the chimney {m.MIN_CHIMNEY} blocks from it up; the cell beside it free; "
+          f"{fu['coalPerCharge']} coal to a {fu['chargeUnits']}-unit charge, the grate holding {holds}")
     return ok

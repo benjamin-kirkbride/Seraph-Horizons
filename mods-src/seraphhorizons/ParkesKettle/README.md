@@ -4,7 +4,7 @@ Part of the Seraph Horizons mod's ore processing (epic #684): the generated mode
 desilverizing kettle of the parting stage, whose behaviour is #927. The line, the glossary and the period sources are
 in #939, the power and water budget in #940.
 
-**Status: model only, first pass** (v3). This folder's `tools/` holds the model's generator and its checks; there is
+**Status: model only, second review pass** (v3). This folder's `tools/` holds the model's generator and its checks; there is
 no gameplay yet (#927). The model follows the crucible furnace's conventions (`../CrucibleFurnace/README.md`; its
 generator is this one's template) and salvages the stirrer's mechanism from the parting furnace's v2 branch
 (`741-parting-furnace-model-v2`, see "Salvage"). The generic half of the generator is `Machines/tools/machinegen/`,
@@ -50,7 +50,8 @@ crucible furnace's.
 - **The front**, the stoker's: a **fire door** (an iron plate lifting in iron guides in a recess, over the fire
   door's opening above the grate, where coal goes in by hand) and under it the **ash mouth**, where the air comes in,
   with an iron **damper** sliding sideways along iron rails across it in three places: **open** (slid east, clear of
-  the mouth), **half** (over its east half) and **shut** (over all of it). Both are set in a cast-iron front built into
+  the mouth), **half** (over its east half) and **shut** (over all of it). **Fuel** (#927's ruling): coal, **6 to a
+  2,400-unit charge**; the grate holds **8**, in two layers of four (`coalPerCharge`, `fuelLayers`, `fuelPerLayer`). Both are set in a cast-iron front built into
   the brick behind the recesses. Natural draught only.
 - **The stirrer's gallows** stands over the kettle: two cast-iron **plate standards** on feet on the floor, west and
   east of the kettle, joined by three **beams** across it. The lower and the upper beams carry the stirrer's vertical
@@ -61,8 +62,10 @@ crucible furnace's.
   over the setting, its face south; the axle's line is x 24, y 40, the cell's face centre). Its oak continuation (the
   vanilla axle's cross profile) meets the face; a steel **drive shaft** runs forward along z in two bearings (a
   **pedestal** on the back row and the gallows' middle beam), located by collars either side of the pedestal, to a
-  **bevel pinion** that meshes with a **mitre wheel** on the stirrer's shaft under it: 6 teeth each, module 1.2, so
-  the stirrer turns at the axle's speed. **No rectifier:** flat paddles stir alike either way (#927, rule 3).
+  **bevel pinion** that meshes with a **mitre wheel** on the stirrer's shaft under it: 8 teeth each, module 1.0
+  (the owner's ruling, 2026-10-14, so the pair reads as machined; v2's were 6 at 1.2), so the stirrer turns at the
+  axle's speed, ratio 1 as before. The lower beam sits 0.3 lower than in the first pass so the wheel's back clears
+  its boss; the wheel's tooth tips reach 0.35 into the hollow cell over the kettle's mouth (the machine's own cell). **No rectifier:** flat paddles stir alike either way (#927, rule 3).
 - **Kettles stand in a row**, side by side along their width (x), sharing walls: the side faces are flush, brickwork
   but for the corner angles' side legs set flush in them, with nothing beyond the footprint, so two settings' side
   walls meet (their corner angles and side bands back to back) and touch nowhere else, the stirrers turning. A row shares one chimney; the flues between the settings are
@@ -103,7 +106,7 @@ side (x) and two back (z) from it, away from the player.
 | `chimney` | origin `[1.4375,5,2.4375]`, `y`, 6 | The shortest chimney, six blocks counted from the outlet up (y 2 to 8), drawn as a line |
 | `build` | | The build's stages and their materials ("The build", below); not drawn |
 | `bricks` | | The fired brick types and their textures, the crucible furnace's ("The brick", below); not drawn |
-| `furnace` | | `chargeUnits` 2400, `leadLevels` 4, `fuelLayers` 2, `fuelPerLayer` 4, `minChimney` 6, `rowMax` 5, `rowAxis` `x`, `stirRatio` 1, `fireDoorLift` 0.45; not drawn |
+| `furnace` | | `chargeUnits` 2400, `leadLevels` 4, `fuelLayers` 2, `fuelPerLayer` 4, `coalPerCharge` 6, `minChimney` 6, `rowMax` 5, `rowAxis` `x`, `stirRatio` 1, `fireDoorLift` 0.45; not drawn |
 
 No air port, no water and **no chute anchor**: the kettle is batch, loaded and emptied by hand (#928, rule 2).
 
@@ -247,7 +250,10 @@ A full run is deterministic (two runs into two folders are byte-identical). It e
   (a stepped octagon, as the lattice is square to the axes) holds the bowl's top and stays inside the flange; the bowl
   off the setting's walls and over the coal; the flange clear of the chimney's cell.
 - **Gearing:** the mitre pair's axes cross at its apex, the pitch radii are in the teeth's ratio, and the pitch point
-  moves alike on both (finite differences of the posed rig, both ways round): no slip.
+  moves alike on both (finite differences of the posed rig, both ways round): no slip. Each gear has its count of
+  teeth, and posed every 7.5 degrees either way a tooth of each stands half a pitch from the other's nearest at the
+  pitch point: the teeth interleave rather than meet tip to tip (a wheel set tooth to tooth fails it, 22.5 degrees off).
+- **Fuel:** the rig's `furnace` keys give #927's ruling: 6 coal to a 2,400-unit charge, the grate holding 8.
 - **Supports:** the drive shaft in two bearings (the pedestal's, the middle boss), the stirrer's shaft in two (the
   lower and the upper bosses), each enclosing it at rest and turned 45 degrees; the stirrer hanging from the upper boss
   by its collar; the oak continuation meeting the power face at its centre.
@@ -327,8 +333,8 @@ fire door (`fd_plate`, `fd_handle`), `lead<n>_*`, `zinc_*`, `crust_*` (`cake`, `
 From `origin/741-parting-furnace-model-v2` (its evaluation is the v3 brief's `evals/741-parting.md`), copied into this
 generator and adapted, never rebased:
 
-- **Kept:** the mitre pair's maths and helpers (`bevel`, `bevel_cone`, `disc`: module 1.2, 6 teeth each, stub teeth
-  with backlash, a body of two tiers), its phasing (the pinion's tooth 1 into the wheel's gap at θ 0), the
+- **Kept:** the mitre pair's maths and helpers (`bevel`, `bevel_cone`, `disc`: stub teeth
+  with backlash, a body of two tiers; v2's module 1.2 and 6 teeth each became module 1.0 and 8 in pass 2), its phasing (the pinion's tooth 1 into the wheel's gap at θ 0), the
   paddles' symmetry, and the gearing (pitch point), supports and reverse checks.
 - **Adapted:** the gallows (v2's two standards on the flange, north and south, with two crossbeams along z, become two
   plate standards on the floor, west and east, with three beams across x and bosses); the pinion (v2's came off the
@@ -356,11 +362,12 @@ The model has been reviewed in projections rendered from the written files only.
 5. **The bath is drawn at four levels**, each a surface layer: a part-filled kettle between them is drawn at the next.
    The zinc and the crust are drawn on the full bath only.
 6. **No glow on the bath**: molten lead at its working heat barely shows; the renderer may set it.
-7. **The gears are coarse**: 6 stub teeth each, salvaged from v2.
+7. **The gears' teeth are boxes**: 8 stub teeth each, straight-sided, as every generated gear here.
 8. **Texture seams**, as the crucible furnace's: the brick is world-mapped boxes; that it runs on across them is not
    yet seen in the game.
-9. **The site viewer draws lead, zinc and the crust in one grey** (the colour families in `site/src/lib/model-view.ts`
-   take any metal ingot as metal); the parts are told apart by their shapes.
+9. **The site viewer's colours** (the families in `site/src/lib/model-view.ts`): the lead bath keeps the metal grey;
+   the zinc (pale blue-white, `#c2d0d8`) and the crust (a dull buff, `#a8946c`) have their own tints, entries added
+   ahead of the metal family (the crust first, as its texture path names zinc too). No other model's colours change.
 
 ## Provisional, pending #711
 
@@ -370,30 +377,26 @@ anchors (`outletCell`/`outletFace`, `chimney`, `ash`/`ashSide`) and the `build`,
 crucible furnace's, with `fireDoor`/`fireDoorSide` and `kettleCell`/`kettleFace` new. The stirrer's load following
 the charge (0.04 empty to 0.2 full, #927) is gameplay's; the model only shows the bath's level.
 
+## Settled by the owner (2026-10-14)
+
+- **"Two high"**: two blocks of setting, the flange at its top (the floor), with the gallows in a third layer: 25
+  cells, three of them hollow over the kettle's mouth.
+- **The axle at the back, at the gallows' height**, and **the outlet in the back row's east corner**.
+- **Fuel** (#927): 6 coal to a 2,400-unit charge; the fire holds 8.
+- **The gears**: 8 teeth each, module 1.0, ratio 1.
+- **Viewer colours**: the zinc and the crust have their own tints; the lead keeps the metal grey.
+
 ## Open for the owner
 
 1. **Build stages**: the frame recipe (the crucible furnace's copied), the kettle stage's and the stirrer stage's
    materials (proposed: 6 iron plates; 4 iron plates, 4 iron rods, 4 iron nails and strips), and whether the fire door
    and the damper come with the kettle (#928, "Open").
-2. **"Two high"**: read here as the setting two high with the flange at its top (the floor), and the gallows over it
-   in a third layer (four cells, and three hollow ones over the kettle's mouth: 25 cells, not 18). The issue's
-   wording could also mean one block of setting and one of gallows, but a kettle two blocks across with a fire under it
-   does not fit in one block.
-3. **The axle at the back, at the gallows' height**: a row takes its power from a line shaft along x behind it, 2.5
-   blocks up, an angled gear per kettle. From the front instead, the line shaft would stand where the stoker works and a
-   player on a step reaches into the kettle.
-4. **The outlet in the back row's east corner**, not its middle as the crucible furnace's: the back middle cell over
-   the setting is the power cell (#928 says only "the flue and outlet behind").
-5. **The kettle's size**: 28 across at the flange (1.75 blocks), set by the chimney's cell behind it (see 4). A full two
+2. **The kettle's size**: 28 across at the flange (1.75 blocks), set by the chimney's cell behind it. A full two
    blocks would need the setting four deep, or the outlet elsewhere.
-6. **The kettle worked from the top**: its mouth is two blocks up, worked from the deck or from a step in front, as the
+3. **The kettle worked from the top**: its mouth is two blocks up, worked from the deck or from a step in front, as the
    crucible furnace's hole.
-7. **Fuel**: coal (the bituminous texture), eight to a fire in two layers of four: #927 has no fuel figure (the
-   period's "coal about 330 lb a ton").
-8. **The hollow cells over the kettle's mouth**, or none: they keep the space over the kettle free.
-9. **The gears**: 6 teeth each (v2's), or finer (8 teeth, module 1.0).
-10. **Colours in the site viewer**: lead, zinc and the crust share the metal grey; the shared colour table is one
-    agent's to change (the v3 brief).
-11. **The parting furnaces' items** (silver-lead in, desilverized and rich lead out) are #927's and #740's open
-    question, not the model's: the model draws one bath texture.
-12. **The Faber du Faur retort** is not modelled (#927: not a level; the zinc return is a rule).
+4. **The hollow cells over the kettle's mouth**, or none: they keep the space over the kettle free (the mitre wheel's
+   tooth tips reach 0.35 into the middle one).
+5. **The parting furnaces' items** (silver-lead in, desilverized and rich lead out) are #927's and #740's open
+   question, not the model's: the model draws one bath texture.
+6. **The Faber du Faur retort** is not modelled (#927: not a level; the zinc return is a rule).

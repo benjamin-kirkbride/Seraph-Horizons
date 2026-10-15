@@ -186,19 +186,20 @@ BIND_LEG = 2.5                               # legs 1 thick and 2.5 long, from t
 AXLE = (KX, 40.0)                            # (x, y): the drive's axis along z, the power cell's face centre
 SHAFT_R = 1.0                                # the drive shaft's apothem (an octagon)
 STIR_R = 0.75                                # the stirrer's shaft's
-GEAR_MOD = 1.2
-PINION_TEETH, WHEEL_TEETH = 6, 6             # a mitre pair: the stirrer turns at the axle's speed
+GEAR_MOD = 1.0                               # module 1.0, 8 teeth each (the owner's ruling, 2026-10-14: v2's 6 at
+PINION_TEETH, WHEEL_TEETH = 8, 8             # 1.2 read as cast lumps): a mitre pair, the stirrer at the axle's speed
 GEAR_FACE = 2.0
 APEX = (KX, AXLE[1], KZ)                     # the pair's cone apex: where the two axes cross
 STIR_RATIO = 1.0                             # the wheel under the apex, the pinion behind it: the same sign as theta
 FOOT_Y = (FLOOR_TOP, 32.6)                   # the standards' feet on the floor
 STANDARD_X = ((4.0, 6.0), (42.0, 44.0))      # the plate standards, east and west of the kettle, clear of its flange
 STANDARD_Z = (18.5, 28.5)
-LOWER = ((33.0, 34.6), (19.2, 20.8))         # the lower beam (y, z): the stirrer's lower bearing
+LOWER = ((32.7, 34.3), (19.2, 20.8))         # the lower beam (y, z): the stirrer's lower bearing, low enough for the
+#                                              mitre wheel's back (module 1.0, 8 teeth) to clear its boss
 MIDDLE = ((38.4, 41.6), (26.2, 27.8))        # the middle beam: the drive shaft's front bearing
 UPPER = ((44.8, 46.4), (19.2, 20.8))         # the upper beam: the stirrer hangs from it
 GAL_TOP = UPPER[0][1]
-BOSS_LOW = ((32.8, 34.8), (18.0, 22.0))
+BOSS_LOW = ((32.5, 34.5), (18.0, 22.0))
 BOSS_MID = ((37.6, 42.4), (25.8, 28.2))
 BOSS_UP = ((44.6, 46.6), (18.0, 22.0))
 PEDESTAL_Z = (42.0, 45.0)                    # the back pedestal's bearing (z), on the back row
@@ -212,7 +213,8 @@ CRUST_T = 0.7
 
 # ---------------------------------------------------------------- the fuel
 FUEL_LAYERS = ((GRATE_TOP, 12.5), (12.5, 15.0))
-FUEL_CAPACITY = 8                            # coal on the grate, two layers of four (provisional: #927 has no figure)
+FUEL_CAPACITY = 8                            # coal the grate holds, two layers of four (#927's fuel ruling)
+COAL_PER_CHARGE = 6                          # coal a 2,400-unit charge burns (#927's fuel ruling)
 FUEL_PER_LAYER = FUEL_CAPACITY // len(FUEL_LAYERS)
 LUMP = 1.4
 
@@ -1299,12 +1301,14 @@ def make_rig(parts):
         "build": build_json(),
         "bricks": bricks_json(),
         "furnace": {"chargeUnits": CHARGE_UNITS, "leadLevels": LEVELS, "fuelLayers": len(FUEL_LAYERS),
-                    "fuelPerLayer": FUEL_PER_LAYER, "minChimney": MIN_CHIMNEY, "rowMax": ROW_MAX, "rowAxis": "x",
+                    "fuelPerLayer": FUEL_PER_LAYER, "coalPerCharge": COAL_PER_CHARGE, "minChimney": MIN_CHIMNEY,
+                    "rowMax": ROW_MAX, "rowAxis": "x",
                     "stirRatio": r6(STIR_RATIO), "fireDoorLift": r6(FD_LIFT / B),
                     "_comment": "chargeUnits: what the kettle drawn full holds (#927's charge); leadLevels: the bath "
                                 "is drawn as lead1.. up to ceil(fill x leadLevels), each a quarter of a charge by "
                                 "volume; fuelLayers, fuelPerLayer: the grate's coal is drawn as its layers fuel1.. up "
-                                "to ceil(coal / fuelPerLayer) (fire.. while lit; provisional); minChimney: chimney "
+                                "to ceil(coal / fuelPerLayer) (fire.. while lit), the grate holding fuelLayers x "
+                                "fuelPerLayer; coalPerCharge: the coal a charge burns (#927); minChimney: chimney "
                                 "blocks stood on the outlet, counted from it up; rowMax, rowAxis: kettles in a row, "
                                 "side by side along x, sharing one chimney; stirRatio: the stirrer's turns a turn of "
                                 "the axle (the mitre pair); fireDoorLift: how far the fire door lifts open (blocks)."},

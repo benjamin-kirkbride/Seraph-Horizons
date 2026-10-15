@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { ManifestModel } from "../src/lib/model-manifest.ts";
+import { textureColour } from "../src/lib/model-view.ts";
 import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rideOrder, rigInputs, textureCodes, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The Parkes kettle's shipped files, and the poses ParkesKettle/tools/make_shape.py computes from them with
@@ -82,6 +83,9 @@ describe("the Parkes kettle's rig against its rig-reference.json", () => {
     expect([...codes.lead!]).toEqual(["lead"]);
     expect([...codes.zinc!]).toEqual(["zinc"]);
     expect([...codes.crust!]).toEqual(["crust"]);
+    // the viewer tints the lead, the zinc and the crust apart
+    const tint = (code: string) => textureColour(code, shape.textures?.[code] ?? null);
+    expect(new Set([tint("lead"), tint("zinc"), tint("crust")]).size).toBe(3);
     expect([...codes.fuel!]).toEqual(["fuel"]);
     expect([...codes.fire!]).toEqual(["ember"]);
     expect([...codes.brickwork!]).toEqual(["brick"]);
