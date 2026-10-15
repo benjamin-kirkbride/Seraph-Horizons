@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { discoverAnchors } from "../src/lib/model-anchors.ts";
 import type { ManifestModel } from "../src/lib/model-manifest.ts";
-import { choiceOf, initialFitted } from "../src/lib/model-scenario.ts";
+import { applyState, openingFitted, stateGroups } from "../src/lib/model-scenario.ts";
 import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs, thetaTurns, workOf, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The shaking table's shipped files, and the poses ShakingTable/tools/make_shape.py computes from them with
@@ -112,17 +112,31 @@ describe("the shaking table's rig against its rig-reference.json", () => {
     expect(cell("concentrateCell")).toMatchObject({ kind: "cell", pos: [0, 0, 2], face: "south" });
     expect(cell("middlingsCell")).toMatchObject({ kind: "cell", pos: [1, 0, 2], face: "south" });
     expect(cell("tailingsCell")).toMatchObject({ kind: "cell", pos: [1, 0, 0], face: "east" });
-    expect(unrecognised).toEqual(["stroke"]);
+    expect(unrecognised.sort()).toEqual(["buildStages", "stroke"]);
   });
 });
 
 describe("the shaking table's page", () => {
   const model = manifest.models.find((m) => m.id === "shaking-table")!;
 
-  it("draws one water line, copper or lead, from a select", () => {
-    const choices = model.scenario!.choices!;
-    const fitted = initialFitted(["deck", "head", "rectifier", "chutes", "pipecopper", "pipelead"], choices);
-    expect(fitted).toMatchObject({ deck: true, head: true, rectifier: true, chutes: true, pipecopper: true, pipelead: false });
-    expect(choiceOf(choices, "pipelead")?.label).toBe("Water line");
+  it("builds in stages on its placed frame (the deck, the rectifier, the head, then services) and draws one water line metal", () => {
+    const values = ["deck", "rectifier", "head", "chutes", "pipecopper", "pipelead"];
+    const groups = stateGroups(model.scenario!.states, values);
+    expect(groups.map((g) => [g.id, g.owns])).toEqual([["stage", values]]);
+    expect(rig.buildStages).toEqual([
+      { stage: 1, id: "deck", name: "the deck", adds: ["deck"] },
+      { stage: 2, id: "rectifier", name: "the rectifier", adds: ["rectifier"] },
+      { stage: 3, id: "head", name: "the differential head", adds: ["head"] },
+      { stage: 4, id: "services", name: "services", adds: ["chutes", "pipecopper", "pipelead"] },
+    ]);
+    const [stage] = groups;
+    expect(stage!.spec.options.map((o) => o.id)).toEqual(["frame", "deck", "rectifier", "head", "services", "serviceslead"]);
+    const { fitted, picked } = openingFitted(values, [], groups);
+    expect(picked).toEqual({ stage: "services" });
+    expect(fitted).toEqual({ deck: true, rectifier: true, head: true, chutes: true, pipecopper: true, pipelead: false });
+    const at = (id: string) => applyState(fitted, stage!.spec.options.find((o) => o.id === id)!, stage!.owns);
+    expect(at("rectifier")).toEqual({ deck: true, rectifier: true, head: false, chutes: false, pipecopper: false, pipelead: false });
+    expect(at("head")).toMatchObject({ rectifier: true, head: true, chutes: false });
+    expect(at("serviceslead")).toMatchObject({ chutes: true, pipecopper: false, pipelead: true });
   });
 });

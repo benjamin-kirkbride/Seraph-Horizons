@@ -63,14 +63,25 @@ upper side's posts, rail and straps. The rest:
 | `requires` | Parts | Draws |
 |---|---|---|
 | `deck` | `deck` | The deck: its boards, the far end's lip, two joists, the head end's bearer and the cast bracket under it, eight riffles, the feed box and the water box |
-| `head` | `head`, `headshaft`, `pullrod` | The differential head's closed box with its bosses, the pull rod's guide, the cover with the stroke-adjusting screw and handwheel; the outer pedestal; the head shaft with its coupling, flywheel and two collars; the pull rod and its nuts |
 | `rectifier` | `rectifier`, `entry` | The rectifier's closed gear case (joint flanges, bosses, cover, filler); the axle's oak cross into it |
+| `head` | `head`, `headshaft`, `pullrod` | The differential head's closed box with its bosses, the pull rod's guide, the cover with the stroke-adjusting screw and handwheel; the outer pedestal; the head shaft with its coupling, flywheel and two collars; the pull rod and its nuts |
 | `chutes` | `chutes` | The four chute sections: the infeed and the three outputs |
-| `pipecopper`, `pipelead` | `pipecopper`, `pipelead` | The water line, soldered, in copper or in lead (the same elements; the supplied metal's drawn, a select in the viewer) |
+| `pipecopper`, `pipelead` | `pipecopper`, `pipelead` | The water line, soldered, in copper or in lead (the same elements; the supplied metal's drawn; in the viewer the Build stage select's two services options) |
 
-The build stages (the frame recipe, the stages and their materials) are not designed yet (#922 "Open"); the ids
-split the machine where a stage could, in a plausible order frame → deck → head → rectifier → chutes and water
-line, which is what the generator's checked states fit (`STATES`).
+**Build stages** (as settled by the owner, 2026-10-15). The frame is placed (no `requires`); each stage after it
+is one `requires` group, fitted in order, and the machine doesn't run until it is complete. The generator's
+`BUILD_STAGES` is this list, written into the rig as `buildStages`; its checked states (`STATES`) are the frame
+and each stage on the ones before it, named for the stage. Materials are the settled figures (one rate: 128 vox
+of iron or steel an ingot, a plate 2 ingots; rods counted, then plates, then nails and strips; timber in planks
+at 1,024 vox).
+
+| # | Stage | `requires` | Why here | Materials |
+|---|---|---|---|---|
+| F | Frame (placed) | — | The ground | 1 iron nails and strips, 2 plank |
+| 1 | Deck | `deck` | The joists rest on the frame's slide plates | 1 iron nails and strips, 2 plank |
+| 2 | Rectifier | `rectifier` | The case stands on the frame's bed sills; the axle's cross enters its west boss | 3 `seraphhorizons:gear-stainless` (the closed rectifier's gears, not drawn), 2 iron plate, 1 plank |
+| 3 | Differential head | `head` | The head shaft's first bearing is the rectifier's east boss, and its pull rod pins into the deck's bracket, so both are in already | 1 `seraphhorizons:spring-steel` (the return spring), 2 iron plate, 5 iron nails and strips, 2 steel rod |
+| 4 | Services | `chutes`, `pipecopper` / `pipelead` | Last, as on every machine: the four chute sections and the water line (copper or lead, a choice) | 4 chute section, 1 `seraphhorizons:pipesection-{copper,lead}` |
 
 ## Model
 
@@ -172,8 +183,12 @@ A full run takes about 10 s and is deterministic (two runs into two folders are 
 `tools/validate_shakingtable.py` holds the checks; every run checks its output and exits non-zero if one fails:
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty part.
-- **Requires and states:** the vocabulary (the frame's, `deck`, `head`, `rectifier`, `chutes`, the two water
+- **Requires and states:** the vocabulary (the frame's, `deck`, `rectifier`, `head`, `chutes`, the two water
   lines); the lead line is the copper line's elements; the pull rod rides the deck only where the deck is fitted.
+- **Stages:** every `requires` in one stage, services (the chutes and both water lines) last; the rig's
+  `buildStages` the same; the states the frame and each stage on the ones before it; each stage's parts touching
+  what came before them. The head after the rectifier and the deck: on the head's own bosses and pedestal its
+  shaft has three bearings, and the rectifier's east boss makes the four it needs.
 - **Textures by role:** oak timber and the axle's cross; planks for the deck, its boxes, the launders and the
   splitter; iron for the castings, the flywheel, the slides, straps and bracket; steel for the shafts, the rod,
   the coupling's bolts, the collars and the screw; `chute` (the game's chute texture) for the chutes; each water
@@ -215,6 +230,7 @@ no driver and no input: θ and ψ only, no work.
 | `waterCell`, `waterFace` | The water line's inlet. |
 | `concentrateCell`/`Face`, `middlingsCell`/`Face`, `tailingsCell`/`Face` | The three output chutes'. |
 | `stroke` | `strokesPerTurn` (3: the deck's strokes and the head shaft's turns a turn of the axle, either way), `length` (blocks), `forward` (`south`, the slow push's way). Not drawn by the viewer. |
+| `buildStages` | `[{ stage, id, name, adds }]`: each build stage after the placed frame, in order, and the `requires` it fits (services: `chutes` and the two water lines, one of which is drawn). |
 | `parts` | The ten parts above, in first-match order. |
 
 ### Editing by hand
@@ -241,26 +257,24 @@ Don't: regenerate. Element names are the rig's interface (`entry_*`, `headshaft_
 
 ## Open for the owner
 
-1. **Build stages**: the frame recipe, the stages and their materials (#922). The requires ids split the machine
-   as frame (stand and launders), deck, head, rectifier, chutes and the water line.
-2. **The riffles' diagonal**: drawn with the upper riffles shortest, leaving a smooth cleaning corner at the upper
+1. **The riffles' diagonal**: drawn with the upper riffles shortest, leaving a smooth cleaning corner at the upper
    far corner (my reading of the Wilfley deck's plan, not checked against a source); the v2 branch had the upper
    ones longest. Which?
-3. **The rectifier's step-up**: 3:1 (three strokes a turn of the axle: 86 a minute at the reference speed 0.6,
+2. **The rectifier's step-up**: 3:1 (three strokes a turn of the axle: 86 a minute at the reference speed 0.6,
    144 at speed 1; the period's were about 250). Higher looks busier; 1:1 would be a slow 29 a minute.
-4. **The stroke's size and shape**: 1.2 voxels, a push for 69 % of the stroke and a return 2.9 times as fast,
+3. **The stroke's size and shape**: 1.2 voxels, a push for 69 % of the stroke and a return 2.9 times as fast,
    three harmonics. More harmonics give a sharper return.
-5. **The head's internals**: the box is closed, as #922 asks. A cut-away or inspection cover could show the
+4. **The head's internals**: the box is closed, as #922 asks. A cut-away or inspection cover could show the
    toggles if wanted (they would need their own motion, likely a new driver: not added).
-6. **The feed and water boxes' size**: each sits under an 8 × 8 chute or a 6-wide pipe centred in its cell, so
+5. **The feed and water boxes' size**: each sits under an 8 × 8 chute or a 6-wide pipe centred in its cell, so
    they are wider than a period table's narrow boxes (the feed box 8 across a 25-wide deck).
-7. **The infeed and the water come from above**, the only faces a chute or pipe can deliver onto the deck from at
+6. **The infeed and the water come from above**, the only faces a chute or pipe can deliver onto the deck from at
    one block high; the tailings chute is at the head end of the low side (its launder falls north).
-8. **The upper side's posts and rail** carrying the infeed chute and the water line over the moving deck are this
+7. **The upper side's posts and rail** carrying the infeed chute and the water line over the moving deck are this
    model's own; a period table hung them from the mill's timbers.
-9. **The deck's proportions**: 25 wide by 28 long (about 1.1 : 1), against the period's 6 by 16 ft; the head end
+8. **The deck's proportions**: 25 wide by 28 long (about 1.1 : 1), against the period's 6 by 16 ft; the head end
    and the launders take the rest of the 2 × 3 footprint.
-10. **Where the v2 branch differed from #922** (the issue followed): v2 shook the deck with a sinusoid from an
+9. **Where the v2 branch differed from #922** (the issue followed): v2 shook the deck with a sinusoid from an
     eccentric and yoke on the wash house's line shaft, with no rectifier (now a differential head behind a
     rectifier, three harmonics of a quick-return stroke); its deck stood at y 16.8 in a two-high house (now one
     high, the deck's top at 9.5); it was fed by the jig's weir spout and emptied into the house's launders (now a

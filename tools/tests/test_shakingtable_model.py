@@ -33,7 +33,7 @@ RIG = json.loads((ASSETS / "config" / "shakingtable-rig.json").read_text())
 SHAPE = json.loads((ASSETS / "shapes" / "block" / "shakingtable.json").read_text())
 FRAME = json.loads((ASSETS / "shapes" / "block" / "shakingtable_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "ShakingTable" / "rig-reference.json").read_text())
-REQUIRES = {"deck", "head", "rectifier", "chutes", "pipecopper", "pipelead", None}
+REQUIRES = {"deck", "rectifier", "head", "chutes", "pipecopper", "pipelead", None}
 TAU = 2 * math.pi
 
 
@@ -61,6 +61,13 @@ class Rig(unittest.TestCase):
                 rigmath.validate_driver(d)
         self.assertEqual({p["requires"] for p in RIG["parts"]}, REQUIRES)
         self.assertIsNone(rigmath.progress_of(RIG))
+
+    def test_build_stages_are_the_owners_order_services_last(self):
+        self.assertEqual(RIG["buildStages"], [{"stage": 1, "id": "deck", "name": "the deck", "adds": ["deck"]},
+                                              {"stage": 2, "id": "rectifier", "name": "the rectifier", "adds": ["rectifier"]},
+                                              {"stage": 3, "id": "head", "name": "the differential head", "adds": ["head"]},
+                                              {"stage": 4, "id": "services", "name": "services", "adds": ["chutes", "pipecopper", "pipelead"]}])
+        self.assertEqual({r for st in RIG["buildStages"] for r in st["adds"]}, REQUIRES - {None})
 
     def test_every_element_has_a_part_and_every_part_an_element(self):
         names = [e["name"] for e in SHAPE["elements"]]

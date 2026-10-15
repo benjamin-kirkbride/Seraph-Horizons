@@ -91,9 +91,15 @@ OUTLETS = (("concentrate", (0, 0, 2), "south", 2),
            ("middlings", (1, 0, 2), "south", 2),
            ("tailings", (1, 0, 0), "east", 0))
 
-REQUIRES = ("deck", "head", "rectifier", "chutes")   # what is fitted to the frame (the stand and its launders)
+REQUIRES = ("deck", "rectifier", "head", "chutes")   # what is fitted to the frame (the stand and its launders)
 PIPE_METALS = ("copper", "lead")             # the water line's metals: one part each, the supplied one drawn
 PIPES = tuple(f"pipe{m}" for m in PIPE_METALS)
+BUILD_STAGES = (                             # (stage id, what it fits, its name), in build order after the placed
+    ("deck", ("deck",), "the deck"),         # frame: the head shaft's first bearing is the rectifier's boss and the
+    ("rectifier", ("rectifier",), "the rectifier"),   # pull rod pins into the deck, so both come before the head;
+    ("head", ("head",), "the differential head"),     # services last (one water line metal drawn)
+    ("services", ("chutes", *PIPES), "services"),
+)
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",         # timber: sills, legs, rails, joists, riffles, posts, the axle's cross
@@ -850,12 +856,12 @@ def _rig_parts():
 # ---------------------------------------------------------------- poses and states
 # A pose is (theta,) or (theta, state), turned from rest so the travel is |theta|; or (theta, state, travel).
 REST = (0.0,)
-STATES = {                                    # what is fitted in each state checked: the frame, the fitted sets in
-    "frame": (),                              # a plausible order (the stages are the owner's to settle), and the
-    "deck": ("deck",),                        # finished machine with the water line in copper (lead is the same
-    "head": ("deck", "head"),                 # elements, never drawn with it)
-    "rectifier": ("deck", "head", "rectifier"),
-    "complete": ("deck", "head", "rectifier", "chutes", PIPES[0]),
+STATES = {                                    # what is fitted in each state checked: the frame, then each build
+    "frame": (),                              # stage on the ones before it, services (the finished machine) with the
+    "deck": ("deck",),                        # water line in copper (lead is the same elements, never drawn with it)
+    "rectifier": ("deck", "rectifier"),
+    "head": ("deck", "rectifier", "head"),
+    "services": ("deck", "rectifier", "head", "chutes", PIPES[0]),
 }
 CELL_PARTS = None                             # the cells' boxes: every part of the finished machine (the copper water line)
 
@@ -896,7 +902,9 @@ def make_rig(parts):
                     "travel either way) turns the rectified head shaft and works the deck's stroke, three harmonics of a "
                     "slow-forward, quick-return stroke (slides along z). Chutes: the infeed from above into the feed box, three "
                     "outputs (cell and face, a vanilla chute section flush with that face); water: a ppex pipe from above. "
-                    "See the shaking table's README for the schema.",
+                    "buildStages: what each build stage fits, in order after the placed frame: the deck, the rectifier, the "
+                    "differential head, then services (the chutes and the water line, one metal). See the shaking table's "
+                    "README for the schema.",
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
@@ -916,6 +924,8 @@ def make_rig(parts):
                     "rectifier steps up 3:1). length: the stroke, blocks. forward: the way the slow push goes, towards the "
                     "concentrate end; the quick return goes back.",
     }
+    rig["buildStages"] = [{"stage": n, "id": sid, "name": name, "adds": list(req)}
+                          for n, (sid, req, name) in enumerate(BUILD_STAGES, 1)]
     rig["parts"] = parts
     return rig
 
@@ -1024,7 +1034,7 @@ def shown(posed_els, pose, req_of):
 
 def coplanar_poses():
     out = []
-    for state in ("complete", "frame", "deck"):
+    for state in ("services", "frame", "deck"):
         for travel in (0.0, 0.35, 0.9, 1.6):
             out.append((travel, state))
     return tuple(out)

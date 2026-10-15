@@ -22,6 +22,7 @@ from machinegen.rigmath import part_of, posed
 
 TAU = 2 * math.pi
 MOVING = ("entry", "headshaft", "deck", "pullrod")
+REST_POSE = (0.0,)
 
 
 class V:
@@ -64,7 +65,7 @@ class V:
         return [pid for pid in self.by_part if self.m.on_show(self.req[pid], state)]
 
 
-def stroke_poses(m, n=24, state="complete", back=False):
+def stroke_poses(m, n=24, state="services", back=False):
     """One stroke (a turn of the head shaft) in n steps, in a state: the axle turned forward (or backwards)."""
     period = TAU / m.HEAD_RATIO
     return [((-1 if back else 1) * period * i / n, state) for i in range(n + 1)]
@@ -377,7 +378,7 @@ def check_flows(v):
         _, cell, face, axis = next(o for o in m.OUTLETS if o[0] == name)
         mouth[axis] = m.outlet_from(name) + 0.3
         mouth[along] = (g0 + g1) / 2
-        hit = first_below(v, mouth, (0.0, "complete"))
+        hit = first_below(v, mouth, (0.0, "services"))
         n += 1
         print(f"flows: the {name} launder falls to its outlet ({g0}..{g1}, its floor {min(at):.2f}..{max(at):.2f}, the chute's "
               f"{m.CHUTE_FLOOR}); its lowest end at {low_end:.2f}; its mouth drops onto {hit[1] if hit else 'nothing'}")
@@ -460,7 +461,7 @@ def check_supports(v):
                     v.fail(f"the deck's joist {j} leaves its slide {s.name} at {pose} (gap {gap:.3f})")
     body = v.named("head", r"^hd_body$")[0].aabb()
     glo, ghi = aabb_of(v.named("head", r"^hd_guide"))
-    for pose in stroke_poses(m, 24, "complete"):
+    for pose in stroke_poses(m, 24, "services"):
         rlo, rhi = aabb_of(v.named("pullrod", r"_rod", pose))
         blo, bhi = v.named("deck", r"^deck_bracket$", pose)[0].aabb()
         if not (body[0][2] + 1.0 < rlo[2] < body[1][2] - 1.0 and rhi[2] > bhi[2] and rlo[2] < glo[2] and rhi[2] > ghi[2]
@@ -469,6 +470,56 @@ def check_supports(v):
             break
     print(f"support: the collars {gaps[0]:.2f} and {gaps[1]:.2f} off the pedestal; the joists on their slides and the pull rod "
           "through its guide, into the head box and through the bracket over a stroke")
+
+
+def meets(a, b, eps=0.02):
+    """Whether two boxes (lo, hi) touch or overlap, to within eps."""
+    return all(a[0][k] <= b[1][k] + eps and b[0][k] <= a[1][k] + eps for k in range(3))
+
+
+def check_stages(v):
+    """The build: the frame placed, then each stage one fitted set in order, services (the chutes and both water
+    line metals) last, every requires in one stage, the rig's buildStages the same and each state the frame or a
+    stage on the ones before it. Each stage's parts touch what came before them. The head comes after the
+    rectifier and the deck: its shaft's first bearing is the rectifier's east boss (without it the head's own
+    bosses and pedestal are three, not the four the shaft needs) and its pull rod pins into the deck's bracket."""
+    m = v.m
+    order = [sid for sid, _, _ in m.BUILD_STAGES]
+    adds = [r for _, req, _ in m.BUILD_STAGES for r in req]
+    if sorted(adds) != sorted(set(m.REQUIRES) | set(m.PIPES)) or len(adds) != len(set(adds)):
+        v.fail(f"the stages fit {adds}, not each of {m.REQUIRES} and {m.PIPES} once")
+    if m.BUILD_STAGES[-1][1] != ("chutes", *m.PIPES):
+        v.fail("services (the chutes and the water line) are not the last stage")
+    rig = [(s["stage"], s["id"], tuple(s["adds"])) for s in v.rig["buildStages"]]
+    if rig != [(n, sid, req) for n, (sid, req, _) in enumerate(m.BUILD_STAGES, 1)]:
+        v.fail(f"the rig's buildStages {rig} are not BUILD_STAGES")
+    want, fit = {"frame": ()}, ()
+    for sid, req, _ in m.BUILD_STAGES:
+        fit += tuple(r for r in req if r not in m.PIPES[1:])
+        want[sid] = fit
+    if m.STATES != want:
+        v.fail(f"the states {m.STATES} are not the frame and each stage on the ones before it ({want})")
+    stage_of = {r: i for i, (_, req, _) in enumerate(m.BUILD_STAGES) for r in req}
+    unborne = []
+    for i, (sid, req, _) in enumerate(m.BUILD_STAGES):
+        prior = [e for pid in v.by_part if v.req[pid] is None or stage_of[v.req[pid]] < i for e in v.posed(pid, REST_POSE)]
+        own = [e for pid in v.by_part if v.req[pid] in req for e in v.posed(pid, REST_POSE)]
+        if not any(meets(a.aabb(), b.aabb()) for a in own for b in prior):
+            unborne.append(sid)
+    if unborne:
+        v.fail(f"stages whose parts touch nothing put in before them: {unborne}")
+    if not stage_of["rectifier"] < stage_of["head"] or not stage_of["deck"] < stage_of["head"]:
+        v.fail("the head is fitted before the rectifier (its shaft's first bearing) or the deck (its pull rod's pin)")
+    shaft = v.named("headshaft", r"_rod")
+    alone, _ = supports(v.by_part["head"], shaft, 0, m.AXLE)
+    alone = {re.sub(r"_\d+$", "", n_) for n_ in alone if re.search(r"^(hd_boss_[we]|hd_ped_bearing)", n_)}
+    withrc, _ = supports(v.by_part["head"] + v.by_part["rectifier"], shaft, 0, m.AXLE)
+    withrc = {re.sub(r"_\d+$", "", n_) for n_ in withrc if re.search(r"^(rc_boss_e|hd_boss_[we]|hd_ped_bearing)", n_)}
+    if "rc_boss_e" not in withrc or len(withrc) < 4 or len(alone) >= 4:
+        v.fail(f"the head shaft's bearings: {sorted(alone)} from the head alone, {sorted(withrc)} with the rectifier")
+    print(f"stages: the frame placed, then {'; '.join(f'{n} {sid} ({'+'.join(req)})' for n, (sid, req, _) in enumerate(m.BUILD_STAGES, 1))}; "
+          f"each on what came before it; the head shaft on {len(alone)} bearing(s) of the head's own, {len(withrc)} with the "
+          "rectifier's east boss, so the rectifier comes first")
 
 
 # ---------------------------------------------------------------- clearances
@@ -566,6 +617,7 @@ def validate(m, els, parts, rig, quick=False):
     check_flows(v)
     check_stroke(v)
     check_supports(v)
+    check_stages(v)
     poses = [p for st in m.STATES for p in stroke_poses(m, 8 if quick else 16, st)] + stroke_poses(m, 4, back=True)
     check_clearances(v, poses, "clearances")
     if not quick:
