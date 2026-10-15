@@ -324,7 +324,7 @@ Everything specific to one machine lives here, as data; the viewer has no machin
   The work's label may be written `trunk` instead (the mill's and the rosser's are), not both; the
   work's unit, step and ends are the rig's (`work`, or the trunkPath's), not the scenario's. `size`
   takes `names`: a name for none and each class up to the rig's last (three for none, thin and thick; the
-  mandrel station's four: none, the two hollows and the steel rod; the riddle's two: none and its one charge), for
+  mandrel station's four: none, the two hollows and the steel rod; the riddle's and the slitting mill's two: none and its one charge or plate), for
   the select. Without names the select
   offers None, Thin, Thick and "Class k" for each further class the rig's work has.
 - `requires`: a label for each `requires` value, e.g. `{ "sash1": "Sash 1" }`. Unlabelled values show as they are.
@@ -645,8 +645,9 @@ and "Departed", which shows the winch, the ring and the spine and no stage of th
 eidolon's page, a part per stage, every shown element where the game poses it in four animations with
 several sets of stages hidden.
 `site/test/model-classes.test.ts` covers a class past thick in a scenario (the mandrel station's spring:
-its select's names, `requiresClass`, the checks) and the hot-metal glow, held to vanilla's formula at
-whole-degree temperatures.
+its select's names, `requiresClass`, the checks), a work of one class (the slitting mill's plate: none and
+that class in the select) and the hot-metal glow, held to vanilla's formula at whole-degree temperatures.
+`site/test/slittingmill.test.ts` replays `mods-src/seraphhorizons/tests/SlittingMill/rig-reference.json`.
 `site/test/model-textures.test.ts` covers texture selects: their checks, the opening pick, and the
 picked code's path and colour in the view.
 `site/test/riddle.test.ts` replays `mods-src/seraphhorizons/tests/Riddle/rig-reference.json`, the riddle's: a hand
