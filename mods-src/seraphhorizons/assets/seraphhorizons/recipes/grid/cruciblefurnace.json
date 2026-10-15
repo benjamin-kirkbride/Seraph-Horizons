@@ -1,17 +1,17 @@
 // The crucible furnace's iron frame (StainlessSteel, #796, README "Crucible furnace"; the rig's
 // build.frame): the binding's straps and bands, the grate's bearers and firebars, the ash mouth's lintel
-// and the damper's guides, of two iron plates, four iron rods and ten iron nails and strips, with a
-// hammer. Placed, it is the furnace's controller and ghosts; the brickwork, the lining and the lid go
-// in afterwards, a stack a click. The server disables it with StainlessSteel off.
+// and the damper's guides, of four iron rods and an iron plate, with a hammer: its 760 voxels of iron at
+// the pack's one iron rate (128 voxels an ingot, a rod one, a plate two; CrucibleFurnace/tools/make_shape.py's
+// frame_recipe measures it). Placed, it is the furnace's controller and ghosts; the brickwork, the lining
+// and the lid go in afterwards, a stack a click. The server disables it with StainlessSteel off.
 [
 	{
-		ingredientPattern: "PHP,RNR,R_R",
+		ingredientPattern: "RPR,RHR",
 		width: 3,
-		height: 3,
+		height: 2,
 		ingredients: {
 			"P": { type: "item", code: "game:metalplate-iron" },
 			"R": { type: "item", code: "game:rod-iron" },
-			"N": { type: "item", code: "game:metalnailsandstrips-iron", quantity: 10 },
 			"H": { type: "item", code: "game:hammer-*", isTool: true }
 		},
 		output: { type: "block", code: "seraphhorizons:cruciblefurnace-frame-north" }
