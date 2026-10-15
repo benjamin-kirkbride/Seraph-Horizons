@@ -6,8 +6,8 @@ import { compileGlobs, flattenShape, partMatrices, partOf, requiresValues, rideO
 // The acid parting vessel's shipped files, and the poses AcidParting/tools/make_shape.py computes from them with
 // machinegen's reference maths. Its rig reads depth (the sliding fire door: 0 open, 1 shut; the door is the only part
 // that moves) and θ (the stoker's clock, carried by a ratio-0 rotate so the viewer offers Play); everything else is a
-// requires: the build's stages (brickwork, lining, fittings: the bath, the vessel, the precipitating tub and its siphon,
-// the door), the damper's three places, the fire, the vessel's and the tub's contents and the outlet's cap; the iron
+// requires: the build's stages in order (brickwork, lining, sandbath: the bath and the door, vesseltub: the vessel and
+// the precipitating tub, services: the siphon), the damper's three places, the fire, the vessel's and the tub's contents and the outlet's cap; the iron
 // frame has none. No water line: the vessel is watered from a bucket.
 // tools/tests/test_acidparting_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
@@ -76,7 +76,7 @@ describe("the acid parting vessel's rig against its rig-reference.json", () => {
   });
 
   it("shows the stages, the damper, the fire, the vessel's and the tub's contents and the cap by requires, with their own texture codes, and glows only where it burns", () => {
-    expect(requiresValues(parts)).toEqual(["brickwork", "lining", "fittings", "damperopen", "damperhalf", "dampershut", "fuel", "fire", "charge", "acid", "solution", "gold", "wash", "copper", "liquor", "silver", "outletcap"]);
+    expect(requiresValues(parts)).toEqual(["brickwork", "lining", "sandbath", "vesseltub", "services", "damperopen", "damperhalf", "dampershut", "fuel", "fire", "charge", "acid", "solution", "gold", "wash", "copper", "liquor", "silver", "outletcap"]);
     const codes: Record<string, Set<string>> = {};
     const flat = flattenShape(shape.elements);
     const globs = compileGlobs(parts);
@@ -89,7 +89,7 @@ describe("the acid parting vessel's rig against its rig-reference.json", () => {
     expect([...codes.frame!]).toEqual(["iron"]);
     expect([...codes.hoodiron!]).toEqual(["iron"]);
     expect(new Set(codes.bath)).toEqual(new Set(["iron", "sand"]));
-    expect([...codes.vessel!]).toEqual(["porcelain"]);
+    expect([...codes.vessel!]).toEqual(["ceramic"]);
     expect([...codes.door!]).toEqual(["iron"]);
     expect([...codes.damper!]).toEqual(["iron"]);
     expect([...codes.tub!]).toEqual(["oak"]);

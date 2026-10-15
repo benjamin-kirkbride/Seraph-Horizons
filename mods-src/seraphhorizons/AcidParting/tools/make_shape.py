@@ -8,7 +8,7 @@ washed with water). It is one such vessel, built whole as one machine: a block o
 and two high, bound at its corners and all four top edges with angle iron. In its front row a small fire burns on a grate of iron firebars, stoked through a sliding iron fire door
 in the front, its ash pit under the grate reached by the ash mouth under the door, which an iron damper slides over
 (open, half, shut), natural draught only. Over the fire a cast-iron sand bath is let into the masonry, its iron
-bottom the fire chamber's roof; a porcelain parting vessel stands in its sand, under a brick hood on two piers, open
+bottom the fire chamber's roof; a fired clay parting vessel (the game's crucible) stands in its sand, under a brick hood on two piers, open
 in front, whose breast is carried on an iron lintel. In front of the bath, on the cold end of the bench under the same
 hood, stands the precipitating tub: a lead siphon draws the silver solution off the vessel into it, copper plates hang
 in it on a copper rod, and the silver comes down on them as a grey sludge on its bottom, which is drawn by hand; the
@@ -46,8 +46,8 @@ The rig's inputs, as this vessel uses them:
     theta  the stoker's clock: a ratio-0 rotate on the door carries it and moves nothing (so the viewer offers Play,
            which opens and shuts the door). Nothing turns: no power.
 
-Everything else that shows or not (the build's stages: the brickwork with the hood's lintel, the lining, the fittings
-(the sand bath, the vessel, the precipitating tub and its siphon, the fire door); the damper's three places; the fire laid and burning; the vessel's contents: the dore, the acid, the
+Everything else that shows or not (the build's stages: the brickwork with the hood's lintel, the lining, the sand bath
+and the fire door (with the damper), the vessel and the tub, the services (the siphon); the damper's three places; the fire laid and burning; the vessel's contents: the dore, the acid, the
 silver solution, the parted gold, the wash water; the tub's: the copper plates, the drawn-off liquor, the silver
 sludge; the outlet's cap) is a `requires`: gameplay's state, not a motion.
 The iron frame has none.
@@ -96,7 +96,8 @@ TEXTURES = {
     "lining": "game:block/clay/refractory/tier3/front1",    # the hot-face lining and the outlet's curb: tier-3 refractory
     "iron": "game:block/metal/plate/iron",                  # the frame, the hood's lintel, the sand bath, door, damper, cap
     "sand": "game:block/stone/sand/sandstone",              # the sand bath's sand
-    "porcelain": "game:block/clay/flintporcelain/fired",    # the parting vessel: porcelain (Rose's Philadelphia Mint pots)
+    "ceramic": "game:block/clay/hardened/blue",            # the parting vessel: fired clay, as the game's fired crucible
+#                                                            (Rose's earthenware), the item it is built from
     "fuel": "game:block/coal/charcoal",                     # the fire laid
     "ember": "game:block/coal/ember",                       # the same fuel, burning; its faces glow
     "dore": "game:block/metal/ingot/electrum",              # the dore (gold and silver together), granulated
@@ -150,7 +151,7 @@ DOOR_HANDLE = ((6.75, 9.25), (0.1, 0.35), (0.55, 1.15))   # its handle bar (x, z
 
 # ---------------------------------------------------------------- the sand bath and the vessel
 # The cast-iron sand bath is let into the masonry over the fire, its rim flush with the bench (the hood's floor), its
-# bottom bearing on the fire chamber's walls all round; the porcelain vessel stands in its sand, centred on it and on
+# bottom bearing on the fire chamber's walls all round; the fired clay vessel stands in its sand, centred on it and on
 # the fire, behind the precipitating tub.
 TRAY = ((3.0, 13.0), (FIRE_TOP, 16.0), (6.5, 17.5))   # the bath: a plate 0.75 thick, a rim 0.5 thick, flush at the bench
 TRAY_T, RIM_T = 0.75, 0.5
@@ -231,30 +232,41 @@ BAND_FACE = 3.0                              # the top angles' legs: down the fa
 BAND_TOP = 2.0                               #                      and on the top, from the face
 
 # ---------------------------------------------------------------- the build
-# Built in stages (the rig's `build`; their requires values are the viewer's Build states): the iron frame, a grid
-# recipe placed as the machine, then the brickwork (with the hood's lintel at no cost of its own), the lining, and the
-# fittings (the sand bath, the vessel, the precipitating tub and its siphon, the fire door and the damper). The outlet's
-# cap is fitted by hand. The brickwork's and the lining's counts are measured from the
-# model's volume at the game's rates, as the crucible furnace's: a claybricks block is 2 fired bricks, a refractory
-# brick block 4, rounded up, the lining's fire clay one for every LINING_PER_FIRECLAY of its bricks. Everything else
-# is a proposal for the owner.
-FRAME_RECIPE = (("game:metalplate-iron", 1), ("game:rod-iron", 2), ("game:metalnailsandstrips-iron", 6))
+# Built in stages, as the owner settled them (2026-10-15; the rig's `build`, one requires value a stage, fitted in
+# order; their states are the viewer's Build select): the iron frame, a grid recipe placed as the machine, then 1 the
+# brickwork (with the hood's lintel at no cost of its own), 2 the lining, 3 the sand bath and the fire door (the damper
+# with them, in one of its places), 4 the vessel and the tub, and 5 the services: the lead siphon, last as on every
+# machine, which hangs on the vessel's lip over the tub and so waits for both. The outlet's cap is fitted by hand. The
+# brickwork's and the lining's counts are measured from the model's volume at the game's rates, as the crucible
+# furnace's: a claybricks block is 2 fired bricks, a refractory brick block 4, rounded up, the lining's fire clay one
+# for every LINING_PER_FIRECLAY of its bricks. The frame's and the bath's iron is the settled rate (128 voxels of iron
+# an ingot, a plate 2, rods counted, the rest nails and strips at 4 an ingot) over the iron measured in the model.
+FRAME_RECIPE = (("game:rod-iron", 2), ("game:metalplate-iron", 2), ("game:metalnailsandstrips-iron", 6))
 BRICKS_PER_BLOCK = 2
 LINING_PER_BLOCK = 4
 LINING_PER_FIRECLAY = 2.5
 FIRED_BRICK = "game:burnedbrick-*"
 LINING_BRICK = "game:refractorybrick-fired-tier3"
 FIRECLAY = "game:clay-fire"
-FITTINGS_STAGE = (("game:metalplate-iron", 3), ("game:sand-*", 2), ("game:plank-oak", 4), ("game:metalplate-lead", 1))
-#                                              the bath's tray, the door and the damper; its sand; the tub; the siphon
+SANDBATH_STAGE = (("game:sand-*", 1), ("game:metalnailsandstrips-iron", 5))
+#                                              the bath's sand; its tray, the fire door and the damper
+VESSEL_ITEM = "game:crucible-*-fired"        # the parting vessel: a fired clay crucible, any colour (the owner's ruling)
+VESSELTUB_STAGE = ((VESSEL_ITEM, 1), ("game:plank-oak", 1))   # the vessel; the tub's boards
+SERVICES_STAGE = (("seraphhorizons:pipesection-lead", 1),)    # the siphon: the pack's lead pipe section
 CAP_ITEM = ("game:metalplate-iron", 1)
-STAGES = ("brickwork", "lining", "fittings")  # the stages after the frame, in order: their requires values
-STAGE_STATES = (                             # the viewer's Build select: (id, the stages fitted)
+STAGES = ("brickwork", "lining", "sandbath", "vesseltub", "services")   # after the frame, in order: their requires
+STAGE_PARTS = {                              # the parts each stage fits
+    "brickwork": ("brickwork", "hoodiron"),
+    "lining": ("lining",),
+    "sandbath": ("bath", "door"),
+    "vesseltub": ("vessel", "tub"),
+    "services": ("siphon",),
+}
+STAGE_STATES = (                             # the viewer's Build select, a state a stage: (id, the stages fitted)
     ("frame", ()),
-    ("brickwork", ("brickwork",)),
-    ("lining", ("brickwork", "lining")),
-    ("complete", ("brickwork", "lining", "fittings")),
+    *((sid, STAGES[:n + 1]) for n, sid in enumerate(STAGES)),
 )
+COMPLETE = STAGES[-1]                        # the build finished: the contents and the fire are drawn from here
 
 # The fired bricks the brickwork takes: game:burnedbrick-{type}, every type the game has, each with the block its
 # bricks make and that block's texture, which the renderer sets the `brick` code to (the crucible furnace's table).
@@ -674,15 +686,15 @@ def build_bath():
 
 
 def build_vessel():
-    """The parting vessel (`vessel`): a porcelain pot, an octagonal barrel 7 across with a flat bottom and a flared lip,
+    """The parting vessel (`vessel`): a fired clay pot (a crucible), an octagonal barrel 7 across with a flat bottom and a flared lip,
     standing in the sand, its mouth open (the acid and the gold show): the dore, the acid and the wash water's bucket go
     in there, and the gold comes out."""
     p = "vessel"
     cx, cz = VESSEL_C
     yb, yf, yw, yl = VESSEL_Y
-    out = oct_disc(cx, cz, yb, yf, VESSEL_A, "vessel_bottom", p, "porcelain")
-    out += oct_tube(cx, cz, yf, yw, VESSEL_A, VESSEL_WALL, "vessel_wall", p, "porcelain")
-    out += oct_tube(cx, cz, yw, yl, LIP_A, LIP_A - INNER_A, "vessel_lip", p, "porcelain")
+    out = oct_disc(cx, cz, yb, yf, VESSEL_A, "vessel_bottom", p, "ceramic")
+    out += oct_tube(cx, cz, yf, yw, VESSEL_A, VESSEL_WALL, "vessel_wall", p, "ceramic")
+    out += oct_tube(cx, cz, yw, yl, LIP_A, LIP_A - INNER_A, "vessel_lip", p, "ceramic")
     return out
 
 
@@ -859,8 +871,7 @@ def door_drivers():
 PART_IDS = (("brickwork", "hoodiron", "lining", "bath", "vessel", "tub", "siphon", "door") + tuple(f"damper{d}" for d in DAMPERS)
             + CONTENTS + ("outletcap",))
 MATCH = {"brickwork": "bk_*", "hoodiron": "hi_*", "lining": "ln_*"}
-REQUIRES_OF = {"hoodiron": "brickwork", "bath": "fittings", "vessel": "fittings", "tub": "fittings", "siphon": "fittings",
-               "door": "fittings"}
+REQUIRES_OF = {pid: sid for sid, pids in STAGE_PARTS.items() for pid in pids}
 
 
 def requires_of(pid):
@@ -894,8 +905,9 @@ def _rig_parts():
 # ---------------------------------------------------------------- poses
 # A pose is (theta, depth, scene): the clock, the fire door, and what is fitted. A scene is (the vessel's state, the
 # tub's, the fire's, the damper's place, whether the outlet is capped, the build's state): gameplay's requires. The
-# contents and the damper are fitted only once the build is complete, the cap once the curb is in (the lining).
-DEFAULT_SCENE = ("parting", "precipitating", "burning", "open", False, "complete")
+# contents and the fire are fitted only once the build is complete (the services), the damper with the sand bath and
+# the fire door, the cap once the curb is in (the lining).
+DEFAULT_SCENE = ("parting", "precipitating", "burning", "open", False, COMPLETE)
 REST = (0.0, 0.0, DEFAULT_SCENE)
 SHUT = 1.0
 
@@ -911,11 +923,12 @@ def pm(parts, pid, pose):
 def fitted(scene):
     """The requires values fitted in a scene."""
     vessel, tub, fire, damper, capped, stage = scene
-    out = set(dict(STAGE_STATES)[stage])
-    if "fittings" in out:
+    out: set[str] = set(dict(STAGE_STATES)[stage])
+    if COMPLETE in out:
         out |= set(dict((s[0], s[2]) for s in VESSEL_STATES)[vessel])
         out |= set(dict((s[0], s[2]) for s in TUB_STATES)[tub])
         out |= set(dict((s[0], s[2]) for s in FIRE_STATES)[fire])
+    if "sandbath" in out:
         out.add(f"damper{damper}")
     if capped and "lining" in out:
         out.add("outletcap")
@@ -1038,23 +1051,26 @@ def build_json():
              "materials": materials(((FIRED_BRICK, c["bricks"]),)), "alsoParts": ["hoodiron"]},
             {"requires": "lining", "volumeBlocks": r6(c["liningVolume"]), "perClick": "stack",
              "materials": materials(((LINING_BRICK, c["lining"]), (FIRECLAY, c["fireclay"])))},
-            {"requires": "fittings", "parts": ["bath", "vessel", "tub", "siphon", "door"], "also": [f"damper{d}" for d in DAMPERS],
-             "materials": materials(FITTINGS_STAGE)},
+            {"requires": "sandbath", "parts": list(STAGE_PARTS["sandbath"]), "also": [f"damper{d}" for d in DAMPERS],
+             "materials": materials(SANDBATH_STAGE)},
+            {"requires": "vesseltub", "parts": list(STAGE_PARTS["vesseltub"]), "materials": materials(VESSELTUB_STAGE)},
+            {"requires": "services", "parts": list(STAGE_PARTS["services"]), "materials": materials(SERVICES_STAGE)},
         ],
         "outletCap": materials((CAP_ITEM,))[0],
-        "_comment": "The build's stages, in order (a proposal for the owner but for the counts measured from the model). "
-                    "frame: the iron frame's grid recipe (with a hammer); placing it puts down the controller and its "
-                    "ghosts, and draws the frame part. Each stage then fits its requires when its materials are all "
-                    "in: brickwork (its alsoParts, the hood's lintel, comes with it at no cost of its own), then "
-                    "lining, then fittings (its parts: the sand bath with its sand, the vessel, the precipitating tub "
-                    "and its siphon, and the fire door; also: the damper, in one of its places). volumeBlocks: the "
-                    "stage's brick measured from the model, in blocks; its quantities are that at 2 fired bricks or 4 "
-                    "refractory bricks a block (the game's brick block recipes), rounded up, fire clay one per 2.5 "
-                    "refractory bricks. perClick stack: a click puts in as many of the held stack as are still needed. "
-                    "oneType: the first fired brick put in sets the brick type (bricks), and the rest must match. The "
-                    "parting vessel's own item is open (the game has no porcelain vessel). The tub's copper plates are "
-                    "contents (copper), put in by hand and worn away. No water line: the wash water is poured in from "
-                    "a bucket. outletCap: an item interaction, not a stage."}
+        "_comment": "The build's stages, in order, as the owner settled them (2026-10-15). frame: the iron frame's "
+                    "grid recipe (with a hammer); placing it puts down the controller and its ghosts, and draws the "
+                    "frame part. Each stage then fits its requires when its materials are all in, in order: "
+                    "brickwork (its alsoParts, the hood's lintel, comes with it at no cost of its own); lining; "
+                    "sandbath (its parts: the sand bath with its sand, and the fire door; also: the damper, in one of "
+                    "its places); vesseltub (the parting vessel, a fired clay crucible, and the precipitating tub); "
+                    "services (the lead siphon, hung on the vessel's lip over the tub, so after both). The vessel "
+                    "runs once services is in. volumeBlocks: the stage's brick measured from the model, in blocks; "
+                    "its quantities are that at 2 fired bricks or 4 refractory bricks a block (the game's brick block "
+                    "recipes), rounded up, fire clay one per 2.5 refractory bricks. perClick stack: a click puts in "
+                    "as many of the held stack as are still needed. oneType: the first fired brick put in sets the "
+                    "brick type (bricks), and the rest must match. The tub's copper plates are contents (copper), put "
+                    "in by hand and worn away. No water line: the wash water is poured in from a bucket. outletCap: "
+                    "an item interaction, not a stage."}
 
 
 def bricks_json():
@@ -1071,14 +1087,15 @@ def make_rig(parts):
     sx, sz = (STACK[0][0] + STACK[0][1]) / 2, (STACK[2][0] + STACK[2][1]) / 2
     rig = {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the front cell at "
-                    "ground level, where the fire door and the ash mouth are. One porcelain vessel in a sand bath over "
+                    "ground level, where the fire door and the ash mouth are. One fired clay vessel in a sand bath over "
                     "a small fire, under a brick hood open in front; vessels stand side by side in a row along x (up to "
                     "parting.rowMax), sharing one chimney on one member's outlet, the others capped. No power and no "
                     "forced air: natural draught, in at the ash mouth (ash, ashSide) under the damper, the fuel in at "
                     "the fire door (firedoor, firedoorSide). depth is the fire door: 0 open, slid up in its guides "
                     "(the rest pose), 1 shut. theta is the stoker's clock, carried by a ratio-0 rotate on the door: "
-                    "nothing turns. requires: the build's stages, brickwork (with the hoodiron part), lining and "
-                    "fittings (the bath, vessel, tub, siphon and door parts) (build; the frame, iron, has none); the "
+                    "nothing turns. requires: the build's stages, in order, brickwork (with the hoodiron part), "
+                    "lining, sandbath (the bath and door parts), vesseltub (the vessel and tub parts) and services "
+                    "(the siphon part) (build; the frame, iron, has none); the "
                     "damper's place, damperopen, damperhalf or dampershut (one at a time); the fire, "
                     "fuel (laid) or fire (burning); the vessel's contents: charge (granulated dore), acid, solution "
                     "(the silver dissolved), gold (the parted gold), wash (the wash water, poured in from a bucket); the "
@@ -1216,12 +1233,13 @@ def shape_json(els):
 
 
 def coplanar_scenes():
-    scenes = [(vs, ts, "burning", "open", False, "complete")
+    scenes = [(vs, ts, "burning", "open", False, COMPLETE)
               for vs, ts in (("charged", "copper"), ("acid", "drawn"), ("parting", "precipitating"), ("parted", "sludge"))]
-    scenes += [("washing", "precipitating", "laid", "half", True, "complete"),
-               ("empty", "empty", "none", "shut", True, "complete")]
+    scenes += [("washing", "precipitating", "laid", "half", True, COMPLETE),
+               ("empty", "empty", "none", "shut", True, COMPLETE)]
     scenes += [("empty", "empty", "none", "open", False, "frame"), ("empty", "empty", "none", "open", False, "brickwork"),
-               ("empty", "empty", "none", "open", True, "lining")]
+               ("empty", "empty", "none", "open", True, "lining"), ("empty", "empty", "none", "shut", True, "sandbath"),
+               ("empty", "empty", "none", "half", False, "vesseltub")]
     return scenes
 
 

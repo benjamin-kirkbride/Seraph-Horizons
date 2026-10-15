@@ -5,8 +5,8 @@ the machine of #931, which takes dore (gold and silver together) in by hand and 
 hand, batch. The line, the glossary and the period sources are #939; the power and water budget #940.
 
 **Status: a model only, v3, for review.** This folder's `tools/` holds the generator and its checks. Nothing in the
-game reads the model yet: no blocktype, no block entity, no renderer. The build stages are a proposal (below), to be
-settled with the owner.
+game reads the model yet: no blocktype, no block entity, no renderer. The build stages are the owner's (2026-10-15,
+below).
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/` and `CrucibleFurnace/`, this folder's neighbours. The generic half of the
@@ -37,7 +37,8 @@ bound at its corners and all four top edges with angle iron, one closed frame. I
   - Its bottom is the fire chamber's roof, bearing 1.5 on the chamber's walls all round.
   - Its rim is flush with the **bench**: the brick round it, a block up, which is the hood's floor.
   - Its sand stands half a voxel under the rim, round the vessel and half a voxel under it.
-- **The vessel**: porcelain, an octagonal barrel 7 across and 9.25 tall, with a flat bottom and a flared lip, set 1.25
+- **The vessel**: fired clay, the game's crucible (Rose's earthenware; the period's mints used porcelain), an
+  octagonal barrel 7 across and 9.25 tall, with a flat bottom and a flared lip, set 1.25
   into the sand, centred on the bath and the fire.
   - The dore, the acid and the wash water go in at its mouth, and the parted gold comes out there.
   - Its contents are parts (below): the granulated dore, the acid, the silver solution, the parted gold, the wash water.
@@ -151,21 +152,28 @@ furnace's.
 vessel, the tub and the fire door shut. The splitter makes every cell one whole box. Both top cells have a `lid` (a
 collision deck) at the top, so the roof is walked on whole.
 
-## The build (a proposal)
+## The build
 
-Stages as the crucible furnace's, each a `requires` value of its parts but the frame's (the rig's `build`, in order),
-the viewer's **Build** select stepping through them. The brickwork's and the lining's counts are **measured from the
-model**: the brick lattice's boxes at the game's rates (2 fired bricks a block, 4 refractory bricks a block, fire clay
-one per 2.5 of those), rounded up. Everything else is a first proposal for the owner.
+The owner's stages (2026-10-15), each one `requires` value fitting its parts (the rig's `build`, in order), the
+viewer's **Build** select stepping through them, a state a stage. The brickwork's and the lining's counts are
+**measured from the model**: the brick lattice's boxes at the game's rates (2 fired bricks a block, 4 refractory bricks
+a block, fire clay one per 2.5 of those), rounded up. The iron is the settled rate over the iron measured in the model
+(128 voxels an ingot, a plate 2, rods counted, the rest nails and strips at 4 an ingot). Services last, as on every
+machine; nothing runs until they are in. "~" marks a choice of item.
 
 | | Stage | `requires` | What it puts in | Materials |
 |---|---|---|---|---|
-| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | The binding's eight angles (four corner, four top); the grate's bearers and firebars; the ash mouth's and the fire door's lintels and the recess's guides; standing on their own, on 6 short posts hidden in the brickwork | 1 iron plate, 2 iron rods, 6 iron nails and strips (proposal) |
+| F | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | The binding's eight angles (four corner, four top); the grate's bearers and firebars; the ash mouth's and the fire door's lintels and the recess's guides; standing on their own, on 6 short posts hidden in the brickwork | 2 iron rods, 2 iron plates, 6 iron nails and strips |
 | 1 | **Brickwork** | `brickwork` (and the `hoodiron` part) | The base, the ash pit, the walls, the bench, the hood on its piers and the stack's outer walls: 1.69 blocks; with it, at no cost of its own, the hood's lintel | **4 fired bricks**, any one type |
 | 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on the hot faces (the fire chamber, its flue, the stack) and the outlet's curb: 0.90 blocks | **4 tier-3 refractory bricks**, **2 fire clay** |
-| 3 | **Fittings** | `fittings` (the `bath`, `vessel`, `tub`, `siphon` and `door` parts; the damper in one of its places) | The sand bath with its sand, the vessel, the precipitating tub, the siphon, the fire door, the damper | 3 iron plates, 2 sand, 4 oak planks, 1 lead plate (proposal); the vessel's own item is open |
+| 3 | **Sand bath and doors** | `sandbath` (the `bath` and `door` parts; the damper in one of its places) | The cast-iron sand bath with its sand, its bottom bearing on the lined chamber's walls; the fire door in the recess's guides; the ash-pit damper | ~1 sand (`game:sand-*`), 5 iron nails and strips |
+| 4 | **Vessel and tub** | `vesseltub` (the `vessel` and `tub` parts) | The parting vessel set in the bath's sand; the precipitating tub on the cold front of the bench | **1 fired crucible** (`game:crucible-*-fired`, any colour: the vessel), 1 oak plank (the tub) |
+| 5 | **Services** | `services` (the `siphon` part) | The lead siphon, hung on the vessel's lip with a leg in the vessel and one in the tub: it waits for both | 1 lead pipe section (`seraphhorizons:pipesection-lead`) |
 | | *Copper plates* | `copper` | Contents, not a stage: hung in the tub by hand, worn away as the silver comes down | copper plates (gameplay's) |
 | | *Outlet cap* | `outletcap` | Not a stage: put on (or taken off) by hand, any time after the lining | 1 iron plate |
+
+The contents and the fire wait for the services; the damper comes with the sand bath and the fire door. The siphon is
+lead only (the acid would eat copper), so services has no copper-or-lead choice.
 
 **The ties.** So that nothing floats before the brick is in, the least iron joins each piece of the frame to the
 ground. All of it is in the brickwork (voids are cut for it), so it is hidden once the brick is in:
@@ -202,7 +210,7 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 | `lining` | `game:block/clay/refractory/tier3/front1` | The lining and the curb, world-mapped |
 | `iron` | `game:block/metal/plate/iron` | The frame and its angles, the hood's lintel, the sand bath's tray, the fire door, the damper, the cap |
 | `sand` | `game:block/stone/sand/sandstone` | The sand bath's sand |
-| `porcelain` | `game:block/clay/flintporcelain/fired` | The vessel |
+| `ceramic` | `game:block/clay/hardened/blue` | The vessel: fired clay, as the fired crucible it is built from |
 | `oak` | `game:block/wood/planks/oak1` | The precipitating tub |
 | `lead` | `game:block/metal/sheet-plain/lead4` | The siphon |
 | `copper` | `game:block/metal/plate/copper` | The copper plates and their rod |
@@ -225,11 +233,11 @@ gameplay's state.
 | The brickwork (`brickwork`) and the hood's lintel (`hoodiron`) | stage 1 | the base, the ash pit, the walls, the bench, the hood and its breast, the stack's outer walls; plain brick on the side faces for a row |
 | The lining (`lining`) | stage 2 | the hot faces: the fire chamber, its flue, the stack; the outlet's curb |
 | The bearers and firebars (`frame`) | fixed: the bearers built into the front and back walls, the bars across them | carry the fuel; the draught comes up between the bars |
-| The sand bath (`bath`) | stage 3 | its bottom is the fire chamber's roof: it carries the sand, which carries and warms the vessel |
-| The vessel (`vessel`) | stage 3 | holds the charge, the acid, the gold, the wash water |
-| The precipitating tub (`tub`) | stage 3 | holds the liquor, the copper and the sludge, off the heat |
-| The siphon (`siphon`) | stage 3: hung over the vessel's lip | draws the solution off the vessel into the tub, its outlet under the vessel's surface |
-| The fire door (`door`) | stage 3; then depth: slid down its guides from open (0, the rest pose) to shut (1), by the stoker's hand on its handle | shuts the fire door's opening: the fire then draws only up through the grate |
+| The sand bath (`bath`) | stage 3, `sandbath` | its bottom is the fire chamber's roof: it carries the sand, which carries and warms the vessel |
+| The vessel (`vessel`) | stage 4, `vesseltub`: a fired crucible | holds the charge, the acid, the gold, the wash water |
+| The precipitating tub (`tub`) | stage 4, `vesseltub` | holds the liquor, the copper and the sludge, off the heat |
+| The siphon (`siphon`) | stage 5, `services`: hung over the vessel's lip, so after the vessel and the tub | draws the solution off the vessel into the tub, its outlet under the vessel's surface |
+| The fire door (`door`) | stage 3, `sandbath`; then depth: slid down its guides from open (0, the rest pose) to shut (1), by the stoker's hand on its handle | shuts the fire door's opening: the fire then draws only up through the grate |
 | The damper (`damperopen`, `damperhalf`, `dampershut`) | fitted with stage 3; then the stoker: one of its three places | sets the draught |
 | The fire (`fuel`, `fire`) | laid by hand through the fire door; lit | the bed on the grate; burning, it glows and drops cinders into the ash pit |
 | The vessel's contents (`charge`, `acid`, `solution`, `gold`, `wash`) | gameplay's charge: the dore put in, the acid poured, the silver dissolved, the solution drawn off and the gold washed (from a bucket), the gold taken out | drawn at fixed levels: the acid two-thirds full, the wash water a voxel under it |
@@ -252,7 +260,8 @@ types and every texture are checked against the game's files when they are at ha
 
 - **Parts:** every element is in its intended part; no part is without elements; Euler angles round-trip.
 - **The stages:** at each stage (the iron frame alone; with the brickwork and the hood's lintel; with the lining; with
-  the fittings, the siphon on the vessel's lip) nothing floats: every element drawn is joined to the ground.
+  the sand bath; with the vessel and the tub; with the services, the siphon on the vessel's lip) nothing floats: every
+  element drawn is joined to the ground.
   - The frame is iron only, and no thin post in it stands taller than half the vessel.
   - The hood's lintel comes with the brickwork.
   - The ties are hidden in the brickwork once it is in, none in the lining's place.
@@ -279,8 +288,9 @@ types and every texture are checked against the game's files when they are at ha
   points, walked out every quarter) the brick is the lining's for at least `LINING_T` (3), or to where the brick ends.
   The ash pit's, the ash mouth's and the hood's faces are the brickwork's.
 - **The stages' counts:** the brick boxes' volumes add up to the lattice's, the brickwork's and the lining's apart, and
-  give the rig's quantities at the game's rates, rounded up. The fittings are the bath, the vessel, the tub, the siphon
-  and the door, and there is no water line.
+  give the rig's quantities at the game's rates, rounded up. The stages are the owner's order, one `requires` value
+  each fitting exactly its parts: the bath and the door, then the vessel (from a fired crucible) and the tub, then the
+  siphon; there is no water line.
 - **The fire door:** at every depth it is in its recess between its guides; shut, it covers its opening with 0.5 round;
   open, it is clear above it. It is the only part that moves, and θ moves nothing.
 - **The damper:** in each place it is a plate in the recess between the guides. Shut it covers the whole ash mouth, at
@@ -318,11 +328,11 @@ types and every texture are checked against the game's files when they are at ha
 
   The flues and the stack run into each other, and the stack and the outlet's mouth are clear at every depth but for
   the cap.
-- **Clearances:** no two parts overlap in each of 25 scenes: every state of the vessel, of the tub (with the vessel
-  parting and washing), of the fire and of the damper; the cap; and the three stages before the build is complete.
+- **Clearances:** no two parts overlap in each of 27 scenes: every state of the vessel, of the tub (with the vessel
+  parting and washing), of the fire and of the damper; the cap; and the five stages before the build is complete.
   The only overlaps allowed are the siphon's legs through a liquid's surface and the plates through the tub's liquor.
   The door, slid every 0.02 of depth, touches nothing.
-- **No z-fighting** at 27 poses (nine scenes, three depths) with only what each shows, after the fix (117 faces pressed
+- **No z-fighting** at 33 poses (eleven scenes, three depths) with only what each shows, after the fix (117 faces pressed
   against their own part removed).
 - **Files:**
   - Every texture code is declared; only the burning fuel glows; the frame's shape is the iron frame alone.
@@ -344,7 +354,8 @@ types and every texture are checked against the game's files when they are at ha
 - the angles wrap the corners, the top angles close every corner in one connected frame, and the side faces are plain
   brick for a row;
 - the chimney's line is through the middle of its cell, the stack's mouth and the curb square and centred on it;
-- the stages' counts come from the shape's brick, and the brick types are the game's;
+- the stages are the owner's, in order, each fitting its parts; their counts come from the shape's brick, and the
+  brick types are the game's;
 - `site/models.json`'s states and Play match the generator's.
 
 `site/test/acidparting.test.ts` replays the reference poses in the viewer's maths and holds the page's Brick select
@@ -360,8 +371,8 @@ nothing added to the shared rig maths: two inputs, and parts gated by `requires`
 - **Drivers.** The fire door has a `rotate` of ratio 0 (θ), then a `step` slide along y, −3.75 voxels over depth 0..1
   (from open to shut). Every other part has none.
 - **`requires`** values:
-  - the stages: `brickwork` (the `brickwork` and `hoodiron` parts), `lining`, and `fittings` (the `bath`, `vessel`,
-    `tub`, `siphon` and `door` parts);
+  - the stages, in order: `brickwork` (the `brickwork` and `hoodiron` parts), `lining`, `sandbath` (the `bath` and
+    `door` parts), `vesseltub` (the `vessel` and `tub` parts) and `services` (the `siphon` part);
   - `damperopen`, `damperhalf`, `dampershut` (one at a time);
   - `fuel`, `fire`;
   - the vessel's `charge`, `acid`, `solution`, `gold`, `wash`;
@@ -374,21 +385,21 @@ nothing added to the shared rig maths: two inputs, and parts gated by `requires`
 - **`build`**:
   - `frame` (`recipe` grid, `tool` hammer, `ingredients`);
   - `stages` in order: each with `requires` and `materials` as `{ code, quantity }`; the brickwork's and the lining's
-    `volumeBlocks` and `perClick` `stack`; the brickwork's `oneType` and `alsoParts` (the hood's lintel); the
-    fittings' `parts` and `also` (the damper's places);
+    `volumeBlocks` and `perClick` `stack`; the brickwork's `oneType` and `alsoParts` (the hood's lintel); the later
+    stages' `parts`, and the sand bath's `also` (the damper's places);
   - `outletCap`.
 - **`bricks`**: the crucible furnace's: `code` (`brick`), `item` (`game:burnedbrick-{type}`), `default` (`red`), and
   `types`, each with its `block`, `base` and, for the coloured courses, `overlays`.
 
 **In the viewer** (`site/models.json`, `acid-parting`):
 - The "Fire door" slider is depth. Play opens and shuts it: open 2 s, shut in 1 s, firing 3 s, open in 1 s.
-- Six selects of states, all but Build and Outlet waiting for the vessel to be built:
-  - **Build:** the iron frame, 1: brickwork, 2: lining, 3: fittings (complete), each with its materials; the page opens
-    complete.
+- Six selects of states, the vessel's, the tub's and the fire's waiting for the vessel to be finished (the services):
+  - **Build:** the iron frame, 1: brickwork, 2: lining, 3: sand bath and doors, 4: vessel and tub, 5: services
+    (complete), each with its materials; the page opens complete.
   - **The vessel:** empty, charged, the acid poured on, parting, washing, parted.
   - **The tub:** empty, copper hung, the solution drawn off, precipitating, the sludge to draw.
   - **The fire:** none, laid, burning.
-  - **Ash-pit damper:** open, half, shut.
+  - **Ash-pit damper:** open, half, shut; it waits for the sand bath and doors.
   - **Outlet:** open or capped; it waits for the lining.
 - A **Brick** select offers the rig's nine brick types, as the crucible furnace's does.
 - The viewer draws flat colours, and the codes the colour table does not name (the liquids, the dore) take hashed
@@ -445,7 +456,7 @@ From `CrucibleFurnace/tools/`, copied, not imported, as the brief asks:
 New:
 - The fire door sliding in the recess with the damper.
 - The sand bath let into the bench.
-- The porcelain vessel and its contents.
+- The fired clay vessel and its contents.
 - The precipitating tub with its siphon, copper and sludge.
 - The hood with its lintel and flue, and the fire's own flue.
 - The angle-iron binding.
@@ -469,10 +480,9 @@ Reviewed in projections rendered from the written files and in the viewer; not i
 
 ## Open for the owner
 
-1. **Build stages** (open on #932):
-   - The frame's recipe and the fittings' materials (3 iron plates, 2 sand, 4 oak planks, 1 lead plate) are proposals.
-   - The vessel's own item is open: the game has no porcelain vessel, but a fired clay crucible or jug could stand in.
-   - The copper plates are contents, put in by hand; their item and how fast they wear are gameplay's.
+1. **Build stages**: settled (2026-10-15), above. The copper plates are contents, put in by hand; their item and how
+   fast they wear are gameplay's. The sand bath's cast-iron tray is paid as nails and strips at the settled rate, though
+   the period cast it.
 2. **#931's open items** reach the model:
    - A dore item, or the still's sponge and the cupel's bead as they are? The charge is drawn as granulated dore
      (`electrum`).

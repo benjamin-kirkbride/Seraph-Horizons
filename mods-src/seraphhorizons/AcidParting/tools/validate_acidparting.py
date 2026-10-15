@@ -111,7 +111,7 @@ def check_basic(v):
 
 def check_stages(v):
     """The build: at each stage (the iron frame alone, with the brickwork and the hood's lintel, with the lining, with
-    the fittings) nothing floats: every element drawn is joined to the ground. The iron frame stands on its own: it is
+    the sand bath, with the vessel and the tub, with the services' siphon) nothing floats: every element drawn is joined to the ground. The iron frame stands on its own: it is
     iron only, and no thin post stands in it taller than half the vessel (a vertical element under THIN_POST across
     both ways; the corner angles' legs are wider): the hood's lintel comes with the brickwork that carries it. Every tie is
     hidden once the brick is in: points just off every face of it lie in brick (the brickwork's) or in other iron."""
@@ -179,7 +179,7 @@ ROLES = [
     (r"^hi_lintel", {"iron"}),
     (r"^bath_(tray|rim)", {"iron"}),
     (r"^bath_sand", {"sand"}),
-    (r"^vessel_", {"porcelain"}),
+    (r"^vessel_", {"ceramic"}),
     (r"^door_", {"iron"}),
     (r"^damper(open|half|shut)_", {"iron"}),
     (r"^tub_", {"oak"}),
@@ -564,8 +564,9 @@ def check_lining(v):
 def check_build(v):
     """The stages' counts: the brickwork's and the lining's volumes, measured from their elements (each lattice box in
     exactly one brick box: their volumes add up to the lattice's), give the rig's quantities at the game's rates,
-    rounded up; the frame's recipe, the fittings' and the cap's are the generator's proposal; every stage's requires
-    and parts are the rig's; there is no water line."""
+    rounded up; the frame's recipe, the other stages' materials and the cap's are the generator's; the stages are the
+    owner's order, each one requires value fitting its parts, the siphon (the services) last, after both the vessel
+    and the tub it hangs between; there is no water line."""
     m = v.m
     xs, ys, zs, mat = m.brick_lattice()
     lat = {"bk": 0.0, "ln": 0.0}
@@ -587,27 +588,37 @@ def check_build(v):
     want["fireclay"] = math.ceil(want["lining"] / m.LINING_PER_FIRECLAY - 1e-9)
     if got != want or any(got[k] != c[k] for k in got):
         v.fail(f"the stages' counts {got} are not the measured {want}")
-    if [s["requires"] for s in build["stages"]] != list(m.STAGES):
-        v.fail("the stages are not brickwork, lining, fittings")
+    if ([s["requires"] for s in build["stages"]] != list(m.STAGES)
+            or list(m.STAGES) != ["brickwork", "lining", "sandbath", "vesseltub", "services"]):
+        v.fail("the stages are not brickwork, lining, sandbath, vesseltub, services")
     if st["brickwork"]["materials"][0]["code"] != "game:burnedbrick-*" or not st["brickwork"].get("oneType"):
         v.fail("the brickwork does not take one type of any fired brick")
     if st["brickwork"].get("alsoParts") != ["hoodiron"]:
         v.fail("the hood's lintel does not come with the brickwork")
-    if [(x["code"], x["quantity"]) for x in st["fittings"]["materials"]] != list(m.FITTINGS_STAGE):
-        v.fail("the fittings' materials are not the generator's")
+    for sid, want_m in (("sandbath", m.SANDBATH_STAGE), ("vesseltub", m.VESSELTUB_STAGE), ("services", m.SERVICES_STAGE)):
+        if [(x["code"], x["quantity"]) for x in st[sid]["materials"]] != list(want_m):
+            v.fail(f"the {sid} stage's materials are not the generator's")
+    if (m.VESSEL_ITEM, 1) not in m.VESSELTUB_STAGE or not m.VESSEL_ITEM.startswith("game:crucible-"):
+        v.fail("the vessel is not built from a fired crucible")
     if [(x["code"], x["quantity"]) for x in build["frame"]["ingredients"]] != list(m.FRAME_RECIPE):
         v.fail("the frame's recipe is not the generator's")
     by_id = {p["id"]: p for p in v.parts}
-    if any(by_id[p]["requires"] != "fittings" for p in st["fittings"]["parts"]):
-        v.fail("a part of the fittings stage is not fitted by it")
+    for sid in m.STAGES[2:]:
+        if any(by_id[p]["requires"] != sid for p in st[sid]["parts"]):
+            v.fail(f"a part of the {sid} stage is not fitted by it")
+    staged = {p["id"]: p["requires"] for p in v.parts if p["requires"] in m.STAGES}
+    if any(sorted(pid for pid, r in staged.items() if r == sid) != sorted(m.STAGE_PARTS[sid]) for sid in m.STAGES):
+        v.fail(f"the stages' parts are not the generator's: {staged}")
+    want_parts = {"sandbath": {"bath", "door"}, "vesseltub": {"vessel", "tub"}, "services": {"siphon"}}
+    if any(set(st[sid]["parts"]) != ps for sid, ps in want_parts.items()) or "waterLine" in build:
+        v.fail("the stages after the lining are not the bath and door, the vessel and tub, the siphon, with no water line")
     requires = {p["requires"] for p in v.parts}
-    if not set(m.STAGES) <= requires or any(a not in requires for a in st["fittings"]["also"]):
+    if not set(m.STAGES) <= requires or any(a not in requires for a in st["sandbath"]["also"]):
         v.fail("a stage's requires is no part's")
-    if set(st["fittings"]["parts"]) != {"bath", "vessel", "tub", "siphon", "door"} or "waterLine" in build:
-        v.fail("the fittings are not the bath, the vessel, the tub, the siphon and the door, with no water line")
     print(f"build: brickwork {lat['bk'] / m.B ** 3:.2f} blocks -> {got['bricks']} fired bricks; lining "
           f"{lat['ln'] / m.B ** 3:.2f} blocks -> {got['lining']} refractory bricks and {got['fireclay']} fire clay; "
-          f"fittings {dict(m.FITTINGS_STAGE)}; the frame {dict(m.FRAME_RECIPE)}; no water line")
+          f"sandbath {dict(m.SANDBATH_STAGE)}, vesseltub {dict(m.VESSELTUB_STAGE)}, services "
+          f"{dict(m.SERVICES_STAGE)}; the frame {dict(m.FRAME_RECIPE)}; no water line")
 
 
 # ---------------------------------------------------------------- the fire door, the damper, the fire
@@ -1007,12 +1018,13 @@ def scenes(m):
     """The vessel built: every state of the vessel with the tub precipitating, the fire burning and the damper open;
     every state of the tub (with the vessel parting and washing); every state of the fire; every place of the damper
     with the outlet capped; and each stage of the build before it is complete."""
-    out = [(vs, "precipitating", "burning", "open", False, "complete") for vs, _, _ in m.VESSEL_STATES]
-    out += [(vs, ts, "burning", "open", False, "complete") for ts, _, _ in m.TUB_STATES for vs in ("parting", "washing")]
-    out += [("empty", "empty", f, "open", False, "complete") for f, _, _ in m.FIRE_STATES]
-    out += [("washing", "sludge", "laid", d, True, "complete") for d in m.DAMPERS]
+    out = [(vs, "precipitating", "burning", "open", False, m.COMPLETE) for vs, _, _ in m.VESSEL_STATES]
+    out += [(vs, ts, "burning", "open", False, m.COMPLETE) for ts, _, _ in m.TUB_STATES for vs in ("parting", "washing")]
+    out += [("empty", "empty", f, "open", False, m.COMPLETE) for f, _, _ in m.FIRE_STATES]
+    out += [("washing", "sludge", "laid", d, True, m.COMPLETE) for d in m.DAMPERS]
     out += [("empty", "empty", "none", "open", False, "frame"), ("empty", "empty", "none", "open", False, "brickwork"),
-            ("empty", "empty", "none", "open", True, "lining")]
+            ("empty", "empty", "none", "open", True, "lining"), ("empty", "empty", "none", "shut", True, "sandbath"),
+            ("empty", "empty", "none", "half", False, "vesseltub")]
     return out
 
 

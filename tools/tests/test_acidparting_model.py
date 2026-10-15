@@ -1,7 +1,7 @@
 """The acid parting vessel's generated model files (mods-src/seraphhorizons/AcidParting/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
-maths and uses the `requires` vocabulary (the build's stages, brickwork, lining and fittings; the damper's three
+maths and uses the `requires` vocabulary (the build's stages in the owner's order, brickwork, lining, sandbath, vesseltub and services; the damper's three
 places; the fire laid and burning; the vessel's contents; the precipitating tub's; the outlet's cap), its reference
 poses are its own maths, the stages' counts are measured from the shape's brick, the brick
 types map to the game's textures (checked against the game's files when they are at hand: $VINTAGE_STORY or
@@ -41,7 +41,7 @@ SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "ac
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "acidparting_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "AcidParting" / "rig-reference.json").read_text())
 MODELS = json.loads((ROOT / "site" / "models.json").read_text())
-STAGES = ("brickwork", "lining", "fittings")
+STAGES = ("brickwork", "lining", "sandbath", "vesseltub", "services")
 CONTENTS = ("charge", "acid", "solution", "gold", "wash", "copper", "liquor", "silver")
 REQUIRES = {None, *STAGES, "damperopen", "damperhalf", "dampershut", "fuel", "fire", *CONTENTS, "outletcap"}
 FLAT = flatten(SHAPE["elements"], textures={})
@@ -77,12 +77,12 @@ class Rig(unittest.TestCase):
             for d in p["drivers"]:
                 rigmath.validate_driver(d)
         self.assertEqual({p["requires"] for p in RIG["parts"]}, REQUIRES)
-        # the fire door is a fitting and the only part that moves: a ratio-0 clock, then a step slide down
+        # the fire door comes with the sand bath and is the only part that moves: a ratio-0 clock, then a step slide down
         moving = {p["id"] for p in RIG["parts"] if p["drivers"]}
         self.assertEqual(moving, {"door"})
         req = {p["id"]: p["requires"] for p in RIG["parts"]}
         self.assertEqual((req["hoodiron"], req["bath"], req["vessel"], req["tub"], req["siphon"], req["door"], req["frame"]),
-                         ("brickwork", "fittings", "fittings", "fittings", "fittings", "fittings", None))
+                         ("brickwork", "sandbath", "vesseltub", "vesseltub", "services", "sandbath", None))
         door = next(p for p in RIG["parts"] if p["id"] == "door")
         self.assertEqual([(d["type"], d.get("motion"), d.get("ratio")) for d in door["drivers"]],
                          [("rotate", None, 0.0), ("step", "slide", None)])
@@ -280,7 +280,10 @@ class Build(unittest.TestCase):
         self.assertEqual(st["lining"]["materials"], [{"code": "game:refractorybrick-fired-tier3", "quantity": lining},
                                                      {"code": "game:clay-fire", "quantity": math.ceil(lining / make_shape.LINING_PER_FIRECLAY - 1e-9)}])
         self.assertEqual(st["brickwork"]["alsoParts"], ["hoodiron"])
-        self.assertEqual(set(st["fittings"]["parts"]), {"bath", "vessel", "tub", "siphon", "door"})
+        self.assertEqual({sid: set(st[sid]["parts"]) for sid in STAGES[2:]},
+                         {"sandbath": {"bath", "door"}, "vesseltub": {"vessel", "tub"}, "services": {"siphon"}})
+        self.assertEqual(st["vesseltub"]["materials"][0], {"code": "game:crucible-*-fired", "quantity": 1})
+        self.assertEqual(st["services"]["materials"], [{"code": "seraphhorizons:pipesection-lead", "quantity": 1}])
         self.assertNotIn("waterLine", build)
 
     def test_any_fired_brick_maps_to_its_blocks_texture(self):
@@ -306,11 +309,12 @@ class Scenario(unittest.TestCase):
         groups = {g["id"]: g for g in sc["states"]}
         self.assertEqual(set(groups), {"build", "vessel", "tub", "fire", "damper", "outlet"})
         build = groups["build"]
-        self.assertEqual((build["values"], build["default"]), (list(STAGES), "complete"))
+        self.assertEqual((build["values"], build["default"]), (list(STAGES), "services"))
         self.assertEqual([(o["id"], tuple(o["fitted"])) for o in build["options"]], list(make_shape.STAGE_STATES))
         for gid, states in (("vessel", make_shape.VESSEL_STATES), ("tub", make_shape.TUB_STATES), ("fire", make_shape.FIRE_STATES)):
             self.assertEqual([(o["id"], tuple(o["fitted"])) for o in groups[gid]["options"]], [(s, tuple(w)) for s, _, w in states], gid)
             self.assertEqual(groups[gid]["needs"], list(STAGES))
+        self.assertEqual(groups["damper"]["needs"], ["brickwork", "lining", "sandbath"])
         self.assertEqual([(o["id"], o["fitted"]) for o in groups["damper"]["options"]],
                          [("open", ["damperopen"]), ("half", ["damperhalf"]), ("shut", ["dampershut"])])
         self.assertEqual(groups["outlet"]["needs"], ["brickwork", "lining"])
