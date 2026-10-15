@@ -12,11 +12,14 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// mods-src/seraphhorizons/Eidolon, several eidolons kept apart (README "Eidolon", working together,
-/// *Sectors*, and the paths round other eidolons), with the pack's default settings, ordered with the
-/// command tool as a player orders them: three on one area 16 × 3 × 12 each work a sector of their own,
-/// apart, never pushing into each other, the floors within a climb, with no slam at nothing, one report; and two
-/// ordered across each other's way walk round each other and both arrive. The steal is
-/// <see cref="EidolonTeamMineScenarios"/>'s. On floors of their own in the sky (<see cref="Felling.Sky"/>).
+/// *Dispatch* and *Claims*, and the paths round other eidolons), with the pack's default settings, ordered
+/// with the command tool as a player orders them: three on one area 16 × 3 × 12 each work stations of their
+/// own, each strike in its station's claimed columns, apart, never pushing into each other nor digging in
+/// another's columns, the floors within a climb (two by look-ahead routes, whose spare work goes a band
+/// deeper), with no slam at nothing, one report; and two ordered across each other's way walk round each
+/// other and both arrive. One taking stations in another's part once its own is done is
+/// <see cref="EidolonTeamMineScenarios"/>'s. On floors of their own in the sky (<see cref="Felling.Sky"/>), each
+/// from its spawns on the virtual clock (<see cref="VirtualClock"/>).
 /// </summary>
 [AtlasWorld]
 public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -90,8 +93,8 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
         return cells;
     }
 
-    [AtlasScenario(TimeoutMs = 600_000)]
-    public async Task Three_eidolons_work_a_sector_each_apart_the_floors_within_a_climb_and_no_slam_at_nothing()
+    [AtlasScenario(TimeoutMs = 240_000)]
+    public async Task Three_eidolons_work_one_area_apart_the_floors_within_a_climb_and_no_slam_at_nothing()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2100), reach: 15);
         var blocks = W.BlockAccessor;
@@ -109,6 +112,7 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var toMine = Cells(area);
 
         var (test, player, tool) = await Commander("eidolonsectors", site.AddCopy(0, 0, -13));
+        using var clock = VirtualClock.Start(World);
         var eidolons = new[]
         {
             await Spawn(site.AddCopy(-6, 0, -12), player),
@@ -120,11 +124,10 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var homes = eidolons.Select(e => e.Pos.XYZ).ToArray();
         await World.Ticks(5);
         Assert.All(orders, o => Assert.Same(orders[0].Job, o.Job));
-        var sectors = orders[0].Job!.Shared.Sectors;
-        Log("sectors: " + string.Join(", ", sectors.All.Select(s => $"{s.Sector} by {s.Owner}")));
-        Assert.Equal(3, sectors.All.Count(s => s.Owner != null));
 
-        var watch = new MineWatcher(W, toMine, eidolons, orders);
+        // By look-ahead routes a member may take spare work a band deeper (the owner's rule): floors two
+        // climbs apart, not one.
+        var watch = new MineWatcher(W, toMine, eidolons, orders, floorSlack: EidolonMinePlans.Routing ? 2 : 1);
         int ticks = 0, lastMined = -1;
         await World.Until(() =>
         {
@@ -132,14 +135,14 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
             int mined = orders.Sum(o => o.Mined);
             if (mined != lastMined && mined % 24 == 0 || ++ticks % 600 == 0)
             {
-                Log($"{string.Join(" + ", orders.Select(o => o.Mined))} mined, sectors {string.Join(" ", orders.Select(o => o.Sector?.ToString() ?? "none"))}, "
+                Log($"{string.Join(" + ", orders.Select(o => o.Mined))} mined, stations {string.Join(" ", orders.Select(o => o.Sector?.ToString() ?? "none"))}, "
                     + $"mean apart {watch.MeanDistance:0.0}, overlaps {watch.Overlaps}: {string.Join(" || ", eidolons.Select(State))}");
                 lastMined = mined;
             }
             return eidolons.All(e => e.Orders!.OrderCode == null);
         }, 24000);
         var lines = Reports(orders);
-        Log($"after: {string.Join(" + ", orders.Select(o => o.Mined))}; steals {sectors.Steals}; in/out of sector "
+        Log($"after: {string.Join(" + ", orders.Select(o => o.Mined))}; in/out of station "
             + string.Join(" ", watch.BySector.Select(kv => $"{kv.Key}: {kv.Value.In}/{kv.Value.Out}"))
             + $"; empty strikes {orders.Sum(o => o.EmptyStrikes)}, cut {orders.Sum(o => o.CutStrikes)}; mean apart {watch.MeanDistance:0.00}; overlaps {watch.Overlaps}");
         Log("reports: " + string.Join(" | ", lines));
@@ -148,7 +151,7 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.All(toMine, c => Assert.Equal(0, blocks.GetBlock(c).Id));
         Assert.Equal(toMine.Count, orders.Sum(o => o.Mined));
         Assert.All(orders, o => Assert.True(o.Mined > 0, $"one mined nothing: {string.Join(" + ", orders.Select(x => x.Mined))}"));
-        // Each broke in its own sector, and they kept apart: well over two boxes' width on average,
+        // Each broke in its own station's columns, and they kept apart: well over two boxes' width on average,
         // never one pushing through or standing in another (a shallow brush allowed, however long).
         Assert.All(watch.BySector.Values, v => Assert.Equal(0, v.Out));
         Assert.True(watch.MeanDistance >= 5, $"mean distance apart {watch.MeanDistance:0.00}");
@@ -164,13 +167,14 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
             e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Two_ordered_across_each_others_way_walk_round_each_other_and_both_arrive()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2300), reach: 15);
         // A player near: a goto is no work, so an eidolon with none within its simulation range is
         // inactive (README "Chunk loading") and never sets off.
         await Commander("eidoloncrossing", site.AddCopy(0, 0, -10));
+        using var clock = VirtualClock.Start(World);
         var west = await Spawn(site.AddCopy(-9, 0, 0), null!);
         var east = await Spawn(site.AddCopy(9, 0, 0), null!);
         // each to where the other stands, at once: head on

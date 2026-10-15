@@ -198,13 +198,14 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
     // layer is off. Brass plates go back on the eidolon itself, a blue cloth sash on the gantry, a stainless
     // skirt on the eidolon: its build, textures and figures follow at once. The crank wakes it: activate,
     // out of the front, and back to the stay order it docked from, in its new build; the spine is free.
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 150_000)]
     public async Task Docked_by_order_it_is_stripped_refitted_in_new_materials_and_woken()
     {
         var (origin, player) = await Floor(-700, 600, "dockhand");
         var gantry = await Gantry(origin);
         var body = BodyOf(gantry);
         var e = await Woken(gantry, player, EidolonBuild.OldBuild);
+        using var clock = VirtualClock.Start(World);
         var stayAt = e.Pos.XYZ.Clone();
         e.Orders!.SetOrder(StayOrder.OrderCode, StayOrder.Args(stayAt));
         Assert.Equal(300, Health(e).MaxHealth, 1);
@@ -309,7 +310,7 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
     // Docked, with the gantry and the eidolon in one chunk column: unloaded (saved) and loaded again, the
     // eidolon (the same entity id) is still docked, hung on its point, and the gantry holds it. An order
     // given while docked waits; it strips and wakes as before, then takes up that order.
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task Docked_it_stays_docked_through_unloading_and_loading()
     {
         int dx = 16 - Mod32(World.Spawn.X - 760) - 760, dz = 16 - Mod32(World.Spawn.Z + 600) + 600;
@@ -346,6 +347,9 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var gantryAgain = W.BlockAccessor.GetBlockEntity(origin) as BEEidolonGantry;
         Assert.NotNull(gantryAgain);
         Assert.NotSame(gantry, gantryAgain);
+        // Loaded again: the virtual clock from here on (the save, unloading and loading above run on
+        // the chunk threads, on wall time, so stay outside it).
+        using var clock = VirtualClock.Start(World);
         await World.Ticks(100);
         AssertHung(again!, gantryAgain!);
         Assert.Equal(EidolonBuild.OldBuild, again!.Build);
@@ -373,12 +377,13 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
     // Breaking a gantry with an eidolon docked lets it go, layers and all, and gives back the frame, the
     // winch and the one loose chain of a skirt part fitted, nothing of the eidolon's. It stands up and can
     // work. An eidolon removed while docked frees the spine.
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Breaking_the_gantry_lets_the_docked_eidolon_go_whole()
     {
         var (origin, player) = await Floor(-760, 680, "dockbreaker");
         var gantry = await Gantry(origin);
         var e = await Woken(gantry, player, EidolonBuild.OldBuild, west: 1.5);
+        using var clock = VirtualClock.Start(World);
         Assert.True(e.Dock!.Begin(gantry, null));
         await Docked(e, 400);
         Empty(player);

@@ -259,7 +259,7 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(0, shop.LogsOn(pos));
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task The_bucking_mill_cuts_a_debarked_trunk_into_debarked_logs()
     {
         // On a floor of its own, its chunk columns loaded and kept: nothing else in this class keeps
@@ -267,6 +267,7 @@ public partial class WoodworkingRosserScenarios
         var pos = await RosserSky(90, 30, reach: 10);
         var player = await Player("debarker");
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "south");
         Assemble(mill, player);
         KillItemsNear(pos);

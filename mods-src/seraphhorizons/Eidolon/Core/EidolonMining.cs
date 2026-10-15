@@ -49,42 +49,110 @@ public sealed record MineGroup(IReadOnlyList<MarkPos> Cells, bool Upright)
     public double CentreZ => Cells.Average(c => c.Z + 0.5);
 }
 
-/// <summary>What a search of the area found (<see cref="EidolonMining.Scan"/>): the layer it works (the
-/// highest with a block left it may break; null for none), that layer's cells left and the next one's
-/// down, and the block columns of the area not loaded, which read as air and so are never done; and
-/// the cells left in a tunnel's heading being driven (<see cref="Tunnel"/>, none without one), which
-/// are no layer's.</summary>
-public sealed record MineScan(int? Layer, IReadOnlySet<MarkPos> Left, IReadOnlyList<(int X, int Z)> Unloaded)
-{
-    /// <summary>Whether the area is done: no block left it may break, and none of it unloaded.</summary>
-    public bool Done => Layer == null && Tunnel.Count == 0 && Unloaded.Count == 0;
-
-    public IReadOnlySet<MarkPos> Tunnel { get; init; } = new HashSet<MarkPos>();
-}
+/// <summary>The area's cells as the mine planner takes them (<see cref="EidolonMining.Targets"/>): those it
+/// digs, those it keeps only as the floor under cells out of its reach (the sill and below), those it
+/// leaves for what they are (its rules, skipped, or held up by those), and the block columns not loaded.</summary>
+public sealed record MineTargets(IReadOnlySet<MarkPos> Dig, IReadOnlySet<MarkPos> Held,
+    IReadOnlySet<MarkPos> Left, IReadOnlyList<(int X, int Z)> Unloaded);
 
 /// <summary>What the miners of one shared job share (README "Eidolon", working together): the cells
-/// every member leaves for the order's life for what they are (a land claim its owner may not break in,
-/// a block that would not break), the cells some member gave up for want of a way to them, for the
-/// report, and the area's sectors and who works each. A cell one member cannot reach another may, so
-/// each keeps its own unreachable cells for its search; only the report reads them all here. And the
-/// tunnel (README "Eidolon", mining, tunnels): planned once, by the first member to search
-/// (<see cref="Planned"/>, <see cref="Tunnel"/>: the heading being driven, the next one down once it is,
-/// null for none), each heading driven until every member at work has
-/// nothing left in it it may work (<see cref="TunnelIdle"/>: each such member, with the
-/// <see cref="MineSectors.Version"/> it found none at, so one whose lanes have moved since is not counted),
-/// then done for the job's life (<see cref="TunnelDone"/>). A lone eidolon keeps its own.</summary>
+/// every member leaves for the order's life for what they are (<see cref="Skip"/>: a land claim its owner
+/// may not break in, a block that would not break), and the job's picture of its area (README "Eidolon",
+/// mining, *Stations*), made once, by the first member to start: the live state (<see cref="Live"/>, kept
+/// as the world changes, asked before every claim and strike), the plan its members take stations from
+/// (<see cref="Plan"/>, made again in slices as the world changes and swapped in whole,
+/// <see cref="PlanVersion"/> counting each), the stands found bad in the world (<see cref="BadStands"/>:
+/// the game's pathfinder found no way to them), and how many blocks out of its reach its owner was last
+/// told of (<see cref="ToldOutOfReach"/>, -1 never). A lone eidolon keeps its own.</summary>
 public sealed class MineJobCells
 {
     public HashSet<MarkPos> Skip { get; } = new();
-    public HashSet<MarkPos> Unreachable { get; } = new();
-    public MineSectors Sectors { get; } = new();
-    public bool Planned { get; set; }
-    public MineTunnel? Tunnel { get; set; }
-    public Dictionary<long, int> TunnelIdle { get; } = new();
-    public bool TunnelDone { get; set; }
 
-    /// <summary>The tunnel while it is driven, else null.</summary>
-    public MineTunnel? Driving => TunnelDone ? null : Tunnel;
+    public MineState? Live { get; set; }
+
+    public MinePlan? Plan { get; set; }
+
+    /// <summary>Whether a plan is being made (the first, or one made again, on a worker thread).</summary>
+    public bool Planning { get; set; }
+
+    public int PlanVersion { get; set; }
+
+    /// <summary>Settable: a plan made on a worker is given a copy, which becomes the job's set when the
+    /// plan is swapped in (the live state built with it shares it).</summary>
+    public HashSet<PathCell> BadStands { get; set; } = new();
+
+    public int ToldOutOfReach { get; set; } = -1;
+
+    /// <summary>Every cell a plan of the job left as its stair: one made again late (the world changed, a
+    /// stand found bad) takes what is left of the stair for blocks it cannot reach, but they are still the
+    /// way out, and are told and reported as such.</summary>
+    public HashSet<MarkPos> Stair { get; } = new();
+
+    /// <summary>The plan's blocks out of reach that are no stair of the job's (<see cref="Stair"/>).</summary>
+    public IReadOnlySet<MarkPos> OutOfReach
+    {
+        get
+        {
+            // made again only when the plan or the stair changes (every member asks on every look)
+            if (_outOfReach is { } o && ReferenceEquals(o.Plan, Plan) && o.Stair == Stair.Count)
+                return o.Set;
+            var set = Plan is { } p ? p.OutOfReach.Where(c => !Stair.Contains(c)).ToHashSet() : new HashSet<MarkPos>();
+            _outOfReach = (Plan, Stair.Count, set);
+            return set;
+        }
+    }
+
+    private (MinePlan? Plan, int Stair, IReadOnlySet<MarkPos> Set)? _outOfReach;
+
+    /// <summary>The cells under eidolons parked in the area (none of the job's) when the plan was last made
+    /// for being stuck: planned round, as cells left for now, until they move (README "Eidolon", working
+    /// together, *Footing*).</summary>
+    public HashSet<MarkPos> Parked { get; set; } = new();
+
+    /// <summary>The cells under parked eidolons as last seen, and since when: the plan is made round them
+    /// only once they have stayed so a while (one walking across the area stirs no plan).</summary>
+    public HashSet<MarkPos> ParkedSeen { get; set; } = new();
+
+    public double ParkedSince { get; set; }
+
+    /// <summary>The member walking on the stair (README "Eidolon", working together, *The stair*), 0 for none,
+    /// and until when (a holder unloaded or stuck lets it go then): one at a time, the others keeping off it.</summary>
+    public long StairHolder { get; set; }
+
+    public double StairUntil { get; set; }
+
+    /// <summary>Whether the plan was made again because no member had a station it could work while
+    /// cells were left (README "Eidolon", working together, *Dispatch*): once, until a block is broken.</summary>
+    public bool StuckReplanned { get; set; }
+
+    /// <summary>The job's route plan (README "Eidolon", working together, *Routes*), main thread only; null
+    /// before the first, and while today's dispatch is used instead.</summary>
+    public MineRoutes? Routes { get; set; }
+
+    /// <summary>Counts every swap of <see cref="Routes"/> and every repair that changes a route.</summary>
+    public int RoutesVersion { get; set; }
+
+    /// <summary>Why a route solve is asked for (null: none).</summary>
+    public string? RoutesWanted { get; set; }
+
+    /// <summary>Whether the solve asked for may start before the least time between solves is up.</summary>
+    public bool RoutesUrgent { get; set; }
+
+    /// <summary>The job's choice between today's dispatch and the routes' variants, kept apart from
+    /// <see cref="Routes"/> so that it outlasts routes let go (a job down to one member) and new station plans,
+    /// for as long as the area and the members present are those it was made for.</summary>
+    public MineRouteChoice RouteChoice { get; } = new();
+
+    /// <summary>When a member last began a strike (game seconds; 0: none yet).</summary>
+    public double LastStrikeAt { get; set; }
+
+    /// <summary>The station plan whose routes stalled (no strike for a while by a crew all waiting on them): it
+    /// is dispatched as today's for the rest of that plan; -1 for none.</summary>
+    public int RoutesStalledPlan { get; set; } = -1;
+
+    /// <summary>When routes for the station plan in use first came in (game seconds): a stall is timed from
+    /// it, not from each solve after.</summary>
+    public double RoutesPlanSince { get; set; }
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>
@@ -95,8 +163,8 @@ public readonly record struct MineStrike(double Seconds, double SlamSpeed, doubl
 /// <summary>
 /// The mine order's rules (README "Eidolon", mining), game-independent: the area's limits, what it
 /// breaks, how long a strike takes, which cells it reaches from where it stands (never its own
-/// footprint or under it), which group it strikes next, top down, and where it stands to reach one.
-/// Cells are blocks; it stands at a path node (<see cref="PathCell"/>, a block corner), its feet in
+/// footprint or under it), which group it strikes next, top down, and which cells it digs (<see cref="Targets"/>;
+/// where it stands for them is the planner's, <see cref="MinePlanner"/>). Cells are blocks; it stands at a path node (<see cref="PathCell"/>, a block corner), its feet in
 /// block <c>Y</c>.
 /// </summary>
 public static class EidolonMining
@@ -367,85 +435,78 @@ public static class EidolonMining
         }
     }
 
-    /// <summary>The squares of the area with a cell of <paramref name="layer"/> among
-    /// <paramref name="cells"/>, nearest (<paramref name="x"/>, <paramref name="z"/>) first, each with
-    /// those cells.</summary>
-    public static IEnumerable<((int X, int Z) Square, IReadOnlyList<MarkPos> Cells)> Squares(MarkArea area, IEnumerable<MarkPos> cells, int layer, double x, double z) =>
-        cells.Where(c => c.Y == layer).GroupBy(c => Square(area, c.X, c.Z)).ToList()
-            .OrderBy(g => Distance2(g.Key.X + 1, g.Key.Z + 1, x, z)).ThenBy(g => g.Key.X).ThenBy(g => g.Key.Z)
-            .Select(g => (g.Key, (IReadOnlyList<MarkPos>)g.ToList()));
-
-    /// <summary>The square of the area nearest (<paramref name="x"/>, <paramref name="z"/>) with a cell of
-    /// <paramref name="layer"/> among <paramref name="cells"/>, and those cells; null for none.</summary>
-    public static ((int X, int Z) Square, IReadOnlyList<MarkPos> Cells)? Nearest(MarkArea area, IEnumerable<MarkPos> cells, int layer, double x, double z) =>
-        Squares(area, cells, layer, x, z).Select(s => (((int X, int Z) Square, IReadOnlyList<MarkPos> Cells)?)s).FirstOrDefault();
-
     // ---- the search ----
 
     /// <summary>The lowest layer it mines: the world's bottom layer is the mantle.</summary>
     public const int BottomY = 1;
 
     /// <summary>
-    /// Searches the area (<see cref="MineScan"/>): from the top down, the highest layer with a cell
-    /// <paramref name="rule"/> says it mines (<see cref="MineRule.Mine"/>) and not <paramref name="skip"/>ped,
-    /// and that layer's such cells and the next one's down (for upright strikes). Only in the block
-    /// columns <paramref name="loaded"/>: a column not loaded reads as air, so it is not searched but
-    /// listed, unfinished until it loads. A block it leaves in place (any rule but mine and air, or
-    /// <paramref name="skip"/>ped: one its owner may not break, one that would not break) holds up what
-    /// is under it: the blocks below it in its column, down to the first air, are left too, so nothing
-    /// it leaves is left floating, nor walls the pit off with blocks hanging in it; so does one it
-    /// leaves just over the area (<see cref="Holds"/>: a chest, a sign, farmland on the surface). But
-    /// not one left only for a liquid beside it (<see cref="MineRule.LiquidBeside"/>), which is passed
-    /// over: what is under it touches no liquid and is mined (one that falls does hold its column). A block
-    /// <paramref name="pass"/>ed (given up for want of a way to it) is only passed over: what is under it
-    /// is mined. With a <paramref name="tunnel"/> being driven, the cells of its heading it mines are
-    /// gathered apart (<see cref="MineScan.Tunnel"/>), all of them, under the same rules, and make no
-    /// layer: the search goes down through the whole heading.
+    /// The cells of the area it digs (README "Eidolon", mining, *Stations*): every one whose rule is
+    /// <see cref="MineRule.Mine"/>, not <paramref name="skip"/>ped, and not held up; held up: the column under a block it leaves (or one just over the area,
+    /// <see cref="Holds"/>) down to the first air, but not under one left only for a liquid beside it; and
+    /// under each of <paramref name="hold"/> (out of its reach for good, <see cref="MineReach"/>) likewise,
+    /// so it never mines the floor under what it cannot reach. All layers at once; unloaded columns
+    /// listed, not searched. The cells of <paramref name="hold"/> are in none of the sets.
     /// </summary>
-    public static MineScan Scan(MarkArea area, Func<int, int, bool> loaded, Func<MarkPos, MineRule> rule, Func<MarkPos, bool> skip,
-        Func<MarkPos, bool>? pass = null, MineTunnel? tunnel = null)
+    public static MineTargets Targets(MarkArea area, MineSite site, Func<MarkPos, bool> skip, IReadOnlySet<MarkPos>? hold = null)
     {
-        var columns = new List<(int X, int Z)>();
+        MineTargets? result = null;
+        foreach (var _ in Targets(area, site, skip, hold, t => result = t)) { }
+        return result!;
+    }
+
+    /// <summary><see cref="Targets(MarkArea, MineSite, Func{MarkPos, bool}, IReadOnlySet{MarkPos}?)"/> a few
+    /// block columns a step (the planner's slices), handing the result to <paramref name="done"/>.</summary>
+    public static IEnumerable<bool> Targets(MarkArea area, MineSite site, Func<MarkPos, bool> skip, IReadOnlySet<MarkPos>? hold,
+        Action<MineTargets> done)
+    {
+        int columns = 0;
+        var dig = new HashSet<MarkPos>();
+        var held = new HashSet<MarkPos>();
+        var left = new HashSet<MarkPos>();
         var unloaded = new List<(int X, int Z)>();
         for (int x = area.Min.X; x <= area.Max.X; x++)
         for (int z = area.Min.Z; z <= area.Max.Z; z++)
-            (loaded(x, z) ? columns : unloaded).Add((x, z));
-        var left = new HashSet<MarkPos>();
-        var held = new HashSet<(int X, int Z)>();
-        foreach (var (x, z) in columns)
-            if (Holds(rule(new MarkPos(x, area.Max.Y + 1, z))))
-                held.Add((x, z));
-        var dig = new HashSet<MarkPos>();
-        int? layer = null;
-        for (int y = area.Max.Y; y >= Math.Max(BottomY, area.Min.Y) && (layer == null || y >= layer - 1 || y >= tunnel?.Bottom); y--)
-        foreach (var (x, z) in columns)
         {
-            var cell = new MarkPos(x, y, z);
-            var what = rule(cell);
-            if (what == MineRule.Air)
+            if (site.Unloaded(x, z))
             {
-                held.Remove((x, z));
+                unloaded.Add((x, z));
                 continue;
             }
-            if (held.Contains((x, z)) || skip(cell) || what != MineRule.Mine)
+            bool byLeft = Holds(site.Rule(new MarkPos(x, area.Max.Y + 1, z))), byHold = false;
+            for (int y = area.Max.Y; y >= Math.Max(BottomY, area.Min.Y); y--)
             {
-                if (what != MineRule.LiquidBeside || held.Contains((x, z)) || skip(cell))
-                    held.Add((x, z));
-                continue;
-            }
-            if (pass?.Invoke(cell) == true)
-                continue;
-            if (tunnel?.Contains(cell) == true)
-            {
+                var cell = new MarkPos(x, y, z);
+                var what = site.Rule(cell);
+                if (what == MineRule.Air)
+                {
+                    byLeft = byHold = false;
+                    continue;
+                }
+                if (hold?.Contains(cell) == true)
+                {
+                    byHold = true;
+                    continue;
+                }
+                if (byLeft || skip(cell) || what != MineRule.Mine)
+                {
+                    if (what != MineRule.LiquidBeside || byLeft || skip(cell))
+                        byLeft = true;
+                    left.Add(cell);
+                    continue;
+                }
+                if (byHold)
+                {
+                    held.Add(cell);
+                    continue;
+                }
                 dig.Add(cell);
-                continue;
             }
-            if (layer != null && y < layer - 1)
-                continue;
-            layer ??= y;
-            left.Add(cell);
+            if (++columns % 32 == 0)
+                yield return false;
         }
-        return new MineScan(layer, left, unloaded) { Tunnel = dig };
+        done(new MineTargets(dig, held, left, unloaded));
+        yield return true;
     }
 
     /// <summary>Whether a block just over the area, which it never breaks, holds up the column under it:
@@ -458,44 +519,6 @@ public static class EidolonMining
     /// <paramref name="z"/>), or null for none.</summary>
     public static (int X, int Z)? NearestColumn(IEnumerable<(int X, int Z)> columns, double x, double z) =>
         columns.Select(c => ((int X, int Z)?)c).MinBy(c => Distance2(c!.Value.X + 0.5, c.Value.Z + 0.5, x, z));
-
-    /// <summary>
-    /// Where it may stand to reach every one of <paramref name="cells"/> (one square's cells on the
-    /// layer it works): path nodes whose box is free and on the ground, none of the cells under it, its
-    /// feet from a block over the highest cell to <see cref="ReachAbove"/> under the lowest. Those not
-    /// standing on a cell left to mine (<paramref name="left"/>) first, so it does not stand in its own
-    /// way; then nearest (<paramref name="fromX"/>, <paramref name="fromZ"/>), then nearest its feet' height.
-    /// Before all that, those whose box is over no block column of <paramref name="theirs"/> (another
-    /// member's sector: it stands in its own, where the other never comes, README "Eidolon", *Sectors*).
-    /// </summary>
-    public static IReadOnlyList<PathCell> Stands(IWideSpace space, IReadOnlyList<MarkPos> cells, Func<MarkPos, bool> left,
-        double fromX, int fromFeet, double fromZ, Func<int, int, bool>? theirs = null)
-    {
-        if (cells.Count == 0)
-            return [];
-        int minX = cells.Min(c => c.X), maxX = cells.Max(c => c.X), minZ = cells.Min(c => c.Z), maxZ = cells.Max(c => c.Z);
-        int minY = cells.Min(c => c.Y), maxY = cells.Max(c => c.Y);
-        var stands = new List<(PathCell Node, bool Theirs, bool OnLeft, double From, int Rise)>();
-        for (int x = maxX - Reach; x <= minX + Reach + 1; x++)
-        for (int z = maxZ - Reach; z <= minZ + Reach + 1; z++)
-        for (int feet = maxY - ReachAbove; feet <= minY + ReachBelow; feet++)
-        {
-            if (!cells.All(c => InReach(x, feet, z, c)))
-                continue;
-            if (!space.Free(x, feet, z) || space.Free(x, feet - 1, z))
-                continue;
-            bool onLeft = false, over = false;
-            for (int bx = x - 1; bx <= x; bx++)
-            for (int bz = z - 1; bz <= z; bz++)
-            {
-                onLeft |= left(new MarkPos(bx, feet - 1, bz));
-                over |= theirs?.Invoke(bx, bz) == true;
-            }
-            stands.Add((new PathCell(x, feet, z), over, onLeft, Distance2(x, z, fromX, fromZ), Math.Abs(feet - fromFeet)));
-        }
-        return stands.OrderBy(s => s.Theirs).ThenBy(s => s.OnLeft).ThenBy(s => s.From).ThenBy(s => s.Rise).ThenBy(s => s.Node.X).ThenBy(s => s.Node.Z)
-            .Select(s => s.Node).ToList();
-    }
 
     private static double Distance2(double ax, double az, double bx, double bz) => (ax - bx) * (ax - bx) + (az - bz) * (az - bz);
 }

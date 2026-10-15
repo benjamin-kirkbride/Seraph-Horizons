@@ -62,12 +62,13 @@ public partial class WoodworkingScenarios
         Assert.Null(TrunkCarry.Carried(shop.P));
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_running_rosser_takes_a_trunk_entity_from_its_infeed_cells_only()
     {
         var pos = await RosserSky(-400, 0);
         var player = await Player("groundrosser");
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, "east");
         RosserReady(rosser, player);
         var cells = RosserRig.InfeedNeighbours().Select(rosser.CellPos).ToList();
@@ -96,12 +97,13 @@ public partial class WoodworkingScenarios
         KillItemsNear(pos, 20);
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_running_mill_takes_a_debranched_trunk_entity_from_its_infeed_cells_only()
     {
         var pos = await RosserSky(-400, 60, reach: 10);
         var player = await Player("groundmill");
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "south");
         Assemble(mill, player);
         var cells = Rig.InfeedNeighbours().Select(mill.CellPos).ToList();
@@ -217,10 +219,11 @@ public partial class WoodworkingScenarios
         Assert.DoesNotContain(await shop.Collect(), kv => kv.Key.StartsWith("loggingmod:treetrunk"));
     }
 
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_trunk_storage_rack_takes_carried_trunks_and_pops_into_hands()
     {
         var shop = await Woodshop.Open(World, World.Spawn.AddCopy(-400, 3, 230));
+        using var clock = VirtualClock.Start(World);
         var sp = Server(shop.P);
         TrunkCarry.Take(sp);
         var pos = shop.Cell(0);
@@ -264,10 +267,11 @@ public partial class WoodworkingScenarios
         Assert.DoesNotContain(await shop.Collect(), kv => kv.Key.StartsWith("loggingmod:treetrunk"));
     }
 
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_heating_rack_loads_from_hands_and_unloads_into_hands()
     {
         var shop = await Woodshop.Open(World, World.Spawn.AddCopy(-400, 3, 260));
+        using var clock = VirtualClock.Start(World);
         var sp = Server(shop.P);
         TrunkCarry.Take(sp);
         var pos = shop.Cell(0);

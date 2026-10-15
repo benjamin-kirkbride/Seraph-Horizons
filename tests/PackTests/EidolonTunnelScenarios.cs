@@ -11,13 +11,14 @@ using Xunit.Abstractions;
 namespace SeraphHorizons.PackTests;
 
 /// <summary>
-/// mods-src/seraphhorizons/Eidolon, driving tunnels (README "Eidolon", Mining, *Tunnels* and *Headings*)
+/// mods-src/seraphhorizons/Eidolon, driving tunnels (README "Eidolon", Mining, *Tunnels*, and working together, *Claims*)
 /// with the pack's default settings, ordered with the command tool as a player orders it. A tunnel 2
 /// wide, 4 high and 8 long into a granite hillside: refused three high as it is marked, driven in from its
 /// open face a slice at a time, each slice's top half before its bottom half, and walked back out; one 6
 /// high benched, its top heading from a ledge in front of the cliff, then the lower one from the floor,
-/// out by the lower mouth; and two driving one 4 wide, a 2-wide heading each, side by side. On floors of
-/// their own in the sky (<see cref="Felling.Sky"/>).
+/// out by the lower mouth; and two driving one 4 wide, a 2-wide lane each, side by side. On floors of
+/// their own in the sky (<see cref="Felling.Sky"/>), each from its spawns on the virtual clock
+/// (<see cref="VirtualClock"/>).
 /// </summary>
 [AtlasWorld]
 public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBase
@@ -100,7 +101,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
 
     private static int Feet(Entity e) => (int)Math.Floor(e.Pos.Y + 0.01);
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task It_drives_a_tunnel_into_a_hillside_from_its_open_face_a_face_at_a_time()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-520, 90, 2000), reach: 14);
@@ -122,6 +123,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
             cells.Add(new BlockPos(x, y, z));
 
         var (_, player, tool) = await Commander("eidolontunneller", site.AddCopy(-10, 0, 1));
+        using var clock = VirtualClock.Start(World);
         var home = site.AddCopy(-6, 0, 1);
         var e = await Spawn(home, player);
         // Three high, all of it under the hill, is refused as it is marked (an area covered all over that is
@@ -183,7 +185,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task It_benches_a_tunnel_six_high_a_heading_at_a_time_and_leaves_by_the_lower_mouth()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-520, 90, 2100), reach: 14);
@@ -209,6 +211,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         // Ordered on the floor at the cliff's foot, past the hill's side (z 8): from there it climbs onto the
         // ledge for the top heading, and walks home on the floor from the lower mouth.
         var (_, player, tool) = await Commander("eidolonbencher", site.AddCopy(-1, 0, 11));
+        using var clock = VirtualClock.Start(World);
         var e = await Spawn(site.AddCopy(-1, 0, 8), player);
         OrderMine(player, tool, [e], a, b);
         var order = Assert.IsType<MineOrder>(e.Orders!.Current);
@@ -260,7 +263,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         e.Die(EnumDespawnReason.Removed);
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Two_eidolons_drive_a_tunnel_4_wide_a_2_wide_heading_each_side_by_side()
     {
         var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, 2400), reach: 14);
@@ -278,6 +281,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var toMine = Cells(area);
 
         var (_, player, tool) = await Commander("eidolontunnels2", site.AddCopy(-10, 0, 2));
+        using var clock = VirtualClock.Start(World);
         var e1 = await Spawn(site.AddCopy(-6, 0, 0), player);
         var e2 = await Spawn(site.AddCopy(-6, 0, 4), player);
         OrderMine(player, tool, [e1, e2], a, b);
@@ -286,7 +290,7 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var home1 = e1.Pos.XYZ;
         var home2 = e2.Pos.XYZ;
 
-        // Watch each tick: each strikes only in its own heading, never a column held by both, nothing
+        // Watch each tick: each strikes only in its own heading, never in a column the other holds, nothing
         // broken under either's box; and how near they come.
         var standing = toMine.ToHashSet();
         var faults = new List<string>();
@@ -295,8 +299,8 @@ public class EidolonTunnelScenarios(ITestOutputHelper output) : AtlasScenarioBas
         int ticks = 0, lastMined = -1;
         await World.Until(() =>
         {
-            if (Jobs.Mining.Held(e1.EntityId).Intersect(Jobs.Mining.Held(e2.EntityId)).Any())
-                faults.Add("both hold a column");
+            if (MineWatcher.ClaimFault(Jobs.Mining, [e1, e2], [o1, o2], EidolonJobSystem.Now(W)) is { } claimFault)
+                faults.Add(claimFault);
             foreach (var (o, e) in new[] { (o1, e1), (o2, e2) })
             {
                 if (o.Driving && o.Sector is { } sector)

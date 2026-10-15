@@ -1,22 +1,34 @@
 namespace SeraphHorizons.Mod.Eidolon.Core;
 
-/// <summary>Whether a mine order's covered part can be dug as a tunnel (<see cref="EidolonTunnels.Plan"/>):
-/// it can, or why not, told to the player as the area is marked. Only an area covered all over is
-/// refused: one covered in part is quarried top down where its covered part cannot be a tunnel.</summary>
+/// <summary>Whether a mine order's covered part is one the eidolon fits in (<see cref="EidolonTunnels.Fit"/>):
+/// it is, or why not, told to the player as the area is marked. Only an area covered all over is
+/// refused; whether its face can be struck is the planner's to find, and what it cannot reach is
+/// reported, not refused.</summary>
 public enum TunnelFit
 {
-    /// <summary>It can, or there is no tunnel and the whole area is quarried top down: nothing of it is
-    /// covered, or only part is and that part cannot be a tunnel.</summary>
+    /// <summary>It fits, or not all of it is covered.</summary>
     Fits,
 
     /// <summary>Under <see cref="EidolonTunnels.MinHeight"/> tall: the eidolon does not fit in it.</summary>
     TooLow,
 
-    /// <summary>No side of it opens onto a place the eidolon can stand to strike its first face.</summary>
-    NoFace,
-
-    /// <summary>Its open faces are all under <see cref="EidolonTunnels.MinWidth"/> wide across.</summary>
+    /// <summary>Under <see cref="EidolonTunnels.MinWidth"/> across both ways.</summary>
     TooNarrow,
+}
+
+/// <summary>A rectangle of block columns, <c>MinX</c> to <c>MaxX</c> and <c>MinZ</c> to <c>MaxZ</c>, every
+/// layer: a tunnel's bounds or one of its lanes (README "Eidolon", mining, tunnels), or the columns a
+/// miner's station claims (README "Eidolon", working together, *Claims*).</summary>
+public readonly record struct MineSector(int MinX, int MinZ, int MaxX, int MaxZ)
+{
+    public int SizeX => MaxX - MinX + 1;
+    public int SizeZ => MaxZ - MinZ + 1;
+    public double CentreX => (MinX + MaxX + 1) / 2.0;
+    public double CentreZ => (MinZ + MaxZ + 1) / 2.0;
+
+    public bool Contains(int x, int z) => x >= MinX && x <= MaxX && z >= MinZ && z <= MaxZ;
+
+    public override string ToString() => $"({MinX},{MinZ})-({MaxX},{MaxZ})";
 }
 
 /// <summary>
@@ -73,15 +85,11 @@ public sealed record MineTunnel(IReadOnlySet<(int X, int Z)> Covered, MineSector
 /// <summary>
 /// Mining a covered area as a tunnel (README "Eidolon", mining, tunnels), game-independent. A column of
 /// the area with the ground over it within <see cref="RoofRise"/> of the area's top is covered: quarried
-/// top down, its top layer would be the hill's ceiling, out of reach from the mouth. The covered part's
-/// heading (its top <see cref="HeadingHeight"/> layers) is driven in face-first from its open face instead,
-/// a lane at a time (<see cref="Front"/>: the top half of the face, then the bottom half, then a step in),
-/// each member of a job its own lanes (<see cref="Headings"/>). A covered part taller than that is benched:
-/// once a heading is driven, the next one down (<see cref="MineTunnel.Below"/>), its ceiling the last one's
-/// floor, is driven the same way from its own open face, on the same side at its own level
-/// (<see cref="Opens"/>), so its floor leads straight out of its own mouth; where a heading has none (the
-/// hill's face does not reach down to it), what is left is quarried top down from the floor over it, as
-/// the open part is.
+/// top down, its top layer would be the hill's ceiling, out of reach from the mouth. The covered part is
+/// driven in face-first instead, in bands <see cref="HeadingHeight"/> high from the top (a band's floor the
+/// next one's ceiling), each lane's face a slice at a time (<see cref="LaneFront"/>: the top half of the
+/// face, then the bottom half, then a step in), the way in the one its face is reached from
+/// (<see cref="Shape"/>); the planner orders the stations (<see cref="MinePlanner"/>).
 /// </summary>
 public static class EidolonTunnels
 {
@@ -182,119 +190,73 @@ public static class EidolonTunnels
         return null;
     }
 
-    /// <summary>
-    /// The face group to strike next in <paramref name="sector"/> (a member's lanes; the whole tunnel
-    /// alone): of the lanes in it, the front (<see cref="LaneFront"/>) furthest back first, so the face
-    /// goes in level, then nearest (<paramref name="x"/>, <paramref name="z"/>). Null when none of its
-    /// lanes has a cell <paramref name="left"/>.
-    /// </summary>
-    public static MineGroup? Front(MineTunnel tunnel, MineSector sector, Func<MarkPos, bool> left, double x, double z)
+    /// <summary>Whether the covered part of <paramref name="area"/> (<paramref name="covered"/>) is one the
+    /// eidolon fits in, as the area is marked (README "Eidolon", mining, tunnels): only an area covered all
+    /// over is refused, under <see cref="MinHeight"/> tall or under <see cref="MinWidth"/> across both
+    /// ways. Whether its face can be struck is the planner's to find (<see cref="Shape"/>, the reach
+    /// bound): what it cannot reach is reported, not refused.</summary>
+    public static TunnelFit Fit(MarkArea area, IReadOnlySet<(int X, int Z)> covered)
     {
-        (int Slice, MineGroup Group, double D2)? best = null;
-        foreach (var lane in tunnel.Lanes)
-        {
-            if (!sector.Contains(lane.MinX, lane.MinZ) || !sector.Contains(lane.MaxX, lane.MaxZ))
-                continue;
-            if (LaneFront(tunnel, lane, left) is not { } front)
-                continue;
-            double d2 = (front.Group.CentreX - x) * (front.Group.CentreX - x) + (front.Group.CentreZ - z) * (front.Group.CentreZ - z);
-            if (best == null || front.Slice < best.Value.Slice || (front.Slice == best.Value.Slice && d2 < best.Value.D2))
-                best = (front.Slice, front.Group, d2);
-        }
-        return best?.Group;
+        if (covered.Count == 0 || covered.Count < area.SizeX * area.SizeZ)
+            return TunnelFit.Fits;
+        if (area.SizeY < MinHeight)
+            return TunnelFit.TooLow;
+        var b = Bounds(covered);
+        return Math.Min(b.SizeX, b.SizeZ) < MinWidth ? TunnelFit.TooNarrow : TunnelFit.Fits;
     }
 
     /// <summary>
-    /// The headings of a tunnel for <paramref name="count"/> members (README "Eidolon", working
-    /// together): its lanes split into that many runs side by side, as evenly as they go (the first runs
-    /// a lane more where they do not divide), each a sector the whole length; one lane each at most, so
-    /// members past the lanes get none and wait. None for none.
+    /// The covered part's shape (README "Eidolon", mining, *Stations*), for its bands, lanes and slices:
+    /// of the four ways in, the one whose first slice has most clearable cells (<paramref name="reach"/>)
+    /// reached by a potential stand in front of its mouth, its box short of that slice and across the
+    /// tunnel's width (its natural footing: the ground at the mouth, a ledge, a step); ties to the mouth nearest <paramref name="home"/>,
+    /// then the order of <see cref="Drives"/>. With no face anywhere it is still shaped (the way in
+    /// nearest home): what it cannot reach is the reach bound's to say. Null with nothing covered.
     /// </summary>
-    public static IReadOnlyList<MineSector> Headings(MineTunnel tunnel, int count)
-    {
-        var lanes = tunnel.Lanes;
-        int n = Math.Min(count, lanes.Count);
-        var headings = new List<MineSector>();
-        int at = 0;
-        for (int i = 0; i < n; i++)
-        {
-            int take = lanes.Count / n + (i < lanes.Count % n ? 1 : 0);
-            var first = lanes[at];
-            var last = lanes[at + take - 1];
-            headings.Add(new MineSector(first.MinX, first.MinZ, last.MaxX, last.MaxZ));
-            at += take;
-        }
-        return headings;
-    }
-
-    /// <summary>
-    /// Plans the covered part of <paramref name="area"/> (<paramref name="covered"/>; none: nothing to
-    /// plan, <see cref="TunnelFit.Fits"/> and null): no tunnel under <see cref="MinHeight"/> tall; else of
-    /// the four ways in, those whose first face it can stand to strike (a lane's front, with the cells
-    /// <paramref name="solid"/> as left, that <see cref="EidolonMining.Stands"/> finds a place for in
-    /// <paramref name="space"/>), at least <see cref="MinWidth"/> across, the one whose mouth is nearest
-    /// (<paramref name="fromX"/>, <paramref name="fromZ"/>); none with none open, or none open wide
-    /// enough. A heading with nothing left to break is open from every side. With no tunnel, an area
-    /// covered only in part (a pit on a slope, its uphill columns roofed) is quarried top down,
-    /// <see cref="TunnelFit.Fits"/> and null; one covered all over is refused, since nothing of it could
-    /// be dug, with why.
-    /// </summary>
-    public static (TunnelFit Fit, MineTunnel? Tunnel) Plan(MarkArea area, IReadOnlySet<(int X, int Z)> covered, IWideSpace space,
-        Func<MarkPos, bool> solid, double fromX, double fromZ)
+    public static MineTunnel? Shape(MarkArea area, IReadOnlySet<(int X, int Z)> covered, MineReach reach, PathCell? home)
     {
         if (covered.Count == 0)
-            return (TunnelFit.Fits, null);
-        bool whole = covered.Count == area.SizeX * area.SizeZ;
-        if (area.SizeY < MinHeight)
-            return (whole ? TunnelFit.TooLow : TunnelFit.Fits, null);
-        bool open = false;
-        (MineTunnel Tunnel, double D2)? best = null;
+            return null;
+        (MineTunnel Tunnel, int Count, double D2)? best = null;
         foreach (var (dx, dz) in Drives)
         {
             var tunnel = Make(area, covered, dx, dz);
-            if (!Opens(tunnel, space, solid))
-                continue;
-            open = true;
-            if (tunnel.Width < MinWidth)
-                continue;
+            var b = tunnel.Bounds;
+            int count = 0;
+            for (int across = tunnel.AlongX ? b.MinZ : b.MinX; across <= (tunnel.AlongX ? b.MaxZ : b.MaxX); across++)
+            {
+                var (x, z) = tunnel.Column(0, across);
+                if (!covered.Contains((x, z)))
+                    continue;
+                for (int y = area.Min.Y; y <= area.Max.Y; y++)
+                    if (reach.Clearable.Contains(new MarkPos(x, y, z)) && ReachedFromFront(new MarkPos(x, y, z), tunnel, reach))
+                        count++;
+            }
             var (mx, mz) = tunnel.Mouth;
-            double d2 = (mx - fromX) * (mx - fromX) + (mz - fromZ) * (mz - fromZ);
-            if (best == null || d2 < best.Value.D2)
-                best = (tunnel, d2);
+            double d2 = home is { } h ? (mx - h.X) * (mx - h.X) + (mz - h.Z) * (mz - h.Z) : 0;
+            if (best == null || count > best.Value.Count || (count == best.Value.Count && d2 < best.Value.D2))
+                best = (tunnel, count, d2);
         }
-        if (best is { } b)
-            return (TunnelFit.Fits, b.Tunnel);
-        if (!whole)
-            return (TunnelFit.Fits, null);
-        return (open ? TunnelFit.TooNarrow : TunnelFit.NoFace, null);
+        return best!.Value.Tunnel;
     }
 
-    /// <summary>Whether a tunnel driven its way has an open face: a lane whose front (its cells
-    /// <paramref name="solid"/>) it finds a place to stand and strike from in front of the mouth
-    /// (<see cref="InFront"/>), or none with any left.</summary>
-    public static bool Opens(MineTunnel tunnel, IWideSpace space, Func<MarkPos, bool> solid)
+    // Whether a potential stand in front of the mouth reaches a cell: its box's columns short of the first
+    // slice, and across the tunnel's width at least in part (one off to the side reaches a corner of the
+    // face, not the face).
+    private static bool ReachedFromFront(MarkPos cell, MineTunnel tunnel, MineReach reach)
     {
-        bool any = false;
-        foreach (var lane in tunnel.Lanes)
-        {
-            if (LaneFront(tunnel, lane, solid) is not { } front)
-                continue;
-            any = true;
-            var (mx, mz) = tunnel.Mouth;
-            if (EidolonMining.Stands(space, front.Group.Cells, solid, mx, tunnel.Bottom, mz).Any(s => InFront(tunnel, s)))
-                return true;
-        }
-        return !any;
-    }
-
-    /// <summary>Whether a path node stands in front of a tunnel's mouth: its box's columns (the two each
-    /// side of it) short of the first slice, and across the tunnel's width, at least in part; one beside
-    /// it, or at a corner, reaches a lane's first face but none past it.</summary>
-    public static bool InFront(MineTunnel tunnel, PathCell node)
-    {
-        if (tunnel.Slice(node.X - 1, node.Z - 1) >= 0 || tunnel.Slice(node.X, node.Z) >= 0)
-            return false;
         var b = tunnel.Bounds;
-        return tunnel.AlongX ? node.Z - 1 <= b.MaxZ && node.Z >= b.MinZ : node.X - 1 <= b.MaxX && node.X >= b.MinX;
+        for (int x = cell.X - 2; x <= cell.X + 3; x++)
+        for (int z = cell.Z - 2; z <= cell.Z + 3; z++)
+        {
+            if (tunnel.Slice(x, z) >= 0 || tunnel.Slice(x - 1, z - 1) >= 0)
+                continue;
+            if (tunnel.AlongX ? z - 1 > b.MaxZ || z < b.MinZ : x - 1 > b.MaxX || x < b.MinX)
+                continue;
+            for (int y = cell.Y - 3; y <= cell.Y + 1; y++)
+                if (EidolonMining.InReach(x, y, z, cell) && reach.Potential(new PathCell(x, y, z)))
+                    return true;
+        }
+        return false;
     }
 }

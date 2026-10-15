@@ -7,18 +7,54 @@ using Vintagestory.API.MathTools;
 namespace SeraphHorizons.PackTests;
 
 /// <summary>Watches each tick who broke what: a block gone this tick is the one whose strike's group
-/// held it; counts those in its sector and out, overlapping boxes, and a block broken more than a layer
-/// under the highest left (the floors more than a climb apart). For several eidolons mining one area
-/// (EidolonSectorScenarios, EidolonTeamMineScenarios).
+/// held it; counts those in the columns of the station it struck (<see cref="MineOrder.Sector"/>) and out,
+/// overlapping boxes, a block broken in another eidolon's columns at any height (under it is its floor, over
+/// it is over it), and, with <c>floors</c>, a block broken more than <c>floorSlack</c> layers under the
+/// highest left (the floors more than that many climbs apart: 1, or 2 where a crew by look-ahead routes
+/// works spare work a band deeper, README "Eidolon", working together, *Routes*), those <c>exempt</c> (what the plan keeps for good: out of reach, the
+/// floor under those, the way out) not counted as left. For several eidolons mining one area
+/// (EidolonSectorScenarios, EidolonTeamMineScenarios, EidolonTallTunnelScenarios).
 ///
 /// <para>Contact is allowed only shallow (<see cref="Pushing"/>): two boxes brushing as one settles or
 /// squeezes past another, however long, is no fault (timing on a slower server stretches it), but one deep
 /// in another is. Every contact is logged with how long it lasted.</para></summary>
-internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, EntityLaborEidolon[] eidolons, MineOrder[] orders)
+internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, EntityLaborEidolon[] eidolons, MineOrder[] orders,
+    System.Func<MarkPos, bool>? exempt = null, bool floors = true, int floorSlack = 1)
 {
     /// <summary>Whether two eidolons' boxes (1.7 wide) overlap.</summary>
     public static bool Overlap(Entity a, Entity b) => Math.Abs(a.Pos.X - b.Pos.X) < 1.7 && Math.Abs(a.Pos.Z - b.Pos.Z) < 1.7
-        && Math.Abs(a.Pos.Y - b.Pos.Y) < 3.75;
+        && Math.Abs(a.Pos.Y - b.Pos.Y) < 3.75 - TouchSlack;
+
+    /// <summary>One box's top at the other's feet (one climbing a step past one at its foot) is touching,
+    /// not overlapping.</summary>
+    private const double TouchSlack = 0.05;
+
+    /// <summary>
+    /// Claim separation as the members strike (README "Eidolon", working together, *Claims*): an eidolon
+    /// striking stands in its own claim, so no column of its box nor of the group it strikes may be held by
+    /// another member; null when none is. (Two members holding one column is impossible on the board, so
+    /// this is what tells a claim taken from under one.)
+    /// </summary>
+    public static string? ClaimFault(JobBoard<(int X, int Z), MineJobCells> board, EntityLaborEidolon[] eidolons, MineOrder[] orders, double now)
+    {
+        for (int i = 0; i < eidolons.Length; i++)
+        {
+            if (orders[i].Group is not { } group)
+                continue;
+            // the columns of the place it stands at (the node nearest it: it strikes within 0.2 of it, which
+            // may brush a third column by a hair)
+            var node = WidePath.NodeAt(eidolons[i].Pos.X, eidolons[i].Pos.Y, eidolons[i].Pos.Z);
+            var columns = new List<(int X, int Z)>();
+            for (int x = node.X - 1; x <= node.X; x++)
+            for (int z = node.Z - 1; z <= node.Z; z++)
+                columns.Add((x, z));
+            columns.AddRange(group.Cells.Select(c => (c.X, c.Z)));
+            foreach (var column in columns)
+                if (board.Holder(column, now) is { } holder && holder != eidolons[i].EntityId)
+                    return $"{eidolons[i].EntityId} strikes at {eidolons[i].Pos.XYZ} with column {column} held by {holder}";
+        }
+        return null;
+    }
 
     /// <summary>The nearest two centres may come, across: nearer, one box is deep in the other (their
     /// boxes are 1.7 wide), never a brush.</summary>
@@ -28,7 +64,7 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
         e.WatchedAttributes.GetTreeAttribute(EntityBehaviorEidolonOrders.StatusKey)?.GetString("key") ?? "";
 
     private readonly HashSet<BlockPos> _standing = toMine.ToHashSet();
-    /// <summary>Floors more than a climb apart.</summary>
+    /// <summary>Floors more than a climb apart, and blocks broken in another's columns.</summary>
     public readonly List<string> Faults = new();
 
     /// <summary>Every contact: who, where and how each was at its start, and how long it lasted and how
@@ -61,10 +97,14 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
                 var (inside, outside) = BySector[eidolons[i].EntityId];
                 BySector[eidolons[i].EntityId] = orders[i].Sector is { } s && s.Contains(c.X, c.Z) ? (inside + 1, outside) : (inside, outside + 1);
                 Broke[eidolons[i].EntityId].Add(c);
+                for (int j = 0; j < eidolons.Length; j++)
+                    if (j != i && EidolonMining.UnderFoot(eidolons[j].Pos.X, eidolons[j].Pos.Z, cell))
+                        Faults.Add($"{c} broke by {eidolons[i].EntityId} in the columns of {eidolons[j].EntityId} at {eidolons[j].Pos.XYZ}");
             }
         }
-        if (broke.Count > 0 && _standing.Count > 0 && broke.Min(c => c.Y) < _standing.Max(c => c.Y) - 1)
-            Faults.Add($"{string.Join(" ", broke)} broke with {_standing.Max(c => c.Y)} left");
+        var left = exempt == null ? _standing.ToList() : _standing.Where(c => !exempt(new MarkPos(c.X, c.Y, c.Z))).ToList();
+        if (floors && broke.Count > 0 && left.Count > 0 && broke.Min(c => c.Y) < left.Max(c => c.Y) - floorSlack)
+            Faults.Add($"{string.Join(" ", broke)} broke with {left.Max(c => c.Y)} left");
         long now = w.ElapsedMilliseconds, step = _lastTick < 0 ? 0 : now - _lastTick;
         _lastTick = now;
         for (int i = 0; i < eidolons.Length; i++)
@@ -78,7 +118,7 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
                 Nearest = Math.Min(Nearest, d);
                 _touching[(i, j)] = _touching.TryGetValue((i, j), out var t)
                     ? t with { Nearest = Math.Min(t.Nearest, d) }
-                    : (now, d, $"{Describe(i)} and {Describe(j)}");
+                    : (now, d, $"from {now / 1000.0:0.0} s, {Describe(i)} and {Describe(j)}");
                 LongestMs = Math.Max(LongestMs, now - _touching[(i, j)].Since);
             }
             else if (_touching.Remove((i, j), out var t))
@@ -94,7 +134,8 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
 
     private string Describe(int i) =>
         $"{eidolons[i].EntityId} at {eidolons[i].Pos.XYZ} ({eidolons[i].Orders?.OrderCode}, {Status(eidolons[i])}, "
-        + $"motion {eidolons[i].Pos.Motion.X:0.000} {eidolons[i].Pos.Motion.Z:0.000}{(eidolons[i].ClimbTop is { } t ? $", climbing to {t}" : "")})";
+        + $"motion {eidolons[i].Pos.Motion.X:0.000} {eidolons[i].Pos.Motion.Z:0.000}{(eidolons[i].ClimbTop is { } t ? $", climbing to {t}" : "")}; "
+        + $"{orders[i].DebugState})";
 
     /// <summary>Contact deeper than <see cref="MinCentres"/>, or null: what an assertion says, with every
     /// contact (each still going counted as it stands).</summary>

@@ -300,11 +300,12 @@ public partial class WoodworkingRosserScenarios
     /// whole trip: its boxes follow it, the limb breaker's sticks and the ring's bark land at the
     /// chute, the heads wear by its stored logs, and it waits on the outfeed bed debarked until
     /// Ctrl + right click takes it.</summary>
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_powered_rosser_debarks_a_thin_trunk_with_sticks_and_bark_at_the_chute()
     {
         var pos = await RosserSky(200, 230);
         var player = await Player("rosserhand");
+        using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, "south");
         AssembleRosser(rosser, player);
         int capacity = rosser.Parts.HeadsCapacity;
@@ -479,12 +480,13 @@ public partial class WoodworkingRosserScenarios
     /// draws turns exactly as that axle is drawn (θ from <see cref="MillMotion.NativeShaftAngle"/>
     /// about native z against the axle's AngleRad × AxisSign about its world axis). The trunk feeds
     /// forward whichever way the network turns (the entry is rectified).</summary>
-    [AtlasTheory(TimeoutMs = 180_000), MemberData(nameof(Facings))]
+    [AtlasTheory(TimeoutMs = 60_000), MemberData(nameof(Facings))]
     public async Task The_power_face_takes_an_axle_on_every_facing_and_the_shaft_turns_with_it(string side, int index)
     {
         var pos = await RosserSky(45 * index, 270);
         var player = await Player("rosserpower" + index);
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, side);
         RosserReady(rosser, player);
         var rig = RosserRig;
@@ -621,13 +623,14 @@ public partial class WoodworkingRosserScenarios
     /// chance (0.8) the wet multiplier lifts past 1, is all tan, and each log gives 4 or 5 pieces
     /// (3 × 1.5, the half rolled) where a dry rosser gives exactly 3. A pipe against any other
     /// ghost face is not held.</summary>
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_pipe_on_the_water_face_waters_the_drip_and_wet_bark_comes_more_and_better()
     {
         Assert.True(PpexWater.Bound(World.Api));
         var pos = await RosserSky(0, 500);
         var player = await Player("rosserwater");
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, "east");
         RosserReady(rosser, player);
         var rig = RosserRig;
@@ -736,12 +739,13 @@ public partial class WoodworkingRosserScenarios
     /// with its logs and other contents and the debarked mark on its logs, at its class's rate, and
     /// wears the heads one point per stored log. The block info and help follow each state on the
     /// way: empty, waiting (stopped and turning), feeding, stalled, delivered.</summary>
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Thin_and_thick_trunks_branchy_and_clean_go_through_with_their_sticks_bark_and_wear()
     {
         var pos = await RosserSky(45, 500);
         var player = await Player("rossertrips");
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, "west");
         RosserReady(rosser, player);
         var pace = RosserMod.Pace!;
@@ -799,12 +803,13 @@ public partial class WoodworkingRosserScenarios
                 await PowerRosser(rosser);
                 first = false;
             }
-            var started = DateTime.UtcNow;
+            long started = W.ElapsedMilliseconds;
             for (int poll = 0; rosser.State != RosserState.Delivered; poll++)
             {
+                var since = TimeSpan.FromMilliseconds(W.ElapsedMilliseconds - started);
                 if (poll % 20 == 0)
-                    output.WriteLine($"{DateTime.UtcNow - started:mm\\:ss} {size}: {rosser.State} T {rosser.Trip.Travel:0.000} / {RosserMod.Pace!.TripLength((int)k):0.000}, rate {rosser.Trip.Rate:0.0000}, speed {rosser.ShaftSpeed:0.00}");
-                Assert.True(DateTime.UtcNow - started < TimeSpan.FromSeconds(90), "not delivered");
+                    output.WriteLine($"{since:mm\\:ss} {size}: {rosser.State} T {rosser.Trip.Travel:0.000} / {RosserMod.Pace!.TripLength((int)k):0.000}, rate {rosser.Trip.Rate:0.0000}, speed {rosser.ShaftSpeed:0.00}");
+                Assert.True(since < TimeSpan.FromSeconds(90), "not delivered");
                 await World.Ticks(1);
             }
 
@@ -891,12 +896,13 @@ public partial class WoodworkingRosserScenarios
     /// there), and once running takes the next trunk from it. A delivered trunk goes onto a rack with
     /// room at the outfeed end; with that rack full (4) it waits on the bed, nothing lost, and goes
     /// on as soon as there is room.</summary>
-    [AtlasTheory(TimeoutMs = 300_000), MemberData(nameof(Facings))]
+    [AtlasTheory(TimeoutMs = 90_000), MemberData(nameof(Facings))]
     public async Task Racks_feed_the_infeed_end_and_take_from_the_outfeed_end(string side, int index)
     {
         var pos = await RosserSky(45 * index, 315, reach: 21);
         var player = await Player("rosserracks" + index);
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, side);
         RosserReady(rosser, player);
         var rig = RosserRig;
@@ -1013,12 +1019,13 @@ public partial class WoodworkingRosserScenarios
     /// says so; with <c>AutoPushToRack</c> off a delivered trunk stays on the bed beside a rack with
     /// room, and the info says it waits for a hand (not that the rack takes it). Switched back on,
     /// both go ahead.</summary>
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 90_000)]
     public async Task With_the_rack_switches_off_the_rosser_leaves_the_racks_alone_and_says_so()
     {
         var pos = await RosserSky(180, 500, reach: 21);
         var player = await Player("rosserswitches");
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, "east");
         RosserReady(rosser, player);
         var rig = RosserRig;
@@ -1116,12 +1123,13 @@ public partial class WoodworkingRosserScenarios
     /// <summary>Only a new trip needs heads: the trunk whose trip spends them still leaves, onto a
     /// rack with room at the outfeed end while the shaft turns, or onto a bucking mill in line;
     /// the next trunk on the infeed rack waits for new heads.</summary>
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 90_000)]
     public async Task A_trunk_that_spends_the_heads_still_leaves_by_rack_or_mill()
     {
         var origin = await RosserSky(0, 555, reach: 25);
         var player = await Player("rosserspentout");
         await StandBy(player, origin);
+        using var clock = VirtualClock.Start(World);
 
         // onto a rack: a rosser facing south (it runs along x, 5 wide in z), 8 north of the middle
         var pos = origin.AddCopy(5, 0, -8);
@@ -1426,13 +1434,14 @@ public partial class WoodworkingRosserScenarios
     /// takes the trunk. Running, the rosser's debarked trunk goes onto the mill at the top of its
     /// saws' cycle and comes out as debarked logs. A trunk the mill has not taken yet stays the
     /// rosser's: breaking the rosser drops exactly that trunk once, and the mill gets nothing.</summary>
-    [AtlasTheory(TimeoutMs = 300_000), MemberData(nameof(Facings))]
+    [AtlasTheory(TimeoutMs = 90_000), MemberData(nameof(Facings))]
     public async Task A_rosser_placed_in_line_feeds_the_mill_and_breaking_it_mid_hand_off_loses_nothing(string look, int index)
     {
         var d = BlockFacing.FromCode(look).Normali;
         var origin = await RosserSky(55 * index, 450, reach: 25);
         var player = await Player("rosserline" + index);
         await StandBy(player, origin);
+        using var clock = VirtualClock.Start(World);
         var millPos = origin.AddCopy(-9 * d.X, 0, -9 * d.Z);
         var mill = PlaceMillAsPlayer(player, millPos, d);
         await World.Ticks(5);
@@ -1513,12 +1522,13 @@ public partial class WoodworkingRosserScenarios
     /// controller cell), and a rack with room at the outfeed cell the mill leaves free: the trunk
     /// is the mill's, never the rack's. With the mills' AutoPullFromRack off, or the mill gone, the
     /// next trunk goes onto the rack.</summary>
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 90_000)]
     public async Task A_mill_in_line_takes_precedence_over_a_rack_at_the_outfeed_end()
     {
         var pos = await RosserSky(135, 500, reach: 22);
         var player = await Player("rosserprecedence");
         await StandBy(player, pos);
+        using var clock = VirtualClock.Start(World);
         var rosser = await PlaceRosser(pos, "south");
         var o = Footprint.ToWorld(new Int3(-6, 0, -1), rosser.Side);
         var millAt = pos.AddCopy(-o.X, -o.Y, -o.Z);
@@ -1683,6 +1693,8 @@ public partial class WoodworkingRosserScenarios
         Assert.Equal(12, Trunks.StoredLogs(third.Trunk!, W));
         Assert.Equal(RackState.FeederReady, mill.CheckRack(out _));
         await StandBy(player, pos);
+        // the virtual clock only for the cut: the unloads and reloads above wait on the chunk threads
+        using var clock = VirtualClock.Start(World);
         await Power(mill, full: true);
         await World.Until(() => mill.Trunk != null, 30000);
         Assert.Equal(RosserState.Empty, third.State);
