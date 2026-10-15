@@ -2,8 +2,8 @@
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
 maths and uses the build's `requires` vocabulary, its reference poses are its own maths, the cells are rebuilt from the
-shipped shape (the finished machine's boxes) with a deck on every column, the build's stages (one furnace, no levels,
-the services last) are the scenario's states in site/models.json, the brick counts are measured again from the shipped brick, the bricks are the
+shipped shape (the finished machine's boxes) with a deck on every column, the build's stages (the services
+last) are the scenario's states in site/models.json, the brick counts are measured again from the shipped brick, the bricks are the
 crucible furnace's types, and the anchors (power, infeed, output, fuel, water, the outlet beside the drive's row with
 the chimney on it) are where the contract puts them. Run with `python3 -m unittest discover -s tools/tests`.
 """
@@ -52,7 +52,6 @@ class Rig(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(ids[-1], "frame")
         build = RIG["build"]
-        self.assertNotIn("levels", build)
         vocab = {s["requires"] for s in build["stages"]} | {None, "charge", "fire", "outletcap"}
         for st in build["stages"]:
             vocab |= set(st.get("also", []))

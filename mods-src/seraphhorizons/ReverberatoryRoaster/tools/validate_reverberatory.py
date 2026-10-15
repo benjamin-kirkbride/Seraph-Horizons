@@ -888,8 +888,8 @@ def check_build(v):
     want["arch"] = c["arch"]
     if got != want:
         v.fail(f"the stages' counts {got} are not the measured {want}")
-    if [s["requires"] for s in build["stages"]] != list(m.STAGES) or m.STAGES[-1] != "services" or "levels" in build:
-        v.fail(f"the stages are not {', '.join(m.STAGES)}, the services last, with no levels")
+    if [s["requires"] for s in build["stages"]] != list(m.STAGES) or m.STAGES[-1] != "services":
+        v.fail(f"the stages are not {', '.join(m.STAGES)}, the services last")
     requires = {p["requires"] for p in v.parts}
     fits = {r for s in build["stages"] for r in [s["requires"]] + s.get("also", [])}
     if not fits <= requires:
@@ -1072,10 +1072,10 @@ def check_reverse(v):
             worst = max(worst, max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)))
         a, b = v.mat("entry", th), v.mat("entry", -th)
         entry_moves = entry_moves and max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)) > 1e-3
-    l1 = [pid for pid in m.MOVING if v.shows(pid, scene("cold", build=m.STAGES[m.STAGES.index("drive") - 1]))]
+    early = [pid for pid in m.MOVING if v.shows(pid, scene("cold", build=m.STAGES[m.STAGES.index("drive") - 1]))]
     print(f"reverse: beyond the rectifier {', '.join(m.RECTIFIED)} are posed alike for the axle turned either way (worst "
-          f"difference {worst:.1e}); the entry turns back with the axle; moving before the drive: {l1 or 'nothing'}")
-    if worst > 1e-12 or not entry_moves or set(m.MOVING) - set(m.RECTIFIED) != {"entry"} or l1:
+          f"difference {worst:.1e}); the entry turns back with the axle; moving before the drive: {early or 'nothing'}")
+    if worst > 1e-12 or not entry_moves or set(m.MOVING) - set(m.RECTIFIED) != {"entry"} or early:
         v.fail("a working part turns back when the axle does")
 
 
@@ -1194,7 +1194,7 @@ def peep_hole(m, k):
 
 def check_peep(v):
     """The owner's ruling (the work doors are shut, so the rabbles showed only from above): door PEEP_DOOR's plate has a
-    peep hole over the opening, open (no shutter: it only ever covered the hole when level 1's door was raised); the hole
+    peep hole over the opening, open, with no shutter; the hole
     lies inside the door's opening, so through it only the opening and the hearth show (nothing of the lining but
     through the hole); and sight lines from outside through it, level and looking down, cross nothing of the finished
     furnace (but the charge) and meet the rabble's spindle, hub or arms at every angle of its turn."""

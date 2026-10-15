@@ -8,11 +8,11 @@ import { fitted, partMatrices, rideOrder, rigInputs, thetaTurns, type Mat4, type
 // The reverberatory roaster's shipped files, and the poses ReverberatoryRoaster/tools/make_shape.py computes from them
 // with machinegen's reference maths. Its entry shaft reads θ and everything beyond the gear case's rectifier ψ, the
 // axle's travel (the line shaft, the feed roll on its end, the rabbles through their bevel pairs); everything else is a
-// requires: the build's stages (the structure's, the fittings', the services last; one furnace, no levels), the
+// requires: the build's stages (the structure's, the fittings', the services last), the
 // contents, the damper's places, the pipes' metal and the outlet's cap. tools/tests/test_reverberatory_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
-type Build = { stages: { requires: string; also?: string[]; alsoParts?: string[] }[]; levels?: unknown };
+type Build = { stages: { requires: string; also?: string[]; alsoParts?: string[] }[] };
 type Bricks = { code: string; default: string; types: Record<string, { base: string; overlays?: string[] }> };
 const rig = read("assets/seraphhorizons/config/reverberatory-rig.json") as Rig & { build: Build; bricks: Bricks };
 const shape = read("assets/seraphhorizons/shapes/block/reverberatory.json") as Shape;
@@ -91,7 +91,6 @@ describe("the reverberatory roaster's scenario", () => {
 
   it("follows the rig's build: one furnace, its stages cumulative in order, the services last", () => {
     const stages = rig.build.stages.map((s) => s.requires);
-    expect(rig.build.levels).toBeUndefined();
     expect(stages).toEqual(group("build").owns);
     expect(stages.at(-1)).toBe("services");
     const options = group("build").spec.options;

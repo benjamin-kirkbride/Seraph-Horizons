@@ -2,10 +2,8 @@
 
 Part of the Seraph Horizons mod (`../README.md`): the ore line's roaster of concentrate (epic #684, behaviour #736),
 the generated model (#737). It roasts sulfide concentrate into roasted concentrate continuously, with water-cooled
-mechanical rabbles: 100 %, 76 concentrate an hour. It has **one level** (the owner's ruling, 2026-10-15): the
-hand-rabbled furnace is gone, and the firepit roasts concentrate at 85 % until the player builds this one. **There is
-no gameplay yet**: no block, block
-entity or renderer reads these files; the rig is written as the contract the gameplay will be built against.
+mechanical rabbles: 100 %, 76 concentrate an hour; the firepit roasts concentrate at 85 % until the player builds
+it. **There is no gameplay yet**: no block, block entity or renderer reads these files; the rig is written as the contract the gameplay will be built against.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, `Pipes/` and `CrucibleFurnace/`, this folder's neighbours. The generic
@@ -59,14 +57,14 @@ shared wall, which rises to the top the whole length, and the tie rods end on an
 | `chimney` | origin `[-0.3125,5,4.4375]`, y, 6 | The shortest chimney (the crucible furnace's six blocks, provisional), from the outlet up; its first cell `[-1,2,4]` is never the furnace's |
 | `infeed`, `output`, `fuel`, `water` | points | The middles of those faces |
 | `charge`, `discharge` | points | Where the feed chute drops the charge on the hearth; the discharge hole by the bridge |
-| `ash` + `ashSide`, `fireDoor` + `fireDoorSide` | north | The ash mouth (the damper) and the fire door (opened to clear clinker; was `stoke`, level 1's stoking), on the controller's face |
+| `ash` + `ashSide`, `fireDoor` + `fireDoorSide` | north | The ash mouth (the damper) and the fire door (opened to clear clinker), on the controller's face |
 | `workDoor1`, `workDoor2` + their sides | east | The work doors, at the rabbles, shut (kept for clearing accretions; door 1's plate with the peep hole) |
 | `build`, `bricks`, `furnace`, `gearing` | | The build (below), the brick types (the crucible furnace's), the row, the drawn gearing: not drawn |
 
 ## The build (provisional)
 
 Settled with the owner later (#737, "Build stages"); the rig's `build` carries `"provisional": true`. One furnace, one
-set of stages (no levels): the crucible furnace's structure, then the fittings in their fit order, each standing on what
+set of stages: the crucible furnace's structure, then the fittings in their fit order, each standing on what
 came before it (the drive's line shaft runs in the hopper's neck; the feed roll on the line shaft's end), and last the
 **services**, the chute sections and the water's pipes (the owner's ruling for every machine). The rig's
 `build.stages` lists each with its `requires`, the parts fitted with it (`alsoParts`) and its states (`also`, one of
@@ -279,7 +277,7 @@ the checks, and the run exits non-zero if one fails. Checks that look at parts t
   uptake, the feed hole, the throat) lined at least 3 deep or to where the brick ends (4572 points); the ash pit, the
   ash mouth and the tunnel the brickwork's; the arch refractory.
 - **The build:** the brick boxes' volumes are the lattice's, and give the rig's quantities; the stages are the
-  structure's, the fittings' and the services', in order, the services last, with no levels; every stage's
+  structure's, the fittings' and the services', in order, the services last; every stage's
   `alsoParts` are fitted with it.
 - **The charge's path:** the feed drops in the second rabble's sweep, the sweeps meet, the discharge hole is in the
   first's, past the bridge, over the tunnel; the sweeps clear the bridge, the flue end wall and the side walls by a voxel.
@@ -335,8 +333,7 @@ The gear cutter's and the branch's schema: no work quantity; the entry reads θ,
 - `powerCell`/`powerFace`, `infeedCell`/`infeedFace`, `outputCell`/`outputFace`, `fuelCell`/`fuelFace`,
   `waterCell`/`waterFace`, `outletCell`/`outletFace`; the points; the `chimney` line.
 - `build`: `provisional`, `frame` (ingredients not settled), `stages` (`requires`, `volumeBlocks`, `materials`,
-  `perClick`, `oneType`, `alsoParts`, `also`; the fittings' and the services' `materials` null), `outletCap`. No
-  `levels`.
+  `perClick`, `oneType`, `alsoParts`, `also`; the fittings' and the services' `materials` null), `outletCap`.
 - `bricks`: the crucible furnace's. `furnace`: `minChimney`, `rowMax`, `rowAxis`, `rowFacing`. `gearing`: as drawn.
 - `parts`, in the build's order: `brickwork`, `frames`, `lining`, `arch`, `ironwork`, `hopper`, the doors' (`firedoor`,
   `doors`, `discharge`), the damper's places, the drive's, the rabbles', `feedroll`, `stoker`, `output`, `services`, the
@@ -361,23 +358,21 @@ the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Salvaged from the branch, and what is new
 
-From `737-roaster-model-v2`'s level 2 (evaluation `evals/737-roaster.md`), copied nearly as they were: the drive
+From `737-roaster-model-v2`'s mechanical furnace (evaluation `evals/737-roaster.md`), copied nearly as they were: the drive
 (entry, gear case with its rectifier, line shaft, bevel pinions, pedestals), the rabbles and the `bevel` helper, the feed
 roll, the chute sections and `CHUTE_UD_WALLS`, the segmental arch (now nine strips, not seven), and their checks (supports,
 gearing, feed roll, reverse, chutes, the charge's path, the sight lines, clearances and swept paths). Adapted: the walls,
 the ironwork, the firebox, the plinth and pit (now the brickwork's base and the discharge tunnel). From the crucible
 furnace: the brick lattice and its world-mapped boxes, the lining's zones, the any-fired-brick `bricks`, the damper, the
 outlet's curb and cap, the build's counts, and the lining, sides, damper, outlet and draught checks. Discarded: the
-stalls, the trestle, the flue chamber and stack, the sulfur door, `RETIRED` and the `levels` retire scheme, and the
+stalls, the trestle, the flue chamber and stack, the sulfur door, `RETIRED` and its retire scheme, and the
 per-cell `fitted` collision (`9fa58a5`, never ported).
 
 New: the 5-long layout with flat-topped end blocks, the outlet in the flue end's west corner, the shared west wall, the
 work doors on the east only, the fire door, the coal well and stoker with the bunker's rim in the well's seat, the ash
 mouth's damper, the discharge door and the output chute with its spout, the water's manifold, connector, the vanner's
 soldered reducer and small pipe, and the swivels, door 1's peep hole, the hopper on its neck, and the build's stages
-with the services last. Level 1 (the hand-rabbled batch furnace: a flat grate on bearers, the well's cover, the work
-doors raised, the discharge door shut, the peep hole's shutter) was drawn and then dropped (the owner's ruling,
-2026-10-15).
+with the services last.
 
 **Provisional pending #711** (shared machine code): the chute anchors (`infeedCell`, `outputCell`, `fuelCell`, drawn as
 the vanilla chute's sections against the game's file), the water's `waterCell` (a ppex pipe into the manifold from
@@ -397,7 +392,7 @@ the side) and the reservoir it fills, and the furnace's row (`furnace`).
   on anchor plates set in its top.
 - **The coal bunker in a well, hung by its rim.** The bunker is part of the furnace: a well in the fire end block's top
   over a throat through the firebox's roof, its iron liner hung by a rim flush in the seat round the well's mouth, the
-  seat out to the bands so no strip of brick shows between them (the seat once held level 1's cover).
+  seat out to the bands so no strip of brick shows between them.
 - **The hopper on a neck.** The feed roll turns in the neck, its end walls the line shaft's last bearings, so the hopper
   goes in before the drive.
 - **The doors kept, shut.** Real mechanical furnaces kept their work doors for clearing accretions off the hearth, and
@@ -417,7 +412,7 @@ the side) and the reservoir it fills, and the furnace's row (`furnace`).
   frame (its top bands at y 32); from there the small pipe drops just short of the first wheel and runs under both.
 - **A peep hole in work door 1** (the owner's ruling). The doors are shut, so the rabbles showed only from above; a 3.5
   by 3.4 hole low in door 1's plate, over the opening, shows the first rabble's spindle and hub and its arms going by.
-  It has no shutter: the shutter only ever covered the hole at level 1, where the door itself was raised.
+  It has no shutter.
 - **The output by a spout into the vanilla section.** The discharge hole must be over the hearth (inside the walls) and
   the vanilla section flush with the face, so the section fills the tunnel's mouth and an iron spout carries the charge
   from under the hole down onto its floor.
@@ -431,7 +426,7 @@ Settled by the owner (2026-10-14), not to be changed: the water face on the driv
 from the side); door 1's peep hole only; the outlet in the flue end's west corner; two in a row at most, back to back;
 two rabbles; the flue's sulfur lost (no sulfur anchor); the water by the vanner's reducer to a small pipe; a peep hole
 in a shut door; the closed box frame as drawn, and the bare refractory on the arch's top and the flue end's top. Settled
-2026-10-15: one level only (the mechanical furnace), the doors kept shut, the services the last stage. Still open:
+2026-10-15: the mechanical furnace only, built in stages, the doors kept shut, the services the last stage. Still open:
 
 1. **The build**: the frame's recipe, the stages and their order (as drawn: the frame, brickwork, lining, arch with
    ironwork, hopper, doors, drive, rabbles, feeder, stoker, output, services), the ironwork's and the fittings'
