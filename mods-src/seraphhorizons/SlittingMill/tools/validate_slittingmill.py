@@ -144,7 +144,9 @@ TEX_RULES = [
     (r"^(fr_(hbase|hpost|hcheek|hcap|screwhead|capstan|ped|brg|std|guide|studboss|epost|forkguide)|entry_rod|crank_disc"
      r"|knife_(crosshead|ram|yoke)|wheel_|pinion(top|bottom)_|rectw[12]_(gear|hub)|idler_|roll(top|bottom)_collar"
      r"|crankshaft_(disc|tooth)|clutchfork_)", "iron"),
-    (r"^(plate|rods|nail[12][lu])_", "metal"),
+    (r"^(plate|rods[lu]|nail[12][lu])_", "metal"),
+    (r"^pusher_(head|finger)", "iron"),
+    (r"^pusher_(handle|grip)", "oak"),
 ]
 
 
@@ -372,11 +374,12 @@ def check_work(v):
             got = 0.0 if pl is None else pl[1][2] - pl[0][2]
             if abs(got - want) > 1e-4 or (pl and abs(pl[1][2] - m.Z_N) > 1e-6):
                 v.fail(f"the plate at W {W}: {got:.4f} long, want {want:.4f}, front at the nip")
-            rods = span(v, "rods", pose)
-            want = m.feed(W, m.ROD_STEPS)
-            got = 0.0 if rods is None else rods[1][2] - m.Z_N
-            if W < m.END - m.TAKE_OFF and abs(max(got, m.EPS_ROD) - max(want, m.EPS_ROD)) > m.EPS_ROD + 1e-6:
-                v.fail(f"the rods at W {W}: front {got:.4f} past the nip, want {want:.4f}")
+            for lay in ("l", "u"):
+                rods = span(v, f"rods{lay}", pose)
+                want = m.feed(W, m.ROD_STEPS) + m.D_KNIFE * push_frac(m, W)
+                got = 0.0 if rods is None else rods[1][2] - m.Z_N
+                if W < m.END - m.TAKE_OFF and abs(max(got, m.EPS_ROD) - max(want, m.EPS_ROD)) > m.EPS_ROD + 1e-6:
+                    v.fail(f"the rods ({lay}) at W {W}: front {got:.4f} past the nip, want {want:.4f}")
             for j in (1, 2):
                 s = m.NAIL_STEP[j]
                 for lay in ("l", "u"):
@@ -419,7 +422,7 @@ def check_dwell(v):
             pose = m.pose_at(W, back=back)
             edge = blade_edge(v, pose)
             state = []
-            for pid in ("plate", "rods", "nail1l", "nail1u", "nail2l", "nail2u"):
+            for pid in ("plate", "rodsl", "rodsu", "nail1l", "nail1u", "nail2l", "nail2u"):
                 s = span(v, pid, pose)
                 state.append((s[0][2], s[1][2]) if s else (0.0, 0.0))
             if any(s - m.HALF_STEP <= W <= s + m.HALF_STEP for s in m.STEP_AT):
@@ -524,6 +527,90 @@ def check_knife(v):
           f"slots all round; at the bottom at both cuts")
 
 
+def push_frac(m, W):
+    return min(1.0, max(0.0, (W - m.PUSH[0]) / (m.PUSH[1] - m.PUSH[0])))
+
+
+def output_box(m):
+    """The output: the nail box's inside, where the player takes the nails and strips from."""
+    t = m.BOX_WALL
+    return ([m.BOX_X[0] + t, m.BOX_FLOOR, m.Z_K], [m.BOX_X[1] - t, m.BOX_TOP, m.BOX_Z[1] - t])
+
+
+KEEP_OUT = ("rolltop", "rollbottom", "knife", "bedknife", "crank", "pusher")
+
+
+def check_removal(v):
+    """Nothing of the work shrinks or vanishes inside the machine: over the job (every 0.0025 of a stroke, both ways), any
+    piece that gets smaller does so only (a) the plate, being turned into rods at the nip (its front stays there), or
+    (b) at the hand-out, lying wholly inside the nail box, clear of the slitters, the knife, the bed knife, the push bar and
+    every part of the frame but the box (and the nails and shelf it lies on)."""
+    m = v.m
+    lo_o, hi_o = output_box(m)
+    keep = [e for pid in KEEP_OUT for e in v.by_part[pid]]
+    frame = [e for e in v.by_part["frame"] if not e.name.startswith("fr_box")]
+    work = [pid for pid in v.by_part if m.is_work(pid)]
+    removed, worst = 0, 0.0
+    for back in (False, True):
+        prev = None
+        for i in range(int(m.END / 0.0025) + 1):
+            W = i * 0.0025
+            pose = m.pose_at(W, back=back)
+            cur = {pid: v.posed(pid, pose) for pid in work}
+            if prev is not None:
+                for pid in work:
+                    for a, b in zip(prev[1][pid], cur[pid]):
+                        va, vb = math.prod(abs(x) for x in a.size), math.prod(abs(x) for x in b.size)
+                        if vb >= va - 1e-9:
+                            continue
+                        if pid == "plate":
+                            if abs(b.aabb()[1][2] - m.Z_N) > 1e-6 and not b.vanished:
+                                v.fail(f"the plate shrinks away from the nip at W {W}")
+                            continue
+                        removed += 1
+                        lo, hi = a.aabb()
+                        out = max(max(lo_o[k] - lo[k], hi[k] - hi_o[k]) for k in range(3))
+                        worst = max(worst, out)
+                        if out > 1e-6:
+                            v.fail(f"{a.name} shrinks or vanishes at W {W} outside the nail box (by {out:.3f})")
+                            return
+                        others = [e for e in [posed(el, v.mat(el.part, prev[0])) for el in keep] + frame if obb_obb(a, e)]
+                        if others:
+                            v.fail(f"{a.name} is taken off at W {W} while touching {[e.name for e in others[:3]]}")
+                            return
+            prev = (pose, cur)
+    print(f"removal: {removed} shrinkings of the work over the job both ways, every one in the nail box clear of the slitters, the "
+          f"knife and the push bar (worst {worst:.1e} outside it); the plate shrinks only into the nip")
+
+
+def check_pusher(v):
+    """The push bar: at rest against the plate's tail as laid (W 0 and the end), its fingers' front follows the plate's tail
+    in each step and then the strips' tails as it pushes them out; it never reaches past the cut, so it is never in the
+    knife's path; the strips are pushed wholly past the cut while the knife is clear above them, and fall."""
+    m = v.m
+    front = lambda pose: aabb_of(v.named("pusher", r"_finger", pose))[1][2]    # noqa: E731
+    worst, reach = 0.0, -1e9
+    for back in (False, True):
+        for i in range(int(m.END / 0.005) + 1):
+            W = i * 0.005
+            pose = m.pose_at(W, back=back)
+            f = front(pose)
+            reach = max(reach, f)
+            if W <= m.PUSH[0]:
+                worst = max(worst, abs(f - (m.PUSH_REST + m.feed(W, m.PLATE_STEPS))))
+            elif W <= m.PUSH[1]:
+                tails = [span(v, f"rods{lay}", pose)[0][2] for lay in ("l", "u")]
+                worst = max(worst, max(abs(f - t) for t in tails))
+    rest = (front(m.pose_at(0.0)), front(m.pose_at(m.END)), front(m.pose_at(m.END, p=0.0)))
+    clear = min(blade_edge(v, m.pose_at(m.PUSH[0] + (m.PUSH[1] - m.PUSH[0]) * i / 20)) for i in range(21)) - m.UP_TOP
+    tail_end = min(span(v, f"rods{lay}", m.pose_at(m.PUSH[1]))[0][2] for lay in ("l", "u"))
+    print(f"push bar: against the plate's and then the strips' tails within {worst:.1e}; reaches z {reach:.3f} at most (the cut "
+          f"{m.Z_K}, the blade {m.KNIFE_Z[0]}); at rest at {rest[0]:.2f} at the start and {rest[1]:.2f} at the end; the strips' tails "
+          f"at {tail_end:.3f} when pushed, the edge at least {clear:.3f} over them throughout")
+    if worst > 1e-4 or reach > m.Z_K + 1e-6 or max(abs(r - m.PUSH_REST) for r in rest) > 1e-4 or tail_end < m.Z_K - 1e-6 or clear < 0.05:
+        v.fail("the push bar does not push the strips out as drawn")
+
+
 # ---------------------------------------------------------------- supports
 SHAFTS = [
     # (part, element regex of its shaft, centre key, the bearings it must run in)
@@ -587,8 +674,12 @@ ALLOWED = [
     ("cone", r"_body", "clutchgear", r"_cup"), ("clutchfork", r"_rod", "frame", r"fr_forkguide"), ("crank", r"_pin", "knife", r"_yoke"),
     # the work: the plate on the table and in the nip, the rods in the slitters and on the bed knife, the nails against the
     # rods' ends and the bed knife, in the box and on each other (none of it touches the knife: check_parting)
-    ("plate", None, "frame", r"fr_table"), ("plate|rods", None, "roll(top|bottom)", r"_cutter|_spacer"),
-    ("plate", None, "rods|nail\\d[lu]", None), ("rods|nail\\d[lu]", None, "bedknife", None), ("rods", None, "nail\\d[lu]", None),
+    ("plate", None, "frame", r"fr_table"), ("plate|rods[lu]", None, "roll(top|bottom)", r"_cutter|_spacer"),
+    ("plate", None, "rods[lu]|nail\\d[lu]", None), ("rods[lu]|nail\\d[lu]", None, "bedknife", None), ("rods[lu]", None, "nail\\d[lu]", None),
+    ("rods[lu]", None, "frame", r"fr_box"),
+    # the push bar: its fingers in the slitters' channels and the table's grooves, against the plate's and the rods' tails
+    ("pusher", r"_finger", "roll(top|bottom)", r"_cutter|_spacer"), ("pusher", r"_finger", "plate|rods[lu]", None),
+    ("pusher", None, "frame", r"fr_table|fr_guide"),
     ("nail\\d[lu]", None, "frame", r"fr_box"), ("nail\\d[lu]", None, "nail\\d[lu]", None),
 ]
 
@@ -693,6 +784,8 @@ def validate(m, els, parts, rig, quick=False):
     check_work(v)
     check_dwell(v)
     check_parting(v)
+    check_pusher(v)
+    check_removal(v)
     check_knife(v)
     check_supports(v)
     check_clearances(v, idle(m) + cycle(m, 0.05) + cycle(m, 0.1, back=True) + cut_poses(m) + [m.pose_at(1.0, p=0.0)], "clearances")

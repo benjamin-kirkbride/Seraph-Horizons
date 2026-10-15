@@ -31,9 +31,9 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "slittingmill-r
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "slittingmill.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "slittingmill_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "SlittingMill" / "rig-reference.json").read_text())
-# the fitted parts: the slitters, the pinions, the drive, the cut-off shear; the work is a plate
-REQUIRES = {"rolls", "pinions", "drive", "shear", "plate", None}
-WORK_PARTS = {"plate", "rods", "nail1l", "nail1u", "nail2l", "nail2u"}
+# the fitted parts: the slitters, the pinions, the drive, the cut-off shear, the push bar; the work is a plate
+REQUIRES = {"rolls", "pinions", "drive", "shear", "pusher", "plate", None}
+WORK_PARTS = {"plate", "rodsl", "rodsu", "nail1l", "nail1u", "nail2l", "nail2u"}
 STEPPED = (("rollbottom", 1), ("pinionbottom", 1), ("rolltop", -1), ("piniontop", -1), ("wheel", -1))
 
 
@@ -156,9 +156,19 @@ class Slitting(unittest.TestCase):
         self.assertAlmostEqual(matrix("plate", **at(2.0))[2][2], 0.5, places=5)
         self.assertAlmostEqual(matrix("plate", **at(2.3))[2][2], 0.5, places=5)
         self.assertEqual(matrix("plate", **at(4.0))[2][2], 0.0)
-        # the rods grow to the cut in two steps and are taken off at the end
-        self.assertAlmostEqual(matrix("rods", **at(3.0))[2][2] * make_shape.EPS_ROD, make_shape.D_KNIFE, places=3)
-        self.assertEqual(matrix("rods", **at(5.0))[2][2], 0.0)
+        # the rods grow to the cut in two steps; the strips left of them are pushed out past the cut, fall into the box,
+        # and only then are taken off
+        for lay in ("l", "u"):
+            pid = f"rods{lay}"
+            self.assertAlmostEqual(matrix(pid, **at(3.0))[2][2] * make_shape.EPS_ROD, make_shape.D_KNIFE, places=3)
+            before = matrix(pid, **at(RIG["slit"]["push"][0]))
+            pushed = matrix(pid, **at(RIG["slit"]["push"][1]))
+            self.assertAlmostEqual((pushed[2][3] - before[2][3]) * 16, make_shape.D_KNIFE, places=3)
+            self.assertAlmostEqual(pushed[1][3], before[1][3], places=6)
+            fallen = matrix(pid, **at(make_shape.STRIP_FALL[1]))
+            self.assertAlmostEqual((fallen[1][3] - pushed[1][3]) * 16, -make_shape.strip_drop(lay), places=3)
+            self.assertGreater(matrix(pid, **at(5.0 - make_shape.TAKE_OFF))[2][2], 0.0)
+            self.assertEqual(matrix(pid, **at(5.0))[2][2], 0.0)
         # each nail stands until the knife's edge comes down on it, goes down with it its thickness, and falls once through
         for j in (1, 2):
             for lay in ("l", "u"):
@@ -172,6 +182,24 @@ class Slitting(unittest.TestCase):
         for pid in WORK_PARTS - {"plate"}:
             m = matrix(pid, **at(0.0, p=0.0))
             self.assertEqual([m[i][i] for i in range(3)], [1.0, 1.0, 1.0])
+
+
+class PushBar(unittest.TestCase):
+    def test_it_follows_the_plate_pushes_the_strips_out_and_is_back_at_the_end(self):
+        slit = RIG["slit"]
+        z = lambda W: matrix("pusher", **at(W))[2][3] * 16    # noqa: E731
+        self.assertEqual(z(0.0), 0.0)
+        # a nail's length a step behind the plate
+        for m, s in enumerate(slit["steps"][:4]):
+            self.assertAlmostEqual(z(s + slit["stepWidth"] / 2), make_shape.L_NAIL * (m + 1), places=3)
+        # the strips' length more while the knife is up, the fingers' front then at the cut, never past it
+        self.assertAlmostEqual(z(slit["push"][1]), make_shape.PLATE_L + make_shape.D_KNIFE, places=3)
+        self.assertAlmostEqual(make_shape.PUSH_REST + z(slit["push"][1]), make_shape.Z_K, places=3)
+        for W in (slit["push"][0], slit["push"][1]):
+            self.assertGreater(matrix("knife", **at(W))[1][3] * 16, 0.4)
+        # drawn back by the end: as at the start, and p easing there moves nothing
+        self.assertAlmostEqual(z(slit["pushBack"][1]), 0.0, places=3)
+        self.assertTrue(close(matrix("pusher", **at(5.0)), matrix("pusher", **at(5.0, p=0.3))))
 
 
 class Anchors(unittest.TestCase):

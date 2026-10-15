@@ -119,7 +119,15 @@ PLATE_STEPS, ROD_STEPS = 4, 2                # the plate is fed in four steps; t
 NAIL_STEP = {1: 2, 2: 3}                     # nail j comes past the cut in step NAIL_STEP[j] ...
 CUTS = (3.0, 4.0)                            # ... and is parted in the knife's stroke down to W 3 or 4
 END = float(STEPS)                           # the job's end: whole strokes, so the crank and the rolls look as at 0
-TAKE_OFF = 0.05                              # the nails and the strips go over this much W before the end
+TAKE_OFF = 0.04                              # the nails and the strips are taken off the box over this much W before the end
+PUSH = (4.33, 4.67)                          # the push bar pushes the strips out past the cut, the knife clear above them
+STRIP_FALL = (PUSH[1], 4.89)                 # past the bed knife, the strips fall into the box
+PUSH_BACK = (4.69, 4.95)                     # the push bar is drawn back to the table's north end
+PUSH_REST = Z_N - PLATE_L                    # the push bar's fingers' front at rest: against the plate's tail as laid
+FINGER_L = 7.5                               # its fingers, long enough to reach the cut from behind the slitters' reach
+FINGER_IN = 0.05                             # a finger is this much smaller each side than the rod it pushes
+HEAD_T = 1.0
+STRIP_REST = 2.8                             # the strips land on the second nails and the box's shelf
 TURNS_PER_STROKE = 1                         # the drawn pace: the cone and the cup turn together at it
 STEP_ANGLE = TAU * ADVANCE / G_T             # the great wheel and the arbors turn this far a step (36 degrees)
 R_CUT = L_NAIL / STEP_ANGLE                  # 3.1831: the cutters' rim, carrying the plate a nail's length a step
@@ -524,6 +532,23 @@ def build_shear():
     return out
 
 
+def build_pusher():
+    """The push bar, the operator's follower, at rest: a head between the table's guides with a handle back to the
+    table's north end, and eight fingers forward from it, each the section of the rod it pushes (a hair smaller) at
+    that rod's layer: the lower ones run in grooves in the table, all of them through the slitters' channels."""
+    f0 = PUSH_REST
+    hz = (f0 - FINGER_L - HEAD_T, f0 - FINGER_L)
+    out = [box([GUIDE_X[1] + 0.05, TABLE_Y[1] + 0.05, hz[0]], [32.0 - GUIDE_X[1] - 0.05, UP_TOP + 1.2, hz[1]], "pusher_head", "pusher", "iron")]
+    for i in range(RODS):
+        rx, ly = rod_x(i), layer(i)
+        n = FINGER_IN
+        out.append(box([rx[0] + n, ly[0] + n, hz[1]], [rx[1] - n, ly[1] - n, f0], f"pusher_finger{i + 1}", "pusher", "iron"))
+    hy = (UP_TOP + 0.4, UP_TOP + 0.9)
+    out.append(box([XC - 0.35, hy[0], 0.6], [XC + 0.35, hy[1], hz[0]], "pusher_handle", "pusher", "oak"))
+    out.append(box([XC - 2.0, hy[0] - 0.1, 0.2], [XC + 2.0, hy[1] + 0.1, 0.6], "pusher_grip", "pusher", "oak"))
+    return out
+
+
 # ---------------------------------------------------------------- builders: the frame
 def build_frame():
     """The oak sills, the two cast-iron housings (base, posts with the knife's slot, cap) with their brass chocks
@@ -582,7 +607,16 @@ def build_frame():
         for s, mx in sides():
             px = mx(SILLS[0][0] + 0.5, SILLS[0][0] + 2.5)
             out.append(box([px[0], SILL_H, z0], [px[1], BEARER_Y[0], z1], f"fr_tpost{i + 1}{s}", f, "oak"))
-    out.append(box([TABLE_X[0], TABLE_Y[0], TABLE_Z[0]], [TABLE_X[1], TABLE_Y[1], TABLE_Z[1]], "fr_table", f, "oak"))
+    # the table: a board under four grooves the push bar's lower fingers run in, and the lands between them
+    gb = LOW_BOT + FINGER_IN - 0.1               # the grooves' floor, under the fingers
+    out.append(box([TABLE_X[0], TABLE_Y[0], TABLE_Z[0]], [TABLE_X[1], gb, TABLE_Z[1]], "fr_table", f, "oak"))
+    edges = [TABLE_X[0]]
+    for i in range(0, RODS, 2):
+        rx = rod_x(i)
+        edges += [rx[0] - 0.05, rx[1] + 0.05]
+    edges.append(TABLE_X[1])
+    for k in range(0, len(edges), 2):
+        out.append(box([edges[k], gb, TABLE_Z[0]], [edges[k + 1], TABLE_Y[1], TABLE_Z[1]], f"fr_tableland{k // 2 + 1}", f, "oak"))
     for s, mx in sides():
         gx = mx(*GUIDE_X)
         out.append(box([gx[0], TABLE_Y[1], TABLE_Z[0] + 2.0], [gx[1], TABLE_Y[1] + 0.8, TABLE_Z[1] - 0.3], f"fr_guide_{s}", f, "iron"))
@@ -593,6 +627,8 @@ def build_frame():
     out.append(box([bx0, BOX_FLOOR, bz1 - t], [bx1, BOX_TOP, bz1], "fr_boxback", f, "oak"))
     out.append(box([bx0, BOX_FLOOR, Z_K], [bx0 + t, BOX_TOP, bz1 - t], "fr_boxwest", f, "oak"))
     out.append(box([bx1 - t, BOX_FLOOR, Z_K], [bx1, BOX_TOP, bz1 - t], "fr_boxeast", f, "oak"))
+    # a shelf in the box beyond where the nails fall, level with them stacked: the strips lie on both
+    out.append(box([bx0 + t, BOX_FLOOR, Z_K + L_NAIL], [bx1 - t, STRIP_REST, bz1 - t], "fr_boxshelf", f, "oak"))
     return out
 
 
@@ -606,7 +642,8 @@ def build_work():
     out = [plate]
     for i in range(RODS):
         rx, ly = rod_x(i), layer(i)
-        el = box([rx[0], ly[0], Z_N], [rx[1], ly[1], Z_N + EPS_ROD], f"rods_{i + 1}", "rods", "metal")
+        part = "rodsl" if i % 2 == 0 else "rodsu"
+        el = box([rx[0], ly[0], Z_N], [rx[1], ly[1], Z_N + EPS_ROD], f"{part}_{i + 1}", part, "metal")
         retexture_full(el, (1.0, 1.0, D_KNIFE))
         out.append(el)
     for j in (1, 2):
@@ -629,7 +666,7 @@ def retexture_full(el, size):
 
 def build():
     return (build_arbor("top") + build_arbor("bottom") + build_pinions() + build_drive() + build_entry() + build_shear()
-            + build_work() + build_frame())
+            + build_pusher() + build_work() + build_frame())
 
 
 # ---------------------------------------------------------------- rig
@@ -706,6 +743,11 @@ def taken_off(origin_z, y=Y_M):
     return gauge("stretch", "z", one(-1.0), [win(END - TAKE_OFF, END)], origin=pt(XC, y, origin_z))
 
 
+def strip_drop(lay):
+    """How far a strip falls: from its layer onto the second nails and the shelf."""
+    return (LOW_BOT if lay == "l" else UP_BOT) - STRIP_REST
+
+
 def nail_top(lay):
     return (LOW_TOP if lay == "l" else UP_TOP) - NAIL_IN
 
@@ -763,9 +805,17 @@ def _rig_parts():
         {"id": "plate", "match": ["plate_*"], "requires": "plate",
          "drivers": [gauge("stretch", "z", one(-1.0), [step_win(m, 1.0 / PLATE_STEPS) for m in range(PLATE_STEPS)],
                            origin=pt(XC, Y_M, Z_N))]},
-        {"id": "rods", "match": ["rods_*"], "requires": "plate",
-         "drivers": [grow(Z_N, EPS_ROD, D_KNIFE, [step_win(m, 1.0 / ROD_STEPS) for m in range(ROD_STEPS)]), taken_off(Z_N)]},
     ]
+    for lay in ("l", "u"):
+        parts.append({"id": f"rods{lay}", "match": [f"rods{lay}_*"], "requires": "plate",
+                      "drivers": [grow(Z_N, EPS_ROD, D_KNIFE, [step_win(m, 1.0 / ROD_STEPS) for m in range(ROD_STEPS)]), taken_off(Z_N),
+                                  gauge("slide", "z", one(D_KNIFE / B), [win(*PUSH)]),
+                                  gauge("slide", "y", one(-strip_drop(lay) / B), [win(*STRIP_FALL)])]})
+    # the push bar follows the plate's tail a step at a time, pushes the strips out and is drawn back: net nothing a job
+    follow = [gauge("slide", "z", one(L_NAIL / B), [step_win(m)]) for m in range(PLATE_STEPS)]
+    parts.append({"id": "pusher", "match": ["pusher_*"], "requires": "pusher",
+                  "drivers": follow + [gauge("slide", "z", one(D_KNIFE / B), [win(*PUSH)]),
+                                       gauge("slide", "z", one(-(PLATE_L + D_KNIFE) / B), [win(*PUSH_BACK)])]})
     z0 = Z_N + 0.002
     for j in (1, 2):
         s = NAIL_STEP[j]
@@ -834,6 +884,7 @@ def make_rig(parts):
         "slit": {"turnsPerStroke": TURNS_PER_STROKE,
                  "steps": [r6(s) for s in STEP_AT], "stepWidth": r6(2 * HALF_STEP),
                  "cuts": [r6(c) for c in CUTS],
+                 "push": [r6(w) for w in PUSH], "pushBack": [r6(w) for w in PUSH_BACK],
                  "handOut": r6(END),
                  "rods": RODS, "nailsPerRod": len(CUTS),
                  "plate": "game:metalplate-{metal}", "output": "game:metalnailsandstrips-{metal}",
@@ -842,8 +893,9 @@ def make_rig(parts):
                              "middle of each feed step, and how long each lasts (the mutilated gear's three teeth in mesh, the knife "
                              "up). cuts: the whole strokes at which the knife is at the bottom having parted a nail off every rod. "
                              "handOut: W at which the nails and the strips are taken off, the job's end (a whole stroke: the knife at "
-                             "the bottom, the crank and the rolls as at 0). rods, nailsPerRod: what the model shows of a plate. plate, "
-                             "output: the work in and out, {metal} the plate's."},
+                             "the bottom, the crank and the rolls as at 0). push, pushBack: W over which the push bar pushes the strips out past the "
+                             "cut (the knife clear above them) and is drawn back; they then lie in the box with the nails. rods, "
+                             "nailsPerRod: what the model shows of a plate. plate, output: the work in and out, {metal} the plate's."},
         "parts": parts,
     }
 
@@ -916,7 +968,8 @@ def check_shipped(els, parts, ship_els, ship_parts, ship):
 # ---------------------------------------------------------------- reference poses
 def ref_ws():
     """W over the job's edges: each step's start, middle and end, the cuts' contacts and partings, falls, the end."""
-    ws = {0.0, 0.25, 1.0, 2.0, 2.65, 3.0, 3.6, 4.0, 4.8, END - TAKE_OFF / 2, END}
+    ws = {0.0, 0.25, 1.0, 2.0, 2.65, 3.0, 3.6, 4.0, 4.8, END - TAKE_OFF / 2, END, *PUSH, (PUSH[0] + PUSH[1]) / 2, STRIP_FALL[1],
+          (STRIP_FALL[0] + STRIP_FALL[1]) / 2, *PUSH_BACK, (PUSH_BACK[0] + PUSH_BACK[1]) / 2}
     for m in range(STEPS):
         ws |= {STEP_AT[m] - HALF_STEP, STEP_AT[m], STEP_AT[m] + HALF_STEP / 2}
     for j in (1, 2):
@@ -964,11 +1017,12 @@ def shape_json(els):
 
 def coplanar_poses():
     return (REST, pose_at(0.0), pose_at(0.3), pose_at(0.5), pose_at(1.25), pose_at(2.0), pose_at(2.5, back=True), pose_at(2.74),
-            pose_at(2.87), pose_at(3.0), pose_at(3.5), pose_at(3.8), pose_at(4.3), pose_at(END))
+            pose_at(2.87), pose_at(3.0), pose_at(3.5), pose_at(3.8), pose_at(4.3), pose_at(4.5), pose_at(4.75), pose_at(4.93),
+            pose_at(END))
 
 
 def is_work(part):
-    return part in ("plate", "rods") or (part.startswith("nail") and part[4:5].isdigit())
+    return part in ("plate", "rodsl", "rodsu") or (part.startswith("nail") and part[4:5].isdigit())
 
 
 def shown(posed_els, pose):

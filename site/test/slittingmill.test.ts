@@ -54,7 +54,7 @@ describe("the slitting mill's rig against its rig-reference.json", () => {
 
   it("fits the slitters, the pinions, the drive and the shear, and draws the work in the plate's metal", () => {
     const req = new Set(parts.map((p) => p.requires ?? null));
-    expect(req).toEqual(new Set([null, "rolls", "pinions", "drive", "shear", "plate"]));
+    expect(req).toEqual(new Set([null, "rolls", "pinions", "drive", "shear", "pusher", "plate"]));
     const codes: Record<string, Set<string>> = {};
     const flat = flattenShape(shape.elements);
     const globs = compileGlobs(parts);
@@ -82,6 +82,18 @@ describe("the slitting mill's rig against its rig-reference.json", () => {
       expect(wrap(turn(Math.min(Math.ceil(s), 5), "rollbottom") - turn(b, "rollbottom"))).toBeCloseTo(0, 4);
     }
     for (const c of slit.cuts) expect(knifeY(c)).toBeCloseTo(-2, 3);
+  });
+
+  it("pushes the strips out past the cut and draws the push bar back before the hand-out", () => {
+    const at = (W: number): Pose => ({ theta: 2 * Math.PI * W, depth: 0, lifting: 0, travel: 2 * Math.PI * W, work: W, size: 1, presence: 1, feed: 0, oil: 0 });
+    const idx = (id: string) => parts.findIndex((q) => q.id === id);
+    const z = (W: number, id: string) => partMatrices(parts, at(W), order, path)[idx(id)]![14]! * 16;
+    const slit = (rig as unknown as { slit: { push: number[]; pushBack: number[]; handOut: number } }).slit;
+    // the strips (both layers) go the strips' length on, all of it past the cut, while the knife is up
+    for (const id of ["rodsl", "rodsu"]) expect(z(slit.push[1]!, id) - z(slit.push[0]!, id)).toBeCloseTo(4, 3);
+    // the push bar is back where it started by the hand-out
+    expect(z(slit.pushBack[1]!, "pusher")).toBeCloseTo(0, 3);
+    expect(z(slit.handOut, "pusher")).toBeCloseTo(z(0, "pusher"), 3);
   });
 
   it("gives every element a part and every part an element", () => {
