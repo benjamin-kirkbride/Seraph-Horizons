@@ -355,7 +355,7 @@
             ]
           },
           {
-            "id": "contents", "label": "Contents", "default": "charged",
+            "id": "contents", "label": "Contents", "default": "watered",
             "values": ["mercury", "slurry", "water", "amalgam"],
             "needs": ["muller", "shoes"],
             "needsHint": "The pan is charged once it is built: pick “2: Shoes” under Build.",

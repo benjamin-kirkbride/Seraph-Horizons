@@ -306,7 +306,7 @@ output, plus a power cell and face as the powered machines have: nothing is adde
 Play turns it at 1.5 s a turn (40 turns a minute) by its input speed. The power cell is drawn with an
 arrow up into its down face. A **Build** select steps through the frame, "1: Muller (a rod)" and "2:
 Shoes (a plate): complete" (opening complete; each hint names its items); a **Contents** select (Empty, Mercury, Charged (slurry), Charged, water over it, Amalgam, each with a
-hint), opening on Charged, waits on the built pan (`needs` the muller and the shoes); a **Shoes** texture
+hint), opening on Charged, water over it, waits on the built pan (`needs` the muller and the shoes); a **Shoes** texture
 select draws them in iron or steel plate, each its texture's mean colour from the game's files (iron
 `#695d56`, steel `#807f7c`). Coloured by texture, the contents have colours of their own apart from the
 pan's iron (`site/src/lib/model-view.ts`): the mercury the mean of Expanded Matter's blend (a dark
@@ -359,8 +359,8 @@ No one has yet looked at it in a client.
 5. **The water film turns with the muller.** Ruled in (2026-10-14) as a film over the charge, clear of the
    shoes' swept path or riding if the geometry needs it: it needs it, since the shoes stand on the floor
    up through any still sheet over the charge. It is drawn riding the muller, slotted round the shoes
-   (above, "The water film"). In the viewer it is its own Contents option, "Charged, water over it", and
-   the Contents select still opens on plain Charged; open it on the water instead if preferred.
+   (above, "The water film"). Accepted as built (2026-10-14). In the viewer it is its own Contents option,
+   "Charged, water over it", which the Contents select opens on.
 6. **Contents wait for a built pan** in the viewer (the Contents select `needs` the muller and the
    shoes), as the crucible furnace's pots wait for its build. Whether gameplay refuses mercury in a pan
    with no muller is #718's call.

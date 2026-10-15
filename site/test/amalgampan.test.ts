@@ -141,10 +141,10 @@ describe("the amalgam pan's page", () => {
     expect(at("charged")).toMatchObject({ muller: true, shoes: true, mercury: false, slurry: true, water: false, amalgam: false });
     expect(at("watered")).toMatchObject({ muller: true, shoes: true, mercury: false, slurry: true, water: true, amalgam: false });
     expect(at("amalgam")).toMatchObject({ mercury: false, slurry: false, water: false, amalgam: true });
-    expect(contents.spec.default).toBe("charged");
-    // it opens built and charged; with the shoes off the contents wait
+    expect(contents.spec.default).toBe("watered");
+    // it opens built and charged, water over the charge; with the shoes off the contents wait
     const { fitted } = openingFitted(requires, [], groups);
-    expect(fitted).toEqual({ muller: true, shoes: true, mercury: false, slurry: true, water: false, amalgam: false });
+    expect(fitted).toEqual({ muller: true, shoes: true, mercury: false, slurry: true, water: true, amalgam: false });
     const bare = applyState(fitted, group("build").spec.options.find((o) => o.id === "muller")!, group("build").owns);
     expect(needsMet(contents, bare)).toBe(false);
     expect(statesShow("slurry", bare, groups)).toBe(false);
