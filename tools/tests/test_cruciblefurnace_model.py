@@ -273,7 +273,7 @@ class Build(unittest.TestCase):
         self.assertEqual([(m["code"], m["quantity"]) for m in st["lid"]["materials"]],
                          [("game:refractorybrick-fired-tier3", 4), ("game:metalplate-iron", 2)])
         self.assertEqual([(m["code"], m["quantity"]) for m in build["frame"]["ingredients"]],
-                         [("game:metalplate-iron", 2), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 10)])
+                         [("game:metalplate-iron", 1), ("game:rod-iron", 4)])
         self.assertEqual((build["outletCap"]["code"], build["outletCap"]["quantity"]), ("game:metalplate-iron", 1))
 
     def test_the_frame_is_the_iron_frame(self):

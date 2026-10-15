@@ -4013,7 +4013,7 @@ lost), and clears the ghosts.
 
 | | Stage | Materials |
 |---|---|---|
-| | Iron frame (grid, with a hammer) | 2 iron plates, 4 iron rods, 10 iron nails and strips |
+| | Iron frame (grid, with a hammer) | 4 iron rods, 1 iron plate |
 | 1 | Brickwork (with the hinge's pins and the lid's stops, at no extra cost) | 25 fired bricks (`game:burnedbrick-*`) of **one** type |
 | 2 | Lining | 9 tier-3 refractory bricks, 4 fire clay |
 | 3 | Lid and damper | 4 tier-3 refractory bricks, 2 iron plates |

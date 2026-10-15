@@ -249,7 +249,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.IsType<BlockMeltingPotSmelted>(W.GetBlock(new AssetLocation(CrucibleFurnaceSystem.SmeltedPot)));
         Assert.NotNull(W.GetItem(new AssetLocation(Stainless.Ferrochrome)));
         Assert.NotNull(W.GetItem(new AssetLocation(Stainless.Ferrosilicon)));
-        // the frame: 2 iron plates, 4 iron rods, 10 iron nails and strips, a hammer (the rig's build.frame)
+        // the frame: 4 iron rods, 1 iron plate, a hammer (the rig's build.frame)
         var frame = Assert.Single(W.GridRecipes, r => r.Output.Code?.ToString() == CrucibleFurnaceSystem.FrameCode && r.Enabled);
         var used = frame.ResolvedIngredients!.Where(i => i != null && !i.IsTool).GroupBy(i => i!.Code.ToString()).ToDictionary(g => g.Key, g => g.Sum(i => i!.Quantity));
         foreach (var m in Rig.FrameIngredients)
