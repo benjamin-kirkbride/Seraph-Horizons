@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Manifest } from "../src/lib/model-manifest.ts";
 import { discoverAnchors } from "../src/lib/model-anchors.ts";
-import { checkScenario, initialFitted } from "../src/lib/model-scenario.ts";
+import { checkScenario, needsMet, openingFitted, stateGroups, statesShow } from "../src/lib/model-scenario.ts";
 import { compileGlobs, fitted, flattenShape, partMatrices, partOf, requiresValues, rideOrder, rigInputs, thetaTurns, workOf, type Mat4, type Pose, type Rig, type Shape } from "../src/lib/rig.ts";
 
 // The ball mill's shipped files, and the poses BallMill/tools/make_shape.py computes from them with machinegen's
@@ -37,6 +37,7 @@ describe("the ball mill's rig against its rig-reference.json", () => {
       ["screens", "screens", "drum"],
       ["feedbox", "feedbox", null],
       ["hopper", "hopper", null],
+      ["chutes", "chutes", null],
       ["pipecopper", "pipecopper", null],
       ["pipelead", "pipelead", null],
       ["frame", null, null],
@@ -77,7 +78,7 @@ describe("the ball mill's rig against its rig-reference.json", () => {
       expect(ms[i("screens")]).toEqual(drum);
       const pinion = ms[i("pinion")]!;
       expect(apply(pinion, [1, 0.5, 0.5]).map((v) => Math.round(v * 1e9) / 1e9)).toEqual([1, 0.5, 0.5]);
-      for (const still of ["feedbox", "hopper", "pipecopper", "pipelead", "frame"])
+      for (const still of ["feedbox", "hopper", "chutes", "pipecopper", "pipelead", "frame"])
         expect(ms[i(still)]!.every((v, k) => Math.abs(v - (k % 5 === 0 ? 1 : 0)) < 1e-12)).toBe(true);
     }
   });
@@ -109,12 +110,39 @@ describe("the ball mill's rig against its rig-reference.json", () => {
 describe("the ball mill's page", () => {
   const requires = requiresValues(parts);
 
-  it("passes the scenario's checks and draws one water pipe, copper at first", () => {
+  const groups = stateGroups(model.scenario!.states, requires);
+  const shownWith = (f: Record<string, boolean>) =>
+    parts.filter((p) => fitted(p.requires, f) && statesShow(p.requires, f, groups)).map((p) => p.id);
+
+  it("passes the scenario's checks and opens finished, with one water pipe, copper", () => {
     expect(checkScenario(model.scenario!, rig, discoverAnchors(rig).anchors, requires)).toEqual([]);
-    const opening = initialFitted(requires, model.scenario!.choices);
-    const shown = parts.filter((p) => fitted(p.requires, opening)).map((p) => p.id);
-    expect(shown).toEqual(["pinion", "drum", "girth", "screens", "feedbox", "hopper", "pipecopper", "frame"]);
+    const { fitted: opening, picked } = openingFitted(requires, model.scenario!.choices, groups);
+    expect(picked).toEqual({ build: "services", water: "copper" });
+    expect(shownWith(opening)).toEqual(["pinion", "drum", "girth", "screens", "feedbox", "hopper", "chutes", "pipecopper", "frame"]);
     for (const r of requires) expect(model.scenario!.requires![r]).toBeTruthy();
+  });
+
+  it("builds in the owner's stages, one state a stage as the rig's buildStages, the services last", () => {
+    const stages = (rig.buildStages as { stage: number; id: string; adds: string[] }[]);
+    expect(stages.map((s) => [s.id, s.adds])).toEqual([
+      ["drum", ["drum"]], ["gearing", ["girth", "pinion"]], ["screens", ["screens"]],
+      ["sheetiron", ["hopper", "feedbox"]], ["services", ["chutes", "pipecopper", "pipelead"]],
+    ]);
+    const [build, water] = groups;
+    expect(build!.spec.options.map((o) => o.id)).toEqual(["frame", ...stages.map((s) => s.id)]);
+    build!.spec.options.slice(1).forEach((o, i) => {
+      const want = stages.slice(0, i + 1).flatMap((s) => s.adds).filter((r) => !water!.owns.includes(r));
+      expect([...o.fitted].sort()).toEqual(want.sort());
+    });
+    expect(water!.owns).toEqual(["pipecopper", "pipelead"]);
+    const services = build!.spec.options.at(-1)!;
+    expect(water!.spec.needs).toEqual(services.fitted);
+    for (const o of build!.spec.options.slice(0, -1)) {
+      const f = Object.fromEntries(requires.map((r) => [r, o.fitted.includes(r) || r === "pipecopper"]));
+      expect(needsMet(water!, f)).toBe(false);
+      expect(shownWith(f)).not.toContain("pipecopper");
+      expect(shownWith(f)).not.toContain("chutes");
+    }
   });
 
   it("puts its anchors on the footprint: the drive low at the east end, ore and water in at the west, the pulp out low at the back", () => {

@@ -34,7 +34,7 @@ RIG = json.loads((MOD / "assets" / "seraphhorizons" / "config" / "ballmill-rig.j
 SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "ballmill.json").read_text())
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "ballmill_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "BallMill" / "rig-reference.json").read_text())
-FITTED = ("pinion", "drum", "girth", "screens", "feedbox", "hopper")
+FITTED = ("pinion", "drum", "girth", "screens", "feedbox", "hopper", "chutes")
 PIPES = ("pipecopper", "pipelead")
 
 
@@ -71,6 +71,15 @@ class Rig(unittest.TestCase):
         self.assertEqual(used, {p["id"] for p in RIG["parts"]})
         frame = {e["name"] for e in FRAME["elements"]}
         self.assertEqual(frame, {n for n in names if rigmath.part_of(RIG["parts"], n) == "frame"})
+
+    def test_the_build_stages_are_the_owners(self):
+        # owner, 2026-10-15: the frame (bed, pedestals, bearings) placed; then the drum, the gearing (girth wheel,
+        # pinion), the screens, the sheet iron (hopper, feed box), and services last (the chutes and the water pipe)
+        self.assertEqual([(s["stage"], s["id"], s["adds"]) for s in RIG["buildStages"]], [
+            (1, "drum", ["drum"]), (2, "gearing", ["girth", "pinion"]), (3, "screens", ["screens"]),
+            (4, "sheetiron", ["hopper", "feedbox"]), (5, "services", ["chutes", *PIPES])])
+        staged = [r for s in RIG["buildStages"] for r in s["adds"]]
+        self.assertEqual(sorted(staged), sorted(p["requires"] for p in RIG["parts"] if p["requires"]))
 
     def test_no_balls_are_drawn(self):
         # the owner's ruling: the drum's charge of iron balls is not modelled
@@ -154,7 +163,7 @@ class Motion(unittest.TestCase):
             self.assertLess(max(abs(a[i][j] - b[i][j]) for i in range(3) for j in range(4)), 1e-4, p["id"])
 
     def test_nothing_else_moves(self):
-        for pid in ("feedbox", "hopper", "frame") + PIPES:
+        for pid in ("feedbox", "hopper", "chutes", "frame") + PIPES:
             for theta in (0.0, 2.5, -7.0):
                 m = matrix(pid, theta)
                 self.assertEqual([[round(v, 12) + 0.0 for v in row] for row in m], rigmath.m4(), pid)
@@ -182,8 +191,8 @@ class Anchors(unittest.TestCase):
         # a chute-straight-we in the cell west of the infeed, and a chute-straight-ns south of the output, meet them
         # wall for wall in the game's chute texture (shipped: the infeed cell [-1,1,0] spans x -16..0, y 16..32, z 0..16;
         # the output cell [0,0,1] x 0..16, y 0..16, z 16..32)
-        for pid, side, (ox, oy, oz), k, face in (("feedbox", "we", (-16, 16, 0), 0, -16.0), ("hopper", "ns", (0, 0, 16), 2, 32.0)):
-            walls = [e for e in posed_part(pid) if re.search(r"_chute_(north|south|bottom|top)$", e.name)]
+        for pid, side, (ox, oy, oz), k, face in (("in", "we", (-16, 16, 0), 0, -16.0), ("out", "ns", (0, 0, 16), 2, 32.0)):
+            walls = [e for e in posed_part("chutes") if re.search(rf"^chutes_{pid}_(north|south|bottom|top)$", e.name)]
             a = 2 if side == "we" else 0
             o = (ox, oy, oz)
             got = sorted((round(lo[a] - o[a], 2), round(lo[1] - o[1], 2), round(hi[a] - o[a], 2), round(hi[1] - o[1], 2))
@@ -192,7 +201,7 @@ class Anchors(unittest.TestCase):
             end = min(e.aabb()[0][k] for e in walls) if face < 0 else max(e.aabb()[1][k] for e in walls)
             self.assertAlmostEqual(end, face, places=4, msg=pid)
         self.assertEqual(SHAPE["textures"]["chute"], "game:block/metal/sheet/copper1")
-        self.assertEqual({f["texture"] for e in SHAPE["elements"] if "_chute_" in e["name"] for f in e["faces"].values()}, {"#chute"})
+        self.assertEqual({f["texture"] for e in SHAPE["elements"] if e["name"].startswith("chutes_") for f in e["faces"].values()}, {"#chute"})
 
     def test_the_water_pipe_is_a_ppex_section_on_the_water_face(self):
         # drawn as the rosser's pipes: the same elements in each metal, only the metal's texture differing

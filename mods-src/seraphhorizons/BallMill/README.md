@@ -66,8 +66,9 @@ turn; the whole machine repeats every three (the viewer's θ slider spans three 
 | Drum: hollow west trunnion, two heads, riveted grinding plates, solid east journal, the cast flange on it (`drum`) [drum] | The girth wheel (bolted to its flange) | Lifts and tumbles the balls (not drawn) | `rotate` x, −1/3 |
 | Girth wheel, wooden: two courses of six oak felloes, an iron tyre round them, 24 oak cogs mortised through both, 12 iron bolts (`girth`) [girth] | The pinion | The drum | rides `drum` |
 | Screens: coarse (perforated plate), fine (wire cloth), 12 bars, a middle hoop (`screens`) [screens] | The drum (they turn with it, as Krupp's did) | — | rides `drum` |
-| Feed box, its legs, V floor, spout and infeed chute section (`feedbox`) [feedbox] | Fixed | — | none |
-| Discharge hopper, its feet, the output chute section and its bracket (`hopper`) [hopper] | Fixed | — | none |
+| Feed box, its legs, V floor and spout (`feedbox`) [feedbox] | Fixed | — | none |
+| Discharge hopper, its feet and the output chute's bracket (`hopper`) [hopper] | Fixed | — | none |
+| Chute sections: the infeed through the feed box's west wall, the output from the hopper's channel (`chutes`) [chutes] | Fixed | — | none |
 | Water pipe, in copper (`pipecopper`) [pipecopper] or lead (`pipelead`) [pipelead] | Fixed, the metal supplied drawn | — | none |
 | Bed, pedestals, bearings, the pinion's pillow blocks (`frame`) [null] | Fixed | — | none |
 
@@ -82,6 +83,26 @@ and 24 oak cogs mortised through felloes and tyre, their tails showing inside th
 needs a coarser pitch than iron, so the pair went from 10:30 to 8:24 (pitch 2.83 voxels against 2.27), and
 the cogs take 0.55 of the pitch (1.56 voxels thick) against the stainless pinion's 0.34 (0.96), the usual
 share when wood runs with metal. The wheel's tips (r 11.72) stay inside the heads' 11.8.
+
+### Build stages
+
+The owner's order (2026-10-15). The frame is placed as the machine and needs nothing; then each stage is one
+group of `requires`, fitted in order, its fits in order, services last. The rig's `buildStages` lists them
+(`BUILD_STAGES` in `make_shape.py`), and the viewer's Build stage select has one state a stage, named for it
+(`BUILD_STATES`), with the water pipe's metal a select of its own once services are in. Materials are the
+"Current figures" of the stages proposal (metal measured and paid at 128 vox an ingot, a plate 2 ingots;
+timber 1,024 vox a plank); "~" marks a guess or a choice of item.
+
+| # | Stage (state id) | `requires` | Materials |
+|---|---|---|---|
+| F | Bed, pedestals, bearings, the pinion's pillow blocks (`frame`), placed | — | 2 stone brick block (granite bed), 4 iron plate, 5 iron nails and strips |
+| 1 | Drum (`drum`) | `drum` | 17 iron plate |
+| 2 | Gearing (`gearing`): the girth wheel, then the pinion meshing it | `girth`, `pinion` | 1 `game:spurgear-s` (wooden girth wheel), 1 plank (its hub and arms), 2 iron nails and strips (its iron tyre, 42 vox), 1 `seraphhorizons:gear-stainless` (pinion), 1 steel rod (pinion shaft) |
+| 3 | Screens (`screens`) | `screens` | 13 iron chain (fine cloth, 1,609 vox²), 12 iron chain (coarse screen, 1,475 vox²), 1 iron plate |
+| 4 | Sheet iron (`sheetiron`): the discharge hopper, then the feed box | `hopper`, `feedbox` | 4 iron plate, 12 iron nails and strips (the hopper's 2 and 7 and the feed box's 2 and 5, merged) |
+| 5 | Services (`services`): the chute sections and the water pipe | `chutes`, `pipecopper` or `pipelead` (a choice) | 2 chute section, 2 pipe section (copper or lead) |
+
+The balls are not drawn and are no stage (a charge, like the ore and water). No part wears as a stage.
 
 ### Either way round
 
@@ -156,8 +177,11 @@ A full run takes about 75 seconds. Output is deterministic (two runs into two fo
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty
   part. **Chunky:** no element is a rod thinner than 0.9 voxels both ways (a plate may be thin).
 - **Size:** the drum's measured size against the issue's (printed; fails under 1.25 across or 1.5 long).
-- **The build:** every part but the frame needs its own `requires`; at rest the frame, then each fitted part
-  in turn (`FIT_ORDER`), joined to the ground through what is already there (nothing floats).
+- **The build:** every part but the frame needs its own `requires`; the rig's `buildStages` are the owner's
+  (drum; gearing; screens; sheet iron; services, the chutes and the pipe's metals), every `requires` in one
+  stage; `BUILD_STATES` one a stage, cumulative, no chute or pipe before services; at rest the frame, then each
+  fitted part in turn (`FIT_ORDER`, the stages' fits in order), joined to the ground through what is already
+  there (nothing floats).
 - **Textures** by role (above).
 - **Anchors:** the anchor faces on the footprint's outside, looking out, all different, and no anchor in the
   power cell; the axle's cross at the power face's centre on the pinion shaft's axis; the infeed and output
@@ -202,14 +226,15 @@ holds the C# rig maths to the same poses.
 The bucking sawmill's format (`../BuckingSawmill/README.md`, "Rig schema"). The only input is θ; the pinion's
 and the drum's drivers are `rotate`s about x on it, and the rest of the parts ride the drum or stand still.
 Keys: `cells` (12, with `boxes` and, on the top layer, `lid`), `powerCell` and `powerFace`, `infeedCell` and
-`infeedFace`, `waterCell` and `waterFace` (the rosser's key), `outputCell`, `outputFace` and `output`, and
-`parts`. `requires` values: `pinion`, `drum`, `girth`, `screens`, `feedbox`, `hopper`, `pipecopper`,
-`pipelead` (the pipe's metal), or null (the frame).
+`infeedFace`, `waterCell` and `waterFace` (the rosser's key), `outputCell`, `outputFace` and `output`,
+`buildStages` (each `{stage, id, name, adds}`: the `requires` it fits, in order) and `parts`. `requires`
+values: `pinion`, `drum`, `girth`, `screens`, `feedbox`, `hopper`, `chutes`, `pipecopper`, `pipelead` (the
+pipe's metal), or null (the frame).
 
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, a part's id and `_`): `pinion_*`, `drum_*`,
-`girth_*`, `screens_*`, `feedbox_*`, `hopper_*`, `pipecopper_*`, `pipelead_*` and `fr_*` (the
+`girth_*`, `screens_*`, `feedbox_*`, `hopper_*`, `chutes_*`, `pipecopper_*`, `pipelead_*` and `fr_*` (the
 frame). Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Provisional pending #711
@@ -236,9 +261,9 @@ open: the feed box stands for it.
    is a feed box the whole depth of the end, both anchors in its west wall.
 6. **The east journal is solid** (the pulp leaves by the screens, not by it), under an end cover on its
    bearing; #915 says "hollow trunnions". Only the feed one needs to be hollow; the other can be drawn so.
-7. **The build stages and items.** The `requires` ids (one per fitted part) and the build check's order
-   (`FIT_ORDER`: pinion, drum, girth wheel, screens, hopper, feed box, pipe) are a proposal, to be
-   settled with the owner as the crucible furnace's were.
+7. **The build stages are settled** (above, 2026-10-15). Within the gearing the girth wheel goes on before
+   the pinion, and within the sheet iron the hopper before the feed box; either order stands on what is
+   already there, so these can be swapped.
 8. **The lids** on the top layer make the drum walkable at two blocks. Without them a player on the mill
    stands among the drum's boxes.
 9. **Nothing inside the drum is drawn:** neither the balls (the owner's ruling) nor the ore or pulp (no work

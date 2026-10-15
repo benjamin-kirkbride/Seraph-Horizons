@@ -643,7 +643,6 @@ def build_feedbox():
         out.append(box([lx0, RAIL_Y[0], LEGS_Z[0][1]], [lx1, RAIL_Y[1], LEGS_Z[1][0]], f"{fb}_rail_x{i}", fb, "iron"))
     for j, (lz0, lz1) in enumerate(LEGS_Z, 1):
         out.append(box([LEGS_X[0][1], RAIL_Y[0] + 0.1, lz0 + 0.1], [LEGS_X[1][0], RAIL_Y[1] - 0.1, lz1 - 0.1], f"{fb}_rail_z{j}", fb, "iron"))
-    out += chute_section("we", INFEED_CELL, (x0, x0 + w), f"{fb}_chute", fb)
     return out
 
 
@@ -737,16 +736,24 @@ def build_hopper():
     for tag, (x0, x1) in (("w", (wx0, wx0 + 1.0)), ("e", (ex1 - 1.0, ex1))):
         for k, (z0, z1) in enumerate(((nz0, nz0 + 1.0), (sz1 - 1.0, sz1)), 1):
             out.append(box([x0, BED_Y, z0], [x1, HOP_BOTTOM, z1], f"{hp}_foot{tag}{k}", hp, "iron"))
-    # the output chute, and its bracket on the bed by the face
-    out += chute_section("ns", OUTPUT_CELL, OUT_CHUTE_Z, f"{hp}_chute", hp)
+    # the output chute's bracket on the bed by the face (the chute itself is a service: build_chutes)
     zf = CELLS_Z * B
     out.append(box([cx0 + 1.0, BED_Y, zf - 3.0], [cx1 - 1.0, OUTPUT_CELL[1] * B + 4.0, zf - 1.0], f"{hp}_bracket", hp, "iron"))
     return out
 
 
+def build_chutes():
+    """The two chute sections, a service fitted last: the infeed through the feed box's west wall, and the output
+    from the hopper's channel through its south wall to the output face, each the game's section where a placed
+    chute meets it."""
+    x0 = FEED_X[0]
+    return (chute_section("we", INFEED_CELL, (x0, x0 + FEED_WALL), "chutes_in", "chutes")
+            + chute_section("ns", OUTPUT_CELL, OUT_CHUTE_Z, "chutes_out", "chutes"))
+
+
 def build():
     return (build_pinion() + build_drum() + build_girth() + build_screens() + build_feedbox()
-            + build_hopper() + build_inlet() + build_frame())
+            + build_hopper() + build_chutes() + build_inlet() + build_frame())
 
 
 # ---------------------------------------------------------------- rig
@@ -792,6 +799,7 @@ def _rig_parts():
              part("screens", ride="drum"),
              part("feedbox"),
              part("hopper"),
+             part("chutes"),
              *[part(pid) for pid in PIPE_PARTS],
              {"id": "frame", "match": ["fr_*"], "requires": None, "ride": None, "drivers": []}]
     for p in parts:
@@ -800,9 +808,22 @@ def _rig_parts():
     return parts
 
 
-# The parts in the order they are fitted, for the build check (the stages are to be settled with the owner): each
-# must hold on to what is already there.
-FIT_ORDER = ("pinion", "drum", "girth", "screens", "hopper", "feedbox", "pipecopper")
+# The build (owner, 2026-10-15): the frame (bed, pedestals, bearings, the pinion's pillow blocks) is placed and
+# needs nothing; then each stage is one group of requires, fitted in order, its fits in order, services last.
+BUILD_STAGES = (                             # (id, name, its requires in the order fitted)
+    ("drum", "the drum", ("drum",)),
+    ("gearing", "the gearing", ("girth", "pinion")),
+    ("screens", "the screens", ("screens",)),
+    ("sheetiron", "the sheet iron", ("hopper", "feedbox")),
+    ("services", "services", ("chutes",) + PIPE_PARTS),   # the water pipe in one metal: a choice
+)
+# The parts in the order they are fitted, for the build check: each must hold on to what is already there.
+FIT_ORDER = tuple(r for _, _, g in BUILD_STAGES for r in g if r not in PIPE_PARTS[1:])
+# The build's states, one a stage, named for it (the scenario's Build stage select): what is fitted, cumulative,
+# the water pipe in its first metal.
+BUILD_STATES = (("frame", ()),) + tuple(
+    (sid, tuple(r for _, _, g in BUILD_STAGES[:i + 1] for r in g if r not in PIPE_PARTS[1:]))
+    for i, (sid, _, _) in enumerate(BUILD_STAGES))
 
 # ---------------------------------------------------------------- poses
 REST = 0.0                                   # a pose is the axle's angle, theta (radians)
@@ -838,8 +859,10 @@ def make_rig(parts):
                     "(north) row at ground level. The drum's axis runs along x; the drive comes in low at the front of the east "
                     "end onto the pinion's shaft, the ore (fresh, and the table's middlings merged into the same chute line) by "
                     "a chute into the feed box high on the west end, the water by a ppex pipe beside it, and the ground pulp "
-                    "leaves by the output chute low at the back. Model only: no block or renderer reads it yet (#915). The "
-                    "only input is theta, the axle's angle. See the ball mill's README.",
+                    "leaves by the output chute low at the back. Model only: no block or renderer reads it yet (#915). "
+                    "buildStages: after the placed frame (bed, pedestals, bearings), what each stage adds, in order: the drum, "
+                    "the gearing, the screens, the sheet iron (hopper and feed box), then services (the chutes and the water "
+                    "pipe, in one metal). The only input is theta, the axle's angle. See the ball mill's README.",
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
@@ -850,6 +873,7 @@ def make_rig(parts):
         "outputCell": list(OUTPUT_CELL),
         "outputFace": OUTPUT_FACE,
         "output": {"pos": pt(*output_point())},
+        "buildStages": [{"stage": n, "id": sid, "name": name, "adds": list(g)} for n, (sid, name, g) in enumerate(BUILD_STAGES, 1)],
         "parts": parts,
     }
 

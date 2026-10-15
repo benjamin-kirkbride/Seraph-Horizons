@@ -188,21 +188,45 @@ def stage_floating(groups, ground=0.01):
 
 def check_build(v):
     """Every part but the frame is a fitted part needing its own id (the pipes their metal); the frame needs
-    nothing. Nothing floats: at rest the frame, then each fitted part in FIT_ORDER, joined to the ground
-    through what is already there. (The build stages themselves are to be settled with the owner.)"""
+    nothing and is placed. The build stages are the owner's (2026-10-15): the drum, the gearing (girth wheel and
+    pinion), the screens, the sheet iron (hopper and feed box), then services (the chute sections and the water
+    pipe, its metals a choice), each requires in one stage, the rig's buildStages these; the states are one a
+    stage, cumulative. Nothing floats: at rest the frame, then each fitted part in FIT_ORDER (the stages' fits
+    in order), joined to the ground through what is already there; and no chute or pipe before services."""
     m = v.m
     for p in v.parts:
         want = None if p["id"] == "frame" else p["id"]
         if p["requires"] != want:
             v.fail(f"{p['id']} needs {p['requires']}, not {want}")
+    stages = [(st["id"], tuple(st["adds"])) for st in v.rig["buildStages"]]
+    want = [("drum", ("drum",)), ("gearing", ("girth", "pinion")), ("screens", ("screens",)),
+            ("sheetiron", ("hopper", "feedbox")), ("services", ("chutes",) + tuple(m.PIPE_PARTS))]
+    if stages != want or [(sid, g) for sid, _, g in m.BUILD_STAGES] != want:
+        v.fail(f"the build stages are {stages}, not the owner's {want}")
+    if [st["stage"] for st in v.rig["buildStages"]] != list(range(1, len(want) + 1)):
+        v.fail("the build stages are not numbered 1 on")
+    staged = [r for _, g in stages for r in g]
+    requires = {p["requires"] for p in v.parts} - {None}
+    if len(staged) != len(set(staged)) or set(staged) != requires:
+        v.fail(f"not every requires in exactly one stage: {sorted(set(staged) ^ requires)}")
+    states = [(sid, set(fit)) for sid, fit in m.BUILD_STATES]
+    cum = [("frame", set())] + [(sid, {r for _, g in stages[:i + 1] for r in g} - set(m.PIPE_PARTS[1:]))
+                                for i, (sid, _) in enumerate(stages)]
+    if states != cum:
+        v.fail(f"the build states are not one a stage, cumulative: {m.BUILD_STATES}")
+    early = [r for r in ("chutes",) + tuple(m.PIPE_PARTS) if any(r in fit for sid, fit in states if sid != "services")]
+    if early:
+        v.fail(f"services fitted before the services stage: {early}")
     order = [pid for pid in m.FIT_ORDER]
+    if order != [r for r in staged if r not in m.PIPE_PARTS[1:]]:
+        v.fail(f"FIT_ORDER {order} is not the stages' fits in order")
     missing = [pid for pid in v.drawn() if pid != "frame" and pid not in order]
     if missing:
         v.fail(f"parts not in FIT_ORDER: {missing}")
     groups = [("frame", v.posed("frame", 0.0))] + [(pid, v.posed(pid, 0.0)) for pid in order]
     loose = {k: n for k, n in stage_floating(groups).items() if n}
     print("build: frame (" + str(len(groups[0][1])) + ") > " + " > ".join(f"{k} ({len(e)})" for k, e in groups[1:])
-          + f"; floating: {loose or 'nothing'}")
+          + f"; stages " + "; ".join(f"{sid}: {'+'.join(g)}" for sid, g in stages) + f"; floating: {loose or 'nothing'}")
     if loose:
         v.fail(f"elements float: {loose}")
 
@@ -221,7 +245,7 @@ ROLES = [
     (r"^screens_coarse", {"perforated"}),
     (r"^screens_fine", {"wirecloth"}),
     (r"^screens_(bar|hoop)", {"iron"}),
-    (r"^(feedbox|hopper)_chute_", {"chute"}),
+    (r"^chutes_", {"chute"}),
     (r"^feedbox_(spout|leg|rail)", {"iron"}),
     (r"^feedbox_", {"sheet"}),
     (r"^hopper_(foot|bracket)", {"iron"}),
@@ -290,8 +314,8 @@ def check_anchors(v):
           f"{on_axis:.3f} off the pinion shaft's axis; {anchors}")
     if abs(axle[1][0] - lo[0]) > 0.02 or off > 1e-6 or on_axis > 1e-6:
         v.fail("the axle's cross does not meet the power face at its centre, on the pinion's shaft")
-    for label, pid, rx, cell, face in (("infeed", "feedbox", r"_chute_", m.INFEED_CELL, m.INFEED_FACE),
-                                       ("output", "hopper", r"_chute_", m.OUTPUT_CELL, m.OUTPUT_FACE)):
+    for label, pid, rx, cell, face in (("infeed", "chutes", r"^chutes_in_", m.INFEED_CELL, m.INFEED_FACE),
+                                       ("output", "chutes", r"^chutes_out_", m.OUTPUT_CELL, m.OUTPUT_FACE)):
         flo, fhi, k = cell_face_box(m, cell, face)
         ch = aabb_of(v.named(pid, rx))
         end = ch[0][k] if face in ("north", "west", "down") else ch[1][k]
@@ -311,7 +335,7 @@ def check_anchors(v):
         v.fail("the inlet pipe does not meet the water face on the ppex pipe's axis")
     out = [p * m.B for p in rig["output"]["pos"]]
     flo, fhi, k = cell_face_box(m, m.OUTPUT_CELL, m.OUTPUT_FACE)
-    floor = max(e.aabb()[1][1] for e in v.named("hopper", r"_chute_bottom$"))
+    floor = max(e.aabb()[1][1] for e in v.named("chutes", r"^chutes_out_bottom$"))
     if abs(out[k] - flo[k]) > 1e-6 or abs(out[1] - floor) > 1e-6 or abs(out[0] - (flo[0] + fhi[0]) / 2) > 1e-6:
         v.fail(f"output.pos {out} is not the output chute's floor at the face")
 
@@ -323,17 +347,17 @@ def check_chute_profile(v):
     the game is installed (VINTAGE_STORY, else ~/Games/vintagestory) those numbers are held to the game's own shape
     file."""
     m = v.m
-    for label, pid, side, cell in (("infeed", "feedbox", "we", m.INFEED_CELL), ("output", "hopper", "ns", m.OUTPUT_CELL)):
+    for label, tag, side, cell in (("infeed", "in", "we", m.INFEED_CELL), ("output", "out", "ns", m.OUTPUT_CELL)):
         a = 2 if side == "we" else 0
         o = [cell[k] * m.B for k in range(3)]
         want = m.chute_profile(side)
         got = []
-        for e in v.named(pid, r"_chute_(north|south|bottom|top)$"):
+        for e in v.named("chutes", rf"^chutes_{tag}_(north|south|bottom|top)$"):
             lo, hi = e.aabb()
             got.append((round(lo[a] - o[a], 4), round(lo[1] - o[1], 4), round(hi[a] - o[a], 4), round(hi[1] - o[1], 4)))
         got.sort()
         worst = max(abs(x - y) for g, w in zip(got, want) for x, y in zip(g, w)) if len(got) == len(want) else 1e9
-        tex = {f["texture"] for e in v.named(pid, r"_chute_") for f in e.faces.values()}
+        tex = {f["texture"] for e in v.named("chutes", rf"^chutes_{tag}_") for f in e.faces.values()}
         print(f"chute profile, {label}: its section {got}, the game's chute-straight-{side} {want}: worst {worst:.3f} voxels; "
               f"textures {sorted(tex)} ({m.TEXTURES['chute']})")
         if worst > 0.02 or tex != {"#chute"} or m.TEXTURES["chute"] != "game:block/metal/sheet/copper1":
@@ -381,8 +405,8 @@ def check_flow(v):
     channel falls to the output chute's floor at its mouth, and the chute's floor runs level to the face."""
     m = v.m
     fb = {e.name: e for e in v.posed("feedbox", 0.0)}
-    chute_floor = max(e.aabb()[1][1] for e in v.named("feedbox", r"_chute_bottom$"))
-    chute_end = max(e.aabb()[1][0] for e in v.named("feedbox", r"_chute_bottom$"))
+    chute_floor = max(e.aabb()[1][1] for e in v.named("chutes", r"^chutes_in_bottom$"))
+    chute_end = max(e.aabb()[1][0] for e in v.named("chutes", r"^chutes_in_bottom$"))
     zc = (m.INFEED_CELL[2] * m.B + 8.0)
     under = top_at(fb["feedbox_floor_n"], x=chute_end + 0.5, z=zc)
     hi_n, lo_n = top_at(fb["feedbox_floor_n"], z=m.FEED_Z[0] + m.FEED_WALL), top_at(fb["feedbox_floor_n"], z=m.STRIP_Z[0])
@@ -428,7 +452,7 @@ def check_flow(v):
     w_in, e_in = top_at(hp["hopper_floor_w"], x=m.CHANNEL_X[0]), top_at(hp["hopper_floor_e"], x=m.CHANNEL_X[1])
     c0 = top_at(hp["hopper_channel"], z=m.HOP_FOOT[0][1])
     c1 = top_at(hp["hopper_channel"], z=m.HOP_FOOT[1][0])
-    floor_out = max(e.aabb()[1][1] for e in v.named("hopper", r"_chute_bottom$"))
+    floor_out = max(e.aabb()[1][1] for e in v.named("chutes", r"^chutes_out_bottom$"))
     print(f"flow, out: the drum's lowest point over the hopper {low:.2f} (the floor's highest {wing:.2f}); the wings fall from "
           f"{wing:.2f} to {w_in:.2f} and {e_in:.2f} at the channel, the channel from {c0:.2f} to {c1:.2f} at the chute's mouth, its "
           f"floor {floor_out:.2f} to the face")
