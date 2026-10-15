@@ -1,8 +1,11 @@
 namespace SeraphHorizons.Mod.Eidolon.Core;
 
 /// <summary>What the planner reads of one block of its window: whether it collides (the box test,
-/// footing) and what it is to the order (<see cref="EidolonMining.Rule"/>, the land claim not asked).</summary>
-public readonly record struct MineVoxel(bool Solid, MineRule Rule);
+/// footing), what it is to the order (<see cref="EidolonMining.Rule"/>, the land claim not asked), and its
+/// pace (<paramref name="Seconds"/>: the seconds a seraph takes to break it with the eidolon's better tool,
+/// <see cref="EidolonMining.PlayerSeconds"/> at <see cref="EidolonMining.DigSpeed"/>; NaN where not known),
+/// which the routes' work estimate reads (README "Eidolon", working together, *Routes*).</summary>
+public readonly record struct MineVoxel(bool Solid, MineRule Rule, float Seconds = float.NaN);
 
 /// <summary>The world as the mine planner reads it: the game's block accessor, or a test's voxels.</summary>
 public interface IMineWorld
@@ -30,9 +33,10 @@ public sealed class MineSite : IWideSpace
     private readonly int _x0, _y0, _z0, _sx, _sy, _sz;
     private readonly ulong[] _solid;
     private readonly byte[] _rule;
+    private readonly ushort[] _pace;
     private readonly bool[] _unloaded;
     private readonly List<(int X, int Z)> _unloadedArea;
-    private readonly List<(int Index, bool Solid, int RuleIndex, byte Rule)> _journal = new();
+    private readonly List<(int Index, bool Solid, int RuleIndex, byte Rule, ushort Pace)> _journal = new();
     private int _marks;
 
     /// <summary>The window round <paramref name="area"/>, all solid until it is loaded (<see cref="Load"/>);
@@ -49,6 +53,7 @@ public sealed class MineSite : IWideSpace
         _solid = new ulong[(Volume + 63) / 64];
         Array.Fill(_solid, ulong.MaxValue);
         _rule = new byte[area.SizeX * (area.SizeY + 1) * area.SizeZ];
+        _pace = new ushort[_rule.Length];
         _unloaded = new bool[_sx * _sz];
         _unloadedArea = new List<(int X, int Z)>();
     }
@@ -62,6 +67,7 @@ public sealed class MineSite : IWideSpace
         (_x0, _y0, _z0, _sx, _sy, _sz) = (other._x0, other._y0, other._z0, other._sx, other._sy, other._sz);
         _solid = (ulong[])other._solid.Clone();
         _rule = (byte[])other._rule.Clone();
+        _pace = (ushort[])other._pace.Clone();
         _unloaded = (bool[])other._unloaded.Clone();
         _unloadedArea = new List<(int X, int Z)>(other._unloadedArea);
     }
@@ -117,7 +123,10 @@ public sealed class MineSite : IWideSpace
             var voxel = loaded ? world.Read(x, y, z) : new MineVoxel(true, MineRule.Air);
             SetSolid(Index(x, y, z), voxel.Solid);
             if (RuleIndex(x, y, z) is var r and >= 0)
+            {
                 _rule[r] = (byte)(loaded ? voxel.Rule : MineRule.Air);
+                _pace[r] = loaded ? Pace(voxel.Seconds) : (ushort)0;
+            }
         }
     }
 
@@ -129,6 +138,16 @@ public sealed class MineSite : IWideSpace
     /// <summary>What a cell of the area (or the layer over it) is to the order; anything else is air to it.</summary>
     public MineRule Rule(MarkPos cell) => RuleIndex(cell.X, cell.Y, cell.Z) is var r and >= 0 ? (MineRule)_rule[r] : MineRule.Air;
 
+    /// <summary>The seconds a seraph takes to break a cell of the area with the eidolon's better tool, as
+    /// read (<see cref="MineVoxel.Seconds"/>): <see cref="MineCosts.DefaultPlayerSeconds"/> where not known or
+    /// outside the area (README "Eidolon", working together, *Routes*).</summary>
+    public double PlayerSeconds(MarkPos cell) =>
+        RuleIndex(cell.X, cell.Y, cell.Z) is var r and >= 0 && _pace[r] != 0 ? _pace[r] / 100.0 : MineCosts.DefaultPlayerSeconds;
+
+    // centiseconds, 1..65535; 0 for not known
+    private static ushort Pace(float seconds) =>
+        float.IsNaN(seconds) || seconds < 0 ? (ushort)0 : (ushort)Math.Clamp(Math.Round(seconds * 100.0), 1, 65535);
+
     /// <summary>Whether a block column of the window is not loaded.</summary>
     public bool Unloaded(int x, int z) =>
         x >= _x0 && x < _x0 + _sx && z >= _z0 && z < _z0 + _sz && _unloaded[(x - _x0) * _sz + (z - _z0)];
@@ -138,12 +157,12 @@ public sealed class MineSite : IWideSpace
 
     // ---- changes ----
 
-    /// <summary>A change seen in the world.</summary>
+    /// <summary>A change seen in the world; a pace not known (NaN) keeps the one read before.</summary>
     public void Set(MarkPos cell, MineVoxel voxel)
     {
         if (!InWindow(cell.X, cell.Y, cell.Z))
             return;
-        Write(cell.X, cell.Y, cell.Z, voxel.Solid, voxel.Rule);
+        Write(cell.X, cell.Y, cell.Z, voxel.Solid, voxel.Rule, float.IsNaN(voxel.Seconds) ? null : Pace(voxel.Seconds));
     }
 
     /// <summary>Broken by the job: air, nothing to do.</summary>
@@ -151,20 +170,24 @@ public sealed class MineSite : IWideSpace
     {
         if (!InWindow(cell.X, cell.Y, cell.Z))
             return;
-        Write(cell.X, cell.Y, cell.Z, false, MineRule.Air);
+        Write(cell.X, cell.Y, cell.Z, false, MineRule.Air, null);
     }
 
-    private void Write(int x, int y, int z, bool solid, MineRule rule)
+    private void Write(int x, int y, int z, bool solid, MineRule rule, ushort? pace)
     {
         int i = Index(x, y, z);
         int r = RuleIndex(x, y, z);
         if (_marks > 0)
-            _journal.Add((i, SolidAt(i), r, r >= 0 ? _rule[r] : (byte)0));
+            _journal.Add((i, SolidAt(i), r, r >= 0 ? _rule[r] : (byte)0, r >= 0 ? _pace[r] : (ushort)0));
         else
             Version++;
         SetSolid(i, solid);
         if (r >= 0)
+        {
             _rule[r] = (byte)rule;
+            if (pace is { } p)
+                _pace[r] = p;
+        }
     }
 
     /// <summary>Starts a tentative change: <see cref="Undo"/> with what this returns puts everything
@@ -179,10 +202,13 @@ public sealed class MineSite : IWideSpace
     {
         for (int k = _journal.Count - 1; k >= mark; k--)
         {
-            var (i, solid, r, rule) = _journal[k];
+            var (i, solid, r, rule, pace) = _journal[k];
             SetSolid(i, solid);
             if (r >= 0)
+            {
                 _rule[r] = rule;
+                _pace[r] = pace;
+            }
         }
         _journal.RemoveRange(mark, _journal.Count - mark);
         if (--_marks <= 0)

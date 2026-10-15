@@ -41,9 +41,10 @@ public async Task It_digs_the_pit()
   off, the clock's too. Patched only once, a later class's clock would stop the server's clock for good and
   hang until the watchdog. If the patch goes while a clock runs, a watch on a timer sees passes running
   without it, records a fault and goes back to real time, so `Dispose` fails with the reason instead.
-- **No game time passes while an eidolon mine plan is made off the main thread**: `Start` holds the clock
-  while any is on its worker (`MinePlanHold`, read from `EidolonMinePlans`' private state). Pass
-  `holdMinePlans: false` to measure the planner's latency in game time instead.
+- **No game time passes while an eidolon mine plan or a crew's look-ahead routes are made off the main
+  thread**: `Start` holds the clock while any is on its worker (`MinePlanHold`, read from
+  `EidolonMinePlans`' private state: each job's `Job` and `Routing` tasks). Pass `holdMinePlans: false` to
+  measure the planner's and the route solver's latency in game time instead.
 - **Your own holds**: `clock.HoldWhile(() => cond, "what")` keeps game time still while `cond` is true, for
   other work off the main thread that runs on wall time. Each pass waits on the game thread (yielding) until
   no hold holds, then advances: the main thread steps the same way whatever the runner's speed. The predicate
@@ -67,7 +68,8 @@ public async Task It_digs_the_pit()
 ### Still on wall time
 
 Off-thread work: chunk loading, generation and compression threads, `Task.Run` work, and physics' sender.
-Seen from the virtual clock it is about 20× slower. The mine planner's worker is held (above). Its
+Seen from the virtual clock it is about 20× slower. The mine planner's and route solver's workers are held
+(above); a route solve starts on the tick it is due, with no wall-time budget. The planner's
 main-thread slices are not: they stop each tick after `MinePlanner.BudgetMs` (2 ms) of wall time, so a slow
 runner reads a job's window in more ticks of game time before its plan starts. That is the one place a
 plan's latency still varies run to run. Widening the budget on the virtual clock needs a seam in the mod:

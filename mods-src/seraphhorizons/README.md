@@ -3453,7 +3453,50 @@ order, the bands, the lanes).
 for the same work are one job (`JobKey`: the owner's uid, the order's code, the area), whether the tool
 gave it to them together or one later, which joins the job running; an overlapping area, or another
 owner's eidolons, is a job of its own. A job is the server's (`JobBoard`, one per kind of work), not
-saved. *Dispatch* (mining; `Eidolon/Core/MineDispatch.cs`): the job's members work one plan. Each
+saved. *Routes* (mining; `Eidolon/Core/MineRoutes.cs`, `MineRoutePlanner.cs`, `MineOrdering.cs`,
+`MineCosts.cs`, `MineChokes.cs`, `MineSlots.cs`, `MineAhead.cs`; the host `EidolonMinePlans`): a job of more
+than one member present gets look-ahead routes, each member's next 5 to 10 stations, solved together off the
+main thread from a copy of the live state. The solver simulates the crew working forward with the same guard
+as live: each station's work timed strike by strike at its blocks' pace (the quicker of the steel pick and
+shovel), the walk on the walk graph, a way crossing another's claim only after waiting 4 seconds for it (as
+the game goes through) and the narrow ways (stairs, lanes 2 or 3 wide, ramps) taken one at a time in slots
+(the slots set only when each sets off: in the game no one holds a narrow way, the stair keeping its own turn
+as under *Dispatch*); a member that would otherwise wait 10 seconds takes a station of the next band where
+nothing still to dig is above it (spare work, at most one open band deeper, so the floors may be two climbs
+apart). Each member's stations are then put in their best order exactly (Held-Karp, with when each became
+workable and what must come first) and moved off the member that finishes last, each change simulated again
+and kept only if it holds. For a job of up to 300 stations it chooses how to choose: eight ways (the soonest
+finish, or leaving a station to whoever would finish it sooner; a bonus for the work under a station; a
+waiting member stepping off cells still to dig) and today's dispatch below are each simulated to the job's
+end, as estimated and with strike lengths shaken by up to 30 %, and the soonest on the mean wins, a tie going
+to today's: where today's wins (a pit that holds one at a time, a narrow tunnel's mouth) the job is dispatched
+as below, with no routes. The choice holds for the job (`MineRouteChoice`): every solve keeps it, a new
+station plan's too, and it outlasts the job being down to one member, for as long as the area and the members
+present are those it was made for (one joining or leaving lets it be made again). A new station plan is
+dispatched as below until its first solve lands. A member follows its route: it claims its head when it may
+set off, at its planned time or sooner when the station is ready and the plan has no other set off first
+there, waits out a planned wait where it is planned (`eidolon-status-mine-waiting-route`), stepping aside for
+another walking up to it, crosses another's claim after 4 seconds, passes another eidolon only briefly and
+rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the stair or one
+standing near it, which would be pushed), never sets off for a stand another stands on (a member waiting there
+is asked to make room, stepping aside to a place with nothing left to dig and no claim; the stop is dropped
+when one stays there), stops short of one standing that it walks at, whatever the walk (a third of a block
+before their boxes touch), waits while that one is still in its way, and parts from one its box has been in
+for 0.6 seconds (the game's push between two boxes reads as walking, which the other would give way to for
+ever): the one with the higher id, or beside one striking or home, steps away to a place apart from every
+eidolon, the other waits. It lets its claims go while it waits, drops a stop whose claim stays taken 2
+seconds, and gives up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped
+and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
+for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold
+each member for another, a stair's slots run off the plan) has the rest of that station plan dispatched as
+today's (only while its routes hold stations and no member is on its way home); its members still part, stop
+short of one standing and make room on a stand still to work, to the job's end. Small events are repaired in
+place on the main thread (begun, finished, dropped, a member gone, a new plan); a full solve follows a failed
+repair, a member joining, a new station plan, or every 15 seconds (no two within 2 seconds, or half a second
+for a new station plan or a deadlock), and a periodic one keeps the routes running unless the new are 10 %
+better. A lone member, routing off (`EidolonMinePlans.Routing`; `SH_MINE_BASELINE=1` in the environment, for
+measuring), or routes not made yet: the job is dispatched as below. *Dispatch*
+(mining; `Eidolon/Core/MineDispatch.cs`): the job's members work one plan. Each
 holds a short queue of stations (`MineDispatch.QueueLength`, 2: the one it works and the next) and takes
 the next from the first 24 in the plan's order that nobody holds, whose columns are free and that pass
 the guard against the live state with the others where they stand (`MineDispatch.Executable`): the one
@@ -3737,7 +3780,11 @@ creature has: its body build takes the elucidatory vessel, a boss drop with no v
 **For testing.** The creative spawner `seraphhorizons:creature-eidolon` (creative tabs only, no
 recipe; the eidolon it places is fitted at random, any allowed material in every layer), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blocks: `spawn [player]`
 (one in front of you, owned, charged, waking), `come [run]`, `stay`, `clear`, `charge <days>`,
-`health <hp>`, `oil <points>`, `info`.
+`health <hp>`, `oil <points>`, `info`, and `mineplan [dump|draw|clear]`: its mining job's routes (*Routes*
+above), `dump` each member's stops (station, place, cells, when it sets off, starts and finishes), the narrow
+ways and their slots and the last repairs, to chat and the server log; `draw` them as outlines for you (each
+member's stands and ways in its colour, its head brighter, the narrow ways yellow; a snapshot, drawn again
+to refresh); `clear` the outlines.
 
 **Seams for the next tasks.**
 - Spawning: `EidolonSystem.Of(api).Spawn(world, pos, yaw, owner, activate: true, gears: 1)`

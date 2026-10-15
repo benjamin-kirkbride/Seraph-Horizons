@@ -175,6 +175,29 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private double _yieldUntil;
     private bool _headDone;
     private double? _waitWalkSince;
+    private MineStop? _routeWait;
+    private double? _claimBlockedSince;
+    private int _routeStarted = -1;
+
+    // when it set off for its head, and how long the walk was estimated to take (a routed walk gone on far
+    // longer is given up: RouteWalkLate)
+    private double? _walkSince;
+    private double _walkEstimate;
+
+    // when a routed walk last stopped short against one standing in its way (BumpSeconds)
+    private double _bumpedAt = double.NegativeInfinity;
+
+    // since when another has stood on the stand of the station it holds (routed: it waits, then drops it)
+    private double? _occupiedSince;
+
+    // since when its box has been in another's (Untangle)
+    private double? _touchSince;
+
+    // the one it last stopped short of (WalksInto)
+    private long? _bumpedBy;
+    private int _contacts;
+    private double _workSeconds;
+    private bool _headAhead;
 
     public string Code => OrderCode;
 
@@ -287,6 +310,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>The shared job it is in (README "Eidolon", working together), or null before it starts.</summary>
     public SharedJob<MineJobCells>? Job => _job;
 
+    /// <summary>What it is doing, for a test's log: its phase, by routes or today's, the station it holds and
+    /// its stand, its navigator walking or giving way, and when it last stopped short of one standing.</summary>
+    public string DebugState =>
+        $"{_phase}, {(Cells.Routes is { Today: false } r && r.PlanVersion == Cells.PlanVersion ? Cells.RoutesStalledPlan == Cells.PlanVersion ? "routes stalled" : "routes" : "today")}, "
+        + $"head {(Station is { } s ? $"#{s.Id} at {s.Stand}" : "none")}, nav {(_nav?.Active == true ? "active" : "idle")}, "
+        + $"through {(_throughSince?.ToString("0.0") ?? "-")}, bumped {(_bumpedAt > double.NegativeInfinity ? _bumpedAt.ToString("0.0") : "-")}";
+
     private EidolonMinePlans? Plans => EidolonMinePlans.Of(_eidolon?.Api);
 
     public void Start(EntityLaborEidolon eidolon)
@@ -332,6 +362,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             else
                 Cells.StairHolder = 0;
         }
+        if (Untangle(eidolon, now))
+            return true;
         switch (_phase)
         {
             case Phase.Seek:
@@ -359,6 +391,27 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 }
                 if (_nav!.Active)
                 {
+                    // routed, walking into one standing that its box already touches: it stops short and waits
+                    // (Approach) rather than push on
+                    if (Routed(eidolon) && WalksInto(eidolon))
+                    {
+                        _nav.Stop();
+                        _bumpedAt = now;
+                        StepAway(eidolon, now);
+                        _phase = Phase.Wait;
+                        _waitCheckAt = now + BumpSeconds;
+                        eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting");
+                        return true;
+                    }
+                    if (Routed(eidolon) && _walkSince is { } since && now - since > 2 * _walkEstimate + RouteWalkLateSeconds)
+                    {
+                        _nav.Stop();
+                        _walkSince = null;
+                        DropQueue(eidolon);
+                        Repaired(Cells.Routes!.Drop(eidolon.EntityId, head.Id, MineRefusal.None, now) ?? "late");
+                        _phase = Phase.Seek;
+                        return true;
+                    }
                     // its stations kept while it walks to them, however long the way
                     Board?.Struck(eidolon.EntityId, now);
                     return true;
@@ -370,6 +423,21 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 // waiting for the stair to come free to climb out by
                 if (_stairWait)
                     return GoHome(eidolon);
+                // a crew by routes: walking at one standing, it stops short and sets off again a little later
+                // (a stop that counts against none of its tries)
+                if (_nav!.Active && CrewByRoutes && WalksInto(eidolon))
+                {
+                    _nav.Stop();
+                    _bumpedAt = now;
+                    return true;
+                }
+                if (now - _bumpedAt < BumpSeconds)
+                    return true;
+                if (_bumpedAt > double.NegativeInfinity && !_nav.Active)
+                {
+                    _bumpedAt = double.NegativeInfinity;
+                    return GoHome(eidolon);
+                }
                 // stopped short (stuck, or off an edge into the pit): it sets off again, a few times
                 return _nav!.Active || ++_homeTries <= HomeTries && GoHome(eidolon);
             case Phase.Travel:
@@ -386,10 +454,18 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                     Told(eidolon);
                     return GoHome(eidolon);
                 }
+                // making for where it waits: it looks again only once there, or once that walk has gone on
+                // too long (stuck, or giving way for ever in a narrow pit); a crew by routes stops short of one
+                // standing and looks again a little later
+                if (_nav!.Active && CrewByRoutes && WalksInto(eidolon))
+                {
+                    _nav.Stop();
+                    _bumpedAt = now;
+                    _waitCheckAt = now + BumpSeconds;
+                    return true;
+                }
                 if (now < _waitCheckAt)
                     return true;
-                // making for where it waits: it looks again only once there, or once that walk has gone on
-                // too long (stuck, or giving way for ever in a narrow pit)
                 if (_nav!.Active)
                 {
                     _waitWalkSince ??= now;
@@ -413,6 +489,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     public void Stop(EntityLaborEidolon eidolon, bool cancelled)
     {
         Halt(eidolon);
+        if (Routed(eidolon) && Cells.Live is { } live)
+            Repaired(Cells.Routes!.Gone(eidolon.EntityId, EidolonJobSystem.Now(eidolon.World), live));
         if (Cells.StairHolder == eidolon.EntityId)
             Cells.StairHolder = 0;
         _queue.Clear();
@@ -453,7 +531,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         if (Cells.Live != null && Cells.Plan != null)
             return;
         var h = home ?? eidolon.Pos.XYZ;
-        Plans?.Ensure(Cells, area, WidePath.NodeAt(h.X, h.Y, h.Z), eidolon, _pick, _maxTier, _mineThrough);
+        Plans?.Ensure(Cells, area, WidePath.NodeAt(h.X, h.Y, h.Z), eidolon, _pick, _maxTier, _mineThrough, _shovel);
     }
 
     /// <summary>Saves the ids of the others in its job with its order, when they changed.</summary>
@@ -508,6 +586,379 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private static List<MineWorkerAt> At(IEnumerable<MineWorker> workers) =>
         workers.Select(w => new MineWorkerAt(w.Id, w.X, w.Feet, w.Z, w.Queue.Select(s => s.Stand).ToList())).ToList();
 
+    // ---- look-ahead routes (README "Eidolon", working together, *Routes*) ----
+
+    /// <summary>How long it waits for its route's station to come free to claim before it drops the stop
+    /// (the job's routes are solved again).</summary>
+    private const double RouteClaimSeconds = 2;
+
+    /// <summary>How long it waits for another eidolon in its way before it passes it, within its share of
+    /// passes (<see cref="MayPass"/>).</summary>
+    private const double PassSeconds = 2;
+
+    /// <summary>Seconds of strikes for each pass of another eidolon it may make (and one more).</summary>
+    private const double PassEach = 120;
+
+    /// <summary>Seconds over twice its estimate after which a routed member's walk to its head is given up: the
+    /// stop dropped and the routes solved again, so that the others are not held to their turns behind a walk
+    /// that is getting nowhere (a stand the game finds a long way round to, or keeps giving way on).</summary>
+    private const double RouteWalkLateSeconds = 6;
+
+    /// <summary>How long a routed member that walked into one standing waits before it sets off again (the
+    /// game's way round a standing one can be too tight: it brushes it rather than push on).</summary>
+    private const double BumpSeconds = 3;
+
+    /// <summary>Whether it works by its job's routes now: routing on, a job of more than one, routes made for
+    /// the station plan in use, not left to today's dispatch, and a route of its own.</summary>
+    private bool Routed(EntityLaborEidolon eidolon) =>
+        RoutedJob && Cells.Routes!.Routes.ContainsKey(eidolon.EntityId);
+
+    /// <summary>The present members of a mining job as the route solver takes them (README "Eidolon", working
+    /// together, *Routes*): the node each stands at, the station it walks to or strikes (its pinned head), and
+    /// when it will be done with it (the walk estimated, the work at its blocks' pace).</summary>
+    internal static List<MineRouteMember> RouteMembers(SharedJob<MineJobCells> job, EidolonJobSystem jobs, double now)
+    {
+        var members = new List<MineRouteMember>();
+        var live = job.Shared.Live;
+        foreach (long id in job.Present.Order())
+        {
+            if (jobs.Member(id) is not { } e || e.Orders?.Current is not MineOrder o)
+                continue;
+            var at = WidePath.NodeAt(e.Pos.X, e.Pos.Y, e.Pos.Z);
+            int? head = null;
+            double free = now;
+            // Whatever station it holds is pinned, whatever it is doing (a held station is claimed and its own).
+            if (o.Station is { } st && live != null)
+            {
+                head = st.Id;
+                var left = st.Cells.Where(live.Remaining.Contains).ToList();
+                free = now + (o._phase == Phase.Strike ? 0 : MineCosts.Estimate(at, st.Stand) + MineCosts.ArriveSeconds) + MineCosts.WorkSeconds(live.Site, left);
+            }
+            members.Add(new MineRouteMember(id, at, head, head != null && o._headAhead, free));
+        }
+        return members;
+    }
+
+    /// <summary>A repair of its job's routes done: the routes counted changed, and a solve asked for if the
+    /// repair wants one.</summary>
+    private void Repaired(string? why)
+    {
+        Cells.RoutesVersion++;
+        if (why != null)
+            EidolonMinePlans.RequestRoutes(Cells, why, why is "plan" or "deadlock");
+    }
+
+    /// <summary>
+    /// Holds its route's head (README "Eidolon", working together, *Routes*) in place of what dispatch would
+    /// give it: a stop with nothing left is finished, a planned wait waited (ended at once when the station
+    /// after it is ready), and a station claimed when it may set off: at its planned time, or sooner when the
+    /// station is ready for it and the plan has no other set off first there (<see cref="Ready"/>); a station
+    /// whose claim stays taken for <see cref="RouteClaimSeconds"/> is dropped and the routes solved again.
+    /// With no stop at all it has none, and asks for routes once (its job's stations may be all others').
+    /// </summary>
+    private void RefillRoute(EntityLaborEidolon eidolon, MinePlan plan, MineState live, List<MineWorker> workers, double now)
+    {
+        var routes = Cells.Routes!;
+        long id = eidolon.EntityId;
+        var board = Board;
+        _routeWait = null;
+        // no strike begun by anyone for a while: the routes have stalled, and the plan is today's from here
+        // (only while there is work its routes hold: none on its way home, and stations left in some route)
+        if (now - Math.Max(Cells.LastStrikeAt, Cells.RoutesPlanSince) > RouteStallSeconds
+            && routes.Routes.Values.Any(r => r.Stops.Any(x => x.Kind == MineStopKind.Station))
+            && _job!.Present.All(m => _jobs?.Member(m)?.Orders?.Current is not MineOrder o || o._phase is not (Phase.Strike or Phase.Return)))
+        {
+            Cells.RoutesStalledPlan = Cells.PlanVersion;
+            eidolon.Api.Logger.Debug($"[eidolon-mine] routes for plan {Cells.PlanVersion} of {EidolonMinePlans.Describe(area)} stalled "
+                + $"({now - Math.Max(Cells.LastStrikeAt, Cells.RoutesPlanSince):0} s with no strike): today's dispatch for the rest of it");
+            DropQueue(eidolon);
+            return;
+        }
+        for (int guard = 0; guard < 16; guard++)
+        {
+            var head = routes.Head(id);
+            if (head == null)
+            {
+                if (_queue.Count == 0 && routes.Unrouted(live))
+                    EidolonMinePlans.RequestRoutes(Cells, "empty", false);
+                return;
+            }
+            if (head.Kind == MineStopKind.Wait)
+            {
+                if (now >= head.Finish || routes.Next(id) is { Kind: MineStopKind.Station } next && next.Station < plan.Stations.Count
+                    && Ready(eidolon, next, plan, live, workers, now))
+                {
+                    Repaired(routes.Waited(id, now));
+                    continue;
+                }
+                _routeWait = head;
+                return;
+            }
+            if (head.Station >= plan.Stations.Count)
+            {
+                Repaired(routes.Drop(id, head.Station, MineRefusal.None, now));
+                continue;
+            }
+            var station = plan.Stations[head.Station];
+            var cells = (head.Cells.Count > 0 ? head.Cells : station.Cells).Where(live.Remaining.Contains).ToList();
+            if (cells.Count == 0)
+            {
+                if (_queue.Count > 0 && _queue[0].Id == station.Id)
+                    DropQueue(eidolon);
+                Repaired(routes.Finished(id, station.Id, now, live));
+                continue;
+            }
+            if (_queue.Count > 0 && _queue[0].Id == station.Id)
+            {
+                // The route holds one station at a time: any dispatch queued behind it is let go.
+                DropQueueAfterHead(eidolon);
+                return;
+            }
+            DropQueue(eidolon);
+            if (now < head.Depart && !Ready(eidolon, head, plan, live, workers, now))
+            {
+                _routeWait = head;
+                return;
+            }
+            var fit = MineDispatch.Fit(station with { Cells = cells }, plan.Tunnel, u => board == null || board.Free(id, u, now));
+            if (fit != null && !Taken(fit.Stand, workers) && !BlockedBy(eidolon, fit.Stand, now) && (board == null || board.TryClaim(id, fit.Id, MineDispatch.Claim(fit, plan.Tunnel), now)))
+            {
+                _queue.Add(fit);
+                _headAhead = head.Ahead;
+                _claimBlockedSince = null;
+                return;
+            }
+            _claimBlockedSince ??= now;
+            if (now - _claimBlockedSince > RouteClaimSeconds)
+            {
+                _claimBlockedSince = null;
+                Repaired(routes.Drop(id, station.Id, MineRefusal.None, now));
+                continue;
+            }
+            _routeWait = head;
+            return;
+        }
+    }
+
+    /// <summary>Whether its route's station <paramref name="stop"/> may be set off for now, ahead of its
+    /// planned time (the world ran ahead of the plan): cells it may dig, its stand out, its claim free, no one
+    /// at its stand, and no other member's stop the plan sets off first whose claim or stand meets it.</summary>
+    private bool Ready(EntityLaborEidolon eidolon, MineStop stop, MinePlan plan, MineState live, List<MineWorker> workers, double now)
+    {
+        var station = plan.Stations[stop.Station];
+        var cells = (stop.Cells.Count > 0 ? stop.Cells : station.Cells).Where(live.Remaining.Contains).ToList();
+        if (cells.Count == 0 || MineDispatch.Cells(live, station with { Cells = cells }, stop.Ahead).Count == 0 || !live.Walk.Out(station.Stand))
+            return false;
+        long id = eidolon.EntityId;
+        var board = Board;
+        if (MineDispatch.Fit(station with { Cells = cells }, plan.Tunnel, u => board == null || board.Free(id, u, now)) is not { } fit
+            || Taken(fit.Stand, workers) || BlockedBy(eidolon, fit.Stand, now))
+            return false;
+        var claim = MineDispatch.Claim(fit, plan.Tunnel).ToHashSet();
+        foreach (var route in Cells.Routes!.Routes.Values.Where(r => r.Member != id))
+        foreach (var other in route.Stops.Where(x => x.Kind == MineStopKind.Station).Take(2))
+            if (other.Depart < stop.Depart && other.Station < plan.Stations.Count
+                && (MineDispatch.Claim(plan.Stations[other.Station] with { Cells = other.Cells.Count > 0 ? other.Cells : plan.Stations[other.Station].Cells }, plan.Tunnel).Any(claim.Contains)
+                    || Math.Abs(other.At.X - station.Stand.X) < BoxWidth + 0.3 && Math.Abs(other.At.Z - station.Stand.Z) < BoxWidth + 0.3 && Math.Abs(other.At.Y - station.Stand.Y) < 4))
+                return false;
+        return true;
+    }
+
+    /// <summary>Waits as its route plans (a wait, or its next station's time not come): at the planned place
+    /// for a planned wait (walked to if it is not there), else where it is, out of no one's way the plan
+    /// knows of, stepping aside for another walking up to it; its claims let go meanwhile.</summary>
+    private bool RouteWait(EntityLaborEidolon eidolon, MineStop stop, double now)
+    {
+        DropQueue(eidolon);
+        _rim.Leave(eidolon, _jobs);
+        _phase = Phase.Wait;
+        _waitCheckAt = now + 0.5;
+        // another walking up to where it stands: it steps aside to a place clear of the work left, rather
+        // than stand in that one's way (the plan knows nothing of where the others walk between its stops)
+        if (!_nav!.Active && Others(eidolon, eidolon.Pos.XYZ, 3, 3).Any(o => o.Walking
+            && Math.Abs(o.X - eidolon.Pos.X) < BoxWidth + 1 && Math.Abs(o.Z - eidolon.Pos.Z) < BoxWidth + 1)
+            && _rim.Aside(eidolon, _nav, _jobs, AsideClear(eidolon.EntityId, now)))
+            _bumpedAt = now;
+        // its planned place: walked to unless it stepped aside a little while ago, or another stands near it
+        if (stop.Kind == MineStopKind.Wait && !_nav.Active && now - _bumpedAt > 2 * BumpSeconds
+            && !Others(eidolon, new Vec3d(stop.At.X, stop.At.Y, stop.At.Z), 4, 4).Any(o =>
+                Math.Abs(o.X - stop.At.X) < BoxWidth + 1 && Math.Abs(o.Z - stop.At.Z) < BoxWidth + 1 && Math.Abs(o.Feet - stop.At.Y) < 4))
+        {
+            var place = stop.At;
+            double dx = place.X - eidolon.Pos.X, dz = place.Z - eidolon.Pos.Z;
+            if (dx * dx + dz * dz > 1.5 * 1.5 || Math.Abs(Feet(eidolon) - place.Y) > 1)
+                _nav.GoTo(new Vec3d(place.X, place.Y, place.Z), false, () => { }, () => { }, arriveWithin: ArriveWithin);
+        }
+        eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting-route");
+        return true;
+    }
+
+    /// <summary>Whether its job works by routes now (whatever its own route): its walks stop short of one
+    /// standing (<see cref="WalksInto"/>) whatever they are for.</summary>
+    /// <summary>Whether its job chose routes (whatever the station plan, stalled or not): its members part and
+    /// stop short of one standing (<see cref="Untangle"/>, <see cref="WalksInto"/>) to its end, walks home
+    /// included.</summary>
+    private bool CrewByRoutes => EidolonMinePlans.Routing && _job != null && Cells.RouteChoice.Index is { } chosen
+        && chosen != MineRoutePlanner.TodayIndex;
+
+    private bool RoutedJob => EidolonMinePlans.Routing && _job != null && Cells.Routes is { Today: false } r && r.PlanVersion == Cells.PlanVersion
+        && Cells.RoutesStalledPlan != Cells.PlanVersion;
+
+    /// <summary>How long a crew by routes may go with no strike begun (since its last strike or its routes were
+    /// made, whichever is later) before its station plan is left to today's dispatch: routes whose timed waits
+    /// hold every member for each other (a stair's slots run off the plan) are given up, not waited out.</summary>
+    private const double RouteStallSeconds = 15;
+
+    /// <summary>Whether the station it holds is its route's stop worked ahead of its band.</summary>
+    private bool Ahead(EntityLaborEidolon eidolon) => _headAhead && _queue.Count > 0 && Routed(eidolon);
+
+    /// <summary>Whether it may pass another eidolon in its way (README "Eidolon", working together, *Routes*):
+    /// within its share (one each <see cref="PassEach"/> seconds of strikes, and one more), and none of those
+    /// near it on the stair (a pass there could push one off it).</summary>
+    private bool MayPass(EntityLaborEidolon eidolon)
+    {
+        if (_contacts + 1 > 1 + _workSeconds / PassEach)
+            return false;
+        var others = Others(eidolon, eidolon.Pos.XYZ, 6, 4);
+        // none on the stair, and none standing near it: one that stands (waiting, at work) is pushed
+        // through, not slid past, which is no brief contact
+        return !others.Any(o => OnStair(o.X, o.Feet, o.Z)
+            || !o.Walking && Math.Abs(o.X - eidolon.Pos.X) < 3 && Math.Abs(o.Z - eidolon.Pos.Z) < 3 && Math.Abs(o.Feet - Feet(eidolon)) < 3);
+    }
+
+    /// <summary>The margin (box edge to box edge) at which a routed walker, where it will be
+    /// <see cref="BumpAhead"/> on, counts as walking into one standing still: it stops short before they touch,
+    /// and walks on past one its way only passes by.</summary>
+    private const double BumpGap = 0.1;
+
+    /// <summary>How far ahead (seconds at its pace) a routed walk looks for one standing it would walk into.</summary>
+    private const double BumpAhead = 0.4;
+
+    /// <summary>Whether it walks at another eidolon standing still, its box within <see cref="BumpGap"/> of
+    /// that one's (or in it), at its height or a climb either way (their boxes are 3.75 high).</summary>
+    private bool WalksInto(EntityLaborEidolon eidolon)
+    {
+        double mx = eidolon.Pos.Motion.X, mz = eidolon.Pos.Motion.Z;
+        if (Math.Sqrt(mx * mx + mz * mz) < EidolonNavigator.StandingMotion)
+            return false;
+        // where it will be a moment on, at its pace now (motion is blocks a tick, at 60 ticks a second)
+        double ax = eidolon.Pos.X + mx * 60 * BumpAhead, az = eidolon.Pos.Z + mz * 60 * BumpAhead;
+        var into = eidolon.World.GetEntitiesAround(eidolon.Pos.XYZ, 4, 4, e => e is EntityLaborEidolon && e.EntityId != eidolon.EntityId && e.Alive
+            && Math.Sqrt(e.Pos.Motion.X * e.Pos.Motion.X + e.Pos.Motion.Z * e.Pos.Motion.Z) < EidolonNavigator.StandingMotion
+            && Math.Abs(e.Pos.X - ax) < BoxWidth + BumpGap && Math.Abs(e.Pos.Z - az) < BoxWidth + BumpGap
+            && Math.Abs(e.Pos.Y - eidolon.Pos.Y) < 3.7
+            && (e.Pos.X - eidolon.Pos.X) * mx + (e.Pos.Z - eidolon.Pos.Z) * mz > 0).FirstOrDefault();
+        if (into == null)
+            return false;
+        _bumpedBy = into.EntityId;
+        return true;
+    }
+
+    /// <summary>Whether the one it last stopped short of (<see cref="WalksInto"/>) still stands by it, its box
+    /// within a block of its own: it does not set off at it again.</summary>
+    private bool StillInTheWay(EntityLaborEidolon eidolon, PathCell stand)
+    {
+        if (_bumpedBy is not { } id || _jobs?.Member(id) is not { Alive: true } o)
+            return false;
+        // near it, and on its side towards its stand
+        return Math.Abs(o.Pos.X - eidolon.Pos.X) < BoxWidth + 0.5 && Math.Abs(o.Pos.Z - eidolon.Pos.Z) < BoxWidth + 0.5
+            && Math.Abs(o.Pos.Y - eidolon.Pos.Y) < 3.7
+            && (o.Pos.X - eidolon.Pos.X) * (stand.X - eidolon.Pos.X) + (o.Pos.Z - eidolon.Pos.Z) * (stand.Z - eidolon.Pos.Z) > 0;
+    }
+
+    /// <summary>Whether <paramref name="stand"/> is another's to stand on now: one stands there that is not a
+    /// member of its job waiting (one that is is asked to make room, <see cref="MakeRoom"/>, and the stand is
+    /// taken as free: it walks there once it has).</summary>
+    private bool BlockedBy(EntityLaborEidolon eidolon, PathCell stand, double now)
+    {
+        if (OccupantOf(eidolon, stand) is not { } occupant)
+            return false;
+        if (occupant.Orders?.Current is MineOrder waiting && waiting._job == _job && waiting._phase is Phase.Wait or Phase.Seek)
+        {
+            waiting.MakeRoom(occupant, now);
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>The other eidolon standing at <paramref name="stand"/>, if any.</summary>
+    private static EntityLaborEidolon? OccupantOf(EntityLaborEidolon eidolon, PathCell stand) =>
+        eidolon.World.GetEntitiesAround(new Vec3d(stand.X, stand.Y, stand.Z), 4, 4, e => e is EntityLaborEidolon
+                && e.EntityId != eidolon.EntityId && e.Alive
+                && Math.Abs(e.Pos.X - stand.X) < BoxWidth && Math.Abs(e.Pos.Z - stand.Z) < BoxWidth && Math.Abs(Feet(e) - stand.Y) < 4)
+            .OfType<EntityLaborEidolon>().FirstOrDefault();
+
+    /// <summary>Another member's route needs where it stands while it waits: it steps aside (as
+    /// <see cref="StepAway"/>), and stays off its planned place for a while.</summary>
+    private void MakeRoom(EntityLaborEidolon eidolon, double now)
+    {
+        if (_nav == null || _nav.Active || _phase is not (Phase.Wait or Phase.Seek))
+            return;
+        if (_rim.Aside(eidolon, _nav, _jobs, AsideClear(eidolon.EntityId, now)))
+            _bumpedAt = now;
+    }
+
+    /// <summary>How long a member of a crew by routes lets its box stay in another's before they part.</summary>
+    private const double TouchSeconds = 0.6;
+
+    /// <summary>
+    /// A crew by routes (README "Eidolon", working together, *Routes*): two whose boxes have been in each
+    /// other's for <see cref="TouchSeconds"/> part, rather than stand so (the game pushing them apart reads as
+    /// one walking, which the other gives way to for ever). The one that gives way on the way (the higher
+    /// id), or one beside another at work or with no mining order (striking, home), steps away to the
+    /// nearest place apart from every eidolon and goes on a little later; the other stops and waits for it.
+    /// Never while it strikes. True when it acted this tick.
+    /// </summary>
+    private bool Untangle(EntityLaborEidolon eidolon, double now)
+    {
+        if (_phase == Phase.Strike || !CrewByRoutes)
+        {
+            _touchSince = null;
+            return false;
+        }
+        long id = eidolon.EntityId;
+        var touching = eidolon.World.GetEntitiesAround(eidolon.Pos.XYZ, 3, 4, e => e is EntityLaborEidolon && e.EntityId != id && e.Alive
+            && Math.Abs(e.Pos.X - eidolon.Pos.X) < BoxWidth && Math.Abs(e.Pos.Z - eidolon.Pos.Z) < BoxWidth
+            && Math.Abs(e.Pos.Y - eidolon.Pos.Y) < 3.7).OfType<EntityLaborEidolon>().ToList();
+        if (touching.Count == 0)
+        {
+            _touchSince = null;
+            return false;
+        }
+        if ((_touchSince ??= now) > now - TouchSeconds)
+            return false;
+        // it moves for one with a lower id, one striking, and one with no mining order or home (not walking)
+        bool moves = touching.Any(o => o.EntityId < id
+            || o.Orders?.Current is not MineOrder other
+            || other._phase == Phase.Strike
+            || other._phase == Phase.Return && other._nav?.Active != true);
+        _touchSince = now;
+        _nav?.Stop();
+        _bumpedAt = now;
+        if (moves)
+            StepAway(eidolon, now);
+        switch (_phase)
+        {
+            case Phase.Walk:
+                // its station kept: it sets off for it again once the wait is over (Approach)
+                _phase = Phase.Wait;
+                _waitCheckAt = now + BumpSeconds;
+                eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting");
+                break;
+            case Phase.Wait:
+                _waitCheckAt = now + BumpSeconds;
+                break;
+        }
+        return true;
+    }
+
+    /// <summary>Stopped short of one standing: it steps away to the nearest place apart from every other
+    /// eidolon (<see cref="RimWait.Aside"/>), on no column another holds, rather than stand by it.</summary>
+    private void StepAway(EntityLaborEidolon eidolon, double now) =>
+        // only where nothing is left to dig under it and no one holds a column: another's strike may come
+        // anywhere else
+        _rim.Aside(eidolon, _nav!, _jobs, AsideClear(eidolon.EntityId, now));
+
     private bool Seek(EntityLaborEidolon eidolon, double now)
     {
         // Waiting for a part of the area to load: look again only now and then.
@@ -533,7 +984,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var workers = Workers(eidolon);
         var at = At(workers);
         // what it holds that is done, or no longer its to work now (another stands there, the world changed)
-        while (_queue.Count > 0 && !MineDispatch.Executable(plan, live, Usable(_queue[0], workers), at, out _, ParkedClear(workers)))
+        while (_queue.Count > 0 && !MineDispatch.Executable(plan, live, Usable(_queue[0], workers), at, out _, ParkedClear(workers), Ahead(eidolon)))
             DropHead(eidolon);
         if (_queue.Count == 0 && Yields(eidolon, workers, now))
         {
@@ -544,7 +995,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         Refill(eidolon, plan, live, workers, now);
         if (Station is not { } head)
-            return Idle(eidolon, live, workers, now);
+            return _routeWait is { } planned && Routed(eidolon) ? RouteWait(eidolon, planned, now) : Idle(eidolon, live, workers, now);
         _waitingSince = null;
         _stalled = false;
         _stuckSince = null;
@@ -584,6 +1035,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// none, so the next is left for that one (a second held lets go of).</summary>
     private void Refill(EntityLaborEidolon eidolon, MinePlan plan, MineState live, List<MineWorker> workers, double now)
     {
+        _routeWait = null;
+        if (Routed(eidolon))
+        {
+            RefillRoute(eidolon, plan, live, workers, now);
+            return;
+        }
+        if (_queue.Count == 0)
+            _headAhead = false;
         long id = eidolon.EntityId;
         var board = Board;
         var parked = workers.Where(w => w.Queue.Count == 0).ToList();
@@ -612,8 +1071,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// otherwise always be nearer the next, and the other never get one.</summary>
     private bool Yields(EntityLaborEidolon eidolon, IReadOnlyList<MineWorker> workers, double now)
     {
-        // never down a pit with a stair: making room there is the whole stair up and the other's down
-        if (_job == null || now >= _yieldUntil || Cells.Plan is { Stair.Count: > 0 } && Feet(eidolon) < area.Max.Y + 1 - EidolonTeamwork.FloorStep)
+        // never down a pit with a stair: making room there is the whole stair up and the other's down; nor by
+        // routes, whose balance is the job's finish
+        if (_job == null || Routed(eidolon) || now >= _yieldUntil || Cells.Plan is { Stair.Count: > 0 } && Feet(eidolon) < area.Max.Y + 1 - EidolonTeamwork.FloorStep)
             return false;
         var shares = _job.Shares.ToDictionary(s => s.Member, s => s.Count);
         int mine = shares.GetValueOrDefault(eidolon.EntityId);
@@ -663,11 +1123,30 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     {
         if (_queue.Count == 0)
             return;
-        Board?.Unclaim(eidolon.EntityId, _queue[0].Id);
+        var head = _queue[0];
+        Board?.Unclaim(eidolon.EntityId, head.Id);
         _queue.RemoveAt(0);
+        // its route's stop finished (nothing left of it) or dropped (refused, a bad stand)
+        if (Routed(eidolon) && Cells.Live is { } live)
+        {
+            double now = EidolonJobSystem.Now(eidolon.World);
+            var routes = Cells.Routes!;
+            Repaired(head.Cells.Any(live.Remaining.Contains)
+                ? routes.Drop(eidolon.EntityId, head.Id, MineRefusal.None, now)
+                : routes.Finished(eidolon.EntityId, head.Id, now, live));
+        }
     }
 
     /// <summary>Lets go of every station it holds.</summary>
+    /// <summary>Lets go of every station it holds but its head.</summary>
+    private void DropQueueAfterHead(EntityLaborEidolon eidolon)
+    {
+        for (int i = 1; i < _queue.Count; i++)
+            Board?.Unclaim(eidolon.EntityId, _queue[i].Id);
+        if (_queue.Count > 1)
+            _queue.RemoveRange(1, _queue.Count - 1);
+    }
+
     private void DropQueue(EntityLaborEidolon eidolon)
     {
         foreach (var s in _queue)
@@ -713,6 +1192,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 return Wait(eidolon, now);
             }
         }
+        // a crew by routes: members waiting on the stands of stations still to dig make room (they stand there
+        // only from the routes' own waits and step-asides, which today's dispatch, after a stall, never asks)
+        if (CrewByRoutes && cells.Plan is { } plan)
+            foreach (var station in plan.Stations.Where(s => s.Cells.Any(live.Remaining.Contains)))
+                if (OccupantOf(eidolon, station.Stand) is { } occupant && occupant.Orders?.Current is MineOrder waiting
+                    && waiting != this && waiting._job == _job)
+                    waiting.MakeRoom(occupant, now);
         bool left = live.Bands is { } bands ? !bands.StairOpen : live.Remaining.Count > 0;
         if (!left && cells.Parked.Count > 0)
         {
@@ -888,7 +1374,34 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         // its way crosses the columns another holds (where that one works, or makes for): it waits for room,
         // as below, rather than walk, climb or drop past it there
-        if (CrossesClaims(eidolon, stand, now) && (_throughSince ??= now) > now - ThroughSeconds)
+        bool routed = Routed(eidolon);
+        // routed: a few seconds after it stopped short of one standing, and while another stands on its stand,
+        // it waits; one there past PassAfter has its stop dropped and the routes solved again
+        bool inTheWay = routed && now - _bumpedAt < BumpSeconds + 2 * MineRoutePlanner.PassAfter && StillInTheWay(eidolon, stand);
+        if (!inTheWay)
+            _bumpedBy = null;
+        var occupant = routed ? OccupantOf(eidolon, stand) : null;
+        // a member waiting on its stand is asked to make room
+        if (occupant?.Orders?.Current is MineOrder waiting && waiting._job == _job)
+            waiting.MakeRoom(occupant, now);
+        if (routed && (now - _bumpedAt < BumpSeconds || inTheWay || occupant != null))
+        {
+            if (now - _bumpedAt >= BumpSeconds && (_occupiedSince ??= now) < now - MineRoutePlanner.PassAfter)
+            {
+                _occupiedSince = null;
+                _bumpedBy = null;
+                DropQueue(eidolon);
+                Repaired(Cells.Routes!.Drop(eidolon.EntityId, head.Id, MineRefusal.None, now) ?? "occupied");
+                _phase = Phase.Seek;
+                return true;
+            }
+            _phase = Phase.Wait;
+            _waitCheckAt = Math.Max(_bumpedAt + BumpSeconds, now + 0.5);
+            eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting");
+            return true;
+        }
+        _occupiedSince = null;
+        if (CrossesClaims(eidolon, stand, now) && (_throughSince ??= now) > now - (routed ? MineRoutePlanner.PassAfter : ThroughSeconds))
         {
             DropQueue(eidolon);
             _phase = Phase.Wait;
@@ -900,7 +1413,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         {
             // its way goes through another (no way round it, a pit too narrow to pass one at work): it waits
             // for room, at most ThroughSeconds, rather than push past it
-            if (!_nav.LastWentAround && (_throughSince ??= now) > now - ThroughSeconds)
+            if (!_nav.LastWentAround && (_throughSince ??= now) > now - (routed && MayPass(eidolon) ? PassSeconds : ThroughSeconds))
             {
                 _nav.Stop();
                 DropQueue(eidolon);
@@ -909,8 +1422,12 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting");
                 return true;
             }
+            if (!_nav.LastWentAround)
+                _contacts++;
             _throughSince = null;
             _rim.Leave(eidolon, _jobs);
+            _walkSince = now;
+            _walkEstimate = MineCosts.Estimate(WidePath.NodeAt(eidolon.Pos.X, eidolon.Pos.Y, eidolon.Pos.Z), stand) + MineCosts.ArriveSeconds;
             _phase = Phase.Walk;
             _settled = false;
             eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-walking");
@@ -1215,7 +1732,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// </summary>
     private bool Left(MarkPos cell, List<(double X, int Feet, double Z, bool Walking)> others)
     {
-        if (Cells.Live is not { } live || !live.Remaining.Contains(cell) || live.Bands?.Eligible(cell) == false)
+        if (Cells.Live is not { } live || !live.Remaining.Contains(cell))
+            return false;
+        // of a band whose turn it is, or ahead of it for a route's stop worked ahead (README "Eidolon", working
+        // together, *Spare work*)
+        if (live.Bands?.Eligible(cell) == false && !(_headAhead && _eidolon != null && Ahead(_eidolon) && MineAhead.Eligible(live, cell)))
             return false;
         if (_eidolon != null && _eidolon.World.BlockAccessor.GetBlock(_probe.Set(cell.X, cell.Y, cell.Z)).Id == 0)
         {
@@ -1280,24 +1801,21 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var blocks = eidolon.World.BlockAccessor;
         var pos = new BlockPos(eidolon.Pos.Dimension);
         _strike = EidolonMining.Timing(EidolonMining.StrikeSeconds(group.Cells.Select(c =>
-        {
-            var block = blocks.GetBlock(pos.Set(c.X, c.Y, c.Z));
-            var material = block.GetBlockMaterial(blocks, pos);
-            return EidolonMining.PlayerSeconds(block.GetResistance(blocks, pos),
-                EidolonMining.DigSpeed(SpeedFor(_pick, material), SpeedFor(_shovel, material), GlobalConstants.ToolMiningSpeedModifier));
-        })));
+            GameMineWorld.PlayerSeconds(blocks, pos.Set(c.X, c.Y, c.Z), blocks.GetBlock(pos), _pick, _shovel))));
         _strikeStart = now;
+        _workSeconds += _strike.Seconds;
+        Cells.LastStrikeAt = now;
+        if (Routed(eidolon) && _routeStarted != head.Id)
+        {
+            _routeStarted = head.Id;
+            Repaired(Cells.Routes!.Started(eidolon.EntityId, head.Id, now));
+        }
         _slammed = false;
         _struck = false;
         Face(eidolon);
         eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-mining");
         return true;
     }
-
-    /// <summary>A tool's mining speed for <paramref name="material"/>, or null where it has none (or
-    /// the tool could not be read).</summary>
-    private static float? SpeedFor(Item? tool, EnumBlockMaterial material) =>
-        tool?.MiningSpeed is { } speeds && speeds.TryGetValue(material, out float s) ? s : null;
 
     private bool Strike(EntityLaborEidolon eidolon, double now)
     {
