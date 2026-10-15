@@ -108,7 +108,8 @@ public class GradePocketsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             var torn = fits.Where(c => Fit(c.Ores, drawn) < 0.8).ToList();
             Assert.True(torn.Count == 0,
                 $"{key}: columns {string.Join(", ", torn.Select(c => $"{c.Key} (best {OreTally.Grades[c.Best.Drawn]})"))} don't fit drawn {OreTally.Grades[drawn]}");
-            double share = ores.Count(o => pockets.GradeAt(o.Units, drawn, o.X, o.Y, o.Z) == o.Index) / (double)ores.Count;
+            // The whole deposit, less the same poorest-grade trail blocks the columns leave out.
+            double share = Fit(ores, drawn);
             output.WriteLine($"  drawn {OreTally.Grades[drawn]}, {share:0.00} of the blocks match it");
             Assert.True(share >= 0.8, $"{key}: only {share:0.00} of its blocks match its drawn grade");
 
