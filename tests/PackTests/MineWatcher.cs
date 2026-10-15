@@ -9,8 +9,9 @@ namespace SeraphHorizons.PackTests;
 /// <summary>Watches each tick who broke what: a block gone this tick is the one whose strike's group
 /// held it; counts those in the columns of the station it struck (<see cref="MineOrder.Sector"/>) and out,
 /// overlapping boxes, a block broken in another eidolon's columns at any height (under it is its floor, over
-/// it is over it), and, with <c>floors</c>, a block broken more than a layer under the highest left (the
-/// floors more than a climb apart), those <c>exempt</c> (what the plan keeps for good: out of reach, the
+/// it is over it), and, with <c>floors</c>, a block broken more than <c>floorSlack</c> layers under the
+/// highest left (the floors more than that many climbs apart: 1, or 2 where a crew by look-ahead routes
+/// works spare work a band deeper, README "Eidolon", working together, *Routes*), those <c>exempt</c> (what the plan keeps for good: out of reach, the
 /// floor under those, the way out) not counted as left. For several eidolons mining one area
 /// (EidolonSectorScenarios, EidolonTeamMineScenarios, EidolonTallTunnelScenarios).
 ///
@@ -18,7 +19,7 @@ namespace SeraphHorizons.PackTests;
 /// squeezes past another, however long, is no fault (timing on a slower server stretches it), but one deep
 /// in another is. Every contact is logged with how long it lasted.</para></summary>
 internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, EntityLaborEidolon[] eidolons, MineOrder[] orders,
-    System.Func<MarkPos, bool>? exempt = null, bool floors = true)
+    System.Func<MarkPos, bool>? exempt = null, bool floors = true, int floorSlack = 1)
 {
     /// <summary>Whether two eidolons' boxes (1.7 wide) overlap.</summary>
     public static bool Overlap(Entity a, Entity b) => Math.Abs(a.Pos.X - b.Pos.X) < 1.7 && Math.Abs(a.Pos.Z - b.Pos.Z) < 1.7
@@ -102,7 +103,7 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
             }
         }
         var left = exempt == null ? _standing.ToList() : _standing.Where(c => !exempt(new MarkPos(c.X, c.Y, c.Z))).ToList();
-        if (floors && broke.Count > 0 && left.Count > 0 && broke.Min(c => c.Y) < left.Max(c => c.Y) - 1)
+        if (floors && broke.Count > 0 && left.Count > 0 && broke.Min(c => c.Y) < left.Max(c => c.Y) - floorSlack)
             Faults.Add($"{string.Join(" ", broke)} broke with {left.Max(c => c.Y)} left");
         long now = w.ElapsedMilliseconds, step = _lastTick < 0 ? 0 : now - _lastTick;
         _lastTick = now;
