@@ -243,11 +243,12 @@ public partial class WoodworkingScenarios
 
     // ---- Trunks ----
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_full_cut_gives_the_configured_logs_and_wears_the_blade_a_log_per_stored_log()
     {
         var pos = Sky(0, -60);
         var player = await Player("sawyer");
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "south");
 
         // Not before it is assembled.
@@ -326,11 +327,12 @@ public partial class WoodworkingScenarios
         await World.Until(() => mill.Phase == MillPhase.Sinking, 6000);
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_powered_empty_mill_cycles_and_takes_a_trunk_only_at_the_top()
     {
         var pos = Sky(30, -60);
         var player = await Player("cycler");
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "east");
         Assemble(mill, player);
         await Power(mill, fast: true);
@@ -360,11 +362,12 @@ public partial class WoodworkingScenarios
         Assert.InRange(mill.Depth, touch, touch + 0.05f);
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task After_a_cut_the_rack_waits_for_the_saws_to_come_up()
     {
         var pos = Sky(-60, 0);
         var player = await Player("winder");
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "south");
         Assemble(mill, player);
 
@@ -399,8 +402,8 @@ public partial class WoodworkingScenarios
 
         // It is pulled only once they are at the top.
         float lowest = mill.Depth;
-        var until = DateTime.UtcNow.AddSeconds(10);
-        while (mill.Trunk == null && DateTime.UtcNow < until)
+        long until = W.ElapsedMilliseconds + 10_000;
+        while (mill.Trunk == null && W.ElapsedMilliseconds < until)
         {
             lowest = Math.Min(lowest, mill.Depth);
             await World.Ticks(1);
@@ -479,13 +482,14 @@ public partial class WoodworkingScenarios
         Assert.InRange(mill.Depth, touch, touch + 0.01f);
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_rack_at_the_infeed_feeds_debranched_trunks_only()
     {
         // Not over ChopperOutput's rooms at x 60, z -60 to -24: the logs, cut after the scenario
         // too, fall to the ground.
         var pos = Sky(90, -30);
         var player = await Player("racker");
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "west");
         Assemble(mill, player);
         await Power(mill, fast: true);
@@ -521,11 +525,12 @@ public partial class WoodworkingScenarios
         Assert.Equal("empty", W.BlockAccessor.GetBlock(rackPos).Variant["fill"]);
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_rack_is_found_through_its_filler_cell()
     {
         var pos = Sky(0, 0);
         var player = await Player("filler");
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "north");
         Assemble(mill, player);
         await Power(mill);
@@ -790,11 +795,12 @@ public partial class WoodworkingScenarios
     /// button is down) goes on at the next top, cut after cut (those at the fixture's raise, which
     /// changes nothing but how long they take).
     /// </summary>
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task At_full_speed_a_held_trunk_goes_on_at_the_next_top_every_cycle()
     {
         var pos = Sky(-30, 150);
         var player = await Player("fastfeeder");
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "south");
         Assemble(mill, player, "steel");
         float raise = Mod.Config.RaiseRevolutions, perLog = Mod.Config.RevolutionsPerStoredLog;
@@ -867,11 +873,12 @@ public partial class WoodworkingScenarios
     /// <summary>A rack placed as a player places it (Logging Expanded's own placement, from a
     /// player looking each of the four ways) against each of the three ground cells beyond the
     /// infeed end is found, whichever way it turned out; the mill says what the rack offers.</summary>
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_rack_placed_by_a_player_against_the_infeed_end_is_found_every_way()
     {
         var pos = Sky(30, 150);
         var player = await Player("rackplacer");
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "east");
         Assemble(mill, player);
         var infeed = BlockFacing.FromCode(Footprint.ToWorld(Rig.InfeedSide, mill.Side).Code());
@@ -957,11 +964,12 @@ public partial class WoodworkingScenarios
     /// Letting go stops them where they are. A trunk cut part way stays on, with its progress; when
     /// the mill turns again the saws come down onto it at its cut and finish it, with the right
     /// logs and wear.</summary>
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_stopped_mills_saws_are_wound_up_by_hand_and_a_cut_carries_on()
     {
         var pos = Sky(60, 150);
         var player = await Player("winder2");
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "west");
         Assemble(mill, player);
         var sel = new BlockSelection { Position = pos };

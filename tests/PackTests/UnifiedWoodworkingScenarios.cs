@@ -243,7 +243,8 @@ internal sealed class Woodshop(IWorldSession world, ITestPlayer player, BlockPos
     }
 
     /// <summary>One full hold on a loaded sawhorse (Logging Expanded's 0.75 s). Its hold refuses to
-    /// start again for 300 ms after one completes, so this waits that out.</summary>
+    /// start again for 300 ms after one completes, so this waits that out. Those 300 ms are wall time
+    /// (Environment.TickCount64), so a scenario that works a sawhorse stays off the virtual clock.</summary>
     public async Task Work(BlockPos pos)
     {
         await world.Until(() => Hold(pos, 0.8f), 200);
@@ -705,12 +706,13 @@ public partial class WoodworkingScenarios
 
     // --- chopping ---
 
-    [AtlasTheory(TimeoutMs = 180_000), MemberData(nameof(Tiers))]
+    [AtlasTheory(TimeoutMs = 60_000), MemberData(nameof(Tiers))]
     public async Task Firewood_per_log_is_six_below_the_advanced_tier_and_eight_on_it(int tierIndex)
     {
         var tier = (SplittingBlockTier)tierIndex;
         int perLog = tier == SplittingBlockTier.Advanced ? 8 : 6;
         var shop = await Woodshop.Open(World, World.Spawn.AddCopy(0, 3, 120 + 20 * tierIndex));
+        using var clock = VirtualClock.Start(World);
         var pos = await shop.PlaceSplittingBlock(0, "oak", tier);
 
         // Axe: the log into two half-logs, each into half the log's firewood.

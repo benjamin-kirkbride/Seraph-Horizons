@@ -96,11 +96,12 @@ public partial class WoodworkingScenarios
 
     private static Side Turned(Side side, int quarters) => Sides.All[(Array.IndexOf(Sides.All, side) + quarters) % 4];
 
-    [AtlasTheory(TimeoutMs = 120_000), MemberData(nameof(Facings))]
+    [AtlasTheory(TimeoutMs = 60_000), MemberData(nameof(Facings))]
     public async Task A_feeder_in_line_at_the_infeed_end_is_found_in_every_cell_and_facing(string side, int index)
     {
         var pos = await LoadedSky(-60 + 30 * index, -120);
         var player = await Player("feeder" + index);
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, side);
         var cells = Rig.InfeedNeighbours().Select(mill.CellPos).ToList();
         Assert.Equal(3, cells.Count);
@@ -200,11 +201,12 @@ public partial class WoodworkingScenarios
         }
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_running_mill_takes_the_feeders_finished_trunk_at_the_top_and_cuts_it()
     {
         var pos = await LoadedSky(90, -120);
         var player = await Player("fedmill");
+        using var clock = VirtualClock.Start(World);
         var mill = await PlaceMill(pos, "south");
         Assemble(mill, player);
         KillItemsNear(pos);
@@ -244,8 +246,8 @@ public partial class WoodworkingScenarios
             Assert.Equal(1, feeder.Takes);
             Assert.NotNull(feeder.Finished);
             float lowest = mill.Depth;
-            var until = DateTime.UtcNow.AddSeconds(10);
-            while (mill.Trunk == null && DateTime.UtcNow < until)
+            long until = W.ElapsedMilliseconds + 10_000;
+            while (mill.Trunk == null && W.ElapsedMilliseconds < until)
             {
                 lowest = Math.Min(lowest, mill.Depth);
                 await World.Ticks(1);
