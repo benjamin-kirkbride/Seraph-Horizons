@@ -242,7 +242,7 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     {
         // The variant's attributes keep the deposit file's values; its generator has the scaled ones.
         // Native copper's chimney, scaled on its tendrils by copper's factor in config/ore-sizes.json
-        // (half of 400 / 3567 since the survey of #445), four times over with ore processing on (#863:
+        // (retuned on the census of #945), four times over with ore processing on (#863:
         // an ore item holds about a quarter of vanilla's units, so a deposit is four times the blocks).
         var chimney = IogVeins("nativecopper").Single();
         var shape = new VeinShape("chimney",
@@ -250,16 +250,15 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
             new SizeRange(Attribute(chimney, "branchCount"), chimney.Attributes["branchCount"]["var"].AsFloat()),
             new SizeRange(Attribute(chimney, "branchLength"), chimney.Attributes["branchLength"]["var"].AsFloat()));
         Assert.Equal(OreProducts.DepositBlocks, OreSystem.GradedOreBlocks(World.Api));
-        var expected = VeinScaling.Scale(shape, 0.0561 * OreProducts.DepositBlocks);
+        var expected = VeinScaling.Scale(shape, 0.136 * OreProducts.DepositBlocks);
         output.WriteLine($"native copper chimney {shape} -> {expected}");
         Assert.NotEqual(shape, expected);
         Assert.Equal(expected.BranchCount.Avg, Field(chimney, "BranchCount").avg, 3);
         Assert.Equal(expected.BranchLength.Avg, Field(chimney, "BranchLength").avg, 3);
 
-        // Hematite's seam, by the square root of iron's factor (half of 400 / 4806) on the radius,
-        // four times over.
+        // Hematite's seam, by the square root of iron's factor (#945) on the radius, four times over.
         var seam = IogVeins("hematite").Single();
-        Assert.Equal(Attribute(seam, "radius") * Math.Sqrt(0.0416 * 4), Field(seam, "Radius").avg, 3);
+        Assert.Equal(Attribute(seam, "radius") * Math.Sqrt(0.0527 * 4), Field(seam, "Radius").avg, 3);
 
         // Coal is not graded ore: its quarter cut only.
         var coal = IogVeins("bituminouscoal").First();

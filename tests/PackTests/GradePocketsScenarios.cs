@@ -61,7 +61,7 @@ public class GradePocketsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         int varied = 0;
         var oneGrade = new List<string>();
         var keys = new[] { "copper", "iron", "tin", "zinc", "lead", "bismuth" }
-            .SelectMany(m => new[] { (12_000, -12_000), (-12_000, 12_000) }
+            .SelectMany(m => new[] { (12_000, -12_000), (-12_000, 12_000), (12_000, 12_000), (-12_000, -12_000) }
                 .Select(o => new DepositKey(m, cells.CellOf(m, spawn.X + o.Item1, spawn.Z + o.Item2))))
             .Distinct();
         foreach (var key in keys)
