@@ -12,7 +12,7 @@
 	"outputCell": [0, 0, 2],
 	"outputFace": "south",
 	"feedSpout": {"pos": [0.5, 0.7125, 0.8438]},
-	"spray": {"pos": [0.5, 0.6188, 0.775]},
+	"spray": {"pos": [0.5, 0.61, 0.775]},
 	"amalgam": {"pos": [0.5, 0.5263, 1.5437]},
 	"trapWell": {"pos": [0.5, 0.1062, 2.4406]},
 	"levels": [{"level": 1, "name": "the table and plates", "requires": ["plates", "dressing"]}, {"level": 2, "name": "the mercury trap", "requires": ["plates", "dressing", "trap"]}],

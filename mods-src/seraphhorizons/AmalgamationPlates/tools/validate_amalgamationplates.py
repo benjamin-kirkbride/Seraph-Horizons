@@ -232,11 +232,11 @@ def check_anchors(v):
     # water: the inlet's end on the west face, its section ppex's, on the face's centre
     wc = m.WATER_CELL
     for pid in m.PIPES:
-        tube = v.named(pid, r"_spray_")
+        tube = v.named(pid, r"_inlet_")
         lo, hi = aabb_of(tube)
         centre = ((lo[1] + hi[1]) / 2 - wc[1] * 16, (lo[2] + hi[2]) / 2 - wc[2] * 16)
         section = (round(hi[1] - lo[1], 6), round(hi[2] - lo[2], 6))
-        print(f"anchors: water cell {list(wc)} {rig['waterFace']}: {pid} from x {lo[0]:.2f}, ppex's {section[0]:.0f} x {section[1]:.0f} "
+        print(f"anchors: water cell {list(wc)} {rig['waterFace']}: {pid}'s inlet from x {lo[0]:.2f}, ppex's {section[0]:.0f} x {section[1]:.0f} "
               f"tube on the face's (y {centre[0]}, z {centre[1]})")
         if rig["waterFace"] != "west" or wc[0] != 0 or abs(lo[0]) > 1e-9 or section != (6.0, 6.0) or centre != (8.0, 8.0):
             v.fail(f"{pid} does not meet a ppex pipe end to end on the water face's centre")
@@ -573,6 +573,48 @@ def check_zfight(v):
         v.fail("faces z-fight")
 
 
+VANNER_SPRAY = (1.2, 0.4)                    # the vanner's spray pipe (Vanner/tools/make_shape.py): half across, wall
+
+
+def check_reducer(v):
+    """The water line narrows as the vanner's does: the inlet's bore is closed at its east end by the plug and
+    the spray pipe's bore together, with no gap and no overlap; the spray pipe is the vanner's size, its bore
+    inside the inlet's, starting at the plug's face, a ring of solder round it there and a solder cap closing
+    its east end; every nozzle stands on its south face past the reducer, inside its length, and clears the
+    head board's top."""
+    m = v.m
+    sp = m.solderedpipe
+    y, z = m.PIPE_C
+    i = m.PIPE_HALF - sp.WALL
+    sy, sz = m.SPRAY
+    si = m.SPRAY_HALF - m.SPRAY_WALL
+    for pid in m.PIPES:
+        plug = [e.aabb() for e in v.named(pid, r"_plug_")]
+        area = sum((hi[1] - lo[1]) * (hi[2] - lo[2]) for lo, hi in plug) + (2 * si) ** 2
+        xs = {(round(lo[0], 6), round(hi[0], 6)) for lo, hi in plug}
+        inside = all(y - i - 1e-9 <= lo[1] and hi[1] <= y + i + 1e-9 and z - i - 1e-9 <= lo[2] and hi[2] <= z + i + 1e-9 for lo, hi in plug)
+        bore_in = y - i <= sy - si and sy + si <= y + i and z - i <= sz - si and sz + si <= z + i
+        clash = [lo for lo, hi in plug if lo[1] < sy + si - 1e-9 and sy - si + 1e-9 < hi[1] and lo[2] < sz + si - 1e-9 and sz - si + 1e-9 < hi[2]]
+        slo, shi = aabb_of(v.named(pid, r"_spray_(down|up|north|south)$"))
+        rlo, rhi = aabb_of(v.named(pid, r"_reducer_"))
+        cap = v.named(pid, r"_spray_cap$")
+        nozzles = [e.aabb() for e in v.named(pid, r"_nozzle\d$")]
+        print(f"reducer: {pid}: the plug and the spray pipe's bore close {area:.2f} of the inlet's {(2 * i) ** 2:.2f} square voxels at x "
+              f"{sorted(xs)}; the spray pipe {shi[1] - slo[1]:.2f} across (the vanner's {2 * VANNER_SPRAY[0]}), x {slo[0]:.2f}..{shi[0]:.2f}; "
+              f"{len(nozzles)} nozzles")
+        if (abs(area - (2 * i) ** 2) > 1e-6 or xs != {(m.RUN_X1 - sp.WALL, m.RUN_X1)} or not inside or not bore_in or clash):
+            v.fail(f"{pid}: the plug and the spray pipe's bore do not close the inlet's end")
+        if (m.SPRAY_HALF, m.SPRAY_WALL) != VANNER_SPRAY or abs(slo[0] - m.RUN_X1) > 1e-9:
+            v.fail(f"{pid}: the spray pipe is not the vanner's, or does not start at the plug")
+        if abs(rlo[0] - m.RUN_X1) > 1e-9 or rhi[1] - rlo[1] <= shi[1] - slo[1] or len(cap) != 1 or abs(cap[0].aabb()[1][0] - shi[0]) > 1e-9:
+            v.fail(f"{pid}: no solder ring round the spray pipe at the plug, or no cap at its end")
+        head = m.BED_HEAD_Y + m.HEAD_H
+        for lo, hi in nozzles:
+            if not (rhi[0] < lo[0] and hi[0] < shi[0] - m.SPRAY_WALL and abs(lo[2] - shi[2]) < 1e-9
+                    and slo[1] <= lo[1] and hi[1] <= shi[1] and lo[1] > head):
+                v.fail(f"{pid}: a nozzle at x {lo[0]:.2f} is not on the spray pipe's south face past the reducer, over the head board")
+
+
 def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
@@ -582,6 +624,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v)
     check_floating(v)
     check_anchors(v)
+    check_reducer(v)
     check_bed(v)
     check_flows(v)
     check_trap(v)

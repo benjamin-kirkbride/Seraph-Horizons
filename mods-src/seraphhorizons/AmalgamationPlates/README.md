@@ -15,13 +15,14 @@ the model is #918. "Gameplay" below says what the rig offers it.
 
 **No power.** The plates take water and no power (#917: "Water, no power"), and nothing in them moves, so
 the rig has no `powerCell`, no `powerFace` and no driver: every part stands still, and is fitted or drawn by
-its `requires`. The modeling skill's rule "power like every other machine" does not apply: there is no
-mechanism to drive (`Open for the owner`, 1).
+its `requires`. This is an exception to the rule that every machine takes axle power, approved by the owner
+(2026-10-14): a plate table worked by gravity, the pulp running down the inclined plates under its own weight,
+so there is no mechanism to drive and no power cell.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/` and `Pipes/`, this folder's neighbours. The generic half of the
-generator is `Machines/tools/machinegen/`, unchanged by this machine; the spray pipe is built by
-`Pipes/tools/solderedpipe.py`, as the rosser's drip is.
+generator is `Machines/tools/machinegen/`, unchanged by this machine; the water line is built by
+`Pipes/tools/solderedpipe.py`, as the vanner's is.
 
 ## The machine
 
@@ -42,10 +43,10 @@ continues (#939: the plates before the sluice).
 | Key | Value | What |
 |---|---|---|
 | `feedCell`, `feedFace` | `[0,0,0]`, `up` | The infeed: vanilla's straight chute section, upright, in the head cell's top face, flush with it; a chute in the cell above meets it with no gap or step. It ends in the distributor, over its floor |
-| `waterCell`, `waterFace` | `[0,0,0]`, `west` | The water: the spray pipe's open end on the head cell's west face, ppex's 6 × 6 section on the face's centre, so a ppex pipe there meets it end to end (the rosser's rule) |
+| `waterCell`, `waterFace` | `[0,0,0]`, `west` | The water: the water line's inlet, a short length of ppex's full 6 × 6 pipe, open on the head cell's west face on the face's centre, so a ppex pipe there meets it end to end (the rosser's rule); it narrows through a soldered reducer to the spray pipe |
 | `outputCell`, `outputFace` | `[0,0,2]`, `south` | The outlet: vanilla's straight chute section along z in the foot cell's end face, flush with it, its end butting the tail box's south wall, whose sill pours into its bore |
 | `feedSpout` | `[0.5, 0.7125, 0.8438]` | Where the pulp leaves the distributor through its holes onto the head of the plates |
-| `spray` | `[0.5, 0.6188, 0.775]` | The spray's nozzles, over the head of the plates |
+| `spray` | `[0.5, 0.61, 0.775]` | The spray's nozzles, over the head of the plates |
 | `amalgam` | `[0.5, 0.5263, 1.5437]` | The middle of the plates, on the dressing: scraping sounds and particles |
 | `trapWell` | `[0.5, 0.1062, 2.4406]` | The mercury in the trap's well (level 2's clean-up) |
 | `levels` | | What each level fits, by `requires` |
@@ -81,7 +82,7 @@ machines' amalgam reads the same (a check). `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/amalgamationplates.json` | The whole machine, every fitted part, every amalgam state and both pipe metals (115 elements) |
+| `assets/seraphhorizons/shapes/block/amalgamationplates.json` | The whole machine, every fitted part, every amalgam state and both pipe metals (135 elements) |
 | `assets/seraphhorizons/shapes/block/amalgamationplates_frame.json` | The frame only (53 elements). The block draws it and the inventory shows it |
 | `assets/seraphhorizons/config/amalgamationplates-rig.json` | The cells, the anchors and the part rig (10 parts) |
 
@@ -111,10 +112,14 @@ into it from the top face (to y 13.0), held between two oak cross bars on its wa
 its floor and leaves through a row of seven holes along the floor's lower edge (z 12.8..14.2), over the head
 of the first plate.
 
-**The spray pipe** (`pipecopper` or `pipelead`) is one length of ppex's straight pipe drawn soldered, from the
-west face straight across the head under the distributor (y 5..11, z 5..11) to a soldered cap at x 14.4,
-resting on an oak block at its east end; five nozzles on its south face (y 9.9..10.9, to z 12.4) play over
-the head board onto the head of the first plate.
+**The water line** (`pipecopper` or `pipelead`) is the vanner's, drawn soldered in the same dimensions and
+textures so the two read alike: the **inlet**, a short length of ppex's full 6 × 6 pipe from the west face
+(x 0..2, y 5..11, z 5..11), is plugged at its east end round a smaller **spray pipe** (2.4 across round a
+1.6 bore, the vanner's), a ring of solder round it where it leaves the plug (the **reducer**). The spray pipe
+sits high and south in the plug (its axis y 9.2, z 9.2, its bore inside the inlet's) and runs on across the
+head under the distributor to a soldered cap at x 14.4, resting on an oak block at its east end; five nozzles
+on its south face (0.6 across, y 9.76..10.36, to z 12.4) play over the head board onto the head of the first
+plate. A period spray pipe was a small perforated pipe; the reducer gives it that size off ppex's pipe.
 
 **The tail box** is a plank box on the ground past the sills' ends, the whole width of the bed (x 0.2..15.8,
 z 36.0..43.4), its walls (to y 6.1) under the bed's foot, which overhangs it: the pulp falls off the lip into
@@ -171,12 +176,16 @@ state. The checks run over every state:
 - **Thickness:** nothing thinner than 0.6 across but the plates, coats, amalgam, mercury and pipe walls.
 - **Containment:** nothing leaves the 1 × 1 × 3 box.
 - **Nothing floats:** in every state, everything shown is joined to the ground.
-- **Anchors:** the spray pipe meets a ppex pipe end to end on the water face's centre in ppex's 6 × 6 tube;
+- **Anchors:** the water line's inlet meets a ppex pipe end to end on the water face's centre in ppex's 6 × 6 tube;
   the infeed is vanilla's upright chute section at the feed cell's top face (its walls' section, place and
   length), its foot inside the distributor over its floor; the outlet is vanilla's chute section along z at
   the output cell's end face, the sill inside its bore and its end butting the wall all round; `VANILLA_CHUTE`
   is the game's `shapes/block/metal/chute/straight.json` where the game is installed (`$VINTAGE_STORY` or
   `~/Games/vintagestory`).
+- **The reducer:** the plug and the spray pipe's bore close the inlet's end exactly (no gap, no overlap),
+  the spray pipe's bore inside the inlet's; the spray pipe is the vanner's size and starts at the plug's
+  face, a solder ring round it there and a solder cap at its end; every nozzle stands on its south face past
+  the reducer, inside its length, and over the head board's top.
 - **The bed:** it falls 1 in 10; the plates lie flat on its floor between the side boards, in order, from
   past the head board to short of the lip; the side boards stand a voxel or more over the plates; each
   trestle's bearer is just under the bed.
@@ -222,7 +231,7 @@ the amalgam have colours of their own (the amalgam pan's texture families).
 Element names are the rig's interface (first-match globs, in the rig's order): `am1_*`, `am2_*`, `am3_*` (the
 amalgam states), `pd_coat1`..`3`, `pl_plate1`..`3`, `tr_*` (`floor`, `wall_n`, `wall_w`, `wall_e`, `weir`,
 `baffle`, `lug_w`, `lug_e`, `plug`, `mercury`), `ch_in_*` and `ch_out_*`, `pipecopper_*` and `pipelead_*`
-(`spray_*`, `cap`, `nozzle1`..`5`), and `fr_*` for the frame (`sill_*`, `post_*`, `bearer*`, `leg*`,
+(`inlet_*`, `plug_*`, `reducer_*`, `spray_*`, `spray_cap`, `nozzle1`..`5`), and `fr_*` for the frame (`sill_*`, `post_*`, `bearer*`, `leg*`,
 `bed_floor*`, `bed_side_*`, `bed_head`, `dist_*`, `tb_*`, `pipe_rest`). Hand edits are lost when the script
 runs again: port them into `make_shape.py`, or stop regenerating.
 
@@ -251,40 +260,26 @@ From `735-concentrator-model-v2` (copied, not merged; its evaluation is
 - **The anchors** (#711 has not landed): the chute sections follow `VANILLA_CHUTE` as the v2 branches did, the
   water face the rosser's rule. The feed and the water both use the controller cell (two faces of it), so the
   controller itself would take the chute and the pipe; if #711's shared code wants a ghost per service, the
-  water would need its own cell, which 1 × 1 × 3 does not have at the head (`Open for the owner`, 2).
+  water would need its own cell, which 1 × 1 × 3 does not have at the head (`Open for the owner`, 1).
 - **The mercury texture** is the amalgam pan's provisional one.
 - **No client run:** reviewed in projections rendered from the written files and in the site's viewer only.
 
 ## Open for the owner
 
-1. **No power.** #917 and #940 say the plates take no power; the modeling skill says "power like every other
-   machine". The model has no axle, `powerCell` or `powerFace`, as the spec says.
-2. **The water face is the controller's.** A 1-high cell's side faces all centre at y 8, and the bed's head
-   must be lower than the spray, so the only face the spray pipe can come in at is the head cell's: west
+Settled by the owner (2026-10-14): no power (a plate table worked by gravity, the exception above); the
+dressing stays its own `requires`; one trap well; the amalgam growing from the head down; the plates 13.2
+wide; the outlet in the end face; the head at the front; the distributor box with holes; the water line
+narrowed through the vanner's soldered reducer to a small spray pipe.
+
+1. **The water face is the controller's.** A 1-high cell's side faces all centre at y 8, and the bed's head
+   must be lower than the spray, so the only face the water line can come in at is the head cell's: west
    (the front, north, would put the pipe where the player stands). The feed is the same cell's top face.
-3. **The trap's form.** A cast-iron well with one hanging baffle, standing in the frame's tail box (the
-   box is level 1's: the pulp must reach the outlet without the trap). #917 says "traps"; this is one. Its
-   mercury is part of `trap`; the amalgam it catches is not drawn.
-4. **The dressing as its own `requires`.** It lets a stage (mercury rubbed into the plates) or a state
-   (undressed plates) be drawn; drop it into `plates` if the plates always come dressed.
-5. **The amalgam states**: exclusive parts, the amalgam pan's lead-solder paste, growing from the head down
-   (patches, then sheets, then ridges); whether they should instead grow evenly, and the thicknesses
-   (0.12, 0.16, 0.52 at most).
-6. **The plates' width**: 13.2 voxels between the side boards, not the full 16; a plate 16 wide would need
-   the bed to fill the footprint with no side boards, or the bed 2 wide (#918's alternative).
-7. **The outlet in the end face**, not the bottom face: the plates stand on the ground and the next machine
-   sits a block lower, its infeed in its top face. A bottom-face outlet would need the plates raised.
-8. **Head at the front.** The controller is the head (the distributor), and the plates fall away from the
-   player; the other way round would put the outlet where the player stands.
-9. **The spray pipe** is ppex's own 6 × 6 pipe across the head, under the distributor, with five stub
-   nozzles; a period spray pipe was a small perforated pipe. A smaller pipe would need a reducer ppex does not
-   have.
-10. **The distributor**: a box with a row of holes in its floor, across the whole width, resting on cleats
-    on the side boards at its south end; a splash plate or a box with notched lips are the alternatives.
-11. **The lids**: every column lidded at the top of the block (the head cell's chute reaches it), so a player
-    walks over the plates at y 1, not on them; the rosser leaves its beds unlidded.
-12. **Build stages** (#918): not designed. The `requires` split where a stage could: the chute sections, the
-    plates, the dressing, the trap, the pipe.
+2. **The trap's mercury** is part of `trap`; the amalgam it catches is not drawn.
+3. **The amalgam's thicknesses** (0.12, 0.16, 0.52 at most).
+4. **The lids**: every column lidded at the top of the block (the head cell's chute reaches it), so a player
+   walks over the plates at y 1, not on them; the rosser leaves its beds unlidded.
+5. **Build stages** (#918): not designed. The `requires` split where a stage could: the chute sections, the
+   plates, the dressing, the trap, the pipe.
 
 ## Gameplay
 

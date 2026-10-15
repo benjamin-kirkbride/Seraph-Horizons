@@ -4,7 +4,8 @@ These hold what the generator wrote to its own rules, without running it: the sh
 shared rig maths, uses its `requires` vocabulary and has no driver, no power and no work (the plates take no
 power: nothing in them moves); the cells are rebuilt from the shipped shape; the anchors are the head cell's
 top face (the infeed) and west face (the water) and the foot cell's end face (the outlet); the chute sections
-are vanilla's; the spray pipe meets a ppex pipe end to end; the bed falls 1 in 10; the amalgam is the amalgam
+are vanilla's; the water line's inlet meets a ppex pipe end to end and narrows through a soldered reducer to
+the vanner's spray pipe; the bed falls 1 in 10; the amalgam is the amalgam
 pan's; every texture is declared and exists. Run with `python3 -m unittest discover -s tools/tests`.
 """
 
@@ -90,13 +91,29 @@ class Rig(unittest.TestCase):
 
 
 class Anchors(unittest.TestCase):
-    def test_the_spray_pipe_meets_a_ppex_pipe_on_the_water_faces_centre(self):
+    def test_the_inlet_meets_a_ppex_pipe_on_the_water_faces_centre(self):
         for metal in ("pipecopper", "pipelead"):
-            tube = elements(f"{metal}_spray_")
+            tube = elements(f"{metal}_inlet_")
             self.assertEqual(len(tube), 4)
             (x0, _), (y0, y1), (z0, z1) = span(tube, 0), span(tube, 1), span(tube, 2)
             self.assertEqual(x0, 0.0)
             self.assertEqual((y0, y1, z0, z1), (5.0, 11.0, 5.0, 11.0))     # ppex's 6 x 6 tube, its block's 5..11
+
+    def test_the_inlet_narrows_through_a_soldered_reducer_to_the_vanners_spray_pipe(self):
+        for metal in ("pipecopper", "pipelead"):
+            _, ix1 = span(elements(f"{metal}_inlet_"), 0)
+            spray = [e for e in elements(f"{metal}_spray_") if not e["name"].endswith("_cap")]
+            (sx0, sx1), (sy0, sy1), (sz0, sz1) = span(spray, 0), span(spray, 1), span(spray, 2)
+            self.assertAlmostEqual(sy1 - sy0, 2.4)                         # the vanner's spray pipe, 2.4 across
+            self.assertAlmostEqual(sz1 - sz0, 2.4)
+            self.assertEqual(sx0, ix1)                                     # it leaves the inlet's plugged end
+            self.assertTrue(elements(f"{metal}_plug_"))
+            ring = elements(f"{metal}_reducer_")
+            self.assertEqual(len(ring), 4)
+            self.assertEqual({f["texture"] for e in ring for f in e["faces"].values()}, {"#solder"})
+            (cap,) = elements(f"{metal}_spray_cap")
+            self.assertEqual(max(cap["from"][0], cap["to"][0]), sx1)
+            self.assertEqual({f["texture"] for f in cap["faces"].values()}, {"#solder"})
 
     def test_the_chute_sections_are_vanillas(self):
         walls = sorted(tuple(w) for w in make_shape.VANILLA_CHUTE["walls"])

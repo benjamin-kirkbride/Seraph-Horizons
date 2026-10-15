@@ -16,9 +16,10 @@ the amalgam and mercury the stream scours off the plates.
 It takes no power: nothing in it moves (#917: "Water, no power"), so the rig has no power cell and no driver,
 and every part is a still part fitted or drawn by gameplay. Continuous: one vanilla copper chute section in
 through the head cell's top face into the distributor, one out through the foot cell's end face (`chutes`);
-water from a Pipes and Power Expanded pipe on the head cell's west face, which is the spray pipe itself,
-drawn soldered in copper or lead (Pipes/tools/solderedpipe.py, as the rosser's drip): a `pipecopper` and a
-`pipelead` part, the same elements, one drawn. The amalgam builds up on the plates in three states
+water from a Pipes and Power Expanded pipe on the head cell's west face, met by a short length of ppex's
+pipe that narrows through a soldered plug (a reducer) to a small spray pipe across the head, as the vanner's
+water line, drawn soldered in copper or lead (Pipes/tools/solderedpipe.py): a `pipecopper` and a `pipelead`
+part, the same elements, one drawn. The amalgam builds up on the plates in three states
 (`amalgam1`..`amalgam3`, one drawn at a time) and is scraped off by hand. Everything is built here from plain
 boxes; no other mod's model is used.
 
@@ -97,7 +98,7 @@ TEXTURES = {
     "chute": "game:block/metal/sheet/copper1",     # vanilla's chute section, as a placed chute shows in the pack
     "pipecopper": "game:block/metal/sheet-plain/copper4",   # the spray pipe in copper (UnifiedPipes' copper pipe)
     "pipelead": "game:block/metal/sheet-plain/lead4",       # ... in lead (UnifiedPipes' lead pipe)
-    "solder": solderedpipe.SOLDER_TEXTURE,         # the spray pipe's soldered cap
+    "solder": solderedpipe.SOLDER_TEXTURE,         # the reducer and the spray pipe's cap
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 AMALGAM_PAN_SHAPE = SHAPE_DIR / "amalgampan.json"   # the amalgam's texture is held to the amalgam pan's
@@ -191,18 +192,25 @@ PLUG_Y = (1.8, 2.6)                          # the drain plug, from the well's e
 PLUG_Z = (39.4, 40.2)
 PLUG_X1 = 15.95
 
-# ---------------------------------------------------------------- the spray pipe (soldered ppex pipe)
-# ppex's straight pipe, soldered: the inlet from the west face, on the axis of the ppex pipe beyond it, runs
-# straight across the head under the distributor and is plugged with solder at its east end; five nozzles on
-# its south face, over the head board, play onto the head of the plates. As in the rosser's drip, there is no
-# joint at the face: the pipe beyond brings its own.
+# ---------------------------------------------------------------- the water line (soldered ppex pipe, reduced)
+# As the vanner's: a short length of ppex's full 6 x 6 pipe from the west face, on the axis of the ppex pipe
+# beyond it, plugged at its east end round a smaller soldered spray pipe (a reducer, its seam soldered); the
+# spray pipe runs on across the head under the distributor to a soldered cap, five nozzles on its south face
+# playing over the head board onto the plates. The spray pipe sits high and south in the plug (its bore inside
+# the ppex pipe's), so its nozzles clear the head board. As in the rosser's drip, there is no joint at the
+# face: the pipe beyond brings its own. The vanner's dimensions and textures, so the two read alike.
 PIPE_HALF = solderedpipe.HALF                # 3: ppex's pipe is 6 across
-PIPE_C = (8.0, 8.0)                          # (y, z): its axis, the west face's centre
-PIPE_END = 14.4                              # its east end, plugged
-NOZZLE_XS = (2.6, 5.3, 8.0, 10.7, 13.4)
-NOZZLE_Y = (9.9, 10.9)
-NOZZLE_Z1 = 12.4                             # each nozzle from the pipe's south face to here
-REST = (12.0, 13.6, 6.4, 9.6)                # the pipe's rest under its east end: x0, x1, z0, z1, on the ground
+PIPE_C = (8.0, 8.0)                          # (y, z): the inlet's axis, the west face's centre
+RUN_X1 = 2.0                                 # the inlet's east end, plugged round the spray pipe
+SPRAY = (9.2, 9.2)                           # (y, z): the spray pipe's axis, its bore at the top south corner of the inlet's
+SPRAY_HALF, SPRAY_WALL = 1.2, 0.4            # the vanner's spray pipe: 2.4 across round a 1.6 bore
+REDUCER_L = 0.6                              # the solder ring round the spray pipe where it leaves the plug (the vanner's)
+PIPE_END = 14.4                              # the spray pipe's east end, capped
+NOZZLE_XS = (3.4, 5.9, 8.4, 10.9, 13.4)
+NOZZLE_W = 0.6                               # each nozzle: across (x and y)
+NOZZLE_Y = (9.76, 9.76 + NOZZLE_W)           # high on the spray pipe's south face: clear over the head board
+NOZZLE_Z1 = 12.4                             # each nozzle from the spray pipe's south face to here
+REST = (12.0, 13.6, 8.4, 10.0)               # the spray pipe's rest under its east end: x0, x1, z0, z1, on the ground
 
 # ---------------------------------------------------------------- the amalgam, in three states
 # Each state's pieces: (plate 1..3, from, to (fractions of the plate's length), x0, x1, height over the dressing
@@ -410,7 +418,7 @@ def build_tailbox():
 
 def build_pipe_rest():
     x0, x1, z0, z1 = REST
-    return [box([x0, 0.0, z0], [x1, PIPE_C[0] - PIPE_HALF, z1], "fr_pipe_rest", "frame", "oak")]
+    return [box([x0, 0.0, z0], [x1, SPRAY[0] - SPRAY_HALF, z1], "fr_pipe_rest", "frame", "oak")]
 
 
 def build_frame():
@@ -543,17 +551,45 @@ def build_trap():
 
 
 # ---------------------------------------------------------------- builders: the spray pipe (soldered pipe)
+def small_tube(name, x0, x1, centre, half, wall, role):
+    """A small square tube along x from x0 to x1 about `centre` = (y, z): four walls round its bore, as
+    solderedpipe's tube is built, at the spray pipe's size (the vanner's)."""
+    y, z = centre
+    i = half - wall
+    B_ = solderedpipe.Box
+    return [B_(f"{name}_down", [x0, y - half, z - half], [x1, y - i, z + half], role),
+            B_(f"{name}_up", [x0, y + i, z - half], [x1, y + half, z + half], role),
+            B_(f"{name}_north", [x0, y - i, z - half], [x1, y + i, z - i], role),
+            B_(f"{name}_south", [x0, y - i, z + i], [x1, y + i, z + half], role)]
+
+
 def pipe_boxes():
-    """The spray pipe as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels): one straight
-    length from the west face, on the axis of the ppex pipe beyond it, across the head to its east end, plugged
-    there with solder; five nozzles on its south face."""
+    """The water line as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels), as the
+    vanner's: the inlet, ppex's 6 x 6 pipe from the west face on the axis of the ppex pipe beyond it, plugged
+    at its east end round the spray pipe's bore (a reducer, its seam soldered); the spray pipe, smaller, across
+    the head to its east end, capped there with solder; five nozzles on its south face."""
     y, z = PIPE_C
-    out = solderedpipe.tube("spray", 0, 0.0, PIPE_END, (z, y))
-    i_ = PIPE_HALF - solderedpipe.WALL
-    out.append(solderedpipe.Box("cap", [PIPE_END - solderedpipe.WALL, y - i_, z - i_], [PIPE_END, y + i_, z + i_], solderedpipe.SOLDER))
-    for i, nx in enumerate(NOZZLE_XS, 1):
-        out.append(solderedpipe.Box(f"nozzle{i}", [nx - 0.6, NOZZLE_Y[0], z + PIPE_HALF], [nx + 0.6, NOZZLE_Y[1], NOZZLE_Z1],
-                                    solderedpipe.BODY))
+    h = PIPE_HALF
+    Bx = solderedpipe.Box
+    out = solderedpipe.tube("inlet", 0, 0.0, RUN_X1, (z, y))
+    # the plug in the inlet's east end, round the spray pipe's bore: four plates inside its walls
+    i = h - solderedpipe.WALL
+    sy, sz = SPRAY
+    si = SPRAY_HALF - SPRAY_WALL
+    p0, p1 = RUN_X1 - solderedpipe.WALL, RUN_X1
+    out += [Bx("plug_down", [p0, y - i, z - i], [p1, sy - si, z + i], solderedpipe.BODY),
+            Bx("plug_up", [p0, sy + si, z - i], [p1, y + i, z + i], solderedpipe.BODY),
+            Bx("plug_north", [p0, sy - si, z - i], [p1, sy + si, sz - si], solderedpipe.BODY),
+            Bx("plug_south", [p0, sy - si, sz + si], [p1, sy + si, z + i], solderedpipe.BODY)]
+    out = [b for b in out if all(b.hi[k] - b.lo[k] > 1e-9 for k in range(3))]
+    # the reducer's joint: a ring of solder round the spray pipe where it leaves the plug
+    j = solderedpipe.JOINT_SWELL
+    out += small_tube("reducer", RUN_X1, RUN_X1 + REDUCER_L, SPRAY, SPRAY_HALF + j, j, solderedpipe.SOLDER)
+    out += small_tube("spray", RUN_X1, PIPE_END, SPRAY, SPRAY_HALF, SPRAY_WALL, solderedpipe.BODY)
+    out.append(Bx("spray_cap", [PIPE_END - SPRAY_WALL, sy - si, sz - si], [PIPE_END, sy + si, sz + si], solderedpipe.SOLDER))
+    for k, nx in enumerate(NOZZLE_XS, 1):
+        out.append(Bx(f"nozzle{k}", [nx - NOZZLE_W / 2, NOZZLE_Y[0], sz + SPRAY_HALF], [nx + NOZZLE_W / 2, NOZZLE_Y[1], NOZZLE_Z1],
+                      solderedpipe.BODY))
     return solderedpipe.cull_pressed(out)
 
 

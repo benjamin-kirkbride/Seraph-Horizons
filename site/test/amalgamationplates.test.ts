@@ -8,7 +8,7 @@ import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs,
 // The amalgamation plates' shipped files (AmalgamationPlates/tools/make_shape.py). The plates take no power and
 // nothing in them moves: the rig has no driver, so it reads no input and every part's matrix is the identity.
 // Its parts are what gameplay fits or draws: the chute sections, the plates and their mercury dressing, the
-// amalgam in three states (one drawn at a time), the level-2 trap and the spray pipe in copper or lead.
+// amalgam in three states (one drawn at a time), the level-2 trap and the water line in copper or lead.
 // tools/tests/test_amalgamationplates_model.py checks the same files against the generator's rules.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
@@ -58,6 +58,19 @@ describe("the amalgamation plates' rig", () => {
     expect([...codes.pipelead!].sort()).toEqual(["pipelead", "solder"]);
     expect(shape.textures!.amalgam).toBe(pan.textures!.amalgam);
     expect(shape.textures!.mercury).toBe(pan.textures!.mercury);
+  });
+
+  it("draws the water line as the vanner's: ppex's pipe at the face, a soldered reducer, then the small spray pipe", () => {
+    const flat = flattenShape(shape.elements);
+    const globs = compileGlobs(parts);
+    for (const metal of ["pipecopper", "pipelead"]) {
+      const names = flat.filter((f) => parts[partOf(globs, f.chain)]!.id === metal).map((f) => f.element.name!.slice(metal.length + 1));
+      const groups = new Set(names.map((n) => n.replace(/_(down|up|north|south|cap)$|\d+$/, "")));
+      expect([...groups].sort()).toEqual(["inlet", "nozzle", "plug", "reducer", "spray"]);
+      const ring = flat.filter((f) => f.element.name!.startsWith(`${metal}_reducer_`));
+      expect(ring).toHaveLength(4);
+      for (const f of ring) expect(textureCodes(f.element)).toEqual(["solder"]);
+    }
   });
 
   it("marks the infeed in the head cell's top face, the water on its west face and the outlet in the foot's end face", () => {
