@@ -142,6 +142,13 @@ public sealed class MineJobCells
     /// <see cref="Routes"/> so that it outlasts routes let go (a job down to one member) and new station plans,
     /// for as long as the area and the members present are those it was made for.</summary>
     public MineRouteChoice RouteChoice { get; } = new();
+
+    /// <summary>When a member last began a strike (game seconds; 0: none yet).</summary>
+    public double LastStrikeAt { get; set; }
+
+    /// <summary>The station plan whose routes stalled (no strike for a while by a crew all waiting on them): it
+    /// is dispatched as today's for the rest of that plan; -1 for none.</summary>
+    public int RoutesStalledPlan { get; set; } = -1;
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>

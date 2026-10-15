@@ -118,7 +118,7 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
                 Nearest = Math.Min(Nearest, d);
                 _touching[(i, j)] = _touching.TryGetValue((i, j), out var t)
                     ? t with { Nearest = Math.Min(t.Nearest, d) }
-                    : (now, d, $"{Describe(i)} and {Describe(j)}");
+                    : (now, d, $"from {now / 1000.0:0.0} s, {Describe(i)} and {Describe(j)}");
                 LongestMs = Math.Max(LongestMs, now - _touching[(i, j)].Since);
             }
             else if (_touching.Remove((i, j), out var t))
@@ -134,7 +134,8 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
 
     private string Describe(int i) =>
         $"{eidolons[i].EntityId} at {eidolons[i].Pos.XYZ} ({eidolons[i].Orders?.OrderCode}, {Status(eidolons[i])}, "
-        + $"motion {eidolons[i].Pos.Motion.X:0.000} {eidolons[i].Pos.Motion.Z:0.000}{(eidolons[i].ClimbTop is { } t ? $", climbing to {t}" : "")})";
+        + $"motion {eidolons[i].Pos.Motion.X:0.000} {eidolons[i].Pos.Motion.Z:0.000}{(eidolons[i].ClimbTop is { } t ? $", climbing to {t}" : "")}; "
+        + $"{orders[i].DebugState})";
 
     /// <summary>Contact deeper than <see cref="MinCentres"/>, or null: what an assertion says, with every
     /// contact (each still going counted as it stands).</summary>
