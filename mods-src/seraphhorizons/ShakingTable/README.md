@@ -10,7 +10,7 @@ side. Crushed or ground ore comes in by chute; three chutes take out the **conce
 
 This folder holds the model's generator and its rig (`tools/`). The gameplay is #921 and is not built yet; the
 model is #922. The line, the glossary and the period sources are #939, the power and water budget #940, the
-shared machine code (chutes, the water reservoir, levels) #711.
+shared machine code (chutes, the water reservoir) #711.
 
 **Salvaged** from `735-concentrator-model-v2` (its wash house's table, its evaluation in the v3 brief): the box,
 disc, slope and launder helpers, the deck's boards, joists, riffles, feed box, water box, lip and `tilt`, the
