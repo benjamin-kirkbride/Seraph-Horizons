@@ -216,7 +216,7 @@ ROLES = [
     (r"^pinion_", {"steel"}),
     (r"^drum_plate", {"riveted"}),
     (r"^drum_", {"iron"}),
-    (r"^girth_bolt", {"iron"}),
+    (r"^girth_(bolt|band)", {"iron"}),
     (r"^girth_", {"oak", "oak-end"}),
     (r"^screens_coarse", {"perforated"}),
     (r"^screens_fine", {"wirecloth"}),
@@ -519,13 +519,22 @@ def check_wooden_girth(v):
     bolted through it (each bolt head on the felloes' face, inside the flange's radius); oak cogs mortised through
     the felloes (their tails inside the felloes' bore, their tips at the addendum) and thicker than the metal
     pinion's teeth (wood needs the coarser share of the pitch); the wheel's tips inside the heads' radius; only
-    the bolts iron. The pinion is stainless (a metal gear)."""
+    the bolts and the tyre iron, the tyre shrunk on round the felloes and under the cogs' root (clear of the
+    mesh). The pinion is stainless (a metal gear)."""
     m = v.m
     els = v.named("girth", r".")
-    oak = [e for e in els if not e.name.startswith("girth_bolt")]
+    oak = [e for e in els if not e.name.startswith(("girth_bolt", "girth_band"))]
     woody = all({f["texture"].lstrip("#") for f in e.faces.values()} <= {"oak", "oak-end"} for e in oak)
     bolts = v.named("girth", r"_bolt")
-    iron = all({f["texture"].lstrip("#") for f in e.faces.values()} == {"iron"} for e in bolts)
+    band = v.named("girth", r"_band")
+    iron = all({f["texture"].lstrip("#") for f in e.faces.values()} == {"iron"} for e in bolts + band)
+    # the tyre: round the felloes' outside, closed (a box between every two cogs), under the cogs' root
+    root = m.GIRTH_R - 1.25 * m.MODULE
+    fel_out = max(math.hypot(*(c - d for c, d in zip(p[1:], (m.DRUM_Y, m.DRUM_Z))))
+                  for e in v.named("girth", r"_felloe") for p in e.corners())
+    band_r = [math.hypot(*(c - d for c, d in zip(p[1:], (m.DRUM_Y, m.DRUM_Z)))) for e in band for p in e.corners()]
+    tyre = (len(band) == 2 * m.GIRTH_T and band_r and min(band_r) >= fel_out - 0.6
+            and max(band_r) < root + 0.25 and m.BAND_T >= 0.25)
     courses = [aabb_of(v.named("girth", rf"_felloe{k}_")) for k in (1, 2)]
     flange = aabb_of(v.named("drum", r"_flange\d"))
     on_flange = abs(courses[0][0][0] - flange[1][0]) < 0.05 and m.FELLOE_R < m.FLANGE[1]
@@ -538,11 +547,12 @@ def check_wooden_girth(v):
     mortised = len(cogs) == m.GIRTH_T and m.COG_TAIL > 0 and m.COG_W > m.PINION_W
     tip = m.GIRTH_R + m.MODULE
     pin = {f["texture"].lstrip("#") for e in v.named("pinion", r"_gear_") for f in e.faces.values()}
-    print(f"wooden girth wheel: oak {woody}, iron bolts only {iron}; felloes on the drum's flange {on_flange}, two courses "
+    print(f"wooden girth wheel: oak {woody}, iron bolts and tyre only {iron}; an iron tyre of {len(band)} round the "
+          f"felloes under the cogs' root {tyre}; felloes on the drum's flange {on_flange}, two courses "
           f"with broken joints {broken}, {len(bolts)} bolts through the flange {bolted}; {len(cogs)} cogs mortised through, "
           f"{m.COG_W:.2f} thick against the pinion's {m.PINION_W:.2f} {mortised}; tips at r {tip:.2f} inside the heads' "
           f"{m.HEAD_R} {tip < m.HEAD_R}; the pinion {sorted(pin)}")
-    if not (woody and iron and on_flange and broken and bolted and mortised and tip < m.HEAD_R and pin == {"stainless"}):
+    if not (woody and iron and tyre and on_flange and broken and bolted and mortised and tip < m.HEAD_R and pin == {"stainless"}):
         v.fail("the girth wheel is not a wooden mortise wheel bolted to the drum's flange, or the pinion is not stainless")
 
 

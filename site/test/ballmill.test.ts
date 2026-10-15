@@ -82,13 +82,14 @@ describe("the ball mill's rig against its rig-reference.json", () => {
     }
   });
 
-  it("draws the girth wheel in oak (iron bolts only) and the pinion in stainless, as the owner ruled", () => {
+  it("draws the girth wheel in oak (iron only its bolts and tyre) and the pinion in stainless, as the owner ruled", () => {
     const els = shape.elements as unknown as { name: string; faces: Record<string, { texture: string }> }[];
     const tex = (e: (typeof els)[number]) => new Set(Object.values(e.faces).map((f) => f.texture.replace("#", "")));
     const girth = els.filter((e) => e.name.startsWith("girth_"));
     expect(girth.filter((e) => e.name.startsWith("girth_cog")).length).toBe(24);
+    expect(girth.filter((e) => e.name.startsWith("girth_band")).length).toBe(48);
     for (const e of girth) {
-      const want = e.name.startsWith("girth_bolt") ? ["iron"] : ["oak", "oak-end"];
+      const want = /^girth_(bolt|band)/.test(e.name) ? ["iron"] : ["oak", "oak-end"];
       expect([...tex(e)].every((t) => want.includes(t))).toBe(true);
     }
     const gear = els.filter((e) => e.name.startsWith("pinion_gear_"));

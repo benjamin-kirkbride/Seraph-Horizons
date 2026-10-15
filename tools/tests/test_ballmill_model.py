@@ -78,13 +78,14 @@ class Rig(unittest.TestCase):
         self.assertNotIn("balls", {p["requires"] for p in RIG["parts"]})
 
     def test_the_girth_wheel_is_wooden_and_the_pinion_stainless(self):
-        # the owner's rulings: an oak mortise wheel (felloes, cogs) with iron bolts only; a metal gear is stainless
+        # the owner's rulings: an oak mortise wheel (felloes, cogs), iron only its bolts and tyre; a metal gear is stainless
         tex = {e["name"]: {f["texture"].lstrip("#") for f in e["faces"].values()} for e in SHAPE["elements"]}
         girth = {n: t for n, t in tex.items() if n.startswith("girth_")}
         self.assertEqual(sum(n.startswith("girth_cog") for n in girth), make_shape.GIRTH_T)
         self.assertTrue(any(n.startswith("girth_felloe2_") for n in girth))
+        self.assertEqual(sum(n.startswith("girth_band") for n in girth), 2 * make_shape.GIRTH_T)   # the iron tyre
         for n, t in girth.items():
-            self.assertLessEqual(t, {"iron"} if n.startswith("girth_bolt") else {"oak", "oak-end"}, n)
+            self.assertLessEqual(t, {"iron"} if n.startswith(("girth_bolt", "girth_band")) else {"oak", "oak-end"}, n)
         gear = set().union(*(t for n, t in tex.items() if n.startswith("pinion_gear_")))
         self.assertEqual(gear, {"stainless"})
         self.assertEqual({k: SHAPE["textures"][k] for k in ("oak", "oak-end", "stainless")},

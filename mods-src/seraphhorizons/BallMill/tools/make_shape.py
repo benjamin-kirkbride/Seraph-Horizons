@@ -15,8 +15,8 @@ west (the feed end) to east (the drive end), along the drum's axis:
               grinding plates, and the solid east journal; it turns about its axis at a third of the axle
     screens   round the drum and turning with it: a coarse screen of perforated plate, over it a fine
               screen of wire cloth on twelve longitudinal bars and a middle hoop
-    girth     a wooden mortise wheel of 24 oak cogs: two staggered courses of oak felloes, bolted to the
-              drum's cast flange on the east journal, outside the hopper
+    girth     a wooden mortise wheel of 24 oak cogs: two staggered courses of oak felloes in an iron tyre,
+              bolted to the drum's cast flange on the east journal, outside the hopper
     pinion    8 stainless teeth on its shaft in the pillow blocks, low at the front; the shaft's end is the vanilla
               axle's cross at the power face: the axle drives the pinion's shaft directly
     hopper    the discharge hopper under the screens: sheet-iron end plates, V sides, a floor falling to a
@@ -95,7 +95,7 @@ OUTPUT_CELL, OUTPUT_FACE = (1, 0, 1), "south"  # the output chute from the hoppe
 
 TEXTURES = {
     "stonebrick": "game:block/stone/brick/granite1",     # the masonry bed: cut granite
-    "iron": "game:block/metal/plate/iron",               # cast iron: pedestals, bearings, heads, the drum's flange; bolts
+    "iron": "game:block/metal/plate/iron",               # cast iron: pedestals, bearings, heads, the drum's flange; the girth's bolts and tyre
     "sheet": "game:block/metal/sheet/iron1",             # sheet iron: the feed box, the hopper
     "steel": "game:block/metal/sheet-plain/steel1",      # the pinion's shaft and collars
     "stainless": "game:block/metal/plate/stainlesssteel",  # the pinion (the owner's rule: a metal gear is stainless)
@@ -151,7 +151,8 @@ PINION_W = 0.34 * PITCH                      # wheel run with a metal pinion (wo
 GIRTH_X = (40.6, 43.0)                       # the wheel: the drum's flange, then the felloes, east of the hopper's end plate
 FLANGE = (4.8, 8.2, 40.6, 41.2)              # the drum's cast flange on the journal: radii, x
 FLANGE_HUB = (6.2, 43.1)                     # its hub along the journal: outer radius, east end
-FELLOE_R = 7.0                               # the felloes' inside; they run out to the cogs' root
+FELLOE_R = 7.0                               # the felloes' inside; they run out to the iron tyre
+BAND_T = 0.4                                 # the tyre shrunk on round the felloes, under the cogs' roots (clear of the mesh)
 FELLOE_X = (FLANGE[3], 42.1, GIRTH_X[1])     # two courses of six felloes, the east course turned half a felloe
 FELLOES = 6
 COG_TAIL = 0.5                               # a cog's tail shows inside the felloes (mortised through, wedged)
@@ -478,22 +479,24 @@ def grain(el, across=False, ends=()):
 
 def build_girth():
     """The girth wheel (turning with the drum), wooden: two courses of six oak felloes, the second turned half a
-    felloe so the joints break, on the drum's cast flange and bolted through it, and 24 oak cogs mortised through
-    the felloes, their tails showing inside."""
+    felloe so the joints break, on the drum's cast flange and bolted through it, an iron tyre shrunk on round
+    them, and 24 oak cogs mortised through felloes and tyre, their tails showing inside."""
     g = "girth"
     m, n = MODULE, GIRTH_T
     root = GIRTH_R - 1.25 * m
     ph = girth_phase()
     out = []
     seg = HEAD_N // FELLOES                  # a felloe: four boxes of a 24-gon
-    w = 2 * (root - 0.1) * math.tan(math.pi / HEAD_N)
+    band_out = root - 0.1                    # the tyre's outside, a hair under the cogs' root
+    rim = band_out - BAND_T                  # the felloes' outside, the tyre's inside
+    w = 2 * rim * math.tan(math.pi / HEAD_N)
     for k in range(2):
         x0, x1 = FELLOE_X[k], FELLOE_X[k + 1]
         start = ph + math.pi / n + k * math.pi / FELLOES
         for j in range(FELLOES):
             for i in range(seg):
                 st = 0.008 * (i % 4)
-                el = radial("x", DRUM_C, x0 + st, x1 - st, FELLOE_R, root - 0.1, w,
+                el = radial("x", DRUM_C, x0 + st, x1 - st, FELLOE_R, rim, w,
                             start + TAU * (j * seg + i + 0.5) / HEAD_N, f"{g}_felloe{k + 1}_{j + 1}_{i + 1}", g, "oak")
                 for f in el.faces.values():    # each felloe its own piece of the board: the joints read
                     f["uv"][0] += (7 * j + 11 * k) % 24
@@ -501,6 +504,9 @@ def build_girth():
                 out.append(grain(el, across=True))
     out += [grain(radial("x", DRUM_C, FELLOE_X[0] + 0.03, GIRTH_X[1] - 0.03, FELLOE_R - COG_TAIL, GIRTH_R + m, COG_W,
                          ph + TAU * i / n, f"{g}_cog{i + 1}", g, "oak"), ends=("up", "down")) for i in range(n)]
+    # the iron tyre round the felloes, the cogs coming out through it
+    out += ring("x", DRUM_C, FELLOE_X[0] + 0.05, GIRTH_X[1] - 0.05, rim, band_out, 2 * n, f"{g}_band", g, "iron",
+                phase=ph + math.pi / (2 * n))
     hw, hp = BOLT_HEAD
     for i in range(2 * FELLOES):
         out.append(radial("x", DRUM_C, GIRTH_X[1], GIRTH_X[1] + hp, BOLT_R - hw / 2, BOLT_R + hw / 2, hw,

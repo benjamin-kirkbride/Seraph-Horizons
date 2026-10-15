@@ -64,7 +64,7 @@ turn; the whole machine repeats every three (the viewer's θ slider spans three 
 |---|---|---|---|
 | Pinion: the vanilla axle's cross, the steel shaft, its two collars, 8 stainless teeth (`pinion`) [pinion] | The vanilla axle at the power face | The girth wheel | `rotate` x, 1 |
 | Drum: hollow west trunnion, two heads, riveted grinding plates, solid east journal, the cast flange on it (`drum`) [drum] | The girth wheel (bolted to its flange) | Lifts and tumbles the balls (not drawn) | `rotate` x, −1/3 |
-| Girth wheel, wooden: two courses of six oak felloes, 24 oak cogs mortised through them, 12 iron bolts (`girth`) [girth] | The pinion | The drum | rides `drum` |
+| Girth wheel, wooden: two courses of six oak felloes, an iron tyre round them, 24 oak cogs mortised through both, 12 iron bolts (`girth`) [girth] | The pinion | The drum | rides `drum` |
 | Screens: coarse (perforated plate), fine (wire cloth), 12 bars, a middle hoop (`screens`) [screens] | The drum (they turn with it, as Krupp's did) | — | rides `drum` |
 | Feed box, its legs, V floor, spout and infeed chute section (`feedbox`) [feedbox] | Fixed | — | none |
 | Discharge hopper, its feet, the output chute section and its bracket (`hopper`) [hopper] | Fixed | — | none |
@@ -77,7 +77,8 @@ the centre distance the cells fix (the power face's centre to the drum's axis, 1
 
 **The girth wheel is wooden** (the owner's ruling), a period mortise wheel: two courses of six oak felloes,
 the second course turned half a felloe so their joints break, bolted with twelve iron bolts to a cast flange on
-the drum's journal, and 24 oak cogs mortised through the felloes, their tails showing inside the rim. Wood
+the drum's journal, an iron tyre shrunk on round the felloes (under the cogs' roots, clear of the mesh),
+and 24 oak cogs mortised through felloes and tyre, their tails showing inside the rim. Wood
 needs a coarser pitch than iron, so the pair went from 10:30 to 8:24 (pitch 2.83 voxels against 2.27), and
 the cogs take 0.55 of the pitch (1.56 voxels thick) against the stainless pinion's 0.34 (0.96), the usual
 share when wood runs with metal. The wheel's tips (r 11.72) stay inside the heads' 11.8.
@@ -125,7 +126,7 @@ the drum, `machinegen.checks.with_lids`), so no one walking over the mill drops 
 | Pedestals and bearings | Cast iron: sole plates, columns, bearings closed round the trunnion and journal (r 4.8, walls 1.4), caps bolted down; the east bearing's end cover over the journal's end |
 | Drum | Axis y 20, z 16. West trunnion r 3.4..4.8, x 8.6..13.3; heads r 3.4..11.8, x 13.3..14.7 and 38.2..39.6; grinding plates r 8.2..9.0 (riveted); east journal r 4.8, x 39.5..46.9 |
 | Screens | Coarse r 9.5..9.9 (`perforated`, the game's mesh1), fine r 10.5..10.8 (`wirecloth`, mesh4), 12 bars r 10.8..11.4, a hoop r 10.8..11.6, x 14.7..38.2 |
-| Girth wheel | Oak: 24 cogs, module 0.901, pitch r 10.82, tips r 11.72, 1.56 thick, tails to r 6.5; felloes r 7.0..9.59 in two courses x 41.2..42.1 and 42.1..43.0; 12 bolts at r 7.6, heads 1.0 across, 0.15 proud |
+| Girth wheel | Oak: 24 cogs, module 0.901, pitch r 10.82, tips r 11.72, 1.56 thick, tails to r 6.5; felloes r 7.0..9.19 in two courses x 41.2..42.1 and 42.1..43.0, the iron tyre r 9.19..9.59 round them; 12 bolts at r 7.6, heads 1.0 across, 0.15 proud |
 | Drum's flange | Cast iron on the journal: r 4.6..8.2, x 40.6..41.2, its hub r 6.2 to x 43.1 |
 | Pinion | Stainless, 8 teeth 0.96 thick, pitch r 3.61, x 41.3..42.9, on a steel shaft (y 8, z 8) in two pillow blocks, collars outside them, the axle's cross from x 46.6 to the face |
 | Feed box | Sheet iron, x 0..8.2, y 20..30.4, z 3.2..21 on four legs; V floor 21 → 20.4; spout to x 11.4, falling to 19.4 |
@@ -135,9 +136,9 @@ the drum, `machinegen.checks.with_lids`), so no one walking over the mill drops 
 
 **Textures** by role (`validate_ballmill.ROLES`): cut granite for the bed; cast iron (`iron`) for the
 castings (pedestals, bearings, heads, trunnion and journal, the drum's flange, the screens' bars and hoop, the
-spout, legs, feet and brackets) and the girth wheel's bolts; oak (`oak`, end grain `oak-end` on the cogs' tips and
-tails, as the gantry's timbers) for the girth wheel; stainless (`stainless`) for the pinion; sheet iron (`sheet`) for the feed box and the hopper; steel for the pinion's shaft and collars
-and its shaft; riveted iron for the grinding plates; the game's mesh textures (they have holes, so
+spout, legs, feet and brackets) and the girth wheel's bolts and tyre; oak (`oak`, end grain `oak-end` on the cogs'
+tips and tails, as the gantry's timbers) for the girth wheel; stainless (`stainless`) for the pinion; sheet iron
+(`sheet`) for the feed box and the hopper; steel for the pinion's shaft and collars; riveted iron for the grinding plates; the game's mesh textures (they have holes, so
 in the game the drum shows through the screens) for the screens; the game's chute copper for the chute
 sections; the vanilla axle's own wood for its cross; the pipe's metal and solder.
 
@@ -177,7 +178,8 @@ A full run takes about 75 seconds. Output is deterministic (two runs into two fo
 - **Containment:** nothing leaves the box over the cycle. **Cells:** every footprint cell holds something.
 - **Gearing:** the pitch points move together and the ratio is the tooth counts'; over a whole turn of the
   pinion, every 2.5 degrees, no tooth runs into the other wheel and the mesh is always engaged.
-- **Wooden girth wheel:** oak felloes and cogs, only the bolts iron; the felloes' face on the drum's flange,
+- **Wooden girth wheel:** oak felloes and cogs, only the bolts and the tyre iron, the tyre round the felloes
+  under the cogs' root; the felloes' face on the drum's flange,
   overlapping it in radius; two courses with joints broken; the bolts on the felloes' face inside the flange's
   radius; the cogs mortised through (tails inside the felloes), thicker than the pinion's teeth; the tips inside
   the heads' radius; the pinion stainless.
@@ -243,10 +245,6 @@ open: the feed box stands for it.
    input). No manhole is drawn for charging the balls.
 10. **The girth wheel** is a little smaller than the heads (pitch r 10.8, tips 11.72, against 11.8) and turns outside the
     hopper; period spur wheels were about the drum's size.
-11. **The wooden girth wheel's details** (the owner's ruling for wood): 8:24 teeth (the ratio kept at a third);
-    no iron band round the felloes (one can go on the felloes' rim, under the cogs' roots); the flange it bolts
-    to is cast on the drum's journal and drawn with the drum (`requires` drum), so the drum's stage shows a bare
-    flange until the wheel goes on.
 
 Where the v2 branch (`733-grinder-model-v2`) disagrees with the issues, the issues were followed:
 its drum (0.95 × 0.6 blocks) is now about 1.5 × 1.7; its overhead power shaft is gone (the axle drives the
