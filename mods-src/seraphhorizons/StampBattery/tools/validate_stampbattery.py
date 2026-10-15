@@ -136,7 +136,7 @@ ALLOWED = [
     # the feed box on the shoot and hung on the back bearer
     ("feedbox", r"_floor|_[we]$", "mortar", r"_shoot"), ("feedbox", r"_back", "frame", r"fr_bearer_b"),
     # the water line in its hanger
-    ("pipecopper", r"_hub2_|_north_", "frame", r"fr_hanger"),
+    ("pipecopper", r"_north_", "frame", r"fr_hanger"),
 ]
 
 
@@ -226,6 +226,8 @@ TEX_RULES = [
     (r"^(fr_(gearcase|ped|hanger)|mortar_(floor|front|back|end|shoot)|camframe_pillow|camshaft_(hub|cam|bull_hub)|linepulley|"
      r"stamp\d_(head|tappet))", "iron"),
     (r"^(line_|camshaft_shaft|stamp\d_(shoe|stem)|mortar_die)", "steel"),
+    (r"^pipe(copper|lead)_reducer_", "solder"),
+    (r"^pipe(copper|lead)_cock\d", "bronze"),
     (r"^pipecopper_", "pipecopper"),
     (r"^pipelead_", "pipelead"),
     (r"^mortar_screen", "mesh"),
@@ -245,7 +247,7 @@ def check_textures(v):
         else:
             unruled.append(el.name)
     print(f"textures: {len(TEX_RULES)} rules (oak timber, planks for the feed box, iron castings, steel shafts and wearing parts, the "
-          f"water line's copper or lead, the game's chute for both chutes and the funnel, a mesh screen, leather belt): "
+          f"water line's copper or lead, its reducer's solder and its cocks' bronze, the game's chute for both chutes and the funnel, a mesh screen, leather belt): "
           f"{len(bad)} break them, {len(unruled)} have no rule")
     if bad:
         v.fail(f"textures by role: {bad[:4]}")
@@ -375,7 +377,7 @@ def check_paths(v):
     """The ore's way through the machine, at rest: the infeed chute drops into the feed box, whose floor falls steeply
     enough onto the shoot; the shoot falls from under the feed box's floor's lower end to the feed lip; the output
     funnel's mouth spans the whole screen, its back against the mortar's front under it, and its floor is level with the
-    output stub's and runs into it; and the water line's drop is over the feed opening."""
+    output stub's and runs into it."""
     m = v.m
     screen = aabb_of(v.named("mortar", r"_screen"))
     stub = aabb_of(v.named("mortar", r"_chuteout_bottom"))
@@ -383,7 +385,6 @@ def check_paths(v):
     shoot = aabb_of(v.named("mortar", r"_shoot$"))
     back = aabb_of(v.named("mortar", r"_back_lo"))
     box_floor = aabb_of(v.named("feedbox", r"_floor"))
-    drop = aabb_of(v.named("pipecopper", r"_drop_"))
     (ya, za), (yb, zb) = m.SHOOT_LO, m.SHOOT_HI
     shoot_deg = math.degrees(math.atan2(yb - ya, zb - za))
     (wa, wb), (ea, eb) = m.funnel_lines()
@@ -401,13 +402,53 @@ def check_paths(v):
         (f"the funnel's floor (top y {max(f[1][1] for f in floors):.2f}) is level with the stub's (y {stub[1][1]:.2f}) and reaches "
          f"the mortar's front", all(abs(f[1][1] - stub[1][1]) < 0.05 for f in floors)
          and max(f[1][2] for f in floors) > m.MORTAR_Z[0]),
-        ("the water line's drop is open over the mortar's back wall and the feed opening", drop[0][1] > m.MORTAR_Y[1]
-         and drop[0][2] < m.MORTAR_Z[1] and drop[1][2] > m.MORTAR_Z[1] - m.MORTAR_WALL and drop[1][0] > m.FEED_X[0]),
     ]
     for label, good in checks:
         print(f"paths: {label}: {good}")
         if not good:
             v.fail(label)
+
+
+def check_water(v):
+    """The water line's branches, at rest with everything fitted: one to each stamp, over its stem's line; each open
+    at its end (nothing of the pipe across its bore under the cock), and that end inside the mortar's feed opening:
+    over the lip and under the rim, within the opening's width, at or behind the lip's inner edge and behind the stamp's
+    shoe; and from it to the lip nothing of any part in the water's way. The line is ppex's full pipe at the water face,
+    the reducer, then the small pipe."""
+    m = v.m
+    els = [e for pid in v.parts_in("level1") for e in v.posed(pid, m.REST)]
+    pipe = v.by_part["pipecopper"]
+    inner = m.MORTAR_Z[1] - m.MORTAR_WALL
+    for k, x in enumerate(m.branch_xs(), 1):
+        lo, hi = aabb_of(v.named("pipecopper", rf"_spout{k}_"))
+        cx, cz = (lo[0] + hi[0]) / 2, (lo[2] + hi[2]) / 2
+        r = m.SMALL_HALF - m.SMALL_WALL - 0.05
+        capped = [e.name for e in pipe if e.aabb()[0][1] < lo[1] + 0.5 and inside(e, (cx, lo[1] + 0.1, cz), -0.01)]
+        pts = [(cx + r * a, y, cz + r * b) for a in (-1, 0, 1) for b in (-1, 0, 1)
+               for y in [m.FEED_LIP_Y + 0.1 + (lo[1] - m.FEED_LIP_Y - 0.2) * t / 4 for t in range(5)]]
+        hits = sorted({e.name for q in pts for e in els if inside(e, q)})
+        shoe = m.STEM_Z + m.SHOE_R
+        checks = [
+            (f"branch {k}: over stamp {k}'s stem (x {cx:.2f}), its end open", abs(cx - x) < 1e-6 and not capped),
+            (f"branch {k}: its end (y {lo[1]:.2f}, x {lo[0]:.2f}..{hi[0]:.2f}, z {lo[2]:.2f}..{hi[2]:.2f}) inside the feed opening, "
+             f"over the lip, at or behind its inner edge (z {inner:.2f}), behind the shoe (z {shoe:.2f})",
+             m.FEED_LIP_Y < lo[1] < m.MORTAR_Y[1] and m.FEED_X[0] <= lo[0] and hi[0] <= m.FEED_X[1]
+             and inner <= cz <= m.MORTAR_Z[1] and lo[2] > shoe),
+            (f"branch {k}: nothing between its end and the lip", not hits),
+        ]
+        for label, good in checks:
+            print(f"water: {label}: {good}")
+            if not good:
+                v.fail(f"{label} {capped or hits}")
+    conn = aabb_of(v.named("pipecopper", r"_inlet_"))
+    red = aabb_of(v.named("pipecopper", r"_reducer_"))
+    run = aabb_of(v.named("pipecopper", r"_run$"))
+    good = (abs(conn[1][1] - conn[0][1] - 2 * m.PIPE_HALF) < 1e-6 and abs(red[0][0] - conn[1][0]) < 1e-6
+            and abs(run[0][0] - conn[1][0]) < 1e-6 and abs(run[1][1] - run[0][1] - 2 * m.SMALL_HALF) < 1e-6)
+    print(f"water: ppex's full pipe ({2 * m.PIPE_HALF:.1f} across) at the water face to x {conn[1][0]:.1f}, the reducer, then the small "
+          f"pipe ({2 * m.SMALL_HALF:.1f} across): {good}")
+    if not good:
+        v.fail("the water line is not ppex's pipe at the face, the reducer, then the small pipe")
 
 
 def inside(el, q, margin=0.0):
@@ -608,6 +649,7 @@ def validate(m, els, parts, rig, quick=False):
     check_anchors(v)
     check_paths(v)
     check_outlet_clear(v)
+    check_water(v)
     check_chute(v)
     check_textures(v)
     check_drive(v)

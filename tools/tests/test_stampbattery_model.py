@@ -212,6 +212,24 @@ class Manifest(unittest.TestCase):
         self.assertEqual(SHAPE["textures"]["pipecopper"], "game:block/metal/sheet-plain/copper4")
         self.assertEqual(SHAPE["textures"]["pipelead"], "game:block/metal/sheet-plain/lead4")
 
+    def test_a_branch_and_cock_to_each_stamp_open_in_the_feed_opening(self):
+        # the shipped frame is the build frame moved one block west; the spouts are axis-aligned boxes
+        ms, dx = make_shape, -16.0 * make_shape.ORIGIN_CELL[0]
+        els = {e["name"]: e for e in SHAPE["elements"]}
+        self.assertEqual(SHAPE["textures"]["bronze"], "game:block/metal/sheet-plain/tinbronze4")
+        for metal in ("copper", "lead"):
+            for k in range(1, ms.STAMPS + 1):
+                self.assertTrue(all(f["texture"] == "#bronze" for f in els[f"pipe{metal}_cock{k}_body"]["faces"].values()))
+                walls = [e for n, e in els.items() if n.startswith(f"pipe{metal}_spout{k}_")]
+                self.assertEqual(len(walls), 4)
+                lo = [min(min(e["from"][i], e["to"][i]) for e in walls) for i in range(3)]
+                hi = [max(max(e["from"][i], e["to"][i]) for e in walls) for i in range(3)]
+                self.assertAlmostEqual((lo[0] + hi[0]) / 2 - dx, ms.stem_x(k - 1), places=4)
+                self.assertTrue(ms.FEED_LIP_Y < lo[1] < ms.MORTAR_Y[1])
+                self.assertTrue(ms.FEED_X[0] <= lo[0] - dx and hi[0] - dx <= ms.FEED_X[1])
+                self.assertTrue(ms.MORTAR_Z[1] - ms.MORTAR_WALL <= (lo[2] + hi[2]) / 2 <= ms.MORTAR_Z[1])
+                self.assertGreater(lo[2], ms.STEM_Z + ms.SHOE_R)
+
     def test_the_readme_names_every_part(self):
         for p in RIG["parts"]:
             pid = p["id"]

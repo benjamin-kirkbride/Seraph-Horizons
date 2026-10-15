@@ -14,8 +14,9 @@ fits into it.
              a stub of the game's chute section from the funnel to the front face, on an oak block), the shoot from
              the feed opening, and the infeed chute section in the top face (`mortar`); the camshaft with ten
              involute cams and the bull pulley, belted from the line shaft (`camshaft`); five stamps (`stamps`);
-             the plank feed box behind the mortar under the infeed (`feedbox`); the water line from the west face
-             into the feed opening, ppex's straight pipe soldered in copper or lead (`pipecopper`, `pipelead`)
+             the plank feed box behind the mortar under the infeed (`feedbox`); the water line from the west face:
+             ppex's pipe, a reducer and a small pipe soldered in copper or lead along the mortar's back, a branch and
+             a cock to each stamp, open in the feed opening (`pipecopper`, `pipelead`)
 
 Everything is built here from plain boxes; no other mod's model is used. It writes, deterministically,
 
@@ -77,7 +78,7 @@ TAU = 2 * math.pi
 CELLS_X, CELLS_Y, CELLS_Z = 3, 4, 3          # fixed from the frame on
 ORIGIN_CELL = (1, 0, 0)                      # the controller: the bottom middle cell of the north face, the output's
 POWER_CELL, POWER_FACE = (2, 0, 2), "east"   # the vanilla axle, along x at (y 8, z 40), into the gear case
-WATER_CELL, WATER_FACE = (0, 2, 2), "west"   # the ppex pipe, along x at (y 40, z 40), the water line to the feed opening
+WATER_CELL, WATER_FACE = (0, 2, 2), "west"   # the ppex pipe, along x at (y 40, z 40), the water line to the stamps
 INFEED_CELL, INFEED_FACE = (1, 3, 2), "up"   # the infeed chute's mouth: ore by chute from above, or by hand
 OUTPUT_CELL, OUTPUT_FACE = (1, 0, 0), "north"   # the output chute's mouth, flush with the front face
 
@@ -89,6 +90,7 @@ TEXTURES = {
     # the water line wears ppex's pipe textures as UnifiedPipes gives them, as the rosser's drip pipes do
     **{f"pipe{m}": f"game:block/metal/sheet-plain/{m}4" for m in ("copper", "lead")},
     "solder": solderedpipe.SOLDER_TEXTURE,
+    "bronze": "game:block/metal/sheet-plain/tinbronze4",   # the cocks: UnifiedPipes' bronze valves' metal
     "mesh": "game:block/metal/mesh1",
     "chute": "game:block/metal/sheet/copper1",   # the game's chute; the pack leaves its texture as the game's (copper)
     "leather": "game:block/leather/plain",
@@ -205,18 +207,30 @@ FEEDBOX_Z = (SHOOT_HI[1] - 0.1, 43.0)        # its floor's working face, from ov
 FEEDBOX_SIDE = 6.0                           # its sides' height over the floor
 
 # ---------------------------------------------------------------- the water line
-# Pipes and Power Expanded's straight pipe in copper or lead, drawn as UnifiedPipes draws those pipes, soldered
-# (Pipes/tools/solderedpipe.py), as the rosser's drip pipes are: ppex's tube round its bore, a hub where two lengths
-# meet. From the west face's inlet it runs east through the west end frame between its middle and back posts, turns
-# north beside the feed box, and drops in front of the west end of the shoot, open over the feed opening's west end:
-# the water goes into the mortar with the ore at either level. A part per metal (`pipecopper`, `pipelead`); a renderer
-# draws the fitted metal's.
+# Pipes and Power Expanded's pipe in copper or lead, drawn as UnifiedPipes draws those pipes, soldered
+# (Pipes/tools/solderedpipe.py), as the rosser's drip pipes and the vanner's spray pipe are. At the water face, ppex's
+# full pipe, 6 across, a short connector on the axis of the ppex pipe beyond the face, plugged at its end round the
+# small pipe, its seam soldered (the vanner's reducer); from it the small pipe, the vanner's spray pipe's size (2.4
+# across round a 1.6 bore): east along the back row, north under the front bearer, down behind stamp 1's guides to the
+# header, which runs along the back of the mortar over its back wall, and from it a short branch to each stamp, each
+# with a cock (a plug valve, its key and handle on its back face), open at its end inside the feed opening, over the
+# feed lip, behind the stamp's shoe: Rose 1898, p. 123, a pipe along the mortar's back with a cock at each stamp. The
+# water runs in over the lip with the ore and washes the crushed ore out through the screen. A part per metal
+# (`pipecopper`, `pipelead`); a renderer draws the fitted metal's.
 PIPE_METALS = ("copper", "lead")
 PIPE_HALF = solderedpipe.HALF
 WATER_Y, WATER_Z = 40.0, 40.0                # the inlet's axis: the water cell's centre, on the ppex pipe beyond the face
-PIPE_X = 13.8                                # the north run and the drop (x): west of the feed box
-PIPE_Z = 29.8                                # the drop (z): behind the stamps' guides and heads, over the back wall
-PIPE_END_Y = 21.5                            # the drop's open end, over the feed opening (the drop under a block long)
+CONN_X1 = 5.0                                # ppex's full pipe from the water face to its plug (the reducer)
+SMALL_HALF, SMALL_WALL = 1.2, 0.4            # the small pipe: the vanner's spray pipe, 2.4 across round a 1.6 bore
+LINE_X = STEM_X0                             # the run north and the drop: over stamp 1's branch, which the drop runs into
+HEADER_Y = 21.5                              # the header's axis: over the mortar's back wall, under the lower guide girts
+HEADER_Z = 28.3                              # its axis (z): behind the stamps' heads, over the back wall's inner part
+OUTLET_Y = 16.0                              # each branch's open end: inside the feed opening, 2 over the feed lip
+COCK_Y = (17.2, 19.4)                        # each cock's body on its branch
+COCK_HX, COCK_HZ = 1.6, 1.4                  # its half widths
+KEY_Y = (17.8, 18.8)                         # the plug's square key out of the body's back face, and its handle
+KEY_HX, KEY_DZ = 0.5, 0.6
+HANDLE_HX, HANDLE_DZ, HANDLE_TOP = 0.3, 0.4, 21.8   # a lever standing up from the key: along the flow, the cock open
 
 # ---------------------------------------------------------------- the power train (the frame's)
 ENTRY = (8.0, 40.0)                          # (y, z): the entry shaft and the line shaft (the power cell's centre)
@@ -506,8 +520,8 @@ def build_frame():
     out.append(box([END_W[1], CAP_Y[0], TIE_B_Z[0]], [END_E[0], CAP_Y[1], TIE_B_Z[1]], "fr_tie_b", f, "oak"))
     out.append(box([END_W[1], BEARER_Y[0], POST_M[0]], [END_E[0], BEARER_Y[1], POST_M[1]], "fr_bearer_f", f, "oak"))
     out.append(box([END_W[1], BEARER_Y[0], POST_B[0]], [END_E[0], BEARER_Y[1], POST_B[1]], "fr_bearer_b", f, "oak"))
-    # the water line's hanger: an iron strap from the front bearer down onto the pipe's hub behind the mortar
-    out.append(box([PIPE_X - 1.5, WATER_Y + PIPE_HALF, POST_M[0] + 0.3], [PIPE_X + 1.5, BEARER_Y[0], POST_M[0] + 2.3], "fr_hanger", f, "iron"))
+    # the water line's hanger: an iron strap from the front bearer down onto the small pipe's run north
+    out.append(box([LINE_X - 1.5, WATER_Y + SMALL_HALF, POST_M[0] + 0.5], [LINE_X + 1.5, BEARER_Y[0], POST_M[0] + 2.5], "fr_hanger", f, "iron"))
     out += build_guides()
     out += build_power_frame()
     return out
@@ -732,26 +746,87 @@ def build_feed_box():
     return out
 
 
+def small_tube(name, axis, a, b, centre, half=SMALL_HALF, wall=SMALL_WALL, role=solderedpipe.BODY):
+    """A length of the small pipe along `axis` (0, 1, 2) from a to b, its middle at `centre` (solderedpipe's ACROSS):
+    four walls round its bore, as solderedpipe's tube is built, at the vanner's spray pipe's size. Used where an end
+    is open (the spouts) or for the reducer's ring."""
+    return solderedpipe._walls(name, axis, a, b, centre, half, half - wall, role)
+
+
+def small_run(name, axis, a, b, centre):
+    """A length of the small pipe whose ends are both closed by a hub or a cock: one box of its section, which looks
+    the same as its four walls (the bore never shows) in a quarter of the elements."""
+    sp = solderedpipe
+    u, v = sp.ACROSS[axis]
+    lo, hi = [0.0] * 3, [0.0] * 3
+    lo[axis], hi[axis] = min(a, b), max(a, b)
+    for k, c in ((u, centre[0]), (v, centre[1])):
+        lo[k], hi[k] = c - SMALL_HALF, c + SMALL_HALF
+    return [sp.Box(name, lo, hi, sp.BODY)]
+
+
+def small_hub(name, centre):
+    """A bend or a tee in the small pipe: a cube of its section about `centre`, every arm's pipe starting at its face
+    (its bore never shows, so it is one box)."""
+    s = SMALL_HALF
+    return [solderedpipe.Box(name, [c - s for c in centre], [c + s for c in centre], solderedpipe.BODY)]
+
+
+def branch_xs():
+    """The branches' x: one over each stamp's stem."""
+    return [stem_x(i) for i in range(STAMPS)]
+
+
 def pipe_boxes():
-    """The water line as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels): the inlet from the
-    west face on the axis of the ppex pipe beyond it, a hub, a run north, a hub, and a drop open at its end over the
-    feed opening. Every run is shorter than a block, so there are no seams and no joints but the hubs; the inlet has
-    no joint at the face (the pipe beyond brings its own half joint, as a soldered ppex pipe does)."""
-    h, wy = PIPE_HALF, WATER_Y
-    out = solderedpipe.hub("hub1", (PIPE_X, wy, WATER_Z), ("west", "north"))
-    out += solderedpipe.tube("inlet", 0, 0.0, PIPE_X - h, (WATER_Z, wy))
-    out += solderedpipe.tube("north", 2, PIPE_Z + h, WATER_Z - h, (PIPE_X, wy))
-    out += solderedpipe.hub("hub2", (PIPE_X, wy, PIPE_Z), ("south", "down"))
-    out += solderedpipe.tube("drop", 1, PIPE_END_Y, wy - h, (PIPE_X, PIPE_Z))
-    return solderedpipe.cull_pressed(out)
+    """The water line as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels): ppex's full pipe from
+    the water face on the axis of the ppex pipe beyond it, plugged at its end round the small pipe, the reducer's seam a
+    ring of solder (the vanner's); the small pipe east to a bend, north under the front bearer to a bend, down behind
+    stamp 1's guides to a tee at the header; the header east along the back of the mortar over its back wall, a tee
+    over each stamp and a bend over the last; from each a branch down through its cock, open at its end in the feed
+    opening over the lip. No joint at the face (the pipe beyond brings its own half joint, as a soldered ppex pipe
+    does)."""
+    sp, Bx = solderedpipe, solderedpipe.Box
+    h, wy, wz = PIPE_HALF, WATER_Y, WATER_Z
+    out = sp.tube("inlet", 0, 0.0, CONN_X1, (wz, wy))
+    # the plug in the connector's end, round the small pipe's bore: four plates inside its walls
+    i, si = h - sp.WALL, SMALL_HALF - SMALL_WALL
+    p0, p1 = CONN_X1 - sp.WALL, CONN_X1
+    out += [Bx("plug_down", [p0, wy - i, wz - i], [p1, wy - si, wz + i], sp.BODY),
+            Bx("plug_up", [p0, wy + si, wz - i], [p1, wy + i, wz + i], sp.BODY),
+            Bx("plug_north", [p0, wy - si, wz - i], [p1, wy + si, wz - si], sp.BODY),
+            Bx("plug_south", [p0, wy - si, wz + si], [p1, wy + si, wz + i], sp.BODY)]
+    # the reducer's joint: a ring of solder round the small pipe where it leaves the plug
+    j = sp.JOINT_SWELL
+    out += small_tube("reducer", 0, CONN_X1, CONN_X1 + 0.6, (wz, wy), SMALL_HALF + j, j, sp.SOLDER)
+    s = SMALL_HALF
+    x, hy, hz = LINE_X, HEADER_Y, HEADER_Z
+    out += small_run("run", 0, CONN_X1, x - s, (wz, wy))
+    out += small_hub("bend1", (x, wy, wz))
+    out += small_run("north", 2, hz + s, wz - s, (x, wy))
+    out += small_hub("bend2", (x, wy, hz))
+    out += small_run("drop", 1, hy + s, wy - s, (x, hz))
+    xs = branch_xs()
+    for k, bxk in enumerate(xs, 1):
+        out += small_hub(f"tee{k}", (bxk, hy, hz))
+        if k < len(xs):
+            out += small_run(f"header{k}", 0, bxk + s, xs[k] - s, (hz, hy))
+        # the branch: from the tee down to its cock, the cock, and the spout from it to the open end
+        out += small_run(f"branch{k}", 1, COCK_Y[1], hy - s, (bxk, hz))
+        out.append(Bx(f"cock{k}_body", [bxk - COCK_HX, COCK_Y[0], hz - COCK_HZ], [bxk + COCK_HX, COCK_Y[1], hz + COCK_HZ], "cock"))
+        kz = hz + COCK_HZ
+        out.append(Bx(f"cock{k}_key", [bxk - KEY_HX, KEY_Y[0], kz], [bxk + KEY_HX, KEY_Y[1], kz + KEY_DZ], "cock"))
+        out.append(Bx(f"cock{k}_handle", [bxk - HANDLE_HX, KEY_Y[1] - 0.4, kz + KEY_DZ],
+                      [bxk + HANDLE_HX, HANDLE_TOP, kz + KEY_DZ + HANDLE_DZ], "cock"))
+        out += small_tube(f"spout{k}", 1, OUTLET_Y, COCK_Y[0], (bxk, hz))
+    return sp.cull_pressed(out)
 
 
 def build_pipes(metal_=PIPE_METALS[0]):
     """The water line as elements of the part `pipe<metal_>` (`pipe_boxes`): the body in that metal's pipe texture,
-    the joints (none here) in solder, each face's UVs solderedpipe's on this model's texture scale. Built in copper;
+    the reducer's joint in solder, the cocks in bronze, each face's UVs solderedpipe's on this model's texture scale. Built in copper;
     `pipe_copies` makes lead."""
     p = f"pipe{metal_}"
-    codes = {solderedpipe.BODY: f"#{p}", solderedpipe.SOLDER: "#solder"}
+    codes = {solderedpipe.BODY: f"#{p}", solderedpipe.SOLDER: "#solder", "cock": "#bronze"}
     out = []
     for b in pipe_boxes():
         size = b.size()

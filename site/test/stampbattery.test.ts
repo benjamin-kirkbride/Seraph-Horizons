@@ -143,5 +143,9 @@ describe("the stamp battery's page", () => {
     const names = (m: string) => flat.map((f) => f.element.name).filter((n) => n.startsWith(`pipe${m}_`)).map((n) => n.slice(`pipe${m}_`.length));
     expect(names("lead")).toEqual(names("copper"));
     expect(names("copper").length).toBeGreaterThan(10);
+    // ppex's full pipe at the face, the reducer, then the small pipe: a branch, a cock and an open spout to each stamp
+    for (const k of [1, 2, 3, 4, 5]) for (const bit of [`cock${k}_body`, `cock${k}_handle`, `branch${k}`, `spout${k}_north`]) expect(names("copper")).toContain(bit);
+    expect(names("copper").filter((n) => n.startsWith("reducer_"))).toHaveLength(4);
+    expect(shape.textures!["bronze"]).toBe("game:block/metal/sheet-plain/tinbronze4");
   });
 });

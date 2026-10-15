@@ -9,7 +9,7 @@ into it.
 | Level | Fitted (`requires`) | What it is |
 |---|---|---|
 | (frame) | none | Two oak end frames, the guide girts, the ties and the two bearers; the rectifier's gear case at the power cell and the line shaft along the back row |
-| 1 | `mortar`, `camshaft`, `stamps`, `feedbox`, and `pipecopper` or `pipelead` | The battery: the mortar with its dies, screen, shoot, the infeed chute section and the output chute (its funnel and stub); the camshaft and its belt drive; five stamps; the plank feed box under the infeed; the water line to the feed opening |
+| 1 | `mortar`, `camshaft`, `stamps`, `feedbox`, and `pipecopper` or `pipelead` | The battery: the mortar with its dies, screen, shoot, the infeed chute section and the output chute (its funnel and stub); the camshaft and its belt drive; five stamps; the plank feed box under the infeed; the water line along the mortar's back, a branch and a cock to each stamp |
 
 **Status: the model only.** This folder holds the generator (`tools/`); there is no block, block entity or renderer
 yet (#728, #711). Paths here are from this folder unless they start with `assets/` or `tests/` (the mod's), or
@@ -46,7 +46,7 @@ line, so from its back wall to the middle row's back face there are 2.5 voxels: 
 | Anchor | Cell, face | Point | What comes or goes there |
 |---|---|---|---|
 | `powerCell`, `powerFace` | `[1, 0, 2]`, east | the face's centre | The vanilla axle, into the gear case |
-| `waterCell`, `waterFace`, `water` | `[-1, 2, 2]`, west | `[-1.0, 2.5, 2.5]`, the water line's inlet | Process water, from a ppex pipe on the west face, down into the feed opening |
+| `waterCell`, `waterFace`, `water` | `[-1, 2, 2]`, west | `[-1.0, 2.5, 2.5]`, the water line's inlet | Process water, from a ppex pipe on the west face, to the five branches in the feed opening |
 | `infeedCell`, `infeedFace`, `infeed` | `[0, 3, 2]`, up | `[0.5, 4.0, 2.5]`, the infeed chute's mouth | Ore by the game's chute from above: a vanilla `chute-straight-ud` placed on this face carries straight on down the machine's own section into the feed box. **Hand feeding goes in at the same mouth** (#728, #711), the player standing on the deck |
 | `outputCell`, `outputFace`, `output` | `[0, 0, 0]`, north | `[0.5, 0.5, 0.0]`, the output chute's mouth | The crushed, classified ore (pulp), out of the funnel along the stub: a vanilla `chute-straight-ns` placed against this face takes it on |
 
@@ -78,14 +78,15 @@ Everything was made for this mod: no other mod's model is used, so the generator
 Textures by role: debarked oak (`game:block/wood/debarked/oak`) for the frame's timbers, the entry shaft (the vanilla
 axle's continuation), the mortar block, the output chute's block and the bull pulley's rim and arms; oak planks for the
 feed box; iron plate for castings (the mortar, the shoot, the gear case, the pillow blocks, the cams); plain steel sheet
-for shafts and wearing parts (stems, shoes, dies); the water line in `game:block/metal/sheet-plain/copper4` or `lead4`
-(with `game:block/metal/ingot/leadsolder` declared for its joints); `game:block/metal/mesh1` for the screen; the game's
+for shafts and wearing parts (stems, shoes, dies); the water line in `game:block/metal/sheet-plain/copper4` or `lead4`,
+its reducer's joint in `game:block/metal/ingot/leadsolder` and its cocks in `game:block/metal/sheet-plain/tinbronze4`
+(the bronze UnifiedPipes gives ppex's valves); `game:block/metal/mesh1` for the screen; the game's
 chute (`game:block/metal/sheet/copper1`) for both chute sections and the output funnel; plain leather for the belt.
 `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/stampbattery.json` | The whole machine, the water line in both metals (326 elements; drawn: 40 with nothing fitted, 300 at level 1) |
+| `assets/seraphhorizons/shapes/block/stampbattery.json` | The whole machine, the water line in both metals (406 elements; drawn: 40 with nothing fitted, 340 at level 1) |
 | `assets/seraphhorizons/shapes/block/stampbattery_frame.json` | The frame only (34 elements). A block would draw it and the inventory show it. |
 | `assets/seraphhorizons/config/stampbattery-rig.json` | Footprint (cells with boxes and lids), anchors, the stamps' figures, the level and the part rig (15 parts) |
 | `tests/StampBattery/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths |
@@ -129,15 +130,32 @@ cell, hung between the chute tie and the back tie: ore from a player's chute lin
 out of its end into the plank **feed box**: a floor falling 50° onto the shoot's top, two sides and a back board hung
 on the back bearer.
 
-**The water line** is Pipes and Power Expanded's straight pipe (`ppex:pipe-straight-*`) in copper or lead, the metals
-`UnifiedPipes` adds to ppex's pipes, drawn as `UnifiedPipes` draws them, soldered, and built by the same module as the
-rosser's drip pipes (`Pipes/tools/solderedpipe.py`): ppex's tube 6 voxels across round its 4 × 4 bore, a hub where two
-lengths meet. From the inlet on the west face (on the axis of the ppex pipe beyond it, `water`) it runs east between the
-west end frame's middle and back posts, turns north beside the feed box, and drops behind the stamps' guides, open at
-its end over the west end of the feed opening: the water goes into the mortar with the ore. Its runs are each shorter
-than a block, so it has no seams and no joints but its two hubs; the inlet has none at the face (the pipe beyond brings
-its own half joint). The rig has a part per metal, `pipecopper` and `pipelead`, the same elements in each metal's
-texture; a renderer draws the fitted metal's.
+**The water line** is a period battery's: a pipe along the back of the mortar, over it, and from it a short branch to
+each stamp with a cock, discharging into the mortar behind the stamp's shoe (Rose 1898, p. 123); the water runs in over
+the feed lip with the ore and washes the crushed ore out through the screen. It is in copper or lead, the metals
+`UnifiedPipes` adds to ppex's pipes, drawn soldered as `UnifiedPipes` draws them and built from the same module as the
+rosser's drip pipes (`Pipes/tools/solderedpipe.py`), and it follows the small-pipe rule the vanner's spray pipe set:
+
+- **At the water face, ppex's full pipe:** 6 voxels across round its 4 × 4 bore, on the axis of the ppex pipe beyond the
+  face (`water`), from the face to x 5, between the west end frame's middle and back posts. No joint at the face (the
+  pipe beyond brings its own half joint).
+- **The reducer:** the vanner's. The connector's end is plugged round the small pipe's bore, and the seam is a ring of
+  solder round the small pipe, 0.6 long and 0.2 proud.
+- **The small pipe:** the vanner's spray pipe's size, 2.4 across round a 1.6 bore. It runs east along the back row to a
+  bend over stamp 1's line (x 12.4), north under the front bearer (an iron strap from the bearer carries it), and down
+  behind stamp 1's guides and tappet to the header.
+- **The header** (y 21.5, z 28.3) runs east over the mortar's back wall, behind the stamps' heads and under the lower
+  guide girts, with a tee over each of stamps 1 to 4 and a bend over stamp 5. The bends and tees are cubes of the small
+  pipe's section.
+- **Five branches,** one down from each tee or bend over its stamp's stem. Each has a **cock**: a plug valve in bronze,
+  a body round the branch with its plug's square key out of the back face and a lever standing up from it (along the
+  flow: open). Under the cock a short spout, open at its end (y 16), stands inside the feed opening (x 11..37, y 14 over
+  the lip to 16.5 at the rim), at the lip's depth in the back wall, behind the shoe: the water falls 2 voxels onto the
+  lip and runs in under the stamp. The spouts of stamps 2 to 4 stand over the shoot's foot, clear of its sides, and
+  their levers stand behind the header, clear of the shoot's sides and the ore on it.
+
+The rig has a part per metal, `pipecopper` and `pipelead`, the same elements in each metal's texture (the solder and the
+bronze stay); a renderer draws the fitted metal's. The cocks are drawn open and do not move.
 
 The **camshaft** (y 34, z 18.55, north of the stems) runs in pillow blocks on the end frames' cam rails and carries ten
 involute **cams**, a double cam beside each stem, lifting its tappet's north edge; and at its west end, outside the
@@ -203,7 +221,11 @@ that set parts against each other run per build state: the frame; level 1.
 - **Paths:** the feed box's floor falls at least 35° onto the shoot; the shoot at least 45° from under the feed box
   floor's lower end to the feed lip; the funnel's mouth spans the whole screen at the mortar's front face, under the
   screen, and narrows to the stub's bore where they meet; its floor is level with the stub's and reaches the mortar's
-  front; the water line's drop is open over the feed opening.
+  front.
+- **Water:** the line is ppex's full pipe at the water face, the reducer at its end, then the small pipe; one branch over
+  each stamp's stem, its end open (no pipe across its bore) and inside the feed opening (over the lip, under the rim,
+  within the opening's width, at or behind the lip's inner edge and behind the shoe), with nothing of any part between
+  it and the lip.
 - **Outlet clear:** at rest with everything fitted, no element of any part stands in the funnel's space (from its floor
   up to the screen's top, from the mortar's front to the stub) or in the stub's bore: the pulp's path out is open.
 - **Textures** by role, every element ruled.
@@ -249,7 +271,9 @@ Element names are the rig's interface (first-match globs, in the rig's order): `
 `camshaft_*` (the shaft, hubs, cams `camshaft_cam<stamp><a|b><n>` and the bull pulley `camshaft_bull_*`),
 `camframe_*`, `stamp1_*`..`stamp5_*`, `mortar_*` (the chute sections `mortar_chutein_*` and `mortar_chuteout_*`, the
 funnel `mortar_funnel_*`, its block `mortar_chuteleg`, the shoot `mortar_shoot*`), `feedbox_*`, `pipecopper_*` and
-`pipelead_*` (solderedpipe's box names: `inlet_*`, `hub1_*`, `north_*`, `hub2_*`, `drop_*`), and `fr_*` for the frame.
+`pipelead_*` (`inlet_*` ppex's pipe at the face, `plug_*` and `reducer_*`, then the small pipe: `run`, `bend1`,
+`north`, `bend2`, `drop`, `tee1`..`tee5`, `header1`..`header4`, and for each stamp `branch<k>`, `cock<k>_body`,
+`cock<k>_key`, `cock<k>_handle` and `spout<k>_*`), and `fr_*` for the frame.
 Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Choices made, and why
@@ -272,7 +296,13 @@ Hand edits are lost when the script runs again: port them into `make_shape.py`, 
 - **Belts, not gears**, as v2: a battery's camshaft was driven by a belt from the line shaft to its bull wheel.
 - **The rectifier is enclosed**, as v2: the cams lift only one way round; a drawn rectifier would be about ninety
   elements of gearing.
-- **The water line drops into the feed opening**, beside the shoot.
+- **A header along the mortar's back with a branch and a cock to each stamp** (owner's review: the single drop into
+  the feed opening "just stops"). It is Rose's arrangement (1898, p. 123). The spouts end in the feed opening rather than
+  through the top of the mortar, which is open here, so each outlet is plainly at the mortar and none hangs over the
+  stamps. The water anchor did not move.
+- **The small pipe is one box a length where its bore never shows** (the runs, bends, tees and branches between hubs
+  and cocks): the same look as four walls in a quarter of the elements. Only the spouts, whose ends are open, are
+  walled round their bores.
 - **The infeed chute is a whole block**, so the ore drops into the feed box, not from three voxels under the top face
   across half the machine's height.
 
@@ -294,10 +324,9 @@ The model has not been looked at in a client yet.
 
 1. **Build stages**: the frame recipe, the stages and their materials, measured from the model and settled with the
    owner (#729's Open), as the crucible furnace's were. The `requires` ids only split the machine where a stage could.
-2. **Water "into the feed box"** (#728): the line drops into the feed opening beside the shoot, under the feed box's
-   lower end, so the water meets the ore there. Rose's batteries had a horizontal pipe along the mortar's top with a
-   cock at each stamp (Rose 1898, p. 123); that would be a ppex pipe with five outlets, which `UnifiedPipes` does not
-   draw.
+2. **The water line's header and cocks are the machine's own,** not ppex blocks: ppex has no five-outlet pipe, so only
+   the connector at the water face is ppex's section. The cocks are drawn open and static. A behaviour could close
+   one stamp's water (#728), but nothing in the rig turns them.
 3. **Hand feeding at the infeed's mouth**, on the top face, 4 blocks up: the player stands on the deck (every column has
    a lid) to reach it. Gameplay could also take a click on the feed box's cells from behind.
 4. **Anchors provisional pending #711**: the chute sections (the v2 branches' `VANILLA_CHUTE`, checked against the
