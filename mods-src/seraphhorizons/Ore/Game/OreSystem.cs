@@ -19,6 +19,7 @@ namespace SeraphHorizons.Mod.Ore;
 /// the switch off; district veins are sized in ingots from the ore's own units, so they follow.</item>
 /// <item><c>RarerDistricts</c> (#441): <c>patches/ore-rarerdistricts.json</c>.</item>
 /// <item><c>PlacerFields</c> (#442): <see cref="PlacerFields"/>.</item>
+/// <item><c>GradePockets</c> (#944): <see cref="GradePocketPlacement"/>.</item>
 /// </list>
 /// It also binds <see cref="ProPickShutdownGuard"/>, with no switch. With ore cells or placer
 /// fields on, it also keeps the deposit registry (#443, <see cref="Deposits"/>) and makes maps
@@ -72,7 +73,7 @@ public class OreSystem : ModSystem
         var wanted = new OreWorldRecord(config.OreCells, config.OreCellSizeMetres,
             new Dictionary<string, int>(config.OreCellSizeByMetal ?? new Dictionary<string, int>()),
             config.NoSurfaceCopper, config.SmallerDeposits, config.RarerDistricts,
-            config.PlacerFields, OreCells.ClampCellSize(config.PlacerCellSizeMetres));
+            config.PlacerFields, OreCells.ClampCellSize(config.PlacerCellSizeMetres), config.GradePockets, config.StableVeins);
         var saveGame = sapi.WorldManager.SaveGame;
         NewWorld = saveGame.IsNew;
         OreWorldRecord? saved = null;
@@ -100,6 +101,8 @@ public class OreSystem : ModSystem
         if (!World.RarerDistricts) EmptyPatch(api, RarerDistrictsPatch);
         api.Logger.Notification("[seraphhorizons] Placer fields for this world: {0}",
             World.PlacerFields ? $"on, {World.PlacerCellSize} m" : "off");
+        api.Logger.Notification("[seraphhorizons] Grade pockets for this world: {0}", OnOff(World.GradePockets));
+        api.Logger.Notification("[seraphhorizons] Stable veins for this world: {0}", OnOff(World.StableVeins && World.OreCells));
         if (World.PlacerFields)
         {
             if (PlacerFields.Unsupported(api) is { } why)
@@ -139,6 +142,14 @@ public class OreSystem : ModSystem
         }
         if (World.PlacerFields && PlacerFields.Unsupported(api) is null)
             Placer = PlacerFields.Bind(api, World);
+        if (World.GradePockets)
+        {
+            if (GradePocketPlacement.Unsupported(api) is { } why)
+                api.Logger.Warning("[seraphhorizons] Grade pockets are off: {0}; Interesting Ore Gen's veins keep one grade", why);
+            else
+                GradePocketPlacement.Bind(api, _harmony ??= new Harmony(HarmonyId),
+                    GradePocketPlacement.SettingsFrom(SeraphHorizonsSystem.ConfigFor(api)));
+        }
         // District veins are sized as IOG builds each district, lazily during worldgen.
         if (World.SmallerDeposits)
         {
@@ -186,6 +197,7 @@ public class OreSystem : ModSystem
         Maps = null;
         DepositSizes.Unbind();
         DistrictVeinSizes.Unbind();
+        GradePocketPlacement.Unbind();
         _harmony?.UnpatchAll(HarmonyId);
         _harmony = null;
     }

@@ -11,17 +11,25 @@
 #   --name NAME      setup name in the output folder (default: pack or vanilla)
 #   --dump           write the deposit/drops/metal-units dump instead of scanning; one run,
 #                    seeds are ignored
+#   --census         measure each deposit of the area by a flood over chunk columns instead of
+#                    scanning it all (census.json; default name census, size 320)
+#   --metals LIST    census only these metals (comma-separated; default every sized metal)
+#   --floods N       census: deposits flooded at once per server (default 4)
+#   --kinds K        census: only ore cells (cells) or only district veins (districts)
+#   --fast           leave out the worldgen passes after ore (vegetation, ...); scan or census
+#   --profile        log each worldgen handler's time at the end
 #   -j N             runs at once (default 4)
 #   --port N         first port (default 42460); run k uses N+k
 #
 # Each run gets build/ore-survey/<name>-s<seed>/ (or <name>-dump/) as the server's data
-# path, holding orescan.json, orescan.json.cells.csv, orescan.json.log and server.out.
+# path, holding orescan.json (census.json), its .cells.csv and .log, and server.out.
 # The world, Mods and Cache are deleted afterwards. Needs VINTAGE_STORY and a Release
 # build of the mod (build/seraphoresurvey.zip).
 set -euo pipefail
 
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-size=160 vanilla=0 mods_dir=$root/build/mods modconfig="" name="" dump=0 jobs=4 port=42460
+size="" vanilla=0 mods_dir=$root/build/mods modconfig="" name="" dump=0 jobs=4 port=42460
+census=0 metals="" kinds="" floods=4 fast=0 profile=0
 extra=()
 seeds=()
 while [ $# -gt 0 ]; do
@@ -33,9 +41,15 @@ while [ $# -gt 0 ]; do
     --modconfig) modconfig=$(readlink -f "$2"); shift 2 ;;
     --name) name=$2; shift 2 ;;
     --dump) dump=1; shift ;;
+    --census) census=1; shift ;;
+    --metals) metals=$2; shift 2 ;;
+    --floods) floods=$2; shift 2 ;;
+    --kinds) kinds=$2; shift 2 ;;
+    --fast) fast=1; shift ;;
+    --profile) profile=1; shift ;;
     -j) jobs=$2; shift 2 ;;
     --port) port=$2; shift 2 ;;
-    -h|--help) sed -n '2,23p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,29p' "$0"; exit 0 ;;
     -*) echo "unknown option $1" >&2; exit 2 ;;
     *) seeds+=("$1"); shift ;;
   esac
@@ -43,7 +57,10 @@ done
 : "${VINTAGE_STORY:?set VINTAGE_STORY to a 1.22.7 server or client install}"
 zip=$root/build/seraphoresurvey.zip
 [ -f "$zip" ] || { echo "no $zip: run dotnet build tools/ore-survey -c Release first" >&2; exit 1; }
-[ -n "$name" ] || { [ $vanilla = 1 ] && name=vanilla || name=pack; }
+[ -n "$name" ] || { [ $census = 1 ] && name=census; } || { [ $vanilla = 1 ] && name=vanilla || name=pack; }
+[ -n "$size" ] || { [ $census = 1 ] && size=320 || size=160; }
+mode=scan out=orescan.json
+if [ $census = 1 ]; then mode=census out=census.json; fi
 if [ $dump = 1 ]; then seeds=(dump); fi
 [ ${#seeds[@]} -gt 0 ] || { echo "no seeds given" >&2; exit 2; }
 
@@ -56,7 +73,8 @@ print(m.group(1).lower() if m else "")'
 
 survey() {  # survey SEED PORT
   local seed=$1 p=$2 data
-  if [ "$seed" = dump ]; then data=$root/build/ore-survey/$name-dump; else data=$root/build/ore-survey/$name-s$seed; fi
+  local m=$mode o=$out
+  if [ "$seed" = dump ]; then data=$root/build/ore-survey/$name-dump m=dump o=orescan.json; else data=$root/build/ore-survey/$name-s$seed; fi
   rm -rf "$data"; mkdir -p "$data/Mods"
   cp "$zip" "$data/Mods/"
   if [ $vanilla = 0 ]; then
@@ -79,15 +97,15 @@ survey() {  # survey SEED PORT
   # player groups and the server refuses to start (as in packtool smoke).
   (
     cd "$VINTAGE_STORY"
-    ORE_SURVEY_OUT=$data/orescan.json ORE_SURVEY_SIZE=$size \
-    ORE_SURVEY_MODE=$([ "$seed" = dump ] && echo dump || echo scan) \
+    ORE_SURVEY_OUT=$data/$o ORE_SURVEY_SIZE=$size ORE_SURVEY_MODE=$m \
+    ORE_SURVEY_FAST=$fast ORE_SURVEY_PROFILE=$profile ORE_CENSUS_METALS=$metals ORE_CENSUS_KINDS=$kinds ORE_CENSUS_PARALLEL=$floods \
     dotnet VintagestoryServer.dll --dataPath "$data" --port "$p" \
       '--withconfig={"WorldConfig":{"Seed":"'"$([ "$seed" = dump ] && echo 101 || echo "$seed")"'","WorldName":"oresurvey","WorldType":"standard","PlayStyle":"surviveandbuild"}}' \
       > "$data/server.out" 2>&1 < /dev/null
   ) || echo "seed $seed: server exited with $?" >&2
   rm -rf "$data/Saves" "$data/Mods" "$data/Cache"
-  if [ "$seed" = dump ]; then [ -s "$data/orescan.json" ]; else [ -s "$data/orescan.json.cells.csv" ]; fi \
-    && echo "seed $seed: done, $(tail -n 1 "$data/orescan.json.log")" \
+  if [ "$seed" = dump ]; then [ -s "$data/orescan.json" ]; else [ -s "$data/$o" ]; fi \
+    && echo "seed $seed: done, $(grep -v '^worldgen' "$data/$o.log" | tail -n 1)" \
     || { echo "seed $seed: no output, see $data/server.out" >&2; return 1; }
 }
 

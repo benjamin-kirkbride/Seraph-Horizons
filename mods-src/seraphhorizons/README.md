@@ -4929,10 +4929,10 @@ first metal, and the registry the traders and their maps read. Design, engine fa
 numbers are in `docs/oregen.md`. The admin commands under `/sh ore` are described with `/sh trade`'s
 in Trading, "Admin tools".
 
-### Ore cells (`OreCells`, `OreCellSizeMetres`, `OreCellSizeByMetal`, `NoSurfaceCopper`, `SmallerDeposits`, `RarerDistricts`)
+### Ore cells (`OreCells`, `OreCellSizeMetres`, `OreCellSizeByMetal`, `NoSurfaceCopper`, `SmallerDeposits`, `RarerDistricts`, `GradePockets`, `StableVeins`)
 
 Ore is rare and placed by the seed (epic #435): a deposit of a given metal is a few kilometres
-away, and one deposit carries a group for a long while, then runs out. Four switches, all on by
+away, and one deposit carries a group for a long while, then runs out. Five switches, all on by
 default, all server side, all **for new worlds only**: they change how chunks generate, so the
 world records at its first start which of them it was created with
 (`seraphhorizons:oreworld` in the savegame, `Ore/Core/OreWorldRecord.cs`). A world created with
@@ -5014,19 +5014,65 @@ fixed at creation. The server log says what the world has
   lenses is not placed. IOG's veins run from the bottom of the world to the top, so each kept vein
   is cut to a band of heights under sea level that gives a size drawn from the metal's small,
   typical and large in `config/ore-sizes.json` (the band's height from the vein's geometry, its
-  ores' shares and the ingots of their poorest grade, read from the ore's own units). With ore
+  ores' shares and, layer by layer, the ingots of their grades as IOG draws them at the fault's
+  richness there, so a band that runs into a fault's rich band is thinner, #943); a band
+  taller than the room under sea level is that room, never the whole column (#943). IOG makes ore
+  only where a zone's block is the district's host rock: the fault rock it lays, and where the host
+  is also one of the world's rocks (granite in the granitic and felsic districts, basalt in the
+  mafic) the country rock that happens to be it. So a band is grown by its host rock per layer
+  (#946): an ore shoot's fault rock, counted from its fault's spline (IOG's shoot is a sheared
+  ellipse the curving fault soon leaves, `Ore/Core/ShootShape.cs`), and the share of the rest
+  whose rock is the host too, from the game's rock strata replayed for its columns before they
+  generate (`Ore/Game/RockStrataPrediction.cs`: `GenRockStrataNew` with the live generator's
+  noise, at five terrain heights, `surfaceAboveSeaLevel`, since the surface is the one input not
+  known). Below sea level basalt is almost never a country rock, so mafic shoots are their fault
+  rock; granite is 10–50 % of a band. An ore whose code names no block in the host rock (the geology
+  add-on ores of IOG's granite configs name basalt: no felsic copper or iron) is taken out of its
+  zone, so the ores that place share its blocks and the count never spends a vein on it. With ore
   processing's units (#863: the poorest grade at a fifth to a quarter of vanilla's), every kept
-  vein of a sized metal is widened four times in ore per layer, so its band is about the height it
-  was: an ore shoot is made four times as long along its fault, a ladder vein's slabs about four
-  times closer (its width, and so the fault rock, is kept). A horsetail lens of gold or silver,
-  which has no band, gets twice IOG's radii both ways: its ore is the disc where it crosses its
-  one-block fracture, so that is four times the ore and the ingots it held. `gradeAllowance` went from 1.15 to 1.25
-  with the wider spread of grades. Gems and minerals are left as IOG makes them. The log has a line per district (`Smaller deposits: district 'magmatic-granitic-deep' at
-  (...): 65 of 310 ore zones kept; veins per metal bismuth 8 (was 69), ...`).
+  vein of a sized metal is widened four times in area, so its band is about the height it
+  was: an ore shoot is made four times as long along its fault and no wider, a ladder vein's slabs
+  about four times closer (its width, and so the fault rock, is kept). A shoot still too thin for
+  the room (its band would be the room and short of its size) takes the first of four wider
+  shapes, 8 to 64 times IOG's area split between strike and across to hold the most fault
+  rock, whose band holds its size (#946). A vein of two sized metals grows until the poorer holds its
+  size, and the richer one's ore is thinned to its own. A horsetail lens of gold or silver, which has no band, is
+  grown to four times its ore: twice IOG's radii both ways (its ore is the disc where it crosses its
+  one-block fracture), or, where the predicted strata at it are mostly the host rock, twice its
+  horizontal radius (the whole spheroid is ore). `gradeAllowance` went from 1.15 to 1.25
+  with the wider spread of grades; since #943 it is used only where the grades or the fault's rich
+  bands can't be read. Gems and minerals are left as IOG makes them. The log has a line per
+  district (`Smaller deposits: district 'magmatic-granitic-deep' at (...), host rock-granite: 58 of
+  226 ore zones kept, 25 ores that place nothing in rock-granite taken out; veins per metal bismuth 8
+  (was 35), ...; 25 veins banded, 8 of them wider, 3 cut to the room under their drawn size (median
+  holds 100% of drawn); sized in ... ms; 4 of 33 widened lenses in rock-granite country rock`).
 - **`RarerDistricts`** (#441): IOG's hydrothermal districts, the only source of gold and silver
   quartz and most chromite and platinum, tile the world in 7 km squares instead of 4–6 km
   (`patches/ore-rarerdistricts.json`, on its `minDistanceBetweenDistricts`); with IOG's hard-coded
   40% chance per tile that is one per 122 km², about one per 11 km square.
+- **`GradePockets`** (#944): grade varies within a vein. IOG draws one grade per vein and gives
+  it to every block; a Harmony prefix on its `TryPlaceMainOre` (`Ore/Game/GradePocketPlacement.cs`)
+  regrades each block in pockets about `GradePocketSizeBlocks` (8) across, one grade richer or
+  poorer than the drawn grade, from the world seed and the block's position only, so a vein comes
+  out the same whichever chunk generates it (`Ore/Core/GradePockets.cs`). `GradePocketSpread`
+  (0.35) is the share of a vein's blocks off its grade, split so the vein keeps its drawn grade's
+  mean metal units (`GradePocketWeighting` `units`; `index` splits it evenly): a medium vein is
+  17.5 % poor, 65 % medium, 17.5 % rich, a rich one 21 % medium, 65 % rich, 14 % bountiful. A vein
+  that can only go one way (poor, or at the richest grade its host rock allows) takes
+  `GradePocketEndSpread` (0.3), which moves its metal: a poor vein is 30 % medium (20 % more
+  units), a bountiful one 30 % rich (9 % less); 0 keeps such veins at one grade. Prospect veins (always
+  poor), sub-deposits and hydrothermal district veins keep their grades. The pocket settings are
+  read at each start; change them only before a world generates. Details in `docs/oregen.md`,
+  "Grade within veins".
+- **`StableVeins`** (#946): an ore cell's vein comes out the same whatever order its chunks
+  generate in. Interesting Ore Gen's veins otherwise read and write neighbouring chunks as each is
+  generated, so a deposit could come out at half or twice its size depending on how the land was
+  explored. With it, the anchor column's own pass decides the vein (its try and host rock, saved
+  as `seraphhorizons:stableveins`), and every column within 3 chunks lays its part at its PreDone
+  pass from a replay of IOG's own generator in a world of the host rock, onto the rock it has, with its boulder indicators on the surface where IOG's tracer paths meet it; IOG's
+  other veins (gems, quartz, olivine) write only into the column being generated
+  (`Ore/Game/StableVeins.cs`, `StableVeinWorlds.cs`, `Ore/Core/StableVeinBook.cs`). Needs `OreCells`.
+  Details in `docs/oregen.md`, "Stable veins".
 
 Admin commands (`controlserver`), under the pack's `/sh` root, to check the rule:
 

@@ -34,7 +34,7 @@ namespace SeraphHorizons.Mod.Ore;
 /// spot failed and the next fallback becomes active (<see cref="OreCellBook"/>). The book is
 /// kept in the savegame under <see cref="OreSystem.CellBookKey"/>.
 /// </summary>
-public sealed class OreCellPlacement
+public sealed partial class OreCellPlacement
 {
     public const string IogModId = "interestingoregen";
     public const string GeneratorTypeName = "InterestingOreGen.Generators.TiltedDiscDepositGenerator";
@@ -113,6 +113,13 @@ public sealed class OreCellPlacement
         harmony.Patch(GenChunkColumn, postfix: new HarmonyMethod(typeof(OreCellPlacement), nameof(GenChunkColumnPostfix)));
         api.Event.GameWorldSave += placement.Save;
         _current = placement;
+        if (world.StableVeins)
+        {
+            if (StableUnsupported() is { } why)
+                api.Logger.Warning("[seraphhorizons] Stable veins are off: {0}; ore cell veins depend on the order chunks generate in", why);
+            else
+                placement.BindStable(harmony);
+        }
         api.Logger.Notification(
             "[seraphhorizons] Ore cells: bound {0}.{1}; one deposit per {2} m cell for {3}",
             GeneratorTypeName, ApproveMethodName, world.CellSize, string.Join(", ", placement.Managed));
@@ -197,6 +204,7 @@ public sealed class OreCellPlacement
             _passDecided?.Clear();
         }
         if (spot?.Chunk != chunk) return false;
+        if (_stable) return ApproveStable(generator, metal, cell, spot!.Value, pos);
         var decided = _passDecided ??= [];
         if (decided.Contains(metal)) return false;
         switch (CentreInHostRock(generator, pos))
@@ -249,6 +257,8 @@ public sealed class OreCellPlacement
 
     private void OnColumnGenerated(IChunkColumnGenerateRequest request)
     {
+        // Stable veins: a peeked column (generated on the side, never kept) settles nothing.
+        if (SkipPeek(request)) return;
         int cx = request.ChunkX, cz = request.ChunkZ;
         var column = new ChunkPos(cx, cz);
         int bx = cx * OreCells.ChunkSize + OreCells.ChunkSize / 2, bz = cz * OreCells.ChunkSize + OreCells.ChunkSize / 2;
@@ -264,11 +274,21 @@ public sealed class OreCellPlacement
                     var state = _book.Get(metal, cell);
                     if (spot.Index != state.Active || state.Placed || state.None)
                     {
-                        _dirty |= _book.OnFallbackGenerated(metal, cell, spot.Index);
+                        if (_book.OnFallbackGenerated(metal, cell, spot.Index))
+                        {
+                            _dirty = true;
+                            _api.Logger.Notification("[seraphhorizons] Ore cells: {0} cell {1}, {2} spot {3} at {4}, {5}: generated before its turn (spot {6} is active), skipped",
+                                metal, cell.X, cell.Z, spot.Index, spot.X, spot.Z, state.Active);
+                        }
                         continue;
                     }
-                    present ??= MetalsIn(request.Chunks);
-                    bool has = present.Contains(metal);
+                    bool has;
+                    if (_stable) has = DecideStable(metal, cell, spot, request);
+                    else
+                    {
+                        present ??= MetalsIn(request.Chunks);
+                        has = present.Contains(metal);
+                    }
                     _dirty |= _book.OnAnchorGenerated(metal, cell, spot.Index, has);
                     var after = _book.Get(metal, cell);
                     string outcome = has ? "deposit placed"
@@ -326,6 +346,7 @@ public sealed class OreCellPlacement
 
     private void Save()
     {
+        SaveStable();
         string text;
         lock (_lock)
         {
@@ -352,6 +373,12 @@ public sealed class OreCellPlacement
         {
             var metal = OreMetals.MetalOf(VariantOf!(__instance)?.Code);
             if (metal == null) return true;
+            // A stable vein being replayed (StableVeins.cs): its try was approved when it was decided.
+            if (_replaying)
+            {
+                __result = true;
+                return false;
+            }
             __result = placement.Approve(__instance, metal, __0);
             return false;
         }
@@ -367,6 +394,7 @@ public sealed class OreCellPlacement
     private static void GeneratePartialPrefix(GenDeposits __instance, int __1, int __2, int __3, int __4)
     {
         _passChunk = new ChunkPos(__1 + __3, __2 + __4);
+        _passTarget = new ChunkPos(__1, __2);
         _passAccessor = WorldgenAccessor?.Invoke(__instance);
         _passDecided?.Clear();
     }
@@ -376,7 +404,14 @@ public sealed class OreCellPlacement
     {
         var placement = _current;
         if (placement == null) return;
-        try { placement.OnColumnGenerated(__0); }
+        try
+        {
+            // Lock order: IOG's lock (stable veins), then the book's.
+            if (placement._stable)
+                lock (IogLock) placement.OnColumnGenerated(__0);
+            else
+                placement.OnColumnGenerated(__0);
+        }
         catch (Exception e) { placement.Warn(e); }
     }
 
