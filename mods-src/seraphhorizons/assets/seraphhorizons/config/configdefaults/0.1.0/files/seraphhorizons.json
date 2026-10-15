@@ -99,6 +99,12 @@
   "SupplySpreadFraction": 0.1,
   "PlacerFields": true,
   "PlacerCellSizeMetres": 1500,
+  "GradePockets": true,
+  "StableVeins": true,
+  "GradePocketSizeBlocks": 8.0,
+  "GradePocketSpread": 0.35,
+  "GradePocketEndSpread": 0.3,
+  "GradePocketWeighting": "units",
   "WideDensityProspecting": true,
   "OreProcessing": true,
   "SpallingSettings": {

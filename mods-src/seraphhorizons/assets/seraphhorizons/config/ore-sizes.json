@@ -29,17 +29,23 @@
 // carry "factor" outright: half of target / median. Tin's one vein was small (0.3x, a deep
 // cassiterite seam) and lead, nickel, silver, gold, titanium and chromium had no anchored vein in
 // the survey; they keep target / median until a wider survey measures them.
+// Retuned for #945 on the census of #946 (tools/ore-survey --census, 10 seeds x 640 m, stable veins and
+// grade pockets on): the ore-cell medians were copper 165, iron 316, zinc 67, bismuth 111 and platinum
+// 89 ingots, the stable veins having shrunk them to about 0.75x. Each of those factors was multiplied by
+// target / that median; zinc, which grows less than its factor near the census's 50-ingot floor, was
+// then fitted over three runs (0.0835: median 100, 0.189: 214, 0.129: 141). Tin (128) and lead (140)
+// were within 25% of target and keep theirs. docs/oregen.md, "Ore cells after #945".
 {
-  "copper":   { "medianIngots": 3567, "targetIngots": 400, "factor": 0.0561, "smallIngots": 150, "largeIngots": 1000 },
-  "iron":     { "medianIngots": 4806, "targetIngots": 400, "factor": 0.0416, "smallIngots": 150, "largeIngots": 1000 },
+  "copper":   { "medianIngots": 3567, "targetIngots": 400, "factor": 0.136, "smallIngots": 150, "largeIngots": 1000 },
+  "iron":     { "medianIngots": 4806, "targetIngots": 400, "factor": 0.0527, "smallIngots": 150, "largeIngots": 1000 },
   "tin":      { "medianIngots": 896,  "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
-  "zinc":     { "medianIngots": 2009, "targetIngots": 150, "factor": 0.0373, "smallIngots": 60, "largeIngots": 400 },
-  "bismuth":  { "medianIngots": 6643, "targetIngots": 150, "factor": 0.0113, "smallIngots": 60, "largeIngots": 400 },
+  "zinc":     { "medianIngots": 2009, "targetIngots": 150, "factor": 0.129, "smallIngots": 60, "largeIngots": 400 },
+  "bismuth":  { "medianIngots": 6643, "targetIngots": 150, "factor": 0.0153, "smallIngots": 60, "largeIngots": 400 },
   "lead":     { "medianIngots": 1100, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
   "nickel":   { "medianIngots": 1411, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
   "silver":   { "medianIngots": 348,  "targetIngots": 80, "smallIngots": 30, "largeIngots": 200 },
   "gold":     { "medianIngots": 130,  "targetIngots": 80, "smallIngots": 30, "largeIngots": 200 },
-  "platinum": { "medianIngots": 905,  "targetIngots": 150, "factor": 0.0829, "smallIngots": 60, "largeIngots": 400 },
+  "platinum": { "medianIngots": 905,  "targetIngots": 150, "factor": 0.140, "smallIngots": 60, "largeIngots": 400 },
   "titanium": { "medianIngots": 2852, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
   "chromium": { "medianIngots": 825,  "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
 

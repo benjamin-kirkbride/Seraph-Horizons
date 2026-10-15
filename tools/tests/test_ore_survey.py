@@ -101,6 +101,19 @@ class Grouping(unittest.TestCase):
         self.assertEqual(deps[0]["minDepth"], 2)
         self.assertEqual(len(ore_survey.merge([f(0, 1), f(150, 1)], 150)), 2)
 
+    def test_grades_add_up_per_deposit(self):
+        self.assertEqual(ore_survey.grade_of("game:ore-rich-nativecopper-granite"), "rich")
+        self.assertIsNone(ore_survey.grade_of("game:ore-lignite-shale"))
+        cells = {(0, 0, 0): [60, 0, 5, {"medium": 60}], (1, 0, 0): [40, 0, 5, {"rich": 30, "poor": 10}]}
+        [frag] = ore_survey.fragments(cells)
+        self.assertEqual(frag["grades"], {"medium": 60, "rich": 30, "poor": 10})
+        frag.update(ores=["a"])
+        other = dict(frag, x=frag["x"] + 10, grades={"medium": 100})
+        [dep] = ore_survey.merge([frag, other], 150)
+        self.assertEqual(dep["grades"], {"medium": 160, "rich": 30, "poor": 10})
+        self.assertAlmostEqual(ore_survey.top_grade_share(dep), 0.8)
+        self.assertIsNone(ore_survey.top_grade_share({"grades": {}}))
+
     def test_gravel_fields_join_within_16_m_horizontally(self):
         cells = {(0, 0, 10): [50, 0, 1], (0, 0, 2): [5, 0, 30],   # same column, any height
                  (2, 0, 10): [50, 0, 2],                         # 16 m away: joined
@@ -155,6 +168,7 @@ class Summary(unittest.TestCase):
             self.assertAlmostEqual(cu["pocketsPerKm2"], 1)
             self.assertAlmostEqual(cu["pocketShare"], 20 / 420)
             self.assertAlmostEqual(cu["ingotsPerKm2"], 420 * 5.08 / 20)
+            self.assertEqual((cu["topGradeMedian"], cu["oneGradeShare"]), (1, 1))  # all medium
             g = s["gravel"]
             self.assertEqual((g["fields"], g["blocksMedian"], g["scatteredBlocksPerKm2"]), (1, 300, 10))
             self.assertIn("copper", text.getvalue())
@@ -166,6 +180,66 @@ class Summary(unittest.TestCase):
             with contextlib.redirect_stdout(io.StringIO()) as text:
                 ore_survey.main(["compare", str(out), str(Path(tmp) / "h.json")])
             self.assertIn("0.50x", text.getvalue())
+
+
+class Census(unittest.TestCase):
+    HEMATITE = "game:ore-rich-hematite-granite"
+
+    def write(self, tmp, records, rows):
+        run = Path(tmp) / "census-s9"
+        run.mkdir()
+        (run / "census.json").write_text(json.dumps({"seed": 9, "seconds": 3600, "columnsScanned": 100, "deposits": records}))
+        (run / "census.json.cells.csv").write_text("".join(",".join(map(str, r)) + "\n" for r in rows))
+        dump_path = Path(tmp) / "dump.json"
+        dump_path.write_text(json.dumps(DUMP))
+        return run, dump_path
+
+    def rec(self, rid, kind, metal, status="flooded", **kw):
+        r = {"id": rid, "kind": kind, "metal": metal, "status": status, "anchorX": 0, "anchorZ": 0,
+             "columns": 25, "generated": 25, "capped": False}
+        if kind == "cell":
+            r.update(cellX=1, cellZ=1, spot=0)
+        return {**r, **kw}
+
+    def test_records_sharing_a_cell_are_one_deposit_and_pockets_are_left_out(self):
+        records = [
+            self.rec(0, "cell", "copper"),
+            self.rec(1, "district", "copper", district={"code": "magmatic-mafic-shallow", "zoneKind": "OreShoot"}),
+            self.rec(2, "cell", "copper", status="none"),
+            self.rec(3, "cell", "copper"),
+            self.rec(4, "district", "iron", capped=True, columns=300,
+                     district={"code": "magmatic-mafic-shallow", "zoneKind": "LadderVein"}, rocks={"rock-andesite": 0.7, "rock-basalt": 0.3}),
+        ]
+        rows = (
+            [(0, COPPER, 1000 + x, 1000, 10, 100, 40) for x in range(2)]  # record 0: two cells
+            + [(1, COPPER, 1001 + x, 1000, 10, 100, 40) for x in range(2)]  # record 1: shares 1001 with record 0
+            + [(3, COPPER, 3000, 3000, 10, 50, 40)]  # record 3: a 50-block pocket only
+            + [(4, self.HEMATITE, 5000 + x, 5000, 10, 100, 2) for x in range(3)]
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            run, dump_path = self.write(tmp, records, rows)
+            out = Path(tmp) / "c.json"
+            with contextlib.redirect_stdout(io.StringIO()) as text:
+                ore_survey.main(["census", str(run), "--dump", str(dump_path), "--json", str(out)])
+            s = json.loads(out.read_text())
+        cu = s["metals"]["cell"]["copper"]
+        # Records 0 and 1 are one deposit of three cells (the shared cell counted once), a cell deposit.
+        self.assertEqual((cu["deposits"], cu["small"], cu["none"]), (1, 1, 1))
+        self.assertAlmostEqual(cu["ingotsMedian"], 300 * 5.08 / 20)
+        self.assertNotIn("copper", s["metals"]["district"])
+        fe = s["metals"]["district"]["iron"]
+        self.assertEqual((fe["deposits"], fe["cappedShare"], fe["columnsMedian"]), (1, 1, 300))
+        self.assertEqual(s["districtVeins"][0]["rocks"], {"rock-andesite": 0.7, "rock-basalt": 0.3})
+        self.assertEqual(s["throughput"]["records"], 5)
+        self.assertEqual(s["throughput"]["recordsPerServerHour"], 5)
+        self.assertIn("andesite 70%", text.getvalue())
+
+    def test_check_reads_p10_median_p90(self):
+        targets = {"tolerance": 1.5, "metals": {"copper": {"small": 150, "typical": 400, "large": 1000},
+                                                 "tin": {"small": 60, "typical": 150, "large": 400}}}
+        s = {"metals": {"all": {"copper": {"deposits": 9, "ingotsP10": 150, "ingotsMedian": 700, "ingotsP90": 1000}}}}
+        rows = {what.split(" (")[0]: ok for what, _, _, ok in ore_survey.check_census(s, targets)}
+        self.assertEqual(rows, {"copper ingots p10": True, "copper ingots median": False, "copper ingots p90": True})
 
 
 class Targets(unittest.TestCase):
