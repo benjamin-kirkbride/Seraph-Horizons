@@ -62,8 +62,8 @@ public class EidolonMinePlans : ModSystem
     /// <summary>The least time between two route solves asked for by repair (drops, a member gone, late).</summary>
     public const double SolveMinSeconds = 2;
 
-    /// <summary>The least time between two route solves when the one asked for is urgent (a member with no stop
-    /// and stations left, a new station plan, a deadlock).</summary>
+    /// <summary>The least time between two route solves when the one asked for is urgent (a new station plan, a
+    /// deadlock).</summary>
     public const double UrgentMinSeconds = 0.5;
 
     private ICoreServerAPI? _api;
@@ -458,6 +458,8 @@ public class EidolonMinePlans : ModSystem
             foreach (long gone in made.Routes.Keys.Where(m => !present.Contains(m)).ToList())
                 if (made.Gone(gone, now, live) is { } again)
                     RequestRoutes(cells, again, false);
+            if (cells.Routes == null || cells.Routes.PlanVersion != made.PlanVersion)
+                cells.RoutesPlanSince = now;
             cells.Routes = made;
             cells.RoutesVersion++;
             made.Sweep(live, now);

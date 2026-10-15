@@ -3478,21 +3478,23 @@ set off, at its planned time or sooner when the station is ready and the plan ha
 there, waits out a planned wait where it is planned (`eidolon-status-mine-waiting-route`), stepping aside for
 another walking up to it, crosses another's claim after 4 seconds, passes another eidolon only briefly and
 rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the stair or one
-standing near it, which would be pushed), never sets off for a stand another stands on (dropping the stop when
-one stays there), stops short of one standing that it walks at, whatever the walk (a third of a block before
-their boxes touch), waits while that one is still in its way, and parts from one its box has been in for 0.6
-seconds (the game's push between two boxes reads as walking, which the other would give way to for ever): the
-one with the higher id, or beside one striking or home, steps away to a place apart from every eidolon, the
-other waits. It lets its claims go while it waits, drops a stop whose claim stays taken 2 seconds, and gives
-up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped and the routes
-solved again, so the others are not held to their turns behind it). A crew with no strike begun for 15 seconds
-since its routes were made (timed waits that hold each member for another, a stair's slots run off the plan)
-has the rest of that station plan dispatched as today's. Small events are repaired in place on the main thread
-(begun, finished, dropped, a member gone, a new plan); a full solve follows a failed repair, a member joining,
-a new station plan, or every 15 seconds (no two within 2 seconds, or half a second when urgent: a member with
-no stop left while stations are, a deadlock), and a periodic one keeps the routes running unless the new are
-10 % better. A lone member, routing off (`EidolonMinePlans.Routing`; `SH_MINE_BASELINE=1` in the environment,
-for measuring), or routes not made yet: the job is dispatched as below. *Dispatch*
+standing near it, which would be pushed), never sets off for a stand another stands on (a member waiting there
+is asked to make room, stepping aside to a place with nothing left to dig and no claim; the stop is dropped
+when one stays there), stops short of one standing that it walks at, whatever the walk (a third of a block
+before their boxes touch), waits while that one is still in its way, and parts from one its box has been in
+for 0.6 seconds (the game's push between two boxes reads as walking, which the other would give way to for
+ever): the one with the higher id, or beside one striking or home, steps away to a place apart from every
+eidolon, the other waits. It lets its claims go while it waits, drops a stop whose claim stays taken 2
+seconds, and gives up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped
+and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
+for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold
+each member for another, a stair's slots run off the plan) has the rest of that station plan dispatched as
+today's. Small events are repaired in place on the main thread (begun, finished, dropped, a member gone, a new
+plan); a full solve follows a failed repair, a member joining, a new station plan, or every 15 seconds (no two
+within 2 seconds, or half a second for a new station plan or a deadlock), and a periodic one keeps the routes
+running unless the new are 10 % better. A lone member, routing off (`EidolonMinePlans.Routing`;
+`SH_MINE_BASELINE=1` in the environment, for measuring), or routes not made yet: the job is dispatched as
+below. *Dispatch*
 (mining; `Eidolon/Core/MineDispatch.cs`): the job's members work one plan. Each
 holds a short queue of stations (`MineDispatch.QueueLength`, 2: the one it works and the next) and takes
 the next from the first 24 in the plan's order that nobody holds, whose columns are free and that pass

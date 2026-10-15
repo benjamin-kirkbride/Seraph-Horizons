@@ -149,6 +149,10 @@ public sealed class MineJobCells
     /// <summary>The station plan whose routes stalled (no strike for a while by a crew all waiting on them): it
     /// is dispatched as today's for the rest of that plan; -1 for none.</summary>
     public int RoutesStalledPlan { get; set; } = -1;
+
+    /// <summary>When routes for the station plan in use first came in (game seconds): a stall is timed from
+    /// it, not from each solve after.</summary>
+    public double RoutesPlanSince { get; set; }
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>
