@@ -4,7 +4,7 @@ Part of the Seraph Horizons mod (`../README.md`): the generated model of the **s
 of the ore line (epic #684; behaviour #734, model #735). A riffled plank sluice: "10 to 15 feet of sluice boxes
 fitted with transverse riffles" [Louis 1902, p. 293], which a stamp mill ran its pulp through after the plates,
 carrying it in a stream of water; the heavy grains settle behind the riffles. Here the riffles' catch is **drawn
-off continuously** and leaves by its own chute: nothing is cleaned up by hand, and there is one level (the owner's
+off continuously** and leaves by its own chute: nothing is cleaned up by hand (the owner's
 ruling on #734). The line, the glossary and the period sources are #939; the power and water budget #940.
 
 **Status: model only.** This folder's `tools/` holds the model's generator and its checks. The gameplay is #734
