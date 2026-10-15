@@ -123,7 +123,8 @@ first west end had an input post in the trunk's path; it became a portal.
 
 ### Rules from review
 
-The owner's review notes on the sawmill reduce to these rules. Each has a reason.
+The owner's review notes on the sawmill and the ore line's machines (#684) reduce to these rules. Each
+has a reason.
 
 - **No toothed wheel that meshes with nothing.** Gears read as a promise of a drive; an idle one
   reads as a mistake. Leave decorative toothed flanges off, or make the wheel plain.
@@ -140,6 +141,17 @@ The owner's review notes on the sawmill reduce to these rules. Each has a reason
   tangent point and be tied to something.
 - **Iron for pins and wearing surfaces, wood for structure.** Shafts that continue a vanilla wooden
   axle stay wood. The README's texture rule lists every case.
+- **Lids only where the process needs one.** A vessel, box or tank gets a lid only to hold in
+  heat, fumes, splash or a pressure, never as decoration. An open working vessel stays open, so
+  the player can see what is in it.
+- **Wooden boxes under load are strapped with iron.** A wooden box that holds water or ore under
+  load (the jig's tank, the riddle's box, a sluice's wear points) is bound with iron straps at its
+  corners or ends, each strap wrapping the corner and meeting the next, as period boxes were.
+  Without them the box reads as too weak for its load.
+- **Iron that reinforces brickwork is angle iron.** Each member is an L wrapping the brick's
+  corner, and the members are joined: bands meet the uprights, no end floats. Leave no sliver of
+  brick showing flush between two iron members; close the gap with iron or widen it to real
+  brickwork.
 - **Linkages as few rigid pieces as possible.** Each throw needs a visible cause, both ways. The
   sawmill's clutch is one rock shaft (tappet arm, fork, over-centre weight) and one pushrod. The
   carriage pushes the rod down at the bottom and lifts it by a collar at the top.
