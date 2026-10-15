@@ -23,7 +23,7 @@ powered, draws its top stone at the network's angle (`QuernTopRenderer`: `AngleR
 so the stone turns once a turn of the axle; by hand it turns the stone 40° a second while the player holds
 right-click. The pan does the same with its muller: under power it turns 1:1 with the axle, which comes
 up into its down face; by hand the player holds right-click on the pan and the muller turns, with no
-crank or handle to see. There is no oil and no pipe, and one level: the hand station's. The rig's θ is
+crank or handle to see. There is no oil and no pipe. The rig's θ is
 the spindle's angle, the axle's or the hand's clock; nothing is posed by a work quantity W: the rig has
 no `work`.
 
