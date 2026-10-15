@@ -757,6 +757,36 @@ granitic-deep veins wrong), after is #946. Ingots per vein, every vein (small on
 - Sizing a district takes 31–877 ms, median 193, over the census's 139 districts (the log's
   `sized in`), once per district per run.
 
+### Ore cells after #945
+
+The same census (`tools/ore-survey/run.sh --census --fast --kinds cells`, seeds 1101–1110, 640 × 640
+chunks) of each metal's cell deposit, with grade pockets and stable veins on. Stable veins had
+shrunk the cell deposits (above), so the factors in `config/ore-sizes.json` were retuned against
+this census, not the earlier survey: each of copper, iron, zinc, bismuth and platinum multiplied by
+target ÷ its median, and zinc then fitted over three runs, since it grows less than its factor
+near the census's 50-ingot floor (0.0835: median 100; 0.189: 214; 0.129: 141). The bar (owner's
+ruling): the median within ±25 % of typical, p10 and p90 within small..large. Ingots, deposits of
+50 or more:
+
+| Metal (small / typical / large) | Factor before → after | Before p10 / median / p90 | After p10 / median / p90 | After median ÷ typical |
+|---|---|---|---|---|
+| Copper (150 / 400 / 1000) | 0.0561 → 0.136 | 72 / 165 / 399 | 152 / 379 / 808 | 0.95 |
+| Iron (150 / 400 / 1000) | 0.0416 → 0.0527 | 102 / 316 / 776 | 108 / 386 / 1,001 | 0.97 |
+| Zinc (60 / 150 / 400) | 0.0373 → 0.129 | 54 / 67 / 97 | 77 / 141 / 225 | 0.94 |
+| Bismuth (60 / 150 / 400) | 0.0113 → 0.0153 | 59 / 111 / 220 | 59 / 124 / 276 | 0.83 |
+| Platinum (60 / 150 / 400) | 0.0829 → 0.140 | 58 / 89 / 190 | 62 / 121 / 289 | 0.81 |
+| Tin (60 / 150 / 400) | unchanged | 60 / 128 / 264 | – | 0.85 |
+| Lead (60 / 150 / 400) | unchanged | 64 / 140 / 586 | – | 0.93 |
+
+- Iron's spread is wider than its tiers: p10 108 sits under small (150) with p90 already at
+  large, so no factor fits both; the median was put on typical.
+- Lead's p90 (586) is over large; lead was out of #945's scope (median on typical) and was left.
+- Bismuth and platinum grow less than their factor too (1.35× gave 1.12×, 1.69× gave 1.36×); both
+  are inside the bar, so they were not fitted further. 33 platinum cells of 250 have no deposit,
+  as before the retune.
+- `ore_survey.py census --check` reads p10 / p90 within 1.5× of small / large, stricter than the
+  bar, so it still marks iron's p10 and zinc's p90.
+
 ### Open
 
 - The surface heights the strata are predicted at (`surfaceAboveSeaLevel`) come from three seeds'
