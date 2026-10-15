@@ -10,7 +10,8 @@ namespace SeraphHorizons.PackTests;
 
 // seraphhorizons, MandrelStation's spring job and RodsOnForge: a hot steel rod wound into a spring on
 // the station by right-click held with tongs, and every metal rod heated on the game's forge. The holds
-// are the block's own interaction calls, as the game makes them while right-click is held. Every
+// are the block's own interaction calls, as the game makes them while right-click is held (the whole
+// winding on the virtual clock, tests/PackTests/README.md). Every
 // scenario builds on a granite floor of its own 40 above spawn at x -460 to -508, z -520 (a row south of
 // the station's other scenarios), with the gear cutter's player.
 public partial class SharedWorldScenarios
@@ -125,13 +126,14 @@ public partial class SharedWorldScenarios
     // the hold does nothing; with tongs in the off hand it winds a turn a second, from the stump or the
     // ghost, and in about eight seconds one spring comes off beyond the tip as hot as the rod was, the
     // rod used up and the tongs a point the worse.
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Mandrel_station_winds_a_hot_steel_rod_into_a_hot_spring()
     {
         var pos = await CutterSite(-472, -520);
         var player = await CutterPlayer();
         var station = await PlaceMandrelStation(pos, "south");
         FitMandrel(station, player);
+        using var clock = VirtualClock.Start(World);
         // hot metal is held with tongs (the game drops it from a hand without them)
         HoldTongs(player);
 

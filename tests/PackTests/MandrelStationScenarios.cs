@@ -13,7 +13,8 @@ namespace SeraphHorizons.PackTests;
 // seraphhorizons, MandrelStation (mods-src/seraphhorizons/MandrelStation/): the mandrel forging
 // station in the plain world, worked by hand. Every blow is a real right-click with a hammer through
 // the block's own interaction call, as the game makes it, a few ticks apart (the station takes a blow
-// no faster than Forging.BlowIntervalMs). Every scenario builds on a granite floor of its own 40 above
+// no faster than Forging.BlowIntervalMs; the scenarios striking whole hollows do so on the virtual clock,
+// tests/PackTests/README.md). Every scenario builds on a granite floor of its own 40 above
 // spawn at x -460 to -508, z -460 to -500 (clear of the draw bench's at x -240 to -300, z -240 to
 // -280, and the press brake's at x -320 to -368, z -320 to -340), and they share the gear cutter's
 // player, gearcutterhand (the server takes 16 players at most, and the other scenarios use the rest).
@@ -226,13 +227,14 @@ public partial class SharedWorldScenarios
     // A lead hollow goes on by hand and is forged a blow at a time, each a right-click with a copper
     // hammer (the base) that costs the hammer a point; at the sixth two lead pipe sections drop beyond the tip and the
     // hollow is used up. An angle, a pipe section, an ingot and a plate never go on.
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Mandrel_station_strikes_a_lead_hollow_into_two_pipe_sections()
     {
         var pos = await CutterSite(-472, -480);
         var player = await CutterPlayer();
         var station = await PlaceMandrelStation(pos, "south");
         FitMandrel(station, player);
+        using var clock = VirtualClock.Start(World);
 
         // not what it forges: they stay in hand
         foreach (var code in new[] { "seraphhorizons:angle-lead", "seraphhorizons:angle-copper", PipeSectionLead, PipeSectionCopper, "game:ingot-lead", "game:metalplate-copper" })
@@ -294,13 +296,14 @@ public partial class SharedWorldScenarios
     }
 
     // Copper forges the same, into two copper pipe sections, at fourteen blows against lead's nine.
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Mandrel_station_takes_more_blows_for_copper()
     {
         var pos = await CutterSite(-484, -480);
         var player = await CutterPlayer();
         var station = await PlaceMandrelStation(pos, "west");
         FitMandrel(station, player, "game:rod-meteoriciron");
+        using var clock = VirtualClock.Start(World);
         Assert.Null(CutterClick(player, pos, CutterItem(Forging.CopperHollow)));
         Assert.Equal(2, station.Job.Class);
         Assert.Equal(14, station.BlowsNeeded);
@@ -321,7 +324,7 @@ public partial class SharedWorldScenarios
     // Right-click held with a hammer: once a hollow is finished, the next of the same item from the
     // player's hotbar goes on by itself (never one of another metal), only once a blow would be struck,
     // and the hammering carries on; with none left in the hotbar nothing goes on.
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Mandrel_station_refills_from_the_hotbar_while_the_hammer_is_held()
     {
         var pos = await CutterSite(-484, -500);
@@ -335,6 +338,7 @@ public partial class SharedWorldScenarios
         var kept = others.ToDictionary(i => i, i => hotbar[i].Itemstack);
         var copperSlot = hotbar[others[1]];
         var leadSlot = hotbar[others[3]];
+        using var clock = VirtualClock.Start(World);
         try
         {
             foreach (int i in others)
@@ -394,13 +398,14 @@ public partial class SharedWorldScenarios
 
     // A steel hammer (tier 5) forges two and a half copper blows a blow, the game's ratio: lead in
     // four blows, copper in six, each costing the hammer its one point.
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Mandrel_station_forges_faster_with_a_steel_hammer_by_its_tier()
     {
         var pos = await CutterSite(-460, -500);
         var player = await CutterPlayer();
         var station = await PlaceMandrelStation(pos, "north");
         FitMandrel(station, player);
+        using var clock = VirtualClock.Start(World);
         var hammer = CutterItem(MandrelSteelHammer);
         int steel = hammer.Collectible.ToolTier, copper = W.GetItem(new AssetLocation(MandrelHammer))!.ToolTier;
         Assert.Equal((5, 2), (steel, copper));
@@ -439,13 +444,14 @@ public partial class SharedWorldScenarios
 
     // A hammer with no tool tier counts as the base: the steel hammer with its tier taken away for the
     // scenario (and given back) forges lead in the copper hammer's nine blows.
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Mandrel_station_counts_a_hammer_with_no_tier_as_the_base()
     {
         var pos = await CutterSite(-472, -500);
         var player = await CutterPlayer();
         var station = await PlaceMandrelStation(pos, "east");
         FitMandrel(station, player);
+        using var clock = VirtualClock.Start(World);
         var item = W.GetItem(new AssetLocation(MandrelSteelHammer))!;
         int tier = item.ToolTier;
         try
@@ -526,7 +532,7 @@ public partial class SharedWorldScenarios
     // A chest beside the stump and one beyond the tip are left alone: a blow on the bare mandrel takes
     // no hollow from the first, and the sections of a hollow put on by hand drop beyond the tip rather
     // than going into the second.
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Mandrel_station_takes_nothing_from_a_chest_and_puts_nothing_in_one()
     {
         var pos = await CutterSite(-508, -480);
@@ -543,6 +549,7 @@ public partial class SharedWorldScenarios
         source.Inventory[0].Itemstack = CutterItem(Forging.LeadHollow, 2);
         source.MarkDirty(true);
 
+        using var clock = VirtualClock.Start(World);
         await World.Ticks(20);
         var hammer = CutterItem(MandrelHammer);
         CutterClick(player, pos, hammer);
