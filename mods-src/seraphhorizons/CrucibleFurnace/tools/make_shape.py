@@ -228,8 +228,8 @@ KERB_Y = (30.5, FLOOR_TOP)                   # a band along the top edge of the 
 # recipe placed as the machine (the controller and its ghosts), then the brickwork (which also fits the hinge's iron,
 # its pins and stops on their ties, at no cost of its own), the lining, and the lid with the damper. The brickwork's and the lining's counts are measured from the model's volume at the game's rates: a
 # claybricks block is 2 fired bricks (8 and a mortar make 4), a refractory brick block 4 (8 and a mortar make 2),
-# rounded up; the lining's fire clay is one for every LINING_PER_FIRECLAY of its bricks, rounded up.
-FRAME_RECIPE = (("game:metalplate-iron", 2), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 10))
+# rounded up; the lining's fire clay is one for every LINING_PER_FIRECLAY of its bricks, rounded up. The frame's recipe
+# is measured too (frame_recipe), at the pack's one iron rate.
 BRICKS_PER_BLOCK = 2
 LINING_PER_BLOCK = 4
 LINING_PER_FIRECLAY = 2.5
@@ -1049,6 +1049,33 @@ def counts():
     return dict(_COUNTS)
 
 
+# The iron frame's recipe, measured from its elements at the pack's one iron rate (the owner's ruling of 2026-10-15,
+# the ore line's): IRON_PER_INGOT voxels of iron an ingot, and the metal paid as the counted rods first (the frame's
+# bars and shafts: ROD_PIECES, a rod an ingot), then whole plates (two ingots each), then nails and strips for the
+# rest (NAILS_PER_INGOT to an ingot); the whole is rounded to the nearest nails and strips, the smallest piece.
+IRON_PER_INGOT = 128
+NAILS_PER_INGOT = 4
+PLATE_INGOTS = 2
+ROD_PIECES = ("fr_bearer", "fr_bar", "fr_lintel", "fr_guide")   # the bearers, the firebars, the lintel, the guides
+
+
+def frame_iron():
+    """The iron frame's iron, in voxels: (all of it, its rods' pieces)."""
+    els = build_iron()
+    return (sum(box_volume(e) for e in els),
+            sum(box_volume(e) for e in els if e.name.startswith(ROD_PIECES)))
+
+
+def frame_recipe():
+    """The frame's grid recipe (code, quantity), plates, rods, then nails and strips, those it needs."""
+    total, rods = frame_iron()
+    quarters = round(total * NAILS_PER_INGOT / IRON_PER_INGOT)
+    n_rods = round(rods / IRON_PER_INGOT)
+    plates, nails = divmod(quarters - n_rods * NAILS_PER_INGOT, PLATE_INGOTS * NAILS_PER_INGOT)
+    return tuple((code, q) for code, q in (("game:metalplate-iron", plates), ("game:rod-iron", n_rods),
+                                           ("game:metalnailsandstrips-iron", nails)) if q)
+
+
 def materials(pairs):
     return [{"code": code, "quantity": q} for code, q in pairs]
 
@@ -1056,7 +1083,7 @@ def materials(pairs):
 def build_json():
     c = counts()
     return {
-        "frame": {"recipe": "grid", "tool": "hammer", "ingredients": materials(FRAME_RECIPE)},
+        "frame": {"recipe": "grid", "tool": "hammer", "ingredients": materials(frame_recipe())},
         "stages": [
             {"requires": "brickwork", "volumeBlocks": r6(c["brickVolume"]), "oneType": True, "perClick": "stack",
              "materials": materials(((FIRED_BRICK, c["bricks"]),)), "alsoParts": ["hinge"]},

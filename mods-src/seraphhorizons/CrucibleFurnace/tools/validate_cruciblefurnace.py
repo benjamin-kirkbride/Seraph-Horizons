@@ -507,7 +507,8 @@ def check_lining(v):
 def check_build(v):
     """The stages' counts *(review)*: the brickwork's and the lining's volumes, measured from their elements (each
     lattice box in exactly one brick box: their volumes add up to the lattice's), give the rig's quantities at the
-    game's rates, rounded up; the lid stage and the frame's recipe are as settled; every stage's requires is a part's."""
+    game's rates, rounded up; the lid stage is as settled, the frame's recipe as measured from its iron (frame_recipe);
+    every stage's requires is a part's."""
     m = v.m
     xs, ys, zs, mat = m.brick_lattice()
     lat = {"bk": 0.0, "ln": 0.0}
@@ -536,15 +537,15 @@ def check_build(v):
         v.fail("the brickwork does not take one type of any fired brick")
     if [(x["code"], x["quantity"]) for x in st["lid"]["materials"]] != list(m.LID_STAGE):
         v.fail("the lid stage's materials are not the settled ones")
-    if [(x["code"], x["quantity"]) for x in build["frame"]["ingredients"]] != list(m.FRAME_RECIPE):
-        v.fail("the frame's recipe is not the settled one")
+    if [(x["code"], x["quantity"]) for x in build["frame"]["ingredients"]] != list(m.frame_recipe()):
+        v.fail("the frame's recipe is not the one measured from its iron")
     requires = {p["requires"] for p in v.parts}
     if not set(m.STAGES) <= requires or any(f"damper{d}" not in requires for d in m.DAMPERS):
         v.fail("a stage's requires is no part's")
     print(f"build: brickwork {lat['bk'] / m.B ** 3:.2f} blocks -> {got['bricks']} fired bricks; lining "
           f"{(lat['ln'] + stands) / m.B ** 3:.2f} blocks (the stands {stands / m.B ** 3:.3f}) -> {got['lining']} "
           f"refractory bricks and {got['fireclay']} fire clay; lid and damper {dict(m.LID_STAGE)}; the frame "
-          f"{dict(m.FRAME_RECIPE)}")
+          f"{dict(m.frame_recipe())} ({m.frame_iron()[0]:.1f} voxels of iron, {m.frame_iron()[1]:.1f} of it rods)")
 
 
 # ---------------------------------------------------------------- the lid

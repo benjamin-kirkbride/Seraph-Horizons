@@ -118,7 +118,7 @@ order), and the viewer's **Build** select steps through them:
 
 | | Stage | `requires` | What it puts in | Materials | Gear |
 |---|---|---|---|---|---|
-| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | What stands on its own: the binding's corner straps and top bands, the grate's bearers and firebars, the ash mouth's lintel and the damper's guides, and 5 short posts under the bearers and the lintel, hidden in the brickwork (below) | 2 iron plates, 4 iron rods, **10 iron nails and strips** | 39.92 |
+| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | What stands on its own: the binding's corner straps and top bands, the grate's bearers and firebars, the ash mouth's lintel and the damper's guides, and 5 short posts under the bearers and the lintel, hidden in the brickwork (below) | **4 iron rods, 1 iron plate** (its 760 voxels of iron at 128 an ingot: below) | 23.07 |
 | 1 | **Brickwork** | `brickwork` (and the `hinge` part) | The base, the ash pit and the ash mouth, the outer walls: 12.34 blocks of brick; and with it, at no cost of its own, the hinge's pins and the lid's stops on their 8 ties | **25 fired bricks**, any one type (`game:burnedbrick-*`) | 8.50 (brown brick: 4.38) |
 | 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on the hot faces (the hole's walls and the seat's ledge, the flue and the stack), the outlet's curb and the pots' stands: 2.15 blocks | **9 tier-3 refractory bricks** (`game:refractorybrick-fired-tier3`), **4 fire clay** (`game:clay-fire`) | 9.00 |
 | 3 | **Lid and damper** | `lid` (and the damper's place) | The lid, and the damper in its recess | 4 tier-3 refractory bricks, 2 iron plates | 19.37 |
@@ -305,8 +305,11 @@ check says it was skipped. Those marked *(review)* came from the owner's review:
   the brickwork's.
 - **The stages' counts** *(review)*: the brick boxes' volumes add up to the lattice's, the brickwork's and the
   lining's apart, and give the rig's quantities at the game's rates, rounded up (25 fired bricks, 9 refractory bricks,
-  4 fire clay); the lid stage's materials and the frame's recipe (2 iron plates, 4 iron rods, 10 iron nails and
-  strips) are the settled ones; every stage's `requires` is a part's.
+  4 fire clay); the lid stage's materials are the settled ones, and the frame's recipe is the one measured from its
+  iron (`frame_recipe`): its elements hold 760.45 voxels of iron, 501.2 of them the bars (the bearers, the firebars,
+  the lintel and the guides), and at the pack's one iron rate (128 voxels an ingot; the counted rods first, a rod an
+  ingot, then whole plates, two ingots, then nails and strips, four to an ingot, the whole rounded to the nearest nails
+  and strips) that is 4 rods and 1 plate, 6 ingots; every stage's `requires` is a part's.
 - **The lid** *(review)*: shut, flush in its seat, on the seat's ledge all round; every corner of it within its top
   front edge's distance of the axis, so it never swings into the seat's front wall; nothing of it but the knuckles
   behind its back edge under the floor at any depth (no pit); the pins through both knuckles at every depth and 1.5
