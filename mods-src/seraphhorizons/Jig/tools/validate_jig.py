@@ -402,6 +402,33 @@ def flows(v):
     return out
 
 
+def check_infeed_drop(v):
+    """The infeed chute's mouth stands clear over the feed trough: from its walls' foot down to the highest
+    point of the trough's boards under the chute's section, at least INFEED_DROP of open fall, and nothing
+    else of the machine in that space."""
+    m = v.m
+    chute = v.named("infeed", r"^infeed_chute_")
+    mouth = min(e.aabb()[0][1] for e in chute)
+    clo = [min(e.aabb()[0][k] for e in chute) for k in range(3)]
+    chi = [max(e.aabb()[1][k] for e in chute) for k in range(3)]
+    under = []
+    for pid in v.shown("complete"):
+        for e in v.posed(pid, (0.0, "complete")):
+            lo, hi = e.aabb()
+            if e.name.startswith("infeed_chute_") or hi[1] > mouth + 1e-6:
+                continue
+            if lo[0] < chi[0] and hi[0] > clo[0] and lo[2] < chi[2] and hi[2] > clo[2]:
+                under.append((hi[1], e.name))
+    top, name = max(under)
+    gap = mouth - top
+    print(f"infeed drop: the chute's mouth at y {mouth:.2f}, the highest thing under it {name} at {top:.2f}: "
+          f"{gap:.2f} of open fall (at least {m.INFEED_DROP})")
+    if not name.startswith("infeed_trough_"):
+        v.fail(f"the first thing under the infeed chute is {name}, not the feed trough")
+    if gap < m.INFEED_DROP - 1e-6:
+        v.fail(f"the infeed chute's mouth is {gap:.2f} over the feed trough, under {m.INFEED_DROP}")
+
+
 def check_flows(v):
     n = 0
     fl = flows(v)
@@ -789,6 +816,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v, [(a, "all") for a in (0.0, 0.7, 1.6, 2.5, 3.3, 4.1, 4.71, 5.0, 5.8, -1.2)])
     check_anchors(v)
     check_levels(v)
+    check_infeed_drop(v)
     check_flows(v)
     check_paths(v)
     check_yoke(v)

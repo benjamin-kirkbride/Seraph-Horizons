@@ -156,7 +156,9 @@ VANILLA_CHUTE = {                            # game 1.22.7, shapes/block/metal/c
     "shape": "shapes/block/metal/chute/straight.json",
 }
 BORE = (5.0, 11.0)                           # the chute's bore, cell-local, across either axis
-INFEED_Y0 = 26.2                             # the infeed section: from the top face down to here, over the feed trough
+INFEED_Y0 = 28.5                             # the infeed section: from the top face down to here, over the feed trough
+INFEED_DROP = 2.0                            # the feed falls at least this far in the open from the chute's mouth to the
+                                             # trough's boards under it (its sides' tops), so the two read apart
 TAIL_X1 = HUTCH_X[0]                         # the tailings section: from the west face to the hutch's west wall
 CONC_Z1 = HUTCH_Z[0]                         # the concentrate section: from the north face to the hutch's front wall
 
@@ -170,7 +172,7 @@ TROUGH_Z = (4.4, 11.6)                       # outside; inside 5 .. 11, the chut
 BEARERS_X = ((5.6, 7.0), (10.4, 11.8))       # its two oak bearers, from the front wall's rim to the partition's
 STRAPS_X = ((5.9, 6.7), (10.7, 11.5))        # the chute's iron straps, down its north and south walls to the bearers
 STRAP_T = 0.4
-STRAP_TOP = 30.0
+STRAP_TOP = 31.5                             # the straps carry the chute: up its walls nearly to its top
 WEIR_Y = 21.25                               # the weir's sill (the iron lip's top): the water's level
 WEIR_Z = (5.2, 10.8)                         # the notch in the west wall, inside the tailings chute's bore
 LIP_X0 = 2.0                                 # the lip reaches half a voxel into the chute's mouth from the wall's

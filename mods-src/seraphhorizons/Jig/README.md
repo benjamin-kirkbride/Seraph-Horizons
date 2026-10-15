@@ -118,10 +118,12 @@ stroke of 1.0. From the yoke's bottom bar the **plunger rod** goes down to an ir
 sieve's level, below the water; from its top bar a **tail rod** rises through the guide on the beam, which
 keeps the yoke upright. Nothing else guides it: the board in its compartment and the tail rod in its guide.
 
-**The infeed** (`infeed`). Vanilla's straight chute section, upright, from the top face down to y 26.2;
-under it the **feed trough** (planks, its inside the chute's bore wide), lying on two oak **bearers** that
-span the sieve compartment from the front wall's rim to the partition's; four iron straps carry the chute
-down its north and south walls onto the bearers.
+**The infeed** (`infeed`). Vanilla's straight chute section, upright, from the top face down to y 28.5
+(3.5 long), its mouth open over the **feed trough** (planks, its inside the chute's bore wide) with 2.45
+of clear fall to the trough's boards, so the feed visibly drops from the chute into the trough and runs
+down it onto the bed; the trough lies on two oak **bearers** that span the sieve compartment from the
+front wall's rim to the partition's, and four iron straps rise from the bearers up the chute's north and
+south walls to y 31.5 and carry it over the gap.
 
 **The outlets** (`outlets`). Vanilla's straight chute section from the weir out of the west face (2.5
 long, on an iron bracket from the hutch's west wall), and from the spout out of the north face (3 long, on
@@ -234,6 +236,8 @@ Every run checks its output and exits non-zero if a check fails:
   surface through a turn (they move together); the partition open over the slope and under the plunger's
   stroke; the spout's floor flush with the slope's foot, over the concentrate chute's bore floor, the
   spout inside the chute's bore and its lip in the chute's mouth; the contents' amplitudes and directions.
+- **Infeed drop** (`check_infeed_drop`): under the infeed chute's section, the first thing below its mouth
+  is the feed trough, at least `INFEED_DROP` (2.0) lower: open fall, nothing crowding the mouth.
 - **Flows** (ray drops, the water's surface not counted): the infeed onto the feed trough at its corners
   and middle; the trough's lip onto the sieve (and onto the bed, through a turn), clear of the bearers;
   the weir's lip into the tailings chute's floor across its width; through the sieve onto the hutch's
