@@ -118,7 +118,7 @@ public class EidolonCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(EidolonCarryOn.IsCarryable(World.Api, Granite));
     }
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 150_000)]
     public async Task It_carries_a_filled_chest_20_blocks_after_its_commander_and_sets_it_down_with_its_contents()
     {
         var at = await Floor(0, 0, reach: 28);
@@ -129,6 +129,7 @@ public class EidolonCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var chestAt = at.AddCopy(-8, 0, 0);
         Chest(chestAt);
         var e = await Spawn(at.AddCopy(-14, 0, 0), player);
+        using var clock = VirtualClock.Start(World);
         var carry = e.GetBehavior<EntityBehaviorEidolonCarry>()!;
         var config = Mod.Config;
         double oilBefore = e.Oil!.Tank!.Value.Points;

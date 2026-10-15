@@ -131,11 +131,12 @@ public partial class WoodworkingScenarios
         }
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Every_facing_drops_its_batches_in_the_cell_in_front()
     {
         var origin = World.Spawn.AddCopy(60, 12, -60);
         await ChopperSite.Watcher(World, origin, "chopwatcher");
+        using var clock = VirtualClock.Start(World);
         int i = 0;
         foreach (var facing in new[] { BlockFacing.NORTH, BlockFacing.EAST, BlockFacing.SOUTH, BlockFacing.WEST })
         {
@@ -166,11 +167,12 @@ public partial class WoodworkingScenarios
         }
     }
 
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_hopper_sunk_in_front_catches_every_batch()
     {
         var origin = World.Spawn.AddCopy(-60, 12, 60);
         await ChopperSite.Watcher(World, origin, "hopperwatcher");
+        using var clock = VirtualClock.Start(World);
         int i = 0;
         foreach (var facing in new[] { BlockFacing.NORTH, BlockFacing.EAST })
         {

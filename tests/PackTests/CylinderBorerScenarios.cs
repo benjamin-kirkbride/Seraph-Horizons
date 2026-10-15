@@ -15,7 +15,8 @@ namespace SeraphHorizons.PackTests;
 // plain world, driven by a real mechanical power network (a vanilla creative rotor against its power face).
 // A bore is 72 axle turns for iron and 108 for steel, so each scenario that runs it under power waits for
 // the shaft's own turning to move the cutter head, then finishes the bore through BECylinderBorer.Bore, as
-// the gear cutter's scenarios finish a gear through Cut. Every scenario builds on a granite floor of its
+// the gear cutter's scenarios finish a gear through Cut; the powered part runs on the virtual clock
+// (tests/PackTests/README.md). Every scenario builds on a granite floor of its
 // own 40 above spawn at x -680 to -740, z -680 to -720 (clear of the eidolon gantry's at x -560 to -620),
 // and they share the gear cutter's player, gearcutterhand (the server takes 16 players at most, and the
 // other scenarios use the rest).
@@ -338,13 +339,14 @@ public partial class SharedWorldScenarios
     // Under power a cast iron cylinder is bored in one traverse into the Watt engine's cylinder, beyond
     // the output face; the head moves by the shaft's own turning, wears a point with a full tank and the
     // tank drains 10 points; a bored cylinder is never taken back on.
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Cylinder_borer_bores_an_iron_cylinder_under_power()
     {
         var pos = await CutterSite(-704, -700);
         var player = await CutterPlayer();
         var borer = await PlaceBorer(pos, "south");
         AssembleBorer(borer, player);
+        using var clock = VirtualClock.Start(World);
         var mp = W.BlockAccessor.GetBlockEntity(borer.CellPos(BorerRig.PowerCell))!.GetBehavior<BEBehaviorCylinderBorerMP>()!;
         Assert.Equal(BorerMod.Config.Resistance, mp.GetResistance(), 4);
 
@@ -469,7 +471,7 @@ public partial class SharedWorldScenarios
 
     // ---- Infeed and outfeed ----
 
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Cylinder_borer_takes_castings_from_a_chest_and_puts_cylinders_in_one()
     {
         var pos = await CutterSite(-740, -700);
@@ -490,6 +492,7 @@ public partial class SharedWorldScenarios
         source.Inventory[3].Itemstack = CutterItem(Boring.BlankSteel);
         source.MarkDirty(true);
 
+        using var clock = VirtualClock.Start(World);
         // not taken while the shaft stands
         await World.Ticks(30);
         Assert.False(borer.BlankOn);
