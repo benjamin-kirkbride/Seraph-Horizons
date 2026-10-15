@@ -178,6 +178,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private MineStop? _routeWait;
     private double? _claimBlockedSince;
     private int _routeStarted = -1;
+
+    // when it set off for its head, and how long the walk was estimated to take (a routed walk gone on far
+    // longer is given up: RouteWalkLate)
+    private double? _walkSince;
+    private double _walkEstimate;
+
+    // when a routed walk last stopped short against one standing in its way (BumpSeconds)
+    private double _bumpedAt = double.NegativeInfinity;
     private int _contacts;
     private double _workSeconds;
     private bool _headAhead;
@@ -365,6 +373,24 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 }
                 if (_nav!.Active)
                 {
+                    // routed, walking into one standing that its box already touches: it stops short and waits
+                    // (Approach) rather than push on
+                    if (Routed(eidolon) && WalksInto(eidolon))
+                    {
+                        _nav.Stop();
+                        _bumpedAt = now;
+                        _phase = Phase.Seek;
+                        return true;
+                    }
+                    if (Routed(eidolon) && _walkSince is { } since && now - since > 2 * _walkEstimate + RouteWalkLateSeconds)
+                    {
+                        _nav.Stop();
+                        _walkSince = null;
+                        DropQueue(eidolon);
+                        Repaired(Cells.Routes!.Drop(eidolon.EntityId, head.Id, MineRefusal.None, now) ?? "late");
+                        _phase = Phase.Seek;
+                        return true;
+                    }
                     // its stations kept while it walks to them, however long the way
                     Board?.Struck(eidolon.EntityId, now);
                     return true;
@@ -528,6 +554,15 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>Seconds of strikes for each pass of another eidolon it may make (and one more).</summary>
     private const double PassEach = 120;
+
+    /// <summary>Seconds over twice its estimate after which a routed member's walk to its head is given up: the
+    /// stop dropped and the routes solved again, so that the others are not held to their turns behind a walk
+    /// that is getting nowhere (a stand the game finds a long way round to, or keeps giving way on).</summary>
+    private const double RouteWalkLateSeconds = 6;
+
+    /// <summary>How long a routed member that walked into one standing waits before it sets off again (the
+    /// game's way round a standing one can be too tight: it brushes it rather than push on).</summary>
+    private const double BumpSeconds = 3;
 
     /// <summary>Whether it works by its job's routes now: routing on, a job of more than one, routes made for
     /// the station plan in use, not left to today's dispatch, and a route of its own.</summary>
@@ -713,6 +748,18 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         // through, not slid past, which is no brief contact
         return !others.Any(o => OnStair(o.X, o.Feet, o.Z)
             || !o.Walking && Math.Abs(o.X - eidolon.Pos.X) < 3 && Math.Abs(o.Z - eidolon.Pos.Z) < 3 && Math.Abs(o.Feet - Feet(eidolon)) < 3);
+    }
+
+    /// <summary>Whether it walks into another eidolon standing still whose box its own touches.</summary>
+    private static bool WalksInto(EntityLaborEidolon eidolon)
+    {
+        double mx = eidolon.Pos.Motion.X, mz = eidolon.Pos.Motion.Z;
+        if (Math.Sqrt(mx * mx + mz * mz) < EidolonNavigator.StandingMotion)
+            return false;
+        return Others(eidolon, eidolon.Pos.XYZ, 3, 2).Any(o => !o.Walking
+            && Math.Abs(o.X - eidolon.Pos.X) < BoxWidth + 0.1 && Math.Abs(o.Z - eidolon.Pos.Z) < BoxWidth + 0.1
+            && Math.Abs(o.Feet - Feet(eidolon)) < 2
+            && (o.X - eidolon.Pos.X) * mx + (o.Z - eidolon.Pos.Z) * mz > 0);
     }
 
     private bool Seek(EntityLaborEidolon eidolon, double now)
@@ -1124,6 +1171,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         // its way crosses the columns another holds (where that one works, or makes for): it waits for room,
         // as below, rather than walk, climb or drop past it there
         bool routed = Routed(eidolon);
+        if (routed && now - _bumpedAt < BumpSeconds)
+        {
+            _phase = Phase.Wait;
+            _waitCheckAt = _bumpedAt + BumpSeconds;
+            eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-waiting");
+            return true;
+        }
         if (CrossesClaims(eidolon, stand, now) && (_throughSince ??= now) > now - (routed ? MineRoutePlanner.PassAfter : ThroughSeconds))
         {
             DropQueue(eidolon);
@@ -1149,6 +1203,8 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 _contacts++;
             _throughSince = null;
             _rim.Leave(eidolon, _jobs);
+            _walkSince = now;
+            _walkEstimate = MineCosts.Estimate(WidePath.NodeAt(eidolon.Pos.X, eidolon.Pos.Y, eidolon.Pos.Z), stand) + MineCosts.ArriveSeconds;
             _phase = Phase.Walk;
             _settled = false;
             eidolon.Orders?.SetStatus("seraphhorizons:eidolon-status-mine-walking");
