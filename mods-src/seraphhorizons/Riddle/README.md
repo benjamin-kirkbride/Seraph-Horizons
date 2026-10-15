@@ -87,7 +87,7 @@ There is no infeed side and no output side: see "No automated input or output" a
 
 **Contents** (the rig's `contents`, as the jig's): `charge` while a charge is on the riddle, and `fines` while the box
 holds fines. The viewer has a "The box" select, Empty or Fines in the box, and shows the charge only with a charge
-chosen (`requiresClass` `charge`: `thin`). There are no levels. These ids are a sensible split for build stages, which
+chosen (`requiresClass` `charge`: `thin`). These ids are a sensible split for build stages, which
 are worked out with the owner later.
 
 ## Model
