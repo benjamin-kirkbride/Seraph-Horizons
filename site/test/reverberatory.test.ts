@@ -8,11 +8,11 @@ import { fitted, partMatrices, rideOrder, rigInputs, thetaTurns, type Mat4, type
 // The reverberatory roaster's shipped files, and the poses ReverberatoryRoaster/tools/make_shape.py computes from them
 // with machinegen's reference maths. Its entry shaft reads θ and everything beyond the gear case's rectifier ψ, the
 // axle's travel (the line shaft, the feed roll on its end, the rabbles through their bevel pairs); everything else is a
-// requires: the structure's stages, the two levels' fittings, the contents, the damper's places, the pipes' metal and
-// the outlet's cap. tools/tests/test_reverberatory_model.py replays the same file in Python.
+// requires: the build's stages (the structure's, the fittings', the services last; one furnace, no levels), the
+// contents, the damper's places, the pipes' metal and the outlet's cap. tools/tests/test_reverberatory_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
-type Build = { stages: { requires: string }[]; levels: { level: number; fits: string[]; replaces?: Record<string, string>; also?: string[] }[] };
+type Build = { stages: { requires: string; also?: string[]; alsoParts?: string[] }[]; levels?: unknown };
 type Bricks = { code: string; default: string; types: Record<string, { base: string; overlays?: string[] }> };
 const rig = read("assets/seraphhorizons/config/reverberatory-rig.json") as Rig & { build: Build; bricks: Bricks };
 const shape = read("assets/seraphhorizons/shapes/block/reverberatory.json") as Shape;
@@ -82,39 +82,39 @@ describe("the reverberatory roaster's scenario", () => {
   const shown = (f: Record<string, boolean>) =>
     view.parts.filter((p) => fitted(p.part.requires, f) && statesShow(p.part.requires, f, groups)).map((p) => p.part.id);
 
-  it("fits the rig: every requires value in one group, opening built at level 2 running, damper open, copper pipes, outlet open", () => {
+  it("fits the rig: every requires value in one group, opening finished and running, damper open, copper pipes, outlet open", () => {
     expect(checkScenario(model.scenario!, rig, view.anchors, values, view.textures.map((t) => t.code))).toEqual([]);
-    expect(groups.map((g) => g.id)).toEqual(["build", "level", "damper", "water", "outlet"]);
+    expect(groups.map((g) => g.id)).toEqual(["build", "run", "damper", "water", "outlet"]);
     expect(groups.flatMap((g) => g.owns).sort()).toEqual([...values].sort());
-    expect(opening.picked).toEqual({ build: "arch", level: "level2", damper: "open", water: "copper", outlet: "open" });
+    expect(opening.picked).toEqual({ build: "services", run: "running", damper: "open", water: "copper", outlet: "open" });
   });
 
-  it("follows the rig's build: the stages, and each level's fittings with level 2's in place of level 1's", () => {
-    expect(rig.build.stages.map((s) => s.requires)).toEqual(group("build").owns);
-    const options = Object.fromEntries(group("level").spec.options.map((o) => [o.id, o.fitted]));
-    const [l1, l2] = rig.build.levels;
-    expect(options.level1cold).toEqual(l1!.fits);
-    expect(options.level2cold).toEqual(l2!.fits);
-    expect(options.level1).toEqual([...l1!.fits, "charge", "fireflat"]);
-    expect(options.level2).toEqual([...l2!.fits, "charge", "firestep"]);
-    for (const [was, now] of Object.entries(l2!.replaces ?? {})) {
-      expect(l1!.fits).toContain(was);
-      expect(l2!.fits).not.toContain(was);
-      expect(l2!.fits).toContain(now);
-    }
+  it("follows the rig's build: one furnace, its stages cumulative in order, the services last", () => {
+    const stages = rig.build.stages.map((s) => s.requires);
+    expect(rig.build.levels).toBeUndefined();
+    expect(stages).toEqual(group("build").owns);
+    expect(stages.at(-1)).toBe("services");
+    const options = group("build").spec.options;
+    expect(options.map((o) => o.id)).toEqual(["frame", ...stages]);
+    options.forEach((o, i) => expect(o.fitted).toEqual(stages.slice(0, i)));
+    expect(group("damper").owns).toEqual(rig.build.stages.find((s) => s.requires === "doors")!.also);
+    expect(group("water").owns).toEqual(rig.build.stages.find((s) => s.requires === "services")!.also);
   });
 
-  it("shows only what each state fits: the frame alone, level 1 with no moving part, level 2 without level 1's grate and cover", () => {
+  it("shows only what each state fits: the frame alone, nothing moving before the drive, the services last", () => {
     const frame = pick(opening.fitted, "build", "frame");
     expect(shown(frame)).toEqual(["frame"]);
-    const l1 = pick(opening.fitted, "level", "level1");
-    const s1 = shown(l1);
-    expect(s1.filter((p) => MOVING.includes(p))).toEqual([]);
-    expect(s1).toEqual(expect.arrayContaining(["handfiring", "doorsopen", "dischargeshut", "fireflat", "hopper", "firedoor", "damperopen"]));
-    expect(s1).not.toContain("pipecopper");
+    const doors = shown(pick(opening.fitted, "build", "doors"));
+    expect(doors.filter((p) => MOVING.includes(p))).toEqual([]);
+    expect(doors).toEqual(expect.arrayContaining(["hopper", "firedoor", "doors", "discharge", "damperopen"]));
+    const output = shown(pick(opening.fitted, "build", "output"));
+    expect(output).toEqual(expect.arrayContaining([...MOVING, "stoker", "output"]));
+    for (const p of ["services", "pipecopper", "charge", "fire"]) expect(output).not.toContain(p);
     const s2 = shown(opening.fitted);
-    expect(s2).toEqual(expect.arrayContaining([...MOVING, "stoker", "doorsshut", "dischargeopen", "output", "firestep", "pipecopper"]));
-    for (const p of ["handfiring", "doorsopen", "dischargeshut", "fireflat", "pipelead", "outletcap"]) expect(s2).not.toContain(p);
+    expect(s2).toEqual(expect.arrayContaining([...MOVING, "stoker", "doors", "discharge", "output", "services", "fire", "pipecopper"]));
+    for (const p of ["pipelead", "outletcap"]) expect(s2).not.toContain(p);
+    const cold = shown(pick(opening.fitted, "run", "cold"));
+    for (const p of ["charge", "fire"]) expect(cold).not.toContain(p);
     const lead = pick(opening.fitted, "water", "lead");
     expect(shown(lead)).toContain("pipelead");
     expect(shown(lead)).not.toContain("pipecopper");
@@ -134,7 +134,7 @@ describe("the reverberatory roaster's scenario", () => {
 
   it("draws its anchors: power, infeed, output, fuel, water and the outlet with the chimney's line on it", () => {
     const keys = view.anchors.map((a) => a.key);
-    for (const k of ["powerCell", "infeedCell", "outputCell", "fuelCell", "waterCell", "outletCell", "chimney", "ash", "stoke", "workDoor1", "workDoor2"])
+    for (const k of ["powerCell", "infeedCell", "outputCell", "fuelCell", "waterCell", "outletCell", "chimney", "ash", "fireDoor", "workDoor1", "workDoor2"])
       expect(keys).toContain(k);
     const r = rig as unknown as Record<string, unknown>;
     expect([r.powerCell, r.powerFace]).toEqual([[0, 2, 0], "north"]);
@@ -197,17 +197,15 @@ describe("the reverberatory roaster's scenario", () => {
       expect([run, across(new RegExp(`_small_${run}_`), axis)]).toEqual([run, [2.4, 2.4]]);
   });
 
-  it("leaves door 1's peep hole open at level 2, its shutter over it at level 1", () => {
+  it("leaves door 1's peep hole open in its shut plate, with no shutter", () => {
     const box = (re: RegExp) => {
       const es = shape.elements.filter((e) => re.test(e.name));
       return [Math.min(...es.map((e) => e.from[2]!)), Math.max(...es.map((e) => e.to[2]!))];
     };
-    const plates = shape.elements.filter((e) => /^doorsshut_plate1/.test(e.name));
+    const plates = shape.elements.filter((e) => /^doors_plate1/.test(e.name));
     expect(plates).toHaveLength(4);
-    const [hz0, hz1] = [box(/^doorsshut_plate1n$/)[1]!, box(/^doorsshut_plate1s$/)[0]!];
-    const shut = box(/^doorsshut_peepshutter1$/);
-    expect(shut[0]! >= hz1 || shut[1]! <= hz0).toBe(true);
-    const open = box(/^doorsopen_peepshutter1$/);
-    expect(open[0]! <= hz0 && open[1]! >= hz1).toBe(true);
+    const [hz0, hz1] = [box(/^doors_plate1n$/)[1]!, box(/^doors_plate1s$/)[0]!];
+    expect(hz1! - hz0!).toBeCloseTo(3.5, 6);
+    expect(shape.elements.filter((e) => /peep(shutter|guide)/.test(e.name))).toEqual([]);
   });
 });

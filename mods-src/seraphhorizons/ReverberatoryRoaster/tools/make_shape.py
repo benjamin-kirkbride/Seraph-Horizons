@@ -3,19 +3,15 @@
 
 The reverberatory roaster roasts sulfide concentrate into roasted concentrate (behaviour #736, model #737): a long,
 low brick furnace with a curved roof. A fire at one end throws its flame over a bridge wall and along a flat hearth
-where the charge lies, and up an uptake at the other end to the outlet the player's chimney stands on. It is one real
-piece of equipment with two levels, a level being only parts fitted to that same furnace:
+where the charge lies, and up an uptake at the other end to the outlet the player's chimney stands on. It is the
+mechanical furnace (the owner's ruling, 2026-10-15: one level only; the firepit roasts at 85 % until it is built):
 
-    level 1   batch, rabbled by hand: the player charges through the hopper's mouth on the roof, stokes coal through
-              the fire door onto a flat grate, rabbles the charge through the work doors on the east side (drawn
-              open) and draws it at the discharge door at the foot of that side. Natural draught, in at the ash mouth
-              under the grate (an iron damper over it, open, half or shut).
-    level 2   continuous: two water-cooled mechanical rabbles on spindles through the arch, turned by bevel gears from
-              a line shaft on the roof, which a rectifier in a closed gear case at the fire end turns one way whichever
-              way the vanilla axle turns; a fluted feed roll on the line shaft's end under the hopper; a coal bunker in
-              the fire end's well over a step grate (in place of the flat grate), filled by a chute; the infeed, fuel
-              and output chutes are sections of the vanilla chute; water comes by ppex pipe to swivels on the
-              spindles. The work doors stay, shut.
+    continuous: two water-cooled mechanical rabbles on spindles through the arch, turned by bevel gears from a line
+    shaft on the roof, which a rectifier in a closed gear case at the fire end turns one way whichever way the vanilla
+    axle turns; a fluted feed roll on the line shaft's end under the hopper; a coal bunker in the fire end's well over
+    a step grate; the infeed, fuel and output chutes are sections of the vanilla chute; water comes by ppex pipe to
+    swivels on the spindles. Natural draught, in at the ash mouth under the grate (an iron damper over it, open, half
+    or shut). The work doors (for clearing accretions) and the fire door stay shut.
 
 It follows the crucible furnace's conventions (CrucibleFurnace/README.md): one unit; units stand back to back, two
 in a row, sharing their west (plain, flush) long wall, the flue between them implied; the model stops at an outlet
@@ -25,7 +21,7 @@ element is plain boxes made for this mod; no other mod's model is used.
 
 It writes, deterministically,
 
-    reverberatory.json           the whole furnace, every part of both levels    (assets/.../shapes/block/)
+    reverberatory.json           the whole furnace, every part and state         (assets/.../shapes/block/)
     reverberatory_frame.json     the iron frame only (block and item)            (assets/.../shapes/block/)
     reverberatory-rig.json       cells, anchors, the build and the part rig      (assets/.../config/)
     rig-reference.json           every part's matrix at a grid of poses          (tests/ReverberatoryRoaster/)
@@ -86,10 +82,10 @@ TOP = H                                      # the body's top: the end blocks' f
 ORIGIN_CELL = (1, 0, 0)                      # the controller: the middle of the fire end at ground level
 DRIVE_CELLS = tuple((1, 2, z) for z in range(CELLS_Z))   # the drive's row on the roof's middle, fixed from the frame on
 POWER_CELL, POWER_FACE = (1, 2, 0), "north"  # the vanilla axle comes in along z over the fire end, at the cell's centre (24, 40)
-INFEED_CELL, INFEED_FACE = (1, 2, 4), "up"   # the hopper's mouth: charged by hand (level 1) or by a chute (level 2)
-OUTPUT_CELL, OUTPUT_FACE = (2, 0, 2), "east" # the discharge tunnel's mouth: the discharge door (level 1), the output chute (2)
-FUEL_CELL, FUEL_FACE = (0, 1, 0), "up"       # the coal bunker's chute (level 2), in the fire end's west corner
-WATER_CELL, WATER_FACE = (1, 2, 1), "east"   # the water: a ppex pipe from the side into the manifold (level 2), on the roof
+INFEED_CELL, INFEED_FACE = (1, 2, 4), "up"   # the hopper's mouth: a section of the vanilla chute hangs in it
+OUTPUT_CELL, OUTPUT_FACE = (2, 0, 2), "east" # the discharge tunnel's mouth: a section of the vanilla chute in it
+FUEL_CELL, FUEL_FACE = (0, 1, 0), "up"       # the coal bunker's chute, in the fire end's west corner
+WATER_CELL, WATER_FACE = (1, 2, 1), "east"   # the water: a ppex pipe from the side into the manifold, on the roof
 #                                              beside the drive's row, between pedestal 1 and the first wheel
 OUTLET_CELL = (0, 1, 4)                      # the outlet: the flue end's west corner, beside the drive's row, not under it
 CHIMNEY_CELL = (0, 2, 4)                     # the chimney's first block, on the outlet: never the furnace's
@@ -101,7 +97,7 @@ TEXTURES = {
     "iron": "game:block/metal/plate/iron",                  # the frame, the ironwork, the doors, the drive, the rabbles
     "oak": "game:block/wood/debarked/oak",                  # the entry shaft: the vanilla axle's continuation
     "ore": "game:block/pile/oldore",                        # the charge on the hearth
-    "coal": "game:block/coal/bituminous",                   # the coal in the bunker and its throat (level 2)
+    "coal": "game:block/coal/bituminous",                   # the coal in the bunker and its throat
     "ember": "game:block/coal/ember",                       # the fire: the burning bed on the grate, glowing
     "chute": "game:block/metal/sheet/copper1",              # the vanilla chute's sections (a placed chute's texture)
     "pipecopper": "game:block/metal/sheet-plain/copper4",   # the water pipe in copper (UnifiedPipes' pipe texture)
@@ -151,38 +147,31 @@ DAMPER = {"open": 7.0, "half": 3.75, "shut": 1.0}   # the plate's underside in e
 #                                                     top, so no brick shows over it), over its upper
 #                                                     half, over all of it
 KNOB = ((23.0, 25.0), (0.1, 0.35), (2.4, 3.6))   # the damper's knob (x, z, y over its underside), in the recess
-FIRE_DOOR = ((19.0, 29.0), (14.0, 20.0))     # the fire door's opening through the fire end wall (x, y), over the flat grate
+FIRE_DOOR = ((19.0, 29.0), (14.0, 20.0))     # the fire door's opening through the fire end wall (x, y), over the step grate
 FD_RECESS = ((18.0, 30.0), (13.0, 21.0), (0.0, 1.0))   # its recess in the face: the door shuts in it, flush
 FD_LINTEL = ((18.0, 30.0), (20.0, 21.0), (1.0, 3.0))   # the iron lintel over the opening
 FD_SILL = ((18.0, 30.0), (13.0, 14.0), (1.0, 3.0))     # the dead plate: the iron sill of the opening, the recess wide, to the lining
-# the flat grate (level 1): bars along z on two bearers across the firebox, the bearers' ends built into the side walls
-BEARER_Y = (8.5, 10.0)
-BEARER_Z = ((7.0, 8.5), (17.5, 19.0))
-BAR_Y = (10.0, 11.0)
-BARS, BAR_W = 14, 1.2                        # across the 32 of the firebox: gaps of 1.17
-BAR_Z = (6.5, 19.5)
-# the step grate (level 2): treads across the firebox, each lower than the last towards the bridge
+FIREBOX_LINING_Y = 9.0                       # the firebox's lining from here up; the ash pit's brickwork under it
+# the step grate: treads across the firebox, each lower than the last towards the bridge
 STEPS = 4
 STEP_Z0, STEP_D = FIREBOX_Z[0], 3.5
 STEP_TOP0, STEP_DROP, STEP_T = 18.5, 2.0, 1.0
-# the well in the fire end block's top: the coal bunker's place (level 2), covered flush at level 1
+# the well in the fire end block's top: the coal bunker's place
 WELL = ((3.0, 41.0), (25.0, 31.5), (3.0, 13.0))
-WELL_SEAT = ((2.0, 44.0), (31.5, TOP), (2.0, 14.0))   # the cover's seat round its mouth, out to the binding's top legs
+WELL_SEAT = ((2.0, 44.0), (31.5, TOP), (2.0, 14.0))   # the seat round its mouth, out to the binding's top legs: the
+#                                              bunker's rim lies in it, flush (no strip of brick between it and the bands)
 THROAT = ((9.0, 39.0), (SPRING_Y, 25.0), (7.0, 12.0))   # the slot from the well's floor through the firebox's roof
-LINER_T = 0.5                                # the bunker's iron liner (level 2)
+LINER_T = 0.5                                # the bunker's iron liner
 THROAT_FOOT = 20.0                           # the iron throat hangs to here, over the top tread
 
 # ---------------------------------------------------------------- the east side: work doors, discharge
 RABBLE_Z = (39.0, 60.0)                      # the two spindles, on the hearth's middle line; a work door at each
 WORK_DOOR = (5.0, (15.0, 21.0))              # half width (z) about each rabble, and y: through the east wall
 DOOR_FRAME = 1.0
-DOOR_PLATE = {"open": (22.5, 29.5), "shut": (14.5, 21.5)}   # the plates' y: raised in their guides, or down over the opening
+DOOR_PLATE = (14.5, 21.5)                    # the plates' y: down in their guides over the openings (shut)
 GUIDE_TOP = 30.0
-PEEP_DOOR = 1                                # the work door with a peep hole: shut (level 2), the rabble is seen through it
+PEEP_DOOR = 1                                # the work door with a peep hole: the rabble is seen turning through it
 PEEP = (1.75, (1.6, 5.0))                    # the hole: half width (z) about the door's middle, and y over the plate's foot
-PEEP_SHUTTER = (0.1, 0.3, 0.2)               # its shutter: thickness, lap over the hole each way, gap when slid clear (z)
-PEEP_GUIDE = (0.15, 0.4)                     # the shutter's two guides over and under it: thickness (x, out to the handles'
-#                                              face, inside the footprint), height (y)
 DISCHARGE = ((30.0, 36.0), (37.0, 43.0))     # (x, z) the discharge hole through the hearth, in the first rabble's sweep
 TUNNEL = ((30.0, W), (4.0, 12.0), (36.0, 44.0))   # the tunnel under it to the east face: the output chute's bore and walls
 D_RECESS = ((46.5, W), (3.5, 12.0), (36.0, 52.0))   # the discharge door's recess in the footing's face: it slides along z,
@@ -190,7 +179,7 @@ D_RECESS = ((46.5, W), (3.5, 12.0), (36.0, 52.0))   # the discharge door's reces
 #                                              top the tunnel's floor (no strip of brick shows round the plate or the chute)
 D_SLOT = ((46.5, W - 0.75), (12.0, 12.5))    # (x, y) the plate's top edge runs in a slot behind the band's face leg, its lip
 D_RAIL = 0.5                                 # the low rail the plate runs on
-D_PLATE = {"shut": (36.0, 44.0), "open": (44.0, 52.0)}   # the plate's z: over the mouth, or slid south clear of it
+D_PLATE = (44.0, 52.0)                       # the plate's z: slid south clear of the mouth (the output chute in it)
 D_PLATE_X = (46.65, 47.15)
 D_PLATE_Y = (D_RECESS[1][0] + D_RAIL, D_SLOT[1][1])
 
@@ -240,7 +229,7 @@ INFEED_SECTION_Y = 44.0                      # the ore infeed's hangs from the c
 FUEL_SECTION_Y = 28.5                        # the fuel infeed's from the fuel cell's top into the bunker
 OUTPUT_SECTION_X = 40.0                      # the output's runs from here out to the east face, in the tunnel's mouth
 
-# ---------------------------------------------------------------- level 2: the drive and the rabbles
+# ---------------------------------------------------------------- the drive and the rabbles
 SHAFT = (24.0, 40.0)                         # (x, y) of the line shaft along z: the power cell's centre
 SHAFT_R = 0.9
 ENTRY_Z = (0.0, 4.0)                         # the oak entry, the vanilla axle's cross profile, from the power face into the case
@@ -286,10 +275,10 @@ PORT = (26.0, 26.8)                          # its port on the east, where the w
 #                                              flat, clear of the wheel's hub turning over it
 
 # ---------------------------------------------------------------- the hopper and the feeder
-HOPPER = ((16.5, 31.5), (42.0, 48.0), (66.0, 78.0))   # the hopper (level 1): its mouth the infeed cell's top
+HOPPER = ((16.5, 31.5), (42.0, 48.0), (66.0, 78.0))   # the hopper: its mouth the infeed cell's top
 HOPPER_T = 1.0
 HOPPER_SLOT = ((21.0, 27.0), (68.5, 73.5))   # (x, z): the slot in its floor into the neck
-NECK = ((20.0, 28.0), (33.0, HOPPER[1][0]), (67.5, 74.5))   # the neck under it: the feed roll's casing at level 2
+NECK = ((20.0, 28.0), (33.0, HOPPER[1][0]), (67.5, 74.5))   # the neck under it: the feed roll's casing
 NECK_T = 1.0
 FLANGE = ((18.5, 29.5), (TOP, 33.0), (FLUE_BLOCK[0] + ANGLE_L, D - ANGLE_L))   # the neck's base plate: across the feed
 #                                              hole's lining (no strip of it shows), from the inner band to the south band
@@ -298,7 +287,7 @@ FEED_CHUTE_T = 1.0
 ROLL_Z = (69.0, 73.0)
 ROLL_R, ROLL_FLUTES, ROLL_FLUTE_R = 2.0, 6, 2.6
 
-# ---------------------------------------------------------------- level 2: the water
+# ---------------------------------------------------------------- the water
 MANIFOLD = (29.0, 40.0, 24.0)                # the soldered pipe's cube against the water cell's east face (x, y, z): ppex's pipe,
 #                                              at the face's 5..11 as ppex lays a pipe, between pedestal 1 and the first wheel
 CONNECTOR_Z = 30.5                           # a full-size length of it south from the manifold, plugged at its end round the
@@ -314,7 +303,8 @@ PIPE_METALS = ("copper", "lead")
 
 # ---------------------------------------------------------------- the build
 # The structure (the iron frame, then the brickwork, the lining, the arch with its ironwork), as the crucible furnace's,
-# then level 1's fittings, then level 2's. Every brick count is measured from the model's volume at the game's rates: a
+# then the fittings in their fit order, and last the services (the chute sections and the water's pipes, the owner's
+# ruling for every machine). Every brick count is measured from the model's volume at the game's rates: a
 # claybricks block is 2 fired bricks, a refractory brick block 4, rounded up; fire clay one per 2.5 refractory bricks.
 BRICKS_PER_BLOCK = 2
 LINING_PER_BLOCK = 4
@@ -324,18 +314,11 @@ LINING_BRICK = "game:refractorybrick-fired-tier3"
 FIRECLAY = "game:clay-fire"
 CAP_ITEM = ("game:metalplate-iron", 1)
 STRUCTURE = ("brickwork", "lining", "arch")
-BUILD_STATES = (("frame", ()), ("brickwork", ("brickwork",)), ("lining", ("brickwork", "lining")),
-                ("arch", ("brickwork", "lining", "arch")))
-LEVEL1 = ("hopper", "firedoor", "handfiring", "doorsopen", "dischargeshut")
-LEVEL2 = ("hopper", "firedoor", "doorsshut", "dischargeopen", "drive", "rabbles", "feeder", "stoker", "output")
-REPLACED = {"handfiring": "stoker", "doorsopen": "doorsshut", "dischargeshut": "dischargeopen"}   # level 2 in place of level 1's
-LEVEL_STATES = (                             # the viewer's Level select: (id, label, fitted)
-    ("none", "Built, nothing fitted", ()),
-    ("level1cold", "Level 1: hand-rabbled, batch (cold)", LEVEL1),
-    ("level1", "Level 1: roasting a batch by hand", LEVEL1 + ("charge", "fireflat")),
-    ("level2cold", "Level 2: mechanical rabbles, continuous (cold)", LEVEL2),
-    ("level2", "Level 2: running", LEVEL2 + ("charge", "firestep")),
-)
+FITTINGS = ("hopper", "doors", "drive", "rabbles", "feeder", "stoker", "output", "services")
+STAGES = STRUCTURE + FITTINGS                # every stage's requires, in the build's order
+BUILD_STATES = (("frame", ()),) + tuple((sid, STAGES[:i + 1]) for i, sid in enumerate(STAGES))   # (id, fitted): cumulative
+CONTENTS = ("charge", "fire")                # gameplay's state, not fittings: the bed on the hearth, the fire and the coal
+RUN_STATES = (("cold", ()), ("running", CONTENTS))   # the furnace finished, cold or running
 DAMPERS = ("open", "half", "shut")
 
 # The fired bricks the brickwork takes (the crucible furnace's list: every type of the game's burnedbrick, with the
@@ -727,12 +710,6 @@ def frame_ties():
     return out
 
 
-def bearers():
-    """The flat grate's two bearers across the firebox, as (name, lo, hi), their ends built 3 into the side walls."""
-    return [(f"fm_bearer{i}", [IN_X[0] - LINING_T, BEARER_Y[0], z0], [IN_X[1] + LINING_T, BEARER_Y[1], z1])
-            for i, (z0, z1) in enumerate(BEARER_Z, 1)]
-
-
 def door_spans():
     hw, _ = WORK_DOOR
     return [(zc - hw, zc + hw) for zc in RABBLE_Z]
@@ -751,10 +728,10 @@ def anchor_boxes():
 def brick_voids():
     """Every space cut out of the brick, as (lo, hi) in voxels: beyond the east face over the footing; over the springing
     between the end blocks (the arch's place, open above it); the ash pit and the firebox, over the bridge, the hearth's
-    chamber and the flue end's cavity; the uptake, the feed hole, the well with its cover's seat and the throat from its
+    chamber and the flue end's cavity; the uptake, the feed hole, the well with its rim's seat and the throat from its
     floor; the ash mouth, the fire door and their recesses; the work doors; the discharge hole, the tunnel and the
     discharge door's recess and its plate's slot; the outlet cap's seat; and the room for the iron set into the brick (the binding, the
-    lintels, the grate's bearers, the tie rods' chases and anchors, the frame's ties)."""
+    lintels, the tie rods' chases and anchors, the frame's ties)."""
     v = []
 
     def add(lo, hi):
@@ -790,13 +767,13 @@ def brick_voids():
     add([sx[0], sy[0], rz[0]], [sx[1], sy[1], rz[1]])
     (cx, cz) = CAP_SEAT
     add([cx[0], CAP_Y[0], cz[0]], [cx[1], CAP_Y[1], cz[1]])
-    v += [(lo, hi) for _, lo, hi in binding() + frame_ties() + bearers() + rod_boxes() + anchor_boxes()]
+    v += [(lo, hi) for _, lo, hi in binding() + frame_ties() + rod_boxes() + anchor_boxes()]
     return v
 
 
 def lining_zones():
     """Where the brick is the lining's, as (lo, hi): LINING_T round every hot space, from where the fire is up. The
-    firebox's walls from the grate's level and its roof (with the throat through it); the bridge, the hearth's bed and
+    firebox's walls from over the ash pit and its roof (with the throat through it); the bridge, the hearth's bed and
     its walls to the springing; the flue end's cavity, its walls and roof; the uptake and the outlet's curb (out to the
     binding's top legs); the feed hole (its top course on to the curb and the bands). And so no brickwork shows narrower
     than a brick: the coal well's floor beside the throat. The rest is the brickwork's: the base, the ash pit and the
@@ -804,7 +781,7 @@ def lining_zones():
     t = LINING_T
     (ux, uz), (fx, fz) = UPTAKE, FEED_HOLE
     (kx, kz), (wx, _, wz) = CURB, WELL
-    return [([IN_X[0] - t, BEARER_Y[0] + 0.5, FRONT_Z[1] - t], [IN_X[1] + t, SPRING_Y + t, BRIDGE_Z[0] + t]),
+    return [([IN_X[0] - t, FIREBOX_LINING_Y, FRONT_Z[1] - t], [IN_X[1] + t, SPRING_Y + t, BRIDGE_Z[0] + t]),
             ([IN_X[0] - t, HEARTH_Y - t, BRIDGE_Z[0]], [IN_X[1] + t, SPRING_Y, HEARTH_Z[1] + t]),
             ([IN_X[0] - t, SPRING_Y, FLUE_BLOCK[0]], [IN_X[1] + t, CAVITY_TOP + t, HEARTH_Z[1] + t]),
             ([ux[0] - t, CAVITY_TOP, uz[0] - t], [ux[1] + t, TOP, uz[1] + t]),
@@ -926,8 +903,7 @@ def build_frame_iron():
 
 def build_frames():
     """The iron set into the brick as it is laid (`frames`, `fm_*`, fitted with the brickwork): the fire door's lintel and
-    its dead plate (the sill, through the brickwork to the lining),
-    the flat grate's bearers (the step grate's treads are built into the side walls), and on the east side each work
+    its dead plate (the sill, through the brickwork to the lining), and on the east side each work
     door's frame and guides and the discharge door's low rail in its recess (its top edge runs behind the footing band's
     face leg)."""
     p, t = "frames", "iron"
@@ -935,7 +911,6 @@ def build_frames():
     out = [box([lx[0], ly[0], lz[0]], [lx[1], ly[1], lz[1]], "fm_fdlintel", p, t)]
     (sx, sy, sz) = FD_SILL
     out.append(box([sx[0], sy[0], sz[0]], [sx[1], sy[1], sz[1]], "fm_fdsill", p, t))
-    out += [box(lo, hi, name, p, t) for name, lo, hi in bearers()]
     fr = DOOR_FRAME
     hw, (y0, y1) = WORK_DOOR
     face = FACE_E
@@ -991,7 +966,7 @@ def build_ironwork():
     return out
 
 
-# ---------------------------------------------------------------- builders: level 1's fittings
+# ---------------------------------------------------------------- builders: the fittings
 def chute_ud(cell, y0, name, part):
     """A section of the vanilla chute, up and down, in `cell` (build-frame block coordinates): CHUTE_UD_WALLS from y0
     up to the cell's top, where a chute placed in the cell above meets it."""
@@ -1009,10 +984,10 @@ def chute_we(cell, x0, name, part):
 
 
 def build_hopper():
-    """The hopper (`hopper`, level 1, kept at level 2): an open iron bin on the roof, its mouth the infeed cell's top,
-    filled by hand; under its slot a neck (the feed roll's casing at level 2, its end walls the line shaft's last
-    bearings) on a base plate on the flue end block's top, between the bands, and the iron feed chute down through the block's roof into the
-    cavity over the hearth's far end, so a charge thrown in at level 1 falls through to the hearth."""
+    """The hopper (`hopper`): an open iron bin on the roof, its mouth the infeed cell's top, where the infeed's chute
+    section hangs; under its slot a neck (the feed roll's casing, its end walls the line shaft's last bearings) on a
+    base plate on the flue end block's top, between the bands, and the iron feed chute down through the block's roof
+    into the cavity over the hearth's far end."""
     p, t = "hopper", "iron"
     (x0, x1), (y0, y1), (z0, z1) = HOPPER
     out = open_box([x0, y0, z0], [x1, y1, z1], HOPPER_T, "hopper_bin", p, t, hole=HOPPER_SLOT)
@@ -1030,40 +1005,22 @@ def build_hopper():
 
 
 def build_firedoor():
-    """The fire door (`firedoor`, level 1, kept shut at level 2): an iron plate shut in its recess in the fire end face,
-    filling it, over the opening, with a handle bar in the recess; stoked through at level 1."""
+    """The fire door (`firedoor`, fitted with the doors): an iron plate shut in its recess in the fire end face, filling
+    it, over the opening, with a handle bar in the recess; opened to clear clinker off the step grate."""
     p, t = "firedoor", "iron"
     (rx, ry, _) = FD_RECESS
     return [box([rx[0], ry[0], 0.4], [rx[1], ry[1], FD_RECESS[2][1]], "firedoor_plate", p, t),
             box([22.0, 17.0, 0.12], [26.0, 17.6, 0.4], "firedoor_handle", p, t)]
 
 
-def build_handfiring():
-    """Level 1's firing (`handfiring`, `hf_*`): the flat grate, BARS iron bars along z on the frame's bearers, stoked
-    through the fire door; and the well's cover, three flat iron plates flush in their seat in the fire end block's
-    top (level 2's coal bunker goes in the well, its throat onto the step grate)."""
-    p, t = "handfiring", "iron"
-    out = []
-    gap = (IN_X[1] - IN_X[0] - BARS * BAR_W) / (BARS - 1)
-    for n in range(BARS):
-        x0 = IN_X[0] + n * (BAR_W + gap)
-        out.append(box([x0, BAR_Y[0], BAR_Z[0]], [x0 + BAR_W, BAR_Y[1], BAR_Z[1]], f"hf_bar{n + 1:02d}", p, t))
-    (sx, sy, sz) = WELL_SEAT
-    cuts = [sx[0] + (sx[1] - sx[0]) * f for f in (0.0, 1 / 3, 2 / 3, 1.0)]
-    for i, (a, b) in enumerate(zip(cuts, cuts[1:]), 1):
-        out += long_box([a, sy[0], sz[0]], [b, sy[1], sz[1]], f"hf_cover{i}_", p, t)
-    return out
-
-
-def build_doors(place):
-    """The work doors' plates in one place (`doors<place>`): raised in their guides (open, level 1: the hearth can be
-    seen and rabbled through them) or down over the openings (shut, level 2). Door PEEP_DOOR's plate has a peep hole
-    over the rabble's arms, with a shutter sliding along z in two guides: over the hole at level 1 (the door itself is
-    open), slid clear of it at level 2, so the rabble is seen turning through the shut door."""
-    p, t = f"doors{place}", "iron"
+def build_doors():
+    """The work doors' plates (`doors`), shut, down in their guides over the openings: kept for clearing accretions off
+    the hearth, as on the real mechanical furnaces. Door PEEP_DOOR's plate has a peep hole over the rabble's arms, so
+    the rabble is seen turning through the shut door."""
+    p, t = "doors", "iron"
     hw, _ = WORK_DOOR
     fr = DOOR_FRAME
-    py0, py1 = DOOR_PLATE[place]
+    py0, py1 = DOOR_PLATE
     x0, x1 = FACE_E + 0.8, FACE_E + 1.8
     out = []
     for k, zc in enumerate(RABBLE_Z, 1):
@@ -1079,23 +1036,15 @@ def build_doors(place):
                 box([x0, ha, zc + ph], [x1, hb, zb], f"{p}_plate{k}s", p, t),
                 box([x0, hb, za], [x1, py1, zb], f"{p}_plate{k}top", p, t)]
         out.append(box([x1, py0 + 0.2, zc - 1.5], [FACE_E + 1.95, py0 + 0.8, zc + 1.5], f"{p}_handle{k}", p, t))
-        st, lap, gap = PEEP_SHUTTER
-        gt, gh = PEEP_GUIDE
-        w = 2 * (ph + lap)
-        sz = (zc - ph - lap, zc + ph + lap) if place == "open" else (zc + ph + gap, zc + ph + gap + w)
-        out.append(box([x1, ha - lap, sz[0]], [x1 + st, hb + lap, sz[1]], f"{p}_peepshutter{k}", p, t))
-        gz = (zc - ph - lap, zc + ph + gap + w)
-        out.append(box([x1, ha - lap - gh, gz[0]], [x1 + gt, ha - lap, gz[1]], f"{p}_peepguide{k}a", p, t))
-        out.append(box([x1, hb + lap, gz[0]], [x1 + gt, hb + lap + gh, gz[1]], f"{p}_peepguide{k}b", p, t))
     return out
 
 
-def build_discharge(place):
-    """The discharge door (`discharge<place>`): an iron plate sliding along z in its recess in the footing's face, on
-    its low rail, its top edge in the slot behind the footing band's face leg: shut over the tunnel's mouth (level 1, the player opens it to draw the roasted charge), or slid
-    clear of it (level 2, the output chute in the mouth)."""
-    p, t = f"discharge{place}", "iron"
-    z0, z1 = D_PLATE[place]
+def build_discharge():
+    """The discharge door (`discharge`): an iron plate in its recess in the footing's face, on its low rail, its top edge
+    in the slot behind the footing band's face leg, slid along z clear of the tunnel's mouth, where the output chute
+    is; slid back over the mouth when the chute is off and the tunnel cleared."""
+    p, t = "discharge", "iron"
+    z0, z1 = D_PLATE
     out = [box([D_PLATE_X[0], D_PLATE_Y[0], z0], [D_PLATE_X[1], D_PLATE_Y[1], z1], f"{p}_plate", p, t)]
     zm = (z0 + z1) / 2
     out.append(box([D_PLATE_X[1], 7.4, zm - 0.6], [W - 0.05, 8.6, zm + 0.6], f"{p}_knob", p, t))
@@ -1120,7 +1069,7 @@ def build_cap():
     return [box([x0, CAP_Y[0], z0], [x1, CAP_Y[1], z1], "outletcap_plate", "outletcap", "iron")]
 
 
-# ---------------------------------------------------------------- builders: level 2's fittings
+# ---------------------------------------------------------------- builders: the drive, the rabbles, the firing
 SHAFT_C = (SHAFT[0], SHAFT[1], 0.0)
 
 
@@ -1201,22 +1150,36 @@ def build_rabbles():
 
 
 def build_feeder():
-    """The feeder (level 2): a fluted roll keyed on the line shaft's end turns in the hopper's neck under its slot,
-    metering the charge down the feed chute; and the section of the vanilla chute hung in the hopper's mouth from two
-    straps on its rim, where the previous machine's chute meets it."""
+    """The feeder (`feeder`): a fluted roll keyed on the line shaft's end turns in the hopper's neck under its slot,
+    metering the charge down the feed chute."""
     out = disc("z", SHAFT_C, *ROLL_Z, ROLL_R, "feedroll_body", "feedroll", "iron", k=6)
     for i in range(ROLL_FLUTES):
         out.append(radial("z", SHAFT_C, ROLL_Z[0] + 0.1, ROLL_Z[1] - 0.1, ROLL_R - 0.4, ROLL_FLUTE_R, 1.0, TAU * i / ROLL_FLUTES + math.pi / ROLL_FLUTES,
                           f"feedroll_flute{i + 1}", "feedroll", "iron"))
-    p = "feeder"
-    out += chute_ud(INFEED_CELL, INFEED_SECTION_Y, "feeder_infeedchute", p)
+    return out
+
+
+def build_services():
+    """The services (`services`, the last stage, as on every machine): the sections of the vanilla chute the furnace
+    takes, each where the next or the previous machine's chute meets it: the infeed's hung in the hopper's mouth from two
+    straps on its rim, the fuel's dropping into the bunker from the fuel cell's top on a strap from the liner, and the
+    output's along x in the tunnel's mouth, flush with the east face. The water's pipes are the services too, in their
+    own parts (`pipe<metal>`)."""
+    p = "services"
+    out = chute_ud(INFEED_CELL, INFEED_SECTION_Y, "services_infeedchute", p)
     (hx0, hx1), _, _ = HOPPER
     t = HOPPER_T
     ox, oz = INFEED_CELL[0] * B, INFEED_CELL[2] * B
     top = (INFEED_CELL[1] + 1) * B
     zm = oz + B / 2
-    out.append(box([hx0 + t, top - 1.0, zm - 1.0], [ox + 4.0, top, zm + 1.0], "feeder_strap_w", p, "iron"))
-    out.append(box([ox + 12.0, top - 1.0, zm - 1.0], [hx1 - t, top, zm + 1.0], "feeder_strap_e", p, "iron"))
+    out.append(box([hx0 + t, top - 1.0, zm - 1.0], [ox + 4.0, top, zm + 1.0], "services_infeedstrap_w", p, "iron"))
+    out.append(box([ox + 12.0, top - 1.0, zm - 1.0], [hx1 - t, top, zm + 1.0], "services_infeedstrap_e", p, "iron"))
+    (x0, _), (_, y1), _ = WELL
+    out += chute_ud(FUEL_CELL, FUEL_SECTION_Y, "services_fuelchute", p)
+    ox, oz = FUEL_CELL[0] * B, FUEL_CELL[2] * B
+    zm = oz + B / 2
+    out.append(box([x0 + LINER_T, y1 - 1.0, zm - 1.0], [ox + 4.0, y1, zm + 1.0], "services_fuelstrap", p, "iron"))
+    out += chute_we(OUTPUT_CELL, OUTPUT_SECTION_X, "services_outputchute", p)
     return out
 
 
@@ -1226,32 +1189,30 @@ def steps():
 
 
 def build_stoker():
-    """Level 2's firing (`stoker`): the coal bunker, an iron liner in the fire end block's well with a slot in its floor;
-    the iron throat from the slot down through the firebox's roof to just over the top tread; the step grate, STEPS iron
-    treads across the firebox, each lower than the last towards the bridge, built into the side walls, so the coal
-    slides down them as it burns (no stoking); and the section of the vanilla chute dropping into the bunker from the
-    fuel cell's top, hung from a strap on the liner."""
+    """The firing (`stoker`): the coal bunker, an iron liner in the fire end block's well with a slot in its floor, hung
+    by its rim, flush in the seat round the well's mouth out to the bands; the iron throat from the slot down through the
+    firebox's roof to just over the top tread; the step grate, STEPS iron treads across the firebox, each lower than the
+    last towards the bridge, so the coal slides down them as it burns (no stoking). The fuel's chute section is the
+    services'."""
     p, t = "stoker", "iron"
     out = []
     (x0, x1), (y0, y1), (z0, z1) = WELL
     out += open_box([x0, y0, z0], [x1, y1, z1], LINER_T, "stoker_bunker", p, t, hole=(THROAT[0], THROAT[2]))
+    (rx, ry, rz) = WELL_SEAT
+    out += frame_bars([rx[0], ry[0], rz[0]], [rx[1], ry[1], rz[1]], [x0 + LINER_T, ry[0], z0 + LINER_T], [x1 - LINER_T, ry[1], z1 - LINER_T],
+                      "y", "stoker_rim", p, t)
     (sx, _, sz) = THROAT
     out += tube([sx[0], THROAT_FOOT, sz[0]], [sx[1], y0 + LINER_T, sz[1]], LINER_T, "y", "stoker_throat", p, t)
     for i, (a, b, top) in enumerate(steps(), 1):
         out.append(box([IN_X[0], top - STEP_T, a], [IN_X[1], top, b], f"stoker_step{i}", p, t))
-    out += chute_ud(FUEL_CELL, FUEL_SECTION_Y, "stoker_fuelchute", p)
-    ox, oz = FUEL_CELL[0] * B, FUEL_CELL[2] * B
-    zm = oz + B / 2
-    out.append(box([x0 + LINER_T, y1 - 1.0, zm - 1.0], [ox + 4.0, y1, zm + 1.0], "stoker_strap", p, t))
     return out
 
 
 def build_output():
-    """The output (`output`, level 2): a section of the vanilla chute along x in the tunnel's mouth, flush with the east
-    face, where the next machine's chute meets it; and an iron spout from under the discharge hole down onto the
-    section's floor, so the roasted charge falling through slides into the chute."""
+    """The output (`output`): an iron spout from under the discharge hole down the tunnel onto the floor of the output's
+    chute section (the services'), so the roasted charge falling through slides into the chute."""
     p = "output"
-    out = chute_we(OUTPUT_CELL, OUTPUT_SECTION_X, "output_chute", p)
+    out = []
     oy, oz = OUTPUT_CELL[1] * B, OUTPUT_CELL[2] * B
     floor = oy + CHUTE_WE_WALLS[2][1]
     (hx, hz) = DISCHARGE
@@ -1344,7 +1305,7 @@ def pipe_copies(els):
 
 # ---------------------------------------------------------------- builders: the contents
 def build_charge():
-    """The charge on the hearth (`charge`, both levels): a bed of concentrate, open round the discharge hole."""
+    """The charge on the hearth (`charge`): a bed of concentrate, open round the discharge hole."""
     p = "charge"
     (dx0, dx1), (dz0, dz1) = DISCHARGE
     x0, x1 = IN_X[0] + 1.0, IN_X[1] - 1.0
@@ -1356,45 +1317,36 @@ def build_charge():
             box([x0, y0, dz1 + 0.5], [x1, y1, z1], "charge_s", p, "ore")]
 
 
-def build_fireflat():
-    """Level 1's fire (`fireflat`): the burning bed on the flat grate, stoked through the fire door."""
-    return [box([IN_X[0] + 1.0, BAR_Y[1], BAR_Z[0] + 0.5], [IN_X[1] - 1.0, BAR_Y[1] + 2.5, BAR_Z[1] - 0.5], "fireflat_bed", "fireflat", "ember")]
-
-
-def build_firestep():
-    """Level 2's fire (`firestep`): a burning bed on each tread of the step grate, the coal in the throat down onto the
+def build_fire():
+    """The fire (`fire`): a burning bed on each tread of the step grate, the coal in the throat down onto the
     top tread, and the coal in the bunker."""
-    p = "firestep"
+    p = "fire"
     out = []
     for i, (z0, z1, top) in enumerate(steps(), 1):
-        out.append(box([IN_X[0] + 1.0, top, z0 + 0.3], [IN_X[1] - 1.0, top + 1.5, z1 - 0.3], f"firestep_bed{i}", p, "ember"))
+        out.append(box([IN_X[0] + 1.0, top, z0 + 0.3], [IN_X[1] - 1.0, top + 1.5, z1 - 0.3], f"fire_bed{i}", p, "ember"))
     (sx, _, sz) = THROAT
     t = LINER_T
     top0 = STEP_TOP0 + 1.5
-    out.append(box([sx[0] + t, top0, sz[0] + t], [sx[1] - t, WELL[1][0] + t, sz[1] - t], "firestep_coalthroat", p, "coal"))
+    out.append(box([sx[0] + t, top0, sz[0] + t], [sx[1] - t, WELL[1][0] + t, sz[1] - t], "fire_coalthroat", p, "coal"))
     (x0, x1), (y0, _), (z0, z1) = WELL
-    out.append(box([x0 + t, y0 + t, z0 + t], [x1 - t, FUEL_SECTION_Y - 0.1, z1 - t], "firestep_coalbunker", p, "coal"))
+    out.append(box([x0 + t, y0 + t, z0 + t], [x1 - t, FUEL_SECTION_Y - 0.1, z1 - t], "fire_coalbunker", p, "coal"))
     return out
 
 
 def build():
     els = build_drive() + build_rabbles() + build_feeder()
-    els += build_stoker() + build_output() + build_pipes()
-    els += build_hopper() + build_firedoor() + build_handfiring()
-    for place in ("open", "shut"):
-        els += build_doors(place)
-    for place in ("shut", "open"):
-        els += build_discharge(place)
+    els += build_stoker() + build_output() + build_services() + build_pipes()
+    els += build_hopper() + build_firedoor() + build_doors() + build_discharge()
     for place in DAMPERS:
         els += build_damper(place)
-    els += build_charge() + build_fireflat() + build_firestep() + build_cap()
+    els += build_charge() + build_fire() + build_cap()
     els += build_arch() + build_ironwork()
     els += build_structure()
     return els
 
 
 def build_structure():
-    """What stands still and is no level's: the brick (brickwork and lining), the iron frame and the iron set into the
+    """What stands still and is no fitting's: the brick (brickwork and lining), the iron frame and the iron set into the
     brick."""
     return build_brick() + build_frames() + build_frame_iron()
 
@@ -1422,13 +1374,12 @@ def static(pid, requires=None, match=None):
 
 
 def _rig_parts():
-    """The parts in the build's order: the structure's stages, level 1's fittings, level 2's, the contents and the cap,
+    """The parts in the build's order: the structure's stages, the fittings, the services, the contents and the cap,
     then the iron frame (the viewer lists the requires values in the order the parts first name them)."""
     shaft = pt(SHAFT[0], SHAFT[1], 0.0)
     parts = [static("brickwork", match="bk_*"), static("frames", "brickwork", "fm_*"), static("lining", match="ln_*"),
              static("arch"), static("ironwork", "arch", "iw_*"),
-             static("hopper"), static("firedoor"), static("handfiring", match="hf_*"),
-             static("doorsopen"), static("doorsshut"), static("dischargeshut"), static("dischargeopen")]
+             static("hopper"), static("firedoor", "doors"), static("doors"), static("discharge", "doors")]
     parts += [static(f"damper{d}") for d in DAMPERS]
     # the entry turns with the axle (theta), either way; everything beyond the gear case's rectifier reads the axle's
     # travel (psi), which only grows, so it turns forward whichever way the axle turns
@@ -1444,9 +1395,9 @@ def _rig_parts():
     parts += [static("rabblemounts", "rabbles", "rabblemount*"),
               {"id": "feedroll", "match": ["feedroll_*"], "requires": "feeder",
                "drivers": [{"type": "rotate", "axis": "z", "pivot": shaft, "ratio": 1.0, "input": "travel"}]},
-              static("feeder"), static("stoker"), static("output")]
+              static("stoker"), static("output"), static("services")]
     parts += [static(f"pipe{m}") for m in PIPE_METALS]
-    parts += [static("charge"), static("fireflat"), static("firestep"), static("outletcap"),
+    parts += [static("charge"), static("fire"), static("outletcap"),
               {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []}]
     for p in parts:
         p["ride"] = None
@@ -1460,22 +1411,21 @@ RECTIFIED = ("lineshaft", "rabble1", "rabble2", "feedroll")   # beyond the recti
 
 
 # ---------------------------------------------------------------- scenes and poses
-# A scene is what is fitted: (the build's state, the level's state, the damper's place, the pipes' metal, capped).
-# Level fittings need the whole structure; the damper the fire door (level 1's, kept); the pipes the rabbles; the cap
-# the lining (the curb).
-DEFAULT_SCENE = ("arch", "level2", "open", "copper", False)
+# A scene is what is fitted: (the build's state, cold or running, the damper's place, the pipes' metal, capped).
+# The contents need the furnace finished (the services in); the damper the doors; the pipes the services; the cap the
+# lining (the curb).
+DEFAULT_SCENE = ("services", "running", "open", "copper", False)
 
 
 def fitted(scene):
     """The requires values fitted in a scene."""
-    build_, level, damper, metal_, capped = scene
+    build_, run, damper, metal_, capped = scene
     out = set(dict(BUILD_STATES)[build_])
-    if set(STRUCTURE) <= out:
-        out |= set(next(s[2] for s in LEVEL_STATES if s[0] == level))
-    if "firedoor" in out:
-        out.add(f"damper{damper}")
-    if "rabbles" in out:
+    if "services" in out:
+        out |= set(dict(RUN_STATES)[run])
         out.add(f"pipe{metal_}")
+    if "doors" in out:
+        out.add(f"damper{damper}")
     if capped and "lining" in out:
         out.add("outletcap")
     return out
@@ -1520,7 +1470,7 @@ def footprint():
 
 
 CELL_ANCHORS = ("powerCell", "infeedCell", "outputCell", "fuelCell", "waterCell", "outletCell")
-POINT_ANCHORS = ("infeed", "output", "fuel", "water", "charge", "discharge", "ash", "stoke", "workDoor1", "workDoor2")
+POINT_ANCHORS = ("infeed", "output", "fuel", "water", "charge", "discharge", "ash", "fireDoor", "workDoor1", "workDoor2")
 
 
 def box_volume(el):
@@ -1572,22 +1522,31 @@ def build_json():
              "materials": materials(((LINING_BRICK, c["lining"]), (FIRECLAY, c["fireclay"])))},
             {"requires": "arch", "volumeBlocks": r6(c["archVolume"]), "perClick": "stack",
              "materials": materials(((LINING_BRICK, c["arch"]), (FIRECLAY, c["archFireclay"]))), "alsoParts": ["ironwork"]},
-        ],
-        "levels": [
-            {"level": 1, "fits": list(LEVEL1), "also": [f"damper{d}" for d in DAMPERS]},
-            {"level": 2, "fits": list(LEVEL2), "replaces": dict(REPLACED), "also": [f"pipe{m}" for m in PIPE_METALS]},
-        ],
+        ] + [fitting_stage(r) for r in FITTINGS],
         "outletCap": materials((CAP_ITEM,))[0],
-        "_comment": "PROVISIONAL, to be settled with the owner (#737): the structure's stages and the levels' fittings, in "
-                    "order. frame: the iron frame, a grid recipe with a hammer (its ingredients not settled); placing it puts "
+        "_comment": "PROVISIONAL, to be settled with the owner (#737): the stages, in order: the structure's, then the "
+                    "fittings', then the services. frame: the iron frame, a grid recipe with a hammer (its ingredients not settled); placing it puts "
                     "down the controller and its ghosts. brickwork (with the iron set into it, frames), lining, arch (with its "
                     "ironwork): the brick measured from the model, in blocks, at 2 fired bricks or 4 refractory bricks a "
                     "block, rounded up, fire clay one per 2.5 refractory bricks; oneType: the first fired brick sets the "
-                    "furnace's type (bricks). levels: what each level fits once the structure is built (level 1's damper one "
-                    "of its places; level 2's pipes one metal); level 2's replaces: level 1's parts it takes the place of "
-                    "(the flat grate and the well's cover, the work doors open, the discharge door shut). The contents "
-                    "(charge, fireflat, firestep) are gameplay's state, not fittings.",
+                    "furnace's type (bricks). The fittings (hopper; doors, with the fire door, the discharge door and the "
+                    "damper in one of its places; drive; rabbles; feeder; stoker; output) and last the services (the "
+                    "vanilla chute's sections and the water's pipes in one metal): their materials not settled. The "
+                    "contents (charge, fire) are gameplay's state, not fittings.",
     }
+
+
+FITTING_ALSO = {"doors": {"alsoParts": ["firedoor", "discharge"], "also": [f"damper{d}" for d in DAMPERS]},
+                "drive": {"alsoParts": ["entry", "gearcase", "lineshaft", "pedestals"]},
+                "rabbles": {"alsoParts": ["rabble1", "rabble2", "rabblemounts"]},
+                "feeder": {"alsoParts": ["feedroll"]},
+                "services": {"also": [f"pipe{m}" for m in PIPE_METALS]}}
+
+
+def fitting_stage(r):
+    """A fitting's stage in the rig's build: its requires, the parts fitted with it and its states (`also`, one of
+    them fitted); its materials not settled."""
+    return {"requires": r, "materials": None, **FITTING_ALSO.get(r, {})}
 
 
 def bricks_json():
@@ -1614,14 +1573,14 @@ def make_rig(parts):
     return {
         "_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the middle of the fire "
                     "end at ground level, nearest the player who placed it; the furnace runs south to the flue end. One "
-                    "furnace with two levels (#736, #737), its footprint fixed from the frame on: level 1 batch, rabbled by "
-                    "hand (hopper, fire door, flat grate, work doors open, discharge door); level 2 continuous (the drive, "
-                    "the water-cooled rabbles, the feed roll, the stoker and step grate in place of the flat grate, the "
-                    "output chute, the water pipes; the work doors shut). Two stand back to back sharing the west wall "
+                    "furnace, the mechanical one (#736, #737; one level, the owner's ruling of 2026-10-15), its footprint "
+                    "fixed from the frame on: the drive, the water-cooled rabbles, the feed roll, the stoker and step "
+                    "grate, the output spout, the vanilla chute's sections and the water pipes; the work doors shut. Two stand back to back sharing the west wall "
                     "(furnace.rowMax), one outlet capped. The entry shaft reads theta, the axle's angle; everything beyond "
                     "the gear case's rectifier reads the axle's travel, so it turns forward either way. requires: the "
                     "structure's stages (brickwork with frames, lining, arch with ironwork; the iron frame has none), the "
-                    "levels' fittings (build.levels), the contents (charge, fireflat, firestep) and outletcap. See "
+                    "fittings' and the services' (build.stages), the damper's places, the pipes' metals, the contents "
+                    "(charge, fire) and outletcap. See "
                     "ReverberatoryRoaster/README.md.",
         "cells": [],
         "powerCell": list(POWER_CELL),
@@ -1644,8 +1603,8 @@ def make_rig(parts):
         "discharge": {"pos": pt((hx[0] + hx[1]) / 2, HEARTH_Y, (hz[0] + hz[1]) / 2)},
         "ash": {"pos": pt((mx[0] + mx[1]) / 2, (my[0] + my[1]) / 2, 0.0)},
         "ashSide": "north",
-        "stoke": {"pos": pt((dx[0] + dx[1]) / 2, (dy[0] + dy[1]) / 2, 0.0)},
-        "stokeSide": "north",
+        "fireDoor": {"pos": pt((dx[0] + dx[1]) / 2, (dy[0] + dy[1]) / 2, 0.0)},
+        "fireDoorSide": "north",
         "workDoor1": {"pos": pt(FACE_E, (wy0 + wy1) / 2, RABBLE_Z[0])},
         "workDoor1Side": "east",
         "workDoor2": {"pos": pt(FACE_E, (wy0 + wy1) / 2, RABBLE_Z[1])},
@@ -1691,9 +1650,9 @@ def shipped(els, parts, rig):
     return ship_els, ship_parts, ship
 
 
-# the cells' boxes: the finished machine at level 2, every part of it at rest (a part-built or level 1 furnace's are
-# gameplay's), with the doors shut and the discharge door open
-CELL_SCENE = ("arch", "level2cold", "open", "copper", False)
+# the cells' boxes: the finished machine, every part of it at rest (a part-built furnace's are gameplay's), with the
+# doors shut and the discharge door open
+CELL_SCENE = ("services", "cold", "open", "copper", False)
 
 
 def shipped_cells(shape, ship_parts):
@@ -1754,26 +1713,24 @@ def reference_json(ship_parts):
 # ---------------------------------------------------------------- shape files
 def shape_json(els):
     shape = machine_shape_json(
-        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. Both levels' parts are in this one "
-             "shape (level 2's step grate, stoker, doors shut and output in place of level 1's flat grate and well cover, doors "
-             "open and discharge door shut): a renderer draws what is fitted. Texture codes the renderer sets: 'brick' (the "
+        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. Every stage's parts and every "
+             "state's are in this one shape: a renderer draws what is fitted. Texture codes the renderer sets: 'brick' (the "
              "furnace's brick type's, from the rig's bricks), 'pipecopper' or 'pipelead' (the pipes' metal, one part each). "
              "The burning bed ('ember') glows. Keep element names when editing: the rig finds its parts by them.",
         TEXTURES, tex_size=TEX)
     for e in shape["elements"]:
-        if e["name"].startswith(("fireflat_bed", "firestep_bed")):
+        if e["name"].startswith("fire_bed"):
             for f in e["faces"].values():
                 f["glow"] = FIRE_GLOW
     return shape
 
 
 def coplanar_poses():
-    """The poses the z-fighting fix and its check look at: level 2 running at rest and three more angles, level 1 roasting,
-    the structure's stages, the damper's other places with the outlet capped, and lead pipes."""
+    """The poses the z-fighting fix and its check look at: the furnace running at rest and three more angles, cold with
+    the damper's other places and the outlet capped, lead pipes, and every stage before the last."""
     out = [(th, DEFAULT_SCENE) for th in (0.0, 0.4, 1.3, 2.9)]
-    out += [(0.0, ("arch", "level1", "open", "copper", False)), (0.0, ("arch", "level1cold", "half", "copper", True)),
-            (0.0, ("arch", "level2cold", "shut", "lead", True))]
-    out += [(0.0, (b, "none", "open", "copper", False)) for b, _ in BUILD_STATES[:-1]]
+    out += [(0.0, ("services", "cold", "half", "copper", True)), (0.0, ("services", "cold", "shut", "lead", True))]
+    out += [(0.0, (b, "cold", "open", "copper", False)) for b, _ in BUILD_STATES[:-1]]
     return tuple(out)
 
 

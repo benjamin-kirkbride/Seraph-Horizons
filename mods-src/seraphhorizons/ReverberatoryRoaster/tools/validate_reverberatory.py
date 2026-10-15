@@ -3,8 +3,8 @@
 Every check prints what it measured and fails the run (the script exits non-zero) when the model breaks its rule.
 Everything is in the build frame (voxels), on the model before the origin shift; `check_shipped` in make_shape.py
 proves the shipped files are this model moved. Checks that look at parts together look at one scene at a time (what is
-fitted: make_shape.fitted), never at both levels at once: level 2's step grate, doors shut, discharge door open and
-stoker stand where level 1's flat grate, doors open, discharge door shut and well cover do.
+fitted: make_shape.fitted): a stage of the build, the furnace cold or running, the damper's place, the pipes' metal, the
+cap.
 """
 
 from __future__ import annotations
@@ -79,8 +79,8 @@ def inside(p, el, eps=0.0):
     return True
 
 
-def scene(level="level2", build="arch", damper="open", metal="copper", capped=False):
-    return (build, level, damper, metal, capped)
+def scene(run="running", build="services", damper="open", metal="copper", capped=False):
+    return (build, run, damper, metal, capped)
 
 
 STRUCTURE_PARTS = ("frame", "brickwork", "frames", "lining", "arch", "ironwork")
@@ -106,10 +106,9 @@ def check_basic(v):
         v.fail(f"parts with no elements: {empty}")
     counts = {p["id"]: len(v.by_part.get(p["id"], [])) for p in v.parts}
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
-    for sid, label, _ in v.m.LEVEL_STATES:
-        sc = scene(sid)
+    for sid, sc in (("built", scene("cold", build="arch")), ("cold", scene("cold")), ("running", scene())):
         n = sum(len(v.by_part[p["id"]]) for p in v.parts if v.shows(p["id"], sc))
-        print(f"elements drawn at {sid}: {n}")
+        print(f"elements drawn {sid}: {n}")
 
 
 ROLES = [
@@ -117,17 +116,17 @@ ROLES = [
     (r"^bk_brick_", {"brick"}),
     (r"^ln_brick_", {"lining"}),
     (r"^arch_", {"lining"}),
-    (r"^(fr|fm|iw|hf)_", {"iron"}),
-    (r"^(hopper|firedoor|doorsopen|doorsshut|dischargeshut|dischargeopen|damper(open|half|shut)|outletcap)_", {"iron"}),
-    (r"^(feeder_infeedchute|stoker_fuelchute|output_chute)", {"chute"}),
-    (r"^(feeder|stoker|output)_", {"iron"}),
+    (r"^(fr|fm|iw)_", {"iron"}),
+    (r"^(hopper|firedoor|doors|discharge|damper(open|half|shut)|outletcap)_", {"iron"}),
+    (r"^services_(infeed|fuel|output)chute", {"chute"}),
+    (r"^(services|stoker|output)_", {"iron"}),
     (r"^entry_", {"oak"}),
     (r"^(gearcase|lineshaft|pedestal|rabble|feedroll)", {"iron"}),
     (r"^pipecopper_", {"pipecopper", "solder"}),
     (r"^pipelead_", {"pipelead", "solder"}),
     (r"^charge_", {"ore"}),
-    (r"^(fireflat|firestep)_bed", {"ember"}),
-    (r"^firestep_coal", {"coal"}),
+    (r"^fire_bed", {"ember"}),
+    (r"^fire_coal", {"coal"}),
 ]
 
 
@@ -143,20 +142,18 @@ def check_textures(v):
         v.fail(f"textures off their role: {bad[:6]}")
 
 
-# ---------------------------------------------------------------- the build and the levels
+# ---------------------------------------------------------------- the build
 def check_stages(v):
-    """The build: at each stage of the structure (the iron frame alone, with the brickwork and the iron set into it,
-    with the lining, with the arch and its ironwork) and at each level's state nothing floats: every static element
-    drawn is joined to the ground (the moving parts are carried by their bearings: check_supports). The iron frame is
-    iron only and has no thin post standing alone taller than half the body; its ties are hidden in the brickwork once
-    it is in. The levels: level 2 keeps level 1's hopper and fire door and fits its own in place of the flat grate and
-    the well's cover, the open doors and the shut discharge door (REPLACED), nothing else of level 1's going; the
-    contents are no level's fittings."""
+    """The build: at each stage (the iron frame alone, with the brickwork and the iron set into it, with the lining, with
+    the arch and its ironwork, then each fitting in turn and last the services) and running, nothing floats: every
+    static element drawn is joined to the ground (the moving parts are carried by their bearings: check_supports). The
+    iron frame is iron only and has no thin post standing alone taller than half the body; its ties are hidden in the
+    brickwork once it is in. Every stage's fittings need the ones before: each stage's parts touch what the stages
+    before it put in. The contents are no stage's; every requires value is a stage's, a state's, a content or the cap."""
     m = v.m
     out = []
-    scenes = [(sid, scene("none", build=sid)) for sid, _ in m.BUILD_STATES]
-    scenes += [(sid, scene(sid)) for sid, _, _ in m.LEVEL_STATES[1:]]
-    scenes += [("level2 lead, capped", scene("level2", metal="lead", capped=True))]
+    scenes = [(sid, scene("cold", build=sid)) for sid, _ in m.BUILD_STATES]
+    scenes += [("running", scene()), ("running lead, capped", scene(metal="lead", capped=True))]
     for sid, sc in scenes:
         drawn = [e for pid in v.by_part if pid not in m.MOVING and v.shows(pid, sc) for e in v.by_part[pid]]
         seen, loose = frame_floating(drawn)
@@ -190,18 +187,25 @@ def check_stages(v):
                             bare += 1
     if bare:
         v.fail(f"{bare} points off the frame's ties are in no brickwork: a tie shows")
-    l1, l2 = set(m.LEVEL1), set(m.LEVEL2)
-    if l1 - l2 != set(m.REPLACED) or l2 - l1 != set(m.REPLACED.values()) | {"drive", "rabbles", "feeder", "output"} or "stoker" not in l2:
-        v.fail(f"level 2 does not keep level 1's fittings but REPLACED: it drops {sorted(l1 - l2)}, adds {sorted(l2 - l1)}")
-    contents = {"charge", "fireflat", "firestep"}
-    if contents & (l1 | l2):
-        v.fail("contents are fitted as parts")
+    # each fitting's stage stands on what came before it: its parts (moving ones at rest) touch the earlier stages'
+    unborne = []
+    for i, sid in enumerate(m.FITTINGS):
+        before = {r for r in m.STAGES[:len(m.STRUCTURE) + i]} | {None}
+        prior = [e for pid in v.by_part if v.req[pid] in before for e in v.posed(pid, 0.0)]
+        own = [e for pid in v.by_part if v.req[pid] == sid for e in v.posed(pid, 0.0)]
+        if not any(touching(a.aabb(), b.aabb()) for a in own for b in prior):
+            unborne.append(sid)
+    if unborne:
+        v.fail(f"stages whose parts touch nothing put in before them: {unborne}")
+    contents = set(m.CONTENTS)
+    if contents & set(m.STAGES):
+        v.fail("contents are fitted as stages")
     values = {p["requires"] for p in v.parts if p["requires"] is not None}
-    named = set(m.STRUCTURE) | l1 | l2 | contents | {f"damper{d}" for d in m.DAMPERS} | {f"pipe{x}" for x in m.PIPE_METALS} | {"outletcap"}
+    named = set(m.STAGES) | contents | {f"damper{d}" for d in m.DAMPERS} | {f"pipe{x}" for x in m.PIPE_METALS} | {"outletcap"}
     if values != named:
-        v.fail(f"requires values in no stage, level or content: {sorted(values ^ named)}")
+        v.fail(f"requires values in no stage, state or content: {sorted(values ^ named)}")
     print(f"stages: nothing floats ({'; '.join(out)}); the iron frame iron only, no thin post over {m.H / 2:.0f}, its ties "
-          f"hidden; level 2 keeps {sorted(l1 & l2)} and fits {sorted(l2 - l1)} ({', '.join(f'{a} -> {b}' for a, b in m.REPLACED.items())})")
+          f"hidden; each fitting's stage on what came before it ({', '.join(m.FITTINGS)})")
 
 
 # ---------------------------------------------------------------- containment, the sides, the row
@@ -264,8 +268,8 @@ def check_sides(v):
                 reach.add(e.name)
     if reach:
         v.fail(f"not brickwork at the shared wall's plane: {sorted(reach)[:4]}")
-    doors = [e.name for pid in ("frames", "doorsopen", "doorsshut", "ironwork") for e in v.by_part[pid]
-             if e.aabb()[0][0] < m.EAST[0] and not e.name.startswith(("fm_fdlintel", "fm_fdsill", "fm_bearer", "iw_rod", "iw_anchor"))]
+    doors = [e.name for pid in ("frames", "doors", "discharge", "ironwork") for e in v.by_part[pid]
+             if e.aabb()[0][0] < m.EAST[0] and not e.name.startswith(("fm_fdlintel", "fm_fdsill", "iw_rod", "iw_anchor"))]
     if doors:
         v.fail(f"door or buckstay iron off the east side: {doors[:4]}")
     hits = 0
@@ -614,7 +618,7 @@ def slivers(v, sc):
     corner (the face meets another rising from it: the cell beyond is solid and does not show). A run from an outer
     edge into a corner is a recess's reveal, not a piece of brick, and counts as wide. Only faces seen from outside
     count (seen_from_outside: not the hearth's and the firebox's insides), not an underside, and not a seat's rebate
-    (the well's cover's and the outlet cap's)."""
+    (the bunker's rim's and the outlet cap's)."""
     m = v.m
     seats = [([x[0], y[0], z[0]], [x[1], y[1], z[1]]) for x, y, z in (m.WELL_SEAT, (m.CAP_SEAT[0], m.CAP_Y, m.CAP_SEAT[1]))]
     if not hasattr(v, "outline_h"):
@@ -637,7 +641,7 @@ def slivers(v, sc):
                     continue                                # an underside: on the ground, or under an overhang
                 beyond = tuple((vals[d][q[d]] + vals[d][q[d] + 1]) / 2 if 0 <= q[d] < n[d] else -1.0 for d in range(3))
                 if any(all(lo[d] < beyond[d] < hi[d] for d in range(3)) for lo, hi in seats):
-                    continue                                # a seat's floor or side: the rebate a cover or cap sits in
+                    continue                                # a seat's floor or side: the rebate a rim or cap sits in
 
                 def shows(cc):
                     if grid.get(cc) != mat:
@@ -729,12 +733,12 @@ def seen_from_outside(m, vals, n, grid, hgt, p, ax, sg):
 
 
 def check_slivers(v):
-    """No sliver of brick (the owner's rule): built with nothing fitted, and at each level's state, no piece of the
-    brickwork or the lining that shows from outside is narrower than MIN_BRICK either way along its face (slivers())."""
+    """No sliver of brick (the owner's rule): built with nothing fitted, and finished, no piece of the brickwork or the
+    lining that shows from outside is narrower than MIN_BRICK either way along its face (slivers())."""
     m = v.m
     bad, out = [], []
-    for sid in ("none", "level1", "level2"):
-        found = slivers(v, scene(sid))
+    for sid, sc in (("built", scene("cold", build="arch")), ("finished", scene())):
+        found = slivers(v, sc)
         out.append(f"{sid} {len(found)}")
         bad += [(sid,) + f for f in found]
     print(f"slivers: no piece of brick showing narrower than {m.MIN_BRICK:g} either way ({'; '.join(out)} face cells too narrow)")
@@ -785,12 +789,13 @@ def hot_spaces(m):
     x0, x1 = m.IN_X
     (ux, uz), (fx, fz) = m.UPTAKE, m.FEED_HOLE
     (tx, ty, tz) = m.THROAT
+    grate = min(top for _, _, top in m.steps()) - m.STEP_T   # the step grate's lowest tread's underside
     return [
-        ([x0, m.BAR_Y[1], m.FIREBOX_Z[0]], [x1, m.SPRING_Y, m.FIREBOX_Z[1]], {(0, -1), (0, 1), (2, -1), (1, 1)}),   # the firebox
+        ([x0, grate, m.FIREBOX_Z[0]], [x1, m.SPRING_Y, m.FIREBOX_Z[1]], {(0, -1), (0, 1), (2, -1), (1, 1)}),   # the firebox
         ([x0, m.HEARTH_Y, m.HEARTH_Z[0]], [x1, m.SPRING_Y, m.HEARTH_Z[1]], {(0, -1), (0, 1), (2, 1), (1, -1)}),     # the hearth
         ([x0, m.SPRING_Y, m.FLUE_BLOCK[0]], [x1, m.CAVITY_TOP, m.HEARTH_Z[1]], {(0, -1), (0, 1), (2, 1), (1, 1)}),  # the cavity
         ([x0, m.BRIDGE_TOP, m.BRIDGE_Z[0]], [x1, m.SPRING_Y, m.BRIDGE_Z[1]], {(1, -1)}),                            # the bridge's top
-        ([x0, m.BAR_Y[1], m.FIREBOX_Z[1]], [x1, m.BRIDGE_TOP, m.FIREBOX_Z[1] + 0.01], {(2, 1)}),                    # the bridge's face
+        ([x0, grate, m.FIREBOX_Z[1]], [x1, m.BRIDGE_TOP, m.FIREBOX_Z[1] + 0.01], {(2, 1)}),                    # the bridge's face
         ([ux[0], m.CAVITY_TOP, uz[0]], [ux[1], m.TOP - 0.6, uz[1]], {(0, -1), (0, 1), (2, -1), (2, 1)}),            # the uptake
         ([fx[0], m.CAVITY_TOP, fz[0]], [fx[1], m.TOP - 0.6, fz[1]], {(0, -1), (0, 1), (2, -1), (2, 1)}),            # the feed hole
         ([tx[0], ty[0], tz[0]], [tx[1], ty[1], tz[1]], {(0, -1), (0, 1), (2, -1), (2, 1)}),                         # the throat
@@ -829,7 +834,7 @@ def check_lining(v):
     cold, wrong = 0, []
     x0, x1 = m.IN_X
     (mx, my), (tx, ty, tz) = m.MOUTH, m.TUNNEL
-    for lo, hi, warm in (([x0, m.ASHPIT_Y[0], m.FIREBOX_Z[0]], [x1, m.BEARER_Y[0], m.FIREBOX_Z[1]], ()),
+    for lo, hi, warm in (([x0, m.ASHPIT_Y[0], m.FIREBOX_Z[0]], [x1, m.FIREBOX_LINING_Y - 0.5, m.FIREBOX_Z[1]], ()),
                          ([mx[0], my[0], 1.0], [mx[1], my[1], m.FRONT_Z[1]], ()),
                          ([tx[0], ty[0], tz[0]], [m.EAST[0], ty[1], tz[1]], ((1, 1),))):   # under the hearth's bed: its lining
         for k in range(3):
@@ -859,7 +864,8 @@ def check_lining(v):
 def check_build(v):
     """The stages' counts: the brickwork's and the lining's volumes, measured from their elements (each lattice box in
     exactly one brick box: their volumes add up to the lattice's), and the arch's, give the rig's quantities at the
-    game's rates, rounded up; every stage's requires and every level's fitting is a part's."""
+    game's rates, rounded up; the stages are the structure's, the fittings' and the services', in order, and every
+    stage's requires, its parts and its states are parts'."""
     m = v.m
     xs, ys, zs, mat = m.brick_lattice()
     lat = {"bk": 0.0, "ln": 0.0}
@@ -882,12 +888,15 @@ def check_build(v):
     want["arch"] = c["arch"]
     if got != want:
         v.fail(f"the stages' counts {got} are not the measured {want}")
-    if [s["requires"] for s in build["stages"]] != list(m.STRUCTURE):
-        v.fail("the stages are not brickwork, lining, arch")
+    if [s["requires"] for s in build["stages"]] != list(m.STAGES) or m.STAGES[-1] != "services" or "levels" in build:
+        v.fail(f"the stages are not {', '.join(m.STAGES)}, the services last, with no levels")
     requires = {p["requires"] for p in v.parts}
-    fits = set(m.STRUCTURE) | {r for lv in build["levels"] for r in lv["fits"] + lv.get("also", [])}
+    fits = {r for s in build["stages"] for r in [s["requires"]] + s.get("also", [])}
     if not fits <= requires:
-        v.fail(f"a stage's or level's requires is no part's: {sorted(fits - requires)}")
+        v.fail(f"a stage's requires or state is no part's: {sorted(fits - requires)}")
+    wrong = [(s["requires"], q) for s in build["stages"] for q in s.get("alsoParts", []) if v.req.get(q) != s["requires"]]
+    if wrong:
+        v.fail(f"a stage's alsoParts are not fitted with it: {wrong}")
     print(f"build (provisional): brickwork {lat['bk'] / m.B ** 3:.2f} blocks -> {got['bricks']} fired bricks; lining "
           f"{lat['ln'] / m.B ** 3:.2f} blocks -> {got['lining']} refractory bricks and {got['fireclay']} fire clay; the arch "
           f"{c['archVolume']:.2f} blocks -> {got['arch']} refractory bricks and {c['archFireclay']} fire clay")
@@ -922,7 +931,7 @@ def overlap(a, b, eps=0.02):
 
 
 def check_clearances(v, n, label):
-    """Every moving part against everything drawn with it at level 2 running, over the rig's cycle: the rabbles clear
+    """Every moving part against everything drawn with it, the furnace finished and running, over the rig's cycle: the rabbles clear
     the hearth, the bridge, the walls and each other, the feed roll the neck, the gears everything but their mates, the
     wheels the water pipes."""
     m = v.m
@@ -946,7 +955,7 @@ def check_clearances(v, n, label):
                     continue
                 if obb_obb(ea, eb):
                     allhits.setdefault(tuple(sorted((pa, pb))), {}).setdefault(tuple(sorted((ea.name, eb.name))), th)
-    print(f"{label} over {len(ths)} angles at level 2: {'all clear' if not allhits else f'{len(allhits)} pairs of parts touch'}")
+    print(f"{label} over {len(ths)} angles, running: {'all clear' if not allhits else f'{len(allhits)} pairs of parts touch'}")
     for key, hs in sorted(allhits.items()):
         ex = sorted(hs.items())[:3]
         print(f"  TOUCH {key[0]} x {key[1]}: {len(hs)}, e.g. " + "; ".join(f"{a}/{b} at theta {t:.3f}" for (a, b), t in ex))
@@ -1054,7 +1063,7 @@ def check_gearing(v):
 def check_reverse(v):
     """Every machine takes the axle turning either way: the entry turns with the axle, and everything beyond the gear
     case's rectifier (the line shaft, the rabbles, the feed roll) is posed alike for the axle turned back as forward by
-    as much; nothing at level 1 moves."""
+    as much; nothing moves before the drive is fitted."""
     m = v.m
     worst, entry_moves = 0.0, True
     for th in (0.7, 2.9, 7.3):
@@ -1063,9 +1072,9 @@ def check_reverse(v):
             worst = max(worst, max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)))
         a, b = v.mat("entry", th), v.mat("entry", -th)
         entry_moves = entry_moves and max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)) > 1e-3
-    l1 = [pid for pid in m.MOVING if v.shows(pid, scene("level1"))]
+    l1 = [pid for pid in m.MOVING if v.shows(pid, scene("cold", build=m.STAGES[m.STAGES.index("drive") - 1]))]
     print(f"reverse: beyond the rectifier {', '.join(m.RECTIFIED)} are posed alike for the axle turned either way (worst "
-          f"difference {worst:.1e}); the entry turns back with the axle; moving at level 1: {l1 or 'nothing'}")
+          f"difference {worst:.1e}); the entry turns back with the axle; moving before the drive: {l1 or 'nothing'}")
     if worst > 1e-12 or not entry_moves or set(m.MOVING) - set(m.RECTIFIED) != {"entry"} or l1:
         v.fail("a working part turns back when the axle does")
 
@@ -1128,31 +1137,18 @@ def check_path(v):
 
 
 def check_firing(v):
-    """The firing. Level 1: the flat grate's bars lie on the bearers, the fire door opens over them, the ash mouth under
-    them, and the well's cover lies flush in its seat over the throat. Level 2: the treads step down to the bridge, the
-    throat's foot is over the top tread and its top in the bunker's floor, the bunker in the well under the fuel cell's
-    top; flat grate and step grate are never drawn together. On the fire end face only the fire door and the ash mouth
-    open."""
+    """The firing: the treads step down to the bridge, the throat's foot is over the top tread and its top in the
+    bunker's floor, the bunker in the well under the fuel cell's top, hung by its rim flush in the seat round the well's
+    mouth (out to the bands: no strip of brick round it); the fire door over the treads, the ash mouth under them. On
+    the fire end face only the fire door and the ash mouth open."""
     m = v.m
-    bars = v.named("handfiring", r"_bar")
-    bear = [e.aabb() for e in v.named("frames", r"_bearer")]
-    for e in bars:
-        lo, hi = e.aabb()
-        on = [b for b in bear if abs(lo[1] - b[1][1]) < 1e-9 and b[0][0] <= lo[0] and hi[0] <= b[1][0] and lo[2] < b[1][2] and b[0][2] < hi[2]]
-        if len(on) != 2:
-            v.fail(f"{e.name} does not lie on both bearers")
     (dx, dy), (mx, my) = m.FIRE_DOOR, m.MOUTH
-    top = max(e.aabb()[1][1] for e in bars)
-    if not (dy[0] > top and my[1] < m.BEARER_Y[0]):
-        v.fail("the fire door is not over the flat grate, or the ash mouth not under it")
-    cover = aabb_of(v.named("handfiring", r"_cover"))
-    (sx, sy, sz) = m.WELL_SEAT
-    if any(abs(a - b) > 1e-6 for a, b in zip(cover[0] + cover[1], [sx[0], sy[0], sz[0], sx[1], sy[1], sz[1]])):
-        v.fail(f"the well's cover is not flush in its seat: {cover}")
     treads = sorted(v.named("stoker", r"_step\d"), key=lambda e: e.c[2])
     tops = [e.aabb()[1][1] for e in treads]
     if not all(a > b for a, b in zip(tops, tops[1:])) or abs(treads[-1].aabb()[1][2] - m.BRIDGE_Z[0]) > 1e-6:
         v.fail("the step grate does not step down to the bridge")
+    if not (dy[1] > tops[-1] and my[1] < min(e.aabb()[0][1] for e in treads)):
+        v.fail("the fire door is not over the step grate, or the ash mouth not under it")
     throat = aabb_of(v.named("stoker", r"_throat"))
     t0 = treads[0].aabb()
     if not (throat[0][1] > t0[1][1] and throat[0][2] < t0[1][2] and throat[1][2] > t0[0][2]):
@@ -1161,8 +1157,10 @@ def check_firing(v):
     fc = [m.FUEL_CELL[k] * 16 for k in range(3)]
     if not (bunker[0][0] < fc[0] + 16 and bunker[1][0] > fc[0] and bunker[0][2] < fc[2] + 16 and bunker[1][1] <= m.TOP):
         v.fail("the bunker is not under the fuel cell's top")
-    if any(v.shows("handfiring", scene(s)) and v.shows("stoker", scene(s)) for s, _, _ in m.LEVEL_STATES):
-        v.fail("the flat grate and the step grate are drawn together")
+    rim = aabb_of(v.named("stoker", r"_rim"))
+    (sx, sy, sz) = m.WELL_SEAT
+    if any(abs(a - b) > 1e-6 for a, b in zip(rim[0] + rim[1], [sx[0], sy[0], sz[0], sx[1], sy[1], sz[1]])):
+        v.fail(f"the bunker's rim is not flush in its seat: {rim}")
     holes = []
     xs = [x + 0.5 for x in range(0, int(m.FACE_E))]
     ys = [y + 0.5 for y in range(0, int(m.TOP))]
@@ -1171,14 +1169,12 @@ def check_firing(v):
         for y in ys:
             if not any(inside((x, y, 1.5), e) for e in solid):
                 holes.append((x, y))
-    (rx, ry, _), (fx, fy, _) = m.RECESS, m.FD_RECESS
     odd = [(x, y) for x, y in holes if not ((dx[0] <= x <= dx[1] and dy[0] <= y <= dy[1]) or (mx[0] <= x <= mx[1] and my[0] <= y <= my[1]))]
     if odd:
         v.fail(f"the fire end face opens elsewhere than the fire door and the ash mouth: {odd[:4]}")
-    print(f"firing: level 1 {len(bars)} bars on both bearers (top {top:g}), the fire door {dy[0]:g}..{dy[1]:g} over them, the ash "
-          f"mouth under; the well's cover flush; level 2 {len(treads)} treads at {', '.join(f'{t:g}' for t in tops)} to the bridge, "
-          f"the throat's foot at {throat[0][1]:g}; never together; the fire end opens only at the fire door and the ash mouth "
-          f"({len(holes)} points)")
+    print(f"firing: {len(treads)} treads at {', '.join(f'{t:g}' for t in tops)} to the bridge, the fire door {dy[0]:g}..{dy[1]:g} "
+          f"over them, the ash mouth under; the throat's foot at {throat[0][1]:g}; the bunker's rim flush in its seat; the fire "
+          f"end opens only at the fire door and the ash mouth ({len(holes)} points)")
 
 
 def in_rect(r, y, z, eps=1e-6):
@@ -1186,41 +1182,30 @@ def in_rect(r, y, z, eps=1e-6):
     return ya + eps < y < yb - eps and za + eps < z < zb - eps
 
 
-def peep_hole(m, k, place):
-    """Door k's peep hole in its plate in `place`, as ((y0, y1), (z0, z1)), or None."""
+def peep_hole(m, k):
+    """Door k's peep hole in its plate, as ((y0, y1), (z0, z1)), or None."""
     if k != m.PEEP_DOOR:
         return None
     zc = m.RABBLE_Z[k - 1]
     ph, (pa, pb) = m.PEEP
-    py0 = m.DOOR_PLATE[place][0]
+    py0 = m.DOOR_PLATE[0]
     return (py0 + pa, py0 + pb), (zc - ph, zc + ph)
 
 
 def check_peep(v):
-    """The owner's ruling (level 2's doors are shut, so the rabbles showed only from above): door PEEP_DOOR's plate has a
-    peep hole over the opening, its shutter over it at level 1 and slid clear of it at level 2, inside its guides and
-    the footprint; the hole lies inside the door's opening, so through it only the opening and the hearth show (nothing of
-    the lining but through the hole); and sight lines from outside through it, level and looking down, cross nothing at
-    level 2 (but the charge) and meet the rabble's spindle, hub or arms at every angle of its turn."""
+    """The owner's ruling (the work doors are shut, so the rabbles showed only from above): door PEEP_DOOR's plate has a
+    peep hole over the opening, open (no shutter: it only ever covered the hole when level 1's door was raised); the hole
+    lies inside the door's opening, so through it only the opening and the hearth show (nothing of the lining but
+    through the hole); and sight lines from outside through it, level and looking down, cross nothing of the finished
+    furnace (but the charge) and meet the rabble's spindle, hub or arms at every angle of its turn."""
     m = v.m
     k = m.PEEP_DOOR
     zc = m.RABBLE_Z[k - 1]
     hw, (y0, y1) = m.WORK_DOOR
-    (ha, hb), (za, zb) = peep_hole(m, k, "shut")
+    (ha, hb), (za, zb) = peep_hole(m, k)
     if not (y0 < ha and hb < y1 and zc - hw < za and zb < zc + hw):
         v.fail(f"door {k}'s peep hole {(ha, hb), (za, zb)} is not inside its opening")
-    for place, over in (("open", True), ("shut", False)):
-        sh = aabb_of(v.named(f"doors{place}", rf"_peepshutter{k}"))
-        (pa, pb), (qa, qb) = peep_hole(m, k, place)
-        covers = sh[0][1] <= pa and sh[1][1] >= pb and sh[0][2] <= qa and sh[1][2] >= qb
-        clear = sh[0][2] >= qb or sh[1][2] <= qa
-        if (over and not covers) or (not over and not clear):
-            v.fail(f"door {k}'s peep shutter is not {'over' if over else 'clear of'} the hole with the door {place}")
-        gs = v.named(f"doors{place}", rf"_peepguide{k}")
-        g = aabb_of(gs)
-        if len(gs) != 2 or g[1][0] > m.W + 1e-6 or not (g[0][2] <= sh[0][2] + 1e-6 and sh[1][2] <= g[1][2] + 1e-6):
-            v.fail(f"door {k}'s peep shutter does not run in its two guides inside the footprint (door {place})")
-    statics = [e for e in v.drawn(scene("level2"), moving=False) if e.part != "charge"]
+    statics = [e for e in v.drawn(scene(), moving=False) if e.part != "charge"]
     ym = (ha + hb) / 2
     xs = m.FACE_E + 1.3
     lines = [([m.W + 1.0, ym, z], [m.SHAFT[0], ym, zc]) for z in (za + 0.3, zc, zb - 0.3)]
@@ -1250,54 +1235,34 @@ def check_peep(v):
     arms = sum(1 for th in thetas(144) if any(inside(p, e) for p in pts for e in v.posed(rabble, th) if "_arm" in e.name))
     if arms == 0:
         v.fail(f"no arm of rabble {k} passes the downward view through the peep hole")
-    return f"{seen} sight lines through it clear to rabble {k} at every angle, its arms across the downward one at {arms} of 144, its shutter over it at level 1, clear at level 2"
+    return f"{seen} sight lines through it clear to rabble {k} at every angle, its arms across the downward one at {arms} of 144"
 
 
 def check_doors(v):
-    """The work doors, on the east side only: the openings through the east wall at each rabble; open (level 1), each
-    plate raised clear of its opening and a sight line from outside it to the hearth's middle line, at the arms' height
-    and over the charge, crosses nothing but the charge; shut (level 2), each plate covers its opening. No opening in the
-    shared wall. The discharge door covers the tunnel's mouth shut and clears it open."""
+    """The work doors, on the east side only (kept for clearing accretions, shut): the openings through the east wall at
+    each rabble, each plate over its opening but for door PEEP_DOOR's peep hole. No opening in the shared wall. The
+    discharge door is clear of the tunnel's mouth (the output chute's)."""
     m = v.m
     hw, (y0, y1) = m.WORK_DOOR
-    statics = [e for e in v.drawn(scene("level1"), moving=False) if e.part != "charge"]
-    seen = 0
     for k, zc in enumerate(m.RABBLE_Z, 1):
-        for y in ((m.ARM_Y[0] + m.ARM_Y[1]) / 2, m.HEARTH_Y + 1.5):
-            for dz in (-hw + 1.0, 0.0, hw - 1.0):
-                a, b = [m.W + 1.0, y, zc + dz], [m.SHAFT[0], y, zc]
-                hit = None
-                for i in range(1, 200):
-                    t = i / 200
-                    p = [a[q] + (b[q] - a[q]) * t for q in range(3)]
-                    hit = next((e.name for e in statics if inside(p, e, 0.01)), None)
-                    if hit:
-                        break
-                if hit:
-                    v.fail(f"the view through open door {k} at y {y:g}, z {zc + dz:g} is blocked by {hit}")
-                else:
-                    seen += 1
-        plates = v.named("doorsshut", rf"_plate{k}")
+        plates = v.named("doors", rf"_plate{k}")
         shut = aabb_of(plates)
-        hole = peep_hole(m, k, "shut")
+        hole = peep_hole(m, k)
         gaps = [(y, z) for y in _span(y0, y1, 0.25) for z in _span(zc - hw, zc + hw, 0.25)
                 if not any(inside([m.FACE_E + 1.3, y, z], e) for e in plates) and not (hole and in_rect(hole, y, z))]
         if gaps or not (shut[0][1] <= y0 and shut[1][1] >= y1 and shut[0][2] <= zc - hw and shut[1][2] >= zc + hw):
             v.fail(f"door {k}'s plate does not cover its opening shut (but for a peep hole): {gaps[:3]}")
-        op = [e.aabb() for e in v.named("doorsopen", rf"_plate{k}")][0]
-        if op[0][1] < y1:
-            v.fail(f"door {k}'s plate does not clear its opening open")
     peeps = check_peep(v)
     west = [p for p in ((4.0, (y0 + y1) / 2, z) for z in range(1, int(m.D))) if not any(inside(p, e) for e in v.by_part["brickwork"] + v.by_part["lining"])]
     if west:
         v.fail(f"the shared wall opens at {west[:3]}")
     (tx, ty, tz) = m.TUNNEL
-    sh = v.named("dischargeshut", r"_plate")[0].aabb()
-    op = v.named("dischargeopen", r"_plate")[0].aabb()
-    if not (sh[0][2] <= tz[0] and sh[1][2] >= tz[1] and sh[0][1] <= ty[0] and sh[1][1] >= ty[1]) or op[0][2] < tz[1]:
-        v.fail("the discharge door does not cover the tunnel's mouth shut, or clear it open")
-    print(f"work doors: on the east only, {seen} sight lines from outside the open doors to the hearth's middle line clear; "
-          f"shut, each plate over its opening but for door {m.PEEP_DOOR}'s peep hole ({peeps}); the shared wall unbroken; the discharge door over the mouth shut, clear of it open")
+    op = v.named("discharge", r"_plate")[0].aabb()
+    (rx, ry, rz) = m.D_RECESS
+    if op[0][2] < tz[1] or op[1][2] > rz[1] + 1e-6:
+        v.fail("the discharge door is not clear of the tunnel's mouth, in its recess")
+    print(f"work doors: on the east only, shut, each plate over its opening but for door {m.PEEP_DOOR}'s peep hole ({peeps}); "
+          f"the shared wall unbroken; the discharge door clear of the mouth, in its recess")
 
 
 # ---------------------------------------------------------------- the chutes, the water, the outlet, the damper, the draught
@@ -1320,9 +1285,10 @@ def vanilla_chute():
 
 
 def check_chutes(v):
-    """Each chute the machine takes (the ore infeed's, the fuel's, the output's; level 2) ends in a section of the vanilla
-    chute whose walls are the game's own (cross-section, thickness, place in the cell), in its texture, reaching its
-    anchor's face, so a vanilla chute placed in the next cell meets it with no gap or step."""
+    """Each chute the machine takes (the ore infeed's, the fuel's, the output's) ends in a section of the vanilla chute
+    whose walls are the game's own (cross-section, thickness, place in the cell), in its texture, reaching its anchor's
+    face, so a vanilla chute placed in the next cell meets it with no gap or step; the sections are the services' (the
+    last stage, the owner's ruling for every machine)."""
     m = v.m
     game = vanilla_chute()
     want_ud = sorted(tuple(w) for w in m.CHUTE_UD_WALLS)
@@ -1332,9 +1298,9 @@ def check_chutes(v):
         ud = sorted((round(16 - t[1], 6), round(16 - f[1], 6), round(f[2], 6), round(t[2], 6)) for f, t in game[0])
         if we != want_we or ud != want_ud:
             v.fail(f"the recorded chute walls are not the game's ({game[1]}): we {we}, ud {ud}")
-    for key, cell, face, pid, rx, want in (("infeed", m.INFEED_CELL, m.INFEED_FACE, "feeder", r"_infeedchute", want_ud),
-                                           ("fuel", m.FUEL_CELL, m.FUEL_FACE, "stoker", r"_fuelchute", want_ud),
-                                           ("output", m.OUTPUT_CELL, m.OUTPUT_FACE, "output", r"_chute", want_we)):
+    for key, cell, face, pid, rx, want in (("infeed", m.INFEED_CELL, m.INFEED_FACE, "services", r"_infeedchute", want_ud),
+                                           ("fuel", m.FUEL_CELL, m.FUEL_FACE, "services", r"_fuelchute", want_ud),
+                                           ("output", m.OUTPUT_CELL, m.OUTPUT_FACE, "services", r"_outputchute", want_we)):
         o = [cell[k] * 16 for k in range(3)]
         got = []
         for e in v.named(pid, rx):
@@ -1356,12 +1322,12 @@ def check_chutes(v):
 
 
 def check_water(v):
-    """The water (level 2): the manifold is ppex's pipe (6 across) against the water cell's east face (the owner's
+    """The water: the manifold is ppex's pipe (6 across) against the water cell's east face (the owner's
     ruling: the player's pipe comes in from the side), at the face's 5..11 both ways, open to it, nothing in the way of
     the player's pipe beyond it; a full-size connector out of its side, its end plugged round the small pipe's bore
     with a ring of solder (the vanner's reducer); the small pipe the vanner's, 2.4 across, every run; it joins the
     connector to each swivel's port, every piece touching the next;
-    the copper and lead parts are the same boxes; the pipes are drawn only with the rabbles."""
+    the copper and lead parts are the same boxes; the pipes are the services' (drawn only with the last stage)."""
     m = v.m
     cell = [m.WATER_CELL[k] * 16 for k in range(3)]
     man = aabb_of(v.named("pipecopper", r"_manifold"))
@@ -1375,7 +1341,7 @@ def check_water(v):
     if any(inside(mid, e) for e in v.named("pipecopper", r"_manifold")):
         v.fail("the manifold is closed at the water face")
     way = (want[0], [want[1][0] + 16, want[1][1], want[1][2]])
-    near = [e.name for e in v.drawn(scene("level2")) if not e.part.startswith("pipe") and overlap(e.aabb(), way)]
+    near = [e.name for e in v.drawn(scene()) if not e.part.startswith("pipe") and overlap(e.aabb(), way)]
     if near:
         v.fail(f"the player's pipe's way to the water face is blocked: {near[:3]}")
     pipes = v.by_part["pipecopper"]
@@ -1426,8 +1392,9 @@ def check_water(v):
     diff = [e.name for e in pipes if e.name not in lead or e.aabb() != lead[e.name].aabb()]
     if diff:
         v.fail(f"the lead pipes are not the copper ones: {diff[:3]}")
-    if v.shows("pipecopper", scene("level1")) or not v.shows("pipecopper", scene("level2")):
-        v.fail("the pipes are not drawn with the rabbles only")
+    before = m.STAGES[m.STAGES.index("services") - 1]
+    if v.shows("pipecopper", scene("cold", build=before)) or not v.shows("pipecopper", scene()):
+        v.fail("the pipes are not drawn with the services only")
     print(f"water: the manifold ppex's pipe against the water cell's east face, open to it, the way beyond clear; a full-size connector out of it, plugged round "
           f"the small pipe's bore with a ring of solder (the vanner's reducer); {len(runs)} runs of the vanner's {small}-across "
           f"small pipe, {len(pipes) - len(v.named('pipecopper', r'_manifold'))} pieces in all, join it to {len(ports)} swivels' ports; "
@@ -1501,34 +1468,29 @@ def check_outlet(v):
 
 
 def check_draught(v):
-    """The way the air goes, natural draught only: in at the ash mouth into the ash pit, up between the flat grate's bars
-    (level 1) or between the step grate's treads (level 2), through the fire, over the bridge, along the hearth under the
+    """The way the air goes, natural draught only: in at the ash mouth into the ash pit, up between the step grate's
+    treads, through the fire, over the bridge, along the hearth under the
     arch, into the flue end's cavity and up the uptake to the outlet. Sampled points along it lie in no element of the
     structure or of the grate drawn."""
     m = v.m
     (mx, my) = m.MOUTH
     xm, ym = (mx[0] + mx[1]) / 2, (my[0] + my[1]) / 2
     path = [(xm, ym, z) for z in (-0.5, 0.5, 1.5, 3.0, 5.0, 7.0, 10.0, 14.0)]
-    gap = (m.IN_X[1] - m.IN_X[0] - m.BARS * m.BAR_W) / (m.BARS - 1)
-    grate1 = [(m.IN_X[0] + m.BAR_W + gap / 2 + n * (m.BAR_W + gap), (m.BAR_Y[0] + m.BAR_Y[1]) / 2, 13.0) for n in range(m.BARS - 1)]
-    grate2 = [(24.0, a[2] - m.STEP_T - (m.STEP_DROP - m.STEP_T) / 2, a[1]) for a in m.steps()[:-1]]   # the riser gaps
+    grate = [(24.0, a[2] - m.STEP_T - (m.STEP_DROP - m.STEP_T) / 2, a[1]) for a in m.steps()[:-1]]   # the riser gaps
     over = [(24.0, 19.0, z) for z in (10.0, 15.0)] + [(24.0, 21.0, 22.5)]
     hearth = [(24.0, 20.0, z) for z in range(26, 74, 3)] + [(24.0, 24.0, 70.0), (12.0, 25.0, 71.0)]
     (ux, uz) = m.UPTAKE
     up = [((ux[0] + ux[1]) / 2, y + 0.5, (uz[0] + uz[1]) / 2) for y in range(int(m.CAVITY_TOP), int(m.TOP) + 20)]
     blocked = []
-    for label, grate, sc in (("level 1", grate1, scene("level1")), ("level 2", grate2, scene("level2"))):
-        solid = [e for pid in STRUCTURE_PARTS + ("handfiring", "stoker", "firedoor", "hopper") if v.shows(pid, sc) for e in v.by_part[pid]]
-        for p in path + grate + over + hearth + up:
-            if any(inside(p, e) for e in solid):
-                blocked.append((label, p))
+    sc = scene()
+    solid = [e for pid in STRUCTURE_PARTS + ("stoker", "firedoor", "hopper") if v.shows(pid, sc) for e in v.by_part[pid]]
+    for p in path + grate + over + hearth + up:
+        if any(inside(p, e) for e in solid):
+            blocked.append(p)
     if blocked:
         v.fail(f"the draught's way is blocked at {blocked[:5]}")
-    if gap < 0.8:
-        v.fail(f"the flat grate's gaps ({gap:.2f}) are too narrow")
-    print(f"draught: in at the ash mouth, up through {m.BARS - 1} gaps of {gap:.2f} in the flat grate (level 1) or between the "
-          f"treads (level 2), over the bridge, along the hearth, up the uptake to the outlet: "
-          f"{len(path) + len(grate1) + len(over) + len(hearth) + len(up)} points clear at each level")
+    print(f"draught: in at the ash mouth, up between the step grate's treads ({len(grate)} riser gaps), over the bridge, "
+          f"along the hearth, up the uptake to the outlet: {len(path) + len(grate) + len(over) + len(hearth) + len(up)} points clear")
 
 
 def check_zfight(v):
@@ -1623,7 +1585,7 @@ def validate_files(m, shape, frame_shape, ship):
     if {f["texture"].lstrip("#") for e in frame_shape["elements"] for f in e["faces"].values()} != {"iron"}:
         fail("the frame's shape is not the iron frame alone")
     for e in shape["elements"]:
-        want = m.FIRE_GLOW if e["name"].startswith(("fireflat_bed", "firestep_bed")) else None
+        want = m.FIRE_GLOW if e["name"].startswith("fire_bed") else None
         if {f.get("glow") for f in e["faces"].values()} != {want}:
             fail(f"{e['name']}'s faces glow wrongly")
     gaps = lid_gaps(ship["cells"])

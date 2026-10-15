@@ -2,8 +2,8 @@
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
 maths and uses the build's `requires` vocabulary, its reference poses are its own maths, the cells are rebuilt from the
-shipped shape (the finished machine's boxes) with a deck on every column, the build's stages and levels are the
-scenario's states in site/models.json, the brick counts are measured again from the shipped brick, the bricks are the
+shipped shape (the finished machine's boxes) with a deck on every column, the build's stages (one furnace, no levels,
+the services last) are the scenario's states in site/models.json, the brick counts are measured again from the shipped brick, the bricks are the
 crucible furnace's types, and the anchors (power, infeed, output, fuel, water, the outlet beside the drive's row with
 the chimney on it) are where the contract puts them. Run with `python3 -m unittest discover -s tools/tests`.
 """
@@ -52,9 +52,10 @@ class Rig(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(ids[-1], "frame")
         build = RIG["build"]
-        vocab = {s["requires"] for s in build["stages"]} | {None, "charge", "fireflat", "firestep", "outletcap"}
-        for lv in build["levels"]:
-            vocab |= set(lv["fits"]) | set(lv.get("also", []))
+        self.assertNotIn("levels", build)
+        vocab = {s["requires"] for s in build["stages"]} | {None, "charge", "fire", "outletcap"}
+        for st in build["stages"]:
+            vocab |= set(st.get("also", []))
         self.assertEqual({p["requires"] for p in RIG["parts"]}, vocab)
         self.assertNotIn("work", RIG)
         self.assertNotIn("trunkPath", RIG)
@@ -127,26 +128,26 @@ class Cells(unittest.TestCase):
 
 
 class Build(unittest.TestCase):
-    def test_stages_and_levels_are_the_viewers_states(self):
+    def test_stages_are_the_viewers_states(self):
         build = RIG["build"]
         self.assertTrue(build["provisional"])
         stages = [s["requires"] for s in build["stages"]]
+        self.assertEqual(stages, ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder", "stoker",
+                                  "output", "services"])
         self.assertEqual(group("build")["values"], stages)
+        self.assertEqual(group("build")["default"], "services")
         opts = {o["id"]: o["fitted"] for o in group("build")["options"]}
-        self.assertEqual(opts, {"frame": [], "brickwork": stages[:1], "lining": stages[:2], "arch": stages})
-        levels = {o["id"]: o["fitted"] for o in group("level")["options"]}
-        l1, l2 = build["levels"]
-        self.assertEqual(levels["level1cold"], l1["fits"])
-        self.assertEqual(levels["level2cold"], l2["fits"])
-        self.assertEqual(levels["level1"], l1["fits"] + ["charge", "fireflat"])
-        self.assertEqual(levels["level2"], l2["fits"] + ["charge", "firestep"])
-        for was, now in l2["replaces"].items():
-            self.assertIn(was, l1["fits"])
-            self.assertNotIn(was, l2["fits"])
-            self.assertIn(now, l2["fits"])
-        self.assertEqual(set(l1["fits"]) - set(l2["fits"]), set(l2["replaces"]))
-        self.assertEqual(group("damper")["values"], l1["also"])
-        self.assertEqual(group("water")["values"], l2["also"])
+        self.assertEqual(opts, {"frame": [], **{sid: stages[:i + 1] for i, sid in enumerate(stages)}})
+        run = {o["id"]: o["fitted"] for o in group("run")["options"]}
+        self.assertEqual(run, {"cold": [], "running": ["charge", "fire"]})
+        self.assertEqual(group("run")["needs"], stages)
+        st = {s["requires"]: s for s in build["stages"]}
+        self.assertEqual(group("damper")["values"], st["doors"]["also"])
+        self.assertEqual(group("damper")["needs"], stages[:stages.index("doors") + 1])
+        self.assertEqual(group("water")["values"], st["services"]["also"])
+        self.assertEqual(group("water")["needs"], stages)
+        ids = {g["id"] for g in model()["scenario"]["states"]}
+        self.assertNotIn("level", ids)
 
     def test_counts_are_measured_from_the_shipped_brick(self):
         vol = {"bk": 0.0, "ln": 0.0, "arch": 0.0}
