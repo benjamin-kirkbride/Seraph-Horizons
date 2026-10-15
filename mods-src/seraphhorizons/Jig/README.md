@@ -91,6 +91,16 @@ y 17.2..17.6. Under the sieve compartment the hutch's **bottom slopes** from 7.6
 oak cleat) to 5.65 at the front wall, where the iron **spout** (a floor, two sides and a head, 0.5
 thick round a 4.6 × 2.35 bore) lines a port through the wall's foot into the concentrate chute's mouth.
 
+**The corner irons** (in the frame, `hutch_strap_*`), as a period plank tank was bound. Each of the
+hutch's four vertical corners has an angle-iron **strap** (0.3 thick): a leg 0.9 wide flat on each of its
+two outer faces, the north or south face's leg lapping the other's edge so the two meet in an L round the
+corner, from the sills' top (y 4) to the rim; at the tail end's corner (north-west), where the west wall
+rises as the head, it runs up the head to its top (28). On the three corners at the rim a flat **corner
+iron** lies on the rim, an arm 2.4 along each wall's top, lapping the strap's head. Every leg has three nail
+heads (the head corner's four), every corner iron's arm one. They keep clear of the services: the
+north-west strap's west leg stops 0.1 short of the tailings chute's north wall, and nothing else comes
+within 0.2 of them (the outlets, the infeed, the water inlet, the axle's flange and the plunger's path).
+
 **The sieve** (`sieve`): an iron mesh (`game:block/metal/mesh1`) across the sieve compartment, on its
 ledges.
 
@@ -154,7 +164,7 @@ over the compartment's), and the bed lifts a little on each pulse and settles (�
 | Tailings and concentrate chutes, their bracket and block (`outlets`) [outlets] | — | — | none |
 | The water inlet in copper (`pipecopper`) [pipecopper] | — | — | none |
 | The water inlet in lead (`pipelead`) [pipelead] | — | — | none |
-| The hutch (`frame`) | — | — | none |
+| The hutch, with its corner straps and rim irons (`frame`) | — | — | none |
 
 No toothed wheel: the eccentric runs in its yoke (its bars on the sheave follow its centre exactly, its end
 bars clear its swing by 0.3).
@@ -194,8 +204,8 @@ python3 mods-src/seraphhorizons/Jig/tools/make_shape.py --out DIR    # or writes
 python3 mods-src/seraphhorizons/Jig/tools/make_shape.py --quick      # skips the z-fighting fix and the swept paths (not for files that ship)
 ```
 
-It writes `assets/seraphhorizons/shapes/block/jig.json` (the whole machine, 121 elements),
-`assets/seraphhorizons/shapes/block/jig_frame.json` (the hutch, 30), `assets/seraphhorizons/config/jig-rig.json`
+It writes `assets/seraphhorizons/shapes/block/jig.json` (the whole machine, 167 elements),
+`assets/seraphhorizons/shapes/block/jig_frame.json` (the hutch, 76), `assets/seraphhorizons/config/jig-rig.json`
 and `tests/Jig/rig-reference.json` (every part's matrix at ten values of θ). A full run takes about 2 s and
 is deterministic (two runs into two folders are byte-identical, logs included).
 
@@ -209,7 +219,7 @@ Every run checks its output and exits non-zero if a check fails:
 - **Textures** by role (`ROLES`): oak timber, plank boards, iron castings and straps, steel shaft, sheave
   and rods, the mesh, vanilla's chute copper, the pipe's metal, the contents'; only the water's surfaces in
   the transparent pass. **Thickness:** nothing thinner than half a voxel but the mesh, the lip, the
-  water's surfaces and the straps.
+  water's surfaces and the straps (the corner irons and their nail heads among them).
 - **Nothing floats**, at rest: the hutch alone, the finished machine dry, with water, working, and the
   hutch with each fitting on its own (and what it stands on: the plunger with the drive, the bed with the
   sieve).
@@ -243,6 +253,12 @@ Every run checks its output and exits non-zero if a check fails:
 - **Supports:** the shaft in both bushes (`supports`), located on both faces of each by the flange or a
   collar; the tail rod through the beam and in its guide, and the plunger board in its compartment, through
   a turn; the standards on the side walls' rims.
+- **Corner irons** (`check_corner_straps`): every vertical corner of the hutch, found from its walls, has
+  an angle-iron strap, a leg flat on each of its two outer faces, the legs meeting along the corner and
+  wrapping it, from the sills' top to the corner's top (the head's at the tail end), each leg with two
+  nails or more; each corner at the rim has a corner iron on it lapping the strap's head, nailed; and the
+  irons stand 0.1 or more clear of the outlets, the infeed, the water inlet, and the shaft, sheave and
+  plunger through a turn.
 - **Clearances:** over a turn every 15°, working and dry, and backwards, no two parts touch but the
   intended contacts listed in `ALLOWED` (the shaft in its bushes and standards, the sheave on the shaft and
   in the yoke, the tail rod in its guide and beam, the inlet through the back wall, the water against the
@@ -263,7 +279,9 @@ First-match globs, in the rig's order: `shaft_*` (`entrya`, `entryb`, `flange_*`
 `tail_arm`, `tail_leg`, `concchute_w/e/bottom/top`, `conc_block`), `pipecopper_*` and `pipelead_*`
 (`inlet_*`), and `hutch_*` for the frame (`sill1..3`, `floor1..2`, `wall_n`, `wall_s`, `wall_e1..2`,
 `wall_nw`, `wall_ne`, `wall_w1..2`, `wall_wn`, `wall_ws`, `weir_lip`, `head_n`, `head_s`, `head_lintel`, `partition`,
-`ledge_w/e/n/s`, `hopper`, `hopper_cleat`, `spigot_bottom/top/w/e`). Hand edits are
+`ledge_w/e/n/s`, `hopper`, `hopper_cleat`, `spigot_bottom/top/w/e`, and the corner irons
+`strap_<nw|ne|sw|se>_x` and `_z` (the legs on the north or south face and on the west or east face),
+`_xnail1..`, `_znail1..`, `_rimx`, `_rimz`, `_rimxnail`, `_rimznail`). Hand edits are
 lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Salvaged from the v2 branch
@@ -322,7 +340,9 @@ The model has been reviewed in projections rendered from the written files, not 
    trough), `outlets` (the two chute sections), `pipecopper`/`pipelead`. A first order to discuss: the
    hutch, the sieve, the drive, the plunger, the infeed and outlets, the water inlet.
 9. **Anchors provisional pending #711**: the `<name>Cell`/`<name>Face` pairs for chutes and water.
-10. **Box ironwork.** The hutch is plain plank; iron corner straps or tie rods would read as a period box.
+10. **Box ironwork** (ruled 2026-10-14: corner straps). Angle-iron straps on the four vertical corners,
+    nailed, and corner irons on the three rim corners the head does not cover. No tie rods or bands across
+    the long walls: whether the 26-long side walls want a band at mid-height as well is open.
 11. **One concentrate, the hutch product.** The concentrate is the fine heavy grains through the sieve,
     drawn off the hutch's bottom by the spout. A Harz jig also drew the coarse heavy grains lying on the
     sieve off through a gate at the tail end under the tail board; that would be a third product and a
@@ -336,6 +356,6 @@ The model has been reviewed in projections rendered from the written files, not 
 
 `tools/tests/test_jig_model.py` (the generated files against their own rules: the rig's vocabulary, its
 reference poses, the cells rebuilt from the shipped shape, the motion, the anchors, the chutes' section,
-the port in the tail end's head and the spout's open bore, the textures), `site/test/jig.test.ts` (the site's rig maths against the reference poses, the anchors the
+the port in the tail end's head and the spout's open bore, the hutch's corner straps, the textures), `site/test/jig.test.ts` (the site's rig maths against the reference poses, the anchors the
 viewer finds, the page's contents and inlet choice) and `tests/Jig/JigRigTests.cs` (the shipped rig through
 `Machines/Core`'s parser and maths against the same poses).

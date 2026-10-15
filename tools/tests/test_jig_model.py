@@ -214,6 +214,28 @@ class Anchors(unittest.TestCase):
                        and e["from"][1] < bore[1][1] and e["to"][1] > bore[1][0])
             self.assertFalse(through, f"{e['name']} closes the spout's port")
 
+    def test_every_corner_of_the_hutch_is_strapped(self):
+        # an angle-iron strap down each vertical corner, in the hutch's own shape: a leg flat on each outer face,
+        # the legs meeting at the corner, from the sills' top to the corner's top, nailed
+        walls = [e for e in FRAME["elements"] if e["name"].startswith(("hutch_wall", "hutch_head_"))]
+        (x0, x1), (z0, z1) = span(walls, 0), span(walls, 2)
+        straps = {e["name"]: e for e in FRAME["elements"] if e["name"].startswith("hutch_strap_")}
+        for xc in (x0, x1):
+            for zc in (z0, z1):
+                legs = [e for n, e in straps.items() if "nail" not in n and "_rim" not in n
+                        and min(e["from"][0], e["to"][0]) - 1e-4 <= xc <= max(e["from"][0], e["to"][0]) + 1e-4
+                        and min(e["from"][2], e["to"][2]) - 1e-4 <= zc <= max(e["from"][2], e["to"][2]) + 1e-4]
+                self.assertEqual(len(legs), 2, f"the corner ({xc}, {zc})")
+                faces = {("z" if abs(e["from"][2] - zc) < 1e-4 or abs(e["to"][2] - zc) < 1e-4 else "")
+                         + ("x" if abs(e["from"][0] - xc) < 1e-4 or abs(e["to"][0] - xc) < 1e-4 else "") for e in legs}
+                self.assertTrue(any("z" in f for f in faces) and any("x" in f for f in faces), f"the corner ({xc}, {zc})")
+                for e in legs:
+                    self.assertLessEqual(e["from"][1], make_shape.FLOOR[0] + 1e-4)
+                    self.assertGreaterEqual(e["to"][1], make_shape.RIM - 1e-4)
+                    self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#iron"})
+                    stem = e["name"]
+                    self.assertGreaterEqual(sum(1 for n in straps if n.startswith(stem + "nail")), 2, stem)
+
 
 class Textures(unittest.TestCase):
     def test_every_face_uses_a_declared_code_and_the_frame_matches(self):

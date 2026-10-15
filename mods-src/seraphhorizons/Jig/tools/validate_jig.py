@@ -122,6 +122,7 @@ ROLES = [
     (r"^hutch_(sill|ledge|hopper_cleat)", {"oak"}),
     (r"^hutch_(floor|wall|partition|head_|hopper$)", {"planks"}),
     (r"^hutch_(weir_lip|spigot_(bottom|top|w|e))$", {"iron"}),
+    (r"^hutch_strap_", {"iron"}),
     (r"^sieve_mesh$", {"screen"}),
     # the drive: the vanilla axle's oak end, then iron and steel
     (r"^shaft_entry[ab]$", {"oak"}),
@@ -598,6 +599,94 @@ def check_supports(v):
           "through a turn; the standards on the side walls' rims")
 
 
+# ---------------------------------------------------------------- the hutch's corner irons
+def gap(a, b):
+    """How far apart two boxes (lo, hi) are: the largest separation along an axis, 0 or less if they meet."""
+    (alo, ahi), (blo, bhi) = a, b
+    return max(max(blo[k] - ahi[k], alo[k] - bhi[k]) for k in range(3))
+
+
+def check_corner_straps(v):
+    """Every vertical corner of the hutch (found from its walls) is bound by an angle-iron strap: a leg flat on
+    each of its two outer faces, the legs meeting at the corner, from the sills' top to the rim (up the head to
+    its top where the head stands over the corner), each leg nailed; on each corner at the rim (not the head's), a
+    corner iron on the rim lapping the strap's head, nailed too. The irons stand clear (0.1 or more) of the outlets,
+    the infeed, the water inlet, and the shaft and plunger through a turn."""
+    m = v.m
+    frame = v.by_part["frame"]
+    walls = [e.aabb() for e in frame if re.match(r"^hutch_(wall|head)_", e.name)]
+    x0, x1 = min(lo[0] for lo, _ in walls), max(hi[0] for _, hi in walls)
+    z0, z1 = min(lo[2] for lo, _ in walls), max(hi[2] for _, hi in walls)
+    sill_top = max(e.aabb()[1][1] for e in frame if e.name.startswith("hutch_sill"))
+    straps = {e.name: e.aabb() for e in frame if e.name.startswith("hutch_strap_")}
+    eps = 1e-6
+    found = []
+
+    def corner_top(xc, zc):
+        return max(hi[1] for lo, hi in walls if lo[0] - eps <= xc <= hi[0] + eps and lo[2] - eps <= zc <= hi[2] + eps)
+
+    rim = min(corner_top(xc, zc) for xc in (x0, x1) for zc in (z0, z1))   # the hutch's rim: a corner over it is the head's
+    for xc, sx in ((x0, -1), (x1, 1)):
+        for zc, sz in ((z0, -1), (z1, 1)):
+            # the corner's height: the walls' top at it
+            top = corner_top(xc, zc)
+            where = f"({xc:g}, {zc:g})"
+            # the leg on the face looking along z, flat on it, lapping the corner; the leg on the face looking along x
+            lz = [(n, b) for n, b in straps.items() if "nail" not in n and "_rim" not in n
+                  and abs((b[0][2] if sz > 0 else b[1][2]) - zc) < eps and b[0][0] - eps <= xc <= b[1][0] + eps]
+            lx = [(n, b) for n, b in straps.items() if "nail" not in n and "_rim" not in n
+                  and abs((b[0][0] if sx > 0 else b[1][0]) - xc) < eps and b[0][2] - eps <= zc <= b[1][2] + eps]
+            if len(lz) != 1 or len(lx) != 1:
+                v.fail(f"the hutch's corner {where} has no angle-iron strap (legs {[n for n, _ in lz + lx]})")
+                continue
+            (nz, bz), (nx, bx) = lz[0], lx[0]
+            # the legs meet: they touch along the corner, overlapping over their height
+            if abs(gap(bz, bx)) > eps or not (min(bz[1][1], bx[1][1]) - max(bz[0][1], bx[0][1]) > top - sill_top - eps):
+                v.fail(f"the strap's legs at {where} do not meet along the corner ({nz}, {nx})")
+            # outside the hutch, wrapping it: the z-face leg reaches past the corner by the other's thickness
+            if not ((bz[1][0] >= bx[1][0] - eps) if sx > 0 else (bz[0][0] <= bx[0][0] + eps)):
+                v.fail(f"the strap at {where} does not wrap the corner")
+            for n, b in ((nz, bz), (nx, bx)):
+                if b[0][1] > sill_top + eps or b[1][1] < top - eps:
+                    v.fail(f"{n} does not run from the sills' top {sill_top} to the corner's top {top}: y {b[0][1]}..{b[1][1]}")
+                nails = [k for k, nb in straps.items() if "nail" in k and "_rim" not in k and abs(gap(nb, b)) < eps]
+                if len(nails) < 2:
+                    v.fail(f"{n} is not nailed (nails on it: {nails})")
+            # the rim's corner: covered by the head, or an iron on it lapping the strap's head
+            covered = top > rim + eps
+            if not covered:
+                arms = [n for n, b in straps.items() if "_rim" in n and "nail" not in n and abs(b[0][1] - top) < eps
+                        and b[0][0] - eps <= xc <= b[1][0] + eps and b[0][2] - eps <= zc <= b[1][2] + eps]
+                if not arms or not all(abs(gap(straps[a], leg)) < eps for a in arms for leg in (bz, bx)):
+                    v.fail(f"the rim's corner at {where} has no corner iron over it lapping the strap's head ({arms})")
+                arms += [n for n, b in straps.items() if "_rim" in n and "nail" not in n and n not in arms
+                         and any(abs(gap(b, straps[a])) < eps for a in arms)]
+                rnails = [k for k, nb in straps.items() if "nail" in k and any(
+                    abs(gap(nb, straps[a])) < eps and nb[0][1] >= straps[a][1][1] - eps for a in arms)]
+                if len(rnails) < 2:
+                    v.fail(f"the rim's corner iron at {where} is not nailed ({rnails})")
+            found.append(f"{where} {nz}/{nx} to {top:g}" + (" (head over it)" if covered else " + rim iron"))
+    print("corner straps: " + "; ".join(found))
+    if len(found) != 4:
+        v.fail("not every corner of the hutch is strapped")
+    # clear of the services and the moving parts
+    near = []
+    others = [(e.name, e.aabb()) for pid in ("outlets", "infeed", *m.PIPES) for e in v.by_part[pid]]
+    for pose in turns(24, "complete"):
+        others += [(e.name, e.aabb()) for pid in ("shaft", "sheave", "plunger") for e in v.posed(pid, pose)]
+    worst = (1e9, None)
+    for n, b in straps.items():
+        for on, ob in others:
+            g = gap(b, ob)
+            if g < worst[0]:
+                worst = (g, (n, on))
+            if g < 0.1 - 1e-6:
+                near.append((n, on, round(g, 3)))
+    print(f"corner straps clear of the outlets, infeed, inlet, shaft and plunger by {worst[0]:.2f} at least ({worst[1]})")
+    if near:
+        v.fail(f"corner irons too near a service or moving part: {sorted(set(near))[:6]}")
+
+
 # ---------------------------------------------------------------- clearances
 # Intended contacts: (part a, element regex in a or None, part b, element regex in b or None), either way
 # round. Everything else must clear by more than 0.02 voxels at every sampled pose.
@@ -704,6 +793,7 @@ def validate(m, els, parts, rig, quick=False):
     check_paths(v)
     check_yoke(v)
     check_supports(v)
+    check_corner_straps(v)
     check_clearances(v, [p for st in ("working", "complete") for p in turns(12 if quick else 24, st)]
                      + [(-0.9, "working"), (-2.4, "working")], "clearances")
     if not quick:

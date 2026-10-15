@@ -127,6 +127,25 @@ IN_X = (HUTCH_X[0] + WALL_T, HUTCH_X[1] - WALL_T)        # the inside: x 4 .. 14
 SIEVE_Z = (HUTCH_Z[0] + WALL_T, PART_Z[0])               # the sieve compartment: z 4.5 .. 16.5
 PLUNGE_Z = (PART_Z[1], HUTCH_Z[1] - WALL_T)              # the plunger compartment: z 17.5 .. 27.5
 
+# The hutch's ironwork, as a period plank tank had it: an angle-iron strap down each vertical corner, wrapping
+# it (a leg on each outer face, the legs meeting at the corner), from the sills to the rim (at the tail end's
+# corner up the head, to its top), and a flat corner iron on the rim over each corner the head does not cover,
+# lapping the vertical strap's head; every leg nailed to its board.
+CSTRAP_T = 0.3                               # the iron's thickness
+CSTRAP_W = 0.9                               # each leg's width on its face, from the wall's corner (the tail end's
+                                             # corner: clear of the tailings chute's north wall at z 4 by 0.1)
+CSTRAP_Y0 = FLOOR[0]                         # from the sills' top (the floor's underside) ...
+RIM_IRON = 2.4                               # the rim's corner iron: each arm this long from the corner, outside
+NAIL = (0.5, 0.12)                           # a nail head's side and how far it stands proud
+NAIL_YS = (FLOOR[0] + 1.5, (FLOOR[0] + RIM) / 2, RIM - 1.5)   # the nails down each vertical leg
+CORNERS = {                                  # each vertical corner: its (x, z) and which way its two faces look
+    "nw": ((2.5, 3.0), (-1, -1)),
+    "ne": ((15.5, 3.0), (1, -1)),
+    "sw": ((2.5, 29.0), (-1, 1)),
+    "se": ((15.5, 29.0), (1, 1)),
+}
+HEAD_CORNER = "nw"                           # the corner the tail end's head rises over: its strap goes up the head
+
 # ---------------------------------------------------------------- the vanilla chute sections
 VANILLA_CHUTE = {                            # game 1.22.7, shapes/block/metal/chute/straight.json (the "we" shape):
     "walls": ((4.0, 12.0, 4.0, 5.0),         # its walls across the run, (a0, a1, b0, b1) cell-local over the two
@@ -481,6 +500,52 @@ def build_hutch():
     out.append(box([sx0, SPIGOT_FLOOR, sz0], [sx0 + st, py1 - st, sz1], "hutch_spigot_w", f, "iron"))
     out.append(box([sx1 - st, SPIGOT_FLOOR, sz0], [sx1, py1 - st, sz1], "hutch_spigot_e", f, "iron"))
     out.append(box([sx0, py1 - st, sz0], [sx1, py1, sz1], "hutch_spigot_top", f, "iron"))
+    return out + build_corner_straps()
+
+
+def build_corner_straps():
+    """The hutch's corner irons (in the frame, `hutch_strap_*`): an angle-iron strap down each vertical corner,
+    a leg on each outer face, the face across x (north or south) lapping the other's edge so the two meet at
+    the corner in an L; from the sills' top to the rim, or up the head to its top at the tail end's corner,
+    whose rim corner the head covers. On each other corner a flat L of iron on the rim, an arm along each wall
+    and lapping the vertical strap's head. Nail heads on every leg and arm."""
+    f = "frame"
+    t, w = CSTRAP_T, CSTRAP_W
+    ns, proud = NAIL
+    out = []
+
+    def nail(name, c, axis, sign):
+        lo, hi = [c[k] - ns / 2 for k in range(3)], [c[k] + ns / 2 for k in range(3)]
+        lo[axis], hi[axis] = (c[axis], c[axis] + proud) if sign > 0 else (c[axis] - proud, c[axis])
+        return box(lo, hi, name, f, "iron")
+
+    for tag, ((xc, zc), (sx, sz)) in CORNERS.items():
+        top = HEAD_TOP if tag == HEAD_CORNER else RIM
+        # the leg on the face across x (north or south): from past the corner by the other leg's thickness
+        xa, xb = sorted((xc + sx * t, xc - sx * w))
+        za, zb = sorted((zc, zc + sz * t))
+        out.append(box([xa, CSTRAP_Y0, za], [xb, top, zb], f"hutch_strap_{tag}_x", f, "iron"))
+        # the leg on the face across z (west or east): from the corner along the wall
+        xa2, xb2 = sorted((xc, xc + sx * t))
+        za2, zb2 = sorted((zc, zc - sz * w))
+        out.append(box([xa2, CSTRAP_Y0, za2], [xb2, top, zb2], f"hutch_strap_{tag}_z", f, "iron"))
+        ys = NAIL_YS + ((HEAD_TOP - 1.5,) if tag == HEAD_CORNER else ())
+        for i, y in enumerate(ys, 1):
+            out.append(nail(f"hutch_strap_{tag}_xnail{i}", [xc - sx * w / 2, y, zc + sz * t], 2, sz))
+            out.append(nail(f"hutch_strap_{tag}_znail{i}", [xc + sx * t, y, zc - sz * w / 2], 0, sx))
+        if tag == HEAD_CORNER:
+            continue
+        # the rim's corner iron: an arm along each wall's rim from past the vertical strap's outside
+        ya, yb = RIM, RIM + t
+        x_out, z_out = xc + sx * t, zc + sz * t
+        xa, xb = sorted((x_out, xc - sx * RIM_IRON))
+        za, zb = sorted((z_out, zc - sz * WALL_T))
+        out.append(box([xa, ya, za], [xb, yb, zb], f"hutch_strap_{tag}_rimx", f, "iron"))
+        xa, xb = sorted((x_out, xc - sx * WALL_T))
+        za, zb = sorted((zc - sz * WALL_T, zc - sz * RIM_IRON))
+        out.append(box([xa, ya, za], [xb, yb, zb], f"hutch_strap_{tag}_rimz", f, "iron"))
+        out.append(nail(f"hutch_strap_{tag}_rimxnail", [xc - sx * (RIM_IRON + WALL_T) / 2, yb, zc - sz * WALL_T / 2], 1, 1))
+        out.append(nail(f"hutch_strap_{tag}_rimznail", [xc - sx * WALL_T / 2, yb, zc - sz * (RIM_IRON + WALL_T) / 2], 1, 1))
     return out
 
 

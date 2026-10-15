@@ -105,6 +105,13 @@ describe("the jig's rig against its rig-reference.json", () => {
     expect([...codes.bed!]).toEqual(["bed"]);
     expect([...codes.outlets!].sort()).toEqual(["chute", "iron", "oak"]);
     expect(shape.textures!.chute).toBe("game:block/metal/sheet/copper1");
+    // the hutch's corner irons: two legs of angle iron on each of its four corners, in the frame, standing still
+    const legs = flat.filter((f) => /^hutch_strap_(nw|ne|sw|se)_[xz]$/.test(f.element.name ?? ""));
+    expect(legs.length).toBe(8);
+    for (const f of legs) {
+      expect(parts[partOf(globs, f.chain)]!.id).toBe("frame");
+      expect([...textureCodes(f.element)]).toEqual(["iron"]);
+    }
   });
 
   it("puts each service on a face of its own", () => {
