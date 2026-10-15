@@ -52,8 +52,9 @@ class Rig(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(ids[-1], "frame")
         build = RIG["build"]
-        vocab = {s["requires"] for s in build["stages"]} | {None, "charge", "fire", "outletcap"}
-        for st in build["stages"]:
+        fits = [f for s in build["stages"] for f in s["fits"]]
+        vocab = {f["requires"] for f in fits} | {None, "charge", "fire", "outletcap"}
+        for st in fits:
             vocab |= set(st.get("also", []))
         self.assertEqual({p["requires"] for p in RIG["parts"]}, vocab)
         self.assertNotIn("work", RIG)
@@ -130,17 +131,24 @@ class Build(unittest.TestCase):
     def test_stages_are_the_viewers_states(self):
         build = RIG["build"]
         self.assertTrue(build["provisional"])
-        stages = [s["requires"] for s in build["stages"]]
-        self.assertEqual(stages, ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder", "stoker",
-                                  "output", "services"])
+        fits = [f for s in build["stages"] for f in s["fits"]]
+        groups = [(s["id"], [f["requires"] for f in s["fits"]]) for s in build["stages"]]
+        self.assertEqual(groups, [("masonry", ["brickwork", "lining", "arch"]), ("hopperdoors", ["hopper", "doors"]),
+                                  ("drive", ["drive", "rabbles"]), ("feeding", ["feeder", "stoker", "output"]),
+                                  ("services", ["services"])])
+        stages = [r for _, rs in groups for r in rs]
         self.assertEqual(group("build")["values"], stages)
         self.assertEqual(group("build")["default"], "services")
-        opts = {o["id"]: o["fitted"] for o in group("build")["options"]}
-        self.assertEqual(opts, {"frame": [], **{sid: stages[:i + 1] for i, sid in enumerate(stages)}})
+        opts = [(o["id"], o["fitted"]) for o in group("build")["options"]]
+        want, sofar = [("frame", [])], []
+        for gid, rs in groups:
+            sofar = sofar + rs
+            want.append((gid, sofar))
+        self.assertEqual(opts, want)
         run = {o["id"]: o["fitted"] for o in group("run")["options"]}
         self.assertEqual(run, {"cold": [], "running": ["charge", "fire"]})
         self.assertEqual(group("run")["needs"], stages)
-        st = {s["requires"]: s for s in build["stages"]}
+        st = {f["requires"]: f for f in fits}
         self.assertEqual(group("damper")["values"], st["doors"]["also"])
         self.assertEqual(group("damper")["needs"], stages[:stages.index("doors") + 1])
         self.assertEqual(group("water")["values"], st["services"]["also"])
@@ -155,7 +163,7 @@ class Build(unittest.TestCase):
             for k, prefix in (("bk", "bk_brick_"), ("ln", "ln_brick_"), ("arch", "arch_")):
                 if e.name.startswith(prefix):
                     vol[k] += v
-        st = {s["requires"]: s for s in RIG["build"]["stages"]}
+        st = {f["requires"]: f for s in RIG["build"]["stages"] for f in s["fits"]}
         # the z-fighting fix steps a few faces in: the measured volume is the rig's within a hair
         self.assertAlmostEqual(vol["bk"] / 4096, st["brickwork"]["volumeBlocks"], places=2)
         self.assertAlmostEqual(vol["ln"] / 4096, st["lining"]["volumeBlocks"], places=2)

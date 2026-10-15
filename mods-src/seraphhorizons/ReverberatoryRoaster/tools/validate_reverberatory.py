@@ -106,7 +106,7 @@ def check_basic(v):
         v.fail(f"parts with no elements: {empty}")
     counts = {p["id"]: len(v.by_part.get(p["id"], [])) for p in v.parts}
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
-    for sid, sc in (("built", scene("cold", build="arch")), ("cold", scene("cold")), ("running", scene())):
+    for sid, sc in (("built", scene("cold", build="masonry")), ("cold", scene("cold")), ("running", scene())):
         n = sum(len(v.by_part[p["id"]]) for p in v.parts if v.shows(p["id"], sc))
         print(f"elements drawn {sid}: {n}")
 
@@ -160,6 +160,15 @@ def check_stages(v):
         out.append(f"{sid} {len(seen)}")
         if loose:
             v.fail(f"at {sid}, elements float: {loose[:8]}")
+    # and within each stage, after each of its fits in turn (the damper open with the doors)
+    loose_fits = []
+    for i, r in enumerate(m.STAGES):
+        fit = set(m.STAGES[:i + 1]) | ({"damperopen"} if "doors" in m.STAGES[:i + 1] else set())
+        drawn = [e for pid in v.by_part if pid not in m.MOVING and (v.req[pid] is None or v.req[pid] in fit) for e in v.by_part[pid]]
+        if frame_floating(drawn)[1]:
+            loose_fits.append(r)
+    if loose_fits:
+        v.fail(f"elements float after the fits {loose_fits}")
     frame = v.by_part["frame"]
     tex = {f["texture"].lstrip("#") for e in frame for f in e.faces.values()}
     if tex != {"iron"}:
@@ -187,16 +196,17 @@ def check_stages(v):
                             bare += 1
     if bare:
         v.fail(f"{bare} points off the frame's ties are in no brickwork: a tie shows")
-    # each fitting's stage stands on what came before it: its parts (moving ones at rest) touch the earlier stages'
+    # each stage stands on what came before it: each of its fits' parts (moving ones at rest) touch what the earlier
+    # stages and its own earlier fits put in
     unborne = []
-    for i, sid in enumerate(m.FITTINGS):
-        before = {r for r in m.STAGES[:len(m.STRUCTURE) + i]} | {None}
+    for i, r in enumerate(m.STAGES):
+        before = set(m.STAGES[:i]) | {None}
         prior = [e for pid in v.by_part if v.req[pid] in before for e in v.posed(pid, 0.0)]
-        own = [e for pid in v.by_part if v.req[pid] == sid for e in v.posed(pid, 0.0)]
+        own = [e for pid in v.by_part if v.req[pid] == r for e in v.posed(pid, 0.0)]
         if not any(touching(a.aabb(), b.aabb()) for a in own for b in prior):
-            unborne.append(sid)
+            unborne.append(r)
     if unborne:
-        v.fail(f"stages whose parts touch nothing put in before them: {unborne}")
+        v.fail(f"fits whose parts touch nothing put in before them: {unborne}")
     contents = set(m.CONTENTS)
     if contents & set(m.STAGES):
         v.fail("contents are fitted as stages")
@@ -205,7 +215,7 @@ def check_stages(v):
     if values != named:
         v.fail(f"requires values in no stage, state or content: {sorted(values ^ named)}")
     print(f"stages: nothing floats ({'; '.join(out)}); the iron frame iron only, no thin post over {m.H / 2:.0f}, its ties "
-          f"hidden; each fitting's stage on what came before it ({', '.join(m.FITTINGS)})")
+          f"hidden; each stage's fits on what came before them ({'; '.join(f'{g}: ' + ', '.join(rs) for g, rs in m.BUILD_GROUPS)})")
 
 
 # ---------------------------------------------------------------- containment, the sides, the row
@@ -737,7 +747,7 @@ def check_slivers(v):
     lining that shows from outside is narrower than MIN_BRICK either way along its face (slivers())."""
     m = v.m
     bad, out = [], []
-    for sid, sc in (("built", scene("cold", build="arch")), ("finished", scene())):
+    for sid, sc in (("built", scene("cold", build="masonry")), ("finished", scene())):
         found = slivers(v, sc)
         out.append(f"{sid} {len(found)}")
         bad += [(sid,) + f for f in found]
@@ -879,7 +889,8 @@ def check_build(v):
             v.fail(f"the {w} boxes hold {els[w]:.2f} cubic voxels, the lattice {lat[w]:.2f}")
     c = m.counts()
     build = v.rig["build"]
-    st = {s["requires"]: s for s in build["stages"]}
+    flat = [f for s in build["stages"] for f in s["fits"]]
+    st = {f["requires"]: f for f in flat}
     got = {"bricks": st["brickwork"]["materials"][0]["quantity"], "lining": st["lining"]["materials"][0]["quantity"],
            "fireclay": st["lining"]["materials"][1]["quantity"], "arch": st["arch"]["materials"][0]["quantity"]}
     want = {"bricks": math.ceil(lat["bk"] / m.B ** 3 * m.BRICKS_PER_BLOCK - 1e-9),
@@ -888,13 +899,14 @@ def check_build(v):
     want["arch"] = c["arch"]
     if got != want:
         v.fail(f"the stages' counts {got} are not the measured {want}")
-    if [s["requires"] for s in build["stages"]] != list(m.STAGES) or m.STAGES[-1] != "services":
-        v.fail(f"the stages are not {', '.join(m.STAGES)}, the services last")
+    groups = [(s["id"], tuple(f["requires"] for f in s["fits"])) for s in build["stages"]]
+    if groups != list(m.BUILD_GROUPS) or groups[-1] != ("services", ("services",)) or groups[0][0] != "masonry":
+        v.fail(f"the stages are not {m.BUILD_GROUPS}, masonry first and the services last")
     requires = {p["requires"] for p in v.parts}
-    fits = {r for s in build["stages"] for r in [s["requires"]] + s.get("also", [])}
+    fits = {r for s in flat for r in [s["requires"]] + s.get("also", [])}
     if not fits <= requires:
         v.fail(f"a stage's requires or state is no part's: {sorted(fits - requires)}")
-    wrong = [(s["requires"], q) for s in build["stages"] for q in s.get("alsoParts", []) if v.req.get(q) != s["requires"]]
+    wrong = [(s["requires"], q) for s in flat for q in s.get("alsoParts", []) if v.req.get(q) != s["requires"]]
     if wrong:
         v.fail(f"a stage's alsoParts are not fitted with it: {wrong}")
     print(f"build (provisional): brickwork {lat['bk'] / m.B ** 3:.2f} blocks -> {got['bricks']} fired bricks; lining "
@@ -1072,7 +1084,7 @@ def check_reverse(v):
             worst = max(worst, max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)))
         a, b = v.mat("entry", th), v.mat("entry", -th)
         entry_moves = entry_moves and max(abs(a[r][c] - b[r][c]) for r in range(3) for c in range(4)) > 1e-3
-    early = [pid for pid in m.MOVING if v.shows(pid, scene("cold", build=m.STAGES[m.STAGES.index("drive") - 1]))]
+    early = [pid for pid in m.MOVING if v.shows(pid, scene("cold", build="hopperdoors"))]
     print(f"reverse: beyond the rectifier {', '.join(m.RECTIFIED)} are posed alike for the axle turned either way (worst "
           f"difference {worst:.1e}); the entry turns back with the axle; moving before the drive: {early or 'nothing'}")
     if worst > 1e-12 or not entry_moves or set(m.MOVING) - set(m.RECTIFIED) != {"entry"} or early:
@@ -1392,8 +1404,7 @@ def check_water(v):
     diff = [e.name for e in pipes if e.name not in lead or e.aabb() != lead[e.name].aabb()]
     if diff:
         v.fail(f"the lead pipes are not the copper ones: {diff[:3]}")
-    before = m.STAGES[m.STAGES.index("services") - 1]
-    if v.shows("pipecopper", scene("cold", build=before)) or not v.shows("pipecopper", scene()):
+    if v.shows("pipecopper", scene("cold", build="feeding")) or not v.shows("pipecopper", scene()):
         v.fail("the pipes are not drawn with the services only")
     print(f"water: the manifold ppex's pipe against the water cell's east face, open to it, the way beyond clear; a full-size connector out of it, plugged round "
           f"the small pipe's bore with a ring of solder (the vanner's reducer); {len(runs)} runs of the vanner's {small}-across "

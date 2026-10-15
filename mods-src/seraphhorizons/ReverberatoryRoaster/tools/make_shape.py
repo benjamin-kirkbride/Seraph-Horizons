@@ -315,8 +315,12 @@ FIRECLAY = "game:clay-fire"
 CAP_ITEM = ("game:metalplate-iron", 1)
 STRUCTURE = ("brickwork", "lining", "arch")
 FITTINGS = ("hopper", "doors", "drive", "rabbles", "feeder", "stoker", "output", "services")
-STAGES = STRUCTURE + FITTINGS                # every stage's requires, in the build's order
-BUILD_STATES = (("frame", ()),) + tuple((sid, STAGES[:i + 1]) for i, sid in enumerate(STAGES))   # (id, fitted): cumulative
+STAGES = STRUCTURE + FITTINGS                # every fitting's requires, in the build's order
+BUILD_GROUPS = (("masonry", STRUCTURE), ("hopperdoors", ("hopper", "doors")), ("drive", ("drive", "rabbles")),
+                ("feeding", ("feeder", "stoker", "output")), ("services", ("services",)))   # the stages after the frame
+assert tuple(r for _, g in BUILD_GROUPS for r in g) == STAGES
+BUILD_STATES = (("frame", ()),) + tuple((gid, tuple(r for _, g in BUILD_GROUPS[:i + 1] for r in g))
+                                        for i, (gid, _) in enumerate(BUILD_GROUPS))   # (id, fitted): cumulative
 CONTENTS = ("charge", "fire")                # gameplay's state, not fittings: the bed on the hearth, the fire and the coal
 RUN_STATES = (("cold", ()), ("running", CONTENTS))   # the furnace finished, cold or running
 DAMPERS = ("open", "half", "shut")
@@ -1512,20 +1516,22 @@ def materials(pairs):
 
 def build_json():
     c = counts()
-    return {
-        "provisional": True,
-        "frame": {"recipe": "grid", "tool": "hammer", "ingredients": None},
-        "stages": [
+    fits = [
             {"requires": "brickwork", "volumeBlocks": r6(c["brickVolume"]), "oneType": True, "perClick": "stack",
              "materials": materials(((FIRED_BRICK, c["bricks"]),)), "alsoParts": ["frames"]},
             {"requires": "lining", "volumeBlocks": r6(c["liningVolume"]), "perClick": "stack",
              "materials": materials(((LINING_BRICK, c["lining"]), (FIRECLAY, c["fireclay"])))},
             {"requires": "arch", "volumeBlocks": r6(c["archVolume"]), "perClick": "stack",
              "materials": materials(((LINING_BRICK, c["arch"]), (FIRECLAY, c["archFireclay"]))), "alsoParts": ["ironwork"]},
-        ] + [fitting_stage(r) for r in FITTINGS],
+    ] + [fitting_stage(r) for r in FITTINGS]
+    by = {f["requires"]: f for f in fits}
+    return {
+        "provisional": True,
+        "frame": {"recipe": "grid", "tool": "hammer", "ingredients": None},
+        "stages": [{"id": gid, "fits": [by[r] for r in group]} for gid, group in BUILD_GROUPS],
         "outletCap": materials((CAP_ITEM,))[0],
-        "_comment": "PROVISIONAL, to be settled with the owner (#737): the stages, in order: the structure's, then the "
-                    "fittings', then the services. frame: the iron frame, a grid recipe with a hammer (its ingredients not settled); placing it puts "
+        "_comment": "PROVISIONAL, to be settled with the owner (#737): the stages after the frame, in order (masonry; "
+                    "hopper and doors; drive and rabbles; feeder, stoker and output; services), each its fits in order. frame: the iron frame, a grid recipe with a hammer (its ingredients not settled); placing it puts "
                     "down the controller and its ghosts. brickwork (with the iron set into it, frames), lining, arch (with its "
                     "ironwork): the brick measured from the model, in blocks, at 2 fired bricks or 4 refractory bricks a "
                     "block, rounded up, fire clay one per 2.5 refractory bricks; oneType: the first fired brick sets the "

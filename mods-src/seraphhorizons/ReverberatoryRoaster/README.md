@@ -63,27 +63,22 @@ shared wall, which rises to the top the whole length, and the tie rods end on an
 
 ## The build (provisional)
 
-Settled with the owner later (#737, "Build stages"); the rig's `build` carries `"provisional": true`. One furnace, one
-set of stages: the crucible furnace's structure, then the fittings in their fit order, each standing on what
-came before it (the drive's line shaft runs in the hopper's neck; the feed roll on the line shaft's end), and last the
-**services**, the chute sections and the water's pipes (the owner's ruling for every machine). The rig's
-`build.stages` lists each with its `requires`, the parts fitted with it (`alsoParts`) and its states (`also`, one of
-them fitted); the fittings' and the services' materials are not settled (`null`).
+Settled with the owner later (#737, "Build stages"); the rig's `build` carries `"provisional": true`. **Six stages**
+(the owner's ruling): the iron frame; the masonry; the hopper and doors; the drive and rabbles; the feeder, stoker and
+output; and last the **services**, the chute sections and the water's pipes (the owner's ruling for every machine). Each
+stage after the frame fits its `requires` ids in order, each standing on what came before it (the drive's line shaft
+runs in the hopper's neck, so the hopper goes in first; the feed roll on the line shaft's end). The rig's
+`build.stages` lists each stage's `id` and its `fits`: each fit's `requires`, the parts fitted with it (`alsoParts`),
+its states (`also`, one of them fitted) and its materials, the masonry's measured, the rest not settled (`null`).
 
-| | Stage | `requires` | What it puts in | Materials (measured) |
+| | Stage (`id`) | Fits (`requires`) | What it puts in | Materials (measured) |
 |---|---|---|---|---|
-| Frame | **Iron frame**, a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (`frame`) | The box frame (every upright, the knees, every band, the skewback angle), the ash mouth's lintel, the damper's guides and sill, standing on their own (the end blocks' east corner angles on a short post each, the lintel on two, hidden in the brickwork) | not settled |
-| 1 | **Brickwork** | `brickwork` (and `frames`) | The base, the shared wall, the outer walls, the footing, the end blocks: 12.92 blocks; with it, at no cost of its own, the iron set in as it is laid (the fire door's lintel and dead plate, the work doors' frames and guides, the discharge door's rail) | **26 fired bricks**, any one type |
-| 2 | **Lining** | `lining` | Tier-3 refractory 3 thick on every hot face: 4.14 blocks | **17 tier-3 refractory bricks, 7 fire clay** |
-| 3 | **Arch** | `arch` (and `ironwork`) | The arch's 9 strips and the east skewback, tier-3 refractory: 2.02 blocks; with it the angle buckstays, the tie rods and their anchors | **9 tier-3 refractory bricks, 4 fire clay** (the ironwork not settled) |
-| 4 | **Hopper** | `hopper` | The hopper on the flue end's roof, its neck on its base plate, the iron feed chute through the roof | not settled |
-| 5 | **Doors and damper** | `doors` (`firedoor`, `doors`, `discharge`; also `damperopen`, `damperhalf` or `dampershut`) | The fire door shut, the work doors shut (door 1's peep hole), the discharge door slid clear of the tunnel's mouth, the ash mouth's damper in one of its places | not settled |
-| 6 | **Drive** | `drive` (`entry`, `gearcase`, `lineshaft`, `pedestals`) | The gear case with its rectifier on the coal well's rims, the entry, the line shaft with its bevel pinions, the pedestals | not settled |
-| 7 | **Rabbles** | `rabbles` (`rabble1`, `rabble2`, `rabblemounts`) | The two rabbles, their bevel wheels, glands, swivels and ports | not settled |
-| 8 | **Feeder** | `feeder` (`feedroll`) | The fluted feed roll on the line shaft's end, in the hopper's neck | not settled |
-| 9 | **Stoker** | `stoker` | The coal bunker's liner, hung by its rim flush in the well's seat; the throat; the step grate | not settled |
-| 10 | **Output** | `output` | The spout from under the discharge hole down the tunnel | not settled |
-| 11 | **Services** | `services` (also `pipecopper` or `pipelead`) | The vanilla chute's sections (the infeed's in the hopper's mouth, the fuel's into the bunker, the output's in the tunnel's mouth) with their straps; the water's manifold, connector, reducer and small pipes in one metal | not settled |
+| 1 | **Iron frame**, a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (`frame`) | The box frame (every upright, the knees, every band, the skewback angle), the ash mouth's lintel, the damper's guides and sill, standing on their own (the end blocks' east corner angles on a short post each, the lintel on two, hidden in the brickwork) | not settled |
+| 2 | **Masonry** (`masonry`) | `brickwork` (and `frames`); `lining`; `arch` (and `ironwork`) | **Brickwork**: The base, the shared wall, the outer walls, the footing, the end blocks: 12.92 blocks; with it, at no cost of its own, the iron set in as it is laid (the fire door's lintel and dead plate, the work doors' frames and guides, the discharge door's rail). **Lining**: Tier-3 refractory 3 thick on every hot face: 4.14 blocks. **Arch**: The arch's 9 strips and the east skewback, tier-3 refractory: 2.02 blocks; with it the angle buckstays, the tie rods and their anchors. | **26 fired bricks**, any one type; **17 tier-3 refractory bricks, 7 fire clay**; **9 tier-3 refractory bricks, 4 fire clay** (the ironwork not settled) |
+| 3 | **Hopper and doors** (`hopperdoors`) | `hopper`; `doors` (`firedoor`, `doors`, `discharge`; also `damperopen`, `damperhalf` or `dampershut`) | **Hopper**: The hopper on the flue end's roof, its neck on its base plate, the iron feed chute through the roof. **Doors and damper**: The fire door shut, the work doors shut (door 1's peep hole), the discharge door slid clear of the tunnel's mouth, the ash mouth's damper in one of its places. | not settled |
+| 4 | **Drive and rabbles** (`drive`) | `drive` (`entry`, `gearcase`, `lineshaft`, `pedestals`); `rabbles` (`rabble1`, `rabble2`, `rabblemounts`) | **Drive**: The gear case with its rectifier on the coal well's rims, the entry, the line shaft with its bevel pinions, the pedestals. **Rabbles**: The two rabbles, their bevel wheels, glands, swivels and ports. | not settled |
+| 5 | **Feeder, stoker and output** (`feeding`) | `feeder` (`feedroll`); `stoker`; `output` | **Feeder**: The fluted feed roll on the line shaft's end, in the hopper's neck. **Stoker**: The coal bunker's liner, hung by its rim flush in the well's seat; the throat; the step grate. **Output**: The spout from under the discharge hole down the tunnel. | not settled |
+| 6 | **Services** (`services`) | `services` (also `pipecopper` or `pipelead`) | **Services**: The vanilla chute's sections (the infeed's in the hopper's mouth, the fuel's into the bunker, the output's in the tunnel's mouth) with their straps; the water's manifold, connector, reducer and small pipes in one metal. | not settled |
 | | *Contents* | `charge`, `fire` | Not a stage: gameplay's state once the furnace is finished (the bed on the hearth; the fire on the step grate, the coal in the throat and the bunker) | |
 | | *Outlet cap* | `outletcap` | Not a stage: on the furnace of a pair that does not carry the chimney | 1 iron plate |
 
@@ -263,10 +258,10 @@ the checks, and the run exits non-zero if one fails. Checks that look at parts t
 - **Parts:** the Euler round trip; every element in its part; no duplicate names, no empty part; the elements drawn
   built, finished cold and running.
 - **Textures** by role (brick, lining, iron, chute, oak, the pipes and solder, ore, ember, coal), every element.
-- **The stages:** nothing floats at each stage (the frame alone, with the brickwork, the lining, the arch, then each
-  fitting in turn and the services) and running; the frame iron only, no thin post standing alone, its ties hidden in
-  the brickwork; each fitting's stage touches what the stages before it put in; every `requires` value is a stage's, a
-  state's (the damper's places, the pipes' metals), a content or the cap.
+- **The stages:** nothing floats at each of the six stages, after each fit within a stage (the brickwork alone, with
+  the lining, ...) and running; the frame iron only, no thin post standing alone, its ties hidden in the brickwork;
+  each stage's fits touch what the stages and fits before them put in; every `requires` value is a fit's, a state's
+  (the damper's places, the pipes' metals), a content or the cap.
 - **Containment:** every element, at every sampled angle, inside the footprint's 35 cells; the chimney's cell free.
 - **The shared wall** (the owner's rule): its face plain brick at every half voxel (10240 points), nothing else at its
   plane; the doors and the buckstays on the east; two furnaces back to back (the second turned half round) touch nowhere
@@ -312,8 +307,8 @@ the checks, and the run exits non-zero if one fails. Checks that look at parts t
 - **The draught:** points from outside the ash mouth, between the treads, to the sky over the outlet clear.
 - **Clearances** at 24 angles and **swept paths** every 5° over the rabbles' two turns (full runs): every moving part
   against everything drawn finished and running (intended contacts in `ALLOWED`).
-- **No z-fighting** (full runs) over 17 poses (running at four angles, cold with the damper's other places and the cap
-  on, lead pipes, and every stage before the last).
+- **No z-fighting** (full runs) over 11 poses (running at four angles, cold with the damper's other places and the cap
+  on, lead pipes, and the five stages before the last).
 - **Files:** every texture declared and a file of the game's; the bricks the crucible furnace's types; glow on the
   burning beds only; the frame shape iron only; boxes in every cell and a deck over every column; the anchor cells are
   cells, the chimney's is not, the chimney's line stands on the outlet; no air port, no return; the shipped model is the
@@ -332,16 +327,17 @@ The gear cutter's and the branch's schema: no work quantity; the entry reads θ,
   A part-built furnace's collision is gameplay's.
 - `powerCell`/`powerFace`, `infeedCell`/`infeedFace`, `outputCell`/`outputFace`, `fuelCell`/`fuelFace`,
   `waterCell`/`waterFace`, `outletCell`/`outletFace`; the points; the `chimney` line.
-- `build`: `provisional`, `frame` (ingredients not settled), `stages` (`requires`, `volumeBlocks`, `materials`,
-  `perClick`, `oneType`, `alsoParts`, `also`; the fittings' and the services' `materials` null), `outletCap`.
+- `build`: `provisional`, `frame` (ingredients not settled), `stages` (`id`, `fits`: each `requires`,
+  `volumeBlocks`, `materials`, `perClick`, `oneType`, `alsoParts`, `also`; past the masonry `materials` null),
+  `outletCap`.
 - `bricks`: the crucible furnace's. `furnace`: `minChimney`, `rowMax`, `rowAxis`, `rowFacing`. `gearing`: as drawn.
 - `parts`, in the build's order: `brickwork`, `frames`, `lining`, `arch`, `ironwork`, `hopper`, the doors' (`firedoor`,
   `doors`, `discharge`), the damper's places, the drive's, the rabbles', `feedroll`, `stoker`, `output`, `services`, the
   pipes, the contents (`charge`, `fire`), the cap, and `frame` (no requires).
 
 **In the viewer** (`site/models.json`, `reverberatory`): the θ slider turns the axle and ψ follows it, "Axle turns
-backwards" turns only the entry back; Play turns the axle. Five selects of states: **Build** (provisional: the frame
-and the eleven stages, 1 brickwork to 11 services), **Furnace** (cold, running; it waits for the services), **Ash-mouth
+backwards" turns only the entry back; Play turns the axle. Five selects of states: **Build** (provisional: the six
+stages, 1 the frame to 6 services), **Furnace** (cold, running; it waits for the services), **Ash-mouth
 damper** (open, half, shut; it waits for the doors), **Water pipes** (copper, lead; it waits for the services) and
 **Outlet** (open, capped). A **Brick** select gives the crucible furnace's nine brick types. The page opens finished
 and running, damper open, copper pipes, outlet open. Door 1's peep hole shows the first rabble turning.
@@ -428,9 +424,8 @@ two rabbles; the flue's sulfur lost (no sulfur anchor); the water by the vanner'
 in a shut door; the closed box frame as drawn, and the bare refractory on the arch's top and the flue end's top. Settled
 2026-10-15: the mechanical furnace only, built in stages, the doors kept shut, the services the last stage. Still open:
 
-1. **The build**: the frame's recipe, the stages and their order (as drawn: the frame, brickwork, lining, arch with
-   ironwork, hopper, doors, drive, rabbles, feeder, stoker, output, services), the ironwork's and the fittings'
-   materials; the brick counts are measured (26 fired bricks; 17 + 9 refractory bricks, 7 + 4 fire clay).
+1. **The build**: the frame's recipe, the six stages as ruled (frame; masonry; hopper and doors; drive and rabbles;
+   feeder, stoker and output; services), the ironwork's and the fittings' materials; the brick counts are measured (26 fired bricks; 17 + 9 refractory bricks, 7 + 4 fire clay).
 2. **The chimney's minimum**: the crucible furnace's six blocks, taken as they are.
 
 ## Known weak spots, and what is not checked

@@ -8,11 +8,12 @@ import { fitted, partMatrices, rideOrder, rigInputs, thetaTurns, type Mat4, type
 // The reverberatory roaster's shipped files, and the poses ReverberatoryRoaster/tools/make_shape.py computes from them
 // with machinegen's reference maths. Its entry shaft reads θ and everything beyond the gear case's rectifier ψ, the
 // axle's travel (the line shaft, the feed roll on its end, the rabbles through their bevel pairs); everything else is a
-// requires: the build's stages (the structure's, the fittings', the services last), the
+// requires: the build's stages' fits (masonry first, the services last), the
 // contents, the damper's places, the pipes' metal and the outlet's cap. tools/tests/test_reverberatory_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
-type Build = { stages: { requires: string; also?: string[]; alsoParts?: string[] }[] };
+type Fit = { requires: string; also?: string[]; alsoParts?: string[] };
+type Build = { stages: { id: string; fits: Fit[] }[] };
 type Bricks = { code: string; default: string; types: Record<string, { base: string; overlays?: string[] }> };
 const rig = read("assets/seraphhorizons/config/reverberatory-rig.json") as Rig & { build: Build; bricks: Bricks };
 const shape = read("assets/seraphhorizons/shapes/block/reverberatory.json") as Shape;
@@ -89,24 +90,30 @@ describe("the reverberatory roaster's scenario", () => {
     expect(opening.picked).toEqual({ build: "services", run: "running", damper: "open", water: "copper", outlet: "open" });
   });
 
-  it("follows the rig's build: one furnace, its stages cumulative in order, the services last", () => {
-    const stages = rig.build.stages.map((s) => s.requires);
-    expect(stages).toEqual(group("build").owns);
-    expect(stages.at(-1)).toBe("services");
+  it("follows the rig's build: six stages, each its fits, cumulative in order, the services last", () => {
+    const ids = rig.build.stages.map((s) => s.id);
+    expect(ids).toEqual(["masonry", "hopperdoors", "drive", "feeding", "services"]);
+    const fits = rig.build.stages.flatMap((s) => s.fits);
+    expect(fits.map((f) => f.requires)).toEqual(group("build").owns);
     const options = group("build").spec.options;
-    expect(options.map((o) => o.id)).toEqual(["frame", ...stages]);
-    options.forEach((o, i) => expect(o.fitted).toEqual(stages.slice(0, i)));
-    expect(group("damper").owns).toEqual(rig.build.stages.find((s) => s.requires === "doors")!.also);
-    expect(group("water").owns).toEqual(rig.build.stages.find((s) => s.requires === "services")!.also);
+    expect(options.map((o) => o.id)).toEqual(["frame", ...ids]);
+    let sofar: string[] = [];
+    expect(options[0]!.fitted).toEqual([]);
+    rig.build.stages.forEach((s, i) => {
+      sofar = [...sofar, ...s.fits.map((f) => f.requires)];
+      expect(options[i + 1]!.fitted).toEqual(sofar);
+    });
+    expect(group("damper").owns).toEqual(fits.find((f) => f.requires === "doors")!.also);
+    expect(group("water").owns).toEqual(fits.find((f) => f.requires === "services")!.also);
   });
 
   it("shows only what each state fits: the frame alone, nothing moving before the drive, the services last", () => {
     const frame = pick(opening.fitted, "build", "frame");
     expect(shown(frame)).toEqual(["frame"]);
-    const doors = shown(pick(opening.fitted, "build", "doors"));
+    const doors = shown(pick(opening.fitted, "build", "hopperdoors"));
     expect(doors.filter((p) => MOVING.includes(p))).toEqual([]);
     expect(doors).toEqual(expect.arrayContaining(["hopper", "firedoor", "doors", "discharge", "damperopen"]));
-    const output = shown(pick(opening.fitted, "build", "output"));
+    const output = shown(pick(opening.fitted, "build", "feeding"));
     expect(output).toEqual(expect.arrayContaining([...MOVING, "stoker", "output"]));
     for (const p of ["services", "pipecopper", "charge", "fire"]) expect(output).not.toContain(p);
     const s2 = shown(opening.fitted);

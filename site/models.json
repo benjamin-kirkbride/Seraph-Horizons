@@ -668,25 +668,19 @@
             "id": "build", "label": "Build (provisional)", "default": "services",
             "values": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder", "stoker", "output", "services"],
             "options": [
-              {"id": "frame", "label": "The iron frame", "fitted": [], "hint": "Placed as the machine: the box frame of angle iron (wrapping the brick's corners, set in flush): an angle up every outside corner, knees across the footing's steps, a band along every top edge, the skewback angle along the east side under the arch's bay, all one frame; with the ash mouth's lintel, the damper's guides and sill, standing on their own, the end blocks' east angles on short posts hidden in the brickwork once it is in. Its grid recipe is still to be settled."},
-              {"id": "brickwork", "label": "1: Brickwork", "fitted": ["brickwork"], "hint": "Any one type of fired brick: the first put in sets the furnace's. The fire door's lintel and dead plate, the work doors' frames and guides and the discharge door's rail are set in as it is laid; the lining's place round every hot space is left open, and the seat round the coal well's mouth. Its count, measured from the model, is in the rig's build."},
-              {"id": "lining", "label": "2: Lining", "fitted": ["brickwork", "lining"], "hint": "Tier-3 refractory brick 3 voxels thick on every hot face: the firebox and its roof, the bridge, the hearth's bed and walls, the flue end's cavity, the uptake and the outlet's curb, the feed hole and the throat."},
-              {"id": "arch", "label": "3: Arch and ironwork: the furnace built", "fitted": ["brickwork", "lining", "arch"], "hint": "The arch of tier-3 refractory between the end blocks, on the east skewback and into the shared west wall; with it the east buckstays, standing on the footing band against the skewback angle, and the tie rods over the crown through the west wall's inner band to anchor plates against its outer band."},
-              {"id": "hopper", "label": "4: Hopper", "fitted": ["brickwork", "lining", "arch", "hopper"], "hint": "The hopper on the flue end's roof, its mouth the infeed cell's top; its neck on a base plate between the bands and the iron feed chute down through the roof into the cavity."},
-              {"id": "doors", "label": "5: Doors and damper", "fitted": ["brickwork", "lining", "arch", "hopper", "doors"], "hint": "The fire door, shut in its recess (opened to clear clinker); the work doors on the east, shut over their openings (kept for clearing accretions), the first with its peep hole; the discharge door slid clear of the tunnel's mouth; the ash mouth's damper in its guides."},
-              {"id": "drive", "label": "6: Drive", "fitted": ["brickwork", "lining", "arch", "hopper", "doors", "drive"], "hint": "The gear case on the coal well's rims, its rectifier turning the line shaft one way whichever way the axle turns; the oak entry from the power face, the line shaft with its bevel pinions, in the case's boss, two pedestals on the crown and the hopper's neck."},
-              {"id": "rabbles", "label": "7: Rabbles", "fitted": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles"], "hint": "The two water-cooled rabbles: each hollow spindle through a gland in the crown and its swivel on a bracket, its bevel wheel's hub resting on the swivel, a hub and two arms of ploughs on the hearth."},
-              {"id": "feeder", "label": "8: Feeder", "fitted": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder"], "hint": "The fluted feed roll on the line shaft's end, in the hopper's neck under its slot: it meters the charge down the feed chute."},
-              {"id": "stoker", "label": "9: Stoker", "fitted": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder", "stoker"], "hint": "The coal bunker's iron liner in the fire end's well, hung by its rim flush in the seat; its throat down through the firebox's roof; the step grate's four treads down to the bridge."},
-              {"id": "output", "label": "10: Output", "fitted": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder", "stoker", "output"], "hint": "The iron spout from under the discharge hole down the tunnel, where the roasted charge falls through."},
-              {"id": "services", "label": "11: Services: the furnace finished", "fitted": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder", "stoker", "output", "services"], "hint": "Last, as on every machine: the vanilla chute's sections in the infeed (in the hopper's mouth), the fuel (into the bunker) and the output (in the tunnel's mouth, flush with the east face), each where a placed chute meets it; and the water's pipes, in the metal picked under Water pipes."}
+              {"id": "frame", "label": "1: The iron frame", "fitted": [], "hint": "Placed as the machine: the box frame of angle iron (wrapping the brick's corners, set in flush): an angle up every outside corner, knees across the footing's steps, a band along every top edge, the skewback angle along the east side under the arch's bay, all one frame; with the ash mouth's lintel, the damper's guides and sill, standing on their own, the end blocks' east angles on short posts hidden in the brickwork once it is in. Its grid recipe is still to be settled."},
+              {"id": "masonry", "label": "2: Masonry: brickwork, lining, arch", "fitted": ["brickwork", "lining", "arch"], "hint": "Brickwork, then lining, then the arch with its ironwork. Any one type of fired brick: the first put in sets the furnace's. The fire door's lintel and dead plate, the work doors' frames and guides and the discharge door's rail are set in as it is laid; the lining's place round every hot space is left open, and the seat round the coal well's mouth. Its count, measured from the model, is in the rig's build. Tier-3 refractory brick 3 voxels thick on every hot face: the firebox and its roof, the bridge, the hearth's bed and walls, the flue end's cavity, the uptake and the outlet's curb, the feed hole and the throat. The arch of tier-3 refractory between the end blocks, on the east skewback and into the shared west wall; with it the east buckstays, standing on the footing band against the skewback angle, and the tie rods over the crown through the west wall's inner band to anchor plates against its outer band."},
+              {"id": "hopperdoors", "label": "3: Hopper and doors", "fitted": ["brickwork", "lining", "arch", "hopper", "doors"], "hint": "The hopper on the flue end's roof, its mouth the infeed cell's top; its neck on a base plate between the bands and the iron feed chute down through the roof into the cavity. The fire door, shut in its recess (opened to clear clinker); the work doors on the east, shut over their openings (kept for clearing accretions), the first with its peep hole; the discharge door slid clear of the tunnel's mouth; the ash mouth's damper in its guides."},
+              {"id": "drive", "label": "4: Drive and rabbles", "fitted": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles"], "hint": "The gear case on the coal well's rims, its rectifier turning the line shaft one way whichever way the axle turns; the oak entry from the power face, the line shaft with its bevel pinions, in the case's boss, two pedestals on the crown and the hopper's neck. The two water-cooled rabbles: each hollow spindle through a gland in the crown and its swivel on a bracket, its bevel wheel's hub resting on the swivel, a hub and two arms of ploughs on the hearth."},
+              {"id": "feeding", "label": "5: Feeder, stoker and output", "fitted": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder", "stoker", "output"], "hint": "The fluted feed roll on the line shaft's end, in the hopper's neck under its slot: it meters the charge down the feed chute. The coal bunker's iron liner in the fire end's well, hung by its rim flush in the seat; its throat down through the firebox's roof; the step grate's four treads down to the bridge. The iron spout from under the discharge hole down the tunnel, where the roasted charge falls through."},
+              {"id": "services", "label": "6: Services: the furnace finished", "fitted": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder", "stoker", "output", "services"], "hint": "Last, as on every machine: the vanilla chute's sections in the infeed (in the hopper's mouth), the fuel (into the bunker) and the output (in the tunnel's mouth, flush with the east face), each where a placed chute meets it; and the water's pipes, in the metal picked under Water pipes."}
             ]
           },
           {
             "id": "run", "label": "Furnace", "default": "running",
             "values": ["charge", "fire"],
             "needs": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder", "stoker", "output", "services"],
-            "needsHint": "The furnace runs once it is finished: pick “11: Services” under Build.",
+            "needsHint": "The furnace runs once it is finished: pick “6: Services” under Build.",
             "options": [
               {"id": "cold", "label": "Cold", "fitted": []},
               {"id": "running", "label": "Running", "fitted": ["charge", "fire"], "hint": "The charge fed by the roll at the flue end, ploughed by the two rabbles to the discharge hole by the bridge and out down the spout into the output chute; the coal sliding from the bunker down the step grate."}
@@ -696,7 +690,7 @@
             "id": "damper", "label": "Ash-mouth damper", "default": "open",
             "values": ["damperopen", "damperhalf", "dampershut"],
             "needs": ["brickwork", "lining", "arch", "hopper", "doors"],
-            "needsHint": "The damper is fitted with the doors: pick “5: Doors and damper” or later under Build.",
+            "needsHint": "The damper is fitted with the doors: pick “3: Hopper and doors” or later under Build.",
             "options": [
               {"id": "open", "label": "Open: full draught", "fitted": ["damperopen"]},
               {"id": "half", "label": "Half", "fitted": ["damperhalf"]},
@@ -707,7 +701,7 @@
             "id": "water", "label": "Water pipes", "default": "copper",
             "values": ["pipecopper", "pipelead"],
             "needs": ["brickwork", "lining", "arch", "hopper", "doors", "drive", "rabbles", "feeder", "stoker", "output", "services"],
-            "needsHint": "The water's pipes are the services: pick “11: Services” under Build.",
+            "needsHint": "The water's pipes are the services: pick “6: Services” under Build.",
             "options": [
               {"id": "copper", "label": "Copper", "fitted": ["pipecopper"], "hint": "A ppex pipe from the side, on the roof beside the drive's row, into the manifold; through the vanner's soldered reducer, a small pipe down to the swivel on each spindle. The water is used up: no return."},
               {"id": "lead", "label": "Lead", "fitted": ["pipelead"]}
@@ -717,7 +711,7 @@
             "id": "outlet", "label": "Outlet", "default": "open",
             "values": ["outletcap"],
             "needs": ["brickwork", "lining"],
-            "needsHint": "The cap sits in the outlet's curb, which is the lining's: pick “2: Lining” or later under Build.",
+            "needsHint": "The cap sits in the outlet's curb, which is the lining's: pick “2: Masonry” or later under Build.",
             "options": [
               {"id": "open", "label": "Open: the chimney stands on it", "fitted": [], "hint": "The furnace of a pair whose outlet carries the chimney, at least six blocks from the outlet up."},
               {"id": "capped", "label": "Capped with a flat iron plate", "fitted": ["outletcap"], "hint": "The other furnace of a pair standing back to back."}
