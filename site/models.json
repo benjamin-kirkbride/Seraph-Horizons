@@ -636,18 +636,18 @@
         },
         "states": [
           {
-            "id": "level", "label": "Level", "default": "level1",
+            "id": "build", "label": "Build", "default": "battery",
             "values": ["mortar", "camshaft", "stamps", "feedbox"],
             "options": [
               { "id": "frame", "label": "The frame", "fitted": [], "hint": "The two oak end frames with their guide girts, the ties and the two bearers, the gear case at the power cell and the line shaft along the back row: the footprint is fixed from here on." },
-              { "id": "level1", "label": "Level 1: the battery", "fitted": ["mortar", "camshaft", "stamps", "feedbox"], "hint": "A wet five-stamp battery, chute in and chute out: ore comes down the chute section in the top face (by chute, or by hand at its mouth) into the plank feed box, slides down its floor and the shoot into the mortar, the water from the five cocks behind the stamps washes it under them, and the crushed ore splashes out through the screen straight into the output funnel, which narrows to the chute stub in the front face. Press Play: each stamp is lifted by its cam, falls onto its die and rests, twice a camshaft turn, in the order 1-3-5-2-4." }
+              { "id": "battery", "label": "The battery", "fitted": ["mortar", "camshaft", "stamps", "feedbox"], "hint": "A wet five-stamp battery, chute in and chute out: ore comes down the chute section in the top face (by chute, or by hand at its mouth) into the plank feed box, slides down its floor and the shoot into the mortar, the water from the five cocks behind the stamps washes it under them, and the crushed ore splashes out through the screen straight into the output funnel, which narrows to the chute stub in the front face. Press Play: each stamp is lifted by its cam, falls onto its die and rests, twice a camshaft turn, in the order 1-3-5-2-4." }
             ]
           },
           {
             "id": "pipes", "label": "Water line", "default": "pipecopper",
             "values": ["pipecopper", "pipelead"],
             "needs": ["mortar"],
-            "needsHint": "The water line runs to the mortar's back and its feed opening: fit level 1 first.",
+            "needsHint": "The water line runs to the mortar's back and its feed opening: fit the battery first.",
             "options": [
               { "id": "pipecopper", "label": "Copper", "fitted": ["pipecopper"], "hint": "Pipes and Power Expanded's pipe in copper, soldered as UnifiedPipes draws it: from the west face's inlet through a reducer to a small pipe along the mortar's back, with a branch and a cock to each stamp, open in the feed opening over the lip." },
               { "id": "pipelead", "label": "Lead", "fitted": ["pipelead"], "hint": "The same water line in lead." }

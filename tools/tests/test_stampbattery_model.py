@@ -1,7 +1,7 @@
 """The stamp battery's generated model files (mods-src/seraphhorizons/StampBattery/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
-maths and its `requires` are its one level's set (the frame's none; the level mortar, camshaft, stamps and feedbox),
+maths and its `requires` are the battery's set (the frame's none; the battery's mortar, camshaft, stamps and feedbox),
 which site/models.json's build states fit; its reference poses are its own maths; the cells are rebuilt from the
 shipped shape, every column decked; the line shaft turns one way whichever way the axle turns; each stamp drops twice a
 camshaft turn in the firing order and rests between drops; both chutes are the game's chute section on their cells'
@@ -36,8 +36,8 @@ REFERENCE = json.loads((MOD / "tests" / "StampBattery" / "rig-reference.json").r
 MANIFEST = json.loads((ROOT / "site" / "models.json").read_text())
 README = (MOD / "StampBattery" / "README.md").read_text()
 BATTERY = ["mortar", "camshaft", "stamps"]
-LEVEL1 = BATTERY + ["feedbox"]
-VALUES = LEVEL1
+FITTED = BATTERY + ["feedbox"]
+VALUES = FITTED
 PIPES = ["pipecopper", "pipelead"]
 
 
@@ -54,7 +54,7 @@ def angle_x(m):
 
 
 class Rig(unittest.TestCase):
-    def test_parts_parse_and_requires_are_the_levels(self):
+    def test_parts_parse_and_requires_are_the_battery(self):
         ids = [p["id"] for p in RIG["parts"]]
         self.assertEqual(len(ids), len(set(ids)))
         self.assertEqual(ids[-1], "frame")
@@ -63,7 +63,6 @@ class Rig(unittest.TestCase):
             for d in p["drivers"]:
                 rigmath.validate_driver(d)
         self.assertIsNone(rigmath.progress_of(RIG))
-        self.assertEqual({k: v for k, v in RIG["levels"].items() if not k.startswith("_")}, {"1": LEVEL1})
         self.assertNotIn("feeder", RIG)
         self.assertEqual({p["requires"] for p in RIG["parts"]}, {None} | set(VALUES) | set(PIPES))
         for pid in ("entry", "line", "frame"):
@@ -194,13 +193,13 @@ class Battery(unittest.TestCase):
 
 
 class Manifest(unittest.TestCase):
-    def test_the_viewer_shows_each_level(self):
+    def test_the_viewer_shows_each_build_state(self):
         model = next(m for m in MANIFEST["models"] if m["id"] == "stamp-battery")
         self.assertTrue(model["rig"].endswith("stampbattery-rig.json"))
         group, pipes = model["scenario"]["states"]
         got = {o["id"]: o["fitted"] for o in group["options"]}
-        self.assertEqual(got, {"frame": [], "level1": LEVEL1})
-        self.assertEqual((group["default"], group["values"]), ("level1", VALUES))
+        self.assertEqual(got, {"frame": [], "battery": FITTED})
+        self.assertEqual((group["default"], group["values"]), ("battery", VALUES))
         self.assertEqual({o["id"]: o["fitted"] for o in pipes["options"]}, {m: [m] for m in PIPES})
         self.assertEqual((pipes["default"], pipes["values"], pipes["needs"]), ("pipecopper", PIPES, ["mortar"]))
 

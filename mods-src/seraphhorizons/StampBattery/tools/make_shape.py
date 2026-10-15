@@ -3,13 +3,13 @@
 
 The stamp battery crushes and classifies in one machine (#728, model #729): a wet five-stamp gravity battery
 with its mesh discharge screen, fed by chute from above and discharging by chute in front. One machine is one piece
-of equipment (#711): a timber battery frame whose footprint is fixed from the frame on, and the parts its one level
-fits into it.
+of equipment (#711): a timber battery frame whose footprint is fixed from the frame on, and the battery's parts
+fitted into it.
 
     frame    two oak end frames (sill, front, middle and back posts, cap, the guide and cam rails), the guide
              girts, the ties and the two bearers; the power train: the entry shaft from the vanilla axle into a
              closed rectifier gear case, and the line shaft along the back row
-    level 1  the battery: the mortar box on its block, with its dies, the mesh screen in its front wall, the
+    battery  the mortar box on its block, with its dies, the mesh screen in its front wall, the
              output chute (a funnel section of the game's chute whose mouth spans the whole screen, under it, and
              a stub of the game's chute section from the funnel to the front face, on an oak block), the shoot from
              the feed opening, and the infeed chute section in the top face (`mortar`); the camshaft with ten
@@ -20,7 +20,7 @@ fits into it.
 
 Everything is built here from plain boxes; no other mod's model is used. It writes, deterministically,
 
-    stampbattery.json         the whole machine, every level's parts      (assets/.../shapes/block/)
+    stampbattery.json         the whole machine, every part              (assets/.../shapes/block/)
     stampbattery_frame.json   the static frame only (block and item)      (assets/.../shapes/block/)
     stampbattery-rig.json     cells, anchors and the part rig             (assets/.../config/)
     rig-reference.json        every part's matrix at a grid of poses      (tests/StampBattery/)
@@ -113,7 +113,7 @@ BEARER_Y = (44.0, 48.0)                      # the two bearers, between the midd
                                              # back board hangs on the back one, the water line's hanger on the front one
 PLANK = 1.0                                  # board thickness: the feed box
 
-# ---------------------------------------------------------------- level 1: the stamps
+# ---------------------------------------------------------------- the battery: the stamps
 STAMPS = 5
 STEM_X0, STEM_PITCH = 12.4, 5.8              # the stems' x
 STEM_Z = 24.0                                # the stems' line (z): the middle row's
@@ -151,7 +151,7 @@ SMOOTH = 0.06
 HARMONICS = 10
 PROFILE_SAMPLES = 2048
 
-# ---------------------------------------------------------------- level 1: the mortar and the chutes
+# ---------------------------------------------------------------- the battery: the mortar and the chutes
 MORTAR_X = (8.0, 40.0)
 MORTAR_Z = (18.5, 29.5)
 MORTAR_Y = (3.0, 16.5)                       # on the mortar block (oak, y 0..3): low, so the heads show over its rim
@@ -200,7 +200,7 @@ FUNNEL_Z = (CHUTE_OUT_LEN, MORTAR_Z[0])      # from the stub to the mortar's fro
 FUNNEL_Y = (4.0, 12.0)                       # its floor's underside (the stub's) and its walls' top (the stub's)
 FUNNEL_T = 1.0
 
-# ---------------------------------------------------------------- level 1: the feed box (plank), behind the mortar
+# ---------------------------------------------------------------- the battery: the feed box (plank), behind the mortar
 FEEDBOX_X = (17.5, 30.5)                     # its sides' outer faces
 FEEDBOX_SLOPE = math.radians(50.0)           # its floor's fall to the shoot
 FEEDBOX_Z = (SHOOT_HI[1] - 0.1, 43.0)        # its floor's working face, from over the shoot's top to its back board
@@ -567,7 +567,7 @@ def build_drive():
 
 
 def build_line_pulleys():
-    """The line shaft's pulley under the bull pulley (level 1, with the camshaft)."""
+    """The line shaft's pulley under the bull pulley (fitted with the camshaft)."""
     out = disc("x", yz(LINE), *BULL_X, LINE_PULLEY_R, "linepulley", "linepulley", "iron", k=4)
     out += disc("x", yz(LINE), BULL_X[0] - 0.2, BULL_X[1] + 0.2, 2.2, "linepulley_boss", "linepulley", "iron")
     return out
@@ -608,7 +608,7 @@ def chute_origin(cell):
     return [cell[k] * B for k in range(3)]
 
 
-# ---------------------------------------------------------------- builders: level 1
+# ---------------------------------------------------------------- builders: the battery
 def build_mortar():
     """The mortar set: the oak mortar block, the cast-iron mortar box with five dies, the screen in its front wall and
     the feed opening in its back; the output chute: its funnel under the screen and its stub of the game's chute out to
@@ -731,7 +731,7 @@ def feedbox_y(z):
 
 
 def build_feed_box():
-    """Level 1's feed box: a plank box behind the mortar under the infeed chute, its floor falling 50 degrees onto the
+    """The feed box: a plank box behind the mortar under the infeed chute, its floor falling 50 degrees onto the
     shoot, two sides and a back board hung on the back bearer; open on top, where the chute (or the player, by hand at
     the chute's mouth) drops the ore in."""
     p = "feedbox"
@@ -912,21 +912,20 @@ def build():
     return els
 
 
-# ---------------------------------------------------------------- the levels
-# A level is only parts fitted to the same equipment (#711). The machine has one: the battery, fed by chute (or by hand)
-# into its feed box and discharging by chute.
-LEVELS = {"level1": ("mortar", "camshaft", "stamps", "feedbox")}
-LEVEL_VALUES = LEVELS["level1"]
+# ---------------------------------------------------------------- the build states
+# The battery's parts are fitted to the frame, the same equipment (#711): the battery, fed by chute (or by hand) into
+# its feed box and discharging by chute. Two build states: the frame alone, and the battery fitted to it.
+BATTERY = ("mortar", "camshaft", "stamps", "feedbox")
 PIPE_REQUIRES = tuple(f"pipe{m}" for m in PIPE_METALS)
-STATES = ("frame", "level1")
+STATES = ("frame", "battery")
 
 
 def in_state(requires, state):
-    """Whether a part with this `requires` is drawn in a build state ("frame", "level1"): at the level
+    """Whether a part with this `requires` is drawn in a build state ("frame", "battery"): with the battery
     the water line in its first metal (the others are copies, never drawn with it)."""
     if requires == PIPE_REQUIRES[0]:
         return state != "frame"
-    return requires is None or (state != "frame" and requires in LEVELS[state])
+    return requires is None or (state == "battery" and requires in BATTERY)
 
 
 # ---------------------------------------------------------------- rig
@@ -979,7 +978,7 @@ def _rig_parts():
     parts = [
         {"id": "entry", "match": ["entry_*"], "requires": None, "drivers": [rot_x(ENTRY, 1.0)]},
         {"id": "line", "match": ["line_*"], "requires": None, "drivers": [rot_x(LINE, LINE_RATIO, "travel")]},
-        # level 1: the battery
+        # the battery
         {"id": "linepulley", "match": ["linepulley*"], "requires": "camshaft", "drivers": [rot_x(LINE, LINE_RATIO, "travel")]},
         {"id": "camshaft", "match": ["camshaft_*"], "requires": "camshaft", "drivers": [rot_x(CAM_C, CAM_RATIO, "travel")]},
         {"id": "camframe", "match": ["camframe_*"], "requires": "camshaft", "drivers": []},
@@ -1044,8 +1043,8 @@ def anchor_points():
 
 def make_rig(parts):
     rig = {"_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the bottom middle cell of the "
-                       "north face, the output chute's. One machine, its level's parts fitted to it (#711): the frame's parts have no "
-                       "requires; its one level fits mortar, camshaft, stamps and feedbox (levels); the water line is pipecopper "
+                       "north face, the output chute's. One machine, the battery's parts fitted to its frame (#711): the frame's parts "
+                       "have no requires; the battery's are mortar, camshaft, stamps and feedbox; the water line is pipecopper "
                        "or pipelead, the same pipe in the fitted metal. Hand feeding goes in at the infeed's mouth, as a chute "
                        "does. theta turns the entry shaft; everything behind the rectifier's gear case follows travel (psi): the "
                        "line shaft, the camshaft and the stamps (harmonics of the camshaft's turn). No work. See the stamp "
@@ -1060,9 +1059,6 @@ def make_rig(parts):
                      "_comment": f"turnsPerRev: axle turns per camshaft turn as the belt is drawn (the line pulley's radius "
                                  f"{LINE_PULLEY_R} to the bull pulley's {BULL_R}, behind a 1:1 rectifier); each stamp drops "
                                  "dropsPerRev times a camshaft turn, in firingOrder, and is lifted `lift` blocks by its cam."}
-    rig["levels"] = {"1": list(LEVELS["level1"]),
-                     "_comment": "The requires values fitted at the machine's one level. The water line is fitted with it, in one "
-                                 "metal: pipecopper or pipelead."}
     rig["parts"] = parts
     return rig
 
@@ -1090,8 +1086,8 @@ def shipped(els, parts, rig):
 
 
 def complete(requires):
-    """The finished machine the cells' boxes are built from: the frame, level 1 and the water line in copper."""
-    return requires is None or requires in LEVELS["level1"] or requires == PIPE_REQUIRES[0]
+    """The finished machine the cells' boxes are built from: the frame, the battery and the water line in copper."""
+    return requires is None or requires in BATTERY or requires == PIPE_REQUIRES[0]
 
 
 def shipped_cells(shape, ship_parts):
@@ -1168,15 +1164,15 @@ def reference_json(ship_parts):
 # ---------------------------------------------------------------- shape files
 def shape_json(els):
     return machine_shape_json(
-        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. Every level's parts are in this "
-             "shape; the rig's requires say which level each belongs to. Keep element names when editing: the rig finds "
+        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. Every part is in this shape; the "
+             "rig's requires say what each is fitted with. Keep element names when editing: the rig finds "
              "its parts by them.", TEXTURES, tex_size=TEX)
 
 
 def coplanar_poses():
-    """(pose, state): the machine at each level at rest and running, so faces that never show together are never
+    """(pose, state): the frame at rest and the battery at rest and running, so faces that never show together are never
     compared."""
-    return (REST + ("level1",), at_cam(0.7) + ("level1",), at_cam(2.3) + ("level1",), at_cam(4.4) + ("level1",),
+    return (REST + ("battery",), at_cam(0.7) + ("battery",), at_cam(2.3) + ("battery",), at_cam(4.4) + ("battery",),
             REST + ("frame",))
 
 
@@ -1186,7 +1182,7 @@ REQUIRES = {}
 def shown(posed_els, pose):
     """The posed elements of the pose's build state; the rest moved far away (copies; the order kept), so the
     z-fighting fix and its check deal only with faces that show together."""
-    state = pose[2] if len(pose) > 2 else "level1"
+    state = pose[2] if len(pose) > 2 else "battery"
     out = []
     for e in posed_els:
         if not in_state(REQUIRES[e.part], state):

@@ -4,9 +4,9 @@ Every check prints what it measured and fails the run (the script exits non-zero
 Everything is in the build frame (voxels), on the model before the origin shift; `check_shipped` in make_shape.py
 proves the shipped files are this model moved.
 
-The machine's one level is a set of fitted parts: the battery and its feed box, fitted into the frame. So every check
-that sets parts against each other is run per build state (`make_shape.STATES`): the frame alone, and the level's
-parts with it.
+The machine is a set of fitted parts: the battery and its feed box, fitted into the frame. So every check that sets
+parts against each other is run per build state (`make_shape.STATES`): the frame alone, and the battery's parts with
+it.
 """
 
 from __future__ import annotations
@@ -20,7 +20,6 @@ from machinegen.geometry import aabb_of
 from machinegen.rigmath import apply as _apply
 from machinegen.rigmath import part_of, posed
 
-LEVEL_STATES = ("level1",)
 
 
 class V:
@@ -84,9 +83,9 @@ def check_basic(v):
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
     per_state = {s: sum(len(v.by_part[p]) for p in v.parts_in(s)) for s in m.STATES}
     print(f"elements drawn per state: {per_state}")
-    want = {None} | set(m.LEVEL_VALUES) | set(m.PIPE_REQUIRES)
-    if {p["requires"] for p in v.parts} != want or list(m.LEVELS) != ["level1"] or set(m.LEVELS["level1"]) != set(m.LEVEL_VALUES):
-        v.fail("the parts' requires are not the one level's set and the water line's metals")
+    want = {None} | set(m.BATTERY) | set(m.PIPE_REQUIRES)
+    if {p["requires"] for p in v.parts} != want or list(m.STATES) != ["frame", "battery"]:
+        v.fail("the parts' requires are not the battery's set and the water line's metals")
 
 
 def check_containment(v, poses):
@@ -126,7 +125,7 @@ ALLOWED = [
     # the power train: the entry shaft into the gear case, the line shaft in its boss and pedestals, its pulley on it
     ("entry", None, "frame", r"fr_gearcase$"), ("line", None, "frame", r"fr_(gearcase|ped[wm]$)"),
     ("linepulley", None, "line", None),
-    # level 1: the camshaft in its pillow blocks, the bull pulley's belt on it and on the line's pulley; the pillow
+    # the battery: the camshaft in its pillow blocks, the bull pulley's belt on it and on the line's pulley; the pillow
     # blocks on the cam rails; the stamps on their dies, their tappets on their cams, their stems in the guides
     ("camshaft", r"_shaft", "camframe", r"_pillow"), ("camframe", r"_pillow", "frame", r"fr_railcam_"),
     ("camframe", r"_belt", "camshaft", r"_bull_rim"), ("camframe", r"_belt", "linepulley", r"^linepulley_\d"),
@@ -197,7 +196,7 @@ def report_touches(v, label, poses_states, only=None):
 def clearance_poses(m):
     out = [(m.REST, s) for s in m.STATES]
     for k in range(40):
-        out.append((m.at_cam(math.pi * k / 40), "level1"))
+        out.append((m.at_cam(math.pi * k / 40), "battery"))
     return out
 
 
@@ -212,7 +211,7 @@ def check_swept(v):
     resting, its cams sweeping past and under its tappet), everything fitted: nothing touches but the intended
     contacts."""
     m = v.m
-    ps = [(m.at_cam(math.tau * k / 720), "level1") for k in range(720)]
+    ps = [(m.at_cam(math.tau * k / 720), "battery") for k in range(720)]
     only = {f"stamp{i + 1}" for i in range(m.STAMPS)} | {"camshaft", "line", "linepulley"}
     hits = report_touches(v, "swept paths", ps, only)
     if hits:
@@ -416,7 +415,7 @@ def check_water(v):
     shoe; and from it to the lip nothing of any part in the water's way. The line is ppex's full pipe at the water face,
     the reducer, then the small pipe."""
     m = v.m
-    els = [e for pid in v.parts_in("level1") for e in v.posed(pid, m.REST)]
+    els = [e for pid in v.parts_in("battery") for e in v.posed(pid, m.REST)]
     pipe = v.by_part["pipecopper"]
     inner = m.MORTAR_Z[1] - m.MORTAR_WALL
     for k, x in enumerate(m.branch_xs(), 1):
@@ -462,7 +461,7 @@ def check_outlet_clear(v):
     screen's top, from the mortar's front to the stub, and the stub's bore out to the front face, hold no element of any
     part (the funnel's walls and floor bound it; nothing stands in it or over its open top in front of the screen)."""
     m = v.m
-    els = [e for pid in v.parts_in("level1") for e in v.posed(pid, m.REST)]
+    els = [e for pid in v.parts_in("battery") for e in v.posed(pid, m.REST)]
     (wa, wb), (ea, eb) = m.funnel_lines()
     y_lo, y_hi = m.FUNNEL_Y[0] + m.FUNNEL_T + 0.2, m.SCREEN_Y[1] - 0.2
     pts = []

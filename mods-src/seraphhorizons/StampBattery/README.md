@@ -3,13 +3,13 @@
 Part of the Seraph Horizons mod (`../README.md`): the crush-and-classify machine of the ore line (epic #684,
 behaviour #728, model #729). A **wet five-stamp gravity battery** with its mesh discharge screen, fed by chute from
 above and discharging by chute in front, so it can run on a chute line with nobody at it. One machine is one piece of
-equipment (#711): a timber battery frame whose footprint is fixed from the frame on, and the parts its one level fits
+equipment (#711): a timber battery frame whose footprint is fixed from the frame on, and the battery's parts fitted
 into it.
 
-| Level | Fitted (`requires`) | What it is |
+| Build state | Fitted (`requires`) | What it is |
 |---|---|---|
 | (frame) | none | Two oak end frames, the guide girts, the ties and the two bearers; the rectifier's gear case at the power cell and the line shaft along the back row |
-| 1 | `mortar`, `camshaft`, `stamps`, `feedbox`, and `pipecopper` or `pipelead` | The battery: the mortar with its dies, screen, shoot, the infeed chute section and the output chute (its funnel and stub); the camshaft and its belt drive; five stamps; the plank feed box under the infeed; the water line along the mortar's back, a branch and a cock to each stamp |
+| the battery | `mortar`, `camshaft`, `stamps`, `feedbox`, and `pipecopper` or `pipelead` | The battery: the mortar with its dies, screen, shoot, the infeed chute section and the output chute (its funnel and stub); the camshaft and its belt drive; five stamps; the plank feed box under the infeed; the water line along the mortar's back, a branch and a cock to each stamp |
 
 **Status: the model only.** This folder holds the generator (`tools/`); there is no block, block entity or renderer
 yet (#728, #711). Paths here are from this folder unless they start with `assets/` or `tests/` (the mod's), or
@@ -17,7 +17,7 @@ yet (#728, #711). Paths here are from this folder unless they start with `assets
 
 It is the battery half of the stamp mill's v2 model (`729-stampmill-model-v2`), re-laid out three deep. The v2 model's
 jaw breaker and grizzly are gone: the jaw breaker is its own machine (#912, model #914). A Challenge self-feeder was
-drawn as a level 2 in the first v3 pass and dropped in review: it did not look as good as the battery, and the
+drawn in the first v3 pass and dropped in review: it did not look as good as the battery, and the
 battery runs unattended anyway, chute in and chute out.
 
 ## The machine
@@ -86,9 +86,9 @@ chute (`game:block/metal/sheet/copper1`) for both chute sections and the output 
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/stampbattery.json` | The whole machine, the water line in both metals (406 elements; drawn: 40 with nothing fitted, 340 at level 1) |
+| `assets/seraphhorizons/shapes/block/stampbattery.json` | The whole machine, the water line in both metals (406 elements; drawn: 40 with nothing fitted, 340 with the battery fitted) |
 | `assets/seraphhorizons/shapes/block/stampbattery_frame.json` | The frame only (34 elements). A block would draw it and the inventory show it. |
-| `assets/seraphhorizons/config/stampbattery-rig.json` | Footprint (cells with boxes and lids), anchors, the stamps' figures, the level and the part rig (15 parts) |
+| `assets/seraphhorizons/config/stampbattery-rig.json` | Footprint (cells with boxes and lids), anchors, the stamps' figures and the part rig (15 parts) |
 | `tests/StampBattery/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths |
 
 ### How the machine works
@@ -105,7 +105,7 @@ the caps, the chute tie and the back tie at the caps either side of the infeed c
 one, and an iron strap from the front one holds the water line. The gear case stands east of the back row, clear of the
 east end frame's back post.
 
-**Level 1, the battery.** Five stamps on a line along x (z 24, x 12.4 to 35.6, 5.8 apart), each a steel shoe, an
+**The battery.** Five stamps on a line along x (z 24, x 12.4 to 35.6, 5.8 apart), each a steel shoe, an
 iron head, a steel stem through the two guide girts and a square iron tappet. They stand in a cast-iron **mortar box**
 (x 8..40, z 18.5..29.5, its rim at y 16.5, low enough that the heads show over it) on an oak mortar block, each over a
 steel die. The **screen** (mesh, x 9.5..38.5, y 11..15.2) is in the front wall over the dies. At the back, the **feed
@@ -206,10 +206,10 @@ python3 mods-src/seraphhorizons/StampBattery/tools/make_shape.py --quick      # 
 
 A full run takes about half a minute, most of it the swept paths and the z-fighting fix; two runs are byte-identical.
 `tools/validate_stampbattery.py` holds the checks; every run checks its output and exits non-zero if one fails. Checks
-that set parts against each other run per build state: the frame; level 1.
+that set parts against each other run per build state: the frame; the battery.
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty part; the
-  `requires` are the one level's set and the water line's two metals.
+  `requires` are the battery's set and the water line's two metals.
 - **Nothing floats:** the frame one piece from the ground, and each build state at rest.
 - **Containment:** nothing leaves the 3 × 4 × 3 box over nine poses.
 - **Anchors:** the entry shaft meets the power face at the cell's centre; every anchor's point on its cell's face, at
@@ -251,17 +251,16 @@ The draw bench's schema (`../DrawBench/README.md`, "Rig schema") without a work:
 maths. Rotations on θ and ψ, slides on ψ.
 
 - **Cells:** each cell's `boxes` are rebuilt from the shipped, rounded shape posed at rest, the finished machine's (the
-  frame, level 1 and the copper water line); every column's top cell carries a `lid`, so the top is one deck, where the
+  frame, the battery and the copper water line); every column's top cell carries a `lid`, so the top is one deck, where the
   player stands to feed by hand at the infeed's mouth.
 - **`stamps`:** `turnsPerRev` (2, axle turns a camshaft turn as drawn), `dropsPerRev` (2, a stamp), `firingOrder`
   ([1, 3, 5, 2, 4]) and `lift` (0.25 blocks).
-- **`levels`:** `{ "1": [mortar, camshaft, stamps, feedbox] }`, the machine's one level.
-- **The water line's metal:** `pipecopper` or `pipelead`, one of them fitted with the level (the rosser's pattern).
+- **The water line's metal:** `pipecopper` or `pipelead`, one of them fitted with the battery (the rosser's pattern).
 - **Keys.** `cells`, `powerCell`/`powerFace`, `waterCell`/`waterFace`/`water`, `infeedCell`/`infeedFace`/`infeed`,
-  `outputCell`/`outputFace`/`output`, `stamps`, `levels` and `parts`.
+  `outputCell`/`outputFace`/`output`, `stamps` and `parts`.
 
-**In the viewer** (`site/models.json`, `stamp-battery`): a **Level** select (the scenario's `states`): the frame and
-level 1 (the default), each with a note; and a **Water line** select, copper (the default) or lead, which waits for the
+**In the viewer** (`site/models.json`, `stamp-battery`): a **Build** select (the scenario's `states`): the frame and
+the battery (the default), each with a note; and a **Water line** select, copper (the default) or lead, which waits for the
 mortar. Play turns the axle at 1.5 turns a second, a camshaft turn in 1.3 seconds (about 90 drops a minute a stamp, a
 period battery's pace).
 
@@ -286,9 +285,9 @@ Hand edits are lost when the script runs again: port them into `make_shape.py`, 
 - **New:** the three-row layout and its frame (a back post and the two bearers, the caps over all three rows), the
   output funnel and stub in place of v2's plank spout, the shoot, the infeed's section a whole block long over the
   feed, the plank feed box, and the path and outlet checks.
-- **One level, chute in and chute out** (owner's review): the Challenge feeder of the first v3 pass is gone with
+- **One machine, chute in and chute out** (owner's review): the Challenge feeder of the first v3 pass is gone with
   everything that existed only for it (the tray, the hopper, the friction grip, the lever, the bumper rod, the feeding
-  tappet's lug, their checks and level 2), and the plank feed box is the machine's feed.
+  tappet's lug and their checks), and the plank feed box is the machine's feed.
 - **The funnel instead of an apron and a launder** (owner's review): the output chute itself widens to the whole screen,
   so the pulp falls from the screen straight into it. The funnel is flat-floored, as the game's chute is, and flared in
   plan only; its back is the mortar's front wall, so it needs no back plate of its own. The output anchor stays where it
