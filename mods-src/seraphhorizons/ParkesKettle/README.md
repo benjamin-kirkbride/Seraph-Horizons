@@ -399,4 +399,4 @@ the charge (0.04 empty to 0.2 full, #927) is gameplay's; the model only shows th
    tooth tips reach 0.35 into the middle one).
 5. **The parting furnaces' items** (silver-lead in, desilverized and rich lead out) are #927's and #740's open
    question, not the model's: the model draws one bath texture.
-6. **The Faber du Faur retort** is not modelled (#927: not a level; the zinc return is a rule).
+6. **The Faber du Faur retort** is not modelled (#927: the zinc return is a rule, not a part of the machine).
