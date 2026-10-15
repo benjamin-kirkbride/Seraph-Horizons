@@ -5,7 +5,7 @@ The vanner is the last of the ore line's concentrators (#923; model #924): a Fru
 endless belt that creeps slowly up to its head roller under a spray of wash water while its frame is
 shaken from side to side. The belt is stitched leather, its hides laced together across it. The heavy grains ride up over the head roller and wash off into the
 concentrate box; the light ones run back down the belt and off its foot into the tailings box. One
-real machine, one level.
+real machine.
 
     the frame         oak sills, posts and pedestals, standing still: the pins the shaking frame's
                       uprights stand on, the countershaft's bearings, the posts that carry the feed box and the
