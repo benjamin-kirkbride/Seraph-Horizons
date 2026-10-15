@@ -3489,12 +3489,13 @@ seconds, and gives up a walk to its next station gone on 6 seconds past twice it
 and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
 for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold
 each member for another, a stair's slots run off the plan) has the rest of that station plan dispatched as
-today's. Small events are repaired in place on the main thread (begun, finished, dropped, a member gone, a new
-plan); a full solve follows a failed repair, a member joining, a new station plan, or every 15 seconds (no two
-within 2 seconds, or half a second for a new station plan or a deadlock), and a periodic one keeps the routes
-running unless the new are 10 % better. A lone member, routing off (`EidolonMinePlans.Routing`;
-`SH_MINE_BASELINE=1` in the environment, for measuring), or routes not made yet: the job is dispatched as
-below. *Dispatch*
+today's (only while its routes hold stations and no member is on its way home); its members still part, stop
+short of one standing and make room on a stand still to work, to the job's end. Small events are repaired in
+place on the main thread (begun, finished, dropped, a member gone, a new plan); a full solve follows a failed
+repair, a member joining, a new station plan, or every 15 seconds (no two within 2 seconds, or half a second
+for a new station plan or a deadlock), and a periodic one keeps the routes running unless the new are 10 %
+better. A lone member, routing off (`EidolonMinePlans.Routing`; `SH_MINE_BASELINE=1` in the environment, for
+measuring), or routes not made yet: the job is dispatched as below. *Dispatch*
 (mining; `Eidolon/Core/MineDispatch.cs`): the job's members work one plan. Each
 holds a short queue of stations (`MineDispatch.QueueLength`, 2: the one it works and the next) and takes
 the next from the first 24 in the plan's order that nobody holds, whose columns are free and that pass

@@ -430,7 +430,7 @@ public class EidolonMinePlans : ModSystem
     /// (dropped if the station plan changed meanwhile, or kept out when it kept the routes running); else, with
     /// none under way, one started when asked (<see cref="RequestRoutes"/>), on a new station plan, or every
     /// <see cref="MineRoutes.ResolveSeconds"/>, from a copy of the live state taken here (the one main-thread
-    /// cost, a memory copy, done only with budget left this tick). A job of one member present has none (it
+    /// cost, a memory copy, made on the tick a solve is due: no wall-time budget decides when). A job of one member present has none (it
     /// is dispatched as before); a job its routes left to today's dispatch keeps that until a new station plan.
     /// </summary>
     private void RouteStep(Work work, MineState live, double now)
@@ -503,8 +503,8 @@ public class EidolonMinePlans : ModSystem
             work.RoutedAt = now;
             return;
         }
-        if (Spent)
-            return;
+        // not held back by the planner's wall-time budget: a solve starts on the tick it is due, whatever the
+        // machine (its one main-thread cost, a copy of the live state, is small)
         var members = MineOrder.RouteMembers(job, jobs!, now);
         if (members.Count < 2)
             return;

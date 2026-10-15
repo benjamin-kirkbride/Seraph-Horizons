@@ -425,7 +425,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                     return GoHome(eidolon);
                 // a crew by routes: walking at one standing, it stops short and sets off again a little later
                 // (a stop that counts against none of its tries)
-                if (_nav!.Active && RoutedJob && WalksInto(eidolon))
+                if (_nav!.Active && CrewByRoutes && WalksInto(eidolon))
                 {
                     _nav.Stop();
                     _bumpedAt = now;
@@ -457,7 +457,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 // making for where it waits: it looks again only once there, or once that walk has gone on
                 // too long (stuck, or giving way for ever in a narrow pit); a crew by routes stops short of one
                 // standing and looks again a little later
-                if (_nav!.Active && RoutedJob && WalksInto(eidolon))
+                if (_nav!.Active && CrewByRoutes && WalksInto(eidolon))
                 {
                     _nav.Stop();
                     _bumpedAt = now;
@@ -663,8 +663,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var board = Board;
         _routeWait = null;
         // no strike begun by anyone for a while: the routes have stalled, and the plan is today's from here
-        if (now - Math.Max(Cells.LastStrikeAt, Cells.RoutesPlanSince) > RouteStallSeconds && _job!.Present.All(m =>
-                _jobs?.Member(m)?.Orders?.Current is not MineOrder o || o._phase != Phase.Strike))
+        // (only while there is work its routes hold: none on its way home, and stations left in some route)
+        if (now - Math.Max(Cells.LastStrikeAt, Cells.RoutesPlanSince) > RouteStallSeconds
+            && routes.Routes.Values.Any(r => r.Stops.Any(x => x.Kind == MineStopKind.Station))
+            && _job!.Present.All(m => _jobs?.Member(m)?.Orders?.Current is not MineOrder o || o._phase is not (Phase.Strike or Phase.Return)))
         {
             Cells.RoutesStalledPlan = Cells.PlanVersion;
             eidolon.Api.Logger.Debug($"[eidolon-mine] routes for plan {Cells.PlanVersion} of {EidolonMinePlans.Describe(area)} stalled "
@@ -793,6 +795,12 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>Whether its job works by routes now (whatever its own route): its walks stop short of one
     /// standing (<see cref="WalksInto"/>) whatever they are for.</summary>
+    /// <summary>Whether its job chose routes (whatever the station plan, stalled or not): its members part and
+    /// stop short of one standing (<see cref="Untangle"/>, <see cref="WalksInto"/>) to its end, walks home
+    /// included.</summary>
+    private bool CrewByRoutes => EidolonMinePlans.Routing && _job != null && Cells.RouteChoice.Index is { } chosen
+        && chosen != MineRoutePlanner.TodayIndex;
+
     private bool RoutedJob => EidolonMinePlans.Routing && _job != null && Cells.Routes is { Today: false } r && r.PlanVersion == Cells.PlanVersion
         && Cells.RoutesStalledPlan != Cells.PlanVersion;
 
@@ -903,7 +911,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// </summary>
     private bool Untangle(EntityLaborEidolon eidolon, double now)
     {
-        if (_phase == Phase.Strike || !RoutedJob)
+        if (_phase == Phase.Strike || !CrewByRoutes)
         {
             _touchSince = null;
             return false;
@@ -1184,6 +1192,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 return Wait(eidolon, now);
             }
         }
+        // a crew by routes: members waiting on the stands of stations still to dig make room (they stand there
+        // only from the routes' own waits and step-asides, which today's dispatch, after a stall, never asks)
+        if (CrewByRoutes && cells.Plan is { } plan)
+            foreach (var station in plan.Stations.Where(s => s.Cells.Any(live.Remaining.Contains)))
+                if (OccupantOf(eidolon, station.Stand) is { } occupant && occupant.Orders?.Current is MineOrder waiting
+                    && waiting != this && waiting._job == _job)
+                    waiting.MakeRoom(occupant, now);
         bool left = live.Bands is { } bands ? !bands.StairOpen : live.Remaining.Count > 0;
         if (!left && cells.Parked.Count > 0)
         {
