@@ -99,8 +99,8 @@ def check_basic(v):
 
 def check_rig(v):
     """No part moves (no power, no driver, no ride); the requires vocabulary is the frame's (null), the chutes,
-    the plates and their dressing, the three amalgam states, the trap and the pipe metals; the levels only add,
-    level 2 being level 1 and the trap; the pipe metals are the same elements; the states only fit what exists,
+    the plates and their dressing, the three amalgam states, the trap and the pipe metals; the build stages
+    add the plates, their dressing and, last, the trap; the pipe metals are the same elements; the states only fit what exists,
     the amalgam only on dressed plates."""
     m = v.m
     rig = v.rig
@@ -113,11 +113,11 @@ def check_rig(v):
     for key in ("powerCell", "powerFace", "work", "trunkPath"):
         if key in rig:
             v.fail(f"the rig has {key}: the plates take no power and do no work a driver follows")
-    levels = rig["levels"]
-    if [(lv["level"], tuple(lv["requires"])) for lv in levels] != [(n, req) for n, req, _ in m.LEVELS]:
-        v.fail(f"the rig's levels are {levels}")
-    if not set(levels[0]["requires"]) < set(levels[1]["requires"]) or set(levels[1]["requires"]) - set(levels[0]["requires"]) != {"trap"}:
-        v.fail("level 2 is not level 1 and the trap")
+    stages = rig["buildStages"]
+    if [(st["stage"], st["adds"], st["name"]) for st in stages] != [(n, req, name) for n, (req, name) in enumerate(m.BUILD_STAGES, 1)]:
+        v.fail(f"the rig's build stages are {stages}")
+    if [st["adds"] for st in stages] != ["plates", "dressing", "trap"]:
+        v.fail("the build stages are not the plates, their dressing and, last, the trap")
     if rig["amalgamStates"] != list(m.AMALGAM):
         v.fail(f"the rig's amalgam states are {rig['amalgamStates']}")
     for pid in m.PIPES[1:]:
@@ -135,7 +135,7 @@ def check_rig(v):
         if sum(a in fit for a in m.AMALGAM) > 1 or sum(p in fit for p in m.PIPES) > 1:
             v.fail(f"{st} draws two amalgam states or two pipe metals at once")
     counts = {st: len(v.shown_els(st)) for st in m.STATES}
-    print("rig: no driver, no ride, no power; levels " + ", ".join(f"{lv['level']} ({'+'.join(lv['requires'])})" for lv in levels)
+    print("rig: no driver, no ride, no power; build stages " + ", ".join(f"{st['stage']} ({st['adds']})" for st in stages)
           + "; elements shown: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
 
 

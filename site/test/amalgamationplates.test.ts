@@ -8,7 +8,7 @@ import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs,
 // The amalgamation plates' shipped files (AmalgamationPlates/tools/make_shape.py). The plates take no power and
 // nothing in them moves: the rig has no driver, so it reads no input and every part's matrix is the identity.
 // Its parts are what gameplay fits or draws: the chute sections, the plates and their mercury dressing, the
-// amalgam in three states (one drawn at a time), the level-2 trap and the water line in copper or lead.
+// amalgam in three states (one drawn at a time), the trap (the last build stage) and the water line in copper or lead.
 // tools/tests/test_amalgamationplates_model.py checks the same files against the generator's rules.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
@@ -79,7 +79,7 @@ describe("the amalgamation plates' rig", () => {
     expect(anchors.find((a) => a.key === "waterCell")).toMatchObject({ kind: "cell", pos: [0, 0, 0], face: "west" });
     expect(anchors.find((a) => a.key === "outputCell")).toMatchObject({ kind: "cell", pos: [0, 0, 2], face: "south" });
     for (const key of ["feedSpout", "spray", "amalgam", "trapWell"]) expect(anchors.find((a) => a.key === key)).toMatchObject({ kind: "point" });
-    expect(unrecognised.sort()).toEqual(["amalgamStates", "levels", "pipes"]);
+    expect(unrecognised.sort()).toEqual(["amalgamStates", "buildStages", "pipes"]);
   });
 });
 
@@ -89,19 +89,19 @@ describe("the amalgamation plates' page", () => {
   const groups = stateGroups(model.scenario!.states, values);
   const choices = model.scenario!.choices!;
 
-  it("builds by level, draws one amalgam state at a time on dressed plates, and one pipe metal", () => {
+  it("builds in stages, the trap last, draws one amalgam state at a time on dressed plates, and one pipe metal", () => {
     expect(groups.map((g) => [g.id, g.owns])).toEqual([
-      ["level", ["plates", "dressing", "trap"]],
+      ["stage", ["plates", "dressing", "trap"]],
       ["amalgam", ["amalgam1", "amalgam2", "amalgam3"]],
     ]);
     const { fitted, picked } = openingFitted(values, choices, groups);
-    expect(picked).toEqual({ level: "level2", amalgam: "building" });
+    expect(picked).toEqual({ stage: "trap", amalgam: "building" });
     expect(fitted).toEqual({ chutes: true, plates: true, dressing: true, amalgam1: false, amalgam2: true, amalgam3: false, trap: true, pipecopper: true, pipelead: false });
-    const [level, amalgam] = groups;
-    const at = (g: typeof level, id: string, from = fitted) => applyState(from, g!.spec.options.find((o) => o.id === id)!, g!.owns, choices);
-    expect(at(level, "level1")).toMatchObject({ plates: true, dressing: true, trap: false });
+    const [stage, amalgam] = groups;
+    const at = (g: typeof stage, id: string, from = fitted) => applyState(from, g!.spec.options.find((o) => o.id === id)!, g!.owns, choices);
+    expect(at(stage, "dressed")).toMatchObject({ plates: true, dressing: true, trap: false });
     expect(at(amalgam, "thick")).toMatchObject({ amalgam1: false, amalgam2: false, amalgam3: true });
-    expect(needsMet(amalgam!, at(level, "bare"))).toBe(false);
-    expect(needsMet(amalgam!, at(level, "level1"))).toBe(true);
+    expect(needsMet(amalgam!, at(stage, "bare"))).toBe(false);
+    expect(needsMet(amalgam!, at(stage, "dressed"))).toBe(true);
   });
 });

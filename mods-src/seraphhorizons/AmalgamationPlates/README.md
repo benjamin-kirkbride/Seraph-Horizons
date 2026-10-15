@@ -6,7 +6,7 @@ oak trestles, three copper plates laid down it and dressed with mercury, a **dis
 spreads the crushed ore across their width, and a **spray pipe** across the head. The pulp runs down the
 plates in a thin sheet; the free gold and silver that touch them are held as **amalgam**, which builds up on
 the plates and is scraped off by hand, and the rest falls off the foot into a **tail box** and leaves by
-chute for the concentrators. **Level 2** fits a **mercury trap** in the tail box: a cast-iron well with a
+chute for the concentrators. The **last build stage** fits a **mercury trap** in the tail box: a cast-iron well with a
 hanging baffle the pulp passes under and a weir it passes over, catching the amalgam and mercury the stream
 scours off the plates.
 
@@ -48,8 +48,8 @@ continues (#939: the plates before the sluice).
 | `feedSpout` | `[0.5, 0.7125, 0.8438]` | Where the pulp leaves the distributor through its holes onto the head of the plates |
 | `spray` | `[0.5, 0.61, 0.775]` | The spray's nozzles, over the head of the plates |
 | `amalgam` | `[0.5, 0.5263, 1.5437]` | The middle of the plates, on the dressing: scraping sounds and particles |
-| `trapWell` | `[0.5, 0.1062, 2.4406]` | The mercury in the trap's well (level 2's clean-up) |
-| `levels` | | What each level fits, by `requires` |
+| `trapWell` | `[0.5, 0.1062, 2.4406]` | The mercury in the trap's well (the trap's clean-up) |
+| `buildStages` | | The build stages in order, each with the `requires` it adds: the plates, their dressing, and last the trap |
 | `amalgamStates` | | The three amalgam states, one drawn at a time |
 | `pipes` | | The spray pipe's `requires` per metal |
 
@@ -64,11 +64,12 @@ No return-water anchor (#694, #711: the water is used up). No power cell.
 | `plates` | `plates` | The three copper plates |
 | `dressing` | `dressing` | The mercury rubbed into each plate, a thin coat |
 | `amalgam1` .. `amalgam3` | `amalgam1` .. `amalgam3` | The amalgam on the plates, one state at a time: a film of patches at the head; the first plate's upper part covered and the second's head patched; two plates covered thick, ridged at the head, and the third's head patched |
-| `trap` | `trap` | Level 2: the cast-iron well, its baffle and lugs, the mercury in its bottom and the drain plug |
+| `trap` | `trap` | The last build stage: the cast-iron well, its baffle and lugs, the mercury in its bottom and the drain plug |
 | `pipecopper`, `pipelead` | `pipecopper`, `pipelead` | The spray pipe in copper or lead (the same elements, the supplied metal's drawn) |
 
-**Levels** (the rig's `levels`): **1, the table and plates** (`plates`, `dressing`); **2, the mercury trap**
-(`plates`, `dressing`, `trap`). A level only adds: the footprint, the chutes and the pipe never move.
+**Build stages** (the rig's `buildStages`): **1, the copper plates** (`plates`); **2, the mercury dressing**
+(`dressing`); **3, the mercury trap** (`trap`), the last. A stage only adds: the footprint, the chutes and the
+pipe never move.
 
 ## Model
 
@@ -126,7 +127,7 @@ z 36.0..43.4), its walls (to y 6.1) under the bed's foot, which overhangs it: th
 it and leaves over a sill (y 5.5) in its south wall, straight into the outlet chute's bore (y 5..11). Over
 the sill the south wall rises in a collar round the chute's end (to y 12.6), which butts against it all round.
 
-**The mercury trap** (`trap`, level 2) is a cast-iron well standing on the tail box's floor under the lip
+**The mercury trap** (`trap`, the last build stage) is a cast-iron well standing on the tail box's floor under the lip
 (x 0.9..15.1, z 36.9..41.2, walls to y 3.4), the whole width of the lip inside it, with mercury 0.5 deep in
 its bottom; an iron baffle hung across it from two lugs on the tail box's walls' tops, its foot at y 2.2 (over
 the mercury, under the weir), and a drain plug out through the box's east wall. The pulp falls into the well
@@ -164,13 +165,13 @@ python3 mods-src/seraphhorizons/AmalgamationPlates/tools/make_shape.py --quick  
 A full run takes about a second and is deterministic (two runs into two folders are byte-identical, logs
 included). `tools/validate_amalgamationplates.py` holds the checks; every run checks its output and exits
 non-zero if one fails. A state (`STATES` in the generator) is a set of fitted parts: the frame alone, with the
-chutes and pipe, bare plates, level 1, level 1 with thick amalgam, level 2, and level 2 with each amalgam
-state. The checks run over every state:
+chutes and pipe, bare plates, dressed plates, dressed plates with thick amalgam, the whole machine with the
+trap, and the whole machine with each amalgam state. The checks run over every state:
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty
   part.
-- **Rig:** no driver, ride, power cell or work; the `requires` vocabulary; the levels only add (level 2 is
-  level 1 and the trap); the pipe metals are the same elements; no state dresses plates it has not fitted,
+- **Rig:** no driver, ride, power cell or work; the `requires` vocabulary; the build stages add the plates,
+  their dressing and, last, the trap; the pipe metals are the same elements; no state dresses plates it has not fitted,
   puts amalgam on undressed plates or draws two amalgam states or two pipe metals.
 - **Textures** by role, and the amalgam and mercury the amalgam pan's, the chute sections vanilla's chute's.
 - **Thickness:** nothing thinner than 0.6 across but the plates, coats, amalgam, mercury and pipe walls.
@@ -192,7 +193,7 @@ state. The checks run over every state:
 - **Flows** (ray drops, 146 over the states): the infeed onto the distributor's floor; each hole onto the
   head of the plates (the amalgam, the dressing, the bare plates or the bed, by state); each nozzle's jet onto
   the plates past the head board; the lip, at both edges and the middle of the plates, into the tail box, or
-  into the trap's mercury at level 2; the sill into the outlet.
+  into the trap's mercury once the trap is fitted; the sill into the outlet.
 - **The trap:** the well on the box's floor inside its walls, under the lip; the mercury under the baffle's
   foot, the foot under the weir's top, the weir under the sill, the baffle's top over the sill (the pulp must
   pass under and over); the baffle wall to wall, on its lugs on the box's walls; the plug through the east
@@ -216,12 +217,13 @@ maths.
 
 - **Inputs.** None: no part has a driver. Every part's matrix is the identity.
 - **Keys.** `cells` (three, each with its boxes and a `lid`), `feedCell`/`feedFace`, `waterCell`/`waterFace`,
-  `outputCell`/`outputFace`, the points `feedSpout`, `spray`, `amalgam`, `trapWell`, `levels`,
+  `outputCell`/`outputFace`, the points `feedSpout`, `spray`, `amalgam`, `trapWell`, `buildStages`,
   `amalgamStates`, `pipes` and `parts`. `requires` values: `chutes`, `plates`, `dressing`, `amalgam1`,
   `amalgam2`, `amalgam3`, `trap`, `pipecopper`, `pipelead`, or null.
 
-**In the viewer** (`site/models.json`, `amalgamation-plates`): no clock or Play (nothing moves). A **Level**
-select (the table alone, bare plates, level 1, level 2, opening on level 2), an **Amalgam on the plates**
+**In the viewer** (`site/models.json`, `amalgamation-plates`): no clock or Play (nothing moves). A **Build
+stage** select (the table alone, bare plates, plates dressed with mercury, the mercury trap; opening on the
+trap, the last stage), an **Amalgam on the plates**
 select (clean, a film, building up, thick; opening on building up) that waits for dressed plates, the
 **spray pipe**'s metal as a choice, and the chute sections as a checkbox. Coloured by texture, the mercury and
 the amalgam have colours of their own (the amalgam pan's texture families).
@@ -247,9 +249,9 @@ From `735-concentrator-model-v2` (copied, not merged; its evaluation is
   (`pipe_boxes`, `build_pipes`, `pipe_copies`), and the validator's ray-drop flows and texture roles.
 - **Changed, as #918 asks:** its own frame (sills, posts, trestles); a head distributor and the infeed chute;
   the spray pipe at the head; the west spout became the outlet chute in the end face, out of a tail box; the
-  iron riffle across the bed became a proper trap, a box (`trap`), and is level 2; the amalgam in three
+  iron riffle across the bed became a proper trap, a box (`trap`), and is the last build stage; the amalgam in three
   states over the plates.
-- **Dropped:** the wash house (timbers, launders, tail box, concentrate launder), its line shaft and levels,
+- **Dropped:** the wash house (timbers, launders, tail box, concentrate launder), its line shaft and its upgrade tiers,
   and its plates' place in the house (the plates were optional parts after the jig; they are now their own
   machine, before the concentrators).
 - **Not ported:** commit `9fa58a5` (per-cell `fitted` collision in the site): the game does not read it, and
@@ -278,8 +280,9 @@ narrowed through the vanner's soldered reducer to a small spray pipe.
 3. **The amalgam's thicknesses** (0.12, 0.16, 0.52 at most).
 4. **The lids**: every column lidded at the top of the block (the head cell's chute reaches it), so a player
    walks over the plates at y 1, not on them; the rosser leaves its beds unlidded.
-5. **Build stages** (#918): not designed. The `requires` split where a stage could: the chute sections, the
-   plates, the dressing, the trap, the pipe.
+5. **Build stages** (#918): the rig's `buildStages` are the plates, their dressing and, last, the trap (the
+   owner's ruling); what each stage costs and whether the chute sections and the pipe are stages of their
+   own are not designed.
 
 ## Gameplay
 

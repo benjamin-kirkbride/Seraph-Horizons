@@ -60,9 +60,10 @@ class Rig(unittest.TestCase):
             m = rigmath.part_matrix(RIG["parts"], p["id"], {"theta": 1.3}, None)
             self.assertEqual([[round(v, 12) + 0.0 for v in row] for row in m], ident, p["id"])
 
-    def test_levels_and_states(self):
-        self.assertEqual(RIG["levels"], [{"level": 1, "name": "the table and plates", "requires": ["plates", "dressing"]},
-                                         {"level": 2, "name": "the mercury trap", "requires": ["plates", "dressing", "trap"]}])
+    def test_build_stages_and_states(self):
+        self.assertEqual(RIG["buildStages"], [{"stage": 1, "name": "the copper plates", "adds": "plates"},
+                                              {"stage": 2, "name": "the mercury dressing", "adds": "dressing"},
+                                              {"stage": 3, "name": "the mercury trap", "adds": "trap"}])
         self.assertEqual(RIG["amalgamStates"], ["amalgam1", "amalgam2", "amalgam3"])
         self.assertEqual(RIG["pipes"]["requires"], {"copper": "pipecopper", "lead": "pipelead"})
 
