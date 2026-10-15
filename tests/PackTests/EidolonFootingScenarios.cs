@@ -141,24 +141,25 @@ public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBa
 
     // ---- A: one eidolon off a trunk ----
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_alone_on_a_thin_trunk_it_walks_off_it_to_the_floor_beside() => await OffATrunk(-60, "md", "footingthin", 1);
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_alone_on_a_thick_trunk_it_walks_off_it_to_the_floor_beside() => await OffATrunk(-90, "xl", "footingthick", 1);
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task A_alone_on_a_thin_trunk_it_walks_off_it_to_a_point_close_beside() => await OffATrunk(-240, "md", "footingclose", 1, 1.5);
 
     // ---- E: two eidolons together off a trunk ----
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task E_two_together_on_a_thin_trunk_walk_off_it_to_the_floor_beside() => await OffATrunk(-120, "md", "footingtwotrunk", 2);
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task E_two_together_on_a_thin_trunk_follow_their_leader_off_it()
     {
         var at = await Floor(-270, "footingtwolead");
+        using var clock = VirtualClock.Start(World);
         var eidolons = await OnATrunk(at, "md", 2);
         // Their leader stands on the floor ten blocks off; they follow, keeping their distance (four),
         // so both must come down off the trunk.
@@ -190,6 +191,7 @@ public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBa
     private async Task OffATrunk(int dx, string size, string watcher, int count, double outX = 3)
     {
         var at = await Floor(dx, watcher);
+        using var clock = VirtualClock.Start(World);
         var eidolons = await OnATrunk(at, size, count);
         // Each to its own point on the floor, outX from the trunk's axis.
         var targets = eidolons.Select((_, i) => new Vec3d(at.X + 0.5 + outX, at.Y, at.Z + 0.5 + (count == 1 ? 0.5 : -1.5 + 3 * i))).ToArray();
@@ -202,10 +204,11 @@ public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBa
 
     // ---- B: two spawned in one place ----
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task B_two_spawned_in_one_place_keep_apart_and_each_walks_to_its_point()
     {
         var at = await Floor(-150, "footingtwo");
+        using var clock = VirtualClock.Start(World);
         var spot = new Vec3d(at.X, at.Y, at.Z);
         var a = await Eidolon(spot);
         var b = await Eidolon(spot);
@@ -223,13 +226,14 @@ public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBa
 
     // ---- C and D: up and down a one-block step ----
 
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task C_two_together_walk_up_a_one_block_step_and_down_it() => await UpAndDown(-180, "footingtwostep", 2);
 
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task C_two_together_follow_their_leader_up_a_one_block_step_and_down_it()
     {
         var at = await Step(-300, "footingtwofollow");
+        using var clock = VirtualClock.Start(World);
         var eidolons = new[] { await Eidolon(new Vec3d(at.X - 2, at.Y, at.Z)), await Eidolon(new Vec3d(at.X - 2, at.Y, at.Z)) };
         await Watch("following at the step, settling", at, eidolons, () => false, 40);
         var leader = _watcher.Player.Entity;
@@ -260,12 +264,13 @@ public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBa
         return at;
     }
 
-    [AtlasScenario(TimeoutMs = 240_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task D_alone_it_walks_up_a_one_block_step_and_down_it() => await UpAndDown(-210, "footingstep", 1);
 
     private async Task UpAndDown(int dx, string watcher, int count)
     {
         var at = await Step(dx, watcher);
+        using var clock = VirtualClock.Start(World);
         var eidolons = new EntityLaborEidolon[count];
         for (int i = 0; i < count; i++)
             eidolons[i] = await Eidolon(new Vec3d(at.X - 2, at.Y, at.Z));
@@ -318,10 +323,11 @@ public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBa
         return climbed;
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task F_it_climbs_a_two_block_ledge_and_walks_back_down_off_it()
     {
         var at = await Ledge(-330, 2, "climbwatcher");
+        using var clock = VirtualClock.Start(World);
         var e = await Eidolon(new Vec3d(at.X - 4, at.Y, at.Z));
         await World.Ticks(20);
 
@@ -341,10 +347,11 @@ public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBa
         Remove(e);
     }
 
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 120_000)]
     public async Task F_a_ledge_three_high_it_neither_climbs_nor_walks_off()
     {
         var at = await Ledge(-360, 3, "climbwatcher3");
+        using var clock = VirtualClock.Start(World);
         var below = await Eidolon(new Vec3d(at.X - 4, at.Y, at.Z - 4));
         var above = await Eidolon(new Vec3d(at.X + 8, at.Y + 3, at.Z + 4));
         GoTo(below, new Vec3d(at.X + 8, at.Y + 3, at.Z - 4));
