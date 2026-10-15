@@ -19,7 +19,7 @@ real machine, one level.
                       and holds it along its length), tied at the ends and the middle; on them the head
                       and foot rollers' bearings, and the hangers of the worm shaft
     the belt          stitched leather, round the head roller (north, at the front, the higher) and the
-                      foot roller (south), with raised edges along its top run and its laced seams across it;
+                      foot roller (south), with raised edges all round it and its laced seams across it;
                       it travels with the head drum's surface, its seams (a part each) going round the loop
     the creep         a ratchet on the worm shaft, which a pawl fixed to the frame pushes a tooth each
                       stroke of the shake (and slips back under it on the return), so it turns one way
@@ -131,7 +131,8 @@ FOOT = (8.1, 38.0)                           # the foot roller's: the belt falls
 ROLL_R = 2.0                                 # both rollers (a 12-sided drum, apothem)
 ROLL_X = (4.3, 15.7)                         # the drums, a little wider than the belt
 BELT_T = 0.4
-EDGE_W, EDGE_H = 0.7, 0.6                    # the raised edges along the top run, inside the belt's sides
+EDGE_W, EDGE_H = 0.7, 0.6                    # the raised edges all round the belt, inside its sides
+EDGES_X = ((BELT_X[0] + 0.01, BELT_X[0] + EDGE_W - 0.01), (BELT_X[1] - EDGE_W + 0.01, BELT_X[1] - 0.01))
 SEAMS_Z = (10.5, 33.0)                       # the laced seams across the top run, where hides are joined
 SEAM_L, SEAM_H = 0.8, 0.12                   # each seam's lap: along the belt, how proud of it
 SEAM_SINK = 0.05                             # ... and how far its foot is let into the belt (it lies on another part)
@@ -148,7 +149,7 @@ RAILS_X = ((2.5, 4.0), (16.0, 17.5))         # the two oak rails, west and east 
 RAIL_Y = (7.0, 8.5)
 RAIL_Z = (2.0, 42.2)
 TIE_Y = (7.3, 8.5)                           # the ties between the rails: the ends beyond the belt, one inside its loop
-TIES_Z = ((3.6, 4.2), (22.2, 22.8), (41.6, 42.2))
+TIES_Z = ((2.8, 3.4), (22.2, 22.8), (41.6, 42.2))
 BRG = 1.0                                    # a roller's bearing block: 2 x 2 about its journal
 BRG_X = ((2.3, 4.2), (15.8, 17.7))           # the bearing blocks on the rails, west and east
 UPRIGHTS_Z = (16.6, 27.0, 34.0)              # the uprights under each rail, on its centre line
@@ -249,9 +250,10 @@ BOX_X = (3.2, 16.8)                          # the concentrate and tailings boxe
 BOX_T = 0.6
 BOX_FLOOR = (4.6, 5.2)                       # their floors: the top just over the chutes' bore (y 5)
 CB_Z = (1.8, 8.8)                            # the concentrate box, under the head roller
-CB_TOP = 6.5                                 # its walls: under the belt's wrap and its lower run
+CB_TOP = 6.0                                 # its walls: under the belt's wrap and its lower run, and their edges
 TB_Z = (39.8, 44.0)                          # the tailings box, behind the foot roller
-TB_NORTH = (39.8, 40.3, 6.3)                 # its north wall (z0, z1, top), low, under the foot roller's wrap
+TB_NORTH = (39.8, 40.3, 6.3)                 # its north wall (z0, z1, top), a low sill under the foot's wrap, notched
+TB_NOTCH = 0.05                              # ... where the belt's edges pass round the foot, clear of them as they shake
 TB_TOP = 6.8
 SPOUT_X = (5.6, 10.4)                        # each box's spout, through its wall into its chute's bore
 SPOUT_Y = (5.0, 5.4)                         # resting on the chute's bottom wall
@@ -582,6 +584,9 @@ def build_boxes():
             if wall == spout_wall:
                 out.append(box([x0 + t, fl1, wz0], [sx0, top, wz1], f"fr_{tag}_{wall}1", f, "planks"))
                 out.append(box([sx1, fl1, wz0], [x1 - t, top, wz1], f"fr_{tag}_{wall}2", f, "planks"))
+            elif tag == "tb" and wall == "n":                         # between the notches for the edges
+                out.append(box([EDGES_X[0][1] + E + TB_NOTCH, fl1, wz0], [EDGES_X[1][0] - E - TB_NOTCH, top, wz1],
+                               f"fr_{tag}_{wall}", f, "planks"))
             else:
                 out.append(box([x0 + t, fl1, wz0], [x1 - t, top, wz1], f"fr_{tag}_{wall}", f, "planks"))
         # the spout: a floor resting on the chute's bottom wall, from inside the box through the wall's notch
@@ -702,9 +707,11 @@ def build_belt():
     p = "belt"
     out = belt("x", (0.0, HEAD[0], HEAD[1]), ROLL_R, (0.0, FOOT[0], FOOT[1]), ROLL_R, BELT_X[0], BELT_X[1], "belt", p,
                "leather", BELT_T, n_wrap=7)
-    za, zb = HEAD[1] + 0.3, FOOT[1] - 0.3
-    for j, (ex0, ex1) in enumerate(((BELT_X[0], BELT_X[0] + EDGE_W), (BELT_X[1] - EDGE_W, BELT_X[1])), 1):
-        out.append(on_run(za, zb, 0.0, EDGE_H, ex0 + 0.01, ex1 - 0.01, f"belt_edge{j}", p, "leather"))
+    for j, (ex0, ex1) in enumerate(EDGES_X, 1):
+        # a flange of leather standing on the belt's outer face all the way round: on both runs and round both
+        # drums, the same wrap of short boxes as the belt's own, on top of it (plain and uniform, so drawn still)
+        out += belt("x", (0.0, HEAD[0], HEAD[1]), ROLL_R + BELT_T, (0.0, FOOT[0], FOOT[1]), ROLL_R + BELT_T, ex0, ex1,
+                    f"belt_edge{j}", p, "leather", EDGE_H, n_wrap=7)
     x0, x1 = BELT_X[0] + EDGE_W + 0.02, BELT_X[1] - EDGE_W - 0.02
     pitch = (x1 - x0) / LACES
     for i, z in enumerate(SEAMS_Z, 1):

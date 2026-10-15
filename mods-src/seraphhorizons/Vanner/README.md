@@ -64,7 +64,7 @@ tailings boxes with their chute sections. The rest:
 | `countershaft` | `countershaft` | The axle's oak cross, the steel shaft, two collars, the two eccentric sheaves |
 | `shaker` | `shaker`, `uprightw`, `uprighte` | The shaking frame: two oak rails, three ties, the rollers' bearing blocks, the two yokes and their arms, the worm shaft's bearings and hangers, the rails' clevises and pins; and the six oak uprights it stands on |
 | `rollers` | `head`, `foot` | The head roller with its journal, collars and worm wheel; the foot roller |
-| `belt` | `belt`, `seam1`, `seam2` | The stitched leather belt round both rollers and its two raised edges; its two laced seams, each a part that travels round the loop with the belt |
+| `belt` | `belt`, `seam1`, `seam2` | The stitched leather belt round both rollers and its two raised edges, all round it; its two laced seams, each a part that travels round the loop with the belt |
 | `creep` | `worm`, `pawl` | The worm shaft: its rod, collars, the worm (core and helical thread) and the ratchet; the fixed pawl on its post |
 | `feedbox` | `feedbox` | The feed box, its weir and apron, and the infeed chute section |
 | `pipecopper`, `pipelead` | one each | The water line in copper or in lead: the same elements, one drawn |
@@ -83,7 +83,7 @@ writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/vanner.json` | The whole machine, both water lines (475 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/vanner.json` | The whole machine, both water lines (505 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/vanner_frame.json` | The frame only (87 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/vanner-rig.json` | The cells, the anchors and the part rig (15 parts). |
 | `tests/Vanner/rig-reference.json` | Every part's matrix at 21 poses of θ and ψ, from the reference maths. |
@@ -116,8 +116,10 @@ of a stroke against the rail's straight slide.
 **The belt and the rollers.** The head roller (axis y 9.3, z 7) and the foot roller (y 8.1, z 38) are oak drums,
 2 in radius, a little wider than the belt, on steel journals in iron bearing blocks on the rails (the foot's set
 into them), with a collar outside each. The belt, stitched leather 0.4 thick, runs round both, its top run on
-their upper tangent, falling 1.2 in 31 (1 in 26) to the foot; two raised edges, 0.6 high, run along the top run
-inside its sides to keep the water on it. A belt that wide is made of hides joined end to end: two seams cross
+their upper tangent, falling 1.2 in 31 (1 in 26) to the foot; two raised edges, flanges of leather 0.7 wide and
+0.6 high inside its sides, stand on its outer face all the way round (both runs and both wraps, the same wrap of
+short boxes as the belt's) to keep the water on it; plain and uniform, they look the same moving, so they are
+drawn still with the belt. A belt that wide is made of hides joined end to end: two seams cross
 it (at rest on the top run, z 10.5 and 33), each a lap 0.8 long, let 0.05 into the belt and 0.12 proud of it, with
 eight rawhide stitches laced over it.
 
@@ -167,10 +169,10 @@ across the belt at y 13.4, capped with solder at its west end on its post's brac
 over the belt, 7.5 below the head roller's axis. ppex's own pipe (6 across) cannot cross a one-high belt.
 
 **The boxes and the chutes.** The **concentrate box** lies under the head roller (z 1.8..8.8), its plank floor's
-top at y 5.2 (just over the chute's bore, 5.0) on two oak bearers, its walls to 6.5, under the belt's wrap round
-the head (6.9) and its bottom run. A spout through its north wall rests on the concentrate chute section's
-bottom wall, inside its bore. The **tailings box** lies behind the foot roller (z 39.8..44), its north wall low
-(6.3) under the belt's wrap, and its spout runs through its south wall into the tailings chute section. The
+top at y 5.2 (just over the chute's bore, 5.0) on two oak bearers, its walls to 6.0, under the belt's wrap round
+the head (6.9; its edges 6.3) and its bottom run. A spout through its north wall rests on the concentrate chute section's
+bottom wall, inside its bore. The **tailings box** lies behind the foot roller (z 39.8..44), its north wall a
+low sill (6.3) under the belt's wrap, notched at each side where the belt's edges pass round the foot, and its spout runs through its south wall into the tailings chute section. The
 concentrate leaves the belt as it rounds the head; the tailings run off the belt as it rounds the foot.
 
 Every moving part (θ the axle's angle, ψ its travel either way):
@@ -235,6 +237,8 @@ one fails:
   the space between the wheel's two lowest teeth, within a twentieth of the pitch (worst 0.0001); thread and
   teeth lean alike, the lead angle; they share 1.15 of depth, and the tips clear the worm's core at the throat.
   The worm and its wheel are not in `ALLOWED`, so the clearance checks prove the thread never runs into a tooth.
+- **Edges:** both raised edges close round the loop: every point at their mid-height over the belt's outer face,
+  every 0.1 along the loop and at three points across each edge, lies in that edge's boxes (runs and both wraps).
 - **Belt:** each seam, posed by the rig, where a rigid lap with its ends on the belt lies at s0 + the drum's surface
   speed x travel (every corner, at 385 points of a turn of the loop, the frame shaking: within 0.03, worst 0.014);
   along the top run it goes to the head (−z) as far as the head drum's surface turns (worst 0.0003), at θ either
@@ -285,7 +289,7 @@ value is a checkbox, and the water line is a "Water line" select, copper or lead
 Element names are the rig's interface (first-match globs, in the rig's order): `cs_*` (`entrya`, `entryb`,
 `rod`, `collar1`/`2`, `sheave1`/`2`), `sk_*` (`rail_w`/`e`, `tie1`..`3`, `headbearing_*`, `footbearing_*`,
 `yoke1`/`2_*`, `arm1`/`2`, `wbearing1`/`2`, `whanger1`/`2`, `up<side><n>_cheek*`/`_pin`), `upw_*` and `upe_*` (the
-uprights), `belt_seam<n>` and `belt_lace<n>_*` (the seams' parts, before the belt's), `belt_*` (`runa`, `runb`, `wrap*`, `edge1`/`2`), `head_*` (`drum`, `journal`, `collar*`, `wheel_body_*`, `wheel_tooth<n>_w`/`c`/`e`),
+uprights), `belt_seam<n>` and `belt_lace<n>_*` (the seams' parts, before the belt's), `belt_*` (`runa`, `runb`, `wrap*`, `edge<n>_runa`/`_runb`/`_wrap<roller>_<k>`), `head_*` (`drum`, `journal`, `collar*`, `wheel_body_*`, `wheel_tooth<n>_w`/`c`/`e`),
 `foot_*`, `worm_*` (`rod`, `collar*`, `core_*`, `thread1`..`49`, `ratchet_*`), `pawl_*` (`post`, `arm`), `fb_*`
 (`floor`, `w`, `e`, `s`, `weir`, `apron`, `chute_*`), `pipecopper_*` and `pipelead_*`, and `fr_*` for the frame
 (`sill_*`, `up<side><n>_*`, `pedestal*`, `bearing*`, `saddle`, `post_*`, `bracket_*`, `spraypost`,
@@ -301,7 +305,7 @@ client or the site's viewer.
    creep (a renderer could also scroll the belt's texture by `beltPerTurn`). The creep is 0.087 voxel a turn, so a
    seam goes round in about 855 turns: in the viewer's Play, about 0.17 voxel a second, seven minutes round. The
    seams are rigid laps (a chord of the wrap, 0.04 into the belt at its middle there), and their path is a fit of
-   32 harmonics, within 0.014 of the loop. The raised edges are drawn along the top run only and do not travel.
+   32 harmonics, within 0.014 of the loop. The raised edges go all round and are drawn still: plain, they look the same moving.
 2. **The ratchet turns evenly** with ψ rather than a tooth at a time.
 3. **The uprights are rigid posts on pins**, not the period's bending springs; their heads drift 0.03 off the
    rail's pins at the ends of a stroke.

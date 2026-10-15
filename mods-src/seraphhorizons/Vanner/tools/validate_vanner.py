@@ -357,7 +357,7 @@ def drops(v):
     hy, hz = m.HEAD
     fy, fz = m.FOOT
     r = m.ROLL_R + m.BELT_T + 0.05
-    for x in (m.BELT_X[0] + 0.3, 10.0, m.BELT_X[1] - 0.3):
+    for x in (m.BELT_X[0] + m.EDGE_W + 0.6, 10.0, m.BELT_X[1] - m.EDGE_W - 0.6):   # inside the edges, which hold it
         out.append((f"the concentrate off the head at x {x}", [x, hy, hz - r], r"^fr_cb_floor$", shake))
         out.append((f"the tailings off the foot at x {x}", [x, fy, fz + r], r"^fr_tb_floor$", shake))
     sx = sum(m.SPOUT_X) / 2
@@ -525,6 +525,41 @@ def check_belt(v):
           f"its {m.BELT_LOOP:.2f} loop in {cycle / TAU:.0f} turns); each seam on the loop (a rigid lap, its ends on the belt) to "
           f"within {worst:.4f} through a turn of the loop, the frame shaking; along the top run to the head, worst "
           f"{max(map(abs, run)):.4f} off the drum's surface; back where it started once round")
+
+
+def inside(el, p, eps=0.01):
+    """Whether point p lies in the box el (within eps)."""
+    d = [p[k] - el.c[k] for k in range(3)]
+    return all(abs(sum(el.r[i][k] * d[i] for i in range(3))) <= el.size[k] / 2 + eps for k in range(3))
+
+
+def check_edges(v):
+    """The belt's two raised edges close round its loop: every point of the loop at the edges' mid-height over the
+    belt's outer face, every 0.1 along it, lies in that edge's boxes (top run, head wrap, return run, foot wrap), and
+    each edge sits on the belt (its inner face on the belt's outer face, on the runs)."""
+    m = v.m
+    belt = v.by_part["belt"]
+    h = m.BELT_T + m.EDGE_H / 2
+    n = int(m.BELT_LOOP / 0.1)
+    for j, (x0, x1) in enumerate(m.EDGES_X, 1):
+        els = [e for e in belt if e.name.startswith(f"belt_edge{j}_")]
+        gaps = []
+        for i in range(n):
+            s = m.BELT_LOOP * i / n
+            a, b = m.belt_inner(s - 0.01), m.belt_inner(s + 0.01)
+            ty, tz = (b[0] - a[0]) / 0.02, (b[1] - a[1]) / 0.02
+            y, z = m.belt_inner(s)
+            p = [(x0 + x1) / 2, y - tz * h, z + ty * h]                 # outward: the tangent turned back a quarter
+            for x in (x0 + 0.05, (x0 + x1) / 2, x1 - 0.05):
+                p[0] = x
+                if not any(inside(e, p) for e in els):
+                    gaps.append(round(s, 1))
+                    break
+        runs = [e for e in els if e.name.endswith(("_runa", "_runb"))]
+        if gaps or len(runs) != 2 or len(els) < 2 + 2 * 7:
+            v.fail(f"belt_edge{j} does not close round the loop: gaps at s {gaps[:6]} ({len(gaps)}), {len(els)} boxes")
+    print(f"edges: both raised edges close round the belt's loop ({m.BELT_LOOP:.2f}): every point at their mid-height, "
+          f"every 0.1 along it, in their boxes (runs and both wraps); plain, so drawn still with the belt")
 
 
 def thread_crossings(v, pose):
@@ -757,6 +792,7 @@ def validate(m, els, parts, rig, quick=False):
     check_yokes(v)
     check_drive(v)
     check_belt(v)
+    check_edges(v)
     check_mesh(v)
     check_supports(v)
     check_uprights(v)
