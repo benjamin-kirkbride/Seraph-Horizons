@@ -258,22 +258,23 @@ ANGLE_LEG = 2.5                              # each leg's width, outside
 # recipe placed as the machine, then the brickwork, the lining, and the fittings (the hearth plate with its spout, the
 # receiving pot and the fire door; the damper's places with them). The brickwork's and the lining's counts are
 # measured from the model's volume at the game's rates, as the crucible furnace's are; the frame's recipe and the
-# fittings' materials are proposals for the owner (README, "Open for the owner").
-FRAME_RECIPE = (("game:metalplate-iron", 1), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 8))
+# fittings' materials are the owner's ruling of 2026-10-15 (the iron measured in the model at one rate: README,
+# "The build"). The plate and the pot are cast iron, as the period's were (README, "Sources").
+FRAME_RECIPE = (("game:metalplate-iron", 3), ("game:rod-iron", 4), ("game:metalnailsandstrips-iron", 6))
 BRICKS_PER_BLOCK = 2
 LINING_PER_BLOCK = 4
 LINING_PER_FIRECLAY = 2.5
 FIRED_BRICK = "game:burnedbrick-*"
 LINING_BRICK = "game:refractorybrick-fired-tier3"
 FIRECLAY = "game:clay-fire"
-FITTINGS_STAGE = (("game:metalplate-iron", 4),)
+FITTINGS_STAGE = (("game:metalplate-iron", 2), ("game:metalnailsandstrips-iron", 1))
 CAP_ITEM = ("game:metalplate-iron", 1)
 STAGES = ("brickwork", "lining", "fittings")  # the stages after the frame, in order: their requires values
 STAGE_STATES = (                             # the viewer's Build select: (id, the stages fitted)
     ("frame", ()),
     ("brickwork", ("brickwork",)),
     ("lining", ("brickwork", "lining")),
-    ("complete", ("brickwork", "lining", "fittings")),
+    ("fittings", ("brickwork", "lining", "fittings")),
 )
 
 # The fired bricks the brickwork takes: the crucible furnace's list (CrucibleFurnace/tools/make_shape.py, BRICKS), every
@@ -1036,7 +1037,7 @@ def _rig_parts():
 # A pose is (theta, depth, scene): the clock, the fire door, and what is fitted. A scene is (the charge's state, the
 # fire's state, the damper's place, whether the outlet is capped, the build's state): gameplay's requires. The contents
 # and the damper are fitted only once the furnace is built (the fittings stage), the cap once the stack is lined (the lining).
-DEFAULT_SCENE = ("sweating", "lit", "open", False, "complete")
+DEFAULT_SCENE = ("sweating", "lit", "open", False, "fittings")
 REST = (0.0, 0.0, DEFAULT_SCENE)
 SHUT = 1.0
 
@@ -1197,7 +1198,7 @@ def build_json():
                     "recipes), rounded up, fire clay one per 2.5 refractory bricks. perClick stack: a click puts in as "
                     "many of the held stack as are still needed. oneType: the first fired brick put in sets the "
                     "furnace's brick type (bricks), and the rest must match. The frame's recipe and the fittings' "
-                    "materials are proposals (LiquationFurnace/README.md). outletCap: an item interaction, not a "
+                    "materials are the owner's ruling (LiquationFurnace/README.md). outletCap: an item interaction, not a "
                     "stage. The contents and the damper are drawn once the fittings are in, the cap once the lining is."}
 
 
@@ -1357,9 +1358,9 @@ def shape_json(els):
 
 
 def coplanar_poses():
-    scenes = [(ch, fi, "open", False, "complete") for ch, fi in
+    scenes = [(ch, fi, "open", False, "fittings") for ch, fi in
               (("sweating", "lit"), ("charged", "laid"), ("sweated", "low"), ("tapped", "cold"), ("empty", "lit"))]
-    scenes += [("empty", "cold", "half", True, "complete"), ("empty", "cold", "shut", True, "complete")]
+    scenes += [("empty", "cold", "half", True, "fittings"), ("empty", "cold", "shut", True, "fittings")]
     scenes += [("empty", "cold", "open", False, "frame"), ("empty", "cold", "open", False, "brickwork"),
                ("empty", "cold", "open", True, "lining")]
     return tuple((0.0, dp, sc) for sc in scenes for dp in (0.0, 0.5, 1.0))

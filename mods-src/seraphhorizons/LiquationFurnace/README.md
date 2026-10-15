@@ -128,18 +128,32 @@ the anchors.
 
 ## The build
 
-Four stages, after the crucible furnace's: an iron frame by grid recipe, then the brickwork, the lining and the
-fittings, each a `requires` value of its parts but the frame's (the rig's `build`, in order). **The brickwork's and
-the lining's counts are measured from the model; the frame's recipe and the fittings' materials are proposals** for
-the owner to settle ("Open for the owner").
+The owner's settled order (2026-10-15): the iron frame, placed, then three stages, each one `requires` group fitted
+in order (the rig's `build`): the brickwork, the lining, and the fittings. The furnace has no chutes or pipes, so no
+services stage; nothing in it wears out, so no part is a renewal. **The brickwork's and the lining's counts are
+measured from the model; the frame's and the fittings' iron is the owner's ruling**, the iron measured in the model
+paid at one rate (128 voxels of iron an ingot, a plate 2 ingots: rods first, then whole plates, then nails and strips).
 
 | | Stage | `requires` | What it puts in | Materials |
 |---|---|---|---|---|
-| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | What stands on its own: the angle-iron binding, one frame (the four corner angles and the ring of four top bands), the grate's bearers and firebars, the plate's two cross bearers, the fire hole's jambs and lintel, the ash mouth's lintel, the fire door's guides and the damper's rails, on 7 short posts hidden in the brickwork | proposed: 1 iron plate, 4 iron rods, 8 iron nails and strips |
+| Frame | **Iron frame**: a grid recipe with a hammer; placing it puts down the controller and its ghosts | none (the frame part) | What stands on its own: the angle-iron binding, one frame (the four corner angles and the ring of four top bands), the grate's bearers and firebars, the plate's two cross bearers, the fire hole's jambs and lintel, the ash mouth's lintel, the fire door's guides and the damper's rails, on 7 short posts hidden in the brickwork | **3 iron plates, 4 iron rods, 6 iron nails and strips** |
 | 1 | **Brickwork** | `brickwork` | The base, the outer walls, the niche, the ash pit and the ash mouth, the brick over the vault, the front's arch ring, the outlet's curb: 3.92 blocks | **8 fired bricks**, any one type (`game:burnedbrick-*`) |
 | 2 | **Lining** | `lining` | Tier-3 refractory 3 thick on the hot faces (the firebox, the chamber's side walls, the hanging wall, the throat, the stack) and the vault with its backing behind the arch ring: 1.62 blocks (the vault 0.42) | **7 tier-3 refractory bricks**, **3 fire clay** |
-| 3 | **Fittings** | `fittings` (the parts `plate`, `pot`, `door`; and the damper's place) | The hearth plate with its rims and spout, the receiving pot, the fire door, the damper | proposed: 4 iron plates |
+| 3 | **Fittings** | `fittings` (the parts `plate`, `pot`, `door`; and the damper's place) | The cast-iron hearth plate with its rims and spout, the cast-iron receiving pot, the fire door, the damper: one stage | **2 iron plates, 1 iron nails and strips** |
 | | *Outlet cap* | `outletcap` | Not a stage: put on (or taken off) by hand, any time after the lining | 1 iron plate |
+
+**The plate and the pot are cast iron**, as the period's were (the owner's ruling: "whatever is period accurate").
+Hofman's liquating reverberatory for zinc crusts has as its hearth "a cast-iron plate, 10 by 5 ft., slightly
+trough-shaped, and having a rim 4 in. high along the sides", whose spout "discharges the liquated lead outside of the
+furnace into a small liquated-lead kettle", the small spherical kettle of the liquating kettle before it; and "kettles
+are usually of cast iron" (H. O. Hofman, *Metallurgy of Lead*, 1918, pp. 537 and 542–543). Louis's Billiton liquating
+hearth for tin, the nearest to this model (three brick walls, an inclined plate, the vessel at the open side), "consists
+of three brick walls in which is set an inclined cast-iron plate … below which is set a refining kettle or float at the
+open side of the furnace", and the tin "runs down the sloping liquation-plate into the refining kettle, whence it is
+ladled into moulds"; the Cornish and Straits works' poling kettles are "hemispherical cast-iron" (H. Louis, *Metallurgy
+of Tin*, 1911, pp. 76 and 108). Brasque (tamped coke and clay) appears only under the plate, as its bed (Hofman) or as
+a whole brasqued hearth in the large reverberatories, never as the receiving vessel; the model's plate lies on iron
+bearers instead, with nothing between.
 
 **The counts are measured from the model**, as the crucible furnace's are: the brick is a lattice (every void's faces,
 the lining's zones' and the blocks' boundaries along each axis) merged into boxes, the brickwork's and the lining's
@@ -308,8 +322,8 @@ The crucible furnace's format with nothing added to the shared rig maths: two in
   `oneType`, the fittings' `parts` (the parts it fits) and `also` (the damper's places it fits one of)), `outletCap`.
 
 **In the viewer** (`site/models.json`, `liquation-furnace`): the "Fire door" slider is depth, and Play opens and shuts
-it (open 2 s, shut in 1 s, sweating 3 s, open in 1 s). Five selects of states: **Build** (the iron frame, 1: brickwork,
-2: lining and vault, 3: fittings, complete; each with its materials), **The charge** (empty, charged, sweating, sweated,
+it (open 2 s, shut in 1 s, sweating 3 s, open in 1 s). Five selects of states: **Build** (one state a stage, named for it: `frame`, `brickwork`, `lining`, `fittings`,
+the last the furnace complete; each with its materials), **The charge** (empty, charged, sweating, sweated,
 the tin taken), **The fire** (no fire, laid, lit, burnt low), **Ash-mouth damper** (open, half, shut) and **Outlet**
 (open or capped); the first four after the build wait for the fittings, the outlet for the lining (the stack lined). The page opens with
 the furnace built, the charge sweating, the fire lit, the door open, the damper open and the outlet open. A **Brick**
@@ -377,22 +391,18 @@ copy). No one has looked at it in a client.
    the fire at the plate's low end.
 2. **A sliding fire door and a sideways damper**, so everything moving stays inside the two blocks (a hinged door
    would swing out of the footprint; a damper sliding up would cross the fire hole). Period furnaces had both kinds.
-3. **The frame's recipe** (proposed: 1 iron plate, 4 iron rods, 8 iron nails and strips; the crucible furnace's is 2,
-   4 and 10) and **the fittings' materials** (proposed: 4 iron plates for the hearth plate, the pot, the door and the
-   damper). The brick counts are measured: 8 fired bricks, 7 tier-3 refractory bricks, 3 fire clay.
-4. **The build's stages** themselves (frame, brickwork, lining, fittings), to settle as the crucible furnace's were.
-5. **The charge's item** (#929's open question): the model draws **cakes of tin-lead** (the solder texture), as v2
+3. **The charge's item** (#929's open question): the model draws **cakes of tin-lead** (the solder texture), as v2
    did; if the furnace takes roasted teallite and franckeite concentrate as the clay pan does, the cakes become a heap
    of concentrate on the plate.
-6. **Thinner walls than the crucible furnace's**: its walls are at least 8 round the hole; here 8 at the sides, 5 at
+4. **Thinner walls than the crucible furnace's**: its walls are at least 8 round the hole; here 8 at the sides, 5 at
    the front (to the niche: 2 of brick and 3 of lining, which keeps the pot warm) and 6 at the back. `MIN_WALL` is 5. A
    gentle fire (the tin point is 232 °C) and the two-deep footprint.
-7. **The outlet in the east cell**, the only thing off-centre (a chimney stands on one cell), and so **a 4 by 4 flue**:
+5. **The outlet in the east cell**, the only thing off-centre (a chimney stands on one cell), and so **a 4 by 4 flue**:
    centred in that corner cell, the stack has 6 of wall to the east and back faces (3 of lining, 3 of fired brick, the
    back wall's), where the crucible furnace's 8 by 8 left 1 of brick and let the lining show in the fire door's
    recess. The alternatives are a 6 by 6 flue with 2 of brick (the least the skin allows, but then only 1 behind the
    fire door's recess, where the door's top runs past the stack's lining) or a thinner lining round the stack.
-8. **The fuel**: drawn as charcoal; the issue says only "fuel by hand". How much a layer holds is gameplay's.
-9. **Provisional pending #711**: nothing of #711's service anchors applies (batch, no chutes, no water, no power); the
+6. **The fuel**: drawn as charcoal; the issue says only "fuel by hand". How much a layer holds is gameplay's.
+7. **Provisional pending #711**: nothing of #711's service anchors applies (batch, no chutes, no water, no power); the
    furnace's anchors follow the crucible furnace's (`outletCell`/`outletFace`, `chimney`, `ash`/`ashSide`) plus the
    fire door, the plate, the pot, the spout and the opening.

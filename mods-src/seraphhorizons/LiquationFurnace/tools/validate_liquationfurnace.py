@@ -655,7 +655,7 @@ def check_vault(v):
 def check_build(v):
     """The stages' counts: the brickwork's and the lining's volumes, measured from their elements (each lattice box in
     exactly one brick box: their volumes add up to the lattice's; the vault's zone its box less the chamber's segment),
-    give the rig's quantities at the game's rates, rounded up; the fittings and the frame's recipe are the proposals;
+    give the rig's quantities at the game's rates, rounded up; the fittings and the frame's recipe are the ruled ones;
     every stage's requires is a part's."""
     m = v.m
     xs, ys, zs, mat = m.brick_lattice()
@@ -684,9 +684,9 @@ def check_build(v):
     if st["brickwork"]["materials"][0]["code"] != "game:burnedbrick-*" or not st["brickwork"].get("oneType"):
         v.fail("the brickwork does not take one type of any fired brick")
     if [(x["code"], x["quantity"]) for x in st["fittings"]["materials"]] != list(m.FITTINGS_STAGE):
-        v.fail("the fittings stage's materials are not the proposal")
+        v.fail("the fittings stage's materials are not the ruled ones")
     if [(x["code"], x["quantity"]) for x in build["frame"]["ingredients"]] != list(m.FRAME_RECIPE):
-        v.fail("the frame's recipe is not the proposal")
+        v.fail("the frame's recipe is not the ruled one")
     requires = {p["requires"] for p in v.parts}
     if not set(m.STAGES) <= requires or any(f"damper{d}" not in requires for d in m.DAMPERS):
         v.fail("a stage's requires is no part's")
@@ -1081,9 +1081,9 @@ def touches(items, movers=None):
 def scenes(m):
     """The furnace built: every state of the charge (the fire lit, the damper open, the outlet open), every state of
     the fire, every place of the damper with the outlet capped; and each stage of the build before it is."""
-    return ([(ch, "lit", "open", False, "complete") for ch in m.CHARGE_IDS]
-            + [("charged", fi, "open", False, "complete") for fi in m.FIRE_IDS if fi != "lit"]
-            + [("empty", "cold", d, True, "complete") for d in m.DAMPERS]
+    return ([(ch, "lit", "open", False, "fittings") for ch in m.CHARGE_IDS]
+            + [("charged", fi, "open", False, "fittings") for fi in m.FIRE_IDS if fi != "lit"]
+            + [("empty", "cold", d, True, "fittings") for d in m.DAMPERS]
             + [("empty", "cold", "open", False, "frame"), ("empty", "cold", "open", False, "brickwork"),
                ("empty", "cold", "open", True, "lining")])
 

@@ -400,7 +400,7 @@ class Scenario(unittest.TestCase):
         # the build, stage by stage, the furnace built by default; the contents and the damper wait for it, the cap
         # for the lining (its curb)
         build = groups["build"]
-        self.assertEqual((build["values"], build["default"]), (list(STAGES), "complete"))
+        self.assertEqual((build["values"], build["default"]), (list(STAGES), "fittings"))
         self.assertEqual([(o["id"], tuple(o["fitted"])) for o in build["options"]], list(make_shape.STAGE_STATES))
         for gid in ("charge", "fire", "damper"):
             self.assertEqual(groups[gid]["needs"], list(STAGES), gid)
