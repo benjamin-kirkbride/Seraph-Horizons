@@ -248,7 +248,7 @@ open: the feed box stands for it.
     to is cast on the drum's journal and drawn with the drum (`requires` drum), so the drum's stage shows a bare
     flange until the wheel goes on.
 
-Where the v2 branch (`733-grinder-model-v2`, its level 2) disagrees with the issues, the issues were followed:
+Where the v2 branch (`733-grinder-model-v2`) disagrees with the issues, the issues were followed:
 its drum (0.95 × 0.6 blocks) is now about 1.5 × 1.7; its overhead power shaft is gone (the axle drives the
 pinion's shaft); its discharge lip into the arrastra's pit became the screens, the discharge hopper and the
 output chute; its chute-head infeed from above became a chute into the feed box's side.

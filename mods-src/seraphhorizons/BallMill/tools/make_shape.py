@@ -3,8 +3,8 @@
 
 The ball mill is the ore line's continuous grinder (#915, model #916): a Krupp (Gruson) ball mill of the
 1890s, a short drum on hollow trunnions turning on its side, half full of iron balls that tumble over the
-ore and grind it, and round the drum the screens that let out only what is ground fine enough. One machine,
-one level. Its parts, west (the feed end) to east (the drive end), along the drum's axis:
+ore and grind it, and round the drum the screens that let out only what is ground fine enough. Its parts,
+west (the feed end) to east (the drive end), along the drum's axis:
 
     feed box  a sheet-iron box on four legs at the feed trunnion's mouth: the infeed chute through its west
               wall, the ppex water pipe's elbow through its south wall, a V floor down to a level strip, and

@@ -61,7 +61,7 @@ class Rig(unittest.TestCase):
                 self.assertNotIn("input", d)
             self.assertEqual(p["requires"], None if p["id"] == "frame" else p["id"])
         self.assertIsNone(rigmath.progress_of(RIG))
-        for key in ("work", "trunkPath", "levels"):
+        for key in ("work", "trunkPath"):
             self.assertNotIn(key, RIG)
 
     def test_every_element_has_a_part_and_the_frame_shape_is_the_frame(self):
