@@ -15,8 +15,9 @@ one level. Its parts, west (the feed end) to east (the drive end), along the dru
               grinding plates, and the solid east journal; it turns about its axis at a third of the axle
     screens   round the drum and turning with it: a coarse screen of perforated plate, over it a fine
               screen of wire cloth on twelve longitudinal bars and a middle hoop
-    girth     a spoked spur wheel of 30 teeth keyed on the east journal, outside the hopper
-    pinion    10 teeth on its shaft in the pillow blocks, low at the front; the shaft's end is the vanilla
+    girth     a wooden mortise wheel of 24 oak cogs: two staggered courses of oak felloes, bolted to the
+              drum's cast flange on the east journal, outside the hopper
+    pinion    8 stainless teeth on its shaft in the pillow blocks, low at the front; the shaft's end is the vanilla
               axle's cross at the power face: the axle drives the pinion's shaft directly
     hopper    the discharge hopper under the screens: sheet-iron end plates, V sides, a floor falling to a
               channel in the middle, and the output chute out of the channel through the south side
@@ -46,7 +47,7 @@ front of the east end; the ore comes in high at the west end, the water beside i
 low at the back.
 
 The rig reads theta alone: the axle's angle. The pinion turns with it, the drum (and the screens and the
-girth wheel on it) at -10/30 of it; nothing else moves.
+girth wheel on it) at -8/24 of it; nothing else moves.
 """
 
 from __future__ import annotations
@@ -94,9 +95,14 @@ OUTPUT_CELL, OUTPUT_FACE = (1, 0, 1), "south"  # the output chute from the hoppe
 
 TEXTURES = {
     "stonebrick": "game:block/stone/brick/granite1",     # the masonry bed: cut granite
-    "iron": "game:block/metal/plate/iron",               # cast iron: pedestals, bearings, heads, the girth wheel
+    "iron": "game:block/metal/plate/iron",               # cast iron: pedestals, bearings, heads, the drum's flange; bolts
     "sheet": "game:block/metal/sheet/iron1",             # sheet iron: the feed box, the hopper
-    "steel": "game:block/metal/sheet-plain/steel1",      # the pinion and its shaft
+    "steel": "game:block/metal/sheet-plain/steel1",      # the pinion's shaft and collars
+    "stainless": "game:block/metal/plate/stainlesssteel",  # the pinion (the owner's rule: a metal gear is stainless)
+    # the girth wheel is wooden (the owner's ruling): oak felloes and cogs, side grain and end grain as the
+    # gantry's timbers (EidolonGantry/tools/make_shape.py)
+    "oak": "game:block/wood/debarked/oak",
+    "oak-end": "game:block/wood/treetrunk/debarked/oak",
     "riveted": "game:block/metal/riveted/iron1",         # the drum's riveted grinding plates
     "perforated": "game:block/metal/mesh1",              # the coarse screen: perforated plate (the game's mesh, holes in it)
     "wirecloth": "game:block/metal/mesh4",               # the fine screen: wire cloth
@@ -134,18 +140,25 @@ HOOP = {"r": (10.8, 11.6), "w": 1.0}         # and its middle hoop, a hair proud
 
 # ---------------------------------------------------------------- the girth wheel and the pinion
 PINION_C = (8.0, 8.0)                        # (y, z): the pinion shaft's axis, the power face's centre
-PINION_T, GIRTH_T = 10, 30                   # the drum turns a third of the axle
+PINION_T, GIRTH_T = 8, 24                    # the drum turns a third of the axle; wooden cogs want a coarse pitch
 CENTRES = math.hypot(DRUM_Y - PINION_C[0], DRUM_Z - PINION_C[1])
-MODULE = 2 * CENTRES / (PINION_T + GIRTH_T)  # 0.721: the teeth fit the centre distance the cells set
+MODULE = 2 * CENTRES / (PINION_T + GIRTH_T)  # 0.901: the teeth fit the centre distance the cells set
 PINION_R = PINION_T * MODULE / 2             # 3.61
 GIRTH_R = GIRTH_T * MODULE / 2               # 10.82
-GIRTH_X = (40.6, 43.0)                       # the wheel's face, east of the hopper's end plate
-PINION_X = (40.7, 42.9)                      # the pinion's, a hair narrower so no faces share a plane
-GIRTH_HUB = (4.6, 6.2, 40.6, 43.1)           # its hub on the journal: radii, x
-GIRTH_RIM = 8.9                              # its rim's inside: the rim runs out to the teeth's root
-GIRTH_SPOKES = (6, 1.4)                      # arms, their width
+PITCH = math.pi * MODULE                     # 2.83 along the pitch circle
+COG_W = 0.55 * PITCH                         # a wooden cog is thicker than the metal tooth it meets, as in a mortise
+PINION_W = 0.34 * PITCH                      # wheel run with a metal pinion (wood is the weaker)
+GIRTH_X = (40.6, 43.0)                       # the wheel: the drum's flange, then the felloes, east of the hopper's end plate
+FLANGE = (4.8, 8.2, 40.6, 41.2)              # the drum's cast flange on the journal: radii, x
+FLANGE_HUB = (6.2, 43.1)                     # its hub along the journal: outer radius, east end
+FELLOE_R = 7.0                               # the felloes' inside; they run out to the cogs' root
+FELLOE_X = (FLANGE[3], 42.1, GIRTH_X[1])     # two courses of six felloes, the east course turned half a felloe
+FELLOES = 6
+COG_TAIL = 0.5                               # a cog's tail shows inside the felloes (mortised through, wedged)
+BOLT_R, BOLT_HEAD = 7.6, (1.0, 0.15)         # the bolts through felloes and flange: radius, head across and proud
+PINION_X = (41.3, 42.9)                      # the pinion meets the felloes' width
 SHAFT_R = 1.0                                # the pinion's shaft (an octagon's apothem)
-SHAFT_X = (40.6, 47.6)
+SHAFT_X = (41.2, 47.6)
 PILLOWS_X = ((43.4, 44.6), (45.2, 46.4))     # its two pillow blocks, on the bed
 PILLOW_HALF = 2.2                            # a pillow block's bearing: this far each way from the shaft's axis
 PILLOW_BASE_Z = (5.2, 10.8)
@@ -362,11 +375,12 @@ def ring(axis, c, a0, a1, r_in, r_out, n, name, part, tex, phase=0.0, step=0.008
     return out
 
 
-def spur(axis, c, a0, a1, R, n, m, phase, name, part, tex, body_r=None, body_k=4):
-    """A spur gear: a body to the root (or `body_r`) and n box teeth of module m, tooth 1 at angle `phase`."""
+def spur(axis, c, a0, a1, R, n, m, phase, name, part, tex, body_r=None, body_k=4, width=None):
+    """A spur gear: a body to the root (or `body_r`) and n box teeth of module m (`width` thick, by default
+    0.45 of the pitch), tooth 1 at angle `phase`."""
     root, tip = R - 1.25 * m, R + m
     out = disc(axis, c, a0, a1, root if body_r is None else body_r, f"{name}_body", part, tex, k=body_k, phase=phase)
-    width = math.pi * m / 2 * 0.9
+    width = math.pi * m / 2 * 0.9 if width is None else width
     out += [radial(axis, c, a0 + 0.03, a1 - 0.03, root - 0.25, tip, width, phase + TAU * i / n, f"{name}_tooth{i + 1}", part, tex)
             for i in range(n)]
     return out
@@ -412,14 +426,18 @@ def build_frame():
 
 # ---------------------------------------------------------------- the drum, its screens, the girth wheel
 def build_drum():
-    """The drum (turning): the hollow west trunnion, the two heads, the riveted grinding plates between them and
-    the solid east journal."""
+    """The drum (turning): the hollow west trunnion, the two heads, the riveted grinding plates between them, the
+    solid east journal and the cast flange on it that carries the girth wheel."""
     d = "drum"
     out = ring("x", DRUM_C, *W_TRUNNION_X, *TRUNNION_R, TRUNNION_N, f"{d}_wtrunnion", d, "iron", phase=TAU / (2 * TRUNNION_N))
     out += ring("x", DRUM_C, *W_HEAD_X, TRUNNION_R[0], HEAD_R, HEAD_N, f"{d}_whead", d, "iron")
     out += ring("x", DRUM_C, *E_HEAD_X, TRUNNION_R[0], HEAD_R, HEAD_N, f"{d}_ehead", d, "iron")
     out += ring("x", DRUM_C, SCREEN_X[0] - 0.05, SCREEN_X[1] + 0.05, *PLATES_R, PLATES_N, f"{d}_plate", d, "riveted")
     out += disc("x", DRUM_C, *E_JOURNAL_X, TRUNNION_R[1], f"{d}_ejournal", d, "iron", k=6, phase=TAU / (2 * TRUNNION_N))
+    # the cast flange on the journal that the wooden girth wheel's felloes are bolted to, and its hub along the journal
+    r0, r1, x0, x1 = FLANGE
+    out += ring("x", DRUM_C, x0, x1, r0 - 0.2, r1, HEAD_N, f"{d}_flange", d, "iron", phase=girth_phase())
+    out += ring("x", DRUM_C, x1, FLANGE_HUB[1], r0 - 0.2, FLANGE_HUB[0], 12, f"{d}_flangehub", d, "iron", phase=girth_phase())
     return out
 
 
@@ -447,29 +465,53 @@ def pinion_phase():
     return angle_of("x", [0.0, DRUM_Y - PINION_C[0], DRUM_Z - PINION_C[1]])
 
 
+def grain(el, across=False, ends=()):
+    """Oak's grain along the part: `across` turns the side grain a quarter on the x faces (a felloe's grain runs
+    round the wheel); the faces in `ends` show end grain (a cog's tip and tail)."""
+    for d, f in el.faces.items():
+        if d in ends:
+            f["texture"] = "#oak-end"
+        elif across and d in ("east", "west"):
+            f["rotation"] = 90
+    return el
+
+
 def build_girth():
-    """The girth wheel (turning with the drum, keyed on its journal): a hub, six arms, a rim and 30 teeth."""
+    """The girth wheel (turning with the drum), wooden: two courses of six oak felloes, the second turned half a
+    felloe so the joints break, on the drum's cast flange and bolted through it, and 24 oak cogs mortised through
+    the felloes, their tails showing inside."""
     g = "girth"
     m, n = MODULE, GIRTH_T
-    gx0, gx1 = GIRTH_X
     root = GIRTH_R - 1.25 * m
     ph = girth_phase()
-    r0, r1, hx0, hx1 = GIRTH_HUB
-    out = ring("x", DRUM_C, hx0, hx1, r0, r1, 12, f"{g}_hub", g, "iron", phase=ph)
-    arms, w = GIRTH_SPOKES
-    out += [radial("x", DRUM_C, gx0 + 0.45, gx1 - 0.45, r1 - 0.3, GIRTH_RIM + 0.3, w, ph + math.pi / n + TAU * i / arms,
-                   f"{g}_arm{i + 1}", g, "iron") for i in range(arms)]
-    out += ring("x", DRUM_C, gx0, gx1, GIRTH_RIM, root - 0.1, 24, f"{g}_rim", g, "iron", phase=ph)
-    width = math.pi * m / 2 * 0.9
-    out += [radial("x", DRUM_C, gx0 + 0.03, gx1 - 0.03, root - 0.3, GIRTH_R + m, width, ph + TAU * i / n,
-                   f"{g}_tooth{i + 1}", g, "iron") for i in range(n)]
+    out = []
+    seg = HEAD_N // FELLOES                  # a felloe: four boxes of a 24-gon
+    w = 2 * (root - 0.1) * math.tan(math.pi / HEAD_N)
+    for k in range(2):
+        x0, x1 = FELLOE_X[k], FELLOE_X[k + 1]
+        start = ph + math.pi / n + k * math.pi / FELLOES
+        for j in range(FELLOES):
+            for i in range(seg):
+                st = 0.008 * (i % 4)
+                el = radial("x", DRUM_C, x0 + st, x1 - st, FELLOE_R, root - 0.1, w,
+                            start + TAU * (j * seg + i + 0.5) / HEAD_N, f"{g}_felloe{k + 1}_{j + 1}_{i + 1}", g, "oak")
+                for f in el.faces.values():    # each felloe its own piece of the board: the joints read
+                    f["uv"][0] += (7 * j + 11 * k) % 24
+                    f["uv"][2] += (7 * j + 11 * k) % 24
+                out.append(grain(el, across=True))
+    out += [grain(radial("x", DRUM_C, FELLOE_X[0] + 0.03, GIRTH_X[1] - 0.03, FELLOE_R - COG_TAIL, GIRTH_R + m, COG_W,
+                         ph + TAU * i / n, f"{g}_cog{i + 1}", g, "oak"), ends=("up", "down")) for i in range(n)]
+    hw, hp = BOLT_HEAD
+    for i in range(2 * FELLOES):
+        out.append(radial("x", DRUM_C, GIRTH_X[1], GIRTH_X[1] + hp, BOLT_R - hw / 2, BOLT_R + hw / 2, hw,
+                          ph + math.pi / n + math.pi / (2 * FELLOES) + TAU * i / (2 * FELLOES), f"{g}_bolt{i + 1}", g, "iron"))
     return out
 
 
 # ---------------------------------------------------------------- the pinion and its shaft
 def build_pinion():
-    """The pinion and its shaft (turning with the axle): the vanilla axle's cross from the power face, the iron
-    shaft through the two pillow blocks with a collar outside each, and the 10-tooth pinion on its end."""
+    """The pinion and its shaft (turning with the axle): the vanilla axle's cross from the power face, the steel
+    shaft through the two pillow blocks with a collar outside each, and the 8-tooth stainless pinion on its end."""
     p = "pinion"
     py, pz = PINION_C
     c = (0.0, py, pz)
@@ -479,8 +521,8 @@ def build_pinion():
     out += disc("x", c, SHAFT_X[0], SHAFT_X[1], SHAFT_R, f"{p}_rod", p, "steel")
     for i, (x0, x1) in enumerate(COLLARS_X, 1):
         out += disc("x", c, x0, x1, COLLAR_R, f"{p}_collar{i}", p, "steel")
-    out += spur("x", c, *PINION_X, PINION_R, PINION_T, MODULE, pinion_phase(), f"{p}_gear", p, "steel",
-                body_r=PINION_R - 1.25 * MODULE - 0.15, body_k=6)
+    out += spur("x", c, *PINION_X, PINION_R, PINION_T, MODULE, pinion_phase(), f"{p}_gear", p, "stainless",
+                body_r=PINION_R - 1.25 * MODULE - 0.15, body_k=6, width=PINION_W)
     return out
 
 

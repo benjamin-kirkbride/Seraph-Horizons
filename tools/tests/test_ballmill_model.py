@@ -77,6 +77,22 @@ class Rig(unittest.TestCase):
         self.assertFalse([e["name"] for e in SHAPE["elements"] if e["name"].startswith("ball")])
         self.assertNotIn("balls", {p["requires"] for p in RIG["parts"]})
 
+    def test_the_girth_wheel_is_wooden_and_the_pinion_stainless(self):
+        # the owner's rulings: an oak mortise wheel (felloes, cogs) with iron bolts only; a metal gear is stainless
+        tex = {e["name"]: {f["texture"].lstrip("#") for f in e["faces"].values()} for e in SHAPE["elements"]}
+        girth = {n: t for n, t in tex.items() if n.startswith("girth_")}
+        self.assertEqual(sum(n.startswith("girth_cog") for n in girth), make_shape.GIRTH_T)
+        self.assertTrue(any(n.startswith("girth_felloe2_") for n in girth))
+        for n, t in girth.items():
+            self.assertLessEqual(t, {"iron"} if n.startswith("girth_bolt") else {"oak", "oak-end"}, n)
+        gear = set().union(*(t for n, t in tex.items() if n.startswith("pinion_gear_")))
+        self.assertEqual(gear, {"stainless"})
+        self.assertEqual({k: SHAPE["textures"][k] for k in ("oak", "oak-end", "stainless")},
+                         {"oak": "game:block/wood/debarked/oak", "oak-end": "game:block/wood/treetrunk/debarked/oak",
+                          "stainless": "game:block/metal/plate/stainlesssteel"})
+        self.assertGreater(make_shape.COG_W, make_shape.PINION_W)
+        self.assertLess(make_shape.GIRTH_R + make_shape.MODULE, make_shape.HEAD_R)
+
     def test_textures_are_declared(self):
         for shape in (SHAPE, FRAME):
             used = {f["texture"].lstrip("#") for e in shape["elements"] for f in e["faces"].values()}
@@ -126,7 +142,8 @@ class Motion(unittest.TestCase):
         self.assertEqual(piv["drum"][1:], [make_shape.DRUM_Y / 16, make_shape.DRUM_Z / 16])
 
     def test_the_teeth_set_the_ratio(self):
-        self.assertEqual((make_shape.PINION_T, make_shape.GIRTH_T), (10, 30))
+        # wooden cogs want a coarse pitch: 8:24 (the drum a third of the axle, as before)
+        self.assertEqual((make_shape.PINION_T, make_shape.GIRTH_T), (8, 24))
         self.assertAlmostEqual(make_shape.PINION_R + make_shape.GIRTH_R, make_shape.CENTRES, places=9)
 
     def test_the_machine_repeats_every_three_turns(self):

@@ -212,10 +212,12 @@ ROLES = [
     (r"^fr_bed", {"stonebrick"}),
     (r"^fr_", {"iron"}),
     (r"^pinion_axle", {"axle"}),
+    (r"^pinion_gear_", {"stainless"}),
     (r"^pinion_", {"steel"}),
     (r"^drum_plate", {"riveted"}),
     (r"^drum_", {"iron"}),
-    (r"^girth_", {"iron"}),
+    (r"^girth_bolt", {"iron"}),
+    (r"^girth_", {"oak", "oak-end"}),
     (r"^screens_coarse", {"perforated"}),
     (r"^screens_fine", {"wirecloth"}),
     (r"^screens_(bar|hoop)", {"iron"}),
@@ -236,7 +238,8 @@ def check_textures(v):
         if rule is None or not tex <= rule:
             bad.append((el.name, sorted(tex), sorted(rule or [])))
     print(f"textures by role: {len(v.els) - len(bad)} of {len(v.els)} elements as their role says (a granite bed, cast "
-          f"iron for the castings, sheet iron for the feed box and hopper, steel for the pinion and its shaft, "
+          f"iron for the castings, sheet iron for the feed box and hopper, a stainless pinion on a steel shaft, an oak girth "
+          f"wheel with iron bolts, "
           f"riveted grinding plates, perforated plate and wire cloth for the screens, the game's chute, the axle's wood, "
           f"the pipe's metal and solder)")
     if bad:
@@ -489,7 +492,7 @@ def check_gearing(v):
     right sign), the ratio is the tooth counts', and over a whole turn of the pinion, every 2.5 degrees, no tooth
     runs into the other wheel by more than about 0.25 voxels while some tooth is always within 0.6 of it."""
     m = v.m
-    label, (pa, ra), (pb, rb), pp, na, nb = ("the girth wheel", ("pinion", r"_gear_"), ("girth", r"_(tooth|rim)"),
+    label, (pa, ra), (pb, rb), pp, na, nb = ("the girth wheel", ("pinion", r"_gear_"), ("girth", r"_(cog|felloe)"),
                                              m.pitch_point(), m.PINION_T, m.GIRTH_T)
     va, vb = velocity(v, pa, pp), velocity(v, pb, pp)
     diff = max(abs(va[i] - vb[i]) for i in range(3))
@@ -508,6 +511,39 @@ def check_gearing(v):
         v.fail(f"{label}: the ratio is not the tooth counts'")
     if clash is not None or not engaged:
         v.fail(f"{label}: the teeth do not run together")
+
+
+def check_wooden_girth(v):
+    """The girth wheel is wooden (the owner's ruling): oak felloes in two courses whose joints break (the second
+    turned half a felloe), on the drum's cast flange (the felloes' face against it, overlapping it in radius) and
+    bolted through it (each bolt head on the felloes' face, inside the flange's radius); oak cogs mortised through
+    the felloes (their tails inside the felloes' bore, their tips at the addendum) and thicker than the metal
+    pinion's teeth (wood needs the coarser share of the pitch); the wheel's tips inside the heads' radius; only
+    the bolts iron. The pinion is stainless (a metal gear)."""
+    m = v.m
+    els = v.named("girth", r".")
+    oak = [e for e in els if not e.name.startswith("girth_bolt")]
+    woody = all({f["texture"].lstrip("#") for f in e.faces.values()} <= {"oak", "oak-end"} for e in oak)
+    bolts = v.named("girth", r"_bolt")
+    iron = all({f["texture"].lstrip("#") for f in e.faces.values()} == {"iron"} for e in bolts)
+    courses = [aabb_of(v.named("girth", rf"_felloe{k}_")) for k in (1, 2)]
+    flange = aabb_of(v.named("drum", r"_flange\d"))
+    on_flange = abs(courses[0][0][0] - flange[1][0]) < 0.05 and m.FELLOE_R < m.FLANGE[1]
+    joints = [[(m.girth_phase() + math.pi / m.GIRTH_T + k * math.pi / m.FELLOES + j * 2 * math.pi / m.FELLOES) % (2 * math.pi)
+               for j in range(m.FELLOES)] for k in (0, 1)]
+    broken = min(abs((a - b + math.pi) % (2 * math.pi) - math.pi) for a in joints[0] for b in joints[1]) > 0.2
+    bolted = (len(bolts) == 2 * m.FELLOES and all(abs(aabb_of([b])[0][0] - courses[1][1][0]) < 0.05 for b in bolts)
+              and m.FELLOE_R < m.BOLT_R - m.BOLT_HEAD[0] / 2 and m.BOLT_R + m.BOLT_HEAD[0] / 2 < m.FLANGE[1])
+    cogs = v.named("girth", r"_cog")
+    mortised = len(cogs) == m.GIRTH_T and m.COG_TAIL > 0 and m.COG_W > m.PINION_W
+    tip = m.GIRTH_R + m.MODULE
+    pin = {f["texture"].lstrip("#") for e in v.named("pinion", r"_gear_") for f in e.faces.values()}
+    print(f"wooden girth wheel: oak {woody}, iron bolts only {iron}; felloes on the drum's flange {on_flange}, two courses "
+          f"with broken joints {broken}, {len(bolts)} bolts through the flange {bolted}; {len(cogs)} cogs mortised through, "
+          f"{m.COG_W:.2f} thick against the pinion's {m.PINION_W:.2f} {mortised}; tips at r {tip:.2f} inside the heads' "
+          f"{m.HEAD_R} {tip < m.HEAD_R}; the pinion {sorted(pin)}")
+    if not (woody and iron and on_flange and broken and bolted and mortised and tip < m.HEAD_R and pin == {"stainless"}):
+        v.fail("the girth wheel is not a wooden mortise wheel bolted to the drum's flange, or the pinion is not stainless")
 
 
 # ---------------------------------------------------------------- supports
@@ -536,11 +572,11 @@ def check_supports(v):
                and abs(aabb_of(v.named("pinion", r"_collar2"))[0][0] - pil[1][1][0]) < 1e-6)
     gear = aabb_of(v.named("pinion", r"_gear_body"))
     rod = aabb_of(v.named("pinion", r"_rod"))
-    hub = aabb_of(v.named("girth", r"_hub"))
+    hub = aabb_of(v.named("drum", r"_flangehub"))
     journal = aabb_of(v.named("drum", r"_ejournal"))
     keyed = rod[0][0] <= gear[0][0] and hub[0][0] >= journal[0][0] and hub[1][0] <= journal[1][0]
     print(f"supports: collars against the pillow blocks' outer faces {located} (at {collars}); the pinion on its shaft's end "
-          f"and the girth wheel's hub on the journal {keyed}")
+          f"and the girth wheel's flange hub on the journal {keyed}")
     if not (located and keyed):
         v.fail("the pinion's shaft is not located, or a wheel is not on its shaft")
 
@@ -552,7 +588,7 @@ ALLOWED = [
     # the pinion's shaft in its pillow blocks
     ("pinion", r"_rod", "frame", r"^fr_pillow\d_bearing"),
     # meshing teeth (check_gearing holds them)
-    ("pinion", r"_gear_", "girth", r"_(tooth|rim)"),
+    ("pinion", r"_gear_", "girth", r"_(cog|felloe)"),
 ]
 
 
@@ -628,10 +664,12 @@ def check_gaps(v):
     for label, (pa, ra), (pb, rb) in (("screens over the hopper", ("screens", r"."), ("hopper", r".")),
                                       ("heads by the hopper", ("drum", r"_[we]head"), ("hopper", r".")),
                                       ("girth wheel by the hopper", ("girth", r"."), ("hopper", r".")),
+                                      ("girth flange by the hopper", ("drum", r"_flange"), ("hopper", r".")),
                                       ("pinion by the hopper", ("pinion", r"."), ("hopper", r".")),
                                       ("trunnion by the feed box", ("drum", r"_wtrunnion"), ("feedbox", r"_(e\d|n|s\d|lid|leg)")),
                                       ("spout in the bore", ("drum", r"_wtrunnion|_whead"), ("feedbox", r"_spout_")),
                                       ("girth wheel by the east bearing", ("girth", r"."), ("frame", r"^fr_bearing2")),
+                                      ("girth flange by the east bearing", ("drum", r"_flange"), ("frame", r"^fr_bearing2")),
                                       ("pinion by the east pedestal", ("pinion", r"."), ("frame", r"^fr_(bearing2|pedestal2|sole2)"))):
         near = None
         for pose in cycle(m, 24):
@@ -675,6 +713,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v, cycle(m, 48))
     check_cells(v)
     check_gearing(v)
+    check_wooden_girth(v)
     check_gaps(v)
     check_clearances(v, cycle(m, 72), "clearances")
     if not quick:
