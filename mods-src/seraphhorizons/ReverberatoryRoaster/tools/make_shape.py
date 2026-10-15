@@ -89,7 +89,8 @@ POWER_CELL, POWER_FACE = (1, 2, 0), "north"  # the vanilla axle comes in along z
 INFEED_CELL, INFEED_FACE = (1, 2, 4), "up"   # the hopper's mouth: charged by hand (level 1) or by a chute (level 2)
 OUTPUT_CELL, OUTPUT_FACE = (2, 0, 2), "east" # the discharge tunnel's mouth: the discharge door (level 1), the output chute (2)
 FUEL_CELL, FUEL_FACE = (0, 1, 0), "up"       # the coal bunker's chute (level 2), in the fire end's west corner
-WATER_CELL, WATER_FACE = (1, 2, 2), "up"     # the water: a ppex pipe from above onto the manifold (level 2)
+WATER_CELL, WATER_FACE = (1, 2, 1), "east"   # the water: a ppex pipe from the side into the manifold (level 2), on the roof
+#                                              beside the drive's row, between pedestal 1 and the first wheel
 OUTLET_CELL = (0, 1, 4)                      # the outlet: the flue end's west corner, beside the drive's row, not under it
 CHIMNEY_CELL = (0, 2, 4)                     # the chimney's first block, on the outlet: never the furnace's
 ROW_MAX = 2                                  # two stand back to back, the second turned half round, sharing the west wall
@@ -298,15 +299,17 @@ ROLL_Z = (69.0, 73.0)
 ROLL_R, ROLL_FLUTES, ROLL_FLUTE_R = 2.0, 6, 2.6
 
 # ---------------------------------------------------------------- level 2: the water
-MANIFOLD = (24.0, 45.0, 40.0)                # the soldered pipe's cube under the water cell's top (x, y, z): ppex's pipe
-CONNECTOR_Z = 46.5                           # a full-size length of it south from the manifold, plugged at its end round the
+MANIFOLD = (29.0, 40.0, 24.0)                # the soldered pipe's cube against the water cell's east face (x, y, z): ppex's pipe,
+#                                              at the face's 5..11 as ppex lays a pipe, between pedestal 1 and the first wheel
+CONNECTOR_Z = 30.5                           # a full-size length of it south from the manifold, plugged at its end round the
 #                                              small pipe's bore (the reducer, as the vanner's: Vanner/tools/make_shape.py)
 SMALL_HALF, SMALL_WALL = 1.2, 0.4            # the small pipe: a soldered tube 2.4 across round a 1.6 bore (the vanner's)
 REDUCER_L = 0.6                              # the reducer's ring of solder round the small pipe where it leaves the plug
 SMALL_BEND = SMALL_HALF + solderedpipe.JOINT_SWELL   # each bend and the tee: a soldered cube round the turn
-SMALL_Z = 49.5                               # the small pipe turns east here, between the wheels (z), over pedestal 2
-SMALL_X = 30.4                               # its drop down the drive row's east side, clear of both wheels
-SMALL_Y = (MANIFOLD[1], 33.4)                # its high run (the manifold's height), and its low run under the wheels
+SMALL_X = 30.0                               # the small pipe's line (x): off the connector's middle in the plug (as the
+#                                              vanner's), so its drop clears the first wheel and the pinion
+SMALL_Z = 33.0                               # it turns down here, just short of the first wheel
+SMALL_Y = (MANIFOLD[1], 33.4)                # its run from the plug (the manifold's height), and its low run under the wheels
 PIPE_METALS = ("copper", "lead")
 
 # ---------------------------------------------------------------- the build
@@ -1268,42 +1271,44 @@ def small_tube(name, axis, a, b, centre):
 
 def pipe_boxes():
     """The water as UnifiedPipes' soldered pipe (solderedpipe's boxes, build-frame voxels), the vanner's way down to a
-    small pipe: the manifold, a cube of ppex's pipe under the water cell's top, open up to the player's pipe and south,
-    plugged below; a full-size length of it south (the connector), its end plugged round the small pipe's bore (four
-    plates inside its walls) with a ring of solder round the small pipe where it leaves (the reducer); and the small pipe,
-    2.4 across, on south over pedestal 2, east, down the drive row's east side clear of both wheels to a tee, along under
-    the wheels both ways and in to each swivel's port, a soldered cube at each bend and the tee, a ring at each port."""
+    small pipe: the manifold, a cube of ppex's pipe against the water cell's east face, open east to the player's pipe
+    and south, plugged west; a full-size length of it south (the connector), its end plugged round the small pipe's bore
+    (four plates inside its walls) with a ring of solder round the small pipe where it leaves (the reducer); and the
+    small pipe, 2.4 across, on south a little, down short of the first wheel, along under the wheels to a tee at the first
+    swivel and a bend at the second, and in to each swivel's port, a soldered cube at each bend and the tee, a ring at
+    each port."""
     h = solderedpipe.HALF
     x, y, z = MANIFOLD
-    out = solderedpipe.hub("manifold", MANIFOLD, ("up", "south"))
+    out = solderedpipe.hub("manifold", MANIFOLD, ("east", "south"))
     ze = CONNECTOR_Z
     out += solderedpipe.tube("connector", 2, z + h, ze, (x, y))
     i = h - solderedpipe.WALL
     si = SMALL_HALF - SMALL_WALL
+    hy, ly = SMALL_Y
+    sx = SMALL_X
     p0, p1 = ze - solderedpipe.WALL, ze
     Bx = solderedpipe.Box
-    out += [Bx("plug_down", [x - i, y - i, p0], [x + i, y - si, p1], solderedpipe.BODY),
-            Bx("plug_up", [x - i, y + si, p0], [x + i, y + i, p1], solderedpipe.BODY),
-            Bx("plug_west", [x - i, y - si, p0], [x - si, y + si, p1], solderedpipe.BODY),
-            Bx("plug_east", [x + si, y - si, p0], [x + i, y + si, p1], solderedpipe.BODY)]
+    out += [Bx("plug_down", [x - i, y - i, p0], [x + i, hy - si, p1], solderedpipe.BODY),
+            Bx("plug_up", [x - i, hy + si, p0], [x + i, y + i, p1], solderedpipe.BODY),
+            Bx("plug_west", [x - i, hy - si, p0], [sx - si, hy + si, p1], solderedpipe.BODY),
+            Bx("plug_east", [sx + si, hy - si, p0], [x + i, hy + si, p1], solderedpipe.BODY)]
     j, sb = solderedpipe.JOINT_SWELL, SMALL_BEND
-    out += solderedpipe._walls("reducer", 2, ze, ze + REDUCER_L, (x, y), SMALL_HALF + j, SMALL_HALF, solderedpipe.SOLDER)
-    hy, ly = SMALL_Y
-    zb, xd = SMALL_Z, SMALL_X
+    out += solderedpipe._walls("reducer", 2, ze, ze + REDUCER_L, (sx, hy), SMALL_HALF + j, SMALL_HALF, solderedpipe.SOLDER)
+    zb = SMALL_Z
     zs1, zs2 = RABBLE_Z
 
     def bend(name, p):
         return Bx(name, [p[k] - sb for k in range(3)], [p[k] + sb for k in range(3)], solderedpipe.SOLDER)
-    out += small_tube("small_south", 2, ze, zb - sb, (x, hy))
-    out.append(bend("small_bend1", (x, hy, zb)))
-    out += small_tube("small_east", 0, x + sb, xd - sb, (zb, hy))
-    out.append(bend("small_bend2", (xd, hy, zb)))
-    out += small_tube("small_down", 1, ly + sb, hy - sb, (xd, zb))
-    out.append(bend("small_tee", (xd, ly, zb)))
+    out += small_tube("small_south", 2, ze, zb - sb, (sx, hy))
+    out.append(bend("small_bend1", (sx, hy, zb)))
+    out += small_tube("small_down", 1, ly + sb, hy - sb, (sx, zb))
+    out.append(bend("small_bend2", (sx, ly, zb)))
+    out += small_tube("small_along1", 2, zb + sb, zs1 - sb, (sx, ly))
+    out.append(bend("small_tee", (sx, ly, zs1)))
+    out += small_tube("small_along2", 2, zs1 + sb, zs2 - sb, (sx, ly))
+    out.append(bend("small_bend3", (sx, ly, zs2)))
     for k, zs in enumerate((zs1, zs2), 1):
-        out += small_tube(f"small_along{k}", 2, min(zs, zb) + sb, max(zs, zb) - sb, (xd, ly))
-        out.append(bend(f"small_bend{k + 2}", (xd, ly, zs)))
-        out += small_tube(f"small_in{k}", 0, PORT[1], xd - sb, (zs, ly))
+        out += small_tube(f"small_in{k}", 0, PORT[1], sx - sb, (zs, ly))
         out += solderedpipe._walls(f"small_port{k}", 0, PORT[1], PORT[1] + REDUCER_L, (zs, ly), SMALL_HALF + j, SMALL_HALF, solderedpipe.SOLDER)
     return solderedpipe.cull_pressed(out)
 
@@ -1634,7 +1639,7 @@ def make_rig(parts):
         "infeed": {"pos": pt((INFEED_CELL[0] + 0.5) * B, (INFEED_CELL[1] + 1) * B, (INFEED_CELL[2] + 0.5) * B)},
         "output": {"pos": pt(tx[1], (ty[0] + ty[1]) / 2, (tz[0] + tz[1]) / 2)},
         "fuel": {"pos": pt((FUEL_CELL[0] + 0.5) * B, (FUEL_CELL[1] + 1) * B, (FUEL_CELL[2] + 0.5) * B)},
-        "water": {"pos": pt(MANIFOLD[0], (WATER_CELL[1] + 1) * B, MANIFOLD[2])},
+        "water": {"pos": pt((WATER_CELL[0] + 1) * B, MANIFOLD[1], MANIFOLD[2])},
         "charge": {"pos": pt((fx[0] + fx[1]) / 2, HEARTH_Y, (fz[0] + fz[1]) / 2)},
         "discharge": {"pos": pt((hx[0] + hx[1]) / 2, HEARTH_Y, (hz[0] + hz[1]) / 2)},
         "ash": {"pos": pt((mx[0] + mx[1]) / 2, (my[0] + my[1]) / 2, 0.0)},

@@ -1356,19 +1356,28 @@ def check_chutes(v):
 
 
 def check_water(v):
-    """The water (level 2): the manifold is ppex's pipe (6 across) at the water cell's top face, at the block's 5..11 both
-    ways, open up to the player's pipe; a full-size connector out of its side, its end plugged round the small pipe's bore
+    """The water (level 2): the manifold is ppex's pipe (6 across) against the water cell's east face (the owner's
+    ruling: the player's pipe comes in from the side), at the face's 5..11 both ways, open to it, nothing in the way of
+    the player's pipe beyond it; a full-size connector out of its side, its end plugged round the small pipe's bore
     with a ring of solder (the vanner's reducer); the small pipe the vanner's, 2.4 across, every run; it joins the
     connector to each swivel's port, every piece touching the next;
     the copper and lead parts are the same boxes; the pipes are drawn only with the rabbles."""
     m = v.m
     cell = [m.WATER_CELL[k] * 16 for k in range(3)]
     man = aabb_of(v.named("pipecopper", r"_manifold"))
-    want = ([cell[0] + 5, cell[1] + 16 - 6, cell[2] + 5], [cell[0] + 11, cell[1] + 16, cell[2] + 11])
+    # the owner's ruling: the player's pipe comes in from the side, so the water face is a side face of the drive's row
+    if m.WATER_FACE != "east" or m.WATER_CELL[1] != 2:
+        v.fail(f"the water anchor {m.WATER_CELL} {m.WATER_FACE} is not on the drive row's east side")
+    want = ([cell[0] + 16 - 6, cell[1] + 5, cell[2] + 5], [cell[0] + 16, cell[1] + 11, cell[2] + 11])
     if any(abs(a - b) > 1e-6 for a, b in zip(man[0] + man[1], want[0] + want[1])):
-        v.fail(f"the manifold {man} is not ppex's pipe under the water cell's top {want}")
-    if any(e.name.endswith("_up") for e in v.named("pipecopper", r"_manifold")):
-        v.fail("the manifold is closed at the top")
+        v.fail(f"the manifold {man} is not ppex's pipe against the water cell's east face {want}")
+    mid = [cell[0] + 15.5, cell[1] + 8, cell[2] + 8]
+    if any(inside(mid, e) for e in v.named("pipecopper", r"_manifold")):
+        v.fail("the manifold is closed at the water face")
+    way = (want[0], [want[1][0] + 16, want[1][1], want[1][2]])
+    near = [e.name for e in v.drawn(scene("level2")) if not e.part.startswith("pipe") and overlap(e.aabb(), way)]
+    if near:
+        v.fail(f"the player's pipe's way to the water face is blocked: {near[:3]}")
     pipes = v.by_part["pipecopper"]
     ports = [e for e in v.by_part["rabblemounts"] if "_port" in e.name]
     group = pipes + ports
@@ -1397,17 +1406,17 @@ def check_water(v):
         v.fail(f"the connector is not ppex's pipe ({big} across) out of the manifold's side: {con}")
     plug = v.named("pipecopper", r"_plug_")
     si = m.SMALL_HALF - m.SMALL_WALL
-    if len(plug) != 4 or any(inside([m.MANIFOLD[0] + dx, m.MANIFOLD[1] + dy, m.CONNECTOR_Z - 0.5], e)
+    if len(plug) != 4 or any(inside([m.SMALL_X + dx, m.MANIFOLD[1] + dy, m.CONNECTOR_Z - 0.5], e)
                              for e in plug for dx in (-si + 0.05, 0.0, si - 0.05) for dy in (-si + 0.05, 0.0, si - 0.05)):
         v.fail("the connector's end is not plugged round the small pipe's open bore")
     ring = aabb_of(v.named("pipecopper", r"_reducer_"))
     if across(r"_reducer_", 2) != [round(2 * m.SMALL_BEND, 6)] * 2 or abs(ring[0][2] - m.CONNECTOR_Z) > 1e-6:
         v.fail(f"the reducer's ring of solder is not round the small pipe at the plug: {ring}")
-    runs = sorted({re.sub(r"_(north|south|east|west|up|down)$", "", e.name) for e in pipes if re.search(r"_small_(south|east|down|along\d|in\d)_", e.name)})
+    runs = sorted({re.sub(r"_(north|south|east|west|up|down)$", "", e.name) for e in pipes if re.search(r"_small_(south|down|along\d|in\d)_", e.name)})
     small = 2 * m.SMALL_HALF
     for r in runs:
         lo, hi = aabb_of([e for e in pipes if e.name.startswith(r + "_")])
-        ax = {"south": 2, "east": 0, "down": 1, "along": 2, "in": 0}[re.sub(r"\d$", "", r.rsplit("_", 1)[1])]
+        ax = {"south": 2, "down": 1, "along": 2, "in": 0}[re.sub(r"\d$", "", r.rsplit("_", 1)[1])]
         sz = [round(hi[q] - lo[q], 6) for q in range(3) if q != ax]
         if sz != [small, small]:
             v.fail(f"{r} is not the vanner's small pipe ({small} across): {sz}")
@@ -1419,7 +1428,7 @@ def check_water(v):
         v.fail(f"the lead pipes are not the copper ones: {diff[:3]}")
     if v.shows("pipecopper", scene("level1")) or not v.shows("pipecopper", scene("level2")):
         v.fail("the pipes are not drawn with the rabbles only")
-    print(f"water: the manifold ppex's pipe under the water cell's top, open up; a full-size connector out of it, plugged round "
+    print(f"water: the manifold ppex's pipe against the water cell's east face, open to it, the way beyond clear; a full-size connector out of it, plugged round "
           f"the small pipe's bore with a ring of solder (the vanner's reducer); {len(runs)} runs of the vanner's {small}-across "
           f"small pipe, {len(pipes) - len(v.named('pipecopper', r'_manifold'))} pieces in all, join it to {len(ports)} swivels' ports; "
           f"copper and lead alike")

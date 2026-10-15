@@ -141,7 +141,7 @@ describe("the reverberatory roaster's scenario", () => {
     expect([r.infeedCell, r.infeedFace]).toEqual([[0, 2, 4], "up"]);
     expect([r.outputCell, r.outputFace]).toEqual([[1, 0, 2], "east"]);
     expect([r.fuelCell, r.fuelFace]).toEqual([[-1, 1, 0], "up"]);
-    expect([r.waterCell, r.waterFace]).toEqual([[0, 2, 2], "up"]);
+    expect([r.waterCell, r.waterFace]).toEqual([[0, 2, 1], "east"]);
     expect([r.outletCell, r.outletFace]).toEqual([[-1, 1, 4], "up"]);
     // the outlet is not under the drive's row (whose cells are x 0, y 2) nor the infeed's column
     const cells = rig.cells!.map((c) => c.pos.join());
@@ -193,7 +193,7 @@ describe("the reverberatory roaster's scenario", () => {
     expect(els.filter((e) => /_plug_/.test(e.name))).toHaveLength(4);
     expect(across(/_reducer_/, 2)).toEqual([2.8, 2.8]);
     expect(els.filter((e) => /_reducer_/.test(e.name)).every((e) => Object.values(e.faces ?? {}).every((f) => f.texture === "#solder"))).toBe(true);
-    for (const [run, axis] of [["south", 2], ["east", 0], ["down", 1], ["along1", 2], ["along2", 2], ["in1", 0], ["in2", 0]] as const)
+    for (const [run, axis] of [["south", 2], ["down", 1], ["along1", 2], ["along2", 2], ["in1", 0], ["in2", 0]] as const)
       expect([run, across(new RegExp(`_small_${run}_`), axis)]).toEqual([run, [2.4, 2.4]]);
   });
 

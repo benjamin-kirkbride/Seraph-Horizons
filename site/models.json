@@ -709,7 +709,7 @@
             "needs": ["brickwork", "lining", "arch", "rabbles"],
             "needsHint": "The water cools level 2's rabbles: build the furnace and pick level 2.",
             "options": [
-              {"id": "copper", "label": "Copper", "fitted": ["pipecopper"], "hint": "A ppex pipe from above onto the manifold on the roof; small-bore pipes down to the swivel on each spindle. The water is used up: no return."},
+              {"id": "copper", "label": "Copper", "fitted": ["pipecopper"], "hint": "A ppex pipe from the side, on the roof beside the drive's row, into the manifold; through the vanner's soldered reducer, a small pipe down to the swivel on each spindle. The water is used up: no return."},
               {"id": "lead", "label": "Lead", "fitted": ["pipelead"]}
             ]
           },

@@ -53,7 +53,7 @@ shared wall, which rises to the top the whole length, and the tie rods end on an
 | `infeedCell`, `infeedFace` | `[0,2,4]`, up | The hopper's mouth (the cell's top): charged by hand at level 1; at level 2 a section of the vanilla chute hangs in it |
 | `outputCell`, `outputFace` | `[1,0,2]`, east | The discharge tunnel's mouth in the footing's east face: the discharge door (level 1), a section of the vanilla chute flush with the face (level 2) |
 | `fuelCell`, `fuelFace` | `[-1,1,0]`, up | The coal bunker's chute (level 2): a section of the vanilla chute from the cell's top into the bunker's west end |
-| `waterCell`, `waterFace` | `[0,2,2]`, up | The water (level 2): a ppex pipe from above onto the manifold, at the block's 5..11 as ppex lays a pipe. Provisional pending #711 |
+| `waterCell`, `waterFace` | `[0,2,1]`, east | The water (level 2): a ppex pipe from the side (the owner's ruling), along the roof beside the drive's row, into the manifold at the face's 5..11 as ppex lays a pipe; between pedestal 1 and the first wheel, the shortest way to the swivels clear of the doors, the outlet, the power and the frame. Provisional pending #711 |
 | `outletCell`, `outletFace` | `[-1,1,4]`, up | The outlet, in the flue end's **west** corner: beside the drive's row, never under it or under the infeed (the branch's clash) |
 | `chimney` | origin `[-0.3125,5,4.4375]`, y, 6 | The shortest chimney (the crucible furnace's six blocks, provisional), from the outlet up; its first cell `[-1,2,4]` is never the furnace's |
 | `infeed`, `output`, `fuel`, `water` | points | The middles of those faces |
@@ -202,13 +202,13 @@ the tunnel's floor, its top edge in a slot behind the footing band's face leg) i
 other half; at level 1 it is shut over the mouth, and the player opens it to draw the charge.
 
 **The water** (level 2): the **manifold**, a cube of ppex's pipe (UnifiedPipes' soldered pipe, 6 across) under the water
-cell's top, open up to the player's pipe and south, plugged below; south from it a full-size **connector** of the same
-pipe (z 43..46.5), and at its end the **vanner's soldered reducer** (`Vanner/tools/make_shape.py`): the connector's end
+cell's east face (x 26..32, y 37..43, z 21..27), open east to the player's pipe and south, plugged west; south from it a
+full-size **connector** of the same pipe (z 27..30.5), and at its end the **vanner's soldered reducer** (`Vanner/tools/make_shape.py`): the connector's end
 plugged round the small pipe's bore by four plates inside its walls, a ring of solder round the small pipe where it
-leaves. The **small pipe** is the vanner's spray pipe's size, a soldered tube 2.4 across round a 1.6 bore: on south over
-pedestal 2 to z 49.5, east, down the drive row's east side clear of both wheels (x 30.4), to a tee, then along under the
-wheels both ways (y 33.4) and in to each swivel's **port**, a soldered cube at each bend and the tee and a ring of solder
-at each port. The same pipes in copper (`pipecopper`) or lead (`pipelead`), one drawn. The water is used up: no return
+leaves, the small pipe off the connector's middle (x 30) as the vanner's is. The **small pipe** is the vanner's spray
+pipe's size, a soldered tube 2.4 across round a 1.6 bore: on south to z 33, down just short of the first wheel, along
+under the wheels (y 33.4) to a tee at the first swivel and a bend at the second, and in to each swivel's **port**, a
+soldered cube at each bend and the tee and a ring of solder at each port. The same pipes in copper (`pipecopper`) or lead (`pipelead`), one drawn. The water is used up: no return
 anchor (rule 4).
 
 Every moving part (θ the axle angle, ψ its travel; none rides another):
@@ -303,7 +303,8 @@ the checks, and the run exits non-zero if one fails. Checks that look at parts t
 - **The chutes** (the owner's rule): the infeed's and the fuel's sections up and down, the output's along x, each the
   vanilla chute's walls in its cell and texture up to its anchor's face, checked against the game's own
   `shapes/block/metal/chute/straight.json` when the game is at hand.
-- **The water:** the manifold ppex's pipe at the water cell's top face, open up; the connector ppex's pipe out of its
+- **The water:** the water face a side face of the drive's row (the owner's ruling), the manifold ppex's pipe against
+  it at its 5..11, open to it, the player's pipe's way beyond it clear; the connector ppex's pipe out of its
   side, its end plugged round the small pipe's open bore, the reducer's ring of solder round the small pipe at the plug
   (the owner's ruling: the vanner's reducer); every run of the small pipe 2.4 across; the pipes join the manifold to both
   swivels' ports, every piece touching the next; copper and lead the same boxes; drawn only with the rabbles.
@@ -376,8 +377,8 @@ mouth's damper, the discharge door and the output chute with its spout, the wate
 soldered reducer and small pipe, and the swivels, door 1's peep hole, the hopper's neck kept at level 1, and the build's states.
 
 **Provisional pending #711** (shared machine code): the chute anchors (`infeedCell`, `outputCell`, `fuelCell`, drawn as
-the vanilla chute's sections against the game's file), the water's `waterCell` (a ppex pipe onto the manifold from
-above) and the reservoir it fills, and the furnace's row (`furnace`).
+the vanilla chute's sections against the game's file), the water's `waterCell` (a ppex pipe into the manifold from
+the side) and the reservoir it fills, and the furnace's row (`furnace`).
 
 ## Choices, and why
 
@@ -400,12 +401,15 @@ above) and the reservoir it fills, and the furnace's row (`furnace`).
   shaft's last bearings.
 - **A small pipe from a ppex manifold to the swivels, by the vanner's reducer** (the owner's ruling). ppex's pipe is 6
   voxels across; between the crown and the wheels there are 3, and the line shaft runs over the spindles. So ppex's pipe
-  ends in a manifold under the water cell's top (a cube of it, as UnifiedPipes draws a joint) and a short full-size
+  ends in a manifold against the water cell's east face (a cube of it, as UnifiedPipes draws a joint) and a short full-size
   connector, narrowed as the vanner's is (a soldered plug in its end, a ring of solder) to the vanner's 2.4 small pipe in
   the same metal, which carries the water to a swivel on each spindle, between the crown and the wheel: the spindle's
-  upper bearing, with a port on its side. The connector runs south, not east, because a reducer and a bend side by side
-  would not fit east of the manifold inside the drive's row (x to 32); the small pipe drops between the wheels, the only
-  place clear of both at 2.4 across.
+  upper bearing, with a port on its side.
+- **The water face on the drive row's east side, at cell `[0,2,1]`** (the owner's ruling: from the side, not above).
+  The only cell of the row whose face's 5..11 (y 37..43) misses both wheels and the pinions: at `[0,2,2]` and `[0,2,3]`
+  the manifold would stand in the wheels' teeth. It sits between pedestal 1 and the first wheel, over the east wall,
+  clear of the doors (below), the outlet (the flue end's west corner), the power (the fire end's north face) and the
+  frame (its top bands at y 32); from there the small pipe drops just short of the first wheel and runs under both.
 - **A peep hole in work door 1** (the owner's ruling). Level 2's doors are shut, so the rabbles showed only from above;
   a 3.5 by 3.4 hole low in door 1's plate, over the opening, shows the first rabble's spindle and hub and its arms going
   by, its shutter (a thin plate sliding along z in two guides, within the 0.15 left between the plate and the
@@ -419,18 +423,16 @@ above) and the reservoir it fills, and the furnace's row (`furnace`).
 
 ## Open for the owner
 
-Settled by the owner (2026-10-14), not to be changed: the outlet in the flue end's west corner; the covered coal well at
+Settled by the owner (2026-10-14), not to be changed: the water face on the drive row's east side (the player's pipe
+from the side); door 1's peep hole only, its shutter as drawn; the outlet in the flue end's west corner; the covered coal well at
 level 1; two in a row at most, back to back; two rabbles; the flue's sulfur lost (no sulfur anchor); the water by the
 vanner's reducer to a small pipe; a peep hole in a shut door at level 2; the closed box frame as drawn, and the bare
 refractory on the arch's top and the flue end's top. Still open:
 
-1. **Where the water anchor is** (the drive row's top over the first rabble, so the player's pipe comes from above).
-2. **The build**: the frame's recipe, the stages and their order (the frame, brickwork, lining, arch with ironwork as
+1. **The build**: the frame's recipe, the stages and their order (the frame, brickwork, lining, arch with ironwork as
    drawn), the ironwork's and the levels' materials; the brick counts are measured (26 fired bricks; 17 + 9 refractory
    bricks, 7 + 4 fire clay).
-3. **The chimney's minimum**: the crucible furnace's six blocks, taken as they are.
-4. **The peep hole** (this pass): in door 1 only, its shutter a thin plate (0.1) for want of room before the footprint's
-   face; door 2 could have one too.
+2. **The chimney's minimum**: the crucible furnace's six blocks, taken as they are.
 
 ## Known weak spots, and what is not checked
 
