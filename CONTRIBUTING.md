@@ -50,6 +50,10 @@ starts (`ATLAS_KEEP_SCRATCH=1` keeps them all). If `/tmp` is a tmpfs, those worl
 RAM: point the tests at disk with `export TMPDIR=~/.cache/atlas-tmp` (create it
 first). An IDE test runner needs the variable in its own settings.
 
+A scenario can run the server on a virtual clock, faster than real time and stepping the
+same way on every run (`using var clock = VirtualClock.Start(World);`): see
+[tests/PackTests/README.md](tests/PackTests/README.md) for what it changes and when not to use it.
+
 ## CI
 
 `ci.yml` runs on every PR, fork PRs included. It uses GitHub-hosted runners only and needs no secrets.

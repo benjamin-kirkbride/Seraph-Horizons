@@ -26,6 +26,7 @@ dotnet test tests/PackTests --filter "FullyQualifiedName~RecipeExportScenarios"
 # Every run leaves ~750 MB worlds in $TMPDIR/atlas (its last class, failures, killed runs); a /tmp
 # tmpfs fills RAM, so locally run with TMPDIR on disk. StaleScratchSweep.cs deletes worlds idle > 2 h.
 TMPDIR=~/.cache/atlas-tmp dotnet test tests/PackTests
+# Long or timing-sensitive scenarios run on a virtual clock, faster than real time: tests/PackTests/README.md
 
 # Pack-authored mods (mods-src/): Release writes build/<modid>_<version>.zip (CI does this on a <modid>-v<version> tag)
 dotnet build mods-src/allowedvariantsfix -c Release
