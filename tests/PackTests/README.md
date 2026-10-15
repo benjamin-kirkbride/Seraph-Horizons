@@ -70,10 +70,10 @@ public async Task It_digs_the_pit()
 Off-thread work: chunk loading, generation and compression threads, `Task.Run` work, and physics' sender.
 Seen from the virtual clock it is about 20× slower. The mine planner's and route solver's workers are held
 (above); a route solve starts on the tick it is due, with no wall-time budget. The planner's
-main-thread slices are not: they stop each tick after `MinePlanner.BudgetMs` (2 ms) of wall time, so a slow
-runner reads a job's window in more ticks of game time before its plan starts. That is the one place a
-plan's latency still varies run to run. Widening the budget on the virtual clock needs a seam in the mod:
-the const is inlined into a private getter.
+main-thread slices, which in the game stop each tick after `MinePlanner.BudgetMs` (2 ms) of wall time, are
+counted in blocks read while a clock is on (`EidolonMinePlans.BudgetReads`, set by `Start` to
+`TypicalReads`, about what 2 ms reads, and put back by `Dispose`), so a job's window is read in the same
+ticks on any runner and a plan starts on the same tick every run.
 
 ### When not to use it
 

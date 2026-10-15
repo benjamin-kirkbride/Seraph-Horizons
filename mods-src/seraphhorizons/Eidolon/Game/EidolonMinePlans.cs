@@ -12,8 +12,8 @@ namespace SeraphHorizons.Mod.Eidolon;
 /// is made here, once, for the first member to start (<see cref="Ensure"/>), and again as the world changes.
 ///
 /// <para><b>Threads.</b> Whatever reads the world runs on the server's main thread, in slices of at most
-/// <see cref="MinePlanner.BudgetMs"/> a tick across every job (the game's block accessor is not
-/// thread-safe): the window read a block column at a time (<see cref="MineSite.Load"/>,
+/// <see cref="MinePlanner.BudgetMs"/> a tick across every job (<see cref="MineTickBudget"/>; the game's
+/// block accessor is not thread-safe): the window read a block column at a time (<see cref="MineSite.Load"/>,
 /// <see cref="GameMineWorld"/>), and what roofs the area's columns. The plan itself (<see cref="MinePlanner"/>)
 /// and the live state built over it (<see cref="MineState.Adopt"/>) are made on a worker
 /// (<c>Task.Run</c>), on copies only: the site copied twice (the planner's and the new
@@ -66,9 +66,18 @@ public class EidolonMinePlans : ModSystem
     /// deadlock).</summary>
     public const double UrgentMinSeconds = 0.5;
 
+    /// <summary>The main thread's share of a tick counted in blocks read instead of
+    /// <see cref="MinePlanner.BudgetMs"/> of wall time (<see cref="MineTickBudget"/>), so a plan starts on the
+    /// same tick on every machine: for the tests' virtual clock. Null, wall time, in the game.</summary>
+    public static int? BudgetReads { get; set; }
+
+    /// <summary>About as many blocks as <see cref="MinePlanner.BudgetMs"/> reads on a typical machine (a
+    /// window's block, ruled or not, its roof's, a sweep's), for <see cref="BudgetReads"/>.</summary>
+    public const int TypicalReads = 5000;
+
     private ICoreServerAPI? _api;
     private readonly List<Work> _work = new();
-    private readonly Stopwatch _clock = new();
+    private MineTickBudget _budget = new(MinePlanner.BudgetMs);
     private bool _stopping;
 
     public static EidolonMinePlans? Of(ICoreAPI? api) =>
@@ -328,10 +337,12 @@ public class EidolonMinePlans : ModSystem
         // a job no longer on the board, or closed: nothing more to plan for it
         foreach (var gone in _work.Where(w => board != null && !board.Jobs.Any(j => j.Shared == w.Cells && !j.Closed)).ToList())
             Close(gone.Cells);
-        _clock.Restart();
+        if (_budget.Reads != BudgetReads)
+            _budget = new MineTickBudget(MinePlanner.BudgetMs, BudgetReads);
+        _budget.Restart();
         foreach (var work in _work.ToList())
         {
-            if (Spent)
+            if (_budget.Spent)
                 break;
             work.Spent.Start();
             work.Ticks++;
@@ -346,8 +357,6 @@ public class EidolonMinePlans : ModSystem
             work.Spent.Stop();
         }
     }
-
-    private bool Spent => _clock.Elapsed.TotalMilliseconds >= MinePlanner.BudgetMs;
 
     private void Step(Work work)
     {
@@ -373,7 +382,7 @@ public class EidolonMinePlans : ModSystem
             if (work.Roof == null)
             {
                 work.Loading ??= work.Site.Load(work.World).GetEnumerator();
-                while (!Spent)
+                while (_budget.Take(work.Site.Window.SizeY))
                     if (!work.Loading.MoveNext())
                     {
                         work.Loading = null;
@@ -547,7 +556,7 @@ public class EidolonMinePlans : ModSystem
     {
         if (work.Roofing == null)
             return true;
-        while (!Spent)
+        while (_budget.Take(RoofStep * EidolonTunnels.RoofRise))
             if (!work.Roofing.MoveNext())
             {
                 work.Roofing = null;
@@ -555,6 +564,9 @@ public class EidolonMinePlans : ModSystem
             }
         return false;
     }
+
+    // The columns of roofs read a step.
+    private const int RoofStep = 64;
 
     // What roofs the area's columns (EidolonTunnels.Covered, MineOrder.Roof), read here on the main thread
     // for the worker: the cells over the area's top it may ask of, a few columns a step.
@@ -570,7 +582,7 @@ public class EidolonMinePlans : ModSystem
             for (int y = area.Max.Y + 1; y <= area.Max.Y + EidolonTunnels.RoofRise; y++)
                 if (blocks.GetChunkAtBlockPos(pos.Set(x, y, z)) != null && MineOrder.Roof(blocks.GetBlock(pos)))
                     work.Roof!.Add(new MarkPos(x, y, z));
-            if (++columns % 64 == 0)
+            if (++columns % RoofStep == 0)
                 yield return false;
         }
     }
@@ -700,7 +712,7 @@ public class EidolonMinePlans : ModSystem
         var area = work.Area;
         int sx = area.SizeX + 2, sz = area.SizeZ + 2;
         var window = live.Site.Window;
-        while (!Spent)
+        while (_budget.Take(window.SizeY))
         {
             if (work.SyncIndex >= sx * sz)
             {

@@ -3343,7 +3343,9 @@ tread that fell would take the way out with it: `MineOrder.Unhung`); and a plan 
 would take what is left of the stair for blocks out of reach, does not make them so: the job keeps every
 stair its plans left (`MineJobCells.Stair`), told and reported as the way out. *Planning off the main thread*: what reads the world stays on the server's thread, in slices of at
 most 2 ms a tick across every job (the game's block accessor is not thread-safe): the window read a
-block column at a time and the area's roofs (`EidolonMinePlans`, `MinePlanner.BudgetMs`). The plan
+block column at a time and the area's roofs (`EidolonMinePlans`, `MinePlanner.BudgetMs`, `MineTickBudget`;
+the tests' virtual clock counts it in blocks read instead, `EidolonMinePlans.BudgetReads`, so a plan starts
+on the same tick on any machine). The plan
 itself and the live state built over it are made on a worker thread, from copies (the site twice, the
 skipped, parked and roofed cells and the bad stands snapshotted), sharing nothing the main thread
 changes; the main thread swaps the result in on a later tick, playing over it what changed meanwhile, and
