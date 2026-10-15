@@ -163,6 +163,11 @@ public class DistrictVeinsTests
         Assert.Equal(8f, v);
         Assert.Equal(4.0, h * v / (6.0 * 4.0), 6);
         Assert.Equal((6f, 4f), DistrictVeins.LensRadii(6, 4, 1));
+        // In country rock that is host rock too the whole spheroid is ore (#943, #946): its
+        // horizontal radius doubles, four times the volume.
+        var (ch, cv) = DistrictVeins.LensRadii(6, 4, 4, inHostRock: true);
+        Assert.Equal((12f, 4f), (ch, cv));
+        Assert.Equal(4.0, ch * ch * cv / (6.0 * 6.0 * 4.0), 6);
     }
 
     // A ladder vein's slabs come closer: IOG's spacings over four, rounded, at least one.
@@ -177,12 +182,204 @@ public class DistrictVeinsTests
         Assert.Equal(1, unchanged.Gain);
     }
 
+    // #943: a vein whose drawn size needs more height than the room under sea level is cut to the
+    // room, not left its whole column (IOG's y 1 to the top of the world).
     [Fact]
-    public void NoBandWhenTheVeinIsSmallerThanTheRock()
+    public void ABandTallerThanTheRoomIsTheRoom()
     {
         var tiny = new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", density: 0.01, ingots: 0.01)], 5, 1, 255);
         var plan = Rules.Plan(1, [tiny], 110)[0];
         Assert.True(plan.Keep);
-        Assert.Null(plan.BandMin);
+        Assert.Equal(4, plan.BandMin);
+        Assert.Equal(104, plan.BandMax);
+        // A zone whose own range misses the room keeps a band inside its range.
+        var high = new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", density: 0.01, ingots: 0.01)], 5, 120, 140);
+        var p = Rules.Plan(1, [high], 110)[0];
+        Assert.Equal((120, 140), (p.BandMin, p.BandMax));
+    }
+
+    // #946: IOG's shoot is an ellipse in a sheared frame (the segment's tangent, the fault's global
+    // across), clipped to its box; density 1 − r² sums to π r (r/2) / 2 with square axes, and a
+    // straight fault along the strike holds its width times 4r/3 of it.
+    [Fact]
+    public void ShootShapeMeasuresIogsEllipse()
+    {
+        var square = new ShootShape(0, 0, 1, 0, 0, 1, 35, 17.5, 37);
+        Assert.InRange(square.Whole(), 0.98 * Math.PI * 35 * 17.5 / 2, 1.02 * Math.PI * 35 * 17.5 / 2);
+        var straight = Enumerable.Range(-40, 81).SelectMany(x => Enumerable.Range(-3, 6).Select(z => (x, z))).ToList();
+        Assert.InRange(square.Over(straight), 0.95 * 6 * 4.0 / 3 * 35, 1.05 * 6 * 4.0 / 3 * 35);
+        // Sheared: the tangent 30° off the across direction's normal. A fault along the tangent
+        // leaves the ellipse long before its strike, and the box clips a long strike.
+        double c = Math.Cos(Math.PI / 6), s = Math.Sin(Math.PI / 6);
+        var sheared = new ShootShape(0, 0, c, s, 0, 1, 140, 17.5, 142);
+        var alongTangent = Enumerable.Range(-150, 301).SelectMany(t => Enumerable.Range(-3, 6)
+            .Select(w => ((int)Math.Floor(t * c), (int)Math.Floor(t * s + w)))).Distinct().ToList();
+        double sum = sheared.Over(alongTangent);
+        Assert.True(sum < 0.5 * 6 * 4.0 / 3 * 140, $"{sum}: a sheared shoot's fault rock is far under its width times 4r/3");
+        Assert.Equal(0, sheared.DensityAt(0, 143));
+        // Samples: about the asked number, inside the shoot, weighted by density.
+        var points = sheared.Samples(24);
+        Assert.InRange(points.Count, 12, 48);
+        Assert.All(points, p => Assert.Equal(sheared.DensityAt(p.X, p.Z), p.Weight, 9));
+        Assert.All(points, p => Assert.True(p.Weight > 0));
+    }
+
+    // #946: a shoot's host blocks at a height are its fault rock and the share of its country rock
+    // that is host rock there; a band is grown by them, so a shoot in host country rock is short.
+    [Fact]
+    public void CountryRockThatIsHostRockShortensTheBand()
+    {
+        var zone = new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin")], 200, 1, 255, CountryBlocks: 800, CountryShare: y => y < 50 ? 1 : 0);
+        Assert.Equal(1000, zone.HostBlocksAt(10), 9);
+        Assert.Equal(200, zone.HostBlocksAt(60), 9);
+        Assert.Equal(200, (zone with { CountryShare = null }).HostBlocksAt(10), 9);
+        // The same drawn sizes: fault rock alone needs about five times the height of a band all
+        // in host country rock.
+        var faultOnly = Enumerable.Range(0, 8).Select(_ => Shoot(Ore("tin"))).ToList();
+        var inHost = Enumerable.Range(0, 8).Select(_ => zone with { CountryShare = _ => 1 }).ToList();
+        var a = Rules.Plan(3, faultOnly, 110);
+        var b = Rules.Plan(3, inHost, 110);
+        double perLayer = 0.35 * 0.0625;
+        for (int i = 0; i < 8; i++)
+        {
+            double heldA = (a[i].BandMax!.Value - a[i].BandMin!.Value + 1) * 200 * perLayer;
+            double heldB = (b[i].BandMax!.Value - b[i].BandMin!.Value + 1) * 1000 * perLayer;
+            Assert.InRange(heldB, heldA - 1000 * perLayer, heldA + 1000 * perLayer);
+            Assert.True(b[i].BandMax - b[i].BandMin < a[i].BandMax - a[i].BandMin);
+        }
+        // A share by height is reckoned layer by layer.
+        var mixed = Rules.Plan(3, Enumerable.Range(0, 8).Select(_ => zone).ToList(), 110);
+        for (int i = 0; i < 8; i++)
+        {
+            double held = Enumerable.Range(mixed[i].BandMin!.Value, mixed[i].BandMax!.Value - mixed[i].BandMin!.Value + 1)
+                .Sum(y => zone.HostBlocksAt(y) * perLayer);
+            double heldA = (a[i].BandMax!.Value - a[i].BandMin!.Value + 1) * 200 * perLayer;
+            Assert.InRange(held, heldA - 1000 * perLayer, heldA + 1000 * perLayer);
+        }
+    }
+
+    // #946: a widened shoot whose band would be the whole room and still short takes the first wider
+    // shape that holds its drawn size; one that fits keeps its own.
+    [Fact]
+    public void ShootsTooThinForTheRoomTakeAWiderShape()
+    {
+        var wide = new DistrictVeins(Sizes, Settings with { Blocks = 4 });
+        var thin = new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", ingots: 0.0125)], 5, 1, 255, 4,
+            Wider: [(10, 0), (100, 0), (1000, 0)]);
+        var plans = wide.Plan(3, Enumerable.Range(0, 8).Select(_ => thin).ToList(), 110);
+        Assert.All(plans, p =>
+        {
+            Assert.InRange(p.Wider, 2, 3);
+            Assert.True(p.Held >= p.Drawn * 0.9, $"{p.Held} of {p.Drawn}");
+            Assert.InRange(p.BandMax!.Value - p.BandMin!.Value + 1, 1, 100);
+        });
+        var fits = wide.Plan(3, [thin with { BlocksPerLayer = 2000 }], 110)[0];
+        Assert.Equal(0, fits.Wider);
+        // None wide enough: the widest, cut to the room.
+        var hopeless = wide.Plan(3, [thin with { Wider = [(6, 0)] }], 110)[0];
+        Assert.Equal(1, hopeless.Wider);
+        Assert.Equal((4, 104), (hopeless.BandMin, hopeless.BandMax));
+        Assert.True(hopeless.Held < hopeless.Drawn);
+    }
+
+    // #946: two ores of one metal in a zone (magnetite and pyrite) are one vein of it: the band holds
+    // the drawn size between them, not each.
+    [Fact]
+    public void OresOfOneMetalShareTheDrawnSize()
+    {
+        var one = Enumerable.Range(0, 8).Select(_ => Shoot(Ore("tin"))).ToList();
+        var two = Enumerable.Range(0, 8).Select(_ => Shoot(Ore("tin"), Ore("tin"))).ToList();
+        var a = Rules.Plan(3, one, 110);
+        var b = Rules.Plan(3, two, 110);
+        for (int i = 0; i < 8; i++)
+        {
+            // Each tin ore has half the blocks, together the same: the same band.
+            Assert.Equal((a[i].BandMin, a[i].BandMax), (b[i].BandMin, b[i].BandMax));
+            Assert.Equal(a[i].Held, b[i].Held, 6);
+        }
+    }
+
+    // #946: a vein of two sized metals, one richer a block than the other, grows to the poorer's size
+    // and thins the richer one's ore to its own (both share the zone's draw).
+    [Fact]
+    public void TwoMetalsInAVeinEachHoldTheirSize()
+    {
+        var zones = Enumerable.Range(0, 8).Select(_ => Shoot(Ore("tin", ingots: 0.4), Ore("bismuth", ingots: 0.1))).ToList();
+        foreach (var p in Rules.Plan(3, zones, 110))
+        {
+            Assert.True(p.Held >= p.Drawn * 0.9, "cut to the room");
+            int h = p.BandMax!.Value - p.BandMin!.Value + 1;
+            double layer = 100 * 0.35 * 0.1;
+            Assert.InRange(h * layer, p.Drawn - layer, p.Drawn + layer);
+            Assert.NotNull(p.Thin);
+            Assert.InRange(p.Thin![0], 0.2, 0.3);
+            Assert.Equal(1.0, p.Thin[1]);
+            Assert.InRange(h * 100 * 0.35 * 0.4 * p.Thin[0], p.Drawn * 0.9, p.Drawn * 1.1);
+        }
+        // One metal: nothing thinned.
+        Assert.All(Rules.Plan(3, Enumerable.Range(0, 8).Select(_ => Shoot(Ore("tin"))).ToList(), 110), p => Assert.Null(p.Thin));
+    }
+
+    // #946: an ore that places nothing (density 0: its code names no block in the host rock) is
+    // taken out of its zone by the game side, so the ores that place hold all its blocks.
+    [Fact]
+    public void OresThatPlaceNothingHoldNoShare()
+    {
+        var alone = Enumerable.Range(0, 8).Select(_ => Shoot(Ore("tin"))).ToList();
+        var withDead = Enumerable.Range(0, 8).Select(_ => Shoot(Ore("tin"), Ore("bismuth", density: 0))).ToList();
+        Assert.Equal(Rules.Plan(3, alone, 110).Select(p => (p.BandMin, p.BandMax)), Rules.Plan(3, withDead, 110).Select(p => (p.BandMin, p.BandMax)));
+    }
+
+    // IOG's grade draw (ResolveOreCode): at richness 0 nine poorest to one of the next; at 1 the
+    // richest, with one in ten of the grade under it. Cassiterite is 1 / 3 / 4 / 6 units a block.
+    [Fact]
+    public void ExpectedIngotsFollowIogsGradeDraw()
+    {
+        double[] tin = [0.0125, 0.0375, 0.05, 0.075];
+        double w = (1 - 1 / 1.5) * (1 - 1 / 1.5);
+        Assert.Equal((0.0125 + w * 0.0375) / (1 + w), DistrictVeins.ExpectedIngots(tin, 0), 9);
+        Assert.Equal((0.075 + w * 0.05) / (1 + w), DistrictVeins.ExpectedIngots(tin, 1), 9);
+        Assert.InRange(DistrictVeins.ExpectedIngots(tin, 1) / DistrictVeins.ExpectedIngots(tin, 0), 4.5, 5.5);
+        Assert.Equal(0.02, DistrictVeins.ExpectedIngots([0.02], 0.7), 9);
+        // Richer never gives less.
+        for (double r = 0; r < 1; r += 0.05)
+            Assert.True(DistrictVeins.ExpectedIngots(tin, r + 0.05) >= DistrictVeins.ExpectedIngots(tin, r) - 1e-12);
+    }
+
+    // #943: a band is grown by each layer's expected grade, so one that runs into its fault's rich
+    // band stops sooner and holds its drawn size, not two to three times it.
+    [Fact]
+    public void BandsHoldTheirDrawnSizeThroughRichBands()
+    {
+        double[] tin = [0.0125, 0.0375, 0.05, 0.075];
+        var poorFault = new float[256];
+        var richFault = Enumerable.Range(0, 256).Select(y => y is >= 20 and <= 80 ? 1f : 0f).ToArray();
+        IReadOnlyList<DistrictZone> Zones(float[] rich) => Enumerable.Range(0, 8)
+            .Select(_ => new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", ingots: 0.0125) with { GradeIngots = tin }], 2000, 1, 255, 1, rich))
+            .ToList();
+        var poor = Rules.Plan(3, Zones(poorFault), 110);
+        var rich = Rules.Plan(3, Zones(richFault), 110);
+        double Held(DistrictZonePlan p, float[] r) =>
+            Enumerable.Range(p.BandMin!.Value, p.BandMax!.Value - p.BandMin.Value + 1).Sum(y => 2000 * 0.35 * DistrictVeins.ExpectedIngots(tin, r[y]));
+        for (int i = 0; i < 8; i++)
+        {
+            Assert.Equal(poor[i].BandMin, rich[i].BandMin);
+            Assert.True(rich[i].BandMax <= poor[i].BandMax);
+            // Each holds within half a layer of the other: the same drawn size.
+            double a = Held(poor[i], poorFault), b = Held(rich[i], richFault);
+            double layer = 2000 * 0.35 * DistrictVeins.ExpectedIngots(tin, 1);
+            Assert.InRange(b, a - layer, a + layer);
+        }
+        Assert.Contains(Enumerable.Range(0, 8), i => rich[i].BandMax < poor[i].BandMax);
+    }
+
+    // Without a fault's richness or an ore's grades, the poorest grade times the allowance stands in.
+    [Fact]
+    public void WithoutGradesTheAllowanceStandsIn()
+    {
+        double[] tin = [0.0125, 0.0375];
+        var flat = Enumerable.Range(0, 8).Select(_ => new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", ingots: 0.0125)], 2000, 1, 255)).ToList();
+        var noFault = Enumerable.Range(0, 8).Select(_ => new DistrictZone(DistrictZoneKind.Shoot, [Ore("tin", ingots: 0.0125) with { GradeIngots = tin }], 2000, 1, 255)).ToList();
+        Assert.Equal(Rules.Plan(5, flat, 110).Select(p => (p.BandMin, p.BandMax)), Rules.Plan(5, noFault, 110).Select(p => (p.BandMin, p.BandMax)));
     }
 }

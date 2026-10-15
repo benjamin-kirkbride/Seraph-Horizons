@@ -728,6 +728,36 @@ public class SeraphHorizonsConfig
     /// <summary>The placer cell's side in blocks (at least 500). Fixed when a world is created.</summary>
     public int PlacerCellSizeMetres { get; set; } = 1500;
 
+    /// <summary>Grade pockets (#944, Ore/Game/GradePocketPlacement.cs, README "Grade pockets"):
+    /// Interesting Ore Gen's veins vary in grade from block to block, in pockets about
+    /// <see cref="GradePocketSizeBlocks"/> across one grade richer or poorer than the grade drawn
+    /// for the vein, instead of one grade throughout, with the vein's mean metal kept (server side).
+    /// New worlds only: a world created with it off never gets it.</summary>
+    public bool GradePockets { get; set; } = true;
+
+    /// <summary>Stable veins (#946, Ore/Game/StableVeins.cs, README "Stable veins"): an ore cell's
+    /// vein comes out the same whatever order its chunks generate in. Interesting Ore Gen's veins
+    /// otherwise read and write neighbouring chunks as each is generated, so the same seed gave a
+    /// deposit of half or twice the size depending on how the land was explored. Needs
+    /// <see cref="OreCells"/>. New worlds only: a world created with it off never gets it.</summary>
+    public bool StableVeins { get; set; } = true;
+
+    /// <summary>Grade pockets: their typical width in blocks (2 to 64).</summary>
+    public double GradePocketSizeBlocks { get; set; } = Ore.Core.GradePocketSettings.DefaultPocketSize;
+
+    /// <summary>Grade pockets: the share of a vein's blocks one grade off its drawn grade, where it
+    /// can go both richer and poorer (0 to 1).</summary>
+    public double GradePocketSpread { get; set; } = Ore.Core.GradePocketSettings.DefaultSpread;
+
+    /// <summary>Grade pockets: the same share for a vein that can only go one way (drawn poor, or at
+    /// the richest grade its host rock allows), which moves its metal: 0.3 gives a poor vein 20 %
+    /// more units, a bountiful one 9 % less. 0 leaves such veins at one grade.</summary>
+    public double GradePocketEndSpread { get; set; } = Ore.Core.GradePocketSettings.DefaultEndSpread;
+
+    /// <summary>Grade pockets: how the off-grade share splits between poorer and richer, <c>units</c>
+    /// (the vein's mean metal units kept) or <c>index</c> (half each way).</summary>
+    public string GradePocketWeighting { get; set; } = "units";
+
     /// <summary>BetterEr Prospecting (Ore/Game/WideDensityProspecting.cs, README "Density prospecting
     /// reads 64 blocks, off the main thread"): the prospecting pick's block-based density mode counts
     /// ore 64 blocks each way instead of 32, normalised over that wider area, and walks the blocks on a

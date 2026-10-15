@@ -17,7 +17,9 @@ public sealed record OreWorldRecord(
     bool SmallerDeposits,
     bool RarerDistricts,
     bool PlacerFields = false,
-    int PlacerCellSize = PlacerCells.DefaultCellSize)
+    int PlacerCellSize = PlacerCells.DefaultCellSize,
+    bool GradePockets = false,
+    bool StableVeins = false)
 {
     // Inside the record, OreCells names the switch, not the class.
     private const int DefaultCellSize = global::SeraphHorizons.Mod.Ore.Core.OreCells.DefaultCellSize;
@@ -40,6 +42,8 @@ public sealed record OreWorldRecord(
         SmallerDeposits = SmallerDeposits && config.SmallerDeposits,
         RarerDistricts = RarerDistricts && config.RarerDistricts,
         PlacerFields = PlacerFields && config.PlacerFields,
+        GradePockets = GradePockets && config.GradePockets,
+        StableVeins = StableVeins && config.StableVeins,
     };
 
     // "key=value" lines, so a later version can add keys.
@@ -53,6 +57,10 @@ public sealed record OreWorldRecord(
             $"noSurfaceCopper={NoSurfaceCopper}\nsmallerDeposits={SmallerDeposits}\nrarerDistricts={RarerDistricts}\n");
         // Placer fields (#442) came later: a record without the key is a world created before them.
         sb.Append(CultureInfo.InvariantCulture, $"placerFields={PlacerFields}\nplacerCellSize={PlacerCellSize}\n");
+        // So did grade pockets (#944).
+        sb.Append(CultureInfo.InvariantCulture, $"gradePockets={GradePockets}\n");
+        // And stable veins (#946).
+        sb.Append(CultureInfo.InvariantCulture, $"stableVeins={StableVeins}\n");
         return sb.ToString();
     }
 
@@ -76,7 +84,9 @@ public sealed record OreWorldRecord(
             bySize,
             B("noSurfaceCopper"), B("smallerDeposits"), B("rarerDistricts"),
             B("placerFields"),
-            values.TryGetValue("placerCellSize", out var ps) ? int.Parse(ps, CultureInfo.InvariantCulture) : PlacerCells.DefaultCellSize);
+            values.TryGetValue("placerCellSize", out var ps) ? int.Parse(ps, CultureInfo.InvariantCulture) : PlacerCells.DefaultCellSize,
+            B("gradePockets"),
+            B("stableVeins"));
     }
 
     public bool Equals(OreWorldRecord? other) => other is not null && Serialize() == other.Serialize();

@@ -23,6 +23,8 @@
   "GearboxSourceRatio": false,
   "GearConsumers": false,
   "GearPartsRemoved": false,
+  "GradePockets": false,
+  "StableVeins": false,
   "Handcar": false,
   "HeatingRackKeepsPosition": false,
   "HeatingRackStandsOnBlock": false,

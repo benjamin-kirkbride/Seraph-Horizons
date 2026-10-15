@@ -4,6 +4,7 @@
   ore_survey.py summary RUN_DIR... [--dump DUMP] [--json OUT]
   ore_survey.py compare BEFORE.json AFTER.json [--targets FILE]
   ore_survey.py check SUMMARY.json [--targets FILE]
+  ore_survey.py census CENSUS_DIR... --dump DUMP [--json OUT] [--check [--source all|cell|district]]
 
 A RUN_DIR holds one seed's orescan.json and orescan.json.cells.csv (from run.sh). The dump
 (orescan.json from `run.sh --dump`) turns ore blocks into ingots; by default it is the
@@ -36,6 +37,7 @@ UNITS_PER_NUGGET = 5
 NUGGET_OF = {"galena_nativesilver": "galena"}
 NUGGETS_PER_INGOT = 20
 SURFACE_DEPTH = 6  # a deposit "reaches the surface" if any of its ore is this close
+ONE_GRADE = 0.8  # a deposit "is one grade" if its commonest grade holds this share of its blocks
 
 
 def quantile(xs, p):
@@ -101,6 +103,19 @@ class Classifier:
         return units / UNITS_PER_NUGGET
 
 
+def grade_of(code: str):
+    """An ore block's grade (ore-rich-nativecopper-granite -> rich), or None."""
+    parts = code.split(":", 1)[-1].split("-")
+    return parts[1] if len(parts) > 2 and parts[0] == "ore" and parts[1] in GRADES else None
+
+
+def top_grade_share(d: dict):
+    """The share of a deposit's graded blocks in its commonest grade, or None if it has none."""
+    g = d.get("grades") or {}
+    n = sum(g.values())
+    return max(g.values()) / n if n else None
+
+
 # ---------------------------------------------------------------------------------------------
 # Grouping
 
@@ -128,8 +143,8 @@ class UnionFind:
 def fragments(cells: dict) -> list[dict]:
     """26-neighbour flood fill over 8-block cells of one ore type.
 
-    cells: {(x, z, y): [blocks, nuggets, minDepth]} -> [{blocks, nuggets, minDepth, x, z}],
-    x and z the unweighted mean of the cell centres in blocks."""
+    cells: {(x, z, y): [blocks, nuggets, minDepth, {grade: blocks}]} -> [{blocks, nuggets, minDepth,
+    grades, x, z}], x and z the unweighted mean of the cell centres in blocks."""
     seen = set()
     out = []
     for start in cells:
@@ -140,6 +155,7 @@ def fragments(cells: dict) -> list[dict]:
         blocks = 0
         nuggets = 0.0
         mind = math.inf
+        grades = collections.Counter()
         xs = zs = n = 0
         while stack:
             k = stack.pop()
@@ -147,6 +163,8 @@ def fragments(cells: dict) -> list[dict]:
             blocks += c[0]
             nuggets += c[1]
             mind = min(mind, c[2])
+            if len(c) > 3:
+                grades.update(c[3])
             xs += k[0]
             zs += k[1]
             n += 1
@@ -157,7 +175,7 @@ def fragments(cells: dict) -> list[dict]:
                         if nk in cells and nk not in seen:
                             seen.add(nk)
                             stack.append(nk)
-        out.append({"blocks": blocks, "nuggets": nuggets, "minDepth": mind,
+        out.append({"blocks": blocks, "nuggets": nuggets, "minDepth": mind, "grades": dict(grades),
                     "x": 8 * xs / n + 4, "z": 8 * zs / n + 4})
     return out
 
@@ -178,6 +196,7 @@ def merge(frags: list[dict], link: float) -> list[dict]:
             "blocks": sum(f["blocks"] for f in members),
             "nuggets": sum(f["nuggets"] for f in members),
             "minDepth": min(f["minDepth"] for f in members),
+            "grades": dict(sum((collections.Counter(f.get("grades", {})) for f in members), collections.Counter())),
             "x": big["x"], "z": big["z"],
             "ores": sorted({o for f in members for o in f.get("ores", [])}),
             "fragments": len(members),
@@ -252,16 +271,19 @@ def read_run(path, classify: Classifier, opts) -> dict:
     doc_path, csv_path = run_files(path)
     doc = json.loads(Path(doc_path).read_text())
     seed = doc.get("seed")
-    by_ore = collections.defaultdict(dict)  # (kind, group, ore) -> {(x, z, y): [blocks, nuggets, minDepth]}
+    # (kind, group, ore) -> {(x, z, y): [blocks, nuggets, minDepth, {grade: blocks}]}
+    by_ore = collections.defaultdict(dict)
     with open(csv_path, newline="") as f:
         for code, x, z, y, n, dep in csv.reader(f):
             kind = classify(code)
             if not kind:
                 continue
-            c = by_ore[kind[:3]].setdefault((int(x), int(z), int(y)), [0, 0.0, math.inf])
+            c = by_ore[kind[:3]].setdefault((int(x), int(z), int(y)), [0, 0.0, math.inf, collections.Counter()])
             c[0] += int(n)
             c[1] += int(n) * kind[3]
             c[2] = min(c[2], int(dep))
+            if (grade := grade_of(code)):
+                c[3][grade] += int(n)
     groups: dict[tuple, dict] = collections.defaultdict(
         lambda: {"frags": [], "pockets": [], "totalBlocks": 0, "totalNuggets": 0.0})
     gravel = []
@@ -311,6 +333,7 @@ def summarise(runs: list[dict], opts) -> dict:
         iv = [ingots(d) for d in big]
         pockets = merged("metal", metal, "pockets")
         all_ingots = total("metal", metal, "totalNuggets") / NUGGETS_PER_INGOT
+        tops = [t for t in map(top_grade_share, big) if t is not None]
         metals[metal] = {
             "deposits": len(big),
             "smallDeposits": len(deps) - len(big),
@@ -324,6 +347,9 @@ def summarise(runs: list[dict], opts) -> dict:
             "pocketIngotsMedian": quantile([p["nuggets"] / NUGGETS_PER_INGOT for p in pockets], .5),
             "pocketSurfaceShare": sum(p["minDepth"] <= SURFACE_DEPTH for p in pockets) / len(pockets) if pockets else 0,
             "pocketShare": sum(p["nuggets"] for p in pockets) / NUGGETS_PER_INGOT / all_ingots if all_ingots else 0,
+            # Grade within deposits (#944): how much of each is its commonest grade.
+            "topGradeMedian": quantile(tops, .5),
+            "oneGradeShare": sum(t >= ONE_GRADE for t in tops) / len(tops) if tops else 0,
             "ores": sorted({o for d in deps for o in d["ores"]}),
         }
     minerals = {}
@@ -378,7 +404,8 @@ METAL_COLS = [("deposits/km²", "depositsPerKm2", "f"), ("km²/dep", "depositsPe
               ("max", "ingotsMax", "n"), ("nn m", "nearestMedian", "n"), ("surface", "surfaceShare", "%"),
               ("ingots/km²", "ingotsPerKm2", "n"), ("pockets/km²", "pocketsPerKm2", "f"),
               ("pocket med", "pocketIngotsMedian", "n"), ("pocket surf", "pocketSurfaceShare", "%"),
-              ("in pockets", "pocketShare", "%")]
+              ("in pockets", "pocketShare", "%"), ("top grade", "topGradeMedian", "%"),
+              ("1 grade", "oneGradeShare", "%")]
 MINERAL_COLS = [("deposits/km²", "depositsPerKm2", "f"), ("km²/dep", "depositsPerKm2", "a"),
                 ("blocks p10", "blocksP10", "n"), ("median", "blocksMedian", "n"), ("p90", "blocksP90", "n"),
                 ("nn m", "nearestMedian", "n"), ("surface", "surfaceShare", "%"), ("blocks/km²", "blocksPerKm2", "n")]
@@ -402,6 +429,7 @@ def format_summary(s: dict) -> str:
     out = [f"{len(s['runs'])} seed(s) ({seeds}), {s['areaKm2']:.1f} km².",
            f"Deposit: ore of one metal within {o['link']:.0f} m (fragments of >= {o['min_blocks']} blocks),"
            f" >= {o['min_ingots']} ingots; smaller fragments are pockets. Surface: ore within {SURFACE_DEPTH} blocks.",
+           f"Top grade: the median deposit's share in its commonest grade; 1 grade: deposits with >= {ONE_GRADE:.0%} in one.",
            "", "Metals", table(s["metals"], METAL_COLS, "metal"),
            "", f"Coal and industrial minerals (deposits >= {o['min_mineral_blocks']} blocks)",
            table(s["minerals"], MINERAL_COLS, "group"),
@@ -420,7 +448,8 @@ def format_compare(a: dict, b: dict) -> str:
     out = [f"before: {len(a['runs'])} seed(s), {a['areaKm2']:.1f} km²; after: {len(b['runs'])} seed(s), {b['areaKm2']:.1f} km²"]
     sections = [("Metals", "metals", [("deposits/km²", "depositsPerKm2", "f"), ("ingots med", "ingotsMedian", "n"),
                                       ("p90", "ingotsP90", "n"), ("nn m", "nearestMedian", "n"),
-                                      ("surface", "surfaceShare", "%"), ("ingots/km²", "ingotsPerKm2", "n")]),
+                                      ("surface", "surfaceShare", "%"), ("ingots/km²", "ingotsPerKm2", "n"),
+                                      ("top grade", "topGradeMedian", "%"), ("1 grade", "oneGradeShare", "%")]),
                 ("Minerals", "minerals", [("deposits/km²", "depositsPerKm2", "f"), ("blocks med", "blocksMedian", "n"),
                                           ("blocks/km²", "blocksPerKm2", "n")])]
     for title, key, cols in sections:
@@ -486,6 +515,199 @@ def load_targets(path) -> dict:
 
 
 # ---------------------------------------------------------------------------------------------
+# Census (run.sh --census): one record per deposit, flooded over chunk columns
+
+
+def census_files(path: Path) -> tuple[Path, Path]:
+    path = Path(path)
+    doc = path if path.suffix == ".json" else path / "census.json"
+    return doc, Path(str(doc) + ".cells.csv")
+
+
+def read_census(path, classify: Classifier, opts) -> dict:
+    """One census run -> {seed, records, deposits}. Records of one metal that share an 8-block cell
+    are one deposit (a vein flooded from two anchors, or a cell's deposit run into a district vein);
+    its cells are their union. A deposit's ingots are those of its fragments of at least
+    `min_blocks` (smaller ones are pockets), as the summary counts them."""
+    doc_path, csv_path = census_files(path)
+    doc = json.loads(Path(doc_path).read_text())
+    seed = doc.get("seed")
+    records = {r["id"]: r for r in doc["deposits"]}
+    cells_of = collections.defaultdict(dict)  # id -> {(code, x, z, y): (blocks, minDepth)}
+    with open(csv_path, newline="") as f:
+        for rid, code, x, z, y, n, dep in csv.reader(f):
+            cells_of[int(rid)][(code, int(x), int(z), int(y))] = (int(n), int(dep))
+    ids = sorted(records)
+    index = {rid: i for i, rid in enumerate(ids)}
+    uf = UnionFind(len(ids))
+    owner = {}
+    for rid in ids:
+        metal = records[rid]["metal"]
+        for (code, x, z, y) in cells_of.get(rid, {}):
+            key = (metal, x, z, y)
+            if key in owner:
+                uf.union(index[rid], index[owner[key]])
+            else:
+                owner[key] = rid
+    deposits = []
+    for group in uf.groups():
+        members = [records[ids[i]] for i in group]
+        flooded = [m for m in members if m["status"] == "flooded"]
+        if not flooded:
+            continue
+        metal = members[0]["metal"]
+        cells = {}
+        for m in members:
+            cells.update(cells_of.get(m["id"], {}))
+        by_ore = collections.defaultdict(dict)
+        for (code, x, z, y), (n, dep) in cells.items():
+            kind = classify(code)
+            if not kind or kind[0] != "metal" or kind[1] != metal:
+                continue
+            c = by_ore[kind[2]].setdefault((x, z, y), [0, 0.0, math.inf, collections.Counter()])
+            c[0] += n
+            c[1] += n * kind[3]
+            c[2] = min(c[2], dep)
+            if (grade := grade_of(code)):
+                c[3][grade] += n
+        kept, pockets = [], []
+        for ore, ocells in by_ore.items():
+            for fr in fragments(ocells):
+                fr["ores"] = [ore]
+                (kept if fr["blocks"] >= opts.min_blocks else pockets).append(fr)
+        allf = kept + pockets
+        blocks = sum(f["blocks"] for f in kept)
+        kinds = sorted({m["kind"] for m in members})
+        deposits.append({
+            "seed": seed, "metal": metal,
+            "source": "cell" if "cell" in kinds else "district",
+            "kinds": kinds,
+            "records": [m["id"] for m in members],
+            "blocks": blocks,
+            "nuggets": sum(f["nuggets"] for f in kept),
+            "allNuggets": sum(f["nuggets"] for f in allf),
+            "grades": dict(sum((collections.Counter(f["grades"]) for f in kept), collections.Counter())),
+            "minDepth": min((f["minDepth"] for f in kept), default=math.inf),
+            "x": sum(f["x"] * f["blocks"] for f in kept) / blocks if blocks else members[0]["anchorX"],
+            "z": sum(f["z"] * f["blocks"] for f in kept) / blocks if blocks else members[0]["anchorZ"],
+            "capped": any(m.get("capped") for m in members),
+            "columns": sum(m.get("columns", 0) for m in members),
+            "generated": sum(m.get("generated", 0) for m in members),
+            "district": next((m["district"] for m in members if m.get("district")), None),
+            "rocks": next((m["rocks"] for m in members if m.get("rocks")), None),
+            "cell": next(([m["cellX"], m["cellZ"], m["spot"]] for m in members if m["kind"] == "cell"), None),
+        })
+    none = [r for r in records.values() if r["status"] != "flooded"]
+    return {"seed": seed, "dir": str(path), "seconds": doc.get("seconds", 0),
+            # columns generated: seen at their Vegetation pass (or, without early scans, completed)
+            "columnsScanned": doc.get("columnsEarly") or doc.get("columnsCompleted") or doc.get("columnsScanned", 0),
+            "records": list(records.values()),
+            "none": none, "deposits": deposits}
+
+
+SOURCES = ("cell", "district", "all")
+
+
+def summarise_census(runs: list[dict], opts) -> dict:
+    ingots = lambda d: d["nuggets"] / NUGGETS_PER_INGOT
+    out = {"runs": [{"dir": r["dir"], "seed": r["seed"], "seconds": r["seconds"], "columnsScanned": r["columnsScanned"]} for r in runs],
+           "options": {"min_blocks": opts.min_blocks, "min_ingots": opts.min_ingots}, "metals": {}}
+    for source in SOURCES:
+        deps = [d for r in runs for d in r["deposits"] if source == "all" or d["source"] == source]
+        rows = {}
+        for metal in sorted({d["metal"] for d in deps}):
+            md = [d for d in deps if d["metal"] == metal]
+            big = [d for d in md if ingots(d) >= opts.min_ingots]
+            iv = [ingots(d) for d in big]
+            tops = [t for t in map(top_grade_share, big) if t is not None]
+            none = [x for r in runs for x in r["none"] if x["metal"] == metal and source in ("cell", "all") and x["kind"] == "cell"]
+            rows[metal] = {
+                "deposits": len(big), "small": len(md) - len(big), "none": len(none),
+                "ingotsP10": quantile(iv, .1), "ingotsMedian": quantile(iv, .5),
+                "ingotsP90": quantile(iv, .9), "ingotsMax": max(iv, default=0),
+                "surfaceShare": sum(d["minDepth"] <= SURFACE_DEPTH for d in big) / len(big) if big else 0,
+                "topGradeMedian": quantile(tops, .5),
+                "oneGradeShare": sum(t >= ONE_GRADE for t in tops) / len(tops) if tops else 0,
+                "cappedShare": sum(d["capped"] for d in md) / len(md) if md else 0,
+                "columnsMedian": quantile([d["columns"] for d in md], .5),
+            }
+        out["metals"][source] = rows
+    vein = lambda d: {"seed": d["seed"], "metal": d["metal"], "ingots": round(ingots(d), 1),
+                      "code": (d["district"] or {}).get("code"), "zoneKind": (d["district"] or {}).get("zoneKind"),
+                      "rocks": d["rocks"], "x": round(d["x"]), "z": round(d["z"]), "capped": d["capped"]}
+    out["districtVeins"] = [vein(d) for r in runs for d in r["deposits"] if d["source"] == "district"]
+    # Per district type and metal: how its veins come out, and how much of the band is the host rock
+    # (a shoot is counted whole where the host is a country rock, docs/oregen.md "Host rock").
+    by_type = collections.defaultdict(list)
+    for r in runs:
+        for d in r["deposits"]:
+            if d["source"] == "district" and d["district"]:
+                by_type[(d["district"]["code"], d["metal"])].append(d)
+    out["districtTypes"] = {
+        f"{code} {metal}": {
+            "veins": len(ds), "deposits": sum(ingots(d) >= opts.min_ingots for d in ds),
+            "ingotsMedian": quantile([ingots(d) for d in ds], .5), "ingotsMax": max(ingots(d) for d in ds),
+            "hostShareMedian": quantile([(d["rocks"] or {}).get(d["district"].get("host", "").split(":")[-1], 0) for d in ds], .5),
+        } for (code, metal), ds in sorted(by_type.items())}
+    seconds = sum(r["seconds"] for r in runs)
+    records = sum(len(r["records"]) for r in runs)
+    out["throughput"] = {"records": records, "deposits": sum(len(r["deposits"]) for r in runs),
+                         "serverSeconds": seconds, "columnsScanned": sum(r["columnsScanned"] for r in runs),
+                         "recordsPerServerHour": records / seconds * 3600 if seconds else 0}
+    return out
+
+
+CENSUS_COLS = [("deposits", "deposits", "n"), ("small", "small", "n"), ("none", "none", "n"),
+               ("ingots p10", "ingotsP10", "n"), ("median", "ingotsMedian", "n"), ("p90", "ingotsP90", "n"),
+               ("max", "ingotsMax", "n"), ("surface", "surfaceShare", "%"), ("top grade", "topGradeMedian", "%"),
+               ("1 grade", "oneGradeShare", "%"), ("capped", "cappedShare", "%"), ("columns", "columnsMedian", "n")]
+
+
+def format_census(s: dict) -> str:
+    o = s["options"]
+    t = s["throughput"]
+    seeds = ", ".join(str(r["seed"]) for r in s["runs"])
+    out = [f"{len(s['runs'])} seed(s) ({seeds}): {t['records']} records, {t['deposits']} deposits,"
+           f" {t['columnsScanned']:,} columns generated in {t['serverSeconds'] / 3600:.2f} server hours"
+           f" ({t['recordsPerServerHour']:.0f} records per server hour).",
+           f"Deposit: >= {o['min_ingots']} ingots in fragments of >= {o['min_blocks']} blocks; small: flooded, under that;"
+           " none: the cell has no deposit. Capped and columns over every flooded deposit."]
+    for source in SOURCES:
+        title = {"cell": "Ore cells", "district": "District veins", "all": "All"}[source]
+        out += ["", title, table(s["metals"][source], CENSUS_COLS, "metal")]
+    if s.get("districtTypes"):
+        cols = [("veins", "veins", "n"), ("deposits", "deposits", "n"), ("median", "ingotsMedian", "n"),
+                ("max", "ingotsMax", "n"), ("host rock in band", "hostShareMedian", "%")]
+        out += ["", f"District veins by type (every vein, small ones too; deposits >= {o['min_ingots']} ingots;"
+                    " host rock in band: the median vein's share of its band that is the district's host rock)",
+                table(s["districtTypes"], cols, "district metal")]
+    veins = s["districtVeins"]
+    if veins:
+        out += ["", "District veins (ingots; the commonest rocks in the band around the vein's centre)"]
+        for v in sorted(veins, key=lambda v: (v["code"] or "", v["metal"], v["ingots"])):
+            rocks = ", ".join(f"{k.removeprefix('rock-')} {x:.0%}" for k, x in (v["rocks"] or {}).items())
+            out.append(f"  seed {v['seed']:<6} {v['code'] or '?':<26} {v['metal']:<9} {v['zoneKind'] or '?':<10}"
+                       f" {v['ingots']:>8,.0f}{' capped' if v['capped'] else '':<7}  {rocks}")
+    return "\n".join(out)
+
+
+def check_census(s: dict, targets: dict, source: str = "all") -> list[tuple[str, str, str, bool]]:
+    """The size rows of `check` over a census's deposits: p10 / median / p90 against small /
+    typical / large, within the tolerance factor. A census measures deposits, not their spacing,
+    so no density rows."""
+    tol = targets["tolerance"]
+    within = lambda v, t: t / tol <= v <= t * tol
+    rows = []
+    for metal, t in targets["metals"].items():
+        m = s["metals"][source].get(metal)
+        if not m or not m["deposits"]:
+            continue
+        for label, key, tk in (("p10", "ingotsP10", "small"), ("median", "ingotsMedian", "typical"), ("p90", "ingotsP90", "large")):
+            rows.append((f"{metal} ingots {label} ({m['deposits']} deposits)", fmt(m[key]), f"{t[tk]:,}", within(m[key], t[tk])))
+    return rows
+
+
+# ---------------------------------------------------------------------------------------------
 
 
 def main(argv=None) -> int:
@@ -507,6 +729,15 @@ def main(argv=None) -> int:
     cp.add_argument("before", type=Path)
     cp.add_argument("after", type=Path)
     cp.add_argument("--targets", type=Path, default=HERE / "targets.json")
+    np_ = sub.add_parser("census", help="summarise census runs (run.sh --census): sizes per metal, district veins")
+    np_.add_argument("runs", nargs="+", type=Path, help="census run folders (or their census.json)")
+    np_.add_argument("--dump", type=Path, required=True, help="dump orescan.json (run.sh --dump) for the same mods")
+    np_.add_argument("--json", type=Path, help="also write the summary here")
+    np_.add_argument("--min-blocks", type=int, default=100, help="smaller fragments are pockets, left out (100)")
+    np_.add_argument("--min-ingots", type=float, default=50, help="smaller deposits are counted as small (50)")
+    np_.add_argument("--check", action="store_true", help="also check sizes against the targets; exits 1 on a miss")
+    np_.add_argument("--source", choices=SOURCES, default="all", help="which deposits --check reads (all)")
+    np_.add_argument("--targets", type=Path, default=HERE / "targets.json")
     kp = sub.add_parser("check", help="a summary against the targets; exits 1 if any miss")
     kp.add_argument("summary", type=Path)
     kp.add_argument("--targets", type=Path, default=HERE / "targets.json")
@@ -524,6 +755,21 @@ def main(argv=None) -> int:
             targets = load_targets(a.targets)
             print()
             print(format_check(check(s, targets), targets))
+        return 0
+    if a.cmd == "census":
+        classify = Classifier(json.loads(a.dump.read_text()))
+        s = summarise_census([read_census(r, classify, a) for r in a.runs], a)
+        s["dump"] = str(a.dump)
+        print(format_census(s))
+        if a.json:
+            a.json.write_text(json.dumps(s, indent=1) + "\n")
+        if a.check:
+            targets = load_targets(a.targets)
+            rows = check_census(s, targets, a.source)
+            print()
+            print(f"Sizes of {a.source} deposits:")
+            print(format_check(rows, targets))
+            return 1 if any(not r[3] for r in rows) else 0
         return 0
     targets = load_targets(a.targets)
     if a.cmd == "compare":

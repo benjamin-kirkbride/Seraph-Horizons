@@ -27,7 +27,20 @@
       <HintPath>$(VINTAGE_STORY)/Mods/VSEssentials.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- OreTrace (an experiment on the cell rule): postfixes on the pack's OreCellPlacement. -->
+    <Reference Include="0Harmony">
+      <HintPath>$(VINTAGE_STORY)/Lib/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- IAsset.ToObject, for the census's read of the pack's ore sizes. -->
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(VINTAGE_STORY)/Lib/Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <None Include="modinfo.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The unit tests of Core/ are their own project. -->
+    <Compile Remove="tests/**" />
+    <None Remove="tests/**" />
   </ItemGroup>
 
   <!-- build/seraphoresurvey.zip: the DLL and modinfo.json at the top level; run.sh copies it
