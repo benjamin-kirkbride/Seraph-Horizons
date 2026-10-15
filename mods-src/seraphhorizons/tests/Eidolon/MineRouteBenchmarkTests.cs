@@ -53,6 +53,8 @@ public class MineRouteBenchmarkTests(ITestOutputHelper output)
         }
         // no fault (the runner asserts each strike), all leave, everything dug but the stair's way out
         Assert.True(runner.AllLeave(c.Home), "routes: all leave");
+        // one choice the whole job, across its replans too (the crew and area never change here)
+        Assert.All(runner.Choices, x => Assert.True(x.Choice == runner.Choices[0].Choice, $"chose {x.Choice} ({x.Why}) after {runner.Choices[0].Choice}"));
         Assert.DoesNotContain(runner.Live.Remaining, cell => !plan.WayOut.Contains(cell));
         // contacts rare and brief
         Assert.True(runner.ContactSeconds <= 2, $"a contact of {runner.ContactSeconds:0.0} s");

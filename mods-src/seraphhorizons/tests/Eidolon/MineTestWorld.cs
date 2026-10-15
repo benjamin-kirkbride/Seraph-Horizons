@@ -557,6 +557,7 @@ internal sealed class RouteRunner
 
     public RouteRunner(MineTestWorld world, MarkArea area, MinePlan plan, PathCell home, IEnumerable<PathCell> starts, int? jitter = null)
     {
+        _area = area;
         _world = world;
         _home = home;
         _plan = plan;
@@ -570,6 +571,15 @@ internal sealed class RouteRunner
     public MineState Live => _live;
 
     public MineRoutes? Routes => _routes;
+
+    private readonly MarkArea _area;
+
+    /// <summary>The job's choice, kept as the game keeps it (<see cref="MineRouteChoice"/>): by every solve, a
+    /// new plan's too, the crew and area the same throughout.</summary>
+    public MineRouteChoice Choice { get; } = new();
+
+    /// <summary>Each solve's choice in turn, with why it was solved.</summary>
+    public List<(string Why, int Choice)> Choices { get; } = new();
 
     public List<string> Log { get; } = new();
 
@@ -686,12 +696,16 @@ internal sealed class RouteRunner
         Probe?.Invoke(now);
         var members = _workers.Where(w => !w.Done).Select(w => new MineRouteMember(w.Id, w.At, w.Station?.Id, w.Ahead,
             w.Station is { } s ? Math.Max(w.FreeAt, now) + MineCosts.WorkSeconds(_live.Site, s.Cells.Where(_live.Remaining.Contains).ToList()) : now)).ToList();
-        // the job's choice (today's or routes, and which variant) kept by every re-solve but on a new plan
+        // the job's choice (today's or routes, and which variant) kept by every solve, a new plan's too, as the
+        // game keeps it: the crew (every worker, done or not, as the job's members present) and area unchanged
+        var crew = _workers.Select(w => w.Id).ToList();
         var input = new MineRouteInput(_plan, _planVersion, _live.Clone(), members, [], now, current, null)
         {
-            Keep = why == "plan" || _routes == null ? null : _routes.VariantIndex,
+            Keep = Choice.KeepFor(crew, _area),
         };
         var made = MineRoutePlanner.Solve(input);
+        Choice.Made(made, crew, _area);
+        Choices.Add((why, made.VariantIndex));
         Solves++;
         if (made.Stats.KeptCurrent && _routes != null)
             Kept++;

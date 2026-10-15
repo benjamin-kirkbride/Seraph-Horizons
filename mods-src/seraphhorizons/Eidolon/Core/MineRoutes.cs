@@ -47,8 +47,9 @@ public sealed record MineRouteInput(MinePlan Plan, int PlanVersion, MineState St
     IReadOnlyList<MineWorkerAt> Parked, double Now, MineRoutes? Current, Func<MarkPos, bool>? Usable)
 {
     /// <summary>The choice the job's routes were made by (<see cref="MineRoutes.VariantIndex"/>), kept by every
-    /// re-solve of the job, urgent or periodic: the choice between today's dispatch and routes, and among the
-    /// routes' variants, is made once a job (and again on a new station plan). Null: choose.</summary>
+    /// re-solve of the job, urgent or periodic, and a new station plan's: the choice between today's dispatch
+    /// and routes, and among the routes' variants, is made once a job (again only for another crew or area,
+    /// <see cref="MineRouteChoice"/>). Null: choose.</summary>
     public int? Keep { get; init; }
 }
 
@@ -510,5 +511,34 @@ public sealed class MineRoutes
             return runs;
         double scale = legSeconds / walked;
         return runs.Select(r => (r.Zone, r.Enter * scale, double.IsPositiveInfinity(r.Leave) ? r.Leave : r.Leave * scale)).ToList();
+    }
+}
+
+/// <summary>
+/// A mining job's choice between today's dispatch and the routes' variants (README "Eidolon", working together,
+/// *Routes*): made by the job's first solve and kept, as <see cref="MineRouteInput.Keep"/>, by every solve after,
+/// a new station plan's too, for as long as the job's area and its members present are those it was made for;
+/// a member joining or leaving, or another area, lets it be made again.
+/// </summary>
+public sealed class MineRouteChoice
+{
+    private HashSet<long> _members = new();
+    private MarkArea _area;
+
+    /// <summary>The choice (<see cref="MineRoutes.VariantIndex"/>, or <see cref="MineRoutePlanner.TodayIndex"/>),
+    /// or null before the first.</summary>
+    public int? Index { get; private set; }
+
+    /// <summary>The choice to keep for a solve with <paramref name="members"/> present on <paramref name="area"/>:
+    /// the one made, if it was made for them; else null (choose).</summary>
+    public int? KeepFor(IEnumerable<long> members, MarkArea area) =>
+        Index != null && area == _area && _members.SetEquals(members) ? Index : null;
+
+    /// <summary>A solve's routes taken in: its choice noted for <paramref name="members"/> on <paramref name="area"/>.</summary>
+    public void Made(MineRoutes routes, IEnumerable<long> members, MarkArea area)
+    {
+        Index = routes.VariantIndex;
+        _members = members.ToHashSet();
+        _area = area;
     }
 }

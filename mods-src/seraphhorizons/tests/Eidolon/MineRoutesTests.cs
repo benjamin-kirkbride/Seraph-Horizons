@@ -295,6 +295,37 @@ public class MineRoutesTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void The_job_s_choice_holds_across_a_new_station_plan_while_its_crew_and_area_are_the_same()
+    {
+        var start = Begin(MineCases.WidePit(3));
+        var area = start.Case.Area;
+        long[] crew = [1, 2, 3];
+        var members = start.Input().Members;
+        // the plan made again from the world as it is: a new station plan for the same job
+        var again = MinePlanner.Run(new MinePlanInput(start.Live, start.Case.Home, _ => false, new HashSet<PathCell>()));
+        MineRoutes OnNewPlan(MineRouteChoice choice, IEnumerable<long> present, MarkArea on) =>
+            MineRoutePlanner.Solve(new MineRouteInput(again, 2, start.Live.Clone(), members, [], 0, null, null) { Keep = choice.KeepFor(present, on) });
+        // whatever the first solve chose (as chosen, a variant forced, or today's) the new plan's solve keeps
+        foreach (int? forced in new int?[] { null, 5, MineRoutePlanner.TodayIndex })
+        {
+            var choice = new MineRouteChoice();
+            var first = MineRoutePlanner.Solve(start.Input() with { Keep = forced ?? choice.KeepFor(crew, area) });
+            choice.Made(first, crew, area);
+            var kept = OnNewPlan(choice, crew, area);
+            output.WriteLine($"forced {forced?.ToString() ?? "none"}: first {first.VariantIndex}, on the new plan {kept.VariantIndex}");
+            Assert.Equal(first.VariantIndex, kept.VariantIndex);
+            Assert.Equal(first.VariantIndex, choice.KeepFor(crew.Reverse(), area));
+        }
+        // another crew, or another area: chosen again
+        var made = new MineRouteChoice();
+        made.Made(MineRoutePlanner.Solve(start.Input() with { Keep = 5 }), crew, area);
+        Assert.Null(made.KeepFor([1, 2], area));
+        Assert.Null(made.KeepFor([1, 2, 3, 4], area));
+        Assert.Null(made.KeepFor(crew, MarkArea.Between(area.Min, new MarkPos(area.Max.X + 1, area.Max.Y, area.Max.Z))));
+        Assert.Null(new MineRouteChoice().KeepFor(crew, area));
+    }
+
+    [Fact]
     public void A_re_solve_replaces_routes_only_when_much_better()
     {
         var start = Begin(MineCases.WidePit(3));

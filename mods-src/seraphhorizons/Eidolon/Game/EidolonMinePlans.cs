@@ -134,6 +134,9 @@ public class EidolonMinePlans : ModSystem
         public int RoutingPlanVersion;
         public string? RoutingWhy;
 
+        // the members present the solve under way was made for (its choice is theirs)
+        public long[] RoutingMembers = [];
+
         public void Cancel()
         {
             CancelRouting();
@@ -444,8 +447,7 @@ public class EidolonMinePlans : ModSystem
                 RequestRoutes(cells, "plan", true);
                 return;
             }
-            cells.RoutesChoice = made.VariantIndex;
-            cells.RoutesChoicePlan = cells.PlanVersion;
+            cells.RouteChoice.Made(made, work.RoutingMembers, work.Area);
             if (made.Stats.KeptCurrent && cells.Routes != null)
                 return;
             // Members gone from the job while it was solved: their routes are taken out as Stop does, their
@@ -470,26 +472,29 @@ public class EidolonMinePlans : ModSystem
         var job = jobs?.Mining.Jobs.FirstOrDefault(j => j.Shared == cells && !j.Closed);
         if (job == null || job.Present.Count < 2)
         {
-            // dispatched as before; the choice (RoutesChoice) is kept for when the job is a crew again
+            // dispatched as before; the choice (RouteChoice) is kept for when the job is a crew again
             cells.Routes = null;
             cells.RoutesWanted = null;
             cells.RoutesUrgent = false;
             return;
         }
-        int? choice = cells.RoutesChoicePlan == cells.PlanVersion ? cells.RoutesChoice : null;
-        // routes for this station plan (or its choice from before the job was down to one): no fresh solve
-        bool fresh = choice == null && (cells.Routes == null || cells.Routes.PlanVersion != cells.PlanVersion);
-        bool missing = cells.Routes == null || cells.Routes.PlanVersion != cells.PlanVersion;
+        // the job's choice, kept by every solve (a new station plan's too) while its members present are those
+        // it was made for
+        int? choice = cells.RouteChoice.KeepFor(job.Present, work.Area);
+        bool fresh = cells.Routes == null || cells.Routes.PlanVersion != cells.PlanVersion;
         bool joined = cells.Routes is { Today: false } r && job.Present.Any(m => !r.Routes.ContainsKey(m));
+        // a choice made for other members (one joined or left since): made again
+        bool rechoose = cells.RouteChoice.Index != null && choice == null;
         string? why = fresh ? (cells.Routes == null ? "first" : "plan")
-            : missing ? "members"
-            : cells.RoutesWanted ?? (joined ? "members" : now - work.RoutedAt >= MineRoutes.ResolveSeconds ? "periodic" : null);
+            : rechoose || joined ? "members"
+            : cells.RoutesWanted ?? (now - work.RoutedAt >= MineRoutes.ResolveSeconds ? "periodic" : null);
         // at most every SolveMinSeconds (UrgentMinSeconds when asked so), but for the first solve of a station plan
         double least = cells.RoutesUrgent && cells.RoutesWanted != null ? UrgentMinSeconds : SolveMinSeconds;
         if (why == null || now - work.RoutedAt < least && !(fresh && work.RoutingPlanVersion != cells.PlanVersion))
             return;
-        // left to today's dispatch: kept so until a new station plan
-        if (!fresh && choice == MineRoutePlanner.TodayIndex)
+        // left to today's dispatch: kept so, with no solve, until a new station plan (whose solve keeps it too
+        // while the members are the same)
+        if (!fresh && cells.Routes!.Today && choice == MineRoutePlanner.TodayIndex)
         {
             cells.RoutesWanted = null;
             cells.RoutesUrgent = false;
@@ -504,7 +509,7 @@ public class EidolonMinePlans : ModSystem
         var input = new MineRouteInput(cells.Plan!, cells.PlanVersion, live.Clone(), members, [], now,
             why == "periodic" ? cells.Routes!.Copy() : null, null)
         {
-            Keep = fresh ? null : choice ?? cells.Routes!.VariantIndex,
+            Keep = choice,
         };
         var token = new CancellationTokenSource();
         var cancel = token.Token;
@@ -514,6 +519,7 @@ public class EidolonMinePlans : ModSystem
         work.RoutingPlanVersion = cells.PlanVersion;
         work.RoutedAt = now;
         work.RoutingWhy = why;
+        work.RoutingMembers = job.Present.ToArray();
         cells.RoutesWanted = null;
         cells.RoutesUrgent = false;
         work.Routing = Task.Run(() =>

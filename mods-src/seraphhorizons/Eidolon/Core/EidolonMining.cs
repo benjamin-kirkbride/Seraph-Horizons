@@ -138,13 +138,10 @@ public sealed class MineJobCells
     /// <summary>Whether the solve asked for may start before the least time between solves is up.</summary>
     public bool RoutesUrgent { get; set; }
 
-    /// <summary>The choice the job's routes were last made by (<see cref="MineRoutes.VariantIndex"/>, or
-    /// <c>MineRoutePlanner.TodayIndex</c> for today's dispatch) for the station plan
-    /// <see cref="RoutesChoicePlan"/>: kept apart from <see cref="Routes"/> so that it outlasts routes let go
-    /// (a job down to one member), until a new station plan.</summary>
-    public int? RoutesChoice { get; set; }
-
-    public int RoutesChoicePlan { get; set; } = -1;
+    /// <summary>The job's choice between today's dispatch and the routes' variants, kept apart from
+    /// <see cref="Routes"/> so that it outlasts routes let go (a job down to one member) and new station plans,
+    /// for as long as the area and the members present are those it was made for.</summary>
+    public MineRouteChoice RouteChoice { get; } = new();
 }
 
 /// <summary>A strike's timing (seconds from its start): the slam is started at <see cref="SlamAt"/>
