@@ -80,6 +80,9 @@ GAP = ((B, 3 * B), (0.0, 2 * B), (2 * B, 3 * B))   # the back row's middle and e
 #                                                  blast's pipe comes in there, behind the back wall)
 CHIMNEY_CELL = (0, 2, 2)                     # over the outlet: the chimney's, not the machine's
 ROW_MAX = 5                                  # furnaces in a row, side by side along x, sharing one chimney
+BLAST_RATE = 10.0                            # the blast the furnace draws at the socket, L/s of "Air", and the
+BLAST_PRESSURE = 1.5                         # least pressure (atm) it runs at: the owner's ruling on #740, as smex's
+#                                              Bessemer converter's intake port
 
 TEXTURES = {
     "brick": "game:block/clay/brick/four/running/red1",     # the common brickwork: the red brick's colour (BRICKS)
@@ -227,8 +230,12 @@ TOP_EDGES = (("n", "x", 0.0, 1, (0.0, 3 * B)), ("e", "z", 3 * B, -1, (0.0, 2 * B
 
 # ---------------------------------------------------------------- the build
 # Built in stages (the rig's `build`; their requires values are the viewer's Build states): the iron frame, a grid
-# recipe placed as the machine (the controller and its ghosts), then the brickwork, the lining, the test and the
-# fittings (the fire door, the gutter, the litharge pot and the damper). The brickwork's and the
+# recipe placed as the machine (the controller and its ghosts), then the brickwork, the lining and the fittings (the
+# fire door, the gutter, the litharge pot and the damper); last the test, the wearing part (the owner's ruling on #740:
+# like the cylinder borer's cutter head, fitted after the fittings and renewed when spent, every TEST_CHARGES charges,
+# about TEST_LEAD units of lead). The test's iron ring is a fitting and stays on the hearth: the test is its bone ash,
+# so a spent test is broken out of the ring and a new one beaten in, through the working door (a whole test, 18.4 across
+# its ring, is wider than the door's 12). The brickwork's and the
 # lining's counts are measured from the model's volume at the game's rates, as the crucible furnace's are: a claybricks
 # block is 2 fired bricks, a refractory brick block 4, rounded up; the lining's fire clay one for every
 # LINING_PER_FIRECLAY of its bricks; the test's bone meal at the bone-ash cupel's rate (4 bone meal for its 41 cubic
@@ -242,15 +249,16 @@ FIRED_BRICK = "game:burnedbrick-*"
 LINING_BRICK = "game:refractorybrick-fired-tier3"
 FIRECLAY = "game:clay-fire"
 BONEMEAL = "game:bonemeal"
-TEST_IRON = ("game:metalplate-iron", 1)      # the test's ring
-FITTINGS_STAGE = (("game:metalplate-iron", 2),)
+TEST_CHARGES = 15                            # the test's wear: charges cupelled on it before it is spent (#740)
+TEST_LEAD = 3000                             # about the lead (units) a test takes over them, 200 a charge
+FITTINGS_STAGE = (("game:metalplate-iron", 3),)   # the fire door, the gutter and the pot, the damper; the test's ring
 CAP_ITEM = ("game:metalplate-iron", 1)
-STAGES = ("brickwork", "lining", "test", "fittings")   # the stages after the frame, in order
+STAGES = ("brickwork", "lining", "fittings", "test")   # the stages after the frame, in order: the test the wearing part
 STAGE_STATES = (                             # the viewer's Build select: (id, the stages fitted)
     ("frame", ()),
     ("brickwork", ("brickwork",)),
     ("lining", ("brickwork", "lining")),
-    ("test", ("brickwork", "lining", "test")),
+    ("fittings", ("brickwork", "lining", "fittings")),
     ("complete", STAGES),
 )
 
@@ -799,27 +807,30 @@ def build_frame():
 # ---------------------------------------------------------------- the test
 def ring_side(k, a, b, y0, y1, thick, name, part, tex, ext=0.0, inward=False):
     """Side k of the octagon inscribed in the oval (a, b): its chord from t 45k - 22.5 to 45k + 22.5, run on by `ext`
-    at each end, standing `thick` outward (or inward) from it."""
+    at each end but the one against the front side (the breast's: the bone ash, the wearing part, and the ring, a
+    fitting, only meet there), standing `thick` outward (or inward) from it."""
     p0, p1 = ell(45.0 * k - 22.5, a, b), ell(45.0 * k + 22.5, a, b)
     dx, dz = p1[0] - p0[0], p1[1] - p0[1]
     ln = math.hypot(dx, dz)
-    e = ext / ln
-    p0, p1 = (p0[0] - dx * e, p0[1] - dz * e), (p1[0] + dx * e, p1[1] + dz * e)
+    e0 = 0.0 if (k - 1) % 8 == FRONT_K else ext / ln
+    e1 = 0.0 if (k + 1) % 8 == FRONT_K else ext / ln
+    p0, p1 = (p0[0] - dx * e0, p0[1] - dz * e0), (p1[0] + dx * e1, p1[1] + dz * e1)
     return segment_y(p1, p0, y0, y1, thick, name, part, tex) if inward else segment_y(p0, p1, y0, y1, thick, name, part, tex)
 
 
 def build_test():
-    """The test (`test`): an oval of bone ash in an iron ring, standing on the chamber's hearth. The ring is seven
-    sides of an octagon inscribed in the oval, each run on a little at its ends so the corners close; the front side
-    is left out, and the breast stands there, bone ash, thicker, with the gate cut in it from the floor up. Inside the
-    ring the bone ash: its floor (the dish the lead lies in) and a rim round it."""
+    """The test (`test`, the wearing part): an oval of bone ash in an iron ring, standing on the chamber's hearth. The
+    ring (`ft_ring<k>`, a fitting: it stays when a spent test is broken out) is seven sides of an octagon inscribed in
+    the oval, each run on a little at its ends so the corners close; the front side is left out, and the breast stands
+    there, bone ash, thicker, with the gate cut in it from the floor up. Inside the ring the bone ash: its floor (the
+    dish the lead lies in) and a rim round it."""
     p = "test"
     a, b = TEST_A
     out = []
     for k in range(8):
         if k == FRONT_K:
             continue
-        out.append(ring_side(k, a, b, HEARTH_Y, RING_TOP, RING_T, f"ts_ring{k + 1}", p, "iron", ext=RING_EXT))
+        out.append(ring_side(k, a, b, HEARTH_Y, RING_TOP, RING_T, f"ft_ring{k + 1}", "fittings", "iron", ext=RING_EXT))
     out += oval_fill(TEST_C, HEARTH_Y, ASH_TOP, a, b, "ts_ash", p, "boneash")
     for k in range(8):
         if k == FRONT_K:
@@ -959,7 +970,7 @@ def pt(*v):
     return [r6(x / B) for x in v]
 
 
-PART_IDS = ("brickwork", "lining", "test", "fittings") + CONTENTS + tuple(f"damper{d}" for d in DAMPERS) + ("outletcap",)
+PART_IDS = STAGES + CONTENTS + tuple(f"damper{d}" for d in DAMPERS) + ("outletcap",)
 MATCH = {"brickwork": "bk_*", "lining": "ln_*", "test": "ts_*", "fittings": "ft_*"}
 MOVING = ()                                  # nothing moves: the blast comes by pipe
 
@@ -994,8 +1005,8 @@ def _rig_parts():
 # ---------------------------------------------------------------- poses
 # A pose is (theta, scene): theta reads nothing (no part moves), and what is fitted. A scene is (the test's state, the damper's place,
 # whether the outlet is capped, the build's state): gameplay's requires. The test's contents, the fire and the
-# litharge need the furnace built (the fittings stage: the pot, the gutter); the damper is fitted with the fittings,
-# the cap once the curb is in (the lining).
+# litharge need the furnace complete (the fittings, then the test); the damper is fitted with the fittings, the cap
+# once the curb is in (the lining).
 DEFAULT_SCENE = ("running", "open", False, "complete")
 REST = (0.0, DEFAULT_SCENE)
 
@@ -1013,8 +1024,9 @@ def fitted(scene):
     state, damper, capped, stage = scene
     out = set(dict(STAGE_STATES)[stage])
     if "fittings" in out:
-        out |= set(dict((s[0], s[2]) for s in WORK_STATES)[state])
         out.add(f"damper{damper}")
+    if "test" in out:
+        out |= set(dict((s[0], s[2]) for s in WORK_STATES)[state])
     if capped and "lining" in out:
         out.add("outletcap")
     return out
@@ -1151,9 +1163,11 @@ def build_json():
              "materials": materials(((FIRED_BRICK, c["bricks"]),))},
             {"requires": "lining", "volumeBlocks": r6(c["liningVolume"]), "perClick": "stack",
              "materials": materials(((LINING_BRICK, c["lining"]), (FIRECLAY, c["fireclay"])))},
-            {"requires": "test", "volumeBlocks": r6(c["ashVolume"]), "perClick": "stack",
-             "materials": materials(((BONEMEAL, c["bonemeal"]), TEST_IRON))},
             {"requires": "fittings", "also": [f"damper{d}" for d in DAMPERS], "materials": materials(FITTINGS_STAGE)},
+            {"requires": "test", "volumeBlocks": r6(c["ashVolume"]), "perClick": "stack",
+             "materials": materials(((BONEMEAL, c["bonemeal"]),)),
+             "wearing": {"charges": TEST_CHARGES, "lead": TEST_LEAD,
+                         "renew": materials(((BONEMEAL, c["bonemeal"]),))}},
         ],
         "outletCap": materials((CAP_ITEM,))[0],
         "_comment": "The build's stages, in order (a proposal: the owner settles them). frame: the iron frame's grid "
@@ -1161,10 +1175,14 @@ def build_json():
                     "part. Each stage then fits its requires when its materials are all in: brickwork, lining (their "
                     "volumeBlocks measured from the model; 2 fired bricks or 4 refractory bricks a block, rounded up, "
                     "fire clay one per 2.5 refractory bricks; oneType: the first fired brick sets the furnace's type, "
-                    "bricks), test (the bone ash measured from the model at the bone-ash cupel's rate, 4 bone meal for "
-                    "41 cubic voxels, and the ring), fittings (the fire door, the gutter and the litharge pot; also: the damper's places, one fitted). "
-                    "outletCap: an item interaction, not a stage. The test's contents, the fire and the litharge are "
-                    "drawn once the fittings are in, the cap once the lining is."}
+                    "bricks), fittings (the fire door, the gutter, the litharge pot and the test's iron ring; also: "
+                    "the damper's places, one fitted), then test, the wearing part, as the cylinder borer's cutter "
+                    "head: the bone ash beaten into the ring, measured from the model at the bone-ash cupel's rate, 4 "
+                    "bone meal for 41 cubic voxels. wearing: the test is spent after charges charges (about lead units "
+                    "of lead) and broken out of the ring, the furnace stopped until a new one is beaten in; renew: what "
+                    "a new test takes. outletCap: an item interaction, not a stage. The test's contents, the "
+                    "fire and the litharge are drawn once the test is in, the damper once the fittings are, the cap "
+                    "once the lining is."}
 
 
 def bricks_json():
@@ -1189,7 +1207,7 @@ def make_rig(parts):
                     "pipe network (Steelmaking Expanded's engine air blower makes it) taken at blastCell's blastFace, "
                     "where the wind box's socket is, and blown by the tuyere across the test. Natural draught for the "
                     "fire, in at the ash mouth (ash, ashSide) under the damper. Nothing moves. requires: the build's "
-                    "stages, brickwork, lining, test and fittings (build; the frame, iron, has none); coal, fire, lead, "
+                    "stages, brickwork, lining, fittings and test, the wearing part (build; the frame, iron, has none); coal, fire, lead, "
                     "silver, stream, litharge (the test's and the fire's state); the damper's place, damperopen, "
                     "damperhalf or dampershut (one at a time); outletcap. The brickwork's texture is the furnace's "
                     "brick type's (bricks). door: the working door, where the lead is charged and the cake taken out "
@@ -1212,10 +1230,14 @@ def make_rig(parts):
         "build": build_json(),
         "bricks": bricks_json(),
         "furnace": {"minChimney": MIN_CHIMNEY, "rowMax": ROW_MAX, "rowAxis": "x", "blastGas": "Air",
+                    "blastRate": BLAST_RATE, "blastPressure": BLAST_PRESSURE,
                     "_comment": "minChimney: chimney blocks stood on the outlet, counted from it up; rowMax, rowAxis: "
                                 "furnaces in a row, side by side along x, sharing one chimney; blastGas: the gas the "
                                 "tuyere takes from the ppex pipe network at blastFace (exlib's PipeNetwork, network type "
-                                "'pipe'; Steelmaking Expanded's engine air blower produces it)."},
+                                "'pipe'; Steelmaking Expanded's engine air blower produces it), one fixed connector on "
+                                "the back face, as Steelmaking Expanded's Bessemer converter's intake port; blastRate: "
+                                "litres a second drawn; blastPressure: the least pressure (atm) the furnace runs at "
+                                "(#740's ruling)."},
         "parts": parts,
     })
     return rig
@@ -1244,7 +1266,7 @@ def shipped(els, parts, rig):
     return ship_els, ship_parts, ship
 
 
-CELL_PARTS = ("frame", "brickwork", "lining", "test", "fittings")   # the cells' boxes: the furnace built
+CELL_PARTS = ("frame",) + STAGES   # the cells' boxes: the furnace built
 
 
 def shipped_cells(shape, ship_parts):
@@ -1304,7 +1326,7 @@ def shape_json(els):
 def coplanar_scenes():
     scenes = [(st, "open", False, "complete") for st in ("running", "brightened", "coal")]
     scenes += [("cold", "half", True, "complete"), ("cold", "shut", True, "complete")]
-    scenes += [("cold", "open", False, s) for s in ("frame", "brickwork", "test")]
+    scenes += [("cold", "open", False, s) for s in ("frame", "brickwork", "fittings")]
     scenes += [("cold", "open", True, "lining")]
     return scenes
 

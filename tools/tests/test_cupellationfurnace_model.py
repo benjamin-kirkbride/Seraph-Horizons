@@ -1,7 +1,8 @@
 """The cupellation furnace's generated model files (mods-src/seraphhorizons/CupellationFurnace/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
-maths and uses the `requires` vocabulary (the build's stages, brickwork, lining, test and fittings; the coal and the
+maths and uses the `requires` vocabulary (the build's stages, brickwork, lining, fittings and the test, the wearing
+part; the coal and the
 fire, the lead, the silver cake, the running litharge and the litharge in the pot; the damper's three places; the
 outlet's cap), nothing moves, the cells are the fourteen the furnace fills, rebuilt from the shipped shape, the stages'
 counts are measured from the shape, the frame is the iron frame alone, the brick types map to the game's textures
@@ -38,7 +39,7 @@ SHAPE = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "cu
 FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "cupellationfurnace_frame.json").read_text())
 MODELS = json.loads((ROOT / "site" / "models.json").read_text())
 CONTENTS = ("coal", "fire", "lead", "silver", "stream", "litharge")
-STAGES = ("brickwork", "lining", "test", "fittings")
+STAGES = ("brickwork", "lining", "fittings", "test")   # the test last: the wearing part, renewed every 15 charges
 REQUIRES = {None, *STAGES, "damperopen", "damperhalf", "dampershut", "outletcap", *CONTENTS}
 GAME_TEXTURES = {
     "brick": "game:block/clay/brick/four/running/red1",
@@ -130,7 +131,8 @@ class Furnace(unittest.TestCase):
             self.assertNotIn(key, RIG)
         self.assertEqual((RIG["blastCell"], RIG["blastFace"]), ([0, 1, 1], "south"))
         self.assertNotIn((0, 1, 2), cells)
-        self.assertEqual(RIG["furnace"]["blastGas"], "Air")
+        # one fixed connector drawing "Air" at 10 L/s, run at 1.5 atm or more (#740's ruling)
+        self.assertEqual((RIG["furnace"]["blastGas"], RIG["furnace"]["blastRate"], RIG["furnace"]["blastPressure"]), ("Air", 10.0, 1.5))
         # the socket: a 6 x 6 opening (ppex's pipe) at the middle of that face, the wind box's face plate round it, flush
         face = {e.name: e.aabb() for e in FLAT if e.name.startswith("fr_windbox_face")}
         self.assertAlmostEqual(max(b[1][2] for b in face.values()), 32.0)
@@ -259,10 +261,26 @@ class Build(unittest.TestCase):
         self.assertEqual([(m["code"], m["quantity"]) for m in st["lining"]["materials"]],
                          [("game:refractorybrick-fired-tier3", lining), ("game:clay-fire", math.ceil(lining / 2.5))])
         bonemeal = math.ceil(st["test"]["volumeBlocks"] * 4096 * 4 / 41 - 1e-6)
-        self.assertEqual([m["code"] for m in st["test"]["materials"]], ["game:bonemeal", "game:metalplate-iron"])
+        self.assertEqual([m["code"] for m in st["test"]["materials"]], ["game:bonemeal"])
         self.assertLessEqual(abs(st["test"]["materials"][0]["quantity"] - bonemeal), 1)
         self.assertEqual(st["fittings"]["also"], ["damperopen", "damperhalf", "dampershut"])
+        self.assertEqual([(m["code"], m["quantity"]) for m in st["fittings"]["materials"]], [("game:metalplate-iron", 3)])
         self.assertEqual((build["outletCap"]["code"], build["outletCap"]["quantity"]), ("game:metalplate-iron", 1))
+
+    def test_the_test_is_the_wearing_part(self):
+        # the owner's ruling on #740: the test is fitted after the fittings and renewed every 15 charges (about 3,000
+        # units of lead), for its bone meal alone; its iron ring is a fitting, and stays on the hearth
+        last = RIG["build"]["stages"][-1]
+        self.assertEqual(last["requires"], "test")
+        self.assertEqual((last["wearing"]["charges"], last["wearing"]["lead"]), (15, 3000))
+        self.assertEqual(last["wearing"]["renew"], last["materials"])
+        parts = RIG["parts"]
+        names = [e.name for e in FLAT]
+        rings = [n for n in names if n.startswith("ft_ring")]
+        self.assertEqual(len(rings), 7)
+        self.assertTrue(all(rigmath.part_of(parts, n) == "fittings" for n in rings))
+        test = [n for n in names if rigmath.part_of(parts, n) == "test"]
+        self.assertTrue(test and all(n.startswith(("ts_ash", "ts_rim", "ts_breast")) for n in test))
 
     def test_the_frame_is_the_iron_frame(self):
         # the block draws the iron frame alone, standing on its own, with no thin post taller than half the furnace
@@ -303,7 +321,7 @@ class Scenario(unittest.TestCase):
         self.assertEqual((build["values"], build["default"]), (list(STAGES), "complete"))
         self.assertEqual([(o["id"], tuple(o["fitted"])) for o in build["options"]], list(make_shape.STAGE_STATES))
         self.assertEqual(groups["work"]["needs"], list(STAGES))
-        self.assertEqual(groups["damper"]["needs"], list(STAGES))
+        self.assertEqual(groups["damper"]["needs"], ["brickwork", "lining", "fittings"])
         self.assertEqual(groups["outlet"]["needs"], ["brickwork", "lining"])
         work = groups["work"]
         self.assertEqual(work["values"], list(CONTENTS))
@@ -318,7 +336,9 @@ class Scenario(unittest.TestCase):
         self.assertIn(f"{st['brickwork']['materials'][0]['quantity']} fired bricks", labels["brickwork"])
         self.assertIn(f"{st['lining']['materials'][0]['quantity']} tier-3 refractory bricks", labels["lining"])
         self.assertIn(f"{st['lining']['materials'][1]['quantity']} fire clay", labels["lining"])
-        self.assertIn(f"{st['test']['materials'][0]['quantity']} bone meal", labels["test"])
+        self.assertIn(f"{st['fittings']['materials'][0]['quantity']} iron plates", labels["fittings"])
+        self.assertIn(f"{st['test']['materials'][0]['quantity']} bone meal", labels["complete"])
+        self.assertIn(f"every {st['test']['wearing']['charges']} charges", labels["complete"])
 
 
 if __name__ == "__main__":

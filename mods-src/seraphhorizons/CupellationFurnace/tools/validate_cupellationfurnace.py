@@ -152,7 +152,6 @@ ROLES = [
     (r"^bk_brick_", {"brick"}),
     (r"^ln_brick_", {"lining"}),
     (r"^fr_", {"iron"}),
-    (r"^ts_(ring)", {"iron"}),
     (r"^ts_(ash|rim|breast)", {"boneash"}),
     (r"^ft_", {"iron"}),
     (r"^coal_", {"coal"}),
@@ -589,7 +588,7 @@ def check_build(v):
             "lining": math.ceil(lat["ln"] / m.B ** 3 * m.LINING_PER_BLOCK - 1e-9)}
     want["fireclay"] = math.ceil(want["lining"] / m.LINING_PER_FIRECLAY - 1e-9)
     # the test's bone ash, measured again from its elements: sampled on a grid, a point in any bone-ash element
-    ash = [e for e in v.by_part["test"] if not e.name.startswith("ts_ring")]
+    ash = v.by_part["test"]
     lo, hi = aabb_of(ash)
     step = 0.25
     vol, x = 0.0, lo[0] + step / 2
@@ -622,6 +621,51 @@ def check_build(v):
           f"meal; the frame {dict(m.FRAME_RECIPE)}")
 
 
+def check_wearing(v):
+    """The test is the wearing part (the owner's ruling on #740), as the cylinder borer's cutter head: the last stage,
+    after the fittings, renewed every so many charges for its bone meal alone. So it is the bone ash only: its iron
+    ring is a fitting, and stays standing on the hearth when a spent test is broken out (the ring empty at the
+    fittings stage); no other part rests on the test or runs into its place, so it can go and come back; and nothing
+    the furnace needs before it is in waits for it but the test's contents."""
+    m = v.m
+    stages = v.rig["build"]["stages"]
+    last = stages[-1]
+    wear = last.get("wearing") or {}
+    if last["requires"] != "test" or [s["requires"] for s in stages].index("fittings") != len(stages) - 2:
+        v.fail("the test is not the last stage, fitted after the fittings")
+    if wear.get("charges") != m.TEST_CHARGES or wear.get("lead") != m.TEST_LEAD or wear.get("renew") != last["materials"]:
+        v.fail(f"the test's wear is not {m.TEST_CHARGES} charges, about {m.TEST_LEAD} lead, renewed for its materials")
+    if [x["code"] for x in last["materials"]] != [m.BONEMEAL]:
+        v.fail("a new test takes more than its bone meal")
+    tex = {f["texture"].lstrip("#") for e in v.by_part["test"] for f in e.faces.values()}
+    if tex != {"boneash"}:
+        v.fail(f"the test is not its bone ash alone: {sorted(tex)}")
+    rings = [e for e in v.by_part["fittings"] if e.name.startswith("ft_ring")]
+    lo, hi = aabb_of(v.by_part["test"])
+    if len(rings) != 7 or any(e.aabb()[0][1] < m.HEARTH_Y - 1e-9 for e in rings):
+        v.fail("the test's ring is not a fitting standing on the hearth")
+    # nothing but the test's own contents rests on it: no element of another part (the contents aside) touches the
+    # test's top or sits within its bounds
+    others = [e for p in v.parts if p["id"] not in ("test",) + tuple(m.CONTENTS) for e in v.posed(p["id"])
+              if not e.name.startswith("ft_ring")]
+    on = []
+    for e in others:
+        a, b = e.aabb()
+        if all(min(b[k], hi[k]) - max(a[k], lo[k]) > 0.05 for k in range(3)):     # a tilted face's corner aside
+            on.append(e.name)
+    if on:
+        v.fail(f"other parts rest in the test's place: {on[:6]}")
+    needs = {s: what for s, _, what in m.WORK_STATES}
+    for scene in (("cold", "open", False, "fittings"), ("running", "open", False, "fittings")):
+        if any(c in m.fitted(scene) for c in m.CONTENTS):
+            v.fail("the test's contents show without the test")
+    if not {"lead", "silver", "stream"} <= {c for w in needs.values() for c in w}:
+        v.fail("the work's states lost the test's contents")
+    print(f"wearing: the test the last stage, after the fittings, its bone ash alone ({last['materials'][0]['quantity']} "
+          f"bone meal), renewed every {wear.get('charges')} charges (about {wear.get('lead')} lead); its ring a fitting, "
+          f"7 sides standing on the hearth; nothing else in its place")
+
+
 # ---------------------------------------------------------------- the test, the litharge's way, the blast's
 def check_test(v):
     """The test stands on the chamber's hearth, centred under the working door, clear of the walls and the bridge; the
@@ -631,7 +675,8 @@ def check_test(v):
     springing, blowing towards the breast."""
     m = v.m
     test = v.by_part["test"]
-    lo, hi = aabb_of(test)
+    rings = [e for e in v.by_part["fittings"] if e.name.startswith("ft_ring")]
+    lo, hi = aabb_of(test + rings)                     # the test in its ring
     if abs(lo[1] - m.HEARTH_Y) > 1e-9:
         v.fail(f"the test does not stand on the hearth ({lo[1]})")
     room = min(lo[0] - m.CH_X[0], m.CH_X[1] - hi[0], lo[2] - m.CH_Z[0], m.CH_Z[1] - hi[2])
@@ -639,7 +684,6 @@ def check_test(v):
         v.fail(f"the test is {room:.2f} from the chamber's walls")
     if abs((lo[0] + hi[0]) / 2 - m.X_T) > 0.6 or not (m.DOOR[0][0] < m.X_T < m.DOOR[0][1]):
         v.fail("the test is not under the working door")
-    rings = [e for e in test if e.name.startswith("ts_ring")]
     if len(rings) != 7 or any(abs(e.aabb()[1][1] - m.RING_TOP) > 0.05 for e in rings):     # the z-fighting fix steps a face
         v.fail("the ring is not seven sides to the rim")
     if abs(m.DOOR[1][0] - m.RING_TOP) > 1e-9:
@@ -954,6 +998,7 @@ def validate(m, els, parts, rig, quick=False):
     check_walls(v)
     check_lining(v)
     check_build(v)
+    check_wearing(v)
     check_test(v)
     check_litharge(v)
     check_blast(v)

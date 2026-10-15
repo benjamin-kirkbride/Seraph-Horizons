@@ -26,11 +26,24 @@ describe("the cupellation furnace's rig", () => {
     expect(r.powerFace).toBeUndefined();
     expect(r.blastCell).toEqual([0, 1, 1]);
     expect(r.blastFace).toBe("south");
-    expect((r.furnace as { blastGas: string }).blastGas).toBe("Air");
+    expect(r.furnace).toMatchObject({ blastGas: "Air", blastRate: 10, blastPressure: 1.5 });
     const cells = (rig.cells ?? []).map((c) => c.pos.join(","));
     expect(cells).toHaveLength(14);
     expect(cells).toContain("0,1,1");
     expect(cells).not.toContain("0,1,2");
+  });
+
+  it("fits the test last, after the fittings, as the wearing part: its bone ash alone, renewed every 15 charges", () => {
+    type Stage = { requires: string; materials: { code: string; quantity: number }[]; wearing?: { charges: number; lead: number; renew: unknown } };
+    const stages = (rig as unknown as { build: { stages: Stage[] } }).build.stages;
+    expect(stages.map((s) => s.requires)).toEqual(["brickwork", "lining", "fittings", "test"]);
+    const test = stages.at(-1)!;
+    expect(test.materials.map((m) => m.code)).toEqual(["game:bonemeal"]);
+    expect(test.wearing).toEqual({ charges: 15, lead: 3000, renew: test.materials });
+    const globs = compileGlobs(parts);
+    const rings = flattenShape(shape.elements).filter((f) => f.element.name.startsWith("ft_ring"));
+    expect(rings).toHaveLength(7);
+    for (const r of rings) expect(parts[partOf(globs, r.chain)]!.id).toBe("fittings");
   });
 
   it("moves nothing", () => {
@@ -38,7 +51,7 @@ describe("the cupellation furnace's rig", () => {
   });
 
   it("shows the stages, the test's and the fire's state, the damper and the cap by requires, with their own texture codes, and glows only where it burns", () => {
-    expect(requiresValues(parts)).toEqual(["brickwork", "lining", "test", "fittings", "coal", "fire", "lead", "silver", "stream", "litharge", "damperopen", "damperhalf", "dampershut", "outletcap"]);
+    expect(requiresValues(parts)).toEqual(["brickwork", "lining", "fittings", "test", "coal", "fire", "lead", "silver", "stream", "litharge", "damperopen", "damperhalf", "dampershut", "outletcap"]);
     const codes: Record<string, Set<string>> = {};
     const flat = flattenShape(shape.elements);
     const globs = compileGlobs(parts);
@@ -49,7 +62,7 @@ describe("the cupellation furnace's rig", () => {
     expect([...codes.brickwork!]).toEqual(["brick"]);
     expect([...codes.lining!]).toEqual(["lining"]);
     expect([...codes.frame!]).toEqual(["iron"]);
-    expect(new Set(codes.test)).toEqual(new Set(["iron", "boneash"]));
+    expect([...codes.test!]).toEqual(["boneash"]);
     expect([...codes.fittings!]).toEqual(["iron"]);
     expect([...codes.coal!]).toEqual(["coal"]);
     expect([...codes.fire!]).toEqual(["ember"]);

@@ -27,7 +27,9 @@ iron:
   at 23.5) that runs on over the bridge and the fireplace. On the hearth stands the **test**: an oval of bone ash 18 by
   12.8 inside an iron ring 0.9 thick and 3.7 high (seven sides of an octagon inscribed in the oval), its dish's floor at
   13, a rim of bone ash round it to 14, and at the front, where the ring is left out, the **breast**, bone ash 2.5
-  thick, with the **gate** cut in it, 1.8 wide, from the dish's floor up: the litharge's way out. East, behind a **fire
+  thick, with the **gate** cut in it, 1.8 wide, from the dish's floor up: the litharge's way out. The ring's rim and
+  the breast's top are level with the working door's sill (14.2). The test is the furnace's **wearing part** (below,
+  "The test, a wearing part"): the ring is a fitting and stays; the bone ash in it is renewed. East, behind a **fire
   bridge** (3 thick, to 17, 2.8 over the test's rim), the **fireplace**: coal on a grate of four firebars (front to
   back, on two iron bearers built into the bridge and the east wall) over an ash pit (the cave), which the air enters at
   the **ash mouth** in the front face under an iron **damper** (open, half, shut, as the crucible furnace's).
@@ -37,15 +39,17 @@ iron:
   in a row sharing a chimney is **capped** with a flat iron plate flush in the curb's seat.
 - **The blast comes by pipe** (the owner's ruling on #740): Steelmaking Expanded's engine air blower, on a Pipes and
   Power Expanded steam engine, puts air into the pipe network, and a pipe laid to the **socket** in the middle of the
-  back wall's face (the blast cell's face) feeds an iron **wind box** set in the wall, from which the **tuyere** (an iron
+  back wall's face (the blast cell's face: one fixed connector, drawing "Air" at 10 L/s and working at 1.5 atm or more,
+  as smex's Bessemer converter's intake port) feeds an iron **wind box** set in the wall, from which the **tuyere** (an iron
   pipe 2.2 across) runs through the back wall on the test's middle line and blows across the lead towards the breast,
   2.9 over the rim, its mouth just behind the ring's back side. See "The blast", below.
 - **The litharge's way.** From the gate an iron **gutter** runs out through the working door's sill, in a groove,
   falling 0.4 over its 7.6, and off its end into an iron **pot** standing in a **bay** of the front face under the
   door; the bay is 12 wide and 3 deep, iron-jambed, with a niche at its back for the pot.
 - **The working door** is at the back of the bay, over the breast, its sill level with the test's rim: the lead is
-  charged and the silver cake taken out through it. The **fire door** (an iron door, shut, in a cast frame flush in the
-  face) is over the grate, above the damper.
+  charged and the silver cake taken out through it, and a spent test broken out and a new one beaten in. The **fire
+  door** (an iron door, shut, in a cast frame flush in the face) is over the grate, above the damper: **coal by hand**
+  (the ruling: 0.7 coal an hour), with no automated fuel anchor.
 - **The binding is angle iron** (the owner's rule for furnace brickwork): an **angle up every outside vertical
   corner** (five: the front two, the back's east corner, the stack column's two back corners), one leg on each face,
   its inside corner bedded against the brick's corner, so it locks the brick in on both faces, from the ground to just
@@ -95,9 +99,10 @@ implied, as the crucible furnace's.
 | `tuyere` | `[0.2031,1.0688,1.4375]` | The tuyere's mouth in the chamber: the blast's sound and particles |
 | `build` | | The build's stages and their materials (below); not drawn |
 | `bricks` | | The fired brick types and their textures (the crucible furnace's); not drawn |
-| `furnace` | | `minChimney` 6, `rowMax` 5, `rowAxis` `x`, `blastGas` `Air`; not drawn |
+| `furnace` | | `minChimney` 6, `rowMax` 5, `rowAxis` `x`, `blastGas` `Air`, `blastRate` 10 (L/s), `blastPressure` 1.5 (atm, the least it works at); not drawn |
 
-**Batch, no chutes** (#740, rule 2): the lead in, the silver and the litharge out, all by hand; no chute anchor.
+**Batch, no chutes** (#740, rule 2): the lead in, the silver and the litharge out, all by hand; no chute anchor, and
+no fuel anchor: coal goes in by hand at the fire door.
 **No mechanical power**: no `powerCell` (the validator fails if one appears). **Services**: blast (by pipe), chimney,
 fuel by hand. The anchors are this model's; #711 (shared machine code) has not landed, so they are provisional where
 it may settle them otherwise.
@@ -120,6 +125,10 @@ it may settle them otherwise.
   in the furnace's wall at positions fixed in its multiblock structure (`ScanForOutlets`), and the furnace draws
   `TuyereIntakeVolume` (20 L) of air from the network there (`MachinePorts.NetworkAt<PipeNetwork>`, `IPipeNode.TryConsume`,
   `GasLine.Pressure`). So a smex blast furnace is fed by pipes laid from the blower to its tuyere blocks.
+- **The ruling for this furnace** (#740): a fixed connector on the back face drawing `Air` from the network at
+  **10 L/s**, working only at **1.5 atm** or more, as smex's Bessemer converter's intake port (the rig's
+  `furnace.blastGas`, `blastRate`, `blastPressure`). The furnace's place on the line is a small user of a blower's
+  300 L/s: one blower serves a row.
 
 **This furnace's inlet** matches that: a pipe connection at a face of the furnace, the **blast cell's south face**
 (`blastCell` `[0,1,1]`, `blastFace` `south`: the back wall's face of the middle top cell). The model has its own
@@ -146,22 +155,41 @@ cake, the running litharge and the litharge in the pot, the damper's place, the 
 ## The build (a proposal)
 
 The crucible furnace's pattern: an iron frame by grid recipe (placing it puts the controller and its ghosts down), then
-stages, each a `requires` value, in order. The brickwork's and the lining's counts are measured from the model; the
-test's bone meal too, at the bone-ash cupel's rate. The frame's recipe and the fittings' materials are proposals to
-settle with the owner, as the crucible furnace's were.
+stages, each a `requires` value, in order; the last, the test, is the wearing part (the owner's ruling, below). The
+brickwork's and the lining's counts are measured from the model; the test's bone meal too, at the bone-ash cupel's
+rate. The frame's recipe and the fittings' materials are proposals to settle with the owner, as the crucible furnace's
+were.
 
 | | Stage | `requires` | What it puts in | Materials | Gear |
 |---|---|---|---|---|---|
 | Frame | **Iron frame**: grid recipe, hammer | none | The binding (5 angle uprights, the angle band round the top), the grate's bearers and firebars, the ash mouth's lintel, the damper's guides, the fire door's frame, the bay's and the working door's jambs and lintels and the niche's lintel, the tuyere with its wind box and the blast socket; 6 short posts hidden in the brickwork | 3 iron plates, 4 iron rods, 12 iron nails and strips | 49.46 |
 | 1 | **Brickwork** | `brickwork` | The base, the walls, the stack column: 8.26 blocks | **17 fired bricks**, any one type | 5.78 (brown 2.98) |
 | 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on every hot face (the chamber's walls, floor and vault, the bridge, the fireplace from its bearers up, the flue opening, the back flue and the stack) and the outlet's curb: 2.96 blocks | **12 tier-3 refractory bricks, 5 fire clay** | 10.11 |
-| 3 | **The test** | `test` | The ring and its bone ash: 487 cubic voxels of bone ash | 48 bone meal (at the cupel's 4 for 41 cubic voxels), 1 iron plate | 10.21 |
-| 4 | **Fittings** | `fittings` (and the damper's place) | The fire door, the gutter, the litharge pot; the damper | 2 iron plates | 15.42 |
+| 3 | **Fittings** | `fittings` (and the damper's place) | The fire door, the gutter, the litharge pot, the test's iron ring (standing empty on the hearth); the damper | 3 iron plates | 23.14 |
+| 4 | **The test** (wearing part) | `test` | The bone ash beaten into the ring: 487 cubic voxels | 48 bone meal (at the cupel's 4 for 41 cubic voxels); renewed every 15 charges for the same | 2.50 |
 | | *Outlet cap* | `outletcap` | Not a stage: by hand, any time after the lining | 1 iron plate | 7.71 |
 
 A furnace costs **90.98** in gear (88.18 in brown brick), the blower, the engine and the pipes aside. Values from
-`assets/seraphhorizons/config/item-values.json`. The test's contents, the fire, the litharge and the damper are drawn
-once the fittings are in, the cap once the lining (its curb) is.
+`assets/seraphhorizons/config/item-values.json`. The damper is drawn once the fittings are in; the test's contents,
+the fire and the litharge once the test is; the cap once the lining (its curb) is.
+
+### The test, a wearing part
+
+The owner's ruling (#740): the test is not a build stage but a **wearing part**, as the cylinder borer's cutter head
+is: fitted last, after the fittings, and renewed when spent. The route's figure is **a new test every 15 charges**,
+about **3,000 units of lead** a test (200 a charge); each costs the same **48 bone meal**. In the period the test soaked
+up litharge as it worked and was renewed every few days.
+
+- **The ring is a fitting, the test its bone ash.** A whole test (18.4 across its ring) is wider than the working door
+  (12), so it could not be lifted out through it; instead the iron ring is fitted with the fittings and stays on the
+  hearth, and the spent bone ash is broken out of it and new bone ash beaten in, through the working door. So the
+  ring's iron plate is in the fittings (3 iron plates), and a test is bone meal alone. With the test out (the
+  fittings stage, or a spent test broken out) the ring stands empty on the hearth.
+- **The rig**: the test is the last stage, `requires` `test`, with `wearing`: `charges` 15, `lead` 3000 and `renew`
+  (what a new test takes, its own materials). Gameplay counts the charges, takes the spent test out (the furnace stops
+  until a new one is in) and draws the bone ash again when one is beaten in.
+- **Nothing waits on the test but its contents**: the damper and the fire door work without it; the lead, the cake and
+  the running litharge need it, so the viewer's work states wait for the test.
 
 ## Model
 
@@ -170,15 +198,15 @@ the game's. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/cupellationfurnace.json` | The whole furnace, every part (524 elements) |
-| `assets/seraphhorizons/shapes/block/cupellationfurnace_frame.json` | The iron frame only (86 elements): what the placed frame draws |
+| `assets/seraphhorizons/shapes/block/cupellationfurnace.json` | The whole furnace, every part (527 elements) |
+| `assets/seraphhorizons/shapes/block/cupellationfurnace_frame.json` | The iron frame only (87 elements): what the placed frame draws |
 | `assets/seraphhorizons/config/cupellationfurnace-rig.json` | Cells, anchors, the build and the brick types, and the part rig (15 parts, no drivers) |
 
 | Code | Texture | On |
 |---|---|---|
 | `brick` | The furnace's brick type's block texture (the renderer's, from `bricks`); the shape's own is `game:block/clay/brick/four/running/red1` | The brickwork: world-mapped |
 | `lining` | `game:block/clay/refractory/tier3/front1` | The lining, the curb: world-mapped |
-| `iron` | `game:block/metal/plate/iron` | The frame (the angle binding, the grate, the lintels, jambs and guides, the fire door's frame, the tuyere and the wind box), the ring, the fittings, the damper, the cap |
+| `iron` | `game:block/metal/plate/iron` | The frame (the angle binding, the grate, the lintels, jambs and guides, the fire door's frame, the tuyere and the wind box), the fittings (the test's ring among them), the damper, the cap |
 | `boneash` | `game:item/resource/crushed/lime` (the fired cupel's) | The test's bone ash |
 | `lead` | `game:block/metal/ingot/lead` | The molten lead; glow 200 |
 | `silver` | `game:block/metal/ingot/silver` | The silver cake; glow 255 |
@@ -198,7 +226,7 @@ A full run takes about a minute and is deterministic (two runs into two folders 
 if a check fails (`tools/validate_cupellationfurnace.py`):
 
 - **Parts:** every element in its intended part; no part without elements; Euler angles round-trip.
-- **The stages:** at each stage (the iron frame alone, with the brickwork, the lining, the test, the fittings) nothing
+- **The stages:** at each stage (the iron frame alone, with the brickwork, the lining, the fittings, the test) nothing
   floats; the iron frame is iron only, with no thin post taller than half the furnace; its ties are hidden in the
   brickwork.
 - **Textures by role**, as the table above puts them.
@@ -220,6 +248,10 @@ if a check fails (`tools/validate_cupellationfurnace.py`):
   ash mouth the brickwork's.
 - **The stages' counts:** the brick boxes' volumes add up to the lattice's; the counts at the game's rates; the test's
   bone ash measured from its elements (on a quarter-voxel grid) within 3 % of its count.
+- **The test, the wearing part** *(review)*: the last stage, after the fittings, its `wearing` 15 charges and about
+  3,000 lead, renewed for its own materials, bone meal alone; the test the bone ash alone, its ring a fitting of
+  seven sides standing on the hearth; nothing of another part in the test's place; the test's contents never shown
+  without it.
 - **The test:** on the hearth, clear of the walls, under the working door, whose sill is level with its rim; the ring on
   seven sides; the gate as wide as the gutter; the lead and the cake in the dish; the tuyere on the test's middle line,
   its mouth just behind the ring, between the rim and the springing.
@@ -249,34 +281,36 @@ if a check fails (`tools/validate_cupellationfurnace.py`):
 vocabulary, nothing moving, the 14 cells rebuilt from the shape, the blast inlet and the socket, the angle binding and
 that it is one frame, the
 stages' counts, the frame, the brick types, the anchors, the side faces, the textures and glow, and
-`site/models.json`'s states); `site/test/cupellationfurnace.test.ts` holds the rig in the viewer's maths (no input,
-the blast cell, every part still, the binding one frame of butted members).
+`site/models.json`'s states, the test the wearing part); `site/test/cupellationfurnace.test.ts` holds the rig in the
+viewer's maths (no input, the blast cell and its figures, the test the last stage and wearing, every part still, the
+binding one frame of butted members).
 
 ### Rig schema (`cupellationfurnace-rig.json`)
 
 The bucking sawmill's format with nothing added to the shared rig maths:
 
 - **Inputs:** none. **Drivers:** none.
-- **`requires`** values: the stages, `brickwork`, `lining`, `test` and `fittings`; `coal`, `fire`, `lead`, `silver`,
+- **`requires`** values: the stages, `brickwork`, `lining`, `fittings` and `test` (the wearing part); `coal`, `fire`, `lead`, `silver`,
   `stream`, `litharge`; `damperopen`, `damperhalf`, `dampershut` (one at a time); `outletcap`. The iron frame has none.
 - **Keys:** `cells`, `blastCell`/`blastFace`, `outletCell`/`outletFace`, `ash`/`ashSide`, `fireDoor`/`fireDoorSide`,
   `door`/`doorSide`, `dish`, `litharge`/`lithargeSide`, `tuyere`, `chimney`, `build`, `bricks`, `furnace`, `parts`.
 - **`build`**: as the crucible furnace's: `frame` (`recipe`, `tool`, `ingredients`), `stages` in order (`requires`,
   `materials`, `volumeBlocks` where measured, `perClick`, the brickwork's `oneType`, the fittings' `also`: the damper's
-  places), `outletCap`.
+  places, the test's `wearing`: `charges`, `lead`, `renew`), `outletCap`.
 
 **In the viewer** (`site/models.json`, `cupellation-furnace`): no slider, nothing turns. Four selects of states:
-**Build** (the iron frame, 1: brickwork, 2: lining, 3: the test, 4: fittings, complete), **The test and the fire**
-(cold, coal on the grate, lit, lead melted with the blast on, cupelling with the litharge running off, brightened, the
-cake and the litharge taken out; it waits for the fittings), **Ash-pit damper** (waits for the fittings) and **Outlet**
+**Build** (the iron frame, 1: brickwork, 2: lining, 3: fittings, the ring empty, 4: the test, complete), **The test
+and the fire** (cold, coal on the grate, lit, lead melted with the blast on, cupelling with the litharge running off,
+brightened, the cake and the litharge taken out; it waits for the test), **Ash-pit damper** (waits for the fittings)
+and **Outlet**
 (waits for the lining). A **Brick** select offers the nine fired brick types, as the crucible furnace's. The `blast`
 anchor overlay shades the blast face.
 
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, in the rig's order): `bk_*` the brickwork
-(`bk_brick_NNN`), `ln_*` the lining (`ln_brick_NNN`), `ts_*` the test (`ts_ring<k>`, `ts_ash_*`, `ts_rim<k>`,
-`ts_breast_foot`, `_w`, `_e`), `ft_*` the fittings (`ft_firedoor*`, `ft_gutter_*`, `ft_pot_*`), `coal_*`, `fire_*`,
+(`bk_brick_NNN`), `ln_*` the lining (`ln_brick_NNN`), `ts_*` the test's bone ash (`ts_ash_*`, `ts_rim<k>`,
+`ts_breast_foot`, `_w`, `_e`), `ft_*` the fittings (`ft_firedoor*`, `ft_gutter_*`, `ft_pot_*`, `ft_ring<k>`), `coal_*`, `fire_*`,
 `lead_*`, `silver_*`, `stream_*`, `litharge_*`, `damperopen_*`, `damperhalf_*`, `dampershut_*`, `outletcap_*`; and
 `fr_*` the iron frame (`fr_angle_<corner>_a|b<n>`, `fr_band_<edge>_top|face<n>`, `fr_bearer<n>`, `fr_bar<n>`,
 `fr_lintel`, `fr_guide_*`, `fr_firedoor_*`, `fr_jamb_*`, `fr_baylintel_*`, `fr_nichelintel`, `fr_tuyere_*`,
@@ -306,14 +340,21 @@ binding, the ties, the damper, the outlet and its cap, the stages, the rig's `bu
    each other): the bands along x run through the corners, those along z butt against them, the back band reaches over
    the inside corner to meet the stack column's band, and the uprights stop under the band and carry it. A new check
    (and model test) holds the binding to one connected frame of butted members, every band end meeting another member.
+5. **The test a wearing part** (owner's rulings on #740, 2026-10-14): the test moved from the third stage to the last,
+   after the fittings, renewed every 15 charges (about 3,000 lead) for 48 bone meal (`wearing`, as the cylinder borer's
+   cutter head); its ring moved into the fittings (a whole test does not pass the working door, so the ring stays and
+   the bone ash is renewed in it; the ring's two sides by the breast no longer run on into it). The test still stands
+   on the hearth, its rim level with the working door's sill. The blast's figures (10 L/s of `Air`, 1.5 atm) in the
+   rig's `furnace`; fuel by hand (0.7 coal an hour), no fuel anchor. No geometry moved but the ring's two ends; no
+   anchor changed. A new check (and model and site tests) holds the test to the wearing part.
 
 ## Known weak spots, and what is not checked
 
 The model has been reviewed in projections rendered from the written files. No one has looked at it in a client.
 
-1. **The test stands on the hearth**, 3.7 high, rather than set into it with its rim flush, as the English test was
-   (held up from below on iron bars in an opening of the hearth). Flush, the rectangular well round an oval test leaves
-   gaps the lattice cannot fill; standing on the floor it reads the same from the working door.
+1. **The test stands on the hearth** (the owner's ruling), 3.7 high, rather than set into it with its rim flush, as the
+   English test was (held up from below on iron bars in an opening of the hearth, and so changed from below). Its rim
+   is level with the working door's sill.
 2. **The vault is stepped** (three courses), as the brick lattice is made of square boxes.
 3. **Whole-cell boxes**; the decks make the top one floor.
 4. **The glow is fixed**: 200 on the fire and the lead, 255 on the cake, 160 on the running litharge.
@@ -322,22 +363,25 @@ The model has been reviewed in projections rendered from the written files. No o
 
 ## Open for the owner
 
-1. **The blast face as a pipe connector** (#740): gameplay makes `blastFace` a connector of exlib's `"pipe"` network
-   (as smex's air blower block is, `INetworkConnector`, `HasConnectorAt`), or puts a pipe-node block there as smex's
-   tuyere is (a ppex `BlockPipe`), and draws `Air` from the network per charge or per second, as smex's blast furnace
-   draws `TuyereIntakeVolume` at each tuyere.
-2. **How much air**: smex's blower makes 300 L/s at full steam (`AirBlowerOutputPerSecond`); a cupellation furnace's
-   draw is #740's to set. One blower could serve a row of furnaces on one main.
+Settled on #740 (2026-10-14): the blast (a fixed connector on the back face, `Air` at 10 L/s, 1.5 atm), fuel by hand
+(0.7 coal an hour), the test a wearing part renewed every 15 charges for 48 bone meal, and the test standing on the
+hearth with its rim level with the working door's sill. Still open:
+
+1. **The ring a fitting, the test relined in place** (this pass's reading of the ruling): a whole test, ring and all,
+   is wider than the working door, so the model keeps the ring on the hearth and renews only the bone ash. If the test
+   is to be a whole item swapped as the cutter head is, the working door (and the bay) must widen to about 20, or the
+   test go in from below, as the English test did.
+2. **The socket's look**: one square port 6 across in an iron face plate 11 by 13, flush with the back wall, on the
+   blast cell's south face. It reads as a single port in a plate, not as a pipe stub; the pipe butts onto it from the
+   cell behind, which is not the furnace's (the back face of the middle column is set 16 in from the stack column's).
+   A short flanged stub standing proud would leave the footprint, so the model keeps it flush.
 3. **Power moves to the steam engine**: #740's and #940's figures for this furnace (resistance 0.2, 0.04 empty, on the
    works shaft) no longer apply: the furnace draws no mechanical power; the blast's cost is the steam engine's steam.
 4. **The footprint is 14 cells, an L** (the stack column behind the west end), shrunk from 18 with the engine gone.
-5. **The build stages**: the frame's recipe (now with the angle binding and the wind box) and the test's and the
-   fittings' materials are proposals; the brickwork's, the lining's and the bone ash are measured.
-6. **The test as a stage or a wearing part**: in the period it was renewed every few days (it soaks up litharge). As
-   modelled it is the third stage; it could instead be fitted and replaced like the cylinder borer's cutter head.
-7. **The items** (#740's open item): what goes in (silver-lead, or the roasted concentrate the hand cupel takes) and
+5. **The build stages**: the frame's recipe (now with the angle binding and the wind box) and the fittings' materials
+   are proposals; the brickwork's, the lining's and the bone ash are measured.
+6. **The items** (#740's open item): what goes in (silver-lead, or the roasted concentrate the hand cupel takes) and
    comes out (a silver cake, litharge, the item the pot gives) are gameplay's; the model draws a lead pool, a cake and
    litharge.
-8. **The test on the hearth, not flush** (weak spot 1).
-9. **Shared anchors pending #711**: the blast inlet and the outlet follow the crucible furnace and smex's interface;
+7. **Shared anchors pending #711**: the blast inlet and the outlet follow the crucible furnace and smex's interface;
    #711 may settle the batch machines' hand anchors (`door`, `fireDoor`, `litharge`, `dish`) differently.
