@@ -3,7 +3,8 @@
 Every check prints what it measured and fails the run (the script exits non-zero) when the model breaks
 its rule. Everything is in the build frame (voxels), on the model before the origin shift;
 `check_shipped` in make_shape.py proves the shipped files are this model moved. A pose is
-(theta, contents): contents 0 empty, 1 mercury, 2 slurry (the charge), 3 amalgam.
+(theta, contents): contents 0 empty, 1 mercury, 2 slurry (the charge), 3 amalgam, 4 the charge under its
+water film.
 """
 
 from __future__ import annotations
@@ -93,7 +94,7 @@ def check_basic(v):
         v.fail(f"parts with no elements: {empty}")
     counts = {p["id"]: len(v.by_part.get(p["id"], [])) for p in v.parts}
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
-    vocab = [p["id"] for p in v.parts if p["requires"] not in (None,) + STAGES + CONTENTS_REQUIRES]
+    vocab = [p["id"] for p in v.parts if p["requires"] not in (None,) + STAGES + CONTENTS_REQUIRES + ("water",)]
     if vocab:
         v.fail(f"parts with a requires outside the pan's vocabulary: {vocab}")
 
@@ -122,6 +123,9 @@ def check_stages(v):
     for p in v.parts:
         if p["requires"] in CONTENTS_REQUIRES and (p.get("ride") is not None or p["drivers"] or p["id"] != p["requires"]):
             v.fail(f"the {p['id']} content is not a still layer of its own requires")
+    water = by_id.get("water", {})
+    if water.get("requires") != "water" or water.get("ride") != "muller" or water.get("drivers") != []:
+        v.fail("the water film is not its own requires riding the muller with no driver of its own")
     with_shoe = sorted({el.part for el in v.els for f in el.faces.values() if f["texture"] == "#shoe"})
     shoe_wears = sorted({f["texture"] for el in v.by_part.get("shoes", []) for f in el.faces.values()})
     if with_shoe != ["shoes"] or shoe_wears != ["#shoe"]:
@@ -165,6 +169,7 @@ ROLES = [
     (r"^mercury_", {"mercury"}),
     (r"^slurry_", {"slurry"}),
     (r"^amalgam_", {"amalgam"}),
+    (r"^water_", {"water"}),
 ]
 
 
@@ -204,12 +209,15 @@ def check_turning(v):
         ms = v.mat("shoes", pose)
         if max(abs(ms[i][j] - mm[i][j]) for i in range(3) for j in range(4)) > 1e-12:
             v.fail("the shoes do not turn with the muller")
+        mw = v.mat("water", pose)
+        if max(abs(mw[i][j] - mm[i][j]) for i in range(3) for j in range(4)) > 1e-12:
+            v.fail("the water film does not turn with the muller")
         for pid in ("mercury", "slurry", "amalgam", "frame"):
             mp = v.mat(pid, pose)
             if max(abs(mp[i][j] - (1.0 if i == j else 0.0)) for i in range(3) for j in range(4)) > 1e-12:
                 v.fail(f"theta moves the {pid}")
     print(f"turning: the pan's axis stays put within {worst_axis:.1e}; the muller turns {m.GEAR_RATIO:g} theta within {worst_turn:.1e}, "
-          "the shoes with it")
+          "the shoes and the water film with it")
     if worst_axis > 1e-9 or worst_turn > 1e-9 or m.GEAR_RATIO != 1.0:
         v.fail("the muller does not turn about the pan's axis with the axle, once a turn")
 
@@ -327,6 +335,9 @@ ALLOWED = [
     ("mercury|slurry|amalgam", None, "frame", r"fr_(floor|wall|cone)"),            # the contents in the pan
     ("mercury|slurry|amalgam", None, "muller", r"_spindle_"),                       # the spindle, inside the cone
     ("mercury|slurry|amalgam", None, "shoes", None),                                 # the shoes stand in them
+    ("water", None, "frame", r"fr_(wall|cone_neck)_"),                               # the film's edge set into the wall, its middle
+                                                                                   # into the cone's neck (the shoes: never)
+    ("water", None, "slurry", None),                                                 # the film's underside in the charge
 ]
 
 
@@ -358,6 +369,86 @@ def touching_pairs(v, pose):
             if obb_obb(ea, eb):
                 hits.setdefault(tuple(sorted((pa, pb))), set()).add(tuple(sorted((ea.name, eb.name))))
     return hits
+
+
+def inside(el, p, grow=0.0):
+    """Whether point p is inside the box el (grown by `grow` across x and z)."""
+    d = [p[k] - el.c[k] for k in range(3)]
+    local = [sum(el.r[i][k] * d[i] for i in range(3)) for k in range(3)]
+    half = [abs(el.size[k]) / 2 + (grow if k != 1 else 0.0) for k in range(3)]
+    return all(abs(local[k]) <= half[k] for k in range(3))
+
+
+def check_water(v):
+    """The water film over the charge: just over the charge's top, under the cone's neck and every arm; clear
+    of every shoe by its slot's margin, its boxes lapping a little, never at one height (they turn together, so at every angle); its edge between the wall's
+    inside and outside at every angle; and, at a spread of angles, every point of the open pan at the film's
+    height (inside the wall, outside the cone's neck) is under the film or in a shoe's slot, so no charge
+    shows through but round the shoes."""
+    m = v.m
+    els = v.by_part["water"]
+    lo, hi = aabb_of(els)
+    arms = min(e.aabb()[0][1] for e in v.named("muller", r"_(arm\d|hub_\d)$"))
+    reach = max(radius(m, c) for e in els for c in e.corners())
+    print(f"water: {len(els)} boxes, y {lo[1]:.2f} to {hi[1]:.2f} (the charge's top {m.SLURRY_TOP:.2f}, the neck's {m.CONE_NECK[2]:.2f}, "
+          f"the arms' foot {arms:.2f}); out to {reach:.2f} (the wall {m.R_IN / math.cos(math.pi / 16):.2f} to {m.R_OUT:.2f})")
+    if not (lo[1] < m.SLURRY_TOP - 0.1 and m.SLURRY_TOP + 0.05 <= hi[1] < min(m.CONE_NECK[2], arms) - 0.1) or reach > m.R_OUT - 0.05:
+        v.fail("the water film is not a thin sheet just over the charge, under the neck and the arms, inside the wall's outside")
+    # neighbours lap (no crack between them, whatever the shape file's rounding), by little, at different heights
+    laps = [(obb_gap(a, b), a, b) for i, a in enumerate(els) for b in els[i + 1:]]
+    near = [(g, a, b) for g, a, b in laps if g < 0.02]
+    bad = [(a.name, b.name, round(g, 4)) for g, a, b in near
+           if not -2 * m.WATER_LAP - 1e-6 <= g <= -m.WATER_LAP or abs(a.aabb()[1][1] - b.aabb()[1][1]) < m.WATER_STEP - 1e-9]
+    print(f"water: {len(near)} pairs of its boxes lap, each by {-max(g for g, _, _ in near):.3f} to {-min(g for g, _, _ in near):.3f}, "
+          "their tops apart")
+    if bad:
+        v.fail(f"the water film's boxes meet with a crack, lap too far or share a top: {bad[:4]}")
+    # its outer edge: wherever a ray from the axis leaves the film, it is in the wall at every angle
+    worst_in, worst_gap, uncovered, tested = 1e9, 1e9, [], 0
+    for k in range(240):
+        a = k * math.pi / 120
+        rs = [i * 0.02 for i in range(275, 350)]
+        on = [any(inside(e, [m.CX + r * math.sin(a), (lo[1] + hi[1]) / 2, m.CZ + r * math.cos(a)]) for e in els) for r in rs]
+        last = max(i for i, x in enumerate(on) if x) if any(on) else None
+        if last is not None:
+            worst_in = min(worst_in, rs[last])
+    wall_in = m.R_IN / math.cos(math.pi / 16)
+    for th in (0.0, 0.2, 11.25 * math.pi / 180, 0.9, 2.0):
+        pose = (th, 4)
+        water = v.posed("water", pose)
+        shoes = v.posed("shoes", pose)
+        for s in shoes:
+            for w in water:
+                if obb_gap(w, s) < m.SLOT_MARGIN - 1e-6:
+                    v.fail(f"{w.name} comes within {obb_gap(w, s):.3f} of {s.name} at theta {th:.3f}")
+                worst_gap = min(worst_gap, obb_gap(w, s))
+        y = (lo[1] + hi[1]) / 2
+        n = 70
+        for i in range(n + 1):
+            for j in range(n + 1):
+                p = [m.CX - 7 + 14 * i / n, y, m.CZ - 7 + 14 * j / n]
+                if polygon_depth(m, p, m.R_IN) <= 0.0 or polygon_depth(m, p, m.CONE_NECK[0]) >= 0.0:
+                    continue
+                tested += 1
+                if any(inside(w, p) for w in water) or any(inside(s, p, m.SLOT_MARGIN + 1e-6) for s in shoes):
+                    continue
+                uncovered.append((round(p[0], 2), round(p[2], 2), round(th, 3)))
+    print(f"water: its edge at least {worst_in:.2f} out all round (into the wall past {wall_in:.2f}); {worst_gap:.2f} clear of the shoes; "
+          f"{tested} points of the open pan over 5 angles, {len(uncovered)} uncovered outside the shoes' slots")
+    if worst_in < wall_in + 0.02:
+        v.fail("the water film's edge stops short of the wall somewhere as it turns")
+    if uncovered:
+        v.fail(f"the charge shows through the water film away from the shoes, e.g. {uncovered[:4]}")
+
+
+def obb_gap(a, b):
+    """The gap across (x, z) between two boxes standing upright and turned alike about y (the film's and the
+    shoes', which turn together): measured in a's frame, where both are square."""
+    def span(el, frame):
+        cs = [[sum(frame.r[i][k] * (c[i] - frame.c[i]) for i in range(3)) for k in range(3)] for c in el.corners()]
+        return [(min(c[k] for c in cs), max(c[k] for c in cs)) for k in (0, 2)]
+    sa, sb = span(a, a), span(b, a)
+    return max(max(sb[k][0] - sa[k][1], sa[k][0] - sb[k][1]) for k in range(2))
 
 
 def check_clearances(v, poses, label):
@@ -401,6 +492,7 @@ def validate(m, els, parts, rig, quick=False):
     check_coupling(v)
     check_shoes(v)
     check_contents(v)
+    check_water(v)
     check_clearances(v, [m.REST] + m.turn_poses(10.0), "clearances")
     if not quick:
         check_clearances(v, m.turn_poses(1.0), "swept paths (every degree of a turn, each contents)")

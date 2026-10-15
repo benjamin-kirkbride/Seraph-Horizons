@@ -7,15 +7,15 @@ namespace SeraphHorizons.Tests.AmalgamPan;
 /// <summary>
 /// The amalgam pan's shipped rig (written by AmalgamPan/tools/make_shape.py) read by the shared rig
 /// maths, which its renderer will use: every part parses with the machines' parser and the pan's
-/// <c>requires</c> vocabulary (#718's fitted stages, the muller and then its shoes, which ride it, and the
-/// contents), there is no work, the axle comes in from below at the pan's own cell (as into the quern), and
-/// every reference pose (θ, the spindle's angle) gives the matrices the Python reference maths wrote. There
+/// <c>requires</c> vocabulary (#718's fitted stages, the muller and then its shoes, which ride it, the
+/// contents, and the water film over the charge, which rides it too), there is no work, the axle comes in
+/// from below at the pan's own cell (as into the quern), and every reference pose (θ, the spindle's angle) gives the matrices the Python reference maths wrote. There
 /// is no amalgam pan gameplay yet (#718); this holds the third implementation of the rig maths to the model
 /// before there is.
 /// </summary>
 public class AmalgamPanRigTests
 {
-    private static readonly HashSet<string> Requires = ["muller", "shoes", "mercury", "slurry", "amalgam"];
+    private static readonly HashSet<string> Requires = ["muller", "shoes", "mercury", "slurry", "water", "amalgam"];
 
     private static string File(string name)
     {
@@ -35,12 +35,16 @@ public class AmalgamPanRigTests
     public void The_shipped_rig_parses_with_no_work()
     {
         var parts = Shipped();
-        Assert.Equal(["muller", "shoes", "mercury", "slurry", "amalgam", "frame"], parts.Parts.Select(p => p.Id));
+        Assert.Equal(["muller", "shoes", "mercury", "slurry", "water", "amalgam", "frame"], parts.Parts.Select(p => p.Id));
         // the fitted stages in #718's order: the muller (a rod), then its shoes (a plate), riding it
         Assert.Equal(["muller", "shoes"], parts.Parts.Where(p => p.Requires is "muller" or "shoes").Select(p => p.Requires));
         var shoes = parts.Parts.Single(p => p.Id == "shoes");
         Assert.Equal("muller", shoes.Ride);
         Assert.Empty(shoes.Drivers);
+        // the water film over the charge turns with them, cut away round the shoes
+        var water = parts.Parts.Single(p => p.Id == "water");
+        Assert.Equal(("water", "muller"), (water.Requires, water.Ride));
+        Assert.Empty(water.Drivers);
         using var doc = JsonDocument.Parse(File("amalgampan-rig.json"));
         Assert.Equal([0, 0, 0], doc.RootElement.GetProperty("powerCell").EnumerateArray().Select(v => v.GetInt32()));
         Assert.Equal("down", doc.RootElement.GetProperty("powerFace").GetString());

@@ -38,7 +38,7 @@ chute, hopper or water anchor to settle.
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. `tools/` is the model's
 generator; the generic half of it is `Machines/tools/machinegen/`, shared with the other machines and
-unchanged by this one (no new driver: the muller is a plain `rotate`, the shoes ride it).
+unchanged by this one (no new driver: the muller is a plain `rotate`, the shoes and the water film ride it).
 
 ## The station
 
@@ -69,11 +69,13 @@ then `muller` and `shoes`, one right-click with the item each:
 | 2 | `shoes` | `game:metalplate-iron` or `-steel` | The four shoes under the arms' ends, riding the muller. Their texture code is `shoe`, which the renderer sets to the plate's metal | Only by breaking the pan: they don't wear |
 | — | `mercury` | The contents | The mercury poured in: a pool 0.4 deep on the floor | The batch, not a part |
 | — | `slurry` | The contents | The pan charged and working: crushed gold or silver quartz and water with the mercury worked through it, a grey-brown pulp 1.6 deep, the shoes mostly in it and the cone's foot under it, so a loaded pan reads from across the room | as above |
+| — | `water` | The contents | A thin film of water standing over the charge (drawn with `slurry`), 0.15 over the pulp, parted round each shoe and swept round with the muller (below, "The water film") | as above |
 | — | `amalgam` | The contents | The worked charge: the amalgam paste, 0.8 deep | as above |
 
 Until the muller is fitted, nothing turns: the cone and the footstep stand empty, and an axle below meets
 nothing. With the muller and no shoes, the arms turn clear of the floor and of every content. The contents
-are drawn one at a time, or none (the pan empty), as `requires` values gameplay sets, with no driver, the
+are drawn one at a time, or none (the pan empty), the water film only over the charge, as `requires`
+values gameplay sets, with no driver, the
 way the other hand stations express their work (the press brake's `platelead` and `platecopper`).
 
 **Why the coupling comes with the rod.** It turns with the spindle (it is the spindle's foot), so it
@@ -123,19 +125,22 @@ game's rock textures, a grey-brown base, the soft swirls of a stirred pulp (low 
 so it tiles) and a scatter of small beads of mercury showing through, from a fixed hash, so every run
 writes the same pixels. It is the whole charge in one layer: a Washoe pan's charge was a thick pulp of
 crushed ore and water, the mercury worked through it, not ore settled under clear water, so the water is
-in the pulp rather than a layer of its own.
+in the pulp; the owner's 2026-10-14 ruling adds a film of water over it as a state of its own, `water`
+(below). The film is the game's **water portion** (`game:block/liquid/waterportion`), the texture its
+barrels and buckets draw water in, as the jig's and the rocker's water are.
+
 `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/amalgampan.json` | The whole station, both fitted parts and the three contents (109 elements). The renderer splits it into parts by element name. |
+| `assets/seraphhorizons/shapes/block/amalgampan.json` | The whole station, both fitted parts, the three contents and the water film (143 elements). The renderer splits it into parts by element name. |
 | `assets/seraphhorizons/shapes/block/amalgampan_frame.json` | The static frame only (67 elements), the shape of the block `seraphhorizons:amalgampan-frame-{side}` (#718's recipe output), as `pressbrake_frame.json` is `pressbrake-frame-{side}`'s. The block draws it and the inventory shows it. |
-| `assets/seraphhorizons/config/amalgampan-rig.json` | The cell, the power cell and face, the anchors and the part rig (6 parts). |
+| `assets/seraphhorizons/config/amalgampan-rig.json` | The cell, the power cell and face, the anchors and the part rig (7 parts). |
 | `assets/seraphhorizons/textures/block/liquid/slurry.png` | The charge's slurry texture (`seraphhorizons:block/liquid/slurry`). |
 | `tests/AmalgamPan/rig-reference.json` | Every part's matrix at a spread of shaft angles, from the reference maths. |
 
-Elements by part: the muller 14, the shoes 4, each content 8, the frame 67; drawn complete and empty 85,
-with any content 93.
+Elements by part: the muller 14, the shoes 4, each content 8, the water film 34, the frame 67; drawn
+complete and empty 85, with any content 93, charged under water 127.
 
 ### How the station works
 
@@ -176,6 +181,25 @@ gap shows at the wall) and their underside is sunk in the floor. The mercury is 
 0.8 and the charge's pulp 1.6, over the cone's foot and most of the shoes; the shoes stand out of all
 three (to y 8.15), and the cone's top (y 7.9) is above them.
 
+**The water film** (`water`, over the charge) is a sheet from y 7.32..7.4 (in the pulp, under every strip
+of its top) to 7.67..7.75, up to 0.15 over the charge and under the cone's top and the arms (y 8.1). A still sheet over
+the floor could not keep clear of the shoes, which stand on the floor up through the charge into the arms,
+and putting it over the arms would drown them and the hub. So the film **rides the muller**: it is cut
+away round each shoe, 0.1 clear on every side and end (`SLOT_MARGIN`), and turns with the muller, as the
+muller sweeps the pulp and its water round the pan; the slot is the shoe's wake, a line of pulp showing
+along each side. Clear of the shoes by construction, it never meets them at any angle. Drawn in the
+muller's frame with the shoes on the axes, it is 34 boxes: an arm of film
+along each shoe's line inside its slot (to the open square, 1.4 across, left round the spindle inside the
+cone's neck) and outside it (to the wall), small pieces by the core, and between each two shoes a quadrant
+stepped out in six bands whose corners all lie between 6.4 and 6.9 from the axis. That ring is inside the
+wall at every angle (its inside is 6.2 to 6.32 out, its outside 7), so the turning film's stepped edge
+is always hidden in the wall and no gap opens at the wall; its middle is hidden in the cone's neck, clear
+of the spindle. Each box is grown 0.005 every way across (`WATER_LAP`), so neighbours lap by 0.01: the
+shape file's turned boxes, each rounded about its own centre, would otherwise meet with hairline cracks
+(up to 0.0001), and the stepped bands with T-junctions, through which the pulp could sparkle. Each box's
+top and underside sit 0.0025 under the last's (`WATER_STEP`, as the round parts' strips step), so no two
+laps share a plane. The slots are cut 0.005 wider to keep the 0.1 clear of the shoes after the lap.
+
 Every moving part (θ the spindle's angle):
 
 | Part (rig id) [requires] | Driven by | Drives | Drivers |
@@ -184,6 +208,7 @@ Every moving part (θ the spindle's angle):
 | Shoes (`shoes`) [shoes] | Ride the muller (bolted under its arms) | The contents (grinding) | none (ride) |
 | Mercury (`mercury`) [mercury] | Static | — | none |
 | Charge (`slurry`) [slurry] | Static | — | none |
+| Water film (`water`) [water] | Rides the muller (parted round the shoes) | — | none (ride) |
 | Amalgam (`amalgam`) [amalgam] | Static | — | none |
 | Frame (`frame`) | Static | — | none |
 
@@ -196,7 +221,8 @@ a line shaft; here the vanilla axle stands in for that shaft and its gearing, as
 pack. The muller hangs on the spindle's top by its hub, with no separate driver or adjusting screw. Its
 shoes were replaceable iron castings bolted under the muller; here they are plates, and they don't wear.
 A charged Washoe pan was a pulp of crushed ore, water and mercury, kept moving by the muller; the charge
-state is drawn so.
+state is drawn so. The water film over it stands for the free water a pan was run with when the pulp was
+thinned, swept round with the muller and parting at the shoes.
 
 ### Regenerating
 
@@ -206,22 +232,23 @@ python3 mods-src/seraphhorizons/AmalgamPan/tools/make_shape.py --out DIR    # or
 python3 mods-src/seraphhorizons/AmalgamPan/tools/make_shape.py --quick      # skips the z-fighting fix and the swept paths (not for files that ship)
 ```
 
-A full run takes about 10 s and is deterministic (two runs into two folders are byte-identical, logs
+A full run takes about 20 s and is deterministic (two runs into two folders are byte-identical, logs
 included). `tools/validate_amalgampan.py` holds the checks; every run checks its output and exits
 non-zero if one fails:
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no
-  empty part; every `requires` in the pan's vocabulary (the two stages, the three contents, or null).
+  empty part; every `requires` in the pan's vocabulary (the two stages, the three contents, `water`, or null).
 - **Stages:** the fitted stages in #718's order, the muller then the shoes; the muller carries the one
   `rotate` and rides nothing; the shoes ride the muller with no driver of their own; each content a still
-  layer of its own `requires`; the `shoe` texture code on the shoes alone, and the shoes wearing nothing
+  layer of its own `requires`; the water film its own `requires`, riding the muller with no driver; the
+  `shoe` texture code on the shoes alone, and the shoes wearing nothing
   else, so setting it to the plate's metal changes the shoes and nothing more.
 - **Containment:** nothing leaves the block over a whole turn, every 5°, with each contents.
 - **Textures** by role: oak stand, bridge-tree, coupling and the plug's bung; `pan` for the floor, wall and
   bead; iron for the cone, the footstep, the plug's boss and the muller; `shoe` for the shoes; each content
   its own.
-- **Turning:** the pan's axis stays put; the muller turns by exactly θ (ratio 1); the shoes' matrix is the
-  muller's at every θ; nothing else moves.
+- **Turning:** the pan's axis stays put; the muller turns by exactly θ (ratio 1); the shoes' and the water
+  film's matrices are the muller's at every θ; nothing else moves.
 - **Supports:** the spindle runs through the footstep and the cone's neck (found by `supports`), at least
   0.3 inside each, at rest and turned an eighth and a quarter, the two 3 or more apart; the muller's hub
   just clear of the cone.
@@ -233,14 +260,23 @@ non-zero if one fails:
 - **Contents:** each on the floor, its edge just into the wall; the mercury under the paste's level, the
   paste under the charge's, the charge under the cone's top and the shoes' tops (the arms' undersides, so
   the arms clear every content with the shoes off too).
+- **Water film:** under the cone's top and the arms, 0.05 or more over the charge's top and its underside
+  in the charge; its boxes side by side, never overlapping; every box at least `SLOT_MARGIN` (0.1) clear
+  of every shoe, at five angles; its edge out past the wall's inside all round (a ray every 1.5°) and inside
+  the wall's outside; and, at five angles, every point of the open pan at its height (inside the wall,
+  outside the cone's neck, on a 0.2 grid) under the film or in a shoe's slot, so the charge shows nowhere
+  but round the shoes.
 - **Clearances:** over a turn every 10°, with each contents, no two parts touch except the intended
   contacts listed in `ALLOWED` (the spindle down through the footstep and the bridge-tree and up through
-  the floor and the cone, the contents in the pan, round the shoes and round the spindle in the cone). A
+  the floor and the cone, the contents in the pan, round the shoes and round the spindle in the cone; the
+  water film's edge in the wall, its middle in the cone's neck and its underside in the charge, but never
+  the shoes or the muller). A
   stage left off only takes parts away, so the complete pan's clearances hold for every stage.
-- **Swept paths** (full runs): the same at every degree of a turn, with each contents (1440 poses).
+- **Swept paths** (full runs): the same at every degree of a turn, with each contents (1800 poses).
 - **Nothing floats:** every frame element joined to the ground (the frame stands alone, before any stage).
-- **No z-fighting** (full runs): no coplanar overlapping faces at eleven poses, with each contents shown
-  alone (`shown`). Before the fix there are 34 pairs at each pose (32 of the floor's strips against the
+- **No z-fighting** (full runs): no coplanar overlapping faces at fifteen poses, with each contents shown
+  alone (`shown`) and the charge under its water. Before the fix there are 34 pairs at each pose, the water
+  adding none (32 of the floor's strips against the
   wall's foot, and the coupling's two bars where they cross at the bottom face); the fix removes the faces
   pressed against their own part (20: never a shoe's or an arm's, which are different parts, so the arms'
   undersides are drawn with the shoes off) and insets what is left (one coupling bar's two ends by 0.015);
@@ -259,27 +295,29 @@ The press brake's schema (`../PressBrake/README.md`, "Rig schema") without its w
 output, plus a power cell and face as the powered machines have: nothing is added to the shared rig maths.
 
 - **Inputs.** θ alone, the spindle's angle (radians). The muller part rotates about +y by θ (ratio 1:
-  counter-clockwise seen from above as θ grows); the shoes ride it. The contents and the frame have no
+  counter-clockwise seen from above as θ grows); the shoes and the water film ride it. The contents and the frame have no
   driver.
 - **Keys.** `cells` (one, with its box and a `lid`), `powerCell` and `powerFace`, `operatorSide`, `pan`
-  and `parts`. `requires` values: `muller`, `shoes`, `mercury`, `slurry`, `amalgam`, or null. The texture
+  and `parts`. `requires` values: `muller`, `shoes`, `mercury`, `slurry`, `water`, `amalgam`, or null. The texture
   code a renderer sets: `shoe` (the fitted plate's metal); the blocktype sets the mercury's overlay (see
   "Gameplay").
 
 **In the viewer** (`site/models.json`, `amalgam-pan`): θ is the "Muller turned" slider over one turn, and
 Play turns it at 1.5 s a turn (40 turns a minute) by its input speed. The power cell is drawn with an
 arrow up into its down face. A **Build** select steps through the frame, "1: Muller (a rod)" and "2:
-Shoes (a plate): complete" (opening complete; each hint names its items); a **Contents** select (Empty, Mercury, Charged (slurry), Amalgam, each with a
+Shoes (a plate): complete" (opening complete; each hint names its items); a **Contents** select (Empty, Mercury, Charged (slurry), Charged, water over it, Amalgam, each with a
 hint), opening on Charged, waits on the built pan (`needs` the muller and the shoes); a **Shoes** texture
 select draws them in iron or steel plate, each its texture's mean colour from the game's files (iron
 `#695d56`, steel `#807f7c`). Coloured by texture, the contents have colours of their own apart from the
 pan's iron (`site/src/lib/model-view.ts`): the mercury the mean of Expanded Matter's blend (a dark
-blue-grey), the slurry the mean of its texture (grey-brown), the amalgam a warm grey.
+blue-grey), the slurry the mean of its texture (grey-brown), the amalgam a warm grey, and the water the rocker's
+water blue (`#6f9fcf`, the same line the rocker's branch adds).
 
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, in the rig's order): `muller_*` (`spindle`,
 `couplinga`, `couplingb`, `hub`, `arm1`..`arm4`), `shoe_1`..`shoe_4`, `mercury_*`, `slurry_*`,
+`water_*` (`ins`, `inn`, `ine`, `inw`, `outs`, `outn`, `oute`, `outw`, `coree`, `corew`, `se1`..`sw6`),
 `amalgam_*`, and `fr_*` for the frame (`leg`, `apron`, `bearer`, `rail`, `bridgetree`, `floor`, `wall`,
 `rim`, `cone_base`, `cone_neck`, `plug_boss`, `plug_bung`, `footstep`). Hand edits are lost when the
 script runs again: port them into `make_shape.py`, or stop regenerating.
@@ -292,7 +330,8 @@ No one has yet looked at it in a client.
 
 1. **The contents do not turn or change.** A layer is drawn or not; nothing shows the charge turning to
    amalgam but the change of state.
-2. **The shoes stand in the layers.** They pass through them as they turn; nothing is pushed aside.
+2. **The shoes stand in the layers.** They pass through the pulp as they turn; nothing is pushed aside.
+   The water film turns with them rather than standing still, so its texture turns with the muller too.
 3. **Collision is one box.** The space under the pan is solid to walk into; selection takes a click
    anywhere on the block. The box is the complete pan's at every stage.
 4. **Round parts are polygons:** the pan has 16 sides, the hubs, spindle and footstep 8.
@@ -317,8 +356,11 @@ No one has yet looked at it in a client.
 4. **Concentrate or crushed quartz.** #718's body still says "gold and silver concentrate plus mercury";
    its 10-13 player card says crushed gold or silver quartz, with water, and so do the model, the viewer
    and this README. The body's first lines may want the card's words.
-5. **The charge's water** is in the pulp (the slurry's one layer), not a film of water over it. A thin
-   water layer over the pulp could be added as a fourth content if wanted.
+5. **The water film turns with the muller.** Ruled in (2026-10-14) as a film over the charge, clear of the
+   shoes' swept path or riding if the geometry needs it: it needs it, since the shoes stand on the floor
+   up through any still sheet over the charge. It is drawn riding the muller, slotted round the shoes
+   (above, "The water film"). In the viewer it is its own Contents option, "Charged, water over it", and
+   the Contents select still opens on plain Charged; open it on the water instead if preferred.
 6. **Contents wait for a built pan** in the viewer (the Contents select `needs` the muller and the
    shoes), as the crucible furnace's pots wait for its build. Whether gameplay refuses mercury in a pan
    with no muller is #718's call.
@@ -354,13 +396,14 @@ rig keys:
   advances θ at a pace the gameplay sets (the quern's stone turns 40° a second); nothing else is drawn.
 - **Parts and contents.** The renderer draws the `muller` part when the muller is fitted and the `shoes`
   (riding it) when the shoes are, by the shared rig maths (`Machines/Core/RigAnimation.cs`), and one of
-  `mercury`, `slurry` (the pan charged and working) and `amalgam` as the batch stands, or none. The frame
+  `mercury`, `slurry` (the pan charged and working) and `amalgam` as the batch stands, or none, and
+  `water` (riding the muller) over `slurry` while the charge has its water. The frame
   shape is the block's.
 - **Textures.** The renderer sets the `shoe` code to the fitted plate's metal (`game:block/metal/plate/iron`
   or `game:block/metal/plate/steel`), as the press brake's renderer sets `edge`. The blocktype gives the
   `mercury` code Expanded Matter's composite, so the pool is the bucket's mercury:
   `"mercury": { "base": "game:block/stone/rock/andesite2", "blendedOverlays": [ { "base": "game:block/stone/rock/kimberlite1", "blendMode": "Lighten" } ] }`;
-  `slurry` and `amalgam` are the shape's own paths.
+  `slurry`, `water` and `amalgam` are the shape's own paths.
 - **Tests.** `tests/AmalgamPan/AmalgamPanRigTests.cs` (the shipped rig through the shared parser, its
   vocabulary, the stages and the shoes' ride, the power cell and face, no work, no item transfer anchor,
   and every pose of `tests/AmalgamPan/rig-reference.json` replayed through `Machines/Core`),

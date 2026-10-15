@@ -84,6 +84,8 @@ const TEXTURE_FAMILIES: [RegExp, string][] = [
   [/mercury|quicksilver/, "#768085"],
   [/slurry/, "#7a7369"],
   [/amalgam/, "#b0aa9c"],
+  // Water (the game's water portion: the rocker's, the amalgam pan's film), which would otherwise take a colour hashed from its code.
+  [/water/, "#6f9fcf"],
   [/metal|iron|steel|copper|bronze|tin|plate|ingot|gold|silver/, "#8e98a4"],
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],
   [/stone|rock|granite|andesite|cobble|brick|clay/, "#9a9a92"],

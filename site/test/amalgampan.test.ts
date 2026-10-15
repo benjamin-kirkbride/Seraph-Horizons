@@ -9,8 +9,8 @@ import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs,
 // The amalgam pan's shipped files, and the poses AmalgamPan/tools/make_shape.py computes from them with
 // machinegen's reference maths. Worked as the quern is, by hand or by a vanilla axle from below, its rig
 // reads one input, θ, the spindle's angle: the muller (spindle, coupling, hub, arms) turns by it about the
-// pan's axis, once a turn, and its shoes ride it; the contents (mercury, the charge's slurry, amalgam) and
-// the frame stand still. #718's fitted stages are the muller (a rod), then the shoes (a plate, drawn in its
+// pan's axis, once a turn, and its shoes ride it, as does the water film over the charge; the other contents
+// (mercury, the charge's slurry, amalgam) and the frame stand still. #718's fitted stages are the muller (a rod), then the shoes (a plate, drawn in its
 // metal through the `shoe` code). tools/tests/test_amalgampan_model.py and the mod's C# tests replay the same file.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
@@ -37,6 +37,7 @@ describe("the amalgam pan's rig against its rig-reference.json", () => {
       ["shoes", "shoes", "muller"],
       ["mercury", "mercury", null],
       ["slurry", "slurry", null],
+      ["water", "water", "muller"],
       ["amalgam", "amalgam", null],
       ["frame", null, null],
     ]);
@@ -72,6 +73,8 @@ describe("the amalgam pan's rig against its rig-reference.json", () => {
       expect(p[0]! - 0.5).toBeCloseTo(Math.cos(theta), 9);
       expect(p[2]! - 0.5).toBeCloseTo(-Math.sin(theta), 9);
       expect(ms[i("shoes")]).toEqual(m);
+      // the water film over the charge turns with them, parted round each shoe
+      expect(ms[i("water")]).toEqual(m);
       for (const still of ["mercury", "slurry", "amalgam", "frame"]) expect(ms[i(still)]!.map((v, k) => v - (k % 5 === 0 ? 1 : 0)).every((v) => Math.abs(v) < 1e-12)).toBe(true);
     }
     // the viewer's θ slider spans one turn
@@ -89,6 +92,8 @@ describe("the amalgam pan's rig against its rig-reference.json", () => {
     expect([...codes.mercury!]).toEqual(["mercury"]);
     expect([...codes.slurry!]).toEqual(["slurry"]);
     expect([...codes.amalgam!]).toEqual(["amalgam"]);
+    expect([...codes.water!]).toEqual(["water"]);
+    expect(shape.textures?.water).toBe("game:block/liquid/waterportion");
     // the shoes alone wear `shoe`, which the renderer sets to the fitted plate's metal
     expect([...codes.shoes!]).toEqual(["shoe"]);
     for (const [id, cs] of Object.entries(codes)) if (id !== "shoes") expect(cs.has("shoe"), id).toBe(false);
@@ -106,14 +111,14 @@ describe("the amalgam pan's rig against its rig-reference.json", () => {
 
 describe("the amalgam pan's page", () => {
   const model = manifest.models.find((m) => m.id === "amalgam-pan")!;
-  const requires = ["muller", "shoes", "mercury", "slurry", "amalgam"];
+  const requires = ["muller", "shoes", "mercury", "slurry", "water", "amalgam"];
   const groups = stateGroups(model.scenario!.states, requires);
   const group = (id: string) => groups.find((g) => g.id === id)!;
 
   it("builds it in #718's order: the frame, the muller, then the shoes", () => {
     expect(groups.map((g) => [g.id, g.owns])).toEqual([
       ["build", ["muller", "shoes"]],
-      ["contents", ["mercury", "slurry", "amalgam"]],
+      ["contents", ["mercury", "slurry", "water", "amalgam"]],
     ]);
     const build = group("build");
     expect(build.spec.options.map((o) => [o.id, o.fitted])).toEqual([
@@ -125,20 +130,21 @@ describe("the amalgam pan's page", () => {
     expect(build.spec.default).toBe("complete");
   });
 
-  it("shows one of its contents at a time once it is built: empty, mercury, charged, amalgam", () => {
+  it("shows its contents once it is built: empty, mercury, charged, charged under water, amalgam", () => {
     const contents = group("contents");
-    const all = { muller: true, shoes: true, mercury: true, slurry: true, amalgam: true };
-    expect(contents.spec.options.map((o) => o.id)).toEqual(["empty", "mercury", "charged", "amalgam"]);
+    const all = { muller: true, shoes: true, mercury: true, slurry: true, water: true, amalgam: true };
+    expect(contents.spec.options.map((o) => o.id)).toEqual(["empty", "mercury", "charged", "watered", "amalgam"]);
     for (const o of contents.spec.options) expect(o.hint).toBeTruthy();
     const at = (id: string) => applyState(all, contents.spec.options.find((o) => o.id === id)!, contents.owns);
-    expect(at("empty")).toMatchObject({ mercury: false, slurry: false, amalgam: false });
-    expect(at("mercury")).toMatchObject({ mercury: true, slurry: false, amalgam: false });
-    expect(at("charged")).toMatchObject({ muller: true, shoes: true, mercury: false, slurry: true, amalgam: false });
-    expect(at("amalgam")).toMatchObject({ mercury: false, slurry: false, amalgam: true });
+    expect(at("empty")).toMatchObject({ mercury: false, slurry: false, water: false, amalgam: false });
+    expect(at("mercury")).toMatchObject({ mercury: true, slurry: false, water: false, amalgam: false });
+    expect(at("charged")).toMatchObject({ muller: true, shoes: true, mercury: false, slurry: true, water: false, amalgam: false });
+    expect(at("watered")).toMatchObject({ muller: true, shoes: true, mercury: false, slurry: true, water: true, amalgam: false });
+    expect(at("amalgam")).toMatchObject({ mercury: false, slurry: false, water: false, amalgam: true });
     expect(contents.spec.default).toBe("charged");
     // it opens built and charged; with the shoes off the contents wait
     const { fitted } = openingFitted(requires, [], groups);
-    expect(fitted).toEqual({ muller: true, shoes: true, mercury: false, slurry: true, amalgam: false });
+    expect(fitted).toEqual({ muller: true, shoes: true, mercury: false, slurry: true, water: false, amalgam: false });
     const bare = applyState(fitted, group("build").spec.options.find((o) => o.id === "muller")!, group("build").owns);
     expect(needsMet(contents, bare)).toBe(false);
     expect(statesShow("slurry", bare, groups)).toBe(false);

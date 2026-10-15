@@ -313,6 +313,8 @@ describe("model view", () => {
     expect(textureColour("slurry", "seraphhorizons:block/liquid/slurry")).toBe("#7a7369");
     expect(textureColour("amalgam", "game:block/metal/ingot/leadsolder")).toBe("#b0aa9c");
     expect(textureColour("pan", "game:block/metal/sheet/iron1")).toBe("#8e98a4");
+    // water reads as water
+    expect(textureColour("water", "game:block/liquid/waterportion")).toBe("#6f9fcf");
   });
 
   it("puts elements no part claims in an unmatched group", () => {

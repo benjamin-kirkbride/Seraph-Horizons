@@ -90,6 +90,7 @@ TEXTURES = {
     "mercury": "game:block/stone/rock/andesite2",
     "slurry": "seraphhorizons:block/liquid/slurry",     # the charge: made by slurry_texture.py to sit beside that mercury
     "amalgam": "game:block/metal/ingot/leadsolder",     # a dull, mottled grey: the paste
+    "water": "game:block/liquid/waterportion",          # the water film over the charge, as the game's barrels draw water
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
@@ -148,6 +149,21 @@ MERCURY_TOP = FLOOR_TOP + 0.4                # a pool 0.4 deep
 SLURRY_TOP = FLOOR_TOP + 1.6                 # the charge, 1.6 deep: a loaded pan, over the cone's foot, the shoes mostly in it
 AMALGAM_TOP = FLOOR_TOP + 0.8                # a paste 0.8 deep: the shoes stand out of it
 CONTENTS = ((1, "mercury"), (2, "slurry"), (3, "amalgam"))   # (pose's contents index, part id = requires = texture code), in the pan's order
+
+# The water film: a thin sheet of water over the charge (requires `water`, drawn with the charge). A still
+# sheet over the floor can't keep clear of the shoes, which stand on the floor up through the charge, so the
+# film rides the muller: it is cut away round each shoe by SLOT_MARGIN, and turns with them, as the pulp
+# and its water are swept round by the muller (a shoe's slot reads as its wake). It is clear of the shoes
+# and the spindle at every angle; its edge is set into the wall, between the wall's inside and outside at
+# every angle, and its middle inside the cone's neck, so neither shows a gap as it turns.
+WATER_Y = (SLURRY_TOP - 0.2, SLURRY_TOP + 0.15)   # 0.15 over the charge; its underside in the charge, under every strip's top
+SLOT_MARGIN = 0.1                            # the water's way round each shoe, each side and each end
+WATER_LAP = 0.005                            # each box grown this much every way across, so neighbours lap and no crack opens
+WATER_STEP = 0.0025                          # each box's top and underside this much under the last's, so no two laps share a plane
+SLOT_HALF = SHOE_W / 2 + SLOT_MARGIN + WATER_LAP   # each shoe's slot, half across, before the lap
+SLOT_R = (SHOE_R[0] - SLOT_MARGIN - WATER_LAP, SHOE_R[1] + SLOT_MARGIN + WATER_LAP)   # and along: from, to
+WATER_CORE = 0.7                             # the square left open round the spindle, half across: inside the cone's neck
+WATER_EDGE = (6.4, 6.9)                      # the film's edge lies this far out from the axis, all round: into the wall
 
 SECONDS_PER_TURN = 1.5                       # the viewer's Play: 40 turns a minute, an axle's easy pace
 
@@ -287,8 +303,48 @@ def build_contents():
     return out
 
 
+def water_bands():
+    """The quadrants' z bands from SLOT_HALF out: each band's far corner on the edge's outer circle, its near
+    corner beyond the inner one, so the stepped edge lies in the wall all along."""
+    r0, r1 = WATER_EDGE
+    step = r1 * r1 - r0 * r0 - 0.05
+    bands, z = [], SLOT_HALF
+    last = math.sqrt(r0 * r0 - SLOT_HALF * SLOT_HALF) + 0.05     # the last band's far side, beyond the inner circle at the slot's edge
+    while z < last:
+        nz = min(math.sqrt(z * z + step), last)
+        bands.append((round(z, 4), round(nz, 4), round(math.sqrt(r1 * r1 - nz * nz), 4)))
+        z = nz
+    return bands
+
+
+def build_water():
+    """The water film (`requires` water, riding the muller): drawn in the muller's frame with the shoes on
+    the x and z axes, then turned ARM_ANGLE0 with the arms. Two arms of film along each axis, inside and
+    outside the shoe's slot, small pieces round the open core, and a quadrant between each two shoes, stepped
+    out into the wall. Neighbours lap by 2 WATER_LAP (the rounded shape file's turned boxes would otherwise
+    leave hairline cracks, and the steps T-junctions), each box's top WATER_STEP under the last's."""
+    p, y0, y1 = "water", WATER_Y[0], WATER_Y[1]
+    h, c, (s0, s1), edge = SLOT_HALF, WATER_CORE, SLOT_R, WATER_EDGE[0] + 0.2
+    rects = []                                   # (x0, x1, z0, z1, name) about the axis
+    for sgn, tag in ((1, "s"), (-1, "n")):
+        rects.append((-h, h, *sorted((sgn * c, sgn * s0)), f"in{tag}"))            # along z, inside the slot (to the core)
+        rects.append((-h, h, *sorted((sgn * s1, sgn * edge)), f"out{tag}"))        # along z, outside it (into the wall)
+    for sgn, tag in ((1, "e"), (-1, "w")):
+        rects.append((*sorted((sgn * h, sgn * s0)), -h, h, f"in{tag}"))            # along x, inside the slot
+        rects.append((*sorted((sgn * s1, sgn * edge)), -h, h, f"out{tag}"))
+        rects.append((*sorted((sgn * c, sgn * h)), -c, c, f"core{tag}"))           # by the core, between the z arms
+    for sx, sz, tag in ((1, 1, "se"), (1, -1, "ne"), (-1, -1, "nw"), (-1, 1, "sw")):
+        for k, (z0, z1, x1) in enumerate(water_bands()):
+            rects.append((*sorted((sx * h, sx * x1)), *sorted((sz * z0, sz * z1)), f"{tag}{k + 1}"))
+    g = WATER_LAP
+    out = [box([CX + x0 - g, y0 - k * WATER_STEP, CZ + z0 - g], [CX + x1 + g, y1 - k * WATER_STEP, CZ + z1 + g], f"water_{n}", p, "water")
+           for k, (x0, x1, z0, z1, n) in enumerate(rects)]
+    rotate(out, "y", ARM_ANGLE0, AXIS)
+    return out
+
+
 def build():
-    return build_muller() + build_shoes() + build_contents() + build_stand() + build_pan() + build_footstep()
+    return build_muller() + build_shoes() + build_contents() + build_water() + build_stand() + build_pan() + build_footstep()
 
 
 # ---------------------------------------------------------------- rig
@@ -318,6 +374,8 @@ def _rig_parts():
         {"id": "shoes", "match": ["shoe_*"], "requires": "shoes", "drivers": [], "ride": "muller"},
         {"id": "mercury", "match": ["mercury_*"], "requires": "mercury", "drivers": []},
         {"id": "slurry", "match": ["slurry_*"], "requires": "slurry", "drivers": []},
+        # the water film over the charge: it rides the muller, cut away round the shoes (build_water)
+        {"id": "water", "match": ["water_*"], "requires": "water", "drivers": [], "ride": "muller"},
         {"id": "amalgam", "match": ["amalgam_*"], "requires": "amalgam", "drivers": []},
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
     ]
@@ -329,8 +387,8 @@ def _rig_parts():
 
 
 # ---------------------------------------------------------------- poses
-# A pose is (theta, contents): contents 0 empty, 1 mercury, 2 slurry, 3 amalgam (which layer is drawn; the rig has
-# no input for it: each is a requires value that gameplay fits or not).
+# A pose is (theta, contents): contents 0 empty, 1 mercury, 2 slurry, 3 amalgam, 4 slurry under its water film (which
+# layers are drawn; the rig has no input for it: each is a requires value that gameplay fits or not).
 REST = (0.0, 0)
 
 
@@ -342,18 +400,19 @@ def pm(parts, pid, pose):
     return _part_matrix(parts, pid, inputs_of(pose), None)
 
 
-def turn_poses(step_deg=5.0, contents=(0, 1, 2, 3)):
+CONTENT_PARTS = ("mercury", "slurry", "water", "amalgam")
+SHOWS = {0: (), 1: ("mercury",), 2: ("slurry",), 3: ("amalgam",), 4: ("slurry", "water")}
+
+
+def turn_poses(step_deg=5.0, contents=tuple(SHOWS)):
     """A whole turn of the spindle every step_deg, with each contents."""
     n = int(round(360.0 / step_deg))
     return [(i * step_deg * DEG, c) for c in contents for i in range(n)]
 
 
 def on_show(part, contents):
-    """Whether a part can be seen with these contents: each layer only as itself."""
-    for idx, pid in CONTENTS:
-        if part == pid:
-            return contents == idx
-    return True
+    """Whether a part can be seen with these contents: each layer only in its own, the water only over the charge."""
+    return part not in CONTENT_PARTS or part in SHOWS[contents]
 
 
 # ---------------------------------------------------------------- the rig file
@@ -372,7 +431,8 @@ def make_rig(parts):
                     "axle's or the hold-to-work clock: the muller turns by it about the pan's axis (y), ratio 1, and the shoes "
                     "ride it. The fitted stages are requires values, in order: muller (a rod: the spindle, its coupling, hub and "
                     "arms), then shoes (a plate; texture code shoe, the plate's metal). So are the contents: mercury, slurry (the "
-                    "charge) and amalgam, one drawn at a time. Nothing goes in or out but by hand: no infeed or output. See the "
+                    "charge) and amalgam, one drawn at a time, and water, a film over the charge, which rides the muller, cut "
+                    "away round the shoes. Nothing goes in or out but by hand: no infeed or output. See the "
                     "amalgam pan's README for the schema.",
         "cells": [],
         "powerCell": list(POWER_CELL),
@@ -425,7 +485,7 @@ def shipped_cells(shape, ship_parts):
 
 def check_shipped(els, parts, ship_els, ship_parts, ship):
     d = [-ORIGIN_CELL[k] * B for k in range(3)]
-    poses = [REST, (0.7, 1), (2.9, 2), (-1.3, 0), (13.0, 3)]
+    poses = [REST, (0.7, 1), (2.9, 2), (-1.3, 0), (13.0, 3), (5.1, 4)]
     worst = worst_shift_error(els, ship_els, lambda el, pose: pm(parts, el.part, pose),
                               lambda el, pose: _part_matrix(ship_parts, el.part, inputs_of(pose), None), d, poses)
     cells = [tuple(c["pos"]) for c in ship["cells"]]
@@ -456,13 +516,13 @@ def shape_json(els):
     return machine_shape_json(
         els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. 'mercury' is drawn as Expanded "
              "Matter draws it (README), 'slurry' is the mod's own texture, 'shoe' is set by the renderer to the fitted "
-             "plate's metal. Keep element names when editing: the rig finds its parts by them.",
+             "plate's metal, 'water' is the game's water portion. Keep element names when editing: the rig finds its parts by them.",
         TEXTURES, tex_size=TEX)
 
 
 def coplanar_poses():
     return (REST, (0.0, 1), (0.0, 2), (0.0, 3), (0.3, 1), (45.0 * DEG, 2), (1.2, 0), (2.0, 3), (22.5 * DEG, 2), (math.pi / 2, 1),
-            (1.0, 3))
+            (1.0, 3), (0.0, 4), (0.3, 4), (11.25 * DEG, 4), (45.0 * DEG, 4))
 
 
 def shown(posed_els, pose):

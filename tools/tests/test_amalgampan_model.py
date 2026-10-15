@@ -2,11 +2,11 @@
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with
 the shared rig maths and uses its `requires` vocabulary (#718's fitted stages, the muller and then its
-shoes, and the three contents), it takes a vanilla axle from below at its own cell, as the quern does, its
+shoes, the three contents and the water film over the charge), it takes a vanilla axle from below at its own cell, as the quern does, its
 reference poses are its own maths, the cell is rebuilt from the shipped shape, theta (the spindle's angle)
-turns the muller about the pan's axis once a turn, the shoes ride it and nothing else moves, the spindle's
-foot is the axle's cross profile at the block's bottom face, the contents lie on the pan's floor, the
-shoes alone wear the `shoe` code, every texture is declared and exists, and the mercury is drawn as
+turns the muller about the pan's axis once a turn, the shoes and the water film ride it and nothing else moves, the
+spindle's foot is the axle's cross profile at the block's bottom face, the contents lie on the pan's floor,
+the water film lies over the charge clear of the shoes and set into the wall, the shoes alone wear the `shoe` code, every texture is declared and exists, and the mercury is drawn as
 Expanded Matter draws it and the slurry texture is the generator's. Run with
 `python3 -m unittest discover -s tools/tests`.
 """
@@ -26,6 +26,7 @@ sys.path.insert(0, str(MOD / "Machines" / "tools"))
 sys.path.insert(0, str(MOD / "AmalgamPan" / "tools"))
 
 from machinegen import rigmath  # noqa: E402
+from machinegen.geometry import flatten  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location("amalgampan_make_shape", MOD / "AmalgamPan" / "tools" / "make_shape.py")
 make_shape = importlib.util.module_from_spec(_spec)
@@ -37,8 +38,9 @@ SHAPE = json.loads((ASSETS / "shapes" / "block" / "amalgampan.json").read_text()
 FRAME = json.loads((ASSETS / "shapes" / "block" / "amalgampan_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "AmalgamPan" / "rig-reference.json").read_text())
 SLURRY = ASSETS / "textures" / "block" / "liquid" / "slurry.png"
-# #718's fitted stages (the muller, a rod; its shoes, a plate) and the contents (a mercury pool, the charge's slurry, amalgam)
-REQUIRES = {"muller", "shoes", "mercury", "slurry", "amalgam", None}
+# #718's fitted stages (the muller, a rod; its shoes, a plate), the contents (a mercury pool, the charge's slurry, amalgam)
+# and the water film over the charge
+REQUIRES = {"muller", "shoes", "mercury", "slurry", "water", "amalgam", None}
 
 
 def matrix(pid, theta):
@@ -52,7 +54,7 @@ def turn_y(m):
 class Rig(unittest.TestCase):
     def test_parts_parse_and_use_the_vocabulary(self):
         ids = [p["id"] for p in RIG["parts"]]
-        self.assertEqual(ids, ["muller", "shoes", "mercury", "slurry", "amalgam", "frame"])
+        self.assertEqual(ids, ["muller", "shoes", "mercury", "slurry", "water", "amalgam", "frame"])
         for p in RIG["parts"]:
             self.assertIn(p["requires"], REQUIRES, p["id"])
             if p.get("ride"):
@@ -123,8 +125,9 @@ class Turning(unittest.TestCase):
             axis = rigmath.apply(m, [0.5, 0.7, 0.5])
             for got, want in zip(axis, [0.5, 0.7, 0.5]):
                 self.assertAlmostEqual(got, want, places=12)
-            # the shoes ride it, bolted under its arms
+            # the shoes ride it, bolted under its arms, and the water film over the charge turns with them
             self.assertEqual(matrix("shoes", theta), m)
+            self.assertEqual(matrix("water", theta), m)
 
     def test_nothing_else_moves(self):
         ident = rigmath.m4()
@@ -180,6 +183,45 @@ class Contents(unittest.TestCase):
             self.assertEqual((part["drivers"], part["ride"]), ([], None))
             els = [e for e in SHAPE["elements"] if rigmath.part_of(RIG["parts"], e["name"]) == pid]
             self.assertEqual({f["texture"] for e in els for f in e["faces"].values()}, {"#" + pid})
+
+
+class Water(unittest.TestCase):
+    def elements(self, pid):
+        return [e for e in SHAPE["elements"] if rigmath.part_of(RIG["parts"], e["name"]) == pid]
+
+    def test_the_water_is_a_film_over_the_charge_riding_the_muller(self):
+        (part,) = [p for p in RIG["parts"] if p["id"] == "water"]
+        self.assertEqual((part["requires"], part["ride"], part["drivers"]), ("water", "muller", []))
+        els = self.elements("water")
+        self.assertEqual({f["texture"] for e in els for f in e["faces"].values()}, {"#water"})
+        self.assertEqual(SHAPE["textures"]["water"], "game:block/liquid/waterportion")
+        y0 = min(min(e["from"][1], e["to"][1]) for e in els)
+        y1 = max(max(e["from"][1], e["to"][1]) for e in els)
+        self.assertLess(y0, make_shape.SLURRY_TOP)
+        self.assertAlmostEqual(y1, make_shape.WATER_Y[1], places=4)
+        # under the arms and the hub: it never meets the muller's turning iron above it
+        arms = [e for e in SHAPE["elements"] if e["name"].startswith(("muller_arm", "muller_hub"))]
+        self.assertLess(y1, min(min(e["from"][1], e["to"][1]) for e in arms))
+
+    def test_the_film_keeps_clear_of_the_shoes_and_reaches_into_the_wall(self):
+        flat = flatten(SHAPE["elements"], textures={})
+        water = [e for e in flat if e.name.startswith("water_")]
+        shoes = [e for e in flat if e.name.startswith("shoe_")]
+        frame = water[0].r                         # every film box is turned alike: measure in its frame
+
+        def span(e):
+            pts = [[sum(frame[i][k] * (c[i] - (8.0, 0.0, 8.0)[i]) for i in range(3)) for k in (0, 2)] for c in e.corners()]
+            return [(min(p[k] for p in pts), max(p[k] for p in pts)) for k in (0, 1)]
+
+        ws, ss = [span(e) for e in water], [span(e) for e in shoes]
+        self.assertEqual(len(ss), 4)
+        for w in ws:
+            for s in ss:
+                gap = max(max(s[k][0] - w[k][1], w[k][0] - s[k][1]) for k in range(2))
+                self.assertGreaterEqual(gap, make_shape.SLOT_MARGIN - 1e-3)
+        reach = max(math.hypot(x, z) for w in ws for x in w[0] for z in w[1])
+        self.assertLessEqual(reach, make_shape.R_OUT)
+        self.assertGreater(reach, make_shape.R_IN / math.cos(math.pi / 16))
 
 
 class Textures(unittest.TestCase):
