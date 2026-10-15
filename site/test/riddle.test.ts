@@ -103,7 +103,8 @@ describe.each(forms)("the $name rig against its reference poses", (f) => {
       const r = f.parts[partOf(globs, e.chain)]!.requires ?? "frame";
       for (const code of textureCodes(e.element)) (codes[r] ??= new Set()).add(code);
     }
-    expect([...codes.charge!]).toEqual(["ore"]);
+    // the layer of fines in the ore's texture, the oversize (rock again, #714) in its host rock's
+    expect(codes.charge).toEqual(new Set(["ore", "rock"]));
     expect([...codes.fines!]).toEqual(["ore"]);
     expect(codes.riddle).toEqual(new Set(["oak", "iron"]));
     // the box's planks, the bearers' oak and the corner straps' iron

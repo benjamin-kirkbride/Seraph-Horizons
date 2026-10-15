@@ -59,7 +59,6 @@ class Form:
 
 HAND = Form()
 FORMS = (HAND,)
-ORE_PARTS = ("oversize", "heap", "fines")
 
 
 def inputs(pose):
@@ -93,18 +92,22 @@ class Rig(unittest.TestCase):
             frame = {e["name"] for e in f.frame["elements"]}
             self.assertEqual(frame, {n for n in names if rigmath.part_of(parts, n) == "frame"}, f.key)
 
-    def test_the_charge_wears_the_ore_texture_code(self):
-        # the renderer sets "ore" to the crushed ore's texture (its ore's nugget texture)
+    def test_the_fines_wear_the_ore_code_and_the_oversize_the_rock_code(self):
+        # the renderer sets "ore" to the crushed ore's texture (its ore's nugget texture) and "rock" to the oversize's
+        # host rock's: the oversize is rock again, back to spalling (#714)
         for f in FORMS:
             parts = f.rig["parts"]
             for e in f.shape["elements"]:
                 pid = rigmath.part_of(parts, e["name"])
                 codes = {x["texture"] for x in e["faces"].values()}
-                if pid in ORE_PARTS:
+                if pid == "oversize":
+                    self.assertEqual(codes, {"#rock"}, e["name"])
+                elif pid in ("heap", "fines"):
                     self.assertEqual(codes, {"#ore"}, e["name"])
                 else:
-                    self.assertNotIn("#ore", codes, e["name"])
+                    self.assertFalse(codes & {"#ore", "#rock"}, e["name"])
             self.assertTrue(f.shape["textures"]["ore"].startswith("game:item/resource/nugget/"))
+            self.assertTrue(f.shape["textures"]["rock"].startswith("game:block/stone/rock/"))
 
     def test_reference_poses_are_the_rigs_own_maths(self):
         for f in FORMS:

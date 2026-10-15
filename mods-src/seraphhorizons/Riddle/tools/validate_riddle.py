@@ -152,7 +152,8 @@ ROLES = [
     (r"^fr_strap_", {"iron"}),
     (r"^riddle_(lower|upper)", {"oak"}),
     (r"^riddle_wire", {"iron"}),
-    (r"^(oversize|heap|fines)_", {"ore"}),
+    (r"^oversize_", {"rock"}),
+    (r"^(heap|fines)_", {"ore"}),
 ]
 
 

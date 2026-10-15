@@ -23,6 +23,10 @@ The owner's rulings on #714 that the model follows:
 - **The oversize is rock again** (2026-10-13): it goes back to spalling (#747) to be broken smaller.
 - **A charge is 3 lumps, riddled in 12 shakes** (2026-10-14, starting values): the model's one charge, three lumps of
   oversize under one layer of fines.
+- **The box is emptied before the next charge** (2026-10-14): the player takes the fines out, and gameplay refuses a
+  charge while the box holds fines.
+- **The oversize wears its host rock's texture** (2026-10-14), not the ore's: the texture code `rock`.
+- **No rim caps** over the box's corners (2026-10-14): the corner straps alone.
 
 The riddle is square and shallow, after vanilla's pan (two stepped tiers of oak boards, 11.5 across at the top and 2
 deep), with a coarse woven mesh of iron wire. It rests by its north and south boards on two oak bearers laid across
@@ -78,7 +82,7 @@ There is no infeed side and no output side: see "No automated input or output" a
 |---|---|
 | (frame) | The box (plank walls and bottom), its four corner straps with their nails, and the two oak bearers across its mouth. |
 | `riddle` | The riddle: two tiers of oak boards and the woven mesh of iron wires. |
-| `charge` | The work, a charge (k 1): three lumps of oversize and one layer of fines over them, on the mesh. |
+| `charge` | The work, a charge (k 1): three lumps of oversize (rock) and one layer of fines over them, on the mesh. |
 | `fines` | The box's contents: the fines on its bottom, a layer and a mound on it. |
 
 **Contents** (the rig's `contents`, as the jig's): `charge` while a charge is on the riddle, and `fines` while the box
@@ -94,12 +98,14 @@ proportions only), so the generator needs nothing from `build/mods`. The materia
 - the wood is debarked oak (`game:block/wood/debarked/oak`), with oak planks (`game:block/wood/planks/oak1`) for the
   box;
 - the iron (wires, corner straps, nails) is `game:block/metal/plate/iron`;
-- the charge and the fines have the texture code `ore`. Its default is hematite's nugget texture
-  (`game:item/resource/nugget/hematite`), because the pack's crushed ore wears its ore's nugget texture
-  (`itemtypes/oreprocessing/crushedore.json`). The renderer is to set `ore` to the riddled ore's texture.
+- the layer of fines on the mesh and the fines in the box have the texture code `ore`. Its default is hematite's
+  nugget texture (`game:item/resource/nugget/hematite`), because the pack's crushed ore wears its ore's nugget texture
+  (`itemtypes/oreprocessing/crushedore.json`). The renderer is to set `ore` to the riddled ore's texture;
+- the oversize, rock going back to spalling, has the texture code `rock`, defaulting to granite
+  (`game:block/stone/rock/granite1`). The renderer is to set it to the host rock's texture.
 
-The viewer's entry has a texture select for `ore` with seven ores; their colours are each nugget texture's mean, from
-the game's files. `tools/make_shape.py` writes:
+The viewer's entry has a texture select for each: "Crushed ore" with seven ores, and "Oversize (host rock)" with nine
+rocks (the game's `block/stone/rock/<rock>1`); their colours are each texture's mean, from the game's files. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
@@ -139,7 +145,7 @@ so each carries a whole board.
 
 **The charge** rides the riddle:
 
-- The **oversize**: three lumps, 1.2 to 1.5 across and 1.3 to 1.5 tall, turned about y. Each stands on the mesh's top
+- The **oversize**: three lumps of rock (`rock`), 1.2 to 1.5 across and 1.3 to 1.5 tall, turned about y. Each stands on the mesh's top
   over a wire along z, inside the riddle's top tier.
 - The **layer of fines** over them: 6.8 square, 0.9 over the mesh. Its underside is settled 0.15 into the mesh,
   between the wires' tops and bottoms. The lumps stand 0.3 or more out of it.
@@ -200,8 +206,8 @@ A full run takes about 4 s and is deterministic (two runs into two folders are b
 - **Readable:** at most 56 elements, and no part of the riddle or the frame thinner than 0.75 (the charge's lumps and
   layer and the fines are a heap, and the corner straps and their nails iron: they are left out).
 - **Frame:** joined to the ground as one piece.
-- **Textures** by role: oak boards and bearers; planks for the box; iron wires, corner straps and nails; `ore` for the
-  charge and the fines.
+- **Textures** by role: oak boards and bearers; planks for the box; iron wires, corner straps and nails; `rock` for the
+  oversize; `ore` for the layer of fines and the fines in the box.
 - **Mesh:** the wires along z over those along x, crimped into them; every wire's ends in the lower tier's boards; the
   openings 1.25.
 - **Containment:** nothing leaves the block over the cycle and the shake's phase.
@@ -279,12 +285,13 @@ which is enough for the viewer to offer the clock and Play.
 - **`contents`**: `{ "charge": "charge", "fines": "fines" }`, the `requires` values for what it holds (the jig's key).
   `charge` is fitted while a charge is on; `fines` while the box holds fines, from a charge's loading until the player
   takes them out. While a charge is riddled the fines grow from nothing as it goes, so the box must be empty when a
-  charge goes on (below, "Open for the owner").
+  charge goes on: the player empties it first, and gameplay refuses a charge while the box holds fines (the owner's
+  ruling).
 - **`riddling`**: `lumpsPerCharge` 3 and `shakesPerCharge` `{ "thin": 12 }`, #714's starting values.
 - **Keys.** `cells`, `operatorSide`, `fines`, `charge`, `contents`, `work`, `riddling` and `parts`; no infeed or
   output side, face or cell (a hand station takes no automated input or output).
   - `requires` values: `riddle`, `charge`, `fines`, or null.
-  - The texture code the renderer sets: `ore`.
+  - The texture codes the renderer sets: `ore` (the fines) and `rock` (the oversize).
 
 **In the viewer** (`site/models.json`: `riddle`; a standalone copy with `site/scripts/standalone-viewer.ts`):
 
@@ -293,7 +300,8 @@ which is enough for the viewer to offer the clock and Play.
   it); the charge shows only with it;
 - "The box" select is Empty or Fines in the box, opening with the fines;
 - Play moves W with θ at the pace (`play.turnsPerWork` `"riddling.shakesPerCharge.thin"`), and starts at 0.75 s a turn;
-- coloured by texture, the "Crushed ore" select sets the charge's and the fines' colour.
+- coloured by texture, the "Crushed ore" select sets the fines' colour and the "Oversize (host rock)" select the
+  lumps'.
 
 ### Editing by hand
 
@@ -325,30 +333,18 @@ viewer in a browser, or in a client.
 
 ## Open for the owner
 
-1. **The box's fines between charges.** The fines are their own `fines` state and stay drawn once the charge is out.
-   While a charge is riddled they grow from nothing, so a box still holding the last charge's fines would show them
-   vanish and grow again. Proposed: the player takes the fines out before the next charge goes on (gameplay refuses a
-   charge while the box holds fines). The alternative, a box that holds several charges' fines, needs a fill level
-   (a gauge on the number of charges in it).
-2. **The oversize** stays on the mesh at the end of a charge, to be taken out by hand (an empty-handed right-click,
-   say), and is rock again, back to spalling (#714). The lumps wear the crushed ore's texture (`ore`); say if they
-   should wear the host rock's instead. Whether a new charge may be riddled on top of oversize left in the riddle is
-   #714's.
-3. **The corner straps**: angle iron 0.3 thick, each leg 1.8 wide, from 0.3 off the ground to 0.3 under the rim, two
-   nails a leg. There is no corner iron over the rim (the jig's hutch has one): the bearers lie on the side walls'
-   rim 1.5 from the corners, where a cap as long as the straps' legs would run under them. Say if the rim should be
-   capped too (shorter arms, or the bearers moved in).
-4. **The charge** is #714's starting values: three lumps in one layer, twelve shakes. A different count changes
+1. **The oversize** stays on the mesh at the end of a charge, to be taken out by hand (an empty-handed right-click,
+   say), and goes back to spalling (#714). Whether a new charge may be riddled on top of oversize left in the riddle
+   is #714's.
+2. **The charge** is #714's starting values: three lumps in one layer, twelve shakes. A different count changes
    `LUMPS` and `SHAKES`, and the generator's files check holds them to #714's.
-5. **Sizes.**
+3. **Sizes.**
    - The riddle: 11.5 across and 2 deep (vanilla's pan: 11 and 3), the mesh's openings 1.25 (four wires each way).
-   - The box: 13 square and 4.4 tall.
+   - The box: 13 square and 4.4 tall; its corner straps 0.3 thick, each leg 1.8 wide, two nails a leg.
    - The fines in the box: 1.35 deep.
-6. **The texture**: the code `ore`, defaulting to hematite's nugget texture as the pack's crushed ore wears it. The
-   renderer sets it.
-7. **Presence**: a charge on at p 1 at once and not drawn once taken out (above). The alternative is a renderer that
+4. **Presence**: a charge on at p 1 at once and not drawn once taken out (above). The alternative is a renderer that
    eases p, which these gauges would draw wrongly.
-8. **The operator's side**, north (the side the player placed it from). There is no infeed or output side: a hand
+5. **The operator's side**, north (the side the player placed it from). There is no infeed or output side: a hand
    station takes no automated input or output (the owner's ruling).
 
 ## Gameplay
@@ -358,7 +354,8 @@ Not built: #714. The rig is written for it the way the other hand stations' are 
 
 - read the anchors, `contents`, `work`, `riddling` and `requires`, never element names;
 - take the block's collision and selection boxes from the rig's `cells`;
-- set the texture code `ore`;
+- set the texture codes `ore` (the riddled ore's) and `rock` (the oversize's host rock);
+- refuse a charge while the box holds fines;
 - draw the `charge` parts only while a charge is on the station, at p 1, and the `fines` parts while the box holds
   fines;
 - turn θ while held, and give the renderer ψ, its travel.

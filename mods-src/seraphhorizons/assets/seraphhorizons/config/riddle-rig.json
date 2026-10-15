@@ -6,7 +6,7 @@
 	"operatorSide": "north",
 	"fines": {"pos": [0.5, 0.1469, 0.5]},
 	"charge": {"pos": [0.5, 0.4469, 0.5]},
-	"contents": {"charge": "charge", "fines": "fines", "_comment": "requires values for what the riddle holds: charge (the lumps and the layer of fines on the mesh) while a charge is on, at k 1; fines (the fines in the box) while the box holds fines, from the charge's loading until the player takes them out. While a charge is riddled the fines grow from nothing; with no charge on they are drawn whole."},
+	"contents": {"charge": "charge", "fines": "fines", "_comment": "requires values for what the riddle holds: charge (the lumps and the layer of fines on the mesh) while a charge is on, at k 1; fines (the fines in the box) while the box holds fines, from the charge's loading until the player takes them out. While a charge is riddled the fines grow from nothing; with no charge on they are drawn whole. The player empties the box before the next charge: gameplay refuses a charge while the box holds fines (the owner's ruling, #714)."},
 	"work": {"name": "riddling", "unit": "charges", "step": 0.005, "end": {"thin": 1.0}},
 	"riddling": {"lumpsPerCharge": 3, "shakesPerCharge": {"thin": 12.0}, "_comment": "lumpsPerCharge: a charge's crushed ore, the lumps drawn on the mesh; shakesPerCharge: the pace, shakes (theta / 2 pi) a charge. #714's starting values (2026-10-14)."},
 	"parts": [
