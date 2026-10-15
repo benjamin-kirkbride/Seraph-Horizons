@@ -215,7 +215,10 @@ ROLES = [
     (r"^sh_axle", {"axle"}),
     (r"^sh_(rod|collar)", {"steel"}),
     (r"^post_post", {"oak"}),
-    (r"^post_(foot|top)gudgeon|^pinion_", {"steel"}),
+    (r"^post_(foot|top)gudgeon", {"steel"}),
+    (r"^post_wheel_", {"mechanics"}),
+    (r"^pinion_lantern_hoop", {"iron"}),
+    (r"^pinion_", {"mechanics"}),
     (r"^post_|^step_|^arms_staple|^stones_eye", {"iron"}),
     (r"^arms_arm", {"oak"}),
     (r"^stones_stone", {"basalt"}),
@@ -233,7 +236,7 @@ def check_textures(v):
         if rule is None or not tex <= rule:
             bad.append((el.name, sorted(tex), sorted(rule or [])))
     print(f"textures by role: {len(v.els) - len(bad)} of {len(v.els)} elements as their role says (oak for the timber, "
-          f"planks for the gate, iron castings and fittings, steel shafts and pinion, granite, cobble and "
+          f"planks for the gate, iron castings, fittings and hoops, steel shafts, the wooden gearing in vanilla's gear texture, granite, cobble and "
           f"drystone for the pit, basalt drag stones, chains, the contents' own)")
     if bad:
         v.fail(f"textures off their role: {bad[:6]}")
@@ -440,7 +443,29 @@ def omega(v, pid, h=0.01):
 
 
 def meshes(m):
-    return [("the bevels", ("pinion", r"_bevel_"), ("post", r"_wheel_"), m.bevel_pitch_point(), m.BEVEL["pinion"], m.BEVEL["wheel"])]
+    return [("the cog wheel and lantern", ("pinion", r"_stave"), ("post", r"_wheel_cog"), m.pitch_point(), m.GEAR["pinion"], m.GEAR["wheel"])]
+
+
+# The iron bevel teeth the wooden gearing replaced were about 1.0 voxels thick; wooden cogs and staves are chunkier.
+WOOD_TOOTH_MIN = 1.2
+
+
+def check_wooden_gearing(v):
+    """The owner's ruling: the gearing is wooden (cogs, staves, rim, arms and discs in the wooden gears' texture, iron
+    only for the hoops and bands, which check_textures holds), and every cog and stave is at least WOOD_TOOTH_MIN thick
+    across (its two smaller sides), chunkier than the iron teeth it replaced."""
+    thin = []
+    for pid, rx in (("post", r"_wheel_cog\d+a$"), ("pinion", r"_stave")):
+        for el in v.named(pid, rx):
+            s = sorted(abs(x) for x in el.size)
+            if s[1] < WOOD_TOOTH_MIN - 1e-9:
+                thin.append((el.name, [round(x, 2) for x in s]))
+    cogs, staves = len(v.named("post", r"_wheel_cog\d+a$")), len(v.named("pinion", r"_stave\d+1$"))
+    print(f"wooden gearing: {cogs} cogs and {staves} staves, all at least {WOOD_TOOTH_MIN} across: {not thin}")
+    if cogs != v.m.GEAR["wheel"] or staves != v.m.GEAR["pinion"]:
+        v.fail(f"the gearing has {cogs} cogs and {staves} staves, not {v.m.GEAR['wheel']} and {v.m.GEAR['pinion']}")
+    if thin:
+        v.fail(f"wooden teeth thinner than {WOOD_TOOTH_MIN}: {thin[:4]}")
 
 
 def check_gearing(v):
@@ -470,7 +495,7 @@ def check_gearing(v):
 # ---------------------------------------------------------------- supports
 def check_supports(v):
     """Every shaft carried: the power shaft in its two drop hangers; the post on its footstep and in its top bearing;
-    the pinion's hub on the power shaft's end."""
+    the lantern's discs on the power shaft's end, which runs through both."""
     m = v.m
 
     def held(label, shaft_els, holders, axis, c, need=2):
@@ -481,9 +506,9 @@ def check_supports(v):
 
     held("the power shaft", v.named("shaft", r"^sh_rod"), v.named("frame", r"^fr_hanger\d_box"), 2, (m.CX, m.SHAFT_Y))
     held("the post", v.named("post", r"gudgeon|_post\d"), v.named("step", r"_(block|bearing)$"), 1, (m.CX, m.CZ))
-    hub = aabb_of(v.named("pinion", r"_hub"))
-    if abs(hub[0][2] - m.SHAFT_END) > 1e-6:
-        v.fail("the pinion's hub does not start at the power shaft's end")
+    discs = aabb_of(v.named("pinion", r"_disc\d"))
+    if not 0.0 < discs[0][2] - m.SHAFT_END <= 0.5:
+        v.fail("the lantern's front disc is not on the power shaft's end")
 
 
 # ---------------------------------------------------------------- clearances
@@ -494,10 +519,10 @@ ALLOWED = [
     # the drag stones drag on the paving and through the charge
     ("stones", r"_stone\d", "pit", r"_pave\d"),
     ("stones", r"_stone\d", "charge|paste", None),
-    # the pinion keyed on the power shaft's end
-    ("pinion", r"_hub", "shaft", r"^sh_rod"),
-    # meshing teeth (check_gearing holds them)
-    ("pinion", r"_bevel_", "post", r"_wheel_"),
+    # the lantern keyed on the power shaft's end
+    ("pinion", r"_disc|_hoop", "shaft", r"^sh_rod"),
+    # meshing cogs and staves (check_gearing holds them)
+    ("pinion", r"_stave", "post", r"_wheel_cog"),
 ]
 
 
@@ -616,6 +641,7 @@ def validate(m, els, parts, rig, quick=False):
     check_containment(v, cycle(m, 48))
     check_cells(v, cycle(m, 48))
     check_gearing(v)
+    check_wooden_gearing(v)
     check_gaps(v)
     check_clearances(v, cycle(m, 72), "clearances")
     if not quick:

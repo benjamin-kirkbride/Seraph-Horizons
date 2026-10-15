@@ -110,7 +110,7 @@ class Rig(unittest.TestCase):
 
 class Motion(unittest.TestCase):
     def test_each_part_turns_at_its_gearings_ratio(self):
-        # turns per axle turn: the post a third (its 18-tooth bevel wheel under the 6-tooth pinion)
+        # turns per axle turn: the post a third (its 12-cog wooden wheel under the 4-stave lantern)
         want = {"shaft": 1.0, "post": 1 / 3}
         self.assertEqual({p["id"] for p in RIG["parts"] if p["drivers"]}, set(want))
         for p in RIG["parts"]:
@@ -118,6 +118,22 @@ class Motion(unittest.TestCase):
                 self.assertAlmostEqual(p["drivers"][0]["ratio"], want[p["id"]], places=5, msg=p["id"])
         rides = {p["id"]: p["ride"] for p in RIG["parts"] if p["ride"]}
         self.assertEqual(rides, {"pinion": "shaft", "arms": "post", "stones": "post"})
+
+    def test_the_gearing_is_wooden_and_chunky(self):
+        # the owner's ruling: a wooden cog wheel and lantern pinion, iron only for the hoops and bands; 4 staves to 12
+        # cogs (3:1), each cog and stave thicker across than the 1.0 of the iron teeth it replaced
+        wood = SHAPE["textures"]["mechanics"]
+        self.assertIn("/wood/", wood)
+        els = flatten(SHAPE["elements"], textures={})
+        gearing = [el for el in els if re.match(r"post_wheel_|pinion_", el.name)]
+        for el in gearing:
+            tex = {f["texture"].lstrip("#") for f in el.faces.values()}
+            self.assertEqual(tex, {"iron"} if "_hoop" in el.name else {"mechanics"}, el.name)
+        cogs = [el for el in gearing if re.search(r"_cog\d+a$", el.name)]
+        staves = {re.sub(r"\d$", "", el.name) for el in gearing if "_stave" in el.name}
+        self.assertEqual((len(cogs), len(staves)), (12, 4))
+        for el in cogs + [el for el in gearing if "_stave" in el.name]:
+            self.assertGreaterEqual(sorted(abs(x) for x in el.size)[1], 1.2, el.name)
 
     def test_the_machine_repeats_every_three_turns(self):
         # within the ratio's six places (a third is written 0.333333)

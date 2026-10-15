@@ -12,7 +12,7 @@ stages on its frame (the crucible furnace's pattern):
               a drystone curb round them; in the curb at the front the draw gate (a threshold, two oak jambs and a
               plank gate with an iron grip)
     post      the footstep on the centre stone and the top bearing under the transom, the oak post between them with
-              its bevel wheel, and the bevel pinion on the power shaft's end: the post turns at a third of the axle
+              its wooden cog wheel, and the lantern pinion on the power shaft's end: the post turns at a third of the axle
     arms      four sweep arms through the post
     stones    four basalt drag stones, each on a bridle of two chains from its arm
 
@@ -91,6 +91,9 @@ TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
     "planks": "game:block/wood/planks/oak1",
     "axle": "game:block/wood/planks/generic",            # the vanilla axle's own texture, on its cross where it comes in
+    # the wooden gearing (the cog wheel and the lantern): millwright's work, in vanilla's wooden gears' own texture, as the
+    # eidolon gantry's winch gearing
+    "mechanics": "game:block/wood/planks/generic",
     "iron": "game:block/metal/plate/iron",
     "steel": "game:block/metal/sheet-plain/steel1",
     "chain": "game:block/metal/armor-generic/chain-iron",
@@ -136,14 +139,31 @@ BRACE = (6.0, 6.5)                           # each post's knee brace: along the
 # ---------------------------------------------------------------- the power shaft (frame; it turns from the start)
 SHAFT_Y = 24.0                               # its axis, along z at x CX: the power cell's centre
 SHAFT_R = 1.0                                # its iron shaft's apothem (an octagon)
-SHAFT_END = 20.6                             # its front end: the bevel pinion is keyed on from here
+SHAFT_END = 19.8                             # its front end, just through the lantern's front disc
 COUPLING_Z = 30.6                            # from here to the back face, the vanilla axle's cross (two 4 x 2 boards)
 HANGERS_Z = ((25.4, 27.4), (28.4, 30.0))     # its two drop hangers under T2
 COLLAR_R = 1.6
-P = (CX, SHAFT_Y, CZ)                        # where the power shaft's axis meets the post's: the bevels' apex
 
 # ---------------------------------------------------------------- the post and the sweep (stages `post`, `arms`, `stones`)
-BEVEL = {"wheel": 18, "pinion": 6, "m": 0.8333, "face": 2.0}   # 3:1, the post turns a third of the axle
+# The gearing is wooden, as the period's was (the owner's ruling): a built-up cog wheel on the post, its cogs mortised
+# upright into the face of its rim (a face wheel), driven by a lantern pinion (staves between two discs) on the power
+# shaft's end, the millwright's right-angle drive. 4 staves to 12 cogs, 3:1, the post turns a third of the axle. Not
+# 6:18: above the ground layer the machine is only its middle column, so nothing turning there may reach more than 8
+# voxels from the post, and 18 cogs in a rim that size would be finer than the iron teeth this replaces.
+GEAR = {"wheel": 12, "pinion": 4}
+R_WHEEL = 6.7                                # the cogs' pitch circle (their middles), about the post
+R_LANTERN = R_WHEEL * GEAR["pinion"] / GEAR["wheel"]   # the staves' circle, about the shaft: the same pitch, 3.5
+STAVE_R = 0.75                               # a stave's apothem (an octagon, 1.5 across)
+COG_L = (5.8, 7.5)                           # a cog's radial span on the rim (its length along the radius)
+COG_W, COG_TIP_W = 1.6, 1.2                  # its width across: from the rim to the pitch line, and from there to its tip
+PITCH_Y = SHAFT_Y - R_LANTERN                # the pitch line: the bottom staves' axis, where the cogs drive them
+COG_TIP = PITCH_Y + 0.8                      # a cog's top: under the shaft, inside the lantern
+RIM = ((5.6, 7.6), (18.6, 20.2), 12)         # the rim: radii (an apothem outside), heights, felloes
+WHEEL_ARM_W = 1.6                            # its four arms, mortised through the post
+LANTERN_GAP = (COG_L[0] - 0.9, COG_L[1] + 0.3)   # between the lantern's discs (radii from the post): the cogs run here; the
+                                             # back disc stays clear in front of T2
+DISC_T = 0.9                                 # a lantern disc's thickness
+DISC_R = R_LANTERN + STAVE_R + 0.35          # its apothem: the staves stand inside it
 POST_R = 2.0                                 # the oak post's apothem
 POST_Y = (3.6, 24.4)                         # the oak post; iron gudgeons below and above it
 STEP = ((21.6, 26.4), (CENTRE_STONE[1], 3.6), (13.6, 18.4))   # the iron footstep on the centre stone
@@ -307,43 +327,47 @@ def ring(axis, c, a0, a1, r_in, r_out, n, name, part, tex, phase=0.0, step=0.008
     return out
 
 
-def bevel_geometry(R, R_other, face):
-    A = math.hypot(R, R_other)
-    return A, math.atan2(R, R_other), (A - face / 2) / A
-
-
-def bevel(axis, sign, apex, R, R_other, n, m, face, phase, name, part, tex, back=0.8, under=0.0):
-    """A bevel gear on `axis` (its direction from the apex towards the gear: sign * the axis) whose pitch cone
-    has its apex at `apex`, heel pitch radius R, meshing a gear of heel pitch radius R_other on a shaft at right
-    angles through the same apex. Its n box teeth run along the cone from the toe to the heel (`face` long),
-    tooth 1 at angle `phase`; behind the heel a back disc to the root radius carries them. `under` lengthens each
-    tooth below its root, into the gear's own body (where the other gear's tips never reach), so teeth on a flat
-    cone meet the back disc."""
-    d = v_mul(UNIT[axis], sign)
-    A, g_ang, s = bevel_geometry(R, R_other, face)
-    cg, sg = math.cos(g_ang), math.sin(g_ang)
-    out = []
-    for i in range(n):
-        e = radial_dir(axis, phase + TAU * i / n)
-        g = v_add(v_mul(d, cg), v_mul(e, sg))
-        nn = v_sub(v_mul(e, cg), v_mul(d, sg))
-        t = v_cross(g, nn)
-        mid = v_add(apex, v_mul(g, A - face / 2))
-        tooth = v_add(mid, v_mul(nn, -0.125 * m * s - under / 2))
-        out.append(oriented(f"{name}_tooth{i + 1}", [face * 0.96, 2.25 * m * s + under, math.pi * m / 2 * s * 0.8], tooth, [g, nn, t], part, tex))
-    a_heel = R_other + 1.25 * m * sg
-    a = AX[axis]
-    lo_a = apex[a] + sign * a_heel
-    hi_a = lo_a + sign * back
-    r_back = R - 1.25 * m * cg
-    out += disc(axis, list(apex), min(lo_a, hi_a), max(lo_a, hi_a), r_back, f"{name}_back", part, tex, k=8 if r_back > 4 else 4, phase=phase)
+def cog_wheel(phase, name, part):
+    """The post's cog wheel, built up in wood: a rim of RIM felloes, four arms mortised through the post under it, and
+    GEAR["wheel"] cogs mortised upright into the rim's face, a gap at `phase` (about y, from +z towards +x). A cog is
+    two boxes: COG_W wide from inside the rim to the pitch line, COG_TIP_W from there to its top."""
+    c = (CX, 0.0, CZ)
+    (r_in, r_out), (y0, y1), n = RIM
+    out = ring("y", c, y0, y1, r_in, r_out, n, f"{name}_rim", part, "mechanics", phase=phase + math.pi / n)
+    for i in range(4):
+        s = 0.02 * i
+        out.append(radial("y", c, y0 + 0.15 + s, y1 - 0.25 - s, POST_R - 0.6, r_in + 0.5, WHEEL_ARM_W,
+                          phase + math.pi / 4 + math.pi / 2 * i, f"{name}_arm{i + 1}", part, "mechanics"))
+    nw = GEAR["wheel"]
+    for i in range(nw):
+        a = phase + TAU * (i + 0.5) / nw
+        out.append(radial("y", c, y0 + 0.3, PITCH_Y, COG_L[0], COG_L[1], COG_W, a, f"{name}_cog{i + 1}a", part, "mechanics"))
+        out.append(radial("y", c, PITCH_Y - 0.05, COG_TIP, COG_L[0] + 0.1, COG_L[1] - 0.1, COG_TIP_W, a,
+                          f"{name}_cog{i + 1}b", part, "mechanics"))
     return out
 
 
-def bevel_pitch_point():
-    """The bevels' pitch point: under the power shaft, where the pinion meets the wheel."""
-    m = BEVEL["m"]
-    return [CX, SHAFT_Y - BEVEL["pinion"] * m / 2, CZ + BEVEL["wheel"] * m / 2]
+def lantern(phase, name, part):
+    """The lantern pinion on the power shaft's end: GEAR["pinion"] staves (octagons) on its circle, one at `phase`
+    (about z, from +x towards +y), let into two board discs either side of the gap the wheel's cogs run in, each
+    disc bound with an iron hoop. The shaft runs through both discs."""
+    z0, z1 = (CZ + r for r in LANTERN_GAP)
+    c = (CX, SHAFT_Y, 0.0)
+    out = []
+    for i, (a, b) in enumerate(((z0 - DISC_T, z0), (z1, z1 + DISC_T)), 1):
+        out += disc("z", c, a, b, DISC_R, f"{name}_disc{i}", part, "mechanics", phase=math.pi / 8)
+        out += disc("z", c, a + 0.2, b - 0.2, DISC_R + 0.2, f"{name}_hoop{i}", part, "iron", phase=math.pi / 8)
+    npn = GEAR["pinion"]
+    for k in range(npn):
+        a = phase + TAU * k / npn
+        sc = (CX + R_LANTERN * math.cos(a), SHAFT_Y + R_LANTERN * math.sin(a), 0.0)
+        out += disc("z", sc, z0 - 0.4, z1 + 0.4, STAVE_R, f"{name}_stave{k + 1}", part, "mechanics")
+    return out
+
+
+def pitch_point():
+    """The mesh's pitch point: under the power shaft, where the bottom stave meets the cogs' middles."""
+    return [CX, PITCH_Y, CZ + R_WHEEL]
 
 
 # ---------------------------------------------------------------- the frame: the head frame and the power shaft
@@ -443,7 +467,7 @@ def build_gate():
 # ---------------------------------------------------------------- stages: the post, the arms, the stones
 def build_post():
     """Stage `post`: the footstep on the centre stone and the top bearing under T1 (`step`, fixed), the post with its
-    gudgeons, bands, cap, bevel wheel and hub (`post`, turning), and the bevel pinion on the power shaft's end
+    gudgeons, bands, cap and wooden cog wheel (`post`, turning), and the lantern pinion on the power shaft's end
     (`pinion`, riding the shaft)."""
     out = []
     c = (CX, 0.0, CZ)
@@ -460,19 +484,11 @@ def build_post():
     out += disc("y", c, ARM_Y[0] - 0.8, ARM_Y[0], POST_R + 0.3, f"{p}_bandlow", p, "iron")
     out += disc("y", c, ARM_Y[1], ARM_Y[1] + 0.8, POST_R + 0.3, f"{p}_bandhigh", p, "iron")
     out += disc("y", c, POST_Y[1] - 1.2, POST_Y[1], POST_R + 0.3, f"{p}_cap", p, "iron")
-    m, nw, npn, face = BEVEL["m"], BEVEL["wheel"], BEVEL["pinion"], BEVEL["face"]
-    Rw, Rp = nw * m / 2, npn * m / 2
-    ph_p = angle_of("z", [0.0, -1.0, 0.0])                # the pinion's tooth straight down, at the wheel
-    ph_w = angle_of("y", [0.0, 0.0, 1.0]) + math.pi / nw  # the wheel's gap straight back, under the pinion
-    out += bevel("y", -1.0, P, Rw, Rp, nw, m, face, ph_w, f"{p}_wheel", p, "iron", under=0.5)
-    A, g, _ = bevel_geometry(Rw, Rp, face)
-    a_heel = Rp + 1.25 * m * math.sin(g)
-    out += disc("y", c, SHAFT_Y - a_heel - 3.0, SHAFT_Y - a_heel - 0.4, 3.0, f"{p}_hub", p, "iron")
-    q = "pinion"
-    out += bevel("z", 1.0, P, Rp, Rw, npn, m, face, ph_p, f"{q}_bevel", q, "steel")
-    A, g, _ = bevel_geometry(Rp, Rw, face)
-    toe = CZ + (A - face) * math.cos(g)
-    out += disc("z", P, SHAFT_END, toe + 0.2, Rp - 1.25 * m * math.cos(g) - 0.15, f"{q}_hub", q, "steel")
+    ph_w = angle_of("y", [0.0, 0.0, 1.0])                 # the wheel's gap straight back, under the lantern
+    out += cog_wheel(ph_w, f"{p}_wheel", p)
+    out += disc("y", c, RIM[1][0] - 0.8, RIM[1][0], POST_R + 0.3, f"{p}_bandwheel", p, "iron")   # under the arms
+    ph_p = angle_of("z", [0.0, -1.0, 0.0])                # a stave straight down, in the wheel's gap
+    out += lantern(ph_p, "pinion_lantern", "pinion")
     return out
 
 
@@ -554,7 +570,7 @@ def pt(*v):
 def ratios():
     """Each turning part's turn per axle turn, from the teeth: the sign makes the mesh's pitch points move together
     (check_gearing holds it to it)."""
-    return {"post": BEVEL["pinion"] / BEVEL["wheel"]}
+    return {"post": GEAR["pinion"] / GEAR["wheel"]}
 
 
 _PARTS = []
