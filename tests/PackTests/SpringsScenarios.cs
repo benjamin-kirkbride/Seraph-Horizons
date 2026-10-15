@@ -97,8 +97,9 @@ public partial class SharedWorldScenarios
     }
 
     /// <summary>A spring in a granite wall, open to the east over a drop; a run of four ppex pipes
-    /// taps it from above, its far end against granite (so the run is sealed both ends).</summary>
-    [AtlasScenario(TimeoutMs = 180_000)]
+    /// taps it from above, its far end against granite (so the run is sealed both ends). On the virtual
+    /// clock (tests/PackTests/README.md): the pouring, draining and the run's rate are all game time.</summary>
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task A_spring_pours_until_a_pipe_taps_it_which_it_fills_at_its_rate()
     {
         var origin = await CutterSite(360, -360, 4);
@@ -110,6 +111,7 @@ public partial class SharedWorldScenarios
             World.SetBlock(granite, spring.AddCopy(facing));
         World.SetBlock(SpringCode, spring);
         W.BlockAccessor.TriggerNeighbourBlockUpdate(spring);
+        using var clock = VirtualClock.Start(World);
         var east = spring.EastCopy();
 
         // It pours: its water runs out of the open side.

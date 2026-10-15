@@ -18,7 +18,8 @@ namespace SeraphHorizons.PackTests;
 // the plain world, driven by a real mechanical power network (a vanilla creative rotor against its
 // power face). A whole gear is 144 axle turns at the default settings, minutes of a creative
 // rotor, so each scenario shows the shaft cutting and then finishes the gear through
-// BEGearCutter.Cut, as the rosser's scenarios feed through BERosser.Feed. Every scenario builds on a
+// BEGearCutter.Cut, as the rosser's scenarios feed through BERosser.Feed; the powered part runs on the
+// virtual clock (tests/PackTests/README.md). Every scenario builds on a
 // granite floor of its own 40 above spawn at x -140 to -200, z -140 to -200 (clear of the gear blanks
 // at x -90 and gear reclamation at x -100), and they share one player, gearcutterhand.
 public partial class SharedWorldScenarios
@@ -367,13 +368,14 @@ public partial class SharedWorldScenarios
     // Under power a small blank turns into a stainless gear at the output face, the large master takes a
     // large blank to a large gear, each master refuses the other size, and the cut advances with the
     // shaft only.
-    [AtlasScenario(TimeoutMs = 180_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Gear_cutter_cuts_small_and_large_gears_under_power()
     {
         var pos = await CutterSite(-140, -160);
         var player = await CutterPlayer();
         var cutter = await PlaceCutter(pos, "east");
         AssembleCutter(cutter, player);
+        using var clock = VirtualClock.Start(World);
 
         // the wrong size is refused, the right one goes on
         Assert.Equal(1, CutterClick(player, pos, CutterItem(GearCut.LargeBlank))?.StackSize);
@@ -547,7 +549,7 @@ public partial class SharedWorldScenarios
     // A chest against the infeed end and one against the output face are left alone: the running
     // cutter takes no blank from the first, and the gear of a blank put on by hand drops at the output
     // face rather than going into the second.
-    [AtlasScenario(TimeoutMs = 120_000)]
+    [AtlasScenario(TimeoutMs = 60_000)]
     public async Task Gear_cutter_takes_nothing_from_a_chest_and_puts_nothing_in_one()
     {
         var pos = await CutterSite(-200, -160);
@@ -564,6 +566,7 @@ public partial class SharedWorldScenarios
         source.Inventory[0].Itemstack = CutterItem(GearCut.Blank, 2);
         source.MarkDirty(true);
 
+        using var clock = VirtualClock.Start(World);
         await PowerCutter(cutter);
         await World.Ticks(60);
         Assert.False(cutter.BlankOn);
