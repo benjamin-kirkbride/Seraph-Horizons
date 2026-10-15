@@ -5,6 +5,7 @@ using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using Atlas.Api;
 using HarmonyLib;
+using SeraphHorizons.Mod.Eidolon;
 using Vintagestory.API.Server;
 using Vintagestory.Common;
 using Vintagestory.Server;
@@ -33,7 +34,10 @@ namespace SeraphHorizons.PackTests;
 /// between it and the main thread rebuilding its client list (<c>Collection was modified</c> in
 /// <c>SendAttributesViaTCP</c>, which passes 1 ms apart expose), and for every hold
 /// (<see cref="HoldWhile"/>) to clear: by default one while any eidolon mine plan is being made on its
-/// worker (<see cref="MinePlanHold"/>), so no game time passes during a plan.</para>
+/// worker (<see cref="MinePlanHold"/>), so no game time passes during a plan. While it is on, the planner's
+/// main-thread share of a tick is counted in blocks read, not wall time
+/// (<see cref="EidolonMinePlans.BudgetReads"/>, <see cref="EidolonMinePlans.TypicalReads"/>), so a job's
+/// window is read in the same ticks on any runner.</para>
 ///
 /// <para>Every engine member reached by reflection, and the transpiler's pattern, is checked at
 /// <see cref="Start"/>, which throws <see cref="NotSupportedException"/> naming what is missing (a game or
@@ -82,6 +86,7 @@ public sealed class VirtualClock : IDisposable
     private bool _disposed;
     private System.Threading.Timer? _watch;
     private long _lastPrefix = Environment.TickCount64;
+    private int? _readsBefore;
 
     /// <summary>The clock running now, if any.</summary>
     public static VirtualClock? Current
@@ -135,6 +140,8 @@ public sealed class VirtualClock : IDisposable
             watch.Stop();
             clock._elapsed = (long)e.Elapsed.GetValue(watch)!;
             _current = clock;
+            clock._readsBefore = EidolonMinePlans.BudgetReads;
+            EidolonMinePlans.BudgetReads = EidolonMinePlans.TypicalReads;
             clock._watch = new System.Threading.Timer(_ => clock.WatchPatch(), null, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1));
             return clock;
         }
@@ -193,6 +200,7 @@ public sealed class VirtualClock : IDisposable
         if (_current != this)
             return;
         _current = null;
+        EidolonMinePlans.BudgetReads = _readsBefore;
         var watch = _server.totalUnpausedTime;
         // a resume (Suspend(false)) since the last pass started it: set it back to the virtual time
         watch.Stop();

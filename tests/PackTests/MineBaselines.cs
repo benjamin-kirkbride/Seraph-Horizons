@@ -5,8 +5,8 @@ namespace SeraphHorizons.PackTests;
 /// off: every job dispatched as before routes) on the virtual clock (<see cref="VirtualClock"/>), the mean of
 /// three local runs on 2026-10-15, for the routes' must-not-be-slower check. Today's own runs still spread
 /// (lowest to highest): tunnel of three 105.9-115.6, trench of two 146.5-157.1, pit of three 153.4-169.3,
-/// the rest within 5 % (the engine's physics and chunk threads, and the planner's wall-time slices, are not
-/// on the virtual clock).</summary>
+/// the rest within 5 % (the engine's physics and chunk threads are not on the virtual clock; these runs
+/// predate the planner's main-thread slices being counted in blocks read, <c>EidolonMinePlans.BudgetReads</c>).</summary>
 internal static class MineBaselines
 {
     public const double Pit2 = 166.9, Pit3 = 160.7;
