@@ -17,7 +17,9 @@ const reference = read("tests/JawBreaker/rig-reference.json") as { poses: RefPos
 const manifest = JSON.parse(readFileSync(new URL("../models.json", import.meta.url), "utf8")) as { models: ManifestModel[] };
 const parts = rig.parts!;
 const order = rideOrder(parts);
-const STAGES = ["jaws", "eccentric", "toggles", "grizzly"];
+const STAGES = ["jaws", "eccentric", "toggles", "springs", "grizzly", "chutes"];   // every fit's requires, in order
+const BUILD: [string, string[]][] = [["jaws", ["jaws"]], ["eccentric", ["eccentric"]], ["toggles", ["toggles", "springs"]], ["grizzly", ["grizzly"]], ["services", ["chutes"]]];
+type BuildStage = { stage: number; id: string; adds: string[] };
 
 const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 + r]!));
 const pose = (theta: number): Pose => ({ theta, depth: 0, lifting: 0, travel: Math.abs(theta), work: 0, size: 0, presence: 0, feed: 0, oil: 0 });
@@ -25,12 +27,14 @@ const apply = (m: Mat4, p: readonly number[]) => [0, 1, 2].map((r) => m[r]! * p[
 const index = (id: string) => parts.findIndex((p) => p.id === id);
 
 describe("the jaw breaker's rig against its rig-reference.json", () => {
-  it("reads θ alone, has no work, and fits its four stages to the frame", () => {
+  it("reads θ alone, has no work, and fits its five stages to the frame, the services last", () => {
     expect(rigInputs(parts)).toEqual({ theta: true, travel: false, depth: false, lifting: false });
     expect(workOf(rig)).toBeNull();
     expect(thetaTurns(parts)).toBe(1);
     expect(requiresValues(parts).sort()).toEqual([...STAGES].sort());
-    expect(rig.stages).toEqual(STAGES);
+    expect((rig.buildStages as BuildStage[]).map((s) => [s.id, s.adds])).toEqual(BUILD);
+    expect((rig.buildStages as BuildStage[]).map((s) => s.stage)).toEqual([1, 2, 3, 4, 5]);
+    expect(parts.filter((p) => p.requires === "chutes").map((p) => p.id)).toEqual(["chutes"]);
     expect(parts.at(-1)).toMatchObject({ id: "frame", requires: null });
     for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
   });
@@ -110,6 +114,19 @@ describe("the jaw breaker's page", () => {
   it("labels its stages and turns at a steady pace", () => {
     expect(Object.keys(model.scenario!.requires!).sort()).toEqual([...STAGES].sort());
     expect(model.scenario!.play!.secondsPerTurn).toBeGreaterThan(0);
+    // one Build stage select, a state per stage, each cumulative, opening on the finished machine
+    const states = model.scenario!.states as { id: string; default: string; values: string[]; options: { id: string; fitted: string[] }[] }[];
+    expect(states.length).toBe(1);
+    const build = states[0]!;
+    expect(build.values).toEqual(STAGES);
+    expect(build.default).toBe("services");
+    expect(build.options.map((o) => o.id)).toEqual(["frame", ...BUILD.map(([id]) => id)]);
+    let sofar: string[] = [];
+    expect(build.options[0]!.fitted).toEqual([]);
+    BUILD.forEach(([, adds], i) => {
+      sofar = [...sofar, ...adds];
+      expect(build.options[i + 1]!.fitted).toEqual(sofar);
+    });
     expect(model.shape).toBe("mods-src/seraphhorizons/assets/seraphhorizons/shapes/block/jawbreaker.json");
   });
 });

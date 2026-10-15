@@ -61,20 +61,28 @@ settles how chutes attach:
 | `infeedCell`, `infeedFace`, `infeed.pos` | `[0, 2, 0]`, up, `[0.5, 3.0, 0.5]` | The infeed: a vanilla `chute-straight-ud` placed on this face carries straight on into the machine's own section |
 | `outputCell`, `outputFace`, `output.pos` | `[0, 0, 0]`, north, `[0.5, 0.5, 0.0]` | The output: a vanilla `chute-straight-ns` against this face carries on from the machine's section |
 
-**Stages** (the rig's `requires`, in the order they could be fitted; `stages` in the rig lists them). Everything
-with `requires` null is the frame: the timber stand (four posts, the side and cross sills, the head beam and the top
-tie), the breaker's cast frame (the cheeks with their bearings and the rods' abutment lugs, the front wall, the back
-wall with the back toggle's seat), the outboard pedestal, the hopper and both chute sections. The rest:
+**Build stages** (as settled by the owner, 2026-10-15). The frame is placed, with no `requires`: the timber stand
+(four posts, the side and cross sills, the head beam and the top tie), the breaker's cast frame (the cheeks with their
+bearings and the rods' abutment lugs, the front wall, the back wall with the back toggle's seat), the outboard
+pedestal and the hopper. Then five stages, fitted in order, each one `requires` group; the third takes two clicks, the
+toggles and rods and then the springs (the draw bench's mandrel-and-spring pattern). The services come last, as on
+every machine: the chute sections are their own part (`chutes`), no longer the frame's. The rig's `buildStages` lists
+them (`stage`, `id`, `name`, `adds`: the `requires` values it fits, in click order).
 
-| `requires` | Parts | Draws |
-|---|---|---|
-| `jaws` | `swingjaw`, `fixedjaw` | The fixed jaw's steel plate, the hinge pin, and the swinging jaw hung on it |
-| `eccentric` | `eshaft`, `pitman` | The eccentric shaft with its eccentric, the flywheel, the collar, the coupling and the axle's stub; the pitman hung on the eccentric |
-| `toggles` | `backtoggle`, `fronttoggle`, `rods`, `spring1`..`spring4` | The two toggles, the two tension rods with their nuts and pins, and a steel coil spring on each rod |
-| `grizzly` | `grizzly` | The grizzly: five bars, two side curbs, the head block, the cross bar on its two brackets, the throat plate and its lip |
+| # | Stage (`id`) | `requires` (parts) | Draws | Materials |
+|---|---|---|---|---|
+| F | Frame (placed) | none (`frame`) | The stand, the cast frame, the outboard pedestal, the hopper | 9 iron plate, 2 iron nails and strips, 1 steel nails and strips, 3 plank |
+| 1 | Jaws (`jaws`) | `jaws` (`fixedjaw`, `swingjaw`) | The fixed jaw's steel plate, the hinge pin, and the swinging jaw hung on it | 2 iron plate, 1 iron nails and strips, 1 steel rod, 1 steel plate, 2 steel nails and strips |
+| 2 | Eccentric shaft and flywheel (`eccentric`) | `eccentric` (`eshaft`, `pitman`) | The eccentric shaft with its eccentric, the flywheel, the collar, the coupling and the axle's stub; the pitman hung on the eccentric | 4 iron plate, 5 iron nails and strips, 2 steel rod, 1 steel plate, 2 steel nails and strips, 1 plank |
+| 3 | Toggles, rods and springs (`toggles`) | `toggles` (`backtoggle`, `fronttoggle`, `rods`), then `springs` (`spring1`..`spring4`) | The two toggles and the two tension rods with their nuts and pins; then a steel coil spring on each rod | 2 steel rod (the rods); then 2 spring (`seraphhorizons:spring-steel`) |
+| 4 | Grizzly (`grizzly`) | `grizzly` (`grizzly`) | Five bars, two side curbs, the head block, the cross bar on its two brackets, the throat plate and its lip | 5 iron rod |
+| 5 | Services (`services`) | `chutes` (`chutes`) | The two chute sections: the infeed in the top face, the output low on the front face | 2 chute section |
+| Wear | Jaw faces | (in `jaws`) | The fixed plate and the swinging jaw's face: a wearing part, renewed, not a stage | 3 steel ingot (340 vox) |
 
-The build stages (which items each takes, and the frame's recipe) are not designed yet: the ids only split the
-machine where a stage could, in the order a breaker goes together (see "Open for the owner").
+The materials are the owner's figures (one rate: 128 vox of iron or steel an ingot, a plate 2 ingots, counted rods,
+then whole plates, then nails and strips; timber in planks at 1,024 vox); the items' exact codes are gameplay's (#912).
+Fitted out of order, the swinging jaw would rock with nothing driving it: gameplay should hold the shaft still until the
+machine is complete. The grizzly lies over the mouth, so it goes in after the linkage.
 
 ## Model
 
@@ -88,8 +96,8 @@ writes:
 | File | What it holds |
 |---|---|
 | `assets/seraphhorizons/shapes/block/jawbreaker.json` | The whole machine, every stage's parts (188 elements). The renderer splits it into parts by element name. |
-| `assets/seraphhorizons/shapes/block/jawbreaker_frame.json` | The static frame only (44 elements). The block draws it and the inventory shows it. |
-| `assets/seraphhorizons/config/jawbreaker-rig.json` | The cells, the anchors, `breaker`, `stages` and the part rig (13 parts). |
+| `assets/seraphhorizons/shapes/block/jawbreaker_frame.json` | The static frame only (36 elements). The block draws it and the inventory shows it. |
+| `assets/seraphhorizons/config/jawbreaker-rig.json` | The cells, the anchors, `breaker`, `buildStages` and the part rig (14 parts). |
 | `tests/JawBreaker/rig-reference.json` | Every part's matrix at 25 axle angles, from the reference maths. |
 
 ### How the machine works
@@ -188,7 +196,8 @@ A full run takes about 9 s and is deterministic (two runs into two folders are b
 `tools/validate_jawbreaker.py` holds the checks; every run checks its output and exits non-zero if one fails:
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty part; the
-  requires are the frame's none and the four stages; every driver reads θ alone (no travel: either way round).
+  requires are the frame's none and the stages' fits; the build is the owner's order (jaws; eccentric; toggles, then
+  springs; grizzly; the services last, the chute sections alone in them); every driver reads θ alone (no travel: either way round).
 - **Nothing floats:** the frame is one piece from the ground, and so is each build state at rest.
 - **Containment:** nothing reaches into a cell that is not the machine's (the box and the flywheel's three cells) over a
   turn.
@@ -218,7 +227,7 @@ A full run takes about 9 s and is deterministic (two runs into two folders are b
 - **Clearances:** at rest in every build state and through a turn every 15°, no two parts touch except the intended
   contacts listed in `ALLOWED`.
 - **Swept paths** (full runs): the moving parts through a turn every 2°.
-- **No z-fighting** (full runs): no coplanar overlapping faces at nine poses, every build state shown alone. 33 faces
+- **No z-fighting** (full runs): no coplanar overlapping faces at nine poses, every build state shown alone. 29 faces
   pressed against their own part are removed; the rest are inset (`fix_coplanar`).
 - **Files:** every texture declared; fifteen cells, none hollow, no lids; the shipped model is the checked one.
 
@@ -235,12 +244,12 @@ the rig maths.
   axle's travel: the Blake linkage is symmetric, so running backwards it passes the same poses in reverse.
 - **Keys.** `cells` (fifteen, each with its boxes; no `lid`), `powerCell`, `powerFace`, `infeedCell`, `infeedFace`,
   `infeed` (`pos`), `outputCell`, `outputFace`, `output` (`pos`), `breaker` (`turnsPerBite`: axle turns a turn of
-  the eccentric shaft, 1), `stages` (the requires values in fitting order) and `parts`. `requires` values: `jaws`,
-  `eccentric`, `toggles`, `grizzly`, or null.
+  the eccentric shaft, 1), `buildStages` (the stages in order, each the requires values it adds) and `parts`. `requires` values: `jaws`,
+  `eccentric`, `toggles`, `springs`, `grizzly`, `chutes`, or null.
 
 **In the viewer** (`site/models.json`, `jaw-breaker`): the axle angle is the θ slider, and Play turns it at 2 s a turn
 (about the reference speed 0.6, 0.48 turns a second), by its input speed; "turn backwards" runs it the other way. The
-four stages are checkboxes.
+Build stage select has the frame and the five stages, each with everything before it, opening on the finished machine.
 
 ### Editing by hand
 
@@ -249,9 +258,9 @@ Element names are the rig's interface (first-match globs, in the rig's order): `
 `fronttoggle_plate`, `swingjaw_*` (`face`, `slab`, `boss`, `web`, `seat`, `lugw`, `luge`), `rods_*` (`w`, `e`, `nutw`,
 `nute`, `pinw`, `pine`), `spring1_*`..`spring4_*` (the rod, `w` or `e`, then the side's face `u`, `w`, `d`, `e`),
 `fixedjaw_*` (`plate`, `hingepin`), `grizzly_*` (`head`, `bar1`..`bar5`,
-`curbw`, `curbe`, `bracketw`, `brackete`, `crossbar`, `throat`, `lip`), and `fr_*` for the frame (`post_*`, `sill_*`,
-`cross_*`, `beam_head`, `tie_top`, `cheek_*`, `backwall`, `backseat`, `frontwall`, `ped_post`, `ped_block`, `hopper_*`,
-`chutein_*`, `chuteout_*`). Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop
+`curbw`, `curbe`, `bracketw`, `brackete`, `crossbar`, `throat`, `lip`), `chutein_*` and `chuteout_*` for the services' chute sections (the
+walls: `bottom`, `top`, ...), and `fr_*` for the frame (`post_*`, `sill_*`, `cross_*`, `beam_head`, `tie_top`, `cheek_*`,
+`backwall`, `backseat`, `frontwall`, `ped_post`, `ped_block`, `hopper_*`). Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop
 regenerating.
 
 ## Known weak spots, and what is not checked
@@ -290,13 +299,10 @@ The model has been reviewed in projections rendered from the written files. No o
    third full row (18 cells, the east three empty). The other ways: a smaller wheel (at most 16 across fits the box), or
    a gear pair from the axle to a shaft further forward (which the breaker's frame in front of the shaft does not allow
    without moving the grizzly over it).
-5. **Build stages and items.** Proposed order: the frame (placed: the stand, the cast frame, the hopper, the chute
-   sections, the pedestal), then `jaws`, `eccentric` (with the flywheel and pitman), `toggles` (with the rods and
-   springs), `grizzly`. The frame's recipe and each stage's items are to be measured from the model and settled.
-   Fitted out of order, the swinging jaw would rock with nothing driving it: gameplay should hold the shaft still
-   until the machine is complete.
-6. **The infeed section is the frame's** (bolted to the top tie), so a chute can be laid to it before the grizzly is
-   fitted; it could be the grizzly's stage instead.
+5. **Build stages: settled** (2026-10-15; "Build stages" above). Still open: the frame's grid recipe, and the items'
+   exact codes (#912).
+6. **The chute sections are the services'**, the last stage, so a chute can be laid to the machine only once it is
+   finished.
 7. **No lids.** A deck at the top of the columns would be an invisible floor over the grizzly and the drive end.
 8. **The rods' springs bear on lugs inside the frame** (on the cheeks' posts), not behind the back wall as in the v2
    model: that kept the breaker 1.45 blocks deep (#914 guessed about 1.3) with the grizzly in front of it.
@@ -304,7 +310,7 @@ The model has been reviewed in projections rendered from the written files. No o
    pedestal is a lone oak post.
 10. **Anchors are provisional** pending #711: the infeed and output as `<name>Cell`/`<name>Face` plus a `pos`, as the v2
    branches have them.
-11. **Rig extras** for gameplay: `breaker.turnsPerBite` (1) and `stages`; drop them if #912 does not read them.
+11. **Rig extras** for gameplay: `breaker.turnsPerBite` (1) and `buildStages`; drop them if #912 does not read them.
 
 ## From the stamp mill v2
 

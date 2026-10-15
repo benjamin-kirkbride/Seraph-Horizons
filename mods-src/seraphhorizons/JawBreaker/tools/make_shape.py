@@ -8,16 +8,19 @@ breaker's product and the fines meet in a small iron hopper under the breaker, w
 on the front face. It is dry and takes mechanical power from a vanilla axle at one side, coupled straight onto the
 eccentric shaft: a Blake works either way round, so there is no rectifier.
 
-    frame       the timber stand (four posts, side and cross sills, the head beam and the top tie between the tall
-                front posts), the breaker's cast frame (two cheeks with their bearings and the rods' abutments, the
-                front wall, the back wall), the outboard pedestal at the drive end, the hopper, and the two chute
-                sections (the infeed on the top face, the output on the front face)
-    jaws        the fixed jaw's plate, the hinge pin and the swinging jaw hung on it
-    eccentric   the eccentric shaft with its eccentric, the flywheel, the coupling and the axle's stub; the
-                pitman hung on the eccentric
-    toggles     the back and front toggles, the two tension rods and their steel coil springs
-    grizzly     the grizzly: five bars with side curbs from a head block on the head beam to a cross bar on the
+    frame       placed: the timber stand (four posts, side and cross sills, the head beam and the top tie between
+                the tall front posts), the breaker's cast frame (two cheeks with their bearings and the rods'
+                abutments, the front wall, the back wall), the outboard pedestal at the drive end and the hopper
+    1 jaws      jaws: the fixed jaw's plate, the hinge pin and the swinging jaw hung on it
+    2 eccentric eccentric: the eccentric shaft with its eccentric, the flywheel, the coupling and the axle's stub;
+                the pitman hung on the eccentric
+    3 toggles   toggles: the back and front toggles and the two tension rods; then, a second click, springs: a
+                steel coil spring on each rod
+    4 grizzly   grizzly: five bars with side curbs from a head block on the head beam to a cross bar on the
                 cheeks, and the throat plate over the front wall
+    5 services  chutes: the two chute sections (the infeed on the top face, the output on the front face)
+
+The jaw faces (the fixed jaw's plate and the swinging jaw's face) are a wearing part, renewed, not a stage.
 
 The Blake linkage is the stamp mill v2's (origin/729-stampmill-model-v2), built in the breaker's own frame and
 solved exactly (jaw_at, linkage, solve3), then fitted to four harmonics of the eccentric's turn (fit, harmonics).
@@ -796,7 +799,7 @@ def build_chute(name, cell, axis):
     """A chute section: VANILLA_CHUTE's walls, cut to their last CHUTE_LEN along the chute (their UVs cropped alike
     along it, on this model's 64 scale), turned 90 degrees about `axis` through the cell's centre (z: the `ud`
     chute, its mouth on the cell's top face; y: the `ns` chute, its mouth on the cell's north face)."""
-    p = "frame"
+    p = "chutes"
     o = chute_origin(cell)
     k = TEX / 16
     out = []
@@ -817,7 +820,7 @@ def build_chute(name, cell, axis):
                 face["rotation"] = rotation
             fs[d] = face
         c = [o[i] + (el_lo[i] + el_hi[i]) / 2 for i in range(3)]
-        el = El(f"fr_{name}_{wall.lower()}", [el_hi[i] - el_lo[i] for i in range(3)], c, [r[:] for r in IDENT], fs, p)
+        el = El(f"{name}_{wall.lower()}", [el_hi[i] - el_lo[i] for i in range(3)], c, [r[:] for r in IDENT], fs, p)
         rotate([el], axis, 90.0, [o[0] + 8.0, o[1] + 8.0, o[2] + 8.0])
         out.append(el)
     return out
@@ -856,8 +859,13 @@ def build():
 
 
 # ---------------------------------------------------------------- the stages
-STAGES = ("jaws", "eccentric", "toggles", "grizzly")   # the requires values, in the order they could be fitted
-BUILD_STATES = ("frame",) + STAGES           # a build state: the frame and every stage up to that one
+# The frame is placed; then five stages, each one or more fits (a requires value, a click), in order. The services
+# (the chute sections) come last, as on every machine.
+BUILD_GROUPS = (("jaws", "Jaws", ("jaws",)), ("eccentric", "Eccentric shaft and flywheel", ("eccentric",)),
+                ("toggles", "Toggles, rods and springs", ("toggles", "springs")), ("grizzly", "Grizzly", ("grizzly",)),
+                ("services", "Services", ("chutes",)))
+STAGES = tuple(r for _, _, fits in BUILD_GROUPS for r in fits)   # every fit's requires, in the build's order
+BUILD_STATES = ("frame",) + STAGES           # a build state: the frame and every fit up to that one
 
 
 def fitted_in(state):
@@ -915,11 +923,12 @@ def _rig_parts():
         {"id": "rods", "match": ["rods_*"], "requires": "toggles", "drivers": harmonics("ky", "slide", "y") + harmonics("kz", "slide", "z")},
     ]
     for c in range(SPRING_TURNS):
-        parts.append({"id": f"spring{c + 1}", "match": [f"spring{c + 1}_*"], "requires": "toggles",
+        parts.append({"id": f"spring{c + 1}", "match": [f"spring{c + 1}_*"], "requires": "springs",
                       "drivers": harmonics("ky", "slide", "y", scale=spring_share(c)) + harmonics("kz", "slide", "z", scale=spring_share(c))})
     parts += [
         {"id": "fixedjaw", "match": ["fixedjaw_*"], "requires": "jaws", "drivers": []},
         {"id": "grizzly", "match": ["grizzly_*"], "requires": "grizzly", "drivers": []},
+        {"id": "chutes", "match": ["chutein_*", "chuteout_*"], "requires": "chutes", "drivers": []},
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
     ]
     for p in parts:
@@ -966,7 +975,8 @@ def anchor_points():
 def make_rig(parts):
     rig = {"_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the west column's front "
                        "bottom cell, where the output chute leaves. One machine: the frame's parts have no requires; "
-                       "the stages fit jaws, eccentric, toggles and grizzly (stages). theta is the axle's angle: the eccentric "
+                       "buildStages lists the five stages in order, each the requires values it adds (jaws; eccentric; toggles, then "
+                       "springs; grizzly; the services, chutes). theta is the axle's angle: the eccentric "
                        "shaft turns with it, ratio 1, and the linkage follows as harmonics of it, the same either way round. "
                        "No work. See the jaw breaker's README for the schema.",
            "cells": []}
@@ -978,7 +988,8 @@ def make_rig(parts):
     rig["breaker"] = {"turnsPerBite": r6(1.0 / abs(JAW_E_RATIO)),
                       "_comment": "Axle turns per turn of the eccentric shaft (coupled straight on): the swinging jaw closes "
                                   "once a turn, either way round."}
-    rig["stages"] = list(STAGES)
+    rig["buildStages"] = [{"stage": i + 1, "id": sid, "name": name, "adds": list(fits)}
+                          for i, (sid, name, fits) in enumerate(BUILD_GROUPS)]
     rig["parts"] = parts
     return rig
 
@@ -1070,8 +1081,9 @@ def shape_json(els):
 def coplanar_poses():
     """(theta, state): the machine at each build state at rest, and complete through its turn, so faces that never
     show together are never compared."""
-    return (REST + ("grizzly",), at_ecc(0.9) + ("grizzly",), at_ecc(2.3) + ("grizzly",), at_ecc(4.1) + ("grizzly",),
-            at_ecc(5.5) + ("grizzly",), REST + ("frame",), REST + ("jaws",), at_ecc(1.6) + ("eccentric",), at_ecc(3.3) + ("toggles",))
+    full = STAGES[-1]
+    return (REST + (full,), at_ecc(0.9) + (full,), at_ecc(2.3) + (full,), at_ecc(4.1) + (full,),
+            at_ecc(5.5) + (full,), REST + ("frame",), REST + ("jaws",), at_ecc(1.6) + ("eccentric",), at_ecc(3.3) + ("toggles",))
 
 
 REQUIRES = {}

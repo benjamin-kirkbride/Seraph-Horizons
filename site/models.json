@@ -629,9 +629,25 @@
         "requires": {
           "jaws": "Jaws: the fixed jaw's plate, the hinge pin and the swinging jaw",
           "eccentric": "Eccentric shaft, flywheel, coupling and pitman",
-          "toggles": "Toggles, tension rods and their springs",
-          "grizzly": "Grizzly: bars, curbs, cross bar and throat plate"
+          "toggles": "Toggles and tension rods",
+          "springs": "Springs on the tension rods",
+          "grizzly": "Grizzly: bars, curbs, cross bar and throat plate",
+          "chutes": "Chute sections (infeed and output)"
         },
+        "states": [
+          {
+            "id": "build", "label": "Build stage", "default": "services",
+            "values": ["jaws", "eccentric", "toggles", "springs", "grizzly", "chutes"],
+            "options": [
+              {"id": "frame", "label": "The frame", "fitted": [], "hint": "Placed as the machine: the timber stand (four posts, the side and cross sills, the head beam and the top tie), the breaker's cast frame (the cheeks with their bearings and the rods' abutment lugs, the front wall, the back wall with the back toggle's seat), the outboard pedestal and the hopper."},
+              {"id": "jaws", "label": "1. Jaws", "fitted": ["jaws"], "hint": "The fixed jaw's steel plate on the front wall, the hinge pin in the cheeks' top bearings and the swinging jaw hung on it. The two jaw faces wear and are renewed: a wearing part, not a stage."},
+              {"id": "eccentric", "label": "2. Eccentric shaft and flywheel", "fitted": ["jaws", "eccentric"], "hint": "The eccentric shaft in the cheeks' bearings and the pillow block, the flywheel outside the west cheek, the collar, the coupling and the axle's oak stub at the power face; the pitman hung from the eccentric."},
+              {"id": "toggles", "label": "3. Toggles, rods and springs", "fitted": ["jaws", "eccentric", "toggles", "springs"], "hint": "The two toggles between the pitman's foot, the back wall's seat and the swinging jaw's seat, and the two tension rods pinned to the jaw's lugs; then, a second click, a steel coil spring on each rod between its abutment and its nut."},
+              {"id": "grizzly", "label": "4. Grizzly", "fitted": ["jaws", "eccentric", "toggles", "springs", "grizzly"], "hint": "Five iron bars falling 40° from the head block on the head beam to the cross bar on the cheeks, the side curbs, and the throat plate over the front wall. It lies over the mouth, so it goes in after the linkage."},
+              {"id": "services", "label": "5. Services: the machine finished", "fitted": ["jaws", "eccentric", "toggles", "springs", "grizzly", "chutes"], "hint": "Last, as on every machine: the game's chute sections, the infeed in the top face (bolted to the top tie) and the output low on the front face, each where a placed chute meets it."}
+            ]
+          }
+        ],
         "play": {
           "secondsPerTurn": 2,
           "phases": []

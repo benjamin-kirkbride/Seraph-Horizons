@@ -13,7 +13,7 @@ namespace SeraphHorizons.Tests.JawBreaker;
 /// </summary>
 public class JawBreakerRigTests
 {
-    private static readonly HashSet<string> Requires = ["jaws", "eccentric", "toggles", "grizzly"];
+    private static readonly HashSet<string> Requires = ["jaws", "eccentric", "toggles", "springs", "grizzly", "chutes"];
 
     private static string File(string name)
     {
@@ -33,7 +33,7 @@ public class JawBreakerRigTests
     public void The_shipped_rig_parses_with_no_work_and_its_anchors()
     {
         var parts = Shipped();
-        Assert.Equal(["eshaft", "pitman", "backtoggle", "fronttoggle", "swingjaw", "rods", "spring1", "spring2", "spring3", "spring4", "fixedjaw", "grizzly", "frame"],
+        Assert.Equal(["eshaft", "pitman", "backtoggle", "fronttoggle", "swingjaw", "rods", "spring1", "spring2", "spring3", "spring4", "fixedjaw", "grizzly", "chutes", "frame"],
             parts.Parts.Select(p => p.Id));
         using var doc = JsonDocument.Parse(File("jawbreaker-rig.json"));
         var root = doc.RootElement;
@@ -45,7 +45,11 @@ public class JawBreakerRigTests
         Assert.Equal([0, 0, 0], Cell("outputCell"));
         Assert.Equal("north", root.GetProperty("outputFace").GetString());
         Assert.Equal(15, root.GetProperty("cells").GetArrayLength());   // the 2 x 3 x 2 box and the flywheel's three cells
-        Assert.Equal(Requires, root.GetProperty("stages").EnumerateArray().Select(v => v.GetString()!).ToHashSet());
+        // the build: jaws; eccentric; toggles, then springs; grizzly; the services (the chute sections) last
+        Assert.Equal(["jaws", "eccentric", "toggles", "grizzly", "services"],
+            root.GetProperty("buildStages").EnumerateArray().Select(s => s.GetProperty("id").GetString()!));
+        Assert.Equal(["jaws", "eccentric", "toggles", "springs", "grizzly", "chutes"],
+            root.GetProperty("buildStages").EnumerateArray().SelectMany(s => s.GetProperty("adds").EnumerateArray().Select(v => v.GetString()!)));
     }
 
     [Fact]

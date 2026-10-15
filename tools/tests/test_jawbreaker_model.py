@@ -1,7 +1,8 @@
 """The jaw breaker's generated model files (mods-src/seraphhorizons/JawBreaker/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
-maths and its `requires` are the frame's none and the four stages (jaws, eccentric, toggles, grizzly); it reads the
+maths and its `requires` are the frame's none and the five stages' fits in order (jaws; eccentric; toggles, then
+springs; grizzly; the services, chutes), the chute sections the services' alone; it reads the
 axle's angle alone (a Blake works either way round: no rectifier, no travel) and has no work; its reference poses are
 its own maths; the cells are rebuilt from the shipped shape; the eccentric shaft turns with the axle once a turn on
 the power cell's centre line; the swinging jaw rocks once a turn and never closes on the fixed one; and the anchors
@@ -35,7 +36,9 @@ SHAPE = json.loads((ASSETS / "shapes" / "block" / "jawbreaker.json").read_text()
 FRAME = json.loads((ASSETS / "shapes" / "block" / "jawbreaker_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "JawBreaker" / "rig-reference.json").read_text())
 MANIFEST = json.loads((ROOT / "site" / "models.json").read_text())
-STAGES = ["jaws", "eccentric", "toggles", "grizzly"]
+STAGES = ["jaws", "eccentric", "toggles", "springs", "grizzly", "chutes"]   # every fit's requires, in order
+BUILD = [("jaws", ["jaws"]), ("eccentric", ["eccentric"]), ("toggles", ["toggles", "springs"]), ("grizzly", ["grizzly"]),
+         ("services", ["chutes"])]
 
 
 def matrix(pid, theta):
@@ -61,7 +64,11 @@ class Rig(unittest.TestCase):
                 rigmath.validate_driver(d)
                 self.assertEqual(rigmath.driver_input(d), "theta", p["id"])
         self.assertIsNone(rigmath.progress_of(RIG))
-        self.assertEqual(RIG["stages"], STAGES)
+        self.assertEqual([(s["id"], s["adds"]) for s in RIG["buildStages"]], BUILD)
+        self.assertEqual([s["stage"] for s in RIG["buildStages"]], [1, 2, 3, 4, 5])
+        self.assertNotIn("stages", RIG)
+        self.assertEqual(part("chutes")["requires"], "chutes")
+        self.assertEqual({p["id"] for p in RIG["parts"] if p["requires"] == "springs"}, {f"spring{c}" for c in range(1, 5)})
         self.assertEqual({p["requires"] for p in RIG["parts"]}, {None} | set(STAGES))
         self.assertIsNone(part("frame")["requires"])
         for key in ("work", "trunkPath", "lid"):
@@ -165,7 +172,7 @@ class Anchors(unittest.TestCase):
         self.assertEqual(RIG["output"]["pos"], [0.5, 0.5, 0.0])
         flat = flatten(SHAPE["elements"], textures={})
         for name, face_axis, face in (("chutein", 1, 48.0), ("chuteout", 2, 0.0)):
-            walls = [e for e in flat if e.name.startswith(f"fr_{name}_")]
+            walls = [e for e in flat if e.name.startswith(f"{name}_")]
             self.assertEqual(len(walls), 4, name)
             self.assertEqual({f["texture"] for e in walls for f in e.faces.values()}, {"#chute"})
             self.assertEqual(SHAPE["textures"]["chute"], "game:block/metal/sheet/copper1")
@@ -184,6 +191,16 @@ class Page(unittest.TestCase):
         self.assertEqual(model["shape"], "mods-src/seraphhorizons/assets/seraphhorizons/shapes/block/jawbreaker.json")
         self.assertEqual(model["rig"], "mods-src/seraphhorizons/assets/seraphhorizons/config/jawbreaker-rig.json")
         self.assertEqual(set(model["scenario"]["requires"]), set(STAGES))
+        # one Build stage select: the frame, then a state per stage, each cumulative, the services last
+        (group,) = model["scenario"]["states"]
+        self.assertEqual(group["values"], STAGES)
+        self.assertEqual(group["default"], "services")
+        self.assertEqual([o["id"] for o in group["options"]], ["frame"] + [s for s, _ in BUILD])
+        fitted = []
+        self.assertEqual(group["options"][0]["fitted"], [])
+        for option, (_, adds) in zip(group["options"][1:], BUILD):
+            fitted += adds
+            self.assertEqual(option["fitted"], fitted, option["id"])
 
     def test_every_game_texture_exists_in_the_game(self):
         install = os.environ.get("VINTAGE_STORY")

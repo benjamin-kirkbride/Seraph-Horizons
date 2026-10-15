@@ -4,9 +4,9 @@ Every check prints what it measured and fails the run (the script exits non-zero
 Everything is in the build frame (voxels), on the model before the origin shift; `check_shipped` in make_shape.py
 proves the shipped files are this model moved.
 
-The stages add parts to the frame (make_shape.STAGES: jaws, eccentric, toggles, grizzly), so every check that sets
-parts against each other is run per build state where it matters: what is fitted at that stage against the frame and
-each other. The breaker's checks are the stamp mill v2's (origin/729-stampmill-model-v2), in the breaker's own frame.
+The stages add parts to the frame (make_shape.BUILD_GROUPS: jaws; eccentric; toggles, then springs; grizzly; the
+services, chutes), so every check that sets parts against each other is run per build state where it matters, after
+every fit (make_shape.STAGES), a stage's second click too: what is fitted then against the frame and each other. The breaker's checks are the stamp mill v2's (origin/729-stampmill-model-v2), in the breaker's own frame.
 """
 
 from __future__ import annotations
@@ -83,6 +83,18 @@ def check_basic(v):
     print(f"elements drawn per build state: {per_state}")
     if {p["requires"] for p in v.parts} != {None} | set(v.m.STAGES):
         v.fail("the parts' requires are not the frame's none and the stages")
+    # the owner's order: jaws; eccentric; toggles, then the springs a second click; grizzly; the services last, holding
+    # the chute sections and nothing else
+    groups = [(sid, fits) for sid, _, fits in v.m.BUILD_GROUPS]
+    want = [("jaws", ("jaws",)), ("eccentric", ("eccentric",)), ("toggles", ("toggles", "springs")), ("grizzly", ("grizzly",)),
+            ("services", ("chutes",))]
+    stages = [(s["id"], tuple(s["adds"])) for s in v.rig["buildStages"]]
+    chutes = {el.part for el in v.els if re.match(r"chute(in|out)_", el.name)}
+    print(f"build: the frame placed, then {' / '.join(f'{s}: {chr(43).join(f)}' for s, f in stages)}; the chute sections in {sorted(chutes)}")
+    if groups != want or stages != want or [s["stage"] for s in v.rig["buildStages"]] != list(range(1, len(want) + 1)):
+        v.fail(f"the build stages are not the owner's order: {stages}")
+    if chutes != {"chutes"} or {p["id"] for p in v.parts if p["requires"] == "chutes"} != {"chutes"}:
+        v.fail("the chute sections are not the services' alone")
     reads = sorted({driver_input(d) for p in v.parts for d in p["drivers"]})
     print(f"inputs read: {reads} (a Blake works either way round: theta alone, no travel)")
     if reads != ["theta"]:
@@ -234,7 +246,7 @@ def check_swept(v):
 
 
 TEX_RULES = [
-    (r"^fr_chute(in|out)_", "chute"),
+    (r"^chute(in|out)_", "chute"),
     (r"^(fr_(post|sill|cross|beam|tie|ped_post)|eshaft_stub)", "oak"),
     (r"^fr_hopper_", "sheet"),
     (r"^(fr_(cheek|backwall|frontwall|ped_block)|eshaft_(fly_(rim|arm|hub)|coupling)|pitman_|swingjaw_(slab|boss|web|lug)|grizzly_)", "iron"),
@@ -287,7 +299,7 @@ def check_anchors(v):
         if not good:
             v.fail(f"the {name} anchor is not on its cell's {face} face")
     for name, face_axis in (("chutein", 1), ("chuteout", 2)):
-        walls = aabb_of(v.named("frame", rf"fr_{name}_"))
+        walls = aabb_of(v.named("chutes", rf"^{name}_"))
         key = "infeed" if name == "chutein" else "output"
         p = [c * 16 for c in rig[key]["pos"]]
         centre = [(walls[0][k] + walls[1][k]) / 2 for k in range(3)]
@@ -341,7 +353,7 @@ def check_chute(v):
         o = m.chute_origin(cell)
         a, b = [k for k in range(3) if k != along]
         want = sorted((o[a] + lo[game[0]], o[a] + hi[game[0]], o[b] + lo[game[1]], o[b] + hi[game[1]]) for _, lo, hi, _ in m.VANILLA_CHUTE)
-        walls = v.named("frame", rf"fr_{name}_")
+        walls = v.named("chutes", rf"^{name}_")
         got, ends, tex = [], [], set()
         for e in walls:
             lo, hi = e.aabb()
@@ -373,7 +385,7 @@ def check_paths(v):
     disc = (m.FIXED_Z, m.u_to_z(m.FACE_BOT[1]) + 0.6)
     hopper = aabb_of(v.named("frame", r"fr_hopper_"))
     trough = aabb_of(v.named("frame", r"fr_hopper_trough"))
-    out_bore = aabb_of(v.named("frame", r"fr_chuteout_bottom"))
+    out_bore = aabb_of(v.named("chutes", r"^chuteout_bottom"))
     slope = math.degrees(math.atan2(m.HOPPER_TOP - m.LIP_Y, m.HOPPER_E - 12.0))
     checks = [
         (f"the infeed's stream (x {bore[0]:.1f}..{bore[1]:.1f}, z {bore[2]:.1f}..{bore[3]:.1f}) lands between the curbs (x {curbs[0][1][0]:.2f}.."
