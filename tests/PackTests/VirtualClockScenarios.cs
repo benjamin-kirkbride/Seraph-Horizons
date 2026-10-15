@@ -6,6 +6,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.Common;
 using Vintagestory.Server;
 using Xunit.Abstractions;
 
@@ -29,16 +30,20 @@ public class VirtualClockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         output.WriteLine(what);
     }
 
-    private sealed record Span(long Wall, long Server, long Sim, double GameMinutes);
+    // Calendar: whether it ran through the window (the engine pauses it while no client is playing, as before
+    // this class's first player joins), as it is at both ends.
+    private sealed record Span(long Wall, long Server, long Sim, double GameMinutes, bool Calendar);
 
     private async Task<Span> Window(string name, int ticks)
     {
         var wall = Stopwatch.StartNew();
         long ms = W.ElapsedMilliseconds, sim = World.EntitySimulationTicks;
         double hours = W.Calendar.TotalHours;
+        bool running = ((GameCalendar)W.Calendar).IsRunning;
         await World.Ticks(ticks);
-        var span = new Span(wall.ElapsedMilliseconds, W.ElapsedMilliseconds - ms, World.EntitySimulationTicks - sim, (W.Calendar.TotalHours - hours) * 60);
-        Log($"{name}, {ticks} ticks: wall {span.Wall} ms, server {span.Server} ms, entity sim {span.Sim} ticks, calendar {span.GameMinutes:0.00} game min");
+        running &= ((GameCalendar)W.Calendar).IsRunning;
+        var span = new Span(wall.ElapsedMilliseconds, W.ElapsedMilliseconds - ms, World.EntitySimulationTicks - sim, (W.Calendar.TotalHours - hours) * 60, running);
+        Log($"{name}, {ticks} ticks: wall {span.Wall} ms, server {span.Server} ms, entity sim {span.Sim} ticks, calendar {span.GameMinutes:0.00} game min{(span.Calendar ? "" : " (paused)")}");
         return span;
     }
 
@@ -55,7 +60,8 @@ public class VirtualClockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         double expected = ticks * VirtualClock.StepMs;
         Assert.InRange(s.Server, expected - 2, expected + 2);
         Assert.True(s.Wall < s.Server / 4, $"{ticks} virtual ticks took {s.Wall} ms of wall time for {s.Server} ms of server time");
-        double minutes = expected / 60000 * W.Calendar.SpeedOfTime * W.Calendar.CalendarSpeedMul;
+        // a paused calendar stays put on the virtual clock as in real time
+        double minutes = s.Calendar ? expected / 60000 * W.Calendar.SpeedOfTime * W.Calendar.CalendarSpeedMul : 0;
         Assert.InRange(s.GameMinutes, minutes * 0.99, minutes * 1.01 + 0.01);
     }
 
