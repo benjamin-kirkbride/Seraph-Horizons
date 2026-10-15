@@ -1,8 +1,8 @@
 """The stamp battery's generated model files (mods-src/seraphhorizons/StampBattery/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
-maths and its `requires` are the battery's set (the frame's none; the battery's mortar, camshaft, stamps and feedbox),
-which site/models.json's build states fit; its reference poses are its own maths; the cells are rebuilt from the
+maths and its `requires` are the build stages' (the frame placed with none; then the mortar, the stamps, the camshaft and
+feed box, and the services: the chutes and the water line), which site/models.json's build states fit; its reference poses are its own maths; the cells are rebuilt from the
 shipped shape, every column decked; the line shaft turns one way whichever way the axle turns; each stamp drops twice a
 camshaft turn in the firing order and rests between drops; both chutes are the game's chute section on their cells'
 axes, the output's funnel spanning the screen with no launder or apron; and the anchors (power, water, infeed and
@@ -35,10 +35,8 @@ FRAME = json.loads((MOD / "assets" / "seraphhorizons" / "shapes" / "block" / "st
 REFERENCE = json.loads((MOD / "tests" / "StampBattery" / "rig-reference.json").read_text())
 MANIFEST = json.loads((ROOT / "site" / "models.json").read_text())
 README = (MOD / "StampBattery" / "README.md").read_text()
-BATTERY = ["mortar", "camshaft", "stamps"]
-FITTED = BATTERY + ["feedbox"]
-VALUES = FITTED
 PIPES = ["pipecopper", "pipelead"]
+VALUES = ["mortar", "stamps", "camshaft", "feedbox", "chutes"] + PIPES
 
 
 def matrix(pid, theta=0.0, travel=None):
@@ -64,7 +62,7 @@ class Rig(unittest.TestCase):
                 rigmath.validate_driver(d)
         self.assertIsNone(rigmath.progress_of(RIG))
         self.assertNotIn("feeder", RIG)
-        self.assertEqual({p["requires"] for p in RIG["parts"]}, {None} | set(VALUES) | set(PIPES))
+        self.assertEqual({p["requires"] for p in RIG["parts"]}, {None} | set(VALUES))
         for pid in ("entry", "line", "frame"):
             self.assertIsNone(part(pid)["requires"], pid)
 
@@ -116,8 +114,8 @@ class Rig(unittest.TestCase):
         cell, pos = RIG["outputCell"], RIG["output"]["pos"]
         self.assertEqual(pos, [cell[0] + 0.5, cell[1] + 0.5, cell[2]])
         self.assertEqual(SHAPE["textures"]["chute"], "game:block/metal/sheet/copper1")
-        for tag in ("chutein", "chuteout"):
-            walls = [e for e in SHAPE["elements"] if e["name"].startswith(f"mortar_{tag}_")]
+        for tag in ("in", "out"):
+            walls = [e for e in SHAPE["elements"] if e["name"].startswith(f"chutes_{tag}_")]
             self.assertEqual(len(walls), 4, tag)
             for e in walls:
                 self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#chute"})
@@ -125,9 +123,9 @@ class Rig(unittest.TestCase):
     def test_the_output_funnel_spans_the_screen_and_replaces_the_launder(self):
         names = [e["name"] for e in SHAPE["elements"]]
         self.assertFalse([n for n in names if "launder" in n or "apron" in n])
-        funnel = [e for e in SHAPE["elements"] if e["name"].startswith("mortar_funnel_")]
+        funnel = [e for e in SHAPE["elements"] if e["name"].startswith("chutes_funnel_")]
         self.assertEqual(sorted(e["name"] for e in funnel),
-                         ["mortar_funnel_floor", "mortar_funnel_floore", "mortar_funnel_floorw", "mortar_funnel_walle", "mortar_funnel_wallw"])
+                         ["chutes_funnel_floor", "chutes_funnel_floore", "chutes_funnel_floorw", "chutes_funnel_walle", "chutes_funnel_wallw"])
         for e in funnel:
             self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#chute"}, e["name"])
         (wa, wb), (ea, eb) = make_shape.funnel_lines()
@@ -193,15 +191,23 @@ class Battery(unittest.TestCase):
 
 
 class Manifest(unittest.TestCase):
-    def test_the_viewer_shows_each_build_state(self):
+    def test_the_viewer_shows_each_build_stage(self):
         model = next(m for m in MANIFEST["models"] if m["id"] == "stamp-battery")
         self.assertTrue(model["rig"].endswith("stampbattery-rig.json"))
-        group, pipes = model["scenario"]["states"]
+        (group,) = model["scenario"]["states"]
         got = {o["id"]: o["fitted"] for o in group["options"]}
-        self.assertEqual(got, {"frame": [], "battery": FITTED})
-        self.assertEqual((group["default"], group["values"]), ("battery", VALUES))
-        self.assertEqual({o["id"]: o["fitted"] for o in pipes["options"]}, {m: [m] for m in PIPES})
-        self.assertEqual((pipes["default"], pipes["values"], pipes["needs"]), ("pipecopper", PIPES, ["mortar"]))
+        built = ["mortar", "stamps", "camshaft", "feedbox"]
+        self.assertEqual(got, {"frame": [], "mortar": built[:1], "stamps": built[:2], "camshaft": built,
+                               "services": built + ["chutes", "pipecopper"], "serviceslead": built + ["chutes", "pipelead"]})
+        self.assertEqual((group["default"], group["values"]), ("services", VALUES))
+
+    def test_the_build_stages_end_with_the_services(self):
+        self.assertEqual(RIG["buildStages"], [{"stage": 1, "name": "the mortar", "adds": ["mortar"]},
+                                              {"stage": 2, "name": "the stamps", "adds": ["stamps"]},
+                                              {"stage": 3, "name": "the camshaft, belt and feed box", "adds": ["camshaft", "feedbox"]},
+                                              {"stage": 4, "name": "services", "adds": ["chutes", "pipecopper", "pipelead"]}])
+        chutey = {rigmath.part_of(RIG["parts"], e["name"]) for e in SHAPE["elements"] if "chute" in e["name"] or "funnel" in e["name"]}
+        self.assertEqual(chutey, {"chutes"})
 
     def test_the_water_line_is_the_same_pipe_in_either_metal(self):
         names = [e["name"] for e in SHAPE["elements"]]

@@ -4,19 +4,24 @@
 The stamp battery crushes and classifies in one machine (#728, model #729): a wet five-stamp gravity battery
 with its mesh discharge screen, fed by chute from above and discharging by chute in front. One machine is one piece
 of equipment (#711): a timber battery frame whose footprint is fixed from the frame on, and the battery's parts
-fitted into it.
+fitted into it in four stages.
 
-    frame    two oak end frames (sill, front, middle and back posts, cap, the guide and cam rails), the guide
-             girts, the ties and the two bearers; the power train: the entry shaft from the vanilla axle into a
-             closed rectifier gear case, and the line shaft along the back row
-    battery  the mortar box on its block, with its dies, the mesh screen in its front wall, the
-             output chute (a funnel section of the game's chute whose mouth spans the whole screen, under it, and
-             a stub of the game's chute section from the funnel to the front face, on an oak block), the shoot from
-             the feed opening, and the infeed chute section in the top face (`mortar`); the camshaft with ten
-             involute cams and the bull pulley, belted from the line shaft (`camshaft`); five stamps (`stamps`);
-             the plank feed box behind the mortar under the infeed (`feedbox`); the water line from the west face:
-             ppex's pipe, a reducer and a small pipe soldered in copper or lead along the mortar's back, a branch and
-             a cock to each stamp, open in the feed opening (`pipecopper`, `pipelead`)
+    frame      two oak end frames (sill, front, middle and back posts, cap, the guide and cam rails), the guide
+               girts, the ties and the two bearers; the power train: the entry shaft from the vanilla axle into a
+               closed rectifier gear case, and the line shaft along the back row. Placed: no `requires`.
+    stage 1    the mortar box on its block, with its dies, the mesh screen in its front wall, the feed opening in
+               its back and the shoot from the feed lip (`mortar`)
+    stage 2    five stamps, hung in their guides (`stamps`)
+    stage 3    the camshaft with ten involute cams, set under the hung stamps' tappets in their order 1-3-5-2-4,
+               and the bull pulley, belted from the line shaft (`camshaft`); the plank feed box behind the mortar
+               under the infeed (`feedbox`)
+    stage 4    services: the output chute (a funnel section of the game's chute whose mouth spans the whole
+               screen, under it, and a stub of the game's chute section from the funnel to the front face, on an
+               oak block) and the infeed chute section in the top face (`chutes`); the water line from the west
+               face: ppex's pipe, a reducer and a small pipe soldered in copper or lead along the mortar's back, a
+               branch and a cock to each stamp, open in the feed opening (`pipecopper` or `pipelead`)
+
+The stamps' shoes and dies are wearing parts, not stages.
 
 Everything is built here from plain boxes; no other mod's model is used. It writes, deterministically,
 
@@ -611,9 +616,7 @@ def chute_origin(cell):
 # ---------------------------------------------------------------- builders: the battery
 def build_mortar():
     """The mortar set: the oak mortar block, the cast-iron mortar box with five dies, the screen in its front wall and
-    the feed opening in its back; the output chute: its funnel under the screen and its stub of the game's chute out to
-    the front face, on an oak block; the shoot from the feed lip; and the infeed chute's section in the top face, hung
-    from the frame's two top ties over the feed box."""
+    the feed opening in its back; and the shoot from the feed lip. Its chute sections are the services' (`build_chutes`)."""
     p = "mortar"
     (x0, x1), (z0, z1), (y0, y1) = MORTAR_X, MORTAR_Z, MORTAR_Y
     w = MORTAR_WALL
@@ -632,10 +635,18 @@ def build_mortar():
            box([x1 - w, MORTAR_FLOOR, z0 + w], [x1, y1, z1 - w], "mortar_end_e", p, "iron")]
     for i in range(STAMPS):
         out += disc("y", (stem_x(i), 0.0, STEM_Z), MORTAR_FLOOR, DIE_TOP, HEAD_R, f"mortar_die{i + 1}", p, "steel")
-    out += build_funnel()
     out += build_shoot()
-    out += chute_section(OUTPUT_CELL, ("y", 90.0), CHUTE_OUT_LEN, "mortar_chuteout", p)
-    out += chute_section(INFEED_CELL, ("z", 90.0), CHUTE_IN_LEN, "mortar_chutein", p)
+    return out
+
+
+def build_chutes():
+    """The chute sections, fitted with the services: the output chute (its funnel under the screen and its stub of the
+    game's chute out to the front face, on an oak block) and the infeed chute's section in the top face, hung from the
+    frame's two top ties over the feed box."""
+    p = "chutes"
+    out = build_funnel()
+    out += chute_section(OUTPUT_CELL, ("y", 90.0), CHUTE_OUT_LEN, "chutes_out", p)
+    out += chute_section(INFEED_CELL, ("z", 90.0), CHUTE_IN_LEN, "chutes_in", p)
     return out
 
 
@@ -672,12 +683,12 @@ def build_funnel():
     the stub's floor, and a plate along each wall covering the flare. Both walls and the floor run on into the mortar's
     front wall, so the mortar closes its back from its floor up to the screen; its top is open. An oak block under the
     joint with the stub carries it."""
-    p = "mortar"
+    p = "chutes"
     y0, y1 = FUNNEL_Y
     t = FUNNEL_T
     cx0, cx1 = chute_bore_x()
     za, zb = FUNNEL_Z
-    out = [box([cx0, y0, za], [cx1, y0 + t, zb + FUNNEL_EXT], "mortar_funnel_floor", p, "chute")]
+    out = [box([cx0, y0, za], [cx1, y0 + t, zb + FUNNEL_EXT], "chutes_funnel_floor", p, "chute")]
     for tag, line in zip("we", funnel_lines()):
         d, o = funnel_frame(line)
         (xa, zza), (xb, zzb) = line
@@ -687,14 +698,14 @@ def build_funnel():
         # stands 0.02 inside the stub's height, and the stub keeps the game's chute's profile exactly
         a = (xa + o[0] * t / 2, ym, zza + o[1] * t / 2)
         b = (xb + o[0] * t / 2, ym, zzb + o[1] * t / 2)
-        out.append(strut(a, b, t, y1 - y0 - 0.04, f"mortar_funnel_wall{tag}", p, "chute", axis="y"))
+        out.append(strut(a, b, t, y1 - y0 - 0.04, f"chutes_funnel_wall{tag}", p, "chute", axis="y"))
         # the floor's plate: its outer edge on the line, as wide as the flare is deep from it
         wide = flare_depth(line)
         a = (xa - o[0] * wide / 2, y0 + t / 2, zza - o[1] * wide / 2)
         b = (xb - o[0] * wide / 2, y0 + t / 2, zzb - o[1] * wide / 2)
-        out.append(strut(a, b, wide, t, f"mortar_funnel_floor{tag}", p, "chute", axis="y"))
+        out.append(strut(a, b, wide, t, f"chutes_funnel_floor{tag}", p, "chute", axis="y"))
     cx = (cx0 + cx1) / 2
-    out.append(box([cx - 4.5, 0.0, za - 1.5], [cx + 4.5, y0, za + 1.5], "mortar_chuteleg", p, "oak"))
+    out.append(box([cx - 4.5, 0.0, za - 1.5], [cx + 4.5, y0, za + 1.5], "chutes_leg", p, "oak"))
     return out
 
 
@@ -908,24 +919,34 @@ def build_stamps():
 def build():
     els = build_frame() + build_drive() + build_line_pulleys()
     els += build_mortar() + build_camshaft() + build_stamps() + build_feed_box()
-    els += build_pipes()
+    els += build_chutes() + build_pipes()
     return els
 
 
 # ---------------------------------------------------------------- the build states
-# The battery's parts are fitted to the frame, the same equipment (#711): the battery, fed by chute (or by hand) into
-# its feed box and discharging by chute. Two build states: the frame alone, and the battery fitted to it.
-BATTERY = ("mortar", "camshaft", "stamps", "feedbox")
+# The battery's parts are fitted to the frame, the same equipment (#711), in four stages (owner, 2026-10-15): the frame
+# is placed (the rectifier's gear case with it); then the mortar with its screen; the stamps, hung in their guides;
+# the camshaft, its cams set under the hung stamps' tappets in their order 1-3-5-2-4, with its belt and the feed box;
+# and, last, the services: every chute section and the water line, in copper or lead. The shoes and dies are wearing
+# parts, not stages.
 PIPE_REQUIRES = tuple(f"pipe{m}" for m in PIPE_METALS)
-STATES = ("frame", "battery")
+BUILD_STAGES = (                             # (state id, what the stage adds, its name), in build order; services last
+    ("mortar", ("mortar",), "the mortar"),
+    ("stamps", ("stamps",), "the stamps"),
+    ("camshaft", ("camshaft", "feedbox"), "the camshaft, belt and feed box"),
+    ("services", ("chutes",) + PIPE_REQUIRES, "services"),   # one pipe metal drawn
+)
+BATTERY = tuple(r for _, adds, _ in BUILD_STAGES[:-1] for r in adds)   # the battery's parts, before the services
+# A build state: the frame, then each stage fitted on what came before, the water line in its first metal (the others
+# are copies, never drawn with it).
+STATES = {"frame": ()}
+for _sid, _adds, _ in BUILD_STAGES:
+    STATES[_sid] = tuple(STATES.values())[-1] + tuple(r for r in _adds if r not in PIPE_REQUIRES[1:])
 
 
 def in_state(requires, state):
-    """Whether a part with this `requires` is drawn in a build state ("frame", "battery"): with the battery
-    the water line in its first metal (the others are copies, never drawn with it)."""
-    if requires == PIPE_REQUIRES[0]:
-        return state != "frame"
-    return requires is None or (state == "battery" and requires in BATTERY)
+    """Whether a part with this `requires` is drawn in a build state (`STATES`)."""
+    return requires is None or requires in STATES[state]
 
 
 # ---------------------------------------------------------------- rig
@@ -988,6 +1009,7 @@ def _rig_parts():
     parts += [
         {"id": "mortar", "match": ["mortar_*"], "requires": "mortar", "drivers": []},
         {"id": "feedbox", "match": ["feedbox_*"], "requires": "feedbox", "drivers": []},
+        {"id": "chutes", "match": ["chutes_*"], "requires": "chutes", "drivers": []},
         # the water line, one part per metal (requires pipecopper, pipelead): only the fitted metal's is drawn
         *({"id": r, "match": [f"{r}_*"], "requires": r, "drivers": []} for r in PIPE_REQUIRES),
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
@@ -1043,9 +1065,10 @@ def anchor_points():
 
 def make_rig(parts):
     rig = {"_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the bottom middle cell of the "
-                       "north face, the output chute's. One machine, the battery's parts fitted to its frame (#711): the frame's parts "
-                       "have no requires; the battery's are mortar, camshaft, stamps and feedbox; the water line is pipecopper "
-                       "or pipelead, the same pipe in the fitted metal. Hand feeding goes in at the infeed's mouth, as a chute "
+                       "north face, the output chute's. One machine, its parts fitted to its frame (#711): the frame's parts "
+                       "have no requires; buildStages: what each build stage adds, in order: the mortar, the stamps, the "
+                       "camshaft (with its belt) and the feed box, then services (the chute sections and the water line, "
+                       "pipecopper or pipelead, the same pipe in the fitted metal). Hand feeding goes in at the infeed's mouth, as a chute "
                        "does. theta turns the entry shaft; everything behind the rectifier's gear case follows travel (psi): the "
                        "line shaft, the camshaft and the stamps (harmonics of the camshaft's turn). No work. See the stamp "
                        "battery's README for the schema.",
@@ -1059,6 +1082,7 @@ def make_rig(parts):
                      "_comment": f"turnsPerRev: axle turns per camshaft turn as the belt is drawn (the line pulley's radius "
                                  f"{LINE_PULLEY_R} to the bull pulley's {BULL_R}, behind a 1:1 rectifier); each stamp drops "
                                  "dropsPerRev times a camshaft turn, in firingOrder, and is lifted `lift` blocks by its cam."}
+    rig["buildStages"] = [{"stage": n, "name": name, "adds": list(req)} for n, (_, req, name) in enumerate(BUILD_STAGES, 1)]
     rig["parts"] = parts
     return rig
 
@@ -1086,8 +1110,8 @@ def shipped(els, parts, rig):
 
 
 def complete(requires):
-    """The finished machine the cells' boxes are built from: the frame, the battery and the water line in copper."""
-    return requires is None or requires in BATTERY or requires == PIPE_REQUIRES[0]
+    """The finished machine the cells' boxes are built from: every stage, the water line in copper."""
+    return in_state(requires, "services")
 
 
 def shipped_cells(shape, ship_parts):
@@ -1170,9 +1194,9 @@ def shape_json(els):
 
 
 def coplanar_poses():
-    """(pose, state): the frame at rest and the battery at rest and running, so faces that never show together are never
-    compared."""
-    return (REST + ("battery",), at_cam(0.7) + ("battery",), at_cam(2.3) + ("battery",), at_cam(4.4) + ("battery",),
+    """(pose, state): the frame at rest and the whole machine at rest and running, so faces that never show together are
+    never compared (the stages are nested, so no earlier stage shows a pair the last does not)."""
+    return (REST + ("services",), at_cam(0.7) + ("services",), at_cam(2.3) + ("services",), at_cam(4.4) + ("services",),
             REST + ("frame",))
 
 
@@ -1182,7 +1206,7 @@ REQUIRES = {}
 def shown(posed_els, pose):
     """The posed elements of the pose's build state; the rest moved far away (copies; the order kept), so the
     z-fighting fix and its check deal only with faces that show together."""
-    state = pose[2] if len(pose) > 2 else "battery"
+    state = pose[2] if len(pose) > 2 else "services"
     out = []
     for e in posed_els:
         if not in_state(REQUIRES[e.part], state):

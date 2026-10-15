@@ -8,7 +8,7 @@ import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs,
 // The stamp battery's shipped files, and the poses StampBattery/tools/make_shape.py computes from them with machinegen's
 // reference maths. Its rig reads the axle's angle θ (the entry shaft) and its travel ψ, which everything behind the
 // rectifier follows: the line shaft and its pulley, the camshaft, the stamps (each a sum of harmonics of the camshaft's
-// turn). It has one build state past the frame, the battery, and no work. tools/tests/test_stampbattery_model.py replays the same file in Python.
+// turn). The frame is placed, then four build stages (the mortar, the stamps, the camshaft and feed box, services), and no work. tools/tests/test_stampbattery_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
 const rig = read("assets/seraphhorizons/config/stampbattery-rig.json") as Rig & Record<string, unknown>;
@@ -18,10 +18,8 @@ const reference = read("tests/StampBattery/rig-reference.json") as { poses: RefP
 const manifest = JSON.parse(readFileSync(new URL("../models.json", import.meta.url), "utf8")) as { models: ManifestModel[] };
 const parts = rig.parts!;
 const order = rideOrder(parts);
-const BATTERY = ["mortar", "camshaft", "stamps"];
-const FITTED = [...BATTERY, "feedbox"];
-const VALUES = FITTED;
 const PIPES = ["pipecopper", "pipelead"];
+const VALUES = ["mortar", "stamps", "camshaft", "feedbox", "chutes", ...PIPES];
 
 const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 + r]!));
 const pose = (theta: number, travel: number): Pose => ({ theta, depth: 0, lifting: 0, travel, work: 0, size: 0, presence: 0, feed: 0, oil: 0 });
@@ -30,7 +28,7 @@ describe("the stamp battery's rig against its rig-reference.json", () => {
   it("reads the axle's angle and travel, has no work, and fits the battery's parts", () => {
     expect(rigInputs(parts)).toEqual({ theta: true, travel: true, depth: false, lifting: false });
     expect(workOf(rig)).toBeNull();
-    expect(new Set(parts.map((p) => p.requires ?? null))).toEqual(new Set([null, ...VALUES, ...PIPES]));
+    expect(new Set(parts.map((p) => p.requires ?? null))).toEqual(new Set([null, ...VALUES]));
     const byId = Object.fromEntries(parts.map((p) => [p.id, p]));
     for (const id of ["entry", "line", "frame"]) expect(byId[id]!.requires ?? null).toBeNull();
     for (const p of parts) expect(p.ride ?? null).toBeNull();
@@ -79,8 +77,8 @@ describe("the stamp battery's rig against its rig-reference.json", () => {
     const flat = flattenShape(shape.elements);
     const names = flat.map((f) => f.element.name);
     expect(names.filter((n) => /launder|apron/.test(n))).toEqual([]);
-    const funnel = flat.filter((f) => f.element.name.startsWith("mortar_funnel_"));
-    expect(funnel.map((f) => f.element.name).sort()).toEqual(["mortar_funnel_floor", "mortar_funnel_floore", "mortar_funnel_floorw", "mortar_funnel_walle", "mortar_funnel_wallw"]);
+    const funnel = flat.filter((f) => f.element.name.startsWith("chutes_funnel_"));
+    expect(funnel.map((f) => f.element.name).sort()).toEqual(["chutes_funnel_floor", "chutes_funnel_floore", "chutes_funnel_floorw", "chutes_funnel_walle", "chutes_funnel_wallw"]);
     for (const f of funnel) for (const face of Object.values(f.element.faces ?? {})) expect(face.texture).toBe("#chute");
   });
 
@@ -117,26 +115,34 @@ describe("the stamp battery's rig against its rig-reference.json", () => {
 describe("the stamp battery's page", () => {
   const model = manifest.models.find((m) => m.id === "stamp-battery")!;
 
-  it("builds the machine from a select: the frame, then the battery", () => {
-    const groups = stateGroups(model.scenario!.states, [...VALUES, ...PIPES]);
-    expect(groups.map((g) => [g.id, g.owns])).toEqual([["build", VALUES], ["pipes", PIPES]]);
+  it("builds in stages: the frame placed, the mortar, the stamps, the camshaft and feed box, then services", () => {
+    const groups = stateGroups(model.scenario!.states, VALUES);
+    expect(groups.map((g) => [g.id, g.owns])).toEqual([["stage", VALUES]]);
+    expect(rig.buildStages).toEqual([
+      { stage: 1, name: "the mortar", adds: ["mortar"] },
+      { stage: 2, name: "the stamps", adds: ["stamps"] },
+      { stage: 3, name: "the camshaft, belt and feed box", adds: ["camshaft", "feedbox"] },
+      { stage: 4, name: "services", adds: ["chutes", "pipecopper", "pipelead"] },
+    ]);
     const none = Object.fromEntries(VALUES.map((r) => [r, false]));
     const spec = groups[0]!.spec;
-    const at = (id: string) => applyState(none, spec.options.find((o) => o.id === id)!, groups[0]!.owns);
-    expect(Object.values(at("frame")).every((v) => !v)).toBe(true);
-    expect(at("battery")).toEqual({ mortar: true, camshaft: true, stamps: true, feedbox: true });
-    expect(spec.options.map((o) => o.id)).toEqual(["frame", "battery"]);
-    expect(spec.default).toBe("battery");
+    const at = (id: string) => Object.entries(applyState(none, spec.options.find((o) => o.id === id)!, groups[0]!.owns)).filter(([, v]) => v).map(([k]) => k);
+    expect(spec.options.map((o) => o.id)).toEqual(["frame", "mortar", "stamps", "camshaft", "services", "serviceslead"]);
+    expect(spec.default).toBe("services");
+    expect(at("frame")).toEqual([]);
+    expect(at("mortar")).toEqual(["mortar"]);
+    expect(at("stamps")).toEqual(["mortar", "stamps"]);
+    expect(at("camshaft")).toEqual(["mortar", "stamps", "camshaft", "feedbox"]);
+    expect(at("services")).toEqual(["mortar", "stamps", "camshaft", "feedbox", "chutes", "pipecopper"]);
+    expect(at("serviceslead")).toEqual(["mortar", "stamps", "camshaft", "feedbox", "chutes", "pipelead"]);
   });
 
-  it("draws the water line in one metal at a time, copper by default, once the mortar is fitted", () => {
-    const groups = stateGroups(model.scenario!.states, [...VALUES, ...PIPES]);
-    const pipes = groups[1]!;
-    expect(pipes.spec.default).toBe("pipecopper");
-    expect(pipes.spec.needs).toEqual(["mortar"]);
-    const none = { pipecopper: false, pipelead: false };
-    expect(applyState(none, pipes.spec.options.find((o) => o.id === "pipelead")!, pipes.owns)).toEqual({ pipecopper: false, pipelead: true });
+  it("puts every chute section in the services, and draws the water line in copper or lead", () => {
     const flat = flattenShape(shape.elements);
+    const globs = compileGlobs(parts);
+    const chutey = flat.filter((f) => /chute|funnel/.test(f.element.name)).map((f) => parts[partOf(globs, f.chain)]!.id);
+    expect(chutey.length).toBeGreaterThan(10);
+    expect(new Set(chutey)).toEqual(new Set(["chutes"]));
     const names = (m: string) => flat.map((f) => f.element.name).filter((n) => n.startsWith(`pipe${m}_`)).map((n) => n.slice(`pipe${m}_`.length));
     expect(names("lead")).toEqual(names("copper"));
     expect(names("copper").length).toBeGreaterThan(10);

@@ -4,12 +4,23 @@ Part of the Seraph Horizons mod (`../README.md`): the crush-and-classify machine
 behaviour #728, model #729). A **wet five-stamp gravity battery** with its mesh discharge screen, fed by chute from
 above and discharging by chute in front, so it can run on a chute line with nobody at it. One machine is one piece of
 equipment (#711): a timber battery frame whose footprint is fixed from the frame on, and the battery's parts fitted
-into it.
+into it in four stages.
 
-| Build state | Fitted (`requires`) | What it is |
-|---|---|---|
-| (frame) | none | Two oak end frames, the guide girts, the ties and the two bearers; the rectifier's gear case at the power cell and the line shaft along the back row |
-| the battery | `mortar`, `camshaft`, `stamps`, `feedbox`, and `pipecopper` or `pipelead` | The battery: the mortar with its dies, screen, shoot, the infeed chute section and the output chute (its funnel and stub); the camshaft and its belt drive; five stamps; the plank feed box under the infeed; the water line along the mortar's back, a branch and a cock to each stamp |
+The frame is placed, then each stage is fitted in order (owner, 2026-10-15). The rig's `buildStages` lists what each
+stage adds. Materials are measured from the model (element volume per `requires` and texture) at the ore line's one
+rate: 128 vox of iron or steel an ingot, rods counted, then whole plates, then nails and strips at 4 an ingot; planks
+at 1,024 vox. "~" marks a guess or a choice of item.
+
+| Stage | Fitted (`requires`) | What it is | Materials |
+|---|---|---|---|
+| Frame (placed) | none | Two oak end frames, the guide girts, the ties and the two bearers; the rectifier's gear case at the power cell and the line shaft along the back row | 3 stainless gear (the rectifier), 4 iron plate, 3 iron nails and strips, 2 steel plate, 1 steel nails and strips, 12 plank |
+| 1 · Mortar | `mortar` | The mortar box on its block between the end frames, its dies, the mesh screen in its front wall, the feed opening and the shoot | 1 iron chain (the screen, 122 vox²), 8 iron plate, 2 iron nails and strips, 1 steel plate, 7 steel nails and strips, 2 plank |
+| 2 · Stamps | `stamps` | Five stamps, hung in the guide girts over their dies first | 4 iron plate, 7 iron nails and strips, 5 steel rod, 3 steel plate, 4 steel nails and strips |
+| 3 · Camshaft, belt and feed box | `camshaft`, `feedbox` | The camshaft in its pillow blocks, the cams set under the hung stamps' tappets in the hanging order 1-3-5-2-4; the bull pulley and its belt from the line shaft; the plank feed box under the infeed | ~1 leather (the belt), 4 iron plate, 3 iron nails and strips, 3 steel rod, 1 steel plate, 1 steel nails and strips, 2 plank (1 the bull pulley, 1 the feed box) |
+| 4 · Services | `chutes`, and `pipecopper` or `pipelead` | Every chute section: the infeed section in the top face and the output chute (its funnel under the screen, its stub and the stub's block); the water line along the mortar's back with its header, a branch and a cock to each stamp, in copper or lead | 4 chute section (the infeed's 2, the funnel and stub's 2), 3 pipe section (copper or lead) |
+
+The stamps' **shoes and dies are wearing parts**, not stages: a set of five shoes is about 6 steel ingots (695 vox) and
+a set of five dies about 4 (470 vox). Water and ore are contents, not stages.
 
 **Status: the model only.** This folder holds the generator (`tools/`); there is no block, block entity or renderer
 yet (#728, #711). Paths here are from this folder unless they start with `assets/` or `tests/` (the mod's), or
@@ -86,9 +97,9 @@ chute (`game:block/metal/sheet/copper1`) for both chute sections and the output 
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/stampbattery.json` | The whole machine, the water line in both metals (406 elements; drawn: 40 with nothing fitted, 340 with the battery fitted) |
+| `assets/seraphhorizons/shapes/block/stampbattery.json` | The whole machine, the water line in both metals (406 elements; drawn: 40 the frame, 75 with the mortar, 135 with the stamps, 260 with the camshaft and feed box, 340 with the services) |
 | `assets/seraphhorizons/shapes/block/stampbattery_frame.json` | The frame only (34 elements). A block would draw it and the inventory show it. |
-| `assets/seraphhorizons/config/stampbattery-rig.json` | Footprint (cells with boxes and lids), anchors, the stamps' figures and the part rig (15 parts) |
+| `assets/seraphhorizons/config/stampbattery-rig.json` | Footprint (cells with boxes and lids), anchors, the stamps' figures, the build stages and the part rig (16 parts) |
 | `tests/StampBattery/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths |
 
 ### How the machine works
@@ -189,8 +200,9 @@ Every moving part (θ the axle's angle, ψ its travel):
 | Camshaft, cams, hubs, bull pulley (`camshaft`) [camshaft] | The bull belt | The tappets | `rotate` x −0.5 (ψ) |
 | Pillow blocks, bull belt (`camframe`) [camshaft] | Static | — | none |
 | Stamps 1 to 5: shoe, head, stem, tappet (`stamp1`..`stamp5`) [stamps] | Its double cam | The ore on its die | ten `slide` y, harmonics of the camshaft's turn (ψ) |
-| Mortar, dies, screen, shoot, infeed section, output funnel, stub and block (`mortar`) [mortar] | Static | — | none |
+| Mortar, dies, screen, shoot (`mortar`) [mortar] | Static | — | none |
 | Feed box (`feedbox`) [feedbox] | Static | — | none |
+| Infeed section, output funnel, stub and block (`chutes`) [chutes] | Static | — | none |
 | Water line, copper (`pipecopper`) [pipecopper] or lead (`pipelead`) [pipelead] | Static, one metal drawn | — | none |
 | Frame, gear case, pedestals, guides, bearers (`frame`) | Static | — | none |
 
@@ -206,10 +218,12 @@ python3 mods-src/seraphhorizons/StampBattery/tools/make_shape.py --quick      # 
 
 A full run takes about half a minute, most of it the swept paths and the z-fighting fix; two runs are byte-identical.
 `tools/validate_stampbattery.py` holds the checks; every run checks its output and exits non-zero if one fails. Checks
-that set parts against each other run per build state: the frame; the battery.
+that set parts against each other run per build state: the frame, then each stage fitted on the ones before it.
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty part; the
-  `requires` are the battery's set and the water line's two metals.
+  `requires` are the stages' set and the water line's two metals.
+- **Stages:** the mortar, the stamps, the camshaft and feed box, then the services, every fitted part in one stage and
+  every chute piece in the services' `chutes`; each state fits the stages so far; the rig's `buildStages` agree.
 - **Nothing floats:** the frame one piece from the ground, and each build state at rest.
 - **Containment:** nothing leaves the 3 × 4 × 3 box over nine poses.
 - **Anchors:** the entry shaft meets the power face at the cell's centre; every anchor's point on its cell's face, at
@@ -235,10 +249,11 @@ that set parts against each other run per build state: the frame; the battery.
   shoe within 0.12 of its die and never into it; two drops a stamp a camshaft turn, in the order 1-3-5-2-4.
 - **Supports:** the entry shaft in the gear case, the line shaft in the case's boss and both pedestals, the camshaft in
   its two pillow blocks.
-- **Clearances:** over 42 poses (each build state at rest and the battery every 4.5° of a half turn) no two parts touch
+- **Clearances:** over 45 poses (each build state at rest and the whole machine every 4.5° of a half turn) no two parts touch
   except the intended contacts listed in `ALLOWED`.
 - **Swept paths** (full runs): the battery through a whole camshaft turn every 0.5°, everything fitted: 720 poses.
-- **No z-fighting** (full runs): no coplanar overlapping face pairs at five poses of the two build states.
+- **No z-fighting** (full runs): no coplanar overlapping face pairs at five poses, the frame's and the whole machine's
+  (the stages are nested, so an earlier stage shows no pair the last does not).
 - **Files:** every texture declared; every cell of the box present, a lid on every column, every box inside its cell;
   the shipped model is the checked one moved.
 
@@ -251,25 +266,27 @@ The draw bench's schema (`../DrawBench/README.md`, "Rig schema") without a work:
 maths. Rotations on θ and ψ, slides on ψ.
 
 - **Cells:** each cell's `boxes` are rebuilt from the shipped, rounded shape posed at rest, the finished machine's (the
-  frame, the battery and the copper water line); every column's top cell carries a `lid`, so the top is one deck, where the
+  frame, every stage and the copper water line); every column's top cell carries a `lid`, so the top is one deck, where the
   player stands to feed by hand at the infeed's mouth.
 - **`stamps`:** `turnsPerRev` (2, axle turns a camshaft turn as drawn), `dropsPerRev` (2, a stamp), `firingOrder`
   ([1, 3, 5, 2, 4]) and `lift` (0.25 blocks).
-- **The water line's metal:** `pipecopper` or `pipelead`, one of them fitted with the battery (the rosser's pattern).
+- **`buildStages`:** each stage's number, name and what it `adds`, in order, the services last (the amalgamation
+  plates' pattern).
+- **The water line's metal:** `pipecopper` or `pipelead`, one of them fitted with the services (the rosser's pattern).
 - **Keys.** `cells`, `powerCell`/`powerFace`, `waterCell`/`waterFace`/`water`, `infeedCell`/`infeedFace`/`infeed`,
-  `outputCell`/`outputFace`/`output`, `stamps` and `parts`.
+  `outputCell`/`outputFace`/`output`, `stamps`, `buildStages` and `parts`.
 
-**In the viewer** (`site/models.json`, `stamp-battery`): a **Build** select (the scenario's `states`): the frame and
-the battery (the default), each with a note; and a **Water line** select, copper (the default) or lead, which waits for the
-mortar. Play turns the axle at 1.5 turns a second, a camshaft turn in 1.3 seconds (about 90 drops a minute a stamp, a
+**In the viewer** (`site/models.json`, `stamp-battery`): a **Build stage** select (the scenario's `states`): the frame,
+then 1 the mortar, 2 the stamps, 3 the camshaft, belt and feed box, and 4 services with the water line in copper (the
+default) or in lead, each with a note. Play turns the axle at 1.5 turns a second, a camshaft turn in 1.3 seconds (about 90 drops a minute a stamp, a
 period battery's pace).
 
 ### Editing by hand
 
 Element names are the rig's interface (first-match globs, in the rig's order): `entry_*`, `line_*`, `linepulley*`,
 `camshaft_*` (the shaft, hubs, cams `camshaft_cam<stamp><a|b><n>` and the bull pulley `camshaft_bull_*`),
-`camframe_*`, `stamp1_*`..`stamp5_*`, `mortar_*` (the chute sections `mortar_chutein_*` and `mortar_chuteout_*`, the
-funnel `mortar_funnel_*`, its block `mortar_chuteleg`, the shoot `mortar_shoot*`), `feedbox_*`, `pipecopper_*` and
+`camframe_*`, `stamp1_*`..`stamp5_*`, `mortar_*` (the shoot `mortar_shoot*`), `feedbox_*`, `chutes_*` (the chute
+sections `chutes_in_*` and `chutes_out_*`, the funnel `chutes_funnel_*`, its block `chutes_leg`), `pipecopper_*` and
 `pipelead_*` (`inlet_*` ppex's pipe at the face, `plug_*` and `reducer_*`, then the small pipe: `run`, `bend1`,
 `north`, `bend2`, `drop`, `tee1`..`tee5`, `header1`..`header4`, and for each stamp `branch<k>`, `cock<k>_body`,
 `cock<k>_key`, `cock<k>_handle` and `spout<k>_*`), and `fr_*` for the frame.
@@ -321,8 +338,8 @@ The model has not been looked at in a client yet.
 
 ## Open for the owner
 
-1. **Build stages**: the frame recipe, the stages and their materials, measured from the model and settled with the
-   owner (#729's Open), as the crucible furnace's were. The `requires` ids only split the machine where a stage could.
+1. **Build stages** are settled (owner, 2026-10-15; above). Left: the belt's leather is a guess, and the frame's recipe
+   is priced at the one rate, not yet written as a recipe.
 2. **The water line's header and cocks are the machine's own,** not ppex blocks: ppex has no five-outlet pipe, so only
    the connector at the water face is ppex's section. The cocks are drawn open and static. A behaviour could close
    one stamp's water (#728), but nothing in the rig turns them.

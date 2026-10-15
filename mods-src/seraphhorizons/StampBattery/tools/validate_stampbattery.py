@@ -4,9 +4,8 @@ Every check prints what it measured and fails the run (the script exits non-zero
 Everything is in the build frame (voxels), on the model before the origin shift; `check_shipped` in make_shape.py
 proves the shipped files are this model moved.
 
-The machine is a set of fitted parts: the battery and its feed box, fitted into the frame. So every check that sets
-parts against each other is run per build state (`make_shape.STATES`): the frame alone, and the battery's parts with
-it.
+The machine is a set of fitted parts fitted into the frame in stages. So every check that sets parts against each other
+is run per build state (`make_shape.STATES`): the frame alone, then each stage fitted on the ones before it.
 """
 
 from __future__ import annotations
@@ -83,9 +82,34 @@ def check_basic(v):
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
     per_state = {s: sum(len(v.by_part[p]) for p in v.parts_in(s)) for s in m.STATES}
     print(f"elements drawn per state: {per_state}")
-    want = {None} | set(m.BATTERY) | set(m.PIPE_REQUIRES)
-    if {p["requires"] for p in v.parts} != want or list(m.STATES) != ["frame", "battery"]:
-        v.fail("the parts' requires are not the battery's set and the water line's metals")
+    want = {None} | set(m.BATTERY) | {"chutes"} | set(m.PIPE_REQUIRES)
+    if {p["requires"] for p in v.parts} != want or list(m.STATES) != ["frame", "mortar", "stamps", "camshaft", "services"]:
+        v.fail("the parts' requires are not the battery's set, the chutes and the water line's metals")
+
+
+def check_stages(v):
+    """The build stages (owner, 2026-10-15): the frame placed; the mortar; the stamps, hung before the camshaft whose
+    cams are set under them; the camshaft with its belt and the feed box; and, last, the services: every chute section
+    and the water line, in one metal. Every fitted part is in one stage, every state the stages so far, and the rig's
+    buildStages say the same."""
+    m = v.m
+    stages = [list(adds) for _, adds, _ in m.BUILD_STAGES]
+    if stages != [["mortar"], ["stamps"], ["camshaft", "feedbox"], ["chutes", *m.PIPE_REQUIRES]]:
+        v.fail(f"the build stages are {stages}, not the mortar, the stamps, the camshaft and feed box, then services")
+    staged = [r for adds in stages for r in adds]
+    if len(staged) != len(set(staged)) or set(staged) != {p["requires"] for p in v.parts} - {None}:
+        v.fail("every fitted part is in exactly one build stage")
+    if v.rig["buildStages"] != [{"stage": n, "name": name, "adds": list(adds)} for n, (_, adds, name) in enumerate(m.BUILD_STAGES, 1)]:
+        v.fail(f"the rig's buildStages are {v.rig['buildStages']}")
+    fitted = []
+    for sid, adds, _ in m.BUILD_STAGES:
+        fitted += [r for r in adds if r not in m.PIPE_REQUIRES[1:]]
+        if list(m.STATES[sid]) != fitted:
+            v.fail(f"the build state {sid} fits {m.STATES[sid]}, not the stages so far {fitted}")
+    chutey = [e.name for e in v.els if re.search(r"chute|funnel", e.name) and e.part != "chutes"]
+    if chutey:
+        v.fail(f"chute pieces outside the services' chutes: {chutey[:4]}")
+    print("build stages: " + ", ".join(f"{n} {'+'.join(adds)}" for n, (_, adds, _) in enumerate(m.BUILD_STAGES, 1)))
 
 
 def check_containment(v, poses):
@@ -131,7 +155,9 @@ ALLOWED = [
     ("camframe", r"_belt", "camshaft", r"_bull_rim"), ("camframe", r"_belt", "linepulley", r"^linepulley_\d"),
     ("stamp\\d", r"_shoe", "mortar", r"_die"), ("stamp\\d", r"_tappet", "camshaft", r"_cam\d"),
     ("stamp\\d", r"_stem", "frame", r"fr_guide"),
-    ("mortar", r"_block", "frame", r"fr_sill"), ("mortar", r"_chutein_", "frame", r"fr_tie_[cb]$"),
+    ("mortar", r"_block", "frame", r"fr_sill"), ("chutes", r"_in_", "frame", r"fr_tie_[cb]$"),
+    # the output funnel's walls and floor run into the mortar's front wall and floor, under and beside the screen
+    ("chutes", r"_funnel_", "mortar", r"_(floor|front_lo|front_[we])$"),
     # the feed box on the shoot and hung on the back bearer
     ("feedbox", r"_floor|_[we]$", "mortar", r"_shoot"), ("feedbox", r"_back", "frame", r"fr_bearer_b"),
     # the water line in its hanger
@@ -196,7 +222,7 @@ def report_touches(v, label, poses_states, only=None):
 def clearance_poses(m):
     out = [(m.REST, s) for s in m.STATES]
     for k in range(40):
-        out.append((m.at_cam(math.pi * k / 40), "battery"))
+        out.append((m.at_cam(math.pi * k / 40), "services"))
     return out
 
 
@@ -211,7 +237,7 @@ def check_swept(v):
     resting, its cams sweeping past and under its tappet), everything fitted: nothing touches but the intended
     contacts."""
     m = v.m
-    ps = [(m.at_cam(math.tau * k / 720), "battery") for k in range(720)]
+    ps = [(m.at_cam(math.tau * k / 720), "services") for k in range(720)]
     only = {f"stamp{i + 1}" for i in range(m.STAMPS)} | {"camshaft", "line", "linepulley"}
     hits = report_touches(v, "swept paths", ps, only)
     if hits:
@@ -219,8 +245,8 @@ def check_swept(v):
 
 
 TEX_RULES = [
-    (r"^mortar_(chute(in|out)_|funnel_)", "chute"),
-    (r"^(fr_(sill|cap|post|rail|tie|guide|bearer)|entry_shaft[ab]|mortar_(block|chuteleg)|camshaft_bull_(rim|arm))", "oak"),
+    (r"^chutes_(in|out|funnel)_", "chute"),
+    (r"^(fr_(sill|cap|post|rail|tie|guide|bearer)|entry_shaft[ab]|mortar_block|chutes_leg|camshaft_bull_(rim|arm))", "oak"),
     (r"^feedbox_", "planks"),
     (r"^(fr_(gearcase|ped|hanger)|mortar_(floor|front|back|end|shoot)|camframe_pillow|camshaft_(hub|cam|bull_hub)|linepulley|"
      r"stamp\d_(head|tappet))", "iron"),
@@ -282,8 +308,8 @@ def check_anchors(v):
     water = [c * 16 for c in rig["water"]["pos"]]
     infeed = [c * 16 for c in rig["infeed"]["pos"]]
     output = [c * 16 for c in rig["output"]["pos"]]
-    cin = aabb_of(v.named("mortar", r"_chutein_"))
-    cout = aabb_of(v.named("mortar", r"_chuteout_"))
+    cin = aabb_of(v.named("chutes", r"_in_"))
+    cout = aabb_of(v.named("chutes", r"_out_"))
     box = aabb_of(v.by_part["feedbox"])
     floor = aabb_of(v.named("feedbox", r"_floor"))
     sides = aabb_of(v.named("feedbox", r"_[we]$"))
@@ -322,7 +348,7 @@ def game_chute():
 def chute_profile(v, rx, axis, at):
     """The section's walls across the chute (the two other axes' spans, rounded), the walls' end along it nearest `at`,
     and the textures they wear."""
-    walls = v.named("mortar", rx)
+    walls = v.named("chutes", rx)
     u, w = [k for k in range(3) if k != axis]
     got, ends, tex = [], [], set()
     for e in walls:
@@ -355,8 +381,8 @@ def check_chute(v):
             v.fail("VANILLA_CHUTE is not the game's straight chute")
     # across the chute, (u, w) the two other axes in order: the game's North and South walls stay whole across the
     # bore's other side (z walls of the ud chute, x walls of the ns chute), Bottom and Top between them
-    for label, rx, cell, axis, face_at, whole in (("infeed (ud) at the top face", r"_chutein_", m.INFEED_CELL, 1, (m.INFEED_CELL[1] + 1) * 16, 1),
-                                                  ("output (ns) at the north face", r"_chuteout_", m.OUTPUT_CELL, 2, m.OUTPUT_CELL[2] * 16, 0)):
+    for label, rx, cell, axis, face_at, whole in (("infeed (ud) at the top face", r"_in_", m.INFEED_CELL, 1, (m.INFEED_CELL[1] + 1) * 16, 1),
+                                                  ("output (ns) at the north face", r"_out_", m.OUTPUT_CELL, 2, m.OUTPUT_CELL[2] * 16, 0)):
         o = m.chute_origin(cell)
         u, w = [k for k in range(3) if k != axis]
         if whole == 1:
@@ -379,8 +405,8 @@ def check_paths(v):
     output stub's and runs into it."""
     m = v.m
     screen = aabb_of(v.named("mortar", r"_screen"))
-    stub = aabb_of(v.named("mortar", r"_chuteout_bottom"))
-    floors = [aabb_of([e]) for e in v.named("mortar", r"_funnel_floor")]
+    stub = aabb_of(v.named("chutes", r"_out_bottom"))
+    floors = [aabb_of([e]) for e in v.named("chutes", r"_funnel_floor")]
     shoot = aabb_of(v.named("mortar", r"_shoot$"))
     back = aabb_of(v.named("mortar", r"_back_lo"))
     box_floor = aabb_of(v.named("feedbox", r"_floor"))
@@ -415,7 +441,7 @@ def check_water(v):
     shoe; and from it to the lip nothing of any part in the water's way. The line is ppex's full pipe at the water face,
     the reducer, then the small pipe."""
     m = v.m
-    els = [e for pid in v.parts_in("battery") for e in v.posed(pid, m.REST)]
+    els = [e for pid in v.parts_in("services") for e in v.posed(pid, m.REST)]
     pipe = v.by_part["pipecopper"]
     inner = m.MORTAR_Z[1] - m.MORTAR_WALL
     for k, x in enumerate(m.branch_xs(), 1):
@@ -461,7 +487,7 @@ def check_outlet_clear(v):
     screen's top, from the mortar's front to the stub, and the stub's bore out to the front face, hold no element of any
     part (the funnel's walls and floor bound it; nothing stands in it or over its open top in front of the screen)."""
     m = v.m
-    els = [e for pid in v.parts_in("battery") for e in v.posed(pid, m.REST)]
+    els = [e for pid in v.parts_in("services") for e in v.posed(pid, m.REST)]
     (wa, wb), (ea, eb) = m.funnel_lines()
     y_lo, y_hi = m.FUNNEL_Y[0] + m.FUNNEL_T + 0.2, m.SCREEN_Y[1] - 0.2
     pts = []
@@ -642,6 +668,7 @@ def check_zfight(v):
 def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
+    check_stages(v)
     check_floating(v)
     poses = [m.REST] + [m.at_cam(a) for a in (0.3, 1.2, 2.2, 3.0, 4.1, 5.0, 5.9)] + [m.turning(31.0, -1.0)]
     check_containment(v, poses)
