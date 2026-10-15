@@ -19,19 +19,26 @@ namespace SeraphHorizons.PackTests;
 /// in another), every eidolon home after, contacts held to the rule where routes ran (none over 2 s, at most
 /// about one a member each 2 minutes; see <see cref="Crew"/> for a job left to today's dispatch), and the job's
 /// makespan no later than today's dispatch's (<see cref="MineBaselines"/>, measured with
-/// <c>SH_MINE_BASELINE=1</c>, which turns routes off) by more than <see cref="Tolerance"/>: a loose bound, the
-/// server's timing varying from run to run; the strict "no worse than today" is
+/// <c>SH_MINE_BASELINE=1</c>, which turns routes off) by more than <see cref="Tolerance"/>: a bound for the
+/// spread runs still have on the virtual clock; the strict "no worse than today" is
 /// MineRouteBenchmarkTests' in xunit, in simulated time. The log names each choice the route solver made in
-/// turn (a variant, or today's dispatch). CI shards <c>eidolon-ahead-{pit,trench,tunnel,spiral}-{2,3}</c>,
-/// one scenario each. On floors of their own in the sky (<see cref="Felling.Sky"/>).
+/// turn (a variant, today's dispatch, or today's after its routes stalled). CI shard <c>eidolon-ahead</c>. On
+/// floors of their own in the sky (<see cref="Felling.Sky"/>), each from its spawns on the virtual clock
+/// (<see cref="VirtualClock"/>).
 /// </summary>
 [AtlasWorld]
 public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
-    /// <summary>How much later than today's baseline a crew by routes may finish here: loose, as one run of
-    /// today's own varies by over 10 % (the tunnel of three, 113 s and 127 s), so that it catches a crew gone
-    /// badly wrong and not the server's timing; xunit holds the routes to today exactly.</summary>
-    private const double Tolerance = 0.25;
+    /// <summary>How much later than today's baseline a crew by routes may finish here. On the virtual clock a
+    /// case repeats closely but not exactly: today's own runs spread up to 5 % over their mean (the pit of
+    /// three, 153 to 169 s), and the pit of three by routes is bimodal, most runs 133 to 156 s and a few 175 to
+    /// 187 s (a member's walks stopped short and waiting behind another), so this catches a crew gone wrong,
+    /// not that spread; xunit holds the routes to today exactly.</summary>
+    private const double Tolerance = 0.20;
+
+    /// <summary>How much later than its baseline a job left to today's dispatch may finish: that is today
+    /// against today, its own spread (the tunnel of three, 105 to 142 s), only a crew gone badly wrong.</summary>
+    private const double TodayTolerance = 0.35;
 
     private IWorldAccessor W => World.Api.World;
     private EidolonSystem Mod => EidolonSystem.Of(World.Api)!;
@@ -114,6 +121,9 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         var toMine = Cells(site, a.X - site.X, b.X - site.X, a.Y - site.Y, b.Y - site.Y, a.Z - site.Z, b.Z - site.Z)
             .Where(c => W.BlockAccessor.GetBlock(c).Id != 0).ToList();
         var (player, tool) = await Commander(name, starts[0].AddCopy(-3, 0, -1));
+        // from the spawns on, game time on the virtual clock: makespans and contacts the same on every runner,
+        // a route solve (like a plan) costing none (MinePlanHold)
+        using var clock = VirtualClock.Start(World);
         var eidolons = new List<EntityLaborEidolon>();
         foreach (var from in starts)
             eidolons.Add(await Spawn(from, player));
@@ -132,14 +142,17 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
             watch.Tick();
             if (MineWatcher.ClaimFault(Jobs.Mining, crew, orders, EidolonJobSystem.Now(W)) is { } claimFault)
                 faults.Add(claimFault);
-            if (orders[0].Job?.Shared.Routes is { } routes
-                && (routes.Today ? "today's dispatch" : $"variant {routes.VariantIndex}") is var choice
+            if (orders[0].Job?.Shared is { Routes: { } routes } cells
+                && (routes.Today ? "today's dispatch"
+                    : cells.RoutesStalledPlan == cells.PlanVersion ? "today's dispatch (stalled)"
+                    : $"variant {routes.VariantIndex}") is var choice
                 && (choices.Count == 0 || choices[^1] != choice))
                 choices.Add(choice);
             int mined = orders.Sum(o => o.Mined);
             if (mined != lastMined && mined % 40 == 0 || ++tick % 600 == 0)
             {
-                Log($"{string.Join(" + ", orders.Select(o => o.Mined))} mined: {string.Join(" || ", crew.Select(State))}");
+                Log($"{string.Join(" + ", orders.Select(o => o.Mined))} mined; {string.Join(" | ", orders.Select((o, i) => $"{crew[i].EntityId}: {o.DebugState}"))}: "
+                    + string.Join(" || ", crew.Select(State)));
                 lastMined = mined;
             }
             return crew.All(e => e.Orders!.OrderCode == null);
@@ -163,9 +176,10 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         }
         // Contacts: by routes the whole job, brief and rare, none over 2 s, at most about one a member each 2
         // minutes, and none deep (MineWatcher.Pushing). Where any of the job ran on today's dispatch (the
-        // solver's choice, or routes off) its contacts are today's own, as they were before routes (its trench
-        // of three brushed for 5 s once, 7.1 s in another run, and once came 0.87 apart as all three climbed
-        // out together to go home), so only a loose bound holds: none over 10 s, and no faults (above) either way.
+        // solver's choice, its routes stalled, or routes off) its contacts are today's own, as they were before
+        // routes (its trench of three brushed for 5 s once, 7.1 s in another run, and once came 0.87 apart as all
+        // three climbed out together to go home), so only a loose bound holds: none over 10 s, and no faults
+        // (above) either way.
         bool routed = EidolonMinePlans.Routing && choices.Count > 0 && choices.All(c => c.StartsWith("variant"));
         if (routed)
         {
@@ -175,8 +189,12 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         }
         else
             Assert.True(watch.LongestMs <= 10000, $"a contact of {watch.LongestMs} ms on today's dispatch");
+        // Makespan: by routes the whole job, within Tolerance of today's; left to today's dispatch (by the
+        // solver or a stall) it is today's own time, held only to TodayTolerance (today's tunnel of three ran
+        // 105 to 142 s on the virtual clock)
         if (EidolonMinePlans.Routing)
-            Assert.True(seconds <= baseline * (1 + Tolerance), $"{seconds:0.0} s against today's {baseline:0.0} s");
+            Assert.True(seconds <= baseline * (1 + (routed ? Tolerance : TodayTolerance)),
+                $"{seconds:0.0} s against today's {baseline:0.0} s{(routed ? "" : " on today's dispatch")}");
         foreach (var e in crew)
             e.Die(EnumDespawnReason.Removed);
     }
@@ -195,10 +213,10 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         await Crew($"ahpit{crew}", site, site.AddCopy(-8, -3, -6), site.AddCopy(7, -1, 5), starts.Take(crew).ToArray(), baseline, 24000);
     }
 
-    [AtlasScenario(TimeoutMs = 900_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task Two_eidolons_dig_an_open_pit_no_later_than_today() => await Pit(2, 1000, MineBaselines.Pit2);
 
-    [AtlasScenario(TimeoutMs = 900_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task Three_eidolons_dig_an_open_pit_no_later_than_today() => await Pit(3, 1200, MineBaselines.Pit3);
 
     // ---- the trench: granite seven thick, a trench 16 long, 5 wide and 4 deep ----
@@ -211,10 +229,10 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         await Crew($"ahtrench{crew}", site, site.AddCopy(0, -4, 0), site.AddCopy(15, -1, 4), starts.Take(crew).ToArray(), baseline, 24000);
     }
 
-    [AtlasScenario(TimeoutMs = 900_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task Two_eidolons_dig_a_trench_no_later_than_today() => await Trench(2, 1400, MineBaselines.Trench2);
 
-    [AtlasScenario(TimeoutMs = 900_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task Three_eidolons_dig_a_trench_no_later_than_today() => await Trench(3, 1600, MineBaselines.Trench3);
 
     // ---- the tall tunnel: 8 high and 4 wide into a stepped slope ----
@@ -230,10 +248,10 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         await Crew($"ahtunnel{crew}", site, site.AddCopy(-2, 0, 0), site.AddCopy(3, 7, 3), starts.Take(crew).ToArray(), baseline, 24000);
     }
 
-    [AtlasScenario(TimeoutMs = 900_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task Two_eidolons_finish_a_tall_tunnel_no_later_than_today() => await Tunnel(2, 1800, MineBaselines.Tunnel2);
 
-    [AtlasScenario(TimeoutMs = 900_000)]
+    [AtlasScenario(TimeoutMs = 240_000)]
     public async Task Three_eidolons_finish_a_tall_tunnel_no_later_than_today() => await Tunnel(3, 2000, MineBaselines.Tunnel3);
 
     // ---- the spiral pit: cobblestone 14 thick, a pit 5 × 5 and 12 deep ----
@@ -246,9 +264,9 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         await Crew($"ahspiral{crew}", site, site.AddCopy(0, -12, 0), site.AddCopy(4, -1, 4), starts.Take(crew).ToArray(), baseline, 30000);
     }
 
-    [AtlasScenario(TimeoutMs = 1_500_000)]
+    [AtlasScenario(TimeoutMs = 300_000)]
     public async Task Two_eidolons_dig_a_spiral_pit_no_later_than_today() => await Spiral(2, 2200, MineBaselines.Spiral2);
 
-    [AtlasScenario(TimeoutMs = 1_500_000)]
+    [AtlasScenario(TimeoutMs = 300_000)]
     public async Task Three_eidolons_dig_a_spiral_pit_no_later_than_today() => await Spiral(3, 2400, MineBaselines.Spiral3);
 }
