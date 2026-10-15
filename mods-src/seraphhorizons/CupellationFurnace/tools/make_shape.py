@@ -94,6 +94,8 @@ TEXTURES = {
     "litharge": "game:item/resource/crushed/limonite",      # litharge (the litharge item's base texture)
     "coal": "game:block/coal/bituminous",                   # the fuel on the grate
     "ember": "game:block/coal/ember",                       # the same coal, burning
+    "copper": "game:block/metal/sheet-plain/copper4",       # the blast stub: UnifiedPipes' copper pipe's
+    "solder": "game:block/metal/ingot/leadsolder",           # its soldered joint (solderedpipe.SOLDER_TEXTURE)
 }
 TEX = 16                                     # shape texture units: one a voxel, one texture across a block face
 FIRE_GLOW = 200                              # the burning coal's faces (the game's lit firepit embers are 160)
@@ -194,16 +196,23 @@ CAP_Y = (31.5, TOP)                                # stack's mouth; the cap, a f
 CAP_SEAT = ((CURB[0][0] + CURB_RIM, CURB[0][1] - CURB_RIM), CAP_Y, (CURB[2][0] + CURB_RIM, CURB[2][1] - CURB_RIM))
 
 # the tuyere, through the back wall over the test's back, blowing north across the lead towards the breast; fed from an
-# iron wind box set in the back wall, whose face plate, flush with the wall's face, holds the blast inlet's socket at
-# the middle of the blast cell's face: a square opening as large as ppex's pipe (a square tube 6 across, its block's
-# 5..11), so the pipe the player lays to it butts onto the socket
+# iron wind box set in the back wall. Its face plate is set back in a pocket in the wall's face, lined with iron, and
+# a short pipe stub flanged to the plate stands in the pocket, its mouth at the blast cell's face: ppex's pipe (a square
+# tube 6 across, its block's 5..11, 1-voxel walls round a 4 x 4 bore), copper, with half a soldered joint round its
+# mouth as UnifiedPipes draws copper and lead pipe (Pipes/tools/solderedpipe.py), so the pipe the player lays in the
+# cell behind meets it as one ppex pipe meets the next. Nothing stands proud of the wall's face.
 TUYERE = (X_T, 17.1)                         # (x, y): its axis, along z
 TUYERE_R = 1.1
-SOCKET = ((B + 5.0, B + 11.0), (B + 5.0, B + 11.0))   # (x, y): the socket's opening, the blast face's middle 6 x 6
-SOCKET_RIM = 1.0
-WINDBOX = ((17.5, 28.5), (15.5, 28.5), (29.0, BODY_D))   # the wind box, in the back wall's face (x, y, z)
+SOCKET = ((B + 5.0, B + 11.0), (B + 5.0, B + 11.0))   # (x, y): the stub's outside at the blast face's middle, 6 x 6
+PIPE_WALL = 1.0                              # ppex's pipe's wall: a 4 x 4 bore
+JOINT_LENGTH, JOINT_SWELL = 0.75, 0.2        # half a soldered joint (solderedpipe.py): along the pipe, proud of it
+POCKET = ((B + 3.5, B + 12.5), (B + 3.5, B + 12.5), (29.5, BODY_D))   # the pocket in the wall's face (x, y, z)
+SLEEVE_T = 0.5                               # the iron lining the pocket's four sides, flush with the face
+FLANGE = (3.7, 0.5)                          # the stub's flange on the plate: half across, thickness
+BOLT = 0.6                                   # its four bolt heads, at the corners
+WINDBOX = ((17.5, 28.5), (15.5, 28.5), (27.0, POCKET[2][0]))   # the wind box, in the back wall behind the pocket
 WINDBOX_T = 0.5                              # its walls
-FACEPLATE_T = 0.6                            # its face plate, flush with the back wall's face
+FACEPLATE_T = 0.6                            # its face plate, at the pocket's back
 TUYERE_Z = (23.0, WINDBOX[2][0])             # the tuyere: its mouth a voxel into the chamber, its back end in the box
 
 # the brick, in two roles: the brickwork (any one fired brick) and the lining (tier-3 refractory brick, LINING_T
@@ -251,7 +260,8 @@ FIRECLAY = "game:clay-fire"
 BONEMEAL = "game:bonemeal"
 TEST_CHARGES = 15                            # the test's wear: charges cupelled on it before it is spent (#740)
 TEST_LEAD = 3000                             # about the lead (units) a test takes over them, 200 a charge
-FITTINGS_STAGE = (("game:metalplate-iron", 3),)   # the fire door, the gutter and the pot, the damper; the test's ring
+FITTINGS_STAGE = (("game:metalplate-iron", 3),   # the fire door, the gutter and the pot, the damper; the test's ring
+                  ("game:metalplate-copper", 1))  # the blast stub and its flange
 CAP_ITEM = ("game:metalplate-iron", 1)
 STAGES = ("brickwork", "lining", "fittings", "test")   # the stages after the frame, in order: the test the wearing part
 STAGE_STATES = (                             # the viewer's Build select: (id, the stages fitted)
@@ -608,6 +618,8 @@ def brick_voids():
     v.append(([TUYERE[0] - TUYERE_R, TUYERE[1] - TUYERE_R, CH_Z[1]], [TUYERE[0] + TUYERE_R, TUYERE[1] + TUYERE_R, WINDBOX[2][0]]))
     (wx0, wx1), (wy0, wy1), (wz0, wz1) = WINDBOX
     v.append(([wx0, wy0, wz0], [wx1, wy1, wz1]))                                           # the wind box
+    (qx0, qx1), (qy0, qy1), (qz0, qz1) = POCKET
+    v.append(([qx0, qy0, qz0], [qx1, qy1, qz1]))                                           # its pocket
     v += flue_voids()
     (sx0, sx1), (sy0, sy1), (sz0, sz1) = CAP_SEAT
     v.append(([sx0, sy0, sz0], [sx1, sy1, sz1]))                                           # the cap's seat
@@ -779,9 +791,10 @@ def build_iron():
 
 
 def build_windbox():
-    """The wind box (`fr_windbox_*`): an iron box set in the back wall's face, its front plate (towards the chamber)
-    taking the tuyere's back end, its walls round it, and its face plate flush with the wall's face, with the blast
-    inlet's socket in it: a square opening the size of ppex's pipe at the middle of the blast face, a rim round it."""
+    """The wind box (`fr_windbox_*`): an iron box set in the back wall, its front plate (towards the chamber) taking
+    the tuyere's back end, its walls round it, and its face plate at the back of a pocket in the wall's face, with the
+    stub's bore through it (the stub, flanged to it, is a fitting); the pocket's sides lined with iron (`fr_pocket_*`)
+    from the plate to the wall's face, so no brick shows in it."""
     f, t = "frame", "iron"
     (x0, x1), (y0, y1), (z0, z1) = WINDBOX
     w, fp = WINDBOX_T, FACEPLATE_T
@@ -791,11 +804,56 @@ def build_windbox():
            box([x1 - w, y0, z0 + w], [x1, y1, zf], "fr_windbox_e", f, t),
            box([x0 + w, y0, z0 + w], [x1 - w, y0 + w, zf], "fr_windbox_bottom", f, t),
            box([x0 + w, y1 - w, z0 + w], [x1 - w, y1, zf], "fr_windbox_top", f, t)]
-    (sx0, sx1), (sy0, sy1) = SOCKET
+    (sx0, sx1), (sy0, sy1) = bore()
     out += [box([x0, y0, zf], [sx0, y1, z1], "fr_windbox_face_w", f, t),
             box([sx1, y0, zf], [x1, y1, z1], "fr_windbox_face_e", f, t),
             box([sx0, y0, zf], [sx1, sy0, z1], "fr_windbox_face_s", f, t),
             box([sx0, sy1, zf], [sx1, y1, z1], "fr_windbox_face_n", f, t)]
+    (qx0, qx1), (qy0, qy1), (qz0, qz1) = POCKET
+    st = SLEEVE_T
+    out += [box([qx0, qy0, qz0], [qx0 + st, qy1, qz1], "fr_pocket_w", f, t),
+            box([qx1 - st, qy0, qz0], [qx1, qy1, qz1], "fr_pocket_e", f, t),
+            box([qx0 + st, qy0, qz0], [qx1 - st, qy0 + st, qz1], "fr_pocket_s", f, t),
+            box([qx0 + st, qy1 - st, qz0], [qx1 - st, qy1, qz1], "fr_pocket_n", f, t)]
+    return out
+
+
+def bore():
+    """The stub's bore (x, y): ppex's pipe's 4 x 4, in the middle of the socket."""
+    (sx0, sx1), (sy0, sy1) = SOCKET
+    return (sx0 + PIPE_WALL, sx1 - PIPE_WALL), (sy0 + PIPE_WALL, sy1 - PIPE_WALL)
+
+
+def square_ring(lo, hi, inner, z0, z1, name, part, tex):
+    """Four boxes round a square hole: the outside lo..hi (x, y), the hole inner = ((x0, x1), (y0, y1)), z0..z1; the
+    two across y full width, as solderedpipe's walls."""
+    (ix0, ix1), (iy0, iy1) = inner
+    return [box([lo[0], lo[1], z0], [hi[0], iy0, z1], f"{name}_s", part, tex),
+            box([lo[0], iy1, z0], [hi[0], hi[1], z1], f"{name}_n", part, tex),
+            box([lo[0], iy0, z0], [ix0, iy1, z1], f"{name}_w", part, tex),
+            box([ix1, iy0, z0], [hi[0], iy1, z1], f"{name}_e", part, tex)]
+
+
+def build_stub():
+    """The blast stub (`ft_stub*`, a fitting): a short length of ppex's pipe in copper, flanged to the wind box's
+    recessed face plate (`ft_stubflange`, four iron bolt heads at its corners), its mouth at the blast cell's face with
+    half a soldered joint round it (`ft_stubjoint`, JOINT_SWELL proud, JOINT_LENGTH long, ending at the face), as
+    UnifiedPipes draws a copper or lead pipe's end, so the pipe laid in the cell behind meets it as at any joint."""
+    p = "fittings"
+    (sx0, sx1), (sy0, sy1) = SOCKET
+    cx, cy = (sx0 + sx1) / 2, (sy0 + sy1) / 2
+    zp = POCKET[2][0]                        # the face plate's face
+    fa, ft = FLANGE
+    zt = zp + ft
+    out = square_ring([cx - fa, cy - fa], [cx + fa, cy + fa], bore(), zp, zt, "ft_stubflange", p, "copper")
+    out += square_ring([sx0, sy0], [sx1, sy1], bore(), zt, BODY_D, "ft_stub", p, "copper")
+    sw = JOINT_SWELL
+    out += square_ring([sx0 - sw, sy0 - sw], [sx1 + sw, sy1 + sw], ((sx0, sx1), (sy0, sy1)), BODY_D - JOINT_LENGTH, BODY_D,
+                       "ft_stubjoint", p, "solder")
+    for k, (bx, by) in enumerate(((-1, -1), (1, -1), (-1, 1), (1, 1))):
+        x = cx + bx * (fa - 0.05 - BOLT / 2)
+        y = cy + by * (fa - 0.05 - BOLT / 2)
+        out.append(box([x - BOLT / 2, y - BOLT / 2, zt], [x + BOLT / 2, y + BOLT / 2, zt + BOLT], f"ft_stubbolt{k + 1}", p, "iron"))
     return out
 
 
@@ -908,7 +966,7 @@ def build_fittings():
     cx, cz = POT_C
     out += oct_disc(cx, cz, POT_Y[0], POT_FLOOR, POT_A, "ft_pot_floor", p, "iron")
     out += oct_tube(cx, cz, POT_FLOOR, POT_Y[1], POT_A, POT_WALL, "ft_pot_wall", p, "iron")
-    return out
+    return out + build_stub()
 
 
 def build_damper(place):
@@ -1175,7 +1233,8 @@ def build_json():
                     "part. Each stage then fits its requires when its materials are all in: brickwork, lining (their "
                     "volumeBlocks measured from the model; 2 fired bricks or 4 refractory bricks a block, rounded up, "
                     "fire clay one per 2.5 refractory bricks; oneType: the first fired brick sets the furnace's type, "
-                    "bricks), fittings (the fire door, the gutter, the litharge pot and the test's iron ring; also: "
+                    "bricks), fittings (the fire door, the gutter, the litharge pot, the test's iron ring and the copper "
+                    "blast stub; also: "
                     "the damper's places, one fitted), then test, the wearing part, as the cylinder borer's cutter "
                     "head: the bone ash beaten into the ring, measured from the model at the bone-ash cupel's rate, 4 "
                     "bone meal for 41 cubic voxels. wearing: the test is spent after charges charges (about lead units "

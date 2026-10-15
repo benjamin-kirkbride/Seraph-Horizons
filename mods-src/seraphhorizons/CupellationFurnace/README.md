@@ -132,10 +132,15 @@ it may settle them otherwise.
 
 **This furnace's inlet** matches that: a pipe connection at a face of the furnace, the **blast cell's south face**
 (`blastCell` `[0,1,1]`, `blastFace` `south`: the back wall's face of the middle top cell). The model has its own
-geometry for the inlet only: an iron **wind box** set flush in the back wall's face, its face plate holding the
-**socket**, a square opening 6 × 6 at the face's middle (ppex's pipe is a square tube 6 across, its block's 5..11), so
-the pipe the player lays in the cell beyond butts onto it; the box's front, inside the wall, takes the tuyere's back
-end. No element of smex's or ppex's models is used. Gameplay (#740) makes that face a pipe connector of exlib's `"pipe"`
+geometry for the inlet only: an iron **wind box** set in the back wall, its face plate set back 2.5 in a **pocket** in
+the wall's face (9 square, its four sides lined with iron flush with the face, so neither brick nor lining shows in
+it), and the **socket**, a short **pipe stub** flanged to the plate and standing in the pocket: ppex's pipe section
+(a square tube 6 across, its block's 5..11, 1-voxel walls round a 4 × 4 bore), in copper, its mouth at the blast face
+with half a soldered joint round it, exactly as UnifiedPipes draws a copper or lead pipe's end
+(`Pipes/tools/solderedpipe.py`: a bead of the game's lead solder 0.75 long and 0.2 proud). So the pipe the player lays
+in the cell behind meets the stub as one ppex pipe meets the next, and nothing stands proud of the wall. The flange
+is copper too, with four iron bolt heads; the stub is a fitting (the frame's plate is iron only). The box's front,
+inside the wall (in front of the lining behind the chamber), takes the tuyere's back end. No element of smex's or ppex's models is used. Gameplay (#740) makes that face a pipe connector of exlib's `"pipe"`
 network and takes `Air` from the network there, as smex's blast furnace does at its tuyeres (the rig's
 `furnace.blastGas`).
 
@@ -162,14 +167,14 @@ were.
 
 | | Stage | `requires` | What it puts in | Materials | Gear |
 |---|---|---|---|---|---|
-| Frame | **Iron frame**: grid recipe, hammer | none | The binding (5 angle uprights, the angle band round the top), the grate's bearers and firebars, the ash mouth's lintel, the damper's guides, the fire door's frame, the bay's and the working door's jambs and lintels and the niche's lintel, the tuyere with its wind box and the blast socket; 6 short posts hidden in the brickwork | 3 iron plates, 4 iron rods, 12 iron nails and strips | 49.46 |
+| Frame | **Iron frame**: grid recipe, hammer | none | The binding (5 angle uprights, the angle band round the top), the grate's bearers and firebars, the ash mouth's lintel, the damper's guides, the fire door's frame, the bay's and the working door's jambs and lintels and the niche's lintel, the tuyere with its wind box (its face plate set back in an iron-lined pocket); 6 short posts hidden in the brickwork | 3 iron plates, 4 iron rods, 12 iron nails and strips | 49.46 |
 | 1 | **Brickwork** | `brickwork` | The base, the walls, the stack column: 8.26 blocks | **17 fired bricks**, any one type | 5.78 (brown 2.98) |
 | 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on every hot face (the chamber's walls, floor and vault, the bridge, the fireplace from its bearers up, the flue opening, the back flue and the stack) and the outlet's curb: 2.96 blocks | **12 tier-3 refractory bricks, 5 fire clay** | 10.11 |
-| 3 | **Fittings** | `fittings` (and the damper's place) | The fire door, the gutter, the litharge pot, the test's iron ring (standing empty on the hearth); the damper | 3 iron plates | 23.14 |
+| 3 | **Fittings** | `fittings` (and the damper's place) | The fire door, the gutter, the litharge pot, the test's iron ring (standing empty on the hearth), the blast stub (copper, flanged and soldered); the damper | 3 iron plates, 1 copper plate | 27.76 |
 | 4 | **The test** (wearing part) | `test` | The bone ash beaten into the ring: 487 cubic voxels | 48 bone meal (at the cupel's 4 for 41 cubic voxels); renewed every 15 charges for the same | 2.50 |
 | | *Outlet cap* | `outletcap` | Not a stage: by hand, any time after the lining | 1 iron plate | 7.71 |
 
-A furnace costs **90.98** in gear (88.18 in brown brick), the blower, the engine and the pipes aside. Values from
+A furnace costs **95.60** in gear (92.80 in brown brick), the blower, the engine and the pipes aside. Values from
 `assets/seraphhorizons/config/item-values.json`. The damper is drawn once the fittings are in; the test's contents,
 the fire and the litharge once the test is; the cap once the lining (its curb) is.
 
@@ -198,8 +203,8 @@ the game's. `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/cupellationfurnace.json` | The whole furnace, every part (527 elements) |
-| `assets/seraphhorizons/shapes/block/cupellationfurnace_frame.json` | The iron frame only (87 elements): what the placed frame draws |
+| `assets/seraphhorizons/shapes/block/cupellationfurnace.json` | The whole furnace, every part (551 elements) |
+| `assets/seraphhorizons/shapes/block/cupellationfurnace_frame.json` | The iron frame only (91 elements): what the placed frame draws |
 | `assets/seraphhorizons/config/cupellationfurnace-rig.json` | Cells, anchors, the build and the brick types, and the part rig (15 parts, no drivers) |
 
 | Code | Texture | On |
@@ -213,6 +218,8 @@ the game's. `tools/make_shape.py` writes:
 | `litharge` | `game:item/resource/crushed/limonite` (the litharge item's base) | The running litharge (glow 160) and the litharge in the pot |
 | `coal` | `game:block/coal/bituminous` | The coal on the grate |
 | `ember` | `game:block/coal/ember` | The same coal burning, and the cinders; glow 200 |
+| `copper` | `game:block/metal/sheet-plain/copper4` (UnifiedPipes' copper pipe's) | The blast stub and its flange |
+| `solder` | `game:block/metal/ingot/leadsolder` (UnifiedPipes' joints') | The half joint round the stub's mouth |
 
 ### Regenerating
 
@@ -257,9 +264,12 @@ if a check fails (`tools/validate_cupellationfurnace.py`):
   its mouth just behind the ring, between the rim and the springing.
 - **The litharge's way:** the gutter falls from the gate's floor at the breast's face, bedded in its groove; the stream
   falls from its end inside the pot's walls onto the litharge, its fall clear of the furnace.
-- **The blast's way** *(review)*: the socket's 6 × 6 opening at the middle of the blast face, clear, its rim the wind
-  box's face plate flush with the back wall; the blast face the back wall's, looking onto a cell that is not the
-  furnace's; the wind box closed; the tuyere from its front through the wall into the chamber.
+- **The blast's way** *(review)*: a stub of ppex's pipe (6 across, a 4 × 4 bore) at the middle of the blast face, its
+  mouth at the face with half a soldered joint (as UnifiedPipes' pipe ends), nothing proud of the face; flanged to the
+  wind box's face plate, bedded on it, the plate set back at the pocket's back under all of it; the pocket's four sides
+  iron from the plate to the face, no brick or lining in the pocket and no lining behind the box; the bore clear from
+  the mouth into the box; the blast face the back wall's, looking onto a cell that is not the furnace's; the wind box
+  closed; the tuyere from its front through the wall into the chamber.
 - **Clearances:** in 14 scenes (every state of the test and the fire, every place of the damper with the cap on, each
   stage before the furnace is complete) no two parts overlap, but the gutter bedded in its groove.
 - **The damper** in its recess between its guides in all three places; shut over the mouth, half over its upper half,
@@ -347,6 +357,11 @@ binding, the ties, the damper, the outlet and its cap, the stages, the rig's `bu
    on the hearth, its rim level with the working door's sill. The blast's figures (10 L/s of `Air`, 1.5 atm) in the
    rig's `furnace`; fuel by hand (0.7 coal an hour), no fuel anchor. No geometry moved but the ring's two ends; no
    anchor changed. A new check (and model and site tests) holds the test to the wearing part.
+6. **A recessed stub** (owner's note): the wind box's face plate set back 2.5 in an iron-lined pocket in the back
+   wall's face, and a copper stub of ppex's pipe flanged to it, its mouth at the blast face with half a soldered joint
+   as UnifiedPipes' copper and lead pipe ends, so a ppex pipe in the cell behind meets it; nothing proud of the face.
+   The wind box is shallower (z 27 to 29.5, in front of the lining). The anchor is unchanged; the check of the blast's
+   way now holds the stub, its joint, its flange, the pocket's iron and the bore.
 
 ## Known weak spots, and what is not checked
 
@@ -359,7 +374,7 @@ The model has been reviewed in projections rendered from the written files. No o
 3. **Whole-cell boxes**; the decks make the top one floor.
 4. **The glow is fixed**: 200 on the fire and the lead, 255 on the cake, 160 on the running litharge.
 5. **The lead pool is drawn full** whatever is on the test; a stretch on the work could lower it (gameplay's call).
-6. **The socket is a shape**: that a ppex pipe connects to the blast face is gameplay's (#740), not the model's.
+6. **The stub is a shape**: that a ppex pipe connects to the blast face is gameplay's (#740), not the model's.
 
 ## Open for the owner
 
@@ -371,10 +386,8 @@ hearth with its rim level with the working door's sill. Still open:
    is wider than the working door, so the model keeps the ring on the hearth and renews only the bone ash. If the test
    is to be a whole item swapped as the cutter head is, the working door (and the bay) must widen to about 20, or the
    test go in from below, as the English test did.
-2. **The socket's look**: one square port 6 across in an iron face plate 11 by 13, flush with the back wall, on the
-   blast cell's south face. It reads as a single port in a plate, not as a pipe stub; the pipe butts onto it from the
-   cell behind, which is not the furnace's (the back face of the middle column is set 16 in from the stack column's).
-   A short flanged stub standing proud would leave the footprint, so the model keeps it flush.
+2. **The stub's metal**: copper, soldered, as the owner asked it to match UnifiedPipes' copper and lead joints. A
+   player may lay any ppex pipe to it (iron and steel are banded, not soldered); gameplay may tint it to the pipe met.
 3. **Power moves to the steam engine**: #740's and #940's figures for this furnace (resistance 0.2, 0.04 empty, on the
    works shaft) no longer apply: the furnace draws no mechanical power; the blast's cost is the steam engine's steam.
 4. **The footprint is 14 cells, an L** (the stack column behind the west end), shrunk from 18 with the engine gone.

@@ -51,6 +51,8 @@ GAME_TEXTURES = {
     "litharge": "game:item/resource/crushed/limonite",
     "coal": "game:block/coal/bituminous",
     "ember": "game:block/coal/ember",
+    "copper": "game:block/metal/sheet-plain/copper4",
+    "solder": "game:block/metal/ingot/leadsolder",
 }
 FLAT = flatten(SHAPE["elements"], textures={})
 DX = -16.0 * make_shape.ORIGIN_CELL[0]       # the shipped frame is the build frame moved a block west
@@ -133,11 +135,21 @@ class Furnace(unittest.TestCase):
         self.assertNotIn((0, 1, 2), cells)
         # one fixed connector drawing "Air" at 10 L/s, run at 1.5 atm or more (#740's ruling)
         self.assertEqual((RIG["furnace"]["blastGas"], RIG["furnace"]["blastRate"], RIG["furnace"]["blastPressure"]), ("Air", 10.0, 1.5))
-        # the socket: a 6 x 6 opening (ppex's pipe) at the middle of that face, the wind box's face plate round it, flush
+        # the socket: a stub of ppex's pipe (6 across, a 4 x 4 bore) at the middle of that face, its mouth at the face
+        # with half a soldered joint round it (UnifiedPipes' copper and lead joints), flanged to the wind box's face
+        # plate set back in an iron-lined pocket; nothing proud of the face
         face = {e.name: e.aabb() for e in FLAT if e.name.startswith("fr_windbox_face")}
-        self.assertAlmostEqual(max(b[1][2] for b in face.values()), 32.0)
-        self.assertEqual((round(face["fr_windbox_face_w"][1][0], 6), round(face["fr_windbox_face_e"][0][0], 6)), (DX + 21.0, DX + 27.0))
-        self.assertEqual((round(face["fr_windbox_face_s"][1][1], 6), round(face["fr_windbox_face_n"][0][1], 6)), (21.0, 27.0))
+        self.assertAlmostEqual(max(b[1][2] for b in face.values()), 29.5)
+        self.assertEqual((round(face["fr_windbox_face_w"][1][0], 6), round(face["fr_windbox_face_e"][0][0], 6)), (DX + 22.0, DX + 26.0))
+        self.assertEqual((round(face["fr_windbox_face_s"][1][1], 6), round(face["fr_windbox_face_n"][0][1], 6)), (22.0, 26.0))
+        stub = aabb_of([e for e in FLAT if e.name.startswith("ft_stub_")])
+        self.assertEqual([round(v, 6) for v in (*stub[0], *stub[1])], [DX + 21.0, 21.0, 30.0, DX + 27.0, 27.0, 32.0])
+        joint = aabb_of([e for e in FLAT if e.name.startswith("ft_stubjoint")])
+        self.assertEqual([round(v, 6) for v in (*joint[0], *joint[1])], [round(DX + 20.8, 6), 20.8, 31.25, round(DX + 27.2, 6), 27.2, 32.0])
+        pocket = [e for e in FLAT if e.name.startswith("fr_pocket_")]
+        self.assertEqual(len(pocket), 4)
+        self.assertAlmostEqual(max(e.aabb()[1][2] for e in pocket), 32.0)
+        self.assertLessEqual(max(e.aabb()[1][2] for e in FLAT), 48.0)
         # the outlet in the stack column, the chimney's cell over it not the furnace's; six from it up
         self.assertEqual((RIG["outletCell"], RIG["outletFace"]), ([-1, 1, 2], "up"))
         self.assertNotIn((-1, 2, 2), cells)
@@ -264,7 +276,7 @@ class Build(unittest.TestCase):
         self.assertEqual([m["code"] for m in st["test"]["materials"]], ["game:bonemeal"])
         self.assertLessEqual(abs(st["test"]["materials"][0]["quantity"] - bonemeal), 1)
         self.assertEqual(st["fittings"]["also"], ["damperopen", "damperhalf", "dampershut"])
-        self.assertEqual([(m["code"], m["quantity"]) for m in st["fittings"]["materials"]], [("game:metalplate-iron", 3)])
+        self.assertEqual([(m["code"], m["quantity"]) for m in st["fittings"]["materials"]], [("game:metalplate-iron", 3), ("game:metalplate-copper", 1)])
         self.assertEqual((build["outletCap"]["code"], build["outletCap"]["quantity"]), ("game:metalplate-iron", 1))
 
     def test_the_test_is_the_wearing_part(self):

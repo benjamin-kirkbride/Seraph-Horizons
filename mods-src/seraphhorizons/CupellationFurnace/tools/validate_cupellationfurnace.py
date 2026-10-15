@@ -153,6 +153,8 @@ ROLES = [
     (r"^ln_brick_", {"lining"}),
     (r"^fr_", {"iron"}),
     (r"^ts_(ash|rim|breast)", {"boneash"}),
+    (r"^ft_stub(flange)?_", {"copper"}),
+    (r"^ft_stubjoint_", {"solder"}),
     (r"^ft_", {"iron"}),
     (r"^coal_", {"coal"}),
     (r"^fire_", {"ember"}),
@@ -743,42 +745,92 @@ def check_litharge(v):
 
 
 def check_blast(v):
-    """The blast's way: the blast inlet's socket at the middle of the blast cell's face (a square opening as large as
-    ppex's pipe, its rim the wind box's face plate, flush with the back wall's face, the opening clear for a pipe to
-    meet), the wind box behind it in the back wall, closed on every side, taking the tuyere's back end, and the tuyere on
-    through the wall into the chamber. The blast face looks out of the furnace's cells, onto a cell that is not the
-    furnace's (where the pipe is laid), and is one of the back wall's."""
+    """The blast's way: the blast inlet at the middle of the blast cell's face, a short pipe stub of ppex's section (6
+    across, a 4 x 4 bore) standing in a pocket in the back wall's face, its mouth at the face (so a ppex pipe in the
+    cell behind meets it) with half a soldered joint round it as UnifiedPipes draws a copper or lead pipe's end, and
+    nothing proud of the face; the stub flanged to the wind box's face plate, set back at the pocket's back inside the
+    footprint; the pocket lined with iron on its four sides, so neither brick nor lining shows in it, and no lining
+    anywhere near it; the bore clear from the mouth into the box; the box behind closed on every side, taking the
+    tuyere's back end, and the tuyere on through the wall into the chamber. The blast face looks out of the furnace's
+    cells, onto a cell that is not the furnace's (where the pipe is laid), and is one of the back wall's."""
     m = v.m
-    frame = v.by_part["frame"]
+    frame, fit = v.by_part["frame"], v.by_part["fittings"]
     cell, face = m.BLAST_CELL, m.BLAST_FACE
     (sx0, sx1), (sy0, sy1) = m.SOCKET
+    (bx0, bx1), (by0, by1) = m.bore()
+    cx, cy = (sx0 + sx1) / 2, (sy0 + sy1) / 2
     mid = ((cell[0] + 0.5) * m.B, (cell[1] + 0.5) * m.B)
-    if face != "south" or abs((sx0 + sx1) / 2 - mid[0]) > 1e-9 or abs((sy0 + sy1) / 2 - mid[1]) > 1e-9:
-        v.fail("the socket is not at the middle of the blast face")
-    if abs((sx1 - sx0) - 6.0) > 1e-9 or abs((sy1 - sy0) - 6.0) > 1e-9:
-        v.fail("the socket's opening is not ppex's pipe's 6 x 6")
+    if face != "south" or abs(cx - mid[0]) > 1e-9 or abs(cy - mid[1]) > 1e-9:
+        v.fail("the stub is not at the middle of the blast face")
+    if abs((sx1 - sx0) - 6.0) > 1e-9 or abs((sy1 - sy0) - 6.0) > 1e-9 or abs((bx1 - bx0) - 4.0) > 1e-9:
+        v.fail("the stub is not ppex's pipe, 6 across round a 4 x 4 bore")
     zf = (cell[2] + 1) * m.B
     if abs(zf - m.BODY_D) > 1e-9 or (cell[0], cell[1], cell[2] + 1) in set(m.footprint()) or cell not in set(m.footprint()):
         v.fail("the blast face is not the back wall's, looking out of the furnace's cells")
-    box = [e for e in frame if e.name.startswith("fr_windbox")]
-    lo, hi = aabb_of(box)
-    if abs(hi[2] - zf) > 1e-6:
-        v.fail("the wind box's face plate is not flush with the back wall's face")
-    rim = [((sx0 + sx1) / 2, sy0 - 0.5, zf - 0.1), ((sx0 + sx1) / 2, sy1 + 0.5, zf - 0.1), (sx0 - 0.5, (sy0 + sy1) / 2, zf - 0.1),
-           (sx1 + 0.5, (sy0 + sy1) / 2, zf - 0.1)]
-    if not all(any(inside(e, p) for e in box) for p in rim):
-        v.fail("the socket has no rim round it")
-    opening = [(sx0 + 0.25 + 0.5 * i, sy0 + 0.25 + 0.5 * j, zf - 0.05 - 0.5 * k) for i in range(12) for j in range(12) for k in range(3)]
-    blocked = [p for p in opening if any(inside(e, p) for e in fixed(v))]
-    if blocked:
-        v.fail(f"the socket's opening is blocked at {blocked[:3]}")
-    # closed: points just outside the box's interior, on each side but the socket, are in its walls
+    tube = [e for e in fit if re.match(r"^ft_stub_", e.name)]
+    joint = [e for e in fit if e.name.startswith("ft_stubjoint")]
+    flange = [e for e in fit if e.name.startswith("ft_stubflange")]
+    if not (tube and joint and flange):
+        v.fail("the stub, its joint or its flange is missing")
+        return
+    tlo, thi = aabb_of(tube)
+    if [round(q, 6) for q in (tlo[0], thi[0], tlo[1], thi[1], thi[2])] != [sx0, sx1, sy0, sy1, zf]:
+        v.fail(f"the stub's mouth is not the socket at the blast face ({tlo}, {thi})")
+    jlo, jhi = aabb_of(joint)
+    sw = m.JOINT_SWELL
+    if (abs(jhi[2] - zf) > 1e-6 or abs(jhi[2] - jlo[2] - m.JOINT_LENGTH) > 1e-6
+            or abs(jlo[0] - (sx0 - sw)) > 1e-6 or abs(jhi[0] - (sx1 + sw)) > 1e-6):
+        v.fail("the stub's mouth has not half a soldered joint, as UnifiedPipes' pipe ends")
+    proud = [e.name for e in v.els if e.aabb()[1][2] > zf + 1e-6 and e.aabb()[0][0] < m.GAP[0][1] and e.aabb()[1][0] > m.GAP[0][0]
+             and e.aabb()[1][1] > 0 and e.aabb()[0][2] < zf + m.B]
+    if proud:
+        v.fail(f"something stands proud of the back wall's face: {proud[:4]}")
+    (qx0, qx1), (qy0, qy1), (qz0, qz1) = m.POCKET
+    plate = [e for e in frame if e.name.startswith("fr_windbox_face")]
+    plo, phi = aabb_of(plate)
+    if not (abs(phi[2] - qz0) < 1e-6 and qz0 < zf - 1.0 and plo[0] <= qx0 and phi[0] >= qx1 and plo[1] <= qy0 and phi[1] >= qy1):
+        v.fail("the face plate is not set back at the pocket's back, under all of it")
+    flo, fhi = aabb_of(flange)
+    behind = [(x, y, flo[2] - 0.05) for x in (flo[0] + 0.2, fhi[0] - 0.2, cx) for y in (flo[1] + 0.2, fhi[1] - 0.2)]
+    if abs(flo[2] - qz0) > 1e-6 or not all(any(inside(e, q) for e in plate) for q in behind):
+        v.fail("the stub's flange is not bedded on the face plate")
+    if abs(tlo[2] - fhi[2]) > 1e-6:
+        v.fail("the stub does not stand on its flange")
+    # the pocket's four sides iron from the plate to the face; nothing in the pocket but iron and the stub
+    st = m.SLEEVE_T
+    sides, z = 0, qz0 + 0.1
+    bare = []
+    while z < zf:
+        for t in (0.1, 0.5, 0.9):
+            for q in ((qx0 + st / 2, qy0 + (qy1 - qy0) * t, z), (qx1 - st / 2, qy0 + (qy1 - qy0) * t, z),
+                      (qx0 + (qx1 - qx0) * t, qy0 + st / 2, z), (qx0 + (qx1 - qx0) * t, qy1 - st / 2, z)):
+                sides += 1
+                if not any(inside(e, q) for e in frame if e.name.startswith("fr_pocket")):
+                    bare.append(q)
+        z += 0.25
+    if bare:
+        v.fail(f"the pocket's sides are bare at {bare[:3]}")
+    hot = [e.name for e in v.by_part["brickwork"] + v.by_part["lining"]
+           if all(min(e.aabb()[1][k], hi) - max(e.aabb()[0][k], lo) > 1e-6
+                  for k, (lo, hi) in enumerate(((qx0, qx1), (qy0, qy1), (qz0, zf))))]
     (wx0, wx1), (wy0, wy1), (wz0, wz1) = m.WINDBOX
+    lining = [e.name for e in v.by_part["lining"] if e.aabb()[1][2] > wz0 + 1e-6 and e.aabb()[0][0] < wx1 and e.aabb()[1][0] > wx0
+              and e.aabb()[0][1] < wy1 and e.aabb()[1][1] > wy0]
+    if hot or lining:
+        v.fail(f"brick or lining in the pocket, or lining behind the wind box: {(hot + lining)[:4]}")
+    # the bore clear from the mouth, through the flange and the plate, into the box
+    bore_pts = [(bx0 + 0.25 + 0.5 * i, by0 + 0.25 + 0.5 * j, zf - 0.05 - 0.25 * k) for i in range(8) for j in range(8)
+                for k in range(int((zf - wz0 - m.WINDBOX_T - 0.5) / 0.25))]
+    blocked = [q for q in bore_pts if any(inside(e, q) for e in fixed(v))]
+    if blocked:
+        v.fail(f"the stub's bore is blocked at {blocked[:3]}")
+    box = [e for e in frame if e.name.startswith("fr_windbox")]
+    # closed: points just outside the box's interior, on each side but the plate, are in its walls
     t = m.WINDBOX_T
     walls = [((wx0 + wx1) / 2, (wy0 + wy1) / 2, wz0 + t / 2), (wx0 + t / 2, (wy0 + wy1) / 2, (wz0 + wz1) / 2),
              (wx1 - t / 2, (wy0 + wy1) / 2, (wz0 + wz1) / 2), ((wx0 + wx1) / 2, wy0 + t / 2, (wz0 + wz1) / 2),
              ((wx0 + wx1) / 2, wy1 - t / 2, (wz0 + wz1) / 2)]
-    if not all(any(inside(e, p) for e in box) for p in walls):
+    if not all(any(inside(e, q) for e in box) for q in walls):
         v.fail("the wind box is not closed")
     tuyere = aabb_of([e for e in frame if e.name.startswith("fr_tuyere")])
     tx, ty = m.TUYERE
@@ -787,9 +839,11 @@ def check_blast(v):
         v.fail("the tuyere does not run into the wind box's front")
     if tuyere[0][2] > m.CH_Z[1]:
         v.fail("the tuyere does not reach into the chamber")
-    print(f"blast: the socket's 6 x 6 opening at the middle of the blast face ({face}, the back wall's, onto a cell that "
-          f"is not the furnace's), clear, its rim the wind box's face plate flush with the wall; the box closed, the "
-          f"tuyere from its front through the wall to z {tuyere[0][2]:.1f} in the chamber")
+    print(f"blast: a stub of ppex's pipe (6 across, a 4 x 4 bore) at the middle of the blast face ({face}, the back "
+          f"wall's, onto a cell that is not the furnace's), its mouth at the face with half a soldered joint, nothing "
+          f"proud; flanged to the face plate set back {zf - qz0:.1f} in a pocket lined with iron ({sides} points), no "
+          f"brick or lining in it; the bore clear into the box ({len(bore_pts)} points); the box closed, the tuyere from "
+          f"its front through the wall to z {tuyere[0][2]:.1f} in the chamber")
 
 
 # ---------------------------------------------------------------- clearances

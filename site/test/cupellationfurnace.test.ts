@@ -63,7 +63,7 @@ describe("the cupellation furnace's rig", () => {
     expect([...codes.lining!]).toEqual(["lining"]);
     expect([...codes.frame!]).toEqual(["iron"]);
     expect([...codes.test!]).toEqual(["boneash"]);
-    expect([...codes.fittings!]).toEqual(["iron"]);
+    expect(new Set(codes.fittings)).toEqual(new Set(["iron", "copper", "solder"]));
     expect([...codes.coal!]).toEqual(["coal"]);
     expect([...codes.fire!]).toEqual(["ember"]);
     expect([...codes.lead!]).toEqual(["lead"]);
