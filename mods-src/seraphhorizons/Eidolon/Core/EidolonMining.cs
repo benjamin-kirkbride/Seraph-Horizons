@@ -81,6 +81,11 @@ public sealed class MineJobCells
     /// plan is swapped in (the live state built with it shares it).</summary>
     public HashSet<PathCell> BadStands { get; set; } = new();
 
+    /// <summary>The stands a member found no way to with another eidolon by them since the job's last strike,
+    /// and how many times each, by any member (README "Eidolon", working together, *When none may work*):
+    /// main thread only; one counted often enough is bad all the same.</summary>
+    public Dictionary<PathCell, int> BlockedStands { get; } = new();
+
     public int ToldOutOfReach { get; set; } = -1;
 
     /// <summary>Every cell a plan of the job left as its stair: one made again late (the world changed, a

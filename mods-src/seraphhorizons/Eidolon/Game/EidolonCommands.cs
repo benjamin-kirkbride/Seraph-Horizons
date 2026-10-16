@@ -225,6 +225,9 @@ public static class EidolonCommands
         s.AppendLine(CultureInfo.InvariantCulture, $"oil {(e.Oil?.Tank is { } tank ? $"{tank.Points:0.#}/{tank.Capacity:0.#}" : "none")}");
         s.AppendLine(CultureInfo.InvariantCulture, $"pose {e.Pose.State}, stop {e.Stop?.Code ?? "none"}, can work {e.CanWork}");
         s.Append(CultureInfo.InvariantCulture, $"order {e.Orders?.OrderCode ?? "none"}, walking {e.TaskAi?.PathTraverser?.Active}");
+        // mining: what it is doing, and why it last let go of a station (a job that has stopped getting anywhere)
+        if (e.Orders?.Current is MineOrder mine)
+            s.Append(CultureInfo.InvariantCulture, $"\nmining plan {mine.Job?.Shared.PlanVersion.ToString(CultureInfo.InvariantCulture) ?? "-"}: {mine.DebugState}");
         return s.ToString();
     }
 
