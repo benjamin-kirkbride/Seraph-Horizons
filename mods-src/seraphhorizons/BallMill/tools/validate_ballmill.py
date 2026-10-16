@@ -571,13 +571,20 @@ def check_wooden_girth(v):
     mortised = len(cogs) == m.GIRTH_T and m.COG_TAIL > 0 and m.COG_W > m.PINION_W
     tip = m.GIRTH_R + m.MODULE
     pin = {f["texture"].lstrip("#") for e in v.named("pinion", r"_gear_") for f in e.faces.values()}
+    # the wheel's face reads as oak (the owner, 2026-10-15): deep felloes over the flange, which stays behind them,
+    # and the flange's iron boss a thin ring under the cogs' tails
+    fel_in = min(math.hypot(*(c - d for c, d in zip(p[1:], (m.DRUM_Y, m.DRUM_Z))))
+                 for e in v.named("girth", r"_felloe") for p in e.corners())
+    face = (fel_out - fel_in >= 3.0 and m.FLANGE[1] < fel_out and m.FLANGE_HUB[0] < m.FELLOE_R - m.COG_TAIL
+            and m.FLANGE_HUB[0] - m.TRUNNION_R[1] <= 0.5)
     print(f"wooden girth wheel: oak {woody}, iron bolts and tyre only {iron}; an iron tyre of {len(band)} round the "
           f"felloes under the cogs' root {tyre}; felloes on the drum's flange {on_flange}, two courses "
           f"with broken joints {broken}, {len(bolts)} bolts through the flange {bolted}; {len(cogs)} cogs mortised through, "
           f"{m.COG_W:.2f} thick against the pinion's {m.PINION_W:.2f} {mortised}; tips at r {tip:.2f} inside the heads' "
-          f"{m.HEAD_R} {tip < m.HEAD_R}; the pinion {sorted(pin)}")
-    if not (woody and iron and tyre and on_flange and broken and bolted and mortised and tip < m.HEAD_R and pin == {"stainless"}):
-        v.fail("the girth wheel is not a wooden mortise wheel bolted to the drum's flange, or the pinion is not stainless")
+          f"{m.HEAD_R} {tip < m.HEAD_R}; its face oak (felloes r {fel_in:.2f}..{fel_out:.2f} over the flange's "
+          f"{m.FLANGE[1]}, the boss {m.FLANGE_HUB[0]} on the journal's {m.TRUNNION_R[1]}) {face}; the pinion {sorted(pin)}")
+    if not (woody and iron and tyre and on_flange and broken and bolted and mortised and tip < m.HEAD_R and face and pin == {"stainless"}):
+        v.fail("the girth wheel is not a wooden mortise wheel bolted to the drum's flange, its face oak, or the pinion is not stainless")
 
 
 # ---------------------------------------------------------------- supports

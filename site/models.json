@@ -629,7 +629,7 @@
         "requires": {
           "pinion": "Pinion and its shaft (the axle's drive)",
           "drum": "Drum: trunnion, heads, grinding plates and journal",
-          "girth": "Girth wheel (30 teeth)",
+          "girth": "Girth wheel (24 oak cogs)",
           "screens": "Screens: coarse (perforated plate) and fine (wire cloth)",
           "feedbox": "Feed box and its spout",
           "hopper": "Discharge hopper",

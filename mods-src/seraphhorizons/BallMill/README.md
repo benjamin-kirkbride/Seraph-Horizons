@@ -79,7 +79,9 @@ the centre distance the cells fix (the power face's centre to the drum's axis, 1
 **The girth wheel is wooden** (the owner's ruling), a period mortise wheel: two courses of six oak felloes,
 the second course turned half a felloe so their joints break, bolted with twelve iron bolts to a cast flange on
 the drum's journal, an iron tyre shrunk on round the felloes (under the cogs' roots, clear of the mesh),
-and 24 oak cogs mortised through felloes and tyre, their tails showing inside the rim. Wood
+and 24 oak cogs mortised through felloes and tyre, their tails showing inside the rim. The felloes run
+down over the flange, which stays behind them, to a thin boss on the journal, so the wheel's face is oak
+rather than iron (the owner, 2026-10-15: it read as iron). Wood
 needs a coarser pitch than iron, so the pair went from 10:30 to 8:24 (pitch 2.83 voxels against 2.27), and
 the cogs take 0.55 of the pitch (1.56 voxels thick) against the stainless pinion's 0.34 (0.96), the usual
 share when wood runs with metal. The wheel's tips (r 11.72) stay inside the heads' 11.8.
@@ -147,8 +149,8 @@ the drum, `machinegen.checks.with_lids`), so no one walking over the mill drops 
 | Pedestals and bearings | Cast iron: sole plates, columns, bearings closed round the trunnion and journal (r 4.8, walls 1.4), caps bolted down; the east bearing's end cover over the journal's end |
 | Drum | Axis y 20, z 16. West trunnion r 3.4..4.8, x 8.6..13.3; heads r 3.4..11.8, x 13.3..14.7 and 38.2..39.6; grinding plates r 8.2..9.0 (riveted); east journal r 4.8, x 39.5..46.9 |
 | Screens | Coarse r 9.5..9.9 (`perforated`, the game's mesh1), fine r 10.5..10.8 (`wirecloth`, mesh4), 12 bars r 10.8..11.4, a hoop r 10.8..11.6, x 14.7..38.2 |
-| Girth wheel | Oak: 24 cogs, module 0.901, pitch r 10.82, tips r 11.72, 1.56 thick, tails to r 6.5; felloes r 7.0..9.19 in two courses x 41.2..42.1 and 42.1..43.0, the iron tyre r 9.19..9.59 round them; 12 bolts at r 7.6, heads 1.0 across, 0.15 proud |
-| Drum's flange | Cast iron on the journal: r 4.6..8.2, x 40.6..41.2, its hub r 6.2 to x 43.1 |
+| Girth wheel | Oak: 24 cogs, module 0.901, pitch r 10.82, tips r 11.72, 1.56 thick, tails to r 5.3; felloes r 5.8..9.19 in two courses x 41.2..42.1 and 42.1..43.0, the iron tyre r 9.19..9.59 round them; 12 bolts at r 7.6, heads 1.0 across, 0.15 proud |
+| Drum's flange | Cast iron on the journal: r 4.6..8.2, x 40.6..41.2 (behind the felloes), its boss r 5.2 to x 43.1 |
 | Pinion | Stainless, 8 teeth 0.96 thick, pitch r 3.61, x 41.3..42.9, on a steel shaft (y 8, z 8) in two pillow blocks, collars outside them, the axle's cross from x 46.6 to the face |
 | Feed box | Sheet iron, x 0..8.2, y 20..30.4, z 3.2..21 on four legs; V floor 21 → 20.4; spout to x 11.4, falling to 19.4 |
 | Hopper | Sheet iron, end plates x 12.6..13.0 and 39.9..40.3, low walls z 6.6..7.0 and 25.0..25.4 (y 4.4..10), V sides up to y 14.6; floor wings 7.2 → 5.6, channel 5.6 → 5.0 |
@@ -206,7 +208,8 @@ A full run takes about 75 seconds. Output is deterministic (two runs into two fo
   under the cogs' root; the felloes' face on the drum's flange,
   overlapping it in radius; two courses with joints broken; the bolts on the felloes' face inside the flange's
   radius; the cogs mortised through (tails inside the felloes), thicker than the pinion's teeth; the tips inside
-  the heads' radius; the pinion stainless.
+  the heads' radius; the face oak (felloes at least 3 deep, the flange inside their outside, the iron boss no
+  more than 0.5 round the journal and under the cogs' tails); the pinion stainless.
 - **Gaps:** the screens over the hopper, the heads by its end plates, the girth wheel and the pinion by it,
   the drum's flange by both, the trunnion's mouth by the feed box, the spout in the bore, the girth wheel by the east bearing, the pinion
   by the east pedestal: each at least 0.2 apart over the cycle.
