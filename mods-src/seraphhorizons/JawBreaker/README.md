@@ -80,7 +80,7 @@ them (`stage`, `id`, `name`, `adds`: the `requires` values it fits, in click ord
 | Wear | Jaw faces | (in `jaws`) | The fixed plate and the swinging jaw's face: a wearing part, renewed whole (never turned round), not a stage | 2 steel plate |
 
 The materials are the owner's figures (one rate: 128 vox of iron or steel an ingot, a plate 2 ingots, counted rods,
-then whole plates, then nails and strips; timber in planks at 1,024 vox); the items' exact codes are gameplay's (#912).
+then whole plates, then nails and strips; boards in planks at 128 vox, timbers in support beams at 256); the items' exact codes are gameplay's (#912).
 Fitted out of order, the swinging jaw would rock with nothing driving it: gameplay should hold the shaft still until the
 machine is complete. The grizzly lies over the mouth, so it goes in after the linkage.
 
