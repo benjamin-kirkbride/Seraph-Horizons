@@ -8,8 +8,7 @@ into it in four stages.
 
 The frame is placed, then each stage is fitted in order (owner, 2026-10-15). The rig's `buildStages` lists what each
 stage adds. Materials are measured from the model (element volume per `requires` and texture) at the ore line's one
-rate: 128 vox of iron or steel an ingot, rods counted, then whole plates, then nails and strips at 4 an ingot; planks
-at 1,024 vox. "~" marks a guess or a choice of item.
+rate: 128 vox of iron or steel an ingot, rods counted, then whole plates, then nails and strips at 4 an ingot; boards in planks at 128 vox, timbers in support beams at 256. "~" marks a guess or a choice of item.
 
 | Stage | Fitted (`requires`) | What it is | Materials |
 |---|---|---|---|
