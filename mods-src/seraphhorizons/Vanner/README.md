@@ -73,7 +73,7 @@ tailings boxes with their spouts. The rest:
 **Build stages** (owner, 2026-10-15; `BUILD_STAGES`, the rig's `buildStages`). The frame is placed, with no
 `requires`; then each stage is one `requires` group, fitted in order, and the vanner runs once it is complete.
 The materials are the measured figures of the stages proposal ("Current figures": 128 voxels of iron or steel
-an ingot, rods first, then whole plates, then nails and strips at 4 an ingot; timber as planks at 1,024 voxels).
+an ingot, rods first, then whole plates, then nails and strips at 4 an ingot; boards in planks at 128 vox, timbers in support beams at 256).
 
 | # | Stage | `requires` | Materials |
 |---|---|---|---|
