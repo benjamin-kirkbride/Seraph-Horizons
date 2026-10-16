@@ -88,12 +88,40 @@ describe("the slitting mill's rig against its rig-reference.json", () => {
     const at = (W: number): Pose => ({ theta: 2 * Math.PI * W, depth: 0, lifting: 0, travel: 2 * Math.PI * W, work: W, size: 1, presence: 1, feed: 0, oil: 0 });
     const idx = (id: string) => parts.findIndex((q) => q.id === id);
     const z = (W: number, id: string) => partMatrices(parts, at(W), order, path)[idx(id)]![14]! * 16;
-    const slit = (rig as unknown as { slit: { push: number[]; pushBack: number[]; handOut: number } }).slit;
+    const slit = (rig as unknown as { slit: { catchUp: number[]; push: number[]; pushBack: number[]; handOut: number } }).slit;
     // the strips (both layers) go the strips' length on, all of it past the cut, while the knife is up
     for (const id of ["rodsl", "rodsu"]) expect(z(slit.push[1]!, id) - z(slit.push[0]!, id)).toBeCloseTo(4, 3);
+    // the bar stands until the catch-up, goes the plate's length in it, and the strips' length in the push
+    expect(z(slit.catchUp[0]!, "pusher")).toBeCloseTo(0, 6);
+    expect(z(slit.push[0]!, "pusher")).toBeCloseTo(8, 3);
+    expect(z(slit.push[1]!, "pusher")).toBeCloseTo(12, 3);
     // the push bar is back where it started by the hand-out
     expect(z(slit.pushBack[1]!, "pusher")).toBeCloseTo(0, 3);
     expect(z(slit.handOut, "pusher")).toBeCloseTo(z(0, "pusher"), 3);
+  });
+
+  it("drives the push bar by its rack from the push shaft, which turns only with the sector or the weight", () => {
+    const at = (W: number): Pose => ({ theta: 2 * Math.PI * W, depth: 0, lifting: 0, travel: 2 * Math.PI * W, work: W, size: 1, presence: 1, feed: 0, oil: 0 });
+    const idx = (id: string) => parts.findIndex((q) => q.id === id);
+    const m = (W: number, id: string) => partMatrices(parts, at(W), order, path)[idx(id)]!;
+    const turn = (W: number, id: string) => { const x = m(W, id); return Math.atan2(x[1 * 4 + 2]!, x[1 * 4 + 1]!); };
+    const wrap = (x: number) => ((((x + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
+    const pitch = 16 / (2 * Math.PI);      // the push pinion's pitch radius: 16 teeth on a rack of pitch 1
+    const slit = (rig as unknown as { slit: { catchUp: number[]; push: number[]; pushBack: number[] } }).slit;
+    for (let W = 3; W < 5; W += 0.01) {
+      const dq = wrap(turn(W + 0.01, "pushshaft") - turn(W, "pushshaft"));
+      const dz = (m(W + 0.01, "pusher")[14]! - m(W, "pusher")[14]!) * 16;
+      const dy = (m(W + 0.01, "pushweight")[13]! - m(W, "pushweight")[13]!) * 16;
+      // the bar goes the pinion's pitch radius times the shaft's turn, the weight the drum's radius times it
+      expect(dz).toBeCloseTo(pitch * dq, 4);
+      expect(dy).toBeCloseTo(0.8 * dq, 4);
+      // the shaft turns on only while the sector turns (in the catch-up and the push), and back only after the push
+      const ds = wrap(turn(W + 0.01, "pushsector") - turn(W, "pushsector"));
+      if (dq > 1e-9) expect(Math.abs(ds)).toBeGreaterThan(1e-6);
+      if (dq < -1e-9) expect(W).toBeGreaterThanOrEqual(slit.pushBack[0]! - 0.01);
+    }
+    // the sector turns with the top arbor
+    for (const W of [0.5, 3.5, 4.45]) expect(m(W, "pushsector")).toEqual(m(W, "rolltop"));
   });
 
   it("gives every element a part and every part an element", () => {

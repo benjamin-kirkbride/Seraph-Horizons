@@ -4,8 +4,9 @@ These hold what the generator wrote to its own rules, without running it: the sh
 rig maths and uses the `requires` vocabulary of the model, its reference poses are its own maths, the cells are
 rebuilt from the shipped shape, the work is knife strokes with the knife at the bottom at every whole stroke, the
 rolls step the plate a nail's length while the knife is up and stand while it is down, whichever way the axle turns,
-p easing at the start and the end turns nothing, the nails go down with the knife's edge and fall, the strips and
-nails are taken off at the hand-out, and the anchors are where the model puts them. Run with
+p easing at the start and the end turns nothing, the nails go down with the knife's edge and fall, the push bar goes
+with the push shaft's pinion, which turns on only while the push sector turns and back only after the push, the strips
+and nails are taken off at the hand-out, and the anchors are where the model puts them. Run with
 `python3 -m unittest discover -s tools/tests`.
 """
 
@@ -185,13 +186,28 @@ class Slitting(unittest.TestCase):
 
 
 class PushBar(unittest.TestCase):
-    def test_it_follows_the_plate_pushes_the_strips_out_and_is_back_at_the_end(self):
+    def test_the_sector_drives_it_out_and_the_weight_brings_it_back(self):
         slit = RIG["slit"]
         z = lambda W: matrix("pusher", **at(W))[2][3] * 16    # noqa: E731
         self.assertEqual(z(0.0), 0.0)
-        # a nail's length a step behind the plate
-        for m, s in enumerate(slit["steps"][:4]):
-            self.assertAlmostEqual(z(s + slit["stepWidth"] / 2), make_shape.L_NAIL * (m + 1), places=3)
+        # it stands while the first steps feed the plate, and goes the plate's length in the catch-up: to the nip, as the
+        # plate's tail goes in
+        self.assertAlmostEqual(z(slit["catchUp"][0]), 0.0, places=9)
+        self.assertAlmostEqual(make_shape.PUSH_REST + z(slit["catchUp"][1]), make_shape.Z_N, places=3)
+        self.assertAlmostEqual(z(slit["push"][0]), make_shape.PLATE_L, places=3)
+        # it goes with the push pinion, the weight with the drum; the shaft turns on only while the sector turns
+        q = lambda W: turn_x(matrix("pushshaft", **at(W)))    # noqa: E731
+        s = lambda W: turn_x(matrix("pushsector", **at(W)))    # noqa: E731
+        y = lambda W: matrix("pushweight", **at(W))[1][3] * 16    # noqa: E731
+        for i in range(200):
+            W = 3.0 + i * 0.01
+            dq = math.remainder(q(W + 0.01) - q(W), math.tau)
+            self.assertAlmostEqual(z(W + 0.01) - z(W), make_shape.R_PP * dq, places=4)
+            self.assertAlmostEqual(y(W + 0.01) - y(W), make_shape.R_DRUM * dq, places=4)
+            if dq > 1e-9:
+                self.assertGreater(abs(math.remainder(s(W + 0.01) - s(W), math.tau)), 1e-6)
+            if dq < -1e-9:
+                self.assertGreaterEqual(W, slit["pushBack"][0] - 0.01)
         # the strips' length more while the knife is up, the fingers' front then at the cut, never past it
         self.assertAlmostEqual(z(slit["push"][1]), make_shape.PLATE_L + make_shape.D_KNIFE, places=3)
         self.assertAlmostEqual(make_shape.PUSH_REST + z(slit["push"][1]), make_shape.Z_K, places=3)

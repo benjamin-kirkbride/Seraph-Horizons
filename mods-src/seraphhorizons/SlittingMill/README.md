@@ -13,9 +13,12 @@ its edge presses a nail's length of every rod down until it parts, and the **nai
 box**. The feed is **intermittent**: a **mutilated gear** on the crankshaft steps the **great wheel** on
 the top arbor while the knife is up, and the rolls and the plate stand while it is down. When the plate's
 tail leaves the slitters the rolls push the rods no further, so their last length, from the slitters to the
-knife, is left whole: the **strips**. The operator's **push bar**, which has followed the plate's tail along
-the feed table, pushes them out past the knife (its fingers run in the rods' own channels between the
-collars), and they fall into the nail box with the nails.
+knife, is left whole: the **strips**. The machine's **push bar** pushes them out past the knife (its fingers
+run in the rods' own channels between the collars), and they fall into the nail box with the nails. The bar
+is driven by the feed train: a **push sector** on the top arbor, two runs of teeth, turns the **push
+shaft** through two of the feed steps, and the shaft's pinion drives a **rack** on the bar, first up behind
+the plate's tail and then through the nip with the strips; the shaft's drum winds a **return weight** up as
+it goes, and once the sector's run has left the shaft's gear the weight runs the bar back to its stop.
 
 This pass is the model only: its generator, its validation and its rig (`tools/`), with the site's viewer
 entry. There is no block, recipe, gameplay or export record yet, and no build stages; the `requires` ids
@@ -67,7 +70,8 @@ game's plate item is 9 × 9). It is slit into eight rods 1 × 1; each rod gives 
 
 **Fitted parts** (the rig's `requires`; the frame carries everything with `requires` null: the oak sills,
 the housings with their brass chocks and screws, the pedestals, the entry's inner post and the outer
-standard, the feed table and its guides, the nail box, and the entry shaft):
+standard, the feed table and its guides, the nail box, the push shaft's post and bracket, the bar's stop,
+the rack's hold-down, and the entry shaft):
 
 | `requires` | Draws |
 |---|---|
@@ -75,7 +79,7 @@ standard, the feed table and its guides, the nail box, and the entry shaft):
 | `pinions` | The two equal spur gears (16 teeth, module 0.375) on the arbors' west necks |
 | `drive` | The rectifier (the entry's two pinions, the two loose wheels with their catches, the idler), the rectified shaft and its gear, the clutch gear with the cup, the cone and its fork, the crankshaft with its mutilated gear, the great wheel |
 | `shear` | The crank disc and its pin, the knife (blade, crosshead, ram and yoke) and the bed knife |
-| `pusher` | The push bar: its head between the table's guides, eight fingers (one a rod, at its layer), a handle back to the table's north end |
+| `pusher` | The push bar (its head between the table's guides, eight fingers, one a rod at its layer, an upright and the rack over the stand) and its drive: the push sector on the top arbor, the push shaft with its gear, pinion and drum, the return weight and its chain |
 | `plate` | The work: the plate, its rods (the strips) and its nails, all wearing the texture code `metal` |
 
 ## Model
@@ -88,9 +92,9 @@ sets `die`). `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/slittingmill.json` | The whole machine, every moving part and the work (635 elements). |
-| `assets/seraphhorizons/shapes/block/slittingmill_frame.json` | The static frame only (65 elements). |
-| `assets/seraphhorizons/config/slittingmill-rig.json` | Footprint, anchors, the work, the slitting's figures (`slit`) and the part rig (27 parts). |
+| `assets/seraphhorizons/shapes/block/slittingmill.json` | The whole machine, every moving part and the work (738 elements). |
+| `assets/seraphhorizons/shapes/block/slittingmill_frame.json` | The static frame only (72 elements). |
+| `assets/seraphhorizons/config/slittingmill-rig.json` | Footprint, anchors, the work, the slitting's figures (`slit`) and the part rig (31 parts). |
 | `tests/SlittingMill/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
 
 ### How the machine works
@@ -120,6 +124,9 @@ arbor's spacer. The plate is fed at the pass line, y 9.5..10.5.
 | Cup → cone (smooth faces; thrown in by its fork while a plate is on), feathered on the crankshaft | | the crankshaft one turn a stroke, +2πW |
 | Crankshaft's mutilated gear (3 teeth on a 26-tooth pitch, module 0.3) → great wheel (50) on the top arbor | 5 teeth a step | the top arbor −36° a step, standing between |
 | Top pinion → bottom pinion, module 0.375 | 16 : 16 | the bottom arbor +36° a step |
+| Push sector on the top arbor (two runs of five teeth on a 40-tooth pitch, module 0.3) → push gear on the push shaft | 40 : 8 while a run is round | the push shaft +180° in step 3, +90° in the first half of step 4 |
+| Push pinion on the push shaft (module 1/π) → the bar's rack (pitch 1) | 16 teeth | the bar 8 south in step 3, 4 more in step 4 |
+| Push shaft's drum (radius 0.8) → the return weight's chain | | the weight up 3.77; down again, turning the shaft back, once the run has let go |
 
 At the drawn pace, one axle turn a stroke (`slit.turnsPerStroke`), the cone and the cup turn together; the
 cone's smooth faces are where the axle's half meets the half the work drives, so a gameplay pace other than the
@@ -128,8 +135,8 @@ at every whole stroke. A step turns the cutters' rims (radius 3.18) a nail's len
 turn the arbors half a turn, which every pattern on them, on the pinions and on the wheel repeats in, so the next
 plate's W starting again at 0 moves nothing. Toothed wheels and what they mesh (nothing toothed meshes nothing):
 A1 ↔ W1; A2 ↔ idler ↔ W2; the rectified shaft's gear ↔ the clutch gear; the mutilated gear ↔ the great wheel
-(while its sector is round); the two pinions. The collars, the cup and the cone, the crank disc and the hubs are
-plain.
+(while its sector is round); the two pinions; the push sector ↔ the push gear (while a run is round); the push
+pinion ↔ the bar's rack. The collars, the cup and the cone, the crank disc, the drum and the hubs are plain.
 
 **The mutilated gear.** Three box teeth on the pitch of a 26-tooth gear, on a plain disc cut back below the great
 wheel's teeth. A tooth is inside the wheel's teeth for about 1.8 pitches either side of the line of centres, so
@@ -144,6 +151,30 @@ slots in the housings' back posts; a ram joins the crosshead to the yoke. The bl
 knife's back face (z 24, the cut). The cut is a shear: the bed knife holds the rod, the blade's edge comes down on
 the length past it and presses it down with it, and the length parts when the edge has gone through it.
 
+**The push bar and its drive.** The bar is a head that slides on the feed table between its guides, eight fingers
+forward from it (each the section of the rod it pushes, a hair smaller, at that rod's layer: the lower ones run in
+grooves in the table, all of them through the slitters' channels), and an upright from the head, beside the
+pinion, to the **rack**, a bar along the feed (x 12.4..14.3, y 19.8..20.5) whose teeth hang down onto the **push
+pinion**. At rest its head lies against an iron stop on the table and its fingers' front against the plate's tail
+as laid (z 12). The **push shaft** (y 16.82, z 13.9) runs over the table's north half from its post at the west
+end, through a bracket on the west housing's front post, to the pinion under the rack; the rack runs under a hold-
+down on an arm from the west cap, beside the pinion, and over the top roll and the knife's crosshead. The shaft's
+**push gear** (8 teeth) at the west end meets the **push sector** on the top arbor's west neck: a plate wheel cut
+back clear of the gear's teeth, with two runs of five teeth on the pitch of a 40, half a turn apart (the arbors
+turn half a turn a job, so the next plate meets the other run). The sector steps with the top arbor; a run is
+round for the fourth feed step (3.40..3.60) and the first half of the fifth (4.40..4.50), and turns the gear five
+times its own turn: half a turn, then a quarter. The pinion's pitch radius is 2.55, so the bar goes 8 south in the
+fourth step, catching up with the plate's tail (which goes 2) and meeting it at the nip as the step ends, stands
+with it while the knife comes down for the second nails, and goes 4 more in the fifth step's first half with the
+strips before it, their tails then at the cut. Out of the run, the rest of the sector is a plain plate clear of
+the gear's teeth, and the gear stands. The shaft's **drum** (radius 0.8) at its west end winds the **return
+weight**'s chain up as the shaft turns (the weight rises 3.77). Once the run's last tooth has left the gear (just
+after the push, 0.1 clear by 4.51) nothing holds the shaft: the weight runs it back (4.54..4.80, the arbor
+finishing its step meanwhile with the sector's teeth at least 0.48 clear of the gear's), the pinion running the
+bar back with it, until the bar's head is against its stop again. The rack is in mesh with the pinion all the way,
+and every motion of the bar has its cause: the sector through the gear going, the weight through the drum coming
+back.
+
 **The cut and the feed** (W in knife strokes; the knife at the bottom at whole strokes, up at half strokes):
 
 | W | What happens |
@@ -155,11 +186,12 @@ the length past it and presses it down with it, and the length parts when the ed
 | 2.70..2.78 | The knife's edge comes down on the upper layer's nails, presses each down its thickness: through at 2.7783, and they fall. |
 | 2.81..2.91 | The same for the lower layer: through at 2.9148, and they fall into the box. |
 | 3 | The knife at the bottom. |
-| 3.4..3.6 | Step 3: the second nails come through; the plate's tail leaves the nip. |
-| 3.70..3.91 | The second nails are pressed through and fall, the upper layer then the lower. |
-| 4.33..4.67 | The knife up: the push bar pushes the strips out their length, all of each wholly past the cut (step 4 turns the rolls with them). |
-| 4.67..4.89 | Past the bed knife, the strips fall into the box, onto the second nails and the box's shelf, ahead of the knife coming down. |
-| 4.69..4.95 | The push bar is drawn back through the slitters' channels and along the table's grooves to where it started. |
+| 3.4..3.6 | Step 3: the second nails come through; the plate's tail goes into the nip. A run of the push sector is round: the push bar is driven 8 south behind the plate's tail and meets it at the nip as the step ends. |
+| 3.70..3.91 | The second nails are pressed through and fall, the upper layer then the lower; the bar stands at the nip. |
+| 4.40..4.50 | Step 4's first half, the knife up: the sector drives the bar 4 on, pushing the strips out their length, all of each wholly past the cut. |
+| 4.50..4.54 | The run's last tooth leaves the push gear (0.1 clear of it by 4.51), the arbors still finishing step 4; the bar stands at the cut. |
+| 4.50..4.72 | Past the bed knife, the strips fall into the box, onto the second nails and the box's shelf, ahead of the knife coming down. |
+| 4.54..4.80 | The return weight runs the push shaft back, and the bar back through the slitters' channels and along the table's grooves to its stop. |
 | 4.96..5 | The nails and the strips are taken off the box (the hand-out, the job's end: a whole stroke, the knife down). |
 
 While the blade's edge is anywhere below the upper layer's top (from 0.30 of a stroke before a whole stroke to
@@ -177,17 +209,21 @@ Every moving part:
 | Rectified shaft and its gear (`rectshaft`) [drive] | Whichever catch bites | The clutch gear | `rotate` x −1 (ψ) |
 | Clutch gear and cup (`clutchgear`) [drive], loose on the crankshaft | The rectified shaft's gear | The cone, while it is in | `rotate` x 1 (ψ) |
 | Cone (`cone`) [drive], feathered on the crankshaft | The cup (friction); its fork | The crankshaft | `gauge` slide x −0.5 (`present`); `rotate` x 2π (W) |
-| Fork, shifter rod and knob (`clutchfork`) [drive] | The operator: in as a plate goes on, out after the hand-out | The cone | `gauge` slide x −0.5 (`present`) |
+| Fork, shifter rod and knob (`clutchfork`) [drive] | The game: in as a plate goes on, out after the hand-out (with the plate's placing, the only cause from outside the machine) | The cone | `gauge` slide x −0.5 (`present`) |
 | Crankshaft and mutilated gear (`crankshaft`) [drive] | The cone | The great wheel (in its sector); the crank | `rotate` x 2π (W) |
 | Crank disc and pin (`crank`) [shear] | Keyed on the crankshaft | The yoke | `rotate` x 2π (W) |
 | Knife: blade, crosshead, ram, yoke (`knife`) [shear] | The crank pin in the yoke's slot | The nails (the cut) | `slide` y, amplitude 2, ratio 2π, phase −π/2 (W) |
 | Bed knife (`bedknife`) [shear] | Fixed | — | none |
 | Great wheel (`wheel`) [drive] | The mutilated gear | The top arbor (keyed) | the step: `rotate` x −π/5 a stroke (W), `gauge` rotate +π/5 W (scaled by p), and a `gauge` rotate −π/5 in each step's window |
-| Top arbor (`rolltop`) [rolls], top pinion (`piniontop`) [pinions] | The great wheel | The bottom pinion; the plate | as the great wheel, about the top arbor |
+| Top arbor (`rolltop`) [rolls], top pinion (`piniontop`) [pinions] | The great wheel | The bottom pinion; the plate; the push sector | as the great wheel, about the top arbor |
 | Bottom pinion (`pinionbottom`) [pinions], bottom arbor (`rollbottom`) [rolls] | The top pinion | The plate | the same, the other way, about the bottom arbor |
 | Plate (`plate`) [plate] | The slitters | — | stretching `gauge` z about the nip, a quarter of it in each of steps 0..3 |
-| Rods, the strips (`rodsl`, `rodsu`: the lower and the upper layer) [plate] | The slitters; then the push bar | — | stretching `gauge` z from the nip, 0.01 → 4 long, half in each of steps 0 and 1; `gauge` slide z +4 over the push; `gauge` slide y into the box over the fall; another stretch to 0 over 4.96..5 |
-| Push bar: head, fingers, handle (`pusher`) [pusher] | The operator, by its handle | The plate's tail, then the strips' | four `gauge` slides z, 2 in each of steps 0..3; `gauge` slide z +4 over the push; `gauge` slide z −12 over 4.69..4.95 (a job's net motion nothing) |
+| Rods, the strips (`rodsl`, `rodsu`: the lower and the upper layer) [plate] | The slitters; then the push bar's fingers; they fall once past the bed knife | — | stretching `gauge` z from the nip, 0.01 → 4 long, half in each of steps 0 and 1; `gauge` slide z +4 over the push; `gauge` slide y into the box over the fall; another stretch to 0 over 4.96..5 |
+| Push sector (`pushsector`) [pusher] | Keyed on the top arbor | The push gear, while a run is round | as the top arbor |
+| Push shaft: gear, pinion, drum (`pushshaft`) [pusher] | The push sector, going; the return weight, coming back | The bar's rack; the weight's chain | `gauge` rotate x +π over step 3, +π/2 over 4.40..4.50, −3π/2 over 4.54..4.80 (a job's net turn nothing) |
+| Push bar: head, fingers, upright, rack (`pusher`) [pusher] | The push pinion, through its rack | The strips' tails | `gauge` slide z +8 over step 3, +4 over 4.40..4.50, −12 over 4.54..4.80: the pinion's pitch radius times its turn |
+| Return weight (`pushweight`) [pusher] | The drum, through its chain, going up; its own weight coming down | The push shaft, through the chain and drum, coming back | `gauge` slides y: the drum's radius times its turn |
+| Its chain (`pushchain`) [pusher] | The drum, winding it on and off | — | stretching `gauge` y from the drum's side, its windows adding up to the drum's turn |
 | Nails (`nail1l`, `nail1u`, `nail2l`, `nail2u`: nail 1 or 2, lower or upper layer) [plate] | The rods (fed), the knife's edge (pressed, parted) | — | stretching `gauge` z, 0.006 → 2 long in their step; `gauge` slide z to the cut as it starts; six `gauge` slides y, −1/6 each, between the W at which the edge reaches each sixth of the nail's depth; `gauge` slide y down into the box over 0.3 from the parting; a stretch to 0 at the hand-out |
 | Frame (`frame`) | Static | — | none |
 
@@ -205,15 +241,15 @@ python3 mods-src/seraphhorizons/SlittingMill/tools/make_shape.py --out DIR    # 
 python3 mods-src/seraphhorizons/SlittingMill/tools/make_shape.py --quick      # skips the z-fighting fix and the swept paths (not for files that ship)
 ```
 
-A full run takes about two and a quarter minutes. `tools/validate_slittingmill.py` holds the checks; every run
+A full run takes about three minutes. `tools/validate_slittingmill.py` holds the checks; every run
 checks its output and exits non-zero if one fails:
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty
   part, no part the renderer would never draw.
 - **Containment:** nothing leaves the 2 × 2 × 2 box at 16 idle angles and over the job both ways.
 - **Textures** by role: oak timber, the box and the axle's continuation; iron castings, wheels, the knife's
-  crosshead, ram and yoke and the fork; steel collars, arbors, blades, pins, shafts and pinions; a cupronickel
-  cone clutch; brass chocks; the work `metal`.
+  crosshead, ram and yoke, the fork, the push bar, its sector, drum, weight and chain; steel collars, arbors, blades,
+  pins, shafts, gears and pinions; a cupronickel cone clutch; brass chocks; the work `metal`.
 - **Anchors:** the entry shaft meets the power face at the power cell's centre; the output on the box's south
   face, the infeed the table's north end; the nip and knife anchors at the nip and the cut.
 - **Gearing:** the rectifier's three meshes, the clutch gears and the pinions: centres at the sum of the pitch
@@ -238,10 +274,28 @@ checks its output and exits non-zero if one fails:
 - **Parting** *(review)*: each nail of both layers, both nails: before the edge reaches it, it lies in its layer;
   from then its top follows the edge within 0.03 (it is 0.004); it falls free within a frame (1/60 of a stroke, an
   axle turn a second) of the edge going through its rod (it is within 0.002).
-- **Push bar** *(review)*: its fingers' front against the plate's tail in every step and then against the strips'
-  tails as it pushes them; it never reaches past the cut (so never into the knife's path); at rest against the plate's
-  tail as laid at the start and again at the end (p easing there moves nothing); the strips' tails wholly past the cut
-  when pushed, the knife's edge at least 0.3 over them throughout the push.
+- **Push bar** *(review)*: every 0.005 of a stroke, both ways: at rest against the plate's tail as laid until the
+  catch-up; in the catch-up step never ahead of the plate's tail, meeting it at the nip as the step ends; standing
+  there until the push; its fingers' front on the strips' tails all through the push; standing at the cut until the
+  return, and at rest again after it; it never reaches past the cut (so never into the knife's path); at rest at the
+  start and the end (p easing there moves nothing); the strips' tails wholly past the cut when pushed, the knife's edge
+  at least 0.05 over them throughout the push (it is 0.99); the strips fall only once the push is done.
+- **Push drive** *(review)*: the push sector and the push gear at their pitch radii; every 0.0025 of a stroke over the
+  job, the push shaft turns forward only at the sector's ratio with a tooth of the run within 0.05 of a gear tooth (it is
+  within 0.012), and back only with the sector's teeth more than 0.1 clear of the gear's (they are at least 0.48 clear); no
+  tooth of the sector or its plate runs into the gear's; the bar goes the pinion's pitch radius times its turn, with a
+  pinion tooth within 0.05 of a rack tooth wherever it moves (0.012), no tooth of either into the other; the weight
+  goes the drum's radius times its turn, and its chain reaches from the drum's side to the weight's top all the way.
+- **Causes** *(review)*: every moving part has a mechanical cause traceable to the axle or to the work's own motion
+  through drawn parts (`causes()` in `make_shape.py`: part, cause, how). Over the axle turning either way with no
+  plate, the job forward every 0.0025 and backward every 0.01, and p easing in and out at its ends, every change in a
+  part's pose is accounted for by one of its causes, each link held: keyed parts turn with their shafts, meshing gears
+  roll their pitch circles, the catches and the clutch carry their shafts, a sector turns its gear only with a tooth in
+  contact (the great wheel's too), the rack goes with its pinion with a tooth in contact, the weight and its chain go
+  with the drum, and the weight runs the push shaft back only with the sector's teeth clear of its gear. The work's
+  links (fed by the rolls, pushed by the fingers, pressed by the knife, falling once let go) are held by the work,
+  push bar and parting checks, which must pass. Every moving part reaches the axle through its causes; the only
+  causes from outside are the clutch fork (the game's) and the plate's placing (the player's).
 - **Removal** *(review)*: every 0.0025 of a stroke, both ways, any piece of the work that gets smaller does so only as
   the plate going into the nip (its front stays there) or at the hand-out, lying wholly inside the nail box and clear of
   the slitters, the knife, the bed knife, the push bar and every part of the frame but the box: nothing shrinks or
@@ -250,19 +304,20 @@ checks its output and exits non-zero if one fails:
   under the lower layer at the bottom, over the upper layer at the top, the crosshead never down to the rods; the
   knife at the bottom at both cuts; the blade behind the bed knife; the crosshead's ends in the housings' slots.
 - **Supports:** the entry shaft in its inner post's bearing and the outer standard, the rectified shaft in its
-  pedestal and the standard, the crankshaft the same, each arbor in its two chocks (inside each by a margin, at
-  rest and a quarter stroke on); the idler on its stud; each screw through its cap onto its top chock; the fork's
-  rod through its guide on the standard.
+  pedestal and the standard, the crankshaft the same, each arbor in its two chocks, the push shaft in its post's
+  bearing and its bracket (inside each by a margin, at rest and a quarter stroke on); the idler on its stud; each
+  screw through its cap onto its top chock; the fork's rod through its guide on the standard.
 - **Clearances:** over 221 poses (16 idle angles, the job every 0.05 forward and 0.1 backward, every nail's pressing
   and fall in 13 steps, the clutch out) no two parts touch except the intended contacts in `ALLOWED` (shafts in
   bearings, keyed, feathered and loose parts, gears in mesh, the cone in its cup, the fork's rod in its guide, the
   crank pin in the yoke, the work on the table, in the slitters, on the bed knife and in the box, the push bar's fingers
-  in the slitters' channels against the work's tails). The knife and the work are not in it: the blade never touches a
-  rod, a strip or a nail.
+  in the slitters' channels against the work's tails, the push sector on its neck, the push shaft in its bearings, the
+  push drive's meshes, the chain on its drum and its weight). The knife and the work are not in it: the blade never
+  touches a rod, a strip or a nail.
 - **Swept paths** (full runs): the same every 0.01 stroke forward, 0.02 backward, 36 idle angles and every nail's
   pressing and fall in 41 steps (988 poses).
 - **Nothing floats:** every frame element joined to the ground.
-- **No z-fighting** (full runs): no coplanar overlapping faces at seventeen poses, of what can be seen (`shown`:
+- **No z-fighting** (full runs): no coplanar overlapping faces at nineteen poses, of what can be seen (`shown`:
   the work's slivers and the work with no plate on are left out).
 - **Files:** every texture declared; lids over every column, no hollow cell; the power cell; the shipped model
   is the checked one moved.
@@ -282,7 +337,8 @@ The cylinder borer's schema (`../CylinderBorer/README.md`), with nothing added t
 - **`slit`**: `turnsPerStroke` (1: the drawn pace; the gameplay's pace should default to it, or a test hold the two
   together, as the gear cutter's `cut.turnsPerTooth` is), `steps` (W at each feed step's middle) and `stepWidth`
   (how long each lasts), `cuts` (3, 4: the whole strokes by which a nail has been parted off every rod), `handOut`
-  (5), `push` and `pushBack` (W over which the push bar pushes the strips out and is drawn back), `rods` (8),
+  (5), `catchUp`, `push` and `pushBack` (W over which the push sector drives the push bar up to the plate's tail,
+  then on with the strips past the cut, and over which the return weight runs it back), `rods` (8),
   `nailsPerRod` (2), `plate` and `output` (the item codes, `{metal}` the plate's).
 - **No phase to keep.** Everything that cuts and feeds is a function of W; the axle's θ and ψ turn only what is
   before the clutch. Gameplay advances W with the shaft at its own pace and starts each plate at 0.
@@ -301,7 +357,8 @@ presence slider throws the clutch.
 Element names are the rig's interface (first-match globs, in the rig's order): `entry_*`, `entrygears_*`,
 `rectw1_*`, `idler_*`, `rectw2_*`, `rectshaft_*`, `clutchgear_*`, `cone_*`, `clutchfork_*`, `crankshaft_*`,
 `crank_*`, `knife_*`, `bedknife_*`, `wheel_*`, `rolltop_*`, `rollbottom_*`, `piniontop_*`, `pinionbottom_*`,
-`plate_*`, `rodsl_*`, `rodsu_*`, `pusher_*`, `nail1l_*`, `nail1u_*`, `nail2l_*`, `nail2u_*`, and `fr_*` for the frame. Hand edits are lost
+`plate_*`, `rodsl_*`, `rodsu_*`, `pushsector_*`, `pushshaft_*`, `pusher_*`, `pushweight_*`, `pushchain_*`, `nail1l_*`,
+`nail1u_*`, `nail2l_*`, `nail2u_*`, and `fr_*` for the frame. Hand edits are lost
 when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## The cut and the feed
@@ -330,29 +387,42 @@ The alternatives are kept below.
 
 The second review found the strips taken off while they still lay in the slitters. Whatever the split, once the plate's
 tail has gone through the nip the rolls push the rods no further, so with the knife behind the stand the last length of
-every rod, from the nip to the cut, stays there unless something pushes it out or pulls it out. This pass pushes it:
+every rod, from the nip to the cut, stays there unless something pushes it out or pulls it out. The second pass pushed
+it with a push bar worked by hand. The third review would not have an operator: the bar must be the machine's, with a
+visible cause for all of its motion. This pass drives it from the feed train:
 
-- **The push bar** is the operator's follower: a head that runs between the feed table's side guides, a handle back to
-  the table's north end, and eight fingers forward from it, each the section of the rod it pushes (a hair smaller) at that
-  rod's layer. The lower layer's fingers run in four grooves in the table, under the plate; the upper layer's above the
-  table. As laid, the plate's tail lies against the fingers' ends.
-- **It follows the plate** a step at a time as the rolls draw it in, keeping it against them. When the plate's tail has gone
-  through the nip, the fingers are at the rods' tails, in the rods' own channels between the collars.
-- **It pushes the strips out** in one stroke's knife-up window (4.33..4.67, the edge at least 0.3 over the rods): the strips'
-  length, so that their tails are at the cut, flush with the bed knife's back face, as a rod's front is before it is fed;
-  the fingers stop there and never reach the knife's path. Off the bed knife, the strips fall into the nail box, onto the
-  second nails and a shelf in the box beyond them, ahead of the knife coming down.
-- **It is drawn back** while the knife comes down and before the job ends, so it is where it started for the next plate.
+- **The push bar**: a head that runs between the feed table's side guides, eight fingers forward from it, each the
+  section of the rod it pushes (a hair smaller) at that rod's layer (the lower layer's in four grooves in the table, the
+  upper layer's above it), and an upright to a rack over the stand. As laid, the plate's tail lies against the fingers'
+  ends; the head lies against its stop.
+- **The strips must cross the knife's plane in one knife-up window**, or the knife would come down on them and cut them
+  into nails: 4 in less than 0.39 of a stroke, while the rolls carry the work 2 a step. So the bar cannot simply go at
+  the rolls' pace. It is driven at four times their pace, 8 a step, by a sector on the top arbor turning a gear five
+  times as fast, whose shaft's pinion drives the rack; and only while one of the sector's two runs is round. It stands
+  through the first three steps, catches up with the plate's tail in the fourth (it goes 8 while the tail goes 2, and
+  meets it at the nip as the step ends), stands at the nip while the knife cuts the second nails, and in the first half
+  of the fifth pushes the strips their length, so that their tails are at the cut, flush with the bed knife's back face,
+  as a rod's front is before it is fed. The fingers stop there and never reach the knife's path. Off the bed knife, the
+  strips fall into the nail box, onto the second nails and a shelf in the box beyond them, ahead of the knife coming down.
+- **The push ends half a step early** so the run's last tooth can leave the push gear while the arbor still turns: a
+  gear held by a tooth in its gap cannot be turned back. Once the tooth is clear the gear, its shaft and the bar are free.
+- **The return weight runs it back.** The push shaft's drum wound the weight's chain up as it turned; now the weight
+  comes down, turning the shaft back, and the pinion runs the bar back through the slitters' channels and along the
+  table's grooves to its stop, before the job ends, so it is where it started for the next plate. The next plate meets
+  the sector's other run, half a turn on, in the same place.
 - **Only then** are the nails and the strips taken off, from the box.
 
 ## Open for the owner
 
-1. **The strips' way out** is the operator's push bar (above): a hand-worked follower, its cause the operator, as the
-   clutch's fork and the cylinder borer's crosshead handle are. Alternatives: a weighted follower (a weight on a cord,
-   which needs room for the cord and its pulley that the table and the stand do not leave); take-off tongs behind the
-   knife (they cannot grip the strips' ends, flush with the bed knife); a knife held clear while delivery rolls behind it
-   take the strips (the crank cannot be stopped without a latch on the knife, and such rolls would take the nails too); or
-   a split with no strips (the bar's fingers pushing each rod's last length on a nail at a time).
+1. **The strips' way out** is the machine's push bar (above): a rack and pinion off the feed train, a sector on the top
+   arbor turning the push shaft through the catch-up and the push, and a return weight on the shaft's drum. The
+   alternatives considered: a crank or cam lever off the crankshaft (it turns every stroke, so it would push every
+   stroke; once a job needs a counting shaft, and a lever's arc cannot be drawn exactly with the existing drivers);
+   pushing at the rolls' pace (the strips would straddle the knife's plane as it comes down and be cut into nails);
+   driving the return as well as the push from the arbors (they turn only in the five steps, and the push takes the
+   last, so the return would need a longer job of ten strokes, the arbors' whole turn); or no push at all (the rolls
+   cannot carry a tail past the nip, so there would be no strips). The bar now stands through the first three steps
+   instead of following the plate, and the job is still five strokes.
 2. **The feed and cut mechanism** is intermittent feed by a mutilated gear behind a cone clutch (above). The
    alternatives considered: a rotary or flying shear (knife drums turning with the rods) on the old continuous
    feed, which needs no dwell but cuts the two layers of rods at different speeds across its arc; a short-dwell
@@ -374,7 +444,7 @@ every rod, from the nip to the cut, stays there unless something pushes it out o
    two classes (say soft and hard metals) would avoid that change but double the work's parts.
 8. **The plate** is drawn 8 × 8, as the squaring shear lays it; the game's plate item is 9 × 9.
 9. **No flatting or pinch rolls**; the slitters take the plate straight from the table.
-10. **The `requires` ids** (`rolls`, `pinions`, `drive`, `shear`, `pusher`) are provisional; the stages and their items are
+10. **The `requires` ids** (`rolls`, `pinions`, `drive`, `shear`, `pusher`; the push drive is under `pusher`) are provisional; the stages and their items are
    still to be decided with the owner.
 11. **Renderer rule (later):** the work should be drawn only while a plate is on, not while p eases out after the
     hand-out (as the squaring shear does), or the plate would grow back on the table as p falls.
@@ -384,11 +454,12 @@ every rod, from the nip to the cut, stays there unless something pushes it out o
 The model has been reviewed in projections rendered from the written files; the standalone viewer was built
 but not seen with WebGL. No one has looked at it in a client.
 
-1. **The wheel turns a hair before and after its teeth are driven.** It turns for five pitches of the crankshaft,
-   while some tooth of the sector is inside its teeth; the first and last of those pitches have a tooth entering or
-   leaving, not pushing.
+1. **The mutilated gear's box teeth overlap the wheel's** by up to 0.06 as they drive it, and by 0.04 as a step
+   starts and ends, the wheel standing: in contact all through the step, as the cause check asks, but not involutes.
 2. **No locking arc.** A real mutilated gear holds the driven wheel between steps with a locking rim; here nothing
-   holds the great wheel but the pinions' load.
+   holds the great wheel but the friction of the arbors in their chocks under the screws. Between the catch-up and the
+   push the return weight pulls on the train through the push drive and that friction is all that holds it; a locking
+   rim, or a pawl on the great wheel, would make it positive.
 3. **The rods jump layers at the nip.** The plate is fed at the pass line and each rod is a straight box in its
    layer, 0.68 above or below, from the nip on; nothing draws the bend between.
 4. **Growth by stretching.** The rods and nails grow by scaling slivers; their textures are mapped for their full
@@ -397,9 +468,14 @@ but not seen with WebGL. No one has looked at it in a client.
    pressed down with a nail is the nail itself (no burr or kerf).
 6. **Box teeth, 12-gon cutters**; the cutters' corners dip up to 0.12 into the rods as they turn.
 7. **The catches** are drawn as a lug on each loose wheel's hub, not as a ratchet and pawl.
-8. **The push bar outruns the rolls** in the last step: it pushes the strips their whole length while the rolls turn a
-   nail's length, so the strips slide between the collars' faces. Its fingers are the rods' section a hair smaller, and
-   run in the channels the rods leave, against the rods' tails; nothing draws the operator.
+8. **The push bar outruns the rolls** in the catch-up and the push: it goes four times their pace, so the strips slide
+   between the collars' faces as it pushes them. Its fingers are the rods' section a hair smaller, and run in the
+   channels the rods leave, against the rods' tails.
 9. **The strips land flat** on the second nails and the box's shelf, all eight side by side, and fall at a steady speed.
 10. **The plate's front enters the cutters' bite** before the nip (the cutters reach above and below the pass line
    there): the plate is drawn flat through them.
+11. **The push drive's teeth** are boxes like every gear's here, narrowed to 0.85 of half the pitch for backlash: a
+   driving tooth is within 0.012 of the tooth it drives throughout, but no flank is an involute. The sector's two runs
+   of five teeth stand on a plain plate, and the push gear has eight teeth.
+12. **The return weight** is a plain iron block on a chain drawn as one bar (no links), wound straight on the drum; it
+   comes down at a steady speed, and nothing draws the bar's head bumping its stop.
