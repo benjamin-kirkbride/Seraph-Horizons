@@ -40,6 +40,12 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
     /// against today, its own spread (the tunnel of three, 105 to 142 s), only a crew gone badly wrong.</summary>
     private const double TodayTolerance = 0.35;
 
+    /// <summary>How long (game time) every order left walking home may go with none of them moving
+    /// <see cref="StallMove"/> blocks before the crew counts as stalled.</summary>
+    private const long StallMs = 60_000;
+
+    private const double StallMove = 0.5;
+
     private IWorldAccessor W => World.Api.World;
     private EidolonSystem Mod => EidolonSystem.Of(World.Api)!;
     private EidolonJobSystem Jobs => EidolonJobSystem.Of(World.Api)!;
@@ -137,8 +143,25 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         var choices = new List<string>();
         int tick = 0, lastMined = -1;
         long start = W.ElapsedMilliseconds;
+        // where each still under its order last moved from, and when: every one left walking home and none
+        // getting anywhere for StallMs is a stall (#971, two parting for ever on the way out of the spiral pit),
+        // failed then, with where they stand, rather than at the tick limit
+        var moved = new Dictionary<long, (Vec3d At, long Since)>();
         await World.Until(() =>
         {
+            long now = W.ElapsedMilliseconds;
+            var going = crew.Select((e, i) => (e, o: orders[i])).Where(m => m.e.Orders!.Current == m.o).ToList();
+            if (going.Count > 0 && going.All(m => m.o.Returning))
+            {
+                foreach (var (e, _) in going)
+                    if (!moved.TryGetValue(e.EntityId, out var last) || last.At.DistanceTo(e.Pos.XYZ) > StallMove)
+                        moved[e.EntityId] = (e.Pos.XYZ, now);
+                if (going.All(m => now - moved[m.e.EntityId].Since > StallMs))
+                    Assert.Fail($"every order left walking home and none moved {StallMove} blocks in {StallMs / 1000} s: "
+                        + string.Join(" | ", going.Select(m => $"{m.e.EntityId} at {m.e.Pos.XYZ}, ordered at {homes[Array.IndexOf(crew, m.e)]}: {m.o.DebugState}")));
+            }
+            else
+                moved.Clear();
             watch.Tick();
             if (MineWatcher.ClaimFault(Jobs.Mining, crew, orders, EidolonJobSystem.Now(W)) is { } claimFault)
                 faults.Add(claimFault);
@@ -151,7 +174,8 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
             int mined = orders.Sum(o => o.Mined);
             if (mined != lastMined && mined % 40 == 0 || ++tick % 600 == 0)
             {
-                Log($"{string.Join(" + ", orders.Select(o => o.Mined))} mined; {string.Join(" | ", orders.Select((o, i) => $"{crew[i].EntityId}: {o.DebugState}"))}: "
+                Log($"{string.Join(" + ", orders.Select(o => o.Mined))} mined; {string.Join(" | ", orders.Select((o, i) =>
+                        $"{crew[i].EntityId}: {(crew[i].Orders!.Current == o ? o.DebugState : "order over")}"))}: "
                     + string.Join(" || ", crew.Select(State)));
                 lastMined = mined;
             }
