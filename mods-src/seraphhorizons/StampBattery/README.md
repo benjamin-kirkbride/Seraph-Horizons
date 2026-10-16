@@ -15,11 +15,11 @@ at 1,024 vox. "~" marks a guess or a choice of item.
 |---|---|---|---|
 | Frame (placed) | none | Two oak end frames, the guide girts, the ties and the two bearers; the rectifier's gear case at the power cell and the line shaft along the back row | 3 stainless gear (the rectifier), 4 iron plate, 3 iron nails and strips, 2 steel plate, 1 steel nails and strips, 12 plank |
 | 1 · Mortar | `mortar` | The mortar box on its block between the end frames, its dies, the mesh screen in its front wall, the feed opening and the shoot | 1 iron chain (the screen, 122 vox²), 8 iron plate, 2 iron nails and strips, 1 steel plate, 7 steel nails and strips, 2 plank |
-| 2 · Stamps | `stamps` | Five stamps, hung in the guide girts over their dies first | 4 iron plate, 7 iron nails and strips, 5 steel rod, 3 steel plate, 4 steel nails and strips |
+| 2 · Stamps | `stamps` | Five stamps, hung in the guide girts over their dies first | 5 `game:poundercap-steel` (the shoes), 5 steel rod, 4 iron plate, 7 iron nails and strips, 6 steel nails and strips |
 | 3 · Camshaft, belt and feed box | `camshaft`, `feedbox` | The camshaft in its pillow blocks, the cams set under the hung stamps' tappets in the hanging order 1-3-5-2-4; the bull pulley and its belt from the line shaft; the plank feed box under the infeed | ~1 leather (the belt), 4 iron plate, 3 iron nails and strips, 3 steel rod, 1 steel plate, 1 steel nails and strips, 2 plank (1 the bull pulley, 1 the feed box) |
 | 4 · Services | `chutes`, and `pipecopper` or `pipelead` | Every chute section: the infeed section in the top face and the output chute (its funnel under the screen, its stub and the stub's block); the water line along the mortar's back with its header, a branch and a cock to each stamp, in copper or lead | 4 chute section (the infeed's 2, the funnel and stub's 2), 3 pipe section (copper or lead) |
 
-The stamps' **shoes and dies are wearing parts**, not stages: a set of five shoes is about 6 steel ingots (695 vox) and
+The stamps' **shoes and dies are wearing parts**, not stages: a set of five shoes is 5 `game:poundercap-steel` (the pulverizer's pounder cap) and
 a set of five dies about 4 (470 vox). Water and ore are contents, not stages.
 
 **Status: the model only.** This folder holds the generator (`tools/`); there is no block, block entity or renderer
