@@ -114,6 +114,55 @@ public class SpringsTests
         Assert.Empty(SpringPour.Faces(false, false, false, _ => false));
     }
 
+    // ---- a rapids spring's one face ----
+
+    [Fact]
+    public void A_rapids_spring_counts_a_face_already_running_its_water_as_open()
+    {
+        bool East(int f) => f == SpringPour.East;
+        // The game says no into water as high as the spring's; the face it runs out of stays one.
+        Assert.Equal([SpringPour.North, SpringPour.East],
+            SpringPour.RapidFaces(false, false, false, f => f == SpringPour.North, East));
+        // Its falling water under it holds it to pouring down.
+        Assert.Equal([SpringPour.Down], SpringPour.RapidFaces(true, false, false, _ => true, f => f == SpringPour.Down));
+        // Over a source of its own water it spreads sideways, as the game's source does.
+        Assert.Equal(SpringPour.Horizontals, SpringPour.RapidFaces(true, false, true, _ => true, f => f == SpringPour.Down));
+        Assert.Empty(SpringPour.RapidFaces(true, false, false, _ => true, _ => false));
+    }
+
+    [Fact]
+    public void A_rapids_spring_keeps_its_face_while_it_may()
+    {
+        int[] faces = [SpringPour.North, SpringPour.East, SpringPour.West];
+        Assert.Equal(SpringPour.West, SpringPour.OneFace(faces, SpringPour.West, _ => false));
+        Assert.Equal(SpringPour.West, SpringPour.OneFace(faces, SpringPour.West, f => f == SpringPour.North));
+    }
+
+    [Fact]
+    public void A_rapids_spring_turns_to_a_face_already_running_and_otherwise_the_first()
+    {
+        int[] faces = [SpringPour.North, SpringPour.East, SpringPour.West];
+        // Its face blocked (south): the first open one.
+        Assert.Equal(SpringPour.North, SpringPour.OneFace(faces, SpringPour.South, _ => false));
+        // Found pouring out of several (an old world's): one already running.
+        Assert.Equal(SpringPour.East, SpringPour.OneFace(faces, null, f => f is SpringPour.East or SpringPour.West));
+        Assert.Equal(SpringPour.North, SpringPour.OneFace(faces, null, _ => false));
+        Assert.Equal(SpringPour.Down, SpringPour.OneFace([SpringPour.Down], SpringPour.East, f => f == SpringPour.East));
+        Assert.Equal(SpringPour.NoFace, SpringPour.OneFace([], SpringPour.East, _ => true));
+    }
+
+    [Theory]
+    // A normal spring, or a rapids spring that has not chosen yet: every face.
+    [InlineData(null, SpringPour.East, true)]
+    [InlineData(null, SpringPour.Down, true)]
+    // A rapids spring: its own face only.
+    [InlineData(SpringPour.East, SpringPour.East, true)]
+    [InlineData(SpringPour.East, SpringPour.West, false)]
+    [InlineData(SpringPour.Down, SpringPour.North, false)]
+    [InlineData(SpringPour.NoFace, SpringPour.North, false)]
+    public void A_rapids_spring_feeds_only_the_cell_on_its_face(int? pourFace, int face, bool feeds) =>
+        Assert.Equal(feeds, SpringPour.FeedsFace(pourFace, face));
+
     [Theory]
     // Above: feeds outright, as the same liquid above does in the game.
     [InlineData(0, false, 6, true, false, 7, true)]
