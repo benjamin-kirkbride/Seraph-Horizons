@@ -2,7 +2,8 @@
 # mods-src/<modid> and attach <modid>_<version>.zip to a GitHub Release, ready to upload
 # to the ModDB by hand (mods-src/<modid>/README.md). These releases are never "latest":
 # that stays the pack's own vX.Y.Z release (release.yml).
-# For the separate mods only (allowedvariantsfix, constructionhelpfix, chiselrotationfix):
+# For the separate mods only (allowedvariantsfix, constructionhelpfix, chiselrotationfix,
+# entityinterpolationfix):
 # the pack's own mod, mods-src/seraphhorizons, has the pack's version and is released with
 # the pack, by release.yml on the vX.Y.Z tag, so a seraphhorizons-v* tag is refused here.
 name: Mod release
