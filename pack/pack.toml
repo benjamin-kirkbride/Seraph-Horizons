@@ -1072,6 +1072,14 @@ license = "unknown"
 redistribute = false
 why = "Draws low-detail terrain past the view distance, so mountains and coastlines show on the horizon; the server half sends terrain worked out from worldgen without generating chunks."
 
+[[mod]]
+id = "itemclumps"
+version = "0.2.1"
+side = "server"
+license = "unknown"
+redistribute = false
+why = "Merges dropped items lying near each other into full stacks when they land. The game never merges them, and every item entity is drawn on its own, so thousands of loose drops (eidolons mining, felling) cost the client most of a frame."
+
 # --- Pack-authored fixes (mods-src/)
 
 [[mod]]

@@ -410,7 +410,7 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(e.Alive);
         Assert.Equal(stripped, e.Build);
         var dropped = new Dictionary<string, int>();
-        foreach (var item in W.GetEntitiesAround(origin.ToVec3d(), 12, 8, x => x is EntityItem).OfType<EntityItem>())
+        foreach (var item in W.GetEntitiesAround(origin.ToVec3d(), 12, 8, x => x is EntityItem { Alive: true }).OfType<EntityItem>())
             dropped[item.Itemstack.Collectible.Code.ToString()] = dropped.GetValueOrDefault(item.Itemstack.Collectible.Code.ToString()) + item.Itemstack.StackSize;
         Log("dropped: " + string.Join(", ", dropped.Select(kv => $"{kv.Value} {kv.Key}")));
         // the winch's chain and the skirt's one loose chain
@@ -461,7 +461,7 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(DockPhase.None, e.Dock!.Phase);
         Assert.False(BodyOf(gantry).HoldsEidolon);
         Assert.Equal(EidolonBuild.OldBuild, e.Build);
-        var dropped = W.GetEntitiesAround(origin.ToVec3d(), 12, 8, x => x is EntityItem).OfType<EntityItem>()
+        var dropped = W.GetEntitiesAround(origin.ToVec3d(), 12, 8, x => x is EntityItem { Alive: true }).OfType<EntityItem>()
             .Select(i => $"{i.Itemstack.StackSize} {i.Itemstack.Collectible.Code}").ToList();
         Assert.True(dropped.Count == 0, "dropped: " + string.Join(", ", dropped));
 
