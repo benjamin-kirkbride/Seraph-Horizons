@@ -71,7 +71,7 @@ them (`stage`, `id`, `name`, `adds`: the `requires` values it fits, in click ord
 
 | # | Stage (`id`) | `requires` (parts) | Draws | Materials |
 |---|---|---|---|---|
-| F | Frame (placed) | none (`frame`) | The stand, the cast frame, the outboard pedestal, the hopper | 9 iron plate, 2 iron nails and strips, 1 steel nails and strips, 3 plank |
+| F | Frame (placed) | none (`frame`) | The stand, the cast frame, the outboard pedestal, the hopper | 9 iron plate, 2 iron nails and strips, 1 steel nails and strips, 11 support beam |
 | 1 | Jaws (`jaws`) | `jaws` (`fixedjaw`, `swingjaw`) | The fixed jaw's steel plate, the hinge pin, and the swinging jaw hung on it | 2 iron plate, 1 iron nails and strips, 1 steel rod, 1 steel plate, 2 steel nails and strips |
 | 2 | Eccentric shaft and flywheel (`eccentric`) | `eccentric` (`eshaft`, `pitman`) | The eccentric shaft with its eccentric, the flywheel, the collar, the coupling and the axle's stub; the pitman hung on the eccentric | 4 iron plate, 5 iron nails and strips, 2 steel rod, 1 steel plate, 2 steel nails and strips, 1 plank |
 | 3 | Toggles, rods and springs (`toggles`) | `toggles` (`backtoggle`, `fronttoggle`, `rods`), then `springs` (`spring1`..`spring4`) | The two toggles and the two tension rods with their nuts and pins; then a steel coil spring on each rod | 2 steel rod (the rods); then 2 spring (`seraphhorizons:spring-steel`) |
