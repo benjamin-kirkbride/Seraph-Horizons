@@ -9,7 +9,9 @@ namespace SeraphHorizons.Mod.Springs;
 /// A spring's state (README "Springs"), on the server: whether a pipe couples to it
 /// (<see cref="SpringTaps"/>), looked at as it loads and whenever a neighbour changes. Untapped, it
 /// pours (<see cref="SpringPouring"/>); tapped, it pours nothing and, once a second, offers its rate's
-/// water to the pipe networks coupled to it (<see cref="SpringFlow"/>). No tick runs while it is
+/// water to the pipe networks coupled to it (<see cref="SpringFlow"/>). A rapids spring keeps the
+/// one face it pours out of (<see cref="PourFace"/>), and when it turns to another, tells the water
+/// round it to look again, so what it poured on the old face drains. No tick runs while it is
 /// untapped. With the <c>Springs</c> switch off, it turns back into the water source it replaced
 /// as it loads.
 /// </summary>
@@ -27,6 +29,11 @@ public class BlockEntityWaterSpring : BlockEntity
 
     /// <summary>Whether a pipe couples to the spring (synced, for the look-at text).</summary>
     public bool Tapped { get; private set; }
+
+    /// <summary>The one face a rapids spring pours out of (<c>BlockFacing.ALLFACES</c> index, or
+    /// <see cref="SpringPour.NoFace"/>); null for a normal spring, and for a rapids spring that has
+    /// not looked yet in a world from before it chose one (<see cref="SpringPour.FeedsFace"/>).</summary>
+    public int? PourFace { get; private set; }
 
     /// <summary>The litres it put into its pipes on its last feed.</summary>
     public float LastFed { get; private set; }
@@ -84,7 +91,21 @@ public class BlockEntityWaterSpring : BlockEntity
         if (Tapped)
             StartFeeding();
         else
-            SpringPouring.Pour(Api.World, Pos, spring);
+            Pour(spring);
+    }
+
+    private void Pour(BlockWaterSpring spring)
+    {
+        var (faces, face) = SpringPouring.Plan(Api.World, Pos, spring, PourFace);
+        bool turned = face != PourFace;
+        // Chosen before the water is put: what it puts asks at once which cells it feeds.
+        PourFace = face;
+        SpringPouring.Pour(Api.World, Pos, spring, faces);
+        if (!turned)
+            return;
+        MarkDirty();
+        // The face it left has no source now: its water drains.
+        SpringPouring.Notify(Api.World, Pos, spring);
     }
 
     private void StartFeeding()
@@ -130,11 +151,16 @@ public class BlockEntityWaterSpring : BlockEntity
     {
         base.ToTreeAttributes(tree);
         tree.SetBool("tapped", Tapped);
+        if (PourFace is { } face)
+            tree.SetInt("pourFace", face);
+        else
+            tree.RemoveAttribute("pourFace");
     }
 
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldAccessForResolve)
     {
         base.FromTreeAttributes(tree, worldAccessForResolve);
         Tapped = tree.GetBool("tapped");
+        PourFace = tree.HasAttribute("pourFace") ? tree.GetInt("pourFace") : null;
     }
 }

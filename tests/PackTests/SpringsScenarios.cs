@@ -16,12 +16,14 @@ namespace SeraphHorizons.PackTests;
 // seraphhorizons, Springs (Springs/): the rivulet generator places springs in new chunks; a spring
 // pours like the water source it replaced; a ppex pipe against it taps it, stops the pouring and
 // fills its run with water at the spring's rate; untapped, it pours again; broken, it gives its
-// rock's stones and its water drains. The hand-built spring sits 40 above spawn at x 360, z -360
-// (clear of the pipe scenarios at x 300 to 320, z -300); the new chunks are generated at x -600 to
-// -480, z 600 to 720.
+// rock's stones and its water drains; a rapids spring pours out of one side at a time. The
+// hand-built springs sit 40 above spawn at z -360: the pouring one at x 360, the bucket's at x 372,
+// the rapids spring at x 384 (clear of the pipe scenarios at x 300 to 320, z -300); the new chunks
+// are generated at x -600 to -480, z 600 to 720.
 public partial class SharedWorldScenarios
 {
     private const string SpringCode = "seraphhorizons:waterspring-normal-granite";
+    private const string RapidSpringCode = "seraphhorizons:waterspring-rapid-granite";
 
     private BlockEntityWaterSpring SpringAt(BlockPos pos) =>
         W.BlockAccessor.GetBlockEntity(pos) as BlockEntityWaterSpring
@@ -173,5 +175,68 @@ public partial class SharedWorldScenarios
         CutterKillItems(spring);
         for (int i = 0; i <= 4; i++)
             W.BlockAccessor.SetBlock(0, top.AddCopy(0, i, 0));
+    }
+
+    /// <summary>A rapids spring in a granite pillar, walled north and south, open east and west
+    /// over a drop: it pours out of one side only (east, the first open one), and that water stays.
+    /// That side walled up, it turns to the other, and the water that fell from the first drains;
+    /// opened again, it keeps to the side it has. On the virtual clock (tests/PackTests/README.md).</summary>
+    [AtlasScenario(TimeoutMs = 60_000)]
+    public async Task A_rapids_spring_pours_out_of_one_side_at_a_time()
+    {
+        var origin = await CutterSite(384, -360, 4);
+        string granite = "game:rock-granite";
+        var spring = origin.AddCopy(0, 3, 0);
+        for (int y = 0; y <= 4; y++)
+            World.SetBlock(granite, origin.AddCopy(0, y, 0));
+        foreach (var facing in new[] { BlockFacing.NORTH, BlockFacing.SOUTH })
+            World.SetBlock(granite, spring.AddCopy(facing));
+        World.SetBlock(RapidSpringCode, spring);
+        W.BlockAccessor.TriggerNeighbourBlockUpdate(spring);
+        using var clock = VirtualClock.Start(World);
+        var east = spring.EastCopy();
+        var west = spring.WestCopy();
+        bool Running(BlockPos at) => FluidAt(at).Code?.Path.StartsWith("rapidwater-") == true
+                                     && FluidAt(at).LiquidLevel >= SpringCodes.PouredLevel;
+        string Sides() => $"east {FluidAt(east).Code}, west {FluidAt(west).Code}, face {SpringAt(spring).PourFace}";
+
+        // It pours east only, and the water there stays.
+        await World.Until(() => Running(east), 10_000);
+        await World.Ticks(60);
+        output.WriteLine(Sides());
+        Assert.Equal(SpringPour.East, SpringAt(spring).PourFace);
+        Assert.True(Running(east), Sides());
+        Assert.False(Running(west), Sides());
+
+        // East walled up: it turns west, and what fell from the east side drains.
+        var fell = east.DownCopy();
+        Assert.StartsWith("rapidwater-", FluidAt(fell).Code?.Path ?? "");
+        W.BlockAccessor.SetBlock(0, east, BlockLayersAccess.Fluid);
+        World.SetBlock(granite, east);
+        W.BlockAccessor.TriggerNeighbourBlockUpdate(east);
+        await World.Until(() => Running(west), 10_000);
+        Assert.Equal(SpringPour.West, SpringAt(spring).PourFace);
+        await World.Until(() => FluidAt(fell).Id == 0, 20_000);
+        output.WriteLine($"{Sides()}, under east {FluidAt(fell).Code}");
+        Assert.Equal(0, FluidAt(fell).Id);
+
+        // East open again: it keeps pouring west.
+        W.BlockAccessor.SetBlock(0, east);
+        W.BlockAccessor.TriggerNeighbourBlockUpdate(east);
+        await World.Ticks(60);
+        output.WriteLine(Sides());
+        Assert.Equal(SpringPour.West, SpringAt(spring).PourFace);
+        Assert.True(Running(west), Sides());
+        Assert.False(Running(east), Sides());
+
+        // Taken away: its water drains.
+        W.BlockAccessor.SetBlock(0, spring);
+        W.BlockAccessor.TriggerNeighbourBlockUpdate(spring);
+        await World.Until(() => FluidAt(west).Id == 0, 30_000);
+        Assert.Equal(0, FluidAt(west).Id);
+        for (int y = 0; y <= 4; y++)
+            W.BlockAccessor.SetBlock(0, origin.AddCopy(0, y, 0));
+        foreach (var facing in new[] { BlockFacing.NORTH, BlockFacing.SOUTH })
+            W.BlockAccessor.SetBlock(0, spring.AddCopy(facing));
     }
 }
