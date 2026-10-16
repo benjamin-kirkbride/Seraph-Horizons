@@ -79,15 +79,14 @@ landing beside it. The water comes in under the plunger and leaves with the prod
 
 Settled 2026-10-15. The hutch is placed as the machine; then each stage is fitted in order, and the jig runs
 only when the last is in. The materials are the stages' iron and timber measured from the model at the
-settled rate (128 vox of iron or steel an ingot, a rod an ingot, nails and strips 4 an ingot; planks at
-1,024 vox), the chute and pipe sections counted.
+settled rate (128 vox of iron or steel an ingot, a rod an ingot, nails and strips 4 an ingot; boards in planks at 128 vox, timbers in support beams at 256), the chute and pipe sections counted.
 
 | # | Stage | `requires` | Sits on | Materials |
 |---|---|---|---|---|
-| F | The hutch (the frame) | none (placed) | The ground | 3 iron nails and strips, 3 plank |
+| F | The hutch (the frame) | none (placed) | The ground | 3 iron nails and strips, 20 plank, 2 support beam |
 | 1 | The sieve | `sieve` | The ledges round the sieve compartment (frame) | 1 iron chain (the sieve, 119 vox²) |
-| 2 | The drive and plunger | `drive`, `plunger` | The standards on the side walls' rims; the sheave keyed on the shaft, the board in the plunger compartment | 1 iron rod, 1 steel rod, 1 plank |
-| 3 | Services | `infeed`, `outlets`, `pipecopper` or `pipelead` | The infeed on its bearers over the sieve; the outlets on their bracket and block on the hutch; the inlet through the back wall | 3 chute section, 1 pipe section (copper or lead), 1 iron nails and strips, 1 plank |
+| 2 | The drive and plunger | `drive`, `plunger` | The standards on the side walls' rims; the sheave keyed on the shaft, the board in the plunger compartment | 1 iron rod, 1 steel rod, 2 plank |
+| 3 | Services | `infeed`, `outlets`, `pipecopper` or `pipelead` | The infeed on its bearers over the sieve; the outlets on their bracket and block on the hutch; the inlet through the back wall | 3 chute section, 1 pipe section (copper or lead), 1 iron nails and strips, 1 plank, 1 support beam |
 
 Every chute section and the water inlet are in services; the frame holds none. The water inlet is a choice
 of metal, copper or lead (one part each, the same elements). The water and the ore bed (`water`, `bed`) are
