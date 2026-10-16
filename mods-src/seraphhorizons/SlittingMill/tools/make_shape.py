@@ -12,10 +12,7 @@ worked by a scotch yoke from a crank, comes down once a stroke just past a fixed
 nail's length off the rods' ends, pressing each nail down with its edge until it parts, and the nails fall
 into the nail box. When the plate's tail leaves the slitters nothing pushes the rods on, so the last length
 of them, from the slitters to the knife, is left whole: the strips. A plate makes nails and strips (the
-game's `metalnailsandstrips-{metal}`). The push bar pushes the strips out past the knife: a sector on the top
-arbor turns the push shaft while one of its two runs of teeth is round, and the shaft's pinion drives a rack on
-the bar, up behind the plate's tail in the fourth feed step and on with the strips in the first half of the
-fifth; the shaft's drum winds a return weight up, which runs the bar back once the run has let go.
+game's `metalnailsandstrips-{metal}`).
 
 The feed is intermittent, as a nail cutter's was: the crank's shaft also carries a mutilated gear, three
 teeth on the pitch of a twenty-six, which turns the great wheel on the top arbor by five of its fifty teeth once a stroke
@@ -123,27 +120,16 @@ NAIL_STEP = {1: 2, 2: 3}                     # nail j comes past the cut in step
 CUTS = (3.0, 4.0)                            # ... and is parted in the knife's stroke down to W 3 or 4
 END = float(STEPS)                           # the job's end: whole strokes, so the crank and the rolls look as at 0
 TAKE_OFF = 0.04                              # the nails and the strips are taken off the box over this much W before the end
-TURNS_PER_STROKE = 1                         # the drawn pace: the cone and the cup turn together at it
-STEP_ANGLE = TAU * ADVANCE / G_T             # the great wheel and the arbors turn this far a step (36 degrees)
-
-# ---------------------------------------------------------------- the push bar and its drive
-# The push bar is the machine's: a rack on it meshes the push pinion, on the push shaft with the push gear, which the
-# push sector on the top arbor (two runs of five teeth on the pitch of a forty, half a turn apart) turns while one of its
-# runs is in mesh: through the fourth feed step (the bar catches up with the plate's tail) and the first half of the
-# fifth (it pushes the strips out past the cut). The push shaft's drum winds the return weight's chain up as it goes;
-# once the run's last tooth has left the gear the weight runs the shaft, and with it the bar, back to its stop.
-PS_T, PG_T, PUSH_MOD = 40, 8, 0.3            # the push sector's pitch and the push gear's teeth, their module
-PS_RUN = 5                                   # teeth in each of the sector's two runs
-PS_LEAD = math.radians(8.5)                  # a run's first tooth is this far short of the line of centres as the drive starts
-PP_T, PP_MOD = 16, 1.0 / math.pi             # the push pinion: the rack's pitch is 1
-TOOTH_W = 0.85                               # the push drive's box teeth are this much of half the pitch wide: backlash
-BAR_STEP = 3                                 # the feed step in which the sector catches the bar up to the plate's tail
-R_DRUM = 0.8                                 # the push shaft's drum: the return weight's chain winds on it
-FINGER_L = 7.5                               # the bar's fingers, long enough to reach the cut from behind the slitters' reach
+PUSH = (4.33, 4.67)                          # the push bar pushes the strips out past the cut, the knife clear above them
+STRIP_FALL = (PUSH[1], 4.89)                 # past the bed knife, the strips fall into the box
+PUSH_BACK = (4.69, 4.95)                     # the push bar is drawn back to the table's north end
+PUSH_REST = Z_N - PLATE_L                    # the push bar's fingers' front at rest: against the plate's tail as laid
+FINGER_L = 7.5                               # its fingers, long enough to reach the cut from behind the slitters' reach
 FINGER_IN = 0.05                             # a finger is this much smaller each side than the rod it pushes
 HEAD_T = 1.0
-PUSH_REST = Z_N - PLATE_L                    # the fingers' front at rest: against the plate's tail as laid
 STRIP_REST = 2.8                             # the strips land on the second nails and the box's shelf
+TURNS_PER_STROKE = 1                         # the drawn pace: the cone and the cup turn together at it
+STEP_ANGLE = TAU * ADVANCE / G_T             # the great wheel and the arbors turn this far a step (36 degrees)
 R_CUT = L_NAIL / STEP_ANGLE                  # 3.1831: the cutters' rim, carrying the plate a nail's length a step
 ARB_TURN = STEPS * STEP_ANGLE                # half a turn a job: the collars, the pinions and the wheel look the same after it
 EPS_ROD = 0.01                               # the rods are authored this long at the nip, and grow from it
@@ -214,24 +200,6 @@ def _circles(c1, r1, c2, r2):
 R = min(_circles(E, pr(A1_T, RECT_MOD) + pr(W1_T, RECT_MOD), K, 2 * pr(SK_T, RECT_MOD)), key=lambda q: q[0])
 # the idler: A2 + I from the entry, I + W2 from the rectified shaft; the lower
 IDL = min(_circles(E, pr(A2_T, RECT_MOD) + pr(I_T, RECT_MOD), R, pr(I_T, RECT_MOD) + pr(W2_T, RECT_MOD)), key=lambda q: q[0])
-
-# the push drive: the sector on the top arbor's west end, the push shaft over the table's north half (its gear by the
-# sector, its pinion under the bar's rack, its drum at the west end), the rack over the top roll and the knife
-R_PS, R_PG, R_PP = pr(PS_T, PUSH_MOD), pr(PG_T, PUSH_MOD), pr(PP_T, PP_MOD)
-Q_Z = 13.9                                   # the push shaft's z: the rack's teeth then reach no further north than the box at rest
-Q = (Y_T + math.sqrt((R_PS + R_PG) ** 2 - (Z_N - Q_Z) ** 2), Q_Z)
-Y_RACK = Q[0] + R_PP                         # the rack's pitch line, on top of the pinion
-BAR_V = R_PP * STEP_ANGLE * R_PS / R_PG      # the bar's travel in a whole step of the sector's: 8, a plate's length
-BAR_WIN = (STEP_AT[BAR_STEP] - HALF_STEP, STEP_AT[BAR_STEP] + HALF_STEP)
-PUSH = (STEP_AT[4] - HALF_STEP, STEP_AT[4] - HALF_STEP + 2 * HALF_STEP * D_KNIFE / BAR_V)   # the strips pushed out
-STRIP_FALL = (PUSH[1], PUSH[1] + 0.22)       # past the bed knife, the strips fall into the box
-PUSH_BACK = (4.54, 4.80)                     # the weight runs the bar back, the run of the sector clear of the gear
-PHI_BAR = BAR_V / R_PP                       # the push shaft's turn in the catch-up (half a turn) ...
-PHI_PUSH = D_KNIFE / R_PP                    # ... and in the push (a quarter)
-G_X_PUSH = (3.6, 4.4)                        # the push sector and the push gear
-P_X = (12.4, 13.4)                           # the push pinion, the rack over it
-UPRIGHT_X = (13.5, 14.3)                     # the bar's upright, from its head to the rack
-DRUM_X = (0.9, 2.1)
 
 G_X = (24.0, 25.6)                           # the great wheel and the mutilated gear
 S_X = (25.8, 26.8)                           # the rectified shaft's gear and the clutch gear
@@ -360,20 +328,18 @@ def ring(c, a0, a1, r_in, r_out, n, name, part, tex):
                    f"{name}{i + 1}", part, tex) for i in range(n)]
 
 
-def teeth(c, a0, a1, n, module, phase, idx, name, part, tex, width=1.0):
-    """Box teeth of an n-toothed gear of `module` about x, those of indices `idx` (tooth i at phase + i * pitch), `width`
-    of half the pitch wide."""
+def teeth(c, a0, a1, n, module, phase, idx, name, part, tex):
+    """Box teeth of an n-toothed gear of `module` about x, those of indices `idx` (tooth i at phase + i * pitch)."""
     p = n * module / 2
     root, tip = p - 1.25 * module, p + module
-    return [radial(c, a0 + 0.03, a1 - 0.03, root - 0.25, tip, width * math.pi * module / 2, phase + TAU * i / n,
+    return [radial(c, a0 + 0.03, a1 - 0.03, root - 0.25, tip, math.pi * module / 2, phase + TAU * i / n,
                    f"{name}_tooth{i + 1}", part, tex) for i in idx]
 
 
-def gear(c, a0, a1, n, module, name, part, tex, phase=0.0, body_k=4, width=1.0):
+def gear(c, a0, a1, n, module, name, part, tex, phase=0.0, body_k=4):
     """A spur gear along x: a polygon body to the root and n box teeth of `module` (phase: tooth 1's angle)."""
     root = n * module / 2 - 1.25 * module
-    return (disc(c, a0, a1, root, f"{name}_body", part, tex, k=body_k, phase=phase)
-            + teeth(c, a0, a1, n, module, phase, range(n), name, part, tex, width=width))
+    return disc(c, a0, a1, root, f"{name}_body", part, tex, k=body_k, phase=phase) + teeth(c, a0, a1, n, module, phase, range(n), name, part, tex)
 
 
 def dir_ang(c1, c2):
@@ -429,8 +395,7 @@ def build_arbor(which):
             out += disc(c, x0, x1, R_CUT, f"{part}_cutter{p}", part, "steel", k=CUT_K, phase=math.pi / 12)
         else:
             out += disc(c, x0, x1, R_SPACER, f"{part}_spacer{p}", part, "steel", k=SPACER_K)
-    # the top arbor's west neck runs on through the push sector's hub
-    out += disc(c, G_X_PUSH[0] - 0.1 if top else 5.0, COLLAR_X0 + END_TRIM, R_ARBOR, f"{part}_neckw", part, "steel")
+    out += disc(c, 5.0, COLLAR_X0 + END_TRIM, R_ARBOR, f"{part}_neckw", part, "steel")
     x_end = G_X[1] + 0.7 if top else 23.4
     out += disc(c, 32.0 - COLLAR_X0 - END_TRIM, x_end, R_ARBOR, f"{part}_necke", part, "steel")
     out += disc(c, 4.6, 5.0, 1.8, f"{part}_collarw", part, "iron")
@@ -567,67 +532,20 @@ def build_shear():
     return out
 
 
-HEAD_Z = (PUSH_REST - FINGER_L - HEAD_T, PUSH_REST - FINGER_L)   # the bar's head at rest
-HEAD_TOP = UP_TOP + 1.2
-RACK_ROOT = Y_RACK + 1.25 * PP_MOD           # the rack's root line: its bar above
-RACK_TOP = RACK_ROOT + 0.7
-RACK_TEETH = range(-13, 3)                   # the rack's teeth at rest, tooth k centred at Q_Z + k - 1/2: a gap over the shaft
-RACK_Z = (Q_Z - 13.8, Q_Z + 1.8)             # the rack's bar at rest: all the pinion meets over the bar's travel
-CHAIN_Z = Q_Z - R_DRUM                       # the return weight's chain leaves the drum's north side
-CHAIN_X = (sum(DRUM_X) / 2 - 0.1, sum(DRUM_X) / 2 + 0.1)
-WEIGHT_Y = (2.0, 4.6)                        # the return weight at rest, on its chain
-
-
-def sector_teeth_angles():
-    """The push sector's teeth, authored at W 0: as the catch-up starts (the top arbor BAR_STEP steps on) a run's first
-    tooth is PS_LEAD short of the line of centres to the push shaft; the run's other teeth follow it a pitch apart; the
-    other run is half a turn on (the arbors turn half a turn a job)."""
-    first = dir_ang((Y_T, Z_N), Q) + PS_LEAD + BAR_STEP * STEP_ANGLE
-    return [first + i * TAU / PS_T + h * math.pi for h in (0, 1) for i in range(PS_RUN)]
-
-
-def build_push():
-    """The push bar and its drive. The push sector: a plate wheel on the top arbor's west neck, cut back clear of the push
-    gear's teeth, with its two runs of teeth. The push shaft over the table's north half, from its drum at the west end
-    through its post and the bracket on the west housing to the pinion over the table: the push gear by the sector, the
-    pinion under the bar's rack. The bar at rest: a head between the table's guides, eight fingers forward from it, each
-    the section of the rod it pushes (a hair smaller) at that rod's layer (the lower ones run in grooves in the table, all
-    of them through the slitters' channels), and an upright from the head to the rack's bar, which runs over the top roll
-    and the knife. The return weight on its chain off the drum."""
-    out = []
-    t = (Y_T, Z_N)
-    rim = R_PS + R_PG - (R_PG + PUSH_MOD) - 0.1          # the sector's plate: clear of the gear's tips by 0.1 at its corners
-    out += disc(t, *G_X_PUSH, rim * math.cos(math.pi / 12), "pushsector_plate", "pushsector", "iron", k=6)
-    out += disc(t, G_X_PUSH[0] - 0.15, 4.58, 1.8, "pushsector_hub", "pushsector", "iron", k=6)
-    root, tip = R_PS - 1.25 * PUSH_MOD, R_PS + PUSH_MOD
-    for i, a in enumerate(sector_teeth_angles()):
-        out.append(radial(t, G_X_PUSH[0] + 0.03, G_X_PUSH[1] - 0.03, root - 0.25, tip, TOOTH_W * math.pi * PUSH_MOD / 2, a,
-                          f"pushsector_tooth{i + 1}", "pushsector", "iron"))
-    # the push shaft
-    g_ph = mesh_phase(t, sector_teeth_angles()[0], PS_T, Q, PG_T)
-    out += gear(Q, *G_X_PUSH, PG_T, PUSH_MOD, "pushshaft_gear", "pushshaft", "steel", phase=g_ph, width=TOOTH_W)
-    out += gear(Q, *P_X, PP_T, PP_MOD, "pushshaft_pinion", "pushshaft", "steel", phase=0.0, body_k=6, width=TOOTH_W)
-    out += disc(Q, DRUM_X[0] - 0.3, P_X[0] + 0.5, 0.5, "pushshaft_rod", "pushshaft", "steel")
-    out += disc(Q, *DRUM_X, R_DRUM, "pushshaft_drum", "pushshaft", "iron", k=6)
-    out += disc(Q, DRUM_X[0] - 0.2, DRUM_X[0], 1.2, "pushshaft_flangew", "pushshaft", "iron", k=6)
-    out += disc(Q, DRUM_X[1], DRUM_X[1] + 0.2, 1.2, "pushshaft_flangee", "pushshaft", "iron", k=6)
-    # the bar
-    f0, hz = PUSH_REST, HEAD_Z
-    out.append(box([GUIDE_X[1] + 0.05, TABLE_Y[1] + 0.05, hz[0]], [32.0 - GUIDE_X[1] - 0.05, HEAD_TOP, hz[1]], "pusher_head", "pusher", "iron"))
+def build_pusher():
+    """The push bar, the operator's follower, at rest: a head between the table's guides with a handle back to the
+    table's north end, and eight fingers forward from it, each the section of the rod it pushes (a hair smaller) at
+    that rod's layer: the lower ones run in grooves in the table, all of them through the slitters' channels."""
+    f0 = PUSH_REST
+    hz = (f0 - FINGER_L - HEAD_T, f0 - FINGER_L)
+    out = [box([GUIDE_X[1] + 0.05, TABLE_Y[1] + 0.05, hz[0]], [32.0 - GUIDE_X[1] - 0.05, UP_TOP + 1.2, hz[1]], "pusher_head", "pusher", "iron")]
     for i in range(RODS):
         rx, ly = rod_x(i), layer(i)
         n = FINGER_IN
         out.append(box([rx[0] + n, ly[0] + n, hz[1]], [rx[1] - n, ly[1] - n, f0], f"pusher_finger{i + 1}", "pusher", "iron"))
-    out.append(box([UPRIGHT_X[0], HEAD_TOP, hz[0]], [UPRIGHT_X[1], RACK_ROOT, hz[1]], "pusher_upright", "pusher", "iron"))
-    out.append(box([P_X[0], RACK_ROOT, RACK_Z[0]], [UPRIGHT_X[1], RACK_TOP, RACK_Z[1]], "pusher_rackbar", "pusher", "iron"))
-    w = TOOTH_W * math.pi * PP_MOD / 2
-    for n, k in enumerate(RACK_TEETH):
-        zc = Q_Z + k - 0.5
-        out.append(box([P_X[0] + 0.05, Y_RACK - PP_MOD, zc - w / 2], [P_X[1] - 0.05, RACK_ROOT + 0.05, zc + w / 2],
-                       f"pusher_rack{n + 1}", "pusher", "iron"))
-    # the return weight, on its chain off the drum's north side
-    out.append(box([DRUM_X[0] - 0.05, WEIGHT_Y[0], CHAIN_Z - 0.65], [DRUM_X[1] + 0.05, WEIGHT_Y[1], CHAIN_Z + 0.65], "pushweight_block", "pushweight", "iron"))
-    out.append(box([CHAIN_X[0], WEIGHT_Y[1], CHAIN_Z - 0.1], [CHAIN_X[1], Q[0], CHAIN_Z + 0.1], "pushchain_links", "pushchain", "iron"))
+    hy = (UP_TOP + 0.4, UP_TOP + 0.9)
+    out.append(box([XC - 0.35, hy[0], 0.6], [XC + 0.35, hy[1], hz[0]], "pusher_handle", "pusher", "oak"))
+    out.append(box([XC - 2.0, hy[0] - 0.1, 0.2], [XC + 2.0, hy[1] + 0.1, 0.6], "pusher_grip", "pusher", "oak"))
     return out
 
 
@@ -711,18 +629,6 @@ def build_frame():
     out.append(box([bx1 - t, BOX_FLOOR, Z_K], [bx1, BOX_TOP, bz1 - t], "fr_boxeast", f, "oak"))
     # a shelf in the box beyond where the nails fall, level with them stacked: the strips lie on both
     out.append(box([bx0 + t, BOX_FLOOR, Z_K + L_NAIL], [bx1 - t, STRIP_REST, bz1 - t], "fr_boxshelf", f, "oak"))
-    # the push shaft's post at the west end, on its foot, and its bracket on the west housing's front post
-    qy, qz = Q
-    out.append(box([1.9, 0.0, qz - 1.6], [3.7, 0.6, qz + 1.6], "fr_pshfoot", f, "iron"))
-    out.append(box([2.4, 0.6, qz - 0.8], [3.2, qy - 1.0, qz + 0.8], "fr_pshpost", f, "iron"))
-    out.append(box([2.4, qy - 1.0, qz - 1.0], [3.2, qy + 1.0, qz + 1.0], "fr_brgpsh", f, "iron"))
-    out.append(box([HOUSING_X[0] + 0.2, qy - 1.1, qz - 1.1], [HOUSING_X[1] - 0.2, qy + 1.1, POST_F_Z[0]], "fr_pshbrkt", f, "iron"))
-    # the bar's stop on the table, against its head at rest
-    out.append(box([15.05, TABLE_Y[1], HEAD_Z[0] - 1.0], [17.95, TABLE_Y[1] + 0.9, HEAD_Z[0]], "fr_barstop", f, "iron"))
-    # the rack's hold-down beside the pinion, on an arm from the west cap
-    gz = (POST_F_Z[0] + 0.1, POST_F_Z[1] - 0.6)
-    out.append(box([HOUSING_X[0] + 0.5, CAP_Y[1], gz[0]], [P_X[0] - 0.1, RACK_TOP + 0.45, gz[1]], "fr_rackarm", f, "iron"))
-    out.append(box([P_X[0] - 0.1, RACK_TOP + 0.05, gz[0]], [UPRIGHT_X[1] + 0.1, RACK_TOP + 0.45, gz[1]], "fr_rackguide", f, "iron"))
     return out
 
 
@@ -760,7 +666,7 @@ def retexture_full(el, size):
 
 def build():
     return (build_arbor("top") + build_arbor("bottom") + build_pinions() + build_drive() + build_entry() + build_shear()
-            + build_push() + build_work() + build_frame())
+            + build_pusher() + build_work() + build_frame())
 
 
 # ---------------------------------------------------------------- rig
@@ -906,30 +812,11 @@ def _rig_parts():
                       "drivers": [grow(Z_N, EPS_ROD, D_KNIFE, [step_win(m, 1.0 / ROD_STEPS) for m in range(ROD_STEPS)]), taken_off(Z_N),
                                   gauge("slide", "z", one(D_KNIFE / B), [win(*PUSH)]),
                                   gauge("slide", "y", one(-strip_drop(lay) / B), [win(*STRIP_FALL)])]})
-    # the push drive: the sector steps with the top arbor; the push shaft turns while a run of it is in mesh (the bar's
-    # catch-up, then the push) and back as the weight runs down; the bar goes with the pinion, the weight with the drum,
-    # the chain winds on and off the drum: net nothing a job
-    qp = pt(0.0, *Q)
-    up = PHI_BAR + PHI_PUSH
-    chain0 = Q[0] - WEIGHT_Y[1]
-
-    def there_and_back(k):
-        """The catch-up's and the push's amounts (k times the push shaft's turn), as written, and the return: their sum
-        back, so a job nets exactly nothing."""
-        a1, a2 = r6(k * PHI_BAR), r6(k * PHI_PUSH)
-        return ((BAR_WIN, a1), (PUSH, a2), (PUSH_BACK, -(a1 + a2)))
-    parts += [
-        {"id": "pushsector", "match": ["pushsector_*"], "requires": "pusher", "drivers": stepping(-1.0, t)},
-        {"id": "pushshaft", "match": ["pushshaft_*"], "requires": "pusher",
-         "drivers": [gauge("rotate", "x", one(a), [win(*w)], pivot=qp) for w, a in there_and_back(1.0)]},
-        {"id": "pusher", "match": ["pusher_*"], "requires": "pusher",
-         "drivers": [gauge("slide", "z", one(a), [win(*w)]) for w, a in there_and_back(R_PP / B)]},
-        {"id": "pushweight", "match": ["pushweight_*"], "requires": "pusher",
-         "drivers": [gauge("slide", "y", one(a), [win(*w)]) for w, a in there_and_back(R_DRUM / B)]},
-        {"id": "pushchain", "match": ["pushchain_*"], "requires": "pusher",
-         "drivers": [gauge("stretch", "y", one(-R_DRUM * up / chain0), [win(*w, gain=a) for w, a in there_and_back(1.0 / up)],
-                           origin=pt(sum(CHAIN_X) / 2, Q[0], CHAIN_Z))]},
-    ]
+    # the push bar follows the plate's tail a step at a time, pushes the strips out and is drawn back: net nothing a job
+    follow = [gauge("slide", "z", one(L_NAIL / B), [step_win(m)]) for m in range(PLATE_STEPS)]
+    parts.append({"id": "pusher", "match": ["pusher_*"], "requires": "pusher",
+                  "drivers": follow + [gauge("slide", "z", one(D_KNIFE / B), [win(*PUSH)]),
+                                       gauge("slide", "z", one(-(PLATE_L + D_KNIFE) / B), [win(*PUSH_BACK)])]})
     z0 = Z_N + 0.002
     for j in (1, 2):
         s = NAIL_STEP[j]
@@ -950,10 +837,10 @@ def _rig_parts():
 
 
 # ---------------------------------------------------------------- what moves what
-# Every moving part's mechanical cause: (part, cause, how, figure). The cause check (check_causes) follows them from each
-# part to the axle or to the work, and holds every link. A cause is a part, or one of the three things outside the
-# model: "axle" (the vanilla axle at the power face), "player" (who lays the plate on: its presence) and "game" (which
-# throws the clutch fork while a plate is on). The ways:
+# Every moving part's cause: (part, cause, how, figure). The cause check (check_causes) follows them from each part to
+# the axle or to the work, and holds every link. A cause is a part, or one of the three things outside the model: "axle"
+# (the vanilla axle at the power face), "player" (who lays the plate on: its presence) and "operator" (who throws the
+# clutch's fork in while a plate is on, and works the push bar by its handle). The ways:
 #   keyed     on the cause's shaft, turning with it (the axle: turning with the axle's angle)
 #   feather   keyed to the cause, free to slide along its shaft
 #   forked    slid along its shaft by the cause, the fork on its neck
@@ -963,13 +850,12 @@ def _rig_parts():
 #   sector    turned by the cause's teeth while one of them is in contact with its own; figure: the pitch radii and the
 #             teeth's names (the part's, the cause's)
 #   crankpin  the cause's crank pin in its yoke's slot
-#   rack      its rack on the cause's pinion; figure: the pinion's pitch radius, the rack's and the pinion's teeth's names
-#   chain     on the chain off the cause's drum; figure: the drum's radius
-#   weight    run back by the weight on the chain off its drum once its sector's teeth are clear; figure: the drum's radius
 #   work      the work's own motion, or a part working on the work; figure: the check that holds it
 #   fall      falls once the cause lets it go; figure: the check that holds it
 #   placed    laid on by the player
-#   fork      thrown by the game while a plate is on (the documented exception)
+#   fork      thrown in by the operator while a plate is on (a documented exception)
+#   hand      worked by the operator (a documented exception: the push bar, following the plate's tail; check_pusher
+#             holds it to the work)
 def causes():
     rp = RECT_MOD
     out = [
@@ -983,7 +869,7 @@ def causes():
         ("clutchgear", "rectshaft", "mesh", (pr(SK_T, rp), pr(SK_T, rp))),
         ("cone", "clutchgear", "clutch", None),
         ("cone", "clutchfork", "forked", None),
-        ("clutchfork", "game", "fork", None),
+        ("clutchfork", "operator", "fork", None),
         ("crankshaft", "cone", "feather", None),
         ("crank", "crankshaft", "keyed", None),
         ("knife", "crank", "crankpin", None),
@@ -992,12 +878,7 @@ def causes():
         ("piniontop", "rolltop", "keyed", None),
         ("pinionbottom", "piniontop", "mesh", (R_PIN, R_PIN)),
         ("rollbottom", "pinionbottom", "keyed", None),
-        ("pushsector", "rolltop", "keyed", None),
-        ("pushshaft", "pushsector", "sector", (R_PG, R_PS, r"_gear_tooth", r"_tooth")),
-        ("pushshaft", "pushweight", "weight", R_DRUM),
-        ("pusher", "pushshaft", "rack", (R_PP, r"_rack\d", r"_pinion_tooth")),
-        ("pushweight", "pushshaft", "chain", R_DRUM),
-        ("pushchain", "pushshaft", "chain", R_DRUM),
+        ("pusher", "operator", "hand", "check_pusher"),
         ("plate", "player", "placed", None),
         ("plate", "rolltop", "work", "check_feed"),
         ("plate", "rollbottom", "work", "check_feed"),
@@ -1062,7 +943,7 @@ def make_rig(parts):
         "slit": {"turnsPerStroke": TURNS_PER_STROKE,
                  "steps": [r6(s) for s in STEP_AT], "stepWidth": r6(2 * HALF_STEP),
                  "cuts": [r6(c) for c in CUTS],
-                 "catchUp": [r6(w) for w in BAR_WIN], "push": [r6(w) for w in PUSH], "pushBack": [r6(w) for w in PUSH_BACK],
+                 "push": [r6(w) for w in PUSH], "pushBack": [r6(w) for w in PUSH_BACK],
                  "handOut": r6(END),
                  "rods": RODS, "nailsPerRod": len(CUTS),
                  "plate": "game:metalplate-{metal}", "output": "game:metalnailsandstrips-{metal}",
@@ -1071,10 +952,8 @@ def make_rig(parts):
                              "middle of each feed step, and how long each lasts (the mutilated gear's three teeth in mesh, the knife "
                              "up). cuts: the whole strokes at which the knife is at the bottom having parted a nail off every rod. "
                              "handOut: W at which the nails and the strips are taken off, the job's end (a whole stroke: the knife at "
-                             "the bottom, the crank and the rolls as at 0). catchUp, push, pushBack: W over which the push sector "
-                             "drives the push bar up to the plate's tail, then pushes the strips out past the cut with it (the knife "
-                             "clear above them), and over which the return weight runs it back; the strips then lie in the box with "
-                             "the nails. rods, "
+                             "the bottom, the crank and the rolls as at 0). push, pushBack: W over which the push bar pushes the strips out past the "
+                             "cut (the knife clear above them) and is drawn back; they then lie in the box with the nails. rods, "
                              "nailsPerRod: what the model shows of a plate. plate, output: the work in and out, {metal} the plate's."},
         "parts": parts,
     }
@@ -1197,8 +1076,8 @@ def shape_json(els):
 
 def coplanar_poses():
     return (REST, pose_at(0.0), pose_at(0.3), pose_at(0.5), pose_at(1.25), pose_at(2.0), pose_at(2.5, back=True), pose_at(2.74),
-            pose_at(2.87), pose_at(3.0), pose_at(3.5), pose_at(3.8), pose_at(4.3), pose_at(4.45), pose_at(4.5), pose_at(4.7),
-            pose_at(4.75), pose_at(4.93), pose_at(END))
+            pose_at(2.87), pose_at(3.0), pose_at(3.5), pose_at(3.8), pose_at(4.3), pose_at(4.5), pose_at(4.75), pose_at(4.93),
+            pose_at(END))
 
 
 def is_work(part):

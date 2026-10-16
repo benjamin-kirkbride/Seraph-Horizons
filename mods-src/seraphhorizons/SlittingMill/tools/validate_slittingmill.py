@@ -147,12 +147,13 @@ TEX_RULES = [
     (r"^(clutchgear_cup|cone_body)", "cupronickel"),
     (r"^fr_chock", "brass"),
     (r"^(fr_(screw_|stud_)|roll(top|bottom)_(cutter|spacer|neck)|knife_blade|bedknife_|crank_(pin|washer)|entrygears_|rectshaft_"
-     r"|rectw[12]_catch|crankshaft_(rod|hub)|clutchgear_(body|tooth)|cone_(neck|flange)|pushshaft_(gear|pinion|rod))", "steel"),
-    (r"^(fr_(hbase|hpost|hcheek|hcap|screwhead|capstan|ped|brg|std|guide|studboss|epost|forkguide|psh|barstop|rack)|entry_rod"
-     r"|crank_disc|knife_(crosshead|ram|yoke)|wheel_|pinion(top|bottom)_|rectw[12]_(gear|hub)|idler_|roll(top|bottom)_collar"
-     r"|crankshaft_(disc|tooth)|clutchfork_|pushsector_|pushshaft_(drum|flange)|pushweight_|pushchain_"
-     r"|pusher_(head|finger|upright|rack))", "iron"),
+     r"|rectw[12]_catch|crankshaft_(rod|hub)|clutchgear_(body|tooth)|cone_(neck|flange))", "steel"),
+    (r"^(fr_(hbase|hpost|hcheek|hcap|screwhead|capstan|ped|brg|std|guide|studboss|epost|forkguide)|entry_rod|crank_disc"
+     r"|knife_(crosshead|ram|yoke)|wheel_|pinion(top|bottom)_|rectw[12]_(gear|hub)|idler_|roll(top|bottom)_collar"
+     r"|crankshaft_(disc|tooth)|clutchfork_)", "iron"),
     (r"^(plate|rods[lu]|nail[12][lu])_", "metal"),
+    (r"^pusher_(head|finger)", "iron"),
+    (r"^pusher_(handle|grip)", "oak"),
 ]
 
 
@@ -164,8 +165,7 @@ def check_textures(v):
         if rule is None or not got <= {rule}:
             bad.append((el.name, sorted(got), rule))
     print(f"textures by role (oak timber, the box and the axle's continuation; iron castings, wheels, the knife's crosshead, ram "
-          f"and yoke, the fork, the push bar, its sector, drum, weight and chain; steel collars, arbors, blades, pins, shafts, gears and "
-          f"pinions; a cupronickel cone clutch; brass chocks; "
+          f"and yoke, the fork; steel collars, arbors, blades, pins, shafts and pinions; a cupronickel cone clutch; brass chocks; "
           f"the work 'metal'): {len(bad)} elements break them")
     if bad:
         v.fail(f"textures by role: {bad[:5]}")
@@ -294,7 +294,7 @@ def check_feed_train(v):
     if abs(m.STEP_ANGLE - math.tau * m.ADVANCE / m.G_T) > 1e-12 or abs(2 * m.HALF_STEP * m.M_T - m.ADVANCE) > 1e-12:
         v.fail("a step is not whole teeth of the wheel, or not as long as the sector takes to pass that many")
     for name, sym in (("cutters", math.tau / (2 * m.CUT_K)), ("spacers", math.tau / (2 * m.SPACER_K)), ("pinions", math.tau / m.PIN_T),
-                      ("wheel", math.tau / m.G_T), ("necks", math.tau / 8), ("push sector's runs", math.pi)):
+                      ("wheel", math.tau / m.G_T), ("necks", math.tau / 8)):
         r = (m.ARB_TURN / sym) % 1.0
         if min(r, 1 - r) > 1e-9:
             v.fail(f"a job's half turn of the arbors does not repeat the {name}' pattern: the next plate would make them jump")
@@ -591,46 +591,30 @@ def check_removal(v):
 
 
 def check_pusher(v):
-    """The push bar and the strips: the bar stands at rest, against the plate's tail as laid, while the plate is fed in
-    the first steps; in the catch-up step it is driven up behind the plate's tail, never past it, and meets it at the
-    step's end, the tail then at the nip; it stands there until the push, in which its fingers' front is the strips'
-    tails all the way; it never reaches past the cut, so it is never in the knife's path; it is back at rest by the end.
-    The strips are pushed wholly past the cut while the knife is clear above them, and fall only once their tails are
-    past the bed knife."""
+    """The push bar: at rest against the plate's tail as laid (W 0 and the end), its fingers' front follows the plate's tail
+    in each step and then the strips' tails as it pushes them out; it never reaches past the cut, so it is never in the
+    knife's path; the strips are pushed wholly past the cut while the knife is clear above them, and fall."""
     m = v.m
     front = lambda pose: aabb_of(v.named("pusher", r"_finger", pose))[1][2]    # noqa: E731
-    worst, reach, behind = 0.0, -1e9, 1e9
+    worst, reach = 0.0, -1e9
     for back in (False, True):
         for i in range(int(m.END / 0.005) + 1):
             W = i * 0.005
             pose = m.pose_at(W, back=back)
             f = front(pose)
             reach = max(reach, f)
-            if W <= m.BAR_WIN[0]:
-                worst = max(worst, abs(f - m.PUSH_REST))
-            elif W <= m.BAR_WIN[1]:
-                pl = span(v, "plate", pose)
-                behind = min(behind, pl[0][2] - f)
-            elif W <= m.PUSH[0]:
-                worst = max(worst, abs(f - m.Z_N))
+            if W <= m.PUSH[0]:
+                worst = max(worst, abs(f - (m.PUSH_REST + m.feed(W, m.PLATE_STEPS))))
             elif W <= m.PUSH[1]:
                 tails = [span(v, f"rods{lay}", pose)[0][2] for lay in ("l", "u")]
                 worst = max(worst, max(abs(f - t) for t in tails))
-            elif W <= m.PUSH_BACK[0]:
-                worst = max(worst, abs(f - m.Z_K))
-            elif W >= m.PUSH_BACK[1]:
-                worst = max(worst, abs(f - m.PUSH_REST))
-    met = front(m.pose_at(m.BAR_WIN[1])) - m.Z_N      # the plate's tail is at the nip as the step ends
     rest = (front(m.pose_at(0.0)), front(m.pose_at(m.END)), front(m.pose_at(m.END, p=0.0)))
     clear = min(blade_edge(v, m.pose_at(m.PUSH[0] + (m.PUSH[1] - m.PUSH[0]) * i / 20)) for i in range(21)) - m.UP_TOP
     tail_end = min(span(v, f"rods{lay}", m.pose_at(m.PUSH[1]))[0][2] for lay in ("l", "u"))
-    print(f"push bar: at rest, at the nip and at the cut where it stands, and on the strips' tails as it pushes, within "
-          f"{worst:.1e}; in the catch-up at least {behind:.3f} behind the plate's tail, meeting it at the step's end ({met:+.1e}); "
-          f"reaches z {reach:.3f} at most (the cut {m.Z_K}, the blade {m.KNIFE_Z[0]}); at rest at {rest[0]:.2f} at the start and "
-          f"{rest[1]:.2f} at the end; the strips' tails at {tail_end:.3f} when pushed, the edge at least {clear:.3f} over them "
-          f"throughout; they fall from W {m.STRIP_FALL[0]:.3f}, the push done at {m.PUSH[1]:.3f}")
-    if worst > 1e-4 or behind < -1e-6 or abs(met) > 1e-4 or reach > m.Z_K + 1e-6 or max(abs(r - m.PUSH_REST) for r in rest) > 1e-4 \
-            or tail_end < m.Z_K - 1e-6 or clear < 0.05 or m.STRIP_FALL[0] < m.PUSH[1] - 1e-9:
+    print(f"push bar: against the plate's and then the strips' tails within {worst:.1e}; reaches z {reach:.3f} at most (the cut "
+          f"{m.Z_K}, the blade {m.KNIFE_Z[0]}); at rest at {rest[0]:.2f} at the start and {rest[1]:.2f} at the end; the strips' tails "
+          f"at {tail_end:.3f} when pushed, the edge at least {clear:.3f} over them throughout")
+    if worst > 1e-4 or reach > m.Z_K + 1e-6 or max(abs(r - m.PUSH_REST) for r in rest) > 1e-4 or tail_end < m.Z_K - 1e-6 or clear < 0.05:
         v.fail("the push bar does not push the strips out as drawn")
 
 
@@ -663,85 +647,21 @@ def nearest(xs, ys, centre, reach):
 CONTACT = 0.05                               # a driving tooth is within this of the tooth it drives
 
 
-def check_push_drive(v):
-    """The push bar's drive. The push sector, keyed on the top arbor, and the push gear: centres the sum of their pitch
-    radii apart; the push shaft turns only while a run of the sector is in mesh, at the gear ratio, with one of the run's
-    teeth in contact with the gear's (within CONTACT), and back only once the run has let go (no tooth of the sector inside
-    the gear's tip circle); their teeth never run into each other over the job. The pinion and the rack: the bar travels
-    the pinion's pitch radius times its turn, wherever it moves a pinion tooth in contact with a rack tooth, their teeth
-    never running into each other. The return weight rises and falls the drum's radius times its turn, its chain from the
-    drum's side to the weight's top all the way. The catch-up is the plate's length and the push the strips'."""
-    m = v.m
-    t = (m.Y_T, m.Z_N)
-    d = math.hypot(m.Q[0] - t[0], m.Q[1] - t[1])
-    if abs(d - (m.R_PS + m.R_PG)) > 1e-6:
-        v.fail(f"the push sector and gear: centres {d:.4f} apart, pitch radii add to {m.R_PS + m.R_PG}")
-    if abs(m.PUSH_REST + m.BAR_V - m.Z_N) > 1e-9 or abs(m.PHI_PUSH * m.R_PP - m.D_KNIFE) > 1e-9:
-        v.fail("the catch-up does not bring the bar to the nip, or the push is not the strips' length")
-    ratio = m.R_PS / m.R_PG
-    tip_g = m.R_PG + m.PUSH_MOD
-    worst_rate, worst_contact, worst_rack, worst_rack_contact, worst_chain = 0.0, -9.0, 0.0, -9.0, 0.0
-    grip_back, hits_s, hits_r = 9.0, 0, 0
-    drive_w, back_w = [], []
-    dw = 0.0025
-    prev = None
-    for i in range(int(m.END / dw) + 1):
-        W = i * dw
-        pose = m.pose_at(W)
-        a_s, a_q = angle_x(v, "pushsector", pose), angle_x(v, "pushshaft", pose)
-        z_bar = v.mat("pusher", pose)[2][3] * 16
-        y_w = v.mat("pushweight", pose)[1][3] * 16
-        st = v.named("pushsector", r"_tooth|_plate", pose)
-        gt = v.named("pushshaft", r"_gear_", pose)
-        hits_s += sum(1 for a in st if math.hypot(a.c[1] - m.Q[0], a.c[2] - m.Q[1]) < tip_g + 1.0 for b in gt if obb_obb(a, b, eps=0.05))
-        pt_ = v.named("pushshaft", r"_pinion_tooth", pose)
-        rk = v.named("pusher", r"_rack\d", pose)
-        hits_r += sum(1 for a in pt_ if a.c[1] > m.Q[0] for b in rk if obb_obb(a, b, eps=0.05))
-        # the chain: from the drum's side, at the shaft's height, to the weight's top
-        ch = aabb_of(v.named("pushchain", r"_links", pose))
-        wt = aabb_of(v.named("pushweight", r"_block", pose))
-        worst_chain = max(worst_chain, abs(ch[1][1] - m.Q[0]), abs(ch[0][1] - wt[1][1]))
-        if prev is not None:
-            pa_s, pa_q, pz, py = prev
-            ds = math.remainder(a_s - pa_s, math.tau)
-            dq = math.remainder(a_q - pa_q, math.tau)
-            worst_rack = max(worst_rack, abs((z_bar - pz) - m.R_PP * dq), abs((y_w - py) - m.R_DRUM * dq))
-            if dq > 1e-9:
-                drive_w.append(W)
-                worst_rate = max(worst_rate, abs(dq + ratio * ds))
-                worst_contact = max(worst_contact, nearest(st, gt, m.Q, tip_g + 1.0))
-            elif dq < -1e-9:
-                back_w.append(W)
-                grip_back = min(grip_back, nearest(st, gt, m.Q, tip_g + 1.0))
-            if abs(z_bar - pz) > 1e-9:
-                worst_rack_contact = max(worst_rack_contact, nearest(pt_, rk, (m.Y_RACK, m.Q[1]), 2.5))
-        prev = (a_s, a_q, z_bar, y_w)
-    print(f"push drive: the push shaft turns over W {drive_w[0] - dw:.3f}..{drive_w[-1]:.3f} at the sector's ratio (worst "
-          f"{worst_rate:.1e}), a sector tooth within {worst_contact:.3f} of a gear tooth all the while; back over "
-          f"{back_w[0] - dw:.3f}..{back_w[-1]:.3f} with the sector's teeth at least {grip_back:.3f} clear of the gear's; "
-          f"sector and gear teeth into each other {hits_s} times")
-    print(f"push drive: the bar and the weight go with the pinion and the drum (worst {worst_rack:.1e}), a pinion tooth within "
-          f"{worst_rack_contact:.3f} of a rack tooth wherever the bar moves, their teeth into each other {hits_r} times; the chain "
-          f"from the drum to the weight within {worst_chain:.1e}")
-    if (worst_rate > 1e-4 or worst_contact > CONTACT or grip_back < 0.1 or hits_s or worst_rack > 1e-4 or worst_rack_contact > CONTACT
-            or hits_r or worst_chain > 1e-4):
-        v.fail("the push drive does not drive the bar as drawn")
-
-
 # ---------------------------------------------------------------- causes
-ROOTS = ("axle", "player", "game")
+ROOTS = ("axle", "player", "operator")
 STILL = 1e-7                                 # a part whose matrix changes by less than this stands (the rig's rounding)
-EXCEPTIONS = {"clutchfork": "game"}          # thrown by the game while a plate is on: the documented exception
+EXCEPTIONS = {"clutchfork": "operator", "pusher": "operator"}   # the documented exceptions: the operator throws the
+                                                               # fork in while a plate is on and works the push bar
 
 
 def same(a, b, tol=1e-9):
     return max(abs(a[i][j] - b[i][j]) for i in range(3) for j in range(4)) <= tol
 
 
-def cause_pairs(m, parts):
+def cause_pairs(m, parts, step=0.0025):
     """Pose pairs a step apart: the axle turning either way with no plate; the job at the drawn pace forward, finely, and
-    backward, every edge of every gauge's windows among the poses (so no pair straddles one: within a pair every gauge
-    moves at one rate); p easing in at the start and out at the end."""
+    backward (every `step` and four times it), every edge of every gauge's windows among the poses (so no pair straddles
+    one: within a pair every gauge moves at one rate); p easing in at the start and out at the end."""
     out = []
     for i in range(48):
         for s in (1.0, -1.0):
@@ -753,8 +673,8 @@ def cause_pairs(m, parts):
             for w in d.get("windows", []):
                 edges |= {w["from"], w["from"] + w["ease"], w["to"] - w["ease"], w["to"]}
     edges = {e for e in edges if 0.0 < e < m.END}
-    for step, back in ((0.0025, False), (0.01, True)):
-        ws = sorted({round(i * step, 9) for i in range(int(round(m.END / step)) + 1)} | edges)
+    for dw, back in ((step, False), (4 * step, True)):
+        ws = sorted({round(i * dw, 9) for i in range(int(round(m.END / dw)) + 1)} | edges)
         poses = [m.pose_at(W, back=back) for W in ws]
         out += list(zip(poses, poses[1:]))
     for W in (0.0, m.END):
@@ -763,21 +683,21 @@ def cause_pairs(m, parts):
     return out
 
 
-def check_causes(v):
-    """Every moving part of the model has a mechanical cause traceable to the axle or to the work's own motion through
-    drawn parts (make_shape.causes()). Over the axle turning either way, the job both ways and p easing at its ends,
-    every change in a part's pose is accounted for by one of its causes, held link by link: keyed parts turn with their
-    shafts, gears in mesh roll their pitch circles on each other, the catches and the clutch carry their shafts, a sector
-    turns its gear only with a tooth in contact (within CONTACT), the rack goes with its pinion with a tooth in contact,
-    the weight and its chain go with the drum, and the weight runs the push shaft back only once the sector's teeth are
-    clear of its gear. The work's own links are held by the work checks, which must pass. Every part reaches the axle
-    through its causes; the only exceptions are the clutch fork (the game's) and the plate's placing (the player's)."""
+def check_causes(v, step=0.0025):
+    """Every moving part of the model has a cause traceable to the axle or to the work's own motion through drawn parts
+    (make_shape.causes()), but for the documented exceptions. Over the axle turning either way, the job both ways and p
+    easing at its ends, every change in a part's pose is accounted for by one of its causes, held link by link: keyed
+    parts turn with their shafts, gears in mesh roll their pitch circles on each other, the catches and the clutch carry
+    their shafts, the mutilated gear turns the great wheel only with a tooth in contact (within CONTACT), the crank pin
+    carries the knife. The work's own links are held by the work checks, which must pass. Every part reaches the axle
+    through its causes; the only exceptions are the clutch fork and the push bar (the operator's; the bar is held to the
+    work by the push bar check) and the plate's placing (the player's)."""
     m = v.m
     links = m.causes()
     by_part = {}
     for part, cause, how, fig in links:
         by_part.setdefault(part, []).append((cause, how, fig))
-    pairs = cause_pairs(m, v.parts)
+    pairs = cause_pairs(m, v.parts, step)
     rest = {pid: v.mat(pid, m.REST) for pid in v.by_part}
     moving = sorted(pid for pid in v.by_part if pid != "frame"
                     and any(not same(v.mat(pid, b), rest[pid], STILL) for _, b in pairs[::7] + pairs[-22:]))
@@ -785,7 +705,7 @@ def check_causes(v):
     stale = sorted({pid for pid in by_part if pid not in moving} | {c for _, c, _, _ in links if c not in ROOTS and c not in v.by_part})
     if missing or stale:
         v.fail(f"causes: moving parts with no cause {missing}; causes of parts that do not move or are not drawn {stale}")
-    # reachability: every moving part's causes lead to the axle (the fork's to the game)
+    # reachability: every moving part's causes lead to the axle (the exceptions' to theirs)
     def reaches(pid, root, seen=()):
         if pid == root:
             return True
@@ -808,6 +728,8 @@ def check_causes(v):
             return v.passed.get(fig, False)
         if how in ("placed", "fork"):
             return only_p(a, b)
+        if how == "hand":                    # the operator's: held to the work by its check
+            return v.passed.get(fig, False)
         if how == "keyed":
             if cause == "axle":
                 return all(abs(math.remainder(ang(part, p) - p[0], math.tau)) < 1e-6 for p in (a, b))
@@ -835,21 +757,6 @@ def check_causes(v):
             pin = lambda p: aabb_of(v.named(cause, r"_pin", p))    # noqa: E731
             dy_pin = (pin(b)[0][1] + pin(b)[1][1] - pin(a)[0][1] - pin(a)[1][1]) / 2
             return abs((v.mat(part, b)[1][3] - v.mat(part, a)[1][3]) * 16 - dy_pin) < 1e-4
-        if how == "rack":
-            dz = (v.mat(part, b)[2][3] - v.mat(part, a)[2][3]) * 16
-            if abs(dz - fig[0] * dc) > 1e-5:
-                return False
-            return nearest(v.named(cause, fig[2], b), v.named(part, fig[1], b), (m.Y_RACK, m.Q[1]), 2.5) <= CONTACT
-        if how == "chain":
-            low = lambda p: aabb_of(v.posed(part, p))[0][1]    # noqa: E731
-            return abs(dc) > 1e-9 and abs((low(b) - low(a)) - fig * dc) < 1e-5
-        if how == "weight":
-            sec_cause, sec = next(((c, f) for c, h, f in by_part[part] if h == "sector"), (None, None))
-            if sec is None:                  # a weight only runs back what a sector drove and let go
-                return False
-            dy = (v.mat(cause, b)[1][3] - v.mat(cause, a)[1][3]) * 16
-            clear = nearest(v.named(sec_cause, sec[3], b), v.named(part, sec[2], b), m.Q, sec[0] + 2.0) > 0.1
-            return dp < -1e-9 and dy < 0 and abs(dy - fig * dp) < 1e-5 and clear
         raise ValueError(f"unknown cause {how!r}")
 
     unexplained = {}
@@ -861,7 +768,7 @@ def check_causes(v):
                 unexplained.setdefault(pid, (a, b))
     held = sorted({h for _, _, h, _ in links})
     print(f"causes: {len(moving)} moving parts, each with a cause ({len(links)} links of {len(held)} kinds), each leading back to the "
-          f"axle (the clutch fork to the game); every change of pose over {len(pairs)} pose pairs accounted for by a cause: "
+          f"axle (the clutch fork and the push bar to the operator); every change of pose over {len(pairs)} pose pairs accounted for by a cause: "
           f"{'yes' if not unexplained else 'NO'}; the work's links held by {sorted({f for _, _, h, f in links if h in ('work', 'fall')})}")
     for pid, (a, b) in sorted(unexplained.items()):
         print(f"  UNCAUSED {pid}: from theta {a[0]:.3f} W {a[2]:.4f} p {a[4]} to theta {b[0]:.3f} W {b[2]:.4f} p {b[4]}")
@@ -877,14 +784,13 @@ SHAFTS = [
     ("crankshaft", r"_rod", "K", ("fr_brgcrank", "fr_stdcrank")),
     ("rolltop", r"_neck", "T", ("fr_chockt_w", "fr_chockt_e")),
     ("rollbottom", r"_neck", "Bt", ("fr_chockb_w", "fr_chockb_e")),
-    ("pushshaft", r"_rod", "Q", ("fr_brgpsh", "fr_pshbrkt")),
 ]
 
 
 def check_supports(v):
     m = v.m
     frame = v.by_part["frame"]
-    centres = {"E": m.E, "R": m.R, "K": m.K, "T": (m.Y_T, m.Z_N), "Bt": (m.Y_B, m.Z_N), "Q": m.Q}
+    centres = {"E": m.E, "R": m.R, "K": m.K, "T": (m.Y_T, m.Z_N), "Bt": (m.Y_B, m.Z_N)}
     for pid, rx, ck, want in SHAFTS:
         c = centres[ck]
         found, _ = shaft_supports(frame, v.named(pid, rx), 0, c)
@@ -939,11 +845,6 @@ ALLOWED = [
     # the push bar: its fingers in the slitters' channels and the table's grooves, against the plate's and the rods' tails
     ("pusher", r"_finger", "roll(top|bottom)", r"_cutter|_spacer"), ("pusher", r"_finger", "plate|rods[lu]", None),
     ("pusher", None, "frame", r"fr_table|fr_guide"),
-    # the push drive: the sector keyed on the top arbor's neck, the push shaft in its bearings, the sector's runs in mesh with the
-    # push gear and the pinion with the rack (check_push_drive holds their teeth), the chain off the drum and on the weight
-    ("pushsector", r"_hub|_plate", "rolltop", r"_neck"), ("pushshaft", r"_rod", "frame", r"fr_brgpsh|fr_pshbrkt"),
-    ("pushsector", r"_tooth|_plate", "pushshaft", r"_gear_"), ("pushshaft", r"_pinion_", "pusher", r"_rack"),
-    ("pushchain", None, "pushshaft", r"_drum"), ("pushchain", None, "pushweight", None),
     ("nail\\d[lu]", None, "frame", r"fr_box"), ("nail\\d[lu]", None, "nail\\d[lu]", None),
 ]
 
@@ -1040,7 +941,7 @@ def validate(m, els, parts, rig, quick=False):
         v.run(check)
     v.run(check_containment, idle(m) + cycle(m, 0.1) + cycle(m, 0.1, back=True) + [m.pose_at(m.END, p=0.0)])
     for check in (check_gearing, check_feed_train, check_feed, check_slitters, check_work, check_dwell, check_parting,
-                  check_pusher, check_push_drive, check_removal, check_knife, check_supports, check_causes):
+                  check_pusher, check_removal, check_knife, check_supports, check_causes):
         v.run(check)
     v.run(check_clearances, idle(m) + cycle(m, 0.05) + cycle(m, 0.1, back=True) + cut_poses(m) + [m.pose_at(1.0, p=0.0)], "clearances")
     if not quick:

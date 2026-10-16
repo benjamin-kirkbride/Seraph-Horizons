@@ -4,13 +4,15 @@ These hold what the generator wrote to its own rules, without running it: the sh
 rig maths and uses the `requires` vocabulary of the model, its reference poses are its own maths, the cells are
 rebuilt from the shipped shape, the work is knife strokes with the knife at the bottom at every whole stroke, the
 rolls step the plate a nail's length while the knife is up and stand while it is down, whichever way the axle turns,
-p easing at the start and the end turns nothing, the nails go down with the knife's edge and fall, the push bar goes
-with the push shaft's pinion, which turns on only while the push sector turns and back only after the push, the strips
-and nails are taken off at the hand-out, and the anchors are where the model puts them. Run with
+p easing at the start and the end turns nothing, the nails go down with the knife's edge and fall, the strips and
+nails are taken off at the hand-out, and the anchors are where the model puts them. Run with
 `python3 -m unittest discover -s tools/tests`.
 """
 
+import contextlib
+import copy
 import importlib.util
+import io
 import json
 import math
 import sys
@@ -186,28 +188,13 @@ class Slitting(unittest.TestCase):
 
 
 class PushBar(unittest.TestCase):
-    def test_the_sector_drives_it_out_and_the_weight_brings_it_back(self):
+    def test_it_follows_the_plate_pushes_the_strips_out_and_is_back_at_the_end(self):
         slit = RIG["slit"]
         z = lambda W: matrix("pusher", **at(W))[2][3] * 16    # noqa: E731
         self.assertEqual(z(0.0), 0.0)
-        # it stands while the first steps feed the plate, and goes the plate's length in the catch-up: to the nip, as the
-        # plate's tail goes in
-        self.assertAlmostEqual(z(slit["catchUp"][0]), 0.0, places=9)
-        self.assertAlmostEqual(make_shape.PUSH_REST + z(slit["catchUp"][1]), make_shape.Z_N, places=3)
-        self.assertAlmostEqual(z(slit["push"][0]), make_shape.PLATE_L, places=3)
-        # it goes with the push pinion, the weight with the drum; the shaft turns on only while the sector turns
-        q = lambda W: turn_x(matrix("pushshaft", **at(W)))    # noqa: E731
-        s = lambda W: turn_x(matrix("pushsector", **at(W)))    # noqa: E731
-        y = lambda W: matrix("pushweight", **at(W))[1][3] * 16    # noqa: E731
-        for i in range(200):
-            W = 3.0 + i * 0.01
-            dq = math.remainder(q(W + 0.01) - q(W), math.tau)
-            self.assertAlmostEqual(z(W + 0.01) - z(W), make_shape.R_PP * dq, places=4)
-            self.assertAlmostEqual(y(W + 0.01) - y(W), make_shape.R_DRUM * dq, places=4)
-            if dq > 1e-9:
-                self.assertGreater(abs(math.remainder(s(W + 0.01) - s(W), math.tau)), 1e-6)
-            if dq < -1e-9:
-                self.assertGreaterEqual(W, slit["pushBack"][0] - 0.01)
+        # a nail's length a step behind the plate
+        for m, s in enumerate(slit["steps"][:4]):
+            self.assertAlmostEqual(z(s + slit["stepWidth"] / 2), make_shape.L_NAIL * (m + 1), places=3)
         # the strips' length more while the knife is up, the fingers' front then at the cut, never past it
         self.assertAlmostEqual(z(slit["push"][1]), make_shape.PLATE_L + make_shape.D_KNIFE, places=3)
         self.assertAlmostEqual(make_shape.PUSH_REST + z(slit["push"][1]), make_shape.Z_K, places=3)
@@ -230,6 +217,47 @@ class Anchors(unittest.TestCase):
             self.assertEqual(len(RIG[key]["pos"]), 3)
         self.assertAlmostEqual(RIG["nip"]["pos"][2] * 16, make_shape.Z_N, places=3)
         self.assertAlmostEqual(RIG["knife"]["pos"][2] * 16, make_shape.Z_K, places=3)
+
+
+class CauseCheck(unittest.TestCase):
+    """The cause check (validate_slittingmill.check_causes) passes the model, and fails it with a moving part given no
+    cause, the great wheel without its mutilated gear, or the mutilated gear's teeth out of contact with the wheel's.
+    Sampled coarsely, with the work checks taken as passed (the generator runs them all, finely)."""
+
+    @classmethod
+    def setUpClass(cls):
+        import validate_slittingmill
+        cls.val = validate_slittingmill
+        cls.els = make_shape.build()
+        cls.real = staticmethod(make_shape.causes)
+
+    def passes(self, els=None, links=None):
+        make_shape.causes = (lambda: links) if links is not None else self.real
+        try:
+            v = self.val.V(make_shape, els or self.els, make_shape.rig_parts(), None)
+            for name in ("check_feed", "check_work", "check_pusher", "check_parting"):
+                v.passed[name] = True
+            with contextlib.redirect_stdout(io.StringIO()):
+                v.run(self.val.check_causes, 0.02)
+            return v.ok
+        finally:
+            make_shape.causes = self.real
+
+    def test_the_model_passes(self):
+        self.assertTrue(self.passes())
+
+    def test_a_moving_part_with_no_cause_fails(self):
+        self.assertFalse(self.passes(links=[c for c in self.real() if c[0] != "pusher"]))
+
+    def test_the_wheel_without_its_mutilated_gear_fails(self):
+        self.assertFalse(self.passes(links=[c for c in self.real() if not (c[0] == "wheel" and c[2] == "sector")]))
+
+    def test_the_mutilated_gears_teeth_out_of_contact_fail(self):
+        els = copy.deepcopy(self.els)
+        for e in els:
+            if e.name.startswith("crankshaft_tooth"):
+                e.c = [e.c[0] + 2.0, e.c[1], e.c[2]]
+        self.assertFalse(self.passes(els=els))
 
 
 if __name__ == "__main__":
