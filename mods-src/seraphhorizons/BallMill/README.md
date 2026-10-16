@@ -93,7 +93,7 @@ group of `requires`, fitted in order, its fits in order, services last. The rig'
 (`BUILD_STAGES` in `make_shape.py`), and the viewer's Build stage select has one state a stage, named for it
 (`BUILD_STATES`), with the water pipe's metal a select of its own once services are in. Materials are the
 "Current figures" of the stages proposal (metal measured and paid at 128 vox an ingot, a plate 2 ingots;
-timber 1,024 vox a plank); "~" marks a guess or a choice of item.
+boards in planks at 128 vox, timbers in support beams at 256); "~" marks a guess or a choice of item.
 
 | # | Stage (state id) | `requires` | Materials |
 |---|---|---|---|
