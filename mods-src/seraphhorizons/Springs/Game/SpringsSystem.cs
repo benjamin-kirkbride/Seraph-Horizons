@@ -29,7 +29,8 @@ namespace SeraphHorizons.Mod.Springs;
 /// rivulets stay);</item>
 /// <item>a postfix on <c>BlockBehaviorFiniteSpreadingLiquid.GetMaxNeighbourLiquidLevel</c>: a
 /// pouring spring of a flowing cell's liquid, above it or beside it, counts as a source block, so
-/// what it poured stays (<see cref="SpringPour.Feed"/>);</item>
+/// what it poured stays (<see cref="SpringPour.Feed"/>), a rapids spring only for the cell on the
+/// one face it pours out of;</item>
 /// <item>a postfix on ExpandedLib's <c>BlockNetworkNode.IsValidNonNetworkConnection</c>: a pipe end
 /// against a spring is sealed, not an open end leaking its run.</item>
 /// </list>
@@ -278,14 +279,21 @@ public class SpringsSystem : ModSystem
 
     [ThreadStatic] private static BlockPos? _near;
 
-    /// <summary>Whether the cell at <paramref name="at"/> holds a pouring spring of
-    /// <paramref name="kind"/>.</summary>
-    public static bool PouringAt(IBlockAccessor blockAccessor, BlockPos at, SpringKind kind) =>
-        blockAccessor.GetBlock(at, BlockLayersAccess.Solid) is BlockWaterSpring spring && spring.Kind == kind
-        && blockAccessor.GetBlockEntity(at) is not BlockEntityWaterSpring { Tapped: true };
+    /// <summary>Whether the cell at <paramref name="at"/> holds a spring of <paramref name="kind"/>
+    /// pouring out of its <paramref name="face"/>: untapped, and, for a rapids spring, that is the
+    /// face it chose (<see cref="SpringPour.FeedsFace"/>; with no block entity yet, every
+    /// face).</summary>
+    public static bool PouringAt(IBlockAccessor blockAccessor, BlockPos at, SpringKind kind, int face)
+    {
+        if (blockAccessor.GetBlock(at, BlockLayersAccess.Solid) is not BlockWaterSpring spring || spring.Kind != kind)
+            return false;
+        var entity = blockAccessor.GetBlockEntity(at) as BlockEntityWaterSpring;
+        return entity is not { Tapped: true } && SpringPour.FeedsFace(entity?.PourFace, face);
+    }
 
     // BlockBehaviorFiniteSpreadingLiquid.GetMaxNeighbourLiquidLevel(ourblock, world, pos, out feeds):
-    // a pouring spring of the cell's liquid above or beside it counts as a source block.
+    // a pouring spring of the cell's liquid above or beside it counts as a source block (a rapids
+    // spring only when the cell is on the face it pours out of).
     private static void FeedPostfix(Block ourblock, IWorldAccessor world, BlockPos pos, ref bool oneNeighbourFeedsThis, ref int __result)
     {
         if (!_on || (__result >= SpringCodes.SourceLevel && oneNeighbourFeedsThis) || ourblock?.Code == null
@@ -295,13 +303,13 @@ public class SpringsSystem : ModSystem
         var near = _near ??= new BlockPos(0);
         near.Set(pos.X, pos.Y + 1, pos.Z);
         near.dimension = pos.dimension;
-        bool above = PouringAt(ba, near, kind);
+        bool above = PouringAt(ba, near, kind, SpringPour.Down);
         bool beside = false;
         if (!above)
             foreach (var facing in BlockFacing.HORIZONTALS)
             {
                 near.Set(pos.X + facing.Normali.X, pos.Y, pos.Z + facing.Normali.Z);
-                if (PouringAt(ba, near, kind))
+                if (PouringAt(ba, near, kind, facing.Opposite.Index))
                 {
                     beside = true;
                     break;

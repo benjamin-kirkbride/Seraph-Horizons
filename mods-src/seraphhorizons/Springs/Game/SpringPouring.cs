@@ -10,21 +10,27 @@ namespace SeraphHorizons.Mod.Springs;
 /// does in <c>SpreadAndUpdateLiquidLevels</c>, from a solid block. The cell under it gets falling
 /// water (<c>{liquid}-d-6</c>) when the game's <c>CanSpreadIntoBlock</c> allows it, as if the
 /// spring's cell were open water at level 7; otherwise every side it allows gets the level-6 block
-/// the game would spread there (<c>GetLessLiquidBlockId</c>). Each block put is told to look again
-/// (its <c>OnNeighbourBlockChange</c>), so the game's own spreading carries it on. The water stays
+/// the game would spread there (<c>GetLessLiquidBlockId</c>). A rapids spring pours out of one of
+/// those faces only, the one it chose (<see cref="Plan"/>), and keeps to it while it may: a face
+/// whose cell already holds its water stays one, even where the game's check says no (it does
+/// into water as high as the spring's). Each block put is told to look again (its
+/// <c>OnNeighbourBlockChange</c>), so the game's own spreading carries it on. The water stays
 /// because <see cref="SpringsSystem"/>'s postfix on <c>GetMaxNeighbourLiquidLevel</c> counts a
-/// pouring spring as a source; a tapped or broken spring is no source, and its water drains as any
-/// water without one.
+/// pouring spring as a source, a rapids spring only for the cell on its face; a tapped or broken
+/// spring is no source, and its water drains as any water without one.
 /// </summary>
 public static class SpringPouring
 {
-    /// <summary>Pours from the spring at <paramref name="pos"/>.</summary>
-    public static void Pour(IWorldAccessor world, BlockPos pos, BlockWaterSpring spring)
+    /// <summary>The faces the spring at <paramref name="pos"/> pours out of, and for a rapids spring
+    /// the one it chooses (<see cref="SpringPour.OneFace"/>, sticking to
+    /// <paramref name="current"/>; <see cref="SpringPour.NoFace"/> when it has none). A normal
+    /// spring pours out of every face the game's source would, and chooses none (null).</summary>
+    public static (IReadOnlyList<int> Faces, int? Face) Plan(IWorldAccessor world, BlockPos pos, BlockWaterSpring spring, int? current)
     {
         var source = spring.Source;
         var behavior = source?.GetBehavior<BlockBehaviorFiniteSpreadingLiquid>();
         if (source == null || behavior == null || spring.Falling == null)
-            return;
+            return ([], spring.Kind == SpringKind.Rapid ? SpringPour.NoFace : null);
         var ba = world.BlockAccessor;
         var open = world.GetBlock(0);
         var below = pos.DownCopy();
@@ -32,15 +38,30 @@ public static class SpringPouring
         bool belowOpen = ba.GetMostSolidBlock(below).GetLiquidBarrierHeightOnSide(BlockFacing.UP, below) < 1f;
         bool canDown = belowOpen && CanPourInto(world, behavior, source, open, pos, below, BlockFacing.DOWN, spring);
         bool belowSource = spring.Pours(belowFluid) && belowFluid.LiquidLevel == SpringCodes.SourceLevel;
-        foreach (int face in SpringPour.Faces(belowOpen, canDown, belowSource,
-                     f => CanPourInto(world, behavior, source, open, pos, pos.AddCopy(BlockFacing.ALLFACES[f]), BlockFacing.ALLFACES[f], spring)))
+        bool CanSideways(int f) =>
+            CanPourInto(world, behavior, source, open, pos, pos.AddCopy(BlockFacing.ALLFACES[f]), BlockFacing.ALLFACES[f], spring);
+        if (spring.Kind != SpringKind.Rapid)
+            return (SpringPour.Faces(belowOpen, canDown, belowSource, CanSideways), null);
+        bool Holds(int f) => HoldsItsWater(ba, pos.AddCopy(BlockFacing.ALLFACES[f]), spring);
+        int face = SpringPour.OneFace(SpringPour.RapidFaces(belowOpen, canDown, belowSource, CanSideways, Holds), current, Holds);
+        return (face == SpringPour.NoFace ? [] : [face], face);
+    }
+
+    /// <summary>Pours from the spring at <paramref name="pos"/> out of <paramref name="faces"/>
+    /// (<see cref="Plan"/>).</summary>
+    public static void Pour(IWorldAccessor world, BlockPos pos, BlockWaterSpring spring, IReadOnlyList<int> faces)
+    {
+        var source = spring.Source;
+        var behavior = source?.GetBehavior<BlockBehaviorFiniteSpreadingLiquid>();
+        if (source == null || behavior == null || spring.Falling == null)
+            return;
+        var ba = world.BlockAccessor;
+        foreach (int face in faces)
         {
-            var facing = BlockFacing.ALLFACES[face];
-            var at = pos.AddCopy(facing);
+            var at = pos.AddCopy(BlockFacing.ALLFACES[face]);
             // Already its water at the poured level or higher, in whatever flow the game has given
             // it: left alone (the game turns its flow; putting it back would fight that).
-            var there = ba.GetBlock(at, BlockLayersAccess.Fluid);
-            if (spring.Pours(there) && there.LiquidLevel >= SpringCodes.PouredLevel)
+            if (HoldsItsWater(ba, at, spring))
                 continue;
             int id = face == SpringPour.Down
                 ? spring.Falling.Id
@@ -50,6 +71,12 @@ public static class SpringPouring
             ba.SetBlock(id, at, BlockLayersAccess.Fluid);
             world.GetBlock(id).OnNeighbourBlockChange(world, at, pos);
         }
+    }
+
+    private static bool HoldsItsWater(IBlockAccessor ba, BlockPos at, BlockWaterSpring spring)
+    {
+        var there = ba.GetBlock(at, BlockLayersAccess.Fluid);
+        return spring.Pours(there) && there.LiquidLevel >= SpringCodes.PouredLevel;
     }
 
     // The game's check, as from open water at level 7 in the spring's cell, and only into its own
@@ -64,7 +91,8 @@ public static class SpringPouring
     }
 
     /// <summary>Tells the water round <paramref name="pos"/> that the spring there changed (tapped,
-    /// untapped, broken), so the game's flowing water looks again: it drains without a source.</summary>
+    /// untapped, broken, a rapids spring turned to another face), so the game's flowing water looks
+    /// again: it drains without a source.</summary>
     public static void Notify(IWorldAccessor world, BlockPos pos, BlockWaterSpring spring)
     {
         var ba = world.BlockAccessor;

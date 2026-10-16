@@ -2345,7 +2345,15 @@ a solid block: into the cell under it, falling water (`{liquid}-d-6`), when the 
 `CanSpreadIntoBlock` allows it as from open water at level 7 in the spring's cell, and then nowhere
 else (over a source of its own water it spreads sideways, as the game's does); otherwise into every
 side it allows, the level-6 block the game would put there (`GetLessLiquidBlockId`, flow and all).
-Each block put is told to look again (its `OnNeighbourBlockChange`), and the game's spreading carries
+A rapids spring pours out of one of those faces at a time, not every one: the face it has been
+pouring out of while it still may, otherwise the first (north, east, south, west) whose cell already
+holds its water at level 6 or more (so one found pouring out of several, from before this, keeps a
+side that is running), otherwise the first it may (`SpringPour.OneFace`). A face whose cell already
+holds its water counts as one it may, though `CanSpreadIntoBlock` refuses water as high as its own;
+under it only when that is no source. The face is kept with the block entity (`pourFace`), and when
+it turns to another (its side walled up, say), the spring tells the water round it to look again, so
+what it poured on the old side drains; opened again, the old side stays dry. Each block put is
+told to look again (its `OnNeighbourBlockChange`), and the game's spreading carries
 the water on from there. It never pours over another liquid, and leaves a cell alone that already
 holds its water at level 6 or more, in whatever flow the game has turned it to. It pours when its
 block entity loads (half a second later, once pipe networks are back) and 75 ms after any neighbour
@@ -2353,7 +2361,9 @@ changes (one look for several changes), so mining out a new face opens a new out
 because a Harmony postfix on `BlockBehaviorFiniteSpreadingLiquid.GetMaxNeighbourLiquidLevel`, which
 each flowing cell asks before it drains, counts a pouring spring of its liquid as a source: directly
 above, it feeds the cell (the game's answer for the same liquid above); beside it, it stands at 7 and
-feeds a cell at 6 (`SpringPour.Feed`). `water` and `rapidwater` share the liquid code `water`, so a
+feeds a cell at 6 (`SpringPour.Feed`). A rapids spring answers only for the cell on its face
+(`SpringPour.FeedsFace`); before its first look in a world from before it chose one, for every
+cell. `water` and `rapidwater` share the liquid code `water`, so a
 spring answers only for its own block code's liquid. A normal spring pours `water`, a rapids spring
 `rapidwater`: plain water, as the source was; only the spring itself gives well water.
 
