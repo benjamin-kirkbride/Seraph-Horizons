@@ -162,7 +162,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var at = await Floor(80, 0);
         var e = await Spawn(at, null);
         var health = e.GetBehavior<EntityBehaviorHealth>()!;
-        int Drops() => W.GetEntitiesAround(e.Pos.XYZ, 10, 10, x => x is EntityItem).Length;
+        int Drops() => W.GetEntitiesAround(e.Pos.XYZ, 10, 10, x => x is EntityItem { Alive: true }).Length;
         int dropsBefore = Drops();
 
         Assert.True(e.ReceiveDamage(new DamageSource { Source = EnumDamageSource.Internal, Type = EnumDamageType.BluntAttack }, health.MaxHealth * 3));

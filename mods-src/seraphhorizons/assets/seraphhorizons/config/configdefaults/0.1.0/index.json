@@ -62,6 +62,7 @@
     "industrialdeco": "1.0.8",
     "integratedmodmanager": "1.1.3",
     "interestingoregen": "2.3.8",
+    "itemclumps": "0.2.1",
     "landformoverhaul": "1.0.4",
     "loggingmod": "0.3.6",
     "madfoundation": "1.2.0",
@@ -259,6 +260,12 @@
       "format": "json",
       "owners": [
         "immersivewoodworking"
+      ]
+    },
+    "ItemClumpsConfig.json": {
+      "format": "json",
+      "owners": [
+        "itemclumps"
       ]
     },
     "LoggingMod.json": {
