@@ -1,0 +1,12 @@
+{
+  "type": "code",
+  "modid": "entityinterpolationfix",
+  "name": "Entity Interpolation Fix",
+  "description": "Stops mobs going NaN, and the game crashing, after the game window runs at a low frame rate.",
+  "authors": ["Benjamin Kirkbride"],
+  "version": "1.0.0",
+  "side": "Universal",
+  "requiredOnClient": false,
+  "requiredOnServer": false,
+  "dependencies": { "game": "1.22.0" }
+}
