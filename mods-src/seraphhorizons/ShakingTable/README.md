@@ -72,8 +72,7 @@ upper side's posts, rail and straps. The rest:
 is one `requires` group, fitted in order, and the machine doesn't run until it is complete. The generator's
 `BUILD_STAGES` is this list, written into the rig as `buildStages`; its checked states (`STATES`) are the frame
 and each stage on the ones before it, named for the stage. Materials are the settled figures (one rate: 128 vox
-of iron or steel an ingot, a plate 2 ingots; rods counted, then plates, then nails and strips; timber in planks
-at 1,024 vox).
+of iron or steel an ingot, a plate 2 ingots; rods counted, then plates, then nails and strips; boards in planks at 128 vox, timbers in support beams at 256).
 
 | # | Stage | `requires` | Why here | Materials |
 |---|---|---|---|---|
