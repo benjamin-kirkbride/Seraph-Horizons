@@ -77,12 +77,12 @@ an ingot, rods first, then whole plates, then nails and strips at 4 an ingot; ti
 
 | # | Stage | `requires` | Materials |
 |---|---|---|---|
-| F | The frame (placed) | none | 2 iron nails and strips, 1 steel nails and strips, 1 plank |
+| F | The frame (placed) | none | 2 iron nails and strips, 1 steel nails and strips, 5 plank |
 | 1 | The countershaft | `countershaft` | 2 steel rod, 1 plank |
-| 2 | The shaking frame | `shaker` | 4 iron nails and strips, 1 steel nails and strips, 1 plank |
-| 3 | The rollers and creep | `rollers`, `creep` | 1 stainless gear (the worm wheel), 1 iron nails and strips, 1 steel rod, 2 steel nails and strips, 1 plank |
+| 2 | The shaking frame | `shaker` | 4 iron nails and strips, 1 steel nails and strips, 2 plank |
+| 3 | The rollers and creep | `rollers`, `creep` | 1 stainless gear (the worm wheel), 1 iron nails and strips, 1 steel rod, 2 steel nails and strips, 5 plank |
 | 4 | The belt | `belt` | 2 leather |
-| 5 | Services | `feedbox`, `chutes`, `pipecopper` or `pipelead` | 1 plank (the feed box), 3 chute section, ~2 pipe section (copper or lead) |
+| 5 | Services | `feedbox`, `chutes`, `pipecopper` or `pipelead` | 2 plank (the feed box), 3 chute section, ~2 pipe section (copper or lead) |
 
 The belt is also a wearing part: it is renewed when worn (2 leather), but it is fitted as stage 4. The feed
 box, once a stage of its own, is part of services (its posts are the frame's). The chute sections were frame
