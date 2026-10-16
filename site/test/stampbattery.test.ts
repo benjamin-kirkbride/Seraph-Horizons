@@ -8,7 +8,7 @@ import { compileGlobs, flattenShape, partMatrices, partOf, rideOrder, rigInputs,
 // The stamp battery's shipped files, and the poses StampBattery/tools/make_shape.py computes from them with machinegen's
 // reference maths. Its rig reads the axle's angle θ (the entry shaft) and its travel ψ, which everything behind the
 // rectifier follows: the line shaft and its pulley, the camshaft, the stamps (each a sum of harmonics of the camshaft's
-// turn). The frame is placed, then four build stages (the mortar, the stamps, the camshaft and feed box, services), and no work. tools/tests/test_stampbattery_model.py replays the same file in Python.
+// turn). The frame is placed, then five build stages (the timber, the mortar, the stamps, the camshaft and feed box, services), and no work. tools/tests/test_stampbattery_model.py replays the same file in Python.
 const MOD = "../../mods-src/seraphhorizons/";
 const read = (path: string) => JSON.parse(readFileSync(new URL(MOD + path, import.meta.url), "utf8")) as unknown;
 const rig = read("assets/seraphhorizons/config/stampbattery-rig.json") as Rig & Record<string, unknown>;
@@ -19,7 +19,7 @@ const manifest = JSON.parse(readFileSync(new URL("../models.json", import.meta.u
 const parts = rig.parts!;
 const order = rideOrder(parts);
 const PIPES = ["pipecopper", "pipelead"];
-const VALUES = ["mortar", "stamps", "camshaft", "feedbox", "chutes", ...PIPES];
+const VALUES = ["timber", "mortar", "stamps", "camshaft", "feedbox", "chutes", ...PIPES];
 
 const rows = (m: Mat4) => [0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => m[c * 4 + r]!));
 const pose = (theta: number, travel: number): Pose => ({ theta, depth: 0, lifting: 0, travel, work: 0, size: 0, presence: 0, feed: 0, oil: 0 });
@@ -115,26 +115,28 @@ describe("the stamp battery's rig against its rig-reference.json", () => {
 describe("the stamp battery's page", () => {
   const model = manifest.models.find((m) => m.id === "stamp-battery")!;
 
-  it("builds in stages: the frame placed, the mortar, the stamps, the camshaft and feed box, then services", () => {
+  it("builds in stages: the frame placed, the timber, the mortar, the stamps, the camshaft and feed box, then services", () => {
     const groups = stateGroups(model.scenario!.states, VALUES);
     expect(groups.map((g) => [g.id, g.owns])).toEqual([["stage", VALUES]]);
     expect(rig.buildStages).toEqual([
-      { stage: 1, name: "the mortar", adds: ["mortar"] },
-      { stage: 2, name: "the stamps", adds: ["stamps"] },
-      { stage: 3, name: "the camshaft, belt and feed box", adds: ["camshaft", "feedbox"] },
-      { stage: 4, name: "services", adds: ["chutes", "pipecopper", "pipelead"] },
+      { stage: 1, name: "the timber", adds: ["timber"] },
+      { stage: 2, name: "the mortar", adds: ["mortar"] },
+      { stage: 3, name: "the stamps", adds: ["stamps"] },
+      { stage: 4, name: "the camshaft, belt and feed box", adds: ["camshaft", "feedbox"] },
+      { stage: 5, name: "services", adds: ["chutes", "pipecopper", "pipelead"] },
     ]);
     const none = Object.fromEntries(VALUES.map((r) => [r, false]));
     const spec = groups[0]!.spec;
     const at = (id: string) => Object.entries(applyState(none, spec.options.find((o) => o.id === id)!, groups[0]!.owns)).filter(([, v]) => v).map(([k]) => k);
-    expect(spec.options.map((o) => o.id)).toEqual(["frame", "mortar", "stamps", "camshaft", "services", "serviceslead"]);
+    expect(spec.options.map((o) => o.id)).toEqual(["frame", "timber", "mortar", "stamps", "camshaft", "services", "serviceslead"]);
     expect(spec.default).toBe("services");
     expect(at("frame")).toEqual([]);
-    expect(at("mortar")).toEqual(["mortar"]);
-    expect(at("stamps")).toEqual(["mortar", "stamps"]);
-    expect(at("camshaft")).toEqual(["mortar", "stamps", "camshaft", "feedbox"]);
-    expect(at("services")).toEqual(["mortar", "stamps", "camshaft", "feedbox", "chutes", "pipecopper"]);
-    expect(at("serviceslead")).toEqual(["mortar", "stamps", "camshaft", "feedbox", "chutes", "pipelead"]);
+    expect(at("timber")).toEqual(["timber"]);
+    expect(at("mortar")).toEqual(["timber", "mortar"]);
+    expect(at("stamps")).toEqual(["timber", "mortar", "stamps"]);
+    expect(at("camshaft")).toEqual(["timber", "mortar", "stamps", "camshaft", "feedbox"]);
+    expect(at("services")).toEqual(["timber", "mortar", "stamps", "camshaft", "feedbox", "chutes", "pipecopper"]);
+    expect(at("serviceslead")).toEqual(["timber", "mortar", "stamps", "camshaft", "feedbox", "chutes", "pipelead"]);
   });
 
   it("puts every chute section in the services, and draws the water line in copper or lead", () => {

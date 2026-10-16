@@ -1,8 +1,8 @@
 """The stamp battery's generated model files (mods-src/seraphhorizons/StampBattery/tools/make_shape.py).
 
 These hold what the generator wrote to its own rules, without running it: the shipped rig parses with the shared rig
-maths and its `requires` are the build stages' (the frame placed with none; then the mortar, the stamps, the camshaft and
-feed box, and the services: the chutes and the water line), which site/models.json's build states fit; its reference poses are its own maths; the cells are rebuilt from the
+maths and its `requires` are the build stages' (the frame placed with none; then the timber, the mortar, the stamps, the
+camshaft and feed box, and the services: the chutes and the water line), which site/models.json's build states fit; its reference poses are its own maths; the cells are rebuilt from the
 shipped shape, every column decked; the line shaft turns one way whichever way the axle turns; each stamp drops twice a
 camshaft turn in the firing order and rests between drops; both chutes are the game's chute section on their cells'
 axes, the output's funnel spanning the screen with no launder or apron; and the anchors (power, water, infeed and
@@ -36,7 +36,7 @@ REFERENCE = json.loads((MOD / "tests" / "StampBattery" / "rig-reference.json").r
 MANIFEST = json.loads((ROOT / "site" / "models.json").read_text())
 README = (MOD / "StampBattery" / "README.md").read_text()
 PIPES = ["pipecopper", "pipelead"]
-VALUES = ["mortar", "stamps", "camshaft", "feedbox", "chutes"] + PIPES
+VALUES = ["timber", "mortar", "stamps", "camshaft", "feedbox", "chutes"] + PIPES
 
 
 def matrix(pid, theta=0.0, travel=None):
@@ -196,21 +196,37 @@ class Manifest(unittest.TestCase):
         self.assertTrue(model["rig"].endswith("stampbattery-rig.json"))
         (group,) = model["scenario"]["states"]
         got = {o["id"]: o["fitted"] for o in group["options"]}
-        built = ["mortar", "stamps", "camshaft", "feedbox"]
-        self.assertEqual(got, {"frame": [], "mortar": built[:1], "stamps": built[:2], "camshaft": built,
+        built = ["timber", "mortar", "stamps", "camshaft", "feedbox"]
+        self.assertEqual(got, {"frame": [], "timber": built[:1], "mortar": built[:2], "stamps": built[:3], "camshaft": built,
                                "services": built + ["chutes", "pipecopper"], "serviceslead": built + ["chutes", "pipelead"]})
         self.assertEqual((group["default"], group["values"]), ("services", VALUES))
 
     def test_the_build_stages_end_with_the_services(self):
-        self.assertEqual(RIG["buildStages"], [{"stage": 1, "name": "the mortar", "adds": ["mortar"]},
-                                              {"stage": 2, "name": "the stamps", "adds": ["stamps"]},
-                                              {"stage": 3, "name": "the camshaft, belt and feed box", "adds": ["camshaft", "feedbox"]},
-                                              {"stage": 4, "name": "services", "adds": ["chutes", "pipecopper", "pipelead"]}])
+        self.assertEqual(RIG["buildStages"], [{"stage": 1, "name": "the timber", "adds": ["timber"]},
+                                              {"stage": 2, "name": "the mortar", "adds": ["mortar"]},
+                                              {"stage": 3, "name": "the stamps", "adds": ["stamps"]},
+                                              {"stage": 4, "name": "the camshaft, belt and feed box", "adds": ["camshaft", "feedbox"]},
+                                              {"stage": 5, "name": "services", "adds": ["chutes", "pipecopper", "pipelead"]}])
         chutey = {rigmath.part_of(RIG["parts"], e["name"]) for e in SHAPE["elements"] if "chute" in e["name"] or "funnel" in e["name"]}
         self.assertEqual(chutey, {"chutes"})
         # the dies are fitted with the stamps (owner, 2026-10-16), not with the mortar
         dies = {rigmath.part_of(RIG["parts"], e["name"]) for e in SHAPE["elements"] if "_die" in e["name"]}
         self.assertEqual((dies, part("dies")["requires"]), ({"dies"}, "stamps"))
+
+    def test_the_placed_frame_is_the_sills_and_ironwork_and_its_recipe_fits_the_grid(self):
+        # the grid limit (owner, 2026-10-16): the bulk timber is stage 1, so the placed frame is its two sills and the
+        # power train's ironwork, and its recipe is at most 6 kinds and the hammer in 9 slots, 12 an item a slot
+        oak = {e["name"] for e in FRAME["elements"] if {f["texture"] for f in e["faces"].values()} == {"#oak"}}
+        self.assertEqual(oak, {"fr_sill_w", "fr_sill_e"})
+        recipe = dict(make_shape.FRAME_RECIPE)
+        slots = sum(-(-n // min(12, next((k for name, k in make_shape.STACK.items() if c.split(":")[1].startswith(name + "-")), 64)))
+                    for c, n in recipe.items())
+        self.assertLessEqual(len(recipe), 6)
+        self.assertLessEqual(slots + 1, 9)
+        self.assertEqual(recipe["game:supportbeam-oak"], 4)
+        timber = [e for e in SHAPE["elements"] if rigmath.part_of(RIG["parts"], e["name"]) == "timber"]
+        self.assertTrue(any(e["name"].startswith("timber_post_") for e in timber))
+        self.assertEqual(part("timber")["requires"], "timber")
 
     def test_the_water_line_is_the_same_pipe_in_either_metal(self):
         names = [e["name"] for e in SHAPE["elements"]]

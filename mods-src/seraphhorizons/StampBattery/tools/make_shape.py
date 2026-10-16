@@ -4,18 +4,21 @@
 The stamp battery crushes and classifies in one machine (#728, model #729): a wet five-stamp gravity battery
 with its mesh discharge screen, fed by chute from above and discharging by chute in front. One machine is one piece
 of equipment (#711): a timber battery frame whose footprint is fixed from the frame on, and the battery's parts
-fitted into it in four stages.
+fitted into it in five stages.
 
-    frame      two oak end frames (sill, front, middle and back posts, cap, the guide and cam rails), the guide
-               girts, the ties and the two bearers; the power train: the entry shaft from the vanilla axle into a
-               closed rectifier gear case, and the line shaft along the back row. Placed: no `requires`.
-    stage 1    the mortar box on its block, with the mesh screen in its front wall, the feed opening in its back
+    frame      the two oak sills, the end frames' bed; the power train: the entry shaft from the vanilla axle into a
+               closed rectifier gear case, and the line shaft along the back row in its pedestals. Placed: no
+               `requires`. Its grid recipe keeps to the grid's limit (owner, 2026-10-16), so the bulk timber is stage 1.
+    stage 1    the timber, fitted by right-clicks a stack a click: the two end frames on the sills (front, middle and
+               back posts, caps, the guide and cam rails), the guide girts, the ties and the two bearers with the water
+               line's hanger (`timber`)
+    stage 2    the mortar box on its block, with the mesh screen in its front wall, the feed opening in its back
                and the shoot from the feed lip (`mortar`)
-    stage 2    five stamps, hung in their guides, and their five dies set in the mortar's floor under them (`stamps`)
-    stage 3    the camshaft with ten involute cams, set under the hung stamps' tappets in their order 1-3-5-2-4,
+    stage 3    five stamps, hung in their guides, and their five dies set in the mortar's floor under them (`stamps`)
+    stage 4    the camshaft with ten involute cams, set under the hung stamps' tappets in their order 1-3-5-2-4,
                and the bull pulley, belted from the line shaft (`camshaft`); the plank feed box behind the mortar
                under the infeed (`feedbox`)
-    stage 4    services: the output chute (a funnel section of the game's chute whose mouth spans the whole
+    stage 5    services: the output chute (a funnel section of the game's chute whose mouth spans the whole
                screen, under it, and a stub of the game's chute section from the funnel to the front face, on an
                oak block) and the infeed chute section in the top face (`chutes`); the water line from the west
                face: ppex's pipe, a reducer and a small pipe soldered in copper or lead along the mortar's back, a
@@ -510,25 +513,33 @@ def cam_normal(i, lobe, t):
 
 # ---------------------------------------------------------------- builders: the frame
 def build_frame():
-    f = "frame"
+    """The placed frame: the two sills, the end frames' bed, and the power train's fixed parts on the ground."""
+    out = [box([x0, SILL_Y[0], SILL_Z[0]], [x1, SILL_Y[1], SILL_Z[1]], f"fr_sill_{tag}", "frame", "oak")
+           for tag, (x0, x1) in (("w", END_W), ("e", END_E))]
+    out += build_power_frame()
+    return out
+
+
+def build_timber():
+    """Stage 1, the bulk timber (`timber`): on the sills the two end frames (front and middle posts, the back posts
+    from the ground, the caps, the guide and cam rails), the ties and the two bearers, and the guide girts."""
+    f = "timber"
     out = []
     for tag, (x0, x1) in (("w", END_W), ("e", END_E)):
-        out.append(box([x0, SILL_Y[0], SILL_Z[0]], [x1, SILL_Y[1], SILL_Z[1]], f"fr_sill_{tag}", f, "oak"))
-        out.append(box([x0, CAP_Y[0], CAP_Z[0]], [x1, CAP_Y[1], CAP_Z[1]], f"fr_cap_{tag}", f, "oak"))
+        out.append(box([x0, CAP_Y[0], CAP_Z[0]], [x1, CAP_Y[1], CAP_Z[1]], f"timber_cap_{tag}", f, "oak"))
         for i, (pz0, pz1) in enumerate((POST_F, POST_M), 1):
-            out.append(box([x0, SILL_Y[1], pz0], [x1, CAP_Y[0], pz1], f"fr_post_{tag}{i}", f, "oak"))
-        out.append(box([x0 + 0.02, 0.0, POST_B[0]], [x1 - 0.02, CAP_Y[0], POST_B[1]], f"fr_post_{tag}3", f, "oak"))
+            out.append(box([x0, SILL_Y[1], pz0], [x1, CAP_Y[0], pz1], f"timber_post_{tag}{i}", f, "oak"))
+        out.append(box([x0 + 0.02, 0.0, POST_B[0]], [x1 - 0.02, CAP_Y[0], POST_B[1]], f"timber_post_{tag}3", f, "oak"))
         for name, (y0, y1) in (("lo", RAIL_LO_Y), ("cam", (CAM_Y - 2.0 - 3.5, CAM_Y - 2.0)), ("hi", RAIL_HI_Y)):
-            out.append(box([x0 + RAIL_IN, y0, POST_F[1]], [x1 - RAIL_IN, y1, POST_M[0]], f"fr_rail{name}_{tag}", f, "oak"))
-    out.append(box([END_W[1], CAP_Y[0], POST_F[0]], [END_E[0], CAP_Y[1], POST_F[1]], "fr_tie_f", f, "oak"))
-    out.append(box([END_W[1], CAP_Y[0], TIE_C_Z[0]], [END_E[0], CAP_Y[1], TIE_C_Z[1]], "fr_tie_c", f, "oak"))
-    out.append(box([END_W[1], CAP_Y[0], TIE_B_Z[0]], [END_E[0], CAP_Y[1], TIE_B_Z[1]], "fr_tie_b", f, "oak"))
-    out.append(box([END_W[1], BEARER_Y[0], POST_M[0]], [END_E[0], BEARER_Y[1], POST_M[1]], "fr_bearer_f", f, "oak"))
-    out.append(box([END_W[1], BEARER_Y[0], POST_B[0]], [END_E[0], BEARER_Y[1], POST_B[1]], "fr_bearer_b", f, "oak"))
+            out.append(box([x0 + RAIL_IN, y0, POST_F[1]], [x1 - RAIL_IN, y1, POST_M[0]], f"timber_rail{name}_{tag}", f, "oak"))
+    out.append(box([END_W[1], CAP_Y[0], POST_F[0]], [END_E[0], CAP_Y[1], POST_F[1]], "timber_tie_f", f, "oak"))
+    out.append(box([END_W[1], CAP_Y[0], TIE_C_Z[0]], [END_E[0], CAP_Y[1], TIE_C_Z[1]], "timber_tie_c", f, "oak"))
+    out.append(box([END_W[1], CAP_Y[0], TIE_B_Z[0]], [END_E[0], CAP_Y[1], TIE_B_Z[1]], "timber_tie_b", f, "oak"))
+    out.append(box([END_W[1], BEARER_Y[0], POST_M[0]], [END_E[0], BEARER_Y[1], POST_M[1]], "timber_bearer_f", f, "oak"))
+    out.append(box([END_W[1], BEARER_Y[0], POST_B[0]], [END_E[0], BEARER_Y[1], POST_B[1]], "timber_bearer_b", f, "oak"))
     # the water line's hanger: an iron strap from the front bearer down onto the small pipe's run north
-    out.append(box([LINE_X - 1.5, WATER_Y + SMALL_HALF, POST_M[0] + 0.5], [LINE_X + 1.5, BEARER_Y[0], POST_M[0] + 2.5], "fr_hanger", f, "iron"))
+    out.append(box([LINE_X - 1.5, WATER_Y + SMALL_HALF, POST_M[0] + 0.5], [LINE_X + 1.5, BEARER_Y[0], POST_M[0] + 2.5], "timber_hanger", f, "iron"))
     out += build_guides()
-    out += build_power_frame()
     return out
 
 
@@ -539,8 +550,8 @@ def build_guides():
     hole = STEM_R                            # the stems run against both strips
     xa, xb = END_W[0] + RAIL_IN, END_E[1] - RAIL_IN
     for tag, (y0, y1) in (("lo", (RAIL_LO_Y[1], RAIL_LO_Y[1] + GUIDE_H)), ("hi", (RAIL_HI_Y[1], RAIL_HI_Y[1] + GUIDE_H))):
-        out += [box([xa, y0, STEM_Z - 2.6], [xb, y1, STEM_Z - hole], f"fr_guide{tag}_f", "frame", "oak"),
-                box([xa + 0.02, y0, STEM_Z + hole], [xb - 0.02, y1, STEM_Z + 2.0], f"fr_guide{tag}_b", "frame", "oak")]
+        out += [box([xa, y0, STEM_Z - 2.6], [xb, y1, STEM_Z - hole], f"timber_guide{tag}_f", "timber", "oak"),
+                box([xa + 0.02, y0, STEM_Z + hole], [xb - 0.02, y1, STEM_Z + 2.0], f"timber_guide{tag}_b", "timber", "oak")]
     return out
 
 
@@ -924,20 +935,22 @@ def build_stamps():
 
 
 def build():
-    els = build_frame() + build_drive() + build_line_pulleys()
+    els = build_frame() + build_timber() + build_drive() + build_line_pulleys()
     els += build_mortar() + build_camshaft() + build_stamps() + build_dies() + build_feed_box()
     els += build_chutes() + build_pipes()
     return els
 
 
 # ---------------------------------------------------------------- the build states
-# The battery's parts are fitted to the frame, the same equipment (#711), in four stages (owner, 2026-10-15): the frame
-# is placed (the rectifier's gear case with it); then the mortar with its screen; the stamps, hung in their guides, with
+# The battery's parts are fitted to the frame, the same equipment (#711), in five stages (owner, 2026-10-15): the frame
+# is placed (the sills, with the rectifier's gear case and the line shaft); then the bulk timber, which a grid recipe
+# cannot hold (owner, 2026-10-16), fitted a stack a click; the mortar with its screen; the stamps, hung in their guides, with
 # their dies; the camshaft, its cams set under the hung stamps' tappets in their order 1-3-5-2-4, with its belt and the
 # feed box; and, last, the services: every chute section and the water line, in copper or lead. Only the shoes wear
 # (owner, 2026-10-16): they are no stage.
 PIPE_REQUIRES = tuple(f"pipe{m}" for m in PIPE_METALS)
 BUILD_STAGES = (                             # (state id, what the stage adds, its name), in build order; services last
+    ("timber", ("timber",), "the timber"),
     ("mortar", ("mortar",), "the mortar"),
     ("stamps", ("stamps",), "the stamps"),
     ("camshaft", ("camshaft", "feedbox"), "the camshaft, belt and feed box"),
@@ -949,6 +962,21 @@ BATTERY = tuple(r for _, adds, _ in BUILD_STAGES[:-1] for r in adds)   # the bat
 STATES = {"frame": ()}
 for _sid, _adds, _ in BUILD_STAGES:
     STATES[_sid] = tuple(STATES.values())[-1] + tuple(r for r in _adds if r not in PIPE_REQUIRES[1:])
+
+
+# The placed frame's grid recipe (owner, 2026-10-16): measured from the frame at the ore line's rate (metal 128 vox an
+# ingot, whole plates then nails and strips at 4 an ingot; the entry shaft, the vanilla axle's 4-across cross, a timber
+# with the sills). The grid holds at most GRID_KINDS kinds of ingredient besides the hammer in GRID_SLOTS slots, at most
+# GRID_PER_SLOT of an item a slot and never more than its stack.
+FRAME_RECIPE = (                             # (item, count): validate_stampbattery checks the wood against the frame
+    ("seraphhorizons:gear-stainless", 3),       # the rectifier (the gear case's gears, not drawn)
+    ("game:metalplate-iron", 4), ("game:metalnailsandstrips-iron", 2),
+    ("game:metalplate-steel", 2), ("game:metalnailsandstrips-steel", 1),
+    ("game:supportbeam-oak", 4),
+)
+GRID_SLOTS, GRID_KINDS, GRID_PER_SLOT = 9, 6, 12
+STACK = {"plank": 64, "supportbeam": 32, "metalplate": 8, "metalnailsandstrips": 32, "metalrod": 16}
+PLANK_VOX, BEAM_VOX = 128.0, 256.0           # timber rate: a board (2 vox thick or less) a plank, a timber a beam
 
 
 def in_state(requires, state):
@@ -1020,6 +1048,7 @@ def _rig_parts():
         {"id": "chutes", "match": ["chutes_*"], "requires": "chutes", "drivers": []},
         # the water line, one part per metal (requires pipecopper, pipelead): only the fitted metal's is drawn
         *({"id": r, "match": [f"{r}_*"], "requires": r, "drivers": []} for r in PIPE_REQUIRES),
+        {"id": "timber", "match": ["timber_*"], "requires": "timber", "drivers": []},
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
     ]
     for p in parts:
@@ -1074,7 +1103,7 @@ def anchor_points():
 def make_rig(parts):
     rig = {"_comment": f"Generated by {SCRIPT}. Native frame, block units, controller cell at [0,0,0]: the bottom middle cell of the "
                        "north face, the output chute's. One machine, its parts fitted to its frame (#711): the frame's parts "
-                       "have no requires; buildStages: what each build stage adds, in order: the mortar, the stamps, the "
+                       "have no requires; buildStages: what each build stage adds, in order: the timber, the mortar, the stamps, the "
                        "camshaft (with its belt) and the feed box, then services (the chute sections and the water line, "
                        "pipecopper or pipelead, the same pipe in the fitted metal). Hand feeding goes in at the infeed's mouth, as a chute "
                        "does. theta turns the entry shaft; everything behind the rectifier's gear case follows travel (psi): the "

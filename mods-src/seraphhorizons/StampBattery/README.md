@@ -4,19 +4,30 @@ Part of the Seraph Horizons mod (`../README.md`): the crush-and-classify machine
 behaviour #728, model #729). A **wet five-stamp gravity battery** with its mesh discharge screen, fed by chute from
 above and discharging by chute in front, so it can run on a chute line with nobody at it. One machine is one piece of
 equipment (#711): a timber battery frame whose footprint is fixed from the frame on, and the battery's parts fitted
-into it in four stages.
+into it in five stages.
 
 The frame is placed, then each stage is fitted in order (owner, 2026-10-15). The rig's `buildStages` lists what each
 stage adds. Materials are measured from the model (element volume per `requires` and texture) at the ore line's one
-rate: 128 vox of iron or steel an ingot, rods counted, then whole plates, then nails and strips at 4 an ingot; boards in planks at 128 vox, timbers in support beams at 256. "~" marks a guess or a choice of item.
+rate: 128 vox of iron or steel an ingot, rods counted, then whole plates, then nails and strips at 4 an ingot. Wood is
+counted at the timber rate: a board (an element 2 vox thick or less) is 1 `game:plank-*` per 128 vox, a timber (3 vox
+or thicker) 1 `game:supportbeam-*` per 256 vox, and every stage with wood costs at least 1. "~" marks a guess or a
+choice of item.
+
+The frame is made by grid recipe with a hammer, and a grid recipe holds at most 12 of an item a slot (and never more
+than its stack) and at most 6 kinds of ingredient besides the hammer in 9 slots (owner, 2026-10-16). The whole oak
+frame, 44 support beams and 6 planks with the ironwork, would not fit, so the frame keeps only its two sills, the bed
+the end frames stand on, with the gear case and the line shaft, and the bulk timber is stage 1, fitted by right-clicks
+a stack a click, as brickwork is on the furnaces. The frame's recipe is `FRAME_RECIPE` in the generator, which checks
+it against the grid's limit and against the frame measured.
 
 | Stage | Fitted (`requires`) | What it is | Materials |
 |---|---|---|---|
-| Frame (placed) | none | Two oak end frames, the guide girts, the ties and the two bearers; the rectifier's gear case at the power cell and the line shaft along the back row | 3 stainless gear (the rectifier), 4 iron plate, 3 iron nails and strips, 2 steel plate, 1 steel nails and strips, 6 plank, 44 support beam |
-| 1 · Mortar | `mortar` | The mortar box on its block between the end frames, the mesh screen in its front wall, the feed opening and the shoot | 1 iron chain (the screen, 122 vox²), 8 iron plate, 2 iron nails and strips, 5 support beam |
-| 2 · Stamps | `stamps` | Five stamps, hung in the guide girts first, and their five steel dies set on the mortar's floor under them | 5 `game:poundercap-steel` (the shoes), 5 steel rod, 2 steel plate, 5 steel nails and strips (the dies' 470 vox among them), 4 iron plate, 7 iron nails and strips |
-| 3 · Camshaft, belt and feed box | `camshaft`, `feedbox` | The camshaft in its pillow blocks, the cams set under the hung stamps' tappets in the hanging order 1-3-5-2-4; the bull pulley and its belt from the line shaft; the plank feed box under the infeed | ~1 leather (the belt), 4 iron plate, 3 iron nails and strips, 3 steel rod, 1 steel plate, 1 steel nails and strips, 9 plank (the bull pulley and the feed box) |
-| 4 · Services | `chutes`, and `pipecopper` or `pipelead` | Every chute section: the infeed section in the top face and the output chute (its funnel under the screen, its stub and the stub's block); the water line along the mortar's back with its header, a branch and a cock to each stamp, in copper or lead | 4 chute section (the infeed's 2, the funnel and stub's 2), 3 pipe section (copper or lead) |
+| Frame (placed) | none | The two oak sills; the rectifier's gear case at the power cell and the line shaft along the back row in its two pedestals | 3 stainless gear (the rectifier, `seraphhorizons:gear-stainless`), 4 iron plate, 2 iron nails and strips, 2 steel plate, 1 steel nails and strips, 4 support beam (the sills and the entry shaft, 832 vox) |
+| 1 · Timber | `timber` | The two end frames on the sills (front and middle posts, the back posts from the ground, the caps, the guide and cam rails), the two guide girts, the three ties at the caps and the two bearers, with the water line's iron hanger on the front one | 41 support beam (10,342 vox), 6 plank (the guide girts, 720 vox), 1 iron nails and strips (the hanger) |
+| 2 · Mortar | `mortar` | The mortar box on its block between the end frames, the mesh screen in its front wall, the feed opening and the shoot | 1 iron chain (the screen, 122 vox²), 8 iron plate, 2 iron nails and strips, 5 support beam |
+| 3 · Stamps | `stamps` | Five stamps, hung in the guide girts first, and their five steel dies set on the mortar's floor under them | 5 `game:poundercap-steel` (the shoes), 5 steel rod, 2 steel plate, 5 steel nails and strips (the dies' 470 vox among them), 4 iron plate, 7 iron nails and strips |
+| 4 · Camshaft, belt and feed box | `camshaft`, `feedbox` | The camshaft in its pillow blocks, the cams set under the hung stamps' tappets in the hanging order 1-3-5-2-4; the bull pulley and its belt from the line shaft; the plank feed box under the infeed | ~1 leather (the belt), 4 iron plate, 3 iron nails and strips, 3 steel rod, 1 steel plate, 1 steel nails and strips, 9 plank (the bull pulley and the feed box) |
+| 5 · Services | `chutes`, and `pipecopper` or `pipelead` | Every chute section: the infeed section in the top face and the output chute (its funnel under the screen, its stub and the stub's block); the water line along the mortar's back with its header, a branch and a cock to each stamp, in copper or lead | 4 chute section (the infeed's 2, the funnel and stub's 2), 3 pipe section (copper or lead), 1 support beam (the output chute's block, 108 vox) |
 
 Only the stamps' **shoes are a wearing part**, not a stage: a set of five is 5 `game:poundercap-steel` (the pulverizer's
 pounder cap). The dies are fitted with the stamps and do not wear (owner, 2026-10-16). Water and ore are contents, not
@@ -97,9 +108,9 @@ chute (`game:block/metal/sheet/copper1`) for both chute sections and the output 
 
 | File | What it holds |
 |---|---|
-| `assets/seraphhorizons/shapes/block/stampbattery.json` | The whole machine, the water line in both metals (406 elements; drawn: 40 the frame, 75 with the mortar, 135 with the stamps, 260 with the camshaft and feed box, 340 with the services) |
-| `assets/seraphhorizons/shapes/block/stampbattery_frame.json` | The frame only (34 elements). A block would draw it and the inventory show it. |
-| `assets/seraphhorizons/config/stampbattery-rig.json` | Footprint (cells with boxes and lids), anchors, the stamps' figures, the build stages and the part rig (17 parts) |
+| `assets/seraphhorizons/shapes/block/stampbattery.json` | The whole machine, the water line in both metals (406 elements; drawn: 16 the frame, 40 with the timber, 55 with the mortar, 135 with the stamps, 260 with the camshaft and feed box, 340 with the services) |
+| `assets/seraphhorizons/shapes/block/stampbattery_frame.json` | The frame only (10 elements: the sills, the gear case and the pedestals). A block would draw it and the inventory show it. |
+| `assets/seraphhorizons/config/stampbattery-rig.json` | Footprint (cells with boxes and lids), anchors, the stamps' figures, the build stages and the part rig (18 parts) |
 | `tests/StampBattery/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths |
 
 ### How the machine works
@@ -107,7 +118,8 @@ chute (`game:block/metal/sheet/copper1`) for both chute sections and the output 
 Positions here are in the generator's **build frame**: native axes in voxels from the machine box's north-west bottom
 corner, x 0..48, y 0..64, z 0..48. The shipped files are the build frame moved one block west.
 
-**The frame.** Two oak end frames (west x 3.5..7.5, east x 40.5..44.5), each a sill under a front post (z 11..15) and a
+**The frame and its timber.** The placed frame is the two oak sills (y 0..4, z 9..34), the gear case and the
+line shaft's two pedestals; stage 1, the timber, stands on it: two oak end frames (west x 3.5..7.5, east x 40.5..44.5), each a sill under a front post (z 11..15) and a
 middle post (z 30..34, behind the mortar), a back post (z 43.6..47.6) standing on the ground at the back face, a cap over
 all three, and three rails between the front and middle posts: the lower guide rail, the cam rail and the upper guide
 rail. Across them: the two guide girts (each two strips, the stems running in the slot between them), the front tie at
@@ -205,7 +217,8 @@ Every moving part (θ the axle's angle, ψ its travel):
 | Feed box (`feedbox`) [feedbox] | Static | — | none |
 | Infeed section, output funnel, stub and block (`chutes`) [chutes] | Static | — | none |
 | Water line, copper (`pipecopper`) [pipecopper] or lead (`pipelead`) [pipelead] | Static, one metal drawn | — | none |
-| Frame, gear case, pedestals, guides, bearers (`frame`) | Static | — | none |
+| End frames, guide girts, ties, bearers, the hanger (`timber`) [timber] | Static | — | none |
+| Sills, gear case, pedestals (`frame`) | Static | — | none |
 
 There are no toothed wheels in sight: the rectifier's gears are in the closed case.
 
@@ -223,9 +236,12 @@ that set parts against each other run per build state: the frame, then each stag
 
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty part; the
   `requires` are the stages' set and the water line's two metals.
-- **Stages:** the mortar, the stamps, the camshaft and feed box, then the services, every fitted part in one stage and
+- **Stages:** the timber, the mortar, the stamps, the camshaft and feed box, then the services, every fitted part in one stage and
   every chute piece in the services' `chutes`; the dies their own part, drawn from the stamps' stage on; each state
   fits the stages so far; the rig's `buildStages` agree.
+- **Frame recipe:** `FRAME_RECIPE` keeps to the grid's limit (at most 6 kinds besides the hammer, at most 12 of an
+  item a slot and never over its stack, the hammer and all in 9 slots), and its support beams, plates and nails and
+  strips are the frame's oak, iron and steel measured; the timber stage's wood and iron are measured and printed.
 - **Nothing floats:** the frame one piece from the ground, and each build state at rest.
 - **Containment:** nothing leaves the 3 × 4 × 3 box over nine poses.
 - **Anchors:** the entry shaft meets the power face at the cell's centre; every anchor's point on its cell's face, at
@@ -279,7 +295,7 @@ maths. Rotations on θ and ψ, slides on ψ.
   `outputCell`/`outputFace`/`output`, `stamps`, `buildStages` and `parts`.
 
 **In the viewer** (`site/models.json`, `stamp-battery`): a **Build stage** select (the scenario's `states`): the frame,
-then 1 the mortar, 2 the stamps, 3 the camshaft, belt and feed box, and 4 services with the water line in copper (the
+then 1 the timber, 2 the mortar, 3 the stamps, 4 the camshaft, belt and feed box, and 5 services with the water line in copper (the
 default) or in lead, each with a note. Play turns the axle at 1.5 turns a second, a camshaft turn in 1.3 seconds (about 90 drops a minute a stamp, a
 period battery's pace).
 
@@ -291,7 +307,7 @@ Element names are the rig's interface (first-match globs, in the rig's order): `
 sections `chutes_in_*` and `chutes_out_*`, the funnel `chutes_funnel_*`, its block `chutes_leg`), `pipecopper_*` and
 `pipelead_*` (`inlet_*` ppex's pipe at the face, `plug_*` and `reducer_*`, then the small pipe: `run`, `bend1`,
 `north`, `bend2`, `drop`, `tee1`..`tee5`, `header1`..`header4`, and for each stamp `branch<k>`, `cock<k>_body`,
-`cock<k>_key`, `cock<k>_handle` and `spout<k>_*`), and `fr_*` for the frame.
+`cock<k>_key`, `cock<k>_handle` and `spout<k>_*`), `timber_*` for the timber stage, and `fr_*` for the frame.
 Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
 ## Choices made, and why
@@ -340,8 +356,10 @@ The model has not been looked at in a client yet.
 
 ## Open for the owner
 
-1. **Build stages** are settled (owner, 2026-10-15; above). Left: the belt's leather is a guess, and the frame's recipe
-   is priced at the one rate, not yet written as a recipe.
+1. **Build stages** are settled (owner, 2026-10-15; above). Left: the belt's leather is a guess. The frame's recipe is
+   written as data (`FRAME_RECIPE`), not yet as a recipe file. The entry shaft, a cross of two 2 × 4 boards (the
+   vanilla axle's section), is counted as a timber with the sills, not in planks: a plank would make the frame's recipe
+   a seventh kind.
 2. **The water line's header and cocks are the machine's own,** not ppex blocks: ppex has no five-outlet pipe, so only
    the connector at the water face is ppex's section. The cocks are drawn open and static. A behaviour could close
    one stamp's water (#728), but nothing in the rig turns them.

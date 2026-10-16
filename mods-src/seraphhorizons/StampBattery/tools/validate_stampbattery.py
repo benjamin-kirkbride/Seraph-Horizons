@@ -83,19 +83,19 @@ def check_basic(v):
     per_state = {s: sum(len(v.by_part[p]) for p in v.parts_in(s)) for s in m.STATES}
     print(f"elements drawn per state: {per_state}")
     want = {None} | set(m.BATTERY) | {"chutes"} | set(m.PIPE_REQUIRES)
-    if {p["requires"] for p in v.parts} != want or list(m.STATES) != ["frame", "mortar", "stamps", "camshaft", "services"]:
+    if {p["requires"] for p in v.parts} != want or list(m.STATES) != ["frame", "timber", "mortar", "stamps", "camshaft", "services"]:
         v.fail("the parts' requires are not the battery's set, the chutes and the water line's metals")
 
 
 def check_stages(v):
-    """The build stages (owner, 2026-10-15): the frame placed; the mortar; the stamps, hung before the camshaft whose
+    """The build stages (owner, 2026-10-15): the frame placed; the bulk timber (owner, 2026-10-16); the mortar; the stamps, hung before the camshaft whose
     cams are set under them, with their dies (owner, 2026-10-16: their own part, drawn from the stamps' stage on); the
     camshaft with its belt and the feed box; and, last, the services: every chute section and the water line, in one
     metal. Every fitted part is in one stage, every state the stages so far, and the rig's buildStages say the same."""
     m = v.m
     stages = [list(adds) for _, adds, _ in m.BUILD_STAGES]
-    if stages != [["mortar"], ["stamps"], ["camshaft", "feedbox"], ["chutes", *m.PIPE_REQUIRES]]:
-        v.fail(f"the build stages are {stages}, not the mortar, the stamps, the camshaft and feed box, then services")
+    if stages != [["timber"], ["mortar"], ["stamps"], ["camshaft", "feedbox"], ["chutes", *m.PIPE_REQUIRES]]:
+        v.fail(f"the build stages are {stages}, not the timber, the mortar, the stamps, the camshaft and feed box, then services")
     staged = [r for adds in stages for r in adds]
     if len(staged) != len(set(staged)) or set(staged) != {p["requires"] for p in v.parts} - {None}:
         v.fail("every fitted part is in exactly one build stage")
@@ -114,6 +114,64 @@ def check_stages(v):
     if chutey:
         v.fail(f"chute pieces outside the services' chutes: {chutey[:4]}")
     print("build stages: " + ", ".join(f"{n} {'+'.join(adds)}" for n, (_, adds, _) in enumerate(m.BUILD_STAGES, 1)))
+
+
+def volume(e):
+    return abs(e.size[0] * e.size[1] * e.size[2])
+
+
+def textured(els, *tex):
+    return [e for e in els if {f["texture"] for f in e.faces.values()} <= {"#" + t for t in tex}]
+
+
+def wood(els):
+    """(board vox, timber vox) of the oak and plank elements: a board is 2 vox thick or less."""
+    board = timber = 0.0
+    for e in textured(els, "oak", "planks"):
+        if min(abs(c) for c in e.size) <= 2.0:
+            board += volume(e)
+        else:
+            timber += volume(e)
+    return board, timber
+
+
+def metal(vox):
+    """Whole plates, then nails and strips at 4 an ingot, for this much iron or steel (128 vox an ingot)."""
+    ingots = vox / 128.0
+    plates = int(ingots // 2)
+    return plates, math.ceil(round((ingots - 2 * plates) * 4, 6))
+
+
+def check_frame_recipe(v):
+    """The placed frame's grid recipe keeps to the grid's limit (owner, 2026-10-16): at most GRID_KINDS kinds of
+    ingredient besides the hammer, at most GRID_PER_SLOT of an item a slot and never more than its stack, the hammer
+    and all in GRID_SLOTS slots. Its wood and metal are the frame's, measured at the ore line's rate: its oak (the
+    sills and the entry shaft, the vanilla axle's 4-across cross) in support beams, its iron and the line shaft's steel
+    in whole plates, then nails and strips. The bulk timber is stage 1, fitted a stack a click, outside the grid."""
+    m = v.m
+    recipe = dict(m.FRAME_RECIPE)
+    slots = 0
+    for code, n in m.FRAME_RECIPE:
+        stack = next((k for name, k in m.STACK.items() if code.split(":")[1].startswith(name + "-")), 64)
+        slots += math.ceil(n / min(m.GRID_PER_SLOT, stack))
+    print(f"frame recipe: {len(recipe)} kinds in {slots} slots and the hammer: " + ", ".join(f"{n} {c}" for c, n in m.FRAME_RECIPE))
+    if len(recipe) != len(m.FRAME_RECIPE) or len(recipe) > m.GRID_KINDS or slots + 1 > m.GRID_SLOTS:
+        v.fail(f"the frame's recipe needs {len(recipe)} kinds in {slots} slots and the hammer: over the grid's limit")
+    fixed = [e for pid in v.parts_in("frame") for e in v.by_part[pid]]
+    board, timber = wood(fixed)
+    want = {"game:supportbeam-oak": math.ceil((board + timber) / m.BEAM_VOX)}
+    vox = {t: sum(volume(e) for e in textured(fixed, t)) for t in ("iron", "steel")}
+    for t in ("iron", "steel"):
+        want[f"game:metalplate-{t}"], want[f"game:metalnailsandstrips-{t}"] = metal(vox[t])
+    got = {c: recipe.get(c, 0) for c in want}
+    print(f"frame measured: {board + timber:.0f} vox oak, {vox['iron']:.0f} vox iron, {vox['steel']:.0f} vox steel: {want}")
+    if got != want or any(c.startswith("game:plank") for c in recipe):
+        v.fail(f"the frame's recipe {got} is not the frame measured {want}")
+    els = v.by_part["timber"]
+    board, timber = wood(els)
+    iron = sum(volume(e) for e in textured(els, "iron"))
+    print(f"timber stage measured: {timber:.0f} vox timbers ({math.ceil(timber / m.BEAM_VOX)} support beams), {board:.0f} vox "
+          f"boards ({math.ceil(board / m.PLANK_VOX)} planks), {iron:.0f} vox iron ({metal(iron)[1]} nails and strips)")
 
 
 def check_containment(v, poses):
@@ -155,17 +213,19 @@ ALLOWED = [
     ("linepulley", None, "line", None),
     # the battery: the camshaft in its pillow blocks, the bull pulley's belt on it and on the line's pulley; the pillow
     # blocks on the cam rails; the stamps on their dies, their tappets on their cams, their stems in the guides
-    ("camshaft", r"_shaft", "camframe", r"_pillow"), ("camframe", r"_pillow", "frame", r"fr_railcam_"),
+    ("camshaft", r"_shaft", "camframe", r"_pillow"), ("camframe", r"_pillow", "timber", r"timber_railcam_"),
     ("camframe", r"_belt", "camshaft", r"_bull_rim"), ("camframe", r"_belt", "linepulley", r"^linepulley_\d"),
     ("stamp\\d", r"_shoe", "dies", None), ("dies", None, "mortar", r"_floor$"), ("stamp\\d", r"_tappet", "camshaft", r"_cam\d"),
-    ("stamp\\d", r"_stem", "frame", r"fr_guide"),
-    ("mortar", r"_block", "frame", r"fr_sill"), ("chutes", r"_in_", "frame", r"fr_tie_[cb]$"),
+    ("stamp\\d", r"_stem", "timber", r"timber_guide"),
+    ("mortar", r"_block", "frame", r"fr_sill"), ("chutes", r"_in_", "timber", r"timber_tie_[cb]$"),
+    # the end frames' front and middle posts stand on the sills
+    ("timber", r"timber_post_[we][12]$", "frame", r"fr_sill_"),
     # the output funnel's walls and floor run into the mortar's front wall and floor, under and beside the screen
     ("chutes", r"_funnel_", "mortar", r"_(floor|front_lo|front_[we])$"),
     # the feed box on the shoot and hung on the back bearer
-    ("feedbox", r"_floor|_[we]$", "mortar", r"_shoot"), ("feedbox", r"_back", "frame", r"fr_bearer_b"),
+    ("feedbox", r"_floor|_[we]$", "mortar", r"_shoot"), ("feedbox", r"_back", "timber", r"timber_bearer_b"),
     # the water line in its hanger
-    ("pipecopper", r"_north_", "frame", r"fr_hanger"),
+    ("pipecopper", r"_north_", "timber", r"timber_hanger"),
 ]
 
 
@@ -250,9 +310,9 @@ def check_swept(v):
 
 TEX_RULES = [
     (r"^chutes_(in|out|funnel)_", "chute"),
-    (r"^(fr_(sill|cap|post|rail|tie|guide|bearer)|entry_shaft[ab]|mortar_block|chutes_leg|camshaft_bull_(rim|arm))", "oak"),
+    (r"^(fr_sill|timber_(cap|post|rail|tie|guide|bearer)|entry_shaft[ab]|mortar_block|chutes_leg|camshaft_bull_(rim|arm))", "oak"),
     (r"^feedbox_", "planks"),
-    (r"^(fr_(gearcase|ped|hanger)|mortar_(floor|front|back|end|shoot)|camframe_pillow|camshaft_(hub|cam|bull_hub)|linepulley|"
+    (r"^(fr_(gearcase|ped)|timber_hanger|mortar_(floor|front|back|end|shoot)|camframe_pillow|camshaft_(hub|cam|bull_hub)|linepulley|"
      r"stamp\d_(head|tappet))", "iron"),
     (r"^(line_|camshaft_shaft|stamp\d_(shoe|stem)|dies_)", "steel"),
     (r"^pipe(copper|lead)_reducer_", "solder"),
@@ -673,6 +733,7 @@ def validate(m, els, parts, rig, quick=False):
     v = V(m, els, parts, rig)
     check_basic(v)
     check_stages(v)
+    check_frame_recipe(v)
     check_floating(v)
     poses = [m.REST] + [m.at_cam(a) for a in (0.3, 1.2, 2.2, 3.0, 4.1, 5.0, 5.9)] + [m.turning(31.0, -1.0)]
     check_containment(v, poses)
