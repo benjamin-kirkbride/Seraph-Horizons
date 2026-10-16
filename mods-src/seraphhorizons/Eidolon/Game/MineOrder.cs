@@ -190,8 +190,14 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     // since when another has stood on the stand of the station it holds (routed: it waits, then drops it)
     private double? _occupiedSince;
 
-    // since when its box has been in another's (Untangle)
+    // since when its box has been in another's, since it last parted (Untangle)
     private double? _touchSince;
+
+    // since when its box has been in another's without a break (Untangle: the two change over)
+    private double? _tangledSince;
+
+    // when it set off stepping away from one it touched, while that step goes on (Untangle)
+    private double? _partingSince;
 
     // the one it last stopped short of (WalksInto)
     private long? _bumpedBy;
@@ -251,6 +257,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>Whether the station it works is at a tunnel's face.</summary>
     public bool Driving => Station?.Kind == MineStationKind.Face;
+
+    /// <summary>Whether it is walking back to where it was ordered (or waiting for the stair to do so).</summary>
+    public bool Returning => _phase == Phase.Return;
 
     /// <summary>What its job shares (its own, alone or with no jobs on this server).</summary>
     private MineJobCells Cells => _job?.Shared ?? _own;
@@ -898,22 +907,24 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             _bumpedAt = now;
     }
 
-    /// <summary>How long a member of a crew by routes lets its box stay in another's before they part.</summary>
-    private const double TouchSeconds = 0.6;
-
     /// <summary>
     /// A crew by routes (README "Eidolon", working together, *Routes*): two whose boxes have been in each
-    /// other's for <see cref="TouchSeconds"/> part, rather than stand so (the game pushing them apart reads as
-    /// one walking, which the other gives way to for ever). The one that gives way on the way (the higher
-    /// id), or one beside another at work or with no mining order (striking, home), steps away to the
-    /// nearest place apart from every eidolon and goes on a little later; the other stops and waits for it.
-    /// Never while it strikes. True when it acted this tick.
+    /// other's for <see cref="EidolonParting.TouchSeconds"/> part, rather than stand so (the game pushing them
+    /// apart reads as one walking, which the other gives way to for ever). The one that gives way on the way
+    /// (the higher id), or one beside another at work or with no mining order (striking, home), steps away to
+    /// the nearest place apart from every eidolon and goes on a little later; the other stops and waits for
+    /// it. Its step away is left to go on while their boxes still touch (<see cref="EidolonParting.StepSeconds"/>
+    /// at most: a climb keeps its box over its foot until near the top, and stopped and begun again at every
+    /// look it never got there, #971), and two still touching after <see cref="EidolonParting.SwapSeconds"/>
+    /// change over, the one that waited stepping away. Never while it strikes. True when it acted this tick.
     /// </summary>
     private bool Untangle(EntityLaborEidolon eidolon, double now)
     {
         if (_phase == Phase.Strike || !CrewByRoutes)
         {
             _touchSince = null;
+            _tangledSince = null;
+            _partingSince = null;
             return false;
         }
         long id = eidolon.EntityId;
@@ -923,20 +934,28 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         if (touching.Count == 0)
         {
             _touchSince = null;
+            _tangledSince = null;
+            _partingSince = null;
             return false;
         }
-        if ((_touchSince ??= now) > now - TouchSeconds)
+        _tangledSince ??= now;
+        // stepping away already: the step is left to part them, not stopped and begun again
+        if (EidolonParting.KeepsStepping(_partingSince, _nav?.Active == true, now))
+            return true;
+        _partingSince = null;
+        if ((_touchSince ??= now) > now - EidolonParting.TouchSeconds)
             return false;
-        // it moves for one with a lower id, one striking, and one with no mining order or home (not walking)
-        bool moves = touching.Any(o => o.EntityId < id
+        // it moves for one with a lower id, one striking, and one with no mining order or home (not walking);
+        // the two change over while they stay touching
+        bool moves = EidolonParting.Moves(touching.Any(o => o.EntityId < id
             || o.Orders?.Current is not MineOrder other
             || other._phase == Phase.Strike
-            || other._phase == Phase.Return && other._nav?.Active != true);
+            || other._phase == Phase.Return && other._nav?.Active != true), now - _tangledSince.Value);
         _touchSince = now;
         _nav?.Stop();
         _bumpedAt = now;
-        if (moves)
-            StepAway(eidolon, now);
+        if (moves && StepAway(eidolon, now))
+            _partingSince = now;
         switch (_phase)
         {
             case Phase.Walk:
@@ -953,8 +972,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     }
 
     /// <summary>Stopped short of one standing: it steps away to the nearest place apart from every other
-    /// eidolon (<see cref="RimWait.Aside"/>), on no column another holds, rather than stand by it.</summary>
-    private void StepAway(EntityLaborEidolon eidolon, double now) =>
+    /// eidolon (<see cref="RimWait.Aside"/>), on no column another holds, rather than stand by it; false
+    /// when it finds no way to one (it stays where it is).</summary>
+    private bool StepAway(EntityLaborEidolon eidolon, double now) =>
         // only where nothing is left to dig under it and no one holds a column: another's strike may come
         // anywhere else
         _rim.Aside(eidolon, _nav!, _jobs, AsideClear(eidolon.EntityId, now));
