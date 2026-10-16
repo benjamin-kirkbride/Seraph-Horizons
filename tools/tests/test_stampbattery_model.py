@@ -208,6 +208,9 @@ class Manifest(unittest.TestCase):
                                               {"stage": 4, "name": "services", "adds": ["chutes", "pipecopper", "pipelead"]}])
         chutey = {rigmath.part_of(RIG["parts"], e["name"]) for e in SHAPE["elements"] if "chute" in e["name"] or "funnel" in e["name"]}
         self.assertEqual(chutey, {"chutes"})
+        # the dies are fitted with the stamps (owner, 2026-10-16), not with the mortar
+        dies = {rigmath.part_of(RIG["parts"], e["name"]) for e in SHAPE["elements"] if "_die" in e["name"]}
+        self.assertEqual((dies, part("dies")["requires"]), ({"dies"}, "stamps"))
 
     def test_the_water_line_is_the_same_pipe_in_either_metal(self):
         names = [e["name"] for e in SHAPE["elements"]]

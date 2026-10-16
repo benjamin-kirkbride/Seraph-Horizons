@@ -9,9 +9,9 @@ fitted into it in four stages.
     frame      two oak end frames (sill, front, middle and back posts, cap, the guide and cam rails), the guide
                girts, the ties and the two bearers; the power train: the entry shaft from the vanilla axle into a
                closed rectifier gear case, and the line shaft along the back row. Placed: no `requires`.
-    stage 1    the mortar box on its block, with its dies, the mesh screen in its front wall, the feed opening in
-               its back and the shoot from the feed lip (`mortar`)
-    stage 2    five stamps, hung in their guides (`stamps`)
+    stage 1    the mortar box on its block, with the mesh screen in its front wall, the feed opening in its back
+               and the shoot from the feed lip (`mortar`)
+    stage 2    five stamps, hung in their guides, and their five dies set in the mortar's floor under them (`stamps`)
     stage 3    the camshaft with ten involute cams, set under the hung stamps' tappets in their order 1-3-5-2-4,
                and the bull pulley, belted from the line shaft (`camshaft`); the plank feed box behind the mortar
                under the infeed (`feedbox`)
@@ -21,7 +21,7 @@ fitted into it in four stages.
                face: ppex's pipe, a reducer and a small pipe soldered in copper or lead along the mortar's back, a
                branch and a cock to each stamp, open in the feed opening (`pipecopper` or `pipelead`)
 
-The stamps' shoes and dies are wearing parts, not stages.
+The stamps' shoes are the wearing part, not a stage (owner, 2026-10-16): the dies are fitted with the stamps and last.
 
 Everything is built here from plain boxes; no other mod's model is used. It writes, deterministically,
 
@@ -615,8 +615,9 @@ def chute_origin(cell):
 
 # ---------------------------------------------------------------- builders: the battery
 def build_mortar():
-    """The mortar set: the oak mortar block, the cast-iron mortar box with five dies, the screen in its front wall and
-    the feed opening in its back; and the shoot from the feed lip. Its chute sections are the services' (`build_chutes`)."""
+    """The mortar set: the oak mortar block, the cast-iron mortar box, the screen in its front wall and the feed
+    opening in its back; and the shoot from the feed lip. Its dies are fitted with the stamps (`build_dies`), its chute
+    sections with the services (`build_chutes`)."""
     p = "mortar"
     (x0, x1), (z0, z1), (y0, y1) = MORTAR_X, MORTAR_Z, MORTAR_Y
     w = MORTAR_WALL
@@ -633,9 +634,15 @@ def build_mortar():
            box([fx1, FEED_LIP_Y, z1 - w], [x1, y1, z1], "mortar_back_e", p, "iron"),
            box([x0, MORTAR_FLOOR, z0 + w], [x0 + w, y1, z1 - w], "mortar_end_w", p, "iron"),
            box([x1 - w, MORTAR_FLOOR, z0 + w], [x1, y1, z1 - w], "mortar_end_e", p, "iron")]
-    for i in range(STAMPS):
-        out += disc("y", (stem_x(i), 0.0, STEM_Z), MORTAR_FLOOR, DIE_TOP, HEAD_R, f"mortar_die{i + 1}", p, "steel")
     out += build_shoot()
+    return out
+
+
+def build_dies():
+    """The five steel dies standing on the mortar's floor, one under each stamp: fitted with the stamps."""
+    out = []
+    for i in range(STAMPS):
+        out += disc("y", (stem_x(i), 0.0, STEM_Z), MORTAR_FLOOR, DIE_TOP, HEAD_R, f"dies_die{i + 1}", "dies", "steel")
     return out
 
 
@@ -918,17 +925,17 @@ def build_stamps():
 
 def build():
     els = build_frame() + build_drive() + build_line_pulleys()
-    els += build_mortar() + build_camshaft() + build_stamps() + build_feed_box()
+    els += build_mortar() + build_camshaft() + build_stamps() + build_dies() + build_feed_box()
     els += build_chutes() + build_pipes()
     return els
 
 
 # ---------------------------------------------------------------- the build states
 # The battery's parts are fitted to the frame, the same equipment (#711), in four stages (owner, 2026-10-15): the frame
-# is placed (the rectifier's gear case with it); then the mortar with its screen; the stamps, hung in their guides;
-# the camshaft, its cams set under the hung stamps' tappets in their order 1-3-5-2-4, with its belt and the feed box;
-# and, last, the services: every chute section and the water line, in copper or lead. The shoes and dies are wearing
-# parts, not stages.
+# is placed (the rectifier's gear case with it); then the mortar with its screen; the stamps, hung in their guides, with
+# their dies; the camshaft, its cams set under the hung stamps' tappets in their order 1-3-5-2-4, with its belt and the
+# feed box; and, last, the services: every chute section and the water line, in copper or lead. Only the shoes wear
+# (owner, 2026-10-16): they are no stage.
 PIPE_REQUIRES = tuple(f"pipe{m}" for m in PIPE_METALS)
 BUILD_STAGES = (                             # (state id, what the stage adds, its name), in build order; services last
     ("mortar", ("mortar",), "the mortar"),
@@ -1008,6 +1015,7 @@ def _rig_parts():
         parts.append({"id": f"stamp{i + 1}", "match": [f"stamp{i + 1}_*"], "requires": "stamps", "drivers": stamp_drivers(i)})
     parts += [
         {"id": "mortar", "match": ["mortar_*"], "requires": "mortar", "drivers": []},
+        {"id": "dies", "match": ["dies_*"], "requires": "stamps", "drivers": []},   # fitted with the stamps
         {"id": "feedbox", "match": ["feedbox_*"], "requires": "feedbox", "drivers": []},
         {"id": "chutes", "match": ["chutes_*"], "requires": "chutes", "drivers": []},
         # the water line, one part per metal (requires pipecopper, pipelead): only the fitted metal's is drawn

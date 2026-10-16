@@ -14,13 +14,14 @@ at 1,024 vox. "~" marks a guess or a choice of item.
 | Stage | Fitted (`requires`) | What it is | Materials |
 |---|---|---|---|
 | Frame (placed) | none | Two oak end frames, the guide girts, the ties and the two bearers; the rectifier's gear case at the power cell and the line shaft along the back row | 3 stainless gear (the rectifier), 4 iron plate, 3 iron nails and strips, 2 steel plate, 1 steel nails and strips, 12 plank |
-| 1 · Mortar | `mortar` | The mortar box on its block between the end frames, its dies, the mesh screen in its front wall, the feed opening and the shoot | 1 iron chain (the screen, 122 vox²), 8 iron plate, 2 iron nails and strips, 1 steel plate, 7 steel nails and strips, 2 plank |
-| 2 · Stamps | `stamps` | Five stamps, hung in the guide girts over their dies first | 5 `game:poundercap-steel` (the shoes), 5 steel rod, 4 iron plate, 7 iron nails and strips, 6 steel nails and strips |
+| 1 · Mortar | `mortar` | The mortar box on its block between the end frames, the mesh screen in its front wall, the feed opening and the shoot | 1 iron chain (the screen, 122 vox²), 8 iron plate, 2 iron nails and strips, 2 plank |
+| 2 · Stamps | `stamps` | Five stamps, hung in the guide girts first, and their five steel dies set on the mortar's floor under them | 5 `game:poundercap-steel` (the shoes), 5 steel rod, 2 steel plate, 5 steel nails and strips (the dies' 470 vox among them), 4 iron plate, 7 iron nails and strips |
 | 3 · Camshaft, belt and feed box | `camshaft`, `feedbox` | The camshaft in its pillow blocks, the cams set under the hung stamps' tappets in the hanging order 1-3-5-2-4; the bull pulley and its belt from the line shaft; the plank feed box under the infeed | ~1 leather (the belt), 4 iron plate, 3 iron nails and strips, 3 steel rod, 1 steel plate, 1 steel nails and strips, 2 plank (1 the bull pulley, 1 the feed box) |
 | 4 · Services | `chutes`, and `pipecopper` or `pipelead` | Every chute section: the infeed section in the top face and the output chute (its funnel under the screen, its stub and the stub's block); the water line along the mortar's back with its header, a branch and a cock to each stamp, in copper or lead | 4 chute section (the infeed's 2, the funnel and stub's 2), 3 pipe section (copper or lead) |
 
-The stamps' **shoes and dies are wearing parts**, not stages: a set of five shoes is 5 `game:poundercap-steel` (the pulverizer's pounder cap) and
-a set of five dies about 4 (470 vox). Water and ore are contents, not stages.
+Only the stamps' **shoes are a wearing part**, not a stage: a set of five is 5 `game:poundercap-steel` (the pulverizer's
+pounder cap). The dies are fitted with the stamps and do not wear (owner, 2026-10-16). Water and ore are contents, not
+stages.
 
 **Status: the model only.** This folder holds the generator (`tools/`); there is no block, block entity or renderer
 yet (#728, #711). Paths here are from this folder unless they start with `assets/` or `tests/` (the mod's), or
@@ -89,7 +90,7 @@ Everything was made for this mod: no other mod's model is used, so the generator
 Textures by role: debarked oak (`game:block/wood/debarked/oak`) for the frame's timbers, the entry shaft (the vanilla
 axle's continuation), the mortar block, the output chute's block and the bull pulley's rim and arms; oak planks for the
 feed box; iron plate for castings (the mortar, the shoot, the gear case, the pillow blocks, the cams); plain steel sheet
-for shafts and wearing parts (stems, shoes, dies); the water line in `game:block/metal/sheet-plain/copper4` or `lead4`,
+for shafts, stems, shoes and dies; the water line in `game:block/metal/sheet-plain/copper4` or `lead4`,
 its reducer's joint in `game:block/metal/ingot/leadsolder` and its cocks in `game:block/metal/sheet-plain/tinbronze4`
 (the bronze UnifiedPipes gives ppex's valves); `game:block/metal/mesh1` for the screen; the game's
 chute (`game:block/metal/sheet/copper1`) for both chute sections and the output funnel; plain leather for the belt.
@@ -99,7 +100,7 @@ chute (`game:block/metal/sheet/copper1`) for both chute sections and the output 
 |---|---|
 | `assets/seraphhorizons/shapes/block/stampbattery.json` | The whole machine, the water line in both metals (406 elements; drawn: 40 the frame, 75 with the mortar, 135 with the stamps, 260 with the camshaft and feed box, 340 with the services) |
 | `assets/seraphhorizons/shapes/block/stampbattery_frame.json` | The frame only (34 elements). A block would draw it and the inventory show it. |
-| `assets/seraphhorizons/config/stampbattery-rig.json` | Footprint (cells with boxes and lids), anchors, the stamps' figures, the build stages and the part rig (16 parts) |
+| `assets/seraphhorizons/config/stampbattery-rig.json` | Footprint (cells with boxes and lids), anchors, the stamps' figures, the build stages and the part rig (17 parts) |
 | `tests/StampBattery/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths |
 
 ### How the machine works
@@ -200,7 +201,8 @@ Every moving part (θ the axle's angle, ψ its travel):
 | Camshaft, cams, hubs, bull pulley (`camshaft`) [camshaft] | The bull belt | The tappets | `rotate` x −0.5 (ψ) |
 | Pillow blocks, bull belt (`camframe`) [camshaft] | Static | — | none |
 | Stamps 1 to 5: shoe, head, stem, tappet (`stamp1`..`stamp5`) [stamps] | Its double cam | The ore on its die | ten `slide` y, harmonics of the camshaft's turn (ψ) |
-| Mortar, dies, screen, shoot (`mortar`) [mortar] | Static | — | none |
+| Mortar, screen, shoot (`mortar`) [mortar] | Static | — | none |
+| Dies (`dies`) [stamps] | Static | — | none |
 | Feed box (`feedbox`) [feedbox] | Static | — | none |
 | Infeed section, output funnel, stub and block (`chutes`) [chutes] | Static | — | none |
 | Water line, copper (`pipecopper`) [pipecopper] or lead (`pipelead`) [pipelead] | Static, one metal drawn | — | none |
@@ -223,7 +225,8 @@ that set parts against each other run per build state: the frame, then each stag
 - **Parts:** the Euler round trip; every element in the part it was built for; no duplicate names, no empty part; the
   `requires` are the stages' set and the water line's two metals.
 - **Stages:** the mortar, the stamps, the camshaft and feed box, then the services, every fitted part in one stage and
-  every chute piece in the services' `chutes`; each state fits the stages so far; the rig's `buildStages` agree.
+  every chute piece in the services' `chutes`; the dies their own part, drawn from the stamps' stage on; each state
+  fits the stages so far; the rig's `buildStages` agree.
 - **Nothing floats:** the frame one piece from the ground, and each build state at rest.
 - **Containment:** nothing leaves the 3 × 4 × 3 box over nine poses.
 - **Anchors:** the entry shaft meets the power face at the cell's centre; every anchor's point on its cell's face, at

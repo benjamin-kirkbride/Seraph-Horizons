@@ -89,9 +89,9 @@ def check_basic(v):
 
 def check_stages(v):
     """The build stages (owner, 2026-10-15): the frame placed; the mortar; the stamps, hung before the camshaft whose
-    cams are set under them; the camshaft with its belt and the feed box; and, last, the services: every chute section
-    and the water line, in one metal. Every fitted part is in one stage, every state the stages so far, and the rig's
-    buildStages say the same."""
+    cams are set under them, with their dies (owner, 2026-10-16: their own part, drawn from the stamps' stage on); the
+    camshaft with its belt and the feed box; and, last, the services: every chute section and the water line, in one
+    metal. Every fitted part is in one stage, every state the stages so far, and the rig's buildStages say the same."""
     m = v.m
     stages = [list(adds) for _, adds, _ in m.BUILD_STAGES]
     if stages != [["mortar"], ["stamps"], ["camshaft", "feedbox"], ["chutes", *m.PIPE_REQUIRES]]:
@@ -106,6 +106,10 @@ def check_stages(v):
         fitted += [r for r in adds if r not in m.PIPE_REQUIRES[1:]]
         if list(m.STATES[sid]) != fitted:
             v.fail(f"the build state {sid} fits {m.STATES[sid]}, not the stages so far {fitted}")
+    dies = sorted({e.part for e in v.els if re.search(r"_die\d", e.name)})
+    drawn = [sid for sid in m.STATES if "dies" in v.parts_in(sid)]
+    if dies != ["dies"] or drawn != list(m.STATES)[list(m.STATES).index("stamps"):]:
+        v.fail(f"the dies are in {dies} and drawn in {drawn}, not their own part fitted from the stamps' stage on")
     chutey = [e.name for e in v.els if re.search(r"chute|funnel", e.name) and e.part != "chutes"]
     if chutey:
         v.fail(f"chute pieces outside the services' chutes: {chutey[:4]}")
@@ -153,7 +157,7 @@ ALLOWED = [
     # blocks on the cam rails; the stamps on their dies, their tappets on their cams, their stems in the guides
     ("camshaft", r"_shaft", "camframe", r"_pillow"), ("camframe", r"_pillow", "frame", r"fr_railcam_"),
     ("camframe", r"_belt", "camshaft", r"_bull_rim"), ("camframe", r"_belt", "linepulley", r"^linepulley_\d"),
-    ("stamp\\d", r"_shoe", "mortar", r"_die"), ("stamp\\d", r"_tappet", "camshaft", r"_cam\d"),
+    ("stamp\\d", r"_shoe", "dies", None), ("dies", None, "mortar", r"_floor$"), ("stamp\\d", r"_tappet", "camshaft", r"_cam\d"),
     ("stamp\\d", r"_stem", "frame", r"fr_guide"),
     ("mortar", r"_block", "frame", r"fr_sill"), ("chutes", r"_in_", "frame", r"fr_tie_[cb]$"),
     # the output funnel's walls and floor run into the mortar's front wall and floor, under and beside the screen
@@ -250,7 +254,7 @@ TEX_RULES = [
     (r"^feedbox_", "planks"),
     (r"^(fr_(gearcase|ped|hanger)|mortar_(floor|front|back|end|shoot)|camframe_pillow|camshaft_(hub|cam|bull_hub)|linepulley|"
      r"stamp\d_(head|tappet))", "iron"),
-    (r"^(line_|camshaft_shaft|stamp\d_(shoe|stem)|mortar_die)", "steel"),
+    (r"^(line_|camshaft_shaft|stamp\d_(shoe|stem)|dies_)", "steel"),
     (r"^pipe(copper|lead)_reducer_", "solder"),
     (r"^pipe(copper|lead)_cock\d", "bronze"),
     (r"^pipecopper_", "pipecopper"),
@@ -271,7 +275,7 @@ def check_textures(v):
                 break
         else:
             unruled.append(el.name)
-    print(f"textures: {len(TEX_RULES)} rules (oak timber, planks for the feed box, iron castings, steel shafts and wearing parts, the "
+    print(f"textures: {len(TEX_RULES)} rules (oak timber, planks for the feed box, iron castings, steel shafts, shoes and dies, the "
           f"water line's copper or lead, its reducer's solder and its cocks' bronze, the game's chute for both chutes and the funnel, a mesh screen, leather belt): "
           f"{len(bad)} break them, {len(unruled)} have no rule")
     if bad:
@@ -604,7 +608,7 @@ def check_stamps(v):
         v.fail("a tappet does not ride its cam through the lift")
     worst_hi, worst_lo = 0.0, 0.0
     for i in range(m.STAMPS):
-        die = aabb_of(v.named("mortar", rf"_die{i + 1}_"))
+        die = aabb_of(v.named("dies", rf"_die{i + 1}_"))
         for k in range(24):
             x = tr + m.FALL + 0.12 + (math.pi - tr - m.FALL - 0.12) * k / 23
             pose = m.at_cam(m.stamp_phase(i) + x)
