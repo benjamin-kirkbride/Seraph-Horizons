@@ -77,7 +77,7 @@ them (`stage`, `id`, `name`, `adds`: the `requires` values it fits, in click ord
 | 3 | Toggles, rods and springs (`toggles`) | `toggles` (`backtoggle`, `fronttoggle`, `rods`), then `springs` (`spring1`..`spring4`) | The two toggles and the two tension rods with their nuts and pins; then a steel coil spring on each rod | 2 steel rod (the rods); then 2 spring (`seraphhorizons:spring-steel`) |
 | 4 | Grizzly (`grizzly`) | `grizzly` (`grizzly`) | Five bars, two side curbs, the head block, the cross bar on its two brackets, the throat plate and its lip | 5 iron rod |
 | 5 | Services (`services`) | `chutes` (`chutes`) | The two chute sections: the infeed in the top face, the output low on the front face | 2 chute section |
-| Wear | Jaw faces | (in `jaws`) | The fixed plate and the swinging jaw's face: a wearing part, renewed, not a stage | 3 steel ingot (340 vox) |
+| Wear | Jaw faces | (in `jaws`) | The fixed plate and the swinging jaw's face: a wearing part, renewed whole (never turned round), not a stage | 2 steel plate |
 
 The materials are the owner's figures (one rate: 128 vox of iron or steel an ingot, a plate 2 ingots, counted rods,
 then whole plates, then nails and strips; timber in planks at 1,024 vox); the items' exact codes are gameplay's (#912).
