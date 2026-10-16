@@ -26,12 +26,15 @@ chute. Richards 1903, I, Harz jigs, figs. 306-307.
 
 It is built in stages, each fitted after the one before:
 
-    the frame            the hutch, with its sieve ledges, slope and spout (placed: no `requires`)
-    stage 1  the sieve   on its ledges (`sieve`)
-    stage 2  the drive and plunger
+    the frame            the hutch's three oak sills and its plank floor on them (placed: no `requires`)
+    stage 1  timber      the rest of the hutch (`timber`): its walls, head, partition, the sieve's ledges, the
+                         slope and its cleat, and the iron that binds them, the corner straps, the weir's lip
+                         and the spout; fitted a stack a right-click, as brickwork is
+    stage 2  the sieve   on its ledges (`sieve`)
+    stage 3  the drive and plunger
                          the standards, shaft and guide beam (`drive`), the eccentric, yoke and plunger
                          (`plunger`)
-    stage 3  services    the infeed chute and trough (`infeed`), the tailings and concentrate chutes
+    stage 4  services    the infeed chute and trough (`infeed`), the tailings and concentrate chutes
                          (`outlets`) and the water inlet (`pipecopper`/`pipelead`)
 
 The water and the ore bed (`water`, `bed`) are what it holds while it works, in no stage.
@@ -39,7 +42,7 @@ The water and the ore bed (`water`, `bed`) are what it holds while it works, in 
 It writes, deterministically,
 
     jig.json             the whole machine                       (assets/.../shapes/block/)
-    jig_frame.json       the hutch only (block and item)         (assets/.../shapes/block/)
+    jig_frame.json       the frame only (block and item)         (assets/.../shapes/block/)
     jig-rig.json         cells, anchors and the part rig         (assets/.../config/)
     rig-reference.json   every part's matrix at a spread of poses (tests/Jig/)
 
@@ -102,10 +105,11 @@ TAILINGS_CELL, TAILINGS_FACE = (0, 1, 0), "west"        # the weir's chute, out 
 CONCENTRATE_CELL, CONCENTRATE_FACE = (0, 0, 0), "north"  # the spigot's chute, out to a chute beyond
 WATER_CELL, WATER_FACE = (0, 0, 1), "south"  # a ppex pipe meets the inlet end to end at the face's centre
 
-REQUIRES = ("sieve", "drive", "plunger", "infeed", "outlets")   # the fitted parts (the hutch is the frame)
+REQUIRES = ("timber", "sieve", "drive", "plunger", "infeed", "outlets")   # the fitted parts (the frame: sills, floor)
 PIPE_METALS = ("copper", "lead")             # the water inlet's metals: one part each, the supplied one drawn
 PIPES = tuple(f"pipe{m}" for m in PIPE_METALS)
 BUILD_STAGES = (                             # (what the stage adds, its name), in build order; services last
+    (("timber",), "timber"),                 # the hutch's bulk timber, a stack a right-click (the grid limit)
     (("sieve",), "the sieve"),
     (("drive", "plunger"), "the drive and plunger"),
     (("infeed", "outlets", *PIPES), "services"),   # one inlet metal drawn (`pipes`)
@@ -127,7 +131,7 @@ TEXTURES = {
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
-# ---------------------------------------------------------------- the hutch (the frame)
+# ---------------------------------------------------------------- the hutch (the frame and the timber stage)
 HUTCH_X = (2.5, 15.5)                        # outside; the west wall inset 2.5 for the axle's oak end and the
 HUTCH_Z = (3.0, 29.0)                        # tailings chute beside it, both on the west face
 WALL_T = 1.5                                 # planks 1.5 thick (about 3.5 in)
@@ -465,15 +469,15 @@ def build_hutch():
     lip), the partition across, open under it, the ledges the sieve lies on, the bottom under the sieve
     compartment sloping down to the front wall on an oak cleat, and the spout, an iron lining in a port
     through the front wall's foot, its floor flush with the slope's foot and its lip in the concentrate
-    chute's mouth."""
-    f = "frame"
+    chute's mouth. The sills and the floor are the frame, placed; the rest is the timber stage (`hutch`)."""
+    f = "hutch"
     x0, x1 = HUTCH_X
     z0, z1 = HUTCH_Z
     t = WALL_T
     out = []
     for i, (sz0, sz1) in enumerate(SILLS_Z, 1):
-        out.append(box([SILL_X[0], 0.0, sz0], [SILL_X[1], FLOOR[0], sz1], f"hutch_sill{i}", f, "oak"))
-    out += beam([x0, FLOOR[0], z0], [x1, FLOOR[1], z1], "hutch_floor", f, "planks")
+        out.append(box([SILL_X[0], 0.0, sz0], [SILL_X[1], FLOOR[0], sz1], f"hutch_sill{i}", "frame", "oak"))
+    out += beam([x0, FLOOR[0], z0], [x1, FLOOR[1], z1], "hutch_floor", "frame", "planks")
     y0 = FLOOR[1]
     # the front wall, round the spout's port at its foot
     sx0, sx1 = SPIGOT_X
@@ -523,12 +527,12 @@ def build_hutch():
 
 
 def build_corner_straps():
-    """The hutch's corner irons (in the frame, `hutch_strap_*`): an angle-iron strap down each vertical corner,
+    """The hutch's corner irons (in the timber stage with the walls they bind, `hutch_strap_*`): an angle-iron strap down each vertical corner,
     a leg on each outer face, the face across x (north or south) lapping the other's edge so the two meet at
     the corner in an L; from the sills' top to the rim, or up the head to its top at the tail end's corner,
     whose rim corner the head covers. On each other corner a flat L of iron on the rim, an arm along each wall
     and lapping the vertical strap's head. Nail heads on every leg and arm."""
-    f = "frame"
+    f = "hutch"
     t, w = CSTRAP_T, CSTRAP_W
     ns, proud = NAIL
     out = []
@@ -802,7 +806,9 @@ def _rig_parts():
         {"id": "outlets", "match": ["outlet_*"], "requires": "outlets", "drivers": []},
         # the water inlet, one part per metal: only the supplied metal's is drawn
         *[{"id": pid, "match": [f"{pid}_*"], "requires": pid, "drivers": []} for pid in PIPES],
-        {"id": "frame", "match": ["hutch_*"], "requires": None, "drivers": []},
+        # the frame (the sills and floor, placed), then the rest of the hutch, the timber stage
+        {"id": "frame", "match": ["hutch_sill*", "hutch_floor*"], "requires": None, "drivers": []},
+        {"id": "hutch", "match": ["hutch_*"], "requires": "timber", "drivers": []},
     ]
     out = []
     for p in parts:
@@ -838,15 +844,16 @@ def _staged(n):
 
 STATES = {                                    # what is fitted in each state checked
     "frame": (),                             # the frame, placed
-    "sieve": _staged(1),                     # stage 1
-    "drive": _staged(2),                     # stage 2, the drive and plunger
-    "complete": COMPLETE,                    # stage 3, services: the finished machine, dry and empty
+    "timber": _staged(1),                    # stage 1, the hutch's timber and its iron
+    "sieve": _staged(2),                     # stage 2
+    "drive": _staged(3),                     # stage 3, the drive and plunger
+    "complete": COMPLETE,                    # stage 4, services: the finished machine, dry and empty
     "water": COMPLETE + ("water",),
     "working": COMPLETE + CONTENTS,          # running: water in it and the bed on the sieve
     # each service on the machine before it, alone: nothing floats whichever is fitted first
-    "infeed": _staged(2) + ("infeed",),
-    "outlets": _staged(2) + ("outlets",),
-    "pipe": _staged(2) + (PIPES[0],),
+    "infeed": _staged(3) + ("infeed",),
+    "outlets": _staged(3) + ("outlets",),
+    "pipe": _staged(3) + (PIPES[0],),
 }
 CELL_STATE = "complete"                      # the cells' boxes are the finished machine's, at rest
 
@@ -869,8 +876,8 @@ def make_rig(parts):
                     "the infeed chute (infeedCell/infeedFace, from above), the tailings and concentrate chutes "
                     "(tailingsCell/tailingsFace, concentrateCell/concentrateFace, out to a chute beyond) and the "
                     "ppex water pipe (waterCell/waterFace). buildStages: what each build stage adds, in order: the "
-                    "sieve, the drive and plunger, then services (the chutes and the water inlet); the hutch is the "
-                    "frame, placed. water and bed are what the machine holds while it works, in no stage. See the jig's README for the schema.",
+                    "hutch's timber, the sieve, the drive and plunger, then services (the chutes and the water inlet); "
+                    "the hutch's sills and floor are the frame, placed. water and bed are what the machine holds while it works, in no stage. See the jig's README for the schema.",
         "cells": [],
         "powerCell": list(POWER_CELL),
         "powerFace": POWER_FACE,
@@ -976,8 +983,8 @@ def reference_json(ship_parts):
 # ---------------------------------------------------------------- shape files
 def shape_json(els):
     return machine_shape_json(
-        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. The hutch (hutch_*) and the "
-             "fitted parts (sieve_: the sieve; shaft_ / stand_: the shaft and its standards; sheave_ / plunger_: the "
+        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. The hutch (hutch_*: its sills "
+             "and floor the frame, the rest its timber) and the fitted parts (sieve_: the sieve; shaft_ / stand_: the shaft and its standards; sheave_ / plunger_: the "
              "eccentric and the plunger; infeed_: the infeed chute and feed trough; outlet_: the tailings and "
              "concentrate chutes; pipecopper_ / pipelead_: the water inlet in each metal), and what it holds "
              "(watersieve_ / waterplunger_: the water; bed_: the ore bed). Keep element names when editing: the rig "

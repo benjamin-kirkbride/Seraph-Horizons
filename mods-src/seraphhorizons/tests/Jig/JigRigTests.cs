@@ -14,7 +14,7 @@ namespace SeraphHorizons.Tests.Jig;
 public class JigRigTests
 {
     private static readonly HashSet<string> Requires =
-        ["sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead", "water", "bed"];
+        ["timber", "sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead", "water", "bed"];
 
     private static string File(string name)
     {
@@ -35,7 +35,7 @@ public class JigRigTests
     {
         var parts = Shipped();
         Assert.Equal(["shaft", "sheave", "plunger", "watersieve", "waterplunger", "bed", "stand", "sieve", "infeed", "outlets",
-                      "pipecopper", "pipelead", "frame"], parts.Parts.Select(p => p.Id));
+                      "pipecopper", "pipelead", "frame", "hutch"], parts.Parts.Select(p => p.Id));
         using var doc = JsonDocument.Parse(File("jig-rig.json"));
         var root = doc.RootElement;
         var faces = new HashSet<string>();

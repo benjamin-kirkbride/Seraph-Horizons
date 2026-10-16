@@ -77,18 +77,25 @@ landing beside it. The water comes in under the plunger and leaves with the prod
 
 ## Build stages
 
-Settled 2026-10-15. The hutch is placed as the machine; then each stage is fitted in order, and the jig runs
-only when the last is in. The materials are the stages' iron and timber measured from the model at the
+Settled 2026-10-15; the timber stage 2026-10-16. The hutch's sills and floor are placed as the machine (the
+frame); then each stage is fitted in order, and the jig runs only when the last is in. The frame's grid
+recipe holds at most 12 of an item a slot and 6 kinds with the hammer (the owner's grid limit), so the hutch's
+bulk timber, 17 planks, is a first stage of its own, **timber**, fitted a stack a right-click as brickwork is
+on the furnaces. The materials are the stages' iron and timber measured from the model at the
 settled rate (128 vox of iron or steel an ingot, a rod an ingot, nails and strips 4 an ingot; boards in planks at 128 vox, timbers in support beams at 256), the chute and pipe sections counted.
 
 | # | Stage | `requires` | Sits on | Materials |
 |---|---|---|---|---|
-| F | The hutch (the frame) | none (placed) | The ground | 3 iron nails and strips, 20 plank, 2 support beam |
-| 1 | The sieve | `sieve` | The ledges round the sieve compartment (frame) | 1 iron chain (the sieve, 119 vox²) |
-| 2 | The drive and plunger | `drive`, `plunger` | The standards on the side walls' rims; the sheave keyed on the shaft, the board in the plunger compartment | 1 iron rod, 1 steel rod, 2 plank |
-| 3 | Services | `infeed`, `outlets`, `pipecopper` or `pipelead` | The infeed on its bearers over the sieve; the outlets on their bracket and block on the hutch; the inlet through the back wall | 3 chute section, 1 pipe section (copper or lead), 1 iron nails and strips, 1 plank, 1 support beam |
+| F | The frame: the hutch's sills and floor | none (placed) | The ground | 2 support beam (the three sills), 3 plank (the floor) |
+| 1 | Timber | `timber` | The floor and sills (frame): the walls on the floor, the partition and ledges between them, the slope on its cleat | 17 plank (the walls, head, partition, ledges, slope and cleat), 3 iron nails and strips (the corner straps and rim irons, the weir's lip, the spout) |
+| 2 | The sieve | `sieve` | The ledges round the sieve compartment (timber) | 1 iron chain (the sieve, 119 vox²) |
+| 3 | The drive and plunger | `drive`, `plunger` | The standards on the side walls' rims; the sheave keyed on the shaft, the board in the plunger compartment | 1 iron rod, 1 steel rod, 2 plank |
+| 4 | Services | `infeed`, `outlets`, `pipecopper` or `pipelead` | The infeed on its bearers over the sieve; the outlets on their bracket and block on the hutch; the inlet through the back wall | 3 chute section, 1 pipe section (copper or lead), 1 iron nails and strips, 1 plank, 1 support beam |
 
-Every chute section and the water inlet are in services; the frame holds none. The water inlet is a choice
+The corner straps and rim irons go with the timber, since they bind the walls' corners and stand on nothing
+without them; the weir's lip sits on the west wall's notch and the spout lines the front wall's port, so they go
+with it too, and the frame is all wood. Every chute section and the water inlet are in services; the frame
+holds none. The water inlet is a choice
 of metal, copper or lead (one part each, the same elements). The water and the ore bed (`water`, `bed`) are
 what the jig holds while it works, in no stage; nothing in it wears out as a part.
 
@@ -98,7 +105,7 @@ Positions are in voxels in the generator's build frame (x west to east, y up, z 
 machine box's north-west bottom corner), which is the shipped frame times 16: the controller's corner is
 the build frame's.
 
-**The hutch** (the frame, `hutch_*`). Three oak sills across (4 high, under the front wall, the partition
+**The hutch** (`hutch_*`: the sills and floor the frame, the rest the timber stage). Three oak sills across (4 high, under the front wall, the partition
 and the back wall), a plank floor on them, four plank walls 1.5 thick to the rim. The west wall, the tail
 end, is notched over the sieve compartment for the **weir**: its sill at 21.25 under an iron lip that
 reaches into the tailings chute; over the rim it rises as the **head** (cheeks and a lintel, to 28) round
@@ -108,7 +115,7 @@ y 17.2..17.6. Under the sieve compartment the hutch's **bottom slopes** from 7.6
 oak cleat) to 5.65 at the front wall, where the iron **spout** (a floor, two sides and a head, 0.5
 thick round a 4.6 × 2.35 bore) lines a port through the wall's foot into the concentrate chute's mouth.
 
-**The corner irons** (in the frame, `hutch_strap_*`), as a period plank tank was bound. Each of the
+**The corner irons** (in the timber stage, `hutch_strap_*`), as a period plank tank was bound. Each of the
 hutch's four vertical corners has an angle-iron **strap** (0.3 thick): a leg 0.9 wide flat on each of its
 two outer faces, the north or south face's leg lapping the other's edge so the two meet in an L round the
 corner, from the sills' top (y 4) to the rim; at the tail end's corner (north-west), where the west wall
@@ -183,7 +190,8 @@ over the compartment's), and the bed lifts a little on each pulse and settles (�
 | Tailings and concentrate chutes, their bracket and block (`outlets`) [outlets] | — | — | none |
 | The water inlet in copper (`pipecopper`) [pipecopper] | — | — | none |
 | The water inlet in lead (`pipelead`) [pipelead] | — | — | none |
-| The hutch, with its corner straps and rim irons (`frame`) | — | — | none |
+| The hutch's sills and floor (`frame`) | — | — | none |
+| The rest of the hutch, with its corner straps and rim irons (`hutch`) [timber] | — | — | none |
 
 No toothed wheel: the eccentric runs in its yoke (its bars on the sheave follow its centre exactly, its end
 bars clear its swing by 0.3).
@@ -203,8 +211,8 @@ service anchors above (`powerCell`/`powerFace`, `infeedCell`/`infeedFace`, `tail
 stage's number, name and the `requires` it adds, in order), `levels` (`weirY`,
 `sieveY`, `rimY`, blocks), `pipes` (the inlet's `requires` per metal), `contents` (the `requires` values
 for the water and the bed), `drive` (`strokesPerTurn` 1 and the `stroke` in blocks, either way the axle
-turns) and `parts`. `requires` values: `sieve`, `drive`, `plunger`, `infeed`, `outlets`, `pipecopper`,
-`pipelead`, `water`, `bed`, or null (the hutch).
+turns) and `parts`. `requires` values: `timber`, `sieve`, `drive`, `plunger`, `infeed`, `outlets`, `pipecopper`,
+`pipelead`, `water`, `bed`, or null (the frame, the hutch's sills and floor).
 
 **Cells.** Their boxes are the finished machine's at rest (every fitted part, the inlet in copper, no
 contents), rebuilt from the shipped, rounded shape posed by the shipped rig, as the other machines' are
@@ -212,7 +220,7 @@ contents), rebuilt from the shipped, rounded shape posed by the shipped rig, as 
 
 **In the viewer** (`site/models.json`, `jig`): θ's slider and Play turn the axle (Play at 2.1 s a turn,
 the reference speed 0.6's 0.48 turns a second); "turn backwards" shows the same stroke. A **Build stage**
-select: the hutch, 1 the sieve, 2 the drive and plunger, 3 services with the inlet in copper or in lead
+select: the frame, 1 timber, 2 the sieve, 3 the drive and plunger, 4 services with the inlet in copper or in lead
 (the default copper). A **Contents** select, once the jig is built: dry and empty, water with no ore, or
 working (water and the bed; the default). The viewer draws the water opaque (it has no
 transparency), so untick Water to see the bed.
@@ -226,7 +234,7 @@ python3 mods-src/seraphhorizons/Jig/tools/make_shape.py --quick      # skips the
 ```
 
 It writes `assets/seraphhorizons/shapes/block/jig.json` (the whole machine, 167 elements),
-`assets/seraphhorizons/shapes/block/jig_frame.json` (the hutch, 76), `assets/seraphhorizons/config/jig-rig.json`
+`assets/seraphhorizons/shapes/block/jig_frame.json` (the frame, the sills and floor, 5), `assets/seraphhorizons/config/jig-rig.json`
 and `tests/Jig/rig-reference.json` (every part's matrix at ten values of θ). A full run takes about 2 s and
 is deterministic (two runs into two folders are byte-identical, logs included).
 
@@ -241,10 +249,11 @@ Every run checks its output and exits non-zero if a check fails:
   and rods, the mesh, vanilla's chute copper, the pipe's metal, the contents'; only the water's surfaces in
   the transparent pass. **Thickness:** nothing thinner than half a voxel but the mesh, the lip, the
   water's surfaces and the straps (the corner irons and their nail heads among them).
-- **Build stages** (`check_build_stages`): the rig's `buildStages` are the settled ones (the sieve; the
-  drive and plunger; services last, the chutes and the inlet), every fitted part in one stage, the frame
-  and the contents in none, and each stage's state fits the stages up to it.
-- **Nothing floats**, at rest: the hutch alone, after each build stage, the finished machine dry, with
+- **Build stages** (`check_build_stages`): the rig's `buildStages` are the settled ones (the timber; the
+  sieve; the drive and plunger; services last, the chutes and the inlet), every fitted part in one stage, the
+  frame and the contents in none, and each stage's state fits the stages up to it. The frame is the sills and
+  floor, and its materials at the settled rate are within the grid's 12 of an item a slot.
+- **Nothing floats**, at rest: the frame alone, after each build stage, the finished machine dry, with
   water, working, and each service alone on the machine before services.
 - **Containment:** nothing leaves the four cells over a turn.
 - **Anchors:** the shaft's oak end from the power face at its centre in the axle's profile; each chute
@@ -302,7 +311,7 @@ First-match globs, in the rig's order: `shaft_*` (`entrya`, `entryb`, `flange_*`
 `strap_w1`.., `beam`, `guide`), `sieve_mesh`, `infeed_*` (`chute_n/s/e/w`, `trough_floor`, `trough_n`,
 `trough_s`, `trough_end`, `bearer1`, `bearer2`, `strap1n`..), `outlet_*` (`tailchute_n/s/bottom/top`,
 `tail_arm`, `tail_leg`, `concchute_w/e/bottom/top`, `conc_block`), `pipecopper_*` and `pipelead_*`
-(`inlet_*`), and `hutch_*` for the frame (`sill1..3`, `floor1..2`, `wall_n`, `wall_s`, `wall_e1..2`,
+(`inlet_*`), and `hutch_*` for the hutch (the frame: `sill1..3`, `floor1..2`; the timber stage: `wall_n`, `wall_s`, `wall_e1..2`,
 `wall_nw`, `wall_ne`, `wall_w1..2`, `wall_wn`, `wall_ws`, `weir_lip`, `head_n`, `head_s`, `head_lintel`, `partition`,
 `ledge_w/e/n/s`, `hopper`, `hopper_cleat`, `spigot_bottom/top/w/e`, and the corner irons
 `strap_<nw|ne|sw|se>_x` and `_z` (the legs on the north or south face and on the west or east face),
@@ -360,7 +369,7 @@ The model has been reviewed in projections rendered from the written files, not 
 7. **The contents.** Water (two surfaces) and the ore bed as `requires` values; their amplitudes from the
    compartments' and the board's areas. Whether gameplay should draw them, and the bed's texture
    (granite gravel now; the ore's host rock, as #694's tailings are, would need the renderer to set it).
-8. **Build stages** settled 2026-10-15 (above). The screen's item (`game:metalchain-iron`) is the
+8. **Build stages** settled 2026-10-15, the timber stage 2026-10-16 (above). The screen's item (`game:metalchain-iron`) is the
    settled rate's, not a mesh of its own.
 9. **Anchors provisional pending #711**: the `<name>Cell`/`<name>Face` pairs for chutes and water.
 10. **Box ironwork** (ruled 2026-10-14: corner straps). Angle-iron straps on the four vertical corners,

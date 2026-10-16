@@ -33,8 +33,8 @@ SHAPE = json.loads((ASSETS / "shapes" / "block" / "jig.json").read_text())
 FRAME = json.loads((ASSETS / "shapes" / "block" / "jig_frame.json").read_text())
 REFERENCE = json.loads((MOD / "tests" / "Jig" / "rig-reference.json").read_text())
 # the fitted parts, the water inlet in either metal, and the contents
-REQUIRES = {"sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead", "water", "bed", None}
-STILL = ("stand", "sieve", "infeed", "outlets", "pipecopper", "pipelead", "frame")
+REQUIRES = {"timber", "sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead", "water", "bed", None}
+STILL = ("stand", "sieve", "infeed", "outlets", "pipecopper", "pipelead", "frame", "hutch")
 
 
 def matrix(pid, theta):
@@ -53,7 +53,7 @@ class Rig(unittest.TestCase):
     def test_parts_parse_and_use_the_vocabulary(self):
         ids = [p["id"] for p in RIG["parts"]]
         self.assertEqual(ids, ["shaft", "sheave", "plunger", "watersieve", "waterplunger", "bed", "stand", "sieve", "infeed",
-                               "outlets", "pipecopper", "pipelead", "frame"])
+                               "outlets", "pipecopper", "pipelead", "frame", "hutch"])
         for p in RIG["parts"]:
             self.assertIn(p["requires"], REQUIRES, p["id"])
             if p.get("ride"):
@@ -64,10 +64,12 @@ class Rig(unittest.TestCase):
         self.assertIsNone(rigmath.progress_of(RIG))          # no work: only the axle poses it
 
     def test_build_stages(self):
-        # the hutch is the frame, placed; then the sieve, the drive and plunger, and services last
-        self.assertEqual(RIG["buildStages"], [{"stage": 1, "name": "the sieve", "adds": ["sieve"]},
-                                              {"stage": 2, "name": "the drive and plunger", "adds": ["drive", "plunger"]},
-                                              {"stage": 3, "name": "services",
+        # the hutch's sills and floor are the frame, placed; then its timber, the sieve, the drive and plunger,
+        # and services last
+        self.assertEqual(RIG["buildStages"], [{"stage": 1, "name": "timber", "adds": ["timber"]},
+                                              {"stage": 2, "name": "the sieve", "adds": ["sieve"]},
+                                              {"stage": 3, "name": "the drive and plunger", "adds": ["drive", "plunger"]},
+                                              {"stage": 4, "name": "services",
                                                "adds": ["infeed", "outlets", "pipecopper", "pipelead"]}])
         staged = [r for st in RIG["buildStages"] for r in st["adds"]]
         self.assertEqual(set(staged), REQUIRES - {None, "water", "bed"})   # the contents in no stage
@@ -80,6 +82,9 @@ class Rig(unittest.TestCase):
         self.assertEqual(used, {p["id"] for p in RIG["parts"]})
         frame = {e["name"] for e in FRAME["elements"]}
         self.assertEqual(frame, {n for n in names if rigmath.part_of(RIG["parts"], n) == "frame"})
+        # the frame is the sills and the floor; the rest of the hutch is the timber stage
+        self.assertEqual(frame, {"hutch_sill1", "hutch_sill2", "hutch_sill3", "hutch_floor1", "hutch_floor2"})
+        self.assertEqual({rigmath.part_of(RIG["parts"], n) for n in names if n.startswith("hutch_") and n not in frame}, {"hutch"})
 
     def test_reference_poses_are_the_rigs_own_maths(self):
         poses = REFERENCE["poses"]
@@ -227,9 +232,9 @@ class Anchors(unittest.TestCase):
     def test_every_corner_of_the_hutch_is_strapped(self):
         # an angle-iron strap down each vertical corner, in the hutch's own shape: a leg flat on each outer face,
         # the legs meeting at the corner, from the sills' top to the corner's top, nailed
-        walls = [e for e in FRAME["elements"] if e["name"].startswith(("hutch_wall", "hutch_head_"))]
+        walls = elements("hutch_wall") + elements("hutch_head_")
         (x0, x1), (z0, z1) = span(walls, 0), span(walls, 2)
-        straps = {e["name"]: e for e in FRAME["elements"] if e["name"].startswith("hutch_strap_")}
+        straps = {e["name"]: e for e in elements("hutch_strap_")}
         for xc in (x0, x1):
             for zc in (z0, z1):
                 legs = [e for n, e in straps.items() if "nail" not in n and "_rim" not in n

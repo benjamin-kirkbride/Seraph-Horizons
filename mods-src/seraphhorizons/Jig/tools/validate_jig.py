@@ -87,21 +87,59 @@ def check_basic(v):
     print(f"parts: {len(v.parts)}, elements {len(v.els)}: " + ", ".join(f"{k} {n}" for k, n in counts.items()))
 
 
+# The frame's grid recipe (ruled 2026-10-16): at most 12 of an item a slot. Timber at the settled rate: a board
+# (2 voxels thick or less) a plank per 128 vox, a thicker timber a support beam per 256; iron and steel 128 vox an
+# ingot, nails and strips 4 an ingot.
+GRID_MOST = 12
+WOOD_RATE = {"board": 128.0, "timber": 256.0}
+NAILS_VOX = 32.0
+
+
+def materials(els):
+    """What a set of elements costs at the settled rate: planks, support beams and nails and strips."""
+    vox = {"board": 0.0, "timber": 0.0, "iron": 0.0}
+    for e in els:
+        s = sorted(abs(x) for x in e.size)
+        tex = {f["texture"].lstrip("#") for f in e.faces.values()}
+        if tex <= {"oak", "planks"}:
+            vox["board" if s[0] <= 2 else "timber"] += s[0] * s[1] * s[2]
+        elif tex <= {"iron", "steel"}:
+            vox["iron"] += s[0] * s[1] * s[2]
+    out = {k: math.ceil(vox[k] / WOOD_RATE[k] - 1e-9) for k in WOOD_RATE}
+    if sum(out.values()) == 0 and vox["board"] + vox["timber"] > 0:
+        out["board"] = 1
+    out["nails"] = math.ceil(vox["iron"] / NAILS_VOX - 1e-9)
+    return out
+
+
 def check_build_stages(v):
-    """The build stages as settled (2026-10-15): the hutch is the frame, placed; then the sieve, the drive and
-    plunger, and last services (the chutes and the water inlet, one metal). Every fitted part is in one
-    stage, the frame and the contents in none; the rig's buildStages are the generator's; each stage's state
-    fits the stages up to it, so the floating check sees every stage stand on the ones before."""
+    """The build stages as settled (2026-10-15, the timber stage 2026-10-16): the frame is the hutch's sills and
+    floor, placed; then its timber (the walls, head, partition, ledges and slope, and the iron that binds them),
+    the sieve, the drive and plunger, and last services (the chutes and the water inlet, one metal). Every
+    fitted part is in one stage, the frame and the contents in none; the rig's buildStages are the generator's;
+    each stage's state fits the stages up to it, so the floating check sees every stage stand on the ones
+    before. The frame is within the grid's limit, 12 of an item a slot; its bulk timber is the timber stage."""
     m = v.m
     stages = v.rig["buildStages"]
     if [(st["stage"], st["adds"], st["name"]) for st in stages] != [(n, list(req), name) for n, (req, name) in enumerate(m.BUILD_STAGES, 1)]:
         v.fail(f"the rig's build stages are {stages}")
-    if [st["adds"] for st in stages] != [["sieve"], ["drive", "plunger"], ["infeed", "outlets", *m.PIPES]]:
-        v.fail("the build stages are not the sieve, the drive and plunger and, last, services")
+    if [st["adds"] for st in stages] != [["timber"], ["sieve"], ["drive", "plunger"], ["infeed", "outlets", *m.PIPES]]:
+        v.fail("the build stages are not the timber, the sieve, the drive and plunger and, last, services")
     staged = [r for st in stages for r in st["adds"]]
     if len(staged) != len(set(staged)) or set(staged) != set(m.REQUIRES) | set(m.PIPES):
         v.fail("every fitted part is in one build stage, the frame and the contents in none")
-    for n, name in enumerate(("sieve", "drive", "complete"), 1):
+    frame = {e.name for e in v.by_part["frame"]}
+    if not all(re.match(r"^hutch_(sill|floor)\d$", n) for n in frame) or not any(n.startswith("hutch_sill") for n in frame):
+        v.fail(f"the frame is not the hutch's sills and floor: {sorted(frame)}")
+    bill = {"frame": materials(v.by_part["frame"]), "timber": materials(v.by_part["hutch"])}
+    over = {k: n for k, n in bill["frame"].items() if n > GRID_MOST}
+    if over:
+        v.fail(f"the frame's grid recipe holds more than {GRID_MOST} of an item: {over}")
+    if not bill["timber"]["board"] + bill["timber"]["timber"]:
+        v.fail("the timber stage has no timber")
+    print("materials: " + "; ".join(f"{k} {b['board']} plank, {b['timber']} support beam, {b['nails']} nails and strips"
+                                     for k, b in bill.items()))
+    for n, name in enumerate(("timber", "sieve", "drive", "complete"), 1):
         want = {r for st in stages[:n] for r in st["adds"]} - set(m.PIPES[1:])
         if set(m.STATES[name]) != want:
             v.fail(f"state {name} fits {set(m.STATES[name])}, not build stages 1..{n}")
@@ -133,7 +171,7 @@ def check_requires(v):
                     v.fail(f"in {st}, {p['id']} rides {ride['id']}, which is not fitted")
     if not set(m.STATES["complete"]) == set(m.REQUIRES) | {m.PIPES[0]}:
         v.fail("the complete state is not every fitted part with the inlet")
-    counts = {st: sum(len(v.by_part[pid]) for pid in v.shown(st)) for st in ("frame", "sieve", "drive", "complete", "working")}
+    counts = {st: sum(len(v.by_part[pid]) for pid in v.shown(st)) for st in ("frame", "timber", "sieve", "drive", "complete", "working")}
     print("requires: " + ", ".join(sorted(str(r) for r in reqs)) + "; elements shown: "
           + ", ".join(f"{k} {n}" for k, n in counts.items()))
 
@@ -219,7 +257,7 @@ def check_containment(v, poses):
 
 
 def check_floating(v):
-    """At rest, the hutch alone, after each build stage, the finished machine, and each service alone on the
+    """At rest, the frame alone (the sills and floor), after each build stage, the finished machine, and each service alone on the
     machine before it, are each one piece from the ground (the shaft is joined through its bushes, the plunger through its
     yoke on the sheave)."""
     m = v.m
@@ -319,7 +357,7 @@ def check_levels(v):
     # and head inside the chute's bore, its lip in the chute's mouth
     cb = (m.CONCENTRATE_CELL[1] * 16 + m.BORE[0], m.CONCENTRATE_CELL[1] * 16 + m.BORE[1])
     cx = (m.CONCENTRATE_CELL[0] * 16 + m.BORE[0], m.CONCENTRATE_CELL[0] * 16 + m.BORE[1])
-    (hop,) = v.named("frame", r"^hutch_hopper$")
+    (hop,) = v.named("hutch", r"^hutch_hopper$")
     hop_foot = max(c[1] for c in corners(hop) if c[2] < m.HOPPER_Z[0] + 0.01)
     spigot_ok = (abs(hop_foot - m.SPIGOT_FLOOR) < 1e-6 and cb[0] < m.SPIGOT_FLOOR and m.SPIGOT_Y[1] < cb[1]
                  and cx[0] <= m.SPIGOT_X[0] and m.SPIGOT_X[1] <= cx[1] and m.SPIGOT_Z[0] < m.CONC_Z1 <= m.SPIGOT_Z[1])
@@ -661,7 +699,7 @@ def check_corner_straps(v):
     corner iron on the rim lapping the strap's head, nailed too. The irons stand clear (0.1 or more) of the outlets,
     the infeed, the water inlet, and the shaft and plunger through a turn."""
     m = v.m
-    frame = v.by_part["frame"]
+    frame = v.by_part["frame"] + v.by_part["hutch"]
     walls = [e.aabb() for e in frame if re.match(r"^hutch_(wall|head)_", e.name)]
     x0, x1 = min(lo[0] for lo, _ in walls), max(hi[0] for _, hi in walls)
     z0, z1 = min(lo[2] for lo, _ in walls), max(hi[2] for _, hi in walls)
@@ -747,12 +785,12 @@ ALLOWED = [
     ("plunger", r"_tail$", "stand", r"_guide$|_beam$"),
     # the water inlet through the back wall; the water's surface against the walls, the partition, the
     # plunger's rod, and the weir's lip and the hutch under the notch (it stands at the sill)
-    (r"pipecopper|pipelead", None, "frame", r"_wall_s$|_floor\d$"),
-    (r"watersieve|waterplunger", None, "frame", r"_wall|_partition$|_weir_lip$"),
+    (r"pipecopper|pipelead", None, "frame|hutch", r"_wall_s$|_floor\d$"),
+    (r"watersieve|waterplunger", None, "hutch", r"_wall|_partition$|_weir_lip$"),
     ("waterplunger", None, "stand", r"_strap_"),
     ("waterplunger", None, "plunger", r"_rod$"),
     # the bed on the sieve, against the walls and the partition
-    ("bed", None, "sieve|frame", None),
+    ("bed", None, "sieve|hutch", None),
 ]
 
 

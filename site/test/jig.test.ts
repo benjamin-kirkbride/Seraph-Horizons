@@ -43,6 +43,7 @@ describe("the jig's rig against its rig-reference.json", () => {
       ["pipecopper", "pipecopper", null],
       ["pipelead", "pipelead", null],
       ["frame", null, null],
+      ["hutch", "timber", null],
     ]);
     for (const p of reference.poses) expect(Object.keys(p.matrices).sort()).toEqual(parts.map((q) => q.id).sort());
   });
@@ -87,7 +88,7 @@ describe("the jig's rig against its rig-reference.json", () => {
       expect(Math.sign(ms[i("watersieve")]![13]!)).toBe(-Math.sign(pl[13]!));
       expect(Math.sign(ms[i("waterplunger")]![13]!)).toBe(Math.sign(pl[13]!));
       expect(Math.sign(ms[i("bed")]![13]!)).toBe(-Math.sign(pl[13]!));
-      for (const still of ["stand", "sieve", "infeed", "outlets", "pipecopper", "pipelead", "frame"]) expect(isIdentity(ms[i(still)]!)).toBe(true);
+      for (const still of ["stand", "sieve", "infeed", "outlets", "pipecopper", "pipelead", "frame", "hutch"]) expect(isIdentity(ms[i(still)]!)).toBe(true);
     }
   });
 
@@ -105,11 +106,12 @@ describe("the jig's rig against its rig-reference.json", () => {
     expect([...codes.bed!]).toEqual(["bed"]);
     expect([...codes.outlets!].sort()).toEqual(["chute", "iron", "oak"]);
     expect(shape.textures!.chute).toBe("game:block/metal/sheet/copper1");
-    // the hutch's corner irons: two legs of angle iron on each of its four corners, in the frame, standing still
+    // the hutch's corner irons: two legs of angle iron on each of its four corners, in the timber stage with the
+    // walls they bind, standing still
     const legs = flat.filter((f) => /^hutch_strap_(nw|ne|sw|se)_[xz]$/.test(f.element.name ?? ""));
     expect(legs.length).toBe(8);
     for (const f of legs) {
-      expect(parts[partOf(globs, f.chain)]!.id).toBe("frame");
+      expect(parts[partOf(globs, f.chain)]!.id).toBe("hutch");
       expect([...textureCodes(f.element)]).toEqual(["iron"]);
     }
   });
@@ -130,29 +132,31 @@ describe("the jig's rig against its rig-reference.json", () => {
 
 describe("the jig's page", () => {
   const model = manifest.models.find((m) => m.id === "jig")!;
-  const values = ["sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead", "water", "bed"];
+  const values = ["timber", "sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead", "water", "bed"];
   const groups = stateGroups(model.scenario!.states, values);
 
-  it("builds in stages (the sieve, the drive and plunger, then services with the inlet in one metal), and shows its contents once built", () => {
+  it("builds in stages (the timber, the sieve, the drive and plunger, then services with the inlet in one metal), and shows its contents once built", () => {
     expect(groups.map((g) => [g.id, g.owns])).toEqual([
-      ["stage", ["sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead"]],
+      ["stage", ["timber", "sieve", "drive", "plunger", "infeed", "outlets", "pipecopper", "pipelead"]],
       ["contents", ["water", "bed"]],
     ]);
     expect(rig.buildStages).toEqual([
-      { stage: 1, name: "the sieve", adds: ["sieve"] },
-      { stage: 2, name: "the drive and plunger", adds: ["drive", "plunger"] },
-      { stage: 3, name: "services", adds: ["infeed", "outlets", "pipecopper", "pipelead"] },
+      { stage: 1, name: "timber", adds: ["timber"] },
+      { stage: 2, name: "the sieve", adds: ["sieve"] },
+      { stage: 3, name: "the drive and plunger", adds: ["drive", "plunger"] },
+      { stage: 4, name: "services", adds: ["infeed", "outlets", "pipecopper", "pipelead"] },
     ]);
     expect(model.scenario!.choices).toBeUndefined();
     const [stage, contents] = groups;
-    expect(stage!.spec.options.map((o) => o.id)).toEqual(["frame", "sieve", "drive", "services", "serviceslead"]);
+    expect(stage!.spec.options.map((o) => o.id)).toEqual(["frame", "timber", "sieve", "drive", "services", "serviceslead"]);
     expect(stage!.spec.default).toBe("services");
     const none = Object.fromEntries(values.map((v) => [v, false]));
     const at = (g: typeof stage, id: string, from: Record<string, boolean> = none) => applyState(from, g!.spec.options.find((o) => o.id === id)!, g!.owns);
-    expect(at(stage, "frame")).toMatchObject({ sieve: false, drive: false, plunger: false, infeed: false, outlets: false, pipecopper: false, pipelead: false });
-    expect(at(stage, "sieve")).toMatchObject({ sieve: true, drive: false, plunger: false, infeed: false });
-    expect(at(stage, "drive")).toMatchObject({ sieve: true, drive: true, plunger: true, infeed: false, outlets: false, pipecopper: false });
-    expect(at(stage, "services")).toMatchObject({ infeed: true, outlets: true, pipecopper: true, pipelead: false });
+    expect(at(stage, "frame")).toMatchObject({ timber: false, sieve: false, drive: false, plunger: false, infeed: false, outlets: false, pipecopper: false, pipelead: false });
+    expect(at(stage, "timber")).toMatchObject({ timber: true, sieve: false, drive: false, plunger: false, infeed: false });
+    expect(at(stage, "sieve")).toMatchObject({ timber: true, sieve: true, drive: false, plunger: false, infeed: false });
+    expect(at(stage, "drive")).toMatchObject({ timber: true, sieve: true, drive: true, plunger: true, infeed: false, outlets: false, pipecopper: false });
+    expect(at(stage, "services")).toMatchObject({ timber: true, infeed: true, outlets: true, pipecopper: true, pipelead: false });
     expect(at(stage, "serviceslead")).toMatchObject({ infeed: true, outlets: true, pipecopper: false, pipelead: true });
     expect(needsMet(contents!, at(stage, "drive"))).toBe(false);
     expect(needsMet(contents!, at(stage, "serviceslead"))).toBe(true);
