@@ -3311,7 +3311,11 @@
         "1.22.0-rc.9",
         "1.22.1",
         "1.22.2",
-        "1.22.3"
+        "1.22.3",
+        "1.22.4",
+        "1.22.5",
+        "1.22.6",
+        "1.22.7"
       ],
       "dependencies": {
         "game": ""
@@ -4254,6 +4258,24 @@
       "dependencies": {
         "game": "1.22.0"
       }
+    },
+    {
+      "id": "itemclumps",
+      "version": "0.2.1",
+      "assetId": 43887,
+      "releaseId": 39645,
+      "fileId": 88272,
+      "fileName": "ItemClumps_0.2.1.zip",
+      "fileUrl": "https://moddbcdn.vintagestory.at/ItemClumps_0.2.1_4551b28b72745b589be8d2c03820192e.zip?dl=ItemClumps_0.2.1.zip",
+      "sha256": "3c26fc7e9d0bb899202473f820cf413bd82481a126094ac8da3c563bf8b37041",
+      "size": 223935,
+      "side": "server",
+      "license": "unknown",
+      "redistribute": false,
+      "compatibleGameVersions": [
+        "1.22.0"
+      ],
+      "dependencies": {}
     },
     {
       "id": "allowedvariantsfix",
