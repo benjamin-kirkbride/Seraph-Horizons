@@ -57,7 +57,9 @@ public sealed class GameWideSpace(IBlockAccessor blocks, Cuboidf box, EnumAICrea
 /// another eidolon is where it would land, or lands there, or walks over it within the climb's time, at
 /// most <see cref="YieldMs"/>: the climb, once begun, goes on to the top whatever is there; but not for
 /// one with a higher id waiting at a climb's foot itself (<see cref="EntityLaborEidolon.ClimbWaiting"/>),
-/// which waits for it. And one
+/// which waits for it. One climbing, or waiting at a climb's foot, on its path ahead it waits for whatever
+/// their ids (<see cref="YieldMs"/> at most, then searches again): a climb holds it, so it cannot be pushed
+/// aside or walked through, and it goes on by itself. And one
 /// walking with a lower id that would meet it within <see cref="GiveWaySeconds"/>, each going on as it
 /// goes now, it stops for, while that one would still meet it where it stands (<see cref="YieldMs"/> at
 /// most), then searches again: the one with the lower id does not turn aside for it, and once it stands
@@ -111,6 +113,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
     private long _yieldUntil;
     private int _climbWait = -1;
     private bool _givingWay;
+    private bool _waitingClimber;
 
     /// <summary>Whether it is walking a path now, climbing on one, or waiting on it for another eidolon.</summary>
     public bool Active => _climb != null || _yieldUntil > 0 || eidolon.TaskAi?.PathTraverser?.Active == true;
@@ -221,6 +224,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         _climbWait = -1;
         ClearClimbWait();
         _givingWay = false;
+        _waitingClimber = false;
         _progress = 0;
         var route = _route = new Route(path, waypoints, run, arriveWithin, onArrived, onStuck, target.Clone(), tolerance);
         eidolon.WalkGoal = path[^1];
@@ -274,10 +278,11 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         }
         if (_yieldUntil > 0)
         {
-            if (now < _yieldUntil && (_givingWay ? Meets(standing: true) : InTheWay(route) != null))
+            if (now < _yieldUntil && (_givingWay ? Meets(standing: true) : _waitingClimber ? ClimberAhead(route) != null : InTheWay(route) != null))
                 return;
             _yieldUntil = 0;
             _givingWay = false;
+            _waitingClimber = false;
             if (!GoTo(route.Target, route.Run, route.OnArrived, route.OnStuck, route.Tolerance, route.ArriveWithin))
             {
                 _route = null;
@@ -288,6 +293,16 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         }
         if (eidolon.TaskAi?.PathTraverser?.Active != true)
             return;
+        if (ClimberAhead(route) != null)
+        {
+            // one climbing, or waiting at a climb's foot, on its way ahead: it waits for it, whatever their ids
+            Yields++;
+            eidolon.TaskAi?.PathTraverser?.Stop();
+            Animate(null);
+            _waitingClimber = true;
+            _yieldUntil = now + YieldMs;
+            return;
+        }
         if (Meets(standing: false))
         {
             // One with the lower id walks at it. Where it stands now is in that one's way (it would meet
@@ -359,10 +374,8 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         return false;
     }
 
-    // The eidolon on the path's next nodes from where it is now (or where it walks to), if any: not one
-    // at the path's end (it stands where it goes, which a search does not walk round) nor one it already
-    // touches.
-    private Entity? InTheWay(Route route)
+    // Moves its progress along the path on to the node nearest it among the next ones.
+    private void Advance(Route route)
     {
         var path = route.Path;
         double x = eidolon.Pos.X, z = eidolon.Pos.Z;
@@ -370,6 +383,45 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         for (int i = _progress + 1; i < Math.Min(path.Count, _progress + 1 + LookAhead); i++)
             if (Away(path[i]) <= Away(path[_progress]))
                 _progress = i;
+    }
+
+    // One climbing, or waiting at the foot of a climb (ClimbTop), standing on the path's next nodes ahead of
+    // it, if any: a climb holds it where it is (and one waiting there climbs once its top is clear), so it
+    // cannot be walked through or pushed aside, and it goes on by itself; walking on into it only pressed
+    // into it, and its sweep over the climb's top kept that one waiting at the foot for it (#1014: two
+    // walking home along a trench, the one behind pressing into the one in front for 10 s while that one
+    // waited to climb out). Not one whose top it stands on: that one waits for it to move.
+    private EntityLaborEidolon? ClimberAhead(Route route)
+    {
+        Advance(route);
+        var path = route.Path;
+        var p = eidolon.Pos;
+        var here = WidePath.NodeAt(p.X, p.Y, p.Z);
+        foreach (var e in eidolon.World.GetEntitiesAround(p.XYZ, LookAhead + 8, LookAhead + 8,
+                     e => e is EntityLaborEidolon { ClimbTop: not null } && e.EntityId != eidolon.EntityId && e.Alive))
+        {
+            var climber = (EntityLaborEidolon)e;
+            if (climber.ClimbTop is not { } top || new Others([(top.X, top.Y, top.Z)], HalfWidth, Height).Touches(here.X, here.Y, here.Z))
+                continue;
+            var o = climber.Pos;
+            var stands = new Others([(o.X, o.Y, o.Z)], HalfWidth, Height);
+            for (int i = _progress; i < Math.Min(path.Count, _progress + 1 + LookAhead); i++)
+                // on the node, and that node on ahead, towards it
+                if (stands.Touches(path[i].X, path[i].Y, path[i].Z)
+                    && (path[i].X - p.X) * (o.X - p.X) + (path[i].Z - p.Z) * (o.Z - p.Z) > 0)
+                    return climber;
+        }
+        return null;
+    }
+
+    // The eidolon on the path's next nodes from where it is now (or where it walks to), if any: not one
+    // at the path's end (it stands where it goes, which a search does not walk round) nor one it already
+    // touches.
+    private Entity? InTheWay(Route route)
+    {
+        var path = route.Path;
+        double x = eidolon.Pos.X, z = eidolon.Pos.Z;
+        Advance(route);
         var here = WidePath.NodeAt(x, eidolon.Pos.Y, z);
         foreach (var (other, at) in Obstacles(LookAhead + 8))
         {
@@ -512,6 +564,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         _climbWait = -1;
         ClearClimbWait();
         _givingWay = false;
+        _waitingClimber = false;
         _steering = true;
         _steerRun = run;
         _retargetedAt = eidolon.World.ElapsedMilliseconds;
@@ -536,6 +589,7 @@ public sealed class EidolonNavigator(EntityLaborEidolon eidolon)
         _climbWait = -1;
         ClearClimbWait();
         _givingWay = false;
+        _waitingClimber = false;
         Unwatch();
         EndClimb();
         eidolon.TaskAi?.PathTraverser?.Stop();
