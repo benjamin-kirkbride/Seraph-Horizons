@@ -5217,6 +5217,12 @@ stopped before it ends has nulled its logger, IOG's next warning throws on that 
 process dies (a test host, or a world left right after loading). A finalizer on that task drops
 what it throws once the server is shutting down.
 
+Also with no switch, `OreSystem` puts the game's deposit depth noise scale back as it starts
+(#1012): vanilla's `GenDeposits` builds that noise from the static
+`TerraGenConfig.depositVerticalDistortScale` (8 in a fresh process) and then sets it to 2 for good, so
+a world started after another in the same process (single player, opening a world without restarting
+the game) had its deposits at other depths, and other ore, than the same world started fresh.
+
 ### Placer fields, deposits and ore maps (`PlacerFields`, `PlacerCellSizeMetres`)
 
 The rest of the ore epic's first half (#435; details and the traders' API in `docs/oregen.md`), in
