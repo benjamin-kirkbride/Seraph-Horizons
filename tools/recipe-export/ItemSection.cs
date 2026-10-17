@@ -44,6 +44,7 @@ public static class ItemSection
 
     private static JObject BuildItems(ICoreServerAPI api, ModIndex mods, ISet<string> referenced)
     {
+        var lang = new LangIndex();
         var scope = new SortedDictionary<string, (CollectibleObject C, bool Visible)>(StringComparer.Ordinal);
         // Pages of stacks with attributes (lantern materials, clutter types, ...), by code.
         var variants = new Dictionary<string, List<ItemStack>>();
@@ -125,7 +126,7 @@ public static class ItemSection
                 ["mod"] = mods.ModForCollectible(c),
                 ["handbookVisible"] = visible,
             };
-            var description = ItemRecords.Description(c);
+            var description = ItemRecords.Description(c, lang);
             if (description != null) o["description"] = description;
             o["attributes"] = ItemRecords.Attributes(api.World, c);
             var from = sources.For(code);
