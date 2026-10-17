@@ -6822,9 +6822,11 @@ prospector cell, the next when one can take no camp, out to ring 10, then any ca
 (`MapDistanceTests`): rounding to the nearest km, under a km, a tier's reach in km; the lead
 history (`LeadBookTests`): counts that never reset, the stranger's lead, visits, pooling by company,
 the first map per player and not per company, the saved version and its migration from version 1);
-`tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's ore map offers,
-buying one through the trade window, the registry marked sold and no other trader offering it, a
-gravel map offered exactly when a field is in reach, standing changing a trader's prices and map
+`tests/PackTests/TradingMaps*Scenarios.cs` (Atlas, a fixed seed, three classes each on a world of
+its own, as checking a deposit generates its columns: `TradingMapsShelfScenarios` a prospector's ore
+map offers, buying one through the trade window, the registry marked sold and no other trader
+offering it; `TradingMapsApproachScenarios` a far camp's deposits checked in the background, one at a
+time, as a player nears it; `TradingMapsScenarios` a gravel map offered exactly when a field is in reach, standing changing a trader's prices and map
 precision; a fresh player at a store offered their first map alone, 10 gears to a prospector,
 buying it generating the camp and marking it, nothing more from that trader, and one onward in
 ring 1 at the prospector's camp; a prospector offering no first map and a stranger's one lead in

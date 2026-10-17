@@ -312,7 +312,8 @@ four times these but for rounding.
 block's own grade, so they follow. A deposit no longer reads `only:` unless its rock has one grade
 or it is a pocket or two in size: a medium or rich one reads `mostly:` (65 % at the drawn grade, less
 its prospect veins) or `mixed:`, a poor one `mostly:poor` (70 %, plus its poor prospect veins), where
-it read `only:poor`. `GradePocketsScenarios` checks it on real deposits: every block of a deposit
+it read `only:poor`. `GradePocketsCopperIronTinScenarios` and `GradePocketsZincLeadBismuthScenarios`
+(a world each, the cells of three metals each) check it on real deposits: every block of a deposit
 matches one drawn grade at its position, in every chunk column (each its own chunk pass), and at
 most a quarter of the deposits of 5,000 blocks or more are 80 % one grade (a vein crosses a few dozen
 pockets at most, so one can by chance: seed 944944's poor bismuth deposit came out 85 % poor). A
