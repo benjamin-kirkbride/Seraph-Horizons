@@ -19,9 +19,11 @@ namespace SeraphHorizons.PackTests;
 /// in another), every eidolon home after, contacts held to the rule where routes ran (none over 2 s, at most
 /// about one a member each 2 minutes; see <see cref="Crew"/> for a job left to today's dispatch), and the job's
 /// makespan no later than today's dispatch's (<see cref="MineBaselines"/>, measured with
-/// <c>SH_MINE_BASELINE=1</c>, which turns routes off) by more than <see cref="Tolerance"/>: a bound for the
-/// spread runs still have on the virtual clock; the strict "no worse than today" is
-/// MineRouteBenchmarkTests' in xunit, in simulated time. The log names each choice the route solver made in
+/// <c>SH_MINE_BASELINE=1</c>, which turns routes off) by more than <see cref="Tolerance"/>: a bound set
+/// past the most runs have been seen to spread on the virtual clock, so it catches a crew gone wrong and
+/// never that spread; the strict "no worse than today" is MineRouteBenchmarkTests' in xunit, in simulated
+/// time. A crew that stops getting anywhere (none moving, nothing mined) fails a minute on, with where each
+/// stands, not at the tick limit. The log names each choice the route solver made in
 /// turn (a variant, today's dispatch, or today's after its routes stalled). CI shard <c>eidolon-ahead</c>. On
 /// floors of their own in the sky (<see cref="Felling.Sky"/>), each from its spawns on the virtual clock
 /// (<see cref="VirtualClock"/>).
@@ -29,19 +31,28 @@ namespace SeraphHorizons.PackTests;
 [AtlasWorld]
 public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
-    /// <summary>How much later than today's baseline a crew by routes may finish here. On the virtual clock a
-    /// case repeats closely but not exactly: today's own runs spread up to 5 % over their mean (the pit of
-    /// three, 153 to 169 s), and the pit of three by routes is bimodal, most runs 133 to 156 s and a few 175 to
-    /// 187 s (a member's walks stopped short and waiting behind another), so this catches a crew gone wrong,
-    /// not that spread; xunit holds the routes to today exactly.</summary>
-    private const double Tolerance = 0.20;
+    /// <summary>How much later than today's baseline a crew by routes may finish here: set from the most any
+    /// run has come to over its baseline, with room, not from the mean (#1000). On the virtual clock a case
+    /// repeats closely but not exactly (the engine's physics and chunk threads are not on it, and a CI runner
+    /// is slower and busier than a desk), and the routes' tail is long: the pit of three by routes is bimodal,
+    /// most runs 129 to 143 s and a few 175 to 177 s locally (a member's walks stopped short and waiting
+    /// behind another), and 194.6 s once in CI, 21 % over its baseline, which failed the 20 % this was. So
+    /// this catches only a crew gone wrong, not that spread; the makespan held strictly to today's ("no worse
+    /// than today") is MineRouteBenchmarkTests' in xunit, in simulated time, where it repeats exactly.</summary>
+    private const double Tolerance = 0.35;
 
-    /// <summary>How much later than its baseline a job left to today's dispatch may finish: that is today
-    /// against today, its own spread (the tunnel of three, 105 to 142 s), only a crew gone badly wrong.</summary>
-    private const double TodayTolerance = 0.35;
+    /// <summary>How much later than its baseline a job any of which ran on today's dispatch (the solver's
+    /// choice, or its routes stalled and taken up again) may finish: today against today, plus a stall's
+    /// waiting where routes stalled. Set from the most seen with room, as <see cref="Tolerance"/>: today's own
+    /// runs with routes off came to 17 % over their baseline locally (the tunnel of three, 103 to 130 s, 12
+    /// runs), a job whose routes stalled to 32 % (the trench of three, 194.8 s) locally and 36 % in CI (the
+    /// pit of three, 219.3 s), and today's tunnel of two once 43 % in CI (136.0 s), each of which failed the
+    /// 35 % this was; only a crew gone badly wrong goes past it (two with one of them idle the whole job take
+    /// about twice as long).</summary>
+    private const double TodayTolerance = 0.60;
 
-    /// <summary>How long (game time) every order left walking home may go with none of them moving
-    /// <see cref="StallMove"/> blocks before the crew counts as stalled.</summary>
+    /// <summary>How long (game time) a crew may go with none of its orders still going moving
+    /// <see cref="StallMove"/> blocks and no block mined before it counts as stalled.</summary>
     private const long StallMs = 60_000;
 
     private const double StallMove = 0.5;
@@ -143,25 +154,34 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         var choices = new List<string>();
         int tick = 0, lastMined = -1;
         long start = W.ElapsedMilliseconds;
-        // where each still under its order last moved from, and when: every one left walking home and none
-        // getting anywhere for StallMs is a stall (#971, two parting for ever on the way out of the spiral pit),
-        // failed then, with where they stand, rather than at the tick limit
-        var moved = new Dictionary<long, (Vec3d At, long Since)>();
+        // where each still under its order last moved from, and when the crew last got anywhere (one of them
+        // moving StallMove blocks, or a block mined): none for StallMs is a stall, failed then, with where they
+        // stand, rather than at the tick limit. Walking home (#971, two parting for ever on the way out of the
+        // spiral pit) or mid-job (the spiral pit of three, about one run in ten: the one that dug it done and
+        // waiting on the stair, another waiting for its last station by the rim past it, both on today's
+        // dispatch after the routes stalled, for good; not yet fixed).
+        var moved = new Dictionary<long, Vec3d>();
+        long progressAt = W.ElapsedMilliseconds;
+        int progressMined = 0;
         await World.Until(() =>
         {
             long now = W.ElapsedMilliseconds;
             var going = crew.Select((e, i) => (e, o: orders[i])).Where(m => m.e.Orders!.Current == m.o).ToList();
-            if (going.Count > 0 && going.All(m => m.o.Returning))
+            foreach (var (e, _) in going)
+                if (!moved.TryGetValue(e.EntityId, out var last) || last.DistanceTo(e.Pos.XYZ) > StallMove)
+                {
+                    moved[e.EntityId] = e.Pos.XYZ;
+                    progressAt = now;
+                }
+            if (orders.Sum(o => o.Mined) is var minedNow && minedNow != progressMined)
             {
-                foreach (var (e, _) in going)
-                    if (!moved.TryGetValue(e.EntityId, out var last) || last.At.DistanceTo(e.Pos.XYZ) > StallMove)
-                        moved[e.EntityId] = (e.Pos.XYZ, now);
-                if (going.All(m => now - moved[m.e.EntityId].Since > StallMs))
-                    Assert.Fail($"every order left walking home and none moved {StallMove} blocks in {StallMs / 1000} s: "
-                        + string.Join(" | ", going.Select(m => $"{m.e.EntityId} at {m.e.Pos.XYZ}, ordered at {homes[Array.IndexOf(crew, m.e)]}: {m.o.DebugState}")));
+                progressMined = minedNow;
+                progressAt = now;
             }
-            else
-                moved.Clear();
+            if (going.Count > 0 && now - progressAt > StallMs)
+                Assert.Fail($"{(going.All(m => m.o.Returning) ? "every order left walking home and none" : "none")} moved {StallMove} blocks"
+                    + $" or mined a block in {StallMs / 1000} s ({progressMined} mined): "
+                    + string.Join(" | ", going.Select(m => $"{m.e.EntityId} at {m.e.Pos.XYZ}, ordered at {homes[Array.IndexOf(crew, m.e)]}: {m.o.DebugState}")));
             watch.Tick();
             if (MineWatcher.ClaimFault(Jobs.Mining, crew, orders, EidolonJobSystem.Now(W)) is { } claimFault)
                 faults.Add(claimFault);
@@ -214,8 +234,8 @@ public class EidolonLookaheadScenarios(ITestOutputHelper output) : AtlasScenario
         else
             Assert.True(watch.LongestMs <= 10000, $"a contact of {watch.LongestMs} ms on today's dispatch");
         // Makespan: by routes the whole job, within Tolerance of today's; left to today's dispatch (by the
-        // solver or a stall) it is today's own time, held only to TodayTolerance (today's tunnel of three ran
-        // 105 to 142 s on the virtual clock)
+        // solver or a stall) it is today's own time and a stall's, held only to TodayTolerance. Both are set
+        // from the most seen over the baseline, with room: a check of a crew gone wrong, not of the spread
         if (EidolonMinePlans.Routing)
             Assert.True(seconds <= baseline * (1 + (routed ? Tolerance : TodayTolerance)),
                 $"{seconds:0.0} s against today's {baseline:0.0} s{(routed ? "" : " on today's dispatch")}");
