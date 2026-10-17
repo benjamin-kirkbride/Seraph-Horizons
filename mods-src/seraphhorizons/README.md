@@ -3756,7 +3756,12 @@ the others count it as standing, and they keep clear of where its climb lands to
 (`EntityLaborEidolon.ClimbTop`). At the foot of a climb it waits while another is where it would land,
 lands there itself, or walks over it within the climb's two seconds (not for one with a higher id waiting
 at a climb's foot itself, which waits for it), up to 4 seconds, then climbs: a climb
-once begun goes to the top whatever is there, and the push cannot move one climbing.
+once begun goes to the top whatever is there, and the push cannot move one climbing. One climbing, or
+waiting at a climb's foot, on its path's next 6 nodes ahead, it stops for whatever their ids, and waits
+while that one is still there, up to 4 seconds, then searches again (not where it stands on that one's
+top, which that one waits for it to leave): walked into, that one could be neither pushed nor walked round,
+and the walker's way over the top kept it waiting at the foot (#1014, two walking home along a trench in
+single file, the one behind pressing into the one in front for 10 seconds).
 
 **Steps and drops.** On every path, whatever the order, it goes up at most two blocks and down at most
 two. A step of one it walks (its physics' step height). A step of two it climbs (`EidolonNavigator`,
@@ -5216,6 +5221,12 @@ generators on the thread pool, which takes seconds with IOG, and nothing waits f
 stopped before it ends has nulled its logger, IOG's next warning throws on that thread, and the
 process dies (a test host, or a world left right after loading). A finalizer on that task drops
 what it throws once the server is shutting down.
+
+Also with no switch, `OreSystem` puts the game's deposit depth noise scale back as it starts
+(#1012): vanilla's `GenDeposits` builds that noise from the static
+`TerraGenConfig.depositVerticalDistortScale` (8 in a fresh process) and then sets it to 2 for good, so
+a world started after another in the same process (single player, opening a world without restarting
+the game) had its deposits at other depths, and other ore, than the same world started fresh.
 
 ### Placer fields, deposits and ore maps (`PlacerFields`, `PlacerCellSizeMetres`)
 
