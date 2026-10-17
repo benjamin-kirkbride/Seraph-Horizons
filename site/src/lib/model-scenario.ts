@@ -748,9 +748,10 @@ export function checkScenario(s: Scenario, rig: Rig | null, anchors: readonly An
   }
   if (s.inputs?.work && s.inputs?.trunk) out.push("inputs: label the work as work or trunk, not both");
   const names = s.inputs?.size?.names;
-  const top = Math.max(2, ...progressClasses(path));
+  // names run to the rig's last class: a work with one class (the riddle's charge) names none and it alone
+  const top = Math.max(1, ...progressClasses(path));
   if (names !== undefined && (!Array.isArray(names) || names.length < top + 1 || names.length > MAX_CLASS + 1 || !names.every((n) => typeof n === "string" && n !== "")))
-    out.push(`inputs.size.names needs a name for none and each class up to the rig's last, ${top}: ${top + 1} names (none, thin, thick${top > 2 ? ", ..." : ""})`);
+    out.push(`inputs.size.names needs a name for none and each class up to the rig's last, ${top}: ${top + 1} names (none, thin${top > 1 ? ", thick" : ""}${top > 2 ? ", ..." : ""})`);
   for (const [key, cls] of Object.entries(s.requiresClass ?? {})) {
     const k = typeof cls === "string" ? classOfKey(cls) : null;
     if (k !== null && path?.kind === "work" && !progressClasses(path).includes(k)) out.push(`requiresClass "${key}": the rig's work has no end for class ${cls}`);
