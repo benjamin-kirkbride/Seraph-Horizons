@@ -1,0 +1,1354 @@
+{
+	"components": [
+		{
+			"code": "testhasmet",
+			"owner": "trader",
+			"type": "condition",
+			"variable": "player.hasmet",
+			"isNotValue": "true",
+			"thenJumpTo": "firstmeet",
+			"elseJumpTo": "testnewtrader"
+		},
+		{
+			"code": "testnewtrader",
+			"owner": "trader",
+			"type": "condition",
+			"variable": "entity.hasmet",
+			"isNotValue": "true",
+			"thenJumpTo": "introduction",
+			"elseJumpTo": "welcomeback"
+		},
+		{
+			"code": "firstmeet",
+			"owner": "trader",
+			"type": "talk",
+			"setVariables": {
+				"entity.hasmet": "true",
+				"entity.bronzereceived": "false"
+			},
+			"text": [
+				{
+					"value": "Haven't seen you around before. You just wake up?"
+				}
+			]
+		},
+		{
+			"code": "firstmeetresponse",
+			"owner": "player",
+			"type": "talk",
+			"setVariables": {
+				"player.hasmet": "true"
+			},
+			"text": [
+				{
+					"value": "I don't know what you mean.",
+					"jumpTo": "daisies"
+				},
+				{
+					"value": "I think so.",
+					"jumpTo": "morning"
+				},
+				{
+					"value": "I might still be dreaming.",
+					"jumpTo": "dream"
+				},
+				{
+					"value": "Damn it's good to see a friendly face.",
+					"jumpTo": "bold"
+				},
+				{
+					"value": "dialogue-trader-nochatter",
+					"jumpTo": "opentrade"
+				}
+			]
+		},
+		{
+			"code": "daisies",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-daisies"
+				}
+			]
+		},
+		{
+			"code": "daisiesresponse",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "I'm sorry, it's better left unsaid.",
+					"jumpTo": "alright"
+				},
+				{
+					"value": "I'm not entirely sure myself.",
+					"jumpTo": "hm"
+				},
+				{
+					"value": "I'm just trying to survive. As always.",
+					"jumpTo": "always"
+				},
+				{
+					"value": "There are more out there... like this?",
+					"jumpTo": "strangers"
+				}
+			]
+		},
+		{
+			"code": "alright",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "That's alright, stranger. I didn't expect anything else."
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "hm",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "Hm, wish I could be more help to ya."
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "always",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "(He nods soberly) As always."
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "strangers",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "That's right. Strange-colored strangers walk the land."
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "morning",
+			"owner": "trader",
+			"type": "talk",
+			"trigger": "revealname",
+			"text": [
+				{
+					"value": "dialogue-goodmorning"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "dream",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-aintadream"
+				}
+			]
+		},
+		{
+			"code": "dreamresponse",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "I've seen worse.",
+					"jumpTo": "notbad"
+				},
+				{
+					"value": "dialogue-howbeautiful",
+					"jumpTo": "tired"
+				},
+				{
+					"value": "Perhaps you're right. There's still work to do.",
+					"jumpTo": "alwaysmore"
+				}
+			]
+		},
+		{
+			"code": "notbad",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-damneddrifters"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "tired",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-demonsstalk"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "alwaysmore",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "Aye, there's always more work to do."
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "bold",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-welcome"
+				}
+			]
+		},
+		{
+			"code": "wellmet",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "Well met.",
+					"jumpTo": "main"
+				}
+			]
+		},
+		{
+			"code": "introduction",
+			"owner": "trader",
+			"type": "talk",
+			"setVariables": {
+				"entity.hasmet": "true",
+				"entity.bronzereceived": "false"
+			},
+			"text": [
+				{
+					"value": "dialogue-trader-newcustomer"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "welcomeback",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "Welcome back {{playername}}! What can I do for you?"
+				}
+			]
+		},
+		{
+			"code": "main",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "Got anything to trade, {{npcname}}?",
+					"jumpTo": "opentrade"
+				},
+				{
+					"value": "seraphhorizons:dialogue-trader-standing",
+					"jumpTo": "seraphhorizons-standing",
+					"conditions": [
+						{
+							"variable": "entity.shstanding",
+							"isValue": "on"
+						}
+					]
+				},
+				{
+					"value": "dialogue-name",
+					"jumpTo": "name"
+				},
+				{
+					"value": "Why gears?",
+					"jumpTo": "gears"
+				},
+				{
+					"value": "Why live out here like this?",
+					"jumpTo": "profit"
+				},
+				{
+					"value": "Know of any interesting places around here?",
+					"jumpTo": "testmap"
+				},
+				{
+					"value": "dialogue-nowtellme",
+					"jumpTo": "takebronze",
+					"conditions": [
+						{
+							"variable": "entity.requestbronze",
+							"isValue": "true"
+						},
+						{
+							"variable": "entity.bronzereceived",
+							"isNotValue": "true"
+						},
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'pickaxe-tinbronze'}"
+						}
+					]
+				},
+				{
+					"value": "dialogue-specialruin",
+					"jumpTo": "maprepeat",
+					"conditions": [
+						{
+							"variable": "entity.bronzereceived",
+							"isValue": "true"
+						},
+						{
+							"variable": "player.inventory",
+							"isNotValue": "{type: 'item', code: 'locatormap-resonancearchive'}"
+						}
+					]
+				},
+				{
+					"value": "dialogue-treasurehunter-anotherletter",
+					"jumpTo": "maprepeatlazaret",
+					"conditions": [
+						{
+							"variable": "entity.heardlazaret",
+							"isValue": "true"
+						},
+						{
+							"variable": "player.inventory",
+							"isNotValue": "{type: 'item', code: 'letter-lazaret'}"
+						}
+					]
+				},
+				{
+					"value": "dialogue-buyelk",
+					"jumpTo": "buyelk",
+					"conditions": [
+						{
+							"variable": "entity.offeredelk",
+							"isValue": "true"
+						},
+						{
+							"variable": "player.boughtelk",
+							"isNotValue": "true"
+						}
+					]
+				},
+				{
+					"value": "dialogue-treasurehunter-anotherelk",
+					"jumpTo": "buyelkagain",
+					"conditions": [
+						{
+							"variable": "player.boughtelk",
+							"isValue": "true"
+						}
+					]
+				},
+				{
+					"value": "dialogue-treasurehunter-iwenttothatruin",
+					"jumpTo": "tellmeaboutit",
+					"conditions": [
+						{
+							"variable": "player.heardalchemistlocations",
+							"isValue": "true"
+						},
+						{
+							"variable": "entity.bronzereceived",
+							"isValue": "true"
+						},
+						{
+							"variable": "entity.offeredelk",
+							"isNotValue": "true"
+						}
+					]
+				},
+				{
+					"value": "dialogue-treasurehunter-ivegotsomeplaces",
+					"jumpTo": "namesalternate",
+					"conditions": [
+						{
+							"variable": "player.heardalchemistlocations",
+							"isValue": "true"
+						},
+						{
+							"variable": "entity.bronzereceived",
+							"isValue": "false"
+						}
+					]
+				}
+			]
+		},
+		{
+			"code": "opentrade",
+			"owner": "trader",
+			"trigger": "opentrade"
+		},
+		{
+			"code": "name",
+			"owner": "trader",
+			"type": "talk",
+			"trigger": "revealname",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-name"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "gears",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-perfectcurrency"
+				}
+			]
+		},
+		{
+			"code": "gearsresponse",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "Surely you could find something better to use?",
+					"jumpTo": "specialgears"
+				},
+				{
+					"value": "What, you can't reproduce them?",
+					"jumpTo": "rustygears"
+				},
+				{
+					"value": "I see.",
+					"jumpTo": "main"
+				}
+			]
+		},
+		{
+			"code": "specialgears",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-seedsofthepast"
+				}
+			]
+		},
+		{
+			"code": "holysymbols",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-holysymbols"
+				}
+			],
+			"jumpTo": "gearsresponse"
+		},
+		{
+			"code": "rustygears",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-somethinggreater"
+				}
+			],
+			"jumpTo": "gearsresponse"
+		},
+		{
+			"code": "profit",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-profittobemade"
+				}
+			]
+		},
+		{
+			"code": "profitresponse",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-horriblecreatures",
+					"jumpTo": "drifters"
+				},
+				{
+					"value": "dialogue-ravenousbeasts",
+					"jumpTo": "wealth"
+				},
+				{
+					"value": "dialogue-nicesafevillage",
+					"jumpTo": "main"
+				}
+			]
+		},
+		{
+			"code": "drifters",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-miserablesouls"
+				}
+			]
+		},
+		{
+			"code": "driftersresponse",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-punishedbygod",
+					"jumpTo": "challenged"
+				},
+				{
+					"value": "dialogue-theveryair",
+					"jumpTo": "bonds"
+				},
+				{
+					"value": "dialogue-worldcouldnothouse",
+					"jumpTo": "afraidso"
+				}
+			]
+		},
+		{
+			"code": "challenged",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-wrigglelikeworms"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "bonds",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-trulylostcreatures"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "afraidso",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-tremblewithit"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "wealth",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-wealthisavirtue"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "testmap",
+			"owner": "trader",
+			"type": "condition",
+			"variable": "player.inventory",
+			"isNotValue": "{type: 'item', code: 'locatormap-resonancearchive'}",
+			"thenJumpTo": "bronze",
+			"elseJumpTo": "alreadyhavemap"
+		},
+		{
+			"code": "alreadyhavemap",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-alreadygavemap"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "bronze",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-somethingbigforya"
+				}
+			],
+			"jumpTo": "main",
+			"setVariables": {
+				"entity.requestbronze": "true"
+			}
+		},
+		{
+			"code": "takebronze",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-appreciatethat"
+				}
+			],
+			"jumpTo": "map",
+			"trigger": "takefrominventory",
+			"triggerdata": {
+				"type": "item",
+				"code": "pickaxe-tinbronze"
+			}
+		},
+		{
+			"code": "map",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-amassivecavern"
+				}
+			],
+			"trigger": "giveitemstack",
+			"triggerdata": {
+				"type": "item",
+				"code": "locatormap-resonancearchive",
+				"stacksize": 1
+			},
+			"setVariables": {
+				"entity.bronzereceived": "true"
+			},
+			"jumpTo": "main"
+		},
+		{
+			"code": "maprepeat",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-lostitalready"
+				}
+			],
+			"trigger": "giveitemstack",
+			"triggerdata": {
+				"type": "item",
+				"code": "locatormap-resonancearchive",
+				"stacksize": 1
+			},
+			"jumpTo": "main"
+		},
+		{
+			"code": "maprepeatlazaret",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-idontmind"
+				}
+			],
+			"trigger": "giveitemstack",
+			"triggerdata": {
+				"type": "item",
+				"code": "letter-lazaret",
+				"stacksize": 1
+			},
+			"jumpTo": "main"
+		},
+		{
+			"code": "buyelk",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-payelk"
+				}
+			],
+			"jumpTo": "buyelk-answer"
+		},
+		{
+			"code": "buyelkagain",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-thatllbe100"
+				}
+			],
+			"jumpTo": "buyelkagain-answer"
+		},
+		{
+			"code": "buyelk-answer",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"jumpTo": "buyelk-saddle",
+					"value": "dialogue-buyelk-havemoney",
+					"conditions": [
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'gear-rusty', stacksize: 100}"
+						}
+					]
+				},
+				{
+					"jumpTo": "buyelk-saddlediscount",
+					"value": "dialogue-treasurehunter-howmuchtreasure",
+					"conditions": [
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'rustypart-eidolon2tr', stacksize: 1}"
+						}
+					]
+				},
+				{
+					"jumpTo": "main",
+					"value": "dialogue-buyelk-nothavemoney"
+				}
+			]
+		},
+		{
+			"code": "buyelkagain-answer",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"jumpTo": "buyelk-saddle",
+					"value": "dialogue-buyelk-havemoney",
+					"conditions": [
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'gear-rusty', stacksize: 100}"
+						}
+					]
+				},
+				{
+					"jumpTo": "buyelk-saddlediscountagain",
+					"value": "dialogue-treasurehunter-howmuchtreasure",
+					"conditions": [
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'rustypart-eidolon2tr', stacksize: 1}"
+						}
+					]
+				},
+				{
+					"jumpTo": "main",
+					"value": "dialogue-buyelk-nothavemoney"
+				}
+			]
+		},
+		{
+			"code": "buyelk-saddle",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-saddleandbridle"
+				}
+			],
+			"jumpTo": "buyelk-saddleanswer"
+		},
+		{
+			"code": "buyelk-saddlediscount",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-veryintriguingfind"
+				}
+			],
+			"jumpTo": "buyelk-saddleanswerdiscount"
+		},
+		{
+			"code": "buyelk-saddlediscountagain",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-anotherone"
+				}
+			],
+			"jumpTo": "buyelk-saddleanswerdiscountagain"
+		},
+		{
+			"code": "buyelk-saddleanswer",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"jumpTo": "buyelk-purchased",
+					"value": "dialogue-treasurehunter-hassaddle",
+					"conditions": [
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'gear-rusty', stacksize: 100}"
+						},
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'gear-rusty', stacksize: 100}"
+						},
+						{
+							"variable": "player.inventorywildcard",
+							"isValue": "hoovedwearables-middleback-saddle*"
+						},
+						{
+							"variable": "player.inventorywildcard",
+							"isValue": "hoovedwearables-head-bridle*"
+						}
+					]
+				},
+				{
+					"jumpTo": "buyelk-nosaddle",
+					"value": "dialogue-treasurehunter-nosaddle"
+				}
+			]
+		},
+		{
+			"code": "buyelk-saddleanswerdiscount",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"jumpTo": "buyelk-purchaseddiscount1",
+					"value": "dialogue-treasurehunter-hassaddle",
+					"conditions": [
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'rustypart-eidolon2tr', stacksize: 1}"
+						},
+						{
+							"variable": "player.inventorywildcard",
+							"isValue": "hoovedwearables-middleback-saddle*"
+						},
+						{
+							"variable": "player.inventorywildcard",
+							"isValue": "hoovedwearables-head-bridle*"
+						}
+					]
+				},
+				{
+					"jumpTo": "buyelk-nosaddle",
+					"value": "dialogue-treasurehunter-nosaddle"
+				}
+			]
+		},
+		{
+			"code": "buyelk-saddleanswerdiscountagain",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"jumpTo": "buyelk-purchaseddiscount1again",
+					"value": "dialogue-treasurehunter-hassaddle",
+					"conditions": [
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'rustypart-eidolon2tr', stacksize: 1}"
+						},
+						{
+							"variable": "player.inventorywildcard",
+							"isValue": "hoovedwearables-middleback-saddle*"
+						},
+						{
+							"variable": "player.inventorywildcard",
+							"isValue": "hoovedwearables-head-bridle*"
+						}
+					]
+				},
+				{
+					"jumpTo": "buyelk-nosaddle",
+					"value": "dialogue-treasurehunter-nosaddle"
+				}
+			]
+		},
+		{
+			"code": "buyelk-nosaddle",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-cantrightlysell"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "buyelk-purchased",
+			"owner": "trader",
+			"type": "talk",
+			"setVariables": {
+				"player.boughtelk": "true"
+			},
+			"text": [
+				{
+					"value": "dialogue-buyelk-purchased"
+				}
+			],
+			"trigger": "takefrominventory",
+			"triggerdata": {
+				"type": "item",
+				"code": "gear-rusty",
+				"quantity": 100
+			},
+			"jumpTo": "buyelk-callelk"
+		},
+		{
+			"code": "buyelk-purchaseddiscount1",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-lovelytreasure"
+				}
+			],
+			"trigger": "takefrominventory",
+			"triggerdata": {
+				"type": "item",
+				"code": "rustypart-eidolon2tr",
+				"quantity": 1
+			},
+			"jumpTo": "buyelk-purchaseddiscount2"
+		},
+		{
+			"code": "buyelk-purchaseddiscount2",
+			"owner": "trader",
+			"type": "talk",
+			"setVariables": {
+				"player.boughtelk": "true"
+			},
+			"text": [
+				{
+					"value": "dialogue-buyelk-purchased"
+				}
+			],
+			"trigger": "takefrominventory",
+			"triggerdata": {
+				"type": "item",
+				"code": "gear-rusty",
+				"quantity": 50
+			},
+			"jumpTo": "buyelk-callelk"
+		},
+		{
+			"code": "buyelk-purchaseddiscount1again",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-lovelytreasure"
+				}
+			],
+			"trigger": "takefrominventory",
+			"triggerdata": {
+				"type": "item",
+				"code": "rustypart-eidolon2tr",
+				"quantity": 1
+			},
+			"jumpTo": "buyelk-purchaseddiscount2again"
+		},
+		{
+			"code": "buyelk-purchaseddiscount2again",
+			"owner": "trader",
+			"type": "talk",
+			"setVariables": {
+				"player.boughtelk": "true"
+			},
+			"text": [
+				{
+					"value": "dialogue-buyelk-purchased"
+				}
+			],
+			"trigger": "takefrominventory",
+			"triggerdata": {
+				"type": "item",
+				"code": "gear-rusty",
+				"quantity": 75
+			},
+			"jumpTo": "buyelk-callelk"
+		},
+		{
+			"code": "buyelk-continue",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"jumpTo": "buyelk-callelk",
+					"value": "dialogue-continue"
+				}
+			]
+		},
+		{
+			"code": "buyelk-callelk",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-buyelk-called"
+				}
+			],
+			"trigger": "spawnentity",
+			"triggerdata": {
+				"codes": [
+					{
+						"code": "game:tameddeer-elk-male-adult",
+						"weight": 98
+					},
+					{
+						"code": "game:tameddeer-albinoelk-male-adult",
+						"weight": 2
+					}
+				],
+				"range": 15,
+				"minDistance": 8
+			},
+			"jumpTo": "buyelk-callelk-thanks"
+		},
+		{
+			"code": "buyelk-callelk-thanks",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"jumpTo": "main",
+					"value": "dialogue-buyelk-callelk-thanks"
+				}
+			]
+		},
+		{
+			"code": "tellmeaboutit",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-tellmeaboutit"
+				}
+			],
+			"jumpTo": "archives"
+		},
+		{
+			"code": "archives",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-massivedevice",
+					"jumpTo": "archives2"
+				},
+				{
+					"value": "dialogue-treasurehunter-idrathernot",
+					"jumpTo": "worthyourwhile"
+				}
+			]
+		},
+		{
+			"code": "archives2",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-iheardavoice",
+					"jumpTo": "names"
+				}
+			]
+		},
+		{
+			"code": "worthyourwhile",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-comenow"
+				}
+			],
+			"jumpTo": "worthresponse"
+		},
+		{
+			"code": "worthresponse",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-verywellmassivedevice",
+					"jumpTo": "names"
+				},
+				{
+					"value": "dialogue-treasurehunter-godownyourself",
+					"jumpTo": "suityourself"
+				}
+			]
+		},
+		{
+			"code": "suityourself",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-suityourself"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "names",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-whatnames"
+				}
+			],
+			"jumpTo": "nameslist"
+		},
+		{
+			"code": "namesalternate",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-whatnamesalternate"
+				}
+			],
+			"jumpTo": "nameslist"
+		},
+		{
+			"code": "nameslist",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-nadiya",
+					"jumpTo": "nadiya"
+				},
+				{
+					"value": "dialogue-treasurehunter-spoils",
+					"jumpTo": "spoils"
+				},
+				{
+					"value": "dialogue-treasurehunter-lazaret",
+					"jumpTo": "testletter"
+				},
+				{
+					"value": "dialogue-treasurehunter-cardinals",
+					"jumpTo": "cardinals"
+				},
+				{
+					"value": "dialogue-treasurehunter-quiet",
+					"jumpTo": "quiet"
+				},
+				{
+					"value": "dialogue-treasurehunter-anythingelse",
+					"jumpTo": "longway",
+					"condition": {
+						"variable": "entity.heardlazaret",
+						"isValue": "true"
+					}
+				}
+			]
+		},
+		{
+			"code": "nadiya",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-perhapssomeone"
+				}
+			],
+			"jumpTo": "nameslist"
+		},
+		{
+			"code": "spoils",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-spoilsheardtell"
+				}
+			],
+			"jumpTo": "nameslist"
+		},
+		{
+			"code": "testletter",
+			"owner": "trader",
+			"type": "condition",
+			"variable": "player.inventory",
+			"isNotValue": "{type: 'item', code: 'letter-lazaret'}",
+			"thenJumpTo": "lazaret",
+			"elseJumpTo": "alreadyhaveletter"
+		},
+		{
+			"code": "alreadyhaveletter",
+			"owner": "trader",
+			"type": "talk",
+			"setVariables": {
+				"entity.heardlazaret": "true"
+			},
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-thisoneiknowletter"
+				}
+			],
+			"jumpTo": "nameslist"
+		},
+		{
+			"code": "lazaret",
+			"owner": "trader",
+			"type": "talk",
+			"setVariables": {
+				"entity.heardlazaret": "true"
+			},
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-thisoneiknow"
+				}
+			],
+			"trigger": "giveitemstack",
+			"triggerdata": {
+				"type": "item",
+				"code": "letter-lazaret",
+				"stacksize": 1
+			},
+			"jumpTo": "nameslist"
+		},
+		{
+			"code": "cardinals",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-gatheringplace"
+				}
+			],
+			"jumpTo": "nameslist"
+		},
+		{
+			"code": "quiet",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-peculiarname"
+				}
+			],
+			"jumpTo": "nameslist"
+		},
+		{
+			"code": "longway",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-longjourney"
+				}
+			],
+			"jumpTo": "continuelongway"
+		},
+		{
+			"code": "continuelongway",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-continue",
+					"jumpTo": "offerelk"
+				}
+			]
+		},
+		{
+			"code": "offerelk",
+			"owner": "trader",
+			"type": "talk",
+			"setVariables": {
+				"entity.offeredelk": "true"
+			},
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-ihaveanelk"
+				}
+			],
+			"jumpTo": "buynow"
+		},
+		{
+			"code": "buynow",
+			"owner": "player",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-100verywell",
+					"jumpTo": "buyelk-saddle",
+					"conditions": [
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'gear-rusty', stacksize: 100}"
+						}
+					]
+				},
+				{
+					"value": "dialogue-treasurehunter-howmuchtreasure",
+					"jumpTo": "buyelk-saddlediscount",
+					"conditions": [
+						{
+							"variable": "player.inventory",
+							"isValue": "{type: 'item', code: 'rustypart-eidolon2tr', stacksize: 1}"
+						}
+					]
+				},
+				{
+					"value": "dialogue-treasurehunter-cantafford",
+					"jumpTo": "cantafford"
+				}
+			]
+		},
+		{
+			"code": "cantafford",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "dialogue-treasurehunter-sharpenskills"
+				}
+			],
+			"jumpTo": "main"
+		},
+		{
+			"code": "seraphhorizons-standing",
+			"owner": "trader",
+			"type": "talk",
+			"text": [
+				{
+					"value": "seraphhorizons:dialogue-standing-plain"
+				}
+			],
+			"jumpTo": "main"
+		}
+	]
+}
