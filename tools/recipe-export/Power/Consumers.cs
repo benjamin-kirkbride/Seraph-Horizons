@@ -129,12 +129,6 @@ public static class Consumers
             Oil = "Chopper",
         },
 
-        // Panning Machine
-        new("BEBehaviorPanningMachine", "machine", Cfg("MechanicalResistance", "PanningMachine.PanningMachineModSystem", "Config.MechanicalResistance", 0.085, "ModConfig (panningmachine)"))
-        {
-            Mod = "panningmachine",
-        },
-
         // Steelmaking Expanded
         new("BEBehaviorMPConverterTransmission", "machine", Cfg("BessemerTransmissionResistance", Smex, "BessemerTransmissionResistance", 0.25, SmexFrom))
         {

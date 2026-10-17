@@ -390,6 +390,16 @@ pan's table as expected counts, its nuggets at the rocker's figure over the pan'
 field (`extra.litres` gives it). `extra` also has the `feed` (`crushed`, `ground` or `placer`) and
 `carried` (true).
 
+**Jaw breaker** (type `jawbreaker`, shape `machine`, present with seraphhorizons' `JawBreaker` and
+`OreProcessing` on, #912): one record per ore item kind spalling breaks, id
+`jawbreaker|game:<ore|crystalizedore>-<grade>-<ore>-*|0`, its ore and output as spalling's (the ore consumed, every host
+rock an alternative; crushed ore of its grade, one for one). Its station is the breaker's frame,
+`seraphhorizons:jawbreaker-north`. `power` is `mechanical`, `turns` the axle's turns a rock at any speed
+(ore-processing.json `machines.jawbreaker.perHour` at speed 0.6: 95.5 × 0.6 / 24), `work` one `rocks`.
+`requirements` says how it is fed and emptied. `extra` has the `ore`, `grade`, `form`, and the machine's
+`perHour`, `load` and `emptyLoad` (its load follows the charge in its mouth, between the two). Its build is
+the shared ore machine `construction` record.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).
@@ -408,6 +418,18 @@ item, the game's terms; the record's quantity is what a player gets. A sulfide's
 firepit too, one for one into roasted rock of the same grade (`seraphhorizons:roastedore-<ore>-<grade>`);
 they have no record of their own, since their `attributes.smelting` (type `convert`, one item per item)
 is exact.
+
+**The sluice** (type `sluice`, shape `generic`; seraphhorizons, switches `Sluice` and `OreProcessing`, #734,
+#701): one record per item the sluice washes fresh, id `sluice|<feed>|0`: crushed and ground ore
+(`seraphhorizons:crushedore-*`, `groundore-*`), Wilderlands Panning's rich gravel (`game:richgravel-<rock>`)
+and bog iron (`game:stone-bogiron`). The ingredients are the feed (one, consumed) and the sluice's frame
+(`seraphhorizons:sluice-north`, role `station`); the outputs are what its riffles catch from one item on
+average, fractional, since the sluice carries what falls short of a whole item over to the next: crushed and
+ground ore their concentrate (`seraphhorizons:concentrate-<ore>`, unclassified and unamalgamated as they
+come), rich gravel the gold pan's nuggets at the sluice's figure over the pan's and its stones and flint at the
+pan's rate, bog iron limonite concentrate. The rock itself goes on as tailings, the same item carrying the
+rest (`extra.tailings`), to the jig; it is not an output. `extra` has the `recovery`, `perHour` (rock an
+in-game hour, no power) and `waterPerItem` (litres a rock), and `requirements` says so in words.
 
 **Retorting** (type `oreretorting`, shape `generic`; seraphhorizons, switch `OreProcessing`, so only in
 an export with it on): cinnabar and amalgam retorted in the game's still. One record per input, id

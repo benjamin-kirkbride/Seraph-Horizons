@@ -167,10 +167,11 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons", CreativeSteamSource.BlockCode)));
         // The mod's other blocks are the bucking sawmill's, off here as well, the inn flag and sign,
         // which load with TravellingMerchants off too (a world may hold them), and the springs, which
-        // load with Springs off so that those in a world turn back into water.
+        // load with Springs off so that those in a world turn back into water, and the ore machines' shared
+        // cells (Machines/Game, #711), which belong to no one machine's switch and nothing places on its own.
         Assert.DoesNotContain(W.Blocks, b => b.Code?.Domain == "seraphhorizons"
             && !b.Code.Path.StartsWith("innflag", StringComparison.Ordinal) && !b.Code.Path.StartsWith("innsign", StringComparison.Ordinal)
-            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal));
+            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal) && !b.Code.Path.StartsWith("oremachine-", StringComparison.Ordinal));
     }
 
     /// <summary><c>DurableSawmillBlades</c>: Immersive Woodworking's blade kits keep their own
@@ -475,6 +476,19 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>Sluice</c>: no sluice frame and no recipe for it, and bog iron as Geology Additions makes
+    /// it: its stone smelts to a bloom.</summary>
+    [AtlasScenario]
+    public void Sluice_off_there_is_no_sluice_and_bog_iron_blooms()
+    {
+        Assert.True(Off("Sluice"));
+        Assert.False(SeraphHorizons.Mod.Sluice.SluiceSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("sluice"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("sluice") == true);
+        if (W.GetItem(new AssetLocation(SeraphHorizons.Mod.Ore.Core.PlacerFeed.BogIronCode)) is { Id: > 0 } bog)
+            Assert.NotNull(bog.CombustibleProps);
     }
 
     /// <summary><c>PressBrake</c>: no press brake blocks and no recipe for its frame, no link to it in

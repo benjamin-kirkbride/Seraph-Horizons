@@ -1,0 +1,76 @@
+// The jaw breaker's frame (JawBreaker/, README "Jaw breaker"; #912): the controller cell of a Blake
+// jaw breaker under a grizzly, the west column's front bottom cell, where the output chute leaves.
+// The shared ore machine block (Machines/Game/OreMachineBlocks.cs); its stages are fitted by
+// right-click (config/builds/jawbreaker.json). The server disables it with JawBreaker or
+// OreProcessing off.
+{
+	code: "jawbreaker",
+	class: "seraphhorizons.OreMachine",
+	entityClass: "seraphhorizons.JawBreaker",
+	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the machine's front
+	// (its output chute) faces the player.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/jawbreaker_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/jawbreaker_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/jawbreaker_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/jawbreaker_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the stages' parts (jawbreaker.json), which the
+	// renderer draws with this block's textures.
+	textures: {
+		"oak":   { base: "game:block/wood/debarked/oak" },
+		"iron":  { base: "game:block/metal/plate/iron" },
+		"sheet": { base: "game:block/metal/sheet/iron1" },
+		"steel": { base: "game:block/metal/sheet-plain/steel1" },
+		"chute": { base: "game:block/metal/sheet/copper1" }
+	},
+	attributes: {
+		oreMachine: { machine: "jawbreaker" },
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:jawbreaker-handbook-build-title", text: "seraphhorizons:jawbreaker-handbook-build-text" },
+				{ title: "seraphhorizons:jawbreaker-handbook-work-title", text: "seraphhorizons:jawbreaker-handbook-work-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:jawbreaker-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame fills about 1.8 x 3 x 2 blocks from the controller (native x 0..1.8, z 0..2); the
+	// -north item form turns it 180°, so the item forms turn about the mesh's middle (0.1, 1.5, 0);
+	// held, the translation brings that middle to the hand (tests/HeldTransformTests.cs).
+	tpHandTransform: {
+		translation: { x: -0.55, y: -6.8, z: 0.9 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.1, y: 1.5, z: 0 },
+		scale: 0.2
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.1, y: 1.5, z: 0 },
+		scale: 0.4
+	},
+	groundTransform: {
+		origin: { x: 0.1, y: 0, z: 0 },
+		scale: 0.8
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

@@ -149,6 +149,7 @@ public static partial class RecipeSection
         FillMandrelStation(ctx, records, types);
         FillRocker(ctx, records, types);
         FillSpalling(ctx, records, types);
+        FillJawBreaker(ctx, records, types);
         FillEidolon(ctx, records, types);
         FillOreRoasting(ctx, records, types);
         FillOreRetorting(ctx, records, types);
@@ -156,6 +157,7 @@ public static partial class RecipeSection
         FillCupellation(ctx, records, types);
         FillLiquation(ctx, records, types);
         FillSprings(ctx, records, types);
+        FillSluice(ctx, records, types);
         FillOreMachines(ctx, records, types);
 
         records.Sort((a, b) => string.CompareOrdinal((string)a["id"]!, (string)b["id"]!));
