@@ -158,6 +158,10 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
             ? Api.World.BlockAccessor.GetBlockEntity(CellPos(a.Cell))?.GetBehavior<BEBehaviorMachineMP>()
             : null;
 
+    /// <summary>Whether the power cell is the controller's own: its block type then carries
+    /// <c>seraphhorizons.MachineMP</c> itself.</summary>
+    public bool PowerAtController => Rig?.Anchor(OreMachineRig.Power) is { Cell: var c } && c == Int3.Zero;
+
     /// <summary>Whether the machine takes power: its rig has a power anchor.</summary>
     public bool Powered => Rig?.Anchor(OreMachineRig.Power) != null;
 
@@ -174,8 +178,9 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     public override void Initialize(ICoreAPI api)
     {
         _inventory ??= NewInventory();
-        base.Initialize(api);
+        // before the behaviors start: the power behavior reads the power face, which turns with the side
         Side = Sides.TryParse(Block.Variant["side"], out var side) ? side : Side.North;
+        base.Initialize(api);
         if (_assembly == null && System.Build(Machine) is { } spec)
             _assembly = new MachineAssembly(spec);
         BuildBoxes();

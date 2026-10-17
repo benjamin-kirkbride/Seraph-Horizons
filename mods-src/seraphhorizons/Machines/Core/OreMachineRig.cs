@@ -35,8 +35,6 @@ public sealed class OreMachineRig
             if (positions.Contains(a.Cell + a.Face.Normal()))
                 throw new FormatException($"{a.Name}Cell {a.Cell}'s face {a.Face.Code()} is inside the footprint");
         }
-        if (anchors.TryGetValue(Power, out var power) && power.Cell == Int3.Zero)
-            throw new FormatException("powerCell is the controller's cell; it must be another");
         Cells = cells;
         Anchors = anchors;
         StageRequires = stageRequires;
