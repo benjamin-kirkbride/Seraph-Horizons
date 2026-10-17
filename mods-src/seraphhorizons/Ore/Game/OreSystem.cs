@@ -3,6 +3,7 @@ using HarmonyLib;
 using SeraphHorizons.Mod.Ore.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Server;
+using Vintagestory.ServerMods;
 
 namespace SeraphHorizons.Mod.Ore;
 
@@ -21,7 +22,8 @@ namespace SeraphHorizons.Mod.Ore;
 /// <item><c>PlacerFields</c> (#442): <see cref="PlacerFields"/>.</item>
 /// <item><c>GradePockets</c> (#944): <see cref="GradePocketPlacement"/>.</item>
 /// </list>
-/// It also binds <see cref="ProPickShutdownGuard"/>, with no switch. With ore cells or placer
+/// It also binds <see cref="ProPickShutdownGuard"/> and puts back the game's deposit distortion
+/// scale (<see cref="FreshDepositVerticalDistortScale"/>), with no switch. With ore cells or placer
 /// fields on, it also keeps the deposit registry (#443, <see cref="Deposits"/>) and makes maps
 /// (#444, <see cref="Maps"/>), for the traders (#455).
 ///
@@ -40,6 +42,19 @@ public class OreSystem : ModSystem
 
     public static readonly AssetLocation NoSurfaceCopperPatch = new("seraphhorizons", "patches/ore-nosurfacecopper.json");
     public static readonly AssetLocation RarerDistrictsPatch = new("seraphhorizons", "patches/ore-rarerdistricts.json");
+
+    /// <summary>
+    /// <c>TerraGenConfig.depositVerticalDistortScale</c> as a fresh process has it (game 1.22.7), put
+    /// back in <see cref="Start"/> (#1012). The game's <c>GenDeposits.initWorldGen</c> builds the
+    /// deposits' vertical distortion noise at 25 times this static, and its <c>OnMapRegionGen</c> then
+    /// sets it to 2, for good. So a server started after another in the same process (single player,
+    /// opening a world without restarting the game; every Atlas class after a test host's first)
+    /// built that noise at a quarter of the scale, and every deposit drawing its depth from it
+    /// (vanilla's discs, cracked rock among them, and Interesting Ore Gen's veins) sat elsewhere than
+    /// in the same world started fresh. Set before <c>initWorldGen</c>, which runs after every mod's
+    /// start.
+    /// </summary>
+    public const int FreshDepositVerticalDistortScale = 8;
 
     private Harmony? _harmony;
     private OreCommands? _commands;
@@ -103,6 +118,9 @@ public class OreSystem : ModSystem
             World.PlacerFields ? $"on, {World.PlacerCellSize} m" : "off");
         api.Logger.Notification("[seraphhorizons] Grade pockets for this world: {0}", OnOff(World.GradePockets));
         api.Logger.Notification("[seraphhorizons] Stable veins for this world: {0}", OnOff(World.StableVeins && World.OreCells));
+        // No switch: the game's deposit depths would otherwise depend on whether a server ran before
+        // this one in the process (#1012).
+        TerraGenConfig.depositVerticalDistortScale = FreshDepositVerticalDistortScale;
         if (World.PlacerFields)
         {
             if (PlacerFields.Unsupported(api) is { } why)
