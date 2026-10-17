@@ -4,8 +4,10 @@ Part of the Seraph Horizons mod's ore processing (epic #684): the generated mode
 desilverizing kettle of the parting stage, whose behaviour is #927. The line, the glossary and the period sources are
 in #939, the power and water budget in #940.
 
-**Status: model only, second review pass** (v3). This folder's `tools/` holds the model's generator and its checks; there is
-no gameplay yet (#927). The model follows the crucible furnace's conventions (`../CrucibleFurnace/README.md`; its
+**Status: model and gameplay.** This folder's `tools/` holds the model's generator and its checks; the gameplay (#927)
+is in `Core/` and `Game/`, described in the mod's README, "Ore processing: the Parkes kettle". The build is the stage
+table below as proposed (the doors come with the kettle, the owner's ruling), in `config/builds/parkeskettle.json`;
+the fire door is drawn shut (gameplay does not lift it). The model follows the crucible furnace's conventions (`../CrucibleFurnace/README.md`; its
 generator is this one's template) and salvages the stirrer's mechanism from the parting furnace's v2 branch
 (`741-parting-furnace-model-v2`, see "Salvage"). The generic half of the generator is `Machines/tools/machinegen/`,
 unchanged by this model: no new driver and no change to the package.
