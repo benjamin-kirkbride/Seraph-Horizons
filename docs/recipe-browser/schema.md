@@ -55,7 +55,10 @@ under one item per litre has no `liquid`.
 
 `attributes.groundStorage`, optional, says how the item is put down on the ground (placed, a
 loose pile or a pile) and how many one block holds ([item-data.md](item-data.md#ground-storage)).
-It is an optional addition, so `schemaVersion` stayed 1.
+It is an optional addition, so `schemaVersion` stayed 1. So is `attributes.itemPile`, for the
+game's other piles (coal, charcoal, coke: `ItemPileable`), with the items one block holds and per
+click ([item-data.md](item-data.md#ground-storage)). The site says an item is pileable when it has
+a `stacking` ground storage or an item pile.
 
 `sources` lists ways to get the item other than a recipe: block drops, entity drops and
 trader stock. Much of this is driven by code in the game, so the list is best effort.

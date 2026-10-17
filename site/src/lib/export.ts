@@ -46,6 +46,13 @@ export interface GroundStorage {
   fullHeight?: number;
 }
 
+/** An item pile: its own pile block, Shift + right click, the next pile on top when full. */
+export interface ItemPile {
+  capacity: number;
+  transfer: number;
+  bulkTransfer: number;
+}
+
 export interface ItemAttributes {
   maxStackSize?: number;
   /** No longer written (#910); older exports carry it. */
@@ -71,6 +78,8 @@ export interface ItemAttributes {
   storageFlags?: string[];
   /** Putting the item down on the ground (the game's GroundStorable behavior). */
   groundStorage?: GroundStorage;
+  /** An item pile (coal, charcoal, coke: the game's ItemPileable). */
+  itemPile?: ItemPile;
   extra?: Record<string, unknown>;
 }
 

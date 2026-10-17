@@ -4945,6 +4945,104 @@ and roofing at 32; wooden shapes, beams and items unchanged), the packet, a plac
 emitter and a rubble storage drenched into 16 muddy gravel, `TradingScenarios` a sale of a cut
 block across the slots, and `SwitchesOffScenarios` the switch off.
 
+### Big piles (`BigPiles`)
+
+Every ground pile holds 64 of the item's inventory stacks per block: firewood (stacks to 32) 2,048,
+an ingot (16) 1,024, a rock or cobblestone block cut to 16 1,024, bricks (64) 4,096. A pile is the
+game's `Stacking` ground storage layout, whoever gave the item one: its own type file, a JSON
+patch, or More Piles, which adds its piles in code in its `AssetsFinalize` (nearly every full cube
+block through its catch-all `*` rule), so a JSON patch cannot reach them. `BigPiles.cs` changes the
+loaded piles instead, from `StorageTweaksSystem` (ExecuteOrder 0.2): after More Piles (0.1) and
+after the rock and earth stacks are cut (0.15), so a pile is 64 of its final stack. Coal piles
+(the game's item piles, `BlockEntityCoalPile`) and the other ground storage layouts (placed items,
+the loose heap of 12) are not piles of this kind and stay. A pile that already holds more than 64
+stacks keeps its capacity (`Core/BigPileRules.cs`).
+
+What looks full stays full: the game draws `CuboidsPerModel * ceil(items / ItemsPerModel)` of the
+pile's shape and raises its collision box by `ceil(CbScaleYByLayer * items)` layers, so a pile `k`
+times bigger gets an `ItemsPerModel` `k` times bigger (the full pile's model count kept exactly; in
+the pack it always divides) and a `CbScaleYByLayer` (and the obsolete
+`ModelItemsToStackSizeRatio`) `k` times smaller, nudged in float steps until the full pile has
+the same layer count in the game's own float arithmetic. A full pile of 2,048 firewood is the
+block a full pile of 32 was; 1,024 is half of it, and one item still shows one log pair. A burning
+pile's flames sit on top of it as before; a burning pile still burns one item at a time, so a big
+one burns longer. A pit kiln's `maxFireable` (12 raw bricks) is an absolute cap and stays.
+
+A plain click still puts down or takes what it did (`TransferQuantity`); a Ctrl click puts down or
+takes a whole stack (`BulkTransferQuantity` = the item's stack, never less than before). Piles
+that need Ctrl to be put down at all (`CtrlKey`: More Piles' block piles, stones, ...) therefore
+put down a whole stack, or what is in hand, every time: that is the only key they have for it, and
+filling 4,096 four at a time would take a thousand clicks. Split the stack in the inventory to put
+down fewer; a plain click with an empty hand still takes them back one at a time. How high piles
+go is unchanged: a full pile with `UpSolid` takes another on top, as many as fit.
+
+The numbers reach clients as the server has them: each pile behavior's properties as text
+(`propertiesAtString`, what the item and block type packets carry and a client builds its
+behavior from) are rewritten with every number and a marker (`seraphhorizonsBigPiles`, the pile
+as it was). More Piles runs on clients too and replaces many piles again there
+(`ForceReplaceBehavior`), from its own config; those have no marker, so the client's pass makes
+them big from the stack size the server sent. The client follows the server's switch, from the
+world config's list of switches that are off (the one the handbook's value line reads). The
+ground storage slot has no limit of its own (`ItemSlot.MaxSlotStackSize`, 999,999), and a pile
+adds to its stack past the item's stack size as the game always did (an ingot pile held 64 of a
+16 stack).
+
+Piles in a world read the item's numbers when they load, so they take the new capacity at once;
+a full pile of the old size then shows as the small share of a big one it is. With the switch off
+again, a pile filled past its old capacity keeps every item but takes no more, and draws (and
+collides) as the over-full pile it is.
+
+### Big crates (`BigCrates`)
+
+Every crate holds `ceil(slots * 32 / 25)` slots (`Core/CrateSlotRules.cs`), so the roomiest, the
+game's ebony and purpleheart crates (25), holds 32, its other woods (20) 26, aged wood (16) 21;
+Material Needs' dark aged crate (16, 20) holds 21 and 26. Chests stay. In code (`BigCrates.cs`),
+not a JSON patch: one rule for every block of class `BlockCrate`, read from its
+`attributes.properties.<type>.quantitySlots`, so it reaches every mod's crates and types without a
+patch per file and type. Server side in `AssetsFinalize`; clients get the attributes in the block
+type packet, and the crate's parsed `Props` (the boat's crate slot and the tooltip's "Storage
+Slots" read it) is parsed again.
+
+A placed crate makes its inventory from the block's slots before reading its saved one, and the
+game reads every slot the inventory has, so crates already in a world grow when they load. The
+other way, the game reads only as many saved slots as the type now gives and drops the rest: so a
+Harmony patch on `BlockEntityCrate` (`FromTreeAttributes` and `InitInventory`, both sides, once
+per process, whatever the switch) gives a crate whose saved inventory has more slots than its type
+gives that many. Turning the switch off leaves crates already enlarged at their size, everything
+in them kept; new crates are the mods' size. A crate carried in a boat holds its slots as a bag
+and is not covered.
+
+### The rusty gear stacks to 64 (`RustyGearStack`)
+
+The rusty gear stacks to 64, not 1000 (the game's `maxstacksizeByType`); the temporal gear keeps
+1. `RustyGearStack.cs` sets the loaded item's stack server side in `AssetsFinalize`, before big
+piles size the rusty gear's pile by it; clients get it in the item type packet. A stack already
+above 64 stays as it is until it is moved: merges stop at 64 and takes split. The trade window and
+payouts already split gears into stacks (`SeraphTraderInventory.GiveOrDrop`), so a large payout
+takes more slots, and no grid or barrel recipe in the pack takes more than 64 in one slot
+(`BigPilesScenarios`).
+
+### The handbook says what piles
+
+Every handbook page of an item that goes on the ground says, under its name, whether it piles
+(`PileHandbook.cs`, `Core/PileText.cs`, lang `piles-handbook-*`): a pile with what one block
+holds, a click and a Ctrl click, whether a full pile can be built on (so it grows past one block,
+and how many high when the item sets a limit) and whether Ctrl must be held with Shift to put it
+down; a loose heap or a placed item that it is not a pile, and how many fit. Coal, charcoal and
+coke (the game's item piles) are piles too: 16 a block, 2 a click, built upward. An item that
+does not go on the ground gets no line, as the game's own "Storable in/on" section has none for
+it. It reads the loaded numbers on the client, after big piles, and is not switched: it says what
+the piles are, big or not. Not in the tooltip: that is for the stack in hand and long already,
+and the handbook is where the game says what an item is storable in or on. The recipe site says
+it on every item page too (`Pileable`, from the export's `groundStorage` and `itemPile`,
+docs/recipe-browser/item-data.md).
+
+`BigPilesScenarios` checks a firewood, an ingot, a More Piles cobblestone and slab pile, that
+every stacking pile of the pack holds 64 stacks, the packets a client gets, a placed firewood pile
+full and half full, the crates' slots (the game's aged, ebony and other woods and Material Needs'),
+a placed crate and one saved with more slots, the rusty gear's stack and the handbook line's facts;
+`SwitchesOffScenarios` the three switches off.
+
 ## Ore
 
 The ore overhaul (epic #435), in `Ore/`: where deposits generate, the gravel fields that give the
@@ -6564,7 +6662,8 @@ rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 (`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the hand machines' held W, predicted
 at frame rate and eased to the server's (`Machines/Core/HeldWorkFollower.cs`,
 `tests/Machines/HeldWorkFollowerTests.cs`), the trunk code and variant rules of the
-debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), the item value table's lookup
+debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), big piles' numbers, the crates' slots and the handbook's pile line (`Core/BigPileRules.cs`,
+`Core/CrateSlotRules.cs`, `Core/PileText.cs`), the item value table's lookup
 and family fallback, that its wildcard cache answers as the uncached scan does, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,
 described in `TrunkEntities/README.md`), the pack version check's comparison with the

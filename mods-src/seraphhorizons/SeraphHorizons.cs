@@ -682,6 +682,23 @@ public class SeraphHorizonsConfig
     /// as their mods ship them.</summary>
     public bool SmallerRockStacks { get; set; } = true;
 
+    /// <summary>Every ground pile (the game's Stacking layout: firewood, ingots, bricks, More Piles'
+    /// block piles, ...) holds 64 of the item's stacks per block, drawn as full as its share of
+    /// that, a Ctrl click moving a whole stack (both sides; a client follows the server's switch).
+    /// Off, piles hold what their mods give them; a pile filled past that keeps its items but takes
+    /// no more.</summary>
+    public bool BigPiles { get; set; } = true;
+
+    /// <summary>Every crate type holds ceil(slots * 32 / 25) slots, so ebony and purpleheart crates
+    /// 32, the rest 21 or 26; chests are unchanged (server side; clients follow the server's
+    /// blocks). Off, crates hold what their mods give them, and a crate placed with more slots keeps
+    /// them, so nothing in it is lost.</summary>
+    public bool BigCrates { get; set; } = true;
+
+    /// <summary>The rusty gear stacks to 64, not 1000 (server side; clients follow the server's
+    /// items). Off, it stacks as the game ships it.</summary>
+    public bool RustyGearStack { get; set; } = true;
+
     /// <summary>Traders: lone trader camps on a seeded 2 km grid, one per cell, of the pack's eleven
     /// trader types (Trading/), in place of the game's and other mods' randomly placed camps. New
     /// worlds only: a world takes the grid at its first start with this mod if this is on then, and

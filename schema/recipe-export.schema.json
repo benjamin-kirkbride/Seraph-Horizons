@@ -372,6 +372,17 @@
             "fullHeight": { "description": "Height of a full pile's collision box, in blocks. Only for stacking, when the game gives the pile a box.", "type": "number", "exclusiveMinimum": 0 }
           }
         },
+        "itemPile": {
+          "description": "An item pile (the game's ItemPileable: coal, charcoal, coke): put down with Shift + right click into its own pile block, which takes the next pile on top when full. Absent for every other item.",
+          "type": "object",
+          "required": ["capacity", "transfer", "bulkTransfer"],
+          "additionalProperties": false,
+          "properties": {
+            "capacity": { "description": "Items one block holds.", "type": "integer", "minimum": 1 },
+            "transfer": { "description": "Items put down or taken per click.", "type": "integer", "minimum": 1 },
+            "bulkTransfer": { "description": "Items per click with Ctrl held.", "type": "integer", "minimum": 1 }
+          }
+        },
         "extra": { "$ref": "#/$defs/extra" }
       }
     },

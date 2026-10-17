@@ -152,6 +152,8 @@ internal static class ItemRecords
 
         var ground = GroundStorage(c);
         if (ground != null) a["groundStorage"] = ground;
+        var itemPile = ItemPile(world, c);
+        if (itemPile != null) a["itemPile"] = itemPile;
 
         var extra = Extra(world, c);
         if (extra.Count > 0) a["extra"] = extra;
@@ -207,6 +209,34 @@ internal static class ItemRecords
             }
         }
         return g;
+    }
+
+    private static readonly System.Reflection.PropertyInfo? PileBlockCode =
+        typeof(ItemPileable).GetProperty("PileBlockCode", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public);
+
+    /// <summary>
+    /// An item pile: survival's ItemPileable (coal, charcoal, coke), put down with Shift + right
+    /// click into its pile block, whose BlockEntityItemPile holds MaxStackSize items, moves
+    /// DefaultTakeQuantity a click and BulkTakeQuantity a Ctrl click, both ways, and takes the next
+    /// one on top when full. Read from a block entity of the pile block's class, never placed.
+    /// </summary>
+    private static JObject? ItemPile(IWorldAccessor world, CollectibleObject c)
+    {
+        if (c is not ItemPileable item || !Safe(() => item.IsPileable, false)) return null;
+        var pile = Safe(() =>
+            PileBlockCode?.GetValue(item) is AssetLocation code
+            && world.GetBlock(code) is { EntityClass: { } entityClass }
+            && world.Api.ClassRegistry.GetBlockEntity(entityClass) is { } type
+            && typeof(BlockEntityItemPile).IsAssignableFrom(type)
+                ? Activator.CreateInstance(type) as BlockEntityItemPile
+                : null, null);
+        if (pile == null) return null;
+        return new JObject
+        {
+            ["capacity"] = Math.Max(1, pile.MaxStackSize),
+            ["transfer"] = Math.Max(1, pile.DefaultTakeQuantity),
+            ["bulkTransfer"] = Math.Max(1, pile.BulkTakeQuantity),
+        };
     }
 
     /// <summary>Processing the schema has no field for yet.</summary>
