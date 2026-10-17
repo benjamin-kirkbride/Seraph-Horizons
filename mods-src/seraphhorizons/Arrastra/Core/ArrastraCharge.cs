@@ -14,6 +14,8 @@ public enum LoadVerdict
     Full,
     /// <summary>The ground charge is still in the pit: draw it first.</summary>
     Ground,
+    /// <summary>Another ore or grade is in the pit: a charge is one ore and grade.</summary>
+    Mixed,
 }
 
 /// <summary>Why a bucket does or does not water the pit.</summary>
@@ -28,7 +30,8 @@ public enum WaterVerdict
 
 /// <summary>
 /// The arrastra's batch (#732, epic #684): game-independent, so its rules are tested without the game.
-/// <para>The player tips crushed rock into the pit, up to the charge (2 rock), and pours water after it,
+/// <para>The player tips crushed rock into the pit, up to the charge (2 rock) of one ore and grade (it
+/// lies in the pit as one stack), and pours water after it,
 /// a bucket (10 L) a rock (the owner's ruling: watered by bucket, no pipe). The drag stones grind the
 /// charge while the shaft turns (rate in proportion to speed, #711) and the pit holds the charge's water:
 /// with the charge dry it does not grind. A full charge takes <c>chargeHours</c> (7.5) at the reference
@@ -96,6 +99,8 @@ public sealed class ArrastraCharge
             return LoadVerdict.NotCrushed;
         if (IsGround)
             return LoadVerdict.Ground;
+        if (_rocks.Count > 0 && _rocks[0] != code)
+            return LoadVerdict.Mixed;
         return _rocks.Count >= Capacity ? LoadVerdict.Full : LoadVerdict.Loads;
     }
 
@@ -160,7 +165,8 @@ public sealed class ArrastraCharge
         var lost = new List<string>();
         foreach (var code in rocks)
         {
-            bool fits = ground ? code.StartsWith("seraphhorizons:groundore-", StringComparison.Ordinal) : IsCrushed(code);
+            bool fits = (ground ? code.StartsWith("seraphhorizons:groundore-", StringComparison.Ordinal) : IsCrushed(code))
+                && (charge._rocks.Count == 0 || charge._rocks[0] == code);
             if (fits && charge._rocks.Count < charge.Capacity)
                 charge._rocks.Add(code);
             else
