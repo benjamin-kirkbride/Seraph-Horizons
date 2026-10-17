@@ -163,8 +163,9 @@
     <Compile Include="../Rocker/Core/**/*.cs" Link="Rocker/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/rocker-rig.json" Link="rocker-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Rocker/rig-reference.json" Link="rocker-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
-    <!-- The jaw breaker's shipped rig and its reference poses (JawBreaker/tools/make_shape.py): a model
-         with no gameplay yet (#912), held to the shared rig maths its renderer will use. -->
+    <!-- The jaw breaker's shipped rig and its reference poses (JawBreaker/tools/make_shape.py), held to
+         the shared rig maths its renderer uses, and its gameplay's rules (#912). -->
+    <Compile Include="../JawBreaker/Core/**/*.cs" Link="JawBreaker/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/jawbreaker-rig.json" Link="jawbreaker-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="JawBreaker/rig-reference.json" Link="jawbreaker-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The ball mill's shipped rig and its reference poses (BallMill/tools/make_shape.py): a model with no
