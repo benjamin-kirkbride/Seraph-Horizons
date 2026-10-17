@@ -126,7 +126,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
     /// granite floor wide enough for a row of <paramref name="furnaces"/> and a tall chimney.</summary>
     private async Task<Site> Build(string player, int dx, int furnaces = 1)
     {
-        var p = await World.JoinPlayer(player);
+        var p = await World.JoinRetrying(player);
         var origin = World.Spawn.AddCopy(dx, 20, 80);
         await p.TeleportTo(origin.AddCopy(0, 3, -3));
         int size = GlobalConstants.ChunkSize;

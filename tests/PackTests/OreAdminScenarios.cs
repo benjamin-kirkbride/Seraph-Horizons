@@ -50,7 +50,7 @@ public partial class OreMapsScenarios
 
     private async Task<Atlas.Api.ITestPlayer> Admin(string name)
     {
-        var player = await World.JoinPlayer(name);
+        var player = await World.JoinRetrying(name);
         Assert.True((await World.ExecuteCommand($"/player {name} role admin")).Ok);
         return player;
     }
@@ -98,7 +98,7 @@ public partial class OreMapsScenarios
     public async Task Only_admins_may_and_only_admins_get_the_overlay()
     {
         var admin = await Admin("overlayadmin");
-        var visitor = await World.JoinPlayer("overlayvisitor");
+        var visitor = await World.JoinRetrying("overlayvisitor");
         // A joined test player is admin by default (Atlas); a plain player has suplayer.
         visitor.Player.SetRole("suplayer");
         Assert.False(visitor.Player.HasPrivilege(Privilege.controlserver));

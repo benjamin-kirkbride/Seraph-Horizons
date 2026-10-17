@@ -56,7 +56,7 @@ internal sealed class Woodshop(IWorldSession world, ITestPlayer player, BlockPos
                 world.SetBlock("game:air", at.AddCopy(dx, dy, dz));
         }
         if (!Players.TryGetValue(world.Api, out var player))
-            Players.Add(world.Api, player = await world.JoinPlayer("woodworker"));
+            Players.Add(world.Api, player = await world.JoinRetrying("woodworker"));
         await player.TeleportTo(at.AddCopy(0, 0, 5));
         player.Player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         player.Entity.Controls.ShiftKey = false;

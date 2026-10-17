@@ -155,7 +155,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario]
     public async Task Passivated_gears_neutralize_in_a_sealed_barrel_and_roll_when_taken()
     {
-        var p = await World.JoinPlayer("gearreclaimer");
+        var p = await World.JoinRetrying("gearreclaimer");
         var pos = World.Spawn.AddCopy(-100, 12, -100);
         await p.TeleportTo(pos.AddCopy(2, 0, 0));
         for (int dx = -1; dx <= 2; dx++)
@@ -209,7 +209,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario]
     public async Task Neutralized_gears_come_out_one_in_ten_sound_over_a_large_sample()
     {
-        var p = await World.JoinPlayer("gearlottery");
+        var p = await World.JoinRetrying("gearlottery");
         await p.TeleportTo(World.Spawn.AddCopy(-100, 12, -110));
         var player = p.Player;
         var system = GearReclamationSystem.Of(World.Api);
