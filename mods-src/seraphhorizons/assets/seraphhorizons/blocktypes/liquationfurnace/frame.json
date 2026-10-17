@@ -1,0 +1,86 @@
+// The liquation furnace's frame (LiquationFurnace/, README "Ore processing: the liquation furnace"; #929): the iron
+// frame of a liquation (sweating) furnace, its controller the front west cell at ground level. The shared ore machine
+// block (Machines/Game/OreMachineBlocks.cs); its stages are fitted by right-click (config/builds/liquationfurnace.json),
+// and the charge, the fuel, the damper and the cap are drawn by its state (extraRequires,
+// LiquationFurnace/Core/LiquationFurnaceRig.cs). The server disables it with LiquationFurnace or OreProcessing off.
+{
+	code: "liquationfurnace",
+	class: "seraphhorizons.OreMachine",
+	entityClass: "seraphhorizons.LiquationFurnace",
+	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the furnace's working front faces
+	// the player.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/liquationfurnace_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/liquationfurnace_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/liquationfurnace_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/liquationfurnace_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the furnace's parts (liquationfurnace.json), which the renderer
+	// draws with this block's textures; the brickwork's brick is set to the furnace's own brick type.
+	textures: {
+		"iron":   { base: "game:block/metal/plate/iron" },
+		"brick":  { base: "game:block/clay/brick/four/running/cream1", blendedOverlays: [ { base: "game:block/clay/brick/four/running/red1" } ] },
+		"lining": { base: "game:block/clay/refractory/tier3/front1" },
+		"cake":   { base: "game:block/metal/ingot/leadsolder" },
+		"tin":    { base: "game:block/metal/ingot/tin" },
+		"lead":   { base: "game:block/metal/ingot/lead" },
+		"fuel":   { base: "game:block/coal/charcoal" },
+		"ember":  { base: "game:block/coal/ember" }
+	},
+	attributes: {
+		oreMachine: {
+			machine: "liquationfurnace",
+			extraRequires: [
+				"cakes", "tinrun", "tin", "lead", "outletcap", "damperopen", "damperhalf", "dampershut",
+				"fuel1", "fuel2", "fire1", "fire2"
+			]
+		},
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:liquationfurnace-handbook-card-title", text: "seraphhorizons:liquationfurnace-handbook-card-text" },
+				{ title: "seraphhorizons:liquationfurnace-handbook-build-title", text: "seraphhorizons:liquationfurnace-handbook-build-text" },
+				{ title: "seraphhorizons:liquationfurnace-handbook-work-title", text: "seraphhorizons:liquationfurnace-handbook-work-text" },
+				{ title: "seraphhorizons:liquationfurnace-handbook-fire-title", text: "seraphhorizons:liquationfurnace-handbook-fire-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:liquationfurnace-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Stone",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame fills 2 x 2 x 2 blocks from the controller (native x 0..2, z 0..2); the -north item form turns
+	// it 180°, so the item forms turn about the mesh's middle (0, 1, 0).
+	tpHandTransform: {
+		translation: { x: 0, y: -3.44, z: 0.72 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0, y: 1, z: 0 },
+		scale: 0.25
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0, y: 1, z: 0 },
+		scale: 0.5
+	},
+	groundTransform: {
+		origin: { x: 0, y: 0, z: 0 },
+		scale: 0.7
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/rock-hit-pickaxe",
+		"walk": "game:walk/stone",
+		"hit": "game:block/rock-hit-pickaxe",
+		"break": "game:block/rock-break-pickaxe"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}
