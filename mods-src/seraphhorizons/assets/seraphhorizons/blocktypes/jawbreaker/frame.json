@@ -46,9 +46,10 @@
 	heldRightReadyAnimation: "heldblockready",
 	heldTpUseAnimation: "twohandplaceblock",
 	// The frame fills about 1.8 x 3 x 2 blocks from the controller (native x 0..1.8, z 0..2); the
-	// -north item form turns it 180°, so the item forms turn about the mesh's middle (0.1, 1.5, 0).
+	// -north item form turns it 180°, so the item forms turn about the mesh's middle (0.1, 1.5, 0);
+	// held, the translation brings that middle to the hand (tests/HeldTransformTests.cs).
 	tpHandTransform: {
-		translation: { x: -1.6, y: -2.2, z: 3.2 },
+		translation: { x: -0.55, y: -6.8, z: 0.9 },
 		rotation: { x: 6, y: 16, z: -77 },
 		origin: { x: 0.1, y: 1.5, z: 0 },
 		scale: 0.2
