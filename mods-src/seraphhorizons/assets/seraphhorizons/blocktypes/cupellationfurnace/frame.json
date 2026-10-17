@@ -1,0 +1,86 @@
+// The cupellation furnace's frame (CupellationFurnace/, README "Ore processing: the cupellation furnace"; #740): the
+// iron frame of an English test furnace, its controller the front middle cell at ground level (the litharge bay's).
+// The shared ore machine block (Machines/Game/OreMachineBlocks.cs); its stages are fitted by right-click
+// (config/builds/cupellationfurnace.json), the test (its wearing part) once it is built, and the dish, the fire, the
+// pot and the damper are drawn by its state (extraRequires, CupellationFurnace/Core/CupellationFurnaceRig.cs). The
+// server disables it with CupellationFurnace or OreProcessing off.
+{
+	code: "cupellationfurnace",
+	class: "seraphhorizons.OreMachine",
+	entityClass: "seraphhorizons.CupellationFurnace",
+	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the working face faces the player.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/cupellationfurnace_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/cupellationfurnace_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/cupellationfurnace_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/cupellationfurnace_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the furnace's parts (cupellationfurnace.json), which the renderer
+	// draws with this block's textures; the brickwork's brick is set to the furnace's own brick type.
+	textures: {
+		"iron":     { base: "game:block/metal/plate/iron" },
+		"brick":    { base: "game:block/clay/brick/four/running/cream1", blendedOverlays: [ { base: "game:block/clay/brick/four/running/red1" } ] },
+		"lining":   { base: "game:block/clay/refractory/tier3/front1" },
+		"boneash":  { base: "game:item/resource/crushed/lime" },
+		"lead":     { base: "game:block/metal/ingot/lead" },
+		"silver":   { base: "game:block/metal/ingot/silver" },
+		"litharge": { base: "game:item/resource/crushed/limonite" },
+		"coal":     { base: "game:block/coal/bituminous" },
+		"ember":    { base: "game:block/coal/ember" },
+		"copper":   { base: "game:block/metal/sheet-plain/copper4" },
+		"solder":   { base: "game:block/metal/ingot/leadsolder" }
+	},
+	attributes: {
+		oreMachine: {
+			machine: "cupellationfurnace",
+			extraRequires: [
+				"coal", "fire", "lead", "silver", "stream", "litharge", "damperopen", "damperhalf", "dampershut", "outletcap"
+			]
+		},
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:cupellationfurnace-handbook-card-title", text: "seraphhorizons:cupellationfurnace-handbook-card-text" },
+				{ title: "seraphhorizons:cupellationfurnace-handbook-build-title", text: "seraphhorizons:cupellationfurnace-handbook-build-text" },
+				{ title: "seraphhorizons:cupellationfurnace-handbook-work-title", text: "seraphhorizons:cupellationfurnace-handbook-work-text" },
+				{ title: "seraphhorizons:cupellationfurnace-handbook-blast-title", text: "seraphhorizons:cupellationfurnace-handbook-blast-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:cupellationfurnace-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Stone",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	tpHandTransform: {
+		translation: { x: -2, y: -3.44, z: 2.72 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 1, z: -0.5 },
+		scale: 0.25
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 1, z: -0.5 },
+		scale: 0.5
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 1, z: -0.5 },
+		scale: 0.7
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/rock-hit-pickaxe",
+		"walk": "game:walk/stone",
+		"hit": "game:block/rock-hit-pickaxe",
+		"break": "game:block/rock-break-pickaxe"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}
