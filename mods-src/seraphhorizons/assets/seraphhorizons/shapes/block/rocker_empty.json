@@ -1,0 +1,8 @@
+{
+	"textureWidth": 16,
+	"textureHeight": 16,
+	"textures": {
+		"oak": "game:block/wood/debarked/oak"
+	},
+	"elements": []
+}

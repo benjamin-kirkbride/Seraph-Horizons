@@ -49,6 +49,7 @@
   "PressBrake": false,
   "SquaringShear": false,
   "MandrelStation": false,
+  "Rocker": false,
   "MandrelSprings": false,
   "RodsOnForge": false,
   "StainlessSteel": false,
