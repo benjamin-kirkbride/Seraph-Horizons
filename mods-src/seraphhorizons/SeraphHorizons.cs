@@ -56,8 +56,6 @@ public class SeraphHorizonsSystem : ModSystem
     private bool _gearConsumers;
     private bool _fellingWear;
     private UnifiedWoodworking? _woodworking;
-    // Client side only: Carry On's icon stack fields, cleared again when the client leaves the world.
-    private List<System.Reflection.FieldInfo>? _carryOnIconFields;
     // Client side only: the sun of /clear stay on the client's calendar.
     private ClearSkyClient? _clearSkyClient;
     // Client side only, its own id: the NaN motion diagnostics' patches (#405).
@@ -221,13 +219,6 @@ public class SeraphHorizonsSystem : ModSystem
             api.Logger.Notification("[seraphhorizons] NaN motion diagnostics are switched off; a NaN motion crash (#405) leaves no report");
         if (Config(api).WailaRounding)
             WailaRounding.Patch(_wailaRoundingHarmony = new Harmony(WailaRounding.HarmonyId), api.Logger);
-        if (Config(api).CarryOnIconsPerWorld && CarryOnIcons.Find(api) is { } iconFields)
-        {
-            _carryOnIconFields = iconFields;
-            CarryOnIcons.Clear(iconFields);
-            api.Logger.Notification("[seraphhorizons] Carry On icons: {0} cached icon stack fields are cleared when the world is left",
-                iconFields.Count);
-        }
     }
 
     private void PatchCartReach(ICoreClientAPI api)
@@ -355,11 +346,6 @@ public class SeraphHorizonsSystem : ModSystem
         _locomotiveStayOnHarmony = null;
         _locomotiveBreatheHarmony?.UnpatchAll(LocomotiveSeats.BreatheHarmonyId);
         _locomotiveBreatheHarmony = null;
-        if (_carryOnIconFields != null)
-        {
-            CarryOnIcons.Clear(_carryOnIconFields);
-            _carryOnIconFields = null;
-        }
     }
 
     private static SeraphHorizonsConfig LoadConfig(ICoreAPI api)
@@ -419,11 +405,6 @@ public class SeraphHorizonsConfig
     /// <summary>Entity codes that <see cref="CartReach"/> applies to (<c>domain:path</c>, <c>*</c>
     /// wildcards): Cartwright's carts, sleds and market stalls.</summary>
     public string[] CartReachEntities { get; set; } = ["cartwrightscaravan:*"];
-
-    /// <summary>Carry On: its interaction help icons are built again in every world of a client run,
-    /// so a second world does not crash the client drawing the first world's (#401, client side;
-    /// off means Carry On keeps them, as it ships).</summary>
-    public bool CarryOnIconsPerWorld { get; set; } = true;
 
     /// <summary>NaN motion diagnostics (#405): the client traces every place that can write the
     /// player's motion and, when it goes NaN and the client crashes, first writes a report of where it
