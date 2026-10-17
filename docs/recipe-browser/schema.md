@@ -369,6 +369,28 @@ where it lies, which `requirements` says. `power` is `hand`, `turns` the blows (
 hammer), and `work` says so (`amount` that many, `unit` `strikes`). `extra` has the `ore`, `grade`,
 `form` (`raw` or `crystallised`) and `blows`.
 
+**Jaw breaker** (type `jawbreaker`, shape `machine`, present with seraphhorizons' `JawBreaker` and
+`OreProcessing` on, #912): one record per ore item kind spalling breaks, id
+`jawbreaker|game:<ore|crystalizedore>-<grade>-<ore>-*|0`, its ore and output as spalling's (the ore consumed, every host
+rock an alternative; crushed ore of its grade, one for one). Its station is the breaker's frame,
+`seraphhorizons:jawbreaker-north`. `power` is `mechanical`, `turns` the axle's turns a rock at any speed
+(ore-processing.json `machines.jawbreaker.perHour` at speed 0.6: 95.5 × 0.6 / 24), `work` one `rocks`.
+`requirements` says how it is fed and emptied. `extra` has the `ore`, `grade`, `form`, and the machine's
+`perHour`, `load` and `emptyLoad` (its load follows the charge in its mouth, between the two). Its build is
+the shared ore machine `construction` record.
+
+**The stamp battery** (type `stampbattery`, shape `machine`, present with seraphhorizons' `OreProcessing` and
+`StampBattery` on): one record per kind of rock it takes, id `stampbattery|game:<ore|crystalizedore>-<grade>-<ore>-*|0`
+for raw and crystallised ore (every host rock an alternative in the one variant) and
+`stampbattery|seraphhorizons:crushedore-<ore>-<grade>|0` for crushed ore not yet classified. The ingredients are
+the rock (consumed), the water a rock takes from the battery's reservoir (`game:waterportion`, consumed, with
+its `litres`), a rock's share of a set of shoes (`game:poundercap-steel`, a set's count over the rocks a set
+lasts) and the machine (role `station`); the output is crushed ore of its grade, one for one (two from
+crystallised ore), classified, which the schema has no field for: `extra.classified` is true (the stack's
+`oreState`). `power` is `mechanical`, `turns` the shaft's a rock, and `work` one `rocks`. `requirements` says
+how it is fed and emptied; `extra` has the `ore`, `grade`, `form` (`raw`, `crystallised` or `crushed`),
+`shoesPerSet` and `rocksPerSet`.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).

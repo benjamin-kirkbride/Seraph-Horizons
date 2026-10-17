@@ -48,6 +48,7 @@
   "PlacerFields": false,
   "PressBrake": false,
   "SquaringShear": false,
+  "StampBattery": false,
   "MandrelStation": false,
   "MandrelSprings": false,
   "RodsOnForge": false,
