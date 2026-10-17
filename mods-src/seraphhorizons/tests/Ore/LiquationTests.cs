@@ -16,7 +16,7 @@ public class LiquationTests
     public void ShippedFigures()
     {
         Assert.Equal(new LiquationSettings(100, 240, 327, 15), R.Liquation);
-        Assert.Equal(0.85, R.Parting(PartingMethod.Liquation, Liquation.Tier));
+        Assert.Equal(0.85, R.Parting(Liquation.Station));
         Assert.Empty(R.Problems);
     }
 

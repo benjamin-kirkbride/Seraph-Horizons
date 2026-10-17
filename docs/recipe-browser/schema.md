@@ -210,6 +210,16 @@ its `materials` as the mod writes them, the `default`, and the indices of its ma
 `extra.wake` is the crank's action, which wakes it after the last stage. Their `extra.behavior` names
 the mod's classes and `extra.stages` the stages' codes.
 
+The ore machines (seraphhorizons, #711) are records of this type as they come into the game, one for
+each machine whose frame block is registered, built from its build file
+(`config/builds/{machine}.json`): `construction|{frame block}|0`, output the frame block, the placed
+frame then each build stage, each material of a stage one ingredient (a wildcard with
+`allowedVariants` where it may be several items, the stack list of the one variant giving every one).
+A wearing part fitted with a stage (the stamp battery's shoes) is that stage's last ingredient.
+`extra.behavior` is `seraphhorizons.OreMachine`, `extra.machine` the machine's id, `extra.feed`
+`continuous` or `batch`, `extra.stages` the stages' names and `extra.wearing` each wearing part's
+`id`, `count` and `uses` (the work a set lasts, in the machine's own unit).
+
 ### Butchery
 
 With the Butchering mod a dead creature is picked up whole, skinned on a hook, left there to
@@ -358,6 +368,19 @@ in the one variant) and the hammer (`isTool`, its `toolDurabilityCost` the blows
 where it lies, which `requirements` says. `power` is `hand`, `turns` the blows (each a left-click with a
 hammer), and `work` says so (`amount` that many, `unit` `strikes`). `extra` has the `ore`, `grade`,
 `form` (`raw` or `crystallised`) and `blows`.
+
+**The rocker** (type `rocker`, shape `machine`, present with seraphhorizons' `Rocker` and `OreProcessing`
+on): one record per feed item, id `rocker|<feed>|0`: every crushed and ground ore item
+(`seraphhorizons:crushedore-<ore>-<grade>`, `groundore-<ore>-<grade>`, as they come: not riddled, not
+amalgamated) and every rich gravel block (`game:richgravel-<rock>`). The ingredients are the feed (one,
+consumed) and the rocker (role `station`); the outputs are what an item gives, fractional, since the
+rocker carries the rest of a unit over to the next item: an ore's concentrate
+(`seraphhorizons:concentrate-<ore>`) at the rocker's hand concentration, or for rich gravel the gold
+pan's table as expected counts, its nuggets at the rocker's figure over the pan's. `power` is `hand`,
+`turns` the rocks an item takes (a rock a second while right-click is held with a bucket of water) and
+`work` says so (`unit` `rocks`); the water an item is a `requirements` entry, as the schema has no water
+field (`extra.litres` gives it). `extra` also has the `feed` (`crushed`, `ground` or `placer`) and
+`carried` (true).
 
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role

@@ -805,6 +805,20 @@ public class SeraphHorizonsConfig
     /// Server side.</summary>
     public double FirepitRoastSeconds { get; set; } = Ore.Core.OreRoasting.DefaultSeconds;
 
+    /// <summary>The rocker (#716, Rocker/, README "Rocker"): a gold-rush cradle, the hand concentrator,
+    /// placed whole from oak, an iron plate and linen. Crushed or ground ore, or placer gravel, tipped
+    /// into its hopper is washed through while the player holds right-click on it with water in a
+    /// bucket, which pours as it rocks: ore into its concentrate at the rocker's 55 % (ore processing's
+    /// figures), placer gravel into the gold pan's metals at 55 / 45 of the pan; the concentrate is
+    /// taken from the riffles by hand and the tailings fall beyond its foot. No automated input or
+    /// output (needs OreProcessing; off means its block and its recipe do not exist, and rockers already
+    /// placed are lost). The server's setting decides.</summary>
+    public bool Rocker { get; set; } = true;
+
+    /// <summary>The rocker's figures; a value out of range falls back to its default with a warning.
+    /// The server's are used.</summary>
+    public Rocker.Core.RockerConfig RockerSettings { get; set; } = new();
+
     /// <summary>Schematics are sold only by traders (#468, Trading/Schematics/, README
     /// "Schematics"): every schematic in the pack is taken out of loot, stack randomizers and
     /// structures' chests, no recipe copies or makes one, and every recipe using one keeps it.
@@ -1108,4 +1122,10 @@ public class SeraphHorizonsConfig
     /// <summary>The springs' rates, in litres a second; a value out of range falls back to its
     /// default with a warning. The server's are used, each side's for its text.</summary>
     public SeraphHorizons.Mod.Springs.Core.SpringsConfig SpringsSettings { get; set; } = new();
+
+    /// <summary>The ore machines' shared rules (Machines/, README "Ore machines: what they share"; #711,
+    /// #694): the speed under which a machine stops, the reservoir's size and fill rate, and each
+    /// machine's tailings (form and layers a rock). Each machine's own switch turns it on; these
+    /// apply to every one. The server's are used.</summary>
+    public OreMachinesConfig OreMachinesSettings { get; set; } = new();
 }
