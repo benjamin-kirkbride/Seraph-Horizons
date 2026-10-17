@@ -8,8 +8,21 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- Server GC for the test host: worldgen allocates ~0.5 GB per deposit Verify, and the default
+         workstation GC spent about a third of a GradePockets-style run in pauses (every thread
+         stopped, the chunk thread too); server GC cuts the pauses five-fold. Process-wide, test
+         host only: the game's own servers keep their runtime's setting. -->
     <PackModsDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', '..', 'build', 'mods'))</PackModsDir>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Server GC for the test host: worldgen allocates ~0.5 GB per deposit Verify, and the default
+         workstation GC spent about a third of a GradePockets-style run in pauses (every thread
+         stopped, the chunk thread too); server GC cuts the pauses about five-fold. The test host
+         only: the game's own servers keep their runtime's setting. (ServerGarbageCollector does not
+         reach a test project's runtimeconfig, so the option is set directly.) -->
+    <RuntimeHostConfigurationOption Include="System.GC.Server" Value="true" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
