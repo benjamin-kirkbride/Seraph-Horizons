@@ -80,6 +80,8 @@ public sealed class SwitchOwnership
         // Recipes/SpringExport.cs). The spring blocks are registered with the switch off too (they
         // turn back into water as they load), so no code is the switch's.
         new("Springs", [], [], ["spring"]),
+        // The exporter's own recipe type for the arrastra's grinding (tools/recipe-export, RecipeSection.Arrastra.cs).
+        new("Arrastra", [], [], ["arrastra"]),
     ];
 
     private readonly List<OwnedBySwitch> _owned;
