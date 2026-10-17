@@ -22,16 +22,16 @@ public partial class RecipeExportScenarios
         Assert.Contains(records, r => ((string)r["id"]!).StartsWith("rocker|game:richgravel-", StringComparison.Ordinal));
         Assert.Contains(records, r => ((string)r["id"]!).StartsWith("rocker|seraphhorizons:groundore-", StringComparison.Ordinal));
 
-        var hematite = Recipe("rocker|seraphhorizons:crushedore-hematite-medium|0");
-        var ingredients = (JArray)hematite["ingredients"]!;
-        Json("""{ "code": "seraphhorizons:crushedore-hematite-medium", "kind": "item", "quantity": 1 }""", ingredients[0]);
+        var magnetite = Recipe("rocker|seraphhorizons:crushedore-magnetite-medium|0");
+        var ingredients = (JArray)magnetite["ingredients"]!;
+        Json("""{ "code": "seraphhorizons:crushedore-magnetite-medium", "kind": "item", "quantity": 1 }""", ingredients[0]);
         Json("""{ "code": "seraphhorizons:rocker-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[1]);
         Assert.Equal(2, ingredients.Count);
-        var output = Assert.Single((JArray)hematite["outputs"]!);
-        Assert.Equal("seraphhorizons:concentrate-hematite", (string)output["code"]!);
+        var output = Assert.Single((JArray)magnetite["outputs"]!);
+        Assert.Equal("seraphhorizons:concentrate-magnetite", (string)output["code"]!);
         // 5 units × 0.85 × 0.55 / 5 units a concentrate
         Assert.Equal(0.4675, (double)output["quantity"]!, 6);
-        Json("""{ "power": "hand", "turns": 4, "work": { "amount": 4, "unit": "rocks" } }""", hematite["machine"]!);
-        Assert.Contains("2 L", (string)hematite["requirements"]![0]!);
+        Json("""{ "power": "hand", "turns": 4, "work": { "amount": 4, "unit": "rocks" } }""", magnetite["machine"]!);
+        Assert.Contains("2 L", (string)magnetite["requirements"]![0]!);
     }
 }

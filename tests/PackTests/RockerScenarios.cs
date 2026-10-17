@@ -102,13 +102,13 @@ public partial class SharedWorldScenarios
         Assert.False(rocker is IBlockEntityContainer);
         Assert.Contains("Hopper empty", RockerInfo(rocker, player));
 
-        Assert.Equal(2, CutterClick(player, pos, CutterItem("seraphhorizons:crushedore-hematite-medium", 6))?.StackSize);
+        Assert.Equal(2, CutterClick(player, pos, CutterItem("seraphhorizons:crushedore-magnetite-medium", 6))?.StackSize);
         Assert.Equal(4, rocker.State.ChargeCount);
         W.BlockAccessor.BreakBlock(pos, player);
         await World.Ticks(2);
         var near = CutterItemsNear(pos);
         Assert.Equal(1, near.GetValueOrDefault(RockerItem));
-        Assert.Equal(4, near.GetValueOrDefault("seraphhorizons:crushedore-hematite-medium"));
+        Assert.Equal(4, near.GetValueOrDefault("seraphhorizons:crushedore-magnetite-medium"));
         CutterKillItems(pos);
     }
 
@@ -120,11 +120,11 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-592, -600);
         var player = await CutterPlayer();
         var rocker = await PlaceRocker(pos);
-        const string Crushed = "seraphhorizons:crushedore-hematite-medium";
+        const string Crushed = "seraphhorizons:crushedore-magnetite-medium";
         Assert.Null(CutterClick(player, pos, CutterItem(Crushed, 4)));
         Assert.Equal(4, rocker.State.ChargeCount);
         // another kind is refused while a charge is in
-        Assert.Equal(1, CutterClick(player, pos, CutterItem("seraphhorizons:crushedore-magnetite-medium"))?.StackSize);
+        Assert.Equal(1, CutterClick(player, pos, CutterItem("seraphhorizons:crushedore-hematite-medium"))?.StackSize);
 
         // an empty bucket does not rock it
         var (startedDry, _) = await RockerHold(player, pos, 5, WaterBucket(0));
@@ -136,7 +136,7 @@ public partial class SharedWorldScenarios
         Assert.InRange(rocker.State.ItemWork, 0.15, 0.35);
         var bucket = player.InventoryManager.ActiveHotbarSlot.Itemstack!;
         Assert.InRange(RockerWater.Litres(bucket), 9.3, 9.8);
-        Assert.Contains("hematite", RockerInfo(rocker, player), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("magnetite", RockerInfo(rocker, player), StringComparison.OrdinalIgnoreCase);
         double work = rocker.State.ItemWork;
         await World.Ticks(10);
         Assert.Equal(work, rocker.State.ItemWork, 9);
@@ -146,8 +146,8 @@ public partial class SharedWorldScenarios
         Assert.Equal(4, step.Washed);
         Assert.False(rocker.State.HasCharge);
         // 4 × 5 units × 0.85 unriddled × 0.55 = 9.35: one concentrate, 4.35 carried
-        Assert.Equal(1, rocker.State.Riffles["seraphhorizons:concentrate-hematite"]);
-        Assert.Equal(4.35, rocker.State.Carry.HeldFor("seraphhorizons:concentrate-hematite"), 6);
+        Assert.Equal(1, rocker.State.Riffles["seraphhorizons:concentrate-magnetite"]);
+        Assert.Equal(4.35, rocker.State.Carry.HeldFor("seraphhorizons:concentrate-magnetite"), 6);
         Assert.InRange(RockerWater.Litres(player.InventoryManager.ActiveHotbarSlot.Itemstack), 1.9, 2.1);
         // the tailings: layered gravel west of the foot
         var tailings = W.BlockAccessor.GetBlock(rocker.TailingsPos());
@@ -155,10 +155,9 @@ public partial class SharedWorldScenarios
         Assert.Equal(pos.AddCopy(-1, 0, 0), rocker.TailingsPos());
 
         // the concentrate comes out by hand
-        Assert.Null(CutterClick(player, pos, null));
+        var taken = CutterClick(player, pos, null);
+        Assert.Equal(("seraphhorizons:concentrate-magnetite", 1), (taken?.Collectible.Code.ToString(), taken?.StackSize));
         Assert.False(rocker.State.HasCatch);
-        Assert.Contains(player.InventoryManager.Inventories.Values.SelectMany(i => i),
-            s => s.Itemstack?.Collectible.Code.ToString() == "seraphhorizons:concentrate-hematite");
         CutterKillItems(pos);
     }
 
@@ -169,20 +168,20 @@ public partial class SharedWorldScenarios
         var pos = await CutterSite(-604, -600);
         var player = await CutterPlayer();
         var rocker = await PlaceRocker(pos, "east");
-        var riddled = CutterItem("seraphhorizons:crushedore-hematite-medium", 2);
+        var riddled = CutterItem("seraphhorizons:crushedore-magnetite-medium", 2);
         OreStreamAttributes.AddState(riddled, OreState.Classified);
         Assert.Null(CutterClick(player, pos, riddled));
-        Assert.Null(CutterClick(player, pos, null, ctrl: true));
+        Assert.Equal(2, CutterClick(player, pos, null, ctrl: true)?.StackSize);
         Assert.False(rocker.State.HasCharge);
 
-        riddled = CutterItem("seraphhorizons:crushedore-hematite-medium", 2);
+        riddled = CutterItem("seraphhorizons:crushedore-magnetite-medium", 2);
         OreStreamAttributes.AddState(riddled, OreState.Classified);
         Assert.Null(CutterClick(player, pos, riddled));
         player.InventoryManager.ActiveHotbarSlot.Itemstack = WaterBucket();
         rocker.Rock(player, 100);
         // 2 × 5 × 0.55 = 5.5: one concentrate, 0.5 carried
-        Assert.Equal(1, rocker.State.Riffles["seraphhorizons:concentrate-hematite"]);
-        Assert.Equal(0.5, rocker.State.Carry.HeldFor("seraphhorizons:concentrate-hematite"), 6);
+        Assert.Equal(1, rocker.State.Riffles["seraphhorizons:concentrate-magnetite"]);
+        Assert.Equal(0.5, rocker.State.Carry.HeldFor("seraphhorizons:concentrate-magnetite"), 6);
         CutterKillItems(pos);
     }
 
