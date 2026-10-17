@@ -1185,4 +1185,10 @@ public class SeraphHorizonsConfig
     /// exist, sluices already placed are lost, and bog iron is as Geology Additions makes it). The
     /// server's setting decides.</summary>
     public bool Sluice { get; set; } = true;
+
+    /// <summary>The arrastra (#732, Arrastra/, README "Arrastra"): a mule-sized batch grinder on an
+    /// axle, built in four stages on its frame, that grinds a charge of 2 crushed ore, watered by
+    /// bucket, into ground ore, lifting poor ore's × 0.4. Needs OreProcessing (off means its block and recipe do not exist,
+    /// and arrastras already placed are lost). The server's setting decides.</summary>
+    public bool Arrastra { get; set; } = true;
 }
