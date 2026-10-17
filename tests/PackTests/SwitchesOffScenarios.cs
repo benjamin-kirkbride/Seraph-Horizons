@@ -363,6 +363,23 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain("BoilerLidBlowsOpen", published);
     }
 
+    /// <summary><c>Arrastra</c> (#732): no arrastra and no recipe for it; its build file, an asset, loads
+    /// without naming a block that is not there.</summary>
+    [AtlasScenario]
+    public void Arrastra_off_there_is_no_arrastra()
+    {
+        Assert.True(Off("Arrastra"));
+        Assert.False(SeraphHorizons.Mod.Arrastra.ArrastraSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("arrastra"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("arrastra") == true);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("arrastra", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>GearCutter</c>: no gear cutter blocks, none of its new parts and no recipe for
     /// them, and nothing logged about them.</summary>
     [AtlasScenario]
