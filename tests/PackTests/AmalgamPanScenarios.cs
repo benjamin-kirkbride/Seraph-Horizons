@@ -96,7 +96,7 @@ public partial class SharedWorldScenarios
         Assert.True(W.GetItem(new AssetLocation(OreProducts.AmalgamCode("quartz_nativesilver"))) is { IsMissing: false });
         Assert.True(W.GetItem(new AssetLocation(BEAmalgamPan.MercuryCode)) is { IsMissing: false });
         // the export mark on the frame: a charge per free ore and grade
-        var mark = W.GetBlock(AmalgamPanSystem.FrameCode).Attributes?[AmalgamPanSystem.ExportKey];
+        var mark = W.GetBlock(AmalgamPanSystem.FrameCode)!.Attributes?[AmalgamPanSystem.ExportKey];
         Assert.Equal(8, mark?["charges"].AsArray()?.Length);
     }
 
