@@ -1,0 +1,85 @@
+// The ball mill's frame (BallMill/, README "Ore processing: the ball mill"; #915): the controller cell of a
+// Krupp ball mill, the middle of its front row at ground level. The shared ore machine block
+// (Machines/Game/OreMachineBlocks.cs); its stages are fitted by right-click (config/builds/ballmill.json).
+// The server disables it with BallMill or OreProcessing off.
+{
+	code: "ballmill",
+	class: "seraphhorizons.OreMachine",
+	entityClass: "seraphhorizons.BallMill",
+	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the machine's front
+	// (the drum, the girth wheel and the pinion) faces the player.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/ballmill_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/ballmill_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/ballmill_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/ballmill_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the stages' parts (ballmill.json), which the renderer
+	// draws with this block's textures.
+	textures: {
+		"stonebrick": { base: "game:block/stone/brick/granite1" },
+		"iron":       { base: "game:block/metal/plate/iron" },
+		"sheet":      { base: "game:block/metal/sheet/iron1" },
+		"steel":      { base: "game:block/metal/sheet-plain/steel1" },
+		"stainless":  { base: "game:block/metal/plate/stainlesssteel" },
+		"oak":        { base: "game:block/wood/debarked/oak" },
+		"oak-end":    { base: "game:block/wood/treetrunk/debarked/oak" },
+		"riveted":    { base: "game:block/metal/riveted/iron1" },
+		"perforated": { base: "game:block/metal/mesh1" },
+		"wirecloth":  { base: "game:block/metal/mesh4" },
+		"axle":       { base: "game:block/wood/planks/generic" },
+		"pipecopper": { base: "game:block/metal/sheet-plain/copper4" },
+		"pipelead":   { base: "game:block/metal/sheet-plain/lead4" },
+		"chute":      { base: "game:block/metal/sheet/copper1" }
+	},
+	attributes: {
+		oreMachine: { machine: "ballmill" },
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:ballmill-handbook-card-title", text: "seraphhorizons:ballmill-handbook-card-text" },
+				{ title: "seraphhorizons:ballmill-handbook-build-title", text: "seraphhorizons:ballmill-handbook-build-text" },
+				{ title: "seraphhorizons:ballmill-handbook-work-title", text: "seraphhorizons:ballmill-handbook-work-text" },
+				{ title: "seraphhorizons:ballmill-handbook-water-title", text: "seraphhorizons:ballmill-handbook-water-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:ballmill-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Stone",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame fills 3 x 1 x 2 blocks about the controller (native x -1..2, z 0..2); the -north item
+	// form turns it 180°, so the item forms turn about the mesh's middle (0.5, 0.5, 0).
+	tpHandTransform: {
+		translation: { x: -1.6, y: -2.0, z: 3.0 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0.5, z: 0 },
+		scale: 0.2
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.5, z: 0 },
+		scale: 0.4
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0 },
+		scale: 0.6
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/rock-hit-pickaxe",
+		"walk": "game:walk/stone",
+		"hit": "game:block/rock-hit-pickaxe",
+		"break": "game:block/rock-break-pickaxe"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

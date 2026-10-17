@@ -84,6 +84,24 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(site.Entity.Inventory.Empty);
     }
 
+    /// <summary><c>BallMill</c>: its frame and its recipe are not in the game, nor its process in the export, and
+    /// nothing is logged about it. The crushed and ground ore it works (ore processing's) exist either way.</summary>
+    [AtlasScenario]
+    public void Ball_mill_off_the_mill_is_not_in_the_game()
+    {
+        Assert.True(Off("BallMill"));
+        Assert.False(SeraphHorizons.Mod.BallMill.BallMillSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } code && code.Path.StartsWith("ballmill"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path.StartsWith("ballmill") == true);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("ballmill", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("ball mill", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>BuckingSawmill</c>: its blocks and its recipe are not in the game, and nothing is
     /// logged about them.</summary>
     [AtlasScenario]
