@@ -418,7 +418,6 @@ public static class TradeWindowModel
                 : new Text("trading-window-fact-deliveries", F(DeliveryPlanner.Reach(u.DeliveryScale) / 1000)));
         if (sw.Maps)
         {
-            facts.Add(new Text("trading-window-fact-maps", MapTierName(t.MapPrecision), MapPrecision.ReachOf(t.MapPrecision)));
             // Reach in rings of grid cells, said in km (MapDistance.ReachKm), never as rings.
             int km = MapDistance.ReachKm(t.LeadReach);
             facts.Add(t.LeadMaps <= 0 ? new Text("trading-window-fact-leads-stranger", km)

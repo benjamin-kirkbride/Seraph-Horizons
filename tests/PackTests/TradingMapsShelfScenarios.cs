@@ -86,6 +86,9 @@ public class TradingMapsShelfScenarios(ITestOutputHelper output) : TradingMapsSc
         Assert.True(DepositKey.TryParse(offer.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit), out var bought));
         string offeredOres = offer.Itemstack.Attributes.GetString(MapOfferAttrs.Ores);
         int price = offer.TradeItem.Price;
+        // Drawn when shelved (map-prices.json precisionWeights): the map sold is the offer's precision.
+        int precision = offer.Itemstack.Attributes.GetAsInt(MapOfferAttrs.Precision);
+        Assert.InRange(precision, MapPrecision.Rough, MapPrecision.Fine);
         await BackAt(trader, buyer);
         int gearsBefore = InventoryTrader.GetPlayerAssets(buyer.Entity);
         Buy(trader, buyer, offer);
@@ -101,6 +104,7 @@ public class TradingMapsShelfScenarios(ITestOutputHelper output) : TradingMapsSc
         Assert.Null(map.Attributes.GetString(MapOfferAttrs.Offer));
         Assert.NotNull(map.Attributes.GetString(ItemOreMap.AttrSizeTier));
         Assert.Equal(offeredOres, map.Attributes.GetString(ItemOreMap.AttrOres));
+        Assert.Equal(precision, map.Attributes.GetInt(ItemOreMap.AttrPrecision));
         Assert.NotNull(map.Attributes.GetString(ItemOreMap.AttrRock));
         var record2 = Deposits.Registry.Get(bought);
         Assert.Equal(DepositState.Sold, record2.State);
