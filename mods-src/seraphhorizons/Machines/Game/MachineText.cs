@@ -69,9 +69,14 @@ public static class MachineText
         }
     }
 
-    /// <summary>The state's line ("No power: it needs its shaft turning at 0.05 or faster").</summary>
-    public static void AppendState(StringBuilder sb, MachineState state, float minSpeed) =>
-        sb.AppendLine(Lang.Get(MachineRun.LangCode(state), minSpeed.ToString("0.##", CultureInfo.InvariantCulture)));
+    /// <summary>The state's line ("No power: it needs its shaft turning at 0.05 or faster"): the machine's
+    /// own <c>seraphhorizons:{machine}-state-{state}</c> where it has one.</summary>
+    public static void AppendState(StringBuilder sb, MachineState state, float minSpeed, string? machine = null)
+    {
+        string own = $"seraphhorizons:{machine}-state-{state.ToString().ToLowerInvariant()}";
+        string key = machine != null && Lang.HasTranslation(own) ? own : MachineRun.LangCode(state);
+        sb.AppendLine(Lang.Get(key, minSpeed.ToString("0.##", CultureInfo.InvariantCulture)));
+    }
 
     /// <summary>The reservoir's line: litres in it of its capacity, and an item's water.</summary>
     public static void AppendWater(StringBuilder sb, MachineReservoir water, double capacity, double perItem) =>

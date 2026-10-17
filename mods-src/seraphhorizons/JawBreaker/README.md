@@ -8,8 +8,8 @@ meet in a small iron hopper under it and run out through the output chute, low o
 takes mechanical power from a vanilla axle at one side, coupled straight onto the eccentric shaft: a Blake works
 either way round, so there is no rectifier.
 
-This folder holds the model's generator and its rig (`tools/`). The gameplay is #912 and is not built yet; the model
-is #914. "Gameplay" below says what the rig offers it.
+This folder holds the model's generator and its rig (`tools/`), and the gameplay (#912: `Core/`, `Game/`, on the ore
+machines' shared game code in `Machines/Game`); the model is #914. "Gameplay" below says how the game uses the rig.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. `tools/` is the model's generator; the generic
@@ -300,8 +300,9 @@ The model has been reviewed in projections rendered from the written files. No o
    third full row (18 cells, the east three empty). The other ways: a smaller wheel (at most 16 across fits the box), or
    a gear pair from the axle to a shaft further forward (which the breaker's frame in front of the shaft does not allow
    without moving the grizzly over it).
-5. **Build stages: settled** (2026-10-15; "Build stages" above). Still open: the frame's grid recipe, and the items'
-   exact codes (#912).
+5. **Build stages: settled** (2026-10-15; "Build stages" above). The frame's grid recipe and the items' codes are
+   #912's (`recipes/grid/jawbreaker.json`, `config/builds/jawbreaker.json`): a chute section is a vanilla straight
+   chute, a spring `seraphhorizons:spring-steel`.
 6. **The chute sections are the services'**, the last stage, so a chute can be laid to the machine only once it is
    finished.
 7. **No lids.** A deck at the top of the columns would be an invisible floor over the grizzly and the drive end.
@@ -309,9 +310,9 @@ The model has been reviewed in projections rendered from the written files. No o
    model: that kept the breaker 1.45 blocks deep (#914 guessed about 1.3) with the grizzly in front of it.
 9. **The front posts run the full three blocks** to carry the grizzly's head beam and the infeed's tie; the outboard
    pedestal is a lone oak post.
-10. **Anchors are provisional** pending #711: the infeed and output as `<name>Cell`/`<name>Face` plus a `pos`, as the v2
-   branches have them.
-11. **Rig extras** for gameplay: `breaker.turnsPerBite` (1) and `buildStages`; drop them if #912 does not read them.
+10. **Anchors** are #711's `<name>Cell`/`<name>Face` pairs; the `pos` beside them is not read.
+11. **Rig extras:** `buildStages` is read (the build file is checked against it); `breaker.turnsPerBite` is not (the
+   rate is ore processing's).
 
 ## From the stamp mill v2
 
@@ -336,15 +337,22 @@ What #914 asked to change, and how, against `origin/729-stampmill-model-v2`:
 
 ## Gameplay
 
-Not built: #912 (raw ore in, crushed ore out, 24 rock an hour at 0.6, its load rising with the rock it bites up to
-0.8, 0.16 empty). What the rig offers it, after the other machines' pattern:
+Built (#912; the mod's README, "Jaw breaker"): raw ore in, crushed ore out, 24 rock an hour at 0.6, its load
+rising with the charge in its mouth from 0.16 to 0.8. The block entity is `Game/BEJawBreaker.cs` on the shared
+`BEOreMachine`; its rules are `Core/JawBreaking.cs`. What it reads of the rig:
 
-- **The clock.** A renderer turns θ with the axle's angle (no rectifier: θ itself, either way) and draws the parts by
-  the shared rig maths (`Machines/Core/RigAnimation.cs`); the rig has no work, so nothing follows a job.
-- **Parts.** Every part with a `requires` is drawn by the renderer once that stage is fitted; the frame shape is the
-  block's.
-- **Anchors.** The power cell and face for the mechanical network, the infeed and output cells and faces for chutes.
-- **Tests.** `tests/JawBreaker/JawBreakerRigTests.cs` (the shipped rig through the shared parser, its vocabulary, no
-  work, its anchors, and every pose of `tests/JawBreaker/rig-reference.json` replayed through `Machines/Core`),
-  `tools/tests/test_jawbreaker_model.py` and `site/test/jawbreaker.test.ts` (the generated files against their own
-  rules and the site's rig maths).
+- **The clock.** The shared renderer (`Machines/Game/OreMachineRenderer.cs`) turns θ with the power cell's
+  shaft about native x (the power face is east) and poses the parts by the shared rig maths; θ holds still
+  until the machine is built. The rig has no work, so nothing follows a job.
+- **Parts.** Every part with a `requires` is drawn once that stage is fitted (the toggles with their rods, the
+  springs after); the frame shape is the block's.
+- **Anchors.** The power cell and face take the axle (`oremachine-cellpower-{face}`); the infeed cell's top face
+  takes a chute (`chute-straight-ud`), the output face a chute laid to take from it or a container.
+  `breaker.turnsPerBite` is not read: the rate is ore processing's.
+- **Build.** `config/builds/jawbreaker.json` is the stage table above, the jaw faces the wearing part fitted
+  with the jaws (`uses` 1000 rocks).
+- **Tests.** `tests/JawBreaker/JawBreakerRigTests.cs` (the rig through the shared parser, its reference
+  poses), `tests/JawBreaker/JawBreakerGameplayTests.cs` (what it takes, its load and rate, its build), and
+  Atlas `tests/PackTests/JawBreakerScenarios.cs` (placed on four facings, built with real items, powered by
+  a creative rotor, fed by chute and hand into a chest, broken back); `tools/tests/test_jawbreaker_model.py`
+  and `site/test/jawbreaker.test.ts` hold the generated files to their own rules.

@@ -1,5 +1,5 @@
 {
-	"_comment": "The stamp battery's build (#728, #711): each stage after the frame and its materials, from StampBattery/README.md's stage table, in the rig's buildStages order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. The shoes are the wearing part, fitted with the stamps (stage stamps) and renewed by right-click once worn out; uses is rocks crushed by a set (a starting value).",
+	"_comment": "The stamp battery's build (#728, #711): each stage after the frame and its materials, from StampBattery/README.md's stage table, in the rig's buildStages order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. The shoes are the wearing part, fitted with the stamps (stage stamps) and renewed by right-click once worn out; uses is rocks a set crushes, about 1,000 (the model README).",
 	"machine": "stampbattery",
 	"block": "seraphhorizons:stampbattery-north",
 	"feed": "continuous",
@@ -57,6 +57,6 @@
 		}
 	],
 	"wearing": [
-		{ "id": "shoes", "codes": ["game:poundercap-steel"], "count": 5, "uses": 400, "stage": "stamps" }
+		{ "id": "shoes", "codes": ["game:poundercap-steel"], "count": 5, "uses": 1000, "stage": "stamps" }
 	]
 }

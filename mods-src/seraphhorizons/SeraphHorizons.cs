@@ -1128,4 +1128,26 @@ public class SeraphHorizonsConfig
     /// machine's tailings (form and layers a rock). Each machine's own switch turns it on; these
     /// apply to every one. The server's are used.</summary>
     public OreMachinesConfig OreMachinesSettings { get; set; } = new();
+
+    /// <summary>The jaw breaker (JawBreaker/, README "Jaw breaker"; #912): a Blake jaw breaker under a
+    /// grizzly, built in five stages on its frame, that breaks raw ore from a chute into crushed ore
+    /// with no loss, 24 rock an in-game hour at speed 0.6, its load rising with the charge in its
+    /// mouth; first in the ore line, before the stamp battery. Needs OreProcessing (off means its
+    /// frame and its recipe do not exist, and breakers already placed are lost). The server's setting
+    /// decides.</summary>
+    public bool JawBreaker { get; set; } = true;
+
+    /// <summary>The jaw breaker's own figures (its draws and rate are ore processing's,
+    /// <c>config/ore-processing.json</c>); a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public JawBreaker.Core.JawBreakerConfig JawBreakerSettings { get; set; } = new();
+
+    /// <summary>The stamp battery (#728, StampBattery/, README "Stamp battery"): a wet five-stamp
+    /// battery, built on its frame in five stages, that crushes raw ore into crushed ore and classifies
+    /// it through its screen in one, 6 rock an hour at the reference speed, fed by chute from above or
+    /// by hand and emptied by chute in front; it needs an axle and piped water (40 L a rock), and its
+    /// shoes (five steel pounder caps) wear out every 1,000 rocks. Needs <see cref="OreProcessing"/>.
+    /// Off means its blocks and recipe do not exist, and batteries already placed are lost. The
+    /// server's setting decides.</summary>
+    public bool StampBattery { get; set; } = true;
 }
