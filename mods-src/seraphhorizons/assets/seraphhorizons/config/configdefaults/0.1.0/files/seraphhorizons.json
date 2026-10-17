@@ -516,5 +516,7 @@
   "JawBreakerSettings": {
     "ChargeRocks": 8
   },
-  "StampBattery": true
+  "StampBattery": true,
+  "Sluice": true,
+  "Vanner": true
 }

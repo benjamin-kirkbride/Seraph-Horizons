@@ -1174,4 +1174,26 @@ public class SeraphHorizonsConfig
     /// Off means its blocks and recipe do not exist, and batteries already placed are lost. The
     /// server's setting decides.</summary>
     public bool StampBattery { get; set; } = true;
+
+    /// <summary>The sluice (Sluice/, README "Sluice"; #734): a riffled plank sluice, the first
+    /// concentrator, built on its frame in two stages (the riffles, then its chutes and water inlet), that
+    /// washes crushed or ground ore, Wilderlands Panning's rich gravel and bog iron (#701) from a chute
+    /// with no power, 16 rock an in-game hour at 10 L of water a rock from a ppex pipe, catching 55 % of
+    /// what can be caught: the concentrate (or the gravel's nuggets) leaves by its own chute, the rock goes
+    /// on by the tailings chute or is discarded beside it as gravel. On, bog iron drops one stone a block
+    /// and no longer smelts to a bloom raw. Needs OreProcessing (off means its frame and its recipe do not
+    /// exist, sluices already placed are lost, and bog iron is as Geology Additions makes it). The
+    /// server's setting decides.</summary>
+    public bool Sluice { get; set; } = true;
+
+    /// <summary>The vanner (Vanner/, README "Vanner"; #923): a Frue vanner, the last of the concentrators,
+    /// built on its frame in five stages (the countershaft, the shaking frame, the rollers and creep, the
+    /// leather belt, then the feed box, chute sections and water line). It takes the shaking table's
+    /// tailings (crushed or ground ore, and placer gravel or bog iron carried down the line) from a chute,
+    /// 3 rock an in-game hour at speed 0.6 on a steady load of 0.08 and 15 L of water a rock, catching 80 %
+    /// of what can be caught, and all that is left at the end of an ore's whole route: the concentrate
+    /// leaves by its own chute, the rock goes on by the tailings chute or is discarded beside it as sand.
+    /// Its belt wears out (2 leather, about 4,000 rock). Needs OreProcessing (off means its frame and its
+    /// recipe do not exist, and vanners already placed are lost). The server's setting decides.</summary>
+    public bool Vanner { get; set; } = true;
 }

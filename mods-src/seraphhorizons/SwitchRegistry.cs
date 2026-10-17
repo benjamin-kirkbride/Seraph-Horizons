@@ -47,6 +47,7 @@ public static class SwitchRegistry
         yield return (nameof(SeraphHorizonsConfig.SquaringShear), SquaringShear.SquaringShearSystem.RecipeAssets, SquaringShear.SquaringShearSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.Riddle), Riddle.RiddleSystem.RecipeAssets, Riddle.RiddleSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.BallMill), BallMill.BallMillSystem.RecipeAssets, BallMill.BallMillSystem.TypeAssets);
+        yield return (nameof(SeraphHorizonsConfig.Vanner), Vanner.VannerSystem.RecipeAssets, Vanner.VannerSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.MandrelStation), MandrelStation.MandrelStationSystem.RecipeAssets, MandrelStation.MandrelStationSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.MandrelSprings), [], MandrelStation.MandrelStationSystem.SpringTypeAssets);
         yield return (nameof(SeraphHorizonsConfig.Rocker), Rocker.RockerSystem.RecipeAssets, Rocker.RockerSystem.TypeAssets);
@@ -60,6 +61,7 @@ public static class SwitchRegistry
         yield return (nameof(SeraphHorizonsConfig.Eidolon),
             [.. EidolonGantry.EidolonGantrySystem.RecipeAssets, .. Eidolon.EidolonCommanderSystem.RecipeAssets],
             [.. EidolonGantry.EidolonGantrySystem.TypeAssets, .. Eidolon.EidolonCommanderSystem.TypeAssets, .. Eidolon.EidolonSystem.TypeAssets]);
+        yield return (nameof(SeraphHorizonsConfig.Sluice), Sluice.SluiceSystem.RecipeAssets, Sluice.SluiceSystem.TypeAssets);
         // Not the crushed ore's type, whose code (game:crushed) is vanilla's crushed item's too:
         // SwitchOwnership.HandListed lists its codes.
         yield return (nameof(SeraphHorizonsConfig.OreProcessing), Ore.Processing.OreProcessingSystem.RecipeAssets,

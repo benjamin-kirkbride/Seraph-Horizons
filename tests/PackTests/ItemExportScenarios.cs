@@ -526,25 +526,6 @@ public class ItemExportScenarios : AtlasScenarioBase
         }
     }
 
-    [AtlasScenario(TimeoutMs = Timeout)]
-    public void Panning_machine_reads_the_wooden_pan()
-    {
-        // panningmachine's BlockPanningMachine reads attributes.panSource, default
-        // game:pan-wooden. Its allclasses variants name allclasses:metalpan-*; without that mod
-        // they have no recipe or creative tab, and their pan does not exist, so they pan nothing.
-        var machines = World.Api.World.Blocks
-            .Where(b => b?.Code?.Domain == "panningmachine" && b.Class == "panningmachine.BlockPanningMachine")
-            .ToList();
-        Assert.Contains(machines, m => m.Code.Path.StartsWith("panningmachine-north"));
-        foreach (var m in machines)
-        {
-            var pan = m.Attributes?["panSource"].AsString("game:pan-wooden") ?? "game:pan-wooden";
-            if (m.Code.Path.Contains("allclasses")) Assert.Null(World.Api.World.GetBlock(new AssetLocation(pan)));
-            else Assert.Equal("game:pan-wooden", pan);
-        }
-        Assert.IsAssignableFrom<Vintagestory.GameContent.BlockPan>(World.Api.World.GetBlock(new AssetLocation("game:pan-wooden")));
-    }
-
     // --- scope ---------------------------------------------------------------------------
 
     [AtlasScenario(TimeoutMs = Timeout)]

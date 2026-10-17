@@ -195,9 +195,8 @@ What the game does, and the export with it:
   `quantity.avg` (and `var`) is the declared chance per roll. `extra.chancePerPan` is the
   chance that one pan gives this drop, computed exactly for the shuffle with stats at 1
   (bone from bony soil: 0.3 declared, 0.22 per pan). By hand a full block gives 8 pans
-  (the block, then layers 7 to 1), so it yields on average 8 × `chancePerPan` of a drop;
-  the Panning Machine gives 6 rolls per block (below). Both values are rounded to 4
-  significant digits.
+  (the block, then layers 7 to 1), so it yields on average 8 × `chancePerPan` of a drop.
+  Both values are rounded to 4 significant digits.
 - **Duplicates.** A list may hold the same item twice, and each entry rolls separately.
   Wilderlands keeps vanilla's `stone-{rocktype}` (0.2) in the sand and gravel list and
   adds another (0.3), so each gravel block has two sources for its stone. For the chance
@@ -207,14 +206,6 @@ What the game does, and the export with it:
 `attributes` (the drop's stack attributes: gem `potential`, lore book `category`),
 `stackSize` when not 1, and `pan` when the pack has more than one pan block (it has one,
 `game:pan-wooden`).
-
-The **Panning Machine** (`panningmachine`) reads `attributes.panningDrops` of its
-`panSource`, default `game:pan-wooden`, and picks the list and resolves `{rocktype}` the
-same way, so the `Panned` sources cover it too. It differs in four ways, none of which the
-export shows. It takes block stacks from its inventory, rolls `MaxPanningProcesses`
-(config, default 6) times per block, ignores `dropModbyStat` and the `loreContent`
-filter, and matches keys without a domain against the code's path only. Its allclasses
-variants name `allclasses:metalpan-*`, which is not in this pack.
 
 Known missing:
 
