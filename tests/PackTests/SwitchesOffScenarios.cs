@@ -1319,17 +1319,27 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
-    /// <summary><c>BigPiles</c>, <c>BigCrates</c>, <c>RustyGearStack</c>: piles, crates and the rusty
-    /// gear as their mods ship them; a crate saved with more slots than its type gives still keeps
-    /// them (that guard is not switched).</summary>
+    /// <summary><c>BigPiles</c>, <c>BigCrates</c>, <c>RustyGearStack</c>, <c>NoClutterPiles</c>: piles,
+    /// crates and the rusty gear as their mods ship them, clutter piled as More Piles' catch-all
+    /// cube rule gives it; a crate saved with more slots than its type gives still keeps them (that
+    /// guard is not switched).</summary>
     [AtlasScenario]
     public void Storage_switches_off_piles_crates_and_the_rusty_gear_are_as_they_ship()
     {
         Assert.True(Off("BigPiles"));
         Assert.True(Off("BigCrates"));
         Assert.True(Off("RustyGearStack"));
+        Assert.True(Off("NoClutterPiles"));
         Assert.Equal(0, StorageTweaksSystem.Of(World.Api)!.PilesMadeBig);
         Assert.Equal(0, StorageTweaksSystem.Of(World.Api)!.CratesMadeBig);
+        Assert.Equal(0, StorageTweaksSystem.Of(World.Api)!.ClutterPilesTaken);
+
+        // The cause: the game's clutter names the plain cube as its shape (a placeholder; each stack
+        // draws its type's), so More Piles' catch-all cube rule gives it a pile of 64.
+        var clutter = W.GetBlock(new AssetLocation("game:clutter"))!.GetBehavior<CollectibleBehaviorGroundStorable>()!;
+        Assert.Equal(EnumGroundStorageLayout.Stacking, clutter.StorageProps.Layout);
+        Assert.Equal(64, clutter.StorageProps.StackingCapacity);
+        Assert.Contains("MorePilesProperties", clutter.propertiesAtString);
 
         var firewood = W.GetItem(new AssetLocation("game:firewood"))!.GetBehavior<CollectibleBehaviorGroundStorable>()!;
         Assert.Equal(32, firewood.StorageProps.StackingCapacity);
