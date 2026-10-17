@@ -1,0 +1,43 @@
+{
+	"_comment": "The jig's build (#919, #711): each stage after the frame and its materials, from Jig/README.md's stage table, in the rig's buildStages order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. The frame (the grid recipe) is the hutch's sills and floor; the hutch's bulk timber is the first stage, fitted a stack a right-click; the sieve is an iron chain's mesh; the services are the three vanilla chute sections and the water inlet in copper or lead. Nothing wears out as a part.",
+	"machine": "jig",
+	"block": "seraphhorizons:jig-north",
+	"feed": "continuous",
+	"stages": [
+		{
+			"id": "timber", "name": "the timber", "adds": ["timber"],
+			"materials": [
+				{ "codes": ["game:plank-*"], "quantity": 17 },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 8 }
+			]
+		},
+		{
+			"id": "sieve", "name": "the sieve", "adds": ["sieve"],
+			"materials": [
+				{ "codes": ["game:metalchain-iron"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "drive", "name": "the drive and plunger", "adds": ["drive", "plunger"],
+			"materials": [
+				{ "codes": ["game:rod-iron"], "quantity": 1 },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 1 },
+				{ "codes": ["game:rod-steel"], "quantity": 1 },
+				{ "codes": ["game:plank-*"], "quantity": 2 }
+			]
+		},
+		{
+			"id": "services", "name": "services", "adds": ["infeed", "outlets", "pipecopper", "pipelead"],
+			"materials": [
+				{ "codes": ["game:chute-straight-*"], "quantity": 3 },
+				{
+					"codes": ["seraphhorizons:pipesection-copper", "seraphhorizons:pipesection-lead"], "quantity": 1,
+					"picks": { "seraphhorizons:pipesection-copper": "pipecopper", "seraphhorizons:pipesection-lead": "pipelead" }
+				},
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 2 },
+				{ "codes": ["game:plank-*"], "quantity": 1 },
+				{ "codes": ["game:supportbeam-*"], "quantity": 1 }
+			]
+		}
+	]
+}
