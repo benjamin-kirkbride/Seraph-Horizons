@@ -178,15 +178,15 @@ test("every item page says whether the item is pileable", async ({ page }) => {
   const ingot = exp.items["game:ingot-copper"]!.attributes!.groundStorage!;
   expect(ingot.layout).toBe("stacking");
   await openItem(page, "game:ingot-copper");
-  await expect(page.getByTestId("item-pileable")).toHaveText(`Yes, up to ${ingot.capacity} per block`);
+  await expect(page.getByTestId("item-pileable").locator(".hint")).toHaveText(`Yes, up to ${ingot.capacity} per block`);
   await expect(page.getByTestId("ground-storage")).toContainText(`Pile: up to ${ingot.capacity} per block`);
   const coal = exp.items["game:charcoal"]?.attributes?.itemPile;
   if (coal) {
     await openItem(page, "game:charcoal");
-    await expect(page.getByTestId("item-pileable")).toHaveText(`Yes, up to ${coal.capacity} per block`);
+    await expect(page.getByTestId("item-pileable").locator(".hint")).toHaveText(`Yes, up to ${coal.capacity} per block`);
   }
   await openItem(page, "game:flint");
-  await expect(page.getByTestId("item-pileable")).toHaveText("No");
+  await expect(page.getByTestId("item-pileable").locator(".hint")).toHaveText("No");
 });
 
 test("an item with an icon shows it and others get a placeholder", async ({ page }) => {
