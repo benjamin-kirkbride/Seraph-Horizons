@@ -210,6 +210,16 @@ its `materials` as the mod writes them, the `default`, and the indices of its ma
 `extra.wake` is the crank's action, which wakes it after the last stage. Their `extra.behavior` names
 the mod's classes and `extra.stages` the stages' codes.
 
+The ore machines (seraphhorizons, #711) are records of this type as they come into the game, one for
+each machine whose frame block is registered, built from its build file
+(`config/builds/{machine}.json`): `construction|{frame block}|0`, output the frame block, the placed
+frame then each build stage, each material of a stage one ingredient (a wildcard with
+`allowedVariants` where it may be several items, the stack list of the one variant giving every one).
+A wearing part fitted with a stage (the stamp battery's shoes) is that stage's last ingredient.
+`extra.behavior` is `seraphhorizons.OreMachine`, `extra.machine` the machine's id, `extra.feed`
+`continuous` or `batch`, `extra.stages` the stages' names and `extra.wearing` each wearing part's
+`id`, `count` and `uses` (the work a set lasts, in the machine's own unit).
+
 ### Butchery
 
 With the Butchering mod a dead creature is picked up whole, skinned on a hook, left there to
