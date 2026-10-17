@@ -32,11 +32,6 @@ public partial class SharedWorldScenarios
         return be;
     }
 
-    private static int StallHeld(IPlayer player, string code) =>
-        new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName }
-            .SelectMany(inv => player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
-            .Where(s => s.Itemstack?.Collectible.Code.ToString() == code).Sum(s => s.StackSize);
-
     private ItemStack? StallClick(IPlayer player, BlockPos at, ItemStack? held, bool sneak = false)
     {
         player.Entity.Controls.ShiftKey = sneak;
@@ -178,18 +173,25 @@ public partial class SharedWorldScenarios
         Assert.Equal(2, stall.SulfurPowders);
         Assert.True(stall.ShowsPart("roasted4") && stall.ShowsPart("sulfur") && !stall.ShowsPart("fire1"));
 
-        // the sulfur first, then raking out needs the front open
-        Assert.Null(StallClick(player, pos, null));
-        Assert.Equal(2, StallHeld(player, StallRoasting.SulfurPowder));
+        // the sulfur first (into the empty hand), then raking out needs the front open
+        var sulfur = StallClick(player, pos, null);
+        Assert.Equal((StallRoasting.SulfurPowder, 2), (sulfur?.Collectible.Code.ToString(), sulfur?.StackSize));
         Assert.Equal(0, stall.SulfurPowders);
         Assert.Null(StallClick(player, pos, null));
         Assert.Equal(32, stall.Rock);
         Assert.Null(StallClick(player, pos, null, sneak: true));
         Assert.Null(StallClick(player, pos, null, sneak: true));
         Assert.Equal(StallFront.Open, stall.Front);
+        // a course a click, into the hand
+        int raked = 0;
         for (int i = 0; i < 4; i++)
-            Assert.Null(StallClick(player, i % 2 == 0 ? pos : cell, null));
-        Assert.Equal(32, StallHeld(player, roasted));
+        {
+            var course = StallClick(player, i % 2 == 0 ? pos : cell, null);
+            Assert.Equal(roasted, course?.Collectible.Code.ToString());
+            raked += course!.StackSize;
+            Assert.Equal(32 - raked, stall.Rock);
+        }
+        Assert.Equal(32, raked);
         Assert.Equal(0, stall.Rock);
         Assert.Equal(StallPhase.Empty, stall.Phase);
         // walled up again from the bricks it kept
@@ -200,9 +202,8 @@ public partial class SharedWorldScenarios
         var outlet = stall.CellPos(rig.OutletCell);
         Assert.Null(StallClick(player, pos, CutterItem(rig.CapCode, 1)));
         Assert.True(stall.Capped && stall.ShowsPart("outletcap"));
-        Assert.Null(StallClick(player, outlet, null));
+        Assert.Equal(rig.CapCode, StallClick(player, outlet, null)?.Collectible.Code.ToString());
         Assert.False(stall.Capped);
-        Assert.Equal(1, StallHeld(player, rig.CapCode));
         Assert.Null(StallClick(player, pos, CutterItem(rig.CapCode, 1)));
 
         // broken: the frame, every stage's items, the front's 18 bricks and the cap
