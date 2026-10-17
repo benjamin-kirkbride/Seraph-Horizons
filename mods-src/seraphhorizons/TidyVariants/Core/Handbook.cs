@@ -214,7 +214,8 @@ public static class Handbook
     static string? FirstNonMember(Candidate c, List<(string Path, string Kind)> sorted, HashSet<string> members, HashSet<string> memberPaths,
         List<string> paths, List<string> shared)
     {
-        foreach (var m in paths) if (!GroupByMatcher.IsMatch(c.Pattern, m)) return m + " (a member) would not";
+        var matches = GroupByMatcher.Matcher(c.Pattern);
+        foreach (var m in paths) if (!matches(m)) return m + " (a member) would not";
         string prefix = c.Prefix;
         int lo = 0, hi = sorted.Count;
         while (lo < hi)
@@ -225,7 +226,7 @@ public static class Handbook
         for (int i = lo; i < sorted.Count && sorted[i].Path.StartsWith(prefix, StringComparison.Ordinal); i++)
         {
             var (path, kind) = sorted[i];
-            if (members.Contains(kind + path) || !GroupByMatcher.IsMatch(c.Pattern, path)) continue;
+            if (members.Contains(kind + path) || !matches(path)) continue;
             string shown = path + (kind == "i|" ? " (item)" : " (block)");
             if (memberPaths.Contains(path)) { shared.Add(shown); continue; }
             return shown;
