@@ -84,7 +84,6 @@
     "oilsresoaped": "1.0.3",
     "olla": "1.4.0",
     "p1explosives": "1.0.0",
-    "panningmachine": "1.1.4",
     "plantbasedfat": "1.0.4",
     "playercorpseforked": "1.15.2",
     "playerstatusstrip": "1.0.1",
@@ -297,12 +296,6 @@
       "format": "json",
       "owners": [
         "nooceantranslocators"
-      ]
-    },
-    "PanningMachineConfigData.json": {
-      "format": "json",
-      "owners": [
-        "panningmachine"
       ]
     },
     "ProjectileFlee.json": {

@@ -1165,4 +1165,15 @@ public class SeraphHorizonsConfig
     /// <c>config/ore-processing.json</c>); a value out of range falls back to its default with a
     /// warning. The server's are used.</summary>
     public JawBreaker.Core.JawBreakerConfig JawBreakerSettings { get; set; } = new();
+
+    /// <summary>The sluice (Sluice/, README "Sluice"; #734): a riffled plank sluice, the first
+    /// concentrator, built on its frame in two stages (the riffles, then its chutes and water inlet), that
+    /// washes crushed or ground ore, Wilderlands Panning's rich gravel and bog iron (#701) from a chute
+    /// with no power, 16 rock an in-game hour at 10 L of water a rock from a ppex pipe, catching 55 % of
+    /// what can be caught: the concentrate (or the gravel's nuggets) leaves by its own chute, the rock goes
+    /// on by the tailings chute or is discarded beside it as gravel. On, bog iron drops one stone a block
+    /// and no longer smelts to a bloom raw. Needs OreProcessing (off means its frame and its recipe do not
+    /// exist, sluices already placed are lost, and bog iron is as Geology Additions makes it). The
+    /// server's setting decides.</summary>
+    public bool Sluice { get; set; } = true;
 }
