@@ -793,15 +793,14 @@ Everything else those patches add stays: Tailor's Delight's twine and needles, E
 fluorite, corundum, phosphorite, rhodochrosite and kernite. The patterns are
 `Core/PanningDropRules.cs`: `wool:*`, `tailorsdelight:awl-*`, `tailorsdelight:awlthorn-*`,
 `tailorsdelight:buttons-*` and `game:nugget-uranium`. Wilderlands Panning's rich gravel lists add
-none of them, and nothing else in the pack has a panning table (Panning Machine pans with the
-wooden pan's).
+none of them, and nothing else in the pack has a panning table.
 
 Wool and Expanded Matter have a ConfigLib setting for their whole panning patch, but that would
 also take Expanded Matter's other ores, and Tailor's Delight has none. So `PanningDrops` edits the
 pan's asset on the server in `AssetsLoaded`, after the game's patch loader (0.05) has applied every
 mod's patches, in whatever order they load, and before the block types are read from the assets
 (0.2): every entry of every material's list (in `attributes`, or an `attributesByType` entry) whose
-code matches is removed, and the server logs how many. The pan, Panning Machine and the handbook
+code matches is removed, and the server logs how many. The pan, the machines that wash placer gravel (#701) and the handbook
 (clients get the block's attributes from the server) all see the trimmed table, and so does the
 recipe export. If the pan's asset is missing or has no `panningDrops`, the mod logs a warning and
 leaves panning as it is.
@@ -6095,7 +6094,9 @@ hand. Hand stations have neither.
 (normally the last of the line), or at a hand station, discarded rock goes on a heap beside the
 tailings point as vanilla layered gravel (`game:gravel-{rock}-land-{n}`) or sand (`game:sand-{rock}-{n}`)
 in the ore's host rock (the raw ore's `rock`, carried as a stack attribute), filling the cell, the four
-round it, then two up (seven blocks; a full heap takes no more until it is shovelled away). The layers
+round it, then two up (seven blocks; a full heap takes no more until it is shovelled away), the tailings
+point first falling through air to the ground below it, up to 8 blocks (`Tailings.Landing`: the jig's outlet is
+in its upper row). The layers
 a rock, the owner's starting values (`OreMachinesSettings.Tailings`, by machine): sluice and jig
 gravel 1, shaking table sand 0.75, vanner sand 0.5, amalgamation plates sand 1, rocker gravel 1; the
 jaw breaker, stamp battery, arrastra and ball mill discard nothing, nor do the roasters and furnaces.
@@ -6250,6 +6251,51 @@ The recipe browser has a `stampbattery` record per kind of rock it takes
 (`tools/recipe-export/RecipeSection.StampBattery.cs`) and the battery's build as a `construction`
 record. Tests: `tests/StampBattery/StampingTests.cs` (what it takes, one for one, classified, the
 unclassified share lifted); `tests/PackTests/StampBatteryScenarios.cs` (Atlas).
+
+### Sluice (`Sluice`)
+
+The first concentrator of the ore line (#734; `Sluice/`, its README has the model, the stages and the gameplay): a
+riffled plank sluice four blocks long, on the ore machines' shared code. Built on its frame (8 planks, 2 support
+beams, 3 iron nails and strips) in two stages: the riffles (1 support beam, 1 iron nails and strips), then the
+services (3 straight chutes, a copper or lead pipe section, 1 iron nails and strips). No power: with 10 L of water a
+rock from a ppex pipe on its head's north end it washes 16 rock an in-game hour, fed by a chute into the head box's
+top or by hand, at r = 0.55 (`OreRecovery.Concentrate`, through `ConcentratorWash`). Crushed or ground ore gives its
+concentrate; Wilderlands Panning's rich gravel the gold pan's table at 0.55 / 0.45 of the pan, stones and flint at
+the pan's rate, and bog iron limonite concentrate (placer on the line, #701: `Ore/Core/PlacerLine.cs`,
+`Ore/Game/PlacerTable.cs`). The catch leaves by the concentrate chute out of the bottom of its third block, whole
+items with the rest carried over; the rock goes on as tailings, the same item carrying what is left, by the
+tailings chute at the tail to the jig, or onto a gravel heap beside it (#694). With the switch on, Geology
+Additions' bog iron drops one stone a block and no longer smelts to a bloom raw. The panning machine left the pack
+with it (#691). Tests: `tests/Ore/PlacerLineTests.cs`; Atlas `tests/PackTests/SluiceScenarios.cs`.
+
+### Jig (`Jig`)
+
+The second concentrator of the ore line (#919; `Jig/`, its README has the model, the stages and the gameplay): a
+Harz plunger jig, a plank box of water two blocks long and two high, on the ore machines' shared code. Built on its
+frame (the hutch's sills and floor: 3 planks, 2 support beams, 2 iron nails and strips, a hammer) in four stages by
+right-click (`config/builds/jig.json`): the timber (17 planks, 8 iron nails and strips), the sieve (an iron chain),
+the drive and plunger (an iron rod, a steel rod, 2 planks, 1 iron nails and strips), then the services (3 straight
+chutes, a copper or lead pipe section, 2 iron nails and strips, a plank, a support beam). Nothing wears out.
+
+- **Work.** An axle on its shaft's end (the west face of the back top cell, either way round) works the plunger;
+  8 rock an in-game hour at speed 0.6, in proportion to speed, at a steady 0.1 (0.005 until built), stopping under
+  0.05. 70 L of water a rock from a ppex pipe on the back of its bottom cell (the thirstiest machine); dry, it
+  stops. Each rock is one pass at r = 0.60 (`OreRecovery.Concentrate` through `ConcentratorWash`, as the sluice's):
+  crushed or ground ore its concentrate, rich gravel the pan's table scaled, bog iron limonite concentrate. It
+  takes what the sluice takes (`SluiceSystem.TakesFeed`), the sluice's tailings among them, whose stream it
+  carries on: the jig catches its share of what the sluice left, and nothing from its own tailings.
+- **Feed and outputs.** A chute laid down onto the top of the front top cell feeds the feed trough, or a
+  right-click; the concentrate leaves out of the front of the bottom cell, whole items with the rest carried over;
+  the rock goes on as tailings, the same item carrying the rest, out of the west face of the front top cell to the
+  shaking table, or falls to the ground there as gravel in its rock, a layer a rock (#694).
+- **Drawn.** The water's surfaces once it holds water, the ore bed on the sieve while it works (the blocktype's
+  `extraRequires`); the water draws in the opaque pass.
+- **Recipe browser.** A `jig` record per feed item (`RecipeSection.Jig.cs`, `JigSystem.ExportYields`), its build's
+  `construction` record, and its draw on the power page.
+
+Code: `Jig/Core/Jigging.cs` (its pass and the contents it draws; tests `tests/Jig/JigGameplayTests.cs`),
+`Jig/Game/BEJig.cs` and `JigSystem.cs`; Atlas `tests/PackTests/JigScenarios.cs` and
+`RecipeExportJigScenarios.cs`. Coal washing at the jig (#941) is not built yet.
 
 ## Trading
 
@@ -6672,7 +6718,6 @@ machine's first-stage grid recipe, kept on crafting:
 | `windmill` | windmill rotors (the game's, Millwright's) | carpenter, 1 |
 | `waterwheel` | the water wheel (its first stage) | carpenter, 1 |
 | `handcrank` | the hand crank | general store, 1 |
-| `panningmachine` | the panning machine (one recipe, every tier) | prospector, 1 |
 | `transmission` | axles, angled and spur gears, large gear and sections, clutch, transmission, brake; Millwright's brake and axle passthroughs | mechanic, 2 |
 | `helvehammer` | the helve hammer base | mechanic, 2 |
 | `pulverizer` | the pulverizer frame | mechanic, 2 |

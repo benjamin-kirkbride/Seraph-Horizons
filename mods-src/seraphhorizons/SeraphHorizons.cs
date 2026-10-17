@@ -1174,4 +1174,25 @@ public class SeraphHorizonsConfig
     /// Off means its blocks and recipe do not exist, and batteries already placed are lost. The
     /// server's setting decides.</summary>
     public bool StampBattery { get; set; } = true;
+
+    /// <summary>The sluice (Sluice/, README "Sluice"; #734): a riffled plank sluice, the first
+    /// concentrator, built on its frame in two stages (the riffles, then its chutes and water inlet), that
+    /// washes crushed or ground ore, Wilderlands Panning's rich gravel and bog iron (#701) from a chute
+    /// with no power, 16 rock an in-game hour at 10 L of water a rock from a ppex pipe, catching 55 % of
+    /// what can be caught: the concentrate (or the gravel's nuggets) leaves by its own chute, the rock goes
+    /// on by the tailings chute or is discarded beside it as gravel. On, bog iron drops one stone a block
+    /// and no longer smelts to a bloom raw. Needs OreProcessing (off means its frame and its recipe do not
+    /// exist, sluices already placed are lost, and bog iron is as Geology Additions makes it). The
+    /// server's setting decides.</summary>
+    public bool Sluice { get; set; } = true;
+
+    /// <summary>The jig (Jig/, README "Jig"; #919): a Harz plunger jig, the second concentrator, built on
+    /// its frame (the hutch's sills and floor) in four stages (the timber, the sieve, the drive and plunger,
+    /// then its chutes and water inlet), worked by an axle (0.1 steady), that jigs crushed or ground ore (the
+    /// sluice's tailings among them), rich gravel and bog iron from a chute, 8 rock an in-game hour at shaft
+    /// speed 0.6 at 70 L of water a rock from a ppex pipe, catching 60 % of what can be caught: the
+    /// concentrate leaves by its own chute, the rock goes on by the tailings chute or is discarded beside it
+    /// as gravel. Needs OreProcessing (off means its frame and its recipe do not exist, and jigs already
+    /// placed are lost). The server's setting decides.</summary>
+    public bool Jig { get; set; } = true;
 }
