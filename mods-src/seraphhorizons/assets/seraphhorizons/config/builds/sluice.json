@@ -1,7 +1,7 @@
 {
 	"_comment": "The sluice's build (#734, #711): each stage after the frame and its materials, from Sluice/README.md's stage table, in the rig's buildStages order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. The frame (the grid recipe) is all the timber; the riffles are oak bars faced with strap iron; the services are the three vanilla chute sections and the water inlet in copper or lead. Nothing wears out as a part.",
 	"machine": "sluice",
-	"block": "seraphhorizons:sluice-frame-north",
+	"block": "seraphhorizons:sluice-north",
 	"feed": "continuous",
 	"stages": [
 		{

@@ -6250,6 +6250,22 @@ The recipe browser has a `stampbattery` record per kind of rock it takes
 record. Tests: `tests/StampBattery/StampingTests.cs` (what it takes, one for one, classified, the
 unclassified share lifted); `tests/PackTests/StampBatteryScenarios.cs` (Atlas).
 
+### Sluice (`Sluice`)
+
+The first concentrator of the ore line (#734; `Sluice/`, its README has the model, the stages and the gameplay): a
+riffled plank sluice four blocks long, on the ore machines' shared code. Built on its frame (8 planks, 2 support
+beams, 3 iron nails and strips) in two stages: the riffles (1 support beam, 1 iron nails and strips), then the
+services (3 straight chutes, a copper or lead pipe section, 1 iron nails and strips). No power: with 10 L of water a
+rock from a ppex pipe on its head's north end it washes 16 rock an in-game hour, fed by a chute into the head box's
+top or by hand, at r = 0.55 (`OreRecovery.Concentrate`, through `ConcentratorWash`). Crushed or ground ore gives its
+concentrate; Wilderlands Panning's rich gravel the gold pan's table at 0.55 / 0.45 of the pan, stones and flint at
+the pan's rate, and bog iron limonite concentrate (placer on the line, #701: `Ore/Core/PlacerLine.cs`,
+`Ore/Game/PlacerTable.cs`). The catch leaves by the concentrate chute out of the bottom of its third block, whole
+items with the rest carried over; the rock goes on as tailings, the same item carrying what is left, by the
+tailings chute at the tail to the jig, or onto a gravel heap beside it (#694). With the switch on, Geology
+Additions' bog iron drops one stone a block and no longer smelts to a bloom raw. The panning machine left the pack
+with it (#691). Tests: `tests/Ore/PlacerLineTests.cs`; Atlas `tests/PackTests/SluiceScenarios.cs`.
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is
