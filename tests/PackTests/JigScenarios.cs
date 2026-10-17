@@ -205,6 +205,12 @@ public partial class SharedWorldScenarios
         double catchable = sluiced.Units - recovery.LockedOf(sluiced);
         Assert.Equal(sluiced.Units - catchable * share, after.Units, 6);
 
+        // with nothing at the tailings face (in the upper row) they fall to the ground beside it, a heap of
+        // gravel, a layer a rock. Cleared before the chute's rock goes in: the jig carries the turns left from
+        // the last rock, so it can work this one the tick it reaches the infeed, before the chute reads empty
+        var tailPos = tail.Pos.Copy();
+        W.BlockAccessor.SetBlock(0, tailPos);
+
         // a chute laid down onto the feed trough feeds the infeed
         var (inCell, inFace) = MachineChutes.World(pos, jig.Side, jig.Rig.Anchor("infeed")!.Value);
         var chutePos = inCell.AddCopy(inFace);
@@ -215,10 +221,6 @@ public partial class SharedWorldScenarios
         chute.Inventory[0].MarkDirty();
         await World.Until(() => chute.Inventory.Empty, 20000);
 
-        // with nothing at the tailings face (in the upper row) they fall to the ground beside it, a heap of
-        // gravel, a layer a rock
-        var tailPos = tail.Pos.Copy();
-        W.BlockAccessor.SetBlock(0, tailPos);
         await JigUntil(jig, () =>
         {
             jig.FillWater(jig.ReservoirCapacity);
