@@ -710,14 +710,27 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var copper = new ItemStack(W.GetItem(new AssetLocation("game:ingot-copper"))!, 1);
         Open(curio, buyer);
         int dearStranger = dear.TradeItem.Price;
+        // The factor the shelf is priced with (Reprice's own call): the price shown is rounded to whole gears.
+        double DearFactor() => Mod.Trading.Economy.Core.Pricing.Modifiers(economy.Modifiers, economy.Context(curio, dearCode, false, null));
+        double dearFactorStranger = DearFactor();
         var offerStranger = economy.QuoteOffList(curio, copper);
         Close(curio);
         Assert.True((await World.ExecuteCommand($"/sh trade standing set glueregular {Standing.TraderIdOf(curio)} 900")).Ok);
         Open(curio, buyer);
-        int dearTrusted = curio.Inventory.SellingSlots.First(s => s.Itemstack?.Collectible.Code.ToString() == dearCode).TradeItem.Price;
+        // The same slot: a shelf can hold one code at several prices (tapestries).
+        Assert.Equal(dearCode, dear.Itemstack?.Collectible.Code.ToString());
+        int dearTrusted = dear.TradeItem.Price;
+        double dearFactorTrusted = DearFactor();
         var offerTrusted = economy.QuoteOffList(curio, copper);
-        output.WriteLine($"{dearCode}: {dearStranger} -> {dearTrusted}; copper offer modifiers {offerStranger.Modifiers} -> {offerTrusted.Modifiers}");
-        Assert.True(dearTrusted < dearStranger);
+        output.WriteLine($"{dearCode}: {dearStranger} -> {dearTrusted} (factor {dearFactorStranger} -> {dearFactorTrusted}); "
+            + $"copper offer modifiers {offerStranger.Modifiers} -> {offerTrusted.Modifiers}");
+        Assert.Equal(1, dearFactorStranger, 6);
+        Assert.Equal(0.9, dearFactorTrusted, 6);
+        // The stranger's price is a list price within half a gear of it; the trusted one is 0.9 of that, rounded
+        // (#1001). Under 10 gears that may round back to the same (8.4 and 7.56 are both 8).
+        static double Gears(double price) => Math.Round(price, MidpointRounding.AwayFromZero);
+        Assert.InRange<double>(dearTrusted, Gears(0.9 * (dearStranger - 0.5)), Gears(0.9 * (dearStranger + 0.5)));
+        if (dearStranger >= 10) Assert.True(dearTrusted < dearStranger, $"{dearCode}: {dearTrusted} is not under {dearStranger}");
         Assert.Equal(1, offerStranger.Modifiers, 6);
         Assert.Equal(1.08, offerTrusted.Modifiers, 6);
         Close(curio);
