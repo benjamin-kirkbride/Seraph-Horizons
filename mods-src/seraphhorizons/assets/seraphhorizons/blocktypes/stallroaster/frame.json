@@ -1,0 +1,86 @@
+// The stall roaster's frame (StallRoaster/, README "Ore processing: the stall roaster"; #925): the iron frame of a
+// roasting stall, its controller the front cell at ground level under the outlet's column. The shared ore machine
+// block (Machines/Game/OreMachineBlocks.cs); its stages are fitted by right-click (config/builds/stallroaster.json),
+// and the bay's contents are drawn by its state (extraRequires, StallRoaster/Core/StallRoasterRig.cs). The server
+// disables it with StallRoaster or OreProcessing off.
+{
+	code: "stallroaster",
+	class: "seraphhorizons.OreMachine",
+	entityClass: "seraphhorizons.StallRoaster",
+	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the stall's open front faces
+	// the player.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/stallroaster_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/stallroaster_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/stallroaster_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/stallroaster_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the stall's parts (stallroaster.json), which the renderer
+	// draws with this block's textures; the brickwork's brick is set to the stall's own brick type.
+	textures: {
+		"iron":    { base: "game:block/metal/plate/iron" },
+		"brick":   { base: "game:block/clay/brick/four/running/cream1", blendedOverlays: [ { base: "game:block/clay/brick/four/running/red1" } ] },
+		"lining":  { base: "game:block/clay/refractory/tier3/front1" },
+		"wood":    { base: "game:block/wood/firepit/log" },
+		"ore":     { base: "game:item/resource/crushed/galena" },
+		"ember":   { base: "game:block/coal/ember" },
+		"roasted": { base: "game:item/resource/crushed/hematite" },
+		"sulfur":  { base: "game:item/resource/crushed/sulfur" }
+	},
+	attributes: {
+		oreMachine: {
+			machine: "stallroaster",
+			extraRequires: [
+				"wood", "kindling", "sulfur", "fronthalf", "frontwalled", "outletcap",
+				"ore1", "ore2", "ore3", "ore4", "fire1", "fire2", "fire3", "fire4", "roasted1", "roasted2", "roasted3", "roasted4"
+			]
+		},
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:stallroaster-handbook-card-title", text: "seraphhorizons:stallroaster-handbook-card-text" },
+				{ title: "seraphhorizons:stallroaster-handbook-build-title", text: "seraphhorizons:stallroaster-handbook-build-text" },
+				{ title: "seraphhorizons:stallroaster-handbook-work-title", text: "seraphhorizons:stallroaster-handbook-work-text" },
+				{ title: "seraphhorizons:stallroaster-handbook-draught-title", text: "seraphhorizons:stallroaster-handbook-draught-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:stallroaster-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Stone",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame fills 2 x 2 x 2 blocks from the controller (native x 0..2, z 0..2); the -north item form turns
+	// it 180°, so the item forms turn about the mesh's middle (0, 1, 0).
+	tpHandTransform: {
+		translation: { x: -2.2, y: -3.2, z: 0.9 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0, y: 1, z: 0 },
+		scale: 0.25
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0, y: 1, z: 0 },
+		scale: 0.5
+	},
+	groundTransform: {
+		origin: { x: 0, y: 0, z: 0 },
+		scale: 0.7
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/rock-hit-pickaxe",
+		"walk": "game:walk/stone",
+		"hit": "game:block/rock-hit-pickaxe",
+		"break": "game:block/rock-break-pickaxe"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

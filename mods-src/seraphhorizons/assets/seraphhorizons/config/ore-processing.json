@@ -27,7 +27,9 @@
 //   parting vessel). perHour: items an in-game hour at the reference speed 0.6 (57 shaft turns an
 //   hour), in proportion to shaft speed (rock; concentrate for the reverberatory; units for the
 //   parting machines). charge / chargeHours: a batch machine's charge (items; units for the Parkes
-//   kettle) and its hours at 0.6. zincReturn: the Parkes kettle's zinc back. Scale: 1 t/d of rock
+//   kettle) and its hours at 0.6. zincReturn: the Parkes kettle's zinc back. sulfur: a roaster's share
+//   of a sulfide's sulfur it recovers as sulfur powder (the stall roaster's from its heap's crust a third,
+//   the reverberatory's 0.7; the firepit none, #765, #925). Scale: 1 t/d of rock
 //   = 0.4 rock an hour, of concentrate 3.2 an hour, of metal 16 units an hour (#765).
 // - smeltByGrade: what share of its units rock gives in a furnace, by its grade (#847): raw, crushed
 //   and ground ore alike, since the furnace slags the rock off and loses metal with it. A sulfide's
@@ -40,7 +42,10 @@
 //   amalgamation; "unparted": the share of the main metal a smelt gives without parting (gold
 //   quartz 0.85, default 1); "byProducts": a second metal as a share of the main metal's recovered
 //   units, won only at a parting step. Unparted, a by-product is lost. Ores not listed are oxides at
-//   density 1. Argentiferous galena (galena_nativesilver) is a lead ore whose silver share is the
+//   density 1. "sulfur": a sulfide's sulfur, units per unit of its main metal, from its formula (galena
+//   PbS 0.155, chalcopyrite CuFeS2 1.01, pyrite FeS2 1.15; sperrylite, an arsenide, none);
+//   sulfurUnitsPerPowder: the units of sulfur in one sulfur powder (5), what a roaster's sulfur comes
+//   out as. Argentiferous galena (galena_nativesilver) is a lead ore whose silver share is the
 //   silver-rich galena's (#690): galena 3 %, argentiferous galena 38 %. Silver galena was 4.6 % of
 //   galena blocks in the survey of #445 and all silver, so 0.954 x 3 % + 0.046 x 38 % = 4.6 % of
 //   galena's metal keeps the world's silver.
@@ -60,6 +65,7 @@
 //   form gives; "portionsPerSecond" the pace (at most 10).
 {
   "concentrateUnits": 5,
+  "sulfurUnitsPerPowder": 5,
   "handStations": { "pan": 0.45, "rocker": 0.55, "amalgampan": 0.45, "firepit": 0.85, "cupel": 0.85, "liquationpan": 0.85 },
   "unclassified": 0.85,
   "fineUnground": 0.4,
@@ -74,8 +80,8 @@
     "jig":                { "recovery": 0.60, "load": 0.1,  "emptyLoad": 0.02,  "water": 70, "perHour": 8 },
     "table":              { "recovery": 0.70, "load": 0.1,  "emptyLoad": 0.02,  "water": 20, "perHour": 7 },
     "vanner":             { "recovery": 0.80, "load": 0.08, "emptyLoad": 0.016, "water": 15, "perHour": 3 },
-    "stallroaster":       { "recovery": 0.92, "charge": 32, "chargeHours": 40 },
-    "reverberatory":      { "recovery": 1.0,  "load": 0.5,  "emptyLoad": 0.1,   "water": 2, "perHour": 76 },
+    "stallroaster":       { "recovery": 0.92, "charge": 32, "chargeHours": 40, "sulfur": 0.3333333333333333 },
+    "reverberatory":      { "recovery": 1.0,  "load": 0.5,  "emptyLoad": 0.1,   "water": 2, "perHour": 76, "sulfur": 0.7 },
     "cupellationfurnace": { "recovery": 0.95, "perHour": 55 },
     "parkeskettle":       { "recovery": 1.0,  "load": 0.2,  "emptyLoad": 0.04,  "charge": 2400, "chargeHours": 5, "zincReturn": 0.8 },
     "liquationfurnace":   { "recovery": 0.95, "perHour": 100 },
@@ -100,19 +106,19 @@
     "smithsonite": { "density": 0.9 },
     "hemimorphite": {}, "cerussite": {}, "vanadinite": {}, "wulfenite": {}, "uranium": {}, "rhodochrosite": {},
 
-    "galena": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.03, "partedBy": "cupellation" } ] },
-    "galena_nativesilver": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.38, "partedBy": "cupellation" } ] },
-    "chalcopyrite": { "class": "sulfide" },
-    "chalcocite": { "class": "sulfide" },
-    "tetrahedrite": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 0.05, "partedBy": "cupellation" } ] },
-    "freibergite": { "class": "sulfide", "byProducts": [ { "metal": "copper", "share": 0.30, "partedBy": "cupellation" } ] },
-    "sphalerite": { "class": "sulfide" },
-    "pentlandite": { "class": "sulfide" },
-    "bismuthinite": { "class": "sulfide" },
-    "pyrite": { "class": "sulfide" },
-    "teallite": { "class": "sulfide", "byProducts": [ { "metal": "lead", "share": 0.40, "partedBy": "liquation" } ] },
-    "franckeite": { "class": "sulfide", "byProducts": [ { "metal": "lead", "share": 0.30, "partedBy": "liquation" } ] },
-    "sperrylite": { "class": "sulfide" },
+    "galena": { "class": "sulfide", "sulfur": 0.155, "byProducts": [ { "metal": "silver", "share": 0.03, "partedBy": "cupellation" } ] },
+    "galena_nativesilver": { "class": "sulfide", "sulfur": 0.155, "byProducts": [ { "metal": "silver", "share": 0.38, "partedBy": "cupellation" } ] },
+    "chalcopyrite": { "class": "sulfide", "sulfur": 1.01 },
+    "chalcocite": { "class": "sulfide", "sulfur": 0.252 },
+    "tetrahedrite": { "class": "sulfide", "sulfur": 0.547, "byProducts": [ { "metal": "silver", "share": 0.05, "partedBy": "cupellation" } ] },
+    "freibergite": { "class": "sulfide", "sulfur": 0.644, "byProducts": [ { "metal": "copper", "share": 0.30, "partedBy": "cupellation" } ] },
+    "sphalerite": { "class": "sulfide", "sulfur": 0.49 },
+    "pentlandite": { "class": "sulfide", "sulfur": 0.971 },
+    "bismuthinite": { "class": "sulfide", "sulfur": 0.23 },
+    "pyrite": { "class": "sulfide", "sulfur": 1.15 },
+    "teallite": { "class": "sulfide", "sulfur": 0.54, "byProducts": [ { "metal": "lead", "share": 0.40, "partedBy": "liquation" } ] },
+    "franckeite": { "class": "sulfide", "sulfur": 1.26, "byProducts": [ { "metal": "lead", "share": 0.30, "partedBy": "liquation" } ] },
+    "sperrylite": { "class": "sulfide", "sulfur": 0 },
 
     "quartz_nativegold": { "class": "native", "free": true, "unparted": 0.85,
       "byProducts": [ { "metal": "silver", "share": 0.15, "partedBy": "acidparting" } ] },

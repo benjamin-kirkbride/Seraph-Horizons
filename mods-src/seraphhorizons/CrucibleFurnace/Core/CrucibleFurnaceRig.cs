@@ -46,6 +46,30 @@ public sealed record BrickTypes(string TextureCode, string Item, string Default,
 
     /// <summary>The brick item of type <paramref name="id"/>.</summary>
     public string ItemOf(string id) => Item.Replace("{type}", id);
+
+    /// <summary>Parses a rig's <c>bricks</c> (the crucible furnace's, the stall roaster's); throws
+    /// <see cref="FormatException"/> naming what is wrong.</summary>
+    public static BrickTypes Parse(JsonElement bricksJson)
+    {
+        List<string> Strings(JsonElement obj, string key) =>
+            obj.TryGetProperty(key, out var a) && a.ValueKind == JsonValueKind.Array
+                ? a.EnumerateArray().Select(e => e.GetString() ?? throw new FormatException($"{key} must be strings")).ToList()
+                : [];
+        var types = new List<BrickType>();
+        foreach (var t in Required(bricksJson, "types", JsonValueKind.Object).EnumerateObject())
+            types.Add(new BrickType(t.Name,
+                Str(t.Value, "block") ?? throw new FormatException($"bricks.types.{t.Name} has no block"),
+                Str(t.Value, "base") ?? throw new FormatException($"bricks.types.{t.Name} has no base"),
+                Strings(t.Value, "overlays")));
+        var bricks = new BrickTypes(Str(bricksJson, "code") ?? throw new FormatException("bricks.code is missing"),
+            Str(bricksJson, "item") ?? throw new FormatException("bricks.item is missing"),
+            Str(bricksJson, "default") ?? throw new FormatException("bricks.default is missing"), types);
+        if (bricks.Get(bricks.Default) == null)
+            throw new FormatException($"bricks.default \"{bricks.Default}\" is not one of the types");
+        if (!bricks.Item.Contains("{type}", StringComparison.Ordinal))
+            throw new FormatException("bricks.item must hold {type}");
+        return bricks;
+    }
 }
 
 /// <summary>The rig's <c>furnace</c> figures.</summary>
@@ -239,16 +263,7 @@ public sealed class CrucibleFurnaceRig
         var frameIngredients = Required(frame, "ingredients", JsonValueKind.Array).EnumerateArray().Select(m => Material(m, "build.frame")).ToList();
         var cap = Material(Required(build, "outletCap", JsonValueKind.Object), "build.outletCap");
 
-        var bricksJson = Required(root, "bricks", JsonValueKind.Object);
-        var types = new List<BrickType>();
-        foreach (var t in Required(bricksJson, "types", JsonValueKind.Object).EnumerateObject())
-            types.Add(new BrickType(t.Name,
-                Str(t.Value, "block") ?? throw new FormatException($"bricks.types.{t.Name} has no block"),
-                Str(t.Value, "base") ?? throw new FormatException($"bricks.types.{t.Name} has no base"),
-                Strings(t.Value, "overlays")));
-        var bricks = new BrickTypes(Str(bricksJson, "code") ?? throw new FormatException("bricks.code is missing"),
-            Str(bricksJson, "item") ?? throw new FormatException("bricks.item is missing"),
-            Str(bricksJson, "default") ?? throw new FormatException("bricks.default is missing"), types);
+        var bricks = BrickTypes.Parse(Required(root, "bricks", JsonValueKind.Object));
 
         var f = Required(root, "furnace", JsonValueKind.Object);
         int Int(string key) => Required(f, key, JsonValueKind.Number).GetInt32();

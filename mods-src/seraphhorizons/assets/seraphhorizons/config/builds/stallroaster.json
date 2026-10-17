@@ -1,0 +1,28 @@
+{
+	"_comment": "The stall roaster's build (#925, #711): each stage after the iron frame and its materials, from StallRoaster/README.md's stage table and the rig's build.stages, in order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. The brickwork is any one fired brick (oneType: the first sets the stall's brick type, which the front's loose walling then takes too; the codes are the rig's bricks.types, red first for the creative shortcut); a click puts in as many of the held stack as the stage still needs. The front's walling and the outlet's cap are not stages (StallRoaster/Game/BEStallRoaster.cs). No part wears.",
+	"machine": "stallroaster",
+	"block": "seraphhorizons:stallroaster-north",
+	"feed": "batch",
+	"stages": [
+		{
+			"id": "brickwork", "name": "the brickwork", "adds": ["brickwork"],
+			"materials": [
+				{
+					"codes": [
+						"game:burnedbrick-red", "game:burnedbrick-fire", "game:burnedbrick-black", "game:burnedbrick-brown",
+						"game:burnedbrick-cream", "game:burnedbrick-gray", "game:burnedbrick-orange", "game:burnedbrick-tan",
+						"game:burnedbrick-clinker"
+					],
+					"quantity": 7, "oneType": true
+				}
+			]
+		},
+		{
+			"id": "lining", "name": "the lining", "adds": ["lining"],
+			"materials": [
+				{ "codes": ["game:refractorybrick-fired-tier3"], "quantity": 9 },
+				{ "codes": ["game:clay-fire"], "quantity": 4 }
+			]
+		}
+	]
+}
