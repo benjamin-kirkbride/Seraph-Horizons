@@ -46,6 +46,7 @@ public static class SwitchRegistry
         yield return (nameof(SeraphHorizonsConfig.SquaringShear), SquaringShear.SquaringShearSystem.RecipeAssets, SquaringShear.SquaringShearSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.MandrelStation), MandrelStation.MandrelStationSystem.RecipeAssets, MandrelStation.MandrelStationSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.MandrelSprings), [], MandrelStation.MandrelStationSystem.SpringTypeAssets);
+        yield return (nameof(SeraphHorizonsConfig.Rocker), Rocker.RockerSystem.RecipeAssets, Rocker.RockerSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.StainlessSteel), CrucibleFurnace.CrucibleFurnaceSystem.RecipeAssets, CrucibleFurnace.CrucibleFurnaceSystem.TypeAssets);
         yield return (nameof(SeraphHorizonsConfig.SteelBitsRecovery), [SteelBitsSystem.RecipeAsset], []);
         yield return (nameof(SeraphHorizonsConfig.Handcar), [Handcar.HandcarSystem.RecipeAsset], Handcar.HandcarSystem.TypeAssets);
