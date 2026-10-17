@@ -17,7 +17,12 @@ namespace SeraphHorizons.PackTests;
 ///
 /// <para>Contact is allowed only shallow (<see cref="Pushing"/>): two boxes brushing as one settles or
 /// squeezes past another, however long, is no fault (timing on a slower server stretches it), but one deep
-/// in another is. Every contact is logged with how long it lasted.</para></summary>
+/// in another is. Every contact is logged with how long it lasted. That holds for a job worked by routes
+/// (README "Eidolon", working together, *Routes*), whose members stop short of one standing and part. A job
+/// the route solver leaves to today's dispatch (a narrow tunnel's mouth, say), or whose routes stalled, has
+/// today's own contacts, which can come deep for a moment as two pass by a climb (#1078: 0.77 apart for
+/// 1.7 s, the walker with the lower id going by one waiting at the face), so there only a loose bound holds
+/// (<see cref="ContactFault"/>, as in EidolonLookaheadScenarios).</para></summary>
 internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, EntityLaborEidolon[] eidolons, MineOrder[] orders,
     System.Func<MarkPos, bool>? exempt = null, bool floors = true, int floorSlack = 1)
 {
@@ -80,11 +85,22 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
     public long ContactMs, LongestMs;
     public double Nearest = double.MaxValue;
     private long _lastTick = -1;
+    /// <summary>How the job was worked, each distinct way in turn: a route variant, or today's dispatch (the
+    /// solver's choice, or its routes stalled); empty while it had no routes.</summary>
+    public readonly List<string> Choices = new();
+    /// <summary>The longest one contact may last where any of the job ran on today's dispatch.</summary>
+    public const long TodayLongestMs = 10000;
     public double DistanceSum;
     public int DistanceTicks;
 
     public void Tick()
     {
+        if (orders[0].Job?.Shared is { Routes: { } routes } cells
+            && (routes.Today ? "today's dispatch"
+                : cells.RoutesStalledPlan == cells.PlanVersion ? "today's dispatch (stalled)"
+                : $"variant {routes.VariantIndex}") is var choice
+            && (Choices.Count == 0 || Choices[^1] != choice))
+            Choices.Add(choice);
         var broke = _standing.Where(c => w.BlockAccessor.GetBlock(c).Id == 0).ToList();
         foreach (var c in broke)
         {
@@ -147,6 +163,17 @@ internal sealed class MineWatcher(IWorldAccessor w, List<BlockPos> toMine, Entit
             return $"overlapping {ContactMs} ms in all ({Overlaps} ticks), longest {LongestMs} ms, nearest {Nearest:0.00}: {all}";
         return null;
     }
+
+    /// <summary>Whether the whole job was worked by routes.</summary>
+    public bool Routed => EidolonMinePlans.Routing && Choices.Count > 0 && Choices.All(c => c.StartsWith("variant"));
+
+    /// <summary>What an assertion says of the contacts, or null: worked by routes throughout, none deep
+    /// (<see cref="Pushing"/>); any of it on today's dispatch, none longer than <see cref="TodayLongestMs"/>.</summary>
+    public string? ContactFault() => Routed
+        ? Pushing()
+        : LongestMs > TodayLongestMs
+            ? $"a contact of {LongestMs} ms on {(Choices.Count == 0 ? "today's dispatch" : string.Join(" then ", Choices))}: {Summary()}"
+            : null;
 
     /// <summary>The contacts for the log: ticks, time, longest and nearest, then each.</summary>
     public string Summary() =>
