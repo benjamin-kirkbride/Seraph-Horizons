@@ -1,8 +1,11 @@
+using System.Collections;
 using System.Collections.Concurrent;
+using System.Reflection;
 using Atlas.XUnit;
 using SeraphHorizons.Mod.Ore;
 using SeraphHorizons.Mod.Ore.Core;
 using Vintagestory.API.Server;
+using Vintagestory.Server;
 using Xunit.Abstractions;
 
 namespace SeraphHorizons.PackTests;
@@ -303,10 +306,10 @@ public class OreCellOrderScenarios(ITestOutputHelper output) : AtlasScenarioBase
             var anchor = placement.SpotsOf(metal, cell)[settled.Active].Chunk;
             var around = OreCellOrder.Around(anchor);
 
-            Clear(sapi, anchor);
+            await Clear(sapi, anchor);
             foreach (var c in around.OrderBy(c => OreCellOrder.Ring(anchor, c))) await OreCellOrder.Load(World, c);
             var first = OreCellOrder.OreAround(sapi, anchor, metal);
-            Clear(sapi, anchor);
+            await Clear(sapi, anchor);
             foreach (var c in around.OrderByDescending(c => c.X).ThenByDescending(c => c.Z)) await OreCellOrder.Load(World, c);
             var second = OreCellOrder.OreAround(sapi, anchor, metal);
 
@@ -318,13 +321,75 @@ public class OreCellOrderScenarios(ITestOutputHelper output) : AtlasScenarioBase
         throw new Xunit.Sdk.XunitException("no copper, iron or tin deposit placed near the spawn");
     }
 
-    private static void Clear(ICoreServerAPI sapi, ChunkPos anchor)
+    /// <summary>Deletes the loaded columns around the anchor, with the server's chunk loading idle
+    /// before and after (#1010).</summary>
+    /// <remarks>
+    /// <c>DeleteChunkColumn</c> unloads a column on the game thread and queues its deletion for the
+    /// chunk database thread, whose <c>deleteChunkColumns</c> despawns the entities of any chunk of it
+    /// loaded by then, reading the chunk's <c>Entities</c> without a null check: a chunk that never
+    /// held an entity (most below ground) has none, and the thread throws and shuts the server down.
+    /// So nothing may load a column between its unload and its deletion. That happened two ways: a
+    /// column finished before the clear but not yet handed to the game thread (it lands after the
+    /// unload), and the next <see cref="OreCellOrder.Load"/>, queued while the database thread was
+    /// past its deletions in the tick, loading the column from the database before the deletion ran.
+    /// So the clear waits until nothing is loading or generating, and generating starts again only
+    /// once the deletions have been taken off their queue: the thread deletes before it loads, so a
+    /// load queued after that runs after them. Only columns loaded whole are deleted, as before: a
+    /// halo column part way through its passes (left by the previous generation, waiting on nothing)
+    /// stays.
+    /// </remarks>
+    private async Task Clear(ICoreServerAPI sapi, ChunkPos anchor)
     {
-        // Only complete columns: the game's deleteChunkColumns crashes its chunk database thread on
-        // one still generating (a halo column part way through its passes).
+        var loading = ChunkLoading.Of((ServerMain)sapi.World);
+        await World.Until(loading.Idle, 3000);
         for (int dx = -Cleared; dx <= Cleared; dx++)
             for (int dz = -Cleared; dz <= Cleared; dz++)
                 if (sapi.WorldManager.GetChunk(anchor.X + dx, 0, anchor.Z + dz) != null)
                     sapi.WorldManager.DeleteChunkColumn(anchor.X + dx, anchor.Z + dz);
+        await World.Until(loading.Idle, 3000);
+    }
+
+    /// <summary>The server's chunk loading queues, internal to the game and read by reflection.</summary>
+    private sealed class ChunkLoading
+    {
+        private const BindingFlags Any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+        private readonly ServerMain _server;
+        private readonly object[] _queues; // load requests, fast and simple loads, deletions: all must be empty
+        private readonly IDictionary _generating; // the chunk thread's requests by column, until the game thread loads them
+        private readonly PropertyInfo _disposed;
+
+        private ChunkLoading(ServerMain server)
+        {
+            _server = server;
+            _queues = [Field(server, "requestedChunkColumns"), Field(server, "fastChunkQueue"), Field(server, "simpleLoadRequests"), Field(server, "deleteChunkColumns")];
+            _generating = (IDictionary)Field(Field(Field(server, "chunkThread"), "requestedChunkColumns"), "elementsByIndex");
+            _disposed = typeof(ChunkColumnLoadRequest).GetProperty("Disposed", Any)
+                ?? throw new NotSupportedException("ChunkColumnLoadRequest.Disposed is missing: a game update renamed it");
+        }
+
+        public static ChunkLoading Of(ServerMain server) => new(server);
+
+        /// <summary>Nothing queued to load or delete, and no column generating: each request the chunk
+        /// thread holds is at the pass it was asked for (a halo column part way, or one let go) and none
+        /// has finished without the game thread having loaded it yet.</summary>
+        public bool Idle()
+        {
+            lock (Field(_server, "requestedChunkColumnsLock"))
+                if (_queues.Any(q => CountOf(q) > 0)) return false;
+            foreach (var request in _generating.Values.Cast<ChunkColumnLoadRequest>().ToList())
+            {
+                if (request.CurrentIncompletePass == EnumWorldGenPass.Done) return false;
+                if (!(bool)_disposed.GetValue(request)! && request.CurrentIncompletePass_AsInt < (int)request.GenerateUntilPass) return false;
+            }
+            return true;
+        }
+
+        private static int CountOf(object queue) => queue is ICollection c ? c.Count
+            : (int)(queue.GetType().GetProperty("Count", Any)?.GetValue(queue) ?? throw new NotSupportedException($"{queue.GetType().Name} has no Count"));
+
+        private static object Field(object o, string name) =>
+            o.GetType().GetField(name, Any)?.GetValue(o)
+            ?? throw new NotSupportedException($"{o.GetType().Name}.{name} is missing: a game update renamed it (find it again by decompiling, tests/PackTests/README.md)");
     }
 }
