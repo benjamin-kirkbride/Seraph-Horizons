@@ -81,6 +81,18 @@ public sealed class OreMachineRig
                 if (s.TryGetProperty("adds", out var adds) && adds.ValueKind == JsonValueKind.Array)
                     stageRequires.AddRange(adds.EnumerateArray().Select(a => a.GetString() ?? throw new FormatException("a buildStages add is not a string")));
         }
+        // the furnaces' and the arrastra's form: build.stages[], each its requires (or its adds)
+        if (root.TryGetProperty("build", out var buildEl) && buildEl.ValueKind == JsonValueKind.Object
+            && buildEl.TryGetProperty("stages", out var buildStages) && buildStages.ValueKind == JsonValueKind.Array)
+            foreach (var s in buildStages.EnumerateArray())
+            {
+                if (s.ValueKind != JsonValueKind.Object)
+                    continue;
+                if (s.TryGetProperty("requires", out var r) && r.ValueKind == JsonValueKind.String)
+                    stageRequires.Add(r.GetString()!);
+                if (s.TryGetProperty("adds", out var adds) && adds.ValueKind == JsonValueKind.Array)
+                    stageRequires.AddRange(adds.EnumerateArray().Where(a => a.ValueKind == JsonValueKind.String).Select(a => a.GetString()!));
+            }
         var known = new HashSet<string>(stageRequires, StringComparer.Ordinal);
         foreach (var r in extraRequires ?? [])
             known.Add(r);
