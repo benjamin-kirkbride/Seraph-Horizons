@@ -56,16 +56,16 @@
 	heldRightReadyAnimation: "heldblockready",
 	heldTpUseAnimation: "twohandplaceblock",
 	// The frame fills 3 x 1 x 2 blocks about the controller (native x -1..2, z 0..2); the -north item
-	// form turns it 180°, so the item forms turn about the mesh's middle (0.5, 0.5, 0).
+	// form turns it 180°, so the item forms turn about the mesh's middle (0.5, 0.84, 0).
 	tpHandTransform: {
-		translation: { x: -1.6, y: -2.0, z: 3.0 },
+		translation: { x: -2.5, y: -3.49, z: 0.9 },
 		rotation: { x: 6, y: 16, z: -77 },
-		origin: { x: 0.5, y: 0.5, z: 0 },
+		origin: { x: 0.5, y: 0.84, z: 0 },
 		scale: 0.2
 	},
 	guiTransform: {
 		rotation: { x: -22.6, y: -45.3, z: 0 },
-		origin: { x: 0.5, y: 0.5, z: 0 },
+		origin: { x: 0.5, y: 0.84, z: 0 },
 		scale: 0.4
 	},
 	groundTransform: {
