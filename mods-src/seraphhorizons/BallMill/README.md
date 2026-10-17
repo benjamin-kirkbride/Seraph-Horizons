@@ -7,8 +7,8 @@ what is ground fine enough. Crushed ore (and the shaking table's middlings, merg
 by the player) comes in by a chute; ground ore leaves by a chute. It lifts the poor-ore × 0.4 and the
 unclassified × 0.85 and frees the middlings' locked share (#915, #765).
 
-This folder holds the model's generator and its rig (`tools/`). The gameplay is #915 and is not built yet;
-the model is #916. "Gameplay" below says what the rig offers it.
+This folder holds the model's generator and its rig (`tools/`) and the gameplay (#915, `Core/` and `Game/`,
+on the ore machines' shared game code; the mod's README, "Ore processing: the ball mill"); the model is #916.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. `tools/` is the model's generator; the
@@ -241,13 +241,12 @@ Element names are the rig's interface (first-match globs, a part's id and `_`): 
 `girth_*`, `screens_*`, `feedbox_*`, `hopper_*`, `chutes_*`, `pipecopper_*`, `pipelead_*` and `fr_*` (the
 frame). Hand edits are lost when the script runs again: port them into `make_shape.py`, or stop regenerating.
 
-## Provisional pending #711
+## Anchors and #711
 
-The shared machine code has not landed, so these anchors follow the v2 branches and the rosser and may move
-with it: the chute anchors as cell and face (`infeedCell`/`infeedFace`, `outputCell`/`outputFace`) with the
+The shared machine code (#711) reads these anchors as they are: the chute anchors as cell and face (`infeedCell`/`infeedFace`, `outputCell`/`outputFace`) with the
 chute sections drawn as the game's chute at those faces; `output.pos`; the water as `waterCell`/`waterFace`
-(the rosser's key) with the soldered pipe on its axis. Whether a wet machine's reservoir is drawn (#711) is
-open: the feed box stands for it.
+(the rosser's key) with the soldered pipe on its axis. The reservoir is not drawn: the feed box stands
+for it.
 
 ## Open for the owner
 
@@ -293,7 +292,10 @@ output chute; its chute-head infeed from above became a chute into the feed box'
 
 ## Gameplay
 
-What the rig offers #915: the four anchors and `output.pos` above; the parts' `requires` for what is fitted;
-θ for the renderer (the pinion at the axle's angle, the drum at a third of it the other way). The draw
-(resistance 1.1, 0.22 empty), the rate (6 rock an hour at the reference speed) and the water (25 L a rock)
-are #915's and #940's, not the model's.
+Built (#915): `Game/BEBallMill.cs` on `Machines/Game/BEOreMachine.cs`, the build from
+`assets/seraphhorizons/config/builds/ballmill.json` (this README's stage table: the girth wheel drawn as soon as
+its wooden gear is in, the hopper as soon as its plates are), the grind in `Core/BallMillGrind.cs`. It uses the
+four anchors (power, infeed, water, output) as the rig gives them; the renderer draws each part by its
+`requires` and turns them by θ. The draw (resistance 1.1, steady), the rate (6 rock an hour at the reference
+speed) and the water (25 L a rock) are ore-core's (`config/ore-processing.json`, `machines.ballmill`), from
+#915 and #940, not the model's. The mod's README, "Ore processing: the ball mill", has the rules.
