@@ -211,15 +211,18 @@ public partial class SharedWorldScenarios
         var tailPos = tail.Pos.Copy();
         W.BlockAccessor.SetBlock(0, tailPos);
 
-        // a chute laid down onto the feed trough feeds the infeed
+        // a chute laid down onto the feed trough feeds the infeed: the chute leaves the rock in the trough
+        // cell's buffer, and the jig draws it in on its own tick, which may come a pass later (waiting on the
+        // chute alone, the tailings run below could start, and end, before the jig had it)
         var (inCell, inFace) = MachineChutes.World(pos, jig.Side, jig.Rig.Anchor("infeed")!.Value);
         var chutePos = inCell.AddCopy(inFace);
         World.SetBlock("game:chute-straight-ud", chutePos);
         await World.Ticks(2);
         var chute = (BlockEntityItemFlow)W.BlockAccessor.GetBlockEntity(chutePos)!;
+        var trough = (BEOreMachineCell)W.BlockAccessor.GetBlockEntity(inCell)!;
         chute.Inventory[0].Itemstack = JigCrushed("cassiterite", "rich", 1);
         chute.Inventory[0].MarkDirty();
-        await World.Until(() => chute.Inventory.Empty, 20000);
+        await World.Until(() => chute.Inventory.Empty && trough.Buffer.Empty, 20000);
 
         await JigUntil(jig, () =>
         {
