@@ -498,6 +498,16 @@ tailings, the same item carrying the rest (`extra.tailings`), to the vanner; it 
 is `mechanical`, `machine.turns` the axle's turns a rock at any speed (95.5 × 0.6 / ore-processing.json
 `machines.table.perHour`). `extra` has the `rig`, `recovery`, `perHour` (at shaft speed 0.6) and `water` (litres
 a rock). Its build is the shared ore machine `construction` record.
+**The vanner** (type `vanner`, shape `machine`; seraphhorizons, switches `Vanner` and `OreProcessing`, #923): one
+record per item the vanner washes fresh, id `vanner|<feed>|0`, the same feeds as the sluice's (crushed and ground
+ore, rich gravel, bog iron). The ingredients are the feed (one, consumed) and the vanner's frame
+(`seraphhorizons:vanner-north`, role `station`); the outputs what its belt keeps from one item on average,
+fractional (the vanner carries what falls short of a whole item over), at r = 0.80 of what can be caught. On the
+shaking table's tailings at the end of an ore's whole route it catches all that is left, which a record per fresh
+item does not show. `power` is `mechanical`, `turns` the axle's turns a rock at any speed (95.5 × 0.6 /
+ore-processing.json `machines.vanner.perHour`). `extra` has the `rig`, `recovery`, `perHour` (rock an in-game hour
+at speed 0.6), `water` (litres a rock), `carried` (true) and `tailings` (the same item, going on). Its build is the
+shared ore machine `construction` record, the belt its wearing part.
 
 **Retorting** (type `oreretorting`, shape `generic`; seraphhorizons, switch `OreProcessing`, so only in
 an export with it on): cinnabar and amalgam retorted in the game's still. One record per input, id
