@@ -1,0 +1,122 @@
+// Treasure hunter: the game's story trader in its house (the treasurehunter story structure),
+// which the pack takes over in grid worlds (Trading/Core/StoryTraders.cs). Never placed by the grid
+// (campWeight 0, not a camp type) and not a visitor. Its quests stay the game's dialogue's
+// (config/dialogue/treasurehunter.json); this is only its shelves.
+// Curated from the game's trader-treasurehunter list and every pack mod's entry into it
+// (tests/Trading/fixtures/curation-sources.json), keeping the game's stack and stock: treasure and
+// locator maps, loot vessels, rough gems, relics and old outfits to sell; bronze tools, provisions
+// and kit for the road to buy. The curio dealer keeps its own copies of these goods.
+// Format: docs/trading.md (Trade lists).
+// Prices come from the item value table by config/trading/list-prices.json (docs/trading.md, "Trade list format").
+{
+	"type": "treasurehunter",
+	// Never drawn for a camp: it lives in its story structure.
+	"campWeight": 0,
+	// Gears restocked to with strangers; times the standing tier's walletFactor (standing-tiers.json).
+	"wallet": {"avg": 120, "var": 20},
+	"selling": {
+		"core": [
+			{"kind": "gravelmap", "code": "seraphhorizons:gravelmap", "price": 1, "priceReason": "priced by the maps system at each restock"},
+			{"kind": "lead", "code": "seraphhorizons:traderlead", "price": 1, "priceReason": "priced by the maps system at each restock"},
+			{"code": "locatormap-treasures", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+			{"type": "block", "code": "lootvessel-ore", "stacksize": 1, "stock": {"avg": 4, "var": 1}},
+			{"type": "block", "code": "lootvessel-tool", "stacksize": 1, "stock": {"avg": 4, "var": 1}},
+			{"type": "block", "code": "lootvessel-seed", "stacksize": 1, "stock": {"avg": 4, "var": 1}},
+			{"code": "ore-lapislazuli", "stacksize": 6, "stock": {"avg": 4, "var": 1}},
+			{"code": "abyssaldepths:ad-schematic-divinggear", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": 180, "priceReason": "schematic: a hand-set gate", "standingTier": 3},
+			{"code": "walkingstick:schematic-flintlock", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": 128, "priceReason": "schematic: a hand-set gate", "standingTier": 3}
+		],
+		"rotating": { "maxItems": 6,
+			"list": [
+				{"type": "block", "code": "lootvessel-food", "stacksize": 1, "stock": {"avg": 4, "var": 1}},
+				{"type": "block", "code": "lootvessel-forage", "stacksize": 1, "stock": {"avg": 4, "var": 1}},
+				{"type": "block", "code": "lootvessel-farming", "stacksize": 1, "stock": {"avg": 4, "var": 1}},
+				{"code": "gem-emerald-rough", "attributes": {"potential": "high"}, "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "omoktabletop", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "gear-temporal", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-foot-lackey-shoes", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}},
+				{"code": "clothes-hand-lackey-gloves", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}},
+				{"code": "clothes-head-lackey-hat", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}},
+				{"code": "clothes-lowerbody-lackey-breeches", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}},
+				{"code": "clothes-upperbody-lackey-shirt", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}},
+				{"code": "hoovedwearables-blanket-lackey", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-arm-squire-bracers", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-foot-squire-boots", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-head-squire-hood", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-lowerbody-squire-pants", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-upperbody-squire-shirt", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-shoulder-squire-tunic", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-waist-squire-belt", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "hoovedwearables-blanket-squire", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-foot-messenger-shoes", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-head-messengers-hat", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-lowerbody-messenger-trousers", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-upperbody-messenger-shirt", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-waist-messenger-belt", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "hoovedwearables-blanket-messenger", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "painting-howl-north", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "painting-elk-north", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "painting-underwater-north", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "painting-prey-north", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "painting-forestdawn-north", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"type": "block", "code": "metal-parts", "stacksize": 4, "stock": {"avg": 2, "var": 0.5}, "playerSupplied": true},
+				{"code": "gem-diamond-rough", "attributes": {"potential": "high"}, "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "gem-olivine_peridot-rough", "attributes": {"potential": "high"}, "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "armor-head-antique-blackguard-broken", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "armor-body-antique-blackguard-broken", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "armor-legs-antique-blackguard-broken", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "hoovedwearables-blanket-blackguard", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "betterruins:locatormap-undergroundruins", "stacksize": 1, "stock": {"avg": 1.5, "var": 0.75}, "price": 8, "priceReason": "a locator map: priced by what it leads to, not as goods"},
+				{"code": "betterruins:locatormap-mine1", "stacksize": 1, "stock": {"avg": 1.5, "var": 0.75}, "price": 12, "priceReason": "a locator map: priced by what it leads to, not as goods"},
+				{"code": "betterruins:locatormap-mine2", "stacksize": 1, "stock": {"avg": 1.5, "var": 0.75}, "price": 12, "priceReason": "a locator map: priced by what it leads to, not as goods"},
+				{"code": "craftablelocusts:parts-corpse", "stacksize": 1, "stock": {"avg": 2, "var": 1}},
+				{"code": "signals:el_wire", "stacksize": 32, "stock": {"avg": 4, "var": 3}, "playerSupplied": true},
+				{"type": "block", "code": "signals:blocksource", "stacksize": 1, "stock": {"avg": 1, "var": 1}, "playerSupplied": true},
+				{"type": "block", "code": "signals:blockscreen-east", "stacksize": 1, "stock": {"avg": 1, "var": 1}, "playerSupplied": true},
+				{"code": "tailorsdelight:ruler-gold", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "playerSupplied": true},
+				{"code": "tailorsdelight:buttons-emerald", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "playerSupplied": true},
+				{"code": "tailorsdelight:buttons-lapislazuli", "stacksize": 1, "stock": {"avg": 1, "var": 0}, "playerSupplied": true},
+				{"code": "locatormap-translocator", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "rare": true}
+			]
+		}
+	},
+	"buying": {
+		"core": [
+			{"code": "pickaxe-tinbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+			{"code": "shovel-tinbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+			{"type": "block", "code": "bomb-ore", "stacksize": 6, "stock": {"avg": 5, "var": 1.25}},
+			{"code": "backpack-normal", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+			{"code": "linensack", "stacksize": 1, "stock": {"avg": 2, "var": 0.5}},
+			{"code": "bread-spelt-perfect", "stacksize": 8, "stock": {"avg": 4, "var": 1}}
+		],
+		"rotating": { "maxItems": 8,
+			"list": [
+				{"code": "blade-falx-tinbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "blade-falx-bismuthbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "blade-falx-blackbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "pickaxe-bismuthbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "pickaxe-blackbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "shovel-bismuthbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "shovel-blackbronze", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "candle", "stacksize": 2, "stock": {"avg": 4, "var": 1}},
+				{"code": "creature-wolf-eurasian-baby-male", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "redmeat-cooked", "stacksize": 8, "stock": {"avg": 2, "var": 0.5}},
+				{"code": "bread-rye-perfect", "stacksize": 8, "stock": {"avg": 4, "var": 1}},
+				{"code": "bread-flax-perfect", "stacksize": 8, "stock": {"avg": 4, "var": 1}},
+				{"code": "bread-rice-perfect", "stacksize": 8, "stock": {"avg": 4, "var": 1}},
+				{"code": "sewingkit", "stacksize": 1, "stock": {"avg": 4, "var": 1}},
+				{"code": "clothes-shoulder-stained-leather-poncho", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "bow-long", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "bow-recurve", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "clothes-foot-high-leather-boots", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "shield-woodmetalleather", "attributes": {"wood": "generic", "metal": "iron", "color": "brown", "deco": "none"}, "stacksize": 1, "stock": {"avg": 1, "var": 0.25}},
+				{"code": "abyssaldepths:ad-schematic-divinggear", "stacksize": 1, "stock": {"avg": 1, "var": 0.25}, "price": 10, "priceReason": "schematic: a hand-set gate"},
+				{"code": "butchering:ivory-raw", "stacksize": 1, "stock": {"avg": 3, "var": 1}},
+				{"code": "creature-locust-bronze-hacked", "stacksize": 1, "stock": {"avg": 1, "var": 0}},
+				{"code": "wool:sack-wool-brown", "stacksize": 1, "stock": {"avg": 2, "var": 0}},
+				{"code": "wool:sack-wool-white", "stacksize": 1, "stock": {"avg": 2, "var": 0}},
+				{"code": "wool:sack-wool-gray", "stacksize": 1, "stock": {"avg": 2, "var": 0}}
+			]
+		}
+	}
+}
