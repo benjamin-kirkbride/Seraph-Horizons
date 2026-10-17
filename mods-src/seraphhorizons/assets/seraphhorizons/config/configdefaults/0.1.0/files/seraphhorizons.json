@@ -516,5 +516,10 @@
   "JawBreakerSettings": {
     "ChargeRocks": 8
   },
-  "StampBattery": true
+  "StampBattery": true,
+  "AmalgamationPlates": true,
+  "AmalgamationPlatesSettings": {
+    "DressingLitres": 1.0,
+    "AmalgamItems": 12
+  }
 }

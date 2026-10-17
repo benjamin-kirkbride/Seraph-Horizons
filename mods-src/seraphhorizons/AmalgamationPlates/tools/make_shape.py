@@ -722,8 +722,8 @@ def make_rig(parts):
                     "amalgamStates: the amalgam on the plates, one drawn at a time. See the amalgamation plates' README "
                     "for the schema.",
         "cells": [],
-        "feedCell": list(FEED_CELL),
-        "feedFace": FEED_FACE,
+        "infeedCell": list(FEED_CELL),
+        "infeedFace": FEED_FACE,
         "waterCell": list(WATER_CELL),
         "waterFace": WATER_FACE,
         "outputCell": list(OUTPUT_CELL),
@@ -750,7 +750,7 @@ def shipped(els, parts, rig):
     ship_els = copy.deepcopy(els)
     translate(ship_els, d)
     ship = copy.deepcopy(rig)
-    for key in ("feedCell", "waterCell", "outputCell"):
+    for key in ("infeedCell", "waterCell", "outputCell"):
         ship[key] = shift_cell(rig[key], ORIGIN_CELL)
     for key in POINTS:
         ship[key] = {"pos": shift_point(rig[key]["pos"], db)}
