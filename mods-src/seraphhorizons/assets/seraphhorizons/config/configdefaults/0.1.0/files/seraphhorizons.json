@@ -427,7 +427,14 @@
     "LargeCastingMolds": [
       "game:ingotmold-*",
       "seraphhorizons:cylindermold-*"
-    ]
+    ],
+    "MeltHoursPerFullPot": 3.0,
+    "MeltSpeedBase": 0.2,
+    "MeltGainPer100C": 0.7,
+    "MeltSpeedMin": 0.5,
+    "MeltSpeedMax": 2.0,
+    "ChargeChillPerUnit": 0.8,
+    "MeltFreezeHours": 1.0
   },
   "CastPipes": true,
   "Handcar": true,
