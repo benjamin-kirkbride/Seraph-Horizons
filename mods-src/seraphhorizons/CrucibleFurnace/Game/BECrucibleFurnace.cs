@@ -19,8 +19,9 @@ namespace SeraphHorizons.Mod.CrucibleFurnace;
 /// pots (<see cref="FurnacePot"/>), the one coke bed and its fire (<see cref="HoleHeat"/>), the lid, the
 /// ash-pit damper and the outlet's cap. The server ticks it each second: it finds the furnace's row and
 /// chimney (<see cref="FurnaceRow"/>), sets the draught by the chimney's height, advances the fire by
-/// the calendar's hours since the last tick (<see cref="FurnaceHeat"/>) and melts each pot whose
-/// recipe's temperature the fire has reached. A player works it by right-clicks on any of its cells
+/// the calendar's hours since the last tick (<see cref="FurnaceHeat"/>) and with it the pots, each
+/// melting while the fire is at its recipe's temperature, and a molten one freezing when the fire has
+/// stayed too long below its solid point (<see cref="FurnaceMelt"/>). A player works it by right-clicks on any of its cells
 /// (<see cref="OnInteract"/>) and lights it as a forge is lit (<see cref="BlockCrucibleFurnace"/>,
 /// <see cref="IIgnitable"/>); the client draws it (<see cref="CrucibleFurnaceRenderer"/>).
 /// </summary>
@@ -268,13 +269,40 @@ public class BECrucibleFurnace : BlockEntity
         _chimneyTop = top;
 
         var before = _heat;
-        _heat = FurnaceHeat.Advance(_heat, hours, draught, LidClosed, _damper, Config);
-        bool changed = rowChanged || (int)before.Temperature != (int)_heat.Temperature || before.Lit != _heat.Lit
-                       || Math.Ceiling(before.Coke - 1e-9) != Math.Ceiling(_heat.Coke - 1e-9);
-        foreach (var pot in _pots)
-            changed |= pot?.TryMelt(System.Recipes, _heat.Temperature) == true;
+        var shares = _pots.Select(p => p == null ? -1 : (int)(FurnaceMelt.Share(p) * 100)).ToArray();
+        _heat = FurnaceMelt.Run(_heat, hours, draught, LidClosed, _damper, _pots, System.Recipes, SolidPointOf, Config, out bool potsChanged);
+        bool changed = rowChanged || potsChanged || (int)before.Temperature != (int)_heat.Temperature || before.Lit != _heat.Lit
+                       || Math.Ceiling(before.Coke - 1e-9) != Math.Ceiling(_heat.Coke - 1e-9)
+                       || _pots.Select(p => p == null ? -1 : (int)(FurnaceMelt.Share(p) * 100)).Where((s, i) => s != shares[i]).Any();
         if (changed)
             MarkDirty();
+    }
+
+    private readonly Dictionary<string, double?> _solidPoints = [];
+
+    /// <summary>A pourable recipe's solid point: 0.9 of its output's melting point, as the game sets a
+    /// smelted container's metal solid; null when the output has none.</summary>
+    public double? SolidPointOf(string recipeCode)
+    {
+        if (_solidPoints.TryGetValue(recipeCode, out var known))
+            return known;
+        double? point = null;
+        if (System.Recipes.Get(recipeCode) is { Pourable: true } recipe && CrucibleFurnaceSystem.Resolve(Api.World, recipe.Output) is { } output)
+        {
+            var metal = new ItemStack(output);
+            float mp = metal.Collectible.GetMeltingPoint(Api.World, null, new DummySlot(metal));
+            if (mp > 0)
+                point = PourWindow.SolidifiesAt(mp);
+        }
+        return _solidPoints[recipeCode] = point;
+    }
+
+    /// <summary>Takes the heat of <paramref name="units"/> charged at <paramref name="itemTemperature"/>
+    /// off the fire (<see cref="FurnaceMelt.ChargeChill"/>), lit or not.</summary>
+    private void Chill(int units, double itemTemperature)
+    {
+        Update();
+        _heat = _heat with { Temperature = FurnaceMelt.ChargeChill(_heat.Temperature, units, itemTemperature, Config) };
     }
 
     /// <summary>Moves the fire's clock <paramref name="hours"/> back, as if that much time had passed
@@ -577,7 +605,11 @@ public class BECrucibleFurnace : BlockEntity
             return;
         }
         var stack = slot.Itemstack!;
-        _pots[i] = new FurnacePot { Heats = PotStack.Heats(stack), Charge = PotStack.Charge(stack) };
+        var pot = new FurnacePot { Heats = PotStack.Heats(stack), Charge = PotStack.Charge(stack) };
+        // a pot charged outside goes in with its charge's heat to take from the fire
+        if (pot.ChargeUnits > 0)
+            Chill(pot.ChargeUnits, stack.Collectible.GetTemperature(Api.World, stack));
+        _pots[i] = pot;
         slot.TakeOut(1);
         slot.MarkDirty();
         var at = WorldPoint(Rig!.PotPoints[i]);
@@ -609,18 +641,26 @@ public class BECrucibleFurnace : BlockEntity
             Error(byPlayer, "nopot");
             return;
         }
-        if (pot.Melted != null)
+        if (pot.Frozen)
+        {
+            Error(byPlayer, "frozen");
+            return;
+        }
+        if (!pot.TakesCharge(System.Recipes))
         {
             Error(byPlayer, "molten");
             return;
         }
-        string code = slot.Itemstack!.Collectible.Code.ToString();
+        var stack = slot.Itemstack!;
+        string code = stack.Collectible.Code.ToString();
+        double itemTemperature = stack.Collectible.GetTemperature(Api.World, stack);
         var add = pot.Add(System.Recipes, code, slot.StackSize, Config.PotCapacityUnits);
         if (add.Count <= 0)
         {
             Error(byPlayer, "refused-" + add.Refusal.ToString().ToLowerInvariant(), Config.PotCapacityUnits);
             return;
         }
+        Chill(add.Count * PotRecipes.UnitsOf(code), itemTemperature);
         slot.TakeOut(add.Count);
         slot.MarkDirty();
         var at = WorldPoint(Rig!.PotPoints[i]);
@@ -645,7 +685,7 @@ public class BECrucibleFurnace : BlockEntity
 
         if (recipe == null)
         {
-            // unmelted: the pot comes back with its charge
+            // unmelted: the pot comes back with its charge, its progress lost (the charge cools)
             var back = new ItemStack(world.GetBlock(new AssetLocation(CrucibleFurnaceSystem.FiredPot)));
             PotStack.SetHeats(back, pot.Heats);
             PotStack.SetCharge(back, pot.Charge);
@@ -660,7 +700,7 @@ public class BECrucibleFurnace : BlockEntity
         {
             var metal = new ItemStack(ingot);
             double meltingPoint = metal.Collectible.GetMeltingPoint(world, null, new DummySlot(metal));
-            if (t < PourWindow.SolidifiesAt(meltingPoint))
+            if (pot.Frozen || t < PourWindow.SolidifiesAt(meltingPoint))
             {
                 // frozen in the furnace: the pot is lost, the metal knocked out
                 world.PlaySoundAt(CrackSound, at.X, at.Y, at.Z, null);
@@ -668,6 +708,9 @@ public class BECrucibleFurnace : BlockEntity
                 Error(byPlayer, "frozenhole", units / Stainless.UnitsPerLump);
                 return true;
             }
+            // what had not dissolved (or put the bath off every ratio) goes to the slag
+            if (pot.Charge.Count > 0)
+                Error(byPlayer, "additionslost", PotStack.Describe(world, pot.Charge), Lang.Get("material-" + (ingot.Variant["metal"] ?? "")));
             var smelted = new ItemStack(world.GetBlock(new AssetLocation(CrucibleFurnaceSystem.SmeltedPot)));
             (smelted.Collectible as BlockSmeltedContainer)?.SetContents(smelted, metal, PotRecipes.Products(recipe, units).Units);
             PotStack.SetHeats(smelted, heats);
@@ -914,35 +957,75 @@ public class BECrucibleFurnace : BlockEntity
         }
         var world = Api.World;
         var recipes = System.Recipes;
-        string heats = PotStack.HeatsLine(pot.Heats, Config.PotHeats);
+        var c = Config;
+        double fire = _heat.Temperature;
+        string heats = PotStack.HeatsLine(pot.Heats, c.PotHeats);
+        string RecipeName(PotRecipe r) => Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-recipe-" + r.Code);
+        string Percent() => ((int)Math.Floor(FurnaceMelt.Share(pot) * 100)).ToString();
+        string Hours(double h) => h.ToString("0.0", global::System.Globalization.CultureInfo.InvariantCulture);
+        void Shares(PotMatch match)
+        {
+            foreach (var (ingredient, share) in match.Shares)
+                dsc.AppendLine(Line("share", Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-ingredient-" + ingredient.Name),
+                    (int)Math.Round(share * 100), (int)Math.Round(ingredient.Min * 100), (int)Math.Round(ingredient.Max * 100)));
+        }
+        // how the charge (or the additions) is getting on: melting, or paused below the recipe's heat
+        void Progress(PotRecipe r, string melting, string paused)
+        {
+            int needs = (int)r.Temperature;
+            if (FurnaceMelt.HoursLeft(pot, recipes, fire, c) is { } left)
+                dsc.AppendLine(Line(melting, RecipeName(r), needs, Percent(), Hours(left)));
+            else
+                dsc.AppendLine(Line(paused, RecipeName(r), needs, Percent(), needs - (int)Math.Round(fire)));
+        }
+
         if (recipes.Get(pot.Melted) is { } melted)
         {
             var output = CrucibleFurnaceSystem.Resolve(world, melted.Output);
             string metal = output == null ? melted.Output
                 : output.Variant["metal"] is { } m ? Lang.Get("material-" + m) : new ItemStack(output).GetName();
-            dsc.AppendLine(melted.Pourable ? Line("molten", name, PotRecipes.Products(melted, pot.MeltedUnits).Units, metal, heats)
+            int units = PotRecipes.Products(melted, pot.MeltedUnits).Units;
+            if (pot.Frozen)
+            {
+                dsc.AppendLine(Line("frozen", name, units, metal, heats));
+                return;
+            }
+            dsc.AppendLine(melted.Pourable ? Line("molten", name, units, metal, heats)
                 : Line("ready", name, PotRecipes.Products(melted, pot.MeltedUnits).Lumps, metal, heats));
+            if (!melted.Pourable)
+                return;
+            if (pot.Charge.Count > 0)
+            {
+                string added = PotStack.Describe(world, pot.Charge);
+                var match = recipes.Match(pot.Mix(recipes));
+                if (match.Recipe is { } r)
+                {
+                    dsc.AppendLine(Line("added", added, pot.ChargeUnits, RecipeName(r)));
+                    Progress(r, "dissolving", "dissolving-paused");
+                }
+                else
+                {
+                    dsc.AppendLine(Line("offratio", match.Closest is { } closest ? RecipeName(closest) : metal, units, metal, added));
+                    Shares(match);
+                }
+            }
+            if (SolidPointOf(melted.Code) is { } solid && fire < solid)
+                dsc.AppendLine(Line("belowsolid", (int)Math.Round(solid), (int)Math.Ceiling(FurnaceMelt.FreezesIn(pot, c) * 60)));
             return;
         }
         if (pot.Charge.Count == 0)
         {
-            dsc.AppendLine(Line("empty", name, Config.PotCapacityUnits, heats));
+            dsc.AppendLine(Line("empty", name, c.PotCapacityUnits, heats));
             return;
         }
-        dsc.AppendLine(Line("charge", name, PotStack.Describe(world, pot.Charge), pot.ChargeUnits, Config.PotCapacityUnits, heats));
-        var match = recipes.Match(pot.Charge);
-        if (match.Recipe is { } r)
+        dsc.AppendLine(Line("charge", name, PotStack.Describe(world, pot.Charge), pot.ChargeUnits, c.PotCapacityUnits, heats));
+        var charge = recipes.Match(pot.Charge);
+        if (charge.Recipe is { } recipe)
+            Progress(recipe, "makes-hot", "makes");
+        else if (charge.Closest is { } closest)
         {
-            int needs = (int)r.Temperature;
-            dsc.AppendLine(Line(_heat.Temperature >= needs ? "makes-hot" : "makes", Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-recipe-" + r.Code),
-                needs, needs - (int)Math.Round(_heat.Temperature)));
-        }
-        else if (match.Closest is { } closest)
-        {
-            dsc.AppendLine(Line(match.TooSmall ? "toosmall" : "wrongratio", Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-recipe-" + closest.Code)));
-            foreach (var (ingredient, share) in match.Shares)
-                dsc.AppendLine(Line("share", Lang.Get(CrucibleFurnaceSystem.Domain + ":cruciblefurnace-ingredient-" + ingredient.Name),
-                    (int)Math.Round(share * 100), (int)Math.Round(ingredient.Min * 100), (int)Math.Round(ingredient.Max * 100)));
+            dsc.AppendLine(Line(charge.TooSmall ? "toosmall" : "wrongratio", RecipeName(closest)));
+            Shares(charge);
         }
     }
 
@@ -1010,6 +1093,9 @@ public class BECrucibleFurnace : BlockEntity
             if (pot.Melted != null)
                 p.SetString("melted", pot.Melted);
             p.SetInt("meltedUnits", pot.MeltedUnits);
+            p.SetDouble("progress", pot.Progress);
+            p.SetDouble("belowSolidHours", pot.BelowSolidHours);
+            p.SetBool("frozen", pot.Frozen);
             tree[k] = p;
         }
         tree.SetDouble("temperature", _heat.Temperature);
@@ -1071,6 +1157,10 @@ public class BECrucibleFurnace : BlockEntity
                     : [],
                 Melted = p.GetString("melted"),
                 MeltedUnits = p.GetInt("meltedUnits"),
+                // a save from before melting took time: a melted pot stays melted, a charge starts at none
+                Progress = p.GetDouble("progress"),
+                BelowSolidHours = p.GetDouble("belowSolidHours"),
+                Frozen = p.GetBool("frozen"),
             };
         }
         _heat = new HoleHeat(tree.GetDouble("temperature", FurnaceHeat.Ambient), tree.GetDouble("coke"), tree.GetBool("lit"));
