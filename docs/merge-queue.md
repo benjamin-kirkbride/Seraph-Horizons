@@ -26,7 +26,9 @@ configured in `.mergify.yml`. The merge button is deliberately out of use.
 requires. It depends on every other job and passes only if all of them succeeded. It runs
 `if: always()` because a plain dependent job is *skipped* when a dependency fails, and
 GitHub and Mergify both read a skipped required check as passing. Add new CI jobs to its
-`needs:` list, and to its `MEMOISED` list if the green-tree memo below may skip them.
+`needs:` list, and, if the green-tree memo below may skip them, to its `MEMOISED` list (a
+skip is accepted for a tree on record or on the models-only fast path) or `MEMOISED_ONLY`
+(accepted for a tree on record alone: a job the fast path must still run).
 
 ## Protecting `main`
 
@@ -98,9 +100,9 @@ on its temporary queue PR. CI skips the second run when it is provably redundant
 - A `pull_request` run in which every job passed records `refs/green-trees/<id>` → the
   merge commit it tested (a ref in the repo's ref database, like `refs/pull/*`; not a
   branch, not a file). `ci-ok` writes it.
-- The `tree` job looks the id up first. On record → `smoke`, `atlas`, `cairn` and
-  `tools` (and `export` and `site`, which need `smoke`) are skipped and `ci-ok` passes
-  on the earlier result.
+- The `tree` job looks the id up first. On record → `smoke`, `atlas`, `cairn`, `tools`
+  and `units` (and `export` and `site`, which need `smoke`) are skipped and `ci-ok`
+  passes on the earlier result.
 
 The queue's temporary PR holds `main` + queued-ahead + PR. For a PR built on the current
 `main` and queued with nothing ahead of it, that is exactly the tree the PR's own run
@@ -112,14 +114,68 @@ What the memo does not cover:
 
 - `lock` always runs. It is cheap, and `packtool outdated` asks the ModDB whether a locked
   release was retracted, which no earlier pass can answer.
-- A push to `main` uses the memo only for the test-only jobs: `atlas`, `tools` and
-  `site` are skipped for a tree on record, but `smoke`, `cairn` and `export` still run.
+- A push to `main` uses the memo only for the test-only jobs: `atlas`, `tools`, `units`
+  and `site` are skipped for a tree on record, but `smoke`, `cairn` and `export` still run.
   `next.yml` publishes the `recipe-export` artifact `smoke` dumps and the `dist` artifact
   `cairn` builds from that push run (with the `seraphhorizons-mod` zip, also `cairn`'s),
   and `export` validates what is about to ship.
 - Tags and manual runs always run everything.
 - Fork PRs can use a record but not write one (read-only token).
+- A models-only run (below) never writes one.
 
 `prune-green-trees.yml` deletes refs whose tested commit is older than 60 days, monthly.
 Inspect them with `git ls-remote origin 'refs/green-trees/*'`; delete one to force a full
 run for that tree.
+
+## The models-only fast path
+
+A PR that only changes a machine's model (epic #684's model branches and the machines after
+them) would otherwise run the whole suite on every push, though smoke, Atlas, cairn, the
+export and the site's end-to-end tests have nothing of it to find. So `tree` classifies a
+`pull_request` run whose tree is not on record: `ci/paths.py classify HEAD^1 HEAD` diffs the
+PR's merge commit against the `main` it merges into. If every changed path is a no-op path
+or on the models-only allow-list, `tree` outputs `models_only=true`, and:
+
+- `smoke`, `atlas`, `cairn`, `export` and `site` are skipped;
+- `tools` (the Python model tests, the site's `check` and unit tests) and `units`
+  (`dotnet test mods-src/seraphhorizons/tests`, the rig tests and reference poses) run;
+- `ci-ok` accepts those five skips because `models_only` is true, as it accepts the memo's.
+  A skip with neither `tested` nor `models_only` true still fails it, and so does a skipped
+  `tools` or `units` unless the tree is on record;
+- nothing is recorded under `refs/green-trees/`: the run did not test the tree.
+
+The allow-list, in `ci/paths.py` beside the memo's no-op pattern (`ci/code-tree.sh` reads
+that pattern from there, so the two can't drift):
+
+- `mods-src/seraphhorizons/<Folder>/tools/**/*.py`, a generator and its validator
+  (`Machines/tools/` too). Python only: the mod compiles every `.cs` outside `tests/`, and its
+  zip holds `assets/` alone;
+- `mods-src/seraphhorizons/tests/<Folder>/**` and the tests' csproj, which only `units` reads;
+- `tools/tests/test_*_model.py`, `site/models.json`, `site/src/lib/model-*.ts`, `site/test/**`;
+- a machine's shapes and rig, `assets/seraphhorizons/shapes/block/<id>.json`,
+  `shapes/block/<id>_<part>.json` and `config/<id>-rig.json`, **only while nothing that
+  ships, loads or exports the mods names that machine's assets**. These ship in the mod zip,
+  so a rig or shape a shipped machine loads (the bucking sawmill's `buckingmill-rig.json`,
+  the rosser's, the draw bench's, ...) must never take the fast path. The classifier looks
+  in the tree under test, in every `mods-src/` mod (outside `tests/`, the generators and
+  `*.md`), `tests/PackTests`, `tools/recipe-export` and `pack/`, for `<id>-rig`, a shape path
+  `block/<id>`, the id in a blocktype, itemtype, entity or patch, or a C# string literal
+  starting with it (`"<id>"`, `"<id>-frame-north"`). Any hit, and the PR runs everything.
+
+`tools/tests/test_ci_paths.py` guards it: every rig and shape the mod loads today (by an
+independent check of the asset paths in its C# and blocktypes) is refused, each reference
+form refuses a scratch machine, no shipped code loads `shapes/` or `config/` wholesale
+(which would load a machine's assets without naming it), and `code-tree.sh` hashes exactly
+what `paths.py` calls a no-op. Anything else in the diff (a texture, a lang entry, a
+machine's `Core/` or `Game/` code) is not models-only: once a machine is wired into the
+game, its PRs run the full suite.
+
+**The merge queue never takes the fast path.** Its temporary PR is a `pull_request` run
+too, with the same diff against `main`, but `tree` refuses the fast path on a
+`mergify/merge-queue/*` branch: the queue runs the full suite (and records the tree when it
+passes) before anything lands on `main`. A models-only PR therefore pays one full run, at
+queue time, instead of one per push. This leans on Mergify testing queued PRs on its own
+draft PRs (`max_parallel_checks` above 1 in `.mergify.yml`); were it to switch to in-place
+checks on the PR's own branch, the queue's run would classify like the PR's and this needs
+revisiting. A push to `main`, a tag and a manual run never classify: `next.yml` and
+`release.yml` need the full artifacts.
