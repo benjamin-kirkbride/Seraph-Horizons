@@ -3756,7 +3756,12 @@ the others count it as standing, and they keep clear of where its climb lands to
 (`EntityLaborEidolon.ClimbTop`). At the foot of a climb it waits while another is where it would land,
 lands there itself, or walks over it within the climb's two seconds (not for one with a higher id waiting
 at a climb's foot itself, which waits for it), up to 4 seconds, then climbs: a climb
-once begun goes to the top whatever is there, and the push cannot move one climbing.
+once begun goes to the top whatever is there, and the push cannot move one climbing. One climbing, or
+waiting at a climb's foot, on its path's next 6 nodes ahead, it stops for whatever their ids, and waits
+while that one is still there, up to 4 seconds, then searches again (not where it stands on that one's
+top, which that one waits for it to leave): walked into, that one could be neither pushed nor walked round,
+and the walker's way over the top kept it waiting at the foot (#1014, two walking home along a trench in
+single file, the one behind pressing into the one in front for 10 seconds).
 
 **Steps and drops.** On every path, whatever the order, it goes up at most two blocks and down at most
 two. A step of one it walks (its physics' step height). A step of two it climbs (`EidolonNavigator`,
