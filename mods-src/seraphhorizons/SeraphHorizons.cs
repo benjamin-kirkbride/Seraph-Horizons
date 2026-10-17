@@ -1190,4 +1190,19 @@ public class SeraphHorizonsConfig
     /// open front gives; a value out of range falls back to its default with a warning. The server's are
     /// used.</summary>
     public StallRoaster.Core.StallRoasterConfig StallRoasterSettings { get; set; } = new();
+
+    /// <summary>The liquation furnace (LiquationFurnace/, README "Ore processing: the liquation furnace"; #929): a
+    /// sloping cast-iron hearth plate under a low vault over a fire, built on its iron frame in three stages (the
+    /// brickwork in any one fired brick, the lining, the fittings). Batch, by hand: tin-lead bullion bars (smelted from
+    /// teallite and franckeite) on the plate, fuel on the grate, lit, sweat with the row's chimney drawing at 100 units
+    /// of tin an in-game hour; all the tin runs into the pot, and the lead stays on the plate at the ore's share x 95 %
+    /// (the clay liquation pan's 85 %; ore-core's figures, config/ore-processing.json). Needs OreProcessing (off means
+    /// its frame and its recipe do not exist, and furnaces already placed are lost). The server's setting decides.</summary>
+    public bool LiquationFurnace { get; set; } = true;
+
+    /// <summary>The liquation furnace's own figures (its recovery and pace are ore processing's,
+    /// <c>config/ore-processing.json</c>): the bars a charge, the grate's fuel and its burn (0.36 an hour), and the
+    /// damper's and the fire door's shares of the pace and the burn; a value out of range falls back to its default
+    /// with a warning. The server's are used.</summary>
+    public LiquationFurnace.Core.LiquationFurnaceConfig LiquationFurnaceSettings { get; set; } = new();
 }
