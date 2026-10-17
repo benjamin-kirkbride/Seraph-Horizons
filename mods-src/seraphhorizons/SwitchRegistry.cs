@@ -61,6 +61,7 @@ public static class SwitchRegistry
             [.. EidolonGantry.EidolonGantrySystem.RecipeAssets, .. Eidolon.EidolonCommanderSystem.RecipeAssets],
             [.. EidolonGantry.EidolonGantrySystem.TypeAssets, .. Eidolon.EidolonCommanderSystem.TypeAssets, .. Eidolon.EidolonSystem.TypeAssets]);
         yield return (nameof(SeraphHorizonsConfig.Sluice), Sluice.SluiceSystem.RecipeAssets, Sluice.SluiceSystem.TypeAssets);
+        yield return (nameof(SeraphHorizonsConfig.Jig), Jig.JigSystem.RecipeAssets, Jig.JigSystem.TypeAssets);
         // Not the crushed ore's type, whose code (game:crushed) is vanilla's crushed item's too:
         // SwitchOwnership.HandListed lists its codes.
         yield return (nameof(SeraphHorizonsConfig.OreProcessing), Ore.Processing.OreProcessingSystem.RecipeAssets,
