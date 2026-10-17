@@ -43,6 +43,11 @@ public static class OreProcessingItems
     public sealed class Report
     {
         public int OreItems, CrystallisedOre, Nuggets, Crushed, Ground, RoastedRock, Concentrate, Roasted, Sponge, Litharge, LooseOres;
+        /// <summary>Bullion and rich lead items set to smelt plainly (#740), and smeltings pointed at a
+        /// by-product ore's bullion.</summary>
+        public int Bullion, ToBullion;
+        /// <summary>By-product ores whose bullion item is missing: their forms smelt to the plain metal.</summary>
+        public SortedSet<string> NoBullion = new(StringComparer.Ordinal);
         /// <summary>Sulfide concentrates, raw ore and crushed ore that roast in the firepit.</summary>
         public int Roasting;
         /// <summary>Items the quern no longer takes.</summary>
@@ -82,11 +87,38 @@ public static class OreProcessingItems
             return props;
         }
 
-        CombustibleProperties? Smelting(string ore, double unitsPerItem, double share, SmeltRate? fixedRate = null)
+        // A by-product ore's forms smelt to its bullion (#740): the nugget's smelting, into the bar. Null
+        // (the plain metal) if the bullion item is missing.
+        var bullionLike = new Dictionary<string, CombustibleProperties?>(StringComparer.Ordinal);
+        CombustibleProperties? BullionTarget(OreSpec spec, CombustibleProperties plain)
+        {
+            if (!bullionLike.TryGetValue(spec.Ore, out var props))
+            {
+                props = plain.Clone();
+                props.SmeltedStack = new JsonItemStack { Type = EnumItemClass.Item, Code = new AssetLocation(Bullion.Code(spec)), StackSize = 1 };
+                if (!props.SmeltedStack.Resolve(world, "ore processing bullion of " + spec.Ore, printWarningOnError: false))
+                {
+                    report.NoBullion.Add(spec.Ore);
+                    props = null;
+                }
+                bullionLike[spec.Ore] = props;
+            }
+            return props;
+        }
+
+        // An ore's smelting at a share of its units; a by-product ore's into its bullion unless plain
+        // (litharge, rich lead and bullion itself smelted again give the plain metal).
+        CombustibleProperties? Smelting(string ore, double unitsPerItem, double share, SmeltRate? fixedRate = null, bool plain = false)
         {
             var rate = fixedRate ?? OreProducts.Rate(unitsPerItem, share);
             if (rate is not { } r || Target(ore) is not { } target)
                 return null;
+            var spec = recovery.Ore(ore);
+            if (!plain && Bullion.Makes(spec) && BullionTarget(spec, target) is { } bullion)
+            {
+                report.ToBullion++;
+                target = bullion;
+            }
             return WithRate(world, target, r);
         }
 
@@ -197,8 +229,24 @@ public static class OreProcessingItems
                     report.Sponge++;
                     break;
                 case "litharge" when code.Domain == OreProducts.Domain && parts.Length == 1:
-                    item.CombustibleProps = Smelting("galena", perItem, 1, OreProducts.LithargeRate);
+                    item.CombustibleProps = Smelting("galena", perItem, 1, OreProducts.LithargeRate, plain: true);
                     report.Litharge++;
+                    break;
+                case "bullion" when code.Domain == OreProducts.Domain && parts.Length == 3 && ores.Contains(parts[1]):
+                {
+                    // Bullion smelted plainly (#740): its main metal at the ore's unparted share, the
+                    // by-product lost.
+                    var spec = recovery.Ore(parts[1]);
+                    item.CombustibleProps = Smelting(parts[1], Bullion.UnitsPerItem, Bullion.PlainShare(spec), plain: true);
+                    if (item.CombustibleProps != null) item.Dimensions = CrucibleSize;
+                    report.Bullion++;
+                    break;
+                }
+                case "richlead" when code.Domain == OreProducts.Domain && parts.Length == 1:
+                    // The Parkes kettle's rich lead smelted plainly: its lead, the silver lost.
+                    item.CombustibleProps = Smelting("galena", Bullion.UnitsPerItem, 1, plain: true);
+                    if (item.CombustibleProps != null) item.Dimensions = CrucibleSize;
+                    report.Bullion++;
                     break;
             }
         }
@@ -217,6 +265,9 @@ public static class OreProcessingItems
             report.OreItems, report.CrystallisedOre, report.Crushed, report.Ground, report.RoastedRock, report.Concentrate, report.Roasted,
             report.Litharge, report.Roasting, report.Nuggets, report.QuernOff,
             report.NoSmeltTarget.Count == 0 ? "no ore" : string.Join(", ", report.NoSmeltTarget));
+        logger.Notification("[seraphhorizons] Ore processing: {0} smeltings of by-product ores go to their bullion, {1} bullion and rich lead "
+                            + "items smelt plainly{2}", report.ToBullion, report.Bullion,
+            report.NoBullion.Count == 0 ? "" : "; no bullion item for " + string.Join(", ", report.NoBullion));
         if (report.NoUnits.Count > 0)
             logger.Warning("[seraphhorizons] Ore processing: {0} ore items have no metalUnits and are left as they are: {1}",
                 report.NoUnits.Count, string.Join(", ", report.NoUnits.Take(10)));
