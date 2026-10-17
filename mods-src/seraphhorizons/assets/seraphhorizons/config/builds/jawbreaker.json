@@ -1,0 +1,51 @@
+{
+	"_comment": "The jaw breaker's build (#912, #711): each stage after the frame and its materials, from JawBreaker/README.md's stage table, in the rig's buildStages order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. The toggles stage takes its steel rods first (the toggles and tension rods drawn) and then its two springs (the coils drawn). The jaw faces are the wearing part, fitted with the jaws (stage jaws) and renewed whole by right-click once worn out; uses is rocks broken by a set (#912: about a thousand).",
+	"machine": "jawbreaker",
+	"block": "seraphhorizons:jawbreaker-north",
+	"feed": "continuous",
+	"stages": [
+		{
+			"id": "jaws", "name": "the jaws", "adds": ["jaws"],
+			"materials": [
+				{ "codes": ["game:metalplate-iron"], "quantity": 2 },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 1 },
+				{ "codes": ["game:rod-steel"], "quantity": 1 },
+				{ "codes": ["game:metalplate-steel"], "quantity": 1 },
+				{ "codes": ["game:metalnailsandstrips-steel"], "quantity": 2 }
+			]
+		},
+		{
+			"id": "eccentric", "name": "the eccentric shaft and flywheel", "adds": ["eccentric"],
+			"materials": [
+				{ "codes": ["game:metalplate-iron"], "quantity": 4 },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 6 },
+				{ "codes": ["game:rod-steel"], "quantity": 2 },
+				{ "codes": ["game:metalplate-steel"], "quantity": 1 },
+				{ "codes": ["game:metalnailsandstrips-steel"], "quantity": 2 },
+				{ "codes": ["game:plank-*"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "toggles", "name": "the toggles, rods and springs", "adds": ["toggles", "springs"],
+			"materials": [
+				{ "codes": ["game:rod-steel"], "quantity": 2, "draws": ["toggles"] },
+				{ "codes": ["seraphhorizons:spring-steel"], "quantity": 2 }
+			]
+		},
+		{
+			"id": "grizzly", "name": "the grizzly", "adds": ["grizzly"],
+			"materials": [
+				{ "codes": ["game:rod-iron"], "quantity": 5 }
+			]
+		},
+		{
+			"id": "services", "name": "services", "adds": ["chutes"],
+			"materials": [
+				{ "codes": ["game:chute-straight-*"], "quantity": 2 }
+			]
+		}
+	],
+	"wearing": [
+		{ "id": "jawfaces", "codes": ["game:metalplate-steel"], "count": 2, "uses": 1000, "stage": "jaws" }
+	]
+}
