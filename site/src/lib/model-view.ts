@@ -86,6 +86,9 @@ const TEXTURE_FAMILIES: [RegExp, string][] = [
   [/amalgam/, "#b0aa9c"],
   // Water (the game's water portion: the rocker's, the amalgam pan's film), which would otherwise take a colour hashed from its code.
   [/water/, "#6f9fcf"],
+  // The game's gravel and sand (the arrastra's charge and its paste), which would otherwise take the stone colour of the pit.
+  [/\/gravel\//, "#837b6d"],
+  [/\/sand\//, "#b9ae95"],
   [/metal|iron|steel|copper|bronze|tin|plate|ingot|gold|silver/, "#8e98a4"],
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],
   [/stone|rock|granite|andesite|cobble|brick|clay/, "#9a9a92"],
