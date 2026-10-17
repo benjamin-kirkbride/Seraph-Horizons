@@ -197,8 +197,7 @@ public class TradingStoryScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
             // The elk, sold for the archive eidolon's vessel and 50 gears: paid in dialogue, out of the
             // player's purse into nobody's wallet, no deal and no standing for it; the elk called; the
-            // player remembered. (The 100-gear price wants 100 gears in one stack, which the pack's
-            // 64-gear stack, RustyGearStack, never makes: that is the game's dialogue as it is.)
+            // player remembered.
             var gear = W.GetItem(new AssetLocation("game:gear-rusty"));
             Assert.True(player.Entity.TryGiveItemStack(new ItemStack(gear, 60)));
             Assert.True(player.Entity.TryGiveItemStack(new ItemStack(W.GetItem(new AssetLocation("game:rustypart-eidolon2tr")))));
@@ -221,12 +220,46 @@ public class TradingStoryScenarios(ITestOutputHelper output) : AtlasScenarioBase
             Assert.InRange(Math.Abs(elk.Pos.X - hunter.Pos.X), 0, 16);
             Assert.InRange(Math.Abs(elk.Pos.Z - hunter.Pos.Z), 0, 16);
             elk.Die(EnumDespawnReason.Removed);
+
+            // Another elk for 100 gears, through the answers the player picks, each on its conditions:
+            // the gears stack to 64 (RustyGearStack), so 100 are in two stacks, which the dialogue
+            // counts and takes across (DialogueStacks), exactly 100.
+            Assert.True(player.Entity.TryGiveItemStack(new ItemStack(gear, 64)));
+            Assert.True(player.Entity.TryGiveItemStack(new ItemStack(gear, 64)));
+            var saddle = W.Items.First(i => i?.Code?.Path.StartsWith("hoovedwearables-middleback-saddle") == true);
+            var bridle = W.Items.First(i => i?.Code?.Path.StartsWith("hoovedwearables-head-bridle") == true);
+            Assert.True(player.Entity.TryGiveItemStack(new ItemStack(saddle)));
+            Assert.True(player.Entity.TryGiveItemStack(new ItemStack(bridle)));
+            output.WriteLine("gear slots: " + string.Join(", ", GearSlots(player)));
+            Assert.True(GearSlots(player).All(n => n < 100), "the gears should be in stacks under 100");
+            purse = InventoryTrader.GetPlayerAssets(player.Entity);
+            var components = (DialogueComponent[])AccessTools.Field(typeof(DialogueController), "dialogue").GetValue(controller)!;
+            int Answer(string component, string jumpTo) =>
+                ((DlgTalkComponent)components.Single(c => c.Code == component)).Text.Single(a => a.JumpTo == jumpTo).Id;
+            elksBefore = SpawnedElks();
+            controller.JumpTo("buyelkagain");
+            controller.PlayerSelectAnswerById(Answer("buyelkagain-answer", "buyelk-saddle"));
+            controller.PlayerSelectAnswerById(Answer("buyelk-saddleanswer", "buyelk-purchased"));
+            await World.Until(() => SpawnedElks().Any(id => !elksBefore.Contains(id)), 200);
+            Assert.Equal(purse - 100, InventoryTrader.GetPlayerAssets(player.Entity));
+            Assert.Equal(wallet, hunter.Inventory.GetTraderAssets());
+            var second = SW.LoadedEntities.Values.Single(e => e.Code.Path.StartsWith("tameddeer-") && e.Alive && !elksBefore.Contains(e.EntityId));
+            output.WriteLine($"second elk {second.Code}; gears left {InventoryTrader.GetPlayerAssets(player.Entity)}");
+            second.Die(EnumDespawnReason.Removed);
         }
         finally
         {
             hunter.Die(EnumDespawnReason.Removed);
         }
     }
+
+    private HashSet<long> SpawnedElks() =>
+        SW.LoadedEntities.Values.Where(e => e.Code.Path.StartsWith("tameddeer-")).Select(e => e.EntityId).ToHashSet();
+
+    private static List<int> GearSlots(IServerPlayer player) =>
+        new[] { Vintagestory.API.Config.GlobalConstants.hotBarInvClassName, Vintagestory.API.Config.GlobalConstants.backpackInvClassName }
+            .SelectMany(i => player.InventoryManager.GetOwnInventory(i) ?? Enumerable.Empty<ItemSlot>())
+            .Where(s => s.Itemstack?.Collectible.Code.Path == "gear-rusty").Select(s => s.Itemstack.StackSize).ToList();
 
     private static int Count(IServerPlayer player, string code)
     {
