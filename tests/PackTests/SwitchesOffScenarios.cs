@@ -73,7 +73,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     {
         Assert.True(Off("BarrelRackKegs"));
         Assert.False(RackSite.Patched());
-        var p = await World.JoinPlayer("kegrefused");
+        var p = await World.JoinRetrying("kegrefused");
         var pos = World.Spawn.AddCopy(0, 12, 40);
         await p.TeleportTo(pos.AddCopy(2, 0, 0));
         var site = new RackSite(World, pos, p);
@@ -519,6 +519,30 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(core, e => SeraphHorizons.Mod.Eidolon.EidolonCommanderSystem.IsTradeStock(e.Code));
         Assert.Contains(core, e => e.Code == "game:schematic-glider");
         Assert.DoesNotContain(lists.Unresolved, u => u.Contains("pumphead") || u.Contains("schematic-eidolon"));
+    }
+
+    /// <summary><c>Riddle</c>: no riddle block and no recipe for its frame, no link to it in the mod's own text,
+    /// and nothing logged about it. The nails and strips its mesh takes (the game's) exist either way.</summary>
+    [AtlasScenario]
+    public void Riddle_off_there_is_no_riddle()
+    {
+        Assert.True(Off("Riddle"));
+        Assert.False(SeraphHorizons.Mod.Riddle.RiddleSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("riddle"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("riddle") == true);
+        foreach (var code in SeraphHorizons.Mod.Riddle.Core.RiddleParts.MeshCodes)
+            Assert.NotNull(W.GetItem(new AssetLocation(code)));
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://block-seraphhorizons:riddle|handbooksearch://riddle"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the riddle: " + string.Join(", ", linked));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("riddle", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, string.Join("\n", logged));
     }
 
     /// <summary><c>SquaringShear</c>: no squaring shear blocks, no half plate and no recipe for the
@@ -1178,7 +1202,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var origin = World.Spawn.AddCopy(120, 12, 0);
         var site = new ChopperSite(World, origin, BlockFacing.NORTH);
         await site.Build(hopper: false);
-        var player = await World.JoinPlayer("offbed");
+        var player = await World.JoinRetrying("offbed");
         await player.TeleportTo(origin.AddCopy(0, 0, 3));
         player.Player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         var shop = new Woodshop(World, player, origin);
@@ -1402,7 +1426,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     {
         Assert.True(Off("MachineOil"));
         Assert.False(OilSite.AnyPatched());
-        var p = await World.JoinPlayer("nooil");
+        var p = await World.JoinRetrying("nooil");
         var pos = World.Spawn.AddCopy(100, 12, 100);
         await p.TeleportTo(pos.AddCopy(2, 0, 0));
         var site = new OilSite(World, pos, p.Player);
@@ -1432,7 +1456,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(World.Api.GetCookingRecipes(), r => r.Code.StartsWith("seraphhorizons-gear-"));
         Assert.DoesNotContain(World.Api.GetBarrelRecipes(), r => r.Code.StartsWith("seraphhorizons-gear-"));
         Assert.False(W.GetItem(new AssetLocation(GearCodes.Rusty))!.Attributes["handbook"].Exists);
-        var p = await World.JoinPlayer("nogears");
+        var p = await World.JoinRetrying("nogears");
         var hand = p.Player.InventoryManager.ActiveHotbarSlot;
         hand.Itemstack = new ItemStack(W.GetItem(new AssetLocation(GearCodes.Neutralized))!, 10);
         hand.MarkDirty();
@@ -1467,7 +1491,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(W.GetItem(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.SteelBit)!.Attributes["handbook"]["extraSections"].Exists);
         Assert.NotNull(W.GetItem(SeraphHorizons.Mod.SteelBits.SteelBitsSystem.ChargeCode));
 
-        var p = await World.JoinPlayer("nocementing");
+        var p = await World.JoinRetrying("nocementing");
         var pos = World.Spawn.AddCopy(-180, 12, -300);
         await p.TeleportTo(pos.AddCopy(8, 0, 0));
         var site = new CoffinSite(World, pos, p.Player);

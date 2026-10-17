@@ -122,7 +122,7 @@ public class EidolonCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task It_carries_a_filled_chest_20_blocks_after_its_commander_and_sets_it_down_with_its_contents()
     {
         var at = await Floor(0, 0, reach: 28);
-        var p = await World.JoinPlayer("eidolonmule");
+        var p = await World.JoinRetrying("eidolonmule");
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(-4, 0, 4));
@@ -213,7 +213,7 @@ public class EidolonCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task Removed_while_carrying_it_sets_its_load_down_where_it_stood()
     {
         var at = await Floor(80, 0, reach: 12);
-        var p = await World.JoinPlayer("eidolonporter");
+        var p = await World.JoinRetrying("eidolonporter");
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(-4, 0, 4));

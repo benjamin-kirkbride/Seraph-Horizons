@@ -115,7 +115,7 @@ public partial class SharedWorldScenarios
 {
     private async Task<RackSite> Site(string player, int dx)
     {
-        var p = await World.JoinPlayer(player);
+        var p = await World.JoinRetrying(player);
         var pos = World.Spawn.AddCopy(dx, 12, 40);
         await p.TeleportTo(pos.AddCopy(2, 0, 0));
         var site = new RackSite(World, pos, p);

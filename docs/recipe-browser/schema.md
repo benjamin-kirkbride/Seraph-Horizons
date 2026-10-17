@@ -345,6 +345,14 @@ the gauge (both in `machine.kept`) and the machine (role `station`); the output 
 the player holds right-click), and `work` says so (`amount` that many, `unit` `strokes`, no
 `turnsPerUnit`); there is no `wear` and no `oil`.
 
+**The riddle** (type `riddle`, shape `machine`): one record per crushed ore, id
+`riddle|seraphhorizons:crushedore-<ore>-<grade>|0`. The ingredients are a charge of the crushed ore (consumed, three
+by default), the riddle's mesh (two nails and strips, in `machine.kept`) and the machine (role `station`); the outputs
+are the fines, the same crushed ore classified (the variant's stack carries `attributes.oreState` 1), and the
+oversize, raw ore of the ore and grade in granite (in play the charge's rock or the rock under the station), back to
+spalling. It is worked by hand: `power` is `hand`, `turns` the shakes a charge takes (a shake every 0.75 s while the
+player holds right-click), and `work` says so (`amount` that many, `unit` `shakes`); there is no `wear` and no `oil`.
+
 **The mandrel forging station** (type `mandrelstation`, shape `machine`): one record per hollow metal,
 id `mandrelstation|game:chutesection-<metal>|0`. The ingredients are the hollow section (consumed), the
 mandrel (a rod, in `machine.kept`), the hammer (`isTool`, its `toolDurabilityCost` the blows a hollow

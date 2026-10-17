@@ -290,6 +290,12 @@
     "StrokesPerPlateLead": 1.0,
     "StrokesPerPlateCopper": 1.5
   },
+  "Riddle": true,
+  "RiddleSettings": {
+    "LumpsPerCharge": 3,
+    "ShakesPerCharge": 12.0,
+    "OversizePerCharge": 1
+  },
   "MandrelStation": true,
   "MandrelStationSettings": {
     "BlowsPerHollowLead": 9,
@@ -427,7 +433,14 @@
     "LargeCastingMolds": [
       "game:ingotmold-*",
       "seraphhorizons:cylindermold-*"
-    ]
+    ],
+    "MeltHoursPerFullPot": 3.0,
+    "MeltSpeedBase": 0.2,
+    "MeltGainPer100C": 0.7,
+    "MeltSpeedMin": 0.5,
+    "MeltSpeedMax": 2.0,
+    "ChargeChillPerUnit": 0.8,
+    "MeltFreezeHours": 1.0
   },
   "CastPipes": true,
   "Handcar": true,

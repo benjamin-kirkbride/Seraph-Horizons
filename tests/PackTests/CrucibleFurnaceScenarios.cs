@@ -126,7 +126,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
     /// granite floor wide enough for a row of <paramref name="furnaces"/> and a tall chimney.</summary>
     private async Task<Site> Build(string player, int dx, int furnaces = 1)
     {
-        var p = await World.JoinPlayer(player);
+        var p = await World.JoinRetrying(player);
         var origin = World.Spawn.AddCopy(dx, 20, 80);
         await p.TeleportTo(origin.AddCopy(0, 3, -3));
         int size = GlobalConstants.ChunkSize;
@@ -527,6 +527,7 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
 
     // ---- Two pots ----
 
+    // Each pot melts only while the fire is at its own recipe's temperature, and takes hours to.
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Two_pots_melt_at_their_own_temperatures_and_pull_with_tongs_when_hot()
     {
@@ -546,11 +547,15 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Lid(site, f, shut: true);
         f.SetFire(1535, 6, true);
         Run(f, 0.01);
-        Assert.Equal("stainless", f.Pot(0)!.Melted);
-        Assert.Null(f.Pot(1)!.Melted);
+        // the stainless (1530) has started, slowly; the iron (1538) waits
+        Assert.Null(f.Pot(0)!.Melted);
+        Assert.True(f.Pot(0)!.Progress > 0);
+        Assert.Equal(0, f.Pot(1)!.Progress);
+        Assert.Contains("Makes stainless steel, melts at 1530 °C: melting, 0 %, about ", site.Info(f));
         Assert.Contains("melts at 1538 °C (", site.Info(f));
         f.SetFire(1545, 6, true);
-        Run(f, 0.01);
+        Run(f, 5);   // up to the 6-block chimney's 1600 °C: about 4.4 hours a full pot
+        Assert.Equal("stainless", f.Pot(0)!.Melted);
         Assert.Equal("iron", f.Pot(1)!.Melted);
         Assert.Equal(300, f.Pot(1)!.MeltedUnits);
         Assert.Contains("West pot: molten, 300 units of Stainless steel", site.Info(f));
@@ -689,15 +694,22 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Equal(12, f.Coke, 6);
         Assert.True(f.TryLight(site.Player));
         Lid(site, f, shut: true);
-        // one fill of coke on the shortest chimney: 7.55 hours to 1530 °C
+        // one fill of coke on the shortest chimney: 7.55 hours to 1530 °C, then about 4.4 to melt
         Run(f, 5);
         Assert.InRange(f.Temperature, 1000, 1040);
         Assert.Null(f.Pot(0)!.Melted);
         Run(f, 2.6);
+        Assert.Null(f.Pot(0)!.Melted);
+        Assert.Contains("Makes stainless steel, melts at 1530 °C: melting, ", site.Info(f));
+        // the last of the coke would just see it melted: top it up
+        site.Tongs(true);
+        Lid(site, f, shut: false);
+        site.Click(f, HolePoint, null, site.Stack("game:coke", 6));
+        Lid(site, f, shut: true);
+        Run(f, 5);
         Assert.Equal("stainless", f.Pot(0)!.Melted);
         Assert.Equal("stainlessremelt", f.Pot(1)!.Melted);
         Assert.True(f.Lit);
-        site.Tongs(true);
         Lid(site, f, shut: false);
         var pot = site.Click(f, PotPoint(0), null, null)!;
         var smelted = Assert.IsType<BlockMeltingPotSmelted>(pot.Collectible);
@@ -752,13 +764,14 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         var site = await Build("ironfounder", 132);
         var f = await Place(site.Origin, "north");
         BuildUp(site, f, "cream");
+        Chimney(f, 6);   // a melt takes hours: the fire must hold its heat
         Charge(site, f, 0, 0, ("game:ingot-iron", 3));
         Charge(site, f, 1, 0, ("game:ingot-iron", 2), ("game:metalbit-iron", 20));
         Assert.Equal(1, site.Click(f, PotPoint(1), null, site.Stack("game:ingot-steel"))?.StackSize);   // refused
         site.Hand.Itemstack = null;
         Lid(site, f, shut: true);
         f.SetFire(1545, 6, true);
-        Run(f, 0.01);
+        Run(f, 5);
         Assert.Equal("iron", f.Pot(0)!.Melted);
         Assert.Equal("iron", f.Pot(1)!.Melted);
         site.Tongs(true);
@@ -806,9 +819,10 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         // ferrosilicon in the west pot, ferrochrome on its last heat in the east one
         Charge(site, f, 0, 0, ("game:crushed-quartz", 30), ("game:metalbit-iron", 18), ("game:coke", 12));
         Charge(site, f, 1, 2, ("game:crushed-chromite", 30), (Stainless.Ferrosilicon, 18), ("game:lime", 12));
+        Chimney(f, 6);   // a melt takes hours: the fire must hold its heat
         Lid(site, f, shut: true);
-        f.SetFire(1555, 6, true);
-        Run(f, 0.01);
+        f.SetFire(1555, 12, true);
+        Run(f, 6.5);   // the ferrochrome 50 °C over its 1550 on the 6-block chimney: about 5.5 hours
         Assert.Equal("ferrosilicon", f.Pot(0)!.Melted);
         Assert.Equal("ferrochrome", f.Pot(1)!.Melted);
         Lid(site, f, shut: false);
@@ -833,5 +847,54 @@ public class CrucibleFurnaceScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Equal(3, drops.GetValueOrDefault("game:coke"));
         Assert.Equal(25, drops.GetValueOrDefault("game:burnedbrick-red"));
         KillItems(site.Origin);
+    }
+
+    // Ferrochrome into molten iron dissolves, in time, into stainless; too little leaves the bath off
+    // the ratio, and it pours as iron, the ferrochrome lost. Cold charges chill the fire.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Ferrochrome_dissolves_into_molten_iron_and_an_off_ratio_bath_pours_iron()
+    {
+        var site = await Build("alloyer", 180);
+        var f = await Place(site.Origin);
+        BuildUp(site, f);
+        Chimney(f, 6);
+        Charge(site, f, 0, 0, ("game:ingot-iron", 2), ("game:metalbit-iron", 8));
+        Charge(site, f, 1, 0, ("game:ingot-iron", 2), ("game:metalbit-iron", 8));
+        Lid(site, f, shut: true);
+        f.SetFire(1600, 12, true);
+        Run(f, 1);
+        Assert.Null(f.Pot(0)!.Melted);
+        Assert.Contains("Makes iron, melts at 1538 °C: melting, ", site.Info(f));
+        Run(f, 3.5);
+        Assert.Equal(("iron", 240), (f.Pot(0)!.Melted, f.Pot(0)!.MeltedUnits));
+        Assert.Equal(("iron", 240), (f.Pot(1)!.Melted, f.Pot(1)!.MeltedUnits));
+
+        site.Tongs(true);
+        Lid(site, f, shut: false);
+        double before = f.Temperature;
+        Assert.Null(site.Click(f, PotPoint(0), null, site.Stack(Stainless.Ferrochrome, 12)));
+        Assert.InRange(f.Temperature, before - 50, before - 46);   // 60 cold units at 0.8 °C
+        Assert.Contains("Added: 12x Ferrochrome (60 units), dissolving to make stainless steel", site.Info(f));
+        Assert.Null(site.Click(f, PotPoint(1), null, site.Stack(Stainless.Ferrochrome, 4)));
+        Assert.Contains("Off the ratio for stainless steel: pulled now, it pours 240 units of ", site.Info(f));
+        // a full pot of iron takes no more
+        Assert.Equal(13, site.Click(f, PotPoint(0), null, site.Stack(Stainless.Ferrochrome, 13))?.StackSize);
+        site.Hand.Itemstack = null;
+        Lid(site, f, shut: true);
+        Run(f, 1.5);
+        Assert.Equal(("stainless", 300), (f.Pot(0)!.Melted, f.Pot(0)!.MeltedUnits));
+        Assert.Equal(("iron", 240), (f.Pot(1)!.Melted, f.Pot(1)!.MeltedUnits));
+        Assert.Single(f.Pot(1)!.Charge);
+
+        Lid(site, f, shut: false);
+        var stainless = site.Click(f, PotPoint(0), null, null)!;
+        var smelted = Assert.IsType<BlockMeltingPotSmelted>(stainless.Collectible);
+        Assert.Equal((Stainless.Ingot, 300), (smelted.GetContents(W, stainless).Key.Collectible.Code.ToString(), smelted.GetContents(W, stainless).Value));
+        site.Hand.Itemstack = null;
+        var iron = site.Click(f, PotPoint(1), null, null)!;
+        var contents = ((BlockMeltingPotSmelted)iron.Collectible).GetContents(W, iron);
+        Assert.Equal(("game:ingot-iron", 240), (contents.Key.Collectible.Code.ToString(), contents.Value));
+        Assert.Equal(0, site.Count(Stainless.Ferrochrome));
+        site.EmptyInventory();
     }
 }
