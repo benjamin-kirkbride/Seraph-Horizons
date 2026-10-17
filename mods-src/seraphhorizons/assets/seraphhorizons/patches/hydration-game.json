@@ -1,6 +1,6 @@
 // Hydrate or Diedrate values for vanilla foods it leaves out, seraphhorizons' FoodHydration switch
 // (README.md). Each value is modelled on one Hydrate or Diedrate gives a similar food
-// (hydrateordiedrate:config/hod.additemhydration.json and hod.addblockhydration.json, 2.5.6). Hydrate
+// (hydrateordiedrate:config/hod.additemhydration.json and hod.addblockhydration.json, 2.5.8). Hydrate
 // or Diedrate never overwrites a hydration attribute that is already set, so these stay put if it
 // adds its own. Server side: items and blocks are loaded from their JSON on the server and reach the
 // client, attributes included, from it.
