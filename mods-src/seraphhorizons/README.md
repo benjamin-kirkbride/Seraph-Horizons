@@ -6266,6 +6266,36 @@ tailings chute at the tail to the jig, or onto a gravel heap beside it (#694). W
 Additions' bog iron drops one stone a block and no longer smelts to a bloom raw. The panning machine left the pack
 with it (#691). Tests: `tests/Ore/PlacerLineTests.cs`; Atlas `tests/PackTests/SluiceScenarios.cs`.
 
+### Shaking table (`ShakingTable`)
+
+The third concentrator of the ore line (#921; `ShakingTable/`, its README has the model and the stages): a Wilfley
+table two blocks wide and three long, on the ore machines' shared code, after the jig (on its tailings) and before
+the vanner. It needs `OreProcessing`; off, or with its switch off, its frame and recipe do not exist.
+
+- **Build.** The frame (grid: 9 planks, 4 iron nails and strips, a hammer), then four stages by right-click, from
+  `config/builds/shakingtable.json`: the deck (10 planks, 4 iron nails and strips), the rectifier (3
+  `seraphhorizons:gear-stainless`, 2 iron plates, 1 iron nails and strips, 1 plank), the differential head (1
+  `seraphhorizons:spring-steel`, 2 iron plates, 5 iron nails and strips, 2 steel rods), and services (4 straight
+  chutes, 1 copper or lead pipe section, which picks the water line drawn). The deck is held still until it is
+  built. Nothing wears out.
+- **Running.** The axle meets the controller itself (the head end's upper corner, native west), so the frame's
+  block type carries `seraphhorizons.MachineMP`; either way round (the rectifier). 7 rock an in-game hour at shaft
+  speed 0.6, in proportion to speed, under 0.05 it stops; a steady load of 0.1 once built (ore-processing.json
+  `machines.table`); 20 L of water a rock from a ppex pipe down onto its water line (the far upper cell's top).
+- **Feed.** A vanilla chute laid down onto the feed box (the middle upper cell's top), or a right-click: what the
+  sluice takes (`SluiceSystem.StreamOf`: crushed and ground ore, rich gravel, bog iron), fresh or as the tailings
+  before it.
+- **Outlets.** Each item through `ShakingTabling.Wash` (`ConcentratorWash` at `OreMachine.Table`, r = 0.70 of the
+  catchable units): the concentrate out of the far end's face (upper column), whole items with the rest carried
+  over (`UnitCarry`, saved); the middlings out of the far end's other corner, the fed item carrying the feed's
+  locked units (`OreRecovery.Concentrate` puts them out here, and only here), for the ball mill to free; the
+  tailings out of the low side at the head end, the fed item carrying the rest (`Worked` with `Table`, nothing
+  locked), to the vanner. With nothing to take the concentrate or middlings they are held and it stops; tailings
+  with nowhere to go are discarded beside the outlet as sand in the ore's rock, 0.75 layer a rock (#694). An item
+  with a locked share leaves as two rocks, a middlings rock and a tailings rock: no metal is made or lost.
+- Tests: `tests/ShakingTable/ShakingTableGameplayTests.cs`; Atlas `tests/PackTests/ShakingTableScenarios.cs`,
+  `RecipeExportShakingTableScenarios.cs`; export record `tools/recipe-export/RecipeSection.ShakingTable.cs`.
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is
