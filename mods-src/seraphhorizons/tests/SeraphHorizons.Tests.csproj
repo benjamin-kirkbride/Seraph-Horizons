@@ -44,6 +44,8 @@
     <Compile Include="../BuckingSawmill/Core/**/*.cs" Link="BuckingSawmill/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Rosser/Core/**/*.cs" Link="Rosser/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../BallMill/Core/**/*.cs" Link="BallMill/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../StallRoaster/Core/**/*.cs" Link="StallRoaster/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../ReverberatoryRoaster/Core/**/*.cs" Link="ReverberatoryRoaster/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Trading/Values/Core/**/*.cs" Link="Trading/Values/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Item values (#449): the shipped table, so the tests check that it parses. -->
     <None Include="../assets/seraphhorizons/config/item-values.json" Link="item-values.json" CopyToOutputDirectory="PreserveNewest" />

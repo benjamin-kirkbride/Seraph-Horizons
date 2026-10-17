@@ -5552,6 +5552,7 @@ texture (no texture of the pack's):
 | Crushed ore ("Crushed Galena ore (rich)") | `seraphhorizons:crushedore-{ore}-{grade}` | 16 | by grade; a sulfide's roasts in the firepit |
 | Ground ore | `seraphhorizons:groundore-{ore}-{grade}` | 16 | by grade; a sulfide's not at all |
 | Roasted rock ("Roasted Galena ore (rich)", the 13 sulfides) | `seraphhorizons:roastedore-{ore}-{grade}` | 16 | by grade × 85 % |
+| Stall-roasted rock (the stall roaster's, #925) | `seraphhorizons:stallroastedore-{ore}-{grade}` | 16 | by grade × 92 % |
 
 **The other forms**, one per ore, each holding 5 units (`metalUnits`, #685's `concentrateUnits`):
 
@@ -6213,7 +6214,108 @@ deriving `BEOreMachine`, its build file and its rig, and calls `OreMachinesSyste
   the build on a right-click (a batch machine's charge).
 - `OreMachineRenderer`: the rig's parts from `shapes/block/{machine}.json` with the frame block's textures,
   each drawn when `ShowsPart` (its stage fitted), posed by θ (the power cell's shaft about the power face's
-  axis) and ψ.
+  axis) and ψ. A machine may draw its parts in textures of its own (`PartTextures`); the meshes are built
+  again when its `TextureKey` changes (the stall roaster's brick type).
+- **Fire** (`OreMachineFire`, #925): a machine that burns (`Ignitable`, the stall roaster) is lit as the forge
+  is, a firestarter or a torch held 1.5 s on any of its cells (the frame block and the cells are `IIgnitable`);
+  it says why not (`CannotIgnite`) and lights (`Ignite`), and a torch is lit from it while it `Burning`.
+- A build material with `oneType` takes any of its codes, but all of one (the stall roaster's brickwork, one
+  fired brick type; another is `OtherKind`). `AssemblyDrops` is virtual, for what a machine keeps beyond its
+  stages (the stall's loose brick and cap).
+- **Side feeds** (#736): anchors besides the infeed that a chute feeds (`SideFeeds`, the reverberatory roaster's
+  `fuel`): a chute into that anchor's cell face fills the cell's buffer with what `SideFeedTakes` accepts, and the
+  controller moves it into the slot `SideFeedSlot` names. A rig's `build.stages[].fits[]` (a stage of several fits,
+  the reverberatory's) give their `requires` and `also` states to the parts' vocabulary as `adds` do.
+
+### Ore processing: the stall roaster (`StallRoaster`, `StallRoasterSettings`)
+
+The ore line's roaster for lump ore (#925; model and build stages in `StallRoaster/README.md`): one roasting
+stall, a three-sided brick bay open at the front with a flue at the back to a chimney, on the shared game code
+above. **Batch, by hand, no power, no water, no chute.** A sulfide's raw or crushed rock in; stall-roasted rock out,
+one for one, which smelts at its grade's share × **92 %** (the firepit's roasted rock at 85 %); and a third of the
+charge's sulfur as sulfur powder. It needs `OreProcessing`; off, or with its switch off, its frame and recipe do not
+exist.
+
+- **Build.** The iron frame (grid: 2 iron plates, 2 iron rods, 6 iron nails and strips, a hammer), then two stages
+  by right-click (`config/builds/stallroaster.json`): the brickwork, 7 fired bricks **all of one type** (any of the
+  game's nine; the first sets the stall's brick type, drawn in its texture: the crucible furnace's `bricks`), then
+  the lining, 9 tier-3 refractory bricks and 4 fire clay. No part wears.
+- **A charge.** Through the open front: a bed of `BedFirewood` (4) firewood, then up to `machines.stallroaster.charge`
+  (32) raw or crushed sulfide rock on it, any ores and grades, a stack a click (ground ore and concentrate are not
+  taken: concentrate is the reverberatory's). Lit with a firestarter or a torch through a front not walled up, the
+  bed burns away kindling the heap, which burns on its own sulfur for `chargeHours` (40) in-game hours at full
+  draught.
+- **The draught.** None without a working chimney on its row, counted as the crucible furnace's (the rig's
+  `minChimney` 6 shaft blocks from the outlet up and one chimney top; up to `rowMax` 6 stalls side by side along
+  their width, every other outlet capped with an iron plate: right-click with the plate, an empty hand on the
+  outlet's top takes it off). On a drawing row, the front sets it: walled up 1, half walled `HalfWalledDraught`
+  (0.5), open `OpenDraught` (0: the air goes over the heap). The front is walled with the stall's own brick, 9 for
+  half and 9 more for walled up, kept by the stall once given (sneak and right-click with an empty hand takes a place
+  down; walling it again takes none); it drops when the stall is broken.
+- **Out.** Burnt through, every rock becomes `seraphhorizons:stallroastedore-{ore}-{grade}` (its own item, 16 a
+  stack, the raw ore's units, `OreRecovery.SmeltShare(ore, RoastedRock, grade, Roaster.Stall)`), and the charge's
+  sulfur, each rock's units × its ore's `sulfur` a unit (from its formula: galena 0.155, chalcopyrite 1.01, pyrite
+  1.15) × the stall's `machines.stallroaster.sulfur` (⅓, `OreRecovery.SulfurUnits`), is whole `game:powder-sulfur` of
+  `sulfurUnitsPerPowder` (5) in the heap's crust, the rest carried to the stall's next burn. An empty hand takes the
+  sulfur first, then, through the open front, rakes the rock out a course (8) a click.
+- **Native sulfur** (#938: the stall melts native sulfur rock at ½) is not here yet: it waits on #938 making
+  `game:ore-sulfur` a rock form with its units.
+- **Recipe browser.** A `stallroasting` record per sulfide rock kind (`RecipeSection.StallRoaster.cs`), the
+  stall-roasted rock and the sulfur a rock as outputs, and its build's `construction` record. It draws no power.
+
+Code: `StallRoaster/Core/StallRoasting.cs` (its rules and settings), `StallRoasterRig.cs` (what gameplay reads of
+the rig), `StallRoaster/Game/BEStallRoaster.cs` and `StallRoasterSystem.cs`; tests
+`tests/StallRoaster/StallRoasterTests.cs`; Atlas `tests/PackTests/StallRoasterScenarios.cs` and
+`RecipeExportStallRoasterScenarios.cs`.
+
+### Ore processing: the reverberatory roaster (`ReverberatoryRoaster`, `ReverberatorySettings`)
+
+The ore line's roaster of concentrate (#736; model and build stages in `ReverberatoryRoaster/README.md`): the
+mechanical furnace, a long brick hearth under a firebrick arch with a fire at one end and two water-cooled rabbles
+turned by the axle, on the shared game code above. **Continuous**: a sulfide's concentrate in by chute, its roasted
+concentrate out by chute, **100 %**, 76 concentrate an in-game hour at shaft speed 0.6, in proportion to speed with no
+cap, either way round (ore-processing.json `machines.reverberatory`). It needs `OreProcessing`; off, or with its switch
+off, its frame and recipe do not exist. There are no levels (the owner's ruling of 2026-10-15: the hand-rabbled
+level 1 was dropped); until it is built, concentrate roasts in the firepit at 85 %.
+
+- **Build.** The iron frame (grid: 8 iron plates, 4 iron rods, 10 iron nails and strips, a hammer), then five stages
+  by right-click (`config/builds/reverberatory.json`, the rig's `build.stages`): the masonry (26 fired bricks **all of
+  one type**, the brickwork drawn in it; 26 tier-3 refractory bricks; 11 fire clay; 4 iron rods, the arch's tie
+  rods), the hopper and doors (9 iron plates, 4 iron nails and strips), the drive and rabbles (4 stainless gears, 3
+  steel rods, 8 iron plates), the feeder, stoker and output (an iron ingot, 4 iron rods, 5 iron plates) and the
+  services (3 straight chutes, 2 pipe sections in copper or lead, which draw the water pipes in that metal). The
+  masonry's counts are the model's measured ones; the rest are this pack's picks (the model left them open). No part
+  wears. 3 wide, 2 high (and the drive's row on the roof) and 5 long, the block placed the middle of the fire end,
+  running away from the player.
+- **What it takes.** A sulfide's concentrate (`seraphhorizons:concentrate-{ore}`, the 13 sulfides), by a chute down
+  into the hopper (the top of the drive row's far end) or by hand; it lies on the hearth as the bed, up to
+  `HearthCharge` (32). Each comes out as `seraphhorizons:roastedconcentrate-{ore}`, its units ×
+  `OreRecovery.Roasting(ore, Reverberatory, whole)` through a `UnitCarry` (one for one; concentrate marked `oreWhole`
+  is made whole here when the furnace is its ore's final step, and keeps the mark for its parting step otherwise).
+  **Native sulfur rock** (`game:ore-sulfur`, #938) melts into `game:powder-sulfur`: `nativeSulfurUnits` (13) ×
+  `machines.reverberatory.nativeSulfur` (0.65) / `sulfurUnitsPerPowder` (5), 1.69 a rock, carried; a rock counts as
+  the concentrate holding its units (2.6) for its turns, water, coal and the bed. **The flue's sulfur is lost** (the
+  owner's ruling, 2026-10-14): `machines.reverberatory.sulfur` is not used.
+- **Out** by the output face (low on the east side's middle) into a chute laid to take from it or any container; with
+  nothing there the products are held and it stops.
+- **Fire and draught.** Coal (bituminous coal, anthracite, lignite, charcoal or coke) goes into the bunker by a second
+  chute down into the fuel cell (the `fuel` side feed) or by hand. It is lit with a firestarter or a torch on any
+  cell (the shared ore machine fire) and needs coal to light. A coal on the grate roasts `ConcentratePerCoal` (6)
+  concentrate (Hofman's 316 lb a ton); when an item needs coal and the bunker is empty, the fire goes out. It roasts
+  only with a working chimney on its row (the crucible furnace's count: 6 shaft blocks and a top on the outlet; two
+  furnaces back to back sharing their west walls, the second turned half round, one outlet capped with an iron
+  plate) and its ash-mouth damper open (half: `HalfDamperPace`, 0.5; shut: the fire banked, nothing roasts), moved by
+  right-click with an empty hand on the ash mouth.
+- **Load and water.** The rabbles' load follows the bed (one of the three machines whose load follows the job,
+  `OreRecovery.LoadAt`): 0.1 empty, rising to 0.5 with the hearth full, 0.005 until built. The rabbles are
+  water-cooled: 2 L a concentrate from its 20 L reservoir, filled by a ppex pipe on the drive row's east face, used up.
+- **Recipe browser.** A `reverberatory` machine record per sulfide's concentrate and one for native sulfur
+  (`RecipeSection.Reverberatory.cs`), its build's `construction` record, and its draw on the power page.
+
+Code: `ReverberatoryRoaster/Core/ReverberatoryRoasting.cs` (its rules and settings), `ReverberatoryRig.cs` (what
+gameplay reads of the rig), `ReverberatoryRoaster/Game/BEReverberatory.cs` and `ReverberatorySystem.cs`; tests
+`tests/ReverberatoryRoaster/ReverberatoryTests.cs`; Atlas `tests/PackTests/ReverberatoryScenarios.cs` and
+`RecipeExportReverberatoryScenarios.cs`.
 
 ### Stamp battery (`StampBattery`)
 

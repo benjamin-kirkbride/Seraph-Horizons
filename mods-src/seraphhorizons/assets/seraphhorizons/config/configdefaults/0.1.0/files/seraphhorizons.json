@@ -516,5 +516,17 @@
   "JawBreakerSettings": {
     "ChargeRocks": 8
   },
-  "StampBattery": true
+  "StampBattery": true,
+  "StallRoaster": true,
+  "StallRoasterSettings": {
+    "BedFirewood": 4,
+    "HalfWalledDraught": 0.5,
+    "OpenDraught": 0.0
+  },
+  "ReverberatoryRoaster": true,
+  "ReverberatorySettings": {
+    "HearthCharge": 32,
+    "ConcentratePerCoal": 6.0,
+    "HalfDamperPace": 0.5
+  }
 }
