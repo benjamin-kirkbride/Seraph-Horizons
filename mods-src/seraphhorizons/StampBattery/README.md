@@ -34,8 +34,9 @@ Only the stamps' **shoes are a wearing part**, not a stage: a set of five is 5 `
 pounder cap). The dies are fitted with the stamps and do not wear (owner, 2026-10-16). Water and ore are contents, not
 stages.
 
-**Status: the model only.** This folder holds the generator (`tools/`); there is no block, block entity or renderer
-yet (#728, #711). Paths here are from this folder unless they start with `assets/` or `tests/` (the mod's), or
+**Status: in the game** (#728): `Core/Stamping.cs` is its job (what it takes and what a rock comes out as), `Game/`
+its block entity and system on the shared ore machine code (`Machines/`, #711); the mod's README, "Stamp battery",
+says how it plays. The shoes last 1,000 rocks a set (`config/builds/stampbattery.json`). Paths here are from this folder unless they start with `assets/` or `tests/` (the mod's), or
 `Machines/`, this folder's neighbour, whose `tools/machinegen/` is unchanged by this machine (no new driver).
 
 It is the battery half of the stamp mill's v2 model (`729-stampmill-model-v2`), re-laid out three deep. The v2 model's

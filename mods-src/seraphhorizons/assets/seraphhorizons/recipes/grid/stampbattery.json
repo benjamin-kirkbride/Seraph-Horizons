@@ -1,0 +1,24 @@
+// The stamp battery (StampBattery/, README "Stamp battery", #728). The server disables it with StampBattery off.
+[
+	{
+		// The frame: the two oak sills and the entry shaft (4 support beams), the rectifier's gear case
+		// at the power cell (3 stainless gears, iron plate and nails and strips) and the line shaft in its
+		// two pedestals (steel plate and nails and strips), bolted up with a hammer: the generator's
+		// FRAME_RECIPE (StampBattery/tools/make_shape.py), checked there against the frame measured and
+		// the grid's limit. The rest of the battery is fitted afterwards in five stages, by hand
+		// (config/builds/stampbattery.json).
+		ingredientPattern: "GHI,NSB,T__",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"G": { type: "item", code: "seraphhorizons:gear-stainless", quantity: 3 },
+			"I": { type: "item", code: "game:metalplate-iron", quantity: 4 },
+			"N": { type: "item", code: "game:metalnailsandstrips-iron", quantity: 4 },
+			"S": { type: "item", code: "game:metalplate-steel", quantity: 2 },
+			"T": { type: "item", code: "game:metalnailsandstrips-steel", quantity: 1 },
+			"B": { type: "block", code: "game:supportbeam-oak", quantity: 4 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:stampbattery-north" }
+	}
+]
