@@ -6187,6 +6187,44 @@ Code: `BallMill/Core/BallMillGrind.cs` (what it takes and makes; tests `tests/Ba
 `BallMill/Game/BEBallMill.cs` and `BallMillSystem.cs`; Atlas `tests/PackTests/BallMillScenarios.cs` and
 `RecipeExportBallMillScenarios.cs`.
 
+### Ore processing: the amalgamation plates (`AmalgamationPlates`)
+
+The ore line's amalgamation stage (#917; model and build stages in `AmalgamationPlates/README.md`): a plate table,
+three copper plates dressed with mercury on an inclined bed, a distributor at the head and a mercury trap at the
+foot, on the shared game code below, with **no power**: water and gravity. Crushed or ground ore comes down a
+vanilla chute into the distributor (the head cell's top face) or in by hand and runs over the plates, 8 rock an
+in-game hour, 5 L of water a rock from its own reservoir (a ppex pipe on the head's west face; dry, it stops), all
+ore-processing.json's `machines.amalgamationplates`. On ore with free gold or silver (gold and silver quartz) the
+dressed plates catch 0.65 of the catchable metal as amalgam (`OreRecovery.Amalgamate`) and pass the rest on
+amalgamated (`OreState.Amalgamated`, lifting the free metal's × 0.7: a full line after them takes 99.6 % of gold
+quartz's gold, against 69.2 % without); other ores, and ore already amalgamated, pass unchanged. The rock leaves
+by the outlet chute at the foot's end face for the concentrators, or, with nothing there, is dumped beside it as
+sand in its rock, a layer a rock (`OreMachinesSettings.Tailings`). It needs `OreProcessing`; off, or with its
+switch off, its frame and recipe do not exist.
+
+- **Build.** The frame (grid: 4 support beams, 12 planks, 2 iron nails and strips, a hammer), then three stages by
+  right-click from `config/builds/amalgamationplates.json`: the plates (3 copper half plates, or whole copper
+  plates), the mercury trap (2 iron plates, an iron nails and strips), services (2 straight chutes and a pipe
+  section, copper or lead, drawn as the spray pipe in that metal). Nothing wears.
+- **Mercury.** A container of mercury dresses fitted plates, up to `AmalgamationPlatesSettings.DressingLitres`
+  (1 L); each amalgam caught takes `retort.amalgamMercury` portions (10 an item) off it. Plates without the
+  mercury for a catch let the rock by unchanged, its free metal uncaught, and say so in their block info.
+- **Amalgam.** It builds up on the plates, drawn in three states, up to `AmalgamItems` (12) items; full plates
+  catch nothing more. An empty hand scrapes the whole items off (`seraphhorizons:amalgam-<ore>`), the rest staying
+  for the next; the still retorts them (#726). Breaking the plates drops the whole items on them; their mercury
+  is lost.
+- **Shared code.** `BEOreMachine.DiscardsAt` (an outlet whose products are tailings, discarded when nothing takes
+  them: `tailings` by default, the plates' `output`) and `WorkHours` (`Machines/Core/MachineRun.cs`, the sluice's
+  in-game-hour clock for a machine with no shaft).
+- **Recipe browser.** An `amalgamationplates` record per crushed and ground free quartz
+  (`RecipeSection.AmalgamationPlates.cs`, from the frame block's `seraphhorizonsAmalgamationPlates` attribute the
+  server writes), its build's `construction` record; no draw on the power page.
+
+Code: `AmalgamationPlates/Core/PlateAmalgamation.cs` (the catch, the dressing, the amalgam, the settings; tests
+`tests/AmalgamationPlates/PlateAmalgamationTests.cs`), `AmalgamationPlates/Game/BEAmalgamationPlates.cs` and
+`AmalgamationPlatesSystem.cs`; Atlas `tests/PackTests/AmalgamationPlatesScenarios.cs` and
+`RecipeExportAmalgamationPlatesScenarios.cs`.
+
 ### Ore machines: the shared game half
 
 The block, cells, block entity and renderer every ore machine is made of (`Machines/Game`; first used by the
