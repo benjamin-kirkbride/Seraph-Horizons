@@ -132,6 +132,21 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var logged = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("vanner", StringComparison.OrdinalIgnoreCase))
+
+    /// <summary><c>AmalgamationPlates</c>: its frame and its recipe are not in the game, nor its process in the
+    /// export, and nothing is logged about it. The amalgam and the crushed ore it works (ore processing's) exist
+    /// either way.</summary>
+    [AtlasScenario]
+    public void Amalgamation_plates_off_the_plates_are_not_in_the_game()
+    {
+        Assert.True(Off("AmalgamationPlates"));
+        Assert.False(SeraphHorizons.Mod.AmalgamationPlates.AmalgamationPlatesSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } code && code.Path.StartsWith("amalgamationplates"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path.StartsWith("amalgamationplates") == true);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("amalgamationplates", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("amalgamation plates", StringComparison.OrdinalIgnoreCase))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));

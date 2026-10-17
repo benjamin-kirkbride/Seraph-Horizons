@@ -1245,4 +1245,18 @@ public class SeraphHorizonsConfig
     /// bucket, into ground ore, lifting poor ore's × 0.4. Needs OreProcessing (off means its block and recipe do not exist,
     /// and arrastras already placed are lost). The server's setting decides.</summary>
     public bool Arrastra { get; set; } = true;
+
+    /// <summary>The amalgamation plates (AmalgamationPlates/, README "Ore processing: the amalgamation plates";
+    /// #917): a plate table of copper plates dressed with mercury, built in three stages on its frame, with no
+    /// power. Crushed or ground ore comes in by a chute and runs over the plates, 8 rock an in-game hour, 5 L of
+    /// water a rock; on gold and silver quartz they catch 0.65 of the free metal as amalgam, scraped off by hand,
+    /// and pass the rest on amalgamated (lifting the free metal's × 0.7), by a chute to the concentrators (ore-core's
+    /// figures, config/ore-processing.json). Other ores pass unchanged. Needs <see cref="OreProcessing"/> (off, or
+    /// that off, means its frame and recipe do not exist, and plates already placed are lost). The server's
+    /// setting decides.</summary>
+    public bool AmalgamationPlates { get; set; } = true;
+
+    /// <summary>The amalgamation plates' own figures (the mercury a dressing holds, the amalgam the plates hold);
+    /// a value out of range falls back to its default with a warning. The server's are used.</summary>
+    public AmalgamationPlates.Core.AmalgamationPlatesConfig AmalgamationPlatesSettings { get; set; } = new();
 }

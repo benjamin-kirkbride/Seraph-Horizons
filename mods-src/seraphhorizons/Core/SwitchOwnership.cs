@@ -62,6 +62,8 @@ public sealed class SwitchOwnership
         new("ShakingTable", [], [], ["shakingtable"]),
         // The exporter's own recipe type for the vanner's washing (tools/recipe-export, Recipes/VannerExport.cs).
         new("Vanner", [], [], ["vanner"]),
+        // The exporter's own recipe type for the amalgamation plates' process (tools/recipe-export, Recipes/AmalgamationPlatesExport.cs).
+        new("AmalgamationPlates", [], [], ["amalgamationplates"]),
         // The exporter's own recipe type for the mandrel station's process (tools/recipe-export, Recipes/MandrelStationExport.cs).
         new("MandrelStation", [], [], ["mandrelstation"]),
         // The exporter's own recipe type for the rocker's washes (tools/recipe-export, Recipes/RockerExport.cs).

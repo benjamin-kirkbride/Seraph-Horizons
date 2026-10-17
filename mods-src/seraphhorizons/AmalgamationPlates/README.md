@@ -10,8 +10,9 @@ chute for the concentrators. A **build stage** fits a **mercury trap** in the ta
 hanging baffle the pulp passes under and a weir it passes over, catching the amalgam and mercury the stream
 scours off the plates.
 
-This folder holds the model's generator and validator (`tools/`). The gameplay is #917 and is not built yet;
-the model is #918. "Gameplay" below says what the rig offers it.
+This folder holds the model's generator and validator (`tools/`) and the gameplay (#917, `Core/` and `Game/`, on
+the ore machines' shared game code; the mod's README, "Ore processing: the amalgamation plates"); the model is
+#918.
 
 **No power.** The plates take water and no power (#917: "Water, no power"), and nothing in them moves, so
 the rig has no `powerCell`, no `powerFace` and no driver: every part stands still, and is fitted or drawn by
@@ -42,7 +43,7 @@ continues (#939: the plates before the sluice).
 
 | Key | Value | What |
 |---|---|---|
-| `feedCell`, `feedFace` | `[0,0,0]`, `up` | The infeed: vanilla's straight chute section, upright, in the head cell's top face, flush with it; a chute in the cell above meets it with no gap or step. It ends in the distributor, over its floor |
+| `infeedCell`, `infeedFace` | `[0,0,0]`, `up` | The infeed: vanilla's straight chute section, upright, in the head cell's top face, flush with it; a chute in the cell above meets it with no gap or step. It ends in the distributor, over its floor |
 | `waterCell`, `waterFace` | `[0,0,0]`, `west` | The water: the water line's inlet, a short length of ppex's full 6 × 6 pipe, open on the head cell's west face on the face's centre, so a ppex pipe there meets it end to end (the rosser's rule); it narrows through a soldered reducer to the spray pipe |
 | `outputCell`, `outputFace` | `[0,0,2]`, `south` | The outlet: vanilla's straight chute section along z in the foot cell's end face, flush with it, its end butting the tail box's south wall, whose sill pours into its bore |
 | `feedSpout` | `[0.5, 0.7125, 0.8438]` | Where the pulp leaves the distributor through its holes onto the head of the plates |
@@ -218,7 +219,7 @@ The amalgam pan's schema (`../AmalgamPan/README.md`) with no input at all: nothi
 maths.
 
 - **Inputs.** None: no part has a driver. Every part's matrix is the identity.
-- **Keys.** `cells` (three, each with its boxes and a `lid`), `feedCell`/`feedFace`, `waterCell`/`waterFace`,
+- **Keys.** `cells` (three, each with its boxes and a `lid`), `infeedCell`/`infeedFace`, `waterCell`/`waterFace`,
   `outputCell`/`outputFace`, the points `feedSpout`, `spray`, `amalgam`, `trapWell`, `buildStages`,
   `amalgamStates`, `pipes` and `parts`. `requires` values: `chutes`, `plates`, `dressing`, `amalgam1`,
   `amalgam2`, `amalgam3`, `trap`, `pipecopper`, `pipelead`, or null.
@@ -261,10 +262,11 @@ From `735-concentrator-model-v2` (copied, not merged; its evaluation is
 
 ## Provisional
 
-- **The anchors** (#711 has not landed): the chute sections follow `VANILLA_CHUTE` as the v2 branches did, the
-  water face the rosser's rule. The feed and the water both use the controller cell (two faces of it), so the
-  controller itself would take the chute and the pipe; if #711's shared code wants a ghost per service, the
-  water would need its own cell, which 1 × 1 × 3 does not have at the head (`Open for the owner`, 1).
+- **The anchors**: the chute sections follow `VANILLA_CHUTE` as the v2 branches did, the water face the
+  rosser's rule. The feed and the water both use the controller cell (two faces of it); #711's shared code takes
+  both there (a chute into the controller's top face fills its infeed, a ppex pipe on its west face its
+  reservoir). The infeed's keys were `feedCell`/`feedFace` and are now `infeedCell`/`infeedFace`, the shared
+  code's name (#917; data only, no geometry change).
 - **The mercury texture** is the amalgam pan's provisional one.
 - **No client run:** reviewed in projections rendered from the written files and in the site's viewer only.
 
@@ -284,19 +286,40 @@ the last stage, the dressing recurring and not a stage.
 4. **The lids**: every column lidded at the top of the block (the head cell's chute reaches it), so a player
    walks over the plates at y 1, not on them; the rosser leaves its beds unlidded.
 5. **Build stages** (#918): the rig's `buildStages` are the table and plates, the trap and services (the
-   owner's rulings); what each stage costs is not designed.
+   owner's rulings); what each costs is #917's (below, "Gameplay").
 
 ## Gameplay
 
-Not built: #917. What the rig offers it:
+Built (#917): `Game/BEAmalgamationPlates.cs` on `Machines/Game/BEOreMachine.cs`, the build from
+`assets/seraphhorizons/config/builds/amalgamationplates.json`, the rules in `Core/PlateAmalgamation.cs`. The mod's
+README, "Ore processing: the amalgamation plates", has them in full.
 
-- **Parts.** No clock and no renderer maths: every part is still. The frame shape is the block's; gameplay
-  draws each fitted part (`chutes`, `plates`, `dressing`, `trap`, the supplied pipe metal) and one amalgam
-  state (none when just scraped) by its `requires`, by whatever means it chooses (a renderer with the shared
-  rig maths, whose matrices are all the identity, or shape overlays).
-- **Anchors.** The infeed at `feedCell`/`feedFace`, the water at `waterCell`/`waterFace` (the reservoir's
-  pipe), the outlet at `outputCell`/`outputFace` (where the tailings leave, or are dumped as sand beside it
-  when no chute takes them, #694); `amalgam` for scraping, `trapWell` for the trap's clean-up.
-- **Tests.** `tools/tests/test_amalgamationplates_model.py` and `site/test/amalgamationplates.test.ts` hold
-  the generated files to their rules and the site's maths. No C# test: with no driver there are no poses to
-  replay.
+**What each stage costs** (the build file; the frame is the grid recipe):
+
+| Stage | Adds | Materials |
+|---|---|---|
+| Frame (placed) | the table, bed, distributor, tail box | 4 support beams, 12 planks, 2 iron nails and strips, a hammer |
+| 1, the plates | `plates` | 3 copper half plates (`seraphhorizons:halfplate-copper`; a whole copper plate does for a half, for a game without the squaring shear) |
+| 2, the mercury trap | `trap` | 2 iron plates, 1 iron nails and strips |
+| 3, services | `chutes`, `pipecopper` or `pipelead` | 2 straight chutes, 1 pipe section, copper or lead (the spray pipe in that metal) |
+
+Nothing wears. **The dressing** is mercury poured on from a container (a bucket of Expanded Matter's mercury),
+up to `AmalgamationPlatesSettings.DressingLitres` (1 L); each amalgam caught takes its mercury off it
+(`retort.amalgamMercury`, 10 portions an item), and plates without the mercury for a catch let the rock by
+unchanged. **The amalgam** builds up to `AmalgamItems` (12) and is drawn in thirds of that (`amalgam1` ..
+`amalgam3`); an empty hand scrapes the whole items off, the rest staying on. The dressing part is drawn while
+there is mercury or amalgam on the plates.
+
+What it reads of the rig:
+
+- **Parts.** No clock: the shared renderer draws each part by its `requires` (the frame is the block's shape);
+  `dressing` and `amalgam1` .. `amalgam3` are the machine's own (`extraRequires` on its block type), drawn by
+  its state.
+- **Anchors.** The infeed at `infeedCell`/`infeedFace`, the water at `waterCell`/`waterFace` (the reservoir's
+  pipe), the outlet at `outputCell`/`outputFace`, which carries the tailings on (with nothing there they are
+  dumped as sand beside it, #694); `spray` and `amalgam` for sounds and the scraped amalgam. `feedSpout` and
+  `trapWell` are not read.
+- **Tests.** `tests/AmalgamationPlates/PlateAmalgamationTests.cs` (the catch, the line figures, the limits, the
+  build), Atlas `tests/PackTests/AmalgamationPlatesScenarios.cs` and `RecipeExportAmalgamationPlatesScenarios.cs`;
+  `tools/tests/test_amalgamationplates_model.py` and `site/test/amalgamationplates.test.ts` hold the generated
+  files to their rules.
