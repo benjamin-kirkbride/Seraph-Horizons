@@ -57,13 +57,6 @@ public partial class SharedWorldScenarios
         Assert.True(arrastra.Built);
     }
 
-    private ItemStack WaterBucket(double litres)
-    {
-        var bucket = CutterItem("game:woodbucket");
-        ((BlockLiquidContainerBase)bucket.Block).SetContent(bucket, CutterItem("game:waterportion", (int)Math.Round(litres * 100)));
-        return bucket;
-    }
-
     private static string ArrastraInfo(BEArrastra arrastra, IPlayer player)
     {
         var sb = new System.Text.StringBuilder();
@@ -137,7 +130,7 @@ public partial class SharedWorldScenarios
         // a bucket of 10 L: a rock's water
         var bucket = CutterClick(player, pos, WaterBucket(10))!;
         Assert.Equal(10, arrastra.Water.Litres, 3);
-        Assert.Equal(0, ArrastraWater.Litres(bucket), 3);
+        Assert.Equal(0, SeraphHorizons.Mod.Rocker.RockerWater.Litres(bucket), 3);
 
         await World.Until(() => arrastra.Charge.Turns > 0, 5000);
         Assert.Equal(MachineState.Working, arrastra.State);
