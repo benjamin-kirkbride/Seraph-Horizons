@@ -1,0 +1,19 @@
+// The amalgam pan (AmalgamPan/, README "Amalgam pan", #718). The server disables it with AmalgamPan or
+// OreProcessing off.
+[
+	{
+		// The frame: two iron or steel plates make the sheet-iron pan (its floor and wall), oak planks
+		// the stand, and nails and strips the cast-iron cone, the footstep and the rivets, put together
+		// with a hammer. The muller (a rod) and its shoes (a plate) are fitted afterwards by hand.
+		ingredientPattern: "PNP,BHB",
+		width: 3,
+		height: 2,
+		ingredients: {
+			"P": { type: "item", code: "game:metalplate-*", allowedVariants: ["iron", "steel"] },
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"], quantity: 2 },
+			"B": { type: "item", code: "game:plank-oak" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:amalgampan-frame-north" }
+	}
+]
