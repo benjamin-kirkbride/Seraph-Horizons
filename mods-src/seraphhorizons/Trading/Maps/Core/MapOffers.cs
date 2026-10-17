@@ -5,16 +5,12 @@ namespace SeraphHorizons.Mod.Trading.Maps.Core;
 public readonly record struct DepositOption(string Id, string Metal, double Distance, bool Unsold, string? SizeClass = null);
 
 /// <summary>
-/// Which maps a trader offers (#455). The shelf is filled at a restock with no buyer, so it shows
-/// the offer and the buyer's standing decides at the deal: the precision of an ore map
-/// (<see cref="MaxPrecision"/>) and whether leads past the nearest camp are for sale.
+/// Which maps a trader offers (#455). The shelf is filled at a restock with no buyer: an ore map's
+/// precision is drawn then (<see cref="MapPrecisionRoll"/>), the same for every buyer, and the
+/// buyer's standing decides at the deal only whether the settlement lead is for sale.
 /// </summary>
 public static class MapOffers
 {
-    /// <summary>The best precision a buyer's <c>mapTier</c> unlock allows: 1 (within 150 m) for a
-    /// stranger, 2 (50 m) at map tier 1, 3 (15 m) from 2.</summary>
-    public static int MaxPrecision(int mapTier) => Math.Clamp(mapTier + 1, 1, 3);
-
     /// <summary>One offer per metal, the nearest deposit neither sold nor <paramref name="reserved"/>
     /// (a sale being checked), the metals nearest first, at most <paramref name="max"/>. Sold out:
     /// there were deposits in range but none is left to sell.</summary>
