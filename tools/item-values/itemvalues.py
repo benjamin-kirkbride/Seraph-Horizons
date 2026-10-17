@@ -491,6 +491,14 @@ def augment_export(export: dict, rules: Rules) -> list[str]:
     return added
 
 
+def _figure(fig: dict, key: str) -> float:
+    """A machine's recovery (the config's machines, 1 if it gives none) or a hand station's figure (#765)."""
+    machines = fig.get("machines") or {}
+    if key in machines:
+        return float((machines[key] or {}).get("recovery", 1.0))
+    return float((fig.get("handStations") or {})[key])
+
+
 def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, str]]:
     """Ore processing's items priced on concentrate (#689, #847): each form from its metal units and
     the labour of every stage that reaches it, along ore-processing.json's reference line. A rock form
@@ -503,15 +511,15 @@ def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, st
         ground(grade)   = crushed(grade) x (1 + pct) + flat
         roasted rock    = crushed(grade) x (1 + pct) + flat (sulfides)
         concentrate     = min over the grades of (ground(grade) x (1 + pct) + flat) / (r x U / 5),
-                          r = the line's concentrator x the ore's density (x freeUnamalgamated for
-                          free gold and silver), at most 1
+                          r = the line's concentrators chained, 1 - prod(1 - machine's recovery x the
+                          ore's density, at most 1) (x freeUnamalgamated for free gold and silver)
         amalgam         = the same without freeUnamalgamated
         roasted         = (concentrate x (1 + pct) + flat - sulfur credit) / the line's roaster
 
     The parted form (a sulfide's roasted concentrate, another's concentrate and amalgam) is worth at
     least what parting wins from it once its by-products' methods have a station (ore-processing.json
-    parting): 5 x (u x unparted + by-product share x its metal's u x the method's recovery at the
-    line's tier). Litharge is the lead it smelts back to; the game's legacy crushed ores
+    parting): 5 x (u x unparted + by-product share x its metal's u x the recovery of the line's
+    station for the method). Litharge is the lead it smelts back to; the game's legacy crushed ores
     (game:crushed-chromite, ...) are 5 units of their ore and the crushing, as every use counts them.
     Only codes of the export are priced (augment_export adds the switch's items to an export without
     them)."""
@@ -530,22 +538,24 @@ def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, st
         pct, flat = rules.markup(kinds.get(kind, "mod"))
         return (cost * (1 + pct) + flat) / out
 
-    base = float(fig["concentrators"][line["concentrator"]])
-    roast_r = float(fig["roasters"][line["roaster"]])
+    roast_r = _figure(fig, line["roaster"])
     sulfur = op.get("roastingByProduct") or {}
     sulfur_credit = 0.0
     if sulfur.get("enabled"):
         sv = rules.raw_value(sulfur["code"])
         sulfur_credit = float(sulfur.get("perItem", 0)) * (sv[0] if sv else 0.0)
     parting_on = {k for k, v in (op.get("parting") or {}).items() if v is True}
-    tier = line.get("parting")
+    stations = line.get("parting") or {}
     forms = {(ore, form): code for code, form, ore, _ in _ore_forms(rules)}
 
     out: dict[str, tuple[float, str]] = {}
     for ore, spec in (fig.get("ores") or {}).items():
         spec = spec or {}
         u, metal = per_unit((op.get("nuggetOf") or {}).get(ore) or nugget_of(ore))
-        r_free = min(1.0, base * float(spec.get("density", 1.0)))
+        left = 1.0
+        for m in line["concentrators"]:
+            left *= 1 - min(1.0, _figure(fig, m) * float(spec.get("density", 1.0)))
+        r_free = 1 - left
         r = min(1.0, r_free * (float(fig.get("freeUnamalgamated", 1.0)) if spec.get("free") else 1.0))
         vals, why = {}, {}
         conc_costs, amalgam_costs = [], []
@@ -560,7 +570,7 @@ def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, st
             conc_costs.append(stage("concentrate", ground, r * units / per_item))
             amalgam_costs.append(stage("amalgamate", ground, r_free * units / per_item))
         conc = min(conc_costs)
-        vals["concentrate"], why["concentrate"] = conc, f"ground, {line['concentrator']} {r:.3g}"
+        vals["concentrate"], why["concentrate"] = conc, f"ground, {' + '.join(line['concentrators'])} {r:.3g}"
         if spec.get("free"):
             vals["amalgam"] = min(amalgam_costs)
             why["amalgam"] = f"ground, amalgamated {r_free:.3g}"
@@ -573,7 +583,7 @@ def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, st
         if bys:
             content = per_item * u * float(spec.get("unparted", 1.0))
             for b in bys:
-                rec = float(((fig.get("parting") or {}).get(b["partedBy"]) or {}).get(tier, 0.0))
+                rec = _figure(fig, stations[b["partedBy"]]) if b["partedBy"] in stations else 0.0
                 content += per_item * float(b["share"]) * float(unit_value.get(f"game:ingot-{b['metal']}", 0.0)) * rec
             for form in (("roastedconcentrate",) if spec.get("class") == "sulfide" else ("concentrate", "amalgam")):
                 if form in vals and content > vals[form]:

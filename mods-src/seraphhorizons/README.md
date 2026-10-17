@@ -5338,53 +5338,82 @@ on it, a second hit turned away, the old density mode untouched); off: `Switches
 
 ### Ore processing: recovery (no switch of its own)
 
-Ore processing (epic #684) turns the mine into an 1800s mill chain: hand stations and machines at
-tiers 1–4 for crushing, classifying, grinding, gravity concentration, roasting, amalgamation and
-parting. Its recovery maths (#685) is game-independent and comes first; the stations and machines
-that call it are the epic's other tasks. Its smelting shares are in play with `OreProcessing` on
-(next section).
+Ore processing (epic #684) turns the mine into an 1800s mill chain: hand stations and machines for
+crushing, classifying, grinding, gravity concentration, roasting, amalgamation and parting.
+**Recovery belongs to the machine that did the work** (#765): there are no tiers. Its maths is
+game-independent (`Ore/Core/`); the stations and machines that call it are the epic's other tasks.
+Its smelting shares are in play with `OreProcessing` on (next section).
 
 The figures are `config/ore-processing.json` (an asset; every one a starting value for
-playtesting), read into `OreProcessingConfig` and wrapped by `OreRecovery` (`Ore/Core/`), which also
-lists what is wrong with the file (`Problems`, for the server log; a missing figure reads as 0):
+playtesting), read into `OreProcessingConfig` and wrapped by `OreRecovery`, which also lists what is
+wrong with the file (`Problems`, for the server log; a missing figure reads as 0):
 
-- Overall recovery is the product of the stages' multipliers (`Overall(ore, line, fineGrained)`,
-  with `OreLine.AtTier(tier)` the standard line at a tier). Concentration (`Concentration(ore,
-  concentrator, feed)`): the concentrator's base (pan 45 %, rocker 55 %, long-tom sluice 65 %,
-  jig 80 %, table 92 %, table and vanner 99 %), × 0.85 for feed not classified, × 0.4 for
-  fine-grained (poor) feed not ground, × 0.7 for free gold and silver not amalgamated, × the ore's
-  density (cassiterite and chromite 1.05, native copper 1.1, smithsonite 0.9), capped at 100 %.
-  Crushing and grinding lose nothing.
-- Roasting (`Roasting(ore, roaster)`): firepit 85 %, stall 92 %, reverberatory 100 %; unroasted
-  sulfide concentrate doesn't smelt at all, and a non-sulfide is not roasted (1).
-- Which device a stage has at each tier is code, not config (`OreTiers`): concentrators rocker
-  (hand), sluice, jig, table, table and vanner; roasting by firepit to tier 1, stall at 2,
-  reverberatory at 3 and 4; grinding from tier 2.
-- Smelting (`SmeltShare(ore, form, grade)`, #847): rock (raw, crushed and ground ore) by its grade,
-  poor 10 %, medium 25 %, rich 40 %, bountiful 50 % (`smeltByGrade`); a sulfide's rock nothing until
-  roasted, and its roasted rock the grade's share × the firepit's 85 %; concentrate, roasted
-  concentrate and sponge 100 % (`smelt`), a sulfide's concentrate nothing until roasted.
-- Parting (`Parting(method, tier)`, `Smelted(ore, mainUnits, partingTier)`): a
-  by-product is a share of the main metal's recovered units, won only at a parting step at
-  cupellation or liquation 85 / 95 / 100 % (hand and tier 1 / tiers 2–3 / tier 4) or acid
-  parting 95 / 100 % (tiers 2–3 / 4; none by hand). Galena carries silver 3 %, argentiferous
-  galena 38 % (#690), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %,
-  franckeite lead 30 %, gold quartz silver 15 %. Unparted, the by-product is lost and the main
-  metal comes out at the ore's `unparted` share (gold quartz 85 %).
+- **A stream** (`OreStream`, `Ore/Core/OreStream.cs`) is one item's ore on the line: its ore, grade,
+  units, its locked units once split, what was done to it (`OreState`: classified, ground,
+  amalgamated) and which concentrator kinds have worked it (`WorkedBy`). On a stack these are
+  attributes (`Ore/Processing/OreStreamAttributes.cs`: `oreState`, `oreUnits`, `oreLocked`,
+  `oreWorked`, `rock`, and `oreWhole` on whole-route concentrate); ground ore is its own item.
+- **Concentrators chain on tailings** (`Concentrate(machine, stream)`): the sluice 55 %, jig 60 %,
+  shaking table 70 % and vanner 80 % (`machines`), each × the ore's density per pass (cassiterite and
+  chromite 1.05, native copper 1.1, smithsonite 0.9), capped at 100 %, each recover their figure of
+  the catchable units in their feed, and their tailings carry the rest on: a line recovers
+  1 − (1 − r₁)(1 − r₂)…, in any order, all four 98.9 %. **No gain from a machine's own kind**: the
+  tailings record which kinds worked them, so two vanners stay at 80 %.
+- **Locked shares apply once** (`LockFactor`): the first concentrator splits the stream into what
+  gravity can catch and what it can't: poor ore not ground × 0.4, feed not classified × 0.85, free
+  gold and silver not amalgamated × 0.7 (a full line 39.6 %, 84.1 %, 69.2 %). The table puts the
+  locked units out as **middlings**, for the ball mill; without a table they leave with the last
+  machine's tailings. A lift (`Lift`: the battery's or ball mill's screen and the riddle classify,
+  the arrastra and ball mill grind, the plates and amalgam pan amalgamate) releases locked units in
+  proportion and sends them back to the head of the concentrators.
+- **The ideal route ends whole** (`FinalStep`): the last step of an ore's ideal route recovers
+  whatever is left. On the whole route (classified, ground if poor, amalgamated if free, through the
+  sluice, jig and table) the vanner takes all the rest for oxides, placer and silver quartz; for a
+  sulfide it marks its concentrate whole and the reverberatory roaster makes it 100 %
+  (`Roasting(ore, roaster, whole)`); for a by-product ore the final parting does (`Smelted(ore,
+  units, station, whole)`): the Parkes kettle with the cupellation furnace for galena, the
+  cupellation furnace for tetrahedrite and freibergite, the liquation furnace for teallite and
+  franckeite, the acid parting vessel for gold quartz (all its gold and its 15 % silver).
+  `WholeRestore` is 1 / the chain's share.
+- **Amalgamation** (`Amalgamate`): the plates catch 65 % of the catchable free metal as amalgam,
+  the amalgam pan 45 %; the rest goes on amalgamated (its × 0.7 lifted).
+- **Hand stations do not chain** (`HandConcentrate`): the gold pan 45 %, the rocker 55 %, of the
+  catchable units × density; what they miss is spent. The firepit roasts at 85 %, the bone-ash
+  cupel and clay liquation pan part at 85 % (`handStations`).
+- **Roasting** (`Roasting`): firepit 85 %, stall roaster 92 %, reverberatory 100 %; unroasted
+  sulfide doesn't smelt, and a non-sulfide is not roasted (1).
+- **Smelting** (`SmeltShare(ore, form, grade, roaster)`, #847): rock (raw, crushed and ground ore)
+  by its grade, poor 10 %, medium 25 %, rich 40 %, bountiful 50 % (`smeltByGrade`); a sulfide's rock
+  nothing until roasted, and its roasted rock the grade's share × its roaster's (firepit 85 %, stall
+  92 %); concentrate, roasted concentrate and sponge 100 % (`smelt`).
+- **Parting** (`Parting(station)`, `Smelted`): a by-product is a share of the main metal's
+  recovered units, won only at a parting station: the cupel and liquation pan 85 %, the
+  cupellation and liquation furnaces and acid parting vessel 95 %, the Parkes kettle with
+  cupellation 100 % (zinc back 80 %, `ZincReturn`). Galena carries silver 3 %, argentiferous galena
+  38 % (#690), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %, franckeite lead
+  30 %, gold quartz silver 15 %. Unparted, the by-product is lost and the main metal comes out at
+  the ore's `unparted` share (gold quartz 85 %).
+- **Draws and rates** (`Machine(machine)`, `LoadAt(machine, fill)`): each machine's working and
+  empty resistance (0.1 a period horsepower; empty a fifth), its water a rock from its own
+  reservoir, its rate at the reference speed 0.6 (57 shaft turns an hour; `TurnsPerItem`), and a
+  batch machine's charge and hours (#940). The load is constant once assembled except the jaw
+  breaker's, the reverberatory roaster's and the Parkes kettle's, which follow the job. The scale:
+  1 t/d of rock is 0.4 rock an hour (a battery's 6), of concentrate 3.2 an hour, of metal 16 units
+  an hour. The shared machine code (#711) applies them.
 - Units: raw ore holds its grade's units (`OreProducts.RawUnits`, 3 / 5 / 7 / 10 for most ores,
   about a quarter of vanilla's, #863), and the other rock forms carry them unchanged, one item to
-  one (#847); concentrate items hold 5
-  (`concentrateUnits`). A station turns units into
-  items through a `UnitCarry` (per output, saved with the station), which holds the fraction
-  over for the next item, so nothing is lost to rounding.
+  one (#847); concentrate and amalgam items hold 5 (`concentrateUnits`). A station turns units into
+  items through a `UnitCarry` (per output, saved with the station), which holds the fraction over
+  for the next item, so nothing is lost to rounding.
 
-Tests (`tests/Ore/OreRecoveryTests.cs`) hold the shipped figures to the design's worked examples,
-each a pocket of 256 blocks at 1.25 ore a block (the design's 64 blocks, four times over at the
-pack's units, #863): poor hematite 1,280 units gives 281.6 by hand, 1,024 at tier 2 and 1,267.2 at
-tier 4; medium chromite (1,600) 924 / 1,344 / 1,600; medium galena 748 by hand with a firepit
-roast, 1,472 at tier 3, 1,584 at tier 4 plus about 48 units of silver; medium gold quartz (960)
-369.6 with the rocker alone, 528 with the amalgam pan, 950.4 at tier 4; medium native copper 968
-by hand, 1,600 at tier 4.
+Tests (`tests/Ore/OreRecoveryTests.cs`) hold the shipped figures to #765's worked examples: every
+sub-chain of the four concentrators, two vanners at 80 %, the locked shares once (39.6 / 84.1 /
+33.6 %), the table's middlings through the ball mill back to 100 %, density per pass (smithsonite's
+chain 97.6 %, whole 100 %), a sulfide line whole at the reverberatory, free metal at 69.2 % without
+the plates and 100 % with them, gold quartz at 0.85 × 99.6 % until acid parting, by-products whole
+at their final parting step and galena's silver at 95 % by the cupellation furnace alone, the
+hand stations (poor hematite by the rocker 22 %, a pocket of medium gold quartz 369.6 units with
+the rocker alone), and the draws and rates.
 
 ### Ore processing: items, crushing and smelting (`OreProcessing`)
 
@@ -5759,7 +5788,7 @@ like the crucible, through the forge's four charge slots, at most 200 units of m
   into litharge", or why not) is the cupel's: a postfix on the game's `GetOutputText` (`ContainerText`).
 - Done, it is a **cupel with silver bead**, holding what it breaks into: the lead (the ore's and
   the added) as litharge, 5 units each, and each other metal as metal bits, 5 units each: the
-  silver at 85 % of the charge's (`OreRecovery.Smelted` at the hand tier: galena 3 %, argentiferous
+  silver at 85 % of the charge's (`OreRecovery.Smelted` at the cupel: galena 3 %, argentiferous
   galena 38 %, tetrahedrite 5 % of its units; freibergite all of it, its main metal), and copper
   (tetrahedrite all of its own, freibergite 30 % at 85 %). Copper does not stay in a real bead, it
   oxidises with the lead; the pack gives it back as copper bits beside the litharge instead of
@@ -5820,7 +5849,7 @@ no air: the forge's blast gate only changes the heat. Reused, unlike the cupel.
 - **Done** (`BlockLiquationPan.DoSmelt`): a **liquation pan of molten tin** (`BlockLiquationPanSmelted`,
   on the game's smelted crucible class), all the charge's tin (100 units from a full pan), poured into
   any mold as from a crucible, and the lead the tin left behind, 85 % of the ore's share
-  (`OreRecovery.Smelted` at the hand tier: a full pan of teallite 34 units, of franckeite 25.5), held as
+  (`OreRecovery.Smelted` at the liquation pan: a full pan of teallite 34 units, of franckeite 25.5), held as
   whole lead bits drawn once when it is done (`Cupellation.Whole`: 6, a 7th at 80 %). One output slot,
   two metals: the tin is the pour and the lead stays in the pan. The stack carries the lead, so the
   smelted pan is never set on the ground. Emptied (the last unit poured), it is a **liquation pan with
