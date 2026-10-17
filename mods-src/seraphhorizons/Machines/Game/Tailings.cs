@@ -36,6 +36,7 @@ public static class Tailings
             return 0;
         rock = ExistingRock(world, form, rock);
         var ba = world.BlockAccessor;
+        at = Landing(ba, at);
         var cells = TailingsHeap.Offsets.Select(o => at.AddCopy(o.X, o.Y, o.Z)).ToArray();
         var (writes, unplaced) = TailingsHeap.Place(i => Read(ba, cells[i], form, rock), layers);
         foreach (var (cell, n) in writes)
@@ -47,6 +48,34 @@ public static class Tailings
             ba.TriggerNeighbourBlockUpdate(cells[cell]);
         }
         return layers - unplaced;
+    }
+
+    /// <summary>Most blocks a discard falls to reach the ground (<see cref="Landing"/>).</summary>
+    public const int MaxFall = 8;
+
+    /// <summary>
+    /// Where tailings let go at <paramref name="at"/> come to rest: straight down through air, onto the
+    /// first block below (into a tailings heap there that is not yet full), at most <see cref="MaxFall"/>
+    /// blocks. A tailings outlet in a machine's upper row (the jig's weir) then heaps on the ground beside
+    /// it, not in the air where nothing bears it. A cell that is not air is where they rest.
+    /// </summary>
+    public static BlockPos Landing(IBlockAccessor ba, BlockPos at)
+    {
+        var pos = at.Copy();
+        for (int fell = 0; fell < MaxFall && ba.GetBlock(pos).Id == 0; fell++)
+        {
+            var below = pos.DownCopy();
+            var block = ba.GetBlock(below);
+            if (block.Id == 0)
+            {
+                pos = below;
+                continue;
+            }
+            if (TailingsBlocks.Parse(block.Code?.ToString()) is { Layers: < TailingsBlocks.LayersPerBlock })
+                pos = below;
+            break;
+        }
+        return pos;
     }
 
     /// <summary>A heap cell as the heap sees it.</summary>

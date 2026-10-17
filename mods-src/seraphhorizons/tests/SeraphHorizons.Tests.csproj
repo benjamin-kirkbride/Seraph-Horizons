@@ -175,8 +175,9 @@
          gameplay yet, held to the shared rig maths its renderer will use. -->
     <None Include="../assets/seraphhorizons/config/ballmill-rig.json" Link="ballmill-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="BallMill/rig-reference.json" Link="ballmill-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
-    <!-- The jig's shipped rig and its reference poses (Jig/tools/make_shape.py): a model with no gameplay
-         yet (#919), held to the shared rig maths its renderer will use. -->
+    <!-- The jig's shipped rig and its reference poses (Jig/tools/make_shape.py), held to the shared rig
+         maths its renderer uses, and its gameplay's rules (#919). -->
+    <Compile Include="../Jig/Core/**/*.cs" Link="Jig/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/jig-rig.json" Link="jig-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Jig/rig-reference.json" Link="jig-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
