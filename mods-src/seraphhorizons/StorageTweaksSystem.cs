@@ -7,9 +7,10 @@ using Vintagestory.API.Common;
 namespace SeraphHorizons.Mod;
 
 /// <summary>
-/// Big piles, big crates and the rusty gear's stack (README "Big piles", "Big crates", "The rusty
-/// gear stacks to 64"), and the handbook's pile line: <see cref="BigPiles"/>,
-/// <see cref="BigCrates"/>, <see cref="RustyGearStack"/>, <see cref="PileHandbook"/>.
+/// Big piles, big crates, the rusty gear's stack and no clutter piles (README "Big piles", "Big
+/// crates", "The rusty gear stacks to 64", "Clutter does not pile"), and the handbook's pile line:
+/// <see cref="BigPiles"/>, <see cref="BigCrates"/>, <see cref="RustyGearStack"/>,
+/// <see cref="ClutterPiles"/>, <see cref="PileHandbook"/>.
 ///
 /// ExecuteOrder 0.2, so its <c>AssetsFinalize</c> runs after More Piles' (its <c>Core</c>, the
 /// default 0.1), which gives most blocks and some items their piles there, and after
@@ -21,6 +22,9 @@ public class StorageTweaksSystem : ModSystem
 {
     /// <summary>Stacking piles made big on this side.</summary>
     public int PilesMadeBig { get; private set; }
+
+    /// <summary>Clutter blocks whose More Piles pile was taken away on this side (<see cref="ClutterPiles"/>).</summary>
+    public int ClutterPilesTaken { get; private set; }
 
     /// <summary>Crate blocks given more slots (server side).</summary>
     public int CratesMadeBig { get; private set; }
@@ -64,6 +68,14 @@ public class StorageTweaksSystem : ModSystem
             else
                 api.Logger.Notification("[seraphhorizons] Big crates: switched off; crates hold what their mods give them");
         }
+        // Before the piles, so no clutter pile is made big.
+        if (ServerSwitch(api, nameof(SeraphHorizonsConfig.NoClutterPiles), config.NoClutterPiles))
+        {
+            ClutterPilesTaken = ClutterPiles.Apply(api);
+            api.Logger.Notification("[seraphhorizons] No clutter piles: {0} clutter blocks lost More Piles' pile on this side", ClutterPilesTaken);
+        }
+        else
+            api.Logger.Notification("[seraphhorizons] No clutter piles: switched off; clutter piles as More Piles gives it");
         if (!ServerSwitch(api, nameof(SeraphHorizonsConfig.BigPiles), config.BigPiles))
         {
             api.Logger.Notification("[seraphhorizons] Big piles: switched off; piles hold what their mods give them");
