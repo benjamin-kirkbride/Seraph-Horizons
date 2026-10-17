@@ -1597,11 +1597,14 @@ pack's traders and keeps the quests: `Trading/Core/StoryTraders.cs` (game-indepe
   (open problems).
 - **BetterRuins** names `game:humanoid-trader-treasurehunter` (and clothing, furniture, foods) in its
   story ruins' spawners, codes no entity has in 1.22: those spawners spawn nothing, before and after.
-- **Known gap: the elk for 100 gears.** The game's dialogue checks `player.inventory {gear-rusty,
-  stacksize: 100}` and takes `quantity: 100` through `DialogueComponent.FindDesiredItem`, which wants
-  one slot holding 100; the pack's rusty gear stacks to 64 (`RustyGearStack`), so that option never
-  shows, for the game's treasure hunter as for this one. The eidolon vessel's discount (the part and
-  50 or 75 gears) works. Left as the game's dialogue; not fixed here.
+- **The elk for 100 gears.** The game's dialogue checks `player.inventory {gear-rusty, stacksize:
+  100}` and takes `quantity: 100` through `DialogueComponent.FindDesiredItem`, which wants one slot
+  holding 100; the pack's rusty gear stacks to 64 (`RustyGearStack`), so that option never showed,
+  for the game's treasure hunter as for this one (the eidolon vessel's discount, 50 or 75 gears,
+  worked). Fixed without touching the dialogue (`DialogueStacks`, README "The rusty gear stacks to
+  64"): a postfix on `FindDesiredItem`, where it finds no single slot, returns a slot spanning the
+  matching ones when together they hold the stack, so the condition is met and the trigger's
+  `TakeOut` takes exactly the quantity across them. It acts while `RustyGearStack` is on, the cause.
 
 ## The trade window
 
