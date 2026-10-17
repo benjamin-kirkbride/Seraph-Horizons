@@ -1004,6 +1004,15 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains(W.GridRecipes, r => Duplicates.SandstoneDaub(r) && r.Output.Quantity == 8);
     }
 
+    /// <summary><c>FruitDries</c>: the game's fruit only perishes, as Expanded Foods 2.0.0-dev.16 leaves it.</summary>
+    [AtlasScenario]
+    public void Fruit_dries_off_fruit_does_not_dry()
+    {
+        Assert.True(Off("FruitDries"));
+        foreach (var (fruit, _) in FruitDryingCheck.Fruits)
+            Assert.Null(FruitDryingCheck.Dry(W, fruit));
+    }
+
     /// <summary><c>GearPartsRemoved</c>: BetterLoot+'s gear part, its recipes and its drops as it
     /// ships them.</summary>
     [AtlasScenario]
@@ -1236,8 +1245,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         // every seraphhorizons guide is switched off here but the ore maps', shown in every world as the items are
         Assert.DoesNotContain(guides, g => (string?)g["mod"] == "seraphhorizons"
                                            && (string?)g["code"] != SeraphHorizons.Mod.Ore.OreMapsSystem.GuidePage);
-        foreach (var (mod, code) in new[] { (WoodworkingMods.IwModId, "craftinginfo-woodworking"), (WoodworkingMods.LeModId, "introduction") })
-            Assert.Single(guides, g => (string?)g["mod"] == mod && (string?)g["code"] == code);
+        // Logging Expanded's is an asset. Immersive Woodworking's (since 1.3.13) is a page its client
+        // handler composes, which the server's export never sees.
+        Assert.Single(guides, g => (string?)g["mod"] == WoodworkingMods.LeModId && (string?)g["code"] == "introduction");
+        Assert.DoesNotContain(guides, g => (string?)g["code"] == "craftinginfo-woodworking");
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]

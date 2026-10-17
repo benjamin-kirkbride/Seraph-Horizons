@@ -243,8 +243,9 @@ are not included. A page a mod hides from players in client code is left out whe
 it on the server, in `ObjectCache["handbook-hiddenGuides"]` as `(pageCode, title lang key)`
 tuples: seraphhorizons' unified woodworking guide lists Immersive Woodworking's and Logging
 Expanded's guides when it runs, so the export has its own six pages, and one
-`craftinginfo-woodworking`, and its own six pages when it does not, so the export has the two
-mods' guides.
+`craftinginfo-woodworking`, and its own six pages when it does not, so the export has Logging
+Expanded's guide (Immersive Woodworking's, since 1.3.13, is a page its client code adds, so it is
+not in the export either way).
 
 ## variantGroups
 

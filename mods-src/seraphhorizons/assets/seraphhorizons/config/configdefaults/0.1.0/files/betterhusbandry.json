@@ -11,5 +11,8 @@
   "interactGrowthPerDay": 0.03,
   "interactDecayPerDay": 0.2,
   "interactGraceDays": 1.0,
-  "interactgenerationDecayMultiplier": 0.5
+  "interactgenerationDecayMultiplier": 0.5,
+  "interactMemoryDays": 30,
+  "offlineFullProtect": true,
+  "offlineGraceDays": 7
 }
