@@ -6,6 +6,8 @@ using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Config;
+using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 using Vintagestory.GameContent.Mechanics;
 
@@ -116,10 +118,19 @@ public partial class SharedWorldScenarios
     public async Task Ball_mill_builds_in_stages_grinds_crushed_ore_and_middlings_into_a_chest_and_breaks_back()
     {
         var hand = await CutterHand();
-        var player = hand.Player;
         var pos = await CutterSite(660, 660);
-        // the player beside it, so its chunk stays loaded on the virtual clock
-        await hand.TeleportTo(pos.AddCopy(4, 0, 4));
+        // its chunk columns kept loaded, so the mill runs on the virtual clock with no player beside it (the
+        // shared player stays where the other scenarios count on it)
+        var sapi = (ICoreServerAPI)World.Api;
+        int size = GlobalConstants.ChunkSize;
+        for (int cx = (pos.X - 5) / size; cx <= (pos.X + 5) / size; cx++)
+            for (int cz = (pos.Z - 5) / size; cz <= (pos.Z + 5) / size; cz++)
+                sapi.WorldManager.LoadChunkColumnPriority(cx, cz, new ChunkLoadOptions { KeepLoaded = true });
+        await BallMillRun(hand.Player, pos);
+    }
+
+    private async Task BallMillRun(IPlayer player, BlockPos pos)
+    {
         var mill = await PlaceBallMill(pos);
         var assembly = mill.Assembly!;
         Assert.Equal(MachineLoad.Unassembled, mill.Resistance);
