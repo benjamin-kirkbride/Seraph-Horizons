@@ -74,7 +74,7 @@ public partial class SharedWorldScenarios
     public void A_client_can_read_everything_the_server_sends_it_on_joining()
     {
         var server = (ServerMain)World.Api.World;
-        var assets = ServerAssetsAsSent(server);
+        var assets = ServerAssetsPacket.AsSent(server);
         var registry = ServerMain.ClassRegistry;
         var failures = new List<(string What, string Error)>();
         void Read(string what, Action read)
@@ -106,34 +106,6 @@ public partial class SharedWorldScenarios
         var grouped = failures.GroupBy(f => f.Error, f => f.What)
             .Select(g => $"{g.Key} (on {g.Count()}, e.g. {g.First()})");
         Assert.True(failures.Count == 0, "A client would fail reading:\n" + string.Join("\n", grouped));
-    }
-
-    /// <summary>The server's assets packet (ServerMain.BuildServerAssetsPacket, kept in a private
-    /// field) after a trip through the wire format. A dedicated server serializes it at boot; an
-    /// embedded one keeps the object, so it is serialized here.</summary>
-    private static Packet_ServerAssets ServerAssetsAsSent(ServerMain server)
-    {
-        // Built on a pool thread from the WorldReady phase on; a joining player waits for it the same way.
-        typeof(ServerMain).GetMethod("WaitOnBuildServerAssetsPacket", BindingFlags.NonPublic | BindingFlags.Instance)!
-            .Invoke(server, null);
-        var boxed = typeof(ServerMain).GetField("serverAssetsPacket", BindingFlags.NonPublic | BindingFlags.Instance)!
-            .GetValue(server)!;
-        var length = (int)boxed.GetType().GetField("Length")!.GetValue(boxed)!;
-        byte[] bytes;
-        if (length > 0)
-        {
-            bytes = (byte[])boxed.GetType().GetField("buffer", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(boxed)!;
-        }
-        else
-        {
-            var packet = (Packet_Server?)boxed.GetType().GetField("packet", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(boxed);
-            Assert.NotNull(packet);
-            bytes = Packet_ServerSerializer.SerializeToBytes(packet);
-            length = bytes.Length;
-        }
-        var sent = Packet_ServerSerializer.DeserializeBuffer(bytes, length, new Packet_Server());
-        Assert.NotNull(sent.Assets);
-        return sent.Assets;
     }
 }
 
