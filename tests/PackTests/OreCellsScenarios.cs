@@ -96,6 +96,25 @@ public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary>
+    /// #1012: the game's deposit depth noise is built at the scale a fresh process has, not at the
+    /// quarter scale an earlier server in the process left behind. Atlas boots every class in one
+    /// process, so this checks the fix wherever this class is not a test host's first.
+    /// </summary>
+    [AtlasScenario]
+    public void Deposit_depths_are_drawn_as_in_a_fresh_process()
+    {
+        var gen = World.Api.ModLoader.Systems.OfType<GenDeposits>().First(g => g.GetType() == typeof(GenDeposits));
+        int seed = ((ICoreServerAPI)World.Api).WorldManager.Seed;
+        foreach (var (field, offset) in new[] { ("verticalDistortTop", 28), ("verticalDistortBottom", 12) })
+        {
+            var layer = (MapLayerBase)AccessTools.Field(typeof(GenDeposits), field).GetValue(gen)!;
+            // GenMaps.GetDepositVerticalDistort(seed + offset), at the fresh scale.
+            var fresh = new MapLayerPerlin(seed + offset + 1, 4, 0.8f, 25 * OreSystem.FreshDepositVerticalDistortScale, 40, [0.1, 0.1, 0.1, 0.1]);
+            Assert.Equal(fresh.GenLayer(7000, 7000, 64, 64), layer.GenLayer(7000, 7000, 64, 64));
+        }
+    }
+
     [AtlasScenario]
     public void Only_the_first_try_from_the_active_spots_chunk_is_approved()
     {
