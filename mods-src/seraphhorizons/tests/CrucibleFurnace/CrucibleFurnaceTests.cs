@@ -545,6 +545,13 @@ public class CrucibleFurnaceTests
         Assert.Equal(2, blank.Sanitise().Count);
         Assert.Equal(new[] { "game:ingot-iron" }, blank.LargeCastingMetals);
         Assert.Equal(new[] { "game:ingotmold-*", "seraphhorizons:cylindermold-*" }, blank.LargeCastingMolds);
+        // the melt's figures: smex's curve, three hours a pot, smex's chill, an hour's hold
+        var d = new CrucibleFurnaceConfig();
+        Assert.Equal((3.0, 0.2, 0.7, 0.5, 2.0, 0.8, 1.0),
+            (d.MeltHoursPerFullPot, d.MeltSpeedBase, d.MeltGainPer100C, d.MeltSpeedMin, d.MeltSpeedMax, d.ChargeChillPerUnit, d.MeltFreezeHours));
+        var melt = new CrucibleFurnaceConfig { MeltHoursPerFullPot = 0, MeltSpeedMin = 0, MeltSpeedMax = 0.3, ChargeChillPerUnit = -1, MeltFreezeHours = double.NaN };
+        Assert.Equal(5, melt.Sanitise().Count);
+        Assert.Equal((3.0, 0.5, 2.0, 0.8, 1.0), (melt.MeltHoursPerFullPot, melt.MeltSpeedMin, melt.MeltSpeedMax, melt.ChargeChillPerUnit, melt.MeltFreezeHours));
     }
 
     // ---- Large castings: where a pot's molten iron pours ----
