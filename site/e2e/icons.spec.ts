@@ -225,7 +225,8 @@ for (const colorScheme of SCHEMES) {
       const used = page.locator('[data-group="usedIn"]');
       await expectReadable(used.locator(".frame .amount").first(), "an amount badge");
       await expectReadable(used.locator(".frame .toolmark").first(), "a tool mark");
-      await expectReadable(used.locator(".frame [data-icon-placeholder]").first(), "a slot's placeholder letters");
+      // (a slot with no amount badge: a long badge, a fractional output's "×7.34", covers the letters' box)
+      await expectReadable(used.locator(".frame:not(:has(.amount)) [data-icon-placeholder]").first(), "a slot's placeholder letters");
       // Placeholders outside slots: the item page header and item links.
       await openItem(page, "game:stick");
       await expectReadable(page.locator('header [data-icon-placeholder="game:stick"]'), "the header placeholder");
