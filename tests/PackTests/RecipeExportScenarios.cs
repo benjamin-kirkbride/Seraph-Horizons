@@ -418,7 +418,9 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         // fitting (EidolonExport), not the game's constructable behaviour.
         var covered = Doc["recipes"]!.Where(r => (string)r["type"]! == "construction"
                 && !((string)r["id"]!).StartsWith("construction|seraphhorizons:eidolongantry-", StringComparison.Ordinal)
-                && (string)r["id"]! != "construction|seraphhorizons:creature-eidolon|0")
+                && (string)r["id"]! != "construction|seraphhorizons:creature-eidolon|0"
+                // the ore machines' builds are their own staged fitting (#711), not the constructable behaviour
+                && (string?)r["extra"]?["behavior"] != "seraphhorizons.OreMachine")
             .SelectMany(r => r["extra"]?["members"]?.Select(m => (string)m!) ?? new[] { (string)r["outputs"]![0]!["code"]! })
             .OrderBy(c => c, StringComparer.Ordinal)
             .ToList();
@@ -912,12 +914,13 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         // Each one the engine can look up by code (GameMain.GetRecipeRegistry) is in recipeTypes.
         // Blocks built in place, butchery, transitions, the gear chain, casting, the draw bench, the cylinder borer, the press brake,
         // the squaring shear, the riddle, the mandrel station, ore processing's spalling, roasting, retorting, cupellation and liquation and the
-        // springs are the types not read from a registry.
+        // springs, the jaw breaker and the arrastra are the types not read from a registry.
         var registries = ((JObject)Doc["recipeTypes"]!).Properties()
             .Where(p => p.Name != RecipeSection.InPlaceType && p.Name != RecipeSection.ButcheryType)
             .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.CylinderBorerType or RecipeSection.PressBrakeType or RecipeSection.SquaringShearType or RecipeSection.MandrelStationType or RecipeSection.RockerType or RecipeSection.RiddleType
                 or RecipeSection.SpallingType or RecipeSection.OreRoastingType or RecipeSection.OreRetortingType
-                or RecipeSection.CupellationType or RecipeSection.LiquationType or RecipeSection.SpringType))
+                or RecipeSection.CupellationType or RecipeSection.LiquationType or RecipeSection.SpringType or RecipeSection.JawBreakerType
+                or RecipeSection.ArrastraType))
             .Where(p => (string)p.Value["shape"]! != "transition")
             .Select(p => (string)p.Value["registry"]!).ToHashSet();
         Assert.Equal(codes.OrderBy(c => c, StringComparer.Ordinal), registries.OrderBy(c => c, StringComparer.Ordinal));
