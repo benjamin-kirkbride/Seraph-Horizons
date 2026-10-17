@@ -5,6 +5,7 @@ using SeraphHorizons.Mod.PicklingTub.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
+using Vintagestory.API.Server;
 using Vintagestory.GameContent;
 using Xunit.Abstractions;
 using C = SeraphHorizons.Mod.PicklingTub.Core.PicklingTubConfig;
@@ -320,7 +321,11 @@ public class PicklingTubScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(2, site.Tub.FreeLitres, 3);
         Assert.Equal(C.Nitric, site.Tub.Liquid!.Collectible.Code.ToString());
 
-        // Broken, the tub drops its batch as it is.
+        // Broken, the tub drops its batch as it is. The player stands 1.5 blocks from the drop, at the
+        // edge of the game's pickup reach, and a drop without a player's uid can be collected at once:
+        // on a slow tick the gears land in the inventory instead of on the ground. Collecting only
+        // while sneaking keeps them where they fell.
+        ((IServerPlayer)site.Player).ItemCollectMode = 1;
         W.BlockAccessor.BreakBlock(site.Pos, site.Player);
         await World.Ticks(2);
         int dropped = W.GetEntitiesAround(site.Pos.ToVec3d().Add(0.5, 0.5, 0.5), 3, 3,
