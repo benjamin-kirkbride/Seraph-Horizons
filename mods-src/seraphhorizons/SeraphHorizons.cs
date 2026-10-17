@@ -818,6 +818,18 @@ public class SeraphHorizonsConfig
     /// <summary>The rocker's figures; a value out of range falls back to its default with a warning.
     /// The server's are used.</summary>
     public Rocker.Core.RockerConfig RockerSettings { get; set; } = new();
+    /// <summary>The amalgam pan (#718, AmalgamPan/, README "Amalgam pan"): a one-block amalgamating pan
+    /// of sheet iron on an oak stand, built from its frame in two stages (a rod as the muller, a plate as
+    /// its shoes), where crushed gold or silver quartz, water and mercury are worked into amalgam, by hand
+    /// (right-click held, as on the quern) or turned from an axle below; the amalgam goes to the still,
+    /// the quartz, its free metal no longer at × 0.7, on to the rocker (needs OreProcessing; off means
+    /// its block and its recipe do not exist, and pans already placed are lost). The server's setting
+    /// decides.</summary>
+    public bool AmalgamPan { get; set; } = true;
+
+    /// <summary>The amalgam pan's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public AmalgamPan.Core.AmalgamPanConfig AmalgamPanSettings { get; set; } = new();
 
     /// <summary>Schematics are sold only by traders (#468, Trading/Schematics/, README
     /// "Schematics"): every schematic in the pack is taken out of loot, stack randomizers and
