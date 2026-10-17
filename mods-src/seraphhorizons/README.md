@@ -3537,7 +3537,10 @@ once when it stops working (another order, none, dry, slumped, down, a fight, un
 order's `Stop`; or walks off toward a part of the area not loaded, or to wait: `Travel`, `Wait`; and a
 sweep every second, `EidolonJobSystem.Sweep`, for an eidolon unloaded, removed or given another order),
 and a claim not struck within 30 seconds (`EidolonTeamwork.ReserveSeconds`) lapses (walking to it counts
-as striking it, however long the way). *The stair* (a pit's, *Stations* above): it is 2 wide, and two
+as striking it, however long the way, but waiting with it does not: a routed member stopped short of
+another or parting from one keeps its station through the wait). So it claims its station again before
+each strike, and lets the station go when another took any of it meanwhile, rather than strike in a column
+another holds (#1156). *The stair* (a pit's, *Stations* above): it is 2 wide, and two
 meeting on it push each other off, so one member at a time walks it (`MineJobCells.StairHolder`): a walk
 in the pit more than a climb up or down, from or to below its rim, takes it for its length, and another
 that needs it then waits off it (`eidolon-status-mine-waiting-stair`: standing on it, it steps aside first),
