@@ -517,5 +517,6 @@
     "ChargeRocks": 8
   },
   "StampBattery": true,
-  "Sluice": true
+  "Sluice": true,
+  "Jig": true
 }

@@ -9,8 +9,9 @@ grains sink through it into the hutch and leave by the **spout**, and the light 
 sieve to its tail end and over the **weir**. Crushed or ground ore comes in by chute; concentrate leaves by one chute, tailings by another
 (#919: r = 0.60, 8 rock an hour, on the sluice's tailings, before the table).
 
-This folder holds the model's generator (`tools/`). The gameplay is #919 and is not built yet; the model
-is #920. It is one machine, built in stages (below).
+This folder holds the model's generator (`tools/`) and the gameplay (#919: `Core/`, `Game/`, on the ore
+machines' shared game code in `Machines/Game`; "Gameplay" below); the model is #920. It is one machine, built
+in stages (below).
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `tools/tests/` and `site/`, which are the repository's. The generic half
@@ -367,11 +368,11 @@ The model has been reviewed in projections rendered from the written files, not 
    speed 0.6, where a Harz jig made 100 to 200 strokes a minute of ½ to 2 in. The game counts turns, so the
    drawn pace is the axle's.
 7. **The contents.** Water (two surfaces) and the ore bed as `requires` values; their amplitudes from the
-   compartments' and the board's areas. Whether gameplay should draw them, and the bed's texture
+   compartments' and the board's areas. Gameplay draws them ("Gameplay"); the bed's texture
    (granite gravel now; the ore's host rock, as #694's tailings are, would need the renderer to set it).
 8. **Build stages** settled 2026-10-15, the timber stage 2026-10-16 (above). The screen's item (`game:metalchain-iron`) is the
    settled rate's, not a mesh of its own.
-9. **Anchors provisional pending #711**: the `<name>Cell`/`<name>Face` pairs for chutes and water.
+9. **Anchors**: the `<name>Cell`/`<name>Face` pairs for chutes and water, as #711's shared code reads them.
 10. **Box ironwork** (ruled 2026-10-14: corner straps). Angle-iron straps on the four vertical corners,
     nailed, and corner irons on the three rim corners the head does not cover. No tie rods or bands across
     the long walls: whether the 26-long side walls want a band at mid-height as well is open.
@@ -383,6 +384,29 @@ The model has been reviewed in projections rendered from the written files, not 
     the game meters the output, so nothing regulates it in the model.
 13. **The sieve raised** from 14 to 17.2 this pass, so the bed's top stands just under the weir (1.65)
     and the tailings plainly overflow it; the plunger and the levels are unchanged.
+
+## Gameplay
+
+Built (#919; the mod's README, "Jig"): a continuous concentrator, r = 0.60, 8 rock an hour at speed 0.6, a steady
+0.1, 70 L of water a rock. The block entity is `Game/BEJig.cs` on the shared `BEOreMachine`; its rules are
+`Core/Jigging.cs` (its pass, `ConcentratorWash.Wash` as the jig, and the contents it draws). What it reads of the rig:
+
+- **The clock.** The shared renderer turns θ with the power cell's shaft about native x (the power face is west)
+  and poses the parts by the shared rig maths; θ holds still until the jig is built. There is no work.
+- **Parts.** Every part with a stage's `requires` is drawn once that stage is fitted (the inlet in the metal put
+  in); `water` (both surfaces) once it is built and its reservoir holds any, `bed` while it works (the
+  blocktype's `extraRequires`). The renderer draws in the opaque pass only, so the water's surfaces are opaque
+  sheets over the bed (weak spot 5); the frame shape is the block's.
+- **Anchors.** `power` takes the axle (`oremachine-cellpower-west` turned to the world); `infeed` a chute laid down
+  onto it; `concentrate` and `tailings` a chute laid to take from them or a container; with nothing at the
+  tailings face the tailings fall to the ground below it and heap as gravel (`Tailings.Landing`, since the face is
+  in the upper row); `water` a ppex pipe. `levels`, `sieve`, `pipes`, `contents` and `drive` are not read.
+- **Build.** `config/builds/jig.json` is the stage table above (the timber, the sieve, the drive and plunger,
+  services); nothing wears.
+- **Tests.** `tests/Jig/JigGameplayTests.cs` (its figures, its pass and the chain on the sluice's tailings, the
+  contents, its build against its rig), and Atlas `tests/PackTests/JigScenarios.cs` (built with real items,
+  powered by a creative rotor, dry then watered, fed by hand and chute, the sluice's tailings, chests at both
+  outputs, the tailings heap, broken back) and `RecipeExportJigScenarios.cs`.
 
 ## Tests
 

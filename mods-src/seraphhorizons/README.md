@@ -6098,7 +6098,9 @@ hand. Hand stations have neither.
 (normally the last of the line), or at a hand station, discarded rock goes on a heap beside the
 tailings point as vanilla layered gravel (`game:gravel-{rock}-land-{n}`) or sand (`game:sand-{rock}-{n}`)
 in the ore's host rock (the raw ore's `rock`, carried as a stack attribute), filling the cell, the four
-round it, then two up (seven blocks; a full heap takes no more until it is shovelled away). The layers
+round it, then two up (seven blocks; a full heap takes no more until it is shovelled away), the tailings
+point first falling through air to the ground below it, up to 8 blocks (`Tailings.Landing`: the jig's outlet is
+in its upper row). The layers
 a rock, the owner's starting values (`OreMachinesSettings.Tailings`, by machine): sluice and jig
 gravel 1, shaking table sand 0.75, vanner sand 0.5, amalgamation plates sand 1, rocker gravel 1; the
 jaw breaker, stamp battery, arrastra and ball mill discard nothing, nor do the roasters and furnaces.
@@ -6269,6 +6271,35 @@ items with the rest carried over; the rock goes on as tailings, the same item ca
 tailings chute at the tail to the jig, or onto a gravel heap beside it (#694). With the switch on, Geology
 Additions' bog iron drops one stone a block and no longer smelts to a bloom raw. The panning machine left the pack
 with it (#691). Tests: `tests/Ore/PlacerLineTests.cs`; Atlas `tests/PackTests/SluiceScenarios.cs`.
+
+### Jig (`Jig`)
+
+The second concentrator of the ore line (#919; `Jig/`, its README has the model, the stages and the gameplay): a
+Harz plunger jig, a plank box of water two blocks long and two high, on the ore machines' shared code. Built on its
+frame (the hutch's sills and floor: 3 planks, 2 support beams, 2 iron nails and strips, a hammer) in four stages by
+right-click (`config/builds/jig.json`): the timber (17 planks, 8 iron nails and strips), the sieve (an iron chain),
+the drive and plunger (an iron rod, a steel rod, 2 planks, 1 iron nails and strips), then the services (3 straight
+chutes, a copper or lead pipe section, 2 iron nails and strips, a plank, a support beam). Nothing wears out.
+
+- **Work.** An axle on its shaft's end (the west face of the back top cell, either way round) works the plunger;
+  8 rock an in-game hour at speed 0.6, in proportion to speed, at a steady 0.1 (0.005 until built), stopping under
+  0.05. 70 L of water a rock from a ppex pipe on the back of its bottom cell (the thirstiest machine); dry, it
+  stops. Each rock is one pass at r = 0.60 (`OreRecovery.Concentrate` through `ConcentratorWash`, as the sluice's):
+  crushed or ground ore its concentrate, rich gravel the pan's table scaled, bog iron limonite concentrate. It
+  takes what the sluice takes (`SluiceSystem.TakesFeed`), the sluice's tailings among them, whose stream it
+  carries on: the jig catches its share of what the sluice left, and nothing from its own tailings.
+- **Feed and outputs.** A chute laid down onto the top of the front top cell feeds the feed trough, or a
+  right-click; the concentrate leaves out of the front of the bottom cell, whole items with the rest carried over;
+  the rock goes on as tailings, the same item carrying the rest, out of the west face of the front top cell to the
+  shaking table, or falls to the ground there as gravel in its rock, a layer a rock (#694).
+- **Drawn.** The water's surfaces once it holds water, the ore bed on the sieve while it works (the blocktype's
+  `extraRequires`); the water draws in the opaque pass.
+- **Recipe browser.** A `jig` record per feed item (`RecipeSection.Jig.cs`, `JigSystem.ExportYields`), its build's
+  `construction` record, and its draw on the power page.
+
+Code: `Jig/Core/Jigging.cs` (its pass and the contents it draws; tests `tests/Jig/JigGameplayTests.cs`),
+`Jig/Game/BEJig.cs` and `JigSystem.cs`; Atlas `tests/PackTests/JigScenarios.cs` and
+`RecipeExportJigScenarios.cs`. Coal washing at the jig (#941) is not built yet.
 
 ## Trading
 

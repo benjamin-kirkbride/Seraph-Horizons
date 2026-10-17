@@ -509,6 +509,16 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             Assert.NotNull(bog.CombustibleProps);
     }
 
+    /// <summary><c>Jig</c>: no jig frame and no recipe for it.</summary>
+    [AtlasScenario]
+    public void Jig_off_there_is_no_jig()
+    {
+        Assert.True(Off("Jig"));
+        Assert.False(SeraphHorizons.Mod.Jig.JigSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("jig-"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("jig-") == true);
+    }
+
     /// <summary><c>PressBrake</c>: no press brake blocks and no recipe for its frame, no link to it in
     /// the mod's own text, and nothing logged about it. The angles it makes are UnifiedPipes' items
     /// (here off too); the half plates it folds are the squaring shear's (here off too).</summary>
