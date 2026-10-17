@@ -1,9 +1,13 @@
 using System.Text;
+using HarmonyLib;
+using SeraphHorizons.Mod.Eidolon;
+using SeraphHorizons.Mod.Eidolon.Core;
 using SeraphHorizons.Mod.Ore.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 using Vintagestory.API.Util;
+using Vintagestory.Server;
 
 namespace SeraphHorizons.Mod.Ore;
 
@@ -52,7 +56,9 @@ public sealed record VerifyResult(VerifyStatus Status, DepositCandidate? Candida
 /// the metal's ore in them counted, as ingots (<see cref="DepositSizing"/>), classed small, medium or
 /// large for the metal, and recorded with its makeup (#692: per ore, grade and host rock,
 /// <see cref="DepositMakeup"/>); below a tenth of the metal's small size it is marked sold
-/// out. A gravel field's column is generated, which places it or not.</item>
+/// out. A gravel field's column is generated, which places it or not. The columns a verify loads
+/// are kept loaded until it has measured (with no player near, the server unloads a column again
+/// within seconds, and a column gone by then would count as no ore, #1002), then let go.</item>
 /// <item><see cref="Registry"/>: unsold / sold / sold out per deposit, saved under
 /// <see cref="RegistryKey"/>.</item>
 /// </list>
@@ -69,6 +75,19 @@ public sealed class DepositService
     private readonly Dictionary<string, double[]> _unitsByMetal = new();
     private readonly Dictionary<string, OreBlockKind?[]> _kindsByMetal = new();
     private readonly Dictionary<string, IReadOnlyList<string>> _panMetals = new();
+
+    /// <summary>How many times a measurement loads its columns again when some are missing before it
+    /// counts without them.</summary>
+    private const int MeasureTries = 3;
+
+    private static readonly AccessTools.FieldRef<ServerMain, HashSet<long>>? ForcedColumns =
+        AccessTools.Field(typeof(ServerMain), "forceLoadedChunkColumns") is { } field
+            ? AccessTools.FieldRefAccess<ServerMain, HashSet<long>>(field)
+            : null;
+
+    /// <summary>The columns verifies have forced loaded (<c>KeepLoaded</c>), with how many running
+    /// verifies hold each; a column the server already forced for something else isn't here.</summary>
+    private readonly Dictionary<ChunkPos, int> _kept = new();
 
     public DepositRegistry Registry { get; }
 
@@ -155,9 +174,18 @@ public sealed class DepositService
     /// called once, on the main thread, possibly before this returns (when nothing needed
     /// generating).
     /// </summary>
-    public void Verify(DepositKey key, Action<VerifyResult> done) => Verify(key, done, 0);
+    public void Verify(DepositKey key, Action<VerifyResult> done)
+    {
+        // The columns this verify forced loaded, let go however it ends.
+        var kept = new HashSet<ChunkPos>();
+        Verify(key, result =>
+        {
+            Release(kept);
+            done(result);
+        }, kept, 0);
+    }
 
-    private void Verify(DepositKey key, Action<VerifyResult> done, int round)
+    private void Verify(DepositKey key, Action<VerifyResult> done, HashSet<ChunkPos> kept, int round)
     {
         var candidate = Candidate(key);
         if (candidate == null)
@@ -175,7 +203,7 @@ public sealed class DepositService
             }
             // Generating the spot's column settles it: placed, or the next spot (followed next round).
             var chunk = OreCells.ChunkOf(candidate.X, candidate.Z);
-            Load([chunk], () => Verify(key, done, round + 1));
+            Load([chunk], kept, () => Verify(key, done, kept, round + 1));
             return;
         }
         if (key.IsGravel)
@@ -188,7 +216,43 @@ public sealed class DepositService
         for (int dx = -1; dx <= 1; dx++)
             for (int dz = -1; dz <= 1; dz++)
                 columns.Add(new ChunkPos(spot.Chunk.X + dx, spot.Chunk.Z + dz));
-        Load(columns, () => done(Measure(key, columns)));
+        Load(columns, kept, () => MeasureLoaded(key, columns, done, kept, 1));
+    }
+
+    /// <summary>Measures once every column is loaded: one missing (unloaded since, which a kept column
+    /// shouldn't be) is loaded again, up to <see cref="MeasureTries"/> times, then counted as it is,
+    /// with a warning, rather than wait for ever.</summary>
+    private void MeasureLoaded(DepositKey key, List<ChunkPos> columns, Action<VerifyResult> done, HashSet<ChunkPos> kept, int tries)
+    {
+        var missing = columns.Where(c => !IsLoaded(c)).ToList();
+        if (missing.Count > 0 && tries < MeasureTries)
+        {
+            Load(missing, kept, () => MeasureLoaded(key, columns, done, kept, tries + 1));
+            return;
+        }
+        if (missing.Count > 0)
+            _api.Logger.Warning("[seraphhorizons] Deposits: {0}: column(s) {1} still not loaded after {2} tries; measured without them, so it counts short",
+                key, string.Join(" ", missing.Select(c => $"{c.X},{c.Z}")), tries);
+        VerifyResult result;
+        try
+        {
+            result = Measure(key, columns);
+        }
+        catch
+        {
+            Release(kept);
+            throw;
+        }
+        done(result);
+    }
+
+    /// <summary>Whether every chunk of the column is loaded.</summary>
+    private bool IsLoaded(ChunkPos column)
+    {
+        int chunksHigh = _api.WorldManager.MapSizeY / OreCells.ChunkSize;
+        for (int cy = 0; cy < chunksHigh; cy++)
+            if (_api.WorldManager.GetChunk(column.X, cy, column.Z) == null) return false;
+        return true;
     }
 
     private VerifyResult Measure(DepositKey key, List<ChunkPos> columns)
@@ -349,19 +413,66 @@ public sealed class DepositService
         return units;
     }
 
-    /// <summary>Loads (generating if need be) the columns, then calls back once all are loaded.</summary>
-    private void Load(IReadOnlyList<ChunkPos> columns, Action then)
+    /// <summary>Loads (generating if need be) the columns, kept loaded, then calls back once all are
+    /// loaded. A column not forced loaded yet is forced for this verify and added to
+    /// <paramref name="kept"/>; one the server already forces for something else (an eidolon, another
+    /// mod) is left to that.</summary>
+    private void Load(IReadOnlyList<ChunkPos> columns, HashSet<ChunkPos> kept, Action then)
     {
         int left = columns.Count;
         foreach (var c in columns)
+        {
+            if (!kept.Contains(c))
+            {
+                if (_kept.TryGetValue(c, out int n))
+                {
+                    _kept[c] = n + 1;
+                    kept.Add(c);
+                }
+                else if (!IsForced(c))
+                {
+                    _kept[c] = 1;
+                    kept.Add(c);
+                }
+            }
             _api.WorldManager.LoadChunkColumnPriority(c.X, c.Z, new ChunkLoadOptions
             {
+                KeepLoaded = kept.Contains(c),
                 OnLoaded = () =>
                 {
                     if (--left == 0) then();
                 },
             });
+        }
     }
+
+    /// <summary>Lets go the columns a verify forced: each no other running verify holds comes off the
+    /// server's forced list, and unloads as any other column does once no player is near (unloading it
+    /// at once, <c>UnloadChunkColumn</c>, would also unload it under a player who walked up meanwhile).
+    /// A column an eidolon has taken up since is left forced for it.</summary>
+    private void Release(HashSet<ChunkPos> kept)
+    {
+        foreach (var c in kept)
+        {
+            int n = _kept.GetValueOrDefault(c);
+            if (n > 1)
+            {
+                _kept[c] = n - 1;
+                continue;
+            }
+            _kept.Remove(c);
+            if (EidolonChunkSystem.Of(_api)?.Holds.Holds(new ChunkColumn(c.X, c.Z)) == true) continue;
+            if (_api.World is ServerMain server)
+                server.RemoveChunkColumnFromForceLoadedList(_api.WorldManager.MapChunkIndex2D(c.X, c.Z));
+        }
+        kept.Clear();
+    }
+
+    /// <summary>Whether the server has the column on its list of forced columns; false if that list
+    /// can't be read.</summary>
+    private bool IsForced(ChunkPos column) =>
+        _api.World is ServerMain server && ForcedColumns != null
+        && ForcedColumns(server).Contains(_api.WorldManager.MapChunkIndex2D(column.X, column.Z));
 
     private static double Dist(int x, int z, int fx, int fz) =>
         Math.Sqrt((double)(x - fx) * (x - fx) + (double)(z - fz) * (z - fz));
