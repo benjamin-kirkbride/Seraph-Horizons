@@ -4,9 +4,10 @@ Part of the Seraph Horizons mod's ore processing (epic #684): the generated mode
 the machine of #931, which takes dore (gold and silver together) in by hand and gives the gold and the silver out by
 hand, batch. The line, the glossary and the period sources are #939; the power and water budget #940.
 
-**Status: a model only, v3, for review.** This folder's `tools/` holds the generator and its checks. Nothing in the
-game reads the model yet: no blocktype, no block entity, no renderer. The build stages are the owner's (2026-10-15,
-below).
+**Status: in the game** (#931). This folder's `tools/` holds the model's generator and its checks; `Core/` and `Game/`
+hold the vessel's gameplay, on the shared ore machine code (`Machines/`): the mod README's "Ore processing: the acid
+parting vessel" has the rules, and "Wired into the game", below, what reads what. The build stages are the owner's
+(2026-10-15, below).
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/` and `CrucibleFurnace/`, this folder's neighbours. The generic half of the
@@ -507,3 +508,30 @@ Reviewed in projections rendered from the written files and in the viewer; not i
 10. **The gold is drawn as gold** (the period's parted gold is a brown spongy mass), the sludge as silver and the fuel
     as charcoal.
 11. **The static and moving split** when it is drawn in the game: the fire door is the only moving part.
+
+## Wired into the game
+
+#931 wired the model in on the shared ore machine code (the mod README's "Ore machines: the shared game half"). What
+gameplay reads, and where:
+
+- **The iron frame** is the controller block, `seraphhorizons:acidparting-{side}` (the item is `-north`), class
+  `seraphhorizons.OreMachine`, drawing `acidparting_frame.json`; its grid recipe is the rig's `build.frame`
+  (`recipes/grid/acidparting.json`). Placed, it stamps the shared `oremachine-cell` into the other three cells.
+- **The stages** are `config/builds/acidparting.json`, the rig's `build.stages` with the same counts; the brickwork
+  is a `oneType` material listing the rig's nine `bricks` types. The copper plates are the build's wearing part
+  (`copper`, a `game:metalplate-copper`, 680 units of silver), drawn by its `requires`. A test holds the build to the
+  rig and to the stage table above.
+- **The brick** is the rig's `bricks`, composed into the block atlas as the crucible furnace's and the stall roaster's.
+- **The contents** are drawn by the vessel's state (`BEAcidParting.ShowsPart`, the frame block's `extraRequires`):
+  the damper's place with the sand bath; `fuel` laid and not lit, `fire` lit; `charge` with dore in and not started,
+  `acid` with acid in and no charge parting; while parting `solution`, `gold`, the tub's `liquor` and `silver`; parted,
+  `gold` and `wash` while the reservoir holds water; `silver` while the tub holds bits; `outletcap` capped.
+- **Clicks.** An item goes where it belongs (dore and liquids into the vessel, fuel at the fire door, the copper
+  plate into the tub, an iron plate on the outlet's top). An empty hand is placed by the rig's points: nearer `tub`
+  than `vessel` in the hood's cell draws the silver, else at the vessel takes the gold; nearer `ash` than `firedoor`
+  on the controller moves the damper.
+- **The row** is the crucible furnace's (`FurnaceRow`, `ChimneyColumn`): along native x, the vessel's width (1)
+  apart, up to `parting.rowMax`, the chimney from `outletCell` up, at least `parting.minChimney`.
+- **Not drawn:** the fire door's slide (`depth`): it stays at its rest pose, open.
+- **Tests**: `tests/AcidParting/AcidPartingTests.cs` (the rules, the rig's gameplay half, the build against the rig,
+  the figures); `tests/PackTests/AcidPartingScenarios.cs` places, builds, charges, parts and empties it.

@@ -1,0 +1,19 @@
+// The acid parting vessel (AcidParting/, README "Ore processing: the acid parting vessel"; #931). The server disables
+// it with AcidParting or OreProcessing off.
+[
+	{
+		// The iron frame, as placed: the binding's eight angles, the grate's bearers and firebars, the lintels and the
+		// recess's guides (2 iron rods, 2 iron plates, 6 iron nails and strips), with a hammer (AcidParting/README.md,
+		// "The build", the frame's row; the rig's build.frame). The other stages go in afterwards, fitted by hand.
+		ingredientPattern: "RPN,_H_",
+		width: 3,
+		height: 2,
+		ingredients: {
+			"R": { type: "item", code: "game:rod-iron", quantity: 2 },
+			"P": { type: "item", code: "game:metalplate-iron", quantity: 2 },
+			"N": { type: "item", code: "game:metalnailsandstrips-iron", quantity: 6 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:acidparting-north" }
+	}
+]
