@@ -119,15 +119,15 @@ public static class OreCellOrder
         Results[key] = results;
         Blocks = sapi.World.Blocks;
         Save(seed, set, name, results, sapi);
-        // Worlds booted one after another in one process do not come out alike: a second world's
-        // vanilla deposits (cracked rock) differ from the same world booted in a process of its
-        // own, so something outlives a server in the process (#946, open). The orders are compared
-        // across processes, each class run alone in its own `dotnet test` (its world the first in
-        // the process) with ORE_CELL_ORDER_COMPARE=1; otherwise (CI's shard, many worlds in one
-        // process) each only records.
+        // Worlds booted one after another in one process used to come out unlike: a second world's
+        // deposits sat at other depths than the same world's booted in a process of its own (#1012,
+        // fixed in OreSystem.Start). The orders are compared across processes, each class run alone
+        // in its own `dotnet test` (its world the first in the process) with
+        // ORE_CELL_ORDER_COMPARE=1; otherwise (CI's shard, many worlds in one process) each only
+        // records.
         var other = Results.Keys.FirstOrDefault(k => k != key && k.StartsWith(set + "/", StringComparison.Ordinal));
         if (other != null)
-            output.WriteLine($"{name}: '{other}' ran in this process too; worlds booted in one process differ (see the code), so it is compared only from its own process's file");
+            output.WriteLine($"{name}: '{other}' ran in this process too; it is compared only from its own process's file (see the code)");
         if (Environment.GetEnvironmentVariable("ORE_CELL_ORDER_COMPARE") != "1")
         {
             output.WriteLine($"{name}: recorded in {FileOf(seed, set, name)}; set ORE_CELL_ORDER_COMPARE=1 and run each order alone to compare");
