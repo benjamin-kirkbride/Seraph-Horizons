@@ -6152,6 +6152,25 @@ deriving `BEOreMachine`, its build file and its rig, and calls `OreMachinesSyste
   each drawn when `ShowsPart` (its stage fitted), posed by θ (the power cell's shaft about the power face's
   axis) and ψ.
 
+### Arrastra (`Arrastra`)
+
+The ore line's small grinder (#732, model #733; `Arrastra/`, its README's "Gameplay"): a mule-sized arrastra, a
+stone-paved pit where four drag stones are swept round over the ore by a post turned from an axle overhead. One
+machine on the shared ore machine (`BEArrastra` on `BEOreMachine`, the frame `seraphhorizons:arrastra-{side}`): the
+frame (a grid recipe: 9 support beams, a steel rod, 3 iron nails and strips, with a hammer) is placed, then the pit,
+the post and gearing (a wooden axle is the post), the sweep arms and the drag stones (4 loose stones) are fitted by
+right-click (`config/builds/arrastra.json`). **Batch, by hand**: a right-click with crushed ore tips a rock into the
+pit, up to a charge of 2 of one ore and grade; a bucket of water poured in by right-click fills the pit's 20 L, 10 L a
+rock (the owner's ruling: no pipe); the shaft's turns grind the charge, a full one in 7.5 hours at speed 0.6 (429.75
+turns, a part charge its share), and only with its water in the pit; then every rock becomes its ground ore at once,
+its stream lifted by `OreState.Ground` (poor ore's × 0.4, #765), no metal lost, and the water is spent. An empty
+hand draws the pit out by the gate (a charge not yet ground comes back crushed). Load 0.1 constant once built; no
+oil, no wear, no tailings. Needs `OreProcessing`; off, its frame and recipe do not exist and arrastras placed are
+lost. The recipe browser shows its build and a grinding record per crushed ore (`RecipeSection.Arrastra.cs`).
+Tests: `tests/Arrastra/ArrastraChargeTests.cs`; Atlas `ArrastraScenarios` (built by right-clicks, charged, dry
+under power, watered by bucket, ground by a creative rotor on the virtual clock, drawn, broken),
+`RecipeExportArrastraScenarios` and `SwitchesOffScenarios`.
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is

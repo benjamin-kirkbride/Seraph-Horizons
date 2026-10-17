@@ -1,5 +1,6 @@
 using Atlas.XUnit;
 using SeraphHorizons.Mod.Arrastra;
+using SeraphHorizons.Mod.Arrastra.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Machines.Core;
 using SeraphHorizons.Mod.Ore.Core;
@@ -82,7 +83,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(new[] { "pit", "post", "arms", "stones" }, build.Stages.Select(s => s.Id));
         Assert.Empty(build.Wearing);
         // the frame's grid recipe
-        Assert.Contains(World.Api.World.GridRecipes, r => r.Output.ResolvedItemstack?.Collectible.Code.ToString() == ArrastraFrame);
+        Assert.Contains(World.Api.World.GridRecipes, r => r.Output?.Code?.ToString() == ArrastraFrame);
         // what it grinds and what comes out exist
         Assert.True(W.GetItem(new AssetLocation(PoorHematite)) is { Id: > 0 });
         Assert.True(W.GetItem(new AssetLocation(ArrastraCharge.GroundCode(PoorHematite)!)) is { Id: > 0 });
@@ -92,7 +93,10 @@ public partial class SharedWorldScenarios
     public async Task Arrastra_is_built_charged_watered_by_bucket_ground_by_its_axle_and_drawn_by_hand()
     {
         var pos = await CutterSite(600, 700, 4);
-        var player = await CutterPlayer();
+        var hand = await CutterHand();
+        var player = hand.Player;
+        // nearby, so the site's chunks stay loaded through the grind's thousands of ticks
+        await hand.TeleportTo(pos.AddCopy(-3, 0, -3));
         var arrastra = await PlaceArrastra(pos);
         Assert.False(arrastra.Built);
 
@@ -114,7 +118,7 @@ public partial class SharedWorldScenarios
         Assert.True(arrastra.ShowsPart("charge"));
 
         // powered but dry: it does not grind
-        var cell = arrastra.CellPos(arrastra.Rig!.Anchor(OreMachineRig.Power)!.Cell);
+        var cell = arrastra.CellPos(arrastra.Rig!.Anchor(OreMachineRig.Power)!.Value.Cell);
         var face = arrastra.PowerFace;
         var rotorPos = cell.AddCopy(face);
         World.SetBlock($"game:creativerotor-{face.Code}", rotorPos);
@@ -126,7 +130,7 @@ public partial class SharedWorldScenarios
         await World.Until(() => arrastra.ShaftSpeed >= 0.3f, 15000);
         await World.Until(() => arrastra.State == MachineState.Dry, 5000);
         Assert.Equal(0, arrastra.Charge.Turns);
-        Assert.Contains(Lang.Get("seraphhorizons:arrastra-state-dry", "0.05"), ArrastraInfo(arrastra, player));
+        Assert.Contains(Lang.Get("seraphhorizons:arrastra-state-dry"), ArrastraInfo(arrastra, player));
         // its load is the arrastra's, constant once built
         Assert.Equal(0.1f, arrastra.Resistance, 3);
 
@@ -135,8 +139,13 @@ public partial class SharedWorldScenarios
         Assert.Equal(10, arrastra.Water.Litres, 3);
         Assert.Equal(0, ArrastraWater.Litres(bucket), 3);
 
+        await World.Until(() => arrastra.Charge.Turns > 0, 5000);
+        Assert.Equal(MachineState.Working, arrastra.State);
+        // a rock is half a charge: about 215 shaft turns, some 14,000 ticks at this speed
         using (var clock = VirtualClock.Start(World))
-            await World.Until(() => arrastra.IsGround, 200_000);
+            for (int k = 0; k < 60 && !arrastra.IsGround; k++)
+                await World.Ticks(600);
+        Assert.True(arrastra.IsGround, $"not ground: {arrastra.Charge.Turns:F1} turns, {arrastra.State}, {arrastra.Water.Litres} L");
         Assert.Equal(PitState.Ground, arrastra.Charge.State);
         var ground = arrastra.InfeedSlot.Itemstack!;
         Assert.Equal("seraphhorizons:groundore-hematite-poor", ground.Collectible.Code.ToString());
