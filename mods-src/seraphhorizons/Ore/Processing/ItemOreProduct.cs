@@ -71,7 +71,7 @@ public class ItemOreProduct : Item
     }
 
     /// <summary>The metal the item holds: the ore's metal group, lead for litharge.</summary>
-    public string? Metal => Form == "litharge" ? "lead" : Ore is { } ore ? OreMetals.MetalOf(ore) : null;
+    public string? Metal => Form is "litharge" or "richlead" ? "lead" : Form == "bullion" ? Variant["metal"] : Ore is { } ore ? OreMetals.MetalOf(ore) : null;
 
     public override string GetHeldItemName(ItemStack itemStack)
     {
@@ -80,6 +80,9 @@ public class ItemOreProduct : Item
             return base.GetHeldItemName(itemStack);
         if (Ore is not { } ore)
             return Lang.Get("seraphhorizons:oreproduct-" + form);
+        // Bullion is named by its kind (silver-lead, tin-lead, doré ...), with the ore it came from.
+        if (form == "bullion")
+            return Lang.Get("seraphhorizons:oreproduct-bullion-" + ore, Lang.Get("ore-" + ore));
         return Variant["grade"] is { } grade
             ? Lang.Get("seraphhorizons:oreproduct-" + form, Lang.Get("ore-" + ore), Lang.Get("seraphhorizons:oreprocessing-grade-" + grade))
             : Lang.Get("seraphhorizons:oreproduct-" + form, Lang.Get("ore-" + ore));

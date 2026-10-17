@@ -57,6 +57,16 @@ public sealed class OreProcessingConfig
     /// <summary>The clay liquation pan in a firepit or the forge (#724).</summary>
     public LiquationEntry Liquation { get; set; } = new();
 
+    /// <summary>The parting machines' base bullion and rich lead (#740).</summary>
+    public BullionEntry Bullion { get; set; } = new();
+
+    public sealed class BullionEntry
+    {
+        /// <summary>The share of a rich lead bar's lead that is silver: the Parkes kettle's crust,
+        /// retorted (#927).</summary>
+        public double RichLeadSilver { get; set; } = 0.1;
+    }
+
     /// <summary>Per ore (the ore part of its code: <c>galena</c>, <c>quartz_nativegold</c>).</summary>
     public Dictionary<string, OreEntry> Ores { get; set; } = new();
 
