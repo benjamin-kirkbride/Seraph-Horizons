@@ -13,9 +13,10 @@ on its side, by which it is rocked. Crushed ore or placer gravel goes into the h
 fines wash through the riddle's holes, down the apron and back down the floor, the riffles catch the heavy
 concentrate, and the water leaves at the foot with the tailings.
 
-This folder holds the model's generator and its rig (`tools/`); it is the model issue, #717. The
-gameplay (#716: crushed ore or placer gravel to concentrate at 55 %, tailings by #694) is not built yet:
-"For the gameplay" below is what the model offers it.
+This folder holds the model's generator and its rig (`tools/`), the model issue, #717, and the gameplay
+(#716: crushed ore or placer gravel to concentrate at 55 %, tailings by #694) in `Core/` and `Game/`,
+described in the mod's README ("Ore processing: the rocker"). "For the gameplay" below is what the model
+offers it.
 
 **A hand station, watered by bucket.** It has no mechanical power, no power cell and no oil, and it takes
 no water by pipe or from anything else. The player works it by holding right-click on it with a full
