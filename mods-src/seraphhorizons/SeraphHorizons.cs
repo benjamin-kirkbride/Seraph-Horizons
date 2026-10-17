@@ -1239,4 +1239,10 @@ public class SeraphHorizonsConfig
     /// Its belt wears out (2 leather, about 4,000 rock). Needs OreProcessing (off means its frame and its
     /// recipe do not exist, and vanners already placed are lost). The server's setting decides.</summary>
     public bool Vanner { get; set; } = true;
+
+    /// <summary>The arrastra (#732, Arrastra/, README "Arrastra"): a mule-sized batch grinder on an
+    /// axle, built in four stages on its frame, that grinds a charge of 2 crushed ore, watered by
+    /// bucket, into ground ore, lifting poor ore's × 0.4. Needs OreProcessing (off means its block and recipe do not exist,
+    /// and arrastras already placed are lost). The server's setting decides.</summary>
+    public bool Arrastra { get; set; } = true;
 }
