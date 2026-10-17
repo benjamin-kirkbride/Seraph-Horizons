@@ -150,16 +150,21 @@ public readonly record struct TraderSite(string Id, string Type, double X, doubl
 /// <summary>
 /// Stable trader ids, the key of every standing record. A trader in a grid camp is its cell
 /// (<c>camp:x,z</c>): the camp's trader respawns as a new entity, and standing is with the camp.
-/// A travelling merchant (#456) is its kind (<c>visitor:general</c>), the same at every inn.
-/// Any other trader is its entity (<c>entity:id</c>).
+/// A travelling merchant (#456) is its kind (<c>visitor:general</c>), the same at every inn. A
+/// story trader spawned in its story structure (the treasure hunter) is that structure
+/// (<c>story:treasurehunter</c>), whatever entity stands there now. Any other trader is its entity
+/// (<c>entity:id</c>).
 /// </summary>
 public static class TraderIds
 {
     public static string Camp(int cellX, int cellZ) => $"camp:{cellX},{cellZ}";
     public static string Entity(long entityId) => $"entity:{entityId}";
     public static string Visitor(string kind) => $"visitor:{kind}";
+    /// <summary>A story trader's id, by its story structure's code (one of each per world): a
+    /// respawned or converted treasure hunter keeps the standing players had with it.</summary>
+    public static string Story(string structure) => $"story:{structure}";
     public static bool IsValid(string id) => id.StartsWith("camp:", StringComparison.Ordinal) || id.StartsWith("entity:", StringComparison.Ordinal)
-                                             || id.StartsWith("visitor:", StringComparison.Ordinal);
+                                             || id.StartsWith("visitor:", StringComparison.Ordinal) || id.StartsWith("story:", StringComparison.Ordinal);
 }
 
 /// <summary>Spillover (#452): a share of the best standing with other traders of the same type
