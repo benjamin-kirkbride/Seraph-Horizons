@@ -5551,6 +5551,7 @@ texture (no texture of the pack's):
 | Crushed ore ("Crushed Galena ore (rich)") | `seraphhorizons:crushedore-{ore}-{grade}` | 16 | by grade; a sulfide's roasts in the firepit |
 | Ground ore | `seraphhorizons:groundore-{ore}-{grade}` | 16 | by grade; a sulfide's not at all |
 | Roasted rock ("Roasted Galena ore (rich)", the 13 sulfides) | `seraphhorizons:roastedore-{ore}-{grade}` | 16 | by grade × 85 % |
+| Stall-roasted rock (the stall roaster's, #925) | `seraphhorizons:stallroastedore-{ore}-{grade}` | 16 | by grade × 92 % |
 
 **The other forms**, one per ore, each holding 5 units (`metalUnits`, #685's `concentrateUnits`):
 
@@ -6209,7 +6210,55 @@ deriving `BEOreMachine`, its build file and its rig, and calls `OreMachinesSyste
   the build on a right-click (a batch machine's charge).
 - `OreMachineRenderer`: the rig's parts from `shapes/block/{machine}.json` with the frame block's textures,
   each drawn when `ShowsPart` (its stage fitted), posed by θ (the power cell's shaft about the power face's
-  axis) and ψ.
+  axis) and ψ. A machine may draw its parts in textures of its own (`PartTextures`); the meshes are built
+  again when its `TextureKey` changes (the stall roaster's brick type).
+- **Fire** (`OreMachineFire`, #925): a machine that burns (`Ignitable`, the stall roaster) is lit as the forge
+  is, a firestarter or a torch held 1.5 s on any of its cells (the frame block and the cells are `IIgnitable`);
+  it says why not (`CannotIgnite`) and lights (`Ignite`), and a torch is lit from it while it `Burning`.
+- A build material with `oneType` takes any of its codes, but all of one (the stall roaster's brickwork, one
+  fired brick type; another is `OtherKind`). `AssemblyDrops` is virtual, for what a machine keeps beyond its
+  stages (the stall's loose brick and cap).
+
+### Ore processing: the stall roaster (`StallRoaster`, `StallRoasterSettings`)
+
+The ore line's roaster for lump ore (#925; model and build stages in `StallRoaster/README.md`): one roasting
+stall, a three-sided brick bay open at the front with a flue at the back to a chimney, on the shared game code
+above. **Batch, by hand, no power, no water, no chute.** A sulfide's raw or crushed rock in; stall-roasted rock out,
+one for one, which smelts at its grade's share × **92 %** (the firepit's roasted rock at 85 %); and a third of the
+charge's sulfur as sulfur powder. It needs `OreProcessing`; off, or with its switch off, its frame and recipe do not
+exist.
+
+- **Build.** The iron frame (grid: 2 iron plates, 2 iron rods, 6 iron nails and strips, a hammer), then two stages
+  by right-click (`config/builds/stallroaster.json`): the brickwork, 7 fired bricks **all of one type** (any of the
+  game's nine; the first sets the stall's brick type, drawn in its texture: the crucible furnace's `bricks`), then
+  the lining, 9 tier-3 refractory bricks and 4 fire clay. No part wears.
+- **A charge.** Through the open front: a bed of `BedFirewood` (4) firewood, then up to `machines.stallroaster.charge`
+  (32) raw or crushed sulfide rock on it, any ores and grades, a stack a click (ground ore and concentrate are not
+  taken: concentrate is the reverberatory's). Lit with a firestarter or a torch through a front not walled up, the
+  bed burns away kindling the heap, which burns on its own sulfur for `chargeHours` (40) in-game hours at full
+  draught.
+- **The draught.** None without a working chimney on its row, counted as the crucible furnace's (the rig's
+  `minChimney` 6 shaft blocks from the outlet up and one chimney top; up to `rowMax` 6 stalls side by side along
+  their width, every other outlet capped with an iron plate: right-click with the plate, an empty hand on the
+  outlet's top takes it off). On a drawing row, the front sets it: walled up 1, half walled `HalfWalledDraught`
+  (0.5), open `OpenDraught` (0: the air goes over the heap). The front is walled with the stall's own brick, 9 for
+  half and 9 more for walled up, kept by the stall once given (sneak and right-click with an empty hand takes a place
+  down; walling it again takes none); it drops when the stall is broken.
+- **Out.** Burnt through, every rock becomes `seraphhorizons:stallroastedore-{ore}-{grade}` (its own item, 16 a
+  stack, the raw ore's units, `OreRecovery.SmeltShare(ore, RoastedRock, grade, Roaster.Stall)`), and the charge's
+  sulfur, each rock's units × its ore's `sulfur` a unit (from its formula: galena 0.155, chalcopyrite 1.01, pyrite
+  1.15) × the stall's `machines.stallroaster.sulfur` (⅓, `OreRecovery.SulfurUnits`), is whole `game:powder-sulfur` of
+  `sulfurUnitsPerPowder` (5) in the heap's crust, the rest carried to the stall's next burn. An empty hand takes the
+  sulfur first, then, through the open front, rakes the rock out a course (8) a click.
+- **Native sulfur** (#938: the stall melts native sulfur rock at ½) is not here yet: it waits on #938 making
+  `game:ore-sulfur` a rock form with its units.
+- **Recipe browser.** A `stallroasting` record per sulfide rock kind (`RecipeSection.StallRoaster.cs`), the
+  stall-roasted rock and the sulfur a rock as outputs, and its build's `construction` record. It draws no power.
+
+Code: `StallRoaster/Core/StallRoasting.cs` (its rules and settings), `StallRoasterRig.cs` (what gameplay reads of
+the rig), `StallRoaster/Game/BEStallRoaster.cs` and `StallRoasterSystem.cs`; tests
+`tests/StallRoaster/StallRoasterTests.cs`; Atlas `tests/PackTests/StallRoasterScenarios.cs` and
+`RecipeExportStallRoasterScenarios.cs`.
 
 ### Stamp battery (`StampBattery`)
 

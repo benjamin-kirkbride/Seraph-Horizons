@@ -4,8 +4,9 @@ Part of the Seraph Horizons mod's ore processing (epic #684): the generated mode
 roasting stall, as one machine. Its behaviour is #925 (and #938 for native sulfur); the line, the glossary and the
 period sources are in #939, the power and water budget in #940.
 
-**Status: the model only, v3, for review.** Nothing in the game reads it yet: no blocktype, no gameplay, no C#. This
-folder's `tools/` holds the generator and its checks.
+**Status: in the game** (#925). This folder's `tools/` holds the model's generator and its checks; `Core/` and `Game/`
+hold the stall's gameplay, on the shared ore machine code (`Machines/`): the mod README's "Ore processing: the stall
+roaster" has the rules, and "Wired into the game", below, what reads what.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/` and `CrucibleFurnace/`, this folder's neighbours. The model follows the
@@ -344,3 +345,28 @@ the WebGL viewer (the sandbox's headless browser had no WebGL).
    half a brick's length (4): the walls' brick and lining layers are themselves 3 thick, so 4 could not be met.
 8. **The texture families** appended to the viewer (`ember`, roasted rock, sulfur, sulfide) also recolour the crucible
    furnace's burning coke in the viewer, from a hashed blue to ember orange.
+
+## Wired into the game
+
+#925 wired the model in on the shared ore machine code (the mod README's "Ore machines: the shared game half").
+What gameplay reads, and where:
+
+- **The iron frame** is the controller block, `seraphhorizons:stallroaster-{side}` (the item is `-north`), class
+  `seraphhorizons.OreMachine`, drawing `stallroaster_frame.json`; its grid recipe is the rig's `build.frame`
+  (`recipes/grid/stallroaster.json`). Placed, it stamps the shared `oremachine-cell` into the other seven cells, their
+  boxes and decks the rig's.
+- **The stages** are `config/builds/stallroaster.json`, the rig's `build.stages` (brickwork, lining) with the same
+  counts; the brickwork is a `oneType` material listing the rig's nine `bricks` types, so the first brick sets the
+  stall's type. A test holds the build to the rig.
+- **The brick** is the rig's `bricks`: the stall's `PartTextures` composes the type's `base` and `overlays` into the
+  block atlas, as the crucible furnace's renderer does, and sets the shape's `brick` code to it.
+- **The bay's contents** are drawn by the stall's state (`BEStallRoaster.ShowsPart`, the frame block's
+  `extraRequires`): `wood` with the bed laid and not lit, `kindling` the first tenth of the burn, `ore1..4`,
+  `fire1..4` or `roasted1..4` by `ceil(rock / furnace.perCourse)`, `sulfur` while the crust holds any, `fronthalf` or
+  `frontwalled` by the front's place (`build.front`: 9 bricks, 18), `outletcap` capped (`build.outletCap`).
+- **The charge** is `machines.stallroaster` in ore-processing.json (32 rock, 40 hours, 92 %, a third of the sulfur),
+  held to the rig's `furnace.charge` by a test. The burn is the shared fire (`OreMachineFire`).
+- **The row** is the crucible furnace's (`FurnaceRow`, `ChimneyColumn`): along native x, the stall's width (2)
+  apart, up to `furnace.rowMax`, the chimney from `outletCell` up, at least `furnace.minChimney`.
+- **Tests**: `tests/StallRoaster/StallRoasterTests.cs` (the rules, the rig's gameplay half, the build against the
+  rig, the figures); `tests/PackTests/StallRoasterScenarios.cs` places, builds, charges, burns and empties it.
