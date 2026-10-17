@@ -130,6 +130,19 @@ public sealed class PotRecipes(IReadOnlyList<PotRecipe> recipes)
 
     public static int TotalUnits(IEnumerable<ChargeItem> charge) => charge.Sum(i => i.Count * UnitsOf(i.Code));
 
+    /// <summary><paramref name="units"/> of molten <paramref name="output"/> (an ingot code) as the items
+    /// a recipe counts: its bits (<c>ingot-iron</c> as <c>metalbit-iron</c>), 5 units each. A molten
+    /// bath is measured this way when something is added to it.</summary>
+    public static ChargeItem MeltAsItems(string output, int units)
+    {
+        int colon = output.IndexOf(':');
+        string domain = colon >= 0 ? output[..colon] : "game";
+        string path = colon >= 0 ? output[(colon + 1)..] : output;
+        return path.StartsWith("ingot-", StringComparison.Ordinal)
+            ? new ChargeItem($"{domain}:metalbit-{path["ingot-".Length..]}", units / UnitsPerItem)
+            : new ChargeItem(output, units / UnitsOf(output));
+    }
+
     /// <summary>Whether any recipe takes <paramref name="code"/> at all.</summary>
     public bool IsIngredient(string code) => Recipes.Any(r => r.IngredientFor(code) != null);
 
