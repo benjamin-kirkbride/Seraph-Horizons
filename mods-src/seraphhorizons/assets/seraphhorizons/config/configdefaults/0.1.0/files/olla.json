@@ -1,3 +1,4 @@
 {
-  "IrrigationTarget": 1.0
+  "IrrigationTarget": 1.0,
+  "RainLitresPerHour": 0.5
 }
