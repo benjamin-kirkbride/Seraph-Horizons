@@ -20,7 +20,7 @@ namespace SeraphHorizons.Mod.Machines;
 /// each (<see cref="BlockOreMachineCell"/>, the power cell's <see cref="BlockOreMachineCellPower"/>);
 /// breaking it (or a cell) gives back the frame, everything fitted and what it holds.
 /// </summary>
-public class BlockOreMachine : Block
+public class BlockOreMachine : Block, IMechanicalPowerBlock
 {
     public const string ClassName = "seraphhorizons.OreMachine";
 
@@ -96,6 +96,23 @@ public class BlockOreMachine : Block
 
     public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
         (blockAccessor.GetBlockEntity(pos) as BEOreMachine)?.CellBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
+
+    // A face of the controller that is one of the machine's anchors (a water pipe's) carries a block attached to it.
+    public override bool CanAttachBlockAt(IBlockAccessor blockAccessor, Block block, BlockPos pos, BlockFacing blockFace, Cuboidi? attachmentArea = null) =>
+        (blockAccessor.GetBlockEntity(pos) as BEOreMachine)?.AnchorFaceAt(pos, blockFace) == true
+        || base.CanAttachBlockAt(blockAccessor, block, pos, blockFace, attachmentArea);
+
+    // A machine whose power cell is its controller's (the shaking table): its frame's block type carries
+    // seraphhorizons.MachineMP, and the axle connects on the power face only.
+    public bool HasMechPowerConnectorAt(IWorldAccessor world, BlockPos pos, BlockFacing face, BlockMPBase forBlock) =>
+        world.BlockAccessor.GetBlockEntity(pos) is BEOreMachine { PowerAtController: true } machine && machine.PowerFace == face;
+
+    public MechanicalNetwork? GetNetwork(IWorldAccessor world, BlockPos pos) =>
+        world.BlockAccessor.GetBlockEntity(pos)?.GetBehavior<BEBehaviorMPBase>()?.Network;
+
+    public void DidConnectAt(IWorldAccessor world, BlockPos pos, BlockFacing face)
+    {
+    }
 
     public override string GetPlacedBlockName(IWorldAccessor world, BlockPos pos) =>
         world.BlockAccessor.GetBlockEntity(pos) is BEOreMachine { Built: true }
