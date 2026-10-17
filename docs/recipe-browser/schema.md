@@ -369,6 +369,19 @@ where it lies, which `requirements` says. `power` is `hand`, `turns` the blows (
 hammer), and `work` says so (`amount` that many, `unit` `strikes`). `extra` has the `ore`, `grade`,
 `form` (`raw` or `crystallised`) and `blows`.
 
+**The rocker** (type `rocker`, shape `machine`, present with seraphhorizons' `Rocker` and `OreProcessing`
+on): one record per feed item, id `rocker|<feed>|0`: every crushed and ground ore item
+(`seraphhorizons:crushedore-<ore>-<grade>`, `groundore-<ore>-<grade>`, as they come: not riddled, not
+amalgamated) and every rich gravel block (`game:richgravel-<rock>`). The ingredients are the feed (one,
+consumed) and the rocker (role `station`); the outputs are what an item gives, fractional, since the
+rocker carries the rest of a unit over to the next item: an ore's concentrate
+(`seraphhorizons:concentrate-<ore>`) at the rocker's hand concentration, or for rich gravel the gold
+pan's table as expected counts, its nuggets at the rocker's figure over the pan's. `power` is `hand`,
+`turns` the rocks an item takes (a rock a second while right-click is held with a bucket of water) and
+`work` says so (`unit` `rocks`); the water an item is a `requirements` entry, as the schema has no water
+field (`extra.litres` gives it). `extra` also has the `feed` (`crushed`, `ground` or `placer`) and
+`carried` (true).
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).

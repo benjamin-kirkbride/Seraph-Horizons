@@ -1,0 +1,20 @@
+// The rocker (Rocker/, README "Rocker", #716). The server disables it with Rocker or OreProcessing off.
+[
+	{
+		// A gold-rush cradle, placed whole (a hand station has no build stages), of the model's
+		// materials (Rocker/README.md, "Model"): oak planks for the box, its rockers, riffles, the
+		// apron's rails and the handle; an iron plate punched for the riddle plate; plain linen for the
+		// canvas apron; nailed together with a hammer.
+		ingredientPattern: "PCP,PRP,NHN",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"P": { type: "item", code: "game:plank-oak", quantity: 2 },
+			"C": { type: "item", code: "game:cloth-plain" },
+			"R": { type: "item", code: "game:metalplate-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:rocker-north" }
+	}
+]
