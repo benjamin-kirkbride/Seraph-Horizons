@@ -58,7 +58,7 @@ public class EidolonFittedScenarios(ITestOutputHelper output) : AtlasScenarioBas
                 W.BlockAccessor.SetBlock(0, origin.AddCopy(x, y, z));
         }
         await World.Ticks(5);
-        var p = await World.JoinPlayer(watcher);
+        var p = await World.JoinRetrying(watcher);
         ((IServerPlayer)p.Player).WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(origin.AddCopy(-reach + 1, 0, -reach + 1));
         return origin;

@@ -43,7 +43,7 @@ public class EidolonSectorScenarios(ITestOutputHelper output) : AtlasScenarioBas
 
     private async Task<(ITestPlayer Test, IServerPlayer Player, ItemSlot Tool)> Commander(string name, BlockPos at)
     {
-        var p = await World.JoinPlayer(name);
+        var p = await World.JoinRetrying(name);
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at);

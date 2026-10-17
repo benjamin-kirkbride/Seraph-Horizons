@@ -34,7 +34,7 @@ public class MapRevealScenarios : AtlasScenarioBase
 
     private async Task<ITestPlayer> Admin(string name)
     {
-        var player = await World.JoinPlayer(name);
+        var player = await World.JoinRetrying(name);
         var role = await World.ExecuteCommand($"/player {name} role admin");
         Assert.True(role.Ok, role.Message);
         return player;
@@ -106,7 +106,7 @@ public class MapRevealScenarios : AtlasScenarioBase
     [AtlasScenario]
     public async Task Needs_creative_mode_or_the_controlserver_privilege()
     {
-        var player = await World.JoinPlayer("visitor");
+        var player = await World.JoinRetrying("visitor");
         var role = await World.ExecuteCommand("/player visitor role suplayer");
         Assert.True(role.Ok, role.Message);
         var visitor = (IServerPlayer)Api.World.AllOnlinePlayers.Single(p => p.PlayerName == "visitor");

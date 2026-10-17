@@ -79,7 +79,7 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
     {
         if (!SharedPlayers.TryGetValue(World.Api, out var player))
         {
-            player = (await World.JoinPlayer("millhand")).Player;
+            player = (await World.JoinRetrying("millhand")).Player;
             SharedPlayers.AddOrUpdate(World.Api, player);
         }
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
@@ -418,7 +418,7 @@ public abstract class WoodworkingScenarioBase : AtlasScenarioBase
     {
         if (!Keepers.TryGetValue(World.Api, out var keeper))
         {
-            keeper = (await World.JoinPlayer("rosserkeeper")).Player;
+            keeper = (await World.JoinRetrying("rosserkeeper")).Player;
             Keepers.AddOrUpdate(World.Api, keeper);
         }
         keeper.WorldData.CurrentGameMode = EnumGameMode.Creative;
