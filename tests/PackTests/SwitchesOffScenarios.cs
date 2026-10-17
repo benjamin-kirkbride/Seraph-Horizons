@@ -521,6 +521,30 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(lists.Unresolved, u => u.Contains("pumphead") || u.Contains("schematic-eidolon"));
     }
 
+    /// <summary><c>Riddle</c>: no riddle block and no recipe for its frame, no link to it in the mod's own text,
+    /// and nothing logged about it. The nails and strips its mesh takes (the game's) exist either way.</summary>
+    [AtlasScenario]
+    public void Riddle_off_there_is_no_riddle()
+    {
+        Assert.True(Off("Riddle"));
+        Assert.False(SeraphHorizons.Mod.Riddle.RiddleSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("riddle"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("riddle") == true);
+        foreach (var code in SeraphHorizons.Mod.Riddle.Core.RiddleParts.MeshCodes)
+            Assert.NotNull(W.GetItem(new AssetLocation(code)));
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://block-seraphhorizons:riddle|handbooksearch://riddle"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the riddle: " + string.Join(", ", linked));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("riddle", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, string.Join("\n", logged));
+    }
+
     /// <summary><c>SquaringShear</c>: no squaring shear blocks, no half plate and no recipe for the
     /// frame, no link to either in the mod's own text, and nothing logged about them. The plates it
     /// cuts and the parts it takes (the game's) exist either way.</summary>

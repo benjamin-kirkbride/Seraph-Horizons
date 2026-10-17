@@ -1,5 +1,6 @@
 using System.Text.Json;
 using SeraphHorizons.Mod.Machines.Core;
+using SeraphHorizons.Mod.Riddle.Core;
 using Xunit;
 
 namespace SeraphHorizons.Tests.Riddle;
@@ -9,12 +10,38 @@ namespace SeraphHorizons.Tests.Riddle;
 /// will use: every part parses with the machines' parser and its <c>requires</c> vocabulary (the riddle, the charge
 /// and the fines in the box), the work is one charge's riddling (three lumps in twelve shakes, #714), and every
 /// reference pose (θ, W, k, p; ψ is |θ|) gives the matrices the Python reference maths wrote, the stretching gauges
-/// of the charge and the fines included. There is no
-/// riddle gameplay yet (#714); this holds the third implementation of the rig maths to the model before there is.
+/// of the charge and the fines included. The gameplay's reader takes it with the contract's anchors, refuses any
+/// automated input or output, and its default settings are the rig's charge (#714).
 /// </summary>
 public class RiddleRigTests
 {
     private static readonly HashSet<string> Requires = ["riddle", "charge", "fines"];
+
+    [Fact]
+    public void The_gameplay_reads_the_shipped_rig_and_its_vocabulary_is_the_rigs()
+    {
+        var json = File("riddle-rig.json");
+        var rig = RiddleRig.Parse(json);
+        Assert.Equal([Int3.Zero], rig.Cells.Select(c => c.Pos));
+        Assert.Equal(Side.North, rig.OperatorSide);
+        Assert.Equal(Requires, RiddleRequires.KnownRequires.ToHashSet());
+        foreach (var p in new[] { rig.Fines, rig.Charge })
+        {
+            Assert.InRange(p.X, 0, 1);
+            Assert.InRange(p.Y, 0, 1);
+            Assert.InRange(p.Z, 0, 1);
+        }
+        Assert.True(rig.Charge.Y > rig.Fines.Y);
+        // the settings' defaults are the model's charge
+        var config = new RiddleConfig();
+        Assert.Equal(rig.LumpsPerCharge, config.LumpsPerCharge);
+        Assert.Equal(rig.ShakesPerCharge, config.ShakesPerCharge, 3);
+        // a hand station: no power, no automated input or output
+        foreach (var bad in new[] { "\"powerCell\": [0,0,0], ", "\"infeedSide\": \"south\", ", "\"outputSide\": \"south\", ", "\"output\": {\"pos\": [0,0,0]}, " })
+            Assert.Throws<FormatException>(() => RiddleRig.Parse(json.Replace("\"operatorSide\"", bad + "\"operatorSide\"")));
+        Assert.Throws<FormatException>(() => RiddleRig.Parse(json.Replace("\"lumpsPerCharge\"", "\"lumps\"")));
+        Assert.Throws<FormatException>(() => RiddleRig.Parse(json.Replace("\"charge\": \"charge\"", "\"charge\": \"load\"")));
+    }
 
     public static TheoryData<string, string> Forms => new()
     {
