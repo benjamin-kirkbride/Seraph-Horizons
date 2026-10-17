@@ -4,10 +4,10 @@
   "config": "mods-src/seraphhorizons/assets/seraphhorizons/config/ore-processing.json",
 
   "line": {
-    "about": "The reference line the chain is priced along: the water tier (tier 2), where a mid-game player and a trader's supplier work. concentrator: a key of the config's concentrators; roaster: of its roasters; parting: a tier of its parting tables (hand, tier1..tier4). Ground and classified feed, free gold and silver amalgamated, as at that tier.",
-    "concentrator": "jig",
-    "roaster": "stall",
-    "parting": "tier2"
+    "about": "The reference line the chain is priced along (#765), what a mid-game player and a trader's supplier work. concentrators: keys of the config's machines, chained (1 - the product of what each misses); roaster: a machine key, or firepit (the config's handStations); parting: per method, the machine or hand station that parts it. Ground and classified feed, free gold and silver amalgamated. The vanner alone (80 %), the stall roaster (92 %) and the parting machines (95 %) keep the figures the table was priced at before the per-machine rework (the old water tier); retune it with the line in play.",
+    "concentrators": ["vanner"],
+    "roaster": "stallroaster",
+    "parting": { "cupellation": "cupellationfurnace", "liquation": "liquationfurnace", "acidparting": "acidparting" }
   },
 
   "kinds": {
@@ -59,7 +59,7 @@
   },
 
   "parting": {
-    "about": "Parting methods with a station (true) or none yet (false). A by-product is a share of the main metal's units (the config's byProducts), won only at a parting step at the line's parting tier. Where a method has a station, the form that is parted (roasted concentrate for a sulfide, else concentrate and amalgam) is worth at least what parting wins from it: its main metal at the ore's unparted share, plus each by-product at its share times the method's recovery, both at the metals' unit values. A method without a station leaves the by-product out (it is lost unparted), so turning one on when its station lands (cupellation #722, liquation #724, acid parting) is the whole change.",
+    "about": "Parting methods with a station (true) or none yet (false). A by-product is a share of the main metal's units (the config's byProducts), won only at a parting step at the line's parting station. Where a method has a station, the form that is parted (roasted concentrate for a sulfide, else concentrate and amalgam) is worth at least what parting wins from it: its main metal at the ore's unparted share, plus each by-product at its share times the method's recovery, both at the metals' unit values. A method without a station leaves the by-product out (it is lost unparted), so turning one on when its station lands (cupellation #722, liquation #724, acid parting) is the whole change.",
     "cupellation": true,
     "liquation": true,
     "acidparting": false
