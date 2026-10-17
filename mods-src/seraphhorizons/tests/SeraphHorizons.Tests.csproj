@@ -128,6 +128,10 @@
           Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />
     <None Include="MandrelStation/rig-reference.json" Link="mandrelstation-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('MandrelStation/rig-reference.json')" />
+    <!-- The riddle's shipped rig and its reference poses (Riddle/tools/make_shape.py):
+         a hand station with no gameplay yet (#714), held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/riddle-rig.json" Link="riddle-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Riddle/rig-reference.json" Link="riddle-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eidolon gantry's winch stages and rig reader, its shipped rig, and its README, whose
          stage table the stages are held to. -->
     <Compile Include="../EidolonGantry/Core/**/*.cs" Link="EidolonGantry/Core/%(RecursiveDir)%(Filename)%(Extension)" />
@@ -150,6 +154,22 @@
          with no gameplay yet, held to the shared rig maths its renderer will use. -->
     <None Include="../assets/seraphhorizons/config/amalgampan-rig.json" Link="amalgampan-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="AmalgamPan/rig-reference.json" Link="amalgampan-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The rocker's shipped rig and its reference poses (Rocker/tools/make_shape.py): a model with no
+         gameplay yet, held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/rocker-rig.json" Link="rocker-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Rocker/rig-reference.json" Link="rocker-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The jaw breaker's shipped rig and its reference poses (JawBreaker/tools/make_shape.py): a model
+         with no gameplay yet (#912), held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/jawbreaker-rig.json" Link="jawbreaker-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="JawBreaker/rig-reference.json" Link="jawbreaker-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The ball mill's shipped rig and its reference poses (BallMill/tools/make_shape.py): a model with no
+         gameplay yet, held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/ballmill-rig.json" Link="ballmill-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="BallMill/rig-reference.json" Link="ballmill-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The jig's shipped rig and its reference poses (Jig/tools/make_shape.py): a model with no gameplay
+         yet (#919), held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/jig-rig.json" Link="jig-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Jig/rig-reference.json" Link="jig-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eleven shipped trade lists and the curation fixture, for ShippedTradeListsTests. -->
     <None Include="../assets/seraphhorizons/config/tradelists/*.json" Link="tradelists/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Trading/fixtures/curation-sources.json" Link="curation-sources.json" CopyToOutputDirectory="PreserveNewest" />
@@ -227,6 +247,14 @@
     <Compile Include="../RecipeSelector/Core/**/*.cs" Link="RecipeSelector/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- The eidolon (#673): charge, stops, the slump pose, ownership and the wide pathfinder. -->
     <Compile Include="../Eidolon/Core/**/*.cs" Link="Eidolon/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The shaking table's shipped rig and its reference poses (ShakingTable/tools/make_shape.py): a model
+         with no gameplay yet (#921), held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/shakingtable-rig.json" Link="shakingtable-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="ShakingTable/rig-reference.json" Link="shakingtable-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The vanner's shipped rig and its reference poses (Vanner/tools/make_shape.py): a model with no
+         gameplay yet, held to the shared rig maths its renderer will use. -->
+    <None Include="../assets/seraphhorizons/config/vanner-rig.json" Link="vanner-rig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Vanner/rig-reference.json" Link="vanner-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
