@@ -326,8 +326,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         + $"head {(Station is { } s ? $"#{s.Id} at {s.Stand}" : "none")}, nav {(_nav?.Active == true ? "active" : "idle")}, "
         + $"through {(_throughSince?.ToString("0.0") ?? "-")}, bumped {(_bumpedAt > double.NegativeInfinity ? _bumpedAt.ToString("0.0") : "-")}, "
         + $"let go {(_held is { } h ? $"{h.Why} x{h.Count} since {h.Since:0.0}" : "-")}, "
-        + $"blocked {(Cells.BlockedStands.Count == 0 ? "-" : string.Join(" ", Cells.BlockedStands.Select(b => $"({b.Key.X},{b.Key.Y},{b.Key.Z}) x{b.Value}")))}, "
-        + $"passed over {_passedOver.Count}";
+        + $"blocked {(Cells.BlockedStands.Count == 0 ? "-" : string.Join(" ", Cells.BlockedStands.Select(b => $"({b.Key.X},{b.Key.Y},{b.Key.Z}) x{b.Value}")))}";
 
     /// <summary>How many times, by any member and with no strike of its job between, a stand is found no way
     /// to (or arrived short of) with another eidolon by it before it is bad all the same (README "Eidolon",
@@ -336,11 +335,6 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// its job to that station for good, each member taking it, failing and taking it again.</summary>
     private const int BlockedTries = 3;
 
-    /// <summary>How many times, with no strike between, it lets go of a station at one stand (refused there,
-    /// nothing it may break from there) before it passes over that stand, until its job's plan changes or
-    /// one of its job strikes.</summary>
-    private const int DropTries = 5;
-
     /// <summary>How long a run of stations let go for one reason, with no strike, goes on before it is logged
     /// (at Debug, <c>[eidolon-mine]</c>), and how often at most after that.</summary>
     private const double HeldLogSeconds = 30;
@@ -348,14 +342,6 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     // why it last let go of a station without working it, how many times in a row with no strike between,
     // since when, and when that was last logged
     private (string Why, int Count, double Since, double Logged)? _held;
-
-    // the stands it let go of at the strike since its last strike, and how many times each (DropTries)
-    private readonly Dictionary<PathCell, int> _dropped = new();
-
-    // stands it passes over (DropTries), and the plan and its job's last strike they were passed over under
-    private readonly HashSet<PathCell> _passedOver = new();
-    private int _passedPlan = -1;
-    private double _passedStrike;
 
     /// <summary>It let go of a station without working it, for <paramref name="why"/>: kept for
     /// <see cref="DebugState"/>, and a run of them for one reason, with no strike, that goes on
@@ -373,35 +359,6 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _held = held with { Logged = now };
         eidolon.World.Logger.Debug("{0}", $"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: let go of its station {held.Count} times in "
             + $"{now - held.Since:0} s with no strike, {why}: {DebugState}");
-    }
-
-    /// <summary>It let go of its station at its stand without a strike (<see cref="Held"/>); the
-    /// <see cref="DropTries"/>th time at one stand since its last strike, it passes over that stand
-    /// (<see cref="PassedOver"/>).</summary>
-    private void Dropped(EntityLaborEidolon eidolon, MineStation head, string why, double now)
-    {
-        Held(eidolon, why, now);
-        int times = _dropped[head.Stand] = _dropped.GetValueOrDefault(head.Stand) + 1;
-        if (times < DropTries)
-            return;
-        PassedOver(head.Stand);
-        _passedOver.Add(head.Stand);
-        _dropped.Remove(head.Stand);
-        eidolon.World.Logger.Debug("{0}", $"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: let go of station {head.Id} at "
-            + $"({head.Stand.X},{head.Stand.Y},{head.Stand.Z}) {DropTries} times with no strike ({why}): passes over that stand until the plan changes or one of its job strikes");
-    }
-
-    /// <summary>Whether it passes over <paramref name="stand"/> (<see cref="Dropped"/>): only under the plan and
-    /// its job's last strike it was passed over under (either changed, it takes any again).</summary>
-    private bool PassedOver(PathCell stand)
-    {
-        if (_passedPlan != Cells.PlanVersion || _passedStrike != Cells.LastStrikeAt)
-        {
-            _passedOver.Clear();
-            _passedPlan = Cells.PlanVersion;
-            _passedStrike = Cells.LastStrikeAt;
-        }
-        return _passedOver.Contains(stand);
     }
 
     private EidolonMinePlans? Plans => EidolonMinePlans.Of(_eidolon?.Api);
@@ -1155,7 +1112,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         {
             var me = new MineWorker(id, eidolon.Pos.X, Feet(eidolon), eidolon.Pos.Z, _queue.ToList(), 0);
             var next = MineDispatch.Next(plan, live, me, workers,
-                s => !Taken(s.Stand, workers) && !PassedOver(s.Stand) && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
+                s => !Taken(s.Stand, workers) && (board == null || MineDispatch.Claim(s, plan.Tunnel).All(u => board.Free(id, u, now))),
                 parked.Count > 0 ? Clear : null, s => board == null ? s : MineDispatch.Fit(s, plan.Tunnel, u => board.Free(id, u, now)));
             if (next == null || board != null && !board.TryClaim(id, next.Id, MineDispatch.Claim(next, plan.Tunnel), now))
                 break;
@@ -1394,7 +1351,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var workable = head.Cells.Where(c => Left(c, others)).ToHashSet();
         if (workable.Count == 0)
         {
-            Dropped(eidolon, head, "nothing left it may break", now);
+            Held(eidolon, "nothing left it may break", now);
             DropHead(eidolon);
             return Try.Dropped;
         }
@@ -1402,7 +1359,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var group = MineStations.NextGroup(head, plan.Tunnel, workable.Contains, stand.X, stand.Y, stand.Z);
         if (group == null)
         {
-            Dropped(eidolon, head, "no group to strike", now);
+            Held(eidolon, "no group to strike", now);
             DropHead(eidolon);
             return Try.Dropped;
         }
@@ -1417,7 +1374,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var refused = footing ? MineRefusal.None : live.Check(stand, group.Cells, At(Workers(eidolon)), null, before);
         if (footing || refused != MineRefusal.None)
         {
-            Dropped(eidolon, head, $"refused: {(footing ? "footing" : refused.ToString())}", now);
+            Held(eidolon, $"refused: {(footing ? "footing" : refused.ToString())}", now);
             DropHead(eidolon);
             return Try.Dropped;
         }
@@ -1428,12 +1385,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             return Try.NotInReach;
         if (!BeginStrike(eidolon, head, group, now))
         {
-            Dropped(eidolon, head, "nothing breakable from its stand", now);
+            Held(eidolon, "nothing breakable from its stand", now);
             return Try.Dropped;
         }
         _pathFails = 0;
         _held = null;
-        _dropped.Clear();
         return Try.Struck;
     }
 
