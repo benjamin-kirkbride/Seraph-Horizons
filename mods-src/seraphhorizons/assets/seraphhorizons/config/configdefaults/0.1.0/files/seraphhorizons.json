@@ -532,5 +532,6 @@
     "DamperHalfBurn": 0.6,
     "DamperShutBurn": 0.25,
     "DoorOpenPace": 0.5
-  }
+  },
+  "Sluice": true
 }
