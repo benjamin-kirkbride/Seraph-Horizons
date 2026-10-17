@@ -82,15 +82,15 @@ frame); then each stage is fitted in order, and the jig runs only when the last 
 recipe holds at most 12 of an item a slot and 6 kinds with the hammer (the owner's grid limit), so the hutch's
 bulk timber, 17 planks, is a first stage of its own, **timber**, fitted a stack a right-click as brickwork is
 on the furnaces. The materials are the stages' iron and timber measured from the model at the
-settled rate (128 vox of iron or steel an ingot, a rod an ingot, nails and strips 4 an ingot; boards in planks at 128 vox, timbers in support beams at 256), the chute and pipe sections counted.
+settled rate (128 vox of iron or steel an ingot, a rod an ingot, nails and strips 4 an ingot; boards in planks at 128 vox, timbers in support beams at 256), plus 1 iron nails and strips per 4 planks' worth of timber (a support beam 2), for the fastenings, the chute and pipe sections counted.
 
 | # | Stage | `requires` | Sits on | Materials |
 |---|---|---|---|---|
-| F | The frame: the hutch's sills and floor | none (placed) | The ground | 2 support beam (the three sills), 3 plank (the floor) |
-| 1 | Timber | `timber` | The floor and sills (frame): the walls on the floor, the partition and ledges between them, the slope on its cleat | 17 plank (the walls, head, partition, ledges, slope and cleat), 3 iron nails and strips (the corner straps and rim irons, the weir's lip, the spout) |
+| F | The frame: the hutch's sills and floor | none (placed) | The ground | 2 iron nails and strips, 2 support beam (the three sills), 3 plank (the floor) |
+| 1 | Timber | `timber` | The floor and sills (frame): the walls on the floor, the partition and ledges between them, the slope on its cleat | 17 plank (the walls, head, partition, ledges, slope and cleat), 8 iron nails and strips (the corner straps and rim irons, the weir's lip, the spout; 5 the fastenings) |
 | 2 | The sieve | `sieve` | The ledges round the sieve compartment (timber) | 1 iron chain (the sieve, 119 vox²) |
-| 3 | The drive and plunger | `drive`, `plunger` | The standards on the side walls' rims; the sheave keyed on the shaft, the board in the plunger compartment | 1 iron rod, 1 steel rod, 2 plank |
-| 4 | Services | `infeed`, `outlets`, `pipecopper` or `pipelead` | The infeed on its bearers over the sieve; the outlets on their bracket and block on the hutch; the inlet through the back wall | 3 chute section, 1 pipe section (copper or lead), 1 iron nails and strips, 1 plank, 1 support beam |
+| 3 | The drive and plunger | `drive`, `plunger` | The standards on the side walls' rims; the sheave keyed on the shaft, the board in the plunger compartment | 1 iron rod, 1 iron nails and strips, 1 steel rod, 2 plank |
+| 4 | Services | `infeed`, `outlets`, `pipecopper` or `pipelead` | The infeed on its bearers over the sieve; the outlets on their bracket and block on the hutch; the inlet through the back wall | 3 chute section, 1 pipe section (copper or lead), 2 iron nails and strips, 1 plank, 1 support beam |
 
 The corner straps and rim irons go with the timber, since they bind the walls' corners and stand on nothing
 without them; the weir's lip sits on the west wall's notch and the spout lines the front wall's port, so they go

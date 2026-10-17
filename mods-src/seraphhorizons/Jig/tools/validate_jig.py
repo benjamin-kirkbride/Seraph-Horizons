@@ -89,14 +89,17 @@ def check_basic(v):
 
 # The frame's grid recipe (ruled 2026-10-16): at most 12 of an item a slot. Timber at the settled rate: a board
 # (2 voxels thick or less) a plank per 128 vox, a thicker timber a support beam per 256; iron and steel 128 vox an
-# ingot, nails and strips 4 an ingot.
+# ingot, nails and strips 4 an ingot; and the timber pays its fastenings (owner, 2026-10-17): 1 iron nails and strips
+# per FASTENING_PLANKS planks' worth of it, a support beam BEAM_PLANKS.
 GRID_MOST = 12
 WOOD_RATE = {"board": 128.0, "timber": 256.0}
 NAILS_VOX = 32.0
+FASTENING_PLANKS, BEAM_PLANKS = 4, 2
 
 
 def materials(els):
-    """What a set of elements costs at the settled rate: planks, support beams and nails and strips."""
+    """What a set of elements costs at the settled rate: planks, support beams and nails and strips (the iron's and
+    the timber's fastenings)."""
     vox = {"board": 0.0, "timber": 0.0, "iron": 0.0}
     for e in els:
         s = sorted(abs(x) for x in e.size)
@@ -108,7 +111,8 @@ def materials(els):
     out = {k: math.ceil(vox[k] / WOOD_RATE[k] - 1e-9) for k in WOOD_RATE}
     if sum(out.values()) == 0 and vox["board"] + vox["timber"] > 0:
         out["board"] = 1
-    out["nails"] = math.ceil(vox["iron"] / NAILS_VOX - 1e-9)
+    out["nails"] = (math.ceil(vox["iron"] / NAILS_VOX - 1e-9)
+                    + math.ceil((out["board"] + BEAM_PLANKS * out["timber"]) / FASTENING_PLANKS))
     return out
 
 
