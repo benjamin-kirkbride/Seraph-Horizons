@@ -1108,3 +1108,12 @@ license = "Apache-2.0"
 license_source = "https://github.com/benjamin-kirkbride/Seraph-Horizons"
 redistribute = false
 why = "Chiseled blocks in rotated worldgen ruins keep their materials instead of going see-through (VintageStory-Issues#9495); /chiselfix repairs older ones."
+
+[[mod]]
+id = "entityinterpolationfix"
+version = "1.0.0"
+side = "universal"
+license = "Apache-2.0"
+license_source = "https://github.com/benjamin-kirkbride/Seraph-Horizons"
+redistribute = false
+why = "Remote entities no longer go NaN after slow frames (minimised window, stalls), which crashed the client with \"Given pos contained NaN\" (#405, VintageStory-Issues#6758)."
