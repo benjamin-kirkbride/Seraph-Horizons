@@ -350,6 +350,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("SquaringShear", off);
         Assert.Contains("MandrelStation", off);
         Assert.Contains("Rocker", off);
+        Assert.Contains("AmalgamPan", off);
         Assert.Contains("Rosser", off);
         Assert.Contains("Eidolon", off);
         var left = W.Collectibles.Where(c => c?.Code != null && !c.IsMissing)
@@ -516,6 +517,29 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("pressbrake", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("press brake", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>AmalgamPan</c>: no amalgam pan block and no recipe for its frame, no link to it in
+    /// the mod's own text, and nothing logged about it.</summary>
+    [AtlasScenario]
+    public void Amalgam_pan_off_there_is_no_amalgam_pan()
+    {
+        Assert.True(Off("AmalgamPan"));
+        Assert.False(SeraphHorizons.Mod.AmalgamPan.AmalgamPanSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("amalgampan"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("amalgampan") == true);
+        var linked = Lang.AvailableLanguages["en"].GetAllEntries()
+            .Where(e => e.Key.StartsWith("seraphhorizons:", StringComparison.Ordinal)
+                        && System.Text.RegularExpressions.Regex.IsMatch(e.Value, "handbook://block-seraphhorizons:amalgampan"))
+            .Select(e => e.Key).ToList();
+        Assert.True(linked.Count == 0, "Still link the amalgam pan: " + string.Join(", ", linked));
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("amalgampan", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("amalgam pan", StringComparison.OrdinalIgnoreCase))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
