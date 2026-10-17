@@ -48,10 +48,11 @@ public class ArrastraChargeTests
         Assert.Equal(LoadVerdict.NotCrushed, c.Load("game:ore-poor-hematite-granite"));
         Assert.Equal(LoadVerdict.NotCrushed, c.Load("seraphhorizons:groundore-hematite-poor"));
         Assert.Equal(LoadVerdict.Loads, c.Load(Poor));
-        Assert.Equal(LoadVerdict.Loads, c.Load(Medium));
+        Assert.Equal(LoadVerdict.Mixed, c.Load(Medium));
+        Assert.Equal(LoadVerdict.Loads, c.Load(Poor));
         Assert.Equal(LoadVerdict.Full, c.Load(Poor));
         Assert.Equal(PitState.Charged, c.State);
-        Assert.Equal(new[] { Poor, Medium }, c.Rocks);
+        Assert.Equal(new[] { Poor, Poor }, c.Rocks);
     }
 
     [Fact]
@@ -84,7 +85,7 @@ public class ArrastraChargeTests
     {
         const double perCharge = 429.75;
         var c = new ArrastraCharge(2);
-        c.Load(Poor);
+        c.Load(Medium);
         c.Load(Medium);
         Assert.False(c.Work(Turn * 200, perCharge));
         Assert.Equal(200 / perCharge, c.Progress(perCharge), 9);
@@ -92,7 +93,7 @@ public class ArrastraChargeTests
         Assert.Equal(PitState.Charged, c.State);
         Assert.True(c.Work(Turn * 0.75, perCharge));
         Assert.Equal(PitState.Ground, c.State);
-        Assert.Equal(new[] { "seraphhorizons:groundore-hematite-poor", "seraphhorizons:groundore-galena-medium" }, c.Rocks);
+        Assert.Equal(new[] { "seraphhorizons:groundore-galena-medium", "seraphhorizons:groundore-galena-medium" }, c.Rocks);
         Assert.Equal(0, c.WaterNeeded(10));
         Assert.Equal(1, c.Progress(perCharge));
         // ground: more turns do nothing, and no rock goes in until it is drawn
@@ -139,10 +140,10 @@ public class ArrastraChargeTests
     [Fact]
     public void Restore_KeepsWhatFits_ReturnsTheRest()
     {
-        var c = ArrastraCharge.Restore(2, [Poor, "game:stone-granite", Medium, Poor], false, 12.5, out var dropped);
-        Assert.Equal(new[] { Poor, Medium }, c.Rocks);
+        var c = ArrastraCharge.Restore(2, [Poor, "game:stone-granite", Medium, Poor, Poor], false, 12.5, out var dropped);
+        Assert.Equal(new[] { Poor, Poor }, c.Rocks);
         Assert.Equal(12.5, c.Turns);
-        Assert.Equal(new[] { "game:stone-granite", Poor }, dropped);
+        Assert.Equal(new[] { "game:stone-granite", Medium, Poor }, dropped);
 
         var g = ArrastraCharge.Restore(2, ["seraphhorizons:groundore-hematite-poor"], true, 5, out dropped);
         Assert.Equal(PitState.Ground, g.State);
