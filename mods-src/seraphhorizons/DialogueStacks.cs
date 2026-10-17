@@ -15,8 +15,10 @@ namespace SeraphHorizons.Mod;
 /// returns a slot spanning them (<see cref="SpanningSlot"/>), which the condition takes as found and
 /// from which the trigger's <c>TakeOut</c> takes across them, exactly the quantity asked
 /// (<see cref="SpanningTake"/>). Every dialogue benefits; the dialogue files are the game's.
-/// Patched once per process; acts while <see cref="SeraphHorizonsConfig.RustyGearStack"/>, the
-/// cause, is on (as the server has it).
+/// Patched once per process, and again at a later start if gone: MadMechanics, MadFoundation and
+/// MadHoarding call <c>Harmony.UnpatchAll(null)</c> when a server stops, which takes it off too (a
+/// second world in one singleplayer session, a later Atlas class). Acts while
+/// <see cref="SeraphHorizonsConfig.RustyGearStack"/>, the cause, is on (as the server has it).
 /// </summary>
 public static class DialogueStacks
 {
@@ -27,13 +29,12 @@ public static class DialogueStacks
     // The game's own match (equal or satisfying, fresh enough, big enough), asked with a stack of one.
     private static readonly MethodInfo? Matches = AccessTools.Method(typeof(DialogueComponent), "matches");
     private static readonly MethodInfo? IgnoreAttrs = AccessTools.Method(typeof(DialogueComponent), "getIgnoreAttrs");
-    private static bool _patched;
 
     public static void Patch(ICoreAPI api)
     {
         lock (typeof(DialogueStacks))
         {
-            if (_patched) return;
+            if (Patched) return;
             if (Target is null || Matches is null || IgnoreAttrs is null)
             {
                 api.Logger.Warning("[seraphhorizons] Dialogue stacks: DialogueComponent.FindDesiredItem/matches/getIgnoreAttrs not found; the game "
@@ -41,9 +42,10 @@ public static class DialogueStacks
                 return;
             }
             new Harmony(HarmonyId).Patch(Target, postfix: new HarmonyMethod(typeof(DialogueStacks), nameof(FindDesiredItemPostfix)));
-            _patched = true;
         }
     }
+
+    public static bool Patched => Harmony.HasAnyPatches(HarmonyId);
 
     private static void FindDesiredItemPostfix(EntityAgent eagent, ItemStack wantStack, ref ItemSlot __result)
     {
