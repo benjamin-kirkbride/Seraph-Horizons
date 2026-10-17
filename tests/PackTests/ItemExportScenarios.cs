@@ -110,13 +110,14 @@ public class ItemExportScenarios : AtlasScenarioBase
     public void Ground_storage_reads_piles_loose_piles_placed_items_and_more_piles_blocks()
     {
         // survival/itemtypes/resource/ingot.json: Stacking, stackingCapacity 64, transfer 1, bulk 4,
-        // upSolid, collision box 0.125 high scaled by ceil(0.125 * 64) = 8 layers: one block.
+        // upSolid, collision box 0.125 high scaled by ceil(0.125 * 64) = 8 layers: one block. The
+        // pack's BigPiles makes it 64 stacks of 16 (1024), a Ctrl click a stack, the full pile as tall.
         var ingot = (JObject?)Attrs(Item(Items, "game:ingot-copper"))["groundStorage"];
         Assert.NotNull(ingot);
         Assert.Equal("stacking", (string?)ingot["layout"]);
-        Assert.Equal(64, (int?)ingot["capacity"]);
+        Assert.Equal(1024, (int?)ingot["capacity"]);
         Assert.Equal(1, (int?)ingot["transfer"]);
-        Assert.Equal(4, (int?)ingot["bulkTransfer"]);
+        Assert.Equal(16, (int?)ingot["bulkTransfer"]);
         Assert.True((bool?)ingot["solidTop"]);
         Assert.Null(ingot["requiresCtrl"]);
         Assert.Equal(1.0, (double?)ingot["fullHeight"]);
@@ -139,13 +140,14 @@ public class ItemExportScenarios : AtlasScenarioBase
         Assert.Null(saw["transfer"]);
 
         // More Piles adds the behavior in code; its config/default-block-piles.json "Most slabs
-        // (vanilla)": CtrlKey, UpSolid, 64, transfer 1, bulk 4, 0.125 box scaled by 0.125.
+        // (vanilla)": CtrlKey, UpSolid, 64, transfer 1, bulk 4, 0.125 box scaled by 0.125. BigPiles:
+        // 64 stacks of 64 (the block default), a Ctrl click a stack.
         var slab = (JObject?)Attrs(Item(Items, "game:plankslab-oak-down-free"))["groundStorage"];
         Assert.NotNull(slab);
         Assert.Equal("stacking", (string?)slab["layout"]);
-        Assert.Equal(64, (int?)slab["capacity"]);
+        Assert.Equal(4096, (int?)slab["capacity"]);
         Assert.Equal(1, (int?)slab["transfer"]);
-        Assert.Equal(4, (int?)slab["bulkTransfer"]);
+        Assert.Equal(64, (int?)slab["bulkTransfer"]);
         Assert.True((bool?)slab["requiresCtrl"]);
         Assert.True((bool?)slab["solidTop"]);
         Assert.Equal(1.0, (double?)slab["fullHeight"]);
@@ -157,6 +159,16 @@ public class ItemExportScenarios : AtlasScenarioBase
 
         // resource/flint.json has no GroundStorable, and More Piles adds none for it.
         Assert.Null(Attrs(Item(Items, "game:flint"))["groundStorage"]);
+        Assert.Null(Attrs(Item(Items, "game:flint"))["itemPile"]);
+
+        // resource/charcoal.json: class ItemCoal, an item pile into game:coalpile, whose
+        // BlockEntityCoalPile holds 16 and moves 2 a click either way.
+        var charcoal = (JObject?)Attrs(Item(Items, "game:charcoal"))["itemPile"];
+        Assert.NotNull(charcoal);
+        Assert.Equal(16, (int?)charcoal["capacity"]);
+        Assert.Equal(2, (int?)charcoal["transfer"]);
+        Assert.Equal(2, (int?)charcoal["bulkTransfer"]);
+        Assert.Null(Attrs(Item(Items, "game:charcoal"))["groundStorage"]);
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]

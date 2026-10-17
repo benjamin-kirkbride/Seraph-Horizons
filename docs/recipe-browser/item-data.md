@@ -100,6 +100,7 @@ tooltip.
 | `smelting` | a smelted stack resolves | `CombustibleProps`: melting point, melting duration, `smeltedRatio` as `inputQuantity`, `requiresContainer`, `smeltingType` as `method` (smelt, cook, bake, convert, fire), output stack |
 | `storageFlags` | always | `StorageFlags`, lower case names |
 | `groundStorage` | the item has the `GroundStorable` behavior | `StorageProps` of the loaded collectible (More Piles adds the behavior in code, so the type files are not enough). See [Ground storage](#ground-storage). |
+| `itemPile` | the item is an `ItemPileable` (coal, charcoal, coke) | its pile block's `BlockEntityItemPile`: `MaxStackSize`, `DefaultTakeQuantity`, `BulkTakeQuantity`. See [Ground storage](#ground-storage). |
 | `extra.grinding` | `GrindingProps` | output stack |
 | `extra.crushing` | `CrushingProps` | output stack, quantity, hardness tier |
 | `extra.eatenStack` | food leaves something behind | `NutritionProps.EatenStack` |
@@ -128,6 +129,19 @@ can be built on, more piles of the item included), `maxPilesHigh` its `maxStacki
 when set, and `fullHeight` the top of a full pile's collision box in blocks: the props'
 `collisionBox`, else the block's own, its top multiplied by `ceil(cbScaleYByLayer * capacity)`
 when `cbScaleYByLayer` is set (a copper ingot pile: 0.125 * 8 = 1 block).
+
+The props are read after the pack's own mod has run: its `BigPiles` switch makes every pile
+(`stacking`) hold 64 of the item's stacks, so an ingot pile exports `capacity` 1024 and a Ctrl
+click a whole stack (`bulkTransfer` 16), its other numbers scaled so that a full pile is as tall
+as before (`fullHeight` unchanged). The smoke export loads that mod, so a release's export has
+the big piles.
+
+`itemPile` is the game's other pile: an `ItemPileable` item (coal, charcoal, coke) goes into its
+own pile block (`coalpile`), whose `BlockEntityItemPile` holds `capacity` (16) and moves
+`transfer` a click and `bulkTransfer` a Ctrl click, putting down and taking alike; Shift is
+enough to put it down, and a full pile takes the next one on top. It is not a `GroundStorable`
+and is not made big. The site counts an item as pileable when it has a `stacking` ground
+storage or an `itemPile`, and says so on every item page.
 
 ### Sources (best effort)
 

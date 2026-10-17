@@ -1246,6 +1246,36 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         }
     }
 
+    /// <summary><c>BigPiles</c>, <c>BigCrates</c>, <c>RustyGearStack</c>: piles, crates and the rusty
+    /// gear as their mods ship them; a crate saved with more slots than its type gives still keeps
+    /// them (that guard is not switched).</summary>
+    [AtlasScenario]
+    public void Storage_switches_off_piles_crates_and_the_rusty_gear_are_as_they_ship()
+    {
+        Assert.True(Off("BigPiles"));
+        Assert.True(Off("BigCrates"));
+        Assert.True(Off("RustyGearStack"));
+        Assert.Equal(0, StorageTweaksSystem.Of(World.Api)!.PilesMadeBig);
+        Assert.Equal(0, StorageTweaksSystem.Of(World.Api)!.CratesMadeBig);
+
+        var firewood = W.GetItem(new AssetLocation("game:firewood"))!.GetBehavior<CollectibleBehaviorGroundStorable>()!;
+        Assert.Equal(32, firewood.StorageProps.StackingCapacity);
+        Assert.Equal(8, firewood.StorageProps.BulkTransferQuantity);
+        Assert.False(BigPiles.IsBig(firewood));
+        var ingot = W.GetItem(new AssetLocation("game:ingot-copper"))!.GetBehavior<CollectibleBehaviorGroundStorable>()!;
+        Assert.Equal(64, ingot.StorageProps.StackingCapacity);
+        var cobble = W.GetBlock(new AssetLocation("game:cobblestone-granite"))!.GetBehavior<CollectibleBehaviorGroundStorable>()!;
+        Assert.Equal(64, cobble.StorageProps.StackingCapacity);
+
+        var crate = W.GetBlock(new AssetLocation("game:crate"))!;
+        Assert.Equal(16, crate.Attributes["properties"]["wood-aged"]["quantitySlots"].AsInt());
+        Assert.Equal(25, crate.Attributes["properties"]["wood-ebony"]["quantitySlots"].AsInt());
+        Assert.Equal(20, crate.Attributes["properties"]["*"]["quantitySlots"].AsInt());
+        Assert.True(BigCrates.Patched);
+
+        Assert.Equal(1000, W.GetItem(new AssetLocation(RustyGearStack.Code))!.MaxStackSize);
+    }
+
     /// <summary><c>OreCells</c>, <c>NoSurfaceCopper</c>, <c>SmallerDeposits</c>,
     /// <c>RarerDistricts</c>, <c>PlacerFields</c>, <c>GradePockets</c>, <c>StableVeins</c>: a world created with them off
     /// records them off, Interesting Ore Gen's spacing filter and main ore placement are not patched, and the deposits are as the mods ship
