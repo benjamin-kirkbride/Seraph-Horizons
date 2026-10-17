@@ -351,14 +351,6 @@ redistribute = false
 why = "Tiered sprinklers that water farmland."
 
 [[mod]]
-id = "panningmachine"
-version = "1.1.4"
-side = "universal"
-license = "unknown"
-redistribute = false
-why = "A mechanical panning machine."
-
-[[mod]]
 id = "wpanning"
 version = "1.0.9"
 side = "universal"
