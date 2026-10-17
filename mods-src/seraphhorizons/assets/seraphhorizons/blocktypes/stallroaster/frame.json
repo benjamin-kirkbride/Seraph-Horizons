@@ -59,7 +59,7 @@
 	// The frame fills 2 x 2 x 2 blocks from the controller (native x 0..2, z 0..2); the -north item form turns
 	// it 180°, so the item forms turn about the mesh's middle (0, 1, 0).
 	tpHandTransform: {
-		translation: { x: -2.2, y: -3.2, z: 0.9 },
+		translation: { x: 0, y: -3.44, z: 0.72 },
 		rotation: { x: 6, y: 16, z: -77 },
 		origin: { x: 0, y: 1, z: 0 },
 		scale: 0.25
