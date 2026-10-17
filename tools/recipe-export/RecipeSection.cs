@@ -160,6 +160,7 @@ public static partial class RecipeSection
         FillLiquation(ctx, records, types);
         FillSprings(ctx, records, types);
         FillSluice(ctx, records, types);
+        FillShakingTable(ctx, records, types);
         FillOreMachines(ctx, records, types);
 
         records.Sort((a, b) => string.CompareOrdinal((string)a["id"]!, (string)b["id"]!));
