@@ -123,6 +123,10 @@ public static class OreProducts
     /// <c>seraphhorizons:roastedore-{ore}-{grade}</c>.</summary>
     public static string RoastedRockCode(string ore, string grade) => $"{Domain}:roastedore-{ore}-{grade}";
 
+    /// <summary>A sulfide's rock roasted in the stall roaster (#925), which smelts at the stall's 92 %, not the
+    /// firepit's 85 %: <c>seraphhorizons:stallroastedore-{ore}-{grade}</c>.</summary>
+    public static string StallRoastedRockCode(string ore, string grade) => $"{Domain}:stallroastedore-{ore}-{grade}";
+
     public static string ConcentrateCode(string ore) => $"{Domain}:concentrate-{ore}";
     public static string RoastedCode(string ore) => $"{Domain}:roastedconcentrate-{ore}";
     public static string AmalgamCode(string ore) => $"{Domain}:amalgam-{ore}";

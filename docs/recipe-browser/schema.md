@@ -421,6 +421,33 @@ crystallised ore), classified, which the schema has no field for: `extra.classif
 how it is fed and emptied; `extra` has the `ore`, `grade`, `form` (`raw`, `crystallised` or `crushed`),
 `shoesPerSet` and `rocksPerSet`.
 
+**Stall roaster** (type `stallroasting`, shape `generic`, present with seraphhorizons' `StallRoaster` and
+`OreProcessing` on, #925): one record per sulfide rock item kind it takes, id `stallroasting|<input>|0`, the input
+either a raw ore by grade with every host rock an alternative (`game:ore-<grade>-<ore>-*`, as the jaw breaker's) or a
+crushed ore (`seraphhorizons:crushedore-<ore>-<grade>`), consumed, and the stall's frame
+`seraphhorizons:stallroaster-north` as its station. Out, one stall-roasted rock of its grade
+(`seraphhorizons:stallroastedore-<ore>-<grade>`, which smelts at its grade's share × 0.92) and the sulfur powder a rock
+leaves in the heap's crust (`game:powder-sulfur`), a fraction, since the stall carries what falls short of a whole
+powder over to its next burn: the rock's units × the ore's sulfur a unit × the stall's share ⅓ / 5
+(ore-processing.json `ores.<ore>.sulfur`, `machines.stallroaster.sulfur`, `sulfurUnitsPerPowder`); an ore with none
+(sperrylite) has no second output. `requirements` says in words how a charge burns; `extra` has the `ore`, `grade`,
+`form` (`raw` or `crushed`), the `share` (0.92), the `charge` (32), the `hours` (40), the `bedFirewood` (4), the
+`sulfur` a rock and `carried` (true). It draws no power, so it is not on the power page. Its build is the shared ore
+machine `construction` record.
+
+**Acid parting vessel** (type `acidparting`, shape `generic`, present with seraphhorizons' `AcidParting` and
+`OreProcessing` on, #931): one record per bullion it parts, id `acidparting|<bullion>|0`: a bar of an ore's bullion
+whose by-product acid parting wins (gold quartz's dore, `seraphhorizons:bullion-quartz_nativegold-gold`, #740),
+consumed, the nitric acid a bar spends (`game:acid-full-nitric`, with its `litres`: a bar's acid × the spent share,
+`AcidPartingSettings`' `AcidLitresPerBar` × `AcidSpentShare`), and the vessel's frame `seraphhorizons:acidparting-north`
+as its station. Out, the bar's main metal whole as metal bits (`game:metalbit-gold`, 100 units a bar, 5 a bit: 20) and
+its by-product at the vessel's recovery (`game:metalbit-silver`, 100 × 0.15 × 0.95 / 5 = 2.85), a fraction, since the
+vessel carries what falls short of a whole bit to the next. `requirements` says in words what a charge needs;
+`extra` has the `ore`, the `share` (0.95), the `byProductShare` (0.15), the `hours` a bar (10), the `chargeBars` (2),
+the `acidLitres` and `waterLitres` a bar, the `copperUses` (silver units a copper plate in the tub throws down, the
+build file's wearing part) and `carried` (true). It draws no power, so it is not on the power page. Its build is the
+shared ore machine `construction` record.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).
