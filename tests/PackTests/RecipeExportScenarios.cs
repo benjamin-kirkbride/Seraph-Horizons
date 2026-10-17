@@ -920,7 +920,7 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         // springs, the jaw breaker, the stamp battery, the ball mill and the sluice are the types not read from a registry.
         var registries = ((JObject)Doc["recipeTypes"]!).Properties()
             .Where(p => p.Name != RecipeSection.InPlaceType && p.Name != RecipeSection.ButcheryType)
-            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.CylinderBorerType or RecipeSection.PressBrakeType or RecipeSection.SquaringShearType or RecipeSection.MandrelStationType or RecipeSection.RockerType or RecipeSection.RiddleType or RecipeSection.BallMillType or RecipeSection.StallRoasterType
+            .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.CylinderBorerType or RecipeSection.PressBrakeType or RecipeSection.SquaringShearType or RecipeSection.MandrelStationType or RecipeSection.RockerType or RecipeSection.RiddleType or RecipeSection.BallMillType or RecipeSection.StallRoasterType or RecipeSection.ReverberatoryType
                 or RecipeSection.SpallingType or RecipeSection.OreRoastingType or RecipeSection.OreRetortingType
                 or RecipeSection.CupellationType or RecipeSection.LiquationType or RecipeSection.SpringType or RecipeSection.JawBreakerType or RecipeSection.StampBatteryType or RecipeSection.SluiceType))
             .Where(p => (string)p.Value["shape"]! != "transition")

@@ -1201,4 +1201,20 @@ public class SeraphHorizonsConfig
     /// open front gives; a value out of range falls back to its default with a warning. The server's are
     /// used.</summary>
     public StallRoaster.Core.StallRoasterConfig StallRoasterSettings { get; set; } = new();
+
+    /// <summary>The reverberatory roaster (ReverberatoryRoaster/, README "Ore processing: the reverberatory roaster";
+    /// #736): the mechanical furnace, a long brick hearth under a firebrick arch with two water-cooled rabbles turned
+    /// by the axle, built on its iron frame in five stages. Continuous: a sulfide's concentrate in by chute (or by
+    /// hand), its roasted concentrate out by chute at 100 %, 76 an hour at shaft speed 0.6; native sulfur rock melted
+    /// into sulfur powder at 0.65 (ore-core's figures, config/ore-processing.json). Lit, with coal in its bunker (a
+    /// second chute, a coal every six concentrate), its row's chimney drawing and its damper not shut; 2 L of water a
+    /// concentrate for the rabbles. Needs OreProcessing (off means its frame and its recipe do not exist, and furnaces
+    /// already placed are lost). The server's setting decides.</summary>
+    public bool ReverberatoryRoaster { get; set; } = true;
+
+    /// <summary>The reverberatory roaster's own figures (its recovery, draws, water and rate are ore processing's,
+    /// <c>config/ore-processing.json</c>): the hearth's bed, the concentrate a coal roasts, and the pace with the
+    /// damper half over the ash mouth; a value out of range falls back to its default with a warning. The server's
+    /// are used.</summary>
+    public ReverberatoryRoaster.Core.ReverberatoryConfig ReverberatorySettings { get; set; } = new();
 }

@@ -74,6 +74,7 @@ public sealed class OreRecovery
     private readonly Dictionary<string, double> _hand;
     private readonly Dictionary<OreMachine, OreMachineSpec> _machines = new();
     private readonly Dictionary<OreMachine, double> _sulfur = new();
+    private readonly Dictionary<OreMachine, double> _nativeSulfur = new();
     private readonly Dictionary<string, double> _smelt;
     private readonly Dictionary<string, double> _smeltByGrade;
     private readonly Dictionary<string, OreSpec> _ores = new(StringComparer.OrdinalIgnoreCase);
@@ -88,6 +89,7 @@ public sealed class OreRecovery
 
         if (!(config.ConcentrateUnits > 0)) _problems.Add($"concentrateUnits {config.ConcentrateUnits} is not positive");
         if (!(config.SulfurUnitsPerPowder > 0)) _problems.Add($"sulfurUnitsPerPowder {config.SulfurUnitsPerPowder} is not positive");
+        if (!(config.NativeSulfurUnits > 0)) _problems.Add($"nativeSulfurUnits {config.NativeSulfurUnits} is not positive");
         foreach (var key in HandKeys) CheckShare("handStations", _hand, key);
         foreach (var key in _hand.Keys.Where(k => !HandKeys.Contains(k))) _problems.Add($"handStations: unknown station '{key}'");
         foreach (var f in Enum.GetValues<OreForm>().Where(f => !IsRock(f))) CheckShare("smelt", _smelt, Key(f));
@@ -395,6 +397,13 @@ public sealed class OreRecovery
     public double SulfurUnits(OreSpec ore, double metalUnits, Roaster roaster) =>
         ore.IsSulfide && metalUnits > 0 ? metalUnits * ore.Sulfur * RoastSulfur(roaster) : 0;
 
+    /// <summary>Units of sulfur in one native sulfur rock (config <c>nativeSulfurUnits</c>, 13; #938).</summary>
+    public double NativeSulfurUnits => _config.NativeSulfurUnits;
+
+    /// <summary>A machine's share of native sulfur rock's sulfur it melts out as sulfur powder (config
+    /// <c>machines.{machine}.nativeSulfur</c>: the reverberatory 0.65, #938); 0 for one that does not take it.</summary>
+    public double NativeSulfurMelt(OreMachine m) => _nativeSulfur.GetValueOrDefault(m);
+
     /// <summary>The method a parting station works by.</summary>
     public static PartingMethod MethodOf(PartingStation s) => s switch
     {
@@ -493,6 +502,8 @@ public sealed class OreRecovery
         if (!(e.ZincReturn >= 0 && e.ZincReturn <= 1)) _problems.Add($"{k}.zincReturn {e.ZincReturn} is not between 0 and 1");
         if (!(e.Sulfur >= 0 && e.Sulfur <= 1)) _problems.Add($"{k}.sulfur {e.Sulfur} is not between 0 and 1");
         _sulfur[m] = Math.Clamp(e.Sulfur, 0, 1);
+        if (!(e.NativeSulfur >= 0 && e.NativeSulfur <= 1)) _problems.Add($"{k}.nativeSulfur {e.NativeSulfur} is not between 0 and 1");
+        _nativeSulfur[m] = Math.Clamp(e.NativeSulfur, 0, 1);
         bool batch = e.Charge > 0;
         if (batch && !(e.ChargeHours > 0)) _problems.Add($"{k}.chargeHours {e.ChargeHours} is not positive");
         if (!batch && !(e.PerHour > 0)) _problems.Add($"{k}: no perHour or charge");
