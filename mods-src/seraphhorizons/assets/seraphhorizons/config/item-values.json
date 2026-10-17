@@ -23795,6 +23795,7 @@
     "rollupbed:rollupbed-wool-head-north": ["OreProcessing"],
     "seraphhorizons:amalgam-quartz_nativegold": ["OreProcessing"],
     "seraphhorizons:amalgam-quartz_nativesilver": ["OreProcessing"],
+    "seraphhorizons:amalgamationplates-north": ["AmalgamationPlates"],
     "seraphhorizons:angle-copper": ["PressBrake", "SquaringShear", "UnifiedPipes"],
     "seraphhorizons:angle-lead": ["PressBrake", "SquaringShear", "UnifiedPipes"],
     "seraphhorizons:ballmill-north": ["BallMill"],
