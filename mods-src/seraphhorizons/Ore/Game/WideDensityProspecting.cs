@@ -62,7 +62,7 @@ public class WideDensityProspectingSystem : ModSystem
     private const string SystemType = "BetterErProspecting.Prospecting.ProspectingSystem";
     private const string ConfigType = "BetterErProspecting.Config.ModConfig";
 
-    // The rewrites each method needs, in BetterEr 3.4.10.
+    // The rewrites each method needs, in BetterEr 3.4.12 (as in 3.4.10).
     public const int WalkRadiusSwaps = 4;
     public const int AccessorSwaps = 2;
     public const int ZoneAreaSwaps = 1;
