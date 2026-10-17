@@ -158,8 +158,8 @@ The owner's stages (2026-10-15), each one `requires` value fitting its parts (th
 viewer's **Build** select stepping through them, a state a stage. The brickwork's and the lining's counts are
 **measured from the model**: the brick lattice's boxes at the game's rates (2 fired bricks a block, 4 refractory bricks
 a block, fire clay one per 2.5 of those), rounded up. The iron is the settled rate over the iron measured in the model
-(128 voxels an ingot, a plate 2, rods counted, the rest nails and strips at 4 an ingot). Services last, as on every
-machine; nothing runs until they are in. "~" marks a choice of item.
+(128 voxels an ingot, a plate 2, rods counted, the rest nails and strips at 4 an ingot), plus 1 iron nails and strips
+per 4 planks' worth of timber (a support beam 2), for the fastenings. Services last, as on every machine; nothing runs until they are in. "~" marks a choice of item.
 
 | | Stage | `requires` | What it puts in | Materials |
 |---|---|---|---|---|
@@ -167,7 +167,7 @@ machine; nothing runs until they are in. "~" marks a choice of item.
 | 1 | **Brickwork** | `brickwork` (and the `hoodiron` part) | The base, the ash pit, the walls, the bench, the hood on its piers and the stack's outer walls: 1.69 blocks; with it, at no cost of its own, the hood's lintel | **4 fired bricks**, any one type |
 | 2 | **Lining** | `lining` | Tier-3 refractory brick 3 thick on the hot faces (the fire chamber, its flue, the stack) and the outlet's curb: 0.90 blocks | **4 tier-3 refractory bricks**, **2 fire clay** |
 | 3 | **Sand bath and doors** | `sandbath` (the `bath` and `door` parts; the damper in one of its places) | The cast-iron sand bath with its sand, its bottom bearing on the lined chamber's walls; the fire door in the recess's guides; the ash-pit damper | ~1 sand (`game:sand-*`), 5 iron nails and strips |
-| 4 | **Vessel and tub** | `vesseltub` (the `vessel` and `tub` parts) | The parting vessel set in the bath's sand; the precipitating tub on the cold front of the bench | **1 fired crucible** (`game:crucible-*-fired`, any colour: the vessel), 1 oak plank (the tub) |
+| 4 | **Vessel and tub** | `vesseltub` (the `vessel` and `tub` parts) | The parting vessel set in the bath's sand; the precipitating tub on the cold front of the bench | **1 fired crucible** (`game:crucible-*-fired`, any colour: the vessel), 1 iron nails and strips, 1 oak plank (the tub) |
 | 5 | **Services** | `services` (the `siphon` part) | The lead siphon, hung on the vessel's lip with a leg in the vessel and one in the tub: it waits for both | 1 lead pipe section (`seraphhorizons:pipesection-lead`) |
 | | *Copper plates* | `copper` | Contents, not a stage: hung in the tub by hand, worn away as the silver comes down | copper plates (gameplay's) |
 | | *Outlet cap* | `outletcap` | Not a stage: put on (or taken off) by hand, any time after the lining | 1 iron plate |

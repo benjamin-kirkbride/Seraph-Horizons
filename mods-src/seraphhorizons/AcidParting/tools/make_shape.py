@@ -251,7 +251,8 @@ FIRECLAY = "game:clay-fire"
 SANDBATH_STAGE = (("game:sand-*", 1), ("game:metalnailsandstrips-iron", 5))
 #                                              the bath's sand; its tray, the fire door and the damper
 VESSEL_ITEM = "game:crucible-*-fired"        # the parting vessel: a fired clay crucible, any colour (the owner's ruling)
-VESSELTUB_STAGE = ((VESSEL_ITEM, 1), ("game:plank-oak", 1))   # the vessel; the tub's boards
+VESSELTUB_STAGE = ((VESSEL_ITEM, 1), ("game:metalnailsandstrips-iron", 1), ("game:plank-oak", 1))
+#                                  the vessel; the tub's boards and their fastenings (1 iron a 4 planks' worth, rounded up)
 SERVICES_STAGE = (("seraphhorizons:pipesection-lead", 1),)    # the siphon: the pack's lead pipe section
 CAP_ITEM = ("game:metalplate-iron", 1)
 STAGES = ("brickwork", "lining", "sandbath", "vesseltub", "services")   # after the frame, in order: their requires
