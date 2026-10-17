@@ -85,6 +85,57 @@ public partial class SharedWorldScenarios
         Assert.Empty(small);
     }
 
+    /// <summary>Clutter does not pile (<see cref="ClutterPiles"/>): the game's clutter, banners, the
+    /// Jonas lamp, the clutter bookshelves and the elevator rail, which More Piles' catch-all cube
+    /// rule piled, have no ground storage and are not in its creative tab, in what a client gets
+    /// too, and a client's own More Piles pass is undone; cube blocks keep their pile.</summary>
+    [AtlasScenario]
+    public void Clutter_does_not_pile()
+    {
+        string[] codes =
+        [
+            "game:clutter", "game:banner-banner", "game:jonas-lamp", "game:clutteredbookshelf",
+            "game:clutter-elevator-elevatorrail",
+        ];
+        foreach (var code in codes)
+        {
+            var block = W.GetBlock(new AssetLocation(code));
+            Assert.True(block is { Id: > 0 }, $"no {code}");
+            Assert.False(block!.HasBehavior<CollectibleBehaviorGroundStorable>(), $"{code} piles");
+            Assert.DoesNotContain(ClutterPiles.GroundStorableTab, block.CreativeInventoryTabs ?? []);
+            var packet = BlockTypeNet.GetBlockTypePacket(block, World.Api.ClassRegistry);
+            Assert.DoesNotContain(packet.Behaviors.Take(packet.BehaviorsCount), b => b.Code == "GroundStorable");
+        }
+        // Every block drawn from its attributes: none piles.
+        var piled = W.Blocks
+            .Where(b => b?.Code != null && b.HasBehavior<CollectibleBehaviorGroundStorable>()
+                && (b is BlockShapeFromAttributes || b.BlockEntityBehaviors?.Any(e => e.Name == "ShapeFromAttributes") == true))
+            .Select(b => b.Code.ToString())
+            .ToList();
+        Assert.Empty(piled);
+
+        // A client's More Piles gives the clutter its pile again from its own config; the pass takes it away.
+        var clutter = W.GetBlock(new AssetLocation("game:clutter"))!;
+        var behaviors = clutter.CollectibleBehaviors;
+        try
+        {
+            var morePiles = new CollectibleBehaviorGroundStorable(clutter);
+            morePiles.Initialize(new JsonObject(JToken.Parse(
+                "{\"Layout\":\"Stacking\",\"StackingCapacity\":64,\"MorePilesProperties\":{\"MatchesShape\":\"game:block/basic/cube\"}}")));
+            clutter.CollectibleBehaviors = [morePiles, .. behaviors];
+            Assert.Equal(1, ClutterPiles.Apply(World.Api));
+            Assert.False(clutter.HasBehavior<CollectibleBehaviorGroundStorable>());
+        }
+        finally
+        {
+            clutter.CollectibleBehaviors = behaviors;
+        }
+
+        Assert.NotNull(W.GetBlock(new AssetLocation("game:cobblestone-granite"))!.GetBehavior<CollectibleBehaviorGroundStorable>());
+        output.WriteLine($"clutter blocks unpiled: {StorageTweaksSystem.Of(World.Api)!.ClutterPilesTaken}");
+        Assert.True(StorageTweaksSystem.Of(World.Api)!.ClutterPilesTaken >= codes.Length);
+    }
+
     /// <summary>What a client gets: the item type packet's behavior text, read back the way a client
     /// reads it, is the big pile, and the client's own pass leaves it alone.</summary>
     [AtlasScenario]
