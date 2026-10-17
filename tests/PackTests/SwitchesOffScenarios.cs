@@ -330,6 +330,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("PressBrake", off);
         Assert.Contains("SquaringShear", off);
         Assert.Contains("MandrelStation", off);
+        Assert.Contains("Rocker", off);
         Assert.Contains("Rosser", off);
         Assert.Contains("Eidolon", off);
         var left = W.Collectibles.Where(c => c?.Code != null && !c.IsMissing)
@@ -547,6 +548,22 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Where(e => e.Message.Contains("squaringshear", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("squaring shear", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("halfplate", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
+    /// <summary><c>Rocker</c>: no rocker block and no recipe for it, and nothing logged about it.</summary>
+    [AtlasScenario]
+    public void Rocker_off_there_is_no_rocker()
+    {
+        Assert.True(Off("Rocker"));
+        Assert.False(SeraphHorizons.Mod.Rocker.RockerSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("rocker"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("rocker") == true);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("rocker", StringComparison.OrdinalIgnoreCase))
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
