@@ -14,8 +14,9 @@ bolted under each arm's end, dragging on the floor. Crushed gold or silver quart
 in; the shoes work them into a pulp, and the mercury takes up the free gold or silver as **amalgam**, a
 grey paste, to be retorted in the still (#726).
 
-This folder holds the model's generator and its rig (`tools/`). The gameplay is #718 and is not built
-yet; the model is #719. "Gameplay" below says what the rig offers it.
+This folder holds the model's generator and its rig (`tools/`), and the gameplay (#718): its rules in
+`Core/`, the game side in `Game/`, described in the mod's README, "Ore processing: the amalgam pan". The
+model is #719. "Gameplay" below says what the rig offers it and how the gameplay takes it.
 
 **Worked as the quern is.** The game's quern (`game:quern-*`, `BlockQuern` with an `MPConsumer` entity
 behaviour) takes mechanical power at its up or down face (`BlockQuern.HasMechPowerConnectorAt`) and,
@@ -369,7 +370,10 @@ No one has yet looked at it in a client.
 
 ## Gameplay
 
-Not built: #718 (crushed gold or silver quartz, water and mercury in, amalgam out, lifting the × 0.7
+Built (#718; the mod's README, "Ore processing: the amalgam pan"), as below: the mercury refused until
+the pan is built, the muller's coupling a connector that only the built pan's work loads, the hand's
+pace 40 turns a minute. The rig's `buildStages` (the muller, then the shoes) are what the shared build
+file, `config/builds/amalgampan.json`, is checked against. Originally: #718 (crushed gold or silver quartz, water and mercury in, amalgam out, lifting the × 0.7
 free-metal penalty; the amalgam retorted in the still, #726). What the rig offers it, after the quern's
 pattern, the hand stations' fitted stages (`../PressBrake/README.md`, "Stages") and the powered machines'
 rig keys:
