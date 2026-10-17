@@ -183,8 +183,13 @@ public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBa
         var eidolons = Enumerable.Range(0, count).Select(_ => Mod.Spawn(W, top, 0, null, activate: true)!).ToArray();
         await World.Until(() => eidolons.All(e => e.CanWork), 400);
         await Watch($"{size} trunk, settling", at, eidolons, () => false, 40, 4);
+        // Standing on it, lifted back onto it after its physics (TrunkSolid.PushOutOfAll), not
+        // ending the tick fallen into it by however many physics steps the tick ran (#903).
         if (count == 1)
+        {
             Assert.InRange(eidolons[0].Pos.Y, at.Y + height - 0.05, at.Y + height + 0.1);
+            Assert.True(eidolons[0].OnGround, Where(eidolons[0]));
+        }
         return eidolons;
     }
 
