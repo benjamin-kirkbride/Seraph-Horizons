@@ -1108,4 +1108,10 @@ public class SeraphHorizonsConfig
     /// <summary>The springs' rates, in litres a second; a value out of range falls back to its
     /// default with a warning. The server's are used, each side's for its text.</summary>
     public SeraphHorizons.Mod.Springs.Core.SpringsConfig SpringsSettings { get; set; } = new();
+
+    /// <summary>The ore machines' shared rules (Machines/, README "Ore machines: what they share"; #711,
+    /// #694): the speed under which a machine stops, the reservoir's size and fill rate, and each
+    /// machine's tailings (form and layers a rock). Each machine's own switch turns it on; these
+    /// apply to every one. The server's are used.</summary>
+    public OreMachinesConfig OreMachinesSettings { get; set; } = new();
 }
