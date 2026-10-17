@@ -3,8 +3,9 @@ namespace SeraphHorizons.Mod.CrucibleFurnace.Core;
 /// <summary>
 /// The crucible furnace's figures: CrucibleFurnaceSettings in ModConfig/seraphhorizons.json (README
 /// "Crucible furnace"). Temperatures in °C, times in game hours unless named in seconds. The
-/// defaults melt stainless (1530 °C) from cold in about 7.6 hours on the shortest chimney (6 blocks)
-/// and about 3.8 hours on the tallest that counts (11 blocks), on natural draught alone.
+/// defaults bring a furnace from cold to stainless's 1530 °C in about 7.6 hours on the shortest chimney
+/// (6 blocks) and about 3.8 hours on the tallest that counts (11 blocks), on natural draught alone; a
+/// full pot then takes about 4.3 hours to melt on the shortest and 2.9 on the tallest.
 /// </summary>
 public class CrucibleFurnaceConfig
 {
@@ -101,6 +102,34 @@ public class CrucibleFurnaceConfig
         "seraphhorizons:cylindermold-*",
     ];
 
+    /// <summary>Game hours a full pot (<see cref="PotCapacityUnits"/>) takes to melt at a melt speed of
+    /// 1 (<see cref="MeltSpeedBase"/> and the margin above the recipe's temperature); a part of a pot,
+    /// or an addition to a molten one, takes its share of it.</summary>
+    public double MeltHoursPerFullPot { get; set; } = 3;
+
+    /// <summary>The melt speed with the fire just at the recipe's temperature, before
+    /// <see cref="MeltSpeedMin"/>: Steelmaking Expanded's blast furnace's <c>BfMeltSpeedBase</c>.</summary>
+    public double MeltSpeedBase { get; set; } = 0.2;
+
+    /// <summary>What each 100 °C of the fire above the recipe's temperature adds to the melt speed:
+    /// Steelmaking Expanded's <c>BfMeltGainPer100C</c>.</summary>
+    public double MeltGainPer100C { get; set; } = 0.7;
+
+    /// <summary>The slowest a pot melts at its recipe's temperature or above (smex's 0.5).</summary>
+    public double MeltSpeedMin { get; set; } = 0.5;
+
+    /// <summary>The fastest a pot melts, however hot the fire (smex's 2.0).</summary>
+    public double MeltSpeedMax { get; set; } = 2;
+
+    /// <summary>°C each unit charged into a pot takes off the fire when it goes in at the air's
+    /// temperature, less as it goes in hotter (none at the fire's own): Steelmaking Expanded's converter's
+    /// <c>BessemerColdScrapLossCoefficient</c>. Coke is fuel and takes nothing.</summary>
+    public double ChargeChillPerUnit { get; set; } = 0.8;
+
+    /// <summary>Game hours the fire may stay below a molten pot's solid point (0.9 of its melting point)
+    /// before the melt freezes in the furnace; climbing back above it starts the count again.</summary>
+    public double MeltFreezeHours { get; set; } = 1;
+
     public static readonly CrucibleFurnaceConfig Defaults = new();
 
     /// <summary>Whether a melting pot of <paramref name="metal"/> (its ingot code) pours into the mold
@@ -150,6 +179,14 @@ public class CrucibleFurnaceConfig
         Check(nameof(DamperHalfBurn), DamperHalfBurn, !(DamperHalfBurn is > 0 and <= 1), () => DamperHalfBurn = d.DamperHalfBurn, d.DamperHalfBurn);
         Check(nameof(DamperShutBurn), DamperShutBurn, !(DamperShutBurn is > 0 and <= 1), () => DamperShutBurn = d.DamperShutBurn, d.DamperShutBurn);
         Check(nameof(DamperShutCooling), DamperShutCooling, !Share(DamperShutCooling), () => DamperShutCooling = d.DamperShutCooling, d.DamperShutCooling);
+        Check(nameof(MeltHoursPerFullPot), MeltHoursPerFullPot, !(MeltHoursPerFullPot is > 0 and <= 1000), () => MeltHoursPerFullPot = d.MeltHoursPerFullPot, d.MeltHoursPerFullPot);
+        Check(nameof(MeltSpeedBase), MeltSpeedBase, !(MeltSpeedBase is >= 0 and <= 100), () => MeltSpeedBase = d.MeltSpeedBase, d.MeltSpeedBase);
+        Check(nameof(MeltGainPer100C), MeltGainPer100C, !(MeltGainPer100C is >= 0 and <= 100), () => MeltGainPer100C = d.MeltGainPer100C, d.MeltGainPer100C);
+        Check(nameof(MeltSpeedMin), MeltSpeedMin, !(MeltSpeedMin is > 0 and <= 100), () => MeltSpeedMin = d.MeltSpeedMin, d.MeltSpeedMin);
+        Check(nameof(MeltSpeedMax), MeltSpeedMax, !(MeltSpeedMax >= MeltSpeedMin && MeltSpeedMax <= 100),
+            () => MeltSpeedMax = Math.Max(MeltSpeedMin, d.MeltSpeedMax), Math.Max(MeltSpeedMin, d.MeltSpeedMax));
+        Check(nameof(ChargeChillPerUnit), ChargeChillPerUnit, !(ChargeChillPerUnit is >= 0 and <= 100), () => ChargeChillPerUnit = d.ChargeChillPerUnit, d.ChargeChillPerUnit);
+        Check(nameof(MeltFreezeHours), MeltFreezeHours, !(MeltFreezeHours is >= 0 and <= 1000), () => MeltFreezeHours = d.MeltFreezeHours, d.MeltFreezeHours);
         if (ChimneyShaftBlocks == null || ChimneyShaftBlocks.Count == 0 || ChimneyShaftBlocks.Any(string.IsNullOrWhiteSpace))
         {
             ChimneyShaftBlocks = [.. d.ChimneyShaftBlocks];

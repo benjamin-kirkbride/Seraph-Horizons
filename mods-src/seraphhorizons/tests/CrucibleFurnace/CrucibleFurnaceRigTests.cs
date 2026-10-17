@@ -247,14 +247,15 @@ public class FurnaceBuildTests
     }
 }
 
-/// <summary>Two pots in one hole (#796): each its own charge on one fire, melting when the fire
-/// reaches its own recipe's temperature.</summary>
+/// <summary>Two pots in one hole (#796): each its own charge on one fire, melting only while the fire
+/// is at its own recipe's temperature.</summary>
 public class FurnacePotTests
 {
     [Fact]
     public void Two_pots_of_different_recipes_melt_at_their_own_temperatures()
     {
         var recipes = PotRecipes.Default;
+        var c = new CrucibleFurnaceConfig();
         var stainless = new FurnacePot();
         Assert.Equal(12, stainless.Add(recipes, Stainless.Ferrochrome, 12, 300).Count);
         Assert.Equal(2, stainless.Add(recipes, "game:ingot-iron", 2, 300).Count);
@@ -262,15 +263,22 @@ public class FurnacePotTests
         var iron = new FurnacePot();
         Assert.Equal(3, iron.Add(recipes, "game:ingot-iron", 5, 300).Count);
         Assert.True(stainless.ChargeMakesSomething(recipes) && iron.ChargeMakesSomething(recipes));
-        // at 1535 °C the stainless (1530) melts and the iron (1538) does not yet
-        Assert.True(stainless.TryMelt(recipes, 1535));
-        Assert.False(iron.TryMelt(recipes, 1535));
+        // at 1535 °C the stainless (1530) melts, in time, and the iron (1538) does not start
+        static double? Solid(string r) => null;
+        for (int i = 0; i < 200 && stainless.Melted == null; i++)
+        {
+            FurnaceMelt.Step(stainless, recipes, 0.05, 1535, 1535, Solid, c);
+            FurnaceMelt.Step(iron, recipes, 0.05, 1535, 1535, Solid, c);
+        }
         Assert.Equal("stainless", stainless.Melted);
         Assert.Equal(300, stainless.MeltedUnits);
         Assert.Empty(stainless.Charge);
-        Assert.True(iron.TryMelt(recipes, 1540));
+        Assert.Null(iron.Melted);
+        Assert.Equal(0, iron.Progress);
+        for (int i = 0; i < 200 && iron.Melted == null; i++)
+            FurnaceMelt.Step(iron, recipes, 0.05, 1540, 1540, Solid, c);
         Assert.Equal("iron", iron.Melted);
-        Assert.False(iron.TryMelt(recipes, 1600));       // once
+        Assert.False(FurnaceMelt.Step(iron, recipes, 1, 1600, 1600, Solid, c));       // once
         var bad = new FurnacePot();
         bad.Add(recipes, Stainless.Ferrochrome, 2, 300);
         bad.Add(recipes, "game:ingot-iron", 2, 300);
