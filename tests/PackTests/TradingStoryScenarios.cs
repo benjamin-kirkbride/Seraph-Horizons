@@ -223,7 +223,9 @@ public class TradingStoryScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
             // Another elk for 100 gears, through the answers the player picks, each on its conditions:
             // the gears stack to 64 (RustyGearStack), so 100 are in two stacks, which the dialogue
-            // counts and takes across (DialogueStacks), exactly 100.
+            // counts and takes across (DialogueStacks), exactly 100. Its patch is on even after an
+            // earlier class's server stopped (MadMechanics & co. unpatch every id then).
+            Assert.True(SeraphHorizons.Mod.DialogueStacks.Patched, "DialogueStacks' patch is gone");
             Assert.True(player.Entity.TryGiveItemStack(new ItemStack(gear, 64)));
             Assert.True(player.Entity.TryGiveItemStack(new ItemStack(gear, 64)));
             var saddle = W.Items.First(i => i?.Code?.Path.StartsWith("hoovedwearables-middleback-saddle") == true);
