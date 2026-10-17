@@ -9,9 +9,8 @@ namespace SeraphHorizons.Tests.AmalgamPan;
 /// maths, which its renderer will use: every part parses with the machines' parser and the pan's
 /// <c>requires</c> vocabulary (#718's fitted stages, the muller and then its shoes, which ride it, the
 /// contents, and the water film over the charge, which rides it too), there is no work, the axle comes in
-/// from below at the pan's own cell (as into the quern), and every reference pose (θ, the spindle's angle) gives the matrices the Python reference maths wrote. There
-/// is no amalgam pan gameplay yet (#718); this holds the third implementation of the rig maths to the model
-/// before there is.
+/// from below at the pan's own cell (as into the quern), and every reference pose (θ, the spindle's angle) gives the matrices the Python reference maths wrote. The
+/// gameplay's own reading of the rig is AmalgamPanGameplayTests'.
 /// </summary>
 public class AmalgamPanRigTests
 {
