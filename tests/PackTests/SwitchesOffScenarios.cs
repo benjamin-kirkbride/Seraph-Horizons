@@ -102,6 +102,23 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>Vanner</c>: its frame and its recipe are not in the game, nor its washing in the export, and
+    /// nothing is logged about it. The ore it washes (ore processing's) exists either way.</summary>
+    [AtlasScenario]
+    public void Vanner_off_the_vanner_is_not_in_the_game()
+    {
+        Assert.True(Off("Vanner"));
+        Assert.False(SeraphHorizons.Mod.Vanner.VannerSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } code && code.Path.StartsWith("vanner"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path.StartsWith("vanner") == true);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("vanner", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>BuckingSawmill</c>: its blocks and its recipe are not in the game, and nothing is
     /// logged about them.</summary>
     [AtlasScenario]

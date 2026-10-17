@@ -6063,8 +6063,9 @@ rig's `buildStages`, in order, adding the same `requires` (a test, and a warning
 **Wearing parts** (`WearingParts`) are not stages: a set (the stamp battery's five steel pounder caps)
 wears by use (in the machine's own unit) and is renewed by right-click once worn out; a worn-out set
 is gone, a set with use left comes back when the machine is broken. One fitted with a stage
-(`"stage"`) has its first set fitted as the last material of that stage. Without its set a machine
-does not run.
+(`"stage"`) has its first set fitted as the last material of that stage, or as its only one when the
+stage lists none (`"materials": []`: the vanner's belt is its stage 4); a stage with no materials and no
+wearing part is refused. Without its set a machine does not run.
 
 **Running** (`MachineRun`): a machine works only built, with its wearing parts, its shaft at
 `MinSpeed` (0.05) or faster either way ("no power" below it), its reservoir holding an item's water
@@ -6265,6 +6266,33 @@ items with the rest carried over; the rock goes on as tailings, the same item ca
 tailings chute at the tail to the jig, or onto a gravel heap beside it (#694). With the switch on, Geology
 Additions' bog iron drops one stone a block and no longer smelts to a bloom raw. The panning machine left the pack
 with it (#691). Tests: `tests/Ore/PlacerLineTests.cs`; Atlas `tests/PackTests/SluiceScenarios.cs`.
+
+### Vanner (`Vanner`)
+
+The last of the ore line's concentrators (#923; `Vanner/`, its README has the model, the stages and the gameplay):
+a Frue vanner, an endless leather belt shaken from side to side and creeping slowly up to its head under a spray of
+water, three blocks long and two wide, on the ore machines' shared code. Built on its frame (grid: 5 planks, 4 iron
+and 1 steel nails and strips, a hammer) in five stages by right-click, from `config/builds/vanner.json`: the
+countershaft (2 steel rods, 1 iron nails and strips, 1 plank), the shaking frame (5 iron and 1 steel nails and
+strips, 2 planks), the rollers and creep (a stainless gear for the worm wheel, 5 planks, 3 iron nails and strips, a
+steel rod, 2 steel nails and strips), the belt (2 plain leather), and services (1 iron nails and strips and 2 planks
+for the feed box, 3 straight chutes, 2 pipe sections, copper or lead). An axle on the countershaft at the back of
+its east column drives it, either way round (the ratchet creeps the belt to the head whichever way); a steady load
+of 0.08 once built, working or idle; 3 rock an in-game hour at speed 0.6, in proportion to speed; 15 L of water a
+rock from a ppex pipe down onto its front east cell (ore-processing.json `machines.vanner`). It takes what the
+concentrators take (`SluiceSystem.StreamOf`: crushed or ground ore, and rich gravel or bog iron carried down the
+line) by a chute down into the feed box (the top of its middle west cell) or by hand. Each item is one pass at
+r = 0.80 (`Vanner/Core/Vanning.cs`, through `ConcentratorWash`): on its own it catches 80 % (× density) of what
+can be caught; last on an ore's whole route (classified, ground if poor, amalgamated if free, through the sluice, jig
+and table) it catches all that is left for oxides, placer and free silver, and marks a sulfide's or a by-product
+ore's concentrate whole for its later final step (#765). The concentrate leaves by the chute in the front face under
+the head, whole items with the rest carried over (whole-route concentrate apart); the rock goes on as tailings, the
+same item, by the chute at the foot, or onto a heap of sand in its rock beside it, half a layer a rock (#694). The
+belt is a wearing part (fitted as stage 4, a use a rock, 4,000 rock; renewed whole with 2 plain leather by
+right-click). The recipe browser has a `vanner` machine record per feed item, its build's `construction` record and
+its draw on the power page. Needs `OreProcessing`; off, or with its switch off, its frame and recipe do not exist.
+Tests: `tests/Vanner/VannerGameplayTests.cs`; Atlas `tests/PackTests/VannerScenarios.cs` and
+`RecipeExportVannerScenarios.cs`.
 
 ## Trading
 
