@@ -1,0 +1,66 @@
+// The amalgam pan (AmalgamPan/, README "Amalgam pan", #718): a one-block amalgamating pan, worked by
+// hand or turned from a vanilla axle below, as the quern. The block is the frame (stand, pan, cone and
+// footstep); the muller and its shoes are fitted by hand and drawn by the renderer with the contents.
+// The server disables it with AmalgamPan or OreProcessing off.
+{
+	code: "amalgampan",
+	class: "seraphhorizons.AmalgamPan",
+	entityClass: "seraphhorizons.AmalgamPan",
+	// The axle's connector (the down face only) is the block's (BlockAmalgamPan); the consumer is the
+	// shared machine behaviour, its load the pan's.
+	entityBehaviors: [
+		{ name: "seraphhorizons.MachineMP", properties: { mechPartShape: null } }
+	],
+	// No HorizontalOrientable: BlockAmalgamPan.TryPlaceBlock picks the side so the operator's side
+	// (native north) faces the player, as the press brake does.
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/amalgampan_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/amalgampan_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/amalgampan_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/amalgampan_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the moving parts' and contents' (amalgampan.json),
+	// which the renderer draws with this block's textures. The renderer sets "shoe" to the fitted
+	// plate's metal. The mercury is Expanded Matter's look for its mercury portion: the game's
+	// andesite with kimberlite blended over it (AmalgamPan/README.md, "The mercury").
+	textures: {
+		"oak":     { base: "game:block/wood/debarked/oak" },
+		"pan":     { base: "game:block/metal/sheet/iron1" },
+		"iron":    { base: "game:block/metal/plate/iron" },
+		"shoe":    { base: "game:block/metal/plate/iron" },
+		"mercury": { base: "game:block/stone/rock/andesite2", blendedOverlays: [ { base: "game:block/stone/rock/kimberlite1", blendMode: "Lighten" } ] },
+		"slurry":  { base: "seraphhorizons:block/liquid/slurry" },
+		"water":   { base: "game:block/liquid/waterportion" },
+		"amalgam": { base: "game:block/metal/ingot/leadsolder" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:amalgampan-handbook-what-title", text: "seraphhorizons:amalgampan-handbook-what-text" },
+				{ title: "seraphhorizons:amalgampan-handbook-assembly-title", text: "seraphhorizons:amalgampan-handbook-assembly-text" },
+				{ title: "seraphhorizons:amalgampan-handbook-work-title", text: "seraphhorizons:amalgampan-handbook-work-text" },
+				{ title: "seraphhorizons:amalgampan-handbook-line-title", text: "seraphhorizons:amalgampan-handbook-line-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:amalgampan-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Metal",
+	maxStackSize: 1,
+	resistance: 3,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.63, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.63, z2: 1 }
+}
