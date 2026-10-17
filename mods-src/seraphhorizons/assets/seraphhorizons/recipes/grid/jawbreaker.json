@@ -1,0 +1,21 @@
+// The jaw breaker (JawBreaker/, README "Jaw breaker"; #912). The server disables it with JawBreaker or
+// OreProcessing off.
+[
+	{
+		// The frame, as placed: the oak stand (posts, sills, head beam, top tie: 11 support beams), the
+		// breaker's cast frame, the outboard pedestal's pillow block and the hopper (9 iron plates), bolted
+		// up with 8 iron nails and strips and a steel one, with a hammer (JawBreaker/README.md, "Build
+		// stages", the frame's row). Every other stage goes in afterwards, fitted by hand.
+		ingredientPattern: "PBN,_HS",
+		width: 3,
+		height: 2,
+		ingredients: {
+			"P": { type: "item", code: "game:metalplate-iron", quantity: 9 },
+			"B": { type: "block", code: "game:supportbeam-*", quantity: 11 },
+			"N": { type: "item", code: "game:metalnailsandstrips-iron", quantity: 8 },
+			"S": { type: "item", code: "game:metalnailsandstrips-steel", quantity: 1 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:jawbreaker-north" }
+	}
+]
