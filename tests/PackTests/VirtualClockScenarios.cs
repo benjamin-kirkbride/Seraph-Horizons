@@ -32,18 +32,20 @@ public class VirtualClockScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     // Calendar: whether it ran through the window (the engine pauses it while no client is playing, as before
     // this class's first player joins), as it is at both ends.
-    private sealed record Span(long Wall, long Server, long Sim, double GameMinutes, bool Calendar);
+    // Sleeps: the engine's pacing sleeps slept in the window (VirtualClock.PacingSleeps).
+    private sealed record Span(long Wall, long Server, long Sim, double GameMinutes, bool Calendar, long Sleeps);
 
     private async Task<Span> Window(string name, int ticks)
     {
         var wall = Stopwatch.StartNew();
-        long ms = W.ElapsedMilliseconds, sim = World.EntitySimulationTicks;
+        long ms = W.ElapsedMilliseconds, sim = World.EntitySimulationTicks, sleeps = VirtualClock.PacingSleeps;
         double hours = W.Calendar.TotalHours;
         bool running = ((GameCalendar)W.Calendar).IsRunning;
         await World.Ticks(ticks);
         running &= ((GameCalendar)W.Calendar).IsRunning;
-        var span = new Span(wall.ElapsedMilliseconds, W.ElapsedMilliseconds - ms, World.EntitySimulationTicks - sim, (W.Calendar.TotalHours - hours) * 60, running);
-        Log($"{name}, {ticks} ticks: wall {span.Wall} ms, server {span.Server} ms, entity sim {span.Sim} ticks, calendar {span.GameMinutes:0.00} game min{(span.Calendar ? "" : " (paused)")}");
+        var span = new Span(wall.ElapsedMilliseconds, W.ElapsedMilliseconds - ms, World.EntitySimulationTicks - sim, (W.Calendar.TotalHours - hours) * 60, running,
+            VirtualClock.PacingSleeps - sleeps);
+        Log($"{name}, {ticks} ticks: wall {span.Wall} ms, server {span.Server} ms, entity sim {span.Sim} ticks, calendar {span.GameMinutes:0.00} game min{(span.Calendar ? "" : " (paused)")}, {span.Sleeps} pacing sleeps");
         return span;
     }
 
@@ -54,12 +56,14 @@ public class VirtualClockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(s.Server >= ticks * VirtualClock.StepMs * 0.9, $"{s.Server} ms of server time for {ticks} paced ticks");
     }
 
-    // The virtual clock: exactly a step a tick, far faster than real time, the calendar on the same clock.
+    // The virtual clock: exactly a step a tick, no pass sleeping to pace it, the calendar on the same clock.
+    // How much faster than real time a window runs is the runner's business (an idle one about 20x, a busy CI
+    // one under 3x for a short window, #1076), so each window checks what makes it faster, that nothing sleeps.
     private void Virtual(Span s, int ticks)
     {
         double expected = ticks * VirtualClock.StepMs;
         Assert.InRange(s.Server, expected - 2, expected + 2);
-        Assert.True(s.Wall < s.Server / 4, $"{ticks} virtual ticks took {s.Wall} ms of wall time for {s.Server} ms of server time");
+        Assert.True(s.Sleeps == 0, $"{s.Sleeps} passes slept to pace {ticks} virtual ticks");
         // a paused calendar stays put on the virtual clock as in real time
         double minutes = s.Calendar ? expected / 60000 * W.Calendar.SpeedOfTime * W.Calendar.CalendarSpeedMul : 0;
         Assert.InRange(s.GameMinutes, minutes * 0.99, minutes * 1.01 + 0.01);
@@ -74,8 +78,14 @@ public class VirtualClockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         try
         {
             Assert.Same(clock, VirtualClock.Current);
-            Virtual(await Window("virtual", 300), 300);
-            Virtual(await Window("virtual", 3000), 3000);
+            var first = await Window("virtual", 300);
+            Virtual(first, 300);
+            var second = await Window("virtual", 3000);
+            Virtual(second, 3000);
+            // and so well under real time, which would take the 110 s: over both windows, where a stall in the
+            // short one just after the switch (3.5 s for its 10 s on a busy CI runner, #1076) weighs little
+            long wall = first.Wall + second.Wall, server = first.Server + second.Server;
+            Assert.True(wall < server / 2, $"3300 virtual ticks took {wall} ms of wall time for {server} ms of server time");
             Assert.True(clock.Passes >= 3300, $"{clock.Passes} passes advanced for 3300 ticks");
         }
         finally
@@ -87,7 +97,10 @@ public class VirtualClockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(Server.totalUnpausedTime.IsRunning, "the master clock was not started again");
         // no jump: real time goes on from the virtual clock's time
         Assert.InRange(W.ElapsedMilliseconds - before, 0, 50);
-        Real(await Window("real again", 60), 60);
+        var again = await Window("real again", 60);
+        Real(again, 60);
+        // the patched pass paces again: the count that stayed still on the clock moves
+        Assert.True(again.Sleeps > 0, "no pass slept to pace 60 real-time ticks");
         clock.Dispose();
     }
 
