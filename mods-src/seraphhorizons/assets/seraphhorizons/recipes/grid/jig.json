@@ -1,0 +1,19 @@
+// The jig (Jig/, README "Jig"; #919). The server disables it with Jig or OreProcessing off.
+[
+	{
+		// The frame, as placed: the hutch's three oak sills (2 support beams of timber) and its plank floor
+		// (3 planks), nailed up with 2 iron nails and strips, with a hammer (Jig/README.md, "Build stages",
+		// the frame's row). The timber, the sieve, the drive and plunger and the services go in afterwards,
+		// fitted by hand.
+		ingredientPattern: "PBN,_H_",
+		width: 3,
+		height: 2,
+		ingredients: {
+			"P": { type: "item", code: "game:plank-*", quantity: 3 },
+			"B": { type: "block", code: "game:supportbeam-*", quantity: 2 },
+			"N": { type: "item", code: "game:metalnailsandstrips-iron", quantity: 2 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:jig-north" }
+	}
+]
