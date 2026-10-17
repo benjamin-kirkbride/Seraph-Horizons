@@ -9,9 +9,11 @@ namespace SeraphHorizons.Mod.Machines.Core;
 /// metal fitted. <see cref="Draws"/> are <c>requires</c> drawn as soon as this material is all in,
 /// before the rest of its stage (the jaw breaker's toggles, then its springs). <see cref="Wearing"/>
 /// names the wearing part this material is the first set of (<see cref="MachineAssembly"/>).
+/// <see cref="OneType"/>: every item of it must be the first one's code (the stall roaster's brickwork, any
+/// fired brick but all of one type, #925).
 /// </summary>
 public sealed record BuildMaterial(IReadOnlyList<string> Codes, int Quantity, IReadOnlyDictionary<string, string>? Picks = null,
-    IReadOnlyList<string>? Draws = null, string? Wearing = null)
+    IReadOnlyList<string>? Draws = null, string? Wearing = null, bool OneType = false)
 {
     /// <summary>Whether <paramref name="code"/> (a full code) is this material.</summary>
     public bool Matches(string code) => Codes.Any(p => CodePattern.Matches(p, code));
@@ -43,7 +45,7 @@ public enum StageFitVerdict
     /// <summary>Fewer are held than the stage still needs of it, and they are not a full stack.</summary>
     TooFew,
     /// <summary>A material that is all one kind (one with <see cref="BuildMaterial.Picks"/>: the water
-    /// line's metal) already holds another.</summary>
+    /// line's metal; or <see cref="BuildMaterial.OneType"/>: one brick type) already holds another.</summary>
     OtherKind,
 }
 
@@ -207,6 +209,8 @@ public sealed class StagedBuild
         }
         var picked = Stages[next].Materials[material];
         if (picked.Picks != null && _fitted[next][material].Keys.Any(c => picked.PickOf(c) != picked.PickOf(code)))
+            return new StageFit(StageFitVerdict.OtherKind, next, material, 0);
+        if (picked.OneType && _fitted[next][material].Any(kv => kv.Value > 0 && kv.Key != code))
             return new StageFit(StageFitVerdict.OtherKind, next, material, 0);
         int missing = Missing(next, material);
         if (held >= missing)

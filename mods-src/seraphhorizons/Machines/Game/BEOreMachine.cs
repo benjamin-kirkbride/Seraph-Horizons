@@ -175,6 +175,32 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     /// <summary>Whether the moving parts move: the shaft is held still until the machine is built.</summary>
     public virtual bool Animates => Built;
 
+    // ---- Textures (the renderer's) ----
+
+    /// <summary>What the parts' textures depend on beyond the block's own (the stall roaster's brick type):
+    /// the renderer builds its meshes again when it changes. Empty by default.</summary>
+    public virtual string TextureKey => "";
+
+    /// <summary>The textures the renderer draws the parts with: the frame block's, by default.</summary>
+    public virtual ITexPositionSource PartTextures(ICoreClientAPI capi) => capi.Tesselator.GetTextureSource(Block);
+
+    // ---- Fire (a furnace's: lit as the forge is, with a firestarter or a torch on any cell) ----
+
+    /// <summary>Why the machine cannot be lit now (a message), or null when it can. A machine that is never
+    /// lit (the default) says nothing: <see cref="Ignitable"/> is false.</summary>
+    public virtual string? CannotIgnite() => null;
+
+    /// <summary>Whether the machine is lit at all: a furnace. False by default.</summary>
+    public virtual bool Ignitable => false;
+
+    /// <summary>Whether it is burning now, so a torch can be lit from it.</summary>
+    public virtual bool Burning => false;
+
+    /// <summary>Lights it (server side), or tells the player why not.</summary>
+    public virtual void Ignite(IPlayer? byPlayer)
+    {
+    }
+
     public override void Initialize(ICoreAPI api)
     {
         _inventory ??= NewInventory();
@@ -246,6 +272,59 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         if (Rig?.Anchor(Infeed) is not { } a || !IsInfeedFace(face) || !CellPos(a.Cell).Equals(cell))
             return null;
         return Api.World.BlockAccessor.GetBlockEntity(cell) as BEOreMachineCell;
+    }
+
+    // ---- Side feeds (a furnace's fuel chute) ----
+
+    /// <summary>Anchors besides the infeed that a chute feeds (the reverberatory roaster's <c>fuel</c>, #736): each
+    /// fills its cell's buffer through its face with what <see cref="SideFeedTakes"/> accepts, and the controller
+    /// moves it into <see cref="SideFeedSlot"/>. None by default. The anchor's cell must not be the controller's.</summary>
+    protected virtual IReadOnlyList<string> SideFeeds => [];
+
+    /// <summary>Whether side feed <paramref name="anchor"/> takes <paramref name="stack"/>.</summary>
+    public virtual bool SideFeedTakes(string anchor, ItemStack stack) => false;
+
+    /// <summary>The slot side feed <paramref name="anchor"/> fills, and how many of the stack's kind it holds.</summary>
+    protected virtual (ItemSlot Slot, int Capacity)? SideFeedSlot(string anchor) => null;
+
+    /// <summary>The side feed whose cell is <paramref name="cell"/> and whose face is <paramref name="face"/>, or null.</summary>
+    public string? SideFeedAt(BlockPos cell, BlockFacing face)
+    {
+        if (Rig is not { } rig)
+            return null;
+        foreach (var name in SideFeeds)
+            if (rig.Anchor(name) is { } a && a.Cell != Int3.Zero && CellFaces.ToWorld(a.Face, Side).Code() == face.Code && CellPos(a.Cell).Equals(cell))
+                return name;
+        return null;
+    }
+
+    /// <summary>Moves what chutes left in the side feeds' buffers into their slots.</summary>
+    private bool PullSideFeeds()
+    {
+        bool moved = false;
+        foreach (var name in SideFeeds)
+        {
+            if (Rig?.Anchor(name) is not { } a || a.Cell == Int3.Zero || SideFeedSlot(name) is not { } target)
+                continue;
+            if (Api.World.BlockAccessor.GetBlockEntity(CellPos(a.Cell)) is not BEOreMachineCell cell || cell.Buffer.Empty)
+                continue;
+            var stack = cell.Buffer.Itemstack;
+            if (!SideFeedTakes(name, stack))
+                continue;
+            int room = target.Slot.Empty ? target.Capacity
+                : target.Slot.Itemstack.Equals(Api.World, stack, GlobalConstants.IgnoredStackAttributes) ? target.Capacity - target.Slot.StackSize : 0;
+            if (room <= 0)
+                continue;
+            var op = new ItemStackMoveOperation(Api.World, EnumMouseButton.Left, 0, EnumMergePriority.AutoMerge, Math.Min(cell.Buffer.StackSize, room));
+            if (cell.Buffer.TryPutInto(target.Slot, ref op) > 0)
+            {
+                cell.Buffer.MarkDirty();
+                cell.MarkDirty();
+                target.Slot.MarkDirty();
+                moved = true;
+            }
+        }
+        return moved;
     }
 
     /// <summary>Whether <paramref name="face"/> of the cell at <paramref name="cell"/> is one of the
@@ -486,6 +565,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         _angleSeeded = true;
 
         bool dirty = PullInfeed();
+        dirty |= PullSideFeeds();
         dirty |= PushOutputs();
         FillFromPipe(dt);
 
@@ -692,7 +772,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
 
     /// <summary>What breaking the frame gives besides the frame: everything fitted (a worn-out wearing
     /// set is gone). The inventory drops with the container.</summary>
-    public IEnumerable<ItemStack> AssemblyDrops()
+    public virtual IEnumerable<ItemStack> AssemblyDrops()
     {
         if (_assembly == null)
             yield break;
