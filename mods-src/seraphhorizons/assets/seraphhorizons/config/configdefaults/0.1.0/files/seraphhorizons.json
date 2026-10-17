@@ -522,5 +522,13 @@
     "BedFirewood": 4,
     "HalfWalledDraught": 0.5,
     "OpenDraught": 0.0
+  },
+  "ParkesKettle": true,
+  "ParkesKettleSettings": {
+    "ZincPerLead": 0.01,
+    "DamperHalfHeat": 0.5,
+    "DamperHalfBurn": 0.5,
+    "DamperShutBurn": 0.25,
+    "LadleIngots": 6
   }
 }

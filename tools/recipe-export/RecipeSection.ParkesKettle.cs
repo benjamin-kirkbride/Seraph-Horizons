@@ -33,7 +33,7 @@ public static partial class RecipeSection
         double zincIn = ParkesKettleExport.UnitsPerBar * k.ZincPerLead / ParkesKettleExport.ZincUnitsPerBit;
         double zincBack = zincIn * k.ZincReturn;
         var ingredients = new JArray(Def(b.Bar.Code.ToString(), "item", 1));
-        var ingredientStacks = new JArray(new JArray(Stack(ctx, b.Bar, 1)));
+        var ingredientStacks = new JArray { new JArray(Stack(ctx, b.Bar, 1)) };
         if (k.Zinc != null)
         {
             ingredients.Add(Def(ParkesKettleExport.ZincCode, "item", zincIn));

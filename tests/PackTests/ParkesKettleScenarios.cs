@@ -48,7 +48,7 @@ public partial class SharedWorldScenarios
         }
     }
 
-    private static int Held(IPlayer player, string code) =>
+    private static int KettleHeld(IPlayer player, string code) =>
         new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName }
             .SelectMany(inv => player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
             .Where(s => s.Itemstack?.Collectible.Code.ToString() == code).Sum(s => s.StackSize);
@@ -192,16 +192,23 @@ public partial class SharedWorldScenarios
 
         // an empty hand skims the crust, then ladles the lead out, 6 at a time
         KettleClick(player, pos, null);
-        Assert.Equal(7, Held(player, Bullion.RichLeadCode));
-        Assert.Equal(4, Held(player, ParkesKettling.ZincBit));
+        Assert.Equal(7, KettleHeld(player, Bullion.RichLeadCode));
+        Assert.Equal(4, KettleHeld(player, ParkesKettling.ZincBit));
         Assert.True(kettle.Skimmed);
         Assert.False(kettle.ShowsPart("crust"));
+        // (each click empties the hand first, so a ladling is counted as it comes)
+        int ladled = 0;
         foreach (int left in new[] { 11, 5, 0 })
         {
             KettleClick(player, i++ % 2 == 0 ? pos : cell, null);
             Assert.Equal(left, kettle.LeadOut);
+            ladled += KettleHeld(player, ParkesKettling.Lead);
+            foreach (var inv in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
+                foreach (var slot in player.InventoryManager.GetOwnInventory(inv) ?? Enumerable.Empty<ItemSlot>())
+                    if (slot.Itemstack?.Collectible.Code.ToString() == ParkesKettling.Lead)
+                        slot.Itemstack = null;
         }
-        Assert.Equal(17, Held(player, ParkesKettling.Lead));
+        Assert.Equal(17, ladled);
         Assert.Equal(KettlePhase.Empty, kettle.Phase);
 
         // capped with an iron plate on the outlet; the plate back from it
@@ -212,12 +219,12 @@ public partial class SharedWorldScenarios
         Assert.False(kettle.Capped);
         Assert.Null(KettleClick(player, outlet, CutterItem(rig.CapCode, 1)));
 
-        // broken: the frame, every stage's items, the cap and the coal left
+        // broken: the frame, every stage's items (10 iron plates), the cap (1 more) and the coal left
         var drops = W.BlockAccessor.GetBlock(pos).GetDrops(W, pos, player);
         Assert.Contains(drops, d => d.Collectible.Code.ToString() == KettleFrame + "north");
         Assert.Equal(20, drops.Where(d => d.Collectible.Code.ToString() == "game:burnedbrick-red").Sum(d => d.StackSize));
         Assert.Equal(12, drops.Where(d => d.Collectible.Code.ToString() == "game:refractorybrick-fired-tier3").Sum(d => d.StackSize));
-        Assert.Equal(10, drops.Where(d => d.Collectible.Code.ToString() == "game:metalplate-iron").Sum(d => d.StackSize));
+        Assert.Equal(11, drops.Where(d => d.Collectible.Code.ToString() == "game:metalplate-iron").Sum(d => d.StackSize));
         Assert.InRange(drops.Where(d => d.Collectible.Code.ToString() == "game:ore-bituminouscoal").Sum(d => d.StackSize), 4, 5);
         for (int y = 0; y < 8; y++)
             W.BlockAccessor.SetBlock(0, b.AddCopy(0, y, 0));
