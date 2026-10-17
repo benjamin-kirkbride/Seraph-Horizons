@@ -6,6 +6,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Util;
+using Vintagestory.GameContent;
 using Vintagestory.GameContent.Mechanics;
 
 namespace SeraphHorizons.Mod.Machines;
@@ -18,9 +19,11 @@ namespace SeraphHorizons.Mod.Machines;
 /// stages' in <c>attributes.oreMachine.extraRequires</c>; its block entity is the machine's own
 /// <see cref="BEOreMachine"/>. Placing it needs room for every cell of the rig and stamps a cell block into
 /// each (<see cref="BlockOreMachineCell"/>, the power cell's <see cref="BlockOreMachineCellPower"/>);
-/// breaking it (or a cell) gives back the frame, everything fitted and what it holds.
+/// breaking it (or a cell) gives back the frame, everything fitted and what it holds. A machine that burns
+/// (<see cref="BEOreMachine.Ignitable"/>, the stall roaster) is lit with a firestarter or a torch on any of its
+/// cells, as the forge is (<see cref="OreMachineFire"/>).
 /// </summary>
-public class BlockOreMachine : Block, IMechanicalPowerBlock
+public class BlockOreMachine : Block, IMechanicalPowerBlock, IIgnitable
 {
     public const string ClassName = "seraphhorizons.OreMachine";
 
@@ -114,6 +117,15 @@ public class BlockOreMachine : Block, IMechanicalPowerBlock
     {
     }
 
+    public EnumIgniteState OnTryIgniteBlock(EntityAgent byEntity, BlockPos pos, float secondsIgniting) =>
+        OreMachineFire.IgniteState(byEntity, pos, secondsIgniting);
+
+    public void OnTryIgniteBlockOver(EntityAgent byEntity, BlockPos pos, float secondsIgniting, ref EnumHandling handling) =>
+        OreMachineFire.IgniteOver(byEntity, pos, secondsIgniting, ref handling);
+
+    public EnumIgniteState OnTryIgniteStack(EntityAgent byEntity, BlockPos pos, ItemSlot slot, float secondsIgniting) =>
+        OreMachineFire.IgniteStack(byEntity, pos, secondsIgniting);
+
     public override string GetPlacedBlockName(IWorldAccessor world, BlockPos pos) =>
         world.BlockAccessor.GetBlockEntity(pos) is BEOreMachine { Built: true }
             ? Lang.Get($"seraphhorizons:block-{Machine}")
@@ -136,9 +148,10 @@ public class BlockOreMachine : Block, IMechanicalPowerBlock
 /// A cell of an ore machine around its controller (<c>seraphhorizons:oremachine-cell</c>, one block for
 /// every machine; #711). Interaction, breaking, the pick-block stack, particles, name, info and help go to
 /// the controller, as the other machines' ghosts do; its boxes are its cell's from the rig. A face of it
-/// that is one of the machine's anchors (a water pipe's, a chute's) carries a block attached to it.
+/// that is one of the machine's anchors (a water pipe's, a chute's) carries a block attached to it. A fire
+/// lit on it lights the machine (<see cref="OreMachineFire"/>).
 /// </summary>
-public class BlockOreMachineCell : Block
+public class BlockOreMachineCell : Block, IIgnitable
 {
     public const string ClassName = "seraphhorizons.OreMachineCell";
     public static readonly AssetLocation CellCode = new(OreMachinesSystem.Domain, "oremachine-cell");
@@ -210,6 +223,15 @@ public class BlockOreMachineCell : Block
             ? block.GetRandomColor(capi, principal, facing, rndIndex)
             : 0;
 
+    public EnumIgniteState OnTryIgniteBlock(EntityAgent byEntity, BlockPos pos, float secondsIgniting) =>
+        OreMachineFire.IgniteState(byEntity, pos, secondsIgniting);
+
+    public void OnTryIgniteBlockOver(EntityAgent byEntity, BlockPos pos, float secondsIgniting, ref EnumHandling handling) =>
+        OreMachineFire.IgniteOver(byEntity, pos, secondsIgniting, ref handling);
+
+    public EnumIgniteState OnTryIgniteStack(EntityAgent byEntity, BlockPos pos, ItemSlot slot, float secondsIgniting) =>
+        OreMachineFire.IgniteStack(byEntity, pos, secondsIgniting);
+
     public override Cuboidf[] GetCollisionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
         (blockAccessor.GetBlockEntity(pos) as BEOreMachineCell)?.Machine(blockAccessor)?.CollisionBoxes(pos) ?? base.GetCollisionBoxes(blockAccessor, pos);
 
@@ -241,4 +263,48 @@ public class BlockOreMachineCellPower : BlockOreMachineCell, IMechanicalPowerBlo
     public void DidConnectAt(IWorldAccessor world, BlockPos pos, BlockFacing face)
     {
     }
+}
+
+/// <summary>
+/// Lighting an ore machine that burns (<see cref="BEOreMachine.Ignitable"/>: the stall roaster), as the forge
+/// and the crucible furnace are lit: a firestarter or a torch held on any of its cells for 1.5 s lights it, if
+/// it can be lit (<see cref="BEOreMachine.CannotIgnite"/>; else it says why, once); a torch is lit from it while
+/// it burns. A machine that never burns is not ignitable.
+/// </summary>
+public static class OreMachineFire
+{
+    /// <summary>The machine whose controller or cell is at <paramref name="pos"/>.</summary>
+    public static BEOreMachine? MachineAt(IBlockAccessor ba, BlockPos pos) => ba.GetBlockEntity(pos) switch
+    {
+        BEOreMachine machine => machine,
+        BEOreMachineCell cell => cell.Machine(ba),
+        _ => null,
+    };
+
+    public static EnumIgniteState IgniteState(EntityAgent byEntity, BlockPos pos, float secondsIgniting)
+    {
+        if (MachineAt(byEntity.World.BlockAccessor, pos) is not { Ignitable: true } machine)
+            return EnumIgniteState.NotIgnitable;
+        if (machine.CannotIgnite() is not null)
+        {
+            if (secondsIgniting == 0 && byEntity.World.Side == EnumAppSide.Server)
+                machine.Ignite((byEntity as EntityPlayer)?.Player);   // says why not
+            return EnumIgniteState.NotIgnitablePreventDefault;
+        }
+        return secondsIgniting >= 1.5f ? EnumIgniteState.IgniteNow : EnumIgniteState.Ignitable;
+    }
+
+    public static void IgniteOver(EntityAgent byEntity, BlockPos pos, float secondsIgniting, ref EnumHandling handling)
+    {
+        if (secondsIgniting < 1.45f)
+            return;
+        handling = EnumHandling.PreventDefault;
+        if (byEntity.World.Side == EnumAppSide.Server && MachineAt(byEntity.World.BlockAccessor, pos) is { Ignitable: true } machine)
+            machine.Ignite((byEntity as EntityPlayer)?.Player);
+    }
+
+    public static EnumIgniteState IgniteStack(EntityAgent byEntity, BlockPos pos, float secondsIgniting) =>
+        MachineAt(byEntity.World.BlockAccessor, pos) is { Ignitable: true, Burning: true }
+            ? secondsIgniting > 2 ? EnumIgniteState.IgniteNow : EnumIgniteState.Ignitable
+            : EnumIgniteState.NotIgnitable;
 }
