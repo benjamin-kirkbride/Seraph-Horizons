@@ -68,11 +68,12 @@ public static partial class RecipeSection
             {
                 ["power"] = "hand",
                 ["turns"] = Num(turns),
-                ["work"] = new JObject { ["amount"] = Num(turns / p.HandTurnsPerSecond), ["unit"] = "seconds" },
+                ["work"] = new JObject { ["amount"] = Num(turns), ["unit"] = "muller turns" },
                 ["kept"] = new JArray(Enumerable.Range(kept0, p.Kept.Count)),
             },
             ["requirements"] = new JArray(
                 "Hold right mouse on the pan to turn the muller by hand, or turn it from a mechanical power axle in the block below",
+                $"By hand, {Num(turns / p.HandTurnsPerSecond)} seconds a charge ({Num(p.HandTurnsPerSecond * 60)} turns a minute)",
                 "The quartz comes back amalgamated: the rocker then catches its free gold or silver without the × 0.7 loss"),
             ["extra"] = new JObject
             {

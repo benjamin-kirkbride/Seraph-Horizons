@@ -33,7 +33,7 @@ public partial class RecipeExportScenarios
         // a tenth of a litre of mercury for each amalgam
         Assert.Equal((double)outputs[0]["quantity"]! * 10, (double)ingredients[1]["quantity"]!, 4);
         Json("""{ "code": "seraphhorizons:crushedore-quartz_nativegold-medium", "kind": "item", "quantity": 16 }""", outputs[1]);
-        Json("""{ "power": "hand", "turns": 16, "work": { "amount": 24, "unit": "seconds" }, "kept": [3, 4] }""", r["machine"]!);
+        Json("""{ "power": "hand", "turns": 16, "work": { "amount": 16, "unit": "muller turns" }, "kept": [3, 4] }""", r["machine"]!);
         var variant = r["variants"]![0]!;
         Assert.Equal(new[] { "game:rod-iron", "game:rod-meteoriciron", "game:rod-steel" }, Codes(variant["ingredients"]![3]!).Select(c => (string)c!));
         Assert.Equal(new[] { "game:metalplate-iron", "game:metalplate-steel" }, Codes(variant["ingredients"]![4]!).Select(c => (string)c!));

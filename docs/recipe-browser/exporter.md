@@ -358,7 +358,8 @@ is left out when its switch is off or what it names is not registered.
   processing's recovery). A full charge: the quartz, the mercury its amalgam takes and the water in
   (portions with litres), the muller (a rod) and shoes (a plate) `kept`, the pan as `station`; out, the
   amalgam (the average, fractional: the pan carries the fraction to the next charge) and the same quartz
-  back, amalgamated. `power` is `hand`, `turns` the muller's, `work` the seconds by hand. The
+  back, amalgamated. `power` is `hand`, `turns` the muller's turns a charge and `work` the same in `muller turns` (the
+  site says it is turned by hand or from an axle); `requirements` give the seconds a charge by hand. The
   `AmalgamPan` switch (or `OreProcessing`) leaves it out when off.
 - The squaring shear (`Recipes/SquaringShearExport.cs`, `RecipeSection.SquaringShear.cs`, type
   `squaringshear`, shape `machine`): one record per metal, `squaringshear|game:metalplate-{metal}|0`.
