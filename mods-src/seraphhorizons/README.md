@@ -3556,13 +3556,10 @@ to anywhere else. *When none may work*: with blocks left and no member able to t
 is made again at once, once until a block is broken; with another still working or parked over the area,
 it waits; with nothing changing for 30 seconds and no other eidolon over the area, the job is done, the
 rest reported left. No member waits on another for good: one that finds no way to a stand (or arrives short
-of it) with another eidolon within 3 blocks of it lets the station go, asks a member of its job waiting there
-to make room (as by routes), and waits, but only 3 times at that stand, by any member, since the job's last
-strike (`MineJobCells.BlockedStands`); the 4th the stand is bad all the same and the plan made again (three
-once waited by a stand none could get onto, each taking it, failing and taking it again, with nothing in the
-log, for 40 minutes). A station let go at its stand without a strike (refused there, nothing it may
-break from there: the block over first, another's band) is taken again as before, which in a tall tunnel
-is routine, not a stall. One waiting for the stair asks a member standing on it, not walking it, to make room. Each member keeps
+of it) with another eidolon within 3 blocks of it lets the station go and waits, but only 3 times at that
+stand, by any member, since the job's last strike (`MineJobCells.BlockedStands`); the 4th the stand is bad
+all the same and the plan made again (three once waited by a stand none could get onto, each taking it,
+failing and taking it again, with nothing in the log, for 40 minutes). Each member keeps
 why it last let go of a station (`MineOrder.DebugState`, in `/sh eidolon info`), and a run of them for one
 reason with no strike that goes on 30 seconds is logged at Debug (`[eidolon-mine]`), at most every 30
 seconds. What is skipped is shared (`MineJobCells.Skip`), and what is out of reach is the

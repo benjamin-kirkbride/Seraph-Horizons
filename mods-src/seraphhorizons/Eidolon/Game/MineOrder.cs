@@ -1431,13 +1431,6 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             // another is on the stair: it waits off it and looks again, its stations let go meanwhile (held,
             // they would keep the one on the stair from working them, and so from ever getting off it)
             Held(eidolon, "waits for the stair", now);
-            // one of its job standing on the stair, not walking it (waiting there, stepped aside onto it), is
-            // asked to make room, or the stair stays shut for as long as it stands there
-            if (_job != null)
-                foreach (long m in _job.Present)
-                    if (m != eidolon.EntityId && _jobs?.Member(m) is { } other && other.Orders?.Current is MineOrder onStair && onStair._job == _job
-                        && onStair._nav?.Active != true && OnStair(other.Pos.X, Feet(other), other.Pos.Z))
-                        onStair.MakeRoom(other, now);
             DropQueue(eidolon);
             _phase = Phase.Wait;
             _waitCheckAt = now + WaitCheckSeconds;
@@ -1536,9 +1529,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// (README "Eidolon", mining, *Stations*: the game's blocks are not all whole): bad, for its job, until a
     /// block near it changes; the station let go and the plan made again without it. After
     /// <see cref="PathTries"/> in a row, it waits. With another eidolon at or by it (within 3 blocks), that one
-    /// is most often only in its way for now: it lets the station go, asks a member of its job by it to make
-    /// room (<see cref="MakeRoom"/>, by routes or not) and waits, but only <see cref="BlockedTries"/> times at
-    /// that stand (by any member, since its job's last strike); then it is bad all the same. (Unbounded, three
+    /// is most often only in its way for now: it lets the station go and waits, but only
+    /// <see cref="BlockedTries"/> times at that stand (by any member, since its job's last strike); then it is
+    /// bad all the same. (Unbounded, three
     /// once waited by a stand none could get onto, each taking it, failing and taking it again, for good, and
     /// logging nothing.)
     /// </summary>
@@ -1553,9 +1546,6 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             int tries = blocked[stand] = blocked.GetValueOrDefault(stand) + 1;
             if (tries <= BlockedTries)
             {
-                foreach (var other in by)
-                    if (_job != null && other.Orders?.Current is MineOrder waiting && waiting._job == _job)
-                        waiting.MakeRoom(other, now);
                 Held(eidolon, "no way to its stand with another by it", now);
                 eidolon.World.Logger.Debug("{0}", $"[eidolon-mine] {eidolon.EntityId}: no way to stand ({stand.X},{stand.Y},{stand.Z}) (station {head.Id}) "
                     + $"at {eidolon.Pos.XYZ} with {string.Join(", ", by.Select(o => o.EntityId))} by it: waits ({tries} of {BlockedTries} times)");
