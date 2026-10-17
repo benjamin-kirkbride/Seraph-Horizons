@@ -100,6 +100,11 @@ const TEXTURE_FAMILIES: [RegExp, string][] = [
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],
   [/stone|rock|granite|andesite|cobble|brick|clay/, "#9a9a92"],
   [/leather|hide/, "#8a5a3c"],
+  // A roasting charge (the stall roaster's): the rock, burning, roasted to oxide, and its sulfur.
+  [/\bember/, "#b8461c"],
+  [/hematite|roasted/, "#7a5047"],
+  [/sulfur|sulphur/, "#e6d48c"],
+  [/galena|sphalerite/, "#6e6e6e"],
 ];
 
 /** A colour for a texture: by its material when the code or path names one, else hashed from the code. */
