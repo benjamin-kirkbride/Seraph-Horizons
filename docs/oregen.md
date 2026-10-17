@@ -445,7 +445,9 @@ world, `malachite#1` alone) and how much ore a vein laid. `OreSystem.Start` puts
 start. With it, seed 944944 booted after another world in one process gives the same 24 deposits,
 block counts and centres as booted alone; `OreCellsScenarios.Deposit_depths_are_drawn_as_in_a_fresh_process`
 checks the noise in every class but a test host's first. IOG's own static spacing state is not a
-cause: `IOGCore.StartServerSide` empties it every start.
+cause: `IOGCore.StartServerSide` empties it every start. The game's bug is reported upstream
+([anegostudios/VintageStory-Issues#10157](https://github.com/anegostudios/VintageStory-Issues/issues/10157)); once a game version stops setting the static, the
+reset can go.
 
 ## Deposit registry (#443)
 
