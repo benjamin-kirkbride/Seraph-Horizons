@@ -309,9 +309,17 @@ describe("model view", () => {
     expect(textureColour("oil", "game:block/liquid/honey")).toBe("#c8902a");
     expect(textureColour("coil", null)).not.toBe("#c8902a");
     // a pan's contents stand apart from the iron they lie in, though the amalgam wears an ingot's texture
-    expect(textureColour("mercury", "seraphhorizons:block/liquid/mercury")).toBe("#dce2ea");
+    expect(textureColour("mercury", "game:block/stone/rock/andesite2")).toBe("#768085");
+    expect(textureColour("slurry", "seraphhorizons:block/liquid/slurry")).toBe("#7a7369");
     expect(textureColour("amalgam", "game:block/metal/ingot/leadsolder")).toBe("#b0aa9c");
     expect(textureColour("pan", "game:block/metal/sheet/iron1")).toBe("#8e98a4");
+    // water reads as water
+    expect(textureColour("water", "game:block/liquid/waterportion")).toBe("#6f9fcf");
+    // the Parkes kettle's zinc and its crust stand apart from the lead bath, though all three wear ingot textures;
+    // the lead takes the cupellation furnace's lead grey, apart from the kettle's iron too
+    expect(textureColour("lead", "game:block/metal/ingot/lead")).toBe("#5f6875");
+    expect(textureColour("zinc", "game:block/metal/ingot/zinc")).toBe("#c2d0d8");
+    expect(textureColour("crust", "game:block/metal/ingot/zinc")).toBe("#a8946c");
   });
 
   it("puts elements no part claims in an unmatched group", () => {
