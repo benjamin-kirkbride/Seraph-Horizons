@@ -343,6 +343,13 @@ is left out when its switch is off or what it names is not registered.
   screws (`game:metal-parts`, a block) and edges are `kept`, their alternatives the variant's stacks; the output is one angle of the
   metal (`seraphhorizons:angle-{metal}`), and a metal whose half plate or angle is not registered
   (`SquaringShear` or `UnifiedPipes` off) has no record. The `PressBrake` switch leaves it out when off.
+- The rocker (`Recipes/RockerExport.cs`, `RecipeSection.Rocker.cs`, type `rocker`, shape `machine`): one
+  record per feed item, `rocker|{feed}|0`, every crushed and ground ore item and every rich gravel block. What
+  an item gives is the mod's own answer, `RockerSystem.YieldOf(ItemStack)` called by reflection (ore
+  processing's hand concentration at the rocker; placer gravel the gold pan's table at the rocker's rate),
+  each output's count an item fractional; `SeraphHorizonsConfig.RockerSettings` gives the rocks an item
+  (`RocksPerItem`, the record's `turns`) and the water (`LitresPerItem`, a `requirements` entry). The `Rocker`
+  and `OreProcessing` switches leave it out when off.
 - The squaring shear (`Recipes/SquaringShearExport.cs`, `RecipeSection.SquaringShear.cs`, type
   `squaringshear`, shape `machine`): one record per metal, `squaringshear|game:metalplate-{metal}|0`.
   `config/squaringshear-rig.json` gives each class's plate and half plate (`cut.plates`,
@@ -465,6 +472,8 @@ details and the limits (facing, connectors).
   ppex's engines' grid records taking the bored cylinder;
 - the press brake (`RecipeExportPressBrakeScenarios.cs`): a record per metal, a half plate in, its
   kept stages, power `hand` at the lever's turns, and one angle;
+- the rocker (`RecipeExportRockerScenarios.cs`): a record per feed item, the rocker as station, power `hand`
+  at its rocks an item, and the concentrate at the rocker's share of the item's units;
 - the squaring shear (`RecipeExportSquaringShearScenarios.cs`): a record per metal, its kept stages,
   power `hand` at the treadle's strokes, two half plates, and its switch on the record, the half plates
   and the frame's recipe;

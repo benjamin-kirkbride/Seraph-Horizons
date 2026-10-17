@@ -5678,6 +5678,77 @@ and layout, raw ore struck into its crushed ore with the hammer's wear and a pic
 bountiful ore in the same two blows each into one of its grade and crystallised ore into two, the next
 block, the export records) and `SwitchesOffScenarios` (off).
 
+### Ore processing: the rocker (`Rocker`, `RockerSettings`)
+
+The hand concentrator (#716): a gold-rush rocker (a cradle), an oak box on two rockers with a riddle box
+on its head and a canvas apron under it, rocked by hand while water is poured through. The gold pan's
+successor at 55 % against its 45 %; the sluice (#734) is its machine successor, the same 55 % unattended.
+Its model, rig and generator are described in `Rocker/README.md`; this is the gameplay, in `Rocker/`
+(rules in `Rocker/Core/`, the game side in `Rocker/Game/`). A hand station: no power, no oil, no pipe,
+no build stages, and **no automated input or output**: the block entity has no inventory, so no hopper
+or chute reaches it. Needs `OreProcessing` (it makes its concentrate).
+
+**Block.** `seraphhorizons:rocker-{side}`, one cell, placed whole from a grid recipe (the model's
+materials: four oak planks a slot for the box, its rockers, riffles, rails and handle, a plate of iron,
+meteoric iron or steel for the riddle plate, plain linen for the apron, nails and strips and a hammer).
+The side is the way the placing player looks, so the handle is theirs (the native operator side is
+north) and the open foot is on their right. Its rockers stand on the block below: it needs a solid top
+there to be placed, and breaks when that goes. Nothing of it stands still, so its block draws nothing
+(`shapes/block/rocker_empty.json`) and `RockerRenderer` draws every rig part of `rocker.json`: the
+cradle rocking (θ a turn a rock, coming to rest level at the next multiple of π when let go,
+`RockerClock`), the water while worked, the charge and the concentrate in the items' own textures, and
+splashes at the foot. The item is `rocker_item.json`.
+
+**Work.** Crushed or ground ore (`seraphhorizons:crushedore-*`, `groundore-*`) or Wilderlands Panning's
+rich gravel (`game:richgravel-{rock}`) goes into the hopper by right-click, as much of the held stack as
+fits up to `ChargeItems` (4), one kind at a time (a kind is the code and the ore's state on the stack,
+so riddled and unriddled ore do not mix). The player then **holds right-click with a liquid container of
+fresh water** (the game's water, Hydrate or Diedrate's fresh waters; a bucket): it rocks `RocksPerSecond`
+(1) a second, and the container is poured into the hopper as it does, `LitresPerItem` (2 L) an item
+evenly over its `RocksPerItem` (4) rocks, so a full bucket washes five. It rocks only while held and
+while there is water; let go, it stops where it is. Each item washed through gives:
+
+- **Crushed or ground ore:** its concentrate (`seraphhorizons:concentrate-{ore}`), ore processing's hand
+  concentration at the rocker (`OreRecovery.HandConcentrate(HandStation.Rocker, stream)`, #765): the
+  item's units (`OreStreamAttributes.Read`) with its locked shares (unriddled × 0.85, poor and not ground
+  × 0.4, free gold or silver not amalgamated × 0.7), × 0.55, × the ore's density; whole concentrate items
+  behind the riffles and the rest carried to the next item (`UnitCarry`, saved with the rocker). Hand
+  stations do not chain.
+- **Rich gravel** (#701's rule, the owner's rulings): a block is eight pans' worth, and gives the gold
+  pan's table for its rock (read from `game:pan-wooden`, as the recipe exporter reads it) with no one-item
+  cap: each nugget at the rocker's figure over the pan's (55 / 45), each by-product (stone, flint, gems) at
+  the pan's own rate, expected counts carried from block to block. Placer counts as riddled and takes no
+  free-metal loss.
+
+What it gives lies behind the riffles until taken by an **empty-hand right-click**; at `RiffleItems` (16)
+it stops until they are cleaned. **Ctrl + empty-hand right-click** takes the charge back while the item at
+the top is untouched. Each item washed is a rock of **tailings** (#694, the shared tailings code): the
+rocker's rule (`OreMachinesSettings.Tailings.rocker`, gravel, a layer a rock) in the feed's rock, as
+layered gravel heaped on the ground in the cell beyond the foot (the rig's `tailings` point). Breaking it
+drops the rocker, the charge (less an item half washed) and what is behind the riffles. The block info
+shows the charge and how far the item at the top is washed, and what lies behind the riffles.
+
+| Setting | Default | |
+|---|---|---|
+| `RocksPerItem` | 4 | Rocks (turns of θ) an item takes |
+| `RocksPerSecond` | 1 | Rocks a second while held with water |
+| `LitresPerItem` | 2 | Water poured for an item, litres |
+| `ChargeItems` | 4 | The most items in the hopper |
+| `RiffleItems` | 16 | The most items behind the riffles before it stops |
+
+The handbook page (the block's) carries the issue's player card and how to work it. The recipe export
+has a `rocker` record per feed item (`machine` shape, power `hand`, `turns` the rocks an item, the water
+a requirement, the outputs fractional; `RecipeSection.Rocker.cs`, `Recipes/RockerExport.cs`, which calls
+`RockerSystem.YieldOf` by reflection). With `Rocker` (or `OreProcessing`) off the server marks the block
+type and the recipe disabled, so neither exists and rockers already placed are lost. Code:
+`Rocker/Core/` (`RockerConfig`, `RockerRig`, `Rocking.cs`: the feed, the state and the placer yield,
+`RockerClock`), `Rocker/Game/` (`RockerSystem`, `BlockRocker`, `BERocker`, `RockerWater`,
+`RockerRenderer`). Tests: `tests/Rocker/RockerGameplayTests.cs`, `RockerRigTests.cs`;
+`tests/PackTests/RockerScenarios.cs` (Atlas: the block and recipe, solid ground and no transfer, crushed
+ore washed while held with water into its concentrate with the rest carried and tailings beyond the
+foot, riddled ore at the full figure and an untouched charge returned, rich gravel into the pan's
+metals), `RecipeExportRockerScenarios.cs` and `SwitchesOffScenarios` (off).
+
 ### Ore processing: leaching borax, saltpeter and alum (`OreProcessing`)
 
 The non-metals are leached with blocks players already have (#742): no station, no model. With the
@@ -6267,7 +6338,8 @@ exporter's own recipe types for the gear chain (`picklingtub` and `lottery`: `Ge
 `gearcutter`: `GearCutter`; `drawbench`: `DrawBench`, whose type and recipe files are
 `DrawBenchSystem.TypeAssets` and `RecipeAssets`; `cylinderborer`: `CylinderBorer`, whose files are
 `CylinderBorerSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
-`PressBrakeSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
+`PressBrakeSystem.TypeAssets` and `RecipeAssets`; `rocker`: `Rocker`, whose files are
+`RockerSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
 `SquaringShearSystem.TypeAssets`, the half plate's among them, and `RecipeAssets`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
 id's type, its source file, or the code it is keyed by, as a transition or a casting is) and
 `SwitchForCode(code)`; the exporter calls `SwitchRegistry.For(api)` by reflection.
@@ -6282,6 +6354,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `DrawBench` | the bench's blocks and dies, its grid and smithing recipes, the draw bench records |
 | `CylinderBorer` | the borer's blocks and parts, the cylinder molds (`seraphhorizons:cylindermold-*`), the cast and bored cylinders (`seraphhorizons:cylinderblank-*`, `seraphhorizons:cylinder-*`), its grid, smithing and clay forming recipes, the molds' casting, the cylinder borer records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
+| `Rocker` | the rocker's block (`seraphhorizons:rocker-*`), `recipes/grid/rocker.json`, the rocker records |
 | `SquaringShear` | the shear's blocks, the half plate (`seraphhorizons:halfplate-*`), its grid recipe, the squaring shear records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
 | `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |
