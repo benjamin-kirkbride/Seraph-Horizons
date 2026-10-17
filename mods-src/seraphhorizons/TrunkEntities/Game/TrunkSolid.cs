@@ -71,6 +71,30 @@ public static class TrunkSolid
         });
     }
 
+    /// <summary>The widest reach of <see cref="PushOut"/> from any trunk's position, blocks, with
+    /// a block to spare: the thick trunk's <see cref="TrunkBoxes.Radius"/> + 2.</summary>
+    private static readonly double AgentReach = TrunkBoxes.Radius(TrunkClass.Thick) + 3;
+
+    /// <summary>Moves <paramref name="agent"/> out of every trunk near it (<see cref="PushOut"/>).
+    /// Server side, for an agent that runs it after its physics (the entity's
+    /// <c>AfterPhysicsTick</c>, once a server tick after all its physics steps), so it ends each
+    /// tick standing on a trunk as it would on a block. The trunks' own push (<see cref="PushAll"/>,
+    /// in their game tick) comes before the physics, and the game's physics, which knows nothing of
+    /// the trunk, then lets an agent standing on one fall into it for each physics step of the tick
+    /// (0 to 2 at 30 steps a second, more when the server lags: 0.024 blocks, then 0.072), not on
+    /// the ground, until the next tick lifts it again (#903).</summary>
+    public static void PushOutOfAll(Entity agent)
+    {
+        if (agent.Api == null)
+            return;
+        agent.Api.ModLoader.GetModSystem<EntityPartitioning>().WalkEntityPartitions(agent.Pos.XYZ, AgentReach, e =>
+        {
+            if (e is EntityTrunk { Alive: true } trunk)
+                PushOut(trunk, agent);
+            return true;
+        });
+    }
+
     /// <summary>The local player's push, every frame right after the game's player physics
     /// (<c>EntityBehaviorPlayerPhysics</c> renders at order 1 in the <c>Before</c> stage).</summary>
     public sealed class ClientRenderer : IRenderer
