@@ -13,8 +13,8 @@ namespace SeraphHorizons.Mod;
 /// <see cref="PanningDropRules"/> names out of every panned material's list, on the server in
 /// AssetsLoaded: after the game's patch loader (0.05) has applied every mod's patches, whatever their
 /// order, and before the block types are read from the assets (0.2). So the pan block, the
-/// Panning Machine (which reads the pan's table) and the handbook (clients get the block's
-/// attributes from the server) all see the trimmed table.
+/// machines that wash placer gravel (which read the pan's table, #701) and the handbook (clients get
+/// the block's attributes from the server) all see the trimmed table.
 ///
 /// Tailor's Delight's handbook text for the buttons says they are found while panning; that passage
 /// is taken out in every language it ships (<see cref="LangEdits"/>).

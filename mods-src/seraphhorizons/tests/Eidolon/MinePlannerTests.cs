@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using SeraphHorizons.Mod.Eidolon.Core;
 using Xunit.Abstractions;
 using static SeraphHorizons.Mod.Tests.Eidolon.MineTestWorld;
@@ -367,24 +368,73 @@ public class MinePlannerTests(ITestOutputHelper output)
         var world = SteppedSlope(8, z1: 6);
         var area = Area(-2, 7, L, L + 7, 0, 3);
         var whole = MinePlanner.Run(world.Input(area, Home));
+
         var sliced = new MinePlanner(world.Input(area, Home));
         var budget = TimeSpan.FromMilliseconds(MinePlanner.BudgetMs);
-        var longest = TimeSpan.Zero;
-        int steps = 0;
-        while (true)
-        {
-            var clock = System.Diagnostics.Stopwatch.StartNew();
-            bool done = sliced.Step(budget);
-            longest = clock.Elapsed > longest ? clock.Elapsed : longest;
-            steps++;
-            if (done)
-                break;
-        }
-        output.WriteLine($"{steps} steps, the longest {longest.TotalMilliseconds:0.0} ms");
-        Assert.True(steps > 1);
+        while (!sliced.Step(budget)) { }
+        Assert.True(sliced.Steps > 1);
         Assert.Equal(Describe(whole), Describe(sliced.Plan!));
-        Assert.True(longest < TimeSpan.FromMilliseconds(12), $"a step took {longest.TotalMilliseconds} ms");
         Assert.Equal(MinePlanPhase.Done, sliced.Phase);
+
+        // A step stops at its first checkpoint past the budget, so it keeps to its slice as long as no
+        // one checkpoint's work is long. With no budget a step is exactly one checkpoint, and the
+        // checkpoints are the same on every run (the work is a pure function of its input). Each one's
+        // work is timed in this thread's CPU time, which a shared runner's descheduling does not stretch
+        // (on CI, oversubscribed for the whole run, the wall clock stretched a 1.4 ms checkpoint past
+        // 13 ms in every run), and as the fastest of a few runs, so a GC pause has to land on the same
+        // checkpoint every run to count against it.
+        const int Runs = 3;
+        List<double>? fastest = null;
+        for (int run = 0; run < Runs; run++)
+        {
+            var single = new MinePlanner(world.Input(area, Home));
+            var gaps = new List<double>();
+            while (true)
+            {
+                double start = ThreadCpuMs();
+                bool done = single.Step(TimeSpan.Zero);
+                gaps.Add(ThreadCpuMs() - start);
+                if (done)
+                    break;
+            }
+            Assert.Equal(Describe(whole), Describe(single.Plan!));
+            Assert.Equal(gaps.Count, single.Steps);
+            if (fastest == null)
+                fastest = gaps;
+            else
+            {
+                Assert.Equal(fastest.Count, gaps.Count);
+                for (int i = 0; i < gaps.Count; i++)
+                    fastest[i] = Math.Min(fastest[i], gaps[i]);
+            }
+        }
+        var checkpoints = fastest!;
+        double longest = checkpoints.Max();
+        output.WriteLine($"{sliced.Steps} steps of {MinePlanner.BudgetMs} ms; {checkpoints.Count} checkpoints, the longest {longest:0.00} ms ({(OperatingSystem.IsLinux() ? "thread CPU" : "wall")})");
+        // a step: its budget plus at most one checkpoint, under 12 ms
+        Assert.True(MinePlanner.BudgetMs + longest < 12, $"a checkpoint's work took {longest} ms");
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Timespec
+    {
+        public long Sec;
+        public long Nsec;
+    }
+
+    [DllImport("libc", EntryPoint = "clock_gettime")]
+    private static extern int ClockGetTime(int clock, out Timespec time);
+
+    private const int ClockThreadCpuTime = 3; // CLOCK_THREAD_CPUTIME_ID
+
+    private static readonly System.Diagnostics.Stopwatch Wall = System.Diagnostics.Stopwatch.StartNew();
+
+    /// <summary>The calling thread's CPU time in ms on Linux (CI's runners), the wall clock elsewhere.</summary>
+    private static double ThreadCpuMs()
+    {
+        if (OperatingSystem.IsLinux() && ClockGetTime(ClockThreadCpuTime, out var t) == 0)
+            return t.Sec * 1000.0 + t.Nsec / 1e6;
+        return Wall.Elapsed.TotalMilliseconds;
     }
 
     [Fact]

@@ -182,6 +182,10 @@ NOZZLE = ((1.5, 0.3), (1.0, 0.3))            # the nozzle: two steps up from the
                                              # under the sill, in the pool, under the falling ore
 PIPE_METALS = ("copper", "lead")             # one part each, the same elements; only the supplied metal's is drawn
 PIPES = tuple(f"pipe{m}" for m in PIPE_METALS)
+BUILD_STAGES = (                             # (what the stage adds, its name), in build order, after the frame
+    (("riffles",), "the riffles"),           # the frame is all the timber (head box, sluice box, launder, trestles)
+    (("infeedchute", "tailingschute", "concentratechute", *PIPES), "services"),   # one inlet metal drawn
+)
 
 
 # ---------------------------------------------------------------- box helpers
@@ -681,7 +685,8 @@ def make_rig(parts):
                     "concentrateCell/concentrateFace: the concentrate chute leaves through the bottom face, fed from above by the "
                     "launder under the riffles, which fills through their draw slots as the sluice runs. feedSpout is where the ore "
                     "falls into the head box, waterSpout the nozzle's mouth, concentrateSpout where the launder pours down into the "
-                    "concentrate chute. See the sluice's README for the schema.",
+                    "concentrate chute. buildStages: what each build stage after the frame adds, in order (the gameplay's "
+                    "config/builds/sluice.json). See the sluice's README for the schema.",
         "cells": [],
         "infeedCell": list(INFEED_CELL),
         "infeedFace": INFEED_FACE,
@@ -694,6 +699,7 @@ def make_rig(parts):
         "feedSpout": {"pos": pt(CX, CHUTE_IN_Y0, (HB_Z[0] + HB_Z[1]) / 2)},
         "waterSpout": {"pos": pt(CX, nozzle_mouth(), RISER_Z)},
         "concentrateSpout": {"pos": pt(*launder_lip())},
+        "buildStages": [{"stage": n, "name": name, "adds": list(req)} for n, (req, name) in enumerate(BUILD_STAGES, 1)],
         "parts": parts,
     }
 
