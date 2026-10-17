@@ -11,5 +11,7 @@
   { "file": "expandedfoods:itemtypes/food/gelatinfish.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": 1 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "expandedfoods" }] },
   // Sliced fruit leather (the only state eaten by itself), as dried fruit (dryfruit-*,
   // dehydratedfruit-*) and fruit bars (fruitbar-*), -5.
-  { "file": "expandedfoods:itemtypes/food/fruitleather.json", "op": "addmerge", "path": "/attributes", "value": { "hydrationByType": { "*-sliced": -5 } }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "expandedfoods" }] }
+  { "file": "expandedfoods:itemtypes/food/fruitleather.json", "op": "addmerge", "path": "/attributes", "value": { "hydrationByType": { "*-sliced": -5 } }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "expandedfoods" }] },
+  // Roasted grain (dev.16, no Hydrate or Diedrate value yet), as game:grain-* (-30).
+  { "file": "expandedfoods:itemtypes/food/roastedgrain.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": -30 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "expandedfoods" }] }
 ]

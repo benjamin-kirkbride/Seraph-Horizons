@@ -1004,6 +1004,15 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains(W.GridRecipes, r => Duplicates.SandstoneDaub(r) && r.Output.Quantity == 8);
     }
 
+    /// <summary><c>FruitDries</c>: the game's fruit only perishes, as Expanded Foods 2.0.0-dev.16 leaves it.</summary>
+    [AtlasScenario]
+    public void Fruit_dries_off_fruit_does_not_dry()
+    {
+        Assert.True(Off("FruitDries"));
+        foreach (var (fruit, _) in FruitDryingCheck.Fruits)
+            Assert.Null(FruitDryingCheck.Dry(W, fruit));
+    }
+
     /// <summary><c>GearPartsRemoved</c>: BetterLoot+'s gear part, its recipes and its drops as it
     /// ships them.</summary>
     [AtlasScenario]
