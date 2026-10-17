@@ -98,7 +98,7 @@ TEXTURES = {
     "oak": "game:block/wood/debarked/oak",         # timber: sills, posts, trestles, cleats, the cross bars, the pipe's rest
     "planks": "game:block/wood/planks/oak1",       # boards: the bed, the distributor, the tail box
     "copper": "game:block/metal/sheet-plain/copper1",   # the plates
-    "mercury": "seraphhorizons:block/liquid/mercury",   # the plates' dressing and the trap's well (the amalgam pan's texture)
+    "mercury": "game:block/stone/rock/andesite2",       # the plates' dressing and the trap's well: the amalgam pan's mercury
     "amalgam": "game:block/metal/ingot/leadsolder",     # the amalgam on the plates: the amalgam pan's paste
     "iron": "game:block/metal/plate/iron",         # the trap: cast iron
     "chute": "game:block/metal/sheet/copper1",     # vanilla's chute section, as a placed chute shows in the pack

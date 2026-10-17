@@ -79,9 +79,9 @@ Everything in the model was made for this mod: no other mod's model is used, so 
 from `build/mods`. The timber is the game's debarked oak and the boards its oak planks; the plates are the
 game's plain copper sheet (`game:block/metal/sheet-plain/copper1`), the trap its iron plate; the chute
 sections are vanilla's own chute texture (`game:block/metal/sheet/copper1`); the spray pipe is UnifiedPipes'
-copper or lead pipe with a soldered cap. The mercury (`seraphhorizons:block/liquid/mercury`) and the amalgam
-(the game's lead solder ingot, `game:block/metal/ingot/leadsolder`) are the amalgam pan's, so the two
-machines' amalgam reads the same (a check). `tools/make_shape.py` writes:
+copper or lead pipe with a soldered cap. The mercury (the game's andesite, `game:block/stone/rock/andesite2`,
+as Expanded Matter draws it) and the amalgam (the game's lead solder ingot, `game:block/metal/ingot/leadsolder`)
+are the amalgam pan's, so the two machines' amalgam reads the same (a check). `tools/make_shape.py` writes:
 
 | File | What it holds |
 |---|---|

@@ -315,8 +315,9 @@ describe("model view", () => {
     expect(textureColour("pan", "game:block/metal/sheet/iron1")).toBe("#8e98a4");
     // water reads as water
     expect(textureColour("water", "game:block/liquid/waterportion")).toBe("#6f9fcf");
-    // the Parkes kettle's zinc and its crust stand apart from the lead bath, though all three wear ingot textures
-    expect(textureColour("lead", "game:block/metal/ingot/lead")).toBe("#8e98a4");
+    // the Parkes kettle's zinc and its crust stand apart from the lead bath, though all three wear ingot textures;
+    // the lead takes the cupellation furnace's lead grey, apart from the kettle's iron too
+    expect(textureColour("lead", "game:block/metal/ingot/lead")).toBe("#5f6875");
     expect(textureColour("zinc", "game:block/metal/ingot/zinc")).toBe("#c2d0d8");
     expect(textureColour("crust", "game:block/metal/ingot/zinc")).toBe("#a8946c");
   });
