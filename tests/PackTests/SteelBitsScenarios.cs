@@ -192,7 +192,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario(TimeoutMs = 240_000)]
     public async Task A_stone_coffin_takes_steel_bits_twenty_at_a_time_fires_and_gives_blister_steel()
     {
-        var p = await World.JoinPlayer("cementer");
+        var p = await World.JoinRetrying("cementer");
         var pos = World.Spawn.AddCopy(-180, 12, -300);
         // Out of the furnace's heat (it burns whoever stands by it); the click needs no reach.
         await p.TeleportTo(pos.AddCopy(8, 0, 0));
