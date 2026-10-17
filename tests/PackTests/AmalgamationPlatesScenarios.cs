@@ -38,10 +38,10 @@ public partial class SharedWorldScenarios
         return stack;
     }
 
-    /// <summary>A burned bucket holding <paramref name="portions"/> of mercury.</summary>
+    /// <summary>A wooden bucket holding <paramref name="portions"/> of mercury.</summary>
     private ItemStack MercuryBucket(int portions)
     {
-        var bucket = CutterItem("game:bucket-burned");
+        var bucket = CutterItem("game:woodbucket");
         var mercury = CutterItem(BEAmalgamationPlates.MercuryCode, portions);
         ((BlockLiquidContainerBase)bucket.Block).SetContent(bucket, mercury);
         return bucket;
@@ -166,12 +166,11 @@ public partial class SharedWorldScenarios
         Assert.Equal("andesite", caught.Rock);
 
         // scraped by hand: one whole amalgam (5 units), the rest left on the plates
-        Assert.Null(CutterClick(player, pos, null));
+        // (into the empty hand that scraped it)
+        var scraped = CutterClick(player, pos, null);
         Assert.True(_cutterHandled);
-        int amalgam = player.InventoryManager.GetOwnInventory(GlobalConstants.hotBarInvClassName)!
-            .Concat(player.InventoryManager.GetOwnInventory(GlobalConstants.backpackInvClassName) ?? Enumerable.Empty<ItemSlot>())
-            .Where(s => s.Itemstack?.Collectible.Code.ToString() == "seraphhorizons:amalgam-quartz_nativegold").Sum(s => s.StackSize);
-        Assert.Equal(1, amalgam);
+        Assert.Equal("seraphhorizons:amalgam-quartz_nativegold", scraped?.Collectible.Code.ToString());
+        Assert.Equal(1, scraped!.StackSize);
         Assert.Equal(4 * 2.21 - 5, plates.AmalgamUnits, 6);
 
         // the outlet left open: two galena rocks run over unchanged and are dumped as two layers of sand
