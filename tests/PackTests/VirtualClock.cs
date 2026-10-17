@@ -359,11 +359,20 @@ public sealed class VirtualClock : IDisposable
         watch.Restart();
     }
 
+    private static long _pacingSleeps;
+
+    /// <summary>Pacing sleeps the transpiled Process has slept (in real time, or for a server not on the
+    /// clock) since the process began: none in a window on the virtual clock.</summary>
+    public static long PacingSleeps => Interlocked.Read(ref _pacingSleeps);
+
     // The transpiled Process's pacing sleep: none for a server on the virtual clock.
     private static void PacingSleep(int ms, ServerMain server)
     {
         if (Volatile.Read(ref _current)?._server != server)
+        {
+            Interlocked.Increment(ref _pacingSleeps);
             Thread.Sleep(ms);
+        }
     }
 
     private sealed class Hold(VirtualClock clock, Func<bool> holds, string what, TimeSpan timeout) : IDisposable
