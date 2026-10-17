@@ -5961,6 +5961,81 @@ item values count liquation as a station (`tools/item-values/ore-processing.json
 fire and in a charcoal fire, the pan in crucibulum's forge with the gate shut, emptying and the residue,
 the clay forming and firing, the export) and `SwitchesOffScenarios` (off).
 
+### Ore machines: what they share (`OreMachinesSettings`)
+
+The code every ore machine and hand station builds on (#711, #694), on the shared `Machines/` code;
+each machine (#912, #728, #732, #915, #917, #734, #919, #921, #923, #925, #736, #740, #927, #929, #931)
+has its own switch and calls it. Nothing here changes the game by itself: the settings apply to the
+machines as they come. The figures of each machine (recovery, load, water an item, rate) are
+`OreRecovery.Machine(OreMachine)`'s (#765, `Ore/Core`); what is shared is below.
+
+**One machine, built in stages** (no levels: the owner's ruling). The frame is placed (its grid
+recipe is the machine's), then each stage of the model README's stage table is fitted by right-click,
+in order, its materials being its recipe: `config/builds/{machine}.json` (`Machines/Core/MachineBuildJson.cs`;
+the first is the stamp battery's). A click puts in one material of the next stage: all the stage still
+needs of it, or a full stack of a bulk one (41 support beams go in a stack a click); fewer than that is
+`TooFew`, a later stage's item `OutOfOrder`, a fitted one's `AlreadyFitted`, the water line part way in
+another metal `OtherKind`. A material's `picks` draw the part of the item put in (`pipecopper` or
+`pipelead`), its `draws` a part before the rest of its stage. Breaking gives back everything that went
+in (`StagedBuild`, `MachineAssembly`). Every build file is checked against its rig: its stages are the
+rig's `buildStages`, in order, adding the same `requires` (a test, and a warning as it loads).
+
+**Wearing parts** (`WearingParts`) are not stages: a set (the stamp battery's five steel pounder caps)
+wears by use (in the machine's own unit) and is renewed by right-click once worn out; a worn-out set
+is gone, a set with use left comes back when the machine is broken. One fitted with a stage
+(`"stage"`) has its first set fitted as the last material of that stage. Without its set a machine
+does not run.
+
+**Running** (`MachineRun`): a machine works only built, with its wearing parts, its shaft at
+`MinSpeed` (0.05) or faster either way ("no power" below it), its reservoir holding an item's water
+(a wet machine with no water stops and resumes when water returns: the owner's ruling on #711), and
+room for its output. **Rate is in proportion to speed with no cap**: work is counted in shaft turns
+(`WorkTurns`, from `ShaftClock.AngleAdvance`) at the machine's turns an item, so an item takes the
+same energy at any speed. **Load is constant**: once built the job's figure
+(`OreRecovery.LoadAt`, the full load for every machine but the jaw breaker, the reverberatory's
+rabbles and the Parkes kettle, which follow their charge, never an item), 0.005 unbuilt, three times
+dry of oil where the machine takes oil (`MachineLoad.Resistance`). The power cell's behaviour is
+`seraphhorizons.MachineMP` (`BEBehaviorMachineMP`, its block entity an `IMachinePower`).
+
+**The reservoir** (`MachineReservoir`): a wet machine fills its own from a ppex pipe on its water face
+(`PpexWater`, moved here from the rosser, which shares it) at up to `WaterIntakeLitresPerSecond` (10 L/s),
+holding `ReservoirLitres` (20 L) or two items' water where an item takes more (the stamp battery's
+40 L a rock), and spends an item's water as it works it. No water comes back.
+
+**Chutes in and out** (`MachineAnchors`, `MachineChutes`): continuous machines read their anchors from
+the rig's `{name}Cell`/`{name}Face` pairs (turned with the machine). Products leave through an
+anchor's face into a vanilla chute laid to take from the machine, or any container; with nothing
+there, a product stays in the machine (its output blocked) and tailings are discarded. A chute feeds
+the infeed cell's block entity, whose inventory takes only through the infeed face what the machine
+takes. Batch machines (the arrastra, the roasters and furnaces) have no anchor: loaded and emptied by
+hand. Hand stations have neither.
+
+**Tailings** (#694; `Tailings`, `TailingsHeap`): where a machine's tailings outlet is not chuted on
+(normally the last of the line), or at a hand station, discarded rock goes on a heap beside the
+tailings point as vanilla layered gravel (`game:gravel-{rock}-land-{n}`) or sand (`game:sand-{rock}-{n}`)
+in the ore's host rock (the raw ore's `rock`, carried as a stack attribute), filling the cell, the four
+round it, then two up (seven blocks; a full heap takes no more until it is shovelled away). The layers
+a rock, the owner's starting values (`OreMachinesSettings.Tailings`, by machine): sluice and jig
+gravel 1, shaking table sand 0.75, vanner sand 0.5, amalgamation plates sand 1, rocker gravel 1; the
+jaw breaker, stamp battery, arrastra and ball mill discard nothing, nor do the roasters and furnaces.
+Fractions carry from rock to rock (`TailingsOwed`).
+
+**Text, handbook and recipe browser.** Block info and messages are shared (`MachineText`, the
+`seraphhorizons:machine-*` lang entries): the next stage and what it still takes, each wearing part's
+use left, the state (`seraphhorizons:machine-state-*`) and the reservoir. A stage's name is
+`seraphhorizons:{machine}-stage-{id}` where given. Each machine's handbook takes its player card as the
+frame block's `handbook.extraSections`, under `seraphhorizons:{machine}-handbook-{build,work,water,tailings}-{title,text}`
+(the draw bench's pattern). The recipe browser shows each machine whose frame is in the game as a
+`construction` record built from its build file (`tools/recipe-export/RecipeSection.OreMachines.cs`):
+the frame, then each stage's materials, a wearing part's first set with its stage.
+
+Settings (`OreMachinesSettings`): `MinSpeed`, `ReservoirLitres`, `WaterIntakeLitresPerSecond` and
+`Tailings` (per machine: `Form` gravel or sand, `LayersPerRock`); out-of-range values fall back with a
+warning. Tests: `tests/Machines/OreMachineSharedTests.cs` (the build, wearing parts, running, rate,
+load, reservoir, tailings, anchors, settings, and every shipped build file against its rig);
+`tests/PackTests/OreMachinesScenarios.cs` (Atlas: the build files load and name items the game has,
+a tailings heap in the world, products into a chute and a chest).
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is
