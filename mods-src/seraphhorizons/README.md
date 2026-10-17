@@ -5598,6 +5598,28 @@ and layout, raw ore struck into its crushed ore with the hammer's wear and a pic
 bountiful ore in the same two blows each into one of its grade and crystallised ore into two, the next
 block, the export records) and `SwitchesOffScenarios` (off).
 
+### Ore processing: the riddle (`Riddle`, `RiddleSettings`)
+
+The hand station of the classify stage (#714; model #715): a miner's riddle, a coarse hand sieve over a plank box.
+Crushed ore in; classified crushed ore out, which concentrates without the **unclassified × 0.85** (a rocker gets
+55 % instead of 46.8 %). After spalling, before the rocker; replaced by the stamp battery's screen and the ball
+mill's. No power, no oil, no automated input or output. Needs `OreProcessing` too (off, either one, means its block
+and recipe do not exist). How it plays, builds and draws is in `Riddle/README.md`, "Gameplay":
+
+- **Building.** The frame (`seraphhorizons:riddle-frame-{side}`) is a grid recipe of six oak planks, one nails and
+  strips of iron, meteoric iron or steel and a hammer; the riddle is fitted on it by right-click with two nails and
+  strips at once (its wire mesh). Breaking returns everything that went in and whatever it holds.
+- **Riddling.** A charge is `LumpsPerCharge` (3) unclassified crushed ore of one kind, on in one click; holding
+  right-click riddles it, a shake every 0.75 s, `ShakesPerCharge` (12) a charge. At the end `OversizePerCharge` (1)
+  stays on the mesh as raw ore of its ore and grade (in its rock, the rock under the station, or granite), back to
+  spalling, and the rest falls into the box as the same crushed ore with ore-core's classified flag (`oreState` 1,
+  #765). Nothing is lost. An empty hand takes the oversize out, then the fines; the next charge waits until both are
+  out.
+- **Recipe browser.** A `riddle` record per crushed ore (power `hand`, `work` in shakes).
+
+Code: `Riddle/Core/`, `Riddle/Game/`. Tests: `tests/Riddle/`; `tests/PackTests/RiddleScenarios.cs`,
+`RecipeExportRiddleScenarios.cs`.
+
 ### Ore processing: leaching borax, saltpeter and alum (`OreProcessing`)
 
 The non-metals are leached with blocks players already have (#742): no station, no model. With the
@@ -6128,6 +6150,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `CylinderBorer` | the borer's blocks and parts, the cylinder molds (`seraphhorizons:cylindermold-*`), the cast and bored cylinders (`seraphhorizons:cylinderblank-*`, `seraphhorizons:cylinder-*`), its grid, smithing and clay forming recipes, the molds' casting, the cylinder borer records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
 | `SquaringShear` | the shear's blocks, the half plate (`seraphhorizons:halfplate-*`), its grid recipe, the squaring shear records |
+| `Riddle` | the riddle's block, its grid recipe, the riddle records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
 | `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |
 | `CreativeSteamSource` | the creative steam source block |
