@@ -523,5 +523,13 @@
     "BedFirewood": 4,
     "HalfWalledDraught": 0.5,
     "OpenDraught": 0.0
+  },
+  "CupellationFurnace": true,
+  "CupellationFurnaceSettings": {
+    "ChargeUnits": 200.0,
+    "CoalPerHour": 0.7,
+    "LeadPerOtherUnit": 1.0,
+    "DamperHalfDraught": 0.5,
+    "BankedBurn": 0.25
   }
 }
