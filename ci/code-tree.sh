@@ -16,10 +16,11 @@
 # changes, and nothing else.
 set -euo pipefail
 
-# Paths no CI job reads. Anything not matched counts as an input, including
-# this file and the workflows, so the list can only ever be widened
-# deliberately.
-noop='(\.claude/|\.gitignore$|\.mergify\.yml$|docs/|LICENSE$|[^/]*\.md$|.*/[^/]*\.md$)'
+# Paths no CI job reads, kept in ci/paths.py beside the models-only fast
+# path's allow-list, which takes them too. Anything not matched counts as an
+# input, including this file, ci/paths.py and the workflows, so the list can
+# only ever be widened deliberately.
+noop=$(python3 "$(dirname "$0")/paths.py" noop-regex)
 
 # ls-tree lines are "<mode> <type> <blob>\t<path>"; anchor the pattern at
 # the start of the path, after the tab.
