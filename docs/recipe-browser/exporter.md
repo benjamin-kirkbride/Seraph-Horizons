@@ -51,7 +51,7 @@ section alone without the cost of a full export.
    are none, it looks for `CombustibleProperties.SmeltedStack` (ACulinaryArtillery
    simmering). The other simple public values of a mod recipe (power, temperature, ...)
    go to `extra`.
-3. **Water copies.** Hydrate or Diedrate (2.5.6, `RecipeGenerator`) copies every
+3. **Water copies.** Hydrate or Diedrate (2.5.8, `RecipeGenerator`) copies every
    registered recipe, in every recipe list, that takes `game:waterportion` in a slot or in
    a container's `recipeAttributes.requiresContent`: one copy per kind of its clean water
    (`hydrateordiedrate:waterportion-boiled-natural-clean`, `-boiled-rain-clean`,

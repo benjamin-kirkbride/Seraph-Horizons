@@ -1,7 +1,8 @@
 // Hydrate or Diedrate values for Expanded Foods foods it leaves out, seraphhorizons' FoodHydration
-// switch (README.md). Its patterns pemmicanfish-*, pemmicancrab-*, pemmicansnake-* and gelatinfish-*
-// match no item: the codes are fishpemmican, crabpemmican, snakepemmican and gelatinfish (no
-// variants). The values are the ones those patterns meant. Server side (hydration-game.json says why).
+// switch (README.md). Up to 2.5.6 its patterns pemmicanfish-*, pemmicancrab-*, pemmicansnake-* and
+// gelatinfish-* matched no item: the codes are fishpemmican, crabpemmican, snakepemmican and
+// gelatinfish (no variants); 2.5.8 fixed them, with the same values. The values are the ones those
+// patterns meant. Server side (hydration-game.json says why).
 [
   // Every state, as expandedfoods:pemmican-* (-25).
   { "file": "expandedfoods:itemtypes/food/mixing/pemmicanfish.json", "op": "addmerge", "path": "/attributes", "value": { "hydration": -25 }, "side": "server", "dependsOn": [{ "modid": "hydrateordiedrate" }, { "modid": "expandedfoods" }] },
