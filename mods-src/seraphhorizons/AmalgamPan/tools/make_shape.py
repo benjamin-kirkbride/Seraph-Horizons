@@ -439,6 +439,10 @@ def make_rig(parts):
         "powerFace": POWER_FACE,
         "operatorSide": "north",
         "pan": {"pos": pt(CX, FLOOR_TOP, CZ)},
+        # the build's stages in order, each the requires it adds: the gameplay's build file
+        # (config/builds/amalgampan.json) is checked against them (#711)
+        "buildStages": [{"stage": i + 1, "id": sid, "name": name, "adds": [sid]}
+                        for i, (sid, name) in enumerate((("muller", "the muller"), ("shoes", "the shoes")))],
         "parts": parts,
     }
 

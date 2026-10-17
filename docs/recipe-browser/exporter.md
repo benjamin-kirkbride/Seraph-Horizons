@@ -350,6 +350,16 @@ is left out when its switch is off or what it names is not registered.
   each output's count an item fractional; `SeraphHorizonsConfig.RockerSettings` gives the rocks an item
   (`RocksPerItem`, the record's `turns`) and the water (`LitresPerItem`, a `requirements` entry). The `Rocker`
   and `OreProcessing` switches leave it out when off.
+- The amalgam pan (`Recipes/AmalgamPanExport.cs`, `RecipeSection.AmalgamPan.cs`, type `amalgampan`,
+  shape `machine`, #718): one record per kind of crushed free quartz (ore and grade),
+  `amalgampan|seraphhorizons:crushedore-{ore}-{grade}|0`, read from the frame block's
+  `seraphhorizonsAmalgamPan` attribute, which the server sets with the pan on (the charge, its water,
+  `retort.amalgamMercury`, the turns, and the amalgam a full charge of each kind makes by ore
+  processing's recovery). A full charge: the quartz, the mercury its amalgam takes and the water in
+  (portions with litres), the muller (a rod) and shoes (a plate) `kept`, the pan as `station`; out, the
+  amalgam (the average, fractional: the pan carries the fraction to the next charge) and the same quartz
+  back, amalgamated. `power` is `hand`, `turns` the muller's, `work` the seconds by hand. The
+  `AmalgamPan` switch (or `OreProcessing`) leaves it out when off.
 - The squaring shear (`Recipes/SquaringShearExport.cs`, `RecipeSection.SquaringShear.cs`, type
   `squaringshear`, shape `machine`): one record per metal, `squaringshear|game:metalplate-{metal}|0`.
   `config/squaringshear-rig.json` gives each class's plate and half plate (`cut.plates`,
@@ -484,6 +494,8 @@ details and the limits (facing, connectors).
 - the cylinder borer (`RecipeExportCylinderBorerScenarios.cs`): a record per metal, a rough cast cylinder in, its kept
   stages, the cutter head worn by the oil's fill, the oil and the bored cylinder; the mold's six-ingot casting; and
   ppex's engines' grid records taking the bored cylinder;
+- the amalgam pan (`RecipeExportAmalgamPanScenarios.cs`): a record per crushed gold or silver quartz and
+  grade, its charge, mercury and water in, the muller and shoes kept, the amalgam and the quartz out;
 - the press brake (`RecipeExportPressBrakeScenarios.cs`): a record per metal, a half plate in, its
   kept stages, power `hand` at the lever's turns, and one angle;
 - the rocker (`RecipeExportRockerScenarios.cs`): a record per feed item, the rocker as station, power `hand`
