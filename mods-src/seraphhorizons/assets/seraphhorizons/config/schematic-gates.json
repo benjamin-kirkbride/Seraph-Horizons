@@ -55,8 +55,6 @@
 		{ "machine": "rosser", "outputs": [ { "mod": "immersivewoodworking", "code": "seraphhorizons:rosser-frame-*" } ] },
 		{ "machine": "gearbox", "outputs": [ { "mod": "mpegearbox", "code": "mpegearbox:gearbox*" } ] },
 		{ "machine": "centeredspurgear", "outputs": [ { "mod": "mpecenteredspurgear", "code": "mpecenteredspurgear:centeredspurgear-*" } ] },
-		// One recipe for every tier (the other tiers' recipes ship disabled).
-		{ "machine": "panningmachine", "outputs": [ { "mod": "panningmachine", "code": "panningmachine:panningmachine-*" } ] },
 		// The trestles are the first stage; the airframe is built on them.
 		{ "machine": "biplane", "outputs": [ { "mod": "flyingmachine", "code": "flyingmachine:trestles" } ] },
 		// The eidolon (#668): the gantry frame, its first stage, in which the body is built, the torso,
@@ -112,7 +110,6 @@
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-windmill", "sellers": ["carpenter"], "tier": 1 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-waterwheel", "sellers": ["carpenter"], "tier": 1 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-handcrank", "sellers": ["generalstore"], "tier": 1 },
-		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-panningmachine", "sellers": ["prospector"], "tier": 1 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-transmission", "sellers": ["mechanic"], "tier": 2 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-helvehammer", "sellers": ["mechanic"], "tier": 2 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-pulverizer", "sellers": ["mechanic"], "tier": 2 },
