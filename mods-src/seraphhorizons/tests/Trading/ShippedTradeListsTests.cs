@@ -5,7 +5,8 @@ using SeraphHorizons.Mod.Trading.Core;
 namespace SeraphHorizons.Mod.Tests.Trading;
 
 /// <summary>
-/// The eleven shipped lists (assets/seraphhorizons/config/tradelists): they parse into the format,
+/// The shipped lists of the eleven camp types and the story trader (the treasure hunter,
+/// assets/seraphhorizons/config/tradelists): they parse into the format,
 /// have no problems, stock something in every region on both sides, keep their wallets in range, and
 /// keep every curated entry (tests/Trading/fixtures/curation-sources.json: each vanilla and other-mod
 /// entry, and the types that took it in) in the types that took it in. Whether the game resolves every
@@ -21,7 +22,7 @@ public class ShippedTradeListsTests
     };
 
     private static readonly Lazy<Dictionary<string, TradeListDef>> Lists = new(() =>
-        TraderTypes.All.ToDictionary(t => t, t =>
+        TraderTypes.All.Concat(TraderTypes.Story).ToDictionary(t => t, t =>
         {
             string path = Path.Combine(AppContext.BaseDirectory, "tradelists", $"trader-{t}.json");
             var def = JsonSerializer.Deserialize<TradeListDef>(File.ReadAllText(path), Options)!;
@@ -72,7 +73,9 @@ public class ShippedTradeListsTests
             Assert.NotNull(def.Wallet);
             Assert.InRange(def.Wallet!.Avg, 60, 180);
             Assert.InRange(def.Wallet.Var, 0, def.Wallet.Avg / 2);
-            Assert.True(def.CampWeight > 0, type);
+            // Camp types are drawn by weight; a story trader never is (it lives in its story structure).
+            if (TraderTypes.Story.Contains(type)) Assert.Equal(0, def.CampWeight);
+            else Assert.True(def.CampWeight > 0, type);
         }
     }
 

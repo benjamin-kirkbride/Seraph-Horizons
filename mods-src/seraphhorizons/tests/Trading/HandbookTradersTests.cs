@@ -11,6 +11,9 @@ public class HandbookTradersTests
         new("game:trader-male-treasurehunter-temperate", "EntityTrader"),
         new("game:trader-male-treasurehunter-desert", "EntityTrader"),
         new("game:trader-female-treasurehunter-cold", "EntityTrader"),
+        // A story trader of another mod's story structure, which the grid leaves as it is.
+        new("somemod:trader-male-hermit-temperate", "EntityTrader"),
+        new("somemod:trader-female-hermit-cold", "EntityTrader"),
         new("game:villager-nadiya-female-tailor-alba", "EntityVillager"),
         new("aculinaryartillery:trader-kitchenware", "EntityTrader"),
         new("game:trader-domesticanimal-male", "EntityTradingHumanoid"),
@@ -32,13 +35,17 @@ public class HandbookTradersTests
     [Fact]
     public void StoryTradersStayInEveryClimateAndTheRestOfTheOthersGo()
     {
-        var hidden = HandbookTraders.Hidden(Listed, ["game:trader-male-treasurehunter-temperate", "trader-female-treasurehunter-temperate"]);
+        var hidden = HandbookTraders.Hidden(Listed, ["somemod:trader-male-hermit-temperate", "somemod:trader-female-hermit-temperate", "game:trader-male-treasurehunter-temperate", "trader-female-treasurehunter-temperate"]);
         Assert.Equal(
         [
             "aculinaryartillery:trader-kitchenware",
             "game:trader-domesticanimal-male",
             "game:trader-female-agriculture-cold",
+            // The game's treasure hunter goes in every climate: its house spawns the pack's.
+            "game:trader-female-treasurehunter-cold",
             "game:trader-male-agriculture-temperate",
+            "game:trader-male-treasurehunter-desert",
+            "game:trader-male-treasurehunter-temperate",
             "somemod:wandering-trader-bob",
         ], hidden);
     }
@@ -48,6 +55,7 @@ public class HandbookTradersTests
     {
         var hidden = HandbookTraders.Hidden(Listed, []);
         Assert.Contains("game:trader-male-treasurehunter-temperate", hidden);
+        Assert.Contains("somemod:trader-female-hermit-cold", hidden);
         Assert.DoesNotContain("game:villager-nadiya-female-tailor-alba", hidden);
         Assert.DoesNotContain("seraphhorizons:trader-male-smith-temperate", hidden);
     }
