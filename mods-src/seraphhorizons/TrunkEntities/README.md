@@ -364,7 +364,11 @@ floor, never falling and never on the ground in the game's physics, so it crept 
 the air, and a walk to a point beside the trunk ended there, standing on nothing. The trunk itself is never moved by this, and its
 driver (mounted, and standing beyond its end) is left alone. Driven into a bystander, the same push
 moves them out of its way. It runs on the server every game tick for every agent near a trunk
-(`EntityTrunk.OnGameTick`), and on the client every frame for the local player, right after the
+(`EntityTrunk.OnGameTick`), and again for an eidolon after its physics (`TrunkSolid.PushOutOfAll`, on
+the entity's `AfterPhysicsTick`, added in `AfterInitialized` since `repulseagents` sets that delegate
+there): the trunk's tick comes before the physics, which lets an agent standing on it fall into it
+for each physics step of the tick (0 to 2, 0.024 then 0.072 blocks, more when the server lags), so an
+eidolon ended each tick in the trunk and off the ground (#903). And on the client every frame for the local player, right after the
 game's player physics (`TrunkSolid.ClientRenderer`, stage `Before`, order 1.05; the player physics
 renders at 1): a player's position is their client's to say, so the server's push alone would be
 overwritten by the client's next report, while the client's is immediate. Standing on a trunk is
