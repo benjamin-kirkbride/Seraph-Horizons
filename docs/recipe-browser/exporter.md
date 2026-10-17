@@ -354,6 +354,12 @@ is left out when its switch is off or what it names is not registered.
   are `kept`, their alternatives the variant's stacks; the output is two half plates of the metal
   (`seraphhorizons:halfplate-{metal}`). The `SquaringShear` switch leaves it out when off (and the
   half plate with it).
+- The riddle (`Recipes/RiddleExport.cs`, `RecipeSection.Riddle.cs`, type `riddle`, shape `machine`): one record
+  per crushed ore, `riddle|seraphhorizons:crushedore-{ore}-{grade}|0`, from the loaded crushed ore items and
+  `SeraphHorizonsConfig.RiddleSettings` (`LumpsPerCharge`, `ShakesPerCharge`, `OversizePerCharge`). A hand station:
+  `power` `hand`, `turns` and `work` the shakes (`unit` `shakes`). The mesh is `kept`; the outputs are the classified
+  fines (`attributes.oreState` 1 on the variant's stack) and the oversize as `game:ore-{grade}-{ore}-granite`. The
+  `Riddle` switch (or `OreProcessing`) leaves it out when off.
 - The eidolon (`Recipes/EidolonExport.cs`, `RecipeSection.Eidolon.cs`, type `construction`): the
   gantry's winch and the body on its spine, two blocks built in place that no engine behavior builds.
   What each stage takes is read by reflection from the mod's game-independent rules,
@@ -468,6 +474,8 @@ details and the limits (facing, connectors).
 - the squaring shear (`RecipeExportSquaringShearScenarios.cs`): a record per metal, its kept stages,
   power `hand` at the treadle's strokes, two half plates, and its switch on the record, the half plates
   and the frame's recipe;
+- the riddle (`RecipeExportRiddleScenarios.cs`): a record per crushed ore, the charge, the kept mesh, power `hand`
+  at the shakes, two classified fines and one raw ore, and its switch on the record and the frame's recipe;
 - the mandrel station (`RecipeExportMandrelStationScenarios.cs`): a record per metal, the kept
   mandrel, the hammer worn by its blows, power `hand` at the blows, and two pipe sections; and the
   spring record, the steel rod, the tongs worn a point, power `hand` at eight seconds, one spring, the heat
