@@ -1,0 +1,85 @@
+// The arrastra (#732; Arrastra/, README "Arrastra"): the controller of a 3 x 2 x 2 batch grinder, the
+// middle of its front row at ground level, where the draw gate is. Placed as the head frame and power
+// shaft, then built in four stages by right-click (config/builds/arrastra.json). Its other cells are the
+// ore machines' shared cells (Machines/Game). The server disables it with Arrastra off.
+{
+	code: "arrastra",
+	class: "seraphhorizons.OreMachine",
+	entityClass: "seraphhorizons.Arrastra",
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/arrastra_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/arrastra_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/arrastra_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/arrastra_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the moving parts' (arrastra.json), which the renderer
+	// draws with this block's textures.
+	textures: {
+		"oak":       { base: "game:block/wood/debarked/oak" },
+		"planks":    { base: "game:block/wood/planks/oak1" },
+		"axle":      { base: "game:block/wood/planks/generic" },
+		"mechanics": { base: "game:block/wood/planks/generic" },
+		"iron":      { base: "game:block/metal/plate/iron" },
+		"steel":     { base: "game:block/metal/sheet-plain/steel1" },
+		"chain":     { base: "game:block/metal/armor-generic/chain-iron" },
+		"cobble":    { base: "game:block/stone/cobblestone/granite1" },
+		"drystone":  { base: "game:block/stone/drystone/granite1" },
+		"granite":   { base: "game:block/stone/rock/granite1" },
+		"basalt":    { base: "game:block/stone/rock/basalt1" },
+		"charge":    { base: "game:block/stone/gravel/granite" },
+		"paste":     { base: "game:block/stone/sand/granite" }
+	},
+	attributes: {
+		// The shared ore machine's (Machines/Game): the machine's id, and the rig parts drawn by the
+		// batch, not the build: the charge as tipped in, and the same ground to a paste.
+		oreMachine: { machine: "arrastra", extraRequires: [ "charge", "paste" ] },
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:arrastra-handbook-build-title", text: "seraphhorizons:arrastra-handbook-build-text" },
+				{ title: "seraphhorizons:arrastra-handbook-work-title", text: "seraphhorizons:arrastra-handbook-work-text" },
+				{ title: "seraphhorizons:arrastra-handbook-water-title", text: "seraphhorizons:arrastra-handbook-water-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:arrastra-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame shape spans native x -0.18..1.18, y 0..1.94, z 0..2 about the controller; the -north
+	// item form turns it 180°, so its middle is (0.5, 0.97, 0). Held, the translation brings that middle
+	// to vanilla's two-handed crate's spot by the hand, (0.01, 0.14, 0.18): (spot - origin) / scale
+	// (tests/HeldTransformTests.cs).
+	tpHandTransform: {
+		translation: { x: -1.225, y: -2.075, z: 0.45 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0.97, z: 0 },
+		scale: 0.4
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.97, z: 0 },
+		scale: 0.6
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0 },
+		scale: 1.2
+	},
+	maxStackSize: 1,
+	resistance: 3,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}
