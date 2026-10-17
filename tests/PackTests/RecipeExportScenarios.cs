@@ -726,7 +726,7 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         }
     }
 
-    // Expanded Foods 2.0.0-dev.15, assets/game/patches/poultry.json, patch 4: addmerge
+    // Expanded Foods 2.0.0-dev.16, assets/game/patches/poultry.json, patch 4: addmerge
     // /transitionablePropsByType/*-raw/1, Dry 480 + 20 hours into
     // expandedfoods:agedmeat-poultry-normal. Its patches 11 and 12 add Perish into rot to
     // *-charred and *-partbaked only, with other hours, so raw poultry's own perishing

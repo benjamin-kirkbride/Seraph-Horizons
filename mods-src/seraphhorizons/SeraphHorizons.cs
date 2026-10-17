@@ -108,6 +108,8 @@ public class SeraphHorizonsSystem : ModSystem
             DisablePatches(BloodSausage.DisablePatches);
         if (!Config(api).DuplicateRecipes)
             DisablePatches(DuplicateRecipes.DisablePatches);
+        if (!(Config(api).FruitDries && FruitDrying.Applies(api)))
+            DisablePatches(FruitDrying.DisablePatches);
         if (!(Config(api).DurableSawmillBlades && SawmillBladeDurability.Applies(api)))
             DisablePatches(SawmillBladeDurability.DisablePatches);
         if (!Config(api).RodsOnForge)
@@ -468,6 +470,10 @@ public class SeraphHorizonsConfig
     /// aged roofing, raft, oar and round shield, the game's barrel cottage cheese and sandstone daub
     /// (server side; each only with the mod whose recipe stays; off means all as they ship).</summary>
     public bool DuplicateRecipes { get; set; } = true;
+
+    /// <summary>Fresh fruit dries into Expanded Foods' dried fruit, as before its 2.0.0-dev.16 (server
+    /// side; needs Expanded Foods; off means fruit only perishes and nothing makes dried fruit).</summary>
+    public bool FruitDries { get; set; } = true;
 
     /// <summary>Panning gives no wool (Wool), stitching awls or buttons and clasps (Tailor's Delight)
     /// and no uranium nuggets (Expanded Matter); the rest of each mod's panning drops stay (server
