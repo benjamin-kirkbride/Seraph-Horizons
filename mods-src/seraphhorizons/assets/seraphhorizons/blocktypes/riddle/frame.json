@@ -1,0 +1,76 @@
+// The riddle (Riddle/, README "Ore processing: the riddle", #714): a one-cell hand station, a plank box with
+// iron corner straps and two oak bearers, the riddle fitted on them afterwards. The operator's side (native
+// north) faces the player who placed it. The server disables it with Riddle or OreProcessing off.
+{
+	code: "riddle",
+	class: "seraphhorizons.Riddle",
+	entityClass: "seraphhorizons.Riddle",
+	// No HorizontalOrientable: BlockRiddle.TryPlaceBlock picks the side so the operator's side faces the
+	// player, as the other hand stations do.
+	variantgroups: [
+		{ code: "type", states: [ "frame" ] },
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/riddle_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/riddle_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/riddle_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/riddle_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the moving parts' (riddle.json), which the renderer draws
+	// with this block's textures; the renderer sets "ore" to the crushed ore's texture and "rock" to the
+	// oversize's host rock.
+	textures: {
+		"oak":    { base: "game:block/wood/debarked/oak" },
+		"planks": { base: "game:block/wood/planks/oak1" },
+		"iron":   { base: "game:block/metal/plate/iron" },
+		"ore":    { base: "game:item/resource/nugget/hematite" },
+		"rock":   { base: "game:block/stone/rock/granite1" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:riddle-handbook-card-title", text: "seraphhorizons:riddle-handbook-card-text" },
+				{ title: "seraphhorizons:riddle-handbook-assembly-title", text: "seraphhorizons:riddle-handbook-assembly-text" },
+				{ title: "seraphhorizons:riddle-handbook-work-title", text: "seraphhorizons:riddle-handbook-work-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:riddle-frame-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// One cell, the box's mesh about (0.5, 0.26, 0.5) once the -north item form turns it 180°, so the item
+	// forms turn about it, and held the translation brings it back to vanilla's two-handed crate's spot by
+	// the hand, (0.01, 0.14, 0.18): translation = (that spot - origin) / scale (tests/HeldTransformTests.cs).
+	tpHandTransform: {
+		translation: { x: -1.09, y: -0.27, z: -0.71 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0.26, z: 0.5 },
+		scale: 0.45
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.26, z: 0.5 },
+		scale: 1.4
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 2.5
+	},
+	maxStackSize: 1,
+	resistance: 2,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0.0563, y1: 0, z1: 0.0675, x2: 0.9437, y2: 0.5125, z2: 0.9325 },
+	selectionbox: { x1: 0.0563, y1: 0, z1: 0.0675, x2: 0.9437, y2: 0.5125, z2: 0.9325 }
+}
