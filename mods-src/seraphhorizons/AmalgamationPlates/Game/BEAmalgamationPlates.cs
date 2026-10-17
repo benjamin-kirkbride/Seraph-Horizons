@@ -229,7 +229,7 @@ public class BEAmalgamationPlates : BEOreMachine
         var help = base.InteractionHelp(forPlayer).ToList();
         if (Assembly?.Shows("plates") == true)
         {
-            if (Api.World.GetBlock(new AssetLocation("game:bucket-burned")) is { Id: > 0 } bucket)
+            if (Api.World.GetBlock(new AssetLocation("game:woodbucket")) is { Id: > 0 } bucket)
                 help.Add(new WorldInteraction { ActionLangCode = "seraphhorizons:amalgamationplates-help-dress", MouseButton = EnumMouseButton.Right, Itemstacks = [new ItemStack(bucket)] });
             if (_amalgamState > 0)
                 help.Add(new WorldInteraction { ActionLangCode = "seraphhorizons:amalgamationplates-help-scrape", MouseButton = EnumMouseButton.Right, RequireFreeHand = true });
