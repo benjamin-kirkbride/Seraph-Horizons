@@ -105,7 +105,7 @@ internal static class Felling
     public static async Task<(IServerPlayer Player, ItemSlot Slot, ItemAxe Axe)> Feller(IWorldSession world, string name, int? durability = null)
     {
         var w = world.Api.World;
-        var player = (IServerPlayer)(await world.JoinPlayer(name)).Player;
+        var player = (IServerPlayer)(await world.JoinRetrying(name)).Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         var axe = (ItemAxe)w.GetItem(new AssetLocation("game:axe-felling-iron"));
         var slot = player.InventoryManager.ActiveHotbarSlot;

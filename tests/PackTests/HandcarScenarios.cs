@@ -75,7 +75,7 @@ public partial class HandcarScenarios(ITestOutputHelper output) : AtlasScenarioB
     /// <summary>A player in survival, empty handed, at <paramref name="at"/>, looking south (+z).</summary>
     private async Task<IServerPlayer> HandcarPlayer(string name, BlockPos at)
     {
-        var p = await World.JoinPlayer(name);
+        var p = await World.JoinRetrying(name);
         await p.TeleportTo(at);
         await World.Ticks(5);
         var player = p.Player;

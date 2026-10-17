@@ -116,7 +116,7 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario]
     public async Task A_trunk_cannot_be_given_to_a_survival_player_but_can_to_a_creative_one()
     {
-        var p = await World.JoinPlayer("trunkgiver");
+        var p = await World.JoinRetrying("trunkgiver");
         await p.TeleportTo((await Floor(40)).AddCopy(2, 0, 0));
         var player = p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
@@ -146,7 +146,7 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task A_trunk_left_in_a_slot_moves_and_is_thrown_out_as_a_trunk_entity()
     {
         var pos = await Floor(140);
-        var p = await World.JoinPlayer("trunkmover");
+        var p = await World.JoinRetrying("trunkmover");
         await p.TeleportTo(pos.AddCopy(0, 0, 3));
         await World.Ticks(5);
         var player = p.Player;
@@ -182,7 +182,7 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task A_felled_trunk_at_a_survival_players_feet_is_not_collected()
     {
         var pos = await Floor(160);
-        var p = await World.JoinPlayer("trunkstander");
+        var p = await World.JoinRetrying("trunkstander");
         await p.TeleportTo(pos);
         await World.Ticks(5);
         var player = p.Player;
@@ -233,7 +233,7 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     {
         var pos = await Floor(80);
         // entities only simulate near a player
-        var p = await World.JoinPlayer("trunkwatcher");
+        var p = await World.JoinRetrying("trunkwatcher");
         await p.TeleportTo(pos.AddCopy(4, 0, 0));
         var trunk = TrunkSpawns.Spawn(W, Trunk(8, "sm"), pos.ToVec3d().Add(0.5, 2.5, 0.5), 0.6f)!;
         await World.Ticks(120);
@@ -263,7 +263,7 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task A_trunk_left_in_a_hotbar_is_laid_down_as_an_entity_and_not_placed()
     {
         var pos = await Floor(-20);
-        var p = await World.JoinPlayer("trunkplacer");
+        var p = await World.JoinRetrying("trunkplacer");
         await p.TeleportTo(pos.AddCopy(0, 0, 3));
         await World.Ticks(5);
         var player = p.Player;
@@ -319,7 +319,7 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
     // A fresh player at `at` with an empty hand, not sneaking.
     private async Task<IServerPlayer> Walker(string name, BlockPos at)
     {
-        var p = await World.JoinPlayer(name);
+        var p = await World.JoinRetrying(name);
         await p.TeleportTo(at);
         await World.Ticks(5);
         var player = p.Player;

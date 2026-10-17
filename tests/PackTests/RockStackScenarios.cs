@@ -89,7 +89,7 @@ public partial class SharedWorldScenarios
         Assert.Equal(RockStackRules.Cap, RockStackBlock("game:muddygravel").MaxStackSize);
         Assert.True(StoneQuarryDrench.Patched, "TryDrench is not patched");
 
-        var player = (await World.JoinPlayer("drencher")).Player;
+        var player = (await World.JoinRetrying("drencher")).Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         var pos = World.Spawn.AddCopy(70, 12, -70);
         World.SetBlock("stonequarry:rubblestorage-north", pos);

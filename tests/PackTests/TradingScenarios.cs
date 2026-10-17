@@ -98,7 +98,7 @@ public partial class TradingScenarios : AtlasScenarioBase
             _playersWorld = World.Api;
         }
         if (!_players.TryGetValue(name, out var player))
-            _players[name] = player = await World.JoinPlayer(name);
+            _players[name] = player = await World.JoinRetrying(name);
         var p = player.Player;
         p.WorldData.CurrentGameMode = EnumGameMode.Survival;
         foreach (var inv in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
