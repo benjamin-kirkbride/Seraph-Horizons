@@ -55,13 +55,52 @@ public class MapOfferTests
 
     private static (int, bool) Count((List<DepositOption> Offers, bool SoldOut) r) => (r.Offers.Count, r.SoldOut);
 
+    [Fact]
+    public void ThePrecisionRollFollowsItsWeights()
+    {
+        var rand = new Random(1234);
+        var counts = new int[4];
+        for (int i = 0; i < 20000; i++) counts[MapPrecisionRoll.Roll([50, 35, 15], rand)]++;
+        Assert.Equal(0, counts[0]);
+        Assert.InRange(counts[1] / 20000.0, 0.48, 0.52);
+        Assert.InRange(counts[2] / 20000.0, 0.33, 0.37);
+        Assert.InRange(counts[3] / 20000.0, 0.13, 0.17);
+    }
+
+    [Fact]
+    public void ThePrecisionRollIsTheSameForTheSameSeed()
+    {
+        int[] Draw(int seed)
+        {
+            var rand = new Random(seed);
+            return Enumerable.Range(0, 50).Select(_ => MapPrecisionRoll.Roll([50, 35, 15], rand)).ToArray();
+        }
+        Assert.Equal(Draw(7), Draw(7));
+        Assert.NotEqual(Draw(7), Draw(8));
+    }
+
     [Theory]
-    [InlineData(0, 1)]
-    [InlineData(1, 2)]
-    [InlineData(2, 3)]
-    [InlineData(4, 3)]
-    [InlineData(-1, 1)]
-    public void MapTierGatesPrecision(int mapTier, int precision) => Assert.Equal(precision, MapOffers.MaxPrecision(mapTier));
+    [InlineData(new double[] { 0, 0, 1 }, 3)]
+    [InlineData(new double[] { 0, 1, 0 }, 2)]
+    [InlineData(new double[] { 1, 0, 0 }, 1)]
+    // Unusable weights: rough.
+    [InlineData(new double[] { 0, 0, 0 }, 1)]
+    [InlineData(new double[] { -1, 0, 5 }, 1)]
+    [InlineData(new double[] { 1, 1 }, 1)]
+    [InlineData(new double[] { }, 1)]
+    public void ThePrecisionRollTakesOnlyWeightedPrecisions(double[] weights, int only)
+    {
+        var rand = new Random(3);
+        for (int i = 0; i < 200; i++) Assert.Equal(only, MapPrecisionRoll.Roll(weights, rand));
+    }
+
+    [Fact]
+    public void TheTableRollsByItsWeights()
+    {
+        var t = new MapPriceTable { PrecisionWeights = [0, 0, 2] };
+        Assert.Equal(MapPrecision.Fine, t.RollPrecision(new Random(1)));
+        Assert.Equal(MapPrecision.Rough, new MapPriceTable().RollPrecision(new Random(1)));
+    }
 
     private static readonly string[] SizeClasses = ["unsurveyed", "small", "medium", "large"];
 
@@ -86,7 +125,9 @@ public class MapOfferTests
         Assert.Empty(t.Problems());
         Assert.Equal(5000, t.OreRadius);
         Assert.Equal(2000, t.GravelRadius);
-        Assert.Equal([0.03, 0.06, 0.10], t.Share);
+        Assert.Equal([0.03, 0.04, 0.05], t.Share);
+        // Mostly rough maps, now and then a fine one; every precision possible.
+        Assert.Equal([50.0, 35, 15], t.PrecisionWeights);
         foreach (string metal in new[] { "gold", "silver", "nickel", "titanium", "chromium", "platinum" })
             Assert.Equal(3, t.Scarcity[metal]);
         Assert.False(t.Scarcity.ContainsKey("copper"));
@@ -146,9 +187,9 @@ public class MapOfferTests
         var t = Shipped();
         Assert.Equal(0.1, t.Underwater);
         var copper = new SizeTargets(150, 400, 1000);
-        // 575 ingots × 2 gears × 0.06 = 69, a tenth of it 6.9: 7.
-        Assert.Equal(69, t.OrePrice("copper", "medium", 2, copper, 2));
-        Assert.Equal(7, t.OrePrice("copper", "medium", 2, copper, 2, underwater: true));
+        // 575 ingots × 2 gears × 0.04 = 46, a tenth of it 4.6: 5.
+        Assert.Equal(46, t.OrePrice("copper", "medium", 2, copper, 2));
+        Assert.Equal(5, t.OrePrice("copper", "medium", 2, copper, 2, underwater: true));
         Assert.Equal(1, t.OrePrice("copper", "small", 1, copper, 0.05, underwater: true));
         Assert.Contains(new MapPriceTable { Share = [1, 1, 1], Underwater = 0 }.Problems(), p => p.Contains("underwater"));
         Assert.Contains(new MapPriceTable { Share = [1, 1, 1], Underwater = 1.5 }.Problems(), p => p.Contains("underwater"));
@@ -157,9 +198,13 @@ public class MapOfferTests
     [Fact]
     public void ProblemsNameTheSharesAndTheCampLeadRules()
     {
-        var t = new MapPriceTable { Share = [0.03, 0], Scarcity = { ["gold"] = 0 }, Settlement = 0 };
+        var t = new MapPriceTable { Share = [0.03, 0], PrecisionWeights = [1, 2], Scarcity = { ["gold"] = 0 }, Settlement = 0 };
         var problems = t.Problems();
         Assert.Contains(problems, p => p.Contains("share has 2 entries"));
+        Assert.Contains(problems, p => p.Contains("precisionWeights has 2 entries"));
+        Assert.Contains(new MapPriceTable { PrecisionWeights = [1, -1, 1] }.Problems(), p => p.Contains("negative precision weight"));
+        Assert.Contains(new MapPriceTable { PrecisionWeights = [0, 0, 0] }.Problems(), p => p.Contains("sum to 0"));
+        Assert.DoesNotContain(new MapPriceTable { PrecisionWeights = [0, 0, 1] }.Problems(), p => p.Contains("precisionWeights") || p.Contains("precision weight"));
         Assert.Contains(problems, p => p.Contains("a share of 0 or less"));
         Assert.Contains(problems, p => p.Contains("scarcity 'gold'"));
         Assert.Contains(problems, p => p.Contains("settlement"));

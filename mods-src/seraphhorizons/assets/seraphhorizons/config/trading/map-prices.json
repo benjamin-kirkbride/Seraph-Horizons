@@ -5,7 +5,7 @@
 // mapsToTraders, a lead to the nearest settlement ground.
 // An ore map's price (Trading/Maps/Core/MapPrices.cs, OrePrice): the ingots in the middle of the
 // deposit's size band × the item value of the metal's ingot (game:ingot-<metal>, config/item-values.json)
-// × share[precision − 1] × scarcity (× underwater for a deposit under water), rounded, at least 1. The size class is the deposit's last
+// × share[precision − 1] (the offer's own precision, drawn by precisionWeights) × scarcity (× underwater for a deposit under water), rounded, at least 1. The size class is the deposit's last
 // measurement, "unsurveyed" until it has one; the bands are the bottom, middle and top third of the
 // metal's smallIngots..largeIngots (config/ore-sizes.json, DepositSizing), and "unsurveyed" takes the
 // medium band's middle. Always the band's middle, never the measured size.
@@ -16,7 +16,13 @@
 	"gravelRadius": 2000,
 	"maxOreOffers": 4,
 	// Share of the ingots' worth by precision 1 (rough, within 150 m), 2 (fair, 50 m), 3 (fine, 15 m).
-	"share": [0.03, 0.06, 0.10],
+	// A shallow curve: a finer map costs a little more, not several times as much.
+	"share": [0.03, 0.04, 0.05],
+	// How likely each ore map offer is to be rough, fair or fine (relative weights). The precision is
+	// drawn when the offer is shelved (a restock, or its survey landing) and kept until the next
+	// restock: the same map for every buyer, whatever their standing (standing still sets the price
+	// factor). Three entries, none negative, summing above 0.
+	"precisionWeights": [50, 35, 15],
 	// Times the price, by metal (1 when not listed): the metals hydrothermal districts hide.
 	"scarcity": {"gold": 3, "silver": 3, "nickel": 3, "titanium": 3, "chromium": 3, "platinum": 3},
 	// Times the price for a deposit under water: more than half of its ore's columns under more than
