@@ -379,6 +379,15 @@ rock an alternative; crushed ore of its grade, one for one). Its station is the 
 `perHour`, `load` and `emptyLoad` (its load follows the charge in its mouth, between the two). Its build is
 the shared ore machine `construction` record.
 
+**Ball mill** (type `ballmill`, shape `machine`, present with seraphhorizons' `BallMill` and `OreProcessing`
+on, #915): one record per crushed ore, id `ballmill|seraphhorizons:crushedore-<ore>-<grade>|0`, the crushed ore
+consumed and the mill's frame `seraphhorizons:ballmill-north` as its station; out one ground ore of its grade
+(`seraphhorizons:groundore-<ore>-<grade>`), its variant's output stack carrying `oreState` 1 (classified; ground by
+its item). `power` is `mechanical`, `turns` the axle's turns a rock at any speed (95.5 × 0.6 / ore-processing.json
+`machines.ballmill.perHour`). `extra` has the `ore`, `grade`, `ground` and `classified` (true) and `water`, the
+litres a rock. The shaking table's middlings go in the same way, as the crushed ore they are. Its build is the
+shared ore machine `construction` record.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).

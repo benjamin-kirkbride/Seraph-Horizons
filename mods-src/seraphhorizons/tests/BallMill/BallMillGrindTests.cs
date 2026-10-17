@@ -63,8 +63,9 @@ public class BallMillGrindTests
         }
         Assert.NotNull(middlings);
         Assert.True(middlings!.Locked > 0);
-        // The middlings come back as ground ore through the same infeed.
-        var milled = BallMillGrind.Grind(R, OreForm.Ground, middlings)!;
+        // The middlings come back through the same infeed as the table's feed was: crushed, classified, not ground.
+        var milled = BallMillGrind.Grind(R, OreForm.Crushed, middlings)!;
+        Assert.Equal("seraphhorizons:groundore-hematite-poor", milled.Code);
         Assert.Equal(0, milled.Stream.Locked!.Value, 12);
         Assert.Equal(WorkedBy.None, milled.Stream.Worked);
         Assert.Equal(middlings.Units, milled.Stream.Units, 12);
