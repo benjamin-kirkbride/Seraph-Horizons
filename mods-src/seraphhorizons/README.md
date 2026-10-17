@@ -5338,53 +5338,82 @@ on it, a second hit turned away, the old density mode untouched); off: `Switches
 
 ### Ore processing: recovery (no switch of its own)
 
-Ore processing (epic #684) turns the mine into an 1800s mill chain: hand stations and machines at
-tiers 1–4 for crushing, classifying, grinding, gravity concentration, roasting, amalgamation and
-parting. Its recovery maths (#685) is game-independent and comes first; the stations and machines
-that call it are the epic's other tasks. Its smelting shares are in play with `OreProcessing` on
-(next section).
+Ore processing (epic #684) turns the mine into an 1800s mill chain: hand stations and machines for
+crushing, classifying, grinding, gravity concentration, roasting, amalgamation and parting.
+**Recovery belongs to the machine that did the work** (#765): there are no tiers. Its maths is
+game-independent (`Ore/Core/`); the stations and machines that call it are the epic's other tasks.
+Its smelting shares are in play with `OreProcessing` on (next section).
 
 The figures are `config/ore-processing.json` (an asset; every one a starting value for
-playtesting), read into `OreProcessingConfig` and wrapped by `OreRecovery` (`Ore/Core/`), which also
-lists what is wrong with the file (`Problems`, for the server log; a missing figure reads as 0):
+playtesting), read into `OreProcessingConfig` and wrapped by `OreRecovery`, which also lists what is
+wrong with the file (`Problems`, for the server log; a missing figure reads as 0):
 
-- Overall recovery is the product of the stages' multipliers (`Overall(ore, line, fineGrained)`,
-  with `OreLine.AtTier(tier)` the standard line at a tier). Concentration (`Concentration(ore,
-  concentrator, feed)`): the concentrator's base (pan 45 %, rocker 55 %, long-tom sluice 65 %,
-  jig 80 %, table 92 %, table and vanner 99 %), × 0.85 for feed not classified, × 0.4 for
-  fine-grained (poor) feed not ground, × 0.7 for free gold and silver not amalgamated, × the ore's
-  density (cassiterite and chromite 1.05, native copper 1.1, smithsonite 0.9), capped at 100 %.
-  Crushing and grinding lose nothing.
-- Roasting (`Roasting(ore, roaster)`): firepit 85 %, stall 92 %, reverberatory 100 %; unroasted
-  sulfide concentrate doesn't smelt at all, and a non-sulfide is not roasted (1).
-- Which device a stage has at each tier is code, not config (`OreTiers`): concentrators rocker
-  (hand), sluice, jig, table, table and vanner; roasting by firepit to tier 1, stall at 2,
-  reverberatory at 3 and 4; grinding from tier 2.
-- Smelting (`SmeltShare(ore, form, grade)`, #847): rock (raw, crushed and ground ore) by its grade,
-  poor 10 %, medium 25 %, rich 40 %, bountiful 50 % (`smeltByGrade`); a sulfide's rock nothing until
-  roasted, and its roasted rock the grade's share × the firepit's 85 %; concentrate, roasted
-  concentrate and sponge 100 % (`smelt`), a sulfide's concentrate nothing until roasted.
-- Parting (`Parting(method, tier)`, `Smelted(ore, mainUnits, partingTier)`): a
-  by-product is a share of the main metal's recovered units, won only at a parting step at
-  cupellation or liquation 85 / 95 / 100 % (hand and tier 1 / tiers 2–3 / tier 4) or acid
-  parting 95 / 100 % (tiers 2–3 / 4; none by hand). Galena carries silver 3 %, argentiferous
-  galena 38 % (#690), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %,
-  franckeite lead 30 %, gold quartz silver 15 %. Unparted, the by-product is lost and the main
-  metal comes out at the ore's `unparted` share (gold quartz 85 %).
+- **A stream** (`OreStream`, `Ore/Core/OreStream.cs`) is one item's ore on the line: its ore, grade,
+  units, its locked units once split, what was done to it (`OreState`: classified, ground,
+  amalgamated) and which concentrator kinds have worked it (`WorkedBy`). On a stack these are
+  attributes (`Ore/Processing/OreStreamAttributes.cs`: `oreState`, `oreUnits`, `oreLocked`,
+  `oreWorked`, `rock`, and `oreWhole` on whole-route concentrate); ground ore is its own item.
+- **Concentrators chain on tailings** (`Concentrate(machine, stream)`): the sluice 55 %, jig 60 %,
+  shaking table 70 % and vanner 80 % (`machines`), each × the ore's density per pass (cassiterite and
+  chromite 1.05, native copper 1.1, smithsonite 0.9), capped at 100 %, each recover their figure of
+  the catchable units in their feed, and their tailings carry the rest on: a line recovers
+  1 − (1 − r₁)(1 − r₂)…, in any order, all four 98.9 %. **No gain from a machine's own kind**: the
+  tailings record which kinds worked them, so two vanners stay at 80 %.
+- **Locked shares apply once** (`LockFactor`): the first concentrator splits the stream into what
+  gravity can catch and what it can't: poor ore not ground × 0.4, feed not classified × 0.85, free
+  gold and silver not amalgamated × 0.7 (a full line 39.6 %, 84.1 %, 69.2 %). The table puts the
+  locked units out as **middlings**, for the ball mill; without a table they leave with the last
+  machine's tailings. A lift (`Lift`: the battery's or ball mill's screen and the riddle classify,
+  the arrastra and ball mill grind, the plates and amalgam pan amalgamate) releases locked units in
+  proportion and sends them back to the head of the concentrators.
+- **The ideal route ends whole** (`FinalStep`): the last step of an ore's ideal route recovers
+  whatever is left. On the whole route (classified, ground if poor, amalgamated if free, through the
+  sluice, jig and table) the vanner takes all the rest for oxides, placer and silver quartz; for a
+  sulfide it marks its concentrate whole and the reverberatory roaster makes it 100 %
+  (`Roasting(ore, roaster, whole)`); for a by-product ore the final parting does (`Smelted(ore,
+  units, station, whole)`): the Parkes kettle with the cupellation furnace for galena, the
+  cupellation furnace for tetrahedrite and freibergite, the liquation furnace for teallite and
+  franckeite, the acid parting vessel for gold quartz (all its gold and its 15 % silver).
+  `WholeRestore` is 1 / the chain's share.
+- **Amalgamation** (`Amalgamate`): the plates catch 65 % of the catchable free metal as amalgam,
+  the amalgam pan 45 %; the rest goes on amalgamated (its × 0.7 lifted).
+- **Hand stations do not chain** (`HandConcentrate`): the gold pan 45 %, the rocker 55 %, of the
+  catchable units × density; what they miss is spent. The firepit roasts at 85 %, the bone-ash
+  cupel and clay liquation pan part at 85 % (`handStations`).
+- **Roasting** (`Roasting`): firepit 85 %, stall roaster 92 %, reverberatory 100 %; unroasted
+  sulfide doesn't smelt, and a non-sulfide is not roasted (1).
+- **Smelting** (`SmeltShare(ore, form, grade, roaster)`, #847): rock (raw, crushed and ground ore)
+  by its grade, poor 10 %, medium 25 %, rich 40 %, bountiful 50 % (`smeltByGrade`); a sulfide's rock
+  nothing until roasted, and its roasted rock the grade's share × its roaster's (firepit 85 %, stall
+  92 %); concentrate, roasted concentrate and sponge 100 % (`smelt`).
+- **Parting** (`Parting(station)`, `Smelted`): a by-product is a share of the main metal's
+  recovered units, won only at a parting station: the cupel and liquation pan 85 %, the
+  cupellation and liquation furnaces and acid parting vessel 95 %, the Parkes kettle with
+  cupellation 100 % (zinc back 80 %, `ZincReturn`). Galena carries silver 3 %, argentiferous galena
+  38 % (#690), tetrahedrite silver 5 %, freibergite copper 30 %, teallite lead 40 %, franckeite lead
+  30 %, gold quartz silver 15 %. Unparted, the by-product is lost and the main metal comes out at
+  the ore's `unparted` share (gold quartz 85 %).
+- **Draws and rates** (`Machine(machine)`, `LoadAt(machine, fill)`): each machine's working and
+  empty resistance (0.1 a period horsepower; empty a fifth), its water a rock from its own
+  reservoir, its rate at the reference speed 0.6 (57 shaft turns an hour; `TurnsPerItem`), and a
+  batch machine's charge and hours (#940). The load is constant once assembled except the jaw
+  breaker's, the reverberatory roaster's and the Parkes kettle's, which follow the job. The scale:
+  1 t/d of rock is 0.4 rock an hour (a battery's 6), of concentrate 3.2 an hour, of metal 16 units
+  an hour. The shared machine code (#711) applies them.
 - Units: raw ore holds its grade's units (`OreProducts.RawUnits`, 3 / 5 / 7 / 10 for most ores,
   about a quarter of vanilla's, #863), and the other rock forms carry them unchanged, one item to
-  one (#847); concentrate items hold 5
-  (`concentrateUnits`). A station turns units into
-  items through a `UnitCarry` (per output, saved with the station), which holds the fraction
-  over for the next item, so nothing is lost to rounding.
+  one (#847); concentrate and amalgam items hold 5 (`concentrateUnits`). A station turns units into
+  items through a `UnitCarry` (per output, saved with the station), which holds the fraction over
+  for the next item, so nothing is lost to rounding.
 
-Tests (`tests/Ore/OreRecoveryTests.cs`) hold the shipped figures to the design's worked examples,
-each a pocket of 256 blocks at 1.25 ore a block (the design's 64 blocks, four times over at the
-pack's units, #863): poor hematite 1,280 units gives 281.6 by hand, 1,024 at tier 2 and 1,267.2 at
-tier 4; medium chromite (1,600) 924 / 1,344 / 1,600; medium galena 748 by hand with a firepit
-roast, 1,472 at tier 3, 1,584 at tier 4 plus about 48 units of silver; medium gold quartz (960)
-369.6 with the rocker alone, 528 with the amalgam pan, 950.4 at tier 4; medium native copper 968
-by hand, 1,600 at tier 4.
+Tests (`tests/Ore/OreRecoveryTests.cs`) hold the shipped figures to #765's worked examples: every
+sub-chain of the four concentrators, two vanners at 80 %, the locked shares once (39.6 / 84.1 /
+33.6 %), the table's middlings through the ball mill back to 100 %, density per pass (smithsonite's
+chain 97.6 %, whole 100 %), a sulfide line whole at the reverberatory, free metal at 69.2 % without
+the plates and 100 % with them, gold quartz at 0.85 × 99.6 % until acid parting, by-products whole
+at their final parting step and galena's silver at 95 % by the cupellation furnace alone, the
+hand stations (poor hematite by the rocker 22 %, a pocket of medium gold quartz 369.6 units with
+the rocker alone), and the draws and rates.
 
 ### Ore processing: items, crushing and smelting (`OreProcessing`)
 
@@ -5717,6 +5746,63 @@ figures, whole stacks and fractions); `tests/PackTests/OreProcessingScenarios.cs
 taking it out part way, cinnabar, a bucket of water refusing it, and the game's own boiler tick running
 it; `Retorting_is_exported`: the records and the guide, with the switch on) and `SwitchesOffScenarios` (off).
 
+### Ore processing: the amalgam pan (`AmalgamPan`, `AmalgamPanSettings`)
+
+The hand station of amalgamation (#718; machine form: the amalgamation plates, #917). Its model, rig
+and generator are described in `AmalgamPan/README.md`, which also records the model's decisions; this
+is the gameplay, in `AmalgamPan/` (rules in `AmalgamPan/Core/`, the game side in `AmalgamPan/Game/`).
+It needs `OreProcessing` too: with either switch off its block and recipe are left out
+(`AmalgamPanSystem.Disable`), and the mod's own text names it without a link.
+
+**Block and build.** `seraphhorizons:amalgampan-frame-{side}` is one block, its operator's side (native
+north) towards the player who placed it, made on the grid from two iron or steel plates, two lots of
+iron, meteoric iron or steel nails and strips, two oak planks and a hammer (`recipes/grid/amalgampan.json`).
+Its two stages are fitted by right-click, in order, on the shared machine build (#711,
+`config/builds/amalgampan.json`, `MachineAssembly`): the muller (an iron, meteoric iron or steel rod),
+then its shoes (an iron or steel plate, drawn in the plate's metal). They do not wear and come back only
+by breaking the pan, with the quartz and any amalgam in it (the mercury and the water are lost). Ctrl +
+right-click in creative mode fits the next stage.
+
+**A charge.** Mercury (Expanded Matter's `em:mercuryportion`, ore processing's `retort.mercury`) is
+poured from any container of it, up to `MercuryCapacityPortions` (500, 5 L), and stays from one charge
+to the next; an empty container takes it back out of a pan with no charge in it. Crushed or ground gold
+or silver quartz (an ore with `"free": true`, read as ore processing's stream,
+`OreStreamAttributes.Read`) goes in by right-click, one kind (one stack's code and attributes) up to
+`ChargeItems` (16); quartz already amalgamated, or of an ore with no free metal, is refused. The charge
+wants `WaterLitresPerCharge` (4 L) of water from a bucket or any water container, and the mercury its
+amalgam will take (`retort.amalgamMercury`, 10 portions an amalgam item, the still returns 9). Ctrl +
+right-click takes a charge back before it is turned.
+
+**Working.** Held right-click (the quern's `OnBlockInteractStep`) turns the muller at
+`HandTurnsPerSecond` (2/3: 40 a minute), or an axle in the block below turns it with no player: the
+block is a mechanical power connector on its down face only (`IMechanicalPowerBlock`), and the shared
+consumer (`seraphhorizons.MachineMP`, `BEBehaviorMachineMP`) puts `WorkingResistance` (0.1) on the
+network while a charge can be worked, `IdleResistance` (0.005) else; the axle's angle advances the
+work (`ShaftClock.AngleAdvance`). A charge takes `TurnsPerItem` (1) turns an item: a full one 16 turns,
+24 s by hand. Done, ore processing says what it makes (`OreRecovery.Amalgamate(HandStation.AmalgamPan,
+stream)`, the share `handStations.amalgampan` of the free metal into amalgam): the amalgam's units go
+through the pan's own `UnitCarry` into `seraphhorizons:amalgam-{ore}` (5 units an item, the fraction
+carried to the next charge and saved with the pan), the mercury those items take and the water are
+spent, and the quartz is written back amalgamated (`OreStreamAttributes.Write`), its units less what
+went into amalgam, so the rocker and the concentrators no longer lose its free metal at × 0.7. The
+amalgam and the quartz wait in the pan until taken out with an empty hand. Nothing goes in or out but
+by hand: no chute, hopper or pipe.
+
+**Drawn.** The block draws `amalgampan_frame.json`; the renderer splits `amalgampan.json` into the rig's
+parts and draws the muller and shoes once fitted (the `shoe` texture set to the plate's metal), the
+mercury pool with no charge, the slurry and its water film while charged, and the amalgam once worked,
+the muller turning at the axle's angle or the hand's clock (`AmalgamPanClock`). The blocktype gives the
+mercury Expanded Matter's look (andesite with kimberlite blended over it).
+
+**Export.** The server marks the frame (`AssetsFinalize`, the block attribute
+`seraphhorizonsAmalgamPan`) with the settings and, for each crushed free quartz and grade, the amalgam a
+full charge makes; the recipe export reads it (type `amalgampan`, shape `machine`,
+`tools/recipe-export/Recipes/AmalgamPanExport.cs`, docs/recipe-browser/schema.md). Tests:
+`tests/AmalgamPan/AmalgamPanGameplayTests.cs` (the batch's rules, the clock, the settings, the rig and
+the build file); `tests/PackTests/AmalgamPanScenarios.cs` (loading, the build in order, a full charge by
+hand into amalgam and amalgamated quartz, an axle below); `RecipeExportAmalgamPanScenarios.cs`; and
+`SwitchesOffScenarios` (off).
+
 ### Cupellation (`OreProcessing`)
 
 Galena's silver (#690) and the bone-ash cupel that parts it at the forge (#722, hand and tier 1),
@@ -5759,7 +5845,7 @@ like the crucible, through the forge's four charge slots, at most 200 units of m
   into litharge", or why not) is the cupel's: a postfix on the game's `GetOutputText` (`ContainerText`).
 - Done, it is a **cupel with silver bead**, holding what it breaks into: the lead (the ore's and
   the added) as litharge, 5 units each, and each other metal as metal bits, 5 units each: the
-  silver at 85 % of the charge's (`OreRecovery.Smelted` at the hand tier: galena 3 %, argentiferous
+  silver at 85 % of the charge's (`OreRecovery.Smelted` at the cupel: galena 3 %, argentiferous
   galena 38 %, tetrahedrite 5 % of its units; freibergite all of it, its main metal), and copper
   (tetrahedrite all of its own, freibergite 30 % at 85 %). Copper does not stay in a real bead, it
   oxidises with the lead; the pack gives it back as copper bits beside the litharge instead of
@@ -5820,7 +5906,7 @@ no air: the forge's blast gate only changes the heat. Reused, unlike the cupel.
 - **Done** (`BlockLiquationPan.DoSmelt`): a **liquation pan of molten tin** (`BlockLiquationPanSmelted`,
   on the game's smelted crucible class), all the charge's tin (100 units from a full pan), poured into
   any mold as from a crucible, and the lead the tin left behind, 85 % of the ore's share
-  (`OreRecovery.Smelted` at the hand tier: a full pan of teallite 34 units, of franckeite 25.5), held as
+  (`OreRecovery.Smelted` at the liquation pan: a full pan of teallite 34 units, of franckeite 25.5), held as
   whole lead bits drawn once when it is done (`Cupellation.Whole`: 6, a 7th at 80 %). One output slot,
   two metals: the tin is the pour and the lead stays in the pan. The stack carries the lead, so the
   smelted pan is never set on the ground. Emptied (the last unit poured), it is a **liquation pan with
@@ -5840,6 +5926,81 @@ item values count liquation as a station (`tools/item-values/ore-processing.json
 `tests/PackTests/OreProcessingScenarios.cs` (Atlas: a full pan through a firepit's own tick in a wood
 fire and in a charcoal fire, the pan in crucibulum's forge with the gate shut, emptying and the residue,
 the clay forming and firing, the export) and `SwitchesOffScenarios` (off).
+
+### Ore machines: what they share (`OreMachinesSettings`)
+
+The code every ore machine and hand station builds on (#711, #694), on the shared `Machines/` code;
+each machine (#912, #728, #732, #915, #917, #734, #919, #921, #923, #925, #736, #740, #927, #929, #931)
+has its own switch and calls it. Nothing here changes the game by itself: the settings apply to the
+machines as they come. The figures of each machine (recovery, load, water an item, rate) are
+`OreRecovery.Machine(OreMachine)`'s (#765, `Ore/Core`); what is shared is below.
+
+**One machine, built in stages** (no levels: the owner's ruling). The frame is placed (its grid
+recipe is the machine's), then each stage of the model README's stage table is fitted by right-click,
+in order, its materials being its recipe: `config/builds/{machine}.json` (`Machines/Core/MachineBuildJson.cs`;
+the first is the stamp battery's). A click puts in one material of the next stage: all the stage still
+needs of it, or a full stack of a bulk one (41 support beams go in a stack a click); fewer than that is
+`TooFew`, a later stage's item `OutOfOrder`, a fitted one's `AlreadyFitted`, the water line part way in
+another metal `OtherKind`. A material's `picks` draw the part of the item put in (`pipecopper` or
+`pipelead`), its `draws` a part before the rest of its stage. Breaking gives back everything that went
+in (`StagedBuild`, `MachineAssembly`). Every build file is checked against its rig: its stages are the
+rig's `buildStages`, in order, adding the same `requires` (a test, and a warning as it loads).
+
+**Wearing parts** (`WearingParts`) are not stages: a set (the stamp battery's five steel pounder caps)
+wears by use (in the machine's own unit) and is renewed by right-click once worn out; a worn-out set
+is gone, a set with use left comes back when the machine is broken. One fitted with a stage
+(`"stage"`) has its first set fitted as the last material of that stage. Without its set a machine
+does not run.
+
+**Running** (`MachineRun`): a machine works only built, with its wearing parts, its shaft at
+`MinSpeed` (0.05) or faster either way ("no power" below it), its reservoir holding an item's water
+(a wet machine with no water stops and resumes when water returns: the owner's ruling on #711), and
+room for its output. **Rate is in proportion to speed with no cap**: work is counted in shaft turns
+(`WorkTurns`, from `ShaftClock.AngleAdvance`) at the machine's turns an item, so an item takes the
+same energy at any speed. **Load is constant**: once built the job's figure
+(`OreRecovery.LoadAt`, the full load for every machine but the jaw breaker, the reverberatory's
+rabbles and the Parkes kettle, which follow their charge, never an item), 0.005 unbuilt, three times
+dry of oil where the machine takes oil (`MachineLoad.Resistance`). The power cell's behaviour is
+`seraphhorizons.MachineMP` (`BEBehaviorMachineMP`, its block entity an `IMachinePower`).
+
+**The reservoir** (`MachineReservoir`): a wet machine fills its own from a ppex pipe on its water face
+(`PpexWater`, moved here from the rosser, which shares it) at up to `WaterIntakeLitresPerSecond` (10 L/s),
+holding `ReservoirLitres` (20 L) or two items' water where an item takes more (the stamp battery's
+40 L a rock), and spends an item's water as it works it. No water comes back.
+
+**Chutes in and out** (`MachineAnchors`, `MachineChutes`): continuous machines read their anchors from
+the rig's `{name}Cell`/`{name}Face` pairs (turned with the machine). Products leave through an
+anchor's face into a vanilla chute laid to take from the machine, or any container; with nothing
+there, a product stays in the machine (its output blocked) and tailings are discarded. A chute feeds
+the infeed cell's block entity, whose inventory takes only through the infeed face what the machine
+takes. Batch machines (the arrastra, the roasters and furnaces) have no anchor: loaded and emptied by
+hand. Hand stations have neither.
+
+**Tailings** (#694; `Tailings`, `TailingsHeap`): where a machine's tailings outlet is not chuted on
+(normally the last of the line), or at a hand station, discarded rock goes on a heap beside the
+tailings point as vanilla layered gravel (`game:gravel-{rock}-land-{n}`) or sand (`game:sand-{rock}-{n}`)
+in the ore's host rock (the raw ore's `rock`, carried as a stack attribute), filling the cell, the four
+round it, then two up (seven blocks; a full heap takes no more until it is shovelled away). The layers
+a rock, the owner's starting values (`OreMachinesSettings.Tailings`, by machine): sluice and jig
+gravel 1, shaking table sand 0.75, vanner sand 0.5, amalgamation plates sand 1, rocker gravel 1; the
+jaw breaker, stamp battery, arrastra and ball mill discard nothing, nor do the roasters and furnaces.
+Fractions carry from rock to rock (`TailingsOwed`).
+
+**Text, handbook and recipe browser.** Block info and messages are shared (`MachineText`, the
+`seraphhorizons:machine-*` lang entries): the next stage and what it still takes, each wearing part's
+use left, the state (`seraphhorizons:machine-state-*`) and the reservoir. A stage's name is
+`seraphhorizons:{machine}-stage-{id}` where given. Each machine's handbook takes its player card as the
+frame block's `handbook.extraSections`, under `seraphhorizons:{machine}-handbook-{build,work,water,tailings}-{title,text}`
+(the draw bench's pattern). The recipe browser shows each machine whose frame is in the game as a
+`construction` record built from its build file (`tools/recipe-export/RecipeSection.OreMachines.cs`):
+the frame, then each stage's materials, a wearing part's first set with its stage.
+
+Settings (`OreMachinesSettings`): `MinSpeed`, `ReservoirLitres`, `WaterIntakeLitresPerSecond` and
+`Tailings` (per machine: `Form` gravel or sand, `LayersPerRock`); out-of-range values fall back with a
+warning. Tests: `tests/Machines/OreMachineSharedTests.cs` (the build, wearing parts, running, rate,
+load, reservoir, tailings, anchors, settings, and every shipped build file against its rig);
+`tests/PackTests/OreMachinesScenarios.cs` (Atlas: the build files load and name items the game has,
+a tailings heap in the world, products into a chute and a chest).
 
 ## Trading
 
@@ -6083,7 +6244,8 @@ exporter's own recipe types for the gear chain (`picklingtub` and `lottery`: `Ge
 `gearcutter`: `GearCutter`; `drawbench`: `DrawBench`, whose type and recipe files are
 `DrawBenchSystem.TypeAssets` and `RecipeAssets`; `cylinderborer`: `CylinderBorer`, whose files are
 `CylinderBorerSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
-`PressBrakeSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
+`PressBrakeSystem.TypeAssets` and `RecipeAssets`; `amalgampan`: `AmalgamPan`, whose files are
+`AmalgamPanSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
 `SquaringShearSystem.TypeAssets`, the half plate's among them, and `RecipeAssets`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
 id's type, its source file, or the code it is keyed by, as a transition or a casting is) and
 `SwitchForCode(code)`; the exporter calls `SwitchRegistry.For(api)` by reflection.
@@ -6098,6 +6260,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `DrawBench` | the bench's blocks and dies, its grid and smithing recipes, the draw bench records |
 | `CylinderBorer` | the borer's blocks and parts, the cylinder molds (`seraphhorizons:cylindermold-*`), the cast and bored cylinders (`seraphhorizons:cylinderblank-*`, `seraphhorizons:cylinder-*`), its grid, smithing and clay forming recipes, the molds' casting, the cylinder borer records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
+| `AmalgamPan` | the amalgam pan's block, its grid recipe, the amalgam pan records |
 | `SquaringShear` | the shear's blocks, the half plate (`seraphhorizons:halfplate-*`), its grid recipe, the squaring shear records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
 | `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |

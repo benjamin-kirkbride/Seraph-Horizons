@@ -28,13 +28,13 @@ public sealed record CupelYield(double LeadUnits, IReadOnlyList<MetalUnits> Meta
 }
 
 /// <summary>
-/// Cupellation in a bone-ash cupel at the forge (#722, hand and tier 1; README "Cupellation"). The
+/// Cupellation in a bone-ash cupel at the forge (#722, a hand station; README "Cupellation"). The
 /// charge is roasted concentrate of an ore whose silver cupellation parts (galena, argentiferous
 /// galena, tetrahedrite, freibergite), with lead added for an ore whose main metal is not lead (any
 /// lead the crucible would take: lead bits, roasted galena, a galena nugget; never litharge, which is
 /// lead already spent). The lead soaks into the cupel as litharge; what is left is the bead.
 /// <list type="bullet">
-/// <item>Each ore's metal comes out as <see cref="OreRecovery.Smelted"/> has it at the hand tier: all
+/// <item>Each ore's metal comes out as <see cref="OreRecovery.Smelted"/> has it by hand: all
 /// of the main metal and each cupellation by-product at its share × 85 % (galena: its lead and 3 %
 /// silver; argentiferous galena 38 %; tetrahedrite its copper and 5 % silver; freibergite its silver and
 /// 30 % copper). Lead, the ore's and the added, goes into the litharge.</item>
@@ -46,8 +46,8 @@ public sealed record CupelYield(double LeadUnits, IReadOnlyList<MetalUnits> Meta
 /// </summary>
 public static class Cupellation
 {
-    /// <summary>The tier the cupel parts at (85 %, as tier 1).</summary>
-    public const OreTier Tier = OreTier.Hand;
+    /// <summary>Where the cupel parts: by hand, at 85 % (<c>handStations</c>).</summary>
+    public const PartingStation Station = PartingStation.Cupel;
 
     /// <summary>Units of metal in one bit, nugget or litharge.</summary>
     public const double UnitsPerItem = 5;
@@ -86,7 +86,7 @@ public static class Cupellation
                 lead += c.Units;
                 continue;
             }
-            foreach (var m in r.Smelted(r.Ore(ore), c.Units, Tier))
+            foreach (var m in r.Smelted(r.Ore(ore), c.Units, Station))
             {
                 if (m.Metal == "lead") lead += m.Units;
                 else metals[m.Metal] = metals.GetValueOrDefault(m.Metal) + m.Units;

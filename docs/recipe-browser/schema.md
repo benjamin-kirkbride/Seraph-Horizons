@@ -210,6 +210,16 @@ its `materials` as the mod writes them, the `default`, and the indices of its ma
 `extra.wake` is the crank's action, which wakes it after the last stage. Their `extra.behavior` names
 the mod's classes and `extra.stages` the stages' codes.
 
+The ore machines (seraphhorizons, #711) are records of this type as they come into the game, one for
+each machine whose frame block is registered, built from its build file
+(`config/builds/{machine}.json`): `construction|{frame block}|0`, output the frame block, the placed
+frame then each build stage, each material of a stage one ingredient (a wildcard with
+`allowedVariants` where it may be several items, the stack list of the one variant giving every one).
+A wearing part fitted with a stage (the stamp battery's shoes) is that stage's last ingredient.
+`extra.behavior` is `seraphhorizons.OreMachine`, `extra.machine` the machine's id, `extra.feed`
+`continuous` or `batch`, `extra.stages` the stages' names and `extra.wearing` each wearing part's
+`id`, `count` and `uses` (the work a set lasts, in the machine's own unit).
+
 ### Butchery
 
 With the Butchering mod a dead creature is picked up whole, skinned on a hook, left there to
@@ -326,6 +336,17 @@ travel, 1.125 `blocks`, `turnsPerUnit` each), `kept`, `wear` (`dividedByOilFill`
 screws (`game:metal-parts`, a block) and the edges (both in `machine.kept`) and the machine (role `station`); the output is one angle
 (`seraphhorizons:angle-<metal>`), the half plate folded once across its middle. It is worked by hand: `power` is `hand` and `turns` the turns of its lever clock one
 half plate takes (a turn a second while the player holds right-click); there is no `wear` and no `oil`.
+
+**The amalgam pan** (type `amalgampan`, shape `machine`): one record per kind of crushed gold or silver
+quartz, id `amalgampan|seraphhorizons:crushedore-<ore>-<grade>|0`, a full charge (16). The ingredients
+are the quartz, the mercury its amalgam takes (`em:mercuryportion`, portions with `litres`) and the
+charge's water (all consumed), the muller (a rod) and the shoes (a plate), both in `machine.kept`, and the
+machine (role `station`); the outputs are the amalgam (`seraphhorizons:amalgam-<ore>`, the average a
+charge makes, so fractional) and the same quartz back, amalgamated, for the rocker. It is worked by hand
+(an axle below may turn it instead): `power` is `hand`, `turns` the muller's turns a charge, and `work`
+the seconds that takes by hand (`unit` `seconds`); there is no `wear` and no `oil`. `requirements` says
+how it is turned and what the amalgamated quartz is for; `extra` has the `ore`, `grade`, `chargeItems`,
+`amalgamMercury` and `waterLitres`.
 
 **The squaring shear** (type `squaringshear`, shape `machine`): one record per plate metal, id
 `squaringshear|game:metalplate-<metal>|0`. The ingredients are the plate (consumed), the blades and

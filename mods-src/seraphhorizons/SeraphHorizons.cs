@@ -805,6 +805,19 @@ public class SeraphHorizonsConfig
     /// Server side.</summary>
     public double FirepitRoastSeconds { get; set; } = Ore.Core.OreRoasting.DefaultSeconds;
 
+    /// <summary>The amalgam pan (#718, AmalgamPan/, README "Amalgam pan"): a one-block amalgamating pan
+    /// of sheet iron on an oak stand, built from its frame in two stages (a rod as the muller, a plate as
+    /// its shoes), where crushed gold or silver quartz, water and mercury are worked into amalgam, by hand
+    /// (right-click held, as on the quern) or turned from an axle below; the amalgam goes to the still,
+    /// the quartz, its free metal no longer at × 0.7, on to the rocker (needs OreProcessing; off means
+    /// its block and its recipe do not exist, and pans already placed are lost). The server's setting
+    /// decides.</summary>
+    public bool AmalgamPan { get; set; } = true;
+
+    /// <summary>The amalgam pan's figures; a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public AmalgamPan.Core.AmalgamPanConfig AmalgamPanSettings { get; set; } = new();
+
     /// <summary>Schematics are sold only by traders (#468, Trading/Schematics/, README
     /// "Schematics"): every schematic in the pack is taken out of loot, stack randomizers and
     /// structures' chests, no recipe copies or makes one, and every recipe using one keeps it.
@@ -1108,4 +1121,10 @@ public class SeraphHorizonsConfig
     /// <summary>The springs' rates, in litres a second; a value out of range falls back to its
     /// default with a warning. The server's are used, each side's for its text.</summary>
     public SeraphHorizons.Mod.Springs.Core.SpringsConfig SpringsSettings { get; set; } = new();
+
+    /// <summary>The ore machines' shared rules (Machines/, README "Ore machines: what they share"; #711,
+    /// #694): the speed under which a machine stops, the reservoir's size and fill rate, and each
+    /// machine's tailings (form and layers a rock). Each machine's own switch turns it on; these
+    /// apply to every one. The server's are used.</summary>
+    public OreMachinesConfig OreMachinesSettings { get; set; } = new();
 }
