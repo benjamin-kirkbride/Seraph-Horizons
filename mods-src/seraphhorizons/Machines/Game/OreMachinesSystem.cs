@@ -1,3 +1,5 @@
+using System.Text;
+using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
 
@@ -29,6 +31,39 @@ public class OreMachinesSystem : ModSystem
     {
         _api = api;
         api.RegisterBlockEntityBehaviorClass(BEBehaviorMachineMP.ClassName, typeof(BEBehaviorMachineMP));
+        api.RegisterBlockClass(BlockOreMachine.ClassName, typeof(BlockOreMachine));
+        api.RegisterBlockClass(BlockOreMachineCell.ClassName, typeof(BlockOreMachineCell));
+        api.RegisterBlockClass(BlockOreMachineCellPower.ClassName, typeof(BlockOreMachineCellPower));
+        api.RegisterBlockEntityClass(BEOreMachineCell.ClassName, typeof(BEOreMachineCell));
+    }
+
+    private readonly Dictionary<string, OreMachineRig?> _rigs = new(StringComparer.Ordinal);
+
+    /// <summary>The rig of <paramref name="machine"/> (<c>config/{machine}-rig.json</c>), parsed once with
+    /// the machine's own part requires besides its stages'; null when it is missing or broken (logged
+    /// once: the machine then cannot be placed).</summary>
+    public OreMachineRig? Rig(string machine, IEnumerable<string>? extraRequires = null)
+    {
+        lock (_rigs)
+        {
+            if (_rigs.TryGetValue(machine, out var rig))
+                return rig;
+            rig = null;
+            var loc = new AssetLocation(Domain, $"config/{machine}-rig.json");
+            if (_api?.Assets.TryGet(loc) is not { } asset)
+                _api?.Logger.Error("[seraphhorizons] {0} is missing; the {1} cannot be placed", loc, machine);
+            else
+                try
+                {
+                    rig = OreMachineRig.Parse(asset.ToText(), extraRequires);
+                }
+                catch (FormatException e)
+                {
+                    _api!.Logger.Error("[seraphhorizons] {0} is broken, so the {1} cannot be placed: {2}", loc, machine, e.Message);
+                }
+            _rigs[machine] = rig;
+            return rig;
+        }
     }
 
     public override void AssetsLoaded(ICoreAPI api) => _builds = LoadBuilds(api);
@@ -43,6 +78,32 @@ public class OreMachinesSystem : ModSystem
 
     /// <summary>Every machine with a build file, by id.</summary>
     public IReadOnlyDictionary<string, MachineBuild> Builds => _builds ??= _api == null ? [] : LoadBuilds(_api);
+
+    private static readonly JsonLoadSettings IgnoreComments = new() { CommentHandling = CommentHandling.Ignore };
+
+    /// <summary>Leaves a machine out of the game with its switch off (server side, from the machine's
+    /// system's <c>AssetsLoaded</c>, as the draw bench's): marks its block and item type files and every
+    /// recipe in its recipe files disabled before the game loads them.</summary>
+    public static void Disable(ICoreAPI api, IEnumerable<AssetLocation> types, IEnumerable<AssetLocation> recipes)
+    {
+        foreach (var location in types)
+        {
+            if (api.Assets.TryGet(location) is not { } asset)
+                continue;
+            var json = JObject.Parse(asset.ToText(), IgnoreComments);
+            json["enabled"] = false;
+            asset.Data = Encoding.UTF8.GetBytes(json.ToString());
+        }
+        foreach (var location in recipes)
+        {
+            if (api.Assets.TryGet(location) is not { } asset)
+                continue;
+            var token = JToken.Parse(asset.ToText(), IgnoreComments);
+            foreach (var recipe in token is JArray array ? array.OfType<JObject>() : token is JObject one ? [one] : [])
+                recipe["enabled"] = false;
+            asset.Data = Encoding.UTF8.GetBytes(token.ToString());
+        }
+    }
 
     private static OreMachinesConfig LoadConfig(ICoreAPI api)
     {
