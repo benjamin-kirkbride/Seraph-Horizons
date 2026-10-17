@@ -123,7 +123,7 @@ public partial class RecipeExportScenarios
                      ("game:largegear3", 0.004), ("game:brake", 3), ("millwright:brake", 6), ("mpegearbox:gearbox12", 0.001),
                      ("mpecenteredspurgear:centeredspurgear", 0.001), ("madmechanics:transmission", 0.0005),
                      ("immersivewoodworking:sawmill", 0.085), ("immersivewoodworking:sawmill@flywheel", 0.051),
-                     ("immersivewoodworking:chopper", 0.085), ("panningmachine:panningmachine", 0.085),
+                     ("immersivewoodworking:chopper", 0.085),
                      ("smex:convertertransmission", 0.25), ("ppex:mpfluidpump", 0.125), ("ppex:enginempgenerator", 0.0005),
                      ("seraphhorizons:buckingmill", 0.17), ("seraphhorizons:rosser", 0.2), ("seraphhorizons:gearcutter", 0.2),
                      ("seraphhorizons:drawbench", 0.2), ("seraphhorizons:cylinderborer", 0.3),
