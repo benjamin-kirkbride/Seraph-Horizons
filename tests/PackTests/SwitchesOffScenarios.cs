@@ -167,10 +167,11 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons", CreativeSteamSource.BlockCode)));
         // The mod's other blocks are the bucking sawmill's, off here as well, the inn flag and sign,
         // which load with TravellingMerchants off too (a world may hold them), and the springs, which
-        // load with Springs off so that those in a world turn back into water.
+        // load with Springs off so that those in a world turn back into water, and the ore machines' shared
+        // cells (Machines/Game, #711), which belong to no one machine's switch and nothing places on its own.
         Assert.DoesNotContain(W.Blocks, b => b.Code?.Domain == "seraphhorizons"
             && !b.Code.Path.StartsWith("innflag", StringComparison.Ordinal) && !b.Code.Path.StartsWith("innsign", StringComparison.Ordinal)
-            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal));
+            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal) && !b.Code.Path.StartsWith("oremachine-", StringComparison.Ordinal));
     }
 
     /// <summary><c>DurableSawmillBlades</c>: Immersive Woodworking's blade kits keep their own

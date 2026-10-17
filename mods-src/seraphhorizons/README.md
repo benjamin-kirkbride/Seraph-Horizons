@@ -5950,6 +5950,102 @@ load, reservoir, tailings, anchors, settings, and every shipped build file again
 `tests/PackTests/OreMachinesScenarios.cs` (Atlas: the build files load and name items the game has,
 a tailings heap in the world, products into a chute and a chest).
 
+### Jaw breaker (`JawBreaker`, `JawBreakerSettings`)
+
+The first machine of the ore line (#912; model and build stages in `JawBreaker/README.md`): a Blake jaw
+breaker under a grizzly, on the shared game code below. Raw ore in (vanilla's graded `ore` and
+`crystalizedore`, what spalling breaks), crushed ore of its grade out, one for one, with no loss and nothing
+classified (its product is not screened: the × 0.85 stays until a screen). 24 rock an in-game hour at shaft
+speed 0.6, in proportion to speed with no cap (ore-processing.json `machines.jawbreaker`); dry, either way
+round. It needs `OreProcessing`; off, or with its switch off, its frame and recipe do not exist.
+
+- **Build.** The frame (grid: 9 iron plates, 11 support beams, 8 iron and 1 steel nails and strips, a
+  hammer), then five stages by right-click, from `config/builds/jawbreaker.json`: the jaws (and the first
+  pair of jaw faces), the eccentric shaft and flywheel, the toggles and rods (2 steel rods, drawn at once)
+  then their springs (2 `seraphhorizons:spring-steel`), the grizzly (5 iron rods), and the two chute
+  sections (2 straight chutes). The shaft is held still until it is built.
+- **Wear.** The jaw faces (2 steel plates) wear a use a rock and last 1,000; worn out, the breaker stops
+  until a new pair is fitted by right-click, renewed whole.
+- **Feed and output.** A vanilla chute laid down onto the infeed (the top of the west front column, over
+  the grizzly's head) feeds it, or a right-click with raw ore; its mouth holds `ChargeRocks` (8). The
+  crushed ore goes out of the output face (low on the front, west column) into a chute laid to take from
+  it or any container; with nothing there it is held and the breaker stops. Crushed ore carries the raw
+  ore's host rock (`rock`), for tailings further down the line.
+- **Load.** One of the three machines whose load follows the job (`OreRecovery.LoadAt`): 0.16 empty,
+  rising with the rock in its mouth to 0.8 at a full charge (`JobFill`, the charge's share); its flywheel
+  rides each bite's peak, so there is no jam rule. 0.005 until built.
+- **Recipe browser.** A `jawbreaker` machine record per ore kind (`RecipeSection.JawBreaker.cs`) and its
+  build's `construction` record.
+
+Code: `JawBreaker/Core/JawBreaking.cs` (what it takes, the fill, the settings; tests
+`tests/JawBreaker/JawBreakerGameplayTests.cs`), `JawBreaker/Game/BEJawBreaker.cs` and
+`JawBreakerSystem.cs`; Atlas `tests/PackTests/JawBreakerScenarios.cs` and
+`RecipeExportJawBreakerScenarios.cs`.
+
+### Ore machines: the shared game half
+
+The block, cells, block entity and renderer every ore machine is made of (`Machines/Game`; first used by the
+jaw breaker, #912). A machine adds a frame block type (`{machine}-{side}`, class `seraphhorizons.OreMachine`,
+`attributes.oreMachine.machine`, and `extraRequires` for parts drawn by its own state), a block entity class
+deriving `BEOreMachine`, its build file and its rig, and calls `OreMachinesSystem.Disable` with its switch off.
+
+- `BlockOreMachine`: placing needs room for every rig cell, the front (native north) faces the player;
+  stamps the shared cells, `seraphhorizons:oremachine-cell` and, on the rig's power cell,
+  `oremachine-cellpower-{face}` (the axle's world face, carrying `seraphhorizons.MachineMP`). A cell
+  forwards everything to the controller; a face that is an anchor carries a block (a ppex pipe). A power
+  cell at the controller itself is allowed (the frame block type then carries the behaviour).
+- `BEOreMachine`: the assembly (right-click fits the next stage or renews a worn set, Ctrl in creative
+  fits a stage, breaking gives everything back), the running rules and state, work in shaft turns at the
+  machine's turns an item (`Work`, or `WorkUnpowered` for a machine without a power anchor), the load
+  (`OreRecovery.LoadAt` at `JobFill`), the reservoir (ppex at the `water` anchor, or `FillWater`), the infeed
+  (slot 0: a chute into the infeed cell's face fills that cell's buffer, a hand puts in what `Takes` accepts,
+  up to `InfeedCapacity`), and the products (`Products`, by anchor: pushed out of the anchor's face, else held,
+  up to four kinds an anchor; `tailings` with nothing there go on the heap). `InteractContent` runs before
+  the build on a right-click (a batch machine's charge).
+- `OreMachineRenderer`: the rig's parts from `shapes/block/{machine}.json` with the frame block's textures,
+  each drawn when `ShowsPart` (its stage fitted), posed by θ (the power cell's shaft about the power face's
+  axis) and ψ.
+
+### Stamp battery (`StampBattery`)
+
+The crush-and-classify machine of the ore line (#728, model #729, epic #684), in `StampBattery/`: a
+**wet five-stamp battery** whose mesh screen lets the ore out only once it is small enough, so it
+crushes and classifies in one. On by default; it needs `OreProcessing` (its feed and products are ore
+processing's items). Off, the server leaves its blocks and its recipe out of the game, and batteries
+already placed are lost.
+
+- **Build.** The frame (the two oak sills, the rectifier's gear case and the line shaft) is made on the
+  grid with a hammer (`recipes/grid/stampbattery.json`, the generator's `FRAME_RECIPE`: 3 stainless
+  gears, 4 iron plates, 4 iron nails and strips, 2 steel plates, a steel nails and strips, 4 oak support
+  beams). It is 3 wide, 4 high and 3 deep, the block placed being the bottom middle of its front, and
+  runs away from the player. Its five stages are fitted by right-click in order, from
+  `config/builds/stampbattery.json` (the model README's stage table): the timber (41 support beams in
+  stacks), the mortar, the stamps with their shoes, the camshaft with its belt and feed box, the
+  services (chute sections and a copper or lead water line), on the shared ore machine code
+  ("Ore machines: what they share").
+- **Shoes**, its one wearing part: five `game:poundercap-steel`, fitted with the stamps and worn a use
+  a rock, a set lasting 1,000 rocks (the build file's `uses`); worn out, the battery stops until a new
+  set is fitted by right-click.
+- **Work** (`StampBattery/Core/Stamping.cs`): raw ore (`game:ore-{grade}-{ore}-{rock}`) comes out as
+  crushed ore of its grade, one for one, crystallised ore as two holding its units between them;
+  crushed ore not yet classified (the jaw breaker's, or spalled ore) goes through unchanged. Every
+  product is **classified** (`oreState`, `OreStreamAttributes`), which lifts the concentrators'
+  unclassified × 0.85 (#765), and carries its host rock (`rock`) for the tailings. No metal is lost.
+  Classified, ground or other ore does not go in.
+- **Rate, power and water** (ore-core's `machines.stampbattery`, `config/ore-processing.json`): 6 rock
+  an hour at the reference speed 0.6 (9.55 shaft turns a rock), in proportion to speed with no cap,
+  stopping under `MinSpeed`; a constant load of 0.75 once built (0.005 unbuilt); 40 L of water a rock
+  from its own 80 L reservoir, filled by a ppex pipe on the water line's inlet. It discards nothing.
+- **Feed and anchors** (the rig's, turned with the machine): a vanilla chute from above into the
+  infeed in the top of the back row, or by hand, right-click with ore into the same mouth; the output
+  by a chute laid against the front face's bottom middle; the axle on the back row's east face (the
+  player's left, facing its front), the water on its west face, third block up.
+
+The recipe browser has a `stampbattery` record per kind of rock it takes
+(`tools/recipe-export/RecipeSection.StampBattery.cs`) and the battery's build as a `construction`
+record. Tests: `tests/StampBattery/StampingTests.cs` (what it takes, one for one, classified, the
+unclassified share lifted); `tests/PackTests/StampBatteryScenarios.cs` (Atlas).
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is
