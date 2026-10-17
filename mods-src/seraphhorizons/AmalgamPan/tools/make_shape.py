@@ -1,34 +1,42 @@
 #!/usr/bin/env python3
-"""Generate the amalgam pan's shapes, rig and reference poses (and its provisional mercury texture).
+"""Generate the amalgam pan's shapes, rig and reference poses (and its slurry texture).
 
-The amalgam pan is a hand-worked amalgamating pan of the mid 1800s (the Washoe process, scaled down to
-one block): a wide, shallow sheet-iron pan with a beaded rim on an oak stand, a cast-iron step (the
-central cone) in its floor carrying the foot of an iron spindle, and an iron bridge across the rim
-carrying the spindle's upper bearing. On the spindle are the muller (a hub with four arms, an iron shoe
-bolted under each arm's end, dragging on the pan's floor) and, above the bridge, a crank with an oak
-handle. The player holds right-click on the pan, as on the quern, and turns the crank: the muller turns
-with it, and its shoes grind the concentrate into the mercury on the floor. Its contents are drawn as
-flat layers on the floor: a mercury pool, or the grey amalgam paste. Everything is built here from plain
-boxes; no other mod's model is used.
+The amalgam pan is an amalgamating pan of the mid 1800s (the Washoe process, scaled down to one block),
+worked like the game's quern, both ways: by hand, the player holding right-click on it, or by a vanilla
+axle under it, as the Washoe pan was driven from below. A wide, shallow sheet-iron pan with a beaded rim
+on an oak stand, a hollow cast-iron cone in the middle of its floor, and the two parts fitted to it by
+hand (#718), in order: the muller, an iron spindle (the fitted rod) carrying a hub with four arms over the
+cone, which comes down through the cone and a footstep bearing on an oak bridge-tree to the block's bottom
+face and ends there in the vanilla axle's oak cross profile, so an axle in the block below turns it; and
+its shoes, four plates bolted under the arms' ends, dragging on the pan's floor, drawn in the plate's
+metal (texture code `shoe`). The muller turns with the axle, once a turn, as the quern's stone does; by
+hand there is nothing to see but the muller turning. Nothing goes in or out but by the player's hand:
+there is no chute, hopper or other transfer. Its contents are drawn as flat layers on the floor: a
+mercury pool; the charge, a grey-brown pulp of crushed gold or silver quartz and water with the mercury
+worked through it; or the grey amalgam paste. Everything is built here from plain boxes; no other mod's
+model is used.
 
 It writes, deterministically,
 
-    amalgampan.json         the whole pan, every moving part and both contents   (assets/.../shapes/block/)
+    amalgampan.json         the whole pan, every fitted part and the contents      (assets/.../shapes/block/)
     amalgampan_frame.json   the static frame only (block and item)                (assets/.../shapes/block/)
     amalgampan-rig.json     the cell, anchors and the part rig                    (assets/.../config/)
-    rig-reference.json      every part's matrix at a spread of crank angles       (tests/AmalgamPan/)
-    mercury.png             the provisional mercury texture                       (assets/.../textures/block/liquid/)
+    rig-reference.json      every part's matrix at a spread of shaft angles       (tests/AmalgamPan/)
+    slurry.png              the charge's slurry texture                         (assets/.../textures/block/liquid/)
 
 or, with `--out DIR`, all five into DIR. It validates its own output (validate_amalgampan.py) and exits
 non-zero if a check fails.
 
 Everything is in voxels in the native frame (x west to east, y up, z north to south), measured from the
 cell's north-west-bottom corner (the "build frame"); the pan is one cell, the controller [0,0,0], so the
-shipped files are the build frame divided by 16. The pan's axis is the cell's vertical centre line.
+shipped files are the build frame divided by 16. The pan's axis, the spindle's, is the cell's vertical
+centre line, and the axle below comes up into the cell's down face on it (`powerCell` [0,0,0],
+`powerFace` down).
 
 The rig's one input, as this station uses it (README "Rig schema"):
 
-    theta  the crank's angle, the hold-to-work clock: the muller and its shoes turn by it (ratio 1)
+    theta  the spindle's angle: the axle's under power, or the hold-to-work clock by hand; the muller
+           turns by it about the pan's axis, once a turn, and the shoes ride it
 """
 
 from __future__ import annotations
@@ -52,14 +60,14 @@ from machinegen.output import shape_json as machine_shape_json  # noqa: E402
 from machinegen.rigmath import part_of, posed, validate_driver  # noqa: E402
 from machinegen.rigmath import part_matrix as _part_matrix  # noqa: E402
 
-import mercury_texture  # noqa: E402
+import slurry_texture  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[4]
 MOD = ROOT / "mods-src" / "seraphhorizons"
 ASSETS = MOD / "assets" / "seraphhorizons"
 SHAPE_DIR = ASSETS / "shapes" / "block"
 RIG_DIR = ASSETS / "config"
-TEXTURE_OUT = ASSETS / "textures" / "block" / "liquid" / "mercury.png"
+TEXTURE_OUT = ASSETS / "textures" / "block" / "liquid" / "slurry.png"
 REFERENCE_OUT = MOD / "tests" / "AmalgamPan" / "rig-reference.json"
 SCRIPT = "mods-src/seraphhorizons/AmalgamPan/tools/make_shape.py"
 
@@ -70,14 +78,19 @@ DEG = math.pi / 180
 # ---------------------------------------------------------------- the box, the cell
 CELLS_X, CELLS_Y, CELLS_Z = 1, 1, 1          # one block
 ORIGIN_CELL = (0, 0, 0)                      # the controller: the pan itself
+POWER_CELL, POWER_FACE = (0, 0, 0), "down"   # a vanilla axle in the block below comes up into the pan's down face, as into the quern's
 
 TEXTURES = {
     "oak": "game:block/wood/debarked/oak",
     "pan": "game:block/metal/sheet/iron1",          # the pan: riveted sheet iron
-    "iron": "game:block/metal/plate/iron",          # cast and wrought iron: the step, the bridge, the muller, the crank
-    "shoe": "game:block/metal/plate/iron",          # the muller's shoes: their own code, so a renderer can set the fitted metal
-    "mercury": "seraphhorizons:block/liquid/mercury",   # provisional, made by mercury_texture.py
+    "iron": "game:block/metal/plate/iron",          # cast and wrought iron: the cone, the footstep, the spindle, the muller
+    "shoe": "game:block/metal/plate/iron",          # the shoes: their own code, which the renderer sets to the fitted plate's metal
+    # mercury as Expanded Matter draws it: the game's andesite, with its kimberlite blended over it (Lighten),
+    # which only a blocktype can say (README "Gameplay"); the shape names the base
+    "mercury": "game:block/stone/rock/andesite2",
+    "slurry": "seraphhorizons:block/liquid/slurry",     # the charge: made by slurry_texture.py to sit beside that mercury
     "amalgam": "game:block/metal/ingot/leadsolder",     # a dull, mottled grey: the paste
+    "water": "game:block/liquid/waterportion",          # the water film over the charge, as the game's barrels draw water
 }
 TEX = 64                                     # shape texture units; 4 per voxel, one texture across a block face
 
@@ -85,26 +98,26 @@ TEX = 64                                     # shape texture units; 4 per voxel,
 CX, CZ = 8.0, 8.0                            # the pan's axis, the spindle's: the cell's centre line
 AXIS = (CX, 0.0, CZ)
 SIDES = 16                                   # the pan is a 16-sided polygon; every round part's faces are on these angles
-PAN_Y0 = 5.0                                 # the pan's underside, on the stand
-FLOOR_TOP = 6.0                              # the floor's top: the shoes drag on it, the contents lie on it
-RIM_TOP = 9.2                                # the wall's top: 3.2 deep inside, 12.4 across: shallow
-WALL_Y0 = 5.5                                # the wall's foot, sunk into the floor's edge so no slit shows between them
+PAN_Y0 = 5.0                                 # the pan's underside, on the stand: room under it for the footstep and the coupling
+FLOOR_TOP = PAN_Y0 + 1.0                     # the floor's top: the shoes drag on it, the contents lie on it
+RIM_TOP = PAN_Y0 + 4.2                       # the wall's top: 3.2 deep inside, 12.4 across: shallow
+WALL_Y0 = PAN_Y0 + 0.5                       # the wall's foot, sunk into the floor's edge so no slit shows between them
 R_OUT = 7.0                                  # the wall's outside (apothem)
 R_IN = 6.2                                   # its inside
 R_FLOOR = R_OUT - 0.02                       # the floor's edge, a hair inside the wall's outside: its staggered strips never show
-BEAD = (7.0, 7.3, 8.4)                       # the rim's bead: apothem from, to; its bottom (its top is the rim's)
+BEAD = (7.0, 7.3, PAN_Y0 + 3.4)              # the rim's bead: apothem from, to; its bottom (its top is the rim's)
 ALT = 0.03                                   # every other ring segment this much shorter at each end, so neighbours' ends never share a plane
-PLUG = (6.3, 7.3)                            # the discharge plug's boss on the wall's east face: from y, to y
+PLUG = (PAN_Y0 + 0.3, PAN_Y0 + 1.3)          # the discharge plug's boss on the wall's east face: from y, to y
 
-# ---------------------------------------------------------------- the step (the central cone) and the spindle
-CONE_BASE = (1.7, 5.6, 7.1)                  # apothem, from y, to y (its foot sunk in the floor)
-CONE_NECK = (1.15, 6.7, 7.9)                 # the neck: the spindle's lower bearing, above the paste
-SPINDLE_R = 0.45
-SPINDLE_Y = (7.0, 14.7)                      # its foot in the step, clear of the paste; its top through the crank's hub
+# ---------------------------------------------------------------- the cone (the spindle's upper bearing) and the spindle
+CONE_BASE = (1.7, PAN_Y0 + 0.6, PAN_Y0 + 2.1)    # apothem, from y, to y (its foot sunk in the floor): hollow, the spindle runs up through it
+CONE_NECK = (1.15, PAN_Y0 + 1.7, PAN_Y0 + 2.9)   # the neck: the spindle's upper bearing, above the paste
+SPINDLE_R = 0.5
+SPINDLE_Y = (1.0, PAN_Y0 + 5.1)              # from inside the coupling, down through the footstep, to just over the muller's hub
 
 # ---------------------------------------------------------------- the muller
-HUB = (1.35, 8.1, 9.7)                       # apothem, from y, to y: keyed on the spindle, 0.2 over the step
-ARM_Y = (8.15, 8.95)                         # the four arms, out from the hub, under the rim
+HUB = (1.35, PAN_Y0 + 3.1, PAN_Y0 + 4.7)     # apothem, from y, to y: keyed on the spindle, 0.2 over the cone
+ARM_Y = (PAN_Y0 + 3.15, PAN_Y0 + 3.95)       # the four arms, out from the hub, under the rim
 ARM_W = 1.0
 ARM_R = (1.0, 5.4)
 ARM_ANGLE0 = 45.0                            # the first arm's bearing from south at rest (degrees, about +y); the rest every 90
@@ -112,40 +125,47 @@ SHOE_R = (2.3, 5.6)                          # each shoe, under its arm's end: r
 SHOE_W = 2.4                                 # across
 SHOE_Y = (FLOOR_TOP, ARM_Y[0])               # on the floor, up to the arm
 
-# ---------------------------------------------------------------- the bridge (the upper bearing): a shallow cast arch
-FOOT_X = (0.7, 2.0)                          # west; mirrored east: a foot on the rim, over the bead and the wall
-FOOT_Y = (RIM_TOP, 10.0)
-FOOT_Z = (7.3, 8.7)
-BOSS = (1.0, 11.0, 12.6)                     # the bearing boss at the arch's crown: apothem, from y, to y
-ARCH_W = 1.0                                 # each half of the arch: two bars this deep in their own plane
-ARCH = ((1.35, 9.75), (3.6, 11.15), (7.2, 11.85))   # (x, y): the west half runs from inside the foot, bends, and ends in the boss
-ARCH_Z = ((7.4, 8.6), (7.43, 8.57))          # each bar's z: the upper a hair narrower, so their sides never share a plane at the bend
-
-# ---------------------------------------------------------------- the crank
-CRANK_HUB = (0.8, 13.2, 14.4)                # keyed on the spindle, over the boss
-CRANK_Y = (13.4, 14.1)
-CRANK_W = 0.75
-CRANK_R = (0.6, 4.95)                        # the arm, out from the hub
-HANDLE_R = 4.4                               # the handle's axis from the spindle's
-HANDLE = (0.55, CRANK_Y[1], 15.9)            # apothem, from y, to y: an oak peg
-CRANK_ANGLE0 = 180.0                         # at rest the crank points north, towards the operator
+# ---------------------------------------------------------------- the drive: the footstep and the coupling
+# No gearing: as the quern's stone turns with the axle under it (the game's quern draws its top at the
+# mechanical network's angle), the spindle turns with the vanilla axle in the block below, once a turn.
+GEAR_RATIO = 1.0                             # the spindle's turns per turn of the axle (or of the hand's clock)
+FOOTSTEP = (1.1, 0.8)                        # the footstep bearing round the spindle, on the bridge-tree: apothem; height
+COUPLING = (1.5, 0.6, 1.4)                   # the spindle's foot in the vanilla axle's oak cross profile: bars 3 by 1.2 crossed, 1.4 high
+AXLE_MEET = 0.0                              # where the axle below meets it: the block's bottom face, on the pan's axis
 
 # ---------------------------------------------------------------- the stand
 LEG = ((0.6, 2.4), (13.6, 15.4))             # the legs' x (and z) spans: one at each corner, clear of the pan
-APRON_Y = (3.4, PAN_Y0)
+APRON_Y = (PAN_Y0 - 1.6, PAN_Y0)
 APRON = (0.9, 2.1)                           # the aprons' thickness span (west, north); mirrored east, south
 BEARER_Z = ((4.4, 5.6), (10.4, 11.6))        # two bearers across under the floor
-BEARER_Y = (3.6, PAN_Y0)
-LOW_Y = (0.9, 2.1)                           # the low rails, west and east
+BEARER_Y = (PAN_Y0 - 1.4, PAN_Y0)
+LOW_Y = (1.6, 2.8)                           # the low rails, west and east, and the bridge-tree across between them
+BRIDGE_Z = (6.8, 9.2)                        # the bridge-tree, under the pan's axis: it carries the footstep, the coupling clear below it
 
 # ---------------------------------------------------------------- the contents
 CONTENT_R = R_IN + 0.05                      # their edge, just into the wall: no gap at the wall
-CONTENT_Y0 = 5.7                             # their underside, sunk in the floor (never seen)
-MERCURY_TOP = 6.4                            # a pool 0.4 deep
-AMALGAM_TOP = 6.8                            # a paste 0.8 deep: the shoes stand out of it
-CONTENTS = ((1, "mercury"), (2, "amalgam"))  # (pose's contents index, part id = requires = texture code)
+CONTENT_Y0 = FLOOR_TOP - 0.3                 # their underside, sunk in the floor (never seen)
+MERCURY_TOP = FLOOR_TOP + 0.4                # a pool 0.4 deep
+SLURRY_TOP = FLOOR_TOP + 1.6                 # the charge, 1.6 deep: a loaded pan, over the cone's foot, the shoes mostly in it
+AMALGAM_TOP = FLOOR_TOP + 0.8                # a paste 0.8 deep: the shoes stand out of it
+CONTENTS = ((1, "mercury"), (2, "slurry"), (3, "amalgam"))   # (pose's contents index, part id = requires = texture code), in the pan's order
 
-SECONDS_PER_TURN = 1.5                       # the viewer's Play: about 40 turns a minute by hand
+# The water film: a thin sheet of water over the charge (requires `water`, drawn with the charge). A still
+# sheet over the floor can't keep clear of the shoes, which stand on the floor up through the charge, so the
+# film rides the muller: it is cut away round each shoe by SLOT_MARGIN, and turns with them, as the pulp
+# and its water are swept round by the muller (a shoe's slot reads as its wake). It is clear of the shoes
+# and the spindle at every angle; its edge is set into the wall, between the wall's inside and outside at
+# every angle, and its middle inside the cone's neck, so neither shows a gap as it turns.
+WATER_Y = (SLURRY_TOP - 0.2, SLURRY_TOP + 0.15)   # 0.15 over the charge; its underside in the charge, under every strip's top
+SLOT_MARGIN = 0.1                            # the water's way round each shoe, each side and each end
+WATER_LAP = 0.005                            # each box grown this much every way across, so neighbours lap and no crack opens
+WATER_STEP = 0.0025                          # each box's top and underside this much under the last's, so no two laps share a plane
+SLOT_HALF = SHOE_W / 2 + SLOT_MARGIN + WATER_LAP   # each shoe's slot, half across, before the lap
+SLOT_R = (SHOE_R[0] - SLOT_MARGIN - WATER_LAP, SHOE_R[1] + SLOT_MARGIN + WATER_LAP)   # and along: from, to
+WATER_CORE = 0.7                             # the square left open round the spindle, half across: inside the cone's neck
+WATER_EDGE = (6.4, 6.9)                      # the film's edge lies this far out from the axis, all round: into the wall
+
+SECONDS_PER_TURN = 1.5                       # the viewer's Play: 40 turns a minute, an axle's easy pace
 
 
 # ---------------------------------------------------------------- box helpers
@@ -165,19 +185,21 @@ def box(lo, hi, name, part, tex):
     return skin(El(name, [hi[k] - lo[k] for k in range(3)], c, [r[:] for r in IDENT], {}, part), tex)
 
 
-def disc(c, y0, y1, r, name, part, tex, k=4):
-    """A plain round part on a vertical axis through c: k strips as long as the 2k-gon is across, 180/k
-    degrees apart, each a hair shorter than the last so no two ends share a plane. k 8 gives the pan's
-    16 sides; the first strip's ends face north and south."""
+def disc(axis, c, a0, a1, r, name, part, tex, k=4):
+    """A plain round part on a line along `axis` ("y" or "z") through c: k strips as long as the 2k-gon
+    is across, 180/k degrees apart, each a hair shorter than the last so no two ends share a plane. k 8
+    gives the pan's 16 sides. About y the first strip's ends face north and south; about z, up and down."""
     half = r * math.tan(math.pi / (2 * k))
     out = []
-    st = min(0.012, (y1 - y0) / (4 * k))
+    st = min(0.012, (a1 - a0) / (4 * k))
     for i in range(k):
-        lo = [c[0] - half, y0 + st * i, c[2] - r]
-        hi = [c[0] + half, y1 - st * i, c[2] + r]
+        if axis == "y":
+            lo, hi = [c[0] - half, a0 + st * i, c[2] - r], [c[0] + half, a1 - st * i, c[2] + r]
+        else:
+            lo, hi = [c[0] - half, c[1] - r, a0 + st * i], [c[0] + half, c[1] + r, a1 - st * i]
         el = box(lo, hi, f"{name}_{i + 1}" if k > 1 else name, part, tex)
         if i:
-            rotate([el], "y", 180.0 * i / k, c)
+            rotate([el], axis, 180.0 * i / k, c)
         out.append(el)
     return out
 
@@ -196,25 +218,17 @@ def ring(r0, r1, y0, y1, name, part, tex):
 
 
 def radial(r0, r1, w, y0, y1, deg, name, part, tex):
-    """A bar from r0 to r1 out from the axis, w across, turned deg about +y from south."""
+    """A bar from r0 to r1 out from the pan's axis, w across, turned deg about +y from south."""
     el = box([CX - w / 2, y0, CZ + r0], [CX + w / 2, y1, CZ + r1], name, part, tex)
     rotate([el], "y", deg, AXIS)
     return el
 
 
-def at_angle(r, deg):
-    """(x, z) at radius r from the axis, deg about +y from south."""
-    return (CX + r * math.sin(deg * DEG), CZ + r * math.cos(deg * DEG))
-
-
-def mirror_x(x0, x1):
-    return (16.0 - x1, 16.0 - x0)
-
-
 # ---------------------------------------------------------------- builders
 def build_stand():
-    """The oak stand: a leg at each corner, an apron on each side and two bearers across under the pan,
-    low rails west and east."""
+    """The oak stand: a leg at each corner, an apron on each side and two bearers across under the pan;
+    low rails west and east, and the bridge-tree across between them under the pan's axis, which carries
+    the spindle's footstep."""
     f = "frame"
     out = []
     for i, (x0, x1) in enumerate(LEG):
@@ -230,89 +244,107 @@ def build_stand():
         out.append(box([a1, BEARER_Y[0], z0], [16.0 - a1, BEARER_Y[1], z1], f"fr_bearer_{i + 1}", f, "oak"))
     out.append(box([a0, LOW_Y[0], inner[0]], [a1, LOW_Y[1], inner[1]], "fr_rail_w", f, "oak"))
     out.append(box([16.0 - a1, LOW_Y[0], inner[0]], [16.0 - a0, LOW_Y[1], inner[1]], "fr_rail_e", f, "oak"))
+    out.append(box([a1, LOW_Y[0], BRIDGE_Z[0]], [16.0 - a1, LOW_Y[1], BRIDGE_Z[1]], "fr_bridgetree", f, "oak"))
     return out
 
 
 def build_pan():
-    """The pan: a 16-sided sheet-iron floor and wall with a beaded rim; the cast-iron step in the middle
-    of its floor, which carries the spindle's foot."""
+    """The pan: a 16-sided sheet-iron floor and wall with a beaded rim; the hollow cast-iron cone in the
+    middle of its floor, through which the spindle rises; a discharge plug low on the wall."""
     f = "frame"
-    out = disc(AXIS, PAN_Y0, FLOOR_TOP, R_FLOOR, "fr_floor", f, "pan", k=8)
+    out = disc("y", AXIS, PAN_Y0, FLOOR_TOP, R_FLOOR, "fr_floor", f, "pan", k=8)
     out += ring(R_IN, R_OUT, WALL_Y0, RIM_TOP, "fr_wall", f, "pan")
     out += ring(BEAD[0], BEAD[1], BEAD[2], RIM_TOP, "fr_rim", f, "pan")
-    out += disc(AXIS, CONE_BASE[1], CONE_BASE[2], CONE_BASE[0], "fr_cone_base", f, "iron")
-    out += disc(AXIS, CONE_NECK[1], CONE_NECK[2], CONE_NECK[0], "fr_cone_neck", f, "iron")
+    out += disc("y", AXIS, CONE_BASE[1], CONE_BASE[2], CONE_BASE[0], "fr_cone_base", f, "iron")
+    out += disc("y", AXIS, CONE_NECK[1], CONE_NECK[2], CONE_NECK[0], "fr_cone_neck", f, "iron")
     # the discharge plug, low on the wall's east face, for drawing the amalgam off: an iron boss, an oak plug
     out.append(box([CX + R_OUT, PLUG[0], CZ - 0.6], [CX + R_OUT + 0.5, PLUG[1], CZ + 0.6], "fr_plug_boss", f, "iron"))
     out.append(box([CX + R_OUT + 0.5, PLUG[0] + 0.2, CZ - 0.4], [CX + R_OUT + 0.9, PLUG[1] - 0.2, CZ + 0.4], "fr_plug_bung", f, "oak"))
     return out
 
 
-def strut(a, b, w, z0, z1, name, part, tex, past=(0.0, 0.0)):
-    """A bar from (x, y) point a to point b, w thick in the x-y plane, from z0 to z1 (built west to east),
-    running on past a and b by `past`."""
-    if b[0] < a[0]:
-        a, b, past = b, a, past[::-1]
-    dx, dy = b[0] - a[0], b[1] - a[1]
-    length = math.hypot(dx, dy)
-    ux, uy = dx / length, dy / length
-    a = (a[0] - ux * past[0], a[1] - uy * past[0])
-    b = (b[0] + ux * past[1], b[1] + uy * past[1])
-    length += past[0] + past[1]
-    mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (z0 + z1) / 2)
-    el = box([mid[0] - length / 2, mid[1] - w / 2, z0], [mid[0] + length / 2, mid[1] + w / 2, z1], name, part, tex)
-    rotate([el], "z", math.degrees(math.atan2(dy, dx)), mid)
-    return el
-
-
-def build_bridge():
-    """The bridge, a shallow cast-iron arch across the rim: a foot on the rim each side (west and east),
-    a half arch from each rising to the crown in two bars, bent where they meet, and at the crown the
-    boss of the spindle's upper bearing."""
-    f = "frame"
-    out = []
-    for s, (x0, x1), sign in (("w", FOOT_X, 1.0), ("e", mirror_x(*FOOT_X), -1.0)):
-        out.append(box([x0, FOOT_Y[0], FOOT_Z[0]], [x1, FOOT_Y[1], FOOT_Z[1]], f"fr_foot_{s}", f, "iron"))
-        pts = [(CX - sign * (CX - x), y) for x, y in ARCH]
-        # each bar runs on past the bend by half its width times the tangent of half the bend, closing the outside corner
-        turn = abs(math.atan2(pts[2][1] - pts[1][1], abs(pts[2][0] - pts[1][0])) - math.atan2(pts[1][1] - pts[0][1], abs(pts[1][0] - pts[0][0])))
-        bend = ARCH_W / 2 * math.tan(turn / 2)
-        out.append(strut(pts[0], pts[1], ARCH_W, *ARCH_Z[0], f"fr_arch_{s}1", f, "iron", past=(0.0, bend)))
-        out.append(strut(pts[1], pts[2], ARCH_W, *ARCH_Z[1], f"fr_arch_{s}2", f, "iron", past=(bend, 0.0)))
-    out += disc(AXIS, BOSS[1], BOSS[2], BOSS[0], "fr_boss", f, "iron")
-    return out
+def build_footstep():
+    """The spindle's lower bearing: a cast-iron footstep on the bridge-tree, which the spindle comes down
+    through to its coupling."""
+    return disc("y", AXIS, LOW_Y[1], LOW_Y[1] + FOOTSTEP[1], FOOTSTEP[0], "fr_footstep", "frame", "iron")
 
 
 def build_muller():
-    """The muller: the spindle; on it the hub with four arms, and above the bridge the crank's hub, its
-    arm and the oak handle. All of it turns with the crank."""
+    """Stage 1, the muller (`requires` muller, fitted from an iron, meteoric iron or steel rod: the rod is
+    the spindle): one body turning about the pan's axis. Over the cone the muller's hub with four arms; the
+    spindle down through the cone, the floor and the footstep; and at its foot, under the bridge-tree, the
+    coupling, the vanilla axle's oak cross profile, which meets the axle in the block below at the block's
+    bottom face. The hub, the arms and the coupling come with the rod, as #718 has the arms come with it."""
     p = "muller"
-    out = disc(AXIS, SPINDLE_Y[0], SPINDLE_Y[1], SPINDLE_R, "muller_spindle", p, "iron")
-    out += disc(AXIS, HUB[1], HUB[2], HUB[0], "muller_hub", p, "iron")
+    out = disc("y", AXIS, SPINDLE_Y[0], SPINDLE_Y[1], SPINDLE_R, "muller_spindle", p, "iron")
+    half, thick, high = COUPLING
+    out.append(box([CX - thick, AXLE_MEET, CZ - half], [CX + thick, AXLE_MEET + high, CZ + half], "muller_couplinga", p, "oak"))
+    out.append(box([CX - half, AXLE_MEET, CZ - thick], [CX + half, AXLE_MEET + high, CZ + thick], "muller_couplingb", p, "oak"))
+    out += disc("y", AXIS, HUB[1], HUB[2], HUB[0], "muller_hub", p, "iron")
     for i in range(4):
         out.append(radial(ARM_R[0], ARM_R[1], ARM_W, ARM_Y[0], ARM_Y[1], ARM_ANGLE0 + 90.0 * i, f"muller_arm{i + 1}", p, "iron"))
-    out += disc(AXIS, CRANK_HUB[1], CRANK_HUB[2], CRANK_HUB[0], "muller_crankhub", p, "iron")
-    out.append(radial(CRANK_R[0], CRANK_R[1], CRANK_W, CRANK_Y[0], CRANK_Y[1], CRANK_ANGLE0, "muller_crank", p, "iron"))
-    hx, hz = at_angle(HANDLE_R, CRANK_ANGLE0)
-    out += disc((hx, 0.0, hz), HANDLE[1], HANDLE[2], HANDLE[0], "muller_handle", p, "oak")
     return out
 
 
 def build_shoes():
-    """The four iron shoes, one under each arm's end, dragging on the floor."""
+    """Stage 2, the shoes (`requires` shoes, fitted from an iron or steel plate): a shoe bolted under each
+    arm's end, standing on the floor, riding the muller. Their texture code is `shoe`, which the renderer
+    sets to the fitted plate's metal. They don't wear: a permanent part, out only when the pan is broken."""
     return [radial(SHOE_R[0], SHOE_R[1], SHOE_W, SHOE_Y[0], SHOE_Y[1], ARM_ANGLE0 + 90.0 * i, f"shoe_{i + 1}", "shoes", "shoe")
             for i in range(4)]
 
 
 def build_contents():
-    """The contents, flat layers on the floor inside the wall: the mercury pool and the amalgam paste."""
-    out = disc(AXIS, CONTENT_Y0, MERCURY_TOP, CONTENT_R, "mercury", "mercury", "mercury", k=8)
-    out += disc(AXIS, CONTENT_Y0, AMALGAM_TOP, CONTENT_R, "amalgam", "amalgam", "amalgam", k=8)
+    """The contents, flat layers on the floor inside the wall: the mercury pool, the charge (a pulp of
+    crushed gold or silver quartz and water, the mercury worked through it) and the amalgam paste."""
+    out = disc("y", AXIS, CONTENT_Y0, MERCURY_TOP, CONTENT_R, "mercury", "mercury", "mercury", k=8)
+    out += disc("y", AXIS, CONTENT_Y0, SLURRY_TOP, CONTENT_R, "slurry", "slurry", "slurry", k=8)
+    out += disc("y", AXIS, CONTENT_Y0, AMALGAM_TOP, CONTENT_R, "amalgam", "amalgam", "amalgam", k=8)
+    return out
+
+
+def water_bands():
+    """The quadrants' z bands from SLOT_HALF out: each band's far corner on the edge's outer circle, its near
+    corner beyond the inner one, so the stepped edge lies in the wall all along."""
+    r0, r1 = WATER_EDGE
+    step = r1 * r1 - r0 * r0 - 0.05
+    bands, z = [], SLOT_HALF
+    last = math.sqrt(r0 * r0 - SLOT_HALF * SLOT_HALF) + 0.05     # the last band's far side, beyond the inner circle at the slot's edge
+    while z < last:
+        nz = min(math.sqrt(z * z + step), last)
+        bands.append((round(z, 4), round(nz, 4), round(math.sqrt(r1 * r1 - nz * nz), 4)))
+        z = nz
+    return bands
+
+
+def build_water():
+    """The water film (`requires` water, riding the muller): drawn in the muller's frame with the shoes on
+    the x and z axes, then turned ARM_ANGLE0 with the arms. Two arms of film along each axis, inside and
+    outside the shoe's slot, small pieces round the open core, and a quadrant between each two shoes, stepped
+    out into the wall. Neighbours lap by 2 WATER_LAP (the rounded shape file's turned boxes would otherwise
+    leave hairline cracks, and the steps T-junctions), each box's top WATER_STEP under the last's."""
+    p, y0, y1 = "water", WATER_Y[0], WATER_Y[1]
+    h, c, (s0, s1), edge = SLOT_HALF, WATER_CORE, SLOT_R, WATER_EDGE[0] + 0.2
+    rects = []                                   # (x0, x1, z0, z1, name) about the axis
+    for sgn, tag in ((1, "s"), (-1, "n")):
+        rects.append((-h, h, *sorted((sgn * c, sgn * s0)), f"in{tag}"))            # along z, inside the slot (to the core)
+        rects.append((-h, h, *sorted((sgn * s1, sgn * edge)), f"out{tag}"))        # along z, outside it (into the wall)
+    for sgn, tag in ((1, "e"), (-1, "w")):
+        rects.append((*sorted((sgn * h, sgn * s0)), -h, h, f"in{tag}"))            # along x, inside the slot
+        rects.append((*sorted((sgn * s1, sgn * edge)), -h, h, f"out{tag}"))
+        rects.append((*sorted((sgn * c, sgn * h)), -c, c, f"core{tag}"))           # by the core, between the z arms
+    for sx, sz, tag in ((1, 1, "se"), (1, -1, "ne"), (-1, -1, "nw"), (-1, 1, "sw")):
+        for k, (z0, z1, x1) in enumerate(water_bands()):
+            rects.append((*sorted((sx * h, sx * x1)), *sorted((sz * z0, sz * z1)), f"{tag}{k + 1}"))
+    g = WATER_LAP
+    out = [box([CX + x0 - g, y0 - k * WATER_STEP, CZ + z0 - g], [CX + x1 + g, y1 - k * WATER_STEP, CZ + z1 + g], f"water_{n}", p, "water")
+           for k, (x0, x1, z0, z1, n) in enumerate(rects)]
+    rotate(out, "y", ARM_ANGLE0, AXIS)
     return out
 
 
 def build():
-    return build_muller() + build_shoes() + build_contents() + build_stand() + build_pan() + build_bridge()
+    return build_muller() + build_shoes() + build_contents() + build_water() + build_stand() + build_pan() + build_footstep()
 
 
 # ---------------------------------------------------------------- rig
@@ -335,11 +367,15 @@ def rig_parts():
 
 def _rig_parts():
     parts = [
-        # theta is the crank's angle: the spindle, and everything keyed on it, turns once a turn of the crank
+        # theta is the spindle's angle: the axle's under power, the hold-to-work clock by hand; the muller turns with it.
+        # #718's fitted stages, in order: the muller (a rod), then its shoes (a plate), which ride it.
         {"id": "muller", "match": ["muller_*"], "requires": "muller",
-         "drivers": [{"type": "rotate", "axis": "y", "pivot": pt(CX, 0.0, CZ), "ratio": 1.0}]},
-        {"id": "shoes", "match": ["shoe_*"], "requires": "shoes", "ride": "muller", "drivers": []},
+         "drivers": [{"type": "rotate", "axis": "y", "pivot": pt(CX, 0.0, CZ), "ratio": GEAR_RATIO}]},
+        {"id": "shoes", "match": ["shoe_*"], "requires": "shoes", "drivers": [], "ride": "muller"},
         {"id": "mercury", "match": ["mercury_*"], "requires": "mercury", "drivers": []},
+        {"id": "slurry", "match": ["slurry_*"], "requires": "slurry", "drivers": []},
+        # the water film over the charge: it rides the muller, cut away round the shoes (build_water)
+        {"id": "water", "match": ["water_*"], "requires": "water", "drivers": [], "ride": "muller"},
         {"id": "amalgam", "match": ["amalgam_*"], "requires": "amalgam", "drivers": []},
         {"id": "frame", "match": ["fr_*"], "requires": None, "drivers": []},
     ]
@@ -351,8 +387,8 @@ def _rig_parts():
 
 
 # ---------------------------------------------------------------- poses
-# A pose is (theta, contents): contents 0 empty, 1 mercury, 2 amalgam (which layer is drawn; the rig has
-# no input for it: each is a requires value that gameplay fits or not).
+# A pose is (theta, contents): contents 0 empty, 1 mercury, 2 slurry, 3 amalgam, 4 slurry under its water film (which
+# layers are drawn; the rig has no input for it: each is a requires value that gameplay fits or not).
 REST = (0.0, 0)
 
 
@@ -364,18 +400,19 @@ def pm(parts, pid, pose):
     return _part_matrix(parts, pid, inputs_of(pose), None)
 
 
-def turn_poses(step_deg=5.0, contents=(0, 1, 2)):
-    """A whole turn of the crank every step_deg, with each contents."""
+CONTENT_PARTS = ("mercury", "slurry", "water", "amalgam")
+SHOWS = {0: (), 1: ("mercury",), 2: ("slurry",), 3: ("amalgam",), 4: ("slurry", "water")}
+
+
+def turn_poses(step_deg=5.0, contents=tuple(SHOWS)):
+    """A whole turn of the spindle every step_deg, with each contents."""
     n = int(round(360.0 / step_deg))
     return [(i * step_deg * DEG, c) for c in contents for i in range(n)]
 
 
 def on_show(part, contents):
-    """Whether a part can be seen with these contents: each layer only as itself."""
-    for idx, pid in CONTENTS:
-        if part == pid:
-            return contents == idx
-    return True
+    """Whether a part can be seen with these contents: each layer only in its own, the water only over the charge."""
+    return part not in CONTENT_PARTS or part in SHOWS[contents]
 
 
 # ---------------------------------------------------------------- the rig file
@@ -388,11 +425,18 @@ ANCHORS = ("pan",)
 
 def make_rig(parts):
     return {
-        "_comment": f"Generated by {SCRIPT}. Native frame, block units, one cell, the controller [0,0,0]: the pan. A hand "
-                    "station: no power cell, no work. theta is the crank's angle, the hold-to-work clock: the muller (and "
-                    "the shoes riding it) turns by it about the pan's axis, ratio 1. The contents are requires values: "
-                    "mercury and amalgam, one drawn at a time. See the amalgam pan's README for the schema.",
+        "_comment": f"Generated by {SCRIPT}. Native frame, block units, one cell, the controller [0,0,0]: the pan. Worked "
+                    "as the quern is, both ways: a vanilla axle in the block below comes up into the pan's down face "
+                    "(powerCell, powerFace), or the player holds right-click on it; no work. theta is the spindle's angle, the "
+                    "axle's or the hold-to-work clock: the muller turns by it about the pan's axis (y), ratio 1, and the shoes "
+                    "ride it. The fitted stages are requires values, in order: muller (a rod: the spindle, its coupling, hub and "
+                    "arms), then shoes (a plate; texture code shoe, the plate's metal). So are the contents: mercury, slurry (the "
+                    "charge) and amalgam, one drawn at a time, and water, a film over the charge, which rides the muller, cut "
+                    "away round the shoes. Nothing goes in or out but by hand: no infeed or output. See the "
+                    "amalgam pan's README for the schema.",
         "cells": [],
+        "powerCell": list(POWER_CELL),
+        "powerFace": POWER_FACE,
         "operatorSide": "north",
         "pan": {"pos": pt(CX, FLOOR_TOP, CZ)},
         "parts": parts,
@@ -415,6 +459,7 @@ def shipped(els, parts, rig):
                     drv[key] = [r6(drv[key][k] + db[k]) for k in range(3)]
     ship = copy.deepcopy(rig)
     ship["cells"] = [{**c, "pos": shift_cell(c["pos"], ORIGIN_CELL)} for c in rig["cells"]]
+    ship["powerCell"] = shift_cell(rig["powerCell"], ORIGIN_CELL)
     for key in ANCHORS:
         ship[key] = {"pos": shift_point(rig[key]["pos"], db)}
     ship["parts"] = ship_parts
@@ -440,7 +485,7 @@ def shipped_cells(shape, ship_parts):
 
 def check_shipped(els, parts, ship_els, ship_parts, ship):
     d = [-ORIGIN_CELL[k] * B for k in range(3)]
-    poses = [REST, (0.7, 1), (2.9, 2), (-1.3, 0), (13.0, 1)]
+    poses = [REST, (0.7, 1), (2.9, 2), (-1.3, 0), (13.0, 3), (5.1, 4)]
     worst = worst_shift_error(els, ship_els, lambda el, pose: pm(parts, el.part, pose),
                               lambda el, pose: _part_matrix(ship_parts, el.part, inputs_of(pose), None), d, poses)
     cells = [tuple(c["pos"]) for c in ship["cells"]]
@@ -461,7 +506,7 @@ def reference_json(ship_parts):
         mats = {q["id"]: round_matrix(_part_matrix(ship_parts, q["id"], {"theta": th}, None)) for q in ship_parts}
         poses.append({"theta": th, "matrices": mats})
     return {"_comment": f"Generated by {SCRIPT}; do not edit. Every amalgam pan part's matrix (blocks, first three rows) "
-                        "at a spread of crank angles, from the generator's reference maths "
+                        "at a spread of shaft angles, from the generator's reference maths "
                         "(Machines/tools/machinegen/rigmath.py). The site's and the mod's tests check their rig maths against it.",
             "poses": poses}
 
@@ -469,14 +514,15 @@ def reference_json(ship_parts):
 # ---------------------------------------------------------------- shape files
 def shape_json(els):
     return machine_shape_json(
-        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. The shoes' texture code is "
-             "'shoe', so a renderer can set it to the fitted metal; 'mercury' is the mod's own provisional texture. Keep "
-             "element names when editing: the rig finds its parts by them.",
+        els, f"Generated by {SCRIPT}. Every element was made for the Seraph Horizons mod. 'mercury' is drawn as Expanded "
+             "Matter draws it (README), 'slurry' is the mod's own texture, 'shoe' is set by the renderer to the fitted "
+             "plate's metal, 'water' is the game's water portion. Keep element names when editing: the rig finds its parts by them.",
         TEXTURES, tex_size=TEX)
 
 
 def coplanar_poses():
-    return (REST, (0.0, 1), (0.0, 2), (0.3, 1), (45.0 * DEG, 2), (1.2, 0), (2.0, 1), (22.5 * DEG, 2), (math.pi / 2, 1))
+    return (REST, (0.0, 1), (0.0, 2), (0.0, 3), (0.3, 1), (45.0 * DEG, 2), (1.2, 0), (2.0, 3), (22.5 * DEG, 2), (math.pi / 2, 1),
+            (1.0, 3), (0.0, 4), (0.3, 4), (11.25 * DEG, 4), (45.0 * DEG, 4))
 
 
 def shown(posed_els, pose):
@@ -495,7 +541,7 @@ def fix_coplanar(els, parts):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Generate the amalgam pan's shapes, rig, reference poses and mercury texture.")
+    ap = argparse.ArgumentParser(description="Generate the amalgam pan's shapes, rig, reference poses and slurry texture.")
     ap.add_argument("--out", type=Path, help="write the five files into this directory instead of the mod's assets and tests")
     ap.add_argument("--quick", action="store_true", help="skip the z-fighting fix and the slow checks (not for files that ship)")
     args = ap.parse_args()
@@ -514,7 +560,7 @@ def main():
     if args.out:
         outs = (args.out / "amalgampan.json", args.out / "amalgampan_frame.json", args.out / "amalgampan-rig.json",
                 args.out / "rig-reference.json")
-        texture = args.out / "mercury.png"
+        texture = args.out / "slurry.png"
     else:
         outs = (SHAPE_DIR / "amalgampan.json", SHAPE_DIR / "amalgampan_frame.json", RIG_DIR / "amalgampan-rig.json", REFERENCE_OUT)
         texture = TEXTURE_OUT
@@ -529,7 +575,7 @@ def main():
         json.loads(path.read_text())
         print(f"wrote {path} ({path.stat().st_size // 1024} KiB)")
     texture.parent.mkdir(parents=True, exist_ok=True)
-    texture.write_bytes(mercury_texture.png_bytes())
+    texture.write_bytes(slurry_texture.png_bytes())
     print(f"wrote {texture} ({texture.stat().st_size} bytes)")
     if not (check_shipped(els, parts, ship_els, ship_parts, ship) and ok):
         sys.exit(1)

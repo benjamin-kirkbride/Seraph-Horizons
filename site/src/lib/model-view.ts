@@ -78,13 +78,37 @@ const TEXTURE_FAMILIES: [RegExp, string][] = [
   [/glass/, "#cfe3ea"],
   [/^oil\b|honey|lubric/, "#c8902a"],
   [/oak|wood|plank|log|debarked|bark|timber/, "#b88a58"],
-  // Contents that would otherwise take the metal colour of the pan they lie in (the amalgam pan's).
-  [/mercury|quicksilver/, "#dce2ea"],
+  // Contents that would otherwise take the metal colour of the pan they lie in (the amalgam pan's): mercury
+  // as Expanded Matter draws it (the game's andesite with its kimberlite blended over it, Lighten) and the
+  // charge's grey-brown slurry, each its texture's mean; the amalgam a warm grey.
+  [/mercury|quicksilver/, "#768085"],
+  [/slurry/, "#7a7369"],
   [/amalgam/, "#b0aa9c"],
+  // Water (the game's water portion: the rocker's, the amalgam pan's film), which would otherwise take a colour hashed from its code.
+  [/water/, "#6f9fcf"],
+  // The game's gravel and sand (the arrastra's charge and its paste), which would otherwise take the stone colour of the pit.
+  [/\/gravel\//, "#837b6d"],
+  [/\/sand\//, "#b9ae95"],
+  // The cupellation furnace's test and fire, told apart from the brick and iron round them.
+  [/ingot\/lead\b/, "#5f6875"],
+  [/ingot\/silver/, "#dfe3e6"],
+  [/litharge|crushed\/limonite/, "#d98a2b"],
+  [/boneash|crushed\/lime\b/, "#eeece4"],
+  [/coal\/ember/, "#e2622a"],
+  [/coal\/(bituminous|coke|charcoal)/, "#34302e"],
+  // The Parkes kettle's crust (zinc, silver and lead skimmed off the bath) and its zinc, both drawn with the zinc
+  // ingot's texture, apart from the lead bath's grey. The crust first: its texture path names zinc too.
+  [/\bcrust\b/, "#a8946c"],
+  [/zinc/, "#c2d0d8"],
   [/metal|iron|steel|copper|bronze|tin|plate|ingot|gold|silver/, "#8e98a4"],
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],
   [/stone|rock|granite|andesite|cobble|brick|clay/, "#9a9a92"],
   [/leather|hide/, "#8a5a3c"],
+  // A roasting charge (the stall roaster's): the rock, burning, roasted to oxide, and its sulfur.
+  [/\bember/, "#b8461c"],
+  [/hematite|roasted/, "#7a5047"],
+  [/sulfur|sulphur/, "#e6d48c"],
+  [/galena|sphalerite/, "#6e6e6e"],
 ];
 
 /** A colour for a texture: by its material when the code or path names one, else hashed from the code. */
