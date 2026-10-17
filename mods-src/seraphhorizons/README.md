@@ -3555,7 +3555,14 @@ keeps every member within a layer of the highest with blocks left, so it walks f
 to anywhere else. *When none may work*: with blocks left and no member able to take a station, the plan
 is made again at once, once until a block is broken; with another still working or parked over the area,
 it waits; with nothing changing for 30 seconds and no other eidolon over the area, the job is done, the
-rest reported left. What is skipped is shared (`MineJobCells.Skip`), and what is out of reach is the
+rest reported left. No member waits on another for good: one that finds no way to a stand (or arrives short
+of it) with another eidolon within 3 blocks of it lets the station go and waits, but only 3 times at that
+stand, by any member, since the job's last strike (`MineJobCells.BlockedStands`); the 4th the stand is bad
+all the same and the plan made again (three once waited by a stand none could get onto, each taking it,
+failing and taking it again, with nothing in the log, for 40 minutes). Each member keeps
+why it last let go of a station (`MineOrder.DebugState`, in `/sh eidolon info`), and a run of them for one
+reason with no strike that goes on 30 seconds is logged at Debug (`[eidolon-mine]`), at most every 30
+seconds. What is skipped is shared (`MineJobCells.Skip`), and what is out of reach is the
 plan's, the same for all. *Waiting at the rim*: one with no station it may take (all held by
 others, under another, or of a band whose turn has not come) frees its columns and walks to a place on the area's rim (`EidolonTeamwork.Rim`: its box two columns clear of the
 area first, the miners' stands being at most one, then one and none; the nearest with ground under it,
@@ -3615,7 +3622,9 @@ wide into a hillside, a 2-wide lane each, side by side and never closer than the
 only in its own, one report) and `tests/PackTests/EidolonTeamWaitScenarios.cs` (Atlas: an
 eidolon with no order standing in the area never mined out from under, waited for, and its blocks mined
 once it moves, no pillar left; one dry when the job is reported going back once oiled with no report of
-its own; one with no station free waiting at the rim).
+its own; one with no station free waiting at the rim; three finding no way to a pillar's stands with
+another eidolon waiting by one, the stand given up after its tries and the job reported, by routes and by
+today's dispatch).
 
 *Felling together* (`FellOrder`, `EidolonJobSystem.Felling`) works the same way with a tree for the unit:
 a feller reserves the tree it makes for (its stump) before it sets off, again as it comes to swing (a
@@ -3795,7 +3804,8 @@ creature has: its body build takes the elucidatory vessel, a boss drop with no v
 **For testing.** The creative spawner `seraphhorizons:creature-eidolon` (creative tabs only, no
 recipe; the eidolon it places is fitted at random, any allowed material in every layer), and `/sh eidolon` (controlserver), on the eidolon nearest within 64 blocks: `spawn [player]`
 (one in front of you, owned, charged, waking), `come [run]`, `stay`, `clear`, `charge <days>`,
-`health <hp>`, `oil <points>`, `info`, and `mineplan [dump|draw|clear]`: its mining job's routes (*Routes*
+`health <hp>`, `oil <points>`, `info` (with a mining order, also its plan's version, what it is doing and why it
+last let go of a station: `MineOrder.DebugState`), and `mineplan [dump|draw|clear]`: its mining job's routes (*Routes*
 above), `dump` each member's stops (station, place, cells, when it sets off, starts and finishes), the narrow
 ways and their slots and the last repairs, to chat and the server log; `draw` them as outlines for you (each
 member's stands and ways in its colour, its head brighter, the narrow ways yellow; a snapshot, drawn again
