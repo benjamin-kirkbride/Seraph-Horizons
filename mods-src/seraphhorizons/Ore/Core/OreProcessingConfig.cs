@@ -11,20 +11,38 @@ public sealed class OreProcessingConfig
     /// <summary>Units of metal in one concentrate item (a nugget's 5).</summary>
     public double ConcentrateUnits { get; set; } = 5;
 
-    /// <summary>Base recovery per <see cref="Concentrator"/>, keyed by its lower-case name.</summary>
-    public Dictionary<string, double> Concentrators { get; set; } = new();
+    /// <summary>The hand stations' figures (#765), keyed by lower-case name: the gold pan and rocker
+    /// (concentrate), the amalgam pan (free metal caught as amalgam), the firepit (roasting), the bone-ash
+    /// cupel and clay liquation pan (parting).</summary>
+    public Dictionary<string, double> HandStations { get; set; } = new();
 
+    /// <summary>Locked shares, applied once (#765): feed that skipped classifying, poor feed not ground,
+    /// free gold and silver not amalgamated.</summary>
     public double Unclassified { get; set; } = 1;
     public double FineUnground { get; set; } = 1;
     public double FreeUnamalgamated { get; set; } = 1;
 
-    /// <summary>Recovery per <see cref="Roaster"/>, keyed by its lower-case name.</summary>
-    public Dictionary<string, double> Roasters { get; set; } = new();
+    /// <summary>Per <see cref="OreMachine"/>, keyed by its lower-case name (#765).</summary>
+    public Dictionary<string, MachineEntry> Machines { get; set; } = new();
 
-    /// <summary>A by-product's recovery per <see cref="PartingMethod"/> and then per
-    /// <see cref="OreTier"/> (<c>hand</c>, <c>tier1</c>..<c>tier4</c>); a tier left out has no
-    /// station.</summary>
-    public Dictionary<string, Dictionary<string, double>> Parting { get; set; } = new();
+    public sealed class MachineEntry
+    {
+        /// <summary>Its recovery (a share); 1 for a machine that loses nothing.</summary>
+        public double Recovery { get; set; } = 1;
+        /// <summary>Working resistance; 0 for a machine with no axle.</summary>
+        public double Load { get; set; }
+        /// <summary>Resistance empty.</summary>
+        public double EmptyLoad { get; set; }
+        /// <summary>Litres an item from its reservoir.</summary>
+        public double Water { get; set; }
+        /// <summary>Items an hour at the reference speed (continuous machines).</summary>
+        public double PerHour { get; set; }
+        /// <summary>A batch machine's charge, and its hours at the reference speed.</summary>
+        public int Charge { get; set; }
+        public double ChargeHours { get; set; }
+        /// <summary>The Parkes kettle's share of its zinc returned.</summary>
+        public double ZincReturn { get; set; }
+    }
 
     /// <summary>The share of its units each <see cref="OreForm"/> that is not rock smelts to, keyed by
     /// its lower-case name.</summary>
