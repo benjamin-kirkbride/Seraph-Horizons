@@ -115,6 +115,16 @@
     "HammerWearPerBlow": 1
   },
   "FirepitRoastSeconds": 10.0,
+  "AmalgamPan": true,
+  "AmalgamPanSettings": {
+    "ChargeItems": 16,
+    "WaterLitresPerCharge": 4.0,
+    "TurnsPerItem": 1.0,
+    "HandTurnsPerSecond": 0.6666666666666666,
+    "MercuryCapacityPortions": 500,
+    "WorkingResistance": 0.1,
+    "IdleResistance": 0.005
+  },
   "TraderSchematics": true,
   "MachineSchematics": true,
   "TraderOrders": true,
