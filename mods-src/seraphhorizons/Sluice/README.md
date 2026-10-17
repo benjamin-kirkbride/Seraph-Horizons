@@ -7,8 +7,8 @@ carrying it in a stream of water; the heavy grains settle behind the riffles. He
 off continuously** and leaves by its own chute: nothing is cleaned up by hand (the owner's
 ruling on #734). The line, the glossary and the period sources are #939; the power and water budget #940.
 
-**Status: model only.** This folder's `tools/` holds the model's generator and its checks. The gameplay is #734
-and is not built; "Gameplay", below, says what the rig offers it.
+**Status: built.** This folder's `tools/` holds the model's generator and its checks; `Game/` the gameplay (#734,
+"Gameplay" below), on the ore machines' shared code (`Machines/`).
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/` or `Pipes/`, this folder's neighbours. The generic half of the
@@ -78,8 +78,22 @@ trestles.
 | `pipecopper`, `pipelead` | `pipecopper`, `pipelead` | The water inlet, its riser and nozzle, soldered, in copper or in lead: the same elements, one drawn |
 | `concentrate` | `concentrate` | The concentrate while the sluice runs: a bed behind each riffle over its slot, a sheet falling through each slot, a layer running down the launder and a stream falling off its end down the concentrate chute |
 
-The build stages (what the frame is made of, what each stage takes) are not designed yet: the ids split the
-sluice where a stage could, and the stages are worked out with the owner afterwards (`Open for the owner`).
+## Build stages
+
+Measured from the model (#734's gameplay, pending the owner's word: `Open for the owner`), as the jig's were: boards in
+planks at 128 vox, timbers in support beams at 256, iron 4 nails and strips an ingot of 128 vox, plus 1 iron nails and
+strips per 4 planks' worth of timber (a support beam 2), the chute and pipe sections counted. The frame is all the
+timber, so there is no timber stage: its grid recipe holds it within the grid limit. Then each stage is fitted in order
+by right-click (`config/builds/sluice.json`, the rig's `buildStages`), and the sluice runs only when the last is in.
+
+| # | Stage | `requires` | Sits on | Materials |
+|---|---|---|---|---|
+| F | The frame: the head box, the sluice box and tail board, the concentrate launder, the legs, bearers and trestles | none (placed) | The ground | 8 plank (998 vox of boards), 2 support beam (431 vox of timbers), 3 iron nails and strips, a hammer |
+| 1 | The riffles | `riffles` | The sluice box's floor | 1 support beam (the seven oak bars, 47 vox), 1 iron nails and strips (their straps, 11 vox) |
+| 2 | Services | `infeedchute`, `tailingschute`, `concentratechute`, `pipecopper` or `pipelead` | The head box's mouth; the tail; between the outlet trestle's legs; up through the head box's floor | 3 straight chute, 1 pipe section (copper or lead), 1 iron nails and strips |
+
+The water inlet is a choice of metal (one part each, the same elements). The concentrate (`concentrate`) is what the
+sluice draws while it works, in no stage; nothing in it wears out.
 
 ## Model
 
@@ -264,7 +278,7 @@ shared rig maths.
 - **Inputs.** None. Every part's `drivers` is empty and its `ride` null.
 - **Keys.** `cells` (four, each with its boxes), `infeedCell`/`infeedFace`, `waterCell`/`waterFace`,
   `tailingsCell`/`tailingsFace`, `concentrateCell`/`concentrateFace`, the points `feedSpout`, `waterSpout`,
-  `concentrateSpout`, and `parts`. `requires` values: `riffles`, `infeedchute`, `tailingschute`, `concentratechute`,
+  `concentrateSpout`, `buildStages` (each stage's number, name and `adds`, the generator's `BUILD_STAGES`), and `parts`. `requires` values: `riffles`, `infeedchute`, `tailingschute`, `concentratechute`,
   `pipecopper`, `pipelead`, `concentrate`, or null. The texture code a renderer may set: `concentrate` (the ore's look).
 
 **In the viewer** (`site/models.json`, `sluice`): the riffles and the three chute sections are checkboxes, the
@@ -340,15 +354,16 @@ or in a browser with WebGL (the standalone viewer's controls were checked headle
    1.6 deep; every riffle has one (the riffles closed up to a pitch of 3.5 from 4 so the seven fit before the outlet).
 5. **The riffles' iron straps** (Hungarian riffles) are new: iron for the wearing surface. Plain oak bars, as v2's,
    if they are not wanted.
-6. **The chute sections as fitted parts** (`infeedchute`, `tailingschute`, `concentratechute`), so a renderer can
-   draw each only while a chute is there, or as stages; they could be the frame's instead.
+6. **The chute sections as fitted parts** (`infeedchute`, `tailingschute`, `concentratechute`): all three go in with
+   the services stage, so each is drawn once it is fitted.
 7. **The concentrate's texture** (basalt sand, its own code for a renderer to set to the ore's), and drawing it only
    while the sluice runs (`concentrate`).
 8. **No lid** over the cells: the channel is narrower than a player, and the boxes are the deck. The press brake and
    the amalgam pan have one.
-9. **Build stages** (open on #735): the frame recipe, the stages and their materials, measured from the model, as
-   the crucible furnace's were. The `requires` ids split the sluice where a stage could: the riffles, each chute
-   section, the water inlet.
+9. **Build stages** (open on #735): set by the gameplay (#734) from the model ("Build stages" above): the frame is
+   all the timber (8 planks, 2 support beams, 3 nails and strips), then the riffles, then the services. A timber stage
+   like the jig's would need the frame split under a new `requires`, a model change; the frame fits the grid limit as
+   it is.
 10. **The anchors are provisional pending #711** (the shared chute, reservoir and water code): their names
     (`infeedCell`/`Face`, `tailingsCell`/`Face`, `concentrateCell`/`Face`, `waterCell`/`Face`).
 11. **No C# rig test and no reference poses**: nothing moves, so there is nothing for the shared maths to compute; a
@@ -356,19 +371,32 @@ or in a browser with WebGL (the standalone viewer's controls were checked headle
 
 ## Gameplay
 
-Not built: #734 (crushed or ground rock and placer gravel in, r = 0.55, 16 rock an hour, 10 L of water a rock from a
-20 L reservoir; the concentrate out by its chute as it is caught, continuously, and the tailings by theirs, or
-discarded as gravel). What the rig offers it:
+Built (#734; `Game/`, switch `Sluice`, which needs `OreProcessing`). The frame is the shared ore machine block
+(`seraphhorizons:sluice-{side}`, class `seraphhorizons.OreMachine`, its block type `blocktypes/sluice/frame.json`), its
+cells the shared ones, its block entity `BESluice` on `BEOreMachine` (`Machines/Game/`): the staged build, the
+reservoir, the infeed, the chutes out and the tailings heap are the shared code's; the sluice adds what it washes,
+its clock and its products.
 
-- **Placement.** The controller is the head cell; the sluice runs away from the player (`side` the way they look, as
-  the press brake's), four cells long. The infeed face is the head's top, the water face its north end; the
-  tailings face is the tail's south end, each turned with the facing; the concentrate face is cell 2's bottom,
-  whatever the facing.
-- **Outputs.** Two chute outputs in different cells and on different faces: `concentrateCell`/`concentrateFace`
-  (`[0,0,2]`, `down`) for the concentrate, into whatever lies under that cell (a vanilla chute, which takes items from
-  above), and `tailingsCell`/`tailingsFace` (`[0,0,3]`, `south`) for the tailings.
-- **Parts.** The frame shape is the block's. A renderer draws the parts whose `requires` are fitted: the riffles, the
-  chute sections, the supplied metal's inlet, and `concentrate` while the sluice runs. No part moves, so a renderer
-  needs no clock: the parts could as well be tessellated into the block's mesh when they change.
-- **Points.** `feedSpout` (ore falling into the box), `waterSpout` (the nozzle) and `concentrateSpout` (the launder
-  pouring down into the concentrate chute).
+- **Placement.** The head (the controller) is the block clicked; the sluice runs away from the player, four blocks.
+  The block under cell 2 is the concentrate's: a chute laid to take from above, or a container. The water face is the
+  head's north end (nearest the player), the infeed its top, the tailings face the tail's south end.
+- **Feed.** Crushed or ground ore (`seraphhorizons:crushedore-*`, `groundore-*`, with whatever state they carry:
+  riddled, amalgamated, a concentrator's tailings), Wilderlands Panning's rich gravel (`game:richgravel-{rock}`) and
+  Geology Additions' bog iron (`game:stone-bogiron`), by a chute into the head's top face or by hand (right-click).
+  Raw ore needs breaking first.
+- **Work.** No power: with an item's water (10 L, `machines.sluice.water`) in its reservoir, filled from a ppex pipe on
+  the water face at up to 10 L/s (20 L), it washes 16 rock an in-game hour (`machines.sluice.perHour`), counted in
+  in-game hours (`WorkHours`). Each item is one pass of the recovery core (`ConcentratorWash`, `OreRecovery.Concentrate`,
+  r = 0.55): crushed or ground ore its ore's concentrate (the locked shares applied at this first concentrator);
+  rich gravel the gold pan's table at 0.55 / 0.45 of the pan (nuggets, no one-item cap), its stones and flint at the
+  pan's rate (`PlacerLine`, `PlacerTable`, #701); bog iron limonite concentrate (14 units a stone). Whole items leave
+  by the concentrate chute, the rest carried to the next item (`UnitCarry`, saved with it).
+- **Tailings.** The item goes on as tailings, the same item carrying what is left (`oreUnits`, `oreLocked`,
+  `oreWorked`), by the tailings chute to the jig, or, with nothing beyond the tail face, onto a heap of gravel in its
+  rock beside the tail, a layer a rock (#694).
+- **Drawn.** The renderer (the shared `OreMachineRenderer`) draws each part once its stage is in, the supplied metal's
+  inlet, and the concentrate in the riffles while the sluice works.
+- **Bog iron** (#701, the owner's ruling of 2026-10-14): with the switch on, its block drops exactly one stone and
+  the stone loses its raw smelt to a bloom (`SluiceSystem.BogIronOnTheLine`).
+- **Recipe browser.** A `sluice` record per feed item (`RecipeSection.Sluice.cs`, `SluiceSystem.ExportYields` by
+  reflection), and the shared `construction` record of its build.
