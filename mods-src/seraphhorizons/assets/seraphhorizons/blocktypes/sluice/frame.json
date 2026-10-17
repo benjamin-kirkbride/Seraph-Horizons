@@ -1,0 +1,78 @@
+// The sluice's frame (Sluice/, README "Sluice"; #734): the head cell of a riffled plank sluice four
+// blocks long, nearest the player who placed it; the sluice runs away from them. The shared ore machine
+// block (Machines/Game/OreMachineBlocks.cs); its stages are fitted by right-click
+// (config/builds/sluice.json). The server disables it with Sluice or OreProcessing off.
+{
+	code: "sluice",
+	class: "seraphhorizons.OreMachine",
+	entityClass: "seraphhorizons.Sluice",
+	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the sluice runs away
+	// from the player, its head box (the controller) nearest them.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/sluice_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/sluice_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/sluice_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/sluice_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the stages' parts (sluice.json), which the renderer draws
+	// with this block's textures. The concentrate is a dark heavy sand.
+	textures: {
+		"oak":         { base: "game:block/wood/debarked/oak" },
+		"planks":      { base: "game:block/wood/planks/oak1" },
+		"iron":        { base: "game:block/metal/plate/iron" },
+		"chute":       { base: "game:block/metal/sheet/copper1" },
+		"pipecopper":  { base: "game:block/metal/sheet-plain/copper4" },
+		"pipelead":    { base: "game:block/metal/sheet-plain/lead4" },
+		"concentrate": { base: "game:block/stone/sand/basalt" }
+	},
+	attributes: {
+		oreMachine: { machine: "sluice", extraRequires: ["concentrate"] },
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:sluice-handbook-build-title", text: "seraphhorizons:sluice-handbook-build-text" },
+				{ title: "seraphhorizons:sluice-handbook-work-title", text: "seraphhorizons:sluice-handbook-work-text" },
+				{ title: "seraphhorizons:sluice-handbook-water-title", text: "seraphhorizons:sluice-handbook-water-text" },
+				{ title: "seraphhorizons:sluice-handbook-tailings-title", text: "seraphhorizons:sluice-handbook-tailings-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:sluice-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame runs four blocks along native z from the controller (z 0..4); the -north item form turns
+	// it 180°, its mesh z -3..1, so the item forms turn about its middle (0.5, 0.5, -1).
+	tpHandTransform: {
+		translation: { x: -1.6, y: -1.2, z: 3 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0.5, z: -1 },
+		scale: 0.25
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.5, z: -1 },
+		scale: 0.45
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: -1 },
+		scale: 0.9
+	},
+	maxStackSize: 1,
+	resistance: 3,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}
