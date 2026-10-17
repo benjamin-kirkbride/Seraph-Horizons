@@ -93,13 +93,14 @@ group of `requires`, fitted in order, its fits in order, services last. The rig'
 (`BUILD_STAGES` in `make_shape.py`), and the viewer's Build stage select has one state a stage, named for it
 (`BUILD_STATES`), with the water pipe's metal a select of its own once services are in. Materials are the
 "Current figures" of the stages proposal (metal measured and paid at 128 vox an ingot, a plate 2 ingots;
-boards in planks at 128 vox, timbers in support beams at 256); "~" marks a guess or a choice of item.
+boards in planks at 128 vox, timbers in support beams at 256;
+plus 1 iron nails and strips per 4 planks' worth of timber (a support beam 2), for the fastenings); "~" marks a guess or a choice of item.
 
 | # | Stage (state id) | `requires` | Materials |
 |---|---|---|---|
 | F | Bed, pedestals, bearings, the pinion's pillow blocks (`frame`), placed | — | 2 stone brick block (granite bed), 4 iron plate, 5 iron nails and strips |
 | 1 | Drum (`drum`) | `drum` | 17 iron plate |
-| 2 | Gearing (`gearing`): the girth wheel, then the pinion meshing it | `girth`, `pinion` | 1 `game:spurgear-s` (wooden girth wheel), 1 plank (its hub and arms), 2 iron nails and strips (its iron tyre, 42 vox), 1 `seraphhorizons:gear-stainless` (pinion), 1 steel rod (pinion shaft) |
+| 2 | Gearing (`gearing`): the girth wheel, then the pinion meshing it | `girth`, `pinion` | 1 `game:spurgear-s` (wooden girth wheel), 1 plank (its hub and arms), 3 iron nails and strips (2 the iron tyre, 1 the wheel's timber), 1 `seraphhorizons:gear-stainless` (pinion), 1 steel rod (pinion shaft) |
 | 3 | Screens (`screens`) | `screens` | 13 iron chain (fine cloth, 1,609 vox²), 12 iron chain (coarse screen, 1,475 vox²), 1 iron plate |
 | 4 | Sheet iron (`sheetiron`): the discharge hopper, then the feed box | `hopper`, `feedbox` | 4 iron plate, 12 iron nails and strips (the hopper's 2 and 7 and the feed box's 2 and 5, merged) |
 | 5 | Services (`services`): the chute sections and the water pipe | `chutes`, `pipecopper` or `pipelead` (a choice) | 2 chute section, 2 pipe section (copper or lead) |
