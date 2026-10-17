@@ -478,6 +478,19 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>Sluice</c>: no sluice frame and no recipe for it, and bog iron as Geology Additions makes
+    /// it: its stone smelts to a bloom.</summary>
+    [AtlasScenario]
+    public void Sluice_off_there_is_no_sluice_and_bog_iron_blooms()
+    {
+        Assert.True(Off("Sluice"));
+        Assert.False(SeraphHorizons.Mod.Sluice.SluiceSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("sluice"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("sluice") == true);
+        if (W.GetItem(new AssetLocation(SeraphHorizons.Mod.Ore.Core.PlacerFeed.BogIronCode)) is { Id: > 0 } bog)
+            Assert.NotNull(bog.CombustibleProps);
+    }
+
     /// <summary><c>PressBrake</c>: no press brake blocks and no recipe for its frame, no link to it in
     /// the mod's own text, and nothing logged about it. The angles it makes are UnifiedPipes' items
     /// (here off too); the half plates it folds are the squaring shear's (here off too).</summary>
