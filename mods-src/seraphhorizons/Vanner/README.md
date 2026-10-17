@@ -73,16 +73,16 @@ tailings boxes with their spouts. The rest:
 **Build stages** (owner, 2026-10-15; `BUILD_STAGES`, the rig's `buildStages`). The frame is placed, with no
 `requires`; then each stage is one `requires` group, fitted in order, and the vanner runs once it is complete.
 The materials are the measured figures of the stages proposal ("Current figures": 128 voxels of iron or steel
-an ingot, rods first, then whole plates, then nails and strips at 4 an ingot; boards in planks at 128 vox, timbers in support beams at 256).
+an ingot, rods first, then whole plates, then nails and strips at 4 an ingot; boards in planks at 128 vox, timbers in support beams at 256; plus 1 iron nails and strips per 4 planks' worth of timber (a support beam 2), for the fastenings).
 
 | # | Stage | `requires` | Materials |
 |---|---|---|---|
-| F | The frame (placed) | none | 2 iron nails and strips, 1 steel nails and strips, 5 plank |
-| 1 | The countershaft | `countershaft` | 2 steel rod, 1 plank |
-| 2 | The shaking frame | `shaker` | 4 iron nails and strips, 1 steel nails and strips, 2 plank |
-| 3 | The rollers and creep | `rollers`, `creep` | 1 stainless gear (the worm wheel), 1 iron nails and strips, 1 steel rod, 2 steel nails and strips, 5 plank |
+| F | The frame (placed) | none | 4 iron nails and strips, 1 steel nails and strips, 5 plank |
+| 1 | The countershaft | `countershaft` | 2 steel rod, 1 iron nails and strips, 1 plank |
+| 2 | The shaking frame | `shaker` | 5 iron nails and strips, 1 steel nails and strips, 2 plank |
+| 3 | The rollers and creep | `rollers`, `creep` | 1 stainless gear (the worm wheel), 3 iron nails and strips, 1 steel rod, 2 steel nails and strips, 5 plank |
 | 4 | The belt | `belt` | 2 leather |
-| 5 | Services | `feedbox`, `chutes`, `pipecopper` or `pipelead` | 2 plank (the feed box), 3 chute section, ~2 pipe section (copper or lead) |
+| 5 | Services | `feedbox`, `chutes`, `pipecopper` or `pipelead` | 1 iron nails and strips, 2 plank (the feed box), 3 chute section, ~2 pipe section (copper or lead) |
 
 The belt is also a wearing part: it is renewed when worn (2 leather), but it is fitted as stage 4. The feed
 box, once a stage of its own, is part of services (its posts are the frame's). The chute sections were frame
