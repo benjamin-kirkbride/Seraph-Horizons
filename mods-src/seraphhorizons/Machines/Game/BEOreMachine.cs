@@ -274,6 +274,59 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         return Api.World.BlockAccessor.GetBlockEntity(cell) as BEOreMachineCell;
     }
 
+    // ---- Side feeds (a furnace's fuel chute) ----
+
+    /// <summary>Anchors besides the infeed that a chute feeds (the reverberatory roaster's <c>fuel</c>, #736): each
+    /// fills its cell's buffer through its face with what <see cref="SideFeedTakes"/> accepts, and the controller
+    /// moves it into <see cref="SideFeedSlot"/>. None by default. The anchor's cell must not be the controller's.</summary>
+    protected virtual IReadOnlyList<string> SideFeeds => [];
+
+    /// <summary>Whether side feed <paramref name="anchor"/> takes <paramref name="stack"/>.</summary>
+    public virtual bool SideFeedTakes(string anchor, ItemStack stack) => false;
+
+    /// <summary>The slot side feed <paramref name="anchor"/> fills, and how many of the stack's kind it holds.</summary>
+    protected virtual (ItemSlot Slot, int Capacity)? SideFeedSlot(string anchor) => null;
+
+    /// <summary>The side feed whose cell is <paramref name="cell"/> and whose face is <paramref name="face"/>, or null.</summary>
+    public string? SideFeedAt(BlockPos cell, BlockFacing face)
+    {
+        if (Rig is not { } rig)
+            return null;
+        foreach (var name in SideFeeds)
+            if (rig.Anchor(name) is { } a && a.Cell != Int3.Zero && CellFaces.ToWorld(a.Face, Side).Code() == face.Code && CellPos(a.Cell).Equals(cell))
+                return name;
+        return null;
+    }
+
+    /// <summary>Moves what chutes left in the side feeds' buffers into their slots.</summary>
+    private bool PullSideFeeds()
+    {
+        bool moved = false;
+        foreach (var name in SideFeeds)
+        {
+            if (Rig?.Anchor(name) is not { } a || a.Cell == Int3.Zero || SideFeedSlot(name) is not { } target)
+                continue;
+            if (Api.World.BlockAccessor.GetBlockEntity(CellPos(a.Cell)) is not BEOreMachineCell cell || cell.Buffer.Empty)
+                continue;
+            var stack = cell.Buffer.Itemstack;
+            if (!SideFeedTakes(name, stack))
+                continue;
+            int room = target.Slot.Empty ? target.Capacity
+                : target.Slot.Itemstack.Equals(Api.World, stack, GlobalConstants.IgnoredStackAttributes) ? target.Capacity - target.Slot.StackSize : 0;
+            if (room <= 0)
+                continue;
+            var op = new ItemStackMoveOperation(Api.World, EnumMouseButton.Left, 0, EnumMergePriority.AutoMerge, Math.Min(cell.Buffer.StackSize, room));
+            if (cell.Buffer.TryPutInto(target.Slot, ref op) > 0)
+            {
+                cell.Buffer.MarkDirty();
+                cell.MarkDirty();
+                target.Slot.MarkDirty();
+                moved = true;
+            }
+        }
+        return moved;
+    }
+
     /// <summary>Whether <paramref name="face"/> of the cell at <paramref name="cell"/> is one of the
     /// machine's anchors (a pipe or chute meets it there).</summary>
     public bool AnchorFaceAt(BlockPos cell, BlockFacing face)
@@ -512,6 +565,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         _angleSeeded = true;
 
         bool dirty = PullInfeed();
+        dirty |= PullSideFeeds();
         dirty |= PushOutputs();
         FillFromPipe(dt);
 

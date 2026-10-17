@@ -3,7 +3,10 @@
 Part of the Seraph Horizons mod (`../README.md`): the ore line's roaster of concentrate (epic #684, behaviour #736),
 the generated model (#737). It roasts sulfide concentrate into roasted concentrate continuously, with water-cooled
 mechanical rabbles: 100 %, 76 concentrate an hour; the firepit roasts concentrate at 85 % until the player builds
-it. **There is no gameplay yet**: no block, block entity or renderer reads these files; the rig is written as the contract the gameplay will be built against.
+it. **Status: in the game** (#736). This folder's `tools/` holds the model's generator and its checks; `Core/` and
+`Game/` hold the furnace's gameplay, on the shared ore machine code (`Machines/`): the mod README's "Ore processing:
+the reverberatory roaster" has the rules. The build's materials past the masonry, left open below, are set in
+`assets/seraphhorizons/config/builds/reverberatory.json`; the frame's recipe in `recipes/grid/reverberatory.json`.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, `Pipes/` and `CrucibleFurnace/`, this folder's neighbours. The generic
