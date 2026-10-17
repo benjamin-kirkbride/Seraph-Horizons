@@ -1,5 +1,6 @@
 using System.Text;
 using SeraphHorizons.Mod.Eidolon.Core;
+using SeraphHorizons.Mod.TrunkEntities;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
@@ -187,6 +188,17 @@ public class EntityLaborEidolon : EntityAgent
             ApplyFittings();
         }
         WatchedAttributes.RegisterModifiedListener(EidolonBuild.AttributeKey, OnFittingsChanged);
+    }
+
+    public override void AfterInitialized(bool onFirstSpawn)
+    {
+        base.AfterInitialized(onFirstSpawn);
+        // Held on top of a trunk it stands on after its physics, not only on the trunk's tick, which
+        // comes before the physics: otherwise it ends every tick fallen into the trunk, not on the
+        // ground (TrunkSolid.PushOutOfAll, #903). Here, not in Initialize: repulseagents' own
+        // AfterInitialized sets (not adds to) the delegate.
+        if (Api.Side == EnumAppSide.Server)
+            AfterPhysicsTick += () => TrunkSolid.PushOutOfAll(this);
     }
 
     private void OnFittingsChanged()
