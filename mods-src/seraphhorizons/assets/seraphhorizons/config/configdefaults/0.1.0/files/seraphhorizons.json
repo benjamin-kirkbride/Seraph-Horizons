@@ -115,6 +115,14 @@
     "HammerWearPerBlow": 1
   },
   "FirepitRoastSeconds": 10.0,
+  "Rocker": true,
+  "RockerSettings": {
+    "RocksPerItem": 4.0,
+    "RocksPerSecond": 1.0,
+    "LitresPerItem": 2.0,
+    "ChargeItems": 4,
+    "RiffleItems": 16
+  },
   "TraderSchematics": true,
   "MachineSchematics": true,
   "TraderOrders": true,

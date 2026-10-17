@@ -27,9 +27,6 @@ public class RockerConfig
 
     public static readonly RockerConfig Defaults = new();
 
-    /// <summary>Seconds of rocking an item takes.</summary>
-    public double SecondsPerItem => RocksPerItem / RocksPerSecond;
-
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
     public IReadOnlyList<string> Sanitise()
     {
