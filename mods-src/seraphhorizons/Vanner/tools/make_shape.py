@@ -1164,8 +1164,8 @@ def make_rig(parts):
                     "turns with it and the shaking frame follows its eccentrics across (a slide in x, alike either way), its "
                     "uprights leaning with it (a swing about each one's foot pin). "
                     "travel is the axle's travel either way: the ratchet the fixed pawl pushes a tooth a stroke turns "
-                    "the worm and creeps the belt to the head whichever way the axle turns. The chute and water anchors "
-                    "are provisional (#711). buildStages: what each build stage adds after the placed frame, in order, "
+                    "the worm and creeps the belt to the head whichever way the axle turns. The anchors are #711's "
+                    "(infeedCell takes the infeed chute). buildStages: what each build stage adds after the placed frame, in order, "
                     "services last (the feed box, the chute sections and the water line, one metal). See the vanner's "
                     "README for the schema.",
         "cells": [],
@@ -1173,8 +1173,8 @@ def make_rig(parts):
         "powerFace": POWER_FACE,
         "waterCell": list(WATER_CELL),
         "waterFace": WATER_FACE,
-        "feedCell": list(FEED_CELL),
-        "feedFace": FEED_FACE,
+        "infeedCell": list(FEED_CELL),
+        "infeedFace": FEED_FACE,
         "concentrateCell": list(CONC_CELL),
         "concentrateFace": CONC_FACE,
         "tailingsCell": list(TAIL_CELL),
@@ -1214,7 +1214,7 @@ def shipped(els, parts, rig):
                 if key in drv:
                     drv[key] = [r6(drv[key][k] + db[k]) for k in range(3)]
     ship = copy.deepcopy(rig)
-    for key in ("powerCell", "waterCell", "feedCell", "concentrateCell", "tailingsCell"):
+    for key in ("powerCell", "waterCell", "infeedCell", "concentrateCell", "tailingsCell"):
         ship[key] = shift_cell(rig[key], ORIGIN_CELL)
     ship["parts"] = ship_parts
     return ship_els, ship_parts, ship

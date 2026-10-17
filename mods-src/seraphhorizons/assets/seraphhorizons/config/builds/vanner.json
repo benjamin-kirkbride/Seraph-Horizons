@@ -1,0 +1,53 @@
+{
+	"_comment": "The vanner's build (#923, #711): each stage after the frame and its materials, from Vanner/README.md's stage table, in the rig's buildStages order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. The belt is the wearing part, fitted as stage 4 (its only material, so the stage lists none of its own) and renewed by right-click once worn out: 2 plain leather, about 4,000 rock a belt. The rollers stage's stainless gear is the head roller's worm wheel; the services' iron nails and planks are the feed box.",
+	"machine": "vanner",
+	"block": "seraphhorizons:vanner-north",
+	"feed": "continuous",
+	"stages": [
+		{
+			"id": "countershaft", "name": "the countershaft", "adds": ["countershaft"],
+			"materials": [
+				{ "codes": ["game:rod-steel"], "quantity": 2 },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 1 },
+				{ "codes": ["game:plank-*"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "shaker", "name": "the shaking frame", "adds": ["shaker"],
+			"materials": [
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 5 },
+				{ "codes": ["game:metalnailsandstrips-steel"], "quantity": 1 },
+				{ "codes": ["game:plank-*"], "quantity": 2 }
+			]
+		},
+		{
+			"id": "rollers", "name": "the rollers and creep", "adds": ["rollers", "creep"],
+			"materials": [
+				{ "codes": ["seraphhorizons:gear-stainless"], "quantity": 1 },
+				{ "codes": ["game:plank-*"], "quantity": 5, "draws": ["rollers"] },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 3 },
+				{ "codes": ["game:rod-steel"], "quantity": 1 },
+				{ "codes": ["game:metalnailsandstrips-steel"], "quantity": 2 }
+			]
+		},
+		{
+			"id": "belt", "name": "the belt", "adds": ["belt"],
+			"materials": []
+		},
+		{
+			"id": "services", "name": "services", "adds": ["feedbox", "chutes", "pipecopper", "pipelead"],
+			"materials": [
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 1 },
+				{ "codes": ["game:plank-*"], "quantity": 2, "draws": ["feedbox"] },
+				{ "codes": ["game:chute-straight-*"], "quantity": 3, "draws": ["chutes"] },
+				{
+					"codes": ["seraphhorizons:pipesection-copper", "seraphhorizons:pipesection-lead"], "quantity": 2,
+					"picks": { "seraphhorizons:pipesection-copper": "pipecopper", "seraphhorizons:pipesection-lead": "pipelead" }
+				}
+			]
+		}
+	],
+	"wearing": [
+		{ "id": "belt", "codes": ["game:leather-normal-plain"], "count": 2, "uses": 4000, "stage": "belt" }
+	]
+}
