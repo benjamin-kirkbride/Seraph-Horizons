@@ -93,6 +93,7 @@
   "BigPiles": true,
   "BigCrates": true,
   "RustyGearStack": true,
+  "NoClutterPiles": true,
   "TraderGrid": true,
   "TraderStanding": true,
   "TraderStandingSpilloverKm": 6.0,
