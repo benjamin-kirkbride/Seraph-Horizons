@@ -174,7 +174,7 @@ describe("the vanner's rig against its rig-reference.json", () => {
     const face = (key: string) => anchors.find((a) => a.key === key);
     expect(face("powerCell")).toMatchObject({ kind: "cell", pos: [1, 0, 2], face: "south" });
     expect(face("waterCell")).toMatchObject({ kind: "cell", pos: [1, 0, 0], face: "up" });
-    expect(face("feedCell")).toMatchObject({ kind: "cell", pos: [0, 0, 1], face: "up" });
+    expect(face("infeedCell")).toMatchObject({ kind: "cell", pos: [0, 0, 1], face: "up" });
     expect(face("concentrateCell")).toMatchObject({ kind: "cell", pos: [0, 0, 0], face: "north" });
     expect(face("tailingsCell")).toMatchObject({ kind: "cell", pos: [0, 0, 2], face: "south" });
   });
