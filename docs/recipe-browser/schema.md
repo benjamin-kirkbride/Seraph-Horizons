@@ -344,8 +344,8 @@ charge's water (all consumed), the muller (a rod) and the shoes (a plate), both 
 machine (role `station`); the outputs are the amalgam (`seraphhorizons:amalgam-<ore>`, the average a
 charge makes, so fractional) and the same quartz back, amalgamated, for the rocker. It is worked by hand
 (an axle below may turn it instead): `power` is `hand`, `turns` the muller's turns a charge, and `work`
-the seconds that takes by hand (`unit` `seconds`); there is no `wear` and no `oil`. `requirements` says
-how it is turned and what the amalgamated quartz is for; `extra` has the `ore`, `grade`, `chargeItems`,
+the same (`unit` `muller turns`); there is no `wear` and no `oil`. `requirements` says
+how it is turned, the seconds a charge takes by hand and what the amalgamated quartz is for; `extra` has the `ore`, `grade`, `chargeItems`,
 `amalgamMercury` and `waterLitres`.
 
 **The squaring shear** (type `squaringshear`, shape `machine`): one record per plate metal, id
