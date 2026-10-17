@@ -1245,8 +1245,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         // every seraphhorizons guide is switched off here but the ore maps', shown in every world as the items are
         Assert.DoesNotContain(guides, g => (string?)g["mod"] == "seraphhorizons"
                                            && (string?)g["code"] != SeraphHorizons.Mod.Ore.OreMapsSystem.GuidePage);
-        foreach (var (mod, code) in new[] { (WoodworkingMods.IwModId, "craftinginfo-woodworking"), (WoodworkingMods.LeModId, "introduction") })
-            Assert.Single(guides, g => (string?)g["mod"] == mod && (string?)g["code"] == code);
+        // Logging Expanded's is an asset. Immersive Woodworking's (since 1.3.13) is a page its client
+        // handler composes, which the server's export never sees.
+        Assert.Single(guides, g => (string?)g["mod"] == WoodworkingMods.LeModId && (string?)g["code"] == "introduction");
+        Assert.DoesNotContain(guides, g => (string?)g["code"] == "craftinginfo-woodworking");
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
