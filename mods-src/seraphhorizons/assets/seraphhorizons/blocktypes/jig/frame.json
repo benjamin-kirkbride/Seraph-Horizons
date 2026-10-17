@@ -1,0 +1,84 @@
+// The jig's frame (Jig/, README "Jig"; #919): the controller cell of a Harz plunger jig, the front bottom
+// cell (the hutch's spout end), nearest the player who placed it; the jig runs away from them. The frame
+// is the hutch's sills and floor. The shared ore machine block (Machines/Game/OreMachineBlocks.cs); its
+// stages are fitted by right-click (config/builds/jig.json). The server disables it with Jig or
+// OreProcessing off.
+{
+	code: "jig",
+	class: "seraphhorizons.OreMachine",
+	entityClass: "seraphhorizons.Jig",
+	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the jig runs away from the
+	// player, its spout end (the controller) nearest them.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/jig_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/jig_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/jig_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/jig_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the stages' parts (jig.json), which the renderer draws
+	// with this block's textures. The water and the ore bed are what it holds while it works.
+	textures: {
+		"oak":        { base: "game:block/wood/debarked/oak" },
+		"planks":     { base: "game:block/wood/planks/oak1" },
+		"iron":       { base: "game:block/metal/plate/iron" },
+		"steel":      { base: "game:block/metal/sheet-plain/steel1" },
+		"screen":     { base: "game:block/metal/mesh1" },
+		"chute":      { base: "game:block/metal/sheet/copper1" },
+		"pipecopper": { base: "game:block/metal/sheet-plain/copper4" },
+		"pipelead":   { base: "game:block/metal/sheet-plain/lead4" },
+		"water":      { base: "game:block/liquid/waterportion" },
+		"bed":        { base: "game:block/stone/gravel/granite" }
+	},
+	attributes: {
+		oreMachine: { machine: "jig", extraRequires: ["water", "bed"] },
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:jig-handbook-card-title", text: "seraphhorizons:jig-handbook-card-text" },
+				{ title: "seraphhorizons:jig-handbook-build-title", text: "seraphhorizons:jig-handbook-build-text" },
+				{ title: "seraphhorizons:jig-handbook-work-title", text: "seraphhorizons:jig-handbook-work-text" },
+				{ title: "seraphhorizons:jig-handbook-water-title", text: "seraphhorizons:jig-handbook-water-text" },
+				{ title: "seraphhorizons:jig-handbook-tailings-title", text: "seraphhorizons:jig-handbook-tailings-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:jig-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame (the sills and floor, y 0..0.4) runs two blocks along native z from the controller
+	// (z 0..2); the -north item form turns it 180°, its mesh z -1..1, so the item forms turn about its
+	// middle (0.5, 0.2, 0).
+	tpHandTransform: {
+		translation: { x: -1.2, y: -0.9, z: 1.4 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0.2, z: 0 },
+		scale: 0.4
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.2, z: 0 },
+		scale: 0.8
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0 },
+		scale: 1
+	},
+	maxStackSize: 1,
+	resistance: 3,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}
