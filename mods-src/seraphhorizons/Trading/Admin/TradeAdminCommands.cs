@@ -413,8 +413,6 @@ internal sealed class TradeAdminCommands(ICoreServerAPI api, TradingSystem tradi
                 ["tier"] = c.Record.Tier?.ToString().ToLowerInvariant(), ["generated"] = c.Generated, ["accepted"] = reject == null, ["reason"] = reject,
             });
         }
-        if (StandingSystem.Of(api) is { Enabled: true } ss)
-            output.Lines.Add(L("trading-admin-maps-tiers", string.Join(", ", ss.Rules.Tiers.Select(t => $"{t.Code} {t.Unlocks.MapTier}"))));
         output.Summary = L("trading-admin-maps-head", TraderLookup.IdOf(api, trader), L("trading-type-" + trader.TraderType), accepted, candidates.Count, MapsOreRadius, MapsGravelRadius);
         output.Data["candidates"] = rows;
         output.Data["accepted"] = accepted;
