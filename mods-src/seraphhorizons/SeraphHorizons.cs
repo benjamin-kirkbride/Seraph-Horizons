@@ -1175,6 +1175,36 @@ public class SeraphHorizonsConfig
     /// server's setting decides.</summary>
     public bool StampBattery { get; set; } = true;
 
+    /// <summary>The stall roaster (StallRoaster/, README "Ore processing: the stall roaster"; #925): a roasting
+    /// stall, an open-fronted brick bay with a flue to a chimney, built on its iron frame in two stages (the
+    /// brickwork in any one fired brick, the lining). Batch, by hand: a bed of firewood and up to 32 sulfide rock
+    /// (raw or crushed), lit, burn on their own sulfur for 40 in-game hours with the front walled up and the row's
+    /// chimney drawing; each rock roasts one for one into stall-roasted rock, which smelts at its grade's share x
+    /// 92 % (the firepit's at 85 %), and a third of the charge's sulfur is taken from the heap's crust as sulfur
+    /// powder (ore-core's figures, config/ore-processing.json). Needs OreProcessing (off means its frame and its
+    /// recipe do not exist, and stalls already placed are lost). The server's setting decides.</summary>
+    public bool StallRoaster { get; set; } = true;
+
+    /// <summary>The stall roaster's own figures (its recovery, charge, burn and sulfur are ore processing's,
+    /// <c>config/ore-processing.json</c>): the bed's firewood, and the share of its draught a half-walled or
+    /// open front gives; a value out of range falls back to its default with a warning. The server's are
+    /// used.</summary>
+    public StallRoaster.Core.StallRoasterConfig StallRoasterSettings { get; set; } = new();
+
+    /// <summary>The liquation furnace (LiquationFurnace/, README "Ore processing: the liquation furnace"; #929): a
+    /// sloping cast-iron hearth plate under a low vault over a fire, built on its iron frame in three stages (the
+    /// brickwork in any one fired brick, the lining, the fittings). Batch, by hand: tin-lead bullion bars (smelted from
+    /// teallite and franckeite) on the plate, fuel on the grate, lit, sweat with the row's chimney drawing at 100 units
+    /// of tin an in-game hour; all the tin runs into the pot, and the lead stays on the plate at the ore's share x 95 %
+    /// (the clay liquation pan's 85 %; ore-core's figures, config/ore-processing.json). Needs OreProcessing (off means
+    /// its frame and its recipe do not exist, and furnaces already placed are lost). The server's setting decides.</summary>
+    public bool LiquationFurnace { get; set; } = true;
+
+    /// <summary>The liquation furnace's own figures (its recovery and pace are ore processing's,
+    /// <c>config/ore-processing.json</c>): the bars a charge, the grate's fuel and its burn (0.36 an hour), and the
+    /// damper's and the fire door's shares of the pace and the burn; a value out of range falls back to its default
+    /// with a warning. The server's are used.</summary>
+    public LiquationFurnace.Core.LiquationFurnaceConfig LiquationFurnaceSettings { get; set; } = new();
     /// <summary>The sluice (Sluice/, README "Sluice"; #734): a riffled plank sluice, the first
     /// concentrator, built on its frame in two stages (the riffles, then its chutes and water inlet), that
     /// washes crushed or ground ore, Wilderlands Panning's rich gravel and bog iron (#701) from a chute

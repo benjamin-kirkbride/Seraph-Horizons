@@ -32,6 +32,10 @@ public sealed record OreSpec(string Ore, string Metal, OreClass Class, double De
     IReadOnlyList<ByProduct> ByProducts)
 {
     public bool IsSulfide => Class == OreClass.Sulfide;
+
+    /// <summary>Its sulfur, units per unit of its main metal (config <c>ores.{ore}.sulfur</c>, from its
+    /// formula); 0 for an ore with none.</summary>
+    public double Sulfur { get; init; }
 }
 
 /// <summary>A metal and its units out of a smelt (fractional; <see cref="UnitCarry"/> makes items).</summary>
@@ -69,6 +73,7 @@ public sealed class OreRecovery
     private readonly OreProcessingConfig _config;
     private readonly Dictionary<string, double> _hand;
     private readonly Dictionary<OreMachine, OreMachineSpec> _machines = new();
+    private readonly Dictionary<OreMachine, double> _sulfur = new();
     private readonly Dictionary<string, double> _smelt;
     private readonly Dictionary<string, double> _smeltByGrade;
     private readonly Dictionary<string, OreSpec> _ores = new(StringComparer.OrdinalIgnoreCase);
@@ -82,6 +87,7 @@ public sealed class OreRecovery
         _smeltByGrade = new(config.SmeltByGrade ?? new(), StringComparer.OrdinalIgnoreCase);
 
         if (!(config.ConcentrateUnits > 0)) _problems.Add($"concentrateUnits {config.ConcentrateUnits} is not positive");
+        if (!(config.SulfurUnitsPerPowder > 0)) _problems.Add($"sulfurUnitsPerPowder {config.SulfurUnitsPerPowder} is not positive");
         foreach (var key in HandKeys) CheckShare("handStations", _hand, key);
         foreach (var key in _hand.Keys.Where(k => !HandKeys.Contains(k))) _problems.Add($"handStations: unknown station '{key}'");
         foreach (var f in Enum.GetValues<OreForm>().Where(f => !IsRock(f))) CheckShare("smelt", _smelt, Key(f));
@@ -122,6 +128,9 @@ public sealed class OreRecovery
         if (!(Cupel.MeltingPoint > 0)) _problems.Add($"cupel.meltingPoint {Cupel.MeltingPoint} is not positive");
         if (!(Cupel.SecondsPerIngot > 0)) _problems.Add($"cupel.secondsPerIngot {Cupel.SecondsPerIngot} is not positive");
 
+        RichLeadSilver = (config.Bullion ?? new OreProcessingConfig.BullionEntry()).RichLeadSilver;
+        if (!(RichLeadSilver > 0 && RichLeadSilver <= 1)) _problems.Add($"bullion.richLeadSilver {RichLeadSilver} is not above 0 and at most 1");
+
         var pan = config.Liquation ?? new OreProcessingConfig.LiquationEntry();
         Liquation = new LiquationSettings(pan.CapacityUnits, pan.TinPoint, pan.LeadPoint, pan.SecondsPerIngot);
         if (!(Liquation.CapacityUnits > 0)) _problems.Add($"liquation.capacityUnits {Liquation.CapacityUnits} is not positive");
@@ -148,6 +157,10 @@ public sealed class OreRecovery
 
     /// <summary>The bone-ash cupel's figures (#722).</summary>
     public CupelSettings Cupel { get; }
+
+    /// <summary>The share of a rich lead bar's lead that is silver (<c>bullion.richLeadSilver</c>, #740;
+    /// <see cref="Bullion"/>).</summary>
+    public double RichLeadSilver { get; }
 
     /// <summary>The clay liquation pan's figures (#724).</summary>
     public LiquationSettings Liquation { get; }
@@ -370,6 +383,25 @@ public sealed class OreRecovery
         return whole && r == Roaster.Reverberatory && FinalStep(ore) == OreMachine.Reverberatory ? share * WholeRestore(ore) : share;
     }
 
+    /// <summary>Units of sulfur in one sulfur powder (config <c>sulfurUnitsPerPowder</c>, 5).</summary>
+    public double SulfurUnitsPerPowder => _config.SulfurUnitsPerPowder;
+
+    /// <summary>A roaster's share of a sulfide's sulfur it recovers as sulfur powder (#765): the firepit none
+    /// (open roasting loses it to the air), the stall roaster ⅓ (from the heap's crust, #925), the
+    /// reverberatory 0.7 (config <c>machines.{roaster}.sulfur</c>).</summary>
+    public double RoastSulfur(Roaster r) => r switch
+    {
+        Roaster.Firepit => 0,
+        Roaster.Stall => _sulfur.GetValueOrDefault(OreMachine.StallRoaster),
+        _ => _sulfur.GetValueOrDefault(OreMachine.Reverberatory),
+    };
+
+    /// <summary>The units of sulfur roasting <paramref name="metalUnits"/> of a sulfide's metal in
+    /// <paramref name="roaster"/> recovers: its sulfur a unit of metal (<see cref="OreSpec.Sulfur"/>) × the
+    /// roaster's share (<see cref="RoastSulfur"/>); 0 for an ore that is not a sulfide.</summary>
+    public double SulfurUnits(OreSpec ore, double metalUnits, Roaster roaster) =>
+        ore.IsSulfide && metalUnits > 0 ? metalUnits * ore.Sulfur * RoastSulfur(roaster) : 0;
+
     /// <summary>The method a parting station works by.</summary>
     public static PartingMethod MethodOf(PartingStation s) => s switch
     {
@@ -466,6 +498,8 @@ public sealed class OreRecovery
         if (!(e.EmptyLoad >= 0 && e.EmptyLoad <= e.Load)) _problems.Add($"{k}.emptyLoad {e.EmptyLoad} is not between 0 and the load");
         if (!(e.Water >= 0)) _problems.Add($"{k}.water {e.Water} is negative");
         if (!(e.ZincReturn >= 0 && e.ZincReturn <= 1)) _problems.Add($"{k}.zincReturn {e.ZincReturn} is not between 0 and 1");
+        if (!(e.Sulfur >= 0 && e.Sulfur <= 1)) _problems.Add($"{k}.sulfur {e.Sulfur} is not between 0 and 1");
+        _sulfur[m] = Math.Clamp(e.Sulfur, 0, 1);
         bool batch = e.Charge > 0;
         if (batch && !(e.ChargeHours > 0)) _problems.Add($"{k}.chargeHours {e.ChargeHours} is not positive");
         if (!batch && !(e.PerHour > 0)) _problems.Add($"{k}: no perHour or charge");
@@ -494,7 +528,8 @@ public sealed class OreRecovery
         }
         if (byProducts.Select(b => b.PartedBy).Distinct().Count() > 1)
             _problems.Add($"ores.{ore}: by-products parted by more than one method");
-        return new OreSpec(ore, OreMetals.MetalOf(ore) ?? ore, cls, e.Density, e.Free, e.Unparted, byProducts);
+        if (!(e.Sulfur >= 0)) _problems.Add($"ores.{ore}: sulfur {e.Sulfur} is negative");
+        return new OreSpec(ore, OreMetals.MetalOf(ore) ?? ore, cls, e.Density, e.Free, e.Unparted, byProducts) { Sulfur = Math.Max(0, e.Sulfur) };
     }
 
     private void CheckShare(string table, Dictionary<string, double> values, string key)

@@ -11,10 +11,12 @@ namespace SeraphHorizons.Mod.Machines;
 /// (<see cref="MachineMeshes.PartMeshes"/>) with the block's textures, each drawn with its rig matrix
 /// turned to the machine's facing, and only when <see cref="BEOreMachine.ShowsPart"/> says so (its stage
 /// fitted, by default). A static part with no <c>requires</c> is the frame, the block's own shape, and is
-/// not drawn here.
+/// not drawn here. The textures are <see cref="BEOreMachine.PartTextures"/> (the block's, by default), the
+/// meshes built again when <see cref="BEOreMachine.TextureKey"/> changes (the stall roaster's brick type).
 /// <para>θ is the power cell's shaft angle about the power face's native axis
 /// (<see cref="MillMotion.NativeShaftAngle"/>), accumulated; ψ the total angle it turned either way. Both
-/// hold still until <see cref="BEOreMachine.Animates"/> (built).</para>
+/// hold still until <see cref="BEOreMachine.Animates"/> (built). Depth is <see cref="BEOreMachine.PartDepth"/>
+/// (the liquation furnace's fire door).</para>
 /// </summary>
 public sealed class OreMachineRenderer : IRenderer
 {
@@ -27,6 +29,7 @@ public sealed class OreMachineRenderer : IRenderer
     private readonly MultiTextureMeshRef?[] _meshes;
     private readonly bool[] _drawn;
     private bool _built;
+    private string _textureKey = "";
     private double _theta;
     private double _psi;
     private double _lastAngle;
@@ -61,6 +64,12 @@ public sealed class OreMachineRenderer : IRenderer
     private void BuildMeshes()
     {
         _built = true;
+        _textureKey = _be.TextureKey;
+        for (int i = 0; i < _meshes.Length; i++)
+        {
+            _meshes[i]?.Dispose();
+            _meshes[i] = null;
+        }
         var loc = new AssetLocation(OreMachinesSystem.Domain, $"shapes/block/{_be.Machine}.json");
         var master = Shape.TryGet(_capi, loc);
         if (master == null)
@@ -68,7 +77,7 @@ public sealed class OreMachineRenderer : IRenderer
             _capi.Logger.Error("[seraphhorizons] {0} is missing; the {1}'s moving parts are not drawn", loc, _be.Machine);
             return;
         }
-        var tex = _capi.Tesselator.GetTextureSource(_be.Block);
+        var tex = _be.PartTextures(_capi);
         var meshes = MachineMeshes.PartMeshes(_capi, master, _parts, i => _drawn[i], tex, _be.Machine);
         for (int i = 0; i < meshes.Length; i++)
             if (meshes[i] is { } mesh)
@@ -83,13 +92,13 @@ public sealed class OreMachineRenderer : IRenderer
         bool far = camPos.SquareDistanceTo(_middle.X, _middle.Y, _middle.Z) > DrawRange * DrawRange;
         if (stage == EnumRenderStage.Opaque)
         {
-            if (!_built)
+            if (!_built || _textureKey != _be.TextureKey)
                 BuildMeshes();
             AdvanceClock();
         }
         if (far)
             return;
-        var mats = _parts.Matrices(new RigInput(_theta, Travel: _psi));
+        var mats = _parts.Matrices(new RigInput(_theta, Depth: _be.PartDepth, Travel: _psi));
         var facing = Mat4.Facing(_be.Side);
         var rapi = _capi.Render;
         rapi.GlDisableCullFace();

@@ -1,0 +1,138 @@
+// Base bullion (OreProcessing, #740): what any form of a by-product ore smelts to, a bar of 100 units of
+// the ore's main metal still carrying its by-product, which only a parting machine wins (Ore/Core/Bullion.cs).
+// Silver-lead (galena, argentiferous galena), argentiferous copper (tetrahedrite), cupriferous silver
+// (freibergite), tin-lead (teallite, franckeite) and doré (gold quartz). The metal is the code's last part:
+// the crucible and the ingot mold draw it by that. Smelted plainly it gives its main metal (set in code).
+// Marked disabled with the switch off.
+{
+	"code": "bullion",
+	"class": "seraphhorizons.ItemOreProduct",
+	"variantgroups": [
+		{
+			"code": "ore",
+			"states": [
+				"galena",
+				"galena_nativesilver",
+				"tetrahedrite",
+				"freibergite",
+				"teallite",
+				"franckeite",
+				"quartz_nativegold"
+			]
+		},
+		{
+			"code": "metal",
+			"states": [
+				"lead",
+				"copper",
+				"silver",
+				"tin",
+				"gold"
+			]
+		}
+	],
+	"allowedVariants": [
+		"bullion-galena-lead",
+		"bullion-galena_nativesilver-lead",
+		"bullion-tetrahedrite-copper",
+		"bullion-freibergite-silver",
+		"bullion-teallite-tin",
+		"bullion-franckeite-tin",
+		"bullion-quartz_nativegold-gold"
+	],
+	"behaviors": [
+		{
+			"name": "GroundStorable",
+			"properties": {
+				"layout": "Stacking",
+				"placeRemoveSound": "game:sounds/block/ingot",
+				"stackingModel": "game:block/metal/ingotpile",
+				"stackingTextures": {
+					"metal": "game:block/metal/ingot/{metal}"
+				},
+				"modelItemsToStackSizeRatio": 1,
+				"upSolid": true,
+				"stackingCapacity": 64,
+				"transferQuantity": 1,
+				"bulkTransferQuantity": 4,
+				"collisionBox": {
+					"x1": 0,
+					"y1": 0,
+					"z1": 0,
+					"x2": 1,
+					"y2": 0.125,
+					"z2": 1
+				},
+				"cbScaleYByLayer": 0.125
+			}
+		}
+	],
+	"shape": {
+		"base": "game:item/ingot"
+	},
+	"texturesByType": {
+		"*-galena-*": {
+			"metal": {
+				"base": "game:block/metal/ingot/lead",
+				"blendedOverlays": [ { "base": "game:block/metal/ingot/silver", "blendMode": "Overlay" } ]
+			}
+		},
+		"*-galena_nativesilver-*": {
+			"metal": {
+				"base": "game:block/metal/ingot/silver",
+				"blendedOverlays": [ { "base": "game:block/metal/ingot/lead", "blendMode": "Multiply" } ]
+			}
+		},
+		"*-tetrahedrite-*": {
+			"metal": {
+				"base": "game:block/metal/ingot/copper",
+				"blendedOverlays": [ { "base": "game:block/metal/ingot/silver", "blendMode": "Overlay" } ]
+			}
+		},
+		"*-freibergite-*": {
+			"metal": {
+				"base": "game:block/metal/ingot/silver",
+				"blendedOverlays": [ { "base": "game:block/metal/ingot/copper", "blendMode": "Overlay" } ]
+			}
+		},
+		"*-quartz_nativegold-*": {
+			"metal": {
+				"base": "game:block/metal/ingot/gold",
+				"blendedOverlays": [ { "base": "game:block/metal/ingot/silver", "blendMode": "Overlay" } ]
+			}
+		},
+		"*": {
+			"metal": {
+				"base": "game:block/metal/ingot/tin",
+				"blendedOverlays": [ { "base": "game:block/metal/ingot/lead", "blendMode": "Multiply" } ]
+			}
+		}
+	},
+	"attributes": {
+		"oreForm": "bullion",
+		"metalUnits": 100,
+		"handbook": {
+			"groupBy": [
+				"bullion-*"
+			]
+		},
+		"displaycaseable": true,
+		"shelvable": true
+	},
+	"creativeinventory": {
+		"general": [
+			"*"
+		],
+		"items": [
+			"*"
+		]
+	},
+	"maxstacksize": 16,
+	"storageFlags": 5,
+	"materialDensity": 10000,
+	"dimensions": {
+		"width": 0.0625,
+		"height": 0.0625,
+		"length": 0.0625
+	}
+}

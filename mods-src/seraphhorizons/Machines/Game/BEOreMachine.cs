@@ -172,8 +172,38 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     /// <summary>Whether a rig part needing <paramref name="requires"/> is drawn.</summary>
     public virtual bool ShowsPart(string? requires) => _assembly?.Shows(requires) ?? requires == null;
 
+    /// <summary>The rig's depth input the renderer draws the parts at (a furnace's fire door, slid shut at 1); 0, the
+    /// rest pose, by default.</summary>
+    public virtual double PartDepth => 0;
+
     /// <summary>Whether the moving parts move: the shaft is held still until the machine is built.</summary>
     public virtual bool Animates => Built;
+
+    // ---- Textures (the renderer's) ----
+
+    /// <summary>What the parts' textures depend on beyond the block's own (the stall roaster's brick type):
+    /// the renderer builds its meshes again when it changes. Empty by default.</summary>
+    public virtual string TextureKey => "";
+
+    /// <summary>The textures the renderer draws the parts with: the frame block's, by default.</summary>
+    public virtual ITexPositionSource PartTextures(ICoreClientAPI capi) => capi.Tesselator.GetTextureSource(Block);
+
+    // ---- Fire (a furnace's: lit as the forge is, with a firestarter or a torch on any cell) ----
+
+    /// <summary>Why the machine cannot be lit now (a message), or null when it can. A machine that is never
+    /// lit (the default) says nothing: <see cref="Ignitable"/> is false.</summary>
+    public virtual string? CannotIgnite() => null;
+
+    /// <summary>Whether the machine is lit at all: a furnace. False by default.</summary>
+    public virtual bool Ignitable => false;
+
+    /// <summary>Whether it is burning now, so a torch can be lit from it.</summary>
+    public virtual bool Burning => false;
+
+    /// <summary>Lights it (server side), or tells the player why not.</summary>
+    public virtual void Ignite(IPlayer? byPlayer)
+    {
+    }
 
     public override void Initialize(ICoreAPI api)
     {
@@ -692,7 +722,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
 
     /// <summary>What breaking the frame gives besides the frame: everything fitted (a worn-out wearing
     /// set is gone). The inventory drops with the container.</summary>
-    public IEnumerable<ItemStack> AssemblyDrops()
+    public virtual IEnumerable<ItemStack> AssemblyDrops()
     {
         if (_assembly == null)
             yield break;

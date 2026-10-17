@@ -1,0 +1,20 @@
+// The liquation furnace (LiquationFurnace/, README "Ore processing: the liquation furnace"; #929). The server
+// disables it with LiquationFurnace or OreProcessing off.
+[
+	{
+		// The iron frame, as placed: the angle-iron binding, the grate, the plate's bearers and the fire hole's and
+		// ash mouth's iron (3 iron plates, 4 iron rods, 6 iron nails and strips), with a hammer
+		// (LiquationFurnace/README.md, "The build", the frame's row; the rig's build.frame). The brickwork, the
+		// lining and the fittings go in afterwards, fitted by hand.
+		ingredientPattern: "PRN,_H_",
+		width: 3,
+		height: 2,
+		ingredients: {
+			"P": { type: "item", code: "game:metalplate-iron", quantity: 3 },
+			"R": { type: "item", code: "game:rod-iron", quantity: 4 },
+			"N": { type: "item", code: "game:metalnailsandstrips-iron", quantity: 6 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:liquationfurnace-north" }
+	}
+]

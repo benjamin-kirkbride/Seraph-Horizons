@@ -517,5 +517,21 @@
     "ChargeRocks": 8
   },
   "StampBattery": true,
+  "StallRoaster": true,
+  "StallRoasterSettings": {
+    "BedFirewood": 4,
+    "HalfWalledDraught": 0.5,
+    "OpenDraught": 0.0
+  },
+  "LiquationFurnace": true,
+  "LiquationFurnaceSettings": {
+    "ChargeBars": 4,
+    "GrateFuel": 8,
+    "FuelPerHour": 0.36,
+    "DamperHalfPace": 0.5,
+    "DamperHalfBurn": 0.6,
+    "DamperShutBurn": 0.25,
+    "DoorOpenPace": 0.5
+  },
   "Sluice": true
 }
