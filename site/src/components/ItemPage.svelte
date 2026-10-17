@@ -8,7 +8,7 @@
   import { t } from "../lib/strings.ts";
   import { initials } from "../lib/icons.ts";
   import { isFloorZero, isPerLitre } from "../lib/values.ts";
-  import { groundStorageLines } from "../lib/ground-storage.ts";
+  import { groundStorageLines, itemPileLines, pileable } from "../lib/ground-storage.ts";
   import Hint from "./Hint.svelte";
   import Icon from "./Icon.svelte";
   import ItemLink from "./ItemLink.svelte";
@@ -132,6 +132,7 @@
         <dl class="facts">
           <div><dt>{t.code}</dt><dd><code data-testid="item-code">{ref.code}</code></dd></div>
           <div><dt>{t.mod}</dt><dd data-testid="item-mod"><ModLink id={ref.mod} mods={meta.mods} /></dd></div>
+          <div><dt>{t.pileable}</dt><dd data-testid="item-pileable"><Hint text={t.pileableHint}>{pileable(detail.attributes)}</Hint></dd></div>
         </dl>
         {#if meta.eidolon?.items.includes(ref.code)}
           <p class="eidolon-link" data-testid="eidolon-link"><a href={formatRoute({ view: "eidolon", version: data.id })}>{t.eidolonFittings}</a></p>
@@ -164,10 +165,12 @@
       </section>
     {/if}
 
-    {#if detail.attributes?.groundStorage}
+    {#if detail.attributes?.groundStorage || detail.attributes?.itemPile}
+      {@const ground = detail.attributes.groundStorage}
+      {@const itemPile = detail.attributes.itemPile}
       <section aria-labelledby="ground-h" data-testid="ground-storage">
         <h2 id="ground-h">{t.groundStorage}</h2>
-        {#each groundStorageLines(detail.attributes.groundStorage) as line, i (i)}
+        {#each ground ? groundStorageLines(ground) : itemPile ? itemPileLines(itemPile) : [] as line, i (i)}
           <p class="ground">{#if i === 0}<Hint text={t.groundStorageHint}>{line}</Hint>{:else}{line}{/if}</p>
         {/each}
       </section>
