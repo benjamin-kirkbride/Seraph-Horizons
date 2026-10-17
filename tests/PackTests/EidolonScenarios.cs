@@ -87,8 +87,8 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task It_spawns_owned_and_charged_and_only_its_owner_commands_it()
     {
-        var owner = await World.JoinPlayer("eidolonowner");
-        var other = await World.JoinPlayer("eidolonstranger");
+        var owner = await World.JoinRetrying("eidolonowner");
+        var other = await World.JoinRetrying("eidolonstranger");
         var at = await Floor(0, 0);
         var e = await Spawn(at, owner.Player);
         Log(State(e));
@@ -104,7 +104,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Charge_runs_out_over_days_it_slumps_alive_and_a_temporal_gear_wakes_it()
     {
-        var p = await World.JoinPlayer("eidolonfeeder");
+        var p = await World.JoinRetrying("eidolonfeeder");
         var at = await Floor(40, 0);
         await p.TeleportTo(at.AddCopy(3, 0, 0));
         var player = (IServerPlayer)p.Player;
@@ -198,7 +198,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task It_never_heals_by_itself_and_creatures_lose_it_once_it_is_down()
     {
-        var p = await World.JoinPlayer("eidolonbystander");
+        var p = await World.JoinRetrying("eidolonbystander");
         var at = await Floor(440, 0, reach: 12);
         await p.TeleportTo(at.AddCopy(-10, 0, -10));
         ((IServerPlayer)p.Player).WorldData.CurrentGameMode = EnumGameMode.Creative;
@@ -249,7 +249,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
     private async Task<(EntityLaborEidolon E, Vec3d Target)> AtTheWall(int dx, int width, int height, string watcher)
     {
         var at = await Floor(dx, 0, reach: 12);
-        var p = await World.JoinPlayer(watcher);
+        var p = await World.JoinRetrying(watcher);
         await p.TeleportTo(at.AddCopy(-10, 0, -10));
         int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
         for (int z = -12; z <= 12; z++)
@@ -329,7 +329,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Jobs_drain_its_oil_dry_stops_the_job_standing_and_oil_starts_it_again()
     {
-        var p = await World.JoinPlayer("eidolonoiler");
+        var p = await World.JoinRetrying("eidolonoiler");
         var at = await Floor(260, 0);
         await p.TeleportTo(at.AddCopy(4, 0, 4));
         var player = (IServerPlayer)p.Player;
@@ -383,7 +383,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Holding_oil_a_right_click_on_it_is_left_to_it_and_pours()
     {
-        var p = await World.JoinPlayer("eidolonclicker");
+        var p = await World.JoinRetrying("eidolonclicker");
         var at = await Floor(440, 0);
         await p.TeleportTo(at.AddCopy(4, 0, 4));
         var player = (IServerPlayer)p.Player;
@@ -458,7 +458,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Repair_restores_its_share_double_in_a_gantry_and_stands_a_slumped_one_up()
     {
-        var p = await World.JoinPlayer("eidolonmender");
+        var p = await World.JoinRetrying("eidolonmender");
         var at = await Floor(320, 0, reach: 12);
         await p.TeleportTo(at.AddCopy(-10, 0, -10));
         var player = (IServerPlayer)p.Player;
@@ -512,7 +512,7 @@ public class EidolonScenarios(ITestOutputHelper output) : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task With_machine_oil_off_it_has_no_reservoir_and_never_runs_dry()
     {
-        var p = await World.JoinPlayer("eidolonnooil");
+        var p = await World.JoinRetrying("eidolonnooil");
         var at = await Floor(380, 0);
         await p.TeleportTo(at.AddCopy(4, 0, 4));
         var player = (IServerPlayer)p.Player;

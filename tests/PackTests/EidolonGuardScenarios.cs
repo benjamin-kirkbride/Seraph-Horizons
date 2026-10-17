@@ -158,7 +158,7 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task Guarding_it_kills_a_drifter_near_its_point_and_leaves_one_far_and_a_bred_wolf()
     {
         var at = await Floor(0, 0, reach: 28);
-        var p = await World.JoinPlayer("eidolonwarden");
+        var p = await World.JoinRetrying("eidolonwarden");
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(4, 0, -6));
@@ -221,7 +221,7 @@ public class EidolonGuardScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task Guards_of_one_point_each_stand_at_a_post_of_their_own()
     {
         var at = await Floor(80, 0, reach: 14);
-        var p = await World.JoinPlayer("eidolonposts");
+        var p = await World.JoinRetrying("eidolonposts");
         var player = (IServerPlayer)p.Player;
         await p.TeleportTo(at.AddCopy(10, 0, 10));
         var guards = new List<EntityLaborEidolon>();

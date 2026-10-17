@@ -41,7 +41,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     private async Task<(IServerPlayer Player, ItemSlot Tool)> Commander(string name, BlockPos at)
     {
-        var p = await World.JoinPlayer(name);
+        var p = await World.JoinRetrying(name);
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at);
@@ -238,7 +238,7 @@ public class EidolonMineScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var kept = new[] { chest };
         var toMine = cells.Where(c => !kept.Contains(c)).ToList();
 
-        var p = await World.JoinPlayer("eidolonpathminer");
+        var p = await World.JoinRetrying("eidolonpathminer");
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(site.AddCopy(0, 0, -11));

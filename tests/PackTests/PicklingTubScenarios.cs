@@ -101,7 +101,7 @@ public class PicklingTubScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     private async Task<Site> Build(string player, int dx)
     {
-        var p = await World.JoinPlayer(player);
+        var p = await World.JoinRetrying(player);
         var pos = World.Spawn.AddCopy(dx, 20, 60);
         await p.TeleportTo(pos.AddCopy(2, 0, 0));
         await World.Until(() => W.BlockAccessor.GetChunkAtBlockPos(pos) != null, 30000);

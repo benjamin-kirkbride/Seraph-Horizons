@@ -49,7 +49,7 @@ public class ClearCommandScenarios(ITestOutputHelper output) : AtlasScenarioBase
     /// <summary>A player at the spawn, so the regions around it are loaded and simulated.</summary>
     private async Task<ITestPlayer> Player(string name)
     {
-        var player = await World.JoinPlayer(name);
+        var player = await World.JoinRetrying(name);
         await World.Until(() => Weather.weatherSimByMapRegion.Count > 0, 300);
         return player;
     }

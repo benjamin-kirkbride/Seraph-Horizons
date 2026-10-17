@@ -95,7 +95,7 @@ internal sealed class ChopperSite(IWorldSession world, BlockPos master, BlockFac
     /// item pickup range.</summary>
     public static async Task<ITestPlayer> Watcher(IWorldSession world, BlockPos near, string name)
     {
-        var player = await world.JoinPlayer(name);
+        var player = await world.JoinRetrying(name);
         await player.TeleportTo(near.AddCopy(16, 3, 0));
         return player;
     }
