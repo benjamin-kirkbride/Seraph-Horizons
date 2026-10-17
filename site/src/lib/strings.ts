@@ -221,6 +221,8 @@ const en = {
       ? `By hand, with tongs: ${turns} ${turns === "1" ? "second" : "seconds"} of winding a job, while right-click is held`
       : power === "hand" && work?.unit === "strikes"
       ? `By hand where it lies: ${turns} ${turns === "1" ? "blow" : "blows"} a job, each a left-click with a hammer`
+      : power === "hand" && work?.unit === "muller turns"
+      ? `By hand, while right-click is held, or from an axle below: ${turns} ${turns === "1" ? "turn" : "turns"} of the muller a job`
       : power === "hand" && work?.unit === "strokes"
       ? `By hand: ${turns} ${turns === "1" ? "stroke" : "strokes"} of the treadle a job, a stroke a second while right-click is held`
       : (power === "hand"
