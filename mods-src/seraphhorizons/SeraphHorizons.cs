@@ -1142,4 +1142,17 @@ public class SeraphHorizonsConfig
     /// machine's tailings (form and layers a rock). Each machine's own switch turns it on; these
     /// apply to every one. The server's are used.</summary>
     public OreMachinesConfig OreMachinesSettings { get; set; } = new();
+
+    /// <summary>The jaw breaker (JawBreaker/, README "Jaw breaker"; #912): a Blake jaw breaker under a
+    /// grizzly, built in five stages on its frame, that breaks raw ore from a chute into crushed ore
+    /// with no loss, 24 rock an in-game hour at speed 0.6, its load rising with the charge in its
+    /// mouth; first in the ore line, before the stamp battery. Needs OreProcessing (off means its
+    /// frame and its recipe do not exist, and breakers already placed are lost). The server's setting
+    /// decides.</summary>
+    public bool JawBreaker { get; set; } = true;
+
+    /// <summary>The jaw breaker's own figures (its draws and rate are ore processing's,
+    /// <c>config/ore-processing.json</c>); a value out of range falls back to its default with a
+    /// warning. The server's are used.</summary>
+    public JawBreaker.Core.JawBreakerConfig JawBreakerSettings { get; set; } = new();
 }

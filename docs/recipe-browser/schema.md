@@ -390,6 +390,16 @@ pan's table as expected counts, its nuggets at the rocker's figure over the pan'
 field (`extra.litres` gives it). `extra` also has the `feed` (`crushed`, `ground` or `placer`) and
 `carried` (true).
 
+**Jaw breaker** (type `jawbreaker`, shape `machine`, present with seraphhorizons' `JawBreaker` and
+`OreProcessing` on, #912): one record per ore item kind spalling breaks, id
+`jawbreaker|game:<ore|crystalizedore>-<grade>-<ore>-*|0`, its ore and output as spalling's (the ore consumed, every host
+rock an alternative; crushed ore of its grade, one for one). Its station is the breaker's frame,
+`seraphhorizons:jawbreaker-north`. `power` is `mechanical`, `turns` the axle's turns a rock at any speed
+(ore-processing.json `machines.jawbreaker.perHour` at speed 0.6: 95.5 × 0.6 / 24), `work` one `rocks`.
+`requirements` says how it is fed and emptied. `extra` has the `ore`, `grade`, `form`, and the machine's
+`perHour`, `load` and `emptyLoad` (its load follows the charge in its mouth, between the two). Its build is
+the shared ore machine `construction` record.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).
