@@ -200,7 +200,7 @@ logs a warning and the block is left out the same way.
 
 ### Assembled chopper and sawmill in creative (`AssembledMachinesInCreative`)
 
-Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its chopper and sawmill are in the creative
+Immersive Woodworking (`immersivewoodworking`, 1.3.13). Its chopper and sawmill are in the creative
 inventory only as empty frames, which take each part by hand. `AssembledMachines` adds a second
 creative entry of each frame, named "Chopper" and "Sawmill", that places the machine assembled:
 every mandatory part installed, with a new steel chopper head or blade kit. The sawmill's optional
@@ -293,41 +293,6 @@ exactly one `GetEntitiesAround` call in it, which a postfix does not add to (Har
 transpilers the method's body, never another mod's prefixes or postfixes, whichever loads first);
 `evilinteractionrangehack` transpiles the server's `HandleEntityInteraction`, which this tweak does
 not touch. The pure logic (which codes match, when a far hit wins) is `Core/EntityReach.cs`.
-
-### Carry On's help icons are built for each world (`CarryOnIconsPerWorld`)
-
-Carry On (`carryon` 2.0.0-pre.8), #401, upstream
-[NerdScurvy/CarryOn#87](https://github.com/NerdScurvy/CarryOn/issues/87). Looking at a carryable
-block (a chest, a crate, a barrel) in the second world of one client run crashes the client when the
-two worlds number their items differently:
-
-```
-System.Exception: Error while rendering item in slot Vintagestory.API.Common.DummySlot (1x Item Id 13955, Code carryon:icon-handsfree)
- ---> System.IndexOutOfRangeException: Index was outside the bounds of the array.
-   at Vintagestory.Client.NoObf.InventoryItemRenderer.GetItemStackRenderInfo(...)
-```
-
-Carry On builds the item stacks its interaction help shows (`carryon:icon-handsfree`,
-`-nohandsfree`, `-put` and `-take`) the first time it needs them and keeps them in static fields that
-nothing clears, so the next world in the same client run is shown the first world's `Item` objects
-and the renderer indexes past the end of its item model array. There are seven such fields, all of
-the static item stack fields in Carry On's assembly: `handsfreeStacks` and `nohandsfreeStacks` of
-`CarryableInteractionHelpBuilder` (blocks) and of `EntityCarriedBlock` (a dropped carried block), and
-`putStacks`, `takeStacks` and `nohandsfreeStacks` of `EntityBehaviorAttachableCarryable` (cart and
-boat slots).
-
-`CarryOnIcons` sets all seven back to null when the client leaves a world (the client's
-`SeraphHorizonsSystem` is disposed), and once more when the client side starts, before the new world
-draws anything. Each field is filled only while it is null, so the next world's first interaction
-help builds them from its own items. It is a world-leave hook and not a Harmony patch: Carry On's code
-is right for one world, only the state it keeps between worlds is wrong. The server never builds
-these stacks (interaction help is the client's), so nothing happens there. Carry On is found by its
-mod system's name (`CarryOn.CarrySystem`); a field that is gone or no longer an `ItemStack[]` is
-logged as a warning and left out, and the client logs how many fields it clears. Without the tweak,
-restart the client before opening another world.
-
-Remove this tweak once Carry On clears the fields itself (upstream #87) and the pack pins that
-version.
 
 ### NaN motion diagnostics (`NanMotionDiagnostics`)
 
@@ -477,12 +442,15 @@ logged once and turns the rounding off until the client restarts, leaving the te
 
 ### Every food has a hydration value (`FoodHydration`)
 
-Hydrate or Diedrate (`hydrateordiedrate` 2.5.6). Eating a food changes thirst by its `hydration`
+Hydrate or Diedrate (`hydrateordiedrate` 2.5.8). Eating a food changes thirst by its `hydration`
 attribute (positive quenches, negative costs), which Hydrate or Diedrate fills in at load from its
 pattern lists (`config/hod.additemhydration.json`, `hod.addblockhydration.json`). Foods no pattern
-matches get 0: some are newer than the lists, some patterns are misspelled (Expanded Foods'
-`pemmicanfish-*` for `fishpemmican`, `gelatinfish-*` for a `gelatinfish` with no variants), and
-some name a code that has since gained variants (`game:butter`, `butchering:offal`). Meal
+matches get 0: some are newer than the lists, some patterns were misspelled (up to 2.5.6, Expanded
+Foods' `pemmicanfish-*` for `fishpemmican`, `gelatinfish-*` for a `gelatinfish` with no variants),
+and some name a code that has since gained variants (`game:butter`, `butchering:offal`). 2.5.8 fixed
+those patterns and added values of its own for most of the foods below (eggs, fat, walnut,
+honeycomb, cooked fish chunks, Primitive Survival's fish eggs and nightcrawler, sliced fruit
+leather), several of them other than the pack's; the pack's are set first and stay (below). Meal
 ingredients count too: a meal's hydration comes from its ingredients'. This
 tweak gives each of them a value modelled on Hydrate or Diedrate's for a similar food (#319):
 
@@ -508,6 +476,7 @@ tweak gives each of them a value modelled on Hydrate or Diedrate's for a similar
 | expandedfoods | fish, crab and snake pemmican, every state | -25 | `pemmican-*` (and the misspelled patterns' own value) |
 | expandedfoods | fish gelatin | +1 | `gelatin-*` (and the misspelled pattern's) |
 | expandedfoods | fruit leather, sliced | -5 | dried fruit (`dryfruit-*`, `dehydratedfruit-*`) and `fruitbar-*` |
+| expandedfoods | roasted grain (2.0.0-dev.16), every grain | -30 | `grain-*` |
 | primitivesurvival | fish fillet, raw / cooked | +15 / -20 | vanilla `fish-raw` / `fish-cooked` |
 | primitivesurvival | fish fillet, part-baked / charred | -15 / -30 | no close match: between and beyond raw and cooked, as bread's states are (about 0.8 and 1.6 of perfect) |
 | primitivesurvival | fish eggs raw / cooked, caviar (cured) | +15 / -20 / -70 | vanilla `fish-raw` / `fish-cooked` / `fish-cured` |
@@ -531,7 +500,7 @@ in `AssetsLoaded`, as for Age of Flax. The switch that counts is the server's.
 
 ### The handbook says how a well shaft holds water (`WellShaftExplained`)
 
-Hydrate or Diedrate (`hydrateordiedrate` 2.5.6). A well spring counts the shaft above it level by
+Hydrate or Diedrate (`hydrateordiedrate` 2.5.8). A well spring counts the shaft above it level by
 level (`BlockEntityWellSpring.OnPeriodicShaftCheck`), and holds 70 liters per counted level. A
 level counts when its cell is open (air, or a block of `replaceable` 500 or more, such as a pipe: see
 "Unified pipes") and all four horizontal neighbors are full liquid barriers, so
@@ -552,7 +521,7 @@ translations of the page differ in structure, and two are of an older text.
 
 ### The barrel rack takes kegs (`BarrelRackKegs`)
 
-Food Shelves (`foodshelves` 3.1.0) and Hydrate or Diedrate (`hydrateordiedrate` 2.5.6). The barrel
+Food Shelves (`foodshelves` 3.1.1) and Hydrate or Diedrate (`hydrateordiedrate` 2.5.8). The barrel
 rack (`barrelrack-*`, `BEBarrelRack`) takes a cask into its slot 0 and keeps the liquid in its own
 slot 1, an `ItemSlotLiquidOnly`. What it takes is data: Food Shelves reads
 `config/restrictions/barrels/barrelrack.json` (`"CollectibleTypes": ["game:BlockBarrel"]`) on the
@@ -603,7 +572,7 @@ as it ships, the restriction patch included.
 
 ### The powered chopper drops its output in front (`ChopperDropsInFront`)
 
-Immersive Woodworking (`immersivewoodworking` 1.3.11). The powered chopper (the multiblock frame,
+Immersive Woodworking (`immersivewoodworking` 1.3.13). The powered chopper (the multiblock frame,
 `BlockEntityChopper`; not the hand chopping block) ejects each finished batch through
 `EjectBatch(ItemStack template, int dropCount)`: the batch split into `dropCount` piles
 (`DropDistribution.SplitEvenly`), spawned 0.7 out from the master block's centre on the output
@@ -661,8 +630,8 @@ switch's off check fails and the tweak can go.
 ### One tun: Hydrate or Diedrate's is retired, Food Shelves' holds 950 L (`HydrateTunRetired`, `LargerTunRack`)
 
 The pack had two tuns, both 2 x 2 x 2 liquid containers: Hydrate or Diedrate's (`hydrateordiedrate`
-2.5.6, `hydrateordiedrate:tun-*`, 950 L by its `TunCapacityLitres` setting) and Food Shelves' tun,
-which sits in a tun rack (`foodshelves` 3.1.0, `foodshelves:tunrack-*` holding `foodshelves:tun-normal`,
+2.5.8, `hydrateordiedrate:tun-*`, 950 L by its `TunCapacityLitres` setting) and Food Shelves' tun,
+which sits in a tun rack (`foodshelves` 3.1.1, `foodshelves:tunrack-*` holding `foodshelves:tun-normal`,
 500 L). The pack keeps Food Shelves' one, at Hydrate or Diedrate's size. Two switches:
 
 - **`HydrateTunRetired`**: Hydrate or Diedrate's tun has no grid recipe (`enabled: false`) and is
@@ -694,7 +663,7 @@ so the two never disagree. The switches that count are the server's.
 The pack had two buried clay pots that water the farmland around them: Primitive Survival's
 irrigation vessel (`primitivesurvival` 5.1.4, `primitivesurvival:irrigationvessel-*`, 50 L, ten
 colours, made in the grid by chiselling a fired storage vessel and turned back into one with resin)
-and Olla's olla (`olla` 1.4.0, `olla:olla-raw-*` clay formed from 16 clay and fired in a pit kiln
+and Olla's olla (`olla` 1.4.2, `olla:olla-raw-*` clay formed from 16 clay and fired in a pit kiln
 into `olla:olla-fired-*`, 60 L, watering the 5 x 5 around it). The codes do not collide; the pack
 keeps Olla's. Primitive Survival has no setting for its vessel, so:
 
@@ -741,7 +710,7 @@ in `Start`, as for Hydrate or Diedrate's tun. The switch that counts is the serv
 Some mods declare a recipe for something another recipe in the pack already makes, the same way or
 for less. The pack keeps one, and the other is disabled (`enabled: false`):
 
-- Expanded Foods (`expandedfoods` 2.0.0-dev.15) kneads its sausages in A Culinary Artillery's mixing
+- Expanded Foods (`expandedfoods` 2.0.0-dev.16) kneads its sausages in A Culinary Artillery's mixing
   bowl from fat and meat or fish nuggets: `recipes/kneading/sausage.json` (`expandedfoods:sausage-{meat}-raw`,
   `-curing`, `-{meat}cheese-raw`, `-{meat}cheese-curing`) and `recipes/kneading/sausagefish.json`
   (`expandedfoods:sausagefish-normal-raw`, `-normal-curing`, `-cheese-raw`, `-cheese-curing`), four
@@ -775,6 +744,25 @@ A JSON patch, `assets/seraphhorizons/patches/duplicaterecipes.json`, `"side": "s
 `dependsOn` the mod it patches and the mod whose recipe stays, so the patch loader skips it when
 either is missing and nothing is left without a recipe. With the switch off, the system empties that
 patch file in `Start`, as for Hydrate or Diedrate's tun. The switch that counts is the server's.
+
+### Fruit dries into Expanded Foods' dried fruit (`FruitDries`)
+
+Expanded Foods (`expandedfoods` 2.0.0-dev.16) stopped fresh fruit drying on its own ("we'll focus
+on that in the Preserves module", its changelog): it took the four `Dry` transitions out of its
+`game:patches/fruit.json`, and nothing else makes `expandedfoods:dryfruit-*`, which its recipes
+(muffin and berry doughs, trail mix, fruit bars, pemmican, porridge and more) and Hydrate or Diedrate's hydration list still
+name. The pack puts dev.15's four back as it shipped them: the game's fruit
+(`game:itemtypes/food/fruit.json`) dries into the dried fruit of the same kind, with no fresh time,
+cranberries in 96 hours, oranges, mangoes, lychees and pomegranates in 360, the apples, pears and
+breadfruit in 960 and every other fruit in 48, one for one. The game's own perishing stays: each
+patch appends to the game's list under the same `transitionablePropsByType` key, so the game's
+first-match order of those keys still picks each fruit's.
+
+A JSON patch, `assets/seraphhorizons/patches/fruitdrying-expandedfoods.json`, `"side": "server"`,
+each entry `dependsOn` expandedfoods. With the switch off, or without Expanded Foods, the system
+empties that patch file in `Start`, as for Hydrate or Diedrate's tun. The switch that counts is the
+server's. Remove it when Expanded Foods (or its Preserves module, if the pack takes it) dries fruit
+again.
 
 ### Panning gives no wool, awls, uranium or buttons (`PanningDropsTrimmed`)
 
@@ -999,7 +987,7 @@ wrap lives in memory only, nothing of it is saved), and `/weather setprecipa` an
 
 ### One woodworking system (`UnifiedWoodworking`)
 
-Immersive Woodworking (`immersivewoodworking` 1.3.11) and Logging Expanded (`loggingmod` 0.3.6)
+Immersive Woodworking (`immersivewoodworking` 1.3.13) and Logging Expanded (`loggingmod` 0.3.6)
 each bring a chopping station, a sawhorse and a handbook guide for the same jobs. This tweak makes
 them one system: Immersive Woodworking's chopping block is the splitting block, with Logging
 Expanded's four tiers and looks; Logging Expanded's three sawhorses are the only sawhorses and
@@ -1214,13 +1202,18 @@ no change: its splitting log yields go with its splitting logs, and its sawhorse
 "Woodworking", and the chapters Trunks, Sawhorses, Splitting block, Bark and Machines. The pages
 are this mod's (`assets/seraphhorizons/config/handbook/woodworking-*.json`, text in `lang/en.json`);
 the overview keeps Immersive Woodworking's page code, `craftinginfo-woodworking`, so every link its
-item pages make to it opens the new one. A client handler on
-`ModSystemSurvivalHandbook.OnInitCustomPages` arranges the page list each time the handbook builds
-it (`Core/WoodworkingGuidePages.cs`): it drops the two old guides, each told by page code and title
+item pages make to it opens the new one. Each time the client's handbook builds its page list, it
+is arranged after every `ModSystemSurvivalHandbook.OnInitCustomPages` handler
+(`Core/WoodworkingGuidePages.cs`): the two old guides are dropped, each told by page code and title
 key (Logging Expanded's code is a generic `introduction`, and Immersive Woodworking's is now the
-overview's too), and puts the six, in reading order, where the first of them stood. The handler is
-added whatever the switch, and with the tweak not running it drops the six instead, so the pages
-this mod ships whatever the switch never show next to the mods' own.
+overview's too), and the six put, in reading order, where the first of them stood. Logging
+Expanded's guide is an asset; Immersive Woodworking's (1.3.13) is a page its own handler adds,
+subscribed in its `StartClientSide`, after this mod's `Start`, so with the tweak running the
+arrangement is a postfix on the internal `TriggerOnInitCustomPages`, which raises the event, and
+runs after every handler (a page added after it would keep the guide's page code: the handbook's
+code lookup keeps the last page with a code). With the tweak not running a handler on the event
+drops the six instead, so the pages this mod ships whatever the switch never show next to the
+mods' own.
 
 Both mods' woodworking text is rewritten to match and to link to the guide, and nothing names a
 retired station:
@@ -1320,7 +1313,7 @@ Known limits:
 
 ### Bucking sawmill (`BuckingSawmill`, `BuckingSawmillSettings`)
 
-Immersive Woodworking (`immersivewoodworking`, 1.3.11) and Logging Expanded (`loggingmod`, 0.3.6).
+Immersive Woodworking (`immersivewoodworking`, 1.3.13) and Logging Expanded (`loggingmod`, 0.3.6).
 A machine of this mod's own: a mechanically powered pair of drag saws that cross-cut Logging
 Expanded tree trunks into logs. Its frame is crafted from two Immersive Woodworking sawmill frames,
 four support beams and eight nails and strips, placed as a six by three by four multiblock, and fitted in the world with
@@ -1363,7 +1356,7 @@ mill's README ("A rosser in line").
 
 ### Rosser (`Rosser`, `RosserSettings`)
 
-Immersive Woodworking (`immersivewoodworking`, 1.3.11) and Logging Expanded (`loggingmod`, 0.3.6);
+Immersive Woodworking (`immersivewoodworking`, 1.3.13) and Logging Expanded (`loggingmod`, 0.3.6);
 Pipes and Power Expanded (`ppex`) optional. A second machine of this mod's own: a mechanically
 powered ring debarker that draws a Logging Expanded tree trunk lengthwise through a spinning cutter
 ring. A limb breaker in the throat snaps off its branches, which fall as sticks (one for every two
@@ -1446,7 +1439,7 @@ Logging Expanded, and is not in the creative inventory: the rosser makes it.
 
 ### Machines need oil (`MachineOil`, `MachineOilSettings`)
 
-The game, Immersive Woodworking (`immersivewoodworking`, 1.3.11) and this mod's two machines. The
+The game, Immersive Woodworking (`immersivewoodworking`, 1.3.13) and this mod's two machines. The
 heavy mechanical power machines have an oil tank: the game's helve hammer and pulverizer, Immersive
 Woodworking's plank sawmill and powered chopper, the bucking sawmill, the rosser, the draw bench, the gear
 cutter and the cylinder borer (whose oil wears their cutter kit and cutter head instead of loading their shafts: "Gear
@@ -2188,7 +2181,7 @@ down too.
 
 #### Hydrate or Diedrate's pipes go; its hand pump works on ppex's
 
-Hydrate or Diedrate (`hydrateordiedrate` 2.5.6) has copper and lead pipes (`pipe-{metal}`), shut-off
+Hydrate or Diedrate (`hydrateordiedrate` 2.5.8) has copper and lead pipes (`pipe-{metal}`), shut-off
 valves (`shutoffvalve-{metal}`) and a pipe section to solder them from (`pipesection-{metal}`). They
 carried nothing: they were only ever the hand pump's way to a wellspring. The pump searched through
 them, on demand, for a spring beside a pipe (or right under the pump), primed for one stroke in 3
@@ -4544,7 +4537,7 @@ patches nothing, leaving Yang's speeds as it ships them.
 
 ### Sawmill blade kits last three times as long (`DurableSawmillBlades`)
 
-Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill blade kits
+Immersive Woodworking (`immersivewoodworking`, 1.3.13). Its sawmill blade kits
 (`immersivewoodworking:sawmillblade-{metal}`) have three times its durability: gold 210, silver
 270, copper 750, tin bronze 1200, bismuth bronze 1350, black bronze 1500, iron 2700, meteoric iron
 3600, steel 6750. The bucking sawmill wears its kit by one for every log in a trunk it cuts, so a
@@ -4572,7 +4565,7 @@ the tun patches. The switch that counts is the server's.
 
 ### The woodworking machines are iron work (`IronWoodworkingMachines`)
 
-Immersive Woodworking (`immersivewoodworking`, 1.3.11). Its sawmill and chopper take any metal and
+Immersive Woodworking (`immersivewoodworking`, 1.3.13). Its sawmill and chopper take any metal and
 little of it: 8 nails and strips and a plate for a sawmill, 2 nails and strips and 4 plates for a
 chopper. With this, the two frames and the six fitted parts take iron, meteoric iron or steel
 (nails and strips, plates and rods alike) and many more nails and strips:
@@ -4850,16 +4843,25 @@ drawn wholly per frame in a clip like the creative grid, since the game's skill 
 slots into the static texture and so cannot scroll. The dialog's skill items, its `OnSlotClick` and
 `OnSlotOver` are its own (bound by name); the anvil's and clay forming's `SetIngredientCounts`, which
 run after the constructor, write into the same items. If composing fails the game's `SetupDialog`
-runs again and that dialog is vanilla (logged once). No pack mod touches this dialog (checked
-against every locked mod's DLLs). The search, the index mapping and the layout are in
-`RecipeSelector/Core/`, unit tested in `tests/RecipeSelector/`.
+runs again and that dialog is vanilla (logged once). One pack mod touches this dialog (checked
+against every locked mod's DLLs): Dovidarium (1.0.5) has its own anvil recipe browser
+(`Dovidarium.AnvilRecipeSelectorPatch`), which, when `BlockEntityAnvil.OpenDialog` opens the dialog,
+composes it itself (a prefix on `SetupDialog`) and renders it (a prefix on `OnRenderGUI`) from its
+own composer. Composing ours over it would leave its render prefix without its elements (it falls
+back to vanilla, logged), so the postfix leaves a dialog Dovidarium manages alone: its
+`internal static bool IsManaged(GuiDialogBlockEntityRecipeSelector)` is bound by name at start
+(a warning, and the search composes over every selector as before, if Dovidarium is loaded and the
+method is not there). So with Dovidarium the anvil has Dovidarium's browser and knapping and clay
+forming have this search; without its browser (its patch gate off, on a Harmony overlap it finds or
+a runtime failure) the anvil has this search too. The search, the index mapping and the layout are in `RecipeSelector/Core/`, unit
+tested in `tests/RecipeSelector/`.
 
 To check by hand in the game: knap flint (a short list: search row, no scrollbar, box not focused;
 W still walks); clay form with a lump of clay (a long list: six rows and a scrollbar, the box
 focused; type `pot`, the matching outputs best first, the count says how many; scroll with the wheel
 and the bar; click one, and the clay form takes that recipe's layers); smith an iron ingot on the
-anvil, search `blade`, pick the second result: that recipe on the anvil, and the hover still shows
-the ingots it needs. Search a word only in a description. Right-click the box with text in it:
+anvil: Dovidarium's recipe browser, not this search, and no "anvil recipe browser fell back to
+vanilla" in the client log; pick a recipe in it: that recipe on the anvil. Search a word only in a description. Right-click the box with text in it:
 cleared. Escape closes as before and cancels the selection. With `RecipeSelectorSearch` off: vanilla.
 
 ### The mod checks the installed mods against the pack (`PackVersionCheck`)
@@ -5401,7 +5403,7 @@ cut, every rock panning copper, the registry listing from the seed, verifying an
 
 ### Density prospecting reads 64 blocks, off the main thread (`WideDensityProspecting`)
 
-BetterEr Prospecting (`bettererprospecting`, 3.4.10), its block-based density mode
+BetterEr Prospecting (`bettererprospecting`, 3.4.12), its block-based density mode
 (`NewDensityMode`, on in the pack). A hit counts the deposit blocks in a square column 64 blocks each
 way around the sample, from the surface down, instead of 32, and divides by that column's volume,
 so parts per thousand read on the same scale as before (four times the blocks over four times the
@@ -7263,14 +7265,6 @@ It also requires each Immersive Woodworking frame to have the assembled creative
 plain one, named after the machine, and places both: the plain frame is incomplete, and the
 assembled one is complete with a steel head or blade kit and drops its parts.
 
-`tests/PackTests/CarryOnIconsScenarios.cs` (Atlas) requires the pinned Carry On's static fields that
-can hold an item stack or a collectible to be exactly the seven `CarryOnIcons` clears (a Carry On
-update that adds, renames or retypes one fails it), and `CarryOnIcons.Find` to find all seven. It
-then runs Carry On's block interaction help on the server's world for a chest (initialising the help
-builder as Carry On's client does, and putting it back): the stacks are built once and kept, cleared
-by `CarryOnIcons.Clear`, and built again from the world's items. That a client leaving one world and
-opening another no longer crashes is checked by hand in the game, since Atlas runs no client.
-
 `tests/PackTests/AgeOfFlaxRebalanceScenarios.cs` (Atlas) reads the loaded ripples' and hatchels'
 yields (what the tools use, set from the patched balance file), requires steel and no iron in the
 advanced recipes and both fats in every break, rolls a flax plant's drops at stages 9, 8 and 5 on
@@ -7753,6 +7747,11 @@ each duplicate back. When it fails after an update, check the patched files' ord
 Butchering still enables its kneading sausages with Expanded Foods, and whether the game's or
 GeoAddons' daub file changed.
 
+`tests/PackTests/FruitDryingScenarios.cs` (Atlas) requires a cranberry, an orange, a red apple and a
+blueberry (one fruit for each of the patch's keys) to have a Dry transition of its hours into that
+fruit's `expandedfoods:dryfruit-*`, one for one with no fresh time, and its Perish transition still;
+with the switch off, `SwitchesOffScenarios` requires none of them to dry.
+
 For panning, `SeraphHorizonsModScenarios` reads every block's `panningDrops` on the loaded server
 and requires none of the removed codes in any list, nor in the pan's table as `BlockPan` reads it
 (`PanningDrop`s), with Tailor's Delight's twine and needles and Expanded Matter's fluorite still
@@ -7826,7 +7825,8 @@ warning in the log names what a part no longer finds. With the switch off, `Swit
 requires both mods as they ship: nothing of either patched (`ChopperDropsInFront` is off there too),
 the world config telling clients it does not run, Immersive Woodworking's default
 settings, its grid recipes, Logging Expanded's splitting log from an axe, a plain chopping block as
-the chopper's bed, and a recipe export that lists the two mods' guides and none of the six pages.
+the chopper's bed, and a recipe export that lists Logging Expanded's guide and none of the six
+pages (Immersive Woodworking's, composed on the client since 1.3.13, is not in the export).
 
 `tests/PackTests/WoodworkingHandbookScenarios.cs` (Atlas) requires the six pages' assets and text and
 the two guides they replace (by code and title; if those change, the client would show both),
