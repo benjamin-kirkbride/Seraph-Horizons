@@ -5295,7 +5295,8 @@ Also with no switch, `OreSystem` puts the game's deposit depth noise scale back 
 (#1012): vanilla's `GenDeposits` builds that noise from the static
 `TerraGenConfig.depositVerticalDistortScale` (8 in a fresh process) and then sets it to 2 for good, so
 a world started after another in the same process (single player, opening a world without restarting
-the game) had its deposits at other depths, and other ore, than the same world started fresh.
+the game) had its deposits at other depths, and other ore, than the same world started fresh. It is
+reported upstream ([anegostudios/VintageStory-Issues#10157](https://github.com/anegostudios/VintageStory-Issues/issues/10157)).
 
 ### Placer fields, deposits and ore maps (`PlacerFields`, `PlacerCellSizeMetres`)
 
@@ -5676,7 +5677,7 @@ stone or a metal plate is left out. Code: `Ore/Core/Spalling.cs` (figures and ru
 Tests: `tests/Ore/SpallingTests.cs`; `tests/PackTests/OreProcessingScenarios.cs` (Atlas: the hammers
 and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, poor and
 bountiful ore in the same two blows each into one of its grade and crystallised ore into two, the next
-block, the export records) and `SwitchesOffScenarios` (off).
+block), `RecipeExportOreProcessingScenarios.cs` (the export records) and `SwitchesOffScenarios` (off).
 
 ### Ore processing: the rocker (`Rocker`, `RockerSettings`)
 
@@ -5854,8 +5855,9 @@ through the hidden-guides list). The recipe export has a record per sulfide (typ
 `tools/recipe-export/Recipes/OreRoastingExport.cs`, docs/recipe-browser/schema.md), its output the
 share (0.85 of a roasted item). Tests: `tests/Ore/OreRoastingTests.cs` (the share, runs of any split,
 the cook time); `tests/PackTests/OreProcessingScenarios.cs` (`Firepit_roasts_sulfide_concentrate`: the
-props, and 20 concentrate through a firepit's own `smeltItems` giving 17; `Roasting_is_exported`: the
-records and the guide in the export, with the switch on).
+props, and 20 concentrate through a firepit's own `smeltItems` giving 17) and
+`RecipeExportOreProcessingScenarios.cs` (`Roasting_is_exported`: the records and the guide in the export,
+with the switch on).
 
 ### Ore processing: retorting mercury in the still (`OreProcessing`)
 
@@ -5916,7 +5918,8 @@ charging nothing for the boiler and condenser (kind `oreretorting`, `toolFractio
 figures, whole stacks and fractions); `tests/PackTests/OreProcessingScenarios.cs`
 (`Still_retorts_cinnabar_and_amalgam`: EM's recipe off, amalgam to mercury and sponge step by step,
 taking it out part way, cinnabar, a bucket of water refusing it, and the game's own boiler tick running
-it; `Retorting_is_exported`: the records and the guide, with the switch on) and `SwitchesOffScenarios` (off).
+it), `RecipeExportOreProcessingScenarios.cs` (`Retorting_is_exported`: the records and the guide, with
+the switch on) and `SwitchesOffScenarios` (off).
 
 ### Cupellation (`OreProcessing`)
 
@@ -6040,7 +6043,8 @@ item values count liquation as a station (`tools/item-values/ore-processing.json
 `tests/Ore/LiquationTests.cs` (the ores, yields, overheating, refusals, the figures);
 `tests/PackTests/OreProcessingScenarios.cs` (Atlas: a full pan through a firepit's own tick in a wood
 fire and in a charcoal fire, the pan in crucibulum's forge with the gate shut, emptying and the residue,
-the clay forming and firing, the export) and `SwitchesOffScenarios` (off).
+the clay forming and firing), `RecipeExportOreProcessingScenarios.cs` (the export) and
+`SwitchesOffScenarios` (off).
 
 ### Ore machines: what they share (`OreMachinesSettings`)
 
@@ -6859,9 +6863,11 @@ prospector cell, the next when one can take no camp, out to ring 10, then any ca
 (`MapDistanceTests`): rounding to the nearest km, under a km, a tier's reach in km; the lead
 history (`LeadBookTests`): counts that never reset, the stranger's lead, visits, pooling by company,
 the first map per player and not per company, the saved version and its migration from version 1);
-`tests/PackTests/TradingMapsScenarios.cs` (Atlas, a fixed seed: a prospector's ore map offers,
-buying one through the trade window, the registry marked sold and no other trader offering it, a
-gravel map offered exactly when a field is in reach, standing changing a trader's prices and map
+`tests/PackTests/TradingMaps*Scenarios.cs` (Atlas, a fixed seed, three classes each on a world of
+its own, as checking a deposit generates its columns: `TradingMapsShelfScenarios` a prospector's ore
+map offers, buying one through the trade window, the registry marked sold and no other trader
+offering it; `TradingMapsApproachScenarios` a far camp's deposits checked in the background, one at a
+time, as a player nears it; `TradingMapsScenarios` a gravel map offered exactly when a field is in reach, standing changing a trader's prices and map
 precision; a fresh player at a store offered their first map alone, 10 gears to a prospector,
 buying it generating the camp and marking it, nothing more from that trader, and one onward in
 ring 1 at the prospector's camp; a prospector offering no first map and a stranger's one lead in

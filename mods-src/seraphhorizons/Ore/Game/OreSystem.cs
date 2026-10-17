@@ -52,7 +52,8 @@ public class OreSystem : ModSystem
     /// built that noise at a quarter of the scale, and every deposit drawing its depth from it
     /// (vanilla's discs, cracked rock among them, and Interesting Ore Gen's veins) sat elsewhere than
     /// in the same world started fresh. Set before <c>initWorldGen</c>, which runs after every mod's
-    /// start.
+    /// start. Reported upstream, anegostudios/VintageStory-Issues#10157: once a game version stops
+    /// setting the static, this can go.
     /// </summary>
     public const int FreshDepositVerticalDistortScale = 8;
 
