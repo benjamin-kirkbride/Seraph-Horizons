@@ -4246,9 +4246,11 @@ vessel that is then filled with molten steel (not blown) stays cold scrap, as sm
 until a blow. The Bessemer route is the only part of the furnace's code that touches smex; the furnace
 itself uses neither smex, ppex nor exlib (there is no forced air: the old exlib pipe hook is gone).
 
-**Handbook.** A guide page, "Making stainless steel" (`config/handbook/cruciblefurnace.json`), on the
-furnace, its chimney and rows, the pots, the charges, firing and the damper, pulling and teeming; the
-frame's page has "Building it" and a section linking the guide, as the pots and the two ferroalloys do.
+**Handbook.** The frame's page is the furnace's: what it makes (linking the guide), building it, the
+chimney and rows, the pots, firing and the damper, pulling and teeming, and cast iron. A guide page,
+"Making stainless steel" (`config/handbook/cruciblefurnace.json`), has the stainless chain: why it needs
+the furnace, the charges (ferrosilicon, ferrochrome, stainless, the remelt) and the Bessemer route,
+linking the frame's page for the furnace. The pots and the two ferroalloys have a section linking both.
 
 | Setting | Default | |
 |---|---|---|
