@@ -10,16 +10,15 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// Joins test players, which <c>World.JoinPlayer</c> alone can fail at on a slow runner (#666).
-/// Every scenario joins through <see cref="JoinRetrying"/>, never <c>World.JoinPlayer</c> itself.
+/// Every scenario joins through <see cref="JoinRetrying"/> or <see cref="JoinAtSpawn"/>, never
+/// <c>World.JoinPlayer</c> itself.
 /// <para>The engine places a player at once only when it needn't look for a spot: with no
 /// <c>spawnRadius</c> and the chunk it joins in loaded. Otherwise it is a "delayed join", the
 /// identification answered first and the entity spawned later, once a spot within the radius is
 /// found or the chunk has loaded (both may need chunks generated). Atlas sends its join request as
 /// soon as the entity object exists, so on a delayed join the engine's <c>HandleRequestJoin</c>
 /// can name an entity not yet spawned (<c>EntityPlayer.SetName</c> throws on its missing nametag)
-/// and the join stops there; Atlas times out waiting for its inventories (100 ticks). So the
-/// radius is set to 0 (no scenario relies on where in it a player starts) and the spawn's chunk
-/// loaded before joining. A player joining again joins where it left, which may be unloaded.</para>
+/// and the join stops there; Atlas times out waiting for its inventories (100 ticks).</para>
 /// <para>A join that times out leaves its client registered on the server: Atlas frees its own
 /// claims (the name, the socket) but not the engine's, and a server that isn't dedicated doesn't
 /// drop a client whose packet threw. The next join under that name finds the stale client by name,
@@ -27,6 +26,9 @@ namespace SeraphHorizons.PackTests;
 /// added. Key: 127.0.0.1:&lt;id&gt;", failing every later scenario in the class. So a timed-out
 /// join's client is disconnected here and the join tried again on a fresh connection, by which
 /// time what was slow (the chunk load) has finished.</para>
+/// <para><see cref="JoinRetrying"/> leaves the world as it is: where a player starts is something
+/// scenarios see (MapRevealScenarios needs its players' joins to load more than one player's view
+/// of columns, which players all standing on the spawn don't).</para>
 /// </summary>
 public static class PlayerJoin
 {
@@ -34,8 +36,6 @@ public static class PlayerJoin
 
     public static async Task<ITestPlayer> JoinRetrying(this IWorldSession world, string name)
     {
-        world.Api.World.Config.SetString("spawnRadius", "0");
-        await LoadSpawnChunk(world);
         for (int attempt = 1; ; attempt++)
         {
             try
@@ -50,12 +50,22 @@ public static class PlayerJoin
         }
     }
 
-    private static async Task LoadSpawnChunk(IWorldSession world)
+    /// <summary>
+    /// Joins a player at the spawn itself, avoiding the delayed join in a standard world, whose
+    /// radius search may need chunks generated: with the radius at 0 and the spawn's chunk loaded
+    /// the engine places the player at once. For scenarios that don't rely on where in the radius a
+    /// player starts.
+    /// </summary>
+    public static async Task<ITestPlayer> JoinAtSpawn(this IWorldSession world, string name)
     {
+        world.Api.World.Config.SetString("spawnRadius", "0");
         var spawn = world.Api.World.DefaultSpawnPosition.AsBlockPos;
-        if (world.Api.World.BlockAccessor.GetChunkAtBlockPos(spawn) != null) return;
-        world.Api.WorldManager.LoadChunkColumnPriority(spawn.X / GlobalConstants.ChunkSize, spawn.Z / GlobalConstants.ChunkSize);
-        await world.Until(() => world.Api.World.BlockAccessor.GetChunkAtBlockPos(spawn) != null, 30_000);
+        if (world.Api.World.BlockAccessor.GetChunkAtBlockPos(spawn) == null)
+        {
+            world.Api.WorldManager.LoadChunkColumnPriority(spawn.X / GlobalConstants.ChunkSize, spawn.Z / GlobalConstants.ChunkSize);
+            await world.Until(() => world.Api.World.BlockAccessor.GetChunkAtBlockPos(spawn) != null, 30_000);
+        }
+        return await world.JoinRetrying(name);
     }
 
     /// <summary>Atlas' own timeouts on a join step: no entity in time (its "did not finish joining"
