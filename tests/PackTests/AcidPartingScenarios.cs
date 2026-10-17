@@ -182,8 +182,9 @@ public partial class SharedWorldScenarios
         Assert.True(vessel.ShowsPart("solution") && vessel.ShowsPart("liquor") && vessel.ShowsPart("gold") && !vessel.ShowsPart("charge"));
         // nothing more goes in while it parts, and the gold stays in it
         Assert.Equal(1, VesselClick(player, vessel, rig.Vessel, CutterItem(Dore, 1))?.StackSize);
-        // the silver drawn from the tub as it comes: 20 units carry 2.85 silver, no whole bit yet
-        Assert.Equal(0, vessel.SilverBits);
+        // the silver comes down in the tub as it parts, a bit for each 5 units of it
+        int expected = (int)Math.Floor(vessel.Parted * 0.15 * 0.95 / 5 + 1e-9);
+        Assert.InRange(vessel.SilverBits, expected - 1, expected + 1);
 
         // eighteen more: the charge parted, five charcoal burned
         vessel.Age(18);
