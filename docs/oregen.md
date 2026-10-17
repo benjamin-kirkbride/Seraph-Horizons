@@ -312,7 +312,8 @@ four times these but for rounding.
 block's own grade, so they follow. A deposit no longer reads `only:` unless its rock has one grade
 or it is a pocket or two in size: a medium or rich one reads `mostly:` (65 % at the drawn grade, less
 its prospect veins) or `mixed:`, a poor one `mostly:poor` (70 %, plus its poor prospect veins), where
-it read `only:poor`. `GradePocketsScenarios` checks it on real deposits: every block of a deposit
+it read `only:poor`. `GradePocketsCopperIronTinScenarios` and `GradePocketsZincLeadBismuthScenarios`
+(a world each, the cells of three metals each) check it on real deposits: every block of a deposit
 matches one drawn grade at its position, in every chunk column (each its own chunk pass), and at
 most a quarter of the deposits of 5,000 blocks or more are 80 % one grade (a vein crosses a few dozen
 pockets at most, so one can by chance: seed 944944's poor bismuth deposit came out 85 % poor). A
@@ -424,7 +425,10 @@ block, and `OreCellOrderSeamAnchorFirst` / `FarFirst` do the same for seed 101's
 a `hematite` seam (IOG's multi-ore fault pocket) of 11,948 blocks. Their boulder indicators too,
 read back block by block: 194 blocks around the limonite vein and 444 around the seam, the same
 in both orders (the other veins' tracer paths left their start columns, or drew no boulder).
-`OreCellOrderScenarios` deletes
+The order classes join no player (one at the spawn would generate its view among the columns
+under test) and load on the virtual clock (`tests/PackTests/README.md`), each column waited for in
+wall time. A third check, `OreCellsScenarios.A_cell_vein_is_the_same_whatever_order_its_columns_generate_in`
+(in the same file, on `OreCellsScenarios`' world and boot, run last), deletes
 one anchor's area and generates it again in the other order, in one world.
 
 Worlds booted one after another in one process used to differ from the same world booted alone
@@ -441,7 +445,9 @@ world, `malachite#1` alone) and how much ore a vein laid. `OreSystem.Start` puts
 start. With it, seed 944944 booted after another world in one process gives the same 24 deposits,
 block counts and centres as booted alone; `OreCellsScenarios.Deposit_depths_are_drawn_as_in_a_fresh_process`
 checks the noise in every class but a test host's first. IOG's own static spacing state is not a
-cause: `IOGCore.StartServerSide` empties it every start.
+cause: `IOGCore.StartServerSide` empties it every start. The game's bug is reported upstream
+([anegostudios/VintageStory-Issues#10157](https://github.com/anegostudios/VintageStory-Issues/issues/10157)); once a game version stops setting the static, the
+reset can go.
 
 ## Deposit registry (#443)
 
@@ -458,7 +464,15 @@ placer fields are bound in the world.
   up to the spot count); then the anchor's column and its eight neighbours are loaded (generated if
   need be: `LoadChunkColumnPriority` per column, which calls back at once for a loaded column and
   otherwise on the main thread once it is fully generated), and the metal's ore blocks in them are
-  counted. A block's worth is the sum over its drops of the average count times the dropped item's
+  counted. Every column a verify loads is loaded with `KeepLoaded`: with no player near (a trader's
+  survey, `DepositSurveys`, runs in the background) the server unloads a column again after about
+  10 s, and before #1002 the anchor column, which holds most of the ore, was often gone by the time
+  the nine were in and counted as none. A column still missing when it counts is loaded again (up to
+  three tries), then counted without, with a warning in the server log. Once measured (or the verify
+  ends any other way), the verify takes the columns it forced off the server's forced list, so they
+  unload as any other column does; a column the server already forced (an eidolon's) is left as it
+  was, and two verifies sharing a column hold it until both are done. Measurements recorded before
+  the fix are not redone. A block's worth is the sum over its drops of the average count times the dropped item's
   `metalUnits` (1.25 ore chunks plus 0.01 crystallised ore, as the survey reads them); 5 units make
   a nugget, 20 nuggets an ingot (`DepositSizing`). The tier is the bottom, middle or top third of the
   metal's `smallIngots`..`largeIngots`; below a tenth of `smallIngots` the deposit is worked out and
