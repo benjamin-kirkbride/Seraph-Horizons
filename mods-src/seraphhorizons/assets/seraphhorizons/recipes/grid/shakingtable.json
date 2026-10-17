@@ -1,0 +1,20 @@
+// The shaking table (ShakingTable/, README "Shaking table"; #921). The server disables it with ShakingTable or
+// OreProcessing off.
+[
+	{
+		// The frame, as placed: the oak stand (sills, legs, rails, the tie), the iron slide plates, the head's
+		// bed sills, the three launders, the splitter and the upper side's posts, rail and straps (9 planks'
+		// worth of timber), nailed and strapped with 4 iron nails and strips, with a hammer
+		// (ShakingTable/README.md, "Build stages", the frame's row). Every other stage goes in afterwards,
+		// fitted by hand.
+		ingredientPattern: "PN,H_",
+		width: 2,
+		height: 2,
+		ingredients: {
+			"P": { type: "item", code: "game:plank-*", quantity: 9 },
+			"N": { type: "item", code: "game:metalnailsandstrips-iron", quantity: 4 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:shakingtable-north" }
+	}
+]
