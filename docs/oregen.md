@@ -425,11 +425,23 @@ a `hematite` seam (IOG's multi-ore fault pocket) of 11,948 blocks. Their boulder
 read back block by block: 194 blocks around the limonite vein and 444 around the seam, the same
 in both orders (the other veins' tracer paths left their start columns, or drew no boulder).
 `OreCellOrderScenarios` deletes
-one anchor's area and generates it again in the other order, in one world. Worlds booted one after another in one process do not: the second world's vanilla deposits
-(cracked rock, and the ore with it) differ from the same world booted alone, with stable veins on
-or off (an Atlas experiment with the switch off: 8,751 of one column's blocks differed between two
-worlds of one seed booted in turn), so something outlives a server in the process. Open; it would
-matter where a client switches worlds without restarting.
+one anchor's area and generates it again in the other order, in one world.
+
+Worlds booted one after another in one process used to differ from the same world booted alone
+(#1012; an Atlas experiment with stable veins off: 8,751 of one column's blocks differed between two
+worlds of one seed booted in turn). The cause is the game's: `GenDeposits.initWorldGen` builds the
+deposits' vertical distortion noise (`GenMaps.GetDepositVerticalDistort`) at 25 times the static
+`TerraGenConfig.depositVerticalDistortScale`, 8 in a fresh process, and its `OnMapRegionGen` then sets
+that static to 2 and never back. Every later server in the process built the noise at 50 blocks
+instead of 200, so every deposit that takes its depth from it (vanilla's discs, cracked rock among
+them, and IOG's veins) sat at other depths: the host rock at a cell's try centres changed, and with
+it which try the cell rule took (seed 944944's copper cell 104,100: `nativecopper#2` after another
+world, `malachite#1` alone) and how much ore a vein laid. `OreSystem.Start` puts the static back to
+8 (`OreSystem.FreshDepositVerticalDistortScale`) before `initWorldGen`, which runs after every mod's
+start. With it, seed 944944 booted after another world in one process gives the same 24 deposits,
+block counts and centres as booted alone; `OreCellsScenarios.Deposit_depths_are_drawn_as_in_a_fresh_process`
+checks the noise in every class but a test host's first. IOG's own static spacing state is not a
+cause: `IOGCore.StartServerSide` empties it every start.
 
 ## Deposit registry (#443)
 
