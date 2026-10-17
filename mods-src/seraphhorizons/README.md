@@ -5097,6 +5097,16 @@ payouts already split gears into stacks (`SeraphTraderInventory.GiveOrDrop`), so
 takes more slots, and no grid or barrel recipe in the pack takes more than 64 in one slot
 (`BigPilesScenarios`).
 
+Dialogue that asks for more than a stack holds counts it across slots (`DialogueStacks.cs`, logic in
+`Core/SpanningTake.cs`): the game's `player.inventory` conditions and `takefrominventory` triggers want
+one slot holding the whole stack (`DialogueComponent.FindDesiredItem`), so the treasure hunter's elk,
+100 rusty gears, could never be bought with the gear at 64. A postfix on that method, only where it
+finds no single slot, returns a slot spanning the matching ones when together they hold enough; the
+condition is met and the trigger takes exactly the quantity, from them in order. Every dialogue
+benefits, the dialogue files are the game's, and it acts while this switch is on (bound by name; a
+missing method is logged and nothing is patched). Tests: `tests/SpanningTakeTests.cs`, and
+`TradingStoryScenarios` buying the elk with 100 gears in stacks of 64.
+
 ### Clutter does not pile (`NoClutterPiles`)
 
 The game's clutter is put down one at a time, as the game ships it, not piled. More Piles'
@@ -6461,7 +6471,8 @@ keeps everything that makes it the treasure hunter: its name, its outfit, its ho
 treasure hunter dialogue (`config/dialogue/treasurehunter.json`, made by `make_entities.py` from the
 game's), every quest as the game's: the bronze pickaxe for the Resonance Archive's map and the map
 again if lost, the Lazaret letter, the names and alchemists' places, the elk (its price paid in the
-dialogue, not as a trade). The dialogue gains only what every pack trader's does: "How do you see me
+dialogue, not as a trade, and counted across stacks, since the rusty gear stacks to 64: "The rusty
+gear stacks to 64"). The dialogue gains only what every pack trader's does: "How do you see me
 these days?" and "Got anything to trade?" opening the pack's trade window. Everything else is the
 pack's traders': its own list (`trader-treasurehunter.json`, curated from the game's treasure hunter
 list and every mod's entry into it: treasure and locator maps, loot vessels, rough gems, relics and
@@ -6504,7 +6515,8 @@ levelled and no step of more than one off it, `/sh trade camps` and `/sh trade t
 treasure hunter's spawner spawns the pack's while other story spawners keep theirs and a camp's 150
 blocks off is still the cell's; the handbook leaves out the game's treasure hunter; the pack's trades
 from its list and keeps the game's quests, driven through the dialogue: the pickaxe for the map, the
-elk paid in the dialogue with no deal or standing; a game treasure hunter converted with its quest
+elk paid in the dialogue with no deal or standing, with the eidolon's vessel and with 100 gears in
+stacks of 64; a game treasure hunter converted with its quest
 variables, name, outfit and spawner; and its generated house spawning the pack's, known to standing
 as `story:treasurehunter`); `tests/Trading/HandbookTradersTests.cs` (which traders and names are left
 out) and `tests/Trading/StoryTradersTests.cs` (the code mapping and the story id).
