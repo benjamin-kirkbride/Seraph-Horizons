@@ -20,7 +20,7 @@ namespace SeraphHorizons.Mod.Arrastra;
 /// <item>The pit is the infeed slot: the charge of crushed ore, one ore and grade, up to the config's
 /// <c>charge</c> (2), tipped in a rock a right-click; once ground, the same slot holds the ground ore.</item>
 /// <item>The water is the shared reservoir (20 L, a charge's worth), filled from a bucket by right-click
-/// (<see cref="ArrastraWater"/>; no pipe). The charge grinds only with its water in the pit (10 L a rock),
+/// (the rocker's <see cref="Rocker.RockerWater"/>; no pipe). The charge grinds only with its water in the pit (10 L a rock),
 /// spent when it is ground.</item>
 /// <item>Grinding counts shaft turns (<see cref="ArrastraCharge"/>): a full charge in the config's
 /// <c>chargeHours</c> (7.5) at the reference speed, a part charge its share; then every rock becomes its
@@ -130,7 +130,7 @@ public class BEArrastra : BEOreMachine
         var held = slot?.Itemstack;
         if (held == null)
             return InfeedSlot.Empty ? null : Draw(byPlayer);
-        if (ArrastraWater.Litres(held) > 0)
+        if (Rocker.RockerWater.Litres(held) > 0)
             return Pour(byPlayer, slot!);
         if (ArrastraCharge.IsCrushed(held.Collectible.Code.ToString()))
             return Tip(byPlayer, slot!);
@@ -168,10 +168,10 @@ public class BEArrastra : BEOreMachine
         var verdict = Charge.CanWater(Water.Litres, capacity);
         if (verdict != WaterVerdict.Pours)
             return Error(byPlayer, verdict == WaterVerdict.Full ? "seraphhorizons:arrastra-error-waterfull" : "seraphhorizons:arrastra-error-ground");
-        double perLitre = ArrastraWater.PortionsPerLitre(slot.Itemstack);
-        double litres = Math.Min(ArrastraWater.Litres(slot.Itemstack), capacity - Water.Litres);
+        double perLitre = Rocker.RockerWater.PortionsPerLitre(slot.Itemstack);
+        double litres = Math.Min(Rocker.RockerWater.Litres(slot.Itemstack), capacity - Water.Litres);
         int portions = (int)Math.Floor(litres * perLitre + 1e-6);
-        int taken = ArrastraWater.Take(byPlayer, slot, portions);
+        int taken = Rocker.RockerWater.Take(byPlayer, slot, portions);
         if (taken <= 0)
             return true;
         FillWater(taken / perLitre);

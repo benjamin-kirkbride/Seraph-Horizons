@@ -9,7 +9,7 @@ continuous successor is the ball mill (#915, its own machine).
 
 **Status: built (#732).** The machine is in the game on the shared ore machine (`Machines/Game`, `BEOreMachine`),
 switch `Arrastra`: `Core/ArrastraCharge.cs` holds its batch's rules (game-independent, tested in
-`tests/Arrastra/ArrastraChargeTests.cs`), `Game/` its block entity (`BEArrastra`), its system and the bucket's water;
+`tests/Arrastra/ArrastraChargeTests.cs`), `Game/` its block entity (`BEArrastra`), and its system (the bucket's water read by the rocker's `RockerWater`);
 the frame is `assets/seraphhorizons/blocktypes/arrastra/frame.json`, its grid recipe `recipes/grid/arrastra.json`, its
 build `config/builds/arrastra.json`. [Gameplay](#gameplay) below says what it does. Paths here are from this folder unless they start
 with `assets/` or `tests/`, which are the mod's (`mods-src/seraphhorizons/`), or `Machines/`, this folder's
