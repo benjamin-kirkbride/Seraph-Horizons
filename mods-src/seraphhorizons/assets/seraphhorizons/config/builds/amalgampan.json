@@ -1,0 +1,16 @@
+{
+	"_comment": "The amalgam pan's build (#718, #711): its two stages after the frame and their materials, from AmalgamPan/README.md's stage table, in the rig's buildStages order; read by Machines/Core/MachineBuildJson.cs. The muller: a rod is its spindle, with the hub, the arms and the oak coupling at its foot. Then the shoes: a plate cut into the four shoes under the arms' ends, drawn in the plate's metal; they do not wear. Iron and steel only: mercury does not wet iron, and would eat copper. A batch hand station: loaded and emptied by hand.",
+	"machine": "amalgampan",
+	"block": "seraphhorizons:amalgampan-frame-north",
+	"feed": "batch",
+	"stages": [
+		{
+			"id": "muller", "name": "the muller", "adds": ["muller"],
+			"materials": [ { "codes": ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"], "quantity": 1 } ]
+		},
+		{
+			"id": "shoes", "name": "the shoes", "adds": ["shoes"],
+			"materials": [ { "codes": ["game:metalplate-iron", "game:metalplate-steel"], "quantity": 1 } ]
+		}
+	]
+}
