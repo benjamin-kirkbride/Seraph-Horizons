@@ -17,7 +17,8 @@ namespace SeraphHorizons.PackTests;
 /// An eidolon standing in the area with no order is never mined out from under, waited for, and its
 /// squares mined once it moves, no pillar left; one with no square (mining) or tree (felling) free waits
 /// at the area's rim, holding nothing; one dry when its job is reported goes back once oiled with no
-/// report of its own. The shared pit and the late joiner are <see cref="EidolonTeamMineScenarios"/>, the
+/// report of its own; and three finding no way to a stand another waits by give it up after a few tries
+/// and end the job, never waiting on it for good. The shared pit and the late joiner are <see cref="EidolonTeamMineScenarios"/>, the
 /// shared felling <see cref="EidolonTeamFellScenarios"/>. On floors of their own in the sky
 /// (<see cref="Felling.Sky"/>), apart from those classes' sites, each from its spawns on the virtual clock
 /// (<see cref="VirtualClock"/>).
@@ -32,7 +33,8 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
 
     private void Log(string what)
     {
-        W.Logger.Notification("[eidolon-teamwait-test] " + what);
+        // as an argument: a mining order's state holds braces (PathCell { X = ... })
+        W.Logger.Notification("[eidolon-teamwait-test] {0}", what);
         output.WriteLine(what);
     }
 
@@ -318,6 +320,77 @@ public class EidolonTeamWaitScenarios(ITestOutputHelper output) : AtlasScenarioB
         Assert.Contains("1 felled", report);
         e1.Die(EnumDespawnReason.Removed);
         e2.Die(EnumDespawnReason.Removed);
+    }
+
+    /// <summary>
+    /// No way to a stand with another eidolon waiting by it: the stand bad after a few tries all the same, and
+    /// the job ends. A pillar 1 × 1 and 4 high stands on dry stone fences (whole blocks to the plan, as any
+    /// block reaching half a block up; the game's pathfinder finds no way onto them from the granite round
+    /// them), and the three are ordered from that granite; another eidolon, with no order, stands 2.8 blocks
+    /// off the first stand planned (2 west and 2 north of the pillar), and stays. Each walks to the fences'
+    /// edge and arrives short: once, with the other by the stand, the three took it, failed and took it again
+    /// for good, with nothing in the log and the plan never made again. Now, with every stand round it bad,
+    /// the job reports the pillar out of reach and ends.
+    /// </summary>
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Three_finding_no_way_to_a_stand_another_waits_by_give_it_up_and_end_the_job() => await NoWayByAnother(2200, routing: true);
+
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Three_finding_no_way_to_a_stand_another_waits_by_give_it_up_and_end_the_job_by_todays_dispatch() => await NoWayByAnother(2400, routing: false);
+
+    private async Task NoWayByAnother(int z, bool routing)
+    {
+        bool was = EidolonMinePlans.Routing;
+        EidolonMinePlans.Routing = routing;
+        try
+        {
+            var site = await Felling.Sky(World, World.Spawn.AddCopy(-720, 90, z), reach: 15);
+            var blocks = W.BlockAccessor;
+            int granite = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
+            var fence = W.GetBlock(new AssetLocation("game:drystonefence-granite-nesw-free"));
+            Assert.NotNull(fence);
+            for (int x = -7; x <= 8; x++)
+            for (int zz = -7; zz <= 8; zz++)
+                blocks.SetBlock(x == 0 && zz == 0 ? granite : fence!.Id, site.AddCopy(x, -1, zz));
+            var a = site.AddCopy(0, 0, 0);
+            var b = site.AddCopy(0, 3, 0);
+            var area = Area(a, b);
+            var pillar = Cells(area);
+            foreach (var c in pillar)
+                blocks.SetBlock(granite, c);
+
+            var (_, player, tool) = await Commander(routing ? "nowayroutes" : "nowaytoday", site.AddCopy(-14, 0, -1));
+            using var clock = VirtualClock.Start(World);
+            var other = await Spawn(site.AddCopy(-4, 1, 0), player);
+            other.Orders!.ClearOrder();
+            var crew = new[] { await Spawn(site.AddCopy(-11, 0, -3), player), await Spawn(site.AddCopy(-11, 0, 0), player), await Spawn(site.AddCopy(-11, 0, 3), player) };
+            await World.Ticks(20);
+            var otherAt = other.Pos.XYZ;
+            OrderMine(player, tool, crew, a, b);
+            var orders = crew.Select(e => Assert.IsType<MineOrder>(e.Orders!.Current)).ToArray();
+            int ticks = 0;
+            // five minutes of game time: unbounded, it never ended
+            await World.Until(() =>
+            {
+                if (++ticks % 600 == 0)
+                    Log($"plan {orders[0].Job?.Shared.PlanVersion}: {string.Join(" || ", crew.Select(e => e.Orders!.Current is MineOrder o ? $"{e.EntityId} {o.DebugState}" : $"{e.EntityId} done"))}");
+                return crew.All(e => e.Orders!.OrderCode == null);
+            }, 9000);
+            var lines = Reports(orders);
+            Log($"after: plan {orders[0].Job?.Shared.PlanVersion}, the other at {other.Pos.XYZ}; reports: {string.Join(" | ", lines)}");
+            Assert.All(crew, e => Assert.True(e.Orders!.OrderCode == null, State(e)));
+            Assert.True(other.Pos.XYZ.HorizontalSquareDistanceTo(otherAt) < 0.5 * 0.5, $"the other moved from {otherAt} to {other.Pos.XYZ}");
+            Assert.All(pillar, c => Assert.NotEqual(0, blocks.GetBlock(c).Id));
+            var report = Assert.Single(lines);
+            Assert.Contains($"{pillar.Count} out of their reach", report);
+            foreach (var e in crew)
+                e.Die(EnumDespawnReason.Removed);
+            other.Die(EnumDespawnReason.Removed);
+        }
+        finally
+        {
+            EidolonMinePlans.Routing = was;
+        }
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]

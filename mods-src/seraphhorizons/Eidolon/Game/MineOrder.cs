@@ -324,7 +324,42 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     public string DebugState =>
         $"{_phase}, {(Cells.Routes is { Today: false } r && r.PlanVersion == Cells.PlanVersion ? Cells.RoutesStalledPlan == Cells.PlanVersion ? "routes stalled" : "routes" : "today")}, "
         + $"head {(Station is { } s ? $"#{s.Id} at {s.Stand}" : "none")}, nav {(_nav?.Active == true ? "active" : "idle")}, "
-        + $"through {(_throughSince?.ToString("0.0") ?? "-")}, bumped {(_bumpedAt > double.NegativeInfinity ? _bumpedAt.ToString("0.0") : "-")}";
+        + $"through {(_throughSince?.ToString("0.0") ?? "-")}, bumped {(_bumpedAt > double.NegativeInfinity ? _bumpedAt.ToString("0.0") : "-")}, "
+        + $"let go {(_held is { } h ? $"{h.Why} x{h.Count} since {h.Since:0.0}" : "-")}, "
+        + $"blocked {(Cells.BlockedStands.Count == 0 ? "-" : string.Join(" ", Cells.BlockedStands.Select(b => $"({b.Key.X},{b.Key.Y},{b.Key.Z}) x{b.Value}")))}";
+
+    /// <summary>How many times, by any member and with no strike of its job between, a stand is found no way
+    /// to (or arrived short of) with another eidolon by it before it is bad all the same (README "Eidolon",
+    /// working together, *When none may work*, <see cref="MineJobCells.BlockedStands"/>): another by it is
+    /// most often in the way for a moment, but one waiting by a stand no one gets onto would otherwise hold
+    /// its job to that station for good, each member taking it, failing and taking it again.</summary>
+    private const int BlockedTries = 3;
+
+    /// <summary>How long a run of stations let go for one reason, with no strike, goes on before it is logged
+    /// (at Debug, <c>[eidolon-mine]</c>), and how often at most after that.</summary>
+    private const double HeldLogSeconds = 30;
+
+    // why it last let go of a station without working it, how many times in a row with no strike between,
+    // since when, and when that was last logged
+    private (string Why, int Count, double Since, double Logged)? _held;
+
+    /// <summary>It let go of a station without working it, for <paramref name="why"/>: kept for
+    /// <see cref="DebugState"/>, and a run of them for one reason, with no strike, that goes on
+    /// <see cref="HeldLogSeconds"/> is logged (at Debug, then at most that often), so a job that stops getting
+    /// anywhere says why in the server's log.</summary>
+    private void Held(EntityLaborEidolon eidolon, string why, double now)
+    {
+        if (_held is { } h && h.Why == why)
+            _held = h with { Count = h.Count + 1 };
+        else
+            _held = (why, 1, now, now);
+        var held = _held.Value;
+        if (now - held.Since < HeldLogSeconds || held.Logged > held.Since && now - held.Logged < HeldLogSeconds)
+            return;
+        _held = held with { Logged = now };
+        eidolon.World.Logger.Debug("{0}", $"[eidolon-mine] {eidolon.EntityId} on {EidolonMinePlans.Describe(area)}: let go of its station {held.Count} times in "
+            + $"{now - held.Since:0} s with no strike, {why}: {DebugState}");
+    }
 
     private EidolonMinePlans? Plans => EidolonMinePlans.Of(_eidolon?.Api);
 
@@ -1316,6 +1351,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var workable = head.Cells.Where(c => Left(c, others)).ToHashSet();
         if (workable.Count == 0)
         {
+            Held(eidolon, "nothing left it may break", now);
             DropHead(eidolon);
             return Try.Dropped;
         }
@@ -1323,6 +1359,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         var group = MineStations.NextGroup(head, plan.Tunnel, workable.Contains, stand.X, stand.Y, stand.Z);
         if (group == null)
         {
+            Held(eidolon, "no group to strike", now);
             DropHead(eidolon);
             return Try.Dropped;
         }
@@ -1333,8 +1370,11 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             group = group with { Cells = hung };
         }
         var before = MineDispatch.Before(plan, live, head, ParkedClear(Workers(eidolon)));
-        if (MineDispatch.Footing(before, group.Cells) || live.Check(stand, group.Cells, At(Workers(eidolon)), null, before) != MineRefusal.None)
+        bool footing = MineDispatch.Footing(before, group.Cells);
+        var refused = footing ? MineRefusal.None : live.Check(stand, group.Cells, At(Workers(eidolon)), null, before);
+        if (footing || refused != MineRefusal.None)
         {
+            Held(eidolon, $"refused: {(footing ? "footing" : refused.ToString())}", now);
             DropHead(eidolon);
             return Try.Dropped;
         }
@@ -1344,8 +1384,12 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         if (!AtStand(eidolon, stand) || !group.Cells.Any(c => EidolonMining.InReach(eidolon.Pos.X, feet, eidolon.Pos.Z, c)))
             return Try.NotInReach;
         if (!BeginStrike(eidolon, head, group, now))
+        {
+            Held(eidolon, "nothing breakable from its stand", now);
             return Try.Dropped;
+        }
         _pathFails = 0;
+        _held = null;
         return Try.Struck;
     }
 
@@ -1386,6 +1430,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         {
             // another is on the stair: it waits off it and looks again, its stations let go meanwhile (held,
             // they would keep the one on the stair from working them, and so from ever getting off it)
+            Held(eidolon, "waits for the stair", now);
             DropQueue(eidolon);
             _phase = Phase.Wait;
             _waitCheckAt = now + WaitCheckSeconds;
@@ -1423,6 +1468,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _occupiedSince = null;
         if (CrossesClaims(eidolon, stand, now) && (_throughSince ??= now) > now - (routed ? MineRoutePlanner.PassAfter : ThroughSeconds))
         {
+            Held(eidolon, "its way crosses another's claim", now);
             DropQueue(eidolon);
             _phase = Phase.Wait;
             _waitCheckAt = now + WaitCheckSeconds;
@@ -1435,6 +1481,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             // for room, at most ThroughSeconds, rather than push past it
             if (!_nav.LastWentAround && (_throughSince ??= now) > now - (routed && MayPass(eidolon) ? PassSeconds : ThroughSeconds))
             {
+                Held(eidolon, "its way goes through another", now);
                 _nav.Stop();
                 DropQueue(eidolon);
                 _phase = Phase.Wait;
@@ -1477,23 +1524,41 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         return false;
     }
 
-    /// <summary>A stand the game's pathfinder finds no way to, or that it arrives short of again and again
+    /// <summary>
+    /// A stand the game's pathfinder finds no way to, or that it arrives short of again and again
     /// (README "Eidolon", mining, *Stations*: the game's blocks are not all whole): bad, for its job, until a
     /// block near it changes; the station let go and the plan made again without it. After
-    /// <see cref="PathTries"/> in a row, it waits.</summary>
+    /// <see cref="PathTries"/> in a row, it waits. With another eidolon at or by it (within 3 blocks), that one
+    /// is most often only in its way for now: it lets the station go and waits, but only
+    /// <see cref="BlockedTries"/> times at that stand (by any member, since its job's last strike); then it is
+    /// bad all the same. (Unbounded, three
+    /// once waited by a stand none could get onto, each taking it, failing and taking it again, for good, and
+    /// logging nothing.)
+    /// </summary>
     private void BadStand(EntityLaborEidolon eidolon, MineStation head, double now)
     {
         _nav?.Stop();
-        // another eidolon at or by it: no way there for now, not a bad stand
         var stand = head.Stand;
-        if (Others(eidolon, new Vec3d(stand.X, stand.Y, stand.Z), 3, 4).Count > 0)
+        var by = NearStand(eidolon, stand);
+        if (by.Count > 0)
         {
-            DropHead(eidolon);
-            Wait(eidolon, now);
-            return;
+            var blocked = Cells.BlockedStands;
+            int tries = blocked[stand] = blocked.GetValueOrDefault(stand) + 1;
+            if (tries <= BlockedTries)
+            {
+                Held(eidolon, "no way to its stand with another by it", now);
+                eidolon.World.Logger.Debug("{0}", $"[eidolon-mine] {eidolon.EntityId}: no way to stand ({stand.X},{stand.Y},{stand.Z}) (station {head.Id}) "
+                    + $"at {eidolon.Pos.XYZ} with {string.Join(", ", by.Select(o => o.EntityId))} by it: waits ({tries} of {BlockedTries} times)");
+                DropHead(eidolon);
+                Wait(eidolon, now);
+                return;
+            }
+            blocked.Remove(stand);
         }
+        Held(eidolon, "no way to its stand", now);
         Cells.BadStands.Add(head.Stand);
-        eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId}: no way to stand ({head.Stand.X},{head.Stand.Y},{head.Stand.Z}) (station {head.Id}) from {eidolon.Pos.XYZ}: bad");
+        eidolon.World.Logger.Debug($"[eidolon-mine] {eidolon.EntityId}: no way to stand ({head.Stand.X},{head.Stand.Y},{head.Stand.Z}) (station {head.Id}) from {eidolon.Pos.XYZ}"
+            + (by.Count > 0 ? $", with another by it once more than {BlockedTries} times" : "") + ": bad");
         DropHead(eidolon);
         Plans?.Replan(Cells, false);
         _phase = Phase.Seek;
@@ -1504,6 +1569,12 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             Wait(eidolon, now);
         }
     }
+
+    /// <summary>The other eidolons at or by <paramref name="stand"/> (within 3 blocks, 4 up or down), which
+    /// may be all that is in its way there for now (<see cref="BadStand"/>).</summary>
+    private static List<EntityLaborEidolon> NearStand(EntityLaborEidolon eidolon, PathCell stand) =>
+        eidolon.World.GetEntitiesAround(new Vec3d(stand.X, stand.Y, stand.Z), 3, 4, e => e is EntityLaborEidolon && e.EntityId != eidolon.EntityId && e.Alive)
+            .OfType<EntityLaborEidolon>().ToList();
 
     /// <summary>
     /// Whether it may set off for feet <paramref name="toFeet"/> (README "Eidolon", working together, *The
@@ -1825,6 +1896,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         _strikeStart = now;
         _workSeconds += _strike.Seconds;
         Cells.LastStrikeAt = now;
+        Cells.BlockedStands.Clear();
         if (Routed(eidolon) && _routeStarted != head.Id)
         {
             _routeStarted = head.Id;
