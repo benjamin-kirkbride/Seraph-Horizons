@@ -3,6 +3,7 @@
 // Expected colours and thresholds are written here by hand, not read from the stylesheet.
 import type { Locator, Page } from "@playwright/test";
 import { contrastRatio, parseColor, relativeLuminance, type Rgb } from "../src/lib/contrast.ts";
+import { t } from "../src/lib/strings.ts";
 import { ICON_CODE, REAL_ICONS } from "./config.ts";
 import { V, card, expect, openItem, search, test } from "./fixtures.ts";
 import { decodePng, pixelAt, type Pixels } from "./png.ts";
@@ -45,7 +46,10 @@ interface Shot {
 }
 
 /** Screenshots `el` in CSS pixels with `mode` applied: "tile" hides everything drawn over its background, "text" only its text. */
-async function shoot(el: Locator, mode: "tile" | "text"): Promise<Shot> {
+async function shoot(locator: Locator, mode: "tile" | "text"): Promise<Shot> {
+  // One node for the probe, the box and the screenshot: a locator is resolved again at each
+  // step, and `.first()` can move to another node in between (#1124).
+  const el = (await locator.elementHandle())!;
   await el.evaluate(
     async (node, [mode, css]) => {
       // Wholly on screen, since the screenshot shows what is painted there.
@@ -76,6 +80,7 @@ async function shoot(el: Locator, mode: "tile" | "text"): Promise<Shot> {
     return { w, h, at: (x, y) => rgbOf(img, ox + Math.floor(x), oy + Math.floor(y)) };
   } finally {
     await el.evaluate((node) => node.removeAttribute("data-probe"));
+    await el.dispose();
   }
 }
 
@@ -214,6 +219,9 @@ for (const colorScheme of SCHEMES) {
     test("text drawn over icons stays readable", async ({ page }) => {
       // Iron rod is used in grid recipes with stack amounts, tools and items without icons.
       await openItem(page, "game:rod-iron");
+      // Each recipe type fetches its first page on its own and they render in name order, so
+      // until all have arrived a later one can insert a new first badge (#1124).
+      await expect(page.getByText(t.loading)).toHaveCount(0);
       const used = page.locator('[data-group="usedIn"]');
       await expectReadable(used.locator(".frame .amount").first(), "an amount badge");
       await expectReadable(used.locator(".frame .toolmark").first(), "a tool mark");

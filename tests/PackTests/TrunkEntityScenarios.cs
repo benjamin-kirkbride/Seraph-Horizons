@@ -348,7 +348,8 @@ public class TrunkEntityScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     // A fake player has no client to send the trunk's position, so once the mount's grace
     // (EntityTrunk.ClientPositionTimeoutMs) runs out the server ticks the trunk itself: its
-    // seatable has no controller there, and the game's physics manager ticks it.
+    // seatable has no controller there, and the game's physics manager ticks it. (ClientPredicting
+    // is that controller, so it flips on the trunk's tick, not between ticks on the clock, #1080.)
     private async Task ServerTicks(EntityTrunk trunk)
     {
         await World.Until(() => !trunk.ClientPredicting, 60);
