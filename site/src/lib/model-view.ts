@@ -81,6 +81,8 @@ const TEXTURE_FAMILIES: [RegExp, string][] = [
   // Contents that would otherwise take the metal colour of the pan they lie in (the amalgam pan's).
   [/mercury|quicksilver/, "#dce2ea"],
   [/amalgam/, "#b0aa9c"],
+  // The rocker's water, which would otherwise take a colour hashed from its code.
+  [/water/, "#6f9fcf"],
   [/metal|iron|steel|copper|bronze|tin|plate|ingot|gold|silver/, "#8e98a4"],
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],
   [/stone|rock|granite|andesite|cobble|brick|clay/, "#9a9a92"],

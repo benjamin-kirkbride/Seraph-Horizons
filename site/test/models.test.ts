@@ -312,6 +312,8 @@ describe("model view", () => {
     expect(textureColour("mercury", "seraphhorizons:block/liquid/mercury")).toBe("#dce2ea");
     expect(textureColour("amalgam", "game:block/metal/ingot/leadsolder")).toBe("#b0aa9c");
     expect(textureColour("pan", "game:block/metal/sheet/iron1")).toBe("#8e98a4");
+    // the rocker's water reads as water
+    expect(textureColour("water", "game:block/liquid/waterportion")).toBe("#6f9fcf");
   });
 
   it("puts elements no part claims in an unmatched group", () => {
