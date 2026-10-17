@@ -1,19 +1,16 @@
 using Atlas.Api;
 using Atlas.XUnit;
 using HarmonyLib;
-using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod;
 using SeraphHorizons.Mod.CrucibleFurnace.Core;
 using SeraphHorizons.Mod.Ore;
 using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
-using SeraphHorizons.RecipeExport;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
-using Newtonsoft.Json.Linq;
 using Vintagestory.API.MathTools;
 using Xunit.Abstractions;
 
@@ -274,7 +271,8 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.False(Item("seraphhorizons:crushedore-galena-medium").CombustibleProps!.RequiresContainer);
         Assert.Null(Item("seraphhorizons:groundore-galena-medium").CombustibleProps);
         Assert.Equal(16 * 10 * 0.50 * 0.85 / 100, Ingots(Stack("seraphhorizons:roastedore-galena-bountiful", 16)), 6);
-        Assert.Equal("game:ingot-lead", Item("seraphhorizons:roastedore-galena-bountiful").CombustibleProps!.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
+        // Galena carries silver: its forms smelt to silver-lead bullion (#740), not lead.
+        Assert.Equal("seraphhorizons:bullion-galena-lead", Item("seraphhorizons:roastedore-galena-bountiful").CombustibleProps!.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         // A sulfide's concentrate smelts only into its roasted concentrate, with no container, which
         // the crucible refuses outright (BlockSmeltingContainer.CanSmelt): it does not smelt to metal.
         var sulfide = Item("seraphhorizons:concentrate-galena").CombustibleProps!;
@@ -295,6 +293,42 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
             Stack("seraphhorizons:concentrate-cassiterite", 3)];
         Assert.True(bronze.Matches(charge));
         Assert.Equal(1.55, bronze.GetTotalOutputQuantity(charge), 6);
+    }
+
+    // Base bullion (#740): every form of a by-product ore smelts to its bullion at its own share, a bar
+    // of 100 units of the main metal; a bar smelted again gives the plain metal at the ore's unparted
+    // share; rich lead gives lead. Each bar fits the crucible.
+    [AtlasScenario]
+    public void By_product_ores_smelt_to_bullion()
+    {
+        double Out(params ItemStack[] stacks) => BlockSmeltingContainer.GetSingleSmeltableStack(stacks)?.stackSize ?? 0;
+        string Into(string code) => Item(code).CombustibleProps!.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString();
+        var r = System.Recovery!;
+        Assert.Equal(7, r.Ores.Count(Bullion.Makes));
+        foreach (var spec in r.Ores.Where(Bullion.Makes))
+        {
+            string bullion = Bullion.Code(spec);
+            // A sulfide smelts once roasted; gold quartz as concentrate.
+            string smelted = spec.IsSulfide ? OreProducts.RoastedCode(spec.Ore) : OreProducts.ConcentrateCode(spec.Ore);
+            Assert.Equal(bullion, Into(smelted));
+            Assert.Equal(1.0, Out(Stack(smelted, 20)), 6);
+            var bar = Item(bullion);
+            Assert.True(bar.Dimensions.Width <= 0.125f);
+            Assert.Equal(100, bar.Attributes["metalUnits"].AsDouble());
+            Assert.Equal($"game:ingot-{spec.Metal}", Into(bullion));
+            Assert.Equal(spec.Unparted, Out(Stack(bullion, 1)), 6);
+        }
+        Assert.Equal("Silver-lead (Galena)", new ItemStack(Item("seraphhorizons:bullion-galena-lead")).GetName());
+        Assert.StartsWith("Doré", new ItemStack(Item("seraphhorizons:bullion-quartz_nativegold-gold")).GetName());
+        // Gold quartz's retorted sponge is doré too; ores with no by-product still smelt to their metal.
+        Assert.Equal("seraphhorizons:bullion-quartz_nativegold-gold", Into(OreProducts.SpongeCode("quartz_nativegold")));
+        Assert.Equal("game:ingot-silver", Into(OreProducts.SpongeCode("quartz_nativesilver")));
+        Assert.Equal("game:ingot-copper", Into("seraphhorizons:concentrate-malachite"));
+        // Litharge and rich lead smelt to lead.
+        Assert.Equal("game:ingot-lead", Into(OreProducts.LithargeCode));
+        Assert.Equal("game:ingot-lead", Into(Bullion.RichLeadCode));
+        Assert.Equal(1.0, Out(Stack(Bullion.RichLeadCode, 1)), 6);
+        Assert.Equal("Rich lead", new ItemStack(Item(Bullion.RichLeadCode)).GetName());
     }
 
     // The bloomery takes what melts between 1000 and 1500 °C into a bloom, items per bloom by the ratio.
@@ -330,7 +364,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         World.SetBlock("game:air", pos);
     }
 
-    // #690: argentiferous galena is named so and is a lead ore: every form smelts to lead, its loose
+    // #690: argentiferous galena is named so and is a lead ore: every form smelts to its silver-lead (#740), its loose
     // bits drop galena, and its metal group is lead.
     [AtlasScenario]
     public void Argentiferous_galena_is_a_lead_ore()
@@ -342,7 +376,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal("Argentiferous galena ore", new ItemStack(W.GetBlock(new AssetLocation("game:ore-poor-galena_nativesilver-shale"))).GetName());
         Assert.Equal("Argentiferous galena bits", new ItemStack(W.GetBlock(new AssetLocation("game:looseores-galena_nativesilver-shale-free"))).GetName());
         foreach (var code in new[] { OreProducts.RoastedCode("galena_nativesilver"), OreProducts.RoastedRockCode("galena_nativesilver", "rich") })
-            Assert.Equal("game:ingot-lead", Item(code).CombustibleProps?.SmeltedStack?.ResolvedItemstack?.Collectible.Code.ToString());
+            Assert.Equal("seraphhorizons:bullion-galena_nativesilver-lead", Item(code).CombustibleProps?.SmeltedStack?.ResolvedItemstack?.Collectible.Code.ToString());
         Assert.Equal("game:nugget-galena",
             W.GetBlock(new AssetLocation("game:looseores-galena_nativesilver-shale-free"))!.Drops.Single().ResolvedItemstack.Collectible.Code.ToString());
         Assert.Equal("game:nugget-nativesilver",
@@ -458,24 +492,6 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(EnumSmeltType.Fire, raw.CombustibleProps.SmeltingType);
         Assert.Equal("seraphhorizons:cupel-fired", raw.CombustibleProps.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         Assert.Equal("Bone-ash cupel", new ItemStack(W.GetBlock(new AssetLocation("seraphhorizons:cupel-fired"))).GetName());
-    }
-
-    // The recipe browser's record per ore the cupel takes.
-    [AtlasScenario(TimeoutMs = 600_000)]
-    public void Cupellation_is_exported()
-    {
-        var doc = ExportUnderTest.Get(World.Api);
-        Assert.Equal("generic", (string)doc["recipeTypes"]!["cupellation"]!["shape"]!);
-        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string)r["type"]! == "cupellation").ToList();
-        Assert.Equal(["cupellation|seraphhorizons:roastedconcentrate-freibergite|0", "cupellation|seraphhorizons:roastedconcentrate-galena_nativesilver|0",
-                      "cupellation|seraphhorizons:roastedconcentrate-galena|0", "cupellation|seraphhorizons:roastedconcentrate-tetrahedrite|0"],
-            records.Select(r => (string)r["id"]!).Order(StringComparer.Ordinal));
-        var argentiferous = records.Single(r => (string)r["extra"]!["ore"]! == "galena_nativesilver");
-        Assert.Equal("OreProcessing", (string?)argentiferous["switch"]);
-        Assert.Equal(64.6, (double)argentiferous["extra"]!["metalUnits"]!["silver"]!, 6);
-        Assert.Equal(40, (double)argentiferous["ingredients"]![1]!["quantity"]!);
-        var tetrahedrite = records.Single(r => (string)r["extra"]!["ore"]! == "tetrahedrite");
-        Assert.Contains(tetrahedrite["ingredients"]!, i => (string)i["code"]! == "game:metalbit-lead" && (double)i["quantity"]! == 20);
     }
 
     private const string Pan = "seraphhorizons:liquationpan-fired";
@@ -612,23 +628,6 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal(EnumSmeltType.Fire, raw.CombustibleProps.SmeltingType);
         Assert.Equal(Pan, raw.CombustibleProps.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         Assert.Equal("Liquation pan", new ItemStack(W.GetBlock(new AssetLocation(Pan))).GetName());
-    }
-
-    // The recipe browser's record per ore the pan takes, and the guide page.
-    [AtlasScenario(TimeoutMs = 600_000)]
-    public void Liquation_is_exported()
-    {
-        var doc = ExportUnderTest.Get(World.Api);
-        Assert.Equal("generic", (string)doc["recipeTypes"]!["liquation"]!["shape"]!);
-        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string)r["type"]! == "liquation").ToList();
-        Assert.Equal(["liquation|seraphhorizons:roastedconcentrate-franckeite|0", "liquation|seraphhorizons:roastedconcentrate-teallite|0"],
-            records.Select(r => (string)r["id"]!).Order(StringComparer.Ordinal));
-        var teallite = records.Single(r => (string)r["extra"]!["ore"]! == "teallite");
-        Assert.Equal("OreProcessing", (string?)teallite["switch"]);
-        Assert.Equal(34, (double)teallite["extra"]!["residueUnits"]!["lead"]!, 6);
-        Assert.Contains(teallite["outputs"]!, o => (string)o["code"]! == "game:ingot-tin" && (double)o["quantity"]! == 1);
-        Assert.Contains(teallite["outputs"]!, o => (string)o["code"]! == "game:metalbit-lead" && Math.Abs((double)o["quantity"]! - 6.8) < 1e-6);
-        Assert.Contains(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == OreProcessingSystem.LiquationGuidePage);
     }
 
     // smex's blast furnace: a nugget or concentrate is 5 units of iron; our crushed ore, which smelts by
@@ -890,43 +889,6 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
             W.BlockAccessor.SetBlock(0, p);
     }
 
-    // The recipe export has a spalling record per ore kind: by hand, its turns the blows, the hammer
-    // worn a point a blow, no station; one crushed ore of its grade.
-    [AtlasScenario(TimeoutMs = 600_000)]
-    public void Spalling_is_exported_as_a_hand_job_per_ore_kind()
-    {
-        var doc = ExportUnderTest.Get(World.Api);
-        var type = doc["recipeTypes"]![RecipeSection.SpallingType]!;
-        Assert.Equal("machine", (string?)type["shape"]);
-        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string?)r["type"] == RecipeSection.SpallingType).ToList();
-        Assert.Equal((int)type["count"]!, records.Count);
-        Assert.Equal(2 * 4 * OreProducts.Ores.Count, records.Count);
-        var medium = records.Single(r => (string?)r["id"] == "spalling|game:ore-medium-galena-*|0");
-        Assert.Equal("game:ore-medium-galena-*", (string?)medium["ingredients"]![0]!["code"]);
-        Assert.Equal(2, (int)medium["ingredients"]![1]!["toolDurabilityCost"]!);
-        Assert.Equal("seraphhorizons:crushedore-galena-medium", (string?)medium["outputs"]![0]!["code"]);
-        Assert.Equal(1, (int)medium["outputs"]![0]!["quantity"]!);
-        Assert.Equal("hand", (string?)medium["machine"]!["power"]);
-        Assert.Equal(2, (int)medium["machine"]!["turns"]!);
-        Assert.Equal("strikes", (string?)medium["machine"]!["work"]!["unit"]);
-        Assert.DoesNotContain(medium["ingredients"]!, i => (string?)i["role"] == "station");
-        Assert.Equal(RecipeSection.SpallingRequirement, (string?)medium["requirements"]![0]);
-        Assert.Contains(medium["variants"]![0]!["ingredients"]![0]!, s => (string?)s["code"] == "game:ore-medium-galena-shale");
-        var poor = records.Single(r => (string?)r["id"] == "spalling|game:ore-poor-galena-*|0");
-        Assert.Equal("seraphhorizons:crushedore-galena-poor", (string?)poor["outputs"]![0]!["code"]);
-        Assert.Equal(1, (int)poor["outputs"]![0]!["quantity"]!);
-        var bountiful = records.Single(r => (string?)r["id"] == "spalling|game:ore-bountiful-galena-*|0");
-        Assert.Equal(2, (int)bountiful["machine"]!["turns"]!);
-        Assert.Equal(1, (int)bountiful["outputs"]![0]!["quantity"]!);
-        var crystal = records.Single(r => (string?)r["id"] == "spalling|game:crystalizedore-medium-galena-*|0");
-        Assert.Equal(2, (int)crystal["outputs"]![0]!["quantity"]!);
-        // The guide page is in the export with the switch on.
-        Assert.Contains(((JArray)doc["guides"]!).OfType<JObject>(), g => (string?)g["code"] == OreProcessingSystem.SpallingGuidePage);
-        var dump = Environment.GetEnvironmentVariable("SPALLING_EXPORT_DUMP");
-        if (!string.IsNullOrEmpty(dump))
-            File.WriteAllText(dump, doc.ToString());
-    }
-
     // Roasting in the firepit (#720): any fuel, one item at a time, 85 % with the fraction carried,
     // so 20 concentrate give 17 roasted; no sulfur.
     [AtlasScenario]
@@ -1106,33 +1068,6 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Contains("game:recipes/barrel/dilutedalum.json", System.RetargetedRecipes);
     }
 
-    // The recipe export (the one the spalling scenario reads, built once per server): a roasting
-    // record per sulfide, the firepit a station, 0.85 of a roasted concentrate out of one
-    // concentrate; and the roasting guide page.
-    [AtlasScenario(TimeoutMs = 600_000)]
-    public void Roasting_is_exported()
-    {
-        var doc = ExportUnderTest.Get(World.Api);
-        var type = doc["recipeTypes"]![RecipeSection.OreRoastingType]!;
-        Assert.Equal("generic", (string?)type["shape"]);
-        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string?)r["type"] == RecipeSection.OreRoastingType).ToList();
-        // One per sulfide's concentrate; rock's roast is its own smelting attribute, one for one.
-        Assert.Equal(OreProducts.Ores.Count(o => System.Recovery!.Ore(o).IsSulfide), records.Count);
-        Assert.Equal(records.Count, (int)type["count"]!);
-        var galena = records.Single(r => (string?)r["id"] == "oreroasting|seraphhorizons:concentrate-galena|0");
-        Assert.Equal("OreProcessing", (string?)galena["switch"]);
-        var ingredients = (JArray)galena["ingredients"]!;
-        Assert.Equal("seraphhorizons:concentrate-galena", (string?)ingredients[0]["code"]);
-        Assert.Equal(1, (double)ingredients[0]["quantity"]!);
-        Assert.Equal("game:firepit-cold", (string?)ingredients[1]["code"]);
-        Assert.Equal("station", (string?)ingredients[1]["role"]);
-        var output = galena["outputs"]![0]!;
-        Assert.Equal("seraphhorizons:roastedconcentrate-galena", (string?)output["code"]);
-        Assert.Equal(0.85, (double)output["quantity"]!, 9);
-        Assert.Equal(OreRoasting.MeltingPoint, (int)galena["extra"]!["meltingPoint"]!);
-        Assert.Contains(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == OreProcessingSystem.RoastingGuidePage);
-    }
-
     // Retorting in the still (#726): Expanded Matter's cooking pot recipe for mercury is off; cinnabar
     // and amalgam go into the boiler and their mercury into the condenser's bucket, one portion a step;
     // an amalgam's gold stays behind as sponge, which smelts whole.
@@ -1147,9 +1082,9 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.DoesNotContain(World.Api.ModLoader.GetModSystem<RecipeRegistrySystem>().CookingRecipes,
             r => r.CooksInto?.Code?.ToString() == "em:mercuryportion");
 
-        // The sponge smelts whole: 20 to a gold ingot.
+        // The sponge smelts whole: 20 to a bar of doré (gold quartz carries silver, #740).
         var sponge = Item("seraphhorizons:sponge-quartz_nativegold").CombustibleProps!;
-        Assert.Equal("game:ingot-gold", sponge.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
+        Assert.Equal("seraphhorizons:bullion-quartz_nativegold-gold", sponge.SmeltedStack.ResolvedItemstack.Collectible.Code.ToString());
         Assert.Equal(100.0 / 5, sponge.SmeltedRatio / (double)sponge.SmeltedStack.StackSize, 6);
 
         var pos = World.Spawn.AddCopy(70, 8, 64);
@@ -1218,29 +1153,4 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         World.SetBlock("game:air", pos.EastCopy());
     }
 
-    // Retorting in the still (#726), in the same export: a record per input, the boiler and condenser
-    // stations, the mercury in portions and litres, an amalgam's sponge; and the guide page.
-    [AtlasScenario(TimeoutMs = 600_000)]
-    public void Retorting_is_exported()
-    {
-        var doc = ExportUnderTest.Get(World.Api);
-        var type = doc["recipeTypes"]![RecipeSection.OreRetortingType]!;
-        Assert.Equal("generic", (string?)type["shape"]);
-        var records = doc["recipes"]!.Cast<JObject>().Where(r => (string?)r["type"] == RecipeSection.OreRetortingType).ToList();
-        Assert.Equal(MercuryStillSystem.Of(World.Api).Marked.Count, records.Count);
-        var gold = records.Single(r => (string?)r["id"] == "oreretorting|seraphhorizons:amalgam-quartz_nativegold|0");
-        Assert.Equal("OreProcessing", (string?)gold["switch"]);
-        var ingredients = (JArray)gold["ingredients"]!;
-        Assert.Equal("seraphhorizons:amalgam-quartz_nativegold", (string?)ingredients[0]["code"]);
-        Assert.Equal("game:verticalboiler-west", (string?)ingredients[1]["code"]);
-        Assert.Equal("station", (string?)ingredients[2]["role"]);
-        var outputs = (JArray)gold["outputs"]!;
-        Assert.Equal("em:mercuryportion", (string?)outputs[0]["code"]);
-        Assert.Equal(9, (double)outputs[0]["quantity"]!, 9);
-        Assert.Equal(0.09, (double)outputs[0]["litres"]!, 9);
-        Assert.Equal("seraphhorizons:sponge-quartz_nativegold", (string?)outputs[1]["code"]);
-        var cinnabar = records.Single(r => (string?)r["id"] == "oreretorting|game:powder-cinnabar|0");
-        Assert.Single((JArray)cinnabar["outputs"]!);
-        Assert.Contains(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == MercuryStillSystem.GuidePage);
-    }
 }

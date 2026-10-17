@@ -829,12 +829,15 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
         var dir = Path.GetDirectoryName(typeof(RecipeExportScenarios).Assembly.Location)!;
         var schema = JsonSchema.FromText(File.ReadAllText(Path.Combine(dir, "recipe-export.schema.json")));
         using var instance = System.Text.Json.JsonDocument.Parse(Doc.ToString(Formatting.None));
+        // The flag output gives the same verdict about four times faster than the list (which
+        // collects every annotation of a 100 MB document); the list is only made to name the errors.
+        if (schema.Evaluate(instance.RootElement, new EvaluationOptions { OutputFormat = OutputFormat.Flag }).IsValid) return;
         var result = schema.Evaluate(instance.RootElement, new EvaluationOptions { OutputFormat = OutputFormat.List });
         var errors = (result.Details ?? new List<EvaluationResults>())
             .Where(d => d.Errors != null)
             .SelectMany(d => d.Errors!.Select(e => $"{d.InstanceLocation}: {e.Value}"))
             .Take(50).ToList();
-        Assert.True(result.IsValid, "schema errors:\n" + string.Join("\n", errors));
+        Assert.Fail("schema errors:\n" + string.Join("\n", errors));
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]

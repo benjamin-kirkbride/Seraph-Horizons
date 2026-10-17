@@ -174,6 +174,15 @@ public static partial class RecipeSection
         return ctx.Referenced;
     }
 
+    /// <summary>
+    /// The objects in ordinal order of their compact JSON, each serialised once (a comparer
+    /// that serialises both sides serialised a wildcard recipe's thousands of variants over and over).
+    /// </summary>
+    private static List<JObject> SortedBySerialisation(List<JObject> list) =>
+        list.Select(o => (Key: o.ToString(Formatting.None), Value: o))
+            .OrderBy(p => p.Key, StringComparer.Ordinal)
+            .Select(p => p.Value).ToList();
+
     /// <summary>The type part of a registry code: `smithingrecipes` is `smithing`.</summary>
     public static string TypeName(string registryCode)
     {
@@ -274,7 +283,7 @@ public static partial class RecipeSection
             variants.Add(vo);
         }
         // Registration order follows hash sets of variant values; sort for stable output.
-        variants.Sort((a, b) => string.CompareOrdinal(a.ToString(Formatting.None), b.ToString(Formatting.None)));
+        variants = SortedBySerialisation(variants);
         o["variants"] = new JArray(variants);
 
         var blocks = first ?? shape;
@@ -330,7 +339,7 @@ public static partial class RecipeSection
             vo["outputs"] = new JArray(new[] { Produced(ctx, made) }.OfType<JObject>());
             variants.Add(vo);
         }
-        variants.Sort((a, b) => string.CompareOrdinal(a.ToString(Formatting.None), b.ToString(Formatting.None)));
+        variants = SortedBySerialisation(variants);
         o["variants"] = new JArray(variants);
 
         o["construction"] = new JObject
