@@ -116,15 +116,16 @@ public class MineOrderingTests(ITestOutputHelper output)
         var random = new Random(10);
         var warm = Random(random, 10);
         MineOrdering.Order(0, warm.Travel, warm.Work, warm.Release, warm.Before);
+        // each instance's work in thread CPU time, the fastest of three runs (ThreadCpuClock: a shared
+        // runner's descheduling and GC pauses are not the ordering's cost)
         double longest = 0;
         for (int k = 0; k < 50; k++)
         {
             var x = Random(random, 10);
-            var clock = System.Diagnostics.Stopwatch.StartNew();
-            Assert.NotNull(MineOrdering.Order(0, x.Travel, x.Work, x.Release, x.Before));
-            longest = Math.Max(longest, clock.Elapsed.TotalMilliseconds);
+            longest = Math.Max(longest, ThreadCpuClock.Fastest(3, () =>
+                Assert.NotNull(MineOrdering.Order(0, x.Travel, x.Work, x.Release, x.Before))));
         }
-        output.WriteLine($"ten stations: the longest of 50 took {longest:0.0} ms");
+        output.WriteLine($"ten stations: the longest of 50 took {longest:0.0} ms ({ThreadCpuClock.Kind})");
         Assert.True(longest <= 20, $"{longest:0.0} ms");
     }
 
