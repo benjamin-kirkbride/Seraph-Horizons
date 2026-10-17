@@ -379,12 +379,16 @@ public class MinePlannerTests(ITestOutputHelper output)
         // A step stops at its first checkpoint past the budget, so it keeps to its slice as long as no
         // one checkpoint's work is long. With no budget a step is exactly one checkpoint, and the
         // checkpoints are the same on every run (the work is a pure function of its input). Each one's
-        // work is timed in this thread's CPU time, which a shared runner's descheduling does not stretch
-        // (on CI, oversubscribed for the whole run, the wall clock stretched a 1.4 ms checkpoint past
-        // 13 ms in every run), and as the fastest of a few runs, so a GC pause has to land on the same
-        // checkpoint every run to count against it.
+        // work is timed in this thread's CPU time, which descheduling does not stretch, but a contended
+        // runner still slows every checkpoint at once: on CI the longest, about 1.3 ms here, took
+        // 10.8 ms in all three back-to-back runs while the sliced plan just before kept its usual 13
+        // steps. So what is checked is the longest checkpoint's share of its own run, which such a
+        // slowdown leaves as it is (about 4 %; under 20 % keeps it near 6 ms of a 30 ms plan here, the
+        // budget plus that under the 12 ms a step had), the lowest of three runs so a slowdown over
+        // part of one run does not count. The absolute bound only catches a checkpoint grown tenfold.
         const int Runs = 3;
-        List<double>? fastest = null;
+        double lowestShare = double.MaxValue, fastestLongest = double.MaxValue;
+        int count = -1;
         for (int run = 0; run < Runs; run++)
         {
             var single = new MinePlanner(world.Input(area, Home));
@@ -399,20 +403,15 @@ public class MinePlannerTests(ITestOutputHelper output)
             }
             Assert.Equal(Describe(whole), Describe(single.Plan!));
             Assert.Equal(gaps.Count, single.Steps);
-            if (fastest == null)
-                fastest = gaps;
-            else
-            {
-                Assert.Equal(fastest.Count, gaps.Count);
-                for (int i = 0; i < gaps.Count; i++)
-                    fastest[i] = Math.Min(fastest[i], gaps[i]);
-            }
+            Assert.True(count < 0 || count == gaps.Count, $"{gaps.Count} checkpoints against {count}");
+            count = gaps.Count;
+            double longest = gaps.Max();
+            fastestLongest = Math.Min(fastestLongest, longest);
+            lowestShare = Math.Min(lowestShare, longest / gaps.Sum());
         }
-        var checkpoints = fastest!;
-        double longest = checkpoints.Max();
-        output.WriteLine($"{sliced.Steps} steps of {MinePlanner.BudgetMs} ms; {checkpoints.Count} checkpoints, the longest {longest:0.00} ms ({(OperatingSystem.IsLinux() ? "thread CPU" : "wall")})");
-        // a step: its budget plus at most one checkpoint, under 12 ms
-        Assert.True(MinePlanner.BudgetMs + longest < 12, $"a checkpoint's work took {longest} ms");
+        output.WriteLine($"{sliced.Steps} steps of {MinePlanner.BudgetMs} ms; {count} checkpoints, the longest {fastestLongest:0.00} ms, {lowestShare:P1} of its run ({(OperatingSystem.IsLinux() ? "thread CPU" : "wall")})");
+        Assert.True(lowestShare < 0.2, $"the longest checkpoint was {lowestShare:P1} of its run's work");
+        Assert.True(fastestLongest < 50, $"a checkpoint's work took {fastestLongest} ms");
     }
 
     [StructLayout(LayoutKind.Sequential)]
