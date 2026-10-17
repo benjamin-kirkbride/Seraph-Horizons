@@ -115,8 +115,11 @@ public partial class SharedWorldScenarios
     [AtlasScenario(TimeoutMs = 240_000)]
     public async Task Ball_mill_builds_in_stages_grinds_crushed_ore_and_middlings_into_a_chest_and_breaks_back()
     {
-        var player = await CutterPlayer();
+        var hand = await CutterHand();
+        var player = hand.Player;
         var pos = await CutterSite(660, 660);
+        // the player beside it, so its chunk stays loaded on the virtual clock
+        await hand.TeleportTo(pos.AddCopy(4, 0, 4));
         var mill = await PlaceBallMill(pos);
         var assembly = mill.Assembly!;
         Assert.Equal(MachineLoad.Unassembled, mill.Resistance);
@@ -174,10 +177,11 @@ public partial class SharedWorldScenarios
         // each rock spent its 25 L
         Assert.True(mill.Water.Litres <= mill.ReservoirCapacity - 50 + 1e-6);
 
-        // the table's middlings (ground ore with its locked share split out) come back freed
+        // the table's middlings (its locked share split out) come back ground, freed
         mill.FillWater(mill.ReservoirCapacity);
         await MillUntil(mill, () => mill.InfeedSlot.Empty);
-        var middlings = CutterItem(GroundCode, 1);
+        // (the table's middlings are its feed's item: crushed ore, classified but not ground)
+        var middlings = CutterItem(OreProducts.CrushedCode("hematite", "poor"), 1);
         OreStreamAttributes.Write(middlings, new OreStream("hematite", "poor", 2.4, Locked: 2.4, State: OreState.Classified, Worked: WorkedBy.Sluice | WorkedBy.Jig, Rock: "andesite"));
         Assert.True(mill.Takes(middlings));
         mill.FillWater(mill.ReservoirCapacity);

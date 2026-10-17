@@ -10,9 +10,10 @@ public sealed record BallMillProduct(string Code, OreStream Stream);
 /// (<see cref="OreState.Ground"/>, lifting poor ore's × 0.4) and its screens classify
 /// (<see cref="OreState.Classified"/>, lifting the unclassified × 0.85), through <see cref="OreRecovery.Lift"/>:
 /// a stream already split (the shaking table's middlings, or tailings) has its locked units freed in
-/// proportion and goes back to the head of the concentrators. It takes crushed ore and ground ore (the
-/// table's middlings, or ground ore regrinding); raw ore wants crushing first, and a sulfide's roasted
-/// rock is past grinding.
+/// proportion and goes back to the head of the concentrators. It takes crushed ore (fresh, or the table's
+/// middlings, which are its feed's item: crushed ore classified but not ground) and ground ore (passing
+/// through, screened if it was not); raw ore wants crushing first, and a sulfide's roasted rock is past
+/// grinding.
 /// </summary>
 public static class BallMillGrind
 {
