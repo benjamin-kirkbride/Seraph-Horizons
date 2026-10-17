@@ -99,13 +99,13 @@ plus 1 iron nails and strips per 4 planks' worth of timber (a support beam 2), f
 | # | Stage (state id) | `requires` | Materials |
 |---|---|---|---|
 | F | Bed, pedestals, bearings, the pinion's pillow blocks (`frame`), placed | — | 2 stone brick block (granite bed), 4 iron plate, 5 iron nails and strips |
-| 1 | Drum (`drum`) | `drum` | 17 iron plate |
+| 1 | Drum (`drum`) | `drum` | 16 iron plate, 5 iron nails and strips, 10 `game:ingot-iron` (the ball charge) |
 | 2 | Gearing (`gearing`): the girth wheel, then the pinion meshing it | `girth`, `pinion` | 1 `game:spurgear-s` (wooden girth wheel), 1 plank (its hub and arms), 3 iron nails and strips (2 the iron tyre, 1 the wheel's timber), 1 `seraphhorizons:gear-stainless` (pinion), 1 steel rod (pinion shaft) |
 | 3 | Screens (`screens`) | `screens` | 13 iron chain (fine cloth, 1,609 vox²), 12 iron chain (coarse screen, 1,475 vox²), 1 iron plate |
 | 4 | Sheet iron (`sheetiron`): the discharge hopper, then the feed box | `hopper`, `feedbox` | 4 iron plate, 12 iron nails and strips (the hopper's 2 and 7 and the feed box's 2 and 5, merged) |
 | 5 | Services (`services`): the chute sections and the water pipe | `chutes`, `pipecopper` or `pipelead` (a choice) | 2 chute section, 2 pipe section (copper or lead) |
 
-The balls are not drawn and are no stage (a charge, like the ore and water). No part wears as a stage.
+The balls are not drawn. Their charge is paid once with the drum (owner): a 40 % fill of the drum's inside (4,964 vox), at 0.6 solid, is 1,191 vox of iron, 10 iron ingots. They are not a wearing part. No part wears as a stage.
 
 ### Either way round
 
