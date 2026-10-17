@@ -71,6 +71,13 @@ public partial class WoodworkingRosserScenarios
 
         var woods = PackTrunkWoods();
         output.WriteLine($"Pack trunk woods: {string.Join(", ", woods)}");
+        // Hand transforms as the client gets them: the live Block loses them to FreeRAMServer while
+        // the server builds this packet on a pool thread, one block at a time (#1123).
+        var assets = ServerAssetsPacket.Built((Vintagestory.Server.ServerMain)World.Api.World);
+        var sent = assets.Blocks.Take(assets.BlocksCount).Where(p => p?.Code != null).ToDictionary(p => p.Code);
+        string? TpHand(Block block) => sent[block.Code.ToString()].TpHandTransform is { } t
+            ? $"translate {t.TranslateX},{t.TranslateY},{t.TranslateZ} rotate {t.RotateX},{t.RotateY},{t.RotateZ} scale {t.ScaleX},{t.ScaleY},{t.ScaleZ}"
+            : null;
         Assert.Contains("oak", woods);
         Assert.Contains("redwood", woods);
         foreach (var wood in woods)
@@ -88,7 +95,8 @@ public partial class WoodworkingRosserScenarios
             Assert.Contains(debarked.BlockBehaviors, b => b.GetType().Name.Contains("Carryable"));
             Assert.Equal(MultiblockSize(cleanBlock), MultiblockSize(debarked));
             Assert.Equal(cleanBlock.HeldRightTpIdleAnimation, debarked.HeldRightTpIdleAnimation);
-            Assert.Equal(cleanBlock.TpHandTransform?.Translation.ToString(), debarked.TpHandTransform?.Translation.ToString());
+            Assert.NotNull(TpHand(cleanBlock));
+            Assert.Equal(TpHand(cleanBlock), TpHand(debarked));
             Assert.True(debarked.Attributes?["attachableToEntity"].Exists, "no Cartwright's attachment");
             Assert.True(debarked.Attributes!["isTreeTrunk"].AsBool());
             Assert.Equal(new ItemStack(cleanBlock).GetName() + " (Debarked)", new ItemStack(debarked).GetName());
