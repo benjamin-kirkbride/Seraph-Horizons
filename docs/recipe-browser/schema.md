@@ -337,6 +337,17 @@ screws (`game:metal-parts`, a block) and the edges (both in `machine.kept`) and 
 (`seraphhorizons:angle-<metal>`), the half plate folded once across its middle. It is worked by hand: `power` is `hand` and `turns` the turns of its lever clock one
 half plate takes (a turn a second while the player holds right-click); there is no `wear` and no `oil`.
 
+**The amalgam pan** (type `amalgampan`, shape `machine`): one record per kind of crushed gold or silver
+quartz, id `amalgampan|seraphhorizons:crushedore-<ore>-<grade>|0`, a full charge (16). The ingredients
+are the quartz, the mercury its amalgam takes (`em:mercuryportion`, portions with `litres`) and the
+charge's water (all consumed), the muller (a rod) and the shoes (a plate), both in `machine.kept`, and the
+machine (role `station`); the outputs are the amalgam (`seraphhorizons:amalgam-<ore>`, the average a
+charge makes, so fractional) and the same quartz back, amalgamated, for the rocker. It is worked by hand
+(an axle below may turn it instead): `power` is `hand`, `turns` the muller's turns a charge, and `work`
+the seconds that takes by hand (`unit` `seconds`); there is no `wear` and no `oil`. `requirements` says
+how it is turned and what the amalgamated quartz is for; `extra` has the `ore`, `grade`, `chargeItems`,
+`amalgamMercury` and `waterLitres`.
+
 **The squaring shear** (type `squaringshear`, shape `machine`): one record per plate metal, id
 `squaringshear|game:metalplate-<metal>|0`. The ingredients are the plate (consumed), the blades and
 the gauge (both in `machine.kept`) and the machine (role `station`); the output is two half plates
