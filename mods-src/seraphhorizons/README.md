@@ -6218,6 +6218,9 @@ deriving `BEOreMachine`, its build file and its rig, and calls `OreMachinesSyste
 - A build material with `oneType` takes any of its codes, but all of one (the stall roaster's brickwork, one
   fired brick type; another is `OtherKind`). `AssemblyDrops` is virtual, for what a machine keeps beyond its
   stages (the stall's loose brick and cap).
+- An anchor the shared code attaches a block at (`power`, `infeed`, `water`, `output`, `concentrate`, `middlings`,
+  `tailings`: `OreMachineRig.AttachedAnchors`) must face out of the footprint; any other is the machine's own and may
+  face into one of its cells (the Parkes kettle's `kettle`, its mouth worked through its own cells, #927).
 
 ### Ore processing: the stall roaster (`StallRoaster`, `StallRoasterSettings`)
 
@@ -6259,6 +6262,51 @@ Code: `StallRoaster/Core/StallRoasting.cs` (its rules and settings), `StallRoast
 the rig), `StallRoaster/Game/BEStallRoaster.cs` and `StallRoasterSystem.cs`; tests
 `tests/StallRoaster/StallRoasterTests.cs`; Atlas `tests/PackTests/StallRoasterScenarios.cs` and
 `RecipeExportStallRoasterScenarios.cs`.
+
+### Ore processing: the Parkes kettle (`ParkesKettle`, `ParkesKettleSettings`)
+
+The parting works' desilverizing kettle (#927; model and build stages in `ParkesKettle/README.md`): a cast-iron
+kettle of silver-lead in a brick setting over its own fire, with a powered stirrer, on the shared game code above.
+**Batch, by hand, no water, no chute.** Plain galena's silver-lead bars (`seraphhorizons:bullion-galena-lead`, the
+parting furnaces' items, `Ore/Core/Bullion.cs`) and zinc in; rich lead (`seraphhorizons:richlead`, the crust's,
+carrying the charge's silver whole) with 80 % of the zinc, then desilverized lead (`game:ingot-lead`) out. It needs
+`OreProcessing`; off, or with its switch off, its frame and recipe do not exist.
+
+- **Build.** The iron frame (grid: 2 iron plates, 4 iron rods, 10 iron nails and strips, a hammer), then four stages
+  by right-click (`config/builds/parkeskettle.json`): the brickwork, 20 fired bricks **all of one type** (the first
+  sets the setting's brick type, drawn in its texture), the lining (12 tier-3 refractory bricks, 5 fire clay), the
+  kettle with its fire door and damper (6 iron plates; the doors come with the kettle), and the stirrer with its
+  gallows and drive (4 iron plates, 4 iron rods, 4 iron nails and strips). No part wears.
+- **A charge.** Silver-lead bars, up to `machines.parkeskettle.charge` (2,400 units, 24 bars), all of one ore; the
+  kettle takes only bullion whose silver share is under rich lead's (`Bullion.TakenBy`: plain galena's 3 %;
+  argentiferous galena's 38 % is already richer than the crust and is cupelled directly). Then zinc bits
+  (`game:metalbit-zinc`, 5 units each), `ZincPerLead` (0.01) a unit of lead rounded up to a whole bit: 5 for a full
+  charge. Once the zinc for the lead is in, the charge is stirred; no more lead goes in.
+- **The stirring.** The shaft turns the stirrer at ratio 1; a charge takes `chargeHours` (5) at the reference
+  speed 0.6 (286.5 turns), a part charge its share, in proportion to shaft speed, × the fire's heat. The stirrer's
+  load follows how full the kettle is (`JobFill`), `emptyLoad` 0.04 to `load` 0.2 (#927, epic #684 Power).
+- **The fire.** Coal, coke or charcoal on the grate by hand, up to the rig's 8 (two layers of 4), lit with a
+  firestarter or a torch. It burns the rig's `coalPerCharge` (6) over `chargeHours`, 1.2 an hour, with the damper
+  open (full heat); half shut it burns `DamperHalfBurn` (0.5) and heats `DamperHalfHeat` (0.5); shut it is banked,
+  burning `DamperShutBurn` (0.25), no heat. Without a working chimney on its row (the crucible furnace's rule: the
+  rig's `minChimney` 6 from the outlet up and a top, up to `rowMax` 5 kettles side by side, every other outlet
+  capped with an iron plate) the fire only smoulders, at the banked rate, and gives no heat. When the coal is gone
+  the fire goes out. Sneak and right-click with an empty hand moves the damper.
+- **Out.** Done, the charge's silver (`OreRecovery.Smelted` at the kettle's figure, 1.0) and what earlier charges
+  carried go into whole rich lead bars at `bullion.richLeadSilver` (0.1) silver a unit of lead
+  (`Bullion.RichLeadBars`), the rest carried to the next charge; each rich bar takes its 100 units of the lead, and
+  the rest is desilverized ingots. The zinc comes back at `zincReturn` (0.8) as whole bits, the rest carried: the
+  rule standing in for the Faber du Faur retort (#927). An empty hand skims the crust (the rich lead and the zinc),
+  then ladles the lead out `LadleIngots` (6) a click. A full galena charge: 72 silver, 7 rich lead (2 silver
+  carried), 17 lead, 4 zinc bits back.
+- **Recipe browser.** A `parkeskettle` record per bullion it takes (`RecipeSection.ParkesKettle.cs`), a bar's share
+  of each output and the shaft's turns a bar; its build's `construction` record; and its stirrer on the power page,
+  0.04 to 0.2.
+
+Code: `ParkesKettle/Core/ParkesKettling.cs` (its rules and settings), `ParkesKettleRig.cs` (what gameplay reads of
+the rig), `ParkesKettle/Game/BEParkesKettle.cs` and `ParkesKettleSystem.cs`; tests
+`tests/ParkesKettle/ParkesKettleTests.cs`; Atlas `tests/PackTests/ParkesKettleScenarios.cs` and
+`RecipeExportParkesKettleScenarios.cs`.
 
 ### Stamp battery (`StampBattery`)
 

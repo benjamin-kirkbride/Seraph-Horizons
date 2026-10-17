@@ -120,6 +120,24 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>ParkesKettle</c>: its frame and its recipe are not in the game, nor its charge in the export, and
+    /// nothing is logged about it.</summary>
+    [AtlasScenario]
+    public void Parkes_kettle_off_the_kettle_is_not_in_the_game()
+    {
+        Assert.True(Off("ParkesKettle"));
+        Assert.False(SeraphHorizons.Mod.ParkesKettle.ParkesKettleSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } code && code.Path.StartsWith("parkeskettle"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path.StartsWith("parkeskettle") == true);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("parkeskettle", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("parkes kettle", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>BuckingSawmill</c>: its blocks and its recipe are not in the game, and nothing is
     /// logged about them.</summary>
     [AtlasScenario]
