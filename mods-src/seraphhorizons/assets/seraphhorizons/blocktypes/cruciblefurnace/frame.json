@@ -35,9 +35,15 @@
 	},
 	attributes: {
 		handbook: {
+			// Building and working the furnace; the charges are the guide's (config/handbook/cruciblefurnace.json).
 			extraSections: [
+				{ title: "seraphhorizons:cruciblefurnace-handbook-makes-title", text: "seraphhorizons:cruciblefurnace-handbook-makes-text" },
 				{ title: "seraphhorizons:cruciblefurnace-handbook-build-title", text: "seraphhorizons:cruciblefurnace-handbook-build-text" },
-				{ title: "seraphhorizons:cruciblefurnace-handbook-title", text: "seraphhorizons:cruciblefurnace-handbook-text" }
+				{ title: "seraphhorizons:cruciblefurnace-handbook-chimney-title", text: "seraphhorizons:cruciblefurnace-handbook-chimney-text" },
+				{ title: "seraphhorizons:cruciblefurnace-handbook-pots-title", text: "seraphhorizons:cruciblefurnace-handbook-pots-text" },
+				{ title: "seraphhorizons:cruciblefurnace-handbook-firing-title", text: "seraphhorizons:cruciblefurnace-handbook-firing-text" },
+				{ title: "seraphhorizons:cruciblefurnace-handbook-pulling-title", text: "seraphhorizons:cruciblefurnace-handbook-pulling-text" },
+				{ title: "seraphhorizons:cruciblefurnace-handbook-iron-title", text: "seraphhorizons:cruciblefurnace-handbook-iron-text" }
 			]
 		}
 	},
