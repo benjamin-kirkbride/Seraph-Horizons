@@ -522,5 +522,15 @@
     "BedFirewood": 4,
     "HalfWalledDraught": 0.5,
     "OpenDraught": 0.0
+  },
+  "AcidParting": true,
+  "AcidPartingSettings": {
+    "ChargeBars": 2,
+    "AcidLitresPerBar": 2.0,
+    "AcidSpentShare": 0.4,
+    "FuelBurnSecondsPerHour": 10.0,
+    "FuelCapacity": 8,
+    "MinFuelTemperature": 500,
+    "HalfDamperDraught": 0.5
   }
 }
