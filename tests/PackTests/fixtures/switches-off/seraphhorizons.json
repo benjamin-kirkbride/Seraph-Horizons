@@ -48,6 +48,7 @@
   "PanningDropsTrimmed": false,
   "PlacerFields": false,
   "PressBrake": false,
+  "AmalgamPan": false,
   "SquaringShear": false,
   "MandrelStation": false,
   "Rocker": false,
