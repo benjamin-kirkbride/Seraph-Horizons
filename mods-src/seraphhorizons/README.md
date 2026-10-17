@@ -6117,6 +6117,100 @@ load, reservoir, tailings, anchors, settings, and every shipped build file again
 `tests/PackTests/OreMachinesScenarios.cs` (Atlas: the build files load and name items the game has,
 a tailings heap in the world, products into a chute and a chest).
 
+### Jaw breaker (`JawBreaker`, `JawBreakerSettings`)
+
+The first machine of the ore line (#912; model and build stages in `JawBreaker/README.md`): a Blake jaw
+breaker under a grizzly, on the shared game code below. Raw ore in (vanilla's graded `ore` and
+`crystalizedore`, what spalling breaks), crushed ore of its grade out, one for one, with no loss and nothing
+classified (its product is not screened: the × 0.85 stays until a screen). 24 rock an in-game hour at shaft
+speed 0.6, in proportion to speed with no cap (ore-processing.json `machines.jawbreaker`); dry, either way
+round. It needs `OreProcessing`; off, or with its switch off, its frame and recipe do not exist.
+
+- **Build.** The frame (grid: 9 iron plates, 11 support beams, 8 iron and 1 steel nails and strips, a
+  hammer), then five stages by right-click, from `config/builds/jawbreaker.json`: the jaws (and the first
+  pair of jaw faces), the eccentric shaft and flywheel, the toggles and rods (2 steel rods, drawn at once)
+  then their springs (2 `seraphhorizons:spring-steel`), the grizzly (5 iron rods), and the two chute
+  sections (2 straight chutes). The shaft is held still until it is built.
+- **Wear.** The jaw faces (2 steel plates) wear a use a rock and last 1,000; worn out, the breaker stops
+  until a new pair is fitted by right-click, renewed whole.
+- **Feed and output.** A vanilla chute laid down onto the infeed (the top of the west front column, over
+  the grizzly's head) feeds it, or a right-click with raw ore; its mouth holds `ChargeRocks` (8). The
+  crushed ore goes out of the output face (low on the front, west column) into a chute laid to take from
+  it or any container; with nothing there it is held and the breaker stops. Crushed ore carries the raw
+  ore's host rock (`rock`), for tailings further down the line.
+- **Load.** One of the three machines whose load follows the job (`OreRecovery.LoadAt`): 0.16 empty,
+  rising with the rock in its mouth to 0.8 at a full charge (`JobFill`, the charge's share); its flywheel
+  rides each bite's peak, so there is no jam rule. 0.005 until built.
+- **Recipe browser.** A `jawbreaker` machine record per ore kind (`RecipeSection.JawBreaker.cs`) and its
+  build's `construction` record.
+
+Code: `JawBreaker/Core/JawBreaking.cs` (what it takes, the fill, the settings; tests
+`tests/JawBreaker/JawBreakerGameplayTests.cs`), `JawBreaker/Game/BEJawBreaker.cs` and
+`JawBreakerSystem.cs`; Atlas `tests/PackTests/JawBreakerScenarios.cs` and
+`RecipeExportJawBreakerScenarios.cs`.
+
+### Ore processing: the ball mill (`BallMill`)
+
+The ore line's continuous grinder (#915; model and build stages in `BallMill/README.md`): a Krupp ball mill,
+a short iron drum half full of iron balls turning on its side, its screens round it, on the shared game code
+below. Crushed ore in (fresh, and the shaking table's middlings merged by the player into the same chute line:
+they are the table's feed item, crushed ore classified but not ground), one ground ore of its grade out
+(`seraphhorizons:groundore-{ore}-{grade}`), nothing lost. The drum grinds and the screens classify
+(`OreState.Ground | Classified`, through `OreRecovery.Lift`): poor ore's × 0.4 and the unclassified × 0.85 are
+lifted, and a stream already split (the middlings) has its locked units freed and goes back to the head of the
+concentrators (its worked kinds cleared). Ground ore fed in passes through, screened. 6 rock an in-game hour at
+shaft speed 0.6, in proportion to speed with no cap, either way round; wet, 25 L a rock from its own reservoir
+(ore-processing.json `machines.ballmill`). It needs `OreProcessing`; off, or with its switch off, its frame and
+recipe do not exist.
+
+- **Build.** The frame (grid: 2 stone brick blocks, 4 iron plates, 5 iron nails and strips, a hammer), then
+  five stages by right-click, from `config/builds/ballmill.json`: the drum (16 iron plates, 5 iron nails and
+  strips and 10 iron ingots, the ball charge, paid once and never worn), the gearing (a wooden gear, drawn
+  as the girth wheel as soon as it is in, a plank, 3 iron nails and strips, a stainless gear as the pinion and
+  a steel rod as its shaft), the screens (25 iron chains and an iron plate), the sheet iron (4 iron plates,
+  drawn as the hopper, then 12 iron nails and strips), and services (2 straight chutes and 2 pipe sections,
+  copper or lead, which draw the water pipe in that metal). No part wears.
+- **Feed and output.** A vanilla chute into the feed box (the west face, a block up) feeds it, or a
+  right-click with crushed ore; the ground ore leaves low on the back (south face) into a chute laid to take
+  from it or any container; with nothing there it is held and the mill stops. The host rock (`rock`) is
+  carried on.
+- **Load.** Steady: 1.1 once built, working or idle (the heaviest machine; #915's 0.22 empty figure is
+  the issue's reference, not a state the mill is in), 0.005 until built.
+- **Water.** A ppex pipe on the west face beside the feed box fills its reservoir (50 L: two rocks' water);
+  dry, it stops and starts again when water comes.
+- **Recipe browser.** A `ballmill` machine record per crushed ore (`RecipeSection.BallMill.cs`), its build's
+  `construction` record, and its draw on the power page. Every ore machine's draw is there, from its build
+  file and `machines` in ore-processing.json (`tools/recipe-export/Power/OreMachineConsumers.cs`), since their
+  power cells share one behaviour.
+
+Code: `BallMill/Core/BallMillGrind.cs` (what it takes and makes; tests `tests/BallMill/BallMillGrindTests.cs`),
+`BallMill/Game/BEBallMill.cs` and `BallMillSystem.cs`; Atlas `tests/PackTests/BallMillScenarios.cs` and
+`RecipeExportBallMillScenarios.cs`.
+
+### Ore machines: the shared game half
+
+The block, cells, block entity and renderer every ore machine is made of (`Machines/Game`; first used by the
+jaw breaker, #912). A machine adds a frame block type (`{machine}-{side}`, class `seraphhorizons.OreMachine`,
+`attributes.oreMachine.machine`, and `extraRequires` for parts drawn by its own state), a block entity class
+deriving `BEOreMachine`, its build file and its rig, and calls `OreMachinesSystem.Disable` with its switch off.
+
+- `BlockOreMachine`: placing needs room for every rig cell, the front (native north) faces the player;
+  stamps the shared cells, `seraphhorizons:oremachine-cell` and, on the rig's power cell,
+  `oremachine-cellpower-{face}` (the axle's world face, carrying `seraphhorizons.MachineMP`). A cell
+  forwards everything to the controller; a face that is an anchor carries a block (a ppex pipe). A power
+  cell at the controller itself is allowed (the frame block type then carries the behaviour).
+- `BEOreMachine`: the assembly (right-click fits the next stage or renews a worn set, Ctrl in creative
+  fits a stage, breaking gives everything back), the running rules and state, work in shaft turns at the
+  machine's turns an item (`Work`, or `WorkUnpowered` for a machine without a power anchor), the load
+  (`OreRecovery.LoadAt` at `JobFill`), the reservoir (ppex at the `water` anchor, or `FillWater`), the infeed
+  (slot 0: a chute into the infeed cell's face fills that cell's buffer, a hand puts in what `Takes` accepts,
+  up to `InfeedCapacity`), and the products (`Products`, by anchor: pushed out of the anchor's face, else held,
+  up to four kinds an anchor; `tailings` with nothing there go on the heap). `InteractContent` runs before
+  the build on a right-click (a batch machine's charge).
+- `OreMachineRenderer`: the rig's parts from `shapes/block/{machine}.json` with the frame block's textures,
+  each drawn when `ShowsPart` (its stage fitted), posed by θ (the power cell's shaft about the power face's
+  axis) and ψ.
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is

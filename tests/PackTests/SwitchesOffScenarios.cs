@@ -84,6 +84,24 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(site.Entity.Inventory.Empty);
     }
 
+    /// <summary><c>BallMill</c>: its frame and its recipe are not in the game, nor its process in the export, and
+    /// nothing is logged about it. The crushed and ground ore it works (ore processing's) exist either way.</summary>
+    [AtlasScenario]
+    public void Ball_mill_off_the_mill_is_not_in_the_game()
+    {
+        Assert.True(Off("BallMill"));
+        Assert.False(SeraphHorizons.Mod.BallMill.BallMillSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } code && code.Path.StartsWith("ballmill"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path.StartsWith("ballmill") == true);
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("ballmill", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("ball mill", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>BuckingSawmill</c>: its blocks and its recipe are not in the game, and nothing is
     /// logged about them.</summary>
     [AtlasScenario]
@@ -167,10 +185,11 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons", CreativeSteamSource.BlockCode)));
         // The mod's other blocks are the bucking sawmill's, off here as well, the inn flag and sign,
         // which load with TravellingMerchants off too (a world may hold them), and the springs, which
-        // load with Springs off so that those in a world turn back into water.
+        // load with Springs off so that those in a world turn back into water, and the ore machines' shared
+        // cells (Machines/Game, #711), which belong to no one machine's switch and nothing places on its own.
         Assert.DoesNotContain(W.Blocks, b => b.Code?.Domain == "seraphhorizons"
             && !b.Code.Path.StartsWith("innflag", StringComparison.Ordinal) && !b.Code.Path.StartsWith("innsign", StringComparison.Ordinal)
-            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal));
+            && !b.Code.Path.StartsWith("waterspring-", StringComparison.Ordinal) && !b.Code.Path.StartsWith("oremachine-", StringComparison.Ordinal));
     }
 
     /// <summary><c>DurableSawmillBlades</c>: Immersive Woodworking's blade kits keep their own

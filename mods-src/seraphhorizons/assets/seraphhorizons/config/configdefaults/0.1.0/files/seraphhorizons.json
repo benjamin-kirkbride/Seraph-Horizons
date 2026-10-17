@@ -110,6 +110,7 @@
   "GradePocketWeighting": "units",
   "WideDensityProspecting": true,
   "OreProcessing": true,
+  "BallMill": true,
   "SpallingSettings": {
     "BlowsRawOre": 2,
     "HammerWearPerBlow": 1
@@ -510,5 +511,9 @@
         "LayersPerRock": 1.0
       }
     }
+  },
+  "JawBreaker": true,
+  "JawBreakerSettings": {
+    "ChargeRocks": 8
   }
 }
