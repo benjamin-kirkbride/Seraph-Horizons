@@ -1,0 +1,82 @@
+// The stamp battery's frame (StampBattery/, README "Stamp battery"; #728): the controller cell of a wet
+// five-stamp battery, the bottom middle cell of its front, where the output chute leaves. The shared ore
+// machine block (Machines/Game/OreMachineBlocks.cs); its stages are fitted by right-click
+// (config/builds/stampbattery.json). The server disables it with StampBattery or OreProcessing off.
+{
+	code: "stampbattery",
+	class: "seraphhorizons.OreMachine",
+	entityClass: "seraphhorizons.StampBattery",
+	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the machine's front
+	// (its screen and output chute) faces the player.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/stampbattery_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/stampbattery_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/stampbattery_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/stampbattery_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the stages' parts (stampbattery.json), which the
+	// renderer draws with this block's textures.
+	textures: {
+		"oak":        { base: "game:block/wood/debarked/oak" },
+		"planks":     { base: "game:block/wood/planks/oak1" },
+		"iron":       { base: "game:block/metal/plate/iron" },
+		"steel":      { base: "game:block/metal/sheet-plain/steel1" },
+		"pipecopper": { base: "game:block/metal/sheet-plain/copper4" },
+		"pipelead":   { base: "game:block/metal/sheet-plain/lead4" },
+		"solder":     { base: "game:block/metal/ingot/leadsolder" },
+		"bronze":     { base: "game:block/metal/sheet-plain/tinbronze4" },
+		"mesh":       { base: "game:block/metal/mesh1" },
+		"chute":      { base: "game:block/metal/sheet/copper1" },
+		"leather":    { base: "game:block/leather/plain" }
+	},
+	attributes: {
+		oreMachine: { machine: "stampbattery" },
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:stampbattery-handbook-build-title", text: "seraphhorizons:stampbattery-handbook-build-text" },
+				{ title: "seraphhorizons:stampbattery-handbook-work-title", text: "seraphhorizons:stampbattery-handbook-work-text" },
+				{ title: "seraphhorizons:stampbattery-handbook-water-title", text: "seraphhorizons:stampbattery-handbook-water-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:stampbattery-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame (the sills, the gear case and the line shaft) fills about 3 x 1 x 2.6 blocks from the
+	// controller (native x -1..2, z 0.3..3); the -north item form turns it 180° about the block's
+	// middle, so the item forms turn about the mesh's middle (0.5, 0.3, -0.4).
+	tpHandTransform: {
+		translation: { x: -1.6, y: -1.4, z: 3.2 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0.3, z: -0.4 },
+		scale: 0.18
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.3, z: -0.4 },
+		scale: 0.4
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: -0.4 },
+		scale: 0.7
+	},
+	maxStackSize: 1,
+	resistance: 3.5,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}

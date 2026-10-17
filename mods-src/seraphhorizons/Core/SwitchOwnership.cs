@@ -60,6 +60,8 @@ public sealed class SwitchOwnership
         new("MandrelStation", [], [], ["mandrelstation"]),
         // The exporter's own recipe type for the rocker's washes (tools/recipe-export, Recipes/RockerExport.cs).
         new("Rocker", [], [], ["rocker"]),
+        // The exporter's own recipe type for the stamp battery's process (tools/recipe-export, Recipes/StampBatteryExport.cs).
+        new("StampBattery", [], [], ["stampbattery"]),
         // The pipe mold is Steelmaking Expanded's own tool mold with a fourth tool type, added by a
         // JSON patch (patches/castpipes-smexmold.json), not a type file of the mod's.
         new("CastPipes", [], ["smex:toolmold-*-pipe"], []),
