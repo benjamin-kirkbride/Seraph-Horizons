@@ -38,7 +38,7 @@ public static class OreStreamAttributes
     {
         "crushed" => OreForm.Crushed,
         "ground" => OreForm.Ground,
-        "roastedrock" => OreForm.RoastedRock,
+        "roastedrock" or "stallroastedrock" => OreForm.RoastedRock,
         null when item.FirstCodePart() == "ore" && OreProducts.IsGrade(item.Variant["grade"]) => OreForm.Raw,
         _ => null,
     };
