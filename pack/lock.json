@@ -1267,33 +1267,6 @@
       }
     },
     {
-      "id": "panningmachine",
-      "version": "1.1.4",
-      "assetId": 33537,
-      "releaseId": 55626,
-      "fileId": 119829,
-      "fileName": "panningmachine_1.1.4.zip",
-      "fileUrl": "https://moddbcdn.vintagestory.at/panningmachine_1.1.4_b2f7b6cea7255a6b7fccd32b457e8e3b.zip?dl=panningmachine_1.1.4.zip",
-      "sha256": "3bc651255a940b85fb7746b4ac17edb849a2fad69b5ef7b2e6f9669b41fde0e2",
-      "size": 145831,
-      "side": "universal",
-      "license": "unknown",
-      "redistribute": false,
-      "compatibleGameVersions": [
-        "1.22.0",
-        "1.22.1",
-        "1.22.2",
-        "1.22.3",
-        "1.22.4",
-        "1.22.5",
-        "1.22.6",
-        "1.22.7"
-      ],
-      "dependencies": {
-        "game": ""
-      }
-    },
-    {
       "id": "wpanning",
       "version": "1.0.9",
       "assetId": 17657,
