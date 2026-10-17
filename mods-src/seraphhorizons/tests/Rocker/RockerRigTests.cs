@@ -9,8 +9,8 @@ namespace SeraphHorizons.Tests.Rocker;
 /// renderer will use: every part parses with the machines' parser and the rocker's <c>requires</c>
 /// vocabulary (its three states: a hand station has no build stages), there is no work, every reference
 /// pose (θ, the rocking clock) gives the matrices the Python reference maths wrote, and the water, which
-/// rides the cradle and swings back against it, stays level. There is no rocker gameplay yet (#716); this
-/// holds the third implementation of the rig maths to the model before there is.
+/// rides the cradle and swings back against it, stays level. This holds the third implementation of the
+/// rig maths, the one the rocker's renderer uses (#716), to the model.
 /// </summary>
 public class RockerRigTests
 {

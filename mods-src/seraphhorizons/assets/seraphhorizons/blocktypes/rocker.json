@@ -1,0 +1,70 @@
+// The rocker (Rocker/, README "Rocker", #716): a gold-rush cradle, the hand concentrator, one cell,
+// placed whole (a hand station has no build stages). Nothing of it stands still, so its block draws
+// nothing in the chunk mesh (rocker_empty) and the renderer draws the whole rocker from rocker.json;
+// the item (inventory, hand, ground, handbook) is rocker_item.json. The server disables it with
+// Rocker or OreProcessing off.
+{
+	code: "rocker",
+	class: "seraphhorizons.Rocker",
+	entityClass: "seraphhorizons.Rocker",
+	// No HorizontalOrientable: BlockRocker.TryPlaceBlock picks the side so the handle is the player's.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shape: { base: "seraphhorizons:block/rocker_empty" },
+	shapeInventory: { base: "seraphhorizons:block/rocker_item", rotateY: 180 },
+	// Every texture of rocker.json, which the renderer draws with this block's textures; the renderer
+	// sets "charge" and "concentrate" to the items' own.
+	textures: {
+		"oak":         { base: "game:block/wood/debarked/oak" },
+		"riddle":      { base: "game:block/metal/plate/iron" },
+		"canvas":      { base: "game:block/linen" },
+		"water":       { base: "game:block/liquid/waterportion" },
+		"charge":      { base: "game:item/resource/nugget/nativegold" },
+		"concentrate": { base: "game:item/resource/nugget/nativegold" }
+	},
+	attributes: {
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:rocker-handbook-card-title", text: "seraphhorizons:rocker-handbook-card-text" },
+				{ title: "seraphhorizons:rocker-handbook-work-title", text: "seraphhorizons:rocker-handbook-work-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:rocker-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	sideao: { all: false },
+	emitsideao: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	tpHandTransform: {
+		translation: { x: -0.9, y: -0.5, z: -0.4 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0.5, y: 0.4, z: 0.5 },
+		scale: 0.5
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0.5, y: 0.4, z: 0.5 },
+		scale: 1.3
+	},
+	groundTransform: {
+		origin: { x: 0.5, y: 0, z: 0.5 },
+		scale: 2.2
+	},
+	maxStackSize: 1,
+	resistance: 1.5,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.83, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 0.83, z2: 1 }
+}
