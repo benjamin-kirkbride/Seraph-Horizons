@@ -171,6 +171,24 @@ test("every mod a page names links to its ModDB page, never from inside another 
   await expect(page.locator("a a")).toHaveCount(0);
 });
 
+test("every item page says whether the item is pileable", async ({ page }) => {
+  type Attrs = { groundStorage?: { layout: string; capacity: number }; itemPile?: { capacity: number } };
+  const exp = JSON.parse(readFileSync(process.env.RECIPE_EXPORT!, "utf8")) as { items: Record<string, { attributes?: Attrs }> };
+  // An ingot pile (game:ingot-copper, stacking), coal (game:charcoal, an item pile), flint (neither).
+  const ingot = exp.items["game:ingot-copper"]!.attributes!.groundStorage!;
+  expect(ingot.layout).toBe("stacking");
+  await openItem(page, "game:ingot-copper");
+  await expect(page.getByTestId("item-pileable").locator(".hint")).toHaveText(`Yes, up to ${ingot.capacity} per block`);
+  await expect(page.getByTestId("ground-storage")).toContainText(`Pile: up to ${ingot.capacity} per block`);
+  const coal = exp.items["game:charcoal"]?.attributes?.itemPile;
+  if (coal) {
+    await openItem(page, "game:charcoal");
+    await expect(page.getByTestId("item-pileable").locator(".hint")).toHaveText(`Yes, up to ${coal.capacity} per block`);
+  }
+  await openItem(page, "game:flint");
+  await expect(page.getByTestId("item-pileable").locator(".hint")).toHaveText("No");
+});
+
 test("an item with an icon shows it and others get a placeholder", async ({ page }) => {
   await openItem(page, ICON_CODE);
   const img = page.locator(`header img[data-icon="${ICON_CODE}"]`);
