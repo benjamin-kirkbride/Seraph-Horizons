@@ -224,6 +224,7 @@ public static class Consumers
         var mods = new Items.ModIndex(live.Api);
         var list = new List<JObject>();
         PlainConsumers(live, blocks, mods, list);
+        OreMachineConsumers.Add(live, blocks, mods, list);
         foreach (var spec in Specs)
         {
             if (spec.Mod != null && !live.ModLoaded(spec.Mod)) continue;
