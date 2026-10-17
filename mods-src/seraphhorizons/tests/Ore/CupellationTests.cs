@@ -16,7 +16,7 @@ public class CupellationTests
     public void ShippedFigures()
     {
         Assert.Equal(new CupelSettings(200, 1, 950, 60), R.Cupel);
-        Assert.Equal(0.85, R.Parting(PartingMethod.Cupellation, Cupellation.Tier));
+        Assert.Equal(0.85, R.Parting(Cupellation.Station));
     }
 
     [Theory]

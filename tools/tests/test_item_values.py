@@ -1146,10 +1146,9 @@ ORE_MARKUPS = {
 ORE_FIGURES = """// Comments, as the mod's config asset has them.
 {
   "concentrateUnits": 5,
-  "concentrators": { "jig": 0.8 },
+  "handStations": { "firepit": 0.85 },
   "freeUnamalgamated": 0.7,
-  "roasters": { "stall": 0.5 },
-  "parting": { "cupellation": { "tier2": 0.5 } },
+  "machines": { "jig": { "recovery": 0.8 }, "stallroaster": { "recovery": 0.5 }, "cupellationfurnace": { "recovery": 0.5 } },
   "ores": {
     "galena": { "class": "sulfide", "byProducts": [ { "metal": "silver", "share": 1.0, "partedBy": "cupellation" } ] },
     "chromite": { "density": 1.25 }
@@ -1171,7 +1170,7 @@ class OreProcessingTest(unittest.TestCase):
         self.op = {
             "switch": "OreProcessing",
             "config": str(self.dir / "figures.json"),
-            "line": {"concentrator": "jig", "roaster": "stall", "parting": "tier2"},
+            "line": {"concentrators": ["jig"], "roaster": "stallroaster", "parting": {"cupellation": "cupellationfurnace"}},
             "kinds": {"crush": "crushing", "grind": "grinding", "concentrate": "concentrating", "roast": "roasting"},
             "items": {
                 "crushed": {"code": "seraphhorizons:crushedore-{ore}-{grade}", "stack": 4},
@@ -1270,7 +1269,7 @@ class OreProcessingTest(unittest.TestCase):
         self.assertAlmostEqual(val.value["seraphhorizons:roastedconcentrate-galena"], cost)
         self.write_op(parting={"cupellation": True})
         val, _ = self.solve(self.ex())
-        # 5 units: lead at 0.02, and silver at a share of 1 x 0.2 x the cupel's 0.5 at tier 2.
+        # 5 units: lead at 0.02, and silver at a share of 1 x 0.2 x the cupellation furnace's 0.5.
         self.assertAlmostEqual(val.value["seraphhorizons:roastedconcentrate-galena"], 5 * (0.02 + 1.0 * 0.2 * 0.5))
         self.assertAlmostEqual(val.value["seraphhorizons:concentrate-galena"], cost * 0.5)  # not the parted form
 
@@ -1410,11 +1409,16 @@ class ShippedRulesTest(unittest.TestCase):
         rules = iv.Rules.load()
         op = rules.ore_processing
         fig = op["figures"]
-        self.assertIn(op["line"]["concentrator"], fig["concentrators"])
-        self.assertIn(op["line"]["roaster"], fig["roasters"])
+        for m in op["line"]["concentrators"]:
+            self.assertIn(m, fig["machines"])
+        self.assertIn(op["line"]["roaster"], fig["machines"])
+        for station in op["line"]["parting"].values():
+            self.assertTrue(station in fig["machines"] or station in fig["handStations"], station)
         for kind in list(op["kinds"].values()) + [r["kind"] for r in rules.extra_routes]:
             self.assertIn(kind, rules.markups, kind)
-        self.assertEqual(set(fig["parting"]), {k for k in op["parting"] if k != "about"})
+        methods = {b["partedBy"] for spec in fig["ores"].values() for b in (spec or {}).get("byProducts", [])}
+        self.assertEqual(methods, {k for k in op["parting"] if k != "about"})
+        self.assertEqual(methods, set(op["line"]["parting"]))
         self.assertEqual(len(fig["ores"]), 32)
         self.assertNotIn("game:ingot-stainlesssteel", rules.raws)  # the crucible furnace's route prices it
 
