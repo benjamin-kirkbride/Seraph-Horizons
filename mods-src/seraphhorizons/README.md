@@ -4030,7 +4030,7 @@ every cell, puts the furnace running away from the player, ash mouth towards the
 `cruciblefurnace-ghost` into the other 17 brickwork cells and the 6 hollow cells over the hole's two rows,
 where the lid opens. Breaking any cell drops the frame, every item fitted, the outlet's cap, the unburnt
 coke and each pot (with its charge; a melted charge as its products, molten metal as bits, the pot
-lost), and clears the ghosts.
+lost, with any additions not yet dissolved), and clears the ghosts.
 
 **Building it**, the rig's `build` (counts measured from the model, not written in code):
 
@@ -4071,8 +4071,9 @@ it, is no top: no draught, and the block info says so. `Core/FurnaceRow.cs`'s `C
 the column. Under `MinChimneyHeight` (6) shaft blocks there is no draught. Six blocks heat a lit furnace under its shut lid at
 `ChimneyHeatingPerHour` (200 °C an hour) up to `ChimneyMaxTemperature` (1600 °C); each block above
 adds `ChimneyHeatingPerExtraBlock` (40 °C an hour) and `ChimneyMaxPerExtraBlock` (10 °C), counted up to
-`MaxChimneyHeight` (11 blocks: 400 °C an hour, up to 1650 °C). From cold, stainless melts in about 7.6
-hours on six blocks and 3.8 on eleven (`Core/FurnaceHeat.cs`, `DraughtOf`).
+`MaxChimneyHeight` (11 blocks: 400 °C an hour, up to 1650 °C). From cold, a furnace reaches stainless's
+1530 °C in about 7.6 hours on six blocks and 3.8 on eleven (`Core/FurnaceHeat.cs`, `DraughtOf`), and a
+full pot then takes about 4.3 and 2.9 hours to melt ("Melting takes time", below).
 
 **Rows and shared chimneys.** Up to `MaxFurnacesInRow` (5) furnaces of the same facing side by side
 along their width, touching (each a furnace's width, 3 blocks, from the next, and with its lining in),
@@ -4112,9 +4113,10 @@ open: a click on the hole goes to the nearer of the two places (the rig's `pot1`
 east), for putting a pot in, charging it and pulling it.
 
 **Two pots, one fire.** The pots share the furnace's one coke bed and temperature, but each is its own
-charge: they **may hold different recipes**, and each melts when the fire reaches its own recipe's
-temperature (stainless at 1530 °C in one, iron at 1538 °C in the other: the first melts first). A
-furnace lights only when neither pot holds a charge that makes nothing. `Core/FurnacePot.cs`.
+charge: they **may hold different recipes**, and each melts only while the fire is at its own recipe's
+temperature (stainless at 1530 °C in one, iron at 1538 °C in the other: the first starts first). A
+furnace lights only when neither pot holds an unmelted charge that makes nothing (a molten bath off the
+ratio still pours its own metal, below, so it does not count). `Core/FurnacePot.cs`.
 
 **Charging.** With the lid open and a pot in, a right-click with anything a pot recipe takes puts as
 much of the stack in the nearer pot as fits: a recipe must take every item already in the pot and this
@@ -4123,9 +4125,11 @@ pot (`PotRecipes.CanAdd`). Anything else is refused with a word: no recipe takes
 what is in, the pot is full, or more would spoil the ratio. An ingot is 100 units, anything else 5. A
 right-click with coke puts it on the fire, up to `CokeCapacity` (12, the one bed round both pots, drawn as
 three layers of four); with Shift, into the nearer pot. Iron alone is a charge of its own (the iron melt),
-so a pot holding only iron takes iron to the brim: for stainless, the ferrochrome goes in first, and then
-iron stops at its share. The recipes are ratios only, no chemistry tracked (`Core/PotRecipes.cs`, built
-in, not settings); a recipe naming an item not in the game is left out with a log line:
+so a pot holding only iron takes iron to the brim; for stainless, either put the ferrochrome in first,
+and iron then stops at its share, or melt 240 units of iron and add the ferrochrome to the molten iron
+("Additions to a molten pot", below). The recipes are ratios only, no chemistry tracked
+(`Core/PotRecipes.cs`, built in, not settings); a recipe naming an item not in the game is left out with
+a log line:
 
 | Recipe | Charge (share of the units) | Melts at | Gives | Full pot |
 |---|---|---|---|---|
@@ -4147,9 +4151,59 @@ makes nothing (the block info gives each ingredient's share and the range it nee
 burns `HoursPerCoke` (1) hour with the damper open, lit whatever the lid; a fire out of coke goes out.
 Under a shut lid with a draught a lit furnace heats as above, up to its draught's highest (and above it
 falls back to it at the cooling rate); otherwise it cools (`Core/FurnaceHeat.cs`, piecewise linear, run
-each second by the calendar's hours since the last). One fill of coke, 12 hours, melts stainless from cold
-on the shortest chimney with four hours to spare. When the fire reaches a pot's recipe temperature that
-pot's charge melts.
+each second by the calendar's hours since the last). One fill of coke, 12 hours, takes a furnace from cold
+to stainless on the shortest chimney and only just melts a full pot there (7.6 hours to 1530 °C, then
+about 4.4): top it up during the melt. On the tallest chimney it leaves about five hours to spare.
+
+**Melting takes time** (`Core/FurnaceMelt.cs`). As in Steelmaking Expanded's blast furnace and the
+game's own steelmaking, a melt is a timer gated by heat, not a heat balance. Each pot keeps its own
+progress, the units of its charge melted so far. It advances only while the fire is at or above that
+pot's recipe's temperature, at a speed set by smex's blast-furnace melt curve on the margin above it:
+`clamp(MeltSpeedBase + (fire - recipe) / 100 x MeltGainPer100C, MeltSpeedMin, MeltSpeedMax)`, smex's
+`BfMeltSpeedBase` 0.2, `BfMeltGainPer100C` 0.7 and its 0.5 and 2.0 bounds. A full pot
+(`PotCapacityUnits`) takes `MeltHoursPerFullPot` (3) game hours at a speed of 1, and a part of a pot
+its share (half a pot, half the time). So a full pot of stainless (1530 °C) takes about 4.3 hours on a
+6-block chimney (1600 °C, 0.69) and 2.9 on an 11-block one (1650 °C, 1.04); iron (1538 °C) about 4.7 and
+3.1. While the fire is below the recipe's temperature the melt **pauses**: its progress is kept, never
+reset or decayed, as the game's cementation keeps its progress. The fire's temperature changes within a
+tick (and over a long gap, such as an unloaded chunk), so the speed is integrated along the fire's path
+(`FurnaceHeat.Advance` is piecewise linear) in steps of at most 3 game minutes: a long gap comes out as
+many short ticks. A pot pulled before its charge has melted keeps the charge but not its progress (the
+charge cools). The progress, and a molten pot's time below its solid point, are saved with the furnace;
+a pot from a save made before this melted stays melted, and an unmelted charge starts at none.
+
+**Charging chills the fire.** Every unit charged into a pot takes `ChargeChillPerUnit` (0.8, smex's
+converter's `BessemerColdScrapLossCoefficient`) °C off the fire, scaled by how much colder than the fire
+the item is: `0.8 x units x clamp((fire - item) / (fire - air), 0, 1)`, the item's temperature read from
+its stack. A full cold pot costs about 240 °C; bits hot from a pour almost nothing. A pot put in with a
+charge chills it the same, by the pot's temperature; coke is fuel and chills nothing. The fire never
+drops below the air's temperature, and the chill is taken lit or not (it is heat taken from the hole).
+
+**A melt left in the furnace.** A molten bath stays molten through a dip below its solid point (0.9 of
+its melting point): it freezes in the furnace only once the fire has been below that point for
+`MeltFreezeHours` (1) game hour without a break, the count starting again whenever the fire climbs back
+above it. A dip from charging is survivable; a furnace left to die out is not. A frozen pot takes no
+additions, and pulled it breaks: the pot is lost and the metal comes out as bits of its metal. Pulled
+while the fire is below the solid point, before the hour is up, a bath breaks the same way: let the fire
+climb back first. The block info says when a bath is below its solid point and how long it has left.
+
+**Additions to a molten pot.** A molten (pourable) bath takes anything a recipe would take with it, the
+bath counted as bits of its metal (240 units of molten iron as 48 iron bits; molten stainless as
+stainless bits, for the remelt), under the same rules as a charge (`PotRecipes.CanAdd`: a recipe taking
+the bath and the addition, the ratio's largest share, the pot's capacity). So ferrochrome goes into
+molten iron, iron into molten iron and stainless bits into molten stainless; a ferroalloy, which is not
+molten, takes nothing until it is broken out. The bath stays molten and pourable, and the pot needs
+melt progress for the added units only (60 units of ferrochrome at a speed of 1, 0.6 hours), at the
+new recipe's temperature: it reads "dissolving" until done, and then the whole pot is the new recipe's
+bath (molten iron and ferrochrome: 300 units of stainless). The addition chills the fire like any charge.
+
+**Off the ratio.** A bath whose additions put it on no recipe's ratio (molten iron with too little
+ferrochrome so far) does not dissolve them; more additions can still bring it onto the ratio. Pulled,
+any pot with additions not yet dissolved, off the ratio or still dissolving, pours its bath as it was,
+its own metal, and **the additions are lost to the slag**: the rule the pack applies to smex's converter
+(`Core/BessemerHeat.cs`). The block info warns before the pull ("Off the ratio for stainless steel:
+pulled now, it pours 240 units of Iron, and 6x Ferrochrome is lost to the slag"). The bath's metal is
+the base: whatever was added after it melted and has not dissolved is what is lost.
 
 **Pulling and teeming.** With the lid open and an empty hand, a right-click on the hole pulls the nearer
 pot, with tongs in the off hand while the furnace is too hot to touch. A pot not yet melted comes back
@@ -4166,8 +4220,8 @@ blank molds) exactly as a crucible does, and emptied it is a fired pot a heat ol
 given the cooldown speed that takes it from the furnace's temperature to the game's solid point (0.9 of
 the melting point) in `PourWindowSeconds` (20) real seconds (`Core/FurnaceHeat.cs`, `PourWindow`);
 frozen, a right-click breaks the pot, which is lost, and knocks the metal out as bits of its metal (a bit
-per 5 units), which go back in a pot. A pot left in the furnace until the fire falls below that point is
-lost the same way when pulled.
+per 5 units), which go back in a pot. A bath that froze in the furnace, or one pulled while the fire is
+below that point, is lost the same way when pulled ("A melt left in the furnace", above).
 
 **Iron for large castings** (#768). The iron melt (1538 °C, which every chimney reaches) is for castings
 too big to forge, the cylinder blank (#639) above all: a cylinder mold takes 600 units, the furnace's two
@@ -4190,8 +4244,11 @@ burning coke and the melts glowing by the fire's temperature (none below 500 °C
 show at the hole while it burns with the lid open, and smoke at the row's chimney top while it draws.
 
 **Block info.** The stage built and what the next still needs; the brick; the lid; the damper; the fire's
-temperature and coke; each pot's charge (with what it makes and the temperature it needs against the
-fire's), molten or melted contents and heats; the chimney's height and draught (or what is wrong: none,
+temperature and coke; each pot's charge (with what it makes, the temperature it needs against the
+fire's, the share melted and the hours left at the fire's present speed, or paused), molten, melted or
+frozen contents and heats, a molten pot's additions (dissolving, with their share and hours left, or off
+the ratio, with what a pull pours and loses) and whether it is below its solid point and how long it has
+left; the chimney's height and draught (or what is wrong: none,
 too short, too many, or which outlet is open); and the row's members and which carries the chimney.
 
 **The game's stainless.** The game gives `game:ingot-stainlesssteel` no melting point, so molds never
@@ -4272,6 +4329,13 @@ linking the frame's page for the furnace. The pots and the two ferroalloys have 
 | `DamperHalfBurn` | 0.6 | Damper half shut: the share of the coke's burn |
 | `DamperShutBurn` | 0.25 | Damper shut: the share of the coke's burn |
 | `DamperShutCooling` | 0.25 | Damper shut: the share of the closed cooling |
+| `MeltHoursPerFullPot` | 3 | Game hours a full pot takes to melt at a speed of 1 |
+| `MeltSpeedBase` | 0.2 | Melt speed at the recipe's temperature, before the floor (smex's `BfMeltSpeedBase`) |
+| `MeltGainPer100C` | 0.7 | Melt speed each 100 °C above the recipe's temperature adds (smex's `BfMeltGainPer100C`) |
+| `MeltSpeedMin` | 0.5 | The slowest melt speed at or above the recipe's temperature |
+| `MeltSpeedMax` | 2 | The fastest melt speed |
+| `ChargeChillPerUnit` | 0.8 | °C a cold unit charged takes off the fire (smex's `BessemerColdScrapLossCoefficient`) |
+| `MeltFreezeHours` | 1 | Game hours below its solid point before a molten pot freezes in the furnace |
 | `ChimneyShaftBlocks` | `game:claybricks-*`, `game:brickcourse-*`, `game:refractorybricks-*`, `game:stonebricks-*` | What a chimney's shaft is built of |
 | `ChimneyTopBlocks` | `game:claybrickchimney-*` | The one block that tops the shaft |
 | `LargeCastingMetals` | `game:ingot-iron` | Metals a pot pours only into `LargeCastingMolds` |
@@ -4295,17 +4359,22 @@ export (the frame and the pot's own recipes are there), and the furnace seen in 
 
 `tests/CrucibleFurnace/` (unit) covers the pot recipes and charging, the draught by height, the damper,
 the row (caps, leaks, at most five, a gap ending it), the build (the order, a stack a click, one brick
-type), two pots of different recipes, and the rig (its contract, the reference poses, the lid's boxes,
-and `potUnits` and the coke's layers held to the settings). `tests/PackTests/CrucibleFurnaceScenarios.cs`
+type), two pots of different recipes, the melt (`FurnaceMeltTests`: smex's curve at its margins, a full
+and a half pot's hours, the pause below temperature, a long gap against many short ticks, the chill by
+the item's temperature, the freeze after the hold, ferrochrome dissolving into molten iron, iron and
+stainless into their own baths, an off-ratio bath, and what a molten pot refuses), and the rig (its
+contract, the reference poses, the lid's boxes, and `potUnits` and the coke's layers held to the settings). `tests/PackTests/CrucibleFurnaceScenarios.cs`
 (Atlas) places the frame on all four facings and breaks it, builds every stage by clicks and refuses a
 second brick type and a stage out of order, breaks a built furnace for everything fitted, fits the stages
 by the creative shortcut, fires a 6-block and an 11-block chimney (the tall one of brick courses), each
 topped, side by side and compares them, finds no draught without a top or with one partway up, works
 the damper through its three places, needs tongs for a hot lid, runs a row of three on one chimney with
-an open outlet and then capped, melts two pots of different recipes at their own temperatures and pulls
-them with and without tongs, melts stainless from cold on its coke and pours and freezes it, teems iron
-from both pots into one cylinder blank while a tool mold refuses it, and breaks out both ferroalloys and
-cracks a pot on its last heat. `BessemerStainlessScenarios.cs` (Atlas, `SharedWorldScenarios`) can raise
+an open outlet and then capped, melts two pots of different recipes at their own temperatures, over
+hours, and pulls them with and without tongs, melts stainless from cold on its coke (topped up during
+the melt) and pours and freezes it, teems iron from both pots into one cylinder blank while a tool mold
+refuses it, breaks out both ferroalloys and cracks a pot on its last heat, and melts iron, adds
+ferrochrome to the molten iron (chilling the fire), dissolves it into stainless and pours it, while the
+other pot, off the ratio, pours its iron and loses its ferrochrome. `BessemerStainlessScenarios.cs` (Atlas, `SharedWorldScenarios`) can raise
 no whole converter (vessel stages, transmission, steam, blast), so it places a lone control block, sets
 its heat as smex leaves it and runs smex's own methods through the patches: a blow completing with
 ferrochrome scrap, the save, the block info, a stainless pour, an off-ratio and a too-cold one, and
@@ -5598,6 +5667,28 @@ and layout, raw ore struck into its crushed ore with the hammer's wear and a pic
 bountiful ore in the same two blows each into one of its grade and crystallised ore into two, the next
 block, the export records) and `SwitchesOffScenarios` (off).
 
+### Ore processing: the riddle (`Riddle`, `RiddleSettings`)
+
+The hand station of the classify stage (#714; model #715): a miner's riddle, a coarse hand sieve over a plank box.
+Crushed ore in; classified crushed ore out, which concentrates without the **unclassified × 0.85** (a rocker gets
+55 % instead of 46.8 %). After spalling, before the rocker; replaced by the stamp battery's screen and the ball
+mill's. No power, no oil, no automated input or output. Needs `OreProcessing` too (off, either one, means its block
+and recipe do not exist). How it plays, builds and draws is in `Riddle/README.md`, "Gameplay":
+
+- **Building.** The frame (`seraphhorizons:riddle-frame-{side}`) is a grid recipe of six oak planks, one nails and
+  strips of iron, meteoric iron or steel and a hammer; the riddle is fitted on it by right-click with two nails and
+  strips at once (its wire mesh). Breaking returns everything that went in and whatever it holds.
+- **Riddling.** A charge is `LumpsPerCharge` (3) unclassified crushed ore of one kind, on in one click; holding
+  right-click riddles it, a shake every 0.75 s, `ShakesPerCharge` (12) a charge. At the end `OversizePerCharge` (1)
+  stays on the mesh as raw ore of its ore and grade (in its rock, the rock under the station, or granite), back to
+  spalling, and the rest falls into the box as the same crushed ore with ore-core's classified flag (`oreState` 1,
+  #765). Nothing is lost. An empty hand takes the oversize out, then the fines; the next charge waits until both are
+  out.
+- **Recipe browser.** A `riddle` record per crushed ore (power `hand`, `work` in shakes).
+
+Code: `Riddle/Core/`, `Riddle/Game/`. Tests: `tests/Riddle/`; `tests/PackTests/RiddleScenarios.cs`,
+`RecipeExportRiddleScenarios.cs`.
+
 ### Ore processing: leaching borax, saltpeter and alum (`OreProcessing`)
 
 The non-metals are leached with blocks players already have (#742): no station, no model. With the
@@ -5870,6 +5961,81 @@ item values count liquation as a station (`tools/item-values/ore-processing.json
 fire and in a charcoal fire, the pan in crucibulum's forge with the gate shut, emptying and the residue,
 the clay forming and firing, the export) and `SwitchesOffScenarios` (off).
 
+### Ore machines: what they share (`OreMachinesSettings`)
+
+The code every ore machine and hand station builds on (#711, #694), on the shared `Machines/` code;
+each machine (#912, #728, #732, #915, #917, #734, #919, #921, #923, #925, #736, #740, #927, #929, #931)
+has its own switch and calls it. Nothing here changes the game by itself: the settings apply to the
+machines as they come. The figures of each machine (recovery, load, water an item, rate) are
+`OreRecovery.Machine(OreMachine)`'s (#765, `Ore/Core`); what is shared is below.
+
+**One machine, built in stages** (no levels: the owner's ruling). The frame is placed (its grid
+recipe is the machine's), then each stage of the model README's stage table is fitted by right-click,
+in order, its materials being its recipe: `config/builds/{machine}.json` (`Machines/Core/MachineBuildJson.cs`;
+the first is the stamp battery's). A click puts in one material of the next stage: all the stage still
+needs of it, or a full stack of a bulk one (41 support beams go in a stack a click); fewer than that is
+`TooFew`, a later stage's item `OutOfOrder`, a fitted one's `AlreadyFitted`, the water line part way in
+another metal `OtherKind`. A material's `picks` draw the part of the item put in (`pipecopper` or
+`pipelead`), its `draws` a part before the rest of its stage. Breaking gives back everything that went
+in (`StagedBuild`, `MachineAssembly`). Every build file is checked against its rig: its stages are the
+rig's `buildStages`, in order, adding the same `requires` (a test, and a warning as it loads).
+
+**Wearing parts** (`WearingParts`) are not stages: a set (the stamp battery's five steel pounder caps)
+wears by use (in the machine's own unit) and is renewed by right-click once worn out; a worn-out set
+is gone, a set with use left comes back when the machine is broken. One fitted with a stage
+(`"stage"`) has its first set fitted as the last material of that stage. Without its set a machine
+does not run.
+
+**Running** (`MachineRun`): a machine works only built, with its wearing parts, its shaft at
+`MinSpeed` (0.05) or faster either way ("no power" below it), its reservoir holding an item's water
+(a wet machine with no water stops and resumes when water returns: the owner's ruling on #711), and
+room for its output. **Rate is in proportion to speed with no cap**: work is counted in shaft turns
+(`WorkTurns`, from `ShaftClock.AngleAdvance`) at the machine's turns an item, so an item takes the
+same energy at any speed. **Load is constant**: once built the job's figure
+(`OreRecovery.LoadAt`, the full load for every machine but the jaw breaker, the reverberatory's
+rabbles and the Parkes kettle, which follow their charge, never an item), 0.005 unbuilt, three times
+dry of oil where the machine takes oil (`MachineLoad.Resistance`). The power cell's behaviour is
+`seraphhorizons.MachineMP` (`BEBehaviorMachineMP`, its block entity an `IMachinePower`).
+
+**The reservoir** (`MachineReservoir`): a wet machine fills its own from a ppex pipe on its water face
+(`PpexWater`, moved here from the rosser, which shares it) at up to `WaterIntakeLitresPerSecond` (10 L/s),
+holding `ReservoirLitres` (20 L) or two items' water where an item takes more (the stamp battery's
+40 L a rock), and spends an item's water as it works it. No water comes back.
+
+**Chutes in and out** (`MachineAnchors`, `MachineChutes`): continuous machines read their anchors from
+the rig's `{name}Cell`/`{name}Face` pairs (turned with the machine). Products leave through an
+anchor's face into a vanilla chute laid to take from the machine, or any container; with nothing
+there, a product stays in the machine (its output blocked) and tailings are discarded. A chute feeds
+the infeed cell's block entity, whose inventory takes only through the infeed face what the machine
+takes. Batch machines (the arrastra, the roasters and furnaces) have no anchor: loaded and emptied by
+hand. Hand stations have neither.
+
+**Tailings** (#694; `Tailings`, `TailingsHeap`): where a machine's tailings outlet is not chuted on
+(normally the last of the line), or at a hand station, discarded rock goes on a heap beside the
+tailings point as vanilla layered gravel (`game:gravel-{rock}-land-{n}`) or sand (`game:sand-{rock}-{n}`)
+in the ore's host rock (the raw ore's `rock`, carried as a stack attribute), filling the cell, the four
+round it, then two up (seven blocks; a full heap takes no more until it is shovelled away). The layers
+a rock, the owner's starting values (`OreMachinesSettings.Tailings`, by machine): sluice and jig
+gravel 1, shaking table sand 0.75, vanner sand 0.5, amalgamation plates sand 1, rocker gravel 1; the
+jaw breaker, stamp battery, arrastra and ball mill discard nothing, nor do the roasters and furnaces.
+Fractions carry from rock to rock (`TailingsOwed`).
+
+**Text, handbook and recipe browser.** Block info and messages are shared (`MachineText`, the
+`seraphhorizons:machine-*` lang entries): the next stage and what it still takes, each wearing part's
+use left, the state (`seraphhorizons:machine-state-*`) and the reservoir. A stage's name is
+`seraphhorizons:{machine}-stage-{id}` where given. Each machine's handbook takes its player card as the
+frame block's `handbook.extraSections`, under `seraphhorizons:{machine}-handbook-{build,work,water,tailings}-{title,text}`
+(the draw bench's pattern). The recipe browser shows each machine whose frame is in the game as a
+`construction` record built from its build file (`tools/recipe-export/RecipeSection.OreMachines.cs`):
+the frame, then each stage's materials, a wearing part's first set with its stage.
+
+Settings (`OreMachinesSettings`): `MinSpeed`, `ReservoirLitres`, `WaterIntakeLitresPerSecond` and
+`Tailings` (per machine: `Form` gravel or sand, `LayersPerRock`); out-of-range values fall back with a
+warning. Tests: `tests/Machines/OreMachineSharedTests.cs` (the build, wearing parts, running, rate,
+load, reservoir, tailings, anchors, settings, and every shipped build file against its rig);
+`tests/PackTests/OreMachinesScenarios.cs` (Atlas: the build files load and name items the game has,
+a tailings heap in the world, products into a chute and a chest).
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is
@@ -6128,6 +6294,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `CylinderBorer` | the borer's blocks and parts, the cylinder molds (`seraphhorizons:cylindermold-*`), the cast and bored cylinders (`seraphhorizons:cylinderblank-*`, `seraphhorizons:cylinder-*`), its grid, smithing and clay forming recipes, the molds' casting, the cylinder borer records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
 | `SquaringShear` | the shear's blocks, the half plate (`seraphhorizons:halfplate-*`), its grid recipe, the squaring shear records |
+| `Riddle` | the riddle's block, its grid recipe, the riddle records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
 | `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |
 | `CreativeSteamSource` | the creative steam source block |

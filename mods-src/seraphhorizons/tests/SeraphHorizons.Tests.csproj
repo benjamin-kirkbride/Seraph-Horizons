@@ -38,6 +38,9 @@
     <Compile Include="../MapReveal/Core/**/*.cs" Link="MapReveal/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../CreativeModTabs/Core/**/*.cs" Link="CreativeModTabs/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Machines/Core/**/*.cs" Link="Machines/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The ore machines' shared code (#711, #694): every build file, checked against every rig. -->
+    <None Include="../assets/seraphhorizons/config/builds/*.json" Link="builds/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../assets/seraphhorizons/config/*-rig.json" Link="rigs/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../BuckingSawmill/Core/**/*.cs" Link="BuckingSawmill/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Rosser/Core/**/*.cs" Link="Rosser/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="../Trading/Values/Core/**/*.cs" Link="Trading/Values/Core/%(RecursiveDir)%(Filename)%(Extension)" />
@@ -128,8 +131,9 @@
           Condition="Exists('../assets/seraphhorizons/config/mandrelstation-rig.json')" />
     <None Include="MandrelStation/rig-reference.json" Link="mandrelstation-rig-reference.json" CopyToOutputDirectory="PreserveNewest"
           Condition="Exists('MandrelStation/rig-reference.json')" />
-    <!-- The riddle's shipped rig and its reference poses (Riddle/tools/make_shape.py):
-         a hand station with no gameplay yet (#714), held to the shared rig maths its renderer will use. -->
+    <!-- The riddle's gameplay rules (#714): the charge, the build, the renderer's clock, settings and its rig;
+         and its shipped rig and reference poses (Riddle/tools/make_shape.py). -->
+    <Compile Include="../Riddle/Core/**/*.cs" Link="Riddle/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/riddle-rig.json" Link="riddle-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Riddle/rig-reference.json" Link="riddle-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The eidolon gantry's winch stages and rig reader, its shipped rig, and its README, whose

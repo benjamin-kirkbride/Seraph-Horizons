@@ -210,6 +210,16 @@ its `materials` as the mod writes them, the `default`, and the indices of its ma
 `extra.wake` is the crank's action, which wakes it after the last stage. Their `extra.behavior` names
 the mod's classes and `extra.stages` the stages' codes.
 
+The ore machines (seraphhorizons, #711) are records of this type as they come into the game, one for
+each machine whose frame block is registered, built from its build file
+(`config/builds/{machine}.json`): `construction|{frame block}|0`, output the frame block, the placed
+frame then each build stage, each material of a stage one ingredient (a wildcard with
+`allowedVariants` where it may be several items, the stack list of the one variant giving every one).
+A wearing part fitted with a stage (the stamp battery's shoes) is that stage's last ingredient.
+`extra.behavior` is `seraphhorizons.OreMachine`, `extra.machine` the machine's id, `extra.feed`
+`continuous` or `batch`, `extra.stages` the stages' names and `extra.wearing` each wearing part's
+`id`, `count` and `uses` (the work a set lasts, in the machine's own unit).
+
 ### Butchery
 
 With the Butchering mod a dead creature is picked up whole, skinned on a hook, left there to
@@ -334,6 +344,14 @@ the gauge (both in `machine.kept`) and the machine (role `station`); the output 
 `power` is `hand`, `turns` the strokes of its treadle clock one plate takes (a stroke a second while
 the player holds right-click), and `work` says so (`amount` that many, `unit` `strokes`, no
 `turnsPerUnit`); there is no `wear` and no `oil`.
+
+**The riddle** (type `riddle`, shape `machine`): one record per crushed ore, id
+`riddle|seraphhorizons:crushedore-<ore>-<grade>|0`. The ingredients are a charge of the crushed ore (consumed, three
+by default), the riddle's mesh (two nails and strips, in `machine.kept`) and the machine (role `station`); the outputs
+are the fines, the same crushed ore classified (the variant's stack carries `attributes.oreState` 1), and the
+oversize, raw ore of the ore and grade in granite (in play the charge's rock or the rock under the station), back to
+spalling. It is worked by hand: `power` is `hand`, `turns` the shakes a charge takes (a shake every 0.75 s while the
+player holds right-click), and `work` says so (`amount` that many, `unit` `shakes`); there is no `wear` and no `oil`.
 
 **The mandrel forging station** (type `mandrelstation`, shape `machine`): one record per hollow metal,
 id `mandrelstation|game:chutesection-<metal>|0`. The ingredients are the hollow section (consumed), the

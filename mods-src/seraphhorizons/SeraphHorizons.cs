@@ -984,6 +984,20 @@ public class SeraphHorizonsConfig
     /// warning. The server's are used.</summary>
     public SquaringShear.Core.SquaringShearConfig SquaringShearSettings { get; set; } = new();
 
+    /// <summary>The riddle (#714, Riddle/, README "Ore processing: the riddle"): a coarse hand sieve over a plank
+    /// box, a hand station of the classify stage, built on its frame in one stage (nails and strips as its wire
+    /// mesh). A charge of three crushed ore of one kind is riddled while the player holds right-click on it, as
+    /// on the quern: the fines fall into the box as classified crushed ore, which concentrates without the
+    /// unclassified × 0.85, and the oversize stays on the mesh as raw ore, back to spalling; no metal is lost,
+    /// no power, no oil, and no automated input or output. Needs <see cref="OreProcessing"/> (off, or that off,
+    /// means its block and recipe do not exist, and riddles already placed are lost). The server's setting
+    /// decides.</summary>
+    public bool Riddle { get; set; } = true;
+
+    /// <summary>The riddle's figures; a value out of range falls back to its default with a warning. The
+    /// server's are used.</summary>
+    public Riddle.Core.RiddleConfig RiddleSettings { get; set; } = new();
+
     /// <summary>The mandrel forging station (MandrelStation/, README "Mandrel forging station"): an
     /// oak stump with an iron bracket holding a rod as its mandrel, on which a lead or copper hollow
     /// section (the game's chute section) is hammered, a right-click with a hammer a blow as on the
@@ -1108,4 +1122,10 @@ public class SeraphHorizonsConfig
     /// <summary>The springs' rates, in litres a second; a value out of range falls back to its
     /// default with a warning. The server's are used, each side's for its text.</summary>
     public SeraphHorizons.Mod.Springs.Core.SpringsConfig SpringsSettings { get; set; } = new();
+
+    /// <summary>The ore machines' shared rules (Machines/, README "Ore machines: what they share"; #711,
+    /// #694): the speed under which a machine stops, the reservoir's size and fill rate, and each
+    /// machine's tailings (form and layers a rock). Each machine's own switch turns it on; these
+    /// apply to every one. The server's are used.</summary>
+    public OreMachinesConfig OreMachinesSettings { get; set; } = new();
 }
