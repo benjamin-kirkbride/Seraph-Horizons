@@ -3552,7 +3552,9 @@ go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaim
 `EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). Down a pit with a stair and work left, one
 with nothing to take waits down there, a column clear of the stair and of what others hold, rather than
 climb the whole stair to the rim and back; a walk to where it waits that goes on over 10 seconds (stuck,
-or giving way for ever) is stopped and it looks again from where it got to. *The floors within a climb*: the open band (*Stations*, above)
+or giving way for ever) is stopped and it looks again from where it got to. The work under its feet waits
+for it to move, so with no member at work, one waiting over blocks still to dig steps aside onto ground with
+nothing left to dig; three once waited so for good, one standing on the last blocks (#1156). *The floors within a climb*: the open band (*Stations*, above)
 keeps every member within a layer of the highest with blocks left, so it walks from anywhere in the pit
 to anywhere else. *When none may work*: with blocks left and no member able to take a station, the plan
 is made again at once, once until a block is broken; with another still working or parked over the area,

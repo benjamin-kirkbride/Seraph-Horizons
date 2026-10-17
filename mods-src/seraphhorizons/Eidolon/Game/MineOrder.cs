@@ -1286,6 +1286,16 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 if (OccupantOf(eidolon, station.Stand) is { } occupant && occupant.Orders?.Current is MineOrder waiting
                     && waiting != this && waiting._job == _job)
                     waiting.MakeRoom(occupant, now);
+        // none at work: a member waiting down the pit over blocks still to dig (Wait's PitClear leaves the work
+        // under its feet for it to move off) holds them from every other member, and none takes a station, so
+        // none ever asks it to move (#1156: three waiting for good with 6 blocks left, one standing on them).
+        // It makes room, stepping aside onto ground with nothing left to dig.
+        if (!working && _job != null)
+            foreach (long member in _job.Present)
+                if (member != eidolon.EntityId && _jobs?.Member(member) is { Alive: true } other
+                    && other.Orders?.Current is MineOrder waiting && waiting._job == _job
+                    && live.Remaining.Any(c => c.Y <= Feet(other) && EidolonMining.UnderFoot(other.Pos.X, other.Pos.Z, c)))
+                    waiting.MakeRoom(other, now);
         bool left = live.Bands is { } bands ? !bands.StairOpen : live.Remaining.Count > 0;
         if (!left && cells.Parked.Count > 0)
         {
