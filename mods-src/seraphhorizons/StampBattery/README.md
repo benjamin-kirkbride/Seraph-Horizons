@@ -8,7 +8,8 @@ into it in five stages.
 
 The frame is placed, then each stage is fitted in order (owner, 2026-10-15). The rig's `buildStages` lists what each
 stage adds. Materials are measured from the model (element volume per `requires` and texture) at the ore line's one
-rate: 128 vox of iron or steel an ingot, rods counted, then whole plates, then nails and strips at 4 an ingot. Wood is
+rate: 128 vox of iron or steel an ingot, rods counted, then whole plates, then nails and strips at 4 an ingot,
+plus 1 iron nails and strips per 4 planks' worth of timber (a support beam 2), for the fastenings. Wood is
 counted at the timber rate: a board (an element 2 vox thick or less) is 1 `game:plank-*` per 128 vox, a timber (3 vox
 or thicker) 1 `game:supportbeam-*` per 256 vox, and every stage with wood costs at least 1. "~" marks a guess or a
 choice of item.
@@ -22,12 +23,12 @@ it against the grid's limit and against the frame measured.
 
 | Stage | Fitted (`requires`) | What it is | Materials |
 |---|---|---|---|
-| Frame (placed) | none | The two oak sills; the rectifier's gear case at the power cell and the line shaft along the back row in its two pedestals | 3 stainless gear (the rectifier, `seraphhorizons:gear-stainless`), 4 iron plate, 2 iron nails and strips, 2 steel plate, 1 steel nails and strips, 4 support beam (the sills and the entry shaft, 832 vox) |
-| 1 · Timber | `timber` | The two end frames on the sills (front and middle posts, the back posts from the ground, the caps, the guide and cam rails), the two guide girts, the three ties at the caps and the two bearers, with the water line's iron hanger on the front one | 41 support beam (10,342 vox), 6 plank (the guide girts, 720 vox), 1 iron nails and strips (the hanger) |
-| 2 · Mortar | `mortar` | The mortar box on its block between the end frames, the mesh screen in its front wall, the feed opening and the shoot | 1 iron chain (the screen, 122 vox²), 8 iron plate, 2 iron nails and strips, 5 support beam |
+| Frame (placed) | none | The two oak sills; the rectifier's gear case at the power cell and the line shaft along the back row in its two pedestals | 3 stainless gear (the rectifier, `seraphhorizons:gear-stainless`), 4 iron plate, 4 iron nails and strips, 2 steel plate, 1 steel nails and strips, 4 support beam (the sills and the entry shaft, 832 vox) |
+| 1 · Timber | `timber` | The two end frames on the sills (front and middle posts, the back posts from the ground, the caps, the guide and cam rails), the two guide girts, the three ties at the caps and the two bearers, with the water line's iron hanger on the front one | 41 support beam (10,342 vox), 6 plank (the guide girts, 720 vox), 23 iron nails and strips (the hanger 1, the fastenings 22) |
+| 2 · Mortar | `mortar` | The mortar box on its block between the end frames, the mesh screen in its front wall, the feed opening and the shoot | 1 iron chain (the screen, 122 vox²), 8 iron plate, 5 iron nails and strips, 5 support beam |
 | 3 · Stamps | `stamps` | Five stamps, hung in the guide girts first, and their five steel dies set on the mortar's floor under them | 5 `game:poundercap-steel` (the shoes), 5 steel rod, 2 steel plate, 5 steel nails and strips (the dies' 470 vox among them), 4 iron plate, 7 iron nails and strips |
-| 4 · Camshaft, belt and feed box | `camshaft`, `feedbox` | The camshaft in its pillow blocks, the cams set under the hung stamps' tappets in the hanging order 1-3-5-2-4; the bull pulley and its belt from the line shaft; the plank feed box under the infeed | ~1 leather (the belt), 4 iron plate, 3 iron nails and strips, 3 steel rod, 1 steel plate, 1 steel nails and strips, 9 plank (the bull pulley and the feed box) |
-| 5 · Services | `chutes`, and `pipecopper` or `pipelead` | Every chute section: the infeed section in the top face and the output chute (its funnel under the screen, its stub and the stub's block); the water line along the mortar's back with its header, a branch and a cock to each stamp, in copper or lead | 4 chute section (the infeed's 2, the funnel and stub's 2), 3 pipe section (copper or lead), 1 support beam (the output chute's block, 108 vox) |
+| 4 · Camshaft, belt and feed box | `camshaft`, `feedbox` | The camshaft in its pillow blocks, the cams set under the hung stamps' tappets in the hanging order 1-3-5-2-4; the bull pulley and its belt from the line shaft; the plank feed box under the infeed | ~1 leather (the belt), 4 iron plate, 6 iron nails and strips, 3 steel rod, 1 steel plate, 1 steel nails and strips, 9 plank (the bull pulley and the feed box) |
+| 5 · Services | `chutes`, and `pipecopper` or `pipelead` | Every chute section: the infeed section in the top face and the output chute (its funnel under the screen, its stub and the stub's block); the water line along the mortar's back with its header, a branch and a cock to each stamp, in copper or lead | 4 chute section (the infeed's 2, the funnel and stub's 2), 3 pipe section (copper or lead), 1 iron nails and strips, 1 support beam (the output chute's block, 108 vox) |
 
 Only the stamps' **shoes are a wearing part**, not a stage: a set of five is 5 `game:poundercap-steel` (the pulverizer's
 pounder cap). The dies are fitted with the stamps and do not wear (owner, 2026-10-16). Water and ore are contents, not

@@ -147,7 +147,8 @@ def check_frame_recipe(v):
     ingredient besides the hammer, at most GRID_PER_SLOT of an item a slot and never more than its stack, the hammer
     and all in GRID_SLOTS slots. Its wood and metal are the frame's, measured at the ore line's rate: its oak (the
     sills and the entry shaft, the vanilla axle's 4-across cross) in support beams, its iron and the line shaft's steel
-    in whole plates, then nails and strips. The bulk timber is stage 1, fitted a stack a click, outside the grid."""
+    in whole plates, then nails and strips, and 1 iron nails and strips per FASTENING_PLANKS planks' worth of its
+    timber (a support beam BEAM_PLANKS) for the fastenings. The bulk timber is stage 1, fitted a stack a click, outside the grid."""
     m = v.m
     recipe = dict(m.FRAME_RECIPE)
     slots = 0
@@ -163,6 +164,7 @@ def check_frame_recipe(v):
     vox = {t: sum(volume(e) for e in textured(fixed, t)) for t in ("iron", "steel")}
     for t in ("iron", "steel"):
         want[f"game:metalplate-{t}"], want[f"game:metalnailsandstrips-{t}"] = metal(vox[t])
+    want["game:metalnailsandstrips-iron"] += math.ceil(want["game:supportbeam-oak"] * m.BEAM_PLANKS / m.FASTENING_PLANKS)
     got = {c: recipe.get(c, 0) for c in want}
     print(f"frame measured: {board + timber:.0f} vox oak, {vox['iron']:.0f} vox iron, {vox['steel']:.0f} vox steel: {want}")
     if got != want or any(c.startswith("game:plank") for c in recipe):

@@ -966,17 +966,19 @@ for _sid, _adds, _ in BUILD_STAGES:
 
 # The placed frame's grid recipe (owner, 2026-10-16): measured from the frame at the ore line's rate (metal 128 vox an
 # ingot, whole plates then nails and strips at 4 an ingot; the entry shaft, the vanilla axle's 4-across cross, a timber
-# with the sills). The grid holds at most GRID_KINDS kinds of ingredient besides the hammer in GRID_SLOTS slots, at most
+# with the sills), plus 1 iron nails and strips per FASTENING_PLANKS planks' worth of its timber (a support beam 2), for
+# the fastenings (owner, 2026-10-17). The grid holds at most GRID_KINDS kinds of ingredient besides the hammer in GRID_SLOTS slots, at most
 # GRID_PER_SLOT of an item a slot and never more than its stack.
 FRAME_RECIPE = (                             # (item, count): validate_stampbattery checks the wood against the frame
     ("seraphhorizons:gear-stainless", 3),       # the rectifier (the gear case's gears, not drawn)
-    ("game:metalplate-iron", 4), ("game:metalnailsandstrips-iron", 2),
+    ("game:metalplate-iron", 4), ("game:metalnailsandstrips-iron", 4),
     ("game:metalplate-steel", 2), ("game:metalnailsandstrips-steel", 1),
     ("game:supportbeam-oak", 4),
 )
 GRID_SLOTS, GRID_KINDS, GRID_PER_SLOT = 9, 6, 12
 STACK = {"plank": 64, "supportbeam": 32, "metalplate": 8, "metalnailsandstrips": 32, "metalrod": 16}
 PLANK_VOX, BEAM_VOX = 128.0, 256.0           # timber rate: a board (2 vox thick or less) a plank, a timber a beam
+FASTENING_PLANKS, BEAM_PLANKS = 4, 2         # the timber pays its nails and strips: 1 iron per 4 planks' worth
 
 
 def in_state(requires, state):
