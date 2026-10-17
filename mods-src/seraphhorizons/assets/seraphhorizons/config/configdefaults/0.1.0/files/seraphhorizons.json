@@ -510,5 +510,9 @@
         "LayersPerRock": 1.0
       }
     }
+  },
+  "JawBreaker": true,
+  "JawBreakerSettings": {
+    "ChargeRocks": 8
   }
 }
