@@ -1,3 +1,5 @@
+using SeraphHorizons.Mod.Ore.Core;
+using SeraphHorizons.Mod.Ore.Processing;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
@@ -6,8 +8,7 @@ namespace SeraphHorizons.Mod.Riddle;
 /// <summary>
 /// What the riddle does to ore items: marks the fines classified, and turns the oversize back into raw ore.
 /// <para>Classified is ore-core's (#765) stream state: the same item code with the <c>oreState</c> attribute's
-/// <see cref="ClassifiedFlag"/> set (its <c>OreState.Classified</c>, written by its
-/// <c>OreStreamAttributes.AddState</c>), so classified and unclassified crushed ore do not stack together. The
+/// <see cref="OreState.Classified"/> flag (<see cref="OreStreamAttributes.AddState"/>), so classified and unclassified crushed ore do not stack together. The
 /// concentrators read it and lift the unclassified × 0.85.</para>
 /// <para>The oversize is rock again (#714, 2026-10-13): raw ore of the charge's ore and grade
 /// (<c>game:ore-{grade}-{ore}-{rock}</c>), which holds the same metal as the crushed ore and spalls back into it,
@@ -16,16 +17,13 @@ namespace SeraphHorizons.Mod.Riddle;
 /// </summary>
 public static class RiddleOre
 {
-    public const string StateKey = "oreState";
-    public const int ClassifiedFlag = 1;
     public const string RockKey = "rock";
     public const string DefaultRock = "granite";
 
     public static bool IsClassified(ItemStack stack) =>
-        ((stack.Attributes?.GetInt(StateKey) ?? 0) & ClassifiedFlag) != 0;
+        OreStreamAttributes.StateOf(stack).HasFlag(OreState.Classified);
 
-    public static void MarkClassified(ItemStack stack) =>
-        stack.Attributes.SetInt(StateKey, stack.Attributes.GetInt(StateKey) | ClassifiedFlag);
+    public static void MarkClassified(ItemStack stack) => OreStreamAttributes.AddState(stack, OreState.Classified);
 
     /// <summary>The ore and grade of a crushed ore code (<c>seraphhorizons:crushedore-{ore}-{grade}</c>).</summary>
     public static (string Ore, string Grade)? Split(string? code)
