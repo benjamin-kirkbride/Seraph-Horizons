@@ -23,6 +23,7 @@
     "crushed": { "code": "seraphhorizons:crushedore-{ore}-{grade}", "stack": 16, "name": "Crushed ore ({ore}, {grade})" },
     "ground": { "code": "seraphhorizons:groundore-{ore}-{grade}", "stack": 16, "name": "Ground ore ({ore}, {grade})" },
     "roastedrock": { "code": "seraphhorizons:roastedore-{ore}-{grade}", "stack": 16, "only": "sulfide", "name": "Roasted ore ({ore}, {grade})" },
+    "stallroastedrock": { "code": "seraphhorizons:stallroastedore-{ore}-{grade}", "stack": 16, "only": "sulfide", "name": "Stall-roasted ore ({ore}, {grade})" },
     "concentrate": { "code": "seraphhorizons:concentrate-{ore}", "stack": 128, "name": "Concentrate ({ore})" },
     "roastedconcentrate": { "code": "seraphhorizons:roastedconcentrate-{ore}", "stack": 128, "only": "sulfide", "name": "Roasted concentrate ({ore})" },
     "amalgam": { "code": "seraphhorizons:amalgam-{ore}", "stack": 128, "only": "free", "name": "Amalgam ({ore})" },

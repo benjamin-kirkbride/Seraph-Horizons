@@ -421,6 +421,35 @@ crystallised ore), classified, which the schema has no field for: `extra.classif
 how it is fed and emptied; `extra` has the `ore`, `grade`, `form` (`raw`, `crystallised` or `crushed`),
 `shoesPerSet` and `rocksPerSet`.
 
+**Stall roaster** (type `stallroasting`, shape `generic`, present with seraphhorizons' `StallRoaster` and
+`OreProcessing` on, #925): one record per sulfide rock item kind it takes, id `stallroasting|<input>|0`, the input
+either a raw ore by grade with every host rock an alternative (`game:ore-<grade>-<ore>-*`, as the jaw breaker's) or a
+crushed ore (`seraphhorizons:crushedore-<ore>-<grade>`), consumed, and the stall's frame
+`seraphhorizons:stallroaster-north` as its station. Out, one stall-roasted rock of its grade
+(`seraphhorizons:stallroastedore-<ore>-<grade>`, which smelts at its grade's share × 0.92) and the sulfur powder a rock
+leaves in the heap's crust (`game:powder-sulfur`), a fraction, since the stall carries what falls short of a whole
+powder over to its next burn: the rock's units × the ore's sulfur a unit × the stall's share ⅓ / 5
+(ore-processing.json `ores.<ore>.sulfur`, `machines.stallroaster.sulfur`, `sulfurUnitsPerPowder`); an ore with none
+(sperrylite) has no second output. `requirements` says in words how a charge burns; `extra` has the `ore`, `grade`,
+`form` (`raw` or `crushed`), the `share` (0.92), the `charge` (32), the `hours` (40), the `bedFirewood` (4), the
+`sulfur` a rock and `carried` (true). It draws no power, so it is not on the power page. Its build is the shared ore
+machine `construction` record.
+
+**Cupellation furnace** (type `cupellationfurnace`, shape `generic`, present with seraphhorizons' `CupellationFurnace`
+and `OreProcessing` on, #740): one record per bar it parts, id `cupellationfurnace|<bar>|0`: the base bullion of every
+ore cupellation parts (`seraphhorizons:bullion-<ore>-<metal>`: galena's and argentiferous galena's silver-lead,
+tetrahedrite's argentiferous copper, freibergite's cupriferous silver) and the Parkes kettle's rich lead
+(`seraphhorizons:richlead`), consumed, with a lead ingot (`game:ingot-lead`) for a bar whose metal is not lead, and the
+furnace's frame `seraphhorizons:cupellationfurnace-north` as its station. A bar is 100 units of its ore's main metal and
+carries its by-product at the ore's share. Out, the litharge its lead burns to (`seraphhorizons:litharge`, 5 units an
+item: 20 a bar, 40 with the ingot), and its silver and copper as metal bits (`game:metalbit-silver`,
+`game:metalbit-copper`), fractions, since the furnace draws each last item at its chance: the by-product at the
+furnace's 95 % (rich lead's silver, `bullion.richLeadSilver`, whole), a main metal of silver or copper whole.
+`requirements` says in words how a charge is worked; `extra` has the `ore` (null for rich lead), `richLead`, the
+`share`, `leadAdded`, the `chargeUnits` (200), the `perHour` (55 units of lead), the `coalPerHour` (0.7), the blast's
+`blastLitresPerSecond` (10) and `blastPressure` (1.5 atm) and the `testCharges` (15). It draws no shaft power, so it is
+not on the power page. Its build is the shared ore machine `construction` record.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).
