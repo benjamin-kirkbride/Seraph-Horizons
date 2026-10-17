@@ -1174,4 +1174,25 @@ public class SeraphHorizonsConfig
     /// Off means its blocks and recipe do not exist, and batteries already placed are lost. The
     /// server's setting decides.</summary>
     public bool StampBattery { get; set; } = true;
+
+    /// <summary>The sluice (Sluice/, README "Sluice"; #734): a riffled plank sluice, the first
+    /// concentrator, built on its frame in two stages (the riffles, then its chutes and water inlet), that
+    /// washes crushed or ground ore, Wilderlands Panning's rich gravel and bog iron (#701) from a chute
+    /// with no power, 16 rock an in-game hour at 10 L of water a rock from a ppex pipe, catching 55 % of
+    /// what can be caught: the concentrate (or the gravel's nuggets) leaves by its own chute, the rock goes
+    /// on by the tailings chute or is discarded beside it as gravel. On, bog iron drops one stone a block
+    /// and no longer smelts to a bloom raw. Needs OreProcessing (off means its frame and its recipe do not
+    /// exist, sluices already placed are lost, and bog iron is as Geology Additions makes it). The
+    /// server's setting decides.</summary>
+    public bool Sluice { get; set; } = true;
+
+    /// <summary>The shaking table (ShakingTable/, README "Shaking table"; #921): a Wilfley table, the third
+    /// concentrator, built on its frame in four stages (the deck, the rectifier, the differential head, then its
+    /// chutes and water line). On an axle at its head end (either way round) it washes crushed or ground ore from
+    /// a chute, the jig's tailings on, 7 rock an in-game hour at shaft speed 0.6 on a steady load of 0.1 and 20 L
+    /// of water a rock from a ppex pipe, catching 70 % of what can be caught. Three chutes out: the concentrate,
+    /// the middlings (the feed's locked metal, for the ball mill) and the tailings (on to the vanner, or
+    /// discarded beside it as sand). Needs OreProcessing (off, or that off, means its frame and recipe do not
+    /// exist, and tables already placed are lost). The server's setting decides.</summary>
+    public bool ShakingTable { get; set; } = true;
 }

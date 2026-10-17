@@ -118,3 +118,30 @@ public static class MachineLoad
     /// <summary>The power a load takes at a speed (#940's unit): resistance × speed.</summary>
     public static double Power(double resistance, double speed) => resistance * Math.Abs(speed);
 }
+
+/// <summary>
+/// Counts working time toward items for a machine with no shaft (the sluice, the amalgamation plates:
+/// water and gravity only, #711): <see cref="Add"/> the in-game hours it worked, and it gives the whole
+/// items done at <c>itemsPerHour</c> (ore-core's <c>OreMachineSpec.ItemsPerHour</c>), carrying the rest,
+/// as <see cref="WorkTurns"/> does for a shaft's turns.
+/// </summary>
+public readonly record struct WorkHours(double Items)
+{
+    public static readonly WorkHours None = new(0);
+
+    /// <summary>The counter after <paramref name="hours"/> more, and how many whole items that finished.</summary>
+    public (WorkHours Next, int Items) Add(double hours, double itemsPerHour)
+    {
+        if (!(itemsPerHour > 0) || !double.IsFinite(hours) || hours <= 0)
+            return (this, 0);
+        double done = Items + hours * itemsPerHour;
+        int items = (int)Math.Floor(done + 1e-9);
+        return (new WorkHours(Math.Max(0, done - items)), items);
+    }
+
+    /// <summary>The share of the current item done, 0 to 1.</summary>
+    public double Progress => Math.Clamp(Items, 0, 1);
+
+    /// <summary>Restored from a save: 0 to just under an item.</summary>
+    public static WorkHours Restore(double items) => new(double.IsFinite(items) ? Math.Clamp(items, 0, 1) : 0);
+}

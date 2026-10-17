@@ -793,15 +793,14 @@ Everything else those patches add stays: Tailor's Delight's twine and needles, E
 fluorite, corundum, phosphorite, rhodochrosite and kernite. The patterns are
 `Core/PanningDropRules.cs`: `wool:*`, `tailorsdelight:awl-*`, `tailorsdelight:awlthorn-*`,
 `tailorsdelight:buttons-*` and `game:nugget-uranium`. Wilderlands Panning's rich gravel lists add
-none of them, and nothing else in the pack has a panning table (Panning Machine pans with the
-wooden pan's).
+none of them, and nothing else in the pack has a panning table.
 
 Wool and Expanded Matter have a ConfigLib setting for their whole panning patch, but that would
 also take Expanded Matter's other ores, and Tailor's Delight has none. So `PanningDrops` edits the
 pan's asset on the server in `AssetsLoaded`, after the game's patch loader (0.05) has applied every
 mod's patches, in whatever order they load, and before the block types are read from the assets
 (0.2): every entry of every material's list (in `attributes`, or an `attributesByType` entry) whose
-code matches is removed, and the server logs how many. The pan, Panning Machine and the handbook
+code matches is removed, and the server logs how many. The pan, the machines that wash placer gravel (#701) and the handbook
 (clients get the block's attributes from the server) all see the trimmed table, and so does the
 recipe export. If the pan's asset is missing or has no `panningDrops`, the mod logs a warning and
 leaves panning as it is.
@@ -6255,6 +6254,52 @@ The recipe browser has a `stampbattery` record per kind of rock it takes
 record. Tests: `tests/StampBattery/StampingTests.cs` (what it takes, one for one, classified, the
 unclassified share lifted); `tests/PackTests/StampBatteryScenarios.cs` (Atlas).
 
+### Sluice (`Sluice`)
+
+The first concentrator of the ore line (#734; `Sluice/`, its README has the model, the stages and the gameplay): a
+riffled plank sluice four blocks long, on the ore machines' shared code. Built on its frame (8 planks, 2 support
+beams, 3 iron nails and strips) in two stages: the riffles (1 support beam, 1 iron nails and strips), then the
+services (3 straight chutes, a copper or lead pipe section, 1 iron nails and strips). No power: with 10 L of water a
+rock from a ppex pipe on its head's north end it washes 16 rock an in-game hour, fed by a chute into the head box's
+top or by hand, at r = 0.55 (`OreRecovery.Concentrate`, through `ConcentratorWash`). Crushed or ground ore gives its
+concentrate; Wilderlands Panning's rich gravel the gold pan's table at 0.55 / 0.45 of the pan, stones and flint at
+the pan's rate, and bog iron limonite concentrate (placer on the line, #701: `Ore/Core/PlacerLine.cs`,
+`Ore/Game/PlacerTable.cs`). The catch leaves by the concentrate chute out of the bottom of its third block, whole
+items with the rest carried over; the rock goes on as tailings, the same item carrying what is left, by the
+tailings chute at the tail to the jig, or onto a gravel heap beside it (#694). With the switch on, Geology
+Additions' bog iron drops one stone a block and no longer smelts to a bloom raw. The panning machine left the pack
+with it (#691). Tests: `tests/Ore/PlacerLineTests.cs`; Atlas `tests/PackTests/SluiceScenarios.cs`.
+
+### Shaking table (`ShakingTable`)
+
+The third concentrator of the ore line (#921; `ShakingTable/`, its README has the model and the stages): a Wilfley
+table two blocks wide and three long, on the ore machines' shared code, after the jig (on its tailings) and before
+the vanner. It needs `OreProcessing`; off, or with its switch off, its frame and recipe do not exist.
+
+- **Build.** The frame (grid: 9 planks, 4 iron nails and strips, a hammer), then four stages by right-click, from
+  `config/builds/shakingtable.json`: the deck (10 planks, 4 iron nails and strips), the rectifier (3
+  `seraphhorizons:gear-stainless`, 2 iron plates, 1 iron nails and strips, 1 plank), the differential head (1
+  `seraphhorizons:spring-steel`, 2 iron plates, 5 iron nails and strips, 2 steel rods), and services (4 straight
+  chutes, 1 copper or lead pipe section, which picks the water line drawn). The deck is held still until it is
+  built. Nothing wears out.
+- **Running.** The axle meets the controller itself (the head end's upper corner, native west), so the frame's
+  block type carries `seraphhorizons.MachineMP`; either way round (the rectifier). 7 rock an in-game hour at shaft
+  speed 0.6, in proportion to speed, under 0.05 it stops; a steady load of 0.1 once built (ore-processing.json
+  `machines.table`); 20 L of water a rock from a ppex pipe down onto its water line (the far upper cell's top).
+- **Feed.** A vanilla chute laid down onto the feed box (the middle upper cell's top), or a right-click: what the
+  sluice takes (`SluiceSystem.StreamOf`: crushed and ground ore, rich gravel, bog iron), fresh or as the tailings
+  before it.
+- **Outlets.** Each item through `ShakingTabling.Wash` (`ConcentratorWash` at `OreMachine.Table`, r = 0.70 of the
+  catchable units): the concentrate out of the far end's face (upper column), whole items with the rest carried
+  over (`UnitCarry`, saved); the middlings out of the far end's other corner, the fed item carrying the feed's
+  locked units (`OreRecovery.Concentrate` puts them out here, and only here), for the ball mill to free; the
+  tailings out of the low side at the head end, the fed item carrying the rest (`Worked` with `Table`, nothing
+  locked), to the vanner. With nothing to take the concentrate or middlings they are held and it stops; tailings
+  with nowhere to go are discarded beside the outlet as sand in the ore's rock, 0.75 layer a rock (#694). An item
+  with a locked share leaves as two rocks, a middlings rock and a tailings rock: no metal is made or lost.
+- Tests: `tests/ShakingTable/ShakingTableGameplayTests.cs`; Atlas `tests/PackTests/ShakingTableScenarios.cs`,
+  `RecipeExportShakingTableScenarios.cs`; export record `tools/recipe-export/RecipeSection.ShakingTable.cs`.
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is
@@ -6676,7 +6721,6 @@ machine's first-stage grid recipe, kept on crafting:
 | `windmill` | windmill rotors (the game's, Millwright's) | carpenter, 1 |
 | `waterwheel` | the water wheel (its first stage) | carpenter, 1 |
 | `handcrank` | the hand crank | general store, 1 |
-| `panningmachine` | the panning machine (one recipe, every tier) | prospector, 1 |
 | `transmission` | axles, angled and spur gears, large gear and sections, clutch, transmission, brake; Millwright's brake and axle passthroughs | mechanic, 2 |
 | `helvehammer` | the helve hammer base | mechanic, 2 |
 | `pulverizer` | the pulverizer frame | mechanic, 2 |

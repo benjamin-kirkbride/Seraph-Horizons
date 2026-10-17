@@ -34,7 +34,7 @@ public class SchematicTests
     {
         var table = Table.Value;
         Assert.Empty(table.Problems(TraderTypes.All, TradeListResolver.MaxStandingTier));
-        Assert.Equal(15, table.Gates.Count);
+        Assert.Equal(14, table.Gates.Count);
         Assert.Equal("game:paper-parchment", table.Replacement);
         Assert.All(table.Gates, g => Assert.True(table.IsSold(g.Schematic), g.Schematic));
     }

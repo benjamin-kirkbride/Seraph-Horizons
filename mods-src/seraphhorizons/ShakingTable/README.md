@@ -8,8 +8,8 @@ side. Crushed or ground ore comes in by chute; three chutes take out the **conce
 **middlings** (off the far end's lower corner: grains with metal still locked in rock, for the ball mill) and the
 **tailings** (off the low side).
 
-This folder holds the model's generator and its rig (`tools/`). The gameplay is #921 and is not built yet; the
-model is #922. The line, the glossary and the period sources are #939, the power and water budget #940, the
+This folder holds the model's generator and its rig (`tools/`) and the gameplay (#921, `Core/` and `Game/`, on
+the ore machines' shared game code; the mod's README, "Shaking table"); the model is #922. The line, the glossary and the period sources are #939, the power and water budget #940, the
 shared machine code (chutes, the water reservoir) #711.
 
 **Salvaged** from `735-concentrator-model-v2` (its wash house's table, its evaluation in the v3 brief): the box,
@@ -240,10 +240,8 @@ Don't: regenerate. Element names are the rig's interface (`entry_*`, `headshaft_
 
 ## Provisional
 
-- **Service anchors** pending #711: the chutes as cell and face (the v2 branches' `VANILLA_CHUTE` approach,
-  checked against the game's chute shape); the water line's inlet as a cell and face (`waterCell`, `waterFace`)
-  on the soldered pipe, as the rosser's.
-- The rig's `stroke` object: figures for gameplay and the site, not read by anything yet.
+- The rig's `stroke` object: figures for the site, not read by the game (the deck's 3 strokes a turn are
+  `ShakingTabling.StrokesPerTurn`; the work is counted in axle turns, as every ore machine's).
 
 ## Known weak spots, and what is not checked
 
