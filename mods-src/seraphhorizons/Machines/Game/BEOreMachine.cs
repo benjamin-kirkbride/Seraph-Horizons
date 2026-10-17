@@ -579,7 +579,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         var slots = OutputSlots(anchor).ToList();
         if (slots.FirstOrDefault(s => !s.Empty && s.Itemstack.Equals(Api.World, product, GlobalConstants.IgnoredStackAttributes)) is { } same)
         {
-            same.Itemstack.StackSize += product.StackSize;
+            same.Itemstack!.StackSize += product.StackSize;
             same.MarkDirty();
         }
         else if (slots.FirstOrDefault(s => s.Empty) is { } empty)
@@ -823,6 +823,6 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
             dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-infeed", InfeedSlot.StackSize, InfeedSlot.Itemstack.GetName()));
         foreach (var anchor in Outputs)
             foreach (var slot in OutputSlots(anchor).Where(s => !s.Empty))
-                dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-held", slot.StackSize, slot.Itemstack.GetName()));
+                dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-held", slot.StackSize, slot.Itemstack!.GetName()));
     }
 }
