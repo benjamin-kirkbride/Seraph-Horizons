@@ -149,6 +149,12 @@ that is not loaded leaves its entries out.
   `Mod` (the mod id that must be loaded) and, when the blocks should be one entry, `Id` and
   `ItemPrefix`. Without them the blocks are grouped by domain and first code part. `Oil` names
   the machine's `MachineOilSettings` entry.
+- **A seraphhorizons ore machine** (#711) needs nothing either: every build file
+  (`config/builds/{machine}.json`) whose `block` is registered is one consumer
+  (`Power/OreMachineConsumers.cs`), its load the machine's `machines` entry in
+  `config/ore-processing.json` (constant, or from `emptyLoad` to `load` for the machines whose load
+  follows their job), 0.005 until built. Their power cells all carry `seraphhorizons.MachineMP`, so a
+  `Spec` could not tell them apart.
 - **A producer** is a method in `Power/Producers.cs`. Read block JSON with
   `Live.BlockNumber`, config with `Live.Number` and literals with `Live.Constant`, and build
   the model with `Rotor` or `Wind`, or a `constantPower` object. If no model fits, add one to
