@@ -632,6 +632,13 @@ def validate_files(m, shape, frame_shape, ship):
         if not all(0 <= p[k] <= (m.CELLS_X, m.CELLS_Y, m.CELLS_Z)[k] for k in range(3)):
             print(f"FAIL {key} {p} is outside the footprint")
             ok = False
+    stages = ship.get("buildStages")
+    want = [{"stage": n, "name": name, "adds": list(req)} for n, (req, name) in enumerate(m.BUILD_STAGES, 1)]
+    staged = [r for st in want for r in st["adds"]]
+    fitted = sorted({p["requires"] for p in ship["parts"] if p["requires"] not in (None, "concentrate")})
+    if stages != want or sorted(staged) != fitted or len(staged) != len(set(staged)):
+        print(f"FAIL buildStages {stages} are not the generator's, or do not add every fitted part once")
+        ok = False
     if any(re.search(r"clean", k, re.I) for k in ship):
         print("FAIL the rig names a hand clean-up")
         ok = False

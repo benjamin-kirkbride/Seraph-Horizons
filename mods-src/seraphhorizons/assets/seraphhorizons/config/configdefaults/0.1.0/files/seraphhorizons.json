@@ -530,5 +530,6 @@
     "DamperHalfBurn": 0.5,
     "DamperShutBurn": 0.25,
     "LadleIngots": 6
-  }
+  },
+  "Sluice": true
 }

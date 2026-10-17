@@ -793,15 +793,14 @@ Everything else those patches add stays: Tailor's Delight's twine and needles, E
 fluorite, corundum, phosphorite, rhodochrosite and kernite. The patterns are
 `Core/PanningDropRules.cs`: `wool:*`, `tailorsdelight:awl-*`, `tailorsdelight:awlthorn-*`,
 `tailorsdelight:buttons-*` and `game:nugget-uranium`. Wilderlands Panning's rich gravel lists add
-none of them, and nothing else in the pack has a panning table (Panning Machine pans with the
-wooden pan's).
+none of them, and nothing else in the pack has a panning table.
 
 Wool and Expanded Matter have a ConfigLib setting for their whole panning patch, but that would
 also take Expanded Matter's other ores, and Tailor's Delight has none. So `PanningDrops` edits the
 pan's asset on the server in `AssetsLoaded`, after the game's patch loader (0.05) has applied every
 mod's patches, in whatever order they load, and before the block types are read from the assets
 (0.2): every entry of every material's list (in `attributes`, or an `attributesByType` entry) whose
-code matches is removed, and the server logs how many. The pan, Panning Machine and the handbook
+code matches is removed, and the server logs how many. The pan, the machines that wash placer gravel (#701) and the handbook
 (clients get the block's attributes from the server) all see the trimmed table, and so does the
 recipe export. If the pan's asset is missing or has no `panningDrops`, the mod logs a warning and
 leaves panning as it is.
@@ -6388,6 +6387,22 @@ The recipe browser has a `stampbattery` record per kind of rock it takes
 record. Tests: `tests/StampBattery/StampingTests.cs` (what it takes, one for one, classified, the
 unclassified share lifted); `tests/PackTests/StampBatteryScenarios.cs` (Atlas).
 
+### Sluice (`Sluice`)
+
+The first concentrator of the ore line (#734; `Sluice/`, its README has the model, the stages and the gameplay): a
+riffled plank sluice four blocks long, on the ore machines' shared code. Built on its frame (8 planks, 2 support
+beams, 3 iron nails and strips) in two stages: the riffles (1 support beam, 1 iron nails and strips), then the
+services (3 straight chutes, a copper or lead pipe section, 1 iron nails and strips). No power: with 10 L of water a
+rock from a ppex pipe on its head's north end it washes 16 rock an in-game hour, fed by a chute into the head box's
+top or by hand, at r = 0.55 (`OreRecovery.Concentrate`, through `ConcentratorWash`). Crushed or ground ore gives its
+concentrate; Wilderlands Panning's rich gravel the gold pan's table at 0.55 / 0.45 of the pan, stones and flint at
+the pan's rate, and bog iron limonite concentrate (placer on the line, #701: `Ore/Core/PlacerLine.cs`,
+`Ore/Game/PlacerTable.cs`). The catch leaves by the concentrate chute out of the bottom of its third block, whole
+items with the rest carried over; the rock goes on as tailings, the same item carrying what is left, by the
+tailings chute at the tail to the jig, or onto a gravel heap beside it (#694). With the switch on, Geology
+Additions' bog iron drops one stone a block and no longer smelts to a bloom raw. The panning machine left the pack
+with it (#691). Tests: `tests/Ore/PlacerLineTests.cs`; Atlas `tests/PackTests/SluiceScenarios.cs`.
+
 ## Trading
 
 The trader overhaul (epic #436), in `Trading/`: traders on a grid of camps, what everything is
@@ -6809,7 +6824,6 @@ machine's first-stage grid recipe, kept on crafting:
 | `windmill` | windmill rotors (the game's, Millwright's) | carpenter, 1 |
 | `waterwheel` | the water wheel (its first stage) | carpenter, 1 |
 | `handcrank` | the hand crank | general store, 1 |
-| `panningmachine` | the panning machine (one recipe, every tier) | prospector, 1 |
 | `transmission` | axles, angled and spur gears, large gear and sections, clutch, transmission, brake; Millwright's brake and axle passthroughs | mechanic, 2 |
 | `helvehammer` | the helve hammer base | mechanic, 2 |
 | `pulverizer` | the pulverizer frame | mechanic, 2 |

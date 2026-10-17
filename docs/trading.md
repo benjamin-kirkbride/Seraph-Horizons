@@ -1189,11 +1189,11 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   deal (camp leads are per buyer, off the shelf). `EconomySystem.Reprice` resolves the list at the top tier with rare stock, so every entry
   a shelf may hold is priced.
 - **Rare stock.** `"rare": true` on a list entry (`TradeEntry.Rare`): shelved only when the shelf
-  tier's `rareStock` is on (trusted and partner). Marked on three selling entries per list (the
+  tier's `rareStock` is on (trusted and partner). Marked on up to three selling entries per list (the mechanic's two since the panning machine left the pack, #691) (the
   smith's anthracite only; the animal dealer's two tame elk), the dearest goods of the rotating
   pools that are neither player-supplied nor schematics: tame elk, purpleheart, ebony and redwood
   doors, iron and bronze crocks, the forlorn armour, bells and translocator maps, redwood and kapok
-  seeds, bows, polished rock, panning machines and windmill rotors, native gold, alum and ore
+  seeds, bows, polished rock, windmill rotors, native gold, alum and ore
   vessels, sweaters.
 - **The simulate clock.** `/sh trade simulate <days>` ages standing's "traded recently" records by
   the days (`StandingLedger.Age`, on `EconomySystem.SimulatedDay`), since it moves the restock clocks
