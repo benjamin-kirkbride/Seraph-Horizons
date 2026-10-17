@@ -66,7 +66,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario]
     public async Task Saw_sash_is_crafted_only_from_iron_work()
     {
-        var player = (await World.JoinPlayer("sashwright")).Player;
+        var player = (await World.JoinRetrying("sashwright")).Player;
         var recipe = MachineParts.Recipe(W, WoodworkingMachineCosts.Parts.Single(p => p.Output == "sawmillsash"));
         ItemSlot Slot(string code, int quantity = 1) => new DummySlot(new ItemStack(W.GetItem(new AssetLocation(code))!, quantity));
         bool Crafts(string nails, string rod, int perSlot) => recipe.Matches(player, W, "NPNPRPNPN".Select(c => c switch

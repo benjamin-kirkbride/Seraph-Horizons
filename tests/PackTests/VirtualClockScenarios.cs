@@ -188,7 +188,7 @@ public class VirtualClockScenarios(ITestOutputHelper output) : AtlasScenarioBase
         for (int x = -2; x <= 1; x++)
         for (int z = 3; z <= 4; z++)
             blocks.SetBlock(granite, site.AddCopy(x, 0, z));
-        var p = await World.JoinPlayer(name);
+        var p = await World.JoinRetrying(name);
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(site.AddCopy(0, 0, -8));

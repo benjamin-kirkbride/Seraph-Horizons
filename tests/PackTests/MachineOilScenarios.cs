@@ -118,7 +118,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario]
     public async Task A_pulverizer_starts_dry_takes_oil_and_drains_by_the_item()
     {
-        var p = await World.JoinPlayer("oiler");
+        var p = await World.JoinRetrying("oiler");
         var pos = World.Spawn.AddCopy(100, 12, 100);
         await p.TeleportTo(pos.AddCopy(2, 0, 0));
         var site = new OilSite(World, pos, p.Player);
@@ -193,7 +193,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario]
     public async Task A_helve_hammer_loads_its_toggle_three_times_as_hard_until_oiled()
     {
-        var p = await World.JoinPlayer("helveoiler");
+        var p = await World.JoinRetrying("helveoiler");
         var pos = World.Spawn.AddCopy(100, 12, 110);
         await p.TeleportTo(pos.AddCopy(2, 0, 2));
         var site = new OilSite(World, pos, p.Player);

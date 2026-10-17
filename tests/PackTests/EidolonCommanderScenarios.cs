@@ -130,7 +130,7 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
             W.BlockAccessor.SetBlock(granite, at.AddCopy(x, y, z));
         await World.Ticks(5);
 
-        var p = await World.JoinPlayer("eidolonleader");
+        var p = await World.JoinRetrying("eidolonleader");
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(-3, 0, 1));
@@ -182,7 +182,7 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
             if (!(z == 0 && y < 4))
                 W.BlockAccessor.SetBlock(granite, at.AddCopy(4, y, z));
         await World.Ticks(5);
-        var p = await World.JoinPlayer("eidolonwalker");
+        var p = await World.JoinRetrying("eidolonwalker");
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(1, 0, 0));
@@ -203,8 +203,8 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
     public async Task A_stranger_can_neither_bind_it_nor_order_it()
     {
         var at = await Floor(120, 0, reach: 8);
-        var ownerP = await World.JoinPlayer("eidolonmaster");
-        var strangerP = await World.JoinPlayer("eidolonthief");
+        var ownerP = await World.JoinRetrying("eidolonmaster");
+        var strangerP = await World.JoinRetrying("eidolonthief");
         await ownerP.TeleportTo(at.AddCopy(-5, 0, -5));
         await strangerP.TeleportTo(at.AddCopy(-5, 0, 5));
         var owner = (IServerPlayer)ownerP.Player;
@@ -242,7 +242,7 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
     public async Task It_strikes_back_at_a_creature_that_hurts_it_never_a_player_and_holds_its_order()
     {
         var at = await Floor(180, 0, reach: 12);
-        var p = await World.JoinPlayer("eidolonbystander");
+        var p = await World.JoinRetrying("eidolonbystander");
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(-10, 0, -10));
@@ -286,7 +286,7 @@ public class EidolonCommanderScenarios(ITestOutputHelper output) : AtlasScenario
     public async Task It_runs_down_and_strikes_on_the_move_a_creature_walking_away()
     {
         var at = await Floor(240, 0, reach: 30);
-        var p = await World.JoinPlayer("eidolonwitness");
+        var p = await World.JoinRetrying("eidolonwitness");
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Creative;
         await p.TeleportTo(at.AddCopy(0, 0, -12));

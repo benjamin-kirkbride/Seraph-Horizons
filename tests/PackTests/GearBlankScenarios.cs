@@ -130,7 +130,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario]
     public async Task Gear_blank_mold_casts_a_blank_from_stainless_steel()
     {
-        var player = (await World.JoinPlayer("blankcaster")).Player;
+        var player = (await World.JoinRetrying("blankcaster")).Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         var origin = World.Spawn.AddCopy(-90, 12, -90);
         GearBlankParts.Room(World, origin);
