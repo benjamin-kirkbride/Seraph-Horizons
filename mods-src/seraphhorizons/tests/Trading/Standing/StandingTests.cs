@@ -38,7 +38,7 @@ public class StandingTests
         {
             var (a, b) = (rules.Tiers[i - 1].Unlocks, rules.Tiers[i].Unlocks);
             Assert.True(b.BuyPriceFactor <= a.BuyPriceFactor && b.SellPriceFactor >= a.SellPriceFactor);
-            Assert.True(b.WalletFactor > a.WalletFactor && b.MapTier >= a.MapTier && b.DeliveryScale >= a.DeliveryScale);
+            Assert.True(b.WalletFactor > a.WalletFactor && b.DeliveryScale >= a.DeliveryScale);
         }
         // The wallet is the list's base times 1 / 2 / 5 / 15 / 40.
         Assert.Equal([1.0, 2, 5, 15, 40], rules.Tiers.Select(t => t.Unlocks.WalletFactor));

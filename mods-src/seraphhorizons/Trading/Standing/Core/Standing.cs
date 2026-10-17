@@ -54,8 +54,6 @@ public sealed class StandingRecord
 /// </summary>
 public sealed class TierUnlocks
 {
-    /// <summary>The best map tier the trader sells (0: the basic lead to the nearest camp only).</summary>
-    public int MapTier { get; set; }
     /// <summary>Whether the trader sells maps to other traders.</summary>
     public bool MapsToTraders { get; set; }
     /// <summary>Times what the player pays for the trader's goods.</summary>
