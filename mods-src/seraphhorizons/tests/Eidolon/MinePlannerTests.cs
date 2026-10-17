@@ -367,24 +367,48 @@ public class MinePlannerTests(ITestOutputHelper output)
         var world = SteppedSlope(8, z1: 6);
         var area = Area(-2, 7, L, L + 7, 0, 3);
         var whole = MinePlanner.Run(world.Input(area, Home));
+
         var sliced = new MinePlanner(world.Input(area, Home));
         var budget = TimeSpan.FromMilliseconds(MinePlanner.BudgetMs);
-        var longest = TimeSpan.Zero;
-        int steps = 0;
-        while (true)
-        {
-            var clock = System.Diagnostics.Stopwatch.StartNew();
-            bool done = sliced.Step(budget);
-            longest = clock.Elapsed > longest ? clock.Elapsed : longest;
-            steps++;
-            if (done)
-                break;
-        }
-        output.WriteLine($"{steps} steps, the longest {longest.TotalMilliseconds:0.0} ms");
-        Assert.True(steps > 1);
+        while (!sliced.Step(budget)) { }
+        Assert.True(sliced.Steps > 1);
         Assert.Equal(Describe(whole), Describe(sliced.Plan!));
-        Assert.True(longest < TimeSpan.FromMilliseconds(12), $"a step took {longest.TotalMilliseconds} ms");
         Assert.Equal(MinePlanPhase.Done, sliced.Phase);
+
+        // A step stops at its first checkpoint past the budget, so it keeps to its slice as long as no
+        // one checkpoint's work is long. With no budget a step is exactly one checkpoint, and the
+        // checkpoints are the same on every run (the work is a pure function of its input): each one's
+        // work is timed as the fastest of a few runs, so a pause on a shared runner (GC, the thread
+        // descheduled) has to land on the same checkpoint every run to count against it.
+        const int Runs = 3;
+        List<double>? fastest = null;
+        for (int run = 0; run < Runs; run++)
+        {
+            var single = new MinePlanner(world.Input(area, Home));
+            var gaps = new List<double>();
+            while (true)
+            {
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                bool done = single.Step(TimeSpan.Zero);
+                gaps.Add(clock.Elapsed.TotalMilliseconds);
+                if (done)
+                    break;
+            }
+            Assert.Equal(Describe(whole), Describe(single.Plan!));
+            Assert.Equal(gaps.Count, single.Steps);
+            if (fastest == null)
+                fastest = gaps;
+            else
+            {
+                Assert.Equal(fastest.Count, gaps.Count);
+                for (int i = 0; i < gaps.Count; i++)
+                    fastest[i] = Math.Min(fastest[i], gaps[i]);
+            }
+        }
+        double longest = fastest!.Max();
+        output.WriteLine($"{sliced.Steps} steps of {MinePlanner.BudgetMs} ms; {fastest.Count} checkpoints, the longest {longest:0.00} ms");
+        // a step: its budget plus at most one checkpoint, under 12 ms
+        Assert.True(MinePlanner.BudgetMs + longest < 12, $"a checkpoint's work took {longest} ms");
     }
 
     [Fact]
