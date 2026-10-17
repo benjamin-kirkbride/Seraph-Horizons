@@ -70,7 +70,7 @@ public partial class SharedWorldScenarios
         Assert.True(VannerSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
             Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(VannerFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(VannerFrame + "north"));
+        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(VannerFrame + "north"))!;
         Assert.Equal("vanner", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.NotNull(block.Rig!.Anchor("concentrate"));
@@ -153,7 +153,13 @@ public partial class SharedWorldScenarios
         Assert.Equal(4, vanner.InfeedSlot.StackSize);
         vanner.FillWater(vanner.ReservoirCapacity);
 
-        await VannerUntil(vanner, () => vanner.InfeedSlot.Empty);
+        // its reservoir holds two rocks' water (30 L): kept topped up, as a pipe would
+        await VannerUntil(vanner, () =>
+        {
+            if (vanner.Water.Litres < vanner.WaterPerItem)
+                vanner.FillWater(vanner.ReservoirCapacity);
+            return vanner.InfeedSlot.Empty;
+        });
         await World.Ticks(5);
         // 4 rock × units × 0.85 (unclassified) × r, in whole concentrates
         var recovery = OreProcessingSystem.RecoveryFor(World.Api);
