@@ -133,8 +133,10 @@ when `cbScaleYByLayer` is set (a copper ingot pile: 0.125 * 8 = 1 block).
 The props are read after the pack's own mod has run: its `BigPiles` switch makes every pile
 (`stacking`) hold 64 of the item's stacks, so an ingot pile exports `capacity` 1024 and a Ctrl
 click a whole stack (`bulkTransfer` 16), its other numbers scaled so that a full pile is as tall
-as before (`fullHeight` unchanged). The smoke export loads that mod, so a release's export has
-the big piles.
+as before (`fullHeight` unchanged), and its `NoClutterPiles` switch takes away the pile More
+Piles' catch-all cube rule gives the game's clutter (blocks drawn from their attributes: clutter,
+banners, the Jonas lamp, ...), so those export no `groundStorage`. The smoke export loads that
+mod, so a release's export has the big piles and no clutter piles.
 
 `itemPile` is the game's other pile: an `ItemPileable` item (coal, charcoal, coke) goes into its
 own pile block (`coalpile`), whose `BlockEntityItemPile` holds `capacity` (16) and moves
