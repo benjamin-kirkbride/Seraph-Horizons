@@ -21,10 +21,12 @@ namespace SeraphHorizons.PackTests;
 /// and spacing are the survey tool's job (#458). This checks that each change is bound to the
 /// loaded pack: the rule replaces Interesting Ore Gen's spacing filter, answers by the seed and
 /// places a deposit at a generated anchor, the patches and the scaling reached the deposits the
-/// game loaded, and the world recorded its settings.
+/// game loaded, and the world recorded its settings. Stable veins' one-world order check
+/// (OreCellOrderScenarios.cs) shares this world and boot, run last.
 /// </summary>
 [AtlasWorld(Seed = Seed, WorldType = "standard")]
-public class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
+[TestCaseOrderer(BootLogFirst.Name, BootLogFirst.Assembly)]
+public partial class OreCellsScenarios(ITestOutputHelper output) : AtlasScenarioBase
 {
     private const int Seed = 424242;
 
