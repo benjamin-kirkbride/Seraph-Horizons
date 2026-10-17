@@ -47,7 +47,7 @@ interface Shot {
 /** Screenshots `el` in CSS pixels with `mode` applied: "tile" hides everything drawn over its background, "text" only its text. */
 async function shoot(el: Locator, mode: "tile" | "text"): Promise<Shot> {
   await el.evaluate(
-    (node, [mode, css]) => {
+    async (node, [mode, css]) => {
       // Wholly on screen, since the screenshot shows what is painted there.
       node.scrollIntoView({ block: "center" });
       if (!document.getElementById("probe-css")) {
@@ -57,6 +57,10 @@ async function shoot(el: Locator, mode: "tile" | "text"): Promise<Shot> {
         document.head.append(style);
       }
       node.setAttribute("data-probe", mode);
+      // The screenshot can otherwise catch a frame painted before the probe applied (#1009):
+      // reading the style applies it, and two frames later it is painted.
+      if (getComputedStyle(node).color !== "rgba(0, 0, 0, 0)") throw new Error("probe style not applied");
+      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
     },
     [mode, PROBE_CSS] as const,
   );
