@@ -793,6 +793,16 @@ public class SeraphHorizonsConfig
     /// server's items).</summary>
     public bool OreProcessing { get; set; } = true;
 
+    /// <summary>The ball mill (#915, BallMill/, README "Ore processing: the ball mill"): a Krupp ball mill, the ore
+    /// line's continuous grinder, built on its frame in five stages. Crushed ore, and the shaking table's
+    /// middlings merged into the same chute, come in by a chute; each grinds to one ground ore of its grade,
+    /// ground and screened (lifting poor ore's × 0.4 and the unclassified × 0.85, and freeing the middlings'
+    /// locked share), nothing lost, out by a chute, 6 rock an hour at speed 0.6 on a steady load of 1.1 and
+    /// 25 L of water a rock (ore-core's figures, config/ore-processing.json). Needs <see cref="OreProcessing"/>
+    /// (off, or that off, means its block and recipe do not exist, and mills already placed are lost). The
+    /// server's setting decides.</summary>
+    public bool BallMill { get; set; } = true;
+
     /// <summary>Spalling (#747, Ore/Processing/OreSpalling.cs, README "Ore processing: spalling"), part
     /// of <see cref="OreProcessing"/>: the hammer blows a raw ore and a chunk set down on the ground take
     /// to break into crushed ore, and the hammer's wear a blow; a value out of range falls back to its
