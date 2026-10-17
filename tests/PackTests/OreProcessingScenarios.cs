@@ -675,7 +675,7 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
     {
         if (_spaller == null || !ReferenceEquals(_spallerWorld, World.Api))
         {
-            _spaller = await World.JoinPlayer("spaller");
+            _spaller = await World.JoinRetrying("spaller");
             _spallerWorld = World.Api;
         }
         var player = _spaller.Player;

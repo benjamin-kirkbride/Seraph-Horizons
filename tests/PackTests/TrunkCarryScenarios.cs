@@ -56,7 +56,7 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     private async Task<IServerPlayer> Player(string name, BlockPos at)
     {
-        var p = await World.JoinPlayer(name);
+        var p = await World.JoinRetrying(name);
         await p.TeleportTo(at);
         await World.Ticks(5);
         var player = p.Player;
@@ -270,7 +270,7 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task The_speed_probe_prints_the_walkspeed_stat_and_what_is_carried()
     {
         var pos = await Floor(120);
-        var p = await World.JoinPlayer("trunkprobe");
+        var p = await World.JoinRetrying("trunkprobe");
         await p.TeleportTo(pos.AddCopy(2, 0, 0));
         await World.Ticks(5);
         p.Player.InventoryManager.ActiveHotbarSlot.Itemstack = null;
