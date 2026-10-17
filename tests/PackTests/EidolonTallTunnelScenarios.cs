@@ -17,7 +17,8 @@ namespace SeraphHorizons.PackTests;
 /// a stepped slope, each finished, its top band before the layers under it, out by the mouth; one 6 and
 /// one 8 high into a flat face, its top out of reach told and kept with the floor under it, the rest dug;
 /// two eidolons on a tunnel 8 (and 6) high and 4 wide into a stepped slope, each a real share, neither in
-/// the other's columns; a pit five deep with no shelf, dug with a stair it leaves as its way out; and two on
+/// the other's columns, their contacts held as their job was worked (<see cref="MineWatcher.ContactFault"/>:
+/// the solver may leave the 8 high to today's dispatch); a pit five deep with no shelf, dug with a stair it leaves as its way out; and two on
 /// a pit 5 × 5 and 12 deep (the least that needs one), too deep for a straight stair, both climbing out by
 /// the spiral one round its walls. The tunnels are 4 long, the least that shows each case, to keep the
 /// class within CI's shards (ci.yml: `eidolon-tall`, `eidolon-tall-team`, `eidolon-tall-team-6`, `eidolon-spiral`). The
@@ -312,7 +313,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         var lines = Reports(orders);
         Log($"after {seconds:0} s: {orders[0].Mined} + {orders[1].Mined} of {toMine.Count}; plan: {PlanOf(orders[0])}; "
             + $"empty {orders.Sum(o => o.EmptyStrikes)}, cut {orders.Sum(o => o.CutStrikes)}; reports: " + string.Join(" | ", lines));
-        Log("faults: " + string.Join(" | ", faults.Concat(watch.Faults).Take(30)) + "; overlapping: " + watch.Summary());
+        Log("faults: " + string.Join(" | ", faults.Concat(watch.Faults).Take(30)) + "; worked by " + string.Join(" then ", watch.Choices) + "; overlapping: " + watch.Summary());
         Log("standing: " + string.Join(" ", toMine.Where(c => W.BlockAccessor.GetBlock(c).Id != 0).Select(c => Rel(site, c))));
         Assert.Empty(faults);
         Assert.Empty(watch.Faults);
@@ -321,7 +322,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         Assert.Equal(0, orders[0].Unreachable);
         // each a real share: none idled the whole job
         Assert.All(orders, o => Assert.True(o.Mined >= toMine.Count / 4, $"{orders[0].Mined} and {orders[1].Mined} of {toMine.Count}"));
-        Assert.Null(watch.Pushing());
+        Assert.Null(watch.ContactFault());
         var report = Assert.Single(lines);
         Assert.Contains("Your 2 eidolons", report);
         for (int i = 0; i < 2; i++)
@@ -399,7 +400,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         var left = toMine.Where(c => W.BlockAccessor.GetBlock(c).Id != 0).Select(c => new MarkPos(c.X, c.Y, c.Z)).ToHashSet();
         Log($"after {seconds:0} s: {orders[0].Mined} + {orders[1].Mined} of {toMine.Count}; plan: {PlanOf(orders[0])}; "
             + $"empty {orders.Sum(o => o.EmptyStrikes)}, cut {orders.Sum(o => o.CutStrikes)}; reports: " + string.Join(" | ", lines));
-        Log("faults: " + string.Join(" | ", faults.Concat(watch.Faults).Take(30)) + "; overlapping: " + watch.Summary());
+        Log("faults: " + string.Join(" | ", faults.Concat(watch.Faults).Take(30)) + "; worked by " + string.Join(" then ", watch.Choices) + "; overlapping: " + watch.Summary());
         Log("left: " + string.Join(" ", left.Select(c => $"({c.X - site.X},{c.Y - site.Y},{c.Z - site.Z})")));
         Assert.Empty(faults);
         Assert.Empty(watch.Faults);
@@ -412,7 +413,7 @@ public class EidolonTallTunnelScenarios(ITestOutputHelper output) : AtlasScenari
         Assert.Equal(toMine.Count - left.Count, orders.Sum(o => o.Mined));
         var report = Assert.Single(lines);
         Assert.Contains($"{left.Count} left as their way out", report);
-        Assert.Null(watch.Pushing());
+        Assert.Null(watch.ContactFault());
         for (int i = 0; i < 2; i++)
             AssertHome(eidolons[i], homes[i]);
         foreach (var e in eidolons)
