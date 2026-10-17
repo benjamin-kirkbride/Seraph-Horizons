@@ -161,6 +161,7 @@ public static partial class RecipeSection
         FillSprings(ctx, records, types);
         FillSluice(ctx, records, types);
         FillOreMachines(ctx, records, types);
+        FillArrastra(ctx, records, types);
 
         records.Sort((a, b) => string.CompareOrdinal((string)a["id"]!, (string)b["id"]!));
         for (int i = 1; i < records.Count; i++)
