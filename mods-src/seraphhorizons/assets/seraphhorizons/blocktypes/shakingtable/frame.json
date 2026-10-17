@@ -1,0 +1,84 @@
+// The shaking table's frame (ShakingTable/, README "Shaking table"; #921): the controller cell of a Wilfley
+// table two blocks wide and three long, the head end's upper corner, where the axle comes in. The shared ore
+// machine block (Machines/Game/OreMachineBlocks.cs); its stages are fitted by right-click
+// (config/builds/shakingtable.json). Its power cell is the controller itself, so this block type carries
+// seraphhorizons.MachineMP. The server disables it with ShakingTable or OreProcessing off.
+{
+	code: "shakingtable",
+	class: "seraphhorizons.OreMachine",
+	entityClass: "seraphhorizons.ShakingTable",
+	entityBehaviors: [
+		{ name: "seraphhorizons.MachineMP", properties: { mechPartShape: null } }
+	],
+	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the machine's front
+	// (its head end, with the drive) faces the player.
+	variantgroups: [
+		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
+	],
+	shapeByType: {
+		"*-north": { base: "seraphhorizons:block/shakingtable_frame", rotateY: 180 },
+		"*-east":  { base: "seraphhorizons:block/shakingtable_frame", rotateY: 90 },
+		"*-south": { base: "seraphhorizons:block/shakingtable_frame", rotateY: 0 },
+		"*-west":  { base: "seraphhorizons:block/shakingtable_frame", rotateY: 270 }
+	},
+	// Every texture of the frame's shape and of the stages' parts (shakingtable.json), which the
+	// renderer draws with this block's textures.
+	textures: {
+		"oak":        { base: "game:block/wood/debarked/oak" },
+		"planks":     { base: "game:block/wood/planks/oak1" },
+		"iron":       { base: "game:block/metal/plate/iron" },
+		"steel":      { base: "game:block/metal/sheet-plain/steel1" },
+		"chute":      { base: "game:block/metal/sheet/copper1" },
+		"pipecopper": { base: "game:block/metal/sheet-plain/copper4" },
+		"pipelead":   { base: "game:block/metal/sheet-plain/lead4" },
+		"solder":     { base: "game:block/metal/ingot/leadsolder" }
+	},
+	attributes: {
+		oreMachine: { machine: "shakingtable" },
+		handbook: {
+			extraSections: [
+				{ title: "seraphhorizons:shakingtable-handbook-build-title", text: "seraphhorizons:shakingtable-handbook-build-text" },
+				{ title: "seraphhorizons:shakingtable-handbook-work-title", text: "seraphhorizons:shakingtable-handbook-work-text" },
+				{ title: "seraphhorizons:shakingtable-handbook-services-title", text: "seraphhorizons:shakingtable-handbook-services-text" },
+				{ title: "seraphhorizons:shakingtable-handbook-outlets-title", text: "seraphhorizons:shakingtable-handbook-outlets-text" }
+			]
+		}
+	},
+	drops: [ { type: "block", code: "seraphhorizons:shakingtable-north" } ],
+	sideopaque: { all: false },
+	sidesolid: { all: false },
+	lightAbsorption: 0,
+	creativeinventory: { "general": ["*-north"], "mechanics": ["*-north"] },
+	blockmaterial: "Wood",
+	heldTpIdleAnimation: "holdbothhandslarge",
+	heldRightReadyAnimation: "heldblockready",
+	heldTpUseAnimation: "twohandplaceblock",
+	// The frame fills 2 x 1 x 3 blocks from the controller (native x 0..2, z 0..3); the -north item form
+	// turns it 180°, so the item forms turn about the mesh's middle (0, 0.5, -0.5); held, the translation
+	// brings that middle to the hand (tests/HeldTransformTests.cs).
+	tpHandTransform: {
+		translation: { x: 0, y: -1.44, z: 2.72 },
+		rotation: { x: 6, y: 16, z: -77 },
+		origin: { x: 0, y: 0.5, z: -0.5 },
+		scale: 0.25
+	},
+	guiTransform: {
+		rotation: { x: -22.6, y: -45.3, z: 0 },
+		origin: { x: 0, y: 0.5, z: -0.5 },
+		scale: 0.45
+	},
+	groundTransform: {
+		origin: { x: 0, y: 0, z: -0.5 },
+		scale: 0.9
+	},
+	maxStackSize: 1,
+	resistance: 3,
+	sounds: {
+		"place": "game:block/planks",
+		"walk": "game:walk/wood",
+		"hit": "game:block/planks",
+		"break": "game:block/planks"
+	},
+	collisionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 },
+	selectionbox: { x1: 0, y1: 0, z1: 0, x2: 1, y2: 1, z2: 1 }
+}
