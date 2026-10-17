@@ -1,0 +1,19 @@
+// The riddle (Riddle/, README "Ore processing: the riddle", #714). The server disables it with Riddle or
+// OreProcessing off.
+[
+	{
+		// The frame: the plank box the fines fall into, its corners bound with nailed angle-iron straps, and
+		// the riddle's oak (its two tiers of boards and the two bearers it rests on), put together with a
+		// hammer. Its wire mesh goes in afterwards, fitted by hand: two nails and strips of iron, meteoric iron
+		// or steel, right-clicked on the frame.
+		ingredientPattern: "P_P,PNP,PHP",
+		width: 3,
+		height: 3,
+		ingredients: {
+			"N": { type: "item", code: "game:metalnailsandstrips-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
+			"P": { type: "item", code: "game:plank-oak" },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:riddle-frame-north" }
+	}
+]
