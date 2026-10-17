@@ -52,6 +52,8 @@ public sealed class SwitchOwnership
         new("PressBrake", [], [], ["pressbrake"]),
         // The exporter's own recipe type for the squaring shear's process (tools/recipe-export, Recipes/SquaringShearExport.cs).
         new("SquaringShear", [], [], ["squaringshear"]),
+        // The exporter's own recipe type for the riddle's process (tools/recipe-export, Recipes/RiddleExport.cs).
+        new("Riddle", [], [], ["riddle"]),
         // The exporter's own recipe type for the mandrel station's process (tools/recipe-export, Recipes/MandrelStationExport.cs).
         new("MandrelStation", [], [], ["mandrelstation"]),
         // The exporter's own recipe type for the rocker's washes (tools/recipe-export, Recipes/RockerExport.cs).
