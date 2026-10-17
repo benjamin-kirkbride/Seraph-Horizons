@@ -27,9 +27,17 @@ jobs:
   # queue merges on the PR's own result.
   #
   # A push to main consults the memo too, but only to skip the test-only jobs
-  # (atlas, tools, site): smoke, cairn and export still run, because next.yml
+  # (atlas, tools, units, site): smoke, cairn and export still run, because next.yml
   # publishes the dist, seraphhorizons-mod and recipe-export artifacts this run
   # produces. Tags and manual runs never consult it and run everything.
+  #
+  # Models-only fast path (docs/merge-queue.md): a PR whose every changed path
+  # is a no-op or on the models-only allow-list (ci/paths.py: a machine's
+  # generator, the shape and rig it writes while nothing shipped names that
+  # machine, its rig tests, the site's model viewer) runs only tools and
+  # units. Never the merge queue's run (a mergify/merge-queue/* branch), which
+  # tests the full suite before anything lands, nor a push, tag or manual run.
+  # A models-only run records no green tree.
   tree:
     name: Already tested?
     runs-on: ubuntu-24.04
@@ -37,14 +45,20 @@ jobs:
     outputs:
       id: ${{ steps.tree.outputs.id }}
       tested: ${{ steps.tree.outputs.tested }}
+      models_only: ${{ steps.tree.outputs.models_only }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A PR's merge commit and its first parent, the main it merges into:
+          # their diff is what the PR changes, which the classifier reads.
+          fetch-depth: 2
       - id: tree
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           id=$(ci/code-tree.sh HEAD)
           echo "id=$id" >> "$GITHUB_OUTPUT"
@@ -55,11 +69,24 @@ jobs:
             echo "tree $id: $EVENT on $REF runs everything"
           elif by=$(gh api "repos/$REPO/git/ref/green-trees/$id" --jq .object.sha 2>/dev/null); then
             echo "tested=true" >> "$GITHUB_OUTPUT"
-            if [ "$EVENT" = pull_request ]; then skipped="smoke, atlas, cairn and tools"; else skipped="atlas, tools and site"; fi
+            if [ "$EVENT" = pull_request ]; then skipped="smoke, atlas, cairn, tools and units"; else skipped="atlas, tools, units and site"; fi
             echo "tree $id already passed CI (as $by); skipping $skipped" | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "tested=false" >> "$GITHUB_OUTPUT"
             echo "tree $id: no passing CI on record"
+            if [ "$EVENT" = pull_request ]; then
+              case "$HEAD_REF" in
+                mergify/merge-queue/*) echo "merge queue run: the full suite, never the models-only fast path" ;;
+                *)
+                  # Exit 0: models-only; 1: not; anything else (a shallow history,
+                  # no merge commit) is an error, and the run tests everything.
+                  if [ "$(git rev-list --parents -n 1 HEAD | wc -w)" = 3 ] && python3 ci/paths.py classify HEAD^1 HEAD; then
+                    echo "models_only=true" >> "$GITHUB_OUTPUT"
+                    echo "tree $id: models-only change; running tools and units only (ci/paths.py)" | tee -a "$GITHUB_STEP_SUMMARY"
+                  fi
+                  ;;
+              esac
+            fi
           fi
 
   # Never skipped by the memo: it is cheap, and `outdated` depends on the
@@ -92,8 +119,8 @@ jobs:
     needs: [tree, lock]
     # On a push to main these run even for a tree on record: next.yml publishes
     # the recipe export (smoke), and dist and the seraphhorizons mod zip (cairn),
-    # this run uploads.
-    if: needs.tree.outputs.tested != 'true' || github.event_name != 'pull_request'
+    # this run uploads. The models-only fast path (only ever on a PR) skips it.
+    if: (needs.tree.outputs.tested != 'true' || github.event_name != 'pull_request') && needs.tree.outputs.models_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -133,7 +160,7 @@ jobs:
   atlas:
     name: Atlas pack scenarios (${{ matrix.shard }})
     needs: [tree, lock]
-    if: needs.tree.outputs.tested != 'true'
+    if: needs.tree.outputs.tested != 'true' && needs.tree.outputs.models_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     # Atlas runs one embedded server per process, so classes can only run in parallel as
@@ -253,17 +280,6 @@ jobs:
         run: |
           dotnet build tools/ore-survey -c Release
           dotnet test tools/ore-survey/tests --logger "console;verbosity=normal"
-      # The game-independent code of the mods-src mods (Tidy Variants' rule engine,
-      # mods-src/seraphhorizons/TidyVariants/Core; the bucking sawmill's BuckingSawmill/Core beside it):
-      # unit tests that need no game. The mods themselves are built and loaded by the dotnet test
-      # step below.
-      - name: Seraph Horizons unit tests pass
-        if: matrix.shard == 'rest'
-        env:
-          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
-          DOTNET_NOLOGO: "1"
-        run: |
-          dotnet test mods-src/seraphhorizons/tests --logger "console;verbosity=normal"
       # GearConsumers (#473): every rusty gear use in the locked mods and the game is patched or
       # exempt. It needs the fetched mods and VINTAGE_STORY, which the tools job does not have
       # (there it skips), so it runs here as well.
@@ -304,7 +320,7 @@ jobs:
     name: Cairn installs the pack
     needs: [tree, lock]
     # Runs on main even for a tree on record; see smoke.
-    if: needs.tree.outputs.tested != 'true' || github.event_name != 'pull_request'
+    if: (needs.tree.outputs.tested != 'true' || github.event_name != 'pull_request') && needs.tree.outputs.models_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -433,6 +449,27 @@ jobs:
           npm --prefix site run check
           npm --prefix site test
 
+  # The game-independent code of the pack's own mod (Tidy Variants' rule engine,
+  # the machines' rig maths, each feature's Core/): unit tests that need neither
+  # the game nor the pack, so they run apart from Atlas, and on the models-only
+  # fast path, where they hold a machine's rig to its reference poses.
+  units:
+    name: Seraph Horizons unit tests
+    needs: tree
+    if: needs.tree.outputs.tested != 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: "10.0.x"
+      - name: dotnet test mods-src/seraphhorizons/tests
+        run: dotnet test mods-src/seraphhorizons/tests --logger "console;verbosity=normal"
+
   export:
     name: Recipe export is valid
     needs: smoke
@@ -475,8 +512,9 @@ jobs:
     name: Recipe browser end to end
     needs: [tree, smoke]
     # On a push to main smoke runs for its artifact alone; the site itself is
-    # a function of the tree, so a tree on record skips this.
-    if: needs.tree.outputs.tested != 'true'
+    # a function of the tree, so a tree on record skips this. The models-only
+    # fast path skips smoke, and so this.
+    if: needs.tree.outputs.tested != 'true' && needs.tree.outputs.models_only != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -534,13 +572,15 @@ jobs:
   # The one required status check (branch protection and .mergify.yml). A
   # needed job that fails leaves a plain `needs:` job *skipped*, and GitHub and
   # Mergify both read a skipped required check as passing, so this runs
-  # always() and passes only if every job above succeeded. The one skip it
-  # accepts is the memoised jobs standing down because `tree` found this tree
+  # always() and passes only if every job above succeeded. The skips it
+  # accepts: the memoised jobs standing down because `tree` found this tree
   # already on record as green (on a PR export needs smoke, so it is skipped
-  # with it; on a push to main smoke, cairn and export still run).
+  # with it; on a push to main smoke, cairn and export still run), and smoke,
+  # atlas, cairn, export and site standing down on the models-only fast path,
+  # on which tools and units still have to pass.
   ci-ok:
     if: always()
-    needs: [tree, lock, smoke, atlas, cairn, tools, export, site]
+    needs: [tree, lock, smoke, atlas, cairn, tools, units, export, site]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     # contents: write is for the record step (a ref under refs/green-trees/,
@@ -553,14 +593,22 @@ jobs:
         env:
           TREE: ${{ needs.tree.result }}
           LOCK: ${{ needs.lock.result }}
+          # Skipped by the memo, or by the models-only fast path.
           MEMOISED: >-
             ${{ needs.smoke.result }} ${{ needs.atlas.result }} ${{ needs.cairn.result }}
-            ${{ needs.tools.result }} ${{ needs.export.result }} ${{ needs.site.result }}
+            ${{ needs.export.result }} ${{ needs.site.result }}
+          # Skipped by the memo only.
+          MEMOISED_ONLY: ${{ needs.tools.result }} ${{ needs.units.result }}
           TESTED: ${{ needs.tree.outputs.tested }}
+          MODELS_ONLY: ${{ needs.tree.outputs.models_only }}
         run: |
-          echo "tree: $TREE (already tested: $TESTED), lock: $LOCK, smoke atlas cairn tools export site: $MEMOISED"
+          echo "tree: $TREE (already tested: $TESTED, models only: $MODELS_ONLY), lock: $LOCK"
+          echo "smoke atlas cairn export site: $MEMOISED; tools units: $MEMOISED_ONLY"
           [ "$TREE" = success ] && [ "$LOCK" = success ] || exit 1
           for r in $MEMOISED; do
+            [ "$r" = success ] || { [ "$r" = skipped ] && { [ "$TESTED" = true ] || [ "$MODELS_ONLY" = true ]; }; } || exit 1
+          done
+          for r in $MEMOISED_ONLY; do
             [ "$r" = success ] || { [ "$r" = skipped ] && [ "$TESTED" = true ]; } || exit 1
           done
       # Everything ran and passed: put this tree's id on record (the memo
@@ -570,9 +618,10 @@ jobs:
       # re-run, or another PR with the same tree got there first) is the same
       # outcome. Anything else is a warning, not a failure: a missed record
       # costs one redundant run, never a wrong merge. Fork PRs have a
-      # read-only token and just don't record.
+      # read-only token and just don't record. A models-only run skipped most
+      # of the suite, so it vouches for nothing and records nothing.
       - name: Record green tree
-        if: github.event_name == 'pull_request' && needs.tree.outputs.tested != 'true'
+        if: github.event_name == 'pull_request' && needs.tree.outputs.tested != 'true' && needs.tree.outputs.models_only != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
