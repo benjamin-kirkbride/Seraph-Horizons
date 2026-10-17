@@ -50,12 +50,7 @@
 			]
 		},
 		"displaycaseable": true,
-		"shelvable": true,
-		"onTongTransform": {
-			"translation": { "x": -0.48, "y": -0.58, "z": -0.45 },
-			"rotation": { "x": 0, "y": 0, "z": 76 },
-			"scale": 1.02
-		}
+		"shelvable": true
 	},
 	"creativeinventory": {
 		"general": [
