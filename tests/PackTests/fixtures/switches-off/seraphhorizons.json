@@ -50,6 +50,7 @@
   "PanningDropsTrimmed": false,
   "PlacerFields": false,
   "PressBrake": false,
+  "AmalgamPan": false,
   "SquaringShear": false,
   "StampBattery": false,
   "MandrelStation": false,
