@@ -122,20 +122,20 @@ public static class MachineBuildJson
     /// What disagrees between a build file and its machine's rig (<c>{machine}-rig.json</c>): the rig's
     /// <c>buildStages</c> must list the same stages in the same order (by <c>id</c> where the rig gives
     /// one), each adding the same <c>requires</c>, and every part's <c>requires</c> that a stage adds
-    /// must be one the rig's parts use. Empty when they agree.
+    /// must be one the rig's parts use. A rig with no <c>buildStages</c> (a hand station's) is held to
+    /// the parts' rule only. Empty when they agree.
     /// </summary>
     public static IReadOnlyList<string> CheckAgainstRig(MachineBuild build, JsonElement rig)
     {
         var problems = new List<string>();
-        if (!rig.TryGetProperty("buildStages", out var rs) || rs.ValueKind != JsonValueKind.Array)
-        {
-            problems.Add("the rig has no buildStages");
-            return problems;
-        }
-        var rigStages = rs.EnumerateArray().ToList();
+        // a rig without buildStages (a hand station's, a furnace's build) is held to its parts only
+        var rigStages = rig.TryGetProperty("buildStages", out var rs) && rs.ValueKind == JsonValueKind.Array
+            ? rs.EnumerateArray().ToList()
+            : build.Stages.Select(_ => default(JsonElement)).ToList();
+        bool listed = rigStages.All(s => s.ValueKind == JsonValueKind.Object);
         if (rigStages.Count != build.Stages.Count)
             problems.Add($"the rig has {rigStages.Count} stages, the build {build.Stages.Count}");
-        for (int i = 0; i < Math.Min(rigStages.Count, build.Stages.Count); i++)
+        for (int i = 0; listed && i < Math.Min(rigStages.Count, build.Stages.Count); i++)
         {
             var stage = build.Stages[i];
             if (Str(rigStages[i], "id") is { } rigId && rigId != stage.Id)

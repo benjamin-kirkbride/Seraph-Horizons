@@ -261,6 +261,28 @@ public class OreMachineSharedTests
     }
 
     [Fact]
+    public void A_build_is_checked_against_its_rigs_stages_and_parts()
+    {
+        var build = Fixture();
+        using var good = JsonDocument.Parse("""
+            { "buildStages": [ { "adds": ["timber"] }, { "id": "works", "adds": ["plates", "rods"] }, { "adds": ["chutes", "pipecopper", "pipelead"] } ],
+              "parts": [ { "requires": "timber" }, { "requires": "rods" }, { "requires": "plates" }, { "requires": "chutes" },
+                         { "requires": "pipecopper" }, { "requires": "pipelead" } ] }
+            """);
+        Assert.Empty(MachineBuildJson.CheckAgainstRig(build, good.RootElement));
+        using var bad = JsonDocument.Parse("""
+            { "buildStages": [ { "adds": ["timber"] }, { "id": "drive", "adds": ["rods"] } ], "parts": [ { "requires": "timber" } ] }
+            """);
+        var problems = MachineBuildJson.CheckAgainstRig(build, bad.RootElement);
+        Assert.Contains(problems, p => p.Contains("2 stages"));
+        Assert.Contains(problems, p => p.Contains("drive"));
+        Assert.Contains(problems, p => p.Contains("which no part"));
+        // a hand station's rig has no buildStages: held to its parts only
+        using var hand = JsonDocument.Parse("""{ "parts": [ { "requires": "timber" } ] }""");
+        Assert.All(MachineBuildJson.CheckAgainstRig(build, hand.RootElement), p => Assert.Contains("which no part", p));
+    }
+
+    [Fact]
     public void The_stamp_battery_is_the_first_build_file_its_shoes_fitted_with_its_stamps()
     {
         var build = MachineBuildJson.Parse(File.ReadAllText(Out("builds/stampbattery.json")));

@@ -1,5 +1,5 @@
 {
-	"_comment": "The stamp battery's build (#728, #711): each stage after the frame and its materials, from StampBattery/README.md's stage table, in the rig's buildStages order; read by Machines/Core/MachineBuildJson.cs, schema in Machines/README.md. The shoes are the wearing part, fitted with the stamps (stage stamps) and renewed by right-click once worn out; uses is rocks crushed by a set (a starting value).",
+	"_comment": "The stamp battery's build (#728, #711): each stage after the frame and its materials, from StampBattery/README.md's stage table, in the rig's buildStages order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. The shoes are the wearing part, fitted with the stamps (stage stamps) and renewed by right-click once worn out; uses is rocks crushed by a set (a starting value).",
 	"machine": "stampbattery",
 	"block": "seraphhorizons:stampbattery-north",
 	"feed": "continuous",
