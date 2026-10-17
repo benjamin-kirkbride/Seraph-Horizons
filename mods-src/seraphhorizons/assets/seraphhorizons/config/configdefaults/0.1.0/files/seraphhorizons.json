@@ -517,5 +517,11 @@
     "ChargeRocks": 8
   },
   "StampBattery": true,
-  "Sluice": true
+  "Sluice": true,
+  "StallRoaster": true,
+  "StallRoasterSettings": {
+    "BedFirewood": 4,
+    "HalfWalledDraught": 0.5,
+    "OpenDraught": 0.0
+  }
 }
