@@ -5921,6 +5921,42 @@ taking it out part way, cinnabar, a bucket of water refusing it, and the game's 
 it), `RecipeExportOreProcessingScenarios.cs` (`Retorting_is_exported`: the records and the guide, with
 the switch on) and `SwitchesOffScenarios` (off).
 
+### Ore processing: base bullion (`OreProcessing`)
+
+What the parting machines take (#740, the owner's ruling of 2026-10-13 on #740, #927, #929 and #931),
+in `Ore/Core/Bullion.cs`. **Every form of a by-product ore smelts to its base bullion** rather than its
+plain metal: raw, crushed and roasted rock by grade, concentrate, roasted concentrate and retorted
+sponge whole, as before, but into a bar of the ore's main metal that still carries its by-product, which
+only a parting machine wins. Bullion goes through the crucible (and crucibulum's forge, the crucible
+furnace, smex) as any metal and casts in the ingot mold, which keeps the poured stack itself.
+
+| Ore | Bullion (`seraphhorizons:bullion-{ore}-{metal}`) | A bar carries | Parted by |
+|---|---|---|---|
+| Galena, argentiferous galena | Silver-lead (`-lead`) | 3 / 38 silver | cupellation furnace (#740); galena's first through the Parkes kettle (#927) |
+| Tetrahedrite | Argentiferous copper (`-copper`) | 5 silver | cupellation furnace, lead added |
+| Freibergite | Cupriferous silver (`-silver`) | 30 copper | cupellation furnace, lead added |
+| Teallite, franckeite | Tin-lead (`-tin`) | 40 / 30 lead | liquation furnace (#929) |
+| Gold quartz | Doré (`-gold`) | 15 silver | acid parting vessel (#931) |
+
+- **A bar is 100 units** of the main metal (`Bullion.UnitsPerItem`); the by-product is the ore's share of
+  them (the config's `byProducts`). A crucible holds a smelted stack without attributes, so the ore is in
+  the code, and the metal is the code's last part, by which the crucible and the ingot mold draw it.
+- **Smelted again as it is**, a bar gives its main metal at the ore's `unparted` share (gold quartz 85 %,
+  the rest whole) and the by-product is lost: lead from galena now takes that second melt, or the parting.
+- **Rich lead** (`seraphhorizons:richlead`) is the Parkes kettle's crust, retorted: a bar of 100 lead
+  carrying `bullion.richLeadSilver` (10 %) of it as silver, which the cupellation furnace parts whole.
+  The kettle takes only silver-lead leaner than that (galena's, not argentiferous galena's, which is
+  cupelled directly: `Bullion.TakenBy`). Smelted plainly it gives lead.
+- What a machine gets from a charge is `OreRecovery.Smelted` on 100 units a bar at its
+  `PartingStation`: the main metal whole and each by-product at its share times the machine's figure.
+- **Not carried**: the concentrators' `oreWhole` mark (#765) does not survive the crucible, so the
+  final step's whole restore of the main metal is lost on these ores; the by-product still comes out at
+  the parting machine's figure (the kettle's 100 %).
+- The hand stations (the cupel, the liquation pan) still take roasted concentrate.
+
+Tests: `tests/Ore/BullionTests.cs`, `tests/PackTests/OreProcessingScenarios.cs`
+(`By_product_ores_smelt_to_bullion`).
+
 ### Cupellation (`OreProcessing`)
 
 Galena's silver (#690) and the bone-ash cupel that parts it at the forge (#722, hand and tier 1),
