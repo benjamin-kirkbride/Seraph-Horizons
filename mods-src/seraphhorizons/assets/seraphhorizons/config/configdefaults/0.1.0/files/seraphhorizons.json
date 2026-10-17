@@ -493,5 +493,6 @@
   "JawBreaker": true,
   "JawBreakerSettings": {
     "ChargeRocks": 8
-  }
+  },
+  "Arrastra": true
 }
