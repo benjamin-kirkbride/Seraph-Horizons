@@ -4,6 +4,7 @@ using SeraphHorizons.Mod.Arrastra.Core;
 using SeraphHorizons.Mod.Machines;
 using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
+using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
@@ -152,7 +153,7 @@ public class BEArrastra : BEOreMachine
         if (InfeedSlot.Empty)
             InfeedSlot.Itemstack = one;
         else
-            InfeedSlot.Itemstack.StackSize += one.StackSize;
+            InfeedSlot.Itemstack!.StackSize += one.StackSize;
         InfeedSlot.MarkDirty();
         Api.World.PlaySoundAt(TipSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5, byPlayer, true, 16, 0.8f);
         MarkDirty(true);
