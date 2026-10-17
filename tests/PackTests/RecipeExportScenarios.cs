@@ -923,7 +923,7 @@ public partial class RecipeExportScenarios : AtlasScenarioBase
             .Where(p => p.Name is not (RecipeSection.TubType or RecipeSection.LotteryType or RecipeSection.CutterType or RecipeSection.CastingType or RecipeSection.DrawBenchType or RecipeSection.CylinderBorerType or RecipeSection.PressBrakeType or RecipeSection.SquaringShearType or RecipeSection.MandrelStationType or RecipeSection.RockerType or RecipeSection.RiddleType or RecipeSection.BallMillType or RecipeSection.AmalgamationPlatesType or RecipeSection.AmalgamPanType or RecipeSection.StallRoasterType or RecipeSection.ReverberatoryType or RecipeSection.CupellationFurnaceType or RecipeSection.LiquationFurnaceType
                 or RecipeSection.SpallingType or RecipeSection.OreRoastingType or RecipeSection.OreRetortingType
                 or RecipeSection.CupellationType or RecipeSection.LiquationType or RecipeSection.SpringType or RecipeSection.JawBreakerType or RecipeSection.StampBatteryType or RecipeSection.SluiceType or RecipeSection.JigType or RecipeSection.ShakingTableType or RecipeSection.VannerType
-                or RecipeSection.ArrastraType))
+                or RecipeSection.ArrastraType or RecipeSection.ParkesKettleType))
             .Where(p => (string)p.Value["shape"]! != "transition")
             .Select(p => (string)p.Value["registry"]!).ToHashSet();
         Assert.Equal(codes.OrderBy(c => c, StringComparer.Ordinal), registries.OrderBy(c => c, StringComparer.Ordinal));
