@@ -287,7 +287,7 @@ def check_anchors(v):
     for label, part, prefix, face, cell, key in (
             ("concentrate", "chutes", r"^fr_chute_conc_", m.CONC_FACE, m.CONC_CELL, "concentrate"),
             ("tailings", "chutes", r"^fr_chute_tail_", m.TAIL_FACE, m.TAIL_CELL, "tailings"),
-            ("infeed", "chutes", r"^fb_chute_", m.FEED_FACE, m.FEED_CELL, "feed")):
+            ("infeed", "chutes", r"^fb_chute_", m.FEED_FACE, m.FEED_CELL, "infeed")):
         els = v.named(part, prefix)
         prof, ends = m.chute_profile(els, face, cell)
         axis = FACE_AXIS[face]
@@ -836,7 +836,7 @@ def validate_files(m, shape, frame_shape, ship):
           f"{len(hollow)} hollow; lids over every column: {'yes' if not gaps else gaps}")
     if gaps:
         ok = False
-    for key in ("powerCell", "waterCell", "feedCell", "concentrateCell", "tailingsCell"):
+    for key in ("powerCell", "waterCell", "infeedCell", "concentrateCell", "tailingsCell"):
         if tuple(ship[key]) in hollow:
             print(f"FAIL the {key} is hollow")
             ok = False
