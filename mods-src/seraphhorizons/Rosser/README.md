@@ -262,7 +262,7 @@ rig's chute (`chute.pos`, turned to the facing), pushed out of its side:
   without the counts takes everything due at its T as dropped.
 
 **Water.** Optional, from a Pipes and Power Expanded water pipe on the water ghost's water face
-(`Game/PpexWater.cs`), through the drip's own pipes: while they are a stage, the reservoir takes no
+(`../Machines/Game/PpexWater.cs`, shared with the ore machines), through the drip's own pipes: while they are a stage, the reservoir takes no
 water until they are fitted (`BERosser.DrawWater`). The drip's inlet ends at the water face on the
 middle of the cell's face, in ppex's 6 x 6 section, so a pipe there meets it end to end. Once a
 second the controller asks the pipe's network for what the reservoir
