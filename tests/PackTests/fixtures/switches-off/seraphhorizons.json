@@ -42,6 +42,7 @@
   "MachineSchematics": false,
   "MachineOil": false,
   "MapReveal": false,
+  "NoClutterPiles": false,
   "NoSurfaceCopper": false,
   "OreCells": false,
   "OreProcessing": false,
