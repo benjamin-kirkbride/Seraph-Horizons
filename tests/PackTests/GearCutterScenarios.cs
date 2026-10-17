@@ -61,6 +61,10 @@ public partial class SharedWorldScenarios
         : W.GetBlock(new AssetLocation(code)) is { Id: > 0 } block ? new ItemStack(block, size)   // metal parts are a block
         : throw new Xunit.Sdk.XunitException($"no item {code}");
 
+    /// <summary>The longest <see cref="CutterSite"/> waits for its columns: 30 s of real time, against the
+    /// half a second they take (often none: a neighbouring site loaded them) and a 60 s watchdog.</summary>
+    private const int CutterSiteLoadTicks = 900;
+
     /// <summary>A spot 40 above spawn, its chunk columns loaded, cleared around on a granite floor.</summary>
     private async Task<BlockPos> CutterSite(int dx, int dz, int reach = 5)
     {
@@ -70,10 +74,37 @@ public partial class SharedWorldScenarios
         for (int cx = (origin.X - reach) / size; cx <= (origin.X + reach) / size; cx++)
             for (int cz = (origin.Z - reach) / size; cz <= (origin.Z + reach) / size; cz++)
                 columns.Add(new BlockPos(cx * size, origin.Y, cz * size));
-        if (World.Api is ICoreServerAPI sapi)
-            foreach (var c in columns)
-                sapi.WorldManager.LoadChunkColumnPriority(c.X / size, c.Z / size);
-        await World.Until(() => columns.All(c => W.BlockAccessor.GetChunkAtBlockPos(c) != null), 30000);
+        // The sites lie hundreds of blocks from every player, where the server unloads a column it does not
+        // keep loaded about 12 s after it was last fresh, and nothing asks for one again: a request taken
+        // while the column was still loaded, and the column unloaded after, would leave the wait to run on.
+        // So a column still missing is asked for again every second, and the wait is bounded well inside a
+        // scenario's watchdog: a hang here abandons the whole shared world and fails every scenario after it
+        // (#1169), where a failure fails one. This runs before any virtual clock, in real time.
+        var sapi = World.Api as ICoreServerAPI;
+        void Request()
+        {
+            if (sapi != null)
+                foreach (var c in columns.Where(c => W.BlockAccessor.GetChunkAtBlockPos(c) == null))
+                    sapi.WorldManager.LoadChunkColumnPriority(c.X / size, c.Z / size);
+        }
+        Request();
+        int polls = 0;
+        try
+        {
+            await World.Until(() =>
+            {
+                if (columns.All(c => W.BlockAccessor.GetChunkAtBlockPos(c) != null))
+                    return true;
+                if (++polls % 30 == 0)
+                    Request();
+                return false;
+            }, CutterSiteLoadTicks);
+        }
+        catch (Atlas.Api.ScenarioTimeoutException)
+        {
+            var missing = columns.Where(c => W.BlockAccessor.GetChunkAtBlockPos(c) == null).Select(c => $"{c.X / size},{c.Z / size}");
+            throw new Xunit.Sdk.XunitException($"the site at {origin}: chunk columns {string.Join("; ", missing)} did not load in {CutterSiteLoadTicks} ticks");
+        }
         int floor = W.GetBlock(new AssetLocation("game:rock-granite"))!.Id;
         for (int x = -reach; x <= reach; x++)
         for (int z = -reach; z <= reach; z++)
