@@ -41,8 +41,8 @@ again. The model follows that: the box is the tub, iron-bound at the corners as 
 bearers are the two sticks a riddle rested on between charges. Simplified: the wire mesh is coarser and chunkier than
 a real one (it must read at block scale), and its wires cross in two layers rather than going over and under.
 
-This folder holds the model's generator and its rig (`tools/`). The gameplay is #714 and is not built yet; the model
-is #715. "Gameplay" below says what the rig offers it.
+This folder holds the model's generator and its rig (`tools/`), and the gameplay (#714): its rules in `Core/`
+(tested in `tests/Riddle/`), the game side in `Game/`. The model is #715. "Gameplay" below says how it plays.
 
 **A hand station.** No mechanical power, power cell, oil or pipe. The player works it by holding right-click, as on
 the quern, the squaring shear and the press brake. The rig's θ is that clock, one turn a shake. The motion is drawn
@@ -78,17 +78,17 @@ There is no infeed side and no output side: see "No automated input or output" a
 
 **Fitted parts** (the rig's `requires`). The frame (`requires` null) is what the block draws.
 
-| `requires` | Draws |
-|---|---|
-| (frame) | The box (plank walls and bottom), its four corner straps with their nails, and the two oak bearers across its mouth. |
-| `riddle` | The riddle: two tiers of oak boards and the woven mesh of iron wires. |
+| `requires` | Draws | Materials (the recipe) |
+|---|---|---|
+| (frame) | The box (plank walls and bottom), its four corner straps with their nails, and the two oak bearers across its mouth. | Grid: six oak planks (the box, the bearers and the riddle's boards), one nails and strips of iron, meteoric iron or steel (the straps and nails), a hammer. |
+| `riddle` | The riddle: two tiers of oak boards and the woven mesh of iron wires. | Fitted by right-click: two nails and strips of iron, meteoric iron or steel at once (the wire mesh). |
 | `charge` | The work, a charge (k 1): three lumps of oversize (rock) and one layer of fines over them, on the mesh. |
 | `fines` | The box's contents: the fines on its bottom, a layer and a mound on it. |
 
 **Contents** (the rig's `contents`, as the jig's): `charge` while a charge is on the riddle, and `fines` while the box
 holds fines. The viewer has a "The box" select, Empty or Fines in the box, and shows the charge only with a charge
-chosen (`requiresClass` `charge`: `thin`). These ids are a sensible split for build stages, which
-are worked out with the owner later.
+chosen (`requiresClass` `charge`: `thin`). The riddle is the one build stage;
+the charge and the fines are what the station holds.
 
 ## Model
 
@@ -333,11 +333,11 @@ viewer in a browser, or in a client.
 
 ## Open for the owner
 
-1. **The oversize** stays on the mesh at the end of a charge, to be taken out by hand (an empty-handed right-click,
-   say), and goes back to spalling (#714). Whether a new charge may be riddled on top of oversize left in the riddle
-   is #714's.
+1. **The oversize** (settled by the gameplay, #714): it stays on the mesh at the end of a charge and is taken out by
+   hand, an empty-handed right-click, before the fines; no new charge goes on while it is there.
 2. **The charge** is #714's starting values: three lumps in one layer, twelve shakes. A different count changes
-   `LUMPS` and `SHAKES`, and the generator's files check holds them to #714's.
+   `LUMPS` and `SHAKES`, and the generator's files check holds them to #714's (the settings, `RiddleSettings`, are
+   held to the rig by `tests/Riddle/RiddleRigTests.cs`).
 3. **Sizes.**
    - The riddle: 11.5 across and 2 deep (vanilla's pan: 11 and 3), the mesh's openings 1.25 (four wires each way).
    - The box: 13 square and 4.4 tall; its corner straps 0.3 thick, each leg 1.8 wide, two nails a leg.
@@ -349,13 +349,37 @@ viewer in a browser, or in a client.
 
 ## Gameplay
 
-Not built: #714. The rig is written for it the way the other hand stations' are (the squaring shear's `Core/` and
-`Game/` are the template). The renderer and block are to:
+#714, switch `Riddle` (with `OreProcessing`: without crushed ore there is nothing to riddle), figures in
+`RiddleSettings` (`ModConfig/seraphhorizons.json`). The rules are `Core/` (`Riddling`, `RiddleJob`, `RiddleParts`,
+`RiddleConfig`, `RiddleRig`, the renderer's `RiddleClock`), the game side `Game/` (`RiddleSystem`, `BlockRiddle`,
+`BERiddle`, `RiddleRenderer`, `RiddleOre`).
 
-- read the anchors, `contents`, `work`, `riddling` and `requires`, never element names;
-- take the block's collision and selection boxes from the rig's `cells`;
-- set the texture codes `ore` (the riddled ore's) and `rock` (the oversize's host rock);
-- refuse a charge while the box holds fines;
-- draw the `charge` parts only while a charge is on the station, at p 1, and the `fines` parts while the box holds
-  fines;
-- turn θ while held, and give the renderer ψ, its travel.
+- **Building.** The frame is a grid recipe (six oak planks, one nails and strips of iron, meteoric iron or steel, a
+  hammer) and is placed with its operator's side toward the player. Its one stage, the riddle, is fitted by
+  right-click with two nails and strips of iron, meteoric iron or steel at once (the wire mesh; fewer are refused).
+  In creative mode Ctrl + right-click fits it free. Breaking the station returns the frame, the nails and strips and
+  whatever it holds.
+- **A charge** is `LumpsPerCharge` (3) crushed ore of one kind (`seraphhorizons:crushedore-*`), not yet classified,
+  taken from the held stack in one right-click. It is refused before the riddle is fitted, while a charge or its
+  oversize is on the mesh, and while the box holds fines (the owner's ruling). Ctrl + right-click takes back a charge
+  nothing has been done to.
+- **Riddling.** Holding right-click riddles, as on the quern: the clock θ turns a shake every 0.75 s and W advances
+  by a shake over `ShakesPerCharge` (12), so a charge takes 9 s. Letting go stops it where it is. The panning sound is
+  heard every few shakes, and dust falls under the riddle (the model's first weak spot).
+- **Delivered at W 1.** `OversizePerCharge` (1) of the charge stays on the mesh as oversize, the rest falls into the
+  box as fines. The fines are the same crushed ore, **classified**: the `oreState` attribute's flag 1, ore-core's
+  `OreState.Classified` (#765), so they do not stack with unclassified crushed ore and a concentrator works them
+  without the unclassified × 0.85. The oversize is rock again (#714): raw ore of the charge's ore and grade
+  (`game:ore-{grade}-{ore}-{rock}`), which spalls back into the same crushed ore with the same metal, so nothing is
+  lost. Its rock is the charge's own `rock` attribute if it carries one, else the rock the station stands on, else
+  granite; with no such raw ore, the crushed ore itself, unclassified.
+- **Taking out.** An empty-handed right-click takes the oversize first, then the fines. Then the next charge.
+- **Drawn.** The renderer reads the anchors, `contents`, `work` and `requires`, never element names; the block's
+  boxes are the rig's cell's; `ore` is set to the crushed ore's texture and `rock` to the oversize's host rock (the
+  rock under the station before there is one).
+- **Recipe browser.** One `riddle` record per crushed ore (`tools/recipe-export/Recipes/RiddleExport.cs`): the charge,
+  the mesh kept, the station; out, the classified fines (`attributes.oreState` 1) and the oversize as granite raw ore;
+  power `hand`, `work` in shakes.
+- **Tests.** `tests/Riddle/` (the rules, the clock, the rig and its reference poses) and Atlas
+  `tests/PackTests/RiddleScenarios.cs` (built, loaded, riddled while held, delivered, taken out, broken) and
+  `RecipeExportRiddleScenarios.cs`.
