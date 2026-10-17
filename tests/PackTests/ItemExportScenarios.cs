@@ -35,13 +35,62 @@ public class ItemExportScenarios : AtlasScenarioBase
     private static IEnumerable<JObject> Sources(JObject item, string type) =>
         (item["sources"] as JArray ?? new JArray()).OfType<JObject>().Where(s => (string?)s["type"] == type);
 
-    // ItemSection.Fill with a referenced set of our choosing. A fill takes the better part of a
-    // minute, so a scenario makes one at most and compares it with the document's.
-    private JObject Fill(IEnumerable<string> referenced)
+    // The codes the second fill references on top of the document's (Scope_is_the_handbook_plus_referenced_codes).
+    // survival/itemtypes/resource/ingot.json: handbook.excludeByType "*-platinum": true.
+    // (expanded_matter removes the chromium/uranium/titanium exclusions, not platinum.)
+    private const string HiddenIngot = "game:ingot-platinum";
+    private const string VisibleIngot = "game:ingot-copper";
+    private const string UnregisteredIngot = "game:ingot-seraphexporttest";
+
+    private static readonly object SecondGate = new();
+    private static ICoreAPI? _secondApi;
+    private static JObject? _second;
+    private static ISet<string>? _secondReferenced;
+
+    /// <summary>
+    /// A second ItemSection.Fill, made once per server and compared with the document's by the
+    /// three scenarios that need one (determinism, language, scope): a fill takes the better
+    /// part of a minute. It is made with the server's language switched to German, and with the
+    /// document's referenced codes plus a hidden, a visible and an unregistered one; so it is
+    /// the document's items exactly, plus the hidden ingot if no recipe references it.
+    /// </summary>
+    private (JObject Fill, ISet<string> Referenced) Second()
     {
-        var root = new JObject();
-        ItemSection.Fill((ICoreServerAPI)World.Api, root, new HashSet<string>(referenced));
-        return root;
+        lock (SecondGate)
+        {
+            if (_second != null && _secondReferenced != null && ReferenceEquals(_secondApi, World.Api))
+                return (_second, _secondReferenced);
+            // The document's fill, made before the language changes.
+            _ = Doc;
+            var referenced = new HashSet<string>(ExportUnderTest.Referenced(World.Api)) { HiddenIngot, VisibleIngot, UnregisteredIngot };
+            var previous = Lang.CurrentLocale;
+            var root = new JObject();
+            try
+            {
+                Lang.ChangeLanguage("de");
+                // Precondition: the switch is real, so a leak would show.
+                Assert.NotEqual("Copper pickaxe", Lang.Get("game:item-pickaxe-copper"));
+                ItemSection.Fill((ICoreServerAPI)World.Api, root, referenced);
+                Assert.Equal("de", Lang.CurrentLocale);
+            }
+            finally
+            {
+                Lang.ChangeLanguage(previous);
+            }
+            _secondApi = World.Api;
+            _secondReferenced = referenced;
+            return (_second = root, referenced);
+        }
+    }
+
+    /// <summary>The second fill's items without what its extra codes added: what the document's fill made.</summary>
+    private JObject SecondItemsAsTheDocuments()
+    {
+        var items = (JObject)Second().Fill["items"]!;
+        if (ExportUnderTest.Referenced(World.Api).Contains(HiddenIngot)) return items;
+        var copy = (JObject)items.DeepClone();
+        copy.Remove(HiddenIngot);
+        return copy;
     }
 
     // --- vanilla items against survival/itemtypes and game/lang/en.json -------------------
@@ -550,11 +599,9 @@ public class ItemExportScenarios : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Scope_is_the_handbook_plus_referenced_codes()
     {
-        // survival/itemtypes/resource/ingot.json: handbook.excludeByType "*-platinum": true.
-        // (expanded_matter removes the chromium/uranium/titanium exclusions, not platinum.)
-        const string hidden = "game:ingot-platinum";
-        const string visible = "game:ingot-copper";
-        const string unregistered = "game:ingot-seraphexporttest";
+        const string hidden = HiddenIngot;
+        const string visible = VisibleIngot;
+        const string unregistered = UnregisteredIngot;
         Assert.NotNull(World.Api.World.GetItem(new AssetLocation(hidden)));
         Assert.Null(World.Api.World.GetItem(new AssetLocation(unregistered)));
 
@@ -565,16 +612,30 @@ public class ItemExportScenarios : AtlasScenarioBase
         Assert.Contains(visible, plain);
         Assert.False(Items.ContainsKey(unregistered));
 
-        var withRefs = (JObject)Fill(new[] { hidden, visible, unregistered })["items"]!;
+        // A fill referencing the three (and the document's referenced codes: see Second).
+        var (fill, referenced) = Second();
+        var withRefs = (JObject)fill["items"]!;
         var platinum = Item(withRefs, hidden);
         Assert.False((bool)platinum["handbookVisible"]!);
         Assert.Equal("Platinum ingot", (string?)platinum["name"]);
         Assert.Equal("survival", (string?)platinum["mod"]);
         Assert.True((bool)Item(withRefs, visible)["handbookVisible"]!);
         Assert.False(withRefs.ContainsKey(unregistered), "an unregistered referenced code was exported");
-        // Referencing codes adds exactly those codes and nothing else: this fill, which no
-        // recipe contributed to, is the handbook's items and the hidden ingot.
-        Assert.Equal(plain.Append(hidden).Order(StringComparer.Ordinal), withRefs.Properties().Select(p => p.Name).Order(StringComparer.Ordinal));
+        // Referencing codes adds exactly those codes and nothing else: the fill is the handbook's
+        // items, marked visible, and each referenced code that is registered, marked not.
+        var world = World.Api.World;
+        bool Registered(string code)
+        {
+            var loc = new AssetLocation(code);
+            CollectibleObject? c = world.GetItem(loc);
+            if (c?.Code == null || c.IsMissing) c = world.GetBlock(loc);
+            return c?.Code != null && !c.IsMissing && c.Code.ToString() == loc.ToString() && Code.IsMatch(loc.ToString());
+        }
+        var expected = plain.Concat(referenced.Where(Registered).Select(c => new AssetLocation(c).ToString())).ToHashSet();
+        Assert.Contains(hidden, expected);
+        Assert.Equal(expected.Order(StringComparer.Ordinal), withRefs.Properties().Select(p => p.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(plain.Order(StringComparer.Ordinal),
+            withRefs.Properties().Where(p => (bool)p.Value["handbookVisible"]!).Select(p => p.Name).Order(StringComparer.Ordinal));
 
         // Only a fraction of the registry is in the handbook; exporting everything would not be.
         var registered = World.Api.World.Collectibles.Count(c => c?.Code != null);
@@ -700,36 +761,23 @@ public class ItemExportScenarios : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Two_fills_produce_identical_sections()
     {
-        // The first fill is the document's, made with the codes its recipes reference.
-        var second = Fill(ExportUnderTest.Referenced(World.Api));
-        foreach (var section in new[] { "mods", "items", "guides" })
-        {
-            Assert.Equal(Doc[section]!.ToString(Formatting.None), second[section]!.ToString(Formatting.None));
-        }
+        // The first fill is the document's, made with the codes its recipes reference; the
+        // second is Second's (whose extra codes add nothing the document lacks but the hidden
+        // ingot, taken out again when no recipe references it).
+        var second = Second().Fill;
+        Assert.Equal(Doc["mods"]!.ToString(Formatting.None), second["mods"]!.ToString(Formatting.None));
+        Assert.Equal(Doc["items"]!.ToString(Formatting.None), SecondItemsAsTheDocuments().ToString(Formatting.None));
+        Assert.Equal(Doc["guides"]!.ToString(Formatting.None), second["guides"]!.ToString(Formatting.None));
     }
 
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Names_are_english_whatever_the_server_language()
     {
-        // The document's fill, made before the language changes.
-        var english = Doc;
-        var referenced = ExportUnderTest.Referenced(World.Api);
-        var previous = Lang.CurrentLocale;
-        JObject german;
-        try
-        {
-            Lang.ChangeLanguage("de");
-            // Precondition: the switch is real, so a leak would show.
-            Assert.NotEqual("Copper pickaxe", Lang.Get("game:item-pickaxe-copper"));
-            german = Fill(referenced);
-            Assert.Equal("de", Lang.CurrentLocale);
-        }
-        finally
-        {
-            Lang.ChangeLanguage(previous);
-        }
+        // Second's fill is made with the server's language German (it checks the switch is real),
+        // the document's before the language changes.
+        var german = Second().Fill;
         Assert.Equal("Copper pickaxe", (string?)german["items"]!["game:pickaxe-copper"]!["name"]);
-        Assert.Equal(english["items"]!.ToString(Formatting.None), german["items"]!.ToString(Formatting.None));
-        Assert.Equal(english["guides"]!.ToString(Formatting.None), german["guides"]!.ToString(Formatting.None));
+        Assert.Equal(Doc["items"]!.ToString(Formatting.None), SecondItemsAsTheDocuments().ToString(Formatting.None));
+        Assert.Equal(Doc["guides"]!.ToString(Formatting.None), german["guides"]!.ToString(Formatting.None));
     }
 }

@@ -37,7 +37,7 @@ internal static class ItemRecords
     /// type declares, and the "-handbooktitle-"/"-handbooktext-" lang entries. Generated
     /// parts of the page (recipes, drops, stats) are exported as data elsewhere.
     /// </summary>
-    public static string? Description(CollectibleObject c)
+    public static string? Description(CollectibleObject c, LangIndex lang)
     {
         var parts = new List<string>();
         try
@@ -62,8 +62,8 @@ internal static class ItemRecords
         }
 
         var prefix = c.Code.Domain + ":" + c.ItemClass.Name();
-        var hbTitle = Lang.GetMatchingIfExists(prefix + "-handbooktitle-" + c.Code.ToShortString());
-        var hbText = Lang.GetMatchingIfExists(prefix + "-handbooktext-" + c.Code.ToShortString());
+        var hbTitle = lang.GetMatchingIfExists(prefix + "-handbooktitle-" + c.Code.ToShortString());
+        var hbText = lang.GetMatchingIfExists(prefix + "-handbooktext-" + c.Code.ToShortString());
         if (hbTitle != null || hbText != null)
         {
             var block = new List<string>();

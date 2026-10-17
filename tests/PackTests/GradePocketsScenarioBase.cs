@@ -20,11 +20,23 @@ namespace SeraphHorizons.PackTests;
 /// drew a different grade or tore the vein), and a deposit large enough, in a rock with more than one
 /// grade, is no longer one grade. Prospect veins (always poor) and chimney cores (rich) are the expected exceptions, so a
 /// share, not every block, has to match.
+///
+/// <para>The deposits are split between two classes, each its own world of the same seed and so its
+/// own CI shard, as generating one (its nine columns and the 11×11 they need around them) is most of
+/// the time: <see cref="GradePocketsCopperIronTinScenarios"/> (whose cells hold the large deposits the
+/// "no longer one grade" check needs) and <see cref="GradePocketsZincLeadBismuthScenarios"/>. This is
+/// what they share.</para>
 /// </summary>
-[AtlasWorld(Seed = Seed, WorldType = "standard")]
-public class GradePocketsScenarios(ITestOutputHelper output) : AtlasScenarioBase
+public abstract class GradePocketsScenarioBase(ITestOutputHelper output) : AtlasScenarioBase
 {
-    private const int Seed = 944944;
+    public const int Seed = 944944;
+
+    /// <summary>The metals whose cells are tried, four cells each, 12 km from the spawn on the diagonals.</summary>
+    protected abstract string[] Metals { get; }
+
+    /// <summary>Whether this class's cells hold enough large deposits (<see cref="MinBlocks"/>) to require
+    /// three of them (zinc, lead and bismuth's never reach it on this seed).</summary>
+    protected abstract bool RequiresVaried { get; }
 
     private ICoreServerAPI Sapi => (ICoreServerAPI)World.Api;
 
@@ -32,8 +44,8 @@ public class GradePocketsScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     private DepositService Deposits => Ore.Deposits ?? throw new Xunit.Sdk.XunitException("the deposit service is not bound");
 
-    [AtlasScenario]
-    public void Grade_pockets_are_bound_and_recorded_for_the_new_world()
+    /// <summary>The prefix is bound and the world records grade pockets on.</summary>
+    protected void BoundAndRecorded()
     {
         Assert.True(Ore.World.GradePockets);
         var saved = Sapi.WorldManager.SaveGame.GetData(OreSystem.WorldRecordKey);
@@ -52,15 +64,16 @@ public class GradePocketsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(Harmony.GetPatchInfo(tracer)?.Prefixes ?? [], p => p.owner == OreSystem.HarmonyId);
     }
 
-    [AtlasScenario(TimeoutMs = 900_000)]
-    public async Task Generated_deposits_vary_by_pocket_around_one_drawn_grade()
+    /// <summary>Every measured deposit of <see cref="Metals"/>' cells fits one drawn grade by pocket,
+    /// column by column; the large ones are no longer one grade.</summary>
+    protected async Task DepositsVaryByPocketAroundOneDrawnGrade()
     {
         var pockets = GradePocketPlacement.Pockets ?? throw new Xunit.Sdk.XunitException("grade pockets are not bound");
         var spawn = Sapi.World.DefaultSpawnPosition.AsBlockPos;
         var cells = new OreCells(Seed);
         int varied = 0;
         var oneGrade = new List<string>();
-        var keys = new[] { "copper", "iron", "tin", "zinc", "lead", "bismuth" }
+        var keys = Metals
             .SelectMany(m => new[] { (12_000, -12_000), (-12_000, 12_000), (12_000, 12_000), (-12_000, -12_000) }
                 .Select(o => new DepositKey(m, cells.CellOf(m, spawn.X + o.Item1, spawn.Z + o.Item2))))
             .Distinct();
@@ -129,11 +142,13 @@ public class GradePocketsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         // A vein crosses a few dozen pockets at most, so one can still come out mostly its drawn
         // grade by chance; before #944 every deposit did.
         Assert.True(oneGrade.Count * 4 <= varied, $"{oneGrade.Count} of {varied} deposits are one grade:\n" + string.Join("\n", oneGrade));
-        Assert.True(varied >= 3, $"only {varied} deposits of {MinBlocks} blocks or more among the cells tried; pick another seed");
+        output.WriteLine($"{varied} deposits of {MinBlocks} blocks or more in a rock of several grades, {oneGrade.Count} of them one grade");
+        if (RequiresVaried)
+            Assert.True(varied >= 3, $"only {varied} deposits of {MinBlocks} blocks or more among the cells tried; pick another seed");
     }
 
     // About ten pockets' volume.
-    private const int MinBlocks = 5000;
+    protected const int MinBlocks = 5000;
 
     private sealed record OreBlock(int X, int Y, int Z, int Index, double[] Units);
 
