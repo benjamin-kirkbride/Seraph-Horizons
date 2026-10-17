@@ -4,8 +4,8 @@ Part of the Seraph Horizons mod's ore processing (epic #684): the generated mode
 (model #741, behaviour #740), one machine of the settled lineup, placed as a multiblock like the pack's other
 machines. The line, the glossary and the period sources are in #939; the power and water budget in #940.
 
-**Status: the model only, under review.** This folder holds the model's generator and its checks (`tools/`); there
-is no gameplay yet (#740). It follows the crucible furnace's conventions (`../CrucibleFurnace/README.md`): any fired
+**Status: in play.** This folder holds the model's generator and its checks (`tools/`), and the gameplay (#740:
+`Core/`, `Game/`; the mod's README, "Ore processing: the cupellation furnace"). It follows the crucible furnace's conventions (`../CrucibleFurnace/README.md`): any fired
 brick, tier-3 refractory lining 3 thick on every hot face, an ash mouth with a three-place damper, an outlet with the
 chimney's anchor, iron binding, and a staged build. The generic half of the generator is `Machines/tools/machinegen/`,
 unchanged by this machine.
