@@ -298,6 +298,12 @@
     "StrokesPerPlateLead": 1.0,
     "StrokesPerPlateCopper": 1.5
   },
+  "Riddle": true,
+  "RiddleSettings": {
+    "LumpsPerCharge": 3,
+    "ShakesPerCharge": 12.0,
+    "OversizePerCharge": 1
+  },
   "MandrelStation": true,
   "MandrelStationSettings": {
     "BlowsPerHollowLead": 9,
