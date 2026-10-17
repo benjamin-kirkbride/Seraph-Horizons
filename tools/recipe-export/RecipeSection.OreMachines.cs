@@ -44,6 +44,9 @@ public static partial class RecipeSection
             type["count"] = records.Count(r => (string?)r["type"] == InPlaceType);
     }
 
+    /// <summary>The id prefix of the stage a wearing part fitted by itself makes.</summary>
+    private const string WearingStage = "wearing:";
+
     /// <summary>The materials of each stage, a wearing part fitted with a stage its last, with the
     /// codes each may be (patterns expanded to what is in the game).</summary>
     private static List<(string Stage, List<(List<string> Codes, int Quantity)> Materials)> OreMachineStages(JObject build)
@@ -56,8 +59,15 @@ public static partial class RecipeSection
             stages.Add(((string?)s["id"] ?? "", materials));
         }
         foreach (var w in build["wearing"] as JArray ?? [])
+        {
+            var set = ((w["codes"] as JArray ?? []).Select(c => (string)c!).ToList(), (int?)w["count"] ?? 0);
             if ((string?)w["stage"] is { } at && stages.FindIndex(x => x.Item1 == at) is >= 0 and var i)
-                stages[i].Item2.Add(((w["codes"] as JArray ?? []).Select(c => (string)c!).ToList(), (int?)w["count"] ?? 0));
+                stages[i].Item2.Add(set);
+            // a wearing part fitted by itself once the machine is built (the cupellation furnace's test): a last
+            // stage of its own, named as the part
+            else if ((string?)w["stage"] == null && (string?)w["id"] is { } id)
+                stages.Add((WearingStage + id, [set]));
+        }
         return stages;
     }
 
@@ -108,7 +118,9 @@ public static partial class RecipeSection
                 stacks.Add(new JArray(items.Select(i => Stack(ctx, i, quantity))));
             }
             stages.Add(new JObject { ["ingredients"] = slots, ["action"] = action });
-            string key = $"seraphhorizons:{machine}-stage-{id}";
+            string key = id.StartsWith(WearingStage, StringComparison.Ordinal)
+                ? $"seraphhorizons:{machine}-wearing-{id[WearingStage.Length..]}"
+                : $"seraphhorizons:{machine}-stage-{id}";
             names.Add(Lang.HasTranslation(key) ? Lang.Get(key) : id);
         }
         return new JObject

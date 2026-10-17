@@ -147,6 +147,8 @@ public static partial class RecipeSection
         FillSquaringShear(ctx, records, types);
         FillRiddle(ctx, records, types);
         FillBallMill(ctx, records, types);
+        FillStallRoaster(ctx, records, types);
+        FillCupellationFurnace(ctx, records, types);
         FillMandrelStation(ctx, records, types);
         FillRocker(ctx, records, types);
         FillSpalling(ctx, records, types);

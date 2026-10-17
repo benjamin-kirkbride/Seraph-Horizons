@@ -1174,4 +1174,37 @@ public class SeraphHorizonsConfig
     /// Off means its blocks and recipe do not exist, and batteries already placed are lost. The
     /// server's setting decides.</summary>
     public bool StampBattery { get; set; } = true;
+
+    /// <summary>The stall roaster (StallRoaster/, README "Ore processing: the stall roaster"; #925): a roasting
+    /// stall, an open-fronted brick bay with a flue to a chimney, built on its iron frame in two stages (the
+    /// brickwork in any one fired brick, the lining). Batch, by hand: a bed of firewood and up to 32 sulfide rock
+    /// (raw or crushed), lit, burn on their own sulfur for 40 in-game hours with the front walled up and the row's
+    /// chimney drawing; each rock roasts one for one into stall-roasted rock, which smelts at its grade's share x
+    /// 92 % (the firepit's at 85 %), and a third of the charge's sulfur is taken from the heap's crust as sulfur
+    /// powder (ore-core's figures, config/ore-processing.json). Needs OreProcessing (off means its frame and its
+    /// recipe do not exist, and stalls already placed are lost). The server's setting decides.</summary>
+    public bool StallRoaster { get; set; } = true;
+
+    /// <summary>The stall roaster's own figures (its recovery, charge, burn and sulfur are ore processing's,
+    /// <c>config/ore-processing.json</c>): the bed's firewood, and the share of its draught a half-walled or
+    /// open front gives; a value out of range falls back to its default with a warning. The server's are
+    /// used.</summary>
+    public StallRoaster.Core.StallRoasterConfig StallRoasterSettings { get; set; } = new();
+
+    /// <summary>The cupellation furnace (CupellationFurnace/, README "Ore processing: the cupellation furnace";
+    /// #740): an English test furnace, built on its iron frame in three stages (the brickwork in any one fired brick,
+    /// the lining, the fittings) and a bone-ash test beaten in with 48 bone meal, relined every 15 charges. Batch, by
+    /// hand: up to 200 units of base bullion (silver-lead; argentiferous copper and cupriferous silver with as much
+    /// lead), the Parkes kettle's rich lead and lead, cupelled at 55 units of lead an hour while its coal fire burns
+    /// (0.7 an hour), its row's chimney draws and Steelmaking Expanded's air blower blows 10 L/s of air at 1.5 atm into
+    /// its blast inlet by pipe: the lead to litharge in the pot, the by-product at 95 % (rich lead's silver whole) as
+    /// the silver cake and copper bits. Needs OreProcessing (off means its frame and its recipe do not exist, and
+    /// furnaces already placed are lost). The server's setting decides.</summary>
+    public bool CupellationFurnace { get; set; } = true;
+
+    /// <summary>The cupellation furnace's own figures (its recovery and rate are ore processing's,
+    /// <c>config/ore-processing.json</c>; its blast, chimney and test the model's): the charge, the coal an hour, the
+    /// lead a copper or silver bar wants, and the damper's shares; a value out of range falls back to its default with
+    /// a warning. The server's are used.</summary>
+    public CupellationFurnace.Core.CupellationFurnaceConfig CupellationFurnaceSettings { get; set; } = new();
 }

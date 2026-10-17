@@ -5552,6 +5552,7 @@ texture (no texture of the pack's):
 | Crushed ore ("Crushed Galena ore (rich)") | `seraphhorizons:crushedore-{ore}-{grade}` | 16 | by grade; a sulfide's roasts in the firepit |
 | Ground ore | `seraphhorizons:groundore-{ore}-{grade}` | 16 | by grade; a sulfide's not at all |
 | Roasted rock ("Roasted Galena ore (rich)", the 13 sulfides) | `seraphhorizons:roastedore-{ore}-{grade}` | 16 | by grade × 85 % |
+| Stall-roasted rock (the stall roaster's, #925) | `seraphhorizons:stallroastedore-{ore}-{grade}` | 16 | by grade × 92 % |
 
 **The other forms**, one per ore, each holding 5 units (`metalUnits`, #685's `concentrateUnits`):
 
@@ -5921,6 +5922,42 @@ taking it out part way, cinnabar, a bucket of water refusing it, and the game's 
 it), `RecipeExportOreProcessingScenarios.cs` (`Retorting_is_exported`: the records and the guide, with
 the switch on) and `SwitchesOffScenarios` (off).
 
+### Ore processing: base bullion (`OreProcessing`)
+
+What the parting machines take (#740, the owner's ruling of 2026-10-13 on #740, #927, #929 and #931),
+in `Ore/Core/Bullion.cs`. **Every form of a by-product ore smelts to its base bullion** rather than its
+plain metal: raw, crushed and roasted rock by grade, concentrate, roasted concentrate and retorted
+sponge whole, as before, but into a bar of the ore's main metal that still carries its by-product, which
+only a parting machine wins. Bullion goes through the crucible (and crucibulum's forge, the crucible
+furnace, smex) as any metal and casts in the ingot mold, which keeps the poured stack itself.
+
+| Ore | Bullion (`seraphhorizons:bullion-{ore}-{metal}`) | A bar carries | Parted by |
+|---|---|---|---|
+| Galena, argentiferous galena | Silver-lead (`-lead`) | 3 / 38 silver | cupellation furnace (#740); galena's first through the Parkes kettle (#927) |
+| Tetrahedrite | Argentiferous copper (`-copper`) | 5 silver | cupellation furnace, lead added |
+| Freibergite | Cupriferous silver (`-silver`) | 30 copper | cupellation furnace, lead added |
+| Teallite, franckeite | Tin-lead (`-tin`) | 40 / 30 lead | liquation furnace (#929) |
+| Gold quartz | Doré (`-gold`) | 15 silver | acid parting vessel (#931) |
+
+- **A bar is 100 units** of the main metal (`Bullion.UnitsPerItem`); the by-product is the ore's share of
+  them (the config's `byProducts`). A crucible holds a smelted stack without attributes, so the ore is in
+  the code, and the metal is the code's last part, by which the crucible and the ingot mold draw it.
+- **Smelted again as it is**, a bar gives its main metal at the ore's `unparted` share (gold quartz 85 %,
+  the rest whole) and the by-product is lost: lead from galena now takes that second melt, or the parting.
+- **Rich lead** (`seraphhorizons:richlead`) is the Parkes kettle's crust, retorted: a bar of 100 lead
+  carrying `bullion.richLeadSilver` (10 %) of it as silver, which the cupellation furnace parts whole.
+  The kettle takes only silver-lead leaner than that (galena's, not argentiferous galena's, which is
+  cupelled directly: `Bullion.TakenBy`). Smelted plainly it gives lead.
+- What a machine gets from a charge is `OreRecovery.Smelted` on 100 units a bar at its
+  `PartingStation`: the main metal whole and each by-product at its share times the machine's figure.
+- **Not carried**: the concentrators' `oreWhole` mark (#765) does not survive the crucible, so the
+  final step's whole restore of the main metal is lost on these ores; the by-product still comes out at
+  the parting machine's figure (the kettle's 100 %).
+- The hand stations (the cupel, the liquation pan) still take roasted concentrate.
+
+Tests: `tests/Ore/BullionTests.cs`, `tests/PackTests/OreProcessingScenarios.cs`
+(`By_product_ores_smelt_to_bullion`).
+
 ### Cupellation (`OreProcessing`)
 
 Galena's silver (#690) and the bone-ash cupel that parts it at the forge (#722, hand and tier 1),
@@ -6112,7 +6149,7 @@ use left, the state (`seraphhorizons:machine-state-*`) and the reservoir. A stag
 frame block's `handbook.extraSections`, under `seraphhorizons:{machine}-handbook-{build,work,water,tailings}-{title,text}`
 (the draw bench's pattern). The recipe browser shows each machine whose frame is in the game as a
 `construction` record built from its build file (`tools/recipe-export/RecipeSection.OreMachines.cs`):
-the frame, then each stage's materials, a wearing part's first set with its stage.
+the frame, then each stage's materials, a wearing part's first set with its stage, or, fitted by itself once the machine is built (the cupellation furnace's test), as a last stage named as the part.
 
 Settings (`OreMachinesSettings`): `MinSpeed`, `ReservoirLitres`, `WaterIntakeLitresPerSecond` and
 `Tailings` (per machine: `Form` gravel or sand, `LayersPerRock`); out-of-range values fall back with a
@@ -6213,7 +6250,105 @@ deriving `BEOreMachine`, its build file and its rig, and calls `OreMachinesSyste
   the build on a right-click (a batch machine's charge).
 - `OreMachineRenderer`: the rig's parts from `shapes/block/{machine}.json` with the frame block's textures,
   each drawn when `ShowsPart` (its stage fitted), posed by θ (the power cell's shaft about the power face's
-  axis) and ψ.
+  axis) and ψ. A machine may draw its parts in textures of its own (`PartTextures`); the meshes are built
+  again when its `TextureKey` changes (the stall roaster's brick type).
+- **Fire** (`OreMachineFire`, #925): a machine that burns (`Ignitable`, the stall roaster) is lit as the forge
+  is, a firestarter or a torch held 1.5 s on any of its cells (the frame block and the cells are `IIgnitable`);
+  it says why not (`CannotIgnite`) and lights (`Ignite`), and a torch is lit from it while it `Burning`.
+- A build material with `oneType` takes any of its codes, but all of one (the stall roaster's brickwork, one
+  fired brick type; another is `OtherKind`). `AssemblyDrops` is virtual, for what a machine keeps beyond its
+  stages (the stall's loose brick and cap).
+
+### Ore processing: the stall roaster (`StallRoaster`, `StallRoasterSettings`)
+
+The ore line's roaster for lump ore (#925; model and build stages in `StallRoaster/README.md`): one roasting
+stall, a three-sided brick bay open at the front with a flue at the back to a chimney, on the shared game code
+above. **Batch, by hand, no power, no water, no chute.** A sulfide's raw or crushed rock in; stall-roasted rock out,
+one for one, which smelts at its grade's share × **92 %** (the firepit's roasted rock at 85 %); and a third of the
+charge's sulfur as sulfur powder. It needs `OreProcessing`; off, or with its switch off, its frame and recipe do not
+exist.
+
+- **Build.** The iron frame (grid: 2 iron plates, 2 iron rods, 6 iron nails and strips, a hammer), then two stages
+  by right-click (`config/builds/stallroaster.json`): the brickwork, 7 fired bricks **all of one type** (any of the
+  game's nine; the first sets the stall's brick type, drawn in its texture: the crucible furnace's `bricks`), then
+  the lining, 9 tier-3 refractory bricks and 4 fire clay. No part wears.
+- **A charge.** Through the open front: a bed of `BedFirewood` (4) firewood, then up to `machines.stallroaster.charge`
+  (32) raw or crushed sulfide rock on it, any ores and grades, a stack a click (ground ore and concentrate are not
+  taken: concentrate is the reverberatory's). Lit with a firestarter or a torch through a front not walled up, the
+  bed burns away kindling the heap, which burns on its own sulfur for `chargeHours` (40) in-game hours at full
+  draught.
+- **The draught.** None without a working chimney on its row, counted as the crucible furnace's (the rig's
+  `minChimney` 6 shaft blocks from the outlet up and one chimney top; up to `rowMax` 6 stalls side by side along
+  their width, every other outlet capped with an iron plate: right-click with the plate, an empty hand on the
+  outlet's top takes it off). On a drawing row, the front sets it: walled up 1, half walled `HalfWalledDraught`
+  (0.5), open `OpenDraught` (0: the air goes over the heap). The front is walled with the stall's own brick, 9 for
+  half and 9 more for walled up, kept by the stall once given (sneak and right-click with an empty hand takes a place
+  down; walling it again takes none); it drops when the stall is broken.
+- **Out.** Burnt through, every rock becomes `seraphhorizons:stallroastedore-{ore}-{grade}` (its own item, 16 a
+  stack, the raw ore's units, `OreRecovery.SmeltShare(ore, RoastedRock, grade, Roaster.Stall)`), and the charge's
+  sulfur, each rock's units × its ore's `sulfur` a unit (from its formula: galena 0.155, chalcopyrite 1.01, pyrite
+  1.15) × the stall's `machines.stallroaster.sulfur` (⅓, `OreRecovery.SulfurUnits`), is whole `game:powder-sulfur` of
+  `sulfurUnitsPerPowder` (5) in the heap's crust, the rest carried to the stall's next burn. An empty hand takes the
+  sulfur first, then, through the open front, rakes the rock out a course (8) a click.
+- **Native sulfur** (#938: the stall melts native sulfur rock at ½) is not here yet: it waits on #938 making
+  `game:ore-sulfur` a rock form with its units.
+- **Recipe browser.** A `stallroasting` record per sulfide rock kind (`RecipeSection.StallRoaster.cs`), the
+  stall-roasted rock and the sulfur a rock as outputs, and its build's `construction` record. It draws no power.
+
+Code: `StallRoaster/Core/StallRoasting.cs` (its rules and settings), `StallRoasterRig.cs` (what gameplay reads of
+the rig), `StallRoaster/Game/BEStallRoaster.cs` and `StallRoasterSystem.cs`; tests
+`tests/StallRoaster/StallRoasterTests.cs`; Atlas `tests/PackTests/StallRoasterScenarios.cs` and
+`RecipeExportStallRoasterScenarios.cs`.
+
+### Ore processing: the cupellation furnace (`CupellationFurnace`, `CupellationFurnaceSettings`)
+
+The parting works' furnace for silver (#740; the model, its build stages and the blast inlet in
+`CupellationFurnace/README.md`, #741): an English test furnace, on the shared ore machine code ("Ore machines: the
+shared game half") and the crucible furnace's row and chimney rule. It needs `OreProcessing`; off, or with its switch
+off, its frame and recipe do not exist. Batch, charged and emptied by hand through its working door: no power, no
+water, no chute. Its feed is **base bullion** ("Ore processing: base bullion"), what smelting a by-product ore gives.
+
+- **Build.** The iron frame (grid: 3 iron plates, 4 iron rods, 12 iron nails and strips, a hammer; placed, the working
+  face, with the litharge bay, the fire door and the ash mouth, faces the player), then three stages by right-click
+  from `config/builds/cupellationfurnace.json`: the brickwork (17 fired bricks, all of one type), the lining (12 tier 3
+  refractory bricks, 5 fire clay) and the fittings (3 iron plates and a copper plate: the fire door, the gutter, the
+  litharge pot, the test's ring, the blast stub, the damper). Then the **test**, its wearing part (the owner's ruling
+  of 2026-10-14): 48 bone meal beaten into the ring by right-click, spent after 15 charges (about 3,000 units of lead)
+  and relined for the same; without it the furnace takes no charge. A test with use left comes back as its bone meal
+  when the furnace is broken.
+- **Fire.** Coal (bituminous or anthracite), coke or charcoal by hand at the fire door (slot 0), lit with a firestarter
+  or a torch (the shared ore machine fire); it burns `CoalPerHour` (0.7, the owner's ruling) an in-game hour with the
+  ash-pit damper open, half as fast half shut, and `BankedBurn` (a quarter) shut or without a draught. With no fuel
+  left it goes out. Sneak and right-click with an empty hand works the damper (open, half, shut).
+- **Chimney.** The crucible furnace's row rule (`FurnaceRow`): a chimney of at least 6 blocks with a top on the outlet
+  over the stack, up to 5 furnaces side by side along x sharing it, every other outlet capped with an iron plate
+  (right-click with one; an empty hand on the outlet's top takes it back). Without a draught nothing is worked.
+- **Blast.** Steelmaking Expanded's engine air blower on a ppex steam engine puts air into the pipe network; a pipe
+  laid to the stub in the back wall (the rig's `blastCell`/`blastFace`, a fixed connector as smex's converter intake)
+  feeds the tuyere. While the furnace holds a charge it can work and its fire burns, it draws the rig's `blastRate`
+  (10 L/s) of `Air` at `blastPressure` (1.5 atm) or more (`Machines/Game/PpexGas.cs`, ExpandedLib's
+  `PipeNetwork.TryConsumeGas` found by name as the machines' water is; a small general extension any machine can use).
+  The pace is the air's share of that (at most 1) times the damper's draught (open 1, half `DamperHalfDraught` 0.5,
+  shut 0): the owner's ruling, pace × min(1, air ÷ 10).
+- **Charge.** Up to `ChargeUnits` (200, the bone-ash cupel's limit) of bars, 100 units each, in the dish (slots 1 to 4):
+  silver-lead (galena, argentiferous galena), argentiferous copper (tetrahedrite) and cupriferous silver
+  (freibergite), each of the last two with `LeadPerOtherUnit` (1) lead ingot to a bar, and the Parkes kettle's rich
+  lead (`Bullion.TakenBy` at `PartingStation.CupellationFurnace`). Tin-lead and doré are refused. A charge not yet
+  begun can be taken back with an empty hand.
+- **Work.** At ore processing's rate (`machines.cupellationfurnace.perHour`, 55 units of lead an hour; a full charge
+  of two bars in about 3.6 hours), the lead burns to litharge (5 units an item) into the pot (slots 5 and 6, two
+  charges' worth; full, nothing is worked), and each bar's by-product comes out at the furnace's 95 %
+  (`OreRecovery.Smelted` at `PartingStation.CupellationFurnace`), rich lead's silver whole: silver on the test as the
+  cake, copper beside it, as metal bits, a fraction one more item at that chance (`Cupellation.Whole`). The cake is
+  taken out first (empty hand), then the litharge; the next charge waits for the cake.
+- **Recipe browser.** A `cupellationfurnace` record per bar (`RecipeSection.CupellationFurnace.cs`,
+  `Recipes/CupellationFurnaceExport.cs`) and its build's `construction` record. No shaft power, so not on the power
+  page.
+
+Code: `CupellationFurnace/Core/Cupelling.cs` (what it takes, gives and burns, the settings; tests
+`tests/CupellationFurnace/CupellationFurnaceTests.cs`), `Core/CupellationFurnaceRig.cs`,
+`Game/BECupellationFurnace.cs` and `CupellationFurnaceSystem.cs`; Atlas `tests/PackTests/CupellationFurnaceScenarios.cs`
+(the blast given, the pack's world having no blower to hand) and `RecipeExportCupellationFurnaceScenarios.cs`.
 
 ### Stamp battery (`StampBattery`)
 
