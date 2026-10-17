@@ -1040,6 +1040,8 @@
   "amalgampan-info-next": "Next part: {0}",
   "amalgampan-info-stage-muller": "muller (an iron, meteoric iron or steel rod)",
   "amalgampan-info-stage-shoes": "shoes (an iron or steel plate)",
+  "amalgampan-stage-muller": "The muller",
+  "amalgampan-stage-shoes": "The shoes",
   "amalgampan-info-mercury": "Mercury: {0} of {1} portions",
   "amalgampan-info-worked": "Worked: {0} amalgam and the quartz to take out with an empty hand",
   "amalgampan-info-empty": "No charge: put in up to {0} crushed gold or silver quartz",
