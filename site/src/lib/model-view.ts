@@ -96,6 +96,10 @@ const TEXTURE_FAMILIES: [RegExp, string][] = [
   [/boneash|crushed\/lime\b/, "#eeece4"],
   [/coal\/ember/, "#e2622a"],
   [/coal\/(bituminous|coke|charcoal)/, "#34302e"],
+  // The Parkes kettle's crust (zinc, silver and lead skimmed off the bath) and its zinc, both drawn with the zinc
+  // ingot's texture, apart from the lead bath's metal grey. The crust first: its texture path names zinc too.
+  [/\bcrust\b/, "#a8946c"],
+  [/zinc/, "#c2d0d8"],
   [/metal|iron|steel|copper|bronze|tin|plate|ingot|gold|silver/, "#8e98a4"],
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],
   [/stone|rock|granite|andesite|cobble|brick|clay/, "#9a9a92"],
