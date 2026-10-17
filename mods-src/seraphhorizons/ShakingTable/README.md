@@ -72,13 +72,14 @@ upper side's posts, rail and straps. The rest:
 is one `requires` group, fitted in order, and the machine doesn't run until it is complete. The generator's
 `BUILD_STAGES` is this list, written into the rig as `buildStages`; its checked states (`STATES`) are the frame
 and each stage on the ones before it, named for the stage. Materials are the settled figures (one rate: 128 vox
-of iron or steel an ingot, a plate 2 ingots; rods counted, then plates, then nails and strips; boards in planks at 128 vox, timbers in support beams at 256).
+of iron or steel an ingot, a plate 2 ingots; rods counted, then plates, then nails and strips; boards in planks at 128 vox, timbers in support beams at 256;
+plus 1 iron nails and strips per 4 planks' worth of timber (a support beam 2), for the fastenings).
 
 | # | Stage | `requires` | Why here | Materials |
 |---|---|---|---|---|
-| F | Frame (placed) | — | The ground | 1 iron nails and strips, 9 plank |
-| 1 | Deck | `deck` | The joists rest on the frame's slide plates | 1 iron nails and strips, 10 plank |
-| 2 | Rectifier | `rectifier` | The case stands on the frame's bed sills; the axle's cross enters its west boss | 3 `seraphhorizons:gear-stainless` (the closed rectifier's gears, not drawn), 2 iron plate, 1 plank |
+| F | Frame (placed) | — | The ground | 4 iron nails and strips, 9 plank |
+| 1 | Deck | `deck` | The joists rest on the frame's slide plates | 4 iron nails and strips, 10 plank |
+| 2 | Rectifier | `rectifier` | The case stands on the frame's bed sills; the axle's cross enters its west boss | 3 `seraphhorizons:gear-stainless` (the closed rectifier's gears, not drawn), 2 iron plate, 1 iron nails and strips, 1 plank |
 | 3 | Differential head | `head` | The head shaft's first bearing is the rectifier's east boss, and its pull rod pins into the deck's bracket, so both are in already | 1 `seraphhorizons:spring-steel` (the return spring), 2 iron plate, 5 iron nails and strips, 2 steel rod |
 | 4 | Services | `chutes`, `pipecopper` / `pipelead` | Last, as on every machine: the four chute sections and the water line (copper or lead, a choice) | 4 chute section, 1 `seraphhorizons:pipesection-{copper,lead}` |
 
