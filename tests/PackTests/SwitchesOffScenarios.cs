@@ -209,6 +209,27 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
     }
 
+    /// <summary><c>AcidParting</c>: its frame, its recipe and the pack's aqua fortis recipe are not in the game, nor its
+    /// parting in the export, and nothing is logged about it.</summary>
+    [AtlasScenario]
+    public void Acid_parting_off_the_vessel_is_not_in_the_game()
+    {
+        Assert.True(Off("AcidParting"));
+        Assert.False(SeraphHorizons.Mod.AcidParting.AcidPartingSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } code && code.Path.StartsWith("acidparting"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path.StartsWith("acidparting") == true);
+        Assert.DoesNotContain(World.Api.ModLoader.GetModSystem<Vintagestory.GameContent.RecipeRegistrySystem>().CookingRecipes,
+            r => r.Code == "aquafortis");
+        var logged = World.BootDiagnostics
+            .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
+            .Where(e => e.Message.Contains("acidparting", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("acid parting", StringComparison.OrdinalIgnoreCase)
+                        || e.Message.Contains("aquafortis", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>BuckingSawmill</c>: its blocks and its recipe are not in the game, and nothing is
     /// logged about them.</summary>
     [AtlasScenario]
