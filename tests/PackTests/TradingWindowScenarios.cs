@@ -525,7 +525,7 @@ public partial class TradingScenarios
     public async Task Every_pack_trader_talks_with_the_standing_option_and_the_reply_carries_the_numbers()
     {
         // Every pack trader's dialogue, BetterRuins' quest dialogues for the curio dealer and the
-        // farmer included, has the option (on the standing variable) and its answer.
+        // farmer and the treasure hunter's included, has the option (on the standing variable) and its answer.
         var paths = new Dictionary<string, string>();
         foreach (var type in W.EntityTypes.Where(t => t.Code.Domain == "seraphhorizons" && (t.Code.Path.StartsWith("trader-") || t.Code.Path.StartsWith("visitor-"))))
         {
@@ -534,7 +534,9 @@ public partial class TradingScenarios
             Assert.False(string.IsNullOrEmpty(path), $"{type.Code} has no dialogue");
             paths[type.Code.ToString()] = path!;
         }
-        Assert.Equal(78, paths.Count);
+        Assert.Equal(84, paths.Count);
+        // The treasure hunter talks with the game's treasure hunter dialogue, its quests and all.
+        Assert.Equal("seraphhorizons:config/dialogue/treasurehunter", paths["seraphhorizons:trader-female-treasurehunter-desert"]);
         Assert.Equal("betterruins:config/dialogue/luxuries", paths["seraphhorizons:trader-male-curiodealer-temperate"]);
         Assert.Equal("betterruins:config/dialogue/agriculture", paths["seraphhorizons:trader-female-farmer-cold"]);
         Assert.Equal("seraphhorizons:config/dialogue/trader", paths["seraphhorizons:trader-male-smith-cold"]);
