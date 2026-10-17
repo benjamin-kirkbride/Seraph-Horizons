@@ -49,6 +49,8 @@
     <!-- Rarer battle towers (#519): the shipped rates, so the tests check that they parse. -->
     <None Include="../assets/seraphhorizons/config/battletowers-rates.json" Link="battletowers-rates.json" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="../Ore/Core/**/*.cs" Link="Ore/Core/%(RecursiveDir)%(Filename)%(Extension)" />
+    <!-- The arrastra's batch (#732): loading, watering, grinding by turns, drawing. -->
+    <Compile Include="../Arrastra/Core/**/*.cs" Link="Arrastra/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- Ore processing's recovery figures (#685), so the tests check the design's worked examples on them. -->
     <None Include="../assets/seraphhorizons/config/ore-processing.json" Link="ore-processing.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- Ore processing's item types (#686), so the tests check their ore lists against the figures. -->
