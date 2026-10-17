@@ -15,7 +15,7 @@ namespace SeraphHorizons.PackTests;
 // (start, a step each tick, stop), as the game makes them, so the scenarios show it rocking and pouring
 // only while held; an item takes four seconds, so they finish the charge through BERocker.Rock, as the
 // press brake's finish a plate through Fold. Every scenario builds on a granite floor of its own 40 above
-// spawn at x -580 to -620, z -600, and they share the gear cutter's player, gearcutterhand.
+// spawn at x -580 to -620, z -860 (clear of the eidolon body's at z -600), and they share the gear cutter's player, gearcutterhand.
 public partial class SharedWorldScenarios
 {
     private RockerSystem RockerMod => RockerSystem.Of(World.Api);
@@ -91,7 +91,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Rocker_stands_on_solid_ground_and_takes_no_automated_transfer()
     {
-        var pos = await CutterSite(-580, -600);
+        var pos = await CutterSite(-580, -860);
         var player = await CutterPlayer();
         var block = W.GetBlock(BlockRocker.ItemCode);
         string failure = "";
@@ -117,7 +117,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Rocker_washes_crushed_ore_into_concentrate_while_rocked_with_water()
     {
-        var pos = await CutterSite(-592, -600);
+        var pos = await CutterSite(-592, -860);
         var player = await CutterPlayer();
         var rocker = await PlaceRocker(pos);
         const string Crushed = "seraphhorizons:crushedore-magnetite-medium";
@@ -165,7 +165,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Rocker_gives_riddled_ore_the_full_figure_and_returns_an_untouched_charge()
     {
-        var pos = await CutterSite(-604, -600);
+        var pos = await CutterSite(-604, -860);
         var player = await CutterPlayer();
         var rocker = await PlaceRocker(pos, "east");
         var riddled = CutterItem("seraphhorizons:crushedore-magnetite-medium", 2);
@@ -189,7 +189,7 @@ public partial class SharedWorldScenarios
     [AtlasScenario(TimeoutMs = 120_000)]
     public async Task Rocker_washes_rich_gravel_into_the_pans_metals()
     {
-        var pos = await CutterSite(-616, -600);
+        var pos = await CutterSite(-616, -860);
         var player = await CutterPlayer();
         var rocker = await PlaceRocker(pos);
         var drops = RockerSystem.PlacerDrops(W, "game:richgravel-granite");
