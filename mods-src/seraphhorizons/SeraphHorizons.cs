@@ -699,6 +699,13 @@ public class SeraphHorizonsConfig
     /// items). Off, it stacks as the game ships it.</summary>
     public bool RustyGearStack { get; set; } = true;
 
+    /// <summary>The game's clutter (and the other blocks drawn from their attributes: banners, the
+    /// Jonas lamp, the clutter bookshelves, the elevator rail) is placed one at a time as the game
+    /// ships it, not piled: More Piles' catch-all cube pile matches them only because their type
+    /// files name a placeholder cube (both sides; a client follows the server's switch). Off, they
+    /// pile as More Piles gives them.</summary>
+    public bool NoClutterPiles { get; set; } = true;
+
     /// <summary>Traders: lone trader camps on a seeded 2 km grid, one per cell, of the pack's eleven
     /// trader types (Trading/), in place of the game's and other mods' randomly placed camps. New
     /// worlds only: a world takes the grid at its first start with this mod if this is on then, and
