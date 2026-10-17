@@ -215,9 +215,14 @@ for (const colorScheme of SCHEMES) {
       // Iron rod is used in grid recipes with stack amounts, tools and items without icons.
       await openItem(page, "game:rod-iron");
       const used = page.locator('[data-group="usedIn"]');
+      // Every card paused first: a cycling slot can be caught mid-fade, its badge, mark or letters half drawn.
+      const playing = used.locator('[data-pause][aria-pressed="false"]');
+      for (let n = await playing.count(); n > 0; n--) await playing.first().click();
+      await expect(playing).toHaveCount(0);
       await expectReadable(used.locator(".frame .amount").first(), "an amount badge");
       await expectReadable(used.locator(".frame .toolmark").first(), "a tool mark");
-      await expectReadable(used.locator(".frame [data-icon-placeholder]").first(), "a slot's placeholder letters");
+      // A slot with no amount badge: a long badge, a fractional output's "×7.34", covers the letters' box.
+      await expectReadable(used.locator(".frame:not(:has(.amount)) [data-icon-placeholder]").first(), "a slot's placeholder letters");
       // Placeholders outside slots: the item page header and item links.
       await openItem(page, "game:stick");
       await expectReadable(page.locator('header [data-icon-placeholder="game:stick"]'), "the header placeholder");
