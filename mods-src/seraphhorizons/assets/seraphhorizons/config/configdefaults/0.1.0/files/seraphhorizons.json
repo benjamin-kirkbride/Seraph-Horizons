@@ -465,5 +465,36 @@
   "SpringsSettings": {
     "NormalLitresPerSecond": 4.0,
     "RapidLitresPerSecond": 10.0
+  },
+  "OreMachinesSettings": {
+    "MinSpeed": 0.05,
+    "ReservoirLitres": 20.0,
+    "WaterIntakeLitresPerSecond": 10.0,
+    "Tailings": {
+      "sluice": {
+        "Form": "gravel",
+        "LayersPerRock": 1.0
+      },
+      "jig": {
+        "Form": "gravel",
+        "LayersPerRock": 1.0
+      },
+      "shakingtable": {
+        "Form": "sand",
+        "LayersPerRock": 0.75
+      },
+      "vanner": {
+        "Form": "sand",
+        "LayersPerRock": 0.5
+      },
+      "amalgamationplates": {
+        "Form": "sand",
+        "LayersPerRock": 1.0
+      },
+      "rocker": {
+        "Form": "gravel",
+        "LayersPerRock": 1.0
+      }
+    }
   }
 }

@@ -3,10 +3,11 @@ using HarmonyLib;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
-namespace SeraphHorizons.Mod.Rosser;
+namespace SeraphHorizons.Mod.Machines;
 
 /// <summary>
-/// Water for the rosser's drip from a Pipes and Power Expanded pipe on its water face, found by
+/// Water for a machine's reservoir (the rosser's drip, the ore machines' reservoirs, #711) from a
+/// Pipes and Power Expanded pipe on its water face, found by
 /// name (research §1). The pipes moved between namespaces from ppex 0.6.8 / exlib 0.7.2
 /// to ppex 0.7.1 / exlib 0.8.4 (pinned), with the same members, so both sets are tried, the newer first:
 /// <list type="bullet">
@@ -19,8 +20,9 @@ namespace SeraphHorizons.Mod.Rosser;
 /// <c>"Water"</c> is drawn) and <c>TryConsumeLiquid(float, IBlockAccessor)</c>, the litres taken
 /// (<c>IPipeNode.TryConsume</c> is gas only).</item>
 /// </list>
-/// Without the mods, or with members not as expected (one warning), the rosser runs dry: its
-/// bark roll uses the dry multiplier and there is no drip. Server side only: networks live there.
+/// Without the mods, or with members not as expected (one warning), every machine runs dry: the
+/// rosser's bark roll uses the dry multiplier and there is no drip, and a wet ore machine stops.
+/// Server side only: networks live there.
 /// </summary>
 public static class PpexWater
 {
@@ -41,7 +43,7 @@ public static class PpexWater
     private static PropertyInfo? _medium;
     private static MethodInfo? _consume;
 
-    /// <summary>Whether a pipe can feed the rosser on <paramref name="api"/>'s side (bound once per
+    /// <summary>Whether a pipe can feed a machine on <paramref name="api"/>'s side (bound once per
     /// API; logs one warning when the mods are there but not as expected).</summary>
     public static bool Bound(ICoreAPI api)
     {
@@ -72,7 +74,7 @@ public static class PpexWater
         }
         catch (Exception e)
         {
-            api.Logger.Warning("[seraphhorizons] Rosser: Pipes and Power Expanded's pipes could not be bound, so no pipe can water a rosser: {0}", e.Message);
+            api.Logger.Warning("[seraphhorizons] Machine water: Pipes and Power Expanded's pipes could not be bound, so no pipe can water a machine: {0}", e.Message);
             return false;
         }
     }
@@ -106,7 +108,7 @@ public static class PpexWater
             return true;
         }
         if (installed)
-            api.Logger.Warning("[seraphhorizons] Rosser: Pipes and Power Expanded's pipes are not as expected, so no pipe can water a rosser: {0}",
+            api.Logger.Warning("[seraphhorizons] Machine water: Pipes and Power Expanded's pipes are not as expected, so no pipe can water a machine: {0}",
                 string.Join("; ", problems));
         return false;
     }
@@ -137,7 +139,7 @@ public static class PpexWater
             lock (Lock)
             {
                 if (_bound)
-                    api.Logger.Warning("[seraphhorizons] Rosser: drawing water from Pipes and Power Expanded failed, so rossers run dry from now on: {0}",
+                    api.Logger.Warning("[seraphhorizons] Machine water: drawing water from Pipes and Power Expanded failed, so machines run dry from now on: {0}",
                         (e.InnerException ?? e).Message);
                 _bound = false;
             }
