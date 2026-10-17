@@ -5,6 +5,8 @@ using SeraphHorizons.Mod.Ore.Core;
 using SeraphHorizons.Mod.Ore.Processing;
 using SeraphHorizons.Mod.StampBattery;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
+using Vintagestory.API.Server;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
 using Vintagestory.GameContent.Mechanics;
@@ -65,6 +67,17 @@ public partial class SharedWorldScenarios
         var at = cell.AddCopy(face);
         World.SetBlock(face.Axis == EnumAxis.X ? "game:chute-straight-we" : "game:chute-straight-ns", at);
         return at;
+    }
+
+    /// <summary>Keeps the site's chunk columns loaded, so the battery runs on the virtual clock with no
+    /// player beside it (the shared player stays where the other scenarios count on it).</summary>
+    private void KeepBatteryLoaded(BlockPos origin, int reach = 5)
+    {
+        var sapi = (ICoreServerAPI)World.Api;
+        int size = GlobalConstants.ChunkSize;
+        for (int cx = (origin.X - reach) / size; cx <= (origin.X + reach) / size; cx++)
+            for (int cz = (origin.Z - reach) / size; cz <= (origin.Z + reach) / size; cz++)
+                sapi.WorldManager.LoadChunkColumnPriority(cx, cz, new ChunkLoadOptions { KeepLoaded = true });
     }
 
     private void ClearBattery(BlockPos origin, int reach = 4)
@@ -141,10 +154,8 @@ public partial class SharedWorldScenarios
     public async Task Stamp_battery_crushes_and_classifies_fed_by_hand_and_by_chute()
     {
         var origin = await CutterSite(640, 620, 4);
-        var hand = await CutterHand();
-        var player = hand.Player;
-        // a player beside it keeps its chunk loaded on the fast clock
-        await hand.TeleportTo(origin.AddCopy(2, 0, -3));
+        var player = await CutterPlayer();
+        KeepBatteryLoaded(origin);
         var battery = await PlaceBattery(origin);
         FillBattery(battery);
         battery.FillWater(battery.ReservoirCapacity);
@@ -203,9 +214,8 @@ public partial class SharedWorldScenarios
     public async Task Stamp_battery_stops_dry_and_with_its_shoes_worn_out()
     {
         var origin = await CutterSite(660, 620, 4);
-        var hand = await CutterHand();
-        var player = hand.Player;
-        await hand.TeleportTo(origin.AddCopy(2, 0, -3));
+        var player = await CutterPlayer();
+        KeepBatteryLoaded(origin);
         var battery = await PlaceBattery(origin);
         FillBattery(battery);
         BatteryOutputChute(battery);
