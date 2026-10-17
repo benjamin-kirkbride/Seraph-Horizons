@@ -43,7 +43,7 @@ internal sealed class DensityPick
     public static async Task<DensityPick> Join(IWorldSession world, string name, int reach)
     {
         var w = world.Api.World;
-        var player = (IServerPlayer)(await world.JoinAtSpawn(name)).Player;
+        var player = (IServerPlayer)(await world.JoinRetrying(name)).Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         var spawn = w.DefaultSpawnPosition.AsBlockPos;
         int size = GlobalConstants.ChunkSize, cx0 = spawn.X / size, cz0 = spawn.Z / size;

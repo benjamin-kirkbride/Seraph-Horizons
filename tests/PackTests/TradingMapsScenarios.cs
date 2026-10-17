@@ -63,7 +63,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     private async Task<IServerPlayer> Buyer(string name, EntitySeraphTrader trader, int gears = 64)
     {
-        var p = await World.JoinAtSpawn(name);
+        var p = await World.JoinRetrying(name);
         // Within vanilla's trading reach (a squared distance of 5 closes the trade).
         await p.TeleportTo(trader.Pos.AsBlockPos.AddCopy(1, 0, 0));
         await p.GiveItem("game:gear-rusty", Math.Min(64, gears));
@@ -324,7 +324,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         int before = surveys.Checked;
 
         // A player comes within 1.2 km of it: the camp's would-be offers are queued at the next scan.
-        var p = await World.JoinAtSpawn("surveyor");
+        var p = await World.JoinRetrying("surveyor");
         var sp = (IServerPlayer)p.Player;
         sp.WorldData.CurrentGameMode = EnumGameMode.Creative;
         sp.Entity.TeleportTo(site.X + 1200, 200, site.Z);
@@ -422,7 +422,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var store = await SpawnTrader("generalstore", 40, -36);
         // The shelf holds no camp lead: they are per buyer.
         Assert.DoesNotContain(Offers(store, MapOfferAttrs.Lead), s => s.Itemstack.Attributes.GetString(MapOfferAttrs.LeadKind) != "settlement");
-        var p = await World.JoinAtSpawn("leadbuyer");
+        var p = await World.JoinRetrying("leadbuyer");
         await p.TeleportTo(store.Pos.AsBlockPos.AddCopy(1, 0, 0));
         await p.GiveItem("game:gear-rusty", 64);
         var buyer = (IServerPlayer)p.Player;
@@ -867,7 +867,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task Meeting_a_camp_trader_marks_it_exactly_in_place_of_the_leads_marker()
     {
         var store = await SpawnTrader("generalstore", -40, 36);
-        var p = await World.JoinAtSpawn("meetbuyer");
+        var p = await World.JoinRetrying("meetbuyer");
         await p.TeleportTo(store.Pos.AsBlockPos.AddCopy(1, 0, 0));
         await p.GiveItem("game:gear-rusty", 64);
         var buyer = (IServerPlayer)p.Player;

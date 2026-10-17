@@ -37,7 +37,7 @@ public partial class SharedWorldScenarios
     {
         if (_cutterHand == null || !ReferenceEquals(_cutterWorld, World.Api))
         {
-            _cutterHand = await World.JoinPlayer("gearcutterhand");
+            _cutterHand = await World.JoinRetrying("gearcutterhand");
             _cutterWorld = World.Api;
         }
         var player = _cutterHand.Player;

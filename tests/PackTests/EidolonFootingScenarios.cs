@@ -61,7 +61,7 @@ public class EidolonFootingScenarios(ITestOutputHelper output) : AtlasScenarioBa
             for (int y = 0; y <= 8; y++)
                 W.BlockAccessor.SetBlock(0, origin.AddCopy(x, y, z));
         }
-        _watcher = await World.JoinPlayer(watcher);
+        _watcher = await World.JoinRetrying(watcher);
         ((IServerPlayer)_watcher.Player).WorldData.CurrentGameMode = EnumGameMode.Creative;
         await _watcher.TeleportTo(origin.AddCopy(-8, 0, -8));
         await World.Ticks(5);

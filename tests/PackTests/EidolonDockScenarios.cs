@@ -65,7 +65,7 @@ public class EidolonDockScenarios(ITestOutputHelper output) : AtlasScenarioBase
                 W.BlockAccessor.SetBlock(0, origin.AddCopy(x, y, z));
         }
         await World.Ticks(5);
-        var p = await World.JoinPlayer(who);
+        var p = await World.JoinRetrying(who);
         var player = (IServerPlayer)p.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         await p.TeleportTo(origin.AddCopy(-6, 0, -6));

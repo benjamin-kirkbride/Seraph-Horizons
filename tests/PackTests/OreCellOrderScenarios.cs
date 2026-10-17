@@ -84,7 +84,7 @@ public static class OreCellOrder
         var sapi = (ICoreServerAPI)world.Api;
         var placement = sapi.ModLoader.GetModSystem<OreSystem>().Placement ?? throw new Xunit.Sdk.XunitException("ore cells are not bound");
         Assert.NotNull(placement.Veins); // the switch is on in this world
-        await world.JoinAtSpawn("surveyor");
+        await world.JoinRetrying("surveyor");
         var spawn = sapi.World.DefaultSpawnPosition.AsBlockPos;
         var results = new Dictionary<string, Result>();
         foreach (var (metal, given) in cells)
@@ -287,7 +287,7 @@ public class OreCellOrderScenarios(ITestOutputHelper output) : AtlasScenarioBase
     {
         var sapi = (ICoreServerAPI)World.Api;
         var placement = sapi.ModLoader.GetModSystem<OreSystem>().Placement ?? throw new Xunit.Sdk.XunitException("ore cells are not bound");
-        await World.JoinAtSpawn("surveyor");
+        await World.JoinRetrying("surveyor");
         var spawn = sapi.World.DefaultSpawnPosition.AsBlockPos;
         foreach (var metal in new[] { "copper", "iron", "tin" })
         {

@@ -183,7 +183,7 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(new TraderGrid(Api.World.Seed, Trading.Lists.CampWeights).TypeOf(TraderGrid.CellOf(spawn.X, spawn.Z)),
             rows.Single(r => r.Cell == TraderGrid.CellOf(spawn.X, spawn.Z)).Type);
 
-        var admin = await World.JoinAtSpawn("campadmin");
+        var admin = await World.JoinRetrying("campadmin");
         Assert.True((await World.ExecuteCommand("/player campadmin role admin")).Ok);
         var bad = await admin.ExecuteCommand("/sh trade tp nowhere");
         Assert.False(bad.Ok);
@@ -300,7 +300,7 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var listing = await World.ExecuteCommand($"/sh trade camps 4000");
         Assert.True(listing.Ok, listing.Message);
         Assert.Contains(listing.Message!.Split('\n'), l => l.StartsWith(cellId + " ") && l.Contains("camp at"));
-        var admin = await World.JoinAtSpawn("camptraveller");
+        var admin = await World.JoinRetrying("camptraveller");
         Assert.True((await World.ExecuteCommand("/player camptraveller role admin")).Ok);
         var tp = await admin.ExecuteCommand($"/sh trade tp {cellId}");
         Assert.True(tp.Ok, tp.Message);

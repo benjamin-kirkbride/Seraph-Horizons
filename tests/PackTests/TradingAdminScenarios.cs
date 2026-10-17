@@ -66,7 +66,7 @@ public class TradingAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
 
     private async Task<Atlas.Api.ITestPlayer> Admin(string name)
     {
-        var player = await World.JoinAtSpawn(name);
+        var player = await World.JoinRetrying(name);
         Assert.True((await World.ExecuteCommand($"/player {name} role admin")).Ok);
         return player;
     }
@@ -145,7 +145,7 @@ public class TradingAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Contains("standing", trading.AdminState.Sections);
         Assert.Contains("deposits", trading.AdminState.Sections);
 
-        await World.JoinAtSpawn("roundtripper");
+        await World.JoinRetrying("roundtripper");
         string region = EconomySystem.RegionOf(trader);
         Economy.Supply.Set(region, "game:ingot-iron", 4.5);
         string traderId = standing.TraderIdOf(trader);
@@ -181,7 +181,7 @@ public class TradingAdminScenarios(ITestOutputHelper output) : AtlasScenarioBase
     public async Task Players_without_controlserver_are_refused_but_keep_company()
     {
         await Spawn("farmer", -8, -8);
-        var visitor = await World.JoinAtSpawn("tradevisitor");
+        var visitor = await World.JoinRetrying("tradevisitor");
         // A joined test player is admin by default (Atlas); a plain player has suplayer.
         visitor.Player.SetRole("suplayer");
         Assert.False(visitor.Player.HasPrivilege(Privilege.controlserver));
