@@ -5295,7 +5295,8 @@ Also with no switch, `OreSystem` puts the game's deposit depth noise scale back 
 (#1012): vanilla's `GenDeposits` builds that noise from the static
 `TerraGenConfig.depositVerticalDistortScale` (8 in a fresh process) and then sets it to 2 for good, so
 a world started after another in the same process (single player, opening a world without restarting
-the game) had its deposits at other depths, and other ore, than the same world started fresh.
+the game) had its deposits at other depths, and other ore, than the same world started fresh. It is
+reported upstream ([anegostudios/VintageStory-Issues#10157](https://github.com/anegostudios/VintageStory-Issues/issues/10157)).
 
 ### Placer fields, deposits and ore maps (`PlacerFields`, `PlacerCellSizeMetres`)
 
