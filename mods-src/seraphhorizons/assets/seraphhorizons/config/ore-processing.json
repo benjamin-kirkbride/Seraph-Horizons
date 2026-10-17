@@ -2,27 +2,37 @@
 // (Ore/Core/OreRecovery.cs; README.md "Ore processing"). All of them are starting values for
 // playtesting, not settled balance.
 //
-// Overall recovery is the product of the stage multipliers. Concentration is the concentrator's
-// base times the feed's factors and the ore's density, capped at 1; crushing and grinding never
-// lose metal. A fraction is of the ore's metal units (ore-graded.json's metalUnitsByType for raw
-// ore, which crushed and ground ore and roasted rock carry unchanged, one item to one, #847;
-// concentrate holds concentrateUnits), and output carries its fraction over from one item to the
-// next (UnitCarry.cs), so nothing is lost to rounding.
+// Recovery belongs to the machine that did the work (#765); there are no tiers. A fraction is of the
+// ore's metal units (raw ore's grade units, which crushed and ground ore and roasted rock carry
+// unchanged, one item to one, #847; concentrate holds concentrateUnits), and output carries its
+// fraction over from one item to the next (UnitCarry.cs), so nothing is lost to rounding.
 //
-// - concentrators: base recovery per device (hand: pan, rocker; tiers 1-4: sluice, jig, table,
-//   tableandvanner).
-// - unclassified: feed that skipped the riddle or classifier.
-// - fineUnground: fine-grained (poor) feed that was not ground.
-// - freeUnamalgamated: free gold and silver (an ore with "free": true) not amalgamated at the same
-//   tier: it floats past a gravity concentrator.
-// - roasters: sulfide concentrate roasted (hand and tier 1 firepit, tier 2 stall, tiers 3-4
-//   reverberatory). Unroasted sulfide concentrate does not smelt at all (#720).
-// - parting: a by-product's recovery per method and tier (hand, tier1..tier4); a tier left out has
-//   no station for it (acid parting starts at tier 2).
+// - handStations: the hand stations' figures. pan and rocker: concentration (the gold pan 45 %,
+//   the rocker 55 %), of the catchable units, × the ore's density; hand stations do not chain.
+//   amalgampan: the share of the catchable free gold or silver caught as amalgam, the rest on to
+//   the rocker amalgamated. firepit: its roast. cupel and liquationpan: their parting.
+// - unclassified, fineUnground, freeUnamalgamated: the locked shares, applied once, at the first
+//   concentrator: the share of the feed gravity can catch at all if it skipped classifying (the
+//   battery's or ball mill's screen, the riddle), if it is poor ore not ground (the arrastra, the
+//   ball mill), if it is free gold or silver not amalgamated (the plates, the amalgam pan). The
+//   rest leaves at the table as middlings, or with the last machine's tailings.
+// - machines: per machine. recovery: a concentrator's r (sluice, jig, table, vanner; each works on
+//   what the one before it missed, 1 - (1 - r1)(1 - r2)..., and nothing on its own kind's
+//   tailings), the plates' catch of free metal as amalgam, a roaster's or parting machine's share,
+//   1 for a machine that loses nothing. The last step of an ore's ideal route recovers all that is
+//   left (the code's FinalStep). load / emptyLoad: resistance working and empty (0.1 a period
+//   horsepower; the empty figure a fifth; constant once assembled, except the jaw breaker, the
+//   reverberatory and the Parkes kettle, whose load follows the job). water: litres an item from
+//   its own reservoir (a rock; a concentrate for the reverberatory; a unit of metal for the acid
+//   parting vessel). perHour: items an in-game hour at the reference speed 0.6 (57 shaft turns an
+//   hour), in proportion to shaft speed (rock; concentrate for the reverberatory; units for the
+//   parting machines). charge / chargeHours: a batch machine's charge (items; units for the Parkes
+//   kettle) and its hours at 0.6. zincReturn: the Parkes kettle's zinc back. Scale: 1 t/d of rock
+//   = 0.4 rock an hour, of concentrate 3.2 an hour, of metal 16 units an hour (#765).
 // - smeltByGrade: what share of its units rock gives in a furnace, by its grade (#847): raw, crushed
 //   and ground ore alike, since the furnace slags the rock off and loses metal with it. A sulfide's
-//   rock does not smelt until roasted; its roasted rock (the firepit's) smelts at this share times
-//   roasters.firepit. Those two rules are in the code, not here.
+//   rock does not smelt until roasted; its roasted rock smelts at this share times its roaster's
+//   (the firepit's or the stall roaster's). Those two rules are in the code, not here.
 // - smelt: what share of its units each form that is not rock gives in a furnace; a sulfide's
 //   concentrate only once roasted (in the code).
 // - ores: per ore (the ore part of its code). "class": oxide, sulfide, native, placer (default
@@ -50,15 +60,26 @@
 //   form gives; "portionsPerSecond" the pace (at most 10).
 {
   "concentrateUnits": 5,
-  "concentrators": { "pan": 0.45, "rocker": 0.55, "sluice": 0.65, "jig": 0.80, "table": 0.92, "tableandvanner": 0.99 },
+  "handStations": { "pan": 0.45, "rocker": 0.55, "amalgampan": 0.45, "firepit": 0.85, "cupel": 0.85, "liquationpan": 0.85 },
   "unclassified": 0.85,
   "fineUnground": 0.4,
   "freeUnamalgamated": 0.7,
-  "roasters": { "firepit": 0.85, "stall": 0.92, "reverberatory": 1.0 },
-  "parting": {
-    "cupellation": { "hand": 0.85, "tier1": 0.85, "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 },
-    "liquation":   { "hand": 0.85, "tier1": 0.85, "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 },
-    "acidparting": { "tier2": 0.95, "tier3": 0.95, "tier4": 1.0 }
+  "machines": {
+    "jawbreaker":         { "load": 0.8,  "emptyLoad": 0.16,  "perHour": 24 },
+    "stampbattery":       { "load": 0.75, "emptyLoad": 0.15,  "water": 40, "perHour": 6 },
+    "arrastra":           { "load": 0.1,  "emptyLoad": 0.02,  "water": 10, "charge": 2, "chargeHours": 7.5 },
+    "ballmill":           { "load": 1.1,  "emptyLoad": 0.22,  "water": 25, "perHour": 6 },
+    "amalgamationplates": { "recovery": 0.65, "water": 5, "perHour": 8 },
+    "sluice":             { "recovery": 0.55, "water": 10, "perHour": 16 },
+    "jig":                { "recovery": 0.60, "load": 0.1,  "emptyLoad": 0.02,  "water": 70, "perHour": 8 },
+    "table":              { "recovery": 0.70, "load": 0.1,  "emptyLoad": 0.02,  "water": 20, "perHour": 7 },
+    "vanner":             { "recovery": 0.80, "load": 0.08, "emptyLoad": 0.016, "water": 15, "perHour": 3 },
+    "stallroaster":       { "recovery": 0.92, "charge": 32, "chargeHours": 40 },
+    "reverberatory":      { "recovery": 1.0,  "load": 0.5,  "emptyLoad": 0.1,   "water": 2, "perHour": 76 },
+    "cupellationfurnace": { "recovery": 0.95, "perHour": 55 },
+    "parkeskettle":       { "recovery": 1.0,  "load": 0.2,  "emptyLoad": 0.04,  "charge": 2400, "chargeHours": 5, "zincReturn": 0.8 },
+    "liquationfurnace":   { "recovery": 0.95, "perHour": 100 },
+    "acidparting":        { "recovery": 0.95, "water": 0.1, "perHour": 10 }
   },
   "cupel": { "capacityUnits": 200, "leadPerOreUnit": 1, "meltingPoint": 950, "secondsPerIngot": 60 },
   "liquation": { "capacityUnits": 100, "tinPoint": 240, "leadPoint": 327, "secondsPerIngot": 15 },
