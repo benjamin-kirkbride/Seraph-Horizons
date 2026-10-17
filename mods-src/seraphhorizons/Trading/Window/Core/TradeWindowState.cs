@@ -29,8 +29,6 @@ public sealed class TierView
     [JsonPropertyName("n")] public int Number { get; set; } = 1;
     [JsonPropertyName("points")] public double Points { get; set; }
     [JsonPropertyName("unlocks")] public TierUnlocks Unlocks { get; set; } = new();
-    /// <summary>The best ore map precision the tier buys (<c>MapOffers.MaxPrecision</c> of its map tier).</summary>
-    [JsonPropertyName("precision")] public int MapPrecision { get; set; } = 1;
     /// <summary>Camp leads on offer at once (0: the stranger's one map per trader).</summary>
     [JsonPropertyName("leadMaps")] public int LeadMaps { get; set; }
     /// <summary>How far they reach from the trader's cell, in rings of grid cells.</summary>
