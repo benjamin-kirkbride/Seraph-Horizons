@@ -300,11 +300,20 @@ public class EntityTrunk : Entity, ISeatInstSupplier
     // the world's ElapsedMilliseconds; long.MinValue: never.
     private long _clientPositionAt = long.MinValue;
 
-    /// <summary>Whether the server has had the trunk's position from its driver's client within
-    /// <see cref="ClientPositionTimeoutMs"/> (counting from the mount), so that client ticks it.</summary>
-    public bool ClientPredicting =>
+    // Whether the server has had the trunk's position from its driver's client within
+    // ClientPositionTimeoutMs (counting from the mount). Read on the clock, live: it runs out between
+    // ticks, so the controller follows it on the trunk's next tick (UpdateController).
+    private bool ClientPositionFresh =>
         Api?.Side == EnumAppSide.Server && Driver is { Alive: true }
         && World.ElapsedMilliseconds - _clientPositionAt <= ClientPositionTimeoutMs;
+
+    /// <summary>Whether the driver's client ticks the trunk now, server side: the seatable's
+    /// <c>Controller</c> is the driver, which it is while their client has sent the trunk's position
+    /// within <see cref="ClientPositionTimeoutMs"/> (counting from the mount), up to the trunk's
+    /// next tick after that runs out. The controller itself, not the clock, so the two never
+    /// disagree between ticks (#1080).</summary>
+    public bool ClientPredicting =>
+        Api?.Side == EnumAppSide.Server && Driver is { Alive: true } driver && Seatable?.Controller == driver;
 
     /// <summary>The trunk physics' word that the driver's client sent its position: the client
     /// goes on ticking it (the seatable's <c>Controller</c>, at once). Server side.</summary>
@@ -328,7 +337,7 @@ public class EntityTrunk : Entity, ISeatInstSupplier
     {
         if (Seatable is not { } seatable)
             return;
-        Entity? want = Api.Side == EnumAppSide.Server ? (ClientPredicting ? Driver : null) : Driver;
+        Entity? want = Api.Side == EnumAppSide.Server ? (ClientPositionFresh ? Driver : null) : Driver;
         if (seatable.Controller != want)
             seatable.Controller = want;
         NoteLocalControl();
