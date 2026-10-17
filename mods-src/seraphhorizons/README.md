@@ -5676,7 +5676,7 @@ stone or a metal plate is left out. Code: `Ore/Core/Spalling.cs` (figures and ru
 Tests: `tests/Ore/SpallingTests.cs`; `tests/PackTests/OreProcessingScenarios.cs` (Atlas: the hammers
 and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, poor and
 bountiful ore in the same two blows each into one of its grade and crystallised ore into two, the next
-block, the export records) and `SwitchesOffScenarios` (off).
+block), `RecipeExportOreProcessingScenarios.cs` (the export records) and `SwitchesOffScenarios` (off).
 
 ### Ore processing: the rocker (`Rocker`, `RockerSettings`)
 
@@ -5854,8 +5854,9 @@ through the hidden-guides list). The recipe export has a record per sulfide (typ
 `tools/recipe-export/Recipes/OreRoastingExport.cs`, docs/recipe-browser/schema.md), its output the
 share (0.85 of a roasted item). Tests: `tests/Ore/OreRoastingTests.cs` (the share, runs of any split,
 the cook time); `tests/PackTests/OreProcessingScenarios.cs` (`Firepit_roasts_sulfide_concentrate`: the
-props, and 20 concentrate through a firepit's own `smeltItems` giving 17; `Roasting_is_exported`: the
-records and the guide in the export, with the switch on).
+props, and 20 concentrate through a firepit's own `smeltItems` giving 17) and
+`RecipeExportOreProcessingScenarios.cs` (`Roasting_is_exported`: the records and the guide in the export,
+with the switch on).
 
 ### Ore processing: retorting mercury in the still (`OreProcessing`)
 
@@ -5916,7 +5917,8 @@ charging nothing for the boiler and condenser (kind `oreretorting`, `toolFractio
 figures, whole stacks and fractions); `tests/PackTests/OreProcessingScenarios.cs`
 (`Still_retorts_cinnabar_and_amalgam`: EM's recipe off, amalgam to mercury and sponge step by step,
 taking it out part way, cinnabar, a bucket of water refusing it, and the game's own boiler tick running
-it; `Retorting_is_exported`: the records and the guide, with the switch on) and `SwitchesOffScenarios` (off).
+it), `RecipeExportOreProcessingScenarios.cs` (`Retorting_is_exported`: the records and the guide, with
+the switch on) and `SwitchesOffScenarios` (off).
 
 ### Cupellation (`OreProcessing`)
 
@@ -6040,7 +6042,8 @@ item values count liquation as a station (`tools/item-values/ore-processing.json
 `tests/Ore/LiquationTests.cs` (the ores, yields, overheating, refusals, the figures);
 `tests/PackTests/OreProcessingScenarios.cs` (Atlas: a full pan through a firepit's own tick in a wood
 fire and in a charcoal fire, the pan in crucibulum's forge with the gate shut, emptying and the residue,
-the clay forming and firing, the export) and `SwitchesOffScenarios` (off).
+the clay forming and firing), `RecipeExportOreProcessingScenarios.cs` (the export) and
+`SwitchesOffScenarios` (off).
 
 ### Ore machines: what they share (`OreMachinesSettings`)
 

@@ -424,7 +424,10 @@ block, and `OreCellOrderSeamAnchorFirst` / `FarFirst` do the same for seed 101's
 a `hematite` seam (IOG's multi-ore fault pocket) of 11,948 blocks. Their boulder indicators too,
 read back block by block: 194 blocks around the limonite vein and 444 around the seam, the same
 in both orders (the other veins' tracer paths left their start columns, or drew no boulder).
-`OreCellOrderScenarios` deletes
+The order classes join no player (one at the spawn would generate its view among the columns
+under test) and load on the virtual clock (`tests/PackTests/README.md`), each column waited for in
+wall time. A third check, `OreCellsScenarios.A_cell_vein_is_the_same_whatever_order_its_columns_generate_in`
+(in the same file, on `OreCellsScenarios`' world and boot, run last), deletes
 one anchor's area and generates it again in the other order, in one world.
 
 Worlds booted one after another in one process used to differ from the same world booted alone

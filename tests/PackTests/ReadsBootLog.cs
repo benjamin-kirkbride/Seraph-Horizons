@@ -13,8 +13,17 @@ namespace SeraphHorizons.PackTests;
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class ReadsBootLogAttribute : Attribute;
 
+/// <summary>
+/// A scenario that changes the shared world in a way the class's other scenarios must not see (it
+/// deletes and regenerates chunks, say), or that needs them to have run first. The class's
+/// <see cref="BootLogFirst"/> runs these after all the others.
+/// </summary>
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class RunsLastAttribute : Attribute;
+
 /// <summary>xunit's own order, with the <see cref="ReadsBootLogAttribute"/> scenarios moved to the
-/// front. For a shared class: <c>[TestCaseOrderer(BootLogFirst.Name, BootLogFirst.Assembly)]</c>.</summary>
+/// front and the <see cref="RunsLastAttribute"/> ones to the back. For a shared class:
+/// <c>[TestCaseOrderer(BootLogFirst.Name, BootLogFirst.Assembly)]</c>.</summary>
 public sealed class BootLogFirst(IMessageSink diagnostics) : ITestCaseOrderer
 {
     public const string Name = "SeraphHorizons.PackTests.BootLogFirst";
@@ -23,8 +32,10 @@ public sealed class BootLogFirst(IMessageSink diagnostics) : ITestCaseOrderer
     public IEnumerable<TTestCase> OrderTestCases<TTestCase>(IEnumerable<TTestCase> testCases) where TTestCase : ITestCase
     {
         var ordered = new DefaultTestCaseOrderer(diagnostics).OrderTestCases(testCases).ToList();
-        bool First(TTestCase test) =>
-            test.TestMethod.Method.GetCustomAttributes(typeof(ReadsBootLogAttribute).AssemblyQualifiedName).Any();
-        return ordered.Where(First).Concat(ordered.Where(test => !First(test)));
+        bool Has<T>(TTestCase test) =>
+            test.TestMethod.Method.GetCustomAttributes(typeof(T).AssemblyQualifiedName).Any();
+        return ordered.Where(Has<ReadsBootLogAttribute>)
+            .Concat(ordered.Where(test => !Has<ReadsBootLogAttribute>(test) && !Has<RunsLastAttribute>(test)))
+            .Concat(ordered.Where(test => !Has<ReadsBootLogAttribute>(test) && Has<RunsLastAttribute>(test)));
     }
 }
