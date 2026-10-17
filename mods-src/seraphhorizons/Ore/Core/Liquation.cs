@@ -27,22 +27,22 @@ public sealed record LiquationYield(string Metal, double Units, IReadOnlyList<Me
 }
 
 /// <summary>
-/// Liquation in a clay pan, in a firepit or crucibulum's forge (#724, hand and tier 1; README
+/// Liquation in a clay pan, in a firepit or crucibulum's forge (#724, a hand station; README
 /// "Liquation"). Tin melts at 232 °C and lead at 327 °C: heated gently, roasted teallite or franckeite
 /// concentrate sweats its tin out first and leaves its lead behind.
 /// <list type="bullet">
 /// <item>The charge is roasted concentrate of ores whose by-product liquation parts, all of one main
 /// metal (teallite and franckeite: tin), up to <see cref="LiquationSettings.CapacityUnits"/>.</item>
 /// <item>Held at the tin point, the tin runs off: all of it, and the lead stays in the pan at its share
-/// × 85 % (<see cref="OreRecovery.Smelted"/> at the hand tier: teallite 40 %, franckeite 30 %).</item>
+/// × 85 % (<see cref="OreRecovery.Smelted"/> by hand: teallite 40 %, franckeite 30 %).</item>
 /// <item>A charge over the lead point when it is done ran the lead with the tin: it gives the tin as
 /// smelting it unparted would (<see cref="OreRecovery.Smelted"/> with no parting), and no lead.</item>
 /// </list>
 /// </summary>
 public static class Liquation
 {
-    /// <summary>The tier the pan parts at (85 %, as tier 1).</summary>
-    public const OreTier Tier = OreTier.Hand;
+    /// <summary>Where the pan parts: by hand, at 85 % (<c>handStations</c>).</summary>
+    public const PartingStation Station = PartingStation.LiquationPan;
 
     /// <summary>Whether a pan takes an ore's roasted concentrate: a sulfide with a by-product liquation
     /// parts.</summary>
@@ -74,7 +74,7 @@ public static class Liquation
             if (c.Foreign || c.Ore is not { } ore || c.Units <= 0) continue;
             var spec = r.Ore(ore);
             main ??= spec.Metal;
-            foreach (var m in r.Smelted(spec, c.Units, overheated ? null : Tier))
+            foreach (var m in r.Smelted(spec, c.Units, overheated ? null : Station))
             {
                 if (m.Metal == spec.Metal) units += m.Units;
                 else residue[m.Metal] = residue.GetValueOrDefault(m.Metal) + m.Units;
