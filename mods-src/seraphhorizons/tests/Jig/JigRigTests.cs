@@ -6,10 +6,10 @@ namespace SeraphHorizons.Tests.Jig;
 
 /// <summary>
 /// The jig's shipped rig (written by Jig/tools/make_shape.py) read by the shared rig maths, which its
-/// renderer will use: every part parses with the machines' parser and the jig's <c>requires</c>
+/// renderer uses: every part parses with the machines' parser and the jig's <c>requires</c>
 /// vocabulary, there is no work, every service sits on a face of its own, and every reference pose (θ, the
-/// axle's angle) gives the matrices the Python reference maths wrote. There is no jig gameplay yet (#919);
-/// this holds the third implementation of the rig maths to the model before there is.
+/// axle's angle) gives the matrices the Python reference maths wrote. The gameplay (#919) is
+/// JigGameplayTests'.
 /// </summary>
 public class JigRigTests
 {
