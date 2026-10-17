@@ -20,7 +20,7 @@ namespace SeraphHorizons.PackTests;
 /// <summary>
 /// Trader maps (#455, <see cref="TradingMapsScenarioBase"/>): maps are on and the boot logs nothing
 /// about them; a general store offers a gravel map exactly when a field is in reach (naming its rock
-/// and metals once checked); standing changes the prices a trader quotes. Camp leads (per buyer, off
+/// and metals once checked); standing changes the prices a trader quotes but not an ore map's precision. Camp leads (per buyer, off
 /// the shelf, distance in rings of grid cells): a fresh player at a trader that is no prospector is
 /// offered their first map alone, 10 gears to a prospector, which generates the camp and marks it, and
 /// is that trader's one stranger map; at the prospector's camp they buy one onward in ring 1; a
@@ -337,7 +337,7 @@ public class TradingMapsScenarios(ITestOutputHelper output) : TradingMapsScenari
     }
 
     [AtlasScenario(TimeoutMs = 120_000)]
-    public async Task Standing_changes_the_prices_a_trader_quotes_and_the_maps_it_draws()
+    public async Task Standing_changes_the_prices_a_trader_quotes_but_not_its_maps_precision()
     {
         var trader = await SpawnTrader("prospector", -40, -40);
         var buyer = await Buyer("glueregular", trader);
@@ -351,6 +351,10 @@ public class TradingMapsScenarios(ITestOutputHelper output) : TradingMapsScenari
         var firstMap = Offers(trader, MapOfferAttrs.OreMap).FirstOrDefault();
         int strangerMap = firstMap?.TradeItem.Price ?? 0;
         string? strangerMapId = firstMap?.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit);
+        // Each ore map offer's precision was drawn as it was shelved (map-prices.json precisionWeights).
+        var precisions = Offers(trader, MapOfferAttrs.OreMap).ToDictionary(
+            o => o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit), o => o.Itemstack.Attributes.GetAsInt(MapOfferAttrs.Precision));
+        Assert.All(precisions.Values, p => Assert.InRange(p, MapPrecision.Rough, MapPrecision.Fine));
         Close(trader);
 
         Assert.True((await World.ExecuteCommand($"/sh trade standing set glueregular {id} 900")).Ok);
@@ -364,13 +368,15 @@ public class TradingMapsScenarios(ITestOutputHelper output) : TradingMapsScenari
         // 0.9 of a price under 10 may round back to it (8.4 and 7.56 are both 8 gears).
         if (stranger >= 10) Assert.True(trusted < stranger, $"{code}: {trusted} is not under {stranger}");
         else Assert.True(trusted <= stranger, $"{code}: {trusted} is over {stranger}");
-        // A trusted customer is shown (and sold) exact ore maps.
+        // Standing does not change an ore map's precision (buying one map once unlocked finer and
+        // dearer ones, and the cheap rough map was gone): every offer shelved before is as it was.
         foreach (var o in Offers(trader, MapOfferAttrs.OreMap))
-            Assert.Equal(MapPrecision.Fine, o.Itemstack.Attributes.GetAsInt(MapOfferAttrs.Precision));
-        // An exact map costs more than a rough one, standing's discount notwithstanding.
+            if (precisions.TryGetValue(o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit), out int before))
+                Assert.Equal(before, o.Itemstack.Attributes.GetAsInt(MapOfferAttrs.Precision));
+        // The same map costs no more for a trusted customer: only the discount applies.
         // (The same deposit's: checks landing meanwhile may put others on the shelf.)
         if (strangerMap > 0)
-            Assert.True(Offers(trader, MapOfferAttrs.OreMap).First(o => o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit) == strangerMapId).TradeItem.Price > strangerMap);
+            Assert.True(Offers(trader, MapOfferAttrs.OreMap).First(o => o.Itemstack.Attributes.GetString(MapOfferAttrs.Deposit) == strangerMapId).TradeItem.Price <= strangerMap);
         // Someone else at the trader: the stranger's prices again.
         Close(trader);
         Assert.Equal(stranger, trader.Inventory.SellingSlots.First(s => s.Itemstack?.Collectible.Code.ToString() == code).TradeItem.Price);
