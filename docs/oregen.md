@@ -458,7 +458,15 @@ placer fields are bound in the world.
   up to the spot count); then the anchor's column and its eight neighbours are loaded (generated if
   need be: `LoadChunkColumnPriority` per column, which calls back at once for a loaded column and
   otherwise on the main thread once it is fully generated), and the metal's ore blocks in them are
-  counted. A block's worth is the sum over its drops of the average count times the dropped item's
+  counted. Every column a verify loads is loaded with `KeepLoaded`: with no player near (a trader's
+  survey, `DepositSurveys`, runs in the background) the server unloads a column again after about
+  10 s, and before #1002 the anchor column, which holds most of the ore, was often gone by the time
+  the nine were in and counted as none. A column still missing when it counts is loaded again (up to
+  three tries), then counted without, with a warning in the server log. Once measured (or the verify
+  ends any other way), the verify takes the columns it forced off the server's forced list, so they
+  unload as any other column does; a column the server already forced (an eidolon's) is left as it
+  was, and two verifies sharing a column hold it until both are done. Measurements recorded before
+  the fix are not redone. A block's worth is the sum over its drops of the average count times the dropped item's
   `metalUnits` (1.25 ore chunks plus 0.01 crystallised ore, as the survey reads them); 5 units make
   a nugget, 20 nuggets an ingot (`DepositSizing`). The tier is the bottom, middle or top third of the
   metal's `smallIngots`..`largeIngots`; below a tenth of `smallIngots` the deposit is worked out and
