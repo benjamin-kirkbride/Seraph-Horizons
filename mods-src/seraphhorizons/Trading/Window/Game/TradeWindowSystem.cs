@@ -300,7 +300,7 @@ public class TradeWindowSystem : ModSystem
                 Earn = system.Rules.Points,
                 Tiers = system.Rules.Tiers.Select((t, i) => new TierView
                 {
-                    Code = t.Code, Number = i + 1, Points = t.Points, Unlocks = t.Unlocks, MapPrecision = MapOffers.MaxPrecision(t.Unlocks.MapTier),
+                    Code = t.Code, Number = i + 1, Points = t.Points, Unlocks = t.Unlocks,
                     LeadMaps = maps is null || maps.Prices.CampLeads.IsStranger(t.Code) ? 0 : maps.Prices.CampLeads.TierFor(t.Code).Maps,
                     LeadReach = maps?.Prices.CampLeads.TierFor(t.Code).Reach ?? 0,
                 }).ToList(),
