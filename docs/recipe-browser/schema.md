@@ -392,6 +392,18 @@ rock an alternative; crushed ore of its grade, one for one). Its station is the 
 `perHour`, `load` and `emptyLoad` (its load follows the charge in its mouth, between the two). Its build is
 the shared ore machine `construction` record.
 
+**The stamp battery** (type `stampbattery`, shape `machine`, present with seraphhorizons' `OreProcessing` and
+`StampBattery` on): one record per kind of rock it takes, id `stampbattery|game:<ore|crystalizedore>-<grade>-<ore>-*|0`
+for raw and crystallised ore (every host rock an alternative in the one variant) and
+`stampbattery|seraphhorizons:crushedore-<ore>-<grade>|0` for crushed ore not yet classified. The ingredients are
+the rock (consumed), the water a rock takes from the battery's reservoir (`game:waterportion`, consumed, with
+its `litres`), a rock's share of a set of shoes (`game:poundercap-steel`, a set's count over the rocks a set
+lasts) and the machine (role `station`); the output is crushed ore of its grade, one for one (two from
+crystallised ore), classified, which the schema has no field for: `extra.classified` is true (the stack's
+`oreState`). `power` is `mechanical`, `turns` the shaft's a rock, and `work` one `rocks`. `requirements` says
+how it is fed and emptied; `extra` has the `ore`, `grade`, `form` (`raw`, `crystallised` or `crushed`),
+`shoesPerSet` and `rocksPerSet`.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).

@@ -149,6 +149,7 @@ public static partial class RecipeSection
         FillRocker(ctx, records, types);
         FillSpalling(ctx, records, types);
         FillJawBreaker(ctx, records, types);
+        FillStampBattery(ctx, records, types);
         FillEidolon(ctx, records, types);
         FillOreRoasting(ctx, records, types);
         FillOreRetorting(ctx, records, types);

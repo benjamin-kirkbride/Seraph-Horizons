@@ -389,6 +389,14 @@ is left out when its switch is off or what it names is not registered.
   `extra.workableTemperature`.
   The output is two pipe sections of the metal, and a metal whose pipe section is not registered
   (`UnifiedPipes` off) has no record. The `MandrelStation` switch leaves it out when off.
+- The stamp battery (`Recipes/StampBatteryExport.cs`, `RecipeSection.StampBattery.cs`, type
+  `stampbattery`, shape `machine`, #728): one record per kind of rock it takes, raw and crystallised ore by
+  `game:{ore|crystalizedore}-{grade}-{ore}-*` (every host rock in the variant) and crushed ore by its code.
+  The figures are the mod's own: `OreProcessingSystem.RecoveryFor(api).Machine(OreMachine.StampBattery)`
+  (by reflection) gives the shaft turns a rock (`TurnsPerItem`, `turns` and `work` `{amount: 1, unit:
+  "rocks"}`) and the water a rock (`WaterPerItem`, `game:waterportion` in litres); the build file
+  (`config/builds/stampbattery.json`, its wearing part `shoes`) a rock's share of a set of shoes. The output
+  is classified crushed ore (`extra.classified`). The `StampBattery` or `OreProcessing` switch off leaves it out.
 
 ## Casting in tool molds
 
