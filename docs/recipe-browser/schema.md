@@ -435,6 +435,19 @@ powder over to its next burn: the rock's units × the ore's sulfur a unit × the
 `sulfur` a rock and `carried` (true). It draws no power, so it is not on the power page. Its build is the shared ore
 machine `construction` record.
 
+**Acid parting vessel** (type `acidparting`, shape `generic`, present with seraphhorizons' `AcidParting` and
+`OreProcessing` on, #931): one record per bullion it parts, id `acidparting|<bullion>|0`: a bar of an ore's bullion
+whose by-product acid parting wins (gold quartz's dore, `seraphhorizons:bullion-quartz_nativegold-gold`, #740),
+consumed, the nitric acid a bar spends (`game:acid-full-nitric`, with its `litres`: a bar's acid × the spent share,
+`AcidPartingSettings`' `AcidLitresPerBar` × `AcidSpentShare`), and the vessel's frame `seraphhorizons:acidparting-north`
+as its station. Out, the bar's main metal whole as metal bits (`game:metalbit-gold`, 100 units a bar, 5 a bit: 20) and
+its by-product at the vessel's recovery (`game:metalbit-silver`, 100 × 0.15 × 0.95 / 5 = 2.85), a fraction, since the
+vessel carries what falls short of a whole bit to the next. `requirements` says in words what a charge needs;
+`extra` has the `ore`, the `share` (0.95), the `byProductShare` (0.15), the `hours` a bar (10), the `chargeBars` (2),
+the `acidLitres` and `waterLitres` a bar, the `copperUses` (silver units a copper plate in the tub throws down, the
+build file's wearing part) and `carried` (true). It draws no power, so it is not on the power page. Its build is the
+shared ore machine `construction` record.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).
