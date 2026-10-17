@@ -6,9 +6,14 @@ out at 232 °C and running off, the lead (327 °C) staying behind. It is the mac
 (`Ore/Processing/BlockLiquationPan*.cs`, "Liquation" in the mod README), and replaces it at 95 % against the pan's
 85 % (#929). Part of the ore processing epic #684; the line, the glossary and the sources are in #939.
 
-**Status: the model only.** This folder holds the generator and its checks (`tools/`). There is no block, block
-entity or renderer yet: the model and its rig are what those will be built against (#929), on the crucible furnace's
-pattern (`../CrucibleFurnace/`), whose conventions every furnace of the line follows.
+**Status: in the game** (#929). This folder's `tools/` holds the model's generator and its checks; `Core/` and `Game/`
+hold the furnace's gameplay, on the shared ore machine code (`Machines/`) and the crucible furnace's row and chimney
+rules (`../CrucibleFurnace/`): the mod README's "Ore processing: the liquation furnace" has the rules. Gameplay reads
+the rig's `outletCell`, `fireDoor`/`fireDoorSide`, `ash`/`ashSide`, `plateSide`, `furnace` (`fuelLayers`, `cakes`,
+`minChimney`, `rowMax`), `build.outletCap` and `bricks` (`Core/LiquationFurnaceRig.cs`), the stages' materials through
+`config/builds/liquationfurnace.json`, and draws every part by its `requires` (`Game/BELiquationFurnace.cs`'s
+`ShowsPart`) and the fire door at its depth. The charge is tin-lead bullion bars (the owner's ruling of 2026-10-13,
+settling item 3 of "Open for the owner" below), drawn as the cakes.
 
 Paths here are from this folder unless they start with `assets/` or `tests/`, which are the mod's
 (`mods-src/seraphhorizons/`), or `Machines/`, this folder's neighbour. The generic half of the generator is
