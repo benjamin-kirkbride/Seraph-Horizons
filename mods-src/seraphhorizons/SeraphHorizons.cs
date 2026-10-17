@@ -1185,4 +1185,14 @@ public class SeraphHorizonsConfig
     /// exist, sluices already placed are lost, and bog iron is as Geology Additions makes it). The
     /// server's setting decides.</summary>
     public bool Sluice { get; set; } = true;
+
+    /// <summary>The jig (Jig/, README "Jig"; #919): a Harz plunger jig, the second concentrator, built on
+    /// its frame (the hutch's sills and floor) in four stages (the timber, the sieve, the drive and plunger,
+    /// then its chutes and water inlet), worked by an axle (0.1 steady), that jigs crushed or ground ore (the
+    /// sluice's tailings among them), rich gravel and bog iron from a chute, 8 rock an in-game hour at shaft
+    /// speed 0.6 at 70 L of water a rock from a ppex pipe, catching 60 % of what can be caught: the
+    /// concentrate leaves by its own chute, the rock goes on by the tailings chute or is discarded beside it
+    /// as gravel. Needs OreProcessing (off means its frame and its recipe do not exist, and jigs already
+    /// placed are lost). The server's setting decides.</summary>
+    public bool Jig { get; set; } = true;
 }
