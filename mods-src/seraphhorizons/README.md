@@ -3537,7 +3537,10 @@ once when it stops working (another order, none, dry, slumped, down, a fight, un
 order's `Stop`; or walks off toward a part of the area not loaded, or to wait: `Travel`, `Wait`; and a
 sweep every second, `EidolonJobSystem.Sweep`, for an eidolon unloaded, removed or given another order),
 and a claim not struck within 30 seconds (`EidolonTeamwork.ReserveSeconds`) lapses (walking to it counts
-as striking it, however long the way). *The stair* (a pit's, *Stations* above): it is 2 wide, and two
+as striking it, however long the way, but waiting with it does not: a routed member stopped short of
+another or parting from one keeps its station through the wait). So it claims its station again before
+each strike, and lets the station go when another took any of it meanwhile, rather than strike in a column
+another holds (#1156). *The stair* (a pit's, *Stations* above): it is 2 wide, and two
 meeting on it push each other off, so one member at a time walks it (`MineJobCells.StairHolder`): a walk
 in the pit more than a climb up or down, from or to below its rim, takes it for its length, and another
 that needs it then waits off it (`eidolon-status-mine-waiting-stair`: standing on it, it steps aside first),
@@ -3549,7 +3552,9 @@ go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaim
 `EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). Down a pit with a stair and work left, one
 with nothing to take waits down there, a column clear of the stair and of what others hold, rather than
 climb the whole stair to the rim and back; a walk to where it waits that goes on over 10 seconds (stuck,
-or giving way for ever) is stopped and it looks again from where it got to. *The floors within a climb*: the open band (*Stations*, above)
+or giving way for ever) is stopped and it looks again from where it got to. The work under its feet waits
+for it to move, so with no member at work, one waiting over blocks still to dig steps aside onto ground with
+nothing left to dig; three once waited so for good, one standing on the last blocks (#1156). *The floors within a climb*: the open band (*Stations*, above)
 keeps every member within a layer of the highest with blocks left, so it walks from anywhere in the pit
 to anywhere else. *When none may work*: with blocks left and no member able to take a station, the plan
 is made again at once, once until a block is broken; with another still working or parked over the area,
