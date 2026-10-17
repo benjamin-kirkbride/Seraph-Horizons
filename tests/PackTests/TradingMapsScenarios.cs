@@ -717,7 +717,9 @@ public class TradingMapsScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Close(curio);
         Assert.True((await World.ExecuteCommand($"/sh trade standing set glueregular {Standing.TraderIdOf(curio)} 900")).Ok);
         Open(curio, buyer);
-        int dearTrusted = curio.Inventory.SellingSlots.First(s => s.Itemstack?.Collectible.Code.ToString() == dearCode).TradeItem.Price;
+        // The same slot: a shelf can hold one code at several prices (tapestries).
+        Assert.Equal(dearCode, dear.Itemstack?.Collectible.Code.ToString());
+        int dearTrusted = dear.TradeItem.Price;
         double dearFactorTrusted = DearFactor();
         var offerTrusted = economy.QuoteOffList(curio, copper);
         output.WriteLine($"{dearCode}: {dearStranger} -> {dearTrusted} (factor {dearFactorStranger} -> {dearFactorTrusted}); "
