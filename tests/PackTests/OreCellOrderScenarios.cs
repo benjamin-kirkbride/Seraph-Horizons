@@ -20,8 +20,8 @@ namespace SeraphHorizons.PackTests;
 /// <see cref="OreCellOrderFarFirst"/> from the far corner in, so the columns around the anchor
 /// are generated before it (as a walk towards it does). Whichever class finishes second compares
 /// the ore of each metal block for block; run alone, a class only records. A third check,
-/// <see cref="OreCellOrderScenarios"/>, deletes the area in one world and generates it again in
-/// the other order.
+/// <see cref="OreCellsScenarios.A_cell_vein_is_the_same_whatever_order_its_columns_generate_in"/>,
+/// deletes the area in one world and generates it again in the other order.
 /// </summary>
 public static class OreCellOrder
 {
@@ -36,12 +36,21 @@ public static class OreCellOrder
 
     public sealed record Result(ChunkPos Anchor, string Variant, Dictionary<(int X, int Y, int Z), int> Ore, int[] AnchorColumn);
 
+    // How long a column may take to generate (the bound was 3000 ticks of real time).
+    private static readonly TimeSpan LoadTimeout = TimeSpan.FromSeconds(100);
+
+    /// <summary>Loads (generating it first if new) one chunk column and waits for it. A column already
+    /// loaded answers within the call, so it costs no tick. Generation runs on the chunk thread in wall
+    /// time, which a virtual clock's passes outrun (tests/PackTests/README.md), so the wait is bounded
+    /// in wall time and works with a clock on or off.</summary>
     public static async Task Load(Atlas.Api.IWorldSession world, ChunkPos c)
     {
         var sapi = (ICoreServerAPI)world.Api;
         bool loaded = false;
         sapi.WorldManager.LoadChunkColumnPriority(c.X, c.Z, new ChunkLoadOptions { KeepLoaded = true, OnLoaded = () => loaded = true });
-        await world.Until(() => loaded, 3000);
+        var waited = System.Diagnostics.Stopwatch.StartNew();
+        while (!loaded && waited.Elapsed < LoadTimeout) await world.Ticks(1);
+        if (!loaded) throw new Xunit.Sdk.XunitException($"chunk column {c.X},{c.Z} did not load in {LoadTimeout.TotalSeconds} s");
     }
 
     public static List<ChunkPos> Around(ChunkPos anchor)
@@ -87,8 +96,12 @@ public static class OreCellOrder
         var sapi = (ICoreServerAPI)world.Api;
         var placement = sapi.ModLoader.GetModSystem<OreSystem>().Placement ?? throw new Xunit.Sdk.XunitException("ore cells are not bound");
         Assert.NotNull(placement.Veins); // the switch is on in this world
-        await world.JoinAtSpawn("surveyor");
+        // No player joins: one at the spawn would have the chunk thread generate its view around the
+        // spawn in its own order, among the columns loaded here in the order under test, and slow every
+        // load. Only these columns generate, one after another; on the virtual clock no pass sleeps,
+        // so each is taken up the moment the chunk thread hands it over.
         var spawn = sapi.World.DefaultSpawnPosition.AsBlockPos;
+        using var clock = VirtualClock.Start(world);
         var results = new Dictionary<string, Result>();
         foreach (var (metal, given) in cells)
         {
@@ -279,18 +292,21 @@ public class OreCellOrderSeamFarFirst(ITestOutputHelper output) : AtlasScenarioB
 }
 
 /// <summary>One world: an anchor's area generated anchor first, deleted, and generated again from
-/// the far corner in; the metal's ore must come out the same block for block.</summary>
-[AtlasWorld(Seed = OreCellOrder.Seed, WorldType = "standard")]
-public class OreCellOrderScenarios(ITestOutputHelper output) : AtlasScenarioBase
+/// the far corner in; the metal's ore must come out the same block for block. Its world is
+/// <see cref="OreCellsScenarios"/>' (the same seed and switches), so it runs on that class's boot, and
+/// last (<see cref="RunsLastAttribute"/>): it deletes and regenerates the area around the spawn cell's
+/// copper anchor, and <c>Generated_anchors_hold_their_deposit</c> needs the spawn cells unsettled.
+/// Settled there already, the cell is as this check's own settling would leave it (only its anchor's
+/// column loaded), so the check is the same.</summary>
+public partial class OreCellsScenarios
 {
     private const int Cleared = 9; // the reach and the halo its columns' generation pulls in
 
-    [AtlasScenario(TimeoutMs = 300_000)]
+    [AtlasScenario(TimeoutMs = 300_000), RunsLast]
     public async Task A_cell_vein_is_the_same_whatever_order_its_columns_generate_in()
     {
         var sapi = (ICoreServerAPI)World.Api;
         var placement = sapi.ModLoader.GetModSystem<OreSystem>().Placement ?? throw new Xunit.Sdk.XunitException("ore cells are not bound");
-        await World.JoinAtSpawn("surveyor");
         var spawn = sapi.World.DefaultSpawnPosition.AsBlockPos;
         foreach (var metal in new[] { "copper", "iron", "tin" })
         {
@@ -305,6 +321,10 @@ public class OreCellOrderScenarios(ITestOutputHelper output) : AtlasScenarioBase
             if (!settled.Placed) continue;
             var anchor = placement.SpotsOf(metal, cell)[settled.Active].Chunk;
             var around = OreCellOrder.Around(anchor);
+            // Loaded (and kept) as the settling above leaves it, also when an earlier scenario settled
+            // the cell and its column has been unloaded since: Clear deletes loaded columns only.
+            await OreCellOrder.Load(World, anchor);
+            using var clock = VirtualClock.Start(World);
 
             await Clear(sapi, anchor);
             foreach (var c in around.OrderBy(c => OreCellOrder.Ring(anchor, c))) await OreCellOrder.Load(World, c);
