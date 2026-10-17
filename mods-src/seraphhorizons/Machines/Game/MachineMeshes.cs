@@ -149,11 +149,15 @@ public static class MachineMeshes
 
     /// <summary>The game's ingot texture of <paramref name="metal"/> in the block atlas (inserted
     /// if it is not there yet), or null.</summary>
-    public static TextureAtlasPosition? MetalTexture(ICoreClientAPI capi, string? metal)
+    public static TextureAtlasPosition? MetalTexture(ICoreClientAPI capi, string? metal) =>
+        metal == null ? null : AtlasTexture(capi, new AssetLocation("game", "block/metal/ingot/" + metal));
+
+    /// <summary>The texture <paramref name="loc"/> (<c>game:block/stone/rock/granite1</c>) in the block
+    /// atlas (inserted if it is not there yet), or null when there is no such texture.</summary>
+    public static TextureAtlasPosition? AtlasTexture(ICoreClientAPI capi, AssetLocation? loc)
     {
-        if (metal == null)
+        if (loc == null)
             return null;
-        var loc = new AssetLocation("game", "block/metal/ingot/" + metal);
         var pos = capi.BlockTextureAtlas[loc];
         if (pos == null && capi.Assets.Exists(loc.Clone().WithPathPrefixOnce("textures/").WithPathAppendixOnce(".png")))
             capi.BlockTextureAtlas.GetOrInsertTexture(loc, out _, out pos);
