@@ -5,10 +5,10 @@
 
 Reads the game's assets/survival/entities/humanoid/trader-{male,female}.json and writes
 assets/seraphhorizons/entities/humanoid/trader-{male,female}.json: the same humanoid (shape,
-skins, outfits, voice, AI, revive on death) with the pack's eleven trader types in place of
-vanilla's nine, the pack's entity class, and every asset path the game resolves in the entity's
-own domain given the game's domain. Re-run it after a game update; the output is committed.
-Trading/Core/TraderTypes.cs holds the same eleven codes.
+skins, outfits, voice, AI, revive on death) with the pack's eleven trader types and its treasure
+hunter in place of vanilla's nine, the pack's entity class, and every asset path the game resolves
+in the entity's own domain given the game's domain. Re-run it after a game update; the output is committed.
+Trading/Core/TraderTypes.cs holds the same codes (the eleven camp types and the treasure hunter).
 
 It also writes visitor-{male,female}.json: the travelling merchants (#456, Trading/Visitors/),
 code `visitor`, class SeraphHorizons.VisitingTrader, the same humanoid with no revive, no fighting
@@ -21,6 +21,11 @@ component `seraphhorizons-standing`, whose text the mod writes per player (Tradi
 "Got anything to trade?" opens the trade window, the pack's own (the dialogue's `opentrade`).
 BetterRuins' two quest dialogues get the same option and component by
 patches/trading-betterruins-dialogue.json.
+
+The treasure hunter (`treasurehunter`, the story trader the game's becomes in grid worlds) talks
+with config/dialogue/treasurehunter.json instead: the game's treasure hunter dialogue with the same
+option and answer and nothing else changed, so its quests (the bronze pickaxe for the Resonance
+Archive's map, the Lazaret letter, the names, the elk) and their variables are the game's.
 """
 
 import json
@@ -32,6 +37,9 @@ from pathlib import Path
 TYPES = [
     "smith", "mechanic", "prospector", "farmer", "cook", "tailor",
     "carpenter", "mason", "animaldealer", "generalstore", "curiodealer",
+    # The story trader the game's treasure hunter becomes in grid worlds (Trading/Core/StoryTraders.cs):
+    # never placed by the grid, it talks with the game's treasure hunter dialogue (below).
+    "treasurehunter",
 ]
 # Vanilla dresses its luxuries trader in its own finer outfit set; the curio dealer wears it.
 FINE_OUTFITS = {"curiodealer": "luxuries"}
@@ -39,6 +47,9 @@ ENTITY_CLASS = "SeraphHorizons.Trader"
 
 # The pack's trader dialogue (the game's, with the standing option), and the option and its answer.
 DIALOGUE = "seraphhorizons:config/dialogue/trader"
+# The treasure hunter's: the game's treasure hunter dialogue, every quest component as the game's,
+# with the same option and answer. Its key goes first: the game takes the first key that matches.
+STORY_DIALOGUES = {"*-treasurehunter-*": "seraphhorizons:config/dialogue/treasurehunter"}
 STANDING_OPTION = {
     "value": "seraphhorizons:dialogue-trader-standing",
     "jumpTo": "seraphhorizons-standing",
@@ -61,7 +72,7 @@ VISITOR_DROPPED_TASKS = {"meleeattack", "seekentity", "fleeentity"}
 
 HERE = Path(__file__).resolve().parent
 OUT = HERE.parent.parent / "assets" / "seraphhorizons" / "entities" / "humanoid"
-DIALOGUE_OUT = HERE.parent.parent / "assets" / "seraphhorizons" / "config" / "dialogue" / "trader.json"
+DIALOGUE_OUT = HERE.parent.parent / "assets" / "seraphhorizons" / "config" / "dialogue"
 
 
 def json5(text: str):
@@ -133,7 +144,10 @@ def convert(entity: dict, gender: str, code="trader", types=TYPES, fine=FINE_OUT
             if behavior["code"] == "conversable":
                 # BetterRuins gives two types its quest dialogues by a patch of its own
                 # (patches/trading-betterruins-dialogue.json), which needs "*" to stay a key here.
-                behavior["dialogueByType"] = {"*": DIALOGUE}
+                behavior["dialogueByType"] = {
+                    **{k: v for k, v in STORY_DIALOGUES.items() if any(k.strip("*") == f"-{s}-" for s in types)},
+                    "*": DIALOGUE,
+                }
     return entity
 
 
@@ -174,10 +188,12 @@ def main() -> int:
             path = OUT / f"{name}-{gender}.json"
             path.write_text(json.dumps(entity, indent="\t", ensure_ascii=False) + "\n", encoding="utf-8")
             print(path)
-    vanilla = (Path(game) / "assets" / "survival" / "config" / "dialogue" / "trader.json").read_text(encoding="utf-8")
-    DIALOGUE_OUT.parent.mkdir(parents=True, exist_ok=True)
-    DIALOGUE_OUT.write_text(json.dumps(dialogue(json5(vanilla)), indent="\t", ensure_ascii=False) + "\n", encoding="utf-8")
-    print(DIALOGUE_OUT)
+    DIALOGUE_OUT.mkdir(parents=True, exist_ok=True)
+    for name in ("trader", "treasurehunter"):
+        vanilla = (Path(game) / "assets" / "survival" / "config" / "dialogue" / f"{name}.json").read_text(encoding="utf-8")
+        path = DIALOGUE_OUT / f"{name}.json"
+        path.write_text(json.dumps(dialogue(json5(vanilla)), indent="\t", ensure_ascii=False) + "\n", encoding="utf-8")
+        print(path)
     return 0
 
 

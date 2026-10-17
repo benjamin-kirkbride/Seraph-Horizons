@@ -43,14 +43,14 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Select(e => $"[{e.Level}] {e.Message}")
             .ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
-        // The eleven camp types and the two travelling merchants (#456).
-        Assert.Equal(13, Trading.Lists?.Lists.Count);
+        // The eleven camp types, the two travelling merchants (#456) and the treasure hunter.
+        Assert.Equal(14, Trading.Lists?.Lists.Count);
     }
 
     [AtlasScenario]
-    public void Eleven_trader_types_register_with_the_packs_class()
+    public void Eleven_trader_types_and_the_treasure_hunter_register_with_the_packs_class()
     {
-        foreach (string type in TraderTypes.All)
+        foreach (string type in TraderTypes.All.Concat(TraderTypes.Story))
             foreach (string gender in new[] { "male", "female" })
                 foreach (string climate in new[] { "cold", "temperate", "desert" })
                 {
@@ -58,7 +58,7 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
                     Assert.True(props != null, $"no entity type for {type} {gender} {climate}");
                     Assert.Equal(EntitySeraphTrader.ClassName, props!.Class);
                 }
-        Assert.Equal(11 * 2 * 3, W.EntityTypes.Count(t => t.Code.Domain == "seraphhorizons" && t.Class == EntitySeraphTrader.ClassName));
+        Assert.Equal((11 + 1) * 2 * 3, W.EntityTypes.Count(t => t.Code.Domain == "seraphhorizons" && t.Class == EntitySeraphTrader.ClassName));
     }
 
     [AtlasScenario]
@@ -68,7 +68,7 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         // a game-domain key, whatever the entity's domain, so without one the raw key shows.
         var traders = W.EntityTypes.Where(t => t.Code.Domain == "seraphhorizons"
                                                && (t.Code.Path.StartsWith("trader-") || t.Code.Path.StartsWith("visitor-"))).ToList();
-        Assert.Equal((11 + 2) * 2 * 3, traders.Count);
+        Assert.Equal((11 + 1 + 2) * 2 * 3, traders.Count);
         foreach (var t in traders)
         {
             string type = t.Variant["type"];
@@ -87,7 +87,7 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var lists = Trading.Lists ?? throw new Xunit.Sdk.XunitException("the lists did not load");
         Assert.True(lists.Problems.Count == 0, string.Join("\n", lists.Problems));
         Assert.True(lists.Unresolved.Count == 0, "Entries the game does not know:\n" + string.Join("\n", lists.Unresolved));
-        Assert.Equal(TraderTypes.All.Concat(TraderTypes.Visitors).OrderBy(t => t), lists.Lists.Keys.OrderBy(t => t));
+        Assert.Equal(TraderTypes.Listed.OrderBy(t => t), lists.Lists.Keys.OrderBy(t => t));
         foreach (var (type, def) in lists.Lists)
             foreach (var region in Region.All)
             {

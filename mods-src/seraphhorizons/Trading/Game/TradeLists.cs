@@ -7,7 +7,8 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.Trading;
 
 /// <summary>
-/// The eleven trade lists (<c>seraphhorizons:config/tradelists/trader-{type}.json</c>), loaded on the
+/// The trade lists (<c>seraphhorizons:config/tradelists/trader-{type}.json</c>: the eleven camp types,
+/// the visitors and the story traders, <see cref="TraderTypes.Listed"/>), loaded on the
 /// server once the world's items and blocks exist. Each entry is checked against the registry here,
 /// once: one the game can't resolve (a mod missing, a code wrong) is dropped with a warning naming
 /// it, so a restock never meets it. Each kept entry also gets its game TradeItem, made the way
@@ -45,7 +46,7 @@ public sealed class TradeLists
     public static TradeLists Load(ICoreAPI api, Predicate<TradeEntry>? exclude = null)
     {
         var lists = new TradeLists { _exclude = exclude };
-        foreach (string type in TraderTypes.All.Concat(TraderTypes.Visitors))
+        foreach (string type in TraderTypes.Listed)
         {
             var loc = new AssetLocation(SeraphHorizonsSystem.HarmonyId, $"{Folder}trader-{type}.json");
             var asset = api.Assets.TryGet(loc);

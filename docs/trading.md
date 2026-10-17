@@ -213,9 +213,9 @@ Its own trader's list (trader-kitchenware, 362 entries), by kind:
 
 | Vanilla list | Side | Item | Ours |
 |---|---|---|---|
-| treasurehunter | sell | `betterruins:locatormap-undergroundruins` | curiodealer sell |
-| treasurehunter | sell | `betterruins:locatormap-mine1` | curiodealer sell |
-| treasurehunter | sell | `betterruins:locatormap-mine2` | curiodealer sell |
+| treasurehunter | sell | `betterruins:locatormap-undergroundruins` | curiodealer sell, treasurehunter sell |
+| treasurehunter | sell | `betterruins:locatormap-mine1` | curiodealer sell, treasurehunter sell |
+| treasurehunter | sell | `betterruins:locatormap-mine2` | curiodealer sell, treasurehunter sell |
 
 ### Domestic Animal Trader 1.1.5
 
@@ -302,8 +302,8 @@ Its own trader's list (trader-domesticanimal, 101 entries), by kind:
 
 | Vanilla list | Side | Item | Ours |
 |---|---|---|---|
-| treasurehunter | sell | `craftablelocusts:parts-corpse` | curiodealer sell, mechanic sell |
-| treasurehunter | buy | `creature-locust-bronze-hacked` | curiodealer buy, mechanic buy |
+| treasurehunter | sell | `craftablelocusts:parts-corpse` | curiodealer sell, mechanic sell, treasurehunter sell |
+| treasurehunter | buy | `creature-locust-bronze-hacked` | curiodealer buy, mechanic buy, treasurehunter buy |
 
 ### Tailor's Delight 2.2.2
 
@@ -382,9 +382,9 @@ Its own trader's list (trader-domesticanimal, 101 entries), by kind:
 | survivalgoods | buy | `tailorsdelight:leatherbundle-plain` | tailor buy, carpenter sell |
 | survivalgoods | buy | `tailorsdelight:leatherstrips-plain` | tailor buy, carpenter sell |
 | survivalgoods | buy | `stick` | carpenter buy |
-| treasurehunter | sell | `tailorsdelight:ruler-gold` | tailor sell, curiodealer sell |
-| treasurehunter | sell | `tailorsdelight:buttons-emerald` | tailor sell, curiodealer sell |
-| treasurehunter | sell | `tailorsdelight:buttons-lapislazuli` | tailor sell, curiodealer sell |
+| treasurehunter | sell | `tailorsdelight:ruler-gold` | tailor sell, curiodealer sell, treasurehunter sell |
+| treasurehunter | sell | `tailorsdelight:buttons-emerald` | tailor sell, curiodealer sell, treasurehunter sell |
+| treasurehunter | sell | `tailorsdelight:buttons-lapislazuli` | tailor sell, curiodealer sell, treasurehunter sell |
 
 ### Wool 1.9.6
 
@@ -436,19 +436,19 @@ Its own trader's list (trader-domesticanimal, 101 entries), by kind:
 | survivalgoods | buy | `wool:twine-wool-plain` | tailor buy |
 | survivalgoods | buy | `wool:sack-wool-brown` | tailor buy, generalstore buy |
 | survivalgoods | buy | `wool:sack-wool-gray` | tailor buy, generalstore buy |
-| treasurehunter | buy | `wool:sack-wool-brown` | tailor buy, generalstore buy |
-| treasurehunter | buy | `wool:sack-wool-white` | tailor buy, generalstore buy |
-| treasurehunter | buy | `wool:sack-wool-gray` | tailor buy, generalstore buy |
+| treasurehunter | buy | `wool:sack-wool-brown` | tailor buy, generalstore buy, treasurehunter buy |
+| treasurehunter | buy | `wool:sack-wool-white` | tailor buy, generalstore buy, treasurehunter buy |
+| treasurehunter | buy | `wool:sack-wool-gray` | tailor buy, generalstore buy, treasurehunter buy |
 
 ### Signals 0.3.3
 
 | Vanilla list | Side | Item | Ours |
 |---|---|---|---|
 | commodities | sell | `signals:el_wire` | mechanic sell, curiodealer sell |
-| treasurehunter | sell | `signals:el_wire` | mechanic sell, curiodealer sell |
+| treasurehunter | sell | `signals:el_wire` | mechanic sell, curiodealer sell, treasurehunter sell |
 | commodities | sell | `signals:blocksource` | mechanic sell, curiodealer sell |
-| treasurehunter | sell | `signals:blocksource` | mechanic sell, curiodealer sell |
-| treasurehunter | sell | `signals:blockscreen-east` | mechanic sell, curiodealer sell |
+| treasurehunter | sell | `signals:blocksource` | mechanic sell, curiodealer sell, treasurehunter sell |
+| treasurehunter | sell | `signals:blockscreen-east` | mechanic sell, curiodealer sell, treasurehunter sell |
 
 ### Butchering 1.14.3
 
@@ -457,35 +457,36 @@ Its own trader's list (trader-domesticanimal, 101 entries), by kind:
 | luxuries | buy | `butchering:ivory-raw` | curiodealer buy, animaldealer buy |
 | luxuries | buy | `butchering:fur-bolt` | not in the pack |
 | survivalgoods | buy | `butchering:fur-bolt` | not in the pack |
-| treasurehunter | buy | `butchering:ivory-raw` | curiodealer buy, animaldealer buy |
+| treasurehunter | buy | `butchering:ivory-raw` | curiodealer buy, animaldealer buy, treasurehunter buy |
 
 ### Adventurer's Walking Stick 3.0.10
 
 | Vanilla list | Side | Item | Ours |
 |---|---|---|---|
 | luxuries | sell | `walkingstick:walkingstick-forlorn` | curiodealer sell |
-| treasurehunter | sell | `walkingstick:schematic-flintlock` | curiodealer sell |
+| treasurehunter | sell | `walkingstick:schematic-flintlock` | curiodealer sell, treasurehunter sell |
 
 ### Abyssal Depths 1.0.20
 
 | Vanilla list | Side | Item | Ours |
 |---|---|---|---|
-| treasurehunter | sell | `abyssaldepths:ad-schematic-divinggear` | curiodealer sell |
-| treasurehunter | buy | `abyssaldepths:ad-schematic-divinggear` | curiodealer buy |
+| treasurehunter | sell | `abyssaldepths:ad-schematic-divinggear` | curiodealer sell, treasurehunter sell |
+| treasurehunter | buy | `abyssaldepths:ad-schematic-divinggear` | curiodealer buy, treasurehunter buy |
 
 ### Translocator Map
 
 | Vanilla list | Side | Item | Ours |
 |---|---|---|---|
-| treasurehunter | sell | `locatormap-translocator` | curiodealer sell |
+| treasurehunter | sell | `locatormap-translocator` | curiodealer sell, treasurehunter sell |
 
 ## What wave 1 built
 
 ### Trader types (#448)
 
 Eleven types (`Trading/Core/TraderTypes.cs`): smith, mechanic, prospector, farmer, cook, tailor,
-carpenter, mason, animal dealer, general store, curio dealer. They replace vanilla's nine, Domestic
-Animal Trader's and Culinary Artillery's in grid worlds.
+carpenter, mason, animal dealer, general store, curio dealer. They replace vanilla's eight camp
+traders, Domestic Animal Trader's and Culinary Artillery's in grid worlds; vanilla's ninth, the
+treasure hunter, is the pack's own story type since 2026-10-17 ("The treasure hunter").
 
 - **Entities**: `seraphhorizons:trader-{gender}-{type}-{climate}` (66 codes), made from vanilla's two
   trader files by `Trading/tools/make_entities.py` (re-run after a game update; output committed):
@@ -627,12 +628,13 @@ store). The tables were written with a one-off script; the JSON is the source.
 - **Traders in camps**: an `onattemptspawnerspawn` listener rewrites any other mod's trader code (by
   class `EntityTrader` or a trader code) into ours: the cell's type, the spawner's gender, the outfit
   set by climate as vanilla's. Spawners keep respawning the camp's trader as before. Not a spawner
-  inside a story structure (its schematic's area in `GenStoryStructures.Structures`): vanilla's
-  treasure hunter is a trader by code and class, and rewritten it lost its story dialogue (and, made a
-  prospector, sold a map to the treasure hunter that led to its own house); a mod's story NPCs keep
-  theirs the same way. Not the landform radius around the structure (200 blocks for the treasure
-  hunter), which reaches over camps the grid may place 100 blocks off. Worlds that already rewrote
-  theirs keep them.
+  inside a story structure (its schematic's area in `GenStoryStructures.Structures`): a story NPC
+  keeps its code. Vanilla's treasure hunter's is the one exception: it becomes the pack's treasure
+  hunter, a type of its own with the game's quest dialogue (see "The treasure hunter"), never the
+  cell's type (an early rewrite made it the cell's type, a prospector, and it lost its story dialogue
+  and sold a map to the treasure hunter that led to its own house). Not the landform radius around
+  the structure (200 blocks for the treasure hunter), which reaches over camps the grid may place
+  100 blocks off.
 - **New worlds only**: whether a world has the grid is decided at its first start with the mod
   (new world and switch `TraderGrid` on) and saved (`seraphhorizons:tradergrid`); an existing world
   keeps vanilla camps and traders. Switching it off later stops the grid (the world's new chunks get
@@ -731,7 +733,8 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
   afresh).
 - **Trader id**: `camp:x,z` when the trader stands within 96 blocks of its cell's placed camp (the
   registry, `CampRegistry`), else `entity:<EntityId>`; decided once and kept in the trader's
-  `WatchedAttributes` (`seraphhorizons:traderid`). Camp ids survive the spawner replacing a trader;
+  `WatchedAttributes` (`seraphhorizons:traderid`). A visitor is `visitor:<kind>` and the treasure
+  hunter spawned in its house `story:treasurehunter`, both set when it spawns. Camp ids survive the spawner replacing a trader;
   entity ids do not, which only matters for traders outside camps (vanilla worlds, `/entity spawn`).
 - **Points**: a deal earns `perGear` × (gears paid + gears received) at the dialog's prices, so it
   scales with the value of the goods. Orders `order`; a delivery `delivery` at the receiver, and at
@@ -976,8 +979,8 @@ goods (× the fit).
 
 - The handbook's and the recipe browser's "sold by" read vanilla-format lists from entity attributes
   (`tradePropsFile`/`tradeProps`); our types have none, so neither shows them. In a grid world both
-  leave out the traders the grid replaces (seraphhorizons README, "Traders"), so they list only the
-  story traders (the treasure hunter) and villagers. Showing ours needs either a flattened
+  leave out the traders the grid replaces (seraphhorizons README, "Traders"), the game's treasure
+  hunter among them, so they list only the villagers (and a mod's story traders, none in the pack). Showing ours needs either a flattened
   vanilla-format view per type or the exporter learning our format.
 - A camp's spots are decided as chunks generate, so two worlds of the same seed explored in different
   orders can end up with a camp at a different spot of the same cell (or none). `/sh trade camps`
@@ -1509,6 +1512,89 @@ together.
 
 Open: visitors only come while the inn's chunk is loaded; the arrival is not announced at the
 camps; a world without the grid skips standing entirely (vanilla camps have no standing ids).
+
+## The treasure hunter
+
+Until 2026-10-17 the grid left vanilla's treasure hunter alone (the spawner rewrite skipped story
+structures), so it kept its quests but none of the overhaul. Now, in a grid world, it is one of the
+pack's traders and keeps the quests: `Trading/Core/StoryTraders.cs` (game-independent, tested in
+`tests/Trading/StoryTradersTests.cs`), `Trading/Game/StoryTraderConversion.cs`, the spawner rewrite in
+`TraderCamps`.
+
+- **Type**: `treasurehunter`, a variant of the pack's trader entities
+  (`seraphhorizons:trader-{gender}-treasurehunter-{climate}`, class `SeraphHorizons.Trader`, written by
+  `make_entities.py`), in `TraderTypes.Story`: not in `TraderTypes.All` (so never in the grid's
+  weighted draw or a prospector cell, no relation pairs, no spillover partners) and not a visitor.
+  `TraderTypes.Listed` (camp types, visitors, story) is what the lists load and `Problems` accepts.
+  Being an `EntitySeraphTrader`, everything that tests for the pack's traders takes it: the shelves,
+  economy, standing, orders, deliveries (as a sender; destinations are camps), maps and leads (gravel
+  maps, camp leads from its cell, the first map), the trade window and the admin tools.
+- **Outfit and name**: vanilla's treasure hunter has no outfit set of its own (its outfits are the
+  generic `trader-{gender}-*-{climate}` keys) and the shared random names, so the pack's variant of the
+  same humanoid looks and is named the same way.
+- **Placement**: only by its house. The house's meta-spawner names
+  `game:trader-{male,female}-treasurehunter-temperate`; `onattemptspawnerspawn` inside a story
+  structure rewrites exactly those codes (`StoryTraders.PackPath`) to the pack's, same gender and
+  climate, and leaves every other code there alone. The game's climate system never touches `game:`
+  codes, so it is temperate-dressed as vanilla's is.
+- **Dialogue**: `config/dialogue/treasurehunter.json`, written by `make_entities.py` from the game's,
+  with exactly the pack's trader additions (the standing option second in `main` and its answer
+  component, appended last) and nothing else changed: every quest component, trigger, condition and
+  variable is the game's (an Atlas scenario compares the two files component by component). The
+  entities pick it with `dialogueByType` `*-treasurehunter-*`, first, before `*`; BetterRuins'
+  dialogue patch on the pack's entity moves `*` past its own keys as before, so the order holds. No
+  mod in the pack patches the treasure hunter's dialogue or entity (BetterRuins, Culinary Artillery and
+  Expanded Foods patch other traders' dialogues; the rest patch its list). The quest triggers
+  (`takefrominventory`, `giveitemstack`, `spawnentity`, `revealname`) are the conversable behaviour's,
+  whatever the entity class, and only `opentrade` is the pack's window. The elk's price is taken by the
+  dialogue (`takefrominventory`), so it is not a deal: no wallet, supply or standing moves.
+- **Standing id**: `story:treasurehunter` (`TraderIds.Story`), set at spawn when it stands in its own
+  structure (`StoryTraders.IdAt` with `TraderCamps.StoryStructureAt`); the house spawns a new entity
+  when its trader is gone, and a converted one is a new entity too, so an entity id would lose
+  everyone's standing. One per world, as the story structure is. Spawned elsewhere (a command) it is
+  `entity:<id>`. The admin tools take `story:treasurehunter` as a trader.
+- **List**: `config/tradelists/trader-treasurehunter.json`, every entry of vanilla's
+  `trader-treasurehunter` and of the mods' patches into it (the fixture's `list:
+  "trader-treasurehunter"` rows, each now homed `treasurehunter sell|buy` too) but the lore scroll
+  (lore is never priced), with the game's stack and stock and the flags the pack's lists already give
+  the same goods (player-supplied, rare, the schematics' and BetterRuins' maps' price overrides).
+  Core: the gravel map and lead entries, the treasure map, three loot vessels, lapis, and the diving
+  gear and flintlock schematics at tier 3 (both now sold by the curio dealer and the treasure hunter,
+  `schematic-gates.json`); 49 more in rotation (6 slots). Buying: bronze tools, bombs, the backpack,
+  linen sack and bread in the core, 25 more in rotation (8 slots). Wallet 120 ± 20, `campWeight` 0. The
+  curio dealer keeps its copies. Every entry is priced by the value table (`tools/item-values check`
+  passes: all of them were already on other lists).
+- **Which worlds**: the grid's gate, `seraphhorizons:tradergrid`. Without the grid (a world from before
+  it, or the switch off) the treasure hunter is vanilla's, as every trader is.
+- **A grid world whose game treasure hunter spawned before this**: a story spawner only spawns again
+  when its trader is gone, so it would stay the game's. It is converted (`StoryTraderConversion`) as it
+  loads or spawns, on the next tick: the pack's treasure hunter of its gender and outfit set takes its
+  place and position, with its watched `variables` tree (where the game keeps `entity.*` dialogue
+  variables: `hasmet`, `requestbronze`, `bronzereceived`, `heardlazaret`, `offeredelk`, and the
+  per-player `uid-name` ones; `VariablesModSystem.SetVariable`, scope `Entity`), `nametag` (its name
+  and who it is revealed to), personality, outfit, skin and its `origin` and revive position. Its
+  shelves and wallet are not kept (the game's list). `player.*` variables (`boughtelk`,
+  `heardalchemistlocations`, `hasmet`) are the game's per player in the savegame (`dialogueData`),
+  untouched. The spawner that counts the old trader (`BlockEntitySpawner.spawnedEntities`, protected,
+  by reflection) is given the new one's id, so the house does not spawn a second. A dead one is
+  converted once revived. Chosen over leaving such worlds' treasure hunter vanilla: the variables that
+  carry the quest live on the entity and copy cleanly, and a world that has the grid should not have
+  one trader outside it.
+- **Handbook and recipe browser**: the game's treasure hunter is no longer kept as a story trader
+  (`HandbookTraders.Hidden` skips story codes the pack takes over), so in a grid world it is left out
+  like the other replaced traders and the export marks its trades `extra.replaced`. The pack's
+  treasure hunter, like the pack's other types, has no vanilla-format list and is in neither yet
+  (open problems).
+- **BetterRuins** names `game:humanoid-trader-treasurehunter` (and clothing, furniture, foods) in its
+  story ruins' spawners, codes no entity has in 1.22: those spawners spawn nothing, before and after.
+- **The elk for 100 gears.** The game's dialogue checks `player.inventory {gear-rusty, stacksize:
+  100}` and takes `quantity: 100` through `DialogueComponent.FindDesiredItem`, which wants one slot
+  holding 100; the pack's rusty gear stacks to 64 (`RustyGearStack`), so that option never showed,
+  for the game's treasure hunter as for this one (the eidolon vessel's discount, 50 or 75 gears,
+  worked). Fixed without touching the dialogue (`DialogueStacks`, README "The rusty gear stacks to
+  64"): a postfix on `FindDesiredItem`, where it finds no single slot, returns a slot spanning the
+  matching ones when together they hold the stack, so the condition is met and the trigger's
+  `TakeOut` takes exactly the quantity across them. It acts while `RustyGearStack` is on, the cause.
 
 ## The trade window
 

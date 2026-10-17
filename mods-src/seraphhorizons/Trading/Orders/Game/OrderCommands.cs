@@ -63,7 +63,8 @@ public static class OrderCommands
         }
         IEnumerable<Order> orders;
         if (string.IsNullOrEmpty(word)) orders = system.Book.All.Where(o => o.IsOpen);
-        else if (word == "near" || word.StartsWith("camp:", StringComparison.Ordinal) || word.StartsWith("entity:", StringComparison.Ordinal))
+        else if (word == "near" || word.StartsWith("camp:", StringComparison.Ordinal) || word.StartsWith("entity:", StringComparison.Ordinal)
+                 || word.StartsWith("story:", StringComparison.Ordinal))
         {
             string id = word == "near" ? TraderFinder.Named(api, word, args.Caller.Entity) is { } t ? TraderFinder.IdOf(api, t) : "" : word;
             if (id.Length == 0) return TextCommandResult.Error(L("trading-orders-notrader"));

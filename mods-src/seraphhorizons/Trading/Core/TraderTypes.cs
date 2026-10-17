@@ -24,6 +24,10 @@ public static class TraderTypes
     // (Trading/Visitors/), as <c>seraphhorizons:visitor-{gender}-{type}-{climate}</c>.
     public const string TravellingMerchant = "travellingmerchant";
     public const string TravellingCurio = "travellingcurio";
+    // Story traders: a story structure's own trader, never placed by the grid; its structure's
+    // spawner is rewritten to it (Trading/Core/StoryTraders.cs). It keeps the game's quest
+    // dialogue, with the pack's additions.
+    public const string TreasureHunter = "treasurehunter";
 
     public static readonly IReadOnlyList<string> All =
     [
@@ -32,6 +36,14 @@ public static class TraderTypes
 
     /// <summary>The visitors' types: they have trade lists but are never on the grid.</summary>
     public static readonly IReadOnlyList<string> Visitors = [TravellingMerchant, TravellingCurio];
+
+    /// <summary>The story traders' types: they have trade lists and live in the game's story
+    /// structures, never on the grid, and are not visitors.</summary>
+    public static readonly IReadOnlyList<string> Story = [TreasureHunter];
+
+    /// <summary>Every type with a trade list: the eleven camp types, the visitors and the story
+    /// traders.</summary>
+    public static IEnumerable<string> Listed => All.Concat(Visitors).Concat(Story);
 
     /// <summary>The entity code path of a type: <c>trader-{gender}-{type}-{climate}</c>, where
     /// climate is the outfit set (<c>cold</c>, <c>temperate</c> or <c>desert</c>, as vanilla's).</summary>
