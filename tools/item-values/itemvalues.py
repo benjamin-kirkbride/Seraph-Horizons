@@ -509,7 +509,8 @@ def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, st
 
         crushed(grade)  = U x u x (1 + pct) + flat
         ground(grade)   = crushed(grade) x (1 + pct) + flat
-        roasted rock    = crushed(grade) x (1 + pct) + flat (sulfides)
+        roasted rock    = crushed(grade) x (1 + pct) + flat (sulfides; the firepit's and the stall
+                          roaster's alike, #925)
         concentrate     = min over the grades of (ground(grade) x (1 + pct) + flat) / (r x U / 5),
                           r = the line's concentrators chained, 1 - prod(1 - machine's recovery x the
                           ore's density, at most 1) (x freeUnamalgamated for free gold and silver)
@@ -567,6 +568,7 @@ def ore_processing_raws(export: dict, rules: Rules) -> dict[str, tuple[float, st
             vals[f"ground-{g}"], why[f"ground-{g}"] = ground, f"{units:g} units crushed, ground"
             if spec.get("class") == "sulfide":
                 vals[f"roastedrock-{g}"], why[f"roastedrock-{g}"] = stage("roast", crushed), f"{units:g} units crushed, roasted"
+                vals[f"stallroastedrock-{g}"], why[f"stallroastedrock-{g}"] = vals[f"roastedrock-{g}"], f"{units:g} units crushed, stall-roasted"
             conc_costs.append(stage("concentrate", ground, r * units / per_item))
             amalgam_costs.append(stage("amalgamate", ground, r_free * units / per_item))
         conc = min(conc_costs)

@@ -1174,4 +1174,37 @@ public class SeraphHorizonsConfig
     /// Off means its blocks and recipe do not exist, and batteries already placed are lost. The
     /// server's setting decides.</summary>
     public bool StampBattery { get; set; } = true;
+
+    /// <summary>The stall roaster (StallRoaster/, README "Ore processing: the stall roaster"; #925): a roasting
+    /// stall, an open-fronted brick bay with a flue to a chimney, built on its iron frame in two stages (the
+    /// brickwork in any one fired brick, the lining). Batch, by hand: a bed of firewood and up to 32 sulfide rock
+    /// (raw or crushed), lit, burn on their own sulfur for 40 in-game hours with the front walled up and the row's
+    /// chimney drawing; each rock roasts one for one into stall-roasted rock, which smelts at its grade's share x
+    /// 92 % (the firepit's at 85 %), and a third of the charge's sulfur is taken from the heap's crust as sulfur
+    /// powder (ore-core's figures, config/ore-processing.json). Needs OreProcessing (off means its frame and its
+    /// recipe do not exist, and stalls already placed are lost). The server's setting decides.</summary>
+    public bool StallRoaster { get; set; } = true;
+
+    /// <summary>The stall roaster's own figures (its recovery, charge, burn and sulfur are ore processing's,
+    /// <c>config/ore-processing.json</c>): the bed's firewood, and the share of its draught a half-walled or
+    /// open front gives; a value out of range falls back to its default with a warning. The server's are
+    /// used.</summary>
+    public StallRoaster.Core.StallRoasterConfig StallRoasterSettings { get; set; } = new();
+
+    /// <summary>The Parkes kettle (ParkesKettle/, README "Ore processing: the Parkes kettle"; #927): a cast-iron
+    /// kettle of silver-lead in a brick setting over its own fire, with a powered stirrer, built on its iron frame in
+    /// four stages (the brickwork in any one fired brick, the lining, the kettle with its doors, the stirrer). Batch, by
+    /// hand: silver-lead bars (plain galena's, up to 2,400 units) and zinc bits (1 unit to 100 of lead) in, coal on
+    /// the grate (6 a charge), lit, stirred for 5 in-game hours at the reference speed under a working chimney; its
+    /// silver comes out whole in rich lead skimmed with the crust, 80 % of the zinc back, the rest of the lead
+    /// desilverized (ore-core's figures, config/ore-processing.json). The stirrer's load follows how full the kettle
+    /// is. Needs OreProcessing (off means its frame and its recipe do not exist, and kettles already placed are
+    /// lost). The server's setting decides.</summary>
+    public bool ParkesKettle { get; set; } = true;
+
+    /// <summary>The Parkes kettle's own figures (its recovery, charge, hours and zinc return are ore processing's,
+    /// <c>config/ore-processing.json</c>; its fuel and chimney the rig's): the zinc a unit of lead takes, the damper's
+    /// shares of heat and burning, and the ingots a ladling takes out; a value out of range falls back to its default
+    /// with a warning. The server's are used.</summary>
+    public ParkesKettle.Core.ParkesKettleConfig ParkesKettleSettings { get; set; } = new();
 }

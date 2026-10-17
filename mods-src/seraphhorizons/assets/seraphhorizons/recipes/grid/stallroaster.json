@@ -1,0 +1,19 @@
+// The stall roaster (StallRoaster/, README "Ore processing: the stall roaster"; #925). The server disables it
+// with StallRoaster or OreProcessing off.
+[
+	{
+		// The iron frame, as placed: the eleven angles (2 iron plates, 2 iron rods, 6 iron nails and strips),
+		// with a hammer (StallRoaster/README.md, "The build", the frame's row; the rig's build.frame). The
+		// brickwork and the lining go in afterwards, fitted by hand.
+		ingredientPattern: "PRN,_H_",
+		width: 3,
+		height: 2,
+		ingredients: {
+			"P": { type: "item", code: "game:metalplate-iron", quantity: 2 },
+			"R": { type: "item", code: "game:rod-iron", quantity: 2 },
+			"N": { type: "item", code: "game:metalnailsandstrips-iron", quantity: 6 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:stallroaster-north" }
+	}
+]

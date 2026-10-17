@@ -7,7 +7,7 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 
 /// <summary>
 /// Ore processing's own items (#686, #847): the rock forms by ore and grade, crushed ore, ground ore
-/// and roasted rock (<c>seraphhorizons:{crushedore,groundore,roastedore}-{ore}-{grade}</c>), and
+/// and roasted rock (<c>seraphhorizons:{crushedore,groundore,roastedore,stallroastedore}-{ore}-{grade}</c>), and
 /// concentrate, roasted concentrate, amalgam, sponge (<c>seraphhorizons:{form}-{ore}</c>) and
 /// litharge. The form is the item type's <c>oreForm</c> attribute; the name is the form's with the
 /// ore's (vanilla's <c>ore-{ore}</c>) and a rock form's grade, and the text says the metal it holds
@@ -71,7 +71,7 @@ public class ItemOreProduct : Item
     }
 
     /// <summary>The metal the item holds: the ore's metal group, lead for litharge.</summary>
-    public string? Metal => Form == "litharge" ? "lead" : Ore is { } ore ? OreMetals.MetalOf(ore) : null;
+    public string? Metal => Form is "litharge" or "richlead" ? "lead" : Form == "bullion" ? Variant["metal"] : Ore is { } ore ? OreMetals.MetalOf(ore) : null;
 
     public override string GetHeldItemName(ItemStack itemStack)
     {
@@ -80,6 +80,9 @@ public class ItemOreProduct : Item
             return base.GetHeldItemName(itemStack);
         if (Ore is not { } ore)
             return Lang.Get("seraphhorizons:oreproduct-" + form);
+        // Bullion is named by its kind (silver-lead, tin-lead, doré ...), with the ore it came from.
+        if (form == "bullion")
+            return Lang.Get("seraphhorizons:oreproduct-bullion-" + ore, Lang.Get("ore-" + ore));
         return Variant["grade"] is { } grade
             ? Lang.Get("seraphhorizons:oreproduct-" + form, Lang.Get("ore-" + ore), Lang.Get("seraphhorizons:oreprocessing-grade-" + grade))
             : Lang.Get("seraphhorizons:oreproduct-" + form, Lang.Get("ore-" + ore));
@@ -103,7 +106,7 @@ public class ItemOreProduct : Item
         if (units > 0 && Metal is { } metal)
             dsc.AppendLine(Lang.Get("seraphhorizons:oreproduct-units", units.ToString("0.#"), Lang.Get("material-" + metal)));
         string form = Form;
-        if (form is "crushed" or "ground" or "roastedrock")
+        if (form is "crushed" or "ground" or "roastedrock" or "stallroastedrock")
         {
             dsc.AppendLine(SmeltText(this, "seraphhorizons:oreproduct-" + form));
             return;

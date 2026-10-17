@@ -32,7 +32,9 @@ public sealed class OreMachineRig
         {
             if (!positions.Contains(a.Cell))
                 throw new FormatException($"{a.Name}Cell {a.Cell} is not one of the cells");
-            if (positions.Contains(a.Cell + a.Face.Normal()))
+            // an anchor the shared code attaches a block at (an axle, a chute, a pipe) must face out; a machine's
+            // own working face may meet another of its cells (the Parkes kettle's mouth, worked through them)
+            if (AttachedAnchors.Contains(a.Name) && positions.Contains(a.Cell + a.Face.Normal()))
                 throw new FormatException($"{a.Name}Cell {a.Cell}'s face {a.Face.Code()} is inside the footprint");
         }
         Cells = cells;
@@ -42,6 +44,12 @@ public sealed class OreMachineRig
     }
 
     public const string Power = "power", Infeed = "infeed", Water = "water";
+
+    /// <summary>The anchors the shared code attaches a block at (the ore machines' block entity: the axle, the infeed
+    /// chute, the water pipe, the products' chutes), which must face out of the footprint. Any other anchor is the
+    /// machine's own (a furnace's outlet, the Parkes kettle's mouth) and may face into one of its cells.</summary>
+    public static readonly IReadOnlySet<string> AttachedAnchors =
+        new HashSet<string>(StringComparer.Ordinal) { Power, Infeed, Water, "output", "concentrate", "middlings", "tailings" };
 
     /// <summary>An anchor by name, or null.</summary>
     public MachineAnchor? Anchor(string name) => Anchors.TryGetValue(name, out var a) ? a : null;
