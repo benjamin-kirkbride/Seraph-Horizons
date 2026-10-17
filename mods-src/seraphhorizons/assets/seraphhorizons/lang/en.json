@@ -206,7 +206,7 @@
   "arrastra-info-charge": "Charge: {0} of {1} rock of crushed ore, {2}% ground",
   "arrastra-info-ground": "Ground: {0} rock of paste. Draw it out by the gate with an empty hand",
   "arrastra-info-water": "Water in the pit: {0} of {1} L ({2} L a rock)",
-  "arrastra-state-dry": "Dry: the charge needs {0} L of water in the pit. Pour in a bucket a rock",
+  "arrastra-state-dry": "Dry: the charge needs its water in the pit, a bucket (10 L) a rock. Pour it in by hand",
   "arrastra-error-notcrushed": "The arrastra grinds crushed ore only.",
   "arrastra-error-full": "The pit holds its whole charge ({0} rock).",
   "arrastra-error-ground": "The ground charge is still in the pit: draw it out by the gate first.",

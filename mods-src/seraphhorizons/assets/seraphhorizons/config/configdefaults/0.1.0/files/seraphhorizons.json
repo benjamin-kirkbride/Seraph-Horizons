@@ -516,5 +516,6 @@
   "JawBreakerSettings": {
     "ChargeRocks": 8
   },
-  "StampBattery": true
+  "StampBattery": true,
+  "Arrastra": true
 }
