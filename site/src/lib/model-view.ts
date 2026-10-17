@@ -89,6 +89,13 @@ const TEXTURE_FAMILIES: [RegExp, string][] = [
   // The game's gravel and sand (the arrastra's charge and its paste), which would otherwise take the stone colour of the pit.
   [/\/gravel\//, "#837b6d"],
   [/\/sand\//, "#b9ae95"],
+  // The cupellation furnace's test and fire, told apart from the brick and iron round them.
+  [/ingot\/lead\b/, "#5f6875"],
+  [/ingot\/silver/, "#dfe3e6"],
+  [/litharge|crushed\/limonite/, "#d98a2b"],
+  [/boneash|crushed\/lime\b/, "#eeece4"],
+  [/coal\/ember/, "#e2622a"],
+  [/coal\/(bituminous|coke|charcoal)/, "#34302e"],
   [/metal|iron|steel|copper|bronze|tin|plate|ingot|gold|silver/, "#8e98a4"],
   [/rope|cloth|linen|wool|flax|twine/, "#c9b27c"],
   [/stone|rock|granite|andesite|cobble|brick|clay/, "#9a9a92"],
