@@ -19,6 +19,13 @@ configured in `.mergify.yml`. The merge button is deliberately out of use.
   predecessors merge first, and every rung is queued against `main`.
 - `main` moving under a PR does not invalidate its CI run: the queue re-tests against
   the current `main` anyway. There is no need to rebase just to merge.
+- Follow a queued PR with `python3 tools/prwatch.py <pr>`. It polls `gh` until the PR merges
+  or stops moving and prints one line saying why: `STATE MERGED` (exit 0), or `STATE CLOSED`,
+  `FAILED [<checks>]`, `CONFLICT`, `DEQUEUED`, `NOTQUEUED <why>` (no queue command, Mergify
+  cancelled the request, or never answered it) or `timeout` (exit 1). Pushing after a queue
+  command cancels the request, so after a push wait about 30 s, then comment. A requeued PR
+  keeps its old `dequeued` label beside `queued`; the watcher counts `dequeued` only alone.
+  `--delay`, `--interval` and `--timeout` (seconds) tune it.
 
 ## The required check
 
