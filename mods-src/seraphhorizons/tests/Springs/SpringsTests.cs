@@ -236,6 +236,19 @@ public class SpringsTests
     public void Tapping_and_untapping(bool was, bool now, TapChange change) =>
         Assert.Equal(change, SpringFlow.Change(was, now));
 
+    [Theory]
+    // a pipe seen: tapped, whatever it was and whatever is unloaded
+    [InlineData(false, true, false, true, false)]
+    [InlineData(true, true, true, true, false)]
+    // every side seen and no pipe: untapped
+    [InlineData(true, false, false, false, false)]
+    [InlineData(false, false, false, false, false)]
+    // no pipe seen but a side unloaded (its pipe's column loads after the spring's): kept, and looked at again
+    [InlineData(true, false, true, true, true)]
+    [InlineData(false, false, true, false, true)]
+    public void A_side_in_an_unloaded_chunk_keeps_what_the_spring_was(bool was, bool anyTapped, bool anyUnloaded, bool tapped, bool again) =>
+        Assert.Equal((tapped, again), SpringFlow.Settle(was, anyTapped, anyUnloaded));
+
     // ---- settings ----
 
     [Fact]

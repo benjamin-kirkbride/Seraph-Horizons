@@ -61,6 +61,18 @@ public static class SpringFlow
         return taken;
     }
 
+    /// <summary>What a look at a spring's six sides tells: whether it is tapped now, and whether it
+    /// must look again. <paramref name="anyTapped"/>: a pipe couples to it on some side;
+    /// <paramref name="anyUnloaded"/>: the cell beyond some side is in a chunk not loaded, so whether
+    /// a pipe is there can not be told. One pipe seen is enough; with none seen and a side unknown, it
+    /// keeps what it was (<paramref name="wasTapped"/>, saved with it) and looks again, since a chunk
+    /// loading tells no neighbour: a world loads a column at a time, and a spring at a column's edge
+    /// loads before the pipe beyond it.</summary>
+    public static (bool Tapped, bool LookAgain) Settle(bool wasTapped, bool anyTapped, bool anyUnloaded) =>
+        anyTapped ? (true, false)
+        : anyUnloaded ? (wasTapped, true)
+        : (false, false);
+
     /// <summary>The change from <paramref name="wasTapped"/> to <paramref name="nowTapped"/>.</summary>
     public static TapChange Change(bool wasTapped, bool nowTapped) =>
         wasTapped == nowTapped ? TapChange.None : nowTapped ? TapChange.Tapped : TapChange.Untapped;
