@@ -108,8 +108,16 @@ public class EntitySeraphTrader : EntityTrader
 
     public override void OnEntitySpawn()
     {
-        if (World.Side == EnumAppSide.Server && !WatchedAttributes.HasAttribute(RegionAttr) && TradingSystem.Of(Api) is { } system)
-            Region = RegionProbe.At(World.BlockAccessor, Pos.AsBlockPos, system.Classifier);
+        if (World.Side == EnumAppSide.Server && TradingSystem.Of(Api) is { } system)
+        {
+            if (!WatchedAttributes.HasAttribute(RegionAttr))
+                Region = RegionProbe.At(World.BlockAccessor, Pos.AsBlockPos, system.Classifier);
+            // A story trader in its own story structure is that structure to standing (story:…),
+            // so the one its house spawns next, or a converted one, is known as this one was.
+            if (!WatchedAttributes.HasAttribute(StandingSystem.TraderIdAttr)
+                && StoryTraders.IdAt(TraderType, system.Camps?.StoryStructureAt(Pos.AsBlockPos)) is { } storyId)
+                WatchedAttributes.SetString(StandingSystem.TraderIdAttr, storyId);
+        }
         base.OnEntitySpawn();
         if (World.Side == EnumAppSide.Server) Restock(1.1f);
     }
