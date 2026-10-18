@@ -20,7 +20,7 @@ It writes, deterministically,
     gearcutter_frame.json   the static frame only (block and item)  (assets/.../shapes/block/)
     gearcutter-rig.json     cells, anchors and the part rig         (assets/.../config/)
     rig-reference.json      every part's matrix at a grid of poses  (tests/GearCutter/)
-    gearcutter/<item>.json  the five forged parts' item shapes      (assets/.../shapes/item/)
+    gearcutter/<item>.json  the three forged parts' item shapes     (assets/.../shapes/item/)
 
 or, with `--out DIR`, all of them into DIR (the item shapes into DIR/item/). It validates its own output (validate_gearcutter.py) and
 exits non-zero if a check fails.
@@ -1614,19 +1614,17 @@ def reference_json(ship_parts, sp):
 
 
 # ---------------------------------------------------------------- the forged parts' item shapes
-# Each stage's item looks as its part does in the machine: the rig parts it draws (README "Fitted parts",
-# without the belt, which is the spindle stage's but no part of the forging), their elements as they are
-# at rest, centred on the item box's floor (x and z on 8, the bottom at y 0) and scaled down uniformly
-# when they would not fit in 16 voxels. The scales are fixed here, so an item does not change size
-# because a part moved; validate checks each item fits at its scale.
+# Each forged stage's item looks as its part does in the machine: the rig parts it draws (README "Fitted
+# parts"), their elements as they are at rest, centred on the item box's floor (x and z on 8, the bottom
+# at y 0) and scaled down uniformly when they would not fit in 16 voxels. The scales are fixed here, so
+# an item does not change size because a part moved; validate checks each item fits at its scale. The
+# spindle and the index have no item: their stages are fed steel rods, plates and metal parts.
 ITEM_PARTS = {
-    "spindle": ("headshaft", "spindle"),               # the head shaft with the upper cone and its mitre, the spindle with its own
     "feedscrew": ("worm", "clutch"),                   # the worm and the clutch sleeve
     "liftcam": ("liftcam",),                           # the lift cam on its hub
-    "index": ("lever", "pawl", "checkpawl", "shield"),  # the lever with its roller, the pawls and the shield
     "kit": ("cutter",),                                # the formed cutter
 }
-ITEM_SCALE = {"spindle": 0.74, "feedscrew": 1.0, "liftcam": 1.0, "index": 1.0, "kit": 1.0}   # the spindle is 21.5 long
+ITEM_SCALE = {"feedscrew": 1.0, "liftcam": 1.0, "kit": 1.0}
 
 
 def item_elements(els, parts, item):

@@ -4,30 +4,54 @@ using Xunit;
 
 namespace SeraphHorizons.Tests.GearCutter;
 
-/// <summary>GearCutter/Core: the build order, what each stage takes, take-back and drops (#480);
-/// the cut's arithmetic; the cutter kit's wear by oil (#481); the settings and the shipped rig.</summary>
+/// <summary>GearCutter/Core: the build order, what each stage takes (the spindle and the index fed
+/// their materials), take-back and drops (#480); the cut's arithmetic; the cutter kit's wear by oil
+/// (#481); the settings and the shipped rig.</summary>
 public class GearCutterGameplayTests
 {
-    private static readonly string[] Order =
+    /// <summary>A material stage's bill: each material and how many.</summary>
+    private static readonly (string Code, int Count)[] Bill =
+        [(GearCutterParts.RodCode, 2), (GearCutterParts.PlateCode, 2), (GearCutterParts.MetalPartsCode, 1)];
+
+    /// <summary>The one-item stages up to the head, in order; null where a material stage's bill goes.</summary>
+    private static readonly string?[] Order =
     [
-        GearCutterParts.SpindleCode, GearCutterParts.FeedScrewCode, GearCutterParts.GearboxCode, GearCutterParts.GearboxCode,
-        GearCutterParts.LiftCamCode, GearCutterParts.IndexCode, GearCutterParts.ValveCode, GearCutterParts.HeadCode,
+        null, GearCutterParts.FeedScrewCode, GearCutterParts.GearboxCode, GearCutterParts.GearboxCode,
+        GearCutterParts.LiftCamCode, null, GearCutterParts.ValveCode, GearCutterParts.HeadCode,
     ];
 
+    private static void Fits(GearCutterParts parts, string code, int held = 1) =>
+        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(code, held: held).Verdict);
+
+    /// <summary>Feeds the next stage its whole bill, a material a click.</summary>
+    private static void FeedBill(GearCutterParts parts)
+    {
+        foreach (var (code, n) in Bill)
+            Assert.Equal(new GearCutterFit(GearCutterFitVerdict.Fits, parts.Next!.Value, n), parts.Fit(code, held: 16));
+    }
+
+    private static void FitStep(GearCutterParts parts, string? code)
+    {
+        if (code == null)
+            FeedBill(parts);
+        else
+            Fits(parts, code);
+    }
+
     /// <summary>Every stage up to the head fitted.</summary>
-    private static GearCutterParts UpToHead()
+    private static GearCutterParts UpToHead(int steps = 8)
     {
         var parts = new GearCutterParts();
-        foreach (var code in Order)
-            Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(code));
+        foreach (var code in Order.Take(steps))
+            FitStep(parts, code);
         return parts;
     }
 
     private static GearCutterParts Complete(string master = GearCutterParts.MasterCode, int kit = 500)
     {
         var parts = UpToHead();
-        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(GearCutterParts.KitCode, kit, 500));
-        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(master));
+        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(GearCutterParts.KitCode, kit, 500).Verdict);
+        Fits(parts, master);
         return parts;
     }
 
@@ -43,7 +67,8 @@ public class GearCutterGameplayTests
         foreach (var code in Order)
         {
             var next = parts.Next!.Value;
-            Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(code));
+            FitStep(parts, code);
+            Assert.True(parts.Has(next));
             fitted.Add(next);
         }
         Assert.Equal(GearCutterRequires.Stages.Take(8), fitted);
@@ -52,31 +77,77 @@ public class GearCutterGameplayTests
     }
 
     [Fact]
+    public void Only_the_spindle_and_the_index_take_materials_their_old_recipes_bill()
+    {
+        Assert.Equal([GearCutterStage.Spindle, GearCutterStage.Index], GearCutterRequires.Stages.Where(GearCutterParts.TakesMaterials));
+        foreach (var stage in new[] { GearCutterStage.Spindle, GearCutterStage.Index })
+            Assert.Equal(Bill, GearCutterParts.MaterialsFor(stage).Select(m => (Assert.Single(m.Codes), m.Quantity)));
+        // their former items are no part of the cutter
+        Assert.False(GearCutterParts.IsPart(GearCutterParts.LegacySpindleCode));
+        Assert.False(GearCutterParts.IsPart(GearCutterParts.LegacyIndexCode));
+        Assert.Equal([GearCutterStage.Spindle, GearCutterStage.Index], GearCutterParts.StagesOf("metal-parts"));
+    }
+
+    [Fact]
     public void Only_the_next_stage_is_accepted()
     {
         var parts = new GearCutterParts();
-        Assert.Equal(GearCutterFitVerdict.OutOfOrder, parts.Fit(GearCutterParts.FeedScrewCode));
-        Assert.Equal(GearCutterFitVerdict.OutOfOrder, parts.Fit(GearCutterParts.MasterCode));
-        Assert.Equal(GearCutterFitVerdict.OutOfOrder, parts.Fit(GearCutterParts.KitCode, 500, 500));
-        Assert.Equal(GearCutterFitVerdict.NotAPart, parts.Fit("game:gear-rusty"));
-        Assert.Equal(GearCutterFitVerdict.NotAPart, parts.Fit(null));
-        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(GearCutterParts.SpindleCode));
-        Assert.Equal(GearCutterFitVerdict.AlreadyFitted, parts.Fit(GearCutterParts.SpindleCode));
+        Assert.Equal(GearCutterFitVerdict.OutOfOrder, parts.Fit(GearCutterParts.FeedScrewCode).Verdict);
+        Assert.Equal(GearCutterFitVerdict.OutOfOrder, parts.Fit(GearCutterParts.MasterCode).Verdict);
+        Assert.Equal(GearCutterFitVerdict.OutOfOrder, parts.Fit(GearCutterParts.KitCode, 500, 500).Verdict);
+        Assert.Equal(GearCutterFitVerdict.NotAPart, parts.Fit("game:gear-rusty").Verdict);
+        Assert.Equal(GearCutterFitVerdict.NotAPart, parts.Fit(null).Verdict);
+        Assert.Equal(GearCutterFitVerdict.NotAPart, parts.Fit(GearCutterParts.LegacySpindleCode).Verdict);
+        FeedBill(parts);
+        Assert.Equal(GearCutterStage.FeedScrew, parts.Next);
+        // the index takes the same materials, but not before its turn
+        Assert.Equal(GearCutterFitVerdict.OutOfOrder, parts.Fit(GearCutterParts.RodCode, held: 2).Verdict);
+        Fits(parts, GearCutterParts.FeedScrewCode);
+        Assert.Equal(GearCutterFitVerdict.AlreadyFitted, parts.Fit(GearCutterParts.FeedScrewCode).Verdict);
+        // once both are in, the materials are fitted
+        var built = UpToHead();
+        Assert.Equal(GearCutterFitVerdict.AlreadyFitted, built.Fit(GearCutterParts.MetalPartsCode).Verdict);
+    }
+
+    [Fact]
+    public void A_material_stage_takes_a_material_a_click_and_is_drawn_once_complete()
+    {
+        var parts = new GearCutterParts();
+        // fewer rods than the stage still needs, and not a full stack: refused
+        Assert.Equal(GearCutterFitVerdict.TooFew, parts.Fit(GearCutterParts.RodCode, held: 1, maxStack: 16).Verdict);
+        // all it needs of one material from a bigger stack, no more
+        Assert.Equal(new GearCutterFit(GearCutterFitVerdict.Fits, GearCutterStage.Spindle, 2), parts.Fit(GearCutterParts.RodCode, held: 10));
+        Assert.Equal(2, parts.Count(GearCutterStage.Spindle, 0));
+        Assert.Equal(GearCutterFitVerdict.AlreadyFitted, parts.Fit(GearCutterParts.RodCode, held: 10).Verdict);
+        Assert.False(parts.Has(GearCutterStage.Spindle));
+        Assert.False(parts.Fitted("spindle"));
+        Assert.Equal(GearCutterStage.Spindle, parts.Next);
+        Assert.Equal([(GearCutterParts.PlateCode, 2), (GearCutterParts.MetalPartsCode, 1)],
+            parts.NextNeeds().Select(n => (n.Material.Codes[0], n.Missing)));
+        // a full stack short of the need goes in whole (a plate that stacks to one, say)
+        Assert.Equal(new GearCutterFit(GearCutterFitVerdict.Fits, GearCutterStage.Spindle, 1),
+            parts.Fit(GearCutterParts.PlateCode, held: 1, maxStack: 1));
+        Assert.Equal(1, parts.Count(GearCutterStage.Spindle, 1));
+        Assert.Equal([(GearCutterParts.PlateCode, 1), (GearCutterParts.MetalPartsCode, 1)],
+            parts.NextNeeds().Select(n => (n.Material.Codes[0], n.Missing)));
+        Fits(parts, GearCutterParts.PlateCode);
+        Fits(parts, "metal-parts");   // a code with no domain is the game's
+        Assert.True(parts.Has(GearCutterStage.Spindle));
+        Assert.True(parts.Fitted("spindle"));
+        Assert.Empty(parts.NextNeeds());
         Assert.Equal(GearCutterStage.FeedScrew, parts.Next);
     }
 
     [Fact]
     public void The_two_cam_drums_take_one_eccentric_gearbox_each()
     {
-        var parts = new GearCutterParts();
-        parts.Fit(GearCutterParts.SpindleCode);
-        parts.Fit(GearCutterParts.FeedScrewCode);
-        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(GearCutterParts.GearboxCode));
+        var parts = UpToHead(2);
+        Fits(parts, GearCutterParts.GearboxCode);
         Assert.True(parts.Has(GearCutterStage.CamFeed));
         Assert.False(parts.Has(GearCutterStage.CamIndex));
-        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit("jonasframes-gearbox02"));   // a code with no domain is the game's
+        Fits(parts, "jonasframes-gearbox02");   // a code with no domain is the game's
         Assert.True(parts.Has(GearCutterStage.CamIndex));
-        Assert.Equal(GearCutterFitVerdict.AlreadyFitted, parts.Fit(GearCutterParts.GearboxCode));
+        Assert.Equal(GearCutterFitVerdict.AlreadyFitted, parts.Fit(GearCutterParts.GearboxCode).Verdict);
     }
 
     [Theory]
@@ -84,10 +155,8 @@ public class GearCutterGameplayTests
     [InlineData(GearCutterParts.HeadAltCode)]
     public void Either_Jonas_gear_assembly_is_the_dividing_head(string head)
     {
-        var parts = new GearCutterParts();
-        foreach (var code in Order.Take(7))
-            parts.Fit(code);
-        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(head));
+        var parts = UpToHead(7);
+        Fits(parts, head);
         Assert.Equal(head, parts.FittedIn(GearCutterStage.Head));
     }
 
@@ -113,7 +182,7 @@ public class GearCutterGameplayTests
     public void A_spent_kit_is_refused()
     {
         var parts = UpToHead();
-        Assert.Equal(GearCutterFitVerdict.KitSpent, parts.Fit(GearCutterParts.KitCode, 0, 500));
+        Assert.Equal(GearCutterFitVerdict.KitSpent, parts.Fit(GearCutterParts.KitCode, 0, 500).Verdict);
         Assert.False(parts.Has(GearCutterStage.Cutter));
     }
 
@@ -131,9 +200,10 @@ public class GearCutterGameplayTests
         Assert.Equal(GearCutterStage.Cutter, parts.Next);
         // the stages before stay
         Assert.True(parts.Has(GearCutterStage.Head));
+        Assert.True(parts.Has(GearCutterStage.Index));
         // and a new kit then a master go back in
-        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(GearCutterParts.KitCode, 500, 500));
-        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(GearCutterParts.LargeMasterCode));
+        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(GearCutterParts.KitCode, 500, 500).Verdict);
+        Fits(parts, GearCutterParts.LargeMasterCode);
         Assert.Equal(2, parts.Master);
     }
 
@@ -149,7 +219,7 @@ public class GearCutterGameplayTests
         Assert.Equal(1, parts.Master);
         Assert.Equal(GearCutterTakeBack.Master, parts.TakeBack(false));
         Assert.Equal(GearCutterParts.KitCode, parts.NextPart);
-        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(GearCutterParts.KitCode, 500, 500));
+        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(GearCutterParts.KitCode, 500, 500).Verdict);
         Assert.True(parts.Complete);
     }
 
@@ -158,37 +228,86 @@ public class GearCutterGameplayTests
     {
         var parts = Complete(kit: 480);
         var drops = parts.Returns();
-        Assert.Equal(10, drops.Count);
+        // the spindle's and the index's three materials each, eight one-item stages
+        Assert.Equal(14, drops.Count);
         Assert.Equal(2, drops.Count(d => d.Code == GearCutterParts.GearboxCode));
         Assert.Equal(new GearCutterDrop(GearCutterParts.KitCode, 480), drops.Single(d => d.Code == GearCutterParts.KitCode));
         Assert.All(drops.Where(d => d.Code != GearCutterParts.KitCode), d => Assert.Null(d.Durability));
         Assert.Contains(new GearCutterDrop(GearCutterParts.MasterCode), drops);
+        foreach (var (code, n) in Bill)
+            Assert.Equal(2 * n, drops.Where(d => d.Code == code).Sum(d => d.Count));
         Assert.Empty(new GearCutterParts().Returns());
+    }
+
+    [Fact]
+    public void Breaking_a_stage_part_way_in_returns_exactly_what_went_in()
+    {
+        var parts = new GearCutterParts();
+        Fits(parts, GearCutterParts.RodCode, held: 2);
+        Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(GearCutterParts.PlateCode, held: 1, maxStack: 1).Verdict);
+        Assert.Equal([new GearCutterDrop(GearCutterParts.RodCode, null, 2), new GearCutterDrop(GearCutterParts.PlateCode, null, 1)],
+            parts.Returns());
     }
 
     [Fact]
     public void The_creative_shortcut_fits_each_stage_in_turn()
     {
         var parts = new GearCutterParts();
-        var codes = new List<string>();
-        while (parts.NextPart is { } code)
+        var codes = new List<string?>();
+        while (!parts.Complete)
         {
+            if (parts.FillNextMaterials())
+            {
+                codes.Add(null);
+                continue;
+            }
+            var code = Assert.IsType<string>(parts.NextPart);
             codes.Add(code);
-            Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(code, 500, 500));
+            Assert.Equal(GearCutterFitVerdict.Fits, parts.Fit(code, 500, 500).Verdict);
         }
         Assert.Equal([.. Order, GearCutterParts.KitCode, GearCutterParts.MasterCode], codes);
-        Assert.True(parts.Complete);
+        Assert.Equal(Complete().Returns().Where(d => d.Code != GearCutterParts.KitCode), parts.Returns().Where(d => d.Code != GearCutterParts.KitCode));
+        Assert.False(parts.FillNextMaterials());
     }
 
     [Fact]
     public void A_save_keeps_every_fitted_code()
     {
         var parts = Complete(GearCutterParts.LargeMasterCode, kit: 77);
-        var restored = GearCutterParts.Restore(parts.Snapshot(), parts.KitLeft, parts.KitCapacity);
+        var restored = GearCutterParts.Restore(parts.Snapshot(), parts.KitLeft, parts.KitCapacity, parts.MaterialSnapshot());
         Assert.Equal(parts.Returns(), restored.Returns());
+        Assert.True(restored.Complete);
         Assert.Equal(2, restored.Master);
         Assert.Equal(77, restored.KitLeft);
         Assert.Equal(500, restored.KitCapacity);
+    }
+
+    [Fact]
+    public void A_save_keeps_a_material_stage_part_way_in()
+    {
+        var parts = UpToHead(5);
+        Fits(parts, GearCutterParts.RodCode, held: 2);
+        Fits(parts, GearCutterParts.MetalPartsCode);
+        var restored = GearCutterParts.Restore(parts.Snapshot(), 0, 0, parts.MaterialSnapshot());
+        Assert.Equal(parts.Returns(), restored.Returns());
+        Assert.Equal(GearCutterStage.Index, restored.Next);
+        Assert.Equal([(GearCutterParts.PlateCode, 2)], restored.NextNeeds().Select(n => (n.Material.Codes[0], n.Missing)));
+    }
+
+    [Fact]
+    public void A_cutter_saved_with_the_old_spindle_and_index_items_restores_them_as_their_bill()
+    {
+        var full = Complete().Snapshot().ToDictionary(kv => kv.Key, kv => kv.Value);
+        full["spindle"] = GearCutterParts.LegacySpindleCode;
+        full["index"] = GearCutterParts.LegacyIndexCode;
+        var restored = GearCutterParts.Restore(full, 500, 500);   // an old save has no material counts
+        Assert.True(restored.Complete);
+        Assert.Equal(Complete().Returns(), restored.Returns());
+        Assert.DoesNotContain(restored.Returns(), d => d.Code is GearCutterParts.LegacySpindleCode or GearCutterParts.LegacyIndexCode);
+        // and it saves in the new form
+        var again = GearCutterParts.Restore(restored.Snapshot(), 500, 500, restored.MaterialSnapshot());
+        Assert.Equal(restored.Returns(), again.Returns());
+        Assert.DoesNotContain("spindle", restored.Snapshot().Keys);
     }
 
     [Fact]
@@ -196,19 +315,24 @@ public class GearCutterGameplayTests
     {
         var saved = new Dictionary<string, string>
         {
-            ["spindle"] = GearCutterParts.SpindleCode,
+            ["spindle"] = GearCutterParts.LegacySpindleCode,
             // no feed screw: what follows the gap is dropped
             ["camfeed"] = GearCutterParts.GearboxCode,
             ["master"] = GearCutterParts.MasterCode,
         };
         var restored = GearCutterParts.Restore(saved, 0, 0);
-        Assert.Equal([new GearCutterDrop(GearCutterParts.SpindleCode)], restored.Returns());
+        Assert.Equal(Bill.Select(b => new GearCutterDrop(b.Code, null, b.Count)), restored.Returns());
+
+        // a spindle part way in: nothing after it
+        var partial = GearCutterParts.Restore(Complete().Snapshot(), 500, 500,
+            new Dictionary<string, int> { ["spindle/" + StagedBuild.Key(0, 0, GearCutterParts.RodCode)] = 2 });
+        Assert.Equal([new GearCutterDrop(GearCutterParts.RodCode, null, 2)], partial.Returns());
 
         var full = Complete().Snapshot().ToDictionary(kv => kv.Key, kv => kv.Value);
         full["head"] = "game:gear-rusty";
-        Assert.Equal(GearCutterStage.Head, GearCutterParts.Restore(full, 500, 500).Next);
+        Assert.Equal(GearCutterStage.Head, GearCutterParts.Restore(full, 500, 500, Complete().MaterialSnapshot()).Next);
         // a kit with nothing left is gone; the master stays
-        var spent = GearCutterParts.Restore(Complete().Snapshot(), 0, 500);
+        var spent = GearCutterParts.Restore(Complete().Snapshot(), 0, 500, Complete().MaterialSnapshot());
         Assert.False(spent.Has(GearCutterStage.Cutter));
         Assert.Equal(1, spent.Master);
     }
