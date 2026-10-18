@@ -3549,7 +3549,11 @@ one on the stair from working them and so from ever getting off it). And a miner
 station on a way that crosses the columns another holds, nor on one the pathfinder finds only through
 another eidolon (no way round it: a pit floor too narrow to pass one at work, say): it lets its station
 go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaims`,
-`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). Down a pit with a stair and work left, one
+`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). On today's dispatch a member waiting (not
+walking) in the way of one setting off for or walking to its station is asked, each second, to make room,
+stepping aside to a place clear of that way (down a pit, one it may wait at there; else one with nothing
+left to dig) held by none (`MineOrder.ClearWay`): the floor of a trench 5 wide has no way round one standing
+in its middle, and a walker pressed into one waiting there for over 20 seconds (#1220). Down a pit with a stair and work left, one
 with nothing to take waits down there, a column clear of the stair and of what others hold, rather than
 climb the whole stair to the rim and back; a walk to where it waits that goes on over 10 seconds (stuck,
 or giving way for ever) is stopped and it looks again from where it got to. The work under its feet waits
