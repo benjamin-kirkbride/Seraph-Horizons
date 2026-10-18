@@ -98,7 +98,8 @@ public sealed class MineBands
         _open = new int[area.SizeY];
         _layerCells = Enumerable.Range(0, area.SizeY).Select(_ => new List<MarkPos>()).ToArray();
         _stairCells = new List<MarkPos>();
-        foreach (var c in widen ? _remaining.OrderBy(c => c.X).ThenBy(c => c.Y).ThenBy(c => c.Z) : (IEnumerable<MarkPos>)_remaining)
+        MineWork.Add(_remaining.Count);
+        foreach (var c in widen ? Ordered(area, _remaining) : _remaining)
         {
             int band = Band(c);
             if (band == Stair)
@@ -121,6 +122,26 @@ public sealed class MineBands
         _layer = area.SizeY - 1;
         while (_layer >= 0 && _open[_layer] == 0)
             _layer--;
+    }
+
+    // The cells by x, then y, then z: read off the area in that order where they all lie in it and that
+    // is the cheaper (a lookup a block of the area; the planner's targets always lie in it), else sorted.
+    private static IEnumerable<MarkPos> Ordered(MarkArea area, HashSet<MarkPos> cells)
+    {
+        long sort = (long)cells.Count * (int.Log2(cells.Count + 1) + 1);
+        if (area.Volume <= sort && cells.All(c => area.Contains(c.X, c.Y, c.Z)))
+        {
+            MineWork.Add(cells.Count + (int)area.Volume);
+            var ordered = new List<MarkPos>(cells.Count);
+            for (int x = area.Min.X; x <= area.Max.X; x++)
+            for (int y = area.Min.Y; y <= area.Max.Y; y++)
+            for (int z = area.Min.Z; z <= area.Max.Z; z++)
+                if (cells.Contains(new MarkPos(x, y, z)))
+                    ordered.Add(new MarkPos(x, y, z));
+            return ordered;
+        }
+        MineWork.Add((int)sort);
+        return cells.OrderBy(c => c.X).ThenBy(c => c.Y).ThenBy(c => c.Z);
     }
 
     private MineBands(MineBands other)
@@ -234,18 +255,25 @@ public sealed class MineBands
         if (!_widen)
             return;
         if (Covered is { } b && b != covered)
-            _widened.AddRange(_bandCells[b].Where(_remaining.Contains));
+            Widen(_bandCells[b]);
         int now = OpenFloor;
         if (now < floor)
             for (int y = Math.Max(now, _area.Min.Y); y < Math.Min(floor, _area.Max.Y + 1); y++)
-                _widened.AddRange(_layerCells[y - _area.Min.Y].Where(_remaining.Contains));
+                Widen(_layerCells[y - _area.Min.Y]);
         if (StairOpen && !stairOpen)
-            _widened.AddRange(_stairCells.Where(_remaining.Contains));
+            Widen(_stairCells);
+    }
+
+    private void Widen(List<MarkPos> cells)
+    {
+        MineWork.Add(cells.Count);
+        _widened.AddRange(cells.Where(_remaining.Contains));
     }
 
     /// <summary>The cells that became eligible since the last call.</summary>
     public IReadOnlyList<MarkPos> TakeWidened()
     {
+        MineWork.Add(_widened.Count);
         var list = _widened.ToList();
         _widened.Clear();
         return list;
