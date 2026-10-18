@@ -5120,6 +5120,16 @@ payouts already split gears into stacks (`SeraphTraderInventory.GiveOrDrop`), so
 takes more slots, and no grid or barrel recipe in the pack takes more than 64 in one slot
 (`BigPilesScenarios`).
 
+Dialogue that asks for more than a stack holds counts it across slots (`DialogueStacks.cs`, logic in
+`Core/SpanningTake.cs`): the game's `player.inventory` conditions and `takefrominventory` triggers want
+one slot holding the whole stack (`DialogueComponent.FindDesiredItem`), so the treasure hunter's elk,
+100 rusty gears, could never be bought with the gear at 64. A postfix on that method, only where it
+finds no single slot, returns a slot spanning the matching ones when together they hold enough; the
+condition is met and the trigger takes exactly the quantity, from them in order. Every dialogue
+benefits, the dialogue files are the game's, and it acts while this switch is on (bound by name; a
+missing method is logged and nothing is patched). Tests: `tests/SpanningTakeTests.cs`, and
+`TradingStoryScenarios` buying the elk with 100 gears in stacks of 64.
+
 ### Clutter and chiseled blocks do not pile (`NoClutterPiles`)
 
 The game's clutter and chiseled blocks are put down as the game ships them, not piled. More Piles'
@@ -6015,6 +6025,63 @@ furnace, smex) as any metal and casts in the ingot mold, which keeps the poured 
 Tests: `tests/Ore/BullionTests.cs`, `tests/PackTests/OreProcessingScenarios.cs`
 (`By_product_ores_smelt_to_bullion`).
 
+### Ore processing: the amalgam pan (`AmalgamPan`, `AmalgamPanSettings`)
+
+The hand station of amalgamation (#718; machine form: the amalgamation plates, #917). Its model, rig
+and generator are described in `AmalgamPan/README.md`, which also records the model's decisions; this
+is the gameplay, in `AmalgamPan/` (rules in `AmalgamPan/Core/`, the game side in `AmalgamPan/Game/`).
+It needs `OreProcessing` too: with either switch off its block and recipe are left out
+(`AmalgamPanSystem.Disable`), and the mod's own text names it without a link.
+
+**Block and build.** `seraphhorizons:amalgampan-frame-{side}` is one block, its operator's side (native
+north) towards the player who placed it, made on the grid from two iron or steel plates, two lots of
+iron, meteoric iron or steel nails and strips, two oak planks and a hammer (`recipes/grid/amalgampan.json`).
+Its two stages are fitted by right-click, in order, on the shared machine build (#711,
+`config/builds/amalgampan.json`, `MachineAssembly`): the muller (an iron, meteoric iron or steel rod),
+then its shoes (an iron or steel plate, drawn in the plate's metal). They do not wear and come back only
+by breaking the pan, with the quartz and any amalgam in it (the mercury and the water are lost). Ctrl +
+right-click in creative mode fits the next stage.
+
+**A charge.** Mercury (Expanded Matter's `em:mercuryportion`, ore processing's `retort.mercury`) is
+poured from any container of it, up to `MercuryCapacityPortions` (500, 5 L), and stays from one charge
+to the next; an empty container takes it back out of a pan with no charge in it. Crushed or ground gold
+or silver quartz (an ore with `"free": true`, read as ore processing's stream,
+`OreStreamAttributes.Read`) goes in by right-click, one kind (one stack's code and attributes) up to
+`ChargeItems` (16); quartz already amalgamated, or of an ore with no free metal, is refused. The charge
+wants `WaterLitresPerCharge` (4 L) of water from a bucket or any water container, and the mercury its
+amalgam will take (`retort.amalgamMercury`, 10 portions an amalgam item, the still returns 9). Ctrl +
+right-click takes a charge back before it is turned.
+
+**Working.** Held right-click (the quern's `OnBlockInteractStep`) turns the muller at
+`HandTurnsPerSecond` (2/3: 40 a minute), or an axle in the block below turns it with no player: the
+block is a mechanical power connector on its down face only (`IMechanicalPowerBlock`), and the shared
+consumer (`seraphhorizons.MachineMP`, `BEBehaviorMachineMP`) puts `WorkingResistance` (0.1) on the
+network while a charge can be worked, `IdleResistance` (0.005) else; the axle's angle advances the
+work (`ShaftClock.AngleAdvance`). A charge takes `TurnsPerItem` (1) turns an item: a full one 16 turns,
+24 s by hand. Done, ore processing says what it makes (`OreRecovery.Amalgamate(HandStation.AmalgamPan,
+stream)`, the share `handStations.amalgampan` of the free metal into amalgam): the amalgam's units go
+through the pan's own `UnitCarry` into `seraphhorizons:amalgam-{ore}` (5 units an item, the fraction
+carried to the next charge and saved with the pan), the mercury those items take and the water are
+spent, and the quartz is written back amalgamated (`OreStreamAttributes.Write`), its units less what
+went into amalgam, so the rocker and the concentrators no longer lose its free metal at × 0.7. The
+amalgam and the quartz wait in the pan until taken out with an empty hand. Nothing goes in or out but
+by hand: no chute, hopper or pipe.
+
+**Drawn.** The block draws `amalgampan_frame.json`; the renderer splits `amalgampan.json` into the rig's
+parts and draws the muller and shoes once fitted (the `shoe` texture set to the plate's metal), the
+mercury pool with no charge, the slurry and its water film while charged, and the amalgam once worked,
+the muller turning at the axle's angle or the hand's clock (`AmalgamPanClock`). The blocktype gives the
+mercury Expanded Matter's look (andesite with kimberlite blended over it).
+
+**Export.** The server marks the frame (`AssetsFinalize`, the block attribute
+`seraphhorizonsAmalgamPan`) with the settings and, for each crushed free quartz and grade, the amalgam a
+full charge makes; the recipe export reads it (type `amalgampan`, shape `machine`,
+`tools/recipe-export/Recipes/AmalgamPanExport.cs`, docs/recipe-browser/schema.md). Tests:
+`tests/AmalgamPan/AmalgamPanGameplayTests.cs` (the batch's rules, the clock, the settings, the rig and
+the build file); `tests/PackTests/AmalgamPanScenarios.cs` (loading, the build in order, a full charge by
+hand into amalgam and amalgamated quartz, an axle below); `RecipeExportAmalgamPanScenarios.cs`; and
+`SwitchesOffScenarios` (off).
+
 ### Cupellation (`OreProcessing`)
 
 Galena's silver (#690) and the bone-ash cupel that parts it at the forge (#722, hand and tier 1),
@@ -6487,7 +6554,8 @@ slot, by the slot and by shift-click, and a listed good with no demand let in, u
 ### Traders (`TraderGrid`)
 
 The trader overhaul's first wave (epic #436; design and engine notes in `docs/trading.md`), in
-`Trading/`. Eleven trader types take over from vanilla's nine and the other mods' traders: smith,
+`Trading/`. Eleven trader types take over from vanilla's eight camp traders and the other mods'
+traders, and vanilla's treasure hunter becomes the pack's own (below): smith,
 mechanic, prospector, farmer, cook, tailor, carpenter, mason, animal dealer, general store and curio
 dealer (`seraphhorizons:trader-{gender}-{type}-{climate}`, vanilla's trader with the pack's class).
 Each stocks from its own list (`assets/seraphhorizons/config/tradelists/trader-{type}.json`): a core
@@ -6518,20 +6586,44 @@ game's ponds are kept out of the camps: a camp placed from one chunk reaches int
 pond pass has not run yet, and an underground pond there could find a cellar's air and flood its
 floor, under the furniture. A transpiler on `GenPonds.TryPlacePondAt` drops any pond whose fill
 touches a recorded camp's location grown by a block, before it sets any water
-(`Trading/Game/CampPondGuard.cs`, `Trading/Core/CampPonds.cs`). A trader spawner inside a story structure (vanilla's treasure hunter, or one a mod adds)
-keeps its own trader: a story NPC, with its own dialogue. Neighbouring cells never have the same
+(`Trading/Game/CampPondGuard.cs`, `Trading/Core/CampPonds.cs`). A trader spawner inside a story structure (one a mod adds)
+keeps its own trader: a story NPC, with its own dialogue. Vanilla's treasure hunter's house is the
+exception: it spawns the pack's treasure hunter (below). Neighbouring cells never have the same
 type, and a prospector is never more than two cells away. Every 8 km cell keeps its centre free for a settlement (later). New worlds only: a world
 takes the grid at its first start with this mod if the switch is on then, and keeps that; an existing
 world keeps vanilla's camps and traders. Turned off later, the world's new chunks get the game's camps
 again. The trader types and their lists exist either way.
 
+**The treasure hunter.** In a world with the grid, vanilla's treasure hunter is one of the pack's
+traders too (`Trading/Core/StoryTraders.cs`): `seraphhorizons:trader-{gender}-treasurehunter-{climate}`,
+type `treasurehunter`, which the grid never places and which is no visitor. Its house (the game's
+`treasurehunter` story structure) spawns it in place of the game's, same gender and outfit, and it
+keeps everything that makes it the treasure hunter: its name, its outfit, its house, and the game's
+treasure hunter dialogue (`config/dialogue/treasurehunter.json`, made by `make_entities.py` from the
+game's), every quest as the game's: the bronze pickaxe for the Resonance Archive's map and the map
+again if lost, the Lazaret letter, the names and alchemists' places, the elk (its price paid in the
+dialogue, not as a trade, and counted across stacks, since the rusty gear stacks to 64: "The rusty
+gear stacks to 64"). The dialogue gains only what every pack trader's does: "How do you see me
+these days?" and "Got anything to trade?" opening the pack's trade window. Everything else is the
+pack's traders': its own list (`trader-treasurehunter.json`, curated from the game's treasure hunter
+list and every mod's entry into it: treasure and locator maps, loot vessels, rough gems, relics and
+old outfits to sell, bronze tools, provisions and kit to buy), value-table prices and the economy,
+standing (its id is its house, `story:treasurehunter`, so a revived or respawned one knows you),
+orders, deliveries, maps and leads, and the diving gear and flintlock schematics at tier 3 with the
+curio dealer. A game treasure hunter already in a grid world (spawned before this) is converted where
+it stands as it loads, with its dialogue variables (`hasmet`, `bronzereceived`, `heardlazaret`,
+`offeredelk`, ...), name, outfit and personality, and its spawner counts the new one; the players' own
+quest variables are the game's, per player, and carry over by themselves. Without the grid it is
+vanilla's, as every trader is.
+
 In a world with the grid the handbook's "Sold by" and "Purchased by" leave out the traders it
 replaces (`Trading/Game/TraderHandbook.cs`), which are never met there: vanilla's eight camp traders,
-Culinary Artillery's kitchenware trader and Domestic Animal Trader's, in every gender and climate.
+Culinary Artillery's kitchenware trader, Domestic Animal Trader's and vanilla's treasure hunter, in
+every gender and climate.
 Which ones is derived, not listed: every entity type with a vanilla-format trade list that the
 spawner rewrite takes (`HandbookTraders.IsOtherTrader`), less the traders a story structure's
-spawner spawns (vanilla's treasure hunter, in all three climates), read from the story schematics
-at worldgen init. The server writes their codes to the world config
+spawner spawns and the grid leaves alone (in all three climates; none in the pack now that the
+treasure hunter's is rewritten), read from the story schematics at worldgen init. The server writes their codes to the world config
 (`seraphhorizons:handbookHiddenTraders`), and a client's handbook skips their names (a prefix on the
 game's `TradeHandbookInfo.AddTraderHandbookInfo`); a name a trader still met shares stays. Without
 the grid (the switch off, or a world from before it) nothing is left out. The recipe export marks
@@ -6546,14 +6638,19 @@ spot missed; `/sh trade tp <cellX,cellZ>` goes to a cell's camp, generating its 
 Tests: `tests/Trading/` (grid, types and their bias, regions, list resolution, restock, the camp
 state with its order, second chances and old saves, the camp ground test, levelling and skirt, ponds kept out, the shipped
 lists and the curation fixture); `tests/PackTests/TradingCoreScenarios.cs`
-(Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere,
+(Atlas, a fixed seed: the 72 entity types, every list resolving in the pack with stock everywhere,
 every trader's trade window title and name, a spawned trader stocking from its list, the game's camps
 taken over, the spawner rewrite, cells' camps being decided, one on uneven ground with its footprint
 levelled and no step of more than one off it and no water in it, the pond guard hooked, `/sh trade camps` and `/sh trade tp` to it, and nothing logged);
 `tests/PackTests/TradingStoryScenarios.cs` (Atlas, a survival world with its story locations: the
-treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten, and the
-traders the handbook leaves out are the replaced ones and not the treasure hunter);
-`tests/Trading/HandbookTradersTests.cs` (which traders and names are left out).
+treasure hunter's spawner spawns the pack's while other story spawners keep theirs and a camp's 150
+blocks off is still the cell's; the handbook leaves out the game's treasure hunter; the pack's trades
+from its list and keeps the game's quests, driven through the dialogue: the pickaxe for the map, the
+elk paid in the dialogue with no deal or standing, with the eidolon's vessel and with 100 gears in
+stacks of 64; a game treasure hunter converted with its quest
+variables, name, outfit and spawner; and its generated house spawning the pack's, known to standing
+as `story:treasurehunter`); `tests/Trading/HandbookTradersTests.cs` (which traders and names are left
+out) and `tests/Trading/StoryTradersTests.cs` (the code mapping and the story id).
 
 ### Item base values (no switch)
 
@@ -6644,7 +6741,8 @@ exporter's own recipe types for the gear chain (`picklingtub` and `lottery`: `Ge
 `DrawBenchSystem.TypeAssets` and `RecipeAssets`; `cylinderborer`: `CylinderBorer`, whose files are
 `CylinderBorerSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
 `PressBrakeSystem.TypeAssets` and `RecipeAssets`; `rocker`: `Rocker`, whose files are
-`RockerSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
+`RockerSystem.TypeAssets` and `RecipeAssets`; `amalgampan`: `AmalgamPan`, whose files are
+`AmalgamPanSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
 `SquaringShearSystem.TypeAssets`, the half plate's among them, and `RecipeAssets`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
 id's type, its source file, or the code it is keyed by, as a transition or a casting is) and
 `SwitchForCode(code)`; the exporter calls `SwitchRegistry.For(api)` by reflection.
@@ -6660,6 +6758,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `CylinderBorer` | the borer's blocks and parts, the cylinder molds (`seraphhorizons:cylindermold-*`), the cast and bored cylinders (`seraphhorizons:cylinderblank-*`, `seraphhorizons:cylinder-*`), its grid, smithing and clay forming recipes, the molds' casting, the cylinder borer records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
 | `Rocker` | the rocker's block (`seraphhorizons:rocker-*`), `recipes/grid/rocker.json`, the rocker records |
+| `AmalgamPan` | the amalgam pan's block, its grid recipe, the amalgam pan records |
 | `SquaringShear` | the shear's blocks, the half plate (`seraphhorizons:halfplate-*`), its grid recipe, the squaring shear records |
 | `Riddle` | the riddle's block, its grid recipe, the riddle records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
@@ -6741,7 +6840,8 @@ once supply is high, and the smith buying back the iron on its shelf off-market)
 
 Each trader remembers you (#452, `Trading/Standing/`, server side, default on). Standing is kept per
 player and trader: a camp's trader is its grid cell (`camp:x,z`, so the camp's next trader knows you
-too), any other of the pack's traders its entity (`entity:n`). Every deal in the trade window
+too), the treasure hunter its house (`story:treasurehunter`, see "Traders"), any other of the pack's
+traders its entity (`entity:n`). Every deal in the trade window
 earns a point per gear changing hands, either way; orders and deliveries earn more, at
 both ends of a delivery made on time. Standing is lost only by failing a delivery or abandoning an
 order, never below 0. A tenth of your best standing with another trader of the same type within
@@ -7156,8 +7256,8 @@ nothing in play. Every subcommand of both:
 - validates its fixed words (`on|off`, `missing|suspicious`, log channels) with the game's word-range
   parser, which lists them in `/help`; the 1.22 client has no tab completion for server commands.
 
-A trader is `near` (the pack's nearest within 16 blocks), `camp:x,z`, `entity:n`, or a camp cell
-`x,z`; a deposit is `copper:12,-3` or `gravel:341,340`. Files are plain names, read and written in
+A trader is `near` (the pack's nearest within 16 blocks), `camp:x,z`, `entity:n`,
+`story:treasurehunter`, or a camp cell `x,z`; a deposit is `copper:12,-3` or `gravel:341,340`. Files are plain names, read and written in
 the server's `seraphhorizons-admin` folder (next to `Saves`), `.json` added when there is no
 extension.
 

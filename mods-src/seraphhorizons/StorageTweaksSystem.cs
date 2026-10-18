@@ -8,9 +8,10 @@ namespace SeraphHorizons.Mod;
 
 /// <summary>
 /// Big piles, big crates, the rusty gear's stack and no clutter piles (README "Big piles", "Big
-/// crates", "The rusty gear stacks to 64", "Clutter and chiseled blocks do not pile"), and the
-/// handbook's pile line: <see cref="BigPiles"/>, <see cref="BigCrates"/>,
-/// <see cref="RustyGearStack"/>, <see cref="ClutterPiles"/>, <see cref="PileHandbook"/>.
+/// crates", "The rusty gear stacks to 64", "Clutter and chiseled blocks do not pile"), with
+/// dialogue taking a stack across slots for the gear, and the handbook's pile line:
+/// <see cref="BigPiles"/>, <see cref="BigCrates"/>, <see cref="RustyGearStack"/>,
+/// <see cref="DialogueStacks"/>, <see cref="ClutterPiles"/>, <see cref="PileHandbook"/>.
 ///
 /// ExecuteOrder 0.2, so its <c>AssetsFinalize</c> runs after More Piles' (its <c>Core</c>, the
 /// default 0.1), which gives most blocks and some items their piles there, and after
@@ -39,6 +40,9 @@ public class StorageTweaksSystem : ModSystem
     {
         // Whatever the switch: a crate placed with it on keeps its slots when it is turned off.
         BigCrates.KeepSavedSlots(api.Logger);
+        // Once per process, both sides (the client checks a dialogue's conditions too); acts while
+        // the rusty gear stack is on, as the server has it.
+        DialogueStacks.Patch(api);
     }
 
     public override void StartClientSide(ICoreClientAPI api)

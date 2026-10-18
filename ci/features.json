@@ -2,7 +2,7 @@
   "always": ["items", "recipes", "switches", "tidy", "rest"],
   "global": ["Core/", "Machines/", "ConfigDefaults/", "LangText.cs", "SeraphHorizons.csproj", "modinfo.json"],
   "global_switches": ["OreMachinesSettings", "FollowPackDefaults"],
-  "unmapped": ["AcidParting/", "AmalgamPan/", "AmalgamationPlates/", "Arrastra/", "CupellationFurnace/",
+  "unmapped": ["AcidParting/", "AmalgamationPlates/", "Arrastra/", "CupellationFurnace/",
                "LiquationFurnace/", "ParkesKettle/", "ReverberatoryRoaster/", "ShakingTable/",
                "StallRoaster/", "Vanner/"],
   "features": {
@@ -89,6 +89,13 @@
       "codes": ["rocker"],
       "export": ["Recipes/RockerExport.cs", "RecipeSection.Rocker.cs"],
       "switches": ["Rocker", "RockerSettings"],
+      "classes": []
+    },
+    "AmalgamPan": {
+      "code": ["AmalgamPan/"],
+      "codes": ["amalgampan"],
+      "export": ["Recipes/AmalgamPanExport.cs", "RecipeSection.AmalgamPan.cs"],
+      "switches": ["AmalgamPan", "AmalgamPanSettings"],
       "classes": []
     },
     "Riddle": {
@@ -298,8 +305,9 @@
     },
     "StorageTweaks": {
       "code": ["StorageTweaksSystem.cs", "BigPiles.cs", "BigCrates.cs", "ClutterPiles.cs",
-               "RustyGearStack.cs", "PileHandbook.cs", "Core/BigPileRules.cs", "Core/ClutterPileRules.cs",
-               "Core/CrateSlotRules.cs", "Core/PileText.cs"],
+               "RustyGearStack.cs", "DialogueStacks.cs", "PileHandbook.cs", "Core/BigPileRules.cs",
+               "Core/ClutterPileRules.cs", "Core/CrateSlotRules.cs", "Core/PileText.cs",
+               "Core/SpanningTake.cs"],
       "codes": ["piles"],
       "switches": ["BigPiles", "BigCrates", "RustyGearStack", "NoClutterPiles"],
       "classes": []
