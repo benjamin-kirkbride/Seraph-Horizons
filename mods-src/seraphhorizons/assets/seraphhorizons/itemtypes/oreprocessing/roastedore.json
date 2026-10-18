@@ -85,6 +85,12 @@
 		"handbook": {
 			"groupBy": [
 				"roastedore-{ore}-*"
+			],
+			"extraSections": [
+				{
+					"title": "seraphhorizons:oreproduct-handbook-title",
+					"text": "seraphhorizons:oreproduct-roastedrock-handbook-text"
+				}
 			]
 		},
 		"displaycaseable": true,

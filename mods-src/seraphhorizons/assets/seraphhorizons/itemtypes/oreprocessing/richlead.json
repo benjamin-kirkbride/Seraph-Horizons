@@ -47,6 +47,12 @@
 		"handbook": {
 			"groupBy": [
 				"richlead"
+			],
+			"extraSections": [
+				{
+					"title": "seraphhorizons:oreproduct-handbook-title",
+					"text": "seraphhorizons:oreproduct-richlead-handbook-text"
+				}
 			]
 		},
 		"displaycaseable": true,

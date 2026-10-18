@@ -376,7 +376,7 @@ public class ItemExportScenarios : AtlasScenarioBase
     {
         var guides = ((JArray)Doc["guides"]!).OfType<JObject>().ToList();
         // seraphhorizons' other pages, machine oil's, gear reclamation's, the crucible furnace's, the eidolon's and ore processing's
-        // (spalling, roasting, the still, liquation), the ore maps' and springs' are not woodworking ones
+        // (the chain, spalling, roasting, the still, liquation), the ore maps' and springs' are not woodworking ones
         var woodworking = guides.Where(g => (string?)g["mod"] is "seraphhorizons" or "immersivewoodworking" or "loggingmod"
                                             && (string?)g["code"] != SeraphHorizons.Mod.MachineOil.MachineOilSystem.GuidePageCode
                                             && (string?)g["code"] != SeraphHorizons.Mod.GearReclamation.GearReclamationSystem.GuidePageCode
@@ -385,6 +385,7 @@ public class ItemExportScenarios : AtlasScenarioBase
                                             && (string?)g["code"] != SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuidePage
                                             && (string?)g["code"] != SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuidePage
                                             && (string?)g["code"] != SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuidePage
+                                            && (string?)g["code"] != SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.ProcessingGuidePage
                                             && (string?)g["code"] != SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuidePage
                                             && (string?)g["code"] != SeraphHorizons.Mod.Ore.OreMapsSystem.GuidePage
                                             && (string?)g["code"] != SeraphHorizons.Mod.Springs.SpringsSystem.GuidePageCode).ToList();

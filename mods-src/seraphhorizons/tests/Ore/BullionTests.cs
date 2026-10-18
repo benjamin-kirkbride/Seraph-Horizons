@@ -62,6 +62,21 @@ public class BullionTests
         Assert.Equal(expected.Count, allowed);
     }
 
+    /// <summary>The item type's partedBy (the tooltip's one line, by ore) names each ore's parting method
+    /// in the config.</summary>
+    [Fact]
+    public void TheItemTypeNamesEachKindsPartingMachine()
+    {
+        string text = File.ReadAllText(Path.Combine(ItemTypes, "bullion.json"));
+        var block = System.Text.RegularExpressions.Regex.Match(text, "\"partedByByType\": \\{([^}]*)\\}").Groups[1].Value;
+        var byOre = System.Text.RegularExpressions.Regex.Matches(block, "\"\\*-([a-z_]+)-\\*\": \"([a-z]+)\"")
+            .ToDictionary(m => m.Groups[1].Value, m => m.Groups[2].Value);
+        string fallback = System.Text.RegularExpressions.Regex.Match(block, "\"\\*\": \"([a-z]+)\"").Groups[1].Value;
+        Assert.NotEmpty(fallback);
+        foreach (var ore in R.Ores.Where(Bullion.Makes))
+            Assert.Equal(Bullion.MethodOf(ore)!.Value.ToString().ToLowerInvariant(), byOre.GetValueOrDefault(ore.Ore, fallback));
+    }
+
     [Theory]
     // Silver-lead and the rest go to the cupellation furnace.
     [InlineData("galena", PartingStation.CupellationFurnace, true)]

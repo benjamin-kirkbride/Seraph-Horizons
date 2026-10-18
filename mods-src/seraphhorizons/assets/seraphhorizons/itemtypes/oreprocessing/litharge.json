@@ -28,6 +28,12 @@
 		"handbook": {
 			"groupBy": [
 				"litharge"
+			],
+			"extraSections": [
+				{
+					"title": "seraphhorizons:oreproduct-handbook-title",
+					"text": "seraphhorizons:oreproduct-litharge-handbook-text"
+				}
 			]
 		},
 		"displaycaseable": true,

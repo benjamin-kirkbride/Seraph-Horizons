@@ -3,7 +3,8 @@
 // Silver-lead (galena, argentiferous galena), argentiferous copper (tetrahedrite), cupriferous silver
 // (freibergite), tin-lead (teallite, franckeite) and doré (gold quartz). The metal is the code's last part:
 // the crucible and the ingot mold draw it by that. Smelted plainly it gives its main metal (set in code).
-// Marked disabled with the switch off.
+// partedBy names the machine that parts each kind (the config's byProducts.partedBy, held to it by
+// BullionTests), for the tooltip's one line (ItemOreProduct.StatusText). Marked disabled with the switch off.
 {
 	"code": "bullion",
 	"class": "seraphhorizons.ItemOreProduct",
@@ -110,10 +111,22 @@
 	},
 	"attributes": {
 		"oreForm": "bullion",
+		"partedByByType": {
+			"*-teallite-*": "liquation",
+			"*-franckeite-*": "liquation",
+			"*-quartz_nativegold-*": "acidparting",
+			"*": "cupellation"
+		},
 		"metalUnits": 100,
 		"handbook": {
 			"groupBy": [
 				"bullion-*"
+			],
+			"extraSections": [
+				{
+					"title": "seraphhorizons:oreproduct-handbook-title",
+					"text": "seraphhorizons:oreproduct-bullion-handbook-text"
+				}
 			]
 		},
 		"displaycaseable": true,

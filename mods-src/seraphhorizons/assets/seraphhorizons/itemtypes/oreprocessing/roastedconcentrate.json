@@ -86,6 +86,12 @@
 		"handbook": {
 			"groupBy": [
 				"roastedconcentrate-*"
+			],
+			"extraSections": [
+				{
+					"title": "seraphhorizons:oreproduct-handbook-title",
+					"text": "seraphhorizons:oreproduct-roastedconcentrate-handbook-text"
+				}
 			]
 		},
 		"displaycaseable": true,
