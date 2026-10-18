@@ -42,7 +42,8 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// rock, one for one (#847); the fraction each firepit holds over
 /// toward its next roasted item is <see cref="RoastCarry"/>, saved with the world. The guide page
 /// "Roasting sulfide ore" (<c>config/handbook/oreroasting.json</c>) is hidden with the switch off, as is the
-/// guide to the whole chain, "Ore processing" (<c>config/handbook/oreprocessing.json</c>).
+/// guide to the whole chain, "Ore processing" (<c>config/handbook/oreprocessing.json</c>), and "Base bullion"
+/// (<c>config/handbook/oreprocessing-bullion.json</c>, #740), which goes into the bullion kinds and their parting.
 /// </summary>
 public class OreProcessingSystem : ModSystem
 {
@@ -65,6 +66,10 @@ public class OreProcessingSystem : ModSystem
     /// <summary>The liquation guide page (<c>config/handbook/liquation.json</c>, #724).</summary>
     public const string LiquationGuidePage = "seraphhorizons-liquation";
     public const string LiquationGuideTitleKey = "seraphhorizons:liquation-title";
+
+    /// <summary>The base bullion guide page (<c>config/handbook/oreprocessing-bullion.json</c>, #740).</summary>
+    public const string BullionGuidePage = "seraphhorizons-oreprocessing-bullion";
+    public const string BullionGuideTitleKey = "seraphhorizons:oreprocessing-bullion-title";
 
     /// <summary>The save key of <see cref="RoastCarry"/>.</summary>
     public const string RoastCarryKey = "seraphhorizons:oreroastcarry";
@@ -221,7 +226,7 @@ public class OreProcessingSystem : ModSystem
     {
         if (!On(api))
         {
-            // The ore processing, spalling, roasting and liquation guides are not in the handbook, nor in the recipe export (as the eidolon's).
+            // The ore processing, spalling, roasting, liquation and bullion guides are not in the handbook, nor in the recipe export (as the eidolon's).
             var hidden = api.ObjectCache.TryGetValue(WoodworkingGuide.HiddenGuidesKey, out var listed)
                          && listed is IEnumerable<(string, string)> pages
                 ? pages.ToList()
@@ -230,6 +235,7 @@ public class OreProcessingSystem : ModSystem
             hidden.Add((RoastingGuidePage, RoastingGuideTitleKey));
             hidden.Add((LiquationGuidePage, LiquationGuideTitleKey));
             hidden.Add((ProcessingGuidePage, ProcessingGuideTitleKey));
+            hidden.Add((BullionGuidePage, BullionGuideTitleKey));
             api.ObjectCache[WoodworkingGuide.HiddenGuidesKey] = hidden;
             return;
         }
@@ -253,7 +259,8 @@ public class OreProcessingSystem : ModSystem
         {
             if (api.World.GetItem(new AssetLocation("game:ore-medium-hematite-granite")) is not ItemGradedOre)
                 pages.RemoveAll(p => p.PageCode == SpallingGuidePage || p.PageCode == RoastingGuidePage
-                                     || p.PageCode == LiquationGuidePage || p.PageCode == ProcessingGuidePage);
+                                     || p.PageCode == LiquationGuidePage || p.PageCode == ProcessingGuidePage
+                                     || p.PageCode == BullionGuidePage);
         };
         handbook.OnInitCustomPages += _hidePage;
     }

@@ -33,7 +33,7 @@ import argparse
 import json
 import re
 import sys
-from decimal import ROUND_FLOOR, ROUND_HALF_UP, Decimal
+from decimal import ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP, Decimal
 from fractions import Fraction
 from pathlib import Path
 
@@ -53,6 +53,15 @@ CSHARP = {
     "lithargeRate": ("Ore/Core/OreProducts.cs", r"public static readonly SmeltRate LithargeRate = new\((\d+), (\d+)\);"),
     "bitUnits": ("Ore/Core/Cupellation.cs", r"public const double UnitsPerItem = (\d+);"),
     "barUnits": ("Ore/Core/Bullion.cs", r"public const double UnitsPerItem = (\d+);"),
+    # The parting machines' own settings' defaults (ModConfig), quoted by the bullion sections and the
+    # "Base bullion" guide.
+    "cfChargeUnits": ("CupellationFurnace/Core/Cupelling.cs", r"public double ChargeUnits \{ get; set; \} = (\d+);"),
+    "cfLeadPerOther": ("CupellationFurnace/Core/Cupelling.cs", r"public double LeadPerOtherUnit \{ get; set; \} = (\d+(?:\.\d+)?);"),
+    "pkZincPerLead": ("ParkesKettle/Core/ParkesKettling.cs", r"public double ZincPerLead \{ get; set; \} = (\d+(?:\.\d+)?);"),
+    "pkZincBitUnits": ("ParkesKettle/Core/ParkesKettling.cs", r"public const double ZincUnitsPerBit = (\d+);"),
+    "lfChargeBars": ("LiquationFurnace/Core/LiquationFurnacing.cs", r"public int ChargeBars \{ get; set; \} = (\d+);"),
+    "apChargeBars": ("AcidParting/Core/AcidPartingRules.cs", r"public int ChargeBars \{ get; set; \} = (\d+);"),
+    "apAcidPerBar": ("AcidParting/Core/AcidPartingRules.cs", r"public double AcidLitresPerBar \{ get; set; \} = (\d+(?:\.\d+)?);"),
 }
 
 GRADES = ("poor", "medium", "rich", "bountiful")
@@ -222,7 +231,67 @@ def figures(cfg: dict, cs: dict[str, tuple[Decimal, ...]]) -> dict[str, str]:
     output, ratio = cs["lithargeRate"]
     f["litharge.in"] = num(ratio)
     f["litharge.out"] = num(100 * output / cs["bitUnits"][0])
+
+    bullion_figures(f, cfg, cs)
     return f
+
+
+# The machine that parts each method's bullion, and its hand station (Ore/Core/OreRecovery.cs).
+PARTED_BY = {"cupellation": ("cupellationfurnace", "cupel"), "liquation": ("liquationfurnace", "liquationpan"),
+             "acidparting": ("acidparting", None)}
+
+
+def bullion_figures(f: dict[str, str], cfg: dict, cs: dict[str, tuple[Decimal, ...]]) -> None:
+    """The bullion kinds' sections' and the "Base bullion" guide's figures: what each machine and hand
+    station gives from a bar, and the machines' charges (Ore/Core/OreRecovery.Smelted, the machines' Core/)."""
+    hand, machines = cfg["handStations"], cfg["machines"]
+    bar = cs["barUnits"][0]
+    rich = cfg["bullion"]["richLeadSilver"]
+    f["richLead.silver"] = num(bar * rich)
+    for ore in BULLION_ORES:
+        bp = cfg["ores"][ore]["byProducts"][0]
+        machine, station = PARTED_BY[bp["partedBy"]]
+        f[f"parted.{ore}"] = num(bp["share"] * bar * machines[machine]["recovery"])
+        if station == "cupel":  # the liquation pan's are a full pan's (below)
+            f[f"hand.{ore}"] = num(bp["share"] * bar * hand[station])
+    f["unparted.quartz_nativegold.units"] = num(bar * cfg["ores"]["quartz_nativegold"]["unparted"])
+    for m in ("cupellationfurnace", "liquationfurnace", "acidparting"):
+        f[f"{m}.perHour"] = num(machines[m]["perHour"])
+
+    # The cupellation furnace: a charge of bars, and an ore whose metal is not lead with lead added.
+    charge, lead = cs["cfChargeUnits"][0], cs["cfLeadPerOther"][0]
+    f["cupellationfurnace.chargeBars"] = num(charge / bar)
+    require(lead == 1, f"the texts say as many lead ingots as bars, but LeadPerOtherUnit is {lead}")
+    require(charge == bar * (1 + lead), f"the texts say a full charge is one bar and one lead ingot, but ChargeUnits is {charge}")
+
+    # The Parkes kettle on a full charge of plain galena's silver-lead (ParkesKettle/Core/ParkesKettling.Finish).
+    kettle = machines["parkeskettle"]
+    require(kettle["recovery"] == 1, f"the texts say the kettle keeps all the silver, but its recovery is {kettle['recovery']}")
+    bars = kettle["charge"] / bar
+    require(bars == bars.to_integral_value(), f"the kettle's charge {kettle['charge']} is not whole bars")
+    zinc_bit = cs["pkZincBitUnits"][0]
+    zinc_bits = (kettle["charge"] * cs["pkZincPerLead"][0] / zinc_bit).to_integral_value(rounding=ROUND_CEILING)
+    silver = bars * cfg["ores"]["galena"]["byProducts"][0]["share"] * bar
+    rich_bars = (silver / (bar * rich)).to_integral_value(rounding=ROUND_FLOOR)
+    f["parkeskettle.bars"] = num(bars)
+    f["parkeskettle.leadPerZinc"] = num(1 / cs["pkZincPerLead"][0])
+    f["parkeskettle.zincBits"] = num(zinc_bits)
+    f["parkeskettle.zincBack"] = num((zinc_bits * zinc_bit * kettle["zincReturn"] / zinc_bit).to_integral_value(rounding=ROUND_FLOOR))
+    f["parkeskettle.richBars"] = num(rich_bars)
+    f["parkeskettle.leadIngots"] = num(bars - rich_bars)
+    f["parkeskettle.silverCarried"] = num(silver - rich_bars * bar * rich)
+
+    # The liquation pan's full charge of roasted concentrate, and what it gives.
+    pan = cfg["liquation"]["capacityUnits"]
+    f["liquationpan.units"] = num(pan)
+    f["liquationpan.concentrate"] = num(pan / cfg["concentrateUnits"])
+    for ore in ("teallite", "franckeite"):
+        f[f"liquationpan.{ore}"] = num(pan * cfg["ores"][ore]["byProducts"][0]["share"] * hand["liquationpan"])
+
+    f["liquationfurnace.chargeBars"] = num(cs["lfChargeBars"][0])
+    f["acidparting.chargeBars"] = num(cs["apChargeBars"][0])
+    f["acidparting.acidPerBar"] = num(cs["apAcidPerBar"][0])
+    f["acidparting.unitsPerLitre"] = num(1 / machines["acidparting"]["water"])
 
 
 PLACEHOLDER = re.compile(r"\{\{([A-Za-z0-9_.]+)\}\}")
