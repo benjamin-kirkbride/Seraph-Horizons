@@ -20,17 +20,12 @@ public class BlockCylinderBorer : Block
 {
     public static readonly AssetLocation ItemCode = new(CylinderBorerSystem.Domain, "cylinderborer-frame-north");
 
-    // What each stage takes, and the castings, as stacks that exist in the game being played (help icons).
-    private Dictionary<CylinderBorerStage, ItemStack[]> _partStacks = [];
+    // The castings, as stacks that exist in the game being played (help icons).
     private ItemStack[] _blankStacks = [];
 
     public override void OnLoaded(ICoreAPI api)
     {
         base.OnLoaded(api);
-        _partStacks = ObjectCacheUtil.GetOrCreate(api, "cylinderborer-partstacks", () =>
-            CylinderBorerRequires.Stages.ToDictionary(s => s, s => CylinderBorerParts.CodesFor(s)
-                .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item) : null)
-                .OfType<ItemStack>().ToArray()));
         _blankStacks = ObjectCacheUtil.GetOrCreate(api, "cylinderborer-blankstacks", () =>
             new[] { Boring.BlankIron, Boring.BlankSteel }
                 .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item) : null)
@@ -121,7 +116,7 @@ public class BlockCylinderBorer : Block
         {
             string Key(string action) => CylinderBorerSystem.Domain + ":blockhelp-cylinderborer-" + action;
             var parts = borer.Parts;
-            if (parts.Next is { } next && _partStacks.GetValueOrDefault(next) is { Length: > 0 } stacks)
+            if (parts.Next != null && borer.NeedStacks() is { Length: > 0 } stacks)
                 help.Add(new WorldInteraction { ActionLangCode = Key("fitpart"), MouseButton = EnumMouseButton.Right, Itemstacks = stacks });
             else if (parts.Complete && !borer.BlankOn && _blankStacks.Length > 0)
                 help.Add(new WorldInteraction { ActionLangCode = Key("loadblank"), MouseButton = EnumMouseButton.Right, Itemstacks = _blankStacks });

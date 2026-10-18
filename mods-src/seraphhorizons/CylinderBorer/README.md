@@ -93,11 +93,11 @@ carries everything with `requires` null: the sills and cross sills, the bench wi
 and top beam, the drum shaft's bearings, the far bushing's pedestal, the drive portal, the entry shaft with its pinion
 and its bearings, the cradle's bearers and the chains' staples, and the two oil cups.
 
-| `requires` | Item | Draws |
+| `requires` | Takes | Draws |
 |---|---|---|
 | `bushings` | `game:metal-parts` (a block), one, fitted as it is: no item of its own | The bar's two bushings, on the far pedestal and the drive portal's transom, in cupronickel as the gear cutter draws metal parts |
-| `bar` | `seraphhorizons:cylinderborerbar`: three rods, metal parts and a large stainless gear (the great wheel) on the grid | The bar, its feather, its two collars and the great wheel keyed on its drive end |
-| `feed` | `seraphhorizons:cylinderborerfeed`: two oak planks, a rod, two ropes and a plate on the grid | The crosshead with its shoes, push handle, control rod and yoke; the drum shaft with its two drums; the weight; the two ropes |
+| `bar` | Its materials directly, no item of its own: three rods (iron, meteoric iron or steel), metal parts and a large stainless gear (the great wheel) | The bar, its feather, its two collars and the great wheel keyed on its drive end |
+| `feed` | Its materials directly, no item of its own: two oak planks, a rod, two ropes and a plate (iron, meteoric iron or steel) | The crosshead with its shoes, push handle, control rod and yoke; the drum shaft with its two drums; the weight; the two ropes |
 | `cutterhead` | `seraphhorizons:cylinderborerhead-steel`: smithed from a steel ingot, the wearing part (8 cylinders) | The head (body, hubs, the yoke's groove) with its four cutters and their wedges |
 | `blankiron`, `blanksteel` | The work: `seraphhorizons:cylinderblank-iron` or `-steel` in the cradle | The casting, its cast skin and its two chains |
 
@@ -124,10 +124,13 @@ draw bench.
   `cylinderborer-ghost` into its other cells and `cylinderborer-ghostpower-{side}` into the power cell, a consumer on the
   power face only (`BEBehaviorCylinderBorerMP`, `Resistance` 0.3, a token 0.005 unassembled; the load never changes with
   the oil).
-- **Assembly** (`CylinderBorerParts`): frame, then bushings, bar, feed, cutter head, one item at a time and only in that
-  order; `ctrl` + right-click takes the head back with the durability it has left, then a casting in the cradle; the rest
-  comes back only by breaking the frame (every part, the head with its wear, and the casting); in creative, `ctrl` +
-  right-click fits the next stage free.
+- **Assembly** (`CylinderBorerParts`): frame, then bushings, bar, feed, cutter head, only in that order, each stage its
+  materials (metal parts; three rods, metal parts and a large stainless gear; two oak planks, a rod, two ropes and a
+  plate; the forged head), a material a click as the ore machines' stages take theirs (Machines' `StagedBuild` holds the
+  counts), drawn once complete; `ctrl` + right-click takes the head back with the durability it has left, then a casting in the cradle; the rest
+  comes back only by breaking the frame (everything put in, the head with its wear, and the casting); in creative, `ctrl` +
+  right-click fills the next stage free. The bar and the feed were grid-made items before they took their materials directly; a borer saved
+  with them restores those stages complete in their materials (iron rods and plate).
 - **The bore** (`Boring`, `BoreJob`): a rough cast cylinder, `seraphhorizons:cylinderblank-iron` (k 1) or `-steel` (k 2), by
   right-click or from a chest or hopper against the infeed face (native east, beside the cradle), one at a time. W
   advances with the shaft's angle at `TurnsPerBlockIron` 64 or `TurnsPerBlockSteel` 96 axle turns a block to the head's
@@ -174,7 +177,7 @@ block's `textures` name every code of `cylinderborer.json`, as the draw bench's 
 | `assets/seraphhorizons/shapes/block/cylinderborer_frame.json` | The static frame only (79 elements). |
 | `assets/seraphhorizons/config/cylinderborer-rig.json` | Footprint, anchors, the work, the bore's figures and the part rig (64 parts: 40 quarters of cast skin, 10 rope pieces). |
 | `tests/CylinderBorer/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
-| `assets/seraphhorizons/shapes/item/cylinderborer/*.json` | The items: `bar`, `feed`, `cutterhead` (each stage's rig parts at rest, as the gear cutter's items are, the drum and weight gathered; the bushings are the game's metal parts, with no item of their own), `cylinderblank` (the iron casting with its rough skin) and `cylinder` (bored), the casting's outside `cast`. |
+| `assets/seraphhorizons/shapes/item/cylinderborer/*.json` | The items: `cutterhead` (its rig parts at rest, as the gear cutter's items are; the bushings, the bar and the feed have no item of their own, their stages taking metal parts and their materials directly), `cylinderblank` (the iron casting with its rough skin) and `cylinder` (bored), the casting's outside `cast`. |
 | `assets/seraphhorizons/shapes/block/clay/mold/cylinder.json` | The clay mold the blank is cast in: a box round the casting lying on its side, a core for its bore, on the voxel grid of its clay forming recipe. |
 
 ### How the machine works
@@ -414,7 +417,8 @@ game's atlas, the particles and the sounds are untested but by the Atlas scenari
 ## Settled, and open for the owner
 
 Settled with the owner for the gameplay pass: the stages (bushings from metal parts, drawn in cupronickel; the bar;
-the feed; the cutter head, a wearing kit like the gear cutter's), their recipes, the frame's two stainless gears (the
+the feed; the cutter head, a wearing kit like the gear cutter's), what they take (the bar and the feed their old grid
+recipes' materials, put in at the frame: no intermediate hand-crafted items, only the forged head), the frame's two stainless gears (the
 pinion and its drive, #473's precedent), the bar's large stainless gear for the great wheel, the classes (iron for the Watt engine, steel for the Cornish), the
 square casting with its round bore, one traverse a cylinder, the item codes, the oil (the gear cutter's rule: it wears
 the head, never the load), and the engines' recipes.

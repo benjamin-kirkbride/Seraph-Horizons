@@ -27,16 +27,23 @@ public partial class RecipeExportScenarios
             Assert.Equal("seraphhorizons", (string)r["mod"]!);
             Assert.Equal("CylinderBorer", (string?)r["switch"]);
             var ingredients = (JArray)r["ingredients"]!;
-            Assert.Equal(new[] { $"seraphhorizons:cylinderblank-{metal}", "game:metal-parts", "seraphhorizons:cylinderborerbar",
-                                 "seraphhorizons:cylinderborerfeed" },
-                ingredients.Take(4).Select(i => (string)i["code"]!));
-            Assert.All(ingredients.Skip(1).Take(3), i => Assert.Equal("kept", (string)i["role"]!));
-            Assert.Equal(new[] { "block", "item", "item" }, ingredients.Skip(1).Take(3).Select(i => (string)i["kind"]!));
+            // kept: what the bushings, the bar and the feed are built of, summed by item (no item of their own)
+            Assert.Equal(new[] { $"seraphhorizons:cylinderblank-{metal}", "game:metal-parts", "game:rod-iron", "seraphhorizons:largegear-stainless",
+                                 "game:plank-oak", "game:rope", "game:metalplate-iron" },
+                ingredients.Take(7).Select(i => (string)i["code"]!));
+            Assert.All(ingredients.Skip(1).Take(6), i => Assert.Equal("kept", (string)i["role"]!));
+            Assert.Equal(new[] { "block", "item", "item", "item", "item", "item" }, ingredients.Skip(1).Take(6).Select(i => (string)i["kind"]!));
+            Assert.Equal(new[] { 2.0, 4, 1, 2, 2, 1 }, ingredients.Skip(1).Take(6).Select(i => (double)i["quantity"]!));
+            Assert.DoesNotContain(ingredients, i => ((string)i["code"]!).StartsWith("seraphhorizons:cylinderborerbar")
+                                                    || ((string)i["code"]!).StartsWith("seraphhorizons:cylinderborerfeed"));
+            var keptStacks = r["variants"]![0]!["ingredients"]!;
+            Assert.Equal(new[] { "game:rod-iron", "game:rod-meteoriciron", "game:rod-steel" }, keptStacks[2]!.Select(st => (string)st["code"]!));
+            Assert.Equal(new[] { "game:metalplate-iron", "game:metalplate-meteoriciron", "game:metalplate-steel" }, keptStacks[6]!.Select(st => (string)st["code"]!));
             Json("""{ "code": "seraphhorizons:cylinderborerhead-steel", "kind": "item", "quantity": 1, "role": "tool", "isTool": true, "toolDurabilityCost": 1 }""",
-                ingredients[4]);
-            Assert.Equal("oil", (string)ingredients[5]["role"]!);
-            Assert.Equal(0.1, (double)ingredients[5]["litres"]!, 6);   // 10 points a cylinder
-            Json("""{ "code": "seraphhorizons:cylinderborer-frame-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[6]);
+                ingredients[7]);
+            Assert.Equal("oil", (string)ingredients[8]["role"]!);
+            Assert.Equal(0.1, (double)ingredients[8]["litres"]!, 6);   // 10 points a cylinder
+            Json("""{ "code": "seraphhorizons:cylinderborer-frame-north", "kind": "block", "quantity": 1, "role": "station" }""", ingredients[9]);
             Json($$"""[{ "code": "seraphhorizons:cylinder-{{metal}}", "kind": "item", "quantity": 1 }]""", r["outputs"]!);
             var machine = r["machine"]!;
             Assert.Equal("mechanical", (string)machine["power"]!);
@@ -44,9 +51,9 @@ public partial class RecipeExportScenarios
             Assert.Equal(18.0 / 16, (double)machine["work"]!["amount"]!, 4);
             Assert.Equal("blocks", (string)machine["work"]!["unit"]!);
             Assert.Equal(turnsPerBlock, (double)machine["work"]!["turnsPerUnit"]!, 2);
-            Json("[1, 2, 3]", machine["kept"]!);
-            Json("""{ "ingredient": 4, "rule": "dividedByOilFill" }""", machine["wear"]!);
-            Json("""{ "ingredient": 5, "points": 10, "tank": 1000 }""", machine["oil"]!);
+            Json("[1, 2, 3, 4, 5, 6]", machine["kept"]!);
+            Json("""{ "ingredient": 7, "rule": "dividedByOilFill" }""", machine["wear"]!);
+            Json("""{ "ingredient": 8, "points": 10, "tank": 1000 }""", machine["oil"]!);
             Assert.Equal(metal, (string)r["extra"]!["metal"]!);
             var variant = r["variants"]![0]!;
             Assert.Equal(new[] { $"seraphhorizons:cylinder-{metal}" }, Codes(variant["outputs"]!).Select(c => (string)c!));
