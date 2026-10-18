@@ -124,6 +124,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     /// <summary>How long at most it waits for another to make room before it walks a way through it.</summary>
     private const double ThroughSeconds = 20;
 
+    /// <summary>How often a walker on today's dispatch asks a member waiting in its way to make room
+    /// (<see cref="ClearWay"/>).</summary>
+    private const double ClearWaySeconds = 1;
+
     /// <summary>How long one walk on the stair keeps it (refreshed while it walks).</summary>
     private const double StairSeconds = 30;
 
@@ -172,6 +176,9 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
     private int _toldSaved = toldOutOfReach;
     private bool _stairWait;
     private double? _throughSince;
+
+    // when it next asks a member waiting in its way to make room (ClearWay)
+    private double _clearWayAt = double.NegativeInfinity;
     private double _yieldUntil;
     private bool _headDone;
     private double? _waitWalkSince;
@@ -455,6 +462,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                         Repaired(Cells.Routes!.Drop(eidolon.EntityId, head.Id, MineRefusal.None, now) ?? "late");
                         _phase = Phase.Seek;
                         return true;
+                    }
+                    // today's dispatch: a member waiting in its way is asked to make room, rather than be
+                    // walked into and pressed against for as long as it waits (#1220)
+                    if (!Routed(eidolon) && now >= _clearWayAt)
+                    {
+                        _clearWayAt = now + ClearWaySeconds;
+                        ClearWay(eidolon, head.Stand, now);
                     }
                     // its stations kept while it walks to them, however long the way
                     Board?.Struck(eidolon.EntityId, now);
@@ -934,12 +948,48 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
 
     /// <summary>Another member's route needs where it stands while it waits: it steps aside (as
     /// <see cref="StepAway"/>), and stays off its planned place for a while.</summary>
-    private void MakeRoom(EntityLaborEidolon eidolon, double now)
+    private void MakeRoom(EntityLaborEidolon eidolon, double now, System.Func<int, int, bool>? off = null)
     {
         if (_nav == null || _nav.Active || _phase is not (Phase.Wait or Phase.Seek))
             return;
-        if (_rim.Aside(eidolon, _nav, _jobs, AsideClear(eidolon.EntityId, now)))
+        var clear = AsideClear(eidolon.EntityId, now);
+        if (off != null)
+        {
+            // off another's way: down a pit with a stair, where it may wait there (Wait: a pit's floor being dug
+            // has blocks left under it nearly everywhere, and a place it may not wait at it would step off
+            // again, back into the way); else onto ground with nothing left to dig, held by none
+            var aside = DownPit(eidolon) ? PitClear(eidolon.EntityId, now) : clear;
+            clear = (x, z) => off(x, z) && aside(x, z);
+        }
+        if (_rim.Aside(eidolon, _nav, _jobs, clear))
             _bumpedAt = now;
+    }
+
+    /// <summary>Today's dispatch: a member of its job waiting (not walking) with its box in the way of its
+    /// walk from where it is to <paramref name="stand"/> (within <see cref="OthersRange"/>) is asked to make
+    /// room, stepping aside to a place clear of that way (<see cref="MakeRoom"/>). One waiting down a pit
+    /// stands anywhere clear of the stair and the others' claims (<see cref="Wait"/>), and the floor of a narrow one (a
+    /// trench 5 wide) has no way round one standing in its middle: the game's push does not part them, and
+    /// the walker pressed into it for over 20 seconds (#1220).</summary>
+    private void ClearWay(EntityLaborEidolon eidolon, PathCell stand, double now)
+    {
+        double fx = eidolon.Pos.X, fz = eidolon.Pos.Z, tx = stand.X, tz = stand.Z;
+        int feet = Feet(eidolon);
+        // the horizontal distance of a point from its way (the straight line to its stand)
+        double FromWay(double x, double z)
+        {
+            double dx = tx - fx, dz = tz - fz, len = dx * dx + dz * dz;
+            double t = len < 1e-6 ? 0 : Math.Clamp(((x - fx) * dx + (z - fz) * dz) / len, 0, 1);
+            double px = fx + t * dx - x, pz = fz + t * dz - z;
+            return Math.Sqrt(px * px + pz * pz);
+        }
+        // a box clear of its box going along the way, with a little room
+        const double Clear = BoxWidth + 0.2;
+        foreach (var e in eidolon.World.GetEntitiesAround(eidolon.Pos.XYZ, OthersRange, OthersRange, e => e is EntityLaborEidolon
+                     && e.EntityId != eidolon.EntityId && e.Alive && Math.Abs(Feet(e) - feet) < 4 && FromWay(e.Pos.X, e.Pos.Z) < Clear))
+            if (e is EntityLaborEidolon { Orders.Current: MineOrder waiting } other && waiting._job == _job && _job != null
+                && waiting._phase is Phase.Wait or Phase.Seek && waiting._nav?.Active != true)
+                waiting.MakeRoom(other, now, (x, z) => FromWay(x, z) >= Clear);
     }
 
     /// <summary>
@@ -1532,6 +1582,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             // for room, at most ThroughSeconds, rather than push past it
             if (!_nav.LastWentAround && (_throughSince ??= now) > now - (routed && MayPass(eidolon) ? PassSeconds : ThroughSeconds))
             {
+                // today's dispatch: a member waiting in the way is asked to make room (a routed one's plan
+                // keeps it out of the way, and it steps aside for one walking up to it: RouteWait)
+                if (!routed)
+                    ClearWay(eidolon, stand, now);
                 Held(eidolon, "its way goes through another", now);
                 _nav.Stop();
                 DropQueue(eidolon);
@@ -1723,7 +1777,7 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         }
         // Down a pit with a stair, with work left: it waits down there, out of the way, rather than climb
         // the whole stair out to the rim and back for the next station.
-        if (!_finished && Cells.Plan is { Stair.Count: > 0 } && Feet(eidolon) < area.Max.Y + 1 - EidolonTeamwork.FloorStep)
+        if (!_finished && DownPit(eidolon))
         {
             _rim.Leave(eidolon, _jobs);
             if (!_nav.Active)
@@ -1742,6 +1796,10 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
             "seraphhorizons:eidolon-status-mine-waiting-aside", AsideClear(eidolon.EntityId, now), now, RescanSeconds);
         return true;
     }
+
+    /// <summary>Whether it is down a pit with a stair, below its rim (where one with nothing to take waits).</summary>
+    private bool DownPit(EntityLaborEidolon eidolon) =>
+        Cells.Plan is { Stair.Count: > 0 } && Feet(eidolon) < area.Max.Y + 1 - EidolonTeamwork.FloorStep;
 
     /// <summary>Where it may step aside to when it cannot reach the rim: a path node whose four columns
     /// have no block left it would mine (mined floor, the stair, or outside the area) and none another holds.</summary>
