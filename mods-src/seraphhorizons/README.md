@@ -6025,6 +6025,63 @@ furnace, smex) as any metal and casts in the ingot mold, which keeps the poured 
 Tests: `tests/Ore/BullionTests.cs`, `tests/PackTests/OreProcessingScenarios.cs`
 (`By_product_ores_smelt_to_bullion`).
 
+### Ore processing: the amalgam pan (`AmalgamPan`, `AmalgamPanSettings`)
+
+The hand station of amalgamation (#718; machine form: the amalgamation plates, #917). Its model, rig
+and generator are described in `AmalgamPan/README.md`, which also records the model's decisions; this
+is the gameplay, in `AmalgamPan/` (rules in `AmalgamPan/Core/`, the game side in `AmalgamPan/Game/`).
+It needs `OreProcessing` too: with either switch off its block and recipe are left out
+(`AmalgamPanSystem.Disable`), and the mod's own text names it without a link.
+
+**Block and build.** `seraphhorizons:amalgampan-frame-{side}` is one block, its operator's side (native
+north) towards the player who placed it, made on the grid from two iron or steel plates, two lots of
+iron, meteoric iron or steel nails and strips, two oak planks and a hammer (`recipes/grid/amalgampan.json`).
+Its two stages are fitted by right-click, in order, on the shared machine build (#711,
+`config/builds/amalgampan.json`, `MachineAssembly`): the muller (an iron, meteoric iron or steel rod),
+then its shoes (an iron or steel plate, drawn in the plate's metal). They do not wear and come back only
+by breaking the pan, with the quartz and any amalgam in it (the mercury and the water are lost). Ctrl +
+right-click in creative mode fits the next stage.
+
+**A charge.** Mercury (Expanded Matter's `em:mercuryportion`, ore processing's `retort.mercury`) is
+poured from any container of it, up to `MercuryCapacityPortions` (500, 5 L), and stays from one charge
+to the next; an empty container takes it back out of a pan with no charge in it. Crushed or ground gold
+or silver quartz (an ore with `"free": true`, read as ore processing's stream,
+`OreStreamAttributes.Read`) goes in by right-click, one kind (one stack's code and attributes) up to
+`ChargeItems` (16); quartz already amalgamated, or of an ore with no free metal, is refused. The charge
+wants `WaterLitresPerCharge` (4 L) of water from a bucket or any water container, and the mercury its
+amalgam will take (`retort.amalgamMercury`, 10 portions an amalgam item, the still returns 9). Ctrl +
+right-click takes a charge back before it is turned.
+
+**Working.** Held right-click (the quern's `OnBlockInteractStep`) turns the muller at
+`HandTurnsPerSecond` (2/3: 40 a minute), or an axle in the block below turns it with no player: the
+block is a mechanical power connector on its down face only (`IMechanicalPowerBlock`), and the shared
+consumer (`seraphhorizons.MachineMP`, `BEBehaviorMachineMP`) puts `WorkingResistance` (0.1) on the
+network while a charge can be worked, `IdleResistance` (0.005) else; the axle's angle advances the
+work (`ShaftClock.AngleAdvance`). A charge takes `TurnsPerItem` (1) turns an item: a full one 16 turns,
+24 s by hand. Done, ore processing says what it makes (`OreRecovery.Amalgamate(HandStation.AmalgamPan,
+stream)`, the share `handStations.amalgampan` of the free metal into amalgam): the amalgam's units go
+through the pan's own `UnitCarry` into `seraphhorizons:amalgam-{ore}` (5 units an item, the fraction
+carried to the next charge and saved with the pan), the mercury those items take and the water are
+spent, and the quartz is written back amalgamated (`OreStreamAttributes.Write`), its units less what
+went into amalgam, so the rocker and the concentrators no longer lose its free metal at × 0.7. The
+amalgam and the quartz wait in the pan until taken out with an empty hand. Nothing goes in or out but
+by hand: no chute, hopper or pipe.
+
+**Drawn.** The block draws `amalgampan_frame.json`; the renderer splits `amalgampan.json` into the rig's
+parts and draws the muller and shoes once fitted (the `shoe` texture set to the plate's metal), the
+mercury pool with no charge, the slurry and its water film while charged, and the amalgam once worked,
+the muller turning at the axle's angle or the hand's clock (`AmalgamPanClock`). The blocktype gives the
+mercury Expanded Matter's look (andesite with kimberlite blended over it).
+
+**Export.** The server marks the frame (`AssetsFinalize`, the block attribute
+`seraphhorizonsAmalgamPan`) with the settings and, for each crushed free quartz and grade, the amalgam a
+full charge makes; the recipe export reads it (type `amalgampan`, shape `machine`,
+`tools/recipe-export/Recipes/AmalgamPanExport.cs`, docs/recipe-browser/schema.md). Tests:
+`tests/AmalgamPan/AmalgamPanGameplayTests.cs` (the batch's rules, the clock, the settings, the rig and
+the build file); `tests/PackTests/AmalgamPanScenarios.cs` (loading, the build in order, a full charge by
+hand into amalgam and amalgamated quartz, an axle below); `RecipeExportAmalgamPanScenarios.cs`; and
+`SwitchesOffScenarios` (off).
+
 ### Cupellation (`OreProcessing`)
 
 Galena's silver (#690) and the bone-ash cupel that parts it at the forge (#722, hand and tier 1),
@@ -6684,7 +6741,8 @@ exporter's own recipe types for the gear chain (`picklingtub` and `lottery`: `Ge
 `DrawBenchSystem.TypeAssets` and `RecipeAssets`; `cylinderborer`: `CylinderBorer`, whose files are
 `CylinderBorerSystem.TypeAssets` and `RecipeAssets`; `pressbrake`: `PressBrake`, whose files are
 `PressBrakeSystem.TypeAssets` and `RecipeAssets`; `rocker`: `Rocker`, whose files are
-`RockerSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
+`RockerSystem.TypeAssets` and `RecipeAssets`; `amalgampan`: `AmalgamPan`, whose files are
+`AmalgamPanSystem.TypeAssets` and `RecipeAssets`; `squaringshear`: `SquaringShear`, whose files are
 `SquaringShearSystem.TypeAssets`, the half plate's among them, and `RecipeAssets`). `Core/SwitchOwnership.cs` answers `SwitchForRecipe(id)` (by the export
 id's type, its source file, or the code it is keyed by, as a transition or a casting is) and
 `SwitchForCode(code)`; the exporter calls `SwitchRegistry.For(api)` by reflection.
@@ -6700,6 +6758,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `CylinderBorer` | the borer's blocks and parts, the cylinder molds (`seraphhorizons:cylindermold-*`), the cast and bored cylinders (`seraphhorizons:cylinderblank-*`, `seraphhorizons:cylinder-*`), its grid, smithing and clay forming recipes, the molds' casting, the cylinder borer records |
 | `PressBrake` | the brake's blocks, its grid recipe, the press brake records |
 | `Rocker` | the rocker's block (`seraphhorizons:rocker-*`), `recipes/grid/rocker.json`, the rocker records |
+| `AmalgamPan` | the amalgam pan's block, its grid recipe, the amalgam pan records |
 | `SquaringShear` | the shear's blocks, the half plate (`seraphhorizons:halfplate-*`), its grid recipe, the squaring shear records |
 | `Riddle` | the riddle's block, its grid recipe, the riddle records |
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
