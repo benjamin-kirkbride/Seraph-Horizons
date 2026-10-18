@@ -115,6 +115,11 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("stallroaster", StringComparison.OrdinalIgnoreCase)
                         || e.Message.Contains("stall roaster", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
+
     /// <summary><c>Vanner</c>: its frame and its recipe are not in the game, nor its washing in the export, and
     /// nothing is logged about it. The ore it washes (ore processing's) exists either way.</summary>
     [AtlasScenario]

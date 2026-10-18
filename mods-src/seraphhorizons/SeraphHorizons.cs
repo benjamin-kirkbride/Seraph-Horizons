@@ -1228,6 +1228,7 @@ public class SeraphHorizonsConfig
     /// discarded beside it as sand). Needs OreProcessing (off, or that off, means its frame and recipe do not
     /// exist, and tables already placed are lost). The server's setting decides.</summary>
     public bool ShakingTable { get; set; } = true;
+
     /// <summary>The vanner (Vanner/, README "Vanner"; #923): a Frue vanner, the last of the concentrators,
     /// built on its frame in five stages (the countershaft, the shaking frame, the rollers and creep, the
     /// leather belt, then the feed box, chute sections and water line). It takes the shaking table's

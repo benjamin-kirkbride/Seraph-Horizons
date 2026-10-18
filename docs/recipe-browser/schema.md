@@ -498,6 +498,7 @@ tailings, the same item carrying the rest (`extra.tailings`), to the vanner; it 
 is `mechanical`, `machine.turns` the axle's turns a rock at any speed (95.5 × 0.6 / ore-processing.json
 `machines.table.perHour`). `extra` has the `rig`, `recovery`, `perHour` (at shaft speed 0.6) and `water` (litres
 a rock). Its build is the shared ore machine `construction` record.
+
 **The vanner** (type `vanner`, shape `machine`; seraphhorizons, switches `Vanner` and `OreProcessing`, #923): one
 record per item the vanner washes fresh, id `vanner|<feed>|0`, the same feeds as the sluice's (crushed and ground
 ore, rich gravel, bog iron). The ingredients are the feed (one, consumed) and the vanner's frame

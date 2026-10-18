@@ -6542,6 +6542,7 @@ the vanner. It needs `OreProcessing`; off, or with its switch off, its frame and
   with a locked share leaves as two rocks, a middlings rock and a tailings rock: no metal is made or lost.
 - Tests: `tests/ShakingTable/ShakingTableGameplayTests.cs`; Atlas `tests/PackTests/ShakingTableScenarios.cs`,
   `RecipeExportShakingTableScenarios.cs`; export record `tools/recipe-export/RecipeSection.ShakingTable.cs`.
+
 ### Vanner (`Vanner`)
 
 The last of the ore line's concentrators (#923; `Vanner/`, its README has the model, the stages and the gameplay):
