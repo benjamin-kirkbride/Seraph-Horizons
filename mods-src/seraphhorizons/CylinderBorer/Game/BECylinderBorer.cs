@@ -29,7 +29,10 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
     private static readonly AssetLocation LatchSound = new("game", "sounds/effect/latch");
     private static readonly AssetLocation CylinderSound = new("game", "sounds/block/ingot");
     private static readonly AssetLocation BoreSound = new("game", "sounds/effect/gears");
-    private const string PartKeyPrefix = "part-";
+    // What is fitted, by StagedBuild key (stage/material/code) and count.
+    private const string FittedKey = "fitted";
+    // The save before the bar and the feed took their materials: one item's code a stage.
+    private const string LegacyPartKeyPrefix = "part-";
     // The server syncs W at least this often (blocks of travel); the renderer follows the shaft between.
     private const double SyncStep = 1.0 / 32;
     // After a cylinder is done the infeed waits this long, so the head eases back out of the empty
@@ -272,23 +275,34 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
                && CreativeUpgrades.Applies(byPlayer.WorldData?.CurrentGameMode == EnumGameMode.Creative, controls.CtrlKey, controls.ShiftKey);
     }
 
-    /// <summary>The creative shortcut (server side): fits the next stage's item (a new cutter head
-    /// last) with nothing taken from the player.</summary>
+    /// <summary>The creative shortcut (server side): fills the next stage with what it still takes (a
+    /// new cutter head last), nothing taken from the player.</summary>
     public bool FitNextPart(IPlayer? byPlayer)
     {
-        if (_parts.NextPart is not { } next)
+        if (_parts.Next is not { } next)
             return false;
-        if (PartStack(Api.World, next) is not { } stack)
+        int capacity = 1;
+        if (next == CylinderBorerStage.CutterHead)
         {
-            Api.Logger.Warning("[seraphhorizons] Cylinder borer: no {0} for the creative shortcut", next);
-            return false;
+            if (HeadStack(int.MaxValue) is not { } head)
+            {
+                Api.Logger.Warning("[seraphhorizons] Cylinder borer: no {0} for the creative shortcut", CylinderBorerParts.HeadCode);
+                return false;
+            }
+            capacity = head.Collectible.GetMaxDurability(head);
         }
-        return TryFitPart(new DummySlot(stack), byPlayer, free: true);
+        if (!_parts.FillNext(capacity))
+            return false;
+        Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
+        MarkDirty(true);
+        PullFromInfeed();
+        return true;
     }
 
-    /// <summary>Fits the part in <paramref name="slot"/> if it is the next stage's (server side);
-    /// false, with an error to the player, when the rules say no. One item is taken from the slot
-    /// unless the player is in creative mode or it is <paramref name="free"/>.</summary>
+    /// <summary>Puts what the slot holds into the next stage if it takes it (server side): all the
+    /// stage still needs of that material, or a whole full stack, as the ore machines' stages take
+    /// theirs; false, with an error to the player, when the rules say no. What goes in is taken from
+    /// the slot unless the player is in creative mode or it is <paramref name="free"/>.</summary>
     public bool TryFitPart(ItemSlot slot, IPlayer? byPlayer, bool free = false)
     {
         var stack = slot.Itemstack;
@@ -301,13 +315,19 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
             capacity = Math.Max(1, stack.Collectible.GetMaxDurability(stack));
             left = stack.Collectible.GetRemainingDurability(stack);
         }
-        var verdict = _parts.CanFit(code, out _, capacity > 0 ? left : 1);
-        if (verdict != CylinderBorerFitVerdict.Fits)
+        bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
+        int held = consumes ? stack.StackSize : int.MaxValue / 2;
+        int maxStack = stack.Collectible.MaxStackSize;
+        var fit = _parts.CanFit(code, held, maxStack, capacity > 0 ? left : 1);
+        if (fit.Verdict != CylinderBorerFitVerdict.Fits)
         {
-            switch (verdict)
+            switch (fit.Verdict)
             {
                 case CylinderBorerFitVerdict.OutOfOrder:
-                    Error(byPlayer, "error-order", StageName(_parts.Next));
+                    Error(byPlayer, "error-order", StageName(_parts.Next), Needs());
+                    break;
+                case CylinderBorerFitVerdict.TooFew:
+                    Error(byPlayer, "error-toofew", StageName(_parts.Next), Needs());
                     break;
                 case CylinderBorerFitVerdict.AlreadyFitted:
                     Error(byPlayer, "error-part-fitted");
@@ -321,11 +341,10 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
             }
             return false;
         }
-        _parts.Fit(code, left, capacity);
-        bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
+        _parts.Fit(code, held, maxStack, left, capacity);
         if (consumes)
         {
-            slot.TakeOut(1);
+            slot.TakeOut(fit.Count);
             slot.MarkDirty();
         }
         Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
@@ -337,6 +356,23 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
     /// <summary>A stage's name as the block info and the errors show it.</summary>
     public static string StageName(CylinderBorerStage? stage) =>
         stage is { } s ? Lang.Get(CylinderBorerSystem.Domain + ":cylinderborer-info-stage-" + CylinderBorerRequires.Name(s)) : "";
+
+    /// <summary>The next stage's needs as the ore machines word theirs ("3 × Iron rod or …, 1 × Metal
+    /// parts"), a material of several items by each of their names.</summary>
+    public string Needs() =>
+        string.Join(", ", _parts.NextNeeds().Select(n => $"{n.Missing} × {MaterialName(Api.World, n.Material)}"));
+
+    /// <summary>A material's items by name ("Iron rod or Meteoric iron rod or Steel rod"), those the
+    /// game has; its first code when it has none.</summary>
+    public static string MaterialName(IWorldAccessor world, BuildMaterial material) =>
+        string.Join(Lang.Get(CylinderBorerSystem.Domain + ":cylinderborer-material-or"),
+            material.Codes.Where(c => PartStack(world, c) != null)
+                .Select(c => MachineText.MaterialName(world, new BuildMaterial([c], 1)))
+                .DefaultIfEmpty(material.Codes[0]).Distinct());
+
+    /// <summary>The next stage's materials as stacks of what it still needs, those the game has (help icons).</summary>
+    public ItemStack[] NeedStacks() =>
+        _parts.NextNeeds().SelectMany(n => n.Material.Codes.Select(c => PartStack(Api.World, c, n.Missing))).OfType<ItemStack>().ToArray();
 
     /// <summary>Ctrl + right-click (server side): the cutter head, with the durability it has left
     /// (taking it back wears it no further), else the casting in the cradle, its bore lost.</summary>
@@ -590,21 +626,21 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
                 if (HeadStack(left) is { } head)
                     yield return head;
             }
-            else if (PartStack(Api.World, drop.Code) is { } stack)
+            else if (PartStack(Api.World, drop.Code, drop.Count) is { } stack)
                 yield return stack;
         }
         if (BlankOn)
             yield return _blank!.Clone();
     }
 
-    /// <summary>One of a part, by its code: an item, or a block (the bushings' metal parts are one);
-    /// null when the game has neither.</summary>
-    public static ItemStack? PartStack(IWorldAccessor world, string code)
+    /// <summary><paramref name="count"/> of a material, by its code: an item, or a block (the metal
+    /// parts are one); null when the game has neither.</summary>
+    public static ItemStack? PartStack(IWorldAccessor world, string code, int count = 1)
     {
         var loc = new AssetLocation(code);
-        if (world.GetItem(loc) is { } item)
-            return new ItemStack(item);
-        return world.GetBlock(loc) is { Id: > 0 } block ? new ItemStack(block) : null;
+        if (world.GetItem(loc) is { Id: > 0, IsMissing: false } item)
+            return new ItemStack(item, Math.Max(1, count));
+        return world.GetBlock(loc) is { Id: > 0, IsMissing: false } block ? new ItemStack(block, Math.Max(1, count)) : null;
     }
 
     public override void OnBlockRemoved()
@@ -632,9 +668,11 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
     {
         base.ToTreeAttributes(tree);
         foreach (var stage in CylinderBorerRequires.Stages)
-            tree.RemoveAttribute(PartKeyPrefix + CylinderBorerRequires.Name(stage));
-        foreach (var (requires, code) in _parts.Snapshot())
-            tree.SetString(PartKeyPrefix + requires, code);
+            tree.RemoveAttribute(LegacyPartKeyPrefix + CylinderBorerRequires.Name(stage));
+        var fitted = new TreeAttribute();
+        foreach (var (key, count) in _parts.Snapshot())
+            fitted.SetInt(key, count);
+        tree[FittedKey] = fitted;
         tree.SetInt("headLeft", _parts.HeadLeft);
         tree.SetInt("headCapacity", _parts.HeadCapacity);
         if (BlankOn)
@@ -657,11 +695,23 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
     public override void FromTreeAttributes(ITreeAttribute tree, IWorldAccessor worldForResolving)
     {
         base.FromTreeAttributes(tree, worldForResolving);
-        var fitted = new Dictionary<string, string>();
-        foreach (var stage in CylinderBorerRequires.Stages)
-            if (tree.GetString(PartKeyPrefix + CylinderBorerRequires.Name(stage)) is { Length: > 0 } code)
-                fitted[CylinderBorerRequires.Name(stage)] = code;
-        _parts = CylinderBorerParts.Restore(fitted, tree.GetInt("headLeft"), tree.GetInt("headCapacity"));
+        if (tree[FittedKey] is ITreeAttribute saved)
+        {
+            var fitted = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var (key, value) in saved)
+                if (value is IntAttribute i)
+                    fitted[key] = i.value;
+            _parts = CylinderBorerParts.Restore(fitted, tree.GetInt("headLeft"), tree.GetInt("headCapacity"));
+        }
+        else
+        {
+            // saved when each stage held one item (the bar's and the feed's own, #639)
+            var legacy = new Dictionary<string, string>();
+            foreach (var stage in CylinderBorerRequires.Stages)
+                if (tree.GetString(LegacyPartKeyPrefix + CylinderBorerRequires.Name(stage)) is { Length: > 0 } code)
+                    legacy[CylinderBorerRequires.Name(stage)] = code;
+            _parts = CylinderBorerParts.RestoreLegacy(legacy, tree.GetInt("headLeft"), tree.GetInt("headCapacity"));
+        }
         _blank = tree.GetItemstack("blank");
         if (_blank != null && !_blank.ResolveBlockOrItem(worldForResolving))
             _blank = null;
@@ -699,10 +749,8 @@ public class BECylinderBorer : BlockEntity, ICylinderBorerView
         string L(string key, params object[] args) => Lang.Get(CylinderBorerSystem.Domain + ":cylinderborer-" + key, args);
         if (_parts.Next is { } next)
         {
-            dsc.AppendLine(L("info-next", StageName(next)));
-            var after = CylinderBorerRequires.Stages.Where(s => s > next && !_parts.Has(s)).ToList();
-            if (after.Count > 0)
-                dsc.AppendLine(L("info-then", string.Join(", ", after.Select(s => StageName(s)))));
+            dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-stage", (int)next + 1, CylinderBorerRequires.Stages.Count, StageName(next)));
+            dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-needs", Needs()));
         }
         double fill = OilFill;
         if (_parts.Has(CylinderBorerStage.CutterHead))

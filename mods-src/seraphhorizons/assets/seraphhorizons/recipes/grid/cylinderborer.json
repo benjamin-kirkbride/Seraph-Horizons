@@ -6,8 +6,9 @@
 		// in one slot, two rods in one), bolted up with 12 nails and strips, with a hammer: iron, meteoric
 		// iron or steel, as the draw bench's. Two stainless gears pay for the gearing the frame carries:
 		// the entry shaft's pinion and its drive (#473); the great wheel the pinion turns comes with the
-		// boring bar. Every other working part goes in afterwards, fitted by hand: the bushings are the
-		// game's metal parts, fitted as they are (no recipe of their own), the rest from the recipes below.
+		// boring bar. Every other working part goes in afterwards, fitted by hand at the frame: the bushings
+		// are the game's metal parts, the boring bar and the feed take their materials directly, stage by
+		// stage (CylinderBorer/Core/CylinderBorerParts.cs), and the cutter head is smithed.
 		ingredientPattern: "MHG,LNL,PRP",
 		width: 3,
 		height: 3,
@@ -21,34 +22,5 @@
 			"H": { type: "item", code: "game:hammer-*", isTool: true }
 		},
 		output: { type: "block", code: "seraphhorizons:cylinderborer-frame-north" }
-	},
-	{
-		// The boring bar (stage 2): three rods end to end, in a column, of iron, meteoric iron or steel as
-		// the frame's, metal parts for the feather the cutter head slides on and the collars, and a large
-		// stainless gear beside the bottom rod, the bar's drive end, for the great wheel keyed on it.
-		ingredientPattern: "R_,RM,RG",
-		width: 2,
-		height: 3,
-		ingredients: {
-			"R": { type: "item", code: "game:rod-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
-			"M": { type: "block", code: "game:metal-parts" },
-			"G": { type: "item", code: "seraphhorizons:largegear-stainless" }
-		},
-		output: { type: "item", code: "seraphhorizons:cylinderborerbar" }
-	},
-	{
-		// The feed (stage 3): the crosshead of two oak planks with a rod for its control rod, the drum's
-		// two ropes, and a plate for the weight that pulls the cutter head through the bore (iron, meteoric
-		// iron or steel, as the frame's).
-		ingredientPattern: "PRP,C_C,_M_",
-		width: 3,
-		height: 3,
-		ingredients: {
-			"P": { type: "item", code: "game:plank-oak" },
-			"R": { type: "item", code: "game:rod-*", allowedVariants: ["iron", "meteoriciron", "steel"] },
-			"C": { type: "item", code: "game:rope" },
-			"M": { type: "item", code: "game:metalplate-*", allowedVariants: ["iron", "meteoriciron", "steel"] }
-		},
-		output: { type: "item", code: "seraphhorizons:cylinderborerfeed" }
 	}
 ]
