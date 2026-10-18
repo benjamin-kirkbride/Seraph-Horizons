@@ -207,7 +207,7 @@ public partial class SharedWorldScenarios
 
         // with nothing at the tailings face (in the upper row) they fall to the ground beside it, a heap of
         // gravel, a layer a rock. Cleared before the chute's rock goes in: the jig carries the turns left from
-        // the last rock, so it can work this one the tick it reaches the infeed, before the chute reads empty
+        // the last rock, so it can work this one as soon as it reaches the infeed
         var tailPos = tail.Pos.Copy();
         W.BlockAccessor.SetBlock(0, tailPos);
 
@@ -219,7 +219,10 @@ public partial class SharedWorldScenarios
         var chute = (BlockEntityItemFlow)W.BlockAccessor.GetBlockEntity(chutePos)!;
         chute.Inventory[0].Itemstack = JigCrushed("cassiterite", "rich", 1);
         chute.Inventory[0].MarkDirty();
-        await World.Until(() => chute.Inventory.Empty, 20000);
+        // the chute empties into the infeed cell's buffer, and the jig draws it in from there on its own tick
+        // (every 100 ms): until it has, the jig's infeed is empty and the wait below would end before the rock
+        var buffer = (BEOreMachineCell)W.BlockAccessor.GetBlockEntity(inCell)!;
+        await World.Until(() => chute.Inventory.Empty && buffer.Buffer.Empty, 20000);
 
         await JigUntil(jig, () =>
         {
