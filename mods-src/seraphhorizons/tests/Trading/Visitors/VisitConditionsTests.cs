@@ -108,9 +108,10 @@ public class ShippedVisitorListsTests
         Assert.InRange(selling.Count(e => e.StandingTier == 3), 2, 5);
         Assert.NotEmpty(Entries(def.Buying));
 
-        var campSells = TraderTypes.All.SelectMany(t => Entries(Load(t).Selling)).Select(e => e.Key).ToHashSet();
+        // Nor does the treasure hunter, the story trader in its house.
+        var campSells = TraderTypes.All.Concat(TraderTypes.Story).SelectMany(t => Entries(Load(t).Selling)).Select(e => e.Key).ToHashSet();
         var sold = selling.Where(e => campSells.Contains(e.Key)).Select(e => e.Key).ToList();
-        Assert.True(sold.Count == 0, "Also sold at camps: " + string.Join(", ", sold));
+        Assert.True(sold.Count == 0, "Also sold at camps or by the treasure hunter: " + string.Join(", ", sold));
 
         // Rare goods are on the shelf only for a trusted inn owner.
         var stranger = TradeListResolver.Resolve(def, new Region(Region.Temperate, Region.Sedimentary));

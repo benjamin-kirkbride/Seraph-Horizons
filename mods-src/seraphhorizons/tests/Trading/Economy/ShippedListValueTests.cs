@@ -6,7 +6,7 @@ using SeraphHorizons.Mod.Trading.Values.Core;
 namespace SeraphHorizons.Mod.Tests.Trading.Economy;
 
 /// <summary>
-/// The thirteen shipped lists priced from the shipped value table (2026-10-08): a listed good is
+/// The fourteen shipped lists priced from the shipped value table (2026-10-08): a listed good is
 /// its value × a sell or a buy factor (<see cref="Pricing.ListBase"/>, <see cref="ListPriceRules"/>), so every entry must have a
 /// value the mod's lookup finds (<see cref="ItemValues.Lookup"/>: direct, or its variant family's),
 /// unless it overrides its price, and an override must say why. <c>tools/item-values check</c>
@@ -35,9 +35,11 @@ public class ShippedListValueTests
                 .Select(e => (kv.Key, s.Item1, e))));
 
     [Fact]
-    public void AllThirteenListsAreRead()
+    public void AllFourteenListsAreRead()
     {
-        Assert.Equal(13, Lists.Value.Count);
+        // The eleven camp types, the two visitors and the treasure hunter.
+        Assert.Equal(TraderTypes.Listed.Count(), Lists.Value.Count);
+        Assert.Equal(14, Lists.Value.Count);
         Assert.True(Entries().Count() > 1500, $"only {Entries().Count()} entries");
     }
 

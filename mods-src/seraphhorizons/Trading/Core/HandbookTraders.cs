@@ -10,8 +10,9 @@ public readonly record struct ListedTrader(string Code, string? Class);
 /// Which traders the handbook and the recipe browser leave out of "Sold by" and "Purchased by"
 /// (README "Traders"): in a world with the trader grid, every spawner of another mod's or the
 /// game's trader is rewritten to one of the pack's types (<see cref="IsOtherTrader"/>), so those
-/// traders are never met, unless a story structure's spawner spawns them (vanilla's treasure
-/// hunter), which the grid leaves alone.
+/// traders are never met, unless a story structure's spawner spawns them, which the grid leaves
+/// alone; but for the game's treasure hunter, whose house now spawns the pack's
+/// (<see cref="StoryTraders"/>).
 /// </summary>
 public static class HandbookTraders
 {
@@ -29,7 +30,9 @@ public static class HandbookTraders
                                  || path.Contains("-trader-", StringComparison.Ordinal));
 
     /// <summary>The codes of the listed traders never met in the world: other traders, less those
-    /// a story structure's spawner spawns (in any of the three climates). Sorted.</summary>
+    /// a story structure's spawner spawns (in any of the three climates) and the grid leaves as
+    /// they are. The game's treasure hunter is not kept: its spawner spawns the pack's
+    /// (<see cref="StoryTraders.PackPath(string)"/>). Sorted.</summary>
     /// <param name="storyCodes">The entity codes of the story structures' spawners, with or
     /// without the <c>game:</c> domain.</param>
     public static List<string> Hidden(IEnumerable<ListedTrader> listed, IEnumerable<string> storyCodes)
@@ -38,6 +41,7 @@ public static class HandbookTraders
         foreach (string code in storyCodes)
         {
             string full = code.Contains(':') ? code : "game:" + code;
+            if (StoryTraders.PackPath(full) != null) continue;
             kept.Add(full);
             foreach (string from in Climates)
                 if (full.EndsWith(from, StringComparison.Ordinal))

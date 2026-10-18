@@ -5097,7 +5097,8 @@
    "side": "sell",
    "code": "game:lootvessel-seed",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5106,7 +5107,8 @@
    "side": "sell",
    "code": "game:lootvessel-food",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5115,7 +5117,8 @@
    "side": "sell",
    "code": "game:lootvessel-forage",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5125,7 +5128,8 @@
    "code": "game:lootvessel-ore",
    "homes": [
     "curiodealer sell",
-    "prospector sell"
+    "prospector sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5134,7 +5138,8 @@
    "side": "sell",
    "code": "game:lootvessel-tool",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5143,7 +5148,8 @@
    "side": "sell",
    "code": "game:lootvessel-farming",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5168,7 +5174,8 @@
    },
    "homes": [
     "curiodealer sell",
-    "prospector buy"
+    "prospector buy",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5178,7 +5185,8 @@
    "code": "game:ore-lapislazuli",
    "homes": [
     "curiodealer sell",
-    "prospector buy"
+    "prospector buy",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5187,7 +5195,8 @@
    "side": "sell",
    "code": "game:omoktabletop",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5196,7 +5205,8 @@
    "side": "sell",
    "code": "game:gear-temporal",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5205,7 +5215,8 @@
    "side": "sell",
    "code": "game:clothes-foot-lackey-shoes",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5214,7 +5225,8 @@
    "side": "sell",
    "code": "game:clothes-hand-lackey-gloves",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5223,7 +5235,8 @@
    "side": "sell",
    "code": "game:clothes-head-lackey-hat",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5232,7 +5245,8 @@
    "side": "sell",
    "code": "game:clothes-lowerbody-lackey-breeches",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5241,7 +5255,8 @@
    "side": "sell",
    "code": "game:clothes-upperbody-lackey-shirt",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5251,7 +5266,8 @@
    "code": "game:hoovedwearables-blanket-lackey",
    "homes": [
     "animaldealer sell",
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5260,7 +5276,8 @@
    "side": "sell",
    "code": "game:clothes-arm-squire-bracers",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5269,7 +5286,8 @@
    "side": "sell",
    "code": "game:clothes-foot-squire-boots",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5278,7 +5296,8 @@
    "side": "sell",
    "code": "game:clothes-head-squire-hood",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5287,7 +5306,8 @@
    "side": "sell",
    "code": "game:clothes-lowerbody-squire-pants",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5296,7 +5316,8 @@
    "side": "sell",
    "code": "game:clothes-upperbody-squire-shirt",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5305,7 +5326,8 @@
    "side": "sell",
    "code": "game:clothes-shoulder-squire-tunic",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5314,7 +5336,8 @@
    "side": "sell",
    "code": "game:clothes-waist-squire-belt",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5324,7 +5347,8 @@
    "code": "game:hoovedwearables-blanket-squire",
    "homes": [
     "animaldealer sell",
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5333,7 +5357,8 @@
    "side": "sell",
    "code": "game:clothes-foot-messenger-shoes",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5342,7 +5367,8 @@
    "side": "sell",
    "code": "game:clothes-head-messengers-hat",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5351,7 +5377,8 @@
    "side": "sell",
    "code": "game:clothes-lowerbody-messenger-trousers",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5360,7 +5387,8 @@
    "side": "sell",
    "code": "game:clothes-upperbody-messenger-shirt",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5369,7 +5397,8 @@
    "side": "sell",
    "code": "game:clothes-waist-messenger-belt",
    "homes": [
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5379,7 +5408,8 @@
    "code": "game:hoovedwearables-blanket-messenger",
    "homes": [
     "animaldealer sell",
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5388,7 +5418,8 @@
    "side": "sell",
    "code": "game:painting-howl-north",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5397,7 +5428,8 @@
    "side": "sell",
    "code": "game:painting-elk-north",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5406,7 +5438,8 @@
    "side": "sell",
    "code": "game:painting-underwater-north",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5415,7 +5448,8 @@
    "side": "sell",
    "code": "game:painting-prey-north",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5424,7 +5458,8 @@
    "side": "sell",
    "code": "game:painting-forestdawn-north",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5433,7 +5468,8 @@
    "side": "sell",
    "code": "game:metal-parts",
    "homes": [
-    "mechanic sell"
+    "mechanic sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5446,7 +5482,8 @@
    },
    "homes": [
     "curiodealer sell",
-    "prospector buy"
+    "prospector buy",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5459,7 +5496,8 @@
    },
    "homes": [
     "curiodealer sell",
-    "prospector buy"
+    "prospector buy",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5468,7 +5506,8 @@
    "side": "sell",
    "code": "game:armor-head-antique-blackguard-broken",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5477,7 +5516,8 @@
    "side": "sell",
    "code": "game:armor-body-antique-blackguard-broken",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5486,7 +5526,8 @@
    "side": "sell",
    "code": "game:armor-legs-antique-blackguard-broken",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5495,7 +5536,8 @@
    "side": "sell",
    "code": "game:hoovedwearables-blanket-blackguard",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5504,7 +5546,8 @@
    "side": "sell",
    "code": "game:locatormap-treasures",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -5513,7 +5556,8 @@
    "side": "buy",
    "code": "game:bomb-ore",
    "homes": [
-    "prospector buy"
+    "prospector buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5522,7 +5566,8 @@
    "side": "buy",
    "code": "game:blade-falx-tinbronze",
    "homes": [
-    "smith buy"
+    "smith buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5531,7 +5576,8 @@
    "side": "buy",
    "code": "game:blade-falx-bismuthbronze",
    "homes": [
-    "smith buy"
+    "smith buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5540,7 +5586,8 @@
    "side": "buy",
    "code": "game:blade-falx-blackbronze",
    "homes": [
-    "smith buy"
+    "smith buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5550,7 +5597,8 @@
    "code": "game:pickaxe-tinbronze",
    "homes": [
     "prospector buy",
-    "smith buy"
+    "smith buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5560,7 +5608,8 @@
    "code": "game:pickaxe-bismuthbronze",
    "homes": [
     "prospector buy",
-    "smith buy"
+    "smith buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5570,7 +5619,8 @@
    "code": "game:pickaxe-blackbronze",
    "homes": [
     "prospector buy",
-    "smith buy"
+    "smith buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5580,7 +5630,8 @@
    "code": "game:shovel-tinbronze",
    "homes": [
     "prospector buy",
-    "smith buy"
+    "smith buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5590,7 +5641,8 @@
    "code": "game:shovel-bismuthbronze",
    "homes": [
     "prospector buy",
-    "smith buy"
+    "smith buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5600,7 +5652,8 @@
    "code": "game:shovel-blackbronze",
    "homes": [
     "prospector buy",
-    "smith buy"
+    "smith buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5609,7 +5662,8 @@
    "side": "buy",
    "code": "game:backpack-normal",
    "homes": [
-    "generalstore buy"
+    "generalstore buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5618,7 +5672,8 @@
    "side": "buy",
    "code": "game:linensack",
    "homes": [
-    "generalstore buy"
+    "generalstore buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5627,7 +5682,8 @@
    "side": "buy",
    "code": "game:candle",
    "homes": [
-    "generalstore buy"
+    "generalstore buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5636,7 +5692,8 @@
    "side": "buy",
    "code": "game:creature-wolf-eurasian-baby-male",
    "homes": [
-    "animaldealer buy"
+    "animaldealer buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5645,7 +5702,8 @@
    "side": "buy",
    "code": "game:redmeat-cooked",
    "homes": [
-    "cook buy"
+    "cook buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5654,7 +5712,8 @@
    "side": "buy",
    "code": "game:bread-spelt-perfect",
    "homes": [
-    "cook buy"
+    "cook buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5663,7 +5722,8 @@
    "side": "buy",
    "code": "game:bread-rye-perfect",
    "homes": [
-    "cook buy"
+    "cook buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5672,7 +5732,8 @@
    "side": "buy",
    "code": "game:bread-flax-perfect",
    "homes": [
-    "cook buy"
+    "cook buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5681,7 +5742,8 @@
    "side": "buy",
    "code": "game:bread-rice-perfect",
    "homes": [
-    "cook buy"
+    "cook buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5691,7 +5753,8 @@
    "code": "game:sewingkit",
    "homes": [
     "generalstore buy",
-    "tailor buy"
+    "tailor buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5701,7 +5764,8 @@
    "code": "game:clothes-shoulder-stained-leather-poncho",
    "homes": [
     "generalstore buy",
-    "tailor buy"
+    "tailor buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5710,7 +5774,8 @@
    "side": "buy",
    "code": "game:bow-long",
    "homes": [
-    "generalstore buy"
+    "generalstore buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5719,7 +5784,8 @@
    "side": "buy",
    "code": "game:bow-recurve",
    "homes": [
-    "generalstore buy"
+    "generalstore buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5729,7 +5795,8 @@
    "code": "game:clothes-foot-high-leather-boots",
    "homes": [
     "generalstore buy",
-    "tailor buy"
+    "tailor buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -5744,7 +5811,8 @@
     "deco": "none"
    },
    "homes": [
-    "smith buy"
+    "smith buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -8409,7 +8477,8 @@
    "side": "sell",
    "code": "betterruins:locatormap-undergroundruins",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -8418,7 +8487,8 @@
    "side": "sell",
    "code": "betterruins:locatormap-mine1",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -8427,7 +8497,8 @@
    "side": "sell",
    "code": "betterruins:locatormap-mine2",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -8436,7 +8507,8 @@
    "side": "sell",
    "code": "abyssaldepths:ad-schematic-divinggear",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -8445,7 +8517,8 @@
    "side": "buy",
    "code": "abyssaldepths:ad-schematic-divinggear",
    "homes": [
-    "curiodealer buy"
+    "curiodealer buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -8463,7 +8536,8 @@
    "side": "sell",
    "code": "walkingstick:schematic-flintlock",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -8501,7 +8575,8 @@
    "code": "butchering:ivory-raw",
    "homes": [
     "animaldealer buy",
-    "curiodealer buy"
+    "curiodealer buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -8511,7 +8586,8 @@
    "code": "craftablelocusts:parts-corpse",
    "homes": [
     "curiodealer sell",
-    "mechanic sell"
+    "mechanic sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -8521,7 +8597,8 @@
    "code": "game:creature-locust-bronze-hacked",
    "homes": [
     "curiodealer buy",
-    "mechanic buy"
+    "mechanic buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -8891,7 +8968,8 @@
    "code": "signals:el_wire",
    "homes": [
     "curiodealer sell",
-    "mechanic sell"
+    "mechanic sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -8911,7 +8989,8 @@
    "code": "signals:blocksource",
    "homes": [
     "curiodealer sell",
-    "mechanic sell"
+    "mechanic sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -8921,7 +9000,8 @@
    "code": "signals:blockscreen-east",
    "homes": [
     "curiodealer sell",
-    "mechanic sell"
+    "mechanic sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -9620,7 +9700,8 @@
    "code": "tailorsdelight:ruler-gold",
    "homes": [
     "curiodealer sell",
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -9630,7 +9711,8 @@
    "code": "tailorsdelight:buttons-emerald",
    "homes": [
     "curiodealer sell",
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -9640,7 +9722,8 @@
    "code": "tailorsdelight:buttons-lapislazuli",
    "homes": [
     "curiodealer sell",
-    "tailor sell"
+    "tailor sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -9649,7 +9732,8 @@
    "side": "sell",
    "code": "game:locatormap-translocator",
    "homes": [
-    "curiodealer sell"
+    "curiodealer sell",
+    "treasurehunter sell"
    ]
   },
   {
@@ -10085,7 +10169,8 @@
    "code": "wool:sack-wool-brown",
    "homes": [
     "generalstore buy",
-    "tailor buy"
+    "tailor buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -10095,7 +10180,8 @@
    "code": "wool:sack-wool-white",
    "homes": [
     "generalstore buy",
-    "tailor buy"
+    "tailor buy",
+    "treasurehunter buy"
    ]
   },
   {
@@ -10105,7 +10191,8 @@
    "code": "wool:sack-wool-gray",
    "homes": [
     "generalstore buy",
-    "tailor buy"
+    "tailor buy",
+    "treasurehunter buy"
    ]
   },
   {

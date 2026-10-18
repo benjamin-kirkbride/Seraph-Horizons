@@ -12,7 +12,8 @@ namespace SeraphHorizons.Mod.Trading;
 /// The trader overhaul's foundation (#436: #447, #448), server side but for the entity class.
 ///
 /// <list type="bullet">
-/// <item>Eleven trader types (<see cref="TraderTypes"/>), entity class <see cref="EntitySeraphTrader"/>,
+/// <item>Eleven trader types (<see cref="TraderTypes"/>), and the story trader the game's treasure
+/// hunter becomes (<see cref="Core.StoryTraders"/>), entity class <see cref="EntitySeraphTrader"/>,
 /// registered on both sides whatever the switch (a client must know the class of an entity it is
 /// sent), stocked from the pack's lists (<see cref="TradeLists"/>) by region.</item>
 /// <item>Camps on a seeded 2 km grid (<see cref="TraderGrid"/>, <see cref="TraderCamps"/>), switch
@@ -76,6 +77,10 @@ public class TradingSystem : ModSystem
 
     public TraderCamps? Camps { get; private set; }
 
+    /// <summary>Converts the game's treasure hunter, where one spawned before the pack took it over,
+    /// into the pack's (<see cref="StoryTraderConversion"/>; grid worlds only).</summary>
+    public StoryTraderConversion? StoryTraders { get; private set; }
+
     /// <summary>Whether this world places camps on the grid: the switch is on and the world has had
     /// the grid since its first start.</summary>
     public bool GridActive => _gridActive ?? (_sapi is null ? false : (_gridActive = DecideGrid()).Value);
@@ -96,6 +101,8 @@ public class TradingSystem : ModSystem
         _sapi = api;
         Camps = new TraderCamps(api, this);
         Camps.Register();
+        StoryTraders = new StoryTraderConversion(api, this);
+        StoryTraders.Register();
         // Whether this world has the grid is decided with the savegame; the lists need the world's
         // items and blocks, which the server finishes loading after the savegame (just before
         // GameReady), and worldgen starts at the end of WorldReady, after them.
