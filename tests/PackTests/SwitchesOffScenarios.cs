@@ -538,6 +538,16 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("jig-") == true);
     }
 
+    /// <summary><c>ShakingTable</c>: no shaking table frame and no recipe for it.</summary>
+    [AtlasScenario]
+    public void Shaking_table_off_there_is_no_shaking_table()
+    {
+        Assert.True(Off("ShakingTable"));
+        Assert.False(SeraphHorizons.Mod.ShakingTable.ShakingTableSystem.Applies(World.Api));
+        Assert.DoesNotContain(W.Blocks, b => b?.Code is { Domain: "seraphhorizons" } c && c.Path.StartsWith("shakingtable"));
+        Assert.DoesNotContain(W.GridRecipes, r => r.Output?.Code?.Path?.StartsWith("shakingtable") == true);
+    }
+
     /// <summary><c>PressBrake</c>: no press brake blocks and no recipe for its frame, no link to it in
     /// the mod's own text, and nothing logged about it. The angles it makes are UnifiedPipes' items
     /// (here off too); the half plates it folds are the squaring shear's (here off too).</summary>

@@ -535,5 +535,6 @@
     "BedFirewood": 4,
     "HalfWalledDraught": 0.5,
     "OpenDraught": 0.0
-  }
+  },
+  "ShakingTable": true
 }
