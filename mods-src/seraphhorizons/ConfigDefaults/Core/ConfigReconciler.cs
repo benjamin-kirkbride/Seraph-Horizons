@@ -79,7 +79,9 @@ public static class ConfigReconciler
         if (now.Kind == NodeKind.Opaque || have.Kind == NodeKind.Opaque) return;
         var shown = SettingPath.Show(path);
         edits.Add(new TextEdit(have.Start, have.End, now.Raw));
-        var why = $"the default was {Short(old.Raw)} in pack {fromVersion} and is {Short(now.Raw)} in {toVersion}"
+        var why = (fromVersion == toVersion
+                      ? $"the default was {Short(old.Raw)} in an earlier build of pack {fromVersion} and is {Short(now.Raw)} in this one"
+                      : $"the default was {Short(old.Raw)} in pack {fromVersion} and is {Short(now.Raw)} in {toVersion}")
                   + (packSet.Contains(shown) ? ", set by the pack" : "")
                   + "; this file still had the old default";
         changes.Add(new SettingChange(file, shown, Short(have.Raw), Short(now.Raw), why));

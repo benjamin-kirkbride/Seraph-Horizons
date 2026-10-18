@@ -208,6 +208,8 @@ public class DefaultsRunTests
         Assert.Equal("0.2.0", r.State.PackVersion);
         Assert.Empty(r.Changes);
         Assert.Equal("""{ "x": 1, "y": 1 }""", files.Files["a.json"]);
+        Assert.Equal("""{ "x": 2, "y": 2 }""", files.Files["seraphhorizons-configdefaults/a.json"]);
+        Assert.DoesNotContain(r.Messages, m => m.Text.Contains("had only pack"));
     }
 
     [Fact]
@@ -246,13 +248,100 @@ public class DefaultsRunTests
     {
         var client = new MemFiles([]);
         DefaultsRun.Run(V2, Lookup, null, Loaded, createMissing: false, client);
-        Assert.Empty(client.Files);
+        Assert.False(client.Files.ContainsKey("a.json"));
+        Assert.False(client.Files.ContainsKey("b.yaml"));
+        // Only the baselines: the mods write their files with these defaults.
+        Assert.Equal(["seraphhorizons-configdefaults/a.json", "seraphhorizons-configdefaults/b.yaml"], client.Files.Keys.Order());
 
         var server = new MemFiles([]);
         var r = DefaultsRun.Run(V2, Lookup, null, Loaded, createMissing: true, server);
         Assert.Equal(["b.yaml"], r.Created);
         Assert.Equal("version: 1\nk: 5\n", server.Files["b.yaml"]);
+        Assert.Equal("version: 1\nk: 5\n", server.Files["seraphhorizons-configdefaults/b.yaml"]);
         Assert.False(server.Files.ContainsKey("a.json"));
+    }
+
+    // The same pack version, rebuilt: an unreleased version's snapshot changes on main, and every
+    // `next` build between two releases has the same version.
+    private static readonly DefaultsSnapshot V2Later = Snap("0.2.0", new()
+    {
+        ["a.json"] = ("""{ "x": 3, "y": 2 }""", ["a"]),
+        ["b.yaml"] = ("version: 1\nk: 1\n", ["b"]),
+    }, values: [new PackValue("b.yaml", ["k"], "6")]);
+
+    [Fact]
+    public void A_default_changed_within_a_pack_version_follows_from_the_recorded_baseline()
+    {
+        var files = new MemFiles(new() { ["a.json"] = """{ "x": 2, "y": 2 }""", ["b.yaml"] = "version: 1\nk: 5\n" });
+        var first = DefaultsRun.Run(V2, Lookup, null, Loaded, createMissing: true, files);
+        Assert.Equal("""{ "x": 2, "y": 2 }""", files.Files["seraphhorizons-configdefaults/a.json"]);
+        files.Files["a.json"] = """{ "x": 2, "y": 7 }"""; // y set by hand
+
+        var r = DefaultsRun.Run(V2Later, Lookup, first.State, Loaded, createMissing: true, files);
+        Assert.Equal("""{ "x": 3, "y": 7 }""", files.Files["a.json"]);
+        Assert.Equal("version: 1\nk: 6\n", files.Files["b.yaml"]);
+        Assert.Equal(["a.json: x", "b.yaml: k"], r.Changes.Select(c => $"{c.File}: {c.Path}"));
+        Assert.Contains("an earlier build of pack 0.2.0", r.Changes[0].Why);
+        Assert.Equal("""{ "x": 3, "y": 2 }""", files.Files["seraphhorizons-configdefaults/a.json"]);
+        Assert.Equal(("0.2.0", "0.2.0"), (r.State.Notice!.FromVersion, r.State.Notice.ToVersion));
+
+        // Started again on the same build: nothing left to do.
+        var again = DefaultsRun.Run(V2Later, Lookup, r.State, Loaded, createMissing: true, files);
+        Assert.Empty(again.Changes);
+        Assert.Equal("""{ "x": 3, "y": 7 }""", files.Files["a.json"]);
+    }
+
+    [Fact]
+    public void A_record_with_only_this_version_records_the_defaults_and_changes_nothing_then_follows()
+    {
+        // The real case: an older build wrote {"PackVersion": "0.1.0", "Files": {}} and no
+        // baselines; nothing says whether x's 1 is a stale default or the player's.
+        var files = new MemFiles(new() { ["a.json"] = """{ "x": 1, "y": 1 }""", ["b.yaml"] = "version: 1\nk: 5\n" });
+        var r = DefaultsRun.Run(V2, Lookup, new DefaultsState { PackVersion = "0.2.0" }, Loaded, createMissing: true, files);
+        Assert.Empty(r.Changes);
+        Assert.Equal("""{ "x": 1, "y": 1 }""", files.Files["a.json"]);
+        Assert.Equal("""{ "x": 2, "y": 2 }""", files.Files["seraphhorizons-configdefaults/a.json"]);
+        Assert.Contains(r.Messages, m => !m.Warning && m.Text.StartsWith("2 file(s) had only pack 0.2.0 recorded") && m.Text.Contains("a.json, b.yaml"));
+        Assert.Null(r.State.Notice);
+
+        var later = DefaultsRun.Run(V2Later, Lookup, r.State, Loaded, createMissing: true, files);
+        Assert.Equal("""{ "x": 1, "y": 1 }""", files.Files["a.json"]); // neither was the recorded default
+        Assert.Equal("version: 1\nk: 6\n", files.Files["b.yaml"]);
+        Assert.Single(later.Changes);
+        Assert.DoesNotContain(later.Messages, m => m.Text.Contains("had only pack"));
+    }
+
+    [Fact]
+    public void Across_versions_the_recorded_baseline_wins_over_the_old_versions_final_snapshot()
+    {
+        // Installed from a `next` build of 0.1.0 whose snapshot had x at 0, later changed to 1
+        // before 0.1.0 was released.
+        var files = new MemFiles(new()
+        {
+            ["a.json"] = """{ "x": 0, "y": 1 }""",
+            ["seraphhorizons-configdefaults/a.json"] = """{ "x": 0, "y": 1 }""",
+            ["b.yaml"] = "version: 1\nk: 1\n",
+        });
+        var r = DefaultsRun.Run(V2, Lookup, new DefaultsState { PackVersion = "0.1.0" }, Loaded, createMissing: true, files);
+        Assert.Equal("""{ "x": 2, "y": 2 }""", files.Files["a.json"]);
+        Assert.Equal("version: 1\nk: 5\n", files.Files["b.yaml"]); // no baseline: from 0.1.0's snapshot
+        Assert.Equal(3, r.Changes.Count);
+    }
+
+    [Fact]
+    public void A_file_left_behind_keeps_its_baseline_until_its_mod_matches()
+    {
+        var other = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["a"] = "1.1", ["b"] = "1" };
+        var files = new MemFiles(new() { ["a.json"] = """{ "x": 2, "y": 2 }""", ["b.yaml"] = "version: 1\nk: 5\n" });
+        var first = DefaultsRun.Run(V2, Lookup, null, Loaded, createMissing: true, files);
+        var behind = DefaultsRun.Run(V2Later, Lookup, first.State, other, createMissing: true, files);
+        Assert.Equal("""{ "x": 2, "y": 2 }""", files.Files["a.json"]);
+        Assert.Equal("""{ "x": 2, "y": 2 }""", files.Files["seraphhorizons-configdefaults/a.json"]);
+        Assert.Equal("0.2.0", behind.State.Files["a.json"]);
+
+        var caught = DefaultsRun.Run(V2Later, Lookup, behind.State, Loaded, createMissing: true, files);
+        Assert.Equal("""{ "x": 3, "y": 2 }""", files.Files["a.json"]);
+        Assert.Empty(caught.State.Files);
     }
 
     [Fact]

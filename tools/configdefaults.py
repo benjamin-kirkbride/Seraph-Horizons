@@ -268,7 +268,8 @@ def captured_files(modconfig: Path, ignore: dict[str, str]) -> dict[str, bytes]:
     out = {}
     for f in sorted(p for p in modconfig.rglob("*") if p.is_file()) if modconfig.exists() else []:
         name = f.relative_to(modconfig).as_posix()
-        if name not in ignore:
+        # An ignore ending in "/" is a folder: everything under it.
+        if name not in ignore and not any(i.endswith("/") and name.startswith(i) for i in ignore):
             out[name] = f.read_bytes()
     return out
 
