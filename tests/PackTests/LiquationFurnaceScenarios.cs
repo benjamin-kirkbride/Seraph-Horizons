@@ -9,6 +9,7 @@ using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
+using Vintagestory.GameContent;
 
 namespace SeraphHorizons.PackTests;
 
@@ -172,7 +173,7 @@ public partial class SharedWorldScenarios
         var leadIngot = CutterClick(player, pos, null);
         Assert.Equal(("game:ingot-lead", 1), (leadIngot?.Collectible.Code.ToString(), leadIngot?.StackSize));
         Assert.Equal(2, furnace.LeadUnits, 6);
-        Assert.Equal(10, player.InventoryManager.Inventories.Values.SelectMany(i => i)
+        Assert.Equal(10, player.InventoryManager.Inventories.Values.Where(i => i.ClassName is "hotbar" or "backpack").SelectMany(i => i)
             .Where(s => s.Itemstack?.Collectible.Code.ToString() == "game:metalbit-lead").Sum(s => s.StackSize));
         Assert.Equal(LiquationPhase.Empty, furnace.Phase);
 
