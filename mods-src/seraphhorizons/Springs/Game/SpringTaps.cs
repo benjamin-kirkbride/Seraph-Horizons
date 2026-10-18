@@ -2,6 +2,7 @@ using System.Reflection;
 using HarmonyLib;
 using SeraphHorizons.Mod.Pipes;
 using SeraphHorizons.Mod.Pipes.Core;
+using SeraphHorizons.Mod.Springs.Core;
 using Vintagestory.API.Common;
 using Vintagestory.API.MathTools;
 
@@ -110,13 +111,24 @@ public static class SpringTaps
         }
     }
 
-    /// <summary>Whether any pipe couples to the spring at <paramref name="pos"/>.</summary>
-    public static bool AnyTapped(IWorldAccessor world, BlockPos pos)
+    /// <summary>The spring's sides as they stand: whether a pipe couples to any, and whether the cell
+    /// beyond any is in a chunk not loaded (whose pipe, if it has one, can not be seen: it reads as
+    /// air; a side past the world's edge is neither). See <see cref="SpringFlow.Settle"/>.</summary>
+    public static (bool AnyTapped, bool AnyUnloaded) Read(IWorldAccessor world, BlockPos pos)
     {
+        bool unloaded = false;
+        var ba = world.BlockAccessor;
         foreach (var face in BlockFacing.ALLFACES)
-            if (IsTapped(world, pos, face))
-                return true;
-        return false;
+        {
+            var beyond = pos.AddCopy(face);
+            if (!ba.IsValidPos(beyond))
+                continue;
+            if (ba.GetChunkAtBlockPos(beyond) == null)
+                unloaded = true;
+            else if (IsTapped(world, pos, face))
+                return (true, unloaded);
+        }
+        return (false, unloaded);
     }
 
     /// <summary>The distinct pipe networks coupled to the spring at <paramref name="pos"/>.</summary>

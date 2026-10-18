@@ -177,6 +177,88 @@ public partial class SharedWorldScenarios
             W.BlockAccessor.SetBlock(0, top.AddCopy(0, i, 0));
     }
 
+    /// <summary>A tapped spring on the east edge of its chunk column, open below, its pipe run in the
+    /// next column east: both saved and unloaded, and the spring's column loaded alone first, as a
+    /// world loading does a column at a time. With its pipe's column not there yet, the spring can
+    /// not tell whether a pipe still taps it: it stays tapped and pours nothing out of its open
+    /// bottom; the pipe's column loaded, it is still tapped and fills the run again. In real time
+    /// (the unloading and loading run on the chunk threads).</summary>
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task A_tapped_spring_stays_tapped_while_its_pipes_column_loads_after_its_own()
+    {
+        int size = GlobalConstants.ChunkSize;
+        int Mod(int v) => ((v % size) + size) % size;
+        // the spring on the last x of its column, at x about 396
+        int dx = 396 + (size - 1) - Mod(World.Spawn.X + 396);
+        var origin = await CutterSite(dx, -360, 5);
+        string granite = "game:rock-granite";
+        var spring = origin.AddCopy(0, 2, 0);
+        Assert.Equal(size - 1, Mod(spring.X));
+        foreach (var facing in new[] { BlockFacing.NORTH, BlockFacing.SOUTH, BlockFacing.WEST, BlockFacing.UP })
+            World.SetBlock(granite, spring.AddCopy(facing));
+        // open under it, down to the floor: untapped, it pours there
+        var below = spring.DownCopy();
+        for (int i = 1; i <= 3; i++)
+            World.SetBlock(PpexPipe("we", "copper"), spring.AddCopy(i, 0, 0));
+        World.SetBlock(granite, spring.AddCopy(4, 0, 0));
+        World.SetBlock(SpringCode, spring);
+        W.BlockAccessor.TriggerNeighbourBlockUpdate(spring);
+        W.BlockAccessor.TriggerNeighbourBlockUpdate(spring.EastCopy());
+        await World.Until(() => SpringAt(spring).Tapped, 300);
+        Assert.True(SpringAt(spring).Tapped);
+        await World.Ticks(30);
+        Assert.Equal(0, FluidAt(below).Id);
+
+        var sapi = (ICoreServerAPI)World.Api;
+        int ax = spring.X / size, bx = ax + 1, cz = spring.Z / size;
+        var pipe = spring.EastCopy();
+        Assert.Equal(bx, pipe.X / size);
+        var saved = await World.ExecuteCommand("/autosavenow");
+        output.WriteLine($"/autosavenow: {saved.Ok}");
+        await World.Ticks(5);
+        var old = SpringAt(spring);
+        sapi.WorldManager.UnloadChunkColumn(bx, cz);
+        sapi.WorldManager.UnloadChunkColumn(ax, cz);
+        for (int i = 0; i < 300 && (W.BlockAccessor.GetChunkAtBlockPos(spring) != null || W.BlockAccessor.GetChunkAtBlockPos(pipe) != null); i++)
+            await World.Ticks(1);
+        Assert.Null(W.BlockAccessor.GetChunkAtBlockPos(spring));
+        Assert.Null(W.BlockAccessor.GetChunkAtBlockPos(pipe));
+
+        // the spring's column alone
+        for (int i = 0; i < 60 && !(W.BlockAccessor.GetBlockEntity(spring) is BlockEntityWaterSpring again && !ReferenceEquals(again, old)); i++)
+        {
+            sapi.WorldManager.LoadChunkColumnPriority(ax, cz);
+            await World.Ticks(10);
+        }
+        var reloaded = SpringAt(spring);
+        Assert.NotSame(old, reloaded);
+        // well past its first look (half a second)
+        await World.Ticks(90);
+        output.WriteLine($"spring column alone: pipe column loaded {W.BlockAccessor.GetChunkAtBlockPos(pipe) != null}, tapped {reloaded.Tapped}, under it {FluidAt(below).Code}");
+        Assert.Null(W.BlockAccessor.GetChunkAtBlockPos(pipe));
+        Assert.True(reloaded.Tapped, "the spring took its pipe's unloaded column for no pipe");
+        Assert.Equal(0, FluidAt(below).Id);
+
+        // the pipe's column too: still tapped, and it fills the run
+        for (int i = 0; i < 60 && W.BlockAccessor.GetChunkAtBlockPos(pipe) == null; i++)
+        {
+            sapi.WorldManager.LoadChunkColumnPriority(bx, cz);
+            await World.Ticks(10);
+        }
+        Assert.NotNull(W.BlockAccessor.GetChunkAtBlockPos(pipe));
+        float Volume() => HodNetworkAcross(spring, BlockFacing.EAST) is { } n ? NetworkVolume(n) : 0f;
+        await World.Until(() => Volume() > 0, 600);
+        output.WriteLine($"both columns: tapped {reloaded.Tapped}, under it {FluidAt(below).Code}, run {Volume():0.##} L");
+        Assert.True(reloaded.Tapped);
+        Assert.Equal(0, FluidAt(below).Id);
+        Assert.True(Volume() > 0, "the spring put no water into its run");
+
+        for (int i = 0; i <= 4; i++)
+            W.BlockAccessor.SetBlock(0, spring.AddCopy(i, 0, 0));
+        foreach (var facing in new[] { BlockFacing.NORTH, BlockFacing.SOUTH, BlockFacing.WEST, BlockFacing.UP })
+            W.BlockAccessor.SetBlock(0, spring.AddCopy(facing));
+    }
+
     /// <summary>A rapids spring in a granite pillar, walled north and south, open east and west
     /// over a drop: it pours out of one side only (east, the first open one), and that water stays.
     /// That side walled up, it turns to the other, and the water that fell from the first drains;
