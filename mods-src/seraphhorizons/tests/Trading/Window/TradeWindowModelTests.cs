@@ -22,12 +22,10 @@ public class TradeWindowModelTests
             Code = c,
             Number = i + 1,
             Points = Thresholds[i],
-            MapPrecision = Math.Min(3, i + 1),
             LeadMaps = LeadMaps[i],
             LeadReach = LeadReach[i],
             Unlocks = new TierUnlocks
             {
-                MapTier = i,
                 MapsToTraders = i >= 2,
                 BuyPriceFactor = i == 0 ? 1 : 1 - 0.03 * i,
                 SellPriceFactor = i == 0 ? 1 : 1 + 0.02 * i,
@@ -301,7 +299,6 @@ public class TradeWindowModelTests
         var few = TradeWindowModel.Facts(tier, new WindowSwitches { Standing = true }).Select(f => f.Key).ToList();
         Assert.DoesNotContain("trading-window-fact-prices", few);
         Assert.DoesNotContain("trading-window-fact-orders", few);
-        Assert.DoesNotContain("trading-window-fact-maps", few);
         Assert.Contains("trading-window-fact-rare", few);
     }
 
