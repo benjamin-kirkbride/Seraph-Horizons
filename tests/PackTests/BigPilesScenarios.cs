@@ -85,10 +85,12 @@ public partial class SharedWorldScenarios
         Assert.Empty(small);
     }
 
-    /// <summary>Clutter does not pile (<see cref="ClutterPiles"/>): the game's clutter, banners, the
-    /// Jonas lamp, the clutter bookshelves and the elevator rail, which More Piles' catch-all cube
-    /// rule piled, have no ground storage and are not in its creative tab, in what a client gets
-    /// too, and a client's own More Piles pass is undone; cube blocks keep their pile.</summary>
+    /// <summary>Clutter and chiseled blocks do not pile (<see cref="ClutterPiles"/>): the game's
+    /// clutter, banners, the Jonas lamp, the clutter bookshelves and the elevator rail (drawn from
+    /// their attributes), and chiseled blocks, crates, stationary baskets and cheese (drawn by their
+    /// block entity), which More Piles' catch-all cube rule piled, have no ground storage and are not
+    /// in its creative tab, in what a client gets too, and a client's own More Piles pass is undone;
+    /// cube blocks and More Piles' own piles of blocks with a block entity (the henbox) stay.</summary>
     [AtlasScenario]
     public void Clutter_does_not_pile()
     {
@@ -96,6 +98,7 @@ public partial class SharedWorldScenarios
         [
             "game:clutter", "game:banner-banner", "game:jonas-lamp", "game:clutteredbookshelf",
             "game:clutter-elevator-elevatorrail",
+            "game:chiseledblock", "game:microblock", "game:crate", "game:cheese", "game:stationarybasket-north",
         ];
         foreach (var code in codes)
         {
@@ -113,6 +116,15 @@ public partial class SharedWorldScenarios
             .Select(b => b.Code.ToString())
             .ToList();
         Assert.Empty(piled);
+        // Every block with a block entity: none keeps a pile More Piles gave it for the cube in its type file.
+        var cubePiled = W.Blocks
+            .Where(b => b?.Code != null && !string.IsNullOrEmpty(b.EntityClass)
+                && b.CollectibleBehaviors.OfType<CollectibleBehaviorGroundStorable>().Any(g => ClutterPileRules.IsCubeShapePile(g.propertiesAtString)))
+            .Select(b => b.Code.ToString())
+            .ToList();
+        Assert.Empty(cubePiled);
+        // More Piles' own rule for the henbox (a block entity, no cube) stays.
+        Assert.True(W.GetBlock(new AssetLocation("game:henbox-empty"))!.HasBehavior<CollectibleBehaviorGroundStorable>());
 
         // A client's More Piles gives the clutter its pile again from its own config; the pass takes it away.
         var clutter = W.GetBlock(new AssetLocation("game:clutter"))!;
@@ -132,7 +144,7 @@ public partial class SharedWorldScenarios
         }
 
         Assert.NotNull(W.GetBlock(new AssetLocation("game:cobblestone-granite"))!.GetBehavior<CollectibleBehaviorGroundStorable>());
-        output.WriteLine($"clutter blocks unpiled: {StorageTweaksSystem.Of(World.Api)!.ClutterPilesTaken}");
+        output.WriteLine($"blocks unpiled: {StorageTweaksSystem.Of(World.Api)!.ClutterPilesTaken}");
         Assert.True(StorageTweaksSystem.Of(World.Api)!.ClutterPilesTaken >= codes.Length);
     }
 
