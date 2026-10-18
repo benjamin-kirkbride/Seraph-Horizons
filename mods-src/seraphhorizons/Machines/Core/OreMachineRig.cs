@@ -92,6 +92,15 @@ public sealed class OreMachineRig
                     stageRequires.Add(r.GetString()!);
                 if (s.TryGetProperty("adds", out var adds) && adds.ValueKind == JsonValueKind.Array)
                     stageRequires.AddRange(adds.EnumerateArray().Where(a => a.ValueKind == JsonValueKind.String).Select(a => a.GetString()!));
+                // a stage of several fits (the reverberatory roaster's, #737): each fit's requires and its states
+                if (s.TryGetProperty("fits", out var fits) && fits.ValueKind == JsonValueKind.Array)
+                    foreach (var f in fits.EnumerateArray().Where(f => f.ValueKind == JsonValueKind.Object))
+                    {
+                        if (f.TryGetProperty("requires", out var fr) && fr.ValueKind == JsonValueKind.String)
+                            stageRequires.Add(fr.GetString()!);
+                        if (f.TryGetProperty("also", out var also) && also.ValueKind == JsonValueKind.Array)
+                            stageRequires.AddRange(also.EnumerateArray().Where(a => a.ValueKind == JsonValueKind.String).Select(a => a.GetString()!));
+                    }
             }
         var known = new HashSet<string>(stageRequires, StringComparer.Ordinal);
         foreach (var r in extraRequires ?? [])

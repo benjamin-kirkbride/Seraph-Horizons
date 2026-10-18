@@ -1,0 +1,57 @@
+{
+	"_comment": "The reverberatory roaster's build (#736, #711): each stage after the iron frame and its materials, from ReverberatoryRoaster/README.md's stage table and the rig's build.stages, in order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. The masonry's counts are the model's measured ones (26 fired bricks, all one type, the codes the rig's bricks.types, red first for the creative shortcut; 17 + 9 tier-3 refractory bricks, 7 + 4 fire clay); the rest were not settled by the model and are this file's (README 'For the owner'). The ash-mouth damper's place, the bed, the fire and the outlet cap are not stages (ReverberatoryRoaster/Game/BEReverberatory.cs). No part wears.",
+	"machine": "reverberatory",
+	"block": "seraphhorizons:reverberatory-north",
+	"feed": "continuous",
+	"stages": [
+		{
+			"id": "masonry", "name": "the masonry", "adds": ["brickwork", "lining", "arch"],
+			"materials": [
+				{
+					"codes": [
+						"game:burnedbrick-red", "game:burnedbrick-fire", "game:burnedbrick-black", "game:burnedbrick-brown",
+						"game:burnedbrick-cream", "game:burnedbrick-gray", "game:burnedbrick-orange", "game:burnedbrick-tan",
+						"game:burnedbrick-clinker"
+					],
+					"quantity": 26, "oneType": true, "draws": ["brickwork"]
+				},
+				{ "codes": ["game:refractorybrick-fired-tier3"], "quantity": 26 },
+				{ "codes": ["game:clay-fire"], "quantity": 11, "draws": ["lining"] },
+				{ "codes": ["game:rod-iron"], "quantity": 4 }
+			]
+		},
+		{
+			"id": "hopperdoors", "name": "the hopper and doors", "adds": ["hopper", "doors"],
+			"materials": [
+				{ "codes": ["game:metalplate-iron"], "quantity": 9 },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 4 }
+			]
+		},
+		{
+			"id": "drive", "name": "the drive and rabbles", "adds": ["drive", "rabbles"],
+			"materials": [
+				{ "codes": ["seraphhorizons:gear-stainless"], "quantity": 4, "draws": ["drive"] },
+				{ "codes": ["game:rod-steel"], "quantity": 3 },
+				{ "codes": ["game:metalplate-iron"], "quantity": 8 }
+			]
+		},
+		{
+			"id": "feeding", "name": "the feeder, stoker and output", "adds": ["feeder", "stoker", "output"],
+			"materials": [
+				{ "codes": ["game:ingot-iron"], "quantity": 1, "draws": ["feeder"] },
+				{ "codes": ["game:rod-iron"], "quantity": 4 },
+				{ "codes": ["game:metalplate-iron"], "quantity": 5 }
+			]
+		},
+		{
+			"id": "services", "name": "services", "adds": ["services", "pipecopper", "pipelead"],
+			"materials": [
+				{ "codes": ["game:chute-straight-*"], "quantity": 3 },
+				{
+					"codes": ["seraphhorizons:pipesection-copper", "seraphhorizons:pipesection-lead"], "quantity": 2,
+					"picks": { "seraphhorizons:pipesection-copper": "pipecopper", "seraphhorizons:pipesection-lead": "pipelead" }
+				}
+			]
+		}
+	]
+}

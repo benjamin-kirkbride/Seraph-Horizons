@@ -1,0 +1,20 @@
+// The reverberatory roaster (ReverberatoryRoaster/, README "Ore processing: the reverberatory roaster"; #736). The
+// server disables it with ReverberatoryRoaster or OreProcessing off.
+[
+	{
+		// The iron frame, as placed: the closed box frame of angle iron round the whole furnace, its knees, bands and
+		// skewback angle, the ash mouth's lintel and the damper's guides and sill (8 iron plates, 4 iron rods, 10 iron
+		// nails and strips), with a hammer (ReverberatoryRoaster/README.md, "The build", the frame's row; the model left
+		// its ingredients open). Every other stage goes in afterwards, fitted by hand.
+		ingredientPattern: "PRN,_H_",
+		width: 3,
+		height: 2,
+		ingredients: {
+			"P": { type: "item", code: "game:metalplate-iron", quantity: 8 },
+			"R": { type: "item", code: "game:rod-iron", quantity: 4 },
+			"N": { type: "item", code: "game:metalnailsandstrips-iron", quantity: 10 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:reverberatory-north" }
+	}
+]

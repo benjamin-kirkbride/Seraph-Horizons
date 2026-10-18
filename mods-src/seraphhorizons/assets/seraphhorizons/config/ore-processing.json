@@ -45,7 +45,9 @@
 //   density 1. "sulfur": a sulfide's sulfur, units per unit of its main metal, from its formula (galena
 //   PbS 0.155, chalcopyrite CuFeS2 1.01, pyrite FeS2 1.15; sperrylite, an arsenide, none);
 //   sulfurUnitsPerPowder: the units of sulfur in one sulfur powder (5), what a roaster's sulfur comes
-//   out as. Argentiferous galena (galena_nativesilver) is a lead ore whose silver share is the
+//   out as. nativeSulfurUnits: the sulfur in one native sulfur rock (game:ore-sulfur, one grade, 13, #938);
+//   machines.{roaster}.nativeSulfur: the share of it a roaster melts out as sulfur powder (the
+//   reverberatory 0.65, standing in for the Gill furnace, #736). Argentiferous galena (galena_nativesilver) is a lead ore whose silver share is the
 //   silver-rich galena's (#690): galena 3 %, argentiferous galena 38 %. Silver galena was 4.6 % of
 //   galena blocks in the survey of #445 and all silver, so 0.954 x 3 % + 0.046 x 38 % = 4.6 % of
 //   galena's metal keeps the world's silver.
@@ -70,6 +72,7 @@
 {
   "concentrateUnits": 5,
   "sulfurUnitsPerPowder": 5,
+  "nativeSulfurUnits": 13,
   "handStations": { "pan": 0.45, "rocker": 0.55, "amalgampan": 0.45, "firepit": 0.85, "cupel": 0.85, "liquationpan": 0.85 },
   "unclassified": 0.85,
   "fineUnground": 0.4,
@@ -85,7 +88,7 @@
     "table":              { "recovery": 0.70, "load": 0.1,  "emptyLoad": 0.02,  "water": 20, "perHour": 7 },
     "vanner":             { "recovery": 0.80, "load": 0.08, "emptyLoad": 0.016, "water": 15, "perHour": 3 },
     "stallroaster":       { "recovery": 0.92, "charge": 32, "chargeHours": 40, "sulfur": 0.3333333333333333 },
-    "reverberatory":      { "recovery": 1.0,  "load": 0.5,  "emptyLoad": 0.1,   "water": 2, "perHour": 76, "sulfur": 0.7 },
+    "reverberatory":      { "recovery": 1.0,  "load": 0.5,  "emptyLoad": 0.1,   "water": 2, "perHour": 76, "sulfur": 0.7, "nativeSulfur": 0.65 },
     "cupellationfurnace": { "recovery": 0.95, "perHour": 55 },
     "parkeskettle":       { "recovery": 1.0,  "load": 0.2,  "emptyLoad": 0.04,  "charge": 2400, "chargeHours": 5, "zincReturn": 0.8 },
     "liquationfurnace":   { "recovery": 0.95, "perHour": 100 },

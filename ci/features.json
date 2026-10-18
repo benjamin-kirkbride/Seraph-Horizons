@@ -3,7 +3,7 @@
   "global": ["Core/", "Machines/", "ConfigDefaults/", "LangText.cs", "SeraphHorizons.csproj", "modinfo.json"],
   "global_switches": ["OreMachinesSettings", "FollowPackDefaults"],
   "unmapped": ["AcidParting/", "CupellationFurnace/",
-               "LiquationFurnace/", "ParkesKettle/", "ReverberatoryRoaster/"],
+               "LiquationFurnace/", "ParkesKettle/"],
   "features": {
     "Eidolon": {
       "code": ["Eidolon/", "EidolonGantry/"],
@@ -53,6 +53,13 @@
       "codes": ["stallroaster", "stallroastedore"],
       "export": ["Recipes/StallRoasterExport.cs", "RecipeSection.StallRoaster.cs"],
       "switches": ["StallRoaster", "StallRoasterSettings"],
+      "classes": []
+    },
+    "ReverberatoryRoaster": {
+      "code": ["ReverberatoryRoaster/"],
+      "codes": ["reverberatory"],
+      "export": ["Recipes/ReverberatoryExport.cs", "RecipeSection.Reverberatory.cs"],
+      "switches": ["ReverberatoryRoaster", "ReverberatorySettings"],
       "classes": []
     },
     "BallMill": {
