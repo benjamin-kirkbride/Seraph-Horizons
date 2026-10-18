@@ -15,7 +15,8 @@ namespace SeraphHorizons.Mod.Machines;
 /// meshes built again when <see cref="BEOreMachine.TextureKey"/> changes (the stall roaster's brick type).
 /// <para>θ is the power cell's shaft angle about the power face's native axis
 /// (<see cref="MillMotion.NativeShaftAngle"/>), accumulated; ψ the total angle it turned either way. Both
-/// hold still until <see cref="BEOreMachine.Animates"/> (built).</para>
+/// hold still until <see cref="BEOreMachine.Animates"/> (built). Depth is <see cref="BEOreMachine.PartDepth"/>
+/// (the liquation furnace's fire door).</para>
 /// </summary>
 public sealed class OreMachineRenderer : IRenderer
 {
@@ -97,7 +98,7 @@ public sealed class OreMachineRenderer : IRenderer
         }
         if (far)
             return;
-        var mats = _parts.Matrices(new RigInput(_theta, Travel: _psi));
+        var mats = _parts.Matrices(new RigInput(_theta, Depth: _be.PartDepth, Travel: _psi));
         var facing = Mat4.Facing(_be.Side);
         var rapi = _capi.Render;
         rapi.GlDisableCullFace();

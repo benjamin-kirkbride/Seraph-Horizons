@@ -487,6 +487,17 @@ furnace's 95 % (rich lead's silver, `bullion.richLeadSilver`, whole), a main met
 `blastLitresPerSecond` (10) and `blastPressure` (1.5 atm) and the `testCharges` (15). It draws no shaft power, so it is
 not on the power page. Its build is the shared ore machine `construction` record.
 
+**Liquation furnace** (type `liquationfurnace`, shape `generic`, present with seraphhorizons' `LiquationFurnace` and
+`OreProcessing` on, #929): one record per tin-lead bullion bar it parts, id `liquationfurnace|<bar>|0`, the bar
+(`seraphhorizons:bullion-<ore>-tin`, teallite's and franckeite's) consumed and the furnace's frame
+`seraphhorizons:liquationfurnace-north` as its station. Out, the bar's tin whole, one `game:ingot-tin`, and its lead
+left on the plate at the ore's share × the furnace's 0.95 as `game:metalbit-lead` of 5 units, a fraction, since the
+furnace carries what falls short of a whole bit over to its next charge (ore-processing.json
+`ores.<ore>.byProducts`, `machines.liquationfurnace`). `requirements` says in words what the fire needs; `extra` has the
+`ore`, the `share` (0.95), the bar's `units` (100) and `byProductUnits`, the `perHour` (100) and the `hours` a bar,
+the `chargeBars` (4), the `fuelPerHour` (0.36) and `carried` (true). It draws no power, so it is not on the power
+page. Its build is the shared ore machine `construction` record.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).

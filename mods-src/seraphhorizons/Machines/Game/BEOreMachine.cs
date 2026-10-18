@@ -172,6 +172,10 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     /// <summary>Whether a rig part needing <paramref name="requires"/> is drawn.</summary>
     public virtual bool ShowsPart(string? requires) => _assembly?.Shows(requires) ?? requires == null;
 
+    /// <summary>The rig's depth input the renderer draws the parts at (a furnace's fire door, slid shut at 1); 0, the
+    /// rest pose, by default.</summary>
+    public virtual double PartDepth => 0;
+
     /// <summary>Whether the moving parts move: the shaft is held still until the machine is built.</summary>
     public virtual bool Animates => Built;
 
