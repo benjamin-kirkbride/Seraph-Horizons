@@ -13,8 +13,9 @@ public sealed class CylinderBorerData
     public required string Mod;
     public required string FrameCode;
     public Block? Frame;
-    /// <summary>The fitted parts the borer keeps: bushings (the game's metal parts, a block), bar, feed.</summary>
-    public List<(string Kind, CollectibleObject Collectible)> Kept = new();
+    /// <summary>What the borer keeps fitted, by item (the stages' materials summed): each one's kind, the code
+    /// that stands for it, the items it may be and how many.</summary>
+    public List<(string Kind, string Template, List<CollectibleObject> Stacks, int Quantity)> Kept = new();
     public required string HeadCode;
     public Item? Head;
     /// <summary>The cutter head's travel through a bore, blocks (the rig's work.end).</summary>
@@ -40,9 +41,22 @@ public static class CylinderBorerExport
     public const string FrameCode = "seraphhorizons:cylinderborer-frame-north";
     public const string HeadCode = "seraphhorizons:cylinderborerhead-steel";
 
-    // CylinderBorer/Core/CylinderBorerParts.cs: the kept stages, in order (the bushings are metal parts, a block).
-    public static readonly (string Kind, string Code)[] KeptCodes =
-        [("block", "game:metal-parts"), ("item", "seraphhorizons:cylinderborerbar"), ("item", "seraphhorizons:cylinderborerfeed")];
+    // CylinderBorer/Core/CylinderBorerParts.cs (MaterialsFor): the kept stages' materials, summed by item in the
+    // order they first go in: the bushings' metal parts (a block) and the bar's (three rods, metal parts, the large
+    // stainless gear), then the feed's (two oak planks, a rod, two ropes, a plate); rods and plates of iron, meteoric
+    // iron or steel.
+    private static readonly string[] Rods = ["game:rod-iron", "game:rod-meteoriciron", "game:rod-steel"];
+    private static readonly string[] Plates = ["game:metalplate-iron", "game:metalplate-meteoriciron", "game:metalplate-steel"];
+
+    public static readonly (string Kind, string Template, string[] Codes, int Quantity)[] KeptMaterials =
+    [
+        ("block", "game:metal-parts", ["game:metal-parts"], 2),
+        ("item", "game:rod-iron", Rods, 4),
+        ("item", "seraphhorizons:largegear-stainless", ["seraphhorizons:largegear-stainless"], 1),
+        ("item", "game:plank-oak", ["game:plank-oak"], 2),
+        ("item", "game:rope", ["game:rope"], 2),
+        ("item", "game:metalplate-iron", Plates, 1),
+    ];
 
     private static Item? ItemOf(ICoreServerAPI api, string code) =>
         api.World.GetItem(new AssetLocation(code)) is { IsMissing: false } i && i.Code != null ? i : null;
@@ -79,13 +93,14 @@ public static class CylinderBorerExport
             DrainPerCylinder = Dbl(borerOil, "DrainPerJob", 10),
             Tank = Dbl(borerOil, "Tank", GearChain.DefaultTank),
         };
-        foreach (var (kind, code) in KeptCodes)
+        foreach (var (kind, template, codes, quantity) in KeptMaterials)
         {
-            CollectibleObject? part = kind == "block"
-                ? api.World.GetBlock(new AssetLocation(code)) is { IsMissing: false, Id: > 0, Code: not null } b ? b : null
-                : ItemOf(api, code);
-            if (part == null) return null;
-            data.Kept.Add((kind, part));
+            var stacks = codes.Select(code => kind == "block"
+                    ? api.World.GetBlock(new AssetLocation(code)) is { IsMissing: false, Id: > 0, Code: not null } b ? b : null
+                    : (CollectibleObject?)ItemOf(api, code))
+                .OfType<CollectibleObject>().ToList();
+            if (stacks.Count == 0) return null;
+            data.Kept.Add((kind, template, stacks, quantity));
         }
         foreach (var (name, metal, turnsKey) in new[] { ("thin", "iron", "TurnsPerBlockIron"), ("thick", "steel", "TurnsPerBlockSteel") })
         {

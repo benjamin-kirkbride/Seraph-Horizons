@@ -223,6 +223,94 @@ public partial class SharedWorldScenarios
         ClearBattery(origin);
     }
 
+    /// <summary>What lies on the ground in the cell in front of the battery's output face (code, count).</summary>
+    private Dictionary<string, int> InFrontOfOutput(BEStampBattery battery)
+    {
+        var (cell, face) = MachineChutes.World(battery.Pos, battery.Side, battery.Rig!.Anchor("output")!.Value);
+        var front = cell.AddCopy(face);
+        return W.GetEntitiesAround(front.ToVec3d().Add(0.5, 0.5, 0.5), 0.75f, 1.5f, e => e is EntityItem && e.Alive).OfType<EntityItem>()
+            .GroupBy(e => e.Itemstack.Collectible.Code.ToString())
+            .ToDictionary(g => g.Key, g => g.Sum(e => e.Itemstack.StackSize));
+    }
+
+    // The owner's ruling: an outlet with no chute never holds its product. With nothing at its front the battery
+    // drops what it crushes on the ground just in front of the face and runs on; a product held at its outlet
+    // (a world saved before) is dropped too. A container attached and full holds it, and the battery stops.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Stamp_battery_with_no_chute_drops_its_crushed_ore_in_front_and_runs_on()
+    {
+        var origin = await CutterSite(680, 620, 4);
+        KeepBatteryLoaded(origin);
+        var battery = await PlaceBattery(origin);
+        FillBattery(battery);
+        battery.FillWater(battery.ReservoirCapacity);
+        // held from before: dropped once it ticks, with nothing at the face
+        var held = battery.OutputSlots("output").First();
+        held.Itemstack = CutterItem(BatteryCrushed, 1);
+        held.MarkDirty();
+        await World.Until(() => held.Empty, 2_000);
+        await World.Until(() => InFrontOfOutput(battery).GetValueOrDefault(BatteryCrushed) == 1, 200);
+
+        var rotor = await PowerBattery(battery);
+        battery.InfeedSlot.Itemstack = CutterItem(BatteryOre, 2);
+        battery.InfeedSlot.MarkDirty();
+        bool blocked = false;
+        using (VirtualClock.Start(World))
+        {
+            try
+            {
+                await World.Until(() =>
+                {
+                    blocked |= battery.State == MachineState.Blocked;
+                    return battery.InfeedSlot.Empty && InFrontOfOutput(battery).GetValueOrDefault(BatteryCrushed) >= 3;
+                }, 12_000);
+            }
+            catch (Exception e)
+            {
+                throw new Xunit.Sdk.XunitException($"not dropped: state {battery.State}, infeed x{battery.InfeedSlot.StackSize}, in front "
+                    + $"{string.Join(",", InFrontOfOutput(battery).Select(kv => $"{kv.Value}x {kv.Key}"))}, near {string.Join(",", CutterItemsNear(origin).Select(kv => $"{kv.Value}x {kv.Key}"))} ({e.Message})");
+            }
+        }
+        Assert.False(blocked, "the battery stopped blocked with no chute at its output");
+        Assert.True(battery.OutputSlots("output").All(s => s.Empty));
+        Assert.Equal(3, InFrontOfOutput(battery)[BatteryCrushed]);
+
+        // a chest at the face, every slot full: attached, so the product waits in the battery and it stops
+        CutterKillItems(origin);
+        var (cell, face) = MachineChutes.World(battery.Pos, battery.Side, battery.Rig!.Anchor("output")!.Value);
+        var chestPos = cell.AddCopy(face);
+        World.SetBlock("game:chest-east", chestPos);
+        await World.Ticks(2);
+        var chest = (BlockEntityContainer)W.BlockAccessor.GetBlockEntity(chestPos)!;
+        var stone = W.GetItem(new AssetLocation("game:stone-granite"))!;
+        foreach (var slot in chest.Inventory)
+        {
+            slot.Itemstack = new ItemStack(stone, stone.MaxStackSize);
+            slot.MarkDirty();
+        }
+        battery.FillWater(battery.ReservoirCapacity);   // two rocks spent it
+        battery.InfeedSlot.Itemstack = CutterItem(BatteryOre, 2);
+        battery.InfeedSlot.MarkDirty();
+        using (VirtualClock.Start(World))
+        {
+            try
+            {
+                await World.Until(() => battery.State == MachineState.Blocked, 12_000);
+            }
+            catch (Exception e)
+            {
+                throw new Xunit.Sdk.XunitException($"not blocked: state {battery.State}, water {battery.Water.Litres}, infeed x{battery.InfeedSlot.StackSize} ({e.Message})");
+            }
+        }
+        Assert.Equal(BatteryCrushed, battery.OutputSlots("output").First(s => !s.Empty).Itemstack.Collectible.Code.ToString());
+        Assert.Equal(1, battery.InfeedSlot.StackSize);
+        Assert.Empty(CutterItemsNear(origin));
+
+        foreach (var p in new[] { rotor, chestPos })
+            W.BlockAccessor.SetBlock(0, p);
+        ClearBattery(origin);
+    }
+
     [AtlasScenario(TimeoutMs = 90_000)]
     public async Task Stamp_battery_stops_dry_and_with_its_shoes_worn_out()
     {

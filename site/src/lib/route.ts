@@ -14,6 +14,7 @@ export type Route =
   | { view: "entity"; version: string; code: string; variant?: string }
   | { view: "credits"; version: string }
   | { view: "power"; version: string }
+  | { view: "ores"; version: string; ore?: string; grade?: OreGrade }
   | { view: "eidolon"; version: string }
   | { view: "multiblocks"; version: string }
   | { view: "multiblock"; version: string; id: string }
@@ -68,6 +69,10 @@ function formatValuesView(v: ValuesView): string {
   const s = p.toString();
   return s ? `?${s}` : "";
 }
+
+/** The ore routes page's grade (`?grade=`); medium when left out. */
+export type OreGrade = "poor" | "medium" | "rich" | "bountiful";
+const ORE_GRADES: readonly string[] = ["poor", "medium", "rich", "bountiful"];
 
 /** Search results in their own order (best match first), or by value. */
 export type SearchSort = "value-asc" | "value-desc";
@@ -138,6 +143,18 @@ export function parseRoute(hash: string): Route {
     case "eidolon":
       if (rest.length === 0) return { view: "eidolon", version };
       break;
+    case "ores":
+      if (rest.length === 0) {
+        const ore = params.get("ore");
+        const grade = params.get("grade");
+        return {
+          view: "ores",
+          version,
+          ...(ore ? { ore } : {}),
+          ...(grade !== null && ORE_GRADES.includes(grade) && grade !== "medium" ? { grade: grade as OreGrade } : {}),
+        };
+      }
+      break;
     case "multiblocks":
       if (rest.length === 0) return { view: "multiblocks", version };
       break;
@@ -176,6 +193,13 @@ export function formatRoute(route: Route): string {
       return `#/${enc(route.version)}/power`;
     case "eidolon":
       return `#/${enc(route.version)}/eidolon`;
+    case "ores": {
+      const p = new URLSearchParams();
+      if (route.ore) p.set("ore", route.ore);
+      if (route.grade && route.grade !== "medium") p.set("grade", route.grade);
+      const s = p.toString().replace(/%3A/gi, ":");
+      return `#/${enc(route.version)}/ores${s ? `?${s}` : ""}`;
+    }
     case "multiblocks":
       return `#/${enc(route.version)}/multiblocks`;
     case "multiblock":

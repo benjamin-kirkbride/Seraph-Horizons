@@ -40,6 +40,7 @@ public static class Exporter
         ItemSection.Fill(api, root, referenced);
         // After the items: a power entry links only to an item the export holds.
         Power.PowerSection.Fill(api, root);
+        OreProcessingSection.Fill(api, root);
         MultiblockSection.Fill(api, root);
         return root;
     }

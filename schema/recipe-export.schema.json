@@ -65,6 +65,10 @@
       "description": "Mechanical power producers, consumers and the wind (docs/recipe-browser/power.md). Optional: absent in exports made before it existed.",
       "$ref": "#/$defs/power"
     },
+    "oreProcessing": {
+      "description": "The figures the pack's ore processing works by, for the site's ore routes page (docs/recipe-browser/schema.md, Ore processing). Parameters only; the app works out the routes. Optional: absent when the pack's mod or its OreProcessing switch is off, and in exports made before it existed.",
+      "$ref": "#/$defs/oreProcessing"
+    },
     "eidolon": {
       "description": "The pack's eidolon fittings, for the site's fitting sheet (docs/recipe-browser/schema.md, The eidolon's fittings). Optional: absent when the pack's mod or its Eidolon switch is off, and in exports made before it existed.",
       "$ref": "#/$defs/eidolon"
@@ -89,6 +93,64 @@
 
   "$defs": {
     "modId": { "type": "string", "pattern": "^[a-z0-9_-]+$" },
+    "oreProcessing": {
+      "type": "object",
+      "required": ["concentrateUnits", "handStations", "unclassified", "fineUnground", "freeUnamalgamated", "machines", "smeltByGrade", "smelt", "ores"],
+      "additionalProperties": false,
+      "properties": {
+        "concentrateUnits": { "description": "Metal units in one concentrate, roasted concentrate, amalgam or sponge item.", "type": "number", "exclusiveMinimum": 0 },
+        "handStations": { "description": "The hand stations' shares, keyed by name: pan, rocker, amalgampan, firepit, cupel, liquationpan.", "$ref": "#/$defs/shares" },
+        "unclassified": { "description": "The share gravity can catch of feed that was not classified.", "$ref": "#/$defs/share" },
+        "fineUnground": { "description": "The same for poor ore not ground.", "$ref": "#/$defs/share" },
+        "freeUnamalgamated": { "description": "The same for free gold or silver not amalgamated.", "$ref": "#/$defs/share" },
+        "machines": {
+          "description": "Each machine's recovery (1 for one that loses nothing), keyed by the config's name for it (sluice, jig, table, vanner, amalgamationplates, stallroaster, reverberatory, cupellationfurnace, parkeskettle, liquationfurnace, acidparting, ...).",
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["recovery"],
+            "additionalProperties": false,
+            "properties": { "recovery": { "type": "number", "minimum": 0 } }
+          }
+        },
+        "smeltByGrade": { "description": "The share of its units rock of each grade gives in a furnace.", "$ref": "#/$defs/shares" },
+        "smelt": { "description": "The share of its units each other form gives in a furnace: concentrate, roastedconcentrate, sponge.", "$ref": "#/$defs/shares" },
+        "ores": {
+          "description": "Every ore the pack processes (one with crushed ore items), by code.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ore", "name", "metal", "class", "density", "free", "unparted", "units", "byProducts"],
+            "additionalProperties": false,
+            "properties": {
+              "ore": { "description": "The ore part of its codes (galena, quartz_nativegold).", "type": "string", "pattern": "^[a-z0-9_]+$" },
+              "name": { "description": "English name (the game's ore-{ore} lang entry).", "type": "string", "minLength": 1 },
+              "metal": { "description": "Its main metal (copper, lead).", "type": "string", "minLength": 1 },
+              "class": { "enum": ["oxide", "sulfide", "native", "placer"] },
+              "density": { "description": "Multiplies each concentrator's recovery on it, capped at 1.", "type": "number", "exclusiveMinimum": 0 },
+              "free": { "description": "Free gold or silver, which wants amalgamation.", "type": "boolean" },
+              "unparted": { "description": "The share of the main metal a smelt gives without parting.", "$ref": "#/$defs/share" },
+              "units": { "description": "Metal units one raw ore item holds, by grade: poor, medium, rich, bountiful.", "type": "array", "items": { "type": "number", "minimum": 0 }, "minItems": 4, "maxItems": 4 },
+              "byProducts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["metal", "share", "partedBy"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "metal": { "type": "string", "minLength": 1 },
+                    "share": { "description": "Units of it per unit of the main metal.", "type": "number", "minimum": 0 },
+                    "partedBy": { "enum": ["cupellation", "liquation", "acidparting"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "share": { "type": "number", "minimum": 0, "maximum": 1 },
+    "shares": { "type": "object", "additionalProperties": { "$ref": "#/$defs/share" } },
     "code": {
       "description": "A full asset code: domain, colon, path. Always lower case, domain always present.",
       "type": "string",
