@@ -42,11 +42,13 @@ public partial class RecipeExportScenarios
     {
         var r = Recipe("construction|seraphhorizons:acidparting-north|0");
         Assert.Equal("acidparting", (string)r["extra"]!["machine"]!);
-        // the frame as placed, then the brickwork, the lining, the sand bath, the vessel and tub and the siphon
-        Assert.Equal(6, r["construction"]!["stages"]!.Count());
+        // the frame as placed, then the brickwork, the lining, the sand bath, the vessel and tub and the siphon, and
+        // last the tub's copper plate, the wearing part fitted by itself
+        Assert.Equal(7, r["construction"]!["stages"]!.Count());
         var codes = r["ingredients"]!.Select(i => (string)i["code"]!).ToList();
         Assert.Contains("seraphhorizons:pipesection-lead", codes);
         Assert.Contains("game:plank-oak", codes);
+        Assert.Contains("game:metalplate-copper", codes);
         Assert.Null(Doc["power"]!["consumers"]!.FirstOrDefault(c => (string)c["id"]! == "seraphhorizons:acidparting"));
     }
 }
