@@ -35,7 +35,8 @@ def git(*args, cwd=ROOT):
 class Matching(unittest.TestCase):
     def test_noop_paths(self):
         for p in ["docs/merge-queue.md", "README.md", "mods-src/seraphhorizons/AmalgamPan/README.md",
-                  ".claude/settings.json", ".mergify.yml", ".gitignore", "LICENSE"]:
+                  ".claude/settings.json", ".mergify.yml", ".gitignore", "LICENSE",
+                  "mods-src/seraphhorizons/benchmarks/Program.cs"]:
             self.assertTrue(paths.is_noop(p), p)
         for p in ["ci/paths.py", "ci/code-tree.sh", ".github/workflows/ci.yml", "docs.txt",
                   "mods-src/seraphhorizons/LICENSE.txt", "site/models.json"]:

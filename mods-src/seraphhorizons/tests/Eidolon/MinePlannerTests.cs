@@ -402,13 +402,15 @@ public class MinePlannerTests(ITestOutputHelper output)
     }
 
     /// <summary>The most units of work one checkpoint may do (<see cref="MineWork"/>, about a cell or node
-    /// looked at each). Measured, a unit runs 3 to 10 ns warm on Release (2.6 ns on the 1024 x 1 x 16
-    /// area, 10 ns on the 16 x 64 x 16), so 100 000 is at most about 1 ms, half of the tick's
-    /// <see cref="MinePlanner.BudgetMs"/>, which a step may overrun by one checkpoint. The longest now: about
-    /// 40 000 on the stepped slope (64 stands of the reach bound's search, each its reach box and joins), and
-    /// on the largest areas about 86 000, a graph's window-sized arrays allocated and filled (the 1024 x 1 x
-    /// 16 area's window is 319 088 blocks). A loop with no checkpoint over the window, or over the area's
-    /// cells with any work in it, goes past it on the largest areas.</summary>
+    /// looked at each). The benchmark (benchmarks/, README "Eidolon", mining) measures a unit at about
+    /// 2.5 ns on the largest areas and 15 to 30 ns on small tunnels (warm, Release; the hash sets and the
+    /// guard's searches cost more than a unit says), and the longest checkpoint, collections and the JIT's
+    /// first tier aside, under 1 ms on the tunnels and 1 to 2 ms on the largest areas: so a step, which may
+    /// overrun the tick's <see cref="MinePlanner.BudgetMs"/> by one checkpoint, stays within about twice it. The
+    /// longest in units now: about 40 000 on the stepped slope (64 stands of the reach bound's search, each
+    /// its reach box and joins), and on the largest areas about 86 000, a graph's window-sized arrays
+    /// allocated and filled (the 1024 x 1 x 16 area's window is 319 088 blocks). A loop with no checkpoint
+    /// over the window, or over the area's cells with any work in it, goes past it on the largest areas.</summary>
     private const long MaxCheckpointUnits = 100_000;
 
     [Fact]
