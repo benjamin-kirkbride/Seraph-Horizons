@@ -21,6 +21,9 @@ namespace SeraphHorizons.Mod.Ore;
 /// <item><c>RarerDistricts</c> (#441): <c>patches/ore-rarerdistricts.json</c>.</item>
 /// <item><c>PlacerFields</c> (#442): <see cref="PlacerFields"/>.</item>
 /// <item><c>GradePockets</c> (#944): <see cref="GradePocketPlacement"/>.</item>
+/// <item><c>SingleOreDrops</c>: <see cref="SingleOreDropsPass"/>. Deposits are sized at one ore a
+/// block at twice the ingots of before whether it is on or not, in a world created since it existed
+/// (<see cref="OreWorldRecord.DoubledDeposits"/>, <see cref="DepositBasis"/>).</item>
 /// </list>
 /// It also binds <see cref="ProPickShutdownGuard"/> and puts back the game's deposit distortion
 /// scale (<see cref="FreshDepositVerticalDistortScale"/>), with no switch. With ore cells or placer
@@ -89,7 +92,8 @@ public class OreSystem : ModSystem
         var wanted = new OreWorldRecord(config.OreCells, config.OreCellSizeMetres,
             new Dictionary<string, int>(config.OreCellSizeByMetal ?? new Dictionary<string, int>()),
             config.NoSurfaceCopper, config.SmallerDeposits, config.RarerDistricts,
-            config.PlacerFields, OreCells.ClampCellSize(config.PlacerCellSizeMetres), config.GradePockets, config.StableVeins);
+            config.PlacerFields, OreCells.ClampCellSize(config.PlacerCellSizeMetres), config.GradePockets, config.StableVeins,
+            config.SingleOreDrops, DoubledDeposits: true);
         var saveGame = sapi.WorldManager.SaveGame;
         NewWorld = saveGame.IsNew;
         OreWorldRecord? saved = null;
@@ -119,6 +123,9 @@ public class OreSystem : ModSystem
             World.PlacerFields ? $"on, {World.PlacerCellSize} m" : "off");
         api.Logger.Notification("[seraphhorizons] Grade pockets for this world: {0}", OnOff(World.GradePockets));
         api.Logger.Notification("[seraphhorizons] Stable veins for this world: {0}", OnOff(World.StableVeins && World.OreCells));
+        api.Logger.Notification("[seraphhorizons] Ore drops for this world: {0}; deposits sized at {1}",
+            World.SingleOreDrops ? "one raw ore a block" : "as the mods ship them",
+            World.DoubledDeposits ? "one ore a block" : $"{DepositBasis.BeforeOrePerBlock} ore a block, half the ingots (created before single ore drops)");
         // No switch: the game's deposit depths would otherwise depend on whether a server ran before
         // this one in the process (#1012).
         TerraGenConfig.depositVerticalDistortScale = FreshDepositVerticalDistortScale;
@@ -140,7 +147,7 @@ public class OreSystem : ModSystem
             if (DepositSizes.Unsupported(api) is { } why)
                 api.Logger.Warning("[seraphhorizons] Deposit sizes are off: {0}", why);
             else
-                DepositSizes.Bind(api, _harmony ??= new Harmony(HarmonyId), GradedOreBlocks(api), World.SmallerDeposits);
+                DepositSizes.Bind(api, _harmony ??= new Harmony(HarmonyId), GradedOreBlocks(api), World.SmallerDeposits, !World.DoubledDeposits);
         }
         // No switch: it only keeps a stopping server from crashing. Bound before items load, when
         // the prospecting pick starts its task.
@@ -175,11 +182,12 @@ public class OreSystem : ModSystem
             if (DistrictVeinSizes.Unsupported(api) is { } why)
                 api.Logger.Warning("[seraphhorizons] Smaller deposits in hydrothermal districts is off: {0}", why);
             else
-                DistrictVeinSizes.Bind(api, _harmony ??= new Harmony(HarmonyId), DepositSizes.LoadTable(api), GradedOreBlocks(api));
+                DistrictVeinSizes.Bind(api, _harmony ??= new Harmony(HarmonyId), DepositSizes.LoadTable(api, !World.DoubledDeposits),
+                    GradedOreBlocks(api), World.DoubledDeposits);
         }
         if (Placement != null || Placer != null)
         {
-            Deposits = new DepositService(api, Placement, Placer);
+            Deposits = new DepositService(api, Placement, Placer, !World.DoubledDeposits);
             Maps = new MapIssuer(api, Deposits);
         }
         _commands = new OreCommands(api, this);
@@ -203,6 +211,14 @@ public class OreSystem : ModSystem
         {
             api.Logger.Warning("[seraphhorizons] Placer fields: could not add copper to the pan's rich gravel: {0}", e.Message);
         }
+    }
+
+    // After every mod's blocks are loaded and patched, before clients are sent them (they get the
+    // server's drops, so the handbook shows one).
+    public override void AssetsFinalize(ICoreAPI api)
+    {
+        SingleOreDropsPass.Clear();
+        if (World.SingleOreDrops) SingleOreDropsPass.Apply(api);
     }
 
     public override void Dispose()

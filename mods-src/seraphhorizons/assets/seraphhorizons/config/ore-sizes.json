@@ -1,20 +1,31 @@
 // Deposit sizes (#439): seraphhorizons' SmallerDeposits switch (README.md "Ore cells").
 // Read by Ore/Game/DepositSizes.cs, which scales each Interesting Ore Gen vein variant of a metal
 // by that metal's volume factor (Ore/Core/VeinScaling.cs: disc veins by √factor on the radius,
-// tube veins on their tendril count). Never above 1.
+// tube veins on their tendril count). A factor may be over 1: the vein grows past Interesting Ore
+// Gen's own size.
+//
+// Basis: one ore a block, twice the ingots of before. Ore blocks drop one raw ore and no crystallised
+// ore (the SingleOreDrops switch; Ore/Core/SingleOreDrops.cs), and deposits hold twice the metal they
+// did at vanilla's 1.25 a block: every factor below is 2.5 times what it was (twice the metal at four
+// fifths of the ore a block), every target and size tier twice, and each median is the figure
+// measured at 1.25 a block re-expressed at one (x 0.8). The sizes are on this basis with the switch
+// off too, so ore then gives a quarter more than they say. A world created before this keeps the old
+// basis: its factors are 0.4 of these and never above 1, its targets and tiers half
+// (Ore/Core/SingleOreDrops.cs, DepositBasis; the world's ore record, doubledDeposits).
 //
 // A metal's factor is targetIngots / medianIngots, or "factor" given outright:
 // - medianIngots: the median deposit measured over 5 seeds x 26 km² of the pack before this change
-//   (epic #435's table; a deposit is all ore of one metal within 150 m, an ore block 1.25 chunks).
-// - targetIngots: the typical deposit the epic wants for a group of about four: copper and iron 400,
-//   tin, zinc, bismuth, lead and nickel 150, silver and gold 80, titanium, chromium and platinum 150.
+//   (epic #435's table; a deposit is all ore of one metal within 150 m, an ore block 1.25 chunks), times 0.8.
+// - targetIngots: the typical deposit, twice what the epic wanted for a group of about four: copper and
+//   iron 800, tin, zinc, bismuth, lead and nickel 300, silver and gold 160, titanium, chromium and
+//   platinum 300.
 //   Its small / large tiers (about ÷2.7 and ×2.5) come from the veins' own spread, which is kept.
 // - smallIngots, largeIngots: the bottom and top of the metal's range (the epic's small and large);
 //   with targetIngots, the deposit registry's size tiers (#443): small, medium and large are the
 //   bottom, middle and top third of smallIngots..largeIngots, and below a tenth of smallIngots a
 //   deposit counts as worked out (Ore/Core/DepositRegistry.cs, DepositSizing).
-// - Coal and the industrial minerals get a quarter cut at most: they were one deposit per 3–10 km²
-//   and are not what the walk is for.
+// - Coal and the industrial minerals got a quarter cut at most (0.75): they were one deposit per
+//   3–10 km² and are not what the walk is for. Their yield doubles with the metals' (1.875).
 // Gold, silver (apart from the silver inside copper and lead veins), nickel, titanium and chromium
 // come mostly from hydrothermal districts. District veins are sized to smallIngots / targetIngots /
 // largeIngots directly (config/ore-districts.json, Ore/Core/DistrictVeins.cs), not by the factor.
@@ -34,26 +45,27 @@
 // 89 ingots, the stable veins having shrunk them to about 0.75x. Each of those factors was multiplied by
 // target / that median; zinc, which grows less than its factor near the census's 50-ingot floor, was
 // then fitted over three runs (0.0835: median 100, 0.189: 214, 0.129: 141). Tin (128) and lead (140)
-// were within 25% of target and keep theirs. docs/oregen.md, "Ore cells after #945".
+// were within 25% of target and keep theirs. docs/oregen.md, "Ore cells after #945". (The figures in
+// this history are on the old basis.)
 {
-  "copper":   { "medianIngots": 3567, "targetIngots": 400, "factor": 0.136, "smallIngots": 150, "largeIngots": 1000 },
-  "iron":     { "medianIngots": 4806, "targetIngots": 400, "factor": 0.0527, "smallIngots": 150, "largeIngots": 1000 },
-  "tin":      { "medianIngots": 896,  "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
-  "zinc":     { "medianIngots": 2009, "targetIngots": 150, "factor": 0.129, "smallIngots": 60, "largeIngots": 400 },
-  "bismuth":  { "medianIngots": 6643, "targetIngots": 150, "factor": 0.0153, "smallIngots": 60, "largeIngots": 400 },
-  "lead":     { "medianIngots": 1100, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
-  "nickel":   { "medianIngots": 1411, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
-  "silver":   { "medianIngots": 348,  "targetIngots": 80, "smallIngots": 30, "largeIngots": 200 },
-  "gold":     { "medianIngots": 130,  "targetIngots": 80, "smallIngots": 30, "largeIngots": 200 },
-  "platinum": { "medianIngots": 905,  "targetIngots": 150, "factor": 0.140, "smallIngots": 60, "largeIngots": 400 },
-  "titanium": { "medianIngots": 2852, "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
-  "chromium": { "medianIngots": 825,  "targetIngots": 150, "smallIngots": 60, "largeIngots": 400 },
+  "copper":   { "medianIngots": 2853.6, "targetIngots": 800, "factor": 0.34, "smallIngots": 300, "largeIngots": 2000 },
+  "iron":     { "medianIngots": 3844.8, "targetIngots": 800, "factor": 0.13175, "smallIngots": 300, "largeIngots": 2000 },
+  "tin":      { "medianIngots": 716.8,  "targetIngots": 300, "smallIngots": 120, "largeIngots": 800 },
+  "zinc":     { "medianIngots": 1607.2, "targetIngots": 300, "factor": 0.3225, "smallIngots": 120, "largeIngots": 800 },
+  "bismuth":  { "medianIngots": 5314.4, "targetIngots": 300, "factor": 0.03825, "smallIngots": 120, "largeIngots": 800 },
+  "lead":     { "medianIngots": 880, "targetIngots": 300, "smallIngots": 120, "largeIngots": 800 },
+  "nickel":   { "medianIngots": 1128.8, "targetIngots": 300, "smallIngots": 120, "largeIngots": 800 },
+  "silver":   { "medianIngots": 278.4,  "targetIngots": 160, "smallIngots": 60, "largeIngots": 400 },
+  "gold":     { "medianIngots": 104,  "targetIngots": 160, "smallIngots": 60, "largeIngots": 400 },
+  "platinum": { "medianIngots": 724,  "targetIngots": 300, "factor": 0.35, "smallIngots": 120, "largeIngots": 800 },
+  "titanium": { "medianIngots": 2281.6, "targetIngots": 300, "smallIngots": 120, "largeIngots": 800 },
+  "chromium": { "medianIngots": 660,  "targetIngots": 300, "smallIngots": 120, "largeIngots": 800 },
 
-  "coal":          { "factor": 0.75 },
-  "alum":          { "factor": 0.75 },
-  "borax":         { "factor": 0.75 },
-  "saltpeter":     { "factor": 0.75 },
-  "cinnabar":      { "factor": 0.75 },
-  "sulfur":        { "factor": 0.75 },
-  "rhodochrosite": { "factor": 0.75 },
+  "coal":          { "factor": 1.875 },
+  "alum":          { "factor": 1.875 },
+  "borax":         { "factor": 1.875 },
+  "saltpeter":     { "factor": 1.875 },
+  "cinnabar":      { "factor": 1.875 },
+  "sulfur":        { "factor": 1.875 },
+  "rhodochrosite": { "factor": 1.875 },
 }

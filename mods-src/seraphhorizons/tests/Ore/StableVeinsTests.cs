@@ -106,4 +106,24 @@ public class StableVeinsTests
         Assert.True(OreWorldRecord.Parse(record.Serialize()).StableVeins);
         Assert.False(record.Effective(record with { StableVeins = false }).StableVeins);
     }
+
+    // A record from before single ore drops has neither key: 1.25 ore a block, deposits on the old basis.
+    [Fact]
+    public void AWorldFromBeforeSingleOreDropsKeepsTheOldDropsAndSizes()
+    {
+        var old = OreWorldRecord.AllOff with { StableVeins = true };
+        var text = old.Serialize().Replace("singleOreDrops=False\ndoubledDeposits=False\n", "");
+        Assert.DoesNotContain("singleOreDrops", text);
+        var parsed = OreWorldRecord.Parse(text);
+        Assert.False(parsed.SingleOreDrops);
+        Assert.False(parsed.DoubledDeposits);
+        Assert.False(OreWorldRecord.ForWorld(null, false, OreWorldRecord.AllOff with { SingleOreDrops = true, DoubledDeposits = true }).DoubledDeposits);
+
+        var record = OreWorldRecord.AllOff with { SingleOreDrops = true, DoubledDeposits = true };
+        Assert.Equal(record, OreWorldRecord.Parse(record.Serialize()));
+        // The drops follow the config's switch; the basis has none.
+        var off = record.Effective(record with { SingleOreDrops = false, DoubledDeposits = false });
+        Assert.False(off.SingleOreDrops);
+        Assert.True(off.DoubledDeposits);
+    }
 }

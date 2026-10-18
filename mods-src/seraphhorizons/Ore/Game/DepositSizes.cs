@@ -42,16 +42,19 @@ internal static class DepositSizes
         return null;
     }
 
-    public static OreSizeTable LoadTable(ICoreAPI api) =>
-        new(api.Assets.Get(SizesAsset).ToObject<Dictionary<string, OreSizeTable.Entry>>());
+    /// <param name="before">For a world created before the current deposit basis
+    /// (<see cref="DepositBasis"/>).</param>
+    public static OreSizeTable LoadTable(ICoreAPI api, bool before) =>
+        new(api.Assets.Get(SizesAsset).ToObject<Dictionary<string, OreSizeTable.Entry>>(), before);
 
     /// <param name="gradedOreBlocks">The volume a graded ore's vein is scaled by over its metal's
     /// factor: <see cref="OreProducts.DepositBlocks"/> with ore processing on, else 1.</param>
     /// <param name="cut">Whether the metals' factors apply (<c>SmallerDeposits</c>); without them
     /// only graded ore is scaled, by <paramref name="gradedOreBlocks"/>.</param>
-    public static void Bind(ICoreAPI api, Harmony harmony, double gradedOreBlocks, bool cut)
+    /// <param name="before">The world was created before the current deposit basis (<see cref="DepositBasis"/>).</param>
+    public static void Bind(ICoreAPI api, Harmony harmony, double gradedOreBlocks, bool cut, bool before)
     {
-        _table = cut ? LoadTable(api) : new OreSizeTable(new Dictionary<string, OreSizeTable.Entry>());
+        _table = cut ? LoadTable(api, before) : new OreSizeTable(new Dictionary<string, OreSizeTable.Entry>());
         _gradedOreBlocks = gradedOreBlocks;
         _logger = api.Logger;
         harmony.Patch(InitAssets, postfix: new HarmonyMethod(typeof(DepositSizes), nameof(InitAssetsPostfix)));

@@ -141,18 +141,48 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
     }
 
     // Deposit measurement (sizes, tiers, map prices, district veins) reads the blocks' drops times
-    // their metalUnits: a medium ore block still measures 1.25 × its units plus the crystallised ore.
+    // their metalUnits: with single ore drops a medium ore block drops one raw ore and no crystallised
+    // ore, and measures its units.
     [AtlasScenario]
     public void Ore_block_still_measures_its_drops()
     {
         var block = W.GetBlock(new AssetLocation("game:ore-medium-galena-shale"));
         Assert.NotNull(block);
-        double expected = 1.25 * 5 + 0.01 * 10;
         Assert.Equal(10, Item("game:crystalizedore-medium-galena-shale").Attributes["metalUnits"].AsDouble());
-        Assert.Equal(expected, DepositService.BlockUnits(block!), 6);
+        var drop = Assert.Single(block!.Drops);
+        Assert.Equal("game:ore-medium-galena-shale", drop.Code.ToString());
+        Assert.Equal(1, drop.Quantity.avg);
+        Assert.Equal(0, drop.Quantity.var);
+        Assert.Equal(5, DepositService.BlockUnits(block), 6);
         var chromite = W.GetBlock(new AssetLocation("game:ore-medium-chromite-peridotite"))!;
-        Assert.Equal(1.25 * 5, chromite.Drops.Where(d => d.ResolvedItemstack.Collectible.Code.Path.StartsWith("ore-"))
+        Assert.Equal(5, chromite.Drops.Where(d => d.ResolvedItemstack.Collectible.Code.Path.StartsWith("ore-"))
             .Sum(d => d.Quantity.avg * d.ResolvedItemstack.Collectible.Attributes["metalUnits"].AsDouble()), 6);
+        Assert.DoesNotContain(chromite.Drops, d => d.Code.Path.StartsWith("crystalizedore-"));
+    }
+
+    // Single ore drops reach every ore block, ungraded ones too, and leave the blocks whose drop is not
+    // an ore (flint), sylvite and quartz's clear quartz as they are.
+    [AtlasScenario]
+    public void Ore_blocks_drop_one_raw_ore()
+    {
+        Block First(string prefix) => W.Blocks.First(b => b?.Code is { Domain: "game" } c && c.Path.StartsWith(prefix));
+        var coal = First("ore-bituminouscoal-");
+        Assert.Equal(1, Assert.Single(coal.Drops, d => d.Code.Path == "ore-bituminouscoal").Quantity.avg);
+        var quartz = First("ore-quartz-");
+        Assert.Equal(1, Assert.Single(quartz.Drops, d => d.Code.Path == "ore-quartz").Quantity.avg);
+        Assert.Equal(0.2, Assert.Single(quartz.Drops, d => d.Code.Path == "clearquartz").Quantity.avg, 6);
+        var flint = First("ore-flint-");
+        Assert.Equal(1.5, Assert.Single(flint.Drops).Quantity.avg, 6);
+        Assert.Equal(2.5, Assert.Single(First("ore-sylvite-").Drops).Quantity.avg, 6);
+        Assert.True(SeraphHorizons.Mod.Ore.SingleOreDropsPass.ChangedByDomain.GetValueOrDefault("game") > 1000);
+        // No ore block anywhere still drops crystallised ore or more than one ore.
+        foreach (var b in W.Blocks)
+            if (b?.Drops is { } drops && drops.Any(d => d?.Code?.Path.StartsWith("ore-") == true && d.Quantity.avg >= 1)
+                && !drops.Any(d => d?.Code?.Path.StartsWith("ore-sylvite") == true))
+            {
+                Assert.DoesNotContain(drops, d => d?.Code?.Path.StartsWith("crystalizedore-") == true);
+                Assert.All(drops.Where(d => d?.Code?.Path.StartsWith("ore-") == true), d => Assert.Equal(1, d.Quantity.avg));
+            }
     }
 
     // Crushing (#847): one for one, no loss, into crushed ore of the same grade; crystallised ore,

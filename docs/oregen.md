@@ -27,6 +27,41 @@ about four through an age; the first metal from a rich gravel field about 750 m 
 Gravel fields hold 300–600 rich gravel blocks; scattered rich gravel is cut to a quarter; surface
 copper and tin are gone; hydrothermal districts are rarer.
 
+Since single ore drops (below) the deposits are twice these: copper and iron 300 / 800 / 2,000;
+tin, zinc, bismuth, lead, nickel, titanium, chromium and platinum 120 / 300 / 800; silver and gold
+60 / 160 / 400 (`config/ore-sizes.json`, `tools/ore-survey/targets.json`). The figures elsewhere in
+this note, the survey and census results among them, are on the old basis unless they say so.
+
+## Single ore drops and the deposit basis
+
+Vanilla's ore blocks drop 1.25 ore on average (`quantity: { avg: 1.25, var: 0 }`: one, and a
+second a quarter of the time) and crystallised ore at 0.01. With `SingleOreDrops` an ore block
+drops exactly one raw ore and no crystallised ore. It is a pass over every loaded block on the
+server in `OreSystem.AssetsFinalize` (`Ore/Game/SingleOreDropsPass.cs`), not a patch, so every
+mod's ore blocks are covered; the rule (`Ore/Core/SingleOreDrops.cs`): an ore drop is an item whose
+path starts with `ore-` or that carries `metalUnits`, crystallised ore aside, and not sylvite (2.5
+potash salts a block, kept); a block with an ore drop of one or more on average is an ore block,
+and its ore drops become `avg 1, var 0`, its crystallised ore goes and its other drops stay
+(quartz's clear quartz). A chance of ore below one (a bonus from some other block) is left alone.
+`Block.GetDrops` still multiplies by the player's `oreDropRate`. Clients get the server's drops.
+
+Deposits are sized at one ore a block, at twice the ingots they held at 1.25, whether the switch is
+on or not (`DepositBasis`): every factor in `config/ore-sizes.json` is 2.5 times what it was (2 /
+0.8), every median is the figure measured at 1.25 a block times 0.8, every target and size tier is
+doubled, and the factor's old cap of 1 is gone (gold's ore-cell veins, 160 / 104 = 1.54, and coal
+and the industrial minerals, 1.875, grow past IOG's own size). District veins draw their sizes from
+the same tiers, so they double too; they are sized from a block's ingots at one ore and no
+crystallised ore (`DistrictVeinSizes.BlockIngots`), not from its drops as they are, so with the
+switch off ore gives a quarter more than the sizes say, in ore cells and districts alike. Deposit
+measurement, the size tiers on maps and map prices (`BandMiddleIngots`, so twice the gears) read
+the live drops and the doubled tiers.
+
+Both go in the world's record, `singleOreDrops` (the switch; switching it off later takes effect)
+and `doubledDeposits` (no switch). A record without them, a world created before, keeps vanilla's
+drops and the old basis: `OreSizeTable` with `before` gives factors at 0.4 of the table's, never
+above 1, and the tiers at half, exactly what the world was generated with. Nothing was re-measured
+for the change (no census): the sizes are the old ones scaled by arithmetic.
+
 The targets are ingots, not blocks. Since #863, with ore processing on, an ore item holds about a
 quarter of vanilla's metal units (3 / 5 / 7 / 10 by grade, from 15 / 20 / 25 / 35;
 `OreProducts.RawUnits`), so a deposit of the same ingots is four times the blocks: every graded
@@ -45,7 +80,8 @@ ore (`DistrictVeins.LensRadii`). In a true fault rock (travertine) its ore is on
 crosses the splay's one-block fracture, a disc of the two radii, so both radii double (4–12 by 3–8
 become 8–24 by 6–16); in a host that is also the country rock (granite, basalt) the whole spheroid
 can be ore, so only the horizontal radius doubles. Either way a lens holds the ingots it did. The
-medians and factors in `config/ore-sizes.json` stay as measured at vanilla's units; measurement, size tiers and the trader maps work in ingots from the live units,
+medians and factors in `config/ore-sizes.json` stay as measured at vanilla's units (on the one-ore
+basis since single ore drops, above); measurement, size tiers and the trader maps work in ingots from the live units,
 so they need no change. Worlds already generated keep their ore as placed: a deposit from before
 holds a quarter of the ingots it did. `tools/ore-survey/targets.json` holds the
 same numbers for `ore_survey.py check`, which reads small / typical / large as p10 / median / p90.

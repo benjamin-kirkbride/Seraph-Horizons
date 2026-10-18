@@ -185,12 +185,12 @@ public readonly record struct SizeTargets(double Small, double Typical, double L
 
 /// <summary>
 /// Turning counted ore into ingots, and ingots into a size tier, the way the survey does
-/// (tools/ore-survey): an ore block drops about 1.25 ore chunks (and a little crystallised ore),
-/// each worth its grade's <c>metalUnits</c>; 5 units make a nugget, 20 nuggets an ingot.
+/// (tools/ore-survey): an ore block's units are what it drops, each drop worth its item's
+/// <c>metalUnits</c> (one raw ore with single ore drops, <see cref="SingleOreDrops"/>; vanilla's
+/// 1.25 and a little crystallised ore without); 5 units make a nugget, 20 nuggets an ingot.
 /// </summary>
 public static class DepositSizing
 {
-    public const double OreChunksPerBlock = 1.25;
     public const double UnitsPerNugget = 5;
     public const double NuggetsPerIngot = 20;
 
