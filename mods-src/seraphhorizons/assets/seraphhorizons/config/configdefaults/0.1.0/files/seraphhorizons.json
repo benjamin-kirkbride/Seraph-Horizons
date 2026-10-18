@@ -537,5 +537,6 @@
     "OpenDraught": 0.0
   },
   "ShakingTable": true,
-  "Vanner": true
+  "Vanner": true,
+  "Arrastra": true
 }

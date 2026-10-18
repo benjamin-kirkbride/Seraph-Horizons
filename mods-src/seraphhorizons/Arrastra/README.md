@@ -7,8 +7,11 @@ and pours a bucket of water a rock after it, the stones grind it to a paste, and
 and loses no metal. One machine, built in stages on its frame (the crucible furnace's pattern); its
 continuous successor is the ball mill (#915, its own machine).
 
-**Status: the model only.** This folder holds the generator (`tools/`). There is no block, block entity or renderer
-yet; the model and its rig are what #732 will be built against. Paths here are from this folder unless they start
+**Status: built (#732).** The machine is in the game on the shared ore machine (`Machines/Game`, `BEOreMachine`),
+switch `Arrastra`: `Core/ArrastraCharge.cs` holds its batch's rules (game-independent, tested in
+`tests/Arrastra/ArrastraChargeTests.cs`), `Game/` its block entity (`BEArrastra`), and its system (the bucket's water read by the rocker's `RockerWater`);
+the frame is `assets/seraphhorizons/blocktypes/arrastra/frame.json`, its grid recipe `recipes/grid/arrastra.json`, its
+build `config/builds/arrastra.json`. [Gameplay](#gameplay) below says what it does. Paths here are from this folder unless they start
 with `assets/` or `tests/`, which are the mod's (`mods-src/seraphhorizons/`), or `Machines/`, this folder's
 neighbour. The generic half of the generator is `Machines/tools/machinegen/`, unchanged by this machine:
 no new driver, every motion a `rotate` on the axle's angle or a ride.
@@ -159,20 +162,28 @@ whole machine repeats every three (the viewer's θ slider spans three turns).
 
 Toothed wheels and what they mesh (nothing toothed meshes nothing): the lantern pinion and the post's cog wheel.
 
-### The build's stages (provisional)
+### The build's stages
 
 The frame (the head frame and the power shaft) is placed as the machine; then each stage goes on, one `requires`
-value, in this order (the rig's `build.stages`). The order is the mechanism's: the post stands on the pit's centre
-stone and in the frame's top bearing, the arms go through the post, and the stones hang from the arms, which
-completes the machine. There is no hopper stage: the charge is tipped straight into the pit. The frame's recipe
-and each stage's items and materials are open (#733, "Build stages").
+value, in this order (the rig's `build.stages`), fitted by right-click with its materials
+(`config/builds/arrastra.json`, the shared staged build of #711). The order is the mechanism's: the post stands on the
+pit's centre stone and in the frame's top bearing, the arms go through the post, and the stones hang from the arms,
+which completes the machine. There is no hopper stage: the charge is tipped straight into the pit.
 
-| # | `requires` | What it fits |
-|---|---|---|
-| 1 | `pit` | The centre stone, the paving, the edging, the curb, and the draw gate |
-| 2 | `post` | The footstep, the top bearing, the post with its cog wheel, and the lantern pinion on the power shaft |
-| 3 | `arms` | The four sweep arms through the post, with their staples |
-| 4 | `stones` | The four drag stones and their chain bridles: the machine complete |
+Materials are measured from the model (element volume per `requires` and texture) at the ore line's one rate, the
+stamp battery's (`../StampBattery/README.md`): 128 vox of iron or steel an ingot (a plate 2, nails and strips 4 to an
+ingot) and 1 iron nails and strips per 4 planks' worth of wood for the fastenings; a board 1 `game:plank-*` per 128
+vox, a timber 1 `game:supportbeam-*` per 256 vox, every stage with wood at least 1. The post is a vanilla wooden
+axle and the drag stones are loose stones, counted (one a stone); the pit's masonry is a block of each kind at least,
+the paving and edging (1,100 vox) cobblestone and the curb (1,426 vox) dry stone. Nothing wears.
+
+| # | `requires` | What it fits | Materials |
+|---|---|---|---|
+| Frame | none | The head frame (2,152 vox of oak), the iron power shaft (93 vox) and its two drop hangers (88 vox) | Grid recipe with a hammer: 9 `game:supportbeam-*`, 1 `game:rod-steel`, 3 `game:metalnailsandstrips-iron` |
+| 1 | `pit` | The centre stone, the paving, the edging, the curb, and the draw gate | 1 `game:cobblestone-*`, 1 `game:drystone-*`, 2 `game:plank-*` (the gate and jambs, 53 vox), 1 `game:metalnailsandstrips-iron` (the grip and fastenings) |
+| 2 | `post` | The footstep, the top bearing, the post with its cog wheel, and the lantern pinion on the power shaft | 1 `game:woodenaxle-ud` (the post), 4 `game:plank-*` (the cog wheel and lantern, 482 vox), 1 `game:metalplate-iron` and 2 `game:metalnailsandstrips-iron` (bands, hoops, footstep, bearing: 289 vox, and fastenings), 1 `game:metalnailsandstrips-steel` (the gudgeons, 30 vox) |
+| 3 | `arms` | The four sweep arms through the post, with their staples | 2 `game:supportbeam-*` (321 vox), 1 `game:metalnailsandstrips-iron` |
+| 4 | `stones` | The four drag stones and their chain bridles: the machine complete | 4 `game:stone-*` (the drag stones, counted; drawn as basalt), 1 `game:metalchain-iron` (the bridles and eyes) |
 
 **In the viewer** (`site/models.json`): two selects. **Build** steps from "The frame (placed)" through each stage
 to "4: The drag stones: complete" (the default). **In the pit** shows it empty, charged (the default) or ground to a paste; it waits on the whole build. θ has
@@ -184,6 +195,37 @@ The rig's cells are the whole machine built (the frame and every stage; not the 
 crucible furnace's are: each cell up to three boxes, a turning part's swept over the whole cycle, so the sweep's arms
 and stones fill the pit's cells up to the arms' height and nobody stands in their way. Every cell holds part of the
 machine (none hollow). No lids: whether the top is walked on is open.
+
+## Gameplay
+
+The arrastra is a **batch** machine worked by hand (#711 rule 2, #732): nothing automated feeds it or takes from it.
+Its figures are ore-core's (`config/ore-processing.json`, `machines.arrastra`, #765): load 0.1 (0.02 empty), 10 L of
+water a rock, a charge of 2 rock in 7.5 hours at the reference speed 0.6.
+
+- **Tipping in.** With crushed ore in hand (`seraphhorizons:crushedore-*`), a right-click anywhere on the built
+  machine tips one rock into the pit, up to the charge (2). A charge is **one ore and grade** with the same stream
+  (it lies in the pit as one stack, the shared machine's infeed slot); another is refused (`Mixed`), as is any rock
+  once the ground charge waits in the pit. Any grade grinds; only poor ore gains.
+- **Water by the bucket** (the owner's ruling): a right-click with a bucket (any liquid container) of fresh water
+  pours as much as the pit still takes into its reservoir, which holds 20 L (`OreMachinesSettings.ReservoirLitres`,
+  a charge's worth). The charge grinds only with its water in the pit, 10 L a rock; with less it stops (Dry) and
+  resumes when watered. No pipe and no water anchor.
+- **Grinding.** While the shaft turns at 0.05 or faster (either way), the turns count toward the charge: a full
+  charge takes 95.5 × 0.6 × 7.5 = 429.75 turns, a part charge its share (a rock 214.9). The rate follows the shaft's
+  speed with no cap (#711). When the turns are in, every rock of the charge becomes its ground ore at once
+  (`seraphhorizons:groundore-{ore}-{grade}`), keeping its stream and lifted by `OreState.Ground` (#765: poor ore's
+  × 0.4 lifted), and its water is spent. **No metal is lost**, one ground rock for one crushed.
+- **The draw.** A right-click with an empty hand gives the player what is in the pit by the draw gate: the ground
+  ore, or a charge not yet ground, which comes back crushed with its turns lost. The water stays.
+- **Load:** constant once built, 0.1 working or idle (0.005 unbuilt), on the axle at the power cell. No oil, no
+  wearing parts, no tailings (`OreMachinesSettings.Tailings` lists none for it).
+- **Drawn:** the rig's `charge` part while a charge is in, `paste` once it is ground.
+- **Breaking** the frame or any cell gives back the frame, every stage's materials and what is in the pit.
+
+The recipe browser shows its build (the shared `construction` record) and a grinding record per crushed ore
+(`tools/recipe-export/RecipeSection.Arrastra.cs`, type `arrastra`: the rock, its 10 L of water, the arrastra as the
+station; a rock's share of a charge's turns). Its handbook is the frame's `extraSections` from the player card
+(`seraphhorizons:arrastra-handbook-*`). Atlas: `tests/PackTests/ArrastraScenarios.cs`.
 
 ## Model
 
