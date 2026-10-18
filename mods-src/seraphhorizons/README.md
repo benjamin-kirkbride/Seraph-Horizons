@@ -3363,7 +3363,10 @@ worker has a cancellation token). A worker that fails is logged, the job keeps i
 later (a first plan failing three times leaves the job an empty one, so its members report and go, and
 its outlines are cleared). The members wait for the first plan (`eidolon-status-mine-planning`); a
 largest area (16384 blocks) plans in under a second of the worker's time. The planner is
-still a step iterator (its steps a few ms at most), so the tests run it synchronously. What runs on the
+still a step iterator (its steps a few ms at most), so the tests run it synchronously, on a fake clock
+(its clock is injectable): its work is counted in units, about a cell or node looked at each
+(`MineWork`), and the tests bound the units between two checkpoints, the same on any machine, where time
+would vary with it. What runs on the
 main thread for a member each look (the dispatch over the plan's next 24 stations, the guard, a dig taken
 in) is about a millisecond on the largest plan. *The live state*: the job keeps its picture of the world
 (`MineJobCells.Live`) as the world changes: its own breaks at once; a player's breaks and placings in the
