@@ -9,8 +9,9 @@ the shaking belt: the heavy grains settle on it and ride up over the head roller
 box**, the light ones are washed back down and off the foot into the **tailings box**. Each box's spout
 leads into a vanilla chute section, and the pulp comes in by one down the feed box.
 
-This folder holds the model's generator and its rig (`tools/`). The gameplay is #923 and is not built yet;
-the model is #924. "Gameplay" below says what the rig offers it.
+This folder holds the model's generator and its rig (`tools/`), and the gameplay (#923: `Core/`, `Game/`, on the
+ore machines' shared game code in `Machines/Game`); the model is #924. "Gameplay" below says how the game uses the
+rig.
 
 **Driven like every machine.** A vanilla axle at the back turns the countershaft directly (the v2 wash
 house's line shaft, pulley and drive belt are gone). The shake comes from two eccentrics, which shake the
@@ -45,14 +46,14 @@ player; the build frame's corner is the controller's, so the shipped files need 
 |---|---|---|
 | `powerCell`, `powerFace` | `[1,0,2]`, south | A vanilla axle, north to south, on the countershaft's line (x 24, y 8): the countershaft's oak cross is the axle's profile, flush with the face |
 | `waterCell`, `waterFace` | `[1,0,0]`, up | A ppex pipe coming down: the water line's first bend is open on the face, ppex's 6 x 6 tube at its centre |
-| `feedCell`, `feedFace` | `[0,0,1]`, up | A vanilla chute coming down: the infeed chute section, upright, flush with the top face |
+| `infeedCell`, `infeedFace` | `[0,0,1]`, up | A vanilla chute coming down: the infeed chute section, upright, flush with the top face |
 | `concentrateCell`, `concentrateFace` | `[0,0,0]`, north | The concentrate chute section, along z, flush with the front face |
 | `tailingsCell`, `tailingsFace` | `[0,0,2]`, south | The tailings chute section, along z, flush with the back face |
 
 The three chute sections are vanilla's straight chute in copper, exactly: an 8 x 8 tube, 1 thick, centred in
 the cell's face (`VANILLA_CHUTE`, held to the game's `shapes/block/metal/chute/straight.json` whenever the game
-is installed). The chute anchors' names and the water cell's place are **provisional, pending #711**
-(the shared machine code); the `pipes` key (the metals' parts) and `drive` (below) are for gameplay too.
+is installed). The anchors are #711's names (`infeed`, `concentrate`, `tailings`, `water`, `power`), as the
+shared game code reads them; the `pipes` key (the metals' parts) and `drive` (below) are the rig's extras.
 
 **Fitted parts** (the rig's `requires`). Everything with `requires` null is the frame: the sills, the
 uprights' foot pins in their cheeks, the countershaft's pedestals and bearings, the feed box's posts and
@@ -291,7 +292,7 @@ is added to the shared rig maths.
   and ride the shaking frame; the two seams go round the belt's loop by ψ (harmonics of `rotate`, `swing` and
   `slide` on the travel) and ride it too. No work, class or presence.
 - **Keys.** `cells` (six, each with its boxes and a `lid`), `powerCell`/`powerFace`, `waterCell`/`waterFace`,
-  `feedCell`/`feedFace`, `concentrateCell`/`concentrateFace`, `tailingsCell`/`tailingsFace`, `pipes` (`requires`
+  `infeedCell`/`infeedFace`, `concentrateCell`/`concentrateFace`, `tailingsCell`/`tailingsFace`, `pipes` (`requires`
   per metal), `buildStages`, `drive` and `parts`. `requires` values: `countershaft`, `shaker`, `rollers`,
   `creep`, `belt`, `feedbox`, `chutes`, `pipecopper`, `pipelead`, or null.
 - **`buildStages`**: the stages after the placed frame, in order, each `{ "stage", "id", "name", "adds" }`,
@@ -346,8 +347,9 @@ client or the site's viewer.
 
 ## Open for the owner
 
-1. **Build stages: settled** (2026-10-15, above). Still open: the frame's grid recipe, and the items each
-   stage takes in the game (the table's figures are measured, and the pipe count a guess).
+1. **Build stages: settled** (2026-10-15, above). The frame's grid recipe and the items' codes are #923's
+   (`recipes/grid/vanner.json`, `config/builds/vanner.json`): a chute section is a vanilla straight chute, the
+   leather plain leather (`game:leather-normal-plain`), the pipe count 2.
 2. **The ratchet's place.** #923 says "the ratchet on it stays" (on the countershaft). v2 put the worm shaft in
    line with the countershaft beyond its end, with the pawl on the shaking frame, and its worm wheel slid along the
    fixed worm by the whole shake. Here the worm shaft with the ratchet rides the shaking frame and the pawl is fixed,
@@ -361,14 +363,14 @@ client or the site's viewer.
 6. **The water line reduces to a smaller spray pipe.** ppex's 6-wide pipe cannot cross a one-high belt, so it comes
    down from the water cell's top face beside the belt and reduces, through a soldered plug, to a 2.4-wide soldered
    spray pipe with five nozzles. A ppex-size spray pipe would need a second block of height.
-7. **The anchors are provisional (#711):** their names (`feedCell`, `concentrateCell`, `tailingsCell` with
-   their faces, as the v2 branches named the infeed) and their faces: the concentrate out of the front, the
-   tailings and the power at the back side by side, the infeed and the water from above. The water face is the
-   top of the east front cell, the one place a 6-wide pipe reaches the spray's height.
+7. **The anchors are #711's** (the gameplay, #923, renamed the v2 branches' `feedCell` to `infeedCell`, the name
+   the shared code reads; the files are otherwise unchanged): the concentrate out of the front, the tailings and
+   the power at the back side by side, the infeed and the water from above. The water face is the top of the
+   east front cell, the one place a 6-wide pipe reaches the spray's height.
 8. **The concentrate box under the head**, not a tank the belt dips through (weak spot 6); its floor sits just
    over the chute's bore so its spout reaches into the chute.
-9. **The controller cell** is the front west cell, under the head; which way the machine extends from the player
-   (east, as here, or mirrored) is the gameplay's placement rule.
+9. **The controller cell** is the front west cell, under the head; the machine extends from it east, as here
+   (to the player's left as they face it: the shared ore machines' placement, the front facing the player).
 10. **The belt's texture:** the game's plain leather, the lacing its aged leather; black leather is the other
     choice for the belt.
 11. **The free strip** east of the countershaft (about 5 wide): the footprint's width is the belt's and the
@@ -377,18 +379,27 @@ client or the site's viewer.
 
 ## Gameplay
 
-Not built: #923 (crushed or ground ore in by chute, concentrate and tailings out by chute, 80 % of the catchable
-metal at 3 rock an hour; resistance 0.08, 0.016 empty; 15 L of water a rock). What the rig offers it:
+Built (#923; the mod's README, "Vanner"; switch `Vanner`, which needs `OreProcessing`). The frame is the shared ore
+machine block (`seraphhorizons:vanner-{side}`, `blocktypes/vanner/frame.json`), its cells the shared ones, its block
+entity `Game/BEVanner.cs` on `BEOreMachine` (`Machines/Game/`): the staged build, the wearing belt, the load, the
+reservoir, the infeed, the chutes out and the tailings heap are the shared code's; the vanner adds what it washes and
+its products. Its pass is `Core/Vanning.cs`, on the concentrators' `ConcentratorWash` and `SluiceSystem.StreamOf`.
 
-- **The drive.** A renderer turns θ with the axle's angle and ψ with its travel (the shared `ShaftClock`), and
-  draws every part by the shared rig maths (`Machines/Core/RigAnimation.cs`): the countershaft, the shake and the
-  uprights by θ, the creep by ψ, so the belt goes to the head whichever way the axle turns and its seams go round
-  with it. `drive` gives the stroke, the belt's creep per turn and its loop's length for sounds and a scrolling belt
-  texture.
-- **Parts.** Every part with a `requires` is drawn when its value is fitted, the water line in the supplied metal
-  (`pipes.requires`); the frame shape is the block's.
-- **Anchors.** The power, water, infeed and the two output chutes, each a cell and a face (above).
-- **Tests.** `tests/Vanner/VannerRigTests.cs` (the shipped rig through the shared parser, its vocabulary, no work,
-  its anchors, and every pose of `tests/Vanner/rig-reference.json` replayed through `Machines/Core`),
-  `tools/tests/test_vanner_model.py` and `site/test/vanner.test.ts` (the generated files against their own rules
-  and the site's rig maths).
+- **Placement.** The controller is the block clicked, under the head of the belt; the vanner runs three blocks away
+  from the player and two wide, the countershaft's column to their left.
+- **Build.** `config/builds/vanner.json` is the stage table above. The belt is the wearing part (`uses` 4,000 rock),
+  its first set the belt stage's only material (`"materials": []`, a small extension of `MachineBuildJson`); renewed
+  whole by right-click with 2 plain leather once worn out.
+- **The clock.** The shared renderer turns θ with the power cell's shaft about native z (the power face is south)
+  and ψ with its travel, so the shake, the uprights and the creep move by the shared rig maths; θ holds still until
+  the vanner is built. `drive` is not read.
+- **Anchors.** The power cell and face take the axle (`oremachine-cellpower-south` turned to the world); the
+  infeed cell's top face takes a chute coming down (`chute-straight-ud`); the water face a ppex pipe; the
+  concentrate face a chute laid to take from it or a container; the tailings face the same, or the sand heap.
+- **Work.** `machines.vanner` (r 0.80, load 0.08 steady, 15 L a rock, 3 an hour at 0.6): each item one pass of the
+  recovery core; whole-route concentrate is marked (`oreWhole`) and carried over apart from the rest.
+- **Tests.** `tests/Vanner/VannerRigTests.cs` (the rig through the shared parser, its reference poses),
+  `tests/Vanner/VannerGameplayTests.cs` (its figures, its pass, its build), Atlas `tests/PackTests/VannerScenarios.cs`
+  (placed, built with real items, powered by a creative rotor, fed by hand and chute, concentrate into a chest,
+  tailings on the heap, belt renewed, broken back) and `RecipeExportVannerScenarios.cs`;
+  `tools/tests/test_vanner_model.py` and `site/test/vanner.test.ts` hold the generated files to their own rules.
