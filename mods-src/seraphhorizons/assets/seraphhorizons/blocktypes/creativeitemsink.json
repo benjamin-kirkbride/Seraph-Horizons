@@ -1,0 +1,24 @@
+{
+  "code": "creativeitemsink",
+  "class": "seraphhorizons.CreativeItemSink",
+  "entityClass": "seraphhorizons.CreativeItemSink",
+  "shape": { "base": "game:block/basic/cube" },
+  "textures": {
+    "all": { "base": "game:block/metal/sheet/blackbronze1" }
+  },
+  "attributes": {
+    "handbook": { "exclude": true }
+  },
+  "creativeinventory": { "general": ["*"], "mechanics": ["*"] },
+  "blockmaterial": "Metal",
+  "drops": [],
+  "resistance": 3,
+  "sideopaque": { "all": true },
+  "sidesolid": { "all": true },
+  "sounds": {
+    "place": "game:block/anvil",
+    "break": "game:block/anvil",
+    "hit": "game:block/anvil",
+    "walk": "game:walk/stone"
+  }
+}

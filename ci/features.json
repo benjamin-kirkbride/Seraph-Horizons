@@ -447,6 +447,12 @@
       "switches": ["CreativeSteamSource"],
       "classes": []
     },
+    "CreativeItems": {
+      "code": ["CreativeItems/"],
+      "codes": ["creativeitemsource", "creativeitemsink", "creativeitems"],
+      "switches": ["CreativeItemSource"],
+      "classes": []
+    },
     "DuplicateRecipes": {
       "code": ["DuplicateRecipes.cs"],
       "codes": ["duplicaterecipes"],

@@ -85,6 +85,7 @@ public class SeraphHorizonsSystem : ModSystem
         // On both sides whatever the switch says: the client cannot know the server's.
         api.Network.RegisterChannel(ClearSkySun.Channel).RegisterMessageType<ClearSkyPacket>();
         CreativeSteamSource.RegisterClasses(api);
+        CreativeItems.CreativeItemBlocks.RegisterClasses(api);
         AssembledMachines.RegisterClasses(api);
         // Before the game's patch loader, which applies the patches in AssetsLoaded. On the server
         // only: a client has no assets in Start (the game throws on reading one), and the patch
@@ -272,6 +273,8 @@ public class SeraphHorizonsSystem : ModSystem
         if (api.Side == EnumAppSide.Server
             && !(Config(api).CreativeSteamSource && CreativeSteamSource.Applies(api) && CreativeSteamSource.Bind(api.Logger)))
             CreativeSteamSource.Disable(api);
+        if (api.Side == EnumAppSide.Server && !Config(api).CreativeItemSource)
+            CreativeItems.CreativeItemBlocks.Disable(api);
         if (api.Side == EnumAppSide.Server && Config(api).AssembledMachinesInCreative && AssembledMachines.Applies(api))
             AssembledMachines.AddToBlocktypes(api);
         if (api.Side == EnumAppSide.Server && _irrigationVessel)
@@ -392,6 +395,11 @@ public class SeraphHorizonsConfig
     /// <summary>Pipes and Power Expanded: a creative-only block that fills the pipes connected to it
     /// with steam, set up like the auto rotor (off means the block does not exist).</summary>
     public bool CreativeSteamSource { get; set; } = true;
+
+    /// <summary>Two creative-only blocks for testing item transport: a source that feeds a copy of
+    /// an item, without end, to the hopper under it, and a sink that counts and voids whatever
+    /// chutes and hoppers push into it (off means neither block exists).</summary>
+    public bool CreativeItemSource { get; set; } = true;
 
     /// <summary>Age of Flax (fork): seeds drop from the flax plant again, not the ripple; the
     /// ripple's grain and the hatchel's fibers per ripe plant are 2/3, 1 and 4/3 of vanilla flax's
