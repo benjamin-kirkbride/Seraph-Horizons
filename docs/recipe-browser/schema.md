@@ -472,6 +472,21 @@ turns an item at any speed (a native sulfur rock as long as the concentrate hold
 (a concentrate's sixth, `ReverberatorySettings.ConcentratePerCoal`), the `hearth` (the bed, 32) and `carried`. Its build is
 the shared ore machine `construction` record, and its draw (0.1 to 0.5 with the bed) is on the power page.
 
+**Cupellation furnace** (type `cupellationfurnace`, shape `generic`, present with seraphhorizons' `CupellationFurnace`
+and `OreProcessing` on, #740): one record per bar it parts, id `cupellationfurnace|<bar>|0`: the base bullion of every
+ore cupellation parts (`seraphhorizons:bullion-<ore>-<metal>`: galena's and argentiferous galena's silver-lead,
+tetrahedrite's argentiferous copper, freibergite's cupriferous silver) and the Parkes kettle's rich lead
+(`seraphhorizons:richlead`), consumed, with a lead ingot (`game:ingot-lead`) for a bar whose metal is not lead, and the
+furnace's frame `seraphhorizons:cupellationfurnace-north` as its station. A bar is 100 units of its ore's main metal and
+carries its by-product at the ore's share. Out, the litharge its lead burns to (`seraphhorizons:litharge`, 5 units an
+item: 20 a bar, 40 with the ingot), and its silver and copper as metal bits (`game:metalbit-silver`,
+`game:metalbit-copper`), fractions, since the furnace draws each last item at its chance: the by-product at the
+furnace's 95 % (rich lead's silver, `bullion.richLeadSilver`, whole), a main metal of silver or copper whole.
+`requirements` says in words how a charge is worked; `extra` has the `ore` (null for rich lead), `richLead`, the
+`share`, `leadAdded`, the `chargeUnits` (200), the `perHour` (55 units of lead), the `coalPerHour` (0.7), the blast's
+`blastLitresPerSecond` (10) and `blastPressure` (1.5 atm) and the `testCharges` (15). It draws no shaft power, so it is
+not on the power page. Its build is the shared ore machine `construction` record.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).
