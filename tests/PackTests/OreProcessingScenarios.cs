@@ -361,6 +361,69 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal("Rich lead", new ItemStack(Item(Bullion.RichLeadCode)).GetName());
     }
 
+    // The tooltips keep one terse status line (ItemOreProduct.StatusText); how each form is worked is in
+    // its handbook section and the guide page "Ore processing" (OreHandbook), never in the tooltip text,
+    // which the handbook page shows too.
+    [AtlasScenario]
+    public void Ore_tooltips_are_terse_and_the_how_to_is_in_the_handbook()
+    {
+        string Info(string code)
+        {
+            var slot = new DummySlot(new ItemStack(W.GetItem(new AssetLocation(code)) ?? throw new Xunit.Sdk.XunitException($"no item {code}")));
+            var info = new System.Text.StringBuilder();
+            slot.Itemstack.Collectible.GetHeldItemInfo(slot, info, W, false);
+            output.WriteLine($"{code}: {info.ToString().Replace("\n", " | ")}");
+            return info.ToString();
+        }
+        string Sections(string code) => string.Join(" ", ((Newtonsoft.Json.Linq.JArray?)Item(code).Attributes?["handbook"]["extraSections"].Token
+                                                          ?? new Newtonsoft.Json.Linq.JArray()).Select(t => (string?)t["text"]));
+        string L(string key, params object[] args) => Lang.Get("seraphhorizons:" + key, args);
+
+        // Raw ore: the status line where vanilla's hammer line was, no spalling prose.
+        string hematite = Info("game:ore-medium-hematite-granite");
+        Assert.Contains(L("oreproduct-smeltsat", "25"), hematite);
+        // A crystallised sulfide does not smelt: vanilla's hammer line is there to replace.
+        string crystal = Info("game:crystalizedore-medium-galena-shale");
+        Assert.Contains(L("oreproduct-nosmelt"), crystal);
+        Assert.DoesNotContain(Lang.Get("Crush with hammer to extract nuggets"), crystal);
+        Assert.Contains(L("oreproduct-roastfirst", OreRoasting.MeltingPoint), Info("game:ore-medium-galena-shale"));
+        Assert.Contains(L("oreproduct-nosmelt"), Info("seraphhorizons:groundore-galena-medium"));
+        Assert.Contains(L("oreproduct-smeltsat", "40"), Info("seraphhorizons:crushedore-malachite-rich"));
+        Assert.Contains(L("oreproduct-smeltsat", "42.5"), Info("seraphhorizons:roastedore-galena-bountiful"));
+        Assert.Contains(L("oreproduct-smeltswhole"), Info("seraphhorizons:concentrate-malachite"));
+        Assert.Contains(L("oreproduct-roastfirst", OreRoasting.MeltingPoint), Info("seraphhorizons:concentrate-galena"));
+        Assert.Contains(L("oreproduct-smeltswhole"), Info("seraphhorizons:roastedconcentrate-galena"));
+        Assert.Contains(L("oreproduct-retortfirst"), Info("seraphhorizons:amalgam-quartz_nativegold"));
+        Assert.Contains(L("oreproduct-smeltstolead"), Info(OreProducts.LithargeCode));
+        // Each bullion names the machine that parts its kind.
+        Assert.Contains(L("oreproduct-partin-cupellation"), Info("seraphhorizons:bullion-galena-lead"));
+        Assert.Contains(L("oreproduct-partin-cupellation"), Info("seraphhorizons:bullion-freibergite-silver"));
+        Assert.Contains(L("oreproduct-partin-liquation"), Info("seraphhorizons:bullion-teallite-tin"));
+        Assert.Contains(L("oreproduct-partin-acidparting"), Info("seraphhorizons:bullion-quartz_nativegold-gold"));
+        Assert.Contains(L("oreproduct-partin-cupellation"), Info(Bullion.RichLeadCode));
+        foreach (var spec in System.Recovery!.Ores.Where(Bullion.Makes))
+            Assert.Equal(Bullion.MethodOf(spec)!.Value.ToString().ToLowerInvariant(),
+                Item(Bullion.Code(spec)).Attributes["partedBy"].AsString());
+
+        // The handbook sections: an oxide's and a sulfide's rock forms by the ore's class, the rest from
+        // their type files, every one with its text in the lang file.
+        Assert.Contains(OreHandbook.RockSection("rawore", false), Sections("game:ore-medium-hematite-granite"));
+        Assert.Contains("handbook-drawing", string.Join(" ", ((Newtonsoft.Json.Linq.JArray)Item("game:ore-medium-hematite-granite")
+            .Attributes["handbook"]["extraSections"].Token).Select(t => (string?)t["title"])));
+        Assert.Contains(OreHandbook.RockSection("rawore", true), Sections("game:ore-medium-galena-shale"));
+        Assert.Contains(OreHandbook.RockSection("crystallisedore", false), Sections("game:crystalizedore-rich-malachite-limestone"));
+        Assert.Contains(OreHandbook.RockSection("crushed", true), Sections("seraphhorizons:crushedore-galena-medium"));
+        Assert.Contains(OreHandbook.RockSection("ground", false), Sections("seraphhorizons:groundore-malachite-poor"));
+        foreach (var item in W.Items.Where(i => i is ItemOreProduct { Form.Length: > 0 } && !i.IsMissing))
+        {
+            var sections = (Newtonsoft.Json.Linq.JArray?)item.Attributes?["handbook"]["extraSections"].Token;
+            Assert.True(sections?.Count > 0, $"{item.Code} has no handbook section");
+            foreach (var section in sections!)
+                foreach (string key in new[] { (string)section["title"]!, (string)section["text"]! })
+                    Assert.True(Lang.HasTranslation(key), $"{item.Code}: no lang entry {key}");
+        }
+    }
+
     // The bloomery takes what melts between 1000 and 1500 °C into a bloom, items per bloom by the ratio.
     [AtlasScenario]
     public void Bloomery_takes_iron_concentrate()

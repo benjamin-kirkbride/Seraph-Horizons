@@ -85,6 +85,12 @@
 		"handbook": {
 			"groupBy": [
 				"stallroastedore-{ore}-*"
+			],
+			"extraSections": [
+				{
+					"title": "seraphhorizons:oreproduct-handbook-title",
+					"text": "seraphhorizons:oreproduct-stallroastedrock-handbook-text"
+				}
 			]
 		},
 		"displaycaseable": true,

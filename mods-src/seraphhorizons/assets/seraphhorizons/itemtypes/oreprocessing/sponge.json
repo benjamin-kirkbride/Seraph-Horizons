@@ -58,6 +58,12 @@
 		"handbook": {
 			"groupBy": [
 				"sponge-*"
+			],
+			"extraSections": [
+				{
+					"title": "seraphhorizons:oreproduct-handbook-title",
+					"text": "seraphhorizons:oreproduct-sponge-handbook-text"
+				}
 			]
 		},
 		"displaycaseable": true,
