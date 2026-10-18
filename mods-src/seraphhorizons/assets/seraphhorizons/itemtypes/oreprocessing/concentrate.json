@@ -106,6 +106,12 @@
 		"handbook": {
 			"groupBy": [
 				"concentrate-*"
+			],
+			"extraSections": [
+				{
+					"title": "seraphhorizons:oreproduct-handbook-title",
+					"text": "seraphhorizons:oreproduct-concentrate-handbook-text"
+				}
 			]
 		},
 		"displaycaseable": true,
