@@ -7,7 +7,9 @@ namespace SeraphHorizons.Mod.Trading.Maps.Core;
 /// maps, gravel maps and leads, and how far they look. An ore map's price is computed
 /// (<see cref="OrePrice"/>): the ingots in the middle of the deposit's size band, times the value of
 /// the metal's ingot, times a share by precision (1–3), times the metal's scarcity, times
-/// <see cref="Underwater"/> for a deposit under water. Leads to camps are <see cref="CampLeads"/>.
+/// <see cref="Underwater"/> for a deposit under water. An offer's precision is drawn when it is
+/// shelved (<see cref="RollPrecision"/>, by <see cref="PrecisionWeights"/>), never set by the
+/// buyer's standing. Leads to camps are <see cref="CampLeads"/>.
 /// </summary>
 public sealed class MapPriceTable
 {
@@ -22,6 +24,8 @@ public sealed class MapPriceTable
 
     /// <summary>The share of the ingots' value a map costs, one per precision 1, 2, 3.</summary>
     public double[] Share { get; set; } = [];
+    /// <summary>How likely a shelved ore map offer is to be each precision 1, 2, 3 (relative weights).</summary>
+    public double[] PrecisionWeights { get; set; } = [];
     /// <summary>Times the ore price, by metal (1 when not listed): the metals a district hides.</summary>
     public Dictionary<string, double> Scarcity { get; set; } = new();
     /// <summary>Times the ore price for a deposit under water (<see cref="DepositWater"/>).</summary>
@@ -56,6 +60,10 @@ public sealed class MapPriceTable
         return Round(BandMiddleIngots(t, sizeClass) * ingotValue * share * Scarcity.GetValueOrDefault(metal, 1) * (underwater ? Underwater : 1));
     }
 
+    /// <summary>A precision for an ore map offer being shelved, drawn by <see cref="PrecisionWeights"/>
+    /// (<see cref="MapPrecisionRoll.Roll"/>); rough when the weights are unusable.</summary>
+    public int RollPrecision(Random rand) => MapPrecisionRoll.Roll(PrecisionWeights, rand);
+
     public int GravelPrice() => Round(Gravel);
 
     public int SettlementPrice() => Round(Settlement);
@@ -68,6 +76,9 @@ public sealed class MapPriceTable
         var problems = new List<string>();
         if (Share.Length != 3) problems.Add($"share has {Share.Length} entries, not one per precision 1–3");
         if (Share.Any(p => p <= 0)) problems.Add("a share of 0 or less");
+        if (PrecisionWeights.Length != 3) problems.Add($"precisionWeights has {PrecisionWeights.Length} entries, not one per precision 1–3");
+        if (PrecisionWeights.Any(w => w < 0 || !double.IsFinite(w))) problems.Add("a negative precision weight");
+        else if (PrecisionWeights.Sum() <= 0) problems.Add("precisionWeights sum to 0");
         foreach (var (metal, f) in Scarcity)
             if (f <= 0) problems.Add($"scarcity '{metal}' is 0 or less");
         if (Underwater <= 0 || Underwater > 1) problems.Add("underwater is outside (0, 1]");
