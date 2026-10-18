@@ -52,9 +52,9 @@ SNAPSHOT_FILE = re.compile(re.escape(SNAPSHOTS) + r"[^/]+/files/seraphhorizons\.
 # what, and the exporter's list of sections.
 SHARED_CS = (MOD + "SeraphHorizons.cs", MOD + "SwitchRegistry.cs", MOD + "Core/SwitchOwnership.cs",
              EXPORT + "RecipeSection.cs")
-# A mod file under these is not the mod's code: tests/ is a project of its own, a machine's tools/
-# its Python generator.
-_NOT_CODE = re.compile(re.escape(MOD) + r"(?:tests/|assets/|[^/]+/tools/)")
+# A mod file under these is not the mod's code: tests/ and benchmarks/ are projects of their own, never
+# in the mod, a machine's tools/ its Python generator.
+_NOT_CODE = re.compile(re.escape(MOD) + r"(?:tests/|assets/|benchmarks/|[^/]+/tools/)")
 # The leading parts of a lang key that say what kind of text it is, not whose.
 _LANG_KINDS = {"block", "blockhelp", "blockdesc", "item", "itemdesc", "heldhelp", "creature", "dead",
                "prefixandcreature"}
