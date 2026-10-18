@@ -1330,8 +1330,8 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>BigPiles</c>, <c>BigCrates</c>, <c>RustyGearStack</c>, <c>NoClutterPiles</c>: piles,
-    /// crates and the rusty gear as their mods ship them, clutter piled as More Piles' catch-all
-    /// cube rule gives it; a crate saved with more slots than its type gives still keeps them (that
+    /// crates and the rusty gear as their mods ship them, clutter and chiseled blocks piled as More
+    /// Piles' catch-all cube rule gives them; a crate saved with more slots than its type gives still keeps them (that
     /// guard is not switched).</summary>
     [AtlasScenario]
     public void Storage_switches_off_piles_crates_and_the_rusty_gear_are_as_they_ship()
@@ -1350,6 +1350,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(EnumGroundStorageLayout.Stacking, clutter.StorageProps.Layout);
         Assert.Equal(64, clutter.StorageProps.StackingCapacity);
         Assert.Contains("MorePilesProperties", clutter.propertiesAtString);
+        // And a chiseled block, drawn by its block entity: the same rule, the same pile.
+        var chiseled = W.GetBlock(new AssetLocation("game:chiseledblock"))!.GetBehavior<CollectibleBehaviorGroundStorable>()!;
+        Assert.Equal(EnumGroundStorageLayout.Stacking, chiseled.StorageProps.Layout);
+        Assert.True(ClutterPileRules.IsCubeShapePile(chiseled.propertiesAtString));
 
         var firewood = W.GetItem(new AssetLocation("game:firewood"))!.GetBehavior<CollectibleBehaviorGroundStorable>()!;
         Assert.Equal(32, firewood.StorageProps.StackingCapacity);
