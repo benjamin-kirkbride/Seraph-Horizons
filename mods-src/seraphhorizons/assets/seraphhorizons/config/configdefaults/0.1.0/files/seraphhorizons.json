@@ -557,5 +557,15 @@
     "LeadPerOtherUnit": 1.0,
     "DamperHalfDraught": 0.5,
     "BankedBurn": 0.25
+  },
+  "LiquationFurnace": true,
+  "LiquationFurnaceSettings": {
+    "ChargeBars": 4,
+    "GrateFuel": 8,
+    "FuelPerHour": 0.36,
+    "DamperHalfPace": 0.5,
+    "DamperHalfBurn": 0.6,
+    "DamperShutBurn": 0.25,
+    "DoorOpenPace": 0.5
   }
 }

@@ -6569,6 +6569,46 @@ Code: `CupellationFurnace/Core/Cupelling.cs` (what it takes, gives and burns, th
 `Game/BECupellationFurnace.cs` and `CupellationFurnaceSystem.cs`; Atlas `tests/PackTests/CupellationFurnaceScenarios.cs`
 (the blast given, the pack's world having no blower to hand) and `RecipeExportCupellationFurnaceScenarios.cs`.
 
+### Ore processing: the liquation furnace (`LiquationFurnace`, `LiquationFurnaceSettings`)
+
+The ore line's parting furnace for teallite's and franckeite's lead (#929; model and build stages in
+`LiquationFurnace/README.md`): a sloping cast-iron hearth plate under a low vault over a fire, its low end spouting
+into a pot, on the shared game code above. **Batch, by hand, no power, no water, no chute.** Tin-lead bullion in
+(`seraphhorizons:bullion-teallite-tin`, `bullion-franckeite-tin`: what smelting those ores gives, the owner's ruling
+of 2026-10-13 on #929, `Ore/Core/Bullion.cs`); tin and lead out, separately. It parts the lead at **95 %**
+(`machines.liquationfurnace.recovery`, `PartingStation.LiquationFurnace`) against the clay liquation pan's 85 %. It
+needs `OreProcessing`; off, or with its switch off, its frame and recipe do not exist.
+
+- **Build.** The iron frame (grid: 3 iron plates, 4 iron rods, 6 iron nails and strips, a hammer), then three stages
+  by right-click (`config/builds/liquationfurnace.json`): the brickwork, 8 fired bricks **all of one type** (the first
+  sets the furnace's brick type, drawn in its texture), the lining, 7 tier-3 refractory bricks and 3 fire clay, and
+  the fittings, 2 iron plates and 1 iron nails and strips (the hearth plate with its spout, the receiving pot, the
+  fire door and the damper). No part wears.
+- **A charge.** From the front, up to `ChargeBars` (4, the model's four cakes) bars on the plate, teallite's and
+  franckeite's mixed as they come; another bullion is refused. A sweated plate takes nothing until its tin and lead
+  are out.
+- **The fire.** At the back. Through the open fire door (an empty hand on the back face's upper half opens or shuts
+  it) the grate takes up to `GrateFuel` (8) coal, coke or charcoal, one kind at a time; lit with a firestarter or a
+  torch on any cell, it burns `FuelPerHour` (0.36, the owner's ruling on #929) whether there is a charge or not, and
+  goes out when the grate is empty. The damper (an empty hand on the back face's lower half cycles open, half, shut,
+  the crucible furnace's) sets it: open the full pace and burn, half `DamperHalfPace` (0.5) and `DamperHalfBurn`
+  (0.6), shut nothing sweats and the fire is banked at `DamperShutBurn` (0.25). The fire door left open sweats at
+  `DoorOpenPace` (0.5). Without a working chimney on its row (the crucible furnace's rule: `minChimney` 6 shaft blocks
+  and a top, up to `rowMax` 5 furnaces side by side along their width, every other outlet capped with an iron plate)
+  nothing sweats. The fire door's slide is drawn through `BEOreMachine.PartDepth`, the rig's depth input.
+- **Sweating.** At `machines.liquationfurnace.perHour` (100) units of tin an hour × the pace; done when the charge's
+  tin (100 units a bar) is sweated: all of it in the pot and the lead on the plate at the ore's share × 95 %
+  (`OreRecovery.Smelted`), a teallite bar 100 tin and 38 lead, a franckeite bar 100 and 28.5. An empty hand from the
+  front takes the tin, then the lead, as `game:ingot-*` and `game:metalbit-*` (100 and 5 units); under a bit stays in
+  the furnace for the next charge.
+- **Recipe browser.** A `liquationfurnace` record per tin-lead bar (`RecipeSection.LiquationFurnace.cs`): a tin ingot
+  and the lead bits a bar as outputs; and its build's `construction` record. It draws no power.
+
+Code: `LiquationFurnace/Core/LiquationFurnacing.cs` (its rules and settings), `LiquationFurnaceRig.cs` (what gameplay
+reads of the rig), `LiquationFurnace/Game/BELiquationFurnace.cs` and `LiquationFurnaceSystem.cs`; tests
+`tests/LiquationFurnace/LiquationFurnaceTests.cs`; Atlas `tests/PackTests/LiquationFurnaceScenarios.cs` and
+`RecipeExportLiquationFurnaceScenarios.cs`.
+
 ### Stamp battery (`StampBattery`)
 
 The crush-and-classify machine of the ore line (#728, model #729, epic #684), in `StampBattery/`: a
