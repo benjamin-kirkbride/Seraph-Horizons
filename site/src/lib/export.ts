@@ -2,6 +2,7 @@
 // contract; these mirror it and are only as strict as the app needs.
 
 import type { EidolonExport } from "./eidolon-fittings.ts";
+import type { OreProcessingExport } from "./ore-routes.ts";
 import type { PowerData } from "./power-data.ts";
 
 export type Kind = "item" | "block";
@@ -315,6 +316,8 @@ export interface RecipeExport {
   power?: PowerData;
   /** The eidolon's fittings, for its fitting sheet (eidolon-fittings.ts). Absent in older exports. */
   eidolon?: EidolonExport;
+  /** The figures ore processing works by, for the ore routes page (ore-routes.ts). Absent in older exports. */
+  oreProcessing?: OreProcessingExport;
   /** Structures built block by block (docs/recipe-browser/multiblocks.md); absent from older exports. */
   multiblocks?: Multiblocks;
   extra?: Record<string, unknown>;
