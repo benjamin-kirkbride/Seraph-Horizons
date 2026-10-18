@@ -6656,6 +6656,54 @@ the rig), `ParkesKettle/Game/BEParkesKettle.cs` and `ParkesKettleSystem.cs`; tes
 `tests/ParkesKettle/ParkesKettleTests.cs`; Atlas `tests/PackTests/ParkesKettleScenarios.cs` and
 `RecipeExportParkesKettleScenarios.cs`.
 
+### Ore processing: the acid parting vessel (`AcidParting`, `AcidPartingSettings`)
+
+The ore line's parting step for gold quartz (#931; model and build stages in `AcidParting/README.md`): one fired clay
+vessel of nitric acid in a cast-iron sand bath over a small fire, under a brick hood, with a precipitating tub in
+front, on the shared game code above. **Batch, by hand, no power, no chute; watered by bucket.** Dore in (gold
+quartz's bullion, `seraphhorizons:bullion-quartz_nativegold-gold`: a bar of 100 units of gold carrying the ore's 15 %
+silver, #740's base bullion); out, the gold **whole** as gold bits and the silver at **95 %** as silver bits
+(`OreRecovery.Smelted(ore, units, PartingStation.AcidParting)`). Dore smelted plainly gives its gold at 85 % and loses
+the silver. It needs `OreProcessing`; off, or with its switch off, its frame, its recipe and the aqua fortis recipe do
+not exist.
+
+- **Build.** The iron frame (grid: 2 iron rods, 2 iron plates, 6 iron nails and strips, a hammer), then five stages
+  by right-click (`config/builds/acidparting.json`): the brickwork, 4 fired bricks **all of one type** (the first sets
+  its texture: the crucible furnace's `bricks`); the lining, 4 tier-3 refractory bricks and 2 fire clay; the sand bath
+  and doors, 1 sand and 5 iron nails and strips (the damper comes with it); the vessel and tub, a fired crucible (any
+  colour), 1 iron nails and strips and an oak plank; the services, the lead siphon (a lead pipe section).
+- **The copper.** A copper plate (`game:metalplate-copper`) hangs in the tub: the build's **wearing part**, hung and
+  renewed by right-click. It is worn by the silver thrown down on it, 680 units of silver a plate (200 units of copper
+  taking the place of silver at 63.5 to 2 × 107.9 by weight); without one the vessel does not part.
+- **A charge.** Up to `ChargeBars` (2) bars of dore into the vessel, and nitric acid (`game:acid-full-nitric`, the
+  game's, which Expanded Matter enables) poured from a bucket or jug, `AcidLitresPerBar` (2 L) a bar, the vessel
+  holding a full charge's; wash water poured from a bucket into its reservoir (the shared one, 20 L), 1 L a 10 units
+  (`machines.acidparting.water`, a bucket a bar). Neither goes in while a charge parts. **Aqua fortis** is cooked in a
+  pot from 2 saltpeter and 1 L of sulfuric acid (`recipes/cooking/aquafortis.json`; the game's sulfuric acid is cooked
+  from saltpeter and sulfur powder, the stall roaster's sulfur); Expanded Matter's own recipes stay.
+- **The fire.** Fuel in at the fire door (any fuel burning at `MinFuelTemperature` 500 °C or more: charcoal, coke,
+  coal, firewood; up to `FuelCapacity` 8, of one kind), lit with a firestarter or a torch on any cell. An item lasts its
+  firepit burn seconds / `FuelBurnSecondsPerHour` (10) in-game hours at full draught: charcoal 4, firewood 2.4. The
+  draught is the crucible furnace's row rule (the rig's `parting.minChimney` 6 shaft blocks from the outlet up and one
+  chimney top; up to `rowMax` 6 vessels side by side along x, every other outlet capped with an iron plate) times the
+  ash-pit damper's place, moved by an empty hand on the ash mouth: open 1, half `HalfDamperDraught` (0.5), shut 0 (the
+  fire banked: no fuel burns and nothing parts).
+- **Parting.** With acid enough for its bars, wash water, the copper hung and the fire drawing, a charge starts (its
+  bars dissolve into it) and parts at `machines.acidparting.perHour` (10 units an hour) × the draught, as far as the
+  water and the copper allow, spending the water, the copper by its silver and `AcidSpentShare` (40 %, the owner's
+  ruling of 2026-10-14) of the charge's acid; the other 60 % stays in the vessel as weak acid for the next charge. The
+  silver comes down in the tub as `game:metalbit-silver` (5 units a bit, the fraction carried), drawn with an empty
+  hand at the tub at any time; the gold collects in the vessel as `game:metalbit-gold`, taken out with an empty hand at
+  the vessel once the whole charge is parted. A charge of two bars takes 20 hours: 40 gold bits and 28.5 units of
+  silver.
+- **Recipe browser.** An `acidparting` record per dore (`RecipeSection.AcidParting.cs`): the bar and its spent acid
+  in, the gold and silver bits a bar out; the pack's aqua fortis cooking recipe; and its build's `construction`
+  record. It draws no power.
+
+Code: `AcidParting/Core/AcidPartingRules.cs` (its rules and settings), `AcidPartingRig.cs` (what gameplay reads of the
+rig), `AcidParting/Game/BEAcidParting.cs` and `AcidPartingSystem.cs`; tests `tests/AcidParting/AcidPartingTests.cs`;
+Atlas `tests/PackTests/AcidPartingScenarios.cs` and `RecipeExportAcidPartingScenarios.cs`.
+
 ### Stamp battery (`StampBattery`)
 
 The crush-and-classify machine of the ore line (#728, model #729, epic #684), in `StampBattery/`: a

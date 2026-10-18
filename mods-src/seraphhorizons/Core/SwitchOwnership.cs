@@ -72,6 +72,8 @@ public sealed class SwitchOwnership
         new("LiquationFurnace", [], [], ["liquationfurnace"]),
         // The exporter's own recipe type for the Parkes kettle's charge (tools/recipe-export, Recipes/ParkesKettleExport.cs).
         new("ParkesKettle", [], [], ["parkeskettle"]),
+        // The exporter's own recipe type for the acid parting vessel's parting (tools/recipe-export, Recipes/AcidPartingExport.cs).
+        new("AcidParting", [], [], ["acidparting"]),
         // The exporter's own recipe type for the mandrel station's process (tools/recipe-export, Recipes/MandrelStationExport.cs).
         new("MandrelStation", [], [], ["mandrelstation"]),
         // The exporter's own recipe type for the rocker's washes (tools/recipe-export, Recipes/RockerExport.cs).
