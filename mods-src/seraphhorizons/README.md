@@ -5681,7 +5681,7 @@ units deposits are four times the blocks, to hold the same ingots ("Ore cells", 
 The shares come from the items' smelting, never from their units. Nuggets stay 5 units.
 Crystallised ore crushes and smelts the same by its grade, its stack kept.
 `patches/oreprocessing-ore.json` gives both items the pack's class (`ItemGradedOre`: the names, the
-text, and no breaking ore into nuggets with a hammer where it lies on the ground, vanilla's ground
+status line (below), and no breaking ore into nuggets with a hammer where it lies on the ground, vanilla's ground
 storage interaction, which #747's spalling replaces); the rest is set in code once every item is
 loaded (`OreProcessingItems`, in `AssetsFinalize`), so it holds whatever order other mods' patches ran
 in. Ore an old world holds takes the new units as it stands (#863: a stack keeps its count and holds
@@ -5771,6 +5771,30 @@ instead
 load): the tier 3 refractory bricks, vanilla's sulfates and diluted portions, EM's pigments and
 verdigris, Tailor's Delight's leather. EM's powders of those ores are left without a source (a
 follow-up, with the grinding stage). EM's coal crushing in the grid is left as it is (#734).
+
+**Tooltips and the handbook.** An ore item's tooltip keeps vanilla's lines (the melting point, raw
+ore's units) and adds one terse status line, `ItemOreProduct.StatusText`: a rock form or concentrate
+"Smelts at 25 %" (its exact share, from the smelting the server set), a sulfide's raw or crushed ore
+or concentrate "Roast first, about 600 °C", a sulfide's ground ore "Does not smelt", concentrate,
+roasted concentrate and sponge "Smelts whole", amalgam "Retort first", litharge "Smelts back to lead",
+and bullion and rich lead the machine that parts their kind ("Part in the liquation furnace"; the
+bullion type's `partedBy`, held to the config's `byProducts` by `BullionTests`). Raw ore's status line
+takes the place of vanilla's "Crush with hammer to extract nuggets". The how-to is in the handbook, as
+an item's handbook page shows its tooltip text too: a guide page, "Ore processing"
+(`config/handbook/oreprocessing.json`, hidden with the switch off), walks the whole chain with the
+grade shares and roast losses, and every ore form's page has an "Ore processing" section
+(`OreHandbook`): in the type file for the forms worked one way whatever the ore, and added in code by
+the ore's class (oxide or sulfide) for raw, crystallised, crushed and ground ore. The figures those
+texts quote (grade shares, roast and parting shares, catch rates, bullion's second metal, the roasting
+heat, litharge's 20 in 21) are generated, not typed: the texts live in
+`Ore/tools/ore-guide-numbers.template.json` with `{{name}}` placeholders, and
+`python3 mods-src/seraphhorizons/Ore/tools/make_ore_guide_numbers.py` fills them from
+`config/ore-processing.json` and the C# constants it reads (`OreRoasting.MeltingPoint`, raw units,
+`LithargeRate`, the bar's and a bit's units) and writes those keys of `lang/en.json`, nothing else.
+Edit the template, never those keys in en.json; `--check` (run by `tools/tests/test_ore_guide_numbers.py`)
+fails on drift, and wording that holds for one value only ("smelts whole", one parting share) stops the
+script until reworded. The cupel bead's,
+the liquation pan residue's and the melting pot's lines keep their contents and drop the prose.
 
 Each rock form is one handbook group per ore (its grades together, `groupBy` in its type file), which
 Tidy Variants follows for its tiles (it honours shipped `groupBy`; an override rule would be unused,

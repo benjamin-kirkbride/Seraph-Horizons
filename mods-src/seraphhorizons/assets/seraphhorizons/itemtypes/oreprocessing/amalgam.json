@@ -48,6 +48,12 @@
 		"handbook": {
 			"groupBy": [
 				"amalgam-*"
+			],
+			"extraSections": [
+				{
+					"title": "seraphhorizons:oreproduct-handbook-title",
+					"text": "seraphhorizons:oreproduct-amalgam-handbook-text"
+				}
 			]
 		},
 		"displaycaseable": true,

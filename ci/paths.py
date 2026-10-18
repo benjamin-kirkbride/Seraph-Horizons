@@ -731,6 +731,11 @@ TOOLING: list[tuple[re.Pattern, Need, str]] = [
     # drift only warns, and pages.yml deploys it after merge. Not textures/: Atlas reads its
     # index (RecipeExportEidolonFittingsScenarios) and prepare-data its images.
     (re.compile(r"icons/.+"), NOTHING, "the icon store, which the tools job verifies"),
+    # The ore processing handbook texts' template: its generator (Ore/tools/, a tool source the
+    # models rule claims) writes it into lang/en.json, and the tools job's drift test
+    # (test_ore_guide_numbers.py) holds en.json to it. Nothing ships or loads it.
+    (re.compile(re.escape(_MOD) + r"Ore/tools/ore-guide-numbers\.template\.json"), NOTHING,
+     "the ore guide texts' template, which the tools job's drift test reads"),
 ]
 
 

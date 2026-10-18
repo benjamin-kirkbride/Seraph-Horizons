@@ -179,6 +179,8 @@ public static class OreProcessingItems
                     item.CombustibleProps = smelting;
                     if (smelting is { RequiresContainer: true })
                         item.Dimensions = CrucibleSize;
+                    OreHandbook.AddSection(item, OreHandbook.SectionTitle,
+                        OreHandbook.RockSection(raw ? "rawore" : "crystallisedore", recovery.Ore(ore).IsSulfide));
                     if (raw) report.OreItems++;
                     else report.CrystallisedOre++;
                     break;
@@ -201,6 +203,10 @@ public static class OreProcessingItems
                     // the stall roaster's roasted rock smelts at its 92 %, the firepit's at 85 % (#925)
                     var roaster = parts[0] == "stallroastedore" ? Roaster.Stall : Roaster.Firepit;
                     item.CombustibleProps = units > 0 ? Rock(item, ore, grade, units, form, roasts: true, roaster) : null;
+                    // Roasted rock's section is in its type file: it is a sulfide's whatever the ore.
+                    if (form is OreForm.Crushed or OreForm.Ground)
+                        OreHandbook.AddSection(item, OreHandbook.SectionTitle,
+                            OreHandbook.RockSection(form == OreForm.Crushed ? "crushed" : "ground", recovery.Ore(ore).IsSulfide));
                     if (form == OreForm.Crushed) report.Crushed++;
                     else if (form == OreForm.Ground) report.Ground++;
                     else report.RoastedRock++;
