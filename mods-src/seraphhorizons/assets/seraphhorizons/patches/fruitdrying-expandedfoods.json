@@ -1,0 +1,13 @@
+// Fresh fruit dries into Expanded Foods' dried fruit, seraphhorizons' FruitDries switch (README.md,
+// FruitDrying.cs). Expanded Foods 2.0.0-dev.16 took these four transitions out of its
+// game:patches/fruit.json (fruit drying is to move to its Preserves module), which left
+// expandedfoods:dryfruit-* in its recipes with nothing making it. They are dev.15's, as it shipped
+// them: each appends a Dry transition to the game's own list under the same byType key, so the
+// game's first-match order of those keys (cranberry, the slow and the slowest fruits, then the rest)
+// still picks each fruit's. Server side: clients get the item types from the server.
+[
+  { "file": "game:itemtypes/food/fruit.json", "op": "addmerge", "path": "/transitionablePropsByType/*-cranberry", "value": [{ "type": "Dry", "freshHours": { "avg": 0 }, "transitionHours": { "avg": 96 }, "transitionedStack": { "type": "item", "code": "expandedfoods:dryfruit-cranberry" }, "transitionRatio": 1 }], "side": "server", "dependsOn": [{ "modid": "expandedfoods" }] },
+  { "file": "game:itemtypes/food/fruit.json", "op": "addmerge", "path": "/transitionablePropsByType/@*-(orange|mango|lychee|pomegranate)", "value": [{ "type": "Dry", "freshHours": { "avg": 0 }, "transitionHours": { "avg": 360 }, "transitionedStack": { "type": "item", "code": "expandedfoods:dryfruit-{fruit}" }, "transitionRatio": 1 }], "side": "server", "dependsOn": [{ "modid": "expandedfoods" }] },
+  { "file": "game:itemtypes/food/fruit.json", "op": "addmerge", "path": "/transitionablePropsByType/@*-(pinkapple|redapple|yellowapple|pear|breadfruit)", "value": [{ "type": "Dry", "freshHours": { "avg": 0 }, "transitionHours": { "avg": 960 }, "transitionedStack": { "type": "item", "code": "expandedfoods:dryfruit-{fruit}" }, "transitionRatio": 1 }], "side": "server", "dependsOn": [{ "modid": "expandedfoods" }] },
+  { "file": "game:itemtypes/food/fruit.json", "op": "addmerge", "path": "/transitionablePropsByType/*", "value": [{ "type": "Dry", "freshHours": { "avg": 0 }, "transitionHours": { "avg": 48 }, "transitionedStack": { "type": "item", "code": "expandedfoods:dryfruit-{fruit}" }, "transitionRatio": 1 }], "side": "server", "dependsOn": [{ "modid": "expandedfoods" }] }
+]

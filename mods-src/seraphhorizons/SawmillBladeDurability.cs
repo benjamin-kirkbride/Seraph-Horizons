@@ -6,7 +6,7 @@ namespace SeraphHorizons.Mod;
 /// Immersive Woodworking (<c>immersivewoodworking</c>): its sawmill blade kits
 /// (<c>immersivewoodworking:sawmillblade-{metal}</c>) last <see cref="Factor"/> times as long, by a
 /// JSON patch, <c>patches/sawmillblade-durability.json</c>, that sets each metal's durability to
-/// three times Immersive Woodworking's (1.3.11: gold 70, silver 90, copper 250, tin bronze 400,
+/// three times Immersive Woodworking's (1.3.13: gold 70, silver 90, copper 250, tin bronze 400,
 /// bismuth bronze 450, black bronze 500, iron 900, meteoric iron 1200, steel 2250). The bucking
 /// sawmill wears its one kit by a log's worth for every log in a trunk; the patch is the kit's, so
 /// Immersive Woodworking's own plank sawmill gets the longer life too.

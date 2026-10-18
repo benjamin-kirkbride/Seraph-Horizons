@@ -37,6 +37,10 @@ internal static class SearchableSelector
     static Action<GuiDialogBlockEntityRecipeSelector, int>? slotClick, slotOver;
     static Action<GuiDialogBlockEntityRecipeSelector>? setupDialog;
     static AccessTools.FieldRef<GuiElementTextInput, bool>? deleteOnRefocusRef;
+    static System.Func<GuiDialogBlockEntityRecipeSelector, bool>? foreignManaged;
+
+    /// <summary>Dovidarium's mod id: from 1.0.5 it has its own anvil recipe browser on this dialog.</summary>
+    public const string DovidariumId = "dovidarium";
 
     /// <summary>The dialogs this tweak composed, so the right-click clear knows their box.</summary>
     static readonly ConditionalWeakTable<GuiDialogBlockEntityRecipeSelector, object> ours = new();
@@ -56,6 +60,7 @@ internal static class SearchableSelector
             // Optional: without it the box only lacks creative's clear-on-refocus Backspace.
             try { deleteOnRefocusRef = AccessTools.FieldRefAccess<GuiElementTextInput, bool>("DeleteOnRefocusBackSpace"); }
             catch { deleteOnRefocusRef = null; }
+            foreignManaged = BindDovidarium(api);
             capi = api;
             return true;
         }
@@ -65,6 +70,27 @@ internal static class SearchableSelector
             Reset();
             return false;
         }
+    }
+
+    /// <summary>
+    /// Dovidarium 1.0.5's anvil recipe browser (<c>Dovidarium.AnvilRecipeSelectorPatch</c>) composes this
+    /// dialog itself when the anvil opens it and keeps it in a table, read by its
+    /// <c>internal static bool IsManaged(GuiDialogBlockEntityRecipeSelector)</c>; a dialog it manages is left
+    /// to it (its render prefix needs its own composer). Found by name; null without the mod, and a warning
+    /// (the search then composes over every selector, as before) if the mod is there but the method is not.
+    /// </summary>
+    static System.Func<GuiDialogBlockEntityRecipeSelector, bool>? BindDovidarium(ICoreClientAPI api)
+    {
+        if (!api.ModLoader.IsModEnabled(DovidariumId)) return null;
+        var method = AccessTools.TypeByName("Dovidarium.AnvilRecipeSelectorPatch") is { } type
+            ? AccessTools.DeclaredMethod(type, "IsManaged", [typeof(GuiDialogBlockEntityRecipeSelector)])
+            : null;
+        if (method is null || method.ReturnType != typeof(bool))
+        {
+            api.Logger.Warning("[seraphhorizons] Recipe selector search: Dovidarium's AnvilRecipeSelectorPatch.IsManaged was not found; the search also composes over its anvil recipe browser");
+            return null;
+        }
+        return AccessTools.MethodDelegate<System.Func<GuiDialogBlockEntityRecipeSelector, bool>>(method);
     }
 
     static T Bind<T>(Type type, string name, params Type[] args) where T : Delegate =>
@@ -80,6 +106,7 @@ internal static class SearchableSelector
         slotClick = slotOver = null;
         setupDialog = null;
         deleteOnRefocusRef = null;
+        foreignManaged = null;
         ours.Clear();
     }
 
@@ -99,11 +126,13 @@ internal static class SearchableSelector
     /// <summary>
     /// The constructor's postfix: composes the dialog again with the search and the scrollbar, under the
     /// game's composer name (the game's composer manager disposes the one it replaces). Only the game's own
-    /// class: a subclass may build on the game's layout.
+    /// class: a subclass may build on the game's layout. Not a dialog Dovidarium's anvil browser manages
+    /// (<see cref="BindDovidarium"/>).
     /// </summary>
     public static void Rebuild(GuiDialogBlockEntityRecipeSelector dialog, ItemStack[]? outputs)
     {
         if (capi is null || itemsRef is null || posRef is null || dialog.GetType() != typeof(GuiDialogBlockEntityRecipeSelector)) return;
+        if (foreignManaged?.Invoke(dialog) == true) return;
         try
         {
             Compose(dialog, outputs ?? []);

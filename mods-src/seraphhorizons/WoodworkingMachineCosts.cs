@@ -6,7 +6,7 @@ namespace SeraphHorizons.Mod;
 /// Immersive Woodworking (<c>immersivewoodworking</c>): its sawmill and chopper cost iron and much
 /// more smithing. A JSON patch, <c>patches/woodworking-machine-costs.json</c>, rewrites the grid
 /// recipes of the two frames and the six fitted parts (<see cref="Parts"/>): every part takes nails
-/// and strips, 4 or 8 to a slot where Immersive Woodworking (1.3.11) takes 1; the sash, the
+/// and strips, 4 or 8 to a slot where Immersive Woodworking (1.3.13) takes 1; the sash, the
 /// crankshaft and the chopper's drive take a rod as well; and the nails and strips, plates and rods
 /// must be of <see cref="Metals"/>, where any metal did. The blade kit and the chopper head keep
 /// their recipes: their metal is already the machine's durability and speed. The bucking sawmill and
