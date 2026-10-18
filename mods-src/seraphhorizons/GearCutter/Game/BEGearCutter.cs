@@ -27,6 +27,8 @@ public class BEGearCutter : BlockEntity
     private static readonly AssetLocation LatchSound = new("game", "sounds/effect/latch");
     private static readonly AssetLocation GearSound = new("game", "sounds/block/ingot");
     private const string PartKeyPrefix = "part-";
+    // The material stages' counts (the spindle's, the index's), keyed as GearCutterParts.MaterialSnapshot keys them.
+    private const string MaterialsKey = "materials";
     // The server syncs W at least this often (teeth); the renderer follows the shaft between.
     private const double SyncStep = 0.1;
 
@@ -248,9 +250,16 @@ public class BEGearCutter : BlockEntity
     }
 
     /// <summary>The creative shortcut (server side): fits the next stage's first item (the small
-    /// master, a new kit) with nothing taken from the player.</summary>
+    /// master, a new kit), or puts in all a material stage still takes, with nothing taken from the
+    /// player.</summary>
     public bool FitNextPart(IPlayer? byPlayer)
     {
+        if (_parts.FillNextMaterials())
+        {
+            Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
+            MarkDirty(true);
+            return true;
+        }
         if (_parts.NextPart is not { } next)
             return false;
         if (Api.World.GetItem(new AssetLocation(next)) is not { } item)
@@ -262,8 +271,9 @@ public class BEGearCutter : BlockEntity
     }
 
     /// <summary>Fits the part in <paramref name="slot"/> if it is the next stage's (server side);
-    /// false, with an error to the player, when the rules say no. One item is taken from the slot
-    /// unless the player is in creative mode or it is <paramref name="free"/>.</summary>
+    /// false, with an error to the player, when the rules say no. A part is one item from the slot,
+    /// a material stage's material all the stage still needs of it (or a full stack); nothing is taken
+    /// when the player is in creative mode or it is <paramref name="free"/>.</summary>
     public bool TryFitPart(ItemSlot slot, IPlayer? byPlayer, bool free = false)
     {
         var stack = slot.Itemstack;
@@ -276,13 +286,21 @@ public class BEGearCutter : BlockEntity
             capacity = Math.Max(1, stack.Collectible.GetMaxDurability(stack));
             left = stack.Collectible.GetRemainingDurability(stack);
         }
-        var verdict = _parts.CanFit(code, out _, capacity > 0 ? left : 1);
-        if (verdict != GearCutterFitVerdict.Fits)
+        bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
+        int held = consumes ? stack.StackSize : int.MaxValue;
+        var fit = _parts.CanFit(code, capacity > 0 ? left : 1, held, stack.Collectible.MaxStackSize);
+        if (fit.Verdict != GearCutterFitVerdict.Fits)
         {
-            switch (verdict)
+            switch (fit.Verdict)
             {
+                case GearCutterFitVerdict.OutOfOrder when _parts.NextNeeds().Count > 0:
+                    Error(byPlayer, "error-order-needs", StageName(_parts.Next), Needs());
+                    break;
                 case GearCutterFitVerdict.OutOfOrder:
                     Error(byPlayer, "error-order", StageName(_parts.Next));
+                    break;
+                case GearCutterFitVerdict.TooFew:
+                    Error(byPlayer, "error-toofew", StageName(_parts.Next), Needs());
                     break;
                 case GearCutterFitVerdict.AlreadyFitted:
                     Error(byPlayer, "error-part-fitted");
@@ -296,17 +314,20 @@ public class BEGearCutter : BlockEntity
             }
             return false;
         }
-        _parts.Fit(code, left, capacity);
-        bool consumes = !free && byPlayer?.WorldData.CurrentGameMode != EnumGameMode.Creative;
+        _parts.Fit(code, left, capacity, held, stack.Collectible.MaxStackSize);
         if (consumes)
         {
-            slot.TakeOut(1);
+            slot.TakeOut(fit.Take);
             slot.MarkDirty();
         }
         Api.World.PlaySoundAt(Block.Sounds.Place, Pos, -0.25, byPlayer);
         MarkDirty(true);
         return true;
     }
+
+    /// <summary>What a material stage still takes, as "2 × Steel rod, 1 × Metal parts" (the ore machines' way).</summary>
+    private string Needs() =>
+        string.Join(", ", _parts.NextNeeds().Select(n => $"{n.Missing} × {MachineText.MaterialName(Api.World, n.Material)}"));
 
     /// <summary>A stage's name as the block info and the errors show it.</summary>
     public static string StageName(GearCutterStage? stage) =>
@@ -500,11 +521,20 @@ public class BEGearCutter : BlockEntity
                 if (KitStack(left) is { } kit)
                     yield return kit;
             }
-            else if (Api.World.GetItem(new AssetLocation(drop.Code)) is { } item)
-                yield return new ItemStack(item);
+            else if (Collectible(drop.Code) is { } item)
+                yield return new ItemStack(item, drop.Count);
         }
         if (BlankOn)
             yield return _blank!.Clone();
+    }
+
+    // A part is an item; a material may be a block (the metal parts).
+    private CollectibleObject? Collectible(string code)
+    {
+        var loc = new AssetLocation(code);
+        if (Api.World.GetItem(loc) is { IsMissing: false } item)
+            return item;
+        return Api.World.GetBlock(loc) is { Id: > 0, IsMissing: false } block ? block : null;
     }
 
     public override void OnBlockRemoved()
@@ -535,6 +565,10 @@ public class BEGearCutter : BlockEntity
             tree.RemoveAttribute(PartKeyPrefix + GearCutterRequires.Name(stage));
         foreach (var (requires, code) in _parts.Snapshot())
             tree.SetString(PartKeyPrefix + requires, code);
+        var materials = new TreeAttribute();
+        foreach (var (key, count) in _parts.MaterialSnapshot())
+            materials.SetInt(key, count);
+        tree[MaterialsKey] = materials;
         tree.SetInt("kitLeft", _parts.KitLeft);
         tree.SetInt("kitCapacity", _parts.KitCapacity);
         if (BlankOn)
@@ -560,7 +594,12 @@ public class BEGearCutter : BlockEntity
         foreach (var stage in GearCutterRequires.Stages)
             if (tree.GetString(PartKeyPrefix + GearCutterRequires.Name(stage)) is { Length: > 0 } code)
                 fitted[GearCutterRequires.Name(stage)] = code;
-        _parts = GearCutterParts.Restore(fitted, tree.GetInt("kitLeft"), tree.GetInt("kitCapacity"));
+        var materials = new Dictionary<string, int>(StringComparer.Ordinal);
+        if (tree[MaterialsKey] is ITreeAttribute saved)
+            foreach (var (key, value) in saved)
+                if (value is IntAttribute i)
+                    materials[key] = i.value;
+        _parts = GearCutterParts.Restore(fitted, tree.GetInt("kitLeft"), tree.GetInt("kitCapacity"), materials);
         _blank = tree.GetItemstack("blank");
         if (_blank != null && !_blank.ResolveBlockOrItem(worldForResolving))
             _blank = null;
@@ -598,6 +637,8 @@ public class BEGearCutter : BlockEntity
         if (_parts.Next is { } next)
         {
             dsc.AppendLine(L("info-next", StageName(next)));
+            if (_parts.NextNeeds().Count > 0)
+                dsc.AppendLine(Lang.Get("seraphhorizons:machine-info-needs", Needs()));
             var after = GearCutterRequires.Stages.Where(s => s > next && !_parts.Has(s)).ToList();
             if (after.Count > 0)
                 dsc.AppendLine(L("info-then", string.Join(", ", after.Select(s => StageName(s)))));

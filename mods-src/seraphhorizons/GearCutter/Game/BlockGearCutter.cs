@@ -20,7 +20,8 @@ public class BlockGearCutter : Block
 {
     public static readonly AssetLocation ItemCode = new(GearCutterSystem.Domain, "gearcutter-frame-north");
 
-    // What each stage takes, as stacks that exist in the game being played (help icons).
+    // What each one-item stage takes, as stacks that exist in the game being played (help icons);
+    // a material stage's are what it still takes, made as the help is asked for.
     private Dictionary<GearCutterStage, ItemStack[]> _partStacks = [];
     private ItemStack[] _blankStacks = [];
 
@@ -29,12 +30,20 @@ public class BlockGearCutter : Block
         base.OnLoaded(api);
         _partStacks = ObjectCacheUtil.GetOrCreate(api, "gearcutter-partstacks", () =>
             GearCutterRequires.Stages.ToDictionary(s => s, s => GearCutterParts.CodesFor(s)
-                .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item) : null)
-                .OfType<ItemStack>().ToArray()));
+                .Select(c => Stack(api.World, c, 1)).OfType<ItemStack>().ToArray()));
         _blankStacks = ObjectCacheUtil.GetOrCreate(api, "gearcutter-blankstacks", () =>
             new[] { GearCut.Blank, GearCut.LargeBlank }
                 .Select(c => api.World.GetItem(new AssetLocation(c)) is { } item ? new ItemStack(item) : null)
                 .OfType<ItemStack>().ToArray());
+    }
+
+    // An item, or a block (a material stage's metal parts), that exists in the game being played.
+    private static ItemStack? Stack(IWorldAccessor world, string code, int count)
+    {
+        var loc = new AssetLocation(code);
+        CollectibleObject? c = world.GetItem(loc) is { IsMissing: false } item ? item
+            : world.GetBlock(loc) is { Id: > 0, IsMissing: false } block ? block : null;
+        return c == null ? null : new ItemStack(c, Math.Max(1, count));
     }
 
     public override bool CanPlaceBlock(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel, ref string failureCode)
@@ -118,7 +127,11 @@ public class BlockGearCutter : Block
         {
             string Key(string action) => GearCutterSystem.Domain + ":blockhelp-gearcutter-" + action;
             var parts = cutter.Parts;
-            if (parts.Next is { } next && _partStacks.GetValueOrDefault(next) is { Length: > 0 } stacks)
+            var needs = parts.NextNeeds();
+            var stacks = needs.Count > 0
+                ? needs.Select(n => Stack(world, n.Material.Codes[0], n.Missing)).OfType<ItemStack>().ToArray()
+                : parts.Next is { } next ? _partStacks.GetValueOrDefault(next) ?? [] : [];
+            if (parts.Next != null && stacks.Length > 0)
                 help.Add(new WorldInteraction { ActionLangCode = Key("fitpart"), MouseButton = EnumMouseButton.Right, Itemstacks = stacks });
             else if (parts.Complete && !cutter.BlankOn)
             {

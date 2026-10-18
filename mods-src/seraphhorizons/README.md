@@ -1983,18 +1983,22 @@ the rig's other seven cells (`gearcutter-ghost`) and the power ghost
 The frame is a grid recipe: eight steel ingots (four in each ingot slot; steel only, as the end of
 the gears epic), four planks and 32 iron (or meteoric iron or steel) nails and strips, with a hammer.
 
-**Stages.** Fitted by right-click on the frame or any ghost with the item, one item each, in this
-order only; the next missing stage is the only one a click fills, and anything of a later stage is
-refused with a message naming the next:
+**Stages.** Fitted by right-click on the frame or any ghost with the item, in this order only; the
+next missing stage is the only one a click fills, and anything of a later stage is refused with a
+message naming the next. Most stages take one item; the spindle and the index take materials, fed at
+the frame as the ore machines' stages are ("Ore machines: what they share"): a click puts in one
+material, all the stage still needs of it from the held stack (or a full stack), fewer is refused
+("Not enough: ..."), and the stage is drawn once all are in. The block info and the help show what it
+still takes.
 
-| # | Stage (`requires`) | Item | Made |
+| # | Stage (`requires`) | Takes | Made |
 |---|---|---|---|
-| 1 | `spindle` | `seraphhorizons:gearcutterspindle` | Grid: 2 steel rods over 2 steel plates over metal parts (the keys and collars; the collars drawn in cupronickel) |
+| 1 | `spindle` | 2 `game:rod-steel`, 2 `game:metalplate-steel`, 1 `game:metal-parts` | The game's (the keys and collars from the metal parts, drawn in cupronickel) |
 | 2 | `feedscrew` | `seraphhorizons:gearcutterfeedscrew` | Smithing, 1 steel ingot |
 | 3 | `camfeed` | `game:jonasframes-gearbox02` | Looted, or BetterRuins' conversion |
 | 4 | `camindex` | `game:jonasframes-gearbox02`, a second | As above |
 | 5 | `liftcam` | `seraphhorizons:gearcutterliftcam` | Smithing, 1 steel ingot |
-| 6 | `index` | `seraphhorizons:gearcutterindex` | Grid: 2 steel rods, 2 steel plates, metal parts in a row (the pawls, their pins and the roller, drawn in cupronickel) |
+| 6 | `index` | 2 `game:rod-steel`, 2 `game:metalplate-steel`, 1 `game:metal-parts` | The game's (the pawls, their pins and the roller from the metal parts, drawn in cupronickel) |
 | 7 | `oiler` | `game:jonasparts-valve01` | Looted |
 | 8 | `head` | `game:jonasframes-gears02` or `game:jonasframes-gears01` | Looted, or converted |
 | 9 | `cutter` | `seraphhorizons:gearcutterkit-steel` (500 durability) | Smithing, 1 steel ingot |
@@ -2002,11 +2006,16 @@ refused with a message naming the next:
 
 The three smithing recipes are named after their part, not `plate`, so the helve hammer does not
 work them. Items are taken from the hand outside creative mode; in creative mode Ctrl + right-click
-on an incomplete cutter fits its next stage with nothing taken (the small master, a new kit).
+on an incomplete cutter fits its next stage with nothing taken (the small master, a new kit, a
+material stage's whole bill).
 **Ctrl + right-click** takes back the cutter kit, with what durability it has left; then a blank on
 the arbor (its cut lost); then the master. Every other stage comes back only by breaking the frame,
-which drops the frame, every fitted item by code, the kit with its durability and the blank. A save
-keeps every fitted code and the kit's durability.
+which drops the frame, every fitted item by code, every material put in (a stage part way in too),
+the kit with its durability and the blank. A save keeps every fitted code, the material stages'
+counts and the kit's durability. The spindle and the index were once items of their own, made on the
+grid from the same bill (`seraphhorizons:gearcutterspindle`, `seraphhorizons:gearcutterindex`); they
+are no longer registered. A cutter saved with one fitted loads with that stage complete, and
+breaking it gives back the bill; loose ones in inventories become unknown items.
 
 **Work.** Complete is every stage in, the kit with durability left. A blank goes on the arbor by
 right-click, one at a time; the cutter never takes from or puts into a chest or other container
