@@ -270,10 +270,10 @@ class Targets(unittest.TestCase):
         s["gravel"]["blocksMedian"] = 700
         self.assertFalse(self.results(s)["gravel blocks per field, median"])
 
-    def test_shipped_targets_are_the_epics(self):
+    def test_shipped_targets_are_twice_the_epics(self):
         t = ore_survey.load_targets(ROOT / "tools" / "ore-survey" / "targets.json")
-        self.assertEqual(t["metals"]["copper"], {"small": 150, "typical": 400, "large": 1000})
-        self.assertEqual(t["metals"]["gold"], {"small": 30, "typical": 80, "large": 200})
+        self.assertEqual(t["metals"]["copper"], {"small": 300, "typical": 800, "large": 2000})
+        self.assertEqual(t["metals"]["gold"], {"small": 60, "typical": 160, "large": 400})
         self.assertEqual(len(t["metals"]), 12)
         self.assertEqual(t["areaPerDeposit_km2"], 25)
         self.assertEqual(t["gravel"], {"areaPerField_km2": 2.25, "blocks": [300, 600]})
