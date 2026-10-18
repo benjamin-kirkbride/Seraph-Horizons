@@ -197,4 +197,37 @@ public class OreProductsTests
 
     [Fact]
     public void GalenaNativesilverIsASulfide() => Assert.True(R.Ore("galena_nativesilver").IsSulfide);
+
+    /// <summary>The tooltips' status lines and the handbook's sections (Ore/Processing/OreHandbook.cs): every
+    /// key the type files name and the code builds has its English text, and every type of ours that is an
+    /// ore form has its section.</summary>
+    [Fact]
+    public void EveryStatusLineAndHandbookSectionHasItsText()
+    {
+        var lang = JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "lang-en.json")))!.AsObject();
+        var keys = new List<string>
+        {
+            "oreproduct-smeltsat", "oreproduct-roastfirst", "oreproduct-nosmelt", "oreproduct-smeltswhole",
+            "oreproduct-retortfirst", "oreproduct-smeltstolead", "oreproduct-handbook-title",
+            "oreprocessing-guide-title", "oreprocessing-guide-text",
+            "oreprocessing-rawore-handbook-text", "oreprocessing-rawore-sulfide-handbook-text",
+            "oreprocessing-crystallisedore-handbook-text",
+            "oreproduct-crushed-handbook-text", "oreproduct-crushed-sulfide-handbook-text",
+            "oreproduct-ground-handbook-text", "oreproduct-ground-sulfide-handbook-text",
+        };
+        keys.AddRange(Enum.GetValues<PartingMethod>().Select(m => "oreproduct-partin-" + m.ToString().ToLowerInvariant()));
+        foreach (string file in Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "oreprocessing"), "*.json"))
+        {
+            var attributes = Type(Path.GetFileName(file))["attributes"]!.AsObject();
+            if (attributes["oreForm"] is not { } form) continue;
+            var sections = attributes["handbook"]?["extraSections"]?.AsArray();
+            // Crushed and ground ore get theirs in code, by the ore's class.
+            if ((string?)form is "crushed" or "ground")
+                continue;
+            Assert.True(sections?.Count > 0, $"{Path.GetFileName(file)} has no handbook section");
+            keys.AddRange(sections!.SelectMany(t => new[] { (string)t!["title"]!, (string)t["text"]! })
+                .Select(k => k["seraphhorizons:".Length..]));
+        }
+        Assert.All(keys, k => Assert.True(lang.ContainsKey(k), $"no lang entry {k}"));
+    }
 }

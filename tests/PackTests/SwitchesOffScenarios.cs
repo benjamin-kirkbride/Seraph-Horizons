@@ -1401,7 +1401,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(choppingBlock.BlockEntityBehaviors ?? [], b => b.Name == BEBehaviorSplittingBlockTier.Name);
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
-        // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, spalling's, ore roasting's,
+        // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, ore processing's, spalling's, ore roasting's,
         // liquation's, ore retorting's and the springs' pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
                 .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
@@ -1411,6 +1411,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.SpallingGuideTitle))
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuideTitleKey))
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuideTitleKey))
+                .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.ProcessingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.ProcessingGuideTitleKey))
                 .Append((SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuidePage, SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuideTitleKey))
                 .Append((SeraphHorizons.Mod.Springs.SpringsSystem.GuidePageCode, SeraphHorizons.Mod.Springs.SpringsSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
@@ -1813,6 +1814,9 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.DoesNotContain(World.Api.GetCookingRecipes(), r => r.Code.StartsWith("seraphhorizons-evaporate-"));
         // The roasting guide page (#720) is hidden.
         Assert.Contains((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuideTitleKey),
+            (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
+        // So is the guide to the whole chain.
+        Assert.Contains((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.ProcessingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.ProcessingGuideTitleKey),
             (IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]);
         // The still (#726): nothing retorts, its patches are out, Expanded Matter's mercury recipe is in,
         // and its guide page is hidden.

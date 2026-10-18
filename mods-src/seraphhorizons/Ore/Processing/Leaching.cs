@@ -1,7 +1,5 @@
-using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod.Ore.Core;
 using Vintagestory.API.Common;
-using Vintagestory.API.Datastructures;
 
 namespace SeraphHorizons.Mod.Ore.Processing;
 
@@ -84,18 +82,6 @@ public static class Leaching
         return report;
     }
 
-    /// <summary>Adds the leaching section to the item's handbook page (its attributes, which the
-    /// server sends the client).</summary>
-    private static void AddSection(CollectibleObject item)
-    {
-        var attributes = item.Attributes?.Token as JObject ?? new JObject();
-        if (attributes["handbook"] is not JObject handbook)
-            attributes["handbook"] = handbook = new JObject();
-        if (handbook["extraSections"] is not JArray sections)
-            handbook["extraSections"] = sections = new JArray();
-        if (sections.OfType<JObject>().Any(s => (string?)s["title"] == SectionTitle))
-            return;
-        sections.Add(new JObject { ["title"] = SectionTitle, ["text"] = SectionText });
-        item.Attributes = new JsonObject(attributes);
-    }
+    /// <summary>Adds the leaching section to the item's handbook page.</summary>
+    private static void AddSection(CollectibleObject item) => OreHandbook.AddSection(item, SectionTitle, SectionText);
 }

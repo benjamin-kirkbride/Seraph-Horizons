@@ -112,6 +112,10 @@ public partial class RecipeExportScenarios
         Assert.Equal(0.85, (double)output["quantity"]!, 9);
         Assert.Equal(OreRoasting.MeltingPoint, (int)galena["extra"]!["meltingPoint"]!);
         Assert.Contains(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == OreProcessingSystem.RoastingGuidePage);
+        // and the guide to the whole chain, in English
+        var chain = Assert.Single(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == OreProcessingSystem.ProcessingGuidePage);
+        Assert.Equal("Ore processing", (string?)chain["title"]);
+        Assert.Contains("Bountiful", (string?)chain["text"]);
     }
 
     // Retorting in the still (#726): a record per input, the boiler and condenser

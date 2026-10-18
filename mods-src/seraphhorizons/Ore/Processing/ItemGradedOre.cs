@@ -16,8 +16,9 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// <list type="bullet">
 /// <item>its name: raw ore at every grade ("Raw galena ore (rich)", #847: no chunks); crystallised
 /// ore keeps vanilla's;</item>
-/// <item>its text: no "crush with hammer to extract nuggets", but what it does instead: the share it
-/// smelts at by its grade, or for a sulfide, that it roasts first;</item>
+/// <item>its text: in place of "crush with hammer to extract nuggets", one terse status line
+/// (<see cref="ItemOreProduct.SmeltText"/>): the share it smelts at by its grade, or for a sulfide,
+/// that it roasts first; how it is worked is in its handbook section (<see cref="OreHandbook"/>);</item>
 /// <item>a hammer no longer breaks it into nuggets where it lies on the ground: it spalls it, a
 /// left-click a blow, into crushed ore of its grade, one for one (#747, <see cref="OreSpalling"/>), and
 /// shift + right-click on a placed ore with another in hand sets that one on the next block.</item>
@@ -43,7 +44,7 @@ public class ItemGradedOre : ItemOre, IContainedInteractable
         base.GetHeldItemInfo(inSlot, own, world, withDebugInfo);
         string hammer = Lang.Get("Crush with hammer to extract nuggets");
         string text = own.ToString();
-        string instead = ItemOreProduct.SmeltText(this, "seraphhorizons:oreprocessing-rawore");
+        string instead = ItemOreProduct.SmeltText(this);
         dsc.Append(text.Contains(hammer) ? text.Replace(hammer, instead) : text + instead + "\n");
     }
 
