@@ -5,14 +5,15 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod;
 
 /// <summary>
-/// Clutter does not pile (switch <see cref="SeraphHorizonsConfig.NoClutterPiles"/>, README "Clutter
-/// does not pile"): takes away the ground pile More Piles' catch-all cube rule gives the game's
-/// clutter and the other blocks drawn from their attributes (<see cref="ClutterPileRules"/>), so
-/// they are placed one at a time as the game ships them. Run by <see cref="StorageTweaksSystem"/>
+/// Clutter and chiseled blocks do not pile (switch <see cref="SeraphHorizonsConfig.NoClutterPiles"/>,
+/// README "Clutter and chiseled blocks do not pile"): takes away the ground pile More Piles'
+/// catch-all cube rule gives the game's clutter, chiseled blocks and the other blocks that are not
+/// drawn as the cube their type file names (<see cref="ClutterPileRules"/>), so they are placed as
+/// the game ships them. Run by <see cref="StorageTweaksSystem"/>
 /// after More Piles and before <see cref="BigPiles"/>, on both sides: More Piles runs on a client
 /// too and, the server having sent the block with no ground storage, gives it the pile again there.
 ///
-/// A clutter pile already in a world keeps its items; with no pile behavior it holds what it holds
+/// Such a pile already in a world keeps its items; with no pile behavior it holds what it holds
 /// and takes no more, and breaking it gives them back.
 /// </summary>
 public static class ClutterPiles
@@ -31,7 +32,7 @@ public static class ClutterPiles
             if (piles.Count == 0) continue;
             var chain = ClassChain(block.GetType());
             var entityBehaviors = block.BlockEntityBehaviors?.Select(b => b.Name) ?? [];
-            var gone = piles.Where(p => ClutterPileRules.TakesNoPile(chain, entityBehaviors, p.propertiesAtString)).ToList();
+            var gone = piles.Where(p => ClutterPileRules.TakesNoPile(chain, entityBehaviors, block.EntityClass, p.propertiesAtString)).ToList();
             if (gone.Count == 0) continue;
             block.CollectibleBehaviors = block.CollectibleBehaviors.Except(gone).ToArray();
             if (!block.HasBehavior<CollectibleBehaviorGroundStorable>()) DropGroundStorableTab(block);
