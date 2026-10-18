@@ -8,7 +8,7 @@ namespace SeraphHorizons.PackTests;
 
 /// <summary>
 /// Hydrate or Diedrate's copies of water recipes (docs/recipe-browser/exporter.md, "Water
-/// copies"). HoD 2.5.6 registers, for every recipe with `game:waterportion` in a slot or in a
+/// copies"). HoD 2.5.8 registers, for every recipe with `game:waterportion` in a slot or in a
 /// container's `requiresContent`, one copy per kind of its clean water, named
 /// `hydrateordiedrate:-HoD-&lt;Name path&gt;-&lt;water&gt;`. The copies are folded into the
 /// recipes they copy. The kinds of water are the five in HoD's RecipeGenerator.ConversionMappings.

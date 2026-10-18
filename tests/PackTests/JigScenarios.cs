@@ -223,10 +223,13 @@ public partial class SharedWorldScenarios
         // below would end before the rock
         await UntilChuteFed(jig, chute);
 
+        // until they are there: the chute's rock may still be on the bed when the infeed and the tailings
+        // slots are empty
         await JigUntil(jig, () =>
         {
             jig.FillWater(jig.ReservoirCapacity);
-            return jig.InfeedSlot.Empty && jig.OutputSlots(BEOreMachine.Tailings).All(s => s.Empty);
+            return jig.InfeedSlot.Empty && jig.OutputSlots(BEOreMachine.Tailings).All(s => s.Empty)
+                   && W.BlockAccessor.GetBlock(tailPos.DownCopy()).Code.ToString().StartsWith("game:gravel-granite", StringComparison.Ordinal);
         });
         await World.Ticks(3);
         Assert.StartsWith("game:gravel-granite", W.BlockAccessor.GetBlock(tailPos.DownCopy()).Code.ToString());

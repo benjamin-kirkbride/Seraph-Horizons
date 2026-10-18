@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.RegularExpressions;
 using HarmonyLib;
 using SeraphHorizons.Mod.Core;
@@ -16,12 +17,13 @@ namespace SeraphHorizons.Mod.Woodworking;
 /// its item pages link to) and five chapters. And the two mods' own item and block text, rewritten
 /// to match the unified system and to link to the guide.
 ///
-/// - Pages: a handler on <c>ModSystemSurvivalHandbook.OnInitCustomPages</c> (client) arranges the
-///   handbook's page list each time it is built (<see cref="WoodworkingGuidePages.Arrange"/>). With
-///   the tweak running it drops Immersive Woodworking's "Crafting Mechanic: Immersive Woodworking"
-///   and Logging Expanded's "Crafting Mechanic: Logging Expanded" and shows the six in their place;
-///   otherwise (the tweak not running) it drops the six. The handler is added in
-///   <see cref="Start"/> or <see cref="Off"/>, so it runs either way. The handbook is built on the
+/// - Pages: each time the client builds the handbook's page list it is arranged
+///   (<see cref="WoodworkingGuidePages.Arrange"/>) after every <c>ModSystemSurvivalHandbook.OnInitCustomPages</c>
+///   handler. With the tweak running (a postfix on the method raising the event, <see cref="Start"/>)
+///   it drops Immersive Woodworking's "Crafting Mechanic: Immersive Woodworking" (since 1.3.13 a page
+///   its own handler adds, no longer an asset) and Logging Expanded's "Crafting Mechanic: Logging
+///   Expanded" and shows the six in their place; otherwise (the tweak not running, a handler added in
+///   <see cref="Off"/>) it drops the six. The handbook is built on the
 ///   client; on the server the pages a player does not see are listed in
 ///   <c>ObjectCache[</c><see cref="HiddenGuidesKey"/><c>]</c> (page code and title key;
 ///   <see cref="WoodworkingGuidePages.Hidden"/>): the replaced guides with the tweak running, the
@@ -224,12 +226,45 @@ public sealed class WoodworkingGuide : WoodworkingPart
     private ModSystemSurvivalHandbook? _handbook;
     private InitCustomPagesDelegate? _arrange;
 
+    // internal void ModSystemSurvivalHandbook.TriggerOnInitCustomPages(List<GuiHandbookPage> pages), which
+    // invokes OnInitCustomPages (verified against the decompiled 1.22.7 code).
+    private static MethodInfo? _triggerInitCustomPages;
+
     public override string Name => "the handbook guide";
 
-    public override void Start(ICoreAPI api, Harmony harmony) => ArrangePages(api, unified: true);
+    /// <summary>The client's page-list hook: the method that raises <c>OnInitCustomPages</c>.</summary>
+    public override string? Bind(ICoreAPI api, WoodworkingMods mods)
+    {
+        if (api.Side != EnumAppSide.Client) return null;
+        _triggerInitCustomPages = AccessTools.DeclaredMethod(typeof(ModSystemSurvivalHandbook), "TriggerOnInitCustomPages",
+            [typeof(List<GuiHandbookPage>)]);
+        return _triggerInitCustomPages is null ? "the handbook's TriggerOnInitCustomPages" : null;
+    }
+
+    /// <summary>
+    /// With the tweak running, the arrangement is a postfix on the method that raises
+    /// <c>OnInitCustomPages</c>, so it runs after every handler, wherever it subscribed: Immersive
+    /// Woodworking (1.3.13) adds its guide page from a handler subscribed in its <c>StartClientSide</c>,
+    /// after this mod's <c>Start</c>, and a page added after the arrangement would stay and take the
+    /// guide's page code (the handbook's code lookup keeps the last page with a code).
+    /// </summary>
+    public override void Start(ICoreAPI api, Harmony harmony)
+    {
+        if (api.Side == EnumAppSide.Server)
+        {
+            ArrangePages(api, unified: true);
+            return;
+        }
+        harmony.Patch(_triggerInitCustomPages, postfix: new HarmonyMethod(typeof(WoodworkingGuide), nameof(TriggerPostfix)));
+    }
+
+    // The page list by position (__0), so a rename of the game's parameter cannot unbind it.
+    private static void TriggerPostfix(List<GuiHandbookPage> __0) => Arrange(__0, unified: true);
 
     public override void Undo(ICoreAPI api) => Dispose();
 
+    /// <summary>Without the tweak a handler is enough: it only drops this mod's six pages, which no
+    /// other handler adds.</summary>
     public override void Off(ICoreAPI api) => ArrangePages(api, unified: false);
 
     private void ArrangePages(ICoreAPI api, bool unified)
