@@ -3363,7 +3363,15 @@ worker has a cancellation token). A worker that fails is logged, the job keeps i
 later (a first plan failing three times leaves the job an empty one, so its members report and go, and
 its outlines are cleared). The members wait for the first plan (`eidolon-status-mine-planning`); a
 largest area (16384 blocks) plans in under a second of the worker's time. The planner is
-still a step iterator (its steps a few ms at most), so the tests run it synchronously. What runs on the
+still a step iterator (its steps a few ms at most), so the tests run it synchronously, on a fake clock
+(its clock is injectable): its work is counted in units, about a cell or node looked at each
+(`MineWork`), and the tests bound the units between two checkpoints, the same on any machine, where time
+would vary with it. What a unit costs is measured by hand, never in CI: `dotnet run -c Release --project
+mods-src/seraphhorizons/benchmarks [-- runs [area ...]]` plans a few areas (a tunnel into the stepped
+slope, a tall tunnel, the largest pit, trench and deep pit) and prints each plan's time, its checkpoints'
+(median, 99th and 99.9th percentile, longest, and the slowest one's units and phase) and the ns a unit
+(about 2.5 ns on the largest areas, 15 to 30 on the small tunnels, warm, Release). In the game the log
+line of each plan gives its time per phase. What runs on the
 main thread for a member each look (the dispatch over the plan's next 24 stations, the guard, a dig taken
 in) is about a millisecond on the largest plan. *The live state*: the job keeps its picture of the world
 (`MineJobCells.Live`) as the world changes: its own breaks at once; a player's breaks and placings in the
@@ -3490,8 +3498,9 @@ there, waits out a planned wait where it is planned (`eidolon-status-mine-waitin
 another walking up to it, crosses another's claim after 4 seconds, passes another eidolon only briefly and
 rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the stair or one
 standing near it, which would be pushed), never sets off for a stand another stands on (a member waiting there
-is asked to make room, stepping aside to a place with nothing left to dig and no claim; the stop is dropped
-when one stays there), stops short of one standing that it walks at, whatever the walk (a third of a block
+is asked to make room, stepping aside to a place with nothing left to dig and no claim, but not one holding a
+station of its own, which is about to set off for it and leaves by itself: asked every second, it stayed for
+good where it found its place clear, #1244; the stop is dropped when one stays there), stops short of one standing that it walks at, whatever the walk (a third of a block
 before their boxes touch), waits while that one is still in its way, and parts from one its box has been in
 for 0.6 seconds (the game's push between two boxes reads as walking, which the other would give way to for
 ever): the one with the higher id, or beside one striking or home, steps away to a place apart from every
@@ -3502,8 +3511,10 @@ one that waited stepping away (`Core/EidolonParting.cs`). It lets its claims go 
 seconds, and gives up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped
 and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
 for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold
-each member for another, a stair's slots run off the plan) has the rest of that station plan dispatched as
-today's (only while its routes hold stations and no member is on its way home); its members still part, stop
+each member for another, a stair's slots run off the plan), or with a member's stops dropped 4 times and no
+strike of its own between (the live guard refusing what each solve hands straight back, two each waiting over
+the other's next work, while the other's odd strike keeps the crew's clock going, #1244), has the rest of that
+station plan dispatched as today's (only while its routes hold stations and no member is on its way home); its members still part, stop
 short of one standing and make room on a stand still to work, to the job's end. Small events are repaired in
 place on the main thread (begun, finished, dropped, a member gone, a new plan); a full solve follows a failed
 repair, a member joining, a new station plan, or every 15 seconds (no two within 2 seconds, or half a second
@@ -3549,7 +3560,11 @@ one on the stair from working them and so from ever getting off it). And a miner
 station on a way that crosses the columns another holds, nor on one the pathfinder finds only through
 another eidolon (no way round it: a pit floor too narrow to pass one at work, say): it lets its station
 go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaims`,
-`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). Down a pit with a stair and work left, one
+`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). On today's dispatch a member waiting (not
+walking) in the way of one setting off for or walking to its station is asked, each second, to make room,
+stepping aside to a place clear of that way (down a pit, one it may wait at there; else one with nothing
+left to dig) held by none (`MineOrder.ClearWay`): the floor of a trench 5 wide has no way round one standing
+in its middle, and a walker pressed into one waiting there for over 20 seconds (#1220). Down a pit with a stair and work left, one
 with nothing to take waits down there, a column clear of the stair and of what others hold, rather than
 climb the whole stair to the rim and back; a walk to where it waits that goes on over 10 seconds (stuck,
 or giving way for ever) is stopped and it looks again from where it got to. The work under its feet waits

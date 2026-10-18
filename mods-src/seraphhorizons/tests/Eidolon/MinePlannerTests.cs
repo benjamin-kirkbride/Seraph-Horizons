@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using SeraphHorizons.Mod.Eidolon.Core;
 using Xunit.Abstractions;
 using static SeraphHorizons.Mod.Tests.Eidolon.MineTestWorld;
@@ -362,6 +361,58 @@ public class MinePlannerTests(ITestOutputHelper output)
     private static List<string> Describe(MinePlan plan) =>
         plan.Stations.Select(s => $"{s.Kind} {s.Band} {s.Lane} {s.Slice} {s.Stand} {string.Join(",", s.Cells)}").ToList();
 
+    /// <summary>A fake clock for <see cref="MinePlanner"/>: each reading a <paramref name="tick"/> later than
+    /// the last, noting the thread's units of work at it (<see cref="MineWork"/>). The planner reads its clock
+    /// as a step starts and after each checkpoint, so the units between two readings in a step are one
+    /// checkpoint's work, the same on every machine.</summary>
+    private sealed class CheckpointClock(TimeSpan tick)
+    {
+        private long _readings, _last;
+        private bool _atStart;
+
+        /// <summary>The checkpoints' units, in order, and how many checkpoints each step made.</summary>
+        public List<long> Gaps { get; } = new();
+        public List<int> PerStep { get; } = new();
+
+        public TimeSpan Read()
+        {
+            long now = MineWork.Units;
+            if (_atStart)
+                _atStart = false;
+            else
+            {
+                Gaps.Add(now - _last);
+                PerStep[^1]++;
+            }
+            _last = now;
+            return tick * _readings++;
+        }
+
+        /// <summary>Runs <paramref name="planner"/> (made with <see cref="Read"/>) to its plan, a step of
+        /// <paramref name="budget"/> at a time.</summary>
+        public void Run(MinePlanner planner, TimeSpan budget)
+        {
+            do
+            {
+                PerStep.Add(0);
+                _atStart = true;
+            }
+            while (!planner.Step(budget));
+        }
+    }
+
+    /// <summary>The most units of work one checkpoint may do (<see cref="MineWork"/>, about a cell or node
+    /// looked at each). The benchmark (benchmarks/, README "Eidolon", mining) measures a unit at about
+    /// 2.5 ns on the largest areas and 15 to 30 ns on small tunnels (warm, Release; the hash sets and the
+    /// guard's searches cost more than a unit says), and the longest checkpoint, collections and the JIT's
+    /// first tier aside, under 1 ms on the tunnels and 1 to 2 ms on the largest areas: so a step, which may
+    /// overrun the tick's <see cref="MinePlanner.BudgetMs"/> by one checkpoint, stays within about twice it. The
+    /// longest in units now: about 40 000 on the stepped slope (64 stands of the reach bound's search, each
+    /// its reach box and joins), and on the largest areas about 86 000, a graph's window-sized arrays
+    /// allocated and filled (the 1024 x 1 x 16 area's window is 319 088 blocks). A loop with no checkpoint
+    /// over the window, or over the area's cells with any work in it, goes past it on the largest areas.</summary>
+    private const long MaxCheckpointUnits = 100_000;
+
     [Fact]
     public void A_plan_made_in_slices_is_the_plan_made_at_once_and_keeps_to_its_slices()
     {
@@ -369,71 +420,24 @@ public class MinePlannerTests(ITestOutputHelper output)
         var area = Area(-2, 7, L, L + 7, 0, 3);
         var whole = MinePlanner.Run(world.Input(area, Home));
 
-        var sliced = new MinePlanner(world.Input(area, Home));
+        // On a fake clock a quarter of the budget a checkpoint, every step but the last stops at its
+        // fourth: the first checkpoint past its budget, exactly.
         var budget = TimeSpan.FromMilliseconds(MinePlanner.BudgetMs);
-        while (!sliced.Step(budget)) { }
-        Assert.True(sliced.Steps > 1);
+        var clock = new CheckpointClock(budget / 4);
+        var sliced = new MinePlanner(world.Input(area, Home), clock.Read);
+        clock.Run(sliced, budget);
         Assert.Equal(Describe(whole), Describe(sliced.Plan!));
         Assert.Equal(MinePlanPhase.Done, sliced.Phase);
+        Assert.True(sliced.Steps > 1);
+        Assert.Equal(sliced.Steps, clock.PerStep.Count);
+        Assert.All(clock.PerStep.SkipLast(1), n => Assert.Equal(4, n));
+        Assert.InRange(clock.PerStep[^1], 1, 4);
+        Assert.Equal(budget / 4 * clock.Gaps.Count, sliced.Spent.Values.Aggregate(TimeSpan.Zero, (a, b) => a + b));
 
-        // A step stops at its first checkpoint past the budget, so it keeps to its slice as long as no
-        // one checkpoint's work is long. With no budget a step is exactly one checkpoint, and the
-        // checkpoints are the same on every run (the work is a pure function of its input). Each one's
-        // work is timed in this thread's CPU time, which descheduling does not stretch, but a contended
-        // runner still slows every checkpoint at once: on CI the longest, about 1.3 ms here, took
-        // 10.8 ms in all three back-to-back runs while the sliced plan just before kept its usual 13
-        // steps. So what is checked is the longest checkpoint's share of its own run, which such a
-        // slowdown leaves as it is (about 4 %; under 20 % keeps it near 6 ms of a 30 ms plan here, the
-        // budget plus that under the 12 ms a step had), the lowest of three runs so a slowdown over
-        // part of one run does not count. The absolute bound only catches a checkpoint grown tenfold.
-        const int Runs = 3;
-        double lowestShare = double.MaxValue, fastestLongest = double.MaxValue;
-        int count = -1;
-        for (int run = 0; run < Runs; run++)
-        {
-            var single = new MinePlanner(world.Input(area, Home));
-            var gaps = new List<double>();
-            while (true)
-            {
-                double start = ThreadCpuMs();
-                bool done = single.Step(TimeSpan.Zero);
-                gaps.Add(ThreadCpuMs() - start);
-                if (done)
-                    break;
-            }
-            Assert.Equal(Describe(whole), Describe(single.Plan!));
-            Assert.Equal(gaps.Count, single.Steps);
-            Assert.True(count < 0 || count == gaps.Count, $"{gaps.Count} checkpoints against {count}");
-            count = gaps.Count;
-            double longest = gaps.Max();
-            fastestLongest = Math.Min(fastestLongest, longest);
-            lowestShare = Math.Min(lowestShare, longest / gaps.Sum());
-        }
-        output.WriteLine($"{sliced.Steps} steps of {MinePlanner.BudgetMs} ms; {count} checkpoints, the longest {fastestLongest:0.00} ms, {lowestShare:P1} of its run ({(OperatingSystem.IsLinux() ? "thread CPU" : "wall")})");
-        Assert.True(lowestShare < 0.2, $"the longest checkpoint was {lowestShare:P1} of its run's work");
-        Assert.True(fastestLongest < 50, $"a checkpoint's work took {fastestLongest} ms");
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct Timespec
-    {
-        public long Sec;
-        public long Nsec;
-    }
-
-    [DllImport("libc", EntryPoint = "clock_gettime")]
-    private static extern int ClockGetTime(int clock, out Timespec time);
-
-    private const int ClockThreadCpuTime = 3; // CLOCK_THREAD_CPUTIME_ID
-
-    private static readonly System.Diagnostics.Stopwatch Wall = System.Diagnostics.Stopwatch.StartNew();
-
-    /// <summary>The calling thread's CPU time in ms on Linux (CI's runners), the wall clock elsewhere.</summary>
-    private static double ThreadCpuMs()
-    {
-        if (OperatingSystem.IsLinux() && ClockGetTime(ClockThreadCpuTime, out var t) == 0)
-            return t.Sec * 1000.0 + t.Nsec / 1e6;
-        return Wall.Elapsed.TotalMilliseconds;
+        // and no checkpoint does much work (a step overruns its budget by at most one)
+        long longest = clock.Gaps.Max();
+        output.WriteLine($"{sliced.Steps} steps, {clock.Gaps.Count} checkpoints, {clock.Gaps.Sum()} units; the longest checkpoint {longest} units");
+        Assert.True(longest <= MaxCheckpointUnits, $"a checkpoint did {longest} units of work");
     }
 
     [Fact]
@@ -516,11 +520,15 @@ public class MinePlannerTests(ITestOutputHelper output)
         var area = Area(0, sizeX - 1, top - sizeY, top - 1, 0, sizeZ - 1);
         Assert.Equal(EidolonMining.MaxAreaBlocks, area.Volume);
         var input = world.Input(area, new PathCell(-4, top, sizeZ / 2));
-        MinePlanner.Make(input); // once to warm the code up, as a server that has planned before
+        // once to warm the code up, as a server that has planned before, and to bound its checkpoints' work
+        var units = new CheckpointClock(TimeSpan.Zero);
+        units.Run(new MinePlanner(input, units.Read), TimeSpan.MaxValue);
+        long longest = units.Gaps.Max();
+        Assert.True(longest <= MaxCheckpointUnits, $"a checkpoint did {longest} units of work");
         var clock = System.Diagnostics.Stopwatch.StartNew();
         var planner = MinePlanner.Make(input);
         var plan = planner.Plan!;
-        output.WriteLine($"{sizeX} x {sizeY} x {sizeZ}: {clock.ElapsedMilliseconds} ms, {plan.Stations.Count} stations, {plan.Stations.Sum(s => s.Cells.Count)} cells, out of reach {plan.OutOfReach.Count}, stair {plan.Stair.Count}, reruns {plan.Reruns}; {string.Join(", ", planner.Spent.Select(p => $"{p.Key} {p.Value.TotalMilliseconds:0} ms"))}");
+        output.WriteLine($"{sizeX} x {sizeY} x {sizeZ}: {clock.ElapsedMilliseconds} ms, {units.Gaps.Count} checkpoints, the longest {longest} units, {plan.Stations.Count} stations, {plan.Stations.Sum(s => s.Cells.Count)} cells, out of reach {plan.OutOfReach.Count}, stair {plan.Stair.Count}, reruns {plan.Reruns}; {string.Join(", ", planner.Spent.Select(p => $"{p.Key} {p.Value.TotalMilliseconds:0} ms"))}");
         Assert.True(clock.ElapsedMilliseconds < CostBoundMs, $"{clock.ElapsedMilliseconds} ms");
         // each step of its work, as the game takes them (Step returns after the step that spends its budget)
         int fewest = int.MaxValue;
