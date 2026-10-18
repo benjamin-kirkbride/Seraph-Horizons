@@ -353,12 +353,6 @@
       "switches": ["BoilerLidBlowsOpen"],
       "classes": []
     },
-    "CarryOnIcons": {
-      "code": ["CarryOnIcons.cs"],
-      "codes": [],
-      "switches": ["CarryOnIconsPerWorld"],
-      "classes": []
-    },
     "CartReach": {
       "code": ["CartReach.cs", "Core/EntityReach.cs"],
       "codes": [],
@@ -387,6 +381,12 @@
       "code": ["FoodHydration.cs"],
       "codes": ["hydration"],
       "switches": ["FoodHydration"],
+      "classes": []
+    },
+    "FruitDrying": {
+      "code": ["FruitDrying.cs"],
+      "codes": ["fruitdrying"],
+      "switches": ["FruitDries"],
       "classes": []
     },
     "GearboxSourceRatio": {

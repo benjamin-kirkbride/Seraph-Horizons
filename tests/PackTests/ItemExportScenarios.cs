@@ -453,7 +453,7 @@ public class ItemExportScenarios : AtlasScenarioBase
     [AtlasScenario(TimeoutMs = Timeout)]
     public void Expanded_foods_fruit_bread_matches_the_mod_files()
     {
-        // ExpandedFoods 2.0.0-dev.15.zip: itemtypes/food/mixing/berrybread.json (maxstacksize 32,
+        // ExpandedFoods 2.0.0-dev.16.zip: itemtypes/food/mixing/berrybread.json (maxstacksize 32,
         // "*-cooked" bakes into berrybread-charred), lang/en.json "item-berrybread-cooked".
         var item = Item(Items, "expandedfoods:berrybread-cooked");
         Assert.Equal("Fruit bread", (string?)item["name"]);
@@ -464,7 +464,7 @@ public class ItemExportScenarios : AtlasScenarioBase
 
         var mod = (JObject)Doc["mods"]!["expandedfoods"]!;
         Assert.Equal("Expanded Foods: Core", (string?)mod["name"]);
-        Assert.Equal("2.0.0-dev.15", (string?)mod["version"]);
+        Assert.Equal("2.0.0-dev.16", (string?)mod["version"]);
         Assert.Equal(new[] { "l33tmaan" }, mod["authors"]!.Values<string>());
     }
 
