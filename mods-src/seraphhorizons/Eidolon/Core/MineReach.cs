@@ -43,6 +43,8 @@ public sealed class MineReach : MineGraph
         _dug = new byte[site.Volume];
         _live = new byte[site.Volume];
         _node = new byte[site.Volume];
+        MineWork.Bytes(site.Volume * 5L);
+        MineWork.Add(targets.Count);
         foreach (var t in targets)
             if (site.InWindow(t.X, t.Y, t.Z))
                 _target[site.Index(t.X, t.Y, t.Z)] = 1;
@@ -58,6 +60,8 @@ public sealed class MineReach : MineGraph
         _node = (byte[])other._node.Clone();
         _clearable = new HashSet<MarkPos>(other._clearable);
         _ran = other._ran;
+        MineWork.Bytes(_node.Length * 5L);
+        MineWork.Add(_clearable.Count);
     }
 
     /// <summary>A copy on <paramref name="site"/>, reading <paramref name="bad"/> for its bad stands if given.</summary>
@@ -67,7 +71,13 @@ public sealed class MineReach : MineGraph
     public IReadOnlySet<MarkPos> Clearable => _clearable;
 
     /// <summary>The targets none does: out of reach under every order.</summary>
-    public IReadOnlySet<MarkPos> OutOfReach => _targets.Where(t => !_clearable.Contains(t)).ToHashSet();
+    public IReadOnlySet<MarkPos> OutOfReach => CountTargets()._targets.Where(t => !_clearable.Contains(t)).ToHashSet();
+
+    private MineReach CountTargets()
+    {
+        MineWork.Add(_targets.Count);
+        return this;
+    }
 
     /// <summary>Whether a node is a live potential stand: potential and out.</summary>
     public bool Potential(PathCell node) => Out(node);
@@ -101,6 +111,7 @@ public sealed class MineReach : MineGraph
 
     private bool NodeNow(int x, int y, int z)
     {
+        MineWork.Add(20);
         for (int bx = x - 1; bx <= x; bx++)
         for (int bz = z - 1; bz <= z; bz++)
         for (int by = y; by <= y + 3; by++)
@@ -139,12 +150,16 @@ public sealed class MineReach : MineGraph
             && s.Y - 1 <= a.Max.Y && s.Y + 3 >= a.Min.Y;
     }
 
+    // The cells of a stand's reach box (6 x 6 columns less its own 2 x 2, 5 high), each looked at a unit.
+    private const int ReachBox = (6 * 6 - 2 * 2) * 5;
+
     // A stand's reach: the clearable cells it reaches count it, or stop.
     private void Count(int index, int by)
     {
         var s = Site.At(index);
         if (!Near(s))
             return;
+        MineWork.Add(ReachBox);
         var area = Site.Area;
         for (int x = Math.Max(s.X - 3, area.Min.X); x <= Math.Min(s.X + 2, area.Max.X); x++)
         for (int z = Math.Max(s.Z - 3, area.Min.Z); z <= Math.Min(s.Z + 2, area.Max.Z); z++)
@@ -174,13 +189,18 @@ public sealed class MineReach : MineGraph
         Array.Clear(_dug);
         Array.Clear(_live);
         Array.Clear(_node);
+        MineWork.Bytes(Parent.Length * 9L);
         var w = Site.Window;
         var queue = new Queue<int>();
+        int ring = 0;
         for (int x = w.Min.X + 1; x <= w.Max.X; x++)
         for (int z = w.Min.Z + 1; z <= w.Max.Z; z++)
         {
+            MineWork.Add(1);
             if (!Site.OnRing(x, z))
                 continue;
+            // each block of a ring column asked whether it is a stand: a few columns a step
+            MineWork.Add(w.SizeY);
             for (int y = w.Min.Y; y <= w.Max.Y; y++)
                 if (IsNode(x, y, z))
                 {
@@ -188,6 +208,8 @@ public sealed class MineReach : MineGraph
                     Attach(i, i);
                     queue.Enqueue(i);
                 }
+            if (++ring % 8 == 0)
+                yield return false;
         }
         if (HomeNode is { } h && Site.InWindow(h.X, h.Y, h.Z) && IsNode(h.X, h.Y, h.Z) && Parent[Site.Index(h.X, h.Y, h.Z)] < 0)
         {
@@ -198,6 +220,7 @@ public sealed class MineReach : MineGraph
         var added = new List<int>();
         var joined = new int[40];
         var seen = new int[Site.Volume];
+        MineWork.Bytes(seen.Length * 4L);
         var area = Site.Area;
         int stamp = 0, units = 0;
         while (queue.TryDequeue(out int u))
@@ -235,6 +258,7 @@ public sealed class MineReach : MineGraph
                 }
             // the nodes a new cell of K may have made stands, or joined (each once a stand)
             stamp++;
+            MineWork.Add((Near(s) ? ReachBox : 0) + added.Count * 4 * 4 * 6);
             foreach (int t in added)
             {
                 var c = Site.At(t);
@@ -262,6 +286,7 @@ public sealed class MineReach : MineGraph
                 yield return false;
         }
         _clearable = new HashSet<MarkPos>();
+        MineWork.Bytes(_clear.Length);
         for (int i = 0; i < _clear.Length; i++)
             if (_clear[i] != 0)
                 _clearable.Add(Site.At(i));
@@ -293,6 +318,7 @@ public sealed class MineReach : MineGraph
     public void Dig(IReadOnlyList<MarkPos> cells, ICollection<MarkPos>? starved, ICollection<PathCell>? killed = null)
     {
         _starved = starved;
+        MineWork.Add(cells.Count * 4);
         foreach (var cell in cells)
         {
             if (!Site.InWindow(cell.X, cell.Y, cell.Z))
@@ -329,6 +355,7 @@ public sealed class MineReach : MineGraph
     /// </summary>
     public void Block(MarkPos cell)
     {
+        MineWork.Add(2 * 2 * 4);
         for (int x = cell.X; x <= cell.X + 1; x++)
         for (int z = cell.Z; z <= cell.Z + 1; z++)
         for (int y = cell.Y - 3; y <= cell.Y; y++)
