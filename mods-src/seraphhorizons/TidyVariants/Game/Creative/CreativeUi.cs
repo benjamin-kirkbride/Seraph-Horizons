@@ -418,7 +418,7 @@ internal static class CreativeUi
     static TidyCreativeConfig? LoadConfig()
     {
         if (capi is null) return null;
-        try { return capi.LoadModConfig<TidyCreativeConfig>(ConfigFile); }
+        try { return SeraphHorizons.Mod.Core.ModConfigJson.Load<TidyCreativeConfig>(Path.Combine(GamePaths.ModConfig, ConfigFile)); }
         catch (Exception ex)
         {
             capi.Logger.Warning("[seraphhorizons] Tidy Variants: could not read ModConfig/{0}; starting with every group collapsed: {1}", ConfigFile, ex.Message);
