@@ -645,7 +645,7 @@ public partial class TradingScenarios
                      "trading-maps-checking-lead", "trading-admin-leads-noplayer", "trading-admin-leads-head", "trading-admin-leads-group",
                      "trading-admin-leads-trader", "trading-admin-leads-pity-used", "trading-admin-leads-pity-unused" })
             texts.Add(new Text(key));
-        foreach (string key in new[] { "trading-maps-error-gone", "trading-maps-error-precision-1", "trading-maps-error-precision-2",
+        foreach (string key in new[] { "trading-maps-error-gone",
                      "oremap-tier-1", "oremap-tier-2", "oremap-tier-3", "trading-maps-error-marked", "trading-maps-error-held", "trading-maps-met-marked",
                      "map-waypoint-exact", "map-waypoint-precision", "map-waypoint-lead", "package-info-due-days" })
             texts.Add(new Text(key));

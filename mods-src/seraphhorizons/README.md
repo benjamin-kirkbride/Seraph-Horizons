@@ -5414,7 +5414,7 @@ The ore map's description is one line (what it is, right-click to mark), and its
 the map's facts: precision, ores, grades, host rock and size (on a trader's shelf too). The rest is
 in the handbook guide "Ore maps" (`config/handbook/oremaps.json`, page code
 `OreMapsSystem.GuidePage`, shown in every world as the items are), which the map's own handbook page
-links to: what the facts mean, marking and keeping the map, the precision tiers and standing, the
+links to: what the facts mean, marking and keeping the map, the precision tiers (drawn per offer), the
 survey and its check at sale, one sale per deposit, and finite deposits.
 
 Admin commands (`controlserver`), under `/sh ore`: `list [metal] [radius] [--unsold|--sold|--soldout]`
@@ -6705,14 +6705,14 @@ order, never below 0. A tenth of your best standing with another trader of the s
 
 Five tiers, in `assets/seraphhorizons/config/standing-tiers.json`: stranger (0), known (60), regular
 (250), trusted (800), partner (2000). Each tier's unlocks are data for the features that read them:
-map tier and the settlement ground's lead (`mapsToTraders`; how many camp leads, and how far, is
+the settlement ground's lead (`mapsToTraders`; how many camp leads, and how far, is
 `map-prices.json`'s), a price factor each way, a wallet factor, delivery reach, rare stock. Orders
 follow the tier itself (see "Orders and deliveries").
 The wallet and the shelves follow the best tier among players who traded with the
 trader in the last 14 days (its gears are topped up at the weekly restock towards its list's wallet
 times that tier's wallet factor: 1, 2, 5, 15 and 40 from stranger to partner, and its side budget is
 a quarter of that; its rare stock, schematics and settlement lead are shelved for it), and the
-player trading gets their own tier's prices and map precision (see "Maps and leads"). The trade window's header
+player trading gets their own tier's prices (see "Maps and leads"; an ore map's precision is the offer's own, not the buyer's). The trade window's header
 and Standing tab show your standing there, and the trader tells you when you ask "How do you see me
 these days?" (see "Trade window"); reaching a tier says so in chat.
 
@@ -6823,15 +6823,19 @@ carry their own discount instead).
   one at a time, `DepositCheckPauseSeconds` (5) apart, and are ready when they arrive on foot.
   A deposit still being checked shows as "Lead ore map: being surveyed" (unavailable) until its
   check lands and the map takes its place; anything unchecked when a trade window opens (a player
-  who teleported) is checked then, first. `DepositCheckApproachMetres` 0 checks only then. A stranger is offered rough maps (precision 1, within 150 m); standing's map tier buys
-  fair maps (2, 50 m, tier 1, "known") and fine maps (3, 15 m, tier 2 up). Players see the tier's
-  name (`oremap-tier-n`), never its number. The price is a share of the deposit's
+  who teleported) is checked then, first. `DepositCheckApproachMetres` 0 checks only then. Each ore map offer is rough (precision 1, within 150 m), fair (2, 50 m) or fine
+  (3, 15 m), drawn when it is shelved (at a restock, or as its check lands) by `precisionWeights`
+  (50 / 35 / 15) and kept until the next restock: the same map for every buyer, whatever their
+  standing, which sets only the price factor. (It used to follow the buyer's map tier, so one
+  purchase that raised a stranger to regular made every ore map about three times dearer, the rough
+  one no longer offered.) Players see the precision's name (`oremap-tier-n`), never its number.
+  The price is a share of the deposit's
   worth: the ingots in the middle of its size class's band (small, medium and large are the bottom,
   middle and top third of the metal's range in `config/ore-sizes.json`; a deposit not yet measured
-  counts as medium) times the item value of the metal's ingot, times 3% (rough), 6% (fair) or 10%
+  counts as medium) times the item value of the metal's ingot, times 3% (rough), 4% (fair) or 5%
   (fine), times 3 for gold, silver, nickel, titanium, chromium and platinum. Always the band's
-  middle, never the measured size. A medium copper deposit's map costs 36, 71 or 119 gears, a medium
-  gold one's 571, 1143 or 1904.
+  middle, never the measured size. A medium copper deposit's map costs 36, 48 or 60 gears, a medium
+  gold one's 571, 762 or 952.
 - **Gravel maps**, from every trader: the nearest unsold rich gravel field within 2 km, 5 gears,
   naming its rock and the metals the pan gives there; checked like ore maps (one column).
 - **Leads to other camps** (`seraphhorizons:traderlead`), from every trader: you can always buy a
@@ -6940,8 +6944,8 @@ or leads back.
 The shelf is shared, so it is stocked for the best customer of the last 14 days: the settlement
 lead (and rare stock) stays on it for a stranger until the next restock after that customer stops
 coming, but a stranger can't buy it (the window shows it hatched, with the tier that sells it). The
-trade window shows the player trading their own prices and map precision (one player trades with a
-trader at a time).
+trade window shows the player trading their own prices (one player trades with a trader at a
+time); an ore map's precision is the offer's, the same for everyone.
 
 What each group has bought where, the traders that sold it a stranger's lead and the camps it
 visited are saved with the world (`seraphhorizons:leads`, versioned; a world from before starts
@@ -6952,7 +6956,7 @@ own record only (version 2; in a world saved before it, nobody has had theirs ye
 have had their first map, and the leads a trader offers them now with their ring and price, the
 first map marked (yourself and the nearest trader if none given).
 
-Tests: `tests/Trading/Maps/` (offer selection, sold out, precision by map tier, the shipped price
+Tests: `tests/Trading/Maps/` (offer selection, sold out, the precision roll's weights and determinism, the shipped price
 table, ore map prices by the formula against the shipped ore sizes and item values, which markers mark what: a map marked or carried refused, a better one an upgrade, the lead's
 marker replaced by the met trader's, old markers matched by icon, place and title; camp leads
 (`CampLeadsTests`): rings between cells, the shipped tiers, reach in rings, the price by the formula
@@ -6968,8 +6972,8 @@ the first map per player and not per company, the saved version and its migratio
 its own, as checking a deposit generates its columns: `TradingMapsShelfScenarios` a prospector's ore
 map offers, buying one through the trade window, the registry marked sold and no other trader
 offering it; `TradingMapsApproachScenarios` a far camp's deposits checked in the background, one at a
-time, as a player nears it; `TradingMapsScenarios` a gravel map offered exactly when a field is in reach, standing changing a trader's prices and map
-precision; a fresh player at a store offered their first map alone, 10 gears to a prospector,
+time, as a player nears it; `TradingMapsScenarios` a gravel map offered exactly when a field is in reach, standing changing a trader's prices but not its
+ore maps' precision; a fresh player at a store offered their first map alone, 10 gears to a prospector,
 buying it generating the camp and marking it, nothing more from that trader, and one onward in
 ring 1 at the prospector's camp; a prospector offering no first map and a stranger's one lead in
 ring 1 at the formula's price, and `/sh trade leads` naming the ring and the first map; a stranger
