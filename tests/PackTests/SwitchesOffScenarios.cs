@@ -5,6 +5,7 @@ using Newtonsoft.Json.Linq;
 using SeraphHorizons.Mod;
 using SeraphHorizons.Mod.BuckingSawmill;
 using SeraphHorizons.Mod.Core;
+using SeraphHorizons.Mod.CreativeItems;
 using SeraphHorizons.Mod.GearReclamation;
 using SeraphHorizons.Mod.GearReclamation.Core;
 using SeraphHorizons.Mod.MachineOil;
@@ -301,6 +302,16 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         typeof(InventoryPlayerCreative).GetMethod("UpdateFromWorld", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(inv, [W]);
         Assert.NotEmpty(inv.CreativeTabs.Tabs);
         Assert.DoesNotContain(inv.CreativeTabs.Tabs, t => t.Code.StartsWith("seraphhorizons-modtab-", StringComparison.Ordinal));
+    }
+
+    /// <summary><c>CreativeItemSource</c>: both blocktypes, the item source's and the sink's, are
+    /// disabled before the game loads blocktypes, so neither block exists.</summary>
+    [AtlasScenario]
+    public void Creative_item_source_off_neither_block_exists()
+    {
+        Assert.True(Off("CreativeItemSource"));
+        Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons", CreativeItemBlocks.SourceCode)));
+        Assert.Null(W.GetBlock(new AssetLocation("seraphhorizons", CreativeItemBlocks.SinkCode)));
     }
 
     /// <summary><c>CreativeSteamSource</c>: its blocktype is disabled before the game loads
