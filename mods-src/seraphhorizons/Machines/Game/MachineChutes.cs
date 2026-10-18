@@ -12,8 +12,10 @@ namespace SeraphHorizons.Mod.Machines;
 /// <item><b>Out.</b> <see cref="TryPush"/> puts a product through an anchor's face into the container
 /// beyond it, as a chute pushes into the next (<c>GetAutoPushIntoSlot</c> of the face it comes in at;
 /// a chute takes only into an empty slot and only from a face it pulls from or accepts from, so it must
-/// be laid to take from the machine). Nothing there takes it: the machine keeps it (its output is
-/// blocked) or, for tailings, discards it (<see cref="Tailings"/>).</item>
+/// be laid to take from the machine). With a chute or container there (<see cref="Attached"/>) the machine
+/// keeps what it could not take and waits for it (a backed-up chute stops it); with nothing there it never
+/// waits: tailings go on the heap (<see cref="Tailings"/>) and everything else is dropped on the ground in
+/// front of the face (<see cref="Drop"/>, <see cref="Outlet"/>).</item>
 /// <item><b>In.</b> A chute pushes into the block entity beyond its push face when that is a
 /// <see cref="BlockEntityContainer"/>; the machine's infeed cell's block entity exposes an inventory
 /// whose <see cref="Infeed"/> callbacks take only through the infeed face, only what the machine
@@ -32,10 +34,20 @@ public static class MachineChutes
         return (controller.AddCopy(cell.X, cell.Y, cell.Z), BlockFacing.FromCode(face.Code()));
     }
 
-    /// <summary>Whether something beyond the anchor's face takes items (a chute laid to take from the
-    /// machine, or a container): an outlet chuted on.</summary>
-    public static bool ChutedOn(IWorldAccessor world, BlockPos cell, BlockFacing face, ItemSlot probe) =>
-        Target(world, cell, face) is { } target && target.Inventory.GetAutoPushIntoSlot(face.Opposite, probe) != null;
+    /// <summary>Whether a chute or container is attached beyond the anchor's face: a container of any kind
+    /// (full or not), or a chute laid to take from the machine (one laid across the face is not). An outlet
+    /// with one attached holds what it cannot push yet; one without drops it.</summary>
+    public static bool Attached(IWorldAccessor world, BlockPos cell, BlockFacing face, ItemSlot probe) =>
+        Target(world, cell, face) is { } target
+        && (target is not BlockEntityItemFlow || target.Inventory.GetAutoPushIntoSlot(face.Opposite, probe) != null);
+
+    /// <summary>Drops <paramref name="stack"/> on the ground just beyond <paramref name="cell"/>'s
+    /// <paramref name="face"/> (<see cref="Outlet.DropOffset"/>), still, so it settles where it appears.</summary>
+    public static void Drop(IWorldAccessor world, BlockPos cell, BlockFacing face, ItemStack stack)
+    {
+        var (x, y, z) = Outlet.DropOffset(face.Normali.X, face.Normali.Y, face.Normali.Z);
+        world.SpawnItemEntity(stack, cell.ToVec3d().Add(x, y, z), new Vec3d());
+    }
 
     private static BlockEntityContainer? Target(IWorldAccessor world, BlockPos cell, BlockFacing face)
     {
