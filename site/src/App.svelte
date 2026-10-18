@@ -11,6 +11,7 @@
   import EntityPage from "./components/EntityPage.svelte";
   import Home from "./components/Home.svelte";
   import ItemPage from "./components/ItemPage.svelte";
+  import OreRoutesPage from "./components/OreRoutesPage.svelte";
   import PowerPage from "./components/PowerPage.svelte";
   import SearchResults from "./components/SearchResults.svelte";
   import TypePage from "./components/TypePage.svelte";
@@ -191,6 +192,9 @@
       {#if meta?.id === versionId && meta.meta.power}
         <a class="nav" href={formatRoute({ view: "power", version: versionId })} aria-current={route.view === "power" ? "page" : undefined}>{t.powerLink}</a>
       {/if}
+      {#if meta?.id === versionId && meta.meta.ores}
+        <a class="nav" href={formatRoute({ view: "ores", version: versionId })} aria-current={route.view === "ores" ? "page" : undefined}>{t.oresLink}</a>
+      {/if}
     {/if}
     <a class="nav" href={formatRoute({ view: "models" })} aria-current={route.view === "models" || route.view === "model" ? "page" : undefined}>{t.modelsLink}</a>
     {#if versions && versions.versions.length > 0}
@@ -270,6 +274,10 @@
     {/await}
   {:else if route.view === "credits"}
     <Credits meta={meta.meta} />
+  {:else if route.view === "ores"}
+    {#key data.id}
+      <OreRoutesPage {data} meta={meta.meta} ore={route.ore} grade={route.grade} />
+    {/key}
   {:else if route.view === "power"}
     {#key data.id}
       <PowerPage {data} meta={meta.meta} />
