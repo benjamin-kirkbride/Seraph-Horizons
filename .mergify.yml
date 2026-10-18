@@ -16,7 +16,7 @@ merge_queue:
   # mergify/merge-queue/*), so the whole queue is tested in one CI
   # wall-clock instead of one per PR. If A fails, B and C are re-tested
   # without it. 3 = one hosted-runner CI run each, in parallel.
-  # The models-only fast path relies on this: the queue's runs are on
+  # Sliced PR runs rely on this: the queue's runs are on
   # mergify/merge-queue/* branches, which ci.yml always tests in full
   # (docs/merge-queue.md).
   max_parallel_checks: 3
