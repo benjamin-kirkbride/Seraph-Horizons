@@ -3389,8 +3389,14 @@ first, top down (*Tunnels*, below); in the open the highest layer with blocks le
 (floors within a climb, `EidolonTeamwork.Lowest`), never under the floor of the tunnel band being driven;
 the stair last. Within a band, the highest layer first; in a tunnel, slice by slice from the mouth; in the
 open, rows a station wide along the area's longer side, from the far side back toward where it was
-ordered, each row the other way to the last (a sweep). What the plan cannot place a station for is held
-as out of reach and the plan made again, at most twice (`MinePlanner.MaxReruns`). *The stair*: where the
+ordered, each row the other way to the last (a sweep). When no station is left to place, every place it
+could stand is asked again (a few times at most: one the guard refused waits for a dig near it, and what
+refused it may have gone far off), and a tunnel band its lanes alone cannot finish is struck from any place
+that reaches its face, not only one in the lane (a lane whose front is on low ground, beside one whose
+front has a step). What the plan still cannot place a station for, of the blocks its precedence lets it
+dig next, is held as out of reach and the plan made again, at most twice (`MinePlanner.MaxReruns`); the
+blocks only waiting behind those (the open part under the band's floor, the bands under it) are planned
+again, not held. *The stair*: where the
 last places it would stand to clear the area would have no way out (a pit deeper than it climbs with no
 shelf), the plan leaves a stair: a straight one 2 wide against the side facing the way out, rising 2 a
 column, or, for a pit deeper than about twice its width, a spiral round its walls, 2 wide, a step of 2 a
