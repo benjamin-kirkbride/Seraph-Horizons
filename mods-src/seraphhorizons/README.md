@@ -5725,7 +5725,7 @@ crystallised ore, crushing one for one, a real quern refusing ore, no nugget rec
 recipes, the crucible by grade and an alloy, the bloomery, crucibulum's forge, smex's burden, the
 crucible furnace) and `SwitchesOffScenarios` (off, the default).
 
-### Ore processing: spalling (`OreProcessing`, `SpallingSettings`)
+### Ore processing: spalling (`OreProcessing`, `SpallingSettings`, `SpallingRefill`)
 
 The hand tier's crusher (#747): raw ore broken with a hammer where it lies, the way miners
 spalled ore with sledges before there were stamp mills. No station and no model: it works at the rock
@@ -5747,6 +5747,16 @@ server's items.
   out where it lay. A player strikes no faster than a blow every 0.3 s
   (`Spalling.BlowIntervalMs`); the server counts the blows in memory, so an ore left half struck and
   unloaded starts again.
+- **Refill** (`SpallingRefill`, on by default). When a blow breaks an ore, one of the same ore (one
+  that would stack with it: its code and its attributes, so classified and unclassified rock stay
+  apart) is taken from the striker's hotbar (its slots in order, then the offhand) or else backpack
+  and set down in its place in the same server tick. The ground storage block never goes, so the
+  client, which holds no prediction of the break, keeps striking with the left button held: the game
+  starts a new attack every repeat while the button is down, and with the block still there it lands
+  on the next ore instead of falling through to breaking the block underneath. Holding left-click
+  therefore works through every one of that ore the player carries; when they run out the spot is
+  left empty as before. It takes the ore in every game mode, as the ground takes an ore set down in
+  creative too. Off: the spot is left empty and each ore is set down by hand.
 - **Anything else** (a pick, an empty hand, any other item) keeps the game's behaviour: breaking the
   block picks the ore up.
 
@@ -5760,11 +5770,12 @@ the placed ore's help shows the hammers and the left-click. The recipe export ha
 ore item kind (`machine` shape, power `hand`, `turns` the blows, `work` in `strikes`, the hammer worn a
 point a blow, no station: `requirements` says it is worked on the ground). A speed bonus for striking on
 stone or a metal plate is left out. Code: `Ore/Core/Spalling.cs` (figures and rules),
-`Ore/Processing/OreSpalling.cs` (the blows, the next block, the hammer behaviour), `ItemGradedOre`.
+`Ore/Processing/OreSpalling.cs` (the blows, the refill, the next block, the hammer behaviour), `ItemGradedOre`.
 Tests: `tests/Ore/SpallingTests.cs`; `tests/PackTests/OreProcessingScenarios.cs` (Atlas: the hammers
 and layout, raw ore struck into its crushed ore with the hammer's wear and a pick not counting, poor and
 bountiful ore in the same two blows each into one of its grade and crystallised ore into two, the next
-block), `RecipeExportOreProcessingScenarios.cs` (the export records) and `SwitchesOffScenarios` (off).
+block, the refill from the hotbar and backpack until they run out, other ore and the switch off left
+alone), `RecipeExportOreProcessingScenarios.cs` (the export records) and `SwitchesOffScenarios` (off).
 
 ### Ore processing: the rocker (`Rocker`, `RockerSettings`)
 
