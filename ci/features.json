@@ -298,8 +298,9 @@
     },
     "StorageTweaks": {
       "code": ["StorageTweaksSystem.cs", "BigPiles.cs", "BigCrates.cs", "ClutterPiles.cs",
-               "RustyGearStack.cs", "PileHandbook.cs", "Core/BigPileRules.cs", "Core/ClutterPileRules.cs",
-               "Core/CrateSlotRules.cs", "Core/PileText.cs"],
+               "RustyGearStack.cs", "DialogueStacks.cs", "PileHandbook.cs", "Core/BigPileRules.cs",
+               "Core/ClutterPileRules.cs", "Core/CrateSlotRules.cs", "Core/PileText.cs",
+               "Core/SpanningTake.cs"],
       "codes": ["piles"],
       "switches": ["BigPiles", "BigCrates", "RustyGearStack", "NoClutterPiles"],
       "classes": []
