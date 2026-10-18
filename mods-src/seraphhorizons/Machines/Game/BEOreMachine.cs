@@ -30,11 +30,12 @@ namespace SeraphHorizons.Mod.Machines;
 /// figure (<see cref="OreRecovery.LoadAt"/> at <see cref="JobFill"/>);</item>
 /// <item>its reservoir (<see cref="MachineReservoir"/>), filled from a ppex pipe at the rig's <c>water</c>
 /// anchor (<see cref="PpexWater"/>) or by <see cref="FillWater"/>;</item>
-/// <item>its infeed (slot 0) and one held product a output anchor: a chute into the infeed cell's face
+/// <item>its infeed (slot 0) and its output anchors' slots: a chute into the infeed cell's face
 /// fills its buffer (<see cref="BEOreMachineCell"/>), a hand puts in what the machine takes, and each
-/// product leaves through its anchor's face into a chute or container (<see cref="MachineChutes"/>);
-/// with nothing there it is held (blocked), or for <c>tailings</c> (<see cref="DiscardsAt"/>) discarded on a heap
-/// (<see cref="Tailings"/>).</item>
+/// product leaves through its anchor's face into a chute or container (<see cref="MachineChutes"/>),
+/// held while the one there is full (the machine then stops, blocked); with nothing there it drops on the
+/// ground in front of the face, or for <c>tailings</c> (<see cref="DiscardsAt"/>) is discarded on a heap
+/// (<see cref="Tailings"/>), and the machine runs on (<see cref="Outlet"/>).</item>
 /// </list>
 /// The client draws it (<see cref="OreMachineRenderer"/>).
 /// </summary>
@@ -136,7 +137,8 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     /// <summary>Whether there is something to work.</summary>
     public virtual bool HasWork => !InfeedSlot.Empty;
 
-    /// <summary>Whether a product made now has somewhere to go: every held product gone.</summary>
+    /// <summary>Whether a product made now has somewhere to go: every held product gone. Only a chute or
+    /// container attached and backed up holds one (<see cref="Deliver"/>).</summary>
     public virtual bool OutputRoom => Outputs.All(a => OutputSlots(a).All(s => s.Empty));
 
     /// <summary>The water an item takes, 0 for a dry machine.</summary>
@@ -590,8 +592,8 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     /// Works <paramref name="radians"/> of shaft rotation (server side; called while the state is
     /// <see cref="MachineState.Working"/>); whether anything changed. The default is the continuous
     /// machines': each <see cref="OreMachineSpec.TurnsPerItem"/> turns one item of the infeed is worked,
-    /// spending an item's water and wearing every wearing part a use, its products held at their anchors
-    /// and pushed on.
+    /// spending an item's water and wearing every wearing part a use, its products delivered at their
+    /// anchors (<see cref="Deliver"/>).
     /// </summary>
     protected virtual bool Work(double radians)
     {
@@ -640,8 +642,9 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
     protected virtual void OnWorked(ItemStack fed) =>
         Api.World.PlaySoundAt(WorkSound, Pos.X + 0.5, Pos.Y + 0.5, Pos.Z + 0.5, null, true, 16, 0.6f);
 
-    /// <summary>Puts a product at its anchor: into what is beyond the anchor's face, else held in its
-    /// slot; tailings with nowhere to go are discarded on the heap.</summary>
+    /// <summary>Puts a product at its anchor: into what is beyond the anchor's face; what that cannot take
+    /// yet is held in its slot while a chute or container is attached there, and otherwise discarded on the
+    /// heap (tailings) or dropped on the ground in front of the face (<see cref="Outlet.Fate"/>).</summary>
     protected void Deliver(string anchor, ItemStack product)
     {
         if (!Outputs.Contains(anchor))
@@ -657,7 +660,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
             product.StackSize -= moved;
             if (product.StackSize <= 0)
                 return;
-            if (DiscardsAt(anchor) && !MachineChutes.ChutedOn(Api.World, cell, face, new DummySlot(product)) && Discard(cell.AddCopy(face), product))
+            if (LeaveUnheld(anchor, cell, face, new DummySlot(product), product))
                 return;
         }
         var slots = OutputSlots(anchor).ToList();
@@ -673,6 +676,24 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         }
         else
             Api.World.SpawnItemEntity(product, Pos.ToVec3d().Add(0.5, 1, 0.5));
+    }
+
+    /// <summary>A product left over at an outlet with nothing attached: discarded on the heap (tailings, when the
+    /// machine makes one) or dropped in front of the face; false (it is held) while a chute or container is
+    /// attached.</summary>
+    private bool LeaveUnheld(string anchor, BlockPos cell, BlockFacing face, ItemSlot probe, ItemStack product)
+    {
+        bool attached = MachineChutes.Attached(Api.World, cell, face, probe);
+        switch (Outlet.Fate(attached, DiscardsAt(anchor)))
+        {
+            case OutletFate.Held:
+                return false;
+            case OutletFate.Discarded when Discard(cell.AddCopy(face), product):
+                return true;
+            default:
+                MachineChutes.Drop(Api.World, cell, face, product);
+                return true;
+        }
     }
 
     /// <summary>Whether what leaves by output anchor <paramref name="anchor"/> is tailings, discarded on the heap
@@ -712,7 +733,8 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         return moved > 0;
     }
 
-    /// <summary>Pushes every held product on through its anchor.</summary>
+    /// <summary>Pushes every held product on through its anchor; with nothing attached there any more (or a
+    /// world saved while products were held), it goes as <see cref="Deliver"/> leaves it.</summary>
     private bool PushOutputs()
     {
         bool moved = false;
@@ -724,7 +746,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
             var (cell, face) = MachineChutes.World(Pos, Side, a);
             if (MachineChutes.TryPush(Api.World, cell, face, slot) > 0)
                 moved = true;
-            else if (DiscardsAt(anchor) && !MachineChutes.ChutedOn(Api.World, cell, face, slot) && Discard(cell.AddCopy(face), slot.Itemstack))
+            else if (LeaveUnheld(anchor, cell, face, slot, slot.Itemstack))
             {
                 slot.Itemstack = null;
                 slot.MarkDirty();
