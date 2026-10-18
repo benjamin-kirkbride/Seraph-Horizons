@@ -12,6 +12,7 @@ namespace SeraphHorizons.Mod.Machines.Core;
 ///   "feed": "continuous",                       // or "batch" (#711)
 ///   "stages": [ { "id": "timber", "adds": ["timber"],
 ///                 "materials": [ { "codes": ["game:supportbeam-*"], "quantity": 41 } ] }, ... ],
+///   // a material with "oneType": true takes any of its codes, but all of one (one brick type)
 ///   "wearing": [ { "id": "shoes", "codes": ["game:poundercap-steel"], "count": 5, "uses": 400, "stage": "stamps" } ]
 /// }
 /// </code>
@@ -85,7 +86,8 @@ public static class MachineBuildJson
                 List<string>? draws = m.TryGetProperty("draws", out _) ? Strings(m, "draws", $"stage {id}'s material {codes[0]}'s draws") : null;
                 if (draws?.FirstOrDefault(d => !adds.Contains(d)) is { } stray)
                     throw new FormatException($"stage {id}'s material {codes[0]} draws {stray}, which is not one of its adds");
-                materials.Add(new BuildMaterial(codes.Select(c => CodePattern.Normalise(c)!).ToList(), quantity, picks, draws));
+                bool oneType = m.TryGetProperty("oneType", out var one) && one.ValueKind == JsonValueKind.True;
+                materials.Add(new BuildMaterial(codes.Select(c => CodePattern.Normalise(c)!).ToList(), quantity, picks, draws, OneType: oneType));
             }
             stages.Add(new MachineStage(id, adds, materials, Str(s, "name")));
         }

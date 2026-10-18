@@ -11,6 +11,10 @@ public sealed class OreProcessingConfig
     /// <summary>Units of metal in one concentrate item (a nugget's 5).</summary>
     public double ConcentrateUnits { get; set; } = 5;
 
+    /// <summary>Units of sulfur in one sulfur powder (<c>game:powder-sulfur</c>), what roasting a sulfide
+    /// recovers its sulfur as (#765, #925).</summary>
+    public double SulfurUnitsPerPowder { get; set; } = 5;
+
     /// <summary>The hand stations' figures (#765), keyed by lower-case name: the gold pan and rocker
     /// (concentrate), the amalgam pan (free metal caught as amalgam), the firepit (roasting), the bone-ash
     /// cupel and clay liquation pan (parting).</summary>
@@ -42,6 +46,9 @@ public sealed class OreProcessingConfig
         public double ChargeHours { get; set; }
         /// <summary>The Parkes kettle's share of its zinc returned.</summary>
         public double ZincReturn { get; set; }
+        /// <summary>A roaster's share of a sulfide's sulfur recovered as sulfur powder (#765: the stall
+        /// roaster ⅓, the reverberatory 0.7; the firepit, a hand station, none).</summary>
+        public double Sulfur { get; set; }
     }
 
     /// <summary>The share of its units each <see cref="OreForm"/> that is not rock smelts to, keyed by
@@ -98,6 +105,9 @@ public sealed class OreProcessingConfig
         public bool Free { get; set; }
         /// <summary>The share of the main metal smelting gives without parting.</summary>
         public double Unparted { get; set; } = 1;
+        /// <summary>A sulfide's sulfur, units per unit of its main metal, from its formula (#765: galena
+        /// 0.155, chalcopyrite 1.01, pyrite 1.15); 0 for an ore with none.</summary>
+        public double Sulfur { get; set; }
         public List<ByProductEntry> ByProducts { get; set; } = new();
     }
 

@@ -529,5 +529,11 @@
   },
   "StampBattery": true,
   "Sluice": true,
-  "Jig": true
+  "Jig": true,
+  "StallRoaster": true,
+  "StallRoasterSettings": {
+    "BedFirewood": 4,
+    "HalfWalledDraught": 0.5,
+    "OpenDraught": 0.0
+  }
 }

@@ -1202,4 +1202,20 @@ public class SeraphHorizonsConfig
     /// as gravel. Needs OreProcessing (off means its frame and its recipe do not exist, and jigs already
     /// placed are lost). The server's setting decides.</summary>
     public bool Jig { get; set; } = true;
+
+    /// <summary>The stall roaster (StallRoaster/, README "Ore processing: the stall roaster"; #925): a roasting
+    /// stall, an open-fronted brick bay with a flue to a chimney, built on its iron frame in two stages (the
+    /// brickwork in any one fired brick, the lining). Batch, by hand: a bed of firewood and up to 32 sulfide rock
+    /// (raw or crushed), lit, burn on their own sulfur for 40 in-game hours with the front walled up and the row's
+    /// chimney drawing; each rock roasts one for one into stall-roasted rock, which smelts at its grade's share x
+    /// 92 % (the firepit's at 85 %), and a third of the charge's sulfur is taken from the heap's crust as sulfur
+    /// powder (ore-core's figures, config/ore-processing.json). Needs OreProcessing (off means its frame and its
+    /// recipe do not exist, and stalls already placed are lost). The server's setting decides.</summary>
+    public bool StallRoaster { get; set; } = true;
+
+    /// <summary>The stall roaster's own figures (its recovery, charge, burn and sulfur are ore processing's,
+    /// <c>config/ore-processing.json</c>): the bed's firewood, and the share of its draught a half-walled or
+    /// open front gives; a value out of range falls back to its default with a warning. The server's are
+    /// used.</summary>
+    public StallRoaster.Core.StallRoasterConfig StallRoasterSettings { get; set; } = new();
 }

@@ -69,6 +69,7 @@ public class OreProcessingSystem : ModSystem
         new(Domain, "itemtypes/oreprocessing/crushedore.json"),
         new(Domain, "itemtypes/oreprocessing/groundore.json"),
         new(Domain, "itemtypes/oreprocessing/roastedore.json"),
+        new(Domain, "itemtypes/oreprocessing/stallroastedore.json"),
         new(Domain, "itemtypes/oreprocessing/concentrate.json"),
         new(Domain, "itemtypes/oreprocessing/roastedconcentrate.json"),
         new(Domain, "itemtypes/oreprocessing/amalgam.json"),
