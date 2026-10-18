@@ -57,6 +57,8 @@ public sealed class CampsConfig
 /// by climate as vanilla's. The spawner keeps one trader, and spawns again when it is gone. A spawner
 /// inside a story structure (vanilla's treasure hunter, or a mod's) is left alone: its trader is a
 /// story NPC.</item>
+/// <item>The game's ponds are kept out of placed camps (<see cref="CampPondGuard"/>): a camp written
+/// into a neighbour column before its pond pass could otherwise be flooded by it.</item>
 /// </list>
 /// Only in worlds that had the grid from their first start (<see cref="TradingSystem.GridActive"/>).
 /// </summary>
@@ -165,6 +167,7 @@ public sealed class TraderCamps
         _weights = _camps.Select(c => (double)Math.Max(0, c.Structure.Chance)).ToArray();
         _api.Logger.Notification("[seraphhorizons] Trading: {0} camp structures on the grid ({1}), {2} kept for settlements, {3} dropped; ground up to {4} uneven",
             _camps.Length, string.Join(", ", _camps.Select(c => c.Structure.Code).Distinct()), settlement, dropped, SlopeTolerance);
+        if (_camps.Length > 0) CampPondGuard.Bind(_api.Logger);
     }
 
     private void OnChunkColumnGen(IChunkColumnGenerateRequest request)
