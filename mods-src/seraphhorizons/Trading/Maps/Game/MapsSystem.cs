@@ -43,13 +43,15 @@ namespace SeraphHorizons.Mod.Trading.Maps;
 /// <see cref="CampLeads"/>), listed on the trade window's Maps &amp; leads tab and bought there
 /// (<see cref="BuyCampLead"/>), the group's history in <see cref="Leads"/> (saved as
 /// <see cref="LeadsSaveKey"/>).</item>
-/// <item><b>Per player</b>: the shelf has no buyer, so an ore map offer shows the precision of the
-/// player trading (<see cref="MapOffers.MaxPrecision"/> of their <c>mapTier</c>), re-set when the
-/// trading player changes (<see cref="TradingGlueSystem.TradingPlayerPriced"/>); leads past the
+/// <item><b>Precision</b>: an ore map offer's precision is drawn when it is shelved
+/// (<see cref="MapPriceTable.RollPrecision"/>, <c>precisionWeights</c>) and kept on the offer until
+/// the next restock, the same for every buyer; it prices the offer.</item>
+/// <item><b>Per player</b>: prices are re-set for the player trading (standing's price factor) when
+/// the trading player changes (<see cref="TradingGlueSystem.TradingPlayerPriced"/>); the
 /// settlement lead is shelved when the shelf's tier has <c>mapsToTraders</c> and sold only to a buyer
 /// whose own tier has it.</item>
 /// <item><b>A sale</b> (the game's ITradeableCollectible, <see cref="MapTradeHooks"/>): the deal is
-/// refused if the deposit sold meanwhile or the buyer's standing does not reach the offer. The
+/// refused if the deposit sold meanwhile or (the settlement lead) the buyer's standing does not reach it. The
 /// player receives the offer as a pending stack; the deposit is reserved and verified
 /// (<see cref="DepositService.Verify"/>, which may generate chunks), and the pending stack becomes
 /// the map (<see cref="MapIssuer.Issue"/>, which marks it sold) or, if the deposit is gone or
@@ -272,16 +274,21 @@ public class MapsSystem : ModSystem
     private TradeEntry? OreEntry(DepositCandidate c, bool urgent)
     {
         bool underwater = c.Record.Underwater == true;
-        if (OrePrice(c.Metal, c.Record.Tier?.ToString().ToLowerInvariant(), MapPrecision.Rough, underwater) is not { } price) return null;
+        if (OrePrice(c.Metal, c.Record.Tier?.ToString().ToLowerInvariant(), MapPrecision.Rough, underwater) is null) return null;
         if (!c.Surveyed)
         {
             Surveys?.Want(c.Key, urgent);
             return Entry(OfferOreCode, SurveyingAttrs(c), 1, 1, false);
         }
+        // Drawn once, here, as the offer is shelved: kept on the offer until the next restock
+        // replaces it, the same for every buyer. The world's own generator: nothing needs to
+        // reproduce the draw, only to keep it.
+        int precision = Prices.RollPrecision(_sapi!.World.Rand);
+        if (OrePrice(c.Metal, c.Record.Tier?.ToString().ToLowerInvariant(), precision, underwater) is not { } price) return null;
         var attrs = new JObject
         {
             [MapOfferAttrs.Offer] = MapOfferAttrs.OreMap, [MapOfferAttrs.Deposit] = c.Key.Id, [MapOfferAttrs.Metal] = c.Metal,
-            [MapOfferAttrs.Precision] = MapPrecision.Rough, [MapOfferAttrs.Distance] = Math.Round(c.Distance),
+            [MapOfferAttrs.Precision] = precision, [MapOfferAttrs.Distance] = Math.Round(c.Distance),
             [MapOfferAttrs.SizeTier] = c.Record.Tier!.Value.ToString().ToLowerInvariant(),
         };
         var makeup = c.Record.Makeup!;
@@ -369,12 +376,11 @@ public class MapsSystem : ModSystem
         if (trader.Api == _sapi) Price(trader, player);
     }
 
-    /// <summary>Sets every offer's price (and an ore map's precision) for the player trading, or for
-    /// nobody (precision 1); standing's price factor through the economy's modifiers.</summary>
+    /// <summary>Sets every offer's price for the player trading, or for nobody; an ore map by its own
+    /// precision (drawn when shelved, rough if it has none), standing's price factor through the
+    /// economy's modifiers.</summary>
     public void Price(EntitySeraphTrader trader, IPlayer? player)
     {
-        int maxPrecision = player is null || _trading is null ? MapPrecision.Rough
-            : MapOffers.MaxPrecision(_trading.Standing.UnlocksFor(player, trader).MapTier);
         var economy = EconomySystem.Of(trader.Api);
         foreach (var slot in trader.Inventory.SellingSlots)
         {
@@ -394,8 +400,8 @@ public class MapsSystem : ModSystem
                     slot.MarkDirty();
                     continue;
                 case MapOfferAttrs.OreMap:
-                    a.SetInt(MapOfferAttrs.Precision, maxPrecision);
-                    if (OrePrice(a.GetString(MapOfferAttrs.Metal) ?? "", a.GetString(MapOfferAttrs.SizeTier), maxPrecision,
+                    if (OrePrice(a.GetString(MapOfferAttrs.Metal) ?? "", a.GetString(MapOfferAttrs.SizeTier),
+                            a.GetAsInt(MapOfferAttrs.Precision, MapPrecision.Rough),
                             a.GetBool(MapOfferAttrs.Underwater)) is not { } orePrice)
                     {
                         item.Stock = 0;
@@ -526,7 +532,7 @@ public class MapsSystem : ModSystem
     /// <summary>
     /// Why this map or lead offer may not be sold to <paramref name="player"/> now, as a lang key (mod
     /// domain) and its arguments, or null: sold out; the deposit sold, being sold, or gone (the shelf's
-    /// stock is set to 0 then); an ore map above the player's precision; a further lead without their
+    /// stock is set to 0 then); a further lead without their
     /// own <c>mapsToTraders</c>; or a map they have already (<see cref="MapMarksSystem.Check"/>: its
     /// target marked on their map as precisely or more, or a copy carried). The trade window asks
     /// before a buy (so nothing is paid), and the deal's own hook (<see cref="OnTryBuy"/>) again.
@@ -557,9 +563,6 @@ public class MapsSystem : ModSystem
                     if (shelf?.TradeItem is { } item) item.Stock = 0;
                     return ("trading-maps-error-gone", []);
                 }
-                int max = MapOffers.MaxPrecision(unlocks.MapTier);
-                if (offer == MapOfferAttrs.OreMap && a.GetAsInt(MapOfferAttrs.Precision, MapPrecision.Rough) > max)
-                    return ($"trading-maps-error-precision-{max}", []);
                 break;
             }
             case MapOfferAttrs.Lead:
