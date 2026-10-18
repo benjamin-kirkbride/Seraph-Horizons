@@ -5720,7 +5720,16 @@ an item's handbook page shows its tooltip text too: a guide page, "Ore processin
 (`config/handbook/oreprocessing.json`, hidden with the switch off), walks the whole chain with the
 grade shares and roast losses, and every ore form's page has an "Ore processing" section
 (`OreHandbook`): in the type file for the forms worked one way whatever the ore, and added in code by
-the ore's class (oxide or sulfide) for raw, crystallised, crushed and ground ore. The cupel bead's,
+the ore's class (oxide or sulfide) for raw, crystallised, crushed and ground ore. The figures those
+texts quote (grade shares, roast and parting shares, catch rates, bullion's second metal, the roasting
+heat, litharge's 20 in 21) are generated, not typed: the texts live in
+`Ore/tools/ore-guide-numbers.template.json` with `{{name}}` placeholders, and
+`python3 mods-src/seraphhorizons/Ore/tools/make_ore_guide_numbers.py` fills them from
+`config/ore-processing.json` and the C# constants it reads (`OreRoasting.MeltingPoint`, raw units,
+`LithargeRate`, the bar's and a bit's units) and writes those keys of `lang/en.json`, nothing else.
+Edit the template, never those keys in en.json; `--check` (run by `tools/tests/test_ore_guide_numbers.py`)
+fails on drift, and wording that holds for one value only ("smelts whole", one parting share) stops the
+script until reworded. The cupel bead's,
 the liquation pan residue's and the melting pot's lines keep their contents and drop the prose.
 
 Each rock form is one handbook group per ore (its grades together, `groupBy` in its type file), which
