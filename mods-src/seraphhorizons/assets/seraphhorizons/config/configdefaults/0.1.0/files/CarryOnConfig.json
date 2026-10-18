@@ -1,5 +1,5 @@
 {
-  "ConfigVersion": 5,
+  "ConfigVersion": 6,
   "Carryables": {
     "Anvil": true,
     "Barrel": true,
@@ -97,19 +97,22 @@
     "DespawnAfterDays": 30.0,
     "PickupAccess": "OwnerFirst",
     "GracePeriodSeconds": 300.0,
-    "Scale": 0.6
+    "Scale": 0.6,
+    "SpawnAsEntityOnPlacementByDefault": false
   },
   "CarryOptions": {
     "RemoveInteractDelayWhileCarrying": false,
     "InteractSpeedMultiplier": 1.0,
     "MaxInteractionDistance": 6,
+    "OpenGroundStorageBagWhileCarrying": true,
+    "PickupGroundStorageBagWhileCarrying": true,
     "BackSlotEnabled": true,
     "AllowHighCapacityStorageOnBack": false,
     "PreventSwapFromBackOnTarget": [
       "behavior::Container",
       "behavior::Door",
+      "behavior::BlockEntityInteract",
       "class::portals.portal",
-      "code::groundstorage",
       "class::BlockGroundStorage"
     ],
     "TooHotToCarry": true,
@@ -152,6 +155,8 @@
     "DisableHarmonyPatch": false,
     "EnablePackAdjustmentTool": false,
     "DisableConfigWatcher": false,
+    "ReconditionOnConfigChange": false,
+    "ReconditionFullRestore": false,
     "CarryableReport": {
       "Enabled": false,
       "OutputToLog": true,

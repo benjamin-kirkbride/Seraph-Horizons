@@ -53,6 +53,10 @@
 //   capacityUnits: the most metal units a charge holds; tinPoint: the heat (°C) the tin sweats out at
 //   (the pan's melting point); leadPoint: over it, the lead runs with the tin and the charge gives no
 //   lead; secondsPerIngot: the time at the tin point per 100 units of charge.
+// - bullion: the parting machines' feed (#740; Ore/Core/Bullion.cs). Every form of an ore with a
+//   by-product smelts to its base bullion, a bar of 100 units of the main metal still carrying the
+//   by-product at its share. richLeadSilver: the share of a rich lead bar's lead that is silver, the
+//   Parkes kettle's crust retorted (#927); the kettle takes silver-lead leaner than that.
 // - retort: the still (the game's boiler with a condenser beside it, #726). "mercury" is the
 //   mercury item (a liquid portion, 100 to the litre); "amalgamMercury" the portions the amalgam pan
 //   puts into one amalgam (#718), of which the still returns "mercuryReturn" while the gold or silver
@@ -83,6 +87,7 @@
   },
   "cupel": { "capacityUnits": 200, "leadPerOreUnit": 1, "meltingPoint": 950, "secondsPerIngot": 60 },
   "liquation": { "capacityUnits": 100, "tinPoint": 240, "leadPoint": 327, "secondsPerIngot": 15 },
+  "bullion": { "richLeadSilver": 0.1 },
   "smeltByGrade": { "poor": 0.10, "medium": 0.25, "rich": 0.40, "bountiful": 0.50 },
   "smelt": { "concentrate": 1.0, "roastedconcentrate": 1.0, "sponge": 1.0 },
   "retort": {

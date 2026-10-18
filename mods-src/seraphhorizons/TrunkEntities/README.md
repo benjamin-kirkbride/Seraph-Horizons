@@ -510,14 +510,21 @@ Carry On. The stations and machines use it through `TryGive`, `Take`, `Carried` 
   (`StripRacks`): in code, after Carry On's own asset pass merges and maps Carryables, rather than a
   JSON patch racing Logging Expanded's. The heating rack and stick storage keep theirs.
 - **Carts and sleds.** Cartwright's Caravan ships Carry On's `attachablecarryable` on its cart and
-  sled disabled, but Carry On 2.0.0-pre.8's own `patches/carryonmore/cartwrightscaravan.json` adds
+  sled disabled, but Carry On 2.0.0-rc.1's own `patches/carryonmore/cartwrightscaravan.json` adds
   it to both entity types' server and client behaviour lists, so a carried trunk goes into a cart's
-  or sled's storage slot by Carry On's attach; the feature adds nothing to the carts.
+  or sled's storage slot by Carry On's attach (`ICarryableEntitySlotHandler.TryAttach` on that
+  behaviour, by inventory slot); the feature adds nothing to the carts. (From rc.1 that behaviour
+  also adds a `carryon:carryable` in slot mode to the cart at run time, a second after it loads,
+  when it has none.)
   How it looks there is Logging Expanded's existing patch (the `treetrunk-xs-cart` shape per slot).
   Taking it off by Carry On's own key puts it in the hands; so does the game's empty-hand take from
   an attachment slot (`EntityBehaviorAttachable.TryRemoveAttachment`, prefixed: a trunk fits no
   inventory), refused with the hands-full error while they are full and for a cart someone else
-  owns. If that method is gone, one warning, and only Carry On's key takes a trunk off. Carry On's
+  owns. If that method is gone, one warning, and only Carry On's key takes a trunk off. Carry On
+  (rc.1) has its own prefix there (`CarryOn.Patches.EntityBehaviorAttachable_TryRemoveAttachment_Patch`)
+  that refuses the game's take of anything it attached (a `carryonbackup` attribute) and shows
+  `vanilla-detach-blocked` on the client; that prefix is itself prefixed (found by name, a warning
+  if it is not there) to let a trunk through, so the pack's take runs whichever prefix comes first. Carry On's
   cart leftovers on the stack (`backpack`, `carryonbackup`, an empty `type`) are removed whenever a
   trunk leaves the hands.
 - **Troubleshooting the walk speed.** Two probes print everything that goes into the player's

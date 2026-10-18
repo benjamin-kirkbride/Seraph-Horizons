@@ -9,7 +9,6 @@
   "CartReachEntities": [
     "cartwrightscaravan:*"
   ],
-  "CarryOnIconsPerWorld": true,
   "NanMotionDiagnostics": true,
   "WailaRounding": true,
   "FoodHydration": true,
@@ -22,6 +21,7 @@
   "IrrigationVesselRetired": true,
   "BloodSausageInMixingBowl": true,
   "DuplicateRecipes": true,
+  "FruitDries": true,
   "PanningDropsTrimmed": true,
   "GearboxSourceRatio": true,
   "LargerTunRack": true,

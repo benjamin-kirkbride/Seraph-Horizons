@@ -51,7 +51,7 @@ section alone without the cost of a full export.
    are none, it looks for `CombustibleProperties.SmeltedStack` (ACulinaryArtillery
    simmering). The other simple public values of a mod recipe (power, temperature, ...)
    go to `extra`.
-3. **Water copies.** Hydrate or Diedrate (2.5.6, `RecipeGenerator`) copies every
+3. **Water copies.** Hydrate or Diedrate (2.5.8, `RecipeGenerator`) copies every
    registered recipe, in every recipe list, that takes `game:waterportion` in a slot or in
    a container's `recipeAttributes.requiresContent`: one copy per kind of its clean water
    (`hydrateordiedrate:waterportion-boiled-natural-clean`, `-boiled-rain-clean`,
@@ -425,7 +425,7 @@ Checked in the pack's code (decompiled) and assets; none is exported:
 | Age of Flax (fork) 1.1.6 | Drying rack (`BlockEntityDryingRack`) for retted flax | Only speeds the flax bundle's own `Dry` transition (×3 by its balance config); the transition is exported |
 | Alchemy 2.2.0-rc.12 | Herb racks (`BlockEntityHerbRacks`) for `herbrackable` items | Only a speed: `Dry` and `Melt` ×4, or ×5 in a closed room |
 | Food Shelves 3.1.0 | Ceiling racks, jars, barrel and tun racks | Only speeds (drying ×4.5, curing ×0.74 to ×0.8) through `OnAcquireTransitionSpeed` |
-| Immersive Woodworking 1.3.11 | Green bark dries faster in ground storage (`ItemIwGreenBark.GetTransitionRateMul`) | Only a speed |
+| Immersive Woodworking 1.3.13 | Green bark dries faster in ground storage (`ItemIwGreenBark.GetTransitionRateMul`) | Only a speed |
 | Purposeful Storage, A Culinary Artillery, Turpentine, Yang Transport, Hydrate or Diedrate | Their assemblies hook `OnAcquireTransitionSpeed`, `GetTransitionSpeedMul` or `TransitionableSpeedMulByType` | Speeds, by the hooks they use; not decompiled further |
 | Compost Bin 1.3.15 | A bin that composts perishables, with a Harmony patch on `GetTransitionRateMul` for perishing | Composting, not drying; not examined further |
 | Stone Bake Oven 1.4.0 | "Smoke" on the oven grill | Only the grill block's hot/cold look, not a process |

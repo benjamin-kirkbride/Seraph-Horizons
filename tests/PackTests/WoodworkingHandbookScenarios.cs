@@ -38,10 +38,12 @@ public partial class WoodworkingScenarios
     ];
 
     /// <summary>Entries shown only on what is retired and hidden (or on a guide page the tweak
-    /// drops), so they may keep naming it.</summary>
+    /// drops), so they may keep naming it. Immersive Woodworking's <c>iwsource-*-no(sawmill|chopper)</c>
+    /// entries (1.3.13) are its texts for when its sawmill or chopper is switched off: unreachable while
+    /// WoodworkingSettings holds <c>EnableSawmill</c> and <c>EnableChopper</c> on.</summary>
     private static readonly Regex RetiredKeys = new(
         "^(immersivewoodworking:(craftinginfo-woodworking-|pitsaw-handbook-|sawhorse-handbook-|block-sawhorse$|blockhelp-sawhorse-"
-        + "|blockinfo-sawhorse-|ingameerror-sawhorse-|item-pitsaw|block-choppingblock-\\*$)"
+        + "|blockinfo-sawhorse-|ingameerror-sawhorse-|item-pitsaw|block-choppingblock-\\*$|iwsource-[a-z]+-text(-also)?-no(sawmill|chopper)$)"
         + "|loggingmod:(introduction-|block-(debarked|bound|advanced)?splittinglog-|block-handbooktext-loggingmod:(advanced)?splittinglog-"
         + "|wi-(advanced)?splittinglog-|wi-debarkedsplittinglog-|wi-boundsplittinglog-|wi-sawhorse-debark-chisel$))");
 
@@ -56,7 +58,9 @@ public partial class WoodworkingScenarios
     }
 
     // Fails when a page asset or its lang is missing, or the mods' guides changed code or title
-    // (the client would then show both: update WoodworkingGuidePages.Replaced).
+    // (the client would then show both: update WoodworkingGuidePages.Replaced). Logging Expanded's
+    // guide is an asset; Immersive Woodworking's (since 1.3.13) is a page its client handler adds
+    // with its lang keys as code and title, so that one is checked by its title's lang key.
     [AtlasScenario]
     public void The_six_pages_and_the_two_they_replace_are_there()
     {
@@ -88,7 +92,12 @@ public partial class WoodworkingScenarios
             Assert.True(page.TextKey().Length < 255, "a page's text under 255 characters is a lang key");
         });
         Assert.All(WoodworkingGuidePages.Replaced, replaced =>
-            Assert.Contains(pages, p => p.Code == replaced.PageCode && p.Title == replaced.TitleKey));
+        {
+            if (replaced.TitleKey.StartsWith(WoodworkingMods.IwModId + ":", StringComparison.Ordinal))
+                Assert.True(en.ContainsKey(replaced.TitleKey), replaced.TitleKey);
+            else
+                Assert.Contains(pages, p => p.Code == replaced.PageCode && p.Title == replaced.TitleKey);
+        });
     }
 
     // Fails when a mod drops or renames a key: update WoodworkingGuide.Replacements or
