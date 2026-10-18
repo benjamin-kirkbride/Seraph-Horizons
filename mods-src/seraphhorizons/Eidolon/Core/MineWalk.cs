@@ -29,6 +29,7 @@ public abstract class MineGraph
         Parent = new int[site.Volume];
         Kids = new byte[site.Volume];
         Array.Fill(Parent, -1);
+        MineWork.Bytes(site.Volume * 9L);
     }
 
     protected MineGraph(MineGraph other, MineSite site, IReadOnlySet<PathCell>? bad)
@@ -38,6 +39,7 @@ public abstract class MineGraph
         HomeNode = other.HomeNode;
         Parent = (int[])other.Parent.Clone();
         Kids = (byte[])other.Kids.Clone();
+        MineWork.Bytes(Parent.Length * 5L);
     }
 
     protected MineSite Site { get; }
@@ -123,6 +125,7 @@ public abstract class MineGraph
         var p = Site.At(index);
         int step = Site.Step, count = 0;
         int y0 = Math.Max(p.Y - step, Site.Window.Min.Y), y1 = Math.Min(p.Y + step, Site.Window.Max.Y);
+        MineWork.Add(Directions.Length * (y1 - y0 + 1));
         foreach (var (dx, dz) in Directions)
         {
             int x = p.X + dx, z = p.Z + dz;
@@ -157,6 +160,7 @@ public abstract class MineGraph
     {
         var p = Site.At(index);
         int step = Site.Step;
+        MineWork.Add(Directions.Length * (2 * step + 1));
         foreach (var (dx, dz) in Directions)
         for (int dy = -step; dy <= step; dy++)
         {
@@ -274,6 +278,7 @@ public abstract class MineGraph
         var all = new List<int>(orphans);
         all.AddRange(maybe);
         all.Sort();
+        MineWork.Add(all.Count);
         for (int k = 0; k < all.Count; k++)
         {
             int c = all[k];
@@ -303,6 +308,7 @@ public abstract class MineGraph
     {
         var p = Site.At(index);
         int step = Site.Step;
+        MineWork.Add(Directions.Length * (2 * step + 1));
         foreach (var (dx, dz) in Directions)
         for (int dy = -step; dy <= step; dy++)
         {
@@ -324,6 +330,13 @@ public abstract class MineGraph
     private bool Clean(int from, int index, HashSet<int> dead, HashSet<int> dirty, HashSet<int> clean)
     {
         var path = new List<int>();
+        bool result = Clean(from, index, dead, dirty, clean, path);
+        MineWork.Add(path.Count + 1);
+        return result;
+    }
+
+    private bool Clean(int from, int index, HashSet<int> dead, HashSet<int> dirty, HashSet<int> clean, List<int> path)
+    {
         int at = from;
         for (int steps = 0; steps < Parent.Length; steps++)
         {
@@ -358,6 +371,7 @@ public abstract class MineGraph
     {
         var p = Site.At(index);
         int step = Site.Step;
+        MineWork.Add(Directions.Length * (2 * step + 1));
         foreach (var (dx, dz) in Directions)
         for (int dy = -step; dy <= step; dy++)
         {
@@ -396,6 +410,7 @@ public abstract class MineGraph
 
     public void Undo(int mark)
     {
+        MineWork.Add(_journal.Count - mark);
         for (int k = _journal.Count - 1; k >= mark; k--)
         {
             var (kind, index, old) = _journal[k];
@@ -417,9 +432,13 @@ public abstract class MineGraph
     /// <summary>The out nodes, in index order.</summary>
     protected IEnumerable<int> OutIndices()
     {
+        MineWork.Bytes(Parent.Length * 4L);
         for (int i = 0; i < Parent.Length; i++)
             if (Parent[i] >= 0)
+            {
+                MineWork.Add(1);
                 yield return i;
+            }
     }
 }
 
@@ -436,11 +455,17 @@ public sealed class MineWalk : MineGraph
     private readonly byte[] _node;
     private readonly List<PathCell> _opened = new();
 
-    public MineWalk(MineSite site, PathCell? home, IReadOnlySet<PathCell>? bad = null) : base(site, home, bad) =>
+    public MineWalk(MineSite site, PathCell? home, IReadOnlySet<PathCell>? bad = null) : base(site, home, bad)
+    {
         _node = new byte[site.Volume];
+        MineWork.Bytes(_node.Length);
+    }
 
-    private MineWalk(MineWalk other, MineSite site, IReadOnlySet<PathCell>? bad) : base(other, site, bad) =>
+    private MineWalk(MineWalk other, MineSite site, IReadOnlySet<PathCell>? bad) : base(other, site, bad)
+    {
         _node = (byte[])other._node.Clone();
+        MineWork.Bytes(_node.Length);
+    }
 
     /// <summary>A copy on <paramref name="site"/> (a copy of this one's), reading <paramref name="bad"/> for its
     /// bad stands if given (else this one's set).</summary>
@@ -452,8 +477,11 @@ public sealed class MineWalk : MineGraph
 
     protected override bool NodeAt(int index, int x, int y, int z) => _node[index] != 0;
 
-    private bool NodeNow(int x, int y, int z) =>
-        Site.BoxFree(x, y, z) && Site.Footing(x, y, z) > 0 && !IsBad(x, y, z);
+    private bool NodeNow(int x, int y, int z)
+    {
+        MineWork.Add(20);
+        return Site.BoxFree(x, y, z) && Site.Footing(x, y, z) > 0 && !IsBad(x, y, z);
+    }
 
     protected override void Gained(int index)
     {
@@ -472,6 +500,7 @@ public sealed class MineWalk : MineGraph
     {
         Array.Fill(Parent, -1);
         Array.Clear(Kids);
+        MineWork.Bytes(Parent.Length * 5L);
         var w = Site.Window;
         var free = new bool[w.SizeY + 1];
         for (int x = w.Min.X; x <= w.Max.X; x++)
@@ -486,6 +515,7 @@ public sealed class MineWalk : MineGraph
                 bool node = !free[k - 1] && y + 3 <= w.Max.Y && free[k] && free[k + 1] && free[k + 2] && free[k + 3] && !IsBad(x, y, z);
                 _node[Site.Index(x, y, z)] = (byte)(node ? 1 : 0);
             }
+            MineWork.Add(5 * w.SizeY);
             yield return false;
         }
         var queue = new Queue<int>();
@@ -501,6 +531,7 @@ public sealed class MineWalk : MineGraph
                     queue.Enqueue(i);
                 }
             }
+            MineWork.Add(w.SizeZ * w.SizeY);
             yield return false;
         }
         int units = 0;
@@ -540,6 +571,7 @@ public sealed class MineWalk : MineGraph
     {
         var status = new HashSet<int>();
         var region = new HashSet<int>();
+        MineWork.Add(cells.Count * 4 * 4 * 7);
         foreach (var cell in cells)
         {
             for (int x = cell.X - 1; x <= cell.X + 2; x++)
@@ -570,6 +602,7 @@ public sealed class MineWalk : MineGraph
             if (now && Parent[i] < 0)
                 maybe.Add(i);
         }
+        MineWork.Add(region.Count);
         foreach (int i in region)
             if (!status.Contains(i) && _node[i] != 0 && Parent[i] < 0)
                 maybe.Add(i);
@@ -662,6 +695,7 @@ public sealed class MineWalk : MineGraph
             }
             at = parent;
         }
+        MineWork.Add(path.Count + 1);
         foreach (int n in path)
             _clean[n] = clean;
         return clean;
@@ -673,6 +707,7 @@ public sealed class MineWalk : MineGraph
     /// <summary>Nodes that became out since the last call (not by a tentative change): new places to stand.</summary>
     public IReadOnlyList<PathCell> TakeOpened()
     {
+        MineWork.Add(_opened.Count);
         var list = _opened.ToList();
         _opened.Clear();
         return list;
@@ -693,6 +728,7 @@ public sealed class MineWalk : MineGraph
                 break;
             i = p;
         }
+        MineWork.Add(route.Count);
         return route;
     }
 }
