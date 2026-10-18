@@ -1,0 +1,24 @@
+{
+  "code": "creativeitemsource",
+  "class": "seraphhorizons.CreativeItemSource",
+  "entityClass": "seraphhorizons.CreativeItemSource",
+  "shape": { "base": "game:block/basic/cube" },
+  "textures": {
+    "all": { "base": "game:block/metal/sheet/gold1" }
+  },
+  "attributes": {
+    "handbook": { "exclude": true }
+  },
+  "creativeinventory": { "general": ["*"], "mechanics": ["*"] },
+  "blockmaterial": "Metal",
+  "drops": [],
+  "resistance": 3,
+  "sideopaque": { "all": true },
+  "sidesolid": { "all": true },
+  "sounds": {
+    "place": "game:block/anvil",
+    "break": "game:block/anvil",
+    "hit": "game:block/anvil",
+    "walk": "game:walk/stone"
+  }
+}

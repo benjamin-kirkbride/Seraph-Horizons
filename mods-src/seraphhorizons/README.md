@@ -32,11 +32,12 @@ Only the game's own assemblies are referenced at build time: each tweak to anoth
 it patches by name, so the mod builds from the game alone (`release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
-chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source and runs `/clear`; Tidy Variants, cart reach, Carry On's
+chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source, runs the creative item source and sink and runs `/clear`; Tidy Variants, cart reach, Carry On's
 icon reset, the creative search tweaks, the handbook's kept place, the NaN motion diagnostics and the info HUD's rounding run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
-that has it (a server with the steam source switched off, or without ppex, has no such block).
+that has it (a server with the steam source switched off, or without ppex, has no such block). The
+creative item source and sink are blocks of its own in the same way, with dialogs drawn on the client.
 Unified woodworking runs on both sides too (the server does the work, the client draws the
 splitting block, predicts its upgrades and arranges the handbook), and its splitting block has a
 block entity behavior of this mod, which a client needs in the same way. So are the bucking
@@ -206,6 +207,52 @@ exlib's `ExpandedLib.Industry.Pipes.IPipeNode` and the node base class is
 not there and the block is left out. If ppex has changed shape (`IPipeNode.TryProduce(float, float,
 string, float, bool)` or exlib's `BlockNetworkNode.HasConnectorAt(BlockFacing)` is gone) the mod
 logs a warning and the block is left out the same way.
+
+### Creative item source and sink (`CreativeItemSource`)
+
+Two creative-only blocks for testing item transport (chutes, hoppers, and whatever is fed by them),
+in `CreativeItems/`: `seraphhorizons:creativeitemsource` ("Item source (Creative)", a gold sheet
+cube) and `seraphhorizons:creativeitemsink` ("Item sink (Creative)", a black bronze one). Both are
+in the General and Mechanics creative tabs, have no recipe, drop nothing and are left out of the
+handbook. Right-click opens either block's dialog for a player in creative mode who may use the
+block where it stands (the claims check any container makes); the server checks the same for
+every change the dialog sends, and ignores it otherwise.
+
+The source feeds one item, without end, to a game hopper directly under it, and to nothing else (not
+a chute, not a crate; a source over anything else gives nothing). Its dialog has:
+
+- one ghost slot: clicking it with an item on the mouse copies that item (its code and every
+  attribute; a temperature is kept as it was when copied, so every copy arrives at it) and leaves
+  the mouse's stack as it was; clicking it with nothing on the mouse clears it. The dialog sends
+  only which of the two it was: the server copies its own view of the player's mouse slot, never
+  a stack the client describes;
+- the rate, in items per second (0.1 to 100; fractions carry over from tick to tick, so 0.5 gives
+  one item every two seconds), and an Unlimited switch that instead keeps the hopper full;
+- a Paused switch, which stops the feed and keeps every setting;
+- a count limit ("Stop after", 0 for none): once it has given that many it stops, until a reset;
+- what it has given and its rate in items a minute, and a Reset button that zeroes both.
+
+Every 200 ms the server works out what is due (`ItemFeed`: at most a second of the rate builds up
+while the hopper is full, so a full hopper that empties gets the rate again, not a burst) and puts
+it into the hopper as a chute would: into the slot the hopper's inventory finds best for the stack
+(`GetBestSuitedSlot`), as many as that slot takes, slot after slot. It counts only what went in.
+The source is not a container, so chutes and hoppers neither push into it nor pull from it.
+
+The sink takes everything the game's chutes and hoppers push into it, from any face: to them it is a
+container (`BlockEntityContainer`) whose inventory gives every pusher, on any face, its one slot
+(`GetAutoPushIntoSlot`), empty, and nothing to a puller. What lands there is counted by item (its
+class and code) and voided the next time anything pushes into the sink, or within 200 ms, whichever
+comes first: not at once, because the game's chute still reads the stack it has just pushed. So the
+sink never fills. Its dialog lists every item it has received with its count, most first, under the
+total and the rate in items a minute, with a Reset button that zeroes them all.
+
+The rate is the items of the last 60 s, in one-second buckets, over the time they cover; until a
+minute has passed since the block loaded or was reset, over the time so far, but no less than 5 s
+(`RateWindow`). Counts and settings are saved with the block and clamped when they load or come from
+a dialog; the rate window starts again when the block loads. The server sends the counts and the
+rate to clients at most once a second while they change; the block info (the HUD) shows the
+source's item, what it is doing, its count and rate, and the sink's total and rate. With the switch
+off, both blocktypes are disabled before the game loads them, so neither block exists.
 
 ### Assembled chopper and sawmill in creative (`AssembledMachinesInCreative`)
 
@@ -7161,7 +7208,7 @@ Which switch adds a recipe or an item, for the recipe export (`recipes[i].switch
 recipe files and the block and item type files its system disables (`GearCutterSystem.TypeAssets`
 and `RecipeAssets`, `GearBlanks`', `BuckingSawmillSystem`'s and `RosserSystem`'s `BlockAssets` and
 `RecipeAsset`, `PicklingTubSystem`'s tub, bare gear and recipe, `GearReclamationSystem`'s cooking
-and barrel recipes, `SteelBitsSystem.RecipeAsset`, `HandcarSystem.TypeAssets` and `RecipeAsset`, `CreativeSteamSource.BlockAsset`,
+and barrel recipes, `SteelBitsSystem.RecipeAsset`, `HandcarSystem.TypeAssets` and `RecipeAsset`, `CreativeSteamSource.BlockAsset`, `CreativeItemBlocks.TypeAssets`,
 `CastPipesSystem.TypeAssets` and `RecipeAssets`), reading each
 type file's `code` for the codes it defines (`domain:code` and `domain:code-*`). What no such list
 says is hand-listed in `Core/SwitchOwnership.cs` (`HandListed`): the debarked trunks the Rosser
@@ -7195,6 +7242,7 @@ id's type, its source file, or the code it is keyed by, as a transition or a cas
 | `SteelBitsRecovery` | the packing recipe (the packed charge itself exists either way) |
 | `Handcar` | the handcar's item (`seraphhorizons:handcar`) and `recipes/grid/handcar.json` |
 | `CreativeSteamSource` | the creative steam source block |
+| `CreativeItemSource` | the creative item source and sink blocks |
 | `CastPipes` | the cast pipe blanks, the pipe molds (`smex:toolmold-*-pipe`), `recipes/clayforming/pipemold.json` and `recipes/grid/castpipe.json`, the molds' casting |
 | `Eidolon` | the gantry (`seraphhorizons:eidolongantry*`), the command tool, the eidolon's creature item, `recipes/grid/eidolongantry.json` and `eidoloncommander.json`, the gantry's and the body's construction records |
 | `Springs` | the `spring` records (the spring blocks are registered either way: with the switch off they turn back into water as they load) |
@@ -7854,6 +7902,17 @@ full of steam at the set pressure, and no higher; it also requires the block in 
 inventory with no drops and no recipe. With the switch off, `SwitchesOffScenarios` requires the
 block not to exist. Run against a ppex older than 0.7.1, the steam scenarios require the block left
 out instead.
+
+`CreativeItemsScenarios.cs` (the same class) builds a creative item source over a hopper over a
+vertical chute over a sink, feeds sticks at 2 a second for ten seconds on the virtual clock and
+requires about 20 given and about 120 a minute, then pauses it and requires the sink's count of
+sticks to match the source's once the line has emptied, and nothing more given. Unlimited with a
+limit of 40 gives exactly 40, all of which reach the sink, and again after a reset. A source over a
+chute gives nothing; the sink hands a pusher on every face its empty slot and nothing to a puller;
+settings and saved values are clamped. It also requires both blocks in the creative inventory with
+no drops, no recipe and no handbook page. With the switch off, `SwitchesOffScenarios` requires
+neither block to exist. `CreativeItemsTests` (no game) holds the feed, the rate window and the
+sink's tally.
 
 For cart reach, the same class requires `CartReachEntities`' default to match Cartwright's carts,
 sled and market stalls, each with selection boxes. It then runs the game's selection code on the

@@ -279,6 +279,9 @@
          gameplay yet, held to the shared rig maths its renderer will use. -->
     <None Include="../assets/seraphhorizons/config/vanner-rig.json" Link="vanner-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Vanner/rig-reference.json" Link="vanner-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The creative item source and sink: the source's feed (rate, unlimited, pause, limit), the
+         sliding rate window and the sink's tally. -->
+    <Compile Include="../CreativeItems/Core/**/*.cs" Link="CreativeItems/Core/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
