@@ -162,6 +162,9 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.All(camps, s => Assert.Equal(0, s.MinGroupDistance));
         Assert.DoesNotContain(camps, s => s.Schematics.Any(l => l.Path.StartsWith("trader/outpost")));
         Assert.Equal("on", Api.WorldManager.SaveGame.GetData<string>(TradingSystem.GridStateKey));
+        // The game's ponds are kept out of the camps (CampPondGuard): its one hook is in.
+        Assert.True(CampPondGuard.On, $"pond guard off ({CampPondGuard.Hooked} hooks)");
+        Assert.Equal(1, CampPondGuard.Hooked);
     }
 
     [AtlasScenario]
@@ -284,6 +287,10 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
                         var column = string.Join(" ", Enumerable.Range(loc.Y1 - 8, h - loc.Y1 + 11).Select(y => $"{y}:{W.BlockAccessor.GetBlock(new BlockPos(x, y, z)).Code}"));
                         Assert.Fail($"camp {record.Structure} at {loc}: air under it at {x},{loc.Y1 - 1},{z}; column {column}");
                     }
+                    // No pond flooded it (CampPondGuard): no water in its fluid layer.
+                    for (int y = loc.Y1; y < loc.Y2; y++)
+                        Assert.False(W.BlockAccessor.GetBlock(pos.Set(x, y, z), BlockLayersAccess.Fluid).LiquidCode == "water",
+                            $"camp {record.Structure} at {loc}: water at {x},{y},{z}");
                 }
             // The skirt blends the pad into the ground around: no step of more than one off it.
             foreach (var (x, z) in CampGround.Ring(loc.X1, loc.Z1, loc.X2 - loc.X1, loc.Z2 - loc.Z1, 1))
@@ -291,7 +298,7 @@ public class TradingCoreScenarios(ITestOutputHelper output) : AtlasScenarioBase
                 int h = W.BlockAccessor.GetTerrainMapheightAt(new BlockPos(x, 0, z));
                 Assert.True(Math.Abs(h - level!.Value) <= 1, $"camp {record.Structure} at {loc}: the ground at {x},{z} beside the pad is at {h}, the pad at {level}");
             }
-            output.WriteLine($"camp {record.Structure} at {loc}: ground levelled at {level}, blended into the ground around");
+            output.WriteLine($"camp {record.Structure} at {loc}: ground levelled at {level}, blended into the ground around, no water in it");
         }
 
         // The admin commands see them: /sh trade camps lists a placed camp, /sh trade tp goes there.
