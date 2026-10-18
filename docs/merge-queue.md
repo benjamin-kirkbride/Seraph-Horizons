@@ -170,6 +170,10 @@ prints the full plan. The rules today:
 - **atlas_classes**: an Atlas scenario file needs the shards that run the classes it
   declares (below), and no smoke, cairn, export or site: none of those reads anything under
   `tests/PackTests` (the exporter is referenced by the scenarios, not the other way round).
+- **site**: `site/**` needs the site job, on main's recipe export when nothing else plans
+  smoke (below).
+- **tooling**: tooling that only `tools` and one other job read needs that job alone
+  (below).
 
 A new rule is a function `(ctx, paths) -> list[Claim]` added to `RULES`: it sees the paths no
 earlier rule claimed, claims those it understands with a `Need` (shards or `ALL`, and the
@@ -233,6 +237,40 @@ raw string's lines), and a test method no shard selects. A method two shards sel
 both. `test_ci_paths.py` holds the matrix to every test method at HEAD being selected by
 exactly one shard (this replaced checking by eye that `rest` is the complement of the
 others), and every file there to read cleanly.
+
+### The site and tooling
+
+The recipe browser's code is read by `tools` (svelte-check, its unit tests) and the `site`
+job (Playwright against a real export), and by nothing else CI runs: smoke, Atlas, cairn and
+the export job read nothing under `site/`, and `pages.yml` deploys it only after merge. A
+PR changing only `site/` (`prepare-data.ts` and the e2e tests included) runs `site` and no
+smoke: the `Need` flag `site_main_export` says the site's tests want *an* export of the
+current schema, not this tree's. The `site` job then takes the `recipe-export` artifact of
+main's push run for the commit the PR merges into (`HEAD^1`), or main's newest passing one
+when that run has not passed yet (`gh run download`, with `actions: read`, which a fork's
+read-only token has on a public repository). It is safe because nothing under `site/` can
+change what the export holds or its schema: what can (`schema/`, `tools/site-data`,
+`tools/recipe-export`, the mods, `pack/`, `packtool.py`) plans smoke on its own claim, or
+everything, and a plan with smoke gives the site this run's export. The plain `site` flag
+(this tree's export) still forces smoke, as before. The job runs `!cancelled()` when smoke
+succeeded or the plan left it out (and it was skipped), never after a planned smoke failed.
+
+Tooling, each path traced through `ci.yml`, `setup-pack`, `tests/PackTests` and `packtool.py`
+(`TOOLING` in `ci/paths.py`):
+
+| Paths | Read by, besides `tools` | Plans |
+|---|---|---|
+| `tools/tests/*.py` | nothing (`test_gear_consumers.py` also `rest`) | nothing (`rest`) |
+| `tools/icon-export/**`, `tools/ore-survey/**` | the `rest` shard's build and tests | `rest` |
+| `tools/icons.py`, `tools/textures.py` | the export job's drift reports | smoke |
+| `tools/item-values/**` | the export job's item values check | smoke |
+| `tools/site-data/**` | the export job's validation (`pages.yml` after merge) | smoke |
+| `icons/**` | the export job's drift, which only warns | nothing |
+
+Left to the full plan: `packtool.py` and `configdefaults.py` (smoke, cairn, lock),
+`tools/recipe-export/` (smoke, Atlas), `schema/` (Atlas copies it to validate the export,
+and site-data), `textures/` (Atlas reads its index, `prepare-data` its images), and any
+other path under `tools/tests/` than a module (a fixture's readers are not traced).
 
 **The merge queue never slices.** Its temporary PR is a `pull_request` run too, with the
 same diff against `main`, but `tree` never plans on a `mergify/merge-queue/*` branch: the
