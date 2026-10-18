@@ -5,6 +5,7 @@
   "EnableHandbookFilterCache": true,
   "EnableHandbookLazyLoading": true,
   "EnableHandbookItemCategoryTabs": true,
+  "EnableHandbookForeignTabs": true,
   "EnableHandbookModTabs": true,
   "EnableHandbookRecipeIndex": true,
   "EnableHandbookDataCache": true,

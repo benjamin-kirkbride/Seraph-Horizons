@@ -27,7 +27,7 @@ why = "Adds hundreds of surface and underground ruins to worldgen."
 
 [[mod]]
 id = "configkit"
-version = "1.4.1"
+version = "1.5.0"
 side = "universal"
 license = "MIT"
 license_source = "https://github.com/dizzyd/configkit"
@@ -38,7 +38,7 @@ why = "Applies the settings content mods declare (BetterRuins' ruin spacing, set
 
 [[mod]]
 id = "aculinaryartillery"
-version = "2.0.0-dev.26"
+version = "2.0.0-dev.28"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -46,7 +46,7 @@ why = "Cooking framework (tools, recipes, liquids) that Expanded Foods is built 
 
 [[mod]]
 id = "expandedfoods"
-version = "2.0.0-dev.15"
+version = "2.0.0-dev.16"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -54,7 +54,7 @@ why = "Many new recipes and cooking processes for existing foods."
 
 [[mod]]
 id = "efchefstricks"
-version = "1.0.0-dev.5"
+version = "1.0.0-dev.6"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -70,7 +70,7 @@ why = "Oils, waxes and soaps, plus alternative hide treatments."
 
 [[mod]]
 id = "plantbasedfat"
-version = "1.0.4"
+version = "1.0.5"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -103,7 +103,7 @@ why = "Tankards, goblets and bottles for drinks."
 
 [[mod]]
 id = "foodshelves"
-version = "3.1.0"
+version = "3.1.1"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -111,6 +111,8 @@ why = "Food shelves and food storage blocks. Its tun rack is the pack's tun and 
 
 [[mod]]
 id = "purposefulstorage"
+# Held: 2.2.0's resource bin has 12 stacks, not 8, and Mad Hoarding 1.0.1's
+# transpiler (ldc.i4.8 in BEResourceBin) would throw on it.
 version = "2.1.1"
 side = "universal"
 license = "MIT"
@@ -140,7 +142,7 @@ why = "Larger capacities for Food Shelves and Purposeful Storage containers."
 
 [[mod]]
 id = "hydrateordiedrate"
-version = "2.5.6"
+version = "2.5.8"
 side = "universal"
 license = "LicenseRef-HydrateOrDiedrate-No-Redistribution"
 license_source = "https://github.com/Chronolegionnaire/HydrateOrDiedrate/blob/HEAD/LICENSE"
@@ -215,7 +217,7 @@ why = "More realistic meat, fat and hide yields from animals."
 
 [[mod]]
 id = "bloodtrail"
-version = "1.2.9"
+version = "1.2.12"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -251,7 +253,7 @@ why = "Your inventory goes into a corpse where you died, with a corpse compass."
 
 [[mod]]
 id = "signals"
-version = "0.3.3"
+version = "0.3.4"
 side = "universal"
 license = "Apache-2.0"
 license_source = "https://github.com/VonZeeple/Signals"
@@ -327,7 +329,7 @@ why = "Industrial iron and steel: a blast furnace, Bessemer converter and molten
 
 [[mod]]
 id = "crucibulum"
-version = "1.5.0"
+version = "1.7.1"
 side = "universal"
 license = "LGPL-3.0"
 license_source = "https://github.com/dizzyd/crucibulum"
@@ -360,7 +362,7 @@ why = "Panning overhaul: pannable rich gravel instead of plain sand and gravel."
 
 [[mod]]
 id = "industrialdeco"
-version = "1.0.8"
+version = "1.0.9"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -370,7 +372,7 @@ why = "Industrial decorative blocks, lamps and heaters."
 
 [[mod]]
 id = "immersivewoodworking"
-version = "1.3.11"
+version = "1.3.13"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -478,7 +480,7 @@ why = "Harvest and process animal hair, fleece and wool. Its wool fibers are tak
 
 [[mod]]
 id = "effectlib"
-version = "1.1.1"
+version = "1.2.0"
 side = "universal"
 license = "CC-BY-4.0"
 license_source = "https://github.com/Llama3013/vs-effectlib"
@@ -487,7 +489,7 @@ why = "Timed entity effects library, required by Alchemy."
 
 [[mod]]
 id = "alchemy"
-version = "2.2.0-rc.12"
+version = "2.2.0-rc.13"
 side = "universal"
 license = "CC-BY-4.0"
 license_source = "https://github.com/Llama3013/vsmod-Alchemy"
@@ -555,7 +557,7 @@ why = "More interesting, semi-realistic ore generation."
 
 [[mod]]
 id = "bettererprospecting"
-version = "3.4.10"
+version = "3.4.12"
 side = "universal"
 license = "GPL-3.0"
 license_source = "https://github.com/KnewOne/BetterErProspecting"
@@ -701,7 +703,7 @@ why = "Audio-visual temporal storm cues and temporal tweaks."
 
 [[mod]]
 id = "stabilityabove"
-version = "1.2.1"
+version = "1.3.0"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -719,7 +721,7 @@ why = "Resonators play music over a much larger range."
 
 [[mod]]
 id = "collisionflowfields"
-version = "1.2.1"
+version = "1.2.2"
 side = "universal"
 license = "GPL-3.0"
 license_source = "https://github.com/HugoCortell/vs_back-propagated-flow-field-collisions"
@@ -744,7 +746,7 @@ why = "In-game mod config manager, required by Yang's Transport Tycoon."
 
 [[mod]]
 id = "yangtransport"
-version = "1.0.3"
+version = "1.0.4"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -801,7 +803,7 @@ why = "Climbable scaffolding for building."
 
 [[mod]]
 id = "vsroofing"
-version = "2.0.5"
+version = "2.1.1"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -857,7 +859,7 @@ why = "Split stone paths into stairs, slabs and quarters, and back."
 
 [[mod]]
 id = "footprints"
-version = "1.2.11"
+version = "1.2.14"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -867,7 +869,7 @@ why = "Animals and players leave footprints."
 
 [[mod]]
 id = "betterhusbandry"
-version = "1.3.7"
+version = "1.4.0"
 side = "universal"
 license = "LicenseRef-Ask-First-Mod-License-1.0"
 license_source = "https://github.com/Tyeia/betterhusbandry/blob/HEAD/LICENSE.MD"
@@ -909,7 +911,7 @@ why = "New farmland crops."
 
 [[mod]]
 id = "olla"
-version = "1.4.0"
+version = "1.4.2"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -933,7 +935,7 @@ why = "Reworked and expanded explosives."
 
 [[mod]]
 id = "carryonlib"
-version = "1.0.0-pre.8"
+version = "1.0.0-rc.1"
 side = "universal"
 license = "Unlicense"
 license_source = "https://github.com/NerdScurvy/CarryOnLib"
@@ -942,7 +944,7 @@ why = "Library required by Carry On 2.0."
 
 [[mod]]
 id = "carryon"
-version = "2.0.0-pre.8"
+version = "2.0.0-rc.1"
 side = "universal"
 license = "Unlicense"
 license_source = "https://github.com/NerdScurvy/CarryOn"
@@ -962,7 +964,7 @@ why = "Lets many more items and blocks be stacked on the ground as piles (planks
 
 [[mod]]
 id = "toolbelt"
-version = "0.3.5"
+version = "0.3.6"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -1018,7 +1020,7 @@ why = "Scrollable creative inventory tabs."
 
 [[mod]]
 id = "dovidarium"
-version = "0.9.5"
+version = "1.0.5"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -1026,11 +1028,11 @@ why = "Faster creative inventory search, handbook and crafting-grid recipe looku
 
 [[mod]]
 id = "sheltered"
-version = "1.0.1"
+version = "1.1.0"
 side = "client"
 license = "unknown"
 redistribute = false
-why = "HUD icon when you're in an enclosed room."
+why = "HUD icons for an enclosed room, a cellar (with its perish rate) and a greenhouse."
 
 [[mod]]
 id = "immersivefoliage"
@@ -1050,7 +1052,7 @@ why = "Schematics roll up into scrolls for the scroll rack, Better Ruins maps in
 
 [[mod]]
 id = "candela"
-version = "1.0.0"
+version = "1.0.1"
 side = "universal"
 license = "unknown"
 redistribute = false
@@ -1058,7 +1060,7 @@ why = "Candle-making: tallow candles dipped at the firepit, clay candle molds, c
 
 [[mod]]
 id = "ghostchunks"
-version = "1.6.7"
+version = "1.6.16"
 side = "universal"
 license = "unknown"
 redistribute = false

@@ -75,7 +75,7 @@ public static class CreativeUpgrades
         new("BlockStickStorageFrame", "stickstorageframe", "game:cattailtops", 4, false, 3f, "stickstorage"),
     ];
 
-    /// <summary>Immersive Woodworking's machines that take their parts by hand (1.3.11).</summary>
+    /// <summary>Immersive Woodworking's machines that take their parts by hand (1.3.13).</summary>
     public static readonly IReadOnlyList<MachineStage> Machines =
     [
         new("BlockEntityChopper", "BlockChopper", "headStack", "chopperhead-{metal}"),

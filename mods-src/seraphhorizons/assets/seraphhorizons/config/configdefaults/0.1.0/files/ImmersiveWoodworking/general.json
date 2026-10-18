@@ -1,4 +1,7 @@
 {
+  "EnableSawmill": true,
+  "EnableChopper": true,
+  "EnableBarkChain": true,
   "AutoRestock": true,
   "DropsAtPlayer": false,
   "ScaleWorkSpeedByToolTier": true,
