@@ -3363,7 +3363,10 @@ worker has a cancellation token). A worker that fails is logged, the job keeps i
 later (a first plan failing three times leaves the job an empty one, so its members report and go, and
 its outlines are cleared). The members wait for the first plan (`eidolon-status-mine-planning`); a
 largest area (16384 blocks) plans in under a second of the worker's time. The planner is
-still a step iterator (its steps a few ms at most), so the tests run it synchronously. What runs on the
+still a step iterator (its steps a few ms at most), so the tests run it synchronously, on a fake clock
+(its clock is injectable): its work is counted in units, about a cell or node looked at each
+(`MineWork`), and the tests bound the units between two checkpoints, the same on any machine, where time
+would vary with it. What runs on the
 main thread for a member each look (the dispatch over the plan's next 24 stations, the guard, a dig taken
 in) is about a millisecond on the largest plan. *The live state*: the job keeps its picture of the world
 (`MineJobCells.Live`) as the world changes: its own breaks at once; a player's breaks and placings in the
@@ -3549,7 +3552,11 @@ one on the stair from working them and so from ever getting off it). And a miner
 station on a way that crosses the columns another holds, nor on one the pathfinder finds only through
 another eidolon (no way round it: a pit floor too narrow to pass one at work, say): it lets its station
 go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaims`,
-`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). Down a pit with a stair and work left, one
+`EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). On today's dispatch a member waiting (not
+walking) in the way of one setting off for or walking to its station is asked, each second, to make room,
+stepping aside to a place clear of that way (down a pit, one it may wait at there; else one with nothing
+left to dig) held by none (`MineOrder.ClearWay`): the floor of a trench 5 wide has no way round one standing
+in its middle, and a walker pressed into one waiting there for over 20 seconds (#1220). Down a pit with a stair and work left, one
 with nothing to take waits down there, a column clear of the stair and of what others hold, rather than
 climb the whole stair to the rim and back; a walk to where it waits that goes on over 10 seconds (stuck,
 or giving way for ever) is stopped and it looks again from where it got to. The work under its feet waits
