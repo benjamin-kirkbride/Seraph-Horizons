@@ -124,7 +124,8 @@ public static class OreProcessingItems
 
         // A rock form's smelting: by its grade, or, for a sulfide's raw and crushed ore, its roast
         // into roasted rock (none for anything else of a sulfide's).
-        CombustibleProperties? Rock(CollectibleObject item, string ore, string grade, double units, OreForm form, bool roasts)
+        CombustibleProperties? Rock(CollectibleObject item, string ore, string grade, double units, OreForm form, bool roasts,
+            Roaster roaster = Roaster.Firepit)
         {
             var spec = recovery.Ore(ore);
             if (spec.IsSulfide && form is OreForm.Raw or OreForm.Crushed)
@@ -136,7 +137,7 @@ public static class OreProcessingItems
                     report.Roasting++;
                 return roast;
             }
-            return Smelting(ore, units, recovery.SmeltShare(spec, form, grade));
+            return Smelting(ore, units, recovery.SmeltShare(spec, form, grade, roaster));
         }
 
         foreach (var item in world.Items)
@@ -189,7 +190,7 @@ public static class OreProcessingItems
                         report.Nuggets++;
                     }
                     break;
-                case "crushedore" or "groundore" or "roastedore" when code.Domain == OreProducts.Domain && parts.Length == 3
+                case "crushedore" or "groundore" or "roastedore" or "stallroastedore" when code.Domain == OreProducts.Domain && parts.Length == 3
                                                                      && ores.Contains(parts[1]) && OreProducts.IsGrade(parts[2]):
                 {
                     string ore = parts[1], grade = parts[2];
@@ -197,7 +198,9 @@ public static class OreProcessingItems
                     if (OreProducts.RawUnits(ore, grade) is { } expected && units != expected)
                         report.UnitsOff.Add($"{code} ({units}, raw {expected})");
                     var form = parts[0] switch { "crushedore" => OreForm.Crushed, "groundore" => OreForm.Ground, _ => OreForm.RoastedRock };
-                    item.CombustibleProps = units > 0 ? Rock(item, ore, grade, units, form, roasts: true) : null;
+                    // the stall roaster's roasted rock smelts at its 92 %, the firepit's at 85 % (#925)
+                    var roaster = parts[0] == "stallroastedore" ? Roaster.Stall : Roaster.Firepit;
+                    item.CombustibleProps = units > 0 ? Rock(item, ore, grade, units, form, roasts: true, roaster) : null;
                     if (form == OreForm.Crushed) report.Crushed++;
                     else if (form == OreForm.Ground) report.Ground++;
                     else report.RoastedRock++;
