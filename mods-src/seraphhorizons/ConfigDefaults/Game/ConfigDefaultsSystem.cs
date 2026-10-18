@@ -133,8 +133,8 @@ public sealed class ConfigDefaultsSystem : ModSystem
         foreach (var c in result.Changes)
             api.Logger.Notification("[seraphhorizons] Config defaults: {0}", c.Describe());
         if (state == null)
-            api.Logger.Notification("[seraphhorizons] Config defaults: first start with this; recorded pack {0}, changed nothing", version);
-        else if (state.PackVersion != version || state.Files.Count > 0)
+            api.Logger.Notification("[seraphhorizons] Config defaults: first start with this; recorded pack {0} and its defaults, changed nothing", version);
+        else if (state.PackVersion != version || state.Files.Count > 0 || result.Changes.Count > 0)
             api.Logger.Notification("[seraphhorizons] Config defaults: from pack {0} to {1}: {2} setting(s) changed{3}",
                 state.PackVersion, version, result.Changes.Count,
                 result.State.Files.Count > 0 ? $", {result.State.Files.Count} file(s) left behind" : "");

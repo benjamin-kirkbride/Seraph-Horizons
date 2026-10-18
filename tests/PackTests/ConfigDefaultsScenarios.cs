@@ -64,5 +64,11 @@ public class ConfigDefaultsScenarios(ITestOutputHelper output) : AtlasScenarioBa
         Assert.NotNull(state.Notice);
         Assert.Equal("0.0.1-test", state.Notice!.FromVersion);
         Assert.Equal(2, state.Notice.Changes.Count);
+
+        // The record had no baselines (only a version), so the made-up version's snapshot was the
+        // start; now each file's baseline is this build's defaults, which the file was brought to.
+        var baseline = File.ReadAllText(Path.Combine(GamePaths.ModConfig, DefaultsRun.BaselineOf("betterruins.yaml")));
+        Assert.Equal(1200, SimpleYaml.Parse(baseline).At(["largeruins_min_distance"])!.Number);
+        Assert.True(File.Exists(Path.Combine(GamePaths.ModConfig, DefaultsRun.BaselineOf("seraphhorizons.json"))));
     }
 }

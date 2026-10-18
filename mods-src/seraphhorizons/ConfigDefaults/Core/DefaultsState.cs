@@ -4,10 +4,11 @@ using System.Text.Json.Serialization;
 namespace SeraphHorizons.Mod.ConfigDefaults.Core;
 
 /// <summary>
-/// The only per-install state: <c>ModConfig/seraphhorizons-configdefaults.json</c>. Which pack
+/// The per-install record: <c>ModConfig/seraphhorizons-configdefaults.json</c>. Which pack
 /// version's defaults this install's config files were last brought to, a file left behind at an
 /// older one (because the mod that writes it was not the pack's version), and the notice for
-/// admins after a change.
+/// admins after a change. The defaults themselves, each file's baseline, are files of their own
+/// under <c>ModConfig/seraphhorizons-configdefaults/</c> (<see cref="DefaultsRun.BaselineFolder"/>).
 /// </summary>
 public sealed class DefaultsState
 {
