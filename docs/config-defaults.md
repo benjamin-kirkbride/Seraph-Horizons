@@ -17,9 +17,10 @@ tested in `tests/ConfigDefaults/`, `Game/ConfigDefaultsSystem.cs` runs it), `too
 ## The model
 
 The files stay whole, as their mods write them. The pack records, for each pack version, what a
-fresh install of that version has in `ModConfig` (the **snapshot**), and each install records
-which pack version's defaults its files were last brought to (its **baseline**). At start, for each
-setting that is in both the baseline's snapshot and the current one:
+fresh install of that version has in `ModConfig` (the **snapshot**), and each install records, for
+each file, the defaults it was last brought to: that file as the snapshot of the build that last
+ran had it (its **baseline**, under `ModConfig/seraphhorizons-configdefaults/`). At start, for each
+setting that is in both a file's baseline and the current snapshot's file:
 
 - the file still has the baseline's default, and the current default differs: the file gets the
   current default;
@@ -43,9 +44,28 @@ Left alone:
   server), a mod that is not in the pack. `pack/config-defaults.toml`'s `[[ignore]]` leaves out
   anything else a fresh server writes that is not a setting to follow.
 
+This compares defaults, not version numbers, so it works within a pack version as across one: the
+snapshot of a version not yet released keeps changing on main, and every `next` build between two
+releases has the same version, so a default changed on main reaches an install following `next` on
+its next start. The version only names the defaults in the log.
+
 The first start with this system (no record yet, which is every install made before it, and every
-fresh install) records the current pack version and changes nothing: there is no baseline to tell
-a chosen value from a stale default.
+fresh install) records the current pack version and the current snapshot's files as the baselines,
+and changes nothing: there is no baseline to tell a chosen value from a stale default.
+
+**A record without baselines.** Builds before the baselines were kept recorded only the pack
+version (`{"PackVersion": "0.1.0", "Files": {}}`). A file with no baseline:
+
+- whose recorded version is another one: is brought up from that version's shipped snapshot, as
+  those builds did (released snapshots are frozen, so that is what the install had, unless it
+  followed `next`), and then gets its baseline;
+- whose recorded version is the running one: gets the current snapshot's file as its baseline and
+  is not changed. The defaults it had are whichever build of that version wrote the record, which
+  nothing says: guessing (say, from older revisions of the snapshot) would move values a player
+  set. One log line lists these files. From then on, defaults changed within the version follow. A
+  stale default from before (a tester's `OreProcessing: false`, flipped to true while 0.1.0 was on
+  `next`) stays until someone sets it, or deletes the setting (or the file) so its mod writes its
+  current default.
 
 ## Snapshots
 
@@ -84,10 +104,11 @@ installs of the release have, and changing it would mislead every later upgrade 
 release flow bumps the version at release time, so between a release and the next bump main keeps
 the released version: then `check` reports a difference without failing ("waits for the next
 version's") and `write` refuses. The bump that starts the next release writes the new version's
-snapshot (`--config-defaults write`), which CI then requires. A consequence: the `next` build
-between two releases carries the version of the last bump, and an install that follows `next`
-records that version; changes made to that version's snapshot before it is released are not
-migrated for it (the pack version is the unit), but the release after it is.
+snapshot (`--config-defaults write`), which CI then requires. The `next` build between two
+releases carries the version of the last bump, and its snapshot changes with main until that
+version is released; an install that follows `next` follows those changes too, since its baselines
+are what it last ran, not the version's final snapshot. A released install upgrading has baselines
+equal to its frozen snapshot.
 
 ## Formats
 
@@ -133,9 +154,10 @@ file none of these places fails the snapshot, to be settled in `[owners]` (exlib
   such as Fallenstar, a server with mods updated by hand) is checked file by file, below.
 - **The installed mods** are the game's loaded mods on that side (`api.ModLoader.Mods`), compared
   with the current snapshot's `mods` file by file through the owners. A file whose owner is
-  another version or not loaded is left at its old baseline, recorded per file in the state, and
-  brought up from there on a later start once the mods match; one warning line lists them. Mods
-  the pack does not have, and the game version, do not matter: only a file's owners do.
+  another version or not loaded is left at its old baseline (its version recorded per file in the
+  state), and brought up from there on a later start once the mods match; one warning line lists
+  them. Mods the pack does not have, and the game version, do not matter: only a file's owners
+  do.
 
 ## Pack values
 
@@ -203,7 +225,7 @@ appears.
 
 ## The record, the log and the notice
 
-`ModConfig/seraphhorizons-configdefaults.json` is the only state:
+The state is the record, `ModConfig/seraphhorizons-configdefaults.json`:
 
 ```json
 {
@@ -213,10 +235,19 @@ appears.
 }
 ```
 
-`PackVersion` is the baseline, `Files` the files left behind at an older one (usually empty). Each
+and the baselines, `ModConfig/seraphhorizons-configdefaults/<file>` (the same names and folders as
+in `ModConfig`, about as large as the snapshot: 0.8 MB at 0.1.0), each the file as the snapshot of
+the build that last brought it up had it, with the pack's values set. A baseline is written only
+when it changes. `PackVersion` is the version of the build that last ran, `Files` the files left
+behind at older defaults because a mod that writes them did not match (usually empty), by the
+version they were last brought to; both name the defaults in the log, and, for a file with no
+baseline, the version's snapshot to start from (above). Both are left out of the snapshot
+(`pack/config-defaults.toml`'s `[[ignore]]`; an ignore ending in `/` is a folder). Deleting a
+baseline makes its file a file with no baseline (above). Each
 changed setting is a log line (`[seraphhorizons] Config defaults: <file>: <setting> <old> -> <new>
 (the default was <old> in pack <a> and is <new> in <b>[, set by the pack]; this file still had the
-old default)`), and a summary line follows. On a server, each player with the `controlserver`
+old default)`, or, within a version, `the default was <old> in an earlier build of pack <a> and is
+<new> in this one`), and a summary line follows. On a server, each player with the `controlserver`
 privilege who joins afterwards gets the list in chat once (`NotifiedPlayers`), until the next
 change replaces it. A client only logs.
 
@@ -224,7 +255,7 @@ change replaces it. A client only logs.
 
 `"FollowPackDefaults": false` in `ModConfig/seraphhorizons.json`, each side for its own folder:
 nothing is changed or written, not even the record. Turning it back on later reconciles from the
-recorded baseline (or, with none, records and changes nothing).
+recorded baselines (or, with none, records and changes nothing).
 
 ## Residual risks
 
@@ -235,7 +266,9 @@ recorded baseline (or, with none, records and changes nothing).
 - A mod that keeps settings somewhere other than `ModConfig` is not covered.
 - Owners found by name can be wrong for a file no code names literally; a wrong owner only means
   the file is checked against the wrong mod's version.
-- A pack version's in-progress changes on `next` are not migrated for installs that recorded that
-  version (see Released versions are frozen).
+- An install recorded by a build that kept only the pack version (no baselines) keeps any stale
+  default it had from earlier in that same version (see A record without baselines).
+- A file the pack's snapshot no longer has keeps its baseline, unused; if the file comes back, it
+  is brought up from that baseline.
 - A mod that changes the meaning of a setting without renaming it: an untouched value follows the
   new default, which is what its mod now ships, and a chosen one is kept with its old meaning.

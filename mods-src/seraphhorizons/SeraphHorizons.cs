@@ -12,6 +12,7 @@ using SeraphHorizons.Mod.TrunkEntities.Core;
 using SeraphHorizons.Mod.Woodworking;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.Server;
 
 namespace SeraphHorizons.Mod;
@@ -355,7 +356,8 @@ public class SeraphHorizonsSystem : ModSystem
         SeraphHorizonsConfig? config = null;
         try
         {
-            config = api.LoadModConfig<SeraphHorizonsConfig>(ConfigFile);
+            // Not api.LoadModConfig: it appends a file's lists to the defaults (ModConfigJson).
+            config = ModConfigJson.Load<SeraphHorizonsConfig>(Path.Combine(GamePaths.ModConfig, ConfigFile));
         }
         catch (Exception e)
         {
@@ -363,6 +365,9 @@ public class SeraphHorizonsSystem : ModSystem
             return new SeraphHorizonsConfig();
         }
         config ??= new SeraphHorizonsConfig();
+        // Lists that loading used to grow by a copy each start, collapsed once.
+        foreach (var fix in config.CrucibleFurnaceSettings?.RemoveDuplicateCodes() ?? [])
+            api.Logger.Notification($"[seraphhorizons] ModConfig/{ConfigFile}, CrucibleFurnaceSettings: {fix}");
         // Writes back settings added since the file was made.
         api.StoreModConfig(config, ConfigFile);
         return config;

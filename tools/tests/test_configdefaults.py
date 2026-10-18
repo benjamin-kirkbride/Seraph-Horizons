@@ -144,10 +144,12 @@ class Snapshot(unittest.TestCase):
                 "seraphhorizons.json": '{"A": 1}',
                 "betterruins.yaml": b"version: 12\r\nlargeruins_min_spawn_distance: 2500\r\n",
                 "seraphhorizons-configdefaults.json": '{"PackVersion": "0.1.0"}',
+                "seraphhorizons-configdefaults/seraphhorizons.json": '{"A": 1}',
             })
             (tmp / "Mods").mkdir()
             index, files, problems = configdefaults.build(tmp / "ModConfig", tmp / "Mods", "9.9.9")
             self.assertNotIn("seraphhorizons-configdefaults.json", files)  # ignored
+            self.assertNotIn("seraphhorizons-configdefaults/seraphhorizons.json", files)  # an ignored folder
             self.assertEqual(files["betterruins.yaml"], b"version: 12\r\nlargeruins_min_spawn_distance: 2500\r\n")
             self.assertEqual(index["files"]["betterruins.yaml"], {"format": "yaml", "owners": ["betterruins", "configkit"]})
             self.assertEqual(index["files"]["seraphhorizons.json"], {"format": "json", "owners": ["seraphhorizons"]})

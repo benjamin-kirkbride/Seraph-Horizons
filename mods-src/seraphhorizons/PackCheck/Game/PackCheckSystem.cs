@@ -118,7 +118,7 @@ public class PackCheckSystem : ModSystem
     {
         try
         {
-            return api.LoadModConfig<PackCheckClientState>(ClientStateFile) ?? new PackCheckClientState();
+            return SeraphHorizons.Mod.Core.ModConfigJson.Load<PackCheckClientState>(Path.Combine(GamePaths.ModConfig, ClientStateFile)) ?? new PackCheckClientState();
         }
         catch (Exception e)
         {

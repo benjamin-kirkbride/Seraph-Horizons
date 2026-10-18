@@ -6,10 +6,15 @@
 # sets instead of a mod's own default are in pack/config/ModConfig, not here.
 
 # Files a fresh server writes into ModConfig that are not settings to follow: left out of the
-# snapshot, so never touched. Each needs a why.
+# snapshot, so never touched. Each needs a why. A file ending in "/" is a folder, with everything
+# under it.
 [[ignore]]
 file = "seraphhorizons-configdefaults.json"
 why = "The pack's own mod's record of which pack version's defaults this install has; never a default."
+
+[[ignore]]
+file = "seraphhorizons-configdefaults/"
+why = "The pack's own mod's record of the defaults each file was last brought to (its baselines); never a default."
 
 [[ignore]]
 file = "seraphhorizons-packcheck.json"
