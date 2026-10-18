@@ -14,7 +14,9 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 /// (ground storage, one item a block, <c>patches/oreprocessing-ore.json</c>) is broken where it lies
 /// with a hammer, a left-click a blow, into crushed ore of its grade, one for one (the item's own
 /// crushing, <see cref="OreProcessingItems"/>, #847), with no loss. The server counts the blows (in
-/// memory: an ore left half struck and unloaded starts again) and wears the hammer a blow.
+/// memory: an ore left half struck and unloaded starts again) and wears the hammer a blow. With
+/// <see cref="Refill"/> on (switch <c>SpallingRefill</c>), an ore struck through is replaced at once
+/// by the same ore from the striker's inventory, so a held left-click works through all of it.
 /// </summary>
 public class OreSpalling(ICoreServerAPI api, SpallingConfig config)
 {
@@ -22,6 +24,14 @@ public class OreSpalling(ICoreServerAPI api, SpallingConfig config)
     public static readonly AssetLocation BreakSound = new("game", "sounds/block/rock-break-pickaxe");
 
     public SpallingConfig Config { get; } = config;
+
+    /// <summary>
+    /// Spalling refill (switch <c>SpallingRefill</c>): when a blow breaks an ore, the same ore (one that
+    /// would stack with it) is taken from the striker's hotbar, offhand included, or else backpack and
+    /// set down in its place in the same tick, so the ground storage never goes and the client's held
+    /// left-click goes on striking the next one instead of falling through to the block below.
+    /// </summary>
+    public bool Refill { get; set; }
 
     private readonly Dictionary<BlockPos, (ItemStack Ore, int Blows)> _struck = new();
     private readonly Dictionary<string, long> _lastBlow = new(StringComparer.Ordinal);
@@ -92,11 +102,16 @@ public class OreSpalling(ICoreServerAPI api, SpallingConfig config)
         var oreCode = ore.Collectible.Code;
         var crushed = ore.Collectible.CrushingProps!.CrushedStack.ResolvedItemstack.Clone();
         slot.TakeOut(1);
-        slot.MarkDirty();
         world.SpawnItemEntity(crushed, centre, new Vec3d(0, 0.1, 0));
         world.PlaySoundAt(BreakSound, centre.X, centre.Y, centre.Z, null, true, 16f);
         world.Logger.Audit("{0} spalled 1x{1} into {2}x{3} at {4}.", player.PlayerName, oreCode,
             crushed.StackSize, crushed.Collectible.Code, pos);
+        if (Refill && slot.Empty && TakeLike(world, player, ore) is { } next)
+        {
+            slot.Itemstack = next;
+            world.Logger.Audit("{0} set down 1x{1} at {2} (spalling refill).", player.PlayerName, next.Collectible.Code, pos);
+        }
+        slot.MarkDirty();
         if (be.Inventory.Empty)
         {
             world.BlockAccessor.SetBlock(0, pos);
@@ -108,6 +123,30 @@ public class OreSpalling(ICoreServerAPI api, SpallingConfig config)
         }
         Prune(now);
         return true;
+    }
+
+    /// <summary>
+    /// Takes one ore that stacks with <paramref name="like"/> (its code and attributes, as the game
+    /// merges stacks) from <paramref name="player"/>'s hotbar (its slots in order, then the offhand)
+    /// or else backpack; null if they hold none. Taken in every game mode, as the ground takes an ore
+    /// set down in creative too.
+    /// </summary>
+    public static ItemStack? TakeLike(IWorldAccessor world, IPlayer player, ItemStack like)
+    {
+        foreach (var name in new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName })
+        {
+            if (player.InventoryManager.GetOwnInventory(name) is not { } inventory)
+                continue;
+            foreach (var slot in inventory)
+            {
+                if (slot.Empty || !slot.CanTake() || !slot.Itemstack.Equals(world, like, GlobalConstants.IgnoredStackAttributes))
+                    continue;
+                var taken = slot.TakeOut(1);
+                slot.MarkDirty();
+                return taken;
+            }
+        }
+        return null;
     }
 
     // Ores struck and left: forgotten after ten minutes, so the table does not grow.

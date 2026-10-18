@@ -680,7 +680,26 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         var player = _spaller.Player;
         player.WorldData.CurrentGameMode = EnumGameMode.Survival;
         player.Entity.Controls.ShiftKey = player.Entity.Controls.CtrlKey = false;
+        // An empty inventory, so no scenario's ore is left for the refill to take into another's.
+        foreach (var slot in Carried(player))
+        {
+            slot.Itemstack = null;
+            slot.MarkDirty();
+        }
         return player;
+    }
+
+    private static IEnumerable<ItemSlot> Carried(IPlayer player) =>
+        new[] { GlobalConstants.hotBarInvClassName, GlobalConstants.backpackInvClassName }
+            .Select(player.InventoryManager.GetOwnInventory).Where(inv => inv != null).SelectMany(inv => inv);
+
+    /// <summary>A hotbar slot other than the active one (the hammer's), at <paramref name="index"/> or after.</summary>
+    private static ItemSlot HotbarSlot(IPlayer player, int index)
+    {
+        var hotbar = player.InventoryManager.GetOwnInventory(GlobalConstants.hotBarInvClassName);
+        if (index == player.InventoryManager.ActiveHotbarSlotNumber)
+            index++;
+        return hotbar[index];
     }
 
     private async Task<BlockPos> SpallSite(int dx, int dz)
@@ -887,6 +906,76 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
             s.Itemstack = null;
         foreach (var p in new[] { pos.EastCopy(), pos.NorthCopy() })
             W.BlockAccessor.SetBlock(0, p);
+    }
+
+    // Spalling refill (SpallingRefill, on by default): when a blow breaks the ore, the same ore from the
+    // hotbar takes its place in the same tick, the block never gone, until the player has none left;
+    // another ore (a rich one) is never taken.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Spalling_refills_from_the_inventory_until_it_runs_out()
+    {
+        var pos = await SpallSite(-70, -70);
+        var player = await Spaller();
+        Assert.True(SeraphHorizonsSystem.ConfigFor(World.Api).SpallingRefill);
+        Assert.True(System.Spalling!.Refill);
+        const string medium = "game:ore-medium-galena-shale";
+        Assert.Null(SetDown(player, pos.DownCopy(), Stack(medium, 1)));
+        var same = HotbarSlot(player, 2);
+        same.Itemstack = Stack(medium, 2);
+        same.MarkDirty();
+        var other = HotbarSlot(player, 5);
+        other.Itemstack = Stack("game:ore-rich-galena-shale", 3);
+        other.MarkDirty();
+
+        var hammer = Stack("game:hammer-iron", 1);
+        for (int left = 1; left >= 0; left--)
+        {
+            await Blow(player, pos, hammer);
+            await Blow(player, pos, hammer);
+            // broken and set down again at once from the hotbar
+            Assert.Equal(medium, OreSpalling.Target(W, pos)?.Itemstack.Collectible.Code.ToString());
+            Assert.Equal(1, OreSpalling.Target(W, pos)!.StackSize);
+            Assert.Equal(0, System.Spalling.BlowsAt(pos));
+            Assert.Equal(left, same.StackSize);
+        }
+        // the last one: nothing left to take, so the spot is left empty
+        await Blow(player, pos, hammer);
+        await Blow(player, pos, hammer);
+        Assert.Equal(0, W.BlockAccessor.GetBlock(pos).Id);
+        Assert.Equal(3, other.StackSize);
+        await World.Ticks(5);
+        Assert.Equal(3, ItemsNear(pos).GetValueOrDefault("seraphhorizons:crushedore-galena-medium"));
+        KillItems(pos);
+        other.Itemstack = null;
+    }
+
+    // With the refill off the spot is left empty, the same ore in the hotbar left where it is.
+    [AtlasScenario(TimeoutMs = 120_000)]
+    public async Task Spalling_refill_off_leaves_the_spot_empty()
+    {
+        var pos = await SpallSite(0, 90);
+        var player = await Spaller();
+        const string medium = "game:ore-medium-hematite-granite";
+        Assert.Null(SetDown(player, pos.DownCopy(), Stack(medium, 1)));
+        var same = HotbarSlot(player, 2);
+        same.Itemstack = Stack(medium, 2);
+        same.MarkDirty();
+        var spalling = System.Spalling!;
+        spalling.Refill = false;
+        try
+        {
+            var hammer = Stack("game:hammer-iron", 1);
+            await Blow(player, pos, hammer);
+            await Blow(player, pos, hammer);
+            Assert.Equal(0, W.BlockAccessor.GetBlock(pos).Id);
+            Assert.Equal(2, same.StackSize);
+        }
+        finally
+        {
+            spalling.Refill = SeraphHorizonsSystem.ConfigFor(World.Api).SpallingRefill;
+            same.Itemstack = null;
+            KillItems(pos);
+        }
     }
 
     // Roasting in the firepit (#720): any fuel, one item at a time, 85 % with the fraction carried,

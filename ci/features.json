@@ -44,7 +44,7 @@
                  "RecipeSection.Cupellation.cs", "RecipeSection.Liquation.cs",
                  "RecipeSection.OreRetorting.cs", "RecipeSection.OreRoasting.cs",
                  "RecipeSection.OreMachines.cs"],
-      "switches": ["OreProcessing", "SpallingSettings", "FirepitRoastSeconds"],
+      "switches": ["OreProcessing", "SpallingSettings", "SpallingRefill", "FirepitRoastSeconds"],
       "classes": ["OreProcessingScenarios"]
     },
     "StallRoaster": {

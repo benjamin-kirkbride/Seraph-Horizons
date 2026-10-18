@@ -232,7 +232,7 @@ public class OreProcessingSystem : ModSystem
         var settings = config.SpallingSettings ??= new SpallingConfig();
         foreach (var fix in settings.Sanitise())
             api.Logger.Warning("[seraphhorizons] SpallingSettings: {0}", fix);
-        Spalling = new OreSpalling(api, settings);
+        Spalling = new OreSpalling(api, settings) { Refill = config.SpallingRefill };
     }
 
     // The client follows the server's switch: its spalling and roasting guides show only when the
