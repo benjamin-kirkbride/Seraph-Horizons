@@ -507,6 +507,7 @@ public static class EidolonMining
                 }
                 dig.Add(cell);
             }
+            MineWork.Add(area.SizeY + 1);
             if (++columns % 32 == 0)
                 yield return false;
         }

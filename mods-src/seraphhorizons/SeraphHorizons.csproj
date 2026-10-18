@@ -34,6 +34,10 @@
     <Compile Remove="tests/**" />
     <None Remove="tests/**" />
     <Content Remove="tests/**" />
+    <!-- So is the mine planner's benchmark (benchmarks/MinePlannerBenchmark.csproj), run by hand. -->
+    <Compile Remove="benchmarks/**" />
+    <None Remove="benchmarks/**" />
+    <Content Remove="benchmarks/**" />
   </ItemGroup>
 
   <!-- Only the game's own assemblies are referenced, so the mod builds from the game alone
