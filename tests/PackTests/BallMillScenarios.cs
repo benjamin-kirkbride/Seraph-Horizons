@@ -213,7 +213,7 @@ public partial class SharedWorldScenarios
         var chute = (BlockEntityItemFlow)W.BlockAccessor.GetBlockEntity(chutePos)!;
         chute.Inventory[0].Itemstack = PoorCrushed(1);
         chute.Inventory[0].MarkDirty();
-        await World.Until(() => chute.Inventory.Empty, 20000);
+        await UntilChuteFed(mill, chute);
 
         // broken: the frame and every stage's items, the ball charge's ten ingots among them
         W.BlockAccessor.SetBlock(0, rotorPos);
