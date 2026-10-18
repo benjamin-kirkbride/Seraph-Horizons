@@ -14,6 +14,7 @@
   "ClearCommand": false,
   "CreativeModTabs": false,
   "CreativeSteamSource": false,
+  "CreativeItemSource": false,
   "CylinderBorer": false,
   "DrawBench": false,
   "DuplicateRecipes": false,
