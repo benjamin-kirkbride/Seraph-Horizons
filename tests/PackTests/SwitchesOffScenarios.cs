@@ -1564,16 +1564,21 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
     }
 
     /// <summary><c>OreCells</c>, <c>NoSurfaceCopper</c>, <c>SmallerDeposits</c>,
-    /// <c>RarerDistricts</c>, <c>PlacerFields</c>, <c>GradePockets</c>, <c>StableVeins</c>: a world created with them off
-    /// records them off, Interesting Ore Gen's spacing filter and main ore placement are not patched, and the deposits are as the mods ship
-    /// them.</summary>
+    /// <c>RarerDistricts</c>, <c>PlacerFields</c>, <c>GradePockets</c>, <c>StableVeins</c>, <c>SingleOreDrops</c>: a world created with them off
+    /// records them off, Interesting Ore Gen's spacing filter and main ore placement are not patched, and the deposits and ore drops are as the mods ship
+    /// them (the deposit basis has no switch: a new world is on it).</summary>
     [AtlasScenario]
     public void Ore_worldgen_off_ore_is_as_the_mods_ship_it()
     {
-        foreach (var key in new[] { "OreCells", "NoSurfaceCopper", "SmallerDeposits", "RarerDistricts", "PlacerFields", "GradePockets", "StableVeins" })
+        foreach (var key in new[] { "OreCells", "NoSurfaceCopper", "SmallerDeposits", "RarerDistricts", "PlacerFields", "GradePockets", "StableVeins", "SingleOreDrops" })
             Assert.True(Off(key), key);
         var ore = World.Api.ModLoader.GetModSystem<SeraphHorizons.Mod.Ore.OreSystem>();
-        Assert.Equal(SeraphHorizons.Mod.Ore.Core.OreWorldRecord.AllOff, ore.World);
+        Assert.Equal(SeraphHorizons.Mod.Ore.Core.OreWorldRecord.AllOff with { DoubledDeposits = true }, ore.World);
+        // Vanilla's drops: 1.25 raw ore and a little crystallised ore.
+        var galena = World.Api.World.GetBlock(new AssetLocation("game:ore-medium-galena-shale"))!;
+        Assert.Equal(1.25, galena.Drops.Single(d => d.Code.Path == "ore-medium-galena-shale").Quantity.avg, 6);
+        Assert.Contains(galena.Drops, d => d.Code.Path == "crystalizedore-medium-galena-shale");
+        Assert.Empty(SeraphHorizons.Mod.Ore.SingleOreDropsPass.ChangedByDomain);
         Assert.Null(ore.Placement);
         Assert.Null(ore.Placer);
         var approve = SeraphHorizons.Mod.Ore.OreCellPlacement.ApproveMethod;

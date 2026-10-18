@@ -31,7 +31,7 @@
       "lang": ["ore-*", "block-ore-*", "block-looseores-*"],
       "switches": ["OreCells", "OreCellSizeMetres", "OreCellSizeByMetal", "NoSurfaceCopper",
                    "SmallerDeposits", "RarerDistricts", "PlacerFields", "PlacerCellSizeMetres",
-                   "GradePockets", "StableVeins", "GradePocketSizeBlocks", "GradePocketSpread",
+                   "GradePockets", "StableVeins", "SingleOreDrops", "GradePocketSizeBlocks", "GradePocketSpread",
                    "GradePocketEndSpread", "GradePocketWeighting", "WideDensityProspecting"],
       "classes": ["Ore*", "GradePockets*", "WideDensityProspectingScenarios"]
     },

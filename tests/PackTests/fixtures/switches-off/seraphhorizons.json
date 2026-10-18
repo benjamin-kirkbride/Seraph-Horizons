@@ -32,6 +32,7 @@
   "GradePockets": false,
   "RustyGearStack": false,
   "StableVeins": false,
+  "SingleOreDrops": false,
   "Handcar": false,
   "HeatingRackKeepsPosition": false,
   "HeatingRackStandsOnBlock": false,

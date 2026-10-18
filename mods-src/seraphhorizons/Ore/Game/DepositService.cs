@@ -99,13 +99,15 @@ public sealed class DepositService
 
     public bool HasGravel => _gravel != null;
 
-    public DepositService(ICoreServerAPI api, OreCellPlacement? ore, PlacerFields? gravel)
+    /// <param name="before">The world was created before the current deposit basis: its sizes are
+    /// half the table's (<see cref="DepositBasis"/>).</param>
+    public DepositService(ICoreServerAPI api, OreCellPlacement? ore, PlacerFields? gravel, bool before = false)
     {
         _api = api;
         _ore = ore;
         _gravel = gravel;
         _sizes = new OreSizeTable(api.Assets.TryGet(DepositSizes.SizesAsset)?.ToObject<Dictionary<string, OreSizeTable.Entry>>()
-                                  ?? new Dictionary<string, OreSizeTable.Entry>());
+                                  ?? new Dictionary<string, OreSizeTable.Entry>(), before);
         Metals = ore?.Managed.Where(m => _sizes.TargetsFor(m) != null).ToArray() ?? [];
         Registry = Load(api);
         api.Event.GameWorldSave += Save;
@@ -385,7 +387,7 @@ public sealed class DepositService
 
     /// <summary>Metal units per block id for a metal's ore blocks (0 for any other block): the sum
     /// over the block's drops of the average count times the dropped item's <c>metalUnits</c>, as the
-    /// survey reads them (1.25 ore chunks plus a little crystallised ore).</summary>
+    /// survey reads them (one raw ore with single ore drops, else 1.25 plus a little crystallised ore).</summary>
     private double[] UnitsTable(string metal)
     {
         if (_unitsByMetal.TryGetValue(metal, out var table)) return table;
@@ -402,8 +404,8 @@ public sealed class DepositService
 
     /// <summary>A block's metal units as deposit measurement counts them: the sum over its drops of
     /// the average count times the dropped item's <c>metalUnits</c>. Ore processing (#686) must leave
-    /// this as it is: <c>OreProcessingScenarios</c> checks a medium ore block still measures 1.25 ×
-    /// its units plus the crystallised ore.</summary>
+    /// this as it is: <c>OreProcessingScenarios</c> checks a medium ore block measures its units
+    /// (one raw ore, <c>SingleOreDrops</c>).</summary>
     public static double BlockUnits(Block block)
     {
         double units = 0;

@@ -641,8 +641,8 @@ public class SeraphHorizonsConfig
     /// surface signs of deep veins stay).</summary>
     public bool NoSurfaceCopper { get; set; } = true;
 
-    /// <summary>Interesting Ore Gen's veins shrunk per metal to the sizes in
-    /// <c>config/ore-sizes.json</c> in new worlds (coal and minerals by a quarter at most).</summary>
+    /// <summary>Interesting Ore Gen's veins sized per metal to the sizes in
+    /// <c>config/ore-sizes.json</c> in new worlds (coal and minerals at 1.875 times their volume).</summary>
     public bool SmallerDeposits { get; set; } = true;
 
     /// <summary>Interesting Ore Gen's hydrothermal districts about one per 120 km² (7 km tiles) instead of
@@ -758,6 +758,13 @@ public class SeraphHorizonsConfig
     /// deposit of half or twice the size depending on how the land was explored. Needs
     /// <see cref="OreCells"/>. New worlds only: a world created with it off never gets it.</summary>
     public bool StableVeins { get; set; } = true;
+
+    /// <summary>Single ore drops (Ore/Core/SingleOreDrops.cs, README "Ore cells"): an ore block, of
+    /// any mod, drops exactly one raw ore (the player's ore drop rate still multiplies it) instead of
+    /// vanilla's 1.25 on average, and no crystallised ore; sylvite and blocks whose drop is not an ore
+    /// keep theirs. Deposits are sized at one ore a block either way. New worlds only: a world created
+    /// with it off, or before it existed, never gets it (server side).</summary>
+    public bool SingleOreDrops { get; set; } = true;
 
     /// <summary>Grade pockets: their typical width in blocks (2 to 64).</summary>
     public double GradePocketSizeBlocks { get; set; } = Ore.Core.GradePocketSettings.DefaultPocketSize;

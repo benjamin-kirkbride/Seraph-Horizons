@@ -257,8 +257,34 @@ public class VeinScalingTests
         });
         Assert.Equal(400.0 / 3567, table.FactorFor("copper")!.Value, 6);
         Assert.Equal(0.75, table.FactorFor("coal"));
-        Assert.Equal(1, table.FactorFor("gold"));
+        // The table is on the one-ore basis, at twice the ingots: a factor may be over 1.
+        Assert.Equal(200.0 / 130, table.FactorFor("gold")!.Value, 9);
         Assert.Null(table.FactorFor("odd"));
         Assert.Null(table.FactorFor("iron"));
+    }
+
+    // A world created before single ore drops reads the table as it was: 0.4 of each factor, never
+    // above 1, and half of each size (DepositBasis).
+    [Fact]
+    public void AWorldFromBeforeReadsTheOldBasis()
+    {
+        var entries = new Dictionary<string, OreSizeTable.Entry>
+        {
+            ["copper"] = new(2853.6, 800, 0.34, 300, 2000),
+            ["gold"] = new(104, 160, null, 60, 400),
+            ["coal"] = new(Factor: 1.875),
+        };
+        var now = new OreSizeTable(entries);
+        var before = new OreSizeTable(entries, before: true);
+        Assert.Equal(0.34, now.FactorFor("copper"));
+        Assert.Equal(0.136, before.FactorFor("copper")!.Value, 9);
+        Assert.Equal(160.0 / 104, now.FactorFor("gold")!.Value, 9);
+        Assert.Equal(80.0 / 130, before.FactorFor("gold")!.Value, 9);
+        Assert.Equal(1.875, now.FactorFor("coal"));
+        Assert.Equal(0.75, before.FactorFor("coal")!.Value, 9);
+        Assert.Equal(new SizeTargets(300, 800, 2000), now.TargetsFor("copper"));
+        Assert.Equal(new SizeTargets(150, 400, 1000), before.TargetsFor("copper"));
+        Assert.Equal(1.875, now.VolumeFor("bituminouscoal", 4)!.Value, 9);
+        Assert.Equal(0.75, before.VolumeFor("bituminouscoal", 4)!.Value, 9);
     }
 }

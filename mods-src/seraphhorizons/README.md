@@ -5212,7 +5212,7 @@ first metal, and the registry the traders and their maps read. Design, engine fa
 numbers are in `docs/oregen.md`. The admin commands under `/sh ore` are described with `/sh trade`'s
 in Trading, "Admin tools".
 
-### Ore cells (`OreCells`, `OreCellSizeMetres`, `OreCellSizeByMetal`, `NoSurfaceCopper`, `SmallerDeposits`, `RarerDistricts`, `GradePockets`, `StableVeins`)
+### Ore cells (`OreCells`, `OreCellSizeMetres`, `OreCellSizeByMetal`, `NoSurfaceCopper`, `SmallerDeposits`, `RarerDistricts`, `GradePockets`, `StableVeins`, `SingleOreDrops`)
 
 Ore is rare and placed by the seed (epic #435): a deposit of a given metal is a few kilometres
 away, and one deposit carries a group for a long while, then runs out. Five switches, all on by
@@ -5264,14 +5264,15 @@ fixed at creation. The server log says what the world has
   IOG leaves on (it switches off only the deep vanilla deposits), are not tried
   (`patches/ore-nosurfacecopper.json`). IOG's surface signs of its own deep veins (boulders and
   prospecting veins) are part of those veins and stay. Bog iron is still the game's.
-- **`SmallerDeposits`** (#439): IOG's veins are shrunk per metal to the epic's typical deposit
-  (copper and iron 400 ingots; tin, zinc, bismuth, lead and nickel 150; silver and gold 80;
-  titanium, chromium and platinum 150), by `config/ore-sizes.json`'s target over the median
-  measured before. Disc veins (`fault`, `seam`) lose radius (√factor: volume goes with
+- **`SmallerDeposits`** (#439): IOG's veins are sized per metal to a typical deposit of twice the
+  epic's (copper and iron 800 ingots; tin, zinc, bismuth, lead and nickel 300; silver and gold 160;
+  titanium, chromium and platinum 300), by `config/ore-sizes.json`'s target over the median
+  measured before, at one ore a block (see `SingleOreDrops`); a factor may be over 1, growing the
+  vein past IOG's (gold's ore-cell veins). Disc veins (`fault`, `seam`) lose radius (√factor: volume goes with
   radius² × thickness); tube veins (`chimney`, `hydrotube`) lose tendrils, down to one, then
   length (their radius only sets which chunks they are drawn in) (`Ore/Core/VeinScaling.cs`).
   Grade is untouched, and each vein's spread is kept, so small and large deposits stay apart.
-  Coal and the industrial minerals lose a quarter. It acts on the generators the game builds from
+  Coal and the industrial minerals got a quarter cut, and double with the metals (1.875). It acts on the generators the game builds from
   the deposit files (a postfix on `GenDeposits.initAssets`), so every variant, whatever patched
   it in, is covered; the log says what was scaled. The factors began as a first cut; the survey of
   #445 found anchored veins about twice the target, so copper, iron, bismuth, zinc and platinum
@@ -5281,10 +5282,10 @@ fixed at creation. The server log says what the world has
   holds about a quarter of them (#863, "Ore processing: items, crushing and smelting"), so every
   graded ore's vein is scaled by 4 more in volume, the same way (a disc's radius by 2 over its cut,
   a tube's tendrils by 4), and holds the ingots its factor gave it, in four times the blocks
-  (`OreProducts.DepositBlocks`, `OreSizeTable.VolumeFor`). That takes gold's vein (80 / 130, so
-  0.62) to 2.5 times IOG's, and uranium, which the table leaves alone, to 4 times; coal and the
+  (`OreProducts.DepositBlocks`, `OreSizeTable.VolumeFor`). That takes gold's vein (160 / 104, so
+  1.54) to 6.2 times IOG's, and uranium, which the table leaves alone, to 4 times; coal and the
   industrial minerals, whose items are unchanged, are not scaled further, but rhodochrosite, a
-  graded ore, is (0.75 × 4 = 3). Deposit measurement and the trader maps read the ore's own units,
+  graded ore, is (1.875 × 4 = 7.5). Deposit measurement and the trader maps read the ore's own units,
   so they follow without change. A world with `SmallerDeposits` off still gets the 4 for graded ore
   with ore processing on (without the metals' factors), so its veins hold vanilla's metal.
 
@@ -5356,6 +5357,22 @@ fixed at creation. The server log says what the world has
   other veins (gems, quartz, olivine) write only into the column being generated
   (`Ore/Game/StableVeins.cs`, `StableVeinWorlds.cs`, `Ore/Core/StableVeinBook.cs`). Needs `OreCells`.
   Details in `docs/oregen.md`, "Stable veins".
+- **`SingleOreDrops`**: an ore block drops exactly one raw ore, not vanilla's 1.25 on average
+  (one, or two a quarter of the time), and no crystallised ore (vanilla's one in a hundred). It
+  covers every mod's ore blocks: on the server, once every block is loaded, each block that drops
+  an ore item (a code starting `ore-`, or an item with `metalUnits`) at one or more on average has
+  that drop set to exactly one and its crystallised ore removed (`Ore/Game/SingleOreDropsPass.cs`,
+  rules in `Ore/Core/SingleOreDrops.cs`; the log counts them per mod). Only the base count changes:
+  the player's ore drop rate still multiplies it. Its other drops (quartz's clear quartz) stay, and
+  so do the blocks whose drop is not an ore (flint) and sylvite (2.5 potash salts a block).
+
+  Deposits are sized at one ore a block whether it is on or not: a new world's deposits hold twice
+  the ingots they did at 1.25 a block, so its veins are 2.5 times the volume, and its size tiers
+  (`smallIngots` / `targetIngots` / `largeIngots`, which also size hydrothermal district veins) are
+  twice the ingots (`config/ore-sizes.json`, `DepositBasis` in `Ore/Core/SingleOreDrops.cs`). With
+  the switch off ore gives a quarter more than the sizes say. Both are kept in the world's record
+  (`singleOreDrops`, `doubledDeposits`): a world created before them keeps vanilla's drops and its
+  deposits at their old sizes and tiers.
 
 Admin commands (`controlserver`), under the pack's `/sh` root, to check the rule:
 

@@ -35,6 +35,7 @@ public static class DistrictVeinSizes
 
     private static DistrictVeins? _rules;
     private static double _blocks = 1;
+    private static bool _oneOre;
     private static int[] _surfaces = [];
     private static RockStrataPrediction? _strata;
     private static bool _strataTried;
@@ -77,8 +78,12 @@ public static class DistrictVeinSizes
 
     /// <param name="blocks">How many times the ore per layer a sized vein is made
     /// (<see cref="DistrictVeinSettings.Blocks"/>): <see cref="OreSystem.GradedOreBlocks"/>.</param>
-    public static void Bind(ICoreServerAPI api, Harmony harmony, OreSizeTable sizes, double blocks)
+    /// <param name="oneOre">Whether a block's ingots are reckoned at one raw ore, crystallised ore
+    /// left out (<see cref="DepositBasis"/>, a world created since single ore drops), whatever the
+    /// blocks drop this run; else from their drops as they are.</param>
+    public static void Bind(ICoreServerAPI api, Harmony harmony, OreSizeTable sizes, double blocks, bool oneOre)
     {
+        _oneOre = oneOre;
         var s = api.Assets.Get(SettingsAsset).ToObject<SettingsFile>();
         _blocks = blocks;
         _rules = new DistrictVeins(sizes, new DistrictVeinSettings(s.VeinsPerMetal, s.KeepCount ?? [], s.GradeAllowance, s.BandFloor,
@@ -97,6 +102,7 @@ public static class DistrictVeinSizes
     {
         _rules = null;
         _blocks = 1;
+        _oneOre = false;
         _surfaces = [];
         _strata = null;
         _strataTried = false;
@@ -704,8 +710,17 @@ public static class DistrictVeinSizes
             if (block == null) return (false, 0);
             if (block.Drops == null) return (true, 0);
             double units = 0;
-            foreach (var drop in block.Drops)
-                units += (drop.Quantity?.avg ?? 0) * (drop.ResolvedItemstack?.Collectible?.Attributes?["metalUnits"].AsInt(0) ?? 0);
+            if (_oneOre)
+                units = DepositBasis.UnitsAtOneOre(block.Drops.Where(d => d?.Code != null).Select(d =>
+                {
+                    var attributes = d.ResolvedItemstack?.Collectible?.Attributes;
+                    double mu = attributes?["metalUnits"].AsInt(0) ?? 0;
+                    return (new OreDropView(d.Type == EnumItemClass.Item, d.Code.Path, attributes?["metalUnits"].Exists == true,
+                        d.Quantity?.avg ?? 0), mu);
+                }));
+            else
+                foreach (var drop in block.Drops)
+                    units += (drop.Quantity?.avg ?? 0) * (drop.ResolvedItemstack?.Collectible?.Attributes?["metalUnits"].AsInt(0) ?? 0);
             return (true, DepositSizing.Ingots(units));
         });
     }
