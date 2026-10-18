@@ -355,9 +355,12 @@ public class TradingStoryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         output.WriteLine($"spawner at {spawner!.Pos}: {string.Join(", ", spawner.Data.EntityCodes)}, every {spawner.Data.InGameHourInterval} h, range mode {spawner.Data.SpawnRangeMode}");
         // Due now, as at a new world's first visit.
         spawner.Data.LastSpawnTotalHours = -1000;
+        // Found by the spawner's own count, not by where it stands: the house is small, and one the
+        // spawner made as the chunks loaded may have walked out of its door (and is not made again).
+        var spawned = (HashSet<long>)SpawnedField.GetValue(spawner)!;
         EntitySeraphTrader? hunter = null;
-        await World.Until(() => (hunter = SW.LoadedEntities.Values.OfType<EntitySeraphTrader>()
-            .FirstOrDefault(e => e.TraderType == TraderTypes.TreasureHunter && area.Contains(e.Pos.AsBlockPos))) != null, 600);
+        await World.Until(() => (hunter = spawned.Select(id => W.GetEntityById(id)).OfType<EntitySeraphTrader>()
+            .FirstOrDefault(e => e.Alive && e.TraderType == TraderTypes.TreasureHunter)) != null, 600);
         Assert.NotNull(hunter);
         Assert.DoesNotContain(SW.LoadedEntities.Values, e => e.Code.Domain == "game" && e.Code.Path.Contains("treasurehunter") && e.Alive);
         Assert.Equal("story:treasurehunter", Trading.Standing.TraderIdOf(hunter!));
