@@ -543,5 +543,11 @@
   "AmalgamationPlatesSettings": {
     "DressingLitres": 1.0,
     "AmalgamItems": 12
+  },
+  "ReverberatoryRoaster": true,
+  "ReverberatorySettings": {
+    "HearthCharge": 32,
+    "ConcentratePerCoal": 6.0,
+    "HalfDamperPace": 0.5
   }
 }

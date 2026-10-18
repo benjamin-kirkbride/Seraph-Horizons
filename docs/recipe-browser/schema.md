@@ -459,6 +459,19 @@ concentrators. No power: `requirements` says the water a rock and the rate, the 
 rock). Ores without free metal run over the plates unchanged and have no record. Its build is the shared ore
 machine `construction` record.
 
+**Reverberatory roaster** (type `reverberatory`, shape `machine`, present with seraphhorizons' `ReverberatoryRoaster`
+and `OreProcessing` on, #736): one record per sulfide's concentrate (`seraphhorizons:concentrate-<ore>`), id
+`reverberatory|<input>|0`, consumed, and the furnace's frame `seraphhorizons:reverberatory-north` as its station; out,
+its roasted concentrate (`seraphhorizons:roastedconcentrate-<ore>`), one for one (ore-processing.json
+`machines.reverberatory.recovery`, 1). One more for native sulfur rock (`game:ore-sulfur`, #938): out, sulfur powder
+(`game:powder-sulfur`), a fraction, the rock's `nativeSulfurUnits` (13) × `machines.reverberatory.nativeSulfur` (0.65) /
+`sulfurUnitsPerPowder` (5), carried over to the next rock. `machine.power` is `mechanical`, `machine.turns` the shaft's
+turns an item at any speed (a native sulfur rock as long as the concentrate holding its units, 13 / 5 of one);
+`requirements` says in words that it burns coal with its chimney drawing; `extra` has the `rig`, the `form`
+(`concentrate` or `nativesulfur`), the `ore`, the `share` (the output an item), the `water` an item, the `coal` an item
+(a concentrate's sixth, `ReverberatorySettings.ConcentratePerCoal`), the `hearth` (the bed, 32) and `carried`. Its build is
+the shared ore machine `construction` record, and its draw (0.1 to 0.5 with the bed) is on the power page.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).

@@ -47,8 +47,9 @@ public class BEOreMachineCell : BlockEntityContainer, IMachinePower
     {
         base.Initialize(api);
         _inventory.OnGetAutoPushIntoSlot = (face, from) =>
-            Controller is { } machine && from?.Itemstack is { } stack && machine.InfeedBuffer(Pos, face) == this
-            && machine.Takes(stack)
+            Controller is { } machine && from?.Itemstack is { } stack
+            && (machine.InfeedBuffer(Pos, face) == this && machine.Takes(stack)
+                || machine.SideFeedAt(Pos, face) is { } feed && machine.SideFeedTakes(feed, stack))
             && (Buffer.Empty || Buffer.Itemstack.Equals(api.World, stack, Vintagestory.API.Config.GlobalConstants.IgnoredStackAttributes))
                 ? Buffer
                 : null;
