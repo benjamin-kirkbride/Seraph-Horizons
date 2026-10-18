@@ -567,5 +567,13 @@
     "DamperHalfBurn": 0.6,
     "DamperShutBurn": 0.25,
     "DoorOpenPace": 0.5
+  },
+  "ParkesKettle": true,
+  "ParkesKettleSettings": {
+    "ZincPerLead": 0.01,
+    "DamperHalfHeat": 0.5,
+    "DamperHalfBurn": 0.5,
+    "DamperShutBurn": 0.25,
+    "LadleIngots": 6
   }
 }

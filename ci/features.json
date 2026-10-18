@@ -2,7 +2,7 @@
   "always": ["items", "recipes", "switches", "tidy", "rest"],
   "global": ["Core/", "Machines/", "ConfigDefaults/", "LangText.cs", "SeraphHorizons.csproj", "modinfo.json"],
   "global_switches": ["OreMachinesSettings", "FollowPackDefaults"],
-  "unmapped": ["AcidParting/", "ParkesKettle/"],
+  "unmapped": ["AcidParting/"],
   "features": {
     "Eidolon": {
       "code": ["Eidolon/", "EidolonGantry/"],
@@ -59,6 +59,13 @@
       "codes": ["reverberatory"],
       "export": ["Recipes/ReverberatoryExport.cs", "RecipeSection.Reverberatory.cs"],
       "switches": ["ReverberatoryRoaster", "ReverberatorySettings"],
+      "classes": []
+    },
+    "ParkesKettle": {
+      "code": ["ParkesKettle/"],
+      "codes": ["parkeskettle"],
+      "export": ["Recipes/ParkesKettleExport.cs", "RecipeSection.ParkesKettle.cs"],
+      "switches": ["ParkesKettle", "ParkesKettleSettings"],
       "classes": []
     },
     "LiquationFurnace": {
