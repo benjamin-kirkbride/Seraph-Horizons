@@ -116,16 +116,32 @@ public static class EidolonTunnels
     /// top layer.</summary>
     public static HashSet<(int X, int Z)> Covered(MarkArea area, Func<MarkPos, bool> roof)
     {
+        HashSet<(int X, int Z)>? result = null;
+        foreach (var _ in Covered(area, roof, c => result = c)) { }
+        return result!;
+    }
+
+    /// <summary><see cref="Covered(MarkArea, Func{MarkPos, bool})"/> a few block columns a step (the
+    /// planner's slices), handing the result to <paramref name="done"/>.</summary>
+    public static IEnumerable<bool> Covered(MarkArea area, Func<MarkPos, bool> roof, Action<HashSet<(int X, int Z)>> done)
+    {
         var covered = new HashSet<(int X, int Z)>();
+        int columns = 0;
         for (int x = area.Min.X; x <= area.Max.X; x++)
         for (int z = area.Min.Z; z <= area.Max.Z; z++)
+        {
+            MineWork.Add(RoofRise);
             for (int y = area.Max.Y + 1; y <= area.Max.Y + RoofRise; y++)
                 if (roof(new MarkPos(x, y, z)))
                 {
                     covered.Add((x, z));
                     break;
                 }
-        return covered;
+            if (++columns % 64 == 0)
+                yield return false;
+        }
+        done(covered);
+        yield return true;
     }
 
     /// <summary>The bounds of <paramref name="columns"/> (at least one).</summary>
@@ -215,8 +231,23 @@ public static class EidolonTunnels
     /// </summary>
     public static MineTunnel? Shape(MarkArea area, IReadOnlySet<(int X, int Z)> covered, MineReach reach, PathCell? home)
     {
+        MineTunnel? result = null;
+        foreach (var _ in Shape(area, covered, reach, home, t => result = t)) { }
+        return result;
+    }
+
+    /// <summary><see cref="Shape(MarkArea, IReadOnlySet{ValueTuple{int, int}}, MineReach, PathCell?)"/> a
+    /// column of a way in's first slice a step (the planner's slices), handing the result to
+    /// <paramref name="done"/>.</summary>
+    public static IEnumerable<bool> Shape(MarkArea area, IReadOnlySet<(int X, int Z)> covered, MineReach reach, PathCell? home,
+        Action<MineTunnel?> done)
+    {
         if (covered.Count == 0)
-            return null;
+        {
+            done(null);
+            yield return true;
+            yield break;
+        }
         (MineTunnel Tunnel, int Count, double D2)? best = null;
         foreach (var (dx, dz) in Drives)
         {
@@ -228,16 +259,19 @@ public static class EidolonTunnels
                 var (x, z) = tunnel.Column(0, across);
                 if (!covered.Contains((x, z)))
                     continue;
+                MineWork.Add(area.SizeY);
                 for (int y = area.Min.Y; y <= area.Max.Y; y++)
                     if (reach.Clearable.Contains(new MarkPos(x, y, z)) && ReachedFromFront(new MarkPos(x, y, z), tunnel, reach))
                         count++;
+                yield return false;
             }
             var (mx, mz) = tunnel.Mouth;
             double d2 = home is { } h ? (mx - h.X) * (mx - h.X) + (mz - h.Z) * (mz - h.Z) : 0;
             if (best == null || count > best.Value.Count || (count == best.Value.Count && d2 < best.Value.D2))
                 best = (tunnel, count, d2);
         }
-        return best!.Value.Tunnel;
+        done(best!.Value.Tunnel);
+        yield return true;
     }
 
     // Whether a potential stand in front of the mouth reaches a cell: its box's columns short of the first
@@ -246,6 +280,7 @@ public static class EidolonTunnels
     private static bool ReachedFromFront(MarkPos cell, MineTunnel tunnel, MineReach reach)
     {
         var b = tunnel.Bounds;
+        MineWork.Add(6 * 6 * 5);
         for (int x = cell.X - 2; x <= cell.X + 3; x++)
         for (int z = cell.Z - 2; z <= cell.Z + 3; z++)
         {
