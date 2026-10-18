@@ -243,7 +243,7 @@ class Anchors(unittest.TestCase):
     def test_each_chute_section_is_vanillas_on_its_face(self):
         ring = {(a, b) for a in range(4, 12) for b in range(4, 12) if not (5 <= a < 11 and 5 <= b < 11)}
         for prefix, key, axis, flush in (("fr_chute_conc_", "concentrate", 2, 0.0), ("fr_chute_tail_", "tailings", 2, 48.0),
-                                         ("fb_chute_", "feed", 1, 16.0)):
+                                         ("fb_chute_", "infeed", 1, 16.0)):
             els = elements(prefix)
             self.assertEqual(len(els), 4, prefix)
             cell = RIG[f"{key}Cell"]
@@ -259,7 +259,7 @@ class Anchors(unittest.TestCase):
                 self.assertEqual({f["texture"] for f in e["faces"].values()}, {"#chute"})
             self.assertEqual(cover, ring, prefix)
         self.assertEqual(SHAPE["textures"]["chute"], "game:block/metal/sheet/copper1")
-        self.assertEqual((RIG["concentrateFace"], RIG["tailingsFace"], RIG["feedFace"]), ("north", "south", "up"))
+        self.assertEqual((RIG["concentrateFace"], RIG["tailingsFace"], RIG["infeedFace"]), ("north", "south", "up"))
 
 
 class Textures(unittest.TestCase):

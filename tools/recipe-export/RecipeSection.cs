@@ -164,6 +164,7 @@ public static partial class RecipeSection
         FillSluice(ctx, records, types);
         FillJig(ctx, records, types);
         FillShakingTable(ctx, records, types);
+        FillVanner(ctx, records, types);
         FillOreMachines(ctx, records, types);
 
         records.Sort((a, b) => string.CompareOrdinal((string)a["id"]!, (string)b["id"]!));

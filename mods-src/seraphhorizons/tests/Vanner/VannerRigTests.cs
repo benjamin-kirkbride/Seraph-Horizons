@@ -41,7 +41,7 @@ public class VannerRigTests
         Assert.Equal([1, 0, 2], root.GetProperty("powerCell").EnumerateArray().Select(v => v.GetInt32()));
         Assert.Equal("south", root.GetProperty("powerFace").GetString());
         Assert.Equal("up", root.GetProperty("waterFace").GetString());
-        Assert.Equal("up", root.GetProperty("feedFace").GetString());
+        Assert.Equal("up", root.GetProperty("infeedFace").GetString());
         Assert.Equal("north", root.GetProperty("concentrateFace").GetString());
         Assert.Equal("south", root.GetProperty("tailingsFace").GetString());
     }
