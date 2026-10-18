@@ -1218,4 +1218,14 @@ public class SeraphHorizonsConfig
     /// open front gives; a value out of range falls back to its default with a warning. The server's are
     /// used.</summary>
     public StallRoaster.Core.StallRoasterConfig StallRoasterSettings { get; set; } = new();
+
+    /// <summary>The shaking table (ShakingTable/, README "Shaking table"; #921): a Wilfley table, the third
+    /// concentrator, built on its frame in four stages (the deck, the rectifier, the differential head, then its
+    /// chutes and water line). On an axle at its head end (either way round) it washes crushed or ground ore from
+    /// a chute, the jig's tailings on, 7 rock an in-game hour at shaft speed 0.6 on a steady load of 0.1 and 20 L
+    /// of water a rock from a ppex pipe, catching 70 % of what can be caught. Three chutes out: the concentrate,
+    /// the middlings (the feed's locked metal, for the ball mill) and the tailings (on to the vanner, or
+    /// discarded beside it as sand). Needs OreProcessing (off, or that off, means its frame and recipe do not
+    /// exist, and tables already placed are lost). The server's setting decides.</summary>
+    public bool ShakingTable { get; set; } = true;
 }

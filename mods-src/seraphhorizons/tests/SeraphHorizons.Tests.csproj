@@ -259,8 +259,9 @@
     <Compile Include="../RecipeSelector/Core/**/*.cs" Link="RecipeSelector/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <!-- The eidolon (#673): charge, stops, the slump pose, ownership and the wide pathfinder. -->
     <Compile Include="../Eidolon/Core/**/*.cs" Link="Eidolon/Core/%(RecursiveDir)%(Filename)%(Extension)" />
-    <!-- The shaking table's shipped rig and its reference poses (ShakingTable/tools/make_shape.py): a model
-         with no gameplay yet (#921), held to the shared rig maths its renderer will use. -->
+    <!-- The shaking table (#921): its pass sorted onto its three outlets, and its shipped rig and reference
+         poses (ShakingTable/tools/make_shape.py), held to the shared rig maths its renderer uses. -->
+    <Compile Include="../ShakingTable/Core/**/*.cs" Link="ShakingTable/Core/%(RecursiveDir)%(Filename)%(Extension)" />
     <None Include="../assets/seraphhorizons/config/shakingtable-rig.json" Link="shakingtable-rig.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="ShakingTable/rig-reference.json" Link="shakingtable-rig-reference.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The vanner's shipped rig and its reference poses (Vanner/tools/make_shape.py): a model with no
