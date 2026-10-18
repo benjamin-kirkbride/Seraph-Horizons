@@ -38,7 +38,8 @@ public static class Wildcard
 /// <list type="bullet">
 /// <item>A pattern starting with <c>@</c> is a .NET regex: the rest is wrapped as <c>^…$</c> (so a top-level
 /// alternation needs its own group), <c>RegexOptions.CultureInvariant</c> only, so it is <b>case-sensitive</b>,
-/// matched against the path only, cached per pattern string for the session (1 s timeout).</item>
+/// matched against the path only. (The game caches it per pattern string, with a 1 s match timeout; this one does
+/// neither, see <see cref="Matcher"/>.)</item>
 /// <item>Anything else is a <c>*</c> wildcard (no other special character), compared <b>ignoring ASCII case</b>.</item>
 /// <item>An empty pattern matches nothing.</item>
 /// </list>
@@ -50,17 +51,34 @@ public static class Wildcard
 /// </summary>
 public static class GroupByMatcher
 {
-    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, System.Text.RegularExpressions.Regex> cache = new(StringComparer.Ordinal);
-
     public static bool IsRegex(string pattern) => pattern.Length > 0 && pattern[0] == '@';
 
-    public static bool IsMatch(string pattern, string path)
+    public static bool IsMatch(string pattern, string path) => Matcher(pattern)(path);
+
+    /// <summary>
+    /// The pattern made ready once, to test many paths with (an <c>@</c> regex is constructed here, not per path).
+    /// Nothing is cached across calls: <see cref="Handbook"/> tries many candidate regexes, each about once, so a cache
+    /// keyed by pattern would only grow for the life of the process.
+    /// <para>No match timeout, unlike the game's: the timeout counts wall-clock time, so a GC pause or a starved thread
+    /// tripped it on a match that takes microseconds (#293), and the only regexes matched here are
+    /// <see cref="GroupByRegex"/>'s, which can't backtrack badly: <c>-</c>-separated tokens that are literals,
+    /// alternations of distinct literals or <c>[^-]*</c>, none of which matches a <c>-</c>, so each token is tried
+    /// against one dash-delimited run of the path.</para>
+    /// </summary>
+    public static Func<string, bool> Matcher(string pattern)
     {
-        ArgumentNullException.ThrowIfNull(path);
-        if (string.IsNullOrEmpty(pattern)) return false;
+        if (string.IsNullOrEmpty(pattern)) return path => { ArgumentNullException.ThrowIfNull(path); return false; };
         if (pattern[0] == '@')
-            return cache.GetOrAdd(pattern, p => new System.Text.RegularExpressions.Regex(
-                string.Concat("^", p.AsSpan(1), "$"), System.Text.RegularExpressions.RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1))).IsMatch(path);
+        {
+            var rx = new System.Text.RegularExpressions.Regex(string.Concat("^", pattern.AsSpan(1), "$"),
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant, System.Text.RegularExpressions.Regex.InfiniteMatchTimeout);
+            return path => rx.IsMatch(path ?? throw new ArgumentNullException(nameof(path)));
+        }
+        return path => WildcardMatch(pattern, path ?? throw new ArgumentNullException(nameof(path)));
+    }
+
+    static bool WildcardMatch(string pattern, string path)
+    {
         int pi = 0, t = 0, star = -1, mark = 0;
         while (t < path.Length)
         {
