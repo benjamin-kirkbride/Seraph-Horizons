@@ -145,7 +145,10 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
 
             MineWork.Add(state.Remaining.Count);
             var leftovers = state.Remaining.Where(c => !stair.Contains(c)).ToHashSet();
-            outOfReach.UnionWith(leftovers);
+            // Of what it strands, only the cells it could have dug next (the bands' precedence let it) are out of
+            // its reach; the rest only waited behind them (a covered band not driven caps the open floor and
+            // holds the bands under it) and are planned again with them held, but in the last run.
+            outOfReach.UnionWith(run < MaxReruns ? leftovers.Where(state.Bands!.Eligible) : leftovers);
             if (leftovers.Count > 0 && run < MaxReruns)
                 continue;
 
@@ -525,6 +528,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
     private sealed class Simulation
     {
         private const int ParkReach = 8;
+        private const int MaxSweeps = 8;
 
         private readonly MineState _state;
         private readonly MineSite _site;
@@ -543,6 +547,8 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
         private int? _covered;
         private int _openFloor;
         private bool _stairOpen;
+        private bool _offLane;
+        private int _sweptAt = -1, _sweeps;
 
         public Simulation(MineState state, MineTunnel? tunnel, PathCell? home)
         {
@@ -598,7 +604,27 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                 }
                 _stands.Clear();
                 if (!_queue.TryDequeue(out var stand, out var key))
-                    break;
+                {
+                    // Dry: every stand asked again (once since the last station, at most MaxSweeps times: each
+                    // costs what the first push did), since a stand parked by the guard is woken only by a dig
+                    // near it and what refused it may have gone far off; and a covered band its lanes alone
+                    // cannot finish (no stand in a lane reaches its face, which would hold every band and
+                    // layer under it) struck from then on from any stand that reaches it.
+                    if (_sweptAt == Stations.Count || _sweeps == MaxSweeps)
+                        break;
+                    _sweptAt = Stations.Count;
+                    _sweeps++;
+                    _offLane |= _covered != null;
+                    _parked.Clear();
+                    _parkedAt.Clear();
+                    foreach (var n in _state.Walk.Nodes)
+                    {
+                        Push(n);
+                        if (++units % 32 == 0)
+                            yield return false;
+                    }
+                    continue;
+                }
                 _queued.Remove(stand);
                 // a stand's cells are looked at afresh (a few hundred cells): a step every few
                 if (++units % 8 == 0)
@@ -648,7 +674,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
             Eligibility();
             var widened = new List<MarkPos>(_bands.TakeWidened());
             if (candidate.Kind == MineStationKind.Face)
-                foreach (var (lane, y) in cells.Select(c => (candidate.Lane, c.Y)).Distinct().ToList())
+                foreach (var (lane, y) in cells.Select(c => (CellLane(c), c.Y)).Where(p => p.Item1 >= 0).Distinct().ToList())
                 {
                     int before = _front.GetValueOrDefault((lane, y), 0);
                     int now = Front(lane, y);
@@ -692,7 +718,9 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                     }
                     else if (band < coveredBands)
                     {
-                        if (band != _covered || lane < 0 || !InLane(c, lane) || _tunnel!.Slice(x, z) > Front(lane, y) + 1)
+                        // its own lane's; once the lanes alone have stalled, any lane's in its reach
+                        int cl = lane >= 0 && InLane(c, lane) ? lane : _offLane ? CellLane(c) : -1;
+                        if (band != _covered || cl < 0 || _tunnel!.Slice(x, z) > Front(cl, y) + 1)
                             continue;
                         (covered ??= new()).Add(c);
                     }
@@ -701,7 +729,12 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                 }
             }
             if (covered != null)
-                return Make(s, covered, _covered!.Value, MineStationKind.Face, lane);
+            {
+                // the lane it strikes: the stand's where its cells all lie in it, else theirs if one, else none
+                int faceLane = lane >= 0 && covered.All(c => InLane(c, lane)) ? lane
+                    : covered.Select(CellLane).Distinct().ToList() is [var only] ? only : -1;
+                return Make(s, covered, _covered!.Value, MineStationKind.Face, faceLane);
+            }
             if (open != null)
                 return Make(s, open, _bands.OpenBand, MineStationKind.Bench, -1);
             if (stair != null)
@@ -774,6 +807,14 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                     tie = true;
             }
             return tie ? -1 : best;
+        }
+
+        private int CellLane(MarkPos c)
+        {
+            for (int i = 0; i < _tunnel!.Lanes.Count; i++)
+                if (InLane(c, i))
+                    return i;
+            return -1;
         }
 
         private bool InLane(MarkPos c, int lane)
