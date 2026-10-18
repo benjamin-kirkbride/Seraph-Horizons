@@ -153,6 +153,7 @@ public static partial class RecipeSection
         FillCupellationFurnace(ctx, records, types);
         FillLiquationFurnace(ctx, records, types);
         FillParkesKettle(ctx, records, types);
+        FillAcidParting(ctx, records, types);
         FillMandrelStation(ctx, records, types);
         FillRocker(ctx, records, types);
         FillAmalgamPan(ctx, records, types);

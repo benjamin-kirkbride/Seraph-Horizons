@@ -1322,4 +1322,21 @@ public class SeraphHorizonsConfig
     /// shares of heat and burning, and the ingots a ladling takes out; a value out of range falls back to its default
     /// with a warning. The server's are used.</summary>
     public ParkesKettle.Core.ParkesKettleConfig ParkesKettleSettings { get; set; } = new();
+
+    /// <summary>The acid parting vessel (AcidParting/, README "Ore processing: the acid parting vessel"; #931): a fired
+    /// clay vessel of nitric acid in a sand bath over a small fire, under a brick hood, with a precipitating tub,
+    /// built on its iron frame in five stages (the brickwork in any one fired brick, the lining, the sand bath and
+    /// doors, the vessel and tub, the lead siphon). Batch, by hand: dore (gold quartz's bullion) with nitric acid and
+    /// wash water from a bucket, the fire lit and the row's chimney drawing, parts at 10 units an hour; the gold comes
+    /// out whole as gold bits, the silver (15 % of the gold) at 95 % as silver bits thrown down on the tub's copper
+    /// plate (ore-core's figures, config/ore-processing.json). Also the cooking recipe for aqua fortis (the game's
+    /// nitric acid) from saltpeter and sulfuric acid. Needs OreProcessing (off means its frame and its recipes do not
+    /// exist, and vessels already placed are lost). The server's setting decides.</summary>
+    public bool AcidParting { get; set; } = true;
+
+    /// <summary>The acid parting vessel's own figures (its recovery, rate and wash water are ore processing's,
+    /// <c>config/ore-processing.json</c>): the charge, the acid it needs and spends, the fire's fuel, the copper's
+    /// wear and the damper's draught; a value out of range falls back to its default with a warning. The server's are
+    /// used.</summary>
+    public AcidParting.Core.AcidPartingConfig AcidPartingSettings { get; set; } = new();
 }
