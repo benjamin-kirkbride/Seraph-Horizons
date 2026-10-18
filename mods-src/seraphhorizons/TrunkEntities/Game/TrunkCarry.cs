@@ -33,8 +33,11 @@ namespace SeraphHorizons.Mod.TrunkEntities;
 /// (Carry On's own slot modifier is cancelled out); removed when it is not;</item>
 /// <item>Logging Expanded's Trunk Storage Rack loses its Carryable (<see cref="StripRacks"/>);</item>
 /// <item>Cartwright's carts and sleds take a carried trunk into a storage slot through Carry On's
-/// own <c>attachablecarryable</c> (its <c>carryonmore</c> patch gives them it), and taking one off,
-/// by Carry On's key or the game's own empty-hand take, puts it in the player's hands.</item>
+/// own <c>attachablecarryable</c> (its <c>carryonmore</c> patch gives them it; since 2.0.0-rc.1 that
+/// behaviour also adds a <c>carryon:carryable</c> in slot mode to the cart at run time, a second
+/// after it loads, when it has none), and taking one off, by Carry On's key or the game's own empty-hand take (which Carry On
+/// would refuse for what it attached: <see cref="CarryOnTakeGuardPrefix"/>), puts it in the player's
+/// hands.</item>
 /// </list>
 /// The trunk's carry animation (Logging Expanded's <c>trunkcarry</c>, <c>trunkcarryheavy</c> for
 /// thick trunks) and the pack's shoulder transform are a second Carryable merged into Logging
@@ -46,6 +49,9 @@ public static class TrunkCarry
 {
     public const string CarrySystemName = "CarryOn.CarrySystem";
     public const string HarmonyId = "seraphhorizons.trunkcarry";
+
+    /// <summary>Carry On's prefix on the game's take from an attachment slot, which refuses what Carry On attached.</summary>
+    public const string CarryOnTakeGuardTypeName = "CarryOn.Patches.EntityBehaviorAttachable_TryRemoveAttachment_Patch";
 
     /// <summary>Carry On's first-person matrix for a carried block (client side).</summary>
     public const string FirstPersonTypeName = "CarryOn.Client.Logic.CarryRenderer.CarryFirstPersonTransform";
@@ -302,6 +308,16 @@ public static class TrunkCarry
                 _harmony.Patch(take, prefix: new HarmonyMethod(typeof(TrunkCarry), nameof(TakeAttachmentPrefix)));
             else
                 api.Logger.Warning("[seraphhorizons] Trunk entities: the game's EntityBehaviorAttachable.TryRemoveAttachment is gone, so only Carry On's key takes a trunk off a cart");
+            // Carry On (2.0.0-rc.1) refuses the game's take of anything it attached (a carryonbackup
+            // attribute, which a trunk put on a cart through it has), with "vanilla-detach-blocked" on
+            // the client; a trunk is let through to TakeAttachmentPrefix, whichever prefix runs first.
+            var guard = AccessTools.TypeByName(CarryOnTakeGuardTypeName) is { } guardType
+                ? AccessTools.Method(guardType, "Prefix", [typeof(EntityBehaviorAttachable), typeof(int), typeof(EntityAgent)])
+                : null;
+            if (guard != null && guard.ReturnType == typeof(bool))
+                _harmony.Patch(guard, prefix: new HarmonyMethod(typeof(TrunkCarry), nameof(CarryOnTakeGuardPrefix)));
+            else
+                api.Logger.Warning("[seraphhorizons] Trunk entities: Carry On's {0}.Prefix is not as expected, so taking a trunk off a cart by hand may show Carry On's error", CarryOnTakeGuardTypeName);
             // A trunk is Hands only: whatever puts one on a back (Carry On's swap key), it is laid down.
             // The interface is CarryOnLib's and the manager Carry On's, so every loaded assembly is
             // looked through for a class that implements it, and its own SetCarried is patched.
@@ -622,6 +638,17 @@ public static class TrunkCarry
         target.MarkShapeModified();
         target.World.BlockAccessor.GetChunkAtBlockPos(target.Pos.AsBlockPos)?.MarkModified();
         api.World.PlaySoundAt(stack.Block?.Sounds?.Place ?? GlobalConstants.DefaultBuildSound, target, player);
+        __result = true;
+        return false;
+    }
+
+    // EntityBehaviorAttachable_TryRemoveAttachment_Patch.Prefix(__instance, selectionBoxIndex, byEntity),
+    // Carry On's: for a trunk it returns true (the take goes on, to TakeAttachmentPrefix) without running.
+    private static bool CarryOnTakeGuardPrefix(EntityBehaviorAttachable __0, int __1, EntityAgent __2, ref bool __result)
+    {
+        if (__0?.GetSlotFromSelectionBoxIndex(__1)?.Itemstack is not { } stack || !Trunks.IsTrunk(stack) || __2?.Api is not { } api
+            || Manager(api) == null)
+            return true;
         __result = true;
         return false;
     }

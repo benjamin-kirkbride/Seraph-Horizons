@@ -7,7 +7,7 @@ namespace SeraphHorizons.RecipeExport.Recipes;
 /// <summary>
 /// Folds Hydrate or Diedrate's copies of water recipes back into the recipes they copy.
 ///
-/// At load, HoD's RecipeGenerator (2.5.6) goes through every recipe list and, for each
+/// At load, HoD's RecipeGenerator (2.5.8) goes through every recipe list and, for each
 /// registered recipe with an ingredient that is `game:waterportion` (or a container whose
 /// `recipeAttributes.requiresContent` is), registers one clone per kind of HoD water
 /// (`hydrateordiedrate:waterportion-boiled-natural-clean`, `-boiled-rain-clean`,

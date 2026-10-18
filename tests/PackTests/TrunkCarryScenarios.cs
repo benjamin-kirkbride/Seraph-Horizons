@@ -84,6 +84,21 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         return result!;
     }
 
+    /// <summary>Carry On's attach or detach on a cart slot, as its key over the slot does
+    /// (<c>ICarryableEntitySlotHandler.TryAttach/TryDetach(entity, slotIndex, player, api, out failureCode)</c>,
+    /// on the cart's <c>EntityBehaviorAttachableCarryable</c>, 2.0.0-rc.1).</summary>
+    private bool SlotHandler(string method, Entity cart, int slotIndex, IPlayer player)
+    {
+        var handler = cart.GetBehavior("carryon:attachablecarryable") ?? throw new Xunit.Sdk.XunitException("the cart has no carryon:attachablecarryable");
+        var m = AccessTools.Method(handler.GetType(), method,
+                    [typeof(Entity), typeof(int), typeof(IPlayer), typeof(ICoreAPI), typeof(string).MakeByRefType()])
+                ?? throw new Xunit.Sdk.XunitException($"no {handler.GetType().Name}.{method}");
+        object?[] args = [cart, slotIndex, player, World.Api, null];
+        bool done = (bool)m.Invoke(handler, args)!;
+        output.WriteLine($"{method} {done}, failure {args[4]}");
+        return done;
+    }
+
     private static EntityBehaviorTrunkCarry Hold(Entity trunk) =>
         trunk.GetBehavior<EntityBehaviorTrunkCarry>() ?? throw new Xunit.Sdk.XunitException("trunk entity has no carry behaviour");
 
@@ -630,29 +645,25 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var slot = attachable.GetSlotFromSelectionBoxIndex(box);
         Assert.NotNull(slot);
         Assert.True(slot.Empty);
+        // Carry On's slot handler takes the inventory slot, the game's take the selection box.
+        int slotIndex = attachable.GetSlotIndexFromSelectionBoxIndex(box);
 
         // attach, as Carry On does on its key over the slot
         Assert.True(TrunkCarry.TryGive(player, Trunk(6, "sm")));
-        object?[] attach = [player, cart.EntityId, box, "__ignore__", true];
-        bool attached = (bool)Invoke("TryAttach", attach);
-        output.WriteLine($"attached {attached}, failure {attach[3]}");
-        Assert.True(attached);
+        Assert.True(SlotHandler("TryAttach", cart, slotIndex, player));
         Assert.Null(TrunkCarry.Carried(player));
         Assert.True(Trunks.IsTrunk(slot.Itemstack));
         Assert.Equal(6, Trunks.StoredLogs(slot.Itemstack!, W));
 
         // detach by Carry On's key: into the hands
-        object?[] detach = [player, cart.EntityId, box, "__ignore__", true];
-        bool detached = (bool)Invoke("TryDetach", detach);
-        output.WriteLine($"detached {detached}, failure {detach[3]}");
-        Assert.True(detached);
+        Assert.True(SlotHandler("TryDetach", cart, slotIndex, player));
         Assert.True(slot.Empty);
         var back = TrunkCarry.Carried(player);
         Assert.NotNull(back);
         Assert.Equal(6, Trunks.StoredLogs(back, W));
 
         // the game's own empty-hand take (ctrl + right click) also puts it in the hands, not an inventory
-        Assert.True((bool)Invoke("TryAttach", [player, cart.EntityId, box, "__ignore__", true]));
+        Assert.True(SlotHandler("TryAttach", cart, slotIndex, player));
         Assert.True(Trunks.IsTrunk(slot.Itemstack));
         bool taken = (bool)AccessTools.Method(typeof(EntityBehaviorAttachable), "TryRemoveAttachment").Invoke(attachable, [player.Entity, box])!;
         Assert.True(taken);
@@ -664,7 +675,7 @@ public class TrunkCarryScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.False(again.Attributes.HasAttribute("backpack"));
 
         // and with full hands it stays on the cart
-        Assert.True((bool)Invoke("TryAttach", [player, cart.EntityId, box, "__ignore__", true]));
+        Assert.True(SlotHandler("TryAttach", cart, slotIndex, player));
         Assert.True(TrunkCarry.TryGive(player, Trunk(3, "xs")));
         Assert.False((bool)AccessTools.Method(typeof(EntityBehaviorAttachable), "TryRemoveAttachment").Invoke(attachable, [player.Entity, box])!);
         Assert.True(Trunks.IsTrunk(slot.Itemstack));
