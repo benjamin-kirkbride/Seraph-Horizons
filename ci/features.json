@@ -43,7 +43,7 @@
                  "Recipes/OreRetortingExport.cs", "Recipes/OreRoastingExport.cs", "RecipeSection.Spalling.cs",
                  "RecipeSection.Cupellation.cs", "RecipeSection.Liquation.cs",
                  "RecipeSection.OreRetorting.cs", "RecipeSection.OreRoasting.cs",
-                 "RecipeSection.OreMachines.cs"],
+                 "RecipeSection.OreMachines.cs", "OreProcessingSection.cs"],
       "switches": ["OreProcessing", "SpallingSettings", "SpallingRefill", "FirepitRoastSeconds"],
       "classes": ["OreProcessingScenarios"]
     },
