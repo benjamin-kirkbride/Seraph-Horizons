@@ -3537,7 +3537,10 @@ once when it stops working (another order, none, dry, slumped, down, a fight, un
 order's `Stop`; or walks off toward a part of the area not loaded, or to wait: `Travel`, `Wait`; and a
 sweep every second, `EidolonJobSystem.Sweep`, for an eidolon unloaded, removed or given another order),
 and a claim not struck within 30 seconds (`EidolonTeamwork.ReserveSeconds`) lapses (walking to it counts
-as striking it, however long the way). *The stair* (a pit's, *Stations* above): it is 2 wide, and two
+as striking it, however long the way, but waiting with it does not: a routed member stopped short of
+another or parting from one keeps its station through the wait). So it claims its station again before
+each strike, and lets the station go when another took any of it meanwhile, rather than strike in a column
+another holds (#1156). *The stair* (a pit's, *Stations* above): it is 2 wide, and two
 meeting on it push each other off, so one member at a time walks it (`MineJobCells.StairHolder`): a walk
 in the pit more than a climb up or down, from or to below its rim, takes it for its length, and another
 that needs it then waits off it (`eidolon-status-mine-waiting-stair`: standing on it, it steps aside first),
@@ -3549,7 +3552,9 @@ go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaim
 `EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). Down a pit with a stair and work left, one
 with nothing to take waits down there, a column clear of the stair and of what others hold, rather than
 climb the whole stair to the rim and back; a walk to where it waits that goes on over 10 seconds (stuck,
-or giving way for ever) is stopped and it looks again from where it got to. *The floors within a climb*: the open band (*Stations*, above)
+or giving way for ever) is stopped and it looks again from where it got to. The work under its feet waits
+for it to move, so with no member at work, one waiting over blocks still to dig steps aside onto ground with
+nothing left to dig; three once waited so for good, one standing on the last blocks (#1156). *The floors within a climb*: the open band (*Stations*, above)
 keeps every member within a layer of the highest with blocks left, so it walks from anywhere in the pit
 to anywhere else. *When none may work*: with blocks left and no member able to take a station, the plan
 is made again at once, once until a block is broken; with another still working or parked over the area,
@@ -6444,7 +6449,12 @@ the game's own checks, but on ground up to 2 blocks uneven (`slopeTolerance` in
 median of the game's samples, the ground under it levelled and the ground around blended into it at
 most one block per block, so it sits in no cut and on no plinth (#599; `docs/trading.md`, "Camp
 placement"). Worlds saved before keep their camps; a cell still waiting tries its spots not yet
-generated in any order, and a cell that had given up gets second chances in its new chunks. A trader spawner inside a story structure (vanilla's treasure hunter, or one a mod adds)
+generated in any order, and a cell that had given up gets second chances in its new chunks. The
+game's ponds are kept out of the camps: a camp placed from one chunk reaches into neighbours whose
+pond pass has not run yet, and an underground pond there could find a cellar's air and flood its
+floor, under the furniture. A transpiler on `GenPonds.TryPlacePondAt` drops any pond whose fill
+touches a recorded camp's location grown by a block, before it sets any water
+(`Trading/Game/CampPondGuard.cs`, `Trading/Core/CampPonds.cs`). A trader spawner inside a story structure (vanilla's treasure hunter, or one a mod adds)
 keeps its own trader: a story NPC, with its own dialogue. Neighbouring cells never have the same
 type, and a prospector is never more than two cells away. Every 8 km cell keeps its centre free for a settlement (later). New worlds only: a world
 takes the grid at its first start with this mod if the switch is on then, and keeps that; an existing
@@ -6470,12 +6480,12 @@ radius blocks (default 4096) with their type and camp, the next spot not generat
 spot missed; `/sh trade tp <cellX,cellZ>` goes to a cell's camp, generating its next spot first if needed.
 
 Tests: `tests/Trading/` (grid, types and their bias, regions, list resolution, restock, the camp
-state with its order, second chances and old saves, the camp ground test, levelling and skirt, the shipped
+state with its order, second chances and old saves, the camp ground test, levelling and skirt, ponds kept out, the shipped
 lists and the curation fixture); `tests/PackTests/TradingCoreScenarios.cs`
 (Atlas, a fixed seed: the 66 entity types, every list resolving in the pack with stock everywhere,
 every trader's trade window title and name, a spawned trader stocking from its list, the game's camps
 taken over, the spawner rewrite, cells' camps being decided, one on uneven ground with its footprint
-levelled and no step of more than one off it, `/sh trade camps` and `/sh trade tp` to it, and nothing logged);
+levelled and no step of more than one off it and no water in it, the pond guard hooked, `/sh trade camps` and `/sh trade tp` to it, and nothing logged);
 `tests/PackTests/TradingStoryScenarios.cs` (Atlas, a survival world with its story locations: the
 treasure hunter's spawner keeps its trader, a camp's 150 blocks off is still rewritten, and the
 traders the handbook leaves out are the replaced ones and not the treasure hunter);
