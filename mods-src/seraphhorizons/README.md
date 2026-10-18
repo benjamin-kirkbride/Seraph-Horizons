@@ -5097,31 +5097,41 @@ payouts already split gears into stacks (`SeraphTraderInventory.GiveOrDrop`), so
 takes more slots, and no grid or barrel recipe in the pack takes more than 64 in one slot
 (`BigPilesScenarios`).
 
-### Clutter does not pile (`NoClutterPiles`)
+### Clutter and chiseled blocks do not pile (`NoClutterPiles`)
 
-The game's clutter is put down one at a time, as the game ships it, not piled. More Piles'
+The game's clutter and chiseled blocks are put down as the game ships them, not piled. More Piles'
 catch-all block pile (its `*` rule: every block whose type file names `game:block/basic/cube` as
 its shape and has no ground storage yet, Ctrl + Shift to put down, 64 a block, 4,096 with big
-piles) also matched the game's clutter, whose type files name the plain cube only as a
-placeholder: a clutter block (class `BlockClutter`, or another `BlockShapeFromAttributes`) draws
-the shape its stack's `type` attribute picks, as do blocks drawn by the `ShapeFromAttributes`
-block entity behavior. So clutter, aquatic and devastation clutter, banners, the Jonas lamp, the
-cluttered bookshelves and the elevator rail could each be stacked into a pile of identical cubes.
-`ClutterPiles.cs` takes that pile away again, from `StorageTweaksSystem` after More Piles and
-before big piles: a block loses a ground storage behavior when the behavior is More Piles' (its
-properties carry `MorePilesProperties`) and the block draws its shape from its attributes
-(`Core/ClutterPileRules.cs`); a pile a block's own type file or a patch gives it stays, and so do
-More Piles' piles of real cubes. The block also leaves the `groundstorable` creative tab More Piles
-put it in. Both sides: the server's block type packet then has no pile, and More Piles' own pass
-on a client, which would give it back from its config, is undone there too; the client follows the
-server's switch as for big piles.
+piles) also matched every block whose type file names the plain cube only as a placeholder and
+that is drawn some other way:
 
-A clutter pile already in a world keeps its items: with no pile behavior it takes no more, and
-breaking it gives them back. Off, clutter piles as More Piles gives it. `BigPilesScenarios`
-checks that clutter, banners, the Jonas lamp, the cluttered bookshelf and the elevator rail have
-no pile (in the packet too), that no block drawn from its attributes has one, and that a client's
-More Piles pile is taken away; `SwitchesOffScenarios` that with the switch off the clutter has More
-Piles' pile of 64.
+- from its stack's attributes: a clutter block (class `BlockClutter`, or another
+  `BlockShapeFromAttributes`) draws the shape its `type` attribute picks, as do blocks drawn by
+  the `ShapeFromAttributes` block entity behavior: clutter, aquatic and devastation clutter,
+  banners, the Jonas lamp, the cluttered bookshelves and the elevator rail;
+- by its block entity: chiseled blocks (`BlockChisel`, `BlockMicroBlock`, their voxels in the
+  stack's attributes), crates, stationary baskets, cheese, the coal pile and the creative meta
+  blocks (spawner, music trigger, teleporter base, ...).
+
+So each of them could be stacked into a pile of identical cubes. `ClutterPiles.cs` takes that pile
+away again, from `StorageTweaksSystem` after More Piles and before big piles: a block loses a ground
+storage behavior when More Piles gave it for the cube its type file names (the behavior's
+`MorePilesProperties` carry `MatchesShape` `game:block/basic/cube`) and the block draws its shape
+from its attributes or has a block entity (`Core/ClutterPileRules.cs`). A pile a block's own type
+file or a patch gives it stays, and so do More Piles' piles of real cubes and its own rules for
+blocks with a block entity (the henbox, tool rack, sign, torch holder, ...), which name a real
+shape or none. In the pack that is 30 blocks. The block also leaves the `groundstorable` creative
+tab More Piles put it in. Both sides: the server's block type packet then has no pile, and More
+Piles' own pass on a client, which would give it back from its config, is undone there too; the
+client follows the server's switch as for big piles.
+
+Such a pile already in a world keeps its items: with no pile behavior it takes no more, and
+breaking it gives them back. Off, these blocks pile as More Piles gives them. `BigPilesScenarios`
+checks that clutter, banners, the Jonas lamp, the cluttered bookshelf, the elevator rail, chiseled
+blocks, crates, a stationary basket and cheese have no pile (in the packet too), that no block drawn
+from its attributes and no block with a block entity keeps a cube pile from More Piles, that the
+henbox keeps its own, and that a client's More Piles pile is taken away; `SwitchesOffScenarios`
+that with the switch off the clutter and the chiseled block have More Piles' pile.
 
 ### The handbook says what piles
 
@@ -5141,7 +5151,7 @@ docs/recipe-browser/item-data.md).
 `BigPilesScenarios` checks a firewood, an ingot, a More Piles cobblestone and slab pile, that
 every stacking pile of the pack holds 64 stacks, the packets a client gets, a placed firewood pile
 full and half full, the crates' slots (the game's aged, ebony and other woods and Material Needs'),
-a placed crate and one saved with more slots, the rusty gear's stack, that clutter does not pile
+a placed crate and one saved with more slots, the rusty gear's stack, that clutter and chiseled blocks do not pile
 and the handbook line's facts; `SwitchesOffScenarios` the four switches off.
 
 ## Ore
@@ -7154,7 +7164,7 @@ rules, cut arithmetic, cycle and animation (`BuckingSawmill/Core/`, described in
 (`Machines/Core/MachineOil.cs`, `tests/Machines/MachineOilTests.cs`), the hand machines' held W, predicted
 at frame rate and eased to the server's (`Machines/Core/HeldWorkFollower.cs`,
 `tests/Machines/HeldWorkFollowerTests.cs`), the trunk code and variant rules of the
-debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), big piles' numbers, the crates' slots, which piles clutter loses and the handbook's pile line (`Core/BigPileRules.cs`,
+debarked trunk (`Core/TrunkVariants.cs`, `TrunkVariantsTests`), big piles' numbers, the crates' slots, which piles clutter and chiseled blocks lose and the handbook's pile line (`Core/BigPileRules.cs`,
 `Core/CrateSlotRules.cs`, `Core/ClutterPileRules.cs`, `Core/PileText.cs`), the item value table's lookup
 and family fallback, that its wildcard cache answers as the uncached scan does, and that the shipped table parses (`Trading/Values/Core/`, `tests/Trading/Values/`),
 the trunk entities' settings, weights, carry speeds, spud holds and boxes (`TrunkEntities/Core/`,

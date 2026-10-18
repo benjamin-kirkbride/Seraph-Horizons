@@ -134,9 +134,10 @@ The props are read after the pack's own mod has run: its `BigPiles` switch makes
 (`stacking`) hold 64 of the item's stacks, so an ingot pile exports `capacity` 1024 and a Ctrl
 click a whole stack (`bulkTransfer` 16), its other numbers scaled so that a full pile is as tall
 as before (`fullHeight` unchanged), and its `NoClutterPiles` switch takes away the pile More
-Piles' catch-all cube rule gives the game's clutter (blocks drawn from their attributes: clutter,
-banners, the Jonas lamp, ...), so those export no `groundStorage`. The smoke export loads that
-mod, so a release's export has the big piles and no clutter piles.
+Piles' catch-all cube rule gives the blocks not drawn as the cube their type file names (drawn
+from their attributes: clutter, banners, the Jonas lamp, ...; or by their block entity: chiseled
+blocks, crates, stationary baskets, cheese), so those export no `groundStorage`. The smoke export
+loads that mod, so a release's export has the big piles and none of those piles.
 
 `itemPile` is the game's other pile: an `ItemPileable` item (coal, charcoal, coke) goes into its
 own pile block (`coalpile`), whose `BlockEntityItemPile` holds `capacity` (16) and moves
