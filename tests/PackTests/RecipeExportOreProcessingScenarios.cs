@@ -49,6 +49,7 @@ public partial class RecipeExportScenarios
         Assert.Contains(teallite["outputs"]!, o => (string)o["code"]! == "game:ingot-tin" && (double)o["quantity"]! == 1);
         Assert.Contains(teallite["outputs"]!, o => (string)o["code"]! == "game:metalbit-lead" && Math.Abs((double)o["quantity"]! - 6.8) < 1e-6);
         Assert.Contains(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == OreProcessingSystem.LiquationGuidePage);
+        Assert.Contains(doc["guides"]!.Cast<JObject>(), g => (string?)g["code"] == OreProcessingSystem.BullionGuidePage);
     }
 
     // The recipe export has a spalling record per ore kind: by hand, its turns the blows, the hammer

@@ -5,6 +5,12 @@
 // the crucible and the ingot mold draw it by that. Smelted plainly it gives its main metal (set in code).
 // partedBy names the machine that parts each kind (the config's byProducts.partedBy, held to it by
 // BullionTests), for the tooltip's one line (ItemOreProduct.StatusText). Marked disabled with the switch off.
+// Drawn as the game's ingot, with its transforms, tongs and shelf (game:itemtypes/resource/ingot.json); doré
+// in the shiny ingot and pile, as the game's gold (both shapes take the one "metal" texture, so the blended
+// overlays hold). The dimensions stay: the crucible fits a bar by them. Not worked on the anvil. Each kind's
+// handbook page is its own (groupBy by ore, so Tidy Variants keeps them apart too), its "Ore processing"
+// section its own text (extraSectionsByType; the figures generated, Ore/tools/make_ore_guide_numbers.py),
+// linking the guide "Base bullion" (config/handbook/oreprocessing-bullion.json).
 {
 	"code": "bullion",
 	"class": "seraphhorizons.ItemOreProduct",
@@ -47,7 +53,10 @@
 			"properties": {
 				"layout": "Stacking",
 				"placeRemoveSound": "game:sounds/block/ingot",
-				"stackingModel": "game:block/metal/ingotpile",
+				"stackingModelByType": {
+					"*-quartz_nativegold-*": "game:block/metal/ingotpileshiny",
+					"*": "game:block/metal/ingotpile"
+				},
 				"stackingTextures": {
 					"metal": "game:block/metal/ingot/{metal}"
 				},
@@ -68,8 +77,13 @@
 			}
 		}
 	],
-	"shape": {
-		"base": "game:item/ingot"
+	"shapeByType": {
+		"*-quartz_nativegold-*": {
+			"base": "game:item/ingotshiny"
+		},
+		"*": {
+			"base": "game:item/ingot"
+		}
 	},
 	"texturesByType": {
 		"*-galena-*": {
@@ -120,17 +134,57 @@
 		"metalUnits": 100,
 		"handbook": {
 			"groupBy": [
-				"bullion-*"
+				"bullion-{ore}-*"
 			],
-			"extraSections": [
-				{
-					"title": "seraphhorizons:oreproduct-handbook-title",
-					"text": "seraphhorizons:oreproduct-bullion-handbook-text"
-				}
-			]
+			"extraSectionsByType": {
+				"bullion-galena-lead": [
+					{ "title": "seraphhorizons:oreproduct-handbook-title", "text": "seraphhorizons:oreproduct-bullion-galena-handbook-text" }
+				],
+				"bullion-galena_nativesilver-lead": [
+					{ "title": "seraphhorizons:oreproduct-handbook-title", "text": "seraphhorizons:oreproduct-bullion-galena_nativesilver-handbook-text" }
+				],
+				"bullion-tetrahedrite-copper": [
+					{ "title": "seraphhorizons:oreproduct-handbook-title", "text": "seraphhorizons:oreproduct-bullion-tetrahedrite-handbook-text" }
+				],
+				"bullion-freibergite-silver": [
+					{ "title": "seraphhorizons:oreproduct-handbook-title", "text": "seraphhorizons:oreproduct-bullion-freibergite-handbook-text" }
+				],
+				"bullion-teallite-tin": [
+					{ "title": "seraphhorizons:oreproduct-handbook-title", "text": "seraphhorizons:oreproduct-bullion-teallite-handbook-text" }
+				],
+				"bullion-franckeite-tin": [
+					{ "title": "seraphhorizons:oreproduct-handbook-title", "text": "seraphhorizons:oreproduct-bullion-franckeite-handbook-text" }
+				],
+				"bullion-quartz_nativegold-gold": [
+					{ "title": "seraphhorizons:oreproduct-handbook-title", "text": "seraphhorizons:oreproduct-bullion-quartz_nativegold-handbook-text" }
+				]
+			}
 		},
 		"displaycaseable": true,
-		"shelvable": true
+		"shelvable": true,
+		"displayable": {
+			"shelf": {
+				"behavior": "Stacking",
+				"category": "ingot",
+				"size": { "width": 3, "height": 2, "length": 7 },
+				"randYRotAngle": 5
+			}
+		},
+		"onshelfTransform": {
+			"rotation": { "x": 0, "y": 75, "z": 0 }
+		},
+		"onTongTransform": {
+			"translation": { "x": -0.48, "y": -0.58, "z": -0.45 },
+			"rotation": { "x": 0, "y": 0, "z": 76 },
+			"scale": 1.02
+		},
+		"tongOpening": "medium",
+		"onMetalTongTransform": {
+			"translation": { "x": -1, "y": -0.19, "z": -0.6 },
+			"rotation": { "x": 0, "y": -1, "z": -10 },
+			"origin": { "x": 0.5, "y": 0, "z": 0.5 },
+			"scale": 1
+		}
 	},
 	"creativeinventory": {
 		"general": [
@@ -147,5 +201,23 @@
 		"width": 0.0625,
 		"height": 0.0625,
 		"length": 0.0625
+	},
+	"guiTransform": {
+		"translation": { "x": 2, "y": 0, "z": 0 },
+		"rotation": { "x": 149, "y": -36, "z": 0 },
+		"origin": { "x": 0.5, "y": 0.1, "z": 0.5 },
+		"scale": 3.5
+	},
+	"tpHandTransform": {
+		"translation": { "x": -0.77, "y": -0.15, "z": -0.64 },
+		"rotation": { "x": 0, "y": -71, "z": 18 },
+		"origin": { "x": 0.5, "y": 0.1, "z": 0.5 },
+		"scale": 0.75
+	},
+	"groundTransform": {
+		"translation": { "x": 0, "y": 0, "z": 0 },
+		"rotation": { "x": 0, "y": 0, "z": 0 },
+		"origin": { "x": 0.5, "y": 0, "z": 0.5 },
+		"scale": 4.8
 	}
 }

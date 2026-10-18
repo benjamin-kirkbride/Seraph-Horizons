@@ -1413,7 +1413,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal(0.6875f, choppingBlock.CollisionBoxes[0].Y2, 4);
         // The recipe export leaves out the six pages a player does not see, and only them (and
         // machine oil's, gear reclamation's, the crucible furnace's, the eidolon's, ore processing's, spalling's, ore roasting's,
-        // liquation's, ore retorting's and the springs' pages, whose switches are off here too).
+        // liquation's, base bullion's, ore retorting's and the springs' pages, whose switches are off here too).
         Assert.Equal(WoodworkingGuidePages.Pages.Select(p => (p.PageCode, p.TitleKey()))
                 .Append((MachineOilSystem.GuidePageCode, MachineOilSystem.GuideTitleKey))
                 .Append((GearReclamationSystem.GuidePageCode, GearReclamationSystem.GuideTitleKey))
@@ -1423,6 +1423,7 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.RoastingGuideTitleKey))
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.LiquationGuideTitleKey))
                 .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.ProcessingGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.ProcessingGuideTitleKey))
+                .Append((SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.BullionGuidePage, SeraphHorizons.Mod.Ore.Processing.OreProcessingSystem.BullionGuideTitleKey))
                 .Append((SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuidePage, SeraphHorizons.Mod.Ore.Processing.MercuryStillSystem.GuideTitleKey))
                 .Append((SeraphHorizons.Mod.Springs.SpringsSystem.GuidePageCode, SeraphHorizons.Mod.Springs.SpringsSystem.GuideTitleKey)).Order(),
             ((IEnumerable<(string, string)>)World.Api.ObjectCache[WoodworkingGuide.HiddenGuidesKey]).Order());
