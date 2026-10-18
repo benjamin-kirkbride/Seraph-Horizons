@@ -3499,8 +3499,8 @@ another walking up to it, crosses another's claim after 4 seconds, passes anothe
 rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the stair or one
 standing near it, which would be pushed), never sets off for a stand another stands on (a member waiting there
 is asked to make room, stepping aside to a place with nothing left to dig and no claim, but not one holding a
-station of its own, which is about to set off for it and leaves by itself: asked every second, it stayed for
-good where it found its place clear, #1244; the stop is dropped when one stays there), stops short of one standing that it walks at, whatever the walk (a third of a block
+station of its own, which is about to set off for it and leaves by itself: asked every second, one stayed 50
+seconds where it found its place clear, #1244; the stop is dropped when one stays there), stops short of one standing that it walks at, whatever the walk (a third of a block
 before their boxes touch), waits while that one is still in its way, and parts from one its box has been in
 for 0.6 seconds (the game's push between two boxes reads as walking, which the other would give way to for
 ever): the one with the higher id, or beside one striking or home, steps away to a place apart from every
@@ -3563,7 +3563,8 @@ go and waits for room, up to 20 seconds, before it goes (`MineOrder.CrossesClaim
 `EidolonNavigator.LastWentAround`, `RimWait`'s `keepClear`). On today's dispatch a member waiting (not
 walking) in the way of one setting off for or walking to its station is asked, each second, to make room,
 stepping aside to a place clear of that way (down a pit, one it may wait at there; else one with nothing
-left to dig) held by none (`MineOrder.ClearWay`): the floor of a trench 5 wide has no way round one standing
+left to dig) held by none (`MineOrder.ClearWay`), but not one holding a station, which sets off for it in a
+moment (as on routes, above): the floor of a trench 5 wide has no way round one standing
 in its middle, and a walker pressed into one waiting there for over 20 seconds (#1220). Down a pit with a stair and work left, one
 with nothing to take waits down there, a column clear of the stair and of what others hold, rather than
 climb the whole stair to the rim and back; a walk to where it waits that goes on over 10 seconds (stuck,
