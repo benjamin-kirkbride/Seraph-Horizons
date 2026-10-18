@@ -66,6 +66,8 @@ public sealed class SwitchOwnership
         new("AmalgamationPlates", [], [], ["amalgamationplates"]),
         // The exporter's own recipe type for the reverberatory roaster's process (tools/recipe-export, Recipes/ReverberatoryExport.cs).
         new("ReverberatoryRoaster", [], [], ["reverberatory"]),
+        // The exporter's own recipe type for the cupellation furnace's parting (tools/recipe-export, Recipes/CupellationFurnaceExport.cs).
+        new("CupellationFurnace", [], [], ["cupellationfurnace"]),
         // The exporter's own recipe type for the mandrel station's process (tools/recipe-export, Recipes/MandrelStationExport.cs).
         new("MandrelStation", [], [], ["mandrelstation"]),
         // The exporter's own recipe type for the rocker's washes (tools/recipe-export, Recipes/RockerExport.cs).

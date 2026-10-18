@@ -6277,7 +6277,7 @@ use left, the state (`seraphhorizons:machine-state-*`) and the reservoir. A stag
 frame block's `handbook.extraSections`, under `seraphhorizons:{machine}-handbook-{build,work,water,tailings}-{title,text}`
 (the draw bench's pattern). The recipe browser shows each machine whose frame is in the game as a
 `construction` record built from its build file (`tools/recipe-export/RecipeSection.OreMachines.cs`):
-the frame, then each stage's materials, a wearing part's first set with its stage.
+the frame, then each stage's materials, a wearing part's first set with its stage, or, fitted by itself once the machine is built (the cupellation furnace's test), as a last stage named as the part.
 
 Settings (`OreMachinesSettings`): `MinSpeed`, `ReservoirLitres`, `WaterIntakeLitresPerSecond` and
 `Tailings` (per machine: `Form` gravel or sand, `LayersPerRock`); out-of-range values fall back with a
@@ -6518,6 +6518,56 @@ Code: `ReverberatoryRoaster/Core/ReverberatoryRoasting.cs` (its rules and settin
 gameplay reads of the rig), `ReverberatoryRoaster/Game/BEReverberatory.cs` and `ReverberatorySystem.cs`; tests
 `tests/ReverberatoryRoaster/ReverberatoryTests.cs`; Atlas `tests/PackTests/ReverberatoryScenarios.cs` and
 `RecipeExportReverberatoryScenarios.cs`.
+
+### Ore processing: the cupellation furnace (`CupellationFurnace`, `CupellationFurnaceSettings`)
+
+The parting works' furnace for silver (#740; the model, its build stages and the blast inlet in
+`CupellationFurnace/README.md`, #741): an English test furnace, on the shared ore machine code ("Ore machines: the
+shared game half") and the crucible furnace's row and chimney rule. It needs `OreProcessing`; off, or with its switch
+off, its frame and recipe do not exist. Batch, charged and emptied by hand through its working door: no power, no
+water, no chute. Its feed is **base bullion** ("Ore processing: base bullion"), what smelting a by-product ore gives.
+
+- **Build.** The iron frame (grid: 3 iron plates, 4 iron rods, 12 iron nails and strips, a hammer; placed, the working
+  face, with the litharge bay, the fire door and the ash mouth, faces the player), then three stages by right-click
+  from `config/builds/cupellationfurnace.json`: the brickwork (17 fired bricks, all of one type), the lining (12 tier 3
+  refractory bricks, 5 fire clay) and the fittings (3 iron plates and a copper plate: the fire door, the gutter, the
+  litharge pot, the test's ring, the blast stub, the damper). Then the **test**, its wearing part (the owner's ruling
+  of 2026-10-14): 48 bone meal beaten into the ring by right-click, spent after 15 charges (about 3,000 units of lead)
+  and relined for the same; without it the furnace takes no charge. A test with use left comes back as its bone meal
+  when the furnace is broken.
+- **Fire.** Coal (bituminous or anthracite), coke or charcoal by hand at the fire door (slot 0), lit with a firestarter
+  or a torch (the shared ore machine fire); it burns `CoalPerHour` (0.7, the owner's ruling) an in-game hour with the
+  ash-pit damper open, half as fast half shut, and `BankedBurn` (a quarter) shut or without a draught. With no fuel
+  left it goes out. Sneak and right-click with an empty hand works the damper (open, half, shut).
+- **Chimney.** The crucible furnace's row rule (`FurnaceRow`): a chimney of at least 6 blocks with a top on the outlet
+  over the stack, up to 5 furnaces side by side along x sharing it, every other outlet capped with an iron plate
+  (right-click with one; an empty hand on the outlet's top takes it back). Without a draught nothing is worked.
+- **Blast.** Steelmaking Expanded's engine air blower on a ppex steam engine puts air into the pipe network; a pipe
+  laid to the stub in the back wall (the rig's `blastCell`/`blastFace`, a fixed connector as smex's converter intake)
+  feeds the tuyere. While the furnace holds a charge it can work and its fire burns, it draws the rig's `blastRate`
+  (10 L/s) of `Air` at `blastPressure` (1.5 atm) or more (`Machines/Game/PpexGas.cs`, ExpandedLib's
+  `PipeNetwork.TryConsumeGas` found by name as the machines' water is; a small general extension any machine can use).
+  The pace is the air's share of that (at most 1) times the damper's draught (open 1, half `DamperHalfDraught` 0.5,
+  shut 0): the owner's ruling, pace × min(1, air ÷ 10).
+- **Charge.** Up to `ChargeUnits` (200, the bone-ash cupel's limit) of bars, 100 units each, in the dish (slots 1 to 4):
+  silver-lead (galena, argentiferous galena), argentiferous copper (tetrahedrite) and cupriferous silver
+  (freibergite), each of the last two with `LeadPerOtherUnit` (1) lead ingot to a bar, and the Parkes kettle's rich
+  lead (`Bullion.TakenBy` at `PartingStation.CupellationFurnace`). Tin-lead and doré are refused. A charge not yet
+  begun can be taken back with an empty hand.
+- **Work.** At ore processing's rate (`machines.cupellationfurnace.perHour`, 55 units of lead an hour; a full charge
+  of two bars in about 3.6 hours), the lead burns to litharge (5 units an item) into the pot (slots 5 and 6, two
+  charges' worth; full, nothing is worked), and each bar's by-product comes out at the furnace's 95 %
+  (`OreRecovery.Smelted` at `PartingStation.CupellationFurnace`), rich lead's silver whole: silver on the test as the
+  cake, copper beside it, as metal bits, a fraction one more item at that chance (`Cupellation.Whole`). The cake is
+  taken out first (empty hand), then the litharge; the next charge waits for the cake.
+- **Recipe browser.** A `cupellationfurnace` record per bar (`RecipeSection.CupellationFurnace.cs`,
+  `Recipes/CupellationFurnaceExport.cs`) and its build's `construction` record. No shaft power, so not on the power
+  page.
+
+Code: `CupellationFurnace/Core/Cupelling.cs` (what it takes, gives and burns, the settings; tests
+`tests/CupellationFurnace/CupellationFurnaceTests.cs`), `Core/CupellationFurnaceRig.cs`,
+`Game/BECupellationFurnace.cs` and `CupellationFurnaceSystem.cs`; Atlas `tests/PackTests/CupellationFurnaceScenarios.cs`
+(the blast given, the pack's world having no blower to hand) and `RecipeExportCupellationFurnaceScenarios.cs`.
 
 ### Stamp battery (`StampBattery`)
 
