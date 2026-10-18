@@ -1,4 +1,5 @@
 {
+  "StableStability": 1.0,
   "StabilityHeightPercentage": 1.0,
   "TransitionHeightPercentage": 0.1,
   "DisableDuringTemporalStorm": true

@@ -3,7 +3,7 @@
   "Patches": [
     {
       "Code": "game:mushroom-*",
-      "hydration": null,
+      "hydration": 5.0,
       "IsBoiling": false,
       "hydrationByType": {
         "game:mushroom-flyagaric-*": -25.0,

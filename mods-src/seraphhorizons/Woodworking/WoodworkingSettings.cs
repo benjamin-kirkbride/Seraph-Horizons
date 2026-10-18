@@ -38,6 +38,13 @@ public sealed class WoodworkingSettings : WoodworkingPart
             current => Math.Min((int)current, SplittingBlockTier.Primitive.FirewoodPerLog())),
         // The chopper takes only an advanced splitting block as its bed, so it yields that tier's.
         new("ChopperFirewoodPerLog", typeof(int), _ => SplittingBlockTier.Advanced.FirewoodPerLog()),
+        // Immersive Woodworking's feature switches (1.3.13), held on: the pack's machines are built
+        // from the sawmill's parts and saw what it saws, the chopper bed part works on its chopper,
+        // and the bark drops part and the guide's bark chapter need its bark chain. Off, its
+        // FeatureGate strips their recipes and hides their blocks and items.
+        new("EnableSawmill", typeof(bool), _ => true),
+        new("EnableChopper", typeof(bool), _ => true),
+        new("EnableBarkChain", typeof(bool), _ => true),
     ];
 
     private readonly List<FieldInfo> _fields = [];

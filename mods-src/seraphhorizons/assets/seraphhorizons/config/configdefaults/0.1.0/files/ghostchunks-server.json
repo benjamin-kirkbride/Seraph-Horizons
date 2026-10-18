@@ -1,38 +1,222 @@
 {
+  // GhostChunks server settings (ghostchunks-server.json); read when the server starts. Each setting
+  // is explained above it; change the values only (keep the quotes and commas). These comments are
+  // written by the mod and come back each time it saves the file.
+
+  // ==== Estimated terrain: whole world (WorldWeaver) ====
+
+  // Send estimated terrain to clients that ask for it: the whole world when WorldWeaver made it,
+  // otherwise areas around each player (see VanillaWorldFallback). Off: clients only see terrain
+  // that has been explored.
+  // Default: true
   "EnableWorldStream": true,
+
+  // Draw forests and shrubland as a canopy over the ground in estimated terrain (WorldWeaver's
+  // vegetation, or the forest map of other worlds).
+  // Default: true
   "WorldForests": true,
+
+  // WorldWeaver only: resolution of the whole-world heightfield, in blocks per texel. Smaller = more
+  // detail, but a bigger download (about 4× per halving). 1 to 64.
+  // Default: 8.0
   "WorldBlocksPerTexel": 8.0,
+
+  // Upper bound on the whole-world heightfield's size per side, in texels; big worlds get coarser
+  // texels instead (a client holds ~9 bytes per texel). Also caps an area's texels. 256 to 16384.
+  // Default: 3072
   "WorldMaxTexelsPerSide": 3072,
-  "EnableRescan": true,
-  "RescanRequiresAdmin": true,
+
+  // WorldWeaver only, when its EdgeFill is "Ocean": how far past WorldWeaver's map the estimated sea
+  // carries on, in blocks (no farther than WorldWeaver's edge band, when that ends, or the world).
+  // It counts towards WorldMaxTexelsPerSide, so a wide sea makes the whole-world texels coarser. 0 =
+  // stop at the map. 0 to 65536.
+  // Default: 4096
+  "WorldEdgeOceanBlocks": 4096,
+
+  // ==== Estimated terrain: areas around players (without WorldWeaver) ====
+
+  // Without WorldWeaver, compute estimated terrain for a square area around each player, rebuilt as
+  // they travel, straight from the world generator's noise - nothing is generated or loaded. See
+  // WorldGenSource for where that comes from.
+  // Default: true
   "VanillaWorldFallback": true,
+
+  // What the areas are computed from: "auto" = Algernon's Terrain Sampler when a mod generates
+  // terrain of its own (Watersheds, VS Terrain Diffusion and the like - the server log lists what it
+  // found) and the sampler is installed, otherwise vanilla's own world generation, which also
+  // follows mods that only patch it (Terra Prety) or edit landforms (Plains and Valleys, Vistas
+  // Beyond); "sampler" = always the sampler, if installed and it gives usable terrain; "vanilla" =
+  // never the sampler. Changing it rebuilds the cached tiles.
+  // Default: "auto"
+  "WorldGenSource": "auto",
+
+  // Width of the area around each player, in blocks (a vanilla world is ~a million wide). 2048 to
+  // 65536.
+  // Default: 16384
   "VanillaAreaBlocks": 16384,
+
+  // Resolution of the area, in blocks per texel. Each texel costs a real terrain noise evaluation,
+  // so this is coarser than WorldBlocksPerTexel by default. 4 to 128.
+  // Default: 16.0
   "VanillaBlocksPerTexel": 16.0,
+
+  // Threads building an area (0 = BuildThreads). Clients can ask for fewer.
+  // Default: 0
   "VanillaThreads": 0,
+
+  // Most CPU threads the whole-world and detail-area builds use, WorldWeaver's own work for them
+  // included (0 = a quarter of the CPU cores, 1 to 3). Builds run at low priority in the background;
+  // fewer threads only make them take longer, never the server tick.
+  // Default: 0
   "BuildThreads": 0,
+
+  // ==== Estimated terrain: detail layer ====
+
+  // Also send a finer DETAIL layer around each player (with any source of estimated terrain), so
+  // estimated terrain gets gradually coarser away from explored ground instead of starting coarse
+  // right at its edge.
+  // Default: true
   "EnableDetailArea": true,
+
+  // Width of the detail area in blocks. 1024 to 16384.
+  // Default: 4096
   "DetailAreaBlocks": 4096,
+
+  // Resolution of the detail area, in blocks per texel. 1 to 32.
+  // Default: 4.0
   "DetailBlocksPerTexel": 4.0,
+
+  // ==== Re-capture from the save ====
+
+  // Allow clients to re-capture explored terrain from the world save (the "re-download" button in
+  // their GhostChunks settings).
+  // Default: true
+  "EnableRescan": true,
+
+  // On a dedicated server, only players with the controlserver privilege may start a re-capture (it
+  // reads the whole save, which costs disk and CPU time).
+  // Default: true
+  "RescanRequiresAdmin": true,
+
+  // ==== Shared explored terrain ====
+
+  // Share explored terrain: keep a copy of every explored column (read from the world save as the
+  // game writes it) and stream it to every client with GhostChunks - terrain any player has
+  // explored, not just their own.
+  // Default: true
   "EnableExploredStream": true,
+
+  // On first start, import every column already in the save (a one-off background read, ~8 ms per
+  // column). Off: only columns that change or load from now on.
+  // Default: true
   "ExploredImportSave": true,
+
+  // Explored terrain is sent to each client only within this many blocks of them (or their ghost
+  // radius, if smaller); more arrives as they travel.
+  // Default: 8192
   "ExploredMaxRadiusBlocks": 8192,
+
+  // Memory for explored regions already packed for sending, shared by every client that asks for
+  // them (MB).
+  // Default: 64
   "ExploredCacheMB": 64,
+
+  // Changed columns are found when the game saves (and when columns unload); on top of that, a full
+  // check of every loaded chunk this often (seconds, 0 = never). It walks every loaded chunk on the
+  // main thread.
+  // Default: 300
   "ExploredFullScanSeconds": 300,
+
+  // ==== Network ====
+
+  // Most GhostChunks data sent per second to all clients together (KB), shared fairly between them.
+  // Game traffic isn't counted, so leave room for it.
+  // Default: 6144
   "ServerKBPerSecond": 6144,
+
+  // Most GhostChunks data sent per second to one client (KB).
+  // Default: 256
   "ClientKBPerSecond": 256,
+
+  // Send less while the server's ticks are running late, so the game itself keeps priority.
+  // Default: true
   "AdaptiveBandwidth": true,
+
+  // While the server's ticks run late, GhostChunks' background work (building tiles, reading the
+  // save, reading regions for clients) pauses between steps in proportion, down to a quarter of its
+  // usual pace - thread priorities alone don't hold it back on Linux.
+  // Default: true
+  "AdaptiveBackgroundWork": true,
+
+  // ==== Tile cache ====
+
+  // Built tiles of estimated terrain kept in memory (MB), shared by every client.
+  // Default: 128
   "TileMemoryCacheMB": 128,
+
+  // Built tiles kept on disk (MB): they never change, so each is built only once.
+  // Default: 2048
   "TileDiskCacheMB": 2048,
+
+  // ==== Downloads over HTTP ====
+
+  // Optional: a web address where the whole world and tiles can be downloaded instead of through the
+  // game connection, e.g. "https://example.com/ghostchunks". The server writes the files into
+  // HttpExportDir; serve that folder at this address with any web server. Clients check every file's
+  // hash and fall back to the game connection.
+  // Default: ""
   "HttpBaseUrl": "",
+
+  // Folder the downloadable files are written to ("" = ModData/ghostchunks/http).
+  // Default: ""
   "HttpExportDir": "",
+
+  // Most disk space the downloadable files take (MB); the oldest go first.
+  // Default: 4096
   "HttpExportMaxMB": 4096,
+
+  // ==== Vertical culling ====
+
+  // Vertical culling: send clients with GhostChunks only the chunks of each column that can be seen
+  // (from a little below the column's lowest ground up to the sky, plus those near the player)
+  // instead of whole columns. Takes effect on the next server start.
+  // Default: true
   "VerticalCulling": true,
+
+  // Chunks above and below the player always sent, within VerticalNearRadiusChunks of them.
+  // Default: 3
   "VerticalNearChunks": 3,
+
+  // How far around the player (chunks) VerticalNearChunks applies.
+  // Default: 4
   "VerticalNearRadiusChunks": 4,
+
+  // Blocks below a column's lowest ground still sent (cave mouths, ravine floors, overhangs).
+  // Default: 32
   "VerticalMarginBlocks": 32,
+
+  // Most water depth below sea level sent; deeper sea floor can't be seen.
+  // Default: 64
   "VerticalMaxWaterDepthBlocks": 64,
+
+  // ==== Trails (world map) ====
+
+  // Record where every player goes, for the trails layer of the world map: each player can see their
+  // own trail, admins everyone's and where every player is right now. Kept in
+  // ModData/ghostchunks/journeys.
+  // Default: true
   "EnableJourneys": true,
+
+  // A point is stored only where the path strays more than this many blocks from a straight line
+  // (fewer points, less detail).
+  // Default: 3.0
   "JourneyToleranceBlocks": 3.0,
+
+  // Drop trail points older than this many days, on server start (0 = keep all).
+  // Default: 0
   "JourneyRetentionDays": 0,
+
+  // Privilege that lets a player see every player's trail and position ("" = controlserver).
+  // Default: "controlserver"
   "JourneyAdminPrivilege": "controlserver"
 }
