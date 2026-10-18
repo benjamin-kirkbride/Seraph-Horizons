@@ -19,6 +19,7 @@ python3 tools/packtool.py fetch       # download + sha256-verify mods into build
 python3 tools/packtool.py smoke [--export build/recipes.json]   # boot a server, scan logs; --export also runs the recipe exporter
 python3 tools/packtool.py outdated
 python3 tools/packtool.py assemble    # build dist/ release artifacts
+python3 tools/prwatch.py <pr>         # after `@mergifyio queue`: poll until merged or stuck, print why (docs/merge-queue.md)
 
 # Atlas scenarios (in-process headless server with every locked mod)
 dotnet test tests/PackTests
