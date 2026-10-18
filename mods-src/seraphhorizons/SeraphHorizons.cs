@@ -181,6 +181,8 @@ public class SeraphHorizonsSystem : ModSystem
         }
         if (Config(api).GearboxSourceRatio && GearboxSourceRatio.Applies(api))
             GearboxSourceRatio.Patch(_harmony ??= new Harmony(HarmonyId), api.Logger);
+        if (Config(api).ScrewPortOutput)
+            ScrewPortOutput.Patch(_harmony ??= new Harmony(HarmonyId), api.Logger);
         if (_tunRack)
             TunRackCapacity.Patch(_harmony ??= new Harmony(HarmonyId));
         if (_debarkedTrunks)
@@ -499,6 +501,12 @@ public class SeraphHorizonsConfig
     /// its gearbox, or rebuilt after a block on its network is broken, may drive it at the wrong
     /// speed: through a 1:5 gearbox, a fifth of it or five times it).</summary>
     public bool GearboxSourceRatio { get; set; } = true;
+
+    /// <summary>The game's ported Archimedes screw pushes into the container above it (the next
+    /// screw, a chest), then into its port, then throws out of its port, and never out of its top
+    /// (server side; off means the top screw of a stack throws its items out of its top into air,
+    /// and capped by a block sends only about half through its port at speed).</summary>
+    public bool ScrewPortOutput { get; set; } = true;
 
     /// <summary>Food Shelves: the tun in a tun rack holds 950 litres, as Hydrate or Diedrate's tun
     /// does, instead of 500 (server side).</summary>

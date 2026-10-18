@@ -25,6 +25,7 @@
   "FruitDries": true,
   "PanningDropsTrimmed": true,
   "GearboxSourceRatio": true,
+  "ScrewPortOutput": true,
   "LargerTunRack": true,
   "BarrelRackKegs": true,
   "HeatingRackKeepsPosition": true,

@@ -28,6 +28,7 @@
   "GearCutter": false,
   "GearReclamation": false,
   "GearboxSourceRatio": false,
+  "ScrewPortOutput": false,
   "GearConsumers": false,
   "GearPartsRemoved": false,
   "GradePockets": false,
