@@ -4,7 +4,7 @@
   "global_switches": ["OreMachinesSettings", "FollowPackDefaults"],
   "unmapped": ["AcidParting/", "AmalgamationPlates/", "Arrastra/", "CupellationFurnace/",
                "LiquationFurnace/", "ParkesKettle/", "ReverberatoryRoaster/", "ShakingTable/",
-               "StallRoaster/", "Vanner/"],
+               "Vanner/"],
   "features": {
     "Eidolon": {
       "code": ["Eidolon/", "EidolonGantry/"],
@@ -48,6 +48,13 @@
                  "RecipeSection.OreMachines.cs"],
       "switches": ["OreProcessing", "SpallingSettings", "FirepitRoastSeconds"],
       "classes": ["OreProcessingScenarios"]
+    },
+    "StallRoaster": {
+      "code": ["StallRoaster/"],
+      "codes": ["stallroaster", "stallroastedore"],
+      "export": ["Recipes/StallRoasterExport.cs", "RecipeSection.StallRoaster.cs"],
+      "switches": ["StallRoaster", "StallRoasterSettings"],
+      "classes": []
     },
     "BallMill": {
       "code": ["BallMill/"],
