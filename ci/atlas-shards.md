@@ -100,3 +100,33 @@ Each shard's dotnet test run (compiling excluded: that is the step before it) mu
 in four and a half minutes or the shard fails (`Shard ran within its time limit`), so a
 growing shard is split when it grows and not after it has crept up for months; aim for
 three and a half.
+
+## Feature slicing
+
+A PR run that changes one of the pack's own mod's features runs only some shards
+(docs/merge-queue.md, "Features"; the map is `ci/features.json`, read by `ci/features.py`). It
+always runs five, `always` in the map, because every feature can break them:
+
+- `items` and `recipes`: the exporter walks every feature's blocks, items and recipes (and its
+  own records for each machine), and ItemExportScenarios and RecipeExportScenarios (every
+  `RecipeExport*` file is a part of it) build the whole export and check it. A new item, a
+  recipe or a switch's ownership changes what they compare.
+- `switches`: SwitchesOffScenarios boots the mod with its switches off, each feature as the
+  mod it changes ships, and ConfigDefaultsScenarios brings an old install's settings to this
+  tree's defaults; a new setting, or a feature that misbehaves with its switch off, fails
+  there and nowhere else.
+- `tidy`: the Tidy Variants classes resolve their rules against every item in the pack and
+  hold each to one group, and the tiles to a budget; a feature's new block or item variants
+  can break either.
+- `rest`: SharedWorldScenarios, whose parts are most features' plain-world scenarios and the
+  pack as a whole: every locked mod loading cleanly at its locked version, the boot log and
+  its format errors (PackLoadScenarios, ReadsBootLog), the mod's systems
+  (SeraphHorizonsModScenarios), a fresh install's config defaults
+  (ConfigDefaultsFreshScenarios) and the pack check.
+
+So a machine whose scenarios are all SharedWorldScenarios and RecipeExportScenarios parts (the
+draw bench, the press brake, ...) runs those five; the eidolon adds its nine, trading its five,
+the ore code its seven. A new shard does not need the map: a feature lists classes, not shards,
+and the filters pick the shards. A new class that exercises a feature without naming its code
+(a woodworking class that the trunk entities move trunks in) is added to that feature's
+`classes`.

@@ -174,6 +174,10 @@ prints the full plan. The rules today:
   smoke (below).
 - **tooling**: tooling that only `tools` and one other job read needs that job alone
   (below).
+- **features**: a path of one of the pack's own mod's features (`ci/features.json`), and the
+  four files every feature edits when each change in them is a feature's, need the
+  always-on shards, the shards of the scenarios the change reaches, and smoke, cairn and the
+  site (below): only Atlas is sliced.
 
 A new rule is a function `(ctx, paths) -> list[Claim]` added to `RULES`: it sees the paths no
 earlier rule claimed, claims those it understands with a `Need` (shards or `ALL`, and the
@@ -200,7 +204,9 @@ that pattern from there, so the two can't drift):
   in the tree under test, in every `mods-src/` mod (outside `tests/`, the generators and
   `*.md`), `tests/PackTests`, `tools/recipe-export` and `pack/`, for `<id>-rig`, a shape path
   `block/<id>`, the id in a blocktype, itemtype, entity or patch, or a C# string literal
-  starting with it (`"<id>"`, `"<id>-frame-north"`). Any hit, and the PR runs everything.
+  starting with it (`"<id>"`, `"<id>-frame-north"`). Any hit, and the path is no model path:
+  the features rule claims it as its machine's asset if the map has the machine, and
+  otherwise it runs everything.
 
 `tools/tests/test_ci_paths.py` guards it: every rig and shape the mod loads today (by an
 independent check of the asset paths in its C# and blocktypes) is refused, each reference
@@ -271,6 +277,59 @@ Left to the full plan: `packtool.py` and `configdefaults.py` (smoke, cairn, lock
 `tools/recipe-export/` (smoke, Atlas), `schema/` (Atlas copies it to validate the export,
 and site-data), `textures/` (Atlas reads its index, `prepare-data` its images), and any
 other path under `tools/tests/` than a module (a fixture's readers are not traced).
+
+### Features
+
+Most PRs change the pack's own mod, and most of those one or two of its features (a
+machine, the eidolon, trading, the ore code), whose scenarios are a few of the 32 shards.
+`ci/features.json` maps each feature to what is its own, and the **features** rule (the
+reading is `ci/features.py`) claims those paths:
+
+- its code: folders and top-level files under `mods-src/seraphhorizons/`, and the files in
+  `Core/` that are its game-independent rules (the rest of `Core/`, `Machines/`,
+  `ConfigDefaults/`, `LangText.cs`, the csproj and `modinfo.json` are `global`: no feature's,
+  so they run everything);
+- its assets, by asset code (`rosser` owns `blocktypes/rosser/`, `shapes/block/rosser_frame.json`,
+  `config/rosser-rig.json`, `recipes/grid/rosser.json`: a path segment that is the code, or
+  starts with it and `-`, `_` or `.`), plus globs;
+- its exporter files under `tools/recipe-export/` (`Recipes/<X>Export.cs`,
+  `RecipeSection.<X>.cs`); the rest of the exporter is everyone's.
+
+It also reads, change by change, the four files every feature edits: `lang/en.json` and the
+config defaults snapshot's `seraphhorizons.json` by the keys whose value changed (a lang key's
+stem against the asset codes and globs, a setting against the features' `switches`), and
+`SeraphHorizons.cs`, `SwitchRegistry.cs`, `Core/SwitchOwnership.cs` and the exporter's
+`RecipeSection.cs` line by line: a line belongs to the features its statement names (a
+switch, a feature's top-level type or namespace, an exporter section's method), or failing
+that the header of its block (`if (Config(api).Jig) { ... }`). A `//` comment or a blank line
+changes nothing the game runs. One key or line it cannot place, or one naming global code,
+leaves the file unclaimed, so it runs everything.
+
+What a claimed change runs:
+
+- the always-on shards, `items`, `recipes`, `switches`, `tidy` and `rest`, which every
+  feature can break (why each, `ci/atlas-shards.md`);
+- the classes declared in the scenario files the change reaches. A changed `.cs` file reaches
+  every file that names one of its top-level types (or an extension method) where it can see
+  it (its namespace or one inside it, a using, a qualified name), one step through the mod's
+  code and transitively through the scenario files (a helper reaches its users). A changed
+  asset, lang key or setting reaches the scenario files naming its feature's types;
+- the classes the map lists for the features changed and for those whose code the change
+  reaches (the eidolon's `Eidolon*` when the rosser's `BERosser` changes): the map lists what
+  exercises a feature without naming its code;
+- smoke, the export, cairn and the site, as for any change to what ships.
+
+The one step is a choice: transitively, a type every feature names (the woodworking guide
+every handbook page registers with, the machines' shared parts) takes any change everywhere.
+So a change that matters two features away (the rosser's debarked trunks, through
+`Machines/`, to the trunk entities) is found by the merge queue's full run, not the PR's;
+the map's `classes` are where a known coupling goes. A change that reaches code no feature
+owns runs everything. `tools/tests/test_ci_features.py` holds the map to the tree: every
+feature's code, exporter files and classes exist and run in some shard, every setting in
+`SeraphHorizonsConfig` is one feature's or listed in `global_switches`, every top-level entry
+of the mod is a feature's, global, shared or listed as `unmapped` (a folder holding no C#),
+no code file has two owners, and global code is never claimed; so a new feature folder, file
+or setting fails it until the map has it.
 
 **The merge queue never slices.** Its temporary PR is a `pull_request` run too, with the
 same diff against `main`, but `tree` never plans on a `mergify/merge-queue/*` branch: the

@@ -1,0 +1,435 @@
+{
+  "always": ["items", "recipes", "switches", "tidy", "rest"],
+  "global": ["Core/", "Machines/", "ConfigDefaults/", "LangText.cs", "SeraphHorizons.csproj", "modinfo.json"],
+  "global_switches": ["OreMachinesSettings", "FollowPackDefaults"],
+  "unmapped": ["AcidParting/", "AmalgamPan/", "AmalgamationPlates/", "Arrastra/", "CupellationFurnace/",
+               "LiquationFurnace/", "ParkesKettle/", "ReverberatoryRoaster/", "ShakingTable/",
+               "StallRoaster/", "Vanner/"],
+  "features": {
+    "Eidolon": {
+      "code": ["Eidolon/", "EidolonGantry/"],
+      "codes": ["eidolon", "eidolongantry", "eidolongantryghost", "eidoloncommander", "eidolontorso",
+                "creature-eidolon"],
+      "export": ["Recipes/EidolonExport.cs", "EidolonSection.cs", "RecipeSection.Eidolon.cs"],
+      "switches": ["Eidolon", "EidolonSettings"],
+      "classes": ["Eidolon*", "WoodworkingEidolonScenarios"]
+    },
+    "Trading": {
+      "code": ["Trading/"],
+      "codes": ["trading", "tradingwindow", "trader", "traderlead", "tradelists", "visitor", "schematic",
+                "standing", "dialogue", "package", "inn", "innflag", "innsign", "map", "item-values",
+                "itemvalues"],
+      "switches": ["TraderGrid", "TraderStanding", "TraderStandingSpilloverKm", "EverythingHasAPrice",
+                   "RegionalSupply", "SupplyHalfLifeDays", "SupplySpreadFraction", "TraderSchematics",
+                   "MachineSchematics", "TraderOrders", "TraderDeliveries", "TraderMaps",
+                   "DepositCheckApproachMetres", "DepositCheckPauseSeconds", "TravellingMerchants",
+                   "TravellingMerchantMinSupply"],
+      "classes": ["Trading*"]
+    },
+    "Ore": {
+      "code": ["Ore/Core/", "Ore/Game/"],
+      "codes": ["oremap", "oremaps", "orename", "gravelmap", "densityprospecting"],
+      "assets": ["config/ore-districts.json", "config/ore-sizes.json", "patches/ore-*"],
+      "lang": ["ore-*", "block-ore-*", "block-looseores-*"],
+      "switches": ["OreCells", "OreCellSizeMetres", "OreCellSizeByMetal", "NoSurfaceCopper",
+                   "SmallerDeposits", "RarerDistricts", "PlacerFields", "PlacerCellSizeMetres",
+                   "GradePockets", "StableVeins", "GradePocketSizeBlocks", "GradePocketSpread",
+                   "GradePocketEndSpread", "GradePocketWeighting", "WideDensityProspecting"],
+      "classes": ["Ore*", "GradePockets*", "WideDensityProspectingScenarios"]
+    },
+    "OreProcessing": {
+      "code": ["Ore/Processing/"],
+      "codes": ["oreprocessing", "oreproduct", "ore-processing", "spalling", "cupel", "liquation",
+                "liquationpan", "retort", "oreretorting", "oreroasting", "crudeliquorportion", "rawsaltpeter"],
+      "export": ["Recipes/SpallingExport.cs", "Recipes/CupellationExport.cs", "Recipes/LiquationExport.cs",
+                 "Recipes/OreRetortingExport.cs", "Recipes/OreRoastingExport.cs", "RecipeSection.Spalling.cs",
+                 "RecipeSection.Cupellation.cs", "RecipeSection.Liquation.cs",
+                 "RecipeSection.OreRetorting.cs", "RecipeSection.OreRoasting.cs",
+                 "RecipeSection.OreMachines.cs"],
+      "switches": ["OreProcessing", "SpallingSettings", "FirepitRoastSeconds"],
+      "classes": ["OreProcessingScenarios"]
+    },
+    "BallMill": {
+      "code": ["BallMill/"],
+      "codes": ["ballmill"],
+      "export": ["Recipes/BallMillExport.cs", "RecipeSection.BallMill.cs"],
+      "switches": ["BallMill"],
+      "classes": []
+    },
+    "JawBreaker": {
+      "code": ["JawBreaker/"],
+      "codes": ["jawbreaker"],
+      "export": ["RecipeSection.JawBreaker.cs"],
+      "switches": ["JawBreaker", "JawBreakerSettings"],
+      "classes": []
+    },
+    "Jig": {
+      "code": ["Jig/"],
+      "codes": ["jig"],
+      "export": ["Recipes/JigExport.cs", "RecipeSection.Jig.cs"],
+      "switches": ["Jig"],
+      "classes": []
+    },
+    "Sluice": {
+      "code": ["Sluice/"],
+      "codes": ["sluice"],
+      "export": ["Recipes/SluiceExport.cs", "RecipeSection.Sluice.cs"],
+      "switches": ["Sluice"],
+      "classes": []
+    },
+    "StampBattery": {
+      "code": ["StampBattery/"],
+      "codes": ["stampbattery"],
+      "export": ["Recipes/StampBatteryExport.cs", "RecipeSection.StampBattery.cs"],
+      "switches": ["StampBattery"],
+      "classes": []
+    },
+    "Rocker": {
+      "code": ["Rocker/"],
+      "codes": ["rocker"],
+      "export": ["Recipes/RockerExport.cs", "RecipeSection.Rocker.cs"],
+      "switches": ["Rocker", "RockerSettings"],
+      "classes": []
+    },
+    "Riddle": {
+      "code": ["Riddle/"],
+      "codes": ["riddle"],
+      "export": ["Recipes/RiddleExport.cs", "RecipeSection.Riddle.cs"],
+      "switches": ["Riddle", "RiddleSettings"],
+      "classes": []
+    },
+    "GearCutter": {
+      "code": ["GearCutter/"],
+      "codes": ["gearcutter"],
+      "lang": ["*gearcutter*"],
+      "switches": ["GearCutter", "GearCutterSettings"],
+      "classes": []
+    },
+    "DrawBench": {
+      "code": ["DrawBench/"],
+      "codes": ["drawbench", "drawdie"],
+      "export": ["Recipes/DrawBenchExport.cs", "RecipeSection.DrawBench.cs"],
+      "switches": ["DrawBench", "DrawBenchSettings"],
+      "classes": []
+    },
+    "CylinderBorer": {
+      "code": ["CylinderBorer/"],
+      "codes": ["cylinderborer", "cylinder", "cylinderblank", "cylindermold"],
+      "lang": ["*cylinderborer*"],
+      "export": ["Recipes/CylinderBorerExport.cs", "RecipeSection.CylinderBorer.cs"],
+      "switches": ["CylinderBorer", "CylinderBorerSettings"],
+      "classes": []
+    },
+    "PressBrake": {
+      "code": ["PressBrake/"],
+      "codes": ["pressbrake", "angle"],
+      "export": ["Recipes/PressBrakeExport.cs", "RecipeSection.PressBrake.cs"],
+      "switches": ["PressBrake", "PressBrakeSettings"],
+      "classes": []
+    },
+    "SquaringShear": {
+      "code": ["SquaringShear/"],
+      "codes": ["squaringshear", "halfplate"],
+      "export": ["Recipes/SquaringShearExport.cs", "RecipeSection.SquaringShear.cs"],
+      "switches": ["SquaringShear", "SquaringShearSettings"],
+      "classes": []
+    },
+    "MandrelStation": {
+      "code": ["MandrelStation/"],
+      "codes": ["mandrelstation"],
+      "assets": ["itemtypes/spring.json", "shapes/item/spring.json"],
+      "lang": ["item-spring-*", "itemdesc-spring-*"],
+      "export": ["Recipes/MandrelStationExport.cs", "RecipeSection.MandrelStation.cs"],
+      "switches": ["MandrelStation", "MandrelStationSettings", "MandrelSprings"],
+      "classes": []
+    },
+    "CrucibleFurnace": {
+      "code": ["CrucibleFurnace/"],
+      "codes": ["cruciblefurnace", "meltingpot", "meltinghole", "stainless", "ferrochrome", "ferrosilicon",
+                "bessemer"],
+      "assets": ["*-stainlesssteel.*"],
+      "lang": ["item-*-stainlesssteel", "item-*-stainless", "itemdesc-*-stainless"],
+      "switches": ["StainlessSteel", "CrucibleFurnaceSettings"],
+      "classes": ["CrucibleFurnaceScenarios"]
+    },
+    "BuckingSawmill": {
+      "code": ["BuckingSawmill/"],
+      "codes": ["buckingmill"],
+      "switches": ["BuckingSawmill", "BuckingSawmillSettings"],
+      "classes": ["WoodworkingScenarios"]
+    },
+    "Rosser": {
+      "code": ["Rosser/"],
+      "codes": ["rosser"],
+      "lang": ["block-treetrunk-*-debarked-*"],
+      "switches": ["Rosser", "RosserSettings"],
+      "classes": ["WoodworkingRosserScenarios"]
+    },
+    "TrunkEntities": {
+      "code": ["TrunkEntities/"],
+      "codes": ["trunkentities", "trunk", "trunk-thick", "trunk-thin"],
+      "switches": ["TrunkEntities", "TrunkEntitiesSettings"],
+      "classes": ["TrunkEntityScenarios", "TrunkCarryScenarios", "Woodworking*", "EidolonCarryScenarios",
+                  "EidolonFellScenarios", "EidolonTeamFellScenarios"]
+    },
+    "Woodworking": {
+      "code": ["Woodworking/", "WoodworkingMachineCosts.cs", "AssembledMachines.cs", "ChopperOutput.cs",
+               "FellingWear.cs", "HeatingRackPlacement.cs", "HeatingRackPosition.cs",
+               "SawmillBladeDurability.cs", "Core/ChopperEject.cs", "Core/FellingWearConfig.cs",
+               "Core/FellingWearRules.cs", "Core/SawhorseWork.cs", "Core/SplittingBlockRules.cs",
+               "Core/SplittingBlockTier.cs", "Core/WoodworkingGuidePages.cs", "Core/TrunkVariants.cs"],
+      "codes": ["woodworking", "splittingblock", "assembledmachine", "sawmillblade", "wi"],
+      "lang": ["ingameerror-chopperbed*"],
+      "switches": ["UnifiedWoodworking", "AssembledMachinesInCreative", "ChopperDropsInFront",
+                   "HeatingRackKeepsPosition", "HeatingRackStandsOnBlock", "DurableSawmillBlades",
+                   "IronWoodworkingMachines", "FlatFellingWear", "FlatFellingWearSettings"],
+      "classes": ["Woodworking*", "TrunkEntityScenarios", "TrunkCarryScenarios", "EidolonFellScenarios",
+                  "EidolonTeamFellScenarios"]
+    },
+    "Handcar": {
+      "code": ["Handcar/", "LocomotiveSeats.cs", "RailVehicleSpeed.cs", "Core/RailSpeedScale.cs"],
+      "codes": ["handcar"],
+      "switches": ["Handcar", "HandcarSettings", "LocomotiveRidersStayOn", "LocomotiveRidersBreathe",
+                   "SlowerRailVehicles", "RailVehicleSpeedFactor"],
+      "classes": ["HandcarScenarios"]
+    },
+    "Springs": {
+      "code": ["Springs/"],
+      "codes": ["waterspring", "springs"],
+      "assets": ["textures/block/spring/*"],
+      "lang": ["spring-handbook-*"],
+      "export": ["Recipes/SpringExport.cs", "RecipeSection.Springs.cs"],
+      "switches": ["Springs", "SpringsSettings"],
+      "classes": ["SpringsWorldgenScenarios"]
+    },
+    "Pipes": {
+      "code": ["Pipes/"],
+      "codes": ["unifiedpipes", "castpipes", "pipesection", "chutesection", "pipes", "pipe", "handpump"],
+      "assets": ["*/pipemold*"],
+      "lang": ["*toolmold-*-pipe"],
+      "switches": ["UnifiedPipes", "UnifiedPipesSettings", "CastPipes"],
+      "classes": []
+    },
+    "Gears": {
+      "code": ["Gears/", "GearReclamation/", "PicklingTub/", "GearConsumers.cs", "GearPartsRemoved.cs",
+               "Core/GearPartDropRules.cs"],
+      "codes": ["gear", "gearblank", "largegear", "largegearblank", "gearreclamation", "picklingtub",
+                "picklingtub-liquid", "gearconsumers", "gearparts"],
+      "assets": ["*/gearblankmold*"],
+      "lang": ["*toolmold-*gearblank", "item-handbooktext-seraphhorizons:gearblank*",
+               "item-handbooktext-seraphhorizons:largegearblank*"],
+      "export": ["Recipes/GearChain.cs", "RecipeSection.Gears.cs"],
+      "switches": ["GearConsumers", "GearPartsRemoved", "GearReclamation", "GearReclamationSettings",
+                   "PicklingTubSettings", "GearBlanks"],
+      "classes": ["PicklingTubScenarios"]
+    },
+    "SteelBits": {
+      "code": ["SteelBits/", "Core/SteelBitsRules.cs"],
+      "codes": ["steelbits", "steelbitcharge"],
+      "switches": ["SteelBitsRecovery"],
+      "classes": []
+    },
+    "MachineOil": {
+      "code": ["MachineOil/"],
+      "codes": ["machineoil"],
+      "switches": ["MachineOil", "MachineOilSettings"],
+      "classes": ["WoodworkingScenarios"]
+    },
+    "TidyVariants": {
+      "code": ["TidyVariants/"],
+      "codes": ["tidyvariants", "tidyvariants-overrides"],
+      "switches": ["TidyVariants"],
+      "classes": ["TidyVariants*"]
+    },
+    "PackCheck": {
+      "code": ["PackCheck/"],
+      "codes": ["packcheck"],
+      "switches": ["PackVersionCheck"],
+      "classes": []
+    },
+    "MapReveal": {
+      "code": ["MapReveal/"],
+      "codes": ["mapreveal"],
+      "switches": ["MapReveal"],
+      "classes": ["MapRevealScenarios"]
+    },
+    "CreativeModTabs": {
+      "code": ["CreativeModTabs/"],
+      "codes": ["creativemodtabs"],
+      "switches": ["CreativeModTabs"],
+      "classes": []
+    },
+    "CreativeSearch": {
+      "code": ["CreativeSearch/"],
+      "codes": [],
+      "switches": ["CreativeKeepsPlace", "SearchRightClickClears"],
+      "classes": []
+    },
+    "RecipeSelector": {
+      "code": ["RecipeSelector/"],
+      "codes": [],
+      "switches": ["RecipeSelectorSearch"],
+      "classes": []
+    },
+    "HandbookPlace": {
+      "code": ["HandbookPlace/"],
+      "codes": [],
+      "switches": ["HandbookKeepsPlace"],
+      "classes": []
+    },
+    "NanMotion": {
+      "code": ["NanMotion/"],
+      "codes": [],
+      "switches": ["NanMotionDiagnostics"],
+      "classes": []
+    },
+    "Admin": {
+      "code": ["Admin/", "Core/AdminLog.cs", "Core/AdminMap.cs", "Core/AdminOutput.cs", "Core/AdminState.cs"],
+      "codes": [],
+      "lang": ["maplayer-seraphhorizons-admin*"],
+      "switches": ["AdminTools"],
+      "classes": ["OreMapsScenarios", "TradingAdminScenarios"]
+    },
+    "ClearSky": {
+      "code": ["ClearSky.cs", "ClearSkySun.cs", "Core/ClearSkyPlan.cs"],
+      "codes": ["clearsky"],
+      "switches": ["ClearCommand"],
+      "classes": ["ClearCommandScenarios"]
+    },
+    "StorageTweaks": {
+      "code": ["StorageTweaksSystem.cs", "BigPiles.cs", "BigCrates.cs", "ClutterPiles.cs",
+               "RustyGearStack.cs", "PileHandbook.cs", "Core/BigPileRules.cs", "Core/ClutterPileRules.cs",
+               "Core/CrateSlotRules.cs", "Core/PileText.cs"],
+      "codes": ["piles"],
+      "switches": ["BigPiles", "BigCrates", "RustyGearStack", "NoClutterPiles"],
+      "classes": []
+    },
+    "RockStacks": {
+      "code": ["RockStackSystem.cs", "StoneQuarryDrench.cs", "Core/RockStackRules.cs"],
+      "codes": [],
+      "switches": ["SmallerRockStacks"],
+      "classes": ["TradingScenarios"]
+    },
+    "Ruins": {
+      "code": ["RuinSurfaceMedian.cs", "RuinFoundations.cs", "Core/RuinFoundationColumn.cs",
+               "Core/RuinSurfaceHeight.cs"],
+      "codes": [],
+      "switches": ["RuinsOnMedianGround"],
+      "classes": []
+    },
+    "Tuns": {
+      "code": ["HydrateTun.cs", "TunRackCapacity.cs"],
+      "codes": ["tun"],
+      "switches": ["HydrateTunRetired", "LargerTunRack"],
+      "classes": []
+    },
+    "AgeOfFlaxRebalance": {
+      "code": ["AgeOfFlaxRebalance.cs"],
+      "codes": ["ageofflax"],
+      "switches": ["AgeOfFlaxRebalance"],
+      "classes": []
+    },
+    "BarrelRackKegs": {
+      "code": ["BarrelRackKegs.cs"],
+      "codes": ["barrelrack"],
+      "switches": ["BarrelRackKegs"],
+      "classes": []
+    },
+    "BattleTowers": {
+      "code": ["BattleTowers.cs", "Core/BattleTowerRates.cs"],
+      "codes": ["battletowers"],
+      "switches": ["RarerBattleTowers"],
+      "classes": []
+    },
+    "BloodSausage": {
+      "code": ["BloodSausage.cs"],
+      "codes": ["bloodsausage"],
+      "switches": ["BloodSausageInMixingBowl"],
+      "classes": []
+    },
+    "BoilerLidRelief": {
+      "code": ["BoilerLidRelief.cs"],
+      "codes": [],
+      "switches": ["BoilerLidBlowsOpen"],
+      "classes": []
+    },
+    "CarryOnIcons": {
+      "code": ["CarryOnIcons.cs"],
+      "codes": [],
+      "switches": ["CarryOnIconsPerWorld"],
+      "classes": []
+    },
+    "CartReach": {
+      "code": ["CartReach.cs", "Core/EntityReach.cs"],
+      "codes": [],
+      "switches": ["CartReach", "CartReachEntities"],
+      "classes": []
+    },
+    "ChimneyVentText": {
+      "code": ["ChimneyVentText.cs"],
+      "codes": [],
+      "switches": ["ChimneyVentingExplained"],
+      "classes": []
+    },
+    "CreativeSteamSource": {
+      "code": ["CreativeSteamSource.cs"],
+      "codes": ["creativesteamsource"],
+      "switches": ["CreativeSteamSource"],
+      "classes": []
+    },
+    "DuplicateRecipes": {
+      "code": ["DuplicateRecipes.cs"],
+      "codes": ["duplicaterecipes"],
+      "switches": ["DuplicateRecipes"],
+      "classes": []
+    },
+    "FoodHydration": {
+      "code": ["FoodHydration.cs"],
+      "codes": ["hydration"],
+      "switches": ["FoodHydration"],
+      "classes": []
+    },
+    "GearboxSourceRatio": {
+      "code": ["GearboxSourceRatio.cs", "Core/GearboxCoupling.cs"],
+      "codes": [],
+      "switches": ["GearboxSourceRatio"],
+      "classes": []
+    },
+    "IrrigationVessel": {
+      "code": ["IrrigationVessel.cs"],
+      "codes": ["irrigationvessel"],
+      "switches": ["IrrigationVesselRetired"],
+      "classes": []
+    },
+    "PanningDrops": {
+      "code": ["PanningDrops.cs", "Core/PanningDropRules.cs"],
+      "codes": [],
+      "switches": ["PanningDropsTrimmed"],
+      "classes": []
+    },
+    "RodsOnForge": {
+      "code": ["RodsOnForge.cs"],
+      "codes": ["rodsonforge"],
+      "switches": ["RodsOnForge"],
+      "classes": []
+    },
+    "SupportChains": {
+      "code": ["SupportChains.cs"],
+      "codes": ["supportchains"],
+      "switches": ["FewerSupportChains"],
+      "classes": []
+    },
+    "WailaRounding": {
+      "code": ["WailaRounding.cs", "Core/InfoTextRounding.cs"],
+      "codes": [],
+      "switches": ["WailaRounding"],
+      "classes": []
+    },
+    "WellShaftText": {
+      "code": ["WellShaftText.cs"],
+      "codes": [],
+      "switches": ["WellShaftExplained"],
+      "classes": []
+    }
+  }
+}

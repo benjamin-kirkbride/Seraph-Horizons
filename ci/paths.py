@@ -49,6 +49,13 @@ plans, runs the full suite before anything lands. The rules:
   mods and the rusty gear check the `rest` shard, and the tools the export job runs on
   smoke's export (icons.py, textures.py, item-values, site-data) smoke. Not packtool.py,
   configdefaults.py, recipe-export, schema/ or textures/: smoke, cairn or Atlas read them.
+- features: a path of one of the pack's own mod's features (ci/features.json: its code,
+  assets and exporter files), and the files every feature edits (lang/en.json, the config
+  defaults snapshot's seraphhorizons.json, SeraphHorizons.cs, SwitchRegistry.cs,
+  SwitchOwnership.cs, the exporter's RecipeSection.cs) when each change in them is a
+  feature's (ci/features.py reads them key by key and line by line), need the map's
+  always-on shards, those of the scenario classes the change reaches or the map lists for a
+  feature it reaches (feature_need), and smoke, cairn and the site: only Atlas is sliced.
 
 A new rule is a function (ctx, paths) -> list[Claim] appended to RULES: it is offered
 only the paths no earlier rule claimed, claims those it understands, and leaves the
@@ -60,6 +67,8 @@ Stdlib only; needs git.
 
 from __future__ import annotations
 
+import fnmatch
+import importlib.util
 import json
 import re
 import subprocess
@@ -69,6 +78,21 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SHARDS_FILE = ROOT / "ci" / "atlas-shards.json"
+
+
+def _sibling(name: str):
+    """ci/<name>.py, loaded once whether this file runs as a script or is loaded by path."""
+    key = f"ci_{name}"
+    if key not in sys.modules:
+        spec = importlib.util.spec_from_file_location(key, Path(__file__).resolve().parent / f"{name}.py")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[key] = module  # dataclasses look their module up there
+        spec.loader.exec_module(module)
+    return sys.modules[key]
+
+
+# The feature map's reading (the features rule).
+feature_map = _sibling("features")
 
 # Matched at the start of a repository path (ci/code-tree.sh anchors it after
 # ls-tree's tab). Must stay a POSIX ERE as well as a Python regex: grep -E reads it.
@@ -616,8 +640,10 @@ def rule_models(ctx: Context, paths: list[str]) -> list[Claim]:
     for machine, owned in sorted(ids.items()):
         hits = referenced(machine, ctx.head, ctx.cwd)
         if hits:
-            claims.append(Claim(owned, EVERYTHING, f"{', '.join(owned)}: {machine} is named by "
-                                + ", ".join(hits[:5]) + (f" and {len(hits) - 5} more" if len(hits) > 5 else "")))
+            # Shipped: left to the later rules (the features rule's, if the map has the machine).
+            claims.append(Claim([], NOTHING, f"{', '.join(owned)}: {machine} is named by "
+                                + ", ".join(hits[:5]) + (f" and {len(hits) - 5} more" if len(hits) > 5 else "")
+                                + ", so not a model path"))
         else:
             claims.append(Claim(owned, NOTHING, f"{', '.join(owned)}: {machine}'s model, which nothing shipped names"))
     return claims
@@ -716,7 +742,104 @@ def rule_tooling(ctx: Context, paths: list[str]) -> list[Claim]:
     return claims
 
 
-RULES = [rule_noop, rule_units, rule_models, rule_atlas_classes, rule_site, rule_tooling]
+def _cached(ctx: Context, key: tuple, make):
+    if key not in ctx._trees:
+        ctx._trees[key] = make()
+    return ctx._trees[key]
+
+
+def feature_need(ctx: Context, whole: set[str], seeds: list[str]) -> tuple[Need, list[str]]:
+    """(need, notes) for a change to the features `whole` (an asset, a lang key, a setting, an
+    exporter file) and to the feature code files `seeds`: the map's always-on shards, the shards
+    of every test class declared in a scenario file the change reaches (ci/features.py: a code
+    file's dependents one step, a feature's other change the scenarios naming its types) or the
+    map lists for a feature changed or reached, and smoke, cairn and the site, which every change
+    to what ships needs. EVERYTHING, with the notes saying why, when it reaches code no feature
+    owns, the map's always-on shards are not all there, or a test method no shard selects. A
+    class the map lists that is not there is only noted: test_ci_features.py fails on it."""
+    fmap = _cached(ctx, ("features",), feature_map.load_map)
+    head = _cached(ctx, ("code", ctx.head), lambda: feature_map.read_tree(ctx.head, ctx.cwd))
+    base = _cached(ctx, ("code", ctx.base), lambda: feature_map.read_tree(ctx.base, ctx.cwd))
+    start: dict = {}
+    for p in seeds:
+        for tag, code in (("", head), ("@base", base)):
+            if p in code.files:
+                start[p + tag] = code.files[p]
+    tests = ctx.scenario_tree(ctx.head).test_classes()
+    reached = {p for p in head.dependents(start, leaves=set(tests)) if p in head.files}
+    # A feature's asset, lang key or setting reaches the scenarios naming its types, not its code's users.
+    whole_files = {p: head.files[p] for p in head.files
+                   if p.startswith(feature_map.MOD) and fmap.code_owner(p) in whole}
+    reached |= {p for p in head.dependents(whole_files, leaves=set(tests)) if p.startswith(PACKTESTS)}
+    stray = sorted(p for p in reached if p.startswith(feature_map.MOD) and p not in feature_map.SHARED_CS
+                   and not fmap.is_global(p) and fmap.code_owner(p) is None)
+    if stray:
+        return EVERYTHING, [f"reaches code no feature owns: {', '.join(stray[:5])}"]
+    affected = set(whole) | {fmap.code_owner(p) for p in reached if p.startswith(feature_map.MOD)} - {None}
+    affected |= {fmap.code_owner(p) for p in seeds if p.startswith(feature_map.MOD)} - {None}
+    declared = set().union(*(head.files[p].types for p in reached if p.startswith(PACKTESTS)))
+    classes = {c for c in tests if c in declared}
+    stale = []
+    for name in sorted(affected):
+        for pattern in fmap.features[name].classes:
+            hits = {c for c in tests if fnmatch.fnmatchcase(c, pattern)}
+            if not hits:
+                stale.append(f"{name}'s {pattern}")  # test_ci_features.py fails on it in the tools job
+            classes |= hits
+    known = {s["shard"] for s in ctx.shards}
+    if not set(fmap.always) <= known:
+        return EVERYTHING, [f"ci/features.json: always-on shards {sorted(set(fmap.always) - known)} do not exist"]
+    shards, unmatched = set(fmap.always), []
+    for cls in sorted(classes):
+        for fqn in sorted(tests[cls]):
+            hit = shards_selecting(fqn, ctx.shards)
+            if not hit:
+                unmatched.append(fqn)
+            shards |= set(hit)
+    if unmatched:
+        return EVERYTHING, ["no shard's filter selects " + ", ".join(unmatched[:5])]
+    reach = sorted(affected - set(whole) - {fmap.code_owner(p) for p in seeds if p.startswith(feature_map.MOD)})
+    return Need(frozenset(shards), True, True, True), [
+        f"features {', '.join(sorted(affected - set(reach)))}" + (f", reaching {', '.join(reach)}" if reach else "")
+        + f"; classes {', '.join(sorted(classes)) or 'none'} -> shards {', '.join(sorted(shards))}"
+        + (f"; ci/features.json lists classes that are not there: {', '.join(stale)}" if stale else "")]
+
+
+def rule_features(ctx: Context, paths: list[str]) -> list[Claim]:
+    """A feature's own paths (ci/features.json), and the shared files (ci/features.py,
+    `is_shared`) when every change in them is a feature's (or a comment): the always-on shards
+    and those of what the change reaches (`feature_need`), with smoke, cairn and the site. Only
+    Atlas is sliced."""
+    fmap = _cached(ctx, ("features",), feature_map.load_map)
+    owned = {p: o for p in paths if (o := fmap.owners(p))}
+    shared = [p for p in paths if feature_map.is_shared(p)]
+    if not owned and not shared:
+        return []
+    head = _cached(ctx, ("code", ctx.head), lambda: feature_map.read_tree(ctx.head, ctx.cwd))
+    nm = feature_map.names(fmap, head)
+    whole, seeds, notes, attributed = set(), [], [], []
+    for p, o in owned.items():
+        if feature_map.is_code(p):
+            seeds.append(p)
+        if not p.startswith(feature_map.MOD) or not feature_map.is_code(p):
+            whole |= o  # an asset, or an exporter file (whose feature no code_owner names)
+    for p in shared:
+        got, why = feature_map.attribute_shared(p, ctx.base, ctx.head, fmap, nm, ctx.cwd)
+        if got is not None:
+            whole |= got
+            attributed.append(p)
+        else:
+            notes.append(Claim([], NOTHING, f"{p}: not every change is a feature's: {why}"))
+    if not owned and not attributed:
+        return notes
+    need, why = feature_need(ctx, whole, seeds)
+    mine = list(owned) + attributed
+    return notes + [Claim(mine, need, f"{len(owned)} feature path(s)"
+                          + (f", {len(attributed)} shared file(s) by hunk" if attributed else "")
+                          + ": " + "; ".join(why))]
+
+
+RULES = [rule_noop, rule_units, rule_models, rule_atlas_classes, rule_site, rule_tooling, rule_features]
 
 # The `rest` shard also builds and tests the local-only icon export and ore survey mods,
 # and runs the rusty gear check, none of which any other job does. rule_tooling claims the

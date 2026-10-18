@@ -623,7 +623,12 @@ class SiteAndTooling(unittest.TestCase):
               {"shard": "rest", "filter": "FullyQualifiedName!~PackTests.AScenarios."}]
 
     def plan(self, changed):
-        p = paths.plan("BASE", "HEAD", shards=self.SHARDS, paths=changed)
+        # The revisions are not real: a rule that reads them (the features rule's shared-file
+        # diffs) fails, and a failure plans the full suite, as `paths.py plan` does.
+        try:
+            p = paths.plan("BASE", "HEAD", shards=self.SHARDS, paths=changed)
+        except Exception as e:  # noqa: BLE001
+            p = paths.full_plan([f"error: {e}"])
         return p["atlas"], p["smoke"], p["cairn"], p["site"]
 
     def test_site_only_runs_the_site_on_mains_export(self):
