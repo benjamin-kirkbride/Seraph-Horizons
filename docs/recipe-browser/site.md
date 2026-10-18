@@ -3,7 +3,7 @@
 The app in `site/`: Vite, Svelte 5 and TypeScript. It is a static single-page app. The
 build uses a relative base and keeps routes in the URL hash (`#/<version>/item/<code>`,
 `#/<version>/type/<code>`, `#/<version>/entity/<type>`, `#/<version>/search?q=`,
-`#/<version>/values`, `#/<version>/power`, `#/<version>/eidolon`, `#/<version>/multiblock/<id>`),
+`#/<version>/values`, `#/<version>/power`, `#/<version>/ores`, `#/<version>/eidolon`, `#/<version>/multiblock/<id>`),
 so the same `dist/` works at any sub-path and a reload on a deep link only ever asks
 the server for `index.html`.
 
@@ -141,6 +141,7 @@ and writes:
 <dir>/entities.json      every creature and trader, column-wise and sorted by code
 <dir>/entities/<n>.json  what each entity gives, a few hundred entities per file
 <dir>/power.json         the export's power section as it is (absent when the export has none)
+<dir>/ores.json          the export's oreProcessing section with each ore's product and the placer feeds (absent when the export has none)
 <dir>/eidolon.json       the export's eidolon section, with the texture store's images of its textures (absent when the export has none)
 <dir>/multiblocks.json   the multiblocks, when the export has any (multiblocks.md)
 <dir>/multiblocks/<n>.json  one multiblock with the shapes of its blocks
@@ -392,6 +393,38 @@ reader (the value is visually hidden text in the label, not an `aria-label`, so 
 colour-blind separation against both themes' surfaces); every value is written beside its
 mark or in a table, so none depends on colour or hover. The page's state is not in the
 address.
+
+### Ore routes
+
+`#/<version>/ores` (`OreRoutesPage.svelte`), linked from the header and the start page when the
+version's `meta.json` has `ores`, shows every way to turn each ore into metal, for players: by
+hand at first, then by machine. It reads `ores.json`: the export's `oreProcessing` section
+([schema.md](schema.md#ore-processing)) as it is, less the ores whose concentrate (a sulfide's
+roasted concentrate) does not smelt (rhodochrosite), each kept ore with `product`, what that
+smelts to, and `placers`, the placer feeds, read off the sluice's records by prepare-data
+(`ore-prepare.ts`): what a block holds of each metal is the record's metal outputs over the
+sluice's recovery, in the units each smelts to, and rich gravels that hold the same are one feed.
+
+Every figure is worked out by `site/src/lib/ore-routes.ts`, which follows the mod's
+`Ore/Core/OreRecovery.cs` rule for rule (the stream's locked shares and lifts, a concentrator's
+pass on the one before's tailings, the hand stations, amalgamation, the ore's last step and what
+it makes whole, roasting, smelting and parting). `oreRoutes` builds the tree of routes for one raw
+ore item at one grade, `placerRoutes` one for a block of placer; each node is a step with what
+one item gives smelted right after it (main metal, and the second metal where the ore has one).
+Grinding steps appear only for poor ore, which is the only grade they change. `bestRoute` finds
+the step that gives the most in all (the deeper on a tie), optionally among hand steps only.
+`test/ore-routes.test.ts` checks the trees against hand-worked figures, and `e2e/ores.spec.ts`
+checks the page against the export's own rocker record, which the mod computed.
+
+The page has a collapsed glossary (plain-language terms), then the ore and grade pickers (in the
+address: `?ore=galena&grade=poor`, medium left out; a placer feed's id is its code's path,
+`richgravel-granite`), a summary of the best route and the best by hand, and the tree: a run of
+steps that follow one another is one column (`chainOf`), a choice of next steps an indented list.
+Each step links its machine's or station's item page, is marked hand or machine, and says what
+one item gives if smelted there, as units and a share of what it holds; the best route is
+outlined. Below are a table of every ore at the chosen grade (smelted raw, best by hand, best),
+one of the placer feeds (gold pan, rocker, full line), and a short note on each kind of ore.
+The words and step texts are in `strings.ts` (`t.ores`).
 
 ### The eidolon's fitting sheet
 

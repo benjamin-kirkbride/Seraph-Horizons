@@ -25,6 +25,7 @@ below that JSON Schema cannot express.
 | `power` | Optional. Mechanical power producers, consumers and the wind ([power.md](power.md)). |
 | `multiblocks` | Optional. Structures built block by block, with the shapes of their blocks ([multiblocks.md](multiblocks.md)). |
 | `eidolon` | Optional. The eidolon's fittings, for its fitting sheet ([below](#the-eidolons-fittings)). |
+| `oreProcessing` | Optional. The figures ore processing works by, for the ore routes page ([below](#ore-processing)). |
 
 ## Codes
 
@@ -323,8 +324,9 @@ pipe section).
 
 **The cylinder borer** (type `cylinderborer`, shape `machine`): one record per metal, id
 `cylinderborer|seraphhorizons:cylinderblank-<metal>|0` (iron, the Watt engine's; steel, the Cornish's). The
-ingredients are the rough cast cylinder (consumed), the fitted parts (the bushings' metal parts, a block, the bar and the feed, in
-`machine.kept`), the cutter head (`isTool`, its `toolDurabilityCost` the head's wear per cylinder with a full
+ingredients are the rough cast cylinder (consumed), what the bushings, the bar and the feed are built of, summed by item (two
+metal parts, a block; four rods and a plate of iron, meteoric iron or steel, each listed in the variant; the large stainless gear;
+two oak planks; two ropes; all in `machine.kept`), the cutter head (`isTool`, its `toolDurabilityCost` the head's wear per cylinder with a full
 tank), the oil (each listed oil in the variant, with the litres one cylinder drains) and the machine (role
 `station`); the output is the bored cylinder (`seraphhorizons:cylinder-<metal>`). `machine` has `power`
 (`mechanical`), the `turns` of the input shaft one cylinder takes, the `work` it is made of (the cutter head's
@@ -656,6 +658,30 @@ before it lack it.
   patterns.
 
 prepare-data writes the section as it is to `power.json`; an export without it gives no file.
+
+## Ore processing
+
+`oreProcessing`, an optional top-level object, holds the figures the pack's ore processing works
+by, for the site's ore routes page ([site.md](site.md#ore-routes)). The machine records say what
+one machine does to one item; how a line of them adds up (concentrators working each other's
+tailings, the locked shares, the last step of an ore's whole route) is the mod's
+`Ore/Core/OreRecovery.cs`, which the site's `ore-routes.ts` follows from these figures. Like
+`power`, it carries parameters only. `tools/recipe-export/OreProcessingSection.cs` writes it;
+it left `schemaVersion` at 1, and exports made before it, or with the mod's `OreProcessing`
+switch off, lack it.
+
+- `concentrateUnits`, `handStations` (pan, rocker, amalgampan, firepit, cupel, liquationpan),
+  `unclassified`, `fineUnground`, `freeUnamalgamated`, `smeltByGrade` and `smelt`: as
+  `config/ore-processing.json` has them.
+- `machines`: each machine's `recovery`, keyed as in the config (1 where the config gives none:
+  a machine that loses nothing).
+- `ores`: every ore with crushed ore items, by code: `ore`, `name` (the game's `ore-<ore>` lang
+  entry), and the mod's reading of it (`OreRecovery.Ore`): `metal`, `class`, `density`, `free`,
+  `unparted`, `byProducts` (`metal`, `share`, `partedBy`); and `units`, the metal units a raw ore
+  item holds at each grade (poor to bountiful), its crushed ore items' `metalUnits`.
+
+Placer feeds (rich gravel, bog iron) are not listed: prepare-data reads them off the sluice's
+records.
 
 ## The eidolon's fittings
 

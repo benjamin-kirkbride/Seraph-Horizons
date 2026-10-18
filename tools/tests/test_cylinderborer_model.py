@@ -251,10 +251,19 @@ class Bushings(unittest.TestCase):
         self.assertFalse((ITEMS / "bushings.json").exists())
         self.assertFalse((MOD / "assets" / "seraphhorizons" / "itemtypes" / "cylinderborer" / "bushings.json").exists())
 
+    def test_the_bar_and_the_feed_take_their_materials_at_the_frame_not_items_of_their_own(self):
+        for name in ("bar", "feed"):
+            with self.subTest(stage=name):
+                self.assertFalse((ITEMS / f"{name}.json").exists())
+                self.assertFalse((MOD / "assets" / "seraphhorizons" / "itemtypes" / "cylinderborer" / f"{name}.json").exists())
+        recipes = (MOD / "assets" / "seraphhorizons" / "recipes" / "grid" / "cylinderborer.json").read_text()
+        self.assertNotIn("cylinderborerbar", recipes)
+        self.assertNotIn("cylinderborerfeed", recipes)
+
 
 class Items(unittest.TestCase):
     def test_each_item_shape_sits_in_the_item_box(self):
-        for name in ("bar", "feed", "cutterhead", "cylinderblank", "cylinder"):
+        for name in ("cutterhead", "cylinderblank", "cylinder"):
             with self.subTest(item=name):
                 shape = json.loads((ITEMS / f"{name}.json").read_text())
                 els = flatten(shape["elements"], textures={})

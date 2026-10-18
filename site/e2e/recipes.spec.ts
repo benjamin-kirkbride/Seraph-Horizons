@@ -174,8 +174,8 @@ test("search ranks Copper ingot first for `ingot cop` and works from the keyboar
   await expect(first).toHaveAttribute("data-code", "game:ingot-copper");
   await expect(first).toContainText("Copper ingot");
   await expect(first).toContainText("game:ingot-copper");
-  // Tab past the Search button and the version picker to the first result.
-  for (let i = 0; i < 10; i++) {
+  // Tab past the Search button, the header's links and pickers to the first result.
+  for (let i = 0; i < 14; i++) {
     await page.keyboard.press("Tab");
     if (await first.evaluate((el) => el === document.activeElement)) break;
   }

@@ -27,7 +27,7 @@ It writes, deterministically,
     cylinderborer_frame.json   the static frame only (block and item)  (assets/.../shapes/block/)
     cylinderborer-rig.json     cells, anchors and the part rig         (assets/.../config/)
     rig-reference.json         every part's matrix at a grid of poses  (tests/CylinderBorer/)
-    cylinderborer/<item>.json  the parts', the blank's and the cylinder's item shapes (assets/.../shapes/item/)
+    cylinderborer/<item>.json  the cutter head's, the blank's and the cylinder's item shapes (assets/.../shapes/item/)
     clay/mold/cylinder.json    the clay mold the blank is cast in        (assets/.../shapes/block/)
 
 or, with `--out DIR`, all of them into DIR (the item shapes into DIR/item/). It validates its own output (validate_cylinderborer.py) and
@@ -1051,29 +1051,25 @@ def reference_json(ship_parts, sp):
 
 
 # ---------------------------------------------------------------- the items' shapes
-# Each stage's item looks as its part does in the machine: the rig parts it draws, their elements at rest, centred
+# The cutter head's item looks as its part does in the machine: the rig parts it draws, their elements at rest, centred
 # on the item box's floor (x and z on 8, the bottom at y 0) and scaled down uniformly when they would not fit in 16
-# voxels, as the gear cutter's are. Parts that stand far apart in the machine are gathered first (ITEM_SHIFT, by
-# element name prefix): the drum and the weight in front of the crosshead. The bushings stage takes the game's metal
-# parts (#639), so it has no item of its own.
+# voxels, as the gear cutter's are. Parts that stand far apart in the machine would be gathered first (ITEM_SHIFT, by
+# element name prefix). The other stages have no item of their own: the bushings take the game's metal parts, and
+# the bar and the feed their materials directly at the frame (#639).
 # The cast blank and the bored cylinder are the iron casting (with its rough skin for the blank, without it for
 # the cylinder), its outside texture renamed `cast` so the item type gives each metal its own (ppex's iron5 and
 # steel5). The scales are fixed here, so an item does not change size because a part moved; validate checks each
 # item fits at its scale.
 SKIN_PARTS = tuple(f"si{j}{q}" for j in range(1, SKIN_SLICES + 1) for q in "tlbr")
 ITEM_PARTS = {
-    "bar": ("bar",),                                # the bar with its feather, collars and great wheel
-    "feed": ("feed", "drum", "weight"),             # the crosshead with its rod and yoke, the drum, the weight
     "cutterhead": ("head",),                        # the head with its four cutters and wedges
     "cylinderblank": ("blankiron",) + SKIN_PARTS,   # the casting as it comes from the mold, its bore rough
     "cylinder": ("blankiron",),                     # the bored cylinder
 }
-ITEM_SHIFT = {
-    "feed": {"drum_": (0.0, 0.0, 22.0), "weight_": (0.0, 0.0, 22.0)},
-}
+ITEM_SHIFT = {}
 ITEM_RETEX = {"castiron": "cast"}
 ITEM_TEXTURES = {**TEXTURES, "cast": TEXTURES["castiron"]}
-ITEM_SCALE = {"bar": 0.275, "feed": 0.63, "cutterhead": 1.0, "cylinderblank": 1.0, "cylinder": 1.0}
+ITEM_SCALE = {"cutterhead": 1.0, "cylinderblank": 1.0, "cylinder": 1.0}
 
 
 def item_elements(els, parts, item):
