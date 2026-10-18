@@ -7,7 +7,7 @@ namespace SeraphHorizons.Mod.Ore.Processing;
 
 /// <summary>
 /// Ore processing's own items (#686, #847): the rock forms by ore and grade, crushed ore, ground ore
-/// and roasted rock (<c>seraphhorizons:{crushedore,groundore,roastedore}-{ore}-{grade}</c>), and
+/// and roasted rock (<c>seraphhorizons:{crushedore,groundore,roastedore,stallroastedore}-{ore}-{grade}</c>), and
 /// concentrate, roasted concentrate, amalgam, sponge (<c>seraphhorizons:{form}-{ore}</c>) and
 /// litharge. The form is the item type's <c>oreForm</c> attribute; the name is the form's with the
 /// ore's (vanilla's <c>ore-{ore}</c>) and a rock form's grade, and the text says the metal it holds
@@ -106,7 +106,7 @@ public class ItemOreProduct : Item
         if (units > 0 && Metal is { } metal)
             dsc.AppendLine(Lang.Get("seraphhorizons:oreproduct-units", units.ToString("0.#"), Lang.Get("material-" + metal)));
         string form = Form;
-        if (form is "crushed" or "ground" or "roastedrock")
+        if (form is "crushed" or "ground" or "roastedrock" or "stallroastedrock")
         {
             dsc.AppendLine(SmeltText(this, "seraphhorizons:oreproduct-" + form));
             return;
