@@ -12,8 +12,10 @@ namespace SeraphHorizons.Mod.Springs;
 /// water to the pipe networks coupled to it (<see cref="SpringFlow"/>). A rapids spring keeps the
 /// one face it pours out of (<see cref="PourFace"/>), and when it turns to another, tells the water
 /// round it to look again, so what it poured on the old face drains. No tick runs while it is
-/// untapped. With the <c>Springs</c> switch off, it turns back into the water source it replaced
-/// as it loads.
+/// untapped. A side whose cell beyond is in a chunk not loaded (a spring at its column's edge loads
+/// before the pipe in the next) can not be read: with no pipe seen on the others it keeps the state
+/// saved with it and looks again each second until every side is loaded. With the <c>Springs</c>
+/// switch off, it turns back into the water source it replaced as it loads.
 /// </summary>
 public class BlockEntityWaterSpring : BlockEntity
 {
@@ -22,6 +24,10 @@ public class BlockEntityWaterSpring : BlockEntity
     public const int LookDelayMs = 75;
 
     public const int FeedIntervalMs = 1000;
+
+    /// <summary>Milliseconds to the next look while the cell beyond a side is in a chunk not loaded
+    /// (<see cref="SpringFlow.Settle"/>).</summary>
+    public const int UnloadedLookDelayMs = 1000;
 
     private long _feedListener;
     private long _lastFeedMs;
@@ -71,7 +77,14 @@ public class BlockEntityWaterSpring : BlockEntity
         _lookPending = false;
         if (Api == null || Spring is not { } spring || Api.World.BlockAccessor.GetBlockEntity(Pos) != this)
             return;
-        bool tapped = SpringTaps.AnyTapped(Api.World, Pos);
+        var (anyTapped, anyUnloaded) = SpringTaps.Read(Api.World, Pos);
+        var (tapped, lookAgain) = SpringFlow.Settle(Tapped, anyTapped, anyUnloaded);
+        // A side in a chunk not loaded yet: its loading tells the spring nothing, so it looks again.
+        if (lookAgain)
+        {
+            _lookPending = true;
+            RegisterDelayedCallback(_ => DoLook(), UnloadedLookDelayMs);
+        }
         switch (SpringFlow.Change(Tapped, tapped))
         {
             case TapChange.Tapped:

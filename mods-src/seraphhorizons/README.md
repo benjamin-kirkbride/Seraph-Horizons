@@ -2463,7 +2463,12 @@ against any face with its end towards it. No intake or other block. A Harmony po
 `BlockNetworkNode.IsValidNonNetworkConnection` makes that end sealed (as Hydrate's wellspring is,
 `HandPumpBridge`), not an open end leaking the run. While any side is tapped the spring pours nothing
 and tells the water round it to look again, so what it poured drains as any water without a source
-does; with no side tapped any more it pours again. Tapped, it ticks once a second (and only then:
+does; with no side tapped any more it pours again. A side whose cell beyond is in a chunk not loaded
+can not be read (its pipe reads as air, and a chunk loading tells no neighbour), and a world loads a
+column at a time, so a spring at a column's edge loads before the pipe in the next: with no pipe
+seen on another side, it keeps the state saved with it (`tapped`) and looks again each second until
+every side is loaded (`SpringFlow.Settle`). Before, it took the missing pipe for none, and a tapped
+spring poured again after a reload, out of its open bottom. Tapped, it ticks once a second (and only then:
 an untapped spring has no tick) and offers its rate times the seconds gone by, at most 2 of them, to the
 pipe networks across its tapped sides (`GetConnectedNetworkAcross`, as ppex's pumps find their
 lines), shared evenly, what a full network cannot take offered to the others and what none takes lost
