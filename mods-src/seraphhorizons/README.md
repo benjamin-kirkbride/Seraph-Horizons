@@ -5767,7 +5767,9 @@ nothing. Every furnace then takes them as it takes the nugget:
 - the bloomery (iron ore smelts to a bloom: 20 concentrate a bloom). Rock's rate names more items than
   the bloomery's one slot holds at 16 a stack (a bloom is at least 19 bountiful hematite, 20 of any
   other iron ore), so iron rock does not bloom: the bloomery takes concentrate, as it effectively did
-  before (crushed ore at 16 a stack never reached its 40);
+  before (crushed ore at 16 a stack never reached its 40). It refuses what smelts to bullion
+  (tetrahedrite's and gold quartz's forms, which melt in its range): bullion is made in the crucible
+  only ("Ore processing: the handbook's smelting counts" below);
 - crucibulum's forge, which counts a charge as the crucible does;
 - the crucible furnace: ferrochrome takes chromite concentrate as it takes crushed chromite, 5 units
   (`PotRecipes`; not crushed ore, a crude feed outside its ratios);
@@ -6168,9 +6170,67 @@ furnace, smex) as any metal and casts in the ingot mold, which keeps the poured 
   final step's whole restore of the main metal is lost on these ores; the by-product still comes out at
   the parting machine's figure (the kettle's 100 %).
 - The hand stations (the cupel, the liquation pan) still take roasted concentrate.
+- **Drawn as the game's ingot**, with its GUI, hand and ground transforms, tongs and shelf; doré in the
+  shiny ingot and pile, as the game's gold. The `dimensions` stay (the crucible's fit); bars are not
+  worked on the anvil.
+- **Handbook**: each kind is its own page (`groupBy` by ore), its "Ore processing" section its own text
+  (`extraSectionsByType`, `oreproduct-bullion-{ore}-handbook-text`; rich lead's `oreproduct-richlead-handbook-text`):
+  the ore, what the bar carries, which machine parts it and what it gives, the hand station, what a remelt
+  loses, linking the machines' pages. The guide page "Base bullion" (`config/handbook/oreprocessing-bullion.json`,
+  `OreProcessingSystem.BullionGuidePage`, hidden with the switch off) sets the kinds side by side; it and
+  "Ore processing" link each other. The tooltip keeps its one status line (`StatusText`). Every figure in
+  these texts is generated (`Ore/tools/make_ore_guide_numbers.py`, from the config and the machines'
+  setting defaults; `tools/tests/test_ore_guide_numbers.py` fails on drift). The icons in `icons/` predate
+  the ingot shape and want re-rendering.
 
 Tests: `tests/Ore/BullionTests.cs`, `tests/PackTests/OreProcessingScenarios.cs`
 (`By_product_ores_smelt_to_bullion`).
+
+### Ore processing: the handbook's smelting counts (no switch of its own)
+
+The game's handbook draws a smelting input with its `smeltedRatio` as the count, the inputs per smelted
+stack. The pack's exact rates make that 20,000 (for 51 bullion, poor firepit-roasted tetrahedrite), and a
+row of such numbers runs together. On every page (`Ore/Processing/SmeltingHandbook.cs`, the counting in
+`Ore/Core/SmeltCount.cs`):
+
+- **Every "Created by" smelting slot counts the inputs for one output**, rounded up (20,000 for 51 is
+  393): "Smelting in bloomery", the new "Smelting in crucible", and metal molding's rows, which count
+  the inputs that hold what the mold takes (the game counts every input as a nugget's 5 units, so 20 to
+  an ingot whatever it is: now 20 nuggets, 1 bar of bullion, a few hundred poor rock). From 1,000 the
+  count is abbreviated, K from 1,000 and M from 1,000,000 to one decimal, a trailing .0 dropped (999,
+  1K, 1.6K, 20K, 2.5M), drawn where and as the game draws a stack size; the slots sit 6 apart
+  where the game's touch.
+- **Smelting in crucible** (`seraphhorizons:handbook-createdby-cruciblesmelting`), at the end of
+  "Created by": every stack whose smelted stack is the page's item, that needs a container, smelts
+  (smelting type `smelt`), melts at a fuel's heat and that the bloomery section does not list. Bullion
+  had no smelting section (the game lists crucible inputs only for an ingot, under metal molding; an
+  ingot's page gets none of this). Rich lead gets none either: nothing smelts into it, it comes from the
+  Parkes kettle.
+- **Bullion is crucible only.** The game's bloomery takes anything that melts between 1000 and 1500 °C,
+  tetrahedrite's copper and gold quartz's gold among them. A prefix on `BlockEntityBloomery.CanAdd`
+  (its interaction help) and `TryAdd` (the right-click, Harmony id `seraphhorizons.bloomerybullion`, both
+  sides) refuses a stack that smelts to bullion, and the client says why (an in-game error,
+  `seraphhorizons:bloomery-nobullion`); the bloomery section leaves them out, and drops itself (and
+  "Created by" with it) when nothing else is left. A bar of bullion itself smelts plainly to its metal
+  and the bloomery still takes it, as it takes an ingot.
+- **"Smelts into"** on an input's page drew the output with its stack size, so one rock "smelted into"
+  51 bullion. With a ratio above 1 (and fewer outputs than inputs) it now draws one output and says how
+  many inputs make it (`seraphhorizons:handbook-smeltsinto-perone`, "393 of these make one"); a vanilla
+  nugget's says 20.
+
+Harmony on `CollectibleBehaviorHandbookTextAndExtraInfo`, client side (`seraphhorizons.smeltinghandbook`):
+a prefix on `AddSlideShowComponent` takes over the call whose last component is the bloomery's
+sub-heading, and postfixes on `addCreatedByInfo` (molds, crucible) and `addProcessesIntoInfo`. Each is
+checked first (the method by its parameters, and the lang keys and call it is found by in its IL), and a
+change in the game is a warning in the log, the part left as the game has it. Not switched: without ore
+processing there is no bullion to refuse and the counts are the game's numbers made readable. The recipe
+site has no such count: its item pages link what an item smelts into and from, with no numbers (the
+export carries `inputQuantity` and the output's quantity as data).
+
+Tests: `tests/Ore/SmeltCountTests.cs`; `tests/PackTests/OreProcessingScenarios.cs`
+(`Bloomery_refuses_what_smelts_to_bullion`: the bloomery refusing and still taking iron, the
+sections' lists and counts, and the patches finding the game's methods). The handbook's drawing is the
+client's and is not tested headless.
 
 ### Ore processing: the amalgam pan (`AmalgamPan`, `AmalgamPanSettings`)
 
