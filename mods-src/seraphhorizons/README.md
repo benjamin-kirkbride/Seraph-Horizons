@@ -19,6 +19,15 @@ they live together here and not in a mod each. Every tweak has its own switch in
 `ModConfig/seraphhorizons.json` (all on by default). A tweak whose mod is not installed is skipped.
 One whose mod has changed shape logs a warning and leaves that mod alone.
 
+The file is read at start and written back whole, so it gains settings added since it was made. It
+is read with `Core/ModConfigJson.cs`, not the game's `LoadModConfig`: that one (Newtonsoft's
+default) appends a file's list to the list a setting starts with, so a list setting with a non-empty
+default gained a copy of its contents on every start (the crucible furnace's four code lists, the
+only ones that have one). A list in the file now replaces the default; arrays already did, and
+dictionaries still take the file's keys over the defaults, keeping a default key the file lacks, so
+a key added in a later version reaches an existing file (turn one off by its value). The client's
+Tidy Variants and pack version check files are read the same way.
+
 Only the game's own assemblies are referenced at build time: each tweak to another mod finds what
 it patches by name, so the mod builds from the game alone (`release.yml` needs nothing else).
 
@@ -4364,7 +4373,11 @@ linking the frame's page for the furnace. The pots and the two ferroalloys have 
 `CokeCapacity` from 6 to 12; an install that kept the old defaults follows the new ones
 (docs/config-defaults.md), and a dropped key left in a file is ignored. `ChimneyBlocks` became
 `ChimneyShaftBlocks` and `ChimneyTopBlocks` before 0.1.0 was released, with no rename recorded: the
-clay brick chimney it listed is now the top, not shaft, so an old list carried over would be wrong. **The old melting holes**
+clay brick chimney it listed is now the top, not shaft, so an old list carried over would be wrong. Loading used to append
+another copy of these four lists to the file on every start (see the top of this README), so an
+existing file can hold dozens of each entry: a start now removes the repeats, keeping the order, with
+a log line per list. Each list is only asked whether any entry matches a code, so a repeat never
+meant anything. **The old melting holes**
 (`meltinghole-{closed|open}`, their grid recipe and shapes, and their `multiblockStructure`) are removed
 with no migration: holes in a world vanish, with whatever was in them. The recipe browser's multiblock
 viewer no longer has the furnace; the model viewer has it as `crucible-furnace`.

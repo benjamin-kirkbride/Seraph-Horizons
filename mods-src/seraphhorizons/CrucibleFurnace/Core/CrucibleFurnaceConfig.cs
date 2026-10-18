@@ -147,6 +147,29 @@ public class CrucibleFurnaceConfig
     /// <summary>Whether <paramref name="block"/> (a block code) is a chimney top.</summary>
     public bool IsChimneyTopBlock(string? block) => block != null && ChimneyTopBlocks.Any(c => PotRecipes.CodeMatches(c, block));
 
+    /// <summary>
+    /// Removes repeated entries from the four code lists, keeping the order; returns a line per
+    /// list it shortened. Before <see cref="SeraphHorizons.Mod.Core.ModConfigJson"/> each start
+    /// appended another copy of a list's contents to the defaults, so an existing file can hold
+    /// dozens. Each list is only ever asked whether any entry matches a code, so a repeat never
+    /// means anything and dropping it changes no behaviour.
+    /// </summary>
+    public IReadOnlyList<string> RemoveDuplicateCodes()
+    {
+        var fixes = new List<string>();
+        void Collapse(string name, List<string>? list)
+        {
+            var removed = SeraphHorizons.Mod.Core.ModConfigJson.RemoveDuplicates(list);
+            if (removed > 0)
+                fixes.Add($"{name} had {removed} repeated entries, removed");
+        }
+        Collapse(nameof(ChimneyShaftBlocks), ChimneyShaftBlocks);
+        Collapse(nameof(ChimneyTopBlocks), ChimneyTopBlocks);
+        Collapse(nameof(LargeCastingMetals), LargeCastingMetals);
+        Collapse(nameof(LargeCastingMolds), LargeCastingMolds);
+        return fixes;
+    }
+
     /// <summary>Replaces values out of range with the default; returns a line per replaced value.</summary>
     public IReadOnlyList<string> Sanitise()
     {
