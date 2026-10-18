@@ -738,11 +738,12 @@ switch `TraderStanding`), `Game/GroupHooks.cs`, `Game/StandingCommands.cs`, and
   the sender too when on time (`bothEnds`). A failed delivery takes `deliveryFailed` at the sender, an
   abandoned order `orderAbandoned`.
 - **Tiers**: stranger 0, known 60, regular 250, trusted 800, partner 2000 points of effective
-  standing. Unlocks (`TierUnlocks`): `mapTier`, `mapsToTraders`, `buyPriceFactor`, `sellPriceFactor`,
+  standing. Unlocks (`TierUnlocks`): `mapsToTraders`, `buyPriceFactor`, `sellPriceFactor`,
   `walletFactor`, `deliveryScale`, `rareStock`. Consumers: the wallet and the shelf
   (`walletFactor`, `rareStock`, and every entry's `standingTier`), prices (`buyPriceFactor`,
-  `sellPriceFactor`), maps (`mapTier`, `mapsToTraders`) and deliveries (`deliveryScale`); every
-  unlock has a consumer. Orders read the tier's number n (index + 1) instead of an unlock (see
+  `sellPriceFactor`), maps (`mapsToTraders`) and deliveries (`deliveryScale`); every
+  unlock has a consumer. `mapTier` (the best ore map precision a tier bought) was removed
+  (2026-10-17): an ore map's precision is drawn per offer ("Maps and leads"). Orders read the tier's number n (index + 1) instead of an unlock (see
   "Orders"); `orderScale` (1, 1.5, 2, 3, 4) was removed with that (2026-10-08).
 - **Effective standing** = max(personal, company) + `spilloverShare` (0.1) × the best max(personal,
   company) at another trader of the same type within `TraderStandingSpilloverKm` (6). Same-type
@@ -1179,13 +1180,13 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   quotes all carry it. Nobody trading, factor 1. Listed prices are re-priced only with
   `EverythingHasAPrice` or `RegionalSupply` on (the economy owns the shelf prices); with both off,
   standing changes no price. `TradingGlueSystem.TradingPlayerPriced` is raised before each re-price
-  for anything else priced per player (map precision).
+  for anything else priced per player.
 - **Shelves follow the best recent customer.** `IStandingSource.ShelfTierFor(trader)`: the highest
   tier index among players whose record with the trader changed within `recentDays` (14), as the
   wallet's `WalletFactorFor`. `EntitySeraphTrader.Restock` resolves the list at that tier and with that
   tier's `rareStock` (`IStandingSource.UnlocksOfTier`). A stranger therefore sees what a trusted
-  customer unlocked until the first restock after that customer has been away 14 days; prices and
-  map precision are still the stranger's own, and the settlement lead is refused to them at the
+  customer unlocked until the first restock after that customer has been away 14 days; prices are
+  still the stranger's own, and the settlement lead is refused to them at the
   deal (camp leads are per buyer, off the shelf). `EconomySystem.Reprice` resolves the list at the top tier with rare stock, so every entry
   a shelf may hold is priced.
 - **Rare stock.** `"rare": true` on a list entry (`TradeEntry.Rare`): shelved only when the shelf
@@ -1371,20 +1372,29 @@ join them (`Trading/Glue/StandingPrices.cs` and small edits listed with each).
   `DepositService.TargetsFor`; the thirds are `DepositSizing.Classify`'s), the medium band for
   `unsurveyed`: the class, never the measured size, so the price tells the buyer no more than the
   offer's size class does. `ingotValue` is `game:ingot-<metal>`'s item value
-  (`ItemValuesSystem`), passed in so the core stays game-independent. `share` (0.03 / 0.06 / 0.10)
+  (`ItemValuesSystem`), passed in so the core stays game-independent. `share` (0.03 / 0.04 / 0.05)
   and `scarcity` (3 for gold, silver, nickel, titanium, chromium and platinum, the metals districts
   hide; 1 otherwise) are in `map-prices.json`. A metal with no size range or no ingot value has no
   price: its offers are left out, with one warning per metal (a test holds every ranged metal to a
   value). This replaced a hand table by size and precision (5–32 gears) times a metal factor
   (0.9–1.8), which did not follow the metals' values.
-- **Per player.** At a restock offers are priced for nobody (precision 1). When the trading player
-  changes (`TradingPlayerPriced`), every offer is re-priced and an ore map offer's precision set to
-  `MapOffers.MaxPrecision(mapTier)` (0 → 1, 1 → 2, 2+ → 3), times standing's factor through the
-  economy's modifiers.
+- **Precision per offer.** An ore map offer's precision is drawn once, as it is shelved (`OreEntry`:
+  a restock's `Expand`, or `RefreshShelves` as its check lands), by `precisionWeights` (50 / 35 /
+  15, rough / fair / fine; `MapPrecisionRoll.Roll`, game-independent, takes a `Random`), from the
+  world's own `World.Rand`: nothing needs to reproduce the draw, only keep it, and it is kept on the
+  offer's attributes until the next restock replaces the offer, so reopening the window or another
+  buyer sees the same map at the same precision. The sale issues the map at the offer's precision.
+  Until 2026-10-17 the precision followed the buyer's standing (`mapTier`, `MapOffers.MaxPrecision`:
+  stranger rough, known fair, regular up fine) with shares 0.03 / 0.06 / 0.10, so one 464-gear map
+  that lifted a stranger to regular made every ore map about 3.1 times dearer, the rough one gone;
+  offers shelved before keep the precision they had until their next restock.
+- **Per player.** When the trading player changes (`TradingPlayerPriced`), every offer is re-priced
+  from its own precision (rough if it has none), times standing's factor through the economy's
+  modifiers.
 - **The sale** goes through the game's `ITradeableCollectible` (vanilla's locator maps do the same):
   `ItemOreMap` implements it through its static `Hooks` (set to `MapTradeHooks`), `ItemTraderLead`
   directly. `OnTryTrade` (server, before money) refuses a sold-out offer, a deposit sold or reserved
-  meanwhile (setting the shelf's stock to 0), an ore map above the buyer's precision, and the
+  meanwhile (setting the shelf's stock to 0), and the
   settlement lead without the buyer's own `mapsToTraders`; it notes the price. `OnDidTrade` gets the stack about
   to be handed over: it is marked pending (a token) and the sale settles. Ore and gravel maps:
   reserve the deposit, `DepositService.Verify` (which may generate up to nine columns), then
