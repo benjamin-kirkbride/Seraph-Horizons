@@ -221,6 +221,13 @@ public class OreProductsTests
             var attributes = Type(Path.GetFileName(file))["attributes"]!.AsObject();
             if (attributes["oreForm"] is not { } form) continue;
             var sections = attributes["handbook"]?["extraSections"]?.AsArray();
+            // Bullion's are per kind (extraSectionsByType, by code): every kind's must be there.
+            if (attributes["handbook"]?["extraSectionsByType"]?.AsObject() is { } byType)
+            {
+                var allowed = Type(Path.GetFileName(file))["allowedVariants"]!.AsArray().Select(v => (string)v!).ToList();
+                Assert.Equal(allowed.Order(), byType.Select(kv => kv.Key).Order());
+                sections = new JsonArray(byType.SelectMany(kv => kv.Value!.AsArray()).Select(s => s!.DeepClone()).ToArray());
+            }
             // Crushed and ground ore get theirs in code, by the ore's class.
             if ((string?)form is "crushed" or "ground")
                 continue;

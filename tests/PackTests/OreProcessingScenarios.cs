@@ -347,7 +347,15 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
             Assert.Equal(100, bar.Attributes["metalUnits"].AsDouble());
             Assert.Equal($"game:ingot-{spec.Metal}", Into(bullion));
             Assert.Equal(spec.Unparted, Out(Stack(bullion, 1)), 6);
+            // Each kind has its own handbook section, under the ore forms' one title, linking the guide.
+            string section = $"seraphhorizons:oreproduct-bullion-{spec.Ore}-handbook-text";
+            Assert.Equal(section, bar.Attributes["handbook"]["extraSections"].AsArray()[0]["text"].AsString());
+            Assert.NotEqual(section, Lang.Get(section));
+            Assert.Contains(OreProcessingSystem.BullionGuidePage, Lang.Get(section));
+            Assert.Equal(OreHandbook.SectionTitle, bar.Attributes["handbook"]["extraSections"].AsArray()[0]["title"].AsString());
         }
+        Assert.Equal("seraphhorizons:oreproduct-richlead-handbook-text",
+            Item(Bullion.RichLeadCode).Attributes["handbook"]["extraSections"].AsArray()[0]["text"].AsString());
         Assert.Equal("Silver-lead (Galena)", new ItemStack(Item("seraphhorizons:bullion-galena-lead")).GetName());
         Assert.StartsWith("Doré", new ItemStack(Item("seraphhorizons:bullion-quartz_nativegold-gold")).GetName());
         // Gold quartz's retorted sponge is doré too; ores with no by-product still smelt to their metal.
@@ -437,6 +445,89 @@ public class OreProcessingScenarios(ITestOutputHelper output) : AtlasScenarioBas
         Assert.Equal((3, 200), (rock.SmeltedStack.ResolvedItemstack.StackSize, rock.SmeltedRatio));
         // Pyrite's concentrate roasts first (#720), far below a bloomery's heat.
         Assert.InRange(Item("seraphhorizons:concentrate-pyrite").CombustibleProps!.MeltingPoint, 1, 999);
+    }
+
+    // Bullion is crucible only: the bloomery refuses what smelts to it (tetrahedrite's copper and gold quartz's gold
+    // melt in its range), by its interaction help (CanAdd) and a right-click (TryAdd), and still takes iron. The
+    // handbook's lists agree: no bullion maker under the bloomery, a crucible section on bullion's page counting the
+    // inputs for one bar, none on an ingot's (metal molding lists those) or the bloom's.
+    [AtlasScenario]
+    public async Task Bloomery_refuses_what_smelts_to_bullion()
+    {
+        var player = await Spaller();
+        var slot = player.InventoryManager.ActiveHotbarSlot;
+        var pos = World.Spawn.AddCopy(62, 8, 60);
+        World.SetBlock("game:bloomerybase-north", pos);
+        await World.Ticks(2);
+        var bloomery = Assert.IsType<BlockEntityBloomery>(W.BlockAccessor.GetBlockEntity(pos));
+        try
+        {
+            foreach (var code in new[] { OreProducts.RoastedCode("tetrahedrite"), OreProducts.ConcentrateCode("quartz_nativegold"),
+                                         OreProducts.RoastedRockCode("tetrahedrite", "poor") })
+            {
+                var stack = Stack(code, 5);
+                Assert.InRange(stack.Collectible.CombustibleProps!.MeltingPoint, 1000, 1499);
+                Assert.True(BloomeryBullion.SmeltsToBullion(W, stack), code);
+                Assert.False(bloomery.CanAdd(stack), code);
+                slot.Itemstack = stack;
+                Assert.False(bloomery.TryAdd(player, 5), code);
+                Assert.Equal(5, slot.StackSize);
+            }
+            // A bar of bullion smelts plainly to its metal, not to bullion: the bloomery's own business.
+            Assert.False(BloomeryBullion.SmeltsToBullion(W, Stack("seraphhorizons:bullion-tetrahedrite-copper", 1)));
+            var iron = Stack("seraphhorizons:concentrate-hematite", 5);
+            Assert.True(bloomery.CanAdd(iron));
+            slot.Itemstack = iron;
+            Assert.True(bloomery.TryAdd(player, 5));
+            Assert.True(slot.Empty);
+        }
+        finally
+        {
+            slot.Itemstack = null;
+            World.SetBlock("game:air", pos);
+        }
+
+        var all = W.Items.Where(i => i?.Code != null).Select(i => new ItemStack(i)).ToList();
+        int hottest = SmeltingHandbook.HottestFuel(W, all.Concat(W.Blocks.Where(b => b?.Code != null).Select(b => new ItemStack(b))));
+        List<ItemStack> SmeltInto(string code) => all.Where(s =>
+            s.Collectible.CombustibleProps?.SmeltedStack?.ResolvedItemstack?.Collectible.Code.ToString() == code).ToList();
+        var copper = Stack("seraphhorizons:bullion-tetrahedrite-copper", 1);
+        var makers = SmeltInto(copper.Collectible.Code.ToString());
+        Assert.NotEmpty(makers.Where(s => SmeltingHandbook.BloomeryHeat(s.Collectible.CombustibleProps)));
+        Assert.Empty(SmeltingHandbook.BloomeryInputs(W, makers));
+        var crucible = SmeltingHandbook.CrucibleInputs(W, copper, all, hottest);
+        output.WriteLine(string.Join(", ", crucible.Select(s => $"{s.StackSize} {s.Collectible.Code}")));
+        foreach (var code in new[] { OreProducts.RoastedCode("tetrahedrite"), OreProducts.RoastedRockCode("tetrahedrite", "poor") })
+        {
+            var props = Item(code).CombustibleProps!;
+            var listed = Assert.Single(crucible, s => s.Collectible.Code.ToString() == code);
+            Assert.Equal(SmeltCount.PerOne(props.SmeltedRatio, props.SmeltedStack.ResolvedItemstack.StackSize), listed.StackSize);
+            Assert.InRange(listed.StackSize, 1, 999);
+        }
+        Assert.Equal(20, crucible.Single(s => s.Collectible.Code.ToString() == OreProducts.RoastedCode("tetrahedrite")).StackSize);
+        // Lead bullion melts below the bloomery's heat and was listed nowhere; now under the crucible.
+        Assert.Contains(SmeltingHandbook.CrucibleInputs(W, Stack("seraphhorizons:bullion-galena-lead", 1), all, hottest),
+            s => s.Collectible.Code.ToString() == OreProducts.RoastedCode("galena"));
+        Assert.Empty(SmeltingHandbook.CrucibleInputs(W, Stack("game:ingot-copper", 1), all, hottest));
+        Assert.Empty(SmeltingHandbook.CrucibleInputs(W, new ItemStack(Item("game:ironbloom")), all, hottest));
+        // The bloom's bloomery inputs count one bloom: 20 concentrate, 67 medium rock (3 per 200).
+        var bloom = SmeltingHandbook.BloomeryInputs(W, SmeltInto("game:ironbloom"));
+        Assert.Equal(20, bloom.Single(s => s.Collectible.Code.ToString() == "seraphhorizons:concentrate-hematite").StackSize);
+        Assert.Equal(67, bloom.Single(s => s.Collectible.Code.ToString() == "seraphhorizons:crushedore-hematite-medium").StackSize);
+        // The client's handbook patches find the game's methods as they expect, and Harmony takes them (on a test id,
+        // undone at once: unbound, they would do nothing here anyway).
+        Assert.True(SmeltingHandbook.CreatedByMatches());
+        Assert.True(SmeltingHandbook.ProcessesIntoMatches());
+        var harmony = new Harmony("seraphhorizons.packtests.smeltinghandbook");
+        try
+        {
+            Assert.True(SmeltingHandbook.Patch(harmony, W.Logger));
+            Assert.Equal(3, harmony.GetPatchedMethods().Count());
+        }
+        finally
+        {
+            harmony.UnpatchAll(harmony.Id);
+        }
     }
 
     // Crucibulum's forge counts a charge as the crucible does.

@@ -39,6 +39,7 @@
       "code": ["Ore/Processing/"],
       "codes": ["oreprocessing", "oreproduct", "ore-processing", "spalling", "cupel", "liquation",
                 "liquationpan", "retort", "oreretorting", "oreroasting", "crudeliquorportion", "rawsaltpeter"],
+      "lang": ["handbook-createdby-cruciblesmelting", "handbook-smeltsinto-*", "bloomery-*"],
       "export": ["Recipes/SpallingExport.cs", "Recipes/CupellationExport.cs", "Recipes/LiquationExport.cs",
                  "Recipes/OreRetortingExport.cs", "Recipes/OreRoastingExport.cs", "RecipeSection.Spalling.cs",
                  "RecipeSection.Cupellation.cs", "RecipeSection.Liquation.cs",

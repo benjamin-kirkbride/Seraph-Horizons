@@ -58,7 +58,9 @@ public class BullionTests
         Assert.Equal(7, expected.Count);
         foreach (string code in expected)
             Assert.Contains($"\"{code}\"", text);
-        int allowed = System.Text.RegularExpressions.Regex.Matches(text, "\"bullion-[a-z_]+-[a-z]+\"").Count;
+        // Counted in allowedVariants only: the handbook's extraSectionsByType keys on the same codes.
+        string variants = System.Text.RegularExpressions.Regex.Match(text, "\"allowedVariants\"\\s*:\\s*\\[[^\\]]*\\]").Value;
+        int allowed = System.Text.RegularExpressions.Regex.Matches(variants, "\"bullion-[a-z_]+-[a-z]+\"").Count;
         Assert.Equal(expected.Count, allowed);
     }
 
