@@ -1051,6 +1051,13 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         Refill(eidolon, plan, live, workers, now);
         if (Station is not { } head)
             return _routeWait is { } planned && Routed(eidolon) ? RouteWait(eidolon, planned, now) : Idle(eidolon, live, workers, now);
+        // its claim lapsed while it waited (no strike nor walk for ReserveSeconds) and another took part of it:
+        // the station is no longer its, and it neither walks to it nor works it
+        if (ClaimTaken(eidolon, head, now))
+        {
+            LostClaim(eidolon, head, now);
+            return true;
+        }
         _waitingSince = null;
         _stalled = false;
         _stuckSince = null;
@@ -1173,6 +1180,31 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         return headKept;
     }
 
+    /// <summary>Whether another member holds a column of <paramref name="head"/>'s claim now: its own claim
+    /// lapsed (<see cref="EidolonTeamwork.ReserveSeconds"/> with no strike nor walk, as while it waits with the
+    /// station) and was taken. A lapsed column nobody took is still its to walk to (the walk's
+    /// <see cref="JobBoard{TUnit, TShared}.Struck"/> keeps it again) and to strike (<see cref="StrikeAt"/>
+    /// claims it again first).</summary>
+    private bool ClaimTaken(EntityLaborEidolon eidolon, MineStation head, double now)
+    {
+        if (Board is not { } board || Cells.Plan is not { } plan)
+            return false;
+        long id = eidolon.EntityId;
+        return MineDispatch.Claim(head, plan.Tunnel).Any(u => board.Holder(u, now) is { } holder && holder != id);
+    }
+
+    /// <summary>Its station's claim was taken by another while it held the station (<see cref="ClaimTaken"/>):
+    /// it lets the station go and looks again.</summary>
+    private void LostClaim(EntityLaborEidolon eidolon, MineStation head, double now)
+    {
+        Held(eidolon, "its claim was taken", now);
+        eidolon.World.Logger.Debug("{0}", $"[eidolon-mine] {eidolon.EntityId}: claim of station {head.Id} at ({head.Stand.X},{head.Stand.Y},{head.Stand.Z}) "
+            + $"lapsed and was taken by another: let go ({DebugState})");
+        _nav?.Stop();
+        DropHead(eidolon);
+        _phase = Phase.Seek;
+    }
+
     /// <summary>Lets go of the station it works (its claim freed).</summary>
     private void DropHead(EntityLaborEidolon eidolon)
     {
@@ -1254,6 +1286,16 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
                 if (OccupantOf(eidolon, station.Stand) is { } occupant && occupant.Orders?.Current is MineOrder waiting
                     && waiting != this && waiting._job == _job)
                     waiting.MakeRoom(occupant, now);
+        // none at work: a member waiting down the pit over blocks still to dig (Wait's PitClear leaves the work
+        // under its feet for it to move off) holds them from every other member, and none takes a station, so
+        // none ever asks it to move (#1156: three waiting for good with 6 blocks left, one standing on them).
+        // It makes room, stepping aside onto ground with nothing left to dig.
+        if (!working && _job != null)
+            foreach (long member in _job.Present)
+                if (member != eidolon.EntityId && _jobs?.Member(member) is { Alive: true } other
+                    && other.Orders?.Current is MineOrder waiting && waiting._job == _job
+                    && live.Remaining.Any(c => c.Y <= Feet(other) && EidolonMining.UnderFoot(other.Pos.X, other.Pos.Z, c)))
+                    waiting.MakeRoom(other, now);
         bool left = live.Bands is { } bands ? !bands.StairOpen : live.Remaining.Count > 0;
         if (!left && cells.Parked.Count > 0)
         {
@@ -1383,6 +1425,15 @@ public sealed class MineOrder(MarkArea area, Vec3d? home, IReadOnlyList<long>? m
         int feet = Feet(eidolon);
         if (!AtStand(eidolon, stand) || !group.Cells.Any(c => EidolonMining.InReach(eidolon.Pos.X, feet, eidolon.Pos.Z, c)))
             return Try.NotInReach;
+        // It strikes only in its own claim: taken again here (a claim held, or lapsed and still free, is its
+        // own again from now), and the station let go if another holds any of it. A claim lapses while its
+        // holder waits with it (a routed member stopped short of another, or parting from one, keeps its
+        // station through the wait), and another member's dispatch may take it meanwhile: #1156.
+        if (Board is { } board && !board.TryClaim(eidolon.EntityId, head.Id, MineDispatch.Claim(head, plan.Tunnel), now))
+        {
+            LostClaim(eidolon, head, now);
+            return Try.Dropped;
+        }
         if (!BeginStrike(eidolon, head, group, now))
         {
             Held(eidolon, "nothing breakable from its stand", now);
