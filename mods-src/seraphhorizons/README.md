@@ -3498,8 +3498,9 @@ there, waits out a planned wait where it is planned (`eidolon-status-mine-waitin
 another walking up to it, crosses another's claim after 4 seconds, passes another eidolon only briefly and
 rarely (after 2 seconds, at most one each 2 minutes of strikes and one more, never one on the stair or one
 standing near it, which would be pushed), never sets off for a stand another stands on (a member waiting there
-is asked to make room, stepping aside to a place with nothing left to dig and no claim; the stop is dropped
-when one stays there), stops short of one standing that it walks at, whatever the walk (a third of a block
+is asked to make room, stepping aside to a place with nothing left to dig and no claim, but not one holding a
+station of its own, which is about to set off for it and leaves by itself: asked every second, it stayed for
+good where it found its place clear, #1244; the stop is dropped when one stays there), stops short of one standing that it walks at, whatever the walk (a third of a block
 before their boxes touch), waits while that one is still in its way, and parts from one its box has been in
 for 0.6 seconds (the game's push between two boxes reads as walking, which the other would give way to for
 ever): the one with the higher id, or beside one striking or home, steps away to a place apart from every
@@ -3510,8 +3511,10 @@ one that waited stepping away (`Core/EidolonParting.cs`). It lets its claims go 
 seconds, and gives up a walk to its next station gone on 6 seconds past twice its estimate (the stop dropped
 and the routes solved again, so the others are not held to their turns behind it). A crew with no strike begun
 for 15 seconds since its last strike, or since routes for its station plan came in, (timed waits that hold
-each member for another, a stair's slots run off the plan) has the rest of that station plan dispatched as
-today's (only while its routes hold stations and no member is on its way home); its members still part, stop
+each member for another, a stair's slots run off the plan), or with a member's stops dropped 4 times and no
+strike of its own between (the live guard refusing what each solve hands straight back, two each waiting over
+the other's next work, while the other's odd strike keeps the crew's clock going, #1244), has the rest of that
+station plan dispatched as today's (only while its routes hold stations and no member is on its way home); its members still part, stop
 short of one standing and make room on a stand still to work, to the job's end. Small events are repaired in
 place on the main thread (begun, finished, dropped, a member gone, a new plan); a full solve follows a failed
 repair, a member joining, a new station plan, or every 15 seconds (no two within 2 seconds, or half a second
