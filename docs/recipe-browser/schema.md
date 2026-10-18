@@ -446,6 +446,19 @@ powder over to its next burn: the rock's units × the ore's sulfur a unit × the
 `sulfur` a rock and `carried` (true). It draws no power, so it is not on the power page. Its build is the shared ore
 machine `construction` record.
 
+**Amalgamation plates** (type `amalgamationplates`, shape `generic`, present with seraphhorizons'
+`AmalgamationPlates` and `OreProcessing` on, #917): one record per crushed and ground ore with free gold or
+silver (`seraphhorizons:crushedore-<ore>-<grade>`, `groundore-<ore>-<grade>`), id
+`amalgamationplates|<input>|0`. The ingredients are the rock and the mercury its catch takes off the plates'
+dressing (`em:mercuryportion`, portions with `litres`; both consumed) and the plates' frame
+(`seraphhorizons:amalgamationplates-north`, role `station`); the outputs are the amalgam
+(`seraphhorizons:amalgam-<ore>`, the average a rock makes, fractional, since what falls short of an item stays on
+the plates for the next) and the same rock, its variant's stack carrying `oreState` (amalgamated, 4), on to the
+concentrators. No power: `requirements` says the water a rock and the rate, the dressing and the plates' room;
+`extra` has the `ore`, `grade`, `recovery` (0.65), `perHour` (rock an in-game hour) and `waterPerItem` (litres a
+rock). Ores without free metal run over the plates unchanged and have no record. Its build is the shared ore
+machine `construction` record.
+
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
 `station`, has the colour as `*`), with a variant per metal that casts (binding `metal`).

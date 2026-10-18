@@ -33,7 +33,7 @@ namespace SeraphHorizons.Mod.Machines;
 /// <item>its infeed (slot 0) and one held product a output anchor: a chute into the infeed cell's face
 /// fills its buffer (<see cref="BEOreMachineCell"/>), a hand puts in what the machine takes, and each
 /// product leaves through its anchor's face into a chute or container (<see cref="MachineChutes"/>);
-/// with nothing there it is held (blocked), or for <c>tailings</c> discarded on a heap
+/// with nothing there it is held (blocked), or for <c>tailings</c> (<see cref="DiscardsAt"/>) discarded on a heap
 /// (<see cref="Tailings"/>).</item>
 /// </list>
 /// The client draws it (<see cref="OreMachineRenderer"/>).
@@ -599,7 +599,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
             product.StackSize -= moved;
             if (product.StackSize <= 0)
                 return;
-            if (anchor == Tailings && !MachineChutes.ChutedOn(Api.World, cell, face, new DummySlot(product)) && Discard(cell.AddCopy(face), product))
+            if (DiscardsAt(anchor) && !MachineChutes.ChutedOn(Api.World, cell, face, new DummySlot(product)) && Discard(cell.AddCopy(face), product))
                 return;
         }
         var slots = OutputSlots(anchor).ToList();
@@ -616,6 +616,11 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
         else
             Api.World.SpawnItemEntity(product, Pos.ToVec3d().Add(0.5, 1, 0.5));
     }
+
+    /// <summary>Whether what leaves by output anchor <paramref name="anchor"/> is tailings, discarded on the heap
+    /// (<see cref="Discard"/>) when nothing takes it: <c>tailings</c>, by default. A machine whose only outlet
+    /// carries its tailings on (the amalgamation plates' <c>output</c>) says so.</summary>
+    protected virtual bool DiscardsAt(string anchor) => anchor == Tailings;
 
     /// <summary>Discards tailings on the heap beyond the tailings anchor (#694): the machine's
     /// <see cref="OreMachinesConfig.TailingsFor"/>'s layers a rock, in the stack's host rock. False when
@@ -661,7 +666,7 @@ public abstract class BEOreMachine : BlockEntityContainer, IMachinePower
             var (cell, face) = MachineChutes.World(Pos, Side, a);
             if (MachineChutes.TryPush(Api.World, cell, face, slot) > 0)
                 moved = true;
-            else if (anchor == Tailings && !MachineChutes.ChutedOn(Api.World, cell, face, slot) && Discard(cell.AddCopy(face), slot.Itemstack))
+            else if (DiscardsAt(anchor) && !MachineChutes.ChutedOn(Api.World, cell, face, slot) && Discard(cell.AddCopy(face), slot.Itemstack))
             {
                 slot.Itemstack = null;
                 slot.MarkDirty();

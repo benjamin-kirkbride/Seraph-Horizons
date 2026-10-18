@@ -1,0 +1,31 @@
+{
+	"_comment": "The amalgamation plates' build (#917, #711): each stage after the frame and its materials, from AmalgamationPlates/README.md's stage table, in the rig's buildStages order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. The frame (the grid recipe) is the table, bed, distributor and tail box; the plates are three copper half plates (a whole copper plate does for a half, for a game without the squaring shear); the mercury trap is a cast-iron well; services are the two chute sections and the spray pipe in copper or lead. The dressing (mercury poured on) is recurring, not a stage; nothing wears.",
+	"machine": "amalgamationplates",
+	"block": "seraphhorizons:amalgamationplates-north",
+	"feed": "continuous",
+	"stages": [
+		{
+			"id": "plates", "name": "the plates", "adds": ["plates"],
+			"materials": [
+				{ "codes": ["seraphhorizons:halfplate-copper", "game:metalplate-copper"], "quantity": 3 }
+			]
+		},
+		{
+			"id": "trap", "name": "the mercury trap", "adds": ["trap"],
+			"materials": [
+				{ "codes": ["game:metalplate-iron"], "quantity": 2 },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "services", "name": "services", "adds": ["chutes", "pipecopper", "pipelead"],
+			"materials": [
+				{ "codes": ["game:chute-straight-*"], "quantity": 2 },
+				{
+					"codes": ["seraphhorizons:pipesection-copper", "seraphhorizons:pipesection-lead"], "quantity": 1,
+					"picks": { "seraphhorizons:pipesection-copper": "pipecopper", "seraphhorizons:pipesection-lead": "pipelead" }
+				}
+			]
+		}
+	]
+}
