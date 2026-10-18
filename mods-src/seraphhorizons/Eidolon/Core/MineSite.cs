@@ -56,6 +56,7 @@ public sealed class MineSite : IWideSpace
         _pace = new ushort[_rule.Length];
         _unloaded = new bool[_sx * _sz];
         _unloadedArea = new List<(int X, int Z)>();
+        MineWork.Bytes(_solid.Length * 8L + _rule.Length * 3L + _unloaded.Length);
     }
 
     private MineSite(MineSite other)
@@ -70,6 +71,7 @@ public sealed class MineSite : IWideSpace
         _pace = (ushort[])other._pace.Clone();
         _unloaded = (bool[])other._unloaded.Clone();
         _unloadedArea = new List<(int X, int Z)>(other._unloadedArea);
+        MineWork.Bytes(_solid.Length * 8L + _rule.Length * 3L + _unloaded.Length);
     }
 
     public MarkArea Area { get; }
@@ -175,6 +177,7 @@ public sealed class MineSite : IWideSpace
 
     private void Write(int x, int y, int z, bool solid, MineRule rule, ushort? pace)
     {
+        MineWork.Add(1);
         int i = Index(x, y, z);
         int r = RuleIndex(x, y, z);
         if (_marks > 0)
@@ -200,6 +203,7 @@ public sealed class MineSite : IWideSpace
 
     public void Undo(int mark)
     {
+        MineWork.Add(_journal.Count - mark);
         for (int k = _journal.Count - 1; k >= mark; k--)
         {
             var (i, solid, r, rule, pace) = _journal[k];
