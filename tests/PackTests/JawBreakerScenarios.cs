@@ -176,7 +176,7 @@ public partial class SharedWorldScenarios
         int before = breaker.InfeedSlot.StackSize;
         chute.Inventory[0].Itemstack = RawOre(1);
         chute.Inventory[0].MarkDirty();
-        await World.Until(() => chute.Inventory.Empty, 20000);
+        await UntilChuteFed(breaker, chute);
         Assert.True(breaker.InfeedSlot.StackSize + ChestCount(chest, crushedCode) >= before + 1);
 
         // broken: the frame, every stage's items and the faces with use left; the chute's ore was its own
