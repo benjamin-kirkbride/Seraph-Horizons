@@ -1228,4 +1228,15 @@ public class SeraphHorizonsConfig
     /// discarded beside it as sand). Needs OreProcessing (off, or that off, means its frame and recipe do not
     /// exist, and tables already placed are lost). The server's setting decides.</summary>
     public bool ShakingTable { get; set; } = true;
+
+    /// <summary>The vanner (Vanner/, README "Vanner"; #923): a Frue vanner, the last of the concentrators,
+    /// built on its frame in five stages (the countershaft, the shaking frame, the rollers and creep, the
+    /// leather belt, then the feed box, chute sections and water line). It takes the shaking table's
+    /// tailings (crushed or ground ore, and placer gravel or bog iron carried down the line) from a chute,
+    /// 3 rock an in-game hour at speed 0.6 on a steady load of 0.08 and 15 L of water a rock, catching 80 %
+    /// of what can be caught, and all that is left at the end of an ore's whole route: the concentrate
+    /// leaves by its own chute, the rock goes on by the tailings chute or is discarded beside it as sand.
+    /// Its belt wears out (2 leather, about 4,000 rock). Needs OreProcessing (off means its frame and its
+    /// recipe do not exist, and vanners already placed are lost). The server's setting decides.</summary>
+    public bool Vanner { get; set; } = true;
 }

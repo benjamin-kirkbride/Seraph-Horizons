@@ -19,7 +19,8 @@ namespace SeraphHorizons.Mod.Machines.Core;
 /// A material's <c>picks</c> (<c>{ "seraphhorizons:pipesection-copper": "pipecopper" }</c>) draw a
 /// <c>requires</c> by the item put in; its <c>draws</c> are <c>requires</c> drawn once it is all in, before
 /// the rest of its stage. A wearing part with a <c>stage</c> has its first set fitted as one more
-/// material of that stage (the stamp battery's shoes with its stamps); without one, it goes in by
+/// material of that stage (the stamp battery's shoes with its stamps), or as its only one when the stage
+/// lists none (<c>"materials": []</c>, the vanner's belt); without one, it goes in by
 /// right-click once the machine is built. The stages and their <c>adds</c> must be the rig's
 /// <c>buildStages</c>, in order (<see cref="CheckAgainstRig"/>).
 /// </summary>
@@ -61,7 +62,9 @@ public static class MachineBuildJson
             if (!ids.Add(id))
                 throw new FormatException($"stage {id} is listed twice");
             var adds = Strings(s, "adds", $"stage {id}'s adds");
-            if (!s.TryGetProperty("materials", out var mats) || mats.ValueKind != JsonValueKind.Array || mats.GetArrayLength() == 0)
+            // a stage may list no materials of its own when a wearing part is fitted with it (the vanner's
+            // belt): checked once the wearing parts are read
+            if (!s.TryGetProperty("materials", out var mats) || mats.ValueKind != JsonValueKind.Array)
                 throw new FormatException($"stage {id} has no materials");
             var materials = new List<BuildMaterial>();
             foreach (var m in mats.EnumerateArray())
@@ -117,6 +120,8 @@ public static class MachineBuildJson
                     };
                 }
             }
+        if (stages.FirstOrDefault(x => x.Materials.Count == 0) is { } bare)
+            throw new FormatException($"stage {bare.Id} has no materials");
         return new MachineBuild(machine, block, feed, stages, wearing);
     }
 

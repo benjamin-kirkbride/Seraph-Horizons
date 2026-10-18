@@ -3,7 +3,7 @@
   "global": ["Core/", "Machines/", "ConfigDefaults/", "LangText.cs", "SeraphHorizons.csproj", "modinfo.json"],
   "global_switches": ["OreMachinesSettings", "FollowPackDefaults"],
   "unmapped": ["AcidParting/", "AmalgamationPlates/", "Arrastra/", "CupellationFurnace/",
-               "LiquationFurnace/", "ParkesKettle/", "ReverberatoryRoaster/", "Vanner/"],
+               "LiquationFurnace/", "ParkesKettle/", "ReverberatoryRoaster/"],
   "features": {
     "Eidolon": {
       "code": ["Eidolon/", "EidolonGantry/"],
@@ -81,6 +81,13 @@
       "codes": ["shakingtable"],
       "export": ["Recipes/ShakingTableExport.cs", "RecipeSection.ShakingTable.cs"],
       "switches": ["ShakingTable"],
+      "classes": []
+    },
+    "Vanner": {
+      "code": ["Vanner/"],
+      "codes": ["vanner"],
+      "export": ["Recipes/VannerExport.cs", "RecipeSection.Vanner.cs"],
+      "switches": ["Vanner"],
       "classes": []
     },
     "Sluice": {
