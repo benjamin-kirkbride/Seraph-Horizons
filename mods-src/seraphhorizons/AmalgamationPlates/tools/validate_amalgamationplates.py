@@ -229,7 +229,7 @@ def check_anchors(v):
     m = v.m
     rig = v.rig
     cells = set(m.footprint())
-    for key in ("feedCell", "waterCell", "outputCell"):
+    for key in ("infeedCell", "waterCell", "outputCell"):
         if tuple(rig[key]) not in cells:
             v.fail(f"{key} {rig[key]} is not one of the machine's cells")
     # water: the inlet's end on the west face, its section ppex's, on the face's centre
@@ -248,9 +248,9 @@ def check_anchors(v):
     origin = [fc[k] * 16 for k in range(3)]
     prof, runs = m.chute_profile(v.posed("chutes"), "ch_in_", (0, 2), origin)
     want = sorted(m.upright_walls())
-    print(f"anchors: feed cell {list(fc)} {rig['feedFace']}: the infeed's walls over (x, z) {prof}, the game's upright chute {want}; "
+    print(f"anchors: feed cell {list(fc)} {rig['infeedFace']}: the infeed's walls over (x, z) {prof}, the game's upright chute {want}; "
           f"they run y {sorted(runs)}")
-    if prof != want or runs != {(m.INFEED_Y0, (fc[1] + 1) * 16.0)} or rig["feedFace"] != "up":
+    if prof != want or runs != {(m.INFEED_Y0, (fc[1] + 1) * 16.0)} or rig["infeedFace"] != "up":
         v.fail("the infeed is not vanilla's chute section at the feed cell's top face")
     d = {e.name: e.aabb() for e in v.posed("frame") if e.name.startswith("fr_dist_")}
     inner = (d["fr_dist_w"][1][0], d["fr_dist_e"][0][0], d["fr_dist_n"][1][2], d["fr_dist_s"][0][2])
