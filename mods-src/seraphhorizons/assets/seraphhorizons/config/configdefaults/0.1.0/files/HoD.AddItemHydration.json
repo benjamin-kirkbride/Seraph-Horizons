@@ -171,6 +171,58 @@
       "OverwriteExisting": false
     },
     {
+      "Code": "game:egg-*",
+      "hydration": null,
+      "IsBoiling": false,
+      "hydrationByType": {
+        "game:egg-chicken-boiled": -5.0,
+        "game:egg-chicken-pickled": -15.0
+      },
+      "OverwriteExisting": false
+    },
+    {
+      "Code": "game:fat",
+      "hydration": -10.0,
+      "IsBoiling": false,
+      "hydrationByType": null,
+      "OverwriteExisting": false
+    },
+    {
+      "Code": "game:fat-rendered",
+      "hydration": -20.0,
+      "IsBoiling": false,
+      "hydrationByType": null,
+      "OverwriteExisting": false
+    },
+    {
+      "Code": "game:treeseed-walnut",
+      "hydration": -2.0,
+      "IsBoiling": false,
+      "hydrationByType": null,
+      "OverwriteExisting": false
+    },
+    {
+      "Code": "game:honeycomb",
+      "hydration": -15.0,
+      "IsBoiling": false,
+      "hydrationByType": null,
+      "OverwriteExisting": false
+    },
+    {
+      "Code": "game:fishchunk-*",
+      "hydration": null,
+      "IsBoiling": false,
+      "hydrationByType": {
+        "game:fishchunk-standard-2-cooked": -40.0,
+        "game:fishchunk-standard-4-cooked": -80.0,
+        "game:fishchunk-standard-7-cooked": -140.0,
+        "game:fishchunk-standard-9-cooked": -180.0,
+        "game:fishchunk-long-4-cooked": -80.0,
+        "game:fishchunk-long-7-cooked": -140.0
+      },
+      "OverwriteExisting": false
+    },
+    {
       "Code": "game:legume-*",
       "hydration": -30.0,
       "IsBoiling": false,
@@ -1056,7 +1108,7 @@
       "OverwriteExisting": false
     },
     {
-      "Code": "expandedfoods:gelatinfish-*",
+      "Code": "expandedfoods:gelatinfish",
       "hydration": 1.0,
       "IsBoiling": false,
       "hydrationByType": null,
@@ -1308,7 +1360,7 @@
       "OverwriteExisting": false
     },
     {
-      "Code": "expandedfoods:pemmicanfish-*",
+      "Code": "expandedfoods:fishpemmican-*",
       "hydration": -25.0,
       "IsBoiling": false,
       "hydrationByType": null,
@@ -1385,14 +1437,14 @@
       "OverwriteExisting": false
     },
     {
-      "Code": "expandedfoods:pemmicancrab-*",
+      "Code": "expandedfoods:crabpemmican-*",
       "hydration": -25.0,
       "IsBoiling": false,
       "hydrationByType": null,
       "OverwriteExisting": false
     },
     {
-      "Code": "expandedfoods:pemmicansnake-*",
+      "Code": "expandedfoods:snakepemmican-*",
       "hydration": -25.0,
       "IsBoiling": false,
       "hydrationByType": null,
@@ -1520,6 +1572,13 @@
     {
       "Code": "expandedfoods:wildtreedryfruit-*",
       "hydration": -5.0,
+      "IsBoiling": false,
+      "hydrationByType": null,
+      "OverwriteExisting": false
+    },
+    {
+      "Code": "expandedfoods:fruitleather-sliced",
+      "hydration": -1.0,
       "IsBoiling": false,
       "hydrationByType": null,
       "OverwriteExisting": false
@@ -2844,20 +2903,6 @@
       "OverwriteExisting": false
     },
     {
-      "Code": "primitivesurvival:trussedrot-*",
-      "hydration": -5.0,
-      "IsBoiling": false,
-      "hydrationByType": null,
-      "OverwriteExisting": false
-    },
-    {
-      "Code": "primitivesurvival:trussedmeat-*",
-      "hydration": -5.0,
-      "IsBoiling": false,
-      "hydrationByType": null,
-      "OverwriteExisting": false
-    },
-    {
       "Code": "primitivesurvival:snakemeat-*",
       "hydration": -2.0,
       "IsBoiling": false,
@@ -2902,6 +2947,34 @@
     {
       "Code": "primitivesurvival:crabmeat-*",
       "hydration": -4.0,
+      "IsBoiling": false,
+      "hydrationByType": null,
+      "OverwriteExisting": false
+    },
+    {
+      "Code": "primitivesurvival:fisheggs-raw-*",
+      "hydration": 5.0,
+      "IsBoiling": false,
+      "hydrationByType": null,
+      "OverwriteExisting": false
+    },
+    {
+      "Code": "primitivesurvival:fisheggscooked",
+      "hydration": -10.0,
+      "IsBoiling": false,
+      "hydrationByType": null,
+      "OverwriteExisting": false
+    },
+    {
+      "Code": "primitivesurvival:caviar-cured",
+      "hydration": -40.0,
+      "IsBoiling": false,
+      "hydrationByType": null,
+      "OverwriteExisting": false
+    },
+    {
+      "Code": "primitivesurvival:nightcrawler",
+      "hydration": 5.0,
       "IsBoiling": false,
       "hydrationByType": null,
       "OverwriteExisting": false
