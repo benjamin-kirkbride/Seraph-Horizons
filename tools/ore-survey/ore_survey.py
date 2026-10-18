@@ -94,7 +94,8 @@ class Classifier:
 
     def nuggets_per_block(self, code: str) -> float:
         """Sum over the block's drops of (average count x metal units) / units per nugget:
-        1.25 ore chunks plus 0.01 crystallised ore, each with its grade's metalUnits."""
+        one raw ore with single ore drops (vanilla's 1.25 plus 0.01 crystallised ore without),
+        each with its grade's metalUnits."""
         units = 0.0
         for drop in self.blocks.get(code) or []:
             item = self.items.get(drop["code"])

@@ -67,6 +67,8 @@ public partial class OreCellsScenarios(ITestOutputHelper output) : AtlasScenario
         Assert.True(Ore.NewWorld);
         var world = Ore.World;
         Assert.True(world.OreCells && world.NoSurfaceCopper && world.SmallerDeposits && world.RarerDistricts);
+        // A new world is on the current deposit basis (DepositBasis), with single ore drops.
+        Assert.True(world.DoubledDeposits && world.SingleOreDrops);
         Assert.Equal(5000, world.CellSize);
 
         var saved = ((ICoreServerAPI)World.Api).WorldManager.SaveGame.GetData(OreSystem.WorldRecordKey);
@@ -263,7 +265,8 @@ public partial class OreCellsScenarios(ITestOutputHelper output) : AtlasScenario
     {
         // The variant's attributes keep the deposit file's values; its generator has the scaled ones.
         // Native copper's chimney, scaled on its tendrils by copper's factor in config/ore-sizes.json
-        // (retuned on the census of #945), four times over with ore processing on (#863:
+        // (retuned on the census of #945, then 2.5 times for single ore drops: twice the metal at one
+        // ore a block), four times over with ore processing on (#863:
         // an ore item holds about a quarter of vanilla's units, so a deposit is four times the blocks).
         var chimney = IogVeins("nativecopper").Single();
         var shape = new VeinShape("chimney",
@@ -271,19 +274,19 @@ public partial class OreCellsScenarios(ITestOutputHelper output) : AtlasScenario
             new SizeRange(Attribute(chimney, "branchCount"), chimney.Attributes["branchCount"]["var"].AsFloat()),
             new SizeRange(Attribute(chimney, "branchLength"), chimney.Attributes["branchLength"]["var"].AsFloat()));
         Assert.Equal(OreProducts.DepositBlocks, OreSystem.GradedOreBlocks(World.Api));
-        var expected = VeinScaling.Scale(shape, 0.136 * OreProducts.DepositBlocks);
+        var expected = VeinScaling.Scale(shape, 0.34 * OreProducts.DepositBlocks);
         output.WriteLine($"native copper chimney {shape} -> {expected}");
         Assert.NotEqual(shape, expected);
         Assert.Equal(expected.BranchCount.Avg, Field(chimney, "BranchCount").avg, 3);
         Assert.Equal(expected.BranchLength.Avg, Field(chimney, "BranchLength").avg, 3);
 
-        // Hematite's seam, by the square root of iron's factor (#945) on the radius, four times over.
+        // Hematite's seam, by the square root of iron's factor (#945, x 2.5) on the radius, four times over.
         var seam = IogVeins("hematite").Single();
-        Assert.Equal(Attribute(seam, "radius") * Math.Sqrt(0.0527 * 4), Field(seam, "Radius").avg, 3);
+        Assert.Equal(Attribute(seam, "radius") * Math.Sqrt(0.13175 * 4), Field(seam, "Radius").avg, 3);
 
-        // Coal is not graded ore: its quarter cut only.
+        // Coal is not graded ore: its own factor only, over 1 (the quarter cut, x 2.5).
         var coal = IogVeins("bituminouscoal").First();
-        Assert.Equal(Attribute(coal, "radius") * Math.Sqrt(0.75), Field(coal, "Radius").avg, 3);
+        Assert.Equal(Attribute(coal, "radius") * Math.Sqrt(1.875), Field(coal, "Radius").avg, 3);
 
         // Gems are left alone.
         var garnet = IogVeins("garnetpyrope").Single();

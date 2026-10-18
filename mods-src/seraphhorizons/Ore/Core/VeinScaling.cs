@@ -61,9 +61,13 @@ public static class VeinScaling
 }
 
 /// <summary>
-/// The size cut per metal (ore-sizes.json): either a measured median and a target, giving
-/// target / median, or a factor given outright. Never above 1: the cut is measured against
-/// vanilla's units. <see cref="VolumeFor"/> adds the blocks graded ore needs at the pack's units.
+/// The size factor per metal (ore-sizes.json): either a measured median and a target, giving
+/// target / median, or a factor given outright, on the table's basis (<see cref="DepositBasis"/>:
+/// one ore a block, twice the ingots of before, so a factor may be over 1). With
+/// <c>before</c>, for a world created before that basis, the factors are
+/// <see cref="DepositBasis.BeforeFactorShare"/> of the table's and never above 1, and the sizes
+/// <see cref="DepositBasis.BeforeSizeShare"/>, as they were then. <see cref="VolumeFor"/> adds the
+/// blocks graded ore needs at the pack's units.
 /// </summary>
 public sealed class OreSizeTable
 {
@@ -73,15 +77,24 @@ public sealed class OreSizeTable
         double? SmallIngots = null, double? LargeIngots = null);
 
     private readonly IReadOnlyDictionary<string, Entry> _entries;
+    private readonly bool _before;
 
-    public OreSizeTable(IReadOnlyDictionary<string, Entry> entries) => _entries = entries;
+    public OreSizeTable(IReadOnlyDictionary<string, Entry> entries, bool before = false)
+    {
+        _entries = entries;
+        _before = before;
+    }
+
+    /// <summary>Whether this is the table as a world created before the current basis reads it.</summary>
+    public bool Before => _before;
 
     /// <summary>The volume factor for a metal, or null if the table leaves it alone.</summary>
     public double? FactorFor(string metal)
     {
         if (!_entries.TryGetValue(metal, out var e)) return null;
         double? f = e.Factor ?? (e.MedianIngots is > 0 && e.TargetIngots is > 0 ? e.TargetIngots / e.MedianIngots : null);
-        return f is > 0 ? Math.Min(1, f.Value) : null;
+        if (f is not > 0) return null;
+        return _before ? Math.Min(1, f.Value * DepositBasis.BeforeFactorShare) : f.Value;
     }
 
     /// <summary>
@@ -107,6 +120,8 @@ public sealed class OreSizeTable
     public SizeTargets? TargetsFor(string metal) =>
         _entries.TryGetValue(metal, out var e) && e is { SmallIngots: > 0, TargetIngots: > 0, LargeIngots: > 0 }
         && e.SmallIngots < e.LargeIngots
-            ? new SizeTargets(e.SmallIngots.Value, e.TargetIngots.Value, e.LargeIngots.Value)
+            ? new SizeTargets(e.SmallIngots.Value * SizeShare, e.TargetIngots.Value * SizeShare, e.LargeIngots.Value * SizeShare)
             : null;
+
+    private double SizeShare => _before ? DepositBasis.BeforeSizeShare : 1;
 }

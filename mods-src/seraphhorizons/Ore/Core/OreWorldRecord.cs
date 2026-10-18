@@ -19,7 +19,9 @@ public sealed record OreWorldRecord(
     bool PlacerFields = false,
     int PlacerCellSize = PlacerCells.DefaultCellSize,
     bool GradePockets = false,
-    bool StableVeins = false)
+    bool StableVeins = false,
+    bool SingleOreDrops = false,
+    bool DoubledDeposits = false)
 {
     // Inside the record, OreCells names the switch, not the class.
     private const int DefaultCellSize = global::SeraphHorizons.Mod.Ore.Core.OreCells.DefaultCellSize;
@@ -44,6 +46,7 @@ public sealed record OreWorldRecord(
         PlacerFields = PlacerFields && config.PlacerFields,
         GradePockets = GradePockets && config.GradePockets,
         StableVeins = StableVeins && config.StableVeins,
+        SingleOreDrops = SingleOreDrops && config.SingleOreDrops,
     };
 
     // "key=value" lines, so a later version can add keys.
@@ -61,6 +64,9 @@ public sealed record OreWorldRecord(
         sb.Append(CultureInfo.InvariantCulture, $"gradePockets={GradePockets}\n");
         // And stable veins (#946).
         sb.Append(CultureInfo.InvariantCulture, $"stableVeins={StableVeins}\n");
+        // And single ore drops with the deposit basis they came with (SingleOreDrops.cs): a record
+        // without them is a world of 1.25 ore a block and deposits at half the ingots.
+        sb.Append(CultureInfo.InvariantCulture, $"singleOreDrops={SingleOreDrops}\ndoubledDeposits={DoubledDeposits}\n");
         return sb.ToString();
     }
 
@@ -86,7 +92,9 @@ public sealed record OreWorldRecord(
             B("placerFields"),
             values.TryGetValue("placerCellSize", out var ps) ? int.Parse(ps, CultureInfo.InvariantCulture) : PlacerCells.DefaultCellSize,
             B("gradePockets"),
-            B("stableVeins"));
+            B("stableVeins"),
+            B("singleOreDrops"),
+            B("doubledDeposits"));
     }
 
     public bool Equals(OreWorldRecord? other) => other is not null && Serialize() == other.Serialize();
