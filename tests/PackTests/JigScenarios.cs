@@ -219,10 +219,9 @@ public partial class SharedWorldScenarios
         var chute = (BlockEntityItemFlow)W.BlockAccessor.GetBlockEntity(chutePos)!;
         chute.Inventory[0].Itemstack = JigCrushed("cassiterite", "rich", 1);
         chute.Inventory[0].MarkDirty();
-        // the chute empties into the infeed cell's buffer, and the jig draws it in from there on its own tick
-        // (every 100 ms): until it has, the jig's infeed is empty and the wait below would end before the rock
-        var buffer = (BEOreMachineCell)W.BlockAccessor.GetBlockEntity(inCell)!;
-        await World.Until(() => chute.Inventory.Empty && buffer.Buffer.Empty, 20000);
+        // until the jig has drawn the rock from the infeed cell's buffer, its infeed is empty and the wait
+        // below would end before the rock
+        await UntilChuteFed(jig, chute);
 
         await JigUntil(jig, () =>
         {

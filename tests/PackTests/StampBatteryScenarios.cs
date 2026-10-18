@@ -69,6 +69,17 @@ public partial class SharedWorldScenarios
         return at;
     }
 
+    /// <summary>A chest at the far end of the output chute. A chute with an open end drops what it carries
+    /// into the world a few ticks after taking it (#1259), too soon for a wait to be sure of seeing it there.</summary>
+    private async Task<BlockEntityContainer> BatteryOutputChest(BEStampBattery battery, BlockPos outChute)
+    {
+        var (_, face) = MachineChutes.World(battery.Pos, battery.Side, battery.Rig!.Anchor("output")!.Value);
+        var at = outChute.AddCopy(face);
+        World.SetBlock("game:chest-east", at);
+        await World.Ticks(2);
+        return (BlockEntityContainer)W.BlockAccessor.GetBlockEntity(at)!;
+    }
+
     /// <summary>Keeps the site's chunk columns loaded, so the battery runs on the virtual clock with no
     /// player beside it (the shared player stays where the other scenarios count on it).</summary>
     private void KeepBatteryLoaded(BlockPos origin, int reach = 5)
@@ -161,6 +172,7 @@ public partial class SharedWorldScenarios
         battery.FillWater(battery.ReservoirCapacity);
         Assert.Equal(80, battery.ReservoirCapacity, 6);
         var outChute = BatteryOutputChute(battery);
+        var chest = await BatteryOutputChest(battery, outChute);
         var rotor = await PowerBattery(battery);
 
         // by hand: right-click with raw ore puts it in the feed box's mouth
@@ -175,7 +187,7 @@ public partial class SharedWorldScenarios
         {
             try
             {
-                await World.Until(() => OutChuteHolds(outChute), 6_000);
+                await World.Until(() => !chest.Inventory.Empty, 6_000);
             }
             catch (Exception e)
             {
@@ -184,7 +196,7 @@ public partial class SharedWorldScenarios
                     + $"held {string.Join(",", battery.OutputSlots("output").Where(s => !s.Empty).Select(s => s.Itemstack.Collectible.Code))} ({e.Message})");
             }
         }
-        var crushed = ((BlockEntityItemFlow)W.BlockAccessor.GetBlockEntity(outChute)!).Inventory.First(s => !s.Empty).Itemstack;
+        var crushed = chest.Inventory.First(s => !s.Empty).Itemstack;
         Assert.Equal(BatteryCrushed, crushed.Collectible.Code.ToString());
         Assert.True(OreStreamAttributes.StateOf(crushed).HasFlag(OreState.Classified));
         Assert.Equal("granite", OreStreamAttributes.Read(crushed)!.Rock);
@@ -200,15 +212,16 @@ public partial class SharedWorldScenarios
         var inChute = (BlockEntityItemFlow)W.BlockAccessor.GetBlockEntity(inChutePos)!;
         inChute.Inventory[0].Itemstack = CutterItem("game:ore-medium-hematite-granite", 1);
         inChute.Inventory[0].MarkDirty();
-        await World.Until(() => inChute.Inventory.Empty, 20_000);
+        await UntilChuteFed(battery, inChute);
+        // in the mouth, or already crushed (the turns left from the first rock) and on its way out
+        Assert.True(battery.InfeedSlot.Itemstack?.Collectible.Code.ToString() == "game:ore-medium-hematite-granite"
+            || battery.OutputSlots("output").Concat(chest.Inventory).Concat(W.BlockAccessor.GetBlockEntity<BlockEntityItemFlow>(outChute)!.Inventory)
+                .Any(s => s.Itemstack?.Collectible.Code.Path.Contains("hematite") == true));
 
-        foreach (var p in new[] { rotor, outChute, inChutePos })
+        foreach (var p in new[] { rotor, outChute, chest.Pos, inChutePos })
             W.BlockAccessor.SetBlock(0, p);
         ClearBattery(origin);
     }
-
-    private bool OutChuteHolds(BlockPos chute) =>
-        W.BlockAccessor.GetBlockEntity(chute) is BlockEntityItemFlow flow && !flow.Inventory.Empty;
 
     [AtlasScenario(TimeoutMs = 90_000)]
     public async Task Stamp_battery_stops_dry_and_with_its_shoes_worn_out()
