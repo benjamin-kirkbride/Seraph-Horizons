@@ -497,6 +497,20 @@ furnace carries what falls short of a whole bit over to its next charge (ore-pro
 `ore`, the `share` (0.95), the bar's `units` (100) and `byProductUnits`, the `perHour` (100) and the `hours` a bar,
 the `chargeBars` (4), the `fuelPerHour` (0.36) and `carried` (true). It draws no power, so it is not on the power
 page. Its build is the shared ore machine `construction` record.
+**Parkes kettle** (type `parkeskettle`, shape `machine`, present with seraphhorizons' `ParkesKettle` and
+`OreProcessing` on, #927): one record per silver-lead bullion it takes, id `parkeskettle|<bar>|0`: a
+`seraphhorizons:bullion-<ore>-lead` bar whose ore's cupellation silver share is under rich lead's
+(ore-processing.json `bullion.richLeadSilver`, 0.1: plain galena's; argentiferous galena's is cupelled directly). In,
+one bar and the zinc it takes (`game:metalbit-zinc`, a fraction: 1 unit of zinc to 100 of lead, 5 units a bit),
+consumed, and the kettle's frame `seraphhorizons:parkeskettle-north` as its station. Out, per bar, the rich lead its
+silver makes (`seraphhorizons:richlead`, a fraction: the bar's silver whole at the kettle's figure, 1.0, over 100 ×
+`richLeadSilver`; the kettle carries silver short of a whole bar on to its next charge), the rest of its lead as
+desilverized `game:ingot-lead`, and the zinc back at `machines.parkeskettle.zincReturn` (0.8). `power` is
+`mechanical`, `turns` the shaft's turns a bar at any speed (a charge's `chargeHours` at speed 0.6 over its 24 bars),
+`work` one `bars`. `requirements` says in words how a charge is stirred; `extra` has the `ore`, the `share` (1), the
+`charge` (2,400 units), the `hours` (5), the `silver` a bar, `richLeadSilver`, `zincReturn`, the rig's `coalPerCharge`
+(6), the stirrer's `load` and `emptyLoad` (its load follows how full the kettle is, between the two) and `carried`
+(true). Its build is the shared ore machine `construction` record.
 
 **Casting** (type `casting`, shape `generic`): every tool mold, the game's and the pack's
 gear blank molds alike. One record per mold, its colours together (the mold ingredient, role
