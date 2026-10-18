@@ -16,6 +16,7 @@ import {
   type VersionsFile,
 } from "./format.ts";
 import type { EidolonData } from "./eidolon-fittings.ts";
+import type { OreRoutesData } from "./ore-routes.ts";
 import type { PowerData } from "./power-data.ts";
 import { readIconIndex, type IconIndex } from "./icons.ts";
 import { ItemSearch } from "./search.ts";
@@ -65,6 +66,7 @@ export class VersionData {
   private entitiesP: Promise<EntityIndex> | null = null;
   private powerP: Promise<PowerData | null> | null = null;
   private eidolonP: Promise<EidolonData | null> | null = null;
+  private oresP: Promise<OreRoutesData | null> | null = null;
   private readonly entityChunks = new Map<number, Promise<EntityChunk>>();
   private multiblocksP: Promise<MultiblockIndex> | null = null;
   private readonly multiblockFiles = new Map<number, Promise<MultiblockFile>>();
@@ -145,6 +147,16 @@ export class VersionData {
       return ((await res.json()) as PowerData | null) ?? null;
     });
     return this.powerP;
+  }
+
+  /** ores.json; null for a version whose export had no ore processing section. */
+  ores(): Promise<OreRoutesData | null> {
+    this.oresP ??= fetch(`${this.base}ores.json`).then(async (res) => {
+      if (res.status === 404) return null;
+      if (!res.ok) throw new LoadError(`${this.base}ores.json: HTTP ${res.status}`);
+      return ((await res.json()) as OreRoutesData | null) ?? null;
+    });
+    return this.oresP;
   }
 
   /** eidolon.json; null for a version whose export had no eidolon section. */
