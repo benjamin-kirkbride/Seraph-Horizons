@@ -39,7 +39,10 @@ jobs:
   # claimed by a rule that understands it, or the plan is the full suite. A
   # machine model PR runs only tools and units (the former models-only fast
   # path); a PR changing only Atlas scenario classes runs only the shards
-  # whose filters select them. Never the merge queue's run (a
+  # whose filters select them; one changing only site/ runs the site's end
+  # to end tests on main's export, and one changing only tooling just the
+  # jobs that read it (the rest shard, or smoke for the export job's tools).
+  # Never the merge queue's run (a
   # mergify/merge-queue/* branch), which tests the full suite before anything
   # lands, nor a push, tag, manual run or workflow_call: those always run the
   # full plan. A sliced run records no green tree.
@@ -110,7 +113,7 @@ jobs:
             if [ "$(jq .sliced "$plan")" = true ]; then
               {
                 echo "### Sliced run (ci/paths.py plan)"
-                jq -r '"Atlas shards: \(if .atlas == "all" then "all" elif .atlas == [] then "none" else (.atlas | join(", ")) end); smoke and export: \(.smoke); cairn: \(.cairn); site: \(.site)"' "$plan"
+                jq -r '"Atlas shards: \(if .atlas == "all" then "all" elif .atlas == [] then "none" else (.atlas | join(", ")) end); smoke and export: \(.smoke); cairn: \(.cairn); site: \(.site)\(if .site and (.smoke | not) then " (on the export of main)" else "" end)"' "$plan"
                 jq -r '.reasons[] | "- " + .' "$plan"
               } >> "$GITHUB_STEP_SUMMARY"
             fi
@@ -491,24 +494,61 @@ jobs:
     needs: [tree, smoke]
     # On a push to main smoke runs for its artifact alone; the site itself is
     # a function of the tree, so a tree on record skips this. A sliced plan
-    # may leave it out (one that keeps it keeps smoke, whose export it reads).
-    if: needs.tree.outputs.tested != 'true' && needs.tree.outputs.site == 'true'
+    # may leave it out, or keep it without smoke: a PR changing only site/
+    # (ci/paths.py rule_site) has it read main's latest export instead (below).
+    # So this runs when smoke succeeded or was planned off, never when smoke
+    # was planned and failed or was cancelled; `!cancelled()` because a plain
+    # `needs` would skip it with smoke.
+    if: >-
+      !cancelled() && needs.tree.result == 'success'
+      && needs.tree.outputs.tested != 'true' && needs.tree.outputs.site == 'true'
+      && (needs.smoke.result == 'success' || (needs.tree.outputs.smoke == 'false' && needs.smoke.result == 'skipped'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # actions: read, for main's export from another run (a fork PR's token is
+    # read-only, which is all this needs on a public repository).
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # HEAD^1, the main a PR merges into, picks main's export below.
+          fetch-depth: 2
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: site/package-lock.json
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - if: needs.tree.outputs.smoke == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: recipe-export
           path: ${{ runner.temp }}/recipe-export
+      # Smoke not planned: the change cannot alter the export (the plan gives
+      # it smoke otherwise), so main's export tests the site as well: that of
+      # the main this merges into (HEAD^1) when its push run has passed, else
+      # main's newest passing one: a sliced run vouches for nothing, and the
+      # merge queue's full run tests the site against this tree's own export.
+      - name: Main's recipe export (smoke not planned)
+        if: needs.tree.outputs.smoke != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          base=$(git rev-parse HEAD^1)
+          runs=$(gh run list -R "$REPO" --workflow ci.yml --branch main --event push --status success \
+            --limit 50 --json databaseId,headSha,createdAt)
+          run=$(jq -r --arg base "$base" '(map(select(.headSha == $base)) + .)[0].databaseId // empty' <<<"$runs")
+          [ -n "$run" ] || { echo "::error::no passing push run on main to take a recipe export from"; exit 1; }
+          jq -r --argjson id "$run" --arg base "$base" '.[] | select(.databaseId == $id)
+            | "Recipe export from run \(.databaseId), main at \(.headSha) (\(.createdAt)); this PR merges into \($base)"' \
+            <<<"$runs" | tee -a "$GITHUB_STEP_SUMMARY"
+          gh run download "$run" -R "$REPO" -n recipe-export -D "$RUNNER_TEMP/recipe-export"
+          test -s "$RUNNER_TEMP/recipe-export/recipes.json"
       - run: npm ci --prefix site
       - run: npx --prefix site playwright install --with-deps chromium
-      # Against the export this run's server dumped, not a fixture.
+      # Against a real export this run's server dumped (or main's, above), not a fixture.
       - name: Playwright
         env:
           RECIPE_EXPORT: ${{ runner.temp }}/recipe-export/recipes.json
@@ -557,7 +597,9 @@ jobs:
   # cairn and export still run), and the jobs a sliced plan left out (smoke
   # and with it export, atlas when it planned no shard, cairn, site). tools
   # and units only ever stand down for the memo. A sliced atlas run is one
-  # result over the shards the plan picked, and passes when they all did.
+  # result over the shards the plan picked, and passes when they all did. A
+  # site planned without smoke (on main's export) must succeed like any other:
+  # NO_SMOKE lets smoke and export skip, never the site.
   # A new job gets a `check` line naming what may skip it, or none.
   ci-ok:
     if: always()

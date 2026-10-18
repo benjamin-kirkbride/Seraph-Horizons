@@ -40,6 +40,15 @@ def git(*args, cwd=ROOT):
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout
 
 
+def job_if(ci: str, job: str) -> str:
+    """A ci.yml job's `if:`, a folded (`>-`) one joined into one line."""
+    m = re.search(rf"\n  {job}:\n(?:    .*\n|\s*\n)*?    if: (.*)\n((?:      .*\n)*)", ci)
+    assert m, job
+    if m.group(1) in (">-", ">"):
+        return " ".join(line.strip() for line in m.group(2).splitlines())
+    return m.group(1)
+
+
 class Matching(unittest.TestCase):
     def test_noop_paths(self):
         for p in ["docs/merge-queue.md", "README.md", "mods-src/seraphhorizons/AmalgamPan/README.md",
@@ -507,9 +516,29 @@ class Workflow(unittest.TestCase):
     def test_skippable_jobs_follow_the_plan(self):
         jobs = {"smoke": "smoke", "atlas": "atlas", "cairn": "cairn", "site": "site"}
         for job, flag in jobs.items():
-            m = re.search(rf"\n  {job}:\n(?:    .*\n|\s*\n)*?    if: (.*)\n", self.ci)
-            self.assertIsNotNone(m, job)
-            self.assertIn(f"needs.tree.outputs.{flag} == 'true'", m.group(1), job)
+            self.assertIn(f"needs.tree.outputs.{flag} == 'true'", job_if(self.ci, job), job)
+
+    def test_site_runs_without_smoke_only_when_the_plan_left_smoke_out(self):
+        cond = job_if(self.ci, "site")
+        self.assertTrue(cond.startswith("!cancelled() && needs.tree.result == 'success'"), cond)
+        self.assertIn("needs.tree.outputs.tested != 'true'", cond)
+        self.assertIn("(needs.smoke.result == 'success' || (needs.tree.outputs.smoke == 'false'"
+                      " && needs.smoke.result == 'skipped'))", cond)
+        self.assertNotIn("always()", cond, "a cancelled run must not start it")
+
+    def test_site_reads_this_runs_export_when_smoke_ran_and_mains_only_when_not(self):
+        site = re.search(r"\n  site:\n(.*?)\n\n  #", self.ci, re.S).group(1)
+        own = re.search(r"- if: (.*)\n\s+uses: actions/download-artifact@\S+ # v[\d.]+\n\s+with:\n\s+name: recipe-export",
+                        site)
+        self.assertIsNotNone(own, "the site downloads this run's recipe-export")
+        self.assertEqual(own.group(1), "needs.tree.outputs.smoke == 'true'")
+        main = re.search(r"- name: Main's recipe export.*?\n        if: (.*?)\n(.*?)\n      - ", site, re.S)
+        self.assertIsNotNone(main, "the site's fallback to main's export")
+        self.assertEqual(main.group(1), "needs.tree.outputs.smoke != 'true'")
+        for want in ["--branch main", "--event push", "--status success", "-n recipe-export", "git rev-parse HEAD^1"]:
+            self.assertIn(want, main.group(2))
+        self.assertRegex(site, r"permissions:\n\s+contents: read\n\s+actions: read\n")
+        self.assertRegex(site, r"fetch-depth: 2")
 
     def test_ci_ok_checks_every_job_it_needs(self):
         m = re.search(r"\n  ci-ok:\n    if: always\(\)\n    needs: \[([^\]]*)\]", self.ci)
@@ -552,13 +581,14 @@ class Planning(unittest.TestCase):
                 self.assertEqual(self.plan([path])["atlas"], "all")
 
     def test_rest_step_inputs_keep_rest(self):
-        def claim_icon_export(ctx, ps):
-            mine = [p for p in ps if p.startswith("tools/icon-export/")]
+        # The lock is one no rule claims (rule_tooling claims the mods themselves with rest).
+        def claim_lock(ctx, ps):
+            mine = [p for p in ps if p == "pack/lock.json"]
             return [paths.Claim(mine, paths.Need(frozenset({"a"})), "test")] if mine else []
         old = paths.RULES
-        paths.RULES = [*old, claim_icon_export]
+        paths.RULES = [*old, claim_lock]
         try:
-            p = self.plan(["tools/icon-export/Core/X.cs"])
+            p = self.plan(["pack/lock.json"])
         finally:
             paths.RULES = old
         self.assertEqual(p["atlas"], "all", "a and rest are every shard here")
@@ -568,6 +598,14 @@ class Planning(unittest.TestCase):
         p = paths.as_plan(paths.Need(frozenset(), site=True), [], self.SHARDS)
         self.assertTrue(p["smoke"], "the site's end-to-end tests read smoke's export")
 
+    def test_site_on_mains_export_needs_no_smoke(self):
+        p = paths.as_plan(paths.Need(frozenset(), site_main_export=True), [], self.SHARDS)
+        self.assertEqual((p["sliced"], p["site"], p["smoke"]), (True, True, False))
+        self.assertTrue(any("main's latest recipe export" in r for r in p["reasons"]))
+        p = paths.as_plan(paths.Need(frozenset(), smoke=True, site_main_export=True), [], self.SHARDS)
+        self.assertEqual((p["site"], p["smoke"]), (True, True))
+        self.assertFalse(any("main's latest" in r for r in p["reasons"]), "smoke runs: the site reads its export")
+
     def test_an_error_is_a_full_plan(self):
         r = subprocess.run([sys.executable, str(ROOT / "ci" / "paths.py"), "plan", "no-such-rev", "HEAD"],
                            cwd=ROOT, capture_output=True, text=True)
@@ -575,6 +613,78 @@ class Planning(unittest.TestCase):
         p = json.loads(r.stdout)
         self.assertFalse(p["sliced"])
         self.assertTrue(p["reasons"][0].startswith("error:"), p["reasons"])
+
+
+class SiteAndTooling(unittest.TestCase):
+    """rule_site and rule_tooling: site/ on main's export, tooling with only what reads it, and
+    everything that can change the export or its schema still giving the site a fresh one."""
+
+    SHARDS = [{"shard": "a", "filter": "FullyQualifiedName~PackTests.AScenarios."},
+              {"shard": "rest", "filter": "FullyQualifiedName!~PackTests.AScenarios."}]
+
+    def plan(self, changed):
+        p = paths.plan("BASE", "HEAD", shards=self.SHARDS, paths=changed)
+        return p["atlas"], p["smoke"], p["cairn"], p["site"]
+
+    def test_site_only_runs_the_site_on_mains_export(self):
+        for path in ["site/src/App.svelte", "site/src/lib/search.ts", "site/e2e/site.spec.ts",
+                     "site/scripts/prepare-data.ts", "site/package-lock.json", "site/src/lib/export.ts"]:
+            with self.subTest(path):
+                self.assertEqual(self.plan([path, "docs/recipe-browser/x.md"]), ([], False, False, True))
+
+    def test_model_viewer_paths_stay_with_the_models_rule(self):
+        self.assertEqual(self.plan(["site/models.json", "site/test/x.test.ts"]), ([], False, False, False))
+
+    def test_what_can_change_the_export_gives_the_site_a_fresh_one(self):
+        # Beside a site change, each of these plans smoke, so the site reads this run's export.
+        for path in ["schema/recipe-export.schema.json", "schema/archive/v1.schema.json",
+                     "tools/site-data/src/migrations/v1-to-v2.ts", "tools/site-data/src/checks.ts",
+                     "tools/recipe-export/Exporter.cs", "tools/packtool.py", "pack/lock.json",
+                     MOD + "SeraphHorizons.cs", "textures/index.json"]:
+            with self.subTest(path):
+                atlas, smoke, cairn, site = self.plan(["site/src/App.svelte", path])
+                self.assertTrue(site and smoke, path)
+
+    def test_schema_exporter_and_pack_tooling_are_unclaimed(self):
+        for path in ["schema/recipe-export.schema.json", "tools/recipe-export/Exporter.cs",
+                     "tools/packtool.py", "tools/configdefaults.py", "textures/index.json",
+                     "textures/ab/abcd.png", ".github/workflows/pages.yml", "tools/tests/fixtures/x.json"]:
+            with self.subTest(path):
+                self.assertEqual(self.plan([path]), ("all", True, True, True))
+
+    def test_tooling(self):
+        want = {
+            "tools/tests/test_icons.py": ([], False, False, False),
+            "tools/tests/test_packtool_smoke.py": ([], False, False, False),
+            "tools/tests/test_gear_consumers.py": (["rest"], False, False, False),
+            "tools/icon-export/Core/IconPaths.cs": (["rest"], False, False, False),
+            "tools/ore-survey/ore_survey.py": (["rest"], False, False, False),
+            "tools/ore-survey/tests/SeraphOreSurvey.Tests.csproj": (["rest"], False, False, False),
+            "tools/icons.py": ([], True, False, False),
+            "tools/textures.py": ([], True, False, False),
+            "tools/item-values/itemvalues.py": ([], True, False, False),
+            "tools/item-values/routes.json": ([], True, False, False),
+            "tools/site-data/src/checks.ts": ([], True, False, False),
+            "icons/index.json": ([], False, False, False),
+            "icons/ab/abcdef.png": ([], False, False, False),
+        }
+        for path, need in want.items():
+            with self.subTest(path):
+                self.assertEqual(self.plan([path]), need)
+
+    def test_site_beside_tooling(self):
+        self.assertEqual(self.plan(["site/src/App.svelte", "tools/tests/test_icons.py", "icons/index.json"]),
+                         ([], False, False, True))
+        self.assertEqual(self.plan(["site/src/App.svelte", "tools/item-values/itemvalues.py"]),
+                         ([], True, False, True))
+
+    def test_every_tooling_pattern_matches_something_at_head(self):
+        if not HAVE_GIT:
+            self.skipTest("needs git and a checkout")
+        files = git("ls-files").splitlines()
+        for pattern, _, why in paths.TOOLING:
+            with self.subTest(why):
+                self.assertTrue(any(pattern.fullmatch(f) for f in files), pattern.pattern)
 
 
 @unittest.skipUnless(shutil.which("git"), "needs git")

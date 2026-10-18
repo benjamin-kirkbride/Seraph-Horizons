@@ -41,6 +41,14 @@ plans, runs the full suite before anything lands. The rules:
   declares (scenario_classes). Any other file there (a helper, a base class, the csproj,
   a fixture) needs every shard. Smoke, cairn, the export and the site read nothing
   under tests/PackTests, so it needs none of them.
+- site: site/ needs only the site's end-to-end tests, on main's latest recipe export
+  when nothing else plans smoke (`site_main_export`): nothing but tools and the site job
+  reads it, and nothing in it changes what the export holds.
+- tooling: tooling only the tools job and one other job read (TOOLING): Python tool
+  tests and the icon store need nothing more, the local-only icon export and ore survey
+  mods and the rusty gear check the `rest` shard, and the tools the export job runs on
+  smoke's export (icons.py, textures.py, item-values, site-data) smoke. Not packtool.py,
+  configdefaults.py, recipe-export, schema/ or textures/: smoke, cairn or Atlas read them.
 
 A new rule is a function (ctx, paths) -> list[Claim] appended to RULES: it is offered
 only the paths no earlier rule claimed, claims those it understands, and leaves the
@@ -542,11 +550,17 @@ class Need:
     atlas: frozenset | str = frozenset()   # shard names, or ALL
     smoke: bool = False                    # with it the export job, which validates its output
     cairn: bool = False
-    site: bool = False
+    site: bool = False                     # the site's end-to-end tests, on this tree's export (keeps smoke)
+    # The site's end-to-end tests, on any export of the current schema: main's latest when
+    # nothing else plans smoke (the site job's fallback). Only for a path that cannot change
+    # what the export holds or how it is read before the site's own code (prepare-data
+    # included) gets it.
+    site_main_export: bool = False
 
     def __or__(self, other: "Need") -> "Need":
         atlas = ALL if ALL in (self.atlas, other.atlas) else self.atlas | other.atlas
-        return Need(atlas, self.smoke or other.smoke, self.cairn or other.cairn, self.site or other.site)
+        return Need(atlas, self.smoke or other.smoke, self.cairn or other.cairn, self.site or other.site,
+                    self.site_main_export or other.site_main_export)
 
 
 NOTHING = Need()
@@ -644,11 +658,70 @@ def rule_atlas_classes(ctx: Context, paths: list[str]) -> list[Claim]:
                            f" -> shards {', '.join(sorted(shards))}")]
 
 
-RULES = [rule_noop, rule_units, rule_models, rule_atlas_classes]
+# The recipe browser (site/): tools runs svelte-check and its unit tests, and the site job
+# its end-to-end tests. Nothing else reads it (smoke, Atlas, cairn and the export job read
+# nothing under site/; pages.yml deploys it after merge), and it reads the export the way
+# its own code says, so any export of the current schema tests it: main's, when nothing else
+# in the change plans smoke. What could change the export or its schema (the exporter,
+# schema/, tools/site-data, the mods, pack/) is not site/, and plans smoke on its own claim
+# (or everything), so the site then reads this run's export. The model viewer's paths the
+# models rule claimed first.
+SITE = re.compile(r"site/.+")
+
+
+def rule_site(ctx: Context, paths: list[str]) -> list[Claim]:
+    hits = [p for p in paths if SITE.fullmatch(p)]
+    return [Claim(hits, Need(site_main_export=True),
+                  f"{len(hits)} site path(s): tools checks them, and the end-to-end tests need any current export")
+            ] if hits else []
+
+
+# Tooling read by the tools job and by nothing smoke, Atlas, cairn or the site loads
+# (each traced: ci.yml, .github/actions/setup-pack, tests/PackTests' csproj and scenarios,
+# packtool.py and what it imports), each with what else reads it:
+TOOLING: list[tuple[re.Pattern, Need, str]] = [
+    # The rusty gear check also runs in the `rest` shard (it needs the game and the mods).
+    (re.compile(r"tools/tests/test_gear_consumers\.py"), Need(frozenset({"rest"})),
+     "the rusty gear check, which the rest shard runs too"),
+    # Python tool tests: the tools job runs them all, and nothing imports them.
+    (re.compile(r"tools/tests/[^/]+\.py"), NOTHING, "Python tool tests, which the tools job runs"),
+    # Local-only mods, never shipped: the rest shard builds and tests them (their Python
+    # halves' tests are the tools job's), and no other job, csproj or packtool step reads them.
+    (re.compile(r"tools/(?:icon-export|ore-survey)/.+"), Need(frozenset({"rest"})),
+     "a local-only mod, which the rest shard builds and tests"),
+    # The export job's drift reports run these on smoke's export (and pages.yml after merge).
+    (re.compile(r"tools/(?:icons|textures)\.py"), Need(smoke=True),
+     "an icon or texture store tool, which the export job runs on smoke's export"),
+    # The export job checks the shipped item value table against a rebuild from smoke's export.
+    (re.compile(r"tools/item-values/.+"), Need(smoke=True),
+     "the item value builder, which the export job runs on smoke's export"),
+    # The export job validates smoke's export with it (pages.yml migrates and assembles with
+    # it after merge); the site's code never imports it, and Atlas validates with the schema.
+    (re.compile(r"tools/site-data/.+"), Need(smoke=True),
+     "site-data, which the export job validates smoke's export with"),
+    # The icon store: the tools job verifies its index (on LFS pointers), the export job's
+    # drift only warns, and pages.yml deploys it after merge. Not textures/: Atlas reads its
+    # index (RecipeExportEidolonFittingsScenarios) and prepare-data its images.
+    (re.compile(r"icons/.+"), NOTHING, "the icon store, which the tools job verifies"),
+]
+
+
+def rule_tooling(ctx: Context, paths: list[str]) -> list[Claim]:
+    claims, left = [], list(paths)
+    for pattern, need, why in TOOLING:
+        hits = [p for p in left if pattern.fullmatch(p)]
+        if hits:
+            claims.append(Claim(hits, need, f"{len(hits)} path(s), {why}"))
+            left = [p for p in left if p not in hits]
+    return claims
+
+
+RULES = [rule_noop, rule_units, rule_models, rule_atlas_classes, rule_site, rule_tooling]
 
 # The `rest` shard also builds and tests the local-only icon export and ore survey mods,
-# and runs the rusty gear check, none of which any other job does. No rule claims these
-# today (they plan the full suite); one that does must keep `rest` in a sliced plan.
+# and runs the rusty gear check, none of which any other job does. rule_tooling claims the
+# mods and the check with `rest`; whatever else changes their inputs (the lock, a gear
+# consumers patch) keeps `rest` in a sliced plan through this.
 REST_STEP_INPUTS = re.compile(r"tools/icon-export/|tools/ore-survey/|tools/tests/test_gear_consumers\.py$"
                               r"|pack/lock\.json$|" + re.escape(_ASSETS) + r"patches/gearconsumers-")
 
@@ -683,11 +756,15 @@ def as_plan(need: Need, reasons: list[str], shards: list[dict]) -> dict:
     unknown = set() if need.atlas == ALL else set(need.atlas) - set(names)
     if unknown:
         raise ValueError(f"shards {sorted(unknown)} are not in {SHARDS_FILE.name}")
-    # The site's end-to-end tests read the export smoke writes.
+    # The site's end-to-end tests read the export smoke writes, or, when nothing plans smoke
+    # and they need no fresh one (site_main_export), main's latest (the site job's fallback).
     smoke = need.smoke or need.site
-    sliced = len(atlas) < len(names) or not (smoke and need.cairn and need.site)
+    site = need.site or need.site_main_export
+    if site and not smoke:
+        reasons = [*reasons, "site: no smoke planned, so the end-to-end tests read main's latest recipe export"]
+    sliced = len(atlas) < len(names) or not (smoke and need.cairn and site)
     return {"sliced": sliced, "atlas": ALL if len(atlas) == len(names) else atlas,
-            "smoke": smoke, "cairn": need.cairn, "site": need.site, "reasons": reasons}
+            "smoke": smoke, "cairn": need.cairn, "site": site, "reasons": reasons}
 
 
 def full_plan(reasons: list[str], shards: list[dict] | None = None) -> dict:
