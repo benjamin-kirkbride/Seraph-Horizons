@@ -119,6 +119,8 @@ public class TradingSystem : ModSystem
             GridActive ? "on" : $"off ({GridOffReason})");
     }
 
+    public override void Dispose() => CampPondGuard.Unbind();
+
     private bool DecideGrid()
     {
         var api = _sapi!;
