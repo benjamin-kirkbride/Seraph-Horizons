@@ -12,6 +12,7 @@ pack/config/ModConfig/  values the pack sets instead of a mod's default, .json o
 pack/config-defaults.toml  config defaults snapshots: files left out, file owners, setting renames
 pack/known-errors.json  understood cross-mod errors the tests tolerate, one issue each
 tools/packtool.py       lock / check / fetch / smoke / outdated / assemble (stdlib Python 3.11+)
+tools/prwatch.py        watch a PR through the merge queue until it merges or stops (docs/merge-queue.md)
 tests/PackTests/        Atlas scenarios: a headless server in `dotnet test` with the whole pack
 mods-src/               mods built here: the pack's own (seraphhorizons, released with the pack) and fixes pinned from the ModDB
 .github/                CI, release and nightly update-check workflows
