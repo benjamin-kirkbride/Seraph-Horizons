@@ -164,6 +164,26 @@ public class MinePlannerTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public void A_lane_whose_face_only_a_stand_beside_it_reaches_is_driven_and_holds_nothing_under_it()
+    {
+        // a tunnel 8 high, two lanes (z 0..1, 2..3) into a hill; in front of lane 0 only (z -3..1) the
+        // stepped slope's steps, 4 high (x -2..-1) and 2 (x -4..-3); lane 1's front on the ground. No stand
+        // in lane 1 reaches its band 0 face from in front; one on the step's edge (straddling both lanes)
+        // and those in lane 0's drift do.
+        var world = new MineTestWorld().Ground(L - 1).Hill(0, 10, L + 9, -3, 6, L).Box(-2, -1, L, L + 3, -3, 1).Box(-4, -3, L, L + 1, -3, 1);
+        var area = Area(-2, 7, L, L + 7, 0, 3);
+        var plan = world.Plan(area, Home);
+        Dump(plan);
+        // was: lane 1's band 0 stranded, and with it the step and the whole lower band waiting behind it,
+        // all reported out of reach
+        Assert.Empty(plan.OutOfReach);
+        Assert.Empty(plan.Held);
+        Assert.Equal(0, plan.Reruns);
+        PlanRunner.Run(world, area, plan, Home);
+        Assert.DoesNotContain(Cells(-2, 7, L, L + 7, 0, 3), world.Has);
+    }
+
+    [Fact]
     public void A_pit_five_deep_with_no_shelf_digs_a_stair_and_leaves_it_as_the_way_out()
     {
         var world = new MineTestWorld().Ground(L - 1);
