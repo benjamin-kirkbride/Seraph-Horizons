@@ -132,6 +132,10 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         var logged = World.BootDiagnostics
             .Where(e => e.Level is EnumLogType.Warning or EnumLogType.Error or EnumLogType.Fatal)
             .Where(e => e.Message.Contains("vanner", StringComparison.OrdinalIgnoreCase))
+            .Select(e => $"[{e.Level}] {e.Message}")
+            .ToList();
+        Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
+    }
 
     /// <summary><c>AmalgamationPlates</c>: its frame and its recipe are not in the game, nor its process in the
     /// export, and nothing is logged about it. The amalgam and the crushed ore it works (ore processing's) exist

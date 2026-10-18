@@ -2,7 +2,7 @@
   "always": ["items", "recipes", "switches", "tidy", "rest"],
   "global": ["Core/", "Machines/", "ConfigDefaults/", "LangText.cs", "SeraphHorizons.csproj", "modinfo.json"],
   "global_switches": ["OreMachinesSettings", "FollowPackDefaults"],
-  "unmapped": ["AcidParting/", "AmalgamationPlates/", "CupellationFurnace/",
+  "unmapped": ["AcidParting/", "CupellationFurnace/",
                "LiquationFurnace/", "ParkesKettle/", "ReverberatoryRoaster/"],
   "features": {
     "Eidolon": {
@@ -116,6 +116,13 @@
       "codes": ["rocker"],
       "export": ["Recipes/RockerExport.cs", "RecipeSection.Rocker.cs"],
       "switches": ["Rocker", "RockerSettings"],
+      "classes": []
+    },
+    "AmalgamationPlates": {
+      "code": ["AmalgamationPlates/"],
+      "codes": ["amalgamationplates"],
+      "export": ["Recipes/AmalgamationPlatesExport.cs", "RecipeSection.AmalgamationPlates.cs"],
+      "switches": ["AmalgamationPlates", "AmalgamationPlatesSettings"],
       "classes": []
     },
     "AmalgamPan": {

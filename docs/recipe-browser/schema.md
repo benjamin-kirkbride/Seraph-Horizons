@@ -444,6 +444,7 @@ powder over to its next burn: the rock's units × the ore's sulfur a unit × the
 (sperrylite) has no second output. `requirements` says in words how a charge burns; `extra` has the `ore`, `grade`,
 `form` (`raw` or `crushed`), the `share` (0.92), the `charge` (32), the `hours` (40), the `bedFirewood` (4), the
 `sulfur` a rock and `carried` (true). It draws no power, so it is not on the power page. Its build is the shared ore
+machine `construction` record.
 
 **Amalgamation plates** (type `amalgamationplates`, shape `generic`, present with seraphhorizons'
 `AmalgamationPlates` and `OreProcessing` on, #917): one record per crushed and ground ore with free gold or
