@@ -31,13 +31,21 @@ jobs:
   # publishes the dist, seraphhorizons-mod and recipe-export artifacts this run
   # produces. Tags and manual runs never consult it and run everything.
   #
-  # Models-only fast path (docs/merge-queue.md): a PR whose every changed path
-  # is a no-op or on the models-only allow-list (ci/paths.py: a machine's
-  # generator, the shape and rig it writes while nothing shipped names that
-  # machine, its rig tests, the site's model viewer) runs only tools and
-  # units. Never the merge queue's run (a mergify/merge-queue/* branch), which
-  # tests the full suite before anything lands, nor a push, tag or manual run.
-  # A models-only run records no green tree.
+  # Sliced PR runs (docs/merge-queue.md): a pull_request run whose tree is not
+  # on record asks the planner (`ci/paths.py plan`) what the PR's change (the
+  # merge commit against the main it merges into) needs run: which Atlas
+  # shards (ci/atlas-shards.json, the matrix's one list), and whether smoke
+  # (and with it export), cairn and site must. Every changed path must be
+  # claimed by a rule that understands it, or the plan is the full suite. A
+  # machine model PR runs only tools and units (the former models-only fast
+  # path); a PR changing only Atlas scenario classes runs only the shards
+  # whose filters select them; one changing only site/ runs the site's end
+  # to end tests on main's export, and one changing only tooling just the
+  # jobs that read it (the rest shard, or smoke for the export job's tools).
+  # Never the merge queue's run (a
+  # mergify/merge-queue/* branch), which tests the full suite before anything
+  # lands, nor a push, tag, manual run or workflow_call: those always run the
+  # full plan. A sliced run records no green tree.
   tree:
     name: Already tested?
     runs-on: ubuntu-24.04
@@ -45,12 +53,22 @@ jobs:
     outputs:
       id: ${{ steps.tree.outputs.id }}
       tested: ${{ steps.tree.outputs.tested }}
-      models_only: ${{ steps.tree.outputs.models_only }}
+      # The plan (`ci/paths.py outputs`), each 'true' or 'false'; a full plan
+      # has every one true but `sliced`.
+      sliced: ${{ steps.plan.outputs.sliced }}
+      smoke: ${{ steps.plan.outputs.smoke }}
+      cairn: ${{ steps.plan.outputs.cairn }}
+      site: ${{ steps.plan.outputs.site }}
+      atlas: ${{ steps.plan.outputs.atlas }}
+      # {"include": [{shard, filter}, ...]}, the planned shards. Never empty
+      # (GitHub rejects an empty matrix): with no shard planned it lists them
+      # all, and `atlas` is false.
+      atlas_matrix: ${{ steps.plan.outputs.atlas_matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # A PR's merge commit and its first parent, the main it merges into:
-          # their diff is what the PR changes, which the classifier reads.
+          # their diff is what the PR changes, which the planner reads.
           fetch-depth: 2
       - id: tree
         env:
@@ -58,7 +76,6 @@ jobs:
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
-          HEAD_REF: ${{ github.head_ref }}
         run: |
           id=$(ci/code-tree.sh HEAD)
           echo "id=$id" >> "$GITHUB_OUTPUT"
@@ -74,19 +91,40 @@ jobs:
           else
             echo "tested=false" >> "$GITHUB_OUTPUT"
             echo "tree $id: no passing CI on record"
-            if [ "$EVENT" = pull_request ]; then
-              case "$HEAD_REF" in
-                mergify/merge-queue/*) echo "merge queue run: the full suite, never the models-only fast path" ;;
-                *)
-                  # Exit 0: models-only; 1: not; anything else (a shallow history,
-                  # no merge commit) is an error, and the run tests everything.
-                  if [ "$(git rev-list --parents -n 1 HEAD | wc -w)" = 3 ] && python3 ci/paths.py classify HEAD^1 HEAD; then
-                    echo "models_only=true" >> "$GITHUB_OUTPUT"
-                    echo "tree $id: models-only change; running tools and units only (ci/paths.py)" | tee -a "$GITHUB_STEP_SUMMARY"
-                  fi
-                  ;;
-              esac
+          fi
+      # The planner never fails (it plans the full suite for whatever it cannot
+      # read), but should it crash, or print something that is not a plan, the
+      # run is the full suite all the same.
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          TESTED: ${{ steps.tree.outputs.tested }}
+        run: |
+          plan="$RUNNER_TEMP/plan.json"
+          if [ "$EVENT" != pull_request ] || [ "$TESTED" = true ]; then
+            echo "$EVENT run (tree on record: $TESTED): the full plan"
+          elif [[ "$HEAD_REF" == mergify/merge-queue/* ]]; then
+            echo "merge queue run: the full suite, never sliced"
+          elif [ "$(git rev-list --parents -n 1 HEAD | wc -w)" != 3 ]; then
+            echo "no merge commit to diff: the full plan"
+          elif python3 ci/paths.py plan HEAD^1 HEAD > "$plan" && jq -e 'has("sliced")' "$plan" >/dev/null; then
+            jq . "$plan"
+            if [ "$(jq .sliced "$plan")" = true ]; then
+              {
+                echo "### Sliced run (ci/paths.py plan)"
+                jq -r '"Atlas shards: \(if .atlas == "all" then "all" elif .atlas == [] then "none" else (.atlas | join(", ")) end); smoke and export: \(.smoke); cairn: \(.cairn); site: \(.site)\(if .site and (.smoke | not) then " (on the export of main)" else "" end)"' "$plan"
+                jq -r '.reasons[] | "- " + .' "$plan"
+              } >> "$GITHUB_STEP_SUMMARY"
             fi
+          else
+            echo "::warning title=planner failed::running the full suite"
+            rm -f "$plan"
+          fi
+          if [ -s "$plan" ]; then
+            python3 ci/paths.py outputs "$plan" | tee -a "$GITHUB_OUTPUT"
+          else
+            python3 ci/paths.py outputs full | tee -a "$GITHUB_OUTPUT"
           fi
 
   # Never skipped by the memo: it is cheap, and `outdated` depends on the
@@ -119,8 +157,8 @@ jobs:
     needs: [tree, lock]
     # On a push to main these run even for a tree on record: next.yml publishes
     # the recipe export (smoke), and dist and the seraphhorizons mod zip (cairn),
-    # this run uploads. The models-only fast path (only ever on a PR) skips it.
-    if: (needs.tree.outputs.tested != 'true' || github.event_name != 'pull_request') && needs.tree.outputs.models_only != 'true'
+    # this run uploads. A sliced plan (only ever on a PR) may leave it out.
+    if: (needs.tree.outputs.tested != 'true' || github.event_name != 'pull_request') && needs.tree.outputs.smoke == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -160,151 +198,28 @@ jobs:
   atlas:
     name: Atlas pack scenarios (${{ matrix.shard }})
     needs: [tree, lock]
-    if: needs.tree.outputs.tested != 'true' && needs.tree.outputs.models_only != 'true'
+    if: needs.tree.outputs.tested != 'true' && needs.tree.outputs.atlas == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    # Atlas runs one embedded server per process, so classes can only run in parallel as
-    # separate jobs, and every scenario class pays its own server boot: 45-55 s on the default
-    # world, 65-90 s on a seeded `standard` one, most of it asset loading (every locked mod), which
-    # no world option shortens. So classes on the same world share one: SharedWorldScenarios is
-    # every feature that needs only the plain world, WoodworkingScenarios the woodworking chain,
-    # WoodworkingRosserScenarios the rosser and its debarked trunks, TradingScenarios every trading
-    # feature on the plain world, PackFixScenarios the pack-authored fix mods, each a partial class
-    # over one file per feature (a new feature adds a file, not a class). The item and recipe
-    # classes are the exception: each builds the pack's export (over a minute) and fills parts of
-    # it again to compare, so each has a shard to itself. `fixes` is the fix mods' class and `tidy`
-    # is Tidy Variants', both matched by name, so a new class of either kind joins its shard.
-    # `woodworking`, `woodworking-rosser` and `woodworking-eidolon` (the eidolon's haul and crew
-    # orders, WoodworkingEidolonScenarios) are the three woodworking classes, each a world of
-    # machine runs (their long phases on the virtual clock, tests/PackTests/README.md), kept
-    # out of `rest` and apart from each other; `woodworking-rosser` also runs CrucibleFurnaceScenarios,
-    # and `woodworking-eidolon` MapRevealScenarios (a plain world with deposit checks off in its
-    # ModConfig, so nothing but the reveal touches the columns it watches) and SpringsWorldgenScenarios
-    # (a seeded standard world of its own); the terms are
-    # anchored on `PackTests.` and end in `.` so that only that class name matches, not a test
-    # method named after a feature or a class whose name extends another's. The Ore* classes are
-    # five shards, each mostly server boots (a seeded standard world each): `ore-cells` is ore cells
-    # (OreCellsScenarios, with stable veins' one-world order check run last on its boot) and ore
-    # processing (the plain world with its switch on; its export records are in RecipeExportScenarios,
-    # which builds the export anyway); `ore-anchor` and `ore-far` are stable veins' two generation
-    # orders on seed 424242 (OreCellOrderAnchorFirst, OreCellOrderFarFirst), and `ore-seam` the same
-    # for seed 101's seam (every OreCellOrderSeam* class, matched by prefix): each must be a fresh
-    # world, so they cannot share a boot, and they run on the virtual clock with no player joined;
-    # `ore` is the complement, ore maps with the ore admin tools (OreMapsScenarios), so a new Ore*
-    # class lands there. Checking a deposit generates its columns and the 11x11 around them, real
-    # generation the virtual clock cannot shorten, so the classes that check many are split across
-    # worlds: the grade pockets scenarios are a dozen deposits each, `gradepockets-cit`
-    # (GradePocketsCopperIronTinScenarios, the cells holding the large deposits its variety check
-    # needs) and `gradepockets-zlb` (GradePocketsZincLeadBismuthScenarios). The trading shards split
-    # the Trading* classes: `trading-core` is the camp grid (TradingCoreScenarios, a seeded standard
-    # world) with TradingScenarios; the trader maps are three classes on worlds of their own:
-    # `trading-maps-shelf` (TradingMapsShelfScenarios, a prospector's shelf and its surveys),
-    # `trading-maps-approach` (TradingMapsApproachScenarios, nearing a far camp) and
-    # `trading-features` (TradingMapsScenarios, gravel maps, standing and camp leads);
-    # `trading-misc` is every other Trading* class (story and admin, each a seeded standard world),
-    # the complement, so a new seeded Trading class lands there, and a new plain-world trading
-    # feature joins TradingScenarios. `switches`
-    # and `clear-handcar` are four classes that cannot share the plain world, two to a shard (four
-    # boots ran past the limit): SwitchesOffScenarios and ConfigDefaultsScenarios (each its own
-    # ModConfig), ClearCommandScenarios (a survival world) and HandcarScenarios (three players, and
-    # the shared world has no slots left). The eidolon's
-    # Eidolon* classes (each its own plain world, a server boot apiece) are nine shards. Their jobs
-    # run in game time on the virtual clock (tests/PackTests/README.md), a minute of digging taking a
-    # few seconds, so a shard is mostly its boots: `eidolon` the entity and the command tool,
-    # `eidolon-fittings` its fittings (EidolonFittedScenarios) and docking to strip and refit them
-    # (EidolonDockScenarios), `eidolon-mine` mining alone, in tunnels and in teams (EidolonMineScenarios,
-    # EidolonTunnelScenarios, every EidolonTeamMine* class, matched by prefix), `eidolon-tall` the tall
-    # tunnels and deep pits (EidolonTallTunnelScenarios) and sectors (EidolonSectorScenarios),
-    # `eidolon-ahead` crews of two and three by look-ahead routes held to today's makespans
-    # (EidolonLookaheadScenarios, with WideDensityProspectingScenarios, a world of its own kept out of `rest`),
-    # `eidolon-team` waiting in a shared job (EidolonTeamWaitScenarios) and where it walks and climbs
-    # (EidolonFootingScenarios), `eidolon-fell` felling alone and together (EidolonFellScenarios,
-    # EidolonTeamFellScenarios), `eidolon-orders` carrying and guarding (EidolonCarryScenarios,
-    # EidolonGuardScenarios), and `eidolon-jobs` every other Eidolon* class (chunk loading), the
-    # complement of the others, kept short so a new one can join it (with VirtualClockScenarios, a
-    # world of its own kept out of `rest`). A class's scenarios run one
-    # after another on its server (a boot is about a minute); keep each shard's sum, boots included,
-    # near three and a half minutes, splitting a class or a shard that grows. `trunks` is the trunk entity classes and the
-    # pickling tub, each joining more players than the plain world has slots left for. `rest` is
-    # the complement filter, so any other new class lands there without anyone having to list it;
-    # today it is SharedWorldScenarios alone, so a new class needing its own world should get a shard
-    # (or join one with room) rather than stay there.
+    # One job per shard of ci/atlas-shards.json, each a `dotnet test --filter` over the scenario
+    # classes: Atlas runs one embedded server per process, so classes run in parallel only as
+    # separate jobs, and every class pays its own server boot. Why each shard holds what it does,
+    # and how to split one that grows, is ci/atlas-shards.md; tools/tests/test_ci_paths.py checks
+    # that every test method is selected by exactly one shard. The `tree` job hands this job the
+    # list, all of it unless a sliced PR run's plan (ci/paths.py plan) picked the shards whose
+    # classes the PR changes.
     # Each shard's dotnet test run (compiling excluded: that is the step before it) must finish in
     # four and a half minutes or the shard fails (`Shard ran within its time limit`), so a growing
     # shard is split when it grows and not after it has crept up for months; aim for three and a half.
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - shard: items
-            filter: FullyQualifiedName~.ItemExportScenarios.
-          - shard: recipes
-            filter: FullyQualifiedName~.RecipeExportScenarios.
-          - shard: fixes
-            filter: FullyQualifiedName~FixScenarios.
-          - shard: tidy
-            filter: FullyQualifiedName~.TidyVariants
-          - shard: woodworking
-            filter: FullyQualifiedName~PackTests.WoodworkingScenarios.
-          - shard: woodworking-rosser
-            filter: FullyQualifiedName~PackTests.WoodworkingRosserScenarios.|FullyQualifiedName~PackTests.CrucibleFurnaceScenarios.
-          - shard: woodworking-eidolon
-            filter: FullyQualifiedName~PackTests.WoodworkingEidolonScenarios.|FullyQualifiedName~PackTests.MapRevealScenarios.|FullyQualifiedName~PackTests.SpringsWorldgenScenarios.
-          - shard: eidolon
-            filter: FullyQualifiedName~PackTests.EidolonScenarios.|FullyQualifiedName~PackTests.EidolonCommanderScenarios.
-          - shard: eidolon-mine
-            filter: FullyQualifiedName~PackTests.EidolonMineScenarios.|FullyQualifiedName~PackTests.EidolonTunnelScenarios.|FullyQualifiedName~PackTests.EidolonTeamMine
-          - shard: eidolon-tall
-            filter: FullyQualifiedName~PackTests.EidolonTallTunnelScenarios.|FullyQualifiedName~PackTests.EidolonSectorScenarios.
-          - shard: eidolon-ahead
-            filter: FullyQualifiedName~PackTests.EidolonLookaheadScenarios.|FullyQualifiedName~PackTests.WideDensityProspectingScenarios.
-          - shard: eidolon-team
-            filter: FullyQualifiedName~PackTests.EidolonTeamWaitScenarios.|FullyQualifiedName~PackTests.EidolonFootingScenarios.
-          - shard: eidolon-fell
-            filter: FullyQualifiedName~PackTests.EidolonFellScenarios.|FullyQualifiedName~PackTests.EidolonTeamFellScenarios.
-          - shard: eidolon-orders
-            filter: FullyQualifiedName~PackTests.EidolonCarryScenarios.|FullyQualifiedName~PackTests.EidolonGuardScenarios.
-          - shard: eidolon-jobs
-            filter: (FullyQualifiedName~PackTests.Eidolon&FullyQualifiedName!~PackTests.EidolonScenarios.&FullyQualifiedName!~PackTests.EidolonCommanderScenarios.&FullyQualifiedName!~PackTests.EidolonFittedScenarios.&FullyQualifiedName!~PackTests.EidolonDockScenarios.&FullyQualifiedName!~PackTests.EidolonMineScenarios.&FullyQualifiedName!~PackTests.EidolonTunnelScenarios.&FullyQualifiedName!~PackTests.EidolonTeamMine&FullyQualifiedName!~PackTests.EidolonSectorScenarios.&FullyQualifiedName!~PackTests.EidolonTeamWaitScenarios.&FullyQualifiedName!~PackTests.EidolonTallTunnelScenarios.&FullyQualifiedName!~PackTests.EidolonFellScenarios.&FullyQualifiedName!~PackTests.EidolonTeamFellScenarios.&FullyQualifiedName!~PackTests.EidolonFootingScenarios.&FullyQualifiedName!~PackTests.EidolonCarryScenarios.&FullyQualifiedName!~PackTests.EidolonGuardScenarios.&FullyQualifiedName!~PackTests.EidolonLookaheadScenarios.)|FullyQualifiedName~PackTests.VirtualClockScenarios.
-          - shard: eidolon-fittings
-            filter: FullyQualifiedName~PackTests.EidolonFittedScenarios.|FullyQualifiedName~PackTests.EidolonDockScenarios.
-          - shard: ore-cells
-            filter: FullyQualifiedName~PackTests.OreCellsScenarios.|FullyQualifiedName~PackTests.OreProcessingScenarios.
-          - shard: ore-anchor
-            filter: FullyQualifiedName~PackTests.OreCellOrderAnchorFirst.
-          - shard: ore-far
-            filter: FullyQualifiedName~PackTests.OreCellOrderFarFirst.
-          - shard: ore-seam
-            filter: FullyQualifiedName~PackTests.OreCellOrderSeam
-          - shard: ore
-            filter: FullyQualifiedName~PackTests.Ore&FullyQualifiedName!~PackTests.OreCellsScenarios.&FullyQualifiedName!~PackTests.OreProcessingScenarios.&FullyQualifiedName!~PackTests.OreCellOrderAnchorFirst.&FullyQualifiedName!~PackTests.OreCellOrderFarFirst.&FullyQualifiedName!~PackTests.OreCellOrderSeam
-          - shard: gradepockets-cit
-            filter: FullyQualifiedName~PackTests.GradePocketsCopperIronTinScenarios.
-          - shard: gradepockets-zlb
-            filter: FullyQualifiedName~PackTests.GradePocketsZincLeadBismuthScenarios.
-          - shard: trading-core
-            filter: FullyQualifiedName~PackTests.TradingCoreScenarios.|FullyQualifiedName~PackTests.TradingScenarios.
-          - shard: trading-features
-            filter: FullyQualifiedName~PackTests.TradingMapsScenarios.
-          - shard: trading-maps-shelf
-            filter: FullyQualifiedName~PackTests.TradingMapsShelfScenarios.
-          - shard: trading-maps-approach
-            filter: FullyQualifiedName~PackTests.TradingMapsApproachScenarios.
-          - shard: trading-misc
-            filter: FullyQualifiedName~PackTests.Trading&FullyQualifiedName!~PackTests.TradingCoreScenarios.&FullyQualifiedName!~PackTests.TradingScenarios.&FullyQualifiedName!~PackTests.TradingMaps
-          - shard: switches
-            filter: FullyQualifiedName~PackTests.SwitchesOffScenarios.|FullyQualifiedName~PackTests.ConfigDefaultsScenarios.
-          - shard: clear-handcar
-            filter: FullyQualifiedName~PackTests.ClearCommandScenarios.|FullyQualifiedName~PackTests.HandcarScenarios.
-          - shard: trunks
-            filter: FullyQualifiedName~PackTests.TrunkEntityScenarios.|FullyQualifiedName~PackTests.TrunkCarryScenarios.|FullyQualifiedName~PackTests.PicklingTubScenarios.
-          - shard: rest
-            filter: FullyQualifiedName!~.ItemExportScenarios.&FullyQualifiedName!~.RecipeExportScenarios.&FullyQualifiedName!~FixScenarios.&FullyQualifiedName!~.TidyVariants&FullyQualifiedName!~PackTests.Woodworking&FullyQualifiedName!~PackTests.Eidolon&FullyQualifiedName!~PackTests.Ore&FullyQualifiedName!~PackTests.Trading&FullyQualifiedName!~PackTests.SwitchesOffScenarios.&FullyQualifiedName!~PackTests.ConfigDefaultsScenarios.&FullyQualifiedName!~PackTests.ClearCommandScenarios.&FullyQualifiedName!~PackTests.HandcarScenarios.&FullyQualifiedName!~PackTests.TrunkEntityScenarios.&FullyQualifiedName!~PackTests.TrunkCarryScenarios.&FullyQualifiedName!~PackTests.PicklingTubScenarios.&FullyQualifiedName!~PackTests.MapRevealScenarios.&FullyQualifiedName!~PackTests.GradePockets&FullyQualifiedName!~PackTests.CrucibleFurnaceScenarios.&FullyQualifiedName!~PackTests.SpringsWorldgenScenarios.&FullyQualifiedName!~PackTests.WideDensityProspectingScenarios.&FullyQualifiedName!~PackTests.VirtualClockScenarios.
+      matrix: ${{ fromJSON(needs.tree.outputs.atlas_matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup-pack
       # Local-only icon export mod (never shipped): keep it compiling, and test its logic.
-      # Only on one shard, and not one of the longest (items, recipes).
+      # Only on one shard, and not one of the longest (items, recipes): `rest`, which a sliced plan
+      # keeps whenever these three steps' inputs change (REST_STEP_INPUTS in ci/paths.py).
       - name: Icon export mod builds and its unit tests pass
         if: matrix.shard == 'rest'
         env:
@@ -366,7 +281,7 @@ jobs:
           elapsed=$(( $(date +%s) - ATLAS_START ))
           echo "$SHARD: dotnet test took ${elapsed}s (limit ${LIMIT}s)"
           if [ "$elapsed" -gt "$LIMIT" ]; then
-            echo "::error title=Atlas shard over its time limit::$SHARD's dotnet test took ${elapsed}s, over ${LIMIT}s: split a class or the shard (the matrix comment above), or make its scenarios faster. Per-test times are in atlas-results-$SHARD."
+            echo "::error title=Atlas shard over its time limit::$SHARD's dotnet test took ${elapsed}s, over ${LIMIT}s: split a class or the shard (ci/atlas-shards.md), or make its scenarios faster. Per-test times are in atlas-results-$SHARD."
             exit 1
           fi
       - if: always()
@@ -386,7 +301,7 @@ jobs:
     name: Cairn installs the pack
     needs: [tree, lock]
     # Runs on main even for a tree on record; see smoke.
-    if: (needs.tree.outputs.tested != 'true' || github.event_name != 'pull_request') && needs.tree.outputs.models_only != 'true'
+    if: (needs.tree.outputs.tested != 'true' || github.event_name != 'pull_request') && needs.tree.outputs.cairn == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -517,8 +432,8 @@ jobs:
 
   # The game-independent code of the pack's own mod (Tidy Variants' rule engine,
   # the machines' rig maths, each feature's Core/): unit tests that need neither
-  # the game nor the pack, so they run apart from Atlas, and on the models-only
-  # fast path, where they hold a machine's rig to its reference poses.
+  # the game nor the pack, so they run apart from Atlas, and on every sliced
+  # run: on a machine model PR's they hold its rig to its reference poses.
   units:
     name: Seraph Horizons unit tests
     needs: tree
@@ -578,25 +493,62 @@ jobs:
     name: Recipe browser end to end
     needs: [tree, smoke]
     # On a push to main smoke runs for its artifact alone; the site itself is
-    # a function of the tree, so a tree on record skips this. The models-only
-    # fast path skips smoke, and so this.
-    if: needs.tree.outputs.tested != 'true' && needs.tree.outputs.models_only != 'true'
+    # a function of the tree, so a tree on record skips this. A sliced plan
+    # may leave it out, or keep it without smoke: a PR changing only site/
+    # (ci/paths.py rule_site) has it read main's latest export instead (below).
+    # So this runs when smoke succeeded or was planned off, never when smoke
+    # was planned and failed or was cancelled; `!cancelled()` because a plain
+    # `needs` would skip it with smoke.
+    if: >-
+      !cancelled() && needs.tree.result == 'success'
+      && needs.tree.outputs.tested != 'true' && needs.tree.outputs.site == 'true'
+      && (needs.smoke.result == 'success' || (needs.tree.outputs.smoke == 'false' && needs.smoke.result == 'skipped'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # actions: read, for main's export from another run (a fork PR's token is
+    # read-only, which is all this needs on a public repository).
+    permissions:
+      contents: read
+      actions: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # HEAD^1, the main a PR merges into, picks main's export below.
+          fetch-depth: 2
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: site/package-lock.json
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - if: needs.tree.outputs.smoke == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: recipe-export
           path: ${{ runner.temp }}/recipe-export
+      # Smoke not planned: the change cannot alter the export (the plan gives
+      # it smoke otherwise), so main's export tests the site as well: that of
+      # the main this merges into (HEAD^1) when its push run has passed, else
+      # main's newest passing one: a sliced run vouches for nothing, and the
+      # merge queue's full run tests the site against this tree's own export.
+      - name: Main's recipe export (smoke not planned)
+        if: needs.tree.outputs.smoke != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          base=$(git rev-parse HEAD^1)
+          runs=$(gh run list -R "$REPO" --workflow ci.yml --branch main --event push --status success \
+            --limit 50 --json databaseId,headSha,createdAt)
+          run=$(jq -r --arg base "$base" '(map(select(.headSha == $base)) + .)[0].databaseId // empty' <<<"$runs")
+          [ -n "$run" ] || { echo "::error::no passing push run on main to take a recipe export from"; exit 1; }
+          jq -r --argjson id "$run" --arg base "$base" '.[] | select(.databaseId == $id)
+            | "Recipe export from run \(.databaseId), main at \(.headSha) (\(.createdAt)); this PR merges into \($base)"' \
+            <<<"$runs" | tee -a "$GITHUB_STEP_SUMMARY"
+          gh run download "$run" -R "$REPO" -n recipe-export -D "$RUNNER_TEMP/recipe-export"
+          test -s "$RUNNER_TEMP/recipe-export/recipes.json"
       - run: npm ci --prefix site
       - run: npx --prefix site playwright install --with-deps chromium
-      # Against the export this run's server dumped, not a fixture.
+      # Against a real export this run's server dumped (or main's, above), not a fixture.
       - name: Playwright
         env:
           RECIPE_EXPORT: ${{ runner.temp }}/recipe-export/recipes.json
@@ -639,11 +591,16 @@ jobs:
   # needed job that fails leaves a plain `needs:` job *skipped*, and GitHub and
   # Mergify both read a skipped required check as passing, so this runs
   # always() and passes only if every job above succeeded. The skips it
-  # accepts: the memoised jobs standing down because `tree` found this tree
-  # already on record as green (on a PR export needs smoke, so it is skipped
-  # with it; on a push to main smoke, cairn and export still run), and smoke,
-  # atlas, cairn, export and site standing down on the models-only fast path,
-  # on which tools and units still have to pass.
+  # accepts, job by job, are those `tree` decided on: the memoised jobs
+  # standing down because the tree is already on record as green (on a PR
+  # export needs smoke, so it is skipped with it; on a push to main smoke,
+  # cairn and export still run), and the jobs a sliced plan left out (smoke
+  # and with it export, atlas when it planned no shard, cairn, site). tools
+  # and units only ever stand down for the memo. A sliced atlas run is one
+  # result over the shards the plan picked, and passes when they all did. A
+  # site planned without smoke (on main's export) must succeed like any other:
+  # NO_SMOKE lets smoke and export skip, never the site.
+  # A new job gets a `check` line naming what may skip it, or none.
   ci-ok:
     if: always()
     needs: [tree, lock, smoke, atlas, cairn, tools, units, export, site]
@@ -659,24 +616,44 @@ jobs:
         env:
           TREE: ${{ needs.tree.result }}
           LOCK: ${{ needs.lock.result }}
-          # Skipped by the memo, or by the models-only fast path.
-          MEMOISED: >-
-            ${{ needs.smoke.result }} ${{ needs.atlas.result }} ${{ needs.cairn.result }}
-            ${{ needs.export.result }} ${{ needs.site.result }}
-          # Skipped by the memo only.
-          MEMOISED_ONLY: ${{ needs.tools.result }} ${{ needs.units.result }}
+          SMOKE: ${{ needs.smoke.result }}
+          ATLAS: ${{ needs.atlas.result }}
+          CAIRN: ${{ needs.cairn.result }}
+          TOOLS: ${{ needs.tools.result }}
+          UNITS: ${{ needs.units.result }}
+          EXPORT: ${{ needs.export.result }}
+          SITE: ${{ needs.site.result }}
           TESTED: ${{ needs.tree.outputs.tested }}
-          MODELS_ONLY: ${{ needs.tree.outputs.models_only }}
+          SLICED: ${{ needs.tree.outputs.sliced }}
+          # What the plan left out, each 'true' only when `tree` said so.
+          NO_SMOKE: ${{ needs.tree.outputs.smoke == 'false' }}
+          NO_ATLAS: ${{ needs.tree.outputs.atlas == 'false' }}
+          NO_CAIRN: ${{ needs.tree.outputs.cairn == 'false' }}
+          NO_SITE: ${{ needs.tree.outputs.site == 'false' }}
         run: |
-          echo "tree: $TREE (already tested: $TESTED, models only: $MODELS_ONLY), lock: $LOCK"
-          echo "smoke atlas cairn export site: $MEMOISED; tools units: $MEMOISED_ONLY"
-          [ "$TREE" = success ] && [ "$LOCK" = success ] || exit 1
-          for r in $MEMOISED; do
-            [ "$r" = success ] || { [ "$r" = skipped ] && { [ "$TESTED" = true ] || [ "$MODELS_ONLY" = true ]; }; } || exit 1
-          done
-          for r in $MEMOISED_ONLY; do
-            [ "$r" = success ] || { [ "$r" = skipped ] && [ "$TESTED" = true ]; } || exit 1
-          done
+          echo "already tested: $TESTED; sliced: $SLICED (left out: smoke $NO_SMOKE, atlas $NO_ATLAS, cairn $NO_CAIRN, site $NO_SITE)"
+          fail=0
+          # check <job> <result> [<skip accepted if this is true>...]
+          check() {
+            local job=$1 result=$2 why
+            shift 2
+            if [ "$result" = success ]; then echo "$job: success"; return; fi
+            if [ "$result" = skipped ]; then
+              for why in "$@"; do [ "$why" = true ] && { echo "$job: skipped"; return; }; done
+            fi
+            echo "::error::$job: $result"
+            fail=1
+          }
+          check tree "$TREE"
+          check lock "$LOCK"
+          check smoke "$SMOKE" "$TESTED" "$NO_SMOKE"
+          check atlas "$ATLAS" "$TESTED" "$NO_ATLAS"
+          check cairn "$CAIRN" "$TESTED" "$NO_CAIRN"
+          check export "$EXPORT" "$TESTED" "$NO_SMOKE"
+          check site "$SITE" "$TESTED" "$NO_SITE"
+          check tools "$TOOLS" "$TESTED"
+          check units "$UNITS" "$TESTED"
+          exit "$fail"
       # Everything ran and passed: put this tree's id on record (the memo
       # `tree` reads). The ref points at the commit that was tested, on a
       # pull_request event GitHub's merge commit (refs/pull/N/merge), which
@@ -684,10 +661,10 @@ jobs:
       # re-run, or another PR with the same tree got there first) is the same
       # outcome. Anything else is a warning, not a failure: a missed record
       # costs one redundant run, never a wrong merge. Fork PRs have a
-      # read-only token and just don't record. A models-only run skipped most
-      # of the suite, so it vouches for nothing and records nothing.
+      # read-only token and just don't record. A sliced run left part of the
+      # suite out, so it vouches for nothing and records nothing.
       - name: Record green tree
-        if: github.event_name == 'pull_request' && needs.tree.outputs.tested != 'true' && needs.tree.outputs.models_only != 'true'
+        if: github.event_name == 'pull_request' && needs.tree.outputs.tested != 'true' && needs.tree.outputs.sliced == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}

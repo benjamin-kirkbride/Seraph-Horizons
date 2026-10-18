@@ -26,9 +26,10 @@ configured in `.mergify.yml`. The merge button is deliberately out of use.
 requires. It depends on every other job and passes only if all of them succeeded. It runs
 `if: always()` because a plain dependent job is *skipped* when a dependency fails, and
 GitHub and Mergify both read a skipped required check as passing. Add new CI jobs to its
-`needs:` list, and, if the green-tree memo below may skip them, to its `MEMOISED` list (a
-skip is accepted for a tree on record or on the models-only fast path) or `MEMOISED_ONLY`
-(accepted for a tree on record alone: a job the fast path must still run).
+`needs:` list and give each a `check <job> "$RESULT" ...` line, naming after the result
+what may skip it: `"$TESTED"` if the green-tree memo below may, a `NO_<JOB>` flag from the
+plan if a sliced run (below) may, nothing if neither may. A skip nothing on that line
+accounts for fails it.
 
 ## Protecting `main`
 
@@ -121,30 +122,69 @@ What the memo does not cover:
   and `export` validates what is about to ship.
 - Tags and manual runs always run everything.
 - Fork PRs can use a record but not write one (read-only token).
-- A models-only run (below) never writes one.
+- A sliced run (below) never writes one.
 
 `prune-green-trees.yml` deletes refs whose tested commit is older than 60 days, monthly.
 Inspect them with `git ls-remote origin 'refs/green-trees/*'`; delete one to force a full
 run for that tree.
 
-## The models-only fast path
+## Sliced PR runs
 
-A PR that only changes a machine's model (epic #684's model branches and the machines after
-them) would otherwise run the whole suite on every push, though smoke, Atlas, cairn, the
-export and the site's end-to-end tests have nothing of it to find. So `tree` classifies a
-`pull_request` run whose tree is not on record: `ci/paths.py classify HEAD^1 HEAD` diffs the
-PR's merge commit against the `main` it merges into. If every changed path is a no-op path
-or on the models-only allow-list, `tree` outputs `models_only=true`, and:
+Most PRs need the whole suite, but some change only what a few jobs, or a few Atlas
+shards, can find anything in: a machine's model (epic #684's model branches and the
+machines after them), a flaky scenario's fix. Without help each of their pushes would run
+everything. So `tree` asks a planner, for a `pull_request` run whose tree is not on record:
+`ci/paths.py plan HEAD^1 HEAD` diffs the PR's merge commit against the `main` it merges
+into and prints a plan as JSON:
 
-- `smoke`, `atlas`, `cairn`, `export` and `site` are skipped;
-- `tools` (the Python model tests, the site's `check` and unit tests) and `units`
-  (`dotnet test mods-src/seraphhorizons/tests`, the rig tests and reference poses) run;
-- `ci-ok` accepts those five skips because `models_only` is true, as it accepts the memo's.
-  A skip with neither `tested` nor `models_only` true still fails it, and so does a skipped
-  `tools` or `units` unless the tree is on record;
+```json
+{"sliced": true, "atlas": ["rest"], "smoke": false, "cairn": false, "site": false,
+ "reasons": ["atlas_classes: 1 scenario file(s): classes SharedWorldScenarios -> shards rest"]}
+```
+
+`atlas` is `"all"` or the shards to run (names from `ci/atlas-shards.json`, the matrix's one
+list); `smoke` covers `export` too, which validates what smoke writes. `tools`, `units` and
+`lock` always run. The plan reaches the jobs as `tree`'s outputs (`ci/paths.py outputs`):
+`smoke`, `cairn`, `site` and `atlas` (each `true` or `false`), `sliced`, and `atlas_matrix`,
+the `atlas` job's `strategy.matrix`, the file's list filtered to the plan. Then:
+
+- each job the plan left out is skipped, and the `atlas` job runs one job per planned shard
+  (none at all when it planned none: the matrix is then the full list, because GitHub rejects
+  an empty one even for a skipped job);
+- `ci-ok` accepts exactly those skips, job by job, from the plan's flags, as it accepts the
+  memo's. A skip neither accounts for still fails it, and so does a skipped `tools` or `units`
+  unless the tree is on record. A sliced `atlas` passes when every shard it ran did;
 - nothing is recorded under `refs/green-trees/`: the run did not test the tree.
 
-The allow-list, in `ci/paths.py` beside the memo's no-op pattern (`ci/code-tree.sh` reads
+**How it decides.** Every changed path must be claimed by one of the planner's rules
+(`RULES` in `ci/paths.py`), each saying what that path needs. A path no rule claims needs
+everything, and so does anything a rule cannot account for (a file it does not trust its
+reading of, a git error): the planner only narrows a run on evidence, and on an error it
+prints the full plan. The rules today:
+
+- **noop**: the no-op paths above need nothing.
+- **units**: `mods-src/seraphhorizons/tests/**`, a project of its own the mod never
+  compiles, needs only `units`.
+- **models**: a machine model's paths need only `tools` and `units` (below). A PR whose
+  every path is a no-op or a model path is the former models-only fast path.
+- **atlas_classes**: an Atlas scenario file needs the shards that run the classes it
+  declares (below), and no smoke, cairn, export or site: none of those reads anything under
+  `tests/PackTests` (the exporter is referenced by the scenarios, not the other way round).
+- **site**: `site/**` needs the site job, on main's recipe export when nothing else plans
+  smoke (below).
+- **tooling**: tooling that only `tools` and one other job read needs that job alone
+  (below).
+
+A new rule is a function `(ctx, paths) -> list[Claim]` added to `RULES`: it sees the paths no
+earlier rule claimed, claims those it understands with a `Need` (shards or `ALL`, and the
+smoke, cairn and site flags), and leaves the rest. The planner unions the needs. `rest` also
+builds and tests the local-only icon export and ore survey mods and runs the rusty gear
+check, so a sliced plan whose change touches their inputs keeps `rest` (`REST_STEP_INPUTS`).
+
+### Machine models
+
+A model PR gives smoke, Atlas, cairn, the export and the site's end-to-end tests nothing to
+find. Its paths, in `ci/paths.py` beside the memo's no-op pattern (`ci/code-tree.sh` reads
 that pattern from there, so the two can't drift):
 
 - `mods-src/seraphhorizons/<Folder>/tools/**/*.py`, a generator and its validator
@@ -156,7 +196,7 @@ that pattern from there, so the two can't drift):
   `shapes/block/<id>_<part>.json` and `config/<id>-rig.json`, **only while nothing that
   ships, loads or exports the mods names that machine's assets**. These ship in the mod zip,
   so a rig or shape a shipped machine loads (the bucking sawmill's `buckingmill-rig.json`,
-  the rosser's, the draw bench's, ...) must never take the fast path. The classifier looks
+  the rosser's, the draw bench's, ...) must never be sliced away. The planner looks
   in the tree under test, in every `mods-src/` mod (outside `tests/`, the generators and
   `*.md`), `tests/PackTests`, `tools/recipe-export` and `pack/`, for `<id>-rig`, a shape path
   `block/<id>`, the id in a blocktype, itemtype, entity or patch, or a C# string literal
@@ -167,15 +207,76 @@ independent check of the asset paths in its C# and blocktypes) is refused, each 
 form refuses a scratch machine, no shipped code loads `shapes/` or `config/` wholesale
 (which would load a machine's assets without naming it), and `code-tree.sh` hashes exactly
 what `paths.py` calls a no-op. Anything else in the diff (a texture, a lang entry, a
-machine's `Core/` or `Game/` code) is not models-only: once a machine is wired into the
+machine's `Core/` or `Game/` code) is not a model path: once a machine is wired into the
 game, its PRs run the full suite.
 
-**The merge queue never takes the fast path.** Its temporary PR is a `pull_request` run
-too, with the same diff against `main`, but `tree` refuses the fast path on a
-`mergify/merge-queue/*` branch: the queue runs the full suite (and records the tree when it
-passes) before anything lands on `main`. A models-only PR therefore pays one full run, at
-queue time, instead of one per push. This leans on Mergify testing queued PRs on its own
-draft PRs (`max_parallel_checks` above 1 in `.mergify.yml`); were it to switch to in-place
-checks on the PR's own branch, the queue's run would classify like the PR's and this needs
-revisiting. A push to `main`, a tag and a manual run never classify: `next.yml` and
-`release.yml` need the full artifacts.
+### Atlas scenario classes
+
+A PR that changes only scenarios (a flake's fix, a new check) runs only the shards that
+run them. The planner reads the `.cs` files directly under `tests/PackTests` at both the
+base and the head, so a renamed or deleted class runs the shard its old name was in too:
+
+- a changed file's test classes are the top-level classes it declares that derive from
+  `AtlasScenarioBase` or hold a test method. A partial class (SharedWorldScenarios, one file
+  per feature, few of them named after it) is one class over all its files;
+- whatever else uses a type the file declares runs too: a helper in a scenario file, a
+  static member, a base class or an extension method reaches another class only through its
+  name (or the extension method's), so every type naming one, transitively, is affected.
+  Comments are left out of that reading, string literals are not;
+- each affected class's test methods (`Namespace.Class.Method`, inherited ones included) are
+  run through each shard's filter, with a small evaluator of VSTest's filter syntax
+  (`FullyQualifiedName` with `~`, `!~`, `=`, `!=`, `&` over `|`, parentheses). Method names
+  matter: `~.TidyVariants` matches a SharedWorldScenarios method named `TidyVariants_...`.
+
+It plans everything for a file that declares no test class (a helper or base class:
+`PlayerJoin.cs`, `VirtualClock.cs`, `ExportUnderTest.cs`, `WoodworkingScenarioBase.cs`, ...),
+any other file there (`PackTests.csproj`, `fixtures/`), a file with an assembly attribute, a
+global using or a module initializer, a file laid out in a way it does not trust (anything
+at column 0 that is not a using, a namespace, an attribute or a type: a block namespace, a
+raw string's lines), and a test method no shard selects. A method two shards select runs in
+both. `test_ci_paths.py` holds the matrix to every test method at HEAD being selected by
+exactly one shard (this replaced checking by eye that `rest` is the complement of the
+others), and every file there to read cleanly.
+
+### The site and tooling
+
+The recipe browser's code is read by `tools` (svelte-check, its unit tests) and the `site`
+job (Playwright against a real export), and by nothing else CI runs: smoke, Atlas, cairn and
+the export job read nothing under `site/`, and `pages.yml` deploys it only after merge. A
+PR changing only `site/` (`prepare-data.ts` and the e2e tests included) runs `site` and no
+smoke: the `Need` flag `site_main_export` says the site's tests want *an* export of the
+current schema, not this tree's. The `site` job then takes the `recipe-export` artifact of
+main's push run for the commit the PR merges into (`HEAD^1`), or main's newest passing one
+when that run has not passed yet (`gh run download`, with `actions: read`, which a fork's
+read-only token has on a public repository). It is safe because nothing under `site/` can
+change what the export holds or its schema: what can (`schema/`, `tools/site-data`,
+`tools/recipe-export`, the mods, `pack/`, `packtool.py`) plans smoke on its own claim, or
+everything, and a plan with smoke gives the site this run's export. The plain `site` flag
+(this tree's export) still forces smoke, as before. The job runs `!cancelled()` when smoke
+succeeded or the plan left it out (and it was skipped), never after a planned smoke failed.
+
+Tooling, each path traced through `ci.yml`, `setup-pack`, `tests/PackTests` and `packtool.py`
+(`TOOLING` in `ci/paths.py`):
+
+| Paths | Read by, besides `tools` | Plans |
+|---|---|---|
+| `tools/tests/*.py` | nothing (`test_gear_consumers.py` also `rest`) | nothing (`rest`) |
+| `tools/icon-export/**`, `tools/ore-survey/**` | the `rest` shard's build and tests | `rest` |
+| `tools/icons.py`, `tools/textures.py` | the export job's drift reports | smoke |
+| `tools/item-values/**` | the export job's item values check | smoke |
+| `tools/site-data/**` | the export job's validation (`pages.yml` after merge) | smoke |
+| `icons/**` | the export job's drift, which only warns | nothing |
+
+Left to the full plan: `packtool.py` and `configdefaults.py` (smoke, cairn, lock),
+`tools/recipe-export/` (smoke, Atlas), `schema/` (Atlas copies it to validate the export,
+and site-data), `textures/` (Atlas reads its index, `prepare-data` its images), and any
+other path under `tools/tests/` than a module (a fixture's readers are not traced).
+
+**The merge queue never slices.** Its temporary PR is a `pull_request` run too, with the
+same diff against `main`, but `tree` never plans on a `mergify/merge-queue/*` branch: the
+queue runs the full suite (and records the tree when it passes) before anything lands on
+`main`. A sliced PR therefore pays one full run, at queue time, instead of one per push.
+This leans on Mergify testing queued PRs on its own draft PRs (`max_parallel_checks` above 1
+in `.mergify.yml`); were it to switch to in-place checks on the PR's own branch, the queue's
+run would plan like the PR's and this needs revisiting. A push to `main`, a tag, a manual
+run and a `workflow_call` never plan: `next.yml` and `release.yml` need the full artifacts.

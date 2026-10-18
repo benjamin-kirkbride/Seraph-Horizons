@@ -104,7 +104,9 @@ hand-written exports, the bucking sawmill's and the rosser's shipped shapes, rig
 poses, and the machines' driver fixture (`mods-src/seraphhorizons/tests/Machines/driver-fixture.json`).
 
 The end-to-end tests in `site/e2e/` only run against a real export; without
-`RECIPE_EXPORT` the run fails. `e2e/serve.ts` builds the site, runs prepare-data on the
+`RECIPE_EXPORT` the run fails. In CI that is the export the run's smoke job wrote, or, on a
+PR run whose plan left smoke out (one changing only `site/`), main's latest
+([../merge-queue.md](../merge-queue.md#the-site-and-tooling)). `e2e/serve.ts` builds the site, runs prepare-data on the
 export (published twice, as versions `next` and `v0.0.0-e2e`, so the version switcher
 can be tested), adds a test icon for `game:ingot-copper` and the real icons committed
 under `site/e2e/icons/` (plain files, not LFS, so CI needs no LFS fetch), and serves the result at

@@ -1,7 +1,7 @@
 # PackTests
 
 Atlas scenarios for the whole pack: a headless Vintage Story server booted in-process with every locked
-mod (`CONTRIBUTING.md` has how to run them; `.github/workflows/ci.yml` how CI shards them).
+mod (`CONTRIBUTING.md` has how to run them; `ci/atlas-shards.md` how CI shards them).
 
 ## The virtual clock
 
