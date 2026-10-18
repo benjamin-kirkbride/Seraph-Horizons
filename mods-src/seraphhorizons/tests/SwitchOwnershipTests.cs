@@ -24,7 +24,7 @@ public class SwitchOwnershipTests
 
     [Theory]
     [InlineData("seraphhorizons:gear-stainless")]
-    [InlineData("seraphhorizons:gearcutterspindle")]
+    [InlineData("seraphhorizons:gearcutterfeedscrew")]
     [InlineData("loggingmod:treetrunk-oak-thin-no-north")]
     [InlineData("gear-rusty")]
     public void UnownedCodes(string code) => Assert.Null(Registry.SwitchForCode(code));
