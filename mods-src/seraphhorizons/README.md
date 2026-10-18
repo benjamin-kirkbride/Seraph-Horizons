@@ -6345,8 +6345,11 @@ holding `ReservoirLitres` (20 L) or two items' water where an item takes more (t
 
 **Chutes in and out** (`MachineAnchors`, `MachineChutes`): continuous machines read their anchors from
 the rig's `{name}Cell`/`{name}Face` pairs (turned with the machine). Products leave through an
-anchor's face into a vanilla chute laid to take from the machine, or any container; with nothing
-there, a product stays in the machine (its output blocked) and tailings are discarded. A chute feeds
+anchor's face into a vanilla chute laid to take from the machine, or any container (`MachineChutes.Attached`):
+while that is full, the product waits in the machine and it stops (its output blocked); with nothing
+there, it never waits: tailings are discarded and every other product is dropped on the ground in front
+of the face, still, and the machine runs on (`Machines/Core/Outlet.cs`; a world saved with products held
+at an outlet with nothing attached drops them on its next tick). A chute feeds
 the infeed cell's block entity, whose inventory takes only through the infeed face what the machine
 takes. Batch machines (the arrastra, the roasters and furnaces) have no anchor: loaded and emptied by
 hand. Hand stations have neither.
@@ -6398,7 +6401,7 @@ round. It needs `OreProcessing`; off, or with its switch off, its frame and reci
 - **Feed and output.** A vanilla chute laid down onto the infeed (the top of the west front column, over
   the grizzly's head) feeds it, or a right-click with raw ore; its mouth holds `ChargeRocks` (8). The
   crushed ore goes out of the output face (low on the front, west column) into a chute laid to take from
-  it or any container; with nothing there it is held and the breaker stops. Crushed ore carries the raw
+  it or any container, waiting while that is full; with nothing there it drops in front of the face. Crushed ore carries the raw
   ore's host rock (`rock`), for tailings further down the line.
 - **Load.** One of the three machines whose load follows the job (`OreRecovery.LoadAt`): 0.16 empty,
   rising with the rock in its mouth to 0.8 at a full charge (`JobFill`, the charge's share); its flywheel
@@ -6434,7 +6437,7 @@ recipe do not exist.
   copper or lead, which draw the water pipe in that metal). No part wears.
 - **Feed and output.** A vanilla chute into the feed box (the west face, a block up) feeds it, or a
   right-click with crushed ore; the ground ore leaves low on the back (south face) into a chute laid to take
-  from it or any container; with nothing there it is held and the mill stops. The host rock (`rock`) is
+  from it or any container, waiting while that is full; with nothing there it drops in front of the face. The host rock (`rock`) is
   carried on.
 - **Load.** Steady: 1.1 once built, working or idle (the heaviest machine; #915's 0.22 empty figure is
   the issue's reference, not a state the mill is in), 0.005 until built.
@@ -6504,8 +6507,9 @@ deriving `BEOreMachine`, its build file and its rig, and calls `OreMachinesSyste
   machine's turns an item (`Work`, or `WorkUnpowered` for a machine without a power anchor), the load
   (`OreRecovery.LoadAt` at `JobFill`), the reservoir (ppex at the `water` anchor, or `FillWater`), the infeed
   (slot 0: a chute into the infeed cell's face fills that cell's buffer, a hand puts in what `Takes` accepts,
-  up to `InfeedCapacity`), and the products (`Products`, by anchor: pushed out of the anchor's face, else held,
-  up to four kinds an anchor; `tailings` with nothing there go on the heap). `InteractContent` runs before
+  up to `InfeedCapacity`), and the products (`Products`, by anchor: pushed out of the anchor's face, held (up
+  to four kinds an anchor) while a chute or container there is full, else dropped in front of the face, or for
+  `tailings` put on the heap; `Outlet.Fate`). `InteractContent` runs before
   the build on a right-click (a batch machine's charge).
 - `OreMachineRenderer`: the rig's parts from `shapes/block/{machine}.json` with the frame block's textures,
   each drawn when `ShowsPart` (its stage fitted), posed by θ (the power cell's shaft about the power face's
@@ -6594,8 +6598,8 @@ level 1 was dropped); until it is built, concentrate roasts in the firepit at 85
   `machines.reverberatory.nativeSulfur` (0.65) / `sulfurUnitsPerPowder` (5), 1.69 a rock, carried; a rock counts as
   the concentrate holding its units (2.6) for its turns, water, coal and the bed. **The flue's sulfur is lost** (the
   owner's ruling, 2026-10-14): `machines.reverberatory.sulfur` is not used.
-- **Out** by the output face (low on the east side's middle) into a chute laid to take from it or any container; with
-  nothing there the products are held and it stops.
+- **Out** by the output face (low on the east side's middle) into a chute laid to take from it or any container,
+  waiting while that is full; with nothing there the products drop in front of the face.
 - **Fire and draught.** Coal (bituminous coal, anthracite, lignite, charcoal or coke) goes into the bunker by a second
   chute down into the fuel cell (the `fuel` side feed) or by hand. It is lit with a firestarter or a torch on any
   cell (the shared ore machine fire) and needs coal to light. A coal on the grate roasts `ConcentratePerCoal` (6)
@@ -6829,7 +6833,8 @@ already placed are lost.
   from its own 80 L reservoir, filled by a ppex pipe on the water line's inlet. It discards nothing.
 - **Feed and anchors** (the rig's, turned with the machine): a vanilla chute from above into the
   infeed in the top of the back row, or by hand, right-click with ore into the same mouth; the output
-  by a chute laid against the front face's bottom middle; the axle on the back row's east face (the
+  by a chute laid against the front face's bottom middle (with none, the crushed ore drops on the ground in
+  front); the axle on the back row's east face (the
   player's left, facing its front), the water on its west face, third block up.
 
 The recipe browser has a `stampbattery` record per kind of rock it takes
@@ -6906,7 +6911,8 @@ the vanner. It needs `OreProcessing`; off, or with its switch off, its frame and
   over (`UnitCarry`, saved); the middlings out of the far end's other corner, the fed item carrying the feed's
   locked units (`OreRecovery.Concentrate` puts them out here, and only here), for the ball mill to free; the
   tailings out of the low side at the head end, the fed item carrying the rest (`Worked` with `Table`, nothing
-  locked), to the vanner. With nothing to take the concentrate or middlings they are held and it stops; tailings
+  locked), to the vanner. A full chute or container on the concentrate or middlings outlet holds it; with nothing
+  there they drop in front of the outlet; tailings
   with nowhere to go are discarded beside the outlet as sand in the ore's rock, 0.75 layer a rock (#694). An item
   with a locked share leaves as two rocks, a middlings rock and a tailings rock: no metal is made or lost.
 - Tests: `tests/ShakingTable/ShakingTableGameplayTests.cs`; Atlas `tests/PackTests/ShakingTableScenarios.cs`,
