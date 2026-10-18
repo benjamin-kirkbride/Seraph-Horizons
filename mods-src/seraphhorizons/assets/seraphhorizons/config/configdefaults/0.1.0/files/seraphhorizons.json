@@ -575,5 +575,15 @@
     "DamperHalfBurn": 0.5,
     "DamperShutBurn": 0.25,
     "LadleIngots": 6
+  },
+  "AcidParting": true,
+  "AcidPartingSettings": {
+    "ChargeBars": 2,
+    "AcidLitresPerBar": 2.0,
+    "AcidSpentShare": 0.4,
+    "FuelBurnSecondsPerHour": 10.0,
+    "FuelCapacity": 8,
+    "MinFuelTemperature": 500,
+    "HalfDamperDraught": 0.5
   }
 }
