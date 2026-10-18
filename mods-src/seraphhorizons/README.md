@@ -32,7 +32,7 @@ Only the game's own assemblies are referenced at build time: each tweak to anoth
 it patches by name, so the mod builds from the game alone (`release.yml` needs nothing else).
 
 `"side": "Universal"`, required on the client. The server does the boiler behavior, drops the
-chopper's output, corrects a rotor's ratio at a gearbox, feeds the creative steam source, runs the creative item source and sink and runs `/clear`; Tidy Variants, cart reach, Carry On's
+chopper's output, corrects a rotor's ratio at a gearbox, routes a ported screw's items through its port, feeds the creative steam source, runs the creative item source and sink and runs `/clear`; Tidy Variants, cart reach, Carry On's
 icon reset, the creative search tweaks, the handbook's kept place, the NaN motion diagnostics and the info HUD's rounding run on the client; Map Reveal has a half on each side, and the creative mod tabs need both. The
 client needs the mod because the steam source is a block with its own classes: the game cannot
 build a block whose class it does not know, so a client without the mod could not join a server
@@ -682,6 +682,38 @@ is not referenced at build time: if `MPEGearbox.BEBehaviorGearbox12` is missing 
 `BEBehaviorMPBase`, the mod logs a warning and patches nothing. Reported upstream
 (<https://mods.vintagestory.at/mpegearbox#cmt-245057>); once MPE Gearbox answers both ways, the
 switch's off check fails and the tweak can go.
+
+### A ported Archimedes screw sends its items out of its port (`ScrewPortOutput`)
+
+The game's ported Archimedes screw (`game:archimedesscrew-ported-*`) pushes up and out of its port,
+but the top screw of a stack sent almost nothing through its port. `BlockEntityItemFlow.MoveItem`,
+every 500 ms on a screw, picks one of its push faces at random, but first tries the face the item
+is tagged with (`chuteDir`), and an item one screw pushes into another is always tagged up. It
+also tries throwing the item out into air (`TrySpitOut`, any neighbour that is replaceable) before
+pushing it into a container (`TryPushInto`). So, measured on a five-screw stack at a creative
+rotor's speed setting 10 (about 108 items a minute through a straight stack into a chest):
+
+- a ported top screw with air above threw every item out of its top, and the chest on its port
+  got none;
+- capped with a block, it tried the port only when the random pick landed on it: 57 a minute
+  against 107 (the flow accumulator is capped at twice the rate, so a missed turn is lost);
+- a ported bottom screw, its port open, threw about half the items out of its port even with the
+  screw above free.
+
+`ScrewPortOutput` prefixes `MoveItem` for a screw with a horizontal push face and runs it itself,
+the game's accumulator and pull kept and the game's own private `TryPushInto`, `TrySpitOut` and
+`TryPullFrom` called, in this order (`Core/ScrewPortRoute.cs`): into the container above (the next
+screw, a chest on top), into the port (a chest, a chute), then out of the port into air, the last
+only when there is no container above: the bottom screw of a stack waits for the screw above
+rather than throw its item out of its port while that one is still full. It never throws an item
+out of its top. The game's fallback of pushing out of a horizontal pull face is left out (a screw
+pulls only from below). So a top ported screw sends everything out of its port, open or capped, at
+the straight stack's rate, and a bottom one feeds the stack. Straight screws, chutes and hoppers
+run the game's method untouched.
+
+Server side, where items move. `itemFlowAccum`, `TryPushInto`, `TrySpitOut`, `TryPullFrom` and
+`MoveItem` are found by name at load; if one is missing or changed the mod logs a warning and
+patches nothing, and the scenarios' patch check fails.
 
 ### One tun: Hydrate or Diedrate's is retired, Food Shelves' holds 950 L (`HydrateTunRetired`, `LargerTunRack`)
 
@@ -8033,6 +8065,15 @@ placed again. Without the patch the rotor stores 5, 0.2 and 5 in the three cases
 through the gearbox. With the switch off, `SwitchesOffScenarios` requires nothing patched and the
 rotor placed last on the low side at 5, as MPE Gearbox ships it; when that fails with the rotor at
 1, MPE Gearbox has fixed it and the tweak can go.
+
+`tests/PackTests/ScrewPortOutputScenarios.cs` (Atlas) builds a five-screw stack on angled gears,
+driven by a creative rotor at speed setting 10, feeds its bottom screw one flax fibre at a time for
+60 s of virtual time, and counts what reaches the chest and what lies loose around it. It requires
+an open ported top to send at least 60 into the chest on its port and none loose (without the patch
+none and 107 loose), a capped ported top to move at least 0.85 of what a straight top moves into
+a chest above it (without the patch 57 against 107), and a ported bottom screw with its port open
+to feed the stack, at least 60 in the chest and none loose (without the patch 58 of 111 thrown out
+of its port). With the switch off, `SwitchesOffScenarios` requires `MoveItem` unpatched.
 
 `tests/PackTests/SteelBitsScenarios.cs` (Atlas) is the stone coffin's fragility guard:
 `BlockEntityStoneCoffin.AddIngot(ItemSlot)` resolves, returns `bool`, and carries the prefix and
