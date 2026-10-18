@@ -122,6 +122,9 @@ public sealed class OreRecovery
         if (!(Cupel.MeltingPoint > 0)) _problems.Add($"cupel.meltingPoint {Cupel.MeltingPoint} is not positive");
         if (!(Cupel.SecondsPerIngot > 0)) _problems.Add($"cupel.secondsPerIngot {Cupel.SecondsPerIngot} is not positive");
 
+        RichLeadSilver = (config.Bullion ?? new OreProcessingConfig.BullionEntry()).RichLeadSilver;
+        if (!(RichLeadSilver > 0 && RichLeadSilver <= 1)) _problems.Add($"bullion.richLeadSilver {RichLeadSilver} is not above 0 and at most 1");
+
         var pan = config.Liquation ?? new OreProcessingConfig.LiquationEntry();
         Liquation = new LiquationSettings(pan.CapacityUnits, pan.TinPoint, pan.LeadPoint, pan.SecondsPerIngot);
         if (!(Liquation.CapacityUnits > 0)) _problems.Add($"liquation.capacityUnits {Liquation.CapacityUnits} is not positive");
@@ -148,6 +151,10 @@ public sealed class OreRecovery
 
     /// <summary>The bone-ash cupel's figures (#722).</summary>
     public CupelSettings Cupel { get; }
+
+    /// <summary>The share of a rich lead bar's lead that is silver (<c>bullion.richLeadSilver</c>, #740;
+    /// <see cref="Bullion"/>).</summary>
+    public double RichLeadSilver { get; }
 
     /// <summary>The clay liquation pan's figures (#724).</summary>
     public LiquationSettings Liquation { get; }
