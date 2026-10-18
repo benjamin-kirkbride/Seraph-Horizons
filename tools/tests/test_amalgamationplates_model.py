@@ -84,7 +84,7 @@ class Rig(unittest.TestCase):
             self.assertGreater(c["lid"], 0.9)
 
     def test_anchors(self):
-        self.assertEqual((RIG["feedCell"], RIG["feedFace"]), ([0, 0, 0], "up"))
+        self.assertEqual((RIG["infeedCell"], RIG["infeedFace"]), ([0, 0, 0], "up"))
         self.assertEqual((RIG["waterCell"], RIG["waterFace"]), ([0, 0, 0], "west"))
         self.assertEqual((RIG["outputCell"], RIG["outputFace"]), ([0, 0, 2], "south"))
         for key in ("feedSpout", "spray", "amalgam", "trapWell"):

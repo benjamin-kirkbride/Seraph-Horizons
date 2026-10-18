@@ -100,8 +100,11 @@ public static partial class RecipeSection
                     continue;
                 }
                 var codeList = items.Select(i => i.Code.ToString()).ToList();
-                var def = Def(codeList.Count == 1 ? codeList[0] : CommonFamily(codeList), Kind(items[0].ItemClass), quantity);
-                if (codeList.Count > 1)
+                // alternatives of one family share a wildcard; of different domains (the plates' copper half plate
+                // or whole plate) the first stands for them, the others among the variant's stacks
+                bool family = codeList.Count > 1 && FamilyPrefix(codeList).Contains(':');
+                var def = Def(family ? CommonFamily(codeList) : codeList.FirstOrDefault(c => c == codes.FirstOrDefault()) ?? codeList[0], Kind(items[0].ItemClass), quantity);
+                if (family)
                     def["allowedVariants"] = new JArray(codeList.Select(c => c[FamilyPrefix(codeList).Length..]));
                 slots.Add(ingredients.Count);
                 ingredients.Add(def);

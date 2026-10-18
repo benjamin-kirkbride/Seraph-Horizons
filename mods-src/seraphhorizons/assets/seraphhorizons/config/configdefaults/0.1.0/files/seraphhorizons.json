@@ -538,5 +538,10 @@
   },
   "ShakingTable": true,
   "Vanner": true,
-  "Arrastra": true
+  "Arrastra": true,
+  "AmalgamationPlates": true,
+  "AmalgamationPlatesSettings": {
+    "DressingLitres": 1.0,
+    "AmalgamItems": 12
+  }
 }

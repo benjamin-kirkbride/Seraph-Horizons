@@ -75,7 +75,7 @@ describe("the amalgamation plates' rig", () => {
 
   it("marks the infeed in the head cell's top face, the water on its west face and the outlet in the foot's end face", () => {
     const { anchors, unrecognised } = discoverAnchors(rig);
-    expect(anchors.find((a) => a.key === "feedCell")).toMatchObject({ kind: "cell", pos: [0, 0, 0], face: "up" });
+    expect(anchors.find((a) => a.key === "infeedCell")).toMatchObject({ kind: "cell", pos: [0, 0, 0], face: "up" });
     expect(anchors.find((a) => a.key === "waterCell")).toMatchObject({ kind: "cell", pos: [0, 0, 0], face: "west" });
     expect(anchors.find((a) => a.key === "outputCell")).toMatchObject({ kind: "cell", pos: [0, 0, 2], face: "south" });
     for (const key of ["feedSpout", "spray", "amalgam", "trapWell"]) expect(anchors.find((a) => a.key === key)).toMatchObject({ kind: "point" });
