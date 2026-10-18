@@ -69,7 +69,7 @@ public class SchematicsSystem : ModSystem
             _trader = _machine = false;
             return;
         }
-        foreach (string problem in Table.Problems(TraderTypes.All, TradeListResolver.MaxStandingTier))
+        foreach (string problem in Table.Problems(TraderTypes.All.Concat(TraderTypes.Story).ToList(), TradeListResolver.MaxStandingTier))
             api.Logger.Warning("[seraphhorizons] Schematics: {0}", problem);
         api.Logger.Notification("[seraphhorizons] Schematics: sold only by traders {0}; machine schematics {1}",
             _trader ? "on" : "off", _machine ? "on" : "off");

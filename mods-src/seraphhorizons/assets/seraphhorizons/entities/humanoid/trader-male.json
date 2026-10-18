@@ -44,7 +44,8 @@
 				"mason",
 				"animaldealer",
 				"generalstore",
-				"curiodealer"
+				"curiodealer",
+				"treasurehunter"
 			]
 		},
 		{
@@ -82,6 +83,7 @@
 			{
 				"code": "conversable",
 				"dialogueByType": {
+					"*-treasurehunter-*": "seraphhorizons:config/dialogue/treasurehunter",
 					"*": "seraphhorizons:config/dialogue/trader"
 				}
 			}
@@ -4915,6 +4917,7 @@
 			{
 				"code": "conversable",
 				"dialogueByType": {
+					"*-treasurehunter-*": "seraphhorizons:config/dialogue/treasurehunter",
 					"*": "seraphhorizons:config/dialogue/trader"
 				}
 			},

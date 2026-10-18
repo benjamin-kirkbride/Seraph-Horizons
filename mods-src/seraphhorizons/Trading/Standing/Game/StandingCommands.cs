@@ -178,6 +178,8 @@ public static class StandingCommands
             type = TradingSystem.Of(api)?.Camps?.Registry.Get(cell)?.Type;
         else if (trader.StartsWith("entity:", StringComparison.Ordinal) && long.TryParse(trader["entity:".Length..], out long id))
             type = (api.World.GetEntityById(id) as EntitySeraphTrader)?.TraderType;
+        else if (trader.StartsWith("story:", StringComparison.Ordinal))
+            type = StoryTraders.TypeOfStructure(trader["story:".Length..]);
         return string.IsNullOrEmpty(type) ? "?" : L("trading-type-" + type);
     }
 

@@ -9,7 +9,7 @@ namespace SeraphHorizons.Mod.Trading.Admin;
 /// <summary>
 /// The trader an admin command names (#459): <c>near</c> (ours nearest the caller within
 /// <see cref="NearRange"/> blocks), a trader id as the standing views list it (<c>camp:x,z</c>,
-/// <c>entity:n</c>), or a camp cell as <c>/sh trade camps</c> lists it (<c>x,z</c>). Only loaded
+/// <c>entity:n</c>, <c>story:treasurehunter</c>), or a camp cell as <c>/sh trade camps</c> lists it (<c>x,z</c>). Only loaded
 /// traders are found: what the commands change lives on the entity.
 /// </summary>
 public static class TraderLookup
@@ -41,10 +41,16 @@ public static class TraderLookup
             why = $"no loaded trader {text}";
             return null;
         }
+        if (text.StartsWith("story:", StringComparison.Ordinal))
+        {
+            if (traders.FirstOrDefault(t => IdOf(api, t) == text) is { } story) return story;
+            why = $"no loaded trader {text}";
+            return null;
+        }
         string cellText = text.StartsWith("camp:", StringComparison.Ordinal) ? text["camp:".Length..] : text;
         if (!CellKey.TryParse(cellText, out var cell))
         {
-            why = $"'{text}' is not a trader: near, camp:x,z, entity:n or a camp cell x,z";
+            why = $"'{text}' is not a trader: near, camp:x,z, entity:n, story:name or a camp cell x,z";
             return null;
         }
         string campId = TraderIds.Camp(cell.X, cell.Z);

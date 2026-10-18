@@ -33,7 +33,7 @@ public class SchematicTests
     public void TheShippedTableHasNoProblems()
     {
         var table = Table.Value;
-        Assert.Empty(table.Problems(TraderTypes.All, TradeListResolver.MaxStandingTier));
+        Assert.Empty(table.Problems(TraderTypes.All.Concat(TraderTypes.Story).ToList(), TradeListResolver.MaxStandingTier));
         Assert.Equal(14, table.Gates.Count);
         Assert.Equal("game:paper-parchment", table.Replacement);
         Assert.All(table.Gates, g => Assert.True(table.IsSold(g.Schematic), g.Schematic));
@@ -73,7 +73,7 @@ public class SchematicTests
                 Assert.False(string.IsNullOrWhiteSpace(entry.PriceReason), sale.Code);
             }
         // And nothing is sold as a schematic that the table doesn't know.
-        foreach (string type in TraderTypes.All)
+        foreach (string type in TraderTypes.All.Concat(TraderTypes.Story))
             foreach (var e in List(type).Selling.Core.Where(e => Table.Value.IsSold(e.Code)))
                 Assert.Contains(Table.Value.Sales, s => s.Code == CodePattern.Normalise(e.Code) && s.Sellers.Contains(type));
     }
@@ -81,7 +81,7 @@ public class SchematicTests
     [Fact]
     public void AtTheTopTierEveryListStillHasRotatingSlots()
     {
-        foreach (string type in TraderTypes.All)
+        foreach (string type in TraderTypes.All.Concat(TraderTypes.Story))
             foreach (var region in Region.All)
             {
                 var side = TradeListResolver.Resolve(List(type).Selling, region, TradeListResolver.MaxStandingTier);

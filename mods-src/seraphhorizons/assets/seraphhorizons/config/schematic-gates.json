@@ -104,8 +104,8 @@
 		// sides schematics gate no recipe in 1.9.1, so nobody sells them.
 		{ "mod": "cartwrightscaravan", "code": "cartwrightscaravan:cartschematics-carts", "sellers": ["mechanic"], "tier": 2 },
 		{ "mod": "cartwrightscaravan", "code": "cartwrightscaravan:cartschematics-signs", "sellers": ["carpenter"], "tier": 1 },
-		{ "mod": "abyssaldepths", "code": "abyssaldepths:ad-schematic-divinggear", "sellers": ["curiodealer"], "tier": 3 },
-		{ "mod": "walkingstick", "code": "walkingstick:schematic-flintlock", "sellers": ["curiodealer"], "tier": 3 },
+		{ "mod": "abyssaldepths", "code": "abyssaldepths:ad-schematic-divinggear", "sellers": ["curiodealer", "treasurehunter"], "tier": 3 },
+		{ "mod": "walkingstick", "code": "walkingstick:schematic-flintlock", "sellers": ["curiodealer", "treasurehunter"], "tier": 3 },
 		// The machines' (#469).
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-windmill", "sellers": ["carpenter"], "tier": 1 },
 		{ "mod": "seraphhorizons", "code": "seraphhorizons:schematic-waterwheel", "sellers": ["carpenter"], "tier": 1 },
