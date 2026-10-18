@@ -1,0 +1,41 @@
+{
+	"_comment": "The arrastra's build (#732, #711): each stage after the frame and its materials, from Arrastra/README.md's stage table, in the rig's build order; read by Machines/Core/MachineBuildJson.cs (its schema); README 'Ore machines: what they share'. Measured from the model at the ore line's rate (the stamp battery's rule); the post is a vanilla axle and the drag stones are loose stones, counted. Batch: loaded, watered and drawn by hand. No wearing parts.",
+	"machine": "arrastra",
+	"block": "seraphhorizons:arrastra-north",
+	"feed": "batch",
+	"stages": [
+		{
+			"id": "pit", "name": "the pit", "adds": ["pit"],
+			"materials": [
+				{ "codes": ["game:cobblestone-*"], "quantity": 1 },
+				{ "codes": ["game:drystone-*"], "quantity": 1 },
+				{ "codes": ["game:plank-*"], "quantity": 2 },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "post", "name": "the post and gearing", "adds": ["post"],
+			"materials": [
+				{ "codes": ["game:woodenaxle-ud"], "quantity": 1 },
+				{ "codes": ["game:plank-*"], "quantity": 4 },
+				{ "codes": ["game:metalplate-iron"], "quantity": 1 },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 2 },
+				{ "codes": ["game:metalnailsandstrips-steel"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "arms", "name": "the sweep arms", "adds": ["arms"],
+			"materials": [
+				{ "codes": ["game:supportbeam-*"], "quantity": 2 },
+				{ "codes": ["game:metalnailsandstrips-iron"], "quantity": 1 }
+			]
+		},
+		{
+			"id": "stones", "name": "the drag stones", "adds": ["stones"],
+			"materials": [
+				{ "codes": ["game:stone-*"], "quantity": 4 },
+				{ "codes": ["game:metalchain-iron"], "quantity": 1 }
+			]
+		}
+	]
+}

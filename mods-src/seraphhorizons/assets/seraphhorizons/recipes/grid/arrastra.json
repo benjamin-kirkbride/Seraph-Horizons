@@ -1,0 +1,19 @@
+// The arrastra (#732; Arrastra/, README "Arrastra"). The server disables it with Arrastra off.
+[
+	{
+		// The frame, as placed: the oak head frame (9 support beams, 2,152 vox at a beam a 256), the
+		// iron shaft (a steel rod) and its two drop hangers (3 iron nails and strips), with a hammer.
+		// The pit, the post, the arms and the drag stones go on after, by right-click
+		// (config/builds/arrastra.json).
+		ingredientPattern: "BH,RN",
+		width: 2,
+		height: 2,
+		ingredients: {
+			"B": { type: "block", code: "game:supportbeam-*", quantity: 9 },
+			"R": { type: "item", code: "game:rod-steel" },
+			"N": { type: "item", code: "game:metalnailsandstrips-iron", quantity: 3 },
+			"H": { type: "item", code: "game:hammer-*", isTool: true }
+		},
+		output: { type: "block", code: "seraphhorizons:arrastra-north" }
+	}
+]

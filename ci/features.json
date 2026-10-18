@@ -2,7 +2,7 @@
   "always": ["items", "recipes", "switches", "tidy", "rest"],
   "global": ["Core/", "Machines/", "ConfigDefaults/", "LangText.cs", "SeraphHorizons.csproj", "modinfo.json"],
   "global_switches": ["OreMachinesSettings", "FollowPackDefaults"],
-  "unmapped": ["AcidParting/", "AmalgamationPlates/", "Arrastra/", "CupellationFurnace/",
+  "unmapped": ["AcidParting/", "AmalgamationPlates/", "CupellationFurnace/",
                "LiquationFurnace/", "ParkesKettle/", "ReverberatoryRoaster/"],
   "features": {
     "Eidolon": {
@@ -81,6 +81,13 @@
       "codes": ["shakingtable"],
       "export": ["Recipes/ShakingTableExport.cs", "RecipeSection.ShakingTable.cs"],
       "switches": ["ShakingTable"],
+      "classes": []
+    },
+    "Arrastra": {
+      "code": ["Arrastra/"],
+      "codes": ["arrastra"],
+      "export": ["RecipeSection.Arrastra.cs"],
+      "switches": ["Arrastra"],
       "classes": []
     },
     "Vanner": {
