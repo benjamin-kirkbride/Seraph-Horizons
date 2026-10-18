@@ -35,16 +35,16 @@ test("all variants of a type on one page, merged, with each variant a click away
 });
 
 test("a trader's page lists what it sells per trade", async ({ page }) => {
-  // survival/config/tradelists/trader-treasurehunter.json: metal parts are sold 4 at a time. Every
-  // survival/entities/humanoid/trader-*.json is code "trader". The treasure hunter is the only
-  // one left: the pack's trader grid replaces the camp traders, whose trades the export marks
-  // extra.replaced and the site leaves out.
-  await page.goto(`./#/${V}/entity/game:trader?variant=game%3Atrader-male-treasurehunter-temperate`);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Treasure hunter trader");
-  // Its six variants (two genders, three climates) trade alike, so there is nothing to pick.
-  await expect(page.getByTestId("variants")).toHaveCount(0);
-  const parts = page.locator('[data-section="sells"]').getByRole("row").filter({ has: page.getByRole("link", { name: "Metal parts", exact: true }) });
-  await expect(parts.getByRole("cell").nth(1)).toHaveText("4");
+  // survival/config/tradelists/villager-liga.json: cranberries are sold 8 at a time. Every
+  // villager of survival/entities/humanoid/villager.json is code "villager". The story villagers
+  // are the only traders left: the pack's trader grid replaces the camp traders and its own
+  // treasure hunter the game's, whose trades the export marks extra.replaced and the site leaves out.
+  await page.goto(`./#/${V}/entity/game:villager?variant=game%3Avillager-nadiya-female-innkeeper-liga`);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Villager");
+  // Arzhur, the other innkeeper, trades from Liga's list, so the two are one pick.
+  await expect(page.getByTestId("variants").locator('[aria-current="page"]')).toHaveText("Innkeeper");
+  const cranberry = page.locator('[data-section="sells"]').getByRole("row").filter({ has: page.getByRole("link", { name: "Cranberry", exact: true }) });
+  await expect(cranberry.getByRole("cell").nth(1)).toHaveText("8");
   await expect(page.locator('[data-section="buys"]')).toBeVisible();
 });
 
@@ -61,7 +61,10 @@ test("the list has every type once, and the filter matches variant names", async
   const creatures = page.getByTestId("creatures");
   await expect(creatures.locator('a[data-code="game:drifter"]')).toBeVisible();
   await expect(creatures.locator('a[data-code="game:drifter-normal"]')).toHaveCount(0);
-  await expect(page.getByTestId("traders").locator('a[data-code="game:trader"]')).toBeVisible();
+  const traders = page.getByTestId("traders");
+  await expect(traders.locator('a[data-code="game:villager"]')).toBeVisible();
+  // The game's traders, the treasure hunter too, are all replaced by the pack's.
+  await expect(traders.locator('a[data-code="game:trader"]')).toHaveCount(0);
 
   // survival/entities/animal/mammal/wolf-adult.json is code "wolf".
   await page.getByLabel("Filter").fill("surface drifter");
