@@ -673,6 +673,7 @@ class SiteAndTooling(unittest.TestCase):
             "tools/site-data/src/checks.ts": ([], True, False, False),
             "icons/index.json": ([], False, False, False),
             "icons/ab/abcdef.png": ([], False, False, False),
+            "mods-src/seraphhorizons/Ore/tools/ore-guide-numbers.template.json": ([], False, False, False),
         }
         for path, need in want.items():
             with self.subTest(path):
