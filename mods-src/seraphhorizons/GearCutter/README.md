@@ -68,12 +68,12 @@ lower cone). The **build order** (#480): the frame, then `spindle`, `feedscrew`,
 
 | Order | `requires` | Item (#480) | How it is made | Draws | Taken back |
 |---|---|---|---|---|---|
-| 1 | `spindle` | Cutter spindle with cone pulley (new item, steel) | Grid: 2 steel rods, 2 steel plates, metal parts (`game:metal-parts`: the keys and collars) | The head shaft with the upper cone, the belt, the mitre bevels, the spindle | Only by breaking the frame |
+| 1 | `spindle` | Cutter spindle with cone pulley (steel; no item of its own) | Fed at the frame: 2 `game:rod-steel`, 2 `game:metalplate-steel`, 1 `game:metal-parts` (the keys and collars) | The head shaft with the upper cone, the belt, the mitre bevels, the spindle | Only by breaking the frame |
 | 2 | `feedscrew` | Feed screw (new item, steel) | Smithing: 1 steel ingot | The worm and the clutch sleeve (in the gearbox) | Only by breaking the frame |
 | 3 | `camfeed` | `game:jonasframes-gearbox02` (Jonas "Eccentric gearbox"), looted or converted | One eccentric gearbox | The feed cam drum and its groove | Only by breaking the frame |
 | 4 | `camindex` | `game:jonasframes-gearbox02` (Jonas "Eccentric gearbox"), looted or converted | One eccentric gearbox | The index cam drum and its groove | Only by breaking the frame |
 | 5 | `liftcam` | Lift cam (new item, steel) | Smithing: 1 steel ingot | The lift cam on its hub | Only by breaking the frame |
-| 6 | `index` | Index (new item: lever, pawls, shield) | Grid: 2 steel rods, 2 steel plates, metal parts (`game:metal-parts`: the pawls, their pins and the lever's roller) | The shield, the lever with its roller, the pawl and the check pawl | Only by breaking the frame |
+| 6 | `index` | Index (lever, pawls, shield; no item of its own) | Fed at the frame: 2 `game:rod-steel`, 2 `game:metalplate-steel`, 1 `game:metal-parts` (the pawls, their pins and the lever's roller) | The shield, the lever with its roller, the pawl and the check pawl | Only by breaking the frame |
 | 7 | `oiler` | `game:jonasparts-valve01` (Jonas "Alternate injection valve"), looted | Looted (Jonas) | The injection valve: its body, the feed from the reservoir, the nozzle over the cutter, and the plunger with its marble handle | Only by breaking the frame |
 | 8 | `head` | Dividing head: `game:jonasframes-gears02` or `gears01` | Looted (Jonas) | The Jonas planetary: the housing (the ring, with the rim ratchet), the planets, the carrier, the sun with its detent disc, and the detent plunger | Only by breaking the frame |
 | 9 | `cutter` | Cutter kit (its own issue), the wearing part | Its own issue | The formed cutter | When worn out it is spent; unworn, Ctrl + right-click |
@@ -114,7 +114,7 @@ are not drawn (no element stands for them), so only its collars show the metal p
 | `assets/seraphhorizons/shapes/block/gearcutter_frame.json` | The static frame only (102 elements). The block draws it and the inventory shows it. |
 | `assets/seraphhorizons/config/gearcutter-rig.json` | Footprint, anchors, the work, the cut's constants and the part rig (75 parts, 32 of them gap fills). |
 | `tests/GearCutter/rig-reference.json` | Every part's matrix at a grid of poses, from the reference maths. |
-| `assets/seraphhorizons/shapes/item/gearcutter/{spindle,feedscrew,liftcam,index,kit}.json` | The forged parts' item shapes: each the elements of the rig parts its stage draws, as they are at rest (the spindle's head shaft and spindle without the belt; the worm and clutch; the lift cam; the lever, pawls and shield; the cutter), centred on the item box's floor and scaled to fit 16 voxels (`ITEM_SCALE`: the spindle 0.74, the rest 1). The item types (`itemtypes/gearcutter/*.json`) draw them with the machine's textures. |
+| `assets/seraphhorizons/shapes/item/gearcutter/{feedscrew,liftcam,kit}.json` | The forged parts' item shapes: each the elements of the rig parts its stage draws, as they are at rest (the worm and clutch; the lift cam; the cutter), centred on the item box's floor and scaled to fit 16 voxels (`ITEM_SCALE`, 1 for each). The item types (`itemtypes/gearcutter/*.json`) draw them with the machine's textures. The spindle and the index have no item (their stages are fed materials), so no item shape. |
 
 ### How the machine works
 
@@ -480,18 +480,32 @@ machine of the gears epic, and a cast bed and column are a lot of metal. The cos
 itself (the cutter does not need Immersive Woodworking, so it is not in
 `patches/woodworking-machine-costs.json`).
 
-**Stages** (`GearCutterParts`). One item a stage, in `GearCutterStage` order, the next missing stage
-the only one a click fills (an item a later stage takes is `OutOfOrder`, one whose stages are all in
-`AlreadyFitted`, a kit with no durability `KitSpent`). The two cam drums each take one
+**Stages** (`GearCutterParts`). In `GearCutterStage` order, the next missing stage the only one a
+click fills (an item a later stage takes is `OutOfOrder`, one whose stages are all in
+`AlreadyFitted`, a kit with no durability `KitSpent`). Every stage takes one item but the spindle and
+the index, which are **material stages** (`MaterialsFor`): each is fed its bill at the frame, 2
+`game:rod-steel`, 2 `game:metalplate-steel` and 1 `game:metal-parts` (the bill of the grid recipe
+each had for an item of its own), on the ore machines' shared code (`StagedBuild` with
+`BuildMaterial`s, one per material stage): a click puts in one material, all the stage still needs of
+it from the held stack, or a full stack; fewer is `TooFew`, a material already all in
+`AlreadyFitted`. A stage part way in keeps its counts and is drawn only once complete; the block info
+and the help say what it still takes ("Still takes: 2 × Steel rod, ..."), and the errors name the
+stage and its needs as the ore machines' do. The two cam drums each take one
 `game:jonasframes-gearbox02`. The head takes either Jonas gear assembly. The kit keeps its durability
 left and full (`GetRemainingDurability`, `GetMaxDurability`; 500 in `itemtypes/gearcutter/kit.json`). The
 master is `master` for the temporal gear and `masterlarge` for the large one; `Fitted` draws only the
 fitted one. The creative shortcut (`CreativeUpgrades.Applies`, Ctrl in creative mode on an incomplete
-cutter) fits each stage's first code, always on (the rosser's follows `UnifiedWoodworking`; this
+cutter) fits each stage's first code, or fills a material stage, always on (the rosser's follows `UnifiedWoodworking`; this
 machine has nothing to do with woodworking). Take-back (`TakeBack`): the kit, else a blank on the
 arbor, else the master (only once the kit is out); a kit comes back with a `durability` attribute when
-worn. Restoring a save keeps the stages up to the head as a run from the first and the kit and the
-master only with the head, as the rules could have fitted them.
+worn. Breaking the frame returns every item fitted and every material put in, a material stage part
+way in too. Restoring a save keeps the stages up to the head as a run from the first (a material
+stage part way in ends it) and the kit and the master only with the head, as the rules could have
+fitted them. The material stages' counts are saved under `materials` (`MaterialSnapshot`). The
+spindle and the index once had items of their own (`seraphhorizons:gearcutterspindle`,
+`seraphhorizons:gearcutterindex`, from the same bill on the grid), no longer registered: a cutter
+saved with one fitted restores with that stage complete (`LegacySpindleCode`, `LegacyIndexCode`), so
+breaking it gives back the bill; loose items of them become unknown items.
 
 **The cut** (`GearCut`, `CutJob`). A blank goes on only on a complete cutter, one at a time, of the
 master's size. W runs from 0 to 12 or 20 by `TeethFor(radians, TurnsPerTooth)` while

@@ -23,10 +23,8 @@ public class GearCutterSystem : ModSystem
         new(Domain, "blocktypes/gearcutter/frame.json"),
         new(Domain, "blocktypes/gearcutter/ghost.json"),
         new(Domain, "blocktypes/gearcutter/ghostpower.json"),
-        new(Domain, "itemtypes/gearcutter/spindle.json"),
         new(Domain, "itemtypes/gearcutter/feedscrew.json"),
         new(Domain, "itemtypes/gearcutter/liftcam.json"),
-        new(Domain, "itemtypes/gearcutter/index.json"),
         new(Domain, "itemtypes/gearcutter/kit.json"),
     ];
 
