@@ -74,31 +74,35 @@ public partial class SharedWorldScenarios
     }
 
     [AtlasScenario(TimeoutMs = 60_000)]
-    public async Task Products_leave_by_a_vanilla_chute_or_a_container_and_stay_without_one()
+    public async Task Products_leave_by_a_vanilla_chute_or_a_container_attached_to_the_face()
     {
         var origin = await CutterSite(560, 540, 3);
         var stone = W.GetItem(new AssetLocation("game:stone-granite"))!;
-        // nothing beyond the face: not chuted on, nothing moves
+        // nothing beyond the face: nothing attached, nothing moves (the machine drops it in front)
         var slot = new DummySlot(new ItemStack(stone, 4));
-        Assert.False(MachineChutes.ChutedOn(W, origin, BlockFacing.SOUTH, slot));
+        Assert.False(MachineChutes.Attached(W, origin, BlockFacing.SOUTH, slot));
         Assert.Equal(0, MachineChutes.TryPush(W, origin, BlockFacing.SOUTH, slot));
 
         // a straight chute laid north-south beyond the south face takes from the machine
         var chutePos = origin.SouthCopy();
         World.SetBlock("game:chute-straight-ns", chutePos);
-        Assert.True(MachineChutes.ChutedOn(W, origin, BlockFacing.SOUTH, slot));
+        Assert.True(MachineChutes.Attached(W, origin, BlockFacing.SOUTH, slot));
         Assert.True(MachineChutes.TryPush(W, origin, BlockFacing.SOUTH, slot) > 0);
         var chute = (BlockEntityItemFlow)W.BlockAccessor.GetBlockEntity(chutePos)!;
         Assert.False(chute.Inventory.Empty);
-        // a chute laid the other way (east-west) does not take from the south
+        // now full (a chute takes only into an empty slot): still attached, so the machine holds what it makes
+        Assert.Equal(0, MachineChutes.TryPush(W, origin, BlockFacing.SOUTH, new DummySlot(new ItemStack(stone, 1))));
+        Assert.True(MachineChutes.Attached(W, origin, BlockFacing.SOUTH, slot));
+        // a chute laid the other way (east-west) does not take from the south: not attached
         var across = origin.NorthCopy();
         World.SetBlock("game:chute-straight-we", across);
-        Assert.False(MachineChutes.ChutedOn(W, origin, BlockFacing.NORTH, slot));
+        Assert.False(MachineChutes.Attached(W, origin, BlockFacing.NORTH, slot));
 
         // a chest beyond the face takes the lot
         var chestPos = origin.EastCopy();
         World.SetBlock("game:chest-east", chestPos);
         var made = new ItemStack(stone, 3);
+        Assert.True(MachineChutes.Attached(W, origin, BlockFacing.EAST, new DummySlot(made)));
         Assert.Equal(3, MachineChutes.TryPush(W, origin, BlockFacing.EAST, made));
         foreach (var p in new[] { chutePos, across, chestPos })
             W.BlockAccessor.SetBlock(0, p);
