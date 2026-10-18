@@ -21,6 +21,7 @@ import {
   type SearchFile,
   type TypeInfo,
 } from "./format.ts";
+import { oreRoutesData } from "./ore-prepare.ts";
 import { indexOfSorted, isPattern, matchSorted, type VariantFilter } from "./wildcard.ts";
 
 export interface PrepareOptions {
@@ -428,6 +429,9 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
 
   const multiblocks = multiblockFiles(exp);
   for (const [path, file] of multiblocks.files) files.set(path, file);
+  // The ore routes page's data (ore-routes.ts): the section with the placer feeds; none without it.
+  const ores = oreRoutesData(exp);
+  if (ores) files.set("ores.json", ores);
 
   const meta: Meta = {
     format: DATA_FORMAT,
@@ -449,6 +453,7 @@ export function prepareData(exp: RecipeExport, options: PrepareOptions = {}): Pr
     entityChunks,
     ...(valueCount > 0 ? { valueCount } : {}),
     ...(exp.power ? { power: true } : {}),
+    ...(ores && ores.ores.length + ores.placers.length > 0 ? { ores: true } : {}),
     ...(exp.eidolon ? { eidolon: { items: [exp.eidolon.item, exp.eidolon.torso.item].filter((c): c is string => c !== null) } } : {}),
     ...(multiblocks.index.multiblocks.length > 0 ? { multiblockCount: multiblocks.index.multiblocks.length } : {}),
   };
