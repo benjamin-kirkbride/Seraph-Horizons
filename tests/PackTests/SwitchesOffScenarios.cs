@@ -980,6 +980,16 @@ public class SwitchesOffScenarios(ITestOutputHelper output) : AtlasScenarioBase
         Assert.Equal([5f, 1f, 5f], ratios);
     }
 
+    /// <summary><c>ScrewPortOutput</c>: the item flow's <c>MoveItem</c> is not patched, so a
+    /// ported Archimedes screw tries its faces as the game ships it.</summary>
+    [AtlasScenario]
+    public void Screw_port_output_off_move_item_is_the_games()
+    {
+        Assert.True(Off("ScrewPortOutput"));
+        Assert.NotNull(ScrewPortOutput.MoveItem);
+        Assert.False(Harmony.GetPatchInfo(ScrewPortOutput.MoveItem)?.Prefixes.Any(p => p.owner == SeraphHorizonsSystem.HarmonyId) == true);
+    }
+
     /// <summary><c>GearConsumers</c>: every recipe takes the gears its mod ships it with, ppex still
     /// smiths and shows its gears, and smex's converter is not patched.</summary>
     [AtlasScenario]
