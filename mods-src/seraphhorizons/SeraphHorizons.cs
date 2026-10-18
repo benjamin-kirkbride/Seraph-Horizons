@@ -809,6 +809,13 @@ public class SeraphHorizonsConfig
     /// default with a warning. The server's are used.</summary>
     public Ore.Core.SpallingConfig SpallingSettings { get; set; } = new();
 
+    /// <summary>Spalling refill (Ore/Processing/OreSpalling.cs, README "Ore processing: spalling"), part
+    /// of <see cref="OreProcessing"/>: when a hammer blow breaks a raw ore set down on the ground, the
+    /// same ore from the striker's hotbar (offhand included) or backpack takes its place at once, so a
+    /// held left-click works through every one the player carries (off means the spot is left empty, and
+    /// each ore is set down by hand). Server side; the server's setting decides.</summary>
+    public bool SpallingRefill { get; set; } = true;
+
     /// <summary>Ore processing, roasting in the firepit (#720, README "Ore processing: roasting in the
     /// firepit"): seconds a firepit takes to roast one sulfide concentrate once the stack is at 600 °C
     /// (it roasts one item at a time; at least twice as hot, twice as fast). Not positive: the default.

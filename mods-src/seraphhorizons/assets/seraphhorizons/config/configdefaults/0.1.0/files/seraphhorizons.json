@@ -116,6 +116,7 @@
     "BlowsRawOre": 2,
     "HammerWearPerBlow": 1
   },
+  "SpallingRefill": true,
   "FirepitRoastSeconds": 10.0,
   "Rocker": true,
   "RockerSettings": {
