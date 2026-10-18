@@ -8,9 +8,9 @@ namespace SeraphHorizons.Mod;
 
 /// <summary>
 /// Big piles, big crates, the rusty gear's stack and no clutter piles (README "Big piles", "Big
-/// crates", "The rusty gear stacks to 64", "Clutter does not pile"), and the handbook's pile line:
-/// <see cref="BigPiles"/>, <see cref="BigCrates"/>, <see cref="RustyGearStack"/>,
-/// <see cref="ClutterPiles"/>, <see cref="PileHandbook"/>.
+/// crates", "The rusty gear stacks to 64", "Clutter and chiseled blocks do not pile"), and the
+/// handbook's pile line: <see cref="BigPiles"/>, <see cref="BigCrates"/>,
+/// <see cref="RustyGearStack"/>, <see cref="ClutterPiles"/>, <see cref="PileHandbook"/>.
 ///
 /// ExecuteOrder 0.2, so its <c>AssetsFinalize</c> runs after More Piles' (its <c>Core</c>, the
 /// default 0.1), which gives most blocks and some items their piles there, and after
@@ -72,7 +72,7 @@ public class StorageTweaksSystem : ModSystem
         if (ServerSwitch(api, nameof(SeraphHorizonsConfig.NoClutterPiles), config.NoClutterPiles))
         {
             ClutterPilesTaken = ClutterPiles.Apply(api);
-            api.Logger.Notification("[seraphhorizons] No clutter piles: {0} clutter blocks lost More Piles' pile on this side", ClutterPilesTaken);
+            api.Logger.Notification("[seraphhorizons] No clutter piles: {0} clutter, chiseled and other blocks not drawn as a cube lost More Piles' cube pile on this side", ClutterPilesTaken);
         }
         else
             api.Logger.Notification("[seraphhorizons] No clutter piles: switched off; clutter piles as More Piles gives it");
