@@ -31,7 +31,9 @@ import sys
 
 # Matched at the start of a repository path (ci/code-tree.sh anchors it after
 # ls-tree's tab). Must stay a POSIX ERE as well as a Python regex: grep -E reads it.
-NOOP = r"(\.claude/|\.gitignore$|\.mergify\.yml$|docs/|LICENSE$|[^/]*\.md$|.*/[^/]*\.md$)"
+# The mine planner's benchmark is run by hand (#1232): the mod's csproj leaves it
+# out and no job builds or runs it.
+NOOP = r"(\.claude/|\.gitignore$|\.mergify\.yml$|docs/|LICENSE$|mods-src/seraphhorizons/benchmarks/|[^/]*\.md$|.*/[^/]*\.md$)"
 
 _MOD = "mods-src/seraphhorizons/"
 _ASSETS = _MOD + "assets/seraphhorizons/"

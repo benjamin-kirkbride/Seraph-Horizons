@@ -126,6 +126,7 @@ public sealed class MineState
         foreach (bool _ in _reach.Run())
             yield return false;
         _remaining = new HashSet<MarkPos>(Reach.Clearable);
+        MineWork.Add(_remaining.Count);
         yield return false;
         yield return true;
     }
@@ -213,6 +214,7 @@ public sealed class MineState
         Reach.Dig(cells, starved, killed);
         var result = MineRefusal.None;
         var cellSet = cells.ToHashSet();
+        MineWork.Add(cells.Count + starved.Count + killed.Count);
         if (!Walk.OutAfter(stand))
             result = MineRefusal.CutsOff;
         else if (starved.Where(t => !cellSet.Contains(t) && _remaining.Contains(t) && Reach.Live(t) == 0).Distinct().ToList() is { Count: > 0 } lost)
