@@ -1,6 +1,7 @@
 using System.Text;
 using SeraphHorizons.Mod.Machines.Core;
 using Vintagestory.API.Common;
+using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
 using Vintagestory.API.MathTools;
 using Vintagestory.GameContent;
@@ -8,19 +9,19 @@ using Vintagestory.GameContent;
 namespace SeraphHorizons.Mod.Machines;
 
 /// <summary>
-/// A cell of an ore machine (#711): remembers its controller and takes its boxes from it. It is a
-/// container so a vanilla chute laid into the machine's infeed face pushes into it: its one slot takes,
-/// through the infeed face only, what the machine takes (<see cref="BEOreMachine.Takes"/>), and the
-/// controller draws it in from there (<see cref="BEOreMachine.InfeedBuffer"/>). On the power cell it is the
-/// <see cref="IMachinePower"/> of <see cref="BEBehaviorMachineMP"/>: its block's face, its controller's load.
+/// A cell of a machine on the shared base (#711): remembers its controller and takes its boxes from it. It
+/// is a container so a vanilla chute laid into an ore machine's infeed face pushes into it: its one slot
+/// takes, through that face only, what the machine takes (<see cref="BEMachine.CellTakes"/>), and the
+/// controller draws it in from there. On the power cell it is the <see cref="IMachinePower"/> of
+/// <see cref="BEBehaviorMachineMP"/>: its block's face, its controller's load.
 /// </summary>
-public class BEOreMachineCell : BlockEntityContainer, IMachinePower
+public class BEMachineCell : BlockEntityContainer, IMachinePower, IMachineGhost
 {
-    public const string ClassName = "seraphhorizons.OreMachineCell";
+    public const string ClassName = "seraphhorizons.MachineCell";
 
     private readonly InventoryGeneric _inventory;
 
-    public BEOreMachineCell()
+    public BEMachineCell()
     {
         _inventory = new InventoryGeneric(1, null, null);
     }
@@ -28,18 +29,18 @@ public class BEOreMachineCell : BlockEntityContainer, IMachinePower
     public BlockPos? Principal { get; set; }
 
     public override InventoryBase Inventory => _inventory;
-    public override string InventoryClassName => "oremachinecell";
+    public override string InventoryClassName => "machinecell";
 
-    /// <summary>The slot a chute fills, when this is the infeed cell.</summary>
+    /// <summary>The slot a chute fills, when this is an infeed cell.</summary>
     public ItemSlot Buffer => _inventory[0];
 
-    public BEOreMachine? Controller =>
-        Principal != null && Api != null ? Api.World.BlockAccessor.GetBlockEntity(Principal) as BEOreMachine : null;
+    public BEMachine? Controller =>
+        Principal != null && Api != null ? Api.World.BlockAccessor.GetBlockEntity(Principal) as BEMachine : null;
 
-    public BEOreMachine? Machine(IBlockAccessor blockAccessor) =>
-        Principal is { } p ? blockAccessor.GetBlockEntity(p) as BEOreMachine : null;
+    public BEMachine? Machine(IBlockAccessor blockAccessor) =>
+        Principal is { } p ? blockAccessor.GetBlockEntity(p) as BEMachine : null;
 
-    public BlockFacing PowerFace => (Block as BlockOreMachineCellPower)?.PowerFace ?? BlockFacing.UP;
+    public BlockFacing PowerFace => (Block as BlockMachineCellPower)?.PowerFace ?? BlockFacing.UP;
 
     public float Resistance => Controller?.Resistance ?? MachineLoad.Unassembled;
 
@@ -47,16 +48,14 @@ public class BEOreMachineCell : BlockEntityContainer, IMachinePower
     {
         base.Initialize(api);
         _inventory.OnGetAutoPushIntoSlot = (face, from) =>
-            Controller is { } machine && from?.Itemstack is { } stack
-            && (machine.InfeedBuffer(Pos, face) == this && machine.Takes(stack)
-                || machine.SideFeedAt(Pos, face) is { } feed && machine.SideFeedTakes(feed, stack))
-            && (Buffer.Empty || Buffer.Itemstack.Equals(api.World, stack, Vintagestory.API.Config.GlobalConstants.IgnoredStackAttributes))
+            Controller is { } machine && from?.Itemstack is { } stack && machine.CellTakes(Pos, face, stack)
+            && (Buffer.Empty || Buffer.Itemstack.Equals(api.World, stack, GlobalConstants.IgnoredStackAttributes))
                 ? Buffer
                 : null;
         _inventory.OnGetAutoPullFromSlot = _ => null;
     }
 
-    // What it holds is the controller's to drop (BEOreMachine.RemoveCells): a cell is never broken by itself.
+    // What it holds is the controller's to drop (BEMachine.RemoveCells): a cell is never broken by itself.
     public override void OnBlockBroken(IPlayer? byPlayer = null)
     {
     }

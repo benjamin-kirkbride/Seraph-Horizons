@@ -9,7 +9,7 @@ namespace SeraphHorizons.Mod.Vanner;
 
 /// <summary>
 /// The vanner (#923; README "Vanner"): registers its block entity. Its frame is the shared ore machine block
-/// (<see cref="BlockOreMachine"/>), its cells the shared ones; its figures are ore-core's
+/// (<see cref="BlockMachine"/>), its cells the shared ones; its figures are ore-core's
 /// (<c>config/ore-processing.json</c>, <c>machines.vanner</c>), what it takes the concentrators' feed
 /// (<see cref="SluiceSystem.StreamOf"/>). With the <c>Vanner</c> switch off, or ore processing off (its
 /// concentrate does not exist then), the server leaves its frame and recipe out of the game.
@@ -37,7 +37,7 @@ public class VannerSystem : ModSystem
     public override void AssetsLoaded(ICoreAPI api)
     {
         if (api.Side == EnumAppSide.Server && !Applies(api))
-            OreMachinesSystem.Disable(api, TypeAssets, RecipeAssets);
+            MachinesSystem.Disable(api, TypeAssets, RecipeAssets);
     }
 
     /// <summary>

@@ -10,10 +10,12 @@ namespace SeraphHorizons.Mod.Machines.Core;
 /// before the rest of its stage (the jaw breaker's toggles, then its springs). <see cref="Wearing"/>
 /// names the wearing part this material is the first set of (<see cref="MachineAssembly"/>).
 /// <see cref="OneType"/>: every item of it must be the first one's code (the stall roaster's brickwork, any
-/// fired brick but all of one type, #925).
+/// fired brick but all of one type, #925). <see cref="IfExists"/>: the material is left out of a game that
+/// has none of its items (the draw bench's spring, with the <c>MandrelSprings</c> switch off;
+/// <see cref="MachineBuild.Resolve"/>).
 /// </summary>
 public sealed record BuildMaterial(IReadOnlyList<string> Codes, int Quantity, IReadOnlyDictionary<string, string>? Picks = null,
-    IReadOnlyList<string>? Draws = null, string? Wearing = null, bool OneType = false)
+    IReadOnlyList<string>? Draws = null, string? Wearing = null, bool OneType = false, bool IfExists = false)
 {
     /// <summary>Whether <paramref name="code"/> (a full code) is this material.</summary>
     public bool Matches(string code) => Codes.Any(p => CodePattern.Matches(p, code));
@@ -53,8 +55,9 @@ public enum StageFitVerdict
 /// how many of the stack it takes.</summary>
 public readonly record struct StageFit(StageFitVerdict Verdict, int Stage, int Material, int Count);
 
-/// <summary>A fitted item as breaking the machine gives it back.</summary>
-public readonly record struct StageDrop(string Code, int Count);
+/// <summary>A fitted item as breaking the machine gives it back; a durable wearing part's with the
+/// durability it has left (<see cref="WearingPart.Durable"/>), null for every other.</summary>
+public readonly record struct StageDrop(string Code, int Count, double? Durability = null);
 
 /// <summary>Code patterns: full codes with <c>*</c> for any run of characters.</summary>
 public static class CodePattern

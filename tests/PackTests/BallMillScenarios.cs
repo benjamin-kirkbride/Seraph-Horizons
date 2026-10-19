@@ -88,11 +88,11 @@ public partial class SharedWorldScenarios
     {
         Assert.True(BallMillSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(MillFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(MillFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(MillFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(MillFrame + "north"));
         Assert.Equal("ballmill", block.Machine);
         Assert.NotNull(block.Rig);
-        var build = OreMachinesSystem.Of(World.Api).Build("ballmill")!;
+        var build = MachinesSystem.Of(World.Api).Build("ballmill")!;
         Assert.Equal(["drum", "gearing", "screens", "sheetiron", "services"], build.Stages.Select(s => s.Id).ToArray());
         Assert.Empty(build.Wearing);
         Assert.Equal("Ball mill", new ItemStack(block).GetName());

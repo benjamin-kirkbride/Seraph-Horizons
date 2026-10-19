@@ -26,6 +26,17 @@ public enum OilMachine
     CylinderBorer,
 }
 
+/// <summary>What a dry tank does to a machine (<c>BEMachine.DryEffect</c>): most turn harder, their load on
+/// the shaft multiplied (<see cref="MachineOilConfig.DryResistanceMultiplier"/>); the gear cutter and the
+/// cylinder borer wear their cutter faster instead, their load left alone.</summary>
+public enum OilDryEffect
+{
+    /// <summary>The load on the shaft is multiplied while dry.</summary>
+    Load,
+    /// <summary>The load is left alone; the machine wears its cutter by its tank's fill instead.</summary>
+    Wear,
+}
+
 /// <summary>
 /// A machine's oil tank, in points: <see cref="PointsPerLitre"/> to the litre, so one item of a
 /// 100-per-litre oil (the game's and Expanded Foods' oils) is one point, and a 10 litre bucket is
@@ -199,19 +210,15 @@ public class MachineOilConfig
 
     public static readonly MachineOilConfig Defaults = new();
 
-    public OilMachineConfig For(OilMachine machine) => machine switch
-    {
-        OilMachine.HelveHammer => HelveHammer,
-        OilMachine.Pulverizer => Pulverizer,
-        OilMachine.Sawmill => Sawmill,
-        OilMachine.Chopper => Chopper,
-        OilMachine.BuckingMill => BuckingMill,
-        OilMachine.Rosser => Rosser,
-        OilMachine.GearCutter => GearCutter,
-        OilMachine.DrawBench => DrawBench,
-        OilMachine.CylinderBorer => CylinderBorer,
-        _ => throw new ArgumentOutOfRangeException(nameof(machine)),
-    };
+    /// <summary>The entry of <paramref name="machine"/>: the property of its name. A machine opts into oil
+    /// with a value of <see cref="OilMachine"/> and a property of the same name here, with its defaults.</summary>
+    public OilMachineConfig For(OilMachine machine) =>
+        (OilMachineConfig)Entry(machine).GetValue(this)!;
+
+    private static System.Reflection.PropertyInfo Entry(OilMachine machine) =>
+        typeof(MachineOilConfig).GetProperty(machine.ToString()) is { PropertyType: var t } p && t == typeof(OilMachineConfig)
+            ? p
+            : throw new ArgumentOutOfRangeException(nameof(machine), machine, "MachineOilConfig has no entry of that name");
 
     /// <summary>The litres one lump of <paramref name="code"/> is worth, or 0 when it is not an oil
     /// lump.</summary>
@@ -266,21 +273,7 @@ public class MachineOilConfig
         return fixes;
     }
 
-    private void Set(OilMachine machine, OilMachineConfig value)
-    {
-        switch (machine)
-        {
-            case OilMachine.HelveHammer: HelveHammer = value; break;
-            case OilMachine.Pulverizer: Pulverizer = value; break;
-            case OilMachine.Sawmill: Sawmill = value; break;
-            case OilMachine.Chopper: Chopper = value; break;
-            case OilMachine.BuckingMill: BuckingMill = value; break;
-            case OilMachine.Rosser: Rosser = value; break;
-            case OilMachine.GearCutter: GearCutter = value; break;
-            case OilMachine.DrawBench: DrawBench = value; break;
-            case OilMachine.CylinderBorer: CylinderBorer = value; break;
-        }
-    }
+    private void Set(OilMachine machine, OilMachineConfig value) => Entry(machine).SetValue(this, value);
 }
 
 /// <summary>How the block info writes oil figures.</summary>

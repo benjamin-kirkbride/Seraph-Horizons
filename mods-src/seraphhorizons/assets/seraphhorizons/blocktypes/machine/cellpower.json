@@ -1,10 +1,10 @@
-// The cell of an ore machine that takes the axle (#711; Machines/Game/OreMachineBlocks.cs,
-// BlockOreMachineCellPower): face is the world face the axle meets it at, the rig's powerFace
+// The cell of a machine on the shared base that takes the axle (#711; Machines/Game/MachineBlocks.cs,
+// BlockMachineCellPower): face is the world face the axle meets it at, the rig's power anchor's face
 // turned to the machine's facing. Its load is the machine's (BEBehaviorMachineMP).
 {
-	code: "oremachine-cellpower",
-	class: "seraphhorizons.OreMachineCellPower",
-	entityClass: "seraphhorizons.OreMachineCell",
+	code: "machine-cellpower",
+	class: "seraphhorizons.MachineCellPower",
+	entityClass: "seraphhorizons.MachineCell",
 	variantgroups: [
 		{ code: "face", states: [ "north", "east", "south", "west", "up", "down" ] }
 	],

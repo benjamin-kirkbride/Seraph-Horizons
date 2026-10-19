@@ -91,12 +91,12 @@ public partial class SharedWorldScenarios
     {
         Assert.True(JigSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(JigFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(JigFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(JigFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(JigFrame + "north"));
         Assert.Equal("jig", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.Equal(["water", "bed"], block.ExtraRequires);
-        var build = OreMachinesSystem.Of(World.Api).Build("jig")!;
+        var build = MachinesSystem.Of(World.Api).Build("jig")!;
         Assert.Equal(["timber", "sieve", "drive", "services"], build.Stages.Select(s => s.Id).ToArray());
         Assert.Empty(build.Wearing);
         Assert.Equal("Jig frame", new ItemStack(block).GetName());

@@ -21,11 +21,12 @@ public partial class SharedWorldScenarios
             .Select(e => $"[{e.Level}] {e.Message}").ToList();
         Assert.True(logged.Count == 0, "Logged:\n" + string.Join("\n", logged));
         var system = OreMachinesSystem.Of(World.Api);
-        Assert.Contains("stampbattery", system.Builds.Keys);
+        var builds = MachinesSystem.Of(World.Api).Builds;
+        Assert.Contains("stampbattery", builds.Keys);
         Assert.Equal(0.05f, system.Config.MinSpeed);
         Assert.NotNull(system.Config.TailingsFor("sluice"));
         var missing = new List<string>();
-        foreach (var (machine, build) in system.Builds)
+        foreach (var (machine, build) in builds)
             foreach (var codes in build.Stages.SelectMany(s => s.Materials).Select(m => m.Codes).Concat(build.Wearing.Select(w => w.Codes)))
                 foreach (var code in codes)
                 {
@@ -111,14 +112,14 @@ public partial class SharedWorldScenarios
     /// <summary>
     /// Waits until a chute feeding <paramref name="machine"/> has emptied and the machine has drawn what it
     /// pushed. A chute does not reach the infeed: when the infeed anchor is not on the controller it empties
-    /// into that cell's buffer (<see cref="BEOreMachineCell.Buffer"/>), and the machine pulls it into its
+    /// into that cell's buffer (<see cref="BEMachineCell.Buffer"/>), and the machine pulls it into its
     /// infeed on its own tick (every 100 ms). Waiting for the chute alone ends with the item still in the
     /// buffer, before the infeed or anything worked has changed (#1176, #1259).
     /// </summary>
     private async Task UntilChuteFed(BEOreMachine machine, BlockEntityItemFlow chute, int ticks = 20000)
     {
         var cell = machine.Rig!.Anchor(OreMachineRig.Infeed)!.Value.Cell;
-        var buffer = cell == Int3.Zero ? null : (BEOreMachineCell)W.BlockAccessor.GetBlockEntity(machine.CellPos(cell))!;
+        var buffer = cell == Int3.Zero ? null : (BEMachineCell)W.BlockAccessor.GetBlockEntity(machine.CellPos(cell))!;
         await World.Until(() => chute.Inventory.Empty && (buffer == null || buffer.Buffer.Empty), ticks);
     }
 }

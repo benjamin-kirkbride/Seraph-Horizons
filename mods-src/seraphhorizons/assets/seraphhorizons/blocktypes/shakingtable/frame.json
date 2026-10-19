@@ -5,12 +5,12 @@
 // seraphhorizons.MachineMP. The server disables it with ShakingTable or OreProcessing off.
 {
 	code: "shakingtable",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.ShakingTable",
 	entityBehaviors: [
 		{ name: "seraphhorizons.MachineMP", properties: { mechPartShape: null } }
 	],
-	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the machine's front
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the machine's front
 	// (its head end, with the drive) faces the player.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -34,7 +34,7 @@
 		"solder":     { base: "game:block/metal/ingot/leadsolder" }
 	},
 	attributes: {
-		oreMachine: { machine: "shakingtable" },
+		machine: { machine: "shakingtable" },
 		handbook: {
 			extraSections: [
 				{ title: "seraphhorizons:shakingtable-handbook-build-title", text: "seraphhorizons:shakingtable-handbook-build-text" },

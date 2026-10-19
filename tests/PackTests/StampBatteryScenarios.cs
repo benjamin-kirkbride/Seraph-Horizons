@@ -105,8 +105,8 @@ public partial class SharedWorldScenarios
     {
         Assert.True(StampBatterySystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:stampbattery-{side}")));
-        var build = OreMachinesSystem.Of(World.Api).Build("stampbattery")!;
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:stampbattery-{side}")));
+        var build = MachinesSystem.Of(World.Api).Build("stampbattery")!;
         Assert.Equal(["timber", "mortar", "stamps", "camshaft", "services"], build.Stages.Select(s => s.Id));
         Assert.Equal(1000, build.Wearing.Single(w => w.Id == "shoes").Uses);
         Assert.Contains(W.GridRecipes, r => r.Output?.Code?.ToString() == BatteryFrame);

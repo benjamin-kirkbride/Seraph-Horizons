@@ -12,10 +12,14 @@ namespace SeraphHorizons.Mod.Machines.Core;
 ///   "feed": "continuous",                       // or "batch" (#711)
 ///   "stages": [ { "id": "timber", "adds": ["timber"],
 ///                 "materials": [ { "codes": ["game:supportbeam-*"], "quantity": 41 } ] }, ... ],
-///   // a material with "oneType": true takes any of its codes, but all of one (one brick type)
+///   // a material with "oneType": true takes any of its codes, but all of one (one brick type); one with
+///   // "ifExists": true is left out of a game that has none of its items (the draw bench's spring)
 ///   "wearing": [ { "id": "shoes", "codes": ["game:poundercap-steel"], "count": 5, "uses": 400, "stage": "stamps" } ]
+///   // a wearing part with "durable": true is one item whose durability is its uses (the draw bench's die)
 /// }
 /// </code>
+/// A build file without a <c>block</c> stays out of the recipe export's generic construction records (the
+/// workshop machines', whose records are their own).
 /// A material's <c>picks</c> (<c>{ "seraphhorizons:pipesection-copper": "pipecopper" }</c>) draw a
 /// <c>requires</c> by the item put in; its <c>draws</c> are <c>requires</c> drawn once it is all in, before
 /// the rest of its stage. A wearing part with a <c>stage</c> has its first set fitted as one more
@@ -31,6 +35,28 @@ public sealed record MachineBuild(string Machine, string? Block, FeedMode Feed, 
     public StagedBuild NewBuild() => new(Stages);
 
     public WearingParts NewWearing() => new(Wearing);
+
+    /// <summary>The build as the game being played has it: every <see cref="BuildMaterial.IfExists"/> material
+    /// none of whose codes <paramref name="exists"/> left out of its stage. A stage left with no materials
+    /// keeps them (a build is never left with a stage nothing fits).</summary>
+    public MachineBuild Resolve(Func<string, bool> exists)
+    {
+        if (!Stages.Any(s => s.Materials.Any(m => m.IfExists)))
+            return this;
+        var stages = Stages.Select(s =>
+        {
+            var kept = s.Materials.Where(m => !m.IfExists || m.Codes.Any(exists)).ToList();
+            return kept.Count == s.Materials.Count || kept.Count == 0 ? s : s with { Materials = kept };
+        }).ToList();
+        return this with { Stages = stages };
+    }
+
+    /// <summary>The build with wearing part <paramref name="id"/>'s uses set to <paramref name="uses"/> (a
+    /// figure from the machine's settings: the draw bench's die durability); as it is for no such part.</summary>
+    public MachineBuild WithUses(string id, double uses) =>
+        Wearing.Any(w => w.Id == id) && uses > 0
+            ? this with { Wearing = Wearing.Select(w => w.Id == id ? w with { Uses = uses } : w).ToList() }
+            : this;
 }
 
 public static class MachineBuildJson
@@ -90,7 +116,9 @@ public static class MachineBuildJson
                 if (draws?.FirstOrDefault(d => !adds.Contains(d)) is { } stray)
                     throw new FormatException($"stage {id}'s material {codes[0]} draws {stray}, which is not one of its adds");
                 bool oneType = m.TryGetProperty("oneType", out var one) && one.ValueKind == JsonValueKind.True;
-                materials.Add(new BuildMaterial(codes.Select(c => CodePattern.Normalise(c)!).ToList(), quantity, picks, draws, OneType: oneType));
+                bool ifExists = m.TryGetProperty("ifExists", out var ie) && ie.ValueKind == JsonValueKind.True;
+                materials.Add(new BuildMaterial(codes.Select(c => CodePattern.Normalise(c)!).ToList(), quantity, picks, draws,
+                    OneType: oneType, IfExists: ifExists));
             }
             stages.Add(new MachineStage(id, adds, materials, Str(s, "name")));
         }
@@ -106,7 +134,10 @@ public static class MachineBuildJson
                     throw new FormatException($"wearing part {id} needs codes, a positive count and positive uses");
                 if (wearing.Any(x => x.Id == id))
                     throw new FormatException($"wearing part {id} is listed twice");
-                var part = new WearingPart(id, codes.Select(x => CodePattern.Normalise(x)!).ToList(), count, uses, Str(w, "requires"));
+                bool durable = w.TryGetProperty("durable", out var d) && d.ValueKind == JsonValueKind.True;
+                if (durable && count != 1)
+                    throw new FormatException($"wearing part {id} is durable, so its count must be 1");
+                var part = new WearingPart(id, codes.Select(x => CodePattern.Normalise(x)!).ToList(), count, uses, Str(w, "requires"), durable);
                 wearing.Add(part);
                 // fitted with a stage: its first set is one more material of that stage
                 if (Str(w, "stage") is { } stageId)

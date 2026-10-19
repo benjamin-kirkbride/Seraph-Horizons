@@ -7,7 +7,7 @@ namespace SeraphHorizons.Mod.StallRoaster;
 /// <summary>
 /// The stall roaster (#925; README "Ore processing: the stall roaster"): registers its block entity and holds its
 /// settings (StallRoasterSettings in ModConfig/seraphhorizons.json) and the gameplay half of its rig
-/// (<see cref="StallRoasterRig"/>). Its frame is the shared ore machine block (<see cref="BlockOreMachine"/>), its
+/// (<see cref="StallRoasterRig"/>). Its frame is the shared machine block (<see cref="BlockMachine"/>), its
 /// cells the shared ones. With the <c>StallRoaster</c> switch off, or ore processing off (it roasts sulfide rock
 /// into stall-roasted rock, which then does not exist), the server leaves its frame and recipe out of the game.
 /// </summary>
@@ -70,7 +70,7 @@ public class StallRoasterSystem : ModSystem
     public override void AssetsLoaded(ICoreAPI api)
     {
         if (api.Side == EnumAppSide.Server && !Applies(api))
-            OreMachinesSystem.Disable(api, TypeAssets, RecipeAssets);
+            MachinesSystem.Disable(api, TypeAssets, RecipeAssets);
     }
 
     // The settings object is the one in the mod's loaded config, so the fixes hold for every reader.

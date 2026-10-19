@@ -13,7 +13,7 @@ namespace SeraphHorizons.Mod.AmalgamPan;
 /// The amalgam pan (#718): registers its classes and holds what its blocks share: its settings
 /// (AmalgamPanSettings in ModConfig/seraphhorizons.json), the rig
 /// (assets/seraphhorizons/config/amalgampan-rig.json); its build stages are the shared machine code's
-/// (config/builds/amalgampan.json, <see cref="OreMachinesSystem.Build"/>). With the <c>AmalgamPan</c> switch off, or ore processing's, whose
+/// (config/builds/amalgampan.json, <see cref="MachinesSystem.Build"/>). With the <c>AmalgamPan</c> switch off, or ore processing's, whose
 /// quartz and amalgam it works, the server leaves its block and its recipe out of the game
 /// (<see cref="Disable"/>). Worked by hand or by an axle below; no oil.
 /// </summary>
@@ -59,7 +59,7 @@ public class AmalgamPanSystem : ModSystem
 
     /// <summary>The build stages after the frame, or null when the build file is missing or broken
     /// (logged by the shared machine code); the pan then cannot be built.</summary>
-    public MachineBuild? Build => _api == null ? null : OreMachinesSystem.Of(_api).Build(MachineId);
+    public MachineBuild? Build => _api == null ? null : MachinesSystem.Of(_api).Build(MachineId);
 
     /// <summary>Whether the pan is in the game: its switch is on, and ore processing's.</summary>
     public static bool Applies(ICoreAPI api)

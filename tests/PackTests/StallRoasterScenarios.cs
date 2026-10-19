@@ -50,13 +50,13 @@ public partial class SharedWorldScenarios
     {
         Assert.True(StallRoasterSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation(StallFrame + side)));
-        var block = (BlockOreMachine)W.GetBlock(new AssetLocation(StallFrame + "north"));
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation(StallFrame + side)));
+        var block = (BlockMachine)W.GetBlock(new AssetLocation(StallFrame + "north"));
         Assert.Equal("stallroaster", block.Machine);
         Assert.NotNull(block.Rig);
         Assert.NotNull(StallRoasterSystem.Of(World.Api).Rig);
         Assert.Equal(StallRequires.Extra(4).Order(), block.ExtraRequires.Order());
-        var build = OreMachinesSystem.Of(World.Api).Build("stallroaster")!;
+        var build = MachinesSystem.Of(World.Api).Build("stallroaster")!;
         Assert.Equal(["brickwork", "lining"], build.Stages.Select(s => s.Id).ToArray());
         // every brick type the build takes is a fired brick the game has
         foreach (var code in build.Stages[0].Materials[0].Codes)
@@ -111,7 +111,7 @@ public partial class SharedWorldScenarios
         Assert.True(stall.ShowsPart("brickwork") && stall.ShowsPart("lining") && !stall.ShowsPart("wood"));
 
         // nothing to light yet
-        Assert.Equal(EnumIgniteState.NotIgnitablePreventDefault, OreMachineFire.IgniteState(player.Entity, pos, 1.5f));
+        Assert.Equal(EnumIgniteState.NotIgnitablePreventDefault, MachineFire.IgniteState(player.Entity, pos, 1.5f));
         // the bed: four firewood of ten, then no more
         Assert.Equal(6, StallClick(player, pos, CutterItem(StallRoasting.Firewood, 10))?.StackSize);
         Assert.Equal(StallPhase.Bed, stall.Phase);
@@ -132,9 +132,9 @@ public partial class SharedWorldScenarios
         Assert.Equal(1, StallClick(player, pos, CutterItem(OreProducts.CrushedCode("galena", "rich"), 1))?.StackSize);
 
         // lit as the forge is, with a firestarter or a torch held 1.5 s on any of its cells
-        Assert.Equal(EnumIgniteState.IgniteNow, OreMachineFire.IgniteState(player.Entity, cell, 1.5f));
+        Assert.Equal(EnumIgniteState.IgniteNow, MachineFire.IgniteState(player.Entity, cell, 1.5f));
         var handling = EnumHandling.PassThrough;
-        OreMachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
+        MachineFire.IgniteOver(player.Entity, cell, 1.5f, ref handling);
         Assert.True(stall.Lit);
         Assert.Equal(0, stall.Firewood);
         Assert.Equal(StallPhase.Burning, stall.Phase);

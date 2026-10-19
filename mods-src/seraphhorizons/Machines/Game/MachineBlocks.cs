@@ -12,28 +12,40 @@ using Vintagestory.GameContent.Mechanics;
 namespace SeraphHorizons.Mod.Machines;
 
 /// <summary>
-/// An ore machine's frame, its controller cell (<c>{machine}-{side}</c>, class
-/// <c>seraphhorizons.OreMachine</c>; #711): the frame as placed, the first of its build. Its block type
-/// names the machine in <c>attributes.oreMachine.machine</c> (its rig <c>config/{machine}-rig.json</c>,
-/// its build <c>config/builds/{machine}.json</c>) and the machine's own part <c>requires</c> besides its
-/// stages' in <c>attributes.oreMachine.extraRequires</c>; its block entity is the machine's own
-/// <see cref="BEOreMachine"/>. Placing it needs room for every cell of the rig and stamps a cell block into
-/// each (<see cref="BlockOreMachineCell"/>, the power cell's <see cref="BlockOreMachineCellPower"/>);
-/// breaking it (or a cell) gives back the frame, everything fitted and what it holds. A machine that burns
-/// (<see cref="BEOreMachine.Ignitable"/>, the stall roaster) is lit with a firestarter or a torch on any of its
-/// cells, as the forge is (<see cref="OreMachineFire"/>).
+/// The frame of a machine on the shared base, its controller cell (<c>{machine}-{side}</c>, class
+/// <c>seraphhorizons.Machine</c>; #711): the frame as placed, the first of its build. Its block type names
+/// the machine in <c>attributes.machine.machine</c> (else the code's first part: its rig
+/// <c>config/{machine}-rig.json</c>, its build <c>config/builds/{machine}.json</c>) and an ore machine's own
+/// part <c>requires</c> besides its stages' in <c>attributes.machine.extraRequires</c>; its block entity is the
+/// machine's own <see cref="BEMachine"/>. Placing it needs room for every cell of the rig and stamps a cell
+/// block into each (<see cref="BlockMachineCell"/>, the power cell's <see cref="BlockMachineCellPower"/>);
+/// breaking it (or a cell) gives back the frame, everything fitted and what it holds. A right-click, and
+/// right-click held on a hand machine, goes to the block entity. A machine that burns
+/// (<see cref="BEMachine.Ignitable"/>, the stall roaster) is lit with a firestarter or a torch on any of its
+/// cells, as the forge is (<see cref="MachineFire"/>).
 /// </summary>
-public class BlockOreMachine : Block, IMechanicalPowerBlock, IIgnitable
+public class BlockMachine : Block, IMechanicalPowerBlock, IIgnitable
 {
-    public const string ClassName = "seraphhorizons.OreMachine";
+    public const string ClassName = "seraphhorizons.Machine";
 
-    /// <summary>The machine's id (<c>attributes.oreMachine.machine</c>), or the code's first part.</summary>
-    public string Machine => Attributes?["oreMachine"]?["machine"]?.AsString(null) ?? Code.FirstCodePart();
+    /// <summary>The machine's id (<c>attributes.machine.machine</c>), or the code's first part.</summary>
+    public string Machine => Attributes?["machine"]?["machine"]?.AsString(null) ?? Code.FirstCodePart();
 
-    /// <summary>The machine's own part requires (<c>attributes.oreMachine.extraRequires</c>).</summary>
-    public string[] ExtraRequires => Attributes?["oreMachine"]?["extraRequires"]?.AsArray<string>([])?.OfType<string>().ToArray() ?? [];
+    /// <summary>An ore machine's own part requires (<c>attributes.machine.extraRequires</c>).</summary>
+    public string[] ExtraRequires => Attributes?["machine"]?["extraRequires"]?.AsArray<string>([])?.OfType<string>().ToArray() ?? [];
 
-    public OreMachineRig? Rig => api == null ? null : OreMachinesSystem.Of(api).Rig(Machine, ExtraRequires);
+    /// <summary>The machine's rig: the one its system registered (<see cref="MachinesSystem.RegisterRig"/>), else
+    /// read as an ore machine's (<see cref="OreMachinesSystem.Rig"/>).</summary>
+    public IMachineRig? Rig
+    {
+        get
+        {
+            if (api == null)
+                return null;
+            var rig = MachinesSystem.Of(api).RegisteredRig(Machine, out bool registered);
+            return registered ? rig : OreMachinesSystem.Of(api).Rig(Machine, ExtraRequires);
+        }
+    }
 
     public override void OnLoaded(ICoreAPI api)
     {
@@ -50,7 +62,7 @@ public class BlockOreMachine : Block, IMechanicalPowerBlock, IIgnitable
             failureCode = "__ignore__";
             return false;
         }
-        foreach (var cell in rig.OtherCells)
+        foreach (var cell in rig.OtherCells())
         {
             var w = Footprint.ToWorld(cell.Pos, side);
             var at = blockSel.Clone();
@@ -61,8 +73,9 @@ public class BlockOreMachine : Block, IMechanicalPowerBlock, IIgnitable
         return true;
     }
 
-    /// <summary>Places the variant whose front faces the player (<see cref="OreMachineRig.PlacedSide"/>):
-    /// the block they clicked becomes the controller.</summary>
+    /// <summary>Places the variant whose native north faces the player, so the facing is the way they look
+    /// (<see cref="OreMachineRig.PlacedSide"/>, every machine's rule): the block they clicked becomes the
+    /// controller.</summary>
     public override bool TryPlaceBlock(IWorldAccessor world, IPlayer byPlayer, ItemStack itemstack, BlockSelection blockSel, ref string failureCode)
     {
         var away = SuggestedHVOrientation(byPlayer, blockSel)[0];
@@ -77,38 +90,68 @@ public class BlockOreMachine : Block, IMechanicalPowerBlock, IIgnitable
     public override void OnBlockPlaced(IWorldAccessor world, BlockPos blockPos, ItemStack? byItemStack = null)
     {
         base.OnBlockPlaced(world, blockPos, byItemStack);
-        (world.BlockAccessor.GetBlockEntity(blockPos) as BEOreMachine)?.PlaceCells();
+        (world.BlockAccessor.GetBlockEntity(blockPos) as BEMachine)?.PlaceCells();
     }
 
     public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
-        world.BlockAccessor.GetBlockEntity(blockSel.Position) is BEOreMachine machine
-            ? machine.OnInteract(byPlayer, blockSel)
+        world.BlockAccessor.GetBlockEntity(blockSel.Position) is BEMachine
+            ? InteractAt(world, byPlayer, blockSel, blockSel.Position)
             : base.OnBlockInteractStart(world, byPlayer, blockSel);
+
+    public override bool OnBlockInteractStep(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
+        StepAt(world, byPlayer, blockSel.Position, secondsUsed);
+
+    public override void OnBlockInteractStop(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
+        ReleaseAt(world, byPlayer, blockSel.Position);
+
+    public override bool OnBlockInteractCancel(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel,
+                                               EnumItemUseCancelReason cancelReason)
+    {
+        ReleaseAt(world, byPlayer, blockSel.Position);
+        return true;
+    }
+
+    /// <summary>A right-click on one of the machine's cells, <paramref name="principal"/> the controller's
+    /// position: the machine's, where the player may use it.</summary>
+    public static bool InteractAt(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel, BlockPos principal)
+    {
+        if (!world.Claims.TryAccess(byPlayer, principal, EnumBlockAccessFlags.Use))
+            return false;
+        return world.BlockAccessor.GetBlockEntity(principal) is BEMachine machine && machine.OnInteract(byPlayer, blockSel);
+    }
+
+    /// <summary>Right-click still held: whether the player goes on working a hand machine.</summary>
+    public static bool StepAt(IWorldAccessor world, IPlayer byPlayer, BlockPos principal, float secondsUsed) =>
+        world.BlockAccessor.GetBlockEntity(principal) is BEMachine machine && machine.OnInteractStep(byPlayer, secondsUsed);
+
+    /// <summary>Right-click let go (or the interaction cancelled).</summary>
+    public static void ReleaseAt(IWorldAccessor world, IPlayer byPlayer, BlockPos principal) =>
+        (world.BlockAccessor.GetBlockEntity(principal) as BEMachine)?.OnInteractStop(byPlayer);
 
     public override ItemStack[] GetDrops(IWorldAccessor world, BlockPos pos, IPlayer byPlayer, float dropQuantityMultiplier = 1)
     {
         var drops = base.GetDrops(world, pos, byPlayer, dropQuantityMultiplier) ?? [];
-        return world.BlockAccessor.GetBlockEntity(pos) is BEOreMachine machine ? [.. drops, .. machine.AssemblyDrops()] : drops;
+        return world.BlockAccessor.GetBlockEntity(pos) is BEMachine machine ? [.. drops, .. machine.AssemblyDrops()] : drops;
     }
 
     public override ItemStack OnPickBlock(IWorldAccessor world, BlockPos pos) =>
         new(world.GetBlock(CodeWithVariant("side", "north")) is { Id: > 0 } north ? north : this);
 
     public override Cuboidf[] GetCollisionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BEOreMachine)?.CollisionBoxes(pos) ?? base.GetCollisionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BEMachine)?.CollisionBoxes(pos) ?? base.GetCollisionBoxes(blockAccessor, pos);
 
     public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BEOreMachine)?.CellBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BEMachine)?.CellBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
 
     // A face of the controller that is one of the machine's anchors (a water pipe's) carries a block attached to it.
     public override bool CanAttachBlockAt(IBlockAccessor blockAccessor, Block block, BlockPos pos, BlockFacing blockFace, Cuboidi? attachmentArea = null) =>
-        (blockAccessor.GetBlockEntity(pos) as BEOreMachine)?.AnchorFaceAt(pos, blockFace) == true
+        (blockAccessor.GetBlockEntity(pos) as BEMachine)?.AnchorFaceAt(pos, blockFace) == true
         || base.CanAttachBlockAt(blockAccessor, block, pos, blockFace, attachmentArea);
 
     // A machine whose power cell is its controller's (the shaking table): its frame's block type carries
     // seraphhorizons.MachineMP, and the axle connects on the power face only.
     public bool HasMechPowerConnectorAt(IWorldAccessor world, BlockPos pos, BlockFacing face, BlockMPBase forBlock) =>
-        world.BlockAccessor.GetBlockEntity(pos) is BEOreMachine { PowerAtController: true } machine && machine.PowerFace == face;
+        world.BlockAccessor.GetBlockEntity(pos) is BEMachine { PowerAtController: true } machine && machine.PowerFace == face;
 
     public MechanicalNetwork? GetNetwork(IWorldAccessor world, BlockPos pos) =>
         world.BlockAccessor.GetBlockEntity(pos)?.GetBehavior<BEBehaviorMPBase>()?.Network;
@@ -118,16 +161,16 @@ public class BlockOreMachine : Block, IMechanicalPowerBlock, IIgnitable
     }
 
     public EnumIgniteState OnTryIgniteBlock(EntityAgent byEntity, BlockPos pos, float secondsIgniting) =>
-        OreMachineFire.IgniteState(byEntity, pos, secondsIgniting);
+        MachineFire.IgniteState(byEntity, pos, secondsIgniting);
 
     public void OnTryIgniteBlockOver(EntityAgent byEntity, BlockPos pos, float secondsIgniting, ref EnumHandling handling) =>
-        OreMachineFire.IgniteOver(byEntity, pos, secondsIgniting, ref handling);
+        MachineFire.IgniteOver(byEntity, pos, secondsIgniting, ref handling);
 
     public EnumIgniteState OnTryIgniteStack(EntityAgent byEntity, BlockPos pos, ItemSlot slot, float secondsIgniting) =>
-        OreMachineFire.IgniteStack(byEntity, pos, secondsIgniting);
+        MachineFire.IgniteStack(byEntity, pos, secondsIgniting);
 
     public override string GetPlacedBlockName(IWorldAccessor world, BlockPos pos) =>
-        world.BlockAccessor.GetBlockEntity(pos) is BEOreMachine { Built: true }
+        world.BlockAccessor.GetBlockEntity(pos) is BEMachine { Complete: true }
             ? Lang.Get($"seraphhorizons:block-{Machine}")
             : base.GetPlacedBlockName(world, pos);
 
@@ -137,7 +180,7 @@ public class BlockOreMachine : Block, IMechanicalPowerBlock, IIgnitable
 
     public override WorldInteraction[] GetPlacedBlockInteractionHelp(IWorldAccessor world, BlockSelection selection, IPlayer forPlayer)
     {
-        var help = world.BlockAccessor.GetBlockEntity(selection.Position) is BEOreMachine machine
+        var help = world.BlockAccessor.GetBlockEntity(selection.Position) is BEMachine machine
             ? machine.InteractionHelp(forPlayer)
             : [];
         return help.Append(base.GetPlacedBlockInteractionHelp(world, selection, forPlayer));
@@ -145,21 +188,22 @@ public class BlockOreMachine : Block, IMechanicalPowerBlock, IIgnitable
 }
 
 /// <summary>
-/// A cell of an ore machine around its controller (<c>seraphhorizons:oremachine-cell</c>, one block for
-/// every machine; #711). Interaction, breaking, the pick-block stack, particles, name, info and help go to
-/// the controller, as the other machines' ghosts do; its boxes are its cell's from the rig. A face of it
-/// that is one of the machine's anchors (a water pipe's, a chute's) carries a block attached to it. A fire
-/// lit on it lights the machine (<see cref="OreMachineFire"/>).
+/// A cell of a machine on the shared base around its controller (<c>seraphhorizons:machine-cell</c>, one
+/// block for every machine; #711), in place of each machine's own ghost blocks. Interaction (a click, or
+/// right-click held on a hand machine), breaking, the pick-block stack, particles, name, info and help go
+/// to the controller; its boxes are its cell's from the rig. A face of it that is one of an ore machine's
+/// anchors (a water pipe's, a chute's) carries a block attached to it. A fire lit on it lights the machine
+/// (<see cref="MachineFire"/>).
 /// </summary>
-public class BlockOreMachineCell : Block, IIgnitable
+public class BlockMachineCell : Block, IIgnitable
 {
-    public const string ClassName = "seraphhorizons.OreMachineCell";
-    public static readonly AssetLocation CellCode = new(OreMachinesSystem.Domain, "oremachine-cell");
+    public const string ClassName = "seraphhorizons.MachineCell";
+    public static readonly AssetLocation CellCode = new(MachinesSystem.Domain, "machine-cell");
 
-    private static bool Controller(IBlockAccessor blockAccessor, BlockPos pos, out BlockOreMachine block, out BlockPos principal)
+    private static bool Controller(IBlockAccessor blockAccessor, BlockPos pos, out BlockMachine block, out BlockPos principal)
     {
-        principal = (blockAccessor.GetBlockEntity(pos) as BEOreMachineCell)?.Principal!;
-        block = (principal != null ? blockAccessor.GetBlock(principal) as BlockOreMachine : null)!;
+        principal = (blockAccessor.GetBlockEntity(pos) as BEMachineCell)?.Principal!;
+        block = (principal != null ? blockAccessor.GetBlock(principal) as BlockMachine : null)!;
         return block != null;
     }
 
@@ -192,10 +236,27 @@ public class BlockOreMachineCell : Block, IIgnitable
 
     public override bool OnBlockInteractStart(IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
     {
-        if (Controller(world.BlockAccessor, blockSel.Position, out _, out var principal)
-            && world.BlockAccessor.GetBlockEntity(principal) is BEOreMachine machine)
-            return machine.OnInteract(byPlayer, blockSel);
+        if (Controller(world.BlockAccessor, blockSel.Position, out _, out var principal))
+            return BlockMachine.InteractAt(world, byPlayer, blockSel, principal);
         return base.OnBlockInteractStart(world, byPlayer, blockSel);
+    }
+
+    public override bool OnBlockInteractStep(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel) =>
+        Controller(world.BlockAccessor, blockSel.Position, out _, out var principal)
+        && BlockMachine.StepAt(world, byPlayer, principal, secondsUsed);
+
+    public override void OnBlockInteractStop(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel)
+    {
+        if (Controller(world.BlockAccessor, blockSel.Position, out _, out var principal))
+            BlockMachine.ReleaseAt(world, byPlayer, principal);
+    }
+
+    public override bool OnBlockInteractCancel(float secondsUsed, IWorldAccessor world, IPlayer byPlayer, BlockSelection blockSel,
+                                               EnumItemUseCancelReason cancelReason)
+    {
+        if (Controller(world.BlockAccessor, blockSel.Position, out _, out var principal))
+            BlockMachine.ReleaseAt(world, byPlayer, principal);
+        return true;
     }
 
     public override WorldInteraction[] GetPlacedBlockInteractionHelp(IWorldAccessor world, BlockSelection selection, IPlayer forPlayer) =>
@@ -224,34 +285,34 @@ public class BlockOreMachineCell : Block, IIgnitable
             : 0;
 
     public EnumIgniteState OnTryIgniteBlock(EntityAgent byEntity, BlockPos pos, float secondsIgniting) =>
-        OreMachineFire.IgniteState(byEntity, pos, secondsIgniting);
+        MachineFire.IgniteState(byEntity, pos, secondsIgniting);
 
     public void OnTryIgniteBlockOver(EntityAgent byEntity, BlockPos pos, float secondsIgniting, ref EnumHandling handling) =>
-        OreMachineFire.IgniteOver(byEntity, pos, secondsIgniting, ref handling);
+        MachineFire.IgniteOver(byEntity, pos, secondsIgniting, ref handling);
 
     public EnumIgniteState OnTryIgniteStack(EntityAgent byEntity, BlockPos pos, ItemSlot slot, float secondsIgniting) =>
-        OreMachineFire.IgniteStack(byEntity, pos, secondsIgniting);
+        MachineFire.IgniteStack(byEntity, pos, secondsIgniting);
 
     public override Cuboidf[] GetCollisionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BEOreMachineCell)?.Machine(blockAccessor)?.CollisionBoxes(pos) ?? base.GetCollisionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BEMachineCell)?.Machine(blockAccessor)?.CollisionBoxes(pos) ?? base.GetCollisionBoxes(blockAccessor, pos);
 
     public override Cuboidf[] GetSelectionBoxes(IBlockAccessor blockAccessor, BlockPos pos) =>
-        (blockAccessor.GetBlockEntity(pos) as BEOreMachineCell)?.Machine(blockAccessor)?.CellBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
+        (blockAccessor.GetBlockEntity(pos) as BEMachineCell)?.Machine(blockAccessor)?.CellBoxes(pos) ?? base.GetSelectionBoxes(blockAccessor, pos);
 
     public override bool CanAttachBlockAt(IBlockAccessor blockAccessor, Block block, BlockPos pos, BlockFacing blockFace, Cuboidi? attachmentArea = null) =>
-        (blockAccessor.GetBlockEntity(pos) as BEOreMachineCell)?.Machine(blockAccessor)?.AnchorFaceAt(pos, blockFace) == true
+        (blockAccessor.GetBlockEntity(pos) as BEMachineCell)?.Machine(blockAccessor)?.AnchorFaceAt(pos, blockFace) == true
         || base.CanAttachBlockAt(blockAccessor, block, pos, blockFace, attachmentArea);
 }
 
-/// <summary>The cell that takes the axle (<c>seraphhorizons:oremachine-cellpower-{face}</c>, face being the
-/// world face the axle meets it at, the rig's <c>powerFace</c> turned to the machine's facing): a mechanical
-/// power connector on that face only, carrying <see cref="BEBehaviorMachineMP"/>.</summary>
-public class BlockOreMachineCellPower : BlockOreMachineCell, IMechanicalPowerBlock
+/// <summary>The cell that takes the axle (<c>seraphhorizons:machine-cellpower-{face}</c>, face being the
+/// world face the axle meets it at, the rig's power anchor's face turned to the machine's facing): a
+/// mechanical power connector on that face only, carrying <see cref="BEBehaviorMachineMP"/>.</summary>
+public class BlockMachineCellPower : BlockMachineCell, IMechanicalPowerBlock
 {
-    public new const string ClassName = "seraphhorizons.OreMachineCellPower";
+    public new const string ClassName = "seraphhorizons.MachineCellPower";
 
     /// <summary>The power cell's block for a world face.</summary>
-    public static AssetLocation CodeFor(BlockFacing face) => new(OreMachinesSystem.Domain, "oremachine-cellpower-" + face.Code);
+    public static AssetLocation CodeFor(BlockFacing face) => new(MachinesSystem.Domain, "machine-cellpower-" + face.Code);
 
     public BlockFacing PowerFace => BlockFacing.FromCode(Variant["face"]) ?? BlockFacing.UP;
 
@@ -266,18 +327,18 @@ public class BlockOreMachineCellPower : BlockOreMachineCell, IMechanicalPowerBlo
 }
 
 /// <summary>
-/// Lighting an ore machine that burns (<see cref="BEOreMachine.Ignitable"/>: the stall roaster), as the forge
+/// Lighting a machine that burns (<see cref="BEMachine.Ignitable"/>: the stall roaster), as the forge
 /// and the crucible furnace are lit: a firestarter or a torch held on any of its cells for 1.5 s lights it, if
-/// it can be lit (<see cref="BEOreMachine.CannotIgnite"/>; else it says why, once); a torch is lit from it while
+/// it can be lit (<see cref="BEMachine.CannotIgnite"/>; else it says why, once); a torch is lit from it while
 /// it burns. A machine that never burns is not ignitable.
 /// </summary>
-public static class OreMachineFire
+public static class MachineFire
 {
     /// <summary>The machine whose controller or cell is at <paramref name="pos"/>.</summary>
-    public static BEOreMachine? MachineAt(IBlockAccessor ba, BlockPos pos) => ba.GetBlockEntity(pos) switch
+    public static BEMachine? MachineAt(IBlockAccessor ba, BlockPos pos) => ba.GetBlockEntity(pos) switch
     {
-        BEOreMachine machine => machine,
-        BEOreMachineCell cell => cell.Machine(ba),
+        BEMachine machine => machine,
+        BEMachineCell cell => cell.Machine(ba),
         _ => null,
     };
 

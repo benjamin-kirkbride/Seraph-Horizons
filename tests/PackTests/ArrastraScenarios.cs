@@ -69,8 +69,8 @@ public partial class SharedWorldScenarios
     {
         Assert.True(ArrastraSystem.Applies(World.Api));
         foreach (var side in new[] { "north", "east", "south", "west" })
-            Assert.IsType<BlockOreMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:arrastra-{side}")));
-        var build = OreMachinesSystem.Of(World.Api).Build("arrastra");
+            Assert.IsType<BlockMachine>(W.GetBlock(new AssetLocation($"seraphhorizons:arrastra-{side}")));
+        var build = MachinesSystem.Of(World.Api).Build("arrastra");
         Assert.NotNull(build);
         Assert.Equal(FeedMode.Batch, build!.Feed);
         Assert.Equal(new[] { "pit", "post", "arms", "stones" }, build.Stages.Select(s => s.Id));

@@ -19,10 +19,14 @@ public enum MachineState
     /// <summary>Running, with nothing to work.</summary>
     Idle,
     Working,
+    /// <summary>A hand machine with work on it and no one working it.</summary>
+    Unworked,
 }
 
-/// <summary>What the shared rules decide about a machine at one moment.</summary>
-public readonly record struct MachineCheck(bool Built, bool PartsFitted, bool Powered, float Speed, bool Wet, bool HasWork, bool OutputRoom);
+/// <summary>What the shared rules decide about a machine at one moment. <see cref="Held"/> is a hand
+/// machine's: whether anyone is working it (null for a machine no hand works).</summary>
+public readonly record struct MachineCheck(bool Built, bool PartsFitted, bool Powered, float Speed, bool Wet, bool HasWork, bool OutputRoom,
+    bool? Held = null);
 
 /// <summary>
 /// The shared running rules of the ore machines (#711): a machine runs only built, with its wearing
@@ -52,7 +56,9 @@ public static class MachineRun
             return MachineState.Dry;
         if (!check.OutputRoom)
             return MachineState.Blocked;
-        return check.HasWork ? MachineState.Working : MachineState.Idle;
+        if (!check.HasWork)
+            return MachineState.Idle;
+        return check.Held == false ? MachineState.Unworked : MachineState.Working;
     }
 
     /// <summary>Whether a shaft turning at <paramref name="speed"/> (either way) drives the machine.</summary>

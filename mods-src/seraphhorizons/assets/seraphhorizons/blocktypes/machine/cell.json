@@ -1,10 +1,10 @@
-// A cell of an ore machine around its controller, one block for every machine (#711;
-// Machines/Game/OreMachineBlocks.cs, BlockOreMachineCell). Its boxes are its cell's from the
-// machine's rig; a chute into the infeed face fills its one slot.
+// A cell of a machine on the shared base around its controller, one block for every machine (#711;
+// Machines/Game/MachineBlocks.cs, BlockMachineCell). Its boxes are its cell's from the machine's rig;
+// a chute into an ore machine's infeed face fills its one slot.
 {
-	code: "oremachine-cell",
-	class: "seraphhorizons.OreMachineCell",
-	entityClass: "seraphhorizons.OreMachineCell",
+	code: "machine-cell",
+	class: "seraphhorizons.MachineCell",
+	entityClass: "seraphhorizons.MachineCell",
 	shape: { base: "game:block/basic/nothing" },
 	blockmaterial: "Wood",
 	drops: [],

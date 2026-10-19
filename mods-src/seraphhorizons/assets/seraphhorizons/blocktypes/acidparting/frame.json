@@ -5,9 +5,9 @@
 // (extraRequires, AcidParting/Core/AcidPartingRig.cs). The server disables it with AcidParting or OreProcessing off.
 {
 	code: "acidparting",
-	class: "seraphhorizons.OreMachine",
+	class: "seraphhorizons.Machine",
 	entityClass: "seraphhorizons.AcidParting",
-	// No HorizontalOrientable: BlockOreMachine.TryPlaceBlock picks the side so the hood's open front faces
+	// No HorizontalOrientable: BlockMachine.TryPlaceBlock picks the side so the hood's open front faces
 	// the player.
 	variantgroups: [
 		{ code: "side", loadFromProperties: "abstract/horizontalorientation" }
@@ -39,7 +39,7 @@
 		"silver":   { base: "game:block/metal/ingot/silver" }
 	},
 	attributes: {
-		oreMachine: {
+		machine: {
 			machine: "acidparting",
 			extraRequires: [
 				"damperopen", "damperhalf", "dampershut", "fuel", "fire",
