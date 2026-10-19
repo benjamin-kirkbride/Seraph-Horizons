@@ -331,6 +331,41 @@ public class OreMachineSharedTests
         Assert.Equal(0, WorkTurns.None.Add(-1, 3).Items);
     }
 
+    [Theory]
+    [InlineData(0.0, 0)]
+    [InlineData(0.4199, 41)]
+    [InlineData(0.42, 42)]
+    [InlineData(0.999, 99)]
+    [InlineData(1.0, 100)]
+    [InlineData(1.7, 100)]
+    [InlineData(-0.2, 0)]
+    public void Working_shows_the_whole_percent_done_floored(double progress, int percent) =>
+        Assert.Equal(percent, MachineRun.Percent(progress));
+
+    [Fact]
+    public void A_machine_with_no_progress_shows_no_percent()
+    {
+        Assert.Null(MachineRun.Percent(null));
+        Assert.Null(MachineRun.Percent(double.NaN));
+        Assert.Null(MachineRun.Percent(double.PositiveInfinity));
+    }
+
+    [Fact]
+    public void Progress_syncs_when_its_percent_changes_at_most_once_a_second()
+    {
+        var sync = ProgressSync.None;
+        Assert.True(sync.Due(0, 10));               // starting work sends at once
+        sync = sync.Sent(0, 10);
+        Assert.False(sync.Due(0, 20));              // the same percent never resends
+        Assert.False(sync.Due(3, 10.5));            // a change within the second waits
+        Assert.True(sync.Due(3, 11));
+        sync = sync.Sent(3, 11);
+        Assert.True(sync.Due(null, 11.1));          // stopping sends at once
+        sync = sync.Sent(null, 11.1);
+        Assert.False(sync.Due(null, 30));
+        Assert.True(sync.Due(4, 11.2));             // and so does starting again
+    }
+
     [Fact]
     public void Load_is_the_jobs_once_built_a_token_before_and_three_times_dry()
     {

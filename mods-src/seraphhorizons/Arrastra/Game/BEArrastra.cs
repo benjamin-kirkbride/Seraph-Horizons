@@ -72,6 +72,9 @@ public class BEArrastra : BEOreMachine
 
     public override bool OutputRoom => true;
 
+    /// <summary>The charge's turns ground, of a charge's (<see cref="ArrastraCharge.Progress"/>).</summary>
+    public override double? WorkProgress => HasWork && Spec is { } spec ? Charge.Progress(spec.TurnsPerCharge) : null;
+
     /// <summary>The charge's water is in the pit; with nothing to grind it is not "dry".</summary>
     protected override bool Wet => !HasWork || Charge.CanGrind(Water.Litres, WaterPerItem);
 

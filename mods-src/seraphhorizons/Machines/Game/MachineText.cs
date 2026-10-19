@@ -70,12 +70,14 @@ public static class MachineText
     }
 
     /// <summary>The state's line ("No power: it needs its shaft turning at 0.05 or faster"): the machine's
-    /// own <c>seraphhorizons:{machine}-state-{state}</c> where it has one.</summary>
-    public static void AppendState(StringBuilder sb, MachineState state, float minSpeed, string? machine = null)
+    /// own <c>seraphhorizons:{machine}-state-{state}</c> where it has one, and the work's
+    /// <paramref name="percent"/> after it where given ("Working (42%)").</summary>
+    public static void AppendState(StringBuilder sb, MachineState state, float minSpeed, string? machine = null, int? percent = null)
     {
         string own = $"seraphhorizons:{machine}-state-{state.ToString().ToLowerInvariant()}";
         string key = machine != null && Lang.HasTranslation(own) ? own : MachineRun.LangCode(state);
-        sb.AppendLine(Lang.Get(key, minSpeed.ToString("0.##", CultureInfo.InvariantCulture)));
+        string line = Lang.Get(key, minSpeed.ToString("0.##", CultureInfo.InvariantCulture));
+        sb.AppendLine(percent is { } p ? Lang.Get(P + "state-progress", line, p) : line);
     }
 
     /// <summary>The reservoir's line: litres in it of its capacity, and an item's water.</summary>
