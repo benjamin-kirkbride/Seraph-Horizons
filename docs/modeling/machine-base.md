@@ -25,6 +25,8 @@ game side.
 | `IMachineRig` | `Core/IMachineRig.cs` | What the base reads of a rig, whatever its dialect: cells, parts, anchors by name (`power`, `infeed`, `water`, the outlets); `OtherCells()`, `PowerAnchor()`, `ShaftAxis()`, `Middle()`, `LightCell()`. |
 | `MachineInfo` | `Core/MachineInfo.cs` | Block info lines, each always shown or only with a wrench. |
 | `OreMachinesSystem`, `BEOreMachine` | `Game/` | The ore machines' own half on the base: their settings and rigs, the ore figures, the infeed and outlets, tailings. |
+| `FurnaceFiring`, `FurnaceFlue` | `CrucibleFurnace/Game/FurnaceFiring.cs`, `CrucibleFurnace/Core/FurnaceFlue.cs` | A fired machine's flue, a piece any owner composes as it composes its oil: the outlet's cap and the row on one chimney (`FurnaceRow`), the chimney on the outlet, the neighbours along the row, capping and uncapping, the cap's drop, its tree keys, the brickwork's textures in the brick type, the lighting help's stacks, the row's info line. `FurnaceFlue` is what every fired rig says of it (the outlet, the cap, the bricks, the row's figures), parsed once; a fired ore machine's rig derives `FiredRig`. |
+| `BEFiredOreMachine` | `CrucibleFurnace/Game/BEFiredOreMachine.cs` | The fired ore machines' base on `BEOreMachine` (the stall and reverberatory roasters, the cupellation and liquation furnaces, the Parkes kettle, the acid parting vessel): the firing piece, the row found each second (`RowInOwnTick` for a machine that finds it in its own tick), the brick type, lighting (`Lit`, `CannotIgnite`, then the machine's `Light`), the textures and the cap's drop. The crucible furnace composes the piece on `BEMachine` itself. |
 
 ## Moving a machine onto it
 
@@ -95,10 +97,11 @@ Subclass `BEMachine` and override what is the machine's. Each opt-in is a few li
 | Be worked by hand | `HandWorked => true`, `HoldTimeoutMs` if not 600 (the rocker's 400), `StartHold(byPlayer)` from `InteractWork` on a work click, `HasWork`, and `WorkUnpowered(dt)` while held. The base forwards the steps and the stop, keeps the holds, syncs `Held`, and gives the state `Unworked` ("hold right mouse") while work is on and no one holds. |
 | Hold water | `WaterPerItem`, `ReservoirCapacity`, `WaterIntakePerSecond`, a `water` anchor on the rig; `SpendWater` per item. |
 | Hold items | `NewInventory()` (the base's is empty), `CellTakes` for a chute into a cell. |
-| Burn | `Ignitable`, `Burning`, `CannotIgnite`, `Ignite`. |
+| Change its boxes | `CellBoxes`, `CollisionBoxes` (the rig's by default, built once): the crucible furnace's frame-only cells before its brickwork and its lid's in the hollow cells. Build the tables once and only read them: collision lookups run off the main thread. |
+| Burn | `Ignitable`, `Burning`, `CannotIgnite`, `Ignite`; a fired ore machine derives `BEFiredOreMachine` and gives `Lit`, `CannotIgnite` and `Light`. |
 | Take its work | `InteractContent` (before the build: take the work back, a bucket), `InteractWork` (after it: load the work, start a hold). Return whether the click was the machine's; act on the server. `CreativeShortcut(player)` tells a creative Ctrl from the machine's own Ctrl. |
 | Say when it is whole | `Complete` (the name), `CreativeFills` (the creative shortcut), `LoadsShaft`: each `Built` by default; `Ready` (built and every wearing part in) for a machine that stops without its wearing part. |
-| Draw | `FrameInput(dt, far)` for its own clock (the base's turns θ and ψ with the shaft: `AdvanceShaft()`); `ShowsPart` for parts drawn by the work rather than the build; `TextureKey` and `PartTextures` for a texture the build picks (an edge's metal); `RenderRange`; `Animates`. Particles go in `FrameInput`, sounds in `OnClientTick`. |
+| Draw | `CreateRenderer` for a renderer of its own where the shared one does not cover it (the crucible furnace's: a pot's metal per part, the fire's glow); `FrameInput(dt, far)` for its own clock (the base's turns θ and ψ with the shaft: `AdvanceShaft()`); `ShowsPart` for parts drawn by the work rather than the build; `TextureKey` and `PartTextures` for a texture the build picks (an edge's metal); `RenderRange`; `Animates`. Particles go in `FrameInput`, sounds in `OnClientTick`. |
 | Save | `ToTreeAttributes`/`FromTreeAttributes` for the work only, calling the base: the build, wearing parts, state, oil, water and holds are the base's. |
 | Help | `WorkHelp` for the built machine's lines; the build's, the renewal's and the creative shortcut's are the base's. |
 
@@ -188,6 +191,15 @@ may borrow it (the amalgam pan used the press brake's `LeverHolds`).
   subclass (`Machines.Tailings.Discard` stopped compiling).
 - **`new` on `Rig`.** A subclass that wants its own rig type hides the base's: `private new DrawBenchRig? Rig =>
   base.Rig as DrawBenchRig;`.
+- **A stack a click is gone.** A machine whose own build put in as many of the held stack as a stage still
+  needed (the crucible furnace's) takes the shared rule: all the stage still needs, or a whole full stack; fewer,
+  not a full stack, is `TooFew`. A brick stage part way in another type cannot be reached by clicks then (a full
+  stack is more than a stage's 25), so its `OtherKind` is held by a unit test with a small stack size.
+- **`Error` is the base's.** A machine's own `Error(IPlayer?, string key, params object[] args)` loses overload
+  resolution to the base's `Error(IPlayer?, string? message, string? code)` whenever it is called with two strings
+  (`Error(player, "notbuilt", stageName)`): name it otherwise (the crucible furnace's `Refuse`).
+- **Returns merge by code.** `MachineAssembly.Returns()` gives one drop a code: the crucible furnace's lining and
+  lid refractory bricks come back as one stack of 13, not 9 and 4.
 - **Building in the sandbox.** MSBuild's parallel nodes fail silently there: build and test with `-m:1
   -nodeReuse:false`, and `-p:EnableSourceControlManagerQueries=false` when SourceLink cannot read the worktree.
 
@@ -195,8 +207,7 @@ may borrow it (the amalgam pan used the press brake's `LeverHolds`).
 
 Wave 2 moves the rest onto the base: the bucking sawmill, the rosser, the gear cutter, the cylinder borer (their
 own `BEBehavior{X}MP` and oil; the gear cutter and borer with `DryEffect.Wear`), the squaring shear and the mandrel
-station (hand machines: their `TreadleHolds` and `WindHolds` become `HandHolds`), the eidolon gantry, the crucible
-furnace (its own build model, `FurnaceBuild`), the hand stations (riddle, rocker, amalgam pan), and oil for every
+station (hand machines: their `TreadleHolds` and `WindHolds` become `HandHolds`), the eidolon gantry, the hand stations (riddle, rocker, amalgam pan), and oil for every
 shaft-powered ore machine (the jaw breaker, stamp battery, arrastra, ball mill, jig, shaking table, vanner, and the
 reverberatory roaster and Parkes kettle, which also turn on a shaft): an `OilMachine` value and a
 `MachineOilConfig` entry each, their defaults scaled by load with the reasoning in each README, the config-defaults
