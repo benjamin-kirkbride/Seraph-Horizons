@@ -42,6 +42,10 @@ public static class MineRoutePlanner
     /// counts this much later in the choice.</summary>
     public const double AheadWaitSeconds = 10, AheadPenaltySeconds = 10;
 
+    /// <summary>A second face (another lane while another member holds one) counts this much later in the choice:
+    /// after the open part and work ahead (README "Eidolon", working together, *Spare work*).</summary>
+    public const double SecondFacePenaltySeconds = 2 * AheadPenaltySeconds;
+
     public const int Relocations = 16, Validations = 3;
 
     /// <summary>The most a member puts off setting off for another's claim on its way.</summary>
@@ -631,6 +635,10 @@ public static class MineRoutePlanner
             Take(open, PlanOrderPool);
             var pool = eligible.OrderBy(e => e.Station.Id).ToList();
             var candidates = Time(m, t, pool, ahead: false);
+            // a second face (another lane while one is held: MineDispatch.Rank) counts SecondFacePenaltySeconds later
+            bool faceHeld = bands?.Covered != null && _members.Any(o => o != m && !o.Retired
+                && o.Stops.Any(s => s.Kind == MineStopKind.Station && !s.Ahead && s.Finish > t && _c.Plan.Stations[s.Station].Kind == MineStationKind.Face));
+            bool SecondFace(Candidate c) => MineDispatch.Rank(c.Station, c.Ahead, faceHeld) == 3;
             if (candidates.Count == 0 || candidates.Min(c => c.Start) > t + AheadWaitSeconds)
             {
                 var ahead = new List<(MineStation Station, IReadOnlyList<MarkPos> Cells)>();
@@ -658,7 +666,7 @@ public static class MineRoutePlanner
             bool Busy(Member o) => o.Stops.Any(s => s.Kind == MineStopKind.Station && s.Depart <= t + 1e-9 && s.Finish > t + 1e-9);
             bool Left(Candidate c) => Variant.Leave && _members.Any(o => o != m && !o.Retired
                 && Math.Max(o.Free, t) + MineCosts.Estimate(o.At, c.Station.Stand) + MineCosts.ArriveSeconds + c.Work < c.Finish - (Busy(o) ? 1e-9 : LeaveMargin));
-            foreach (var c in candidates.Where(c => !Left(c)).OrderBy(Sooner).ThenBy(c => c.Finish + (c.Ahead ? AheadPenaltySeconds : 0) - Critical * Beneath(c.Station)).ThenBy(c => c.Station.Id))
+            foreach (var c in candidates.Where(c => !Left(c)).OrderBy(Sooner).ThenBy(c => c.Finish + (c.Ahead ? AheadPenaltySeconds : 0) + (SecondFace(c) ? SecondFacePenaltySeconds : 0) - Critical * Beneath(c.Station)).ThenBy(c => c.Station.Id))
             {
                 if (tries++ >= GuardTries)
                     break;
@@ -1237,7 +1245,8 @@ public static class MineRoutePlanner
                     continue;
                 }
                 m.Through = null;
-                var cells = MineDispatch.Cells(_state, next);
+                // a station worked ahead of its band (none of the face nor of the open part to take) dug as one
+                var cells = MineDispatch.Cells(_state, next, MineDispatch.IsAhead(_state, next));
                 var station = next with { Cells = cells };
                 m.Station = station;
                 m.Claim = MineDispatch.Claim(station, _c.Plan.Tunnel).ToHashSet();

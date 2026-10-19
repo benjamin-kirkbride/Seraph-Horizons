@@ -149,6 +149,7 @@ internal sealed class TeamRunner
         public PathCell At = at;
         public double FreeAt;
         public MineStation? Station;
+        public bool Ahead;
         public int Mined;
         public bool Done;
         public bool Waiting;
@@ -289,6 +290,7 @@ internal sealed class TeamRunner
                     Contacts++;
                 w.ThroughSince = null;
                 w.Station = next;
+                w.Ahead = MineDispatch.IsAhead(_live, next);
                 w.FreeAt = now + (route!.Count - 1) * MineDispatch.WalkSecondsPerBlock;
                 w.Walked += route.Count - 1;
                 w.At = next.Stand;
@@ -296,8 +298,8 @@ internal sealed class TeamRunner
                 continue;
             }
             var station = w.Station;
-            var group = MineStations.NextGroup(station, _plan.Tunnel, c => _live.Remaining.Contains(c) && _live.Bands!.Eligible(c),
-                w.At.X, w.At.Y, w.At.Z);
+            var group = MineStations.NextGroup(station, _plan.Tunnel,
+                c => _live.Remaining.Contains(c) && (_live.Bands!.Eligible(c) || w.Ahead && MineAhead.Eligible(_live, c)), w.At.X, w.At.Y, w.At.Z);
             var at = _workers.Where(o => o != w).Select(o => new MineWorkerAt(o.Id, o.At.X, o.At.Y, o.At.Z,
                 o.Station is { } s ? [s.Stand] : [])).ToList();
             var before = group == null ? [] : MineDispatch.Before(_plan, _live, station);
@@ -758,7 +760,8 @@ internal sealed class RouteRunner
     private void TodayWork(Worker w, double now)
     {
         var station = w.Station!;
-        var group = MineStations.NextGroup(station, _plan.Tunnel, c => _live.Remaining.Contains(c) && _live.Bands!.Eligible(c), w.At.X, w.At.Y, w.At.Z);
+        var group = MineStations.NextGroup(station, _plan.Tunnel,
+            c => _live.Remaining.Contains(c) && (_live.Bands!.Eligible(c) || w.Ahead && MineAhead.Eligible(_live, c)), w.At.X, w.At.Y, w.At.Z);
         var others = _workers.Where(o => o != w).ToList();
         var at = others.Select(o => new MineWorkerAt(o.Id, o.At.X, o.At.Y, o.At.Z, o.Station is { } s ? [s.Stand] : [])).ToList();
         var before = group == null ? [] : MineDispatch.Before(_plan, _live, station);
@@ -854,7 +857,7 @@ internal sealed class RouteRunner
         Assert.True(_board.TryClaim(w.Id, next.Id, MineDispatch.Claim(next, _plan.Tunnel), now), "a claim that fit is taken");
         Log.Add($"{now:0.0}: {w.Id} (today's) sets off for #{next.Id} at {next.Stand}, {route.Count - 1} steps");
         w.Station = next;
-        w.Ahead = false;
+        w.Ahead = MineDispatch.IsAhead(_live, next);
         w.Started = true;
         w.Waiting = false;
         w.FreeAt = now + (route.Count - 1) * MineDispatch.WalkSecondsPerBlock;

@@ -559,7 +559,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
         private readonly Dictionary<(int, int), List<PathCell>> _parkedAt = new();
         private readonly Dictionary<(int Lane, int Y), int> _front = new();
         private int? _covered;
-        private int _openFloor;
+        private int _openFloor, _approachFloor;
         private bool _stairOpen;
         private bool _offLane;
         private bool _free;
@@ -591,7 +591,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
         private void Eligibility()
         {
             _covered = _bands.Covered;
-            _openFloor = _bands.OpenFloor;
+            (_openFloor, _approachFloor) = (_bands.Floor(0), _bands.Floor(1));
             _stairOpen = _bands.StairOpen;
         }
 
@@ -734,6 +734,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                 if (x >= s.X - 1 && x <= s.X && z >= s.Z - 1 && z <= s.Z)
                     continue;
                 int column = _site.Column(x, z);
+                int openFloor = _bands.Approach(x, z) ? _approachFloor : _openFloor;
                 for (int y = Math.Max(s.Y - 1, _area.Min.Y); y <= Math.Min(s.Y + 3, _area.Max.Y); y++)
                 {
                     int band = _band[column + y];
@@ -755,7 +756,7 @@ public sealed class MinePlanner(MinePlanInput input, Func<TimeSpan>? clock = nul
                             continue;
                         (covered ??= new()).Add(c);
                     }
-                    else if (y >= _openFloor)
+                    else if (y >= openFloor)
                         (open ??= new()).Add(c);
                 }
             }

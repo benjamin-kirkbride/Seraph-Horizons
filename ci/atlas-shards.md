@@ -83,7 +83,9 @@ with WideDensityProspectingScenarios, a world of its own kept out of `rest`),
 climbs (EidolonFootingScenarios), `eidolon-overhang` two mining a hillside whose edge wanders
 across the area (EidolonOverhangScenarios, a long dig), `eidolon-fell` felling alone and together
 (EidolonFellScenarios, EidolonTeamFellScenarios), `eidolon-orders` carrying and guarding
-(EidolonCarryScenarios, EidolonGuardScenarios), and `eidolon-jobs` every other Eidolon*
+(EidolonCarryScenarios, EidolonGuardScenarios), `eidolon-hillside` two on a player's hillside
+for 8 minutes of game time (EidolonHillsideScenarios: its export placed, then the longest
+single run of mining in these shards), and `eidolon-jobs` every other Eidolon*
 class (chunk loading, the mine window grown round a crew, EidolonMineWindowScenarios), the complement of the others, kept short so a new one can join it
 (with VirtualClockScenarios, a world of its own kept out of `rest`).
 
