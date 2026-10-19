@@ -37,13 +37,16 @@ public class BEParkesKettle : BEFiredOreMachine
 
     private string? _ore;
     private double _lead;
+    /// <summary>The units of the bath's lead off the whole route (bars carrying <see cref="Bullion.WholeShareAttribute"/>),
+    /// made whole here, plain galena's final step.</summary>
+    private double _wholeLead;
     private int _zinc;
     private double _coal;
     private bool _lit, _done, _skimmed;
     private Damper _damper;
     private double _progress;
     private int _rich, _leadOut, _zincBack;
-    private double _silverCarry, _zincCarry;
+    private double _silverCarry, _zincCarry, _leadCarry;
     private double _lastHours = double.NaN;
     private double _syncedProgress;
 
@@ -69,6 +72,8 @@ public class BEParkesKettle : BEFiredOreMachine
     public string? Ore => _ore;
     /// <summary>Units of silver-lead in the bath.</summary>
     public double LeadUnits => _lead;
+    /// <summary>Units of the bath's silver-lead off the whole route, made whole at the end of the charge.</summary>
+    public double WholeLeadUnits => _wholeLead;
     public int ZincBits => _zinc;
     public double Coal => _coal;
     public override bool Lit => _lit;
@@ -79,6 +84,9 @@ public class BEParkesKettle : BEFiredOreMachine
     public int LeadOut => _leadOut;
     public int ZincBack => _zincBack;
     public bool Skimmed => _skimmed;
+    /// <summary>Silver and lead short of a whole rich bar or ingot, carried on to the next charge.</summary>
+    public double SilverCarry => _silverCarry;
+    public double LeadCarry => _leadCarry;
 
     /// <summary>The units a full charge holds (ore-processing.json <c>machines.parkeskettle.charge</c>).</summary>
     public double ChargeUnits => Spec?.ChargeItems ?? KettleRig?.ChargeUnits ?? 0;
@@ -192,17 +200,17 @@ public class BEParkesKettle : BEFiredOreMachine
     private void Finish()
     {
         var recovery = OreProcessingSystem.RecoveryFor(Api);
-        double silver = _ore is { } ore
-            ? recovery.Smelted(recovery.Ore(ore), _lead, PartingStation.ParkesKettle).Where(m => m.Metal == "silver").Sum(m => m.Units)
-            : 0;
-        var y = ParkesKettling.Finish(_lead, silver, _silverCarry, recovery.RichLeadSilver, _zinc, _zincCarry, recovery.ZincReturn);
+        var (lead, silver) = _ore is { } ore ? ParkesKettling.Parted(recovery, recovery.Ore(ore), _lead, _wholeLead) : (_lead, 0);
+        var y = ParkesKettling.Finish(lead, silver, _silverCarry, recovery.RichLeadSilver, _zinc, _zincCarry, recovery.ZincReturn, _leadCarry);
         _rich = y.RichLead;
         _leadOut = y.Lead;
         _zincBack = y.ZincBits;
         _silverCarry = y.SilverCarry;
         _zincCarry = y.ZincCarry;
+        _leadCarry = y.LeadCarry;
         DrainOil(ParkesKettling.Fill(_lead, ChargeUnits));
         _lead = 0;
+        _wholeLead = 0;
         _zinc = 0;
         _progress = 0;
         _syncedProgress = 0;
@@ -294,6 +302,7 @@ public class BEParkesKettle : BEFiredOreMachine
                 return Refuse(byPlayer, why, (int)(ChargeUnits / Bullion.UnitsPerItem));
             if (server)
             {
+                _wholeLead += take * Bullion.UnitsPerItem * OreStreamAttributes.WholeShareOf(stack);
                 slot!.TakeOut(take);
                 slot.MarkDirty();
                 _ore = ore;
@@ -457,7 +466,7 @@ public class BEParkesKettle : BEFiredOreMachine
             n > 0 && world.GetItem(new AssetLocation(code)) is { Id: > 0 } item ? new ItemStack(item, n) : null;
         var drops = new[]
         {
-            _ore != null ? Of(Bullion.Code(OreProcessingSystem.RecoveryFor(Api).Ore(_ore)), (int)Math.Floor(_lead / Bullion.UnitsPerItem + 1e-9)) : null,
+            _ore != null ? WholeBars(Of(Bullion.Code(OreProcessingSystem.RecoveryFor(Api).Ore(_ore)), (int)Math.Floor(_lead / Bullion.UnitsPerItem + 1e-9))) : null,
             Of(ParkesKettling.ZincBit, _zinc + _zincBack),
             Of(ParkesKettling.Fuels[0], (int)Math.Floor(_coal + 1e-9)),
             Of(Bullion.RichLeadCode, _rich),
@@ -466,6 +475,14 @@ public class BEParkesKettle : BEFiredOreMachine
         foreach (var d in drops)
             if (d != null)
                 yield return d;
+
+        // the bars back carry the bath's whole-route share
+        ItemStack? WholeBars(ItemStack? bars)
+        {
+            if (bars != null && _lead > 0)
+                OreStreamAttributes.SetWholeShare(bars, _wholeLead / _lead);
+            return bars;
+        }
     }
 
     // ---- Saving and syncing ----
@@ -478,6 +495,7 @@ public class BEParkesKettle : BEFiredOreMachine
         else
             tree.RemoveAttribute("ore");
         tree.SetDouble("lead", _lead);
+        tree.SetDouble("wholeLead", _wholeLead);
         tree.SetInt("zinc", _zinc);
         tree.SetDouble("coal", _coal);
         tree.SetBool("lit", _lit);
@@ -490,6 +508,7 @@ public class BEParkesKettle : BEFiredOreMachine
         tree.SetInt("zincBack", _zincBack);
         tree.SetDouble("silverCarry", _silverCarry);
         tree.SetDouble("zincCarry", _zincCarry);
+        tree.SetDouble("leadCarry", _leadCarry);
         tree.SetDouble("lastHours", _lastHours);
     }
 
@@ -498,6 +517,7 @@ public class BEParkesKettle : BEFiredOreMachine
         base.FromTreeAttributes(tree, worldForResolving);
         _ore = tree.GetString("ore");
         _lead = Math.Max(0, tree.GetDouble("lead"));
+        _wholeLead = Math.Clamp(tree.GetDouble("wholeLead"), 0, _lead);
         _zinc = Math.Max(0, tree.GetInt("zinc"));
         _coal = Math.Max(0, tree.GetDouble("coal"));
         _lit = tree.GetBool("lit");
@@ -510,6 +530,7 @@ public class BEParkesKettle : BEFiredOreMachine
         _zincBack = Math.Max(0, tree.GetInt("zincBack"));
         _silverCarry = Math.Max(0, tree.GetDouble("silverCarry"));
         _zincCarry = Math.Max(0, tree.GetDouble("zincCarry"));
+        _leadCarry = Math.Max(0, tree.GetDouble("leadCarry"));
         _lastHours = tree.GetDouble("lastHours", double.NaN);
     }
 

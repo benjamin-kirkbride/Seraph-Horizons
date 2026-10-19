@@ -5765,8 +5765,9 @@ wrong with the file (`Problems`, for the server log; a missing figure reads as 0
   bullion the kettle takes, leaner than its rich lead: `Bullion.TakenBy`), the cupellation furnace
   for argentiferous galena (richer than the kettle's crust, cupelled directly), tetrahedrite and
   freibergite, the liquation furnace for teallite and
-  franckeite, the acid parting vessel for gold quartz (all its gold and its 15 % silver).
-  `WholeRestore` is 1 / the chain's share.
+  franckeite, the acid parting vessel for gold quartz (all its gold and its 15 % silver). The mark
+  survives the crucible as the bar's share of whole units (`oreWholeShare`, README "Ore processing: base
+  bullion"), so these machines do make it whole in play. `WholeRestore` is 1 / the chain's share.
 - **Amalgamation** (`Amalgamate`): the plates catch 65 % of the catchable free metal as amalgam,
   the amalgam pan 45 %; the rest goes on amalgamated (its × 0.7 lifted).
 - **Hand stations do not chain** (`HandConcentrate`): the gold pan 45 %, the rocker 55 %, of the
@@ -6304,9 +6305,31 @@ furnace, smex) as any metal and casts in the ingot mold, which keeps the poured 
   cupelled directly: `Bullion.TakenBy`). Smelted plainly it gives lead.
 - What a machine gets from a charge is `OreRecovery.Smelted` on 100 units a bar at its
   `PartingStation`: the main metal whole and each by-product at its share times the machine's figure.
-- **Not carried**: the concentrators' `oreWhole` mark (#765) does not survive the crucible, so the
-  final step's whole restore of the main metal is lost on these ores; the by-product still comes out at
-  the parting machine's figure (the kettle's 100 %).
+- **The whole route is carried** (`Ore/Processing/BullionWhole.cs`): the concentrators' `oreWhole` mark
+  (#765, the reverberatory carrying it onto roasted concentrate) survives the crucible as a share. A
+  prefix and postfix on the game's `BlockSmeltingContainer.DoSmelt` (the firepit's crucible and
+  crucibulum's forge both call it) count the charge's marked units over all (`Bullion.WholeShare`, each
+  stack by the bullion it smelts to) and put that share on the molten bar as `oreWholeShare`
+  (`Bullion.WholeShareAttribute`); the ingot mold keeps the poured stack's attributes, so every bar cast
+  carries it, and a mold refuses a pour of another share into a bar already begun (the game's own test).
+  Bars of one ore stack whatever their share, at the weighted share (`ItemOreProduct.GetMergableQuantity`
+  and `TryMergeStacks`, `Bullion.MergeWhole`), and the machines take them into one slot alike
+  (`OreStreamAttributes.SameBar`). The tooltip says it: a bar's share (`oreproduct-wholeshare`), a marked
+  concentrate's mark (`oreproduct-whole`).
+- **The final parting makes it whole**: the machine that is the ore's `FinalStep` parts the share as whole
+  units (`OreRecovery.Smelted(ore, units, station, wholeShare)`: that share through `Smelted(..., whole:
+  true)`, the rest as it is), its main metal and by-product both restored (`WholeRestore`, 1 / 98.9 %): the
+  cupellation furnace for argentiferous galena, tetrahedrite and freibergite (each charge stack's
+  `FurnaceCharge.Whole`), the Parkes kettle for plain galena (the bath's whole units, `ParkesKettling.Parted`,
+  its lead short of an ingot carried to the next charge as its silver is), the liquation furnace
+  (`LiquationBars.Whole`), the acid parting vessel (the charge's share, kept with it). The kettle's rich
+  lead needs no mark: its silver is already whole, and the cupellation furnace parts rich lead whole. So
+  argentiferous galena off the whole route ends at 100 % of its lead and silver, where the mark lost in the
+  crucible left 98.9 % and 94 %; plain galena 100 % of both, where it was 98.9 %. A machine that is not the
+  ore's last step (plain galena's bars cupelled directly), and unmarked bars, keep their figures exactly.
+  Tests: `tests/Ore/BullionWholeTests.cs`; Atlas `OreProcessingScenarios.Whole_route_concentrate_smelts_to_bullion_carrying_its_share`
+  (the crucible, the mold, stacking, the tooltip), `MillWorldScenarios.Cupellation_furnace_makes_whole_route_bullion_whole`
+  and `Parkes_kettle_makes_whole_route_galena_whole`.
 - The hand stations (the cupel, the liquation pan) still take roasted concentrate.
 - **Drawn as the game's ingot**, with its GUI, hand and ground transforms, tongs and shelf; doré in the
   shiny ingot and pile, as the game's gold. The `dimensions` stay (the crucible's fit); bars are not
@@ -6924,7 +6947,9 @@ water, no chute. Its feed is **base bullion** ("Ore processing: base bullion"), 
 - **Work.** At ore processing's rate (`machines.cupellationfurnace.perHour`, 55 units of lead an hour; a full charge
   of two bars in about 3.6 hours), the lead burns to litharge (5 units an item) into the pot (slots 5 and 6, two
   charges' worth; full, nothing is worked), and each bar's by-product comes out at the furnace's 95 %
-  (`OreRecovery.Smelted` at `PartingStation.CupellationFurnace`), rich lead's silver whole: silver on the test as the
+  (`OreRecovery.Smelted` at `PartingStation.CupellationFurnace`), a whole-route bar's share made whole, lead and
+  by-product, for the ores it ends (argentiferous galena, tetrahedrite, freibergite: README "Ore processing: base
+  bullion"), rich lead's silver whole: silver on the test as the
   cake, copper beside it, as metal bits, a fraction one more item at that chance (`Cupellation.Whole`). The cake is
   taken out first (empty hand), then the litharge; the next charge waits for the cake.
 - **Recipe browser.** A `cupellationfurnace` record per bar (`RecipeSection.CupellationFurnace.cs`,
@@ -6965,7 +6990,8 @@ needs `OreProcessing`; off, or with its switch off, its frame and recipe do not 
   nothing sweats. The fire door's slide is drawn through `BEOreMachine.PartDepth`, the rig's depth input.
 - **Sweating.** At `machines.liquationfurnace.perHour` (100) units of tin an hour × the pace; done when the charge's
   tin (100 units a bar) is sweated: all of it in the pot and the lead on the plate at the ore's share × 95 %
-  (`OreRecovery.Smelted`), a teallite bar 100 tin and 38 lead, a franckeite bar 100 and 28.5. An empty hand from the
+  (`OreRecovery.Smelted`), a teallite bar 100 tin and 38 lead, a franckeite bar 100 and 28.5; a whole-route bar's
+  share made whole, tin and lead (the furnace is their final step). An empty hand from the
   front takes the tin, then the lead, as `game:ingot-*` and `game:metalbit-*` (100 and 5 units); under a bit stays in
   the furnace for the next charge.
 - **Recipe browser.** A `liquationfurnace` record per tin-lead bar (`RecipeSection.LiquationFurnace.cs`): a tin ingot
@@ -7010,7 +7036,11 @@ carrying the charge's silver whole) with 80 % of the zinc, then desilverized lea
   the rest is desilverized ingots. The zinc comes back at `zincReturn` (0.8) as whole bits, the rest carried: the
   rule standing in for the Faber du Faur retort (#927). An empty hand skims the crust (the rich lead and the zinc),
   then ladles the lead out `LadleIngots` (6) a click. A full galena charge: 72 silver, 7 rich lead (2 silver
-  carried), 17 lead, 4 zinc bits back.
+  carried), 17 lead, 4 zinc bits back. The kettle is plain galena's final step: the bath's units off the whole
+  route (bars carrying `oreWholeShare`, counted as they go in) are made whole, lead and silver
+  (`ParkesKettling.Parted`), and lead short of a whole ingot is carried to the next charge as the silver is: a full
+  charge of whole-route bars, 2,426.7 lead and 72.8 silver, gives 7 rich lead (2.8 silver carried) and 17 lead
+  (26.7 carried). Broken mid-charge, the bars back carry the bath's share.
 - **Recipe browser.** A `parkeskettle` record per bullion it takes (`RecipeSection.ParkesKettle.cs`), a bar's share
   of each output and the shaft's turns a bar; its build's `construction` record; and its stirrer on the power page,
   0.04 to 0.2.
@@ -7027,7 +7057,9 @@ vessel of nitric acid in a cast-iron sand bath over a small fire, under a brick 
 front, on the shared game code above. **Batch, by hand, no power, no chute; watered by bucket.** Dore in (gold
 quartz's bullion, `seraphhorizons:bullion-quartz_nativegold-gold`: a bar of 100 units of gold carrying the ore's 15 %
 silver, #740's base bullion); out, the gold **whole** as gold bits and the silver at **95 %** as silver bits
-(`OreRecovery.Smelted(ore, units, PartingStation.AcidParting)`). Dore smelted plainly gives its gold at 85 % and loses
+(`OreRecovery.Smelted(ore, units, PartingStation.AcidParting)`); the share of a whole-route charge made whole, gold
+and silver (the vessel is gold quartz's final step; the share is read off the bars as they dissolve and kept with
+the charge). Dore smelted plainly gives its gold at 85 % and loses
 the silver. It needs `OreProcessing`; off, or with its switch off, its frame, its recipe and the aqua fortis recipe do
 not exist.
 
