@@ -10,7 +10,7 @@ namespace SeraphHorizons.PackTests;
 // seraphhorizons, Machines/ (#711, #694): the ore machines' shared code in the pack's world: every build
 // file loads and names items the game has, tailings heap up as vanilla layered gravel and sand in the
 // ore's rock, and products leave by vanilla chute. Built 40 above spawn at x 540 to 560, z 540.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     [AtlasScenario, ReadsBootLog]
     public void Ore_machine_build_files_load_cleanly_and_name_items_the_game_has()

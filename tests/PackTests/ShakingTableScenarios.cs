@@ -17,7 +17,7 @@ namespace SeraphHorizons.PackTests;
 // rotor on its controller's power face, watered by code (FillWater, as a ppex pipe would), fed by hand, washing on
 // the virtual clock into chests at its concentrate, middlings and tailings faces, its tailings then discarded as
 // sand; and broken back into everything that went in. Built 40 above spawn at x 880 to 900, z 880.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string TableFrame = "seraphhorizons:shakingtable-";
 

@@ -20,7 +20,7 @@ namespace SeraphHorizons.PackTests;
 // with lead, worked under a chimney (aged rather than waited on, its blast given: the world has no engine air blower to
 // hand), its silver, copper and litharge taken out, then capped and broken back into everything that went in. Built on
 // granite floors 40 above spawn at x 900, z 700; the gear cutter's player.
-public partial class SharedWorldScenarios
+public partial class MillWorldScenarios
 {
     private const string CupelFrame = "seraphhorizons:cupellationfurnace-";
 
